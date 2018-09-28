@@ -1,0 +1,10 @@
+find_package(Boost COMPONENTS "thread")
+find_package(GLM)
+find_package(LIBLAS)
+find_package(LASZIP QUIET)
+find_package(ZLIB)
+
+add_subdirectory(ohm2ply)
+add_subdirectory(ohmcloudfilter)
+add_subdirectory(ohmpop)
+add_subdirectory(ohmquery)

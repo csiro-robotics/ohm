@@ -1,0 +1,259 @@
+#include "gpukey.h"
+
+/// This function is called for each voxel traversed by the line walking function.
+///
+/// This function is not implemented in this source file, and must be implemented by the source including this file.
+///
+/// @param voxelKey The key for the voxel currently being traversed. This voxel is on the line.
+/// @param isEndVoxel True if @p voxelKey is the last voxel on the line.
+/// @param userData User data pointer.
+/// @return True to continue traversing the line, false to abort traversal.
+bool walkLineVoxel(const struct GpuKey *voxelKey, bool isEndVoxel, void *userData);
+
+/// Calculate the @p GpuKey for @p point local to the region's minimum extents corner.
+/// @param[out] key The output key.
+/// @param point The coordinate to calculate the @p key for in region local coordinates.
+/// @paramregionDim Defines the size of a region in voxels. Used to update the @p GpuKey.
+/// @param voxelResolution Size of a voxel from one face to another.
+/// @return True if @c point lies in the region, false otherwise.
+bool coordToKey(struct GpuKey *key, const float3 *point, const int3 *regionDim, float voxelResolution);
+
+/// Calculates the centre of the voxel defined by @p key (global space).
+/// @param key The key marking the voxel of interest.
+/// @paramregionDim Defines the size of a region in voxels. Used to update the @p GpuKey.
+/// @param voxelResolution Size of a voxel from one face to another.
+/// @return The centre of the voxel defined by @p key.
+inline float3 voxelCentre(const struct GpuKey *key, const int3 *regionDim, float voxelResolution);
+
+/// Test for equality between two @c GpuKey objects.
+/// @param a The first key.
+/// @param b The second key.
+/// @return True if @p a and @p b are exactly equal.
+inline bool equal(const struct GpuKey *a, const struct GpuKey *b);
+
+inline float getf3(const float3 *v, int index);
+inline int geti3(const int3 *v, int index);
+
+/// Line walking function for use by kernels.
+/// The algorithm walks the voxels from @c startKey to @c endKey, voxels containing @c startPoint and @c endPoint
+/// respectively. For each voxel traversed, it invokes @c walkLineVoxel().
+///
+/// @param startKey The key for the voxel containing @c startPoint.
+/// @param endKey The key for the voxel containing @c endPoint.
+/// @param startPoint The start point of the line segment to traverse.
+/// @param endPoint The end point of the line segment to traverse.
+/// @paramregionDim Defines the size of a region in voxels. Used to update the @p GpuKey.
+/// @param voxelResolution Size of a voxel from one face to another.
+/// @param userData User pointer passed to @c walkLineVoxel().
+void walkLineVoxels(const struct GpuKey *startKey, const struct GpuKey *endKey,
+                    const float3 *startPoint, const float3 *endPoint,
+                    const int3 *regionDim, float voxelResolution, void *userData);
+
+
+bool coordToKey(struct GpuKey *key, const float3 *point, const int3 *regionDim, float voxelResolution)
+{
+  // Quantise.
+  key->region[0] = pointToRegionCoord(point->x, regionDim->x * voxelResolution);
+  key->region[1] = pointToRegionCoord(point->y, regionDim->y * voxelResolution);
+  key->region[2] = pointToRegionCoord(point->z, regionDim->z * voxelResolution);
+
+  // Localise.
+  // Trying to minimise local variables for GPU.
+  // The value we pass to pointToRegionVoxel is logically:
+  //    point - regionCentre - regionHalfExtents
+  // or
+  //    point - regionMin
+  // which equates to the point in region local coordinates.
+  // printf("p.x(%f) = %f - (%f - %f)   : regionMin: %f\n",
+  //        point->x - (regionCentreCoord(key->region[0], regionDim->x * voxelResolution) - 0.5f * regionDim->x * voxelResolution),
+  //        point->x, regionCentreCoord(key->region[0], regionDim->x * voxelResolution), 0.5f * regionDim->x * voxelResolution,
+  //        regionCentreCoord(key->region[0], regionDim->x * voxelResolution) - 0.5f * regionDim->x * voxelResolution);
+  key->voxel[0] = pointToRegionVoxel(point->x -
+                  (regionCentreCoord(key->region[0], regionDim->x * voxelResolution) - 0.5f * regionDim->x * voxelResolution),
+                  voxelResolution, regionDim->x * voxelResolution);
+  key->voxel[1] = pointToRegionVoxel(point->y -
+                  (regionCentreCoord(key->region[1], regionDim->y * voxelResolution) - 0.5f * regionDim->y * voxelResolution),
+                  voxelResolution, regionDim->y * voxelResolution);
+  key->voxel[2] = pointToRegionVoxel(point->z -
+                  (regionCentreCoord(key->region[2], regionDim->z * voxelResolution) - 0.5f * regionDim->z * voxelResolution),
+                  voxelResolution, regionDim->z * voxelResolution);
+
+  if (0 <= key->voxel[0] && key->voxel[0] < regionDim->x &&
+      0 <= key->voxel[1] && key->voxel[1] < regionDim->y &&
+      0 <= key->voxel[2] && key->voxel[2] < regionDim->z)
+  {
+    return true;
+  }
+
+  // Out of range.
+  #if 1
+  printf("%u Bad key: " KEY_F "\nfrom (%.16f,%.16f,%.16f)\n"
+          "  quantisation: (%.16f,%.16f,%.16f)\n"
+          "  region: (%.16f,%.16f,%.16f)\n",
+          get_global_id(0), KEY_A(*key), point->x, point->y, point->z,
+          point->x - (regionCentreCoord(key->region[0], regionDim->x * voxelResolution) - 0.5f * regionDim->x * voxelResolution),
+          point->y - (regionCentreCoord(key->region[1], regionDim->y * voxelResolution) - 0.5f * regionDim->y * voxelResolution),
+          point->z - (regionCentreCoord(key->region[2], regionDim->z * voxelResolution) - 0.5f * regionDim->z * voxelResolution),
+          regionDim->x * voxelResolution,
+          regionDim->y * voxelResolution,
+          regionDim->z * voxelResolution
+          );
+  printf("pointToRegionCoord(%.16f, %d * %.16f = %.16f)\n",
+         point->y, regionDim->y, voxelResolution, regionDim->y * voxelResolution);
+  printf("pointToRegionVoxel(%.16f - %.16f, ...)\n", point->y,
+         regionCentreCoord(key->region[1], regionDim->y * voxelResolution) - 0.5f * (regionDim->y * voxelResolution));
+  #endif // #
+  return false;
+}
+
+
+inline float3 voxelCentre(const struct GpuKey *key, const int3 *regionDim, float voxelResolution)
+{
+  float3 voxel;
+
+  // printf("voxelCentre(" KEY_F ", [%d %d %d], %f)\n", KEY_A(*key), regionDim->x, regionDim->y, regionDim->z, voxelResolution);
+
+  // Calculation is:
+  //  - region centre - region half extents => region min extents.
+  //  - add voxel region local coordiate.
+  // Using terse code to reduce local variable load.
+  voxel.x = regionCentreCoord(key->region[0], regionDim->x * voxelResolution) - 0.5f * regionDim->x * voxelResolution + key->voxel[0] * voxelResolution + 0.5 * voxelResolution;
+  voxel.y = regionCentreCoord(key->region[1], regionDim->y * voxelResolution) - 0.5f * regionDim->y * voxelResolution + key->voxel[1] * voxelResolution + 0.5 * voxelResolution;
+  voxel.z = regionCentreCoord(key->region[2], regionDim->z * voxelResolution) - 0.5f * regionDim->z * voxelResolution + key->voxel[2] * voxelResolution + 0.5 * voxelResolution;
+
+  return voxel;
+}
+
+
+inline bool equal(const struct GpuKey *a, const struct GpuKey *b)
+{
+  return a->region[0] == b->region[0] && a->region[1] == b->region[1] && a->region[2] == b->region[2] &&
+         a->voxel[0] == b->voxel[0] && a->voxel[1] == b->voxel[1] && a->voxel[2] == b->voxel[2];
+}
+
+
+inline float getf3(const float3 *v, int index)
+{
+  // FIXME: Seems only Intel 2.0 supports array indexing.
+  // #if __OPENCL_C_VERSION__ >= 200
+  // return (*v)[index];
+  // #else  // __OPENCL_C_VERSION__ >= 200
+  return (index == 0) ? v->x : ((index == 1) ? v->y : v->z);
+  // #endif // __OPENCL_C_VERSION__ >= 200
+}
+
+
+inline int geti3(const int3 *v, int index)
+{
+  // FIXME: Seems only Intel 2.0 supports array indexing.
+  // #if __OPENCL_C_VERSION__ >= 200
+  // return (*v)[index];
+  // #else  // __OPENCL_C_VERSION__ >= 200
+  return (index == 0) ? v->x : ((index == 1) ? v->y : v->z);
+  // #endif // __OPENCL_C_VERSION__ >= 200
+}
+
+void walkLineVoxels(const struct GpuKey *startKey, const struct GpuKey *endKey,
+                    const float3 *startPoint, const float3 *endPoint,
+                    const int3 *regionDim, float voxelResolution, void *userData)
+{
+  // see "A Faster Voxel Traversal Algorithm for Ray Tracing" by Amanatides & Woo
+  float timeMax[3];
+  float timeDelta[3];
+  float timeLimit[3];
+  int step[3] = { 0 };
+  bool continueTraversal = true;
+
+  // BUG: Intel OpenCL 2.0 compiler does not effect the commented assignment below. I've had to unrolled it.
+  // struct GpuKey currentKey = *startKey;
+  struct GpuKey currentKey;
+  copyKey(&currentKey, startKey);
+
+  // printf("Start point : %f %f %f, " KEY_F "\n", startPoint->x, startPoint->y, startPoint->z, KEY_A(*startKey));
+  // printf("End point : %f %f %f\n", endPoint->x, endPoint->y, endPoint->z);
+  // printf("currentKey: " KEY_F "\n", KEY_A(currentKey));
+
+  // Compute step direction, increments and maximums along each axis.
+  {
+    // Scoped to try reduce local variable load on local memory.
+    const float3 direction = normalize(*endPoint - *startPoint);
+    const float3 voxel = voxelCentre(&currentKey, regionDim, voxelResolution);
+    // printf("V: %f %f %f\n", voxel.x, voxel.y, voxel.z);
+    // printf("C: " KEY_F "\n", KEY_A(currentKey));
+    for (unsigned i = 0; i < 3; ++i)
+    {
+      if (getf3(&direction, i) != 0)
+      {
+        const float directionAxisInv = 1.0f / getf3(&direction, i);
+        step[i] = (getf3(&direction, i) > 0) ? 1 : -1;
+        // Time delta is the ray time between voxel boundaries calculated for each axis.
+        timeDelta[i] = voxelResolution * fabs(directionAxisInv);
+        // Calculate the distance from the origin to the nearest voxel edge for this axis.
+        const float nextVoxelBorder = getf3(&voxel, i) + step[i] * 0.5f * voxelResolution;
+        timeMax[i] = (nextVoxelBorder - getf3(startPoint, i)) * directionAxisInv;
+        timeLimit[i] = fabs((getf3(endPoint, i) - getf3(startPoint, i)) * directionAxisInv);// +0.5f * voxelResolution;
+      }
+      else
+      {
+        timeMax[i] = timeDelta[i] = FLT_MAX;
+        timeLimit[i] = 0;
+      }
+    }
+  }
+
+  // printf("\n");
+  // for (int i = 0; i < 3; ++i)
+  // {
+  //   printf("timeMax[%d]: %f timeLimit[%d]: %f timeDelta[%d]: %f\n",
+  //          i, timeMax[i], i, timeLimit[i], i, timeDelta[i]);
+  // }
+
+  // printf("S: " KEY_F " C: " KEY_F " E: " KEY_F "\n", KEY_A(*startKey), KEY_A(currentKey), KEY_A(*endKey));
+
+  int axis = 0;
+  bool limitReached = false;
+  #ifdef LIMIT_LINE_WALK_ITERATIONS
+  int iterations = 0;
+  const int iterLimit = 2 * 32768;
+  #endif // LIMIT_LINE_WALK_ITERATIONS
+  while (!limitReached && !equal(&currentKey, endKey) && continueTraversal)
+  {
+    #ifdef LIMIT_LINE_WALK_ITERATIONS
+    if (iterations++ > iterLimit)
+    {
+      printf("%u excessive line walk iterations.\n"
+             "S: " KEY_F " E: " KEY_F "\n",
+             "C: " KEY_F "\n"
+             get_global_id(0), KEY_A(*startKey), KEY_A(*endKey), KEY_A(currentKey));
+      break;
+    }
+    #endif // LIMIT_LINE_WALK_ITERATIONS
+    continueTraversal = walkLineVoxel(&currentKey, false, userData);
+    // Select the minimum timeMax as the next axis.
+    axis = (timeMax[0] < timeMax[2]) ? ((timeMax[0] < timeMax[1]) ? 0 : 1) : ((timeMax[1] < timeMax[2]) ? 1 : 2);
+    limitReached = fabs(timeMax[axis]) > timeLimit[axis];
+    stepKeyAlongAxis(&currentKey, axis, step[axis], regionDim);
+    timeMax[axis] += timeDelta[axis];
+  }
+
+  // if (limitReached)
+  // {
+  //   printf("%u limitReached\n", get_global_id(0));
+  //   printf("timeMax[%d]: %f timeLimit[%d]: %f timeDelta[%d]: %f\n",
+  //          axis, timeMax[axis], axis, timeLimit[axis], axis, timeDelta[axis]);
+  // }
+  // if (equal(&currentKey, endKey))
+  // {
+  //   printf("%u currentKey == endKey\n", get_global_id(0));
+  // }
+  // if (!continueTraversal)
+  // {
+  //   printf("%u continueTraversal = false\n", get_global_id(0));
+  // }
+
+  // Walk end point.
+  if (continueTraversal)
+  {
+    walkLineVoxel(endKey, true, userData);
+  }
+}

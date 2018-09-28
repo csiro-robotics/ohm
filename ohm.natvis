@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
+  <Type Name="glm::tvec3&lt;*&gt;">
+    <AlternativeType Name="glm::vec3"/>
+    <AlternativeType Name="glm::dvec3"/>
+    <AlternativeType Name="glm::i8vec3"/>
+    <AlternativeType Name="glm::i16vec3"/>
+    <AlternativeType Name="glm::ivec3"/>
+    <AlternativeType Name="glm::u8vec3"/>
+    <AlternativeType Name="glm::u16vec3"/>
+    <AlternativeType Name="glm::uvec3"/>
+    <DisplayString>({x},{y},{z})</DisplayString>
+    <Expand>
+      <Item Name="x">x</Item>
+      <Item Name="y">y</Item>
+      <Item Name="z">z</Item>
+      <Item Name="len2">x*x + y*y + z*z</Item>
+    </Expand>
+  </Type>
+
+  <Type Name="ohm::NodeBase">
+    <!--
+      Expression to reference occupancy value
+        ((float*)(*_chunk).voxelMaps[0])[_key._local.x + _key._local.y * (*_map).regionVoxelDimensions.x + _key._local.z * (*_map).regionVoxelDimensions.x * (*_map).regionVoxelDimensions.y]
+    -->
+    <!-- Expression to reference clearance value
+      ((float*)(*_chunk).voxelMaps[1])[_key._local.x + _key._local.y * (*_map).regionVoxelDimensions.x + _key._local.z * (*_map).regionVoxelDimensions.x * (*_map).regionVoxelDimensions.y]
+    -->
+
+    <DisplayString Condition="!_chunk || !_map">null</DisplayString>
+    <DisplayString Condition="((float*)(*_chunk).voxelMaps[0])[_key._local.x + _key._local.y * (*_map).regionVoxelDimensions.x + _key._local.z * (*_map).regionVoxelDimensions.x * (*_map).regionVoxelDimensions.y] &gt; 1.e38">unknown [{_key} {((float*)(*_chunk).voxelMaps[0])[_key._local.x + _key._local.y * (*_map).regionVoxelDimensions.x + _key._local.z * (*_map).regionVoxelDimensions.x * (*_map).regionVoxelDimensions.y]}]</DisplayString>
+    <DisplayString Condition="((float*)(*_chunk).voxelMaps[0])[_key._local.x + _key._local.y * (*_map).regionVoxelDimensions.x + _key._local.z * (*_map).regionVoxelDimensions.x * (*_map).regionVoxelDimensions.y] &lt; (*_map).occupancyThresholdValue">free [{_key} {((float*)(*_chunk).voxelMaps[0])[_key._local.x + _key._local.y * (*_map).regionVoxelDimensions.x + _key._local.z * (*_map).regionVoxelDimensions.x * (*_map).regionVoxelDimensions.y]}]</DisplayString>
+    <DisplayString Condition="((float*)(*_chunk).voxelMaps[0])[_key._local.x + _key._local.y * (*_map).regionVoxelDimensions.x + _key._local.z * (*_map).regionVoxelDimensions.x * (*_map).regionVoxelDimensions.y] &gt;= (*_map).occupancyThresholdValue">occupied [{_key} {((float*)(*_chunk).voxelMaps[0])[_key._local.x + _key._local.y * (*_map).regionVoxelDimensions.x + _key._local.z * (*_map).regionVoxelDimensions.x * (*_map).regionVoxelDimensions.y]}]</DisplayString>
+    <DisplayString>invalid [{_key}]</DisplayString>
+    <Expand>
+      <Item Name="occupancy">((float*)(*_chunk).voxelMaps[0])[_key._local.x + _key._local.y * (*_map).regionVoxelDimensions.x + _key._local.z * (*_map).regionVoxelDimensions.x * (*_map).regionVoxelDimensions.y]</Item>
+      <Item Name="clearance">((float*)(*_chunk).voxelMaps[1])[_key._local.x + _key._local.y * (*_map).regionVoxelDimensions.x + _key._local.z * (*_map).regionVoxelDimensions.x * (*_map).regionVoxelDimensions.y]</Item>
+      <Item Name="_key">_key</Item>
+      <Item Name="_chunk">_chunk</Item>
+      <Item Name="_map">_map</Item>
+    </Expand>
+  </Type>
+
+  <Type Name="ohm::OccupancyKey">
+    <DisplayString>L:({(int)((unsigned char *)&amp;_local)[0]},{(int)((unsigned char *)&amp;_local)[1]},{(int)((unsigned char *)&amp;_local)[2]}) R:({((short *)&amp;_regionKey)[0]},{((short *)&amp;_regionKey)[1]},{((short *)&amp;_regionKey)[2]})</DisplayString>
+    <Expand>
+      <!-- Should be using a synthetic type, but it's not working -->
+      <Synthetic Name="local">
+        <DisplayString>({(int)((unsigned char *)&amp;_local)[0]},{(int)((unsigned char *)&amp;_local)[1]},{(int)((unsigned char *)&amp;_local)[2]})</DisplayString>
+        <Expand>
+          <Item Name="x">(int)((unsigned char *)&amp;_local)[0]</Item>
+          <Item Name="y">(int)((unsigned char *)&amp;_local)[1]</Item>
+          <Item Name="z">(int)((unsigned char *)&amp;_local)[2]</Item>
+        </Expand>
+      </Synthetic>
+      <Synthetic Name="region">
+        <DisplayString>({((short *)&amp;_regionKey)[0]},{((short *)&amp;_regionKey)[1]},{((short *)&amp;_regionKey)[2]})</DisplayString>
+        <Expand>
+          <Item Name="x">((short *)&amp;_regionKey)[0]</Item>
+          <Item Name="y">((short *)&amp;_regionKey)[1]</Item>
+          <Item Name="z">((short *)&amp;_regionKey)[2]</Item>
+        </Expand>
+      </Synthetic>
+      <!-- <Item Name="_local.x">(int)((unsigned char *)&amp;_local)[0]</Item>
+      <Item Name="_local.y">(int)((unsigned char *)&amp;_local)[1]</Item>
+      <Item Name="_local.z">(int)((unsigned char *)&amp;_local)[2]</Item>
+      <Item Name="_regionKey.x">((short *)&amp;_regionKey)[0]</Item>
+      <Item Name="_regionKey.y">((short *)&amp;_regionKey)[1]</Item>
+      <Item Name="_regionKey.z">((short *)&amp;_regionKey)[2]</Item> -->
+    </Expand>
+  </Type>
+</AutoVisualizer>
