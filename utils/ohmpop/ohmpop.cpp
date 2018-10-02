@@ -5,25 +5,25 @@
 
 #include <glm/glm.hpp>
 
-#include "slamcloudloader.h"
+#include <slamio/slamcloudloader.h>
 
-#include "ohmclearanceprocess.h"
-#include "ohmmapper.h"
-#include "ohmmappingprocess.h"
-#include "occupancygpu.h"
-#include "occupancygpumap.h"
-#include "occupancymap.h"
-#include "occupancymapserialise.h"
-#include "occupancynode.h"
-#include "occupancytype.h"
-#include "occupancyutil.h"
-#include "ohmutil.h"
-#include "plymesh.h"
-#include "progressmonitor.h"
-#include "safeio.h"
-#include "scopedtimedisplay.h"
+#include <ohm/ohmclearanceprocess.h>
+#include <ohm/ohmmapper.h>
+#include <ohm/ohmmappingprocess.h>
+#include <ohm/occupancygpu.h>
+#include <ohm/occupancygpumap.h>
+#include <ohm/occupancymap.h>
+#include <ohm/occupancymapserialise.h>
+#include <ohm/occupancynode.h>
+#include <ohm/occupancytype.h>
+#include <ohm/occupancyutil.h>
+#include <ohmutil/ohmutil.h>
+#include <ohmutil/plymesh.h>
+#include <ohmutil/progressmonitor.h>
+#include <ohmutil/safeio.h>
+#include <ohmutil/scopedtimedisplay.h>
 
-#include <options.h>
+#include <ohmutil/options.h>
 
 #include <algorithm>
 #include <atomic>

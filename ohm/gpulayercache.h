@@ -10,9 +10,9 @@
 
 #include <glm/glm.hpp>
 
-#include <gpubuffer.h>
-#include <gpudevice.h>
-#include <gpuqueue.h>
+#include <gputil/gpubuffer.h>
+#include <gputil/gpudevice.h>
+#include <gputil/gpuqueue.h>
 
 #include <unordered_map>
 #include <vector>

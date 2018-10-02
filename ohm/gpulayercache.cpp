@@ -12,7 +12,7 @@
 #include "mapregion.h"
 #include "occupancymap.h"
 
-#include <gpudevice.h>
+#include <gputil/gpudevice.h>
 
 #include <cassert>
 #include <iostream>

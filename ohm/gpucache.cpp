@@ -10,7 +10,7 @@
 
 #include "occupancygpu.h"
 
-#include <gpudevice.h>
+#include <gputil/gpudevice.h>
 
 #include <vector>
 

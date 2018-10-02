@@ -21,12 +21,15 @@
 #include "private/occupancymapdetail.h"
 #include "private/occupancynodealgorithms.h"
 #include "private/occupancyqueryalg.h"
-
 #include "occupancyutil.h"
-
 #include "gpulayercache.h"
 #include "occupancygpumap.h"
-#include <gpuplatform.h>
+#include "occupancygpu.h"
+
+#include <ohmutil/profile.h>
+
+#include <gputil/gpupinnedbuffer.h>
+#include <gputil/gpuplatform.h>
 
 #include <3esservermacros.h>
 
@@ -48,14 +51,9 @@
 #define PROFILING 1
 #endif  // OHM_PROFILE
 
-#include <profile.h>
-
 using namespace ohm;
 
 #define VALIDATE_VALUES_UNCHANGED 0
-
-#include "gpupinnedbuffer.h"
-#include "occupancygpu.h"
 
 namespace
 {
@@ -537,7 +535,7 @@ bool ClearanceProcess::updateRegion(OccupancyMap &map, const glm::i16vec3 &regio
   const uint64_t targetStamp = map.stamp();
 
   // Debug highlight the region.
-  TES_BOX_W(g_3es, TES_COLOUR(FireBrick), uint32_t((size_t)d->map), glm::value_ptr(d->map->regionSpatialCentre(regionKey)), glm::value_ptr(d->map->regionSpatialExtents()));
+  TES_BOX_W(g_3es, TES_COLOUR(FireBrick), uint32_t((size_t)&map), glm::value_ptr(map.regionSpatialCentre(regionKey)), glm::value_ptr(map.regionSpatialResolution()));
 
   if ((d->queryFlags & QF_GpuEvaluate) && d->gpuQuery->valid())
   {
@@ -595,8 +593,8 @@ bool ClearanceProcess::updateRegion(OccupancyMap &map, const glm::i16vec3 &regio
 
   TES_SERVER_UPDATE(g_3es, 0.0f);
   // Delete debug objects.
-  // TES_SPHERE_END(g_3es, uint32_t((size_t)map));
-  TES_BOX_END(g_3es, uint32_t((size_t)map));
+  // TES_SPHERE_END(g_3es, uint32_t((size_t)&map));
+  TES_BOX_END(g_3es, uint32_t((size_t)&map));
 
   // Regions are up to date *now*.
   region->touchedStamps[DL_Clearance] = targetUpdateStamp;

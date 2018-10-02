@@ -10,8 +10,11 @@
 # as required. That is, this is a good place to find external dependencies for the project libraries.
 # https://cmake.org/cmake/help/v3.5/manual/cmake-packages.7.html#creating-a-package-configuration-file
 
+# Configuration
+include("${CMAKE_CURRENT_LIST_DIR}/ohm-packages.cmake")
+
 # Include the generated configuration file.
-include("${CMAKE_CURRENT_LIST_DIR}/aproject-config-targets.cmake")
+include("${CMAKE_CURRENT_LIST_DIR}/ohm-config-targets.cmake")
 
 function(register_target TARGET INCLUDES_VAR LIBRARIES_VAR)
   if(TARGET ${TARGET})
@@ -69,5 +72,9 @@ function(register_target TARGET INCLUDES_VAR LIBRARIES_VAR)
   endif(TARGET ${TARGET})
 endfunction(register_target)
 
-register_target(aproject::alib APROJECT_INCLUDE_DIRS APROJECT_LIBRARIES)
-register_target(aproject::blib APROJECT_INCLUDE_DIRS APROJECT_LIBRARIES)
+register_target(ohm::clu OHM_INCLUDE_DIRS OHM_LIBRARIES)
+register_target(ohm::gputil OHM_INCLUDE_DIRS OHM_LIBRARIES)
+register_target(ohm::ohm OHM_INCLUDE_DIRS OHM_LIBRARIES)
+register_target(ohm::ohmtools OHM_INCLUDE_DIRS OHM_LIBRARIES)
+register_target(ohm::ohmutil OHM_INCLUDE_DIRS OHM_LIBRARIES)
+register_target(ohm::slamio OHM_INCLUDE_DIRS OHM_LIBRARIES)

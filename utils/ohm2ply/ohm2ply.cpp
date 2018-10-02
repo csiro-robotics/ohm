@@ -3,15 +3,15 @@
 //
 #include <glm/glm.hpp>
 
-#include "mapcache.h"
-#include "occupancykey.h"
-#include "occupancykeylist.h"
-#include "occupancymap.h"
-#include "occupancymapserialise.h"
-#include "occupancynode.h"
-#include "occupancytype.h"
-#include "plymesh.h"
-#include "progressmonitor.h"
+#include <ohm/mapcache.h>
+#include <ohm/occupancykey.h>
+#include <ohm/occupancykeylist.h>
+#include <ohm/occupancymap.h>
+#include <ohm/occupancymapserialise.h>
+#include <ohm/occupancynode.h>
+#include <ohm/occupancytype.h>
+#include <ohmutil/plymesh.h>
+#include <ohmutil/progressmonitor.h>
 
 #include <algorithm>
 #include <chrono>
@@ -121,7 +121,7 @@ std::ostream &operator<<(std::ostream &out, const ExportMode mode)
 
 
 // Must be after argument streaming operators.
-#include <options.h>
+#include <ohmutil/options.h>
 
 int parseOptions(Options &opt, int argc, char *argv[])
 {

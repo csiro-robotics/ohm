@@ -5,26 +5,22 @@
 // Author: Kazys Stepanas
 #include <gtest/gtest.h>
 
-#include "mapcache.h"
-#include "occupancymap.h"
-#include "occupancyqueryflag.h"
-#include "occupancyutil.h"
-#include "ohmclearanceprocess.h"
-#include "mapprobability.h"
-#include "mapchunk.h"
-#include "profile.h"
+#include <ohm/mapcache.h>
+#include <ohm/occupancymap.h>
+#include <ohm/occupancyqueryflag.h>
+#include <ohm/occupancyutil.h>
+#include <ohm/ohmclearanceprocess.h>
+#include <ohm/mapprobability.h>
+#include <ohm/mapchunk.h>
+#include <ohm/maplayout.h>
+#include <ohm/occupancygpumap.h>
 
-#include "maplayout.h"
+#include <ohmtools/ohmgen.h>
+#include <ohmtools/ohmcloud.h>
 
-#include "occupancygpumap.h"
-
-#include "ohmgen.h"
-
-#include <plymesh.h>
-
-#include <ohmcloud.h>
-
-#include <ohmutil.h>
+#include <ohmutil/ohmutil.h>
+#include <ohmutil/profile.h>
+#include <ohmutil/plymesh.h>
 
 #include <chrono>
 #include <iostream>

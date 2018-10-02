@@ -17,7 +17,7 @@
 
 #include "private/occupancymapdetail.h"
 
-#include <linewalk.h>
+#include <ohmutil/linewalk.h>
 
 #include <algorithm>
 #include <cassert>

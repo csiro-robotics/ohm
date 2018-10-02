@@ -15,6 +15,7 @@
 #include "private/occupancymapdetail.h"
 #include "private/occupancynearestneighboursdetail.h"
 #include "private/occupancyqueryalg.h"
+#include "occupancygpu.h"
 
 #include <3esservermacros.h>
 
@@ -26,8 +27,7 @@
 #include <iostream>
 #include <limits>
 
-#include "occupancygpu.h"
-#include "gpupinnedbuffer.h"
+#include <gputil/gpupinnedbuffer.h>
 
 using namespace ohm;
 

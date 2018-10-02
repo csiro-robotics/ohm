@@ -4,7 +4,7 @@
 //
 // Author: Kazys Stepanas
 
-#include "gpubuffer.h"
+#include "gputil/gpubuffer.h"
 
 #include "gpuapiexception.h"
 #include "gpubufferdetail.h"
@@ -15,8 +15,8 @@
 
 #include <algorithm>
 #include <cinttypes>
-#include <clu.h>
-#include <clubuffer.h>
+#include <clu/clu.h>
+#include <clu/clubuffer.h>
 #include <cstring>
 
 #define USE_PINNED 1

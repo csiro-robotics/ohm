@@ -5,17 +5,16 @@
 // Author: Kazys Stepanas
 #include <gtest/gtest.h>
 
-#include <gpubuffer.h>
-#include <gpudevice.h>
-#include <gpuevent.h>
-#include <gpupinnedbuffer.h>
-#include <gpuqueue.h>
+#include <gputil/gpubuffer.h>
+#include <gputil/gpudevice.h>
+#include <gputil/gpuevent.h>
+#include <gputil/gpupinnedbuffer.h>
+#include <gputil/gpuqueue.h>
+#include <gputil/cl/gpueventdetail.h>
 
 #include <chrono>
 
-#include <ohmutil.h>
-
-#include <gpueventdetail.h>
+#include <ohmutil/ohmutil.h>
 
 extern gputil::Device g_gpu;
 

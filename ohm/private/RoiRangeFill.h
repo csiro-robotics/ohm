@@ -10,8 +10,8 @@
 
 #include <glm/glm.hpp>
 
-#include <gpubuffer.h>
-#include <gpudevice.h>
+#include <gputil/gpubuffer.h>
+#include <gputil/gpudevice.h>
 
 namespace ohm
 {

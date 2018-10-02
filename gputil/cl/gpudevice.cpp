@@ -9,11 +9,11 @@
 #include "gpuapiexception.h"
 #include "gpudevicedetail.h"
 
-#include <clu.h>
+#include <clu/clu.h>
+#include <clu/cluconstraint.h>
 
 #include <sstream>
 #include <vector>
-#include "cluconstraint.h"
 
 using namespace gputil;
 

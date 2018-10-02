@@ -9,9 +9,9 @@
 
 #include "gpuconfig.h"
 
-#include <cl.hpp>
+#include <clu/cl.hpp>
 
-#include "gpudevice.h"
+#include "gputil/gpudevice.h"
 
 #include <string>
 

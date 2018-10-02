@@ -17,10 +17,10 @@
 #include "private/occupancygpumapdetail.h"
 #include "private/occupancymapdetail.h"
 
-#include <gpubuffer.h>
-#include <gpuevent.h>
-#include <gpupinnedbuffer.h>
-#include <gpuplatform.h>
+#include <gputil/gpubuffer.h>
+#include <gputil/gpuevent.h>
+#include <gputil/gpupinnedbuffer.h>
+#include <gputil/gpuplatform.h>
 
 #include <glm/ext.hpp>
 

@@ -5,12 +5,12 @@
 // Author: Kazys Stepanas
 #include "ohmgen.h"
 
-#include "occupancykey.h"
-#include "occupancykeylist.h"
-#include "occupancymap.h"
-#include "occupancyutil.h"
-#include "occupancytype.h"
-#include "mapcache.h"
+#include <ohm/occupancykey.h>
+#include <ohm/occupancykeylist.h>
+#include <ohm/occupancymap.h>
+#include <ohm/occupancyutil.h>
+#include <ohm/occupancytype.h>
+#include <ohm/mapcache.h>
 
 #include <exception>
 

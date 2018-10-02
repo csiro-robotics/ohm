@@ -8,24 +8,22 @@
 #include "cl/clprogram.h"
 #include "private/occupancygpumapdetail.h"
 
-#include <gpuplatform.h>
-
 #ifdef OHM_PROFILE
-#include "occupancyutil.h"
-#include "ohmutil.h"
+#include <ohm/occupancyutil.h>
 #endif //  OHM_PROFILE
-#include "ohmutil.h"
+#include <ohmutil/ohmutil.h>
 
-#include <gpudevice.h>
-#include <gpuqueue.h>
+#include <gputil/gpuplatform.h>
+#include <gputil/gpudevice.h>
+#include <gputil/gpuqueue.h>
 
-#include <clu.h>
-#include <clukernel.h>
-#include <cluprogram.h>
+#include <clu/clu.h>
+#include <clu/clukernel.h>
+#include <clu/cluprogram.h>
 
-#include <cl/gpudevicedetail.h>
-#include <cl/gpueventdetail.h>
-#include <cl/gpuqueuedetail.h>
+#include <gputil/cl/gpudevicedetail.h>
+#include <gputil/cl/gpueventdetail.h>
+#include <gputil/cl/gpuqueuedetail.h>
 
 #include <algorithm>
 #include <mutex>

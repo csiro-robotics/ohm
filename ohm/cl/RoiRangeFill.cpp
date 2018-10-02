@@ -15,10 +15,10 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
-#include <clu.h>
-#include <clukernel.h>
+#include <clu/clu.h>
+#include <clu/clukernel.h>
 
-#include <cl/gpuqueuedetail.h>
+#include <gputil/cl/gpuqueuedetail.h>
 
 #include <mutex>
 
@@ -30,7 +30,7 @@
 #ifdef OHM_PROFILE
 #define PROFILING 1
 #endif // OHM_PROFILE
-#include <profile.h>
+#include <ohmutil/profile.h>
 
 using namespace ohm;
 

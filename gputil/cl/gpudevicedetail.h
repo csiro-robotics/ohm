@@ -7,7 +7,7 @@
 #ifndef GPUDEVICEDETAIL_H_
 #define GPUDEVICEDETAIL_H_
 
-#include <clu.h>
+#include <clu/clu.h>
 
 namespace gputil
 {

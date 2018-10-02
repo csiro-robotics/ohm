@@ -56,21 +56,22 @@ set(PUBLIC_HEADERS
   scopedtimedisplay.h
   spinlock.h
   vectorhash.h
-  "${CMAKE_CURRENT_BINARY_DIR}/ohmutilexport.h"
+  "${CMAKE_CURRENT_BINARY_DIR}/ohmutil/ohmutilexport.h"
 )
 
 add_library(ohmutil ${SOURCES})
 
 generate_export_header(ohmutil
       EXPORT_MACRO_NAME ohmutil_API
-      EXPORT_FILE_NAME ohmutilexport.h
+      EXPORT_FILE_NAME ohmutil/ohmutilexport.h
       STATIC_DEFINE ohmutil_STATIC)
 
 target_include_directories(ohmutil
   PUBLIC
+    $<INSTALL_INTERFACE:${OHM_PREFIX_INCLUDE}>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}>
-    $<INSTALL_INTERFACE:include/ohm/ohmutil>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/ohmutil>
+    $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}>
 )
 
 target_include_directories(ohmutil SYSTEM
@@ -86,10 +87,10 @@ install(TARGETS ohmutil EXPORT ${CMAKE_PROJECT_NAME}-config-targets
   LIBRARY DESTINATION lib
   ARCHIVE DESTINATION lib
   RUNTIME DESTINATION bin
-  INCLUDES DESTINATION include
+  INCLUDES DESTINATION ${OHM_PREFIX_INCLUDE}/ohmutil
 )
 
-install(FILES ${PUBLIC_HEADERS} DESTINATION include/ohmutil)
+install(FILES ${PUBLIC_HEADERS} DESTINATION ${OHM_PREFIX_INCLUDE}/ohmutil)
 
 source_group("source" REGULAR_EXPRESSION ".*$")
 # Needs CMake 3.8+:

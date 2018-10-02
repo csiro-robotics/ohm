@@ -6,7 +6,7 @@
 
 #include "occupancykey.h"
 #include "mapnode.h"
-#include <vectorhash.h>
+#include <ohmutil/vectorhash.h>
 
 #ifdef OHM_VALIDATION
 #include <cstdio>

@@ -3,7 +3,7 @@
 // ABN 41 687 119 230
 //
 // Author: Kazys Stepanas
-#include "occupancygpu.h"
+#include <ohm/occupancygpu.h>
 
 #include <gtest/gtest.h>
 

@@ -8,8 +8,8 @@
 
 #include "ohmconfig.h"
 
-#include <cl.hpp>
-#include <clukernel.h>
+#include <clu/cl.hpp>
+#include <clu/clukernel.h>
 
 #include <string>
 #include <vector>

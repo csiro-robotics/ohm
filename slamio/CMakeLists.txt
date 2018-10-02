@@ -20,21 +20,21 @@ set(SOURCES
 
 set(PUBLIC_HEADERS
   slamcloudloader.h
-  "${CMAKE_CURRENT_BINARY_DIR}/slamioexport.h"
+  "${CMAKE_CURRENT_BINARY_DIR}/slamio/slamioexport.h"
 )
 
 add_library(slamio ${SOURCES})
 
 generate_export_header(slamio
       EXPORT_MACRO_NAME slamio_API
-      EXPORT_FILE_NAME slamioexport.h
+      EXPORT_FILE_NAME slamio/slamioexport.h
       STATIC_DEFINE slamio_STATIC)
 
 target_include_directories(slamio
   PUBLIC
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}>
-    $<INSTALL_INTERFACE:include/ohm/slamio>
+    $<INSTALL_INTERFACE:${OHM_PREFIX_INCLUDE}>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/slamio>
+    $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}>
 )
 
 target_include_directories(slamio SYSTEM
@@ -58,10 +58,10 @@ install(TARGETS slamio EXPORT ${CMAKE_PROJECT_NAME}-config-targets
   LIBRARY DESTINATION lib
   ARCHIVE DESTINATION lib
   RUNTIME DESTINATION bin
-  INCLUDES DESTINATION include
+  INCLUDES DESTINATION ${OHM_PREFIX_INCLUDE}/slamio
 )
 
-install(FILES ${PUBLIC_HEADERS} DESTINATION include/slamio)
+install(FILES ${PUBLIC_HEADERS} DESTINATION ${OHM_PREFIX_INCLUDE}/slamio)
 
 source_group("source" REGULAR_EXPRESSION ".*$")
 # Needs CMake 3.8+:

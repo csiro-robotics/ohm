@@ -8,7 +8,7 @@
 #pragma warning(disable : 4996)
 #endif // _MSC_VER
 
-#include "safeio.h"
+#include <ohmutil/safeio.h>
 
 #include <glm/glm.hpp>
 #include <glm/ext.hpp>

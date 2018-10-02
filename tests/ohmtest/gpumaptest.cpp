@@ -5,17 +5,16 @@
 // Author: Kazys Stepanas
 #include <gtest/gtest.h>
 
-#include "mapcache.h"
-#include "occupancygpumap.h"
-#include "occupancymap.h"
-#include "occupancykeylist.h"
-#include "occupancyutil.h"
-#include "mapprobability.h"
-#include "mapchunk.h"
+#include <ohm/mapcache.h>
+#include <ohm/occupancygpumap.h>
+#include <ohm/occupancymap.h>
+#include <ohm/occupancykeylist.h>
+#include <ohm/occupancyutil.h>
+#include <ohm/mapprobability.h>
+#include <ohm/mapchunk.h>
 
-#include <ohmcloud.h>
-
-#include <ohmutil.h>
+#include <ohmtools/ohmcloud.h>
+#include <ohmutil/ohmutil.h>
 
 #include <chrono>
 #include <iostream>

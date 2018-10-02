@@ -9,15 +9,15 @@
 #include "occupancykeylist.h"
 #include "occupancymap.h"
 #include "occupancygpu.h"
-#include "gpupinnedbuffer.h"
 #include "occupancyutil.h"
 
-#include <string.h>
+#include <gputil/gpupinnedbuffer.h>
 
 #include <glm/gtc/type_ptr.hpp>
 
 #include <algorithm>
 #include <chrono>
+#include <cstring>
 #include <thread>
 
 using namespace ohm;

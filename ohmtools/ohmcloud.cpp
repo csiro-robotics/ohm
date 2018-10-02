@@ -5,11 +5,11 @@
 // Author: Kazys Stepanas
 #include "ohmcloud.h"
 
-#include <occupancymap.h>
-#include <occupancyquery.h>
-#include <occupancytype.h>
+#include <ohm/occupancymap.h>
+#include <ohm/occupancyquery.h>
+#include <ohm/occupancytype.h>
 
-#include <plymesh.h>
+#include <ohmutil/plymesh.h>
 
 #include <algorithm>
 

@@ -5,7 +5,7 @@
 // Author: Kazys Stepanas
 #include "gpuapiexception.h"
 
-#include <clu.h>
+#include <clu/clu.h>
 
 using namespace gputil;
 

@@ -19,8 +19,7 @@ else()
 endif(OHM_GPU STREQUAL "OpenCL")
 
 set(TES_ENABLE ${OHM_TES_DEBUG})
-configure_file(ohmconfig.in.h ohmconfig.h)
-set(SOURCES "${CMAKE_CURRENT_BINARY_DIR}/ohmconfig.h")
+configure_file(ohmconfig.in.h "${CMAKE_CURRENT_BINARY_DIR}/ohm/ohmconfig.h")
 
 set(SOURCES
   private/clearanceprocessdetail.cpp
@@ -95,6 +94,7 @@ endif(TES_ENABLE)
 set(PUBLIC_HEADERS
   mapcache.h
   mapchunk.h
+  mapchunkflag.h
   maplayer.h
   maplayout.h
   mapnode.h
@@ -112,14 +112,16 @@ set(PUBLIC_HEADERS
   occupancyquery.h
   occupancyqueryflag.h
   occupancytype.h
+  occupancyutil.h
   ohmdatatype.h
   ohmclearanceprocess.h
   ohmdefaultlayers.h
   ohmmapper.h
   ohmmappingprocess.h
+  ohmstream.h
   ohmvoxellayout.h
-  "${CMAKE_CURRENT_BINARY_DIR}/ohmconfig.h"
-  "${CMAKE_CURRENT_BINARY_DIR}/ohmexport.h"
+  "${CMAKE_CURRENT_BINARY_DIR}/ohm/ohmconfig.h"
+  "${CMAKE_CURRENT_BINARY_DIR}/ohm/ohmexport.h"
   )
 
 if(OHM_GPU)
@@ -159,6 +161,7 @@ if(OHM_GPU)
   list(APPEND PUBLIC_HEADERS
     gpucache.h
     gpucacheparams.h
+    gpukey.h
     gpulayercache.h
     occupancygpumap.h
   )
@@ -208,7 +211,15 @@ if(USE_CUDA)
 else(USE_CUDA)
   add_library(ohm ${SOURCES})
 endif(USE_CUDA)
-target_link_libraries(ohm ${ZLIB_LIBRARIES} 3es::3es-core ohmutil gputil)
+
+target_link_libraries(ohm ${ZLIB_LIBRARIES} ohmutil gputil)
+
+if(OHM_TES_DEBUG)
+  target_link_libraries(ohm 3es::3es-core)
+else(OHM_TES_DEBUG)
+  target_include_directories(ohm PRIVATE SYSTEM "${3ES_INCLUDE_DIRS}")
+endif(OHM_TES_DEBUG)
+
 
 if(OHM_GPU_API STREQUAL "OpenCL")
   target_link_libraries(ohm clu)
@@ -239,25 +250,25 @@ endif()
 
 generate_export_header(ohm
       EXPORT_MACRO_NAME ohm_API
-      EXPORT_FILE_NAME ohmexport.h
+      EXPORT_FILE_NAME ohm/ohmexport.h
       STATIC_DEFINE OHM_STATIC)
 
 target_include_directories(ohm
   PUBLIC
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
+    $<INSTALL_INTERFACE:${OHM_PREFIX_INCLUDE}>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/ohm>
+    $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}>
+  PRIVATE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
 )
 
 target_include_directories(ohm SYSTEM
   PUBLIC "${GLM_INCLUDE_DIR}"
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/../3rdparty/tes/3es-core>
   PRIVATE "${ZLIB_INCLUDE_DIR}"
 )
 
 if(OHM_THREADS)
-  # target_include_directories(ohm SYSTEM
-  #   PRIVATE "${TBB_INCLUDE_DIR}"
-  # )
   target_link_libraries(ohm ${TBB_LIBRARIES})
 endif(OHM_THREADS)
 
@@ -266,10 +277,10 @@ install(TARGETS ohm EXPORT ${CMAKE_PROJECT_NAME}-config-targets
   LIBRARY DESTINATION lib
   ARCHIVE DESTINATION lib
   RUNTIME DESTINATION bin
-  INCLUDES DESTINATION include
+  INCLUDES DESTINATION ${OHM_PREFIX_INCLUDE}/ohm
 )
 
-install(FILES ${PUBLIC_HEADERS} DESTINATION include/ohm)
+install(FILES ${PUBLIC_HEADERS} DESTINATION ${OHM_PREFIX_INCLUDE}/ohm)
 
 source_group("source" REGULAR_EXPRESSION ".*$")
 source_group("source\\cl" REGULAR_EXPRESSION "/cl/.*$")

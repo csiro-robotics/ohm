@@ -8,10 +8,11 @@ set(PUBLIC_HEADERS
   gpuaccessexception.h
   gpuapiexception.h
   gpubuffer.h
-  "${CMAKE_CURRENT_BINARY_DIR}/gpuconfig.h"
+  "${CMAKE_CURRENT_BINARY_DIR}/gputil/gpuconfig.h"
   gpudevice.h
   gpuevent.h
   gpueventlist.h
+  gpuexception.h
   gpupinmode.h
   gpupinnedbuffer.h
   gpuplatform.h
@@ -85,25 +86,27 @@ else()
   message(SEND_ERROR "No GPU acceleration selected.")
 endif()
 
-configure_file(gpuconfig.in.h "${CMAKE_CURRENT_BINARY_DIR}/gpuconfig.h")
+configure_file(gpuconfig.in.h "${CMAKE_CURRENT_BINARY_DIR}/gputil/gpuconfig.h")
 
 if(GPU_ACCEL STREQUAL "CUDA")
   cuda_add_library(gputil STATIC ${SOURCES})
-  target_include_directories(gputil PUBLIC
+  target_include_directories(gputil PRIVATE
       $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/cuda>
   )
 else()
   add_library(gputil STATIC ${SOURCES})
-  target_include_directories(gputil PUBLIC
+  target_include_directories(gputil PRIVATE
       $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/cl>
   )
 endif(GPU_ACCEL STREQUAL "CUDA")
 
 target_include_directories(gputil
   PUBLIC
+    $<INSTALL_INTERFACE:${OHM_PREFIX_INCLUDE}>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/gputil>
+    $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}>
+  PRIVATE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}>
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
-    $<INSTALL_INTERFACE:include/gputil>
 )
 
 # Set device headers variable for other projects to resolve device include paths
@@ -127,5 +130,9 @@ install(TARGETS gputil EXPORT ${CMAKE_PROJECT_NAME}-config-targets
   INCLUDES DESTINATION include
 )
 
-install(FILES ${PUBLIC_HEADERS} DESTINATION include/gputil)
-install(FILES ${PUBLIC_PLATFORM_HEADERS} DESTINATION include/gputil/${PUBLIC_PLATFORM_HEADERS_DIR})
+install(FILES ${PUBLIC_HEADERS} DESTINATION ${OHM_PREFIX_INCLUDE}/gputil)
+install(FILES ${PUBLIC_PLATFORM_HEADERS} DESTINATION ${OHM_PREFIX_INCLUDE}/gputil/${PUBLIC_PLATFORM_HEADERS_DIR})
+
+source_group("source" REGULAR_EXPRESSION ".*$")
+source_group("source\\cl" REGULAR_EXPRESSION "/cl/.*$")
+source_group("source\\cuda" REGULAR_EXPRESSION "/cuda/.*$")

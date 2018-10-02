@@ -28,7 +28,7 @@ endif(MSVC)
 target_include_directories(ohmtest
   PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}>
+    $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}>
 )
 
 target_include_directories(ohmtest SYSTEM
@@ -42,7 +42,9 @@ target_link_libraries(ohmtest ohmtools ohm ohmutil GTest::Main)
 add_dependencies(ohmtest marshal_test_data)
 
 if(OHM_TES_DEBUG)
-  target_link_libraries(ohmtest 3es-core)
+  target_link_libraries(ohmtest 3es::3es-core)
+else(OHM_TES_DEBUG)
+  target_include_directories(ohmquery PRIVATE SYSTEM "${3ES_INCLUDE_DIRS}")
 endif(OHM_TES_DEBUG)
 
 add_test(NAME ohmtest COMMAND ohmtest --gtest_output=xml:test-reports/)

@@ -3,12 +3,12 @@
 // ABN 41 687 119 230
 //
 // Author: Kazys Stepanas
-#include <clu.h>
-#include <clukernel.h>
-#include <cluprogram.h>
+#include <clu/clu.h>
+#include <clu/clukernel.h>
+#include <clu/cluprogram.h>
 
-#include <cl/gpudevicedetail.h>
-#include <gpudevice.h>
+#include <gputil/cl/gpudevicedetail.h>
+#include <gputil/gpudevice.h>
 
 #include <algorithm>
 #include <sstream>

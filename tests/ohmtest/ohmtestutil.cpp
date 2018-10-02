@@ -5,12 +5,12 @@
 // Author: Kazys Stepanas
 #include "ohmtestutil.h"
 
-#include "mapchunk.h"
-#include "maplayer.h"
-#include "occupancymap.h"
-#include "occupancynode.h"
+#include <ohm/mapchunk.h>
+#include <ohm/maplayer.h>
+#include <ohm/maplayout.h>
+#include <ohm/occupancymap.h>
+#include <ohm/occupancynode.h>
 
-#include "maplayout.h"
 #include <gtest/gtest.h>
 
 using namespace ohm;

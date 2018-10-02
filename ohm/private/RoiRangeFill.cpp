@@ -17,8 +17,8 @@
 #include "private/occupancymapdetail.h"
 #include "private/occupancygpumapdetail.h"
 
-#include <gpuplatform.h>
-#include <gpupinnedbuffer.h>
+#include <gputil/gpuplatform.h>
+#include <gputil/gpupinnedbuffer.h>
 
 #include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -30,7 +30,7 @@
 #ifdef OHM_PROFILE
 #define PROFILING 1
 #endif // OHM_PROFILE
-#include <profile.h>
+#include <ohmutil/profile.h>
 
 using namespace ohm;
 

@@ -3,21 +3,21 @@
 // ABN 41 687 119 230
 //
 // Author: Kazys Stepanas
-#include "occupancykey.h"
-#include "occupancykeylist.h"
-#include "occupancylinekeysquery.h"
-#include "occupancymap.h"
-#include "occupancyutil.h"
-// #include "occupancytype.h"
+#include <ohm/occupancykey.h>
+#include <ohm/occupancykeylist.h>
+#include <ohm/occupancylinekeysquery.h>
+#include <ohm/occupancymap.h>
+#include <ohm/occupancyutil.h>
+// #include <ohm/occupancytype.h>
 
-#include "ohmutil.h"
-
-#include "ohmgen.h"
+#include <ohmutil/ohmutil.h>
+#include <ohmtools/ohmgen.h>
 
 #include <chrono>
 #include <random>
 
 #include <gtest/gtest.h>
+#include <ohm/occupancylinekeysquery.h>
 
 namespace linekeys
 {

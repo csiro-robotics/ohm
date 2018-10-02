@@ -18,8 +18,8 @@ endif(MSVC)
 
 target_include_directories(gputiltest
   PUBLIC
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
+    $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}>
 )
 
 target_include_directories(gputiltest SYSTEM

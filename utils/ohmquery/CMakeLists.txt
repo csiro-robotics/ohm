@@ -1,11 +1,12 @@
 
 set(TES_ENABLE ${OHM_TES_DEBUG})
-configure_file(ohmqueryconfig.in.h ohmqueryconfig.h)
-set(SOURCES "${CMAKE_CURRENT_BINARY_DIR}/ohmconfig.h")
+configure_file(ohmqueryconfig.in.h "${CMAKE_CURRENT_BINARY_DIR}/ohmquery/ohmqueryconfig.h")
+set(SOURCES "${CMAKE_CURRENT_BINARY_DIR}/ohmquery/ohmqueryconfig.h")
 
 set(SOURCES
   ohmquery.cpp
   ohmqueryconfig.in.h
+  "${CMAKE_CURRENT_BINARY_DIR}/ohmquery/ohmqueryconfig.h"
 )
 
 add_executable(ohmquery ${SOURCES})
@@ -17,8 +18,8 @@ endif(MSVC)
 
 target_include_directories(ohmquery
   PUBLIC
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}>
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/ohmquery>
+    $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}>
 )
 
 target_include_directories(ohmquery SYSTEM
@@ -29,11 +30,13 @@ target_include_directories(ohmquery SYSTEM
 target_link_libraries(ohmquery ohm ohmutil)
 
 if(OHM_TES_DEBUG)
-  target_link_libraries(ohmquery 3es-core)
+  target_link_libraries(ohmquery 3es::3es-core)
+else(OHM_TES_DEBUG)
+  target_include_directories(ohmquery PRIVATE SYSTEM "${3ES_INCLUDE_DIRS}")
 endif(OHM_TES_DEBUG)
+
+install(TARGETS ohmquery DESTINATION bin)
 
 source_group("source" REGULAR_EXPRESSION ".*$")
 # Needs CMake 3.8+:
 # source_group(TREE "${CMAKE_CURRENT_LIST_DIR}" PREFIX source FILES ${SOURCES})
-
-install(TARGETS ohmquery DESTINATION bin)

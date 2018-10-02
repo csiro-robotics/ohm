@@ -4,7 +4,7 @@
 //
 #include "occupancykey.h"
 
-#include <vectorhash.h>
+#include <ohmutil/vectorhash.h>
 
 #define INVALID_VALUE std::numeric_limits<decltype(OccupancyKey::InvalidValue)>::lowest()
 

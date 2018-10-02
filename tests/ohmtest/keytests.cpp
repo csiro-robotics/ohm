@@ -3,10 +3,10 @@
 // ABN 41 687 119 230
 //
 // Author: Kazys Stepanas
-#include "occupancykey.h"
-#include "occupancymap.h"
-#include "mapchunk.h"
-#include "mapnode.h"
+#include <ohm/occupancykey.h>
+#include <ohm/occupancymap.h>
+#include <ohm/mapchunk.h>
+#include <ohm/mapnode.h>
 
 #include <cstdio>
 #include <vector>

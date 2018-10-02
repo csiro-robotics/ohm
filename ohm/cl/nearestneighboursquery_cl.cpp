@@ -16,12 +16,12 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
-#include <clu.h>
-#include <clukernel.h>
-#include <cluprogram.h>
+#include <clu/clu.h>
+#include <clu/clukernel.h>
+#include <clu/cluprogram.h>
 
-#include <cl/gpudevicedetail.h>
-#include <cl/gpuqueuedetail.h>
+#include <gputil/cl/gpudevicedetail.h>
+#include <gputil/cl/gpuqueuedetail.h>
 
 #include <algorithm>
 #include <functional>

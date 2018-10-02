@@ -3,16 +3,16 @@
 //
 #include <glm/glm.hpp>
 
-#include "mapcache.h"
-#include "occupancykey.h"
-#include "occupancymap.h"
-#include "occupancymapserialise.h"
-#include "occupancynode.h"
-#include "occupancytype.h"
+#include <ohm/mapcache.h>
+#include <ohm/occupancykey.h>
+#include <ohm/occupancymap.h>
+#include <ohm/occupancymapserialise.h>
+#include <ohm/occupancynode.h>
+#include <ohm/occupancytype.h>
 
-#include "ohmutil.h"
-#include "progressmonitor.h"
-#include <options.h>
+#include <ohmutil/ohmutil.h>
+#include <ohmutil/progressmonitor.h>
+#include <ohmutil/options.h>
 
 #include <liblas/liblas.hpp>
 #include <liblas/reader.hpp>
@@ -30,7 +30,7 @@
 #include <unordered_set>
 
 #define PROFILING 1
-#include "profile.h"
+#include <ohmutil/profile.h>
 
 namespace
 {

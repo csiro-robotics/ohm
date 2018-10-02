@@ -3,23 +3,23 @@
 // ABN 41 687 119 230
 //
 // Author: Kazys Stepanas
-#include "mapcache.h"
-#include "occupancygpu.h"
-#include "occupancygpumap.h"
-#include "occupancykey.h"
-#include "occupancykeylist.h"
-#include "occupancylinequery.h"
-#include "occupancymap.h"
-#include "occupancytype.h"
-#include "occupancyutil.h"
-#include "ohmclearanceprocess.h"
-#include "ohmmapper.h"
+#include <ohm/mapcache.h>
+#include <ohm/occupancygpu.h>
+#include <ohm/occupancygpumap.h>
+#include <ohm/occupancykey.h>
+#include <ohm/occupancykeylist.h>
+#include <ohm/occupancylinequery.h>
+#include <ohm/occupancymap.h>
+#include <ohm/occupancytype.h>
+#include <ohm/occupancyutil.h>
+#include <ohm/ohmclearanceprocess.h>
+#include <ohm/ohmmapper.h>
 
-#include "ohmcloud.h"
-#include "ohmgen.h"
+#include <ohmtools/ohmcloud.h>
+#include <ohmtools/ohmgen.h>
 
-#include "ohmutil.h"
-#include "profile.h"
+#include <ohmutil/ohmutil.h>
+#include <ohmutil/profile.h>
 
 #include <chrono>
 #include <iomanip>

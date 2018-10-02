@@ -3,7 +3,7 @@
 // ABN 41 687 119 230
 //
 // Author: Kazys Stepanas
-#include <gpudevice.h>
+#include <gputil/gpudevice.h>
 
 #include <gtest/gtest.h>
 

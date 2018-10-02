@@ -6,27 +6,27 @@
 #include <glm/glm.hpp>
 #include <3esservermacros.h>
 
-#include "occupancygpu.h"
-#include "occupancygpumap.h"
-#include "occupancylinequery.h"
-#include "occupancymap.h"
-#include "occupancymapserialise.h"
-#include "occupancynearestneighbours.h"
-#include "occupancynode.h"
-#include "occupancytype.h"
-#include "occupancyutil.h"
-#include "occupancyqueryflag.h"
-#include "occupancytype.h"
-// #include "ohmmapper.h"
-// #include "ohmclearanceprocess.h"
+#include <ohm/occupancygpu.h>
+#include <ohm/occupancygpumap.h>
+#include <ohm/occupancylinequery.h>
+#include <ohm/occupancymap.h>
+#include <ohm/occupancymapserialise.h>
+#include <ohm/occupancynearestneighbours.h>
+#include <ohm/occupancynode.h>
+#include <ohm/occupancytype.h>
+#include <ohm/occupancyutil.h>
+#include <ohm/occupancyqueryflag.h>
+#include <ohm/occupancytype.h>
+// #include <ohm/ohmmapper.h>
+// #include <ohm/ohmclearanceprocess.h>
 
-#include "ohmutil.h"
-#include "plymesh.h"
-#include "progressmonitor.h"
-#include "glmstream.h"
-#include "safeio.h"
+#include <ohmutil/ohmutil.h>
+#include <ohmutil/plymesh.h>
+#include <ohmutil/progressmonitor.h>
+#include <ohmutil/glmstream.h>
+#include <ohmutil/safeio.h>
 
-#include "debugids.h"
+#include <ohm/debugids.h>
 
 #include <algorithm>
 #include <atomic>
@@ -191,7 +191,7 @@ inline std::ostream &operator<<(std::ostream &out, const Options::Ranges &r)
 
 // This is messy :(
 // Must come after streaming operators for custom command line arguments are defined.
-#include <options.h>
+#include <ohmutil/options.h>
 
 int parseOptions(Options &opt, int argc, char *argv[])
 {

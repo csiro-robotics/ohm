@@ -13,8 +13,8 @@
 
 #include <glm/glm.hpp>
 
-#include <gpubuffer.h>
-#include <gpuevent.h>
+#include <gputil/gpubuffer.h>
+#include <gputil/gpuevent.h>
 
 #include <unordered_map>
 

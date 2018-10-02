@@ -11,15 +11,15 @@
 
 #include "occupancyquerydetail.h"
 
-#include "gpubuffer.h"
-#include "gpudevice.h"
-#include "gpuqueue.h"
-
-// Include GPU structure definitin.
+// Include GPU structure definition.
 #include "gpukey.h"
 
+#include <gputil/gpubuffer.h>
+#include <gputil/gpudevice.h>
+#include <gputil/gpuqueue.h>
+
 // TODO: add a GPU specific header and migrate these includes and the GpuData structure there.
-#include <clu.h>
+#include <clu/clu.h>
 
 #include <atomic>
 

@@ -8,7 +8,7 @@
 
 #include "gpuconfig.h"
 
-#include <cl.hpp>
+#include <clu/clu.h>
 
 namespace gputil
 {

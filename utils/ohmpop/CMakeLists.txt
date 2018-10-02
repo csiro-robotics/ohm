@@ -11,13 +11,12 @@ include_directories(
   "${GLM_INCLUDE_DIR}"
   )
 
-configure_file(ohmpopconfig.in.h ohmpopconfig.h)
-include_directories(. "${CMAKE_CURRENT_BINARY_DIR}")
-set(SOURCES "${CMAKE_CURRENT_BINARY_DIR}/ohmpopconfig.h")
+configure_file(ohmpopconfig.in.h "${CMAKE_CURRENT_BINARY_DIR}/ohmpop/ohmpopconfig.h")
 
 set(SOURCES
   ohmpop.cpp
   ohmpopconfig.in.h
+  "${CMAKE_CURRENT_BINARY_DIR}/ohmpop/ohmpopconfig.h"
 )
 
 add_executable(ohmpop ${SOURCES})
@@ -29,8 +28,8 @@ endif(MSVC)
 
 target_include_directories(ohmpop
   PUBLIC
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/ohmpop>
+    $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}>
 )
 
 target_include_directories(ohmpop SYSTEM

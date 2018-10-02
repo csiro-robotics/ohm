@@ -10,12 +10,12 @@
 
 #include "occupancyquerydetail.h"
 
-#include "gpubuffer.h"
-#include "gpudevice.h"
-#include "gpuqueue.h"
+#include <gputil/gpubuffer.h>
+#include <gputil/gpudevice.h>
+#include <gputil/gpuqueue.h>
 
 // TODO: add a GPU specific header and migrate these includes and the GpuData structure there.
-#include <clu.h>
+#include <clu/clu.h>
 
 // #define CACHE_LOCAL_RESULTS
 // #define VALIDATE_KEYS
