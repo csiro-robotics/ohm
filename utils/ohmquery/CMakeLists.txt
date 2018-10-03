@@ -1,12 +1,12 @@
 
 set(TES_ENABLE ${OHM_TES_DEBUG})
-configure_file(ohmqueryconfig.in.h "${CMAKE_CURRENT_BINARY_DIR}/ohmquery/ohmqueryconfig.h")
-set(SOURCES "${CMAKE_CURRENT_BINARY_DIR}/ohmquery/ohmqueryconfig.h")
+configure_file(OhmQueryConfig.in.h "${CMAKE_CURRENT_BINARY_DIR}/ohmquery/OhmQueryConfig.h")
+set(SOURCES "${CMAKE_CURRENT_BINARY_DIR}/ohmquery/OhmQueryConfig.h")
 
 set(SOURCES
   ohmquery.cpp
-  ohmqueryconfig.in.h
-  "${CMAKE_CURRENT_BINARY_DIR}/ohmquery/ohmqueryconfig.h"
+  OhmQueryConfig.in.h
+  "${CMAKE_CURRENT_BINARY_DIR}/ohmquery/OhmQueryConfig.h"
 )
 
 add_executable(ohmquery ${SOURCES})

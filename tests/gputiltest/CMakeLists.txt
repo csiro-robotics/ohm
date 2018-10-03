@@ -6,8 +6,8 @@ find_package(GTest)
 include_directories(.)
 
 set(SOURCES
-  gpubuffertest.cpp
-  testmain.cpp
+  GpuBufferTest.cpp
+  TestMain.cpp
 )
 
 add_executable(gputiltest ${SOURCES})

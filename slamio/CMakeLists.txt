@@ -14,20 +14,20 @@ endif(NOT LIBLAS_FOUND)
 find_package(Boost COMPONENTS "thread")
 
 set(SOURCES
-  slamcloudloader.cpp
-  slamcloudloader.h
+  SlamCloudLoader.cpp
+  SlamCloudLoader.h
 )
 
 set(PUBLIC_HEADERS
-  slamcloudloader.h
-  "${CMAKE_CURRENT_BINARY_DIR}/slamio/slamioexport.h"
+  SlamCloudLoader.h
+  "${CMAKE_CURRENT_BINARY_DIR}/slamio/SlamIOExport.h"
 )
 
 add_library(slamio ${SOURCES})
 
 generate_export_header(slamio
       EXPORT_MACRO_NAME slamio_API
-      EXPORT_FILE_NAME slamio/slamioexport.h
+      EXPORT_FILE_NAME slamio/SlamIOExport.h
       STATIC_DEFINE slamio_STATIC)
 
 target_include_directories(slamio

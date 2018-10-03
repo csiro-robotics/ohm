@@ -4,22 +4,22 @@ set(SOURCES
   cl.hpp
   clu.cpp
   clu.h
-  clubuffer.h
-  cluconstraint.cpp
-  cluconstraint.h
-  clukernel.cpp
-  clukernel.h
-  cluprogram.cpp
-  cluprogram.h
+  cluBuffer.h
+  cluConstraint.cpp
+  cluConstraint.h
+  cluKernel.cpp
+  cluKernel.h
+  cluProgram.cpp
+  cluProgram.h
 )
 
 set(PUBLIC_HEADERS
   cl.hpp
   clu.h
-  clubuffer.h
-  cluconstraint.h
-  clukernel.h
-  cluprogram.h
+  cluBuffer.h
+  cluConstraint.h
+  cluKernel.h
+  cluProgram.h
 )
 
 add_library(clu STATIC ${SOURCES})

@@ -3,15 +3,15 @@
 // ABN 41 687 119 230
 //
 // Author: Kazys Stepanas
-#ifndef ROIRANGEFILL_H
-#define ROIRANGEFILL_H
+#ifndef OHM_ROIRANGEFILL_H
+#define OHM_ROIRANGEFILL_H
 
-#include "ohmconfig.h"
+#include "OhmConfig.h"
 
 #include <glm/glm.hpp>
 
-#include <gputil/gpubuffer.h>
-#include <gputil/gpudevice.h>
+#include <gputil/gpuBuffer.h>
+#include <gputil/gpuDevice.h>
 
 namespace ohm
 {
@@ -58,7 +58,7 @@ namespace ohm
 
     bool valid() const { return valid_; }
 
-    bool calculateForRegion(OccupancyMap &map, const glm::i16vec3 &regionKey);
+    bool calculateForRegion(OccupancyMap &map, const glm::i16vec3 &region_key);
 
   private:
     /// Key for the lower extents corner of the global work group. All other GPU threads can resolve their key by
@@ -81,4 +81,4 @@ namespace ohm
   };
 } // namespace ohm
 
-#endif // ROIRANGEFILL_H
+#endif // OHM_ROIRANGEFILL_H

@@ -3,28 +3,28 @@ include(GenerateExportHeader)
 
 find_package(GLM)
 
-configure_file(ohmtoolsconfig.in.h "${CMAKE_CURRENT_BINARY_DIR}/ohmtools/ohmtoolsconfig.h")
+configure_file(OhmToolsConfig.in.h "${CMAKE_CURRENT_BINARY_DIR}/ohmtools/OhmToolsConfig.h")
 
 set(SOURCES
-  ohmcloud.cpp
-  ohmcloud.h
-  ohmgen.cpp
-  ohmgen.h
-  ohmtoolsconfig.in.h
+  OhmCloud.cpp
+  OhmCloud.h
+  OhmGen.cpp
+  OhmGen.h
+  OhmToolsConfig.in.h
 )
 
 set(PUBLIC_HEADERS
-  ohmcloud.h
-  ohmgen.h
-  "${CMAKE_CURRENT_BINARY_DIR}/ohmtools/ohmtoolsconfig.h"
-  "${CMAKE_CURRENT_BINARY_DIR}/ohmtools/ohmtoolsexport.h"
+  OhmCloud.h
+  OhmGen.h
+  "${CMAKE_CURRENT_BINARY_DIR}/ohmtools/OhmToolsConfig.h"
+  "${CMAKE_CURRENT_BINARY_DIR}/ohmtools/OhmToolsExport.h"
 )
 
 add_library(ohmtools ${SOURCES})
 
 generate_export_header(ohmtools
       EXPORT_MACRO_NAME ohmtools_API
-      EXPORT_FILE_NAME ohmtools/ohmtoolsexport.h
+      EXPORT_FILE_NAME ohmtools/OhmToolsExport.h
       STATIC_DEFINE OHMTOOLS_STATIC)
 
 target_link_libraries(ohmtools ohm ohmutil)

@@ -6,64 +6,64 @@ find_package(GLM)
 find_package(Threads)
 
 set(SOURCES
-  colour.cpp
-  colour.h
+  Colour.cpp
+  Colour.h
   cxxopts.hpp
   p2p.h
-  # ohmutil.cpp
-  ohmutil.h
-  plymesh.cpp
-  plymesh.h
-  pointsdoublebuffer.h
-  pointsdoublebuffer.inl
-  pointsringbuffer.h
-  pointsringbuffer.inl
-  progressmonitor.cpp
-  progressmonitor.h
-  glmstream.h
-  linewalk.h
-  options.h
-  profile.cpp
-  profile.h
-  profilemarker.cpp
-  profilemarker.h
-  safeio.cpp
-  safeio.h
-  scopedtimedisplay.cpp
-  scopedtimedisplay.h
-  spinlock.cpp
-  spinlock.h
-  vectorhash.h
+  # OhmUtil.cpp
+  OhmUtil.h
+  PlyMesh.cpp
+  PlyMesh.h
+  PointsDoubleBuffer.h
+  PointsDoubleBuffer.inl
+  PointsRingBuffer.h
+  PointsRingBuffer.inl
+  ProgressMonitor.cpp
+  ProgressMonitor.h
+  GlmStream.h
+  LineWalk.h
+  Options.h
+  Profile.cpp
+  Profile.h
+  ProfileMarker.cpp
+  ProfileMarker.h
+  SafeIO.cpp
+  SafeIO.h
+  ScopedTimeDisplay.cpp
+  ScopedTimeDisplay.h
+  SpinLock.cpp
+  SpinLock.h
+  VectorHash.h
 )
 
 set(PUBLIC_HEADERS
-  colour.h
+  Colour.h
   cxxopts.hpp
   p2p.h
-  ohmutil.h
-  plymesh.h
-  pointsdoublebuffer.h
-  pointsdoublebuffer.inl
-  pointsringbuffer.h
-  pointsringbuffer.inl
-  progressmonitor.h
-  glmstream.h
-  linewalk.h
-  options.h
-  profile.h
-  profilemarker.h
-  safeio.h
-  scopedtimedisplay.h
-  spinlock.h
-  vectorhash.h
-  "${CMAKE_CURRENT_BINARY_DIR}/ohmutil/ohmutilexport.h"
+  OhmUtil.h
+  Plymesh.h
+  PointsDoubleBuffer.h
+  PointsDoubleBuffer.inl
+  PointsRingBuffer.h
+  PointsRingBuffer.inl
+  ProgressMonitor.h
+  GlmStream.h
+  LineWalk.h
+  Options.h
+  Profile.h
+  ProfileMarker.h
+  SafeIO.h
+  ScopedTimeDisplay.h
+  SpinLock.h
+  VectorHash.h
+  "${CMAKE_CURRENT_BINARY_DIR}/ohmutil/OhmUtilExport.h"
 )
 
 add_library(ohmutil ${SOURCES})
 
 generate_export_header(ohmutil
       EXPORT_MACRO_NAME ohmutil_API
-      EXPORT_FILE_NAME ohmutil/ohmutilexport.h
+      EXPORT_FILE_NAME ohmutil/OhmUtilExport.h
       STATIC_DEFINE ohmutil_STATIC)
 
 target_include_directories(ohmutil

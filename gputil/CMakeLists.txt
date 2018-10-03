@@ -5,29 +5,29 @@ if(NOT DEFINED GPU_ACCEL)
 endif(NOT DEFINED GPU_ACCEL)
 
 set(PUBLIC_HEADERS
-  gpuaccessexception.h
-  gpuapiexception.h
-  gpubuffer.h
-  "${CMAKE_CURRENT_BINARY_DIR}/gputil/gpuconfig.h"
-  gpudevice.h
-  gpuevent.h
-  gpueventlist.h
-  gpuexception.h
-  gpupinmode.h
-  gpupinnedbuffer.h
-  gpuplatform.h
-  gpuqueue.h
-  gputhrow.h
+  gpuAccessException.h
+  gpuApiException.h
+  gpuBuffer.h
+  "${CMAKE_CURRENT_BINARY_DIR}/gputil/gpuConfig.h"
+  gpuDevice.h
+  gpuEvent.h
+  gpuEventList.h
+  gpuException.h
+  gpuPinMode.h
+  gpuPinnedBuffer.h
+  gpuPlatform.h
+  gpuQueue.h
+  gpuThrow.h
   gpu_ext.h
 )
 
 set(SOURCES
-  gpuaccessexception.cpp
-  gpuapiexception.cpp
-  gpuconfig.in.h
-  gpueventlist.cpp
-  gpuexception.cpp
-  gputhrow.cpp
+  gpuAccessException.cpp
+  gpuApiException.cpp
+  gpuConfig.in.h
+  gpuEventList.cpp
+  gpuException.cpp
+  gpuThrow.cpp
   )
 
 list(APPEND SOURCES ${PUBLIC_HEADERS})
@@ -38,21 +38,21 @@ if(GPU_ACCEL STREQUAL "OpenCL")
   set(GPUTIL_TYPE 1)
 
   list(APPEND SOURCES
-    cl/gpuapiexceptioncode.cpp
-    cl/gpubuffer.cpp
+    cl/gpuApiExceptionCode.cpp
+    cl/gpuBuffer.cpp
     cl/gpubufferdetail.h
-    cl/gpudevice.cpp
-    cl/gpudevicedetail.h
-    cl/gpuevent.cpp
+    cl/gpuDevice.cpp
+    cl/gpuDeviceDetail.h
+    cl/gpuEvent.cpp
     cl/gpueventdetail.h
-    cl/gpupinnedbuffer.cpp
-    cl/gpuplatform2.h
-    cl/gpuqueue.cpp
-    cl/gpuqueuedetail.h
+    cl/gpuPinnedBuffer.cpp
+    cl/gpuPlatform2.h
+    cl/gpuQueue.cpp
+    cl/gpuQueueDetail.h
     )
 
   set(PUBLIC_PLATFORM_HEADERS
-    cl/gpuplatform2.h
+    cl/gpuPlatform2.h
   )
 
   set(PUBLIC_PLATFORM_HEADERS_DIR cl)
@@ -61,24 +61,24 @@ elseif(GPU_ACCEL STREQUAL "CUDA")
   set(GPUTIL_TYPE 2)
 
   list(APPEND SOURCES
-    cuda/cudaimportcl.h
+    cuda/cuda_importcl.h
     cuda/cutil_math.h
-    cuda/gpuapiexceptioncode.cpp
-    cuda/gpubuffer.cpp
+    cuda/gpuApiExceptionCode.cpp
+    cuda/gpuBuffer.cpp
     cuda/gpubufferdetail.h
-    cuda/gpudevice.cpp
-    cuda/gpudevicedetail.h
-    cuda/gpuevent.cpp
+    cuda/gpuDevice.cpp
+    cuda/gpuDeviceDetail.h
+    cuda/gpuEvent.cpp
     cuda/gpueventdetail.h
-    cuda/gpupinnedbuffer.cpp
-    cuda/gpuplatform2.h
-    cuda/gpuqueue.cpp
-    cuda/gpuqueuedetail.h
+    cuda/gpuPinnedBuffer.cpp
+    cuda/gpuPlatform2.h
+    cuda/gpuQueue.cpp
+    cuda/gpuQueueDetail.h
     cuda/ref.h
     )
 
   set(PUBLIC_PLATFORM_HEADERS
-    cuda/gpuplatform2.h
+    cuda/gpuPlatform2.h
   )
 
   set(PUBLIC_PLATFORM_HEADERS_DIR cuda)
@@ -86,7 +86,7 @@ else()
   message(SEND_ERROR "No GPU acceleration selected.")
 endif()
 
-configure_file(gpuconfig.in.h "${CMAKE_CURRENT_BINARY_DIR}/gputil/gpuconfig.h")
+configure_file(gpuConfig.in.h "${CMAKE_CURRENT_BINARY_DIR}/gputil/gpuConfig.h")
 
 if(GPU_ACCEL STREQUAL "CUDA")
   cuda_add_library(gputil STATIC ${SOURCES})

@@ -3,14 +3,13 @@
 // ABN 41 687 119 230
 //
 // Author: Kazys Stepanas
-#ifndef OHMMAPLAYOUTDETAIL_H_
-#define OHMMAPLAYOUTDETAIL_H_
+#ifndef OHM_MAPLAYOUTDETAIL_H
+#define OHM_MAPLAYOUTDETAIL_H
 
-#include "ohmconfig.h"
+#include "OhmConfig.h"
 
-#include "maplayer.h"
+#include "MapLayer.h"
 
-#include <string>
 #include <vector>
 
 namespace ohm
@@ -32,4 +31,4 @@ namespace ohm
   };
 }
 
-#endif // OHMMAPLAYOUTDETAIL_H_
+#endif // OHM_MAPLAYOUTDETAIL_H

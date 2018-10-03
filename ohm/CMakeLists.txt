@@ -19,109 +19,110 @@ else()
 endif(OHM_GPU STREQUAL "OpenCL")
 
 set(TES_ENABLE ${OHM_TES_DEBUG})
-configure_file(ohmconfig.in.h "${CMAKE_CURRENT_BINARY_DIR}/ohm/ohmconfig.h")
+configure_file(OhmConfig.in.h "${CMAKE_CURRENT_BINARY_DIR}/ohm/OhmConfig.h")
 
 set(SOURCES
-  private/clearanceprocessdetail.cpp
-  private/clearanceprocessdetail.h
-  private/maplayerdetail.h
-  private/maplayoutdetail.h
-  private/occupancylinequerydetail.h
-  private/occupancymapdetail.cpp
-  private/occupancymapdetail.h
-  private/occupancynearestneighboursdetail.h
-  private/occupancynodealgorithms.cpp
-  private/occupancynodealgorithms.h
-  private/occupancyquerydetail.h
+  private/ClearanceProcessdetail.cpp
+  private/ClearanceProcessdetail.h
+  private/LineQueryDetail.h
+  private/MapLayerDetail.h
+  private/MapLayoutDetail.h
+  private/NearestNeighboursDetail.h
+  private/NodeAlgorithms.cpp
+  private/NodeAlgorithms.h
+  private/OccupancyMapDetail.cpp
+  private/OccupancyMapDetail.h
+  private/QueryDetail.h
   private/RoiRangeFill.cpp
   private/RoiRangeFill.h
-  private/voxellayoutdetail.h
-  mapcache.cpp
-  mapcache.h
-  mapchunk.cpp
-  mapchunk.h
-  maplayer.cpp
-  maplayer.h
-  maplayout.cpp
-  maplayout.h
-  mapnode.h
-  mapprobability.h
-  mapregion.cpp
-  mapregion.h
-  occupancygpu.cpp
-  occupancygpu.h
-  occupancykey.cpp
-  occupancykey.h
-  occupancykeylist.cpp
-  occupancykeylist.h
-  occupancylinekeysquery.cpp
-  occupancylinekeysquery.h
-  occupancylinequery.cpp
-  occupancylinequery.h
-  occupancymap.cpp
-  occupancymap.h
-  occupancymapserialise.cpp
-  occupancymapserialise.h
-  occupancynearestneighbours.cpp
-  occupancynearestneighbours.h
-  occupancynode.cpp
-  occupancynode.h
-  occupancyquery.cpp
-  occupancyquery.h
-  occupancyqueryflag.h
-  occupancytype.cpp
-  occupancytype.h
-  ohmclearanceprocess.cpp
-  ohmclearanceprocess.h
-  ohmdatatype.cpp
-  ohmdatatype.h
-  ohmdefaultlayers.h
-  ohmmapper.cpp
-  ohmmapper.h
-  ohmmappingprocess.cpp
-  ohmmappingprocess.h
-  ohmstream.cpp
-  ohmstream.h
-  ohmvoxellayout.cpp
-  ohmvoxellayout.h
+  private/VoxelLayoutDetail.h
+  ClearanceProcess.cpp
+  ClearanceProcess.h
+  DataType.cpp
+  DataType.h
+  DefaultLayers.h
+  Key.cpp
+  Key.h
+  KeyList.cpp
+  KeyList.h
+  LineKeysQuery.cpp
+  LineKeysQuery.h
+  LineQuery.cpp
+  LineQuery.h
+  MapCache.cpp
+  MapCache.h
+  MapChunk.cpp
+  MapChunk.h
+  MapCoord.h
+  MapLayer.cpp
+  MapLayer.h
+  MapLayout.cpp
+  MapLayout.h
+  Mapper.cpp
+  Mapper.h
+  MappingProcess.cpp
+  MappingProcess.h
+  MapProbability.h
+  MapRegion.cpp
+  MapRegion.h
+  MapSerialise.cpp
+  MapSerialise.h
+  NearestNeighbours.cpp
+  NearestNeighbours.h
+  OccupancyMap.cpp
+  OccupancyMap.h
+  OccupancyType.cpp
+  OccupancyType.h
+  OhmGpu.cpp
+  OhmGpu.h
+  Query.cpp
+  Query.h
+  QueryFlag.h
+  Stream.cpp
+  Stream.h
+  Voxel.cpp
+  Voxel.h
+  VoxelLayout.cpp
+  VoxelLayout.h
 )
 
 if(TES_ENABLE)
   # Only required to define the 3es server symbol.
-  list(APPEND SOURCES occupancyutil.cpp)
+  list(APPEND SOURCES OccupancyUtil.cpp)
 endif(TES_ENABLE)
 
 set(PUBLIC_HEADERS
-  mapcache.h
-  mapchunk.h
-  mapchunkflag.h
-  maplayer.h
-  maplayout.h
-  mapnode.h
-  mapprobability.h
-  mapregion.h
-  occupancygpu.h
-  occupancykey.h
-  occupancykeylist.h
-  occupancylinekeysquery.h
-  occupancylinequery.h
-  occupancymap.h
-  occupancymapserialise.h
-  occupancynearestneighbours.h
-  occupancynode.h
-  occupancyquery.h
-  occupancyqueryflag.h
-  occupancytype.h
-  occupancyutil.h
-  ohmdatatype.h
-  ohmclearanceprocess.h
-  ohmdefaultlayers.h
-  ohmmapper.h
-  ohmmappingprocess.h
-  ohmstream.h
-  ohmvoxellayout.h
-  "${CMAKE_CURRENT_BINARY_DIR}/ohm/ohmconfig.h"
-  "${CMAKE_CURRENT_BINARY_DIR}/ohm/ohmexport.h"
+  ClearanceProcess.h
+  DataType.h
+  DataType.h
+  DefaultLayers.h
+  Key.h
+  KeyList.h
+  LineKeysQuery.h
+  LineQuery.h
+  MapCache.h
+  MapChunk.h
+  MapChunkFlag.h
+  MapLayer.h
+  MapLayout.h
+  MapNode.h
+  Mapper.h
+  MappingProcess.h
+  MapProbability.h
+  MapRegion.h
+  MapSerialise.h
+  NearestNeighbours.h
+  OccupancyMap.h
+  OccupancyType.h
+  OccupancyUtil.h
+  OhmGpu.h
+  Query.h
+  QueryFlag.h
+  Stream.h
+  Voxel.h
+  VoxelLayout.h
+  "${CMAKE_CURRENT_BINARY_DIR}/ohm/OhmConfig.h"
+  "${CMAKE_CURRENT_BINARY_DIR}/ohm/OhmExport.h"
   )
 
 if(OHM_GPU)
@@ -131,39 +132,39 @@ if(OHM_GPU)
   find_file(GPU_EXT_H gpu_ext.h PATHS ${GPUTIL_DEVICE_INCLUDE_DIRS})
 
   set(GPU_SOURCES
-    gpu/linekeys.cl
-    gpu/nearestneighboursquery.cl
-    gpu/regionupdate.cl
-    gpu/roirangefill.cl
+    gpu/LineKeys.cl
+    gpu/NearestNeighboursquery.cl
+    gpu/RegionUpdate.cl
+    gpu/RoiRangeFill.cl
   )
   if(NOT OHM_EMBED_GPU_CODE)
-    list(APPEND GPU_SOURCES gpu/linewalk.cl)
-    list(APPEND GPU_SOURCES gpu/regions.cl)
+    list(APPEND GPU_SOURCES gpu/LineWalk.cl)
+    list(APPEND GPU_SOURCES gpu/Regions.cl)
   endif(NOT OHM_EMBED_GPU_CODE)
 
   set(GPU_HEADERS
-    gpukey.h
-    mapnode.h
+    GpuKey.h
+    MapCoord.h
   )
 
   list(APPEND SOURCES
-    private/occupancygpumapdetail.cpp
-    private/occupancygpumapdetail.h
-    gpucache.cpp
-    gpucache.h
-    gpucacheparams.h
-    gpulayercache.cpp
-    gpulayercache.h
-    occupancygpumap.cpp
-    occupancygpumap.h
+    private/GpuMapDetail.cpp
+    private/GpuMapDetail.h
+    GpuCache.cpp
+    GpuCache.h
+    GpuCacheParams.h
+    GpuLayerCache.cpp
+    GpuLayerCache.h
+    GpuMap.cpp
+    GpuMap.h
   )
 
   list(APPEND PUBLIC_HEADERS
-    gpucache.h
-    gpucacheparams.h
-    gpukey.h
-    gpulayercache.h
-    occupancygpumap.h
+    GpuCache.h
+    GpuCacheParams.h
+    GpuKey.h
+    GpuLayerCache.h
+    GpuMap.h
   )
 endif(OHM_GPU)
 
@@ -173,11 +174,11 @@ if(OHM_GPU)
   if(OHM_GPU_API STREQUAL "OpenCL")
     get_target_property(CLU_INCLUDE_DIRS clu INCLUDE_DIRECTORIES)
     list(APPEND SOURCES
-      cl/clprogram.cpp
-      cl/clprogram.h
-      cl/gpumap_cl.cpp
-      cl/linekeysquery_cl.cpp
-      cl/nearestneighboursquery_cl.cpp
+      cl/clProgram.cpp
+      cl/clProgram.h
+      cl/GpuMap.cpp
+      cl/LineKeysQuery.cpp
+      cl/NearestNeighboursQuery.cpp
       cl/RoiRangeFill.cpp
     )
 
@@ -200,8 +201,8 @@ if(OHM_GPU)
     set(USE_CUDA TRUE)
     find_package(CUDA)
     list(APPEND SOURCES
-      cuda/nearestneighboursquery.cu
-      cuda/roirangefill.cu
+      cuda/NearestNeighboursQuery.cu
+      cuda/RoiRangeFill.cu
     )
   endif(OHM_GPU_API STREQUAL "OpenCL")
 endif(OHM_GPU)
@@ -250,7 +251,7 @@ endif()
 
 generate_export_header(ohm
       EXPORT_MACRO_NAME ohm_API
-      EXPORT_FILE_NAME ohm/ohmexport.h
+      EXPORT_FILE_NAME ohm/OhmExport.h
       STATIC_DEFINE OHM_STATIC)
 
 target_include_directories(ohm

@@ -11,12 +11,12 @@ include_directories(
   "${GLM_INCLUDE_DIR}"
   )
 
-configure_file(ohmpopconfig.in.h "${CMAKE_CURRENT_BINARY_DIR}/ohmpop/ohmpopconfig.h")
+configure_file(OhmPopConfig.in.h "${CMAKE_CURRENT_BINARY_DIR}/ohmpop/OhmPopConfig.h")
 
 set(SOURCES
   ohmpop.cpp
-  ohmpopconfig.in.h
-  "${CMAKE_CURRENT_BINARY_DIR}/ohmpop/ohmpopconfig.h"
+  OhmPopConfig.in.h
+  "${CMAKE_CURRENT_BINARY_DIR}/ohmpop/OhmPopConfig.h"
 )
 
 add_executable(ohmpop ${SOURCES})

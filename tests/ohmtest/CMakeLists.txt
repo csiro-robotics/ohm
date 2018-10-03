@@ -5,17 +5,17 @@ find_package(GLM)
 find_package(GTest)
 
 set(SOURCES
-  gpumaptest.cpp
-  keytests.cpp
-  linekeystests.cpp
-  linequerytests.cpp
-  mappertests.cpp
-  maptests.cpp
-  ohmtestutil.cpp
-  ohmtestutil.h
-  rangestests.cpp
-  serialisationtests.cpp
-  testmain.cpp
+  GpuMapTest.cpp
+  KeyTests.cpp
+  LinekeysTests.cpp
+  LinequeryTests.cpp
+  MapperTests.cpp
+  MapTests.cpp
+  OhmTestUtil.cpp
+  OhmTestUtil.h
+  RangesTests.cpp
+  SerialisationTests.cpp
+  TestMain.cpp
 )
 
 add_executable(ohmtest ${SOURCES})

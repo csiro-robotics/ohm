@@ -1,0 +1,56 @@
+//
+// author: Kazys Stepanas
+//
+#ifndef OHMUTIL_SPINLOCK_H
+#define OHMUTIL_SPINLOCK_H
+
+#include "OhmUtilExport.h"
+
+struct SpinLockImp;
+
+/// A spin lock implementation. Prefered over std::mutex as that class
+/// can be very slow (i.e, Clang OSX).
+///
+/// This is a naive implementation and does not support re-locking.
+///
+/// Best used with @c std::unique_lock as an exception and scope safe guard.
+class ohmutil_API SpinLock
+{
+public:
+  /// Construct a spin lock (unlocked).
+  SpinLock();
+  /// Destructor.
+  ~SpinLock();
+
+  /// Block until the spin lock can be attained.
+  void lock();
+
+  /// Try attain the lock without blocking.
+  /// @return True if the lock is attained, false if it could not be attained.
+  bool try_lock(); // NOLINT
+
+  /// Unlock the lock. Should only ever be called by the scope which called @c lock()
+  /// or succeeded at @c try_lock.
+  void unlock();
+
+private:
+  SpinLockImp *imp_;  ///< Implementation detail.
+};
+
+class ScopedSpinLock
+{
+public:
+  inline ScopedSpinLock(SpinLock &lock) : lock_(lock), have_lock_(true) { lock_.lock(); }
+  inline ~ScopedSpinLock() { unlock(); }
+
+  inline void lock() { if (!have_lock_) { lock_.lock(); have_lock_ = true; } }
+  inline void unlock() { if (have_lock_) { lock_.unlock(); have_lock_ = false; } }
+  inline void try_lock() { if (!have_lock_) { have_lock_ = lock_.try_lock(); } } // NOLINT
+
+private:
+  SpinLock lock_;
+  bool have_lock_;
+};
+
+
+#endif // OHMUTIL_SPINLOCK_H

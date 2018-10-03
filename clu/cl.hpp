@@ -145,6 +145,8 @@
 #ifndef CL_HPP_
 #define CL_HPP_
 
+#ifndef DOXYGEN_SHOULD_SKIP_THIS
+
 #ifdef _WIN32
 
 #include <malloc.h>
@@ -8295,5 +8297,7 @@ struct param_traits<detail::token, param_name>          \
 #pragma warning(pop)
 #endif  // defined(_MSC_VER)
 #endif  // defined(CL_VERSION_1_2) && defined __GNUC__
+
+#endif // DOXYGEN_SHOULD_SKIP_THIS
 
 #endif  // CL_HPP_

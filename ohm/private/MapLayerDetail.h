@@ -1,0 +1,27 @@
+// Copyright (c) 2018
+// Commonwealth Scientific and Industrial Research Organisation (CSIRO)
+// ABN 41 687 119 230
+//
+// Author: Kazys Stepanas
+#ifndef OHM_MAPLAYERDETAIL_H
+#define OHM_MAPLAYERDETAIL_H
+
+#include "OhmConfig.h"
+
+#include <string>
+
+namespace ohm
+{
+  struct VoxelLayoutDetail;
+
+  struct MapLayerDetail
+  {
+    std::string name;
+    VoxelLayoutDetail *voxel_layout = nullptr;
+    unsigned short layer_index = 0;
+    unsigned short subsampling = 0;
+    unsigned flags = 0;
+  };
+}
+
+#endif // OHM_MAPLAYERDETAIL_H
