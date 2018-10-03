@@ -5,69 +5,69 @@
 // Author: Kazys Stepanas
 #include "private/RoiRangeFill.h"
 
-#include "cl/clprogram.h"
-#include "gpucache.h"
-#include "gpulayercache.h"
-#include "occupancyqueryflag.h"
-#include "occupancyutil.h"
-#include "private/occupancymapdetail.h"
+#include "cl/clProgram.h"
+#include "GpuCache.h"
+#include "GpuLayerCache.h"
+#include "QueryFlag.h"
+#include "OccupancyUtil.h"
+#include "private/OccupancyMapDetail.h"
 
 #include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
-#include <clu.h>
-#include <clukernel.h>
+#include <clu/clu.h>
+#include <clu/cluKernel.h>
 
-#include <cl/gpuqueuedetail.h>
+#include <gputil/cl/gpuQueueDetail.h>
 
 #include <mutex>
 
 #ifdef OHM_EMBED_GPU_CODE
-#include "roirangefillResource.h"
+#include "RoiRangeFillResource.h"
 #endif // OHM_EMBED_GPU_CODE
 
 #define KERNEL_PROFILING 0
 #ifdef OHM_PROFILE
 #define PROFILING 1
 #endif // OHM_PROFILE
-#include <profile.h>
+#include <ohmutil/Profile.h>
 
 using namespace ohm;
 
 namespace
 {
-  std::mutex programMutex;
+  std::mutex program_mutex;
   cl::Program program;
-  clu::Kernel seedKernel;
-  clu::Kernel seedOuterKernel;
-  clu::Kernel propagateKernel;
-  clu::Kernel migrateKernel;
-  int programRef = 0;
+  clu::Kernel seed_kernel;
+  clu::Kernel seed_outer_kernel;
+  clu::Kernel propagate_kernel;
+  clu::Kernel migrate_kernel;
+  int program_ref = 0;
 }
 
 namespace roirangefill
 {
   int initGpu(gputil::Device &gpu)
   {
-    std::lock_guard<std::mutex> guard(programMutex);
+    std::lock_guard<std::mutex> guard(program_mutex);
 
     if (program())
     {
       // Already initialised.
-      ++programRef;
+      ++program_ref;
       return CL_SUCCESS;
     }
 
-    std::vector<std::string> buildArgs;
-    buildArgs.push_back("-cl-std=CL" OHM_OPENCL_STD);
+    std::vector<std::string> build_args;
+    build_args.push_back("-cl-std=CL" OHM_OPENCL_STD);
 
     // Compile and initialise.
     cl_int clerr = CL_SUCCESS;
-    const char *sourceFile = "roirangefill.cl";
+    const char *source_file = "RoiRangeFill.cl";
   #ifdef OHM_EMBED_GPU_CODE
-    clerr = initProgramFromString(program, gpu, roirangefillCode, sourceFile, &buildArgs);
+    clerr = initProgramFromString(program, gpu, RoiRangeFillCode, sourceFile, &build_args);
   #else  // OHM_EMBED_GPU_CODE
-    clerr = initProgramFromSource(program, gpu, sourceFile, &buildArgs);
+    clerr = initProgramFromSource(program, gpu, source_file, &build_args);
   #endif // OHM_EMBED_GPU_CODE
 
     if (clerr != CL_SUCCESS)
@@ -75,61 +75,61 @@ namespace roirangefill
       return clerr;
     }
 
-    clerr = seedKernel.setEntry(program, "seedRegionVoxels");
+    clerr = seed_kernel.setEntry(program, "seedRegionVoxels");
 
     if (clerr != CL_SUCCESS)
     {
       program = cl::Program();
-      std::cerr << "Failed to resolve kernel seedRegionVoxels() in " << sourceFile << ": " << clu::errorCodeString(clerr) << '\n';
+      std::cerr << "Failed to resolve kernel seedRegionVoxels() in " << source_file << ": " << clu::errorCodeString(clerr) << '\n';
       return clerr;
     }
 
-    seedKernel.calculateOptimalWorkGroupSize();
+    seed_kernel.calculateOptimalWorkGroupSize();
 
-    clerr = seedOuterKernel.setEntry(program, "seedFromOuterRegions");
+    clerr = seed_outer_kernel.setEntry(program, "seedFromOuterRegions");
 
     if (clerr != CL_SUCCESS)
     {
       program = cl::Program();
-      std::cerr << "Failed to resolve kernel seedFromOuterRegions() in " << sourceFile << ": " << clu::errorCodeString(clerr) << '\n';
+      std::cerr << "Failed to resolve kernel seedFromOuterRegions() in " << source_file << ": " << clu::errorCodeString(clerr) << '\n';
       return clerr;
     }
 
-    seedOuterKernel.calculateOptimalWorkGroupSize();
+    seed_outer_kernel.calculateOptimalWorkGroupSize();
 
-    clerr = propagateKernel.setEntry(program, "propagateObstacles");
+    clerr = propagate_kernel.setEntry(program, "propagateObstacles");
 
     if (clerr != CL_SUCCESS)
     {
       program = cl::Program();
-      std::cerr << "Failed to resolve kernel propagateObstacles() in " << sourceFile << ": " << clu::errorCodeString(clerr) << '\n';
+      std::cerr << "Failed to resolve kernel propagateObstacles() in " << source_file << ": " << clu::errorCodeString(clerr) << '\n';
       return clerr;
     }
 
     // Add local voxels cache.
-    propagateKernel.addLocal([] (size_t workgroupSize)
+    propagate_kernel.addLocal([] (size_t workgroup_size)
     {
       // Convert workgroupSize to a cubic dimension (conservatively) then add
       // padding of 1 either size. This forms the actual size, but ends up being
       // a conservative estimate of the memory requirement.
-      const size_t cubicSize = (size_t)std::ceil(std::pow(double(workgroupSize), 1.0 / 3.0)) + 2;
-      return sizeof(cl_char4) * cubicSize * cubicSize * cubicSize;
+      const size_t cubic_size = size_t(std::ceil(std::pow(double(workgroup_size), 1.0 / 3.0))) + 2;
+      return sizeof(cl_char4) * cubic_size * cubic_size * cubic_size;
     });
 
-    propagateKernel.calculateOptimalWorkGroupSize();
+    propagate_kernel.calculateOptimalWorkGroupSize();
 
-    clerr = migrateKernel.setEntry(program, "migrateResults");
+    clerr = migrate_kernel.setEntry(program, "migrateResults");
 
     if (clerr != CL_SUCCESS)
     {
       program = cl::Program();
-      std::cerr << "Failed to resolve kernel migrateResults() in " << sourceFile << ": " << clu::errorCodeString(clerr) << '\n';
+      std::cerr << "Failed to resolve kernel migrateResults() in " << source_file << ": " << clu::errorCodeString(clerr) << '\n';
       return clerr;
     }
 
-    migrateKernel.calculateOptimalWorkGroupSize();
+    migrate_kernel.calculateOptimalWorkGroupSize();
 
-    programRef = 1;
+    program_ref = 1;
     return 0;
   }
 
@@ -137,67 +137,67 @@ namespace roirangefill
   void releaseGpu()
   {
     // Release program.
-    std::lock_guard<std::mutex> guard(programMutex);
+    std::lock_guard<std::mutex> guard(program_mutex);
 
-    if (--programRef <= 0)
+    if (--program_ref <= 0)
     {
-      programRef = 0;
-      seedKernel = clu::Kernel();
-      propagateKernel = clu::Kernel();
-      migrateKernel = clu::Kernel();
+      program_ref = 0;
+      seed_kernel = clu::Kernel();
+      propagate_kernel = clu::Kernel();
+      migrate_kernel = clu::Kernel();
       program = cl::Program();
     }
   }
 
 
   int invoke(const OccupancyMapDetail &map,
-             RoiRangeFill &query, GpuCache &gpuCache,
-             GpuLayerCache &clearanceLayerCache,
-             const glm::ivec3 &inputDataExtents,
-             const std::vector<gputil::Event> &uploadEvents)
+             RoiRangeFill &query, GpuCache &gpu_cache,
+             GpuLayerCache &clearance_layer_cache,
+             const glm::ivec3 &input_data_extents,
+             const std::vector<gputil::Event> &upload_events)
   {
     cl_int clerr = CL_SUCCESS;
     clu::KernelGrid grid;
 
-    cl::CommandQueue &queue = gpuCache.gpuQueue().internal()->queue;
+    cl::CommandQueue &queue = gpu_cache.gpuQueue().internal()->queue;
 
     // zbatch: how do we batch layers in Z to increase work per thread?
     const cl_int zbatch = 1;// std::max<int>(map.regionVoxelDimensions.z, 32);
 
     // Convert to CL types and inputs.
     // Region voxel dimensions
-    const cl_int3 regionVoxelExtentsCL = { map.regionVoxelDimensions.x, map.regionVoxelDimensions.y, map.regionVoxelDimensions.z };
+    const cl_int3 region_voxel_extents_cl = { map.region_voxel_dimensions.x, map.region_voxel_dimensions.y, map.region_voxel_dimensions.z };
     // Padding voxel extents from ROI.
-    const cl_int3 paddingCL = { (inputDataExtents.x - map.regionVoxelDimensions.x) / 2,
-      (inputDataExtents.y - map.regionVoxelDimensions.y) / 2,
-      (inputDataExtents.z - map.regionVoxelDimensions.z) / 2 };
+    const cl_int3 padding_cl = { (input_data_extents.x - map.region_voxel_dimensions.x) / 2,
+      (input_data_extents.y - map.region_voxel_dimensions.y) / 2,
+      (input_data_extents.z - map.region_voxel_dimensions.z) / 2 };
 
-    cl_float3 axisScalingCL = { query.axisScaling().x, query.axisScaling().y, query.axisScaling().z };
+    cl_float3 axis_scaling_cl = { query.axisScaling().x, query.axisScaling().y, query.axisScaling().z };
 
     PROFILE(seed);
     // For now just wait on the sync events here.
     // The alternative is to repack the events into kernelEvents via a cl::Event conversion.
     // Ultimately, I need to remove the use of the C++ OpenCL wrapper if I'm using gputil.
-    gputil::Event::wait(uploadEvents.data(), uploadEvents.size());
+    gputil::Event::wait(upload_events.data(), upload_events.size());
 
-    cl::Event seedKernelEvent, seedOuterKernelEvent;
-    clu::EventList kernelEvents(nullptr, 0, &seedKernelEvent);
+    cl::Event seed_kernel_event, seed_outer_kernel_event;
+    clu::EventList kernel_events(nullptr, 0, &seed_kernel_event);
 
-    int srcBufferIndex = 0;
+    int src_buffer_index = 0;
     // Initial seeding is just a single region extents in X/Y, with Z divided by the batch size (round up to ensure coverage).
-    const cl_int3 seedGrid = { regionVoxelExtentsCL.x, regionVoxelExtentsCL.y, (regionVoxelExtentsCL.z + zbatch - 1) / zbatch };
-    calculateGrid(grid, seedKernel, query.gpu(), seedGrid);
+    const cl_int3 seed_grid = { region_voxel_extents_cl.x, region_voxel_extents_cl.y, (region_voxel_extents_cl.z + zbatch - 1) / zbatch };
+    calculateGrid(grid, seed_kernel, query.gpu(), seed_grid);
 
-    clerr = seedKernel(queue, grid, kernelEvents,
+    clerr = seed_kernel(queue, grid, kernel_events,
                       query.gpuCornerVoxelKey().arg<cl_mem>(),
-                      clearanceLayerCache.buffer()->arg<cl_mem>(),
-                      query.gpuWork(srcBufferIndex).arg<cl_mem>(),
+                      clearance_layer_cache.buffer()->arg<cl_mem>(),
+                      query.gpuWork(src_buffer_index).arg<cl_mem>(),
                       query.gpuRegionKeys().arg<cl_mem>(),
                       query.gpuOccupancyRegionOffsets().arg<cl_mem>(),
                       query.regionCount(),
-                      regionVoxelExtentsCL,
-                      regionVoxelExtentsCL,
-                      float(map.occupancyThresholdValue),
+                      region_voxel_extents_cl,
+                      region_voxel_extents_cl,
+                      float(map.occupancy_threshold_value),
                       cl_uint(query.queryFlags()),
                       zbatch
                       );
@@ -207,24 +207,24 @@ namespace roirangefill
     }
 
     // Seed from data outside of the ROI.
-    const cl_int seedOuterBatch = 32;
-    const size_t paddingVolume = volumeOf(inputDataExtents) - volumeOf(map.regionVoxelDimensions);
-    grid = clu::KernelGrid(clu::KernelSize((paddingVolume + seedOuterBatch - 1) / seedOuterBatch), clu::KernelSize(256));
-    kernelEvents = clu::EventList(&seedKernelEvent, 1, &seedOuterKernelEvent);
-    clerr = seedOuterKernel(queue, grid, kernelEvents,
+    const cl_int seed_outer_batch = 32;
+    const size_t padding_volume = volumeOf(input_data_extents) - volumeOf(map.region_voxel_dimensions);
+    grid = clu::KernelGrid(clu::KernelSize((padding_volume + seed_outer_batch - 1) / seed_outer_batch), clu::KernelSize(256));
+    kernel_events = clu::EventList(&seed_kernel_event, 1, &seed_outer_kernel_event);
+    clerr = seed_outer_kernel(queue, grid, kernel_events,
                       query.gpuCornerVoxelKey().arg<cl_mem>(),
-                      clearanceLayerCache.buffer()->arg<cl_mem>(),
-                      query.gpuWork(srcBufferIndex).arg<cl_mem>(),
+                      clearance_layer_cache.buffer()->arg<cl_mem>(),
+                      query.gpuWork(src_buffer_index).arg<cl_mem>(),
                       query.gpuRegionKeys().arg<cl_mem>(),
                       query.gpuOccupancyRegionOffsets().arg<cl_mem>(),
                       query.regionCount(),
-                      regionVoxelExtentsCL,
-                      regionVoxelExtentsCL,
-                      paddingCL,
-                      axisScalingCL,
-                      float(map.occupancyThresholdValue),
+                      region_voxel_extents_cl,
+                      region_voxel_extents_cl,
+                      padding_cl,
+                      axis_scaling_cl,
+                      float(map.occupancy_threshold_value),
                       cl_uint(query.queryFlags()),
-                      seedOuterBatch
+                      seed_outer_batch
                       );
 
     if (!clu::checkError(std::cerr, clerr, "queue seed outer obstacles"))
@@ -245,22 +245,22 @@ namespace roirangefill
 
     PROFILE(propagate);
 
-    calculateGrid(grid, propagateKernel, query.gpu(), regionVoxelExtentsCL);
+    calculateGrid(grid, propagate_kernel, query.gpu(), region_voxel_extents_cl);
 
-    cl::Event previousEvent = seedOuterKernelEvent;
-    cl::Event propagateEvent;
+    cl::Event previous_event = seed_outer_kernel_event;
+    cl::Event propagate_event;
 
-    const int propagationIterations = int(std::ceil(query.searchRadius() / map.resolution));
+    const int propagation_iterations = int(std::ceil(query.searchRadius() / map.resolution));
     // std::cout << "Iterations: " << propagationIterations << std::endl;
-    for (int i = 0; i < propagationIterations; ++i)
+    for (int i = 0; i < propagation_iterations; ++i)
     {
-      kernelEvents = clu::EventList(&previousEvent, 1, &propagateEvent);
-      clerr = propagateKernel(queue, grid, kernelEvents,
-                              query.gpuWork(srcBufferIndex).arg<cl_mem>(),
-                              query.gpuWork(1 - srcBufferIndex).arg<cl_mem>(),
-                              regionVoxelExtentsCL,
+      kernel_events = clu::EventList(&previous_event, 1, &propagate_event);
+      clerr = propagate_kernel(queue, grid, kernel_events,
+                              query.gpuWork(src_buffer_index).arg<cl_mem>(),
+                              query.gpuWork(1 - src_buffer_index).arg<cl_mem>(),
+                              region_voxel_extents_cl,
                               float(query.searchRadius()),
-                              axisScalingCL
+                              axis_scaling_cl
                               // , __local char4 *localVoxels
                             );
       if (!clu::checkError(std::cerr, clerr, "queue propagate"))
@@ -268,8 +268,8 @@ namespace roirangefill
         return clerr;
       }
 
-      previousEvent = propagateEvent;
-      srcBufferIndex = 1 - srcBufferIndex;
+      previous_event = propagate_event;
+      src_buffer_index = 1 - src_buffer_index;
       clerr = queue.flush();
 
       if (!clu::checkError(std::cerr, clerr, "flush propagate"))
@@ -283,26 +283,26 @@ namespace roirangefill
   #endif // OHM_PROFILE
 
     PROFILE_END(propagate);
-    if (query.queryFlags() & QF_ReportUnscaledResults)
+    if (query.queryFlags() & kQfReportUnscaledResults)
     {
-      axisScalingCL = { 1, 1, 1 };
+      axis_scaling_cl = { 1, 1, 1 };
     }
 
     PROFILE(migrate);
 
     // Only queue migration kernel for the target region.
-    calculateGrid(grid, migrateKernel, query.gpu(), regionVoxelExtentsCL);
+    calculateGrid(grid, migrate_kernel, query.gpu(), region_voxel_extents_cl);
 
-    cl::Event migrateEvent;
-    kernelEvents = clu::EventList(&previousEvent, 1, &migrateEvent);
-    clerr = migrateKernel(queue, grid, kernelEvents,
+    cl::Event migrate_event;
+    kernel_events = clu::EventList(&previous_event, 1, &migrate_event);
+    clerr = migrate_kernel(queue, grid, kernel_events,
                           query.gpuRegionClearanceBuffer().arg<cl_mem>(),
-                          query.gpuWork(srcBufferIndex).arg<cl_mem>(),
-                          regionVoxelExtentsCL,
-                          regionVoxelExtentsCL,
+                          query.gpuWork(src_buffer_index).arg<cl_mem>(),
+                          region_voxel_extents_cl,
+                          region_voxel_extents_cl,
                           float(query.searchRadius()),
                           float(map.resolution),
-                          axisScalingCL,
+                          axis_scaling_cl,
                           cl_uint(query.queryFlags())
                         );
 
@@ -317,8 +317,8 @@ namespace roirangefill
       return clerr;
     }
 
-    previousEvent = migrateEvent;
-    previousEvent.wait();
+    previous_event = migrate_event;
+    previous_event.wait();
     PROFILE_END(migrate);
 
     clerr = queue.finish();

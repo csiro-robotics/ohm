@@ -3,15 +3,15 @@
 //
 #include <glm/glm.hpp>
 
-#include "mapcache.h"
-#include "occupancykey.h"
-#include "occupancykeylist.h"
-#include "occupancymap.h"
-#include "occupancymapserialise.h"
-#include "occupancynode.h"
-#include "occupancytype.h"
-#include "plymesh.h"
-#include "progressmonitor.h"
+#include <ohm/MapCache.h>
+#include <ohm/Key.h>
+#include <ohm/KeyList.h>
+#include <ohm/OccupancyMap.h>
+#include <ohm/MapSerialise.h>
+#include <ohm/Voxel.h>
+#include <ohm/OccupancyType.h>
+#include <ohmutil/PlyMesh.h>
+#include <ohmutil/ProgressMonitor.h>
 
 #include <algorithm>
 #include <chrono>
@@ -38,28 +38,28 @@ namespace
 
   enum ExportMode
   {
-    ExportOccupancy,
-    ExportClearance
+    kExportOccupancy,
+    kExportClearance
   };
 
   struct Options
   {
-    std::string mapFile;
-    std::string plyFile;
+    std::string map_file;
+    std::string ply_file;
     // expire regions older than this
-    double expiryTime = 0;
-    float cullDistance = 0;
-    float occupancyThreshold = -1.0f;
-    float colourScale = 3.0f;
-    ExportMode mode = ExportOccupancy;
+    double expiry_time = 0;
+    float cull_distance = 0;
+    float occupancy_threshold = -1.0f;
+    float colour_scale = 3.0f;
+    ExportMode mode = kExportOccupancy;
   };
 
   template <typename NUMERIC> bool optionValue(const char *arg, int argc, char *argv[], NUMERIC &value)
   {
-    std::string strValue;
-    if (optionValue(arg, argc, argv, strValue))
+    std::string str_value;
+    if (optionValue(arg, argc, argv, str_value))
     {
-      std::istringstream instr(strValue);
+      std::istringstream instr(str_value);
       instr >> value;
       return !instr.fail();
     }
@@ -71,32 +71,32 @@ namespace
   {
   public:
     LoadMapProgress(ProgressMonitor &monitor)
-      : _monitor(monitor)
+      : monitor_(monitor)
     {}
 
     bool quit() const override { return ::quit > 1; }
 
-    void setTargetProgress(unsigned target) override { _monitor.beginProgress(ProgressMonitor::Info(target)); }
-    void incrementProgress(unsigned inc = 1) override { _monitor.incrementProgressBy(inc); }
+    void setTargetProgress(unsigned target) override { monitor_.beginProgress(ProgressMonitor::Info(target)); }
+    void incrementProgress(unsigned inc = 1) override { monitor_.incrementProgressBy(inc); }
 
   private:
-    ProgressMonitor &_monitor;
+    ProgressMonitor &monitor_;
   };
 }
 
 
-// Custom option parsing. Must come before we include options.h/cxxopt.hpp
+// Custom option parsing. Must come before we include Options.h/cxxopt.hpp
 std::istream &operator>>(std::istream &in, ExportMode &mode)
 {
-  std::string modeStr;
-  in >> modeStr;
-  if (modeStr.compare("occupancy") == 0)
+  std::string mode_str;
+  in >> mode_str;
+  if (mode_str.compare("occupancy") == 0)
   {
-    mode = ExportOccupancy;
+    mode = kExportOccupancy;
   }
-  else if (modeStr.compare("clearance") == 0)
+  else if (mode_str.compare("clearance") == 0)
   {
-    mode = ExportClearance;
+    mode = kExportClearance;
   }
   // else
   // {
@@ -109,10 +109,10 @@ std::ostream &operator<<(std::ostream &out, const ExportMode mode)
 {
   switch (mode)
   {
-  case ExportOccupancy:
+  case kExportOccupancy:
     out << "occupancy";
     break;
-  case ExportClearance:
+  case kExportClearance:
     out << "clearance";
     break;
   }
@@ -121,47 +121,47 @@ std::ostream &operator<<(std::ostream &out, const ExportMode mode)
 
 
 // Must be after argument streaming operators.
-#include <options.h>
+#include <ohmutil/Options.h>
 
 int parseOptions(Options &opt, int argc, char *argv[])
 {
-  cxxopts::Options optParse(argv[0], "Convert an occupancy map to a point cloud. Defaults to generate a positional "
+  cxxopts::Options opt_parse(argv[0], "Convert an occupancy map to a point cloud. Defaults to generate a positional "
                                      "point cloud, but can generate a clearance cloud as well.");
-  optParse.positional_help("<map.ohm> <cloud.ply>");
+  opt_parse.positional_help("<map.ohm> <cloud.ply>");
 
   try
   {
     // Build GPU options set.
     // clang-format off
-    optParse.add_options()
+    opt_parse.add_options()
       ("help", "Show help.")
-      ("colour-scale", "Colour max scaling value for colouring a clearance cloud. Max colour at this range..", cxxopts::value(opt.colourScale))
-      ("cloud", "The output cloud file (ply).", cxxopts::value(opt.plyFile))
-      ("cull", "Remove regions farther than the specified distance from the map origin.", cxxopts::value(opt.cullDistance)->default_value(optStr(opt.cullDistance)))
-      ("map", "The input map file (ohm).", cxxopts::value(opt.mapFile))
+      ("colour-scale", "Colour max scaling value for colouring a clearance cloud. Max colour at this range..", cxxopts::value(opt.colour_scale))
+      ("cloud", "The output cloud file (ply).", cxxopts::value(opt.ply_file))
+      ("cull", "Remove regions farther than the specified distance from the map origin.", cxxopts::value(opt.cull_distance)->default_value(optStr(opt.cull_distance)))
+      ("map", "The input map file (ohm).", cxxopts::value(opt.map_file))
       ("mode", "Export mode [occupancy,clearance]: select which data to export from the map.", cxxopts::value(opt.mode)->default_value(optStr(opt.mode)))
-      ("expire", "Expire regions with a timestamp before the specified time. These are not exported.", cxxopts::value(opt.expiryTime))
-      ("threshold", "Override the map's occupancy threshold. Only occupied points are exported.", cxxopts::value(opt.occupancyThreshold)->default_value(optStr(opt.occupancyThreshold)))
+      ("expire", "Expire regions with a timestamp before the specified time. These are not exported.", cxxopts::value(opt.expiry_time))
+      ("threshold", "Override the map's occupancy threshold. Only occupied points are exported.", cxxopts::value(opt.occupancy_threshold)->default_value(optStr(opt.occupancy_threshold)))
       ;
     // clang-format on
 
-    optParse.parse_positional({ "map", "cloud" });
+    opt_parse.parse_positional({ "map", "cloud" });
 
-    cxxopts::ParseResult parsed = optParse.parse(argc, argv);
+    cxxopts::ParseResult parsed = opt_parse.parse(argc, argv);
 
     if (parsed.count("help") || parsed.arguments().empty())
     {
       // show usage.
-      std::cout << optParse.help({ "", "Map", "Mapping", "GPU" }) << std::endl;
+      std::cout << opt_parse.help({ "", "Map", "Mapping", "GPU" }) << std::endl;
       return 1;
     }
 
-    if (opt.mapFile.empty())
+    if (opt.map_file.empty())
     {
       std::cerr << "Missing input map file name" << std::endl;
       return -1;
     }
-    if (opt.plyFile.empty())
+    if (opt.ply_file.empty())
     {
       std::cerr << "Missing output file name" << std::endl;
       return -1;
@@ -182,17 +182,16 @@ int main(int argc, char *argv[])
   Options opt;
   std::cout.imbue(std::locale(""));
 
-  int res = 0;
-  res = parseOptions(opt, argc, argv);
+  int res = parseOptions(opt, argc, argv);
 
   if (res)
   {
     return res;
   }
 
-  std::cout << "Loading map " << opt.mapFile.c_str() << std::endl;
+  std::cout << "Loading map " << opt.map_file.c_str() << std::endl;
   ProgressMonitor prog(10);
-  LoadMapProgress loadProgress(prog);
+  LoadMapProgress load_progress(prog);
   ohm::OccupancyMap map(1.0f);
 
   prog.setDisplayFunction([&opt](const ProgressMonitor::Progress &prog) {
@@ -218,7 +217,7 @@ int main(int argc, char *argv[])
   });
 
   prog.startThread();
-  res = ohm::load(opt.mapFile.c_str(), map, &loadProgress);
+  res = ohm::load(opt.map_file.c_str(), map, &load_progress);
   prog.endProgress();
 
   std::cout << std::endl;
@@ -229,60 +228,60 @@ int main(int argc, char *argv[])
     return res;
   }
 
-  if (opt.occupancyThreshold >= 0)
+  if (opt.occupancy_threshold >= 0)
   {
-    map.setOccupancyThresholdProbability(opt.occupancyThreshold);
+    map.setOccupancyThresholdProbability(opt.occupancy_threshold);
   }
 
-  if (opt.cullDistance)
+  if (opt.cull_distance)
   {
-    std::cout << "Culling regions beyond range : " << opt.cullDistance << std::endl;
-    const unsigned removed = map.removeDistanceRegions(map.origin(), opt.cullDistance);
+    std::cout << "Culling regions beyond range : " << opt.cull_distance << std::endl;
+    const unsigned removed = map.removeDistanceRegions(map.origin(), opt.cull_distance);
     std::cout << "Removed " << removed << " regions" << std::endl;
     ;
   }
-  if (opt.expiryTime)
+  if (opt.expiry_time)
   {
-    std::cout << "Expiring regions before time: " << opt.expiryTime << std::endl;
-    unsigned removed = map.expireRegions(opt.expiryTime);
+    std::cout << "Expiring regions before time: " << opt.expiry_time << std::endl;
+    unsigned removed = map.expireRegions(opt.expiry_time);
     std::cout << "Removed " << removed << " regions" << std::endl;
   }
 
   std::cout << "Converting to PLY cloud" << std::endl;
   PlyMesh ply;
   glm::vec3 v;
-  size_t regionCount = map.regionCount();
-  glm::i16vec3 lastRegion = map.begin().key().regionKey();
-  uint64_t pointCount = 0;
+  const size_t region_count = map.regionCount();
+  glm::i16vec3 last_region = map.begin().key().regionKey();
+  uint64_t point_count = 0;
 
-  prog.beginProgress(ProgressMonitor::Info(regionCount));
+  prog.beginProgress(ProgressMonitor::Info(region_count));
 
   for (auto iter = map.begin(); iter != map.end() && !quit; ++iter)
   {
     const ohm::OccupancyNodeConst node = *iter;
-    if (lastRegion != iter.key().regionKey())
+    if (last_region != iter.key().regionKey())
     {
       prog.incrementProgress();
-      lastRegion = iter.key().regionKey();
+      last_region = iter.key().regionKey();
     }
-    if (opt.mode == ExportOccupancy)
+    if (opt.mode == kExportOccupancy)
     {
       if (map.occupancyType(node) == ohm::Occupied)
       {
         v = map.voxelCentreLocal(node.key());
         ply.addVertex(v);
-        ++pointCount;
+        ++point_count;
       }
     }
-    else if (opt.mode == ExportClearance)
+    else if (opt.mode == kExportClearance)
     {
-      if (node.isValid() && node.clearance() >= 0 && node.clearance() < opt.colourScale)
+      if (node.isValid() && node.clearance() >= 0 && node.clearance() < opt.colour_scale)
       {
-        const float rangeValue = node.clearance();
-        uint8_t c = (uint8_t)(255 * std::max(0.0f, (opt.colourScale - rangeValue) / opt.colourScale));
+        const float range_value = node.clearance();
+        uint8_t c = uint8_t(255 * std::max(0.0f, (opt.colour_scale - range_value) / opt.colour_scale));
         v = map.voxelCentreLocal(node.key());
         ply.addVertex(v, Colour(c, 128, 0));
-        ++pointCount;
+        ++point_count;
       }
     }
   }
@@ -290,11 +289,11 @@ int main(int argc, char *argv[])
   prog.endProgress();
   prog.pause();
   prog.joinThread();
-  std::cout << "\nExporting " << pointCount << " points" << std::endl;
+  std::cout << "\nExporting " << point_count << " points" << std::endl;
 
   if (!quit)
   {
-    ply.save(opt.plyFile.c_str(), true);
+    ply.save(opt.ply_file.c_str(), true);
   }
 
   return res;

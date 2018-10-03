@@ -1,32 +1,30 @@
 //
 // author Kazys Stepanas
 //
-#include "ohmqueryconfig.h"
+#include "OhmQueryConfig.h"
 
 #include <glm/glm.hpp>
 #include <3esservermacros.h>
 
-#include "occupancygpu.h"
-#include "occupancygpumap.h"
-#include "occupancylinequery.h"
-#include "occupancymap.h"
-#include "occupancymapserialise.h"
-#include "occupancynearestneighbours.h"
-#include "occupancynode.h"
-#include "occupancytype.h"
-#include "occupancyutil.h"
-#include "occupancyqueryflag.h"
-#include "occupancytype.h"
-// #include "ohmmapper.h"
-// #include "ohmclearanceprocess.h"
+#include <ohm/OhmGpu.h>
+#include <ohm/GpuMap.h>
+#include <ohm/LineQuery.h>
+#include <ohm/OccupancyMap.h>
+#include <ohm/MapSerialise.h>
+#include <ohm/NearestNeighbours.h>
+#include <ohm/Voxel.h>
+#include <ohm/OccupancyType.h>
+#include <ohm/OccupancyUtil.h>
+#include <ohm/QueryFlag.h>
+#include <ohm/OccupancyType.h>
 
-#include "ohmutil.h"
-#include "plymesh.h"
-#include "progressmonitor.h"
-#include "glmstream.h"
-#include "safeio.h"
+#include <ohmutil/OhmUtil.h>
+#include <ohmutil/PlyMesh.h>
+#include <ohmutil/ProgressMonitor.h>
+#include <ohmutil/GlmStream.h>
+#include <ohmutil/SafeIO.h>
 
-#include "debugids.h"
+#include <ohm/DebugIDs.h>
 
 #include <algorithm>
 #include <atomic>
@@ -41,7 +39,7 @@
 
 TES_SERVER_DECL(g_tesServer);
 
-typedef std::chrono::high_resolution_clock timing_clock;
+typedef std::chrono::high_resolution_clock TimingClock;
 
 namespace
 {
@@ -74,16 +72,16 @@ namespace
       float radius = -1;
     };
 
-    std::string mapFile;
-    std::string outputBase;
+    std::string map_file;
+    std::string output_base;
     Neighbours neighbours;
     Ranges ranges;
     Line line;
     int repeat = 0;
-    bool unknownAsOccupied = true;
-    bool useGpu = false;
-    bool gpuCompare = false;
-    bool hardResetOnRepeat = false;
+    bool unknown_as_occupied = true;
+    bool use_gpu = false;
+    bool gpu_compare = false;
+    bool hard_reset_on_repeat = false;
     bool quiet = false;
 
     inline bool haveQuery() const
@@ -97,8 +95,8 @@ namespace
 
   void Options::print() const
   {
-    std::cout << "Map: " << mapFile << std::endl;
-    std::cout << "Output: " << outputBase << std::endl;
+    std::cout << "Map: " << map_file << std::endl;
+    std::cout << "Output: " << output_base << std::endl;
     if (neighbours.radius >= 0)
     {
       std::cout << "Nearest neighbours: " << neighbours.point << " R: " << neighbours.radius << std::endl;
@@ -118,15 +116,15 @@ namespace
   class LoadMapProgress : public ohm::SerialiseProgress
   {
   public:
-    LoadMapProgress(ProgressMonitor &monitor) : _monitor(monitor) {}
+    LoadMapProgress(ProgressMonitor &monitor) : monitor_(monitor) {}
 
     bool quit() const override { return ::quit > 1; }
 
-    void setTargetProgress(unsigned target) override { _monitor.beginProgress(ProgressMonitor::Info(target)); }
-    void incrementProgress(unsigned inc = 1) override { _monitor.incrementProgressBy(inc);  }
+    void setTargetProgress(unsigned target) override { monitor_.beginProgress(ProgressMonitor::Info(target)); }
+    void incrementProgress(unsigned inc = 1) override { monitor_.incrementProgressBy(inc);  }
 
   private:
-    ProgressMonitor &_monitor;
+    ProgressMonitor &monitor_;
   };
 }
 
@@ -191,50 +189,50 @@ inline std::ostream &operator<<(std::ostream &out, const Options::Ranges &r)
 
 // This is messy :(
 // Must come after streaming operators for custom command line arguments are defined.
-#include <options.h>
+#include <ohmutil/Options.h>
 
 int parseOptions(Options &opt, int argc, char *argv[])
 {
-  cxxopts::Options optParse(argv[0],
+  cxxopts::Options opt_parse(argv[0],
 "\nLoads an occupancy map file and runs a single query on the map, exporting the\n"
 "results to a new PLY cloud. trajectory file. The trajectory marks the scanner\n"
 "trajectory with timestamps loosely corresponding to cloud point timestamps.\n"
 "Trajectory points are interpolated for each cloud point based on corresponding\n"
 "times in the trajectory."
   );
-  optParse.positional_help("<map.ohm> <--near=x,y,z,r | --line=x1,y1,z1,x2,y2,z2,r | --ranges=x1,y1,z1,x2,y2,z2,r>");
+  opt_parse.positional_help("<map.ohm> <--near=x,y,z,r | --line=x1,y1,z1,x2,y2,z2,r | --ranges=x1,y1,z1,x2,y2,z2,r>");
 
   try
   {
     // clang-format off
-    optParse.add_options()
-      ("gpu", "Use GPU based queries where possible", optVal(opt.useGpu))
-      ("q,quiet", "Run in quiet mode. Suppresses progress messages.", optVal(opt.useGpu))
-      ("gpu-compare", "Compare CPU and GPU results for the query. Implies '--gpu'.", optVal(opt.gpuCompare))
-      ("hard-reset", "Perform a hard reset when repeatedly executing a query (--repeat option). Soft reset is the default.", optVal(opt.hardResetOnRepeat))
-      ("o,output", "Sets the base PLY file names to save results to. Defaults to <<mapfile>-near.ply> and <<mapfile>-line.ply>", optVal(opt.outputBase))
+    opt_parse.add_options()
+      ("gpu", "Use GPU based queries where possible", optVal(opt.use_gpu))
+      ("q,quiet", "Run in quiet mode. Suppresses progress messages.", optVal(opt.use_gpu))
+      ("gpu-compare", "Compare CPU and GPU results for the query. Implies '--gpu'.", optVal(opt.gpu_compare))
+      ("hard-reset", "Perform a hard reset when repeatedly executing a query (--repeat option). Soft reset is the default.", optVal(opt.hard_reset_on_repeat))
+      ("o,output", "Sets the base PLY file names to save results to. Defaults to <<mapfile>-near.ply> and <<mapfile>-line.ply>", optVal(opt.output_base))
       ("line", "Perform a line segment test from (x1,y1,z1) to (x2,y2,z2) considering voxels withing radius r of the line segment.", optVal(opt.line), "x1,y1,z1,x2,y2,z2,r")
       ("near", "Perform a nearest neighbours query at the point (x,y,z) with a radius of r.", optVal(opt.neighbours), "x,y,z,r")
       ("ranges", "Calculate the nearest occupied voxel for each voxel in the specified min/max extents, (x1,y1,z1) to (x2,y2,z2).", optVal(opt.ranges), "x1,y1,z1,x2,y2,z2,r")
       ("repeat", "Repeat the query N times. For timing evaluation.", optVal(opt.repeat))
-      ("uao", "Treat unknown space as occupied/obstructed?", optVal(opt.unknownAsOccupied))
+      ("uao", "Treat unknown space as occupied/obstructed?", optVal(opt.unknown_as_occupied))
     ;
     // clang-format off
 
-    optParse.parse_positional({ "output" });
+    opt_parse.parse_positional({ "output" });
 
-    cxxopts::ParseResult parsed = optParse.parse(argc, argv);
+    cxxopts::ParseResult parsed = opt_parse.parse(argc, argv);
 
     if (parsed.count("help") || parsed.arguments().empty())
     {
       // show usage.
-      std::cout << optParse.help({ "", "Group" }) << std::endl;
+      std::cout << opt_parse.help({ "", "Group" }) << std::endl;
       return 1;
     }
 
     bool ok = true;
 
-    if (opt.mapFile.empty())
+    if (opt.map_file.empty())
     {
       ok = false;
       std::cerr << "Missing input map" << std::endl;
@@ -282,28 +280,28 @@ void initialiseDebugCategories(const Options &opt)
 }
 
 void saveQueryCloud(const ohm::OccupancyMap &map, const ohm::Query &query, const Options &opt,
-                    const std::string &suffix, float colourRange = 0.0f)
+                    const std::string &suffix, float colour_range = 0.0f)
 {
-  size_t resultCount = query.numberOfResults();
+  const size_t result_count = query.numberOfResults();
   const ohm::OccupancyKey *keys = query.intersectedVoxels();
   const float *ranges = query.ranges();
-  glm::dvec3 voxelPos;
+  glm::dvec3 voxel_pos;
 
   PlyMesh ply;
-  for (size_t i = 0; i < resultCount; ++i)
+  for (size_t i = 0; i < result_count; ++i)
   {
     const ohm::OccupancyKey &key = keys[i];
     uint8_t c = 255;
-    if (colourRange > 0 && ranges)
+    if (colour_range > 0 && ranges)
     {
-      const float rangeValue = ranges[i];
-      c = (uint8_t)(255 * std::max(0.0f, (colourRange - rangeValue) / colourRange));
+      const float range_value = ranges[i];
+      c = uint8_t(255 * std::max(0.0f, (colour_range - range_value) / colour_range));
     }
-    voxelPos = map.voxelCentreGlobal(key);
-    ply.addVertex(voxelPos, Colour(c, 128, 0));
+    voxel_pos = map.voxelCentreGlobal(key);
+    ply.addVertex(voxel_pos, Colour(c, 128, 0));
   }
 
-  std::string str = opt.outputBase;
+  std::string str = opt.output_base;
   str += suffix + ".ply";
   printf("Saving results to %s\n", str.c_str());
   ply.save(str.c_str(), true);
@@ -383,37 +381,37 @@ void saveRangesCloud(const ohm::OccupancyMap &map, const ohm::VoxelRanges &query
 #endif // FIXME
 
 
-void showTiming(const char *info, const timing_clock::time_point &startTime, const timing_clock::time_point &endTime,
+void showTiming(const char *info, const TimingClock::time_point &start_time, const TimingClock::time_point &end_time,
                 int cycles)
 {
-  std::string timingStr;
-  timing_clock::duration execTime = endTime - startTime;
-  util::timeString(timingStr, execTime);
+  std::string timing_str;
+  TimingClock::duration exec_time = end_time - start_time;
+  util::timeString(timing_str, exec_time);
   if (cycles <= 1)
   {
-    printf("%s query completed in %s\n", info, timingStr.c_str());
+    printf("%s query completed in %s\n", info, timing_str.c_str());
   }
   else
   {
-    printf("%s query completed %d queries in %s\n", info, cycles, timingStr.c_str());
-    execTime /= cycles;
-    util::timeString(timingStr, execTime);
-    printf("average time per query: %s\n", timingStr.c_str());
+    printf("%s query completed %d queries in %s\n", info, cycles, timing_str.c_str());
+    exec_time /= cycles;
+    util::timeString(timing_str, exec_time);
+    printf("average time per query: %s\n", timing_str.c_str());
   }
 }
 
 
-void compareCpuGpuQuery(const char *queryName, ohm::Query &query, const float epsilon = 1e-5f)
+void compareCpuGpuQuery(const char *query_name, ohm::Query &query, const float epsilon = 1e-5f)
 {
-  std::string timingInfoStr;
-  timing_clock::time_point queryStart, queryEnd;
+  std::string timing_info_str;
+  TimingClock::time_point query_start, query_end;
 
   // CPU execution.
-  query.setQueryFlags(query.queryFlags() & ~ohm::QF_GpuEvaluate);
-  queryStart = timing_clock::now();
+  query.setQueryFlags(query.queryFlags() & ~ohm::kQfGpuEvaluate);
+  query_start = TimingClock::now();
   query.reset();
   query.execute();
-  queryEnd = timing_clock::now();
+  query_end = TimingClock::now();
 
   std::vector<ohm::OccupancyKey> keys;
   std::vector<float> ranges;
@@ -430,20 +428,20 @@ void compareCpuGpuQuery(const char *queryName, ohm::Query &query, const float ep
   std::cout <<
             "Comparing CPU/GPU execution. Note GPU execution time may be better on repeated queries due to setup overhead and caching gains."
             << std::endl;
-  timingInfoStr = queryName;
-  timingInfoStr += " CPU";
-  showTiming(timingInfoStr.c_str(), queryStart, queryEnd, 1);
+  timing_info_str = query_name;
+  timing_info_str += " CPU";
+  showTiming(timing_info_str.c_str(), query_start, query_end, 1);
 
   // GPU execution
-  query.setQueryFlags(query.queryFlags() | ohm::QF_GpuEvaluate);
-  queryStart = timing_clock::now();
+  query.setQueryFlags(query.queryFlags() | ohm::kQfGpuEvaluate);
+  query_start = TimingClock::now();
   query.reset();
   query.execute();
-  queryEnd = timing_clock::now();
+  query_end = TimingClock::now();
 
-  timingInfoStr = queryName;
-  timingInfoStr += " GPU";
-  showTiming(timingInfoStr.c_str(), queryStart, queryEnd, 1);
+  timing_info_str = query_name;
+  timing_info_str += " GPU";
+  showTiming(timing_info_str.c_str(), query_start, query_end, 1);
 
   std::cout << "Comparing " << keys.size() << " results" << std::endl;
   if (keys.size() != query.numberOfResults())
@@ -452,9 +450,9 @@ void compareCpuGpuQuery(const char *queryName, ohm::Query &query, const float ep
   }
 
   // Compare results.
-  bool resultsMatch = true;
-  float rangeDiff;
-  bool keyFound;
+  bool results_match = true;
+  float range_diff;
+  bool key_found;
 
   // Look for duplicate GPU results.
   for (size_t i = 0; i < query.numberOfResults(); ++i)
@@ -475,62 +473,62 @@ void compareCpuGpuQuery(const char *queryName, ohm::Query &query, const float ep
   // Compare CPU/GPU results.
   for (size_t i = 0; i < keys.size(); ++i)
   {
-    keyFound = false;
+    key_found = false;
     // Find the key in the GPU result. Order from GPU is non-deterministic.
     for (size_t j = 0; j < query.numberOfResults(); ++j)
     {
       if (keys[i] == query.intersectedVoxels()[j])
       {
-        keyFound = true;
-        rangeDiff = ranges[i] - query.ranges()[j];
-        if (std::abs(rangeDiff) > epsilon)
+        key_found = true;
+        range_diff = ranges[i] - query.ranges()[j];
+        if (std::abs(range_diff) > epsilon)
         {
           std::cerr << "Range diff for voxel ("
                     << keys[i].regionKey().x << ',' << keys[i].regionKey().y << ',' << keys[i].regionKey().z
                     << "):[" << int(keys[i].localKey().x) << ',' << int(keys[i].localKey().y) << ',' << int(keys[i].localKey().z)
-                    << "]: " << ranges[i] << "/" << query.ranges()[j] << ':' << rangeDiff << std::endl;
-          resultsMatch = false;
+                    << "]: " << ranges[i] << "/" << query.ranges()[j] << ':' << range_diff << std::endl;
+          results_match = false;
         }
         break;
       }
     }
 
-    if (!keyFound)
+    if (!key_found)
     {
       std::cerr << "No matching GPU key for voxel ("
                 << keys[i].regionKey().x << ',' << keys[i].regionKey().y << ',' << keys[i].regionKey().z
                 << "):[" << int(keys[i].localKey().x) << ',' << int(keys[i].localKey().y) << ',' << int(keys[i].localKey().z)
                 << ']' << std::endl;
-      resultsMatch = false;
+      results_match = false;
     }
   }
 }
 
 
-void executeQuery(const char *queryName, const Options &opt, ohm::Query &query, const float rangeEpsilon = 1e-5f)
+void executeQuery(const char *query_name, const Options &opt, ohm::Query &query, const float range_epsilon = 1e-5f)
 {
-  if (!opt.gpuCompare)
+  if (!opt.gpu_compare)
   {
     int repeat = (opt.repeat > 0) ? opt.repeat : 1;
-    auto queryStart = timing_clock::now();
+    const auto query_start = TimingClock::now();
 
-    if (opt.useGpu)
+    if (opt.use_gpu)
     {
-      query.setQueryFlags(query.queryFlags() | ohm::QF_GpuEvaluate);
+      query.setQueryFlags(query.queryFlags() | ohm::kQfGpuEvaluate);
     }
 
     for (int i = 0; i < repeat; ++i)
     {
-      query.reset(opt.hardResetOnRepeat);
+      query.reset(opt.hard_reset_on_repeat);
       query.execute();
     }
-    auto queryEnd = timing_clock::now();
+    const auto query_end = TimingClock::now();
 
-    showTiming(queryName, queryStart, queryEnd, repeat);
+    showTiming(query_name, query_start, query_end, repeat);
   }
   else
   {
-    compareCpuGpuQuery(queryName, query, rangeEpsilon);
+    compareCpuGpuQuery(query_name, query, range_epsilon);
   }
 }
 
@@ -564,33 +562,33 @@ int runQueries(const Options &opt)
   // Start paused.
   prog.startThread(true);
 
-  printf("Loading map %s\n", opt.mapFile.c_str());
-  LoadMapProgress loadProgress(prog);
+  printf("Loading map %s\n", opt.map_file.c_str());
+  LoadMapProgress load_progress(prog);
   prog.unpause();
-  int err = ohm::load(opt.mapFile.c_str(), map, nullptr);//&loadProgress);
+  int err = ohm::load(opt.map_file.c_str(), map, nullptr);//&loadProgress);
   prog.endProgress();
 
   if (err)
   {
-    printf("Failed to load map %s ", opt.mapFile.c_str());
+    printf("Failed to load map %s ", opt.map_file.c_str());
     switch (err)
     {
-    case ohm::SE_FileCreateFailure:
+    case ohm::kSeFileCreateFailure:
       printf("file create failure\n");
       break;
-    case ohm::SE_FileOpenFailure:
+    case ohm::kSeFileOpenFailure:
       printf("file open failure\n");
       break;
-    case ohm::SE_FileWriteFailure:
+    case ohm::kSeFileWriteFailure:
       printf("file write failure\n");
       break;
-    case ohm::SE_FileReadFailure:
+    case ohm::kSeFileReadFailure:
       printf("file read failure\n");
       break;
-    case ohm::SE_ValueOverflow:
+    case ohm::kSeValueOverflow:
       printf("value overflow\n");
       break;
-    case ohm::SE_UnsupportedVersion:
+    case ohm::kSeUnsupportedVersion:
       printf("unsupported version\n");
       break;
     default:
@@ -602,18 +600,18 @@ int runQueries(const Options &opt)
 
   //timing_clock::time_point queryStart, queryEnd;
   std::string str;
-  unsigned queryFlags = 0;
-  queryFlags |= !!opt.unknownAsOccupied * ohm::QF_UnknownAsOccupied;
-  // queryFlags |= ohm::QF_GpuEvaluate;
+  unsigned query_flags = 0;
+  query_flags |= !!opt.unknown_as_occupied * ohm::kQfUnknownAsOccupied;
+  // queryFlags |= ohm::kQfGpuEvaluate;
 
   if (opt.neighbours.radius >= 0)
   {
     std::cout << "Running nearest neighbours " << opt.neighbours.point << " R: " << opt.neighbours.radius << std::endl;
 
-    ohm::NearestNeighbours nnQuery(map, opt.neighbours.point,
-                                   opt.neighbours.radius, queryFlags);
-    executeQuery("nearest neighbours", opt, nnQuery);
-    saveQueryCloud(map, nnQuery, opt, "-near");
+    ohm::NearestNeighbours nn_query(map, opt.neighbours.point,
+                                   opt.neighbours.radius, query_flags);
+    executeQuery("nearest neighbours", opt, nn_query);
+    saveQueryCloud(map, nn_query, opt, "-near");
   }
 
   if (opt.line.radius >= 0)
@@ -624,10 +622,10 @@ int runQueries(const Options &opt)
            opt.line.radius
           );
 
-    ohm::LineQuery lineQuery(map, opt.line.start, opt.line.end, opt.line.radius, queryFlags);
+    ohm::LineQuery line_query(map, opt.line.start, opt.line.end, opt.line.radius, query_flags);
     // Allow single voxel epsilon value.
-    executeQuery("line query", opt, lineQuery, float(map.resolution()));
-    saveQueryCloud(map, lineQuery, opt, "-line", opt.line.radius);
+    executeQuery("line query", opt, line_query, float(map.resolution()));
+    saveQueryCloud(map, line_query, opt, "-line", opt.line.radius);
   }
 
 #ifdef FIXME
@@ -643,13 +641,13 @@ int runQueries(const Options &opt)
     auto queryStart = timing_clock::now();
     if (opt.gpuCompare)
     {
-      rangesQuery.setQueryFlags(rangesQuery.queryFlags() & ~ohm::QF_GpuEvaluate);
+      rangesQuery.setQueryFlags(rangesQuery.queryFlags() & ~ohm::kQfGpuEvaluate);
       printf("CPU: ");
       fflush(stdout);
     }
     else if (opt.useGpu)
     {
-      rangesQuery.setQueryFlags(rangesQuery.queryFlags() | ohm::QF_GpuEvaluate);
+      rangesQuery.setQueryFlags(rangesQuery.queryFlags() | ohm::kQfGpuEvaluate);
     }
 
     rangesQuery.reset();
@@ -665,7 +663,7 @@ int runQueries(const Options &opt)
       saveRangesCloud(map, rangesQuery, "-ranges-cpu", prog, opt, &cpuPoints, true);
       // Set GPU flag and run again on GPU.
       queryStart = timing_clock::now();
-      rangesQuery.setQueryFlags(rangesQuery.queryFlags() | ohm::QF_GpuEvaluate);
+      rangesQuery.setQueryFlags(rangesQuery.queryFlags() | ohm::kQfGpuEvaluate);
 
       printf("GPU: ");
       fflush(stdout);
@@ -779,8 +777,7 @@ int main(int argc, char *argv[])
 
   std::cout.imbue(std::locale(""));
 
-  int res = 0;
-  res = parseOptions(opt, argc, argv);
+  int res = parseOptions(opt, argc, argv);
 
   if (res)
   {
@@ -788,16 +785,16 @@ int main(int argc, char *argv[])
   }
 
   // Generate output name based on input if not specified.
-  if (opt.outputBase.empty())
+  if (opt.output_base.empty())
   {
-    auto extensionStart = opt.mapFile.find_last_of(".");
-    if (extensionStart != std::string::npos)
+    const auto extension_start = opt.map_file.find_last_of(".");
+    if (extension_start != std::string::npos)
     {
-      opt.outputBase = opt.mapFile.substr(0, extensionStart);
+      opt.output_base = opt.map_file.substr(0, extension_start);
     }
     else
     {
-      opt.outputBase = opt.mapFile;
+      opt.output_base = opt.map_file;
     }
   }
 
@@ -821,7 +818,7 @@ int main(int argc, char *argv[])
 
   initialiseDebugCategories(opt);
 
-  if (opt.useGpu)
+  if (opt.use_gpu)
   {
     res = ohm::configureGpuFromArgs(argc, argv);
     if (res)

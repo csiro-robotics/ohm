@@ -5,20 +5,20 @@
 // Author: Kazys Stepanas
 #include "RoiRangeFill.h"
 
-#include "cl/clprogram.h"
-#include "gpucache.h"
-#include "gpukey.h"
-#include "gpulayercache.h"
-#include "maplayer.h"
-#include "occupancykey.h"
-#include "occupancymap.h"
-#include "occupancyutil.h"
-#include "ohmdefaultlayers.h"
-#include "private/occupancymapdetail.h"
-#include "private/occupancygpumapdetail.h"
+#include "cl/clProgram.h"
+#include "GpuCache.h"
+#include "GpuKey.h"
+#include "GpuLayerCache.h"
+#include "MapLayer.h"
+#include "Key.h"
+#include "OccupancyMap.h"
+#include "OccupancyUtil.h"
+#include "DefaultLayers.h"
+#include "private/OccupancyMapDetail.h"
+#include "private/GpuMapDetail.h"
 
-#include <gpuplatform.h>
-#include <gpupinnedbuffer.h>
+#include <gputil/gpuPlatform.h>
+#include <gputil/gpuPinnedBuffer.h>
 
 #include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -30,7 +30,7 @@
 #ifdef OHM_PROFILE
 #define PROFILING 1
 #endif // OHM_PROFILE
-#include <profile.h>
+#include <ohmutil/Profile.h>
 
 using namespace ohm;
 
@@ -39,18 +39,18 @@ namespace roirangefill
   int initGpu(gputil::Device &gpu);
   void releaseGpu();
   int invoke(const OccupancyMapDetail &map,
-             RoiRangeFill &query, GpuCache &gpuCache,
-             GpuLayerCache &clearanceLayerCache,
-             const glm::ivec3 &inputDataExtents,
-             const std::vector<gputil::Event> &uploadEvents);
+             RoiRangeFill &query, GpuCache &gpu_cache,
+             GpuLayerCache &clearance_layer_cache,
+             const glm::ivec3 &input_data_extents,
+             const std::vector<gputil::Event> &upload_events);
 }
 
 
 namespace
 {
-  void finishRegion(const glm::i16vec3 &regionKey, OccupancyMap &map, RoiRangeFill &query, GpuCache &gpuCache,
-                    GpuLayerCache &clearanceCache, const glm::ivec3 &batchVoxelExtents,
-                    const std::vector<gputil::Event> &uploadEvents)
+  void finishRegion(const glm::i16vec3 &region_key, OccupancyMap &map, RoiRangeFill &query, GpuCache &gpu_cache,
+                    GpuLayerCache &clearance_cache, const glm::ivec3 &batch_voxel_extents,
+                    const std::vector<gputil::Event> &upload_events)
   {
     PROFILE(finishRegion);
 
@@ -58,22 +58,21 @@ namespace
     // Ensure sufficient working voxel memory size.
     for (int i = 0; i < 2; ++i)
     {
-      query.gpuWork(i).elementsResize<gputil::char4>(volumeOf(batchVoxelExtents));
+      query.gpuWork(i).elementsResize<gputil::char4>(volumeOf(batch_voxel_extents));
     }
 
-    const int iterations = int(std::ceil(query.searchRadius() / map.resolution()));
-    roirangefill::invoke(*map.detail(), query, gpuCache, clearanceCache, batchVoxelExtents, uploadEvents);
+    roirangefill::invoke(*map.detail(), query, gpu_cache, clearance_cache, batch_voxel_extents, upload_events);
     PROFILE_END(invoke);
 
     PROFILE(download);
     // Download back to main memory.
-    MapChunk *region = map.region(regionKey);
+    MapChunk *region = map.region(region_key);
     if (region)
     {
-      gputil::PinnedBuffer clearanceBuffer(query.gpuRegionClearanceBuffer(), gputil::PinRead);
-      const MapLayer &clearanceLayer = map.layout().layer(DL_Clearance);
-      uint8_t *dst = clearanceLayer.voxels(*region);
-      clearanceBuffer.read(dst, clearanceLayer.layerByteSize(map.regionVoxelDimensions()));
+      gputil::PinnedBuffer clearance_buffer(query.gpuRegionClearanceBuffer(), gputil::kPinRead);
+      const MapLayer &clearance_layer = map.layout().layer(kDlClearance);
+      uint8_t *dst = clearance_layer.voxels(*region);
+      clearance_buffer.read(dst, clearance_layer.layerByteSize(map.regionVoxelDimensions()));
     }
     PROFILE_END(download);
   }
@@ -85,14 +84,14 @@ RoiRangeFill::RoiRangeFill(gputil::Device &gpu)
   gpu_ = gpu;
 
   // Initialise buffer to dummy size. We'll resize as required.
-  gpu_corner_voxel_key_ = gputil::Buffer(gpu, sizeof(GpuKey), gputil::BF_ReadHost);
-  gpu_region_keys_ = gputil::Buffer(gpu, 32 * sizeof(gputil::int3), gputil::BF_ReadHost);
-  gpu_occupancy_region_offsets_ = gputil::Buffer(gpu, 32 * sizeof(gputil::ulong1), gputil::BF_ReadHost);
+  gpu_corner_voxel_key_ = gputil::Buffer(gpu, sizeof(GpuKey), gputil::kBfReadHost);
+  gpu_region_keys_ = gputil::Buffer(gpu, 32 * sizeof(gputil::int3), gputil::kBfReadHost);
+  gpu_occupancy_region_offsets_ = gputil::Buffer(gpu, 32 * sizeof(gputil::ulong1), gputil::kBfReadHost);
   // Place holder allocation:
-  gpu_region_clearance_buffer_ = gputil::Buffer(gpu, 4, gputil::BF_ReadHost);
-  for (int i = 0; i < 2; ++i)
+  gpu_region_clearance_buffer_ = gputil::Buffer(gpu, 4, gputil::kBfReadHost);
+  for (auto &gpu_work : gpu_work_)
   {
-    gpu_work_[i] = gputil::Buffer(gpu, 1 * sizeof(gputil::char4), gputil::BF_ReadWrite);
+    gpu_work = gputil::Buffer(gpu, 1 * sizeof(gputil::char4), gputil::kBfReadWrite);
   }
 
   valid_ = roirangefill::initGpu(gpu) == 0;
@@ -113,7 +112,7 @@ RoiRangeFill::~RoiRangeFill()
 }
 
 
-bool RoiRangeFill::calculateForRegion(OccupancyMap &map, const glm::i16vec3 &regionKey)
+bool RoiRangeFill::calculateForRegion(OccupancyMap &map, const glm::i16vec3 &region_key)
 {
   PROFILE(RoiRangeFill);
 
@@ -121,12 +120,12 @@ bool RoiRangeFill::calculateForRegion(OccupancyMap &map, const glm::i16vec3 &reg
 
   // Calculate the voxel extents of the query. This size depends on the size of a single region plus the padding
   // required to ensure we reach the search range.
-  const unsigned voxelPadding = unsigned(std::ceil(search_radius_ / map.resolution()));
+  const unsigned voxel_padding = unsigned(std::ceil(search_radius_ / map.resolution()));
 
   // Ensure cache is initialised.
-  GpuCache *gpuCache = initialiseGpuCache(map, GpuCache::DefaultLayerMemSize, true);
-  GpuLayerCache *occupancyCache = gpuCache->layerCache(GCID_Occupancy);
-  GpuLayerCache *clearanceCache = gpuCache->layerCache(GCID_Clearance);
+  GpuCache *gpu_cache = initialiseGpuCache(map, GpuCache::kDefaultLayerMemSize, true);
+  GpuLayerCache *occupancy_cache = gpu_cache->layerCache(kGcIdOccupancy);
+  GpuLayerCache *clearance_cache = gpu_cache->layerCache(kGcIdClearance);
 
   // // Set the occupancyCache to read only mode. We need to copy query from it, but not back.
   // // This supports multiple threads.
@@ -134,109 +133,109 @@ bool RoiRangeFill::calculateForRegion(OccupancyMap &map, const glm::i16vec3 &reg
 
   // 1. voxelExtents contains the full range of the query.
   // 2. Determine the optimal buffer size to cover this range. This is based on GPU capabilities.
-  const unsigned maxBatchSize = std::min(occupancyCache->cacheSize(), clearanceCache->cacheSize());
-  const glm::ivec3 regionPadding((voxelPadding + map.regionVoxelDimensions().x - 1) / map.regionVoxelDimensions().x,
-                                  (voxelPadding + map.regionVoxelDimensions().y - 1) / map.regionVoxelDimensions().y,
-                                  (voxelPadding + map.regionVoxelDimensions().z - 1) / map.regionVoxelDimensions().z);
+  const unsigned max_batch_size = std::min(occupancy_cache->cacheSize(), clearance_cache->cacheSize());
+  const glm::ivec3 region_padding((voxel_padding + map.regionVoxelDimensions().x - 1) / map.regionVoxelDimensions().x,
+                                  (voxel_padding + map.regionVoxelDimensions().y - 1) / map.regionVoxelDimensions().y,
+                                  (voxel_padding + map.regionVoxelDimensions().z - 1) / map.regionVoxelDimensions().z);
 
   // Voxel grid we need to perform the calculations for.
-  const glm::ivec3 batchCalcExtents(map.regionVoxelDimensions());
+  const glm::ivec3 batch_calc_extents(map.regionVoxelDimensions());
   // Voxel grid we need to upload (padded on the calc extents).
-  const glm::ivec3 batchVoxelExtents = batchCalcExtents + 2 * glm::ivec3(voxelPadding);
-  assert(map.regionVoxelDimensions().x <= batchVoxelExtents.x &&
-          map.regionVoxelDimensions().y <= batchVoxelExtents.y &&
-          map.regionVoxelDimensions().z <= batchVoxelExtents.z);
+  const glm::ivec3 batch_voxel_extents = batch_calc_extents + 2 * glm::ivec3(voxel_padding);
+  assert(map.regionVoxelDimensions().x <= batch_voxel_extents.x &&
+          map.regionVoxelDimensions().y <= batch_voxel_extents.y &&
+          map.regionVoxelDimensions().z <= batch_voxel_extents.z);
 
-  const unsigned requiredCacheSize = volumeOf(glm::ivec3(1, 1, 1) + 2 * regionPadding);
+  const unsigned required_cache_size = volumeOf(glm::ivec3(1, 1, 1) + 2 * region_padding);
   // Must be able to support uploading 1 region plus enough padding regions to complete the query.
-  if (maxBatchSize < requiredCacheSize)
+  if (max_batch_size < required_cache_size)
   {
-    std::cerr << "RoiRangeFill: Gpu cache too small. Required " << requiredCacheSize
-              << " supported: " << maxBatchSize << std::endl;
+    std::cerr << "RoiRangeFill: Gpu cache too small. Required " << required_cache_size
+              << " supported: " << max_batch_size << std::endl;
     return false;
   }
 
   PROFILE_END(prime);
   PROFILE(gpuExec);
-  std::vector<gputil::Event> uploadEvents;
+  std::vector<gputil::Event> upload_events;
   // Iterate the region grid, uploading the batch.
-  glm::ivec3 regionMin = glm::ivec3(regionKey) - regionPadding;
-  glm::ivec3 regionMax = glm::ivec3(regionKey) + regionPadding;
+  const glm::ivec3 region_min = glm::ivec3(region_key) - region_padding;
+  const glm::ivec3 region_max = glm::ivec3(region_key) + region_padding;
 
   // const glm::ivec3 batchMin(x, y, z);
   // const glm::ivec3 batchMax = batchMin + regionStep - glm::ivec3(1);
-  const unsigned occupancyBatchMarker = occupancyCache->beginBatch();
-  unsigned clearanceBatchMarker = clearanceCache->beginBatch();
+  //const unsigned occupancy_batch_marker = occupancy_cache->beginBatch();
+  unsigned clearance_batch_marker = clearance_cache->beginBatch();
 
   // Set up the key marking the lower corner of the working group.
-  const OccupancyKey cornerVoxelKey(regionKey, glm::u8vec3(0));
-  const GpuKey gpuKey = { cornerVoxelKey.regionKey().x, cornerVoxelKey.regionKey().y,
-                          cornerVoxelKey.regionKey().z, cornerVoxelKey.localKey().x,
-                          cornerVoxelKey.localKey().y,  cornerVoxelKey.localKey().z };
-  gpu_corner_voxel_key_.write(&gpuKey, sizeof(gpuKey));
+  const OccupancyKey corner_voxel_key(region_key, glm::u8vec3(0));
+  const GpuKey gpu_key = { corner_voxel_key.regionKey().x, corner_voxel_key.regionKey().y,
+                          corner_voxel_key.regionKey().z, corner_voxel_key.localKey().x,
+                          corner_voxel_key.localKey().y,  corner_voxel_key.localKey().z };
+  gpu_corner_voxel_key_.write(&gpu_key, sizeof(gpu_key));
 
   PROFILE(upload);
   // Prepare region key and offset buffers.
   // Size the region buffers.
-  gpu_region_keys_.elementsResize<gputil::int3>(volumeOf(glm::ivec3(1) + 2 * regionPadding));
+  gpu_region_keys_.elementsResize<gputil::int3>(volumeOf(glm::ivec3(1) + 2 * region_padding));
   gpu_occupancy_region_offsets_.elementsResize<gputil::ulong1>(
-    volumeOf(glm::ivec3(1) + 2 * regionPadding));
+    volumeOf(glm::ivec3(1) + 2 * region_padding));
 
   gpu_region_clearance_buffer_.resize(
-    map.layout().layer(DL_Clearance).layerByteSize(map.regionVoxelDimensions()));
+    map.layout().layer(kDlClearance).layerByteSize(map.regionVoxelDimensions()));
 
-  gputil::PinnedBuffer regionKeys(gpu_region_keys_, gputil::PinWrite);
-  gputil::PinnedBuffer occupancyRegionOffsets(gpu_occupancy_region_offsets_, gputil::PinWrite);
+  gputil::PinnedBuffer region_keys(gpu_region_keys_, gputil::kPinWrite);
+  gputil::PinnedBuffer occupancy_region_offsets(gpu_occupancy_region_offsets_, gputil::kPinWrite);
   region_count_ = 0;
 
-  for (int z = regionMin.z; z <= regionMax.z; ++z)
+  for (int z = region_min.z; z <= region_max.z; ++z)
   {
-    for (int y = regionMin.y; y <= regionMax.y; ++y)
+    for (int y = region_min.y; y <= region_max.y; ++y)
     {
-      for (int x = regionMin.x; x <= regionMax.x; ++x)
+      for (int x = region_min.x; x <= region_max.x; ++x)
       {
-        const glm::ivec3 currentRegionCoord = glm::ivec3(x, y, z);
+        const glm::ivec3 current_region_coord = glm::ivec3(x, y, z);
         MapChunk *chunk = nullptr;
-        gputil::Event uploadEvent;
-        GpuLayerCache::CacheStatus clearanceStatus;
+        gputil::Event upload_event;
+        GpuLayerCache::CacheStatus clearance_status;
 
-        const unsigned gpuCacheFlags = GpuLayerCache::SkipDownload;
+        const unsigned gpu_cache_flags = GpuLayerCache::kSkipDownload;
 
         // Copy region occupancy voxels into the clearanceCache. This may come from either
         // a. The occupancyCache
         // b. Main memory.
-        gputil::ulong1 clearanceMemOffset = 0u;
-        size_t occupancyMemOffset = 0u;
+        gputil::ulong1 clearance_mem_offset = 0u;
+        size_t occupancy_mem_offset = 0u;
 
-        gputil::Event occupancyEvent;
-        if (occupancyCache->lookup(map, currentRegionCoord, &occupancyMemOffset, &occupancyEvent))
+        gputil::Event occupancy_event;
+        if (occupancy_cache->lookup(map, current_region_coord, &occupancy_mem_offset, &occupancy_event))
         {
           // Queue copying from occupancy cache.
-          clearanceMemOffset = clearanceCache->allocate(
-            map, currentRegionCoord, chunk, nullptr, &clearanceStatus, occupancyBatchMarker, gpuCacheFlags);
+          clearance_mem_offset = clearance_cache->allocate(
+            map, current_region_coord, chunk, nullptr, &clearance_status, clearance_batch_marker, gpu_cache_flags);
 
-          gputil::Buffer *occupancyBuffer = occupancyCache->buffer();
-          gputil::Buffer *clearanceBuffer = clearanceCache->buffer();
+          gputil::Buffer *occupancy_buffer = occupancy_cache->buffer();
+          gputil::Buffer *clearance_buffer = clearance_cache->buffer();
 
-          gputil::copyBuffer(*clearanceBuffer, clearanceMemOffset, *occupancyBuffer, occupancyMemOffset,
-                              map.layout().layer(DL_Occupancy).layerByteSize(map.regionVoxelDimensions()),
-                              &clearanceCache->gpuQueue(), &occupancyEvent, &uploadEvent);
-          clearanceCache->updateEvent(*chunk, uploadEvent);
+          gputil::copyBuffer(*clearance_buffer, clearance_mem_offset, *occupancy_buffer, occupancy_mem_offset,
+                              map.layout().layer(kDlOccupancy).layerByteSize(map.regionVoxelDimensions()),
+                              &clearance_cache->gpuQueue(), &occupancy_event, &upload_event);
+          clearance_cache->updateEvent(*chunk, upload_event);
         }
         else
         {
           // Copy from main memory.
-          clearanceMemOffset = clearanceCache->upload(
-            map, currentRegionCoord, chunk, &uploadEvent, &clearanceStatus, occupancyBatchMarker, gpuCacheFlags);
+          clearance_mem_offset = clearance_cache->upload(
+            map, current_region_coord, chunk, &upload_event, &clearance_status, clearance_batch_marker, gpu_cache_flags);
         }
-        assert(clearanceStatus != GpuLayerCache::CacheFull);
+        assert(clearance_status != GpuLayerCache::kCacheFull);
 
-        if (clearanceStatus != GpuLayerCache::CacheFull)
+        if (clearance_status != GpuLayerCache::kCacheFull)
         {
-          uploadEvents.push_back(uploadEvent);
-          regionKeys.write(glm::value_ptr(currentRegionCoord), sizeof(currentRegionCoord),
+          upload_events.push_back(upload_event);
+          region_keys.write(glm::value_ptr(current_region_coord), sizeof(current_region_coord),
                             region_count_ * sizeof(gputil::int3));
-          occupancyRegionOffsets.write(&clearanceMemOffset, sizeof(clearanceMemOffset),
+          occupancy_region_offsets.write(&clearance_mem_offset, sizeof(clearance_mem_offset),
                                         region_count_ * sizeof(gputil::ulong1));
           ++region_count_;
         }
@@ -253,10 +252,10 @@ bool RoiRangeFill::calculateForRegion(OccupancyMap &map, const glm::i16vec3 &reg
 
   // All regions for this patch pushed. Make the calculation.
   // TODO: async unpin.
-  regionKeys.unpin();
-  occupancyRegionOffsets.unpin();
-  finishRegion(regionKey, map, *this, *gpuCache, *clearanceCache, batchVoxelExtents, uploadEvents);
-  uploadEvents.clear();
+  region_keys.unpin();
+  occupancy_region_offsets.unpin();
+  finishRegion(region_key, map, *this, *gpu_cache, *clearance_cache, batch_voxel_extents, upload_events);
+  upload_events.clear();
 
   return true;
 }

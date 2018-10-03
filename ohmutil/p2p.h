@@ -1,8 +1,8 @@
 //
 // author Kazys Stepanas
 //
-#ifndef P2P_H
-#define P2P_H
+#ifndef OHMUTIL_P2P_H
+#define OHMUTIL_P2P_H
 
 #include <glm/glm.hpp>
 
@@ -35,4 +35,4 @@ inline const glm::vec3 *p2pArray(const tes::Vector3f *points)
 
 #endif // TES_ENABLE
 
-#endif  // P2P_H
+#endif  // OHMUTIL_P2P_H

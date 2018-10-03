@@ -3,8 +3,8 @@
 //
 // Copyright (c) CSIRO 2016
 //
-#ifndef CLU_H_
-#define CLU_H_
+#ifndef CLU_H
+#define CLU_H
 
 #include "cl.hpp"
 
@@ -30,9 +30,9 @@ namespace clu
   ///
   /// @param type The required OpenCL device type.
   /// @param constraints The array of constraints to pass or null for no constraints.
-  /// @param constraintCount The number of @p constraints.
+  /// @param constraint_count The number of @p constraints.
   /// @return The first valid platform found, passing all constraints.
-  cl::Platform createPlatform(cl_device_type type, const PlatformContraint *constraints = nullptr, unsigned constraintCount = 0);
+  cl::Platform createPlatform(cl_device_type type, const PlatformContraint *constraints = nullptr, unsigned constraint_count = 0);
   /// Create the OpenCL platform optionally applying the given constraints.
   ///
   /// The selected device must pass all the @p constraints given, each returning true, in order
@@ -51,10 +51,10 @@ namespace clu
   /// @param[in,out] platforms The Platforms to filter.
   /// @param type The required device type(s).
   /// @param constraints The constraints to filter by.
-  /// @param constraintCount The number of @p constraints.
+  /// @param constraint_count The number of @p constraints.
   /// @return True if there is at least one valid platform left in @p platforms.
   bool filterPlatforms(std::vector<cl::Platform> &platforms, cl_device_type type,
-                       const PlatformContraint *constraints, unsigned constraintCount);
+                       const PlatformContraint *constraints, unsigned constraint_count);
 
   /// Filter the given list of @p devices, removing all which do not match @p type or pass
   /// @p constraints.
@@ -63,12 +63,11 @@ namespace clu
   ///
   /// @param platform The platform to which the @p devices belong.
   /// @param[in,out] devices The Platforms to filter.
-  /// @param type The required device type(s).
   /// @param constraints The device constraints to filter by.
-  /// @param constraintCount The number of @p constraints.
+  /// @param constraint_count The number of @p constraints.
   /// @return True if there is at least one valid device left in @p devices.
   bool filterDevices(const cl::Platform &platform, std::vector<cl::Device> &devices,
-                     const DeviceConstraint *constraints, unsigned constraintCount);
+                     const DeviceConstraint *constraints, unsigned constraint_count);
 
   /// List all the available devices in @p context.
   /// @param devices Populated with the devices from @p context.
@@ -127,16 +126,16 @@ namespace clu
   ///
   /// See @c clucontraint.h for some constraint examples.
   ///
-  /// @param deviceOut Set to the selected OpenCL device.
+  /// @param device_out Set to the selected OpenCL device.
   /// @param type The required OpenCL device type.
-  /// @param platformConstraint The array of platform constraints to pass or null for no constraints.
-  /// @param platformConstraintCount The number of @p platformConstraint.
-  /// @param deviceConstraints The array of device constraints to pass or null for no constraints.
-  /// @param deviceConstraintCount The number of @p deviceConstraints.
+  /// @param platform_constraint The array of platform constraints to pass or null for no constraints.
+  /// @param platform_constraint_count The number of @p platformConstraint.
+  /// @param device_constraints The array of device constraints to pass or null for no constraints.
+  /// @param device_constraint_count The number of @p deviceConstraints.
   /// @return The first valid context found, passing all constraints.
-  cl::Context createContext(cl::Device *deviceOut, cl_device_type type,
-                            const PlatformContraint *platformConstraint, unsigned platformConstraintCount,
-                            const DeviceConstraint *deviceConstraints, unsigned deviceConstraintCount);
+  cl::Context createContext(cl::Device *device_out, cl_device_type type,
+                            const PlatformContraint *platform_constraint, unsigned platform_constraint_count,
+                            const DeviceConstraint *device_constraints, unsigned device_constraint_count);
 
   /// Initialise the primary OpenCL context. Retrieved via @c getPrimaryContext().
   /// @param device The device to set.
@@ -146,24 +145,25 @@ namespace clu
   void clearPrimaryContext();
   /// Initialise the primary context (@c getPrimaryContext()) according to the given constraints.
   /// @param type The required OpenCL device type.
-  /// @param platformConstraint The array of platform constraints to pass or null for no constraints.
-  /// @param platformConstraintCount The number of @p platformConstraint.
-  /// @param deviceConstraints The array of device constraints to pass or null for no constraints.
-  /// @param deviceConstraintCount The number of @p deviceConstraints.
+  /// @param platform_constraint The array of platform constraints to pass or null for no constraints.
+  /// @param platform_constraint_count The number of @p platformConstraint.
+  /// @param device_constraints The array of device constraints to pass or null for no constraints.
+  /// @param device_constraint_count The number of @p deviceConstraints.
   /// @return True if all constraints are met and the context initialised.
   bool initPrimaryContext(cl_device_type type,
-                          const PlatformContraint *platformConstraint, unsigned platformConstraintCount,
-                          const DeviceConstraint *deviceConstraints, unsigned deviceConstraintCount);
+                          const PlatformContraint *platform_constraint, unsigned platform_constraint_count,
+                          const DeviceConstraint *device_constraints, unsigned device_constraint_count);
   /// Initialise the primary context (@c getPrimaryContext()) according to the given constraints.
   /// @param type The required OpenCL device type.
-  /// @param platformConstraint The array of platform constraints to pass or null for no constraints.
-  /// @param deviceConstraints The array of device constraints to pass or null for no constraints.
+  /// @param platform_constraint The array of platform constraints to pass or null for no constraints.
+  /// @param device_constraints The array of device constraints to pass or null for no constraints.
   /// @return True if all constraints are met and the context initialised.
   bool initPrimaryContext(cl_device_type type,
-                          const std::vector<PlatformContraint> &platformConstraint,
-                          const std::vector<DeviceConstraint> &deviceConstraints);
+                          const std::vector<PlatformContraint> &platform_constraint,
+                          const std::vector<DeviceConstraint> &device_constraints);
   /// Get the stored primary context.
-  /// @param[out] ocl Set to the primary context.
+  /// @param[out] context Set to the primary context.
+  /// @param device The OpenCL device to operate on.
   /// @return True on success, false if not context has been initialised.
   bool getPrimaryContext(cl::Context &context, cl::Device &device);
 
@@ -190,32 +190,32 @@ namespace clu
   /// @param argc Nubmer of arguments in @p argv.
   /// @param argv Command line arguments.
   /// @param[out] type Set to the requested @c accel type or @c CL_DEVICE_TYPE_ALL.
-  /// @param platformContraints Populated with requested platform constraints.
-  /// @param deviceConstraints Populated with requested device constraints.
-  /// @param argPrefix Optional prefix to required an all arguments described above.
+  /// @param platform_constraints Populated with requested platform constraints.
+  /// @param device_constraints Populated with requested device constraints.
+  /// @param arg_prefix Optional prefix to required an all arguments described above.
   void constraintsFromCommandLine(int argc, const char **argv,
                                   cl_device_type &type,
-                                  std::vector<PlatformContraint> &platformConstraints,
-                                  std::vector<DeviceConstraint> &deviceConstraints,
-                                  const char *argPrefix = nullptr);
+                                  std::vector<PlatformContraint> &platform_constraints,
+                                  std::vector<DeviceConstraint> &device_constraints,
+                                  const char *arg_prefix = nullptr);
 
   /// @overload
   inline void constraintsFromCommandLine(int argc, char **argv,
                                   cl_device_type &type,
-                                  std::vector<PlatformContraint> &platformConstraints,
-                                  std::vector<DeviceConstraint> &deviceConstraints,
-                                  const char *argPrefix = nullptr)
+                                  std::vector<PlatformContraint> &platform_constraints,
+                                  std::vector<DeviceConstraint> &device_constraints,
+                                  const char *arg_prefix = nullptr)
   {
-    return constraintsFromCommandLine(argc, (const char **)argv,
-        type, platformConstraints, deviceConstraints, argPrefix);
+    return constraintsFromCommandLine(argc, const_cast<const char **>(argv),
+        type, platform_constraints, device_constraints, arg_prefix);
   }
 
   /// @overload
   void constraintsFromArgs(const std::list<std::string> &args,
                            cl_device_type &type,
-                           std::vector<PlatformContraint> &platformConstraints,
-                           std::vector<DeviceConstraint> &deviceConstraints,
-                           const char *argPrefix = nullptr);
+                           std::vector<PlatformContraint> &platform_constraints,
+                           std::vector<DeviceConstraint> &device_constraints,
+                           const char *arg_prefix = nullptr);
 
   /// Convert a known OpenCL error code to an English string.
   /// @param error The error code.
@@ -275,4 +275,4 @@ namespace clu
   }
 }
 
-#endif // CLU_H_
+#endif // CLU_H

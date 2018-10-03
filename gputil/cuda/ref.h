@@ -3,10 +3,10 @@
 // ABN 41 687 119 230
 //
 // Author: Kazys Stepanas
-#ifndef REF_H_
-#define REF_H_
+#ifndef REF_H
+#define REF_H
 
-#include "gpuconfig.h"
+#include "gpuConfig.h"
 
 #include <mutex>
 #include <functional>
@@ -19,7 +19,7 @@ namespace gputil
   public:
     typedef std::function<void (T&)> ReleaseFunc;
 
-    Ref(T obj, unsigned initialRefCount, const ReleaseFunc &release);
+    Ref(T obj, unsigned initial_ref_count, const ReleaseFunc &release);
     Ref(Ref &&other);
     Ref(const Ref &other) = delete;
 
@@ -32,40 +32,40 @@ namespace gputil
 
     void set(T obj, unsigned refCount);
 
-    inline T obj() { return _obj; }
-    inline const T obj() const { return _obj; }
+    inline T obj() { return obj_; }
+    inline const T obj() const { return obj_; }
 
-    inline T operator()() { return _obj; }
-    inline const T operator()() const { return _obj; }
+    inline T operator()() { return obj_; }
+    inline const T operator()() const { return obj_; }
 
-    inline unsigned referenceCount() const { return _referenceCount; }
+    inline unsigned referenceCount() const { return reference_count_; }
 
     Ref &operator=(Ref &&other);
     Ref &operator=(const Ref &other) = delete;
 
   private:
-    T _obj;
-    unsigned _referenceCount;
-    ReleaseFunc _releaseFunc;
-    std::mutex _lock;
+    T obj_;
+    unsigned reference_count_;
+    ReleaseFunc release_func_;
+    std::mutex lock_;
   };
 
   template <typename T>
-  inline Ref<T>::Ref(T obj, unsigned initialRefCount, const ReleaseFunc &release)
-    : _obj(obj)
-    , _referenceCount(initialRefCount)
-    , _releaseFunc(release)
+  inline Ref<T>::Ref(T obj, unsigned initial_ref_count, const ReleaseFunc &release)
+    : obj_(obj)
+    , reference_count_(initial_ref_count)
+    , release_func_(release)
   {
   }
 
 
   template <typename T>
   inline Ref<T>::Ref(Ref &&other)
-    : _obj(other._obj)
-    , _referenceCount(other._referenceCount)
-    , _releaseFunc(other._releaseFunc)
+    : obj_(other.obj_)
+    , reference_count_(other.reference_count_)
+    , release_func_(other.release_func_)
   {
-    other._referenceCount = 0;
+    other.reference_count_ = 0;
   }
 
 
@@ -78,10 +78,10 @@ namespace gputil
   template <typename T>
   inline unsigned Ref<T>::reference()
   {
-    std::unique_lock<std::mutex> guard(_lock);
-    if (_referenceCount)
+    std::unique_lock<std::mutex> guard(lock_);
+    if (reference_count_)
     {
-      ++_referenceCount;
+      ++reference_count_;
     }
   }
 
@@ -89,50 +89,50 @@ namespace gputil
   template <typename T>
   inline unsigned Ref<T>::release()
   {
-    _lock.lock();
-    if (_referenceCount)
+    lock_.lock();
+    if (reference_count_)
     {
-      --_referenceCount;
-      if (_referenceCount == 0)
+      --reference_count_;
+      if (reference_count_ == 0)
       {
-        _releaseFunc(_obj);
+        release_func_(obj_);
         delete this;
       }
     }
-    _lock.unlock();
+    lock_.unlock();
   }
 
 
   template <typename T>
   inline void Ref<T>::set(T obj, unsigned refCount)
   {
-    std::unique_lock<std::mutex> guard(_lock);
-    if (_referenceCount)
+    std::unique_lock<std::mutex> guard(lock_);
+    if (reference_count_)
     {
-      // Should be an error when _referenceCount > 1.
-      _releaseFunc(_obj);
+      // Should be an error when reference_count_ > 1.
+      release_func_(obj_);
     }
 
-    _obj = obj;
-    _referenceCount = refCount;
+    obj_ = obj;
+    reference_count_ = refCount;
   }
 
 
   template <typename T>
   inline Ref<T> &Ref<T>::operator=(Ref &&other)
   {
-    std::unique_lock<std::mutex> guard(_lock);
-    if (_referenceCount)
+    std::unique_lock<std::mutex> guard(lock_);
+    if (reference_count_)
     {
-      // Should be an error when _referenceCount > 1.
-      _releaseFunc(_obj);
+      // Should be an error when reference_count_ > 1.
+      release_func_(obj_);
     }
-    _referenceCount = other._referenceCount;
-    _obj = other._obj;
-    _releaseFunc = other._releaseFunc;
-    other._referenceCount = 0;
+    reference_count_ = other.reference_count_;
+    obj_ = other.obj_;
+    release_func_ = other.release_func_;
+    other.reference_count_ = 0;
     return *this;
   }
 }
 
-#endif // REF_H_
+#endif // REF_H

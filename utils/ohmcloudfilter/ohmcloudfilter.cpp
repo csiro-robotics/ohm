@@ -3,16 +3,16 @@
 //
 #include <glm/glm.hpp>
 
-#include "mapcache.h"
-#include "occupancykey.h"
-#include "occupancymap.h"
-#include "occupancymapserialise.h"
-#include "occupancynode.h"
-#include "occupancytype.h"
+#include <ohm/MapCache.h>
+#include <ohm/Key.h>
+#include <ohm/OccupancyMap.h>
+#include <ohm/MapSerialise.h>
+#include <ohm/Voxel.h>
+#include <ohm/OccupancyType.h>
 
-#include "ohmutil.h"
-#include "progressmonitor.h"
-#include <options.h>
+#include <ohmutil/OhmUtil.h>
+#include <ohmutil/ProgressMonitor.h>
+#include <ohmutil/Options.h>
 
 #include <liblas/liblas.hpp>
 #include <liblas/reader.hpp>
@@ -30,7 +30,7 @@
 #include <unordered_set>
 
 #define PROFILING 1
-#include "profile.h"
+#include <ohmutil/Profile.h>
 
 namespace
 {
@@ -46,69 +46,69 @@ namespace
 
   struct Options
   {
-    std::string mapFileIn;
-    std::string cloudFileIn;
-    std::string cloudFileOut;
-    float occupancyThreshold = 0;
+    std::string map_file_in;
+    std::string cloud_file_in;
+    std::string cloud_file_out;
+    float occupancy_threshold = 0;
   };
 
 
   class MapProgress : public ohm::SerialiseProgress
   {
   public:
-    MapProgress(ProgressMonitor &monitor) : _monitor(monitor) {}
+    MapProgress(ProgressMonitor &monitor) : monitor_(monitor) {}
 
     bool quit() const override { return ::quit > 1; }
 
-    void setTargetProgress(unsigned target) override { _monitor.beginProgress(ProgressMonitor::Info("Loading", target)); }
-    void incrementProgress(unsigned inc = 1) override { _monitor.incrementProgressBy(inc); }
+    void setTargetProgress(unsigned target) override { monitor_.beginProgress(ProgressMonitor::Info("Loading", target)); }
+    void incrementProgress(unsigned inc = 1) override { monitor_.incrementProgressBy(inc); }
 
   private:
-    ProgressMonitor &_monitor;
+    ProgressMonitor &monitor_;
   };
 }
 
 
 int parseOptions(Options &opt, int argc, char *argv[])
 {
-  cxxopts::Options optParse(argv[0],
+  cxxopts::Options opt_parse(argv[0],
     "\nFilters a cloud against an occupancy map, removing points in free voxels."
   );
-  optParse.positional_help("<map-in.ohm> <cloud-in.laz> <cloud-out.laz>");
+  opt_parse.positional_help("<map-in.ohm> <cloud-in.laz> <cloud-out.laz>");
 
   try
   {
     // clang-format off
-    optParse.add_options()
-        ("cloud-in", "Input cloud to filter", cxxopts::value(opt.cloudFileIn))
-        ("cloud-out", "Clout to write filtered results to", cxxopts::value(opt.cloudFileOut))
-        ("map", "Input occupancy map", cxxopts::value(opt.mapFileIn))
-        ("threshold", "Changes the occupancy probability threshold from that used to generate the map.", optVal(opt.occupancyThreshold), "[0, 1]")
+    opt_parse.add_options()
+        ("cloud-in", "Input cloud to filter", cxxopts::value(opt.cloud_file_in))
+        ("cloud-out", "Clout to write filtered results to", cxxopts::value(opt.cloud_file_out))
+        ("map", "Input occupancy map", cxxopts::value(opt.map_file_in))
+        ("threshold", "Changes the occupancy probability threshold from that used to generate the map.", optVal(opt.occupancy_threshold), "[0, 1]")
       ;
     // clang-format on
 
-    optParse.parse_positional({ "map", "cloud-in", "cloud-out" });
+    opt_parse.parse_positional({ "map", "cloud-in", "cloud-out" });
 
-    cxxopts::ParseResult parsed = optParse.parse(argc, argv);
+    cxxopts::ParseResult parsed = opt_parse.parse(argc, argv);
 
     if (parsed.count("help") || parsed.arguments().empty())
     {
       // show usage.
-      std::cout << optParse.help({ "", "Group" }) << std::endl;
+      std::cout << opt_parse.help({ "", "Group" }) << std::endl;
       return 1;
     }
 
-    if (opt.mapFileIn.empty())
+    if (opt.map_file_in.empty())
     {
       std::cerr << "Missing input map" << std::endl;
       return -1;
     }
-    if (opt.cloudFileIn.empty())
+    if (opt.cloud_file_in.empty())
     {
       std::cerr << "Missing input cloud" << std::endl;
       return -1;
     }
-    if (opt.cloudFileOut.empty())
+    if (opt.cloud_file_out.empty())
     {
       std::cerr << "Missing output cloud" << std::endl;
       return -1;
@@ -127,26 +127,26 @@ int parseOptions(Options &opt, int argc, char *argv[])
 size_t filterCloud(ProgressMonitor &prog, const ohm::OccupancyMap &map, const Options &opt)
 {
   size_t exported = 0;
-  size_t numberOfPoints = 0;
+  size_t number_of_points = 0;
 
   std::ifstream ifs;
   std::ofstream ofs;
 
-  ifs.open(opt.cloudFileIn.c_str(), std::ios::in | std::ios::binary);
-  ofs.open(opt.cloudFileOut.c_str(), std::ios::out | std::ios::binary);
+  ifs.open(opt.cloud_file_in.c_str(), std::ios::in | std::ios::binary);
+  ofs.open(opt.cloud_file_out.c_str(), std::ios::out | std::ios::binary);
 
   bool ok = true;
 
   if (!ifs.is_open())
   {
     ok = false;
-    std::cerr << "Unable to read " << opt.cloudFileIn << std::endl;
+    std::cerr << "Unable to read " << opt.cloud_file_in << std::endl;
   }
 
   if (!ofs.is_open())
   {
     ok = false;
-    std::cerr << "Unable to write " << opt.cloudFileOut << std::endl;
+    std::cerr << "Unable to write " << opt.cloud_file_out << std::endl;
   }
 
   if (!ok)
@@ -154,27 +154,27 @@ size_t filterCloud(ProgressMonitor &prog, const ohm::OccupancyMap &map, const Op
     return false;
   }
 
-  std::string extensionStr = opt.cloudFileOut;
+  std::string extension_str = opt.cloud_file_out;
   bool compress = false;
 
-  if (extensionStr.size() >= 4)
+  if (extension_str.size() >= 4)
   {
-    extensionStr = extensionStr.substr(extensionStr.size() - 4);
-    std::transform(extensionStr.begin(), extensionStr.end(), extensionStr.begin(), &tolower);
-    if (extensionStr.compare(".laz") == 0)
+    extension_str = extension_str.substr(extension_str.size() - 4);
+    std::transform(extension_str.begin(), extension_str.end(), extension_str.begin(), &tolower);
+    if (extension_str.compare(".laz") == 0)
     {
       compress = true;
     }
   }
 
-  liblas::ReaderFactory readerFactor;
+  liblas::ReaderFactory reader_factor;
   try
   {
-    liblas::Reader reader(readerFactor.CreateWithStream(ifs));
+    liblas::Reader reader(reader_factor.CreateWithStream(ifs));
     liblas::Header header = reader.GetHeader();
     header.SetCompressed(compress);
     liblas::Writer writer(ofs, header);
-    numberOfPoints = reader.GetHeader().GetPointRecordsCount();
+    number_of_points = reader.GetHeader().GetPointRecordsCount();
 
     prog.beginProgress(ProgressMonitor::Info("Filtering", reader.GetHeader().GetPointRecordsCount()));
 
@@ -203,7 +203,7 @@ size_t filterCloud(ProgressMonitor &prog, const ohm::OccupancyMap &map, const Op
   prog.endProgress();
   std::cout << std::endl;
 
-  std::cout << "Exported " << exported << " / " <<  numberOfPoints << " point(s)" << std::endl;
+  std::cout << "Exported " << exported << " / " <<  number_of_points << " point(s)" << std::endl;
 
   return exported;
 }
@@ -215,17 +215,16 @@ int main(int argc, char *argv[])
 
   std::cout.imbue(std::locale(""));
 
-  int res = 0;
-  res = parseOptions(opt, argc, argv);
+  int res = parseOptions(opt, argc, argv);
 
   if (res)
   {
     return res;
   }
 
-  printf("Loading map %s\n", opt.mapFileIn.c_str());
+  printf("Loading map %s\n", opt.map_file_in.c_str());
   ProgressMonitor prog(10);
-  MapProgress loadProgress(prog);
+  MapProgress load_progress(prog);
   ohm::OccupancyMap map(1.0f);
 
   prog.setDisplayFunction([&opt](const ProgressMonitor::Progress &prog)
@@ -252,7 +251,7 @@ int main(int argc, char *argv[])
   });
 
   prog.startThread();
-  res = ohm::load(opt.mapFileIn.c_str(), map, &loadProgress);
+  res = ohm::load(opt.map_file_in.c_str(), map, &load_progress);
   prog.endProgress();
 
   std::cout << std::endl;
@@ -265,9 +264,9 @@ int main(int argc, char *argv[])
 
   printf("\n");
 
-  if (opt.occupancyThreshold > 0)
+  if (opt.occupancy_threshold > 0)
   {
-    map.setOccupancyThresholdProbability(opt.occupancyThreshold);
+    map.setOccupancyThresholdProbability(opt.occupancy_threshold);
   }
 
   // Start filtering the cloud.
