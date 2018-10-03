@@ -30,7 +30,7 @@
 #include <initializer_list>
 
 #ifdef OHM_EMBED_GPU_CODE
-#include "regionupdateResource.h"
+#include "RegionUpdateResource.h"
 #endif // OHM_EMBED_GPU_CODE
 
 namespace
@@ -67,7 +67,7 @@ namespace ohm
     args.push_back("-cl-std=CL" OHM_OPENCL_STD);
 
 #ifdef OHM_EMBED_GPU_CODE
-    clerr = initProgramFromString(program, gpu, regionupdateCode, sourceFile, &args);
+    clerr = initProgramFromString(program, gpu, RegionUpdateCode, source_file, &args);
 #else  // OHM_EMBED_GPU_CODE
     clerr = initProgramFromSource(program, gpu, source_file, &args);
 #endif // OHM_EMBED_GPU_CODE

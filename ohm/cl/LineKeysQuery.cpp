@@ -73,7 +73,7 @@ int initialiseLineKeysGpuProgram(LineKeysQueryDetail &query, gputil::Device &gpu
 
   const char *source_file = "LineKeys.cl";
 #ifdef OHM_EMBED_GPU_CODE
-  clerr = initProgramFromString(program, gpu, linekeysCode, sourceFile, &buildArgs);
+  clerr = initProgramFromString(program, gpu, LineKeysCode, source_file, &build_args);
 #else  // OHM_EMBED_GPU_CODE
   clerr = initProgramFromSource(program, gpu, source_file, &build_args);
 #endif // OHM_EMBED_GPU_CODE

@@ -65,7 +65,7 @@ namespace roirangefill
     cl_int clerr = CL_SUCCESS;
     const char *source_file = "RoiRangeFill.cl";
   #ifdef OHM_EMBED_GPU_CODE
-    clerr = initProgramFromString(program, gpu, RoiRangeFillCode, sourceFile, &build_args);
+    clerr = initProgramFromString(program, gpu, RoiRangeFillCode, source_file, &build_args);
   #else  // OHM_EMBED_GPU_CODE
     clerr = initProgramFromSource(program, gpu, source_file, &build_args);
   #endif // OHM_EMBED_GPU_CODE
