@@ -12,6 +12,7 @@
 #include <glm/glm.hpp>
 
 #include <algorithm>
+#include <string>
 
 using namespace ohm;
 

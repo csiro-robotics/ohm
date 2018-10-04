@@ -85,7 +85,7 @@ namespace clu
 
   unsigned listDevices(std::vector<cl::Device> &devices, const cl::Program &program)
   {
-    cl_int device_count = 0;
+    cl_uint device_count = 0;
     devices.clear();
     cl_int clerr = clGetProgramInfo(program(), CL_PROGRAM_NUM_DEVICES, sizeof(device_count), &device_count, nullptr);
 
@@ -102,7 +102,7 @@ namespace clu
     }
 
     devices.resize(device_count);
-    for (cl_int i = 0; i < device_count; ++i)
+    for (cl_uint i = 0; i < device_count; ++i)
     {
       devices[i] = cl::Device(device_ids[i]);
     }
@@ -288,7 +288,7 @@ namespace clu
 
   char *upDir(char *path)
   {
-    const char path_sep = pathSeparator();
+    const char path_sep = char(pathSeparator());
     size_t last_dir_pos = std::char_traits<char>::length(path);
 
     while (last_dir_pos > 0)
@@ -315,15 +315,15 @@ namespace clu
       buffer[buffer_size - 1] = '\0';
       return true;
 #elif defined(__APPLE__)
-      uint32_t size = bufferSize;
+      uint32_t size = uint32_t(buffer_size);
       if (_NSGetExecutablePath(buffer, &size) == 0)
       {
-        buffer[bufferSize - 1] = '\0';
+        buffer[buffer_size - 1] = '\0';
         return true;
       }
 #else
-      int read = ::readlink("/proc/self/exe", buffer, bufferSize - 1);
-      buffer[bufferSize - 1] = '\0';
+      int read = ::readlink("/proc/self/exe", buffer, buffer_size - 1);
+      buffer[buffer_size - 1] = '\0';
       if (read != -1)
       {
         return true;
@@ -367,7 +367,8 @@ namespace clu
 #ifdef WIN32
     GetCurrentDirectoryA(static_cast<DWORD>(buffer_length), path);
 #else  // WIN32
-    const char *ignore = getcwd(path, bufferLength);
+    // const char *ignore =
+    getcwd(path, buffer_length);
 #endif // WIN32
     // Guarantee null termination.
     path[buffer_length - 1] = '\0';
@@ -404,7 +405,7 @@ namespace clu
 #ifdef _MSC_VER
       strcpy_s(file_name, buffer_length, str.str().c_str());
 #else // _MSC_VER
-      strcpy(fileName, str.str().c_str());
+      strcpy(file_name, str.str().c_str());
 #endif // _MSC_VER
       return file_name;
     }
@@ -421,7 +422,7 @@ namespace clu
 #ifdef _MSC_VER
       strncpy_s(file_name, buffer_length, str.str().c_str(), buffer_length);
 #else // _MSC_VER
-      strncpy(fileName, str.str().c_str(), bufferLength);
+      strncpy(file_name, str.str().c_str(), buffer_length);
 #endif // _MSC_VER
       file_name[buffer_length - 1] = '\0';
       return file_name;
@@ -437,7 +438,7 @@ namespace clu
       {
         if (*ch == ',' || *ch == '\0')
         {
-          path_len = ch - path;
+          path_len = size_t(ch - path);
           if (path_len >= cwd_max)
           {
             path_len = cwd_max - 1;
@@ -448,7 +449,7 @@ namespace clu
 #ifdef _MSC_VER
             strncpy_s(cwd, path, path_len);
 #else // _MSC_VER
-            strncpy(cwd, path, pathLen);
+            strncpy(cwd, path, path_len);
 #endif // _MSC_VER
 
             cwd[path_len] = '\0';
@@ -469,7 +470,7 @@ namespace clu
 #ifdef _MSC_VER
               strncpy_s(file_name, buffer_length, str.str().c_str(), buffer_length);
 #else // _MSC_VER
-              strncpy(fileName, str.str().c_str(), bufferLength);
+              strncpy(file_name, str.str().c_str(), buffer_length);
 #endif // _MSC_VER
               file_name[buffer_length - 1] = '\0';
               return file_name;
@@ -513,7 +514,7 @@ namespace clu
 #ifdef _MSC_VER
       strcpy_s(file_name, buffer_length, cwd);
 #else // _MSC_VER
-      strcpy(fileName, cwd);
+      strcpy(file_name, cwd);
 #endif // _MSC_VER
       return file_name;
     }
@@ -531,7 +532,7 @@ namespace clu
 #ifdef _MSC_VER
       strncpy_s(file_name, buffer_length, cwd, buffer_length);
 #else // _MSC_VER
-      strncpy(fileName, cwd, bufferLength);
+      strncpy(file_name, cwd, buffer_length);
 #endif // _MSC_VER
       file_name[buffer_length - 1] = '\0';
       return file_name;
@@ -547,7 +548,7 @@ namespace clu
       {
         if (*ch == ',' || *ch == '\0')
         {
-          path_len = ch - path;
+          path_len = size_t(ch - path);
           if (path_len >= cwd_max)
           {
             path_len = cwd_max - 1;
@@ -558,7 +559,7 @@ namespace clu
 #ifdef _MSC_VER
             strncpy_s(cwd, path, path_len);
 #else // _MSC_VER
-            strncpy(cwd, path, pathLen);
+            strncpy(cwd, path, path_len);
 #endif // _MSC_VER
 
             cwd[path_len] = '\0';
@@ -579,7 +580,7 @@ namespace clu
 #ifdef _MSC_VER
               strncpy_s(file_name, buffer_length, cwd, buffer_length);
 #else // _MSC_VER
-              strncpy(fileName, cwd, bufferLength);
+              strncpy(file_name, cwd, buffer_length);
 #endif // _MSC_VER
               file_name[buffer_length - 1] = '\0';
               return file_name;
@@ -618,13 +619,12 @@ namespace clu
     }
 
     // Compile and initialise.
-    cl_int clerr = CL_SUCCESS;
     char source_dir[260]; // MAX_PATH length.
     std::ostringstream source_file;
 #ifdef _MSC_VER
     strcpy_s(source_dir, source_file_name.c_str());
 #else  // !_MSC_VER
-    strcpy(sourceDir, sourceFileName.c_str());
+    strcpy(source_dir, source_file_name.c_str());
 #endif // _MSC_VER
     if (!clu::findProgramDir(source_dir, sizeof(source_dir), search_paths))
     {
@@ -632,7 +632,7 @@ namespace clu
       log << "Failed to find CL source file: " << source_file_name << std::endl;
       return 1;
     }
-    // log << "Found in " << sourceDir << std::endl;
+    // log << "Found in " << source_dir << std::endl;
     source_file << source_dir << char(pathSeparator()) << source_file_name;
     // log << "load from " << sourceFile.str() << std::endl;
     std::ifstream file(source_file.str());

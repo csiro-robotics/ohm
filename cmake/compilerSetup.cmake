@@ -12,7 +12,7 @@ macro(warnings_gcc)
     "-pedantic"
     "-Wall"
     "-Wextra"
-    "-Wconversion"
+    # "-Wconversion"
     "-Werror=pedantic"
     "-Werror=vla"
   )

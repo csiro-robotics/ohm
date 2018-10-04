@@ -74,7 +74,7 @@ namespace
     tbb::parallel_for(tbb::blocked_range<size_t>(0u, query.segment_keys.size()), parallel_query_func);
 
 #else   // OHM_THREADS
-    calculateNearestNeighboursRange(query, 0u, query.segment_keys.size(), map, voxelSearchHalfExtents);
+    calculateNearestNeighboursRange(query, 0u, query.segment_keys.size(), map, voxel_search_half_extents);
 #endif  // OHM_THREADS
 
     // Find closest result.

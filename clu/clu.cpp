@@ -642,7 +642,7 @@ namespace clu
     std::string info_str, info_str2;
     if (platform())
     {
-      for (int i = 0; i < sizeof(items) / sizeof(items[0]); ++i)
+      for (unsigned i = 0; i < sizeof(items) / sizeof(items[0]); ++i)
       {
         platform.getInfo(cl_platform_info(items[i].id), &info_str);
         if (i > 0)
@@ -668,7 +668,7 @@ namespace clu
     std::string info_str;
     if (device())
     {
-      for (int i = 0; i < sizeof(items) / sizeof(items[0]); ++i)
+      for (unsigned i = 0; i < sizeof(items) / sizeof(items[0]); ++i)
       {
         device.getInfo(cl_device_info(items[i].id), &info_str);
         if (i > 0)

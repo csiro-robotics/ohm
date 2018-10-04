@@ -85,7 +85,7 @@ namespace
 
   void regionSeedFloodFillCpuBlock(OccupancyMap &map, ClearanceProcessDetail &query, const glm::ivec3 &block_start,
                                    const glm::ivec3 &block_end, const glm::i16vec3 &region_key, MapChunk *chunk,
-                                   const glm::ivec3 &voxel_search_half_extents)
+                                   const glm::ivec3 &/*voxel_search_half_extents*/)
   {
     OccupancyMapDetail &map_data = *map.detail();
     OccupancyKey node_key(nullptr);
@@ -118,9 +118,9 @@ namespace
   }
 
 
-  void regionFloodFillStepCpuBlock(OccupancyMap &map, ClearanceProcessDetail &query, const glm::ivec3 &block_start,
+  void regionFloodFillStepCpuBlock(OccupancyMap &map, ClearanceProcessDetail & /*query*/, const glm::ivec3 &block_start,
                                    const glm::ivec3 &block_end, const glm::i16vec3 &region_key, MapChunk *chunk,
-                                   const glm::ivec3 &voxel_search_half_extents)
+                                   const glm::ivec3 & /*voxel_search_half_extents*/)
   {
     OccupancyMapDetail &map_data = *map.detail();
     OccupancyKey node_key(nullptr);
@@ -206,7 +206,7 @@ namespace
                       parallel_query_func);
 
 #else   // OHM_THREADS
-    regionClearanceProcessCpuBlock(map, query, glm::ivec3(0, 0, 0), mapData.regionVoxelDimensions, regionKey, chunk,
+    regionClearanceProcessCpuBlock(map, query, glm::ivec3(0, 0, 0), map_data.region_voxel_dimensions, region_key, chunk,
       voxel_search_half_extents);
 #endif  // OHM_THREADS
 
@@ -242,7 +242,7 @@ namespace
                       parallel_query_func);
 
 #else   // OHM_THREADS
-    regionSeedFloodFillCpuBlock(map, query, glm::ivec3(0, 0, 0), mapData.regionVoxelDimensions, regionKey, chunk,
+    regionSeedFloodFillCpuBlock(map, query, glm::ivec3(0, 0, 0), map_data.region_voxel_dimensions, region_key, chunk,
                                 voxel_search_half_extents);
 #endif  // OHM_THREADS
 
@@ -278,7 +278,7 @@ namespace
                       parallel_query_func);
 
 #else   // OHM_THREADS
-    regionFloodFillStepCpuBlock(map, query, glm::ivec3(0, 0, 0), mapData.regionVoxelDimensions, regionKey, chunk,
+    regionFloodFillStepCpuBlock(map, query, glm::ivec3(0, 0, 0), map_data.region_voxel_dimensions, region_key, chunk,
                                 voxel_search_half_extents);
 #endif  // OHM_THREADS
 
@@ -490,7 +490,7 @@ bool ClearanceProcess::updateRegion(OccupancyMap &map, const glm::i16vec3 &regio
   }
 
   // Debug highlight the region.
-  TES_BOX_W(g_3es, TES_COLOUR(FireBrick), uint32_t((size_t)&map), glm::value_ptr(map.regionSpatialCentre(regionKey)), glm::value_ptr(map.regionSpatialResolution()));
+  TES_BOX_W(g_3es, TES_COLOUR(FireBrick), uint32_t((size_t)&map), glm::value_ptr(map.regionSpatialCentre(region_key)), glm::value_ptr(map.regionSpatialResolution()));
 
   if ((d->query_flags & kQfGpuEvaluate) && d->gpu_query->valid())
   {
@@ -521,21 +521,21 @@ bool ClearanceProcess::updateRegion(OccupancyMap &map, const glm::i16vec3 &regio
 #else   // #
     // Flood fill experiment. Incorrect as it will propagate changes from the current iteration
     // to some neighbours. Protect against that it it can be much faster than the brute force method.
-    queryFunc = [&voxelExtents, &calcExtents](OccupancyMap &map, ClearanceProcessDetail &query,
-                                              const glm::i16vec3 &regionKey, ClosestResult &
+    queryFunc = [&voxel_extents, &calc_extents](OccupancyMap &map, ClearanceProcessDetail &query,
+                                              const glm::i16vec3 &region_key, ClosestResult &
                                               /* closest */) -> unsigned {
-      // return regionClearanceProcessCpu(map, query, regionKey, voxelExtents, calcExtents);
-      return regionSeedFloodFillCpu(map, query, regionKey, voxelExtents, calcExtents);
+      // return regionClearanceProcessCpu(map, query, region_key, voxel_extents, calc_extents);
+      return regionSeedFloodFillCpu(map, query, region_key, voxel_extents, calc_extents);
     };
 
     ClosestResult closest;  // Not used.
     ohm::occupancyQueryRegions(map, *d, closest, minExtents - glm::dvec3(d->searchRadius),
                                maxExtents + glm::dvec3(d->searchRadius), queryFunc);
 
-    queryFunc = [&voxelExtents, &calcExtents, map](OccupancyMap &constMap, ClearanceProcessDetail &query,
-                                                   const glm::i16vec3 &regionKey, ClosestResult &
+    queryFunc = [&voxel_extents, &calc_extents, map](OccupancyMap &constMap, ClearanceProcessDetail &query,
+                                                   const glm::i16vec3 &region_key, ClosestResult &
                                                    /* closest */) -> unsigned {
-      return regionFloodFillStepCpu(map, query, regionKey, voxelExtents, calcExtents);
+      return regionFloodFillStepCpu(map, query, region_key, voxel_extents, calc_extents);
     };
 
     for (unsigned i = 0; i < voxelPadding; ++i)

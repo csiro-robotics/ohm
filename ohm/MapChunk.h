@@ -24,7 +24,7 @@ namespace ohm
   /// @param dimx The number of voxels in a @c MapChunk along the X axis.
   /// @param dimy The number of voxels in a @c MapChunk along the Y axis.
   /// @param dimz The number of voxels in a @c MapChunk along the Z axis.
-  inline unsigned voxelIndex(unsigned x, unsigned y, unsigned z, unsigned dimx, unsigned dimy, unsigned dimz)
+  inline unsigned voxelIndex(unsigned x, unsigned y, unsigned z, unsigned dimx, unsigned dimy, unsigned /*dimz*/)
   {
     return x + y * dimx + z * dimx * dimy;
   }

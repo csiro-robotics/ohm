@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <cstdarg>
 #include <cstdio>
+#include <iostream>
 
 #ifndef ZU
 #if defined(_MSC_VER)
@@ -98,17 +99,17 @@ public:
   }
 
 private:
-  static const unsigned kBufferSize = 1024u;  // Far to big for usage here.
+  const unsigned kBufferSize = 1024u;  // Far to big for usage here.
   std::ostream *stream_;
   char *buffer_;
 };
 
 
 PlyMesh::PlyMesh()
-  : index_mapper_(nullptr)
-  , vertex_colours_(false)
+  : vertex_colours_(false)
   , edge_colours_(false)
   , face_colours_(false)
+  , index_mapper_(nullptr)
 {
 
 }
