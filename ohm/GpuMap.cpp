@@ -150,8 +150,7 @@ namespace ohm
   int initialiseRegionUpdateGpu(gputil::Device &gpu);
   void releaseRegionUpdateGpu();
 
-  int updateRegion(gputil::Device &gpu,
-                   gputil::Queue &queue,
+  int updateRegion(gputil::Queue &queue,
                    gputil::Buffer &chunk_mem,
                    gputil::Buffer &region_key_buffer, gputil::Buffer &region_offset_buffer,
                    unsigned region_count,
@@ -231,7 +230,7 @@ GpuMap::GpuMap(OccupancyMap *map, bool borrowed_map, unsigned expected_point_cou
   GpuCache &gpu_cache = *map->detail()->gpu_cache;
   imp_->gpu_ok = initialiseRegionUpdateGpu(gpu_cache.gpu()) == 0;
   const unsigned prealloc_region_count = 1024u;
-  for (int i = 0; i < GpuMapDetail::kBuffersCount; ++i)
+  for (unsigned i = 0; i < GpuMapDetail::kBuffersCount; ++i)
   {
     imp_->ray_buffers[i] = gputil::Buffer(gpu_cache.gpu(), sizeof(gputil::float3) * expected_point_count, gputil::kBfReadHost);
     imp_->region_key_buffers[i] = gputil::Buffer(gpu_cache.gpu(), sizeof(gputil::int3) * prealloc_region_count, gputil::kBfReadHost);
@@ -336,7 +335,9 @@ unsigned GpuMap::integrateRays(const glm::dvec3 *rays, unsigned point_count, boo
   imp_->batch_marker = layer_cache.beginBatch();
 
   // Region walking function tracking which regions are affected by a ray.
-  const auto region_func = [this](const glm::i16vec3 &region_key, const glm::dvec3 &origin, const glm::dvec3 &sample) {
+  const auto region_func =
+    [this](const glm::i16vec3 &region_key, const glm::dvec3 &/*origin*/, const glm::dvec3 &/*sample*/)
+  {
     const unsigned region_hash = MapRegion::Hash::calculate(region_key);
     if (imp_->findRegion(region_hash, region_key) == imp_->regions.end())
     {
@@ -491,7 +492,7 @@ void GpuMap::finaliseBatch(gputil::PinnedBuffer &regions_buffer, gputil::PinnedB
   offsets_buffer.unpin(&layer_cache.gpuQueue(), nullptr, &imp_->region_offset_upload_events[buf_idx]);
 
   // Enqueue update kernel.
-  updateRegion(layer_cache.gpu(), layer_cache.gpuQueue(),
+  updateRegion(layer_cache.gpuQueue(),
                *layer_cache.buffer(),
                imp_->region_key_buffers[buf_idx], imp_->region_offset_buffers[buf_idx],
                imp_->region_counts[buf_idx],

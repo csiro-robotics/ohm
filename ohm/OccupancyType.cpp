@@ -18,7 +18,7 @@ namespace ohm
     };
 
     const int index = occupancy_type - ohm::Null;
-    if (index >= 0 && index < sizeof(type_names) / sizeof(type_names[0]))
+    if (index >= 0 && unsigned(index) < sizeof(type_names) / sizeof(type_names[0]))
     {
       return type_names[index];
     }

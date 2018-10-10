@@ -112,6 +112,9 @@ int main(int argc, const char *argv[])
     return res;
   }
 
+  signal(SIGINT, onSignal);
+  signal(SIGTERM, onSignal);
+
   printf("Loading map %s\n", opt.mapFile.c_str());
   // ProgressMonitor prog(10);
   // LoadMapProgress loadProgress(prog);

@@ -194,7 +194,6 @@ namespace
   private:
     void run();
 
-    ohm::OccupancyMap &map_;
     ohm::Mapper mapper_;
     std::thread *thread_ = nullptr;
     double time_slice_sec_ = 0.001;
@@ -204,8 +203,7 @@ namespace
   };
 
   MapperThread::MapperThread(ohm::OccupancyMap &map, const Options &opt)
-    : map_(map)
-    , time_slice_sec_(opt.progressive_mapping_slice)
+    : time_slice_sec_(opt.progressive_mapping_slice)
     , interval_sec_(opt.mapping_interval)
     , allow_completion_(true)
     , quit_request_(false)
@@ -298,7 +296,6 @@ int populateMap(const Options &opt)
   glm::dvec3 origin, sample;
   // glm::vec3 voxel, ext(opt.resolution);
   double timestamp;
-  double mapping_interval = opt.mapping_interval;
   uint64_t point_count = 0;
   // Update map visualisation every N samples.
   const size_t ray_batch_size = opt.batch_size;
@@ -500,7 +497,7 @@ int populateMap(const Options &opt)
       if (std::chrono::duration_cast<std::chrono::milliseconds>(integrateTime).count() > kLongUpdateThresholdMs)
       {
         std::ostringstream str;
-        str << '\n' << sampleTimestamps.front() - firstTimestamp << " (" << sampleTimestamps.front() << "): long upate " << integrateTime << std::endl;
+        str << '\n' << sampleTimestamps.front() - firstTimestamp << " (" << sampleTimestamps.front() << "): long update " << integrateTime << std::endl;
         std::cout << str.str() << std::flush;
   }
 #endif // COLLECT_STATS
@@ -844,6 +841,9 @@ int main(int argc, char *argv[])
   {
     return res;
   }
+
+  signal(SIGINT, onSignal);
+  signal(SIGTERM, onSignal);
 
   // Generate output name based on input if not specified.
   if (opt.output_base_name.empty())

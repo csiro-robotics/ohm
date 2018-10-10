@@ -23,8 +23,8 @@ namespace gpubuffertest
   typedef std::chrono::high_resolution_clock TimingClock;
 
   const size_t kKiB = 1024u;
-  const size_t kMiB = 1024u * kKiB;
-  const size_t kGiB = 1024u * kMiB;
+  // const size_t kMiB = 1024u * kKiB;
+  // const size_t kGiB = 1024u * kMiB;
 
   std::ostream &logBytes(std::ostream &out, size_t bytes)
   {

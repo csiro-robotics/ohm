@@ -24,9 +24,9 @@ namespace
     {}
   };
 
-  inline cl_command_queue q(void *p) { return static_cast<cl_command_queue>(p); }
+  // inline cl_command_queue q(void *p) { return static_cast<cl_command_queue>(p); }
 
-  void eventCallback(cl_event event, cl_int status, void *user_data)
+  void eventCallback(cl_event /*event*/, cl_int /*status*/, void *user_data)
   {
     CallbackWrapper *wrapper = static_cast<CallbackWrapper *>(user_data);
     wrapper->callback();

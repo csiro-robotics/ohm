@@ -105,8 +105,7 @@ namespace ohm
     }
   }
 
-  int updateRegion(gputil::Device &gpu,
-                   gputil::Queue &queue,
+  int updateRegion(gputil::Queue &queue,
                    gputil::Buffer &chunk_mem,
                    gputil::Buffer &region_key_buffer, gputil::Buffer &region_offset_buffer,
                    unsigned region_count,

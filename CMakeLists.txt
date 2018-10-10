@@ -66,10 +66,18 @@ set_property(CACHE OHM_GPU_API PROPERTY STRINGS CUDA OpenCL)
 # Migrate to gputil library variable.
 set(GPU_ACCEL ${OHM_GPU_API})
 
-if(OHM_GPU STREQUAL "CUDA")
+# Configure OHM_GPU as a value for configure_file
+set(OHM_GPU_OPENCL 1)
+set(OHM_GPU_CUDA 2)
+set(OHM_GPU 0)
+
+if(OHM_GPU_API STREQUAL "OpenCL")
+  set(OHM_GPU ${OHM_GPU_OPENCL})
+elseif(OHM_GPU_API STREQUAL "CUDA")
   include(cudautil)
   nvcc_setup(OHM)
-endif(OHM_GPU STREQUAL "CUDA")
+  set(OHM_GPU ${OHM_GPU_CUDA})
+endif()
 
 # Configure use of 3rd-Eye-Scene visual debugging (use for development only)
 if(OHM_TES_DEBUG)
@@ -154,9 +162,9 @@ if(OHM_BUILD_DOXYGEN)
     ohm/private
   )
 
-  if(OHM_GPU STREQUAL "OpenCL")
+  if(OHM_GPU EQUAL OHM_GPU_OPENCL)
     list(APPEND DOXYGEN_DIRS clu)
-  endif(OHM_GPU STREQUAL "OpenCL")
+  endif(OHM_GPU EQUAL OHM_GPU_OPENCL)
 
   if(DOXYGEN_FOUND)
     # Create a target to build the documentation.

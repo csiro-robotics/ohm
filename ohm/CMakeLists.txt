@@ -8,16 +8,6 @@ if(OHM_THREADS)
   find_package(TBB)
 endif(OHM_THREADS)
 
-# Configure OHM_GPU as a value for configure_file
-set(OHM_GPU_OPENCL 1)
-set(OHM_GPU_CUDA 2)
-
-if(OHM_GPU STREQUAL "OpenCL")
-  set(OHM_GPU ${OHM_GPU_OPENCL})
-else()
-  set(OHM_GPU ${OHM_GPU_CUDA})
-endif(OHM_GPU STREQUAL "OpenCL")
-
 set(TES_ENABLE ${OHM_TES_DEBUG})
 configure_file(OhmConfig.in.h "${CMAKE_CURRENT_BINARY_DIR}/ohm/OhmConfig.h")
 
@@ -171,7 +161,7 @@ endif(OHM_GPU)
 set(USE_CUDA FALSE)
 if(OHM_GPU)
   list(APPEND SOURCES ${GPU_SOURCES} ${GPU_HEADERS} "${GPU_EXT_H}")
-  if(OHM_GPU_API STREQUAL "OpenCL")
+  if(OHM_GPU EQUAL OHM_GPU_OPENCL)
     get_target_property(CLU_INCLUDE_DIRS clu INCLUDE_DIRECTORIES)
     list(APPEND SOURCES
       cl/clProgram.cpp
@@ -204,7 +194,7 @@ if(OHM_GPU)
       cuda/NearestNeighboursQuery.cu
       cuda/RoiRangeFill.cu
     )
-  endif(OHM_GPU_API STREQUAL "OpenCL")
+  endif(OHM_GPU EQUAL OHM_GPU_OPENCL)
 endif(OHM_GPU)
 
 if(USE_CUDA)
@@ -222,7 +212,7 @@ else(OHM_TES_DEBUG)
 endif(OHM_TES_DEBUG)
 
 
-if(OHM_GPU_API STREQUAL "OpenCL")
+if(OHM_GPU EQUAL OHM_GPU_OPENCL)
   target_link_libraries(ohm clu)
 
   if(NOT OHM_EMBED_GPU_CODE)
@@ -247,7 +237,7 @@ if(OHM_GPU_API STREQUAL "OpenCL")
       )
     endforeach(CLSOURCE)
   endif(NOT OHM_EMBED_GPU_CODE)
-endif()
+endif(OHM_GPU EQUAL OHM_GPU_OPENCL)
 
 generate_export_header(ohm
       EXPORT_MACRO_NAME ohm_API

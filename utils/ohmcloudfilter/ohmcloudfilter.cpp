@@ -222,32 +222,32 @@ int main(int argc, char *argv[])
     return res;
   }
 
+  signal(SIGINT, onSignal);
+  signal(SIGTERM, onSignal);
+
   printf("Loading map %s\n", opt.map_file_in.c_str());
   ProgressMonitor prog(10);
   MapProgress load_progress(prog);
   ohm::OccupancyMap map(1.0f);
 
-  prog.setDisplayFunction([&opt](const ProgressMonitor::Progress &prog)
+  prog.setDisplayFunction([](const ProgressMonitor::Progress &prog)
   {
-    //if (!opt.quiet)
+    std::ostringstream out;
+    out.imbue(std::locale(""));
+    out << '\r';
+
+    if (prog.info.info)
     {
-      std::ostringstream out;
-      out.imbue(std::locale(""));
-      out << '\r';
-
-      if (prog.info.info)
-      {
-        out << prog.info.info << " : ";
-      }
-
-      out << std::setfill(' ') << std::setw(12) << prog.progress;
-      if (prog.info.total)
-      {
-        out << " / " << std::setfill(' ') << std::setw(12) << prog.info.total;
-      }
-      out << "    ";
-      std::cout << out.str() << std::flush;
+      out << prog.info.info << " : ";
     }
+
+    out << std::setfill(' ') << std::setw(12) << prog.progress;
+    if (prog.info.total)
+    {
+      out << " / " << std::setfill(' ') << std::setw(12) << prog.info.total;
+    }
+    out << "    ";
+    std::cout << out.str() << std::flush;
   });
 
   prog.startThread();

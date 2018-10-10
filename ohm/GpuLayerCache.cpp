@@ -139,7 +139,7 @@ size_t GpuLayerCache::upload(OccupancyMap &map, const glm::i16vec3 &region_key, 
 }
 
 
-bool GpuLayerCache::lookup(OccupancyMap &map, const glm::i16vec3 &region_key, size_t *offset, gputil::Event *current_event)
+bool GpuLayerCache::lookup(OccupancyMap &/*map*/, const glm::i16vec3 &region_key, size_t *offset, gputil::Event *current_event)
 {
   // const MapLayer &layer = map.layout().layer(_layerIndex);
   GpuCacheEntry *entry = findCacheEntry(region_key);

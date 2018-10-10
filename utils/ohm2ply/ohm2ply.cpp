@@ -189,12 +189,15 @@ int main(int argc, char *argv[])
     return res;
   }
 
+  signal(SIGINT, onSignal);
+  signal(SIGTERM, onSignal);
+
   std::cout << "Loading map " << opt.map_file.c_str() << std::endl;
   ProgressMonitor prog(10);
   LoadMapProgress load_progress(prog);
   ohm::OccupancyMap map(1.0f);
 
-  prog.setDisplayFunction([&opt](const ProgressMonitor::Progress &prog) {
+  prog.setDisplayFunction([](const ProgressMonitor::Progress &prog) {
     // if (!opt.quiet)
     {
       std::ostringstream out;

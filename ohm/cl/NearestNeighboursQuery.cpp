@@ -188,7 +188,7 @@ int invokeNnQueryGpu(const OccupancyMapDetail &map, NearestNeighboursDetail &que
 }
 
 
-void releaseNnGpu(NearestNeighboursDetail &query)
+void releaseNnGpu(NearestNeighboursDetail &/*query*/)
 {
   std::lock_guard<std::mutex> guard(program_mutex);
 

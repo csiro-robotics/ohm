@@ -72,7 +72,7 @@ OccupancyKey MapChunk::keyForIndex(size_t voxel_index, const glm::ivec3 &region_
 {
   OccupancyKey key;
 
-  if (voxel_index < region_voxel_dimensions.x * region_voxel_dimensions.y * region_voxel_dimensions.z)
+  if (voxel_index < unsigned(region_voxel_dimensions.x * region_voxel_dimensions.y * region_voxel_dimensions.z))
   {
     key.setRegionKey(region_coord);
 

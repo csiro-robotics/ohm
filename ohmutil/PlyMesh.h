@@ -99,8 +99,8 @@ public:
   {
   public:
     inline bool isOpen() const { return false; }
-    inline void printf(const char *format, ...) { }
-    inline void write(const void *ptr, size_t element_size, size_t element_count) { }
+    inline void printf(const char * /*format*/, ...) { }
+    inline void write(const void * /*ptr*/, size_t /*element_size*/, size_t /*element_count*/) { }
   };
 
 private:

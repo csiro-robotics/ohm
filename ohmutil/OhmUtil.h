@@ -109,7 +109,7 @@ namespace util
       "EiB"
     };
 
-    int unit_index = 0;
+    unsigned unit_index = 0;
     uint64_t prev_bytes = 0;
     char decimal_places[3] = { 0, 0, 0 };
     bool need_fractional = false;

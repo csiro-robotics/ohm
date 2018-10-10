@@ -701,13 +701,13 @@ namespace gputil
 {
   size_t copyBuffer(Buffer &dst, const Buffer &src, Queue *queue, Event *block_on, Event *completion)
   {
-    return copyBuffer(dst, 0, src, 0, src.size(), queue, block_on);
+    return copyBuffer(dst, 0, src, 0, src.size(), queue, block_on, completion);
   }
 
 
   size_t copyBuffer(Buffer &dst, const Buffer &src, size_t byte_count, Queue *queue, Event *block_on, Event *completion)
   {
-    return copyBuffer(dst, 0, src, 0, byte_count, queue, block_on);
+    return copyBuffer(dst, 0, src, 0, byte_count, queue, block_on, completion);
   }
 
 

@@ -32,9 +32,8 @@ namespace
       const glm::u8vec3 layer_dim = layer->dimensions(map->region_voxel_dimensions);
       // Resolve node index within this layer.
       const unsigned index = ::voxelIndex(key, layer_dim);
-      const unsigned max_index = layer_dim.x * layer_dim.y * layer_dim.z;
       T *voxels = reinterpret_cast<T *>(layer->voxels(*chunk));
-      assert(index < max_index);
+      assert(index < layer_dim.x * layer_dim.y * layer_dim.z);
       return &voxels[index];
     }
 

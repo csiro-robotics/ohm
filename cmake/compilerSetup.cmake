@@ -15,6 +15,9 @@ macro(warnings_gcc)
     # "-Wconversion"
     "-Werror=pedantic"
     "-Werror=vla"
+    "-Wno-unused-function"
+    "-Wno-missing-braces"
+    "-Wno-unknown-pragmas"
   )
 endmacro(warnings_gcc)
 

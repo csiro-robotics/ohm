@@ -6,8 +6,10 @@
 #ifndef OHMUTIL_OPTIONS_H
 #define OHMUTIL_OPTIONS_H
 
+#ifdef _MSC_VER
 #pragma warning(push)
 #pragma warning(disable:4267)
+#endif // _MSC_VER
 
 #include "GlmStream.h"
 

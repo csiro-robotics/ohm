@@ -150,7 +150,6 @@ namespace ohm
   {
     const size_t calc_volume = calc_extents.x * calc_extents.y * calc_extents.z;
     const size_t target_group_size = std::min(kernel.calculateOptimalWorkGroupSize(), calc_volume);
-    size_t max_work_group_size = 0;
 
     // Try to setup the workgroup as a cubic spatial division.
     // However we have to consider where the max work item dimensions don't allow this.

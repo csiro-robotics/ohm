@@ -40,7 +40,7 @@ namespace ranges
     PlyMesh ply;
     OccupancyKey key(region, 0, 0, 0);
     glm::vec3 voxel_pos;
-    auto region_size = map.regionVoxelDimensions();
+    // auto region_size = map.regionVoxelDimensions();
     // std::cout << "regionSize: " << regionSize << std::endl;
 
     OccupancyNodeConst node = map.node(key);

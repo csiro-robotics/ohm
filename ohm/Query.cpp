@@ -100,7 +100,7 @@ bool Query::wait(unsigned timeout_ms)
 }
 
 
-bool Query::onWaitAsync(unsigned timeout_ms)
+bool Query::onWaitAsync(unsigned /*timeout_ms*/)
 {
   return false;
 }

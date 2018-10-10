@@ -122,7 +122,7 @@ namespace ohm
       int type;
     };
 #if OHM_GPU == OHM_GPU_OPENCL
-    const ArgInfo kArgPairs[] =
+    const ArgInfo arg_pairs[] =
     {
       { "accel", "Select the OpenCL accelerator type [any,cpu,gpu] (gpu).", 1 },
       { "cl-ver", "Device must support target OpenCL version. Format via the regex /[1-9][0-9]*(.[1-9][0-9]*)?/.", 1 },
@@ -131,10 +131,10 @@ namespace ohm
       { "platform", "OpenCL platform name must contain the given string (case insensitive).", 1 },
       { "vendor", "OpenCL vendor name must contain the given string (case insensitive).", 1 },
     };
-    const unsigned kArgPairCount = sizeof(kArgPairs) / sizeof(kArgPairs[0]);
+    const unsigned arg_pair_count = sizeof(arg_pairs) / sizeof(arg_pairs[0]);
 #else  // OHM_GPU == OHM_GPU_OPENCL
-    const ArgInfo arg_pairs[1] = { "", "" };
-    const unsigned arg_pair_count = 0;
+    const ArgInfo arg_pairs[1] = { "", "", 0 };
+    unsigned arg_pair_count = 0;
 #endif // OHM_GPU == OHM_GPU_OPENCL
     // clang-format on
 

@@ -106,7 +106,7 @@ namespace clu
   }
 
 
-  bool filterPlatforms(std::vector<cl::Platform> &platforms, cl_device_type type, const PlatformContraint *constraints, unsigned constraint_count)
+  bool filterPlatforms(std::vector<cl::Platform> &platforms, cl_device_type /*type*/, const PlatformContraint *constraints, unsigned constraint_count)
   {
     for (auto iter = platforms.begin(); iter != platforms.end(); )
     {

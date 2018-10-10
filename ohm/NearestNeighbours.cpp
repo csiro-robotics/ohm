@@ -40,7 +40,7 @@ namespace
   // TODO: base this value on GPU capabilities.
   const size_t kGpuBatchSize = 32*32*32;
 
-  int initialiseGpu(const OccupancyMapDetail &map, NearestNeighboursDetail &query)
+  int initialiseGpu(const OccupancyMapDetail &/*map*/, NearestNeighboursDetail &query)
   {
     if (query.gpu_ok)
     {

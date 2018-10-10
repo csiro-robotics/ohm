@@ -14,9 +14,9 @@
 // Include GPU structure definition.
 #include "GpuKey.h"
 
-#include <gputil/gpubuffer.h>
-#include <gputil/gpudevice.h>
-#include <gputil/gpuqueue.h>
+#include <gputil/gpuBuffer.h>
+#include <gputil/gpuDevice.h>
+#include <gputil/gpuQueue.h>
 
 // TODO: add a GPU specific header and migrate these includes and the GpuData structure there.
 #include <clu/clu.h>

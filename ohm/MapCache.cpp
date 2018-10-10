@@ -19,6 +19,8 @@ MapCache::MapCache(unsigned cache_size) // NOLINT
   _cacheSize = cacheSize;
   memset(_chunks, 0, sizeof(*_chunks) * cacheSize);
 #else  // OHM_MULTI_CACHE
+  // cache_size is unused on this path.
+  (void)cache_size;
   chunk_ = nullptr;
 #endif // OHM_MULTI_CACHE
   memset(&stats_, 0, sizeof(stats_));

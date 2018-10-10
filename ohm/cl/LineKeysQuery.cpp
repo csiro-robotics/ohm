@@ -156,7 +156,7 @@ int invokeLineKeysQueryGpu(LineKeysQueryDetail &query, LineKeysQueryDetail::GpuD
 }
 
 
-void releaseLineKeysGpu(LineKeysQueryDetail &query)
+void releaseLineKeysGpu(LineKeysQueryDetail &/*query*/)
 {
   std::lock_guard<std::mutex> guard(program_mutex);
 

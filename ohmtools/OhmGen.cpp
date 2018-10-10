@@ -17,7 +17,6 @@ namespace ohmgen
 {
   void fillMapWithEmptySpace(OccupancyMap &map, int x1, int y1, int z1, int x2, int y2, int z2, bool expect_empty_map)
   {
-    const double map_res = map.resolution();
     OccupancyNode node;
     OccupancyKey key;
     MapCache cache;

@@ -260,7 +260,7 @@ int parseOptions(Options &opt, int argc, char *argv[])
   return 0;
 }
 
-void initialiseDebugCategories(const Options &opt)
+void initialiseDebugCategories(const Options &/*opt*/)
 {
   // TES_CATEGORY(g_tesServer, "Map", CAT_Map, 0, true);
   // TES_CATEGORY(g_tesServer, "Populate", CAT_Populate, 0, true);
@@ -783,6 +783,9 @@ int main(int argc, char *argv[])
   {
     return res;
   }
+
+  signal(SIGINT, onSignal);
+  signal(SIGTERM, onSignal);
 
   // Generate output name based on input if not specified.
   if (opt.output_base.empty())

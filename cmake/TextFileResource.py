@@ -281,9 +281,20 @@ else:
 with open(args.output_source, 'w') as source_file:
     source_file.write("""// Resource file generated from {0}
 
+#ifdef __GNUC__
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-const-variable"
+#endif // __GNUC__
+
 const unsigned {1}_length = {2};
 static const char {1}_[] = """.format(args.input, resource_name, input_file_content_length))
 
     source_file.write(input_file_content_string)
     source_file.write(';\n')
     source_file.write("const char *{0} = {0}_;\n".format(resource_name))
+
+    source_file.write("""
+#ifdef __GNUC__
+#pragma GCC diagnostic pop
+#endif // __GNUC__
+""")
