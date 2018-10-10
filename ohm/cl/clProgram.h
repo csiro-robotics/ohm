@@ -8,7 +8,6 @@
 
 #include "OhmConfig.h"
 
-#include <clu/cl.hpp>
 #include <clu/cluKernel.h>
 
 #include <string>

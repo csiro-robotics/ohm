@@ -56,9 +56,23 @@
 // TODO: include flags header instead of repeating definitions here.
 #define QF_UnknownAsOccupied (1 << 0)
 
+// Limit the number of cells we can traverse in the line traversal. This is a worst case limit.
+//#define LIMIT_LINE_WALK_ITERATIONS
+// Limit the number of times we try update a voxel value. Probably best to always have this enabled.
+#define LIMIT_VOXEL_WRITE_ITERATIONS
+#ifdef LIMIT_VOXEL_WRITE_ITERATIONS
+// Store additional debug information in LineWalkData for error reporting.
+//#define STORE_DEBUG_INFO
+#endif // LIMIT_VOXEL_WRITE_ITERATIONS
+
 //-----------------------------------------------------------------------------
 // Types
 //-----------------------------------------------------------------------------
+#if __OPENCL_C_VERSION__ >= 200
+typedef atomic_uint voxel_type;
+#else  // __OPENCL_C_VERSION__ >= 200
+typedef char4 voxel_type;
+#endif // __OPENCL_C_VERSION__ >= 200
 
 //-----------------------------------------------------------------------------
 // Function prototypes.
@@ -128,11 +142,23 @@ int3 findClosestRegionVoxel(int3 voxelIndex3, int3 voxelExtents);
 /// @param voxel A pointer to the @p voxel data.
 /// @param newObstruction The new obstruction to write. XYZ are relative offsets from @p voxelIndex, while W must be 1.
 /// @param axisScaling Per axis scaling applied to distance calculations.
-bool updateVoxelObstructionCas(int3 voxelIndex, __global char4 *voxel, char4 newObstruction, float3 axisScaling);
+bool updateVoxelObstructionCas(int3 voxelIndex, __global voxel_type *voxel, char4 newObstruction, float3 axisScaling);
 
 // Load voxel data into local memory.
 void loadPropagationLocalVoxels(__global char4 *srcVoxels, __local char4 *localVoxels, int3 voxelExtents,
                                 int3 globalWorkItem, int3 localWorkItem, int3 localExpance);
+
+#if __OPENCL_C_VERSION__ >= 200
+/// Convert from obstruction value to uint for use in atomic operations in @c seedFromOuterRegions()
+/// @param obstruction Offset to nearest current obstruction, with w = 1 if there is an obstruction, w = 0 otherwise.
+/// @return A 32-bit uint representation of obstruction.
+inline uint obstructionToVoxel(char4 obstruction);
+/// Convert from 32-bit uint voxel representation to a char4 obstruction representation for use in atomic operations in
+/// @c seedFromOuterRegions()
+/// @param voxel The voxel representation to convert.
+/// @retrun Offset to nearest current obstruction, with w = 1 if there is an obstruction, w = 0 otherwise.
+inline char4 voxelToObstruction(uint voxel);
+#endif // __OPENCL_C_VERSION__ >= 200
 
 //-----------------------------------------------------------------------------
 // Implementation
@@ -445,27 +471,68 @@ int3 findClosestRegionVoxel(int3 voxelIndex3, int3 voxelExtents)
 }
 
 
-bool updateVoxelObstructionCas(int3 voxelIndex, __global char4 *voxel, char4 newObstruction, float3 axisScaling)
+#if __OPENCL_C_VERSION__ >= 200
+inline uint obstructionToVoxel(char4 obstruction)
 {
+#if __ENDIAN_LITTLE__
+  return (uint)
+          ((uchar)obstruction.x) | ((uchar)obstruction.y << 8) |
+          ((uchar)obstruction.z << 16) | ((uchar)obstruction.w << 24);
+#else // __ENDIAN_LITTLE__
+  return (uint)
+          ((uchar)obstruction.x << 24) | ((uchar)obstruction.y << 16) |
+          ((uchar)obstruction.z << 8) | ((uchar)obstruction.w);
+#endif // __ENDIAN_LITTLE__
+}
+
+
+inline char4 voxelToObstruction(uint voxel)
+{
+#if __ENDIAN_LITTLE__
+  return make_char4(
+      (char)((voxel) & 0xFFu),
+      (char)((voxel >> 8) & 0xFFu),
+      (char)((voxel >> 16) & 0xFFu),
+      (char)((voxel >> 24) & 0xFFu)
+    );
+#else  // __ENDIAN_LITTLE__
+  return make_char4(
+      (char)((voxel >> 24) & 0xFFu),
+      (char)((voxel >> 16) & 0xFFu),
+      (char)((voxel >> 8) & 0xFFu),
+      (char)((voxel) & 0xFFu)
+    );
+#endif // __ENDIAN_LITTLE__
+}
+#endif // __OPENCL_C_VERSION__ >= 200
+
+
+bool updateVoxelObstructionCas(int3 voxelIndex, __global voxel_type *voxel, char4 newObstruction, float3 axisScaling)
+{
+#if __OPENCL_C_VERSION__ >= 200
+  uint reference_value, new_value;
+  voxel_type *voxel_ptr;
+
+  // Prepare the new value we may write.
+  new_value = obstructionToVoxel(newObstruction);
+  voxel_ptr = voxel;
+#else  // __OPENCL_C_VERSION__ >= 200
   union
   {
     char4 voxel;
     int i;
-  } referenceValue, newValue;
+  } reference_value, new_value;
 
   union
   {
     __global volatile char4 *voxel;
-    #if __OPENCL_C_VERSION__ >= 200
-    __global atomic_int *i;
-    #else  // __OPENCL_C_VERSION__ >= 200
     __global volatile int *i;
-  #endif // __OPENCL_C_VERSION__ >= 200
-  } valuePtr;
+  } voxel_ptr;
 
   // Prepare the new value we may write.
-  newValue.voxel = newObstruction;
-  valuePtr.voxel = voxel;
+  new_value.voxel = newObstruction;
+  voxel_ptr.voxel = voxel;
+#endif // __OPENCL_C_VERSION__ >= 200
 
   float3 offset = make_float3(newObstruction.x, newObstruction.y, newObstruction.z) * axisScaling;
   const float distanceToObstacleSqr = dot(offset, offset);
@@ -476,27 +543,41 @@ bool updateVoxelObstructionCas(int3 voxelIndex, __global char4 *voxel, char4 new
   // Begin the contended write loop:
   do
   {
+    #if __OPENCL_C_VERSION__ >= 200
     // Cache the current value as a reference value.
-    referenceValue.voxel = *valuePtr.voxel;
+    reference_value = atomic_load_explicit(voxel_ptr, memory_order_relaxed);
 
     // Evaluate the range to the voxel currently considered the closest obstruction for the target voxel.
     // No need to apply voxelResolution as we are making relative comparisons.
-    offset = make_float3(referenceValue.voxel.x, referenceValue.voxel.y, referenceValue.voxel.z) * axisScaling;
+    const char4 ref = voxelToObstruction(reference_value);
+    offset = make_float3(ref.x, ref.y, ref.z) * axisScaling;
+
+    const bool existing_obstruction = ref.w == 1;
+    #else  // __OPENCL_C_VERSION__ >= 200
+    // Cache the current value as a reference value.
+    reference_value.voxel = *voxel_ptr.voxel;
+
+    // Evaluate the range to the voxel currently considered the closest obstruction for the target voxel.
+    // No need to apply voxelResolution as we are making relative comparisons.
+    offset = make_float3(reference_value.voxel.x, reference_value.voxel.y, reference_value.voxel.z) * axisScaling;
+
+    const bool existing_obstruction = reference_value.voxel.w == 1;
+    #endif // __OPENCL_C_VERSION__ >= 200
+
     // Apply axis scaling to the distance calculation.
     const float currentDistSqr = dot(offset, offset);
 
-    // printf("current voxel %d %d %d %d\n", referenceValue.voxel.x, referenceValue.voxel.y, referenceValue.voxel.z, referenceValue.voxel.w);
-
     // Only important when the new obstruction is closer than the current one or the current is not an obstruction.
-    if (distanceToObstacleSqr < currentDistSqr || referenceValue.voxel.w == 0)
+    if (distanceToObstacleSqr < currentDistSqr || !existing_obstruction)
     {
       // Attempt to write to the target location. This is done with contention, so we use
       // atomics to test for success. On failure we'll iterate again until we hit the iteration
       // limit.
       #if __OPENCL_C_VERSION__ >= 200
-      needsUpdate = atomic_compare_exchange_strong(valuePtr.i, &referenceValue.i, newValue.i) != referenceValue.i;
+      needsUpdate = !atomic_compare_exchange_weak_explicit(voxel_ptr, &reference_value, new_value,
+                                                           memory_order_release, memory_order_relaxed);
       #else  // __OPENCL_C_VERSION__ >= 200
-      needsUpdate = atomic_cmpxchg(valuePtr.i, referenceValue.i, newValue.i) != referenceValue.i;
+      needsUpdate = atomic_cmpxchg(voxel_ptr.i, reference_value.i, new_value.i) != reference_value.i;
       #endif  // __OPENCL_C_VERSION__ >= 200
 
       updated = !needsUpdate;
@@ -507,6 +588,14 @@ bool updateVoxelObstructionCas(int3 voxelIndex, __global char4 *voxel, char4 new
       needsUpdate = false;
     }
   } while (needsUpdate && ++iteration < iterationLimit);
+
+  #ifdef LIMIT_VOXEL_WRITE_ITERATIONS
+  if (iteration == iterationLimit)
+  {
+    printf("%u excessive voxel update iterations (%d %d %d).\n", get_global_id(0),
+           voxelIndex.x, voxelIndex.y, voxelIndex.z);
+  }
+  #endif // LIMIT_VOXEL_WRITE_ITERATIONS
 
   return updated;
 }
@@ -732,7 +821,7 @@ __kernel void seedRegionVoxels(__global struct GpuKey *cornerVoxelKey,
 /// @param zbatch Number of items each thread should process.
 __kernel void seedFromOuterRegions(__global struct GpuKey *cornerVoxelKey,
                                  __global float *voxelOccupancy,
-                                 __global char4 *workingVoxels,
+                                 __global voxel_type *workingVoxels,
                                  __global int3 *regionKeysGlobal,
                                  __global ulong *regionMemOffsetsGlobal,
                                  uint regionCount,

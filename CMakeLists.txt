@@ -40,14 +40,18 @@ include(compilerSetup)
 # Configure installation prefixes.
 # set(OHM_PREFIX_PACKAGE lib/cmake/${CMAKE_PROJECT_NAME})
 set(OHM_PREFIX_PACKAGE share/${CMAKE_PROJECT_NAME}/cmake) # For catkin interoperation
-# Prefix for incldue directories.
+# Prefix for include directories.
 set(OHM_PREFIX_INCLUDE include/ohm)
 
 # Build options
 option(OHM_BUILD_DOXYGEN "Build doxygen documentation?" OFF)
 
 option(OHM_EMBED_GPU_CODE "Embed GPU code into the executable (OpenCL)? Otherwise GPU code files are loaded from disk (better for development)." ON)
-set(OHM_OPENCL_STD 1.2 CACHE STRING "Select the OpenCL standard to compile GPU code against.")
+
+set(OHM_OPENCL_VER 2.1 CACHE STRING "Select the OpenCL runtime API to use.")
+set_property(CACHE OHM_OPENCL_VER PROPERTY STRINGS 1.2 2.0 2.1 2.2)
+
+set(OHM_OPENCL_STD 2.0 CACHE STRING "Select the OpenCL standard to compile GPU code against.")
 set_property(CACHE OHM_OPENCL_STD PROPERTY STRINGS 1.2 2.0)
 
 option(OHM_PROFILE "Enable timing information messages for some queries." Off)

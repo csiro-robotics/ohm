@@ -6,7 +6,9 @@
 #ifndef CLU_H
 #define CLU_H
 
-#include "cl.hpp"
+#include "cluConfig.h"
+
+#include "cl2.hpp"
 
 #include <functional>
 #include <iostream>

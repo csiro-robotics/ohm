@@ -105,53 +105,33 @@ Queue Device::defaultQueue() const
 }
 
 
-#if defined(CL_VERSION_1_2)
-#if defined(__GNUC__)
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-#endif  // defined(__GNUC__)
-#if defined(_MSC_VER)
-#pragma warning(push)
-#pragma warning(disable : 4996)
-#endif  // defined(_MSC_VER)
-#endif  // defined(CL_VERSION_1_2) && defined __GNUC__
-
 Queue Device::createQueue(unsigned flags) const
 {
   cl_int clerr = CL_SUCCESS;
-#if defined(CL_VERSION_2_0) && false
+#if CL_HPP_TARGET_OPENCL_VERSION >= 200
   // FIXME: The following should only be used with OpenCL 2 compatible devices,
   // even if the SDK is version 2.0 compatible.
   // We need a device.version() function to address this.
-  cl_command_queue_properties queueProps[] = { 0, 0, 0 };
-  if (flags & Queue::Profile)
+  cl_command_queue_properties queue_props[] = { 0, 0, 0 };
+  if (flags & Queue::kProfile)
   {
-    queueProps[0] = CL_QUEUE_PROPERTIES;
-    queueProps[1] |= CL_QUEUE_PROFILING_ENABLE;
+    queue_props[0] = CL_QUEUE_PROPERTIES;
+    queue_props[1] |= CL_QUEUE_PROFILING_ENABLE;
   }
-  cl_command_queue queue = clCreateCommandQueueWithProperties(_imp->context(), _imp->device(), queueProps, &clerr);
-#else  // !defined(CL_VERSION_2_0)
+  cl_command_queue queue = clCreateCommandQueueWithProperties(imp_->context(), imp_->device(), queue_props, &clerr);
+#else  // CL_HPP_TARGET_OPENCL_VERSION >= 200
   cl_command_queue_properties queue_props = 0;
   if (flags & Queue::kProfile)
   {
     queue_props |= CL_QUEUE_PROFILING_ENABLE;
   }
   cl_command_queue queue = clCreateCommandQueue(imp_->context(), imp_->device(), queue_props, &clerr);
-#endif // !defined(CL_VERSION_2_0)
+#endif // CL_HPP_TARGET_OPENCL_VERSION >= 200
   GPUAPICHECK(clerr, CL_SUCCESS, Queue());
 
   // This constructor will not add a reference.
   return Queue(queue);
 }
-
-#if defined(CL_VERSION_1_2)
-#if defined(__GNUC__)
-#pragma GCC diagnostic pop
-#endif  // defined(__GNUC__)
-#if defined(_MSC_VER)
-#pragma warning(pop)
-#endif  // defined(_MSC_VER)
-#endif  // defined(CL_VERSION_1_2) && defined __GNUC__
 
 
 bool Device::select(int argc, const char **argv, const char *default_device)

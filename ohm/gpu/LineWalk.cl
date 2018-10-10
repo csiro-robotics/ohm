@@ -134,23 +134,13 @@ inline bool equal(const struct GpuKey *a, const struct GpuKey *b)
 
 inline float getf3(const float3 *v, int index)
 {
-  // FIXME: Seems only Intel 2.0 supports array indexing.
-  // #if __OPENCL_C_VERSION__ >= 200
-  // return (*v)[index];
-  // #else  // __OPENCL_C_VERSION__ >= 200
   return (index == 0) ? v->x : ((index == 1) ? v->y : v->z);
-  // #endif // __OPENCL_C_VERSION__ >= 200
 }
 
 
 inline int geti3(const int3 *v, int index)
 {
-  // FIXME: Seems only Intel 2.0 supports array indexing.
-  // #if __OPENCL_C_VERSION__ >= 200
-  // return (*v)[index];
-  // #else  // __OPENCL_C_VERSION__ >= 200
   return (index == 0) ? v->x : ((index == 1) ? v->y : v->z);
-  // #endif // __OPENCL_C_VERSION__ >= 200
 }
 
 void walkLineVoxels(const struct GpuKey *startKey, const struct GpuKey *endKey,

@@ -9,7 +9,7 @@
 
 #include "gpuConfig.h"
 
-#include <clu/cl.hpp>
+#include <clu/clu.h>
 
 #include "gputil/gpuDevice.h"
 

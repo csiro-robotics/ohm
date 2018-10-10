@@ -66,10 +66,9 @@ namespace clu
     {
       ::size_t size = 0;
       clGetDeviceInfo(device(), CL_DEVICE_VERSION, 0, nullptr, &size);
-      cl::STRING_CLASS version_info;
+      cl::string version_info;
       version_info.resize(size + 1);
-      clGetDeviceInfo(device(), CL_DEVICE_VERSION, size, &version_info[0],
-                      &size);
+      clGetDeviceInfo(device(), CL_DEVICE_VERSION, size, &version_info[0], &size);
       int high_version = 0;
       int low_version = 0;
       int index = 7;

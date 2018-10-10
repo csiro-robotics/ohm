@@ -52,3 +52,9 @@ While efforts are made to ensure certain components remain optional, certain con
 - There is mention of CUDA in the code, but there is currently no CUDA compatibilty.
 - Installation scripts have yet to be verified.
 - A coding standards pass will be shortly effected which will significantly change file and variable naming.
+
+## Resolving OpenCL SDK With Multiple Options
+
+There are some pitfalls in trying to resolve an appropriate OpenCL SDK when multiple SDK options are installed. Most notably selecting between the Intel SDK over the NVIDIA SDK can be problematic. The best way to ensure the correct option is selected is to ensure the desired SDK prefix path is set in the PATH environment variable as the before other SDK paths. The prefix path, is essentially the path containing the `include` and `lib` directories.
+
+While this can be changed by explicitly changing `OpenCL_INCLUDE_DIR` and `OpenCL_LIBRARY` in the CMake cache (using `ccmake` or `cmake-gui`) this can still have issues with selecting a particular API version. This is because the available API versions are determined when the OpenCL header is first found and will not be updated if the paths are explicitly changed. To combat this, edit the `CMakeCache.txt` file and remove all `OPENCL_VERSION_X_X` entries.

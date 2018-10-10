@@ -29,11 +29,17 @@
 // Declarations
 //------------------------------------------------------------------------------
 
+#if __OPENCL_C_VERSION__ >= 200
+typedef atomic_float occupancy_type;
+#else  // __OPENCL_C_VERSION__ >= 200
+typedef float occupancy_type;
+#endif // __OPENCL_C_VERSION__ >= 200
+
 // User data for walkLineVoxel() callback.
 struct LineWalkData
 {
   // Voxel occupancy memory. All regions use a shared buffer.
-  __global float *voxels;
+  __global occupancy_type *voxels;
   // __global struct MapNode *voxels;
   // Array of region keys for currently loaded regions.
   __global int3 *regionKeys;
@@ -56,12 +62,12 @@ struct LineWalkData
   // The regionMemOffsets value corresponding to the currentRegion. This is an index offset into voxels, not
   // a byte offset.
   uint regionVoxelOffset;
-  #ifdef STORE_DEBUG_INFO
+#ifdef STORE_DEBUG_INFO
   const float3 *lineStart;
   const float3 *lineEnd;
   const struct GpuKey *startKey;
   const struct GpuKey *endKey;
-  #endif // STORE_DEBUG_INFO
+#endif // STORE_DEBUG_INFO
 };
 
 //------------------------------------------------------------------------------
@@ -71,21 +77,22 @@ struct LineWalkData
 // Implement the voxel travesal function. We update the value of the voxel using atomic instructions.
 bool walkLineVoxel(const struct GpuKey *voxelKey, bool isEndVoxel, void *userData)
 {
+#if __OPENCL_C_VERSION__ >= 200
+  float old_value, new_value;
+  __global occupancy_type *voxel_ptr;
+#else  // __OPENCL_C_VERSION__ >= 200
   union
   {
     float f;
     int i;
-  } oldValue, newValue;
+  } old_value, new_value;
 
   union
   {
     __global volatile float *f;
-    #if __OPENCL_C_VERSION__ >= 200
-    __global atomic_int *i;
-    #else  // __OPENCL_C_VERSION__ >= 200
     __global volatile int *i;
-  #endif // __OPENCL_C_VERSION__ >= 200
-  } valuePtr;
+  } voxel_ptr;
+#endif // __OPENCL_C_VERSION__ >= 200
 
   struct LineWalkData *lineData = (struct LineWalkData *)userData;
 
@@ -128,7 +135,11 @@ bool walkLineVoxel(const struct GpuKey *voxelKey, bool isEndVoxel, void *userDat
       voxelKey->voxel[1] < lineData->regionDimensions.y &&
       voxelKey->voxel[2] < lineData->regionDimensions.z)
   {
-    valuePtr.f = &lineData->voxels[vi];
+    #if __OPENCL_C_VERSION__ >= 200
+    voxel_ptr = &lineData->voxels[vi];
+    #else  // __OPENCL_C_VERSION__ >= 200
+    voxel_ptr.f = &lineData->voxels[vi];
+    #endif // __OPENCL_C_VERSION__ >= 200
 
     #ifdef LIMIT_VOXEL_WRITE_ITERATIONS
     // Under high contension we can end up repeatedly failing to write the voxel value.
@@ -149,26 +160,34 @@ bool walkLineVoxel(const struct GpuKey *voxelKey, bool isEndVoxel, void *userDat
 
       // Calculate a new value for the voxel.
       #if __OPENCL_C_VERSION__ >= 200
-      oldValue.f = newValue.f = *valuePtr.f;
+      old_value = new_value = atomic_load_explicit(voxel_ptr, memory_order_relaxed);
       #else  // __OPENCL_C_VERSION__ >= 200
-      oldValue.i = newValue.i = *valuePtr.i;
+      old_value.i = new_value.i = *voxel_ptr.i;
       #endif  // __OPENCL_C_VERSION__ >= 200
 
       // Adjust value by rayAdjustment unless this is the sample voxel.
       const float adjustment = (!isEndVoxel) ? lineData->rayAdjustment : lineData->sampleAdjustment;
-      // Uninitialised voxels start at INFINITY.
-      newValue.f = (newValue.f != INFINITY) ? newValue.f + adjustment : adjustment;
 
+      #if __OPENCL_C_VERSION__ >= 200
+      // Uninitialised voxels start at INFINITY.
+      new_value = (new_value != INFINITY) ? new_value + adjustment : adjustment;
       // Clamp the value.
-      newValue.f = clamp(newValue.f, lineData->voxelValueMin, lineData->voxelValueMax);
+      new_value = clamp(new_value, lineData->voxelValueMin, lineData->voxelValueMax);
+      #else  // __OPENCL_C_VERSION__ >= 200
+      // Uninitialised voxels start at INFINITY.
+      new_value.f = (new_value.f != INFINITY) ? new_value.f + adjustment : adjustment;
+      // Clamp the value.
+      new_value.f = clamp(new_value.f, lineData->voxelValueMin, lineData->voxelValueMax);
+      #endif // __OPENCL_C_VERSION__ >= 200
 
       // Now try write the value, looping if we fail to write the new value.
       //mem_fence(CLK_GLOBAL_MEM_FENCE);
     #if __OPENCL_C_VERSION__ >= 200
-    } while(atomic_compare_exchange_strong(valuePtr.i, &oldValue.i, newValue.i) != oldValue.i);
+    } while(!atomic_compare_exchange_weak_explicit(voxel_ptr, &old_value, new_value,
+                                                   memory_order_release, memory_order_relaxed));
     #else  // __OPENCL_C_VERSION__ >= 200
-    } while(atomic_cmpxchg(valuePtr.i, oldValue.i, newValue.i) != oldValue.i);
-    //atomic_cmpxchg(valuePtr.i, oldValue.i, newValue.i);
+    } while(atomic_cmpxchg(voxel_ptr.i, old_value.i, new_value.i) != old_value.i);
+    //atomic_cmpxchg(voxel_ptr.i, old_value.i, new_value.i);
     #endif  // __OPENCL_C_VERSION__ >= 200
   }
   else
@@ -184,7 +203,7 @@ bool walkLineVoxel(const struct GpuKey *voxelKey, bool isEndVoxel, void *userDat
 //------------------------------------------------------------------------------
 // Kernel
 //------------------------------------------------------------------------------
-__kernel void regionRayUpdate(__global uchar *voxelsMem,
+__kernel void regionRayUpdate(__global occupancy_type *voxelsMem,
                               __global int3 *regionKeysGlobal,
                               __global ulong *regionMemOffsetsGlobal,
                               uint regionCount,
@@ -194,23 +213,6 @@ __kernel void regionRayUpdate(__global uchar *voxelsMem,
                               float voxelValueMin, float voxelValueMax
                              )
 {
-#if 0
-  __local int3 *regionKeys[MAX_REGIONS];
-  __local ulong *regionMemOffset[MAX_REGIONS];
-
-  // Cache the region keys and memory offsets into local memory.
-  for (uint i = 0; i < regionCount; i += get_local_size(0))
-  {
-    if (i + get_local_id(0) < regionCount)
-    {
-      regionKeys[i + get_local_id(0)] = regionKeysGlobal[i + get_local_id(0)];
-      regionMemOffsets[i + get_local_id(0)] = regionMemOffsetsGlobal[i + get_local_id(0)];
-    }
-  }
-
-  barrier(CLK_LOCAL_MEM_FENCE);
-#endif // #
-
   // Only process valid lines.
   if (get_global_id(0) >= lineCount)
   {
@@ -221,18 +223,8 @@ __kernel void regionRayUpdate(__global uchar *voxelsMem,
   // For an invalid line, set a zero length line.
   float3 lineEnd = lines[get_global_id(0) * 2 + 1];
 
-  #if 0
-  struct GpuKey startKey, endKey;
-  coordToKey(&startKey, &lineStart, &regionDimensions, voxelResolution);
-  coordToKey(&endKey, &lineEnd, &regionDimensions, voxelResolution);
-  printf("%u " KEY_F " -> " KEY_F "  <=>  (%f %f %f) -> (%f %f %f)\n",
-         get_global_id(0),
-         KEY_A(startKey), KEY_A(endKey),
-         lineStart.x, lineStart.y, lineStart.z,
-         lineEnd.x, lineEnd.y, lineEnd.z);
-  #else  // #
   struct LineWalkData lineData;
-  lineData.voxels = (__global float *)voxelsMem;
+  lineData.voxels = voxelsMem;
   lineData.regionKeys = regionKeysGlobal;
   lineData.regionMemOffsets = regionMemOffsetsGlobal;
   lineData.regionDimensions = regionDimensions;
@@ -248,12 +240,11 @@ __kernel void regionRayUpdate(__global uchar *voxelsMem,
   struct GpuKey startKey, endKey;
   coordToKey(&startKey, &lineStart, &regionDimensions, voxelResolution);
   coordToKey(&endKey, &lineEnd, &regionDimensions, voxelResolution);
-  #ifdef STORE_DEBUG_INFO
+#ifdef STORE_DEBUG_INFO
   lineData.lineStart = &lineStart;
   lineData.lineEnd = &lineEnd;
   lineData.startKey = &startKey;
   lineData.endKey = &endKey;
-  #endif // STORE_DEBUG_INFO
+#endif // STORE_DEBUG_INFO
   walkLineVoxels(&startKey, &endKey, &lineStart, &lineEnd, &regionDimensions, voxelResolution, &lineData);
-  #endif  // #
 }
