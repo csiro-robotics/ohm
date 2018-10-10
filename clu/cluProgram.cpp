@@ -685,7 +685,7 @@ namespace clu
       source_length = strlen(source_code);
     }
 
-    cl::Program::Sources source(1, std::make_pair(source_code, source_length + 1));
+    cl::Program::Sources source(1, cl::string(source_code, source_length));
     cl::Program local_program(ocl, source);
 
     // Setup additional build options such as include dirs.

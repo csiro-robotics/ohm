@@ -1,7 +1,28 @@
-find_package(OpenCL)
+
+
+# Convert version string to a list of versions.
+string(REPLACE "." ";" OPENCL_VERSION_LIST ${OHM_OPENCL_VER})
+
+set(OPENCL_VERSION_MINOR 0)
+set(OPENCL_VERSION_PATCH 0)
+list(LENGTH OPENCL_VERSION_LIST VERSION_COMPONENTS)
+list(GET OPENCL_VERSION_LIST 0 OPENCL_VERSION_MAJOR)
+if(VERSION_COMPONENTS GREATER 1)
+  list(GET OPENCL_VERSION_LIST 1 OPENCL_VERSION_MINOR)
+  if(VERSION_COMPONENTS GREATER 2)
+    list(GET OPENCL_VERSION_LIST 2 OPENCL_VERSION_PATCH)
+  endif(VERSION_COMPONENTS GREATER 2)
+endif(VERSION_COMPONENTS GREATER 1)
+
+# Convert version into an integer for use in code. Each version component is a digit.
+set(CLU_TARGET_OPENCL_VERSION ${OPENCL_VERSION_MAJOR}${OPENCL_VERSION_MINOR}${OPENCL_VERSION_PATCH})
+
+find_package(OpenCL ${OHM_OPENCL_VER})
+
+configure_file(cluConfig.in.h "${CMAKE_CURRENT_BINARY_DIR}/clu/cluConfig.h")
 
 set(SOURCES
-  cl.hpp
+  cl2.hpp
   clu.cpp
   clu.h
   cluBuffer.h
@@ -14,19 +35,20 @@ set(SOURCES
 )
 
 set(PUBLIC_HEADERS
-  cl.hpp
+  cl2.hpp
   clu.h
   cluBuffer.h
   cluConstraint.h
   cluKernel.h
   cluProgram.h
+  "${CMAKE_CURRENT_BINARY_DIR}/clu/cluConfig.h"
 )
 
-add_library(clu STATIC ${SOURCES})
+add_library(clu STATIC ${SOURCES} ${PUBLIC_HEADERS})
 target_include_directories(clu
   PUBLIC
     $<INSTALL_INTERFACE:${OHM_PREFIX_INCLUDE}>
-    # $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/clu>
     $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}>
 )
 
