@@ -12,6 +12,8 @@
 
 namespace gputil
 {
+  class Event;
+  class Buffer;
   class PinnedBuffer;
 }
 
@@ -169,12 +171,56 @@ namespace ohm
     ///   In this case either the GPU is unavailable, or all @p rays are invalid.
     unsigned integrateRays(const glm::dvec3 *rays, unsigned point_count, bool end_points_as_occupied = true);
 
+    unsigned integrateRays(gputil::Buffer &buffer, unsigned point_count, bool end_points_as_occupied = true);
+    unsigned integrateRays(gputil::Buffer &buffer, const glm::vec3 *rays, unsigned point_count,
+                           bool end_points_as_occupied = true);
+    unsigned integrateRays(gputil::Buffer &buffer, const glm::vec4 *rays, unsigned point_count,
+                           bool end_points_as_occupied = true);
+    unsigned integrateRays(gputil::Buffer &buffer, const glm::dvec3 *rays, unsigned point_count,
+                           bool end_points_as_occupied = true);
+
+    /// Integrate rays specifies as samples in local space interpolated against a start and end @p transform_positions
+    /// and @p transform_rotations.
+    ///
+    /// This function supports a moving agent generating samples over a small time slice. The sample points are all
+    /// specified in the agent's local coordinate frame, while the @p transform_positions and @p transform_rotations
+    /// identify the agent's global frame by rotation and translation - no scaling supported -
+    /// over a small time period <tt>[transform_times[0], transform_times[transform_count - 1]]</tt>. Each sample has
+    /// its own timestamp also in the same time range.
+    ///
+    /// The GPU algorithm is extended to generate a local to global transformation for each point, transform the point
+    /// into the global frame then integrate the ray as in @p integrateRays, using the moving agent transform and the
+    /// global sample as ray start and end points respectively. The transformation matrix for each point is generated
+    /// by finding the appropriate interval in @p transforms, and interpolating within that interval. This requires
+    /// that the @p sample_times all fall within the range covered by @p transform_times.
+    ///
+    /// @param transform_times Timestamp values for each of the @p transforms. Must have @p transform_count elements.
+    /// @param transform_positions Position components for the local to global frame transformations.
+    /// @param transform_rotations Quaternion rotation components for the local to global frame transformations.
+    /// @param transform_count Number of items in @p transform_times and @p transforms.
+    /// @param sample_times Time stamps for @p local_samples.
+    /// @param local_samples Sample points in the local, moving frame.
+    /// @param point_count Number of entries in @p sample_times and @p local_samples.
+    /// @param end_points_as_occupied When @c true, the end points of the rays increase the occupancy probability.
+    ///   Otherwise they decrease the probability just as the rest of the ray.
+    /// @return The number of rays integrated. Zero indicates a failure when @p pointCount is not zero.
+    ///   In this case either the GPU is unavailable, or all @p rays are invalid.
+    unsigned integrateLocalRays(const double *transform_times, const glm::dvec3 *transform_positions,
+                                const glm::dquat *transform_rotations, unsigned transform_count,
+                                const double *sample_times, const glm::dvec3 *local_samples, unsigned point_count,
+                                bool end_points_as_occupied = true);
+
     /// Internal use: get the GPU cache used by this map.
     /// @return The GPU cache this map uses.
     GpuCache *gpuCache() const;
 
   private:
-    /// Wait for previous ray batch, as indicated by @p bufferIndex, to complete.
+    template <typename VEC_TYPE>
+    unsigned integrateRaysT(gputil::Buffer &buffer, gputil::Event &buffer_event,
+                            const VEC_TYPE *rays, unsigned point_count,
+                            bool preloaded_buffer, bool end_points_as_occupied);
+
+    /// Wait for previous ray batch, as indicated by @p buffer_index, to complete.
     /// @param buffer_index Identifies the batch to wait on.
     void waitOnPreviousOperation(int buffer_index);
 

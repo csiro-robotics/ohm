@@ -28,6 +28,9 @@ namespace ohm
     typedef std::unordered_multimap<unsigned, glm::i16vec3> RegionKeyMap;
     gputil::Event ray_upload_events[kBuffersCount];
     gputil::Buffer ray_buffers[kBuffersCount];
+    gputil::Buffer transform_positions_buffer;
+    gputil::Buffer transform_rotations_buffer;
+    gputil::Buffer transform_times_buffer;
 
     gputil::Event region_key_upload_events[kBuffersCount];
     gputil::Event region_offset_upload_events[kBuffersCount];
@@ -36,9 +39,14 @@ namespace ohm
 
     gputil::Event region_update_events[kBuffersCount];
 
+    /// CPU buffer to read back results from GPU ray transformation.
+    /// Only ever used in a transient fashion.
+    std::vector<glm::vec4> transformed_rays;
+
     double max_range_filter = 0;
 
     unsigned ray_counts[kBuffersCount] = { 0, 0 };
+    unsigned transform_count = 0;
     unsigned region_counts[kBuffersCount] = { 0, 0 };
 
     int next_buffers_index = 0;

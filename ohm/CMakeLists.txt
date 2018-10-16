@@ -126,6 +126,7 @@ if(OHM_GPU)
     gpu/NearestNeighboursquery.cl
     gpu/RegionUpdate.cl
     gpu/RoiRangeFill.cl
+    gpu/TransformSamples.cl
   )
   if(NOT OHM_EMBED_GPU_CODE)
     list(APPEND GPU_SOURCES gpu/LineWalk.cl)
@@ -140,6 +141,7 @@ if(OHM_GPU)
   list(APPEND SOURCES
     private/GpuMapDetail.cpp
     private/GpuMapDetail.h
+    private/GpuTransformSamplesDetail.h
     GpuCache.cpp
     GpuCache.h
     GpuCacheParams.h
@@ -147,6 +149,8 @@ if(OHM_GPU)
     GpuLayerCache.h
     GpuMap.cpp
     GpuMap.h
+    GpuTransformSamples.cpp
+    GpuTransformSamples.h
   )
 
   list(APPEND PUBLIC_HEADERS
@@ -155,6 +159,7 @@ if(OHM_GPU)
     GpuKey.h
     GpuLayerCache.h
     GpuMap.h
+    GpuTransformSamples.h
   )
 endif(OHM_GPU)
 
