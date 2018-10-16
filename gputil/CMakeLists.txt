@@ -13,9 +13,11 @@ set(PUBLIC_HEADERS
   gpuEvent.h
   gpuEventList.h
   gpuException.h
+  gpuKernel.h
   gpuPinMode.h
   gpuPinnedBuffer.h
   gpuPlatform.h
+  gpuProgram.h
   gpuQueue.h
   gpuThrow.h
   gpu_ext.h
@@ -40,13 +42,18 @@ if(GPU_ACCEL STREQUAL "OpenCL")
   list(APPEND SOURCES
     cl/gpuApiExceptionCode.cpp
     cl/gpuBuffer.cpp
-    cl/gpubufferdetail.h
+    cl/gpuBufferDetail.h
     cl/gpuDevice.cpp
     cl/gpuDeviceDetail.h
     cl/gpuEvent.cpp
-    cl/gpueventdetail.h
+    cl/gpuEventDetail.h
+    cl/gpuKernel.cpp
+    cl/gpuKernel2.h
+    cl/gpuKernelDetail.h
     cl/gpuPinnedBuffer.cpp
     cl/gpuPlatform2.h
+    cl/gpuProgram.cpp
+    cl/gpuProgramDetail.h
     cl/gpuQueue.cpp
     cl/gpuQueueDetail.h
     )

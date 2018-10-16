@@ -163,7 +163,7 @@ namespace gputil
     /// @return The actual allocation size (bytes).
     size_t forceResize(size_t new_size);
 
-    /// Resize the buffer to support @p elementCount elements of type @c T.
+    /// Resize the buffer to support @p element_count elements of type @c T.
     ///
     /// Note: existing data in the buffer may be lost.
     ///
@@ -269,11 +269,11 @@ namespace gputil
     /// This is primarily to cater for the size difference between a 3-element float vector and
     /// @c cl_float3, which is a 4-element vector, with a redundant @c w component.
     ///
-    /// Where elements in @p dst and @c this buffer do not match, specify the @p elementSize as the
+    /// Where elements in @p dst and @c this buffer do not match, specify the @p element_size as the
     /// element stride in @p dst and @p bufferElementSize as the stride in @c this buffer.
     ///
     /// The method will copy as many elements as are available in @c this buffer. The @p dst memory
-    /// must be sized as follows <tt>elementCount * elementSize</tt>.
+    /// must be sized as follows <tt>element_count * element_size</tt>.
     ///
     /// @param dst The buffer to write into. Must be sized to suit.
     /// @param element_size The element stride in @p dst. The same stride is used for @c this buffer when
@@ -282,18 +282,29 @@ namespace gputil
     /// @param offset_elements Number of elements to offset the read start. That is skip this number of elements before
     ///     reading.
     /// @param buffer_element_size Optional element stride within @c this buffer when different from
-    ///     @p elementSize.
+    ///     @p element_size.
     /// @param queue Optional queue to perform the operation on. Providing a non null queue
     ///     changes the operation to occur asynchronously.
     /// @param block_on Optional event to wait for be performing the read.
     /// @param completion Optional event to setup to mark completion of the read operation.
-    /// @return The number of elements read. May be less than @c elementCount if this buffer is not
-    ///     large enough to hold @c elementCount.
+    /// @return The number of elements read. May be less than @c element_count if this buffer is not
+    ///     large enough to hold @c element_count.
     size_t readElements(void *dst, size_t element_size, size_t element_count,
                         size_t offset_elements, size_t buffer_element_size,
                         Queue *queue = nullptr, Event *block_on = nullptr, Event *completion = nullptr);
 
-    /// An overload of @c readElements() using the template sizes to determin the sizes.
+    /// An overload of @c readElements() using the template sizes to determine the sizes.
+    /// @tparam T The data type to read into and assumed to exactly match that stored in the GPU buffer.
+    /// @param dst The buffer to write into. Must be sized to suit.
+    /// @param element_count The number of elements to copy.
+    /// @param offset_elements Number of elements to offset the read start. That is skip this number of elements before
+    ///     reading.
+    /// @param queue Optional queue to perform the operation on. Providing a non null queue
+    ///     changes the operation to occur asynchronously.
+    /// @param block_on Optional event to wait for be performing the read.
+    /// @param completion Optional event to setup to mark completion of the read operation.
+    /// @return The number of elements read. May be less than @c element_count if this buffer is not
+    ///     large enough to hold @c element_count.
     template <typename T>
     inline size_t readElements(T *dst, size_t element_count, size_t offset_elements = 0,
                                Queue *queue = nullptr, Event *block_on = nullptr, Event *completion = nullptr)
@@ -301,7 +312,20 @@ namespace gputil
       return readElements(dst, sizeof(T), element_count, offset_elements, 0u, queue, block_on, completion);
     }
 
-    /// An overload of @c readElements() using the template sizes to determin the sizes.
+    /// An overload of @c readElements() using the template sizes to determine the sizes.
+    /// @tparam BUFFER_TYPE The data type stored in the GPU buffer. Only required when its size differs from that of
+    ///   @p T
+    /// @tparam T The data type to read into.
+    /// @param dst The buffer to write into. Must be sized to suit.
+    /// @param element_count The number of elements to copy.
+    /// @param offset_elements Number of elements to offset the read start. That is skip this number of elements before
+    ///     reading.
+    /// @param queue Optional queue to perform the operation on. Providing a non null queue
+    ///     changes the operation to occur asynchronously.
+    /// @param block_on Optional event to wait for be performing the read.
+    /// @param completion Optional event to setup to mark completion of the read operation.
+    /// @return The number of elements read. May be less than @c element_count if this buffer is not
+    ///     large enough to hold @c element_count.
     template <typename BUFFER_TYPE, typename T>
     inline size_t readElements(T *dst, size_t element_count, size_t offset_elements = 0,
                                Queue *queue = nullptr, Event *block_on = nullptr, Event *completion = nullptr)
@@ -315,7 +339,7 @@ namespace gputil
     /// This method supports the same size discrepancy as @c readElements().
     ///
     /// The method will copy as many elements as are available in @c this buffer. The @p dst memory
-    /// must be sized as follows <tt>elementCount * elementSize</tt>.
+    /// must be sized as follows <tt>element_count * element_size</tt>.
     ///
     /// @param src The buffer to read from.
     /// @param element_size The element stride in @p src. The same stride is used for @c this buffer when
@@ -323,18 +347,29 @@ namespace gputil
     /// @param element_count The number of elements to copy.
     /// @param offset_elements The offset to start writing at.
     /// @param buffer_element_size Optional element stride within @c this buffer when different from
-    ///     @p elementSize. Use zero when the size matches the @p elementSize.
+    ///     @p element_size. Use zero when the size matches the @p element_size.
     /// @param queue Optional queue to perform the operation on. Providing a non null queue
     ///     changes the operation to occur asynchronously.
     /// @param block_on Optional event to wait for be performing the write.
     /// @param completion Optional event to setup to mark completion of the write operation.
-    /// @return The number of elements written. May be less than @c elementCount if this buffer is not
-    ///     large enough to hold @c elementCount.
+    /// @return The number of elements written. May be less than @c element_count if this buffer is not
+    ///     large enough to hold @c element_count.
     size_t writeElements(const void *src, size_t element_size, size_t element_count,
                          size_t offset_elements, size_t buffer_element_size,
                          Queue *queue = nullptr, Event *block_on = nullptr, Event *completion = nullptr);
 
-    /// An overload of @c writeElements() using the template sizes to determin the sizes.
+    /// An overload of @c writeElements() using the template sizes to determine the sizes.
+    /// @tparam T The data type to read into and assumed to exactly match that stored in the GPU buffer.
+    /// @param src The buffer to read from into. Must be sized to suit.
+    /// @param element_count The number of elements to copy.
+    /// @param offset_elements Number of elements to offset the write start. That is skip this number of elements
+    ///     before writing.
+    /// @param queue Optional queue to perform the operation on. Providing a non null queue
+    ///     changes the operation to occur asynchronously.
+    /// @param block_on Optional event to wait for be performing the write.
+    /// @param completion Optional event to setup to mark completion of the write operation.
+    /// @return The number of elements written. May be less than @c element_count if this buffer is not
+    ///     large enough to hold @c element_count.
     template <typename T>
     inline size_t writeElements(const T *src, size_t element_count, size_t offset_elements = 0,
                                 Queue *queue = nullptr, Event *block_on = nullptr, Event *completion = nullptr)
@@ -342,7 +377,20 @@ namespace gputil
       return writeElements(src, sizeof(T), element_count, offset_elements, 0u, queue, block_on, completion);
     }
 
-    /// An overload of @c writeElements() using the template sizes to determin the sizes.
+    /// An overload of @c writeElements() using the template sizes to determine the sizes.
+    /// @tparam BUFFER_TYPE The data type stored in the GPU buffer. Only required when its size differs from that of
+    ///   @p T
+    /// @tparam T The data type to read into and assumed to exactly match that stored in the GPU buffer.
+    /// @param src The buffer to read from into. Must be sized to suit.
+    /// @param element_count The number of elements to copy.
+    /// @param offset_elements Number of elements to offset the write start. That is skip this number of elements
+    ///     before writing.
+    /// @param queue Optional queue to perform the operation on. Providing a non null queue
+    ///     changes the operation to occur asynchronously.
+    /// @param block_on Optional event to wait for be performing the write.
+    /// @param completion Optional event to setup to mark completion of the write operation.
+    /// @return The number of elements written. May be less than @c element_count if this buffer is not
+    ///     large enough to hold @c element_count.
     template <typename BUFFER_TYPE, typename T>
     inline size_t writeElements(const T *src, size_t element_count, size_t offset_elements = 0,
                                 Queue *queue = nullptr, Event *block_on = nullptr, Event *completion = nullptr)

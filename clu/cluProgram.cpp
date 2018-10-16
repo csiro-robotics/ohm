@@ -607,7 +607,7 @@ namespace clu
   cl_int buildProgramFromFile(cl::Program &program, cl::Context &ocl,
                               std::string &source_file_name,
                               std::ostream &log,
-                              const std::vector<std::string> *args,
+                              const char *args,
                               const char *debug_option,
                               const char *source_file_opt,
                               const char *search_paths)
@@ -653,14 +653,12 @@ namespace clu
     {
       build_opt << ' ' << debug_option;
     }
-    if (args)
+    if (args && args[0])
     {
-      for (size_t i = 0; i < args->size(); ++i)
-      {
-        build_opt << ' ' << (*args)[i];
-      }
+      build_opt << ' ' << args;
     }
-    if (source_file_opt)
+
+    if (source_file_opt && source_file_opt[0])
     {
       build_opt << ' ' << source_file_opt << "\"" << source_file_name << "\"";
     }

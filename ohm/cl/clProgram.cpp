@@ -59,8 +59,22 @@ namespace ohm
       debug_opt << "-D DEBUG";
     }
 
-    clerr = clu::buildProgramFromFile(program, ocl.context, source_file, std::cerr, build_args, debug_opt.str().c_str(),
-                                      source_file_opt, gpu.searchPaths());
+    std::ostringstream build_args_str;
+    if (build_args)
+    {
+      bool first_arg = true;
+      for (auto &&arg : *build_args)
+      {
+        if (!first_arg)
+        {
+          build_args_str << ' ';
+        }
+        build_args_str << arg;
+      }
+    }
+
+    clerr = clu::buildProgramFromFile(program, ocl.context, source_file, std::cerr, build_args_str.str().c_str(),
+                                      debug_opt.str().c_str(), source_file_opt, gpu.searchPaths());
 
     if (clerr != CL_SUCCESS)
     {
@@ -73,8 +87,7 @@ namespace ohm
 
 
   int initProgramFromString(cl::Program &program, const gputil::Device &gpu, const char *source_string,
-                            const char *reference_name,
-                            const std::vector<std::string> *build_args)
+                            const char *reference_name, const std::vector<std::string> *build_args)
   {
     // Compile and initialise.
     cl_int clerr = CL_SUCCESS;
@@ -156,7 +169,8 @@ namespace ohm
     cl_uint group_dim = 3;
     clGetDeviceInfo(gpu.detail()->device(), CL_DEVICE_MAX_WORK_ITEM_DIMENSIONS, sizeof(group_dim), &group_dim, nullptr);
     size_t *max_work_size = static_cast<size_t *>(alloca(sizeof(size_t) * group_dim));
-    clGetDeviceInfo(gpu.detail()->device(), CL_DEVICE_MAX_WORK_ITEM_SIZES, sizeof(*max_work_size) * group_dim, max_work_size, nullptr);
+    clGetDeviceInfo(gpu.detail()->device(), CL_DEVICE_MAX_WORK_ITEM_SIZES, sizeof(*max_work_size) * group_dim,
+                    max_work_size, nullptr);
     max_work_size[0] = std::min<size_t>(max_work_size[0], calc_extents.x);
     max_work_size[1] = std::min<size_t>(max_work_size[1], calc_extents.y);
     max_work_size[2] = std::min<size_t>(max_work_size[2], calc_extents.z);
@@ -169,19 +183,20 @@ namespace ohm
 
     // Set the target dimensions to the minimum of the target and the max work group size.
     grid.work_group_size[2] = std::min<size_t>(max_work_size[2], target_dimension_value);
-    target_dimension_value = unsigned(std::floor(std::pow(float(target_group_size / grid.work_group_size[2]),
-                                                          1.0f / 2.0f)));
+    target_dimension_value =
+      unsigned(std::floor(std::pow(float(target_group_size / grid.work_group_size[2]), 1.0f / 2.0f)));
     grid.work_group_size[1] = std::min<size_t>(max_work_size[1], target_dimension_value);
-    target_dimension_value = unsigned(std::max<size_t>(target_group_size / (grid.work_group_size[1] * grid.work_group_size[2]), 1));
+    target_dimension_value =
+      unsigned(std::max<size_t>(target_group_size / (grid.work_group_size[1] * grid.work_group_size[2]), 1));
     grid.work_group_size[0] = std::min<size_t>(max_work_size[0], target_dimension_value);
 
     // Reduce size to <= targetGroupSize
-    int i = 2; // Start by reducing 3rd dimension.
+    int i = 2;  // Start by reducing 3rd dimension.
     while (i >= 0 && grid.work_group_size.volume() > target_group_size)
     {
       if (grid.work_group_size[i] > 1)
       {
-        grid.work_group_size[i] = grid.work_group_size[i] -1;
+        grid.work_group_size[i] = grid.work_group_size[i] - 1;
       }
       else
       {
@@ -197,4 +212,4 @@ namespace ohm
 
     grid.global_size = grid.adjustedGlobal();
   }
-}
+}  // namespace ohm

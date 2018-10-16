@@ -27,8 +27,25 @@ EventList::EventList(const Event &event)
 
 EventList::EventList(const Event *event)
   : EventList(*event)
+{}
+
+
+EventList::EventList(const Event *events, size_t event_count)
 {
+  if (event_count <= kShortCount)
+  {
+    memcpy(events_, events, sizeof(*events) * event_count);
+    count_ = event_count;
+  }
+  else
+  {
+    for (size_t i = 0; i < event_count; ++i)
+    {
+      add(events[i]);
+    }
+  }
 }
+
 
 
 EventList::EventList(std::initializer_list<Event> events)

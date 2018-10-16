@@ -138,7 +138,7 @@ namespace clu
   /// @param program The program option to build into.
   /// @param ocl The full OpenCL context to build using.
   /// @param source_file_name Source file to build from.
-  /// @param args Additional arguments to pass to @c cl::Program::build().
+  /// @param args Additional arguments string to pass to @c cl::Program::build().
   /// @param log All errors are logged here including compile errors and warnings.
   /// @param debug_option Debug option to be added and postfixed with the full source file name.
   /// @param source_file_opt Compiler option used to specify the path to the source file.
@@ -148,7 +148,7 @@ namespace clu
   cl_int buildProgramFromFile(cl::Program &program, cl::Context &ocl,
                               std::string &source_file_name,
                               std::ostream &log,
-                              const std::vector<std::string> *args,
+                              const char *args = nullptr,
                               const char *debug_option = nullptr,
                               const char *source_file_opt = nullptr,
                               const char *search_paths = nullptr);

@@ -8,8 +8,8 @@
 
 #include "clu.h"
 
-#include <iostream>
 #include <functional>
+#include <iostream>
 
 namespace clu
 {
@@ -22,7 +22,7 @@ namespace clu
 
 
   /// @internal
-  /// Explicility handle @c cl_mem type. Changing to the C++ <tt>cl2.hpp</tt> API changed how @c cl::Kernel handled
+  /// Explicitly handle @c cl_mem type. Changing to the C++ <tt>cl2.hpp</tt> API changed how @c cl::Kernel handled
   /// pointer arguments. In practice it expects all buffer arguments to be of C++ @c cl::Buffer, @c cl::Image,
   /// @c cl::Pipe, etc types. Any pointer invokes @c clSetKernelArgSVMPointer() instead of @c clSetKernelArg() which
   /// also captures @c cl_mem type as it is a pointer typedef. This results in incorrect behaviour and we correct
@@ -44,10 +44,9 @@ namespace clu
   }
 
 
-
   /// @internal
-  template <typename T, typename ... ARGS>
-  cl_int setKernelArgs2(cl::Kernel &kernel, int &arg_index, const T &arg, ARGS ... args)
+  template <typename T, typename... ARGS>
+  cl_int setKernelArgs2(cl::Kernel &kernel, int &arg_index, const T &arg, ARGS... args)
   {
     const cl_int clerr = setKernelArg(kernel, arg_index, arg);
     ++arg_index;
@@ -71,8 +70,8 @@ namespace clu
   /// @param kernel The kernel to set arguments for.
   /// @param args The arguments to pass. Captured by const reference.
   /// @return @c CL_SUCCESS on success or the first failure error code on failure.
-  template <typename ... ARGS>
-  cl_int setKernelArgs(cl::Kernel &kernel, ARGS ... args)
+  template <typename... ARGS>
+  cl_int setKernelArgs(cl::Kernel &kernel, ARGS... args)
   {
     int arg_index = 0;
     return setKernelArgs2(kernel, arg_index, args...);
@@ -137,7 +136,7 @@ namespace clu
       return total;
     }
 
-    inline KernelSize &operator = (const KernelSize &other)
+    inline KernelSize &operator=(const KernelSize &other)
     {
       sizes_[0] = other.sizes_[0];
       sizes_[1] = other.sizes_[1];
@@ -145,7 +144,7 @@ namespace clu
       return *this;
     }
 
-    inline KernelSize &operator = (size_t size)
+    inline KernelSize &operator=(size_t size)
     {
       sizes_[0] = size;
       sizes_[1] = sizes_[2] = 0;
@@ -170,10 +169,11 @@ namespace clu
       : global_offset(global_offset)
       , global_size(global_size)
       , work_group_size(work_group_size)
-    {
-    }
+    {}
 
-    inline KernelGrid(const KernelSize &global_size, const KernelSize &work_group_size) : KernelGrid(KernelSize(), global_size, work_group_size) {}
+    inline KernelGrid(const KernelSize &global_size, const KernelSize &work_group_size)
+      : KernelGrid(KernelSize(), global_size, work_group_size)
+    {}
 
     /// Calculates an adjusted global size such that it is a multiple of the work group size.
     /// @return A global size such that it is a multiple of the work group size in each valid dimension.
@@ -183,7 +183,7 @@ namespace clu
     {
       if (global_size.isValid() && work_group_size.isValid() &&
           global_size.dimensions() == work_group_size.dimensions() &&
-         (global_size.dimensions() == global_offset.dimensions() || global_offset.isNull()))
+          (global_size.dimensions() == global_offset.dimensions() || global_offset.isNull()))
       {
         for (unsigned i = 0; i < global_size.dimensions(); ++i)
         {
@@ -209,10 +209,21 @@ namespace clu
     cl::Event *wait_on_events;
     unsigned event_count;
 
-    inline EventList() : completion(nullptr), wait_on_events(nullptr), event_count(0) {}
-    inline EventList(cl::Event *completion_event) : completion(completion_event), wait_on_events(nullptr), event_count(0) {}
+    inline EventList()
+      : completion(nullptr)
+      , wait_on_events(nullptr)
+      , event_count(0)
+    {}
+    inline EventList(cl::Event *completion_event)
+      : completion(completion_event)
+      , wait_on_events(nullptr)
+      , event_count(0)
+    {}
     inline EventList(cl::Event *wait_on, unsigned event_count, cl::Event *completion_event = nullptr)
-      : completion(completion_event), wait_on_events(event_count ? wait_on : nullptr), event_count(event_count) {}
+      : completion(completion_event)
+      , wait_on_events(event_count ? wait_on : nullptr)
+      , event_count(event_count)
+    {}
   };
 
 
@@ -241,7 +252,7 @@ namespace clu
     /// Typedef for functional objects used to calculate the size of a local memory argument.
     /// The argument passed is the work group size while the return value specifies the
     /// required local memory for the corresponding work group size (bytes).
-    typedef std::function<size_t (size_t)> LocalMemArgSizeFunc;
+    typedef std::function<size_t(size_t)> LocalMemArgSizeFunc;
 
     Kernel();
     Kernel(cl::Program &program, const char *entry_point, std::ostream *log = nullptr);
@@ -319,14 +330,14 @@ namespace clu
     /// @param events Event list to wait on and completion events.
     /// @param args Arguments to pass to the kernel.
     /// @return @c CL_SUCCESS on success, or an error code on failure.
-    template <typename ... ARGS>
-    cl_int operator()(cl::CommandQueue &queue,
-                      const KernelGrid &grid,
-                      const EventList &events,
-                      ARGS ... args)
+    template <typename... ARGS>
+    cl_int operator()(cl::CommandQueue &queue, const KernelGrid &grid, const EventList &events, ARGS... args)
     {
       cl_int clerr = preInvoke(args...);
-      if (clerr != CL_SUCCESS) { return clerr; }
+      if (clerr != CL_SUCCESS)
+      {
+        return clerr;
+      }
       return invoke(queue, grid, events);
     }
 
@@ -336,14 +347,20 @@ namespace clu
   private:
     /// Preinvocation setup.
     /// @param args Arguments to pass to the kernel.
-    template <typename ... ARGS>
-    inline cl_int preInvoke(ARGS ... args)
+    template <typename... ARGS>
+    inline cl_int preInvoke(ARGS... args)
     {
       int arg_count = (!local_mem_first_) ? 0 : local_mem_arg_count_;
       cl_int clerr = setKernelArgs2(kernel_, arg_count, args...);
-      if (clerr != CL_SUCCESS) { return clerr; }
+      if (clerr != CL_SUCCESS)
+      {
+        return clerr;
+      }
       clerr = setLocalMemArgs(arg_count);
-      if (clerr != CL_SUCCESS) { return clerr; }
+      if (clerr != CL_SUCCESS)
+      {
+        return clerr;
+      }
       return clerr;
     }
 
@@ -360,6 +377,6 @@ namespace clu
     int local_mem_arg_count_;
     bool local_mem_first_;
   };
-}
+}  // namespace clu
 
-#endif // CLUKERNEL_H
+#endif  // CLUKERNEL_H
