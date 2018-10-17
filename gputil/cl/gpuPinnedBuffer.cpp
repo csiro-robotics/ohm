@@ -142,7 +142,7 @@ size_t PinnedBuffer::readElements(void *dst, size_t element_size, size_t element
   // Size-mismatch. Iterative copy.
   const uint8_t *src_end = src_mem + buffer_->size();
   const size_t element_copy_size = std::min(element_size, buffer_element_size);
-  src_mem += offset_elements + buffer_element_size;
+  src_mem += offset_elements * buffer_element_size;
   size_t copy_count = 0;
   for (size_t i = 0; i < element_count && src_mem < src_end; ++i)
   {
@@ -183,7 +183,7 @@ size_t PinnedBuffer::writeElements(const void *src, size_t element_size, size_t 
   // Size-mismatch. Iterative copy.
   const uint8_t *dst_end = dst_mem + buffer_->size();
   const size_t element_copy_size = std::min(element_size, buffer_element_size);
-  dst_mem += offset_elements + buffer_element_size;
+  dst_mem += offset_elements * buffer_element_size;
   size_t copy_count = 0;
   for (size_t i = 0; i < element_count && dst_mem < dst_end; ++i)
   {
