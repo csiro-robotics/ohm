@@ -30,7 +30,7 @@ namespace ohm
       {
         if (show_device)
         {
-          std::cout << gpu_device.info() << std::endl;
+          std::cout << gpu_device.description() << std::endl;
         }
         gpu_initialised = true;
       }

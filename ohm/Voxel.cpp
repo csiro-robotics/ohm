@@ -33,7 +33,7 @@ namespace
       // Resolve node index within this layer.
       const unsigned index = ::voxelIndex(key, layer_dim);
       T *voxels = reinterpret_cast<T *>(layer->voxels(*chunk));
-      assert(index < layer_dim.x * layer_dim.y * layer_dim.z);
+      assert(index < unsigned(layer_dim.x * layer_dim.y * layer_dim.z));
       return &voxels[index];
     }
 

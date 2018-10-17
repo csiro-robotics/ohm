@@ -5,7 +5,7 @@ float3 quaternion_rotate(float4 rotation, float3 point);
 
 float4 slerp(float4 from, float4 to, float interpolation_factor)
 {
-  if (from == to)
+  if (all(isequal(from, to)))
   {
     return from;
   }
@@ -24,13 +24,13 @@ float4 slerp(float4 from, float4 to, float interpolation_factor)
     sin_angle = sin(angle);  // fSin >= 0 since fCos >= 0
 
     inv_sin = 1.0f / sin_angle;
-    coeff0 = std::sin((1.0f - t) * angle) * inv_sin;
-    coeff1 = std::sin(t * angle) * inv_sin;
+    coeff0 = sin((1.0f - interpolation_factor) * angle) * inv_sin;
+    coeff1 = sin(interpolation_factor * angle) * inv_sin;
   }
   else
   {
-    coeff0 = 1.0f - t;
-    coeff1 = t;
+    coeff0 = 1.0f - interpolation_factor;
+    coeff1 = interpolation_factor;
   }
 
   temp.x = coeff0 * from.x + coeff1 * temp.x;
@@ -46,13 +46,13 @@ float3 quaternion_rotate(float4 rotation, float3 v)
 {
   const float xx = rotation.x * rotation.x;
   const float xy = rotation.x * rotation.y;
-  const float xz = rotation.x * rotation.z
+  const float xz = rotation.x * rotation.z;
   const float xw = rotation.x * rotation.w;
   const float yy = rotation.y * rotation.y;
   const float yz = rotation.y * rotation.z;
   const float yw = rotation.y * rotation.w;
   const float zz = rotation.z * rotation.z;
-  cosnt float zw = rotation.z * rotation.w;
+  const float zw = rotation.z * rotation.w;
 
   float3 res;
 
@@ -75,7 +75,7 @@ float3 quaternion_rotate(float4 rotation, float3 v)
 __kernel void transformTimestampedPoints(__global float3 *points, unsigned point_count,
                                          __global float *transform_timestamps,
                                          __global float3 *transform_positions,
-                                         __global float4 transform_rotations,
+                                         __global float4 *transform_rotations,
                                          unsigned transform_count)
 {
   // // Load transform timestamps into local memory.
@@ -135,7 +135,7 @@ __kernel void transformTimestampedPoints(__global float3 *points, unsigned point
   const float interpolation_factor = (sample_time - transform_timestamps[from_index]) /
                                      (transform_timestamps[to_index] - transform_timestamps[from_index]);
   const float3 sensor_position = transform_positions[from_index] +
-                                 interpolation_factor * (transform_positions[to_index] - transform_positions[from_index])
+                                 interpolation_factor * (transform_positions[to_index] - transform_positions[from_index]);
   const float4 sensor_rotation = slerp(transform_rotations[from_index], transform_rotations[to_index], interpolation_factor);
 
   // Rotate and translate the local sample.

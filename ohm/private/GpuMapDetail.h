@@ -20,6 +20,7 @@
 namespace ohm
 {
   class OccupancyMap;
+  class GpuTransformSamples;
 
   struct GpuMapDetail
   {
@@ -43,6 +44,8 @@ namespace ohm
     /// Only ever used in a transient fashion.
     std::vector<glm::vec4> transformed_rays;
 
+    GpuTransformSamples *transform_samples = nullptr;
+
     double max_range_filter = 0;
 
     unsigned ray_counts[kBuffersCount] = { 0, 0 };
@@ -60,8 +63,9 @@ namespace ohm
     GpuMapDetail(OccupancyMap *map, bool borrowed_map)
       : map(map)
       , borrowed_map(borrowed_map)
-    {
-    }
+    {}
+
+    ~GpuMapDetail();
 
     RegionKeyMap::iterator findRegion(unsigned region_hash, const glm::i16vec3 &region_key);
     RegionKeyMap::const_iterator findRegion(unsigned region_hash, const glm::i16vec3 &region_key) const;
@@ -75,13 +79,15 @@ namespace ohm
   /// Ensure the GPU cache is initialised. Ok to call if already initialised.
   GpuCache *initialiseGpuCache(OccupancyMap &map, size_t layer_gpu_mem_size, bool mappable_buffers);
 
-  inline GpuMapDetail::RegionKeyMap::iterator GpuMapDetail::findRegion(const unsigned region_hash, const glm::i16vec3 &region_key)
+  inline GpuMapDetail::RegionKeyMap::iterator GpuMapDetail::findRegion(const unsigned region_hash,
+                                                                       const glm::i16vec3 &region_key)
   {
     return findRegion<RegionKeyMap::iterator>(regions, region_hash, region_key);
   }
 
 
-  inline GpuMapDetail::RegionKeyMap::const_iterator GpuMapDetail::findRegion(const unsigned region_hash, const glm::i16vec3 &region_key) const
+  inline GpuMapDetail::RegionKeyMap::const_iterator GpuMapDetail::findRegion(const unsigned region_hash,
+                                                                             const glm::i16vec3 &region_key) const
   {
     return findRegion<RegionKeyMap::const_iterator>(regions, region_hash, region_key);
   }
@@ -102,6 +108,6 @@ namespace ohm
 
     return regions.end();
   }
-}
+}  // namespace ohm
 
-#endif // OHM_GPUMAPDETAIL_H
+#endif  // OHM_GPUMAPDETAIL_H

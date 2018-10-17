@@ -243,18 +243,13 @@ GpuMap::GpuMap(OccupancyMap *map, bool borrowed_map, unsigned expected_point_cou
       gputil::Buffer(gpu_cache.gpu(), sizeof(gputil::ulong1) * prealloc_region_count, gputil::kBfReadHost);
   }
   imp_->max_range_filter = kDefaultMaxRange;
+  imp_->transform_samples = new GpuTransformSamples(gpu_cache.gpu());
 }
 
 
 GpuMap::~GpuMap()
 {
   releaseRegionUpdateGpu();
-
-  if (!imp_->borrowed_map)
-  {
-    delete imp_->map;
-  }
-
   delete imp_;
 }
 
@@ -356,7 +351,7 @@ unsigned GpuMap::integrateRays(gputil::Buffer &buffer, const glm::dvec3 *rays, u
 }
 
 
-unsigned GpuMap::integrateLocalRays(const double *transform_times, const glm::dvec3 *transform_positions,
+unsigned GpuMap::integrateLocalRays(const double *transform_times, const glm::dvec3 *transform_translations,
                                     const glm::dquat *transform_rotations, unsigned transform_count,
                                     const double *sample_times, const glm::dvec3 *local_samples, unsigned point_count,
                                     bool end_points_as_occupied)
@@ -388,13 +383,10 @@ unsigned GpuMap::integrateLocalRays(const double *transform_times, const glm::dv
   const int buf_idx = imp_->next_buffers_index;
   waitOnPreviousOperation(buf_idx);
 
-  // Touch the map.
-  map.touch();
-
-  unsigned upload_count = 0;
-  //upload_count = ohm::transformSamples(transform_times, transform_positions, transform_rotations, transform_count, sample_times,
-  //                                     local_samples, point_count, gpu_cache->gpuQueue(), imp_->ray_buffers[buf_idx],
-  //                                     imp_->ray_upload_events[buf_idx]);
+  unsigned upload_count = imp_->transform_samples->transform(
+    transform_times, transform_translations, transform_rotations, transform_count, sample_times, local_samples,
+    point_count, gpu_cache->gpuQueue(), imp_->ray_buffers[buf_idx], imp_->ray_upload_events[buf_idx],
+    imp_->max_range_filter);
 
   if (upload_count == 0)
   {
@@ -636,6 +628,7 @@ void GpuMap::enqueueRegion(unsigned region_hash, const glm::i16vec3 &region_key,
   // Mark the region as dirty.
   chunk->dirty_stamp = chunk->touched_stamps[kDlOccupancy] = imp_->map->stamp();
 }
+
 
 void GpuMap::finaliseBatch(gputil::PinnedBuffer &regions_buffer, gputil::PinnedBuffer &offsets_buffer,
                            bool end_points_as_occupied)

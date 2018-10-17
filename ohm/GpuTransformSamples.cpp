@@ -105,7 +105,7 @@ GpuTransformSamples::GpuTransformSamples(gputil::Device &gpu)
   if (initProgram(gpu))
   {
 #if OHM_GPU == OHM_GPU_OPENCL
-    imp_->kernel = gputil::openCLKernel(program, "transformPoints");
+    imp_->kernel = gputil::openCLKernel(program, "transformTimestampedPoints");
 #endif  // OHM_GPU == OHM_GPU_OPENCL
     imp_->kernel.calculateOptimalWorkGroupSize();
   }

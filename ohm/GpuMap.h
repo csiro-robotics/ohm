@@ -179,11 +179,11 @@ namespace ohm
     unsigned integrateRays(gputil::Buffer &buffer, const glm::dvec3 *rays, unsigned point_count,
                            bool end_points_as_occupied = true);
 
-    /// Integrate rays specifies as samples in local space interpolated against a start and end @p transform_positions
+    /// Integrate rays specifies as samples in local space interpolated against a start and end @p transform_translations
     /// and @p transform_rotations.
     ///
     /// This function supports a moving agent generating samples over a small time slice. The sample points are all
-    /// specified in the agent's local coordinate frame, while the @p transform_positions and @p transform_rotations
+    /// specified in the agent's local coordinate frame, while the @p transform_translations and @p transform_rotations
     /// identify the agent's global frame by rotation and translation - no scaling supported -
     /// over a small time period <tt>[transform_times[0], transform_times[transform_count - 1]]</tt>. Each sample has
     /// its own timestamp also in the same time range.
@@ -195,7 +195,7 @@ namespace ohm
     /// that the @p sample_times all fall within the range covered by @p transform_times.
     ///
     /// @param transform_times Timestamp values for each of the @p transforms. Must have @p transform_count elements.
-    /// @param transform_positions Position components for the local to global frame transformations.
+    /// @param transform_translations Position components for the local to global frame transformations.
     /// @param transform_rotations Quaternion rotation components for the local to global frame transformations.
     /// @param transform_count Number of items in @p transform_times and @p transforms.
     /// @param sample_times Time stamps for @p local_samples.
@@ -205,7 +205,7 @@ namespace ohm
     ///   Otherwise they decrease the probability just as the rest of the ray.
     /// @return The number of rays integrated. Zero indicates a failure when @p pointCount is not zero.
     ///   In this case either the GPU is unavailable, or all @p rays are invalid.
-    unsigned integrateLocalRays(const double *transform_times, const glm::dvec3 *transform_positions,
+    unsigned integrateLocalRays(const double *transform_times, const glm::dvec3 *transform_translations,
                                 const glm::dquat *transform_rotations, unsigned transform_count,
                                 const double *sample_times, const glm::dvec3 *local_samples, unsigned point_count,
                                 bool end_points_as_occupied = true);
