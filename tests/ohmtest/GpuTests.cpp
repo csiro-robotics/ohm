@@ -120,7 +120,8 @@ namespace gpumap
     // Read back the results.
     ASSERT_GE(output_buffer.size(), sizeof(gputil::float3) * 2 * ray_count);
     // Results are rays: sensor origin, global sample
-    std::vector<glm::dvec3> rays(2 * ray_count);
+    // Note have to copy out single precision results as that is what the GPU uses.
+    std::vector<glm::vec3> rays(2 * ray_count);
     gputil::PinnedBuffer rays_buffer(output_buffer, gputil::kPinRead);
     rays_buffer.readElements<gputil::float3>(rays.data(), 2 * ray_count);
     rays_buffer.unpin();

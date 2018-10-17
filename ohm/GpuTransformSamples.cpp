@@ -209,7 +209,8 @@ unsigned GpuTransformSamples::transform(const double *transform_times, const glm
   rotations_buffer.unpin(&gpu_queue, nullptr, &imp_->upload_events[2]);
   times_buffer.unpin(&gpu_queue, nullptr, &imp_->upload_events[3]);
 
-  gputil::Dim3 local_size(imp_->kernel.optimalWorkGroupSize()), global_size(upload_count / 2);
+  gputil::Dim3 global_size(upload_count / 2);
+  gputil::Dim3 local_size(std::min(imp_->kernel.optimalWorkGroupSize(), global_size.x));
   gputil::EventList wait(imp_->upload_events, GpuTransformSamplesDetail::kUploadEventCount);
   imp_->kernel(global_size, local_size, wait, completion_event, &gpu_queue,
                gputil::BufferArg<gputil::float3 *>(output_buffer), upload_count / 2,

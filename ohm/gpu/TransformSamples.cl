@@ -1,4 +1,6 @@
 
+#include "gpu_ext.h"
+
 float4 slerp(float4 from, float4 to, float interpolation_factor);
 float3 quaternion_rotate(float4 rotation, float3 point);
 
@@ -92,15 +94,26 @@ __kernel void transformTimestampedPoints(__global float3 *points, unsigned point
 
   // barrier(CLK_LOCAL_MEM_FENCE);
 
+  // printf("hi %u / %u\n", get_global_id(0), get_global_size(0));
+
   // Process points.
   if (get_global_id(0) >= point_count)
   {
+    // if (isGlobalThread(0, 0, 0))
+    // {
+    //   printf("No points\n");
+    // }
     // Out of range.
     return;
   }
 
   float3 sample_point = points[get_global_id(0) * 2 + 1];
   const float sample_time = points[get_global_id(0) * 2 + 0].x;
+
+  // if (isGlobalThread(0, 0, 0))
+  // {
+  //   printf("%u / %u : %f %f %f\n", get_global_id(0), point_count, sample_point.x, sample_point.y, sample_point.z);
+  // }
 
   // Find the appropriate transforms. Binary search the transforms.
   unsigned from_index = 0;
@@ -144,4 +157,5 @@ __kernel void transformTimestampedPoints(__global float3 *points, unsigned point
   // Record the results.
   points[get_global_id(0) * 2 + 0] = sensor_position;
   points[get_global_id(0) * 2 + 1] = sample_point;
+  // printf("%u / %u : %f %f %f\n", get_global_id(0), point_count, sample_point.x, sample_point.y, sample_point.z);
 }
