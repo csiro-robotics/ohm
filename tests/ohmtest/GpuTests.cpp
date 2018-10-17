@@ -56,17 +56,18 @@ namespace gpumap
     const glm::dquat end_rotation = glm::rotate(glm::dquat(1, 0, 0, 0), glm::pi<double>(), glm::dvec3(0, 0, 1));
 
     double timestamp = base_time;
+    // Ensure time range covers the samples with padding at either end.
+    const double end_time = base_time + samples_global.size() * time_increment + 1.5 * time_increment;
     double interpolation_step = 1.0 / (transforms_count - 1);
     for (unsigned i = 0; i < transforms_count; ++i)
     {
-      timestamps[i] = timestamp;
+      timestamps[i] = base_time + (end_time - base_time) * (i / double(transforms_count - 1));
       translations[i] = start_point + (i * interpolation_step) * (end_point - start_point);
       rotations[i] = start_rotation * glm::slerp(start_rotation, end_rotation, i * interpolation_step);
-      timestamp += time_increment;
     }
 
     std::vector<double> sample_times(samples_global.size());
-    timestamp = base_time + time_increment;  // Reset timestamp for samples.
+    timestamp = base_time + 0.67 * time_increment;  // Reset timestamp for samples.
     for (size_t i = 0; i < samples_global.size(); ++i)
     {
       ASSERT_GE(timestamp, timestamps.front());
@@ -86,7 +87,7 @@ namespace gpumap
     for (size_t i = 0; i < samples_global.size(); ++i)
     {
       // Find the appropriate time indices.
-      while (timestamps[tidx] < sample_times[i])
+      while (timestamps[tidx + 1] < sample_times[i])
       {
         ++tidx;
         ASSERT_LT(tidx + 1, timestamps.size()) << "out of bounds";
@@ -94,11 +95,18 @@ namespace gpumap
 
       lerp = (sample_times[i] - timestamps[tidx]) / (timestamps[tidx + 1] - timestamps[tidx]);
 
-      translation = translations[tidx] + lerp + (translations[tidx + 1] - translations[tidx]);
+      translation = translations[tidx] + lerp * (translations[tidx + 1] - translations[tidx]);
       rotation = rotations[tidx] * glm::slerp(rotations[tidx], rotations[tidx + 1], lerp);
 
-      p = rotation * samples_global[i] + translation;
+      // Apply inverse transform for global => local
+      p = glm::inverse(rotation) * (samples_global[i] - translation);
       samples_local[i] = p;
+      // Validate the transformation back to global.
+      //printf("Gen: %f(%f)  T(%f %f %f) R(%f %f %f %f)\n", sample_times[i] - base_time, lerp, translation.x,
+      //       translation.y, translation.z, rotation.w, rotation.x, rotation.y, rotation.z);
+      p = rotation * samples_local[i] + translation;
+      glm::dvec3 diff = samples_global[i] - p;
+      ASSERT_NEAR(glm::length(diff), 0.0, 1e-6);
     }
 
     // Do the GPU transformation.
@@ -134,7 +142,7 @@ namespace gpumap
       expect = samples_global[i];
       sample = rays[i * 2 + 1];
       diff = expect - sample;
-      EXPECT_NEAR(glm::length(diff), 0.0, 1e-6);
+      EXPECT_NEAR(glm::length(diff), 0.0, 1e-4);
     }
   }
 

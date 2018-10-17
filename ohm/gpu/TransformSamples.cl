@@ -2,7 +2,8 @@
 #include "gpu_ext.h"
 
 float4 slerp(float4 from, float4 to, float interpolation_factor);
-float3 quaternion_rotate(float4 rotation, float3 point);
+float4 quaternion_rotate_quaterion(float4 a, float4 b);
+float3 quaternion_rotate_point(float4 rotation, float3 point);
 
 
 float4 slerp(float4 from, float4 to, float interpolation_factor)
@@ -44,7 +45,18 @@ float4 slerp(float4 from, float4 to, float interpolation_factor)
 }
 
 
-float3 quaternion_rotate(float4 rotation, float3 v)
+float4 quaternion_rotate_quaterion(float4 a, float4 b)
+{
+  float4 q;
+  q.x = a.w * b.x + a.x * b.w + a.y * b.z - a.z * b.y;
+  q.y = a.w * b.y - a.x * b.z + a.y * b.w + a.z * b.x;
+  q.z = a.w * b.z + a.x * b.y - a.y * b.x + a.z * b.w;
+  q.w = a.w * b.w - a.x * b.x - a.y * b.y - a.z * b.z;
+  return q;
+}
+
+
+float3 quaternion_rotate_point(float4 rotation, float3 v)
 {
   const float xx = rotation.x * rotation.x;
   const float xy = rotation.x * rotation.y;
@@ -149,13 +161,16 @@ __kernel void transformTimestampedPoints(__global float3 *points, unsigned point
                                      (transform_timestamps[to_index] - transform_timestamps[from_index]);
   const float3 sensor_position = transform_positions[from_index] +
                                  interpolation_factor * (transform_positions[to_index] - transform_positions[from_index]);
-  const float4 sensor_rotation = slerp(transform_rotations[from_index], transform_rotations[to_index], interpolation_factor);
+  const float4 sensor_rotation = quaternion_rotate_quaterion(transform_rotations[from_index],
+              slerp(transform_rotations[from_index], transform_rotations[to_index], interpolation_factor));
+
+  // printf("GPU: %f(%f)  T(%f %f %f) R(%f %f %f %f)\n", sample_time, interpolation_factor, sensor_position.x, sensor_position.y,
+  //         sensor_position.z, sensor_rotation.w, sensor_rotation.x, sensor_rotation.y, sensor_rotation.z);
 
   // Rotate and translate the local sample.
-  sample_point = sensor_position + quaternion_rotate(sensor_rotation, sample_point);
+  sample_point = sensor_position + quaternion_rotate_point(sensor_rotation, sample_point);
 
   // Record the results.
   points[get_global_id(0) * 2 + 0] = sensor_position;
   points[get_global_id(0) * 2 + 1] = sample_point;
-  // printf("%u / %u : %f %f %f\n", get_global_id(0), point_count, sample_point.x, sample_point.y, sample_point.z);
 }
