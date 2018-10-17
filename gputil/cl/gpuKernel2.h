@@ -111,7 +111,6 @@ namespace gputil
   {
     clu::KernelGrid grid;
     clu::EventList events_clu;
-    cl_uint ref_count = 0;
 
     events_clu.event_count = unsigned(event_list.count());
     if (events_clu.event_count)

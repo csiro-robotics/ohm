@@ -185,13 +185,6 @@ namespace clu
           global_size.dimensions() == work_group_size.dimensions() &&
           (global_size.dimensions() == global_offset.dimensions() || global_offset.isNull()))
       {
-        for (unsigned i = 0; i < global_size.dimensions(); ++i)
-        {
-          if (global_size.size(i) < work_group_size.size(i))
-          {
-            return false;
-          }
-        }
         return true;
       }
 
