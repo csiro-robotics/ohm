@@ -13,8 +13,7 @@ EventList::EventList()
   : count_(0)
   , capacity_(0)
   , extended_(nullptr)
-{
-}
+{}
 
 
 EventList::EventList(const Event &event)
@@ -31,21 +30,13 @@ EventList::EventList(const Event *event)
 
 
 EventList::EventList(const Event *events, size_t event_count)
+  : EventList()
 {
-  if (event_count <= kShortCount)
+  for (size_t i = 0; i < event_count; ++i)
   {
-    memcpy(events_, events, sizeof(*events) * event_count);
-    count_ = event_count;
-  }
-  else
-  {
-    for (size_t i = 0; i < event_count; ++i)
-    {
-      add(events[i]);
-    }
+    add(events[i]);
   }
 }
-
 
 
 EventList::EventList(std::initializer_list<Event> events)
@@ -63,8 +54,7 @@ EventList::EventList(std::initializer_list<const Event *> events)
 
 
 EventList::~EventList()
-{
-}
+{}
 
 
 void EventList::add(const Event &event)
@@ -79,7 +69,6 @@ void EventList::add(const Event &event)
   {
     reserve(std::max(capacity_ * 2, new_event_count + count_));
     target_array = extended_;
-
   }
 
   target_array[count_++] = event;
@@ -98,7 +87,6 @@ void EventList::add(std::initializer_list<Event> events)
   {
     reserve(std::max(capacity_ * 2, new_event_count + count_));
     target_array = extended_;
-
   }
 
   for (const Event &e : events)
@@ -120,7 +108,6 @@ void EventList::add(std::initializer_list<const Event *> events)
   {
     reserve(std::max(capacity_ * 2, new_event_count + count_));
     target_array = extended_;
-
   }
 
   for (const Event *e : events)

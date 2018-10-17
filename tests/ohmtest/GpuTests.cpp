@@ -107,20 +107,22 @@ namespace gpumap
 
     gputil::Buffer output_buffer(gpu, 0, gputil::kBfReadWriteHost);
     gputil::Event completion_event;
-    int err = transformation.transform(timestamps.data(), translations.data(), rotations.data(), transforms_count,
-                                       sample_times.data(), samples_local.data(), unsigned(samples_local.size()),
-                                       gpu.defaultQueue(), output_buffer, completion_event);
+    unsigned ray_count = transformation.transform(
+      timestamps.data(), translations.data(), rotations.data(), transforms_count, sample_times.data(),
+      samples_local.data(), unsigned(samples_local.size()), gpu.defaultQueue(), output_buffer, completion_event);
 
-    ASSERT_EQ(err, 0);
+    ASSERT_GT(ray_count, 0u);
+    ray_count /= 2;
+    ASSERT_EQ(ray_count, samples_global.size());
 
     completion_event.wait();
 
     // Read back the results.
-    ASSERT_GE(output_buffer.size(), sizeof(gputil::float3) * 2 * samples_local.size());
+    ASSERT_GE(output_buffer.size(), sizeof(gputil::float3) * 2 * ray_count);
     // Results are rays: sensor origin, global sample
-    std::vector<glm::dvec3> rays(2 * samples_local.size());
+    std::vector<glm::dvec3> rays(2 * ray_count);
     gputil::PinnedBuffer rays_buffer(output_buffer, gputil::kPinRead);
-    rays_buffer.readElements<gputil::float3>(rays.data(), 2 * samples_local.size());
+    rays_buffer.readElements<gputil::float3>(rays.data(), 2 * ray_count);
     rays_buffer.unpin();
 
     // Validate results.

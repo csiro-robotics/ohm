@@ -90,7 +90,7 @@ namespace
       return false;
     }
 
-    return false;
+    return true;
   }
 }  // namespace
 
@@ -216,6 +216,8 @@ unsigned GpuTransformSamples::transform(const double *transform_times, const glm
                gputil::BufferArg<float *>(imp_->transform_times_buffer),
                gputil::BufferArg<gputil::float3 *>(imp_->transform_positions_buffer),
                gputil::BufferArg<gputil::float4 *>(imp_->transform_rotations_buffer), transform_count);
+
+  gpu_queue.flush();
 
   return upload_count;
 }
