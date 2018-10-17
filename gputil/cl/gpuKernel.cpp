@@ -83,7 +83,10 @@ namespace gputil
   {
     Kernel kernel;
     cl_int err = kernel.detail()->kernel.setEntry(program.detail()->program, kernel_name);
-    GPUTHROW(ApiException(err), Kernel());
+    if (err)
+    {
+      GPUTHROW(ApiException(err), Kernel());
+    }
     return kernel;
   }
 }  // namespace gputil

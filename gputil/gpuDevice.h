@@ -9,9 +9,10 @@
 
 #include "gpuConfig.h"
 
+#include "gpuDeviceInfo.h"
 #include "gpuQueue.h"
 
-#include <cinttypes>
+#include <vector>
 
 namespace gputil
 {
@@ -36,13 +37,19 @@ namespace gputil
     /// @param default_device True to construct access the default device.
     Device(bool default_device = false);
 
+    /// Create a device from the selected @c DeviceInfo.
+    /// @param device_info Info structure about the desired device.
+    Device(const DeviceInfo &device_info);
+
     /// Construct using @c select().
     /// @param argc Number of values in @c argv.
     /// @param argv Argument string to parse.
     /// @param default_device Partial device name to match as the default selection.
     Device(int argc, const char **argv, const char *default_device = nullptr);
     /// @overload
-    inline Device(int argc, char **argv, const char *default_device = nullptr) : Device(argc, const_cast<const char **>(argv), default_device) {}
+    inline Device(int argc, char **argv, const char *default_device = nullptr)
+      : Device(argc, const_cast<const char **>(argv), default_device)
+    {}
 
     /// Copy constructor.
     /// @param other Object to copy.
@@ -55,11 +62,17 @@ namespace gputil
     /// Destructor.
     ~Device();
 
+    /// Enumerate all devices attached to the current host.
+    static unsigned enumerateDevices(std::vector<DeviceInfo> &devices);
+
     /// Display name for the device.
     const char *name() const;
 
-    /// Device info.
-    const char *info() const;
+    /// Device description.
+    const char *description() const;
+
+    /// General device info.
+    const DeviceInfo &info() const;
 
     /// Get the default queue associated with this device.
     /// @return The default device queue.
@@ -89,7 +102,15 @@ namespace gputil
     bool select(int argc, const char **argv, const char *default_device = nullptr);
 
     /// @overload
-    inline bool select(int argc, char **argv, const char *default_device = nullptr) { return select(argc, const_cast<const char **>(argv), default_device); }
+    inline bool select(int argc, char **argv, const char *default_device = nullptr)
+    {
+      return select(argc, const_cast<const char **>(argv), default_device);
+    }
+
+    /// Select a device from the given @c DeviceInfo.
+    /// @param device_info The selected device details.
+    /// @return True on success, false on failure to match @p device_info.
+    bool select(const DeviceInfo &device_info);
 
     /// Set the value for @c debugGpu().
     /// @param debug_level The @c DebugLevel to set.
@@ -133,6 +154,6 @@ namespace gputil
   private:
     DeviceDetail *imp_;
   };
-}
+}  // namespace gputil
 
-#endif // GPUDEVICE_H
+#endif  // GPUDEVICE_H

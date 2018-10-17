@@ -13,6 +13,6 @@ int main(int argc, char **argv)
 {
   ::testing::InitGoogleTest(&argc, argv);
   g_gpu.select(argc, argv);
-  std::cout << g_gpu.info() << std::endl;
+  std::cout << g_gpu.description() << std::endl;
   return RUN_ALL_TESTS();
 }

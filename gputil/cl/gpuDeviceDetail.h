@@ -7,6 +7,11 @@
 #ifndef GPUDEVICEDETAIL_H
 #define GPUDEVICEDETAIL_H
 
+#include "gpuConfig.h"
+
+// FIXME: not a good include statement.
+#include "../gpuDeviceInfo.h"
+
 #include <clu/clu.h>
 
 namespace gputil
@@ -18,11 +23,11 @@ namespace gputil
     // TODO: this needs to be separated out into a queue object.
     // We may preserve this member as the default queue.
     cl::CommandQueue queue;
-    std::string name;
-    std::string info;
+    DeviceInfo info;
+    std::string description;
     std::string search_paths;
     unsigned debug = 0;
   };
-}
+}  // namespace gputil
 
-#endif // GPUDEVICEDETAIL_H
+#endif  // GPUDEVICEDETAIL_H
