@@ -86,18 +86,19 @@ float3 quaternion_rotate_point(float4 rotation, float3 v)
 }
 
 
-__kernel void transformTimestampedPoints(__global float3 *points, unsigned point_count,
+__kernel void transformTimestampedPoints(__global float3 *points, uint point_count,
                                          __global float *transform_timestamps,
                                          __global float3 *transform_positions,
                                          __global float4 *transform_rotations,
-                                         unsigned transform_count)
+                                         uint transform_count,
+                                         uint batch_size)
 {
   // // Load transform timestamps into local memory.
   // // This is the only data accessed multiple times.
-  // const unsigned transform_step = min(transform_count / get_global_size(0), 1);
-  // for (unsigned i = 0; i < transform_step; ++i)
+  // const uint transform_step = min(transform_count / get_global_size(0), 1);
+  // for (uint i = 0; i < transform_step; ++i)
   // {
-  //   const unsigned transform_index = get_global_id(0) + i * get_global_size(0);
+  //   const uint transform_index = get_global_id(0) + i * get_global_size(0);
   //   if (transform_index < transform_count)
   //   {
   //     local_transform_times[transform_index] = timestamps[transform_index];
@@ -108,69 +109,68 @@ __kernel void transformTimestampedPoints(__global float3 *points, unsigned point
 
   // printf("hi %u / %u\n", get_global_id(0), get_global_size(0));
 
-  // Process points.
-  if (get_global_id(0) >= point_count)
+  for (uint i = 0; i < batch_size; ++i)
   {
+    const unsigned sample_index = get_global_id(0) * batch_size + i;
+    if (sample_index > point_count)
+    {
+      // Out of range.
+      return;
+    }
+
+    float3 sample_point = points[sample_index * 2 + 1];
+    const float sample_time = points[sample_index * 2 + 0].x;
+
     // if (isGlobalThread(0, 0, 0))
     // {
-    //   printf("No points\n");
+    //   printf("%u / %u : %f %f %f\n", sample_index, point_count, sample_point.x, sample_point.y, sample_point.z);
     // }
-    // Out of range.
-    return;
-  }
 
-  float3 sample_point = points[get_global_id(0) * 2 + 1];
-  const float sample_time = points[get_global_id(0) * 2 + 0].x;
+    // Find the appropriate transforms. Binary search the transforms.
+    uint from_index = 0;
+    uint to_index = transform_count - 1;
 
-  // if (isGlobalThread(0, 0, 0))
-  // {
-  //   printf("%u / %u : %f %f %f\n", get_global_id(0), point_count, sample_point.x, sample_point.y, sample_point.z);
-  // }
-
-  // Find the appropriate transforms. Binary search the transforms.
-  unsigned from_index = 0;
-  unsigned to_index = transform_count - 1;
-
-  if (transform_count > 2)
-  {
-    // Binary search.
-    while (from_index <= to_index)
+    if (transform_count > 2)
     {
-      const unsigned mid_low = (from_index + to_index) / 2;
-      const unsigned mid_high = min(mid_low + 1, transform_count - 1);
-      // Adapted binary search for the index braketing sample_time.
-      if (sample_time >= transform_timestamps[mid_low] && sample_time <= transform_timestamps[mid_high])
+      // Binary search.
+      while (from_index <= to_index)
       {
-        from_index = mid_low;
-        to_index = mid_high;
-        break;
-      }
-      else if (sample_time <= transform_timestamps[mid_low])
-      {
-        to_index = mid_low - 1;
-      }
-      else
-      {
-        from_index = mid_low + 1;
+        const uint mid_low = (from_index + to_index) / 2;
+        const uint mid_high = min(mid_low + 1, transform_count - 1);
+        // Adapted binary search for the index braketing sample_time.
+        if (sample_time >= transform_timestamps[mid_low] && sample_time <= transform_timestamps[mid_high])
+        {
+          from_index = mid_low;
+          to_index = mid_high;
+          break;
+        }
+        else if (sample_time <= transform_timestamps[mid_low])
+        {
+          to_index = mid_low - 1;
+        }
+        else
+        {
+          from_index = mid_low + 1;
+        }
       }
     }
+
+    // Have resolved the transform. Linearly interpoloate position and spherically rotation.
+    const float interpolation_factor = (sample_time - transform_timestamps[from_index]) /
+                                      (transform_timestamps[to_index] - transform_timestamps[from_index]);
+    const float3 sensor_position = transform_positions[from_index] +
+                                  interpolation_factor * (transform_positions[to_index] - transform_positions[from_index]);
+    const float4 sensor_rotation = quaternion_rotate_quaterion(transform_rotations[from_index],
+                slerp(transform_rotations[from_index], transform_rotations[to_index], interpolation_factor));
+
+    // printf("GPU: %f(%f)  T(%f %f %f) R(%f %f %f %f)\n", sample_time, interpolation_factor, sensor_position.x, sensor_position.y,
+    //         sensor_position.z, sensor_rotation.w, sensor_rotation.x, sensor_rotation.y, sensor_rotation.z);
+
+    // Rotate and translate the local sample.
+    sample_point = sensor_position + quaternion_rotate_point(sensor_rotation, sample_point);
+
+    // Record the results.
+    points[sample_index * 2 + 0] = sensor_position;
+    points[sample_index * 2 + 1] = sample_point;
   }
-
-  // Have resolved the transform. Linearly interpoloate position and spherically rotation.
-  const float interpolation_factor = (sample_time - transform_timestamps[from_index]) /
-                                     (transform_timestamps[to_index] - transform_timestamps[from_index]);
-  const float3 sensor_position = transform_positions[from_index] +
-                                 interpolation_factor * (transform_positions[to_index] - transform_positions[from_index]);
-  const float4 sensor_rotation = quaternion_rotate_quaterion(transform_rotations[from_index],
-              slerp(transform_rotations[from_index], transform_rotations[to_index], interpolation_factor));
-
-  // printf("GPU: %f(%f)  T(%f %f %f) R(%f %f %f %f)\n", sample_time, interpolation_factor, sensor_position.x, sensor_position.y,
-  //         sensor_position.z, sensor_rotation.w, sensor_rotation.x, sensor_rotation.y, sensor_rotation.z);
-
-  // Rotate and translate the local sample.
-  sample_point = sensor_position + quaternion_rotate_point(sensor_rotation, sample_point);
-
-  // Record the results.
-  points[get_global_id(0) * 2 + 0] = sensor_position;
-  points[get_global_id(0) * 2 + 1] = sample_point;
 }

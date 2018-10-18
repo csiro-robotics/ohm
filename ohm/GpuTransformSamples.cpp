@@ -209,14 +209,20 @@ unsigned GpuTransformSamples::transform(const double *transform_times, const glm
   rotations_buffer.unpin(&gpu_queue, nullptr, &imp_->upload_events[2]);
   times_buffer.unpin(&gpu_queue, nullptr, &imp_->upload_events[3]);
 
-  gputil::Dim3 global_size(upload_count / 2);
+  // Set a max global size.
+  const unsigned sample_count = upload_count / 2;
+  const unsigned max_global_threads = 8 * 1024u;
+  const unsigned min_batch_size = 8;
+  const unsigned batch_size = std::max((sample_count + max_global_threads - 1) / max_global_threads, min_batch_size);
+
+  gputil::Dim3 global_size((sample_count + batch_size - 1) / batch_size);
   gputil::Dim3 local_size(std::min(imp_->kernel.optimalWorkGroupSize(), global_size.x));
   gputil::EventList wait(imp_->upload_events, GpuTransformSamplesDetail::kUploadEventCount);
   imp_->kernel(global_size, local_size, wait, completion_event, &gpu_queue,
-               gputil::BufferArg<gputil::float3 *>(output_buffer), upload_count / 2,
+               gputil::BufferArg<gputil::float3 *>(output_buffer), sample_count,
                gputil::BufferArg<float *>(imp_->transform_times_buffer),
                gputil::BufferArg<gputil::float3 *>(imp_->transform_positions_buffer),
-               gputil::BufferArg<gputil::float4 *>(imp_->transform_rotations_buffer), transform_count);
+               gputil::BufferArg<gputil::float4 *>(imp_->transform_rotations_buffer), transform_count, batch_size);
 
   gpu_queue.flush();
 

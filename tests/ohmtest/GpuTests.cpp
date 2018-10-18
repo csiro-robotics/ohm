@@ -27,9 +27,14 @@
 
 using namespace ohm;
 
+namespace
+{
+  using Clock = std::chrono::high_resolution_clock;
+}
+
 namespace gpumap
 {
-  void gpuTransformSamples(const std::vector<glm::dvec3> &samples_global)
+  void gpuTransformSamples(const std::vector<glm::dvec3> &samples_global, bool compare_performance)
   {
     ASSERT_GT(samples_global.size(), 0u);
 
@@ -86,7 +91,7 @@ namespace gpumap
 
     for (size_t i = 0; i < samples_global.size(); ++i)
     {
-      // Find the appropriate time indices.
+      // Find the appropriate transform indices.
       while (timestamps[tidx + 1] < sample_times[i])
       {
         ++tidx;
@@ -102,11 +107,54 @@ namespace gpumap
       p = glm::inverse(rotation) * (samples_global[i] - translation);
       samples_local[i] = p;
       // Validate the transformation back to global.
-      //printf("Gen: %f(%f)  T(%f %f %f) R(%f %f %f %f)\n", sample_times[i] - base_time, lerp, translation.x,
+      // printf("Gen: %f(%f)  T(%f %f %f) R(%f %f %f %f)\n", sample_times[i] - base_time, lerp, translation.x,
       //       translation.y, translation.z, rotation.w, rotation.x, rotation.y, rotation.z);
       p = rotation * samples_local[i] + translation;
       glm::dvec3 diff = samples_global[i] - p;
-      ASSERT_NEAR(glm::length(diff), 0.0, 1e-6);
+      ASSERT_NEAR(glm::length(diff), 0.0, 1e-7);
+    }
+
+    // Perform reverse transform for performance testing and to make sure the transforms are right.
+    // Note we use double precision transforms here, the GPU is single precision.
+    Clock::duration cpu_time;
+    if (compare_performance)
+    {
+      std::vector<glm::dvec3> samples_global_cpu(samples_local.size());
+
+      const auto cpu_start = Clock::now();
+      unsigned tidx = 0;
+      for (size_t i = 0; i < samples_local.size(); ++i)
+      {
+        timestamp = sample_times[i];
+        p = samples_local[i];
+
+        // Find the appropriate transform indices.
+        while (timestamps[tidx + 1] < timestamp)
+        {
+          ++tidx;
+          ASSERT_LT(tidx + 1, timestamps.size()) << "out of bounds";
+        }
+
+        lerp = (sample_times[i] - timestamps[tidx]) / (timestamps[tidx + 1] - timestamps[tidx]);
+
+        translation = translations[tidx] + lerp * (translations[tidx + 1] - translations[tidx]);
+        rotation = rotations[tidx] * glm::slerp(rotations[tidx], rotations[tidx + 1], lerp);
+
+        samples_global_cpu[i] = rotation * p + translation;
+      }
+      cpu_time = Clock::now() - cpu_start;
+      std::cout << "CPU Execution time: " << cpu_time << std::endl;
+
+      // Validate.
+      glm::dvec3 sample, expect;
+      glm::dvec3 diff;
+      for (size_t i = 0; i < samples_global.size(); ++i)
+      {
+        expect = samples_global[i];
+        sample = samples_global_cpu[i];
+        diff = expect - sample;
+        EXPECT_NEAR(glm::length(diff), 0.0, 1e-7);
+      }
     }
 
     // Do the GPU transformation.
@@ -115,6 +163,7 @@ namespace gpumap
 
     gputil::Buffer output_buffer(gpu, 0, gputil::kBfReadWriteHost);
     gputil::Event completion_event;
+    const auto gpu_start = Clock::now();
     unsigned ray_count = transformation.transform(
       timestamps.data(), translations.data(), rotations.data(), transforms_count, sample_times.data(),
       samples_local.data(), unsigned(samples_local.size()), gpu.defaultQueue(), output_buffer, completion_event);
@@ -124,6 +173,9 @@ namespace gpumap
     ASSERT_EQ(ray_count, samples_global.size());
 
     completion_event.wait();
+
+    const auto gpu_time = Clock::now() - gpu_start;
+    std::cout << "GPU Execution time: " << gpu_time << std::endl;
 
     // Read back the results.
     ASSERT_GE(output_buffer.size(), sizeof(gputil::float3) * 2 * ray_count);
@@ -144,13 +196,21 @@ namespace gpumap
       diff = expect - sample;
       EXPECT_NEAR(glm::length(diff), 0.0, 1e-4);
     }
+
+    // Not currently fast enough. Revisit once I have a clear idea on how many input points to expect.
+//#ifdef NDEBUG
+//    if (compare_performance)
+//    {
+//      EXPECT_LE(gpu_time, cpu_time) << "CPU execution less than GPU.";
+//    }
+//#endif // NDEBUG
   }
 
 
   TEST(Gpu, TransformSample)
   {
     // Just transform a single sample for this test.
-    gpuTransformSamples({ glm::dvec3(10.0f, 20.0f, 15.0f) });
+    gpuTransformSamples({ glm::dvec3(10.0f, 20.0f, 15.0f) }, false);
   }
 
 
@@ -160,7 +220,7 @@ namespace gpumap
     std::vector<glm::dvec3> samples_global;
     std::mt19937 rand_engine;
     std::uniform_real_distribution<double> rand(-10.0f, 25.0f);
-    const unsigned sample_count = 4 * 1024u;
+    const unsigned sample_count = 16 * 1024u;
 
     samples_global.reserve(sample_count);
     while (samples_global.size() < sample_count)
@@ -168,7 +228,6 @@ namespace gpumap
       samples_global.emplace_back(glm::dvec3(rand(rand_engine), rand(rand_engine), rand(rand_engine)));
     }
 
-
-    gpuTransformSamples(samples_global);
+    gpuTransformSamples(samples_global, true);
   }
 }  // namespace gpumap
