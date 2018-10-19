@@ -14,6 +14,7 @@
 #pragma GCC diagnostic ignored "-Wunused-parameter"
 #pragma GCC diagnostic ignored "-Wignored-qualifiers"
 #pragma GCC diagnostic ignored "-Wsign-compare"
+#pragma GCC diagnostic ignored "-Wignored-attributes"
 #endif // __GNUC__
 #include "cl2.hpp"
 #ifdef __GNUC__

@@ -25,7 +25,7 @@ namespace
     if (chunk && map)
     {
       // Validate layer.
-      assert(layer_index < chunk->layout->layerCount());
+      assert(layer_index < int(chunk->layout->layerCount()));
       const MapLayer *layer = chunk->layout->layerPtr(layer_index);
       assert(layer->voxelByteSize() == sizeof(T));
       // Account for sub sampling.

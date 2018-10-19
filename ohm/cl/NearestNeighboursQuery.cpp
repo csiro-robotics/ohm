@@ -22,7 +22,7 @@
 #include <mutex>
 
 #ifdef OHM_EMBED_GPU_CODE
-#include "NearestNeighboursqueryResource.h"
+#include "NearestNeighboursQueryResource.h"
 #endif // OHM_EMBED_GPU_CODE
 
 // See nearestneighbours.cl define of the same name.
@@ -73,7 +73,7 @@ int initialiseNnGpuProgram(NearestNeighboursDetail &query, gputil::Device &gpu)
 
   const char *source_file = "NearestNeighboursQuery.cl";
 #ifdef OHM_EMBED_GPU_CODE
-  clerr = initProgramFromString(program, gpu, NearestNeighboursqueryCode, source_file, &build_args);
+  clerr = initProgramFromString(program, gpu, NearestNeighboursQueryCode, source_file, &build_args);
 #else  // OHM_EMBED_GPU_CODE
   clerr = initProgramFromSource(program, gpu, source_file, &build_args);
 #endif // OHM_EMBED_GPU_CODE

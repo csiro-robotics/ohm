@@ -44,6 +44,7 @@ namespace ohm
         case 2:
           debug_opt << "-cl-opt-disable ";
           // Don't break. Cascade to enable the next option.
+          /* fallthrough */
         case 1:
           debug_opt << "-g ";
           break;

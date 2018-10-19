@@ -10,6 +10,7 @@
 
 #include <clu/cluProgram.h>
 
+#include <algorithm>
 #include <sstream>
 
 using namespace gputil;
@@ -20,8 +21,6 @@ namespace
                              std::ostream &build_opt, std::string &source_file_opt)
   {
     // Compile and initialise.
-    cl_int clerr = CL_SUCCESS;
-
     source_file_opt = std::string();
 
     std::string platform_name;
@@ -44,6 +43,7 @@ namespace
       case 2:
         debug_opt << "-cl-opt-disable ";
         // Don't break. Cascade to enable the next option.
+        /* fall through */
       case 1:
         debug_opt << "-g ";
         break;

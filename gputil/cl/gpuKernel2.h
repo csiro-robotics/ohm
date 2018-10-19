@@ -8,11 +8,12 @@
 
 #include "gpuConfig.h"
 
-#include "gpuBuffer.h"
+#include "../gpuBuffer.h"
+#include "../gpuEventList.h"
 
-#include "cl/gpuEventDetail.h"
-#include "cl/gpuKernelDetail.h"
-#include "cl/gpuQueueDetail.h"
+#include "gpuEventDetail.h"
+#include "gpuKernelDetail.h"
+#include "gpuQueueDetail.h"
 
 #include <clu/cluKernel.h>
 
@@ -31,7 +32,8 @@ namespace clu
   template <typename T>
   inline cl_int setKernelArg(cl::Kernel &kernel, int arg_index, const gputil::BufferArg<T> &arg)
   {
-    cl_mem mem = arg.buffer.arg<cl_mem>();
+    gputil::Buffer &buffer = arg.buffer;
+    cl_mem mem = buffer.arg<cl_mem>();
     return ::clSetKernelArg(kernel(), arg_index, sizeof(mem), &mem);
   }
 }  // namespace clu

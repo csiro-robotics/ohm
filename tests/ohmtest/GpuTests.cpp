@@ -46,7 +46,7 @@ namespace gpumap
 
     // Work out a time range based on the number of samples and time increment.
     // Make the interval larger than required to cover the samples.
-    const double time_max = base_time + time_increment * (samples_global.size() + 10);
+    // const double time_max = base_time + time_increment * (samples_global.size() + 10);
     const unsigned transforms_count = 10;
 
     // Generate a moving local frame.
@@ -164,9 +164,10 @@ namespace gpumap
     gputil::Buffer output_buffer(gpu, 0, gputil::kBfReadWriteHost);
     gputil::Event completion_event;
     const auto gpu_start = Clock::now();
+    gputil::Queue gpuQueue = gpu.defaultQueue();
     unsigned ray_count = transformation.transform(
       timestamps.data(), translations.data(), rotations.data(), transforms_count, sample_times.data(),
-      samples_local.data(), unsigned(samples_local.size()), gpu.defaultQueue(), output_buffer, completion_event);
+      samples_local.data(), unsigned(samples_local.size()), gpuQueue, output_buffer, completion_event);
 
     ASSERT_GT(ray_count, 0u);
     ray_count /= 2;

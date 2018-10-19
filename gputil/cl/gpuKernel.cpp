@@ -13,6 +13,13 @@
 
 using namespace gputil;
 
+/// Override kernel argument setting using @c gputil::Buffer to map to @c cl_mem.
+inline cl_int setKernelArgxxx(cl::Kernel &kernel, int arg_index, const gputil::Buffer &arg)
+{
+  cl_mem mem = arg.arg<cl_mem>();
+  return ::clSetKernelArg(kernel(), arg_index, sizeof(mem), &mem);
+}
+
 Kernel::Kernel()
   : imp_(new KernelDetail)
 {

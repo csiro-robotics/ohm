@@ -12,8 +12,8 @@ set(TES_ENABLE ${OHM_TES_DEBUG})
 configure_file(OhmConfig.in.h "${CMAKE_CURRENT_BINARY_DIR}/ohm/OhmConfig.h")
 
 set(SOURCES
-  private/ClearanceProcessdetail.cpp
-  private/ClearanceProcessdetail.h
+  private/ClearanceProcessDetail.cpp
+  private/ClearanceProcessDetail.h
   private/LineQueryDetail.h
   private/MapLayerDetail.h
   private/MapLayoutDetail.h
@@ -123,7 +123,7 @@ if(OHM_GPU)
 
   set(GPU_SOURCES
     gpu/LineKeys.cl
-    gpu/NearestNeighboursquery.cl
+    gpu/NearestNeighboursQuery.cl
     gpu/RegionUpdate.cl
     gpu/RoiRangeFill.cl
     gpu/TransformSamples.cl

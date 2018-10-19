@@ -401,7 +401,7 @@ void showTiming(const char *info, const TimingClock::time_point &start_time, con
 }
 
 
-void compareCpuGpuQuery(const char *query_name, ohm::Query &query, const float epsilon = 1e-5f)
+bool compareCpuGpuQuery(const char *query_name, ohm::Query &query, const float epsilon = 1e-5f)
 {
   std::string timing_info_str;
   TimingClock::time_point query_start, query_end;
@@ -502,6 +502,8 @@ void compareCpuGpuQuery(const char *query_name, ohm::Query &query, const float e
       results_match = false;
     }
   }
+
+  return results_match;
 }
 
 

@@ -72,11 +72,11 @@ elseif(GPU_ACCEL STREQUAL "CUDA")
     cuda/cutil_math.h
     cuda/gpuApiExceptionCode.cpp
     cuda/gpuBuffer.cpp
-    cuda/gpubufferdetail.h
+    cuda/gpuBufferDetail.h
     cuda/gpuDevice.cpp
     cuda/gpuDeviceDetail.h
     cuda/gpuEvent.cpp
-    cuda/gpueventdetail.h
+    cuda/gpuEventDetail.h
     cuda/gpuPinnedBuffer.cpp
     cuda/gpuPlatform2.h
     cuda/gpuQueue.cpp

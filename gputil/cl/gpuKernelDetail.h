@@ -8,8 +8,8 @@
 
 #include "gpuConfig.h"
 
-#include "gpuDevice.h"
-#include "gpuProgram.h"
+#include "../gpuDevice.h"
+#include "../gpuProgram.h"
 
 #include <clu/cluKernel.h>
 

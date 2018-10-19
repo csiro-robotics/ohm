@@ -46,7 +46,7 @@ namespace
       build_args.args = &build_strings;
 
 #ifdef OHM_EMBED_GPU_CODE
-      int err = program.buildFromSource(TransformSamplesResourceCode, TransformSamplesCode_length, build_args);
+      int err = program.buildFromSource(TransformSamplesCode, TransformSamplesCode_length, build_args);
 #else   // OHM_EMBED_GPU_CODE
       int err = program.buildFromFile(source_file, build_args);
 #endif  // OHM_EMBED_GPU_CODE

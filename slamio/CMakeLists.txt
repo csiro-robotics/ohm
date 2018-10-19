@@ -1,9 +1,14 @@
 
 include(GenerateExportHeader)
 
-find_package(GLM)
+find_package(LIBLAS QUIET)
 
-find_package(LIBLAS)
+if(NOT LIBLAS_FOUND)
+  message(STATUS "libLAS not found. Skipping slamio")
+  return()
+endif(NOT LIBLAS_FOUND)
+
+find_package(GLM)
 find_package(LASZIP QUIET)
 
 if(NOT LIBLAS_FOUND)

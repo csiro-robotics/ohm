@@ -16,6 +16,7 @@
 #include <gputil/gpuEvent.h>
 
 #include <unordered_map>
+#include <vector>
 
 namespace ohm
 {

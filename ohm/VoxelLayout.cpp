@@ -8,6 +8,7 @@
 #include "private/VoxelLayoutDetail.h"
 
 #include <cinttypes>
+#include <cstring>
 
 using namespace ohm;
 

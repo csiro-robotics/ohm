@@ -9,6 +9,16 @@
 
 #include <cinttypes>
 
+#ifdef major
+#undef major
+#endif // major
+#ifdef minor
+#undef minor
+#endif // minor
+#ifdef patch
+#undef patch
+#endif // patch
+
 namespace ohm
 {
   class OccupancyMap;
@@ -42,7 +52,7 @@ namespace ohm
     uint16_t minor = 0;
     uint16_t patch = 0;
 
-    inline MapVersion() = default;;
+    inline MapVersion() = default;
     inline MapVersion(uint32_t major, uint16_t minor = 0, uint16_t patch = 0)
       : major(major), minor(minor), patch(patch)
     {

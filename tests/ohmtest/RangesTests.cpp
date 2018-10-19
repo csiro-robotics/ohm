@@ -86,7 +86,7 @@ namespace ranges
         EXPECT_NEAR(node.clearance(), expected_range, 1e-3f);
       }
     }
-  };
+  }
 
 
   TEST(Ranges, Simple)
