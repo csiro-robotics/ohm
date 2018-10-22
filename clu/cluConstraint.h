@@ -34,7 +34,7 @@ namespace clu
   /// @param major The minimum required major version.
   /// @param minor The minimum required minor version.
   /// @return The platform constraint function object.
-  PlatformConstraint platformVersionMin(int major, int minor);
+  PlatformConstraint platformVersionMin(unsigned major, unsigned minor);
 
   /// Create a device version constraint.
   /// The device must have an OpenCL version at least as high as @p major, @p minor version
@@ -46,7 +46,7 @@ namespace clu
   /// @param major The minimum required major version.
   /// @param minor The minimum required minor version.
   /// @return The device constraint function object.
-  DeviceConstraint deviceVersionMin(int major, int minor);
+  DeviceConstraint deviceVersionMin(unsigned major, unsigned minor);
 
   /// Create a device constraint requiring the @c CL_DEVICE_NAME is line @p name.
   ///

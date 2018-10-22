@@ -60,7 +60,7 @@ namespace clu
   }
 
 
-  PlatformConstraint platformVersionMin(int major, int minor)
+  PlatformConstraint platformVersionMin(unsigned major, unsigned minor)
   {
     PlatformConstraint constraint = [major, minor](const cl::Platform &platform) -> bool
     {
@@ -74,7 +74,7 @@ namespace clu
   }
 
 
-  DeviceConstraint deviceVersionMin(int major, int minor)
+  DeviceConstraint deviceVersionMin(unsigned major, unsigned minor)
   {
     DeviceConstraint constraint = [major, minor](const cl::Platform &, const cl::Device &device) -> bool
     {
