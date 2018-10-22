@@ -15,11 +15,13 @@ namespace clu
 {
   /// @internal
   template <typename T>
-  cl_int setKernelArg(cl::Kernel &kernel, int arg_index, const T &arg)
+  struct KernelArgHandler
   {
-    return kernel.setArg(arg_index, arg);
-  }
-
+    static cl_int set(cl::Kernel &kernel, int arg_index, const T &arg)
+    {
+      return kernel.setArg(arg_index, arg);
+    }
+  };
 
   /// @internal
   /// Explicitly handle @c cl_mem type. Changing to the C++ <tt>cl2.hpp</tt> API changed how @c cl::Kernel handled
@@ -27,28 +29,32 @@ namespace clu
   /// @c cl::Pipe, etc types. Any pointer invokes @c clSetKernelArgSVMPointer() instead of @c clSetKernelArg() which
   /// also captures @c cl_mem type as it is a pointer typedef. This results in incorrect behaviour and we correct
   /// for this by calling the C function @c clSetKernelArg explicitly here.
-  inline cl_int setKernelArg(cl::Kernel &kernel, int arg_index, cl_mem arg)
+  template <>
+  struct KernelArgHandler<cl_mem>
   {
-    return ::clSetKernelArg(kernel(), arg_index, sizeof(arg), &arg);
-  }
+    static cl_int set(cl::Kernel &kernel, int arg_index, cl_mem arg)
+    {
+      return ::clSetKernelArg(kernel(), arg_index, sizeof(arg), &arg);
+    }
+  };
 
 
   /// @internal
   template <typename T>
   cl_int setKernelArgs2(cl::Kernel &kernel, int &arg_index, const T &arg)
   {
-    const cl_int clerr = setKernelArg(kernel, arg_index, arg);
+    const cl_int clerr = KernelArgHandler<T>::set(kernel, arg_index, arg);
     ++arg_index;
     clu::checkError(std::cerr, clerr, "Arg", arg_index);
     return clerr;
-  }
+  };
 
 
   /// @internal
   template <typename T, typename... ARGS>
   cl_int setKernelArgs2(cl::Kernel &kernel, int &arg_index, const T &arg, ARGS... args)
   {
-    const cl_int clerr = setKernelArg(kernel, arg_index, arg);
+    const cl_int clerr = KernelArgHandler<T>::set(kernel, arg_index, arg);
     ++arg_index;
     clu::checkError(std::cerr, clerr, "Arg", arg_index);
     const cl_int clerr_other = setKernelArgs2(kernel, arg_index, args...);

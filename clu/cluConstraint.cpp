@@ -10,7 +10,7 @@
 
 namespace clu
 {
-  PlatformContraint platformNameLike(const char *name, bool ignore_case)
+  PlatformConstraint platformNameLike(const char *name, bool ignore_case)
   {
     std::string like_name(name);
     if (ignore_case)
@@ -18,7 +18,7 @@ namespace clu
       std::transform(like_name.begin(), like_name.end(), like_name.begin(), ::tolower);
     }
 
-    PlatformContraint constraint = [like_name, ignore_case](const cl::Platform &platform) -> bool
+    PlatformConstraint constraint = [like_name, ignore_case](const cl::Platform &platform) -> bool
     {
       std::string platform_name;
       platform.getInfo(CL_PLATFORM_NAME, &platform_name);
@@ -33,7 +33,7 @@ namespace clu
   }
 
 
-  PlatformContraint platformVendorLike(const char *name, bool ignore_case)
+  PlatformConstraint platformVendorLike(const char *name, bool ignore_case)
   {
     std::string like_name(name);
     if (ignore_case)
@@ -41,7 +41,7 @@ namespace clu
       std::transform(like_name.begin(), like_name.end(), like_name.begin(), ::tolower);
     }
 
-    PlatformContraint constraint = [like_name, ignore_case](const cl::Platform &platform) -> bool
+    PlatformConstraint constraint = [like_name, ignore_case](const cl::Platform &platform) -> bool
     {
       std::string vendor;
 #ifndef NDEBUG
@@ -60,7 +60,21 @@ namespace clu
   }
 
 
-  DeviceConstraint deviceVersionIs(int major, int minor)
+  PlatformConstraint platformVersionMin(int major, int minor)
+  {
+    PlatformConstraint constraint = [major, minor](const cl::Platform &platform) -> bool
+    {
+      cl_uint major_version = 0;
+      cl_uint minor_version = 0;
+      platformVersion(platform(), &major_version, &minor_version);
+      return major_version > major || major_version == major && minor_version >= minor;
+    };
+
+    return constraint;
+  }
+
+
+  DeviceConstraint deviceVersionMin(int major, int minor)
   {
     DeviceConstraint constraint = [major, minor](const cl::Platform &, const cl::Device &device) -> bool
     {
@@ -69,23 +83,14 @@ namespace clu
       cl::string version_info;
       version_info.resize(size + 1);
       clGetDeviceInfo(device(), CL_DEVICE_VERSION, size, &version_info[0], &size);
-      int high_version = 0;
-      int low_version = 0;
-      int index = 7;
-      while (version_info[index] != '.')
+
+      cl_uint major_version = 0;
+      cl_uint minor_version = 0;
+      if (!parseVersion(version_info.c_str(), &major_version, &minor_version))
       {
-        high_version *= 10;
-        high_version += version_info[index] - '0';
-        ++index;
+        return false;
       }
-      ++index;
-      while (version_info[index] != ' ')
-      {
-        low_version *= 10;
-        low_version += version_info[index] - '0';
-        ++index;
-      }
-      return high_version >= major && low_version >= minor;
+      return major_version > major || major_version == major && minor_version >= minor;
     };
 
     return constraint;

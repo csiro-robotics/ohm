@@ -22,20 +22,27 @@
 namespace clu
 {
   /// Override kernel argument setting using @c gputil::Buffer to map to @c cl_mem.
-  inline cl_int setKernelArg(cl::Kernel &kernel, int arg_index, const gputil::Buffer &arg)
+  template <>
+  struct KernelArgHandler<gputil::Buffer>
   {
-    cl_mem mem = arg.arg<cl_mem>();
-    return ::clSetKernelArg(kernel(), arg_index, sizeof(mem), &mem);
-  }
+    static cl_int set(cl::Kernel &kernel, int arg_index, const gputil::Buffer &arg)
+    {
+      cl_mem mem = arg.arg<cl_mem>();
+      return ::clSetKernelArg(kernel(), arg_index, sizeof(mem), &mem);
+    }
+  };
 
   /// Override kernel argument setting using @c gputil::BufferArg to map to @c cl_mem.
   template <typename T>
-  inline cl_int setKernelArg(cl::Kernel &kernel, int arg_index, const gputil::BufferArg<T> &arg)
+  struct KernelArgHandler<gputil::BufferArg<T>>
   {
-    gputil::Buffer &buffer = arg.buffer;
-    cl_mem mem = buffer.arg<cl_mem>();
-    return ::clSetKernelArg(kernel(), arg_index, sizeof(mem), &mem);
-  }
+    static cl_int set(cl::Kernel &kernel, int arg_index, const gputil::BufferArg<T> &arg)
+    {
+      gputil::Buffer &buffer = arg.buffer;
+      cl_mem mem = buffer.arg<cl_mem>();
+      return ::clSetKernelArg(kernel(), arg_index, sizeof(mem), &mem);
+    }
+  };
 }  // namespace clu
 
 namespace gputil

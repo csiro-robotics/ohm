@@ -26,6 +26,7 @@ namespace gputil
     DeviceInfo info;
     std::string description;
     std::string search_paths;
+    std::string extensions; ///< OpenCL supported extension string.
     unsigned debug = 0;
   };
 }  // namespace gputil

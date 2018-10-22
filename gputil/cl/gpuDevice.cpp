@@ -19,23 +19,6 @@ using namespace gputil;
 
 namespace
 {
-  void parseVersion(Version &version, const std::string &ver_str)
-  {
-    // Parse the version string.
-    // Format is:
-    // OpenCL <major>.<minor> <vendor-info>
-    std::string open_cl_str, vendor_str;
-    std::istringstream parse(ver_str);
-    char dot;
-    parse >> open_cl_str;
-    parse >> version.major;
-    parse >> dot;
-    parse >> version.minor;
-    parse >> vendor_str;
-    version.patch = 0;
-  }
-
-
   void finaliseDetail(DeviceDetail &detail, const DeviceInfo *info)
   {
     if (info)
@@ -50,8 +33,12 @@ namespace
 
       std::string ver_string;
       detail.device.getInfo(CL_DEVICE_VERSION, &ver_string);
+
       // Parse the version string.
-      parseVersion(detail.info.version, ver_string);
+      cl_uint ver_major, ver_minor;
+      clu::parseVersion(ver_string.c_str(), &ver_major, &ver_minor);
+      detail.info.version.major = ver_major;
+      detail.info.version.minor = ver_minor;
 
       cl_platform_id platform_id;
       detail.device.getInfo(CL_DEVICE_PLATFORM, &platform_id);
@@ -83,6 +70,8 @@ namespace
         detail.info.platform = std::string(info_buffer.data());
       }
 
+      detail.device.getInfo(CL_DEVICE_EXTENSIONS, &detail.extensions);
+
       std::ostringstream str;
       clu::printDeviceInfo(str, detail.device, "");
       detail.description = str.str();
@@ -98,10 +87,18 @@ namespace
     cl::Platform::get(&platforms);
     unsigned added = 0;
 
+    // API minimum version is 1.2.
+    const auto platform_version_constraint = clu::platformVersionMin(1, 2);
+
     for (cl::Platform &platform : platforms)
     {
       DeviceInfo info;
       platform.getInfo(CL_PLATFORM_NAME, &info.platform);
+
+      if (!platform_version_constraint(platform))
+      {
+        continue;
+      }
 
       devices.clear();
       platform.getDevices(CL_DEVICE_TYPE_ALL, &devices);
@@ -112,7 +109,10 @@ namespace
         device.getInfo(CL_DEVICE_VERSION, &ver_string);
 
         // Parse the version string.
-        parseVersion(info.version, ver_string);
+        cl_uint ver_major, ver_minor;
+        clu::parseVersion(ver_string.c_str(), &ver_major, &ver_minor);
+        info.version.major = ver_major;
+        info.version.minor = ver_minor;
 
         cl_device_type device_type;
         device.getInfo(CL_DEVICE_TYPE, &device_type);
@@ -151,7 +151,7 @@ Device::Device(bool default_device)
       // Needs initialisation.
       // Empty constraints.
       const cl_device_type device_type = CL_DEVICE_TYPE_GPU | CL_DEVICE_TYPE_ACCELERATOR;
-      const std::vector<clu::PlatformContraint> platform_constraints;
+      const std::vector<clu::PlatformConstraint> platform_constraints;
       const std::vector<clu::DeviceConstraint> device_constraints;
       clu::initPrimaryContext(device_type, platform_constraints, device_constraints);
       clu::getPrimaryContext(imp_->context, imp_->device);
@@ -270,10 +270,13 @@ Queue Device::createQueue(unsigned flags) const
 bool Device::select(int argc, const char **argv, const char *default_device)
 {
   cl_device_type device_type = 0;
-  std::vector<clu::PlatformContraint> platform_constraints;
+  std::vector<clu::PlatformConstraint> platform_constraints;
   std::vector<clu::DeviceConstraint> device_constraints;
 
   clu::constraintsFromCommandLine(argc, argv, device_type, platform_constraints, device_constraints);
+
+  // Add a platform constraint to at least 1.2 for the minimum supported API.
+  platform_constraints.push_back(clu::platformVersionMin(1, 2));
 
   if (device_constraints.empty() && default_device && default_device[0])
   {
@@ -385,6 +388,17 @@ void Device::setDebugGpu(DebugLevel debug_level)
 Device::DebugLevel Device::debugGpu() const
 {
   return (imp_) ? DebugLevel(imp_->debug) : kDlOff;
+}
+
+
+bool Device::supportsFeature(const char *feature_id) const
+{
+  if (imp_->extensions.find(feature_id) != std::string::npos)
+  {
+    return true;
+  }
+
+  return false;
 }
 
 

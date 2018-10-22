@@ -121,6 +121,14 @@ namespace gputil
     /// @return The @c DebugLevel to execute with.
     DebugLevel debugGpu() const;
 
+    /// Check if the device supports the specified feature.
+    ///
+    /// Feature depend on the underlying platform. For example, "cl_khr_global_int32_base_atomics".
+    ///
+    /// @param feature_id Platform specific feature name.
+    /// @return True if the feature is valid and supported.
+    bool supportsFeature(const char *feature_id) const;
+
     /// Add a path to the GPU source @c searchPaths().
     /// @param path The path to add.
     void addSearchPath(const char *path);

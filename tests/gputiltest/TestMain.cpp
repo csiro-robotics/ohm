@@ -11,8 +11,13 @@ gputil::Device g_gpu;
 
 int main(int argc, char **argv)
 {
-  ::testing::InitGoogleTest(&argc, argv);
   g_gpu.select(argc, argv);
+  if (!g_gpu.isValid())
+  {
+    std::cerr << "GPU initialisation failed." << std::endl;
+    return -1;
+  }
+  ::testing::InitGoogleTest(&argc, argv);
   std::cout << g_gpu.description() << std::endl;
   return RUN_ALL_TESTS();
 }

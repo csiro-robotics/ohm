@@ -9,6 +9,7 @@
 #include "QueryFlag.h"
 #include "private/OccupancyMapDetail.h"
 #include "private/NearestNeighboursDetail.h"
+#include "OhmGpu.h"
 
 #include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -69,7 +70,7 @@ int initialiseNnGpuProgram(NearestNeighboursDetail &query, gputil::Device &gpu)
   buildArgs.push_back("-D VALIDATE_KEYS");
 #endif // VALIDATE_KEYS
 
-  build_args.push_back("-cl-std=CL" OHM_OPENCL_STD);
+  build_args.push_back(ohm::gpuBuildStdArg());
 
   const char *source_file = "NearestNeighboursQuery.cl";
 #ifdef OHM_EMBED_GPU_CODE

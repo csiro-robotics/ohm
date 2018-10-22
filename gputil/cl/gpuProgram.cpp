@@ -33,11 +33,16 @@ namespace
     std::transform(platform_name.begin(), platform_name.end(), platform_name.begin(), ::tolower);
 
     int debug_level = std::max<int>(gpu.debugGpu(), build_args.debug_level);
+
+    // FIXME: work out how to resolve additional debug arguments, such as the source file argument
+    // for Intel, but not the beignet drivers.
     // For Intel platforms, add debug compilation and source file option as we may debug
     // using the Intel SDK.
     if (platform_name.find("intel") != std::string::npos)
     {
+#ifdef WIN32
       source_file_opt = "-s";
+#endif // WIN32
       switch (gpu.debugGpu())
       {
       case 2:
@@ -45,7 +50,9 @@ namespace
         // Don't break. Cascade to enable the next option.
         /* fall through */
       case 1:
+#ifdef WIN32
         debug_opt << "-g ";
+#endif // WIN32
         break;
 
       default:

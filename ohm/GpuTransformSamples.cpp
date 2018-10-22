@@ -7,6 +7,8 @@
 
 #include "private/GpuTransformSamplesDetail.h"
 
+#include "OhmGpu.h"
+
 #include <gputil/gpuEvent.h>
 #include <gputil/gpuEventList.h>
 #include <gputil/gpuKernel.h>
@@ -39,12 +41,10 @@ namespace
       const char *source_file = "TransformSamples.cl";
 
       gputil::BuildArgs build_args;
+      ohm::setGpuBuildVersion(build_args);
+      build_args.args = nullptr;
+
       program = gputil::Program(gpu, source_file);
-
-      std::vector<std::string> build_strings;
-      build_strings.push_back("-cl-std=CL" OHM_OPENCL_STD);
-      build_args.args = &build_strings;
-
 #ifdef OHM_EMBED_GPU_CODE
       int err = program.buildFromSource(TransformSamplesCode, TransformSamplesCode_length, build_args);
 #else   // OHM_EMBED_GPU_CODE

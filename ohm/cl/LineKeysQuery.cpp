@@ -5,6 +5,8 @@
 // Author: Kazys Stepanas
 #include "LineKeysQuery.h"
 
+#include "OhmGpu.h"
+
 #include "cl/clProgram.h"
 #include "MapRegion.h"
 #include "OccupancyMap.h"
@@ -68,7 +70,7 @@ int initialiseLineKeysGpuProgram(LineKeysQueryDetail &query, gputil::Device &gpu
   buildArgs.push_back("-D VALIDATE_KEYS");
 #endif // VALIDATE_KEYS
 
-  build_args.push_back("-cl-std=CL" OHM_OPENCL_STD);
+  build_args.push_back(ohm::gpuBuildStdArg());
   build_args.push_back("-Werror");
 
   const char *source_file = "LineKeys.cl";
