@@ -57,8 +57,8 @@ namespace ohm
   template <typename T, typename S>
   inline bool writeUncompressed(OutputStream &stream, const S &val)
   {
-    const T tval = static_cast<T>(val);
-    return stream.writeUncompressed(&tval, unsigned(sizeof(tval))) == sizeof(tval);
+    const T val2 = static_cast<T>(val);
+    return stream.writeUncompressed(&val2, unsigned(sizeof(val2))) == sizeof(val2);
   }
 
 
@@ -66,8 +66,8 @@ namespace ohm
   template <typename T, typename S>
   inline bool write(OutputStream &stream, const S &val)
   {
-    const T tval = static_cast<T>(val);
-    return stream.write(&tval, unsigned(sizeof(tval))) == sizeof(tval);
+    const T val2 = static_cast<T>(val);
+    return stream.write(&val2, unsigned(sizeof(val2))) == sizeof(val2);
   }
 
 
@@ -75,12 +75,12 @@ namespace ohm
   template <typename T, typename S>
   inline bool readRaw(InputStream &stream, S &val)
   {
-    T tval{0};
-    if (stream.readRaw(&tval, unsigned(sizeof(tval))) != sizeof(tval))
+    T val2{0};
+    if (stream.readRaw(&val2, unsigned(sizeof(val2))) != sizeof(val2))
     {
       return false;
     }
-    val = static_cast<S>(tval);
+    val = static_cast<S>(val2);
     return true;
   }
 
@@ -89,12 +89,12 @@ namespace ohm
   template <typename T, typename S>
   inline bool read(InputStream &stream, S &val)
   {
-    T tval{ 0 };
-    if (stream.read(&tval, unsigned(sizeof(tval))) != sizeof(tval))
+    T val2{ 0 };
+    if (stream.read(&val2, unsigned(sizeof(val2))) != sizeof(val2))
     {
       return false;
     }
-    val = static_cast<S>(tval);
+    val = static_cast<S>(val2);
     return true;
   }
 
@@ -340,14 +340,14 @@ namespace ohm
         member_name[len] = '\0';
 
         // Read member type, offset and clear value.
-        uint16_t type, offset;
+        uint16_t type = 0, offset;
         uint64_t clear_value;
         ok = read<uint16_t>(stream, type) && ok;
         ok = read<uint16_t>(stream, offset) && ok;
         ok = read<uint64_t>(stream, clear_value) && ok;
 
         // Add the data member.
-        if (ok)
+        if (ok && type)
         {
           voxel_layout.addMember(member_name.data(), DataType::Type(type), clear_value);
           if (voxel_layout.memberOffset(j) != offset)

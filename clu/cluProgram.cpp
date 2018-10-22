@@ -163,7 +163,7 @@ namespace clu
       // reported as 1. Playing with the OpenCL code, I found that it dropped from 'reasonable values'
       // (say 128) to 1 as soon as the OpenCL call included a call to barrier(), either local or global.
       // I guess that the thread synchronisation for this implementation is not very good, so it simply
-      // drops the resolution back to avoid having any synchronisation codef.
+      // drops the resolution back to avoid having any synchronisation code.
       clerr = clGetKernelWorkGroupInfo(kernel_obj, device, CL_KERNEL_WORK_GROUP_SIZE,
                                        sizeof(max_items), &max_items, nullptr);
       if (clerr != CL_SUCCESS)
@@ -368,7 +368,7 @@ namespace clu
     GetCurrentDirectoryA(static_cast<DWORD>(buffer_length), path);
 #else  // WIN32
     // const char *ignore =
-    getcwd(path, buffer_length);
+    path = getcwd(path, buffer_length);
 #endif // WIN32
     // Guarantee null termination.
     path[buffer_length - 1] = '\0';
