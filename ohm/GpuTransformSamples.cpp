@@ -18,6 +18,7 @@
 
 #include <glm/ext.hpp>
 
+#include <algorithm>
 #include <mutex>
 
 #ifdef OHM_EMBED_GPU_CODE
@@ -160,16 +161,18 @@ unsigned GpuTransformSamples::transform(const double *transform_times, const glm
   glm::vec3 sample_time, sample;
 
   unsigned upload_count = 0u;
+  const double base_time = transform_times[0];
+  const float max_time = float(transform_times[transform_count - 1] - base_time);
   for (unsigned i = 0; i < point_count; ++i)
   {
-    sample_time = glm::vec3(float(sample_times[i] - transform_times[0]));
+    sample_time = glm::vec3(float(sample_times[i] - base_time));
     sample = glm::vec3(local_samples[i]);
     if (!goodSample(sample, max_range))
     {
       continue;
     }
-    ray_buffer.write(glm::value_ptr(sample_time), sizeof(glm::vec3), (upload_count + 0) * sizeof(gputil::float3));
-    ray_buffer.write(glm::value_ptr(sample), sizeof(glm::vec3), (upload_count + 1) * sizeof(gputil::float3));
+    ray_buffer.write(glm::value_ptr(sample_time), sizeof(sample_time), (upload_count + 0) * sizeof(gputil::float3));
+    ray_buffer.write(glm::value_ptr(sample), sizeof(sample), (upload_count + 1) * sizeof(gputil::float3));
     upload_count += 2;
   }
 
@@ -199,7 +202,7 @@ unsigned GpuTransformSamples::transform(const double *transform_times, const glm
     rotation = glm::quat(transform_rotations[i]);
     positions_buffer.write(glm::value_ptr(position), sizeof(position), i * sizeof(gputil::float3));
     rotations_buffer.write(glm::value_ptr(rotation), sizeof(rotation), i * sizeof(gputil::float4));
-    single_precision_timestamp = float(transform_times[i] - transform_times[0]);
+    single_precision_timestamp = std::max(0.0f, std::min(float(transform_times[i] - base_time), max_time));
     times_buffer.write(&single_precision_timestamp, sizeof(single_precision_timestamp),
                        i * sizeof(single_precision_timestamp));
   }

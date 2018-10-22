@@ -112,14 +112,17 @@ __kernel void transformTimestampedPoints(__global float3 *points, uint point_cou
   for (uint i = 0; i < batch_size; ++i)
   {
     const unsigned sample_index = get_global_id(0) * batch_size + i;
-    if (sample_index > point_count)
+    if (sample_index >= point_count)
     {
       // Out of range.
+      // printf("Should return %u : %u\n", get_global_id(0), sample_index);
       return;
     }
 
+    // printf("Thread %u processing %u\n", get_global_id(0), sample_index);
+
     float3 sample_point = points[sample_index * 2 + 1];
-    const float sample_time = points[sample_index * 2 + 0].x;
+    float sample_time = points[sample_index * 2 + 0].x;
 
     // if (isGlobalThread(0, 0, 0))
     // {
@@ -133,24 +136,62 @@ __kernel void transformTimestampedPoints(__global float3 *points, uint point_cou
     if (transform_count > 2)
     {
       // Binary search.
-      while (from_index <= to_index)
+      const uint iter_limit = 100000;
+      uint iter_count = 0;
+
+      if (transform_timestamps[0] <= sample_time && sample_time <= transform_timestamps[transform_count - 1])
       {
-        const uint mid_low = (from_index + to_index) / 2;
-        const uint mid_high = min(mid_low + 1, transform_count - 1);
-        // Adapted binary search for the index braketing sample_time.
-        if (sample_time >= transform_timestamps[mid_low] && sample_time <= transform_timestamps[mid_high])
+        while (from_index <= to_index && iter_count < iter_limit)
         {
-          from_index = mid_low;
-          to_index = mid_high;
-          break;
+          ++iter_count;
+          const uint mid_low = (from_index + to_index) / 2;
+          const uint mid_high = min(mid_low + 1, transform_count - 1);
+          // Adapted binary search for the index braketing sample_time.
+          if (sample_time >= transform_timestamps[mid_low] && sample_time <= transform_timestamps[mid_high])
+          {
+            from_index = mid_low;
+            to_index = mid_high;
+            break;
+          }
+          else if (sample_time <= transform_timestamps[mid_low])
+          {
+            to_index = mid_low - 1;
+          }
+          else
+          {
+            from_index = mid_low + 1;
+          }
         }
-        else if (sample_time <= transform_timestamps[mid_low])
+
+#ifdef DEBUG
+        if (iter_count >= iter_limit)
         {
-          to_index = mid_low - 1;
+          printf("transformTimestampedPoints(): Binary search failure (%u): %u / %u. search-bound(%u, %u), max(%u)",
+                get_global_id(0), iter_count, iter_limit, from_index, to_index, transform_count);
+          printf("Search Time: %f\n", sample_time);
+          printf("Times[%u]:\n", transform_count);
+          for (uint i = 0; i < transform_count; ++i)
+          {
+            printf("  %f\n", transform_timestamps[i]);
+          }
+        }
+#endif // DEBUG
+      }
+      else
+      {
+#if DEBUG
+        printf("transformTimestampedPoints()[%u]: out of range %f: [%f, %f]\n",
+              get_global_id(0), sample_time, transform_timestamps[0], transform_timestamps[transform_count - 1]);
+#endif // DEBUG
+        if (sample_time < transform_timestamps[0])
+        {
+          sample_time = transform_timestamps[0];
+          from_index = to_index = 0;
         }
         else
         {
-          from_index = mid_low + 1;
+          sample_time = transform_timestamps[transform_count - 1];
+          from_index = to_index = transform_count - 1;
         }
       }
     }

@@ -11,6 +11,7 @@
 #include "../gpuBuffer.h"
 #include "../gpuEventList.h"
 
+#include "gpuBufferDetail.h"
 #include "gpuEventDetail.h"
 #include "gpuKernelDetail.h"
 #include "gpuQueueDetail.h"
@@ -27,8 +28,7 @@ namespace clu
   {
     static cl_int set(cl::Kernel &kernel, int arg_index, const gputil::Buffer &arg)
     {
-      cl_mem mem = arg.arg<cl_mem>();
-      return ::clSetKernelArg(kernel(), arg_index, sizeof(mem), &mem);
+      return ::clSetKernelArg(kernel(), arg_index, sizeof(arg.detail()->buffer()), &arg.detail()->buffer());
     }
   };
 
@@ -38,9 +38,8 @@ namespace clu
   {
     static cl_int set(cl::Kernel &kernel, int arg_index, const gputil::BufferArg<T> &arg)
     {
-      gputil::Buffer &buffer = arg.buffer;
-      cl_mem mem = buffer.arg<cl_mem>();
-      return ::clSetKernelArg(kernel(), arg_index, sizeof(mem), &mem);
+      cl::Buffer &buffer = arg.buffer.detail()->buffer;
+      return ::clSetKernelArg(kernel(), arg_index, sizeof(buffer()), &buffer());
     }
   };
 }  // namespace clu

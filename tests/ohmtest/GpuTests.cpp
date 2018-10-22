@@ -75,8 +75,12 @@ namespace gpumap
     timestamp = base_time + 0.67 * time_increment;  // Reset timestamp for samples.
     for (size_t i = 0; i < samples_global.size(); ++i)
     {
-      ASSERT_GE(timestamp, timestamps.front());
-      ASSERT_LE(timestamp, timestamps.back());
+      ASSERT_GT(timestamp, timestamps.front());
+      ASSERT_LT(timestamp, timestamps.back());
+      if (i > 0)
+      {
+        ASSERT_GT(timestamp, sample_times[i - 1]);
+      }
       sample_times[i] = timestamp;
       timestamp += time_increment;
     }
