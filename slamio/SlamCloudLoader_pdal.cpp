@@ -54,6 +54,8 @@ struct SlamCloudLoaderDetail
 
   pdal::PointViewPtr samples;
   pdal::PointViewPtr trajectory;
+  uint64_t samples_view_index = 0;
+  uint64_t traj_view_index = 0;
 
   std::string sample_file_path;
   std::string trajectory_file_path;
@@ -64,7 +66,6 @@ struct SlamCloudLoaderDetail
 
   std::vector<SamplePoint> samples_buffer;
   uint64_t next_sample_read_index = 0;
-  uint64_t next_traj_read_index = 0;
 
   Clock::time_point first_sample_read_time;
   double first_sample_timestamp = -1.0;
@@ -197,7 +198,7 @@ bool SlamCloudLoader::open(const char *sample_file_path, const char *trajectory_
 
   imp_->samples = *point_sets.begin();
 
-  imp_->next_traj_read_index = 0u;
+  imp_->traj_view_index = 0u;
   if (text_trajectory)
   {
     imp_->read_trajectory_point = [this](TrajectoryPoint &point) -> bool
@@ -217,7 +218,7 @@ bool SlamCloudLoader::open(const char *sample_file_path, const char *trajectory_
         return false;
       }
 
-      ++imp_->next_traj_read_index;
+      ++imp_->traj_view_index;
       return true;
     };
   }
@@ -233,21 +234,21 @@ bool SlamCloudLoader::open(const char *sample_file_path, const char *trajectory_
     }
 
     imp_->trajectory = *point_sets.begin();
-    imp_->next_traj_read_index = 0u;
+    imp_->traj_view_index = 0u;
 
     imp_->read_trajectory_point = [this](TrajectoryPoint &point) -> bool
     {
-      if (imp_->next_traj_read_index >= imp_->trajectory->size())
+      if (imp_->traj_view_index >= imp_->trajectory->size())
       {
         return false;
       }
 
-      point.origin.x = imp_->trajectory->getFieldAs<double>(pdal::Dimension::Id::X, imp_->next_traj_read_index);
-      point.origin.y = imp_->trajectory->getFieldAs<double>(pdal::Dimension::Id::Y, imp_->next_traj_read_index);
-      point.origin.z = imp_->trajectory->getFieldAs<double>(pdal::Dimension::Id::Z, imp_->next_traj_read_index);
-      point.timestamp = imp_->trajectory->getFieldAs<double>(pdal::Dimension::Id::GpsTime, imp_->next_traj_read_index);
+      point.origin.x = imp_->trajectory->getFieldAs<double>(pdal::Dimension::Id::X, imp_->traj_view_index);
+      point.origin.y = imp_->trajectory->getFieldAs<double>(pdal::Dimension::Id::Y, imp_->traj_view_index);
+      point.origin.z = imp_->trajectory->getFieldAs<double>(pdal::Dimension::Id::Z, imp_->traj_view_index);
+      point.timestamp = imp_->trajectory->getFieldAs<double>(pdal::Dimension::Id::GpsTime, imp_->traj_view_index);
       point.orientation = glm::dquat();
-      ++imp_->next_traj_read_index;
+      ++imp_->traj_view_index;
       return true;
     };
   }
@@ -289,7 +290,7 @@ void SlamCloudLoader::close()
   imp_->trajectory_file_path.clear();
   imp_->read_trajectory_point = [](TrajectoryPoint &) { return false; };
   imp_->trajectory_file.close();
-  imp_->next_sample_read_index = imp_->next_traj_read_index = 0u;
+  imp_->next_sample_read_index = imp_-> samples_view_index = imp_->traj_view_index = 0u;
 }
 
 
@@ -391,18 +392,18 @@ bool SlamCloudLoader::nextPoint(glm::dvec3 &sample, glm::dvec3 *origin, double *
 
 bool SlamCloudLoader::loadPoint()
 {
-  if (imp_->next_sample_read_index < imp_->samples->size())
+  if (imp_->samples_view_index < imp_->samples->size())
   {
     SamplePoint sample;
 
-    sample.timestamp = imp_->samples->getFieldAs<double>(pdal::Dimension::Id::GpsTime, imp_->next_sample_read_index);
-    sample.sample.x = imp_->samples->getFieldAs<double>(pdal::Dimension::Id::X, imp_->next_sample_read_index);
-    sample.sample.y = imp_->samples->getFieldAs<double>(pdal::Dimension::Id::Y, imp_->next_sample_read_index);
-    sample.sample.z = imp_->samples->getFieldAs<double>(pdal::Dimension::Id::Z, imp_->next_sample_read_index);
+    sample.timestamp = imp_->samples->getFieldAs<double>(pdal::Dimension::Id::GpsTime, imp_->samples_view_index);
+    sample.sample.x = imp_->samples->getFieldAs<double>(pdal::Dimension::Id::X, imp_->samples_view_index);
+    sample.sample.y = imp_->samples->getFieldAs<double>(pdal::Dimension::Id::Y, imp_->samples_view_index);
+    sample.sample.z = imp_->samples->getFieldAs<double>(pdal::Dimension::Id::Z, imp_->samples_view_index);
     sample.origin = glm::dvec3(0);
     sample.orientation = glm::dquat();
 
-    ++imp_->next_sample_read_index;
+    ++imp_->samples_view_index;
 
     sampleTrajectory(sample.origin, sample.orientation, sample.timestamp);
     imp_->samples_buffer.push_back(sample);
