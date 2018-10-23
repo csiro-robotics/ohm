@@ -103,8 +103,10 @@ namespace vhash
   }
 
 
+#ifdef __GNUC__
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wstrict-aliasing"
+#endif // __GNUC__
 
   /// Generate a hash code for a 3-component vertex.
   /// @param x A vector coordinate.
@@ -139,7 +141,9 @@ namespace vhash
                     *reinterpret_cast<const uint32_t *>(&z), *reinterpret_cast<const uint32_t *>(&w));  // NOLINT
   }
 
+#ifdef __GNUC__
 #pragma GCC diagnostic pop
+#endif  // __GNUC__
 }  // namespace vhash
 
 
