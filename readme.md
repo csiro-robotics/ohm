@@ -24,8 +24,9 @@ The following 3rd-party libraries are required to build ohm:
 Additional, the following 3rd-party libraries may optionally be used:
 
 - [Google Test](https://github.com/google/googletest) for unit tests.
-- [libLAS](https://liblas.org/) to generate maps from LAS file point clouds.
-- [LASZip](https://laszip.org/) to optionally support compressed LAS files (LAZ files)
+- To generate maps from LAS file point clouds, either:
+    - [PDAL](https://pdal.io/) to load point clouds for gene
+    - [libLAS](https://liblas.org/) and [LASZip](https://laszip.org/)
 - [Intel Threading Building Blocks](https://www.threadingbuildingblocks.org/) to support multi-threaded CPU operations.
 - [Boost](https://www.boost.org/) required by libLAS
 - [3rd Eye Scene](https://github.com/data61/3rdEyeScene) for debug visualisation of map generation.
