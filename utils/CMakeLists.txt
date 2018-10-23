@@ -6,8 +6,8 @@ find_package(ZLIB)
 
 add_subdirectory(ohm2ply)
 add_subdirectory(ohmquery)
+add_subdirectory(ohmpop)
 
 if(LIBLAS_FOUND)
   add_subdirectory(ohmcloudfilter)
-  add_subdirectory(ohmpop)
 endif(LIBLAS_FOUND)
