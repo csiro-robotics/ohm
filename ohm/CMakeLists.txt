@@ -84,7 +84,6 @@ endif(TES_ENABLE)
 set(PUBLIC_HEADERS
   ClearanceProcess.h
   DataType.h
-  DataType.h
   DefaultLayers.h
   Key.h
   KeyList.h
@@ -93,9 +92,9 @@ set(PUBLIC_HEADERS
   MapCache.h
   MapChunk.h
   MapChunkFlag.h
+  MapCoord.h
   MapLayer.h
   MapLayout.h
-  MapNode.h
   Mapper.h
   MappingProcess.h
   MapProbability.h

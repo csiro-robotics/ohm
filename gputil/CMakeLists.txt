@@ -5,11 +5,13 @@ if(NOT DEFINED GPU_ACCEL)
 endif(NOT DEFINED GPU_ACCEL)
 
 set(PUBLIC_HEADERS
+  gpu_ext.h
   gpuAccessException.h
   gpuApiException.h
   gpuBuffer.h
   "${CMAKE_CURRENT_BINARY_DIR}/gputil/gpuConfig.h"
   gpuDevice.h
+  gpuDeviceInfo.h
   gpuEvent.h
   gpuEventList.h
   gpuException.h
@@ -20,7 +22,7 @@ set(PUBLIC_HEADERS
   gpuProgram.h
   gpuQueue.h
   gpuThrow.h
-  gpu_ext.h
+  gpuVersion.h
 )
 
 set(SOURCES
@@ -30,7 +32,7 @@ set(SOURCES
   gpuEventList.cpp
   gpuException.cpp
   gpuThrow.cpp
-  )
+)
 
 list(APPEND SOURCES ${PUBLIC_HEADERS})
 
@@ -59,7 +61,13 @@ if(GPU_ACCEL STREQUAL "OpenCL")
     )
 
   set(PUBLIC_PLATFORM_HEADERS
+    cl/gpuBufferDetail.h
+    cl/gpuDeviceDetail.h
+    cl/gpuKernel2.h
+    cl/gpuKernelDetail.h
     cl/gpuPlatform2.h
+    cl/gpuProgramDetail.h
+    cl/gpuQueueDetail.h
   )
 
   set(PUBLIC_PLATFORM_HEADERS_DIR cl)
