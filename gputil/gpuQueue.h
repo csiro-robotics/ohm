@@ -15,6 +15,7 @@
 namespace gputil
 {
   struct QueueDetail;
+  class Device;
 
   /// Represents a command queue or stream on the GPU.
   ///
@@ -69,7 +70,7 @@ namespace gputil
     /// Wait for all outstanding operations in the queue to complete.
     void finish();
 
-    void queueCallback(const std::function<void (void)> &callback);
+    void queueCallback(const std::function<void(void)> &callback);
 
     /// Internal data access for private code.
     QueueDetail *internal() const;

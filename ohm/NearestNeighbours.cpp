@@ -62,12 +62,12 @@ namespace
     }
 
     // Initialise buffers.
-    gpu_data.gpu_nodes = gputil::Buffer(query.gpu, kGpuBatchSize * sizeof(float), gputil::kBfReadHost);
-    gpu_data.gpu_node_region_keys = gputil::Buffer(query.gpu, kGpuBatchSize * sizeof(gputil::short3), gputil::kBfReadHost);
-    gpu_data.gpu_node_voxel_keys = gputil::Buffer(query.gpu, kGpuBatchSize * sizeof(gputil::uchar3), gputil::kBfReadHost);
+    gpu_data.gpu_voxels = gputil::Buffer(query.gpu, kGpuBatchSize * sizeof(float), gputil::kBfReadHost);
+    gpu_data.gpu_voxel_region_keys = gputil::Buffer(query.gpu, kGpuBatchSize * sizeof(gputil::short3), gputil::kBfReadHost);
+    gpu_data.gpu_voxel_voxel_keys = gputil::Buffer(query.gpu, kGpuBatchSize * sizeof(gputil::uchar3), gputil::kBfReadHost);
     gpu_data.gpu_ranges = gputil::Buffer(query.gpu, kGpuBatchSize * sizeof(float), gputil::kBfWriteHost);
     gpu_data.gpu_result_region_keys = gputil::Buffer(query.gpu, kGpuBatchSize * sizeof(gputil::short3), gputil::kBfWriteHost);
-    gpu_data.gpu_result_node_keys = gputil::Buffer(query.gpu, kGpuBatchSize * sizeof(gputil::uchar3), gputil::kBfWriteHost);
+    gpu_data.gpu_result_voxel_keys = gputil::Buffer(query.gpu, kGpuBatchSize * sizeof(gputil::uchar3), gputil::kBfWriteHost);
     gpu_data.gpu_result_count = gputil::Buffer(query.gpu, sizeof(unsigned), gputil::kBfReadWriteHost);
 
     query.gpu_ok = (err == 0);
@@ -82,14 +82,14 @@ namespace
   {
     const OccupancyMapDetail &map_data = *map.detail();
     const auto chunk_search = map_data.findRegion(region_key);
-    glm::vec3 query_origin, node_vector;
-    OccupancyKey node_key(nullptr);
+    glm::vec3 query_origin, voxel_vector;
+    OccupancyKey voxel_key(nullptr);
     const MapChunk *chunk = nullptr;
     const float *occupancy = nullptr;
     float range_squared = 0;
     unsigned added = 0;
 
-    std::function<bool (float, const OccupancyMapDetail &)> node_occupied_func;
+    std::function<bool (float, const OccupancyMapDetail &)> voxel_occupied_func;
 
     query_origin = glm::vec3(query.near_point - map.origin());
 
@@ -105,8 +105,8 @@ namespace
       // ... and we have to treat unknown space as occupied.
       chunk = nullptr;
       occupancy = nullptr;
-      // Setup node occupancy test function to pass all nodes in this region.
-      node_occupied_func = [](const float, const OccupancyMapDetail &) -> bool
+      // Setup voxel occupancy test function to pass all voxels in this region.
+      voxel_occupied_func = [](const float, const OccupancyMapDetail &) -> bool
       {
         return true;
       };
@@ -115,10 +115,10 @@ namespace
     {
       chunk = chunk_search->second;
       occupancy = chunk->layout->layer(kDlOccupancy).voxelsAs<float>(*chunk);
-      // Setup the node test function to check the occupancy threshold and behaviour flags.
-      node_occupied_func = [&query](const float voxel, const OccupancyMapDetail & map_data) -> bool
+      // Setup the voxel test function to check the occupancy threshold and behaviour flags.
+      voxel_occupied_func = [&query](const float voxel, const OccupancyMapDetail & map_data) -> bool
       {
-        if (voxel == NodeBase::invalidMarkerValue())
+        if (voxel == VoxelBase::invalidMarkerValue())
         {
           if (query.query_flags & ohm::kQfUnknownAsOccupied)
           {
@@ -127,7 +127,7 @@ namespace
           return false;
         }
         if (voxel >= map_data.occupancy_threshold_value ||
-            (query.query_flags & ohm::kQfUnknownAsOccupied) && voxel == NodeBase::invalidMarkerValue())
+            (query.query_flags & ohm::kQfUnknownAsOccupied) && voxel == VoxelBase::invalidMarkerValue())
         {
           return true;
         }
@@ -148,17 +148,17 @@ namespace
       {
         for (int x = 0; x < map_data.region_voxel_dimensions.x; ++x)
         {
-          if (node_occupied_func(*occupancy, map_data))
+          if (voxel_occupied_func(*occupancy, map_data))
           {
-            // Occupied node, or invalid node to be treated as occupied.
+            // Occupied voxel, or invalid voxel to be treated as occupied.
             // Calculate range to centre.
-            node_key = OccupancyKey(region_key, x, y, z);
-            node_vector = map.voxelCentreLocal(node_key);
-            node_vector -= query_origin;
-            range_squared = glm::dot(node_vector, node_vector);
+            voxel_key = OccupancyKey(region_key, x, y, z);
+            voxel_vector = map.voxelCentreLocal(voxel_key);
+            voxel_vector -= query_origin;
+            range_squared = glm::dot(voxel_vector, voxel_vector);
             if (range_squared <= query.search_radius * query.search_radius)
             {
-              query.intersected_voxels.push_back(node_key);
+              query.intersected_voxels.push_back(voxel_key);
               query.ranges.push_back(std::sqrt(range_squared));
 
               if (range_squared < closest.range)
@@ -169,32 +169,32 @@ namespace
 
               ++added;
 #ifdef TES_ENABLE
-              if (occupancy && *occupancy != NodeBase::invalidMarkerValue())
+              if (occupancy && *occupancy != VoxelBase::invalidMarkerValue())
               {
-                includedOccupied.push_back(tes::V3Arg(glm::value_ptr(map.voxelCentreGlobal(nodeKey))));
+                includedOccupied.push_back(tes::V3Arg(glm::value_ptr(map.voxelCentreGlobal(voxel_key)));
               }
               else
               {
-                includedUncertain.push_back(tes::V3Arg(glm::value_ptr(map.voxelCentreGlobal(nodeKey))));
+                includedUncertain.push_back(tes::V3Arg(glm::value_ptr(map.voxelCentreGlobal(voxel_key))));
               }
 #endif // TES_ENABLE
             }
 #ifdef TES_ENABLE
             else
             {
-              if (occupancy && *occupancy != NodeBase::invalidMarkerValue())
+              if (occupancy && *occupancy != VoxelBase::invalidMarkerValue())
               {
-                excludedOccupied.push_back(tes::V3Arg(glm::value_ptr(map.voxelCentreGlobal(nodeKey))));
+                excludedOccupied.push_back(tes::V3Arg(glm::value_ptr(map.voxelCentreGlobal(voxel_key))));
               }
               else
               {
-                excludedUncertain.push_back(tes::V3Arg(glm::value_ptr(map.voxelCentreGlobal(nodeKey))));
+                excludedUncertain.push_back(tes::V3Arg(glm::value_ptr(map.voxelCentreGlobal(voxel_key))));
               }
             }
 #endif // TES_ENABLE
           }
 
-          // Next node. Will be null for uncertain regions.
+          // Next voxel. Will be null for uncertain regions.
           occupancy = (occupancy) ? occupancy + 1 : occupancy;
         }
       }
@@ -251,7 +251,7 @@ namespace
       gpu_data.gpu_ranges.readElements(gpu_data.local_ranges.data(), gpu_data.result_count);
       gpu_data.gpu_result_region_keys.readElements(gpu_data.region_keys.data(), sizeof(*gpu_data.region_keys.data()),
                                               gpu_data.result_count, 0, sizeof(gputil::short3));
-      gpu_data.gpu_result_node_keys.readElements(gpu_data.local_keys.data(), sizeof(*gpu_data.local_keys.data()),
+      gpu_data.gpu_result_voxel_keys.readElements(gpu_data.local_keys.data(), sizeof(*gpu_data.local_keys.data()),
                                              gpu_data.result_count, 0, sizeof(gputil::uchar3));
 
 #ifndef VALIDATE_KEYS
@@ -287,7 +287,7 @@ namespace
         key.setLocalAxis(0, gpuData.localKeys[i].x);
         key.setLocalAxis(1, gpuData.localKeys[i].y);
         key.setLocalAxis(2, gpuData.localKeys[i].z);
-        nindex = nodeIndex(key, query.map->regionVoxelDimensions());
+        nindex = voxelIndex(key, query.map->regionVoxelDimensions());
         query.intersectedVoxels.push_back(key);
         keyOk = nindex == i;
         if (!keyOk)
@@ -296,7 +296,7 @@ namespace
                     << int(key.regionKey().x) << ' ' << int(key.regionKey().y) << ' ' << int(key.regionKey().z) << ") V("
                     << int(key.localKey().x) << ' ' << int(key.localKey().y) << ' ' << int(key.localKey().z) << ") : "
                     << gpuData.localRanges[i] << std::endl;
-          nindex = nodeIndex(key, query.map->regionVoxelDimensions());
+          nindex = voxelIndex(key, query.map->regionVoxelDimensions());
         }
         // Validate the range.
         range = gpuData.localRanges[i];
@@ -336,7 +336,7 @@ namespace
   {
     const OccupancyMapDetail &data = *map.detail();
     const auto chunk_search = data.findRegion(region_key);
-    const size_t nodes_volume = data.region_voxel_dimensions.x * data.region_voxel_dimensions.y * data.region_voxel_dimensions.z;
+    const size_t voxels_volume = data.region_voxel_dimensions.x * data.region_voxel_dimensions.y * data.region_voxel_dimensions.z;
 
     gputil::short3 gpu_region_key = {region_key.x, region_key.y, region_key.z};
 
@@ -359,16 +359,16 @@ namespace
     // Handle having voxel regions exceeding the allowed GPU buffer sizes.
     while (pushed < map.regionVoxelVolume())
     {
-      const unsigned push_size = unsigned(std::min(nodes_volume - pushed, kGpuBatchSize));
+      const unsigned push_size = unsigned(std::min(voxels_volume - pushed, kGpuBatchSize));
       need_new_batch = false;
       if (chunk_search == data.chunks.end())
       {
         // The entire region is unknown space...
         // ... and we have to treat unknown space as occupied.
-        // Fill the node buffer with zero to mark unknown space.
-        const float occupied_node = data.occupancy_threshold_value;
-        gpu_data.gpu_nodes.fillPartial(&occupied_node, sizeof(occupied_node), push_size * sizeof(occupied_node), gpu_data.queued_nodes * sizeof(occupied_node));
-        gpu_data.gpu_node_region_keys.fillPartial(&gpu_region_key, sizeof(gpu_region_key), push_size * sizeof(gpu_region_key), gpu_data.queued_nodes * sizeof(gpu_region_key));
+        // Fill the voxel buffer with zero to mark unknown space.
+        const float occupied_voxel = data.occupancy_threshold_value;
+        gpu_data.gpu_voxels.fillPartial(&occupied_voxel, sizeof(occupied_voxel), push_size * sizeof(occupied_voxel), gpu_data.queued_voxels * sizeof(occupied_voxel));
+        gpu_data.gpu_voxel_region_keys.fillPartial(&gpu_region_key, sizeof(gpu_region_key), push_size * sizeof(gpu_region_key), gpu_data.queued_voxels * sizeof(gpu_region_key));
         map.regionCentreGlobal(region_key);
       }
       else
@@ -376,12 +376,12 @@ namespace
         const MapChunk *chunk = chunk_search->second;
         const float *voxels = chunk->layout->layer(kDlOccupancy).voxelsAs<float>(*chunk);
 
-        gpu_data.gpu_nodes.write(voxels + pushed, push_size * sizeof(*voxels), gpu_data.queued_nodes * sizeof(*voxels));
-        gpu_data.gpu_node_region_keys.fillPartial(&gpu_region_key, sizeof(gpu_region_key), push_size * sizeof(gpu_region_key), gpu_data.queued_nodes * sizeof(gpu_region_key));
+        gpu_data.gpu_voxels.write(voxels + pushed, push_size * sizeof(*voxels), gpu_data.queued_voxels * sizeof(*voxels));
+        gpu_data.gpu_voxel_region_keys.fillPartial(&gpu_region_key, sizeof(gpu_region_key), push_size * sizeof(gpu_region_key), gpu_data.queued_voxels * sizeof(gpu_region_key));
       }
 
       gputil::uchar3 voxel_key;
-      gputil::PinnedBuffer pinned(gpu_data.gpu_node_voxel_keys, gputil::kPinWrite);
+      gputil::PinnedBuffer pinned(gpu_data.gpu_voxel_voxel_keys, gputil::kPinWrite);
 
       kx = pushed % map.regionVoxelDimensions().x;
       ky = (pushed / map.regionVoxelDimensions().x) % map.regionVoxelDimensions().y;
@@ -398,10 +398,10 @@ namespace
           {
             kx = 0;
             voxel_key.x = x;
-            pinned.write(&voxel_key, sizeof(voxel_key), gpu_data.queued_nodes * sizeof(voxel_key));
-            ++gpu_data.queued_nodes;
+            pinned.write(&voxel_key, sizeof(voxel_key), gpu_data.queued_voxels * sizeof(voxel_key));
+            ++gpu_data.queued_voxels;
             ++pushed;
-            if (gpu_data.queued_nodes == kGpuBatchSize)
+            if (gpu_data.queued_voxels == kGpuBatchSize)
             {
               // Pushed enough to process.
               finishGpuOperation(query, gpu_data, closest);
@@ -434,14 +434,14 @@ namespace
   {
     unsigned added = 0;
     NearestNeighboursDetail::GpuData &gpu_data = query.gpu_data;
-    const size_t nodes_volume = map.regionVoxelVolume();
+    const size_t voxels_volume = map.regionVoxelVolume();
 
 #ifdef VALIDATE_KEYS
     // Always complete previous queued operation when validating keys. This is to allow
     // us to infer each voxel index by its position in the results array.
     if (gpuData.queuedNodes)
 #else  // VALIDATE_KEYS
-    if (gpu_data.queued_nodes && gpu_data.queued_nodes + nodes_volume > kGpuBatchSize)
+    if (gpu_data.queued_voxels && gpu_data.queued_voxels + voxels_volume > kGpuBatchSize)
 #endif // VALIDATE_KEYS
     {
       // Complete existing queue.
@@ -463,7 +463,7 @@ namespace
 
     // Finalise queues.
     NearestNeighboursDetail::GpuData &gpu_data = query.gpu_data;
-    if (gpu_data.queued_nodes)
+    if (gpu_data.queued_voxels)
     {
       added_neighbours += finishGpuOperation(query, gpu_data, closest);
     }

@@ -129,7 +129,7 @@ void MapChunk::searchAndUpdateFirstValid(const glm::ivec3 &region_voxel_dimensio
       for (int x = 0; x < region_voxel_dimensions.x; ++x)
       {
         voxel_index = x + y * region_voxel_dimensions.x + z * region_voxel_dimensions.y * region_voxel_dimensions.x;
-        if (occupancy[voxel_index] != NodeBase::invalidMarkerValue())
+        if (occupancy[voxel_index] != VoxelBase::invalidMarkerValue())
         {
           first_valid_index.x = x;
           first_valid_index.y = y;
@@ -155,7 +155,7 @@ bool MapChunk::validateFirstValid(const glm::ivec3 &region_voxel_dimensions) con
     {
       for (int x = 0; x < region_voxel_dimensions.x; ++x)
       {
-        if (occupancy[voxel_index] != NodeBase::invalidMarkerValue())
+        if (occupancy[voxel_index] != VoxelBase::invalidMarkerValue())
         {
           if (first_valid_index.x != x || first_valid_index.y != y || first_valid_index.z != z)
           {

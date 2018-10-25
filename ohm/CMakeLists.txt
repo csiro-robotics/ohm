@@ -12,14 +12,14 @@ set(TES_ENABLE ${OHM_TES_DEBUG})
 configure_file(OhmConfig.in.h "${CMAKE_CURRENT_BINARY_DIR}/ohm/OhmConfig.h")
 
 set(SOURCES
-  private/ClearanceProcessdetail.cpp
-  private/ClearanceProcessdetail.h
+  private/ClearanceProcessDetail.cpp
+  private/ClearanceProcessDetail.h
   private/LineQueryDetail.h
   private/MapLayerDetail.h
   private/MapLayoutDetail.h
   private/NearestNeighboursDetail.h
-  private/NodeAlgorithms.cpp
-  private/NodeAlgorithms.h
+  private/VoxelAlgorithms.cpp
+  private/VoxelAlgorithms.h
   private/OccupancyMapDetail.cpp
   private/OccupancyMapDetail.h
   private/QueryDetail.h
@@ -84,7 +84,6 @@ endif(TES_ENABLE)
 set(PUBLIC_HEADERS
   ClearanceProcess.h
   DataType.h
-  DataType.h
   DefaultLayers.h
   Key.h
   KeyList.h
@@ -93,9 +92,9 @@ set(PUBLIC_HEADERS
   MapCache.h
   MapChunk.h
   MapChunkFlag.h
+  MapCoord.h
   MapLayer.h
   MapLayout.h
-  MapNode.h
   Mapper.h
   MappingProcess.h
   MapProbability.h
@@ -123,9 +122,10 @@ if(OHM_GPU)
 
   set(GPU_SOURCES
     gpu/LineKeys.cl
-    gpu/NearestNeighboursquery.cl
+    gpu/NearestNeighboursQuery.cl
     gpu/RegionUpdate.cl
     gpu/RoiRangeFill.cl
+    gpu/TransformSamples.cl
   )
   if(NOT OHM_EMBED_GPU_CODE)
     list(APPEND GPU_SOURCES gpu/LineWalk.cl)
@@ -140,6 +140,7 @@ if(OHM_GPU)
   list(APPEND SOURCES
     private/GpuMapDetail.cpp
     private/GpuMapDetail.h
+    private/GpuTransformSamplesDetail.h
     GpuCache.cpp
     GpuCache.h
     GpuCacheParams.h
@@ -147,6 +148,8 @@ if(OHM_GPU)
     GpuLayerCache.h
     GpuMap.cpp
     GpuMap.h
+    GpuTransformSamples.cpp
+    GpuTransformSamples.h
   )
 
   list(APPEND PUBLIC_HEADERS
@@ -155,6 +158,7 @@ if(OHM_GPU)
     GpuKey.h
     GpuLayerCache.h
     GpuMap.h
+    GpuTransformSamples.h
   )
 endif(OHM_GPU)
 

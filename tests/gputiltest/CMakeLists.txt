@@ -7,6 +7,7 @@ include_directories(.)
 
 set(SOURCES
   GpuBufferTest.cpp
+  GpuDeviceTest.cpp
   TestMain.cpp
 )
 

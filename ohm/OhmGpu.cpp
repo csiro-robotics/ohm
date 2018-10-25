@@ -6,9 +6,13 @@
 #include "OhmGpu.h"
 
 #include <gputil/gpuDevice.h>
+#include <gputil/cl/gpuDeviceDetail.h>
+
+#include <gputil/gpuProgram.h>
 
 #include <iostream>
 #include <mutex>
+#include <sstream>
 
 using namespace ohm;
 
@@ -16,6 +20,9 @@ namespace
 {
   gputil::Device gpu_device;
   std::mutex gpu_mutex;
+  std::string gpu_build_std_arg;
+  unsigned gpu_std_major = 0;
+  unsigned gpu_std_minor = 0;
   bool gpu_initialised = false;
 }
 
@@ -30,8 +37,67 @@ namespace ohm
       {
         if (show_device)
         {
-          std::cout << gpu_device.info() << std::endl;
+          std::cout << gpu_device.description() << std::endl;
         }
+
+#if OHM_GPU == OHM_GPU_OPENCL
+        if (strcmp(OHM_OPENCL_STD, "max") == 0)
+        {
+          // Requesting the maximum available version.
+          // Query the device.
+          gpu_std_major = gpu_device.info().version.major;
+          gpu_std_minor = gpu_device.info().version.minor;
+        }
+        else
+        {
+          cl_uint ver_major, ver_minor;
+          clu::parseVersion(OHM_OPENCL_STD, &ver_major, &ver_minor);
+          gpu_std_major = ver_major;
+          gpu_std_minor = ver_minor;
+        }
+
+        // Validate OpenCL extensions for 2.x are available.
+        std::ostringstream str;
+        str << "-cl-std=CL" << gpu_std_major << "." << gpu_std_minor;
+        gpu_build_std_arg = str.str();;
+        // Validate extensions.
+
+        bool extensions_supported = true;
+        if (gpu_std_major >= 2)
+        {
+          // Tokenise required OpenCL feature list
+          const char *feature_str = OHM_OPENCL_2_FEATURES;
+          do
+          {
+            const char *begin = feature_str;
+
+            while (*feature_str != ';' && *feature_str)
+            {
+              ++feature_str;
+            }
+
+            if (*begin != '\0')
+            {
+              std::string feature(begin, feature_str);
+              if (!gpu_device.supportsFeature(feature.c_str()))
+              {
+                std::cerr << "Missing OpenCL 2+ feature: " << feature << std::endl;
+                extensions_supported = false;
+              }
+            }
+          } while (*feature_str++ != '\0');
+        }
+
+        if (!extensions_supported)
+        {
+          std::cerr << "Fallback to OpenCL 1.2" << std::endl;
+          gpu_build_std_arg = "-cl-std=CL1.2";
+          gpu_std_major = 1;
+          gpu_std_minor = 2;
+        }
+#endif // OHM_GPU == OHM_GPU_OPENCL
+
+
         gpu_initialised = true;
       }
     }
@@ -152,5 +218,19 @@ namespace ohm
     }
 
     return arg_pair_count;
+  }
+
+
+  const char ohm_API *gpuBuildStdArg()
+  {
+    return gpu_build_std_arg.c_str();
+  }
+
+
+  void setGpuBuildVersion(gputil::BuildArgs &build_args)
+  {
+    // Resolve the requested from the configuration define.
+    build_args.version_major = gpu_std_major;
+    build_args.version_minor = gpu_std_minor;
   }
 }

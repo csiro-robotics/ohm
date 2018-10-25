@@ -261,7 +261,7 @@ int main(int argc, char *argv[])
 
   for (auto iter = map.begin(); iter != map.end() && !quit; ++iter)
   {
-    const ohm::OccupancyNodeConst node = *iter;
+    const ohm::VoxelConst voxel = *iter;
     if (last_region != iter.key().regionKey())
     {
       prog.incrementProgress();
@@ -269,20 +269,20 @@ int main(int argc, char *argv[])
     }
     if (opt.mode == kExportOccupancy)
     {
-      if (map.occupancyType(node) == ohm::Occupied)
+      if (map.occupancyType(voxel) == ohm::Occupied)
       {
-        v = map.voxelCentreLocal(node.key());
+        v = map.voxelCentreLocal(voxel.key());
         ply.addVertex(v);
         ++point_count;
       }
     }
     else if (opt.mode == kExportClearance)
     {
-      if (node.isValid() && node.clearance() >= 0 && node.clearance() < opt.colour_scale)
+      if (voxel.isValid() && voxel.clearance() >= 0 && voxel.clearance() < opt.colour_scale)
       {
-        const float range_value = node.clearance();
+        const float range_value = voxel.clearance();
         uint8_t c = uint8_t(255 * std::max(0.0f, (opt.colour_scale - range_value) / opt.colour_scale));
-        v = map.voxelCentreLocal(node.key());
+        v = map.voxelCentreLocal(voxel.key());
         ply.addVertex(v, Colour(c, 128, 0));
         ++point_count;
       }

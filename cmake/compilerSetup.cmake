@@ -9,15 +9,16 @@
 # Configure warnings for gcc.
 macro(warnings_gcc)
   add_compile_options(
-    "-pedantic"
+    # "-pedantic"
     "-Wall"
     "-Wextra"
     # "-Wconversion"
-    "-Werror=pedantic"
+    # "-Werror=pedantic"
     "-Werror=vla"
     "-Wno-unused-function"
     "-Wno-missing-braces"
     "-Wno-unknown-pragmas"
+    "-Wno-parentheses"
   )
 endmacro(warnings_gcc)
 

@@ -48,12 +48,12 @@ namespace ohm
   /// voxel occupancy may decay over time.
   ///
   /// Voxels are never accessed directly. Rather, various access methods return
-  /// an @c OccupancyNode or @c OccupancyNodeCost wrapper objects. Voxels may have three
+  /// an @c Voxel or @c VoxelCost wrapper objects. Voxels may have three
   /// states as defined by @c OccupancyType [uncertain, free, occupied], accessible via
   /// @c occupancyType(). The state is entirely dependent on a voxel's @c value()
   /// with values greater than or equal to the @c occupancyThresholdValue()
   /// being occupied, values less than the threshold are free. Uncertain voxels have a value
-  /// equal to @c OccupancyNode::invalidMarkerValue().
+  /// equal to @c Voxel::invalidMarkerValue().
   ///
   /// The map is typically updated by collecting point samples with corresponding sensor origin
   /// coordinates. For each origin/sample pair, @c calculateSegmentKeys() is used to identify
@@ -107,7 +107,7 @@ namespace ohm
 
       /// Access the voxel this iterator refers to. Iterator must be valid before calling.
       /// @return An constant reference wrapper for the iterator's voxel.
-      OccupancyNodeConst node() const;
+      VoxelConst voxel() const;
 
     protected:
       /// Move to the next voxel. Iterator becomes invalid if already referencing the last voxel.
@@ -151,32 +151,32 @@ namespace ohm
 
       /// Access the voxel this iterator refers to. Iterator must be valid before calling.
       /// @return A non-constant reference wrapper for the iterator's voxel.
-      OccupancyNode node();
-      using base_iterator::node;
+      Voxel voxel();
+      using base_iterator::voxel;
 
-      /// Alias for @c node().
-      /// @return Same as @c node().
-      inline OccupancyNode &operator *() { resolveNode(); return node_; }
+      /// Alias for @c voxel().
+      /// @return Same as @c voxel().
+      inline Voxel &operator *() { resolveNode(); return voxel_; }
 
-      /// Alias for @c node().
-      /// @return Same as @c node().
-      inline const OccupancyNode &operator *() const { resolveNode(); return node_; }
+      /// Alias for @c voxel().
+      /// @return Same as @c voxel().
+      inline const Voxel &operator *() const { resolveNode(); return voxel_; }
 
-      /// Alias for @c node().
-      /// @return Same as @c node().
-      inline OccupancyNode *operator ->() { resolveNode(); return &node_; }
+      /// Alias for @c voxel().
+      /// @return Same as @c voxel().
+      inline Voxel *operator ->() { resolveNode(); return &voxel_; }
 
-      /// Alias for @c node().
-      /// @return Same as @c node().
-      inline const OccupancyNode *operator ->() const { resolveNode(); return &node_; }
+      /// Alias for @c voxel().
+      /// @return Same as @c voxel().
+      inline const Voxel *operator ->() const { resolveNode(); return &voxel_; }
 
     private:
-      /// Resolve the @c base_iterator data into @c _node.
-      inline void resolveNode() const { node_ = const_cast<iterator *>(this)->node(); }
+      /// Resolve the @c base_iterator data into @c _voxel.
+      inline void resolveNode() const { voxel_ = const_cast<iterator *>(this)->voxel(); }
 
-      /// A cached @c OccupancyNode version of the underlying @c base_iterator data, here to support
+      /// A cached @c Voxel version of the underlying @c base_iterator data, here to support
       /// the @c * and @c -> operators.
-      mutable OccupancyNode node_;
+      mutable Voxel voxel_;
     };
 
     /// Constant (read only) iterator for an @c OccupancyMap.
@@ -202,21 +202,21 @@ namespace ohm
       /// @return @c This iterator before the increment.
       inline const_iterator operator++(int) { const_iterator iter(*this);  walkNext(); return iter; }
 
-      /// Alias for @c node().
-      /// @return Same as @c node().
-      inline const OccupancyNodeConst &operator *() const { resolveNode(); return node_; }
+      /// Alias for @c voxel().
+      /// @return Same as @c voxel().
+      inline const VoxelConst &operator *() const { resolveNode(); return voxel_; }
 
-      /// Alias for @c node().
-      /// @return Same as @c node().
-      inline const OccupancyNodeConst *operator ->() const { resolveNode(); return &node_; }
+      /// Alias for @c voxel().
+      /// @return Same as @c voxel().
+      inline const VoxelConst *operator ->() const { resolveNode(); return &voxel_; }
 
     private:
-      /// Resolve the @c base_iterator data into @c _node.
-      inline void resolveNode() const { node_ = node(); }
+      /// Resolve the @c base_iterator data into @c _voxel.
+      inline void resolveNode() const { voxel_ = voxel(); }
 
-      /// A cached @c OccupancyNodeConst version of the underlying @c base_iterator data, here to support
+      /// A cached @c VoxelConst version of the underlying @c base_iterator data, here to support
       /// the @c * and @c -> operators.
-      mutable OccupancyNodeConst node_;
+      mutable VoxelConst voxel_;
     };
 
     /// Construct an @c OccupancyMap at the given voxels resolution.
@@ -228,7 +228,7 @@ namespace ohm
     /// - float for the occupancy value
     /// - float for the clearance value
     /// There is also a sub-sampled clearance array in each chunk (size TBC).
-    /// See also @c nodeMemoryPerRegion().
+    /// See also @c voxelMemoryPerRegion().
     ///
     /// @param resolution The resolution for a single voxel in the map. Any zero value
     ///   dimension is replaced with its default value; e.g., @c OHM_DEFAULT_CHUNK_DIM_X.
@@ -241,7 +241,7 @@ namespace ohm
     /// @param region_voxel_dimensions Voxel dimensions of each chunk. Any zero value
     ///   dimension is replaced with its default value; e.g., @c OHM_DEFAULT_CHUNK_DIM_X.
     /// @return The memory required for the voxels in each region in bytes.
-    static size_t nodeMemoryPerRegion(glm::u8vec3 region_voxel_dimensions = glm::u8vec3(0, 0, 0));
+    static size_t voxelMemoryPerRegion(glm::u8vec3 region_voxel_dimensions = glm::u8vec3(0, 0, 0));
 
     // Iterator.
     /// Create an iterator to the first voxel in the map. The map should not have voxels added or removed
@@ -268,16 +268,16 @@ namespace ohm
     /// @param key The key for the voxel to access.
     /// @param allow_create True to create the voxel if it does not exist.
     /// @param cache Optional cache used to expidite region search.
-    /// @return An @c OccupancyNode wrapper object for the keyed @p MayNode. The voxel is
+    /// @return An @c Voxel wrapper object for the keyed @p MayNode. The voxel is
     ///   null if does not exist and creation is not allowed.
-    OccupancyNode node(const OccupancyKey &key, bool allow_create, MapCache *cache = nullptr);
+    Voxel voxel(const OccupancyKey &key, bool allow_create, MapCache *cache = nullptr);
     /// @overload
-    OccupancyNodeConst node(const OccupancyKey &key, MapCache *cache = nullptr) const;
+    VoxelConst voxel(const OccupancyKey &key, MapCache *cache = nullptr) const;
 
-    /// Determine the @c OccupancyType of @p node
-    /// @param node The node to check. May be null.
-    /// @return The @c OccupancyType of @p node.
-    int occupancyType(const OccupancyNodeConst &node) const;
+    /// Determine the @c OccupancyType of @p voxel
+    /// @param voxel The voxel to check. May be null.
+    /// @return The @c OccupancyType of @p voxel.
+    int occupancyType(const VoxelConst &voxel) const;
 
     /// Calculate the approximate memory usage of this map in bytes.
     /// @return The approximate memory usage (bytes).
@@ -346,7 +346,7 @@ namespace ohm
     ///
     /// This compares each @c MapRegion::touched_time against @p timestamp, removing regions
     /// with a @c touched_time before @p timestamp. The region touch time is updated via
-    /// @c OccupancyNode::touch(), @c touchRegion() or @c touchRegionByKey().
+    /// @c Voxel::touch(), @c touchRegion() or @c touchRegionByKey().
     ///
     /// @param timestamp The reference time.
     /// @return The number of removed regions.
@@ -368,12 +368,12 @@ namespace ohm
     /// @see @c touchRegionByKey()
     inline void touchRegion(const glm::vec3 &point, double timestamp, bool allow_create = false) { touchRegion(voxelKey(point), timestamp, allow_create); }
 
-    /// Touch the @c MapRegion which contains @p nodeKey.
-    /// @param node_key A voxel key from which to resolve a containing region.
+    /// Touch the @c MapRegion which contains @p voxelKey.
+    /// @param voxel_key A voxel key from which to resolve a containing region.
     /// @param timestamp The timestamp to update the region touch time to.
     /// @param allow_create Create the region (all uncertain) if it doesn't exist?
     /// @see @c touchRegionByKey()
-    inline void touchRegion(const OccupancyKey &node_key, double timestamp, bool allow_create = false) { touchRegionByKey(node_key.regionKey(), timestamp, allow_create); }
+    inline void touchRegion(const OccupancyKey &voxel_key, double timestamp, bool allow_create = false) { touchRegionByKey(voxel_key.regionKey(), timestamp, allow_create); }
 
     /// Touch the @c MapRegion identified by @p regionKey.
     ///
@@ -410,66 +410,66 @@ namespace ohm
     // Probabilistic map functions.
     //-------------------------------------------------------
 
-    /// Defines the value adjustment made to a node when integrating a hit into the map.
+    /// Defines the value adjustment made to a voxel when integrating a hit into the map.
     /// This is equivalent to <tt>valueToProbability(hitProbability())</tt>.
     ///
     /// The value must be positive to represent an increase in probability.
     ///
-    /// @return The value adjustment made to a node on recording a 'hit'.
+    /// @return The value adjustment made to a voxel on recording a 'hit'.
     /// @see integrateHit()
     float hitValue() const;
-    /// The probability adjustment made to a node when integrating a hit into the map.
+    /// The probability adjustment made to a voxel when integrating a hit into the map.
     /// @return The probability adjustment represented by a 'hit' in the map.
     /// @see integrateHit()
     float hitProbability() const;
-    /// Sets the node occupancy probability used to represent a single hit in the map.
+    /// Sets the voxel occupancy probability used to represent a single hit in the map.
     ///
-    /// The probability of node occupancy and the accumulation of such is equivalent to the
+    /// The probability of voxel occupancy and the accumulation of such is equivalent to the
     /// logic used by Octomap, which serves as good reference material.
     ///
     /// Note the @p probabilty must be at least 0.5 for well define behaviour. Otherwise each hit
-    /// will actually decrease the occupancy probability of a node.
+    /// will actually decrease the occupancy probability of a voxel.
     ///
-    /// Probablity do not affect already populated nodes in the map, only future updates.
+    /// Probablity do not affect already populated voxels in the map, only future updates.
     ///
     /// @param probability The new probablity associated with a hit. Should be in the range (0.5, 1.0].
     void setHitProbability(float probability);
 
-    /// Defines the value adjustment made to a node when integrating a miss or free space into the map.
+    /// Defines the value adjustment made to a voxel when integrating a miss or free space into the map.
     /// This is equivalent to <tt>valueToProbability(missProbability())</tt>.
     ///
     /// The value must be negative to represent an decrease in probability.
     ///
-    /// @return The value adjustment made to a node on recording a 'hit'.
+    /// @return The value adjustment made to a voxel on recording a 'hit'.
     /// @see integrateMiss()
     float missValue() const;
-    /// The probability adjustment made to a node when integrating a miss into the map.
+    /// The probability adjustment made to a voxel when integrating a miss into the map.
     /// @return The probability adjustment represented by a 'miss' in the map.
     /// @see integrateMiss()
     float missProbability() const;
-    /// Sets the node occupancy probability used to represent a single miss in the map.
+    /// Sets the voxel occupancy probability used to represent a single miss in the map.
     ///
-    /// The probability of node occupancy and the accumulation of such is equivalent to the
+    /// The probability of voxel occupancy and the accumulation of such is equivalent to the
     /// logic used by Octomap, which serves as good reference material.
     ///
     /// Note the @p probabilty must be less than 0.5 for well define behaviour. Otherwise each miss
-    /// will actually increase the occupancy probability of a node.
+    /// will actually increase the occupancy probability of a voxel.
     ///
-    /// Probablity do not affect already populated nodes in the map, only future updates.
+    /// Probablity do not affect already populated voxels in the map, only future updates.
     ///
     /// @param probability The new probablity associated with a miss. Should be in the range [0, 0.5).
     void setMissProbability(float probability);
 
-    /// Get theshold value at which a node is considered occupied.
+    /// Get theshold value at which a voxel is considered occupied.
     /// This is equivalent to <tt>valueToProbability(occupancyThresholdProbability())</tt>.
     /// Use of this value is not generally recommended as @c occupancyThresholdProbability() provides
     /// a more meaningful value.
-    /// @return The value at which a node is considered occupied.
+    /// @return The value at which a voxel is considered occupied.
     float occupancyThresholdValue() const;
-    /// Get theshold probability at which a node is considered occupied.
-    /// @return The probabilty [0, 1] at which a node is considered occupied.
+    /// Get theshold probability at which a voxel is considered occupied.
+    /// @return The probabilty [0, 1] at which a voxel is considered occupied.
     float occupancyThresholdProbability() const;
-    /// Set the threshold at which to considere a node occupied.
+    /// Set the threshold at which to considere a voxel occupied.
     ///
     /// Setting a value less than 0.5 is not recommended as this can include "miss" results integrated
     /// into the map.
@@ -477,94 +477,94 @@ namespace ohm
     /// @param probability The new occupancy threshold [0, 1].
     void setOccupancyThresholdProbability(float probability);
 
-    /// Adjust @p node by increasing its occupancy probability. The value of the node is adjusted by
+    /// Adjust @p voxel by increasing its occupancy probability. The value of the voxel is adjusted by
     /// adding @c hitValue(), which logically increases its occupancy probability by @c hitProbability().
-    /// @param node The node to increase the occupancy probabilty for. Must be a valid, non-null node.
-    void integrateHit(OccupancyNode &node) const;
+    /// @param voxel The voxel to increase the occupancy probabilty for. Must be a valid, non-null voxel.
+    void integrateHit(Voxel &voxel) const;
 
-    /// Integrate a hit into the map, creating the occupancy node as required.
+    /// Integrate a hit into the map, creating the occupancy voxel as required.
     /// @param point The global coordinate to integrate a hit at.
     /// @param cache Optional cache used to expidite region search.
-    /// @return A reference to the node containing @p point after integrating the hit.
-    OccupancyNode integrateHit(const glm::dvec3 &point, MapCache *cache = nullptr);
+    /// @return A reference to the voxel containing @p point after integrating the hit.
+    Voxel integrateHit(const glm::dvec3 &point, MapCache *cache = nullptr);
 
     /// @overload
-    OccupancyNode integrateHit(const OccupancyKey &key, MapCache *cache = nullptr);
+    Voxel integrateHit(const OccupancyKey &key, MapCache *cache = nullptr);
 
-    /// Adjust @p node by decreasing its occupancy probability. The value of the node is adjusted by
+    /// Adjust @p voxel by decreasing its occupancy probability. The value of the voxel is adjusted by
     /// adding @c missValue() which should be negative. This logically decreases its occupancy probability
     /// by @c missProbability().
-    /// @param node The node to decrease the occupancy probabilty for. Must be a valid, non-null node.
-    void integrateMiss(OccupancyNode &node) const;
+    /// @param voxel The voxel to decrease the occupancy probabilty for. Must be a valid, non-null voxel.
+    void integrateMiss(Voxel &voxel) const;
 
-    /// Integrate a miss into the map, creating the occupancy node as required.
+    /// Integrate a miss into the map, creating the occupancy voxel as required.
     /// @param point The global coordinate to integrate a hit at.
     /// @param cache Optional cache used to expidite region search.
-    /// @return A reference to the node containing @p point after integrating the hit.
-    OccupancyNode integrateMiss(const glm::dvec3 &point, MapCache *cache = nullptr);
+    /// @return A reference to the voxel containing @p point after integrating the hit.
+    Voxel integrateMiss(const glm::dvec3 &point, MapCache *cache = nullptr);
 
     /// @overload
-    OccupancyNode integrateMiss(const OccupancyKey &key, MapCache *cache = nullptr);
+    Voxel integrateMiss(const OccupancyKey &key, MapCache *cache = nullptr);
 
-    /// Adjust the value of @p node by focibly setting its occupancy probabilty to @c hitProbability().
-    /// @param node The node to increase the occupancy probabilty for. Must be a valid, non-null node.
-    inline void setHit(OccupancyNode &node) const { if (node.isValid()) node.setValue(hitValue()); }
-    /// Adjust the value of @p node by focibly setting its occupancy probabilty to @c missProbability().
-    /// @param node The node to increase the occupancy probabilty for. Must be a valid, non-null node.
-    inline void setMiss(OccupancyNode &node) const { if (node.isValid()) node.setValue(missValue()); }
+    /// Adjust the value of @p voxel by focibly setting its occupancy probabilty to @c hitProbability().
+    /// @param voxel The voxel to increase the occupancy probabilty for. Must be a valid, non-null voxel.
+    inline void setHit(Voxel &voxel) const { if (voxel.isValid()) voxel.setValue(hitValue()); }
+    /// Adjust the value of @p voxel by focibly setting its occupancy probabilty to @c missProbability().
+    /// @param voxel The voxel to increase the occupancy probabilty for. Must be a valid, non-null voxel.
+    inline void setMiss(Voxel &voxel) const { if (voxel.isValid()) voxel.setValue(missValue()); }
 
-    /// The minimum value a node can have. Value adjustments are clamped to this minimum.
-    /// @return The minimum node value.
+    /// The minimum value a voxel can have. Value adjustments are clamped to this minimum.
+    /// @return The minimum voxel value.
     float minNodeValue() const;
 
-    /// Set the minimum value a node can have. Value adjustments are clamped to this minimum.
-    /// Changing the minimum value does not affect any existing nodes with smaller values.
+    /// Set the minimum value a voxel can have. Value adjustments are clamped to this minimum.
+    /// Changing the minimum value does not affect any existing voxels with smaller values.
     /// @param value The new minimum value.
     void setMinNodeValue(float value);
 
-    /// Set the minimum value for a node expressed as a probability.
+    /// Set the minimum value for a voxel expressed as a probability.
     /// @see @c setMinNodeValue
     /// @param probability The minimum probability value allowed.
     void setMinNodeProbability(float probability);
 
-    /// Get the minimum value for a node expressed as a probability.
-    /// @return The minimum node occupancy probability.
+    /// Get the minimum value for a voxel expressed as a probability.
+    /// @return The minimum voxel occupancy probability.
     float minNodeProbability() const;
 
-    /// Do nodes saturate at the minimum value, preventing further adjustment?
-    /// @return True if nodes saturate and maintain state at the minimum value.
+    /// Do voxels saturate at the minimum value, preventing further adjustment?
+    /// @return True if voxels saturate and maintain state at the minimum value.
     bool saturateAtMinValue() const;
 
-    /// Set the node minimum value staturation value. Saturation behaviour can be cirumvented
+    /// Set the voxel minimum value staturation value. Saturation behaviour can be cirumvented
     /// using some value adjustment functions.
-    /// @param saturate True to have nodes prevent further value adjustments at the minimum value.
+    /// @param saturate True to have voxels prevent further value adjustments at the minimum value.
     void setSaturateAtMinValue(bool saturate);
 
-    /// The maximum value a node can have. Value adjustments are clamped to this maximum.
-    /// @return The maximum node value.
+    /// The maximum value a voxel can have. Value adjustments are clamped to this maximum.
+    /// @return The maximum voxel value.
     float maxNodeValue() const;
 
-    /// Set the maximum value a node can have. Value adjustments are clamped to this maximum.
-    /// Changing the maximum value does not affect any existing nodes with larger values.
+    /// Set the maximum value a voxel can have. Value adjustments are clamped to this maximum.
+    /// Changing the maximum value does not affect any existing voxels with larger values.
     /// @param value The new maximum value.
     void setMaxNodeValue(float value);
 
-    /// Set the maximum value for a node expressed as a probability.
+    /// Set the maximum value for a voxel expressed as a probability.
     /// @see @c setMinNodeValue
     /// @param probability The maximum probability value allowed.
     void setMaxNodeProbability(float probability);
 
-    /// Get the maxnimum value for a node expressed as a probability.
-    /// @return The maximum node occupancy probability.
+    /// Get the maxnimum value for a voxel expressed as a probability.
+    /// @return The maximum voxel occupancy probability.
     float maxNodeProbability() const;
 
-    /// Do nodes saturate at the maximum value, preventing further adjustment?
-    /// @return True if nodes saturate and maintain state at the maximum value.
+    /// Do voxels saturate at the maximum value, preventing further adjustment?
+    /// @return True if voxels saturate and maintain state at the maximum value.
     bool saturateAtMaxValue() const;
 
-    /// Set the node maximum value staturation value. Saturation behaviour can be cirumvented
+    /// Set the voxel maximum value staturation value. Saturation behaviour can be cirumvented
     /// using some value adjustment functions.
-    /// @param saturate True to have nodes prevent further value adjustments at the minimum value.
+    /// @param saturate True to have voxels prevent further value adjustments at the minimum value.
     void setSaturateAtMaxValue(bool saturate);
 
     //-------------------------------------------------------
@@ -572,15 +572,15 @@ namespace ohm
     //-------------------------------------------------------
 
     /// Add a to to the map at @p key, settings its occupancy @p value.
-    /// This creates map regions as required. Should the node already exist, then the existing
-    /// node value is replaced by @p value.
+    /// This creates map regions as required. Should the voxel already exist, then the existing
+    /// voxel value is replaced by @p value.
     ///
-    /// @param key Identifies the node to add (or replace).
-    /// @param value The value to assign the node.
-    /// @return A mutable reference to the node. This object may be short lived and should only be
+    /// @param key Identifies the voxel to add (or replace).
+    /// @param value The value to assign the voxel.
+    /// @return A mutable reference to the voxel. This object may be short lived and should only be
     ///   breifly retained.
     /// @see voxelKey(), voxelKeyLocal()
-    OccupancyNode addNode(const OccupancyKey &key, float value);
+    Voxel addNode(const OccupancyKey &key, float value);
 
     /// Retrieve the coordinates for the centre of the voxel identified by @p key local to the map origin.
     /// @param key The voxel of interest.
@@ -738,63 +738,63 @@ namespace ohm
   };
 
 
-  inline void OccupancyMap::integrateHit(OccupancyNode &node) const
+  inline void OccupancyMap::integrateHit(Voxel &voxel) const
   {
-    if (node.isValid())
+    if (voxel.isValid())
     {
-      if (!node.isUncertain())
+      if (!voxel.isUncertain())
       {
-        node.setValue(node.value() + hitValue());
+        voxel.setValue(voxel.value() + hitValue());
       }
       else
       {
-        node.setValue(hitValue());
+        voxel.setValue(hitValue());
       }
     }
   }
 
 
-  inline OccupancyNode OccupancyMap::integrateHit(const glm::dvec3 &point, MapCache *cache)
+  inline Voxel OccupancyMap::integrateHit(const glm::dvec3 &point, MapCache *cache)
   {
     OccupancyKey key = voxelKey(point);
     return integrateHit(key, cache);
   }
 
 
-  inline OccupancyNode OccupancyMap::integrateHit(const OccupancyKey &key, MapCache *cache)
+  inline Voxel OccupancyMap::integrateHit(const OccupancyKey &key, MapCache *cache)
   {
-    OccupancyNode voxel = node(key, true, cache);
+    Voxel voxel = this->voxel(key, true, cache);
     integrateHit(voxel);
     return voxel;
   }
 
 
-  inline void OccupancyMap::integrateMiss(OccupancyNode &node) const
+  inline void OccupancyMap::integrateMiss(Voxel &voxel) const
   {
-    if (node.isValid())
+    if (voxel.isValid())
     {
-      if (!node.isUncertain())
+      if (!voxel.isUncertain())
       {
-        node.setValue(node.value() + missValue());
+        voxel.setValue(voxel.value() + missValue());
       }
       else
       {
-        node.setValue(missValue());
+        voxel.setValue(missValue());
       }
     }
   }
 
 
-  inline OccupancyNode OccupancyMap::integrateMiss(const glm::dvec3 &point, MapCache *cache)
+  inline Voxel OccupancyMap::integrateMiss(const glm::dvec3 &point, MapCache *cache)
   {
     OccupancyKey key = voxelKey(point);
     return integrateMiss(key, cache);
   }
 
 
-  inline OccupancyNode OccupancyMap::integrateMiss(const OccupancyKey &key, MapCache *cache)
+  inline Voxel OccupancyMap::integrateMiss(const OccupancyKey &key, MapCache *cache)
   {
-    OccupancyNode voxel = node(key, true, cache);
+    Voxel voxel = this->voxel(key, true, cache);
     integrateMiss(voxel);
     return voxel;
   }

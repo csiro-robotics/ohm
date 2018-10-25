@@ -6,9 +6,10 @@ find_package(GTest)
 
 set(SOURCES
   GpuMapTest.cpp
+  GpuTests.cpp
   KeyTests.cpp
-  LinekeysTests.cpp
-  LinequeryTests.cpp
+  LineKeysTests.cpp
+  LineQueryTests.cpp
   MapperTests.cpp
   MapTests.cpp
   OhmTestUtil.cpp

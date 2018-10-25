@@ -39,19 +39,19 @@ set(SOURCES
 set(PUBLIC_HEADERS
   Colour.h
   cxxopts.hpp
-  p2p.h
+  GlmStream.h
+  LineWalk.h
   OhmUtil.h
-  Plymesh.h
+  Options.h
+  p2p.h
+  PlyMesh.h
   PointsDoubleBuffer.h
   PointsDoubleBuffer.inl
   PointsRingBuffer.h
   PointsRingBuffer.inl
-  ProgressMonitor.h
-  GlmStream.h
-  LineWalk.h
-  Options.h
   Profile.h
   ProfileMarker.h
+  ProgressMonitor.h
   SafeIO.h
   ScopedTimeDisplay.h
   SpinLock.h

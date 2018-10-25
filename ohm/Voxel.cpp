@@ -25,15 +25,15 @@ namespace
     if (chunk && map)
     {
       // Validate layer.
-      assert(layer_index < chunk->layout->layerCount());
+      assert(layer_index < int(chunk->layout->layerCount()));
       const MapLayer *layer = chunk->layout->layerPtr(layer_index);
       assert(layer->voxelByteSize() == sizeof(T));
       // Account for sub sampling.
       const glm::u8vec3 layer_dim = layer->dimensions(map->region_voxel_dimensions);
-      // Resolve node index within this layer.
+      // Resolve voxel index within this layer.
       const unsigned index = ::voxelIndex(key, layer_dim);
       T *voxels = reinterpret_cast<T *>(layer->voxels(*chunk));
-      assert(index < layer_dim.x * layer_dim.y * layer_dim.z);
+      assert(index < unsigned(layer_dim.x * layer_dim.y * layer_dim.z));
       return &voxels[index];
     }
 
@@ -41,7 +41,7 @@ namespace
   }
 }
 
-float NodeBase::occupancy() const
+float VoxelBase::occupancy() const
 {
   if (const float *occupancy = simpleVoxelPtr<const float>(key_, chunk_, map_, kDlOccupancy))
   {
@@ -52,7 +52,7 @@ float NodeBase::occupancy() const
 }
 
 
-float NodeBase::clearance(bool invalid_as_obstructed) const
+float VoxelBase::clearance(bool invalid_as_obstructed) const
 {
   if (const float *clearance = simpleVoxelPtr<const float>(key_, chunk_, map_, kDlClearance))
   {
@@ -63,27 +63,27 @@ float NodeBase::clearance(bool invalid_as_obstructed) const
 }
 
 
-double NodeBase::regionTimestamp() const
+double VoxelBase::regionTimestamp() const
 {
   return (chunk_) ? chunk_->touched_time : 0.0;
 }
 
 
-bool NodeBase::isOccupied() const
+bool VoxelBase::isOccupied() const
 {
   const float val = value();
   return !isNull() && val >= map_->occupancy_threshold_value && val != invalidMarkerValue();
 }
 
 
-bool NodeBase::isFree() const
+bool VoxelBase::isFree() const
 {
   const float val = value();
   return !isNull() && val < map_->occupancy_threshold_value && val != invalidMarkerValue();
 }
 
 
-bool NodeBase::nextInRegion()
+bool VoxelBase::nextInRegion()
 {
   if (!chunk_)
   {
@@ -116,28 +116,28 @@ bool NodeBase::nextInRegion()
 }
 
 
-void OccupancyNode::setValue(float value, bool force)
+void Voxel::setValue(float value, bool force)
 {
   if (float *voxel_ptr = simpleVoxelPtr<float>(key_, chunk_, map_, kDlOccupancy))
   {
     if (value != invalidMarkerValue())
     {
-      // Clamp the value to the allowed node range.
-      value = std::max(map_->min_node_value, std::min(value, map_->max_node_value));
-      // Honour saturation. Once saturated a node value could not change.
+      // Clamp the value to the allowed voxel range.
+      value = std::max(map_->min_voxel_value, std::min(value, map_->max_voxel_value));
+      // Honour saturation. Once saturated a voxel value could not change.
       if (force || *voxel_ptr == invalidMarkerValue() ||
-          (value < *voxel_ptr && (!map_->saturate_at_max_value || *voxel_ptr < map_->max_node_value)) ||
-          (value > *voxel_ptr && (!map_->saturate_at_min_value || *voxel_ptr > map_->min_node_value)))
+          (value < *voxel_ptr && (!map_->saturate_at_max_value || *voxel_ptr < map_->max_voxel_value)) ||
+          (value > *voxel_ptr && (!map_->saturate_at_min_value || *voxel_ptr > map_->min_voxel_value)))
       {
         *voxel_ptr = value;
-        // This node is now valid. Update the chunk's first valid key as required.
+        // This voxel is now valid. Update the chunk's first valid key as required.
         chunk_->updateFirstValid(key_.localKey(), map_->region_voxel_dimensions);
       }
     }
     else
     {
       *voxel_ptr = value;
-      // This node is now invalid. If it was the first valid node, then it no longer is and
+      // This voxel is now invalid. If it was the first valid voxel, then it no longer is and
       // we need to update it (brute force).
       if (chunk_->first_valid_index == key_.localKey())
       {
@@ -153,13 +153,13 @@ void OccupancyNode::setValue(float value, bool force)
 #ifdef OHM_VALIDATION
   else
   {
-    fprintf(stderr, "Attempting to modify null node\n");
+    fprintf(stderr, "Attempting to modify null voxel\n");
   }
 #endif // OHM_VALIDATION
 }
 
 
-void OccupancyNode::setClearance(float range)
+void Voxel::setClearance(float range)
 {
   if (float *voxel_ptr = simpleVoxelPtr<float>(key_, chunk_, map_, kDlClearance))
   {
@@ -169,7 +169,7 @@ void OccupancyNode::setClearance(float range)
 }
 
 
-void OccupancyNode::touchRegion(double timestamp)
+void Voxel::touchRegion(double timestamp)
 {
   if (chunk_)
   {
@@ -178,7 +178,7 @@ void OccupancyNode::touchRegion(double timestamp)
 }
 
 
-void OccupancyNode::touchMap()
+void Voxel::touchMap()
 {
   if (map_ && chunk_)
   {
@@ -188,7 +188,7 @@ void OccupancyNode::touchMap()
 }
 
 
-OccupancyNode OccupancyNodeConst::makeMutable() const
+Voxel VoxelConst::makeMutable() const
 {
-  return OccupancyNode(key_, chunk_, map_);
+  return Voxel(key_, chunk_, map_);
 }

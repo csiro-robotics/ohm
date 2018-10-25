@@ -35,8 +35,8 @@ namespace ohm
     float hit_probability = 0.0f;
     float miss_value = 0.0f;
     float miss_probability = 0.0f;
-    float min_node_value = 0.0f;
-    float max_node_value = 0.0f;
+    float min_voxel_value = 0.0f;
+    float max_voxel_value = 0.0f;
     bool saturate_at_min_value = false;
     bool saturate_at_max_value = false;
     MapLayout layout;

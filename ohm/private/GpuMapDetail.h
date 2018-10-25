@@ -16,10 +16,12 @@
 #include <gputil/gpuEvent.h>
 
 #include <unordered_map>
+#include <vector>
 
 namespace ohm
 {
   class OccupancyMap;
+  class GpuTransformSamples;
 
   struct GpuMapDetail
   {
@@ -28,6 +30,9 @@ namespace ohm
     typedef std::unordered_multimap<unsigned, glm::i16vec3> RegionKeyMap;
     gputil::Event ray_upload_events[kBuffersCount];
     gputil::Buffer ray_buffers[kBuffersCount];
+    gputil::Buffer transform_positions_buffer;
+    gputil::Buffer transform_rotations_buffer;
+    gputil::Buffer transform_times_buffer;
 
     gputil::Event region_key_upload_events[kBuffersCount];
     gputil::Event region_offset_upload_events[kBuffersCount];
@@ -36,9 +41,16 @@ namespace ohm
 
     gputil::Event region_update_events[kBuffersCount];
 
+    /// CPU buffer to read back results from GPU ray transformation.
+    /// Only ever used in a transient fashion.
+    std::vector<glm::vec4> transformed_rays;
+
+    GpuTransformSamples *transform_samples = nullptr;
+
     double max_range_filter = 0;
 
     unsigned ray_counts[kBuffersCount] = { 0, 0 };
+    unsigned transform_count = 0;
     unsigned region_counts[kBuffersCount] = { 0, 0 };
 
     int next_buffers_index = 0;
@@ -52,8 +64,9 @@ namespace ohm
     GpuMapDetail(OccupancyMap *map, bool borrowed_map)
       : map(map)
       , borrowed_map(borrowed_map)
-    {
-    }
+    {}
+
+    ~GpuMapDetail();
 
     RegionKeyMap::iterator findRegion(unsigned region_hash, const glm::i16vec3 &region_key);
     RegionKeyMap::const_iterator findRegion(unsigned region_hash, const glm::i16vec3 &region_key) const;
@@ -67,13 +80,15 @@ namespace ohm
   /// Ensure the GPU cache is initialised. Ok to call if already initialised.
   GpuCache *initialiseGpuCache(OccupancyMap &map, size_t layer_gpu_mem_size, bool mappable_buffers);
 
-  inline GpuMapDetail::RegionKeyMap::iterator GpuMapDetail::findRegion(const unsigned region_hash, const glm::i16vec3 &region_key)
+  inline GpuMapDetail::RegionKeyMap::iterator GpuMapDetail::findRegion(const unsigned region_hash,
+                                                                       const glm::i16vec3 &region_key)
   {
     return findRegion<RegionKeyMap::iterator>(regions, region_hash, region_key);
   }
 
 
-  inline GpuMapDetail::RegionKeyMap::const_iterator GpuMapDetail::findRegion(const unsigned region_hash, const glm::i16vec3 &region_key) const
+  inline GpuMapDetail::RegionKeyMap::const_iterator GpuMapDetail::findRegion(const unsigned region_hash,
+                                                                             const glm::i16vec3 &region_key) const
   {
     return findRegion<RegionKeyMap::const_iterator>(regions, region_hash, region_key);
   }
@@ -94,6 +109,6 @@ namespace ohm
 
     return regions.end();
   }
-}
+}  // namespace ohm
 
-#endif // OHM_GPUMAPDETAIL_H
+#endif  // OHM_GPUMAPDETAIL_H

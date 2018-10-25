@@ -107,7 +107,7 @@ namespace ohm
 
     return currentNeighbours;
 #else  // OHM_THREADS
-    occupancyQueryRegions(map, query, closest, queryMinExtents, queryMaxExtents, regionQueryFunc);
+    return occupancyQueryRegions(map, query, closest, queryMinExtents, queryMaxExtents, regionQueryFunc);
 #endif // OHM_THREADS
   }
 

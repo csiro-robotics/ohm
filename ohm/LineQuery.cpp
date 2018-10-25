@@ -13,7 +13,7 @@
 #include "ClearanceProcess.h"
 #include "private/LineQueryDetail.h"
 #include "private/OccupancyMapDetail.h"
-#include "private/NodeAlgorithms.h"
+#include "private/VoxelAlgorithms.h"
 #include "private/OccupancyQueryAlg.h"
 
 #include "GpuLayerCache.h"
@@ -231,7 +231,7 @@ bool LineQuery::onExecute()
     // Populate results.
     d->intersected_voxels.resize(d->segment_keys.size());
     d->ranges.resize(d->segment_keys.size());
-    OccupancyNodeConst node;
+    VoxelConst voxel;
 
     if (!d->segment_keys.empty())
     {
@@ -241,11 +241,11 @@ bool LineQuery::onExecute()
       for (size_t i = 0; i < d->segment_keys.size(); ++i)
       {
         d->intersected_voxels[i] = d->segment_keys[i];
-        node = d->map->node(d->segment_keys[i]);
+        voxel = d->map->voxel(d->segment_keys[i]);
 
-        if (node.isValid())
+        if (voxel.isValid())
         {
-          range = node.clearance((d->query_flags & kQfUnknownAsOccupied) != 0);
+          range = voxel.clearance((d->query_flags & kQfUnknownAsOccupied) != 0);
           // Range will be -1 from ClearanceProcess for unobstructed voxels (to the search radius).
           // Override the result with d->default_range, which defaults to -1 as well.
           if (range < 0)

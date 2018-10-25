@@ -178,19 +178,19 @@ namespace gpumap
     unsigned logged_failures = 0;
     for (auto iter = reference_map.begin(); iter != reference_map.end(); ++iter)
     {
-      if (iter->isValid() && iter->value() != ohm::NodeBase::invalidMarkerValue())
+      if (iter->isValid() && iter->value() != ohm::VoxelBase::invalidMarkerValue())
       {
         ++processed;
-        ohm::OccupancyNodeConst gpu_node = test_map.node(iter->key());
-        EXPECT_TRUE(gpu_node.isValid());
-        if (gpu_node.isValid() && gpu_node.value())
+        ohm::VoxelConst gpu_voxel = test_map.voxel(iter->key());
+        EXPECT_TRUE(gpu_voxel.isValid());
+        if (gpu_voxel.isValid() && gpu_voxel.value())
         {
-          if (std::abs(iter->value() - gpu_node.value()) >= reference_map.hitValue() * 0.5f)
+          if (std::abs(iter->value() - gpu_voxel.value()) >= reference_map.hitValue() * 0.5f)
           {
             ++failures;
             if (processed >= 100 && float(failures) / float(processed) > allowed_failure_ratio && logged_failures < 1000)
             {
-              EXPECT_NEAR(iter->value(), gpu_node.value(), reference_map.hitValue() * 0.5f);
+              EXPECT_NEAR(iter->value(), gpu_voxel.value(), reference_map.hitValue() * 0.5f);
               ++logged_failures;
             }
           }
@@ -379,7 +379,7 @@ namespace gpumap
     const auto compare_results = [region_size] (OccupancyMap &cpu_map, OccupancyMap &gpu_map)
     {
       OccupancyKey key(glm::i16vec3(0), 0, 0, 0);
-      OccupancyNodeConst cpu_voxel, gpu_voxel;
+      VoxelConst cpu_voxel, gpu_voxel;
       // Walk the region pulling a voxel from both maps and comparing.
       for (int z = 0; z < region_size.z; ++z)
       {
@@ -390,8 +390,8 @@ namespace gpumap
           for (int x = 0; x < region_size.x; ++x)
           {
             key.setLocalAxis(0, x);
-            cpu_voxel = cpu_map.node(key);
-            gpu_voxel = gpu_map.node(key);
+            cpu_voxel = cpu_map.voxel(key);
+            gpu_voxel = gpu_map.voxel(key);
 
             EXPECT_TRUE(cpu_voxel.isValid());
             EXPECT_TRUE(gpu_voxel.isValid());

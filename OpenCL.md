@@ -1,0 +1,71 @@
+# OpenCL Setup
+
+OpenCL is required for the Occupancy map (ohm), however, it is specifically only tested with Intel OpenCL. Both runtime drivers and an SDK need to be installed in order to get it running. Getting Intel drivers running can be an issue so the following instructions are maintained to help the installation process. The process is focused entirely on Ubuntu 18.04.
+
+## Installing OpenCL Drivers
+
+There are three different drivers which may be relevant to the installation process.
+
+- beignet: apt package for Intel NEO drivers.
+- Intel Linux drivers: https://software.intel.com/en-us/articles/opencl-drivers
+- Intel Legacy Linux drivers: https://software.intel.com/en-us/articles/legacy-opencl-drivers#latest_linux_SDK_release
+
+
+For general installation:
+
+- Determine your CPU generation:
+    - `grep -m 1 name /proc/cpuinfo`
+    - Results should look something like: `Intel(R) Core(TM) i7-6700 CPU @ 3.40GHz` The first digit of the CPU number - in this case 6700 - indicates the generation '6'.
+- Install `clinfo` apt package to confirm successful installation
+    - `sudo apt-get install clinfo`
+- Install the most appropriate driver (see below) based on your CPU generation.
+    - For 6th generation use the legacy drivers.
+    - For 7th+ generation, try beignet and the current Intel Drives.
+- Verify installation:
+    - `clinfo | grep "Device Name"`
+
+If installation is successful you should see a results like the following:
+
+```
+  Device Name                                     GeForce GT 640
+  Device Name                                     Intel(R) HD Graphics
+  Device Name                                     Intel(R) Core(TM) i7-6700 CPU @ 3.40GHz
+```
+
+Not that this is also listing the CUDA device.
+
+### Beignet
+First preference is to use the beignet package. In 18.04 these are drivers for the NEO architecture used in 7th, 8th and 9th generation core processors. This is the preferred approach, but may not work.
+
+```
+sudo apt-get install beignet-dev
+```
+
+Verify the installation (above).
+
+If this fails, you will need to `apt-get purge <package>` the following apt-packages before continuing:
+
+- beignet
+- beignet-dev
+- beignet-opencl-icd
+
+### Intel Linux Driver
+This installs the current Intel OpenCL drivers for 7th, 8th and 9th generation CPU. The beignet drivers are preferred since Unbutu is not officially supported. The drivers can be downloaded from https://software.intel.com/en-us/articles/opencl-drivers and installed by running the installation script. Note any missing apt dependencies and install those before continuing.
+
+These drivers are incompatible with beignet.
+
+### Intel Legacy Linux Driver
+Legacy drivers are appropriate only for 6th (and 5th) generation intel chips. These are downloaded from https://software.intel.com/en-us/articles/legacy-opencl-drivers#latest_linux_SDK_release and the installation process is described at http://registrationcenter-download.intel.com/akdlm/irc_nas/11396/SRB5.0_intel-opencl-installation.pdf
+
+These drivers are incompatible with beignet.
+
+## Installing the OpenCL SDK
+
+Intel publish an OpenCL SDK which includes debugging capabilities. This is has not been tested here under Ubuntu and the Windows version tends to be somewhat difficult to get working. Thus, that avenue is only recommended if debugging is essential.
+
+For most installations it is enough to install the appropriate apt packages.
+
+- opencl-headers
+- ocl-icd-dev
+- ocl-icd-libopencl1
+- ocl-icd-opencl-dev

@@ -5,20 +5,24 @@ if(NOT DEFINED GPU_ACCEL)
 endif(NOT DEFINED GPU_ACCEL)
 
 set(PUBLIC_HEADERS
+  gpu_ext.h
   gpuAccessException.h
   gpuApiException.h
   gpuBuffer.h
   "${CMAKE_CURRENT_BINARY_DIR}/gputil/gpuConfig.h"
   gpuDevice.h
+  gpuDeviceInfo.h
   gpuEvent.h
   gpuEventList.h
   gpuException.h
+  gpuKernel.h
   gpuPinMode.h
   gpuPinnedBuffer.h
   gpuPlatform.h
+  gpuProgram.h
   gpuQueue.h
   gpuThrow.h
-  gpu_ext.h
+  gpuVersion.h
 )
 
 set(SOURCES
@@ -28,7 +32,7 @@ set(SOURCES
   gpuEventList.cpp
   gpuException.cpp
   gpuThrow.cpp
-  )
+)
 
 list(APPEND SOURCES ${PUBLIC_HEADERS})
 
@@ -40,19 +44,30 @@ if(GPU_ACCEL STREQUAL "OpenCL")
   list(APPEND SOURCES
     cl/gpuApiExceptionCode.cpp
     cl/gpuBuffer.cpp
-    cl/gpubufferdetail.h
+    cl/gpuBufferDetail.h
     cl/gpuDevice.cpp
     cl/gpuDeviceDetail.h
     cl/gpuEvent.cpp
-    cl/gpueventdetail.h
+    cl/gpuEventDetail.h
+    cl/gpuKernel.cpp
+    cl/gpuKernel2.h
+    cl/gpuKernelDetail.h
     cl/gpuPinnedBuffer.cpp
     cl/gpuPlatform2.h
+    cl/gpuProgram.cpp
+    cl/gpuProgramDetail.h
     cl/gpuQueue.cpp
     cl/gpuQueueDetail.h
     )
 
   set(PUBLIC_PLATFORM_HEADERS
+    cl/gpuBufferDetail.h
+    cl/gpuDeviceDetail.h
+    cl/gpuKernel2.h
+    cl/gpuKernelDetail.h
     cl/gpuPlatform2.h
+    cl/gpuProgramDetail.h
+    cl/gpuQueueDetail.h
   )
 
   set(PUBLIC_PLATFORM_HEADERS_DIR cl)
@@ -65,11 +80,11 @@ elseif(GPU_ACCEL STREQUAL "CUDA")
     cuda/cutil_math.h
     cuda/gpuApiExceptionCode.cpp
     cuda/gpuBuffer.cpp
-    cuda/gpubufferdetail.h
+    cuda/gpuBufferDetail.h
     cuda/gpuDevice.cpp
     cuda/gpuDeviceDetail.h
     cuda/gpuEvent.cpp
-    cuda/gpueventdetail.h
+    cuda/gpuEventDetail.h
     cuda/gpuPinnedBuffer.cpp
     cuda/gpuPlatform2.h
     cuda/gpuQueue.cpp

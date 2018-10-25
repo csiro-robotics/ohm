@@ -478,4 +478,51 @@ namespace gpubuffertest
     clReleaseEvent(event_ocl);
     #endif // GPUTIL_TYPE == GPUTIL_OPENCL
   }
+
+  TEST(GpuBuffer, ReadWriteCopy)
+  {
+    gputil::Device &gpu = g_gpu;
+    const std::string buffer_ref = "The quick brown fox jumps over the lazy dog.";
+    std::string buffer_read;
+
+    buffer_read.resize(buffer_ref.size());
+
+    // Allocate a larger buffer to allow writing with offset.
+    gputil::Buffer buffer(gpu, buffer_ref.size() * 2);
+    buffer.write(buffer_ref.data(), buffer_ref.size());
+    buffer.read(&buffer_read.front(), buffer_read.size());
+
+    std::cout << "Write/read: " << buffer_read << std::endl;
+    EXPECT_EQ(buffer_read, buffer_ref);
+
+    // Write with offset. Target result is: "The The quick..."
+    const unsigned offset = 4;
+    buffer.write(buffer_ref.data(), buffer_ref.size(), offset);
+    buffer.read(&buffer_read.front(), buffer_read.size(), offset);
+
+    std::cout << "Write + offset/read + offset: " << buffer_read << std::endl;
+    EXPECT_EQ(buffer_read, buffer_ref);
+
+    // Read at byte zero.
+    const std::string offset_ref = "The The quick brown fox jumps over the lazy dog.";
+    buffer_read.resize(buffer_ref.size() + offset);
+    buffer.read(&buffer_read.front(), buffer_read.size());
+
+    std::cout << "Write + offset/read: " << buffer_read << std::endl;
+    EXPECT_EQ(buffer_read, offset_ref);
+
+    // Reset to the original string.
+    buffer.write(buffer_ref.data(), buffer_ref.size());
+
+    // Now copy into another buffer.
+    gputil::Buffer buffer2(gpu, buffer_ref.size() * 2);
+    gputil::copyBuffer(buffer2, buffer);
+
+    buffer_read.resize(buffer_ref.size());
+    buffer2.read(&buffer_read.front(), buffer_read.size());
+
+    // Validate the result.
+    std::cout << "Copy: " << buffer_read << std::endl;
+    EXPECT_EQ(buffer_read, buffer_ref);
+  }
 }

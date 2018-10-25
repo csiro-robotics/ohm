@@ -125,7 +125,7 @@ namespace
       }
 
       std::string mem_size_string;
-      util::makeMemoryDisplayString(mem_size_string, ohm::OccupancyMap::nodeMemoryPerRegion(region_voxel_dim));
+      util::makeMemoryDisplayString(mem_size_string, ohm::OccupancyMap::voxelMemoryPerRegion(region_voxel_dim));
       **out << "Map resolution: " << resolution << '\n';
       glm::i16vec3 region_dim = region_voxel_dim;
       region_dim.x = (region_dim.x) ? region_dim.x : OHM_DEFAULT_CHUNK_DIM_X;
@@ -636,15 +636,15 @@ int populateMap(const Options &opt)
     {
       for (auto iter = map.begin(); iter != map_end_iter && quit < 2; ++iter)
       {
-        const ohm::OccupancyNodeConst node = *iter;
+        const ohm::VoxelConst voxel = *iter;
         if (last_region != iter.key().regionKey())
         {
           prog.incrementProgress();
           last_region = iter.key().regionKey();
         }
-        if (node.isOccupied())
+        if (voxel.isOccupied())
         {
-          v = map.voxelCentreLocal(node.key());
+          v = map.voxelCentreLocal(voxel.key());
           ply.addVertex(v);
           ++point_count;
         }
@@ -717,7 +717,7 @@ namespace
       }
 
       std::string mem_size_string;
-      util::makeMemoryDisplayString(mem_size_string, ohm::OccupancyMap::nodeMemoryPerRegion(opt.region_voxel_dim));
+      util::makeMemoryDisplayString(mem_size_string, ohm::OccupancyMap::voxelMemoryPerRegion(opt.region_voxel_dim));
       **out << "Map resolution: " << opt.resolution << '\n';
       glm::i16vec3 region_dim = opt.region_voxel_dim;
       region_dim.x = (region_dim.x) ? region_dim.x : OHM_DEFAULT_CHUNK_DIM_X;

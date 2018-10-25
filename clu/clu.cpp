@@ -43,7 +43,26 @@ namespace
       }
     } while (pos != std::string::npos);
   }
-}
+
+
+  std::string stripQuotes(const std::string &str)
+  {
+    if (str.length() < 2)
+    {
+      return str;
+    }
+
+    if (str[0] == str[str.length() - 1])
+    {
+      if (str[0] == '"' || str[0] == '\'') // fix syntax hilighting in VSCode :"
+      {
+        return str.substr(1, str.length() - 2);
+      }
+    }
+
+    return str;
+  }
+}  // namespace
 
 namespace clu
 {
@@ -54,7 +73,7 @@ namespace clu
     kApParseFailure
   };
 
-  cl::Platform createPlatform(cl_device_type type, const PlatformContraint *constraints, unsigned constraint_count)
+  cl::Platform createPlatform(cl_device_type type, const PlatformConstraint *constraints, unsigned constraint_count)
   {
     std::vector<cl::Platform> platforms;
     std::vector<cl::Device> devices;
@@ -100,15 +119,16 @@ namespace clu
   }
 
 
-  cl::Platform createPlatform(cl_device_type type, const std::vector<PlatformContraint> &constraints)
+  cl::Platform createPlatform(cl_device_type type, const std::vector<PlatformConstraint> &constraints)
   {
     return createPlatform(type, constraints.data(), unsigned(constraints.size()));
   }
 
 
-  bool filterPlatforms(std::vector<cl::Platform> &platforms, cl_device_type /*type*/, const PlatformContraint *constraints, unsigned constraint_count)
+  bool filterPlatforms(std::vector<cl::Platform> &platforms, cl_device_type /*type*/,
+                       const PlatformConstraint *constraints, unsigned constraint_count)
   {
-    for (auto iter = platforms.begin(); iter != platforms.end(); )
+    for (auto iter = platforms.begin(); iter != platforms.end();)
     {
       bool constraints_ok = true;
       for (unsigned i = 0; i < constraint_count; ++i)
@@ -134,9 +154,10 @@ namespace clu
   }
 
 
-  bool filterDevices(const cl::Platform &platform, std::vector<cl::Device> &devices, const DeviceConstraint *constraints, unsigned constraint_count)
+  bool filterDevices(const cl::Platform &platform, std::vector<cl::Device> &devices,
+                     const DeviceConstraint *constraints, unsigned constraint_count)
   {
-    for (auto iter = devices.begin(); iter != devices.end(); )
+    for (auto iter = devices.begin(); iter != devices.end();)
     {
       bool constraints_ok = true;
       for (unsigned i = 0; i < constraint_count; ++i)
@@ -241,11 +262,11 @@ namespace clu
   {
     return createContext(platform, type, constraints.data(), unsigned(constraints.size()));
   }
-#endif // #
+#endif  // #
 
-  cl::Context createContext(cl::Device *device_out, cl_device_type type,
-                            const PlatformContraint *platform_constraint, unsigned platform_constraint_count,
-                            const DeviceConstraint *device_constraints, unsigned device_constraint_count)
+  cl::Context createContext(cl::Device *device_out, cl_device_type type, const PlatformConstraint *platform_constraint,
+                            unsigned platform_constraint_count, const DeviceConstraint *device_constraints,
+                            unsigned device_constraint_count)
   {
     std::vector<cl::Platform> platforms;
     std::vector<cl::Device> devices;
@@ -255,6 +276,19 @@ namespace clu
     for (cl::Platform &platform : platforms)
     {
       devices.clear();
+
+      // // Version check: 1.2 is the minimum supported or we can segfault.
+      // cl_uint version_major = 0u;
+      // cl_uint version_minor = 0u;
+      // platformVersion(platform(), &version_major, &version_minor);
+
+      // const cl_uint min_version_major = 1;
+      // const cl_uint min_version_minor = 2;
+      // if (version_major < min_version_major || version_major == min_version_major && version_minor < min_version_minor)
+      // {
+      //   continue;
+      // }
+
       platform.getDevices(type, &devices);
       filterDevices(platform, devices, device_constraints, device_constraint_count);
       if (!devices.empty())
@@ -300,20 +334,18 @@ namespace clu
   }
 
 
-  bool initPrimaryContext(cl_device_type type,
-                          const PlatformContraint *platform_constraints, unsigned platform_constraint_count,
-                          const DeviceConstraint *device_constraints, unsigned device_constraint_count)
+  bool initPrimaryContext(cl_device_type type, const PlatformConstraint *platform_constraints,
+                          unsigned platform_constraint_count, const DeviceConstraint *device_constraints,
+                          unsigned device_constraint_count)
   {
     cl::Device default_device;
-    cl::Context context = createContext(&default_device, type,
-                                        platform_constraints, platform_constraint_count,
+    cl::Context context = createContext(&default_device, type, platform_constraints, platform_constraint_count,
                                         device_constraints, device_constraint_count);
     return setPrimaryContext(context, default_device);
   }
 
 
-  bool initPrimaryContext(cl_device_type type,
-                          const std::vector<PlatformContraint> &platform_constraint,
+  bool initPrimaryContext(cl_device_type type, const std::vector<PlatformConstraint> &platform_constraint,
                           const std::vector<DeviceConstraint> &device_constraints)
   {
     return initPrimaryContext(type, platform_constraint.data(), unsigned(platform_constraint.size()),
@@ -330,8 +362,7 @@ namespace clu
   }
 
 
-  ArgParse argValue(std::string &val, const std::string &arg,
-                    std::list<std::string>::const_iterator &iter,
+  ArgParse argValue(std::string &val, const std::string &arg, std::list<std::string>::const_iterator &iter,
                     const std::list<std::string>::const_iterator &end)
   {
     std::string::size_type eqpos = arg.find("=");
@@ -367,11 +398,9 @@ namespace clu
   }
 
 
-  void constraintsFromCommandLine(int argc, const char **argv,
-                                  cl_device_type &type,
-                                  std::vector<PlatformContraint> &platform_constraints,
-                                  std::vector<DeviceConstraint> &device_constraints,
-                                  const char *arg_prefix)
+  void constraintsFromCommandLine(int argc, const char **argv, cl_device_type &type,
+                                  std::vector<PlatformConstraint> &platform_constraints,
+                                  std::vector<DeviceConstraint> &device_constraints, const char *arg_prefix)
   {
     std::list<std::string> args;
     for (int i = 0; i < argc; ++i)
@@ -383,11 +412,9 @@ namespace clu
   }
 
 
-  void constraintsFromArgs(const std::list<std::string> &args,
-                           cl_device_type &type,
-                           std::vector<PlatformContraint> &platform_constraints,
-                           std::vector<DeviceConstraint> &device_constraints,
-                           const char *arg_prefix)
+  void constraintsFromArgs(const std::list<std::string> &args, cl_device_type &type,
+                           std::vector<PlatformConstraint> &platform_constraints,
+                           std::vector<DeviceConstraint> &device_constraints, const char *arg_prefix)
   {
     std::string arg, val;
     std::string prefix = (arg_prefix) ? std::string("--") + std::string(arg_prefix) : "--";
@@ -465,7 +492,7 @@ namespace clu
               if (parse_result == kApOk)
               {
                 // Add a device version constraint.
-                device_constraints.push_back(deviceVersionIs(major, minor));
+                device_constraints.push_back(deviceVersionMin(major, minor));
               }
             }
             else
@@ -479,6 +506,7 @@ namespace clu
           parse_result = argValue(val, arg, iter, args.end());
           if (parse_result == kApOk)
           {
+            val = stripQuotes(val);
             // Add a device constraint.
             device_constraints.push_back(deviceNameLike(val.c_str(), true));
           }
@@ -488,6 +516,7 @@ namespace clu
           parse_result = argValue(val, arg, iter, args.end());
           if (parse_result == kApOk)
           {
+            val = stripQuotes(val);
             // Add a device constraint.
             platform_constraints.push_back(platformNameLike(val.c_str(), true));
           }
@@ -497,6 +526,7 @@ namespace clu
           parse_result = argValue(val, arg, iter, args.end());
           if (parse_result == kApOk)
           {
+            val = stripQuotes(val);
             // Add a device constraint.
             // platformConstraints.push_back(platformVendorLike(val.c_str(), true));
             device_constraints.push_back(deviceVendorLike(val.c_str(), true));
@@ -523,10 +553,79 @@ namespace clu
   }
 
 
+  bool parseVersion(const char *version_string, cl_uint *version_major, cl_uint *version_minor)
+  {
+    cl_uint high_version = 0;
+    cl_uint low_version = 0;
+    int index = 0;
+
+    while (version_string[index] && !isdigit(version_string[index]))
+    {
+      ++index;
+    }
+
+    if (!version_string[index])
+    {
+      return false;
+    }
+
+    bool have_major = false;
+    bool have_minor = false;
+    while (version_string[index] && isdigit(version_string[index]))
+    {
+      have_major = true;
+      high_version *= 10;
+      high_version += version_string[index] - '0';
+      ++index;
+    }
+
+    // Verify and skip the '.'
+    if (!version_string[index] || !version_string[++index])
+    {
+      return false;
+    }
+
+    while (version_string[index] && isdigit(version_string[index]))
+    {
+      have_minor = true;
+      low_version *= 10;
+      low_version += version_string[index] - '0';
+      ++index;
+    }
+
+    if (version_major)
+    {
+      *version_major = high_version;
+    }
+
+    if (version_minor)
+    {
+      *version_minor = low_version;
+    }
+
+    return have_major && have_minor;
+  }
+
+
+  void platformVersion(cl_platform_id platform, cl_uint *version_major, cl_uint *version_minor)
+  {
+    ::size_t size = 0;
+    clGetPlatformInfo(platform, CL_PLATFORM_VERSION, 0, nullptr, &size);
+    cl::string version_info;
+    version_info.resize(size + 1);
+    clGetPlatformInfo(platform, CL_PLATFORM_VERSION, size, &version_info[0], &size);
+    parseVersion(version_info.c_str(), version_major, version_minor);
+  }
+
+
   const char *errorCodeString(cl_int error)
   {
-#define CL_ERR_CASE(CODE) case CODE: return #CODE;
-#define CL_ERR_CASE2(CODE, msg) case CODE: return msg;
+#define CL_ERR_CASE(CODE) \
+  case CODE:              \
+    return #CODE;
+#define CL_ERR_CASE2(CODE, msg) \
+  case CODE:                    \
+    return msg;
 
     switch (error)
     {
@@ -593,32 +692,32 @@ namespace clu
 #if CL_VERSION_2_0
       CL_ERR_CASE(CL_INVALID_PIPE_SIZE)
       CL_ERR_CASE(CL_INVALID_DEVICE_QUEUE)
-#endif // CL_VERSION_2_0
+#endif  // CL_VERSION_2_0
 
       // extension errors
 #ifdef CL_INVALID_GL_SHAREGROUP_REFERENCE_KHR
       CL_ERR_CASE(CL_INVALID_GL_SHAREGROUP_REFERENCE_KHR)
-#endif // CL_INVALID_GL_SHAREGROUP_REFERENCE_KHR
+#endif  // CL_INVALID_GL_SHAREGROUP_REFERENCE_KHR
 
 #ifdef CL_PLATFORM_NOT_FOUND_KHR
       CL_ERR_CASE(CL_PLATFORM_NOT_FOUND_KHR)
-#endif // CL_PLATFORM_NOT_FOUND_KHR
+#endif  // CL_PLATFORM_NOT_FOUND_KHR
 
 #ifdef CL_INVALID_D3D10_DEVICE_KHR
       CL_ERR_CASE(CL_INVALID_D3D10_DEVICE_KHR)
-#endif // CL_INVALID_D3D10_DEVICE_KHR
+#endif  // CL_INVALID_D3D10_DEVICE_KHR
 
 #ifdef CL_INVALID_D3D10_RESOURCE_KHR
       CL_ERR_CASE(CL_INVALID_D3D10_RESOURCE_KHR)
-#endif // CL_INVALID_D3D10_RESOURCE_KHR
+#endif  // CL_INVALID_D3D10_RESOURCE_KHR
 
 #ifdef CL_D3D10_RESOURCE_ALREADY_ACQUIRED_KHR
       CL_ERR_CASE(CL_D3D10_RESOURCE_ALREADY_ACQUIRED_KHR)
-#endif // CL_D3D10_RESOURCE_ALREADY_ACQUIRED_KHR
+#endif  // CL_D3D10_RESOURCE_ALREADY_ACQUIRED_KHR
 
 #ifdef CL_D3D10_RESOURCE_NOT_ACQUIRED_KHR
       CL_ERR_CASE(CL_D3D10_RESOURCE_NOT_ACQUIRED_KHR)
-#endif // CL_D3D10_RESOURCE_NOT_ACQUIRED_KHR
+#endif  // CL_D3D10_RESOURCE_NOT_ACQUIRED_KHR
 
     default:
       return "Unknown OpenCL error";
@@ -631,11 +730,8 @@ namespace clu
 
   void printPlatformInfo(std::ostream &out, const cl::Platform &platform, const char *prefix, const char *endl)
   {
-    static InfoItem items[] =
-    {
-      { CL_PLATFORM_NAME, "Name" },
-      { CL_PLATFORM_VERSION, "Version" },
-      { CL_PLATFORM_VENDOR, "Vendor" },
+    static InfoItem items[] = {
+      { CL_PLATFORM_NAME, "Name" }, { CL_PLATFORM_VERSION, "Version" }, { CL_PLATFORM_VENDOR, "Vendor" },
       //{ CL_PLATFORM_PROFILE, "Profile" },
       //{ CL_PLATFORM_EXTENSIONS, "Extensions" },
     };
@@ -658,10 +754,8 @@ namespace clu
 
   void printDeviceInfo(std::ostream &out, const cl::Device &device, const char *prefix, const char *endl)
   {
-    static InfoItem items[] =
-    {
-      { CL_DEVICE_NAME, "Name" },
-      { CL_DEVICE_VERSION, "Version" },
+    static InfoItem items[] = {
+      { CL_DEVICE_NAME, "Name" }, { CL_DEVICE_VERSION, "Version" },
       //{ CL_PLATFORM_PROFILE, "Profile" },
       //{ CL_PLATFORM_EXTENSIONS, "Extensions" },
     };
@@ -680,4 +774,4 @@ namespace clu
       }
     }
   }
-}
+}  // namespace clu

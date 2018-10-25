@@ -20,7 +20,7 @@
 #include "private/ClearanceProcessDetail.h"
 #include "private/MapLayoutDetail.h"
 #include "private/OccupancyMapDetail.h"
-#include "private/NodeAlgorithms.h"
+#include "private/VoxelAlgorithms.h"
 #include "private/OccupancyQueryAlg.h"
 
 #include <ohmutil/Profile.h>
@@ -55,27 +55,27 @@ namespace
                                       const glm::ivec3 &voxel_search_half_extents)
   {
     OccupancyMapDetail &map_data = *map.detail();
-    OccupancyKey node_key(nullptr);
+    OccupancyKey voxel_key(nullptr);
     float range;
 
-    node_key.setRegionKey(region_key);
+    voxel_key.setRegionKey(region_key);
     for (int z = block_start.z; z < block_end.z; ++z)
     {
-      node_key.setLocalAxis(2, z);
+      voxel_key.setLocalAxis(2, z);
       for (int y = block_start.y; y < block_end.y; ++y)
       {
-        node_key.setLocalAxis(1, y);
+        voxel_key.setLocalAxis(1, y);
         for (int x = block_start.x; x < block_end.x; ++x)
         {
-          node_key.setLocalAxis(0, x);
-          OccupancyNode node = OccupancyNode(node_key, chunk, &map_data);
-          if (!node.isNull())
+          voxel_key.setLocalAxis(0, x);
+          Voxel voxel = Voxel(voxel_key, chunk, &map_data);
+          if (!voxel.isNull())
           {
             range = calculateNearestNeighbour(
-              node_key, map, voxel_search_half_extents, (query.query_flags & kQfUnknownAsOccupied) != 0,
+              voxel_key, map, voxel_search_half_extents, (query.query_flags & kQfUnknownAsOccupied) != 0,
               false, query.search_radius, query.axis_scaling,
               (query.query_flags & kQfReportUnscaledResults) != 0);
-            node.setClearance(range);
+            voxel.setClearance(range);
           }
         }
       }
@@ -88,28 +88,28 @@ namespace
                                    const glm::ivec3 &/*voxel_search_half_extents*/)
   {
     OccupancyMapDetail &map_data = *map.detail();
-    OccupancyKey node_key(nullptr);
+    OccupancyKey voxel_key(nullptr);
 
-    node_key.setRegionKey(region_key);
+    voxel_key.setRegionKey(region_key);
     for (int z = block_start.z; z < block_end.z; ++z)
     {
-      node_key.setLocalAxis(2, z);
+      voxel_key.setLocalAxis(2, z);
       for (int y = block_start.y; y < block_end.y; ++y)
       {
-        node_key.setLocalAxis(1, y);
+        voxel_key.setLocalAxis(1, y);
         for (int x = block_start.x; x < block_end.x; ++x)
         {
-          node_key.setLocalAxis(0, x);
-          OccupancyNode node = OccupancyNode(node_key, chunk, &map_data);
-          if (!node.isNull())
+          voxel_key.setLocalAxis(0, x);
+          Voxel voxel = Voxel(voxel_key, chunk, &map_data);
+          if (!voxel.isNull())
           {
-            if (node.isOccupied() || ((query.query_flags & kQfUnknownAsOccupied) != 0 && node.isUncertain()))
+            if (voxel.isOccupied() || ((query.query_flags & kQfUnknownAsOccupied) != 0 && voxel.isUncertain()))
             {
-              node.setClearance(0.0f);
+              voxel.setClearance(0.0f);
             }
             else
             {
-              node.setClearance(-1.0f);
+              voxel.setClearance(-1.0f);
             }
           }
         }
@@ -123,24 +123,24 @@ namespace
                                    const glm::ivec3 & /*voxel_search_half_extents*/)
   {
     OccupancyMapDetail &map_data = *map.detail();
-    OccupancyKey node_key(nullptr);
+    OccupancyKey voxel_key(nullptr);
     OccupancyKey neighbour_key(nullptr);
-    float node_range;
+    float voxel_range;
 
-    node_key.setRegionKey(region_key);
+    voxel_key.setRegionKey(region_key);
     for (int z = block_start.z; z < block_end.z; ++z)
     {
-      node_key.setLocalAxis(2, z);
+      voxel_key.setLocalAxis(2, z);
       for (int y = block_start.y; y < block_end.y; ++y)
       {
-        node_key.setLocalAxis(1, y);
+        voxel_key.setLocalAxis(1, y);
         for (int x = block_start.x; x < block_end.x; ++x)
         {
-          node_key.setLocalAxis(0, x);
-          OccupancyNode node = OccupancyNode(node_key, chunk, &map_data);
-          if (!node.isNull())
+          voxel_key.setLocalAxis(0, x);
+          Voxel voxel = Voxel(voxel_key, chunk, &map_data);
+          if (!voxel.isNull())
           {
-            node_range = node.clearance();
+            voxel_range = voxel.clearance();
             for (int nz = -1; nz <= 1; ++nz)
             {
               for (int ny = -1; ny <= 1; ++ny)
@@ -150,9 +150,9 @@ namespace
                   if (nx || ny || nz)
                   {
                     // This is wrong. It will propagate changed from this iteration. Not what we want.
-                    neighbour_key = node_key;
+                    neighbour_key = voxel_key;
                     map.moveKey(neighbour_key, nx, ny, nz);
-                    OccupancyNodeConst neighbour = map.node(neighbour_key);
+                    VoxelConst neighbour = map.voxel(neighbour_key);
                     // Get neighbour value.
                     if (!neighbour.isNull())
                     {
@@ -161,9 +161,9 @@ namespace
                       {
                         // Adjust by range to neighbour.
                         neighbour_range += glm::length(glm::vec3(nx, ny, nz));
-                        if (neighbour_range < node_range)
+                        if (neighbour_range < voxel_range)
                         {
-                          node.setClearance(neighbour_range);
+                          voxel.setClearance(neighbour_range);
                         }
                       }
                     }

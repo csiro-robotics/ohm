@@ -1,15 +1,17 @@
-if(NOT LIBLAS_FOUND)
-  message(STATUS "Skipping ohmpop. Missing libLAS")
+if(NOT TARGET slamio)
+  message(STATUS "Skipping ohmpop. slamio not built")
   return()
 endif()
 
-# Need to add boost link directories because of LIBLAS.
-link_directories("${Boost_LIBRARY_DIRS}")
+if (Boost_FOUND)
+  # Need to add boost link directories because of LIBLAS.
+  link_directories("${Boost_LIBRARY_DIRS}")
+endif(Boost_FOUND)
 
-include_directories(
-  "${LIBLAS_INCLUDE_DIR}"
-  "${GLM_INCLUDE_DIR}"
-  )
+# include_directories(
+#   "${LIBLAS_INCLUDE_DIR}"
+#   "${GLM_INCLUDE_DIR}"
+#   )
 
 configure_file(OhmPopConfig.in.h "${CMAKE_CURRENT_BINARY_DIR}/ohmpop/OhmPopConfig.h")
 
@@ -34,11 +36,10 @@ target_include_directories(ohmpop
 
 target_include_directories(ohmpop SYSTEM
   PRIVATE
-    "${LIBLAS_INCLUDE_DIR}"
     "${GLM_INCLUDE_DIR}"
 )
 
-target_link_libraries(ohmpop ohm slamio ohmutil ${LIBLAS_LIBRARIES})
+target_link_libraries(ohmpop ohm slamio ohmutil)
 
 source_group("source" REGULAR_EXPRESSION ".*$")
 # Needs CMake 3.8+:

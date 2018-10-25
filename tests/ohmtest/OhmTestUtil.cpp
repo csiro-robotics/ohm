@@ -149,33 +149,33 @@ namespace ohmtestutil
     if (compare_flags & (kCfOccupancy | kCfClearance))
     {
       bool have_valid_clerance = false;
-      OccupancyNodeConst map_node;
-      OccupancyNodeConst ref_node;
+      VoxelConst map_voxel;
+      VoxelConst ref_voxel;
       for (auto iter = reference_map.begin(); iter != reference_map.end(); ++iter)
       {
-        map_node = *iter;
-        ref_node = map.node(iter.key());
+        map_voxel = *iter;
+        ref_voxel = map.voxel(iter.key());
 
-        if (full_extents || map_node.chunk()->overlapsExtents(min_ext, max_ext, map.regionSpatialResolution()))
+        if (full_extents || map_voxel.chunk()->overlapsExtents(min_ext, max_ext, map.regionSpatialResolution()))
         {
-          ASSERT_TRUE(ref_node.isValid());
+          ASSERT_TRUE(ref_voxel.isValid());
         }
 
-        if (!ref_node.isValid())
+        if (!ref_voxel.isValid())
         {
           continue;
         }
 
-        ASSERT_EQ(ref_node.key(), map_node.key());
+        ASSERT_EQ(ref_voxel.key(), map_voxel.key());
         if (compare_flags & kCfOccupancy)
         {
-          ASSERT_EQ(ref_node.occupancy(), map_node.occupancy());
+          ASSERT_EQ(ref_voxel.occupancy(), map_voxel.occupancy());
         }
 
         if (compare_flags & kCfClearance)
         {
-          ASSERT_EQ(ref_node.clearance(), map_node.clearance());
-          have_valid_clerance = have_valid_clerance || ref_node.clearance() >= 0.0f;
+          ASSERT_EQ(ref_voxel.clearance(), map_voxel.clearance());
+          have_valid_clerance = have_valid_clerance || ref_voxel.clearance() >= 0.0f;
         }
       }
 

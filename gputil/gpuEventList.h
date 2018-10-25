@@ -26,6 +26,7 @@ namespace gputil
     EventList();
     explicit EventList(const Event &event);
     explicit EventList(const Event *event);
+    EventList(const Event *events, size_t event_count);
     EventList(std::initializer_list<Event> events);
     EventList(std::initializer_list<const Event *> events);
 

@@ -10,6 +10,7 @@
 
 namespace gputil
 {
+  struct BuildArgs;
   class Device;
 }
 
@@ -76,6 +77,22 @@ namespace ohm
   /// @param arg_type Array identifying the type for each argument.
   /// @return The total number of pairs available regardless of what has been written to @p argsInfo.
   unsigned ohm_API gpuArgsInfo(const char **args_info, int *arg_type, unsigned max_pairs);
+
+  /// GPU compilation string used to define the required GPU code standard.
+  ///
+  /// Used to set "-cl-std=x.x" in OpenCL compilation. Validated required extended features.
+  ///
+  /// This method will be deprecated once all kernels are migrated to use gputil::Program and gputil::Kernel.
+  ///
+  /// @return An argument string which should be included when building GPU code.
+  const char ohm_API *gpuBuildStdArg();
+
+  /// Set the GPU target versions in @p build_args to define the required GPU code standard.
+  ///
+  /// Used to set "-cl-std=x.x" in OpenCL compilation. Validated required extended features.
+  ///
+  /// @return An argument string which should be included when building GPU code.
+  void setGpuBuildVersion(gputil::BuildArgs &build_args);
 }
 
 #endif  // OHMGPU_H

@@ -5,6 +5,8 @@
 // Author: Kazys Stepanas
 #include "private/RoiRangeFill.h"
 
+#include "OhmGpu.h"
+
 #include "cl/clProgram.h"
 #include "GpuCache.h"
 #include "GpuLayerCache.h"
@@ -59,7 +61,7 @@ namespace roirangefill
     }
 
     std::vector<std::string> build_args;
-    build_args.push_back("-cl-std=CL" OHM_OPENCL_STD);
+    build_args.push_back(ohm::gpuBuildStdArg());
 
     // Compile and initialise.
     cl_int clerr = CL_SUCCESS;

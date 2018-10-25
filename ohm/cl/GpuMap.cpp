@@ -5,6 +5,8 @@
 // Author: Kazys Stepanas
 #include "OhmConfig.h"
 
+#include "OhmGpu.h"
+
 #include "cl/clProgram.h"
 #include "private/GpuMapDetail.h"
 
@@ -64,7 +66,7 @@ namespace ohm
     cl_int clerr = CL_SUCCESS;
     const char *source_file = "regionupdate.cl";
     std::vector<std::string> args;
-    args.push_back("-cl-std=CL" OHM_OPENCL_STD);
+    args.push_back(ohm::gpuBuildStdArg());
 
 #ifdef OHM_EMBED_GPU_CODE
     clerr = initProgramFromString(program, gpu, RegionUpdateCode, source_file, &args);

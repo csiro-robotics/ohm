@@ -17,8 +17,17 @@
 
 namespace ohm
 {
-  template <typename T, glm::precision P>
-  inline T volumeOf(const glm::tvec3<T, P> &expanse)
+  // From GLM 0.9.9.1, numbering starting including a patch number.
+  // So 0.9.8 was version 98, 0.9.9 was 99 and 0.9.9.1 was 991
+  // This assumes version 1.0 will be 1000
+#if GLM_VERSION < 99
+  using GlmQualifier = glm::precision;
+#else // GLM_VERSION
+  using GlmQualifier = glm::qualifier;
+#endif // GLM_VERSION
+
+  template <typename T, GlmQualifier Q>
+  inline T volumeOf(const glm::tvec3<T, Q> &expanse)
   {
     return expanse.x * expanse.y * expanse.z;
   }
@@ -33,50 +42,50 @@ inline std::ostream &operator<<(std::ostream &out, const ohm::OccupancyKey &key)
   return out;
 }
 
-template <typename T, glm::precision P>
-inline std::ostream &operator<<(std::ostream &out, const glm::tvec2<T, P> &v)
+template <typename T, ohm::GlmQualifier Q>
+inline std::ostream &operator<<(std::ostream &out, const glm::tvec2<T, Q> &v)
 {
   out << '(' << v.x << ',' << v.y << ')';
   return out;
 }
 
-template <typename T, glm::precision P>
-inline std::ostream &operator<<(std::ostream &out, const glm::tvec3<T, P> &v)
+template <typename T, ohm::GlmQualifier Q>
+inline std::ostream &operator<<(std::ostream &out, const glm::tvec3<T, Q> &v)
 {
   out << '(' << v.x << ',' << v.y << ',' << v.z << ')';
   return out;
 }
 
-template <typename T, glm::precision P>
-inline std::ostream &operator<<(std::ostream &out, const glm::tvec4<T, P> &v)
+template <typename T, ohm::GlmQualifier Q>
+inline std::ostream &operator<<(std::ostream &out, const glm::tvec4<T, Q> &v)
 {
   out << '(' << v.w << ',' << v.x << ',' << v.y << ',' << v.z << ')';
   return out;
 }
 
-template <glm::precision P>
-inline std::ostream &operator<<(std::ostream &out, const glm::tvec3<char, P> &v)
+template <ohm::GlmQualifier Q>
+inline std::ostream &operator<<(std::ostream &out, const glm::tvec3<char, Q> &v)
 {
   out << '(' << (int)v.x << ',' << (int)v.y << ',' << (int)v.z << ')';
   return out;
 }
 
-template <glm::precision P>
-inline std::ostream &operator<<(std::ostream &out, const glm::tvec3<unsigned char, P> &v)
+template <ohm::GlmQualifier Q>
+inline std::ostream &operator<<(std::ostream &out, const glm::tvec3<unsigned char, Q> &v)
 {
   out << '(' << (int)v.x << ',' << (int)v.y << ',' << (int)v.z << ')';
   return out;
 }
 
-template <glm::precision P>
-inline std::ostream &operator<<(std::ostream &out, const glm::tvec4<char, P> &v)
+template <ohm::GlmQualifier Q>
+inline std::ostream &operator<<(std::ostream &out, const glm::tvec4<char, Q> &v)
 {
   out << '(' << (int)v.w << ',' << (int)v.x << ',' << (int)v.y << ',' << (int)v.z << ')';
   return out;
 }
 
-template <glm::precision P>
-inline std::ostream &operator<<(std::ostream &out, const glm::tvec4<unsigned char, P> &v)
+template <ohm::GlmQualifier Q>
+inline std::ostream &operator<<(std::ostream &out, const glm::tvec4<unsigned char, Q> &v)
 {
   out << '(' << (int)v.w << ',' << (int)v.x << ',' << (int)v.y << ',' << (int)v.z << ')';
   return out;

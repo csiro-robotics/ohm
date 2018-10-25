@@ -333,25 +333,25 @@ void saveRangesCloud(const ohm::OccupancyMap &map, const ohm::VoxelRanges &query
   const float colourScale = query.searchRadius();
   for (auto iter = map.begin(); iter != mapEndIter && quit < 2; ++iter)
   {
-    const ohm::OccupancyNodeConst node = *iter;
+    const ohm::VoxelConst voxel = *iter;
     if (lastRegion != iter.key().regionKey())
     {
       prog.incrementProgress();
       lastRegion = iter.key().regionKey();
     }
 
-    // Ensure the node is in a region we have calculated data for.
+    // Ensure the voxel is in a region we have calculated data for.
     if (minRegion.x <= lastRegion.x && lastRegion.x <= maxRegion.x &&
         minRegion.y <= lastRegion.y && lastRegion.y <= maxRegion.y &&
         minRegion.z <= lastRegion.z && lastRegion.z <= maxRegion.z)
     {
-      if (node.isOccupied() || node.isFree())
+      if (voxel.isOccupied() || voxel.isFree())
       {
-        const float rangeValue = node.clearance();
+        const float rangeValue = voxel.clearance();
         if (rangeValue >= 0)
         {
           uint8_t c = (uint8_t)(255 * std::max(0.0f, (colourScale - rangeValue) / colourScale));
-          v = map.voxelCentreLocal(node.key());
+          v = map.voxelCentreLocal(voxel.key());
           ply.addVertex(v, Colour(c, 128, 0));
           if (pointsOut)
           {
@@ -361,9 +361,9 @@ void saveRangesCloud(const ohm::OccupancyMap &map, const ohm::VoxelRanges &query
         }
       }
 
-      if (clearValues && !node.isNull())
+      if (clearValues && !voxel.isNull())
       {
-        node.makeMutable().setClearance(-1.0f);
+        voxel.makeMutable().setClearance(-1.0f);
       }
     }
   }
@@ -401,7 +401,7 @@ void showTiming(const char *info, const TimingClock::time_point &start_time, con
 }
 
 
-void compareCpuGpuQuery(const char *query_name, ohm::Query &query, const float epsilon = 1e-5f)
+bool compareCpuGpuQuery(const char *query_name, ohm::Query &query, const float epsilon = 1e-5f)
 {
   std::string timing_info_str;
   TimingClock::time_point query_start, query_end;
@@ -502,6 +502,8 @@ void compareCpuGpuQuery(const char *query_name, ohm::Query &query, const float e
       results_match = false;
     }
   }
+
+  return results_match;
 }
 
 
@@ -708,11 +710,11 @@ int runQueries(const Options &opt)
             ++rangeMismatch;
             // Let's have a look at the generating voxel.
             ohm::OccupancyKey key = map.voxelKey(glm::vec3(cpuPoints[i]));
-            ohm::OccupancyNodeConst node = map.node(key);
+            ohm::VoxelConst voxel = map.voxel(key);
             printf("  Range mismatch @ (%f %f %f) %f != %f : Node type %s\n",
                    cpuPoints[i].x, cpuPoints[i].y, cpuPoints[i].z,
                    cpuPoints[i].w, gpuPoints[i].w,
-                   ohm::occupancyTypeToString(map.occupancyType(node))
+                   ohm::occupancyTypeToString(map.occupancyType(voxel))
                   );
           }
         }
@@ -736,12 +738,12 @@ int runQueries(const Options &opt)
                 ++rangeMismatch;
                 // Let's have a look at the generating voxel.
                 ohm::OccupancyKey key = map.voxelKey(glm::vec3(gpuPoints[j]));
-                ohm::OccupancyNodeConst node = map.node(key);
+                ohm::VoxelConst voxel = map.voxel(key);
                 printf("  Range mismatch @ (%f %f %f) : %f != %f. Node [%d %d %d] %s\n",
                        gpuPoints[i].x, gpuPoints[i].y, gpuPoints[i].z,
                        gpuPoints[i].w, cpuPoints[j].w,
                        int(key.localKey().x), int(key.localKey().y), int(key.localKey().z),
-                       ohm::occupancyTypeToString(map.occupancyType(node))
+                       ohm::occupancyTypeToString(map.occupancyType(voxel))
                       );
               }
               break;

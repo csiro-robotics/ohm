@@ -42,7 +42,7 @@ namespace
   {
     size_t actual_size = buffer.actualSize();
     size_t bestSize = clu::bestAllocationSize(imp.device.detail()->context, new_size);
-    if (!force && actual_size >= bestSize || force && actual_size == bestSize)
+    if ((!force && actual_size >= bestSize) || (force && actual_size == bestSize))
     {
       imp.requested_size = new_size;
       return bestSize;
