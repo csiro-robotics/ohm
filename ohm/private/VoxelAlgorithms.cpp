@@ -3,7 +3,7 @@
 // ABN 41 687 119 230
 //
 // Author: Kazys Stepanas
-#include "NodeAlgorithms.h"
+#include "VoxelAlgorithms.h"
 
 #include "MapCache.h"
 #include "Key.h"
@@ -20,26 +20,26 @@ namespace ohm
   }
 
 
-  float calculateNearestNeighbour(const OccupancyKey &node_key, const OccupancyMap &map,
+  float calculateNearestNeighbour(const OccupancyKey &voxel_key, const OccupancyMap &map,
                                   const glm::ivec3 &voxel_search_half_extents,
                                   bool unknown_as_occupied, bool ignore_self, float search_range,
                                   const glm::vec3 &axis_scaling, bool report_unscaled_distance)
   {
     OccupancyKey search_key;
-    OccupancyNodeConst test_node;
+    VoxelConst test_voxel;
     MapCache cache;
-    glm::vec3 node_centre, separation;
+    glm::vec3 voxel_centre, separation;
 
     float scaled_range_sqr, scaled_closest_range_sqr;
     float range_sqr, closest_range_sqr;
 
     scaled_closest_range_sqr = closest_range_sqr = std::numeric_limits<float>::infinity();
 
-    node_centre = map.voxelCentreLocal(node_key);
+    voxel_centre = map.voxelCentreLocal(voxel_key);
 
-    test_node = map.node(node_key, &cache);
-    // First try early out if the target node is occupied.
-    if (!ignore_self && (test_node.isOccupied() || unknown_as_occupied && test_node.isUncertainOrNull()))
+    test_voxel = map.voxel(voxel_key, &cache);
+    // First try early out if the target voxel is occupied.
+    if (!ignore_self && (test_voxel.isOccupied() || unknown_as_occupied && test_voxel.isUncertainOrNull()))
     {
       return 0.0f;
     }
@@ -50,18 +50,18 @@ namespace ohm
       {
         for (int x = -voxel_search_half_extents.x; x <= voxel_search_half_extents.x; ++x)
         {
-          search_key = node_key;
+          search_key = voxel_key;
           map.moveKey(search_key, x, y, z);
-          test_node = map.node(search_key, &cache);
+          test_voxel = map.voxel(search_key, &cache);
 
           if (ignore_self && x == 0 && y == 0 && z == 0)
           {
             continue;
           }
 
-          if (test_node.isOccupied() || unknown_as_occupied && test_node.isUncertainOrNull())
+          if (test_voxel.isOccupied() || unknown_as_occupied && test_voxel.isUncertainOrNull())
           {
-            separation = glm::vec3(map.voxelCentreLocal(search_key)) - node_centre;
+            separation = glm::vec3(map.voxelCentreLocal(search_key)) - voxel_centre;
             range_sqr = glm::dot(separation, separation);
             separation.x *= axis_scaling.x;
             separation.y *= axis_scaling.y;

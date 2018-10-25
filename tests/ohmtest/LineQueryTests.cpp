@@ -36,14 +36,14 @@ namespace linequerytests
   {
     ohmgen::fillMapWithEmptySpace(map, -64, -64, -64, 63, 63, 63);
     OccupancyKey key = map.voxelKey(glm::dvec3(0.5 * map.resolution()));
-    OccupancyNodeConst node = map.node(key);
+    VoxelConst voxel = map.voxel(key);
     if (add_hit)
     {
       for (int i = 0; i < 1; ++i)
       {
-        node = map.integrateHit(glm::dvec3(0));
+        voxel = map.integrateHit(glm::dvec3(0));
       }
-      EXPECT_TRUE(node.value() >= 0);
+      EXPECT_TRUE(voxel.value() >= 0);
     }
   }
 

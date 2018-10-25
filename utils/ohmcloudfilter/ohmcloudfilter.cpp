@@ -178,7 +178,7 @@ size_t filterCloud(ProgressMonitor &prog, const ohm::OccupancyMap &map, const Op
 
     prog.beginProgress(ProgressMonitor::Info("Filtering", reader.GetHeader().GetPointRecordsCount()));
 
-    ohm::OccupancyNodeConst node;
+    ohm::VoxelConst voxel;
     ohm::MapCache cache;
     glm::dvec3 pos;
     while (reader.ReadNextPoint())
@@ -186,8 +186,8 @@ size_t filterCloud(ProgressMonitor &prog, const ohm::OccupancyMap &map, const Op
       // Get the voxel for the point.
       auto &&pt = reader.GetPoint();
       pos = glm::dvec3(pt.GetX(), pt.GetY(), pt.GetZ());
-      node = map.node(map.voxelKey(pos), &cache);
-      if (node.isOccupied())
+      voxel = map.voxel(map.voxelKey(pos), &cache);
+      if (voxel.isOccupied())
       {
         writer.WritePoint(reader.GetPoint());
         ++exported;

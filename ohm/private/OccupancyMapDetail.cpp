@@ -31,7 +31,7 @@ void OccupancyMapDetail::setDefaultLayout()
   VoxelLayout voxel;
   size_t clear_value;
 
-  const float invalid_marker_value = NodeBase::invalidMarkerValue();
+  const float invalid_marker_value = VoxelBase::invalidMarkerValue();
 
   clear_value = 0;
   memcpy(&clear_value, &invalid_marker_value, std::min(sizeof(invalid_marker_value), sizeof(clear_value)));
@@ -67,8 +67,8 @@ void OccupancyMapDetail::copyFrom(const OccupancyMapDetail &other)
   hit_probability = other.hit_probability;
   miss_value = other.miss_value;
   miss_probability = other.miss_probability;
-  min_node_value = other.min_node_value;
-  max_node_value = other.max_node_value;
+  min_voxel_value = other.min_voxel_value;
+  max_voxel_value = other.max_voxel_value;
   saturate_at_min_value = other.saturate_at_min_value;
   saturate_at_max_value = other.saturate_at_max_value;
   layout = MapLayout(other.layout);

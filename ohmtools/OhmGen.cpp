@@ -17,7 +17,7 @@ namespace ohmgen
 {
   void fillMapWithEmptySpace(OccupancyMap &map, int x1, int y1, int z1, int x2, int y2, int z2, bool expect_empty_map)
   {
-    OccupancyNode node;
+    Voxel voxel;
     OccupancyKey key;
     MapCache cache;
     float initial_value;
@@ -31,15 +31,15 @@ namespace ohmgen
         {
           key = OccupancyKey(0, 0, 0, 0, 0, 0);
           map.moveKey(key, x, y, z);
-          node = map.node(key, true, &cache);
-          initial_value = (!node.isNull()) ? node.value() : OccupancyNode::invalidMarkerValue();
-          expect_value = (initial_value == OccupancyNode::invalidMarkerValue()) ? map.missValue() : initial_value + map.missValue();
+          voxel = map.voxel(key, true, &cache);
+          initial_value = (!voxel.isNull()) ? voxel.value() : Voxel::invalidMarkerValue();
+          expect_value = (initial_value == Voxel::invalidMarkerValue()) ? map.missValue() : initial_value + map.missValue();
           expect_value = (map.saturateAtMinValue() && expect_value < map.minNodeValue()) ? map.minNodeValue() : expect_value;
-          if (expect_empty_map && initial_value != OccupancyNode::invalidMarkerValue())
+          if (expect_empty_map && initial_value != Voxel::invalidMarkerValue())
           {
             throw std::logic_error("Voxel should start uncertain.");
           }
-          node.setValue(map.missValue());
+          voxel.setValue(map.missValue());
         }
       }
     }
@@ -66,7 +66,7 @@ namespace ohmgen
             point[a0] = i * map_res;
             point[a1] = j * map_res;
             point[a2] = (k == 0 ? (-extents) * map.resolution() : (extents - 1) * map.resolution());
-            map.node(map.voxelKey(point), true, &cache).setValue(map.occupancyThresholdValue() + map.hitValue());
+            map.voxel(map.voxelKey(point), true, &cache).setValue(map.occupancyThresholdValue() + map.hitValue());
           }
         }
       }

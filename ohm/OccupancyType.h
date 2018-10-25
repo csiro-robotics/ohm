@@ -10,16 +10,16 @@
 
 namespace ohm
 {
-  /// An enumeration of the types of @c OccupancyNode states available.
+  /// An enumeration of the types of @c Voxel states available.
   enum OccupancyType
   {
-    /// Invalid/null node.
+    /// Invalid/null voxel.
     Null = -2,
-    /// Uncertain: no data recorded or available for the node.
+    /// Uncertain: no data recorded or available for the voxel.
     Uncertain = -1,
     /// Know to be empty or free (traversable).
     Free = 0,
-    /// Occupied node.
+    /// Occupied voxel.
     Occupied = 1
   };
 

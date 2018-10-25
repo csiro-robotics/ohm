@@ -5,7 +5,7 @@
 // Author: Kazys Stepanas
 #include "gpu_ext.h"
 
-// Validate node key generation: each thread writes a result containing the range to its
+// Validate voxel key generation: each thread writes a result containing the range to its
 // voxel key and voxel range to query point.
 //#define VALIDATE_KEYS
 

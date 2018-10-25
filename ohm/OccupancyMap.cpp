@@ -69,7 +69,7 @@ namespace
     return OccupancyKey(chunk.region.coord, std::min(chunk.first_valid_index.x, uint8_t(map.region_voxel_dimensions.x - 1)),
                         std::min(chunk.first_valid_index.y, uint8_t(map.region_voxel_dimensions.y - 1)),
                         std::min(chunk.first_valid_index.z, uint8_t(map.region_voxel_dimensions.z - 1)));
-    // if (nodeIndex(key, map.region_voxel_dimensions) >= map.region_voxel_dimensions.x * map.region_voxel_dimensions.y *
+    // if (voxelIndex(key, map.region_voxel_dimensions) >= map.region_voxel_dimensions.x * map.region_voxel_dimensions.y *
     // map.region_voxel_dimensions.z)
     // {
     //   // First valid index is out of range. This implies it has not been set correctly.
@@ -180,10 +180,10 @@ bool OccupancyMap::base_iterator::base_iterator::isValid() const
 }
 
 
-OccupancyNodeConst OccupancyMap::base_iterator::node() const
+VoxelConst OccupancyMap::base_iterator::voxel() const
 {
   const ChunkMap::iterator &iter = chunkIter(chunk_mem_);
-  return isValid() ? OccupancyNodeConst(key_, iter->second, map_) : OccupancyNodeConst();
+  return isValid() ? VoxelConst(key_, iter->second, map_) : VoxelConst();
 }
 
 
@@ -207,9 +207,9 @@ void OccupancyMap::base_iterator::walkNext()
 }
 
 
-OccupancyNode OccupancyMap::iterator::node()
+Voxel OccupancyMap::iterator::voxel()
 {
-  return isValid() ? OccupancyNode(key_, chunkIter(chunk_mem_)->second, map_) : OccupancyNode();
+  return isValid() ? Voxel(key_, chunkIter(chunk_mem_)->second, map_) : Voxel();
 }
 
 
@@ -225,8 +225,8 @@ OccupancyMap::OccupancyMap(double resolution, const glm::u8vec3 &region_voxel_di
   imp_->region_spatial_dimensions.z = imp_->region_voxel_dimensions.z * resolution;
   imp_->saturate_at_min_value = imp_->saturate_at_max_value = false;
   // Default thresholds taken from octomap as a guide.
-  imp_->min_node_value = -2.0f;
-  imp_->max_node_value = 3.511f;
+  imp_->min_voxel_value = -2.0f;
+  imp_->max_voxel_value = 3.511f;
   setHitProbability(0.7f);
   setMissProbability(0.4f);
   setOccupancyThresholdProbability(0.5f);
@@ -244,7 +244,7 @@ OccupancyMap::~OccupancyMap()
 }
 
 
-size_t OccupancyMap::nodeMemoryPerRegion(glm::u8vec3 region_voxel_dimensions)
+size_t OccupancyMap::voxelMemoryPerRegion(glm::u8vec3 region_voxel_dimensions)
 {
   region_voxel_dimensions.x = (region_voxel_dimensions.x > 0) ? region_voxel_dimensions.x : OHM_DEFAULT_CHUNK_DIM_X;
   region_voxel_dimensions.y = (region_voxel_dimensions.y > 0) ? region_voxel_dimensions.y : OHM_DEFAULT_CHUNK_DIM_Y;
@@ -297,7 +297,7 @@ namespace
 }
 
 
-OccupancyNode OccupancyMap::node(const OccupancyKey &key, bool allow_create, MapCache *cache)
+Voxel OccupancyMap::voxel(const OccupancyKey &key, bool allow_create, MapCache *cache)
 {
   MapChunk *chunk = (cache) ? cache->lookup(key) : nullptr;
 
@@ -315,7 +315,7 @@ OccupancyNode OccupancyMap::node(const OccupancyKey &key, bool allow_create, Map
       chunk = newChunk(key);
       imp_->chunks.insert(std::make_pair(chunk->region.hash, chunk));
       // No need to touch the map here. We haven't changed the semantics of the map until
-      // we change the value of a node in the region.
+      // we change the value of a voxel in the region.
     }
   }
 
@@ -325,13 +325,13 @@ OccupancyNode OccupancyMap::node(const OccupancyKey &key, bool allow_create, Map
     {
       cache->push(chunk);
     }
-    return OccupancyNode(key, chunk, imp_);
+    return Voxel(key, chunk, imp_);
   }
-  return OccupancyNode();
+  return Voxel();
 }
 
 
-OccupancyNodeConst OccupancyMap::node(const OccupancyKey &key, MapCache *cache) const
+VoxelConst OccupancyMap::voxel(const OccupancyKey &key, MapCache *cache) const
 {
   MapChunk *chunk = (cache) ? cache->lookup(key) : nullptr;
 
@@ -351,19 +351,19 @@ OccupancyNodeConst OccupancyMap::node(const OccupancyKey &key, MapCache *cache) 
 
   if (chunk)
   {
-    return OccupancyNodeConst(key, chunk, imp_);
+    return VoxelConst(key, chunk, imp_);
   }
 
-  return OccupancyNodeConst();
+  return VoxelConst();
 }
 
 
-int OccupancyMap::occupancyType(const OccupancyNodeConst &node) const
+int OccupancyMap::occupancyType(const VoxelConst &voxel) const
 {
-  if (!node.isNull())
+  if (!voxel.isNull())
   {
-    const float value = node.value();
-    if (value < NodeBase::invalidMarkerValue())
+    const float value = voxel.value();
+    if (value < VoxelBase::invalidMarkerValue())
     {
       if (value < occupancyThresholdValue())
       {
@@ -388,11 +388,11 @@ size_t OccupancyMap::calculateApproximateMemory() const
   {
     std::unique_lock<decltype(imp_->mutex)> guard(imp_->mutex);
     const glm::ivec3 dim = imp_->region_voxel_dimensions;
-    const size_t nodes_per_chunk = size_t(dim.x) * size_t(dim.y) * size_t(dim.z);
+    const size_t voxels_per_chunk = size_t(dim.x) * size_t(dim.y) * size_t(dim.z);
 
     byte_count += sizeof(OccupancyMapDetail);
     byte_count += imp_->chunks.size() * sizeof(MapChunk);
-    byte_count += imp_->chunks.size() * 2 * sizeof(float) * nodes_per_chunk;
+    byte_count += imp_->chunks.size() * 2 * sizeof(float) * voxels_per_chunk;
     // TODO: consider coarseClearance array.
 
     // Approximate hash map usage.
@@ -680,7 +680,7 @@ void OccupancyMap::setOccupancyThresholdProbability(float probability)
 }
 
 
-OccupancyNode OccupancyMap::addNode(const OccupancyKey &key, float value)
+Voxel OccupancyMap::addNode(const OccupancyKey &key, float value)
 {
   MapChunk *chunk;
   std::unique_lock<decltype(imp_->mutex)> guard(imp_->mutex);
@@ -698,22 +698,22 @@ OccupancyNode OccupancyMap::addNode(const OccupancyKey &key, float value)
     chunk = region_search->second;
   }
 
-  OccupancyNode node(key, chunk, imp_);
+  Voxel voxel(key, chunk, imp_);
   // Set value through this function to ensure first valid index is maintained.
-  node.setValue(value);
-  return node;
+  voxel.setValue(value);
+  return voxel;
 }
 
 
 float OccupancyMap::minNodeValue() const
 {
-  return imp_->min_node_value;
+  return imp_->min_voxel_value;
 }
 
 
 void OccupancyMap::setMinNodeValue(float value)
 {
-  imp_->min_node_value = value;
+  imp_->min_voxel_value = value;
 }
 
 
@@ -731,13 +731,13 @@ void OccupancyMap::setSaturateAtMinValue(bool saturate)
 
 float OccupancyMap::maxNodeValue() const
 {
-  return imp_->max_node_value;
+  return imp_->max_voxel_value;
 }
 
 
 void OccupancyMap::setMaxNodeValue(float value)
 {
-  imp_->max_node_value = value;
+  imp_->max_voxel_value = value;
 }
 
 
@@ -1072,7 +1072,7 @@ MapChunk *OccupancyMap::region(const glm::i16vec3 &region_key, bool allow_create
     MapChunk *chunk = newChunk(OccupancyKey(region_key, 0, 0, 0));
     imp_->chunks.insert(std::make_pair(chunk->region.hash, chunk));
     // No need to touch the map here. We haven't changed the semantics of the map.
-    // That happens when the value of a node in the region changes.
+    // That happens when the value of a voxel in the region changes.
     return chunk;
   }
 

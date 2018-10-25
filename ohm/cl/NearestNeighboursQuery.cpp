@@ -134,11 +134,11 @@ int invokeNnQueryGpu(const OccupancyMapDetail &map, NearestNeighboursDetail &que
   cl_int clerr = CL_SUCCESS;
   clu::KernelGrid grid;
   grid.work_group_size = nn_kernel.calculateOptimalWorkGroupSize();
-  if (grid.work_group_size[0] > gpu_data.queued_nodes)
+  if (grid.work_group_size[0] > gpu_data.queued_voxels)
   {
-    grid.work_group_size = gpu_data.queued_nodes;
+    grid.work_group_size = gpu_data.queued_voxels;
   }
-  grid.global_size = gpu_data.queued_nodes;
+  grid.global_size = gpu_data.queued_voxels;
   grid.global_size = grid.adjustedGlobal();
 
   // Work in local coordinates on the GPU for better precision (double support not guaranteed, so we use single).
@@ -158,19 +158,19 @@ int invokeNnQueryGpu(const OccupancyMapDetail &map, NearestNeighboursDetail &que
   clerr = nn_kernel(queue, grid, kernel_events,
                    voxel_dim_cl,
                    region_spatial_dim_cl,
-                   gpu_data.gpu_nodes.arg<cl_mem>(),
-                   gpu_data.gpu_node_region_keys.arg<cl_mem>(),
-                   gpu_data.gpu_node_voxel_keys.arg<cl_mem>(),
+                   gpu_data.gpu_voxels.arg<cl_mem>(),
+                   gpu_data.gpu_voxel_region_keys.arg<cl_mem>(),
+                   gpu_data.gpu_voxel_voxel_keys.arg<cl_mem>(),
                    gpu_data.gpu_ranges.arg<cl_mem>(),
                    gpu_data.gpu_result_region_keys.arg<cl_mem>(),
-                   gpu_data.gpu_result_node_keys.arg<cl_mem>(),
+                   gpu_data.gpu_result_voxel_keys.arg<cl_mem>(),
                    gpu_data.gpu_result_count.arg<cl_mem>(),
                    near_point_cl,
                    float(query.search_radius),
                    float(map.occupancy_threshold_value),
                    float(map.resolution),
                    cl_int((query.query_flags & kQfUnknownAsOccupied) ? 1 : 0),
-                   gpu_data.queued_nodes
+                   gpu_data.queued_voxels
                    // , __local float *localRanges
                    // , __local short3 *localVoxelKeys
                    // , __local int3 *localRegionKeys

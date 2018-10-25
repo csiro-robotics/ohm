@@ -25,7 +25,7 @@ namespace ohmtools
 
     for (auto iter = map.begin(); iter != map.end(); ++iter)
     {
-      const ohm::OccupancyNodeConst node = *iter;
+      const ohm::VoxelConst voxel = *iter;
       if (last_region != iter.key().regionKey())
       {
         ++processed_region_count;
@@ -35,9 +35,9 @@ namespace ohmtools
         }
         last_region = iter.key().regionKey();
       }
-      if (map.occupancyType(node) == ohm::Occupied)
+      if (map.occupancyType(voxel) == ohm::Occupied)
       {
-        v = map.voxelCentreLocal(node.key());
+        v = map.voxelCentreLocal(voxel.key());
         ply.addVertex(v);
       }
     }
@@ -98,7 +98,7 @@ namespace ohmtools
     const auto map_end_iter = map.end();
     for (auto iter = map.begin(); iter != map_end_iter; ++iter)
     {
-      const ohm::OccupancyNodeConst node = *iter;
+      const ohm::VoxelConst voxel = *iter;
       if (last_region != iter.key().regionKey())
       {
         ++processed_region_count;
@@ -109,16 +109,16 @@ namespace ohmtools
         last_region = iter.key().regionKey();
       }
 
-      // Ensure the node is in a region we have calculated data for.
+      // Ensure the voxel is in a region we have calculated data for.
       if (min_region.x <= last_region.x && last_region.x <= max_region.x &&
           min_region.y <= last_region.y && last_region.y <= max_region.y &&
           min_region.z <= last_region.z && last_region.z <= max_region.z)
       {
-        //if (node.isOccupied() || node.isFree())
-        const bool export_match = !node.isNull() && map.occupancyType(node) >= export_type;
+        //if (voxel.isOccupied() || voxel.isFree())
+        const bool export_match = !voxel.isNull() && map.occupancyType(voxel) >= export_type;
         if (export_match)
         {
-          float range_value = node.clearance();
+          float range_value = voxel.clearance();
           if (range_value < 0)
           {
             range_value = colour_range;
@@ -126,7 +126,7 @@ namespace ohmtools
           if (range_value >= 0)
           {
             uint8_t c = uint8_t(255 * std::max(0.0f, (colour_scale - range_value) / colour_scale));
-            v = map.voxelCentreLocal(node.key());
+            v = map.voxelCentreLocal(voxel.key());
             ply.addVertex(v, Colour(c, 128, 0));
             ++point_count;
           }

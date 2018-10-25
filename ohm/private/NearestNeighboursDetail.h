@@ -32,20 +32,20 @@ namespace ohm
       std::vector<float> local_ranges;
       std::vector<gputil::short3> region_keys;
       std::vector<gputil::uchar3> local_keys;
-      gputil::Buffer gpu_nodes;
-      gputil::Buffer gpu_node_region_keys;
-      gputil::Buffer gpu_node_voxel_keys;
+      gputil::Buffer gpu_voxels;
+      gputil::Buffer gpu_voxel_region_keys;
+      gputil::Buffer gpu_voxel_voxel_keys;
       gputil::Buffer gpu_ranges;
       gputil::Buffer gpu_result_region_keys;
-      gputil::Buffer gpu_result_node_keys;
+      gputil::Buffer gpu_result_voxel_keys;
       gputil::Buffer gpu_result_count;
 
-      unsigned queued_nodes = 0u;
+      unsigned queued_voxels = 0u;
       unsigned result_count = 0u;
 
       inline void clear()
       {
-        queued_nodes = result_count = 0u;
+        queued_voxels = result_count = 0u;
       }
 
     } gpu_data;

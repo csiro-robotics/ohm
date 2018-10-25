@@ -21,19 +21,19 @@ namespace ohm
   /// @return The calculated @c voxelSearchHalfExtents argument.
   glm::ivec3 calculateVoxelSearchHalfExtents(const OccupancyMap &map, float search_radius);
 
-  /// Search for the nearest occupied neighbour of @p node and return the range.
-  /// @param node_key The node we are operating on.
-  /// @param map The map to which @p node belongs.
+  /// Search for the nearest occupied neighbour of @p voxel and return the range.
+  /// @param voxel_key The voxel we are operating on.
+  /// @param map The map to which @p voxel belongs.
   /// @param voxel_search_half_extents Defines how far along each axis to search neighbours for in both + and - directions.
-  /// @param unknown_as_occupied Treat unknown/unexplored nodes as occupied?
+  /// @param unknown_as_occupied Treat unknown/unexplored voxels as occupied?
   /// @param ignore_self Only consider neighbours. Ignore the voxel itself if it is occupied.
   /// @param search_range Radius to search and report.
   /// @param axis_scaling Scaling applied along each axis to distort the search space.
   /// @param report_unscaled_distance Set to true in order to report the result without applying @c axisScaling.
   ///     The same voxel is selected regardless of this value.
-  /// @return -1 if there are no occupied nodes within the @p voxelSearchHalfExtents range, or the range of
-  ///   the nearest obstacle. Zero when @p node itself is occupied.
-  float calculateNearestNeighbour(const OccupancyKey &node_key, const OccupancyMap &map,
+  /// @return -1 if there are no occupied voxels within the @p voxelSearchHalfExtents range, or the range of
+  ///   the nearest obstacle. Zero when @p voxel itself is occupied.
+  float calculateNearestNeighbour(const OccupancyKey &voxel_key, const OccupancyMap &map,
                                   const glm::ivec3 &voxel_search_half_extents,
                                   bool unknown_as_occupied, bool ignore_self, float search_range = 0,
                                   const glm::vec3 &axis_scaling = glm::vec3(1.0f, 1.0f, 1.0f),

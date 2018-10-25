@@ -43,23 +43,23 @@ namespace ranges
     // auto region_size = map.regionVoxelDimensions();
     // std::cout << "regionSize: " << regionSize << std::endl;
 
-    OccupancyNodeConst node = map.node(key);
-    if (node.isValid())
+    VoxelConst voxel = map.voxel(key);
+    if (voxel.isValid())
     {
       do
       {
         uint8_t r = 255;
         uint8_t g = 128;
         uint8_t b = 0;
-        float range_value = node.clearance();
+        float range_value = voxel.clearance();
         if (range_value < 0)
         {
           range_value = search_radius;
         }
         r = uint8_t(255 * std::max(0.0f, (search_radius - range_value) / search_radius));
-        voxel_pos = map.voxelCentreGlobal(node.key());
+        voxel_pos = map.voxelCentreGlobal(voxel.key());
         ply.addVertex(voxel_pos, Colour(r, g, b));
-      } while (node.nextInRegion());
+      } while (voxel.nextInRegion());
     }
 
     ply.save(file_name, true);
@@ -68,10 +68,10 @@ namespace ranges
 
   void showVoxel(ohm::OccupancyMap &map, const ohm::OccupancyKey &key, float expected_range = FLT_MAX)
   {
-    const OccupancyNodeConst node = map.node(key, false);
-    if (node.isValid())
+    const VoxelConst voxel = map.voxel(key, false);
+    if (voxel.isValid())
     {
-      std::cout << node.key() << " " << node.value() << ": " << node.clearance() << '\n';
+      std::cout << voxel.key() << " " << voxel.value() << ": " << voxel.clearance() << '\n';
     }
     else
     {
@@ -80,10 +80,10 @@ namespace ranges
 
     if (expected_range != FLT_MAX)
     {
-      EXPECT_TRUE(node.isValid());
-      if (node.isValid())
+      EXPECT_TRUE(voxel.isValid());
+      if (voxel.isValid())
       {
-        EXPECT_NEAR(node.clearance(), expected_range, 1e-3f);
+        EXPECT_NEAR(voxel.clearance(), expected_range, 1e-3f);
       }
     }
   }
@@ -105,7 +105,7 @@ namespace ranges
     // Build a map in which we clear all voxels except the one at key (0, 0, 0 : 0, 0, 0).
     // We clear region (0, 0, 0) and make sure we don't query with the flag kQfUnknownAsOccupied.
     ohmgen::fillMapWithEmptySpace(map, 0, 0, 0, region_size.x, region_size.y, region_size.z);
-    auto occupied_voxel = map.node(OccupancyKey(0, 0, 0, 0, 0, 0), true);
+    auto occupied_voxel = map.voxel(OccupancyKey(0, 0, 0, 0, 0, 0), true);
     occupied_voxel.setValue(map.occupancyThresholdValue());
 
     auto end_time = TimingClock::now();
@@ -134,25 +134,25 @@ namespace ranges
     ohmtools::saveCloud("ranges-simple-cloud.ply", map);
 
     key = OccupancyKey(0, 0, 0, 0, 0, 0);
-    OccupancyNodeConst node = map.node(key);
+    VoxelConst voxel = map.voxel(key);
     // const float *values = (const float *)map.layout().layer(1).voxels(*map.region(glm::i16vec3(0, 0, 0)));
-    ASSERT_TRUE(node.isValid());
+    ASSERT_TRUE(voxel.isValid());
     const unsigned max_failures = 20;
     unsigned failure_count = 0;
     do
     {
-      ASSERT_TRUE(node.isValid());
+      ASSERT_TRUE(voxel.isValid());
       const float epsilon = 1e-3f;
-      const float dist_to_region_origin = glm::length(glm::vec3(node.key().localKey()));
+      const float dist_to_region_origin = glm::length(glm::vec3(voxel.key().localKey()));
       const float expected_range = (dist_to_region_origin <= clearance_process.searchRadius()) ? dist_to_region_origin : -1.0f;
-      const float clearance = node.clearance();
+      const float clearance = voxel.clearance();
       if (std::abs(expected_range - clearance) > epsilon)
       {
-        std::cout << "Fail: " << node.key() << ' ' << node.value() << " to RO: " << dist_to_region_origin << " expect: " << expected_range << " actual: " << clearance << '\n';
+        std::cout << "Fail: " << voxel.key() << ' ' << voxel.value() << " to RO: " << dist_to_region_origin << " expect: " << expected_range << " actual: " << clearance << '\n';
         ++failure_count;
       }
       EXPECT_NEAR(expected_range, clearance, epsilon);
-    } while (node.nextInRegion() && failure_count < max_failures);
+    } while (voxel.nextInRegion() && failure_count < max_failures);
 
     if (failure_count == max_failures)
     {
@@ -205,11 +205,11 @@ namespace ranges
           local_key[primary_axis] = a;
           local_key[second_axis] = b;
           local_key[third_axis] = 0;
-          auto voxel = map.node(OccupancyKey(glm::i16vec3(0), local_key), false, &cache);
+          auto voxel = map.voxel(OccupancyKey(glm::i16vec3(0), local_key), false, &cache);
           ASSERT_TRUE(voxel.isValid());
           EXPECT_NEAR(voxel.clearance(), map.resolution(), 1e-2f);
           local_key[third_axis] = region_size[third_axis] - 1;
-          voxel = map.node(OccupancyKey(glm::i16vec3(0), local_key), false, &cache);
+          voxel = map.voxel(OccupancyKey(glm::i16vec3(0), local_key), false, &cache);
           ASSERT_TRUE(voxel.isValid());
           EXPECT_NEAR(voxel.clearance(), map.resolution(), 1e-2f);
         }
@@ -281,7 +281,7 @@ namespace ranges
     {
       OccupancyKey key(0, 0, 0, 0, 0, 0);
       map.moveKey(key, offset.x, offset.y, offset.z);
-      map.node(key, true).setValue(map.occupancyThresholdValue() + map.hitValue());
+      map.voxel(key, true).setValue(map.occupancyThresholdValue() + map.hitValue());
     }
 
     auto end_time = TimingClock::now();
@@ -317,7 +317,7 @@ namespace ranges
 
     for (const auto &test_key : test_keys)
     {
-      auto voxel = map.node(test_key);
+      auto voxel = map.voxel(test_key);
       ASSERT_TRUE(voxel.isValid());
       EXPECT_NEAR(voxel.clearance(), glm::length(glm::vec3(float(map.resolution()))), 1e-2f);
     }
@@ -354,9 +354,9 @@ namespace ranges
     ohmutil::ProfileMarker mark(label, &profile);
 
     ClearanceProcess clearance_process(search_range, kQfGpuEvaluate * !!gpu);
-    OccupancyNodeConst node = map.node(origin_key);
+    VoxelConst voxel = map.voxel(origin_key);
 
-    const auto make_query = [&clearance_process, &map, &node, &profile]
+    const auto make_query = [&clearance_process, &map, &voxel, &profile]
     (const char *context, const glm::vec3 &axis_scaling, float expected, bool report_scaling)
     {
       ohmutil::ProfileMarker mark("Query", &profile);
@@ -367,7 +367,7 @@ namespace ranges
       clearance_process.setAxisScaling(axis_scaling);
       clearance_process.reset();
       clearance_process.calculateForExtents(map, glm::dvec3(0), glm::dvec3(0));
-      const float clearance = node.clearance();
+      const float clearance = voxel.clearance();
       EXPECT_NEAR(expected, clearance, 1e-2f) << context;
     };
 

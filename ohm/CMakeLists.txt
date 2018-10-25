@@ -18,8 +18,8 @@ set(SOURCES
   private/MapLayerDetail.h
   private/MapLayoutDetail.h
   private/NearestNeighboursDetail.h
-  private/NodeAlgorithms.cpp
-  private/NodeAlgorithms.h
+  private/VoxelAlgorithms.cpp
+  private/VoxelAlgorithms.h
   private/OccupancyMapDetail.cpp
   private/OccupancyMapDetail.h
   private/QueryDetail.h

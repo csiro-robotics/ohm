@@ -43,7 +43,7 @@ namespace ohmtools
                                    const ohm::Query &query, float colour_range = 0.0f,
                                    const ProgressCallback &prog = ProgressCallback());
 
-  /// Save a point cloud representing the @c OccupancyNode::clearance() values for voxels in @p map.
+  /// Save a point cloud representing the @c Voxel::clearance() values for voxels in @p map.
   ///
   /// Voxels are coloured by the reported query range values where voxels at or beyond @p colourRange
   /// are green, tending to orange closer to zero.

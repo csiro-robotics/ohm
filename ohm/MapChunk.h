@@ -66,7 +66,7 @@ namespace ohm
     MapRegion region;
     /// Describes the layers and voxel layout of the chunk (from the map as a whole).
     const MapLayout *layout = nullptr;
-    /// Index of the first node with valid data: occupied or free, but not uncertain.s
+    /// Index of the first voxel with valid data: occupied or free, but not uncertain.s
     glm::u8vec3 first_valid_index = glm::u8vec3(255, 255, 255);
     /// Last timestamp the occupancy layer of this chunk was modified.
     double touched_time = 0;
@@ -99,7 +99,7 @@ namespace ohm
     ///   or a null key is returned.
     /// @param region_voxel_dimensions The dimensions of each chunk/region along each axis.
     /// @param region_coord The coordinate of the containing region.
-    /// @return An @c OccupancyKey to reference the requested node.
+    /// @return An @c OccupancyKey to reference the requested voxel.
     static OccupancyKey keyForIndex(size_t voxel_index, const glm::ivec3 &region_voxel_dimensions,
                                     const glm::i16vec3 &region_coord);
 
@@ -109,14 +109,14 @@ namespace ohm
       return keyForIndex(voxel_index, region_voxel_dimensions, region.coord);
     }
 
-    /// Returns true if the chunk contains any valid nodes. A valid node is one who's value has
+    /// Returns true if the chunk contains any valid voxels. A valid voxel is one who's value has
     /// been set.
     ///
     /// This is a quick test based on the state of @c first_valid_index being valid and not
     /// (255, 255, 255). Thus the result is only corect insofar as @c first_valid_index is correctly
     /// maintained.
     ///
-    /// @return True if this chunk contains at least one node with a valid value.
+    /// @return True if this chunk contains at least one voxel with a valid value.
     bool hasValidNodes() const;
 
     /// Update the @c first_valid_index based on adding @p localIndex as a valid index.
@@ -126,9 +126,9 @@ namespace ohm
     /// @param region_voxel_dimensions The dimensions of each chunk/region along each axis.
     void updateFirstValid(const glm::u8vec3 &local_index, const glm::ivec3 &region_voxel_dimensions);
 
-    /// Update the @c first_valid_index by brute force, searching for the first valid node.
+    /// Update the @c first_valid_index by brute force, searching for the first valid voxel.
     /// @param region_voxel_dimensions The dimensions of each chunk/region along each axis.
-    /// @param search_from Start searching from this node index (must be a valid index).
+    /// @param search_from Start searching from this voxel index (must be a valid index).
     void searchAndUpdateFirstValid(const glm::ivec3 &region_voxel_dimensions,
                                    const glm::u8vec3 &search_from = glm::u8vec3(0, 0, 0));
 

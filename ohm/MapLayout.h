@@ -47,10 +47,10 @@ namespace ohm
   ///
   ///   ohm::MayLayout layout = map.layout();
   ///   layout.clear(); // Clear the existing layout. Must be done before adding to the map.
-  ///   
+  ///
   ///   // Setup DL_Occupancy layer.
   ///   // Fetch the value we'll clear voxels with (default value).
-  ///   const float invalidMarkerValue = NodeBase::invalidMarkerValue();
+  ///   const float invalidMarkerValue = VoxelBase::invalidMarkerValue();
   ///   /// Write the invalidMarkerValue value into a size_t item which will be the clear value for the member.
   ///   memcpy(&clearValue, &invalidMarkerValue, std::min(sizeof(invalidMarkerValue), sizeof(clearValue)));
   ///   // Create the occupancy layer.
@@ -59,8 +59,8 @@ namespace ohm
   ///   voxel = layer->voxelLayout();
   ///   /// Add the occupancy value member as a float. Set the default value to -1.
   ///   voxel.addMember("occupancy", DataType::Float, clearValue);
-  ///   
-  ///   // Setup DL_Clearance 
+  ///
+  ///   // Setup DL_Clearance
   ///   const float defaultClearance = -1.0f; // Default value is -1.
   ///   memcpy(&clearValue, &defaultClearance, std::min(sizeof(defaultClearance), sizeof(clearValue)));
   ///   // Create the layer.
@@ -68,7 +68,7 @@ namespace ohm
   ///   voxel = layer->voxelLayout();
   ///   // Add clearance value member.
   ///   voxel.addMember("clearance", DataType::Float, clearValue);
-  ///   
+  ///
   ///   // Do the same for CL_CoarseClearance.
   ///   memcpy(&clearValue, &defaultClearance, std::min(sizeof(defaultClearance), sizeof(clearValue)));
   ///   // Add the layer downsampled by 1 voxel. Each voxel in this layer covers 8 voxels at the map resolution.
@@ -114,7 +114,7 @@ namespace ohm
     /// Create an empty layout.
     MapLayout();
     /// Move constructor.
-    /// @param other The layout to move. 
+    /// @param other The layout to move.
     MapLayout(MapLayout &&other) noexcept;
     /// Copy constructor.
     /// @param other The layout to deep copy.

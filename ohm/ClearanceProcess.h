@@ -18,7 +18,7 @@ namespace ohm
   struct ClearanceProcessDetail;
   class OccupancyMap;
 
-  /// This query calculates the @c OccupancyNode::clearance() for all voxels within the query extents.
+  /// This query calculates the @c Voxel::clearance() for all voxels within the query extents.
   ///
   /// For each voxel in the query expanse, the range to the nearest obstructed voxel (see @c Query) is calculated and
   /// witten back into the voxel's @c clearance value. The range of the calculation is limited by the
@@ -40,7 +40,7 @@ namespace ohm
   /// to the nearest obstacles, while the latter uses an approximated flood fill. As a result, the GPU algorithm is
   /// optimistic and may report longer ranges than it should.
   ///
-  /// The results written to @c OccupancyNode::clearance() should be interpreted as follows:
+  /// The results written to @c Voxel::clearance() should be interpreted as follows:
   /// - 0.0 => The voxel in question is itself an obstruction.
   /// - > 0 => There is an obstructed voxel within the @c searchRadius().
   /// - < 0 => There are no obstructions within the @c searchRadius().
@@ -53,7 +53,7 @@ namespace ohm
   /// - @c Query::intersectedVoxels() contains no data.
   /// - @c Query::ranges() contains no data.
   ///
-  /// Results are instead available via @c OccupancyNodeConst::clearance() or  @c OccupancyNode::clearance().
+  /// Results are instead available via @c VoxelConst::clearance() or  @c Voxel::clearance().
   class ohm_API ClearanceProcess : public MappingProcess
   {
   public:
