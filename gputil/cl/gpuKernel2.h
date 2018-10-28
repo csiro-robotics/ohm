@@ -18,7 +18,7 @@
 
 #include <clu/cluKernel.h>
 
-#include <malloc.h>
+#include <cstdlib>
 
 namespace clu
 {
