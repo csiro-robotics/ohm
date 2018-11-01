@@ -50,7 +50,11 @@ If this fails, you will need to `apt-get purge <package>` the following apt-pack
 - beignet-opencl-icd
 
 ### Intel Linux Driver
-This installs the current Intel OpenCL drivers for 7th, 8th and 9th generation CPU. The beignet drivers are preferred since Unbutu is not officially supported. The drivers can be downloaded from https://software.intel.com/en-us/articles/opencl-drivers and installed by running the installation script. Note any missing apt dependencies and install those before continuing.
+This installs the current Intel OpenCL drivers for 7th, 8th and 9th generation CPU. The beignet drivers are preferred since Unbutu is not officially supported. The downloaded instructions are available hereat https://software.intel.com/en-us/articles/opencl-drivers.
+
+- Download the .deb runtime driver from https://github.com/intel/compute-runtime/releases
+- Run: `sudo dpkg -i <pkg>.deb`
+- Verify installation (above)
 
 These drivers are incompatible with beignet.
 
@@ -61,11 +65,11 @@ These drivers are incompatible with beignet.
 
 ## Installing the OpenCL SDK
 
-Intel publish an OpenCL SDK which includes debugging capabilities. This is has not been tested here under Ubuntu and the Windows version tends to be somewhat difficult to get working. Thus, that avenue is only recommended if debugging is essential.
+Intel publish an OpenCL SDK which includes kernel debugging capabilities. This is has not been tested here under Ubuntu and the Windows version tends to be somewhat difficult to get working. Thus, that avenue is only recommended if debugging is essential.
 
 For most installations it is enough to install the appropriate apt packages.
 
-- opencl-headers
-- ocl-icd-dev
-- ocl-icd-libopencl1
-- ocl-icd-opencl-dev
+```
+sudo apt-get install opencl-headers ocl-icd-dev ocl-icd-libopencl1 ocl-icd-opencl-dev
+```
+

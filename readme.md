@@ -37,7 +37,7 @@ While efforts are made to ensure certain components remain optional, certain con
 #### Ubuntu apt Packages
 On Ubuntu, the required packages may be installed using the following command:
 ```
-sudo apt-get install cmake zlib1g-dev libglm-dev pdal libtbb-dev doxygen googletest
+sudo apt-get install cmake zlib1g-dev libglm-dev libpdal-dev libtbb-dev doxygen googletest
 ```
 
 Google test must also be built as the package is source only:
