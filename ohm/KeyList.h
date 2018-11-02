@@ -22,7 +22,7 @@ namespace ohm
       /// Empty constructor: creates an undefined iterator object.
       inline iterator() {}
       /// Copy constuctor.
-      /// @parma other Iterator to copy.
+      /// @param other Iterator to copy.
       inline iterator(const iterator &other)
         : key_(other.key_)
       {}
@@ -92,12 +92,12 @@ namespace ohm
       /// Empty constructor: creates an undefined iterator object.
       inline const_iterator() {}
       /// Copy constuctor.
-      /// @parma other Iterator to copy.
+      /// @param other Iterator to copy.
       inline const_iterator(const const_iterator &other)
         : key_(other.key_)
       {}
       /// Copy constuctor from a non-const @c iterator.
-      /// @parma other Iterator to copy.
+      /// @param other Iterator to copy.
       inline const_iterator(const iterator &other)
         : key_(&*other)
       {}

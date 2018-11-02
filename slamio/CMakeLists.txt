@@ -1,32 +1,10 @@
 
 include(GenerateExportHeader)
 
-find_package(PDAL QUIET)
-find_package(LIBLAS QUIET)
-find_package(LASZIP QUIET)
-
-set(OHM_CLOUD_IO_LIBRARY auto CACHE STRING "Select point cloud IO library to use:  auto (prefer pdal), liblas, pdal or none")
-set_property(CACHE OHM_CLOUD_IO_LIBRARY PROPERTY STRINGS auto liblas pdal none)
-
-message(STATUS "Cloud IO Library: ${OHM_CLOUD_IO_LIBRARY}")
-
-if(OHM_CLOUD_IO_LIBRARY STREQUAL "none")
+if(CLOUD_IO_LIB STREQUAL "none")
+  message("No point cloud library available. Skipping slamio")
   return()
-endif(OHM_CLOUD_IO_LIBRARY STREQUAL "none")
-
-# Select the cloud io library to use.
-set(CLOUD_IO_LIB ${OHM_CLOUD_IO_LIBRARY})
-if(CLOUD_IO_LIB STREQUAL "auto")
-  if(PDAL_FOUND)
-    set(CLOUD_IO_LIB "pdal")
-  elseif(LIBLAS_FOUND)
-    set(CLOUD_IO_LIB "liblas")
-  else()
-    message(SEND_ERROR "Unable to local a point cloud IO library [pdal, liblas].")
-    return()
-  endif()
-  message(STATUS "Cloud IO auto selected: ${CLOUD_IO_LIB}")
-endif(CLOUD_IO_LIB STREQUAL "auto")
+endif(CLOUD_IO_LIB STREQUAL "none")
 
 find_package(GLM)
 

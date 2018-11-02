@@ -8,6 +8,6 @@ add_subdirectory(ohm2ply)
 add_subdirectory(ohmquery)
 add_subdirectory(ohmpop)
 
-if(LIBLAS_FOUND)
+if(CLOUD_IO_LIB STREQUAL "liblas")
   add_subdirectory(ohmcloudfilter)
-endif(LIBLAS_FOUND)
+endif(CLOUD_IO_LIB STREQUAL "liblas")

@@ -156,7 +156,7 @@ namespace gputil
     /// @return *this
     Device &operator=(Device &&other) noexcept;
 
-    /// @interal
+    /// @internal
     DeviceDetail *detail() const { return imp_; }
 
   private:

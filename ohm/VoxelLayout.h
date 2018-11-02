@@ -23,7 +23,7 @@ namespace ohm
   ///
   /// See @c MapLayout for more details.
   ///
-  /// @tpara T Either <tt>VoxelLayoutDetail</tt> or <tt>const VoxelLayoutDetail</tt> from the private API.
+  /// @tparam T Either <tt>VoxelLayoutDetail</tt> or <tt>const VoxelLayoutDetail</tt> from the private API.
   template <typename T>
   class VoxelLayoutT
   {
@@ -82,11 +82,11 @@ namespace ohm
     size_t voxelByteSize() const;
 
     /// Query the number of registered data members.
-    /// @retunrn The number of members.
+    /// @return The number of members.
     size_t memberCount() const;
 
     /// Get a pointer to a voxel member as a specific data type @c D.
-    /// 
+    ///
     /// Validates that the size of @c D matches the @c memberSize().
     ///
     /// @tparam D The target data type.

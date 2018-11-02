@@ -44,7 +44,7 @@ set(OHM_PREFIX_PACKAGE share/${CMAKE_PROJECT_NAME}/cmake) # For catkin interoper
 set(OHM_PREFIX_INCLUDE include/ohm)
 
 # Build options
-option(OHM_BUILD_DOXYGEN "Build doxygen documentation?" OFF)
+option(OHM_BUILD_DOXYGEN "Build doxygen documentation?" On)
 
 option(OHM_EMBED_GPU_CODE "Embed GPU code into the executable (OpenCL)? Otherwise GPU code files are loaded from disk (better for development)." ON)
 
@@ -57,11 +57,24 @@ set_property(CACHE OHM_OPENCL_STD PROPERTY STRINGS 1.2 2.0 max)
 
 set(OHM_OPENCL_2_FEATURES "cl_khr_int64_base_atomics;cl_khr_int64_extended_atomics" CACHE STRING "Features required for OpenCL 2.x. Fallback to 1.2 otherwise.")
 
+# Initialse OHM_THREADS based on whether we can find TBB or not.
+if(NOT DEFINED OHM_THREADS)
+  set(TBB_THREADS_DEFAULT Off)
+  find_package(TBB QUIET)
+  if(TBB_FOUND)
+    set(TBB_THREADS_DEFAULT On)
+  else(TBB_FOUND)
+    message(STATUS "Intel Threading Building Blocks not available. Building without threads.")
+  endif(TBB_FOUND)
+else(NOT DEFINED OHM_THREADS)
+  set(TBB_THREADS_DEFAULT ${OHM_THREADS})
+endif(NOT DEFINED OHM_THREADS)
+
 option(OHM_PROFILE "Enable timing information messages for some queries." Off)
-option(OHM_TES_DEBUG "Enable visual debuging code?" OFF)
-option(OHM_THREADS "Enable CPU threading (using Thread Building Blocks)? Not advisable for onboard compilation." Off)
-option(OHM_UNIT_TESTS "Build ohm units tests?" ON)
-option(OHM_VALIDATION "Enable various validation tests in the occupancy map code. Has some performance impact." OFF)
+option(OHM_TES_DEBUG "Enable visual debuging code?" Off)
+option(OHM_THREADS "Enable CPU threading (using Thread Building Blocks)? Not advisable for onboard compilation." ${TBB_THREADS_DEFAULT})
+option(OHM_UNIT_TESTS "Build ohm units tests?" On)
+option(OHM_VALIDATION "Enable various validation tests in the occupancy map code. Has some performance impact." Off)
 
 set(OHM_GPU_API "OpenCL" CACHE STRING "Select the GPU acceleration API.")
 set_property(CACHE OHM_GPU_API PROPERTY STRINGS CUDA OpenCL)
@@ -90,11 +103,34 @@ else(OHM_TES_DEBUG)
   set(3ES_INCLUDE_DIRS "${CMAKE_CURRENT_LIST_DIR}/3rdparty/3es-core")
 endif(OHM_TES_DEBUG)
 
-# libLAS uses static boost libraries.
-if(MSVC)
-  set(Boost_USE_STATIC_LIBS   ON)
-  set(Boost_USE_MULTITHREADED ON)
-endif(MSVC)
+# Resolve which point cloud library to use.
+# TODO: Migrate to PDAL only once Windows developer setup instructions for PDAL are resolved.
+find_package(PDAL QUIET)
+find_package(LIBLAS QUIET)
+find_package(LASZIP QUIET)
+
+set(OHM_CLOUD_IO_LIBRARY auto CACHE STRING "Select point cloud IO library to use:  auto (prefer pdal), liblas, pdal or none")
+set_property(CACHE OHM_CLOUD_IO_LIBRARY PROPERTY STRINGS auto liblas pdal none)
+
+message(STATUS "Cloud IO Library: ${OHM_CLOUD_IO_LIBRARY}")
+
+# Select the cloud io library to use.
+set(CLOUD_IO_LIB ${OHM_CLOUD_IO_LIBRARY})
+if(CLOUD_IO_LIB STREQUAL "auto")
+  if(PDAL_FOUND)
+    set(CLOUD_IO_LIB "pdal")
+  elseif(LIBLAS_FOUND)
+    set(CLOUD_IO_LIB "liblas")
+    # libLAS uses static boost libraries.
+    if(MSVC)
+      set(Boost_USE_STATIC_LIBS   ON)
+      set(Boost_USE_MULTITHREADED ON)
+    endif(MSVC)
+  else()
+    message(SEND_ERROR "Unable to local a point cloud IO library [pdal, liblas].")
+  endif()
+  message(STATUS "Cloud IO auto selected: ${CLOUD_IO_LIB}")
+endif(CLOUD_IO_LIB STREQUAL "auto")
 
 if(OHM_GPU_API STREQUAL "OpenCL")
   add_subdirectory(clu)

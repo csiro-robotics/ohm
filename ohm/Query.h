@@ -127,7 +127,7 @@ namespace ohm
 
     /// Virtual function called to execute the query from @c execute().
     ///
-    /// Dervied classes must implement a synchronous query in this function returning only on failure or once
+    /// Derived classes must implement a synchronous query in this function returning only on failure or once
     /// the query completes. Results must be available by the end of a successful call.
     ///
     /// @return True on successfully completing a query.
@@ -135,7 +135,7 @@ namespace ohm
 
     /// Virtual function called to execute the query asynchronously from @c executeAsync().
     ///
-    /// Dervied classes must implement an asynchronous query in this function returning only on failure or once
+    /// Derived classes must implement an asynchronous query in this function returning only on failure or once
     /// the query has started. The call must fail when there is already an asynchronous query running from this
     /// instance.
     ///

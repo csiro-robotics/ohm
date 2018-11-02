@@ -86,14 +86,14 @@ namespace ohmutil
     ///
     /// @param optr The output stream to print to.
     void report(std::ostream *optr = nullptr);
-    /// @override
+    /// @overload
     inline void report(std::ostream &optr) { report(&optr); }
 
     /// Suppresses @c report() printing.
     void suppressReport(bool suppress);
 
     /// Checks if reporting has been suppressed.
-    /// @return True when reporting has beeen suppressed.
+    /// @return True when reporting has been suppressed.
     bool reportSupressed() const;
 
   private:
