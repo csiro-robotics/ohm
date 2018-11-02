@@ -44,7 +44,7 @@ set(OHM_PREFIX_PACKAGE share/${CMAKE_PROJECT_NAME}/cmake) # For catkin interoper
 set(OHM_PREFIX_INCLUDE include/ohm)
 
 # Build options
-option(OHM_BUILD_DOXYGEN "Build doxygen documentation?" On)
+option(OHM_BUILD_DOXYGEN "Build doxygen documentation?" Off)
 
 option(OHM_EMBED_GPU_CODE "Embed GPU code into the executable (OpenCL)? Otherwise GPU code files are loaded from disk (better for development)." ON)
 
