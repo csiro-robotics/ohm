@@ -33,7 +33,7 @@ namespace gpumap
 
   void integrateRays(OccupancyMap &map, const std::vector<glm::dvec3> &rays)
   {
-    OccupancyKeyList keys;
+    KeyList keys;
     MapCache cache;
 
     for (size_t i = 0; i < rays.size(); i += 2)
@@ -178,7 +178,7 @@ namespace gpumap
     unsigned logged_failures = 0;
     for (auto iter = reference_map.begin(); iter != reference_map.end(); ++iter)
     {
-      if (iter->isValid() && iter->value() != ohm::VoxelBase::invalidMarkerValue())
+      if (iter->isValid() && iter->value() != ohm::voxel::invalidMarkerValue())
       {
         ++processed;
         ohm::VoxelConst gpu_voxel = test_map.voxel(iter->key());
@@ -356,7 +356,7 @@ namespace gpumap
 
     // Create a map for generating voxel centres.
     OccupancyMap grid_map(resolution, region_size);
-    OccupancyKey key(glm::i16vec3(0), 0, 0, 0);
+    Key key(glm::i16vec3(0), 0, 0, 0);
     glm::dvec3 v;
     // Create a set of rays which will densely populate a single region.
     for (int z = 0; z < region_size.z; ++z)
@@ -378,7 +378,7 @@ namespace gpumap
 
     const auto compare_results = [region_size] (OccupancyMap &cpu_map, OccupancyMap &gpu_map)
     {
-      OccupancyKey key(glm::i16vec3(0), 0, 0, 0);
+      Key key(glm::i16vec3(0), 0, 0, 0);
       VoxelConst cpu_voxel, gpu_voxel;
       // Walk the region pulling a voxel from both maps and comparing.
       for (int z = 0; z < region_size.z; ++z)
@@ -418,8 +418,8 @@ namespace gpumap
 
       // Build the clearing rays.
       std::vector<glm::dvec3> clear_rays;
-      OccupancyKey from_key(glm::i16vec3(0), 0, 0, 0);
-      OccupancyKey to_key(glm::i16vec3(0), 0, region_size.y - 1, 0);
+      Key from_key(glm::i16vec3(0), 0, 0, 0);
+      Key to_key(glm::i16vec3(0), 0, region_size.y - 1, 0);
       glm::dvec3 from, to;
 
       for (int x = 0; x < region_size.x; ++x)

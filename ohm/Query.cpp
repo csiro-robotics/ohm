@@ -59,7 +59,7 @@ size_t Query::numberOfResults() const
 }
 
 
-const OccupancyKey *Query::intersectedVoxels() const
+const Key *Query::intersectedVoxels() const
 {
   return (!imp_->intersected_voxels.empty()) ? imp_->intersected_voxels.data() : nullptr;
 }

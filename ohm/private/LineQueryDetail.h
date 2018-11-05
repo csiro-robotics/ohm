@@ -24,7 +24,7 @@ namespace ohm
     glm::dvec3 segment_dir = glm::dvec3(0);
     glm::dvec3 axis_scaling = glm::dvec3(1, 1, 1);
     ClearanceProcess *clearance_calculator = nullptr;
-    OccupancyKeyList segment_keys;
+    KeyList segment_keys;
     // Internal: calculated on execute.
     double segment_length = 0;
     /// Range reported for unobstructed voxels.

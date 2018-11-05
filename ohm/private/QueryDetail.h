@@ -20,7 +20,7 @@ namespace ohm
   struct QueryDetail
   {
     OccupancyMap *map = nullptr;
-    std::vector<OccupancyKey> intersected_voxels;
+    std::vector<Key> intersected_voxels;
     std::vector<float> ranges;
     size_t number_of_results = 0;
     unsigned query_flags = 0;

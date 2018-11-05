@@ -17,7 +17,7 @@ inline size_t ceilPowerOf2(size_t v)
 }
 
 
-OccupancyKeyList::OccupancyKeyList(size_t initial_count)
+KeyList::KeyList(size_t initial_count)
   : keys_(nullptr)
   , capacity_(0)
   , count_(0)
@@ -33,17 +33,17 @@ OccupancyKeyList::OccupancyKeyList(size_t initial_count)
 }
 
 
-OccupancyKeyList::~OccupancyKeyList()
+KeyList::~KeyList()
 {
   delete[] keys_;
 }
 
 
-void OccupancyKeyList::reserve(size_t capacity)
+void KeyList::reserve(size_t capacity)
 {
   if (capacity_ < capacity)
   {
-    OccupancyKey *keys = new OccupancyKey[capacity];
+    Key *keys = new Key[capacity];
     if (keys_ && count_)
     {
       memcpy(keys, keys_, sizeof(*keys) * count_);
@@ -55,7 +55,7 @@ void OccupancyKeyList::reserve(size_t capacity)
 }
 
 
-void OccupancyKeyList::resize(size_t count)
+void KeyList::resize(size_t count)
 {
   if (capacity_ < count)
   {
@@ -65,7 +65,7 @@ void OccupancyKeyList::resize(size_t count)
 }
 
 
-void OccupancyKeyList::push_back(const OccupancyKey &key)
+void KeyList::push_back(const Key &key)
 {
   if (count_ == capacity_)
   {
@@ -75,7 +75,7 @@ void OccupancyKeyList::push_back(const OccupancyKey &key)
 }
 
 
-OccupancyKey &OccupancyKeyList::add()
+Key &KeyList::add()
 {
   if (count_ == capacity_)
   {

@@ -283,14 +283,14 @@ void saveQueryCloud(const ohm::OccupancyMap &map, const ohm::Query &query, const
                     const std::string &suffix, float colour_range = 0.0f)
 {
   const size_t result_count = query.numberOfResults();
-  const ohm::OccupancyKey *keys = query.intersectedVoxels();
+  const ohm::Key *keys = query.intersectedVoxels();
   const float *ranges = query.ranges();
   glm::dvec3 voxel_pos;
 
   PlyMesh ply;
   for (size_t i = 0; i < result_count; ++i)
   {
-    const ohm::OccupancyKey &key = keys[i];
+    const ohm::Key &key = keys[i];
     uint8_t c = 255;
     if (colour_range > 0 && ranges)
     {
@@ -413,7 +413,7 @@ bool compareCpuGpuQuery(const char *query_name, ohm::Query &query, const float e
   query.execute();
   query_end = TimingClock::now();
 
-  std::vector<ohm::OccupancyKey> keys;
+  std::vector<ohm::Key> keys;
   std::vector<float> ranges;
 
   keys.resize(query.numberOfResults());
@@ -457,7 +457,7 @@ bool compareCpuGpuQuery(const char *query_name, ohm::Query &query, const float e
   // Look for duplicate GPU results.
   for (size_t i = 0; i < query.numberOfResults(); ++i)
   {
-    const ohm::OccupancyKey key = query.intersectedVoxels()[i];
+    const ohm::Key key = query.intersectedVoxels()[i];
     for (size_t j = i + 1; j < query.numberOfResults(); ++j)
     {
       if (key == query.intersectedVoxels()[j])
@@ -709,7 +709,7 @@ int runQueries(const Options &opt)
           {
             ++rangeMismatch;
             // Let's have a look at the generating voxel.
-            ohm::OccupancyKey key = map.voxelKey(glm::vec3(cpuPoints[i]));
+            ohm::Key key = map.voxelKey(glm::vec3(cpuPoints[i]));
             ohm::VoxelConst voxel = map.voxel(key);
             printf("  Range mismatch @ (%f %f %f) %f != %f : Node type %s\n",
                    cpuPoints[i].x, cpuPoints[i].y, cpuPoints[i].z,
@@ -737,7 +737,7 @@ int runQueries(const Options &opt)
               {
                 ++rangeMismatch;
                 // Let's have a look at the generating voxel.
-                ohm::OccupancyKey key = map.voxelKey(glm::vec3(gpuPoints[j]));
+                ohm::Key key = map.voxelKey(glm::vec3(gpuPoints[j]));
                 ohm::VoxelConst voxel = map.voxel(key);
                 printf("  Range mismatch @ (%f %f %f) : %f != %f. Node [%d %d %d] %s\n",
                        gpuPoints[i].x, gpuPoints[i].y, gpuPoints[i].z,

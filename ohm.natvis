@@ -41,7 +41,7 @@
     </Expand>
   </Type>
 
-  <Type Name="ohm::OccupancyKey">
+  <Type Name="ohm::Key">
     <DisplayString>L:({(int)((unsigned char *)&amp;_local)[0]},{(int)((unsigned char *)&amp;_local)[1]},{(int)((unsigned char *)&amp;_local)[2]}) R:({((short *)&amp;_regionKey)[0]},{((short *)&amp;_regionKey)[1]},{((short *)&amp;_regionKey)[2]})</DisplayString>
     <Expand>
       <!-- Should be using a synthetic type, but it's not working -->

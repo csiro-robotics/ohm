@@ -18,13 +18,13 @@ namespace ohm
   /// represents the high level region or chunk indexed by the key (see @c OccupancyMap for
   /// details), while the local key is a three dimensional index into the chunk itself.
   ///
-  /// Note: The default constructor creates a garbage key. Use @c OccupancyKey::null
-  /// or @c OccupancyKey(nullptr) to initialise a null key.
-  class ohm_API OccupancyKey
+  /// Note: The default constructor creates a garbage key. Use @c Key::null
+  /// or @c Key(nullptr) to initialise a null key.
+  class ohm_API Key
   {
   public:
-    /// A static instance of a null key (equivalent to @c OccupancyKey(nullptr) ).
-    static const OccupancyKey kNull;
+    /// A static instance of a null key (equivalent to @c Key(nullptr) ).
+    static const Key kNull;
 
     /// Hashing structure for the key. To use with hash based containers.
     /// The resulting hash is a 32-bit unsigned integer.
@@ -33,16 +33,16 @@ namespace ohm
       /// Calculate the 32-bit hash for @c key.
       /// @param key The key to hash.
       /// @return The 32-bit hash value.
-      size_t operator()(const OccupancyKey &key) const;
+      size_t operator()(const Key &key) const;
     };
     friend Hash;
 
     /// Construct a garbage key.
-    OccupancyKey();
+    Key();
     /// Construct a @c null key, but only if passed a @c nullptr. Passing a non-null pointer
     /// has undefined results.
     /// @param ptr Must be @c nullptr for defined results.
-    OccupancyKey(void *ptr);
+    Key(void *ptr);
 
     /// Construct a key for a region.
     /// @param rx The x coordinate for the region key.
@@ -51,19 +51,19 @@ namespace ohm
     /// @param x The x coordinate for the local key. Must be in range for the region.
     /// @param y The y coordinate for the local key. Must be in range for the region.
     /// @param z The z coordinate for the local key. Must be in range for the region.
-    OccupancyKey(short rx, short ry, short rz, uint8_t x, uint8_t y, uint8_t z);
+    Key(short rx, short ry, short rz, uint8_t x, uint8_t y, uint8_t z);
 
     /// Construct a key for a region.
     /// @param region_key Initialises the region key part of the key.
     /// @param x The x coordinate for the local key. Must be in range for the region.
     /// @param y The y coordinate for the local key. Must be in range for the region.
     /// @param z The z coordinate for the local key. Must be in range for the region.
-    OccupancyKey(const glm::i16vec3 &region_key, uint8_t x, uint8_t y, uint8_t z);
+    Key(const glm::i16vec3 &region_key, uint8_t x, uint8_t y, uint8_t z);
 
     /// Construct a key for a region.
     /// @param region_key Initialises the region key part of the key.
     /// @param local_key Initialises the local key part of the key.
-    OccupancyKey(const glm::i16vec3 &region_key, const glm::u8vec3 &local_key);
+    Key(const glm::i16vec3 &region_key, const glm::u8vec3 &local_key);
 
     /// Calculates the hash value of the @c regionKey(), used to lookup a @c MapChunk.
     /// @return The hash of the @c regionKey() part.
@@ -103,17 +103,17 @@ namespace ohm
     /// Assignment operator.
     /// @param other Key to copy.
     /// @return @c *this
-    OccupancyKey &operator = (const OccupancyKey &other);
+    Key &operator = (const Key &other);
 
     /// Key equality test.
     /// @param other The key to compare against.
     /// @return True when this key's region and local parts exactly match that of @p other.
-    bool operator == (const OccupancyKey &other) const;
+    bool operator == (const Key &other) const;
 
     /// Key inequality test.
     /// @param other The key to compare against.
     /// @return True when this key's region and local parts do not exactly match that of @p other.
-    bool operator != (const OccupancyKey &other) const;
+    bool operator != (const Key &other) const;
 
   private:
     glm::i16vec3 region_key_;
@@ -122,65 +122,65 @@ namespace ohm
     static const int16_t kInvalidValue;
   };
 
-  inline OccupancyKey::OccupancyKey()
+  inline Key::Key()
   {
   }
 
 
-  inline OccupancyKey::OccupancyKey(short rx, short ry, short rz, uint8_t x, uint8_t y, uint8_t z)
-    : OccupancyKey(glm::i16vec3(rx, ry, rz), glm::u8vec3(x, y, z))
+  inline Key::Key(short rx, short ry, short rz, uint8_t x, uint8_t y, uint8_t z)
+    : Key(glm::i16vec3(rx, ry, rz), glm::u8vec3(x, y, z))
   {
   }
 
 
-  inline OccupancyKey::OccupancyKey(const glm::i16vec3 &region_key, uint8_t x, uint8_t y, uint8_t z)
-    : OccupancyKey(region_key, glm::u8vec3(x, y, z))
+  inline Key::Key(const glm::i16vec3 &region_key, uint8_t x, uint8_t y, uint8_t z)
+    : Key(region_key, glm::u8vec3(x, y, z))
   {
   }
 
 
-  inline OccupancyKey::OccupancyKey(const glm::i16vec3 &region_key, const glm::u8vec3 &local_key)
+  inline Key::Key(const glm::i16vec3 &region_key, const glm::u8vec3 &local_key)
     : region_key_(region_key)
     , local_(local_key)
   {
   }
 
 
-  inline OccupancyKey::OccupancyKey(void *ptr)
+  inline Key::Key(void *ptr)
   {
     if (ptr == nullptr)
     {
-      *this = OccupancyKey::kNull;
+      *this = Key::kNull;
     }
   }
 
 
-  inline void OccupancyKey::setRegionAxis(int axis, int16_t val)
+  inline void Key::setRegionAxis(int axis, int16_t val)
   {
     region_key_[axis] = val;
   }
 
 
-  inline void OccupancyKey::setLocalAxis(int axis, uint8_t val)
+  inline void Key::setLocalAxis(int axis, uint8_t val)
   {
     local_[axis] = val;
   }
 
 
-  inline OccupancyKey &OccupancyKey::operator = (const OccupancyKey &other)
+  inline Key &Key::operator = (const Key &other)
   {
     region_key_ = other.region_key_;
     local_ = other.local_;
     return *this;
   }
 
-  inline bool OccupancyKey::operator == (const OccupancyKey &other) const
+  inline bool Key::operator == (const Key &other) const
   {
     return region_key_ == other.region_key_ && local_ == other.local_;
   }
 
 
-  inline bool OccupancyKey::operator != (const OccupancyKey &other) const
+  inline bool Key::operator != (const Key &other) const
   {
     return region_key_ != other.region_key_ || local_ != other.local_;
   }

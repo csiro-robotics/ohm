@@ -22,9 +22,9 @@
 namespace ohm
 {
 #endif // !__OPENCL_C_VERSION__
-  /// @c ohm::OccupancyKey representation in GPU.
+  /// @c ohm::Key representation in GPU.
   ///
-  /// This structure must exactly match the memory alignment of ohm::OccupancyKey.
+  /// This structure must exactly match the memory alignment of ohm::Key.
   struct GpuKey
   {
     /// Region key.

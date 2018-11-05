@@ -25,7 +25,7 @@ namespace ohm
   struct MapChunk;
   class MapLayout;
   struct OccupancyMapDetail;
-  class OccupancyKeyList;
+  class KeyList;
 
   /// A spatial container using a voxel representation of 3D space.
   ///
@@ -53,13 +53,13 @@ namespace ohm
   /// @c occupancyType(). The state is entirely dependent on a voxel's @c value()
   /// with values greater than or equal to the @c occupancyThresholdValue()
   /// being occupied, values less than the threshold are free. Uncertain voxels have a value
-  /// equal to @c Voxel::invalidMarkerValue().
+  /// equal to @c voxel::invalidMarkerValue().
   ///
   /// The map is typically updated by collecting point samples with corresponding sensor origin
   /// coordinates. For each origin/sample pair, @c calculateSegmentKeys() is used to identify
   /// the voxels intersected by the line segment connecting the two. These voxels, excluding
   /// the voxel containing the same, should be updated in the map by calling @c integrateMiss()
-  /// reenforcing such voxels as free. For sample voxels, @c integrateHit() should be called.
+  /// reinforcing such voxels as free. For sample voxels, @c integrateHit() should be called.
   ///
   /// Some methods, such as @c integrateHit() and @c integrateMiss() support a @c MapCache argument.
   /// This may provide a small performance benefit when repeatedly accessing the same region. This
@@ -76,7 +76,7 @@ namespace ohm
       /// Base iterator into @p map starting at @p key. Map must remain unchanged during iteration.
       /// @param map The map to iterate in.
       /// @param key The key to start iterating at.
-      base_iterator(OccupancyMapDetail *map, const OccupancyKey &key);
+      base_iterator(OccupancyMapDetail *map, const Key &key);
       /// Copy constructor.
       /// @param other Object to shallow copy.
       base_iterator(const base_iterator &other);
@@ -85,7 +85,7 @@ namespace ohm
 
       /// Key for the current voxel.
       /// @return Current voxel key.
-      inline const OccupancyKey &key() const { return key_; }
+      inline const Key &key() const { return key_; }
 
       /// Copy assignment.
       /// @param other Object to shallow copy.
@@ -115,7 +115,7 @@ namespace ohm
       void walkNext();
 
       OccupancyMapDetail *map_; ///< The referenced map.
-      OccupancyKey key_;        ///< The current voxel key.
+      Key key_;        ///< The current voxel key.
       /// Memory used to track an iterator into a hidden container type.
       /// We use an anonymous, fixed size memory chunk and placement new to prevent exposing STL
       /// types as part of the ABI.
@@ -131,7 +131,7 @@ namespace ohm
       /// Iterator into @p map starting at @p key. Map must remain unchanged during iteration.
       /// @param map The map to iterate in.
       /// @param key The key to start iterating at.
-      inline iterator(OccupancyMapDetail *map, const OccupancyKey &key) : base_iterator(map, key) { }
+      inline iterator(OccupancyMapDetail *map, const Key &key) : base_iterator(map, key) { }
       /// Copy constructor.
       /// @param other Object to shallow copy.
       inline iterator(const iterator &other) : base_iterator(other) {}
@@ -188,7 +188,7 @@ namespace ohm
       /// Iterator into @p map starting at @p key. Map must remain unchanged during iteration.
       /// @param map The map to iterate in.
       /// @param key The key to start iterating at.
-      inline const_iterator(OccupancyMapDetail *map, const OccupancyKey &key) : base_iterator(map, key) {}
+      inline const_iterator(OccupancyMapDetail *map, const Key &key) : base_iterator(map, key) {}
       /// Copy constructor.
       /// @param other Object to shallow copy.
       inline const_iterator(const base_iterator &other) : base_iterator(other) {}
@@ -270,9 +270,9 @@ namespace ohm
     /// @param cache Optional cache used to expidite region search.
     /// @return An @c Voxel wrapper object for the keyed @p MayNode. The voxel is
     ///   null if does not exist and creation is not allowed.
-    Voxel voxel(const OccupancyKey &key, bool allow_create, MapCache *cache = nullptr);
+    Voxel voxel(const Key &key, bool allow_create, MapCache *cache = nullptr);
     /// @overload
-    VoxelConst voxel(const OccupancyKey &key, MapCache *cache = nullptr) const;
+    VoxelConst voxel(const Key &key, MapCache *cache = nullptr) const;
 
     /// Determine the @c OccupancyType of @p voxel
     /// @param voxel The voxel to check. May be null.
@@ -373,7 +373,7 @@ namespace ohm
     /// @param timestamp The timestamp to update the region touch time to.
     /// @param allow_create Create the region (all uncertain) if it doesn't exist?
     /// @see @c touchRegionByKey()
-    inline void touchRegion(const OccupancyKey &voxel_key, double timestamp, bool allow_create = false) { touchRegionByKey(voxel_key.regionKey(), timestamp, allow_create); }
+    inline void touchRegion(const Key &voxel_key, double timestamp, bool allow_create = false) { touchRegionByKey(voxel_key.regionKey(), timestamp, allow_create); }
 
     /// Touch the @c MapRegion identified by @p regionKey.
     ///
@@ -430,9 +430,9 @@ namespace ohm
     /// Note the @p probabilty must be at least 0.5 for well define behaviour. Otherwise each hit
     /// will actually decrease the occupancy probability of a voxel.
     ///
-    /// Probablity do not affect already populated voxels in the map, only future updates.
+    /// Probability do not affect already populated voxels in the map, only future updates.
     ///
-    /// @param probability The new probablity associated with a hit. Should be in the range (0.5, 1.0].
+    /// @param probability The new probability associated with a hit. Should be in the range (0.5, 1.0].
     void setHitProbability(float probability);
 
     /// Defines the value adjustment made to a voxel when integrating a miss or free space into the map.
@@ -455,18 +455,18 @@ namespace ohm
     /// Note the @p probabilty must be less than 0.5 for well define behaviour. Otherwise each miss
     /// will actually increase the occupancy probability of a voxel.
     ///
-    /// Probablity do not affect already populated voxels in the map, only future updates.
+    /// Probability do not affect already populated voxels in the map, only future updates.
     ///
-    /// @param probability The new probablity associated with a miss. Should be in the range [0, 0.5).
+    /// @param probability The new probability associated with a miss. Should be in the range [0, 0.5).
     void setMissProbability(float probability);
 
-    /// Get theshold value at which a voxel is considered occupied.
+    /// Get threshold value at which a voxel is considered occupied.
     /// This is equivalent to <tt>valueToProbability(occupancyThresholdProbability())</tt>.
     /// Use of this value is not generally recommended as @c occupancyThresholdProbability() provides
     /// a more meaningful value.
     /// @return The value at which a voxel is considered occupied.
     float occupancyThresholdValue() const;
-    /// Get theshold probability at which a voxel is considered occupied.
+    /// Get threshold probability at which a voxel is considered occupied.
     /// @return The probabilty [0, 1] at which a voxel is considered occupied.
     float occupancyThresholdProbability() const;
     /// Set the threshold at which to considere a voxel occupied.
@@ -489,7 +489,7 @@ namespace ohm
     Voxel integrateHit(const glm::dvec3 &point, MapCache *cache = nullptr);
 
     /// @overload
-    Voxel integrateHit(const OccupancyKey &key, MapCache *cache = nullptr);
+    Voxel integrateHit(const Key &key, MapCache *cache = nullptr);
 
     /// Adjust @p voxel by decreasing its occupancy probability. The value of the voxel is adjusted by
     /// adding @c missValue() which should be negative. This logically decreases its occupancy probability
@@ -504,12 +504,12 @@ namespace ohm
     Voxel integrateMiss(const glm::dvec3 &point, MapCache *cache = nullptr);
 
     /// @overload
-    Voxel integrateMiss(const OccupancyKey &key, MapCache *cache = nullptr);
+    Voxel integrateMiss(const Key &key, MapCache *cache = nullptr);
 
-    /// Adjust the value of @p voxel by focibly setting its occupancy probabilty to @c hitProbability().
+    /// Adjust the value of @p voxel by forcibly setting its occupancy probabilty to @c hitProbability().
     /// @param voxel The voxel to increase the occupancy probabilty for. Must be a valid, non-null voxel.
     inline void setHit(Voxel &voxel) const { if (voxel.isValid()) voxel.setValue(hitValue()); }
-    /// Adjust the value of @p voxel by focibly setting its occupancy probabilty to @c missProbability().
+    /// Adjust the value of @p voxel by forcibly setting its occupancy probabilty to @c missProbability().
     /// @param voxel The voxel to increase the occupancy probabilty for. Must be a valid, non-null voxel.
     inline void setMiss(Voxel &voxel) const { if (voxel.isValid()) voxel.setValue(missValue()); }
 
@@ -535,7 +535,7 @@ namespace ohm
     /// @return True if voxels saturate and maintain state at the minimum value.
     bool saturateAtMinValue() const;
 
-    /// Set the voxel minimum value staturation value. Saturation behaviour can be cirumvented
+    /// Set the voxel minimum value saturation value. Saturation behaviour can be circumvented
     /// using some value adjustment functions.
     /// @param saturate True to have voxels prevent further value adjustments at the minimum value.
     void setSaturateAtMinValue(bool saturate);
@@ -554,7 +554,7 @@ namespace ohm
     /// @param probability The maximum probability value allowed.
     void setMaxNodeProbability(float probability);
 
-    /// Get the maxnimum value for a voxel expressed as a probability.
+    /// Get the maximum value for a voxel expressed as a probability.
     /// @return The maximum voxel occupancy probability.
     float maxNodeProbability() const;
 
@@ -562,7 +562,7 @@ namespace ohm
     /// @return True if voxels saturate and maintain state at the maximum value.
     bool saturateAtMaxValue() const;
 
-    /// Set the voxel maximum value staturation value. Saturation behaviour can be cirumvented
+    /// Set the voxel maximum value saturation value. Saturation behaviour can be circumvented
     /// using some value adjustment functions.
     /// @param saturate True to have voxels prevent further value adjustments at the minimum value.
     void setSaturateAtMaxValue(bool saturate);
@@ -578,38 +578,38 @@ namespace ohm
     /// @param key Identifies the voxel to add (or replace).
     /// @param value The value to assign the voxel.
     /// @return A mutable reference to the voxel. This object may be short lived and should only be
-    ///   breifly retained.
+    ///   briefly retained.
     /// @see voxelKey(), voxelKeyLocal()
-    Voxel addNode(const OccupancyKey &key, float value);
+    Voxel addNode(const Key &key, float value);
 
     /// Retrieve the coordinates for the centre of the voxel identified by @p key local to the map origin.
     /// @param key The voxel of interest.
     /// @return The voxel coordinates, relative to the map @c origin().
-    glm::dvec3 voxelCentreLocal(const OccupancyKey &key) const;
+    glm::dvec3 voxelCentreLocal(const Key &key) const;
     /// Retrieve the global coordinates for the centre of the voxel identified by @p key. This includes
     /// the map @c origin().
     /// @param key The voxel of interest.
     /// @return The global voxel coordinates.
-    glm::dvec3 voxelCentreGlobal(const OccupancyKey &key) const;
+    glm::dvec3 voxelCentreGlobal(const Key &key) const;
 
     /// Convert a global coordinate to the key value for the containing voxel.
     /// The voxel may not currently exist in the map.
     /// @param point A global coordinate to convert.
-    /// @return The @c OccupancyKey for the voxel containing @p point.
-    OccupancyKey voxelKey(const glm::dvec3 &point) const;
+    /// @return The @c Key for the voxel containing @p point.
+    Key voxelKey(const glm::dvec3 &point) const;
 
     /// @overload
-    OccupancyKey voxelKey(const glm::vec3 &point) const;
+    Key voxelKey(const glm::vec3 &point) const;
 
     /// Convert a local coordinate to the key value for the containing voxel.
     /// @param local_point A map local coordinate (relative to @c origin()) to convert.
-    /// @return The @c OccupancyKey for the voxel containing @p localPoint.
-    OccupancyKey voxelKeyLocal(const glm::vec3 &local_point) const;
+    /// @return The @c Key for the voxel containing @p localPoint.
+    Key voxelKeyLocal(const glm::vec3 &local_point) const;
 
-    /// Move an @c OccupancyKey along a selected axis.
+    /// Move an @c Key along a selected axis.
     ///
     /// This function moves @p key along the selected @p axis. The direction and
-    /// magnitude of the movement is determined by the sign and magntiude of @p step.
+    /// magnitude of the movement is determined by the sign and magnitude of @p step.
     /// Valid @p axis values are [0, 1, 2] corresponding to the X, Y, Z axes respectively.
     ///
     /// For example, to move @p key to it's previous neighbour along the X axis, call:
@@ -622,7 +622,7 @@ namespace ohm
     /// @param key The key to move.
     /// @param axis The axis to move along: [0, 1, 2] mapping to X, Y, Z respectively.
     /// @param step Defines the step direction and magnitude along the selected @p axis.
-    void moveKeyAlongAxis(OccupancyKey &key, int axis, int step) const;
+    void moveKeyAlongAxis(Key &key, int axis, int step) const;
 
     /// Step the @p key along the @p axis in the given @p dir.
     ///
@@ -631,9 +631,9 @@ namespace ohm
     /// @param key The key to modify.
     /// @param axis The axis to modify. Must be [0, 2] mapping to XYZ respectively, or behaviour is undefined.
     /// @param dir Direction to step. Must be 1 or -1 or behaviour is undefined.
-    void stepKey(OccupancyKey &key, int axis, int dir) const;
+    void stepKey(Key &key, int axis, int dir) const;
 
-    /// Move an @c OccupancyKey by a given offset.
+    /// Move an @c Key by a given offset.
     ///
     /// This function moves @p key by the given @p x, @p y, @p z voxel offsets.
     /// Each of the offsets determine the direction and magnitude of movement along the
@@ -650,7 +650,7 @@ namespace ohm
     /// @param x The voxel offset to apply to @p key on the X axis.
     /// @param y The voxel offset to apply to @p key on the Y axis.
     /// @param z The voxel offset to apply to @p key on the X axis.
-    void moveKey(OccupancyKey &key, int x, int y, int z) const;
+    void moveKey(Key &key, int x, int y, int z) const;
 
     /// Builds the list of voxel keys intersected by the line segment connecting @p startPoint and @p endPoint.
     ///
@@ -666,7 +666,7 @@ namespace ohm
     /// @param include_end_point @c true to incldue the voxel containing @p endPoint, @c false to exclude this
     ///   voxel from @p keys.
     /// @return The number of voxels added to @p keys.
-    size_t calculateSegmentKeys(OccupancyKeyList &keys, const glm::dvec3 &start_point, const glm::dvec3 &end_point,
+    size_t calculateSegmentKeys(KeyList &keys, const glm::dvec3 &start_point, const glm::dvec3 &end_point,
                                 bool include_end_point = true) const;
 
     /// Integrate the given @p rays into the map. The @p rays form a list of origin/sample pairs for which
@@ -702,7 +702,7 @@ namespace ohm
     inline const OccupancyMapDetail *detail() const { return imp_; }
 
     /// Enumerate the regions within this map.
-    /// @param[out] chunks The enuerated chunks are added to this container.
+    /// @param[out] chunks The enumerated chunks are added to this container.
     void enumerateRegions(std::vector<const MapChunk *> &chunks) const;
 
     /// @internal
@@ -730,8 +730,8 @@ namespace ohm
     void clear();
 
   private:
-    OccupancyKey firstIterationKey() const;
-    MapChunk *newChunk(const OccupancyKey &for_key);
+    Key firstIterationKey() const;
+    MapChunk *newChunk(const Key &for_key);
     static void releaseChunk(const MapChunk *chunk);
 
     OccupancyMapDetail *imp_;
@@ -756,12 +756,12 @@ namespace ohm
 
   inline Voxel OccupancyMap::integrateHit(const glm::dvec3 &point, MapCache *cache)
   {
-    OccupancyKey key = voxelKey(point);
+    Key key = voxelKey(point);
     return integrateHit(key, cache);
   }
 
 
-  inline Voxel OccupancyMap::integrateHit(const OccupancyKey &key, MapCache *cache)
+  inline Voxel OccupancyMap::integrateHit(const Key &key, MapCache *cache)
   {
     Voxel voxel = this->voxel(key, true, cache);
     integrateHit(voxel);
@@ -787,12 +787,12 @@ namespace ohm
 
   inline Voxel OccupancyMap::integrateMiss(const glm::dvec3 &point, MapCache *cache)
   {
-    OccupancyKey key = voxelKey(point);
+    Key key = voxelKey(point);
     return integrateMiss(key, cache);
   }
 
 
-  inline Voxel OccupancyMap::integrateMiss(const OccupancyKey &key, MapCache *cache)
+  inline Voxel OccupancyMap::integrateMiss(const Key &key, MapCache *cache)
   {
     Voxel voxel = this->voxel(key, true, cache);
     integrateMiss(voxel);

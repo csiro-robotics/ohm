@@ -1,6 +1,18 @@
-# OpenCL Setup
+# OpenCL Usage
 
 OpenCL is required for the Occupancy map (ohm), however, it is specifically only tested with Intel OpenCL. Both runtime drivers and an SDK need to be installed in order to get it running. Getting Intel drivers running can be an issue so the following instructions are maintained to help the installation process. The process is focused entirely on Ubuntu 18.04.
+
+## Intel CPU Compatibility
+
+Extensive Intel CPU/GPU testing has not been made, but the following information may help address some OpenCL standard compatibility issues. The OpenCL standard defines the GPU code compilation, not the SDK version. This can be set on OHM_OPENCL_STD.
+
+Intel CPU Generation    | Recommended OpenCL Standard
+----------------------- | ---------------------------
+< 6th Generation        | Unknown
+6th Generation          | 1.2
+7th Generation          | 2.0
+8th Generation          | 2.0
+9th Generation          | 2.0
 
 ## Installing OpenCL Drivers
 

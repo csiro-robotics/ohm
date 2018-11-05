@@ -119,7 +119,7 @@ namespace searialisationtests
     const auto build_walls = [&map, extents, voxel_step](int a0, int a1, int a2)
     {
       const double map_res = map.resolution();
-      OccupancyKeyList ray;
+      KeyList ray;
       glm::dvec3 point;
       glm::dvec3 origin = map.origin();
       for (int i = -extents + 1; i <= extents; i += voxel_step)

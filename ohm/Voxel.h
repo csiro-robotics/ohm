@@ -7,57 +7,150 @@
 
 #include "OhmConfig.h"
 
-#include "MapProbability.h"
+#include "DefaultLayers.h"
 #include "Key.h"
+#include "MapProbability.h"
 
 #include <limits>
+#include <type_traits>
 
 namespace ohm
 {
   struct OccupancyMapDetail;
   struct MapChunk;
 
+  namespace voxel
+  {
+    /// Get the address of the voxel referenced by @p key in @p layer_index.
+    ///
+    /// This function function decodes accesses the voxel memory for @p layer_index in @p chunk and returns a pointer
+    /// to the voxel referenced by @p key. There are several expectations on this method, or it will fail, returning
+    /// null:
+    /// - @p chunk and @p map are non null.
+    /// - @p key references the @p chunk (see @c Key::regionCoord() and @c MapRegion::coord)
+    /// - @p expected_size is either zero (no validation) or exactly matches the voxel size.
+    ///
+    /// Some additional assumptions are made which the caller *must* ensure or results are undefined.
+    /// - @p layer_index is valid in the map's @c MapLayout.
+    /// - @p key.localKey() is in range of the map's region dimensions.
+    ///
+    /// This function operated on a mutable @c chunk and returns a non-const pointer.
+    ///
+    /// @param key The key for the voxel to access.
+    /// @param chunk The chunk in which the voxel lies.
+    /// @param map Internal details of the @c OccupancyMap.
+    /// @param expected_size Optional voxel size validation. Fails if voxels do not match this size. Zero to skip
+    ///     validation.
+    /// @return A pointer to the voxel memory of voxel at @p key, or null on failure.
+    uint8_t *voxelPtr(const Key &key, MapChunk *chunk, OccupancyMapDetail *map, int layer_index,
+                      size_t expected_size);
+
+    /// Get the address of the voxel referenced by @p key in @p layer_index.
+    ///
+    /// This function overload deals with non-mutable @p chunk pointers.
+    ///
+    /// @param key The key for the voxel to access.
+    /// @param chunk The chunk in which the voxel lies.
+    /// @param map Internal details of the @c OccupancyMap.
+    /// @param expected_size Optional voxel size validation. Fails if voxels do not match this size. Zero to skip
+    ///     validation.
+    /// @return A pointer to the voxel memory of voxel at @p key, or null on failure.
+    const uint8_t *voxelPtr(const Key &key, const MapChunk *chunk, OccupancyMapDetail *map, int layer_index,
+                            size_t expected_size);
+
+    /// The address of the voxel referenced by @p key as type @c T.
+    ///
+    /// This function has the same requirements as @c voxelPtr(), however the voxel size is validated against the
+    /// @p sizeof(T).
+    ///
+    /// This overload requires @c T is a pointer type.
+    ///
+    /// @param key The key for the voxel to access.
+    /// @param chunk The chunk in which the voxel lies.
+    /// @param map Internal details of the @c OccupancyMap.
+    /// @return A pointer to the voxel memory of voxel at @p key, or null on failure.
+    template <typename T>
+    T voxelPtrAs(const Key &key, MapChunk *chunk, OccupancyMapDetail *map, int layer_index)
+    {
+      return reinterpret_cast<T>(voxelPtr(key, chunk, map, layer_index, sizeof(typename std::remove_pointer<T>::type)));
+    }
+
+    /// The address of the voxel referenced by @p key as type @c T.
+    ///
+    /// This function has the same requirements as @c voxelPtr(), however the voxel size is validated against the
+    /// @p sizeof(T).
+    ///
+    /// This overload requires @c T is a constant pointer type.
+    ///
+    /// @param key The key for the voxel to access.
+    /// @param chunk The chunk in which the voxel lies.
+    /// @param map Internal details of the @c OccupancyMap.
+    /// @return A pointer to the voxel memory of voxel at @p key, or null on failure.
+    template <typename T>
+    T voxelPtrAs(const Key &key, const MapChunk *chunk, OccupancyMapDetail *map, int layer_index)
+    {
+      return reinterpret_cast<T>(voxelPtr(key, chunk, map, layer_index, sizeof(typename std::remove_pointer<T>::type)));
+    }
+
+    /// A helper function for accessing the occupancy threshold of @p map.
+    /// @return The equivalent to @c OccupancyMap::occupancyThreshold().
+    float occupancyThreshold(const OccupancyMapDetail &map);
+
+    /// A helper function for accessing the voxel dimensions of each region in @p map.
+    /// @return The equivalent to @c OccupancyMap::regionVoxelDimensions().
+    glm::u8vec3 regionVoxelDimensions(const OccupancyMapDetail &map);
+
+    /// Value used to identify invalid or uninitialised voxel voxels.
+    /// @return A numeric value considered invalid for a voxel value.
+    constexpr float invalidMarkerValue() { return std::numeric_limits<float>::infinity(); }
+  }  // namespace voxel
+
   /// Represents a voxel in an @c OccupancyMap.
   ///
   /// The @c VoxelBase is derived into a @c Voxel and @c VoxelConst. Those
   /// two classes represent the public API for accessing voxels in an @c OccupancyMap.
   ///
-  /// This class wraps an underlying occupancy voxel, tracks its associated @c OccupancyKey
+  /// This class wraps an underlying occupancy voxel, tracks its associated @c Key
   /// and @p MapChunk, and supports data access on voxel without calling into @c OccupancyMap
   /// functions. This makes minor modifications, such as modifying the @c value() or accessing
   /// @c voxel() much more efficient.
   ///
   /// A voxel may only be used so long as the @p MapChunk remains used within the
   /// @p OccupancyMap. As such it should be used as a short lived object.
+  template <typename MAPCHUNK>
   class ohm_API VoxelBase
   {
   public:
-    /// Value used to identify invalid or uninitialised voxel voxels.
-    /// @return A numeric value considered invalid for a voxel value.
-    static constexpr float invalidMarkerValue()
-    {
-      return std::numeric_limits<float>::infinity();
-    }
-
     /// Construct an invalid voxel reference.
-    inline VoxelBase() : key_(OccupancyKey::kNull), chunk_(nullptr), map_(nullptr) {}
+    inline VoxelBase()
+      : key_(Key::kNull)
+      , chunk_(nullptr)
+      , map_(nullptr)
+    {}
 
     /// Construct a voxel reference to an existing voxel.
     /// @param key The key of the voxel to reference.
     /// @param chunk The @c MapChunk containing the voxel referenced by @p key.
     /// @param map The data for the @c OccupancyMap to which @p chunk belongs.
-    inline VoxelBase(const OccupancyKey &key, MapChunk *chunk, OccupancyMapDetail *map)
-      : key_(key), chunk_(chunk), map_(map) {}
+    inline VoxelBase(const Key &key, MAPCHUNK *chunk, OccupancyMapDetail *map)
+      : key_(key)
+      , chunk_(chunk)
+      , map_(map)
+    {}
 
     /// Copy constructor.
     /// @param other Object to copy.
-    inline VoxelBase(const VoxelBase &other)
-      : key_(other.key_), chunk_(other.chunk_), map_(other.map_) {}
+    template <typename OTHERCHUNK>
+    inline VoxelBase(const VoxelBase<OTHERCHUNK> &other)
+      : key_(other.key_)
+      , chunk_(other.chunk_)
+      , map_(other.map_)
+    {}
 
     /// Returns the requested key for the voxel reference.
     /// See class comments regarding the difference between @c key() and @c trueKey().
     /// @return The key of the voxel reference.
-    inline const OccupancyKey &key() const { return key_; }
+    inline const Key &key() const { return key_; }
 
     /// Deprecated: use @c occupancy().
     /// @return The occupancy value for the referenced voxel..
@@ -71,7 +164,7 @@ namespace ohm
     /// @return An occupancy probability in the range [0, 1], based on @c value().
     inline float probability() const { return valueToProbability(value()); }
 
-    /// Returns the cached range to the nearest obstacel for this voxel.
+    /// Returns the cached range to the nearest obstacle for this voxel.
     /// This is calculated by the @c VoxelRanges query.
     ///
     /// If referencing an uncertain voxel, then the result depends on @p uncertainAsObstructed.
@@ -108,19 +201,32 @@ namespace ohm
     ///
     /// @return True if the referenced voxel is not null and does not have a valid
     ///     probabilty value an is considered uncertain.
-    inline bool isUncertain() const { return !isNull() && value() == invalidMarkerValue(); }
+    inline bool isUncertain() const { return !isNull() && value() == voxel::invalidMarkerValue(); }
 
     /// Is this a untouched, uncertain voxel or a null voxel?
     ///
     /// Nodes are initially uncertain until a valid probability value is set.
     ///
     /// @return True if the referenced voxel is null or uncertain.
-    inline bool isUncertainOrNull() const { return isNull() || value() == invalidMarkerValue(); }
+    inline bool isUncertainOrNull() const { return isNull() || value() == voxel::invalidMarkerValue(); }
+
+    /// Access the voxel content at @p layer_index as the given (pointer) type.
+    ///
+    /// Type @c T must be a pointer type and must be @c const for @c VoxelConst.. Results are undefined if this voxel
+    /// is not valid.
+    ///
+    /// @param layer_index The map layer index from which to extract voxel data.
+    /// @return A pointer to this voxel's data within the @c MapLayer @p layer_index.
+    template <typename T>
+    T layerContent(unsigned layer_index)
+    {
+      return voxel::voxelPtrAs<T>(key_, chunk_, map_, layer_index);
+    }
 
     /// Access the @c MapChunk containing this voxel.
     /// Primarily for internal usage.
     /// @return The MapChunk to which this voxel belongs.
-    inline const MapChunk *chunk() const { return chunk_; }
+    inline MAPCHUNK *chunk() const { return chunk_; }
 
     /// Is this a valid reference?
     /// @return True if this is a valid voxel reference.
@@ -129,7 +235,8 @@ namespace ohm
     /// Equality comparison.
     /// @param other The voxel reference to compare to.
     /// @return True if this is reference is exactly equivalent to @p other.
-    inline bool operator == (const VoxelBase &other) const
+    template <typename OTHERCHUNK>
+    inline bool operator==(const VoxelBase<OTHERCHUNK> &other) const
     {
       return chunk_ == other.chunk_ && map_ == other.map_ && key_ == other.key_;
     }
@@ -137,7 +244,8 @@ namespace ohm
     /// Inequality comparison.
     /// @param other The voxel reference to compare to.
     /// @return True if this is reference is not exactly equivalent to @p other.
-    inline bool operator != (const VoxelBase &other) const
+    template <typename OTHERCHUNK>
+    inline bool operator!=(const VoxelBase<OTHERCHUNK> &other) const
     {
       return chunk_ != other.chunk_ || map_ != other.map_ || key_ != other.key_;
     }
@@ -145,7 +253,8 @@ namespace ohm
     /// Simple assignment operator.
     /// @param other The values to assign.
     /// @return <tt>*this</tt>
-    inline VoxelBase &operator = (const VoxelBase &other)
+    template <typename OTHERCHUNK>
+    inline VoxelBase &operator=(const VoxelBase<OTHERCHUNK> &other)
     {
       key_ = other.key_;
       chunk_ = other.chunk_;
@@ -164,9 +273,9 @@ namespace ohm
 
   protected:
     /// Key of the voxel in the key.
-    OccupancyKey key_;
+    Key key_;
     /// A pointer to the chunk referenced by _key.
-    MapChunk *chunk_;
+    MAPCHUNK *chunk_;
     /// Details of the owning map.
     OccupancyMapDetail *map_;
   };
@@ -175,25 +284,30 @@ namespace ohm
   ///
   /// This specialisation of @p VoxelBase supports modifying the voxel content such as its
   /// values. It also allows the containing chunk or region to be touched.
-  class ohm_API Voxel : public VoxelBase
+  class ohm_API Voxel : public VoxelBase<MapChunk>
   {
   public:
     /// Parent class type.
-    typedef VoxelBase Super;
+    typedef VoxelBase<MapChunk> Super;
 
     /// Default constructor (null voxel).
-    inline Voxel() : Super() {}
+    inline Voxel()
+      : Super()
+    {}
 
     /// Construct a voxel reference to an existing voxel.
     /// @param key The key of the voxel to reference.
     /// @param chunk The @c MapChunk containing the voxel referenced by @p key.
     /// @param map The data for the @c OccupancyMap to which @p chunk belongs.
-    inline Voxel(const OccupancyKey &key, MapChunk *chunk, OccupancyMapDetail *map)
-      : Super(key, chunk, map) {}
+    inline Voxel(const Key &key, MapChunk *chunk, OccupancyMapDetail *map)
+      : Super(key, chunk, map)
+    {}
 
     /// Copy constructor.
     /// @param other Voxel to copy.
-    inline Voxel(const Voxel &other) : Super(other) {}
+    inline Voxel(const Voxel &other)
+      : Super(other)
+    {}
 
     /// Set the value of the referenced tree voxel. May expand pruned voxels. Voxel must be valid.
     ///
@@ -201,7 +315,7 @@ namespace ohm
     /// flags for the map, where voxel values may be considered saturated at a min or max value and no longer
     /// change. The @p force parameter may be used to disable honouring these constraints.
     ///
-    /// Note that setting the voxel value to @c invalidMarkerValue() also does not honour min/max value or
+    /// Note that setting the voxel value to @c voxel::invalidMarkerValue() also does not honour min/max value or
     /// saturation.
     ///
     /// @param value New value to set.
@@ -225,7 +339,7 @@ namespace ohm
 
     /// Assignment, changing the reference only (not the referenced data).
     /// @param other Voxel to assign.
-    Voxel &operator = (const Voxel &other);
+    Voxel &operator=(const Voxel &other);
 
   protected:
     friend class VoxelConst;
@@ -233,44 +347,50 @@ namespace ohm
 
 
   /// Represents a read only voxel in an @c OccupancyMap.
-  class ohm_API VoxelConst : public VoxelBase
+  class ohm_API VoxelConst : public VoxelBase<const MapChunk>
   {
   public:
     /// Parent class type.
-    typedef VoxelBase Super;
+    typedef VoxelBase<const MapChunk> Super;
 
     /// Default constructor (null voxel).
-    inline VoxelConst() : Super() {}
+    inline VoxelConst()
+      : Super()
+    {}
 
     /// Construct a voxel reference to an existing voxel.
     /// @param key The key of the voxel to reference.
     /// @param chunk The @c MapChunk containing the voxel referenced by @p key.
     /// @param map The data for the @c OccupancyMap to which @p chunk belongs.
-    inline VoxelConst(const OccupancyKey &key, MapChunk *chunk, OccupancyMapDetail *map)
-      : Super(key, chunk, map) {}
+    inline VoxelConst(const Key &key, const MapChunk *chunk, OccupancyMapDetail *map)
+      : Super(key, chunk, map)
+    {}
 
     /// Copy constructor.
     /// @param other Voxel to copy.
-    inline VoxelConst(const VoxelConst &other) : Super(other) {}
+    inline VoxelConst(const VoxelConst &other)
+      : Super(other)
+    {}
 
     /// Copy constructor.
     /// @param other Voxel to copy.
     inline VoxelConst(const Voxel &other)
-      : Super(other.key_, other.chunk_, other.map_) {}
+      : Super(other.key_, other.chunk_, other.map_)
+    {}
 
     /// Assignment, changing the reference only (not the referenced data).
     /// @param other Voxel to assign.
-    VoxelConst &operator = (const VoxelConst &other);
+    VoxelConst &operator=(const VoxelConst &other);
 
     /// Assignment, changing the reference only (not the referenced data).
     /// @param other Voxel to assign.
-    VoxelConst &operator = (const Voxel &other);
+    VoxelConst &operator=(const Voxel &other);
 
     /// @internal
     Voxel makeMutable() const;
   };
 
-  inline Voxel &Voxel::operator = (const Voxel &other)
+  inline Voxel &Voxel::operator=(const Voxel &other)
   {
     chunk_ = other.chunk_;
     key_ = other.key_;
@@ -279,7 +399,7 @@ namespace ohm
   }
 
 
-  inline VoxelConst &VoxelConst::operator = (const VoxelConst &other)
+  inline VoxelConst &VoxelConst::operator=(const VoxelConst &other)
   {
     chunk_ = other.chunk_;
     key_ = other.key_;
@@ -288,13 +408,94 @@ namespace ohm
   }
 
 
-  inline VoxelConst &VoxelConst::operator = (const Voxel &other)
+  inline VoxelConst &VoxelConst::operator=(const Voxel &other)
   {
     chunk_ = other.chunk_;
     key_ = other.key_;
     map_ = other.map_;
     return *this;
   }
-}
 
-#endif // OHMVOXEL_H
+
+  template <typename MAPCHUNK>
+  float VoxelBase<MAPCHUNK>::occupancy() const
+  {
+    if (const float *occupancy = ohm::voxel::voxelPtrAs<const float *>(key_, chunk_, map_, kDlOccupancy))
+    {
+      return *occupancy;
+    }
+
+    return voxel::invalidMarkerValue();
+  }
+
+
+  template <typename MAPCHUNK>
+  float VoxelBase<MAPCHUNK>::clearance(bool invalid_as_obstructed) const
+  {
+    if (const float *clearance = ohm::voxel::voxelPtrAs<const float *>(key_, chunk_, map_, kDlClearance))
+    {
+      return *clearance;
+    }
+
+    return (invalid_as_obstructed) ? 0.0f : -1.0f;
+  }
+
+
+  template <typename MAPCHUNK>
+  double VoxelBase<MAPCHUNK>::regionTimestamp() const
+  {
+    return (chunk_) ? chunk_->touched_time : 0.0;
+  }
+
+
+  template <typename MAPCHUNK>
+  bool VoxelBase<MAPCHUNK>::isOccupied() const
+  {
+    const float val = value();
+    return !isNull() && val >= voxel::occupancyThreshold(*map_) && val != voxel::invalidMarkerValue();
+  }
+
+
+  template <typename MAPCHUNK>
+  bool VoxelBase<MAPCHUNK>::isFree() const
+  {
+    const float val = value();
+    return !isNull() && val < voxel::occupancyThreshold(*map_) && val != voxel::invalidMarkerValue();
+  }
+
+
+  template <typename MAPCHUNK>
+  bool VoxelBase<MAPCHUNK>::nextInRegion()
+  {
+    if (!chunk_)
+    {
+      return false;
+    }
+
+    const glm::u8vec3 region_dim = voxel::regionVoxelDimensions(*map_);
+    if (key_.localKey().x + 1 == region_dim.x)
+    {
+      if (key_.localKey().y + 1 == region_dim.y)
+      {
+        if (key_.localKey().z + 1 == region_dim.z)
+        {
+          return false;
+        }
+
+        key_.setLocalKey(glm::u8vec3(0, 0, key_.localKey().z + 1));
+      }
+      else
+      {
+        key_.setLocalKey(glm::u8vec3(0, key_.localKey().y + 1, key_.localKey().z));
+      }
+    }
+    else
+    {
+      key_.setLocalAxis(0, key_.localKey().x + 1);
+    }
+
+    return true;
+  }
+}  // namespace ohm
+
+#endif  // OHMVOXEL_H

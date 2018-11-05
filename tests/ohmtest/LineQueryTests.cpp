@@ -35,7 +35,7 @@ namespace linequerytests
   void sparseMap(OccupancyMap &map, bool add_hit = true)
   {
     ohmgen::fillMapWithEmptySpace(map, -64, -64, -64, 63, 63, 63);
-    OccupancyKey key = map.voxelKey(glm::dvec3(0.5 * map.resolution()));
+    Key key = map.voxelKey(glm::dvec3(0.5 * map.resolution()));
     VoxelConst voxel = map.voxel(key);
     if (add_hit)
     {
@@ -249,7 +249,7 @@ namespace linequerytests
     const int iterations = 50;
     TimingClock::time_point start_time_cpu, end_time_cpu, start_time_gpu, end_time_gpu;
     LineQuery query(map, glm::dvec3(0), glm::dvec3(0), 2.0f);
-    std::vector<OccupancyKey> cpu_keys;
+    std::vector<Key> cpu_keys;
     std::vector<float> cpu_ranges;
 
     query.setStartPoint(glm::dvec3(-5, 0, 0));

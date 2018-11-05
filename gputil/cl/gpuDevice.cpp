@@ -87,6 +87,7 @@ namespace
     cl::Platform::get(&platforms);
     unsigned added = 0;
 
+    // FIXME(Kazys): set the minimum version by the version of the SDK we've compiled against.
     // API minimum version is 1.2.
     const auto platform_version_constraint = clu::platformVersionMin(1, 2);
 

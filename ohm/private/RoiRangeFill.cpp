@@ -168,7 +168,7 @@ bool RoiRangeFill::calculateForRegion(OccupancyMap &map, const glm::i16vec3 &reg
   unsigned clearance_batch_marker = clearance_cache->beginBatch();
 
   // Set up the key marking the lower corner of the working group.
-  const OccupancyKey corner_voxel_key(region_key, glm::u8vec3(0));
+  const Key corner_voxel_key(region_key, glm::u8vec3(0));
   const GpuKey gpu_key = { corner_voxel_key.regionKey().x, corner_voxel_key.regionKey().y,
                           corner_voxel_key.regionKey().z, corner_voxel_key.localKey().x,
                           corner_voxel_key.localKey().y,  corner_voxel_key.localKey().z };

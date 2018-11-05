@@ -35,7 +35,7 @@ MapCache::~MapCache()
 }
 
 
-MapChunk *MapCache::lookup(const OccupancyKey &key)
+MapChunk *MapCache::lookup(const Key &key)
 {
 #if OHM_MULTI_CACHE
   for (int i = 0; i < _cacheSize; ++i)

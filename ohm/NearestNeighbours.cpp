@@ -83,7 +83,7 @@ namespace
     const OccupancyMapDetail &map_data = *map.detail();
     const auto chunk_search = map_data.findRegion(region_key);
     glm::vec3 query_origin, voxel_vector;
-    OccupancyKey voxel_key(nullptr);
+    Key voxel_key(nullptr);
     const MapChunk *chunk = nullptr;
     const float *occupancy = nullptr;
     float range_squared = 0;
@@ -118,7 +118,7 @@ namespace
       // Setup the voxel test function to check the occupancy threshold and behaviour flags.
       voxel_occupied_func = [&query](const float voxel, const OccupancyMapDetail & map_data) -> bool
       {
-        if (voxel == VoxelBase::invalidMarkerValue())
+        if (voxel == voxel::invalidMarkerValue())
         {
           if (query.query_flags & ohm::kQfUnknownAsOccupied)
           {
@@ -127,7 +127,7 @@ namespace
           return false;
         }
         if (voxel >= map_data.occupancy_threshold_value ||
-            (query.query_flags & ohm::kQfUnknownAsOccupied) && voxel == VoxelBase::invalidMarkerValue())
+            (query.query_flags & ohm::kQfUnknownAsOccupied) && voxel == voxel::invalidMarkerValue())
         {
           return true;
         }
@@ -152,7 +152,7 @@ namespace
           {
             // Occupied voxel, or invalid voxel to be treated as occupied.
             // Calculate range to centre.
-            voxel_key = OccupancyKey(region_key, x, y, z);
+            voxel_key = Key(region_key, x, y, z);
             voxel_vector = map.voxelCentreLocal(voxel_key);
             voxel_vector -= query_origin;
             range_squared = glm::dot(voxel_vector, voxel_vector);
@@ -169,7 +169,7 @@ namespace
 
               ++added;
 #ifdef TES_ENABLE
-              if (occupancy && *occupancy != VoxelBase::invalidMarkerValue())
+              if (occupancy && *occupancy != voxel::invalidMarkerValue())
               {
                 includedOccupied.push_back(tes::V3Arg(glm::value_ptr(map.voxelCentreGlobal(voxel_key)));
               }
@@ -182,7 +182,7 @@ namespace
 #ifdef TES_ENABLE
             else
             {
-              if (occupancy && *occupancy != VoxelBase::invalidMarkerValue())
+              if (occupancy && *occupancy != voxel::invalidMarkerValue())
               {
                 excludedOccupied.push_back(tes::V3Arg(glm::value_ptr(map.voxelCentreGlobal(voxel_key))));
               }
@@ -255,7 +255,7 @@ namespace
                                              gpu_data.result_count, 0, sizeof(gputil::uchar3));
 
 #ifndef VALIDATE_KEYS
-      OccupancyKey key;
+      Key key;
       // Collate results.
       for (unsigned i = 0; i < gpu_data.result_count; ++i)
       {
@@ -276,7 +276,7 @@ namespace
 #else  // VALIDATE_KEYS
       bool keyOk = true;
       unsigned nindex = 0;
-      OccupancyKey key;
+      Key key;
       double range, expectedRange;
       // Collate results.
       for (unsigned i = 0; i < gpuData.resultCount; ++i)

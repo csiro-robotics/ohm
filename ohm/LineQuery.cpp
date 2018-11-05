@@ -44,7 +44,7 @@ namespace
 
     for (size_t i = start_index; i < end_index; ++i)
     {
-      const OccupancyKey &key = query.segment_keys[i];
+      const Key &key = query.segment_keys[i];
       range =
         calculateNearestNeighbour(key, map, voxel_search_half_extents, (query.query_flags & kQfUnknownAsOccupied) != 0,
                                   false, query.search_radius, query.axis_scaling);

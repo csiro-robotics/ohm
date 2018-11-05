@@ -38,9 +38,61 @@ namespace ohm
 
 
   /// @overload
-  inline unsigned voxelIndex(const OccupancyKey &key, const glm::ivec3 &dim)
+  inline unsigned voxelIndex(const Key &key, const glm::ivec3 &dim)
   {
     return key.localKey().x + key.localKey().y * dim.x + key.localKey().z * dim.x * dim.y;
+  }
+
+
+  /// Move a region local key to the next coordinate in that region. The operation is constrained by the region
+  /// dimensions @p dim.
+  ///
+  /// The key movement is along the full extents of X, then X/Y, then X/Y/Z.
+  ///
+  /// @param local_key The local_key to adjust.
+  /// @param dim The region voxel dimensions.
+  /// @return False if the key is out of range or at the limit of the region.
+  inline bool nextLocalKey(glm::u8vec3 &local_key, const glm::ivec3 &dim)
+  {
+    if (local_key.x + 1 < dim.x)
+    {
+      ++local_key.x;
+      return true;
+    }
+    if (local_key.y + 1 < dim.y)
+    {
+      local_key.x = 0;
+      ++local_key.y;
+      return true;
+    }
+    if (local_key.z + 1 < dim.z)
+    {
+      local_key.x = local_key.y = 0;
+      ++local_key.z;
+      return true;
+    }
+
+    return false;
+  }
+
+
+  /// Move a key's local key to reference the next coordinate in that region. The operation is constrained by the
+  /// region dimensions @p dim.
+  ///
+  /// The key movement is along the full extents of X, then X/Y, then X/Y/Z.
+  ///
+  /// @param key The key to adjust the local coordinates of.
+  /// @param dim The region voxel dimensions.
+  /// @return False if the key is out of range or at the limit of the region.
+  inline bool nextLocalKey(Key &key, const glm::ivec3 &dim)
+  {
+    glm::u8vec3 local_key = key.localKey();
+    if (nextLocalKey(local_key, dim))
+    {
+      key.setLocalKey(local_key);
+      return true;
+    }
+    return false;
   }
 
 
@@ -93,18 +145,18 @@ namespace ohm
     MapChunk(MapChunk &&other) noexcept;
     ~MapChunk();
 
-    /// Given a @p voxelIndex into voxels, get the associated @c OccupancyKey.
+    /// Given a @p voxelIndex into voxels, get the associated @c Key.
     /// @param voxel_index An index into voxels. Must be in range
     ///   <tt>[0, regionVoxelDimensions.x * regionVoxelDimensions.y * regionVoxelDimensions.z)</tt>
     ///   or a null key is returned.
     /// @param region_voxel_dimensions The dimensions of each chunk/region along each axis.
     /// @param region_coord The coordinate of the containing region.
-    /// @return An @c OccupancyKey to reference the requested voxel.
-    static OccupancyKey keyForIndex(size_t voxel_index, const glm::ivec3 &region_voxel_dimensions,
+    /// @return An @c Key to reference the requested voxel.
+    static Key keyForIndex(size_t voxel_index, const glm::ivec3 &region_voxel_dimensions,
                                     const glm::i16vec3 &region_coord);
 
     /// @overload
-    inline OccupancyKey keyForIndex(size_t voxel_index, const glm::ivec3 &region_voxel_dimensions) const
+    inline Key keyForIndex(size_t voxel_index, const glm::ivec3 &region_voxel_dimensions) const
     {
       return keyForIndex(voxel_index, region_voxel_dimensions, region.coord);
     }

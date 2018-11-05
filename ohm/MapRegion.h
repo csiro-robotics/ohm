@@ -11,7 +11,7 @@
 
 namespace ohm
 {
-  class OccupancyKey;
+  class Key;
 
   /// Represents a large scale spatial region within an @c OccupancyMap.
   ///
@@ -58,7 +58,7 @@ namespace ohm
     /// @param region_dimensions Spatial expanse of a region within the map of interest.
     MapRegion(const glm::dvec3 &point, const glm::dvec3 &map_origin, const glm::dvec3 &region_dimensions);
 
-    /// Attempt to generate an @c OccupancyKey for a voxel containing @p point if it lies in this region.
+    /// Attempt to generate an @c Key for a voxel containing @p point if it lies in this region.
     ///
     /// Fails if the @p point does not lie within this region.
     ///
@@ -71,7 +71,7 @@ namespace ohm
     /// @param voxel_resolution The length of a voxel cube edge.
     /// @return True if the @p point lies within this region and @p key has been set to reference
     ///   the containing voxel. Otherwise @p key is a @c OccupancyMap::null key.
-    bool voxelKey(OccupancyKey &key,
+    bool voxelKey(Key &key,
                   const glm::dvec3 &point,
                   const glm::dvec3 &map_origin,
                   const glm::dvec3 &region_dimensions,
