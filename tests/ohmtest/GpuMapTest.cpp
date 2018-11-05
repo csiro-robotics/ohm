@@ -176,6 +176,7 @@ namespace gpumap
     unsigned failures = 0;
     unsigned processed = 0;
     unsigned logged_failures = 0;
+    float expect, actual;
     for (auto iter = reference_map.begin(); iter != reference_map.end(); ++iter)
     {
       if (iter->isValid() && iter->value() != ohm::voxel::invalidMarkerValue())
@@ -185,12 +186,16 @@ namespace gpumap
         EXPECT_TRUE(gpu_voxel.isValid());
         if (gpu_voxel.isValid() && gpu_voxel.value())
         {
-          if (std::abs(iter->value() - gpu_voxel.value()) >= reference_map.hitValue() * 0.5f)
+          expect = iter->value();
+          actual = gpu_voxel.value();
+
+          if (std::abs(expect - actual) >= reference_map.hitValue() * 0.5f)
           {
             ++failures;
-            if (processed >= 100 && float(failures) / float(processed) > allowed_failure_ratio && logged_failures < 1000)
+
+            if (float(failures) / float(processed) > allowed_failure_ratio && logged_failures < 100)
             {
-              EXPECT_NEAR(iter->value(), gpu_voxel.value(), reference_map.hitValue() * 0.5f);
+              EXPECT_NEAR(expect, actual, reference_map.hitValue() * 0.5f);
               ++logged_failures;
             }
           }
