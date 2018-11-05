@@ -34,6 +34,36 @@ using namespace ohmutil;
 
 namespace maptests
 {
+  TEST(Map, Hit)
+  {
+    OccupancyMap map(0.25);
+    Key key(0, 0, 0, 0, 0, 0);
+    map.integrateHit(key);
+
+    VoxelConst voxel = map.voxel(key);
+    ASSERT_TRUE(voxel.isValid());
+    EXPECT_TRUE(voxel.isOccupied());
+
+    const float voxel_value = voxel.value();
+    EXPECT_EQ(voxel_value, map.hitValue());
+  }
+
+
+  TEST(Map, Miss)
+  {
+    OccupancyMap map(0.25);
+    Key key(0, 0, 0, 0, 0, 0);
+    map.integrateMiss(key);
+
+    VoxelConst voxel = map.voxel(key);
+    ASSERT_TRUE(voxel.isValid());
+    EXPECT_TRUE(voxel.isFree());
+
+    const float voxel_value = voxel.value();
+    EXPECT_EQ(voxel_value, map.missValue());
+  }
+
+
   TEST(Map, Clone)
   {
     OccupancyMap map(0.25);

@@ -85,7 +85,7 @@ namespace gputil
 
     /// Select an active device based on the given command line (style) arguments.
     ///
-    /// TODO: More documentaiton here.
+    /// TODO: More documentation here.
     ///
     /// For OpenCL you can do the following:
     /// - "--accel=[any,accel,gpu,cpu]" to select the accelerator type.

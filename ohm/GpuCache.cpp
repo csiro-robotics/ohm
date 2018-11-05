@@ -12,6 +12,7 @@
 
 #include <gputil/gpuDevice.h>
 
+#include <memory>
 #include <vector>
 
 using namespace ohm;
@@ -20,7 +21,7 @@ namespace ohm
 {
   struct GpuCacheDetail
   {
-    std::vector<GpuLayerCache *> layer_caches;
+    std::vector<std::unique_ptr<GpuLayerCache>> layer_caches;
     gputil::Device gpu;
     gputil::Queue gpu_queue;
     OccupancyMap *map = nullptr;
@@ -73,7 +74,7 @@ GpuLayerCache *GpuCache::createCache(unsigned id, const GpuCacheParams &params)
   const size_t layer_mem_size = (params.gpu_mem_size) ? params.gpu_mem_size : imp_->default_gpu_mem_size;
   GpuLayerCache *new_cache = new GpuLayerCache(imp_->gpu, imp_->gpu_queue,
     *imp_->map, params.map_layer, layer_mem_size, params.flags);
-  imp_->layer_caches[id] = new_cache;
+  imp_->layer_caches[id] = std::unique_ptr<GpuLayerCache>(new_cache);
 
   return new_cache;
 }
@@ -86,7 +87,7 @@ GpuLayerCache *GpuCache::layerCache(unsigned id)
     return nullptr;
   }
 
-  return imp_->layer_caches[id];
+  return imp_->layer_caches[id].get();
 }
 
 

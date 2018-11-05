@@ -19,9 +19,9 @@ using namespace ohm;
 
 namespace
 {
+  // Get a voxel pointer as uint8_t * or const uint8_t *. No other types for T are supported.
   template <typename T, typename MAPCHUNK>
-  T *getVoxelPtr(const Key &key, MAPCHUNK *chunk, const OccupancyMapDetail *map, int layer_index,
-                 size_t expected_size)
+  T getVoxelBytePtr(const Key &key, MAPCHUNK *chunk, const OccupancyMapDetail *map, int layer_index, size_t expected_size)
   {
     if (chunk && map && key.regionKey() == chunk->region.coord)
     {
@@ -36,9 +36,10 @@ namespace
       const glm::u8vec3 layer_dim = layer->dimensions(map->region_voxel_dimensions);
       // Resolve voxel index within this layer.
       const unsigned index = ::voxelIndex(key, layer_dim);
-      T *voxels = layer->voxels(*chunk);
+      T voxels = layer->voxels(*chunk);
       assert(index < unsigned(layer_dim.x * layer_dim.y * layer_dim.z));
-      return &voxels[index];
+      voxels += layer->voxelByteSize() * index;
+      return voxels;
     }
 
     return nullptr;
@@ -49,16 +50,17 @@ namespace ohm
 {
   namespace voxel
   {
-    uint8_t *voxelPtr(const Key &key, MapChunk *chunk, OccupancyMapDetail *map, int layer_index,
-                      size_t expected_size)
+    uint8_t *voxelPtr(const Key &key, MapChunk *chunk, OccupancyMapDetail *map, int layer_index, size_t expected_size)
     {
-      return ::getVoxelPtr<uint8_t>(key, chunk, map, layer_index, expected_size);
+      uint8_t *ptr = ::getVoxelBytePtr<uint8_t *>(key, chunk, map, layer_index, expected_size);
+      return ptr;
     }
 
     const uint8_t *voxelPtr(const Key &key, const MapChunk *chunk, OccupancyMapDetail *map, int layer_index,
                             size_t expected_size)
     {
-      return ::getVoxelPtr<const uint8_t>(key, chunk, map, layer_index, expected_size);
+      const uint8_t *ptr = ::getVoxelBytePtr<const uint8_t *>(key, chunk, map, layer_index, expected_size);
+      return ptr;
     }
 
 
