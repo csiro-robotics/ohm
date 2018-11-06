@@ -62,7 +62,7 @@ Heightmap::Heightmap(double grid_resolution, double min_clearance, unsigned regi
   layer = layout.addLayer(HeightmapVoxel::kHeightmapLayer, 0);
   imp_->heightmap_layer = layer->layerIndex();
   voxels = layer->voxelLayout();
-  voxels.addMember("min_offset", DataType::kFloat, 0);
+  voxels.addMember("height", DataType::kFloat, 0);
   voxels.addMember("clearance", DataType::kFloat, 0);
 }
 
@@ -165,7 +165,7 @@ bool Heightmap::update(const glm::dvec4 &plane)
     for (; target_key.isBoundedX(min_ext_key, max_ext_key); heightmap.stepKey(target_key, 0, 1))
     {
       HeightmapVoxel column_details;
-      column_details.min_offset = std::numeric_limits<float>::max();
+      column_details.height = std::numeric_limits<float>::max();
       column_details.clearance = -1.0;
       // Start walking the voxels in the source map.
       glm::dvec3 column_reference = heightmap.voxelCentreGlobal(target_key);
@@ -182,18 +182,18 @@ bool Heightmap::update(const glm::dvec4 &plane)
         if (src_voxel.isOccupied())
         {
           // Determine the height offset for src_voxel.
-          double height_offset;
+          double height;
           const glm::dvec3 src_voxel_centre = src_map.voxelCentreGlobal(src_key);
-          height_offset = glm::dot(src_voxel_centre, plane_normal) + plane.w;
-          if (height_offset < column_details.min_offset)
+          height = glm::dot(src_voxel_centre, plane_normal);
+          if (height < column_details.height)
           {
             // First voxel in column.
-            column_details.min_offset = height_offset;
+            column_details.height = height;
           }
           else if (column_details.clearance < 0)
           {
             // No clearance value.
-            column_details.clearance = height_offset - column_details.min_offset;
+            column_details.clearance = height - column_details.height;
             if (column_details.clearance >= imp_->min_clearance)
             {
               // Found our heightmap voxels.
@@ -202,7 +202,7 @@ bool Heightmap::update(const glm::dvec4 &plane)
             else
             {
               // Insufficient clearance. This becomes our new base voxel; keep looking for clearance.
-              column_details.min_offset = height_offset;
+              column_details.height = height;
               column_details.clearance = -1.0;
             }
           }
@@ -210,7 +210,7 @@ bool Heightmap::update(const glm::dvec4 &plane)
       }
 
       // Commit the voxel if required.
-      if (column_details.min_offset < std::numeric_limits<float>::max())
+      if (column_details.height < std::numeric_limits<float>::max())
       {
         if (column_details.clearance < 0)
         {

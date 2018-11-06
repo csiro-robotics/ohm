@@ -8,6 +8,7 @@
 #include <ohm/Heightmap.h>
 #include <ohm/HeightmapVoxel.h>
 #include <ohm/OccupancyMap.h>
+#include <ohm/MapCache.h>
 #include <ohm/MapSerialise.h>
 
 #include <ohmtools/OhmCloud.h>
@@ -32,11 +33,20 @@ TEST(Heightmap, Simple)
 
   heightmap.update(glm::dvec4(0, 0, 1, 0));
 
-  ohm::save("heightmap-source.ohm", map);
-  ohm::save("heightmap.ohm", heightmap.heightmap());
+  // Verify output. Boundaries should be at ~ +boundary_distance (top of walls). All other voxels should be at
+  // ~ -boundary_distance. Only approximage due to quantisation.
 
-  ohmtools::saveCloud("heightmap-source.ply", map);
-  ohmtools::saveCloud("heightmap-2d.ply", heightmap.heightmap());
+  const Key min_key = heightmap.heightmap().voxelKey(glm::dvec3(-boundary_distance));
+  const Key max_key = heightmap.heightmap().voxelKey(glm::dvec3( boundary_distance));
+
+  const double ground_height = map.voxelCentreGlobal(map.voxelKey(glm::dvec3(-boundary_distance))).z;
+  const double top_of_wall_height = map.voxelCentreGlobal(map.voxelKey(glm::dvec3(boundary_distance))).z;
+
+  ohm::save("heightmap-simple-source.ohm", map);
+  ohm::save("heightmap-simple.ohm", heightmap.heightmap());
+
+  ohmtools::saveCloud("heightmap-simple-source.ply", map);
+  ohmtools::saveCloud("heightmap-simple-2d.ply", heightmap.heightmap());
 
   // Save the 2.5d heightmap.
   PlyMesh heightmapCloud;
@@ -50,11 +60,35 @@ TEST(Heightmap, Simple)
       coord = heightmap.heightmap().voxelCentreGlobal(iter.key());
       // Adjust the height to the plane height and offset.
       // For now assume a horizontal plane through the origin..
-      coord.z = heightmap.plane().w + voxel->min_offset;
+      coord.z = voxel->height;
       // Add to the cloud.
       heightmapCloud.addVertex(coord);
     }
   }
 
-  heightmapCloud.save("heightmap.ply", true);
+  heightmapCloud.save("heightmap-simple.ply", true);
+  MapCache cache;
+  Key key = min_key;
+  key.setRegionAxis(2, 0);
+  key.setLocalAxis(2, 0);
+  for (; key.isBoundedY(min_key, max_key); heightmap.heightmap().stepKey(key, 1, 1))
+  {
+    for (key.setAxisFrom(0, min_key); key.isBoundedX(min_key, max_key); heightmap.heightmap().stepKey(key, 0, 1))
+    {
+      VoxelConst voxel = heightmap.heightmap().voxel(key, false, &cache);
+
+      double expected_height = ground_height;
+      if (key.axisMatches(0, min_key) || key.axisMatches(0, max_key) ||
+          key.axisMatches(1, min_key) || key.axisMatches(1, max_key))
+      {
+        expected_height = top_of_wall_height;
+      }
+
+      ASSERT_TRUE(voxel.isValid());
+
+      const HeightmapVoxel *voxel_content = voxel.layerContent<const HeightmapVoxel *>(heightmap.heightmapVoxelLayer());
+      ASSERT_NE(voxel_content, nullptr);
+      ASSERT_NEAR(voxel_content->height, expected_height, 1e-9);
+    }
+  }
 }

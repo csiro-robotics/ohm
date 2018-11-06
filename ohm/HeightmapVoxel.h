@@ -16,7 +16,7 @@ namespace ohm
     /// The name of the layer which stores these voxels.
     static const char *kHeightmapLayer;
 
-    float min_offset;
+    float height;
     float clearance;
   };
 }

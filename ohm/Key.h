@@ -69,6 +69,12 @@ namespace ohm
     /// @return The hash of the @c regionKey() part.
     unsigned regionHash() const;
 
+    /// Set the region and local key coordinates along @p axis to match that of @p other.
+    ///
+    /// @param axis Identifies the axis to set [0, 2] matching XYZ.
+    /// @param other The key to copy from.
+    void setAxisFrom(int axis, const Key &other);
+
     /// Set one of the region key axis values.
     /// @param axis The axis to set with 0, 1, 2 cooresponding to x, y, z.
     /// @param val The value to set for the axis.
@@ -155,6 +161,12 @@ namespace ohm
     /// @return True if this key lies within the X range of [min_bounds, max_bounds].
     bool isBounded(int axis, const Key &min_bounds, const Key &max_bounds) const;
 
+    /// Do the region and local key coordinates along @p axis match @p other?
+    /// @param axis The axis to test. Must be [0, 2] identifying XYZ respectively.
+    /// @param other The key to test against.
+    /// @return True on precise region and local key match in @p axis.
+    bool axisMatches(int axis, const Key &other) const;
+
     /// Test whether this is a null key or not. Note, the default constructor creates
     /// invalid keys, not null keys.
     /// @return True if this is a null key.
@@ -210,6 +222,13 @@ namespace ohm
   }
 
 
+  inline void Key::setAxisFrom(int axis, const Key &other)
+  {
+    setRegionAxis(axis, other.region_key_[axis]);
+    setLocalAxis(axis, other.local_[axis]);
+  }
+
+
   inline void Key::setRegionAxis(int axis, int16_t val) { region_key_[axis] = val; }
 
 
@@ -241,6 +260,12 @@ namespace ohm
     }
 
     return true;
+  }
+
+
+  inline bool Key::axisMatches(int axis, const Key &other) const
+  {
+    return region_key_[axis] == other.region_key_[axis] && local_[axis] == other.local_[axis];
   }
 
 
