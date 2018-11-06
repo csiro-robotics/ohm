@@ -5,26 +5,26 @@
 // Author: Kazys Stepanas
 #include <gtest/gtest.h>
 
-#include <ohm/MapCache.h>
-#include <ohm/OccupancyMap.h>
-#include <ohm/QueryFlag.h>
-#include <ohm/OccupancyUtil.h>
 #include <ohm/ClearanceProcess.h>
-#include <ohm/MapProbability.h>
+#include <ohm/GpuMap.h>
+#include <ohm/MapCache.h>
 #include <ohm/MapChunk.h>
 #include <ohm/MapLayout.h>
-#include <ohm/GpuMap.h>
+#include <ohm/MapProbability.h>
+#include <ohm/OccupancyMap.h>
+#include <ohm/OccupancyUtil.h>
+#include <ohm/QueryFlag.h>
 
-#include <ohmtools/OhmGen.h>
 #include <ohmtools/OhmCloud.h>
+#include <ohmtools/OhmGen.h>
 
 #include <ohmutil/OhmUtil.h>
-#include <ohmutil/Profile.h>
 #include <ohmutil/PlyMesh.h>
+#include <ohmutil/Profile.h>
 
 #include <chrono>
-#include <iostream>
 #include <fstream>
+#include <iostream>
 #include <random>
 
 using namespace ohm;
@@ -144,11 +144,13 @@ namespace ranges
       ASSERT_TRUE(voxel.isValid());
       const float epsilon = 1e-3f;
       const float dist_to_region_origin = glm::length(glm::vec3(voxel.key().localKey()));
-      const float expected_range = (dist_to_region_origin <= clearance_process.searchRadius()) ? dist_to_region_origin : -1.0f;
+      const float expected_range =
+        (dist_to_region_origin <= clearance_process.searchRadius()) ? dist_to_region_origin : -1.0f;
       const float clearance = voxel.clearance();
       if (std::abs(expected_range - clearance) > epsilon)
       {
-        std::cout << "Fail: " << voxel.key() << ' ' << voxel.value() << " to RO: " << dist_to_region_origin << " expect: " << expected_range << " actual: " << clearance << '\n';
+        std::cout << "Fail: " << voxel.key() << ' ' << voxel.value() << " to RO: " << dist_to_region_origin
+                  << " expect: " << expected_range << " actual: " << clearance << '\n';
         ++failure_count;
       }
       EXPECT_NEAR(expected_range, clearance, epsilon);
@@ -181,7 +183,8 @@ namespace ranges
     // Don't bother saving the cloud. There are no occupied voxels: we treat unknown as occupied.
     if (unknown_as_occupied)
     {
-      saveClearanceCloud("ranges-outer-unknown-region.ply", map, glm::i16vec3(0, 0, 0), clearance_process.searchRadius());
+      saveClearanceCloud("ranges-outer-unknown-region.ply", map, glm::i16vec3(0, 0, 0),
+                         clearance_process.searchRadius());
     }
     else
     {
@@ -240,10 +243,11 @@ namespace ranges
     const double resolution = 1.0;
     const glm::u8vec3 region_size(32);
     const float search_range = float(resolution) * 2;
-    OccupancyMap map(resolution, region_size);
 
+    OccupancyMap map(resolution, region_size);
     // Build an empty cube map where the cube lies just outside the region.
-    ohmgen::cubicRoom(map, float(resolution) * (1 + region_size.x / 2), 1);
+    ohmgen::boxRoom(map, -glm::dvec3(0.5 * resolution) * glm::dvec3(region_size) - glm::dvec3(resolution),
+                    glm::dvec3(0.5 * resolution) * glm::dvec3(region_size), 1);
     testMapOuterEdge(map, search_range, false);
   }
 
@@ -265,8 +269,7 @@ namespace ranges
     ohmgen::fillMapWithEmptySpace(map, 0, 0, 0, region_size.x, region_size.y, region_size.z);
 
     // Add obstacles at all the corners just outside the ROI.
-    const glm::i16vec3 origin_offset[] =
-    {
+    const glm::i16vec3 origin_offset[] = {
       glm::i16vec3(-1, -1, -1),
       glm::i16vec3(region_size.x, -1, -1),
       glm::i16vec3(-1, region_size.y, -1),
@@ -303,17 +306,14 @@ namespace ranges
     saveClearanceCloud("ranges-outer-corners-region.ply", map, glm::i16vec3(0, 0, 0), clearance_process.searchRadius());
     ohmtools::saveCloud("ranges-outer-corners-cloud.ply", map);
 
-    const Key test_keys[] =
-    {
-      Key(0, 0, 0, 0, 0, 0),
-      Key(0, 0, 0, region_size.x - 1, 0, 0),
-      Key(0, 0, 0, 0, region_size.y - 1, 0),
-      Key(0, 0, 0, region_size.x - 1, region_size.y - 1, 0),
-      Key(0, 0, 0, 0, 0, region_size.z - 1),
-      Key(0, 0, 0, region_size.x - 1, 0, region_size.z - 1),
-      Key(0, 0, 0, 0, region_size.y - 1, region_size.z - 1),
-      Key(0, 0, 0, region_size.x - 1, region_size.y - 1, region_size.z - 1)
-    };
+    const Key test_keys[] = { Key(0, 0, 0, 0, 0, 0),
+                              Key(0, 0, 0, region_size.x - 1, 0, 0),
+                              Key(0, 0, 0, 0, region_size.y - 1, 0),
+                              Key(0, 0, 0, region_size.x - 1, region_size.y - 1, 0),
+                              Key(0, 0, 0, 0, 0, region_size.z - 1),
+                              Key(0, 0, 0, region_size.x - 1, 0, region_size.z - 1),
+                              Key(0, 0, 0, 0, region_size.y - 1, region_size.z - 1),
+                              Key(0, 0, 0, region_size.x - 1, region_size.y - 1, region_size.z - 1) };
 
     for (const auto &test_key : test_keys)
     {
@@ -356,9 +356,8 @@ namespace ranges
     ClearanceProcess clearance_process(search_range, kQfGpuEvaluate * !!gpu);
     VoxelConst voxel = map.voxel(origin_key);
 
-    const auto make_query = [&clearance_process, &map, &voxel, &profile]
-    (const char *context, const glm::vec3 &axis_scaling, float expected, bool report_scaling)
-    {
+    const auto make_query = [&clearance_process, &map, &voxel, &profile](
+                              const char *context, const glm::vec3 &axis_scaling, float expected, bool report_scaling) {
       ohmutil::ProfileMarker mark("Query", &profile);
       unsigned flags = clearance_process.queryFlags();
       flags &= ~kQfReportUnscaledResults;
@@ -386,14 +385,8 @@ namespace ranges
   }
 
 
-  TEST(Ranges, Scaling)
-  {
-    scalingTest(false);
-  }
+  TEST(Ranges, Scaling) { scalingTest(false); }
 
 
-  TEST(Ranges, ScalingGpu)
-  {
-    scalingTest(true);
-  }
-}
+  TEST(Ranges, ScalingGpu) { scalingTest(true); }
+}  // namespace ranges

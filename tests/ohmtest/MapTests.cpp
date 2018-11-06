@@ -69,7 +69,8 @@ namespace maptests
     OccupancyMap map(0.25);
 
     // Generate occupancy.
-    ohmgen::cubicRoom(map, 5.0f);
+    const double box_size = 5.0;
+    ohmgen::boxRoom(map, glm::dvec3(-box_size), glm::dvec3(box_size));
 
     // Generate clearance values.
     ClearanceProcess ref_clearance(2.0f, kQfGpuEvaluate);
@@ -93,7 +94,8 @@ namespace maptests
     OccupancyMap map(0.2);
 
     // Generate occupancy.
-    ohmgen::cubicRoom(map, 5.0f);
+    const double box_size = 5.0;
+    ohmgen::boxRoom(map, glm::dvec3(-box_size), glm::dvec3(box_size));
 
     // Generate clearance values.
     ClearanceProcess ref_clearance(2.0f, kQfGpuEvaluate);

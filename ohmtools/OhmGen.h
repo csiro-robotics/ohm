@@ -8,6 +8,8 @@
 
 #include "OhmToolsConfig.h"
 
+#include <glm/fwd.hpp>
+
 namespace ohm
 {
   class OccupancyMap;
@@ -27,20 +29,20 @@ namespace ohmgen
   /// @param y2 The upper extents Y coordinate in @em voxels, excluded.
   /// @param z2 The upper extents Z coordinate in @em voxels, excluded.
   /// @param expect_empty_map Do we expect the map to begin empty?
-  void fillMapWithEmptySpace(ohm::OccupancyMap &map,
-                             int x1, int y1, int z1, int x2, int y2, int z2,
-                             bool expect_empty_map = true);
+  void ohmtools_API fillMapWithEmptySpace(ohm::OccupancyMap &map, int x1, int y1, int z1, int x2, int y2, int z2,
+                                          bool expect_empty_map = true);
 
-  /// Fill @p map as if we had a sensor in the middle of a cubic room.
+  /// Fill @p map as if we had a sensor in the middle of a box.
   ///
   /// For each voxel on the walls, we simulate integrating a ray sample from the origin to the wall voxel.
   /// We integrate a hit in the wall sample and misses in the voxels connecting the wall voxel to the origin.
   ///
   /// @param map The map to fill.
-  /// @param boundary_range Distance to the wall from the origin.
+  /// @param min_ext The minimum extents for the box. Defines the lower wall corner.
+  /// @param max_ext The maximum extents for the box. Defines the lower wall corner.
   /// @param voxel_step Specifies the voxel step to make along the walls. This allows wholes
   ///   to be created in the wall sampling.
-  void cubicRoom(ohm::OccupancyMap &map, float boundary_range, int voxel_step = 1);
-}
+  void ohmtools_API boxRoom(ohm::OccupancyMap &map, const glm::dvec3 &min_ext, const glm::dvec3 &max_ext, int voxel_step = 1);
+}  // namespace ohmgen
 
-#endif // OHMTOOLS_OHMGEN_H
+#endif  // OHMTOOLS_OHMGEN_H

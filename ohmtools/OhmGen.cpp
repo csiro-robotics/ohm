@@ -15,66 +15,113 @@ using namespace ohm;
 
 namespace ohmgen
 {
-  void fillMapWithEmptySpace(OccupancyMap &map, int x1, int y1, int z1, int x2, int y2, int z2, bool expect_empty_map)
+  void fillWithValue(OccupancyMap &map, const Key &min_key, const Key &max_key, float fill_value, const float *expect_value, int step)
   {
     Voxel voxel;
-    Key key;
     MapCache cache;
     float initial_value;
-    float expect_value;
 
-    for (int z = z1; z < z2; ++z)
+    Key key = min_key;
+    for (; key.isBoundedZ(min_key, max_key); map.moveKeyAlongAxis(key, 2, step))
     {
-      for (int y = y1; y < y2; ++y)
+      key.setRegionAxis(1, min_key.regionKey()[1]);
+      key.setLocalAxis(1, min_key.localKey()[1]);
+
+      for (; key.isBoundedY(min_key, max_key); map.moveKeyAlongAxis(key, 1, step))
       {
-        for (int x = x1; x < x2; ++x)
+        key.setRegionAxis(0, min_key.regionKey()[0]);
+        key.setLocalAxis(0, min_key.localKey()[0]);
+
+        for (; key.isBoundedX(min_key, max_key); map.moveKeyAlongAxis(key, 0, step))
         {
-          key = Key(0, 0, 0, 0, 0, 0);
-          map.moveKey(key, x, y, z);
           voxel = map.voxel(key, true, &cache);
-          initial_value = (!voxel.isNull()) ? voxel.value() : voxel::invalidMarkerValue();
-          expect_value = (initial_value == voxel::invalidMarkerValue()) ? map.missValue() : initial_value + map.missValue();
-          expect_value = (map.saturateAtMinValue() && expect_value < map.minNodeValue()) ? map.minNodeValue() : expect_value;
-          if (expect_empty_map && initial_value != voxel::invalidMarkerValue())
+          initial_value = voxel::invalidMarkerValue();
+          if (expect_value && initial_value != *expect_value)
           {
             throw std::logic_error("Voxel should start uncertain.");
           }
-          voxel.setValue(map.missValue());
+          voxel.setValue(fill_value);
         }
       }
     }
   }
 
 
-  void cubicRoom(OccupancyMap &map, float boundary_range, int voxel_step)
+  void ohmtools_API fillMapWithEmptySpace(ohm::OccupancyMap &map, int x1, int y1, int z1, int x2, int y2, int z2,
+                                          bool expect_empty_map)
   {
-    int extents = int(boundary_range / map.resolution());
+    const float expect_initial_value = voxel::invalidMarkerValue();
+    const float *expect_value_ptr = (expect_empty_map) ? &expect_initial_value : nullptr;
 
-    ohm::MapCache cache;
-    const auto build_walls = [&map, extents, voxel_step, &cache] (int a0, int a1, int a2)
+    Key min_key, max_key;
+    min_key = max_key = Key(0, 0, 0, 0, 0, 0);
+
+    map.moveKey(min_key, x1, y1, z1);
+    map.moveKey(max_key, x2 - 1, y2 - 1, z2 - 1);
+
+    fillWithValue(map, min_key, max_key, map.missValue(), expect_value_ptr, 1);
+  }
+
+
+  void buildWall(OccupancyMap &map, int a0, int a1, int a2, int a0min, int a1min, int a0max, int a1max, int a2val)
+  {
+    Voxel voxel;
+    Key key;
+    MapCache cache;
+
+    for (int val0 = a0min; val0 < a0max; ++val0)
     {
-      const double map_res = map.resolution();
-      KeyList ray;
-      glm::dvec3 point;
-      for (int i = -extents; i < extents + 1; i += voxel_step)
+      for (int val1 = a1min; val1 < a1max; ++val1)
       {
-        for (int j = -extents; j < extents + 1; j += voxel_step)
-        {
-          for (int k = 0; k < 2; ++k)
-          {
-            point = map.origin();
-            point[a0] = i * map_res;
-            point[a1] = j * map_res;
-            point[a2] = (k == 0 ? (-extents) * map.resolution() : (extents - 1) * map.resolution());
-            map.voxel(map.voxelKey(point), true, &cache).setValue(map.occupancyThresholdValue() + map.hitValue());
-          }
-        }
+        key = Key(0, 0, 0, 0, 0, 0);
+        map.moveKeyAlongAxis(key, a0, val0);
+        map.moveKeyAlongAxis(key, a1, val1);
+        map.moveKeyAlongAxis(key, a2, a2val);
+        voxel = map.voxel(key, true, &cache);
+        voxel.setValue(map.occupancyThresholdValue());
       }
-    };
+    }
+  }
 
-    fillMapWithEmptySpace(map, -extents + 1, -extents + 1, -extents + 1, extents, extents, extents);
-    build_walls(0, 1, 2);
-    build_walls(1, 2, 0);
-    build_walls(0, 2, 1);
+  void ohmtools_API boxRoom(ohm::OccupancyMap &map, const glm::dvec3 &min_ext, const glm::dvec3 &max_ext, int voxel_step)
+  {
+    const Key min_key = map.voxelKey(min_ext);
+    const Key max_key = map.voxelKey(max_ext);
+    Key wall_key;
+
+    fillWithValue(map, min_key, max_key, map.missValue(), nullptr, 1);
+
+    // Left wall.
+    wall_key = max_key;
+    wall_key.setLocalAxis(0, min_key.localKey()[0]);
+    wall_key.setRegionAxis(0, min_key.regionKey()[0]);
+    fillWithValue(map, min_key, wall_key, map.occupancyThresholdValue(), nullptr, voxel_step);
+    // Front wall
+    wall_key = max_key;
+    wall_key.setLocalAxis(1, min_key.localKey()[1]);
+    wall_key.setRegionAxis(1, min_key.regionKey()[1]);
+    fillWithValue(map, min_key, wall_key, map.occupancyThresholdValue(), nullptr, voxel_step);
+    // Bottom wall
+    wall_key = max_key;
+    wall_key.setLocalAxis(2, min_key.localKey()[2]);
+    wall_key.setRegionAxis(2, min_key.regionKey()[2]);
+    fillWithValue(map, min_key, wall_key, map.occupancyThresholdValue(), nullptr, voxel_step);
+
+
+    // Left wall.
+    wall_key = min_key;
+    wall_key.setLocalAxis(0, max_key.localKey()[0]);
+    wall_key.setRegionAxis(0, max_key.regionKey()[0]);
+    fillWithValue(map, wall_key, max_key, map.occupancyThresholdValue(), nullptr, voxel_step);
+    // Front wall
+    wall_key = min_key;
+    wall_key.setLocalAxis(1, max_key.localKey()[1]);
+    wall_key.setRegionAxis(1, max_key.regionKey()[1]);
+    fillWithValue(map, wall_key, max_key, map.occupancyThresholdValue(), nullptr, voxel_step);
+    // Bottom wall
+    wall_key = min_key;
+    wall_key.setLocalAxis(2, max_key.localKey()[2]);
+    wall_key.setRegionAxis(2, max_key.regionKey()[2]);
+    fillWithValue(map, wall_key, max_key, map.occupancyThresholdValue(), nullptr, voxel_step);
   }
 }

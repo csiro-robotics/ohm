@@ -123,7 +123,7 @@ namespace linequerytests
     OccupancyMap map(0.1);
 
     // Build a cloud with real samples around a cubic boundary. Does not cover every voxel in the boundary.
-    ohmgen::cubicRoom(map, boundary_distance, 3);
+    ohmgen::boxRoom(map, glm::dvec3(-boundary_distance), glm::dvec3(boundary_distance), 3);
 
     // Run the query and compare CPU/GPU results.
     LineQuery cpu_query(map, glm::dvec3(0), glm::dvec3(0), 2.0f);

@@ -467,7 +467,16 @@ void OccupancyMap::calculateExtents(glm::dvec3 &min_ext, glm::dvec3 &max_ext) co
 {
   glm::dvec3 region_min, region_max;
   std::unique_lock<decltype(imp_->mutex)> guard(imp_->mutex);
-  min_ext = max_ext = imp_->origin;
+  if (imp_->chunks.empty())
+  {
+    // Empty map. Use the origin.
+    min_ext = max_ext = imp_->origin;
+    return;
+  }
+
+  min_ext = glm::dvec3( std::numeric_limits<double>::max());
+  max_ext = glm::dvec3(-std::numeric_limits<double>::max());
+
   for (auto &&chunk : imp_->chunks)
   {
     const MapRegion region = chunk.second->region;
