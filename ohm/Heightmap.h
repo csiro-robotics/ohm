@@ -24,10 +24,13 @@ namespace ohm
   class Heightmap
   {
   public:
+    static const unsigned kDefaultRegionSize = 128;
+
     /// Construct a new heightmap optionally tied to a specific @p map.
     /// @param grid_resolution The grid resolution for the heightmap.
-    /// @param map The map to calculate the heightmap based on.
-    Heightmap(double grid_resolution, OccupancyMap *map = nullptr);
+    /// @param min_clearance The minimum clearance value to accept the lowest voxel.
+    /// @param region_size Grid size of each region in the heightmap.
+    Heightmap(double grid_resolution, double min_clearance, unsigned region_size = 0);
 
     /// Destructor.
     ~Heightmap();
@@ -41,6 +44,9 @@ namespace ohm
     /// Access the current heightmap.
     OccupancyMap &heightmap() const;
 
+    void setMinClearance(double clearance);
+    double minClearance() const;
+
     /// The layer number which contains @c HeightmapVoxel structures.
     unsigned heightmapVoxelLayer() const;
 
@@ -51,11 +57,12 @@ namespace ohm
     ///
     /// Voxels are project onto this plane to calculate each voxels' closest two clusters to the plane.
     ///
+    /// @param plane The heightmap plane. Currently must be horizontal in X/Y.
     /// @return true on success.
     bool update(const glm::dvec4 &plane);
 
   private:
-    HeightmapDetail *imp_;
+    std::unique_ptr<HeightmapDetail> imp_;
   };
 } // namespace ohm
 

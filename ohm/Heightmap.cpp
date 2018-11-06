@@ -8,6 +8,7 @@
 #include "private/HeightmapDetail.h"
 
 #include "HeightmapVoxel.h"
+#include "Key.h"
 #include "MapCache.h"
 #include "MapChunk.h"
 #include "MapLayer.h"
@@ -17,13 +18,25 @@
 
 using namespace ohm;
 
-Heightmap::Heightmap(double grid_resolution, ohm::OccupancyMap *map)
+namespace
+{
+  glm::dvec3 projectOnPlane(const glm::dvec4 &plane, const glm::dvec3 &point, double *signed_distance_to_plane)
+  {
+    const glm::dvec3 plane_normal(plane);
+    *signed_distance_to_plane = glm::dot(point, plane_normal) + plane.w;
+    return point - plane_normal * *signed_distance_to_plane;
+  }
+}  // namespace
+
+Heightmap::Heightmap(double grid_resolution, double min_clearance, unsigned region_size)
   : imp_(new HeightmapDetail)
 {
-  imp_->occupancy_map = map;
+  region_size = region_size ? region_size : kDefaultRegionSize;
+
+  imp_->min_clearance = min_clearance;
   imp_->heightmap_plane = glm::dvec4(0, 0, 1, 0);
   // Use an OccupancyMap to store grid cells. Each region is 1 voxel thick.
-  imp_->heightmap.reset(new OccupancyMap(grid_resolution, glm::u8vec3(128, 128, 1)));
+  imp_->heightmap.reset(new OccupancyMap(grid_resolution, glm::u8vec3(region_size, region_size, 1)));
 
   // Setup the heightmap voxel layout.
   MapLayout &layout = imp_->heightmap->layout();
@@ -50,14 +63,12 @@ Heightmap::Heightmap(double grid_resolution, ohm::OccupancyMap *map)
   imp_->heightmap_layer = layer->layerIndex();
   voxels = layer->voxelLayout();
   voxels.addMember("min_offset", DataType::kFloat, 0);
-  voxels.addMember("clearance_offset", DataType::kFloat, 0);
+  voxels.addMember("clearance", DataType::kFloat, 0);
 }
 
 
 Heightmap::~Heightmap()
-{
-  delete imp_;
-}
+{}
 
 
 void Heightmap::setOccupancyMap(OccupancyMap *map)
@@ -78,6 +89,18 @@ OccupancyMap &Heightmap::heightmap() const
 }
 
 
+void Heightmap::setMinClearance(double clearance)
+{
+  imp_->min_clearance = clearance;
+}
+
+
+double Heightmap::minClearance() const
+{
+  return imp_->min_clearance;
+}
+
+
 const glm::dvec4 &Heightmap::plane() const
 {
   return imp_->heightmap_plane;
@@ -92,76 +115,116 @@ unsigned Heightmap::heightmapVoxelLayer() const
 
 bool Heightmap::update(const glm::dvec4 &plane)
 {
+  if (!imp_->occupancy_map)
+  {
+    return false;
+  }
+
+  if (std::abs(plane.x) > 1e-9 || std::abs(plane.y) > 1e-9)
+  {
+    // Current implementation must have horizontal plane.
+    return false;
+  }
+
   // Brute force initial approach.
+  const OccupancyMap &src_map = *imp_->occupancy_map;
+  OccupancyMap &heightmap = *imp_->heightmap;
 
   // Clear previous results.
-  imp_->heightmap->clear();
+  heightmap.clear();
 
   // Cache the plane.
   imp_->heightmap_plane = plane;
+  const glm::dvec3 plane_normal(plane);
 
   // 1. Calculate the map extents.
   //  a. Calculate occupancy map extents.
   //  b. Project occupancy map extents onto heightmap plane.
   // 2. Populate heightmap voxels
 
-  // Get the regions we'll work with.
-  std::vector<const MapChunk *> regions;
-  OccupancyMap &src_map = *imp_->occupancy_map;
-  OccupancyMap &heightmap = *imp_->heightmap;
-  src_map.enumerateRegions(regions);
+  glm::dvec3 min_ext, max_ext;
+  src_map.calculateExtents(min_ext, max_ext);
 
-  // Populate heightmap (supports arbitrary heightmap plane):
-  // - Foreach source OccupancyMap region overlapping bounds
-  //  - Foreach occupied (or unknown) region voxel
-  //    - project position onto heightmap plane
-  //    - calculate distance to heightmap
-  //    - generate key for project position ino heightmap grid
-  //    - get heightmap grid cell
-  //    - update min_offset with shortest distance.
+  // Generate keys for these extents.
+  const Key min_ext_key = heightmap.voxelKey(min_ext);
+  const Key max_ext_key = heightmap.voxelKey(max_ext);
+  Key target_key = min_ext_key;
 
-  const glm::u8vec3 voxel_dimensions = src_map.regionVoxelDimensions();
-  Key voxel_key;
-  glm::dvec3 voxel_coord;
-  const glm::dvec3 plane_normal(plane);
-  MapCache cache;
-  double signed_distance_to_plane;
-  HeightmapVoxel *voxel_content = nullptr;
-  for (const MapChunk *region : regions)
+  // Collapse the height.
+  target_key.setRegionAxis(2, 0);
+  target_key.setLocalAxis(2, 0);
+
+  // TODO(KS): address differences in voxel resolution between source and destination maps.
+  // Walk the heightmap voxels which are potentially occupied. We only walk the X/Y plane.
+  MapCache heightmap_cache;
+  MapCache src_cache;
+  for (; target_key.isBoundedY(min_ext_key, max_ext_key); heightmap.stepKey(target_key, 1, 1))
   {
-    if (region->first_valid_index.x < voxel_dimensions.x && region->first_valid_index.y < voxel_dimensions.y &&
-        region->first_valid_index.y < voxel_dimensions.z)
+    target_key.setLocalAxis(0, min_ext_key.localKey().x);
+    target_key.setRegionAxis(0, min_ext_key.regionKey().x);
+    for (; target_key.isBoundedX(min_ext_key, max_ext_key); heightmap.stepKey(target_key, 0, 1))
     {
-      voxel_key = Key(region->region.coord, region->first_valid_index);
-      do
+      HeightmapVoxel column_details;
+      column_details.min_offset = std::numeric_limits<float>::max();
+      column_details.clearance = -1.0;
+      // Start walking the voxels in the source map.
+      glm::dvec3 column_reference = heightmap.voxelCentreGlobal(target_key);
+      // Set to the min Z extents of the source map.
+      column_reference.z = min_ext.z;
+      const Key src_min_key = src_map.voxelKey(column_reference);
+      column_reference.z = max_ext.z;
+      const Key src_max_key = src_map.voxelKey(column_reference);
+
+      // Walk the src column up.
+      for (Key src_key = src_min_key; src_key.isBoundedZ(src_min_key, src_max_key); src_map.stepKey(src_key, 2, 1))
       {
-        // Check if the source voxel is occupied.
-        const VoxelConst src_voxel(voxel_key, region, src_map.detail());
+        VoxelConst src_voxel = src_map.voxel(src_key, &src_cache);
         if (src_voxel.isOccupied())
         {
-          // Generate a spatial point for the voxel.
-          voxel_coord = src_map.voxelCentreGlobal(voxel_key);
-          signed_distance_to_plane = glm::dot(voxel_coord, plane_normal) + plane.w;
-          voxel_coord -= plane_normal * signed_distance_to_plane;
-
-          // Add to the height map.
-          Voxel voxel = heightmap.voxel(heightmap.voxelKey(voxel_coord), true, &cache);
-          voxel.setValue(heightmap.occupancyThresholdValue());
-
-          voxel_content = voxel.layerContent<HeightmapVoxel *>(imp_->heightmap_layer);
-          if (signed_distance_to_plane < voxel_content->min_offset)
+          // Determine the height offset for src_voxel.
+          double height_offset;
+          const glm::dvec3 src_voxel_centre = src_map.voxelCentreGlobal(src_key);
+          height_offset = glm::dot(src_voxel_centre, plane_normal) + plane.w;
+          if (height_offset < column_details.min_offset)
           {
-            voxel_content->min_offset = signed_distance_to_plane;
+            // First voxel in column.
+            column_details.min_offset = height_offset;
+          }
+          else if (column_details.clearance < 0)
+          {
+            // No clearance value.
+            column_details.clearance = height_offset - column_details.min_offset;
+            if (column_details.clearance >= imp_->min_clearance)
+            {
+              // Found our heightmap voxels.
+              break;
+            }
+            else
+            {
+              // Insufficient clearance. This becomes our new base voxel; keep looking for clearance.
+              column_details.min_offset = height_offset;
+              column_details.clearance = -1.0;
+            }
           }
         }
-        // Project onto the plane.
-      } while (nextLocalKey(voxel_key, voxel_dimensions));
+      }
+
+      // Commit the voxel if required.
+      if (column_details.min_offset < std::numeric_limits<float>::max())
+      {
+        if (column_details.clearance < 0)
+        {
+          // No clearance information.
+          column_details.clearance = imp_->min_clearance;
+        }
+
+        Voxel heightmap_voxel = heightmap.voxel(target_key, true, &heightmap_cache);
+        heightmap_voxel.setValue(heightmap.occupancyThresholdValue());
+        HeightmapVoxel *voxel_content = heightmap_voxel.layerContent<HeightmapVoxel *>(imp_->heightmap_layer);
+        *voxel_content = column_details;
+      }
     }
   }
 
-  // How to calculate clearance_offset?
-  // - It's the next shortest distance after a set of free in voxels of at least distance D.
-  // - May need a second pass to calculate the clearance.
-  //  - Also update min_offset to the highest of a continuous set of occupied voxels.
   return true;
 }

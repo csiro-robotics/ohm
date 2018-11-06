@@ -21,13 +21,14 @@ using namespace ohm;
 
 TEST(Heightmap, Simple)
 {
-  const float boundary_distance = 5.0f;
+  const float boundary_distance = 2.5f;
   OccupancyMap map(0.2);
 
   // Build a cloud with real samples around a cubic boundary. Does not cover every voxel in the boundary.
-  ohmgen::cubicRoom(map, boundary_distance, 3);
+  ohmgen::boxRoom(map, glm::dvec3(-boundary_distance), glm::dvec3(boundary_distance));
 
-  Heightmap heightmap(0.2, &map);
+  Heightmap heightmap(0.2, 1.0);
+  heightmap.setOccupancyMap(&map);
 
   heightmap.update(glm::dvec4(0, 0, 1, 0));
 

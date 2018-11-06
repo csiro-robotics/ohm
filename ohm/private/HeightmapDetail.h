@@ -22,6 +22,7 @@ namespace ohm
     /// Use a very thin occupancy map for the heightmap representation.
     std::unique_ptr<ohm::OccupancyMap> heightmap;
     glm::dvec4 heightmap_plane;
+    double min_clearance = 1.0;
     /// Voxel layer containing the @c HeightmapVoxel data.
     unsigned heightmap_layer = 0;
   };

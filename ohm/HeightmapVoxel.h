@@ -17,7 +17,7 @@ namespace ohm
     static const char *kHeightmapLayer;
 
     float min_offset;
-    float clearance_offset;
+    float clearance;
   };
 }
 
