@@ -7,6 +7,7 @@ find_package(GTest)
 set(SOURCES
   GpuMapTest.cpp
   GpuTests.cpp
+  HeightmapTests.cpp
   KeyTests.cpp
   LineKeysTests.cpp
   LineQueryTests.cpp

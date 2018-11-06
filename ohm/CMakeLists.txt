@@ -31,6 +31,10 @@ set(SOURCES
   DataType.cpp
   DataType.h
   DefaultLayers.h
+  Heightmap.cpp
+  Heightmap.h
+  HeightmapVoxel.cpp
+  HeightmapVoxel.h
   Key.cpp
   Key.h
   KeyList.cpp
@@ -85,6 +89,8 @@ set(PUBLIC_HEADERS
   ClearanceProcess.h
   DataType.h
   DefaultLayers.h
+  Heightmap.h
+  HeightmapVoxel.h
   Key.h
   KeyList.h
   LineKeysQuery.h

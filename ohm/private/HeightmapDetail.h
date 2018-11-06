@@ -10,6 +10,8 @@
 
 #include <glm/glm.hpp>
 
+#include <memory>
+
 namespace ohm
 {
   class OccupancyMap;
@@ -18,16 +20,10 @@ namespace ohm
   {
     ohm::OccupancyMap *occupancy_map = nullptr;
     /// Use a very thin occupancy map for the heightmap representation.
-    ohm::OccupancyMap *heightmap = nullptr;
+    std::unique_ptr<ohm::OccupancyMap> heightmap;
     glm::dvec4 heightmap_plane;
     /// Voxel layer containing the @c HeightmapVoxel data.
     unsigned heightmap_layer = 0;
-  };
-
-  struct HeightmapVoxel
-  {
-    float min_offset;
-    float clearance_offset;
   };
 } // namespace ohm
 
