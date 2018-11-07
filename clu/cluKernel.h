@@ -47,7 +47,7 @@ namespace clu
     ++arg_index;
     clu::checkError(std::cerr, clerr, "Arg", arg_index);
     return clerr;
-  };
+  }
 
 
   /// @internal

@@ -533,6 +533,7 @@ namespace gpubuffertest
     uint64_t device_mem = gpu.deviceMemory();
 
     // Allocate and release large amounts of memory. Ensure we are releasing it correctly.
+    // This should raise an exception if we are not correctly releasing memory.
     const int iter_count = 20;
     const int fill_value = 42;
     for (int i = 0; i < 20; ++i)
