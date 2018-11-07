@@ -31,7 +31,7 @@ TEST(Heightmap, Simple)
   Heightmap heightmap(0.2, 1.0);
   heightmap.setOccupancyMap(&map);
 
-  heightmap.update(glm::dvec4(0, 0, 1, 0));
+  heightmap.update(Heightmap::AxisZ);
 
   // Verify output. Boundaries should be at ~ +boundary_distance (top of walls). All other voxels should be at
   // ~ -boundary_distance. Only approximage due to quantisation.

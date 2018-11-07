@@ -108,7 +108,7 @@ namespace
     {
       reader_type = "las";
     }
-    else if (ext.compare("laz"))
+    else if (ext.compare("laz") == 0)
     {
       reader_type = "las";
       options.add("compression", "EITHER");

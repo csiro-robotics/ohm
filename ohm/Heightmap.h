@@ -24,6 +24,17 @@ namespace ohm
   class Heightmap
   {
   public:
+    /// Possible values for setting the @c upAxis() in @c update().
+    enum Axis : int
+    {
+      AxisNegZ = -3,
+      AxisNegY = -2,
+      AxisNegX = -1,
+      AxisX,
+      AxisY,
+      AxisZ,
+    };
+
     static const unsigned kDefaultRegionSize = 128;
 
     /// Construct a new heightmap optionally tied to a specific @p map.
@@ -50,8 +61,11 @@ namespace ohm
     /// The layer number which contains @c HeightmapVoxel structures.
     unsigned heightmapVoxelLayer() const;
 
-    /// Get the current heightmap plane. This is the last plane used to calculate the heightmap in @c update().
-    const glm::dvec4 &plane() const;
+    /// Get the up axis identifier used to generate the heightmap.
+    Axis upAxis() const;
+
+    /// Get the normal vector for the up axis used to last @c update().
+    const glm::dvec3 &upAxisNormal() const;
 
     /// Update the heightmap using the current @c plane();
     ///
@@ -59,7 +73,7 @@ namespace ohm
     ///
     /// @param plane The heightmap plane. Currently must be horizontal in X/Y.
     /// @return true on success.
-    bool update(const glm::dvec4 &plane);
+    bool update(Axis up_axis);
 
   private:
     std::unique_ptr<HeightmapDetail> imp_;

@@ -16,17 +16,9 @@
 #include "OccupancyMap.h"
 #include "Voxel.h"
 
-using namespace ohm;
+#include <iostream>
 
-namespace
-{
-  glm::dvec3 projectOnPlane(const glm::dvec4 &plane, const glm::dvec3 &point, double *signed_distance_to_plane)
-  {
-    const glm::dvec3 plane_normal(plane);
-    *signed_distance_to_plane = glm::dot(point, plane_normal) + plane.w;
-    return point - plane_normal * *signed_distance_to_plane;
-  }
-}  // namespace
+using namespace ohm;
 
 Heightmap::Heightmap(double grid_resolution, double min_clearance, unsigned region_size)
   : imp_(new HeightmapDetail)
@@ -34,7 +26,7 @@ Heightmap::Heightmap(double grid_resolution, double min_clearance, unsigned regi
   region_size = region_size ? region_size : kDefaultRegionSize;
 
   imp_->min_clearance = min_clearance;
-  imp_->heightmap_plane = glm::dvec4(0, 0, 1, 0);
+  imp_->up = glm::dvec3(0, 0, 1);
   // Use an OccupancyMap to store grid cells. Each region is 1 voxel thick.
   imp_->heightmap.reset(new OccupancyMap(grid_resolution, glm::u8vec3(region_size, region_size, 1)));
 
@@ -101,9 +93,15 @@ double Heightmap::minClearance() const
 }
 
 
-const glm::dvec4 &Heightmap::plane() const
+Heightmap::Axis Heightmap::upAxis() const
 {
-  return imp_->heightmap_plane;
+  return Heightmap::Axis(imp_->up_axis_id);
+}
+
+
+const glm::dvec3 &Heightmap::upAxisNormal() const
+{
+  return imp_->up;
 }
 
 
@@ -113,16 +111,10 @@ unsigned Heightmap::heightmapVoxelLayer() const
 }
 
 
-bool Heightmap::update(const glm::dvec4 &plane)
+bool Heightmap::update(Axis up_axis)
 {
   if (!imp_->occupancy_map)
   {
-    return false;
-  }
-
-  if (std::abs(plane.x) > 1e-9 || std::abs(plane.y) > 1e-9)
-  {
-    // Current implementation must have horizontal plane.
     return false;
   }
 
@@ -134,8 +126,31 @@ bool Heightmap::update(const glm::dvec4 &plane)
   heightmap.clear();
 
   // Cache the plane.
-  imp_->heightmap_plane = plane;
-  const glm::dvec3 plane_normal(plane);
+  imp_->up_axis_id = up_axis;
+  switch (up_axis)
+  {
+    case AxisNegX:
+      imp_->up = glm::dvec3(-1, 0, 0);
+      break;
+    case AxisNegY:
+      imp_->up = glm::dvec3(0, -1, 0);
+      break;
+    case AxisNegZ:
+      imp_->up = glm::dvec3(0, 0, -1);
+      break;
+    case AxisX:
+      imp_->up = glm::dvec3(1, 0, 0);
+      break;
+    case AxisY:
+      imp_->up = glm::dvec3(0, 1, 0);
+      break;
+    case AxisZ:
+      imp_->up = glm::dvec3(0, 0, 1);
+      break;
+    default:
+      std::cerr << "Unknown up axis ID: " << up_axis << std::endl;
+      return false;
+  }
 
   // 1. Calculate the map extents.
   //  a. Calculate occupancy map extents.
@@ -184,7 +199,7 @@ bool Heightmap::update(const glm::dvec4 &plane)
           // Determine the height offset for src_voxel.
           double height;
           const glm::dvec3 src_voxel_centre = src_map.voxelCentreGlobal(src_key);
-          height = glm::dot(src_voxel_centre, plane_normal);
+          height = glm::dot(src_voxel_centre, imp_->up);
           if (height < column_details.height)
           {
             // First voxel in column.
