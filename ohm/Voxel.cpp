@@ -7,8 +7,8 @@
 #include "private/MapLayoutDetail.h"
 #include "private/OccupancyMapDetail.h"
 
-#include "MapChunk.h"
 #include "DefaultLayers.h"
+#include "MapChunk.h"
 #include "VoxelLayout.h"
 
 #include <algorithm>
@@ -19,113 +19,79 @@ using namespace ohm;
 
 namespace
 {
-  template <typename T, typename MAPCHUNK, typename MAP>
-  T *simpleVoxelPtr(const OccupancyKey &key, MAPCHUNK *chunk, MAP *map, int layer_index)
+  // Get a voxel pointer as uint8_t * or const uint8_t *. No other types for T are supported.
+  template <typename T, typename MAPCHUNK>
+  T getVoxelBytePtr(const Key &key, MAPCHUNK *chunk, const OccupancyMapDetail *map, int layer_index, size_t expected_size)
   {
-    if (chunk && map)
+    if (chunk && map && key.regionKey() == chunk->region.coord)
     {
       // Validate layer.
       assert(layer_index < int(chunk->layout->layerCount()));
       const MapLayer *layer = chunk->layout->layerPtr(layer_index);
-      assert(layer->voxelByteSize() == sizeof(T));
+      if (expected_size > 0 && layer->voxelByteSize() != expected_size)
+      {
+        return nullptr;
+      }
       // Account for sub sampling.
       const glm::u8vec3 layer_dim = layer->dimensions(map->region_voxel_dimensions);
       // Resolve voxel index within this layer.
       const unsigned index = ::voxelIndex(key, layer_dim);
-      T *voxels = reinterpret_cast<T *>(layer->voxels(*chunk));
+      T voxels = layer->voxels(*chunk);
       assert(index < unsigned(layer_dim.x * layer_dim.y * layer_dim.z));
-      return &voxels[index];
+      voxels += layer->voxelByteSize() * index;
+      return voxels;
     }
 
     return nullptr;
   }
-}
+}  // namespace
 
-float VoxelBase::occupancy() const
+namespace ohm
 {
-  if (const float *occupancy = simpleVoxelPtr<const float>(key_, chunk_, map_, kDlOccupancy))
+  namespace voxel
   {
-    return *occupancy;
-  }
-
-  return invalidMarkerValue();
-}
-
-
-float VoxelBase::clearance(bool invalid_as_obstructed) const
-{
-  if (const float *clearance = simpleVoxelPtr<const float>(key_, chunk_, map_, kDlClearance))
-  {
-    return *clearance;
-  }
-
-  return (invalid_as_obstructed) ? 0.0f : -1.0f;
-}
-
-
-double VoxelBase::regionTimestamp() const
-{
-  return (chunk_) ? chunk_->touched_time : 0.0;
-}
-
-
-bool VoxelBase::isOccupied() const
-{
-  const float val = value();
-  return !isNull() && val >= map_->occupancy_threshold_value && val != invalidMarkerValue();
-}
-
-
-bool VoxelBase::isFree() const
-{
-  const float val = value();
-  return !isNull() && val < map_->occupancy_threshold_value && val != invalidMarkerValue();
-}
-
-
-bool VoxelBase::nextInRegion()
-{
-  if (!chunk_)
-  {
-    return false;
-  }
-
-  const glm::u8vec3 region_dim = map_->region_voxel_dimensions;
-  if (key_.localKey().x + 1 == region_dim.x)
-  {
-    if (key_.localKey().y + 1 == region_dim.y)
+    uint8_t *voxelPtr(const Key &key, MapChunk *chunk, OccupancyMapDetail *map, int layer_index, size_t expected_size)
     {
-      if (key_.localKey().z + 1 == region_dim.z)
-      {
-        return false;
-      }
-
-      key_.setLocalKey(glm::u8vec3(0, 0, key_.localKey().z + 1));
+      uint8_t *ptr = ::getVoxelBytePtr<uint8_t *>(key, chunk, map, layer_index, expected_size);
+      return ptr;
     }
-    else
+
+    const uint8_t *voxelPtr(const Key &key, const MapChunk *chunk, OccupancyMapDetail *map, int layer_index,
+                            size_t expected_size)
     {
-      key_.setLocalKey(glm::u8vec3(0, key_.localKey().y + 1, key_.localKey().z));
+      const uint8_t *ptr = ::getVoxelBytePtr<const uint8_t *>(key, chunk, map, layer_index, expected_size);
+      return ptr;
     }
-  }
-  else
-  {
-    key_.setLocalAxis(0,  key_.localKey().x + 1);
-  }
 
-  return true;
+
+    float occupancyThreshold(const OccupancyMapDetail &map) { return map.occupancy_threshold_value; }
+
+
+    glm::u8vec3 regionVoxelDimensions(const OccupancyMapDetail &map) { return map.region_voxel_dimensions; }
+  }  // namespace voxel
+}  // namespace ohm
+
+
+Voxel VoxelConst::makeMutable() const
+{
+  // Two approaches here:
+  // 1. Find the chunk again in the map has.
+  // 2. Const cast the chunk pointer.
+  // Whilst 1. is more technically correct, 2. is much faster...
+  return Voxel(key_, const_cast<MapChunk *>(chunk_), map_);
 }
 
 
 void Voxel::setValue(float value, bool force)
 {
-  if (float *voxel_ptr = simpleVoxelPtr<float>(key_, chunk_, map_, kDlOccupancy))
+  if (float *voxel_ptr = ohm::voxel::voxelPtrAs<float *>(key_, chunk_, map_, kDlOccupancy))
   {
-    if (value != invalidMarkerValue())
+    if (value != voxel::invalidMarkerValue())
     {
       // Clamp the value to the allowed voxel range.
       value = std::max(map_->min_voxel_value, std::min(value, map_->max_voxel_value));
       // Honour saturation. Once saturated a voxel value could not change.
-      if (force || *voxel_ptr == invalidMarkerValue() ||
+      if (force || *voxel_ptr == voxel::invalidMarkerValue() ||
           (value < *voxel_ptr && (!map_->saturate_at_max_value || *voxel_ptr < map_->max_voxel_value)) ||
           (value > *voxel_ptr && (!map_->saturate_at_min_value || *voxel_ptr > map_->min_voxel_value)))
       {
@@ -146,7 +112,7 @@ void Voxel::setValue(float value, bool force)
       }
 #ifdef OHM_VALIDATION
       _chunk->validateFirstValid(_map->region_voxel_dimensions);
-#endif // OHM_VALIDATION
+#endif  // OHM_VALIDATION
     }
     touchMap();
   }
@@ -155,13 +121,13 @@ void Voxel::setValue(float value, bool force)
   {
     fprintf(stderr, "Attempting to modify null voxel\n");
   }
-#endif // OHM_VALIDATION
+#endif  // OHM_VALIDATION
 }
 
 
 void Voxel::setClearance(float range)
 {
-  if (float *voxel_ptr = simpleVoxelPtr<float>(key_, chunk_, map_, kDlClearance))
+  if (float *voxel_ptr = voxel::voxelPtrAs<float *>(key_, chunk_, map_, kDlClearance))
   {
     *voxel_ptr = range;
     // touchMap();
@@ -185,10 +151,4 @@ void Voxel::touchMap()
     ++map_->stamp;
     chunk_->dirty_stamp = chunk_->touched_stamps[kDlOccupancy] = map_->stamp;
   }
-}
-
-
-Voxel VoxelConst::makeMutable() const
-{
-  return Voxel(key_, chunk_, map_);
 }

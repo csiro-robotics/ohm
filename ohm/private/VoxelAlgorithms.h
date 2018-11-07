@@ -12,7 +12,7 @@
 
 namespace ohm
 {
-  class OccupancyKey;
+  class Key;
   class OccupancyMap;
 
   /// A utility function for calculating the @c voxelSearchHalfExtents parameter for @c calcualteNearestNeighbour.
@@ -33,7 +33,7 @@ namespace ohm
   ///     The same voxel is selected regardless of this value.
   /// @return -1 if there are no occupied voxels within the @p voxelSearchHalfExtents range, or the range of
   ///   the nearest obstacle. Zero when @p voxel itself is occupied.
-  float calculateNearestNeighbour(const OccupancyKey &voxel_key, const OccupancyMap &map,
+  float calculateNearestNeighbour(const Key &voxel_key, const OccupancyMap &map,
                                   const glm::ivec3 &voxel_search_half_extents,
                                   bool unknown_as_occupied, bool ignore_self, float search_range = 0,
                                   const glm::vec3 &axis_scaling = glm::vec3(1.0f, 1.0f, 1.0f),

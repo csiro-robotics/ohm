@@ -28,7 +28,7 @@ namespace linekeys
     const size_t result_count = std::min(query.numberOfResults(), reference.numberOfResults());
 
     const ohm::OccupancyMap &map = *query.map();
-    ohm::OccupancyKey key, key_ref;
+    ohm::Key key, key_ref;
     size_t index_offset, index_offset_ref;
     size_t key_count, key_count_ref;
     size_t compare_key_count;
@@ -153,7 +153,7 @@ namespace linekeys
     const size_t result_count = query.numberOfResults();
     size_t index_offset;
     size_t key_count;
-    ohm::OccupancyKey key;
+    ohm::Key key;
 
     for (size_t r = 0; r < result_count; ++r)
     {
@@ -215,7 +215,7 @@ namespace linekeys
     gpu_query2.execute();
     cpu_query.execute();
 
-    ohm::OccupancyKeyList keys;
+    ohm::KeyList keys;
     const size_t line_count = line_points.size() / 2;
     for (int i = 0; i < iteration_count; ++i)
     {

@@ -22,7 +22,7 @@ namespace keytests
   struct SampleInfo
   {
     glm::dvec3 point;
-    ohm::OccupancyKey expected_key;
+    ohm::Key expected_key;
   };
 
   static const float kEpsilon = 0.1f;
@@ -39,8 +39,8 @@ namespace keytests
 
   void generateInternalSamples(std::vector<SampleInfo> &samples, OccupancyMap &map)
   {
-    OccupancyKey origin_key;
-    OccupancyKey key;
+    Key origin_key;
+    Key key;
     glm::dvec3 region_spatial_dim;
     glm::dvec3 region_min, region_max;
 
@@ -105,9 +105,9 @@ namespace keytests
     addSample(samples, map, glm::vec3(region_max.x, region_max.y, region_max.z));
   }
 
-  bool testSamples(const std::vector<SampleInfo> &samples, OccupancyMap &map, const OccupancyKey &reference_key, bool expect_region_match)
+  bool testSamples(const std::vector<SampleInfo> &samples, OccupancyMap &map, const Key &reference_key, bool expect_region_match)
   {
-    OccupancyKey key;
+    Key key;
     glm::dvec3 coord;
     glm::dvec3 separation;
     bool tests_ok = true;
@@ -208,7 +208,7 @@ namespace keytests
   {
     // Define a (dummy) map to work with.
     OccupancyMap map(0.3f);
-    OccupancyKey origin_key;
+    Key origin_key;
     std::vector<SampleInfo> internal_samples;
     std::vector<SampleInfo> external_samples;
 
@@ -230,7 +230,7 @@ namespace keytests
     const double resolution = 0.25;
     const glm::u8vec3 region_size(16);
     OccupancyMap map(resolution, region_size);
-    OccupancyKey key, test_key;
+    Key key, test_key;
     glm::dvec3 v;
 
     // Create a set of rays which will densely populate a single region.

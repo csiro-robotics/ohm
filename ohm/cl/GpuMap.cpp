@@ -64,7 +64,7 @@ namespace ohm
 
     // Compile and initialise.
     cl_int clerr = CL_SUCCESS;
-    const char *source_file = "regionupdate.cl";
+    const char *source_file = "RegionUpdate.cl";
     std::vector<std::string> args;
     args.push_back(ohm::gpuBuildStdArg());
 

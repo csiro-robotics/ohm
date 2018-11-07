@@ -55,7 +55,7 @@ namespace
                                       const glm::ivec3 &voxel_search_half_extents)
   {
     OccupancyMapDetail &map_data = *map.detail();
-    OccupancyKey voxel_key(nullptr);
+    Key voxel_key(nullptr);
     float range;
 
     voxel_key.setRegionKey(region_key);
@@ -88,7 +88,7 @@ namespace
                                    const glm::ivec3 &/*voxel_search_half_extents*/)
   {
     OccupancyMapDetail &map_data = *map.detail();
-    OccupancyKey voxel_key(nullptr);
+    Key voxel_key(nullptr);
 
     voxel_key.setRegionKey(region_key);
     for (int z = block_start.z; z < block_end.z; ++z)
@@ -123,8 +123,8 @@ namespace
                                    const glm::ivec3 & /*voxel_search_half_extents*/)
   {
     OccupancyMapDetail &map_data = *map.detail();
-    OccupancyKey voxel_key(nullptr);
-    OccupancyKey neighbour_key(nullptr);
+    Key voxel_key(nullptr);
+    Key neighbour_key(nullptr);
     float voxel_range;
 
     voxel_key.setRegionKey(region_key);

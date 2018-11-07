@@ -513,7 +513,7 @@ unsigned GpuMap::integrateRaysT(gputil::Buffer &buffer, gputil::Event &buffer_ev
     walkRegions(*imp_->map, rays[i + 0], rays[i + 1], region_func);
   }
 
-  if (preloaded_buffer)
+  if (!preloaded_buffer)
   {
     upload_count = point_count;
     // Asynchronous unpin. Kernels will wait on the associated event.
@@ -650,7 +650,7 @@ void GpuMap::finaliseBatch(gputil::PinnedBuffer &regions_buffer, gputil::PinnedB
                { imp_->ray_upload_events[buf_idx], imp_->region_key_upload_events[buf_idx],
                  imp_->region_offset_upload_events[buf_idx] },
                &imp_->region_update_events[buf_idx]);
-  // layerCache.gpuQueue().flush();
+  // gpu_cache.gpuQueue().flush();
 
   // Update most recent chunk GPU event.
   layer_cache.updateEvents(imp_->batch_marker, imp_->region_update_events[buf_idx]);

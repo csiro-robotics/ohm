@@ -50,14 +50,14 @@ namespace ohmtools
                       float colour_range, const ProgressCallback &prog)
   {
     const size_t result_count = query.numberOfResults();
-    const ohm::OccupancyKey *keys = query.intersectedVoxels();
+    const ohm::Key *keys = query.intersectedVoxels();
     const float *ranges = query.ranges();
     glm::dvec3 voxel_pos;
 
     PlyMesh ply;
     for (size_t i = 0; i < result_count; ++i)
     {
-      const ohm::OccupancyKey &key = keys[i];
+      const ohm::Key &key = keys[i];
       uint8_t c = 255;
       if (colour_range > 0 && ranges)
       {

@@ -12,7 +12,7 @@
 namespace ohm
 {
   struct MapChunk;
-  class OccupancyKey;
+  class Key;
 
   /// A cache object used to speed up some lookups into an @c OccupancyMap.
   ///
@@ -50,7 +50,7 @@ namespace ohm
     ///
     /// @param key The map key to lookup.
     /// @return The @c MapChunk which @p key references if it is cached, or null otherwise.
-    MapChunk *lookup(const OccupancyKey &key);
+    MapChunk *lookup(const Key &key);
 
     /// Push the given @p chunk into the cache. The user must ensure the @p chunk remains value for
     /// the life of the @c MapCache.

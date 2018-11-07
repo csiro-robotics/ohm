@@ -20,12 +20,12 @@ namespace ohm
   }
 
 
-  float calculateNearestNeighbour(const OccupancyKey &voxel_key, const OccupancyMap &map,
+  float calculateNearestNeighbour(const Key &voxel_key, const OccupancyMap &map,
                                   const glm::ivec3 &voxel_search_half_extents,
                                   bool unknown_as_occupied, bool ignore_self, float search_range,
                                   const glm::vec3 &axis_scaling, bool report_unscaled_distance)
   {
-    OccupancyKey search_key;
+    Key search_key;
     VoxelConst test_voxel;
     MapCache cache;
     glm::vec3 voxel_centre, separation;

@@ -11,11 +11,11 @@
 
 namespace ohm
 {
-  /// A container class encapsulating a set of @c OccupancyKey objects.
-  class ohm_API OccupancyKeyList
+  /// A container class encapsulating a set of @c Key objects.
+  class ohm_API KeyList
   {
   public:
-    /// Iterator for an @c OccupancyKeyList.
+    /// Iterator for an @c KeyList.
     class ohm_API iterator // NOLINT
     {
     public:
@@ -28,19 +28,19 @@ namespace ohm
       {}
       /// Internal constructor used to iterator the given set of keys.
       /// @param key The first key in the set.
-      inline iterator(OccupancyKey *key)
+      inline iterator(Key *key)
         : key_(key)
       {}
 
-      /// Dereference the @c iterator into an @c OccupancyKey.
+      /// Dereference the @c iterator into an @c Key.
       /// Iterator must be valid to use or behaviour is undefined.
-      /// @return A reference to the current @c OccupancyKey.
-      inline OccupancyKey &operator*() const { return *key_; }
+      /// @return A reference to the current @c Key.
+      inline Key &operator*() const { return *key_; }
 
-      /// Dereference the @c iterator into an @c OccupancyKey.
+      /// Dereference the @c iterator into an @c Key.
       /// Iterator must be valid to use or behaviour is undefined.
-      /// @return A reference to the current @c OccupancyKey.
-      inline OccupancyKey *operator->() const { return key_; }
+      /// @return A reference to the current @c Key.
+      inline Key *operator->() const { return key_; }
 
       /// Increment to the next key (prefix).
       /// @return A reference to @c this.
@@ -82,10 +82,10 @@ namespace ohm
       inline bool operator!=(const iterator &other) { return key_ != other.key_; }
 
     private:
-      OccupancyKey *key_;
+      Key *key_;
     };
 
-    /// Iterator referencing an @c OccupancyKeyList referencing a @c const @c OccupancyKey.
+    /// Iterator referencing an @c KeyList referencing a @c const @c Key.
     class ohm_API const_iterator // NOLINT
     {
     public:
@@ -103,18 +103,18 @@ namespace ohm
       {}
       /// Internal constructor used to iterator the given set of keys.
       /// @param key The first key in the set.
-      inline const_iterator(const OccupancyKey *key)
+      inline const_iterator(const Key *key)
         : key_(key)
       {}
 
-      /// Dereference the @c const_iterator into a @c const @c OccupancyKey.
+      /// Dereference the @c const_iterator into a @c const @c Key.
       /// Iterator must be valid to use or behaviour is undefined.
-      /// @return A reference to the current @c OccupancyKey.
-      inline const OccupancyKey &operator*() const { return *key_; }
-      /// Dereference the @c const_iterator into a @c const @c OccupancyKey.
+      /// @return A reference to the current @c Key.
+      inline const Key &operator*() const { return *key_; }
+      /// Dereference the @c const_iterator into a @c const @c Key.
       /// Iterator must be valid to use or behaviour is undefined.
-      /// @return A reference to the current @c OccupancyKey.
-      inline const OccupancyKey *operator->() const { return key_; }
+      /// @return A reference to the current @c Key.
+      inline const Key *operator->() const { return key_; }
 
       /// Increment to the next key (prefix).
       /// @return A reference to @c this.
@@ -156,14 +156,14 @@ namespace ohm
       inline bool operator!=(const const_iterator &other) { return key_ != other.key_; }
 
     private:
-      const OccupancyKey *key_;
+      const Key *key_;
     };
 
     /// Create a key list supporting sized to the given @p initialCount.
     /// @param initial_count The initial size for the key list (see @c resize()).
-    OccupancyKeyList(size_t initial_count = 0);
+    KeyList(size_t initial_count = 0);
     /// Destructor.
-    ~OccupancyKeyList();
+    ~KeyList();
 
     /// Create an @c interator to the first element in the key list.
     /// @return An iterator to the first key in the list.
@@ -211,29 +211,29 @@ namespace ohm
 
     /// Direct access to the underlying key list array. Use with care.
     /// @return A pointer to the memory used to store the keys.
-    inline OccupancyKey *data() { return keys_; }
+    inline Key *data() { return keys_; }
     /// @overload
-    inline const OccupancyKey *data() const { return keys_; }
+    inline const Key *data() const { return keys_; }
 
     /// Request the key at index @p i (unsafe). The request is not bounds checked and the user
     /// is responsible for ensuring <tt>i < count()</tt>.
     /// @param i The index of the requested key. Must be in the range <tt>[0, count())</tt>.
     /// @return The key at index @p i.
-    inline OccupancyKey &at(size_t i) { return keys_[i]; }
+    inline Key &at(size_t i) { return keys_[i]; }
     /// @overload
-    inline const OccupancyKey &at(size_t i) const { return keys_[i]; }
+    inline const Key &at(size_t i) const { return keys_[i]; }
 
     /// Array style access to the key at index @p i. Semantically equivalent to @c at().
     /// @param i The index of the requested key. Must be in the range <tt>[0, count())</tt>.
     /// @return The key at index @p i.
-    inline OccupancyKey &operator[](size_t i) { return keys_[i]; }
+    inline Key &operator[](size_t i) { return keys_[i]; }
     /// @overload
-    inline const OccupancyKey &operator[](size_t i) const { return keys_[i]; }
+    inline const Key &operator[](size_t i) const { return keys_[i]; }
 
     /// Add a key to the end of the list.
     /// The list will grow if required, reallocating the underlying memory.
     /// @param key The key to add.
-    void push_back(const OccupancyKey &key); // NOLINT
+    void push_back(const Key &key); // NOLINT
 
     /// Add a key to the end of the list and return a reference to the new key.
     /// The list will grow if required, reallocating the underlying memory.
@@ -241,15 +241,15 @@ namespace ohm
     /// The returned key reference is only valid so long as the key list memory remains the same.
     ///
     /// @return A reference to the added key.
-    OccupancyKey &add();
+    Key &add();
 
     /// Add a key to the end of the list.
     /// The list will grow if required, reallocating the underlying memory.
     /// @param key The key to add.
-    inline void add(const OccupancyKey &key) { return push_back(key); }
+    inline void add(const Key &key) { return push_back(key); }
 
   private:
-    OccupancyKey *keys_;
+    Key *keys_;
     size_t capacity_;
     size_t count_;
   };

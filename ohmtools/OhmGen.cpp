@@ -18,7 +18,7 @@ namespace ohmgen
   void fillMapWithEmptySpace(OccupancyMap &map, int x1, int y1, int z1, int x2, int y2, int z2, bool expect_empty_map)
   {
     Voxel voxel;
-    OccupancyKey key;
+    Key key;
     MapCache cache;
     float initial_value;
     float expect_value;
@@ -29,13 +29,13 @@ namespace ohmgen
       {
         for (int x = x1; x < x2; ++x)
         {
-          key = OccupancyKey(0, 0, 0, 0, 0, 0);
+          key = Key(0, 0, 0, 0, 0, 0);
           map.moveKey(key, x, y, z);
           voxel = map.voxel(key, true, &cache);
-          initial_value = (!voxel.isNull()) ? voxel.value() : Voxel::invalidMarkerValue();
-          expect_value = (initial_value == Voxel::invalidMarkerValue()) ? map.missValue() : initial_value + map.missValue();
+          initial_value = (!voxel.isNull()) ? voxel.value() : voxel::invalidMarkerValue();
+          expect_value = (initial_value == voxel::invalidMarkerValue()) ? map.missValue() : initial_value + map.missValue();
           expect_value = (map.saturateAtMinValue() && expect_value < map.minNodeValue()) ? map.minNodeValue() : expect_value;
-          if (expect_empty_map && initial_value != Voxel::invalidMarkerValue())
+          if (expect_empty_map && initial_value != voxel::invalidMarkerValue())
           {
             throw std::logic_error("Voxel should start uncertain.");
           }
@@ -54,7 +54,7 @@ namespace ohmgen
     const auto build_walls = [&map, extents, voxel_step, &cache] (int a0, int a1, int a2)
     {
       const double map_res = map.resolution();
-      OccupancyKeyList ray;
+      KeyList ray;
       glm::dvec3 point;
       for (int i = -extents; i < extents + 1; i += voxel_step)
       {

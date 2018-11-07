@@ -92,7 +92,7 @@ namespace
         query.gpuData.maxKeysPerLine);
     }
     // std::cout << "Worst case key requirement: " << query.gpuData.maxKeysPerLine << std::endl;
-    // std::cout << "Occupancy Key size " << sizeof(OccupancyKey) << " GPU Key size: " << GpuKeySize << std::endl;
+    // std::cout << "Occupancy Key size " << sizeof(Key) << " GPU Key size: " << GpuKeySize << std::endl;
 
     size_t required_size = query.rays.size() / 2 * query.gpuData.maxKeysPerLine * kGpuKeySize;
     if (query.gpuData.linesOut.size() < required_size)
@@ -153,7 +153,7 @@ namespace
       if (result_count)
       {
 #if 1
-        static_assert(sizeof(GpuKey) == sizeof(OccupancyKey), "CPU/GPU key size mismatch.");
+        static_assert(sizeof(GpuKey) == sizeof(Key), "CPU/GPU key size mismatch.");
         if (query.intersected_voxels.capacity() < query.intersected_voxels.size() + result_count)
         {
           const size_t reserve = nextPow2(unsigned(query.intersected_voxels.capacity() + result_count));
@@ -165,7 +165,7 @@ namespace
         gpu_mem.read(query.intersected_voxels.data() + query.resultIndices[i], kGpuKeySize * result_count, (read_offset_count + 1) * kGpuKeySize);
 #else  // #
         GpuKey gpuKey;
-        OccupancyKey key;
+        Key key;
         for (size_t j = 0; j < resultCount; ++j)
         {
           gpuMem.read(&gpuKey, GpuKeySize, (readOffsetCount + 1 + j) * GpuKeySize);
@@ -289,7 +289,7 @@ bool LineKeysQuery::onExecute()
     }
   }
 
-  OccupancyKeyList key_list;
+  KeyList key_list;
   d->resultIndices.resize(d->rays.size() / 2);
   d->resultCounts.resize(d->rays.size() / 2);
   for (size_t i = 0; i < d->rays.size(); i += 2)

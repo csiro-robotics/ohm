@@ -38,7 +38,7 @@ namespace ranges
                           float search_radius)
   {
     PlyMesh ply;
-    OccupancyKey key(region, 0, 0, 0);
+    Key key(region, 0, 0, 0);
     glm::vec3 voxel_pos;
     // auto region_size = map.regionVoxelDimensions();
     // std::cout << "regionSize: " << regionSize << std::endl;
@@ -66,7 +66,7 @@ namespace ranges
   }
 
 
-  void showVoxel(ohm::OccupancyMap &map, const ohm::OccupancyKey &key, float expected_range = FLT_MAX)
+  void showVoxel(ohm::OccupancyMap &map, const ohm::Key &key, float expected_range = FLT_MAX)
   {
     const VoxelConst voxel = map.voxel(key, false);
     if (voxel.isValid())
@@ -105,7 +105,7 @@ namespace ranges
     // Build a map in which we clear all voxels except the one at key (0, 0, 0 : 0, 0, 0).
     // We clear region (0, 0, 0) and make sure we don't query with the flag kQfUnknownAsOccupied.
     ohmgen::fillMapWithEmptySpace(map, 0, 0, 0, region_size.x, region_size.y, region_size.z);
-    auto occupied_voxel = map.voxel(OccupancyKey(0, 0, 0, 0, 0, 0), true);
+    auto occupied_voxel = map.voxel(Key(0, 0, 0, 0, 0, 0), true);
     occupied_voxel.setValue(map.occupancyThresholdValue());
 
     auto end_time = TimingClock::now();
@@ -114,7 +114,7 @@ namespace ranges
     std::cout << "Obstacle query: " << std::flush;
     start_time = TimingClock::now();
     // No need to sync the map yet.
-    OccupancyKey key(0, 0, 0, 0, 0, 0);
+    Key key(0, 0, 0, 0, 0, 0);
 
     ClearanceProcess clearance_process(search_range, kQfGpuEvaluate);
     clearance_process.calculateForExtents(map, map.voxelCentreGlobal(key), map.voxelCentreGlobal(key));
@@ -123,7 +123,7 @@ namespace ranges
 
     // Now check obstacle ranges in the map.
     std::cout << "Post query\n";
-    key = OccupancyKey(0, 0, 0, 0, 0, 0);
+    key = Key(0, 0, 0, 0, 0, 0);
     showVoxel(map, key, 0.0f);
     map.stepKey(key, 0, 1);
     showVoxel(map, key, 1.0f);
@@ -133,7 +133,7 @@ namespace ranges
     saveClearanceCloud("ranges-simple-region.ply", map, glm::i16vec3(0, 0, 0), clearance_process.searchRadius());
     ohmtools::saveCloud("ranges-simple-cloud.ply", map);
 
-    key = OccupancyKey(0, 0, 0, 0, 0, 0);
+    key = Key(0, 0, 0, 0, 0, 0);
     VoxelConst voxel = map.voxel(key);
     // const float *values = (const float *)map.layout().layer(1).voxels(*map.region(glm::i16vec3(0, 0, 0)));
     ASSERT_TRUE(voxel.isValid());
@@ -168,7 +168,7 @@ namespace ranges
 
     std::cout << "Obstacle query: " << std::flush;
     // No need to sync the map yet.
-    OccupancyKey key(0, 0, 0, 0, 0, 0);
+    Key key(0, 0, 0, 0, 0, 0);
 
     ClearanceProcess clearance_process(search_range, kQfGpuEvaluate | !!unknown_as_occupied * kQfUnknownAsOccupied);
     clearance_process.calculateForExtents(map, map.voxelCentreGlobal(key), map.voxelCentreGlobal(key));
@@ -205,11 +205,11 @@ namespace ranges
           local_key[primary_axis] = a;
           local_key[second_axis] = b;
           local_key[third_axis] = 0;
-          auto voxel = map.voxel(OccupancyKey(glm::i16vec3(0), local_key), false, &cache);
+          auto voxel = map.voxel(Key(glm::i16vec3(0), local_key), false, &cache);
           ASSERT_TRUE(voxel.isValid());
           EXPECT_NEAR(voxel.clearance(), map.resolution(), 1e-2f);
           local_key[third_axis] = region_size[third_axis] - 1;
-          voxel = map.voxel(OccupancyKey(glm::i16vec3(0), local_key), false, &cache);
+          voxel = map.voxel(Key(glm::i16vec3(0), local_key), false, &cache);
           ASSERT_TRUE(voxel.isValid());
           EXPECT_NEAR(voxel.clearance(), map.resolution(), 1e-2f);
         }
@@ -279,7 +279,7 @@ namespace ranges
 
     for (auto &&offset : origin_offset)
     {
-      OccupancyKey key(0, 0, 0, 0, 0, 0);
+      Key key(0, 0, 0, 0, 0, 0);
       map.moveKey(key, offset.x, offset.y, offset.z);
       map.voxel(key, true).setValue(map.occupancyThresholdValue() + map.hitValue());
     }
@@ -290,7 +290,7 @@ namespace ranges
     std::cout << "Obstacle query: " << std::flush;
     start_time = TimingClock::now();
     // No need to sync the map yet.
-    OccupancyKey key(0, 0, 0, 0, 0, 0);
+    Key key(0, 0, 0, 0, 0, 0);
 
     ClearanceProcess clearance_process(search_range, kQfGpuEvaluate);
     clearance_process.calculateForExtents(map, map.voxelCentreGlobal(key), map.voxelCentreGlobal(key), true);
@@ -303,16 +303,16 @@ namespace ranges
     saveClearanceCloud("ranges-outer-corners-region.ply", map, glm::i16vec3(0, 0, 0), clearance_process.searchRadius());
     ohmtools::saveCloud("ranges-outer-corners-cloud.ply", map);
 
-    const OccupancyKey test_keys[] =
+    const Key test_keys[] =
     {
-      OccupancyKey(0, 0, 0, 0, 0, 0),
-      OccupancyKey(0, 0, 0, region_size.x - 1, 0, 0),
-      OccupancyKey(0, 0, 0, 0, region_size.y - 1, 0),
-      OccupancyKey(0, 0, 0, region_size.x - 1, region_size.y - 1, 0),
-      OccupancyKey(0, 0, 0, 0, 0, region_size.z - 1),
-      OccupancyKey(0, 0, 0, region_size.x - 1, 0, region_size.z - 1),
-      OccupancyKey(0, 0, 0, 0, region_size.y - 1, region_size.z - 1),
-      OccupancyKey(0, 0, 0, region_size.x - 1, region_size.y - 1, region_size.z - 1)
+      Key(0, 0, 0, 0, 0, 0),
+      Key(0, 0, 0, region_size.x - 1, 0, 0),
+      Key(0, 0, 0, 0, region_size.y - 1, 0),
+      Key(0, 0, 0, region_size.x - 1, region_size.y - 1, 0),
+      Key(0, 0, 0, 0, 0, region_size.z - 1),
+      Key(0, 0, 0, region_size.x - 1, 0, region_size.z - 1),
+      Key(0, 0, 0, 0, region_size.y - 1, region_size.z - 1),
+      Key(0, 0, 0, region_size.x - 1, region_size.y - 1, region_size.z - 1)
     };
 
     for (const auto &test_key : test_keys)
@@ -343,7 +343,7 @@ namespace ranges
     // We will focus on the voxel at (0, 0, 0) and use weighting to make it report the closest obstacle as
     // 1, 2 and 3 respectively.
 
-    const OccupancyKey origin_key = map.voxelKey(glm::dvec3(0, 0, 0));
+    const Key origin_key = map.voxelKey(glm::dvec3(0, 0, 0));
 
     map.integrateHit(glm::dvec3(2 * resolution, 0, 0));
     map.integrateHit(glm::dvec3(0, 3 * resolution, 0));

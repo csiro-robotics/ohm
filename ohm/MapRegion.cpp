@@ -45,7 +45,7 @@ MapRegion::MapRegion(const glm::dvec3 &point, const glm::dvec3 &map_origin, cons
 }
 
 
-bool MapRegion::voxelKey(OccupancyKey &key,
+bool MapRegion::voxelKey(Key &key,
                          const glm::dvec3 &point,
                          const glm::dvec3 &map_origin,
                          const glm::dvec3 &region_dimensions,
@@ -70,7 +70,7 @@ bool MapRegion::voxelKey(OccupancyKey &key,
   }
 
   // Invalidate the key.
-  key = OccupancyKey::kNull;
+  key = Key::kNull;
   // Out of range.
   return false;
 }

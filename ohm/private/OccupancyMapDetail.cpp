@@ -31,7 +31,7 @@ void OccupancyMapDetail::setDefaultLayout()
   VoxelLayout voxel;
   size_t clear_value;
 
-  const float invalid_marker_value = VoxelBase::invalidMarkerValue();
+  const float invalid_marker_value = voxel::invalidMarkerValue();
 
   clear_value = 0;
   memcpy(&clear_value, &invalid_marker_value, std::min(sizeof(invalid_marker_value), sizeof(clear_value)));

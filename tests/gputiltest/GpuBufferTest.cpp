@@ -525,4 +525,22 @@ namespace gpubuffertest
     std::cout << "Copy: " << buffer_read << std::endl;
     EXPECT_EQ(buffer_read, buffer_ref);
   }
+
+  // Ensure we are not retaining buffer memory.
+  TEST(GpuBuffer, Allocation)
+  {
+    gputil::Device &gpu = g_gpu;
+    uint64_t device_mem = gpu.deviceMemory();
+
+    // Allocate and release large amounts of memory. Ensure we are releasing it correctly.
+    // This should raise an exception if we are not correctly releasing memory.
+    const int iter_count = 20;
+    const int fill_value = 42;
+    for (int i = 0; i < 20; ++i)
+    {
+      gputil::Buffer mem_buffer(gpu, device_mem / 3);
+      mem_buffer.fill(&fill_value, sizeof(fill_value));
+      std::cout << i + 1 << " / " << iter_count << std::endl;
+    }
+  }
 }

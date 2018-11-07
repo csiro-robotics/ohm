@@ -13,7 +13,7 @@
 namespace ohm
 {
   class OccupancyMap;
-  class OccupancyKey;
+  class Key;
   struct QueryDetail;
 
   /// Base class for a query operation on an @p OccupancyMap.
@@ -66,7 +66,7 @@ namespace ohm
     /// @return The number of available results.
     size_t numberOfResults() const;
 
-    /// Query the voxels intersected by the query, where voxels are identified by their @c OccupancyKey.
+    /// Query the voxels intersected by the query, where voxels are identified by their @c Key.
     ///
     /// When non-null, the number of items available in @p intersectedVoxels() is available via
     /// @c numberOfResults().
@@ -74,7 +74,7 @@ namespace ohm
     /// Sort order and semantics may vary slightly for specific queries.
     ///
     /// @return A pointer to the array of voxels intersected by the query.
-    const OccupancyKey *intersectedVoxels() const;
+    const Key *intersectedVoxels() const;
 
     /// Get the array of distances associated with the @c intersectedVoxels().
     /// This may not be valid for some queries and could return null.
