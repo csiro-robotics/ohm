@@ -250,7 +250,7 @@ namespace ohm
     /// @param layer_index The map layer index from which to extract voxel data.
     /// @return A pointer to this voxel's data within the @c MapLayer @p layer_index.
     template <typename T>
-    T layerContent(unsigned layer_index)
+    T layerContent(unsigned layer_index) const
     {
       return voxel::voxelPtrAs<T>(key_, chunk_, map_, layer_index);
     }
