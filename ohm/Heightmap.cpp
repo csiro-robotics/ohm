@@ -16,6 +16,7 @@
 #include "OccupancyMap.h"
 #include "Voxel.h"
 
+#include <algorithm>
 #include <iostream>
 
 using namespace ohm;
@@ -372,12 +373,12 @@ bool Heightmap::update()
         if (height < column_details.height)
         {
           // First voxel in column.
-          column_details.height = height;
+          column_details.height = float(height);
         }
         else if (column_details.clearance <= 0)
         {
           // No clearance value.
-          column_details.clearance = height - column_details.height;
+          column_details.clearance = float(height - column_details.height);
           if (column_details.clearance >= imp_->min_clearance)
           {
             // Found our heightmap voxels.
@@ -386,7 +387,7 @@ bool Heightmap::update()
           else
           {
             // Insufficient clearance. This becomes our new base voxel; keep looking for clearance.
-            column_details.height = height;
+            column_details.height = float(height);
             column_details.clearance = 0;
           }
         }

@@ -9,8 +9,6 @@
 
 #include <ohm/ClearanceProcess.h>
 #include <ohm/GpuMap.h>
-#include <ohm/Heightmap.h>
-#include <ohm/HeightmapVoxel.h>
 #include <ohm/MapSerialise.h>
 #include <ohm/Mapper.h>
 #include <ohm/OccupancyMap.h>
@@ -81,13 +79,6 @@ namespace
     bool serialise = true;
     bool save_info = false;
     bool quiet = false;
-
-    struct Heightmap
-    {
-      double clearance = 1.0;
-      int up_axis = 2;
-      bool generate = false;
-    } heightmap;
 
     void print(std::ostream **out, const ohm::OccupancyMap &map) const;
   };
@@ -373,50 +364,6 @@ namespace
         std::cout << "Saving point cloud to " << output_file.c_str() << std::endl;
         ply.save(output_file.c_str(), true);
       }
-    }
-  }
-
-
-  void generateHeightmap(ohm::OccupancyMap &map, ProgressMonitor &prog, const Options &opt)
-  {
-    ohm::Heightmap heightmap(map.resolution(), opt.heightmap.clearance, ohm::Heightmap::Axis(opt.heightmap.up_axis));
-    heightmap.setOccupancyMap(&map);
-
-    // No progress report for now.
-    std::cout << "Generating heightmap" << std::endl;
-    const auto heightmap_start = Clock::now();
-    heightmap.update();
-    const auto heightmap_end = Clock::now();
-
-    std::cout << "Generate heightmap in " << (heightmap_end - heightmap_start) << std::endl;
-
-    if (opt.serialise)
-    {
-      std::cout << "Saving heightmap" << std::endl;
-      // Don't save the point cloud for the heightmap in saveMap(). We need to extract the heights properly.
-      // We do this below.
-      saveMap(opt, heightmap.heightmap(), opt.output_base_name + "-heightmap", &prog, SaveMap);
-
-      // Save the 2.5d heightmap.
-      PlyMesh heightmapCloud;
-      glm::dvec3 coord;
-      for (auto iter = heightmap.heightmap().begin(); iter != heightmap.heightmap().end(); ++iter)
-      {
-        if (iter->isOccupied())
-        {
-          const ohm::HeightmapVoxel *voxel = iter->layerContent<const ohm::HeightmapVoxel *>(heightmap.heightmapVoxelLayer());
-          // Get the coordinate of the voxel.
-          coord = heightmap.heightmap().voxelCentreGlobal(iter.key());
-          // Adjust the height to the plane height and offset.
-          // For now assume a horizontal plane through the origin..
-          coord.z = voxel->height;
-          // Add to the cloud.
-          heightmapCloud.addVertex(coord);
-        }
-      }
-
-      std::string ply_name = opt.output_base_name + "-heightmap.ply";
-      heightmapCloud.save(ply_name.c_str(), true);
     }
   }
 }  // namespace
@@ -762,11 +709,6 @@ int populateMap(const Options &opt)
     saveMap(opt, map, opt.output_base_name, &prog, SaveMap | SaveCloud);
   }
 
-  if (opt.heightmap.generate)
-  {
-    generateHeightmap(map, prog, opt);
-  }
-
   prog.joinThread();
 
   return 0;
@@ -885,11 +827,6 @@ int parseOptions(Options &opt, int argc, char *argv[])
       ("progressive-interval", "Interval for progressive mapping. Time is based on input data time.", cxxopts::value(opt.mapping_interval)->default_value(optStr(opt.mapping_interval)))
       ("post-mapping", "Allow mapping thread to complete after population?", optVal(opt.post_population_mapping))
       ;
-
-    opt_parse.add_options("Heightmap")
-      ("heightmap", "Generate a 2.5D heightmap for the resulting map? Saves an ohm and ply file.", optVal(opt.heightmap.generate))
-      ("heightmap-clearance", "The height clearance required for a voxel to be included in the heightmap.", optVal(opt.heightmap.clearance))
-    ;
 
     // clang-format on
 
