@@ -583,11 +583,14 @@ namespace ohm
     Voxel addNode(const Key &key, float value);
 
     /// Retrieve the coordinates for the centre of the voxel identified by @p key local to the map origin.
+    ///
     /// @param key The voxel of interest.
     /// @return The voxel coordinates, relative to the map @c origin().
     glm::dvec3 voxelCentreLocal(const Key &key) const;
+
     /// Retrieve the global coordinates for the centre of the voxel identified by @p key. This includes
     /// the map @c origin().
+    ///
     /// @param key The voxel of interest.
     /// @return The global voxel coordinates.
     glm::dvec3 voxelCentreGlobal(const Key &key) const;

@@ -379,13 +379,13 @@ namespace
 
   void generateHeightmap(ohm::OccupancyMap &map, ProgressMonitor &prog, const Options &opt)
   {
-    ohm::Heightmap heightmap(map.resolution(), opt.heightmap.clearance);
+    ohm::Heightmap heightmap(map.resolution(), opt.heightmap.clearance, ohm::Heightmap::Axis(opt.heightmap.up_axis));
     heightmap.setOccupancyMap(&map);
 
     // No progress report for now.
     std::cout << "Generating heightmap" << std::endl;
     const auto heightmap_start = Clock::now();
-    heightmap.update(ohm::Heightmap::Axis(opt.heightmap.up_axis));
+    heightmap.update();
     const auto heightmap_end = Clock::now();
 
     std::cout << "Generate heightmap in " << (heightmap_end - heightmap_start) << std::endl;

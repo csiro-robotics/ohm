@@ -741,37 +741,13 @@ void OccupancyMap::setSaturateAtMaxValue(bool saturate)
 
 glm::dvec3 OccupancyMap::voxelCentreLocal(const Key &key) const
 {
-  glm::dvec3 centre;
-  // Region centre
-  centre = glm::vec3(key.regionKey());
-  centre.x *= imp_->region_spatial_dimensions.x;
-  centre.y *= imp_->region_spatial_dimensions.y;
-  centre.z *= imp_->region_spatial_dimensions.z;
-  // Offset to the lower extents of the region.
-  centre -= 0.5 * imp_->region_spatial_dimensions;
-  // Local offset.
-  centre += glm::dvec3(key.localKey()) * imp_->resolution;
-  centre += glm::dvec3(0.5 * imp_->resolution);
-  return centre;
+  return voxel::centreLocal(key, *imp_);
 }
 
 
 glm::dvec3 OccupancyMap::voxelCentreGlobal(const Key &key) const
 {
-  glm::dvec3 centre;
-  // Region centre
-  centre = glm::dvec3(key.regionKey());
-  centre.x *= imp_->region_spatial_dimensions.x;
-  centre.y *= imp_->region_spatial_dimensions.y;
-  centre.z *= imp_->region_spatial_dimensions.z;
-  // Offset to the lower extents of the region.
-  centre -= 0.5 * glm::dvec3(imp_->region_spatial_dimensions);
-  // Map offset.
-  centre += imp_->origin;
-  // Local offset.
-  centre += glm::dvec3(key.localKey()) * double(imp_->resolution);
-  centre += glm::dvec3(0.5 * imp_->resolution);
-  return centre;
+  return voxel::centreGlobal(key, *imp_);
 }
 
 
@@ -829,71 +805,7 @@ Key OccupancyMap::voxelKeyLocal(const glm::vec3 &local_point) const
 
 void OccupancyMap::moveKeyAlongAxis(Key &key, int axis, int step) const
 {
-  const glm::ivec3 local_limits = imp_->region_voxel_dimensions;
-
-  if (step == 0)
-  {
-    // No change.
-    return;
-  }
-
-  // We first step within the chunk region. If we can't then we step the region and reset
-  // stepped local axis value.
-  glm::i16vec3 region_key = key.regionKey();
-  glm::ivec3 local_key = key.localKey();
-  if (step > 0)
-  {
-    // Positive step.
-    local_key[axis] += step;
-    region_key[axis] += local_key[axis] / local_limits[axis];
-    local_key[axis] %= local_limits[axis];
-  }
-  else
-  {
-    // Negative step.
-    local_key[axis] += step;
-    // Create a region step which simulates a floating point floor.
-    region_key[axis] += ((local_key[axis] - (local_limits[axis] - 1)) / local_limits[axis]);
-    if (local_key[axis] < 0)
-    {
-      // This is nuts. In C/C++, the % operator is not actually a modulus operator.
-      // It's a "remainder" operator. A modulus operator should only give positive results,
-      // but in C a negative input will generate a negative output. Through the magic of
-      // StackOverflow, here's a good explanation:
-      //  https://stackoverflow.com/questions/11720656/modulo-operation-with-negative-numbers
-      // This means that here, given localKey[axis] is negative, the modulus:
-      //    localKey[axis] % LocalLimits[axis]
-      // will give results in the range (-LocalLimits[axis], 0]. So, lets set the limit
-      // to 4, then we get the following: like follows:
-      //
-      // i  i%4   4 - i%4
-      //  0  0    4
-      // -1 -1    3
-      // -2 -2    2
-      // -3 -3    1
-      // -4  0    4
-      // -5 -1    3
-      // -6 -2    2
-      // -7 -3    1
-      // -8  0    4
-      //
-      // The last column above shows the results of the following line of code.
-      // This generates the wrong results in that the '4' results in the last
-      // column should be 0. We could apply another "% LocalLimits[axis]" to
-      // the result or just add the if statement below.
-      local_key[axis] = local_limits[axis] + local_key[axis] % local_limits[axis];
-      if (local_key[axis] == local_limits[axis])
-      {
-        local_key[axis] = 0;
-      }
-    }
-    // else
-    // {
-    //   localKey[axis] %= LocalLimits[axis];
-    // }
-  }
-
-  key = Key(region_key, local_key.x, local_key.y, local_key.z);
+  imp_->moveKeyAlongAxis(key, axis, step);
 }
 
 
