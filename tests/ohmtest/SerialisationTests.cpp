@@ -76,12 +76,12 @@ namespace searialisationtests
     const char *map_name = "test-map.ohm";
     // Profile profile;
     int error_code = 0;
-    const float boundary_distance = 5.0f;
+    const double boundary_distance = 2.5;
     OccupancyMap save_map(0.25);
     OccupancyMap load_map(1);  // Initialise at the wrong resolution. Will be fixed on load.
 
     // Build a cloud with real samples around a cubic boundary. Does not cover every voxel in the boundary.
-    ohmgen::cubicRoom(save_map, boundary_distance, 3);
+    ohmgen::boxRoom(save_map, glm::dvec3(-boundary_distance), glm::dvec3(boundary_distance));
 
     // Calculate clearance values.
     ClearanceProcess clearance(1.0f, kQfGpuEvaluate);

@@ -7,7 +7,7 @@
 #include "private/MapLayoutDetail.h"
 #include "private/OccupancyMapDetail.h"
 
-#include "DefaultLayers.h"
+#include "DefaultLayer.h"
 #include "MapChunk.h"
 #include "VoxelLayout.h"
 
@@ -44,6 +44,40 @@ namespace
 
     return nullptr;
   }
+
+
+
+  template <typename VOXEL, typename MAPCHUNK, typename MAPDETAIL>
+  VOXEL voxelNeighbour(int dx, int dy, int dz, const Key &key, MAPCHUNK *chunk, MAPDETAIL *map)
+  {
+    if (map == nullptr || key.isNull())
+    {
+      return VOXEL(key, nullptr, nullptr);
+    }
+
+    Key neighbour_key = key;
+    map->moveKeyAlongAxis(neighbour_key, 0, dx);
+    map->moveKeyAlongAxis(neighbour_key, 1, dy);
+    map->moveKeyAlongAxis(neighbour_key, 2, dz);
+
+    if (neighbour_key.regionKey() ==  key.regionKey())
+    {
+      // Same region.
+      return VOXEL(neighbour_key, chunk, map);
+    }
+
+    // Different region. Need to resolve the region.
+    std::unique_lock<decltype(map->mutex)> guard(map->mutex);
+    const auto region_ref = map->findRegion(neighbour_key.regionKey());
+    if (region_ref != map->chunks.end())
+    {
+      // Valid neighbouring region.
+      return VOXEL(neighbour_key, region_ref->second, map);
+    }
+
+    // Invalid neighbouring region.
+    return VOXEL(neighbour_key, nullptr, map);
+  }
 }  // namespace
 
 namespace ohm
@@ -68,6 +102,42 @@ namespace ohm
 
 
     glm::u8vec3 regionVoxelDimensions(const OccupancyMapDetail &map) { return map.region_voxel_dimensions; }
+
+
+    glm::dvec3 centreLocal(const Key &key, const OccupancyMapDetail &map)
+    {
+      glm::dvec3 centre;
+      // Region centre
+      centre = glm::vec3(key.regionKey());
+      centre.x *= map.region_spatial_dimensions.x;
+      centre.y *= map.region_spatial_dimensions.y;
+      centre.z *= map.region_spatial_dimensions.z;
+      // Offset to the lower extents of the region.
+      centre -= 0.5 * map.region_spatial_dimensions;
+      // Local offset.
+      centre += glm::dvec3(key.localKey()) * map.resolution;
+      centre += glm::dvec3(0.5 * map.resolution);
+      return centre;
+    }
+
+
+    glm::dvec3 centreGlobal(const Key &key, const OccupancyMapDetail &map)
+    {
+      glm::dvec3 centre;
+      // Region centre
+      centre = glm::dvec3(key.regionKey());
+      centre.x *= map.region_spatial_dimensions.x;
+      centre.y *= map.region_spatial_dimensions.y;
+      centre.z *= map.region_spatial_dimensions.z;
+      // Offset to the lower extents of the region.
+      centre -= 0.5 * glm::dvec3(map.region_spatial_dimensions);
+      // Map offset.
+      centre += map.origin;
+      // Local offset.
+      centre += glm::dvec3(key.localKey()) * double(map.resolution);
+      centre += glm::dvec3(0.5 * map.resolution);
+      return centre;
+    }
   }  // namespace voxel
 }  // namespace ohm
 
@@ -151,4 +221,16 @@ void Voxel::touchMap()
     ++map_->stamp;
     chunk_->dirty_stamp = chunk_->touched_stamps[kDlOccupancy] = map_->stamp;
   }
+}
+
+
+Voxel Voxel::neighbour(int dx, int dy, int dz) const
+{
+  return voxelNeighbour<Voxel>(dx, dy, dz, key_, chunk_, map_);
+}
+
+
+VoxelConst VoxelConst::neighbour(int dx, int dy, int dz) const
+{
+  return voxelNeighbour<VoxelConst>(dx, dy, dz, key_, chunk_, map_);
 }

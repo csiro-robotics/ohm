@@ -3,14 +3,15 @@
 //
 #include <glm/glm.hpp>
 
-#include "maplayout.h"
-#include "occupancymap.h"
-#include "occupancymapserialise.h"
-#include "occupancyutil.h"
-#include "ohmvoxellayout.h"
+#include <ohm/MapLayer.h>
+#include <ohm/MapLayout.h>
+#include <ohm/OccupancyMap.h>
+#include <ohm/MapSerialise.h>
+#include <ohm/OccupancyUtil.h>
+#include <ohm/VoxelLayout.h>
 
-#include <ohmutil.h>
-#include <options.h>
+#include <ohmutil/OhmUtil.h>
+#include <ohmutil/Options.h>
 
 #include <algorithm>
 #include <chrono>
@@ -38,27 +39,12 @@ namespace
 
   struct Options
   {
-    std::string mapFile;
+    std::string map_file;
   };
-
-
-  // class LoadMapProgress : public ohm::SerialiseProgress
-  // {
-  // public:
-  //   LoadMapProgress(ProgressMonitor &monitor) : _monitor(monitor) {}
-
-  //   bool quit() const override { return ::quit > 1; }
-
-  //   void setTargetProgress(unsigned target) override { _monitor.beginProgress(ProgressMonitor::Info(target)); }
-  //   void incrementProgress(unsigned inc = 1) override { _monitor.incrementProgressBy(inc); }
-
-  // private:
-  //   ProgressMonitor &_monitor;
-  // };
 }
 
 
-int parseOptions(Options &opt, int argc, const char *argv[])
+int parseOptions(Options &opt, int argc, char *argv[])
 {
   cxxopts::Options optParse(argv[0],
 "\nProvide information about the contents of an occupancy map file.\n"
@@ -69,7 +55,7 @@ int parseOptions(Options &opt, int argc, const char *argv[])
   {
     optParse.add_options()
       ("help", "Show help.")
-      ("i,map", "The input map file (ohm) to load.", cxxopts::value(opt.mapFile))
+      ("i,map", "The input map file (ohm) to load.", cxxopts::value(opt.map_file))
       ;
 
     optParse.parse_positional({ "map" });
@@ -83,7 +69,7 @@ int parseOptions(Options &opt, int argc, const char *argv[])
       return 1;
     }
 
-    if (opt.mapFile.empty())
+    if (opt.map_file.empty())
     {
       std::cerr << "Missing input map" << std::endl;
       return -1;
@@ -98,7 +84,7 @@ int parseOptions(Options &opt, int argc, const char *argv[])
   return 0;
 }
 
-int main(int argc, const char *argv[])
+int main(int argc, char *argv[])
 {
   Options opt;
 
@@ -115,35 +101,11 @@ int main(int argc, const char *argv[])
   signal(SIGINT, onSignal);
   signal(SIGTERM, onSignal);
 
-  printf("Loading map %s\n", opt.mapFile.c_str());
-  // ProgressMonitor prog(10);
-  // LoadMapProgress loadProgress(prog);
+  printf("Loading map %s\n", opt.map_file.c_str());
   ohm::OccupancyMap map(1.0f);
   ohm::MapVersion version;
 
-  // prog.setDisplayFunction([&opt](const ProgressMonitor::Progress &prog)
-  // {
-  //   std::ostringstream str;
-
-  //   str << '\r';
-
-  //   str << prog.progress;
-
-  //   if (prog.info.total)
-  //   {
-  //     str << " / " << prog.info.total;
-  //   }
-
-  //   str << "      ";
-
-  //   std::cout << str.str() << std::flush;
-  // });
-
-  // prog.startThread();
-  res = ohm::loadHeader(opt.mapFile.c_str(), map, &version);
-  // prog.endProgress();
-
-  // std::cout << std::endl;;
+  res = ohm::loadHeader(opt.map_file.c_str(), map, &version);
 
   if (res != 0)
   {
@@ -184,7 +146,7 @@ int main(int argc, const char *argv[])
     }
   }
 
-  std::cout << std::endl;
+  std::cout << "]" << std::endl;
 
   // Data needing chunks to be partly loaded.
   // - Extents
@@ -193,7 +155,7 @@ int main(int argc, const char *argv[])
 
   const ohm::MapLayout &layout = map.layout();
   std::string indent;
-  std::string voxSizeStr, regionSizeStr;
+  std::string vox_size_str, region_size_str;
   std::cout << "Layers: " << layout.layerCount() << std::endl;
 
   for (size_t i = 0; i < layout.layerCount(); ++i)
@@ -205,14 +167,14 @@ int main(int argc, const char *argv[])
     std::cout << indent << "subsampling: " << layer.subsampling() << std::endl;
     std::cout << indent << "voxels: " << layer.dimensions(map.regionVoxelDimensions()) << " : " << layer.volume(layer.dimensions(map.regionVoxelDimensions())) << std::endl;
 
-    util::makeMemoryDisplayString(voxSizeStr, voxels.voxelByteSize());
-    std::cout << indent << "voxel byte size: " << voxSizeStr << std::endl;
-    util::makeMemoryDisplayString(regionSizeStr, voxels.voxelByteSize() * layer.volume(layer.dimensions(map.regionVoxelDimensions())));
-    std::cout << indent << "region byte size: " << regionSizeStr << std::endl;
+    util::makeMemoryDisplayString(vox_size_str, voxels.voxelByteSize());
+    std::cout << indent << "voxel byte size: " << vox_size_str << std::endl;
+    util::makeMemoryDisplayString(region_size_str, voxels.voxelByteSize() * layer.volume(layer.dimensions(map.regionVoxelDimensions())));
+    std::cout << indent << "region byte size: " << region_size_str << std::endl;
 
     indent += "  ";
     std::cout << std::setw(4) << std::setfill('0');
-    for (size_t m = 0; i < voxels.memberCount(); ++i)
+    for (size_t i = 0; i < voxels.memberCount(); ++i)
     {
       std::cout << indent << "0x" << std::hex << voxels.memberOffset(i) << " "
                 << ohm::DataType::name(voxels.memberType(i)) << " " << voxels.memberName(i)

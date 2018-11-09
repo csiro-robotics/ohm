@@ -30,7 +30,12 @@ set(SOURCES
   ClearanceProcess.h
   DataType.cpp
   DataType.h
-  DefaultLayers.h
+  DefaultLayer.cpp
+  DefaultLayer.h
+  Heightmap.cpp
+  Heightmap.h
+  HeightmapVoxel.cpp
+  HeightmapVoxel.h
   Key.cpp
   Key.h
   KeyList.cpp
@@ -84,7 +89,9 @@ endif(TES_ENABLE)
 set(PUBLIC_HEADERS
   ClearanceProcess.h
   DataType.h
-  DefaultLayers.h
+  DefaultLayer.h
+  Heightmap.h
+  HeightmapVoxel.h
   Key.h
   KeyList.h
   LineKeysQuery.h

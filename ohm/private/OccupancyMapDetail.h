@@ -56,6 +56,14 @@ namespace ohm
     /// @overload
     ChunkMap::const_iterator findRegion(const glm::i16vec3 &region_key) const;
 
+    /// Move an @c Key along a selected axis.
+    /// This is the implementation to @c OccupancyMap::moveKeyAlongAxis(). See that function for details.
+    /// @param key The key to adjust.
+    /// @param axis Axis ID to move along [0, 2].
+    /// @param step How far to move/step.
+    void moveKeyAlongAxis(Key &key, int axis, int step) const;
+
+    /// Setup the default @c MapLayout: occupancy layer and clearance layer.
     void setDefaultLayout();
 
     /// Copy internal details from @p other. For cloning.

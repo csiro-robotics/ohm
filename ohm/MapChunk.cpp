@@ -5,7 +5,7 @@
 // Author: Kazys Stepanas
 #include "MapChunk.h"
 
-#include "DefaultLayers.h"
+#include "DefaultLayer.h"
 #include "private/MapLayoutDetail.h"
 #include "private/OccupancyMapDetail.h"
 

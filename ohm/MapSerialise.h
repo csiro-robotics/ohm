@@ -103,7 +103,7 @@ namespace ohm
   /// Progress observer interface for serialisation.
   ///
   /// This can be derived to track serialisation progress in @c save() and @c load().
-  /// When given to one of those methods, the following methods will be called during serialisation:
+  /// When given to one of those methods, the following mesathods will be called during serialisation:
   /// - @c setTargetProgess() to set the maximum progress value once known.
   /// - @c incrementProgress() periodically to increment progress up to the target.
   ///

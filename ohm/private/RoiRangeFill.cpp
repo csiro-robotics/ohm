@@ -13,7 +13,7 @@
 #include "Key.h"
 #include "OccupancyMap.h"
 #include "OccupancyUtil.h"
-#include "DefaultLayers.h"
+#include "DefaultLayer.h"
 #include "private/OccupancyMapDetail.h"
 #include "private/GpuMapDetail.h"
 

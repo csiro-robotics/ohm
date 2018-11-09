@@ -8,14 +8,14 @@
 #include <slamio/SlamCloudLoader.h>
 
 #include <ohm/ClearanceProcess.h>
-#include <ohm/Mapper.h>
-#include <ohm/OhmGpu.h>
 #include <ohm/GpuMap.h>
-#include <ohm/OccupancyMap.h>
 #include <ohm/MapSerialise.h>
-#include <ohm/Voxel.h>
+#include <ohm/Mapper.h>
+#include <ohm/OccupancyMap.h>
 #include <ohm/OccupancyType.h>
 #include <ohm/OccupancyUtil.h>
+#include <ohm/OhmGpu.h>
+#include <ohm/Voxel.h>
 #include <ohmutil/OhmUtil.h>
 #include <ohmutil/PlyMesh.h>
 #include <ohmutil/ProgressMonitor.h>
@@ -41,6 +41,8 @@
 
 namespace
 {
+  using Clock = std::chrono::high_resolution_clock;
+
   int quit = 0;
 
   void onSignal(int arg)
@@ -247,7 +249,6 @@ namespace
 
   void MapperThread::run()
   {
-    using Clock = std::chrono::high_resolution_clock;
     while (!quit_request_)
     {
       const auto loop_start = Clock::now();
@@ -266,7 +267,106 @@ namespace
       mapper_.update(0);
     }
   }
-}
+
+
+  enum SaveFlags : unsigned
+  {
+    SaveMap = (1 << 0),
+    SaveCloud = (1 << 1),
+    // SaveClearanceCloud = (1 << 2),
+  };
+
+  void saveMap(const Options &opt, const ohm::OccupancyMap &map, const std::string &base_name, ProgressMonitor *prog,
+               unsigned save_flags = SaveMap)
+  {
+    std::unique_ptr<SaveMapProgress> save_progress(prog ? new SaveMapProgress(*prog) : nullptr);
+
+    if (quit >= 2)
+    {
+      return;
+    }
+
+    if (save_flags & SaveMap)
+    {
+      std::string output_file = base_name + ".ohm";
+      std::cout << "Saving map to " << output_file.c_str() << std::endl;
+
+      if (prog)
+      {
+        prog->unpause();
+      }
+
+      int err = ohm::save(output_file.c_str(), map, save_progress.get());
+
+      if (prog)
+      {
+        prog->endProgress();
+        if (!opt.quiet)
+        {
+          std::cout << std::endl;
+        }
+      }
+
+      if (err)
+      {
+        std::cerr << "Failed to save map: " << err << std::endl;
+      }
+    }
+
+    if (save_flags & SaveCloud)
+    {
+      // Save a cloud representation.
+      std::cout << "Converting to point cloud." << std::endl;
+      PlyMesh ply;
+      glm::vec3 v;
+      const auto map_end_iter = map.end();
+      const size_t region_count = map.regionCount();
+      glm::i16vec3 last_region = map.begin().key().regionKey();
+      uint64_t point_count = 0;
+
+      if (prog)
+      {
+        prog->beginProgress(ProgressMonitor::Info(region_count));
+      }
+
+      for (auto iter = map.begin(); iter != map_end_iter && quit < 2; ++iter)
+      {
+        const ohm::VoxelConst voxel = *iter;
+        if (last_region != iter.key().regionKey())
+        {
+          if (prog)
+          {
+            prog->incrementProgress();
+          }
+          last_region = iter.key().regionKey();
+        }
+        if (voxel.isOccupied())
+        {
+          v = map.voxelCentreLocal(voxel.key());
+          ply.addVertex(v);
+          ++point_count;
+        }
+      }
+
+      if (prog)
+      {
+        prog->endProgress();
+        prog->pause();
+        if (!opt.quiet)
+        {
+          std::cout << "\nExported " << point_count << " point(s)" << std::endl;
+        }
+      }
+
+      if (quit < 2)
+      {
+        std::string output_file = base_name + ".ply";
+        std::cout << "Saving point cloud to " << output_file.c_str() << std::endl;
+        ply.save(output_file.c_str(), true);
+      }
+    }
+  }
+}  // namespace
 
 
 int populateMap(const Options &opt)
@@ -282,14 +382,14 @@ int populateMap(const Options &opt)
   SlamCloudLoader loader;
   if (!loader.open(opt.cloud_file.c_str(), opt.trajectory_file.c_str()))
   {
-    fprintf(stderr, "Error loading cloud %s with trajectory %s \n", opt.cloud_file.c_str(), opt.trajectory_file.c_str());
+    fprintf(stderr, "Error loading cloud %s with trajectory %s \n", opt.cloud_file.c_str(),
+            opt.trajectory_file.c_str());
     return -2;
   }
 
-  using Clock = std::chrono::high_resolution_clock;
   ohm::OccupancyMap map(opt.resolution, opt.region_voxel_dim);
   ohm::GpuMap gpu_map(&map, true, opt.batch_size);
-  //MapperThread mapper(map, opt);
+  // MapperThread mapper(map, opt);
   ohm::Mapper mapper(&map);
   std::vector<double> sample_timestamps;
   std::vector<glm::dvec3> origin_sample_pairs;
@@ -371,7 +471,8 @@ int populateMap(const Options &opt)
       loader.preload(preload_count);
     }
     end_time = Clock::now();
-    const double preload_time = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count() * 1e-3;
+    const double preload_time =
+      std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count() * 1e-3;
     std::cout << "Preload completed over " << preload_time << " seconds." << std::endl;
   }
 
@@ -405,8 +506,9 @@ int populateMap(const Options &opt)
       std::cout << out.str() << std::flush;
     }
   });
-  prog.beginProgress(ProgressMonitor::Info(
-    (point_count && timebase == 0) ? std::min<uint64_t>(point_count, loader.numberOfPoints()) : loader.numberOfPoints()));
+  prog.beginProgress(ProgressMonitor::Info((point_count && timebase == 0) ?
+                                             std::min<uint64_t>(point_count, loader.numberOfPoints()) :
+                                             loader.numberOfPoints()));
   prog.startThread();
 
 #if COLLECT_STATS
@@ -438,16 +540,16 @@ int populateMap(const Options &opt)
   };
 
   TimeStats stats;
-#endif // COLLECT_STATS
+#endif  // COLLECT_STATS
 
   //------------------------------------
   // Population loop.
   //------------------------------------
-  //mapper.start();
+  // mapper.start();
   origin = glm::vec3(0, 0, 0);
   while ((point_count < opt.point_limit || opt.point_limit == 0) &&
-    (last_timestamp - timebase < opt.time_limit || opt.time_limit == 0) &&
-    loader.nextPoint(sample, &origin, &timestamp))
+         (last_timestamp - timebase < opt.time_limit || opt.time_limit == 0) &&
+         loader.nextPoint(sample, &origin, &timestamp))
   {
     if (timebase < 0)
     {
@@ -483,13 +585,13 @@ int populateMap(const Options &opt)
     {
 #if COLLECT_STATS
       const auto then = Clock::now();
-#endif // COLLECT_STATS
+#endif  // COLLECT_STATS
       gpu_map.integrateRays(origin_sample_pairs.data(), unsigned(origin_sample_pairs.size()));
 #if COLLECT_STATS
       const auto integrateTime = Clock::now() - then;
 #if COLLECT_STATS_IGNORE_FIRST
       if (firstBatchTimestamp != timestamp)
-#endif // COLLECT_STATS_IGNORE_FIRST
+#endif  // COLLECT_STATS_IGNORE_FIRST
       {
         stats.add(integrateTime);
       }
@@ -497,10 +599,12 @@ int populateMap(const Options &opt)
       if (std::chrono::duration_cast<std::chrono::milliseconds>(integrateTime).count() > kLongUpdateThresholdMs)
       {
         std::ostringstream str;
-        str << '\n' << sampleTimestamps.front() - firstTimestamp << " (" << sampleTimestamps.front() << "): long update " << integrateTime << std::endl;
+        str << '\n'
+            << sampleTimestamps.front() - firstTimestamp << " (" << sampleTimestamps.front() << "): long update "
+            << integrateTime << std::endl;
         std::cout << str.str() << std::flush;
-  }
-#endif // COLLECT_STATS
+      }
+#endif  // COLLECT_STATS
       sample_timestamps.clear();
       origin_sample_pairs.clear();
 
@@ -521,12 +625,12 @@ int populateMap(const Options &opt)
         if (next_mapper_update <= 0)
         {
           next_mapper_update += opt.mapping_interval;
-          //const auto mapper_start = Clock::now();
+          // const auto mapper_start = Clock::now();
           mapper.update(opt.progressive_mapping_slice);
-          //const auto mapper_end = Clock::now();
-          //std::ostringstream msg;
-          //msg << "\nMapper: " << (mapper_end - mapper_start) << '\n';
-          //std::cout << msg.str();
+          // const auto mapper_end = Clock::now();
+          // std::ostringstream msg;
+          // msg << "\nMapper: " << (mapper_end - mapper_start) << '\n';
+          // std::cout << msg.str();
         }
       }
 
@@ -543,12 +647,12 @@ int populateMap(const Options &opt)
   {
 #if COLLECT_STATS
     const auto then = Clock::now();
-#endif // COLLECT_STATS
+#endif  // COLLECT_STATS
     gpu_map.integrateRays(origin_sample_pairs.data(), unsigned(origin_sample_pairs.size()));
 #if COLLECT_STATS
     const auto integrateTime = Clock::now() - then;
     stats.add(integrateTime);
-#endif // COLLECT_STATS
+#endif  // COLLECT_STATS
     sample_timestamps.clear();
     origin_sample_pairs.clear();
   }
@@ -562,12 +666,12 @@ int populateMap(const Options &opt)
     std::cout << "\nFinalising" << std::endl;
     mapper.update(0.0);
   }
-  //mapper.join(!quit && opt.postPopulationMapping);
+  // mapper.join(!quit && opt.postPopulationMapping);
   end_time = Clock::now();
 
 #if COLLECT_STATS
   stats.print();
-#endif // COLLECT_STATS
+#endif  // COLLECT_STATS
 
   if (!opt.quiet)
   {
@@ -602,68 +706,7 @@ int populateMap(const Options &opt)
 
   if (opt.serialise)
   {
-    if (quit < 2)
-    {
-      std::string output_file = opt.output_base_name + ".ohm";
-      std::cout << "Saving map to " << output_file.c_str() << std::endl;
-      SaveMapProgress save_progress(prog);
-      prog.unpause();
-      int err = ohm::save(output_file.c_str(), map, &save_progress);
-      prog.endProgress();
-      if (!opt.quiet)
-      {
-        std::cout << std::endl;
-      }
-
-      if (err)
-      {
-        fprintf(stderr, "Failed to save map: %d\n", err);
-      }
-    }
-
-    // Save a cloud representation.
-    std::cout << "Converting to point cloud." << std::endl;
-    PlyMesh ply;
-    glm::vec3 v;
-    const auto map_end_iter = map.end();
-    const size_t region_count = map.regionCount();
-    glm::i16vec3 last_region = map.begin().key().regionKey();
-    point_count = 0;
-
-    prog.beginProgress(ProgressMonitor::Info(region_count));
-
-    if (opt.serialise)
-    {
-      for (auto iter = map.begin(); iter != map_end_iter && quit < 2; ++iter)
-      {
-        const ohm::VoxelConst voxel = *iter;
-        if (last_region != iter.key().regionKey())
-        {
-          prog.incrementProgress();
-          last_region = iter.key().regionKey();
-        }
-        if (voxel.isOccupied())
-        {
-          v = map.voxelCentreLocal(voxel.key());
-          ply.addVertex(v);
-          ++point_count;
-        }
-      }
-
-      prog.endProgress();
-      prog.pause();
-      if (!opt.quiet)
-      {
-        std::cout << "\nExported " << point_count << " point(s)" << std::endl;
-      }
-
-      if (quit < 2)
-      {
-        std::string output_file = opt.output_base_name + ".ply";
-        std::cout << "Saving point cloud to " << output_file.c_str() << std::endl;
-        ply.save(output_file.c_str(), true);
-      }
-    }
+    saveMap(opt, map, opt.output_base_name, &prog, SaveMap | SaveCloud);
   }
 
   prog.joinThread();
@@ -734,16 +777,16 @@ namespace
       ++out;
     }
   }
-}
+}  // namespace
 
 int parseOptions(Options &opt, int argc, char *argv[])
 {
   cxxopts::Options opt_parse(argv[0],
-                            "Generate an occupancy map from a LAS/LAZ based point cloud and accompanying "
-                            "trajectory file using GPU. The trajectory marks the scanner trajectory with timestamps "
-                            "loosely corresponding to cloud point timestamps. Trajectory points are "
-                            "interpolated for each cloud point based on corresponding times in the "
-                            "trajectory.");
+                             "Generate an occupancy map from a LAS/LAZ based point cloud and accompanying "
+                             "trajectory file using GPU. The trajectory marks the scanner trajectory with timestamps "
+                             "loosely corresponding to cloud point timestamps. Trajectory points are "
+                             "interpolated for each cloud point based on corresponding times in the "
+                             "trajectory.");
   opt_parse.positional_help("<cloud.laz> <_traj.txt> [output-base]");
 
   try

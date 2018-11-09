@@ -177,3 +177,9 @@ uint8_t *MapLayer::voxels(MapChunk &chunk) const
 {
   return chunk.voxel_maps[layerIndex()];
 }
+
+
+void MapLayer::setLayerIndex(unsigned index)
+{
+  imp_->layer_index = index;
+}

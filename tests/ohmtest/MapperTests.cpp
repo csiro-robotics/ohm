@@ -17,7 +17,7 @@
 #include <ohm/ClearanceProcess.h>
 #include <ohm/Mapper.h>
 #include <ohm/MapSerialise.h>
-#include <ohm/DefaultLayers.h>
+#include <ohm/DefaultLayer.h>
 
 #include <ohmtools/OhmCloud.h>
 #include <ohmtools/OhmGen.h>

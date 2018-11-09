@@ -7,7 +7,7 @@
 
 #include "OhmConfig.h"
 
-#include "DefaultLayers.h"
+#include "DefaultLayer.h"
 #include "Key.h"
 #include "MapProbability.h"
 
@@ -42,8 +42,7 @@ namespace ohm
     /// @param expected_size Optional voxel size validation. Fails if voxels do not match this size. Zero to skip
     ///     validation.
     /// @return A pointer to the voxel memory of voxel at @p key, or null on failure.
-    uint8_t *voxelPtr(const Key &key, MapChunk *chunk, OccupancyMapDetail *map, int layer_index,
-                      size_t expected_size);
+    uint8_t *voxelPtr(const Key &key, MapChunk *chunk, OccupancyMapDetail *map, int layer_index, size_t expected_size);
 
     /// Get the address of the voxel referenced by @p key in @p layer_index.
     ///
@@ -99,6 +98,19 @@ namespace ohm
     /// A helper function for accessing the voxel dimensions of each region in @p map.
     /// @return The equivalent to @c OccupancyMap::regionVoxelDimensions().
     glm::u8vec3 regionVoxelDimensions(const OccupancyMapDetail &map);
+
+    /// Retrieve the coordinates for the centre of the voxel identified by @p key, local to the map origin.
+    /// @param key The voxel of interest.
+    /// @param map Internal details of the @c OccupancyMap of interest.
+    /// @return The voxel coordinates, relative to the @c OccupancyMap::origin().
+    glm::dvec3 centreLocal(const Key &key, const OccupancyMapDetail &map);
+
+    /// Retrieve the global coordinates for the centre of the voxel identified by @p key. This includes the
+    /// @c OccupancyMap::origin().
+    /// @param key The voxel of interest.
+    /// @param map Internal details of the @c OccupancyMap of interest.
+    /// @return The global voxel coordinates.
+    glm::dvec3 centreGlobal(const Key &key, const OccupancyMapDetail &map);
 
     /// Value used to identify invalid or uninitialised voxel voxels.
     /// @return A numeric value considered invalid for a voxel value.
@@ -179,6 +191,26 @@ namespace ohm
     /// @return The last timestamp associated to the chunk. See @c Voxel::touchRegion()
     double regionTimestamp() const;
 
+    /// Retrieve the coordinates for the centre of the voxel identified by @p key, local to the map origin.
+    ///
+    /// Results are undefined if @c isValid() is @c false.
+    /// @return The voxel coordinates, relative to the @c OccupancyMap::origin().
+    inline glm::dvec3 centreLocal() const { return voxel::centreLocal(key_, *map_); }
+
+    /// Retrieve the global coordinates for the centre of the voxel identified by @p key. This includes the
+    /// @c OccupancyMap::origin().
+    ///
+    /// Results are undefined if @c isValid() is @c false.
+    /// @return The global voxel coordinates.
+    glm::dvec3 centreGlobal() const { return voxel::centreGlobal(key_, *map_); }
+
+    /// Does this voxel reference a valid map?
+    ///
+    /// This is slightly different from @c isValid(). Whereas @c isValid() ensures values can be read from this voxel
+    /// this method checks if this voxel has a map reference and valid key. If this is true, then the @c neighbour()
+    /// function may be used.
+    inline bool isMapValid() const { return map_ != nullptr && !key_.isNull(); }
+
     /// Is this a valid voxel reference?
     /// @return True if this is a valid voxel reference.
     inline bool isValid() const { return chunk_ != nullptr && !key_.isNull(); }
@@ -218,7 +250,7 @@ namespace ohm
     /// @param layer_index The map layer index from which to extract voxel data.
     /// @return A pointer to this voxel's data within the @c MapLayer @p layer_index.
     template <typename T>
-    T layerContent(unsigned layer_index)
+    T layerContent(unsigned layer_index) const
     {
       return voxel::voxelPtrAs<T>(key_, chunk_, map_, layer_index);
     }
@@ -337,6 +369,13 @@ namespace ohm
     /// Touch the underlying map, modifying the @p OccupancyMap::stamp() value.
     void touchMap();
 
+    /// Retrieve another voxel relative to this one.
+    /// @param dx The number of voxels to offset from this one along the X axis.
+    /// @param dy The number of voxels to offset from this one along the Y axis.
+    /// @param dz The number of voxels to offset from this one along the Z axis.
+    /// @return A reference to the nearby voxel. The result may not be a valid voxel.
+    Voxel neighbour(int dx, int dy, int dz) const;
+
     /// Assignment, changing the reference only (not the referenced data).
     /// @param other Voxel to assign.
     Voxel &operator=(const Voxel &other);
@@ -377,6 +416,13 @@ namespace ohm
     inline VoxelConst(const Voxel &other)
       : Super(other.key_, other.chunk_, other.map_)
     {}
+
+    /// Retrieve another voxel relative to this one.
+    /// @param dx The number of voxels to offset from this one along the X axis.
+    /// @param dy The number of voxels to offset from this one along the Y axis.
+    /// @param dz The number of voxels to offset from this one along the Z axis.
+    /// @return A reference to the nearby voxel. The result may not be a valid voxel.
+    VoxelConst neighbour(int dx, int dy, int dz) const;
 
     /// Assignment, changing the reference only (not the referenced data).
     /// @param other Voxel to assign.

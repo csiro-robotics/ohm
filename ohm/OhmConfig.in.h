@@ -56,4 +56,6 @@ namespace ohm
 }
 #endif // TES_ENABLE
 
+#include <memory>
+
 #endif // OHMCONFIG_H
