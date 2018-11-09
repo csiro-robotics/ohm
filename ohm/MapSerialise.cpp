@@ -4,14 +4,16 @@
 //
 #include "MapSerialise.h"
 
+#include "DefaultLayer.h"
 #include "MapChunk.h"
 #include "MapLayer.h"
 #include "MapLayout.h"
 #include "OccupancyMap.h"
-#include "DefaultLayer.h"
 #include "Stream.h"
 #include "VoxelLayout.h"
 #include "private/OccupancyMapDetail.h"
+
+#include <glm/glm.hpp>
 
 #include <cstdio>
 #include <functional>
@@ -21,7 +23,7 @@
 
 #if OM_ZIP
 #include <zlib.h>
-#endif // OM_ZIP
+#endif  // OM_ZIP
 
 namespace ohm
 {
@@ -75,7 +77,7 @@ namespace ohm
   template <typename T, typename S>
   inline bool readRaw(InputStream &stream, S &val)
   {
-    T val2{0};
+    T val2{ 0 };
     if (stream.readRaw(&val2, unsigned(sizeof(val2))) != sizeof(val2))
     {
       return false;
@@ -163,7 +165,7 @@ namespace ohm
       // Write member count.
       val32 = uint32_t(voxel_layout.memberCount());
       ok = write<uint32_t>(stream, val32) && ok;
-      for (size_t j = 0; j < voxel_layout.memberCount(); ++ j)
+      for (size_t j = 0; j < voxel_layout.memberCount(); ++j)
       {
         // Write member name.
         val32 = uint32_t(strlen(voxel_layout.memberName(j)));
@@ -233,7 +235,8 @@ namespace ohm
     bool ok = true;
 
     // Try for marker and version number. Was not present in the original code.
-    static_assert(sizeof(version.marker) + sizeof(version.version.major) == sizeof(map.origin.x), "Assuming we can migrate to double if no marker present");
+    static_assert(sizeof(version.marker) + sizeof(version.version.major) == sizeof(map.origin.x),
+                  "Assuming we can migrate to double if no marker present");
     ok = readRaw<uint32_t>(stream, version.marker) && ok;
     ok = readRaw<uint32_t>(stream, version.version.major) && ok;
 
@@ -329,7 +332,7 @@ namespace ohm
       // Read member count.
       uint32_t voxel_member_count = 0;
       ok = read<uint32_t>(stream, voxel_member_count) && ok;
-      for (size_t j = 0; j < voxel_member_count; ++ j)
+      for (size_t j = 0; j < voxel_member_count; ++j)
       {
         // Read member name.
         len = 0;
@@ -374,7 +377,8 @@ namespace ohm
 
     if (coarse_clearance_layer)
     {
-      memset(coarse_clearance_layer->voxels(chunk), 0, coarse_clearance_layer->layerByteSize(detail.region_voxel_dimensions));
+      memset(coarse_clearance_layer->voxels(chunk), 0,
+             coarse_clearance_layer->layerByteSize(detail.region_voxel_dimensions));
     }
 
     // Write region details, then nodes. MapChunk members are derived.
@@ -386,7 +390,8 @@ namespace ohm
     ok = read<double>(stream, chunk.region.centre.z) && ok;
     ok = read<double>(stream, chunk.touched_time) && ok;
 
-    const unsigned node_count = detail.region_voxel_dimensions.x * detail.region_voxel_dimensions.y * detail.region_voxel_dimensions.z;
+    const unsigned node_count =
+      detail.region_voxel_dimensions.x * detail.region_voxel_dimensions.y * detail.region_voxel_dimensions.z;
     const size_t node_byte_count = 2 * sizeof(float) * node_count;
     if (node_byte_count != unsigned(node_byte_count))
     {
@@ -461,7 +466,7 @@ namespace ohm
 
     return (ok) ? 0 : kSeFileReadFailure;
   }
-}
+}  // namespace ohm
 
 
 int ohm::save(const char *filename, const OccupancyMap &map, SerialiseProgress *progress)
@@ -494,7 +499,8 @@ int ohm::save(const char *filename, const OccupancyMap &map, SerialiseProgress *
     return err;
   }
 
-  for (auto region_iter = detail.chunks.begin(); region_iter != detail.chunks.end() && (!progress || !progress->quit()); ++region_iter)
+  for (auto region_iter = detail.chunks.begin(); region_iter != detail.chunks.end() && (!progress || !progress->quit());
+       ++region_iter)
   {
     err = saveChunk(stream, *region_iter->second, detail);
     if (err)
@@ -538,7 +544,7 @@ int ohm::load(const char *filename, OccupancyMap &map, SerialiseProgress *progre
     return err;
   }
 
-  std::function<int (InputStream &, MapChunk &, const OccupancyMapDetail &)> load_chunk_func;
+  std::function<int(InputStream &, MapChunk &, const OccupancyMapDetail &)> load_chunk_func;
 
   if (version.marker == 0)
   {
@@ -601,7 +607,7 @@ int ohm::load(const char *filename, OccupancyMap &map, SerialiseProgress *progre
 }
 
 
-int ohm::loadHeader(const char *filename, OccupancyMap &map, MapVersion *version_out)
+int ohm::loadHeader(const char *filename, OccupancyMap &map, MapVersion *version_out, size_t *region_count)
 {
   InputStream stream(filename, SfCompress);
   OccupancyMapDetail &detail = *map.detail();
@@ -614,12 +620,17 @@ int ohm::loadHeader(const char *filename, OccupancyMap &map, MapVersion *version
   map.clear();
 
   // Header is read uncompressed.
-  size_t region_count = 0;
+  size_t region_count_local = 0;
   HeaderVersion version;
-  int err = loadHeader(stream, version, detail, region_count);
+  int err = loadHeader(stream, version, detail, region_count_local);
   if (version_out)
   {
     *version_out = version.version;
+  }
+
+  if (region_count)
+  {
+    *region_count = region_count_local;
   }
 
   if (!err)

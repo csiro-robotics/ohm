@@ -54,8 +54,8 @@ set_property(CACHE OHM_OPENCL_VER PROPERTY STRINGS 1.2 2.0 2.1 2.2)
 set(OHM_OPENCL_STD max CACHE STRING "Select the OpenCL standard to compile GPU code against. [max] uses the reported device allowing for 2.x requires features.")
 set_property(CACHE OHM_OPENCL_STD PROPERTY STRINGS 1.2 2.0 max)
 
-# FIXME: This is not correct.
-set(OHM_OPENCL_2_FEATURES "cl_khr_int64_base_atomics;cl_khr_int64_extended_atomics" CACHE STRING "Features required for OpenCL 2.x. Fallback to 1.2 otherwise.")
+# Identify any exteions required to compile with OpenCL 2.0 std.
+set(OHM_OPENCL_2_FEATURES "" CACHE STRING "Features required for OpenCL 2.x. Fallback to 1.2 otherwise.")
 
 # Initialse OHM_THREADS based on whether we can find TBB or not.
 if(NOT DEFINED OHM_THREADS)

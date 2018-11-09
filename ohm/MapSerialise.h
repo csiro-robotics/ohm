@@ -7,6 +7,8 @@
 
 #include "OhmConfig.h"
 
+#include <glm/fwd.hpp>
+
 #include <cinttypes>
 
 #ifdef major
@@ -163,8 +165,10 @@ namespace ohm
   /// @param filename The name of the file to load from.
   /// @param map The map object to load into.
   /// @param[out] version_out When present, set to the version number of the loaded map format.
+  /// @param[out] region_count When present, set to the number of regions in the map. Regions are not loaded.
   /// @return @c SE_OK on success, or a non zero @c SerialisationError on failure.
-  int ohm_API loadHeader(const char *filename, OccupancyMap &map, MapVersion *version_out = nullptr);
+  int ohm_API loadHeader(const char *filename, OccupancyMap &map, MapVersion *version_out = nullptr,
+                         size_t *region_count = nullptr);
 }
 
 #endif // OHM_MAPSERIALISATION_H

@@ -5,8 +5,8 @@
 
 #include <ohm/MapLayer.h>
 #include <ohm/MapLayout.h>
-#include <ohm/OccupancyMap.h>
 #include <ohm/MapSerialise.h>
+#include <ohm/OccupancyMap.h>
 #include <ohm/OccupancyUtil.h>
 #include <ohm/VoxelLayout.h>
 
@@ -40,23 +40,22 @@ namespace
   struct Options
   {
     std::string map_file;
+    bool calculate_extents = false;
   };
-}
+}  // namespace
 
 
 int parseOptions(Options &opt, int argc, char *argv[])
 {
-  cxxopts::Options optParse(argv[0],
-"\nProvide information about the contents of an occupancy map file.\n"
-);
+  cxxopts::Options optParse(argv[0], "\nProvide information about the contents of an occupancy map file.\n");
   optParse.positional_help("<map.ohm>");
 
   try
   {
-    optParse.add_options()
-      ("help", "Show help.")
-      ("i,map", "The input map file (ohm) to load.", cxxopts::value(opt.map_file))
-      ;
+    optParse.add_options()("help", "Show help.")("i,map", "The input map file (ohm) to load.",
+                                                 cxxopts::value(opt.map_file))(
+      "extents", "Run in quiet mode. Suppresses progress messages.",
+      optVal(opt.calculate_extents)->implicit_value("true"));
 
     optParse.parse_positional({ "map" });
 
@@ -101,15 +100,15 @@ int main(int argc, char *argv[])
   signal(SIGINT, onSignal);
   signal(SIGTERM, onSignal);
 
-  printf("Loading map %s\n", opt.map_file.c_str());
   ohm::OccupancyMap map(1.0f);
   ohm::MapVersion version;
 
-  res = ohm::loadHeader(opt.map_file.c_str(), map, &version);
+  size_t region_count = 0;
+  res = ohm::loadHeader(opt.map_file.c_str(), map, &version, &region_count);
 
   if (res != 0)
   {
-    fprintf(stderr, "Failed to load map. Error code: %d\n", res);
+    std::cerr << "Failed to load map. Error code: " << res << std::endl;
     return res;
   }
 
@@ -119,12 +118,15 @@ int main(int argc, char *argv[])
   std::cout << "Voxel resolution: " << map.resolution() << std::endl;
   std::cout << "Map origin: " << map.origin() << std::endl;
   std::cout << "Region spatial dimensions: " << map.regionSpatialResolution() << std::endl;
-  std::cout << "Region voxel dimensions: " << map.regionVoxelDimensions() << " : " << map.regionVoxelVolume() << std::endl;
+  std::cout << "Region voxel dimensions: " << map.regionVoxelDimensions() << " : " << map.regionVoxelVolume()
+            << std::endl;
+  std::cout << "Region Count: " << region_count << std::endl;
   std::cout << std::endl;
 
-  std::cout << "Occupancy threshold: " << map.occupancyThresholdProbability() << " (" << map.occupancyThresholdValue() << ")" <<  std::endl;
+  std::cout << "Occupancy threshold: " << map.occupancyThresholdProbability() << " (" << map.occupancyThresholdValue()
+            << ")" << std::endl;
   std::cout << "Hit Probability: " << map.hitProbability() << " (" << map.hitValue() << ")" << std::endl;
-  std::cout << "Miss probability: " << map.missProbability() << " (" << map.missValue() << ")" <<  std::endl;
+  std::cout << "Miss probability: " << map.missProbability() << " (" << map.missValue() << ")" << std::endl;
   std::cout << "Saturation min/max: [";
   {
     if (map.saturateAtMinValue())
@@ -147,6 +149,7 @@ int main(int argc, char *argv[])
   }
 
   std::cout << "]" << std::endl;
+  std::cout << std::endl;
 
   // Data needing chunks to be partly loaded.
   // - Extents
@@ -165,11 +168,13 @@ int main(int argc, char *argv[])
     indent = "  ";
     std::cout << indent << layer.name() << std::endl;
     std::cout << indent << "subsampling: " << layer.subsampling() << std::endl;
-    std::cout << indent << "voxels: " << layer.dimensions(map.regionVoxelDimensions()) << " : " << layer.volume(layer.dimensions(map.regionVoxelDimensions())) << std::endl;
+    std::cout << indent << "voxels: " << layer.dimensions(map.regionVoxelDimensions()) << " : "
+              << layer.volume(layer.dimensions(map.regionVoxelDimensions())) << std::endl;
 
     util::makeMemoryDisplayString(vox_size_str, voxels.voxelByteSize());
     std::cout << indent << "voxel byte size: " << vox_size_str << std::endl;
-    util::makeMemoryDisplayString(region_size_str, voxels.voxelByteSize() * layer.volume(layer.dimensions(map.regionVoxelDimensions())));
+    util::makeMemoryDisplayString(region_size_str,
+                                  voxels.voxelByteSize() * layer.volume(layer.dimensions(map.regionVoxelDimensions())));
     std::cout << indent << "region byte size: " << region_size_str << std::endl;
 
     indent += "  ";
@@ -177,11 +182,32 @@ int main(int argc, char *argv[])
     for (size_t i = 0; i < voxels.memberCount(); ++i)
     {
       std::cout << indent << "0x" << std::hex << voxels.memberOffset(i) << " "
-                << ohm::DataType::name(voxels.memberType(i)) << " " << voxels.memberName(i)
-                << " (0x" << voxels.memberSize(i) << ")"
-                << std::endl;
+                << ohm::DataType::name(voxels.memberType(i)) << " " << voxels.memberName(i) << " (0x"
+                << voxels.memberSize(i) << ")" << std::endl;
     }
     std::cout << std::setw(0) << std::dec;
+  }
+
+  if (opt.calculate_extents)
+  {
+    // Reload the map for full extents.
+    res = ohm::load(opt.map_file.c_str(), map);
+    if (res)
+    {
+      std::cerr << "Failed to load map regions. Error code: " << res << std::endl;
+      return res;
+    }
+
+    glm::dvec3 min_ext, max_ext;
+    ohm::Key min_key, max_key;
+
+    map.calculateExtents(min_ext, max_ext);
+    min_key = map.voxelKey(min_ext);
+    max_key = map.voxelKey(max_ext);
+
+    std::cout << std::endl;
+    std::cout << "Spatial Extents: " << min_ext << " - " << max_ext << std::endl;
+    std::cout << "Key Extents: " << min_key << " - " << max_key << std::endl;
   }
 
   return res;
