@@ -13,7 +13,7 @@
 #include "Voxel.h"
 #include "OccupancyType.h"
 #include "MapCoord.h"
-#include "DefaultLayers.h"
+#include "DefaultLayer.h"
 
 #include "GpuCache.h"
 

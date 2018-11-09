@@ -11,7 +11,7 @@
 namespace ohm
 {
   /// Default @c MapLayer identification.
-  enum DefaultLayers
+  enum DefaultLayer
   {
     /// Voxel occupancy values.
     kDlOccupancy,
@@ -23,6 +23,11 @@ namespace ohm
     /// Number of default layers.
     kDlCount
   };
+
+  /// Resolve the name for one of the @c DefaultLayer identifiers.
+  /// @param layer The layer identifier of interest.
+  /// @return The name of the layer, or nullptr if @p layer is out of range.
+  const char * ohm_API defaultLayerName(DefaultLayer layer);
 }
 
 #endif // OHMDEFAULTLAYERS_H

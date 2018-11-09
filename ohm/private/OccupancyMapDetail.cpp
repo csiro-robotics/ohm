@@ -106,22 +106,22 @@ void OccupancyMapDetail::setDefaultLayout()
 
   clear_value = 0;
   memcpy(&clear_value, &invalid_marker_value, std::min(sizeof(invalid_marker_value), sizeof(clear_value)));
-  layer = layout.addLayer("occupancy", 0);
+  layer = layout.addLayer(defaultLayerName(kDlOccupancy), 0);
   voxel = layer->voxelLayout();
-  voxel.addMember("occupancy", DataType::kFloat, clear_value);
+  voxel.addMember(defaultLayerName(kDlOccupancy), DataType::kFloat, clear_value);
 
   const float default_clearance = -1.0f;
   clear_value = 0;
   memcpy(&clear_value, &default_clearance, std::min(sizeof(default_clearance), sizeof(clear_value)));
-  layer = layout.addLayer("clearance", 0);
+  layer = layout.addLayer(defaultLayerName(kDlClearance), 0);
   voxel = layer->voxelLayout();
-  voxel.addMember("clearance", DataType::kFloat, clear_value);
+  voxel.addMember(defaultLayerName(kDlClearance), DataType::kFloat, clear_value);
 
-  clear_value = 0;
-  memcpy(&clear_value, &default_clearance, std::min(sizeof(default_clearance), sizeof(clear_value)));
-  layer = layout.addLayer("coarseClearance", 1);
-  voxel = layer->voxelLayout();
-  voxel.addMember("coarseClearance", DataType::kFloat, clear_value);
+  // clear_value = 0;
+  // memcpy(&clear_value, &default_clearance, std::min(sizeof(default_clearance), sizeof(clear_value)));
+  // layer = layout.addLayer(defaultLayerName(kDlCoarseClearance), 1);
+  // voxel = layer->voxelLayout();
+  // voxel.addMember(defaultLayerName(kDlCoarseClearance), DataType::kFloat, clear_value);
 }
 
 

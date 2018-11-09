@@ -12,9 +12,48 @@
 #include <glm/glm.hpp>
 
 #include <algorithm>
+#include <list>
 #include <string>
 
 using namespace ohm;
+
+namespace
+{
+  void filterLayers(MapLayoutDetail &imp, const std::vector<unsigned> &preserve_layers)
+  {
+    if (imp.layers.empty())
+    {
+      return;
+    }
+
+    unsigned effective_index = 0;
+    for (unsigned i = 0; i < unsigned(imp.layers.size()); ++effective_index)
+    {
+      MapLayer *layer = imp.layers[i];
+      bool preserve = false;
+      for (unsigned preserve_index : preserve_layers)
+      {
+        if (preserve_index == effective_index)
+        {
+          preserve = true;
+          break;
+        }
+      }
+
+      if (!preserve)
+      {
+        delete layer;
+        imp.layers.erase(imp.layers.begin() + i);
+      }
+      else
+      {
+        layer->setLayerIndex(i);
+        ++i;
+      }
+    }
+  }
+}
+
 
 MapLayout::MapLayout()
   : imp_(new MapLayoutDetail)
@@ -52,6 +91,34 @@ void MapLayout::clear()
     }
     imp_->layers.clear();
   }
+}
+
+
+void MapLayout::filterLayers(const std::initializer_list<const char *> &preserve_layers)
+{
+  if (imp_->layers.empty())
+  {
+    return;
+  }
+
+  // Remove layers.
+  // Convert preserve list to std::string
+  std::vector<unsigned> preserve_indices;
+  for (const char *layer_name : preserve_layers)
+  {
+    if (const MapLayer *layer = this->layer(layer_name))
+    {
+      preserve_indices.push_back(layer->layerIndex());
+    }
+  }
+
+  ::filterLayers(*imp_, preserve_indices);
+}
+
+
+void MapLayout::filterLayers(const std::initializer_list<unsigned> &preserve_layers)
+{
+  ::filterLayers(*imp_, preserve_layers);
 }
 
 

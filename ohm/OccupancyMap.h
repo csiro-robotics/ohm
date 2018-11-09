@@ -334,7 +334,8 @@ namespace ohm
     /// @return Layout details.
     const MapLayout &layout() const;
 
-    /// May layout controlling layers.
+    /// May layout controlling layers. Note: define a custom layout the existing layout may need to be cleared, or
+    // reset to only preserve the occupancy layer.
     /// @return Layout details.
     MapLayout &layout();
 

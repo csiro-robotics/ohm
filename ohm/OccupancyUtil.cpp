@@ -3,7 +3,7 @@
 // ABN 41 687 119 230
 //
 // Author: Kazys Stepanas
-#include "occupancyutil.h"
+#include "OccupancyUtil.h"
 
 #ifdef TES_ENABLE
 namespace ohm

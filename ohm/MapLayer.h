@@ -136,6 +136,11 @@ namespace ohm
     /// @overload
     template <typename T> T *voxelsAs(MapChunk &chunk) const;
 
+    /// @internal
+    /// Set the layer index. Used in layer reordering. Must be maintained correctly.
+    /// @param index The new layer index.
+    void setLayerIndex(unsigned index);
+
   private:
     MapLayerDetail *imp_;
   };

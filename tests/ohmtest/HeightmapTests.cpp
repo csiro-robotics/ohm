@@ -8,8 +8,11 @@
 #include <ohm/Heightmap.h>
 #include <ohm/HeightmapVoxel.h>
 #include <ohm/MapCache.h>
+#include <ohm/MapLayer.h>
+#include <ohm/MapLayout.h>
 #include <ohm/MapSerialise.h>
 #include <ohm/OccupancyMap.h>
+#include <ohm/VoxelLayout.h>
 
 #include <ohmtools/OhmCloud.h>
 #include <ohmtools/OhmGen.h>
@@ -22,7 +25,7 @@ using namespace ohmutil;
 
 namespace
 {
-  void heightmapBoxTest(const std::string &prefix, Heightmap::Axis axis, int blur)
+  void heightmapBoxTest(const std::string &prefix, Heightmap::Axis axis, int blur, std::shared_ptr<Heightmap> *map_out = nullptr)
   {
     Profile profile;
     const float boundary_distance = 2.5f;
@@ -31,19 +34,23 @@ namespace
     // Build a cloud with real samples around a cubic boundary. Does not cover every voxel in the boundary.
     ohmgen::boxRoom(map, glm::dvec3(-boundary_distance), glm::dvec3(boundary_distance));
 
-    Heightmap heightmap(0.2, 1.0, axis);
-    heightmap.setOccupancyMap(&map);
-    heightmap.setBlurLevel(blur);
+    std::shared_ptr<Heightmap> heightmap(new Heightmap(0.2, 1.0, axis));
+    if (map_out)
+    {
+      *map_out = heightmap;
+    }
+    heightmap->setOccupancyMap(&map);
+    heightmap->setBlurLevel(blur);
 
     ProfileMarker mark_heightmap("heightmap", &profile);
-    heightmap.update();
+    heightmap->update();
     mark_heightmap.end();
 
     // Verify output. Boundaries should be at ~ +boundary_distance (top of walls). All other voxels should be at
     // ~ -boundary_distance. Only approximage due to quantisation.
 
-    const Key min_key = heightmap.heightmap().voxelKey(glm::dvec3(-boundary_distance));
-    const Key max_key = heightmap.heightmap().voxelKey(glm::dvec3(boundary_distance));
+    const Key min_key = heightmap->heightmap().voxelKey(glm::dvec3(-boundary_distance));
+    const Key max_key = heightmap->heightmap().voxelKey(glm::dvec3(boundary_distance));
 
     // Convert axis reference into an index [0, 2].
     const int axis_index = (axis >= 0) ? axis : -axis - 1;
@@ -55,36 +62,40 @@ namespace
       (axis >= 0) ? map.voxelCentreGlobal(map.voxelKey(glm::dvec3(boundary_distance)))[axis_index] :
                     -1.0 * map.voxelCentreGlobal(map.voxelKey(glm::dvec3(-boundary_distance)))[axis_index];
 
-    std::string filename = prefix + "-source.ohm";
-    ohm::save(filename.c_str(), map);
-    filename = prefix + ".ohm";
-    ohm::save(filename.c_str(), heightmap.heightmap());
-
-    filename = prefix + "-source.ply";
-    ohmtools::saveCloud(filename.c_str(), map);
-    // filename = prefix + "-2d.ply";
-    // ohmtools::saveCloud(filename.c_str(), heightmap.heightmap());
-
-    // Save the 2.5d heightmap.
-    PlyMesh heightmapCloud;
-    glm::dvec3 coord;
-    for (auto iter = heightmap.heightmap().begin(); iter != heightmap.heightmap().end(); ++iter)
+    std::string filename;
+    if (!prefix.empty())
     {
-      if (iter->isOccupied())
-      {
-        const HeightmapVoxel *voxel = iter->layerContent<const HeightmapVoxel *>(heightmap.heightmapVoxelLayer());
-        // Get the coordinate of the voxel.
-        coord = heightmap.heightmap().voxelCentreGlobal(iter.key());
-        // Adjust the height to the plane height and offset.
-        // For now assume a horizontal plane through the origin..
-        coord[axis_index] = voxel->height;
-        // Add to the cloud.
-        heightmapCloud.addVertex(coord);
-      }
-    }
+      filename = prefix + "-source.ohm";
+      ohm::save(filename.c_str(), map);
+      filename = prefix + ".ohm";
+      ohm::save(filename.c_str(), heightmap->heightmap());
 
-    filename = prefix + ".ply";
-    heightmapCloud.save(filename.c_str(), true);
+      filename = prefix + "-source.ply";
+      ohmtools::saveCloud(filename.c_str(), map);
+      // filename = prefix + "-2d.ply";
+      // ohmtools::saveCloud(filename.c_str(), heightmap->heightmap());
+
+      // Save the 2.5d heightmap.
+      PlyMesh heightmapCloud;
+      glm::dvec3 coord;
+      for (auto iter = heightmap->heightmap().begin(); iter != heightmap->heightmap().end(); ++iter)
+      {
+        if (iter->isOccupied())
+        {
+          const HeightmapVoxel *voxel = iter->layerContent<const HeightmapVoxel *>(heightmap->heightmapVoxelLayer());
+          // Get the coordinate of the voxel.
+          coord = heightmap->heightmap().voxelCentreGlobal(iter.key());
+          // Adjust the height to the plane height and offset.
+          // For now assume a horizontal plane through the origin..
+          coord[axis_index] = voxel->height;
+          // Add to the cloud.
+          heightmapCloud.addVertex(coord);
+        }
+      }
+
+      filename = prefix + ".ply";
+      heightmapCloud.save(filename.c_str(), true);
+    }
 
     // Helper function to work out if we are at the top of the box or not.
     // Basically, at the limits of the box extents, we should report the top of the wall.
@@ -142,7 +153,7 @@ namespace
 
     // Tricky stuff to resolve indexing the plane axes.
     int axis_indices[3];
-    switch (heightmap.upAxisIndex())
+    switch (heightmap->upAxisIndex())
     {
     case Heightmap::AxisX:
       axis_indices[0] = 1;
@@ -165,16 +176,16 @@ namespace
     // Walk the plane.
     key.setRegionAxis(axis_indices[2], 0);
     key.setLocalAxis(axis_indices[2], 0);
-    for (; key.isBounded(axis_indices[1], min_key, max_key); heightmap.heightmap().stepKey(key, axis_indices[1], 1))
+    for (; key.isBounded(axis_indices[1], min_key, max_key); heightmap->heightmap().stepKey(key, axis_indices[1], 1))
     {
       for (key.setAxisFrom(axis_indices[0], min_key); key.isBounded(axis_indices[0], min_key, max_key);
-           heightmap.heightmap().stepKey(key, axis_indices[0], 1))
+           heightmap->heightmap().stepKey(key, axis_indices[0], 1))
       {
         // Get the plane voxel and validate.
-        VoxelConst voxel = heightmap.heightmap().voxel(key, false, &cache);
+        VoxelConst voxel = heightmap->heightmap().voxel(key, false, &cache);
 
         double expected_height = ground_height;
-        if (is_top_of_wall(heightmap.heightmap(), key, min_key, max_key, axis_indices, blur))
+        if (is_top_of_wall(heightmap->heightmap(), key, min_key, max_key, axis_indices, blur))
         {
           expected_height = top_of_wall_height;
         }
@@ -182,7 +193,7 @@ namespace
         ASSERT_TRUE(voxel.isValid());
 
         const HeightmapVoxel *voxel_content =
-          voxel.layerContent<const HeightmapVoxel *>(heightmap.heightmapVoxelLayer());
+          voxel.layerContent<const HeightmapVoxel *>(heightmap->heightmapVoxelLayer());
         ASSERT_NE(voxel_content, nullptr);
         ASSERT_NEAR(voxel_content->height, expected_height, 1e-9);
       }
@@ -243,4 +254,40 @@ TEST(Heightmap, AxisNegZ)
 {
   heightmapBoxTest("heightmap-negz", Heightmap::AxisNegZ, 0);
   heightmapBoxTest("heightmap-negz", Heightmap::AxisNegZ, 1);
+}
+
+
+TEST(Heightmap, Layout)
+{
+  std::shared_ptr<Heightmap> heightmap;
+  heightmapBoxTest("", Heightmap::AxisZ, 0, &heightmap);
+  const MapLayout &layout = heightmap->heightmap().layout();
+
+  EXPECT_EQ(layout.layerCount(), 2);
+  const MapLayer *occupancy_layer = layout.layer(defaultLayerName(kDlOccupancy));
+  const MapLayer *heightmap_layer = layout.layer(HeightmapVoxel::kHeightmapLayer);
+  ASSERT_NE(occupancy_layer, nullptr);
+  ASSERT_NE(heightmap_layer, nullptr);
+
+  EXPECT_EQ(occupancy_layer->layerIndex(), 0);
+  EXPECT_EQ(heightmap_layer->layerIndex(), 1);
+
+  EXPECT_EQ(occupancy_layer->voxelByteSize(), sizeof(float));
+  EXPECT_EQ(heightmap_layer->voxelByteSize(), sizeof(HeightmapVoxel));
+
+  VoxelLayoutConst occupancy_voxel = occupancy_layer->voxelLayout();
+  VoxelLayoutConst heightmap_voxel = heightmap_layer->voxelLayout();
+
+  EXPECT_EQ(occupancy_voxel.memberCount(), 1);
+  EXPECT_STREQ(occupancy_voxel.memberName(0), defaultLayerName(kDlOccupancy));
+  EXPECT_EQ(occupancy_voxel.memberOffset(0), 0);
+  EXPECT_EQ(occupancy_voxel.memberSize(0), sizeof(float));
+
+  EXPECT_EQ(heightmap_voxel.memberCount(), 2);
+  EXPECT_STREQ(heightmap_voxel.memberName(0), "height");
+  EXPECT_STREQ(heightmap_voxel.memberName(1), "clearance");
+  EXPECT_EQ(heightmap_voxel.memberOffset(0), 0);
+  EXPECT_EQ(heightmap_voxel.memberSize(0), sizeof(float));
+  EXPECT_EQ(heightmap_voxel.memberOffset(1), sizeof(float));
+  EXPECT_EQ(heightmap_voxel.memberSize(1), sizeof(float));
 }

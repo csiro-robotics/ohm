@@ -215,10 +215,11 @@ Heightmap::Heightmap(double grid_resolution, double min_clearance, Axis up_axis,
   // Setup the heightmap voxel layout.
   MapLayout &layout = imp_->heightmap->layout();
 
+  layout.filterLayers({ defaultLayerName(kDlOccupancy) });
+
   MapLayer *layer;
   VoxelLayout voxels;
 
-  const float invalid_marker_value = voxel::invalidMarkerValue();
   const float max_clearance = std::numeric_limits<float>::max();
   int max_clearance_int = 0;
   static_assert(sizeof(max_clearance) == sizeof(max_clearance_int), "size mismatch");
@@ -226,11 +227,6 @@ Heightmap::Heightmap(double grid_resolution, double min_clearance, Axis up_axis,
   memcpy(&max_clearance_int, &max_clearance, sizeof(max_clearance));
 
   size_t clear_value = 0;
-  memcpy(&clear_value, &invalid_marker_value, std::min(sizeof(invalid_marker_value), sizeof(clear_value)));
-  layer = layout.addLayer("occupancy", 0);
-  voxels = layer->voxelLayout();
-  voxels.addMember("occupancy", DataType::kFloat, clear_value);
-
   // Initialise the data structure to have both ranges at float max.
   memset(&clear_value, max_clearance_int, sizeof(clear_value));
   layer = layout.addLayer(HeightmapVoxel::kHeightmapLayer, 0);

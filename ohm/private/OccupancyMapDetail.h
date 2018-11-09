@@ -63,6 +63,7 @@ namespace ohm
     /// @param step How far to move/step.
     void moveKeyAlongAxis(Key &key, int axis, int step) const;
 
+    /// Setup the default @c MapLayout: occupancy layer and clearance layer.
     void setDefaultLayout();
 
     /// Copy internal details from @p other. For cloning.

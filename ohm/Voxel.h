@@ -7,7 +7,7 @@
 
 #include "OhmConfig.h"
 
-#include "DefaultLayers.h"
+#include "DefaultLayer.h"
 #include "Key.h"
 #include "MapProbability.h"
 

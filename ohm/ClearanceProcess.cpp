@@ -11,7 +11,7 @@
 #include "Key.h"
 #include "OccupancyMap.h"
 #include "QueryFlag.h"
-#include "DefaultLayers.h"
+#include "DefaultLayer.h"
 #include "OccupancyUtil.h"
 #include "GpuLayerCache.h"
 #include "GpuMap.h"

@@ -8,7 +8,7 @@
 #include "MapLayer.h"
 #include "MapLayout.h"
 #include "OccupancyMap.h"
-#include "DefaultLayers.h"
+#include "DefaultLayer.h"
 #include "Stream.h"
 #include "VoxelLayout.h"
 #include "private/OccupancyMapDetail.h"
@@ -620,6 +620,11 @@ int ohm::loadHeader(const char *filename, OccupancyMap &map, MapVersion *version
   if (version_out)
   {
     *version_out = version.version;
+  }
+
+  if (!err)
+  {
+    err = loadLayout(stream, detail);
   }
 
   return err;

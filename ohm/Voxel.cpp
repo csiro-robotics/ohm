@@ -7,7 +7,7 @@
 #include "private/MapLayoutDetail.h"
 #include "private/OccupancyMapDetail.h"
 
-#include "DefaultLayers.h"
+#include "DefaultLayer.h"
 #include "MapChunk.h"
 #include "VoxelLayout.h"
 

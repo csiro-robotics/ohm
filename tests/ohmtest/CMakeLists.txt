@@ -9,6 +9,7 @@ set(SOURCES
   GpuTests.cpp
   HeightmapTests.cpp
   KeyTests.cpp
+  LayoutTests.cpp
   LineKeysTests.cpp
   LineQueryTests.cpp
   MapperTests.cpp

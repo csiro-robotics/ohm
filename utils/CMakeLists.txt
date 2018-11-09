@@ -6,7 +6,7 @@ find_package(ZLIB)
 
 add_subdirectory(ohm2ply)
 add_subdirectory(ohmheightmap)
-# add_subdirectory(ohminfo)
+add_subdirectory(ohminfo)
 add_subdirectory(ohmpop)
 add_subdirectory(ohmquery)
 

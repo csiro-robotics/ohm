@@ -5,7 +5,7 @@
 // Author: Kazys Stepanas
 #include "GpuMap.h"
 
-#include "DefaultLayers.h"
+#include "DefaultLayer.h"
 #include "GpuCache.h"
 #include "GpuLayerCache.h"
 #include "GpuTransformSamples.h"
