@@ -5,15 +5,15 @@
 // Author: Kazys Stepanas
 #include "OccupancyMap.h"
 
+#include "DefaultLayer.h"
+#include "KeyList.h"
 #include "MapCache.h"
 #include "MapChunk.h"
+#include "MapCoord.h"
 #include "MapLayer.h"
 #include "MapProbability.h"
-#include "KeyList.h"
-#include "Voxel.h"
 #include "OccupancyType.h"
-#include "MapCoord.h"
-#include "DefaultLayer.h"
+#include "Voxel.h"
 
 #include "GpuCache.h"
 
@@ -26,14 +26,17 @@
 #ifdef OHM_VALIDATION
 #include <cstdio>
 #endif  // OHM_VALIDATION
+#include <functional>
 #include <limits>
 #include <utility>
+
+#pragma GCC optimize("O0")
+
 
 using namespace ohm;
 
 namespace
 {
-
   inline Key firstKeyForChunk(const OccupancyMapDetail &map, const MapChunk &chunk)
   {
 #ifdef OHM_VALIDATION
@@ -44,10 +47,10 @@ namespace
     // the last voxel. This primarily deals with iterating a chunk with contains no
     // valid voxels.
     return Key(chunk.region.coord, std::min(chunk.first_valid_index.x, uint8_t(map.region_voxel_dimensions.x - 1)),
-                        std::min(chunk.first_valid_index.y, uint8_t(map.region_voxel_dimensions.y - 1)),
-                        std::min(chunk.first_valid_index.z, uint8_t(map.region_voxel_dimensions.z - 1)));
-    // if (voxelIndex(key, map.region_voxel_dimensions) >= map.region_voxel_dimensions.x * map.region_voxel_dimensions.y *
-    // map.region_voxel_dimensions.z)
+               std::min(chunk.first_valid_index.y, uint8_t(map.region_voxel_dimensions.y - 1)),
+               std::min(chunk.first_valid_index.z, uint8_t(map.region_voxel_dimensions.z - 1)));
+    // if (voxelIndex(key, map.region_voxel_dimensions) >= map.region_voxel_dimensions.x * map.region_voxel_dimensions.y
+    // * map.region_voxel_dimensions.z)
     // {
     //   // First valid index is out of range. This implies it has not been set correctly.
     //   // Modify the key to address voxel [0, 0, 0].
@@ -85,7 +88,7 @@ namespace
     using Iterator = ChunkMap::iterator;
     chunkIter(mem).~Iterator();
   }
-}
+}  // namespace
 
 
 OccupancyMap::base_iterator::base_iterator()
@@ -194,9 +197,12 @@ OccupancyMap::OccupancyMap(double resolution, const glm::u8vec3 &region_voxel_di
   : imp_(new OccupancyMapDetail)
 {
   imp_->resolution = resolution;
-  imp_->region_voxel_dimensions.x = (region_voxel_dimensions.x > 0) ? region_voxel_dimensions.x : OHM_DEFAULT_CHUNK_DIM_X;
-  imp_->region_voxel_dimensions.y = (region_voxel_dimensions.y > 0) ? region_voxel_dimensions.y : OHM_DEFAULT_CHUNK_DIM_Y;
-  imp_->region_voxel_dimensions.z = (region_voxel_dimensions.z > 0) ? region_voxel_dimensions.z : OHM_DEFAULT_CHUNK_DIM_Z;
+  imp_->region_voxel_dimensions.x =
+    (region_voxel_dimensions.x > 0) ? region_voxel_dimensions.x : OHM_DEFAULT_CHUNK_DIM_X;
+  imp_->region_voxel_dimensions.y =
+    (region_voxel_dimensions.y > 0) ? region_voxel_dimensions.y : OHM_DEFAULT_CHUNK_DIM_Y;
+  imp_->region_voxel_dimensions.z =
+    (region_voxel_dimensions.z > 0) ? region_voxel_dimensions.z : OHM_DEFAULT_CHUNK_DIM_Z;
   imp_->region_spatial_dimensions.x = imp_->region_voxel_dimensions.x * resolution;
   imp_->region_spatial_dimensions.y = imp_->region_voxel_dimensions.y * resolution;
   imp_->region_spatial_dimensions.z = imp_->region_voxel_dimensions.z * resolution;
@@ -271,7 +277,7 @@ namespace
     }
     return NODE();
   }
-}
+}  // namespace
 
 
 Voxel OccupancyMap::voxel(const Key &key, bool allow_create, MapCache *cache)
@@ -445,8 +451,8 @@ glm::dvec3 OccupancyMap::regionSpatialMax(const glm::i16vec3 &region_key) const
 glm::dvec3 OccupancyMap::regionSpatialCentre(const glm::i16vec3 &region_key) const
 {
   const glm::dvec3 centre(regionCentreCoord(region_key.x, imp_->region_spatial_dimensions.x),
-    regionCentreCoord(region_key.y, imp_->region_spatial_dimensions.y),
-    regionCentreCoord(region_key.z, imp_->region_spatial_dimensions.z));
+                          regionCentreCoord(region_key.y, imp_->region_spatial_dimensions.y),
+                          regionCentreCoord(region_key.z, imp_->region_spatial_dimensions.z));
   return centre;
 }
 
@@ -474,7 +480,7 @@ void OccupancyMap::calculateExtents(glm::dvec3 &min_ext, glm::dvec3 &max_ext) co
     return;
   }
 
-  min_ext = glm::dvec3( std::numeric_limits<double>::max());
+  min_ext = glm::dvec3(std::numeric_limits<double>::max());
   max_ext = glm::dvec3(-std::numeric_limits<double>::max());
 
   for (auto &&chunk : imp_->chunks)
@@ -516,60 +522,73 @@ size_t OccupancyMap::regionCount() const
 
 unsigned OccupancyMap::expireRegions(double timestamp)
 {
-  unsigned removed_count = 0;
-  std::unique_lock<decltype(imp_->mutex)> guard(imp_->mutex);
-  auto region_iter = imp_->chunks.begin();
-  MapChunk *chunk = nullptr;
-  while (region_iter != imp_->chunks.end())
-  {
-    chunk = region_iter->second;
-    if (chunk->touched_time < timestamp)
+  const auto should_remove_chunk = [timestamp](const MapChunk &chunk) {
+    if (chunk.touched_time < timestamp)
     {
-      // Remove from the map.
-      region_iter = imp_->chunks.erase(region_iter);
-      releaseChunk(chunk);
-      ++removed_count;
+      return true;
     }
-    else
-    {
-      // Next.
-      ++region_iter;
-    }
-  }
 
-  return removed_count;
+    return false;
+  };
+
+  return cullRegions(should_remove_chunk);
 }
 
 
 unsigned OccupancyMap::removeDistanceRegions(const glm::dvec3 &relative_to, float distance)
 {
-  unsigned removed_count = 0;
   const float dist_sqr = distance * distance;
-  glm::vec3 separation;
-  float region_distance_sqr;
-  std::unique_lock<decltype(imp_->mutex)> guard(imp_->mutex);
-  auto region_iter = imp_->chunks.begin();
-  MapChunk *chunk = nullptr;
-  while (region_iter != imp_->chunks.end())
-  {
-    chunk = region_iter->second;
-    separation = chunk->region.centre - relative_to;
-    region_distance_sqr = glm::dot(separation, separation);
-    if (region_distance_sqr > dist_sqr)
+  const auto should_remove_chunk = [relative_to, dist_sqr](const MapChunk &chunk) {
+    glm::dvec3 separation;
+    separation = chunk.region.centre - relative_to;
+    const double region_distance_sqr = glm::dot(separation, separation);
+    if (region_distance_sqr >= dist_sqr)
     {
-      // Region too far. Remove from the map.
-      region_iter = imp_->chunks.erase(region_iter);
-      releaseChunk(chunk);
-      ++removed_count;
+      return true;
     }
-    else
-    {
-      // Next.
-      ++region_iter;
-    }
-  }
 
-  return removed_count;
+    return false;
+  };
+
+  return cullRegions(should_remove_chunk);
+}
+
+
+unsigned OccupancyMap::cullRegionsOutside(const glm::dvec3 &min_extents, const glm::dvec3 &max_extents)
+{
+  const glm::dvec3 region_extents = imp_->region_spatial_dimensions;
+  const auto should_remove_chunk = [min_extents, max_extents, region_extents](const MapChunk &chunk) {
+    const glm::dvec3 region_min = chunk.region.centre - 0.5 * region_extents;
+    const glm::dvec3 region_max = chunk.region.centre + 0.5 * region_extents;
+
+    if (region_max.x < min_extents.x)
+    {
+      return true;  // region is left of box
+    }
+    if (region_min.x > max_extents.x)
+    {
+      return true;  // region is right of box
+    }
+    if (region_max.y < min_extents.y)
+    {
+      return true;  // region is in front of box
+    }
+    if (region_min.y > max_extents.y)
+    {
+      return true;  // region is behind box
+    }
+    if (region_max.z < min_extents.z)
+    {
+      return true;  // region is above box
+    }
+    if (region_min.z > max_extents.z)
+    {
+      return true;  // region is below box
+    }
+    return false;  // boxes overlap
+  };
+
+  return cullRegions(should_remove_chunk);
 }
 
 
@@ -770,8 +789,8 @@ Key OccupancyMap::voxelKey(const glm::dvec3 &point) const
     fprintf(stderr, "  Point: %.20lf %.20lf %.20lf\n", point.x, point.y, point.z);
     fprintf(stderr, "  Map origin: %lf %lf %lf\n", imp_->origin.x, imp_->origin.y, imp_->origin.z);
     fprintf(stderr, "  Map resolution: %lf\n", imp_->resolution);
-    fprintf(stderr, "  Region sizing: %lf %lf %lf\n", imp_->region_spatial_dimensions.x, imp_->region_spatial_dimensions.y,
-            imp_->region_spatial_dimensions.z);
+    fprintf(stderr, "  Region sizing: %lf %lf %lf\n", imp_->region_spatial_dimensions.x,
+            imp_->region_spatial_dimensions.y, imp_->region_spatial_dimensions.z);
     fprintf(stderr, "  Region voxels: %d %d %d\n", imp_->region_voxel_dimensions.x, imp_->region_voxel_dimensions.y,
             imp_->region_voxel_dimensions.z);
     fprintf(stderr, "  Region coord: %d %d %d\n", region.coord.x, region.coord.y, region.coord.z);
@@ -838,8 +857,8 @@ void OccupancyMap::moveKey(Key &key, int x, int y, int z) const
 }
 
 
-size_t OccupancyMap::calculateSegmentKeys(KeyList &keys, const glm::dvec3 &start_point,
-                                          const glm::dvec3 &end_point, bool include_end_point) const
+size_t OccupancyMap::calculateSegmentKeys(KeyList &keys, const glm::dvec3 &start_point, const glm::dvec3 &end_point,
+                                          bool include_end_point) const
 {
   struct KeyAdaptor
   {
@@ -860,9 +879,8 @@ size_t OccupancyMap::calculateSegmentKeys(KeyList &keys, const glm::dvec3 &start
 
 
   keys.clear();
-  return ohmutil::walkSegmentKeys<Key>([&keys](const Key &key) { keys.add(key); },
-                                                start_point_local, end_point_local, include_end_point,
-                                                KeyAdaptor(*this));
+  return ohmutil::walkSegmentKeys<Key>([&keys](const Key &key) { keys.add(key); }, start_point_local, end_point_local,
+                                       include_end_point, KeyAdaptor(*this));
 }
 
 
@@ -916,8 +934,7 @@ OccupancyMap *OccupancyMap::clone(const glm::dvec3 &min_ext, const glm::dvec3 &m
     region_min -= region_half_ext;
     region_max += region_half_ext;
 
-    if (!glm::any(glm::lessThan(region_max, min_ext)) &&
-        !glm::any(glm::greaterThan(region_min, max_ext)))
+    if (!glm::any(glm::lessThan(region_max, min_ext)) && !glm::any(glm::greaterThan(region_min, max_ext)))
     {
       MapChunk *dst_chunk = new_map->region(src_chunk->region.coord, true);
       dst_chunk->first_valid_index = src_chunk->first_valid_index;
@@ -931,7 +948,8 @@ OccupancyMap *OccupancyMap::clone(const glm::dvec3 &min_ext, const glm::dvec3 &m
         dst_chunk->touched_stamps[i] = static_cast<uint64_t>(src_chunk->touched_stamps[i]);
         if (src_chunk->voxel_maps[i])
         {
-          memcpy(dst_chunk->voxel_maps[i], src_chunk->voxel_maps[i], layer.layerByteSize(imp_->region_voxel_dimensions));
+          memcpy(dst_chunk->voxel_maps[i], src_chunk->voxel_maps[i],
+                 layer.layerByteSize(imp_->region_voxel_dimensions));
         }
       }
     }
@@ -992,7 +1010,8 @@ const MapChunk *OccupancyMap::region(const glm::i16vec3 &region_key) const
 }
 
 
-unsigned OccupancyMap::collectDirtyRegions(uint64_t from_stamp, std::vector<std::pair<uint64_t, glm::i16vec3>> &regions) const
+unsigned OccupancyMap::collectDirtyRegions(uint64_t from_stamp,
+                                           std::vector<std::pair<uint64_t, glm::i16vec3>> &regions) const
 {
   // Brute for for now.
   unsigned added_count = 0;
@@ -1061,7 +1080,8 @@ void OccupancyMap::calculateDirtyExtents(uint64_t *from_stamp, glm::i16vec3 *min
   *from_stamp = at_stamp;
 }
 
-void OccupancyMap::calculateDirtyClearanceExtents(glm::i16vec3 *min_ext, glm::i16vec3 *max_ext, unsigned region_padding) const
+void OccupancyMap::calculateDirtyClearanceExtents(glm::i16vec3 *min_ext, glm::i16vec3 *max_ext,
+                                                  unsigned region_padding) const
 {
   *min_ext = glm::i16vec3(std::numeric_limits<decltype(min_ext->x)>::max());
   *max_ext = glm::i16vec3(std::numeric_limits<decltype(min_ext->x)>::min());
@@ -1126,4 +1146,38 @@ MapChunk *OccupancyMap::newChunk(const Key &for_key)
 void OccupancyMap::releaseChunk(const MapChunk *chunk)
 {
   delete chunk;
+}
+
+
+unsigned OccupancyMap::cullRegions(const RegionCullFunc &cull_func)
+{
+  unsigned removed_count = 0;
+  std::unique_lock<decltype(imp_->mutex)> guard(imp_->mutex);
+  auto region_iter = imp_->chunks.begin();
+  const MapChunk *chunk = nullptr;
+  while (region_iter != imp_->chunks.end())
+  {
+    chunk = region_iter->second;
+
+    if (cull_func(*chunk))
+    {
+      // Remove from the GPU cache.
+      if (imp_->gpu_cache)
+      {
+        imp_->gpu_cache->remove(chunk->region.coord);
+      }
+
+      // Culled region. Remove from the map.
+      region_iter = imp_->chunks.erase(region_iter);
+      releaseChunk(chunk);
+      ++removed_count;
+    }
+    else
+    {
+      // Next.
+      ++region_iter;
+    }
+  }
+
+  return removed_count;
 }

@@ -91,6 +91,18 @@ GpuLayerCache *GpuCache::layerCache(unsigned id)
 }
 
 
+void GpuCache::remove(const glm::i16vec3 &region_key)
+{
+  for (auto &&layer : imp_->layer_caches)
+  {
+    if (layer)
+    {
+      layer->remove(region_key);
+    }
+  }
+}
+
+
 gputil::Device &GpuCache::gpu()
 {
   return imp_->gpu;

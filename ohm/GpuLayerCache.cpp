@@ -197,6 +197,25 @@ void GpuLayerCache::updateEvents(unsigned batch_marker, gputil::Event &event)
 }
 
 
+void GpuLayerCache::remove(const glm::i16vec3 &region_key)
+{
+  const unsigned region_hash = MapRegion::Hash::calculate(region_key);
+  auto search_iter = imp_->cache.find(region_hash);
+
+  while (search_iter != imp_->cache.end() && search_iter->first == region_hash &&
+          search_iter->second.region_key != region_key)
+  {
+    ++search_iter;
+  }
+
+  if (search_iter != imp_->cache.end())
+  {
+    search_iter->second.sync_event.wait();
+    imp_->cache.erase(search_iter);
+  }
+}
+
+
 void GpuLayerCache::syncToMainMemory(const MapChunk &chunk)
 {
   GpuCacheEntry *entry = findCacheEntry(chunk);

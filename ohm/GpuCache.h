@@ -8,6 +8,8 @@
 
 #include "OhmConfig.h"
 
+#include <glm/fwd.hpp>
+
 #include <cstddef>
 
 namespace gputil
@@ -92,6 +94,10 @@ namespace ohm
     /// set of IDs is defined in @@@. The call also specifies a @p layer which identifies the @c MapLayer associated
     /// with the cache.
     GpuLayerCache *layerCache(unsigned id);
+
+    /// Remove data associated with @p region_key from all @c GpuLayerCache layers in the cache.
+    /// @param region_key The key of the region to remove.
+    void remove(const glm::i16vec3 &region_key);
 
     /// Access the GPU @c gputil::Device associated with GPU operations.
     /// @return The bound @c gputil::Device.
