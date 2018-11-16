@@ -13,7 +13,7 @@
 namespace ohm
 {
   /// An axis aligned box
-  class Aabb
+  class ohm_API Aabb
   {
   public:
     /// Empty constructor: uninitialised.
