@@ -52,31 +52,31 @@ namespace ohm
 
     /// Set the box lower extents corner.
     /// @param ext New coordinate for the lower box extents. No validation (for being <= @c maxExtents).
-    inline void setMinExtents(const glm::dvec3 &ext) { min_ext = ext; }
+    inline void setMinExtents(const glm::dvec3 &ext) { corners_[0] = ext; }
 
     /// Set the box upper extents corner.
     /// @param ext New coordinate for the upper box extents. No validation (for being >= @c minExtents).
-    inline void setMaxExtents(const glm::dvec3 &ext) { max_ext = ext; }
+    inline void setMaxExtents(const glm::dvec3 &ext) { corners_[1] = ext; }
 
     /// Query the lower box extents.
     /// @return The lower bounds of the box.
-    inline glm::dvec3 minExtents() const { return min_ext; }
+    inline glm::dvec3 minExtents() const { return corners_[0]; }
 
     /// Query the upper box extents.
     /// @return The upper bounds of the box.
-    inline glm::dvec3 maxExtents() const { return max_ext; }
+    inline glm::dvec3 maxExtents() const { return corners_[1]; }
 
     /// Query the box centre.
     /// @return The box centre.
-    inline glm::dvec3 centre() const { return 0.5 * (min_ext + max_ext); }
+    inline glm::dvec3 centre() const { return 0.5 * (corners_[0] + corners_[1]); }
 
     /// Query the box half extents.
     /// @return The box half extents (half the diagonal).
-    inline glm::dvec3 halfExtents() const { return 0.5 * (max_ext - centre()); }
+    inline glm::dvec3 halfExtents() const { return 0.5 * (corners_[1] - centre()); }
 
     /// Query the full box extents.
     /// @return The full extents (the diagonal).
-    inline glm::dvec3 diagonal() const { return max_ext - centre(); }
+    inline glm::dvec3 diagonal() const { return corners_[1] - centre(); }
 
     /// Test whether this box and @p other overlap. Touching is considered an overlap.
     ///
@@ -101,6 +101,19 @@ namespace ohm
     /// @param epsilon Error tolerance value.
     /// @return True if this and @p other are within @p epsilon of equality (per axis error).
     bool isEqual(const Aabb &other, double epsilon) const;
+
+    /// Flags for clipping results.
+    enum ClipResult
+    {
+      ClippedStart = (1 << 0),
+      ClippedEnd = (1 << 1)
+    };
+
+    /// Clip the line from @p start to @p end such that both points lie in or on the box.
+    /// @param[in,out] start The line start point.
+    /// @param[in,out] end The line end point.
+    /// @return Clipping flags: @c ClipResult.
+    unsigned clipLine(glm::dvec3 &start, glm::dvec3 &end) const;
 
     /// Test for precise quality between this and @p other.
     /// @param other The box to test against.
@@ -138,8 +151,11 @@ namespace ohm
     Aabb &operator /= (double scalar);
 
   private:
-    glm::dvec3 min_ext = glm::dvec3(0);
-    glm::dvec3 max_ext = glm::dvec3(0);
+    static inline double sign(double val) { return val >= 0 ? 1.0f : -1.0f; }
+    static double calcTimeVal(double limit, double origin, double direction);
+    static bool calcIntervalOverlap(const glm::dvec2 &a, const glm::dvec2 &b, glm::dvec2 *overlap);
+
+    glm::dvec3 corners_[2] = { glm::dvec3(0), glm::dvec3(0) };
   };
 
 
@@ -147,16 +163,16 @@ namespace ohm
 
 
   inline Aabb::Aabb(const Aabb &other)
-    : min_ext(other.min_ext)
-    , max_ext(other.max_ext)
   {
+    corners_[0] = other.corners_[0];
+    corners_[1] = other.corners_[1];
   }
 
 
   inline Aabb::Aabb(const glm::dvec3 min_ext, const glm::dvec3 &max_ext)
-    : min_ext(min_ext)
-    , max_ext(max_ext)
   {
+    corners_[0] = min_ext;
+    corners_[1] = max_ext;
   }
 
 
@@ -174,8 +190,8 @@ namespace ohm
 
   inline bool Aabb::overlaps(const Aabb &other, double epsilon) const
   {
-    const glm::bvec3 max_less_min = glm::lessThan(max_ext + glm::dvec3(epsilon), other.min_ext);
-    const glm::bvec3 min_greater_max = glm::greaterThan(min_ext - glm::dvec3(epsilon), other.max_ext);
+    const glm::bvec3 max_less_min = glm::lessThan(corners_[1] + glm::dvec3(epsilon), other.corners_[0]);
+    const glm::bvec3 min_greater_max = glm::greaterThan(corners_[0] - glm::dvec3(epsilon), other.corners_[1]);
     return !glm::any(max_less_min) && !glm::any(min_greater_max);
   }
 
@@ -188,16 +204,67 @@ namespace ohm
 
   inline bool Aabb::isEqual(const Aabb &other, double epsilon) const
   {
-    const glm::dvec3 min_diff = glm::abs(min_ext - other.min_ext);
-    const glm::dvec3 max_diff = glm::abs(max_ext - other.max_ext);
+    const glm::dvec3 min_diff = glm::abs(corners_[0] - other.corners_[0]);
+    const glm::dvec3 max_diff = glm::abs(corners_[1] - other.corners_[1]);
     const glm::dvec3 epsilon_v(epsilon);
     return glm::all(glm::lessThanEqual(min_diff, epsilon_v)) && glm::all(glm::lessThanEqual(max_diff, epsilon_v));
   }
 
 
+  inline unsigned Aabb::clipLine(glm::dvec3 &start, glm::dvec3 &end) const
+  {
+    // From: https://tavianator.com/fast-branchless-raybounding-box-intersections/
+    // Convert to ray format.
+    glm::dvec3 direction = end - start;
+    const glm::dvec3 origin(start);
+    const double max_time = glm::length(direction);
+    direction *= 1.0 / max_time;
+    const glm::dvec3 inv_dir(1.0 / direction[0], 1.0 / direction[1], 1.0 / direction[2]);
+    const glm::ivec3 sign(!!(inv_dir.x < 0), !!(inv_dir.y < 0), !!(inv_dir.z < 0));
+
+    // TODO(KS): remove branching.
+    glm::dvec2 tx, ty, tz;
+
+    tx[0] = calcTimeVal(corners_[sign[0]].x, origin.x, inv_dir.x);
+    tx[1] = calcTimeVal(corners_[1 - sign[0]].x, origin.x, inv_dir.x);
+    ty[0] = calcTimeVal(corners_[sign[1]].y, origin.y, inv_dir.y);
+    ty[1] = calcTimeVal(corners_[1 - sign[1]].y, origin.y, inv_dir.y);
+
+    glm::dvec2 tbest;
+
+    if (!calcIntervalOverlap(tx, ty, &tbest))
+    {
+      return 0;
+    }
+
+    tz[0] = calcTimeVal(corners_[sign[2]].z, origin.z, inv_dir.z);
+    tz[1] = calcTimeVal(corners_[1 - sign[2]].z, origin.z, inv_dir.z);
+
+    if (!calcIntervalOverlap(tbest, tz, &tbest))
+    {
+      return 0;
+    }
+
+    unsigned clipped_flags = 0;
+    if (tbest[0] > 0)
+    {
+      start = origin + tbest[0] * direction;
+      clipped_flags |= ClippedStart;
+    }
+
+    if (tbest[0] < max_time)
+    {
+      end = origin + tbest[1] * direction;
+      clipped_flags |= ClippedEnd;
+    }
+
+    return clipped_flags;
+  }
+
+
   inline bool Aabb::operator==(const Aabb &other) const
   {
-    return glm::all(glm::equal(min_ext, other.min_ext)) && glm::all(glm::equal(max_ext, other.max_ext));
+    return glm::all(glm::equal(corners_[0], other.corners_[0])) && glm::all(glm::equal(corners_[1], other.corners_[1]));
   }
 
 
@@ -209,8 +276,8 @@ namespace ohm
 
   inline const Aabb &Aabb::operator=(const Aabb &other)
   {
-    min_ext = other.min_ext;
-    max_ext = other.max_ext;
+    corners_[0] = other.corners_[0];
+    corners_[1] = other.corners_[1];
     return *this;
   }
 
@@ -241,16 +308,16 @@ namespace ohm
 
   inline Aabb &Aabb::operator += (const glm::dvec3 &offset)
   {
-    min_ext += offset;
-    max_ext += offset;
+    corners_[0] += offset;
+    corners_[1] += offset;
     return *this;
   }
 
 
   inline Aabb &Aabb::operator -= (const glm::dvec3 &offset)
   {
-    min_ext -= offset;
-    max_ext -= offset;
+    corners_[0] -= offset;
+    corners_[1] -= offset;
     return *this;
   }
 
@@ -275,8 +342,8 @@ namespace ohm
 
   inline Aabb &Aabb::operator *= (double scalar)
   {
-    min_ext *= scalar;
-    max_ext *= scalar;
+    corners_[0] *= scalar;
+    corners_[1] *= scalar;
     return *this;
   }
 
@@ -284,9 +351,42 @@ namespace ohm
   inline Aabb &Aabb::operator /= (double scalar)
   {
     const double scalar_inv = 1.0 / scalar;
-    min_ext *= scalar_inv;
-    max_ext *= scalar_inv;
+    corners_[0] *= scalar_inv;
+    corners_[1] *= scalar_inv;
     return *this;
+  }
+
+
+  inline double Aabb::calcTimeVal(double limit, double origin, double direction)
+  {
+    // Always performing the line on the return value nearly works, but occasionally
+    // returns NaN instead of infinite results.
+    if (direction == std::numeric_limits<double>::infinity())
+    {
+      return sign(limit - origin) * std::numeric_limits<double>::infinity();
+    }
+    else if (direction == -std::numeric_limits<double>::infinity())
+    {
+      return sign(limit - origin) * -std::numeric_limits<double>::infinity();
+    }
+    return (limit - origin) * direction;
+  }
+
+
+  inline bool Aabb::calcIntervalOverlap(const glm::dvec2 &a, const glm::dvec2 &b, glm::dvec2 *overlap)
+  {
+    if (a[0] > b[1])
+    {
+      return false;
+    }
+    else if (b[0] > a[1])
+    {
+      return false;
+    }
+
+    (*overlap)[0] = std::max<float>(a[0], b[0]);
+    (*overlap)[1] = std::min<float>(a[1], b[1]);
+    return true;
   }
 }
 

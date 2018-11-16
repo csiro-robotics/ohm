@@ -28,6 +28,9 @@ namespace ohm
     static const unsigned kBuffersCount = 2;
     OccupancyMap *map;
     typedef std::unordered_multimap<unsigned, glm::i16vec3> RegionKeyMap;
+    // Ray/key buffer upload event pairs.
+    gputil::Event key_upload_events[kBuffersCount];
+    gputil::Buffer key_buffers[kBuffersCount];
     gputil::Event ray_upload_events[kBuffersCount];
     gputil::Buffer ray_buffers[kBuffersCount];
     gputil::Buffer transform_positions_buffer;

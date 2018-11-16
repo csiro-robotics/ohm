@@ -5,7 +5,9 @@
 // Author: Kazys Stepanas
 #include "GpuMap.h"
 
+#include "Aabb.h"
 #include "DefaultLayer.h"
+#include "GpuKey.h"
 #include "GpuCache.h"
 #include "GpuLayerCache.h"
 #include "GpuTransformSamples.h"
@@ -159,10 +161,10 @@ namespace ohm
   void releaseRegionUpdateGpu();
 
   int updateRegion(gputil::Queue &queue, gputil::Buffer &chunk_mem, gputil::Buffer &region_key_buffer,
-                   gputil::Buffer &region_offset_buffer, unsigned region_count, gputil::Buffer &ray_mem,
-                   unsigned ray_count, const glm::ivec3 &region_voxel_dimensions, double voxel_resolution,
-                   float adjust_miss, float adjust_hit, float min_voxel_value, float max_voxel_value,
-                   std::initializer_list<gputil::Event> events, gputil::Event *completion_event);
+                   gputil::Buffer &region_offset_buffer, unsigned region_count, gputil::Buffer &key_buffer,
+                   gputil::Buffer &ray_mem, unsigned ray_count, const glm::ivec3 &region_voxel_dimensions,
+                   double voxel_resolution, float adjust_miss, float adjust_hit, float min_voxel_value,
+                   float max_voxel_value, std::initializer_list<gputil::Event> events, gputil::Event *completion_event);
 }  // namespace ohm
 
 
@@ -235,6 +237,8 @@ GpuMap::GpuMap(OccupancyMap *map, bool borrowed_map, unsigned expected_point_cou
   const unsigned prealloc_region_count = 1024u;
   for (unsigned i = 0; i < GpuMapDetail::kBuffersCount; ++i)
   {
+    imp_->key_buffers[i] =
+      gputil::Buffer(gpu_cache.gpu(), sizeof(GpuKey) * expected_point_count, gputil::kBfReadHost);
     imp_->ray_buffers[i] =
       gputil::Buffer(gpu_cache.gpu(), sizeof(gputil::float3) * expected_point_count, gputil::kBfReadHost);
     imp_->region_key_buffers[i] =
@@ -299,102 +303,28 @@ void GpuMap::syncOccupancy()
 }
 
 
+unsigned GpuMap::integrateRays(const glm::dvec3 *rays, unsigned point_count, bool end_points_as_occupied,
+                               const Aabb &clip_box)
+{
+  // Wait for previous ray operations to complete.
+  const int buf_idx = imp_->next_buffers_index;
+  waitOnPreviousOperation(buf_idx);
+  return integrateRaysT<glm::dvec3>(
+    imp_->key_buffers[imp_->next_buffers_index], imp_->ray_buffers[imp_->next_buffers_index],
+    imp_->key_upload_events[imp_->next_buffers_index], imp_->ray_upload_events[imp_->next_buffers_index],
+    rays, point_count, end_points_as_occupied, clip_box);
+}
+
+
+unsigned GpuMap::integrateRays(const glm::dvec3 *rays, unsigned point_count, const Aabb &clip_box)
+{
+  return integrateRays(rays, point_count, true, clip_box);
+}
+
+
 unsigned GpuMap::integrateRays(const glm::dvec3 *rays, unsigned point_count, bool end_points_as_occupied)
 {
-  // Wait for previous ray operations to complete.
-  const int buf_idx = imp_->next_buffers_index;
-  waitOnPreviousOperation(buf_idx);
-  return integrateRaysT<glm::dvec3>(imp_->ray_buffers[imp_->next_buffers_index],
-                                    imp_->ray_upload_events[imp_->next_buffers_index], rays, point_count, false,
-                                    end_points_as_occupied);
-}
-
-
-unsigned GpuMap::integrateRays(gputil::Buffer &buffer, unsigned point_count, bool end_points_as_occupied)
-{
-  // Copy results into transformed_rays.
-  gputil::PinnedBuffer ray_buffer(buffer, gputil::kPinRead);
-  imp_->transformed_rays.resize(point_count);
-  ray_buffer.readElements<gputil::float3>(imp_->transformed_rays.data(), point_count);
-  ray_buffer.unpin();
-
-  // Preloaded buffer. Not waiting on any event.
-  gputil::Event dummy_event;
-  return integrateRaysT(buffer, dummy_event, imp_->transformed_rays.data(), point_count, true, end_points_as_occupied);
-}
-
-
-unsigned GpuMap::integrateRays(gputil::Buffer &buffer, const glm::vec3 *rays, unsigned point_count,
-                               bool end_points_as_occupied)
-{
-  // Preloaded buffer. Not waiting on any event.
-  gputil::Event dummy_event;
-  return integrateRaysT(buffer, dummy_event, rays, point_count, true, end_points_as_occupied);
-}
-
-
-unsigned GpuMap::integrateRays(gputil::Buffer &buffer, const glm::vec4 *rays, unsigned point_count,
-                               bool end_points_as_occupied)
-{
-  // Preloaded buffer. Not waiting on any event.
-  gputil::Event dummy_event;
-  return integrateRaysT(buffer, dummy_event, rays, point_count, true, end_points_as_occupied);
-}
-
-
-unsigned GpuMap::integrateRays(gputil::Buffer &buffer, const glm::dvec3 *rays, unsigned point_count,
-                               bool end_points_as_occupied)
-{
-  // Preloaded buffer. Not waiting on any event.
-  gputil::Event dummy_event;
-  return integrateRaysT(buffer, dummy_event, rays, point_count, true, end_points_as_occupied);
-}
-
-
-unsigned GpuMap::integrateLocalRays(const double *transform_times, const glm::dvec3 *transform_translations,
-                                    const glm::dquat *transform_rotations, unsigned transform_count,
-                                    const double *sample_times, const glm::dvec3 *local_samples, unsigned point_count,
-                                    bool end_points_as_occupied)
-{
-  if (!imp_->map)
-  {
-    return 0u;
-  }
-
-  if (!imp_->gpu_ok)
-  {
-    return 0u;
-  }
-
-  OccupancyMap &map = *imp_->map;
-  GpuCache *gpu_cache = gpumap::enableGpu(map);
-
-  if (!gpu_cache)
-  {
-    return 0u;
-  }
-
-  if (point_count == 0 || transform_count == 0)
-  {
-    return 0u;
-  }
-
-  // Wait for previous ray operations to complete.
-  const int buf_idx = imp_->next_buffers_index;
-  waitOnPreviousOperation(buf_idx);
-
-  unsigned upload_count = imp_->transform_samples->transform(
-    transform_times, transform_translations, transform_rotations, transform_count, sample_times, local_samples,
-    point_count, gpu_cache->gpuQueue(), imp_->ray_buffers[buf_idx], imp_->ray_upload_events[buf_idx],
-    imp_->max_range_filter);
-
-  if (upload_count == 0)
-  {
-    return 0u;
-  }
-
-  // Integrate rays from pre-existing buffer.
-  return integrateRays(imp_->ray_buffers[buf_idx], upload_count * 2, end_points_as_occupied);
+  return integrateRays(rays, point_count, end_points_as_occupied, Aabb(glm::dvec3(0), glm::dvec3(0)));
 }
 
 
@@ -405,8 +335,10 @@ GpuCache *GpuMap::gpuCache() const
 
 
 template <typename VEC_TYPE>
-unsigned GpuMap::integrateRaysT(gputil::Buffer &buffer, gputil::Event &buffer_event, const VEC_TYPE *rays,
-                                unsigned point_count, bool preloaded_buffer, bool end_points_as_occupied)
+unsigned GpuMap::integrateRaysT(gputil::Buffer &keys_buffer, gputil::Buffer &rays_buffer,
+                                gputil::Event &keys_buffer_event, gputil::Event &rays_buffer_event,
+                                const VEC_TYPE *rays, unsigned point_count, bool end_points_as_occupied,
+                                const Aabb &clip_box)
 {
   if (!imp_->map)
   {
@@ -435,11 +367,11 @@ unsigned GpuMap::integrateRaysT(gputil::Buffer &buffer, gputil::Event &buffer_ev
   // Check this first.
   // We still need a buffer index for event tracking.
   int buf_idx = -1;
-  if (&buffer == &imp_->ray_buffers[0])
+  if (&rays_buffer == &imp_->ray_buffers[0])
   {
     buf_idx = 0;
   }
-  else if (&buffer == &imp_->ray_buffers[1])
+  else if (&rays_buffer == &imp_->ray_buffers[1])
   {
     buf_idx = 1;
   }
@@ -470,40 +402,67 @@ unsigned GpuMap::integrateRaysT(gputil::Buffer &buffer, gputil::Event &buffer_ev
   };
 
   // Reserve GPU memory for the rays.
-  if (!preloaded_buffer)
-  {
-    buffer.resize(sizeof(gputil::float3) * point_count);
-  }
+  rays_buffer.resize(sizeof(gputil::float3) * point_count);
+  keys_buffer.resize(sizeof(GpuKey) * point_count);
 
-  gputil::PinnedBuffer ray_buffer;
-  glm::vec4 ray_start, ray_end;
+  gputil::PinnedBuffer rays_pinned(rays_buffer, gputil::kPinWrite);
+  gputil::PinnedBuffer keys_pinned(keys_buffer, gputil::kPinWrite);
 
-  if (!preloaded_buffer)
-  {
-    ray_buffer = gputil::PinnedBuffer(buffer, gputil::kPinWrite);
-  }
+  const bool clip_rays = clip_box != Aabb(glm::dvec3(0), glm::dvec3(0));
 
-
-  // TODO: break up long lines. Requires the kernel knows which are real end points and which aren't.
   // Build region set and upload rays.
   imp_->regions.clear();
+
+  glm::dvec3 ray_start_d, ray_end_d, start_voxel_centre;
+  glm::vec3 ray_start, ray_end, initial_ray_end;
   unsigned upload_count = 0u;
+  Key line_start_key, line_end_key;
+  GpuKey line_start_key_gpu, line_end_key_gpu;
+  bool clipped_ray_end = false;
   for (unsigned i = 0; i < point_count; i += 2)
   {
-    ray_start = glm::vec4(glm::vec3(rays[i + 0]), 0);
-    ray_end = glm::vec4(glm::vec3(rays[i + 1]), 0);
+    ray_start_d = rays[i + 0];
+    ray_end_d = rays[i + 1];
     if (!goodRay(ray_start, ray_end, imp_->max_range_filter))
     {
       continue;
     }
 
-    // Upload if not preloaded.
-    if (!preloaded_buffer)
+    if (clip_rays)
     {
-      ray_buffer.write(glm::value_ptr(ray_start), sizeof(glm::vec3), (upload_count + 0) * sizeof(gputil::float3));
-      ray_buffer.write(glm::value_ptr(ray_end), sizeof(glm::vec3), (upload_count + 1) * sizeof(gputil::float3));
-      upload_count += 2;
+      clipped_ray_end = clip_box.clipLine(ray_start_d, ray_end_d) | Aabb::ClippedEnd;
     }
+
+    // Upload if not preloaded.
+    line_start_key = map.voxelKey(ray_start_d);
+    line_end_key = map.voxelKey(ray_end_d);
+
+    line_start_key_gpu.region[0] = line_start_key.regionKey()[0];
+    line_start_key_gpu.region[1] = line_start_key.regionKey()[1];
+    line_start_key_gpu.region[2] = line_start_key.regionKey()[2];
+    line_start_key_gpu.voxel[0] = line_start_key.localKey()[0];
+    line_start_key_gpu.voxel[1] = line_start_key.localKey()[1];
+    line_start_key_gpu.voxel[2] = line_start_key.localKey()[2];
+    line_start_key_gpu.voxel[3] = 0;
+
+    line_end_key_gpu.region[0] = line_end_key.regionKey()[0];
+    line_end_key_gpu.region[1] = line_end_key.regionKey()[1];
+    line_end_key_gpu.region[2] = line_end_key.regionKey()[2];
+    line_end_key_gpu.voxel[0] = line_end_key.localKey()[0];
+    line_end_key_gpu.voxel[1] = line_end_key.localKey()[1];
+    line_end_key_gpu.voxel[2] = line_end_key.localKey()[2];
+    line_end_key_gpu.voxel[3] = (clipped_ray_end) ? 1 : 0;
+
+    keys_pinned.write(&line_start_key_gpu, sizeof(line_start_key_gpu), (upload_count + 0) * sizeof(GpuKey));
+    keys_pinned.write(&line_end_key_gpu, sizeof(line_end_key_gpu), (upload_count + 1) * sizeof(GpuKey));
+
+    // Localise the ray to single precision.
+    start_voxel_centre = map.voxelCentreGlobal(line_start_key);
+    ray_start = ray_start_d - start_voxel_centre;
+    ray_end = ray_end_d - start_voxel_centre;
+    rays_pinned.write(glm::value_ptr(ray_start), sizeof(glm::vec3), (upload_count + 0) * sizeof(gputil::float3));
+    rays_pinned.write(glm::value_ptr(ray_end), sizeof(glm::vec3), (upload_count + 1) * sizeof(gputil::float3));
+    upload_count += 2;
 
     // std::cout << i / 2 << ' ' <<
     // imp_->map->voxelKey(rays[i + 0]) << " -> " <<
@@ -513,13 +472,12 @@ unsigned GpuMap::integrateRaysT(gputil::Buffer &buffer, gputil::Event &buffer_ev
     walkRegions(*imp_->map, rays[i + 0], rays[i + 1], region_func);
   }
 
-  if (!preloaded_buffer)
-  {
-    upload_count = point_count;
-    // Asynchronous unpin. Kernels will wait on the associated event.
-    ray_buffer.unpin(&layer_cache.gpuQueue(), nullptr, &buffer_event);
-    imp_->ray_upload_events[buf_idx] = buffer_event;
-  }
+  upload_count = point_count;
+  // Asynchronous unpin. Kernels will wait on the associated event.
+  rays_pinned.unpin(&layer_cache.gpuQueue(), nullptr, &rays_buffer_event);
+  keys_pinned.unpin(&layer_cache.gpuQueue(), nullptr, &keys_buffer_event);
+  imp_->key_upload_events[buf_idx] = keys_buffer_event;
+  imp_->ray_upload_events[buf_idx] = rays_buffer_event;
 
   imp_->ray_counts[buf_idx] = unsigned(upload_count / 2);
 
@@ -554,6 +512,8 @@ void GpuMap::waitOnPreviousOperation(int buffer_index)
   imp_->region_update_events[buffer_index].wait();
   imp_->region_update_events[buffer_index].release();
 
+  imp_->key_upload_events[buffer_index].wait();
+  imp_->key_upload_events[buffer_index].release();
   imp_->ray_upload_events[buffer_index].wait();
   imp_->ray_upload_events[buffer_index].release();
 
@@ -644,11 +604,12 @@ void GpuMap::finaliseBatch(gputil::PinnedBuffer &regions_buffer, gputil::PinnedB
 
   // Enqueue update kernel.
   updateRegion(layer_cache.gpuQueue(), *layer_cache.buffer(), imp_->region_key_buffers[buf_idx],
-               imp_->region_offset_buffers[buf_idx], imp_->region_counts[buf_idx], imp_->ray_buffers[buf_idx],
-               imp_->ray_counts[buf_idx], map->region_voxel_dimensions, map->resolution, map->miss_value,
-               (end_points_as_occupied) ? map->hit_value : map->miss_value, map->min_voxel_value, map->max_voxel_value,
-               { imp_->ray_upload_events[buf_idx], imp_->region_key_upload_events[buf_idx],
-                 imp_->region_offset_upload_events[buf_idx] },
+               imp_->region_offset_buffers[buf_idx], imp_->region_counts[buf_idx], imp_->key_buffers[buf_idx],
+               imp_->ray_buffers[buf_idx], imp_->ray_counts[buf_idx], map->region_voxel_dimensions, map->resolution,
+               map->miss_value, (end_points_as_occupied) ? map->hit_value : map->miss_value, map->min_voxel_value,
+               map->max_voxel_value,
+               { imp_->key_upload_events[buf_idx], imp_->ray_upload_events[buf_idx],
+                 imp_->region_key_upload_events[buf_idx], imp_->region_offset_upload_events[buf_idx] },
                &imp_->region_update_events[buf_idx]);
   // gpu_cache.gpuQueue().flush();
 

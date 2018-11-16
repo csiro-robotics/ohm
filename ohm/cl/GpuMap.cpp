@@ -111,7 +111,7 @@ namespace ohm
                    gputil::Buffer &chunk_mem,
                    gputil::Buffer &region_key_buffer, gputil::Buffer &region_offset_buffer,
                    unsigned region_count,
-                   gputil::Buffer &ray_mem, unsigned ray_count,
+                   gputil::Buffer &keys_mem, gputil::Buffer &ray_mem, unsigned ray_count,
                    const glm::ivec3 &region_voxel_dimensions, double voxel_resolution,
                    float adjust_miss, float adjust_hit,
                    float min_voxel_value, float max_voxel_value,
@@ -153,7 +153,7 @@ namespace ohm
                          chunk_mem.arg<cl_mem>(),
                          region_key_buffer.arg<cl_mem>(), region_offset_buffer.arg<cl_mem>(),
                          region_count,
-                         ray_mem.arg<cl_mem>(), ray_count,
+                         keys_mem.arg<cl_mem>(), ray_mem.arg<cl_mem>(), ray_count,
                          region_dim_ocl, float(voxel_resolution),
                          adjust_miss, adjust_hit,
                          min_voxel_value, max_voxel_value);

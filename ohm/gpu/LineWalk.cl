@@ -244,6 +244,6 @@ void walkLineVoxels(const struct GpuKey *startKey, const struct GpuKey *endKey,
   // Walk end point.
   if (continueTraversal)
   {
-    walkLineVoxel(endKey, true, userData);
+    walkLineVoxel(endKey, endKey.voxel[3] == 0, userData);
   }
 }

@@ -30,6 +30,7 @@ namespace ohm
     /// Region key.
     short region[3];
     /// Voxel key.
+    // Element 3 is provided for padding, but may be used as a context based value.
     unsigned char voxel[4];
   };
 #ifndef __OPENCL_C_VERSION__

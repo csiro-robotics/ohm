@@ -4,8 +4,6 @@
 //------------------------------------------------------------------------------
 
 // Report regions we can't resolve via printf().
-// Note: it is valid to hit a missing region for one voxel in a line due to floating point error between the CPU
-// region walking and the voxel walking here. This is acceptable.
 //#define REPORT_MISSING_REGIONS
 
 // Limit the number of cells we can traverse in the line traversal. This is a worst case limit.
@@ -63,8 +61,6 @@ struct LineWalkData
   // a byte offset.
   uint regionVoxelOffset;
 #ifdef STORE_DEBUG_INFO
-  const float3 *lineStart;
-  const float3 *lineEnd;
   const struct GpuKey *startKey;
   const struct GpuKey *endKey;
 #endif // STORE_DEBUG_INFO
@@ -106,17 +102,17 @@ bool walkLineVoxel(const struct GpuKey *voxelKey, bool isEndVoxel, void *userDat
                             lineData->regionKeys, lineData->regionMemOffsets, lineData->regionCount,
                             sizeof(*lineData->voxels)))
   {
-    // We can fail to resolve a region an isolated voxel in the line. See REPORT_MISSING_REGIONS comments.
+    // We can fail to resolve regions along the in the line. This can occurs for several reasons:
+    // - Floating point error differences between CPU and GPU line walking means that the GPU may walk into the edge
+    //    of a region not hit when walking the regions on CPU.
+    // - Regions may not be uploaded due to extents limiting on CPU.
     #ifdef REPORT_MISSING_REGIONS
     printf("%u region missing: " KEY_F "\n"
            #ifdef STORE_DEBUG_INFO
-           "  Line: (%.16f,%.16f,%.16f)->(%.16f,%.16f,%.16f)\n"
            "  Voxels: " KEY_F "->" KEY_F"\n"
            #endif // STORE_DEBUG_INFO
            , get_global_id(0), KEY_A(*voxelKey)
            #ifdef STORE_DEBUG_INFO
-           , lineData->lineStart->x, lineData->lineStart->y, lineData->lineStart->z
-           , lineData->lineEnd->x, lineData->lineEnd->y, lineData->lineEnd->z
            , KEY_A(*lineData->startKey), KEY_A(*lineData->endKey)
            #endif // STORE_DEBUG_INFO
            );
@@ -145,7 +141,7 @@ bool walkLineVoxel(const struct GpuKey *voxelKey, bool isEndVoxel, void *userDat
     // Under high contension we can end up repeatedly failing to write the voxel value.
     // The primary concern is not deadlocking the GPU, so we put a hard limit on the numebr of
     // attempts made.
-    const int iterationLimit = 200;
+    const int iterationLimit = 20;
     int iterations = 0;
     #endif // LIMIT_VOXEL_WRITE_ITERATIONS
     do
@@ -153,7 +149,7 @@ bool walkLineVoxel(const struct GpuKey *voxelKey, bool isEndVoxel, void *userDat
       #ifdef LIMIT_VOXEL_WRITE_ITERATIONS
       if (iterations++ > iterationLimit)
       {
-        printf("%u excessive voxel update iterations " KEY_F ".\n", get_global_id(0), KEY_A(*voxelKey));
+        // printf("%u excessive voxel update iterations " KEY_F ".\n", get_global_id(0), KEY_A(*voxelKey));
         break;
       }
       #endif // LIMIT_VOXEL_WRITE_ITERATIONS
@@ -203,11 +199,38 @@ bool walkLineVoxel(const struct GpuKey *voxelKey, bool isEndVoxel, void *userDat
 //------------------------------------------------------------------------------
 // Kernel
 //------------------------------------------------------------------------------
+
+/// Integrate rays into voxel map regions.
+///
+/// Invoked one thread per ray (per @p lineKeys pair).
+///
+/// Like keys are provided in start/end key pairs in @p lineKeys where there are @p lineCount pairs. Each thread
+/// extracts it's start/end pair and performs a line walking algorithm from start to end key. The lines start end points
+/// are also provided, relative to the centre of the starting voxel. These start/end coordinate pairs are in
+/// @p localLines. The coordinates for each line are local to the starting voxel centre in order to avoid precision
+/// issues which may be introduced in converting from a common double precision frame on CPU into a single precision
+/// frame in GPU (we do not support double precision GPU due to the limited driver support).
+///
+/// For each voxel key along the line, we resolve a voxel in @p voxelsMem by cross referencing in
+/// @p regionKeysGlobal, @p regionMemOffsetsGlobal and @p regionCount. Voxels are split into regions in contiguous
+/// chunks in @p voxelsMem. The @c GpuKey::region for a voxel is matched in lookup @p regionKeysGlobal and the index
+/// into @p regionKeysGlobal recorded. This index is used to lookup @p regionMemOffsetsGlobal, which provides a byte
+/// offset (not elements) from @p voxelsMem at which the voxel memory for this voxel begins. Each voxel region has a
+/// number of voxels equal to <tt>regionDimensions.x * regionDimensions.y * regionDimensions.z</tt>.
+///
+/// Once voxel memory is resolved, the value of that voxel is updated by either adding @p rayAdjustment for all but
+/// the last voxel in the line, or @p lastVoxelAdjustment for the last voxel (exception listed below). The value is
+/// clamped to the range <tt>[voxelValueMin, voxelValueMax]</tt>. This adjustment is made in global memory using
+/// atomic operations. Success is not guaranteed, but is highly probably. This contension has performance impacts, but
+/// was found to be the best overall approach for performance.
+///
+/// The value adjustment of @p lastVoxelAdjustment is normally used for the last voxel in each line. This behaviour may
+/// be changed per line, by setting the value of @p GpuKey::voxel[3] (normally unused) to 1. This indicates the line has
+/// been clipped.
 __kernel void regionRayUpdate(__global occupancy_type *voxelsMem,
                               __global int3 *regionKeysGlobal,
-                              __global ulong *regionMemOffsetsGlobal,
-                              uint regionCount,
-                              __global float3 *lines, uint lineCount,
+                              __global ulong *regionMemOffsetsGlobal, uint regionCount,
+                              __global GpuKey *lineKeys, __global float3 *localLines, uint lineCount,
                               int3 regionDimensions, float voxelResolution,
                               float rayAdjustment, float lastVoxelAdjustment,
                               float voxelValueMin, float voxelValueMax
@@ -218,10 +241,6 @@ __kernel void regionRayUpdate(__global occupancy_type *voxelsMem,
   {
     return;
   }
-
-  float3 lineStart = lines[get_global_id(0) * 2 + 0];
-  // For an invalid line, set a zero length line.
-  float3 lineEnd = lines[get_global_id(0) * 2 + 1];
 
   struct LineWalkData lineData;
   lineData.voxels = voxelsMem;
@@ -238,11 +257,12 @@ __kernel void regionRayUpdate(__global occupancy_type *voxelsMem,
 
   // Now walk the clipped ray.
   struct GpuKey startKey, endKey;
-  coordToKey(&startKey, &lineStart, &regionDimensions, voxelResolution);
-  coordToKey(&endKey, &lineEnd, &regionDimensions, voxelResolution);
+  copyKey(&startKey, lineKeys[get_global_id(0) * 2 + 0]);
+  copyKey(&endKey, lineKeys[get_global_id(0) * 2 + 1]);
+
+  const float3 lineStart = localLines[get_global_id(0) * 2 + 0];
+  const float3 lineEnd = localLines[get_global_id(0) * 2 + 1];
 #ifdef STORE_DEBUG_INFO
-  lineData.lineStart = &lineStart;
-  lineData.lineEnd = &lineEnd;
   lineData.startKey = &startKey;
   lineData.endKey = &endKey;
 #endif // STORE_DEBUG_INFO
