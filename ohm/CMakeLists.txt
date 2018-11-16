@@ -26,6 +26,7 @@ set(SOURCES
   private/RoiRangeFill.cpp
   private/RoiRangeFill.h
   private/VoxelLayoutDetail.h
+  Aabb.h
   ClearanceProcess.cpp
   ClearanceProcess.h
   DataType.cpp
@@ -87,6 +88,7 @@ if(TES_ENABLE)
 endif(TES_ENABLE)
 
 set(PUBLIC_HEADERS
+  Aabb.h
   ClearanceProcess.h
   DataType.h
   DefaultLayer.h

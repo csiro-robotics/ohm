@@ -5,6 +5,7 @@
 // Author: Kazys Stepanas
 #include "OccupancyMap.h"
 
+#include "Aabb.h"
 #include "DefaultLayer.h"
 #include "KeyList.h"
 #include "MapCache.h"
@@ -557,35 +558,10 @@ unsigned OccupancyMap::removeDistanceRegions(const glm::dvec3 &relative_to, floa
 unsigned OccupancyMap::cullRegionsOutside(const glm::dvec3 &min_extents, const glm::dvec3 &max_extents)
 {
   const glm::dvec3 region_extents = imp_->region_spatial_dimensions;
-  const auto should_remove_chunk = [min_extents, max_extents, region_extents](const MapChunk &chunk) {
-    const glm::dvec3 region_min = chunk.region.centre - 0.5 * region_extents;
-    const glm::dvec3 region_max = chunk.region.centre + 0.5 * region_extents;
-
-    if (region_max.x < min_extents.x)
-    {
-      return true;  // region is left of box
-    }
-    if (region_min.x > max_extents.x)
-    {
-      return true;  // region is right of box
-    }
-    if (region_max.y < min_extents.y)
-    {
-      return true;  // region is in front of box
-    }
-    if (region_min.y > max_extents.y)
-    {
-      return true;  // region is behind box
-    }
-    if (region_max.z < min_extents.z)
-    {
-      return true;  // region is above box
-    }
-    if (region_min.z > max_extents.z)
-    {
-      return true;  // region is below box
-    }
-    return false;  // boxes overlap
+  const Aabb cullBox(min_extents, max_extents);
+  const auto should_remove_chunk = [cullBox, region_extents](const MapChunk &chunk) {
+    return !cullBox.overlaps(
+      Aabb(chunk.region.centre - 0.5 * region_extents, chunk.region.centre + 0.5 * region_extents));
   };
 
   return cullRegions(should_remove_chunk);
