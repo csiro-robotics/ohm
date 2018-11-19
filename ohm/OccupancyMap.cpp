@@ -31,8 +31,6 @@
 #include <limits>
 #include <utility>
 
-#pragma GCC optimize("O0")
-
 
 using namespace ohm;
 

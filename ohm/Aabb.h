@@ -8,6 +8,8 @@
 
 #include "OhmConfig.h"
 
+#include <algorithm>
+
 #include <glm/glm.hpp>
 
 namespace ohm
@@ -384,8 +386,8 @@ namespace ohm
       return false;
     }
 
-    (*overlap)[0] = std::max<float>(a[0], b[0]);
-    (*overlap)[1] = std::min<float>(a[1], b[1]);
+    (*overlap)[0] = std::max(a[0], b[0]);
+    (*overlap)[1] = std::min(a[1], b[1]);
     return true;
   }
 }

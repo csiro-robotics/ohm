@@ -414,7 +414,7 @@ unsigned GpuMap::integrateRaysT(gputil::Buffer &keys_buffer, gputil::Buffer &ray
   imp_->regions.clear();
 
   glm::dvec3 ray_start_d, ray_end_d, start_voxel_centre;
-  glm::vec3 ray_start, ray_end, initial_ray_end;
+  glm::vec3 ray_start, ray_end;
   unsigned upload_count = 0u;
   Key line_start_key, line_end_key;
   GpuKey line_start_key_gpu, line_end_key_gpu;
