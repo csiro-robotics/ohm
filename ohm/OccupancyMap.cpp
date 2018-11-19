@@ -864,26 +864,39 @@ void OccupancyMap::integrateRays(const glm::dvec3 *rays, size_t point_count, boo
   KeyList keys;
   MapCache cache;
   glm::dvec3 start, end;
+  unsigned clip_flags = 0;
+  bool clipped_sample_voxel;
 
   for (size_t i = 0; i < point_count; i += 2)
   {
     start = rays[i];
     end = rays[i + 1];
 
-    const bool use_end_point = !clip_box.isValid() || clip_box.contains(end);
+    clipped_sample_voxel = false;
     if (clip_box.isValid())
     {
-      clip_box.clipLine(start, end);
+      if (!clip_box.clipLine(start, end, &clip_flags))
+      {
+        // Does not intersect the clip box. Skip the ray.
+        continue;
+      }
+
+      // Has the end voxel changed? If so, we do not integrate the end voxel.
+      if (voxelKey(end) != voxelKey(rays[i + 1]))
+      {
+        // Sample voxel has been clipped. We won't integrate it.
+        clipped_sample_voxel = true;
+      }
     }
     // Calculate line key for the last voxel if the end point has been clipped
-    calculateSegmentKeys(keys, start, end, !use_end_point);
+    calculateSegmentKeys(keys, start, end, clipped_sample_voxel);
 
     for (auto &&key : keys)
     {
       integrateMiss(key, &cache);
     }
 
-    if (use_end_point)
+    if (!clipped_sample_voxel)
     {
       if (end_points_as_occupied)
       {

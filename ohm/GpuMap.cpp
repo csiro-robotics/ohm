@@ -407,14 +407,34 @@ unsigned GpuMap::integrateRaysT(const VEC_TYPE *rays, unsigned point_count, bool
       continue;
     }
 
+    line_end_key = map.voxelKey(ray_end_d);
+    clipped_ray_end = false;
     if (clip_rays)
     {
-      clipped_ray_end = clip_box.clipLine(ray_start_d, ray_end_d) | Aabb::ClippedEnd;
+      unsigned line_clip_flags = 0;
+
+      if (!clip_box.clipLine(ray_start_d, ray_end_d, &line_clip_flags))
+      {
+        // Line segment/ray does not intersect the box. Skip it.
+        continue;
+      }
+
+      // Was the end of the line clipped?
+      if (line_clip_flags | Aabb::kClippedEnd)
+      {
+        // If the line end was clipped, the last voxel may no longer be the sample voxel, in which case it needs to
+        // be marked as free not occupied. However, we can clip the line and have the same end voxel.
+        Key clipped_end_voxel = map.voxelKey(ray_end_d);
+        if (clipped_end_voxel != line_end_key)
+        {
+          line_end_key = clipped_end_voxel;
+          clipped_ray_end = true;
+        }
+      }
     }
 
     // Upload if not preloaded.
     line_start_key = map.voxelKey(ray_start_d);
-    line_end_key = map.voxelKey(ray_end_d);
 
     line_start_key_gpu.region[0] = line_start_key.regionKey()[0];
     line_start_key_gpu.region[1] = line_start_key.regionKey()[1];

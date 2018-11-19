@@ -143,15 +143,17 @@ namespace ohm
     /// Flags for clipping results.
     enum ClipResult
     {
-      ClippedStart = (1 << 0),
-      ClippedEnd = (1 << 1)
+      kClippedStart = (1 << 0),
+      kClippedEnd = (1 << 1)
     };
 
     /// Clip the line from @p start to @p end such that both points lie in or on the box.
     /// @param[in,out] start The line start point.
     /// @param[in,out] end The line end point.
-    /// @return Clipping flags: @c ClipResult.
-    unsigned clipLine(glm::dvec3 &start, glm::dvec3 &end) const;
+    /// @param[out] clip_flags Clipping flags indicating how the line has been clipped. See : @c ClipResult.
+    /// @return True when the line segment intersects the box and has been clipped. Essentially, false when @p start
+    ///     and @p end are unmodified.
+    bool clipLine(glm::dvec3 &start, glm::dvec3 &end, unsigned *clip_flags = nullptr) const;
 
     /// Test for precise quality between this and @p other.
     /// @param other The box to test against.
@@ -265,7 +267,7 @@ namespace ohm
   inline bool Aabb::isValid() const { return glm::all(glm::lessThan(corners_[0], corners_[1])); }
 
 
-  inline unsigned Aabb::clipLine(glm::dvec3 &start, glm::dvec3 &end) const
+  inline bool Aabb::clipLine(glm::dvec3 &start, glm::dvec3 &end, unsigned *clip_flags) const
   {
     // From: https://tavianator.com/fast-branchless-raybounding-box-intersections/
     // Convert to ray format.
@@ -279,6 +281,11 @@ namespace ohm
     // TODO(KS): remove branching.
     glm::dvec2 tx, ty, tz;
 
+    if (clip_flags)
+    {
+      *clip_flags = 0;
+    }
+
     tx[0] = calcTimeVal(corners_[sign[0]].x, origin.x, inv_dir.x);
     tx[1] = calcTimeVal(corners_[1 - sign[0]].x, origin.x, inv_dir.x);
     ty[0] = calcTimeVal(corners_[sign[1]].y, origin.y, inv_dir.y);
@@ -288,7 +295,7 @@ namespace ohm
 
     if (!calcIntervalOverlap(tx, ty, &tbest))
     {
-      return 0;
+      return false;
     }
 
     tz[0] = calcTimeVal(corners_[sign[2]].z, origin.z, inv_dir.z);
@@ -296,9 +303,10 @@ namespace ohm
 
     if (!calcIntervalOverlap(tbest, tz, &tbest))
     {
-      return 0;
+      return false;
     }
 
+    bool intersected = false;
     unsigned clipped_flags = 0;
     if (tbest[0] > 0)
     {
@@ -307,7 +315,12 @@ namespace ohm
       start[0] = std::max(corners_[0][0], std::min(start[0], corners_[1][0]));
       start[1] = std::max(corners_[0][1], std::min(start[1], corners_[1][1]));
       start[2] = std::max(corners_[0][2], std::min(start[2], corners_[1][2]));
-      clipped_flags |= ClippedStart;
+      if (clip_flags)
+      {
+        *clip_flags |= kClippedStart;
+      }
+
+      intersected = true;
     }
 
     if (tbest[1] < max_time)
@@ -317,10 +330,15 @@ namespace ohm
       end[0] = std::max(corners_[0][0], std::min(end[0], corners_[1][0]));
       end[1] = std::max(corners_[0][1], std::min(end[1], corners_[1][1]));
       end[2] = std::max(corners_[0][2], std::min(end[2], corners_[1][2]));
-      clipped_flags |= ClippedEnd;
+      if (clip_flags)
+      {
+        *clip_flags |= kClippedEnd;
+      }
+
+      intersected = true;
     }
 
-    return clipped_flags;
+    return intersected;
   }
 
 
