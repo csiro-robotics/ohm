@@ -1131,6 +1131,12 @@ void OccupancyMap::clear()
     releaseChunk(chunk_ref.second);
   }
   imp_->chunks.clear();
+
+  // Clear the GPU cache (if present).
+  if (imp_->gpu_cache)
+  {
+    imp_->gpu_cache->clear();
+  }
 }
 
 

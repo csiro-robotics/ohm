@@ -5,6 +5,7 @@
 // Author: Kazys Stepanas
 #include <gtest/gtest.h>
 
+#include <ohm/Aabb.h>
 #include <ohm/GpuMap.h>
 #include <ohm/KeyList.h>
 #include <ohm/MapCache.h>
@@ -459,5 +460,140 @@ namespace gpumap
 
     // gpuMapTest(resolution, regionSize, rays, compareResults, "grid-");
     gpuMapTest(resolution, region_size, rays, compare_and_clear, "grid-");
+  }
+
+
+  TEST(GpuMap, ClipBox)
+  {
+    // Test clipping of rays to an Aabb on insert.
+    const double resolution = 0.2;
+    const unsigned batch_size = 2 * 1024u;
+    const uint8_t region_size = 32u;
+    OccupancyMap gpu_map(resolution, glm::u8vec3(region_size));
+    GpuMap gpu_wrap(&gpu_map, true, unsigned(batch_size * 2));  // Borrow pointer.
+
+    Aabb clip_box(glm::dvec3(-1.0), glm::dvec3(2.0));
+    std::vector<glm::dvec3> rays;
+
+    // Start with rays which pass through the box.
+    rays.push_back(glm::dvec3(-2, 0, 0));
+    rays.push_back(glm::dvec3(3, 0, 0));
+
+    rays.push_back(glm::dvec3(0, -2, 0));
+    rays.push_back(glm::dvec3(0, 3, 0));
+
+    rays.push_back(glm::dvec3(0, 0, 3));
+    rays.push_back(glm::dvec3(0, 0, -2));
+
+    gpu_wrap.integrateRays(rays.data(), unsigned(rays.size()), clip_box);
+    gpu_wrap.syncOccupancy();
+
+    // Validate the map contains no occupied points; only free and unknown.
+    const glm::dvec3 voxel_half_extents(0.5 * gpu_map.resolution());
+    bool touched = false;
+    for (auto iter = gpu_map.begin(); iter != gpu_map.end(); ++iter)
+    {
+      Voxel &voxel = *iter;
+      touched = true;
+
+      if (voxel.isValid())
+      {
+        if (!voxel.isUncertain())
+        {
+          EXPECT_LT(voxel.value(), gpu_map.occupancyThresholdValue());
+          EXPECT_FALSE(voxel.isOccupied());
+
+          // Voxel should also be with in the bounds of the Aabb. Check this.
+          const Aabb voxel_box(voxel.centreGlobal() - voxel_half_extents, voxel.centreGlobal() + voxel_half_extents);
+          EXPECT_TRUE(clip_box.overlaps(voxel_box)) << "Voxel box does not overlap extents";
+        }
+      }
+    }
+
+    EXPECT_TRUE(touched);
+
+    // Reset the map. This also tests that resetting a GPU map works.
+    gpu_map.clear();
+
+    // Now rays which enter the box, ending at the origin.
+    // Start with rays which pass through the box.
+    rays.push_back(glm::dvec3(-2, 0, 0));
+    rays.push_back(glm::dvec3(0, 0, 0));
+
+    rays.push_back(glm::dvec3(0, -2, 0));
+    rays.push_back(glm::dvec3(0, 0, 0));
+
+    rays.push_back(glm::dvec3(0, 0, 3));
+    rays.push_back(glm::dvec3(0, 0, 0));
+
+    gpu_wrap.integrateRays(rays.data(), unsigned(rays.size()), clip_box);
+    gpu_wrap.syncOccupancy();
+
+    // Validate the map contains no occupied points; only free and unknown.
+    const Key target_key = gpu_map.voxelKey(glm::dvec3(0));
+    touched = false;
+    for (auto iter = gpu_map.begin(); iter != gpu_map.end(); ++iter)
+    {
+      Voxel &voxel = *iter;
+      touched = true;
+
+      if (voxel.isValid())
+      {
+        if (voxel.key() != target_key)
+        {
+          if (!voxel.isUncertain())
+          {
+            EXPECT_LT(voxel.value(), gpu_map.occupancyThresholdValue());
+          }
+          EXPECT_FALSE(voxel.isOccupied());
+        }
+        else
+        {
+          EXPECT_GE(voxel.value(), gpu_map.occupancyThresholdValue());
+          EXPECT_TRUE(voxel.isOccupied());
+        }
+
+        // Touched voxels should also be with in the bounds of the Aabb. Check this.
+        if (!voxel.isUncertain())
+        {
+          const Aabb voxel_box(voxel.centreGlobal() - voxel_half_extents, voxel.centreGlobal() + voxel_half_extents);
+          EXPECT_TRUE(clip_box.overlaps(voxel_box)) << "Voxel box does not overlap extents";
+        }
+      }
+    }
+
+    EXPECT_TRUE(touched);
+  }
+
+
+  TEST(GpuMap, ClipBoxCompare)
+  {
+    // Test clipping of rays to an Aabb on insert.
+    const double resolution = 0.2;
+    const unsigned batch_size = 2 * 1024u;
+    const uint8_t region_size = 32u;
+    OccupancyMap cpu_map(resolution, glm::u8vec3(region_size));
+    OccupancyMap gpu_map(resolution, glm::u8vec3(region_size));
+    GpuMap gpu_wrap(&gpu_map, true, unsigned(batch_size * 2));  // Borrow pointer.
+
+    Aabb clip_box(glm::dvec3(-1.0), glm::dvec3(2.0));
+    std::vector<glm::dvec3> rays;
+
+    // Compare GPU/CPU map clipping results.
+    // Start with rays which pass through the box.
+    rays.push_back(glm::dvec3(-2, 0, 0));
+    rays.push_back(glm::dvec3(0, 0, 0));
+
+    rays.push_back(glm::dvec3(0, -2, 0));
+    rays.push_back(glm::dvec3(0, 0, 0));
+
+    rays.push_back(glm::dvec3(0, 0, 3));
+    rays.push_back(glm::dvec3(0, 0, 0));
+
+    cpu_map.integrateRays(rays.data(), unsigned(rays.size()), clip_box);
+    gpu_wrap.integrateRays(rays.data(), unsigned(rays.size()), clip_box);
+    gpu_wrap.syncOccupancy();
+
+    compareMaps(cpu_map, gpu_map);
   }
 }  // namespace gpumap

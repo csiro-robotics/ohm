@@ -298,6 +298,11 @@ unsigned GpuLayerCache::cacheSize() const
 
 void GpuLayerCache::clear()
 {
+  // Ensure all outstanding GPU transactions are complete, but do not sync.
+  for (auto &&entry : imp_->cache)
+  {
+    entry.second.sync_event.wait();
+  }
   imp_->cache.clear();
 }
 

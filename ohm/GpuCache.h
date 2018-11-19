@@ -99,6 +99,9 @@ namespace ohm
     /// @param region_key The key of the region to remove.
     void remove(const glm::i16vec3 &region_key);
 
+    /// Drop all regions from all layers.
+    void clear();
+
     /// Access the GPU @c gputil::Device associated with GPU operations.
     /// @return The bound @c gputil::Device.
     gputil::Device &gpu();
