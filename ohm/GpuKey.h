@@ -57,7 +57,7 @@ void copyKey(struct GpuKey *out, const struct GpuKey *in)
 }
 #else  // __OPENCL_C_VERSION__ >= 200
 // copyKey implemented with a macro as before OpenCL 2.0 we need to cater for __global memory qualifier.
-#define copyKey(out, in) *out = *in;
+#define copyKey(out, in) *out = *in
 #endif // __OPENCL_C_VERSION__ >= 200
 
 void stepKeyAlongAxis(struct GpuKey *key, int axis, int step, const int3 *regionDim)

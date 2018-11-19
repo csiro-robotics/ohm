@@ -107,16 +107,11 @@ namespace ohm
     }
   }
 
-  int updateRegion(gputil::Queue &queue,
-                   gputil::Buffer &chunk_mem,
-                   gputil::Buffer &region_key_buffer, gputil::Buffer &region_offset_buffer,
-                   unsigned region_count,
-                   gputil::Buffer &keys_mem, gputil::Buffer &ray_mem, unsigned ray_count,
-                   const glm::ivec3 &region_voxel_dimensions, double voxel_resolution,
-                   float adjust_miss, float adjust_hit,
-                   float min_voxel_value, float max_voxel_value,
-                   std::initializer_list<gputil::Event> events,
-                   gputil::Event *completion_event)
+  int updateRegion(gputil::Queue &queue, gputil::Buffer &chunk_mem, gputil::Buffer &region_key_buffer,
+                   gputil::Buffer &region_offset_buffer, unsigned region_count, gputil::Buffer &keys_mem,
+                   gputil::Buffer &ray_mem, unsigned ray_count, const glm::ivec3 &region_voxel_dimensions,
+                   double voxel_resolution, float adjust_miss, float adjust_hit, float min_voxel_value,
+                   float max_voxel_value, std::initializer_list<gputil::Event> events, gputil::Event *completion_event)
   {
     cl_int clerr = CL_SUCCESS;
     clu::KernelGrid grid;
@@ -173,7 +168,7 @@ namespace ohm
       return clerr;
     }
 
-    //clFlush(queueOcl());
+    //clFlush(queue_ocl());
 
 //#ifdef OHM_PROFILE
 //    {

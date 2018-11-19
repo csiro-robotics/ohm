@@ -5,20 +5,20 @@
 // Author: Kazys Stepanas
 #include <gtest/gtest.h>
 
-#include <ohm/MapCache.h>
 #include <ohm/GpuMap.h>
-#include <ohm/OccupancyMap.h>
 #include <ohm/KeyList.h>
-#include <ohm/OccupancyUtil.h>
-#include <ohm/MapProbability.h>
+#include <ohm/MapCache.h>
 #include <ohm/MapChunk.h>
+#include <ohm/MapProbability.h>
+#include <ohm/OccupancyMap.h>
+#include <ohm/OccupancyUtil.h>
 
 #include <ohmtools/OhmCloud.h>
 #include <ohmutil/OhmUtil.h>
 
 #include <chrono>
-#include <iostream>
 #include <fstream>
+#include <iostream>
 #include <random>
 
 using namespace ohm;
@@ -27,7 +27,7 @@ namespace gpumap
 {
   typedef std::chrono::high_resolution_clock TimingClock;
 
-  typedef std::function<void (OccupancyMap &, GpuMap &)> PostGpuMapTestFunc;
+  typedef std::function<void(OccupancyMap &, GpuMap &)> PostGpuMapTestFunc;
 
   bool dump_keys = false;
 
@@ -53,24 +53,21 @@ namespace gpumap
 
       if (dump_keys)
       {
-          std::cout << "* " << map.voxelKey(rays[i + 1]) << '\n';
+        std::cout << "* " << map.voxelKey(rays[i + 1]) << '\n';
       }
 
       dump_keys = false;
     }
   }
 
-  void gpuMapTest(double resolution, const glm::u8vec3 &region_size,
-                  const std::vector<glm::dvec3> &rays,
-                  const PostGpuMapTestFunc &post_populate,
-                  const char *save_prefix = nullptr,
-                  size_t batch_size = 0u,
+  void gpuMapTest(double resolution, const glm::u8vec3 &region_size, const std::vector<glm::dvec3> &rays,
+                  const PostGpuMapTestFunc &post_populate, const char *save_prefix = nullptr, size_t batch_size = 0u,
                   size_t gpu_mem_size = 0u)
   {
     // Test basic map populate using GPU and ensure it matches CPU (close enough).
     OccupancyMap cpu_map(resolution, region_size);
     OccupancyMap gpu_map(resolution, region_size);
-    GpuMap gpu_wrap(&gpu_map, true, unsigned(batch_size * 2), gpu_mem_size); // Borrow pointer.
+    GpuMap gpu_wrap(&gpu_map, true, unsigned(batch_size * 2), gpu_mem_size);  // Borrow pointer.
 
     ASSERT_TRUE(gpu_wrap.gpuOk());
 
@@ -120,7 +117,7 @@ namespace gpumap
       out << '\n';
     }
     return;
-#endif // #
+#endif  // #
 
     std::cout << "GPU " << std::flush;
     const auto gpu_start = TimingClock::now();
@@ -177,14 +174,19 @@ namespace gpumap
     unsigned processed = 0;
     unsigned logged_failures = 0;
     float expect, actual;
+
+    const auto should_report_failure = [&failures, &processed, &logged_failures, &allowed_failure_ratio]() {
+      return float(failures) / float(processed) > allowed_failure_ratio && logged_failures < 100;
+    };
+
     for (auto iter = reference_map.begin(); iter != reference_map.end(); ++iter)
     {
       if (iter->isValid() && iter->value() != ohm::voxel::invalidMarkerValue())
       {
         ++processed;
         ohm::VoxelConst gpu_voxel = test_map.voxel(iter->key());
-        EXPECT_TRUE(gpu_voxel.isValid());
-        if (gpu_voxel.isValid() && gpu_voxel.value())
+
+        if (gpu_voxel.isValid())
         {
           expect = iter->value();
           actual = gpu_voxel.value();
@@ -193,11 +195,20 @@ namespace gpumap
           {
             ++failures;
 
-            if (float(failures) / float(processed) > allowed_failure_ratio && logged_failures < 100)
+            if (should_report_failure())
             {
               EXPECT_NEAR(expect, actual, reference_map.hitValue() * 0.5f);
               ++logged_failures;
             }
+          }
+        }
+        else
+        {
+          ++failures;
+          if (should_report_failure())
+          {
+            EXPECT_TRUE(gpu_voxel.isValid());
+            ++logged_failures;
           }
         }
       }
@@ -225,8 +236,8 @@ namespace gpumap
     rays.emplace_back(glm::dvec3(0.3));
     rays.emplace_back(glm::dvec3(1.1));
 
-    rays.emplace_back(glm::dvec3(-5.0));
-    rays.emplace_back(glm::dvec3(0.3));
+    // rays.emplace_back(glm::dvec3(-5.0));
+    // rays.emplace_back(glm::dvec3(0.3));
 
     gpuMapTest(resolution, region_size, rays, compareCpuGpuMaps, "tiny", batch_size);
   }
@@ -301,7 +312,7 @@ namespace gpumap
     const double map_extents = 50.0;
     const double resolution = 0.25;
     const unsigned ray_count = 1024 * 8;
-    const unsigned batch_size = 1024 * 2; // Must be even
+    const unsigned batch_size = 1024 * 2;  // Must be even
     const glm::u8vec3 region_size(32);
     // Make some rays.
     std::mt19937 rand_engine;
@@ -316,9 +327,9 @@ namespace gpumap
 
     // Two simultaneous, maps with the same scope.
     OccupancyMap map1(resolution, region_size);
-    GpuMap gpu_map1(&map1, true); // Borrow pointer.
+    GpuMap gpu_map1(&map1, true);  // Borrow pointer.
     OccupancyMap map2(resolution, region_size);
-    GpuMap gpu_map2(&map2, true); // Borrow pointer.
+    GpuMap gpu_map2(&map2, true);  // Borrow pointer.
 
     // Third map with transient GpuMap wrapper.
     OccupancyMap map3(resolution, region_size);
@@ -332,14 +343,14 @@ namespace gpumap
       gpu_map1.integrateRays(rays.data() + i, current_batch_size);
       gpu_map2.integrateRays(rays.data() + i, current_batch_size);
 
-      GpuMap gpu_map3(&map3, true); // Borrow pointer.
+      GpuMap gpu_map3(&map3, true);  // Borrow pointer.
       gpu_map3.integrateRays(rays.data() + i, current_batch_size);
       gpu_map3.syncOccupancy();
 
       // Forth, transient map.
       OccupancyMap map4(resolution, region_size);
       // std::cout << "\n" << map4.origin() << std::endl;
-      GpuMap gpu_map4(&map4, true); // Borrow pointer.
+      GpuMap gpu_map4(&map4, true);  // Borrow pointer.
       gpu_map4.integrateRays(rays.data() + i, current_batch_size);
       gpu_map4.syncOccupancy();
     }
@@ -381,8 +392,7 @@ namespace gpumap
       }
     }
 
-    const auto compare_results = [region_size] (OccupancyMap &cpu_map, OccupancyMap &gpu_map)
-    {
+    const auto compare_results = [region_size](OccupancyMap &cpu_map, OccupancyMap &gpu_map) {
       Key key(glm::i16vec3(0), 0, 0, 0);
       VoxelConst cpu_voxel, gpu_voxel;
       // Walk the region pulling a voxel from both maps and comparing.
@@ -412,8 +422,7 @@ namespace gpumap
       }
     };
 
-    const auto compare_and_clear = [region_size, compare_results] (OccupancyMap &cpu_map, GpuMap &gpu_map)
-    {
+    const auto compare_and_clear = [region_size, compare_results](OccupancyMap &cpu_map, GpuMap &gpu_map) {
       compare_results(cpu_map, gpu_map.map());
 
       // Now we will try clear all the voxels from the bottom slice, except for those at max Y in the region.
@@ -451,4 +460,4 @@ namespace gpumap
     // gpuMapTest(resolution, regionSize, rays, compareResults, "grid-");
     gpuMapTest(resolution, region_size, rays, compare_and_clear, "grid-");
   }
-}
+}  // namespace gpumap

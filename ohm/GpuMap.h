@@ -183,9 +183,8 @@ namespace ohm
 
   private:
     template <typename VEC_TYPE>
-    unsigned integrateRaysT(gputil::Buffer &keys_buffer, gputil::Buffer &rays_buffer, gputil::Event &keys_buffer_event,
-                            gputil::Event &rays_buffer_event, const VEC_TYPE *rays, unsigned point_count,
-                            bool end_points_as_occupied, const Aabb &clip_box);
+    unsigned integrateRaysT(const VEC_TYPE *rays, unsigned point_count, bool end_points_as_occupied,
+                            const Aabb &clip_box);
 
     /// Wait for previous ray batch, as indicated by @p buffer_index, to complete.
     /// @param buffer_index Identifies the batch to wait on.

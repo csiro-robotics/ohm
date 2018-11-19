@@ -92,9 +92,12 @@ bool walkLineVoxel(const struct GpuKey *voxelKey, bool isEndVoxel, void *userDat
 
   struct LineWalkData *lineData = (struct LineWalkData *)userData;
 
+  // Adjust value by rayAdjustment unless this is the sample voxel.
+  const float adjustment = (!isEndVoxel) ? lineData->rayAdjustment : lineData->sampleAdjustment;
+
   // if (get_global_id(0) == 6)
   // {
-  //   printf("%u @ " KEY_F "\n", get_global_id(0), KEY_A(*voxelKey));
+  //   printf("%u @ " KEY_F " delta: %f\n", get_global_id(0), KEY_A(*voxelKey), adjustment);
   // }
 
   // Resolve memory offset for the region of interest.
@@ -160,9 +163,6 @@ bool walkLineVoxel(const struct GpuKey *voxelKey, bool isEndVoxel, void *userDat
       #else  // __OPENCL_C_VERSION__ >= 200
       old_value.i = new_value.i = *voxel_ptr.i;
       #endif  // __OPENCL_C_VERSION__ >= 200
-
-      // Adjust value by rayAdjustment unless this is the sample voxel.
-      const float adjustment = (!isEndVoxel) ? lineData->rayAdjustment : lineData->sampleAdjustment;
 
       #if __OPENCL_C_VERSION__ >= 200
       // Uninitialised voxels start at INFINITY.
@@ -230,7 +230,7 @@ bool walkLineVoxel(const struct GpuKey *voxelKey, bool isEndVoxel, void *userDat
 __kernel void regionRayUpdate(__global occupancy_type *voxelsMem,
                               __global int3 *regionKeysGlobal,
                               __global ulong *regionMemOffsetsGlobal, uint regionCount,
-                              __global GpuKey *lineKeys, __global float3 *localLines, uint lineCount,
+                              __global struct GpuKey *lineKeys, __global float3 *localLines, uint lineCount,
                               int3 regionDimensions, float voxelResolution,
                               float rayAdjustment, float lastVoxelAdjustment,
                               float voxelValueMin, float voxelValueMax
@@ -257,8 +257,8 @@ __kernel void regionRayUpdate(__global occupancy_type *voxelsMem,
 
   // Now walk the clipped ray.
   struct GpuKey startKey, endKey;
-  copyKey(&startKey, lineKeys[get_global_id(0) * 2 + 0]);
-  copyKey(&endKey, lineKeys[get_global_id(0) * 2 + 1]);
+  copyKey(&startKey, &lineKeys[get_global_id(0) * 2 + 0]);
+  copyKey(&endKey, &lineKeys[get_global_id(0) * 2 + 1]);
 
   const float3 lineStart = localLines[get_global_id(0) * 2 + 0];
   const float3 lineEnd = localLines[get_global_id(0) * 2 + 1];
@@ -266,5 +266,11 @@ __kernel void regionRayUpdate(__global occupancy_type *voxelsMem,
   lineData.startKey = &startKey;
   lineData.endKey = &endKey;
 #endif // STORE_DEBUG_INFO
+
+  // printf("t[%u]: Line: (%f %f %f)->(%f %f %f), Keys: " KEY_F "->" KEY_F "\n",
+  //   get_global_id(0), lineStart.x, lineStart.y, lineStart.z, lineEnd.x, lineEnd.y, lineEnd.z,
+  //   KEY_A(startKey), KEY_A(endKey)
+  // );
+
   walkLineVoxels(&startKey, &endKey, &lineStart, &lineEnd, &regionDimensions, voxelResolution, &lineData);
 }

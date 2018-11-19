@@ -20,6 +20,15 @@ namespace ohm
   public:
     /// Empty constructor: uninitialised.
     Aabb();
+
+    /// Create an initialised AABB using the given @p seed scalar.
+    ///
+    /// The resulting box has all channels set to @p seed. This box will not pass @c isValid(), but is initialised.
+    /// Typically, use this constructor to ensure an initialised, but unpopulated box calling @c Aabb(0.0).
+    ///
+    /// @param seed The seed value for all channels.
+    Aabb(double seed);
+
     /// Copy constructor.
     /// @param other Value to copy.
     Aabb(const Aabb &other);
@@ -80,6 +89,29 @@ namespace ohm
     /// @return The full extents (the diagonal).
     inline glm::dvec3 diagonal() const { return corners_[1] - centre(); }
 
+    /// Corner indexing enum. See @c corner()
+    /// Corners are defined by a three letter acronym, each letter referencing a axis in XYZ order.
+    /// Each letter may be either L/l for lower bound (minimum extent) or U/u for upper bound (maximum extent).
+    enum CornerIndex : int
+    {
+      kCornerLll,
+      kCornerUll,
+      kCornerLul,
+      kCornerUul,
+      kCornerLlu,
+      kCornerUlu,
+      kCornerLuu,
+      kCornerUuu,
+      kCornerCount
+    };
+
+    /// Return a corner point of the box.
+    ///
+    /// The corner indexing is defined by @c CornerIndex.
+    /// @param corner_index The index of the corner of interest [0, 8).
+    /// @return The coordinates of the requested corner.
+    glm::dvec3 corner(int corner_index) const;
+
     /// Test whether this box and @p other overlap. Touching is considered an overlap.
     ///
     /// The box is optionally extended by @p epsilon.
@@ -103,6 +135,10 @@ namespace ohm
     /// @param epsilon Error tolerance value.
     /// @return True if this and @p other are within @p epsilon of equality (per axis error).
     bool isEqual(const Aabb &other, double epsilon) const;
+
+    /// Is this a valid AABB where the minimum corner is less than the maximum.
+    /// @return True if this is a valid, non-zero sized box.
+    bool isValid() const;
 
     /// Flags for clipping results.
     enum ClipResult
@@ -135,33 +171,36 @@ namespace ohm
     /// Translate the box by @p offset.
     /// @param offset Translation to apply.
     /// @return *this
-    Aabb &operator += (const glm::dvec3 &offset);
+    Aabb &operator+=(const glm::dvec3 &offset);
 
     /// Translate the box by @p -offset.
     /// @param offset Inverse of the translation to apply.
     /// @return *this
-    Aabb &operator -= (const glm::dvec3 &offset);
+    Aabb &operator-=(const glm::dvec3 &offset);
 
     /// Scale box by @p scalar.
     /// @param scalar Scaling factor.
     /// @return *this
-    Aabb &operator *= (double scalar);
+    Aabb &operator*=(double scalar);
 
     /// Scale box by the inverse of @p scalar.
     /// @param scalar Inverse scaling factor. Must not be zero.
     /// @return *this
-    Aabb &operator /= (double scalar);
+    Aabb &operator/=(double scalar);
 
   private:
     static inline double sign(double val) { return val >= 0 ? 1.0f : -1.0f; }
     static double calcTimeVal(double limit, double origin, double direction);
     static bool calcIntervalOverlap(const glm::dvec2 &a, const glm::dvec2 &b, glm::dvec2 *overlap);
 
-    glm::dvec3 corners_[2] = { glm::dvec3(0), glm::dvec3(0) };
+    glm::dvec3 corners_[2];  // = { glm::dvec3(0), glm::dvec3(0) };
   };
 
 
   inline Aabb::Aabb() {}
+
+
+  inline Aabb::Aabb(double seed) { corners_[0] = corners_[1] = glm::dvec3(seed); }
 
 
   inline Aabb::Aabb(const Aabb &other)
@@ -190,6 +229,16 @@ namespace ohm
   }
 
 
+  inline glm::dvec3 Aabb::corner(int corner_index) const
+  {
+    glm::dvec3 corner;
+    corner[0] = (corner_index & 1) == 0 ? corners_[0][0] : corners_[1][0];
+    corner[1] = (corner_index & 2) == 0 ? corners_[0][1] : corners_[1][1];
+    corner[2] = (corner_index & 4) == 0 ? corners_[0][2] : corners_[1][2];
+    return corner;
+  }
+
+
   inline bool Aabb::overlaps(const Aabb &other, double epsilon) const
   {
     const glm::bvec3 max_less_min = glm::lessThan(corners_[1] + glm::dvec3(epsilon), other.corners_[0]);
@@ -211,6 +260,9 @@ namespace ohm
     const glm::dvec3 epsilon_v(epsilon);
     return glm::all(glm::lessThanEqual(min_diff, epsilon_v)) && glm::all(glm::lessThanEqual(max_diff, epsilon_v));
   }
+
+
+  inline bool Aabb::isValid() const { return glm::all(glm::lessThan(corners_[0], corners_[1])); }
 
 
   inline unsigned Aabb::clipLine(glm::dvec3 &start, glm::dvec3 &end) const
@@ -251,12 +303,20 @@ namespace ohm
     if (tbest[0] > 0)
     {
       start = origin + tbest[0] * direction;
+      // Clamp to the box to cater for floating point error.
+      start[0] = std::max(corners_[0][0], std::min(start[0], corners_[1][0]));
+      start[1] = std::max(corners_[0][1], std::min(start[1], corners_[1][1]));
+      start[2] = std::max(corners_[0][2], std::min(start[2], corners_[1][2]));
       clipped_flags |= ClippedStart;
     }
 
-    if (tbest[0] < max_time)
+    if (tbest[1] < max_time)
     {
       end = origin + tbest[1] * direction;
+      // Clamp to the box to cater for floating point error.
+      end[0] = std::max(corners_[0][0], std::min(end[0], corners_[1][0]));
+      end[1] = std::max(corners_[0][1], std::min(end[1], corners_[1][1]));
+      end[2] = std::max(corners_[0][2], std::min(end[2], corners_[1][2]));
       clipped_flags |= ClippedEnd;
     }
 
@@ -270,10 +330,7 @@ namespace ohm
   }
 
 
-  inline bool Aabb::operator!=(const Aabb &other) const
-  {
-    return !(*this == other);
-  }
+  inline bool Aabb::operator!=(const Aabb &other) const { return !(*this == other); }
 
 
   inline const Aabb &Aabb::operator=(const Aabb &other)
@@ -284,31 +341,25 @@ namespace ohm
   }
 
 
-  inline Aabb operator + (const Aabb &box, const glm::dvec3 &offset)
+  inline Aabb operator+(const Aabb &box, const glm::dvec3 &offset)
   {
     return Aabb(box.minExtents() + offset, box.maxExtents() + offset);
   }
 
 
-  inline Aabb operator + (const glm::dvec3 &offset, const Aabb &box)
-  {
-    return box + offset;
-  }
+  inline Aabb operator+(const glm::dvec3 &offset, const Aabb &box) { return box + offset; }
 
 
-  inline Aabb operator - (const Aabb &box, const glm::dvec3 &offset)
+  inline Aabb operator-(const Aabb &box, const glm::dvec3 &offset)
   {
     return Aabb(box.minExtents() - offset, box.maxExtents() - offset);
   }
 
 
-  inline Aabb operator - (const glm::dvec3 &offset, const Aabb &box)
-  {
-    return box - offset;
-  }
+  inline Aabb operator-(const glm::dvec3 &offset, const Aabb &box) { return box - offset; }
 
 
-  inline Aabb &Aabb::operator += (const glm::dvec3 &offset)
+  inline Aabb &Aabb::operator+=(const glm::dvec3 &offset)
   {
     corners_[0] += offset;
     corners_[1] += offset;
@@ -316,7 +367,7 @@ namespace ohm
   }
 
 
-  inline Aabb &Aabb::operator -= (const glm::dvec3 &offset)
+  inline Aabb &Aabb::operator-=(const glm::dvec3 &offset)
   {
     corners_[0] -= offset;
     corners_[1] -= offset;
@@ -324,25 +375,19 @@ namespace ohm
   }
 
 
-  inline Aabb operator * (const Aabb &box, double scalar)
+  inline Aabb operator*(const Aabb &box, double scalar)
   {
     return Aabb(box.minExtents() * scalar, box.maxExtents() * scalar);
   }
 
 
-  inline Aabb operator * (double scalar, const Aabb &box)
-  {
-    return box * scalar;
-  }
+  inline Aabb operator*(double scalar, const Aabb &box) { return box * scalar; }
 
 
-  inline Aabb operator / (const Aabb &box, double scalar)
-  {
-    return box * (1.0 / scalar);
-  }
+  inline Aabb operator/(const Aabb &box, double scalar) { return box * (1.0 / scalar); }
 
 
-  inline Aabb &Aabb::operator *= (double scalar)
+  inline Aabb &Aabb::operator*=(double scalar)
   {
     corners_[0] *= scalar;
     corners_[1] *= scalar;
@@ -350,7 +395,7 @@ namespace ohm
   }
 
 
-  inline Aabb &Aabb::operator /= (double scalar)
+  inline Aabb &Aabb::operator/=(double scalar)
   {
     const double scalar_inv = 1.0 / scalar;
     corners_[0] *= scalar_inv;
@@ -390,6 +435,6 @@ namespace ohm
     (*overlap)[1] = std::min(a[1], b[1]);
     return true;
   }
-}
+}  // namespace ohm
 
-#endif // OHM_AABB_H
+#endif  // OHM_AABB_H

@@ -7,6 +7,8 @@
 
 #include <ohm/Aabb.h>
 
+#include <ohmutil/GlmStream.h>
+
 #include <sstream>
 
 using namespace ohm;
@@ -137,7 +139,7 @@ namespace
 }  // namespace
 
 
-TEST(Maths, Aabb)
+TEST(Maths, AabbOverlap)
 {
   const Aabb reference_box(glm::dvec3(-1.1, -2.2, -3.3), glm::dvec3(4.4, 5.5, 6.6));
   const Aabb initial_box(glm::dvec3(-1.0), glm::dvec3(1.0));
@@ -162,4 +164,178 @@ TEST(Maths, Aabb)
   testOverlap(glm::ivec3(6, 6, 0), reference_box, initial_box, false);
   // Three axis overlap
   testOverlap(glm::ivec3(6, 6, 6), reference_box, initial_box, false);
+}
+
+
+TEST(Maths, AabbClip)
+{
+  const Aabb reference_box(glm::dvec3(-1.1, -2.2, -3.3), glm::dvec3(4.4, 5.5, 6.6));
+
+  std::vector<glm::dvec3> lines;
+
+  // Setup some lines entirely within the box .
+  lines.push_back(reference_box.minExtents() + glm::dvec3(1, 1, 1));
+  lines.push_back(reference_box.maxExtents() - glm::dvec3(1, 1, 1));
+
+  lines.push_back(reference_box.maxExtents() - glm::dvec3(1, 1, 1));
+  lines.push_back(reference_box.minExtents() + glm::dvec3(1, 1, 1));
+
+  unsigned clip_flags = 0;
+  glm::dvec3 start, end, dir1, dir2;
+  for (size_t i = 0; i < lines.size(); i += 2)
+  {
+    start = lines[i];
+    end = lines[i + 1];
+    // Cache initial direction.
+    dir1 = glm::normalize(end - start);
+
+    EXPECT_TRUE(reference_box.contains(start));
+    EXPECT_TRUE(reference_box.contains(end));
+
+    clip_flags = reference_box.clipLine(start, end);
+    EXPECT_EQ(clip_flags, 0);
+
+    // Clipped direction.
+    dir2 = glm::normalize(end - start);
+
+    EXPECT_EQ(start, lines[i]);
+    EXPECT_EQ(end, lines[i + 1]);
+
+    EXPECT_TRUE(reference_box.contains(start)) << "no-clip " << i;
+    EXPECT_TRUE(reference_box.contains(end)) << "no-clip " << i;
+
+    // Validate direction.
+    EXPECT_FALSE(glm::any(glm::greaterThan(glm::abs(dir1 - dir2), glm::dvec3(1e-9))));
+  }
+
+  lines.clear();
+  // Add lines with end points outside the box.
+  for (int i = 0; i < 8; ++i)
+  {
+    lines.push_back(glm::dvec3(0));
+    lines.push_back(reference_box.corner(i) * 2.5);
+  }
+
+  for (size_t i = 0; i < lines.size(); i += 2)
+  {
+    start = lines[i];
+    end = lines[i + 1];
+    // Cache initial direction.
+    dir1 = glm::normalize(end - start);
+
+    EXPECT_TRUE(reference_box.contains(start));
+    EXPECT_FALSE(reference_box.contains(end));
+
+    clip_flags = reference_box.clipLine(start, end);
+    EXPECT_EQ(clip_flags, Aabb::ClippedEnd);
+
+    // Clipped direction.
+    dir2 = glm::normalize(end - start);
+
+    EXPECT_EQ(start, lines[i]);
+    EXPECT_NE(end, lines[i + 1]);
+
+    EXPECT_TRUE(reference_box.contains(start)) << "clip-end " << i;
+    EXPECT_TRUE(reference_box.contains(end)) << "clip-end " << i;
+
+    // Validate direction.
+    EXPECT_FALSE(glm::any(glm::greaterThan(glm::abs(dir1 - dir2), glm::dvec3(1e-9))));
+  }
+
+  lines.clear();
+  // Add lines with start points outside the box.
+  for (int i = 0; i < 8; ++i)
+  {
+    lines.push_back(reference_box.corner(i) * 2.5);
+    lines.push_back(glm::dvec3(0));
+  }
+
+  for (size_t i = 0; i < lines.size(); i += 2)
+  {
+    start = lines[i];
+    end = lines[i + 1];
+    // Cache initial direction.
+    dir1 = glm::normalize(end - start);
+
+    EXPECT_FALSE(reference_box.contains(start));
+    EXPECT_TRUE(reference_box.contains(end));
+
+    clip_flags = reference_box.clipLine(start, end);
+    EXPECT_EQ(clip_flags, Aabb::ClippedStart);
+
+    // Clipped direction.
+    dir2 = glm::normalize(end - start);
+
+    EXPECT_NE(start, lines[i]);
+    EXPECT_EQ(end, lines[i + 1]);
+
+    EXPECT_TRUE(reference_box.contains(start)) << "clip-start " << i;
+    EXPECT_TRUE(reference_box.contains(end)) << "clip-start " << i;
+
+    // Validate direction.
+    EXPECT_FALSE(glm::any(glm::greaterThan(glm::abs(dir1 - dir2), glm::dvec3(1e-9))));
+  }
+
+  lines.clear();
+  // Add lines with both points outside the box but intersecting the box.
+  lines.push_back(reference_box.corner(Aabb::kCornerLll) * 2.5);
+  lines.push_back(reference_box.corner(Aabb::kCornerUuu) * 2.5);
+
+  lines.push_back(reference_box.corner(Aabb::kCornerUll) * 2.5);
+  lines.push_back(reference_box.corner(Aabb::kCornerLuu) * 2.5);
+
+  lines.push_back(reference_box.corner(Aabb::kCornerLul) * 2.5);
+  lines.push_back(reference_box.corner(Aabb::kCornerUlu) * 2.5);
+
+  lines.push_back(reference_box.corner(Aabb::kCornerUul) * 2.5);
+  lines.push_back(reference_box.corner(Aabb::kCornerLlu) * 2.5);
+
+  for (size_t i = 0; i < lines.size(); i += 2)
+  {
+    start = lines[i];
+    end = lines[i + 1];
+    // Cache initial direction.
+    dir1 = glm::normalize(end - start);
+
+    EXPECT_FALSE(reference_box.contains(start));
+    EXPECT_FALSE(reference_box.contains(end));
+
+    clip_flags = reference_box.clipLine(start, end);
+    EXPECT_EQ(clip_flags, Aabb::ClippedStart | Aabb::ClippedEnd);
+
+    // Clipped direction.
+    dir2 = glm::normalize(end - start);
+
+    EXPECT_NE(start, lines[i]);
+    EXPECT_NE(end, lines[i + 1]);
+
+    EXPECT_TRUE(reference_box.contains(start)) << "clip-both " << i;
+    EXPECT_TRUE(reference_box.contains(end)) << "clip-both " << i;
+
+    // Validate direction.
+    EXPECT_FALSE(glm::any(glm::greaterThan(glm::abs(dir1 - dir2), glm::dvec3(1e-9))));
+  }
+
+  // lines.clear();
+  //// Add lines which do not intersect the box.
+  // lines.push_back(reference_box.corner(Aabb::kCornerLll) * 2.5);
+  // lines.push_back(reference_box.corner(Aabb::kCornerLlu) * 2.5);
+
+  // for (size_t i = 0; i < lines.size(); i += 2)
+  //{
+  //  start = lines[i];
+  //  end = lines[i + 1];
+
+  //  EXPECT_FALSE(reference_box.contains(start));
+  //  EXPECT_FALSE(reference_box.contains(end));
+
+  //  clip_flags = reference_box.clipLine(start, end);
+  //  EXPECT_EQ(clip_flags, Aabb::ClippedStart);
+
+  //  EXPECT_EQ(start, lines[i]);
+  //  EXPECT_NE(end, lines[i + 1]);
+
+  //  EXPECT_TRUE(reference_box.contains(start));
+  //  EXPECT_TRUE(reference_box.contains(end));
+  //}
 }

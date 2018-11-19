@@ -22,6 +22,7 @@
 
 namespace ohm
 {
+  class Aabb;
   class MapCache;
   struct MapChunk;
   class MapLayout;
@@ -688,8 +689,17 @@ namespace ohm
     /// @param rays Array of origin/sample point pairs.
     /// @param point_count The number of points in @p rays. The ray count is half this value.
     /// @param end_points_as_occupied When @c true, the end points of the rays increase the occupancy probability.
-    ///   Otherwise they decrease the probability just as the rest of the ray.
+    ///   Otherwise they decrease the probability just as the rest of the ray. Defaults to @c true in overloads.
+    /// @param clip_box All rays are clipped to lie within this box before integrating into the map.
+    ///   Rays are not clipped when this box is not valid (or not specified in the case of overloads).
+    void integrateRays(const glm::dvec3 *rays, size_t point_count, bool end_points_as_occupied, const Aabb &clip_box);
+
+    /// @overload
     void integrateRays(const glm::dvec3 *rays, size_t point_count, bool end_points_as_occupied = true);
+
+    /// @overload
+    void integrateRays(const glm::dvec3 *rays, size_t point_count, const Aabb &clip_box);
+
 
     /// Clone the entire map.
     /// @return A deep clone of this map. Caller takes ownership.

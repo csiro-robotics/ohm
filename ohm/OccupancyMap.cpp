@@ -858,29 +858,55 @@ size_t OccupancyMap::calculateSegmentKeys(KeyList &keys, const glm::dvec3 &start
 }
 
 
-void OccupancyMap::integrateRays(const glm::dvec3 *rays, size_t point_count, bool end_points_as_occupied)
+void OccupancyMap::integrateRays(const glm::dvec3 *rays, size_t point_count, bool end_points_as_occupied,
+                                 const Aabb &clip_box)
 {
   KeyList keys;
   MapCache cache;
+  glm::dvec3 start, end;
 
   for (size_t i = 0; i < point_count; i += 2)
   {
-    calculateSegmentKeys(keys, rays[i], rays[i + 1], false);
+    start = rays[i];
+    end = rays[i + 1];
+
+    const bool use_end_point = !clip_box.isValid() || clip_box.contains(end);
+    if (clip_box.isValid())
+    {
+      clip_box.clipLine(start, end);
+    }
+    // Calculate line key for the last voxel if the end point has been clipped
+    calculateSegmentKeys(keys, start, end, !use_end_point);
 
     for (auto &&key : keys)
     {
       integrateMiss(key, &cache);
     }
 
-    if (end_points_as_occupied)
+    if (use_end_point)
     {
-      integrateHit(voxelKey(rays[i + 1]), &cache);
-    }
-    else
-    {
-      integrateMiss(voxelKey(rays[i + 1]), &cache);
+      if (end_points_as_occupied)
+      {
+        integrateHit(voxelKey(rays[i + 1]), &cache);
+      }
+      else
+      {
+        integrateMiss(voxelKey(rays[i + 1]), &cache);
+      }
     }
   }
+}
+
+
+void OccupancyMap::integrateRays(const glm::dvec3 *rays, size_t point_count, bool end_points_as_occupied)
+{
+  integrateRays(rays, point_count, end_points_as_occupied, Aabb(0.0));
+}
+
+
+void OccupancyMap::integrateRays(const glm::dvec3 *rays, size_t point_count, const Aabb &clip_box)
+{
+  integrateRays(rays, point_count, true, clip_box);
 }
 
 
