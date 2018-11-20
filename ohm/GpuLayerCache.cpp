@@ -59,6 +59,9 @@ namespace ohm
     unsigned cache_size = 0;
     unsigned batch_marker = 1;
     std::unordered_multimap<unsigned, GpuCacheEntry> cache;
+    /// List of memory offsets available for re-use. Populated when we remove entries from the cache rather than
+    /// replacing them.
+    std::vector<size_t> mem_offset_free_list;
     glm::u8vec3 region_size;
     uint64_t stamp = 0;
     gputil::Queue gpu_queue;
@@ -210,7 +213,11 @@ void GpuLayerCache::remove(const glm::i16vec3 &region_key)
 
   if (search_iter != imp_->cache.end())
   {
-    search_iter->second.sync_event.wait();
+    GpuCacheEntry &entry = search_iter->second;
+    // Wait for oustanding operations, but don't sync.
+    entry.sync_event.wait();
+    // Push the memory offset onto the free list for re-use.
+    imp_->mem_offset_free_list.push_back(entry.mem_offset);
     imp_->cache.erase(search_iter);
   }
 }
@@ -369,7 +376,16 @@ GpuCacheEntry *GpuLayerCache::resolveCacheEntry(OccupancyMap &map, const glm::i1
     // Use the next buffer.
     GpuCacheEntry new_entry;
     new_entry.init();
-    new_entry.mem_offset = imp_->chunk_mem_size * cachedCount();
+    // First we try poping an entry off the free list.
+    if (!imp_->mem_offset_free_list.empty())
+    {
+      new_entry.mem_offset = imp_->mem_offset_free_list.front();
+      imp_->mem_offset_free_list.erase(imp_->mem_offset_free_list.begin());
+    }
+    else
+    {
+      new_entry.mem_offset = imp_->chunk_mem_size * cachedCount();
+    }
     auto inserted = imp_->cache.insert(std::make_pair(region_hash, new_entry));
     entry = &inserted->second;
   }

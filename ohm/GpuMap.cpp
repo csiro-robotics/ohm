@@ -402,10 +402,6 @@ unsigned GpuMap::integrateRaysT(const VEC_TYPE *rays, unsigned point_count, bool
   {
     ray_start_d = rays[i + 0];
     ray_end_d = rays[i + 1];
-    if (!goodRay(ray_start_d, ray_end_d, imp_->max_range_filter))
-    {
-      continue;
-    }
 
     line_end_key = map.voxelKey(ray_end_d);
     clipped_ray_end = false;
@@ -415,9 +411,17 @@ unsigned GpuMap::integrateRaysT(const VEC_TYPE *rays, unsigned point_count, bool
 
       if (!clip_box.clipLine(ray_start_d, ray_end_d, &line_clip_flags))
       {
-        // Line segment/ray does not intersect the box. Skip it.
-        continue;
+        if (!clip_box.contains(ray_start_d) && !clip_box.contains(ray_end_d))
+        {
+          // Line segment/ray does not intersect the box. Skip it.
+          continue;
+        }
       }
+      // else
+      // {
+      //   std::cout << "clipped: " << rays[i + 0] << "->" << rays[i + 1] << " : " << ray_start_d << "->" << ray_end_d
+      //             << std::endl;
+      // }
 
       // Was the end of the line clipped?
       if (line_clip_flags | Aabb::kClippedEnd)
@@ -431,6 +435,11 @@ unsigned GpuMap::integrateRaysT(const VEC_TYPE *rays, unsigned point_count, bool
           clipped_ray_end = true;
         }
       }
+    }
+
+    if (!goodRay(ray_start_d, ray_end_d, imp_->max_range_filter))
+    {
+      continue;
     }
 
     // Upload if not preloaded.
@@ -469,7 +478,6 @@ unsigned GpuMap::integrateRaysT(const VEC_TYPE *rays, unsigned point_count, bool
     walkRegions(*imp_->map, ray_start_d, ray_end_d, region_func);
   }
 
-  upload_count = point_count;
   // Asynchronous unpin. Kernels will wait on the associated event.
   keys_pinned.unpin(&layer_cache.gpuQueue(), nullptr, &imp_->key_upload_events[buf_idx]);
   rays_pinned.unpin(&layer_cache.gpuQueue(), nullptr, &imp_->ray_upload_events[buf_idx]);
