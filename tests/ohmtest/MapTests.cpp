@@ -112,7 +112,6 @@ namespace maptests
   {
     // Test clipping of rays to an Aabb on insert.
     const double resolution = 0.2;
-    const unsigned batch_size = 2 * 1024u;
     const uint8_t region_size = 32u;
     OccupancyMap map(resolution, glm::u8vec3(region_size));
 

@@ -203,8 +203,8 @@ namespace linekeys
 #else  // #
     // The following line highlights a deviation between CPU and GPU algorithms. If you push these points
     // as dvec3, then there is a discrepancy between the CPU/GPU results.
-    linePoints.push_back(glm::vec3(8.249521446748637743,1.6640723158759520572,15.084516018081700395));
-    linePoints.push_back(glm::vec3(11.186323857973910378,-14.315011276937029905,6.2049214437162198976));
+    line_points.push_back(glm::vec3(8.249521446748637743,1.6640723158759520572,15.084516018081700395));
+    line_points.push_back(glm::vec3(11.186323857973910378,-14.315011276937029905,6.2049214437162198976));
 #endif // #
     gpu_query.setRays(line_points.data(), line_points.size());
     gpu_query2.setRays(line_points.data(), line_points.size());

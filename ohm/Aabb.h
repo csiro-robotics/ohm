@@ -307,7 +307,6 @@ namespace ohm
     }
 
     bool intersected = false;
-    unsigned clipped_flags = 0;
     if (tbest[0] > 0)
     {
       start = origin + tbest[0] * direction;
