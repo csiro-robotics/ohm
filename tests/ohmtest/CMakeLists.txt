@@ -14,6 +14,7 @@ set(SOURCES
   LineQueryTests.cpp
   MapperTests.cpp
   MapTests.cpp
+  MathsTests.cpp
   OhmTestUtil.cpp
   OhmTestUtil.h
   RangesTests.cpp

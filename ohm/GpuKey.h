@@ -30,6 +30,7 @@ namespace ohm
     /// Region key.
     short region[3];
     /// Voxel key.
+    // Element 3 is provided for padding, but may be used as a context based value.
     unsigned char voxel[4];
   };
 #ifndef __OPENCL_C_VERSION__
@@ -56,7 +57,7 @@ void copyKey(struct GpuKey *out, const struct GpuKey *in)
 }
 #else  // __OPENCL_C_VERSION__ >= 200
 // copyKey implemented with a macro as before OpenCL 2.0 we need to cater for __global memory qualifier.
-#define copyKey(out, in) *out = *in;
+#define copyKey(out, in) *out = *in
 #endif // __OPENCL_C_VERSION__ >= 200
 
 void stepKeyAlongAxis(struct GpuKey *key, int axis, int step, const int3 *regionDim)

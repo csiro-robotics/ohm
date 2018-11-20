@@ -13,6 +13,7 @@
 
 #include <glm/glm.hpp>
 
+#include <functional>
 #include <vector>
 
 #define OHM_DEFAULT_CHUNK_DIM_X 32
@@ -21,6 +22,7 @@
 
 namespace ohm
 {
+  class Aabb;
   class MapCache;
   struct MapChunk;
   class MapLayout;
@@ -353,7 +355,7 @@ namespace ohm
     /// @return The number of removed regions.
     unsigned expireRegions(double timestamp);
 
-    /// Remove @c MapRegion voxels which are sufficiently far from @p relativeTo.
+    /// Remove @c MapRegion chunks which are sufficiently far from @p relativeTo.
     ///
     /// Regions are removed if their centre is further than @p distance from @p relativeTo.
     ///
@@ -361,6 +363,13 @@ namespace ohm
     /// @param distance The distance threshold.
     /// @return The number of removed regions.
     unsigned removeDistanceRegions(const glm::dvec3 &relative_to, float distance);
+
+    /// Remove @c MapRegion chunks which do not overalp the given axis aligned box.
+    ///
+    /// @param min_extents The AABB minimum extents.
+    /// @param max_extents The AABB minimum extents.
+    /// @return The number of removed regions.
+    unsigned cullRegionsOutside(const glm::dvec3 &min_extents, const glm::dvec3 &max_extents);
 
     /// Touch the @c MapRegion which contains @p point.
     /// @param point A spatial point from which to resolve a containing region. There may be border case issues.
@@ -680,8 +689,17 @@ namespace ohm
     /// @param rays Array of origin/sample point pairs.
     /// @param point_count The number of points in @p rays. The ray count is half this value.
     /// @param end_points_as_occupied When @c true, the end points of the rays increase the occupancy probability.
-    ///   Otherwise they decrease the probability just as the rest of the ray.
+    ///   Otherwise they decrease the probability just as the rest of the ray. Defaults to @c true in overloads.
+    /// @param clip_box All rays are clipped to lie within this box before integrating into the map.
+    ///   Rays are not clipped when this box is not valid (or not specified in the case of overloads).
+    void integrateRays(const glm::dvec3 *rays, size_t point_count, bool end_points_as_occupied, const Aabb &clip_box);
+
+    /// @overload
     void integrateRays(const glm::dvec3 *rays, size_t point_count, bool end_points_as_occupied = true);
+
+    /// @overload
+    void integrateRays(const glm::dvec3 *rays, size_t point_count, const Aabb &clip_box);
+
 
     /// Clone the entire map.
     /// @return A deep clone of this map. Caller takes ownership.
@@ -737,6 +755,14 @@ namespace ohm
     Key firstIterationKey() const;
     MapChunk *newChunk(const Key &for_key);
     static void releaseChunk(const MapChunk *chunk);
+
+    /// Culling function for @c cullRegions().
+    using RegionCullFunc = std::function<bool (const MapChunk &)>;
+
+    /// Remove regions/chunks for which @c cull_func returns true.
+    /// @param cull_func The culling criteria.
+    /// @return The number of regions removed.
+    unsigned cullRegions(const RegionCullFunc &cull_func);
 
     OccupancyMapDetail *imp_;
   };

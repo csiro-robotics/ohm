@@ -27,7 +27,7 @@ namespace ohm
     OccupancyMap *map = nullptr;
     size_t default_gpu_mem_size = 0;
   };
-}
+}  // namespace ohm
 
 
 GpuCache::GpuCache(OccupancyMap &map, size_t default_gpu_mem_size)
@@ -72,8 +72,8 @@ GpuLayerCache *GpuCache::createCache(unsigned id, const GpuCacheParams &params)
   }
 
   const size_t layer_mem_size = (params.gpu_mem_size) ? params.gpu_mem_size : imp_->default_gpu_mem_size;
-  GpuLayerCache *new_cache = new GpuLayerCache(imp_->gpu, imp_->gpu_queue,
-    *imp_->map, params.map_layer, layer_mem_size, params.flags);
+  GpuLayerCache *new_cache =
+    new GpuLayerCache(imp_->gpu, imp_->gpu_queue, *imp_->map, params.map_layer, layer_mem_size, params.flags);
   imp_->layer_caches[id] = std::unique_ptr<GpuLayerCache>(new_cache);
 
   return new_cache;
@@ -88,6 +88,30 @@ GpuLayerCache *GpuCache::layerCache(unsigned id)
   }
 
   return imp_->layer_caches[id].get();
+}
+
+
+void GpuCache::remove(const glm::i16vec3 &region_key)
+{
+  for (auto &&layer : imp_->layer_caches)
+  {
+    if (layer)
+    {
+      layer->remove(region_key);
+    }
+  }
+}
+
+
+void GpuCache::clear()
+{
+  for (auto &&layer : imp_->layer_caches)
+  {
+    if (layer)
+    {
+      layer->clear();
+    }
+  }
 }
 
 

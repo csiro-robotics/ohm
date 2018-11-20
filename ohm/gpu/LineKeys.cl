@@ -46,14 +46,18 @@ void calculateLineKeys(__global struct GpuKey *lineOut, uint maxKeys,
 
 __kernel void calculateLines(__global struct GpuKey *linesOut, uint maxKeysPerLine,
                              const __global float3 *queryPointPairs,
-                             uint queryCount,
-                             int3 regionDim,
-                             float voxelResolution
+                             uint queryCount, int3 regionDim, float voxelResolution
                              )
 {
   const bool validThread = (get_global_id(0) < queryCount);
-  const float3 startPoint = (validThread) ? queryPointPairs[get_global_id(0) * 2 + 0] : make_float3(0, 0, 0);
-  const float3 endPoint = (validThread) ? queryPointPairs[get_global_id(0) * 2 + 1] : make_float3(0, 0, 0);
+
+  if (!validThread)
+  {
+    return;
+  }
+
+  float3 startPoint = (validThread) ? queryPointPairs[get_global_id(0) * 2 + 0] : make_float3(0, 0, 0);
+  float3 endPoint = (validThread) ? queryPointPairs[get_global_id(0) * 2 + 1] : make_float3(0, 0, 0);
   __global struct GpuKey *lineOut = linesOut + (get_global_id(0) * maxKeysPerLine);
   // We convert regionDim from an int3 to an array to allow indexed access.
   struct GpuKey startKey, endKey;
@@ -66,8 +70,9 @@ __kernel void calculateLines(__global struct GpuKey *linesOut, uint maxKeysPerLi
   // printf("From %f %f %f to %f %f %f\n", startPoint.x, startPoint.y, startPoint.z, endPoint.x, endPoint.y, endPoint.z);
   // printf("Keys: " KEY_F " to " KEY_F "\n", KEY_A(startKey), KEY_A(endKey));
 
-  if (validThread)
-  {
-    calculateLineKeys(lineOut, maxKeysPerLine, &startKey, &endKey, &startPoint, &endPoint, &regionDim, voxelResolution);
-  }
+  // Adjust start/end point to be relative to the centre of the startKey voxel.
+  startPoint -= voxelCentre(&startKey, &regionDim, voxelResolution);
+  endPoint -= voxelCentre(&startKey, &regionDim, voxelResolution);
+
+  calculateLineKeys(lineOut, maxKeysPerLine, &startKey, &endKey, &startPoint, &endPoint, &regionDim, voxelResolution);
 }

@@ -78,6 +78,7 @@ namespace ohm
           build_args_str << ' ';
         }
         build_args_str << arg;
+        first_arg = false;
       }
     }
 

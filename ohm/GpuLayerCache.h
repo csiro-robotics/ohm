@@ -83,7 +83,7 @@ namespace ohm
     ///
     /// This allocated a GPU buffer up to @c targetGpuMemSize bytes. The actual target allocation is a multiple of
     /// the data size for a single map chunk. This may be padded slightly further to create an optimal GPU buffer size.
-    /// The result will be set to a number of regions not to exceed @p targetGpuMemSize, however the padding may 
+    /// The result will be set to a number of regions not to exceed @p targetGpuMemSize, however the padding may
     /// result is exceeding the target value. The allocation is also limited to half the GPU memory size.
     ///
     /// @param gpu The GPU device to allocate in.
@@ -209,6 +209,12 @@ namespace ohm
     /// @param batch_marker The maker to match against.
     /// @param event The most recent event to associate.
     void updateEvents(unsigned batch_marker, gputil::Event &event);
+
+    /// Remove data associated with @p region_key from the cache.
+    /// This will block until oustanding operations relating to @p chunk complete, but will not explicitly sync data
+    /// back to the host.
+    /// @param region_key The key of the region to remove from the cache.
+    void remove(const glm::i16vec3 &region_key);
 
     /// Synchronise GPU memory for @p chunk back to main memory.
     ///

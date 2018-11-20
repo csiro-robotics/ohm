@@ -35,18 +35,22 @@ inline float getf3(const float3 *v, int index);
 inline int geti3(const int3 *v, int index);
 
 /// Line walking function for use by kernels.
-/// The algorithm walks the voxels from @c startKey to @c endKey, voxels containing @c startPoint and @c endPoint
-/// respectively. For each voxel traversed, it invokes @c walkLineVoxel().
+/// The algorithm walks the voxels from @p startKey to @p endKey. The line segment is defined relative to the centre of
+/// the @p startkey voxel with line points @p voxelRelativeStartPoint and @p voxelRelativeEndPoint respectively.
 ///
-/// @param startKey The key for the voxel containing @c startPoint.
-/// @param endKey The key for the voxel containing @c endPoint.
-/// @param startPoint The start point of the line segment to traverse.
-/// @param endPoint The end point of the line segment to traverse.
+/// @c walkLineVoxel() is invoked for each voxel traversed.
+///
+/// @param startKey The key for the voxel containing @p voxelRelativeStartPoint.
+/// @param endKey The key for the voxel containing @p voxelRelativeEndPoint.
+/// @param voxelRelativeStartPoint The start point of the line segment to traverse, relative to the centre of the
+///   start voxel (identified by startKey). That is the origin is the centre of the startKey voxel.
+/// @param voxelRelativeEndPoint The end point of the line segment to traverse, relative to the centre of the
+///   start voxel (identified by startKey). That is the origin is the centre of the startKey voxel.
 /// @paramregionDim Defines the size of a region in voxels. Used to update the @p GpuKey.
 /// @param voxelResolution Size of a voxel from one face to another.
 /// @param userData User pointer passed to @c walkLineVoxel().
 void walkLineVoxels(const struct GpuKey *startKey, const struct GpuKey *endKey,
-                    const float3 *startPoint, const float3 *endPoint,
+                    const float3 *voxelRelativeStartPoint, const float3 *voxelRelativeEndPoint,
                     const int3 *regionDim, float voxelResolution, void *userData);
 
 
@@ -144,7 +148,7 @@ inline int geti3(const int3 *v, int index)
 }
 
 void walkLineVoxels(const struct GpuKey *startKey, const struct GpuKey *endKey,
-                    const float3 *startPoint, const float3 *endPoint,
+                    const float3 *voxelRelativeStartPoint, const float3 *voxelRelativeEndPoint,
                     const int3 *regionDim, float voxelResolution, void *userData)
 {
   // see "A Faster Voxel Traversal Algorithm for Ray Tracing" by Amanatides & Woo
@@ -159,15 +163,19 @@ void walkLineVoxels(const struct GpuKey *startKey, const struct GpuKey *endKey,
   struct GpuKey currentKey;
   copyKey(&currentKey, startKey);
 
-  // printf("Start point : %f %f %f, " KEY_F "\n", startPoint->x, startPoint->y, startPoint->z, KEY_A(*startKey));
-  // printf("End point : %f %f %f\n", endPoint->x, endPoint->y, endPoint->z);
+  // printf("Start point : %f %f %f, " KEY_F "\n", voxelRelativeStartPoint->x, voxelRelativeStartPoint->y, voxelRelativeStartPoint->z, KEY_A(*startKey));
+  // printf("End point : %f %f %f\n", voxelRelativeEndPoint->x, voxelRelativeEndPoint->y, voxelRelativeEndPoint->z);
   // printf("currentKey: " KEY_F "\n", KEY_A(currentKey));
 
   // Compute step direction, increments and maximums along each axis.
+  // Things to remember:
+  // - start and end keys come precalcualted in the map space.
+  // - float3 start/end points are single precision. To deal with this, they are made relative to the centre of the
+  //   start voxel
   {
     // Scoped to try reduce local variable load on local memory.
-    const float3 direction = normalize(*endPoint - *startPoint);
-    const float3 voxel = voxelCentre(&currentKey, regionDim, voxelResolution);
+    const float3 direction = normalize(*voxelRelativeEndPoint - *voxelRelativeStartPoint);
+    // const float3 voxel = voxelCentre(&currentKey, regionDim, voxelResolution);
     // printf("V: %f %f %f\n", voxel.x, voxel.y, voxel.z);
     // printf("C: " KEY_F "\n", KEY_A(currentKey));
     for (unsigned i = 0; i < 3; ++i)
@@ -179,9 +187,10 @@ void walkLineVoxels(const struct GpuKey *startKey, const struct GpuKey *endKey,
         // Time delta is the ray time between voxel boundaries calculated for each axis.
         timeDelta[i] = voxelResolution * fabs(directionAxisInv);
         // Calculate the distance from the origin to the nearest voxel edge for this axis.
-        const float nextVoxelBorder = getf3(&voxel, i) + step[i] * 0.5f * voxelResolution;
-        timeMax[i] = (nextVoxelBorder - getf3(startPoint, i)) * directionAxisInv;
-        timeLimit[i] = fabs((getf3(endPoint, i) - getf3(startPoint, i)) * directionAxisInv);// +0.5f * voxelResolution;
+        // const float nextVoxelBorder = getf3(&voxel, i) + step[i] * 0.5f * voxelResolution;
+        const float nextVoxelBorder = 0 + step[i] * 0.5f * voxelResolution;
+        timeMax[i] = (nextVoxelBorder - getf3(voxelRelativeStartPoint, i)) * directionAxisInv;
+        timeLimit[i] = fabs((getf3(voxelRelativeEndPoint, i) - getf3(voxelRelativeStartPoint, i)) * directionAxisInv);// +0.5f * voxelResolution;
       }
       else
       {
@@ -244,6 +253,6 @@ void walkLineVoxels(const struct GpuKey *startKey, const struct GpuKey *endKey,
   // Walk end point.
   if (continueTraversal)
   {
-    walkLineVoxel(endKey, true, userData);
+    walkLineVoxel(endKey, endKey->voxel[3] == 0, userData);
   }
 }
