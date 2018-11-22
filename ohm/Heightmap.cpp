@@ -191,7 +191,7 @@ Heightmap::Heightmap(double grid_resolution, double min_clearance, Axis up_axis,
   // Cache the up axis normal.
   imp_->up_axis_id = up_axis;
   imp_->up = upAxisNormal(up_axis);
-  imp_->vertical_axis_id = std::abs(up_axis + 1);
+  imp_->vertical_axis_id = (up_axis >= 0) ? up_axis : -(up_axis + 1);
 
   // Use an OccupancyMap to store grid cells. Each region is 1 voxel thick.
   glm::u8vec3 region_dim(region_size);
@@ -297,16 +297,16 @@ const glm::dvec3 &Heightmap::upAxisNormal(int axis_id)
 {
   static const glm::dvec3 kAxes[] =  //
     {
-      glm::dvec3(0, 0, -1),  //
-      glm::dvec3(0, -1, 0),  //
-      glm::dvec3(-1, 0, 0),  //
-      glm::dvec3(1, 0, 0),   //
-      glm::dvec3(0, 2, 0),   //
-      glm::dvec3(0, 0, 3),   //
+      glm::dvec3(0, 0, -1),  // -Z
+      glm::dvec3(0, -1, 0),  // -Y
+      glm::dvec3(-1, 0, 0),  // -X
+      glm::dvec3(1, 0, 0),   // X
+      glm::dvec3(0, 1, 0),   // Y
+      glm::dvec3(0, 0, 1),   // Z
       glm::dvec3(0, 0, 0),   // Dummy
     };
 
-  int axis_index = axis_id - AxisNegZ;
+  unsigned axis_index = unsigned(axis_id - AxisNegZ);
   if (axis_index < 0 || axis_index >= sizeof(kAxes) - sizeof(kAxes[0]))
   {
     // Reference the dummy index.
