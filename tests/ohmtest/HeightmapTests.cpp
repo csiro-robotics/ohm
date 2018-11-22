@@ -86,9 +86,7 @@ namespace
           const HeightmapVoxel *voxel = iter->layerContent<const HeightmapVoxel *>(heightmap->heightmapVoxelLayer());
           // Get the coordinate of the voxel.
           coord = heightmap->heightmap().voxelCentreGlobal(iter.key());
-          // Adjust the height to the plane height and offset.
-          // For now assume a horizontal plane through the origin..
-          coord[axis_index] = voxel->height;
+          coord += double(voxel->height) * Heightmap::upAxisNormal(axis_index);
           // Add to the cloud.
           heightmapCloud.addVertex(coord);
         }

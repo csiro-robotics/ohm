@@ -101,7 +101,7 @@ namespace
 
   inline float relativeVoxelHeight(double absolute_height, const VoxelConst &voxel, const glm::dvec3 &up)
   {
-    const float relative_height = absolute_height - glm::dot(voxel.centreGlobal(), up);
+    const float relative_height = float(absolute_height - glm::dot(voxel.centreGlobal(), up));
     return relative_height;
   }
 
@@ -182,40 +182,16 @@ Heightmap::Heightmap(double grid_resolution, double min_clearance, Axis up_axis,
 
   imp_->min_clearance = min_clearance;
 
+  if (up_axis < AxisNegZ || up_axis > AxisZ)
+  {
+    std::cerr << "Unknown up axis ID: " << up_axis << std::endl;
+    up_axis = AxisZ;
+  }
+
   // Cache the up axis normal.
   imp_->up_axis_id = up_axis;
-  switch (up_axis)
-  {
-  case AxisNegX:
-    imp_->up = glm::dvec3(-1, 0, 0);
-    imp_->vertical_axis_id = AxisX;
-    break;
-  case AxisNegY:
-    imp_->up = glm::dvec3(0, -1, 0);
-    imp_->vertical_axis_id = AxisY;
-    break;
-  case AxisNegZ:
-    imp_->up = glm::dvec3(0, 0, -1);
-    imp_->vertical_axis_id = AxisZ;
-    break;
-  case AxisX:
-    imp_->up = glm::dvec3(1, 0, 0);
-    imp_->vertical_axis_id = up_axis;
-    break;
-  case AxisY:
-    imp_->up = glm::dvec3(0, 1, 0);
-    imp_->vertical_axis_id = up_axis;
-    break;
-  case AxisZ:
-    imp_->up = glm::dvec3(0, 0, 1);
-    imp_->vertical_axis_id = up_axis;
-    break;
-  default:
-    std::cerr << "Unknown up axis ID: " << up_axis << std::endl;
-    imp_->up_axis_id = imp_->vertical_axis_id = AxisZ;
-    imp_->up = glm::dvec3(0, 0, 1);
-    break;
-  }
+  imp_->up = upAxisNormal(up_axis);
+  imp_->vertical_axis_id = std::abs(up_axis + 1);
 
   // Use an OccupancyMap to store grid cells. Each region is 1 voxel thick.
   glm::u8vec3 region_dim(region_size);
@@ -317,6 +293,30 @@ const glm::dvec3 &Heightmap::upAxisNormal() const
 }
 
 
+const glm::dvec3 &Heightmap::upAxisNormal(int axis_id)
+{
+  static const glm::dvec3 kAxes[] =  //
+    {
+      glm::dvec3(0, 0, -1),  //
+      glm::dvec3(0, -1, 0),  //
+      glm::dvec3(-1, 0, 0),  //
+      glm::dvec3(1, 0, 0),   //
+      glm::dvec3(0, 2, 0),   //
+      glm::dvec3(0, 0, 3),   //
+      glm::dvec3(0, 0, 0),   // Dummy
+    };
+
+  int axis_index = axis_id - AxisNegZ;
+  if (axis_index < 0 || axis_index >= sizeof(kAxes) - sizeof(kAxes[0]))
+  {
+    // Reference the dummy index.
+    axis_index = sizeof(kAxes) - sizeof(kAxes[0]) - 1;
+  };
+
+  return kAxes[axis_index];
+}
+
+
 unsigned Heightmap::heightmapVoxelLayer() const
 {
   return imp_->heightmap_layer;
@@ -385,14 +385,14 @@ bool Heightmap::update(double base_height)
 
     // Walk the src column up.
     Key src_key = (upAxis() >= 0) ? src_min_key : src_max_key;
+    double height = 0;
+
     // Select walking direction based on the up axis being aligned with the primary axis or not.
     const int step_dir = (upAxis() >= 0) ? 1 : -1;
     for (; src_key.isBounded(imp_->vertical_axis_id, src_min_key, src_max_key);
          src_map.stepKey(src_key, imp_->vertical_axis_id, step_dir))
     {
       VoxelConst src_voxel = src_map.voxel(src_key, &src_cache);
-
-      double height = 0;
 
 #if POST_BLUR
       if (voxelHeight(&height, src_voxel, imp_->up))

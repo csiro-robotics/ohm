@@ -61,7 +61,7 @@ namespace
     std::string cloud_file;
     std::string trajectory_file;
     std::string output_base_name;
-    glm::u8vec3 region_voxel_dim;
+    glm::u8vec3 region_voxel_dim = glm::u8vec3(32);
     uint64_t point_limit = 0;
     int64_t preload_count = 0;
     double start_time = 0;

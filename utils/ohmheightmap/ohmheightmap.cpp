@@ -5,8 +5,8 @@
 
 #include <ohm/Heightmap.h>
 #include <ohm/HeightmapVoxel.h>
-#include <ohm/OccupancyMap.h>
 #include <ohm/MapSerialise.h>
+#include <ohm/OccupancyMap.h>
 #include <ohm/Voxel.h>
 #include <ohmutil/OhmUtil.h>
 #include <ohmutil/PlyMesh.h>
@@ -54,7 +54,9 @@ namespace
   class LoadMapProgress : public ohm::SerialiseProgress
   {
   public:
-    LoadMapProgress(ProgressMonitor &monitor) : monitor_(monitor) {}
+    LoadMapProgress(ProgressMonitor &monitor)
+      : monitor_(monitor)
+    {}
 
     bool quit() const override { return ::quit > 1; }
 
@@ -64,26 +66,21 @@ namespace
   private:
     ProgressMonitor &monitor_;
   };
-}
+}  // namespace
 
 
-int parseOptions(Options &opt, int argc,  char *argv[])
+int parseOptions(Options &opt, int argc, char *argv[])
 {
-  cxxopts::Options optParse(argv[0],
-  "\nCreate a heightmap from an occupancy map.\n"
-  );
+  cxxopts::Options optParse(argv[0], "\nCreate a heightmap from an occupancy map.\n");
   optParse.positional_help("<map.ohm> <heightmap.ohm>");
 
   try
   {
-    optParse.add_options()
-      ("help", "Show help.")
-      ("i", "The input map file (ohm).", cxxopts::value(opt.map_file))
-      ("o", "The output heightmap file (ohm).", cxxopts::value(opt.heightmap_file))
-      ("base", "Base height: heightmap values are stored relative to this height.", optVal(opt.base_height))
-      ("blur", "Blur factor in generating the heightmap. Must be >= 0, recommended < 5.", optVal(opt.blur))
-      ("clearance", "The required height clearance for a heightmap surface voxel.", optVal(opt.clearance))
-      ;
+    optParse.add_options()("help", "Show help.")("i", "The input map file (ohm).", cxxopts::value(opt.map_file))(
+      "o", "The output heightmap file (ohm).", cxxopts::value(opt.heightmap_file))(
+      "base", "Base height: heightmap values are stored relative to this height.", optVal(opt.base_height))(
+      "blur", "Blur factor in generating the heightmap. Must be >= 0, recommended < 5.", optVal(opt.blur))(
+      "clearance", "The required height clearance for a heightmap surface voxel.", optVal(opt.clearance));
 
     optParse.parse_positional({ "i", "o" });
 
@@ -131,6 +128,20 @@ int main(int argc, char *argv[])
     return res;
   }
 
+  {
+    ohm::OccupancyMap map(0.2);
+    ohm::Key key = map.voxelKey(glm::dvec3(0));
+    glm::dvec3 v;
+    v = map.voxelCentreGlobal(key);
+    map.setOrigin(glm::dvec3(0, 0, 2.0));
+    key = map.voxelKey(glm::dvec3(0, 0, 2));
+    v = map.voxelCentreGlobal(key);
+    map.setOrigin(glm::dvec3(0, 0, 2.15));
+    key = map.voxelKey(glm::dvec3(0, 0, 2.15));
+    v = map.voxelCentreGlobal(key);
+    map.setOrigin(glm::dvec3(0, 0, 2.0));
+  }
+
   signal(SIGINT, onSignal);
   signal(SIGTERM, onSignal);
 
@@ -140,8 +151,7 @@ int main(int argc, char *argv[])
   ohm::OccupancyMap map(1.0);
   ohm::MapVersion version;
 
-  prog.setDisplayFunction([&opt](const ProgressMonitor::Progress &prog)
-  {
+  prog.setDisplayFunction([&opt](const ProgressMonitor::Progress &prog) {
     std::ostringstream str;
     str << '\r';
     str << prog.progress;
@@ -157,7 +167,8 @@ int main(int argc, char *argv[])
   res = ohm::load(opt.map_file.c_str(), map, &load_progress, &version);
   prog.endProgress();
 
-  std::cout << std::endl;;
+  std::cout << std::endl;
+  ;
 
   if (res != 0)
   {
