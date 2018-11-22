@@ -19,6 +19,7 @@
 #include <algorithm>
 #include <iostream>
 
+// Post blur does not give as good results. Leave the slow algorithm for now.
 #define POST_BLUR 0
 
 using namespace ohm;
@@ -96,6 +97,13 @@ namespace
       return true;
     }
   };
+
+
+  inline float relativeVoxelHeight(double absolute_height, const VoxelConst &voxel, const glm::dvec3 &up)
+  {
+    const float relative_height = absolute_height - glm::dot(voxel.centreGlobal(), up);
+    return relative_height;
+  }
 
 
   inline bool voxelHeight(double *height, const VoxelConst &voxel, const glm::dvec3 &up)
@@ -317,14 +325,12 @@ unsigned Heightmap::heightmapVoxelLayer() const
 
 double Heightmap::baseHeight() const
 {
-  return imp_->base_height;
+  return glm::dot(upAxisNormal(), imp_->heightmap->origin());
 }
 
 
 bool Heightmap::update(double base_height)
 {
-  imp_->base_height = base_height;
-
   if (!imp_->occupancy_map)
   {
     return false;
@@ -336,6 +342,8 @@ bool Heightmap::update(double base_height)
 
   // Clear previous results.
   heightmap.clear();
+
+  heightmap.setOrigin(upAxisNormal() * base_height);
 
   // 1. Calculate the map extents.
   //  a. Calculate occupancy map extents.
@@ -365,9 +373,8 @@ bool Heightmap::update(double base_height)
 
   for (walker.begin(target_key); walker.walkNext(target_key);)
   {
-    HeightmapVoxel column_details;
-    column_details.height = std::numeric_limits<float>::max();
-    column_details.clearance = 0;
+    double column_height = std::numeric_limits<double>::max();
+    double column_clearance_height = column_height;
     // Start walking the voxels in the source map.
     glm::dvec3 column_reference = heightmap.voxelCentreGlobal(target_key);
     // Set to the min Z extents of the source map.
@@ -393,16 +400,16 @@ bool Heightmap::update(double base_height)
       if (calculateHeightAt(&height, src_voxel, upAxis(), imp_->up, imp_->blur_level))
 #endif  // POST_BLUR
       {
-        if (height < column_details.height)
+        if (height < column_height)
         {
           // First voxel in column.
-          column_details.height = float(height) - base_height;
+          column_height = column_clearance_height = height;
         }
-        else if (column_details.clearance <= 0)
+        else if (column_clearance_height == column_height)
         {
           // No clearance value.
-          column_details.clearance = float(height - (base_height + column_details.height));
-          if (column_details.clearance >= imp_->min_clearance)
+          column_clearance_height = height;
+          if (column_clearance_height - column_height >= imp_->min_clearance)
           {
             // Found our heightmap voxels.
             break;
@@ -410,8 +417,7 @@ bool Heightmap::update(double base_height)
           else
           {
             // Insufficient clearance. This becomes our new base voxel; keep looking for clearance.
-            column_details.height = float(height - base_height);
-            column_details.clearance = 0;
+            column_height = column_clearance_height = height;
           }
         }
       }
@@ -420,8 +426,9 @@ bool Heightmap::update(double base_height)
     // Commit the voxel.
     Voxel heightmap_voxel = heightmap.voxel(target_key, true, &heightmap_cache);
     HeightmapVoxel *voxel_content = heightmap_voxel.layerContent<HeightmapVoxel *>(heightmap_build_layer);
-    *voxel_content = column_details;
-    if (column_details.height < std::numeric_limits<float>::max())
+    voxel_content->height = relativeVoxelHeight(column_height, heightmap_voxel, upAxisNormal());
+    voxel_content->clearance = float(column_clearance_height - column_height);
+    if (column_height < std::numeric_limits<double>::max())
     {
       heightmap_voxel.setValue(heightmap.occupancyThresholdValue());
     }
@@ -436,6 +443,8 @@ bool Heightmap::update(double base_height)
       // First migrate build layer to final layer.
       HeightmapVoxel *voxel_content = heightmap_voxel.layerContent<HeightmapVoxel *>(imp_->heightmap_layer);
       *voxel_content = *heightmap_voxel.layerContent<HeightmapVoxel *>(imp_->heightmap_build_layer);
+      double voxel_height = glm::dot(upAxisNormal(), heightmap_voxel.centreGlobal()) + voxel_content->height;
+      double clearance_height = voxel_height + voxel_content->clearance;
       for (int j = -imp_->blur_level; j <= int(imp_->blur_level); ++j)
       {
         for (int i = -imp_->blur_level; i <= int(imp_->blur_level); ++i)
@@ -466,7 +475,7 @@ bool Heightmap::update(double base_height)
               break;
             }
 
-            // TODO(KS): Set deltas by the upAxis().
+            // Set deltas by the upAxis().
             Voxel neighbour = heightmap_voxel.neighbour(dx, dy, dz);
             if (neighbour.isValid())
             {
@@ -475,28 +484,38 @@ bool Heightmap::update(double base_height)
               // Ignore unoccupied neighbours.
               if (neighbour_content->height < std::numeric_limits<float>::max())
               {
-                if (heightmap_voxel.isOccupied())
+                double neighbour_height = glm::dot(upAxisNormal(), neighbour.centreGlobal()) + neighbour_content->height;
+
+                if (!heightmap_voxel.isOccupied())
                 {
-                  // Both voxels occupied. Copy the worst height.
-                  if (neighbour_content->height > voxel_content->height)
-                  {
-                    *voxel_content = *neighbour_content;
-                  }
-                  // FIXME(KS): consider what to do about nearby clearance heights.
+                  // Bluring into an empty voxel.
+                  voxel_height = neighbour_height;
+                  clearance_height = neighbour_height + neighbour_content->clearance;
+                  // Mark voxel as occupied.
+                  heightmap_voxel.setValue(imp_->heightmap->occupancyThresholdValue());
                 }
                 else
                 {
-                  // Voxel was unoccupied, but neighbour has content. Copy the neighbour's content and mark voxel
-                  // occupied.
-                  // heightmap_voxel.setValue(neighbour.value());
-                  heightmap_voxel.setValue(imp_->heightmap->occupancyThresholdValue());
-                  *voxel_content = *neighbour_content;
+                  // Adjusting existing value.
+                  if (neighbour_height > voxel_height)
+                  {
+                    // No clearance value.
+                    voxel_height = neighbour_height;
+                  }
+                  else if (neighbour_height < clearance_height)
+                  {
+                    clearance_height = neighbour_height;
+                  }
                 }
               }
             }
           }
         }
       }
+
+      // Finish transfer and blur.
+      voxel_content->height = float(voxel_height - glm::dot(heightmap_voxel.centreGlobal(), upAxisNormal()));
+      voxel_content->clearance = clearance_height - voxel_height;
     }
   }
 #endif  // POST_BLUR

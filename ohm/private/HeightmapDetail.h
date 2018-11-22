@@ -23,8 +23,6 @@ namespace ohm
     std::unique_ptr<ohm::OccupancyMap> heightmap;
     glm::dvec3 up;
     double min_clearance = 1.0;
-    /// Last heightmap base height plane.
-    double base_height = 0;
     /// Voxel layer containing the @c HeightmapVoxel data.
     unsigned heightmap_layer = 0;
     /// Voxel layer used to build the first pass heightmap without blur.
