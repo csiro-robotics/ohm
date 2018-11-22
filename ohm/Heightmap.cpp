@@ -306,11 +306,11 @@ const glm::dvec3 &Heightmap::upAxisNormal(int axis_id)
       glm::dvec3(0, 0, 0),   // Dummy
     };
 
-  unsigned axis_index = unsigned(axis_id - AxisNegZ);
-  if (axis_index < 0 || axis_index >= sizeof(kAxes) - sizeof(kAxes[0]))
+  int axis_index = int(axis_id - AxisNegZ);
+  if (axis_index < 0 || axis_index >= int(sizeof(kAxes) - sizeof(kAxes[0])))
   {
     // Reference the dummy index.
-    axis_index = sizeof(kAxes) - sizeof(kAxes[0]) - 1;
+    axis_index = int(sizeof(kAxes) - sizeof(kAxes[0]) - 1);
   };
 
   return kAxes[axis_index];
