@@ -19,6 +19,8 @@
 #include <algorithm>
 #include <iostream>
 
+#define POST_BLUR 0
+
 using namespace ohm;
 
 namespace
@@ -109,8 +111,8 @@ namespace
   }
 
 
-  bool calculateHeightAt(double *height, const VoxelConst &voxel, Heightmap::Axis axis_id,
-                         const glm::dvec3 &up, int blur_level)
+  bool calculateHeightAt(double *height, const VoxelConst &voxel, Heightmap::Axis axis_id, const glm::dvec3 &up,
+                         int blur_level)
   {
     if (blur_level == 0)
     {
@@ -234,6 +236,12 @@ Heightmap::Heightmap(double grid_resolution, double min_clearance, Axis up_axis,
   voxels = layer->voxelLayout();
   voxels.addMember("height", DataType::kFloat, 0);
   voxels.addMember("clearance", DataType::kFloat, 0);
+
+  layer = layout.addLayer(HeightmapVoxel::kHeightmapBuildLayer, 0);
+  imp_->heightmap_build_layer = layer->layerIndex();
+  voxels = layer->voxelLayout();
+  voxels.addMember("height", DataType::kFloat, 0);
+  voxels.addMember("clearance", DataType::kFloat, 0);
 }
 
 
@@ -307,8 +315,16 @@ unsigned Heightmap::heightmapVoxelLayer() const
 }
 
 
-bool Heightmap::update()
+double Heightmap::baseHeight() const
 {
+  return imp_->base_height;
+}
+
+
+bool Heightmap::update(double base_height)
+{
+  imp_->base_height = base_height;
+
   if (!imp_->occupancy_map)
   {
     return false;
@@ -341,7 +357,13 @@ bool Heightmap::update()
   PlaneWalker walker(heightmap, min_ext_key, max_ext_key, upAxis());
   Key target_key;
 
-  for (walker.begin(target_key); walker.walkNext(target_key); )
+#if POST_BLUR
+  unsigned heightmap_build_layer = (imp_->blur_level) ? imp_->heightmap_build_layer : imp_->heightmap_layer;
+#else   // POST_BLUR
+  const unsigned heightmap_build_layer = imp_->heightmap_layer;
+#endif  // POST_BLUR
+
+  for (walker.begin(target_key); walker.walkNext(target_key);)
   {
     HeightmapVoxel column_details;
     column_details.height = std::numeric_limits<float>::max();
@@ -358,23 +380,28 @@ bool Heightmap::update()
     Key src_key = (upAxis() >= 0) ? src_min_key : src_max_key;
     // Select walking direction based on the up axis being aligned with the primary axis or not.
     const int step_dir = (upAxis() >= 0) ? 1 : -1;
-    for (; src_key.isBounded(imp_->vertical_axis_id, src_min_key, src_max_key); src_map.stepKey(src_key, imp_->vertical_axis_id, step_dir))
+    for (; src_key.isBounded(imp_->vertical_axis_id, src_min_key, src_max_key);
+         src_map.stepKey(src_key, imp_->vertical_axis_id, step_dir))
     {
       VoxelConst src_voxel = src_map.voxel(src_key, &src_cache);
 
       double height = 0;
 
+#if POST_BLUR
+      if (voxelHeight(&height, src_voxel, imp_->up))
+#else   // POST_BLUR
       if (calculateHeightAt(&height, src_voxel, upAxis(), imp_->up, imp_->blur_level))
+#endif  // POST_BLUR
       {
         if (height < column_details.height)
         {
           // First voxel in column.
-          column_details.height = float(height);
+          column_details.height = float(height) - base_height;
         }
         else if (column_details.clearance <= 0)
         {
           // No clearance value.
-          column_details.clearance = float(height - column_details.height);
+          column_details.clearance = float(height - (base_height + column_details.height));
           if (column_details.clearance >= imp_->min_clearance)
           {
             // Found our heightmap voxels.
@@ -383,22 +410,96 @@ bool Heightmap::update()
           else
           {
             // Insufficient clearance. This becomes our new base voxel; keep looking for clearance.
-            column_details.height = float(height);
+            column_details.height = float(height - base_height);
             column_details.clearance = 0;
           }
         }
       }
     }
 
-    // Commit the voxel if required.
+    // Commit the voxel.
+    Voxel heightmap_voxel = heightmap.voxel(target_key, true, &heightmap_cache);
+    HeightmapVoxel *voxel_content = heightmap_voxel.layerContent<HeightmapVoxel *>(heightmap_build_layer);
+    *voxel_content = column_details;
     if (column_details.height < std::numeric_limits<float>::max())
     {
-      Voxel heightmap_voxel = heightmap.voxel(target_key, true, &heightmap_cache);
       heightmap_voxel.setValue(heightmap.occupancyThresholdValue());
-      HeightmapVoxel *voxel_content = heightmap_voxel.layerContent<HeightmapVoxel *>(imp_->heightmap_layer);
-      *voxel_content = column_details;
     }
   }
+
+#if POST_BLUR
+  if (imp_->blur_level)
+  {
+    // Walk the heightmap applying blur.
+    for (auto &&heightmap_voxel : heightmap)
+    {
+      // First migrate build layer to final layer.
+      HeightmapVoxel *voxel_content = heightmap_voxel.layerContent<HeightmapVoxel *>(imp_->heightmap_layer);
+      *voxel_content = *heightmap_voxel.layerContent<HeightmapVoxel *>(imp_->heightmap_build_layer);
+      for (int j = -imp_->blur_level; j <= int(imp_->blur_level); ++j)
+      {
+        for (int i = -imp_->blur_level; i <= int(imp_->blur_level); ++i)
+        {
+          // Ignore the voxel itself.
+          if (i || j)
+          {
+            int dx = 0, dy = 0, dz = 0;
+            switch (imp_->up_axis_id)
+            {
+            case Heightmap::AxisX:
+              /* fallthrough */
+            case Heightmap::AxisNegX:
+              dy = i;
+              dz = j;
+              break;
+            case Heightmap::AxisY:
+              /* fallthrough */
+            case Heightmap::AxisNegY:
+              dx = i;
+              dz = j;
+              break;
+            case Heightmap::AxisZ:
+              /* fallthrough */
+            case Heightmap::AxisNegZ:
+              dx = i;
+              dy = j;
+              break;
+            }
+
+            // TODO(KS): Set deltas by the upAxis().
+            Voxel neighbour = heightmap_voxel.neighbour(dx, dy, dz);
+            if (neighbour.isValid())
+            {
+              const HeightmapVoxel *neighbour_content =
+                neighbour.layerContent<HeightmapVoxel *>(imp_->heightmap_build_layer);
+              // Ignore unoccupied neighbours.
+              if (neighbour_content->height < std::numeric_limits<float>::max())
+              {
+                if (heightmap_voxel.isOccupied())
+                {
+                  // Both voxels occupied. Copy the worst height.
+                  if (neighbour_content->height > voxel_content->height)
+                  {
+                    *voxel_content = *neighbour_content;
+                  }
+                  // FIXME(KS): consider what to do about nearby clearance heights.
+                }
+                else
+                {
+                  // Voxel was unoccupied, but neighbour has content. Copy the neighbour's content and mark voxel
+                  // occupied.
+                  // heightmap_voxel.setValue(neighbour.value());
+                  heightmap_voxel.setValue(imp_->heightmap->occupancyThresholdValue());
+                  *voxel_content = *neighbour_content;
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+#endif  // POST_BLUR
 
   return true;
 }

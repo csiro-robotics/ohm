@@ -29,6 +29,7 @@ namespace
   {
     Profile profile;
     const float boundary_distance = 2.5f;
+    const double base_height = 0;
     OccupancyMap map(0.2);
 
     // Build a cloud with real samples around a cubic boundary. Does not cover every voxel in the boundary.
@@ -43,7 +44,7 @@ namespace
     heightmap->setBlurLevel(blur);
 
     ProfileMarker mark_heightmap("heightmap", &profile);
-    heightmap->update();
+    heightmap->update(base_height);
     mark_heightmap.end();
 
     // Verify output. Boundaries should be at ~ +boundary_distance (top of walls). All other voxels should be at
@@ -195,7 +196,7 @@ namespace
         const HeightmapVoxel *voxel_content =
           voxel.layerContent<const HeightmapVoxel *>(heightmap->heightmapVoxelLayer());
         ASSERT_NE(voxel_content, nullptr);
-        ASSERT_NEAR(voxel_content->height, expected_height, 1e-9);
+        ASSERT_NEAR(voxel_content->height + base_height, expected_height, 1e-9);
       }
     }
   }

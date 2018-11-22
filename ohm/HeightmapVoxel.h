@@ -15,6 +15,9 @@ namespace ohm
   {
     /// The name of the layer which stores these voxels.
     static const char *kHeightmapLayer;
+    /// The name of the layer used to build the first pass heightmap. This is the layer without blur.
+    /// Only used when using blur.
+    static const char *kHeightmapBuildLayer;
 
     float height;
     float clearance;

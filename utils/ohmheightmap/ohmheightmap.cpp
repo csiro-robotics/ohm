@@ -45,6 +45,7 @@ namespace
     std::string map_file;
     std::string heightmap_file;
     ohm::Heightmap::Axis axis_id = ohm::Heightmap::AxisZ;
+    double base_height = 0;
     double clearance = 2.0;
     int blur = 0;
   };
@@ -79,6 +80,7 @@ int parseOptions(Options &opt, int argc,  char *argv[])
       ("help", "Show help.")
       ("i", "The input map file (ohm).", cxxopts::value(opt.map_file))
       ("o", "The output heightmap file (ohm).", cxxopts::value(opt.heightmap_file))
+      ("base", "Base height: heightmap values are stored relative to this height.", optVal(opt.base_height))
       ("blur", "Blur factor in generating the heightmap. Must be >= 0, recommended < 5.", optVal(opt.blur))
       ("clearance", "The required height clearance for a heightmap surface voxel.", optVal(opt.clearance))
       ;
@@ -172,7 +174,7 @@ int main(int argc, char *argv[])
     heightmap.setBlurLevel(opt.blur);
   }
 
-  heightmap.update();
+  heightmap.update(opt.base_height);
 
   std::cout << "Saving " << opt.heightmap_file << std::endl;
   ohm::save(opt.heightmap_file.c_str(), heightmap.heightmap(), nullptr);
