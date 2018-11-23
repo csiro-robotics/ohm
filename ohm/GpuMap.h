@@ -8,6 +8,8 @@
 
 #include "OhmConfig.h"
 
+#include "RayFilter.h"
+
 #include <glm/glm.hpp>
 
 namespace gputil
@@ -23,6 +25,7 @@ namespace ohm
   class GpuCache;
   struct GpuMapDetail;
   class OccupancyMap;
+  class RayFilter;
 
   namespace gpumap
   {
@@ -102,9 +105,6 @@ namespace ohm
   class ohm_API GpuMap
   {
   public:
-    /// The default value for @c maxRangeFilter(). Initially 500.
-    static const double kDefaultMaxRange;
-
     /// Construct @c GpuMap support capabilities around @p map. The @p map pointer may be borrowed or owned.
     ///
     /// If @p gpuMemSize is not specified, then up to 1GiB or 3/4 of the GPU memory will be allocated for the GPU
@@ -112,9 +112,9 @@ namespace ohm
     ///
     /// @param map The map to wrap.
     /// @param borrowed_map True to borrow the map, @c false for this object to take ownership.
-    /// @param expected_point_count The expected point count for calls to @c integrateRays(). Used as a hint.
+    /// @param expected_element_count The expected point count for calls to @c integrateRays(). Used as a hint.
     /// @param gpu_mem_size Optionally specify the target GPU cache memory to allocate.
-    GpuMap(OccupancyMap *map, bool borrowed_map = true, unsigned expected_point_count = 2048, size_t gpu_mem_size = 0u);
+    GpuMap(OccupancyMap *map, bool borrowed_map = true, unsigned expected_element_count = 2048, size_t gpu_mem_size = 0u);
 
     /// Destructor. Will wait on outstanding GPU operations first and destroy the @c map() if not using a
     /// @c borrowedPointer().
@@ -139,18 +139,32 @@ namespace ohm
     /// If not borrowed, then the @c GpuMap will destroy the @c OccupancyMap on destruction.
     bool borrowedMap() const;
 
-    /// Returns the maximum allowed range for points added via @c integrateRays(). Excessively long rays may tie up
-    /// the GPU unreasonably, so this value is set to avoid this situation. The default is initialised to
-    /// @c DefaultMaxRange.
-    /// @return The current max range filter value.
-    double maxRangeFilter() const;
-
-    /// Sets the maximum ray range allowed. See @c maxRangeFilter(). Setting zero turns max range filtering off.
-    /// @param range The new range, zero to disable (not advised!)
-    void setMaxRangeFilter(double range);
-
     /// Sync the GPU memory use for the occupancy layer to main memory ensuring main memory is up to date.
     void syncOccupancy();
+
+    /// Set the range filter applied to all rays given to @c integrateRays(). Setting a null filter ensures no
+    /// filtering is performed. The default behaviour is to use the same filter as the @c OccupancyMap.
+    ///
+    /// Note: not having a filter for a GpuMap is highly inadvisable; bad data such as infinite NaN points will cause
+    /// the GPU to hang.
+    ///
+    /// @param ray_filter The range filter to install and apply to @c integrateRays().
+    ///   Accepts a null pointer, which clears the filter.
+    void setRayFilter(const RayFilterFunction &ray_filter);
+
+    /// Get the installed range filter applied to all rays given to @c integrateRays().
+    /// @return The installed range filter.
+    const RayFilterFunction &rayFilter() const;
+
+    /// Get the range filter actually being used. This will be the one belonging to the wrapped @c OccupancyMap when
+    /// the @c GpuMap does not have an explicitly installed filter.
+    /// @return The range filter currently in use.
+    const RayFilterFunction &effectiveRayFilter() const;
+
+    /// Clears the @c rayFilter(). Unlike the same method in @c OccupancyMap, this is not the same a setting a null
+    /// filter. For the @p GpuMap, @c clearRayFilter() restores the default behaviour of using the same filter
+    /// as the underlying @c OccupancyMap.
+    void clearRayFilter();
 
     /// Integrate the given @p rays into the map. The @p rays form a list of origin/sample pairs for which
     /// we generally consider the sample voxel as a hit when (increasing occupancy) and all other voxels as misses
@@ -159,23 +173,18 @@ namespace ohm
     /// This function prepares and queues a GPU update of the affected regions. The time spent in this function is
     /// variable as it may have to wait for existing GPU operations to complete before queuing new operations.
     ///
-    /// Points in @p rays are filtered for @c NaN values and for rays longer than @c maxRangeFilter(). This is to avoid
-    /// unwanted GPU hangups. Ideally such values should never be passed.
+    /// Points are filtered using the @c effectiveRayFilter(). It is highly advisable to always have a filter
+    /// installed which removes infinite and NaN points and long sample rays.
     ///
     /// Note: This call is ignored if @c gpuOk() is @c false.
     ///
     /// @param rays Array of origin/sample point pairs.
-    /// @param point_count The number of points in @p rays. The ray count is half this value.
+    /// @param element_count The number of points in @p rays. The ray count is half this value.
     /// @param end_points_as_occupied When @c true, the end points of the rays increase the occupancy probability.
     ///   Otherwise they decrease the probability just as the rest of the ray.
-    /// @param clip_box All rays are first clipped to this axis aligned box.
     /// @return The number of rays integrated. Zero indicates a failure when @p pointCount is not zero.
     ///   In this case either the GPU is unavailable, or all @p rays are invalid.
-    unsigned integrateRays(const glm::dvec3 *rays, unsigned point_count, bool end_points_as_occupied,
-                           const Aabb &clip_box);
-
-    unsigned integrateRays(const glm::dvec3 *rays, unsigned point_count, const Aabb &clip_box);
-    unsigned integrateRays(const glm::dvec3 *rays, unsigned point_count, bool end_points_as_occupied = true);
+    unsigned integrateRays(const glm::dvec3 *rays, unsigned element_count, bool end_points_as_occupied = true);
 
     /// Internal use: get the GPU cache used by this map.
     /// @return The GPU cache this map uses.
@@ -183,8 +192,8 @@ namespace ohm
 
   private:
     template <typename VEC_TYPE>
-    unsigned integrateRaysT(const VEC_TYPE *rays, unsigned point_count, bool end_points_as_occupied,
-                            const Aabb &clip_box);
+    unsigned integrateRaysT(const VEC_TYPE *rays, unsigned element_count, bool end_points_as_occupied,
+                            const RayFilterFunction &filter);
 
     /// Wait for previous ray batch, as indicated by @p buffer_index, to complete.
     /// @param buffer_index Identifies the batch to wait on.

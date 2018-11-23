@@ -9,6 +9,7 @@
 #include "OhmConfig.h"
 
 #include "Key.h"
+#include "RayFilter.h"
 #include "Voxel.h"
 
 #include <glm/glm.hpp>
@@ -23,11 +24,12 @@
 namespace ohm
 {
   class Aabb;
+  class KeyList;
   class MapCache;
   struct MapChunk;
   class MapLayout;
   struct OccupancyMapDetail;
-  class KeyList;
+  class RayFilter;
 
   /// A spatial container using a voxel representation of 3D space.
   ///
@@ -682,24 +684,28 @@ namespace ohm
     size_t calculateSegmentKeys(KeyList &keys, const glm::dvec3 &start_point, const glm::dvec3 &end_point,
                                 bool include_end_point = true) const;
 
+    /// Set the range filter applied to all rays given to @c integrateRays().
+    /// @param ray_filter The range filter to install and apply to @c integrateRays().
+    ///   Accepts a null pointer, which clears the filter.
+    void setRayFilter(const RayFilterFunction &ray_filter);
+
+    /// Get the range filter applied to all rays given to @c integrateRays().
+    /// The map starts with a filter configured to remove any infinite or NaN points.
+    /// @return The current ray filter.
+    const RayFilterFunction &rayFilter() const;
+
+    /// Clears the @c rayFilter().
+    void clearRayFilter();
+
     /// Integrate the given @p rays into the map. The @p rays form a list of origin/sample pairs for which
     /// we generally consider the sample voxel as a hit when (increasing occupancy) and all other voxels as misses
     /// (free space). The sample may be treated as a miss when @p endPointsAsOccupied is false.
     ///
     /// @param rays Array of origin/sample point pairs.
-    /// @param point_count The number of points in @p rays. The ray count is half this value.
+    /// @param element_count The number of points in @p rays. The ray count is half this value.
     /// @param end_points_as_occupied When @c true, the end points of the rays increase the occupancy probability.
     ///   Otherwise they decrease the probability just as the rest of the ray. Defaults to @c true in overloads.
-    /// @param clip_box All rays are clipped to lie within this box before integrating into the map.
-    ///   Rays are not clipped when this box is not valid (or not specified in the case of overloads).
-    void integrateRays(const glm::dvec3 *rays, size_t point_count, bool end_points_as_occupied, const Aabb &clip_box);
-
-    /// @overload
-    void integrateRays(const glm::dvec3 *rays, size_t point_count, bool end_points_as_occupied = true);
-
-    /// @overload
-    void integrateRays(const glm::dvec3 *rays, size_t point_count, const Aabb &clip_box);
-
+    void integrateRays(const glm::dvec3 *rays, size_t element_count, bool end_points_as_occupied = true);
 
     /// Clone the entire map.
     /// @return A deep clone of this map. Caller takes ownership.

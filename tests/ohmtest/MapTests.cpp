@@ -128,7 +128,11 @@ namespace maptests
     rays.push_back(glm::dvec3(0, 0, 3));
     rays.push_back(glm::dvec3(0, 0, -2));
 
-    map.integrateRays(rays.data(), rays.size(), clip_box);
+    map.setRayFilter([&clip_box] (glm::dvec3 *start, glm::dvec3 *end, unsigned *filter_flags) {
+      return clipBounded(start, end, filter_flags, clip_box);
+    });
+
+    map.integrateRays(rays.data(), rays.size());
 
     // Validate the map contains no occupied points; only free and unknown.
     const glm::dvec3 voxel_half_extents(0.5 * map.resolution());
@@ -157,6 +161,8 @@ namespace maptests
     // Reset the map. This also tests that resetting a GPU map works.
     map.clear();
 
+    rays.clear();
+
     // Now rays which enter the box, ending at the origin.
     // Start with rays which pass through the box.
     rays.push_back(glm::dvec3(-2, 0, 0));
@@ -168,7 +174,7 @@ namespace maptests
     rays.push_back(glm::dvec3(0, 0, 3));
     rays.push_back(glm::dvec3(0, 0, 0));
 
-    map.integrateRays(rays.data(), rays.size(), clip_box);
+    map.integrateRays(rays.data(), rays.size());
 
     // Validate the map contains no occupied points; only free and unknown.
     const Key target_key = map.voxelKey(glm::dvec3(0));
