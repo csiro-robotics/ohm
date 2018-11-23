@@ -8,3 +8,4 @@
 using namespace ohm;
 
 const char *HeightmapVoxel::kHeightmapLayer = "heightmap";
+const char *HeightmapVoxel::kHeightmapBuildLayer = "heightmap_build";

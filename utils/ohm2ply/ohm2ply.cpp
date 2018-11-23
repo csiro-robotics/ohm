@@ -372,8 +372,9 @@ int main(int argc, char *argv[])
           c = 0;
         }
 
-        v = voxel.centreGlobal();
-        v[heightmap_axis] = voxel_height->height;
+        glm::dvec3 up(0);
+        up[heightmap_axis] = 1;
+        v = voxel.centreGlobal() + up * double(voxel_height->height);
         ply.addVertex(v, Colour(c, 128, 0));
         ++point_count;
       }

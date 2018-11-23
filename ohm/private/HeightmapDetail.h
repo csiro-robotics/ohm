@@ -25,6 +25,8 @@ namespace ohm
     double min_clearance = 1.0;
     /// Voxel layer containing the @c HeightmapVoxel data.
     unsigned heightmap_layer = 0;
+    /// Voxel layer used to build the first pass heightmap without blur.
+    unsigned heightmap_build_layer = 0;
     /// Identifies the up axis: @c Heightmap::Axis
     int up_axis_id = 0;
     /// Identifies the up axis as aligned to XYZ, [0, 2] but ignores sign/direction.

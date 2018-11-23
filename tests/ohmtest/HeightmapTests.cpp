@@ -25,10 +25,12 @@ using namespace ohmutil;
 
 namespace
 {
-  void heightmapBoxTest(const std::string &prefix, Heightmap::Axis axis, int blur, std::shared_ptr<Heightmap> *map_out = nullptr)
+  void heightmapBoxTest(const std::string &prefix, Heightmap::Axis axis, int blur,
+                        std::shared_ptr<Heightmap> *map_out = nullptr)
   {
     Profile profile;
     const float boundary_distance = 2.5f;
+    const double base_height = 0;
     OccupancyMap map(0.2);
 
     // Build a cloud with real samples around a cubic boundary. Does not cover every voxel in the boundary.
@@ -43,7 +45,7 @@ namespace
     heightmap->setBlurLevel(blur);
 
     ProfileMarker mark_heightmap("heightmap", &profile);
-    heightmap->update();
+    heightmap->update(base_height);
     mark_heightmap.end();
 
     // Verify output. Boundaries should be at ~ +boundary_distance (top of walls). All other voxels should be at
@@ -85,9 +87,7 @@ namespace
           const HeightmapVoxel *voxel = iter->layerContent<const HeightmapVoxel *>(heightmap->heightmapVoxelLayer());
           // Get the coordinate of the voxel.
           coord = heightmap->heightmap().voxelCentreGlobal(iter.key());
-          // Adjust the height to the plane height and offset.
-          // For now assume a horizontal plane through the origin..
-          coord[axis_index] = voxel->height;
+          coord += double(voxel->height) * Heightmap::upAxisNormal(axis_index);
           // Add to the cloud.
           heightmapCloud.addVertex(coord);
         }
@@ -195,7 +195,7 @@ namespace
         const HeightmapVoxel *voxel_content =
           voxel.layerContent<const HeightmapVoxel *>(heightmap->heightmapVoxelLayer());
         ASSERT_NE(voxel_content, nullptr);
-        ASSERT_NEAR(voxel_content->height, expected_height, 1e-9);
+        ASSERT_NEAR(voxel_content->height + base_height, expected_height, 1e-9);
       }
     }
   }
@@ -263,31 +263,41 @@ TEST(Heightmap, Layout)
   heightmapBoxTest("", Heightmap::AxisZ, 0, &heightmap);
   const MapLayout &layout = heightmap->heightmap().layout();
 
-  EXPECT_EQ(layout.layerCount(), 2);
+  EXPECT_EQ(layout.layerCount(), 3);
   const MapLayer *occupancy_layer = layout.layer(defaultLayerName(kDlOccupancy));
   const MapLayer *heightmap_layer = layout.layer(HeightmapVoxel::kHeightmapLayer);
+  const MapLayer *heightmap_build_layer = layout.layer(HeightmapVoxel::kHeightmapBuildLayer);
   ASSERT_NE(occupancy_layer, nullptr);
   ASSERT_NE(heightmap_layer, nullptr);
+  ASSERT_NE(heightmap_build_layer, nullptr);
 
   EXPECT_EQ(occupancy_layer->layerIndex(), 0);
   EXPECT_EQ(heightmap_layer->layerIndex(), 1);
+  EXPECT_EQ(heightmap_build_layer->layerIndex(), 2);
 
   EXPECT_EQ(occupancy_layer->voxelByteSize(), sizeof(float));
   EXPECT_EQ(heightmap_layer->voxelByteSize(), sizeof(HeightmapVoxel));
+  EXPECT_EQ(heightmap_build_layer->voxelByteSize(), sizeof(HeightmapVoxel));
 
   VoxelLayoutConst occupancy_voxel = occupancy_layer->voxelLayout();
   VoxelLayoutConst heightmap_voxel = heightmap_layer->voxelLayout();
+  VoxelLayoutConst heightmap_build_voxel = heightmap_layer->voxelLayout();
 
   EXPECT_EQ(occupancy_voxel.memberCount(), 1);
   EXPECT_STREQ(occupancy_voxel.memberName(0), defaultLayerName(kDlOccupancy));
   EXPECT_EQ(occupancy_voxel.memberOffset(0), 0);
   EXPECT_EQ(occupancy_voxel.memberSize(0), sizeof(float));
 
-  EXPECT_EQ(heightmap_voxel.memberCount(), 2);
-  EXPECT_STREQ(heightmap_voxel.memberName(0), "height");
-  EXPECT_STREQ(heightmap_voxel.memberName(1), "clearance");
-  EXPECT_EQ(heightmap_voxel.memberOffset(0), 0);
-  EXPECT_EQ(heightmap_voxel.memberSize(0), sizeof(float));
-  EXPECT_EQ(heightmap_voxel.memberOffset(1), sizeof(float));
-  EXPECT_EQ(heightmap_voxel.memberSize(1), sizeof(float));
+  const auto validate_heightmap_voxel_layout = [](const VoxelLayoutConst &layout) {
+    EXPECT_EQ(layout.memberCount(), 2);
+    EXPECT_STREQ(layout.memberName(0), "height");
+    EXPECT_STREQ(layout.memberName(1), "clearance");
+    EXPECT_EQ(layout.memberOffset(0), 0);
+    EXPECT_EQ(layout.memberSize(0), sizeof(float));
+    EXPECT_EQ(layout.memberOffset(1), sizeof(float));
+    EXPECT_EQ(layout.memberSize(1), sizeof(float));
+  };
+
+  validate_heightmap_voxel_layout(heightmap_voxel);
+  validate_heightmap_voxel_layout(heightmap_build_voxel);
 }

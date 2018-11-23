@@ -105,12 +105,21 @@ namespace ohm
     /// Get the normal vector for the up axis used to last @c update().
     const glm::dvec3 &upAxisNormal() const;
 
+    /// Static resolution of @c Axis to a normal.
+    /// @param id The @c Axis ID.
+    static const glm::dvec3 &upAxisNormal(int axis_id);
+
+    /// The last base height value given to @p update().
+    double baseHeight() const;
+
     /// Update the heightmap from the source @c occupancyMap(). This clears the existing content first.
     ///
     /// Voxels are project onto this plane to calculate each voxels' closest two clusters to the plane.
     ///
+    /// @param base_height The base heightmap value. All heights are relative to this value. This helps reduce floating
+    ///   point error with heights being stored in single precision.
     /// @return true on success.
-    bool update();
+    bool update(double base_height);
 
   private:
     std::unique_ptr<HeightmapDetail> imp_;
