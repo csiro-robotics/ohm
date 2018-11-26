@@ -396,15 +396,12 @@ unsigned GpuMap::integrateRaysT(const VEC_TYPE *rays, unsigned element_count, bo
   unsigned filter_flags;
   Key line_start_key, line_end_key;
   GpuKey line_start_key_gpu, line_end_key_gpu;
-  bool clipped_ray_end;
 
   for (unsigned i = 0; i < element_count; i += 2)
   {
     ray_start_d = rays[i + 0];
     ray_end_d = rays[i + 1];
-    line_end_key = map.voxelKey(ray_end_d);
     filter_flags = 0;
-    clipped_ray_end = false;
 
     if (use_filter)
     {
@@ -415,21 +412,9 @@ unsigned GpuMap::integrateRaysT(const VEC_TYPE *rays, unsigned element_count, bo
       }
     }
 
-    // Was the end of the line clipped?
-    if (filter_flags & kRffClippedEnd)
-    {
-      // If the line end was clipped, the last voxel may no longer be the sample voxel, in which case it needs to
-      // be marked as free not occupied. However, we can clip the line and have the same end voxel.
-      Key clipped_end_voxel = map.voxelKey(ray_end_d);
-      if (clipped_end_voxel != line_end_key)
-      {
-        line_end_key = clipped_end_voxel;
-        clipped_ray_end = true;
-      }
-    }
-
     // Upload if not preloaded.
     line_start_key = map.voxelKey(ray_start_d);
+    line_end_key = map.voxelKey(ray_end_d);
 
     line_start_key_gpu.region[0] = line_start_key.regionKey()[0];
     line_start_key_gpu.region[1] = line_start_key.regionKey()[1];
@@ -445,7 +430,7 @@ unsigned GpuMap::integrateRaysT(const VEC_TYPE *rays, unsigned element_count, bo
     line_end_key_gpu.voxel[0] = line_end_key.localKey()[0];
     line_end_key_gpu.voxel[1] = line_end_key.localKey()[1];
     line_end_key_gpu.voxel[2] = line_end_key.localKey()[2];
-    line_end_key_gpu.voxel[3] = (clipped_ray_end) ? 1 : 0;
+    line_end_key_gpu.voxel[3] = (filter_flags & kRffClippedEnd) ? 1 : 0;
 
     keys_pinned.write(&line_start_key_gpu, sizeof(line_start_key_gpu), (upload_count + 0) * sizeof(GpuKey));
     keys_pinned.write(&line_end_key_gpu, sizeof(line_end_key_gpu), (upload_count + 1) * sizeof(GpuKey));

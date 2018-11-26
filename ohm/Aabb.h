@@ -10,7 +10,8 @@
 
 #include <algorithm>
 
-#include <glm/glm.hpp>
+#include <glm/vec3.hpp>
+#include <glm/geometric.hpp>
 
 namespace ohm
 {
@@ -83,11 +84,11 @@ namespace ohm
 
     /// Query the box half extents.
     /// @return The box half extents (half the diagonal).
-    inline glm::dvec3 halfExtents() const { return 0.5 * (corners_[1] - centre()); }
+    inline glm::dvec3 halfExtents() const { return 0.5 * (corners_[1] - corners_[0]); }
 
     /// Query the full box extents.
     /// @return The full extents (the diagonal).
-    inline glm::dvec3 diagonal() const { return corners_[1] - centre(); }
+    inline glm::dvec3 diagonal() const { return corners_[1] - corners_[0]; }
 
     /// Corner indexing enum. See @c corner()
     /// Corners are defined by a three letter acronym, each letter referencing a axis in XYZ order.
