@@ -11,9 +11,11 @@
 #include "MapChunk.h"
 #include "MapLayout.h"
 #include "MapRegion.h"
+#include "RayFilter.h"
 
 #include <mutex>
 #include <unordered_map>
+#include <vector>
 
 namespace ohm
 {
@@ -44,6 +46,8 @@ namespace ohm
     mutable std::mutex mutex;
 
     GpuCache *gpu_cache = nullptr;
+
+    RayFilterFunction ray_filter;
 
     ~OccupancyMapDetail();
 

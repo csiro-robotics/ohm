@@ -213,6 +213,9 @@ OccupancyMap::OccupancyMap(double resolution, const glm::u8vec3 &region_voxel_di
   setMissProbability(0.4f);
   setOccupancyThresholdProbability(0.5f);
   imp_->setDefaultLayout();
+  imp_->ray_filter = [](glm::dvec3 *start, glm::dvec3 *end, unsigned *filter_flags) {
+    return ohm::goodRayFilter(start, end, filter_flags, 0);
+  };
 }
 
 
@@ -858,36 +861,52 @@ size_t OccupancyMap::calculateSegmentKeys(KeyList &keys, const glm::dvec3 &start
 }
 
 
-void OccupancyMap::integrateRays(const glm::dvec3 *rays, size_t point_count, bool end_points_as_occupied,
-                                 const Aabb &clip_box)
+void OccupancyMap::setRayFilter(const RayFilterFunction &ray_filter)
+{
+  imp_->ray_filter = ray_filter;
+}
+
+
+const RayFilterFunction &OccupancyMap::rayFilter() const
+{
+  return imp_->ray_filter;
+}
+
+
+void OccupancyMap::clearRayFilter()
+{
+  imp_->ray_filter = RayFilterFunction();
+}
+
+
+void OccupancyMap::integrateRays(const glm::dvec3 *rays, size_t element_count, bool end_points_as_occupied)
 {
   KeyList keys;
   MapCache cache;
-  glm::dvec3 start, end;
-  unsigned clip_flags = 0;
   bool clipped_sample_voxel;
 
-  for (size_t i = 0; i < point_count; i += 2)
+  const bool use_filter = bool(imp_->ray_filter);
+
+  glm::dvec3 start, end;
+  unsigned filter_flags;
+  for (size_t i = 0; i < element_count; i += 2)
   {
+    filter_flags = 0;
     start = rays[i];
     end = rays[i + 1];
 
-    clipped_sample_voxel = false;
-    if (clip_box.isValid())
+
+    if (use_filter)
     {
-      if (!clip_box.clipLine(start, end, &clip_flags))
+      if (!imp_->ray_filter(&start, &end, &filter_flags))
       {
-        // Does not intersect the clip box. Skip the ray.
+        // Bad ray.
         continue;
       }
-
-      // Has the end voxel changed? If so, we do not integrate the end voxel.
-      if (voxelKey(end) != voxelKey(rays[i + 1]))
-      {
-        // Sample voxel has been clipped. We won't integrate it.
-        clipped_sample_voxel = true;
-      }
     }
+
+    clipped_sample_voxel = (filter_flags & kRffClippedEnd);
+
     // Calculate line key for the last voxel if the end point has been clipped
     calculateSegmentKeys(keys, start, end, clipped_sample_voxel);
 
@@ -911,18 +930,6 @@ void OccupancyMap::integrateRays(const glm::dvec3 *rays, size_t point_count, boo
 }
 
 
-void OccupancyMap::integrateRays(const glm::dvec3 *rays, size_t point_count, bool end_points_as_occupied)
-{
-  integrateRays(rays, point_count, end_points_as_occupied, Aabb(0.0));
-}
-
-
-void OccupancyMap::integrateRays(const glm::dvec3 *rays, size_t point_count, const Aabb &clip_box)
-{
-  integrateRays(rays, point_count, true, clip_box);
-}
-
-
 OccupancyMap *OccupancyMap::clone() const
 {
   return clone(-glm::dvec3(std::numeric_limits<double>::infinity()),
@@ -933,6 +940,11 @@ OccupancyMap *OccupancyMap::clone() const
 OccupancyMap *OccupancyMap::clone(const glm::dvec3 &min_ext, const glm::dvec3 &max_ext) const
 {
   OccupancyMap *new_map = new OccupancyMap(imp_->resolution, imp_->region_voxel_dimensions);
+
+  if (imp_->ray_filter)
+  {
+    new_map->setRayFilter(imp_->ray_filter);
+  }
 
   // Copy general details.
   new_map->detail()->copyFrom(*imp_);

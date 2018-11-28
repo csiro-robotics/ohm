@@ -9,6 +9,7 @@
 #include "OhmConfig.h"
 
 #include "GpuCache.h"
+#include "RayFilter.h"
 
 #include <glm/glm.hpp>
 
@@ -50,7 +51,8 @@ namespace ohm
 
     GpuTransformSamples *transform_samples = nullptr;
 
-    double max_range_filter = 0;
+    RayFilterFunction ray_filter;
+    bool custom_ray_filter = false;
 
     unsigned ray_counts[kBuffersCount] = { 0, 0 };
     unsigned transform_count = 0;

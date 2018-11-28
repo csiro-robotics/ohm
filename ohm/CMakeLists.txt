@@ -74,6 +74,8 @@ set(SOURCES
   Query.cpp
   Query.h
   QueryFlag.h
+  RayFilter.cpp
+  RayFilter.h
   Stream.cpp
   Stream.h
   Voxel.cpp
@@ -116,6 +118,7 @@ set(PUBLIC_HEADERS
   OhmGpu.h
   Query.h
   QueryFlag.h
+  RayFilter.h
   Stream.h
   Voxel.h
   VoxelLayout.h

@@ -473,6 +473,12 @@ namespace gpumap
     GpuMap gpu_wrap(&gpu_map, true, unsigned(batch_size * 2));  // Borrow pointer.
 
     Aabb clip_box(glm::dvec3(-1.0), glm::dvec3(2.0));
+
+    const auto clip_filter = [&clip_box](glm::dvec3 *start, glm::dvec3 *end, unsigned *filter_flags) {
+      return clipBounded(start, end, filter_flags, clip_box);
+    };
+    gpu_wrap.setRayFilter(clip_filter);
+
     std::vector<glm::dvec3> rays;
 
     // Start with rays which pass through the box.
@@ -485,7 +491,7 @@ namespace gpumap
     rays.push_back(glm::dvec3(0, 0, 3));
     rays.push_back(glm::dvec3(0, 0, -2));
 
-    gpu_wrap.integrateRays(rays.data(), unsigned(rays.size()), clip_box);
+    gpu_wrap.integrateRays(rays.data(), unsigned(rays.size()));
     gpu_wrap.syncOccupancy();
 
     // Validate the map contains no occupied points; only free and unknown.
@@ -526,7 +532,7 @@ namespace gpumap
     rays.push_back(glm::dvec3(0, 0, 3));
     rays.push_back(glm::dvec3(0, 0, 0));
 
-    gpu_wrap.integrateRays(rays.data(), unsigned(rays.size()), clip_box);
+    gpu_wrap.integrateRays(rays.data(), unsigned(rays.size()));
     gpu_wrap.syncOccupancy();
 
     // Validate the map contains no occupied points; only free and unknown.
@@ -577,6 +583,14 @@ namespace gpumap
     GpuMap gpu_wrap(&gpu_map, true, unsigned(batch_size * 2));  // Borrow pointer.
 
     Aabb clip_box(glm::dvec3(-1.0), glm::dvec3(2.0));
+
+    const auto clip_filter = [&clip_box](glm::dvec3 *start, glm::dvec3 *end, unsigned *filter_flags) {
+      return clipBounded(start, end, filter_flags, clip_box);
+    };
+
+    cpu_map.setRayFilter(clip_filter);
+    gpu_wrap.setRayFilter(clip_filter);
+
     std::vector<glm::dvec3> rays;
 
     // Compare GPU/CPU map clipping results.
@@ -590,8 +604,8 @@ namespace gpumap
     rays.push_back(glm::dvec3(0, 0, 3));
     rays.push_back(glm::dvec3(0, 0, 0));
 
-    cpu_map.integrateRays(rays.data(), unsigned(rays.size()), clip_box);
-    gpu_wrap.integrateRays(rays.data(), unsigned(rays.size()), clip_box);
+    cpu_map.integrateRays(rays.data(), unsigned(rays.size()));
+    gpu_wrap.integrateRays(rays.data(), unsigned(rays.size()));
     gpu_wrap.syncOccupancy();
 
     compareMaps(cpu_map, gpu_map);

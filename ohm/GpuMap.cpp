@@ -15,6 +15,7 @@
 #include "MapRegion.h"
 #include "OccupancyMap.h"
 #include "OccupancyUtil.h"
+#include "RayFilter.h"
 
 #include "private/GpuMapDetail.h"
 #include "private/OccupancyMapDetail.h"
@@ -37,6 +38,8 @@
 #if DEBUG_RAY
 #pragma optimize("", off)
 #endif  // DEBUG_RAY
+
+#pragma GCC optimize("O0")
 
 using namespace ohm;
 
@@ -168,9 +171,6 @@ namespace ohm
 }  // namespace ohm
 
 
-const double GpuMap::kDefaultMaxRange = 500.0;
-
-
 GpuCache *ohm::gpumap::enableGpu(OccupancyMap &map)
 {
   return enableGpu(map, GpuCache::kDefaultLayerMemSize, true);
@@ -228,7 +228,7 @@ GpuCache *ohm::gpumap::gpuCache(OccupancyMap &map)
 }
 
 
-GpuMap::GpuMap(OccupancyMap *map, bool borrowed_map, unsigned expected_point_count, size_t gpu_mem_size)
+GpuMap::GpuMap(OccupancyMap *map, bool borrowed_map, unsigned expected_element_count, size_t gpu_mem_size)
   : imp_(new GpuMapDetail(map, borrowed_map))
 {
   gpumap::enableGpu(*map, gpu_mem_size, true);
@@ -237,15 +237,14 @@ GpuMap::GpuMap(OccupancyMap *map, bool borrowed_map, unsigned expected_point_cou
   const unsigned prealloc_region_count = 1024u;
   for (unsigned i = 0; i < GpuMapDetail::kBuffersCount; ++i)
   {
-    imp_->key_buffers[i] = gputil::Buffer(gpu_cache.gpu(), sizeof(GpuKey) * expected_point_count, gputil::kBfReadHost);
+    imp_->key_buffers[i] = gputil::Buffer(gpu_cache.gpu(), sizeof(GpuKey) * expected_element_count, gputil::kBfReadHost);
     imp_->ray_buffers[i] =
-      gputil::Buffer(gpu_cache.gpu(), sizeof(gputil::float3) * expected_point_count, gputil::kBfReadHost);
+      gputil::Buffer(gpu_cache.gpu(), sizeof(gputil::float3) * expected_element_count, gputil::kBfReadHost);
     imp_->region_key_buffers[i] =
       gputil::Buffer(gpu_cache.gpu(), sizeof(gputil::int3) * prealloc_region_count, gputil::kBfReadHost);
     imp_->region_offset_buffers[i] =
       gputil::Buffer(gpu_cache.gpu(), sizeof(gputil::ulong1) * prealloc_region_count, gputil::kBfReadHost);
   }
-  imp_->max_range_filter = kDefaultMaxRange;
   imp_->transform_samples = new GpuTransformSamples(gpu_cache.gpu());
 }
 
@@ -281,18 +280,6 @@ bool GpuMap::borrowedMap() const
 }
 
 
-double GpuMap::maxRangeFilter() const
-{
-  return imp_->max_range_filter;
-}
-
-
-void GpuMap::setMaxRangeFilter(double range)
-{
-  imp_->max_range_filter = range;
-}
-
-
 void GpuMap::syncOccupancy()
 {
   if (imp_->map)
@@ -302,23 +289,35 @@ void GpuMap::syncOccupancy()
 }
 
 
-unsigned GpuMap::integrateRays(const glm::dvec3 *rays, unsigned point_count, bool end_points_as_occupied,
-                               const Aabb &clip_box)
+void GpuMap::setRayFilter(const RayFilterFunction &ray_filter)
 {
-  // Wait for previous ray operations to complete.
-  return integrateRaysT<glm::dvec3>(rays, point_count, end_points_as_occupied, clip_box);
+  imp_->ray_filter = ray_filter;
+  imp_->custom_ray_filter = true;
 }
 
 
-unsigned GpuMap::integrateRays(const glm::dvec3 *rays, unsigned point_count, const Aabb &clip_box)
+const RayFilterFunction &GpuMap::rayFilter() const
 {
-  return integrateRays(rays, point_count, true, clip_box);
+  return imp_->ray_filter;
 }
 
 
-unsigned GpuMap::integrateRays(const glm::dvec3 *rays, unsigned point_count, bool end_points_as_occupied)
+const RayFilterFunction &GpuMap::effectiveRayFilter() const
 {
-  return integrateRays(rays, point_count, end_points_as_occupied, Aabb(0.0));
+  return (imp_->custom_ray_filter || !imp_->map) ? imp_->ray_filter : imp_->map->rayFilter();
+}
+
+
+void GpuMap::clearRayFilter()
+{
+  imp_->ray_filter = nullptr;
+  imp_->custom_ray_filter = false;
+}
+
+
+unsigned GpuMap::integrateRays(const glm::dvec3 *rays, unsigned element_count, bool end_points_as_occupied)
+{
+  return integrateRaysT<glm::dvec3>(rays, element_count, end_points_as_occupied, effectiveRayFilter());
 }
 
 
@@ -329,8 +328,8 @@ GpuCache *GpuMap::gpuCache() const
 
 
 template <typename VEC_TYPE>
-unsigned GpuMap::integrateRaysT(const VEC_TYPE *rays, unsigned point_count, bool end_points_as_occupied,
-                                const Aabb &clip_box)
+unsigned GpuMap::integrateRaysT(const VEC_TYPE *rays, unsigned element_count, bool end_points_as_occupied,
+                                const RayFilterFunction &filter)
 {
   if (!imp_->map)
   {
@@ -350,7 +349,7 @@ unsigned GpuMap::integrateRaysT(const VEC_TYPE *rays, unsigned point_count, bool
     return 0u;
   }
 
-  if (point_count == 0)
+  if (element_count == 0)
   {
     return 0u;
   }
@@ -379,15 +378,14 @@ unsigned GpuMap::integrateRaysT(const VEC_TYPE *rays, unsigned point_count, bool
     }
   };
 
+  const bool use_filter = bool(filter);
+
   // Reserve GPU memory for the rays.
-  imp_->key_buffers[buf_idx].resize(sizeof(GpuKey) * point_count);
-  imp_->ray_buffers[buf_idx].resize(sizeof(gputil::float3) * point_count);
+  imp_->key_buffers[buf_idx].resize(sizeof(GpuKey) * element_count);
+  imp_->ray_buffers[buf_idx].resize(sizeof(gputil::float3) * element_count);
 
   gputil::PinnedBuffer keys_pinned(imp_->key_buffers[buf_idx], gputil::kPinWrite);
   gputil::PinnedBuffer rays_pinned(imp_->ray_buffers[buf_idx], gputil::kPinWrite);
-
-  // Is clipping required?
-  const bool clip_rays = clip_box.isValid();
 
   // Build region set and upload rays.
   imp_->regions.clear();
@@ -395,55 +393,28 @@ unsigned GpuMap::integrateRaysT(const VEC_TYPE *rays, unsigned point_count, bool
   glm::dvec3 ray_start_d, ray_end_d, start_voxel_centre;
   glm::vec3 ray_start, ray_end;
   unsigned upload_count = 0u;
+  unsigned filter_flags;
   Key line_start_key, line_end_key;
   GpuKey line_start_key_gpu, line_end_key_gpu;
-  bool clipped_ray_end = false;
-  for (unsigned i = 0; i < point_count; i += 2)
+
+  for (unsigned i = 0; i < element_count; i += 2)
   {
     ray_start_d = rays[i + 0];
     ray_end_d = rays[i + 1];
+    filter_flags = 0;
 
-    line_end_key = map.voxelKey(ray_end_d);
-    clipped_ray_end = false;
-    if (clip_rays)
+    if (use_filter)
     {
-      unsigned line_clip_flags = 0;
-
-      if (!clip_box.clipLine(ray_start_d, ray_end_d, &line_clip_flags))
+      if (!filter(&ray_start_d, &ray_end_d, &filter_flags))
       {
-        if (!clip_box.contains(ray_start_d) && !clip_box.contains(ray_end_d))
-        {
-          // Line segment/ray does not intersect the box. Skip it.
-          continue;
-        }
+        // Bad ray.
+        continue;
       }
-      // else
-      // {
-      //   std::cout << "clipped: " << rays[i + 0] << "->" << rays[i + 1] << " : " << ray_start_d << "->" << ray_end_d
-      //             << std::endl;
-      // }
-
-      // Was the end of the line clipped?
-      if (line_clip_flags | Aabb::kClippedEnd)
-      {
-        // If the line end was clipped, the last voxel may no longer be the sample voxel, in which case it needs to
-        // be marked as free not occupied. However, we can clip the line and have the same end voxel.
-        Key clipped_end_voxel = map.voxelKey(ray_end_d);
-        if (clipped_end_voxel != line_end_key)
-        {
-          line_end_key = clipped_end_voxel;
-          clipped_ray_end = true;
-        }
-      }
-    }
-
-    if (!goodRay(ray_start_d, ray_end_d, imp_->max_range_filter))
-    {
-      continue;
     }
 
     // Upload if not preloaded.
     line_start_key = map.voxelKey(ray_start_d);
+    line_end_key = map.voxelKey(ray_end_d);
 
     line_start_key_gpu.region[0] = line_start_key.regionKey()[0];
     line_start_key_gpu.region[1] = line_start_key.regionKey()[1];
@@ -459,7 +430,7 @@ unsigned GpuMap::integrateRaysT(const VEC_TYPE *rays, unsigned point_count, bool
     line_end_key_gpu.voxel[0] = line_end_key.localKey()[0];
     line_end_key_gpu.voxel[1] = line_end_key.localKey()[1];
     line_end_key_gpu.voxel[2] = line_end_key.localKey()[2];
-    line_end_key_gpu.voxel[3] = (clipped_ray_end) ? 1 : 0;
+    line_end_key_gpu.voxel[3] = (filter_flags & kRffClippedEnd) ? 1 : 0;
 
     keys_pinned.write(&line_start_key_gpu, sizeof(line_start_key_gpu), (upload_count + 0) * sizeof(GpuKey));
     keys_pinned.write(&line_end_key_gpu, sizeof(line_end_key_gpu), (upload_count + 1) * sizeof(GpuKey));
