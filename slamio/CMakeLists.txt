@@ -41,6 +41,7 @@ generate_export_header(slamio
 target_include_directories(slamio
   PUBLIC
     $<INSTALL_INTERFACE:${OHM_PREFIX_INCLUDE}>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/slamio>
     $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}>
 )

@@ -2,8 +2,10 @@
 // Project configuration header. This is a generated header; do not modify
 // it directly. Instead, modify the config.h.in version and run CMake again.
 //
-#ifndef OHMQUERYCONFIG_H
-#define OHMQUERYCONFIG_H
+#ifndef OHMTOOLSCONFIG_H
+#define OHMTOOLSCONFIG_H
+
+#include "OhmHeightmapUtilExport.h"
 
 #ifndef _USE_MATH_DEFINES
 #define _USE_MATH_DEFINES
@@ -24,6 +26,9 @@
 //#define _CRT_SECURE_CPP_OVERLOAD_STANDARD_NAMES 1
 #endif // _MSC_VER
 
-#include <ohm/OhmConfig.h>
+// Enable various validation tests throughout this library.
+//#cmakedefine OHM_THREADS
 
-#endif // OHMQUERYCONFIG_H
+#include "OhmConfig.h"
+
+#endif // OHMTOOLSCONFIG_H

@@ -136,9 +136,14 @@ if(OHM_GPU_API STREQUAL "OpenCL")
   add_subdirectory(clu)
 endif(OHM_GPU_API STREQUAL "OpenCL")
 add_subdirectory(gputil)
+
 add_subdirectory(ohmutil)
 add_subdirectory(slamio)
 add_subdirectory(ohm)
+
+# Experimental
+add_subdirectory(ohmheightmaputil)
+
 add_subdirectory(ohmtools)
 
 add_subdirectory(utils)

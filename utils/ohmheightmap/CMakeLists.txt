@@ -20,6 +20,14 @@ target_include_directories(ohmheightmap SYSTEM
 
 target_link_libraries(ohmheightmap ohm ohmutil ${ZLIB_LIBRARIES})
 
+target_link_libraries(ohmheightmap ohmheightmaputil)
+
+if(OHM_TES_DEBUG)
+  # target_link_libraries(ohmheightmap 3es::3es-core)
+else(OHM_TES_DEBUG)
+  target_include_directories(ohmheightmap PRIVATE SYSTEM "${3ES_INCLUDE_DIRS}")
+endif(OHM_TES_DEBUG)
+
 source_group("source" REGULAR_EXPRESSION ".*$")
 # Needs CMake 3.8+:
 # source_group(TREE "${CMAKE_CURRENT_LIST_DIR}" PREFIX source FILES ${SOURCES})

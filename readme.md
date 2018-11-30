@@ -50,6 +50,11 @@ sudo cp *.a /usr/lib
 
 Setup of OpenCL requires mode detailed [instructions (link)](./OpenCL.md).
 
+Additional experimental (TODO: make this comment good):
+
+- libglew-dev
+- libglfw3-dev
+
 ### Build Instructions
 
 1. Download source code.

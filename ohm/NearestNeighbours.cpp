@@ -139,8 +139,8 @@ namespace
     TES_STMT(std::vector<tes::Vector3f> excludedOccupied);
     TES_STMT(std::vector<tes::Vector3f> includedUncertain);
     TES_STMT(std::vector<tes::Vector3f> excludedUncertain);
-    TES_BOX_W(g_3es, TES_COLOUR(LightSeaGreen), 0u,
-              glm::value_ptr(regionCentre), glm::value_ptr(map.regionSpatialResolution()));
+    // TES_BOX_W(g_3es, TES_COLOUR(LightSeaGreen), 0u,
+    //           glm::value_ptr(region_centre), glm::value_ptr(map.regionSpatialResolution()));
 
     for (int z = 0; z < map_data.region_voxel_dimensions.z; ++z)
     {
@@ -171,7 +171,7 @@ namespace
 #ifdef TES_ENABLE
               if (occupancy && *occupancy != voxel::invalidMarkerValue())
               {
-                includedOccupied.push_back(tes::V3Arg(glm::value_ptr(map.voxelCentreGlobal(voxel_key)));
+                includedOccupied.push_back(tes::V3Arg(glm::value_ptr(map.voxelCentreGlobal(voxel_key))));
               }
               else
               {
@@ -300,7 +300,7 @@ namespace
         }
         // Validate the range.
         range = gpuData.localRanges[i];
-        expectedRange = glm::distance(query.nearPoint, query.map->voxelCentreGlobal(key));
+        expectedRange = glm::distance(query.near_point, query.map->voxelCentreGlobal(key));
         if (std::abs(range - expectedRange) > 1e-5)
         {
           std::cout << "  Range deviation. [" << i << "]: R("
@@ -560,11 +560,11 @@ bool NearestNeighbours::onExecute()
   // Create debug visualisation objects. We use the map address to persist objects.
   // Search sphere.
   TES_SPHERE_W(g_3es, TES_COLOUR_A(GreenYellow, 128), uint32_t((size_t)d->map),
-                glm::value_ptr(d->nearPoint), d->searchRadius);
+                glm::value_ptr(d->near_point), d->search_radius);
   // Search bounds.
   TES_BOX_W(g_3es, TES_COLOUR(FireBrick), uint32_t((size_t)d->map),
-            glm::value_ptr(0.5 * minExtents + maxExtents),
-            glm::value_ptr(maxExtents - minExtents));
+            glm::value_ptr(0.5 * min_extents + max_extents),
+            glm::value_ptr(max_extents - min_extents));
 
   if (d->gpu_ok && (d->query_flags & kQfGpuEvaluate))
   {

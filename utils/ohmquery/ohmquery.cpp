@@ -37,8 +37,6 @@
 #include <iostream>
 #include <sstream>
 
-TES_SERVER_DECL(g_tesServer);
-
 typedef std::chrono::high_resolution_clock TimingClock;
 
 namespace
@@ -262,21 +260,21 @@ int parseOptions(Options &opt, int argc, char *argv[])
 
 void initialiseDebugCategories(const Options &/*opt*/)
 {
-  // TES_CATEGORY(g_tesServer, "Map", CAT_Map, 0, true);
-  // TES_CATEGORY(g_tesServer, "Populate", CAT_Populate, 0, true);
+  // TES_CATEGORY(ohm::g_3es, "Map", CAT_Map, 0, true);
+  // TES_CATEGORY(ohm::g_3es, "Populate", CAT_Populate, 0, true);
   // TES_IF(opt.rays & Rays_Lines)
   // {
-  //   TES_CATEGORY(g_tesServer, "Rays", CAT_Rays, CAT_Populate, (opt.rays & Rays_Lines) != 0);
+  //   TES_CATEGORY(ohm::g_3es, "Rays", CAT_Rays, CAT_Populate, (opt.rays & Rays_Lines) != 0);
   // }
   // TES_IF(opt.rays & Rays_Voxels)
   // {
-  //   TES_CATEGORY(g_tesServer, "Free", CAT_FreeCells, CAT_Populate, (opt.rays & Rays_Lines) == 0);
+  //   TES_CATEGORY(ohm::g_3es, "Free", CAT_FreeCells, CAT_Populate, (opt.rays & Rays_Lines) == 0);
   // }
   // TES_IF(opt.samples)
   // {
-  //   TES_CATEGORY(g_tesServer, "Occupied", CAT_OccupiedCells, CAT_Populate, true);
+  //   TES_CATEGORY(ohm::g_3es, "Occupied", CAT_OccupiedCells, CAT_Populate, true);
   // }
-  // TES_CATEGORY(g_tesServer, "Info", CAT_Info, 0, true);
+  // TES_CATEGORY(ohm::g_3es, "Info", CAT_Info, 0, true);
 }
 
 void saveQueryCloud(const ohm::OccupancyMap &map, const ohm::Query &query, const Options &opt,
@@ -810,15 +808,15 @@ int main(int argc, char *argv[])
   // Initialise server info.
   TES_SERVER_INFO(info, tes::XYZ);
   // Create the server. Use tesServer declared globally above.
-  TES_SERVER_CREATE(g_tesServer, settings, &info);
-  TES_STMT(ohm::g_3es = g_tesServer);
+  TES_SERVER_CREATE(ohm::g_3es, settings, &info);
+  TES_STMT(ohm::g_3es = ohm::g_3es);
 
   // Start the server and wait for the connection monitor to start.
-  TES_SERVER_START(g_tesServer, tes::ConnectionMonitor::Asynchronous);
-  TES_SERVER_START_WAIT(g_tesServer, 1000);
+  TES_SERVER_START(ohm::g_3es, tes::ConnectionMonitor::Asynchronous);
+  TES_SERVER_START_WAIT(ohm::g_3es, 1000);
 
 #ifdef TES_ENABLE
-  std::cout << "Starting with " << g_tesServer->connectionCount() << " connection(s)." << std::endl;
+  std::cout << "Starting with " << ohm::g_3es->connectionCount() << " connection(s)." << std::endl;
 #endif // TES_ENABLE
 
   initialiseDebugCategories(opt);
@@ -834,6 +832,6 @@ int main(int argc, char *argv[])
   }
 
   res = runQueries(opt);
-  TES_SERVER_STOP(g_tesServer);
+  TES_SERVER_STOP(ohm::g_3es);
   return res;
 }
