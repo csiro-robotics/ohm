@@ -7,8 +7,7 @@ find_package(GLEW REQUIRED)
 find_package(GLM REQUIRED)
 find_package(PNG REQUIRED)
 
-find_package(PkgConfig REQUIRED)
-pkg_search_module(GLFW REQUIRED glfw3)
+find_package(glfw3 REQUIRED)
 
 configure_file(OhmHeightmapUtilConfig.in.h "${CMAKE_CURRENT_BINARY_DIR}/ohmheightmaputil/OhmHeightmapUtilConfig.h")
 
@@ -36,7 +35,7 @@ target_link_libraries(ohmheightmaputil
   OpenGL::GL
   OpenGL::GLU
   ${GLEW_LIBRARIES}
-  ${GLFW_LIBRARIES}
+  glfw
   PNG::PNG
   )# OpenGL::GLX)
 
@@ -52,7 +51,6 @@ target_include_directories(ohmheightmaputil SYSTEM
   PUBLIC
     "${GLM_INCLUDE_DIR}"
     "${GLEW_INCLUDE_DIRS}"
-    ${GLFW_INCLUDE_DIRS}
 )
 
 if(OHM_TES_DEBUG)
