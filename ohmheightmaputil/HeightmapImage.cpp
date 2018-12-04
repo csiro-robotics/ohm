@@ -26,6 +26,9 @@
 
 #include <glm/ext.hpp>
 
+#define GLM_ENABLE_EXPERIMENTAL
+#include <glm/gtx/normal.hpp>
+
 #pragma GCC optimize("O0")
 
 using namespace ohm;
@@ -35,8 +38,10 @@ namespace ohm
   struct HeightmapImageDetail
   {
     const Heightmap *heightmap;
-    std::vector<glm::dvec3> vertices;
-    std::vector<std::size_t> indices;
+    std::vector<glm::vec3> vertices;
+    std::vector<glm::vec3> vertex_normals;
+    std::vector<unsigned> indices;
+    std::vector<glm::vec3> tri_normals;
     std::vector<double> coords_2d;
   };
 }  // namespace ohm
@@ -44,13 +49,24 @@ namespace ohm
 namespace
 {
   // Fragment shader colour by input.
-  const char *fragment_shader = "#version 330 core\n"
+  const char *normals_fragment_shader = "#version 330 core\n"
+                                "in vec3 v_colour;\n"
+                                "in float v_depth;\n"
                                 "// Ouput data\n"
                                 "out vec3 color;\n"
                                 "void main()\n"
                                 "{\n"
-                                "  // Output color = red\n"
-                                "  color = vec3(1, 1, 1);\n"
+                                // "  color = vec3(v_depth, v_depth, v_depth);\n"
+                                "  color = v_colour;\n"
+                                "}";
+  const char *depth_fragment_shader = "#version 330 core\n"
+                                "in vec3 v_colour;\n"
+                                "in float v_depth;\n"
+                                "// Ouput data\n"
+                                "out vec3 color;\n"
+                                "void main()\n"
+                                "{\n"
+                                "  color = vec3(v_depth, v_depth, v_depth);\n"
                                 "}";
 
   // Colour by depth.
@@ -62,17 +78,21 @@ namespace
   //                               "}\n";
 
   // Vertex shader.
-  const char *vertex_shader =
-    "#version 330 core\n"
-    "// Input vertex data, different for all executions of this shader.\n"
-    "layout(location = 0) in vec3 vertexPosition_modelspace;\n"
-    "out float v_depth;\n"
-    "void main()\n"
-    "{\n"
-    "  gl_Position.xyz = vertexPosition_modelspace;\n"
-    "  gl_Position.w = 1.0;\n"
-    "  v_depth = gl_Position.z/gl_Position.w; // maybe use: (1.0 + gl_Position.z/gl_Position.w) / 2.0;\n"
-    "}\n";
+  const char *vertex_shader = "#version 330 core\n"
+                              "// Input vertex data, different for all executions of this shader.\n"
+                              "layout(location = 0) in vec3 vertexPosition_modelspace;\n"
+                              "layout(location = 1) in vec3 vertexNormal_modelspace;\n"
+                              "uniform mat4 MVP;\n"
+                              "uniform mat4 V;\n"
+                              "uniform mat4 M;\n"
+                              "out vec3 v_colour;\n"
+                              "out float v_depth;\n"
+                              "void main()\n"
+                              "{\n"
+                              "  gl_Position = gl_Position =  MVP * vec4(vertexPosition_modelspace,1);\n"
+                              "  v_colour = vertexNormal_modelspace;\n"
+                              "  v_depth = 1.0 - (1.0 + gl_Position.z/gl_Position.w) / 2.0;\n"
+                              "}\n";
 
   const char *quad_fragment_shader = "#version 330 core\n"
                                      "// Ouput data\n"
@@ -205,8 +225,9 @@ void HeightmapImage::triangulate(glm::dvec3 *min_ext, glm::dvec3 *max_ext)
 
   const glm::dvec3 up = imp_->heightmap->upAxisNormal();
   glm::dvec3 point;
-  glm::dvec3 min_point(std::numeric_limits<double>::max());
-  glm::dvec3 max_point(-std::numeric_limits<double>::max());
+  glm::dvec3 min_map_ext, max_map_ext;
+
+  heightmap.calculateExtents(min_map_ext, max_map_ext);
 
   for (auto voxel_iter = heightmap.begin(); voxel_iter != heightmap.end(); ++voxel_iter)
   {
@@ -217,38 +238,403 @@ void HeightmapImage::triangulate(glm::dvec3 *min_ext, glm::dvec3 *max_ext)
       point = voxel.centreGlobal() + double(height_info->height) * up;
       imp_->coords_2d.push_back(point.x);
       imp_->coords_2d.push_back(point.y);
-      // imp_->coords_2d.push_back(point.z);
-      imp_->vertices.push_back(point);
+      imp_->vertices.push_back(glm::vec3(point - min_map_ext));
 
-      min_point.x = std::min(point.x, min_point.x);
-      min_point.y = std::min(point.y, min_point.y);
-      min_point.z = std::min(point.z, min_point.z);
+      min_map_ext.x = std::min(point.x, min_map_ext.x);
+      min_map_ext.y = std::min(point.y, min_map_ext.y);
+      min_map_ext.z = std::min(point.z, min_map_ext.z);
 
-      max_point.x = std::max(point.x, max_point.x);
-      max_point.y = std::max(point.y, max_point.y);
-      max_point.z = std::max(point.z, max_point.z);
+      max_map_ext.x = std::max(point.x, max_map_ext.x);
+      max_map_ext.y = std::max(point.y, max_map_ext.y);
+      max_map_ext.z = std::max(point.z, max_map_ext.z);
     }
   }
 
-  *min_ext = min_point;
-  *max_ext = max_point;
+  *min_ext = min_map_ext;
+  *max_ext = max_map_ext;
 
   // Triangulate.
   delaunator::Delaunator delaunay(imp_->coords_2d);
+
+  imp_->vertex_normals.clear();
+  imp_->vertex_normals.reserve(imp_->vertices.size());
+  for (size_t i = 0; i < imp_->vertices.size(); ++i)
+  {
+    imp_->vertex_normals.push_back(glm::vec3(0.0f));
+  }
 
   // Extract indices into imp_->indices.
   imp_->indices.resize(delaunay.triangles.size());
   if (!delaunay.triangles.empty())
   {
-    static_assert(sizeof(*imp_->indices.data()) == sizeof(*delaunay.triangles.data()), "Data size mismatch");
-    memcpy(imp_->indices.data(), delaunay.triangles.data(),
-           sizeof(*delaunay.triangles.data()) * delaunay.triangles.size());
+    imp_->indices.clear();
+    imp_->indices.reserve(delaunay.triangles.size());
+    imp_->tri_normals.reserve(delaunay.triangles.size() / 3);
+
+    glm::vec3 tri[3];
+    glm::vec3 normal;
+    unsigned indices[3];
+    for (size_t i = 0; i < delaunay.triangles.size(); i += 3)
+    {
+      indices[0] = unsigned(delaunay.triangles[i + 0]);
+      indices[1] = unsigned(delaunay.triangles[i + 1]);
+      indices[2] = unsigned(delaunay.triangles[i + 2]);
+      tri[0] = imp_->vertices[indices[0]];
+      tri[1] = imp_->vertices[indices[1]];
+      tri[2] = imp_->vertices[indices[2]];
+
+      // Calculate the triangle normal.
+      normal = glm::triangleNormal(tri[0], tri[1], tri[2]);
+
+      // Adjust winding to suit rendering clipping.
+      if (glm::dot(normal, glm::vec3(up)) < 0)
+      {
+        std::swap(indices[1], indices[2]);
+        normal *= -1.0f;
+      }
+      imp_->indices.push_back(indices[0]);
+      imp_->indices.push_back(indices[1]);
+      imp_->indices.push_back(indices[2]);
+
+      imp_->vertex_normals[indices[0]] += normal;
+      imp_->vertex_normals[indices[1]] += normal;
+      imp_->vertex_normals[indices[2]] += normal;
+
+      imp_->tri_normals.push_back(normal);
+    }
+  }
+
+  // Normalise data stored in vertex_normals to get the final normals.
+  for (auto &vertex_normal : imp_->vertex_normals)
+  {
+    vertex_normal = glm::normalize(vertex_normal);
   }
 }
 
 
+#if 1
+bool HeightmapImage::renderHeightMesh(const glm::dvec3 &min_ext_a, const glm::dvec3 &max_ext_a)
+{
+  if (imp_->vertices.empty() || imp_->indices.empty())
+  {
+    return false;
+  }
+
+  glm::dvec3 min_ext = min_ext_a;
+  glm::dvec3 max_ext = max_ext_a;
+  {
+    PlyMesh mesh;
+    mesh.addVertices(imp_->vertices.data(), unsigned(imp_->vertices.size()));
+    mesh.addTriangles(imp_->indices.data(), unsigned(imp_->indices.size() / 3));
+    mesh.save("hm-mesh.ply", true);
+  }
+
+  TES_TRIANGLES(g_3es, TES_COLOUR(White), glm::value_ptr(*vertices.data()), unsigned(vertices.size()),
+                sizeof(*vertices.data()), indices.data(), unsigned(indices.size()));
+  TES_SERVER_UPDATE(g_3es, 0.0f);
+  TES_SERVER_UPDATE(g_3es, 0.0f);
+
+  // Initialise GLFW
+  if (!glfwInit())
+  {
+    fprintf(stderr, "Failed to initialize GLFW\n");
+    getchar();
+    return -1;
+  }
+
+  glfwWindowHint(GLFW_SAMPLES, 4);
+  glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+  glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+  glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);  // To make MacOS happy; should not be needed
+  glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+
+  // Open a window and create its OpenGL context
+  GLFWwindow *window = glfwCreateWindow(1024, 768, "Tutorial 02 - Red triangle", NULL, NULL);
+  if (window == NULL)
+  {
+    fprintf(stderr, "Failed to open GLFW window. If you have an Intel GPU, they are not 3.3 compatible. Try the 2.1 "
+                    "version of the tutorials.\n");
+    getchar();
+    glfwTerminate();
+    return -1;
+  }
+  glfwMakeContextCurrent(window);
+
+  // Initialize GLEW
+  glewExperimental = true;  // Needed for core profile
+  if (glewInit() != GLEW_OK)
+  {
+    fprintf(stderr, "Failed to initialize GLEW\n");
+    getchar();
+    glfwTerminate();
+    return -1;
+  }
+
+  //----------------------------------------------------------------------------
+  // Rendering setup.
+  //----------------------------------------------------------------------------
+
+  // We would expect width and height to be 1024 and 768
+  int windowWidth = 1024;
+  int windowHeight = 768;
+
+  // But on MacOS X with a retina screen it'll be 1024*2 and 768*2, so we get the actual framebuffer size:
+  glfwGetFramebufferSize(window, &windowWidth, &windowHeight);
+
+  // Ensure we can capture the escape key being pressed below
+  glfwSetInputMode(window, GLFW_STICKY_KEYS, GL_TRUE);
+
+  // Dark blue background
+  glClearColor(0.0f, 0.0f, 0.4f, 0.0f);
+
+  // // Enable depth test
+  glEnable(GL_DEPTH_TEST);
+  // Accept fragment if it closer to the camera than the former one
+  glDepthFunc(GL_LESS);
+
+  // Cull triangles which normal is not towards the camera
+  // glEnable(GL_CULL_FACE);
+
+  //----------------------------------------------------------------------------
+  // Render data setup
+  //----------------------------------------------------------------------------
+  GLuint VertexArrayID;
+  glGenVertexArrays(1, &VertexArrayID);
+  glBindVertexArray(VertexArrayID);
+
+  min_ext = max_ext = imp_->vertices[0];
+  for (const auto &v : imp_->vertices)
+  {
+    for (int i = 0; i < 3; ++i)
+    {
+      min_ext[i] = std::min<double>(v[i], min_ext[i]);
+      max_ext[i] = std::max<double>(v[i], max_ext[i]);
+    }
+  }
+
+  static_assert(sizeof(*imp_->indices.data()) == sizeof(GLuint), "GLuint/indices type size mismatch");
+
+  GLuint vertexbuffer;
+  glGenBuffers(1, &vertexbuffer);
+  glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
+  glBufferData(GL_ARRAY_BUFFER, imp_->vertices.size() * sizeof(*imp_->vertices.data()), imp_->vertices.data(),
+               GL_STATIC_DRAW);
+
+  GLuint normalbuffer;
+  glGenBuffers(1, &normalbuffer);
+  glBindBuffer(GL_ARRAY_BUFFER, normalbuffer);
+  glBufferData(GL_ARRAY_BUFFER, imp_->vertex_normals.size() * sizeof(*imp_->vertex_normals.data()),
+               imp_->vertex_normals.data(), GL_STATIC_DRAW);
+
+  // Generate a buffer for the indices as well
+  GLuint elementbuffer;
+  glGenBuffers(1, &elementbuffer);
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, elementbuffer);
+  glBufferData(GL_ELEMENT_ARRAY_BUFFER, imp_->indices.size() * sizeof(*imp_->indices.data()), imp_->indices.data(),
+               GL_STATIC_DRAW);
+
+  //----------------------------------------------------------------------------
+  // Shader setup
+  //----------------------------------------------------------------------------
+
+  // Create and compile our GLSL program from the shaders
+  GLuint map_program_id = loadShaders("map_shader", vertex_shader, normals_fragment_shader);
+
+  //----------------------------------------------------------------------------
+  // FBO setup.
+  //----------------------------------------------------------------------------
+  #if 1
+  // The framebuffer, which regroups 0, 1, or more textures, and 0 or 1 depth buffer.
+  GLuint FramebufferName = 0;
+  glGenFramebuffers(1, &FramebufferName);
+  glBindFramebuffer(GL_FRAMEBUFFER, FramebufferName);
+
+  // The texture we're going to render to
+  GLuint renderedTexture;
+  glGenTextures(1, &renderedTexture);
+
+  // "Bind" the newly created texture : all future texture functions will modify this texture
+  glBindTexture(GL_TEXTURE_2D, renderedTexture);
+
+  // Give an empty image to OpenGL ( the last "0" means "empty" )
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, windowWidth, windowHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, 0);
+
+  // Poor filtering
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+  // The depth buffer
+  GLuint depthrenderbuffer;
+  glGenRenderbuffers(1, &depthrenderbuffer);
+  glBindRenderbuffer(GL_RENDERBUFFER, depthrenderbuffer);
+  glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, windowWidth, windowHeight);
+  glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, depthrenderbuffer);
+
+  //// Alternative : Depth texture. Slower, but you can sample it later in your shader
+  // GLuint depthTexture;
+  // glGenTextures(1, &depthTexture);
+  // glBindTexture(GL_TEXTURE_2D, depthTexture);
+  // glTexImage2D(GL_TEXTURE_2D, 0,GL_DEPTH_COMPONENT24, 1024, 768, 0,GL_DEPTH_COMPONENT, GL_FLOAT, 0);
+  // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+  // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+  // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+  // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+  // Set "renderedTexture" as our colour attachment #0
+  glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, renderedTexture, 0);
+
+  //// Depth texture alternative :
+  // glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, depthTexture, 0);
+
+
+  // Set the list of draw buffers.
+  GLenum DrawBuffers[1] = { GL_COLOR_ATTACHMENT0 };
+  glDrawBuffers(1, DrawBuffers);  // "1" is the size of DrawBuffers
+
+  // Always check that our framebuffer is ok
+  if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+  {
+    return false;
+  }
+
+
+  // The fullscreen quad's FBO
+  static const GLfloat g_quad_vertex_buffer_data[] =  //
+    {
+      -1.0f, -1.0f, 0.0f,  //
+      1.0f,  -1.0f, 0.0f,  //
+      -1.0f, 1.0f,  0.0f,  //
+      -1.0f, 1.0f,  0.0f,  //
+      1.0f,  -1.0f, 0.0f,  //
+      1.0f,  1.0f,  0.0f,  //
+    };
+
+  GLuint quad_vertexbuffer;
+  glGenBuffers(1, &quad_vertexbuffer);
+  glBindBuffer(GL_ARRAY_BUFFER, quad_vertexbuffer);
+  glBufferData(GL_ARRAY_BUFFER, sizeof(g_quad_vertex_buffer_data), g_quad_vertex_buffer_data, GL_STATIC_DRAW);
+
+  // Create and compile our GLSL program from the shaders
+  GLuint quad_program_id = loadShaders("fbo", quad_vertex_shader, quad_fragment_shader);
+  GLuint texID = glGetUniformLocation(quad_program_id, "renderedTexture");
+  GLuint timeID = glGetUniformLocation(quad_program_id, "time");
+
+  glBindFramebuffer(GL_FRAMEBUFFER, 0);
+  #endif // #
+
+  //----------------------------------------------------------------------------
+  // Camera setup
+  //----------------------------------------------------------------------------
+  glUseProgram(map_program_id);
+
+  // Get a handle for our "MVP" uniform
+  GLuint mvp_matrix_id = glGetUniformLocation(map_program_id, "MVP");
+
+  const float near_clip = 0.0f;
+  const float camera_offset = 0.0f;
+  // Near and far clip planes require sufficient buffering to exceed the min/max extents range.
+  // So near is at 1.0f (to avoid some depth precision issues), far is near clip (1) + range + camera_offset (2)
+  // const glm::mat4 ProjectionMatrix = glm::ortho(float(min_ext.x), float(max_ext.x),
+  //                                               float(min_ext.y), float(max_ext.y),
+  const glm::mat4 ProjectionMatrix = glm::ortho(
+    -0.5f * float(max_ext.x - min_ext.x), 0.5f * float(max_ext.x - min_ext.x), -0.5f * float(max_ext.y - min_ext.y),
+    0.5f * float(max_ext.y - min_ext.y), near_clip, near_clip + camera_offset + float(max_ext.z - min_ext.z));
+  // Look down from above.
+  glm::vec3 eye = 0.5f * glm::vec3(min_ext + max_ext);
+  glm::vec3 target = eye;
+  eye.z = max_ext.z + camera_offset;
+  target.z = 0;
+  const glm::vec3 up(0, 1, 0);
+  const glm::mat4 ViewMatrix = glm::lookAt(eye, target, up);
+
+  const glm::mat4 ModelMatrix = glm::mat4(1.0);
+  const glm::mat4 MVP = ProjectionMatrix * ViewMatrix * ModelMatrix;
+
+  // Send our transformation to the currently bound shader,
+  // in the "MVP" uniform
+  glUniformMatrix4fv(mvp_matrix_id, 1, GL_FALSE, &MVP[0][0]);
+
+  do
+  {
+    glViewport(0, 0, windowWidth, windowHeight);
+
+    // Clear the screen
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    // Use our shader
+    glUseProgram(map_program_id);
+
+    // 1rst attribute buffer : vertices
+    glEnableVertexAttribArray(0);
+    glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
+    glVertexAttribPointer(0,  // attribute 0. No particular reason for 0, but must match the layout in the shader.
+                          3,  // size
+                          GL_FLOAT,  // type
+                          GL_FALSE,  // normalized?
+                          0,         // stride
+                          (void *)0  // array buffer offset
+    );
+
+    // Normals stream.
+    glEnableVertexAttribArray(1);
+    glBindBuffer(GL_ARRAY_BUFFER, normalbuffer);
+    glVertexAttribPointer(1,         // attribute
+                          3,         // size
+                          GL_FLOAT,  // type
+                          GL_TRUE,   // normalized?
+                          0,         // stride
+                          (void *)0  // array buffer offset
+    );
+
+    // Index buffer
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, elementbuffer);
+
+    // Draw the triangles !
+    glDrawElements(GL_TRIANGLES,          // mode
+                   imp_->indices.size(),  // count
+                   GL_UNSIGNED_INT,       // type
+                   (void *)0              // element array buffer offset
+    );
+
+    glDisableVertexAttribArray(0);
+
+    // Swap buffers
+    glfwSwapBuffers(window);
+    glfwPollEvents();
+
+  }  // Check if the ESC key was pressed or the window was closed
+  while (glfwGetKey(window, GLFW_KEY_ESCAPE) != GLFW_PRESS && glfwWindowShouldClose(window) == 0);
+
+  // Cleanup VBO
+  glDeleteBuffers(1, &vertexbuffer);
+  glDeleteVertexArrays(1, &VertexArrayID);
+  glDeleteProgram(map_program_id);
+
+  // Close OpenGL window and terminate GLFW
+  glfwTerminate();
+
+  return 0;
+}
+
+
+#else  // #
+
 bool HeightmapImage::renderHeightMesh(const glm::dvec3 &min_ext, const glm::dvec3 &max_ext)
 {
+  {
+    PlyMesh mesh;
+    mesh.addVertices(imp_->vertices.data(), unsigned(imp_->vertices.size()));
+    mesh.addTriangles(imp_->indices.data(), unsigned(imp_->indices.size() / 3));
+    mesh.save("hm-mesh.ply", true);
+  }
+
+  TES_TRIANGLES(g_3es, TES_COLOUR(White), glm::value_ptr(*vertices.data()), unsigned(vertices.size()),
+                sizeof(*vertices.data()), indices.data(), unsigned(indices.size()));
+  TES_SERVER_UPDATE(g_3es, 0.0f);
+  TES_SERVER_UPDATE(g_3es, 0.0f);
+
   // Initialise GLFW
   if (!glfwInit())
   {
@@ -298,7 +684,7 @@ bool HeightmapImage::renderHeightMesh(const glm::dvec3 &min_ext, const glm::dvec
 
   // Set the mouse at the center of the screen
   glfwPollEvents();
-  glfwSetCursorPos(window, 1024 / 2, 768 / 2);
+  // glfwSetCursorPos(window, 1024 / 2, 768 / 2);
 
   // Dark blue background
   glClearColor(0.0f, 0.0f, 0.4f, 0.0f);
@@ -316,59 +702,25 @@ bool HeightmapImage::renderHeightMesh(const glm::dvec3 &min_ext, const glm::dvec
   glBindVertexArray(VertexArrayID);
 
   // Create and compile our GLSL program from the shaders
-  GLuint programID = loadShaders("fbo", vertex_shader, fragment_shader);
+  GLuint map_program_id = loadShaders("fbo", vertex_shader, fragment_shader);
 
   // Get a handle for our "MVP" uniform
-  GLuint MatrixID = glGetUniformLocation(programID, "MVP");
-  GLuint ViewMatrixID = glGetUniformLocation(programID, "V");
-  GLuint ModelMatrixID = glGetUniformLocation(programID, "M");
-
-  // Read our .obj file
-  std::vector<glm::vec3> vertices;
-  std::vector<unsigned> indices;
-
-  vertices.resize(imp_->vertices.size());
-  indices.resize(imp_->indices.size());
-
-  for (size_t i = 0; i < imp_->vertices.size(); ++i)
-  {
-    vertices[i] = glm::vec3(imp_->vertices[i] - min_ext);
-  }
-
-  for (size_t i = 0; i < imp_->indices.size(); i += 3)
-  {
-    // Flip winding for render.
-    indices[i + 0] = unsigned(imp_->indices[i + 0]);
-    indices[i + 2] = unsigned(imp_->indices[i + 1]);
-    indices[i + 1] = unsigned(imp_->indices[i + 2]);
-  }
-
-  {
-    PlyMesh mesh;
-    mesh.addVertices(vertices.data(), unsigned(vertices.size()));
-    mesh.addTriangles(indices.data(), unsigned(indices.size() / 3));
-    mesh.save("hm-mesh.ply", true);
-  }
-
-  TES_TRIANGLES(g_3es, TES_COLOUR(White), glm::value_ptr(*vertices.data()), unsigned(vertices.size()),
-                sizeof(*vertices.data()), indices.data(), unsigned(indices.size()));
-  TES_SERVER_UPDATE(g_3es, 0.0f);
-  TES_SERVER_UPDATE(g_3es, 0.0f);
+  GLuint MatrixID = glGetUniformLocation(map_program_id, "MVP");
+  GLuint ViewMatrixID = glGetUniformLocation(map_program_id, "V");
+  GLuint ModelMatrixID = glGetUniformLocation(map_program_id, "M");
 
   // Load it into a VBO
   GLuint vertexbuffer;
   glGenBuffers(1, &vertexbuffer);
   glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
-  glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(glm::vec3), &vertices[0], GL_STATIC_DRAW);
+  glBufferData(GL_ARRAY_BUFFER, imp_->vertices.size() * sizeof(glm::vec3), &imp_->vertices[0], GL_STATIC_DRAW);
 
   // Generate a buffer for the indices as well
   GLuint elementbuffer;
   glGenBuffers(1, &elementbuffer);
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, elementbuffer);
-  glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(unsigned), &indices[0], GL_STATIC_DRAW);
+  glBufferData(GL_ELEMENT_ARRAY_BUFFER, imp_->indices.size() * sizeof(unsigned), &imp_->indices[0], GL_STATIC_DRAW);
 
-  // Get a handle for our "LightPosition" uniform
-  glUseProgram(programID);
 
   // ---------------------------------------------
   // Render to Texture - specific code begins here
@@ -439,14 +791,14 @@ bool HeightmapImage::renderHeightMesh(const glm::dvec3 &min_ext, const glm::dvec
   glBufferData(GL_ARRAY_BUFFER, sizeof(g_quad_vertex_buffer_data), g_quad_vertex_buffer_data, GL_STATIC_DRAW);
 
   // Create and compile our GLSL program from the shaders
-  GLuint quad_programID = loadShaders("quad", quad_vertex_shader, quad_fragment_shader);
-  GLuint texID = glGetUniformLocation(quad_programID, "renderedTexture");
+  GLuint map_program_id = loadShaders("quad", quad_vertex_shader, quad_fragment_shader);
+  GLuint texID = glGetUniformLocation(map_program_id, "renderedTexture");
 
   std::vector<uint32_t> pixels;
   do
   {
     // Render to our framebuffer
-    glBindFramebuffer(GL_FRAMEBUFFER, FramebufferName);
+    // glBindFramebuffer(GL_FRAMEBUFFER, FramebufferName);
     // Render on the whole framebuffer, complete from the lower left corner to the upper right
     glViewport(0, 0, windowWidth, windowHeight);
 
@@ -454,16 +806,24 @@ bool HeightmapImage::renderHeightMesh(const glm::dvec3 &min_ext, const glm::dvec
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     // Use our shader
-    glUseProgram(programID);
+    glUseProgram(map_program_id);
 
     // Compute the MVP matrix from keyboard and mouse input
-    glm::mat4 ProjectionMatrix =
-      glm::ortho(0.0f, 2.0f * float(max_ext.x - min_ext.x), 0.0f, 2.0f * float(max_ext.y - min_ext.y), 1.0f, 1000.0f);
+    glm::mat4 ProjectionMatrix = glm::perspective(glm::radians(60.0f), 4.0f / 3.0f, 0.1f, 100.0f);
+    // glm::ortho(0.0f, 2.0f * float(max_ext.x - min_ext.x), 0.0f, 2.0f * float(max_ext.y - min_ext.y), 1.0f,
+    // 1000.0f);
     // Look down from above.
     // glm::mat4 ViewMatrix = glm::lookAt(glm::vec3(0, -100, 0),
     //                                    glm::vec3(0.0f), glm::vec3(0, 0, 1));
-    glm::mat4 ViewMatrix = glm::lookAt(glm::vec3(0, 0, max_ext.z - min_ext.z + 1.0f),
-                                       glm::vec3(0.5 * (max_ext - min_ext) - min_ext), glm::vec3(0, 1, 0));
+    const glm::vec3 eye(10, 10, 10);
+    const glm::vec3 target(0, 0, 0);
+    const glm::vec3 up(0, 0, 1);
+    glm::mat4 ViewMatrix = glm::lookAt(eye, target, up);
+
+    // glm::mat4 ViewMatrix = glm::lookAt(glm::vec3(0, 0, max_ext.z - min_ext.z + 1.0f),
+    //                                    glm::vec3(0.5 * (max_ext - min_ext) - min_ext), glm::vec3(0, 1, 0));
+    // glm::mat4 ViewMatrix = glm::lookAt(glm::vec3(-10, 0, 0),
+    //                                    glm::vec3(0, 0, 0), glm::vec3(0, 0, 1));
     glm::mat4 ModelMatrix = glm::mat4(1.0);
     glm::mat4 MVP = ProjectionMatrix * ViewMatrix * ModelMatrix;
 
@@ -494,55 +854,59 @@ bool HeightmapImage::renderHeightMesh(const glm::dvec3 &min_ext, const glm::dvec
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, elementbuffer);
 
     // Draw the triangles !
-    glDrawElements(GL_TRIANGLES,     // mode
-                   indices.size(),   // count
-                   GL_UNSIGNED_INT,  // type
-                   (void *)0         // element array buffer offset
+    glDrawElements(GL_TRIANGLES,          // mode
+                   imp_->indices.size(),  // count
+                   GL_UNSIGNED_INT,       // type
+                   (void *)0              // element array buffer offset
     );
-
-    glDisableVertexAttribArray(0);
-
-    // Render to the screen
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    // Render on the whole framebuffer, complete from the lower left corner to the upper right
-    glViewport(0, 0, windowWidth, windowHeight);
-
-    // Clear the screen
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-    // Use our shader
-    glUseProgram(quad_programID);
-
-    // Bind our texture in Texture Unit 0
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, renderedTexture);
-    // Set our "renderedTexture" sampler to use Texture Unit 0
-    glUniform1i(texID, 0);
-
-    // 1rst attribute buffer : vertices
-    glEnableVertexAttribArray(0);
-    glBindBuffer(GL_ARRAY_BUFFER, quad_vertexbuffer);
-    glVertexAttribPointer(0,  // attribute 0. No particular reason for 0, but must match the layout in the shader.
-                          3,  // size
-                          GL_FLOAT,  // type
-                          GL_FALSE,  // normalized?
-                          0,         // stride
-                          (void *)0  // array buffer offset
-    );
-
-    // Draw the triangles !
-    glDrawArrays(GL_TRIANGLES, 0, 6);  // 2*3 indices starting at 0 -> 2 triangles
 
     glDisableVertexAttribArray(0);
 
     // Swap buffers
     glfwSwapBuffers(window);
     glfwPollEvents();
+    // // Render to the screen
+    // glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    // // Render on the whole framebuffer, complete from the lower left corner to the upper right
+    // glViewport(0, 0, windowWidth, windowHeight);
+
+    // // Clear the screen
+    // glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    // // Use our shader
+    // glUseProgram(map_program_id);
+
+    // // Bind our texture in Texture Unit 0
+    // glActiveTexture(GL_TEXTURE0);
+    // glBindTexture(GL_TEXTURE_2D, renderedTexture);
+    // // Set our "renderedTexture" sampler to use Texture Unit 0
+    // glUniform1i(texID, 0);
+
+    // // 1rst attribute buffer : vertices
+    // glEnableVertexAttribArray(0);
+    // glBindBuffer(GL_ARRAY_BUFFER, quad_vertexbuffer);
+    // glVertexAttribPointer(0,  // attribute 0. No particular reason for 0, but must match the layout in the shader.
+    //                       3,  // size
+    //                       GL_FLOAT,  // type
+    //                       GL_FALSE,  // normalized?
+    //                       0,         // stride
+    //                       (void *)0  // array buffer offset
+    // );
+
+    // // Draw the triangles !
+    // glDrawArrays(GL_TRIANGLES, 0, 6);  // 2*3 indices starting at 0 -> 2 triangles
+
+    // glDisableVertexAttribArray(0);
+
+    // // Swap buffers
+    // glfwSwapBuffers(window);
+    // glfwPollEvents();
 
     {
-      // glGetTextureImage(renderTexture, );
+      // glGetTextureImage(renderedTexture, );
       pixels.resize(windowWidth * windowHeight);
-      glGetTextureImage(depthTexture, 0, GL_DEPTH_COMPONENT, GL_UNSIGNED_INT_8_8_8_8, pixels.size(), pixels.data());
+      // glGetTextureImage(depthTexture, 0, GL_DEPTH_COMPONENT, GL_UNSIGNED_INT_8_8_8_8, pixels.size(), pixels.data());
+      glGetTextureImage(renderedTexture, 0, GL_RGBA, GL_UNSIGNED_INT_8_8_8_8, pixels.size(), pixels.data());
 
       for (size_t p = 0; p < pixels.size(); ++p)
       {
@@ -559,7 +923,7 @@ bool HeightmapImage::renderHeightMesh(const glm::dvec3 &min_ext, const glm::dvec
   // Cleanup VBO and shader
   glDeleteBuffers(1, &vertexbuffer);
   glDeleteBuffers(1, &elementbuffer);
-  glDeleteProgram(programID);
+  glDeleteProgram(map_program_id);
 
   glDeleteFramebuffers(1, &FramebufferName);
   glDeleteTextures(1, &renderedTexture);
@@ -573,3 +937,5 @@ bool HeightmapImage::renderHeightMesh(const glm::dvec3 &min_ext, const glm::dvec
 
   return true;
 }
+
+#endif  // #
