@@ -5,6 +5,7 @@ include(GenerateExportHeader)
 find_package(OpenGL REQUIRED)
 find_package(GLEW REQUIRED)
 find_package(GLM REQUIRED)
+find_package(PNG REQUIRED)
 
 find_package(PkgConfig REQUIRED)
 pkg_search_module(GLFW REQUIRED glfw3)
@@ -31,9 +32,12 @@ generate_export_header(ohmheightmaputil
       STATIC_DEFINE OHMTOOLS_STATIC)
 
 target_link_libraries(ohmheightmaputil ohm ohmutil)
-target_link_libraries(ohmheightmaputil OpenGL::GL OpenGL::GLU
+target_link_libraries(ohmheightmaputil
+  OpenGL::GL
+  OpenGL::GLU
   ${GLEW_LIBRARIES}
   ${GLFW_LIBRARIES}
+  PNG::PNG
   )# OpenGL::GLX)
 
 target_include_directories(ohmheightmaputil

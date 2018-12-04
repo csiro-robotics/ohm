@@ -48,7 +48,7 @@ namespace ohm
 
   private:
     void triangulate(glm::dvec3 *min_ext, glm::dvec3 *max_ext);
-    bool renderHeightMesh(const glm::dvec3 &min_ext, const glm::dvec3 &max_ext);
+    bool renderHeightMesh(const glm::dvec3 &min_ext_spatial, const glm::dvec3 &max_ext_spatial, double voxel_resolution);
 
     std::unique_ptr<HeightmapImageDetail> imp_;
   };

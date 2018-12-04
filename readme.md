@@ -54,6 +54,7 @@ Additional experimental (TODO: make this comment good):
 
 - libglew-dev
 - libglfw3-dev
+- libpng-dev
 
 ### Build Instructions
 
