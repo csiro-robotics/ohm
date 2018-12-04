@@ -34,6 +34,7 @@
 #include <memory>
 #include <utility>
 #include <vector>
+#include <tuple>
 
 namespace delaunator {
 

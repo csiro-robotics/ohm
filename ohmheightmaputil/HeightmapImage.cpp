@@ -208,8 +208,8 @@ namespace
     // Negative row stride to flip the image.
     if (png_image_write_to_file(&image, filename, false,  // convert_to_8bit,
                                 raw.data(),
-                                -width * sizeof(*raw.data()) * 3,  // row_stride
-                                nullptr                            // colormap
+                                -int(width * sizeof(*raw.data()) * 3),  // row_stride
+                                nullptr                                 // colormap
                                 ))
     {
       return true;
@@ -242,8 +242,8 @@ namespace
     // Negative row stride to flip the image.
     if (png_image_write_to_file(&image, filename, false,  // convert_to_8bit,
                                 grey_pixels.data(),
-                                -width,                   // row_stride
-                                nullptr                   // colormap
+                                -int(width),  // row_stride
+                                nullptr       // colormap
                                 ))
     {
       return true;
@@ -271,7 +271,7 @@ bool HeightmapImage::extractBitmap(uint8_t *buffer, size_t buffer_size, BitmapIn
   triangulate(&min_ext, &max_ext);
 
   // Render the mesh to a depth buffer.
-  renderHeightMesh(min_ext, max_ext, imp_->heightmap->heightmap().resolution());
+  return renderHeightMesh(min_ext, max_ext, imp_->heightmap->heightmap().resolution());
 }
 
 
@@ -408,7 +408,7 @@ bool HeightmapImage::renderHeightMesh(const glm::dvec3 &min_ext_spatial, const g
   {
     fprintf(stderr, "Failed to initialize GLFW\n");
     getchar();
-    return -1;
+    return false;
   }
 
   glfwWindowHint(GLFW_SAMPLES, 4);
@@ -428,7 +428,7 @@ bool HeightmapImage::renderHeightMesh(const glm::dvec3 &min_ext_spatial, const g
                     "version of the tutorials.\n");
     getchar();
     glfwTerminate();
-    return -1;
+    return false;
   }
   glfwMakeContextCurrent(window);
 
@@ -620,7 +620,7 @@ bool HeightmapImage::renderHeightMesh(const glm::dvec3 &min_ext_spatial, const g
 
   // Draw the triangles !
   glDrawElements(GL_TRIANGLES,          // mode
-                 imp_->indices.size(),  // count
+                 GLsizei(imp_->indices.size()),  // count
                  GL_UNSIGNED_INT,       // type
                  (void *)0              // element array buffer offset
   );
