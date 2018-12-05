@@ -25,8 +25,9 @@ namespace ohm
   public:
     enum ImageType
     {
+      /// Extracted image consists of three floats per pixel, representing the local surface normal.
+      kImageNormals,
       /// Extract RBG 888 image where colours represent surface normals.
-      /// TODO(KS): improve the normal resolution by converting into
       kImageNormals888,
       /// Extract a depth image with 4-byte float values for each pixel (depth).
       kImageHeights
@@ -42,7 +43,7 @@ namespace ohm
       Aabb image_extents;
     };
 
-    HeightmapImage(const Heightmap &heightmap, ImageType type = kImageNormals888, unsigned pixels_per_voxel = 1);
+    HeightmapImage(const Heightmap &heightmap, ImageType type = kImageNormals, unsigned pixels_per_voxel = 1);
     ~HeightmapImage();
 
     /// Query the number of bytes required to extract the heightmap into a bitmap using @c extractBitmap().

@@ -237,7 +237,7 @@ namespace ohm
     HeightmapImage::BitmapInfo image_info;
     std::vector<uint8_t> image;
 
-    HeightmapImage::ImageType type = HeightmapImage::kImageNormals888;
+    HeightmapImage::ImageType type = HeightmapImage::kImageNormals;
     unsigned pixels_per_voxel = 1;
 
     struct RenderData
@@ -617,7 +617,14 @@ bool HeightmapImage::renderHeightMesh(const glm::dvec3 &min_ext_spatial, const g
   glBindTexture(GL_TEXTURE_2D, render_texture);
 
   // Give an empty image to OpenGL ( the last "0" means "empty" )
-  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, render_width, render_height, 0, GL_RGB, GL_UNSIGNED_BYTE, 0);
+  if (imp_->type == kImageNormals)
+  {
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, render_width, render_height, 0, GL_RGB, GL_FLOAT, 0);
+  }
+  else
+  {
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, render_width, render_height, 0, GL_RGB, GL_UNSIGNED_BYTE, 0);
+  }
 
   // Poor filtering
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
@@ -757,7 +764,7 @@ bool HeightmapImage::renderHeightMesh(const glm::dvec3 &min_ext_spatial, const g
 
       // Bind our texture in Texture Unit 0
       glActiveTexture(GL_TEXTURE0);
-      if (type == kImageNormals888)
+      if (type != kImageHeights)
       {
         glBindTexture(GL_TEXTURE_2D, render_texture);
       }
@@ -795,7 +802,16 @@ bool HeightmapImage::renderHeightMesh(const glm::dvec3 &min_ext_spatial, const g
   imp_->image_info.image_height = render_height;
   imp_->image_info.image_extents = Aabb(min_ext_spatial, max_ext_spatial);
   imp_->image_info.type = imp_->type;
-  if (type == kImageNormals888)
+  if (type == kImageNormals)
+  {
+    // Read pixels:
+    imp_->image_info.bpp = 3 * sizeof(float);
+    imp_->image_info.byte_count = imp_->image_info.image_width * imp_->image_info.image_height * imp_->image_info.bpp;
+    imp_->image.resize(imp_->image_info.byte_count);
+    glBindTexture(GL_TEXTURE_2D, render_texture);
+    glGetTexImage(GL_TEXTURE_2D, 0, GL_RGB, GL_FLOAT, imp_->image.data());
+  }
+  else if (type == kImageNormals888)
   {
     // Read pixels:
     imp_->image_info.bpp = 3;

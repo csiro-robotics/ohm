@@ -80,26 +80,66 @@ namespace
     image.colormap_entries = 0;
 
     int row_stride = 0;
-    std::vector<uint16_t> grey_pixels;
+    std::vector<uint16_t> u16_pixels;
     const uint8_t *image_data = raw;
-    if (info.type == ohm::HeightmapImage::kImageNormals888)
+    if (info.type == ohm::HeightmapImage::kImageNormals)
+    {
+      // Need to convert float colour to u16
+      u16_pixels.reserve(info.image_width * info.image_height * 3);
+
+      float red, green, blue;
+      uint16_t red16, green16, blue16;
+
+      const auto convert_colour = [] (float c) -> uint16_t
+      {
+        return uint16_t(0.5f * (1.0f + c) * float(0xffffu));
+      };
+
+      for (size_t i = 0; i < info.image_width * info.image_height * info.bpp; i += 3 * sizeof(float))
+      {
+        red = *reinterpret_cast<const float *>(raw + i);
+        green = *reinterpret_cast<const float *>(raw + i + sizeof(float));
+        blue = *reinterpret_cast<const float *>(raw + i + 2 * sizeof(float));
+
+        red16 = convert_colour(red);
+        green16 = convert_colour(green);
+        blue16 = convert_colour(blue);
+
+        // No data: black
+        if (red * red + green * green + blue * blue < 0.5f)
+        {
+          red16 = green16 = blue16 = 0;
+        }
+
+        u16_pixels.push_back(red16);
+        u16_pixels.push_back(green16);
+        u16_pixels.push_back(blue16);
+      }
+
+      image.format = PNG_FORMAT_RGB | PNG_IMAGE_FLAG_16BIT_sRGB;
+      // 16 bits per pixel.
+      // image.flags |= PNG_IMAGE_FLAG_16BIT_sRGB;
+      row_stride = -int(info.image_width * 3);
+      image_data = reinterpret_cast<const uint8_t *>(u16_pixels.data());
+    }
+    else if (info.type == ohm::HeightmapImage::kImageNormals888)
     {
       image.format = PNG_FORMAT_RGB;
-      row_stride = -int(info.image_width * sizeof(*raw) * info.bpp);
+      row_stride = -int(info.image_width * 3);
     }
     else if (info.bpp == sizeof(float))
     {
-      grey_pixels.resize(info.image_width * info.image_height);
+      u16_pixels.resize(info.image_width * info.image_height);
       float depth;
       for (size_t i = 0; i < info.image_width * info.image_height * info.bpp; i += info.bpp)
       {
         depth = *reinterpret_cast<const float *>(raw + i);
-        grey_pixels[i] = uint16_t(1.0f - depth * float(0xffffu));
+        u16_pixels[i] = uint16_t(1.0f - depth * float(0xffffu));
       }
 
       image.format = PNG_FORMAT_LINEAR_Y;
       row_stride = -int(info.image_width);
-      image_data = reinterpret_cast<const uint8_t *>(grey_pixels.data());
+      image_data = reinterpret_cast<const uint8_t *>(u16_pixels.data());
     }
     else
     {
