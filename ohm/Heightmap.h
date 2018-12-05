@@ -136,28 +136,6 @@ namespace ohm
     /// @return true on success.
     bool update(double base_height);
 
-    struct BitmapInfo
-    {
-      unsigned image_width;
-      unsigned image_height;
-      unsigned bpp;
-      size_t byteCount;
-    };
-
-    /// Query the number of bytes required to extract the heightmap into a bitmap using @c extractBitmap().
-    /// @return The number of bytes required for the bitmap.
-    bool bitmapInfo(BitmapInfo *info) const;
-
-    /// Extract the heightmap into a bitmap buffer. The bitmap format is a grey scale, 1 byte per pixel bitmap image.
-    ///
-    /// Pixels are coloured by the slope of a pixel.
-    ///
-    /// Voxel Type  | Colour    | Pixel Value
-    /// ----------- |
-    /// Uncertain   | Black     | 0
-    ///
-    bool extractBitmap(uint8_t *buffer, size_t buffer_size, BitmapInfo *info) const;
-
     //-------------------------------------------------------
     // Internal
     //-------------------------------------------------------
