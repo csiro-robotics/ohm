@@ -47,6 +47,8 @@ namespace
     ohm::Heightmap::Axis axis_id = ohm::Heightmap::AxisZ;
     double base_height = 0;
     double clearance = 2.0;
+    double floor = 0;
+    double ceiling = 0;
     int blur = 0;
   };
 
@@ -76,11 +78,17 @@ int parseOptions(Options &opt, int argc, char *argv[])
 
   try
   {
-    optParse.add_options()("help", "Show help.")("i", "The input map file (ohm).", cxxopts::value(opt.map_file))(
-      "o", "The output heightmap file (ohm).", cxxopts::value(opt.heightmap_file))(
-      "base", "Base height: heightmap values are stored relative to this height.", optVal(opt.base_height))(
-      "blur", "Blur factor in generating the heightmap. Must be >= 0, recommended < 5.", optVal(opt.blur))(
-      "clearance", "The required height clearance for a heightmap surface voxel.", optVal(opt.clearance));
+    optParse.add_options()("help", "Show help.")("i", "The input map file (ohm).", cxxopts::value(opt.map_file))  //
+      ("o", "The output heightmap file (ohm).", cxxopts::value(opt.heightmap_file))                               //
+      ("base", "Base height: heightmap values are stored relative to this height.", optVal(opt.base_height))      //
+      ("blur", "Blur factor in generating the heightmap. Must be >= 0, recommended < 5.", optVal(opt.blur))       //
+      ("clearance", "The required height clearance for a heightmap surface voxel.", optVal(opt.clearance))        //
+      ("floor", "Heightmap excludes voxels below this (positive) value below the --base height. Positive to enable.",
+       optVal(opt.floor))  //
+      ("ceiling", "Heightmap excludes voxels above this (positive) value above the --base height. Positive to enable.",
+       optVal(opt.ceiling))                                                                                 //
+      ("clearance", "The required height clearance for a heightmap surface voxel.", optVal(opt.clearance))  //
+      ;
 
     optParse.parse_positional({ "i", "o" });
 

@@ -22,6 +22,12 @@ namespace ohm
     /// Use a very thin occupancy map for the heightmap representation.
     std::unique_ptr<ohm::OccupancyMap> heightmap;
     glm::dvec3 up;
+    /// Ignore all source voxels which lie lower than this below the base height.
+    /// Enable by setting a positive value.
+    double floor = 0;
+    /// Ignore all source voxels which lie higher than this above the base height.
+    /// Enable by setting a positive value.
+    double ceiling = 0;
     double min_clearance = 1.0;
     /// Voxel layer containing the @c HeightmapVoxel data.
     unsigned heightmap_layer = 0;

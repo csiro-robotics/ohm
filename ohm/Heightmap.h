@@ -79,6 +79,22 @@ namespace ohm
     /// Access the currently generated heightmap.
     OccupancyMap &heightmap() const;
 
+    /// Set the floor level. Points below this distance below the base height in the source map are ignored.
+    /// @param floor The new floor value. Positive to enable.
+    void setFloor(double floor);
+
+    /// Get the floor level. Points above this distance above the base height in the source map are ignored.
+    /// @return The floor value.
+    double floor() const;
+
+    /// Set the ceiling level. Points above this distance above the base height in the source map are ignored.
+    /// @param ceiling The new ceiling value. Positive to enable.
+    void setCeiling(double ceiling);
+
+    /// Get the ceiling level. Points above this distance above the base height in the source map are ignored.
+    /// @return The ceiling value.
+    double ceiling() const;
+
     /// Set the minimum clearance required above a voxel in order to consider it a heightmap voxel.
     /// @param clearance The new clearance value.
     void setMinClearance(double clearance);

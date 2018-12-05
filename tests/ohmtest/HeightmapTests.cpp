@@ -25,8 +25,15 @@ using namespace ohmutil;
 
 namespace
 {
+  struct TestParams
+  {
+    double floor = 0;
+    double ceiling = 0;
+  };
+
   void heightmapBoxTest(const std::string &prefix, Heightmap::Axis axis, int blur,
-                        std::shared_ptr<Heightmap> *map_out = nullptr)
+                        std::shared_ptr<Heightmap> *map_out = nullptr,
+                        const TestParams *params = nullptr)
   {
     Profile profile;
     const float boundary_distance = 2.5f;
@@ -44,6 +51,12 @@ namespace
     heightmap->setOccupancyMap(&map);
     heightmap->setBlurLevel(blur);
 
+    if (params)
+    {
+      heightmap->setFloor(params->floor);
+      heightmap->setCeiling(params->ceiling);
+    }
+
     ProfileMarker mark_heightmap("heightmap", &profile);
     heightmap->update(base_height);
     mark_heightmap.end();
@@ -57,12 +70,39 @@ namespace
     // Convert axis reference into an index [0, 2].
     const int axis_index = (axis >= 0) ? axis : -axis - 1;
 
-    const double ground_height =
+    double ground_height =
       (axis >= 0) ? map.voxelCentreGlobal(map.voxelKey(glm::dvec3(-boundary_distance)))[axis_index] :
                     -1.0 * map.voxelCentreGlobal(map.voxelKey(glm::dvec3(boundary_distance)))[axis_index];
-    const double top_of_wall_height =
+    double top_of_wall_height =
       (axis >= 0) ? map.voxelCentreGlobal(map.voxelKey(glm::dvec3(boundary_distance)))[axis_index] :
                     -1.0 * map.voxelCentreGlobal(map.voxelKey(glm::dvec3(-boundary_distance)))[axis_index];
+
+    if (params)
+    {
+      double adjusted_ceiling = top_of_wall_height;
+      double adjusted_ground = ground_height;
+      if (params->ceiling > 0)
+      {
+        adjusted_ceiling = std::min(adjusted_ceiling, base_height + params->ceiling);
+      }
+      if (params->floor > 0)
+      {
+        adjusted_ground = std::max(adjusted_ground, base_height - params->floor);
+        if (adjusted_ground > ground_height)
+        {
+          adjusted_ground = top_of_wall_height;
+
+          if (adjusted_ground > adjusted_ceiling)
+          {
+            // Ground is clipped at both ends. Remove completely.
+            adjusted_ground = std::numeric_limits<double>::infinity();
+          }
+        }
+      }
+
+      ground_height = adjusted_ground;
+      top_of_wall_height = adjusted_ceiling;
+    }
 
     std::string filename;
     if (!prefix.empty())
@@ -185,17 +225,23 @@ namespace
         VoxelConst voxel = heightmap->heightmap().voxel(key, false, &cache);
 
         double expected_height = ground_height;
+        bool wall = false;
         if (is_top_of_wall(heightmap->heightmap(), key, min_key, max_key, axis_indices, blur))
         {
           expected_height = top_of_wall_height;
+          wall = true;
         }
 
         ASSERT_TRUE(voxel.isValid());
 
         const HeightmapVoxel *voxel_content =
           voxel.layerContent<const HeightmapVoxel *>(heightmap->heightmapVoxelLayer());
-        ASSERT_NE(voxel_content, nullptr);
-        ASSERT_NEAR(voxel_content->height + base_height, expected_height, 1e-9);
+        ASSERT_NE(voxel_content, nullptr) << (wall ? "top" : "floor");
+        // Need the equality to handle when both values are inf.
+        if (voxel_content->height + base_height != expected_height)
+        {
+          ASSERT_NEAR(voxel_content->height + base_height, expected_height, 1e-9) << (wall ? "top" : "floor");
+        }
       }
     }
   }
@@ -205,6 +251,31 @@ namespace
 TEST(Heightmap, Box)
 {
   heightmapBoxTest("heightmap-box", Heightmap::AxisZ, 0);
+}
+
+
+TEST(Heightmap, Ceiling)
+{
+  TestParams params;
+  params.ceiling = 0.5;
+  heightmapBoxTest("heightmap-ceiling", Heightmap::AxisZ, 0, nullptr, &params);
+}
+
+
+TEST(Heightmap, Floor)
+{
+  TestParams params;
+  params.floor = 0.5;
+  heightmapBoxTest("heightmap-floor", Heightmap::AxisZ, 0, nullptr, &params);
+}
+
+
+TEST(Heightmap, FloorAndCeiling)
+{
+  TestParams params;
+  params.floor = 0.3;
+  params.ceiling = 0.5;
+  heightmapBoxTest("heightmap-ceiling-floor", Heightmap::AxisZ, 0, nullptr, &params);
 }
 
 
