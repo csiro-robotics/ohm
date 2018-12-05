@@ -13,6 +13,7 @@
 namespace ohm
 {
   struct HeightmapDetail;
+  class MapInfo;
   class OccupancyMap;
 
   /// A 2D voxel map variant which calculate a heightmap surface from another @c OccupancyMap.
@@ -42,6 +43,15 @@ namespace ohm
   ///
   /// The resulting heightmap may be accessed via @c heightmap().
   ///
+  /// The @c OccupancyMap used to represent the heightmap has additional meta data stored in it's @c MapInfo:
+  /// - <b>heightmap</b> - Present and true if this is a heightmap.
+  /// - <b>heightmap-axis</b> - The up axis ID for a heightmap.
+  /// - <b>heightmap-axis-x</b> - The up axis X value for a heightmap.
+  /// - <b>heightmap-axis-y</b> - The up axis Y value for a heightmap.
+  /// - <b>heightmap-axis-z</b> - The up axis Z value for a heightmap.
+  /// - <b>heightmap-blur</b> - The blur value used to generate the heightamp.
+  /// - <b>heightmap-clearance</b> - The clearance value used to generate the heightamp.
+  ///
   /// @todo Is this a @c Query?
   class Heightmap
   {
@@ -58,6 +68,9 @@ namespace ohm
     };
 
     static const unsigned kDefaultRegionSize = 128;
+
+    /// Construct a default initialised heightmap.
+    Heightmap();
 
     /// Construct a new heightmap optionally tied to a specific @p map.
     /// @param grid_resolution The grid resolution for the heightmap. Should match the source map for best results.
@@ -142,6 +155,18 @@ namespace ohm
     /// Uncertain   | Black     | 0
     ///
     bool extractBitmap(uint8_t *buffer, size_t buffer_size, BitmapInfo *info) const;
+
+    //-------------------------------------------------------
+    // Internal
+    //-------------------------------------------------------
+    /// @internal
+    inline HeightmapDetail *detail() { return imp_.get(); }
+    /// @internal
+    inline const HeightmapDetail *detail() const { return imp_.get(); }
+
+    /// Update @c info to reflect the details of how the heightmap is generated. See class comments.
+    /// @param info The info object to update.
+    void updateMapInfo(MapInfo &info) const;
 
   private:
     std::unique_ptr<HeightmapDetail> imp_;

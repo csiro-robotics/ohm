@@ -40,10 +40,6 @@
 #include <iostream>
 #include <memory>
 
-#ifdef OHM_PROFILE
-#define PROFILING 1
-#endif  // OHM_PROFILE
-
 using namespace ohm;
 
 #define VALIDATE_VALUES_UNCHANGED 0

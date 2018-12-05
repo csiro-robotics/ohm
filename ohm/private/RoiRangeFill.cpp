@@ -27,9 +27,6 @@
 #include <limits>
 
 #define KERNEL_PROFILING 0
-#ifdef OHM_PROFILE
-#define PROFILING 1
-#endif // OHM_PROFILE
 #include <ohmutil/Profile.h>
 
 using namespace ohm;

@@ -126,15 +126,15 @@ namespace
         **out << "Process to timestamp: " << time_limit << '\n';
       }
 
-      std::string mem_size_string;
-      util::makeMemoryDisplayString(mem_size_string, ohm::OccupancyMap::voxelMemoryPerRegion(region_voxel_dim));
+      // std::string mem_size_string;
+      // util::makeMemoryDisplayString(mem_size_string, ohm::OccupancyMap::voxelMemoryPerRegion(region_voxel_dim));
       **out << "Map resolution: " << resolution << '\n';
       glm::i16vec3 region_dim = region_voxel_dim;
       region_dim.x = (region_dim.x) ? region_dim.x : OHM_DEFAULT_CHUNK_DIM_X;
       region_dim.y = (region_dim.y) ? region_dim.y : OHM_DEFAULT_CHUNK_DIM_Y;
       region_dim.z = (region_dim.z) ? region_dim.z : OHM_DEFAULT_CHUNK_DIM_Z;
       **out << "Map region dimensions: " << region_dim << '\n';
-      **out << "Map region memory: " << mem_size_string << '\n';
+      // **out << "Map region memory: " << mem_size_string << '\n';
       **out << "Hit probability: " << prob_hit << '\n';
       **out << "Miss probability: " << prob_miss << '\n';
       **out << "Probability range: [" << map.minNodeProbability() << ' ' << map.maxNodeProbability() << "]\n";
@@ -759,15 +759,15 @@ namespace
         **out << "Process to timestamp: " << opt.time_limit << '\n';
       }
 
-      std::string mem_size_string;
-      util::makeMemoryDisplayString(mem_size_string, ohm::OccupancyMap::voxelMemoryPerRegion(opt.region_voxel_dim));
+      // std::string mem_size_string;
+      // util::makeMemoryDisplayString(mem_size_string, ohm::OccupancyMap::voxelMemoryPerRegion(opt.region_voxel_dim));
       **out << "Map resolution: " << opt.resolution << '\n';
       glm::i16vec3 region_dim = opt.region_voxel_dim;
       region_dim.x = (region_dim.x) ? region_dim.x : OHM_DEFAULT_CHUNK_DIM_X;
       region_dim.y = (region_dim.y) ? region_dim.y : OHM_DEFAULT_CHUNK_DIM_Y;
       region_dim.z = (region_dim.z) ? region_dim.z : OHM_DEFAULT_CHUNK_DIM_Z;
       **out << "Map region dimensions: " << region_dim << '\n';
-      **out << "Map region memory: " << mem_size_string << '\n';
+      // **out << "Map region memory: " << mem_size_string << '\n';
       **out << "Hit probability: " << opt.prob_hit << " (" << ohm::probabilityToValue(opt.prob_hit) << ")\n";
       **out << "Miss probability: " << opt.prob_miss << " (" << ohm::probabilityToValue(opt.prob_miss) << ")\n";
       **out << "Occupancy threshold: " << opt.prob_thresh << " (" << ohm::probabilityToValue(opt.prob_thresh) << ")\n";

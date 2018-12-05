@@ -29,9 +29,6 @@
 #endif // OHM_EMBED_GPU_CODE
 
 #define KERNEL_PROFILING 0
-#ifdef OHM_PROFILE
-#define PROFILING 1
-#endif // OHM_PROFILE
 #include <ohmutil/Profile.h>
 
 using namespace ohm;
@@ -240,9 +237,9 @@ namespace roirangefill
     {
       return clerr;
     }
-  #ifdef OHM_PROFILE
-    seedOuterKernelEvent.wait();
-  #endif // OHM_PROFILE
+  // #ifdef OHM_PROFILE
+  //   seed_kernel_event.wait();
+  // #endif // OHM_PROFILE
     PROFILE_END(seed);
 
     PROFILE(propagate);
@@ -280,9 +277,9 @@ namespace roirangefill
       }
     }
 
-  #ifdef OHM_PROFILE
-    previousEvent.wait();
-  #endif // OHM_PROFILE
+  // #ifdef OHM_PROFILE
+  //   previous_event.wait();
+  // #endif // OHM_PROFILE
 
     PROFILE_END(propagate);
     if (query.queryFlags() & kQfReportUnscaledResults)

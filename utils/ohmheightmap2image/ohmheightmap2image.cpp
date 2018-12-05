@@ -9,6 +9,8 @@
 #include <ohm/OccupancyMap.h>
 #include <ohm/Voxel.h>
 
+#include <ohmheightmaputil/HeightmapImage.h>
+
 #include <ohmutil/OhmUtil.h>
 #include <ohmutil/PlyMesh.h>
 #include <ohmutil/ProgressMonitor.h>
@@ -16,6 +18,8 @@
 #include <ohmutil/ScopedTimeDisplay.h>
 
 #include <ohmutil/Options.h>
+
+#include <png.h>
 
 #include <algorithm>
 #include <chrono>
@@ -27,9 +31,6 @@
 #include <iostream>
 #include <locale>
 #include <sstream>
-#include <unordered_set>
-
-#include <3esservermacros.h>
 
 namespace
 {
@@ -46,11 +47,7 @@ namespace
   struct Options
   {
     std::string map_file;
-    std::string heightmap_file;
-    ohm::Heightmap::Axis axis_id = ohm::Heightmap::AxisZ;
-    double base_height = 0;
-    double clearance = 2.0;
-    int blur = 0;
+    std::string image_file;
   };
 
 
@@ -69,6 +66,58 @@ namespace
   private:
     ProgressMonitor &monitor_;
   };
+
+  bool savePng(const char *filename, const uint8_t *raw, const ohm::HeightmapImage::BitmapInfo &info)
+  {
+    png_image image;
+
+    // Initialize the 'png_image' structure.
+    memset(&image, 0, sizeof(image));
+    image.version = PNG_IMAGE_VERSION;
+    image.width = info.image_width;
+    image.height = info.image_height;
+    image.flags = 0;
+    image.colormap_entries = 0;
+
+    int row_stride = 0;
+    std::vector<uint16_t> grey_pixels;
+    const uint8_t *image_data = raw;
+    if (info.type == ohm::HeightmapImage::kImageNormals888)
+    {
+      image.format = PNG_FORMAT_RGB;
+      row_stride = -int(info.image_width * sizeof(*raw) * info.bpp);
+    }
+    else if (info.bpp == sizeof(float))
+    {
+      grey_pixels.resize(info.image_width * info.image_height);
+      float depth;
+      for (size_t i = 0; i < info.image_width * info.image_height * info.bpp; i += info.bpp)
+      {
+        depth = *reinterpret_cast<const float *>(raw + i);
+        grey_pixels[i] = uint16_t(1.0f - depth * float(0xffffu));
+      }
+
+      image.format = PNG_FORMAT_LINEAR_Y;
+      row_stride = -int(info.image_width);
+      image_data = reinterpret_cast<const uint8_t *>(grey_pixels.data());
+    }
+    else
+    {
+      return false;
+    }
+
+    // Negative row stride to flip the image.
+    if (png_image_write_to_file(&image, filename, false,  // convert_to_8bit,
+                                image_data,
+                                row_stride,  // row_stride
+                                nullptr                                 // colormap
+                                ))
+    {
+      return true;
+    }
+
+    return false;
+  }
 }  // namespace
 
 
@@ -79,11 +128,8 @@ int parseOptions(Options &opt, int argc, char *argv[])
 
   try
   {
-    optParse.add_options()("help", "Show help.")("i", "The input map file (ohm).", cxxopts::value(opt.map_file))(
-      "o", "The output heightmap file (ohm).", cxxopts::value(opt.heightmap_file))(
-      "base", "Base height: heightmap values are stored relative to this height.", optVal(opt.base_height))(
-      "blur", "Blur factor in generating the heightmap. Must be >= 0, recommended < 5.", optVal(opt.blur))(
-      "clearance", "The required height clearance for a heightmap surface voxel.", optVal(opt.clearance));
+    optParse.add_options()("help", "Show help.")("i", "The input heightmap file (ohm).", cxxopts::value(opt.map_file))(
+      "o", "The output heightmap image file (png).", cxxopts::value(opt.image_file));
 
     optParse.parse_positional({ "i", "o" });
 
@@ -102,7 +148,7 @@ int parseOptions(Options &opt, int argc, char *argv[])
       return -1;
     }
 
-    if (opt.heightmap_file.empty())
+    if (opt.image_file.empty())
     {
       std::cerr << "Missing output name" << std::endl;
       return -1;
@@ -131,26 +177,13 @@ int main(int argc, char *argv[])
     return res;
   }
 
-  // Initialise TES
-  TES_SETTINGS(settings, tes::SF_Compress | tes::SF_Collate);
-  // Initialise server info.
-  TES_SERVER_INFO(info, tes::XYZ);
-  // Create the server. Use tesServer declared globally above.
-  TES_SERVER_CREATE(ohm::g_3es, settings, &info);
-
-  // Start the server and wait for the connection monitor to start.
-  TES_SERVER_START(ohm::g_3es, tes::ConnectionMonitor::Asynchronous);
-
-  TES_SERVER_START_WAIT(ohm::g_3es, 1000);
-  TES_LOCAL_FILE_STREAM(ohm::g_3es, "ohmheightmap.3es");
-
   signal(SIGINT, onSignal);
   signal(SIGTERM, onSignal);
 
   printf("Loading map %s\n", opt.map_file.c_str());
   ProgressMonitor prog(10);
   LoadMapProgress load_progress(prog);
-  ohm::OccupancyMap map(1.0);
+  ohm::Heightmap heightmap;
   ohm::MapVersion version;
 
   prog.setDisplayFunction([&opt](const ProgressMonitor::Progress &prog) {
@@ -166,32 +199,33 @@ int main(int argc, char *argv[])
   });
 
   prog.startThread();
-  res = ohm::load(opt.map_file.c_str(), map, &load_progress, &version);
+  res = ohm::load(opt.map_file.c_str(), heightmap, &load_progress, &version);
   prog.endProgress();
 
   std::cout << std::endl;
 
   if (res != 0)
   {
-    std::cerr << "Failed to load map. Error(" << res << "): " << ohm::errorCodeString(res) << std::endl;
+    std::cerr << "Failed to load heightmap. Error(" << res << "): " << ohm::errorCodeString(res) << std::endl;
     return res;
   }
 
-  std::cout << "Generating heightmap" << std::endl;
-
-  ohm::Heightmap heightmap(map.resolution(), opt.clearance, opt.axis_id);
-  heightmap.setOccupancyMap(&map);
-  if (opt.blur >= 0)
+  ohm::HeightmapImage hmImage(heightmap);
+  ohm::HeightmapImage::BitmapInfo info;
+  hmImage.generateBitmap();
+  const uint8_t *image = hmImage.bitmap(&info);
+  if (!image)
   {
-    heightmap.setBlurLevel(opt.blur);
+    std::cerr << "Failed to generate heightmap image" << std::endl;
+    return 1;
   }
 
-  heightmap.update(opt.base_height);
-
-  std::cout << "Saving " << opt.heightmap_file << std::endl;
-  ohm::save(opt.heightmap_file.c_str(), heightmap.heightmap(), nullptr);
-
-  TES_SERVER_STOP(ohm::g_3es);
+  std::cout << "Saving " << opt.image_file << std::endl;
+  if (!savePng(opt.image_file.c_str(), image, info))
+  {
+    std::cerr << "Failed to save heightmap image" << std::endl;
+    return 1;
+  }
 
   return res;
 }

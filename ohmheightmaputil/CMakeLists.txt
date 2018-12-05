@@ -5,7 +5,6 @@ include(GenerateExportHeader)
 find_package(OpenGL REQUIRED)
 find_package(GLEW REQUIRED)
 find_package(GLM REQUIRED)
-find_package(PNG REQUIRED)
 
 find_package(glfw3 REQUIRED)
 
@@ -36,7 +35,6 @@ target_link_libraries(ohmheightmaputil
   OpenGL::GLU
   ${GLEW_LIBRARIES}
   glfw
-  PNG::PNG
   )# OpenGL::GLX)
 
 target_include_directories(ohmheightmaputil

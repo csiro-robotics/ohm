@@ -8,6 +8,8 @@
 
 #include "OhmHeightmapUtilConfig.h"
 
+#include <ohm/Aabb.h>
+
 #include <glm/fwd.hpp>
 
 #include <memory>
@@ -21,37 +23,47 @@ namespace ohm
   class ohmheightmaputil_API HeightmapImage
   {
   public:
+    enum ImageType
+    {
+      /// Extract RBG 888 image where colours represent surface normals.
+      /// TODO(KS): improve the normal resolution by converting into
+      kImageNormals888,
+      /// Extract a depth image with 4-byte float values for each pixel (depth).
+      kImageHeights
+    };
+
     struct BitmapInfo
     {
       unsigned image_width;
       unsigned image_height;
       unsigned bpp;
-      size_t byteCount;
+      ImageType type;
+      size_t byte_count;
+      Aabb image_extents;
     };
 
-    HeightmapImage(const Heightmap &heightmap);
+    HeightmapImage(const Heightmap &heightmap, ImageType type = kImageNormals888, unsigned pixels_per_voxel = 1);
     ~HeightmapImage();
 
     /// Query the number of bytes required to extract the heightmap into a bitmap using @c extractBitmap().
     /// @return The number of bytes required for the bitmap.
-    bool bitmapInfo(BitmapInfo *info) const;
+    const uint8_t *bitmap(BitmapInfo *info) const;
 
     /// Extract the heightmap into a bitmap buffer. The bitmap format is a grey scale, 1 byte per pixel bitmap image.
     ///
-    /// Pixels are coloured by the slope of a pixel.
+    /// Pixels are coloured as heightmap surface normals here RGB pixels map directly to XYZ normal components. The
+    /// normals are mapped such that the normal (0, 0, 1) is directly out of the heightmap surface (horizontal surface)
+    /// regardless of the original heightmap orientation.
     ///
-    /// Voxel Type  | Colour    | Pixel Value
-    /// ----------- |
-    /// Uncertain   | Black     | 0
-    ///
-    bool extractBitmap(uint8_t *buffer, size_t buffer_size, BitmapInfo *info);
+    bool generateBitmap();
 
   private:
-    void triangulate(glm::dvec3 *min_ext, glm::dvec3 *max_ext);
-    bool renderHeightMesh(const glm::dvec3 &min_ext_spatial, const glm::dvec3 &max_ext_spatial, double voxel_resolution);
+    void triangulate();
+    bool renderHeightMesh(const glm::dvec3 &min_ext_spatial, const glm::dvec3 &max_ext_spatial,
+                          ImageType type, double voxel_resolution);
 
     std::unique_ptr<HeightmapImageDetail> imp_;
   };
-}
+}  // namespace ohm
 
-#endif // HEIGHTMAPIMAGE_H
+#endif  // HEIGHTMAPIMAGE_H

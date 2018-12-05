@@ -14,6 +14,8 @@ configure_file(OhmConfig.in.h "${CMAKE_CURRENT_BINARY_DIR}/ohm/OhmConfig.h")
 set(SOURCES
   private/ClearanceProcessDetail.cpp
   private/ClearanceProcessDetail.h
+  private/HeightmapDetail.cpp
+  private/HeightmapDetail.h
   private/LineQueryDetail.h
   private/MapLayerDetail.h
   private/MapLayoutDetail.h
@@ -50,6 +52,8 @@ set(SOURCES
   MapChunk.cpp
   MapChunk.h
   MapCoord.h
+  MapInfo.cpp
+  MapInfo.h
   MapLayer.cpp
   MapLayer.h
   MapLayout.cpp
@@ -104,6 +108,7 @@ set(PUBLIC_HEADERS
   MapChunk.h
   MapChunkFlag.h
   MapCoord.h
+  MapInfo.h
   MapLayer.h
   MapLayout.h
   Mapper.h

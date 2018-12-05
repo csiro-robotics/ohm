@@ -14,11 +14,12 @@
 #include <ohm/OccupancyMap.h>
 #include <ohm/Voxel.h>
 
+#include <ohmutil/Profile.h>
 #include <ohmutil/PlyMesh.h>
 
 #include <3esservermacros.h>
 
-#include <png.h>
+#include <mutex>
 
 // Include GLEW
 #include <GL/glew.h>
@@ -31,22 +32,7 @@
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/normal.hpp>
 
-#pragma GCC optimize("O0")
-
 using namespace ohm;
-
-namespace ohm
-{
-  struct HeightmapImageDetail
-  {
-    const Heightmap *heightmap;
-    std::vector<glm::vec3> vertices;
-    std::vector<glm::vec3> vertex_normals;
-    std::vector<unsigned> indices;
-    std::vector<glm::vec3> tri_normals;
-    std::vector<double> coords_2d;
-  };
-}  // namespace ohm
 
 namespace
 {
@@ -61,15 +47,15 @@ namespace
                                         // "  color = vec3(v_depth, v_depth, v_depth);\n"
                                         "  color = v_colour;\n"
                                         "}";
-  const char *depth_fragment_shader = "#version 330 core\n"
-                                      "in vec3 v_colour;\n"
-                                      "in float v_depth;\n"
-                                      "// Ouput data\n"
-                                      "out vec3 color;\n"
-                                      "void main()\n"
-                                      "{\n"
-                                      "  color = vec3(v_depth, v_depth, v_depth);\n"
-                                      "}";
+  // const char *depth_fragment_shader = "#version 330 core\n"
+  //                                     "in vec3 v_colour;\n"
+  //                                     "in float v_depth;\n"
+  //                                     "// Ouput data\n"
+  //                                     "out vec3 color;\n"
+  //                                     "void main()\n"
+  //                                     "{\n"
+  //                                     "  color = vec3(v_depth, v_depth, v_depth);\n"
+  //                                     "}";
 
   // Colour by depth.
   // const char *fragment_shader = "// frag\n"
@@ -118,8 +104,19 @@ namespace
                                    "    UV = (vertexPosition_modelspace.xy + vec2(1, 1)) / 2.0;\n"
                                    "}\n";
 
+  // The fullscreen quad's FBO
+  static const GLfloat g_quad_vertex_buffer_data[] =  //
+    {
+      -1.0f, -1.0f, 0.0f,  //
+      1.0f,  -1.0f, 0.0f,  //
+      -1.0f, 1.0f,  0.0f,  //
+      -1.0f, 1.0f,  0.0f,  //
+      1.0f,  -1.0f, 0.0f,  //
+      1.0f,  1.0f,  0.0f,  //
+    };
+
   // Load vertex and fragment shader strings into a program.
-  GLuint loadShaders(const char *name, const char *vertex, const char *fragment)
+  GLuint loadShaders(const char * /*name*/, const char *vertex, const char *fragment)
   {
     // Create the shaders
     GLuint VertexShaderID = glCreateShader(GL_VERTEX_SHADER);
@@ -135,7 +132,7 @@ namespace
     int InfoLogLength;
 
     // Compile Vertex Shader
-    printf("Compiling shader vertex : %s\n", name);
+    // printf("Compiling shader vertex : %s\n", name);
     char const *VertexSourcePointer = VertexShaderCode.c_str();
     glShaderSource(VertexShaderID, 1, &VertexSourcePointer, NULL);
     glCompileShader(VertexShaderID);
@@ -147,11 +144,11 @@ namespace
     {
       std::vector<char> VertexShaderErrorMessage(InfoLogLength + 1);
       glGetShaderInfoLog(VertexShaderID, InfoLogLength, NULL, &VertexShaderErrorMessage[0]);
-      printf("%s\n", &VertexShaderErrorMessage[0]);
+      // printf("%s\n", &VertexShaderErrorMessage[0]);
     }
 
     // Compile Fragment Shader
-    printf("Compiling shader fragment: %s\n", name);
+    // printf("Compiling shader fragment: %s\n", name);
     char const *FragmentSourcePointer = FragmentShaderCode.c_str();
     glShaderSource(FragmentShaderID, 1, &FragmentSourcePointer, NULL);
     glCompileShader(FragmentShaderID);
@@ -163,11 +160,11 @@ namespace
     {
       std::vector<char> FragmentShaderErrorMessage(InfoLogLength + 1);
       glGetShaderInfoLog(FragmentShaderID, InfoLogLength, NULL, &FragmentShaderErrorMessage[0]);
-      printf("%s\n", &FragmentShaderErrorMessage[0]);
+      // printf("%s\n", &FragmentShaderErrorMessage[0]);
     }
 
     // Link the program
-    printf("Linking program\n");
+    // printf("Linking program\n");
     GLuint ProgramID = glCreateProgram();
     glAttachShader(ProgramID, VertexShaderID);
     glAttachShader(ProgramID, FragmentShaderID);
@@ -180,7 +177,7 @@ namespace
     {
       std::vector<char> ProgramErrorMessage(InfoLogLength + 1);
       glGetProgramInfoLog(ProgramID, InfoLogLength, NULL, &ProgramErrorMessage[0]);
-      printf("%s\n", &ProgramErrorMessage[0]);
+      // printf("%s\n", &ProgramErrorMessage[0]);
     }
 
     glDetachShader(ProgramID, VertexShaderID);
@@ -191,93 +188,217 @@ namespace
 
     return ProgramID;
   }
-
-  bool savePngRgb(const char *filename, const std::vector<uint8_t> &raw, unsigned width, unsigned height)
-  {
-    png_image image;
-
-    // Initialize the 'png_image' structure.
-    memset(&image, 0, sizeof(image));
-    image.version = PNG_IMAGE_VERSION;
-    image.width = width;
-    image.height = height;
-    image.format = PNG_FORMAT_RGB;
-    image.flags = 0;
-    image.colormap_entries = 0;
-
-    // Negative row stride to flip the image.
-    if (png_image_write_to_file(&image, filename, false,  // convert_to_8bit,
-                                raw.data(),
-                                -int(width * sizeof(*raw.data()) * 3),  // row_stride
-                                nullptr                                 // colormap
-                                ))
-    {
-      return true;
-    }
-
-    return false;
-  }
-
-  bool savePngDepth(const char *filename, const std::vector<float> &raw, unsigned width, unsigned height)
-  {
-    std::vector<uint16_t> grey_pixels;
-
-    grey_pixels.resize(raw.size());
-    for (size_t i = 0; i < raw.size(); ++i)
-    {
-      grey_pixels[i] = uint16_t(1.0f - raw[i] * float(0xffffu));
-    }
-
-    png_image image;
-
-    // Initialize the 'png_image' structure.
-    memset(&image, 0, sizeof(image));
-    image.version = PNG_IMAGE_VERSION;
-    image.width = width;
-    image.height = height;
-    image.format = PNG_FORMAT_LINEAR_Y;
-    image.flags = 0;
-    image.colormap_entries = 0;
-
-    // Negative row stride to flip the image.
-    if (png_image_write_to_file(&image, filename, false,  // convert_to_8bit,
-                                grey_pixels.data(),
-                                -int(width),  // row_stride
-                                nullptr       // colormap
-                                ))
-    {
-      return true;
-    }
-
-    return false;
-  }
 }  // namespace
 
 
-HeightmapImage::HeightmapImage(const Heightmap &heightmap)
+namespace
+{
+  std::mutex shared_init_guard;
+  volatile unsigned shared_ref_count = 0;
+
+  void sharedInit()
+  {
+    std::unique_lock<std::mutex> guard(shared_init_guard);
+
+    if (shared_ref_count == 0)
+    {
+      glfwInit();
+    }
+
+    ++shared_ref_count;
+  }
+
+  void sharedRelease()
+  {
+    std::unique_lock<std::mutex> guard(shared_init_guard);
+
+    if (shared_ref_count)
+    {
+      --shared_ref_count;
+      if (shared_ref_count == 0)
+      {
+        glfwTerminate();
+      }
+    }
+  }
+}  // namespace
+
+namespace ohm
+{
+  struct HeightmapImageDetail
+  {
+    const Heightmap *heightmap;
+    std::vector<glm::vec3> vertices;
+    std::vector<glm::vec3> vertex_normals;
+    std::vector<unsigned> indices;
+    std::vector<glm::vec3> tri_normals;
+    std::vector<double> coords_2d;
+
+    HeightmapImage::BitmapInfo image_info;
+    std::vector<uint8_t> image;
+
+    HeightmapImage::ImageType type = HeightmapImage::kImageNormals888;
+    unsigned pixels_per_voxel = 1;
+
+    struct RenderData
+    {
+      GLFWwindow *window = nullptr;
+      GLuint map_program_id = 0;
+      GLuint quad_program_id = 0;
+      GLuint quad_vertex_buffer = 0;
+      GLuint fbo_tex_id = 0xffffffffu;
+      // Debug visualisation flag.
+      bool show_window = false;
+
+      bool init();
+
+      ~RenderData() { clear(); }
+
+      void clear();
+    } render_data;
+  };
+
+
+  bool HeightmapImageDetail::RenderData::init()
+  {
+    PROFILE(HeightmapImageDetail_init);
+    if (window)
+    {
+      return true;
+    }
+
+    ::sharedInit();
+
+    glfwWindowHint(GLFW_SAMPLES, 4);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);  // To make MacOS happy; should not be needed
+    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+    glfwWindowHint(GLFW_VISIBLE, show_window ? GLFW_TRUE : GLFW_FALSE);
+
+    window = glfwCreateWindow(640, 480, "", NULL, NULL);
+
+    if (!window)
+    {
+      sharedRelease();
+      return false;
+    }
+
+    glfwMakeContextCurrent(window);
+
+    // Initialize GLEW
+    glewExperimental = true;  // Needed for core profile
+    if (glewInit() != GLEW_OK)
+    {
+      std::cerr << "Failed to initialize GLEW" << std::endl;
+      clear();
+      return false;
+    }
+
+    // Black background
+    glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+
+    // // Enable depth test
+    glEnable(GL_DEPTH_TEST);
+    // Accept fragment if it closer to the camera than the former one
+    glDepthFunc(GL_LESS);
+
+    // Cull triangles which normal is not towards the camera
+    glEnable(GL_CULL_FACE);
+
+    map_program_id = loadShaders("map_shader", vertex_shader, normals_fragment_shader);
+
+    // Set the list of draw buffers.
+    GLenum quad_draw_buffers[1] = { GL_COLOR_ATTACHMENT0 };
+    glDrawBuffers(1, quad_draw_buffers);  // "1" is the size of quad_draw_buffers
+
+    glGenBuffers(1, &quad_vertex_buffer);
+    glBindBuffer(GL_ARRAY_BUFFER, quad_vertex_buffer);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(g_quad_vertex_buffer_data), g_quad_vertex_buffer_data, GL_STATIC_DRAW);
+
+    // Create and compile our GLSL program from the shaders
+    quad_program_id = loadShaders("fbo", quad_vertex_shader, quad_fragment_shader);
+    fbo_tex_id = glGetUniformLocation(quad_program_id, "render_texture");
+
+    return true;
+  }
+
+  void HeightmapImageDetail::RenderData::clear()
+  {
+    PROFILE(HeightmapImageDetail_clear);
+    if (map_program_id)
+    {
+      glDeleteProgram(map_program_id);
+      map_program_id = 0;
+    }
+
+    if (quad_program_id)
+    {
+      glDeleteProgram(quad_program_id);
+      quad_program_id = 0;
+    }
+
+    if (quad_vertex_buffer)
+    {
+      glDeleteBuffers(1, &quad_vertex_buffer);
+    }
+
+    fbo_tex_id = 0xffffffffu;
+
+    if (window)
+    {
+      glfwDestroyWindow(window);
+      window = nullptr;
+
+      sharedRelease();
+    }
+  }
+}  // namespace ohm
+
+
+HeightmapImage::HeightmapImage(const Heightmap &heightmap, ImageType type, unsigned pixels_per_voxel)
   : imp_(new HeightmapImageDetail)
 {
+  PROFILE(HeightmapImageDetail);
   imp_->heightmap = &heightmap;
+  imp_->type = type;
+  imp_->pixels_per_voxel = pixels_per_voxel;
+  imp_->render_data.init();
 }
 
 
 HeightmapImage::~HeightmapImage()
-{}
-
-
-bool HeightmapImage::extractBitmap(uint8_t *buffer, size_t buffer_size, BitmapInfo *info)
 {
-  glm::dvec3 min_ext, max_ext;
-  triangulate(&min_ext, &max_ext);
-
-  // Render the mesh to a depth buffer.
-  return renderHeightMesh(min_ext, max_ext, imp_->heightmap->heightmap().resolution());
+  PROFILE(_HeightmapImageDetail);
 }
 
 
-void HeightmapImage::triangulate(glm::dvec3 *min_ext, glm::dvec3 *max_ext)
+const uint8_t *HeightmapImage::bitmap(BitmapInfo *info) const
 {
+  *info = imp_->image_info;
+  return (!imp_->image.empty()) ? imp_->image.data() : nullptr;
+}
+
+
+bool HeightmapImage::generateBitmap()
+{
+  PROFILE(HeightmapImage_generateBitmap);
+  triangulate();
+
+  // Render the mesh to a depth buffer.
+  return renderHeightMesh(imp_->image_info.image_extents.minExtents(), imp_->image_info.image_extents.maxExtents(),
+                          imp_->type, imp_->heightmap->heightmap().resolution());
+}
+
+
+void HeightmapImage::triangulate()
+{
+  PROFILE(HeightmapImage_triangulate);
   // Populate the coordinates.
+  imp_->vertices.clear();
+  imp_->vertex_normals.clear();
+  imp_->indices.clear();
+  imp_->tri_normals.clear();
   imp_->coords_2d.clear();
 
   // Walk heightmap voxels.
@@ -312,8 +433,7 @@ void HeightmapImage::triangulate(glm::dvec3 *min_ext, glm::dvec3 *max_ext)
     }
   }
 
-  *min_ext = min_map_ext;
-  *max_ext = max_map_ext;
+  imp_->image_info.image_extents = Aabb(min_map_ext, max_map_ext);
 
   // Triangulate.
   delaunator::Delaunator delaunay(imp_->coords_2d);
@@ -375,8 +495,9 @@ void HeightmapImage::triangulate(glm::dvec3 *min_ext, glm::dvec3 *max_ext)
 
 
 bool HeightmapImage::renderHeightMesh(const glm::dvec3 &min_ext_spatial, const glm::dvec3 &max_ext_spatial,
-                                      double voxel_resolution)
+                                      ImageType type, double voxel_resolution)
 {
+  PROFILE(HeightmapImage_renderHeightMesh);
   if (imp_->vertices.empty() || imp_->indices.empty())
   {
     return false;
@@ -402,62 +523,55 @@ bool HeightmapImage::renderHeightMesh(const glm::dvec3 &min_ext_spatial, const g
   // Initialise GLFW
   //----------------------------------------------------------------------------
 
-  // Debug visualisation flag.
-  bool show_window = false;
-  if (!glfwInit())
+  // Resolve horizontal and vertical axes.
+  // Set axes[0] and axes[1] to index the horizontal axes (across the heightmap) and axes[2] to th vertical.
+  int axes[3];
+  switch (imp_->heightmap->upAxisIndex())
   {
-    fprintf(stderr, "Failed to initialize GLFW\n");
-    getchar();
-    return false;
+  case ohm::Heightmap::AxisNegZ:
+    axes[0] = 1;
+    axes[1] = 0;
+    axes[2] = 2;
+    break;
+  case ohm::Heightmap::AxisNegY:
+    axes[0] = 2;
+    axes[1] = 0;
+    axes[2] = 1;
+    break;
+  case ohm::Heightmap::AxisNegX:
+    axes[0] = 2;
+    axes[1] = 1;
+    axes[2] = 0;
+    break;
+  case ohm::Heightmap::AxisX:
+    axes[0] = 1;
+    axes[1] = 2;
+    axes[2] = 0;
+    break;
+  case ohm::Heightmap::AxisY:
+    axes[0] = 0;
+    axes[1] = 2;
+    axes[2] = 1;
+    break;
+  default:
+  case ohm::Heightmap::AxisZ:
+    axes[0] = 0;
+    axes[1] = 1;
+    axes[2] = 2;
+    break;
   }
-
-  glfwWindowHint(GLFW_SAMPLES, 4);
-  glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-  glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-  glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);  // To make MacOS happy; should not be needed
-  glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-  glfwWindowHint(GLFW_VISIBLE, show_window ? GLFW_TRUE : GLFW_FALSE);
 
   // Open a window and create its OpenGL context
-  const unsigned render_width = unsigned((max_ext_spatial.x - min_ext_spatial.x) / voxel_resolution);
-  const unsigned render_height = unsigned((max_ext_spatial.y - min_ext_spatial.y) / voxel_resolution);
-  GLFWwindow *window = glfwCreateWindow(render_width, render_height, "", NULL, NULL);
-  if (window == NULL)
-  {
-    fprintf(stderr, "Failed to open GLFW window. If you have an Intel GPU, they are not 3.3 compatible. Try the 2.1 "
-                    "version of the tutorials.\n");
-    getchar();
-    glfwTerminate();
-    return false;
-  }
-  glfwMakeContextCurrent(window);
-
-  // Initialize GLEW
-  glewExperimental = true;  // Needed for core profile
-  if (glewInit() != GLEW_OK)
-  {
-    std::cerr << "Failed to initialize GLEW" << std::endl;
-    glfwTerminate();
-    return false;
-  }
+  const unsigned render_width =
+    std::max(1u, imp_->pixels_per_voxel * unsigned((max_ext_spatial[axes[0]] - min_ext_spatial[axes[0]]) / voxel_resolution));
+  const unsigned render_height =
+    std::max(1u, imp_->pixels_per_voxel * unsigned((max_ext_spatial[axes[1]] - min_ext_spatial[axes[1]]) / voxel_resolution));
+  glfwSetWindowSize(imp_->render_data.window, render_width, render_height);
 
   //----------------------------------------------------------------------------
   // Rendering setup.
   //----------------------------------------------------------------------------
-
-  // Ensure we can capture the escape key being pressed below
-  glfwSetInputMode(window, GLFW_STICKY_KEYS, GL_TRUE);
-
-  // Black background
-  glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-
-  // // Enable depth test
-  glEnable(GL_DEPTH_TEST);
-  // Accept fragment if it closer to the camera than the former one
-  glDepthFunc(GL_LESS);
-
-  // Cull triangles which normal is not towards the camera
-  // glEnable(GL_CULL_FACE);
+  glfwMakeContextCurrent(imp_->render_data.window);
 
   //----------------------------------------------------------------------------
   // Render data setup
@@ -486,13 +600,6 @@ bool HeightmapImage::renderHeightMesh(const glm::dvec3 &min_ext_spatial, const g
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, index_buffer);
   glBufferData(GL_ELEMENT_ARRAY_BUFFER, imp_->indices.size() * sizeof(*imp_->indices.data()), imp_->indices.data(),
                GL_STATIC_DRAW);
-
-  //----------------------------------------------------------------------------
-  // Shader setup
-  //----------------------------------------------------------------------------
-
-  // Create and compile our GLSL program from the shaders
-  GLuint map_program_id = loadShaders("map_shader", vertex_shader, normals_fragment_shader);
 
   //----------------------------------------------------------------------------
   // FBO setup.
@@ -552,26 +659,27 @@ bool HeightmapImage::renderHeightMesh(const glm::dvec3 &min_ext_spatial, const g
   //----------------------------------------------------------------------------
   // Camera setup
   //----------------------------------------------------------------------------
-  glUseProgram(map_program_id);
+  glUseProgram(imp_->render_data.map_program_id);
 
   // Get a handle for our "MVP" uniform
-  GLuint mvp_matrix_id = glGetUniformLocation(map_program_id, "MVP");
+  GLuint mvp_matrix_id = glGetUniformLocation(imp_->render_data.map_program_id, "MVP");
 
   const float near_clip = 0.0f;
   const float camera_offset = 0.0f;
   // Near and far clip planes require sufficient buffering to exceed the min/max extents range.
   // So near is at 1.0f (to avoid some depth precision issues), far is near clip (1) + range + camera_offset (2)
   const glm::mat4 ProjectionMatrix =
-    glm::ortho(-0.5f * max_ext_vertices.x - min_ext_vertices.x, 0.5f * max_ext_vertices.x - min_ext_vertices.x,
-               -0.5f * max_ext_vertices.y - min_ext_vertices.y, 0.5f * max_ext_vertices.y - min_ext_vertices.y,
-               near_clip, near_clip + camera_offset + max_ext_vertices.z - min_ext_vertices.z);
+    glm::ortho(-0.5f * max_ext_vertices[axes[0]] - min_ext_vertices[axes[0]], 0.5f * max_ext_vertices[axes[0]] - min_ext_vertices[axes[0]],
+               -0.5f * max_ext_vertices[axes[1]] - min_ext_vertices[axes[1]], 0.5f * max_ext_vertices[axes[1]] - min_ext_vertices[axes[1]],
+               near_clip, near_clip + camera_offset + max_ext_vertices[axes[2]] - min_ext_vertices[axes[2]]);
   // Look down from above.
   glm::vec3 eye = 0.5f * glm::vec3(min_ext_vertices + max_ext_vertices);
   glm::vec3 target = eye;
-  eye.z = max_ext_vertices.z + camera_offset;
-  target.z = 0;
-  const glm::vec3 up(0, 1, 0);
-  const glm::mat4 ViewMatrix = glm::lookAt(eye, target, up);
+  eye[axes[2]] = max_ext_vertices[axes[2]] + camera_offset;
+  target[axes[2]] = 0;
+  glm::vec3 view_up(0.0f);
+  view_up[axes[1]] = (imp_->heightmap->upAxis() >= 0) ? 1.0f : -1.0f;
+  const glm::mat4 ViewMatrix = glm::lookAt(eye, target, view_up);
 
   const glm::mat4 ModelMatrix = glm::mat4(1.0);
   const glm::mat4 MVP = ProjectionMatrix * ViewMatrix * ModelMatrix;
@@ -591,7 +699,7 @@ bool HeightmapImage::renderHeightMesh(const glm::dvec3 &min_ext_spatial, const g
   //-------------------------------------------
   // Render heightmap to FBO
   //-------------------------------------------
-  glUseProgram(map_program_id);
+  glUseProgram(imp_->render_data.map_program_id);
 
   // 1rst attribute buffer : vertices
   glEnableVertexAttribArray(0);
@@ -619,42 +727,21 @@ bool HeightmapImage::renderHeightMesh(const glm::dvec3 &min_ext_spatial, const g
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, index_buffer);
 
   // Draw the triangles !
-  glDrawElements(GL_TRIANGLES,          // mode
+  glDrawElements(GL_TRIANGLES,                   // mode
                  GLsizei(imp_->indices.size()),  // count
-                 GL_UNSIGNED_INT,       // type
-                 (void *)0              // element array buffer offset
+                 GL_UNSIGNED_INT,                // type
+                 (void *)0                       // element array buffer offset
   );
 
   glDisableVertexAttribArray(0);
 
   // Render to window
-  if (show_window)
+  if (imp_->render_data.show_window)
   {
     // Set the list of draw buffers.
     GLenum quad_draw_buffers[1] = { GL_COLOR_ATTACHMENT0 };
     glDrawBuffers(1, quad_draw_buffers);  // "1" is the size of quad_draw_buffers
 
-    // The fullscreen quad's FBO
-    static const GLfloat s_quad_vertex_buffer_data[] =  //
-      {
-        -1.0f, -1.0f, 0.0f,  //
-        1.0f,  -1.0f, 0.0f,  //
-        -1.0f, 1.0f,  0.0f,  //
-        -1.0f, 1.0f,  0.0f,  //
-        1.0f,  -1.0f, 0.0f,  //
-        1.0f,  1.0f,  0.0f,  //
-      };
-
-    GLuint quad_vertex_buffer;
-    glGenBuffers(1, &quad_vertex_buffer);
-    glBindBuffer(GL_ARRAY_BUFFER, quad_vertex_buffer);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(s_quad_vertex_buffer_data), s_quad_vertex_buffer_data, GL_STATIC_DRAW);
-
-    // Create and compile our GLSL program from the shaders
-    GLuint quad_program_id = loadShaders("fbo", quad_vertex_shader, quad_fragment_shader);
-    GLuint fbo_tex_id = glGetUniformLocation(quad_program_id, "render_texture");
-
-    bool render_depth = false;
     do
     {
       // Render to the screen
@@ -666,11 +753,11 @@ bool HeightmapImage::renderHeightMesh(const glm::dvec3 &min_ext_spatial, const g
       glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
       // Use our shader
-      glUseProgram(quad_program_id);
+      glUseProgram(imp_->render_data.quad_program_id);
 
       // Bind our texture in Texture Unit 0
       glActiveTexture(GL_TEXTURE0);
-      if (!render_depth)
+      if (type == kImageNormals888)
       {
         glBindTexture(GL_TEXTURE_2D, render_texture);
       }
@@ -679,11 +766,11 @@ bool HeightmapImage::renderHeightMesh(const glm::dvec3 &min_ext_spatial, const g
         glBindTexture(GL_TEXTURE_2D, depth_texture);
       }
       // Set our "render_texture" sampler to use Texture Unit 0
-      glUniform1i(fbo_tex_id, 0);
+      glUniform1i(imp_->render_data.fbo_tex_id, 0);
 
       // 1rst attribute buffer : vertices
       glEnableVertexAttribArray(0);
-      glBindBuffer(GL_ARRAY_BUFFER, quad_vertex_buffer);
+      glBindBuffer(GL_ARRAY_BUFFER, imp_->render_data.quad_vertex_buffer);
       glVertexAttribPointer(0,  // attribute 0. No particular reason for 0, but must match the layout in the shader.
                             3,  // size
                             GL_FLOAT,  // type
@@ -698,47 +785,45 @@ bool HeightmapImage::renderHeightMesh(const glm::dvec3 &min_ext_spatial, const g
       glDisableVertexAttribArray(0);
 
       // Swap buffers
-      glfwSwapBuffers(window);
+      glfwSwapBuffers(imp_->render_data.window);
       glfwPollEvents();
-    } while (glfwGetKey(window, GLFW_KEY_ESCAPE) != GLFW_PRESS && glfwWindowShouldClose(window) == 0);
-
-    glDeleteBuffers(1, &quad_vertex_buffer);
-    glDeleteProgram(quad_program_id);
+    } while (glfwGetKey(imp_->render_data.window, GLFW_KEY_ESCAPE) != GLFW_PRESS &&
+             glfwWindowShouldClose(imp_->render_data.window) == 0);
   }
 
-  // Read pixels:
-  std::vector<uint8_t> pixels;
-  pixels.resize(render_width * render_height * 3);
-  memset(pixels.data(), 0, sizeof(*pixels.data()) * pixels.size());
-  bool save_ok;
-  glBindTexture(GL_TEXTURE_2D, render_texture);
-  glGetTexImage(GL_TEXTURE_2D, 0, GL_RGB, GL_UNSIGNED_BYTE, pixels.data());
-  save_ok = savePngRgb("heightmap.png", pixels, render_width, render_height);
-  std::cout << "rgb save: " << (save_ok ? "ok" : "failed") << std::endl;
-
-  std::vector<float> depth_pixels;
-  depth_pixels.resize(render_width * render_height);
-  memset(depth_pixels.data(), 0, sizeof(*depth_pixels.data()) * depth_pixels.size());
-  glBindTexture(GL_TEXTURE_2D, depth_texture);
-  glGetTexImage(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, GL_FLOAT, depth_pixels.data());
-
-  save_ok = savePngDepth("heightmap-depth.png", depth_pixels, render_width, render_height);
-  std::cout << "depth save: " << (save_ok ? "ok" : "failed") << std::endl;
+  imp_->image_info.image_width = render_width;
+  imp_->image_info.image_height = render_height;
+  imp_->image_info.image_extents = Aabb(min_ext_spatial, max_ext_spatial);
+  imp_->image_info.type = imp_->type;
+  if (type == kImageNormals888)
+  {
+    // Read pixels:
+    imp_->image_info.bpp = 3;
+    imp_->image_info.byte_count = imp_->image_info.image_width * imp_->image_info.image_height * imp_->image_info.bpp;
+    imp_->image.resize(imp_->image_info.byte_count);
+    glBindTexture(GL_TEXTURE_2D, render_texture);
+    glGetTexImage(GL_TEXTURE_2D, 0, GL_RGB, GL_UNSIGNED_BYTE, imp_->image.data());
+  }
+  else
+  {
+    // We are reading the depth buffer, which is float format. We size the image bytes appropriately.
+    imp_->image_info.bpp = sizeof(float);
+    imp_->image_info.byte_count = imp_->image_info.image_width * imp_->image_info.image_height * imp_->image_info.bpp;
+    imp_->image.resize(imp_->image_info.byte_count);
+    glBindTexture(GL_TEXTURE_2D, depth_texture);
+    glGetTexImage(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, GL_FLOAT, imp_->image.data());
+  }
 
   // Cleanup
   glDeleteBuffers(1, &vertex_buffer);
   glDeleteBuffers(1, &normals_buffer);
   glDeleteBuffers(1, &index_buffer);
   glDeleteVertexArrays(1, &vertex_array_id);
-  glDeleteProgram(map_program_id);
 
   glDeleteFramebuffers(1, &frame_buffer_id);
   glDeleteTextures(1, &render_texture);
   glDeleteTextures(1, &depth_texture);
   glDeleteRenderbuffers(1, &depth_render_buffer);
-
-  // Close OpenGL window and terminate GLFW
-  glfwTerminate();
 
   return 0;
 }

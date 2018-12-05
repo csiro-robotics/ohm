@@ -11,6 +11,7 @@
 #include "Key.h"
 #include "MapCache.h"
 #include "MapChunk.h"
+#include "MapInfo.h"
 #include "MapLayer.h"
 #include "MapLayout.h"
 #include "OccupancyMap.h"
@@ -175,6 +176,12 @@ namespace
   }
 }  // namespace
 
+Heightmap::Heightmap()
+  : Heightmap(0.2, 2.0, AxisZ)
+{
+}
+
+
 Heightmap::Heightmap(double grid_resolution, double min_clearance, Axis up_axis, unsigned region_size)
   : imp_(new HeightmapDetail)
 {
@@ -190,8 +197,7 @@ Heightmap::Heightmap(double grid_resolution, double min_clearance, Axis up_axis,
 
   // Cache the up axis normal.
   imp_->up_axis_id = up_axis;
-  imp_->up = upAxisNormal(up_axis);
-  imp_->vertical_axis_id = (up_axis >= 0) ? up_axis : -(up_axis + 1);
+  imp_->updateAxis();
 
   // Use an OccupancyMap to store grid cells. Each region is 1 voxel thick.
   glm::u8vec3 region_dim(region_size);
@@ -226,6 +232,8 @@ Heightmap::Heightmap(double grid_resolution, double min_clearance, Axis up_axis,
   voxels = layer->voxelLayout();
   voxels.addMember("height", DataType::kFloat, 0);
   voxels.addMember("clearance", DataType::kFloat, 0);
+
+  updateMapInfo(imp_->heightmap->mapInfo());
 }
 
 
@@ -295,25 +303,7 @@ const glm::dvec3 &Heightmap::upAxisNormal() const
 
 const glm::dvec3 &Heightmap::upAxisNormal(int axis_id)
 {
-  static const glm::dvec3 kAxes[] =  //
-    {
-      glm::dvec3(0, 0, -1),  // -Z
-      glm::dvec3(0, -1, 0),  // -Y
-      glm::dvec3(-1, 0, 0),  // -X
-      glm::dvec3(1, 0, 0),   // X
-      glm::dvec3(0, 1, 0),   // Y
-      glm::dvec3(0, 0, 1),   // Z
-      glm::dvec3(0, 0, 0),   // Dummy
-    };
-
-  int axis_index = int(axis_id - AxisNegZ);
-  if (axis_index < 0 || axis_index >= int(sizeof(kAxes) - sizeof(kAxes[0])))
-  {
-    // Reference the dummy index.
-    axis_index = int(sizeof(kAxes) - sizeof(kAxes[0]) - 1);
-  };
-
-  return kAxes[axis_index];
+  return HeightmapDetail::upAxisNormal(axis_id);
 }
 
 
@@ -339,6 +329,8 @@ bool Heightmap::update(double base_height)
   // Brute force initial approach.
   const OccupancyMap &src_map = *imp_->occupancy_map;
   OccupancyMap &heightmap = *imp_->heightmap;
+
+  updateMapInfo(heightmap.mapInfo());
 
   // Clear previous results.
   heightmap.clear();
@@ -521,4 +513,16 @@ bool Heightmap::update(double base_height)
 #endif  // POST_BLUR
 
   return true;
+}
+
+
+void Heightmap::updateMapInfo(MapInfo &info) const
+{
+  info.set(MapValue("heightmap", true));
+  info.set(MapValue("heightmap-axis", int(upAxis())));
+  info.set(MapValue("heightmap-axis-x", upAxisNormal().x));
+  info.set(MapValue("heightmap-axis-y", upAxisNormal().y));
+  info.set(MapValue("heightmap-axis-z", upAxisNormal().z));
+  info.set(MapValue("heightmap-blur", blurLevel()));
+  info.set(MapValue("heightmap-clearance", minClearance()));
 }

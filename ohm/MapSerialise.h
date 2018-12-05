@@ -23,6 +23,7 @@
 
 namespace ohm
 {
+  class Heightmap;
   class OccupancyMap;
 
     /// An enumeration of potential serialisation errors.
@@ -43,6 +44,15 @@ namespace ohm
     kSeValueOverflow,
 
     kSeMemberOffsetError,
+
+    /// Error serialising @c MapInfo.
+    kSeInfoError,
+
+    /// @c MapInfo does not represent a heightmap.
+    kSeHeightmapInfoMismatch,
+
+    kSeDataItemTooLarge,
+    kSeUnknownDataType,
 
     kSeUnsupportedVersion
   };
@@ -105,8 +115,8 @@ namespace ohm
   /// Progress observer interface for serialisation.
   ///
   /// This can be derived to track serialisation progress in @c save() and @c load().
-  /// When given to one of those methods, the following mesathods will be called during serialisation:
-  /// - @c setTargetProgess() to set the maximum progress value once known.
+  /// When given to one of those methods, the following methods will be called during serialisation:
+  /// - @c setTargetProgress() to set the maximum progress value once known.
   /// - @c incrementProgress() periodically to increment progress up to the target.
   ///
   /// The @c quit() method may also be used to abort serialisation. It is called periodically to
@@ -128,9 +138,14 @@ namespace ohm
     virtual void incrementProgress(unsigned inc = 1) = 0;
   };
 
+  /// Translate @c err to an English error code string.
+  /// @param err The error code. Out of range values are handled.
+  /// @return The English error code string or "<unknown>".
+  const char *errorCodeString(int err);
+
   /// Save @p map to @p filename.
   ///
-  /// This method saves an @c OccuancyMap to file. The progress may optionally be tracked by providing
+  /// This method saves an @c OccupancyMap to file. The progress may optionally be tracked by providing
   /// a @c SerialiseProgress object via @p progress. That object may also be used to abort serialisation
   /// should it's @c SerialiseProgress::quit() method report @c true.
   ///
@@ -142,7 +157,7 @@ namespace ohm
 
   /// Load @p map from @p filename.
   ///
-  /// This method loads an @c OccuancyMap from file. The progress may optionally be tracked by providing
+  /// This method loads an @c OccupancyMap from file. The progress may optionally be tracked by providing
   /// a @c SerialiseProgress object via @p progress. That object may also be used to abort serialisation
   /// should it's @c SerialiseProgress::quit() method report @c true.
   ///
@@ -154,6 +169,8 @@ namespace ohm
   /// @param[out] version_out When present, set to the version number of the loaded map format.
   /// @return @c SE_OK on success, or a non zero @c SerialisationError on failure.
   int ohm_API load(const char *filename, OccupancyMap &map, SerialiseProgress *progress = nullptr, MapVersion *version_out = nullptr);
+
+  int ohm_API load(const char *filename, Heightmap &heightmap, SerialiseProgress *progress = nullptr, MapVersion *version_out = nullptr);
 
   /// Loads the header and layers of a map file without loading the chunks for voxel data.
   ///
