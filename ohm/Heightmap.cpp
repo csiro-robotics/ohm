@@ -251,6 +251,30 @@ OccupancyMap &Heightmap::heightmap() const
 }
 
 
+void Heightmap::setFloor(double floor)
+{
+  imp_->floor = floor;
+}
+
+
+double Heightmap::floor() const
+{
+  return imp_->floor;
+}
+
+
+void Heightmap::setCeiling(double ceiling)
+{
+  imp_->ceiling = ceiling;
+}
+
+
+double Heightmap::ceiling() const
+{
+  return imp_->ceiling;
+}
+
+
 void Heightmap::setMinClearance(double clearance)
 {
   imp_->min_clearance = clearance;
@@ -400,6 +424,18 @@ bool Heightmap::update(double base_height)
       if (calculateHeightAt(&height, src_voxel, upAxis(), imp_->up, imp_->blur_level))
 #endif  // POST_BLUR
       {
+        if (imp_->floor > 0 && height < base_height - imp_->floor)
+        {
+          // Below floor: don't start heightmap yet.
+          continue;
+        }
+
+        if (imp_->ceiling > 0 && height > base_height + imp_->ceiling)
+        {
+          // Above ceiling: done with this column.
+          break;
+        }
+
         if (height < column_height)
         {
           // First voxel in column.
