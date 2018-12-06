@@ -554,11 +554,5 @@ bool Heightmap::update(double base_height)
 
 void Heightmap::updateMapInfo(MapInfo &info) const
 {
-  info.set(MapValue("heightmap", true));
-  info.set(MapValue("heightmap-axis", int(upAxis())));
-  info.set(MapValue("heightmap-axis-x", upAxisNormal().x));
-  info.set(MapValue("heightmap-axis-y", upAxisNormal().y));
-  info.set(MapValue("heightmap-axis-z", upAxisNormal().z));
-  info.set(MapValue("heightmap-blur", blurLevel()));
-  info.set(MapValue("heightmap-clearance", minClearance()));
+  imp_->toMapInfo(info);
 }

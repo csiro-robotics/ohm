@@ -15,6 +15,7 @@
 namespace ohm
 {
   class OccupancyMap;
+  class MapInfo;
 
   struct HeightmapDetail
   {
@@ -44,6 +45,9 @@ namespace ohm
 
     void updateAxis();
     static const glm::dvec3 &upAxisNormal(int axis_id);
+
+    void fromMapInfo(const MapInfo &info);
+    void toMapInfo(MapInfo &info) const;
   };
 
 

@@ -1034,10 +1034,7 @@ int ohm::load(const char *filename, Heightmap &heightmap, SerialiseProgress *pro
     return kSeHeightmapInfoMismatch;
   }
 
-  detail.up_axis_id = int(info.get("heightmap-axis"));
-  detail.blur_level = int(info.get("heightmap-blur"));
-  detail.min_clearance = float(info.get("heightmap-clearance"));
-  detail.updateAxis();
+  detail.fromMapInfo(info);
 
   return err;
 }

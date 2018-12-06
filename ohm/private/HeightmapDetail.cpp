@@ -5,8 +5,9 @@
 // Author: Kazys Stepanas
 #include "HeightmapDetail.h"
 
-using namespace ohm;
+#include "MapInfo.h"
 
+using namespace ohm;
 
 const glm::dvec3 &HeightmapDetail::upAxisNormal(int axis_id)
 {
@@ -29,4 +30,29 @@ const glm::dvec3 &HeightmapDetail::upAxisNormal(int axis_id)
   };
 
   return kAxes[axis_index];
+}
+
+
+void HeightmapDetail::fromMapInfo(const MapInfo &info)
+{
+  up_axis_id = int(info.get("heightmap-axis"));
+  blur_level = int(info.get("heightmap-blur"));
+  min_clearance = float(info.get("heightmap-clearance"));
+  floor = float(info.get("heightmap-floor"));
+  ceiling = float(info.get("heightmap-ceiling"));
+  updateAxis();
+}
+
+
+void HeightmapDetail::toMapInfo(MapInfo &info) const
+{
+  info.set(MapValue("heightmap", true));
+  info.set(MapValue("heightmap-axis", int(up_axis_id)));
+  info.set(MapValue("heightmap-axis-x", up.x));
+  info.set(MapValue("heightmap-axis-y", up.y));
+  info.set(MapValue("heightmap-axis-z", up.z));
+  info.set(MapValue("heightmap-blur", blur_level));
+  info.set(MapValue("heightmap-clearance", min_clearance));
+  info.set(MapValue("heightmap-floor", floor));
+  info.set(MapValue("heightmap-ceiling", ceiling));
 }
