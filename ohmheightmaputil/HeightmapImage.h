@@ -20,17 +20,51 @@ namespace ohm
 
   struct HeightmapImageDetail;
 
+  /// Experimental conversion of a @c Heightmap into an image by rendering to an OpenGL FGO.
+  ///
+  /// The resulting image may be either an RGB image where the RGB values map the local surface normals (like a
+  /// normal map in rendering) or a grey scale depth value, relative to the min/max for the input data set.
+  /// The RGB image may be provided either as a pure RGB uint8 format (1 byte per channel) using @c kImageNormals888
+  /// or as 32-bit floating point colour channels ranging [0, 1] using @c kImageNormals. Using @c kImageNormals, the
+  /// colour channels need to be remapped from [0, 1] to [-1, 1] by a shift and scale (2 * c - 1).
+  ///
+  /// Surface normals are derived from the local vertex normals and interpolated across the surface. The vertex normals
+  /// are calculated according to @c NormalsMode.
+  ///
+  /// Typical usage is:
+  /// - Generate a @c Heightmap.
+  /// - Construct a @c HeightmapImage around the @c Heightmap.
+  /// - Call @c generateBitmap()
+  /// - Fetch the results using @c bitmap().
+  /// - Dispose of the @c HeightmapImage before the @c Heightmap.
   class ohmheightmaputil_API HeightmapImage
   {
   public:
     enum ImageType
     {
-      /// Extracted image consists of three floats per pixel, representing the local surface normal.
+      /// Extracted image consists of three floats per pixel. A normal can be derived from each pixel by taking the
+      /// RGB float values and converting each channel by multiplying it by 2 and subtracting 1. This is to convert from
+      /// the range [0, 1] to the range [-1, 1]. This is shown below.
+      /// @code
+      /// glm::vec3 convertColourToNormal(const glm::vec3 &c)
+      /// {
+      ///   return 2.0f * c - glm::vec3(1.0f);
+      /// }
+      /// @endcode
       kImageNormals,
       /// Extract RBG 888 image where colours represent surface normals.
       kImageNormals888,
       /// Extract a depth image with 4-byte float values for each pixel (depth).
       kImageHeights
+    };
+
+    /// Vertex normal generation mode.
+    enum NormalsMode
+    {
+      /// Average each vertex triangle normals.
+      kNormalsAverage,
+      /// Select the "worst" triangle normal where "worst" is the least horizontal.
+      kNormalsWorst,
     };
 
     struct BitmapInfo
@@ -43,8 +77,16 @@ namespace ohm
       Aabb image_extents;
     };
 
-    HeightmapImage(const Heightmap &heightmap, ImageType type = kImageNormals, unsigned pixels_per_voxel = 1);
+    HeightmapImage(const Heightmap &heightmap, ImageType type = kImageNormals,
+                   NormalsMode normals_mode = kNormalsAverage, unsigned pixels_per_voxel = 1);
     ~HeightmapImage();
+
+    ImageType imageType();
+    void setImageType(ImageType type);
+    NormalsMode normalsMode();
+    void setNormalsMode(NormalsMode mode);
+    unsigned pixelsPerVoxel();
+    void setPixelsPerVoxel(unsigned ppv);
 
     /// Query the number of bytes required to extract the heightmap into a bitmap using @c extractBitmap().
     /// @return The number of bytes required for the bitmap.
@@ -60,8 +102,8 @@ namespace ohm
 
   private:
     void triangulate();
-    bool renderHeightMesh(const glm::dvec3 &min_ext_spatial, const glm::dvec3 &max_ext_spatial,
-                          ImageType type, double voxel_resolution);
+    bool renderHeightMesh(const glm::dvec3 &min_ext_spatial, const glm::dvec3 &max_ext_spatial, ImageType type,
+                          double voxel_resolution);
 
     std::unique_ptr<HeightmapImageDetail> imp_;
   };
