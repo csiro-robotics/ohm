@@ -13,7 +13,7 @@ add_subdirectory(ohmpop)
 add_subdirectory(ohmquery)
 
 if(OHM_WITH_HEIGHTMAP_IMAGE)
-  add_subdirectory(ohmheightmap2image)
+  add_subdirectory(ohmhm2img)
 endif(OHM_WITH_HEIGHTMAP_IMAGE)
 
 if(CLOUD_IO_LIB STREQUAL "liblas")

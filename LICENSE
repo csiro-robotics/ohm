@@ -31,6 +31,11 @@ This software is licensed under BSD Licence via libLAS.
 ___________________________________________________________________
 
 ___________________________________________________________________
+Point Data Abstraction Library (PDAL) https://pdal.io/
+This software is licensed under BSD Licence
+___________________________________________________________________
+
+___________________________________________________________________
 OpenGL Mathematics https://glm.g-truc.net/
 This software is licensed under the Happy Bunny License (Modified MIT).
 ___________________________________________________________________
@@ -68,4 +73,19 @@ ___________________________________________________________________
 ___________________________________________________________________
 delaunator https://github.com/delfrrr/delaunator-cpp
 This software is licensed under the MIT licence https://github.com/delfrrr/delaunator-cpp/blob/master/LICENSE
+___________________________________________________________________
+
+___________________________________________________________________
+libpng http://www.libpng.org/
+This software is licensed under the PNG Reference Library License version
+___________________________________________________________________
+
+___________________________________________________________________
+OpenGL Extension Wrangler (GLEW) Library http://glew.sourceforge.net/
+This software is licensed under The OpenGL Extension Wrangler Library license
+___________________________________________________________________
+
+___________________________________________________________________
+GLFW Library https://www.glfw.org/
+This software is licensed under the zlib/libpng license
 ___________________________________________________________________

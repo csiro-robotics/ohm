@@ -23,14 +23,19 @@ The following 3rd-party libraries are required to build ohm:
 
 Additional, the following 3rd-party libraries may optionally be used:
 
-- [Google Test](https://github.com/google/googletest) for unit tests.
-- To generate maps from LAS file point clouds, either:
-    - [PDAL](https://pdal.io/) to load point clouds for gene
-    - [libLAS](https://liblas.org/) and [LASZip](https://laszip.org/)
-        - [Boost](https://www.boost.org/) required by libLAS
-- [Intel Threading Building Blocks](https://www.threadingbuildingblocks.org/) to support multi-threaded CPU operations.
-- [3rd Eye Scene](https://github.com/data61/3rdEyeScene) for debug visualisation of map generation.
-- [Doxygen](http://www.doxygen.nl/) for generation of API documentation.
+Library                                             | Feature Usage
+--------------------------------------------------- | -----------------------------------------------------------------
+[Google Test](https://github.com/google/googletest) | Unit tests
+[PDAL](https://pdal.io/)                            | Load point various point cloud formats for ohmpop.
+[libLAS](https://liblas.org/)                       | Alternative point cloud loading from LAS for ohmpop.
+[LASZip](https://laszip.org/)                       | To support compressed LAS (LAZ) files with libLAS.
+[Boost](https://www.boost.org/)                     | required if using libLAS
+[Intel Threading Building Blocks](https://www.threadingbuildingblocks.org/) | Multi-threaded CPU operations.
+[3rd Eye Scene](https://github.com/data61/3rdEyeScene)  | For debug visualisation of map generation.
+[Doxygen](http://www.doxygen.nl/)                   | For generation of API documentation.
+[GLEW](http://glew.sourceforge.net/)                | For HeightmapImage in ohmheightmaputil
+[GLFW](https://www.glfw.org/)                       | For HeightmapImage in ohmheightmaputil
+[libpng](http://www.libpng.org/)                    | To convert heightmap to image using utils/ohmhm2img
 
 While efforts are made to ensure certain components remain optional, certain configurations may be incompatible.
 
@@ -50,11 +55,10 @@ sudo cp *.a /usr/lib
 
 Setup of OpenCL requires mode detailed [instructions (link)](./OpenCL.md).
 
-Additional experimental (TODO: make this comment good):
-
-- libglew-dev
-- libglfw3-dev
-- libpng-dev
+Optional packages for heightmap generation and image conversion:
+```
+sudo apt-get install libglew-dev libglfw3-dev libpng-dev
+```
 
 ### Build Instructions
 
