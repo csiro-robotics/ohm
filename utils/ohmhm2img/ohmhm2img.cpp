@@ -1,7 +1,6 @@
 //
 // author Kazys Stepanas
 //
-#include <glm/glm.hpp>
 
 #include <ohm/Heightmap.h>
 #include <ohm/HeightmapVoxel.h>
