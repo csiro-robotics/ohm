@@ -446,6 +446,19 @@ uint64_t Device::deviceMemory() const
 }
 
 
+bool Device::unifiedMemory() const
+{
+  if (!isValid())
+  {
+    return false;
+  }
+
+  cl_bool unified = false;
+  clGetDeviceInfo(imp_->device(), CL_DEVICE_HOST_UNIFIED_MEMORY, sizeof(unified), &unified, nullptr);
+  return unified;
+}
+
+
 Device &Device::operator=(const Device &other)
 {
   *imp_ = *other.imp_;

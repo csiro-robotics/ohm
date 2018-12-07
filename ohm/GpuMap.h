@@ -29,6 +29,15 @@ namespace ohm
 
   namespace gpumap
   {
+    /// Flags for GPU initialisation.
+    enum GpuFlag
+    {
+      /// Allow host mappable buffers. Used if device/host memory is unified.
+      kGpuAllowMappedBuffers = (1 << 0),
+      /// Force mappable buffers.
+      kGpuForceMappedBuffers = (1 << 1),
+    };
+
     /// Enable GPU usage for the given @p map. This creates a GPU cache for the @p map using the
     /// default cache layer memory size and mappable GPU buffers.
     ///
@@ -44,9 +53,10 @@ namespace ohm
     ///
     /// @param map The map to enable GPU usage on.
     /// @param layer_gpu_mem_size GPU memory buffer size per map layer.
-    /// @param mappable_buffers True to use mapped GPU buffers, false to use queued data transfer.
+    /// @param gpu_flags @c GpuFlag values controlling initialisation.
     /// @return The @c GpuCache for the map. Null if GPU code is not enabled.
-    GpuCache *ohm_API enableGpu(OccupancyMap &map, size_t layer_gpu_mem_size, bool mappable_buffers = true);
+    GpuCache *ohm_API enableGpu(OccupancyMap &map, size_t layer_gpu_mem_size,
+                                unsigned gpu_flags = kGpuAllowMappedBuffers);
 
     // /// Reports the status of setting up the associated GPU program for populating the map.
     // ///

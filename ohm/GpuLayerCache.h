@@ -130,7 +130,7 @@ namespace ohm
     /// @param region_key The key for the region to upload.
     /// @param[out] chunk Set to the @c chunk identified by @p regionKey. Null if the region does not exist and @c
     ///     AllowRegionCreate is false.
-    /// @param[out] event Optional to request the GPU event marking the any oustanding operations on the cache memory.
+    /// @param[out] event Optional to request the GPU event marking the any outstanding operations on the cache memory.
     ///     Only relevant when the region is already in the cache.s
     /// @param[out] status Optional to request the status of the cache entry.
     /// @param batch_marker Optionally set to demarcate a group of upload operations.
@@ -211,7 +211,7 @@ namespace ohm
     void updateEvents(unsigned batch_marker, gputil::Event &event);
 
     /// Remove data associated with @p region_key from the cache.
-    /// This will block until oustanding operations relating to @p chunk complete, but will not explicitly sync data
+    /// This will block until outstanding operations relating to @p chunk complete, but will not explicitly sync data
     /// back to the host.
     /// @param region_key The key of the region to remove from the cache.
     void remove(const glm::i16vec3 &region_key);
@@ -238,7 +238,7 @@ namespace ohm
     /// @overload
     void syncToMainMemory(const glm::i16vec3 &region_key);
 
-    /// Synchronise all GPU chunk memory back to main memory. This may block while oustanding GPU operations complete.
+    /// Synchronise all GPU chunk memory back to main memory. This may block while outstanding GPU operations complete.
     void syncToMainMemory();
 
     /// Access the GPU @c gputil::Device associated with GPU operations.

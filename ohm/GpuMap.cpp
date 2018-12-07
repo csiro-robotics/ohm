@@ -171,11 +171,11 @@ namespace ohm
 
 GpuCache *ohm::gpumap::enableGpu(OccupancyMap &map)
 {
-  return enableGpu(map, GpuCache::kDefaultLayerMemSize, true);
+  return enableGpu(map, GpuCache::kDefaultLayerMemSize, kGpuAllowMappedBuffers);
 }
 
 
-GpuCache *ohm::gpumap::enableGpu(OccupancyMap &map, size_t layer_gpu_mem_size, bool mappable_buffers)
+GpuCache *ohm::gpumap::enableGpu(OccupancyMap &map, size_t layer_gpu_mem_size, unsigned flags)
 {
   OccupancyMapDetail &map_imp = *map.detail();
   if (map_imp.gpu_cache)
@@ -188,7 +188,7 @@ GpuCache *ohm::gpumap::enableGpu(OccupancyMap &map, size_t layer_gpu_mem_size, b
     layer_gpu_mem_size = GpuCache::kDefaultLayerMemSize;
   }
 
-  initialiseGpuCache(map, layer_gpu_mem_size, mappable_buffers);
+  initialiseGpuCache(map, layer_gpu_mem_size, flags);
   return map_imp.gpu_cache;
 }
 
@@ -229,7 +229,7 @@ GpuCache *ohm::gpumap::gpuCache(OccupancyMap &map)
 GpuMap::GpuMap(OccupancyMap *map, bool borrowed_map, unsigned expected_element_count, size_t gpu_mem_size)
   : imp_(new GpuMapDetail(map, borrowed_map))
 {
-  gpumap::enableGpu(*map, gpu_mem_size, true);
+  gpumap::enableGpu(*map, gpu_mem_size, gpumap::kGpuAllowMappedBuffers);
   GpuCache &gpu_cache = *map->detail()->gpu_cache;
   imp_->gpu_ok = initialiseRegionUpdateGpu(gpu_cache.gpu()) == 0;
   const unsigned prealloc_region_count = 1024u;

@@ -83,7 +83,8 @@ namespace ohm
 
 
   /// Ensure the GPU cache is initialised. Ok to call if already initialised.
-  GpuCache *initialiseGpuCache(OccupancyMap &map, size_t layer_gpu_mem_size, bool mappable_buffers);
+  /// @param flags @c GpuFlag values.
+  GpuCache *initialiseGpuCache(OccupancyMap &map, size_t layer_gpu_mem_size, unsigned flags);
 
   inline GpuMapDetail::RegionKeyMap::iterator GpuMapDetail::findRegion(const unsigned region_hash,
                                                                        const glm::i16vec3 &region_key)
