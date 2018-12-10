@@ -574,8 +574,8 @@ bool HeightmapImage::renderHeightMesh(const glm::dvec3 &min_ext_spatial, const g
   //   mesh.save("hm-mesh.ply", true);
   // }
 
-  TES_TRIANGLES(g_3es, TES_COLOUR(White), glm::value_ptr(*vertices.data()), unsigned(vertices.size()),
-                sizeof(*vertices.data()), indices.data(), unsigned(indices.size()));
+  TES_TRIANGLES(g_3es, TES_COLOUR(White), glm::value_ptr(*imp_->vertices.data()), unsigned(imp_->vertices.size()),
+                sizeof(*imp_->vertices.data()), imp_->indices.data(), unsigned(imp_->indices.size()));
   TES_SERVER_UPDATE(g_3es, 0.0f);
   TES_SERVER_UPDATE(g_3es, 0.0f);
 

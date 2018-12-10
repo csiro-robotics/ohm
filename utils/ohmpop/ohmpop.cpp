@@ -61,6 +61,7 @@ namespace
     std::string cloud_file;
     std::string trajectory_file;
     std::string output_base_name;
+    glm::dvec3 sensor_offset = glm::dvec3(0.0);
     glm::u8vec3 region_voxel_dim = glm::u8vec3(32);
     uint64_t point_limit = 0;
     int64_t preload_count = 0;
@@ -805,9 +806,10 @@ int parseOptions(Options &opt, int argc, char *argv[])
       ("p,point-limit", "Limit the number of points loaded.", optVal(opt.point_limit))
       ("preload", "Preload this number of points before starting processing. Zero for all. May be used for separating processing and loading time.", optVal(opt.preload_count)->default_value("0"))
       ("q,quiet", "Run in quiet mode. Suppresses progress messages.", optVal(opt.quiet))
+      ("sensor", "Offset from the trajectory to the sensor position. Helps correct trajectory to the sensor centre for better rays.", optVal(opt.sensor_offset))
       ("s,start-time", "Only process points time stamped later than the specified time.", optVal(opt.start_time))
-      ("save-info", "Save timing information to text based on the output file name.", optVal(opt.save_info))
       ("serialise", "Serialise the results? This option is intended for skipping saving during performance analysis.", optVal(opt.serialise))
+      ("save-info", "Save timing information to text based on the output file name.", optVal(opt.save_info))
       ("t,time-limit", "Limit the elapsed time in the LIDAR data to process (seconds). Measured relative to the first data sample.", optVal(opt.time_limit))
       ("trajectory", "The trajectory (text) file to load.", cxxopts::value(opt.trajectory_file))
       ;

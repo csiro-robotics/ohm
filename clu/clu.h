@@ -233,15 +233,15 @@ namespace clu
   /// Parse an OpenCL version string. This supports both device and platform version strings of the form:
   /// "OpenCL <major>.<minor>".
   /// @param version_string The version string to parse.
-  /// @param[out] The parsed major version.
-  /// @param[out] The parsed minor version.
+  /// @param[out] version_major The parsed major version.
+  /// @param[out] version_minor The parsed minor version.
   /// @param True on success.
   bool parseVersion(const char *version_string, cl_uint *version_major, cl_uint *version_minor);
 
   /// Resolve the platform version.
   /// @param platform The platform to get the version for.
-  /// @param[out] The parsed major version.
-  /// @param[out] The parsed minor version.
+  /// @param[out] version_major The parsed major version.
+  /// @param[out] version_minor The parsed minor version.
   void platformVersion(cl_platform_id platform, cl_uint *version_major, cl_uint *version_minor);
 
   /// Convert a known OpenCL error code to an English string.

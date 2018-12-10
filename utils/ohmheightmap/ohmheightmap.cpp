@@ -1,8 +1,6 @@
 //
 // author Kazys Stepanas
 //
-#include <glm/glm.hpp>
-
 #include <ohm/Heightmap.h>
 #include <ohm/HeightmapVoxel.h>
 #include <ohm/MapSerialise.h>
@@ -16,6 +14,8 @@
 #include <ohmutil/ScopedTimeDisplay.h>
 
 #include <ohmutil/Options.h>
+
+#include <glm/glm.hpp>
 
 #include <algorithm>
 #include <chrono>

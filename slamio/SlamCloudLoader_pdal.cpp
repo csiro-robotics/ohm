@@ -62,6 +62,7 @@ struct SlamCloudLoaderDetail
   std::function<bool(TrajectoryPoint &point)> read_trajectory_point;
   std::ifstream trajectory_file;
   std::string traj_line;
+  glm::dvec3 trajectory_to_sensor_offset;
   TrajectoryPoint trajectory_buffer[2];
 
   std::vector<SamplePoint> samples_buffer;
@@ -141,6 +142,18 @@ SlamCloudLoader::SlamCloudLoader(bool real_time_mode)
 SlamCloudLoader::~SlamCloudLoader()
 {
   delete imp_;
+}
+
+
+void SlamCloudLoader::setSensorOffset(const glm::dvec3 &offset)
+{
+  imp_->trajectory_to_sensor_offset = offset;
+}
+
+
+glm::dvec3 SlamCloudLoader::sensorOffset() const
+{
+  return imp_->trajectory_to_sensor_offset;
 }
 
 
@@ -363,7 +376,7 @@ bool SlamCloudLoader::nextPoint(glm::dvec3 &sample, glm::dvec3 *origin, double *
     }
     if (origin)
     {
-      *origin = sample_point.origin;
+      *origin = sample_point.origin + imp_->trajectory_to_sensor_offset;
     }
     if (orientation)
     {
