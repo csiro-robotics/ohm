@@ -99,22 +99,6 @@ namespace
   }
 
 
-  inline bool goodSample(const glm::dvec3 &sample, double max_range)
-  {
-    if (glm::any(glm::isnan(sample)))
-    {
-      return false;
-    }
-
-    if (glm::dot(sample, sample) > max_range)
-    {
-      return false;
-    }
-
-    return true;
-  }
-
-
   typedef std::function<void(const glm::i16vec3 &, const glm::dvec3 &, const glm::dvec3 &)> RegionWalkFunction;
 
   void walkRegions(const OccupancyMap &map, const glm::dvec3 &start_point, const glm::dvec3 &end_point,
@@ -307,11 +291,12 @@ GpuMap::GpuMap(OccupancyMap *map, bool borrowed_map, unsigned expected_element_c
 
   if (initProgram(gpu_cache.gpu()))
   {
-    imp_->gpu_ok = true;
 #if OHM_GPU == OHM_GPU_OPENCL
     imp_->update_kernel = gputil::openCLKernel(program, "regionRayUpdate");
 #endif  // OHM_GPU == OHM_GPU_OPENCL
     imp_->update_kernel.calculateOptimalWorkGroupSize();
+
+    imp_->gpu_ok = imp_->update_kernel.isValid();
   }
   else
   {

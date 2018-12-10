@@ -16,6 +16,7 @@
 
 #include <gputil/gpuBuffer.h>
 #include <gputil/gpuDevice.h>
+#include <gputil/gpuKernel.h>
 #include <gputil/gpuQueue.h>
 
 // TODO: add a GPU specific header and migrate these includes and the GpuData structure there.
@@ -31,6 +32,7 @@ namespace ohm
     std::vector<size_t> resultIndices;
     std::vector<size_t> resultCounts;
 
+    gputil::Kernel line_keys_kernel;
     gputil::Device gpu;
 
     struct GpuData
