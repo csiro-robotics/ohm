@@ -1,6 +1,18 @@
 # OpenCL Usage
 
-OpenCL is required for the Occupancy map (ohm), however, it is specifically only tested with Intel OpenCL. Both runtime drivers and an SDK need to be installed in order to get it running. Getting Intel drivers running can be an issue so the following instructions are maintained to help the installation process. The process is focused entirely on Ubuntu 18.04.
+OpenCL is required for the Occupancy map (ohm), however, it is specifically only tested with Intel OpenCL. NVidia OpenCL has been known to work, but is not as extensively tested.
+
+Both runtime drivers and an SDK need to be installed in order to get it running. Getting Intel drivers running can be an issue so the following instructions are maintained to help the installation process. The following process is focused entirely on Ubuntu 18.04.
+
+## Installing the OpenCL SDK
+
+Intel publish an OpenCL SDK which includes kernel debugging capabilities. This is has not been tested here under Ubuntu and the Windows version tends to be somewhat difficult to get working. Thus, that avenue is only recommended if debugging is essential.
+
+For most installations it is enough to install the appropriate apt packages.
+
+```
+sudo apt-get install opencl-headers ocl-icd-dev ocl-icd-libopencl1 ocl-icd-opencl-dev
+```
 
 ## Intel CPU Compatibility
 
@@ -14,7 +26,7 @@ Intel CPU Generation    | Recommended OpenCL Standard
 8th Generation          | 2.0
 9th Generation          | 2.0
 
-## Installing OpenCL Drivers
+### Installing Intel OpenCL Drivers
 
 There are three different drivers which may be relevant to the installation process.
 
@@ -46,7 +58,7 @@ If installation is successful you should see a results like the following:
 
 Not that this is also listing the CUDA device.
 
-### Beignet
+#### Beignet
 First preference is to use the beignet package. In 18.04 these are drivers for the NEO architecture used in 7th, 8th and 9th generation core processors. This is the preferred approach, but may not work.
 
 ```
@@ -61,7 +73,7 @@ If this fails, you will need to `apt-get purge <package>` the following apt-pack
 - beignet-dev
 - beignet-opencl-icd
 
-### Intel Linux Driver
+#### Intel Linux Driver
 This installs the current Intel OpenCL drivers for 7th, 8th and 9th generation CPU. The beignet drivers are preferred since Unbutu is not officially supported. The downloaded instructions are available hereat https://software.intel.com/en-us/articles/opencl-drivers.
 
 - Download the .deb runtime driver from https://github.com/intel/compute-runtime/releases
@@ -70,18 +82,18 @@ This installs the current Intel OpenCL drivers for 7th, 8th and 9th generation C
 
 These drivers are incompatible with beignet.
 
-### Intel Legacy Linux Driver
+#### Intel Legacy Linux Driver
 Legacy drivers are appropriate only for 6th (and 5th) generation intel chips. These are downloaded from https://software.intel.com/en-us/articles/legacy-opencl-drivers#latest_linux_SDK_release and the installation process is described at http://registrationcenter-download.intel.com/akdlm/irc_nas/11396/SRB5.0_intel-opencl-installation.pdf
 
 These drivers are incompatible with beignet.
 
-## Installing the OpenCL SDK
+## NVidia OpenCL Compatibility
 
-Intel publish an OpenCL SDK which includes kernel debugging capabilities. This is has not been tested here under Ubuntu and the Windows version tends to be somewhat difficult to get working. Thus, that avenue is only recommended if debugging is essential.
+NVidia OpenCL requires installation of official NVidia drivers for your video card. Discussion of how to do so is beyond the scope of this document. Use `clinfo | grep "Device Name"` to determine whether NVidia drivers are correctly installed. You should see an NVidia related device name such as "GeForce GT 640".
 
-For most installations it is enough to install the appropriate apt packages.
+In order to build ohm to run on NVidia, the library must be build for OpenCL 1.2 (host API) and OpenCL 1.2 runtime (device standard). To do so, configure the following CMake variables to "1.2" using `ccmake`, `cmake-gui`, or editing the `CMakeCache.txt` file directly.
 
-```
-sudo apt-get install opencl-headers ocl-icd-dev ocl-icd-libopencl1 ocl-icd-opencl-dev
-```
+- `OHM_OPENCL_STD` : 1.2
+- `OHM_OPENCL_VER` : 1.2
 
+Note that NVidia performance will generally be worse than Intel OpenCL because of the way ohm uses global memory.
