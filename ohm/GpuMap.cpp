@@ -22,8 +22,10 @@
 
 #include <gputil/gpuBuffer.h>
 #include <gputil/gpuEvent.h>
+#include <gputil/gpuKernel.h>
 #include <gputil/gpuPinnedBuffer.h>
 #include <gputil/gpuPlatform.h>
+#include <gputil/gpuProgram.h>
 
 #include <glm/ext.hpp>
 
@@ -31,7 +33,11 @@
 #include <functional>
 #include <initializer_list>
 #include <iostream>
+#include "OhmGpu.h"
 
+#ifdef OHM_EMBED_GPU_CODE
+#include "RegionUpdateResource.h"
+#endif  // OHM_EMBED_GPU_CODE
 
 #define DEBUG_RAY 0
 
@@ -43,6 +49,72 @@ using namespace ohm;
 
 namespace
 {
+  std::mutex program_mutex;
+  gputil::Program program;
+  volatile int program_ref = 0;
+
+  bool initProgram(gputil::Device &gpu)
+  {
+    std::unique_lock<std::mutex> guard(program_mutex);
+
+    if (program_ref == 0)
+    {
+      const char *source_file = "RegionUpdate.cl";
+
+      gputil::BuildArgs build_args;
+      ohm::setGpuBuildVersion(build_args);
+      build_args.args = nullptr;
+
+      program = gputil::Program(gpu, source_file);
+#ifdef OHM_EMBED_GPU_CODE
+      int err = program.buildFromSource(RegionUpdateCode, RegionUpdateCode_length, build_args);
+#else   // OHM_EMBED_GPU_CODE
+      int err = program.buildFromFile(source_file, build_args);
+#endif  // OHM_EMBED_GPU_CODE
+
+      if (err)
+      {
+        program = gputil::Program();
+        return false;
+      }
+    }
+
+    ++program_ref;
+    return true;
+  }
+
+
+  void releaseProgram()
+  {
+    std::unique_lock<std::mutex> guard(program_mutex);
+
+    if (program_ref > 0)
+    {
+      --program_ref;
+      if (!program_ref)
+      {
+        program = gputil::Program();
+      }
+    }
+  }
+
+
+  inline bool goodSample(const glm::dvec3 &sample, double max_range)
+  {
+    if (glm::any(glm::isnan(sample)))
+    {
+      return false;
+    }
+
+    if (glm::dot(sample, sample) > max_range)
+    {
+      return false;
+    }
+
+    return true;
+  }
+
+
   typedef std::function<void(const glm::i16vec3 &, const glm::dvec3 &, const glm::dvec3 &)> RegionWalkFunction;
 
   void walkRegions(const OccupancyMap &map, const glm::dvec3 &start_point, const glm::dvec3 &end_point,
@@ -155,19 +227,6 @@ namespace
   }
 }  // namespace
 
-// GPU related functions.
-namespace ohm
-{
-  int initialiseRegionUpdateGpu(gputil::Device &gpu);
-  void releaseRegionUpdateGpu();
-
-  int updateRegion(gputil::Queue &queue, gputil::Buffer &chunk_mem, gputil::Buffer &region_key_buffer,
-                   gputil::Buffer &region_offset_buffer, unsigned region_count, gputil::Buffer &key_buffer,
-                   gputil::Buffer &ray_mem, unsigned ray_count, const glm::ivec3 &region_voxel_dimensions,
-                   double voxel_resolution, float adjust_miss, float adjust_hit, float min_voxel_value,
-                   float max_voxel_value, std::initializer_list<gputil::Event> events, gputil::Event *completion_event);
-}  // namespace ohm
-
 
 GpuCache *ohm::gpumap::enableGpu(OccupancyMap &map)
 {
@@ -231,11 +290,12 @@ GpuMap::GpuMap(OccupancyMap *map, bool borrowed_map, unsigned expected_element_c
 {
   gpumap::enableGpu(*map, gpu_mem_size, gpumap::kGpuAllowMappedBuffers);
   GpuCache &gpu_cache = *map->detail()->gpu_cache;
-  imp_->gpu_ok = initialiseRegionUpdateGpu(gpu_cache.gpu()) == 0;
+
   const unsigned prealloc_region_count = 1024u;
   for (unsigned i = 0; i < GpuMapDetail::kBuffersCount; ++i)
   {
-    imp_->key_buffers[i] = gputil::Buffer(gpu_cache.gpu(), sizeof(GpuKey) * expected_element_count, gputil::kBfReadHost);
+    imp_->key_buffers[i] =
+      gputil::Buffer(gpu_cache.gpu(), sizeof(GpuKey) * expected_element_count, gputil::kBfReadHost);
     imp_->ray_buffers[i] =
       gputil::Buffer(gpu_cache.gpu(), sizeof(gputil::float3) * expected_element_count, gputil::kBfReadHost);
     imp_->region_key_buffers[i] =
@@ -244,12 +304,29 @@ GpuMap::GpuMap(OccupancyMap *map, bool borrowed_map, unsigned expected_element_c
       gputil::Buffer(gpu_cache.gpu(), sizeof(gputil::ulong1) * prealloc_region_count, gputil::kBfReadHost);
   }
   imp_->transform_samples = new GpuTransformSamples(gpu_cache.gpu());
+
+  if (initProgram(gpu_cache.gpu()))
+  {
+    imp_->gpu_ok = true;
+#if OHM_GPU == OHM_GPU_OPENCL
+    imp_->update_kernel = gputil::openCLKernel(program, "regionRayUpdate");
+#endif  // OHM_GPU == OHM_GPU_OPENCL
+    imp_->update_kernel.calculateOptimalWorkGroupSize();
+  }
+  else
+  {
+    imp_->gpu_ok = false;
+  }
 }
 
 
 GpuMap::~GpuMap()
 {
-  releaseRegionUpdateGpu();
+  if (imp_ && imp_->update_kernel.isValid())
+  {
+    imp_->update_kernel = gputil::Kernel();
+    releaseProgram();
+  }
   delete imp_;
 }
 
@@ -441,9 +518,10 @@ unsigned GpuMap::integrateRaysT(const VEC_TYPE *rays, unsigned element_count, bo
     rays_pinned.write(glm::value_ptr(ray_end), sizeof(glm::vec3), (upload_count + 1) * sizeof(gputil::float3));
     upload_count += 2;
 
-    //std::cout << i / 2 << ' ' << imp_->map->voxelKey(rays[i + 0]) << " -> " << imp_->map->voxelKey(rays[i + 1]) << "  "
+    // std::cout << i / 2 << ' ' << imp_->map->voxelKey(rays[i + 0]) << " -> " << imp_->map->voxelKey(rays[i + 1]) << "
+    // "
     //          << ray_start << ':' << ray_end << "  <=>  " << rays[i + 0] << " -> " << rays[i + 1] << std::endl;
-    //std::cout << "dirs: " << (ray_end - ray_start) << " vs " << (ray_end_d - ray_start_d) << std::endl;
+    // std::cout << "dirs: " << (ray_end - ray_start) << " vs " << (ray_end_d - ray_start_d) << std::endl;
     walkRegions(*imp_->map, ray_start_d, ray_end_d, region_func);
   }
 
@@ -575,19 +653,30 @@ void GpuMap::finaliseBatch(gputil::PinnedBuffer &regions_buffer, gputil::PinnedB
   offsets_buffer.unpin(&layer_cache.gpuQueue(), nullptr, &imp_->region_offset_upload_events[buf_idx]);
 
   // Enqueue update kernel.
-  updateRegion(layer_cache.gpuQueue(), *layer_cache.buffer(), imp_->region_key_buffers[buf_idx],
-               imp_->region_offset_buffers[buf_idx], imp_->region_counts[buf_idx], imp_->key_buffers[buf_idx],
-               imp_->ray_buffers[buf_idx], imp_->ray_counts[buf_idx], map->region_voxel_dimensions, map->resolution,
-               map->miss_value, (end_points_as_occupied) ? map->hit_value : map->miss_value, map->min_voxel_value,
-               map->max_voxel_value,
-               { imp_->key_upload_events[buf_idx], imp_->ray_upload_events[buf_idx],
-                 imp_->region_key_upload_events[buf_idx], imp_->region_offset_upload_events[buf_idx] },
-               &imp_->region_update_events[buf_idx]);
+  const gputil::int3 region_dim_gpu = { map->region_voxel_dimensions.x, map->region_voxel_dimensions.y,
+                                        map->region_voxel_dimensions.z };
+
+  const unsigned region_count = imp_->region_counts[buf_idx];
+  const unsigned ray_count = imp_->ray_counts[buf_idx];
+  gputil::Dim3 global_size(ray_count);
+  gputil::Dim3 local_size(std::min<size_t>(imp_->update_kernel.optimalWorkGroupSize(), ray_count));
+  gputil::EventList wait({ imp_->key_upload_events[buf_idx], imp_->ray_upload_events[buf_idx],
+                           imp_->region_key_upload_events[buf_idx], imp_->region_offset_upload_events[buf_idx] });
+
+  imp_->update_kernel(
+    global_size, local_size, wait, imp_->region_update_events[buf_idx], &layer_cache.gpuQueue(),
+    // Kernel args begin:
+    gputil::BufferArg<float>(*layer_cache.buffer()), gputil::BufferArg<gputil::int3>(imp_->region_key_buffers[buf_idx]),
+    gputil::BufferArg<gputil::ulong1>(imp_->region_offset_buffers[buf_idx]), region_count,
+    gputil::BufferArg<GpuKey>(imp_->key_buffers[buf_idx]),
+    gputil::BufferArg<gputil::float3>(imp_->ray_buffers[buf_idx]), ray_count, region_dim_gpu, float(map->resolution),
+    map->miss_value, (end_points_as_occupied) ? map->hit_value : map->miss_value, map->min_voxel_value,
+    map->max_voxel_value);
+
   // gpu_cache.gpuQueue().flush();
 
   // Update most recent chunk GPU event.
   layer_cache.updateEvents(imp_->batch_marker, imp_->region_update_events[buf_idx]);
-  // layerCache.updateEvent(*chunk, updateEvent);
 
   // std::cout << imp_->region_counts[bufIdx] << "
   // regions\n" << std::flush;

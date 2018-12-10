@@ -15,6 +15,7 @@
 
 #include <gputil/gpuBuffer.h>
 #include <gputil/gpuEvent.h>
+#include <gputil/gpuKernel.h>
 
 #include <unordered_map>
 #include <vector>
@@ -48,6 +49,8 @@ namespace ohm
     /// CPU buffer to read back results from GPU ray transformation.
     /// Only ever used in a transient fashion.
     std::vector<glm::vec4> transformed_rays;
+    //gputil::Device gpu;
+    gputil::Kernel update_kernel;
 
     GpuTransformSamples *transform_samples = nullptr;
 

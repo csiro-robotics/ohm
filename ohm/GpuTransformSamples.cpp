@@ -124,6 +124,7 @@ GpuTransformSamples::~GpuTransformSamples()
 {
   if (imp_ && imp_->kernel.isValid())
   {
+    imp_->kernel = gputil::Kernel();
     releaseProgram();
   }
   delete imp_;

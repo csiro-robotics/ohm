@@ -187,7 +187,6 @@ if(OHM_GPU)
     list(APPEND SOURCES
       cl/clProgram.cpp
       cl/clProgram.h
-      cl/GpuMap.cpp
       cl/LineKeysQuery.cpp
       cl/NearestNeighboursQuery.cpp
       cl/RoiRangeFill.cpp
