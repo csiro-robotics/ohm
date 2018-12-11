@@ -609,7 +609,7 @@ void GpuMap::finaliseBatch(gputil::PinnedBuffer &regions_buffer, gputil::PinnedB
     global_size, local_size, wait, imp_->region_update_events[buf_idx], &layer_cache.gpuQueue(),
     // Kernel args begin:
     gputil::BufferArg<float>(*layer_cache.buffer()), gputil::BufferArg<gputil::int3>(imp_->region_key_buffers[buf_idx]),
-    gputil::BufferArg<gputil::ulong1>(imp_->region_offset_buffers[buf_idx]), region_count,
+    gputil::BufferArg<gputil::ulong>(imp_->region_offset_buffers[buf_idx]), region_count,
     gputil::BufferArg<GpuKey>(imp_->key_buffers[buf_idx]),
     gputil::BufferArg<gputil::float3>(imp_->ray_buffers[buf_idx]), ray_count, region_dim_gpu, float(map->resolution),
     map->miss_value, (end_points_as_occupied) ? map->hit_value : map->miss_value, map->min_voxel_value,

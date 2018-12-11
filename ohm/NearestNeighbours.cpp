@@ -326,12 +326,22 @@ namespace
                              // , __local int3 *localRegionKeys
     );
 
+    if (err)
+    {
+      return 0;
+    }
+
 #if SHOW_INFO
     global_size = local_size = gputil::Dim3(1);
     err = gpu_data.info_kernel(global_size, local_size, gputil::EventList({ nn_kernel_event }), nn_kernel_event,
                                &gpu_data.queue,
                                // Kernel args
                                gputil::BufferArg<gputil::uint>(gpu_data.gpu_result_count));
+
+    if (err)
+    {
+      return 0;
+    }
 #endif  // SHOW_INFO
 
     // Block until the currently queued operations complete.

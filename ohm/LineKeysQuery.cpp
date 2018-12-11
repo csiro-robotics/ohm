@@ -99,7 +99,7 @@ namespace
   }
 
 
-  bool lineKeysQueryGpu(LineKeysQueryDetail &query, bool async)
+  bool lineKeysQueryGpu(LineKeysQueryDetail &query, bool /*async*/)
   {
     // std::cout << "Prime kernel\n" << std::flush;
     // Size the buffers.

@@ -19,6 +19,7 @@ macro(warnings_gcc)
     "-Wno-missing-braces"
     "-Wno-unknown-pragmas"
     "-Wno-parentheses"
+    "-Wno-ignored-attributes"
   )
 endmacro(warnings_gcc)
 
