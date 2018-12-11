@@ -30,7 +30,6 @@
 
 #define KERNEL_PROFILING 0
 #include <ohmutil/Profile.h>
-#include "GpuMap.h"
 
 #ifdef OHM_EMBED_GPU_CODE
 #include "RoiRangeFillResource.h"

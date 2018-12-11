@@ -267,6 +267,7 @@ GpuMap::~GpuMap()
   if (imp_ && imp_->update_kernel.isValid())
   {
     imp_->update_kernel = gputil::Kernel();
+    program_ref.releaseReference();
   }
   delete imp_;
 }
