@@ -42,7 +42,7 @@ namespace
     {
 #ifdef WIN32
       source_file_opt = "-s";
-#endif // WIN32
+#endif  // WIN32
       switch (gpu.debugGpu())
       {
       case 2:
@@ -52,7 +52,7 @@ namespace
       case 1:
 #ifdef WIN32
         debug_opt << "-g ";
-#endif // WIN32
+#endif  // WIN32
         break;
 
       default:
@@ -178,6 +178,25 @@ int Program::buildFromSource(const char *source, size_t source_length, const Bui
   }
 
   return clerr;
+}
+
+
+Program &Program::operator=(const Program &other)
+{
+  if (other.imp_)
+  {
+    if (!imp_)
+    {
+      imp_ = new ProgramDetail;
+    }
+    *imp_ = *other.imp_;
+  }
+  else
+  {
+    delete imp_;
+    imp_ = nullptr;
+  }
+  return *this;
 }
 
 

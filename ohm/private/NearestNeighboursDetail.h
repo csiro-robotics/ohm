@@ -12,6 +12,7 @@
 
 #include <gputil/gpuBuffer.h>
 #include <gputil/gpuDevice.h>
+#include <gputil/gpuKernel.h>
 #include <gputil/gpuPlatform.h>
 #include <gputil/gpuQueue.h>
 
@@ -39,6 +40,8 @@ namespace ohm
       gputil::Buffer gpu_result_region_keys;
       gputil::Buffer gpu_result_voxel_keys;
       gputil::Buffer gpu_result_count;
+      gputil::Kernel nn_kernel;
+      gputil::Kernel info_kernel;
 
       unsigned queued_voxels = 0u;
       unsigned result_count = 0u;

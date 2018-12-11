@@ -9,6 +9,8 @@
 
 #include "OhmGpu.h"
 
+#include "private/GpuProgramRef.h"
+
 #include <gputil/gpuEvent.h>
 #include <gputil/gpuEventList.h>
 #include <gputil/gpuKernel.h>
@@ -29,56 +31,14 @@ using namespace ohm;
 
 namespace
 {
-  std::mutex program_mutex;
-  gputil::Program program;
-  volatile int program_ref = 0;
-
-  bool initProgram(gputil::Device &gpu)
-  {
-    std::unique_lock<std::mutex> guard(program_mutex);
-
-    if (program_ref == 0)
-    {
-      const char *source_file = "TransformSamples.cl";
-
-      gputil::BuildArgs build_args;
-      ohm::setGpuBuildVersion(build_args);
-      build_args.args = nullptr;
-
-      program = gputil::Program(gpu, source_file);
 #ifdef OHM_EMBED_GPU_CODE
-      int err = program.buildFromSource(TransformSamplesCode, TransformSamplesCode_length, build_args);
+  GpuProgramRef program_ref("TransformSamples", GpuProgramRef::kSourceString, TransformSamplesCode,
+                            TransformSamplesCode_length);
 #else   // OHM_EMBED_GPU_CODE
-      int err = program.buildFromFile(source_file, build_args);
+  GpuProgramRef program_ref("TransformSamples", GpuProgramRef::kSourceFile, "TransformSamples.cl");
 #endif  // OHM_EMBED_GPU_CODE
 
-      if (err)
-      {
-        program = gputil::Program();
-        return false;
-      }
-    }
-
-    ++program_ref;
-    return true;
-  }
-
-
-  void releaseProgram()
-  {
-    std::unique_lock<std::mutex> guard(program_mutex);
-
-    if (program_ref > 0)
-    {
-      --program_ref;
-      if (!program_ref)
-      {
-        program = gputil::Program();
-      }
-    }
-  }
-
-
+  
   inline bool goodSample(const glm::dvec3 &sample, double max_range)
   {
     if (glm::any(glm::isnan(sample)))
@@ -103,10 +63,10 @@ GpuTransformSamples::GpuTransformSamples(gputil::Device &gpu)
   imp_->transform_positions_buffer = gputil::Buffer(gpu, sizeof(gputil::float3) * 8, gputil::kBfReadHost);
   imp_->transform_rotations_buffer = gputil::Buffer(gpu, sizeof(gputil::float4) * 8, gputil::kBfReadHost);
   imp_->transform_times_buffer = gputil::Buffer(gpu, sizeof(float) * 8, gputil::kBfReadHost);
-  if (initProgram(gpu))
+  if (program_ref.addReference(gpu))
   {
 #if OHM_GPU == OHM_GPU_OPENCL
-    imp_->kernel = gputil::openCLKernel(program, "transformTimestampedPoints");
+    imp_->kernel = gputil::openCLKernel(program_ref.program(), "transformTimestampedPoints");
 #endif  // OHM_GPU == OHM_GPU_OPENCL
     imp_->kernel.calculateOptimalWorkGroupSize();
   }
@@ -125,7 +85,7 @@ GpuTransformSamples::~GpuTransformSamples()
   if (imp_ && imp_->kernel.isValid())
   {
     imp_->kernel = gputil::Kernel();
-    releaseProgram();
+    program_ref.releaseReference();
   }
   delete imp_;
 }

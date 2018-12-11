@@ -18,6 +18,7 @@ namespace gputil
   typedef cl_char2 char2;
   typedef cl_char3 char3;
   typedef cl_char4 char4;
+  typedef cl_uchar uchar;
   typedef cl_uchar uchar1;
   typedef cl_uchar2 uchar2;
   typedef cl_uchar3 uchar3;
@@ -33,6 +34,7 @@ namespace gputil
   typedef cl_int2 int2;
   typedef cl_int3 int3;
   typedef cl_int4 int4;
+  typedef cl_uint uint;
   typedef cl_uint uint1;
   typedef cl_uint2 uint2;
   typedef cl_uint3 uint3;
@@ -41,6 +43,7 @@ namespace gputil
   typedef cl_long2 long2;
   typedef cl_long3 long3;
   typedef cl_long4 long4;
+  typedef cl_ulong ulong;
   typedef cl_ulong ulong1;
   typedef cl_ulong2 ulong2;
   typedef cl_ulong3 ulong3;

@@ -18,6 +18,7 @@
 #include "RayFilter.h"
 
 #include "private/GpuMapDetail.h"
+#include "private/GpuProgramRef.h"
 #include "private/OccupancyMapDetail.h"
 
 #include <gputil/gpuBuffer.h>
@@ -49,55 +50,11 @@ using namespace ohm;
 
 namespace
 {
-  std::mutex program_mutex;
-  gputil::Program program;
-  volatile int program_ref = 0;
-
-  bool initProgram(gputil::Device &gpu)
-  {
-    std::unique_lock<std::mutex> guard(program_mutex);
-
-    if (program_ref == 0)
-    {
-      const char *source_file = "RegionUpdate.cl";
-
-      gputil::BuildArgs build_args;
-      ohm::setGpuBuildVersion(build_args);
-      build_args.args = nullptr;
-
-      program = gputil::Program(gpu, source_file);
 #ifdef OHM_EMBED_GPU_CODE
-      int err = program.buildFromSource(RegionUpdateCode, RegionUpdateCode_length, build_args);
-#else   // OHM_EMBED_GPU_CODE
-      int err = program.buildFromFile(source_file, build_args);
+  GpuProgramRef program_ref("RegionUpdate", GpuProgramRef::kSourceString, RegionUpdateCode, RegionUpdateCode_length);
+#else  // OHM_EMBED_GPU_CODE
+  GpuProgramRef program_ref("RegionUpdate", GpuProgramRef::kSourceFile, "RegionUpdate.cl");
 #endif  // OHM_EMBED_GPU_CODE
-
-      if (err)
-      {
-        program = gputil::Program();
-        return false;
-      }
-    }
-
-    ++program_ref;
-    return true;
-  }
-
-
-  void releaseProgram()
-  {
-    std::unique_lock<std::mutex> guard(program_mutex);
-
-    if (program_ref > 0)
-    {
-      --program_ref;
-      if (!program_ref)
-      {
-        program = gputil::Program();
-      }
-    }
-  }
-
 
   typedef std::function<void(const glm::i16vec3 &, const glm::dvec3 &, const glm::dvec3 &)> RegionWalkFunction;
 
@@ -289,10 +246,10 @@ GpuMap::GpuMap(OccupancyMap *map, bool borrowed_map, unsigned expected_element_c
   }
   imp_->transform_samples = new GpuTransformSamples(gpu_cache.gpu());
 
-  if (initProgram(gpu_cache.gpu()))
+  if (program_ref.addReference(gpu_cache.gpu()))
   {
 #if OHM_GPU == OHM_GPU_OPENCL
-    imp_->update_kernel = gputil::openCLKernel(program, "regionRayUpdate");
+    imp_->update_kernel = gputil::openCLKernel(program_ref.program(), "regionRayUpdate");
 #endif  // OHM_GPU == OHM_GPU_OPENCL
     imp_->update_kernel.calculateOptimalWorkGroupSize();
 
@@ -310,7 +267,7 @@ GpuMap::~GpuMap()
   if (imp_ && imp_->update_kernel.isValid())
   {
     imp_->update_kernel = gputil::Kernel();
-    releaseProgram();
+    program_ref.releaseReference();
   }
   delete imp_;
 }

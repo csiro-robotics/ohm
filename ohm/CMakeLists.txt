@@ -157,6 +157,8 @@ if(OHM_GPU)
   list(APPEND SOURCES
     private/GpuMapDetail.cpp
     private/GpuMapDetail.h
+    private/GpuProgramRef.cpp
+    private/GpuProgramRef.h
     private/GpuTransformSamplesDetail.h
     GpuCache.cpp
     GpuCache.h
@@ -184,12 +186,6 @@ if(OHM_GPU)
   list(APPEND SOURCES ${GPU_SOURCES} ${GPU_HEADERS} "${GPU_EXT_H}")
   if(OHM_GPU EQUAL OHM_GPU_OPENCL)
     get_target_property(CLU_INCLUDE_DIRS clu INCLUDE_DIRECTORIES)
-    list(APPEND SOURCES
-      cl/clProgram.cpp
-      cl/clProgram.h
-      cl/NearestNeighboursQuery.cpp
-      cl/RoiRangeFill.cpp
-    )
 
     if(OHM_EMBED_GPU_CODE)
       # Embedding GPU code. Generate source file resources.

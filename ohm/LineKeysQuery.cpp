@@ -12,6 +12,8 @@
 #include "OccupancyUtil.h"
 #include "OhmGpu.h"
 
+#include "private/GpuProgramRef.h"
+
 #include <gputil/gpuKernel.h>
 #include <gputil/gpuPinnedBuffer.h>
 #include <gputil/gpuPlatform.h>
@@ -32,55 +34,12 @@ using namespace ohm;
 
 namespace
 {
-  std::mutex program_mutex;
-  gputil::Program program;
-  volatile int program_ref = 0;
-
-  bool initProgram(gputil::Device &gpu)
-  {
-    std::unique_lock<std::mutex> guard(program_mutex);
-
-    if (program_ref == 0)
-    {
-      const char *source_file = "LineKeys.cl";
-
-      gputil::BuildArgs build_args;
-      ohm::setGpuBuildVersion(build_args);
-      build_args.args = nullptr;
-
-      program = gputil::Program(gpu, source_file);
 #ifdef OHM_EMBED_GPU_CODE
-      int err = program.buildFromSource(LineKeysCode, LineKeysCode_length, build_args);
+  GpuProgramRef program_ref("LineKeys", GpuProgramRef::kSourceString, LineKeysCode, LineKeysCode_length);
 #else   // OHM_EMBED_GPU_CODE
-      int err = program.buildFromFile(source_file, build_args);
+  GpuProgramRef program_ref("LineKeys", GpuProgramRef::kSourceFile, "LineKeys.cl");
 #endif  // OHM_EMBED_GPU_CODE
-
-      if (err)
-      {
-        program = gputil::Program();
-        return false;
-      }
-    }
-
-    ++program_ref;
-    return true;
-  }
-
-
-  void releaseProgram()
-  {
-    std::unique_lock<std::mutex> guard(program_mutex);
-
-    if (program_ref > 0)
-    {
-      --program_ref;
-      if (!program_ref)
-      {
-        program = gputil::Program();
-      }
-    }
-  }
-
+  
   bool readGpuResults(LineKeysQueryDetail &query);
 
   unsigned nextPow2(unsigned v)
@@ -115,13 +74,13 @@ namespace
     //#endif // OHM_PROFILE
     gpu_data.queue = query.gpu.createQueue(queue_flags);
 
-    if (!initProgram(query.gpu))
+    if (!program_ref.addReference(query.gpu))
     {
       return false;
     }
 
   #if OHM_GPU == OHM_GPU_OPENCL
-    query.line_keys_kernel = gputil::openCLKernel(program, "calculateLines");
+    query.line_keys_kernel = gputil::openCLKernel(program_ref.program(), "calculateLines");
 #endif  // OHM_GPU == OHM_GPU_OPENCL
     query.line_keys_kernel.calculateOptimalWorkGroupSize();
 
@@ -296,7 +255,7 @@ LineKeysQuery::~LineKeysQuery()
     if (d->line_keys_kernel.isValid())
     {
       d->line_keys_kernel = gputil::Kernel();
-      releaseProgram();
+      program_ref.releaseReference();
     }
   }
   delete d;
