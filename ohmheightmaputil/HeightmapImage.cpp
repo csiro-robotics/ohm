@@ -229,6 +229,7 @@ namespace ohm
   struct HeightmapImageDetail
   {
     const Heightmap *heightmap;
+    std::vector<glm::dvec3> vertices_d;
     std::vector<glm::vec3> vertices;
     std::vector<glm::vec3> vertex_normals;
     std::vector<unsigned> indices;
@@ -435,6 +436,7 @@ void HeightmapImage::triangulate()
 {
   PROFILE(HeightmapImage_triangulate);
   // Populate the coordinates.
+  imp_->vertices_d.clear();
   imp_->vertices.clear();
   imp_->vertex_normals.clear();
   imp_->indices.clear();
@@ -451,6 +453,8 @@ void HeightmapImage::triangulate()
   glm::dvec3 point;
   glm::dvec3 min_map_ext, max_map_ext;
 
+  // Calculate the heightmap extents. Note: the extents aligned with the heightmap up axis are uninformative at
+  // this point. We must modify by the contained voxel height value.
   heightmap.calculateExtents(min_map_ext, max_map_ext);
 
   for (auto voxel_iter = heightmap.begin(); voxel_iter != heightmap.end(); ++voxel_iter)
@@ -462,8 +466,9 @@ void HeightmapImage::triangulate()
       point = voxel.centreGlobal() + double(height_info->height) * up;
       imp_->coords_2d.push_back(point.x);
       imp_->coords_2d.push_back(point.y);
-      imp_->vertices.push_back(glm::vec3(point - min_map_ext));
+      imp_->vertices_d.push_back(point);
 
+      // Adjust to modified extents with height.
       min_map_ext.x = std::min(point.x, min_map_ext.x);
       min_map_ext.y = std::min(point.y, min_map_ext.y);
       min_map_ext.z = std::min(point.z, min_map_ext.z);
@@ -472,6 +477,13 @@ void HeightmapImage::triangulate()
       max_map_ext.y = std::max(point.y, max_map_ext.y);
       max_map_ext.z = std::max(point.z, max_map_ext.z);
     }
+  }
+
+  // Now convert into single precision coordinates for rendering by subtracting the updated min_map_extents.
+  imp_->vertices.reserve(imp_->vertices_d.size());
+  for (auto &&point : imp_->vertices_d)
+  {
+    imp_->vertices.push_back(glm::vec3(point - min_map_ext));
   }
 
   imp_->image_info.image_extents = Aabb(min_map_ext, max_map_ext);
