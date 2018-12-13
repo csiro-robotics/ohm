@@ -19,19 +19,37 @@ namespace gputil
   class Event;
   class Queue;
 
+  /// A helper structure for defining the number of global work items or the size of a local work group.
+  ///
+  /// Unused dimensions must have a value of 1 to ensure the correct @c volume().
   struct gputilAPI Dim3
   {
-    size_t x = 1, y = 1, z = 1;
+    /// Dimension X/first value.
+    size_t x = 0;
+    /// Dimension Y/second value.
+    size_t y = 1;
+    /// Dimension Z/third value.
+    size_t z = 1;
 
+    /// Default constructor: @c volume() is 1.
     Dim3() {}
+
+    /// Constructor.
+    /// @param x The x item count.
+    /// @param y The y item count.
+    /// @param z The z item count.
     Dim3(size_t x, size_t y = 1, size_t z = 1)
       : x(x)
       , y(y)
       , z(z)
     {}
 
+    /// Defines the total item size by multiplying the XYZ dimensions.
     inline size_t volume() const { return x * y * z; }
 
+    /// Index operator.
+    /// @param i The element index [0, 2].
+    /// @return The value of the corresponding element.
     inline size_t operator[](int i) const
     {
       switch (i)
@@ -46,6 +64,7 @@ namespace gputil
       return 0;
     }
 
+    /// @overload
     inline size_t &operator[](int i)
     {
       switch (i)
@@ -61,21 +80,48 @@ namespace gputil
       return invalid;
     }
 
+    /// @overload
     inline size_t operator[](unsigned i) const { return operator[](int(i)); }
+    /// @overload
     inline size_t &operator[](unsigned i) { return operator[](int(i)); }
 
+    /// @overload
     inline size_t operator[](size_t i) const { return operator[](int(i)); }
+    /// @overload
     inline size_t &operator[](size_t i) { return operator[](int(i)); }
   };
 
+  /// A helper class for passing buffer arguments to a kernel.
+  ///
+  /// Given a kernel with the signature: @c myKernel(__global float3 *buffer), the argument may be passed as follows:
+  /// @code
+  /// void bufferArgExample(gputil::Kernel &kernel, gputil::Buffer &buffer)
+  /// {
+  ///   kernel(nullptr, gputil::BufferArg<gputil::float3>(buffer));
+  /// }
+  /// @endcode
+  ///
+  /// Note how the template type is the target type without any decoration (such as pointer).
   template <typename T>
   struct gputilAPI BufferArg
   {
+    /// The type to cast to in the GPU kernel.
     using ArgType = T;
+
+    /// Constructor.
+    /// @param buffer The buffer to wrap.
     inline BufferArg(Buffer &buffer)
-      : buffer(buffer)
+      : buffer(&buffer)
     {}
-    Buffer &buffer;
+
+    /// The null argument constructor. Passes null to the kernel.
+    inline BufferArg(void * /*null_value*/)
+      : buffer(nullptr)
+    {
+    }
+
+    /// A reference to the wrapped buffer.
+    Buffer *buffer;
   };
 
   /// Local memory calculation function.

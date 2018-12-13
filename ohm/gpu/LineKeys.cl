@@ -18,7 +18,7 @@ void calculateLineKeys(__global struct GpuKey *lineOut, uint maxKeys,
                        const int3 *regionDim, float voxelResolution);
 
 
-bool walkLineVoxel(const struct GpuKey *voxelKey, bool isEndVoxel, void *userData)
+bool walkLineVoxel(const struct GpuKey *voxelKey, bool isEndVoxel, float voxelResolution, void *userData)
 {
   struct LineWalkData *lineData = (struct LineWalkData *)userData;
   copyKey(&lineData->lineOut[1 + lineData->keyCount++], voxelKey);

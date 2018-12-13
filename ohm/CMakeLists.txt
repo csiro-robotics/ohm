@@ -161,6 +161,7 @@ if(OHM_GPU)
   set(GPU_HEADERS
     GpuKey.h
     MapCoord.h
+    SubVoxel.h
   )
 
   list(APPEND SOURCES
