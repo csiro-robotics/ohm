@@ -27,6 +27,7 @@ namespace ohm
   class KeyList;
   class MapCache;
   struct MapChunk;
+  class MapInfo;
   class MapLayout;
   struct OccupancyMapDetail;
   class RayFilter;
@@ -232,7 +233,6 @@ namespace ohm
     /// - float for the occupancy value
     /// - float for the clearance value
     /// There is also a sub-sampled clearance array in each chunk (size TBC).
-    /// See also @c voxelMemoryPerRegion().
     ///
     /// @param resolution The resolution for a single voxel in the map. Any zero value
     ///   dimension is replaced with its default value; e.g., @c OHM_DEFAULT_CHUNK_DIM_X.
@@ -240,12 +240,6 @@ namespace ohm
     OccupancyMap(double resolution = 1.0, const glm::u8vec3 &region_voxel_dimensions = glm::u8vec3(0, 0, 0));
     /// Destructor.
     ~OccupancyMap();
-
-    /// Calculates the memory allocated for each region's voxels set based on the given @p regionVoxelDimensions.
-    /// @param region_voxel_dimensions Voxel dimensions of each chunk. Any zero value
-    ///   dimension is replaced with its default value; e.g., @c OHM_DEFAULT_CHUNK_DIM_X.
-    /// @return The memory required for the voxels in each region in bytes.
-    static size_t voxelMemoryPerRegion(glm::u8vec3 region_voxel_dimensions = glm::u8vec3(0, 0, 0));
 
     // Iterator.
     /// Create an iterator to the first voxel in the map. The map should not have voxels added or removed
@@ -329,6 +323,18 @@ namespace ohm
     /// @param[out] min_ext Set to the minimum corner of the axis aligned extents.
     /// @param[out] max_ext Set to the maximum corner of the axis aligned extents.
     void calculateExtents(glm::dvec3 &min_ext, glm::dvec3 &max_ext) const;
+
+    /// Access to the map info structure for storing general meta data.
+    ///
+    /// This structure is serialised with the map.
+    ///
+    /// Some values are reserved for heightmap. See @c Heightmap.
+    ///
+    /// @return The map info structure.
+    MapInfo &mapInfo();
+
+    /// @overload
+    const MapInfo &mapInfo() const;
 
     //-------------------------------------------------------
     // Region management.

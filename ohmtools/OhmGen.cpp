@@ -7,15 +7,16 @@
 
 #include <ohm/Key.h>
 #include <ohm/KeyList.h>
+#include <ohm/MapCache.h>
 #include <ohm/OccupancyMap.h>
 #include <ohm/OccupancyUtil.h>
-#include <ohm/MapCache.h>
 
 using namespace ohm;
 
 namespace ohmgen
 {
-  void fillWithValue(OccupancyMap &map, const Key &min_key, const Key &max_key, float fill_value, const float *expect_value, int step)
+  void fillWithValue(OccupancyMap &map, const Key &min_key, const Key &max_key, float fill_value,
+                     const float *expect_value, int step)
   {
     Voxel voxel;
     MapCache cache;
@@ -47,8 +48,8 @@ namespace ohmgen
   }
 
 
-  void ohmtools_API fillMapWithEmptySpace(ohm::OccupancyMap &map, int x1, int y1, int z1, int x2, int y2, int z2,
-                                          bool expect_empty_map)
+  void fillMapWithEmptySpace(ohm::OccupancyMap &map, int x1, int y1, int z1, int x2, int y2, int z2,
+                             bool expect_empty_map)
   {
     const float expect_initial_value = voxel::invalidMarkerValue();
     const float *expect_value_ptr = (expect_empty_map) ? &expect_initial_value : nullptr;
@@ -83,7 +84,7 @@ namespace ohmgen
     }
   }
 
-  void ohmtools_API boxRoom(ohm::OccupancyMap &map, const glm::dvec3 &min_ext, const glm::dvec3 &max_ext, int voxel_step)
+  void boxRoom(ohm::OccupancyMap &map, const glm::dvec3 &min_ext, const glm::dvec3 &max_ext, int voxel_step)
   {
     const Key min_key = map.voxelKey(min_ext);
     const Key max_key = map.voxelKey(max_ext);
@@ -124,4 +125,28 @@ namespace ohmgen
     wall_key.setRegionAxis(2, max_key.regionKey()[2]);
     fillWithValue(map, wall_key, max_key, map.occupancyThresholdValue(), nullptr, voxel_step);
   }
-}
+
+
+  void slope(ohm::OccupancyMap &map, double angle_deg, const glm::dvec3 &min_ext, const glm::dvec3 &max_ext,
+             int voxel_step)
+  {
+    ohm::Key o_key = map.voxelKey(min_ext);
+    int range_x = int(std::ceil((max_ext.x - min_ext.x) / map.resolution()));
+    int range_y = int(std::ceil((max_ext.y - min_ext.y) / map.resolution()));
+
+    const double tan_theta = std::tan(angle_deg * M_PI / 180.0);
+    glm::dvec3 coord;
+    for (int y = 0; y < range_y; y += voxel_step)
+    {
+      for (int x = 0; x < range_x; x += voxel_step)
+      {
+        ohm::Key key = o_key;
+        map.moveKey(key, x, y, 0);
+        coord = map.voxelCentreGlobal(key);
+        coord.z = min_ext.z + double(coord.y) * tan_theta;
+        Voxel voxel = map.voxel(map.voxelKey(coord), true);
+        voxel.setValue(map.occupancyThresholdValue());
+      }
+    }
+  }
+}  // namespace ohmgen

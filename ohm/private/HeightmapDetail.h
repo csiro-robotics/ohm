@@ -15,6 +15,7 @@
 namespace ohm
 {
   class OccupancyMap;
+  class MapInfo;
 
   struct HeightmapDetail
   {
@@ -41,7 +42,20 @@ namespace ohm
     /// Pseudo blur factor: 2D voxel search range when building heightmap.
     /// I.e., a @c blur_level or 1 makes for an neighbourhood 3 (N3) search, level 2 is N5, 3 is N7, etc.
     unsigned blur_level = 0;
+
+    void updateAxis();
+    static const glm::dvec3 &upAxisNormal(int axis_id);
+
+    void fromMapInfo(const MapInfo &info);
+    void toMapInfo(MapInfo &info) const;
   };
+
+
+  inline void HeightmapDetail::updateAxis()
+  {
+    up = upAxisNormal(up_axis_id);
+    vertical_axis_id = (up_axis_id >= 0) ? up_axis_id : -(up_axis_id + 1);
+  }
 } // namespace ohm
 
 #endif // HEIGHTMAPDETAIL_H

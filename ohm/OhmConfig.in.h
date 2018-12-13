@@ -33,6 +33,10 @@
 #cmakedefine OHM_PROFILE
 #cmakedefine OHM_EMBED_GPU_CODE
 
+#ifdef OHM_PROFILE
+#define PROFILING 1
+#endif // OHM_PROFILE
+
 // Enable GPU acceleration.
 /// GPU usage: 0 for off, one of the OHM_GPU_XXX values when on.
 #define OHM_GPU @OHM_GPU@

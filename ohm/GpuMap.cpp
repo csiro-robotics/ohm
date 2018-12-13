@@ -39,8 +39,6 @@
 #pragma optimize("", off)
 #endif  // DEBUG_RAY
 
-#pragma GCC optimize("O0")
-
 using namespace ohm;
 
 namespace

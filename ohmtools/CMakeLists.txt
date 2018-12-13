@@ -32,6 +32,7 @@ target_link_libraries(ohmtools ohm ohmutil)
 target_include_directories(ohmtools
   PUBLIC
     $<INSTALL_INTERFACE:${OHM_PREFIX_INCLUDE}>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/ohmtools>
     $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}>
 )

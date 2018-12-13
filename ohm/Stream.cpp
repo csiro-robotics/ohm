@@ -241,9 +241,9 @@ unsigned InputStream::read(void *buffer, unsigned max_bytes)
 
       ret = inflate(&imp.compress.stream, Z_NO_FLUSH);
 
-      if (ret != Z_OK && ret != Z_STREAM_END)
+      if (ret != Z_OK && ret == Z_STREAM_END)
       {
-        return 0;
+        return max_bytes - imp.compress.stream.avail_out;
       }
     }
     while (imp.compress.stream.avail_out);

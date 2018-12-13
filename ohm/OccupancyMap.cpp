@@ -229,19 +229,6 @@ OccupancyMap::~OccupancyMap()
 }
 
 
-size_t OccupancyMap::voxelMemoryPerRegion(glm::u8vec3 region_voxel_dimensions)
-{
-  region_voxel_dimensions.x = (region_voxel_dimensions.x > 0) ? region_voxel_dimensions.x : OHM_DEFAULT_CHUNK_DIM_X;
-  region_voxel_dimensions.y = (region_voxel_dimensions.y > 0) ? region_voxel_dimensions.y : OHM_DEFAULT_CHUNK_DIM_Y;
-  region_voxel_dimensions.z = (region_voxel_dimensions.z > 0) ? region_voxel_dimensions.z : OHM_DEFAULT_CHUNK_DIM_Z;
-  const size_t volume = region_voxel_dimensions.x * region_voxel_dimensions.y * region_voxel_dimensions.z;
-  // TODO: make more robust to change now there is no MapNode structure.
-  const size_t bytes = volume * 2 * sizeof(float);
-  // TODO: add size for coarseClearance array.
-  return bytes;
-}
-
-
 OccupancyMap::iterator OccupancyMap::begin()
 {
   return iterator(imp_, firstIterationKey());
@@ -500,6 +487,18 @@ void OccupancyMap::calculateExtents(glm::dvec3 &min_ext, glm::dvec3 &max_ext) co
     max_ext.y = std::max(max_ext.y, region_max.y);
     max_ext.z = std::max(max_ext.z, region_max.z);
   }
+}
+
+
+MapInfo &OccupancyMap::mapInfo()
+{
+  return imp_->info;
+}
+
+
+const MapInfo &OccupancyMap::mapInfo() const
+{
+  return imp_->info;
 }
 
 

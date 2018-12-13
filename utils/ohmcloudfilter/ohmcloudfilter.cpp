@@ -260,7 +260,7 @@ int main(int argc, char *argv[])
 
   if (res != 0)
   {
-    fprintf(stderr, "Failed to load map. Error code: %d\n", res);
+    std::cerr << "Failed to load map. Error(" << res << "): " << ohm::errorCodeString(res) << std::endl;
     return res;
   }
 

@@ -8,9 +8,12 @@
 #include "MapChunk.h"
 #include "MapLayer.h"
 #include "MapLayout.h"
+#include "Heightmap.h"
 #include "OccupancyMap.h"
 #include "Stream.h"
 #include "VoxelLayout.h"
+
+#include "private/HeightmapDetail.h"
 #include "private/OccupancyMapDetail.h"
 
 #include <glm/glm.hpp>
@@ -45,7 +48,7 @@ namespace ohm
 
   const uint32_t kMapHeaderMarker = 0x44330011u;
   const MapVersion kSupportedVersionMin = { 0, 0, 0 };
-  const MapVersion kSupportedVersionMax = { 0, 1, 0 };
+  const MapVersion kSupportedVersionMax = { 0, 2, 0 };
 
   // Digits are arranged as follows:
   //    vvvMMMPPP
@@ -53,7 +56,7 @@ namespace ohm
   // - vvv is the major version number (any number)
   // - MMM is a three digit specification of the current minor version.
   // - PPP is a three digit specification of the current patch version.
-  const MapVersion kCurrentVersion = { 0, 1, 0 };
+  const MapVersion kCurrentVersion = { 0, 2, 0 };
 
   /// Explicitly typed stream writing, uncompressed.
   template <typename T, typename S>
@@ -100,6 +103,358 @@ namespace ohm
     return true;
   }
 
+
+  int saveItem(OutputStream &stream, const MapValue &value)
+  {
+    //{
+    //  MapValue strValue = value.toStringValue();
+    //  fprintf(stderr, "w: %s = %s\n", value.name(), static_cast<const char *>(strValue));
+    //}
+    const char *name = value.name();
+    size_t len = strlen(name);
+    if (len > 0xffffu)
+    {
+      return kSeDataItemTooLarge;
+    }
+
+    uint16_t len16 = uint16_t(len);
+    // if (endianSwap)
+    // {
+    //   endian::endianSwap(&len16);
+    // }
+    stream.write((char *)&len16, sizeof(len16));
+
+    if (len)
+    {
+      stream.write(name, unsigned(len));
+    }
+
+    uint8_t type = value.type();
+    stream.write((char *)&type, 1);
+
+    switch (value.type())
+    {
+    case MapValue::kInt8:
+    {
+      int8_t val = value;
+      stream.write((char *)&val, 1);
+      break;
+    }
+    case MapValue::kUInt8:
+    {
+      uint8_t val = value;
+      stream.write((char *)&val, 1);
+      break;
+    }
+    case MapValue::kInt16:
+    {
+      int16_t val = value;
+      // if (endianSwap) { endian::endianSwap(&val); }
+      stream.write((char *)&val, sizeof(val));
+      break;
+    }
+    case MapValue::kUInt16:
+    {
+      uint16_t val = value;
+      // if (endianSwap) { endian::endianSwap(&val); }
+      stream.write((char *)&val, sizeof(val));
+      break;
+    }
+    case MapValue::kInt32:
+    {
+      int32_t val = value;
+      // if (endianSwap) { endian::endianSwap(&val); }
+      stream.write((char *)&val, sizeof(val));
+      break;
+    }
+    case MapValue::kUInt32:
+    {
+      uint32_t val = value;
+      // if (endianSwap) { endian::endianSwap(&val); }
+      stream.write((char *)&val, sizeof(val));
+      break;
+    }
+    case MapValue::kInt64:
+    {
+      int64_t val = value;
+      // if (endianSwap) { endian::endianSwap(&val); }
+      stream.write((char *)&val, sizeof(val));
+      break;
+    }
+    case MapValue::kUInt64:
+    {
+      uint64_t val = value;
+      // if (endianSwap) { endian::endianSwap(&val); }
+      stream.write((char *)&val, sizeof(val));
+      break;
+    }
+    case MapValue::kFloat32:
+    {
+      float val = value;
+      // if (endianSwap) { endian::endianSwap(&val); }
+      stream.write((char *)&val, sizeof(val));
+      break;
+    }
+    case MapValue::kFloat64:
+    {
+      double val = value;
+      // if (endianSwap) { endian::endianSwap(&val); }
+      stream.write((char *)&val, sizeof(val));
+      break;
+    }
+    case MapValue::kBoolean:
+    {
+      bool bval = value;
+      uint8_t val = (bval) ? 1 : 0;
+      stream.write((char *)&val, 1);
+      break;
+    }
+    case MapValue::kString:
+    {
+      const char *str = value;
+      len = strlen(str);
+      if (len > 0xffffu)
+      {
+        return kSeDataItemTooLarge;
+      }
+
+      len16 = uint16_t(len);
+      // if (endianSwap)
+      // {
+      //   endian::endianSwap(&len16);
+      // }
+      stream.write((char *)&len16, sizeof(len16));
+
+      if (unsigned(len))
+      {
+        stream.write(str, unsigned(len));
+      }
+      break;
+    }
+
+    default:
+      return kSeDataItemTooLarge;
+    }
+
+    return kSeOk;
+  }
+
+
+  int saveMapInfo(OutputStream &stream, const MapInfo &mapInfo)
+  {
+    uint32_t item_count = mapInfo.extract(nullptr, 0);
+
+    bool ok = true;
+    ok = writeUncompressed<uint32_t>(stream, item_count) && ok;
+
+    if (!ok)
+    {
+      return kSeInfoError;
+    }
+
+    if (item_count == 0)
+    {
+      return kSeOk;
+    }
+
+    std::vector<MapValue> values(item_count);
+    values.resize(item_count);
+    unsigned extracted = mapInfo.extract(values.data(), item_count);
+
+    if (extracted != item_count)
+    {
+      return kSeInfoError;
+    }
+
+    int err = 0;
+    for (unsigned i = 0; i < extracted; ++i)
+    {
+      err = saveItem(stream, values[i]);
+      if (err != kSeOk)
+      {
+        return err;
+      }
+    }
+
+    return kSeOk;
+  }
+
+
+  int loadItem(InputStream &in, MapValue &value)//, const bool endianSwap)
+  {
+    uint16_t len16;
+    in.read((char *)&len16, sizeof(len16));
+    // if (endianSwap)
+    // {
+    //   endian::endianSwap(&len16);
+    // }
+
+    char *str = new char[len16 + 1];
+    if (len16)
+    {
+      in.read(str, len16);
+    }
+    str[len16] = '\0';
+    value.setName(str);
+    delete[] str;
+
+    uint8_t type;
+    in.read((char *)&type, 1);
+
+    switch (type)
+    {
+    case MapValue::kInt8:
+    {
+      int8_t val;
+      in.read((char *)&val, 1);
+      value = val;
+      break;
+    }
+    case MapValue::kUInt8:
+    {
+      uint8_t val;
+      in.read((char *)&val, 1);
+      value = val;
+      break;
+    }
+    case MapValue::kInt16:
+    {
+      int16_t val;
+      in.read((char *)&val, sizeof(val));
+      // if (endianSwap) { endian::endianSwap(&val); }
+      value = val;
+      break;
+    }
+    case MapValue::kUInt16:
+    {
+      uint16_t val;
+      in.read((char *)&val, sizeof(val));
+      // if (endianSwap) { endian::endianSwap(&val); }
+      value = val;
+      break;
+    }
+    case MapValue::kInt32:
+    {
+      int32_t val;
+      in.read((char *)&val, sizeof(val));
+      // if (endianSwap) { endian::endianSwap(&val); }
+      value = val;
+      break;
+    }
+    case MapValue::kUInt32:
+    {
+      uint32_t val;
+      in.read((char *)&val, sizeof(val));
+      // if (endianSwap) { endian::endianSwap(&val); }
+      value = val;
+      break;
+    }
+    case MapValue::kInt64:
+    {
+      int64_t val;
+      in.read((char *)&val, sizeof(val));
+      // if (endianSwap) { endian::endianSwap(&val); }
+      value = val;
+      break;
+    }
+    case MapValue::kUInt64:
+    {
+      uint64_t val;
+      in.read((char *)&val, sizeof(val));
+      // if (endianSwap) { endian::endianSwap(&val); }
+      value = val;
+      break;
+    }
+    case MapValue::kFloat32:
+    {
+      float val;
+      in.read((char *)&val, sizeof(val));
+      // if (endianSwap) { endian::endianSwap(&val); }
+      value = val;
+      break;
+    }
+    case MapValue::kFloat64:
+    {
+      double val;
+      in.read((char *)&val, sizeof(val));
+      // if (endianSwap) { endian::endianSwap(&val); }
+      value = val;
+      break;
+    }
+    case MapValue::kBoolean:
+    {
+      uint8_t val;
+      in.read((char *)&val, 1);
+      if (val)
+      {
+        value = true;
+      }
+      else
+      {
+        value = false;
+      }
+      break;
+    }
+    case MapValue::kString:
+    {
+      in.read((char *)&len16, sizeof(len16));
+      // if (endianSwap)
+      // {
+      //   endian::endianSwap(&len16);
+      // }
+
+      char *str = new char[len16 + 1];
+      if (len16)
+      {
+        in.read(str, len16);
+      }
+      str[len16] = '\0';
+      value = str;
+      delete[] str;
+      break;
+    }
+
+    default:
+      return kSeUnknownDataType;
+    }
+
+    //{
+    //  MapValue strValue = value.toStringValue();
+    //  fprintf(stderr, "r: %s = %s\n", value.name(), static_cast<const char *>(strValue));
+    //}
+    return kSeOk;
+  }
+
+
+  int loadMapInfo(InputStream &in, MapInfo &info)//, const bool endianSwap)
+  {
+    uint32_t item_count = 0;
+    info.clear();
+
+    if (!readRaw<uint32_t>(in, item_count))
+    {
+      return kSeHeightmapInfoMismatch;
+    }
+
+    if (!item_count)
+    {
+      return kSeOk;
+    }
+
+    int err = 0;
+    for (unsigned i = 0; i < item_count; ++i)
+    {
+      MapValue value;
+      err = loadItem(in, value);//, endianSwap);
+      if (err != kSeOk)
+      {
+        return err;
+      }
+      info.set(value);
+    }
+
+    return kSeOk;
+  }
 
   int saveHeader(OutputStream &stream, const OccupancyMapDetail &map)
   {
@@ -285,7 +640,12 @@ namespace ohm
     region_count = 0;
     ok = readRaw<uint32_t>(stream, region_count) && ok;
 
-    return (ok) ? 0 : kSeFileReadFailure;
+    if (!ok)
+    {
+      return kSeFileReadFailure;
+    }
+
+    return kSeOk;
   }
 
 
@@ -469,6 +829,33 @@ namespace ohm
 }  // namespace ohm
 
 
+const char *ohm::errorCodeString(int err)
+{
+  static const char *names[] =
+  {
+    "ok",
+    "file create failure",
+    "file open failure",
+    "write failure",
+    "read failure",
+    "value overflow",
+    "member offset error",
+    "info error",
+    "heightmap info mismatch",
+    "data item too large",
+    "unknown data type",
+    "unsupported version"
+  };
+
+  if (err < 0 || unsigned(err) > sizeof(names) / sizeof(names[0]))
+  {
+    return "<unknown>";
+  }
+
+  return names[err];
+}
+
+
 int ohm::save(const char *filename, const OccupancyMap &map, SerialiseProgress *progress)
 {
   OutputStream stream(filename, SfCompress);
@@ -486,6 +873,14 @@ int ohm::save(const char *filename, const OccupancyMap &map, SerialiseProgress *
 
   // Header is written uncompressed.
   int err = saveHeader(stream, detail);
+
+  if (err)
+  {
+    return err;
+  }
+
+  // Save the MapInfo
+  err = saveMapInfo(stream, detail.info);
 
   if (err)
   {
@@ -557,7 +952,7 @@ int ohm::load(const char *filename, OccupancyMap &map, SerialiseProgress *progre
     {
       load_chunk_func = loadChunkV0;
     }
-    else if (version.version == kCurrentVersion)
+    else if (kSupportedVersionMin <= version.version && version.version <= kSupportedVersionMax)
     {
       load_chunk_func = loadChunk;
     }
@@ -566,7 +961,22 @@ int ohm::load(const char *filename, OccupancyMap &map, SerialiseProgress *progre
       return kSeUnsupportedVersion;
     }
 
-    loadLayout(stream, detail);
+    // From 0.2.0 we have map info.
+    if (version.version.major > 0 || version.version.minor > 1)
+    {
+      err = loadMapInfo(stream, detail.info);
+
+      if (err)
+      {
+        return err;
+      }
+    }
+
+    err = loadLayout(stream, detail);
+    if (err)
+    {
+      return err;
+    }
   }
 
   if (progress)
@@ -607,6 +1017,29 @@ int ohm::load(const char *filename, OccupancyMap &map, SerialiseProgress *progre
 }
 
 
+int ohm::load(const char *filename, Heightmap &heightmap, SerialiseProgress *progress, MapVersion *version_out)
+{
+  HeightmapDetail &detail = *heightmap.detail();
+
+  int err = load(filename, *detail.heightmap, progress, version_out);
+  if (err)
+  {
+    return err;
+  }
+
+  // TODO(KS): Set axis from map info.
+  const MapInfo &info = detail.heightmap->mapInfo();
+  if (!bool(info.get("heightmap")))
+  {
+    return kSeHeightmapInfoMismatch;
+  }
+
+  detail.fromMapInfo(info);
+
+  return err;
+}
+
+
 int ohm::loadHeader(const char *filename, OccupancyMap &map, MapVersion *version_out, size_t *region_count)
 {
   InputStream stream(filename, SfCompress);
@@ -626,6 +1059,16 @@ int ohm::loadHeader(const char *filename, OccupancyMap &map, MapVersion *version
   if (version_out)
   {
     *version_out = version.version;
+  }
+
+  // From version 0.2 we have MapInfo.
+  detail.info.clear();
+  if (version.version.major > 0 || version.version.minor > 1)
+  {
+    if (!err)
+    {
+      err = loadMapInfo(stream, detail.info);
+    }
   }
 
   if (region_count)

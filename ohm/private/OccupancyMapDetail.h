@@ -9,6 +9,7 @@
 #include <glm/glm.hpp>
 
 #include "MapChunk.h"
+#include "MapInfo.h"
 #include "MapLayout.h"
 #include "MapRegion.h"
 #include "RayFilter.h"
@@ -48,6 +49,8 @@ namespace ohm
     GpuCache *gpu_cache = nullptr;
 
     RayFilterFunction ray_filter;
+
+    MapInfo info; ///< Meta information storage about the map.
 
     ~OccupancyMapDetail();
 

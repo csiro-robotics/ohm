@@ -3,6 +3,7 @@
 //
 #include <glm/glm.hpp>
 
+#include <ohm/MapInfo.h>
 #include <ohm/MapLayer.h>
 #include <ohm/MapLayout.h>
 #include <ohm/MapSerialise.h>
@@ -83,6 +84,28 @@ int parseOptions(Options &opt, int argc, char *argv[])
   return 0;
 }
 
+void showMapInfo(const ohm::MapInfo &info)
+{
+  unsigned item_count = info.extract(nullptr, 0);
+
+  std::cout << "Meta data items: " << item_count << std::endl;
+  if (item_count)
+  {
+    std::vector<ohm::MapValue> items;
+    items.resize(item_count);
+    item_count = info.extract(items.data(), item_count);
+
+    ohm::MapValue str_value;
+    for (unsigned i = 0; i < item_count; ++i)
+    {
+      str_value = items[i].toStringValue();
+      std::cout << "  " << str_value.name() << " : " << static_cast<const char *>(str_value) << std::endl;
+    }
+  }
+
+  std::cout << std::endl;
+}
+
 int main(int argc, char *argv[])
 {
   Options opt;
@@ -108,7 +131,7 @@ int main(int argc, char *argv[])
 
   if (res != 0)
   {
-    std::cerr << "Failed to load map. Error code: " << res << std::endl;
+    std::cerr << "Failed to load map. Error(" << res << "): " << ohm::errorCodeString(res) << std::endl;
     return res;
   }
 
@@ -150,6 +173,9 @@ int main(int argc, char *argv[])
 
   std::cout << "]" << std::endl;
   std::cout << std::endl;
+
+  // Meta info.
+  showMapInfo(map.mapInfo());
 
   // Data needing chunks to be partly loaded.
   // - Extents
