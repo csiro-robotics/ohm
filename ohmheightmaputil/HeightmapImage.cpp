@@ -453,9 +453,8 @@ void HeightmapImage::triangulate()
   glm::dvec3 point;
   glm::dvec3 min_map_ext, max_map_ext;
 
-  // Calculate the heightmap extents. Note: the extents aligned with the heightmap up axis are uninformative at
-  // this point. We must modify by the contained voxel height value.
-  heightmap.calculateExtents(min_map_ext, max_map_ext);
+  min_map_ext = glm::dvec3(std::numeric_limits<double>::max());
+  max_map_ext = glm::dvec3(-std::numeric_limits<double>::max());
 
   for (auto voxel_iter = heightmap.begin(); voxel_iter != heightmap.end(); ++voxel_iter)
   {
@@ -477,6 +476,11 @@ void HeightmapImage::triangulate()
       max_map_ext.y = std::max(point.y, max_map_ext.y);
       max_map_ext.z = std::max(point.z, max_map_ext.z);
     }
+  }
+
+  if (imp_->vertices_d.empty())
+  {
+    min_map_ext = max_map_ext = glm::dvec3(0.0);
   }
 
   // Now convert into single precision coordinates for rendering by subtracting the updated min_map_extents.
