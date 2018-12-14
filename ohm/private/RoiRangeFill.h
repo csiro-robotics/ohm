@@ -12,6 +12,7 @@
 
 #include <gputil/gpuBuffer.h>
 #include <gputil/gpuDevice.h>
+#include <gputil/gpuKernel.h>
 
 namespace ohm
 {
@@ -61,6 +62,14 @@ namespace ohm
     bool calculateForRegion(OccupancyMap &map, const glm::i16vec3 &region_key);
 
   private:
+  void finishRegion(const glm::i16vec3 &region_key, OccupancyMap &map, RoiRangeFill &query, GpuCache &gpu_cache,
+                    GpuLayerCache &clearance_cache, const glm::ivec3 &batch_voxel_extents,
+                    const std::vector<gputil::Event> &upload_events);
+
+    int invoke(const OccupancyMapDetail &map, RoiRangeFill &query, GpuCache &gpu_cache,
+               GpuLayerCache &clearance_layer_cache, const glm::ivec3 &input_data_extents,
+               const std::vector<gputil::Event> &upload_events);
+
     /// Key for the lower extents corner of the global work group. All other GPU threads can resolve their key by
     /// adjusting this key using their 3D global ID.
     gputil::Buffer gpu_corner_voxel_key_;
@@ -73,6 +82,10 @@ namespace ohm
     /// Buffer of int4 used to propagate obstacles.
     gputil::Buffer gpu_work_[2];
     gputil::Device gpu_;
+    gputil::Kernel seed_kernel_;
+    gputil::Kernel seed_outer_kernel_;
+    gputil::Kernel propagate_kernel_;
+    gputil::Kernel migrate_kernel_;
     glm::vec3 axis_scaling_ = glm::vec3(1.0f);
     float search_radius_ = 0.0f;
     unsigned query_flags_ = 0;

@@ -6,7 +6,7 @@
 #ifdef _MSC_VER
 // std::equal with parameters that may be unsafe warning under Visual Studio.
 #pragma warning(disable : 4996)
-#endif // _MSC_VER
+#endif  // _MSC_VER
 
 #include <ohmutil/SafeIO.h>
 
@@ -17,8 +17,8 @@
 #include <thread>
 #include <vector>
 
-#include <liblas/liblas.hpp>
 #include <liblas/factory.hpp>
+#include <liblas/liblas.hpp>
 #include <liblas/reader.hpp>
 
 namespace
@@ -36,7 +36,7 @@ namespace
   };
 
   typedef std::chrono::high_resolution_clock Clock;
-}
+}  // namespace
 
 struct SlamCloudLoaderDetail
 {
@@ -49,6 +49,7 @@ struct SlamCloudLoaderDetail
   std::ifstream trajectory_file;
   std::function<bool(TrajectoryPoint &point)> read_trajectory_point;
   std::string traj_line;
+  glm::dvec3 trajectory_to_sensor_offset;
   TrajectoryPoint trajectory_buffer[2];
   size_t number_of_points;
 
@@ -109,7 +110,7 @@ namespace
     }
     return liblas::Open(in, file_name + ".las");
   }
-}
+}  // namespace
 
 SlamCloudLoader::SlamCloudLoader(bool real_time_mode)
   : imp_(new SlamCloudLoaderDetail)
@@ -122,6 +123,18 @@ SlamCloudLoader::SlamCloudLoader(bool real_time_mode)
 SlamCloudLoader::~SlamCloudLoader()
 {
   delete imp_;
+}
+
+
+void SlamCloudLoader::setSensorOffset(const glm::dvec3 &offset)
+{
+  imp_->trajectory_to_sensor_offset = offset;
+}
+
+
+glm::dvec3 SlamCloudLoader::sensorOffset() const
+{
+  return imp_->trajectory_to_sensor_offset;
 }
 
 
@@ -158,8 +171,7 @@ bool SlamCloudLoader::open(const char *sample_file_path, const char *trajectory_
 
   if (text_trajectory)
   {
-    imp_->read_trajectory_point = [this](TrajectoryPoint &point) -> bool
-    {
+    imp_->read_trajectory_point = [this](TrajectoryPoint &point) -> bool {
       if (!std::getline(imp_->trajectory_file, imp_->traj_line))
       {
         // End of file.
@@ -167,10 +179,9 @@ bool SlamCloudLoader::open(const char *sample_file_path, const char *trajectory_
       }
 
       // sscanf is far faster than using stream operators.
-      if (sscanf_s(imp_->traj_line.c_str(), "%lg %lg %lg %lg %lg %lg %lg %lg",
-                 &point.timestamp,
-                 &point.origin.x, &point.origin.y, &point.origin.z,
-                 &point.orientation.x, &point.orientation.y, &point.orientation.z, &point.orientation.w) != 8)
+      if (sscanf_s(imp_->traj_line.c_str(), "%lg %lg %lg %lg %lg %lg %lg %lg", &point.timestamp, &point.origin.x,
+                   &point.origin.y, &point.origin.z, &point.orientation.x, &point.orientation.y, &point.orientation.z,
+                   &point.orientation.w) != 8)
       {
         return false;
       }
@@ -181,8 +192,7 @@ bool SlamCloudLoader::open(const char *sample_file_path, const char *trajectory_
   else
   {
     imp_->trajectory_reader = new liblas::Reader(imp_->las_reader_factory->CreateWithStream(imp_->trajectory_file));
-    imp_->read_trajectory_point = [this](TrajectoryPoint &point) -> bool
-    {
+    imp_->read_trajectory_point = [this](TrajectoryPoint &point) -> bool {
       if (imp_->trajectory_reader->ReadNextPoint())
       {
         const liblas::Point &p = imp_->trajectory_reader->GetPoint();
@@ -265,7 +275,8 @@ void SlamCloudLoader::preload(size_t point_count)
   }
   else
   {
-    while (loadPoint());
+    while (loadPoint())
+      ;
   }
 }
 
@@ -277,11 +288,11 @@ bool SlamCloudLoader::nextPoint(glm::dvec3 &sample, glm::dvec3 *origin, double *
   {
     // Read next sample.
     const SamplePoint sample_point = imp_->samples_buffer[imp_->next_sample_read_index++];
-    //if (_imp->nextSampleReadIndex == _imp->samplesBuffer.size() || _imp->nextSampleReadIndex >= 1024)
+    // if (_imp->nextSampleReadIndex == _imp->samplesBuffer.size() || _imp->nextSampleReadIndex >= 1024)
     //{
     //  // Shrink the remaining points.
-    //  const size_t newSize = (_imp->nextSampleReadIndex < _imp->samplesBuffer.size()) ? _imp->samplesBuffer.size() - _imp->nextSampleReadIndex : 0;
-    //  if (_imp->nextSampleReadIndex < _imp->samplesBuffer.size())
+    //  const size_t newSize = (_imp->nextSampleReadIndex < _imp->samplesBuffer.size()) ? _imp->samplesBuffer.size() -
+    //  _imp->nextSampleReadIndex : 0; if (_imp->nextSampleReadIndex < _imp->samplesBuffer.size())
     //  {
     //    memmove(_imp->samplesBuffer.data(),
     //            _imp->samplesBuffer.data() + _imp->nextSampleReadIndex,
@@ -298,7 +309,7 @@ bool SlamCloudLoader::nextPoint(glm::dvec3 &sample, glm::dvec3 *origin, double *
     }
     if (origin)
     {
-      *origin = sample_point.origin;
+      *origin = sample_point.origin + imp_->trajectory_to_sensor_offset;
     }
     if (orientation)
     {
@@ -312,7 +323,8 @@ bool SlamCloudLoader::nextPoint(glm::dvec3 &sample, glm::dvec3 *origin, double *
       if (sample_relative_time > 0)
       {
         auto uptime = Clock::now() - imp_->first_sample_read_time;
-        const double sleep_time = sample_relative_time - std::chrono::duration_cast<std::chrono::duration<double>>(uptime).count();
+        const double sleep_time =
+          sample_relative_time - std::chrono::duration_cast<std::chrono::duration<double>>(uptime).count();
         if (sleep_time > 0)
         {
           std::this_thread::sleep_for(std::chrono::duration<double>(sleep_time));
@@ -361,12 +373,13 @@ bool SlamCloudLoader::sampleTrajectory(glm::dvec3 &position, glm::dquat &orienta
       imp_->trajectory_buffer[1] = traj_point;
     }
 
-    if (imp_->trajectory_buffer[0].timestamp <= timestamp &&
-        timestamp <= imp_->trajectory_buffer[1].timestamp &&
+    if (imp_->trajectory_buffer[0].timestamp <= timestamp && timestamp <= imp_->trajectory_buffer[1].timestamp &&
         imp_->trajectory_buffer[0].timestamp != imp_->trajectory_buffer[1].timestamp)
     {
-      const double lerp = (timestamp - imp_->trajectory_buffer[0].timestamp) / (imp_->trajectory_buffer[1].timestamp - imp_->trajectory_buffer[0].timestamp);
-      position = imp_->trajectory_buffer[0].origin + lerp * (imp_->trajectory_buffer[1].origin - imp_->trajectory_buffer[0].origin);
+      const double lerp = (timestamp - imp_->trajectory_buffer[0].timestamp) /
+                          (imp_->trajectory_buffer[1].timestamp - imp_->trajectory_buffer[0].timestamp);
+      position = imp_->trajectory_buffer[0].origin +
+                 lerp * (imp_->trajectory_buffer[1].origin - imp_->trajectory_buffer[0].origin);
       orientation = glm::slerp(imp_->trajectory_buffer[0].orientation, imp_->trajectory_buffer[1].orientation, lerp);
       return true;
     }

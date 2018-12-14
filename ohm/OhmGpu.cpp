@@ -5,8 +5,8 @@
 // Author: Kazys Stepanas
 #include "OhmGpu.h"
 
-#include <gputil/gpuDevice.h>
 #include <gputil/cl/gpuDeviceDetail.h>
+#include <gputil/gpuDevice.h>
 
 #include <gputil/gpuProgram.h>
 
@@ -24,7 +24,7 @@ namespace
   unsigned gpu_std_major = 0;
   unsigned gpu_std_minor = 0;
   bool gpu_initialised = false;
-}
+}  // namespace
 
 
 namespace ohm
@@ -41,25 +41,46 @@ namespace ohm
         }
 
 #if OHM_GPU == OHM_GPU_OPENCL
-        if (strcmp(OHM_OPENCL_STD, "max") == 0)
+        // Is --clver on the command line?
+        bool found_cl_ver = false;
+        for (int i = 1; i < argc; ++i)
         {
-          // Requesting the maximum available version.
-          // Query the device.
-          gpu_std_major = gpu_device.info().version.major;
-          gpu_std_minor = gpu_device.info().version.minor;
+          const char *cl_ver_arg = "--clver";
+          const size_t cl_arg_len = strlen(cl_ver_arg);
+          if (strncmp(argv[i], cl_ver_arg, cl_arg_len) == 0)
+          {
+            // Found --clver.
+            // Read the version string.
+            cl_uint ver_major, ver_minor;
+            std::string cl_ver = argv[i] + cl_arg_len + 1;
+            found_cl_ver = clu::parseVersion(cl_ver.c_str(), &ver_major, &ver_minor);
+            gpu_std_major = ver_major;
+            gpu_std_minor = ver_minor;
+          }
         }
-        else
+
+        if (!found_cl_ver)
         {
-          cl_uint ver_major, ver_minor;
-          clu::parseVersion(OHM_OPENCL_STD, &ver_major, &ver_minor);
-          gpu_std_major = ver_major;
-          gpu_std_minor = ver_minor;
+          if (strcmp(OHM_OPENCL_STD, "max") == 0)
+          {
+            // Requesting the maximum available version.
+            // Query the device.
+            gpu_std_major = gpu_device.info().version.major;
+            gpu_std_minor = gpu_device.info().version.minor;
+          }
+          else
+          {
+            cl_uint ver_major, ver_minor;
+            clu::parseVersion(OHM_OPENCL_STD, &ver_major, &ver_minor);
+            gpu_std_major = ver_major;
+            gpu_std_minor = ver_minor;
+          }
         }
 
         // Validate OpenCL extensions for 2.x are available.
         std::ostringstream str;
         str << "-cl-std=CL" << gpu_std_major << "." << gpu_std_minor;
-        gpu_build_std_arg = str.str();;
+        gpu_build_std_arg = str.str();
         // Validate extensions.
 
         bool extensions_supported = true;
@@ -95,7 +116,7 @@ namespace ohm
           gpu_std_major = 1;
           gpu_std_minor = 2;
         }
-#endif // OHM_GPU == OHM_GPU_OPENCL
+#endif  // OHM_GPU == OHM_GPU_OPENCL
 
 
         gpu_initialised = true;
@@ -107,24 +128,23 @@ namespace ohm
 
   int configureGpuInternal(unsigned accel, const char *device_name, bool show_device)
   {
-
     int argc = 0;
     const char *argv[2] = { nullptr };
 
     std::string accel_str = "--accel=";
-    if (accel == GpuAccel)
+    if (accel == kGpuAccel)
     {
       accel_str += "gpu";
       argv[argc] = accel_str.c_str();
       ++argc;
     }
-    else if (accel == CpuAccel)
+    else if (accel == kCpuAccel)
     {
       accel_str += "cpu";
       argv[argc] = accel_str.c_str();
       ++argc;
     }
-    else if (accel == AnyAccel)
+    else if (accel == kAnyAccel)
     {
       accel_str += "any";
       argv[argc] = accel_str.c_str();
@@ -172,7 +192,7 @@ namespace ohm
     std::unique_lock<std::mutex> lock(gpu_mutex);
     if (!gpu_initialised)
     {
-      configureGpuInternal(GpuAccel, nullptr, true);
+      configureGpuInternal(kGpuAccel, nullptr, true);
     }
     return gpu_device;
   }
@@ -191,7 +211,7 @@ namespace ohm
     const ArgInfo arg_pairs[] =
     {
       { "accel", "Select the OpenCL accelerator type [any,cpu,gpu] (gpu).", 1 },
-      { "cl-ver", "Device must support target OpenCL version. Format via the regex /[1-9][0-9]*(.[1-9][0-9]*)?/.", 1 },
+      { "clver", "Sets the OpenCL runtime version. Selected device must support target OpenCL version. Format via the regex /[1-9][0-9]*(.[1-9][0-9]*)?/.", 1 },
       { "device", "OpenCL device name must contain the given string (case insensitive).", 1 },
       { "gpu-debug", "Compile OpenCL GPU code for full debugging.", 0 },
       { "platform", "OpenCL platform name must contain the given string (case insensitive).", 1 },
@@ -221,10 +241,7 @@ namespace ohm
   }
 
 
-  const char ohm_API *gpuBuildStdArg()
-  {
-    return gpu_build_std_arg.c_str();
-  }
+  const char ohm_API *gpuBuildStdArg() { return gpu_build_std_arg.c_str(); }
 
 
   void setGpuBuildVersion(gputil::BuildArgs &build_args)
@@ -233,4 +250,4 @@ namespace ohm
     build_args.version_major = gpu_std_major;
     build_args.version_minor = gpu_std_minor;
   }
-}
+}  // namespace ohm

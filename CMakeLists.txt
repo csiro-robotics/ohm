@@ -51,7 +51,7 @@ option(OHM_EMBED_GPU_CODE "Embed GPU code into the executable (OpenCL)? Otherwis
 set(OHM_OPENCL_VER 2.0 CACHE STRING "Select the OpenCL runtime API to use.")
 set_property(CACHE OHM_OPENCL_VER PROPERTY STRINGS 1.2 2.0 2.1 2.2)
 
-set(OHM_OPENCL_STD 1.2 CACHE STRING "Select the OpenCL standard to compile GPU code against. [max] uses the reported device allowing for 2.x requires features.")
+set(OHM_OPENCL_STD 1.2 CACHE STRING "Select the default OpenCL standard to compile GPU code against. Also runtime configurable. [max] uses the reported device allowing for 2.x requires features.")
 set_property(CACHE OHM_OPENCL_STD PROPERTY STRINGS 1.2 2.0 max)
 
 # Identify any exteions required to compile with OpenCL 2.0 std.

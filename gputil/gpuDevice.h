@@ -146,6 +146,10 @@ namespace gputil
     /// @return The device memory in bytes.
     uint64_t deviceMemory() const;
 
+    /// Does the device have unified memory with the host?
+    /// @return True for unified host/device memory.
+    bool unifiedMemory() const;
+
     /// Copy assignment.
     /// @param other Object to copy.
     /// @return *this

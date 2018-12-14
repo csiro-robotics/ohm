@@ -5,17 +5,20 @@
 // Author: Kazys Stepanas
 #include "NearestNeighbours.h"
 
+#include "private/GpuProgramRef.h"
 #include "private/MapLayoutDetail.h"
-#include "private/OccupancyMapDetail.h"
 #include "private/NearestNeighboursDetail.h"
+#include "private/OccupancyMapDetail.h"
 #include "private/OccupancyQueryAlg.h"
 
-#include "MapChunk.h"
-#include "Key.h"
-#include "OccupancyMap.h"
-#include "QueryFlag.h"
 #include "DefaultLayer.h"
+#include "Key.h"
+#include "MapChunk.h"
+#include "OccupancyMap.h"
 #include "OhmGpu.h"
+#include "QueryFlag.h"
+
+#include <gputil/gpuPinnedBuffer.h>
 
 #include <3esservermacros.h>
 
@@ -26,21 +29,28 @@
 #include <functional>
 #include <iostream>
 
-#include <gputil/gpuPinnedBuffer.h>
+#ifdef OHM_EMBED_GPU_CODE
+#include "NearestNeighboursQueryResource.h"
+#endif  // OHM_EMBED_GPU_CODE
+
+// See nearestneighbours.cl define of the same name.
+// #define CACHE_LOCAL_RESULTS
 
 using namespace ohm;
-
-// Prototypes for GPU API specific functions.
-int initialiseNnGpuProgram(NearestNeighboursDetail &query, gputil::Device &gpu);
-int invokeNnQueryGpu(const OccupancyMapDetail &map, NearestNeighboursDetail &query, NearestNeighboursDetail::GpuData &gpu_data);
-void releaseNnGpu(NearestNeighboursDetail &query);
 
 namespace
 {
   // TODO: base this value on GPU capabilities.
-  const size_t kGpuBatchSize = 32*32*32;
+  const size_t kGpuBatchSize = 32 * 32 * 32;
 
-  int initialiseGpu(const OccupancyMapDetail &/*map*/, NearestNeighboursDetail &query)
+#ifdef OHM_EMBED_GPU_CODE
+  GpuProgramRef program_ref("NearestNeighboursQuery", GpuProgramRef::kSourceString, NearestNeighboursQueryCode,
+                            NearestNeighboursQueryCode_length);
+#else   // OHM_EMBED_GPU_CODE
+  GpuProgramRef program_ref("NearestNeighboursQuery", GpuProgramRef::kSourceFile, "NearestNeighboursQuery.cl");
+#endif  // OHM_EMBED_GPU_CODE
+
+  int initialiseGpu(const OccupancyMapDetail & /*map*/, NearestNeighboursDetail &query)
   {
     if (query.gpu_ok)
     {
@@ -50,35 +60,80 @@ namespace
     NearestNeighboursDetail::GpuData &gpu_data = query.gpu_data;
     query.gpu = gpuDevice();
 
+    if (!program_ref.addReference(query.gpu))
+    {
+      return -1;
+    }
+
     gpu_data.queue = query.gpu.defaultQueue();
     gpu_data.local_ranges.resize(kGpuBatchSize);
     gpu_data.region_keys.resize(kGpuBatchSize);
     gpu_data.local_keys.resize(kGpuBatchSize);
 
-    int err = initialiseNnGpuProgram(query, ohm::gpuDevice());
-    if (err)
+#if OHM_GPU == OHM_GPU_OPENCL
+    gpu_data.nn_kernel = gputil::openCLKernel(program_ref.program(), "nearestNeighbours");
+#endif  // OHM_GPU == OHM_GPU_OPENCL
+
+    if (!gpu_data.nn_kernel.isValid())
     {
-      return err;
+      program_ref.releaseReference();
+      return -1;
     }
+
+#ifdef CACHE_LOCAL_RESULTS
+    // Add local ranges argument.
+    gpu_data.nn_kernel.addLocal([](size_t workgroupSize) { return sizeof(float) * workgroupSize; });
+    // Add region keys argument.s
+    gpu_data.nn_kernel.addLocal([](size_t workgroupSize) { return sizeof(gputil::short3) * workgroupSize; });
+    // Add local voxel keys argument.
+    gpu_data.nn_kernel.addLocal([](size_t workgroupSize) { return sizeof(gputil::uchar3) * workgroupSize; });
+#endif  // CACHE_LOCAL_RESULTS
+
+    gpu_data.nn_kernel.calculateOptimalWorkGroupSize();
+
+#if OHM_GPU == OHM_GPU_OPENCL
+    gpu_data.info_kernel = gputil::openCLKernel(program_ref.program(), "showNNInfo");
+#endif  // OHM_GPU == OHM_GPU_OPENCL
+    if (!gpu_data.info_kernel.isValid())
+    {
+      program_ref.releaseReference();
+      return -1;
+    }
+
+    gpu_data.info_kernel.calculateOptimalWorkGroupSize();
 
     // Initialise buffers.
     gpu_data.gpu_voxels = gputil::Buffer(query.gpu, kGpuBatchSize * sizeof(float), gputil::kBfReadHost);
-    gpu_data.gpu_voxel_region_keys = gputil::Buffer(query.gpu, kGpuBatchSize * sizeof(gputil::short3), gputil::kBfReadHost);
-    gpu_data.gpu_voxel_voxel_keys = gputil::Buffer(query.gpu, kGpuBatchSize * sizeof(gputil::uchar3), gputil::kBfReadHost);
+    gpu_data.gpu_voxel_region_keys =
+      gputil::Buffer(query.gpu, kGpuBatchSize * sizeof(gputil::short3), gputil::kBfReadHost);
+    gpu_data.gpu_voxel_voxel_keys =
+      gputil::Buffer(query.gpu, kGpuBatchSize * sizeof(gputil::uchar3), gputil::kBfReadHost);
     gpu_data.gpu_ranges = gputil::Buffer(query.gpu, kGpuBatchSize * sizeof(float), gputil::kBfWriteHost);
-    gpu_data.gpu_result_region_keys = gputil::Buffer(query.gpu, kGpuBatchSize * sizeof(gputil::short3), gputil::kBfWriteHost);
-    gpu_data.gpu_result_voxel_keys = gputil::Buffer(query.gpu, kGpuBatchSize * sizeof(gputil::uchar3), gputil::kBfWriteHost);
+    gpu_data.gpu_result_region_keys =
+      gputil::Buffer(query.gpu, kGpuBatchSize * sizeof(gputil::short3), gputil::kBfWriteHost);
+    gpu_data.gpu_result_voxel_keys =
+      gputil::Buffer(query.gpu, kGpuBatchSize * sizeof(gputil::uchar3), gputil::kBfWriteHost);
     gpu_data.gpu_result_count = gputil::Buffer(query.gpu, sizeof(unsigned), gputil::kBfReadWriteHost);
 
-    query.gpu_ok = (err == 0);
+    query.gpu_ok = true;
 
-    return err;
+    return 0;
   }
 
-  unsigned regionNearestNeighboursCpu(OccupancyMap &map, NearestNeighboursDetail &query,
-                                      const glm::i16vec3 &region_key,
-                                      ClosestResult &closest
-                                     )
+  void releaseGpu(NearestNeighboursDetail &query)
+  {
+    if (query.gpu_ok)
+    {
+      NearestNeighboursDetail::GpuData &gpu_data = query.gpu_data;
+      query.gpu_ok = false;
+      gpu_data.nn_kernel.release();
+      gpu_data.info_kernel.release();
+      program_ref.releaseReference();
+    }
+  }
+
+  unsigned regionNearestNeighboursCpu(OccupancyMap &map, NearestNeighboursDetail &query, const glm::i16vec3 &region_key,
+                                      ClosestResult &closest)
   {
     const OccupancyMapDetail &map_data = *map.detail();
     const auto chunk_search = map_data.findRegion(region_key);
@@ -89,7 +144,7 @@ namespace
     float range_squared = 0;
     unsigned added = 0;
 
-    std::function<bool (float, const OccupancyMapDetail &)> voxel_occupied_func;
+    std::function<bool(float, const OccupancyMapDetail &)> voxel_occupied_func;
 
     query_origin = glm::vec3(query.near_point - map.origin());
 
@@ -106,18 +161,14 @@ namespace
       chunk = nullptr;
       occupancy = nullptr;
       // Setup voxel occupancy test function to pass all voxels in this region.
-      voxel_occupied_func = [](const float, const OccupancyMapDetail &) -> bool
-      {
-        return true;
-      };
+      voxel_occupied_func = [](const float, const OccupancyMapDetail &) -> bool { return true; };
     }
     else
     {
       chunk = chunk_search->second;
       occupancy = chunk->layout->layer(kDlOccupancy).voxelsAs<float>(*chunk);
       // Setup the voxel test function to check the occupancy threshold and behaviour flags.
-      voxel_occupied_func = [&query](const float voxel, const OccupancyMapDetail & map_data) -> bool
-      {
+      voxel_occupied_func = [&query](const float voxel, const OccupancyMapDetail &map_data) -> bool {
         if (voxel == voxel::invalidMarkerValue())
         {
           if (query.query_flags & ohm::kQfUnknownAsOccupied)
@@ -177,7 +228,7 @@ namespace
               {
                 includedUncertain.push_back(tes::V3Arg(glm::value_ptr(map.voxelCentreGlobal(voxel_key))));
               }
-#endif // TES_ENABLE
+#endif  // TES_ENABLE
             }
 #ifdef TES_ENABLE
             else
@@ -191,7 +242,7 @@ namespace
                 excludedUncertain.push_back(tes::V3Arg(glm::value_ptr(map.voxelCentreGlobal(voxel_key))));
               }
             }
-#endif // TES_ENABLE
+#endif  // TES_ENABLE
           }
 
           // Next voxel. Will be null for uncertain regions.
@@ -225,7 +276,7 @@ namespace
       TES_POINTS(g_3es, TES_COLOUR(LightSkyBlue), &includedOccupied.data()->x, (unsigned)includedOccupied.size(),
                  sizeof(tes::Vector3f));
     }
-#endif //  TES_ENABLE
+#endif  //  TES_ENABLE
 
     TES_SERVER_UPDATE(g_3es, 0.0f);
 
@@ -233,26 +284,77 @@ namespace
   }
 
   // Wait for the given GPU queue to finish and migrate the data into query.
-  unsigned finishGpuOperation(NearestNeighboursDetail &query, NearestNeighboursDetail::GpuData &gpu_data, ClosestResult &closest)
+  unsigned finishGpuOperation(NearestNeighboursDetail &query, NearestNeighboursDetail::GpuData &gpu_data,
+                              ClosestResult &closest)
   {
     unsigned added = 0;
 
     //---------------------------------
     const unsigned zero = 0u;
     gpu_data.gpu_result_count.fill(&zero, sizeof(zero));
-    invokeNnQueryGpu(*query.map->detail(), query, gpu_data);
+
+    const OccupancyMapDetail &map = *query.map->detail();
+    const glm::dvec3 near_point_local = query.near_point - map.origin;
+    const gputil::float3 near_point_gpu = { float(near_point_local.x), float(near_point_local.y),
+                                            float(near_point_local.z), 0 };
+    const gputil::uchar3 voxel_dim_gpu = { map.region_voxel_dimensions.x, map.region_voxel_dimensions.y,
+                                           map.region_voxel_dimensions.z };
+    const gputil::float3 region_spatial_dim_gpu = { cl_float(map.region_spatial_dimensions.x),
+                                                    cl_float(map.region_spatial_dimensions.y),
+                                                    cl_float(map.region_spatial_dimensions.z) };
+
+    gputil::Dim3 local_size(
+      std::min<size_t>(gpu_data.nn_kernel.calculateOptimalWorkGroupSize(), gpu_data.queued_voxels));
+    gputil::Dim3 global_size(gpu_data.queued_voxels);
+
+    gputil::Event nn_kernel_event;
+
+    int err;
+    err = gpu_data.nn_kernel(global_size, local_size, nn_kernel_event, &gpu_data.queue,
+                             // Kernel args.
+                             voxel_dim_gpu, region_spatial_dim_gpu, gputil::BufferArg<float>(gpu_data.gpu_voxels),
+                             gputil::BufferArg<gputil::short3>(gpu_data.gpu_voxel_region_keys),
+                             gputil::BufferArg<gputil::uchar3>(gpu_data.gpu_voxel_voxel_keys),
+                             gputil::BufferArg<float>(gpu_data.gpu_ranges),
+                             gputil::BufferArg<gputil::short3>(gpu_data.gpu_result_region_keys),
+                             gputil::BufferArg<gputil::uchar3>(gpu_data.gpu_result_voxel_keys),
+                             gputil::BufferArg<gputil::uint1>(gpu_data.gpu_result_count), near_point_gpu,
+                             float(query.search_radius), float(map.occupancy_threshold_value), float(map.resolution),
+                             cl_int((query.query_flags & kQfUnknownAsOccupied) ? 1 : 0), gpu_data.queued_voxels
+                             // , __local float *localRanges
+                             // , __local short3 *localVoxelKeys
+                             // , __local int3 *localRegionKeys
+    );
+
+    if (err)
+    {
+      return 0;
+    }
+
+#if SHOW_INFO
+    global_size = local_size = gputil::Dim3(1);
+    err = gpu_data.info_kernel(global_size, local_size, gputil::EventList({ nn_kernel_event }), nn_kernel_event,
+                               &gpu_data.queue,
+                               // Kernel args
+                               gputil::BufferArg<gputil::uint>(gpu_data.gpu_result_count));
+
+    if (err)
+    {
+      return 0;
+    }
+#endif  // SHOW_INFO
 
     // Block until the currently queued operations complete.
-    gpu_data.queue.finish();
+    nn_kernel_event.wait();
 
     gpu_data.gpu_result_count.read(&gpu_data.result_count, sizeof(gpu_data.result_count));
     if (gpu_data.result_count)
     {
       gpu_data.gpu_ranges.readElements(gpu_data.local_ranges.data(), gpu_data.result_count);
       gpu_data.gpu_result_region_keys.readElements(gpu_data.region_keys.data(), sizeof(*gpu_data.region_keys.data()),
-                                              gpu_data.result_count, 0, sizeof(gputil::short3));
+                                                   gpu_data.result_count, 0, sizeof(gputil::short3));
       gpu_data.gpu_result_voxel_keys.readElements(gpu_data.local_keys.data(), sizeof(*gpu_data.local_keys.data()),
-                                             gpu_data.result_count, 0, sizeof(gputil::uchar3));
+                                                  gpu_data.result_count, 0, sizeof(gputil::uchar3));
 
 #ifndef VALIDATE_KEYS
       Key key;
@@ -273,7 +375,7 @@ namespace
         }
         ++added;
       }
-#else  // VALIDATE_KEYS
+#else   // VALIDATE_KEYS
       bool keyOk = true;
       unsigned nindex = 0;
       Key key;
@@ -292,10 +394,9 @@ namespace
         keyOk = nindex == i;
         if (!keyOk)
         {
-          std::cout << "Key failure [" << i << "]: R("
-                    << int(key.regionKey().x) << ' ' << int(key.regionKey().y) << ' ' << int(key.regionKey().z) << ") V("
-                    << int(key.localKey().x) << ' ' << int(key.localKey().y) << ' ' << int(key.localKey().z) << ") : "
-                    << gpuData.localRanges[i] << std::endl;
+          std::cout << "Key failure [" << i << "]: R(" << int(key.regionKey().x) << ' ' << int(key.regionKey().y) << ' '
+                    << int(key.regionKey().z) << ") V(" << int(key.localKey().x) << ' ' << int(key.localKey().y) << ' '
+                    << int(key.localKey().z) << ") : " << gpuData.localRanges[i] << std::endl;
           nindex = voxelIndex(key, query.map->regionVoxelDimensions());
         }
         // Validate the range.
@@ -303,9 +404,9 @@ namespace
         expectedRange = glm::distance(query.near_point, query.map->voxelCentreGlobal(key));
         if (std::abs(range - expectedRange) > 1e-5)
         {
-          std::cout << "  Range deviation. [" << i << "]: R("
-                    << int(key.regionKey().x) << ' ' << int(key.regionKey().y) << ' ' << int(key.regionKey().z) << ") V("
-                    << int(key.localKey().x) << ' ' << int(key.localKey().y) << ' ' << int(key.localKey().z) << ") : "
+          std::cout << "  Range deviation. [" << i << "]: R(" << int(key.regionKey().x) << ' ' << int(key.regionKey().y)
+                    << ' ' << int(key.regionKey().z) << ") V(" << int(key.localKey().x) << ' ' << int(key.localKey().y)
+                    << ' ' << int(key.localKey().z) << ") : "
                     << "Expected/actual: " << expectedRange << ' ' << range << std::endl;
         }
 
@@ -317,7 +418,7 @@ namespace
           closest.range = gpuData.localRanges[i] * gpuData.localRanges[i];
         }
       }
-#endif // VALIDATE_KEYS
+#endif  // VALIDATE_KEYS
     }
 
     gpu_data.clear();
@@ -329,16 +430,15 @@ namespace
   // Can handle splitting up regions which are larger than GpuBatchSize, but only when the
   // gpuData.queuedNodes size is zero on calling.
   bool regionNearestNeighboursGpu(const OccupancyMap &map, NearestNeighboursDetail &query,
-                                  const glm::i16vec3 &region_key,
-                                  ClosestResult &closest,
-                                  NearestNeighboursDetail::GpuData &gpu_data
-                                 )
+                                  const glm::i16vec3 &region_key, ClosestResult &closest,
+                                  NearestNeighboursDetail::GpuData &gpu_data)
   {
     const OccupancyMapDetail &data = *map.detail();
     const auto chunk_search = data.findRegion(region_key);
-    const size_t voxels_volume = data.region_voxel_dimensions.x * data.region_voxel_dimensions.y * data.region_voxel_dimensions.z;
+    const size_t voxels_volume =
+      data.region_voxel_dimensions.x * data.region_voxel_dimensions.y * data.region_voxel_dimensions.z;
 
-    gputil::short3 gpu_region_key = {region_key.x, region_key.y, region_key.z};
+    gputil::short3 gpu_region_key = { region_key.x, region_key.y, region_key.z };
 
     if (chunk_search == data.chunks.end())
     {
@@ -367,8 +467,11 @@ namespace
         // ... and we have to treat unknown space as occupied.
         // Fill the voxel buffer with zero to mark unknown space.
         const float occupied_voxel = data.occupancy_threshold_value;
-        gpu_data.gpu_voxels.fillPartial(&occupied_voxel, sizeof(occupied_voxel), push_size * sizeof(occupied_voxel), gpu_data.queued_voxels * sizeof(occupied_voxel));
-        gpu_data.gpu_voxel_region_keys.fillPartial(&gpu_region_key, sizeof(gpu_region_key), push_size * sizeof(gpu_region_key), gpu_data.queued_voxels * sizeof(gpu_region_key));
+        gpu_data.gpu_voxels.fillPartial(&occupied_voxel, sizeof(occupied_voxel), push_size * sizeof(occupied_voxel),
+                                        gpu_data.queued_voxels * sizeof(occupied_voxel));
+        gpu_data.gpu_voxel_region_keys.fillPartial(&gpu_region_key, sizeof(gpu_region_key),
+                                                   push_size * sizeof(gpu_region_key),
+                                                   gpu_data.queued_voxels * sizeof(gpu_region_key));
         map.regionCentreGlobal(region_key);
       }
       else
@@ -376,8 +479,11 @@ namespace
         const MapChunk *chunk = chunk_search->second;
         const float *voxels = chunk->layout->layer(kDlOccupancy).voxelsAs<float>(*chunk);
 
-        gpu_data.gpu_voxels.write(voxels + pushed, push_size * sizeof(*voxels), gpu_data.queued_voxels * sizeof(*voxels));
-        gpu_data.gpu_voxel_region_keys.fillPartial(&gpu_region_key, sizeof(gpu_region_key), push_size * sizeof(gpu_region_key), gpu_data.queued_voxels * sizeof(gpu_region_key));
+        gpu_data.gpu_voxels.write(voxels + pushed, push_size * sizeof(*voxels),
+                                  gpu_data.queued_voxels * sizeof(*voxels));
+        gpu_data.gpu_voxel_region_keys.fillPartial(&gpu_region_key, sizeof(gpu_region_key),
+                                                   push_size * sizeof(gpu_region_key),
+                                                   gpu_data.queued_voxels * sizeof(gpu_region_key));
       }
 
       gputil::uchar3 voxel_key;
@@ -428,8 +534,7 @@ namespace
   }
 
 
-  unsigned pushNodes(const OccupancyMap &map, NearestNeighboursDetail &query,
-                     const glm::i16vec3 &region_key,
+  unsigned pushNodes(const OccupancyMap &map, NearestNeighboursDetail &query, const glm::i16vec3 &region_key,
                      ClosestResult &closest)
   {
     unsigned added = 0;
@@ -440,9 +545,9 @@ namespace
     // Always complete previous queued operation when validating keys. This is to allow
     // us to infer each voxel index by its position in the results array.
     if (gpuData.queuedNodes)
-#else  // VALIDATE_KEYS
+#else   // VALIDATE_KEYS
     if (gpu_data.queued_voxels && gpu_data.queued_voxels + voxels_volume > kGpuBatchSize)
-#endif // VALIDATE_KEYS
+#endif  // VALIDATE_KEYS
     {
       // Complete existing queue.
       added = finishGpuOperation(query, gpu_data, closest);
@@ -457,7 +562,8 @@ namespace
                                          const glm::dvec3 &min_extents, const glm::dvec3 &max_extents)
   {
     unsigned added_neighbours = 0;
-    const std::function<unsigned (OccupancyMap &, NearestNeighboursDetail &, const glm::i16vec3 &, ClosestResult &)> rnn_gpu_func = pushNodes;
+    const std::function<unsigned(OccupancyMap &, NearestNeighboursDetail &, const glm::i16vec3 &, ClosestResult &)>
+      rnn_gpu_func = pushNodes;
 
     added_neighbours += ohm::occupancyQueryRegions(map, query, closest, min_extents, max_extents, rnn_gpu_func);
 
@@ -470,7 +576,7 @@ namespace
 
     return added_neighbours;
   }
-}
+}  // namespace
 
 
 NearestNeighbours::NearestNeighbours(NearestNeighboursDetail *detail)
@@ -480,10 +586,11 @@ NearestNeighbours::NearestNeighbours(NearestNeighboursDetail *detail)
 }
 
 
-NearestNeighbours::NearestNeighbours(OccupancyMap &map, const glm::dvec3 &near_point,
-                                     float search_radius, unsigned query_flags)
-: Query(new NearestNeighboursDetail)
-  , query_flags_(query_flags) {
+NearestNeighbours::NearestNeighbours(OccupancyMap &map, const glm::dvec3 &near_point, float search_radius,
+                                     unsigned query_flags)
+  : Query(new NearestNeighboursDetail)
+  , query_flags_(query_flags)
+{
   setMap(&map);
   setNearPoint(near_point);
   setSearchRadius(search_radius);
@@ -498,7 +605,7 @@ NearestNeighbours::~NearestNeighbours()
   NearestNeighboursDetail *d = imp();
   if (d)
   {
-    releaseNnGpu(*d);
+    releaseGpu(*d);
   }
   delete d;
   imp_ = nullptr;
@@ -559,11 +666,10 @@ bool NearestNeighbours::onExecute()
 
   // Create debug visualisation objects. We use the map address to persist objects.
   // Search sphere.
-  TES_SPHERE_W(g_3es, TES_COLOUR_A(GreenYellow, 128), uint32_t((size_t)d->map),
-                glm::value_ptr(d->near_point), d->search_radius);
+  TES_SPHERE_W(g_3es, TES_COLOUR_A(GreenYellow, 128), uint32_t((size_t)d->map), glm::value_ptr(d->near_point),
+               d->search_radius);
   // Search bounds.
-  TES_BOX_W(g_3es, TES_COLOUR(FireBrick), uint32_t((size_t)d->map),
-            glm::value_ptr(0.5 * min_extents + max_extents),
+  TES_BOX_W(g_3es, TES_COLOUR(FireBrick), uint32_t((size_t)d->map), glm::value_ptr(0.5 * min_extents + max_extents),
             glm::value_ptr(max_extents - min_extents));
 
   if (d->gpu_ok && (d->query_flags & kQfGpuEvaluate))

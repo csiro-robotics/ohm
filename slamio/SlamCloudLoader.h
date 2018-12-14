@@ -4,8 +4,8 @@
 
 #include "SlamIOExport.h"
 
-#include <glm/glm.hpp>
 #include <glm/ext.hpp>
+#include <glm/glm.hpp>
 
 struct SlamCloudLoaderDetail;
 
@@ -16,6 +16,12 @@ public:
   /// @param real_time_mode True to throttle point loading to simulate real time data acquisition.
   SlamCloudLoader(bool real_time_mode = false);
   ~SlamCloudLoader();
+
+  /// Set the fixed offset between the trajectory point to the sensor frame. This is added to all trajectory points.
+  /// @param offset The trajectory to sensor offset.
+  void setSensorOffset(const glm::dvec3 &offset);
+  /// Get the fixed offset between the trajectory point to the sensor frame.
+  glm::dvec3 sensorOffset() const;
 
   bool open(const char *sample_file_path, const char *trajectory_file_path);
 
@@ -30,10 +36,10 @@ public:
 
   void preload(size_t point_count = 0);
 
-  bool nextPoint(glm::dvec3 &sample, glm::dvec3 *origin = nullptr, double *timestamp = nullptr, glm::dquat *orientation = nullptr);
+  bool nextPoint(glm::dvec3 &sample, glm::dvec3 *origin = nullptr, double *timestamp = nullptr,
+                 glm::dquat *orientation = nullptr);
 
 private:
-
   bool loadPoint();
 
   /// Sample the trajectory at the given timestamp.

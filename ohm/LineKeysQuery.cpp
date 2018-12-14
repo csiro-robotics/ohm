@@ -9,10 +9,15 @@
 
 #include "KeyList.h"
 #include "OccupancyMap.h"
-#include "OhmGpu.h"
 #include "OccupancyUtil.h"
+#include "OhmGpu.h"
 
+#include "private/GpuProgramRef.h"
+
+#include <gputil/gpuKernel.h>
 #include <gputil/gpuPinnedBuffer.h>
+#include <gputil/gpuPlatform.h>
+#include <gputil/gpuProgram.h>
 
 #include <glm/gtc/type_ptr.hpp>
 
@@ -21,15 +26,20 @@
 #include <cstring>
 #include <thread>
 
-using namespace ohm;
+#ifdef OHM_EMBED_GPU_CODE
+#include "LineKeysResource.h"
+#endif  // OHM_EMBED_GPU_CODE
 
-// Prototypes for GPU API specific functions.
-int initialiseLineKeysGpuProgram(LineKeysQueryDetail &query, gputil::Device &gpu);
-int invokeLineKeysQueryGpu(LineKeysQueryDetail &query, LineKeysQueryDetail::GpuData &gpu_data, bool (*completion_func)(LineKeysQueryDetail &));
-void releaseLineKeysGpu(LineKeysQueryDetail &query);
+using namespace ohm;
 
 namespace
 {
+#ifdef OHM_EMBED_GPU_CODE
+  GpuProgramRef program_ref("LineKeys", GpuProgramRef::kSourceString, LineKeysCode, LineKeysCode_length);
+#else   // OHM_EMBED_GPU_CODE
+  GpuProgramRef program_ref("LineKeys", GpuProgramRef::kSourceFile, "LineKeys.cl");
+#endif  // OHM_EMBED_GPU_CODE
+  
   bool readGpuResults(LineKeysQueryDetail &query);
 
   unsigned nextPow2(unsigned v)
@@ -45,41 +55,51 @@ namespace
     return v;
   }
 
-  // TODO: Verfy alignment.
+  // TODO(KS): Verify alignment.
   const size_t kGpuKeySize = sizeof(GpuKey);
 
-  int initialiseGpu(LineKeysQueryDetail &query)
+  bool initialiseGpu(LineKeysQueryDetail &query)
   {
     if (query.gpuOk)
     {
-      return 0;
+      return true;
     }
 
     LineKeysQueryDetail::GpuData &gpu_data = query.gpuData;
     query.gpu = gpuDevice();
 
     unsigned queue_flags = 0;
-//#ifdef OHM_PROFILE
-//    queueFlags |= gputil::Queue::Profile;
-//#endif // OHM_PROFILE
+    //#ifdef OHM_PROFILE
+    //    queueFlags |= gputil::Queue::Profile;
+    //#endif // OHM_PROFILE
     gpu_data.queue = query.gpu.createQueue(queue_flags);
 
-    int err = initialiseLineKeysGpuProgram(query, ohm::gpuDevice());
-    if (err)
+    if (!program_ref.addReference(query.gpu))
     {
-      return err;
+      return false;
+    }
+
+  #if OHM_GPU == OHM_GPU_OPENCL
+    query.line_keys_kernel = gputil::openCLKernel(program_ref.program(), "calculateLines");
+#endif  // OHM_GPU == OHM_GPU_OPENCL
+    query.line_keys_kernel.calculateOptimalWorkGroupSize();
+
+    if (!query.line_keys_kernel.isValid())
+    {
+      return false;
     }
 
     // Initialise buffer to dummy size. We'll resize as required.
     gpu_data.linesOut = gputil::Buffer(query.gpu, 1 * kGpuKeySize, gputil::kBfReadWriteHost);
-    gpu_data.linePoints = gputil::Buffer(query.gpu, 1 * sizeof(LineKeysQueryDetail::GpuData::float3), gputil::kBfReadHost);
-    query.gpuOk = (err == 0);
+    gpu_data.linePoints =
+      gputil::Buffer(query.gpu, 1 * sizeof(gputil::float3), gputil::kBfReadHost);
+    query.gpuOk = true;
 
-    return err;
+    return true;
   }
 
 
-  bool lineKeysQueryGpu(LineKeysQueryDetail &query, bool async)
+  bool lineKeysQueryGpu(LineKeysQueryDetail &query, bool /*async*/)
   {
     // std::cout << "Prime kernel\n" << std::flush;
     // Size the buffers.
@@ -100,7 +120,7 @@ namespace
       // std::cout << "Required bytes " << requiredSize << " for " << query.rays.size() / 2u << " lines" << std::endl;
       query.gpuData.linesOut.resize(required_size);
     }
-    required_size = query.rays.size() * sizeof(LineKeysQueryDetail::GpuData::float3);
+    required_size = query.rays.size() * sizeof(gputil::float3);
     if (query.gpuData.linePoints.size() < required_size)
     {
       // std::cout << "linePoints size: " << requiredSize << std::endl;
@@ -113,13 +133,26 @@ namespace
     for (size_t i = 0; i < query.rays.size(); ++i)
     {
       point_f = query.rays[i] - query.map->origin();
-      line_points_mem.write(glm::value_ptr(point_f), sizeof(point_f), i * sizeof(LineKeysQueryDetail::GpuData::float3));
+      line_points_mem.write(glm::value_ptr(point_f), sizeof(point_f), i * sizeof(gputil::float3));
     }
     line_points_mem.unpin();
 
     // Execute.
+    const gputil::int3 region_dim = { query.map->regionVoxelDimensions().x, query.map->regionVoxelDimensions().y,
+                                      query.map->regionVoxelDimensions().z };
+
     // std::cout << "Invoke kernel\n" << std::flush;
-    int err = invokeLineKeysQueryGpu(query, query.gpuData, (async) ? &readGpuResults : nullptr);
+    gputil::Dim3 global_size(query.rays.size() / 2);
+    gputil::Dim3 local_size(std::min<size_t>(query.line_keys_kernel.optimalWorkGroupSize(), query.rays.size() / 2));
+
+    // Ensure all memory transfers have completed.
+    query.gpuData.queue.insertBarrier();
+    int err = query.line_keys_kernel(global_size, local_size, &query.gpuData.queue,
+                                     // Kernel args
+                                     gputil::BufferArg<GpuKey>(query.gpuData.linesOut), query.gpuData.maxKeysPerLine,
+                                     gputil::BufferArg<gputil::float3>(query.gpuData.linePoints),
+                                     cl_uint(query.rays.size() / 2), region_dim, float(query.map->resolution()));
+
     if (err)
     {
       return false;
@@ -162,8 +195,9 @@ namespace
           query.intersected_voxels.reserve(reserve);
         }
         query.intersected_voxels.resize(query.intersected_voxels.size() + result_count);
-        gpu_mem.read(query.intersected_voxels.data() + query.resultIndices[i], kGpuKeySize * result_count, (read_offset_count + 1) * kGpuKeySize);
-#else  // #
+        gpu_mem.read(query.intersected_voxels.data() + query.resultIndices[i], kGpuKeySize * result_count,
+                     (read_offset_count + 1) * kGpuKeySize);
+#else   // #
         GpuKey gpuKey;
         Key key;
         for (size_t j = 0; j < resultCount; ++j)
@@ -173,7 +207,7 @@ namespace
           key.setLocalKey(glm::u8vec3(gpuKey.voxel[0], gpuKey.voxel[1], gpuKey.voxel[2]));
           query.intersected_voxels.push_back(key);
         }
-#endif // #
+#endif  // #
       }
 
       read_offset_count += query.gpuData.maxKeysPerLine;
@@ -187,12 +221,11 @@ namespace
     // std::cout << "Results ready\n" << std::flush;
     return true;
   }
-}
+}  // namespace
 
 LineKeysQuery::LineKeysQuery(LineKeysQueryDetail *detail)
   : Query(detail)
-{
-}
+{}
 
 
 LineKeysQuery::LineKeysQuery(ohm::OccupancyMap &map, unsigned query_flags)
@@ -219,7 +252,11 @@ LineKeysQuery::~LineKeysQuery()
   LineKeysQueryDetail *d = static_cast<LineKeysQueryDetail *>(imp_);
   if (d && d->gpuOk)
   {
-    releaseLineKeysGpu(*d);
+    if (d->line_keys_kernel.isValid())
+    {
+      d->line_keys_kernel = gputil::Kernel();
+      program_ref.releaseReference();
+    }
   }
   delete d;
   imp_ = nullptr;
@@ -371,13 +408,13 @@ bool LineKeysQuery::onWaitAsync(unsigned timeout_ms)
 }
 
 
-LineKeysQueryDetail* LineKeysQuery::imp()
+LineKeysQueryDetail *LineKeysQuery::imp()
 {
   return static_cast<LineKeysQueryDetail *>(imp_);
 }
 
 
-const LineKeysQueryDetail* LineKeysQuery::imp() const
+const LineKeysQueryDetail *LineKeysQuery::imp() const
 {
   return static_cast<const LineKeysQueryDetail *>(imp_);
 }

@@ -13,10 +13,10 @@
 
 #include "cl/gpuEventDetail.h"
 
-#include <algorithm>
-#include <cinttypes>
 #include <clu/clu.h>
 #include <clu/cluBuffer.h>
+#include <algorithm>
+#include <cinttypes>
 #include <cstring>
 
 #define USE_PINNED 1
@@ -70,7 +70,7 @@ namespace
       cl_flags = CL_MEM_WRITE_ONLY;
     }
 
-    if (imp.flags & kBfHostAccess)
+    if (imp.request_flags & kBfHostAccess)
     {
       cl_flags = CL_MEM_ALLOC_HOST_PTR;
     }
@@ -78,6 +78,18 @@ namespace
     cl_int clerr = 0;
     clu::ensureBufferSize<uint8_t>(imp.buffer, cl_flags, imp.device.detail()->context, new_size, &clerr);
     GPUAPICHECK(clerr, CL_SUCCESS, 0);
+
+    // Validate the CL_MEM_ALLOC_HOST_PTR flag worked.
+    cl_mem_flags actual_flags = 0;
+    clGetMemObjectInfo(imp.buffer(), CL_MEM_FLAGS, sizeof(actual_flags), &actual_flags, nullptr);
+
+    imp.flags = imp.request_flags; 
+    if ((imp.request_flags & kBfHostAccess) && !(actual_flags & CL_MEM_ALLOC_HOST_PTR))
+    {
+      // Failed to allocate in host memory.
+      imp.flags &= ~kBfHostAccess;
+      //std::cout << "Failed host access " << std::endl;
+    }
 
     imp.requested_size = new_size;
     const size_t actual_size = buffer.actualSize();
@@ -210,7 +222,7 @@ void Buffer::create(const Device &device, size_t byte_size, unsigned flags)
     release();
   }
   imp_->device = device;
-  imp_->flags = flags;
+  imp_->request_flags = imp_->flags = flags;
   resize(byte_size);
 }
 
@@ -219,7 +231,7 @@ void Buffer::release()
 {
   imp_->device = Device();
   imp_->buffer = cl::Buffer();
-  imp_->flags = 0;
+  imp_->request_flags = imp_->flags = 0;
 }
 
 

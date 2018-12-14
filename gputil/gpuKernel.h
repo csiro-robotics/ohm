@@ -29,6 +29,43 @@ namespace gputil
       , y(y)
       , z(z)
     {}
+
+    inline size_t volume() const { return x * y * z; }
+
+    inline size_t operator[](int i) const
+    {
+      switch (i)
+      {
+      case 0:
+        return x;
+      case 1:
+        return y;
+      case 2:
+        return z;
+      }
+      return 0;
+    }
+
+    inline size_t &operator[](int i)
+    {
+      switch (i)
+      {
+      case 0:
+        return x;
+      case 1:
+        return y;
+      case 2:
+        return z;
+      }
+      static size_t invalid = 0u;
+      return invalid;
+    }
+
+    inline size_t operator[](unsigned i) const { return operator[](int(i)); }
+    inline size_t &operator[](unsigned i) { return operator[](int(i)); }
+
+    inline size_t operator[](size_t i) const { return operator[](int(i)); }
+    inline size_t &operator[](size_t i) { return operator[](int(i)); }
   };
 
   template <typename T>
@@ -79,6 +116,8 @@ namespace gputil
 
     bool isValid() const;
 
+    void release();
+
     /// Add local memory calculation.
     ///
     /// Local memory is calculated by invoking the given function, passing the single dimensional work group size
@@ -93,14 +132,33 @@ namespace gputil
     /// @param local_calc The functional object used to calculate local memory size requirements.
     void addLocal(const LocalMemFunc &local_calc);
 
+    /// Calculate the optimal size (or volume) of a local work group. This attempts to gain maximum occupancy while
+    /// considering the required local memory usage.
+    /// @return The optimal work group size.
     size_t calculateOptimalWorkGroupSize();
+
+    /// Fetch the previously calculated optimal work group size (see @c calculateOptimalWorkGroupSize()).
+    /// @return The optimal work group size.
     size_t optimalWorkGroupSize() const;
+
+    /// Calculate the appropriate global and work group sizes for executing this @c Kernel to process
+    /// @p total_work_items items. The aim is to gain maximum local thread occupancy.
+    ///
+    /// The @p total_work_items defines a volume of items to process. The global size is set appropriately to cover
+    /// the @p total_work_items with the @p local_size set to cover these in a grid pattern with consideration to the
+    /// device capabilities and maximum occupancy. This includes maximum work group sizes and local memory constraints.
+    ///
+    /// @param[out] global_size Set to the grid global size. This may be larger than @p total_work_group_items to ensure
+    ///   an exact multiple of the @p local_size.
+    /// @param[out] local_size Set to the local work group size required to cover the @p global_size/@p total_work_items.
+    /// @param total_work_items The total volume of items to process.
+    void calculateGrid(gputil::Dim3 *global_size, gputil::Dim3 *local_size, const gputil::Dim3 &total_work_items);
 
     template <typename... ARGS>
     int operator()(const Dim3 &global_size, const Dim3 &local_size, Queue *queue, ARGS... args);
 
     template <typename... ARGS>
-    int operator()(const Dim3 &global_size, const Dim3 &local_size, Event &completion_event, Queue *queue, 
+    int operator()(const Dim3 &global_size, const Dim3 &local_size, Event &completion_event, Queue *queue,
                    ARGS... args);
 
     template <typename... ARGS>

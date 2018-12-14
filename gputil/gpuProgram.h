@@ -47,6 +47,7 @@ namespace gputil
     inline ProgramDetail *detail() { return imp_; }
     inline const ProgramDetail *detail() const { return imp_; }
 
+    Program &operator=(const Program &other);
     Program &operator=(Program &&other);
 
   private:

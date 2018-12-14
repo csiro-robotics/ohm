@@ -15,6 +15,7 @@
 
 #include <gputil/gpuBuffer.h>
 #include <gputil/gpuEvent.h>
+#include <gputil/gpuKernel.h>
 
 #include <unordered_map>
 #include <vector>
@@ -48,6 +49,8 @@ namespace ohm
     /// CPU buffer to read back results from GPU ray transformation.
     /// Only ever used in a transient fashion.
     std::vector<glm::vec4> transformed_rays;
+    //gputil::Device gpu;
+    gputil::Kernel update_kernel;
 
     GpuTransformSamples *transform_samples = nullptr;
 
@@ -83,7 +86,8 @@ namespace ohm
 
 
   /// Ensure the GPU cache is initialised. Ok to call if already initialised.
-  GpuCache *initialiseGpuCache(OccupancyMap &map, size_t layer_gpu_mem_size, bool mappable_buffers);
+  /// @param flags @c GpuFlag values.
+  GpuCache *initialiseGpuCache(OccupancyMap &map, size_t layer_gpu_mem_size, unsigned flags);
 
   inline GpuMapDetail::RegionKeyMap::iterator GpuMapDetail::findRegion(const unsigned region_hash,
                                                                        const glm::i16vec3 &region_key)

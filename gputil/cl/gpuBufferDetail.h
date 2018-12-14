@@ -24,13 +24,9 @@ namespace gputil
   {
     Device device;
     cl::Buffer buffer;
-    size_t requested_size;
-    unsigned flags;
-
-    inline BufferDetail()
-      : requested_size(0)
-      , flags(0)
-    {}
+    size_t requested_size = 0;
+    unsigned flags = 0;
+    unsigned request_flags = 0;
   };
 
   uint8_t *pin(BufferDetail &imp, PinMode mode);
