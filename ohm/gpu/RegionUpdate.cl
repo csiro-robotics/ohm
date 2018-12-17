@@ -308,9 +308,30 @@ __kernel void regionRayUpdate(__global OccupancyType *voxels_mem,
   const float3 lineStart = localLines[get_global_id(0) * 2 + 0];
   const float3 lineEnd = localLines[get_global_id(0) * 2 + 1];
 
-  lineData.subVoxelCoord.x = lineEnd.x - pointToRegionCoord(lineEnd.x, voxelResolution) * voxelResolution + 0.5 * voxelResolution;
-  lineData.subVoxelCoord.y = lineEnd.y - pointToRegionCoord(lineEnd.y, voxelResolution) * voxelResolution + 0.5 * voxelResolution;
-  lineData.subVoxelCoord.z = lineEnd.z - pointToRegionCoord(lineEnd.z, voxelResolution) * voxelResolution + 0.5 * voxelResolution;
+  // We don't need a precise conversion to a voxel key here. We simply need to logically quantise in order to work out
+  // the sub-voxel offset. Essentially we have:
+  //  s = E - R floor(E/R + 0.5)
+  // where:
+  // s: sub-voxel position
+  // E: ray End point
+  // R: voxel resolution
+  //
+  // The addition of 0.5 applies the same half voxel offset used elsewhere. We use pointToRegionCoord() to do this
+  lineData.subVoxelCoord.x = lineEnd.x - pointToRegionCoord(lineEnd.x, voxelResolution) * voxelResolution;
+  lineData.subVoxelCoord.y = lineEnd.y - pointToRegionCoord(lineEnd.y, voxelResolution) * voxelResolution;
+  lineData.subVoxelCoord.z = lineEnd.z - pointToRegionCoord(lineEnd.z, voxelResolution) * voxelResolution;
+
+  if (lineData.subVoxelCoord.x < -0.5 * voxelResolution || lineData.subVoxelCoord.x > 0.5 * voxelResolution ||
+      lineData.subVoxelCoord.y < -0.5 * voxelResolution || lineData.subVoxelCoord.y > 0.5 * voxelResolution ||
+      lineData.subVoxelCoord.z < -0.5 * voxelResolution || lineData.subVoxelCoord.z > 0.5 * voxelResolution)
+  {
+    printf("sub-voxel-out [%f, %f]: (%f %f %f) -> (%f %f %f)\n",
+      -0.5 * voxelResolution, 0.5 * voxelResolution,
+      lineEnd.x, lineEnd.y, lineEnd.z,
+      lineData.subVoxelCoord.x, lineData.subVoxelCoord.y, lineData.subVoxelCoord.z
+    );
+  }
+
 #ifdef STORE_DEBUG_INFO
   lineData.startKey = &startKey;
   lineData.endKey = &endKey;
