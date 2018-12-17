@@ -121,7 +121,7 @@ void MapChunk::searchAndUpdateFirstValid(const glm::ivec3 &region_voxel_dimensio
   size_t voxel_index;
   first_valid_index = search_from;
 
-  const float *occupancy = layout->layer(kDlOccupancy).voxelsAs<float>(*this);
+  const float *occupancy = layout->layer(layout->occupancyLayer()).voxelsAs<float>(*this);
   for (int z = 0; z < region_voxel_dimensions.z; ++z)
   {
     for (int y = 0; y < region_voxel_dimensions.y; ++y)
@@ -148,7 +148,7 @@ bool MapChunk::validateFirstValid(const glm::ivec3 &region_voxel_dimensions) con
 {
   size_t voxel_index = 0;
 
-  const float *occupancy = layout->layer(kDlOccupancy).voxelsAs<float>(*this);
+  const float *occupancy = layout->layer(layout->occupancyLayer()).voxelsAs<float>(*this);
   for (int z = 0; z < region_voxel_dimensions.z; ++z)
   {
     for (int y = 0; y < region_voxel_dimensions.y; ++y)

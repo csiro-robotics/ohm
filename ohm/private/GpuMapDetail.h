@@ -31,13 +31,16 @@ namespace ohm
     OccupancyMap *map;
     typedef std::unordered_multimap<unsigned, glm::i16vec3> RegionKeyMap;
     // Ray/key buffer upload event pairs.
+    /// Events for key_buffers
     gputil::Event key_upload_events[kBuffersCount];
+    /// Buffers for start/end voxel keys for each ray pair: GpuKey
     gputil::Buffer key_buffers[kBuffersCount];
+    /// Events for ray_buffers
     gputil::Event ray_upload_events[kBuffersCount];
+    /// Buffers of rays to process float3 pairs. Coordinates are local to the centre of the start voxel for each pair.
     gputil::Buffer ray_buffers[kBuffersCount];
-    gputil::Buffer transform_positions_buffer;
-    gputil::Buffer transform_rotations_buffer;
-    gputil::Buffer transform_times_buffer;
+    /// Buffers for sub-voxel positioning: uint
+    gputil::Buffer sub_voxel_buffers[kBuffersCount];
 
     gputil::Event region_key_upload_events[kBuffersCount];
     gputil::Event region_offset_upload_events[kBuffersCount];

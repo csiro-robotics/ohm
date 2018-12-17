@@ -211,6 +211,8 @@ bool LineQuery::onExecute()
   ClosestResult closest;
   if (d->query_flags & kQfGpuEvaluate)
   {
+    gpumap::enableGpu(*d->map);
+
     // GPU evaluation requested. Use the ClearanceProcess to do so.
     glm::dvec3 min_ext, max_ext;
     for (int i = 0; i < 3; ++i)

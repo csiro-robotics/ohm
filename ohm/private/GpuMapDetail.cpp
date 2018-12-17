@@ -49,9 +49,20 @@ GpuCache *ohm::initialiseGpuCache(OccupancyMap &map, size_t layer_gpu_mem_size, 
       }
     }
 
-    detail->gpu_cache->createCache(kGcIdOccupancy,
-                                   GpuCacheParams{ 0, kDlOccupancy, kGcfRead | kGcfWrite | mappable_flag });
-    detail->gpu_cache->createCache(kGcIdClearance, GpuCacheParams{ 0, kDlOccupancy, kGcfRead | mappable_flag });
+    const int occupancy_layer = map.layout().occupancyLayer();
+    if (occupancy_layer >= 0)
+    {
+      detail->gpu_cache->createCache(kGcIdOccupancy,
+                                     GpuCacheParams{ 0, occupancy_layer, kGcfRead | kGcfWrite | mappable_flag });
+    }
+
+    // Note: we create teh clearance gpu cache if we have a clearance layer, but it caches the occupancy_layer as that
+    // is the information it reads.
+    if (map.layout().clearanceLayer() >= 0)
+    {
+      // Use of occupancy_layer below is correct. See comment above.
+      detail->gpu_cache->createCache(kGcIdClearance, GpuCacheParams{ 0, occupancy_layer, kGcfRead | mappable_flag });
+    }
   }
   return detail->gpu_cache;
 }

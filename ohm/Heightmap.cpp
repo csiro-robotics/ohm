@@ -207,7 +207,7 @@ Heightmap::Heightmap(double grid_resolution, double min_clearance, Axis up_axis,
   // Setup the heightmap voxel layout.
   MapLayout &layout = imp_->heightmap->layout();
 
-  layout.filterLayers({ defaultLayerName(kDlOccupancy) });
+  layout.filterLayers({ default_layer::occupancyLayerName() });
 
   MapLayer *layer;
   VoxelLayout voxels;
@@ -222,13 +222,13 @@ Heightmap::Heightmap(double grid_resolution, double min_clearance, Axis up_axis,
   // Initialise the data structure to have both ranges at float max.
   memset(&clear_value, max_clearance_int, sizeof(clear_value));
   layer = layout.addLayer(HeightmapVoxel::kHeightmapLayer, 0);
-  imp_->heightmap_layer = layer->layerIndex();
+  imp_->heightmap_layer = (int)layer->layerIndex();
   voxels = layer->voxelLayout();
   voxels.addMember("height", DataType::kFloat, 0);
   voxels.addMember("clearance", DataType::kFloat, 0);
 
   layer = layout.addLayer(HeightmapVoxel::kHeightmapBuildLayer, 0);
-  imp_->heightmap_build_layer = layer->layerIndex();
+  imp_->heightmap_build_layer = (int)layer->layerIndex();
   voxels = layer->voxelLayout();
   voxels.addMember("height", DataType::kFloat, 0);
   voxels.addMember("clearance", DataType::kFloat, 0);
@@ -355,9 +355,15 @@ const glm::dvec3 &Heightmap::surfaceAxisB(int axis_id)
 }
 
 
-unsigned Heightmap::heightmapVoxelLayer() const
+int Heightmap::heightmapVoxelLayer() const
 {
   return imp_->heightmap_layer;
+}
+
+
+int Heightmap::heightmapVoxelBuildLayer() const
+{
+  return imp_->heightmap_build_layer;
 }
 
 
@@ -406,9 +412,9 @@ bool Heightmap::update(double base_height)
   Key target_key;
 
 #if POST_BLUR
-  unsigned heightmap_build_layer = (imp_->blur_level) ? imp_->heightmap_build_layer : imp_->heightmap_layer;
+  int heightmap_build_layer = (imp_->blur_level) ? imp_->heightmap_build_layer : imp_->heightmap_layer;
 #else   // POST_BLUR
-  const unsigned heightmap_build_layer = imp_->heightmap_layer;
+  const int heightmap_build_layer = imp_->heightmap_layer;
 #endif  // POST_BLUR
 
   for (walker.begin(target_key); walker.walkNext(target_key);)

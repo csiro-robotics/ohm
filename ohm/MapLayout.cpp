@@ -5,6 +5,7 @@
 // Author: Kazys Stepanas
 #include "MapLayout.h"
 
+#include "DefaultLayer.h"
 #include "MapChunk.h"
 
 #include "private/MapLayoutDetail.h"
@@ -94,6 +95,24 @@ void MapLayout::clear()
 }
 
 
+int MapLayout::occupancyLayer() const
+{
+  return imp_->occupancy_layer;
+}
+
+
+int MapLayout::subVoxelLayer() const
+{
+  return imp_->sub_voxel_layer;
+}
+
+
+int MapLayout::clearanceLayer() const
+{
+  return imp_->clearance_layer;
+}
+
+
 void MapLayout::filterLayers(const std::initializer_list<const char *> &preserve_layers)
 {
   if (imp_->layers.empty())
@@ -126,6 +145,21 @@ MapLayer *MapLayout::addLayer(const char *name, unsigned short subsampling)
 {
   MapLayer *new_layer = new MapLayer(name, static_cast<unsigned short>(imp_->layers.size()), subsampling);
   imp_->layers.push_back(new_layer);
+
+  std::string name_str(name);
+  if (imp_->occupancy_layer == -1 && name_str.compare(default_layer::occupancyLayerName()) == 0)
+  {
+    imp_->occupancy_layer = new_layer->layerIndex();
+  }
+  else if (imp_->sub_voxel_layer == -1 && name_str.compare(default_layer::subVoxelLayerName()) == 0)
+  {
+    imp_->sub_voxel_layer = new_layer->layerIndex();
+  }
+  else if (imp_->clearance_layer == -1 && name_str.compare(default_layer::clearanceLayerName()) == 0)
+  {
+    imp_->clearance_layer = new_layer->layerIndex();
+  }
+
   return new_layer;
 }
 

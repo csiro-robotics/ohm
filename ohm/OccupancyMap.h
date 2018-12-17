@@ -349,6 +349,9 @@ namespace ohm
     /// @return Layout details.
     MapLayout &layout();
 
+    /// Enable the sub-voxel positioning layer. This ensures the "sub_voxel" layer is present adding 4 bytes per voxel.
+    void enableSubVoxelPositioning();
+
     /// Query the number of regions in the map.
     size_t regionCount() const;
 

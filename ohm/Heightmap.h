@@ -125,7 +125,12 @@ namespace ohm
     int blurLevel() const;
 
     /// The layer number which contains @c HeightmapVoxel structures.
-    unsigned heightmapVoxelLayer() const;
+    /// @return The heightmap layer index or -1 on error (not present).
+    int heightmapVoxelLayer() const;
+
+    /// The layer number which contains @c HeightmapVoxel structures during heightmap construction.
+    /// @return The heightmap build layer index or -1 on error (not present).
+    int heightmapVoxelBuildLayer() const;
 
     /// Get the up axis identifier used to generate the heightmap.
     Axis upAxis() const;

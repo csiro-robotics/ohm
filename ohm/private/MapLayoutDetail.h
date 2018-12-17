@@ -17,6 +17,9 @@ namespace ohm
   struct MapLayoutDetail
   {
     std::vector<MapLayer *> layers;
+    int occupancy_layer = -1;
+    int sub_voxel_layer = -1;
+    int clearance_layer = -1;
 
     inline ~MapLayoutDetail() { clear(); }
 
@@ -27,6 +30,7 @@ namespace ohm
         delete layer;
       }
       layers.clear();
+      occupancy_layer = sub_voxel_layer = clearance_layer = -1;
     }
   };
 }

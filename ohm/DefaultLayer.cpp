@@ -7,20 +7,10 @@
 
 namespace ohm
 {
-  const char *defaultLayerName(DefaultLayer layer)
+  namespace default_layer
   {
-    const char *names[kDlCount] =
-    {
-      "occupancy",
-      "clearance",
-      "coarseClearance"
-    };
-
-    if (layer >= 0 && layer < kDlCount)
-    {
-      return names[layer];
-    }
-
-    return nullptr;
+    const char *occupancyLayerName() { return "occupancy"; }
+    const char *subVoxelLayerName() { return "sub_voxel"; }
+    const char *clearanceLayerName() { return "clearance"; }
   }
 }

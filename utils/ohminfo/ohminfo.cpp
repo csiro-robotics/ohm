@@ -194,6 +194,9 @@ int main(int argc, char *argv[])
     ohm::VoxelLayoutConst voxels = layer.voxelLayout();
     indent = "  ";
     std::cout << indent << layer.name() << std::endl;
+    indent += "  ";
+    std::cout << indent << "serialised? " << ((layer.flags() & ohm::MapLayer::kSkipSerialise) == 0 ? "true" : "false")
+              << std::endl;
     std::cout << indent << "subsampling: " << layer.subsampling() << std::endl;
     std::cout << indent << "voxels: " << layer.dimensions(map.regionVoxelDimensions()) << " : "
               << layer.volume(layer.dimensions(map.regionVoxelDimensions())) << std::endl;

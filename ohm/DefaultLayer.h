@@ -3,31 +3,25 @@
 // ABN 41 687 119 230
 //
 // Author: Kazys Stepanas
-#ifndef OHMDEFAULTLAYERS_H
-#define OHMDEFAULTLAYERS_H
+#ifndef OHMDEFAULTLAYER_H
+#define OHMDEFAULTLAYER_H
 
 #include "OhmConfig.h"
 
 namespace ohm
 {
-  /// Default @c MapLayer identification.
-  enum DefaultLayer
+  namespace default_layer
   {
-    /// Voxel occupancy values.
-    kDlOccupancy,
-    /// Voxel clearance values: distance to nearest obstruction.
-    kDlClearance,
-    /// Downsampled @c DL_Clearance
-    kDlCoarseClearance,
-
-    /// Number of default layers.
-    kDlCount
-  };
-
-  /// Resolve the name for one of the @c DefaultLayer identifiers.
-  /// @param layer The layer identifier of interest.
-  /// @return The name of the layer, or nullptr if @p layer is out of range.
-  const char * ohm_API defaultLayerName(DefaultLayer layer);
+    /// Name of the occupancy layer.
+    /// @return "occupancy"
+    const char * ohm_API occupancyLayerName();
+    /// Name of the sub voxel positioning layer.
+    /// @return "sub_voxel"
+    const char * ohm_API subVoxelLayerName();
+    /// Name of the voxel clearance layer.
+    /// @return "clearance"
+    const char * ohm_API clearanceLayerName();
+  }
 }
 
-#endif // OHMDEFAULTLAYERS_H
+#endif // OHMDEFAULTLAYER_H

@@ -166,7 +166,7 @@ namespace
     else
     {
       chunk = chunk_search->second;
-      occupancy = chunk->layout->layer(kDlOccupancy).voxelsAs<float>(*chunk);
+      occupancy = chunk->layout->layer(chunk->layout->occupancyLayer()).voxelsAs<float>(*chunk);
       // Setup the voxel test function to check the occupancy threshold and behaviour flags.
       voxel_occupied_func = [&query](const float voxel, const OccupancyMapDetail &map_data) -> bool {
         if (voxel == voxel::invalidMarkerValue())
@@ -477,7 +477,7 @@ namespace
       else
       {
         const MapChunk *chunk = chunk_search->second;
-        const float *voxels = chunk->layout->layer(kDlOccupancy).voxelsAs<float>(*chunk);
+        const float *voxels = chunk->layout->layer(chunk->layout->occupancyLayer()).voxelsAs<float>(*chunk);
 
         gpu_data.gpu_voxels.write(voxels + pushed, push_size * sizeof(*voxels),
                                   gpu_data.queued_voxels * sizeof(*voxels));

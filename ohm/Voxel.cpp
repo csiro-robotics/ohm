@@ -154,7 +154,14 @@ Voxel VoxelConst::makeMutable() const
 
 void Voxel::setValue(float value, bool force)
 {
-  if (float *voxel_ptr = ohm::voxel::voxelPtrAs<float *>(key_, chunk_, map_, kDlOccupancy))
+  float *voxel_ptr = nullptr;
+
+  if (isValid())
+  {
+    voxel_ptr = ohm::voxel::voxelPtrAs<float *>(key_, chunk_, map_, chunk_->layout->occupancyLayer());
+  }
+
+  if (voxel_ptr)
   {
     if (value != voxel::invalidMarkerValue())
     {
@@ -197,10 +204,13 @@ void Voxel::setValue(float value, bool force)
 
 void Voxel::setClearance(float range)
 {
-  if (float *voxel_ptr = voxel::voxelPtrAs<float *>(key_, chunk_, map_, kDlClearance))
+  if (isValid() && chunk_->layout->clearanceLayer() >= 0)
   {
-    *voxel_ptr = range;
-    // touchMap();
+    if (float *voxel_ptr = voxel::voxelPtrAs<float *>(key_, chunk_, map_, chunk_->layout->clearanceLayer()))
+    {
+      *voxel_ptr = range;
+      // touchMap();
+    }
   }
 }
 
@@ -219,7 +229,7 @@ void Voxel::touchMap()
   if (map_ && chunk_)
   {
     ++map_->stamp;
-    chunk_->dirty_stamp = chunk_->touched_stamps[kDlOccupancy] = map_->stamp;
+    chunk_->dirty_stamp = chunk_->touched_stamps[chunk_->layout->occupancyLayer()] = map_->stamp;
   }
 }
 

@@ -335,7 +335,7 @@ TEST(Heightmap, Layout)
   const MapLayout &layout = heightmap->heightmap().layout();
 
   EXPECT_EQ(layout.layerCount(), 3);
-  const MapLayer *occupancy_layer = layout.layer(defaultLayerName(kDlOccupancy));
+  const MapLayer *occupancy_layer = layout.layer(default_layer::occupancyLayerName());
   const MapLayer *heightmap_layer = layout.layer(HeightmapVoxel::kHeightmapLayer);
   const MapLayer *heightmap_build_layer = layout.layer(HeightmapVoxel::kHeightmapBuildLayer);
   ASSERT_NE(occupancy_layer, nullptr);
@@ -355,7 +355,7 @@ TEST(Heightmap, Layout)
   VoxelLayoutConst heightmap_build_voxel = heightmap_layer->voxelLayout();
 
   EXPECT_EQ(occupancy_voxel.memberCount(), 1);
-  EXPECT_STREQ(occupancy_voxel.memberName(0), defaultLayerName(kDlOccupancy));
+  EXPECT_STREQ(occupancy_voxel.memberName(0), default_layer::occupancyLayerName());
   EXPECT_EQ(occupancy_voxel.memberOffset(0), 0);
   EXPECT_EQ(occupancy_voxel.memberSize(0), sizeof(float));
 

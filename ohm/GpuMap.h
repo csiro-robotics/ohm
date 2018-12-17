@@ -32,7 +32,7 @@ namespace ohm
     /// Flags for GPU initialisation.
     enum GpuFlag
     {
-      /// Allow host mappable buffers. Used if device/host memory is unified.
+      /// Allow host (mapable) buffers. Used if device/host memory is unified.
       kGpuAllowMappedBuffers = (1 << 0),
       /// Force mappable buffers.
       kGpuForceMappedBuffers = (1 << 1),

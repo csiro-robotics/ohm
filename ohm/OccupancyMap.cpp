@@ -514,6 +514,12 @@ MapLayout &OccupancyMap::layout()
 }
 
 
+void OccupancyMap::enableSubVoxelPositioning()
+{
+  imp_->enableSubVoxelPositioning();
+}
+
+
 size_t OccupancyMap::regionCount() const
 {
   std::unique_lock<decltype(imp_->mutex)> guard(imp_->mutex);
@@ -1111,17 +1117,23 @@ void OccupancyMap::calculateDirtyClearanceExtents(glm::i16vec3 *min_ext, glm::i1
   *max_ext = glm::i16vec3(std::numeric_limits<decltype(min_ext->x)>::min());
 
   std::unique_lock<decltype(imp_->mutex)> guard(imp_->mutex);
-  for (auto &&chunk_ref : imp_->chunks)
-  {
-    if (chunk_ref.second->touched_stamps[kDlClearance] < chunk_ref.second->touched_stamps[kDlOccupancy])
-    {
-      min_ext->x = std::min<int>(chunk_ref.second->region.coord.x - region_padding, min_ext->x);
-      min_ext->y = std::min<int>(chunk_ref.second->region.coord.y - region_padding, min_ext->y);
-      min_ext->z = std::min<int>(chunk_ref.second->region.coord.z - region_padding, min_ext->z);
+  const int occupancy_layer = imp_->layout.occupancyLayer();
+  const int clearance_layer = imp_->layout.clearanceLayer();
 
-      max_ext->x = std::max<int>(chunk_ref.second->region.coord.x + region_padding, max_ext->x);
-      max_ext->y = std::max<int>(chunk_ref.second->region.coord.y + region_padding, max_ext->y);
-      max_ext->z = std::max<int>(chunk_ref.second->region.coord.z + region_padding, max_ext->z);
+  if (occupancy_layer >= 0 && clearance_layer >= 0)
+  {
+    for (auto &&chunk_ref : imp_->chunks)
+    {
+      if (chunk_ref.second->touched_stamps[clearance_layer] < chunk_ref.second->touched_stamps[occupancy_layer])
+      {
+        min_ext->x = std::min<int>(chunk_ref.second->region.coord.x - region_padding, min_ext->x);
+        min_ext->y = std::min<int>(chunk_ref.second->region.coord.y - region_padding, min_ext->y);
+        min_ext->z = std::min<int>(chunk_ref.second->region.coord.z - region_padding, min_ext->z);
+
+        max_ext->x = std::max<int>(chunk_ref.second->region.coord.x + region_padding, max_ext->x);
+        max_ext->y = std::max<int>(chunk_ref.second->region.coord.y + region_padding, max_ext->y);
+        max_ext->z = std::max<int>(chunk_ref.second->region.coord.z + region_padding, max_ext->z);
+      }
     }
   }
   guard.unlock();

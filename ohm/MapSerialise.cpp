@@ -5,10 +5,10 @@
 #include "MapSerialise.h"
 
 #include "DefaultLayer.h"
+#include "Heightmap.h"
 #include "MapChunk.h"
 #include "MapLayer.h"
 #include "MapLayout.h"
-#include "Heightmap.h"
 #include "OccupancyMap.h"
 #include "Stream.h"
 #include "VoxelLayout.h"
@@ -497,21 +497,21 @@ namespace ohm
 
 const char *ohm::errorCodeString(int err)
 {
-  static const char *names[] =
-  {
-    "ok",
-    "file create failure",
-    "file open failure",
-    "write failure",
-    "read failure",
-    "value overflow",
-    "member offset error",
-    "info error",
-    "heightmap info mismatch",
-    "data item too large",
-    "unknown data type",
-    "unsupported version"
-  };
+  static const char *names[] =  //
+    {                           //
+      "ok",
+      "file create failure",
+      "file open failure",
+      "write failure",
+      "read failure",
+      "value overflow",
+      "member offset error",
+      "info error",
+      "heightmap info mismatch",
+      "data item too large",
+      "unknown data type",
+      "unsupported version"
+    };
 
   if (err < 0 || unsigned(err) > sizeof(names) / sizeof(names[0]))
   {

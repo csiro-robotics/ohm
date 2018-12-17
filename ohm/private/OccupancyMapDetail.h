@@ -73,6 +73,9 @@ namespace ohm
     /// Setup the default @c MapLayout: occupancy layer and clearance layer.
     void setDefaultLayout();
 
+    // Ensure the sub_voxel layer is present.
+    void enableSubVoxelPositioning();
+
     /// Copy internal details from @p other. For cloning.
     /// @param other The map detail to copy from.
     void copyFrom(const OccupancyMapDetail &other);

@@ -114,11 +114,12 @@ namespace gputil
       : buffer(&buffer)
     {}
 
-    /// The null argument constructor. Passes null to the kernel.
-    inline BufferArg(void * /*null_value*/)
-      : buffer(nullptr)
-    {
-    }
+    /// Alternative constructor supporting a null buffer argument. Passing NULL ensures the kernel argument on device
+    /// is also null.
+    /// @param buffer A pointer to the buffer to wrap or null for a null argument on device.
+    inline BufferArg(Buffer *buffer = nullptr)
+      : buffer(buffer)
+    {}
 
     /// A reference to the wrapped buffer.
     Buffer *buffer;
@@ -196,7 +197,8 @@ namespace gputil
     ///
     /// @param[out] global_size Set to the grid global size. This may be larger than @p total_work_group_items to ensure
     ///   an exact multiple of the @p local_size.
-    /// @param[out] local_size Set to the local work group size required to cover the @p global_size/@p total_work_items.
+    /// @param[out] local_size Set to the local work group size required to cover the @p global_size/@p
+    /// total_work_items.
     /// @param total_work_items The total volume of items to process.
     void calculateGrid(gputil::Dim3 *global_size, gputil::Dim3 *local_size, const gputil::Dim3 &total_work_items);
 

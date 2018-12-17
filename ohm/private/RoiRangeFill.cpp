@@ -131,6 +131,12 @@ bool RoiRangeFill::calculateForRegion(OccupancyMap &map, const glm::i16vec3 &reg
 {
   PROFILE(RoiRangeFill);
 
+  const int clearance_layer_index = map.layout().clearanceLayer();
+  if (clearance_layer_index < 0)
+  {
+    return false;
+  }
+
   PROFILE(prime);
 
   // Calculate the voxel extents of the query. This size depends on the size of a single region plus the padding
@@ -195,7 +201,7 @@ bool RoiRangeFill::calculateForRegion(OccupancyMap &map, const glm::i16vec3 &reg
   gpu_region_keys_.elementsResize<gputil::int3>(volumeOf(glm::ivec3(1) + 2 * region_padding));
   gpu_occupancy_region_offsets_.elementsResize<gputil::ulong1>(volumeOf(glm::ivec3(1) + 2 * region_padding));
 
-  gpu_region_clearance_buffer_.resize(map.layout().layer(kDlClearance).layerByteSize(map.regionVoxelDimensions()));
+  gpu_region_clearance_buffer_.resize(map.layout().layer(clearance_layer_index).layerByteSize(map.regionVoxelDimensions()));
 
   gputil::PinnedBuffer region_keys(gpu_region_keys_, gputil::kPinWrite);
   gputil::PinnedBuffer occupancy_region_offsets(gpu_occupancy_region_offsets_, gputil::kPinWrite);
@@ -230,9 +236,10 @@ bool RoiRangeFill::calculateForRegion(OccupancyMap &map, const glm::i16vec3 &reg
           gputil::Buffer *occupancy_buffer = occupancy_cache->buffer();
           gputil::Buffer *clearance_buffer = clearance_cache->buffer();
 
-          gputil::copyBuffer(*clearance_buffer, clearance_mem_offset, *occupancy_buffer, occupancy_mem_offset,
-                             map.layout().layer(kDlOccupancy).layerByteSize(map.regionVoxelDimensions()),
-                             &clearance_cache->gpuQueue(), &occupancy_event, &upload_event);
+          gputil::copyBuffer(
+            *clearance_buffer, clearance_mem_offset, *occupancy_buffer, occupancy_mem_offset,
+            map.layout().layer(map.layout().occupancyLayer()).layerByteSize(map.regionVoxelDimensions()),
+            &clearance_cache->gpuQueue(), &occupancy_event, &upload_event);
           clearance_cache->updateEvent(*chunk, upload_event);
         }
         else
@@ -296,7 +303,7 @@ void RoiRangeFill::finishRegion(const glm::i16vec3 &region_key, OccupancyMap &ma
   if (region)
   {
     gputil::PinnedBuffer clearance_buffer(query.gpuRegionClearanceBuffer(), gputil::kPinRead);
-    const MapLayer &clearance_layer = map.layout().layer(kDlClearance);
+    const MapLayer &clearance_layer = map.layout().layer(map.layout().clearanceLayer());
     uint8_t *dst = clearance_layer.voxels(*region);
     clearance_buffer.read(dst, clearance_layer.layerByteSize(map.regionVoxelDimensions()));
   }
@@ -387,7 +394,8 @@ int RoiRangeFill::invoke(const OccupancyMapDetail &map, RoiRangeFill &query, Gpu
 
   PROFILE(propagate);
 
-  propagate_kernel_.calculateGrid(&global_size, &local_size,
+  propagate_kernel_.calculateGrid(
+    &global_size, &local_size,
     gputil::Dim3(region_voxel_extents_gpu.x, region_voxel_extents_gpu.y, region_voxel_extents_gpu.z));
 
   gputil::Event previous_event = seed_outer_kernel_event;
@@ -434,10 +442,9 @@ int RoiRangeFill::invoke(const OccupancyMapDetail &map, RoiRangeFill &query, Gpu
     gputil::Dim3(region_voxel_extents_gpu.x, region_voxel_extents_gpu.y, region_voxel_extents_gpu.z));
 
   gputil::Event migrate_event;
-  err =
-    migrate_kernel_(global_size, local_size, gputil::EventList({previous_event}), migrate_event, &queue,
-       // Kernel args
-      gputil::BufferArg<gputil::char4>(query.gpuRegionClearanceBuffer()),
+  err = migrate_kernel_(global_size, local_size, gputil::EventList({ previous_event }), migrate_event, &queue,
+                        // Kernel args
+                        gputil::BufferArg<gputil::char4>(query.gpuRegionClearanceBuffer()),
                         gputil::BufferArg<gputil::char4>(query.gpuWork(src_buffer_index)), region_voxel_extents_gpu,
                         region_voxel_extents_gpu, float(query.searchRadius()), float(map.resolution), axis_scaling_gpu,
                         unsigned(query.queryFlags()));

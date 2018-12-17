@@ -68,9 +68,9 @@ namespace ohm
     {
       bool ok = true;
 
-      const MapLayer *occupancy_layer = chunk.layout->layerPtr(kDlOccupancy);
-      const MapLayer *clearance_layer = chunk.layout->layerPtr(kDlClearance);
-      const MapLayer *coarse_clearance_layer = chunk.layout->layerPtr(kDlCoarseClearance);
+      const MapLayer *occupancy_layer = chunk.layout->layerPtr(chunk.layout->occupancyLayer());
+      const MapLayer *clearance_layer = chunk.layout->layerPtr(chunk.layout->clearanceLayer());
+      const MapLayer *coarse_clearance_layer = chunk.layout->layer("coarseClearance");
 
       if (coarse_clearance_layer)
       {

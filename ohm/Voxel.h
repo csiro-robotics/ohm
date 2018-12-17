@@ -9,6 +9,8 @@
 
 #include "DefaultLayer.h"
 #include "Key.h"
+#include "MapChunk.h"
+#include "MapLayout.h"
 #include "MapProbability.h"
 
 #include <limits>
@@ -466,9 +468,13 @@ namespace ohm
   template <typename MAPCHUNK>
   float VoxelBase<MAPCHUNK>::occupancy() const
   {
-    if (const float *occupancy = ohm::voxel::voxelPtrAs<const float *>(key_, chunk_, map_, kDlOccupancy))
+    if (isValid())
     {
-      return *occupancy;
+      if (const float *occupancy =
+            ohm::voxel::voxelPtrAs<const float *>(key_, chunk_, map_, chunk_->layout->occupancyLayer()))
+      {
+        return *occupancy;
+      }
     }
 
     return voxel::invalidMarkerValue();
@@ -478,9 +484,13 @@ namespace ohm
   template <typename MAPCHUNK>
   float VoxelBase<MAPCHUNK>::clearance(bool invalid_as_obstructed) const
   {
-    if (const float *clearance = ohm::voxel::voxelPtrAs<const float *>(key_, chunk_, map_, kDlClearance))
+    if (isValid() && chunk_->layout->clearanceLayer() >= 0)
     {
-      return *clearance;
+      if (const float *clearance =
+            ohm::voxel::voxelPtrAs<const float *>(key_, chunk_, map_, chunk_->layout->clearanceLayer()))
+      {
+        return *clearance;
+      }
     }
 
     return (invalid_as_obstructed) ? 0.0f : -1.0f;
