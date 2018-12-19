@@ -14,6 +14,7 @@
 #include "MapLayer.h"
 #include "MapProbability.h"
 #include "OccupancyType.h"
+#include "SubVoxel.h"
 #include "Voxel.h"
 
 #include "GpuCache.h"
@@ -514,9 +515,9 @@ MapLayout &OccupancyMap::layout()
 }
 
 
-void OccupancyMap::enableSubVoxelPositioning()
+bool OccupancyMap::subVoxelsEnabled() const
 {
-  imp_->enableSubVoxelPositioning();
+  return imp_->layout.hasSubVoxelPattern();
 }
 
 

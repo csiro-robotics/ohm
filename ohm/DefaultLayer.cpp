@@ -10,7 +10,6 @@ namespace ohm
   namespace default_layer
   {
     const char *occupancyLayerName() { return "occupancy"; }
-    const char *subVoxelLayerName() { return "sub_voxel"; }
     const char *clearanceLayerName() { return "clearance"; }
   }
 }

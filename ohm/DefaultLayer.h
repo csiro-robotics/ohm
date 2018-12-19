@@ -15,9 +15,6 @@ namespace ohm
     /// Name of the occupancy layer.
     /// @return "occupancy"
     const char * ohm_API occupancyLayerName();
-    /// Name of the sub voxel positioning layer.
-    /// @return "sub_voxel"
-    const char * ohm_API subVoxelLayerName();
     /// Name of the voxel clearance layer.
     /// @return "clearance"
     const char * ohm_API clearanceLayerName();

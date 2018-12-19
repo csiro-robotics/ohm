@@ -6,29 +6,50 @@
 #ifndef SUBVOXEL_H
 #define SUBVOXEL_H
 
+#ifndef __OPENCL_C_VERSION__
+#include <OhmConfig.h>
+#endif // !__OPENCL_C_VERSION__
+
+
 #include "MapCoord.h"
 
 // Note: this header is included in GPU code.
 // Because of this <cmath> cannot be included here and you may need to include that first.
 
+// Sub voxel positioning is done as follows:
+// - 4 byte value, split into bit sets:
+// - bits [0, 9]: sub-voxel x coord
+// - bits [10, 19]: sub-voxel y coord
+// - bits [20, 29]: sub-voxel z coord
+// - bit 30: unused
+// - bit 31: marks sub-voxel data as present
+
 #ifndef __OPENCL_C_VERSION__
 namespace ohm
 {
-#endif  // !__OPENCL_C_VERSION__
-#if defined(__OPENCL_C_VERSION__) && !defined(coord_real)
-  typedef float coord_real;
-#endif  // defined(__OPENCL_C_VERSION__) && !defined(coord_real)
-#if defined(__OPENCL_C_VERSION__) && !defined(vec3)
-  typedef float3 vec3;
-#endif  // defined(__OPENCL_C_VERSION__) && !defined(vec3)
 
-#ifndef __OPENCL_C_VERSION__
-  template <typename vec3, typename coord_real>
+#define SUB_VOX_FUNC_PREFACE template <typename vec3, typename coord_real>
+
+#else  // !__OPENCL_C_VERSION__
+
+#if !defined(coord_real)
+  typedef float coord_real;
+#endif  // !defined(coord_real)
+
+#if !defined(vec3)
+  typedef float3 vec3;
+#endif  // !defined(vec3)
+
+#define SUB_VOX_FUNC_PREFACE
+
 #endif  // !__OPENCL_C_VERSION__
+
+  SUB_VOX_FUNC_PREFACE
   unsigned subVoxelCoord(vec3 voxel_local_coord, coord_real resolution)
   {
     // We divide the voxel into a voxel_local_coord, 3D grid, then assign 1 bit per cell.
     const unsigned bits_per_axis = 10;
+    const unsigned used_bit = (1 << 31);
     const coord_real sub_voxel_resolution = resolution / (coord_real)bits_per_axis;
 
     const coord_real offset = (coord_real)0.5 * resolution;
@@ -40,31 +61,26 @@ namespace ohm
     index_y = (index_y < bits_per_axis) ? index_y : bits_per_axis;
     index_z = (index_z < bits_per_axis) ? index_z : bits_per_axis;
 
-    const unsigned pattern =
-      (1 << index_x) || ((1 << index_y) << bits_per_axis) || ((1 << index_z) << (2 * bits_per_axis));
+    const unsigned pattern = used_bit |
+      (1 << index_x) | ((1 << index_y) << bits_per_axis) | ((1 << index_z) << (2 * bits_per_axis));
     return pattern;
   }
 
 
-#ifndef __OPENCL_C_VERSION__
-  template <typename vec3, typename coord_real>
-  typename
-#endif  // !__OPENCL_C_VERSION__
+  SUB_VOX_FUNC_PREFACE
   vec3 subVoxelToLocalCoord(unsigned pattern, coord_real resolution)
   {
     const unsigned bits_per_axis = 10;
+    const unsigned used_bit = (1 << 31);
     vec3 coord;
-    const coord_real offset = (coord_real)0.5 * resolution;
-    coord.x = regionCentreCoord((pattern & 0x3FFu), resolution) - offset;
-    coord.y = regionCentreCoord(((pattern >> bits_per_axis) & 0x3FFu), resolution) - offset;
-    coord.z = regionCentreCoord(((pattern >> (2 * bits_per_axis)) & 0x3FFu), resolution) - offset;
+    coord.x = (used_bit) ? regionCentreCoord((int)(pattern & 0x3FFu), resolution) : 0;
+    coord.y = (used_bit) ? regionCentreCoord((int)((pattern >> bits_per_axis) & 0x3FFu), resolution) : 0;
+    coord.z = (used_bit) ? regionCentreCoord((int)((pattern >> (2 * bits_per_axis)) & 0x3FFu), resolution) : 0;
     return coord;
   }
 
 
-#ifndef __OPENCL_C_VERSION__
-  template <typename vec3, typename coord_real>
-#endif  // !__OPENCL_C_VERSION__
+  SUB_VOX_FUNC_PREFACE
   unsigned subVoxelUpdate(unsigned initial, vec3 voxel_local_coord, coord_real resolution)
   {
 #ifndef __OPENCL_C_VERSION__

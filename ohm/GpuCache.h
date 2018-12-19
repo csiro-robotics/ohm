@@ -93,7 +93,7 @@ namespace ohm
     /// Request or create a new @c GpuLayerCache.
     ///
     /// The cache is uniquely identified by the specified @p id, the sematics of which depend on usage. A default
-    /// set of IDs is defined in @@@. The call also specifies a @p layer which identifies the @c MapLayer associated
+    /// set of IDs is defined in @c GpuCacheId The call also specifies a @p layer which identifies the @c MapLayer associated
     /// with the cache.
     GpuLayerCache *layerCache(unsigned id);
 

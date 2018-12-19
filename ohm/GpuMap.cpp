@@ -51,9 +51,14 @@ using namespace ohm;
 namespace
 {
 #ifdef OHM_EMBED_GPU_CODE
-  GpuProgramRef program_ref("RegionUpdate", GpuProgramRef::kSourceString, RegionUpdateCode, RegionUpdateCode_length);
+  GpuProgramRef sub_vox_program_ref("RegionUpdate_sub", GpuProgramRef::kSourceString, RegionUpdateCode,
+                                    RegionUpdateCode_length, { "-DSUB_VOXEL" });
+  GpuProgramRef no_sub_vox_program_ref("RegionUpdate_no_sub", GpuProgramRef::kSourceString, RegionUpdateCode,
+                                       RegionUpdateCode_length);
 #else   // OHM_EMBED_GPU_CODE
-  GpuProgramRef program_ref("RegionUpdate", GpuProgramRef::kSourceFile, "RegionUpdate.cl");
+  GpuProgramRef sub_vox_program_ref("RegionUpdate_sub", GpuProgramRef::kSourceFile, "RegionUpdate.cl", 0u,
+                                    { "-DSUB_VOXEL" });
+  GpuProgramRef no_sub_vox_program_ref("RegionUpdate_no_sub", GpuProgramRef::kSourceFile, "RegionUpdate.cl");
 #endif  // OHM_EMBED_GPU_CODE
 
   typedef std::function<void(const glm::i16vec3 &, const glm::dvec3 &, const glm::dvec3 &)> RegionWalkFunction;
@@ -246,10 +251,19 @@ GpuMap::GpuMap(OccupancyMap *map, bool borrowed_map, unsigned expected_element_c
   }
   imp_->transform_samples = new GpuTransformSamples(gpu_cache.gpu());
 
-  if (program_ref.addReference(gpu_cache.gpu()))
+  if (map->subVoxelsEnabled())
+  {
+    imp_->program_ref = &sub_vox_program_ref;
+  }
+  else
+  {
+    imp_->program_ref = &no_sub_vox_program_ref;
+  }
+
+  if (imp_->program_ref->addReference(gpu_cache.gpu()))
   {
 #if OHM_GPU == OHM_GPU_OPENCL
-    imp_->update_kernel = gputil::openCLKernel(program_ref.program(), "regionRayUpdate");
+    imp_->update_kernel = gputil::openCLKernel(imp_->program_ref->program(), "regionRayUpdate");
 #endif  // OHM_GPU == OHM_GPU_OPENCL
     imp_->update_kernel.calculateOptimalWorkGroupSize();
 
@@ -267,7 +281,11 @@ GpuMap::~GpuMap()
   if (imp_ && imp_->update_kernel.isValid())
   {
     imp_->update_kernel = gputil::Kernel();
-    program_ref.releaseReference();
+    if (imp_->program_ref)
+    {
+      imp_->program_ref->releaseReference();
+      imp_->program_ref = nullptr;
+    }
   }
   delete imp_;
 }
@@ -591,8 +609,6 @@ void GpuMap::finaliseBatch(gputil::PinnedBuffer &regions_buffer, gputil::PinnedB
   // Complete region data upload.
   GpuCache &gpu_cache = *this->gpuCache();
   GpuLayerCache &layer_cache = *gpu_cache.layerCache(kGcIdOccupancy);
-  // TODO(KS): finish sub-voxel layer handling.
-  GpuLayerCache *sub_voxel_cache = nullptr; // gpu_cache.layerCache(kGcIdSubVoxel);
 
   regions_buffer.unpin(&layer_cache.gpuQueue(), nullptr, &imp_->region_key_upload_events[buf_idx]);
   offsets_buffer.unpin(&layer_cache.gpuQueue(), nullptr, &imp_->region_offset_upload_events[buf_idx]);
@@ -611,7 +627,6 @@ void GpuMap::finaliseBatch(gputil::PinnedBuffer &regions_buffer, gputil::PinnedB
   imp_->update_kernel(global_size, local_size, wait, imp_->region_update_events[buf_idx], &layer_cache.gpuQueue(),
                       // Kernel args begin:
                       gputil::BufferArg<float>(*layer_cache.buffer()),
-                      gputil::BufferArg<gputil::uint>(sub_voxel_cache ? sub_voxel_cache->buffer() : nullptr),
                       gputil::BufferArg<gputil::int3>(imp_->region_key_buffers[buf_idx]),
                       gputil::BufferArg<gputil::ulong>(imp_->region_offset_buffers[buf_idx]), region_count,
                       gputil::BufferArg<GpuKey>(imp_->key_buffers[buf_idx]),

@@ -93,7 +93,7 @@ void OccupancyMapDetail::moveKeyAlongAxis(Key &key, int axis, int step) const
 }
 
 
-void OccupancyMapDetail::setDefaultLayout()
+void OccupancyMapDetail::setDefaultLayout(bool enable_sub_voxel_positioning)
 {
   // Setup the default layers
   layout.clear();
@@ -105,10 +105,15 @@ void OccupancyMapDetail::setDefaultLayout()
   const float invalid_marker_value = voxel::invalidMarkerValue();
 
   clear_value = 0;
-  memcpy(&clear_value, &invalid_marker_value, std::min(sizeof(invalid_marker_value), sizeof(clear_value)));
+  memcpy(&clear_value, &invalid_marker_value, sizeof(invalid_marker_value));
+
   layer = layout.addLayer(default_layer::occupancyLayerName(), 0);
   voxel = layer->voxelLayout();
   voxel.addMember(default_layer::occupancyLayerName(), DataType::kFloat, clear_value);
+  if (enable_sub_voxel_positioning)
+  {
+    voxel.addMember("sub_voxel", DataType::kUInt32, clear_value);
+  }
 
   const float default_clearance = -1.0f;
   clear_value = 0;
@@ -116,23 +121,6 @@ void OccupancyMapDetail::setDefaultLayout()
   layer = layout.addLayer(default_layer::clearanceLayerName(), 0);
   voxel = layer->voxelLayout();
   voxel.addMember(default_layer::clearanceLayerName(), DataType::kFloat, clear_value);
-}
-
-
-void OccupancyMapDetail::enableSubVoxelPositioning()
-{
-  if (layout.subVoxelLayer() < 0)
-  {
-    // Create the sub_voxel layer
-    MapLayer *layer;
-    VoxelLayout voxel;
-    size_t clear_value;
-
-    clear_value = 0;
-    layer = layout.addLayer(default_layer::subVoxelLayerName(), 0);
-    voxel = layer->voxelLayout();
-    voxel.addMember(default_layer::subVoxelLayerName(), DataType::kUInt32, clear_value);
-  }
 }
 
 

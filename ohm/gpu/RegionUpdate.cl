@@ -20,7 +20,9 @@
 //------------------------------------------------------------------------------
 #include "gpu_ext.h"
 
+#ifdef SUB_VOXEL
 #include "SubVoxel.h"
+#endif // SUB_VOXEL
 #include "Regions.cl"
 #include "LineWalk.cl"
 
@@ -36,20 +38,32 @@ typedef float OccupancyType;
 typedef uint SubVoxelPatternType;
 #endif // __OPENCL_C_VERSION__ >= 200
 
+#ifdef SUB_VOXEL
+typedef struct VoxelType_
+{
+  OccupancyType occupancy;
+  SubVoxelPatternType sub_voxel;
+} VoxelType;
+#else  // SUB_VOXEL
+typedef struct VoxelType_
+{
+  OccupancyType occupancy;
+} VoxelType;
+#endif  // SUB_VOXEL
+
 // User data for walkLineVoxel() callback.
 struct LineWalkData
 {
   // Voxel occupancy memory. All regions use a shared buffer.
-  __global OccupancyType *voxels;
-  // Pattern for setting sub voxels occupancy.
-  __global SubVoxelPatternType *sub_voxel_coords;
-  // __global struct MapNode *voxels;
+  __global VoxelType *voxels;
   // Array of region keys for currently loaded regions.
   __global int3 *regionKeys;
   // Array of offsets for each regionKey into voxels. These are byte offsets.
   __global ulong *regionMemOffsets;
   // The region currently being traversed. Also used to reduce searching the regionKeys and regionMemOffsets.
   int3 currentRegion;
+  // The region currently being traversed for sub-voxel indexing. Used to reduce searching the subVoxKeys and subVoxMemOffsets.
+  int3 currentSubVoxRegion;
   // Size of a region in voxels.
   int3 regionDimensions;
   // MapMode/voxel value adjustment for keys along the line segment, but not the sample voxel.
@@ -73,16 +87,19 @@ struct LineWalkData
 #endif // STORE_DEBUG_INFO
 };
 
+#ifdef SUB_VOXEL
 /// Update the sub-voxel pattern at @p target_address by including the bit(s) from @p pattern_to_add.
 /// This is done using atomic operations.
 ///
 /// Each bit in the pattern indicates occupancy at a particular sub-voxel location.
 void updateSubVoxelPosition(__global SubVoxelPatternType *target_address, float3 sub_voxel_pos, float voxel_resolution);
+#endif // SUB_VOXEL
 
 //------------------------------------------------------------------------------
 // Functions
 //------------------------------------------------------------------------------
 
+#ifdef SUB_VOXEL
 void updateSubVoxelPosition(__global SubVoxelPatternType *target_address, float3 sub_voxel_pos, float voxel_resolution)
 {
   uint old_value;
@@ -106,14 +123,14 @@ void updateSubVoxelPosition(__global SubVoxelPatternType *target_address, float3
          iteration_limit < iteration_count);
 #endif // __OPENCL_C_VERSION__ >= 200
 }
-
+#endif // SUB_VOXEL
 
 // Implement the voxel travesal function. We update the value of the voxel using atomic instructions.
 bool walkLineVoxel(const struct GpuKey *voxelKey, bool isEndVoxel, float voxelResolution, void *userData)
 {
 #if __OPENCL_C_VERSION__ >= 200
   float old_value, new_value;
-  __global OccupancyType *voxel_ptr;
+  __global OccupancyType *occupancy_ptr;
 #else  // __OPENCL_C_VERSION__ >= 200
   union
   {
@@ -125,7 +142,7 @@ bool walkLineVoxel(const struct GpuKey *voxelKey, bool isEndVoxel, float voxelRe
   {
     __global volatile float *f;
     __global volatile int *i;
-  } voxel_ptr;
+  } occupancy_ptr;
 #endif // __OPENCL_C_VERSION__ >= 200
 
   struct LineWalkData *lineData = (struct LineWalkData *)userData;
@@ -163,19 +180,19 @@ bool walkLineVoxel(const struct GpuKey *voxelKey, bool isEndVoxel, float voxelRe
 
   // This voxel lies in the region. We will make a value adjustment.
   // Work out which voxel to modify.
-  const ulong vi = voxelKey->voxel[0] +
-                   voxelKey->voxel[1] * lineData->regionDimensions.x +
-                   voxelKey->voxel[2] * lineData->regionDimensions.x * lineData->regionDimensions.y +
-                   lineData->regionVoxelOffset;
+  ulong vi = voxelKey->voxel[0] +
+             voxelKey->voxel[1] * lineData->regionDimensions.x +
+             voxelKey->voxel[2] * lineData->regionDimensions.x * lineData->regionDimensions.y +
+             lineData->regionVoxelOffset;
 
   if (voxelKey->voxel[0] < lineData->regionDimensions.x &&
       voxelKey->voxel[1] < lineData->regionDimensions.y &&
       voxelKey->voxel[2] < lineData->regionDimensions.z)
   {
     #if __OPENCL_C_VERSION__ >= 200
-    voxel_ptr = &lineData->voxels[vi];
+    occupancy_ptr = &lineData->voxels[vi].occupancy;
     #else  // __OPENCL_C_VERSION__ >= 200
-    voxel_ptr.f = &lineData->voxels[vi];
+    occupancy_ptr.f = &lineData->voxels[vi].occupancy;
     #endif // __OPENCL_C_VERSION__ >= 200
 
     #ifdef LIMIT_VOXEL_WRITE_ITERATIONS
@@ -197,9 +214,9 @@ bool walkLineVoxel(const struct GpuKey *voxelKey, bool isEndVoxel, float voxelRe
 
       // Calculate a new value for the voxel.
       #if __OPENCL_C_VERSION__ >= 200
-      old_value = new_value = atomic_load_explicit(voxel_ptr, memory_order_relaxed);
+      old_value = new_value = atomic_load_explicit(occupancy_ptr, memory_order_relaxed);
       #else  // __OPENCL_C_VERSION__ >= 200
-      old_value.i = new_value.i = *voxel_ptr.i;
+      old_value.i = new_value.i = *occupancy_ptr.i;
       #endif  // __OPENCL_C_VERSION__ >= 200
 
       #if __OPENCL_C_VERSION__ >= 200
@@ -217,17 +234,19 @@ bool walkLineVoxel(const struct GpuKey *voxelKey, bool isEndVoxel, float voxelRe
       // Now try write the value, looping if we fail to write the new value.
       //mem_fence(CLK_GLOBAL_MEM_FENCE);
     #if __OPENCL_C_VERSION__ >= 200
-    } while(!atomic_compare_exchange_weak_explicit(voxel_ptr, &old_value, new_value,
+    } while(!atomic_compare_exchange_weak_explicit(occupancy_ptr, &old_value, new_value,
                                                    memory_order_release, memory_order_relaxed));
     #else  // __OPENCL_C_VERSION__ >= 200
-    } while(atomic_cmpxchg(voxel_ptr.i, old_value.i, new_value.i) != old_value.i);
-    //atomic_cmpxchg(voxel_ptr.i, old_value.i, new_value.i);
+    } while(atomic_cmpxchg(occupancy_ptr.i, old_value.i, new_value.i) != old_value.i);
+    //atomic_cmpxchg(occupancy_ptr.i, old_value.i, new_value.i);
     #endif  // __OPENCL_C_VERSION__ >= 200
 
-    if (adjustment > 0 && lineData->sub_voxel_coords)
+#ifdef SUB_VOXEL
+    if (adjustment > 0)
     {
-      updateSubVoxelPosition(lineData->sub_voxel_coords + vi, lineData->subVoxelCoord, voxelResolution);
+      updateSubVoxelPosition(&lineData->voxels[vi].sub_voxel, lineData->subVoxelCoord, voxelResolution);
     }
+#endif // SUB_VOXEL
   }
   else
   {
@@ -255,9 +274,9 @@ bool walkLineVoxel(const struct GpuKey *voxelKey, bool isEndVoxel, float voxelRe
 /// frame in GPU (we do not support double precision GPU due to the limited driver support).
 ///
 /// For each voxel key along the line, we resolve a voxel in @p voxels_mem by cross referencing in
-/// @p regionKeysGlobal, @p regionMemOffsetsGlobal and @p regionCount. Voxels are split into regions in contiguous
-/// chunks in @p voxels_mem. The @c GpuKey::region for a voxel is matched in lookup @p regionKeysGlobal and the index
-/// into @p regionKeysGlobal recorded. This index is used to lookup @p regionMemOffsetsGlobal, which provides a byte
+/// @p occupancy_region_keys_global, @p occupancy_region_mem_offsets_global and @p regionCount. Voxels are split into regions in contiguous
+/// chunks in @p voxels_mem. The @c GpuKey::region for a voxel is matched in lookup @p occupancy_region_keys_global and the index
+/// into @p occupancy_region_keys_global recorded. This index is used to lookup @p occupancy_region_mem_offsets_global, which provides a byte
 /// offset (not elements) from @p voxels_mem at which the voxel memory for this voxel begins. Each voxel region has a
 /// number of voxels equal to <tt>regionDimensions.x * regionDimensions.y * regionDimensions.z</tt>.
 ///
@@ -270,16 +289,19 @@ bool walkLineVoxel(const struct GpuKey *voxelKey, bool isEndVoxel, float voxelRe
 /// The value adjustment of @p lastVoxelAdjustment is normally used for the last voxel in each line. This behaviour may
 /// be changed per line, by setting the value of @p GpuKey::voxel[3] (normally unused) to 1. This indicates the line has
 /// been clipped.
-__kernel void regionRayUpdate(__global OccupancyType *voxels_mem,
-                              __global SubVoxelPatternType *sub_voxel_coords,
-                              __global int3 *regionKeysGlobal,
-                              __global ulong *regionMemOffsetsGlobal, uint regionCount,
+__kernel void regionRayUpdate(__global VoxelType *voxels_mem,
+                              __global int3 *occupancy_region_keys_global,
+                              __global ulong *occupancy_region_mem_offsets_global, uint regionCount,
                               __global struct GpuKey *lineKeys, __global float3 *localLines, uint lineCount,
                               int3 regionDimensions, float voxelResolution,
                               float rayAdjustment, float lastVoxelAdjustment,
                               float voxelValueMin, float voxelValueMax
                              )
 {
+  // #ifdef SUB_VOXEL
+  // printf("gpu-sub-voxels\n");
+  // #endif // SUB_VOXEL
+
   // Only process valid lines.
   if (get_global_id(0) >= lineCount)
   {
@@ -288,9 +310,8 @@ __kernel void regionRayUpdate(__global OccupancyType *voxels_mem,
 
   struct LineWalkData lineData;
   lineData.voxels = voxels_mem;
-  lineData.sub_voxel_coords = sub_voxel_coords;
-  lineData.regionKeys = regionKeysGlobal;
-  lineData.regionMemOffsets = regionMemOffsetsGlobal;
+  lineData.regionKeys = occupancy_region_keys_global;
+  lineData.regionMemOffsets = occupancy_region_mem_offsets_global;
   lineData.regionDimensions = regionDimensions;
   lineData.rayAdjustment = rayAdjustment;
   lineData.sampleAdjustment = lastVoxelAdjustment;

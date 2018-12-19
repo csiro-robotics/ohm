@@ -95,6 +95,8 @@ set(SOURCES
   Voxel.h
   VoxelLayout.cpp
   VoxelLayout.h
+  VoxelUtil.cpp
+  VoxelUtil.h
 )
 
 if(TES_ENABLE)
@@ -136,6 +138,7 @@ set(PUBLIC_HEADERS
   Stream.h
   Voxel.h
   VoxelLayout.h
+  VoxelUtil.h
   "${CMAKE_CURRENT_BINARY_DIR}/ohm/OhmConfig.h"
   "${CMAKE_CURRENT_BINARY_DIR}/ohm/OhmExport.h"
   )

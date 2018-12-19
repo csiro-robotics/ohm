@@ -124,7 +124,8 @@ namespace ohm
     /// @param borrowed_map True to borrow the map, @c false for this object to take ownership.
     /// @param expected_element_count The expected point count for calls to @c integrateRays(). Used as a hint.
     /// @param gpu_mem_size Optionally specify the target GPU cache memory to allocate.
-    GpuMap(OccupancyMap *map, bool borrowed_map = true, unsigned expected_element_count = 2048, size_t gpu_mem_size = 0u);
+    GpuMap(OccupancyMap *map, bool borrowed_map = true, unsigned expected_element_count = 2048,
+           size_t gpu_mem_size = 0u);
 
     /// Destructor. Will wait on outstanding GPU operations first and destroy the @c map() if not using a
     /// @c borrowedPointer().

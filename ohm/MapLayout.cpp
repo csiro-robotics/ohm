@@ -53,7 +53,7 @@ namespace
       }
     }
   }
-}
+}  // namespace
 
 
 MapLayout::MapLayout()
@@ -101,15 +101,29 @@ int MapLayout::occupancyLayer() const
 }
 
 
-int MapLayout::subVoxelLayer() const
-{
-  return imp_->sub_voxel_layer;
-}
-
-
 int MapLayout::clearanceLayer() const
 {
   return imp_->clearance_layer;
+}
+
+
+bool MapLayout::hasSubVoxelPattern() const
+{
+  if (imp_->using_sub_voxel_patterns == MapLayoutDetail::kSubUnknown)
+  {
+    // Need to look up the layer.
+    if (occupancyLayer() >= 0)
+    {
+      const MapLayer *layer = imp_->layers[occupancyLayer()];
+      if (layer && layer->voxelByteSize() > 0)
+      {
+        imp_->using_sub_voxel_patterns =
+          (layer->voxelByteSize() == sizeof(float)) ? MapLayoutDetail::kSubOff : MapLayoutDetail::kSubOn;
+      }
+    }
+  }
+
+  return imp_->using_sub_voxel_patterns == MapLayoutDetail::kSubOn;
 }
 
 
@@ -150,10 +164,6 @@ MapLayer *MapLayout::addLayer(const char *name, unsigned short subsampling)
   if (imp_->occupancy_layer == -1 && name_str.compare(default_layer::occupancyLayerName()) == 0)
   {
     imp_->occupancy_layer = new_layer->layerIndex();
-  }
-  else if (imp_->sub_voxel_layer == -1 && name_str.compare(default_layer::subVoxelLayerName()) == 0)
-  {
-    imp_->sub_voxel_layer = new_layer->layerIndex();
   }
   else if (imp_->clearance_layer == -1 && name_str.compare(default_layer::clearanceLayerName()) == 0)
   {

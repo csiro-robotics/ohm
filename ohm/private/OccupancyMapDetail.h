@@ -71,10 +71,8 @@ namespace ohm
     void moveKeyAlongAxis(Key &key, int axis, int step) const;
 
     /// Setup the default @c MapLayout: occupancy layer and clearance layer.
-    void setDefaultLayout();
-
-    // Ensure the sub_voxel layer is present.
-    void enableSubVoxelPositioning();
+    /// @param enable_sub_voxel_positioning Enable the sub_voxel positioning information?
+    void setDefaultLayout(bool enable_sub_voxel_positioning = false);
 
     /// Copy internal details from @p other. For cloning.
     /// @param other The map detail to copy from.

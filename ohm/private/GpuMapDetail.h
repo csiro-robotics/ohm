@@ -23,6 +23,7 @@
 namespace ohm
 {
   class OccupancyMap;
+  class GpuProgramRef;
   class GpuTransformSamples;
 
   struct GpuMapDetail
@@ -52,7 +53,8 @@ namespace ohm
     /// CPU buffer to read back results from GPU ray transformation.
     /// Only ever used in a transient fashion.
     std::vector<glm::vec4> transformed_rays;
-    //gputil::Device gpu;
+
+    GpuProgramRef *program_ref = nullptr;
     gputil::Kernel update_kernel;
 
     GpuTransformSamples *transform_samples = nullptr;

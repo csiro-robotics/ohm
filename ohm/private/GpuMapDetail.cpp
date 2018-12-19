@@ -8,10 +8,10 @@
 #include "DefaultLayer.h"
 #include "GpuCache.h"
 #include "GpuCacheParams.h"
+#include "GpuMap.h"
 #include "GpuTransformSamples.h"
 #include "OccupancyMap.h"
 #include "OccupancyMapDetail.h"
-#include "GpuMap.h"
 
 #include <gputil/gpuDevice.h>
 
@@ -56,7 +56,7 @@ GpuCache *ohm::initialiseGpuCache(OccupancyMap &map, size_t layer_gpu_mem_size, 
                                      GpuCacheParams{ 0, occupancy_layer, kGcfRead | kGcfWrite | mappable_flag });
     }
 
-    // Note: we create teh clearance gpu cache if we have a clearance layer, but it caches the occupancy_layer as that
+    // Note: we create the clearance gpu cache if we have a clearance layer, but it caches the occupancy_layer as that
     // is the information it reads.
     if (map.layout().clearanceLayer() >= 0)
     {
