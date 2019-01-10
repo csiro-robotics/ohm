@@ -412,6 +412,112 @@ int parseOptions(Options &opt, int argc, char *argv[])
 }
 
 
+std::string generateYamlName(const std::string &image_file)
+{
+  // Find replace the extension with .yaml
+  auto last_dot_pos = image_file.find_last_of(".");
+  std::string yaml_name;
+  if (last_dot_pos != std::string::npos)
+  {
+    yaml_name = image_file.substr(0, last_dot_pos);
+  }
+  else
+  {
+    yaml_name = image_file;
+  }
+
+  yaml_name += ".yaml";
+  return yaml_name;
+}
+
+
+bool saveMetaData(const std::string yaml_file, const Options &opt, ohm::Heightmap &heightmap,
+                  const ohm::HeightmapImage::BitmapInfo &info, ExportImageType image_format)
+{
+  std::ofstream out(yaml_file.c_str());
+
+  if (!out.is_open())
+  {
+    return false;
+  }
+
+  // Set high precision output.
+  out << std::setprecision(20);
+
+  int white_colour = 255;
+  const int black_colour = 0;
+
+  // Path to the heightmap image.
+  out << "image: " << opt.image_file << '\n';
+  // Describe how the image was generated.
+  out << "image_mode: " << opt.image_mode << "\n";
+  out << "image_format: ";
+  switch (image_format)
+  {
+  case kExportError:
+    out << "error";
+    break;
+  case kExportRGB8:
+    white_colour = 255;
+    out << "RGB8";
+    break;
+  case kExportRGB16:
+    white_colour = (1 << 16) - 1;
+    out << "RGB16";
+    break;
+  case kExportGrey8:
+    white_colour = 255;
+    out << "mono8";
+    break;
+  case kExportGrey16:
+    white_colour = (1 << 16) - 1;
+    out << "mono16";
+    break;
+  default:
+    out << "unknown";
+    break;
+  }
+  out << "\n";
+
+  // Convert the bitmap image global min extents into a 2D value.
+  glm::dvec3 min_ext_2d =
+    info.image_extents.minExtents() - glm::dot(heightmap.upAxisNormal(), info.image_extents.minExtents());
+  glm::dvec3 origin(0.0);
+  origin.x = glm::dot(min_ext_2d, heightmap.surfaceAxisA());
+  origin.y = glm::dot(min_ext_2d, heightmap.surfaceAxisB());
+  origin.z = 0;  // Yaw
+
+  // Image resolution in units/pixel. Units are the same as those used to generate the heightmap, generally metres.
+  out << "resolution: " << heightmap.heightmap().resolution() << '\n';
+  // The 2D pose of the lower-left pixel in the map, as (x, y, yaw), with yaw as counterclockwise rotation (degrees)
+  // yaw = 0 means no rotation).
+  out << "origin: [" << origin.x << ", " << origin.y << ", " << origin.z << "]\n";
+
+  // Mode specific information
+  switch (opt.image_mode)
+  {
+  case kTraversability:
+    // Pixels with this colour value are considered obstructed.
+    out << "obstructed_value: " << black_colour << "\n";  // Black
+    // Pixels with this colour value are considered free/traversable.
+    out << "free_value: " << white_colour << "\n";  // White
+    // Traversability angle (degrees)
+    out << "traverse_angle: " << opt.traverse_angle << "\n";
+    break;
+  default:
+    break;
+  }
+
+  out << "up: [" << heightmap.upAxisNormal().x << ", " << heightmap.upAxisNormal().y << ", "
+      << heightmap.upAxisNormal().z << "]\n";
+
+  out << std::flush;
+  out.close();
+
+  return true;
+}
+
+
 int main(int argc, char *argv[])
 {
   Options opt;
@@ -476,6 +582,13 @@ int main(int argc, char *argv[])
   if (!savePng(opt.image_file.c_str(), export_pixels, export_type, info.image_width, info.image_height))
   {
     std::cerr << "Failed to save heightmap image" << std::endl;
+    return 1;
+  }
+
+  std::string info_yaml_name = generateYamlName(opt.image_file);
+  if (!saveMetaData(info_yaml_name, opt, heightmap, info, export_type))
+  {
+    std::cerr << "Failed to save yaml" << std::endl;
     return 1;
   }
 
