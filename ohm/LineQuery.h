@@ -45,7 +45,7 @@ namespace ohm
   ///
   /// @todo Add a flag which will early out of completing the query when the line enters a region which contains only
   /// uncertain voxels (or does not exist). This is to help avoid creating those regions when using GPU queries
-  /// based on the assumption that we are not interested in continuing the query when it is wholy obstructed.
+  /// based on the assumption that we are not interested in continuing the query when it is wholly obstructed.
   ///
   /// @bug Update the comment without reference to defunct VoxelRange, instead noting that ClearanceProcess is
   /// required and precalculated clearance values may be assumed in GPU mode. searchRadius() is ingored in this
@@ -110,6 +110,42 @@ namespace ohm
     /// Note that setting this value to be smaller than the @c searchRadius() is ambiguous.
     /// @param range The range to report for voxels with no obstructions within range.
     void setDefaultRangeValue(float range);
+
+    /// Get the axis weightings applied when determining the nearest obstructing voxel.
+    /// @return Current axis weighting.
+    /// @see @c setAxisScaling()
+    glm::vec3 axisScaling() const;
+
+    /// Set the per axis scaling applied when determining the closest obstructing voxel.
+    ///
+    /// This vector effectively distorts the map using the following scaling matrix:
+    /// @code{.unparsed}
+    ///   axisScaling.x   0               0
+    ///   0               axisScaling.y   0
+    ///   0               0               axisScaling.z
+    /// @endcode
+    ///
+    /// The default scaling of (1, 1, 1) has no overall impact, meaning that the closest obstructing voxel is
+    /// selected. Scaling of (1, 1, 2) scales the Z axis by a factor of two, making the Z axis half as important as
+    /// either the X or Y axes.
+    ///
+    /// Results are scaled by calculating the distance between two voxels as show in the following pseudo code:
+    /// @code
+    ///   separation = nearestObstacleCentre - voxelCentre;
+    ///   separation.x *= 1.0f * axisScaling.x;
+    ///   separation.y *= 1.0f * axisScaling.y;
+    ///   separation.z *= 1.0f * axisScaling.z;
+    ///   float range = length(separation)
+    /// @endcode
+    ///
+    /// Note a zero value causes the scaling on that axis to be zero, making all voxels on that axis logically,
+    /// equidistant. This may yield undefined resuts. Negative values are not recommended, but will effectively be
+    /// equivalent to their absolute value.
+    ///
+    /// Modifying this value will require a cache reset (@c reset(true)) to recalculate ranges.
+    ///
+    /// @param scaling The new axis scaling to apply.
+    void setAxisScaling(const glm::vec3 &scaling);
 
   protected:
     bool onExecute() override;

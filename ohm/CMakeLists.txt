@@ -20,14 +20,23 @@ set(SOURCES
   private/MapLayerDetail.h
   private/MapLayoutDetail.h
   private/NearestNeighboursDetail.h
-  private/VoxelAlgorithms.cpp
-  private/VoxelAlgorithms.h
   private/OccupancyMapDetail.cpp
   private/OccupancyMapDetail.h
   private/QueryDetail.h
   private/RoiRangeFill.cpp
   private/RoiRangeFill.h
+  private/SerialiseUtil.h
+  private/VoxelAlgorithms.cpp
+  private/VoxelAlgorithms.h
   private/VoxelLayoutDetail.h
+  serialise/MapSerialiseV0.1.cpp
+  serialise/MapSerialiseV0.1.h
+  serialise/MapSerialiseV0.2.cpp
+  serialise/MapSerialiseV0.2.h
+  serialise/MapSerialiseV0.3.cpp
+  serialise/MapSerialiseV0.3.h
+  serialise/MapSerialiseV0.cpp
+  serialise/MapSerialiseV0.h
   Aabb.h
   ClearanceProcess.cpp
   ClearanceProcess.h

@@ -38,7 +38,7 @@ namespace ohm
     kQfUnknownAsOccupied = (1 << 0),
     /// Only report a single result, choosing the closest result.
     kQfNearestResult = (1 << 1),
-    /// Force (re)evaluation of data required for the query. This ensures the data are up to date
+    /// Request GPU usage for a query.
     kQfGpuEvaluate = (1 << 2),
 
     /// Do not allow use of cached values. Some queries support using cached data either in the query itself

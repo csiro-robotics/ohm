@@ -143,12 +143,12 @@ int main(int argc, char *argv[])
   std::cout << "Region spatial dimensions: " << map.regionSpatialResolution() << std::endl;
   std::cout << "Region voxel dimensions: " << map.regionVoxelDimensions() << " : " << map.regionVoxelVolume()
             << std::endl;
-  std::cout << "Region Count: " << region_count << std::endl;
+  std::cout << "Region count: " << region_count << std::endl;
   std::cout << std::endl;
 
   std::cout << "Occupancy threshold: " << map.occupancyThresholdProbability() << " (" << map.occupancyThresholdValue()
             << ")" << std::endl;
-  std::cout << "Hit Probability: " << map.hitProbability() << " (" << map.hitValue() << ")" << std::endl;
+  std::cout << "Hit probability: " << map.hitProbability() << " (" << map.hitValue() << ")" << std::endl;
   std::cout << "Miss probability: " << map.missProbability() << " (" << map.missValue() << ")" << std::endl;
   std::cout << "Saturation min/max: [";
   {
@@ -172,6 +172,7 @@ int main(int argc, char *argv[])
   }
 
   std::cout << "]" << std::endl;
+  std::cout << "Touched stamp: " << map.stamp() << std::endl;
   std::cout << std::endl;
 
   // Meta info.

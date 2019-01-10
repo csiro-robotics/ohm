@@ -184,6 +184,20 @@ void LineQuery::setDefaultRangeValue(float range)
 }
 
 
+glm::vec3 LineQuery::axisScaling() const
+{
+  const LineQueryDetail *d = imp();
+  return d->axis_scaling;
+}
+
+
+void LineQuery::setAxisScaling(const glm::vec3 &scaling)
+{
+  LineQueryDetail *d = imp();
+  d->axis_scaling = scaling;
+}
+
+
 bool LineQuery::onExecute()
 {
   LineQueryDetail *d = imp();
@@ -215,6 +229,7 @@ bool LineQuery::onExecute()
     }
     d->clearance_calculator->setSearchRadius(d->search_radius);
     d->clearance_calculator->setQueryFlags(clearance_flags);
+    d->clearance_calculator->setAxisScaling(d->axis_scaling);
     // Force recalculation if not using cached values. Otherwise we'll only calculate dirty regions.
     const bool force = (d->query_flags & kQfNoCache);
     d->clearance_calculator->calculateForExtents(*d->map, min_ext, max_ext, force);
