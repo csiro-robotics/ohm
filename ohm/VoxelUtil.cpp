@@ -66,11 +66,16 @@ namespace ohm
 
     const float *voxelOccupancyPtr(const Key &key, const MapChunk *chunk, const OccupancyMapDetail *map)
     {
+      if (!chunk)
+      {
+        return nullptr;
+      }
+
       if (chunk->layout->hasSubVoxelPattern())
       {
         const OccupancyVoxel *voxel =
           voxelPtrAs<const OccupancyVoxel *>(key, chunk, map, chunk->layout->occupancyLayer());
-        return &voxel->occupancy;
+        return (voxel) ? &voxel->occupancy : nullptr;
       }
 
       return voxelPtrAs<const float *>(key, chunk, map, chunk->layout->occupancyLayer());
@@ -79,10 +84,15 @@ namespace ohm
 
     float *voxelOccupancyPtr(const Key &key, MapChunk *chunk, const OccupancyMapDetail *map)
     {
+      if (!chunk)
+      {
+        return nullptr;
+      }
+
       if (chunk->layout->hasSubVoxelPattern())
       {
         OccupancyVoxel *voxel = voxelPtrAs<OccupancyVoxel *>(key, chunk, map, chunk->layout->occupancyLayer());
-        return &voxel->occupancy;
+        return (voxel) ? &voxel->occupancy : nullptr;
       }
 
       return voxelPtrAs<float *>(key, chunk, map, chunk->layout->occupancyLayer());
@@ -90,7 +100,7 @@ namespace ohm
 
     const uint32_t *subVoxelPatternPtr(const Key &key, const MapChunk *chunk, const OccupancyMapDetail *map)
     {
-      if (chunk->layout->hasSubVoxelPattern())
+      if (chunk && chunk->layout->hasSubVoxelPattern())
       {
         const OccupancyVoxel *voxel =
           voxelPtrAs<const OccupancyVoxel *>(key, chunk, map, chunk->layout->occupancyLayer());
@@ -103,7 +113,7 @@ namespace ohm
 
     uint32_t *subVoxelPatternPtr(const Key &key, MapChunk *chunk, const OccupancyMapDetail *map)
     {
-      if (chunk->layout->hasSubVoxelPattern())
+      if (chunk && chunk->layout->hasSubVoxelPattern())
       {
         OccupancyVoxel *voxel = voxelPtrAs<OccupancyVoxel *>(key, chunk, map, chunk->layout->occupancyLayer());
         return &voxel->sub_voxel;

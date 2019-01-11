@@ -11,6 +11,7 @@
 #include <ohm/MapCache.h>
 #include <ohm/MapChunk.h>
 #include <ohm/MapProbability.h>
+#include <ohm/MapSerialise.h>
 #include <ohm/OccupancyMap.h>
 #include <ohm/OccupancyUtil.h>
 
@@ -161,6 +162,12 @@ namespace gpumap
       filename = save_prefix;
       filename += "cloud-cpu.ply";
       ohmtools::saveCloud(filename.c_str(), cpu_map);
+      filename = save_prefix;
+      filename += "gpu.ohm";
+      ohm::save(filename.c_str(), gpu_map);
+      filename = save_prefix;
+      filename += "cpu.ohm";
+      ohm::save(filename.c_str(), cpu_map);
     }
   }
 
