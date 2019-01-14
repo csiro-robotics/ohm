@@ -179,10 +179,10 @@ Device::Device(const DeviceInfo &device_info)
 }
 
 
-Device::Device(int argc, const char **argv, const char *default_device)
+Device::Device(int argc, const char **argv, const char *default_device, unsigned device_type_flags)
   : imp_(new DeviceDetail)
 {
-  select(argc, argv, default_device);
+  select(argc, argv, default_device, device_type_flags);
 }
 
 
@@ -268,11 +268,27 @@ Queue Device::createQueue(unsigned flags) const
 }
 
 
-bool Device::select(int argc, const char **argv, const char *default_device)
+bool Device::select(int argc, const char **argv, const char *default_device, unsigned device_type_flags)
 {
   cl_device_type device_type = 0;
   std::vector<clu::PlatformConstraint> platform_constraints;
   std::vector<clu::DeviceConstraint> device_constraints;
+
+  if (device_type_flags)
+  {
+    if (device_type_flags & kCpu)
+    {
+      device_type |= CL_DEVICE_TYPE_CPU;
+    }
+    if (device_type_flags & kGpu)
+    {
+      device_type |= CL_DEVICE_TYPE_GPU;
+    }
+    if (device_type_flags & kAccelerator)
+    {
+      device_type |= CL_DEVICE_TYPE_ACCELERATOR;
+    }
+  }
 
   clu::constraintsFromCommandLine(argc, argv, device_type, platform_constraints, device_constraints);
 

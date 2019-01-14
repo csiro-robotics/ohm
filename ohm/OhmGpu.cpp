@@ -33,95 +33,119 @@ namespace ohm
   {
     if (!gpu_initialised)
     {
-      if (gpu_device.select(argc, argv, "Intel"))
+      struct PreferredDevice
       {
-        if (show_device)
+        const char *device_name;
+        unsigned type_flags = gputil::Device::kGpu;
+      };
+      static const PreferredDevice preferred_device[] =  //
         {
-          std::cout << gpu_device.description() << std::endl;
-        }
+          //
+          PreferredDevice{"Intel", gputil::Device::kGpu}, //
+          PreferredDevice{nullptr, gputil::Device::kGpu}, //
+          PreferredDevice{nullptr, gputil::Device::kAccelerator}, //
+          PreferredDevice{nullptr, 0}, //
+        };
+      static const size_t preferred_device_count = sizeof(preferred_device) / sizeof(preferred_device[0]);
+
+      for (size_t i = 0; !gpu_initialised && i < preferred_device_count; ++i)
+      {
+        if (gpu_device.select(argc, argv, preferred_device[i].device_name, preferred_device[i].type_flags))
+        {
+          if (show_device)
+          {
+            std::cout << gpu_device.description() << std::endl;
+          }
 
 #if OHM_GPU == OHM_GPU_OPENCL
-        // Is --clver on the command line?
-        bool found_cl_ver = false;
-        for (int i = 1; i < argc; ++i)
-        {
-          const char *cl_ver_arg = "--clver";
-          const size_t cl_arg_len = strlen(cl_ver_arg);
-          if (strncmp(argv[i], cl_ver_arg, cl_arg_len) == 0)
+          // Is --clver on the command line?
+          bool found_cl_ver = false;
+          for (int i = 1; i < argc; ++i)
           {
-            // Found --clver.
-            // Read the version string.
-            cl_uint ver_major, ver_minor;
-            std::string cl_ver = argv[i] + cl_arg_len + 1;
-            found_cl_ver = clu::parseVersion(cl_ver.c_str(), &ver_major, &ver_minor);
-            gpu_std_major = ver_major;
-            gpu_std_minor = ver_minor;
-          }
-        }
-
-        if (!found_cl_ver)
-        {
-          if (strcmp(OHM_OPENCL_STD, "max") == 0)
-          {
-            // Requesting the maximum available version.
-            // Query the device.
-            gpu_std_major = gpu_device.info().version.major;
-            gpu_std_minor = gpu_device.info().version.minor;
-          }
-          else
-          {
-            cl_uint ver_major, ver_minor;
-            clu::parseVersion(OHM_OPENCL_STD, &ver_major, &ver_minor);
-            gpu_std_major = ver_major;
-            gpu_std_minor = ver_minor;
-          }
-        }
-
-        // Validate OpenCL extensions for 2.x are available.
-        std::ostringstream str;
-        str << "-cl-std=CL" << gpu_std_major << "." << gpu_std_minor;
-        gpu_build_std_arg = str.str();
-        // Validate extensions.
-
-        bool extensions_supported = true;
-        if (gpu_std_major >= 2)
-        {
-          // Tokenise required OpenCL feature list
-          const char *feature_str = OHM_OPENCL_2_FEATURES;
-          do
-          {
-            const char *begin = feature_str;
-
-            while (*feature_str != ';' && *feature_str)
+            const char *cl_ver_arg = "--clver";
+            const size_t cl_arg_len = strlen(cl_ver_arg);
+            if (strncmp(argv[i], cl_ver_arg, cl_arg_len) == 0)
             {
-              ++feature_str;
+              // Found --clver.
+              // Read the version string.
+              cl_uint ver_major, ver_minor;
+              std::string cl_ver = argv[i] + cl_arg_len + 1;
+              found_cl_ver = clu::parseVersion(cl_ver.c_str(), &ver_major, &ver_minor);
+              gpu_std_major = ver_major;
+              gpu_std_minor = ver_minor;
             }
+          }
 
-            if (*begin != '\0')
+          if (!found_cl_ver)
+          {
+            if (strcmp(OHM_OPENCL_STD, "max") == 0)
             {
-              std::string feature(begin, feature_str);
-              if (!gpu_device.supportsFeature(feature.c_str()))
+              // Requesting the maximum available version.
+              // Query the device.
+              gpu_std_major = gpu_device.info().version.major;
+              gpu_std_minor = gpu_device.info().version.minor;
+            }
+            else
+            {
+              cl_uint ver_major, ver_minor;
+              clu::parseVersion(OHM_OPENCL_STD, &ver_major, &ver_minor);
+              gpu_std_major = ver_major;
+              gpu_std_minor = ver_minor;
+            }
+          }
+
+          // Validate OpenCL extensions for 2.x are available.
+          std::ostringstream str;
+          str << "-cl-std=CL" << gpu_std_major << "." << gpu_std_minor;
+          gpu_build_std_arg = str.str();
+          // Validate extensions.
+
+          bool extensions_supported = true;
+          if (gpu_std_major >= 2)
+          {
+            // Tokenise required OpenCL feature list
+            const char *feature_str = OHM_OPENCL_2_FEATURES;
+            do
+            {
+              const char *begin = feature_str;
+
+              while (*feature_str != ';' && *feature_str)
               {
-                std::cerr << "Missing OpenCL 2+ feature: " << feature << std::endl;
-                extensions_supported = false;
+                ++feature_str;
               }
-            }
-          } while (*feature_str++ != '\0');
-        }
 
-        if (!extensions_supported)
-        {
-          std::cerr << "Fallback to OpenCL 1.2" << std::endl;
-          gpu_build_std_arg = "-cl-std=CL1.2";
-          gpu_std_major = 1;
-          gpu_std_minor = 2;
-        }
+              if (*begin != '\0')
+              {
+                std::string feature(begin, feature_str);
+                if (!gpu_device.supportsFeature(feature.c_str()))
+                {
+                  std::cerr << "Missing OpenCL 2+ feature: " << feature << std::endl;
+                  extensions_supported = false;
+                }
+              }
+            } while (*feature_str++ != '\0');
+          }
+
+          if (!extensions_supported)
+          {
+            std::cerr << "Fallback to OpenCL 1.2" << std::endl;
+            gpu_build_std_arg = "-cl-std=CL1.2";
+            gpu_std_major = 1;
+            gpu_std_minor = 2;
+          }
 #endif  // OHM_GPU == OHM_GPU_OPENCL
 
 
-        gpu_initialised = true;
+          gpu_initialised = true;
+        }
       }
     }
+
+    if (!gpu_initialised && show_device)
+    {
+      std::cerr << "OHM GPU device selection failed" << std::endl;
+    }
+
     return gpu_initialised;
   }
 

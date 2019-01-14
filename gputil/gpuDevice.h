@@ -33,6 +33,17 @@ namespace gputil
       kDlFull
     };
 
+    /// Accelerator type. The available types are driven by the OpenCL API.
+    enum Type
+    {
+      /// CPU acceleration device.
+      kCpu = (1 << 0),
+      /// GPU device (preferred)
+      kGpu = (1 << 1),
+      /// Non-GPU accelerator device.
+      kAccelerator = (1 << 2)
+    };
+
     /// Construct to access default device or as an invalid device.
     /// @param default_device True to construct access the default device.
     Device(bool default_device = false);
@@ -45,10 +56,11 @@ namespace gputil
     /// @param argc Number of values in @c argv.
     /// @param argv Argument string to parse.
     /// @param default_device Partial device name to match as the default selection.
-    Device(int argc, const char **argv, const char *default_device = nullptr);
+    /// @param device_type_flags Preferred device @c Type flags.
+    Device(int argc, const char **argv, const char *default_device = nullptr, unsigned device_type_flags = kGpu);
     /// @overload
-    inline Device(int argc, char **argv, const char *default_device = nullptr)
-      : Device(argc, const_cast<const char **>(argv), default_device)
+    inline Device(int argc, char **argv, const char *default_device = nullptr, unsigned device_type_flags = kGpu)
+      : Device(argc, const_cast<const char **>(argv), default_device, device_type_flags)
     {}
 
     /// Copy constructor.
@@ -98,13 +110,14 @@ namespace gputil
     /// @param argc Number of values in @c argv.
     /// @param argv Argument string to parse.
     /// @param default_device Default device constraint to select if non specified.
+    /// @param device_type_flags Preferred device @c Type flags.
     /// @return True on success.
-    bool select(int argc, const char **argv, const char *default_device = nullptr);
+    bool select(int argc, const char **argv, const char *default_device = nullptr, unsigned device_type_flags = kGpu);
 
     /// @overload
-    inline bool select(int argc, char **argv, const char *default_device = nullptr)
+    inline bool select(int argc, char **argv, const char *default_device = nullptr, unsigned device_type_flags = kGpu)
     {
-      return select(argc, const_cast<const char **>(argv), default_device);
+      return select(argc, const_cast<const char **>(argv), default_device, device_type_flags);
     }
 
     /// Select a device from the given @c DeviceInfo.
