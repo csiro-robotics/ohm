@@ -154,6 +154,9 @@ namespace gpumap
     // std::cout << "Comparing" << std::endl;
     if (save_prefix)
     {
+      const auto save_start = TimingClock::now();
+      std::cout << "Saving clouds " << std::flush;
+
       std::string filename;
       filename = save_prefix;
       filename += "cloud-gpu.ply";
@@ -161,11 +164,17 @@ namespace gpumap
       filename = save_prefix;
       filename += "cloud-cpu.ply";
       ohmtools::saveCloud(filename.c_str(), cpu_map);
+
+      const auto save_end = TimingClock::now();
+      const auto save_elapsed = save_end - save_start;
+      std::cout << save_elapsed << std::endl;
     }
   }
 
   void compareMaps(const OccupancyMap &reference_map, const OccupancyMap &test_map)
   {
+    const auto compare_start = TimingClock::now();
+    std::cout << "Compare maps " << std::flush;
     // We need to allow for some discrepancies as the GPU map is non-deterministic.
     const float allowed_failure_ratio = 0.01f;
 
@@ -219,6 +228,10 @@ namespace gpumap
     {
       EXPECT_LT(float(failures) / float(processed), allowed_failure_ratio);
     }
+
+    const auto compare_end = TimingClock::now();
+    const auto compare_elapsed = compare_end - compare_start;
+    std::cout << compare_elapsed << std::endl;
   }
 
   void compareCpuGpuMaps(const OccupancyMap &reference_map, const GpuMap &test_map)
