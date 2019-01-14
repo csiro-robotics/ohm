@@ -32,7 +32,6 @@
 #include <limits>
 #include <utility>
 
-
 using namespace ohm;
 
 namespace
@@ -58,7 +57,6 @@ namespace
     // }
     // return key;
   }
-
 
   bool nextChunk(OccupancyMapDetail &map, ChunkMap::iterator &chunk_iter, Key &key)
   {
@@ -90,16 +88,14 @@ namespace
   }
 }  // namespace
 
-
 OccupancyMap::base_iterator::base_iterator()
   : map_(nullptr)
   , key_(Key::kNull)
 {
-  static_assert(sizeof(ChunkMap::iterator) <= sizeof(OccupancyMap::base_iterator::chunk_mem_),
-                "Insufficient space for chunk iterator.");
+  static_assert(sizeof(ChunkMap::iterator) <= sizeof(OccupancyMap::base_iterator::chunk_mem_), "Insufficient space for "
+                                                                                               "chunk iterator.");
   initChunkIter(chunk_mem_);
 }
-
 
 OccupancyMap::base_iterator::base_iterator(OccupancyMapDetail *map, const Key &key)
   : map_(map)
@@ -113,23 +109,20 @@ OccupancyMap::base_iterator::base_iterator(OccupancyMapDetail *map, const Key &k
   }
 }
 
-
 OccupancyMap::base_iterator::base_iterator(const base_iterator &other)
   : map_(other.map_)
   , key_(other.key_)
 {
-  static_assert(sizeof(ChunkMap::iterator) <= sizeof(OccupancyMap::base_iterator::chunk_mem_),
-                "Insufficient space for chunk iterator.");
+  static_assert(sizeof(ChunkMap::iterator) <= sizeof(OccupancyMap::base_iterator::chunk_mem_), "Insufficient space for "
+                                                                                               "chunk iterator.");
   initChunkIter(chunk_mem_) = chunkIter(other.chunk_mem_);
 }
-
 
 OccupancyMap::base_iterator::~base_iterator()
 {
   // Explicit destructor invocation.
   releaseChunkIter(chunk_mem_);
 }
-
 
 OccupancyMap::base_iterator &OccupancyMap::base_iterator::operator=(const base_iterator &other)
 {
@@ -139,7 +132,6 @@ OccupancyMap::base_iterator &OccupancyMap::base_iterator::operator=(const base_i
   return *this;
 }
 
-
 bool OccupancyMap::base_iterator::operator==(const base_iterator &other) const
 {
   // Chunks only have to match when not the end/invalid iterator.
@@ -147,25 +139,21 @@ bool OccupancyMap::base_iterator::operator==(const base_iterator &other) const
          (key_.isNull() || chunkIter(chunk_mem_) == chunkIter(other.chunk_mem_));
 }
 
-
 bool OccupancyMap::base_iterator::operator!=(const base_iterator &other) const
 {
   return !(*this == other);
 }
-
 
 bool OccupancyMap::base_iterator::base_iterator::isValid() const
 {
   return map_ && !key_.isNull();
 }
 
-
 VoxelConst OccupancyMap::base_iterator::voxel() const
 {
   const ChunkMap::iterator &iter = chunkIter(chunk_mem_);
   return isValid() ? VoxelConst(key_, iter->second, map_) : VoxelConst();
 }
-
 
 void OccupancyMap::base_iterator::walkNext()
 {
@@ -186,14 +174,13 @@ void OccupancyMap::base_iterator::walkNext()
   }
 }
 
-
 Voxel OccupancyMap::iterator::voxel()
 {
   return isValid() ? Voxel(key_, chunkIter(chunk_mem_)->second, map_) : Voxel();
 }
 
-
-OccupancyMap::OccupancyMap(double resolution, const glm::u8vec3 &region_voxel_dimensions)
+OccupancyMap::OccupancyMap(double resolution, const glm::u8vec3 &region_voxel_dimensions,
+                           bool enable_sub_voxel_positioning)
   : imp_(new OccupancyMapDetail)
 {
   imp_->resolution = resolution;
@@ -213,12 +200,11 @@ OccupancyMap::OccupancyMap(double resolution, const glm::u8vec3 &region_voxel_di
   setHitProbability(0.7f);
   setMissProbability(0.4f);
   setOccupancyThresholdProbability(0.5f);
-  imp_->setDefaultLayout();
+  imp_->setDefaultLayout(enable_sub_voxel_positioning);
   imp_->ray_filter = [](glm::dvec3 *start, glm::dvec3 *end, unsigned *filter_flags) {
     return ohm::goodRayFilter(start, end, filter_flags, 0);
   };
 }
-
 
 OccupancyMap::~OccupancyMap()
 {
@@ -229,30 +215,25 @@ OccupancyMap::~OccupancyMap()
   }
 }
 
-
 OccupancyMap::iterator OccupancyMap::begin()
 {
   return iterator(imp_, firstIterationKey());
 }
-
 
 OccupancyMap::const_iterator OccupancyMap::begin() const
 {
   return const_iterator(imp_, firstIterationKey());
 }
 
-
 OccupancyMap::iterator OccupancyMap::end()
 {
   return iterator(imp_, Key::kNull);
 }
 
-
 OccupancyMap::const_iterator OccupancyMap::end() const
 {
   return const_iterator(imp_, Key::kNull);
 }
-
 
 namespace
 {
@@ -268,7 +249,6 @@ namespace
     return NODE();
   }
 }  // namespace
-
 
 Voxel OccupancyMap::voxel(const Key &key, bool allow_create, MapCache *cache)
 {
@@ -303,7 +283,6 @@ Voxel OccupancyMap::voxel(const Key &key, bool allow_create, MapCache *cache)
   return Voxel();
 }
 
-
 VoxelConst OccupancyMap::voxel(const Key &key, MapCache *cache) const
 {
   MapChunk *chunk = (cache) ? cache->lookup(key) : nullptr;
@@ -330,7 +309,6 @@ VoxelConst OccupancyMap::voxel(const Key &key, MapCache *cache) const
   return VoxelConst();
 }
 
-
 int OccupancyMap::occupancyType(const VoxelConst &voxel) const
 {
   if (!voxel.isNull())
@@ -351,7 +329,6 @@ int OccupancyMap::occupancyType(const VoxelConst &voxel) const
 
   return Null;
 }
-
 
 size_t OccupancyMap::calculateApproximateMemory() const
 {
@@ -384,36 +361,30 @@ size_t OccupancyMap::calculateApproximateMemory() const
   return byte_count;
 }
 
-
 double OccupancyMap::resolution() const
 {
   return imp_->resolution;
 }
-
 
 uint64_t OccupancyMap::stamp() const
 {
   return imp_->stamp;
 }
 
-
 void OccupancyMap::touch()
 {
   ++imp_->stamp;
 }
-
 
 glm::dvec3 OccupancyMap::regionSpatialResolution() const
 {
   return imp_->region_spatial_dimensions;
 }
 
-
 glm::u8vec3 OccupancyMap::regionVoxelDimensions() const
 {
   return imp_->region_voxel_dimensions;
 }
-
 
 size_t OccupancyMap::regionVoxelVolume() const
 {
@@ -423,20 +394,17 @@ size_t OccupancyMap::regionVoxelVolume() const
   return v;
 }
 
-
 glm::dvec3 OccupancyMap::regionSpatialMin(const glm::i16vec3 &region_key) const
 {
   const glm::dvec3 spatial_min = regionSpatialCentre(region_key) - 0.5 * imp_->region_spatial_dimensions;
   return spatial_min;
 }
 
-
 glm::dvec3 OccupancyMap::regionSpatialMax(const glm::i16vec3 &region_key) const
 {
   const glm::dvec3 spatial_max = regionSpatialCentre(region_key) + 0.5 * imp_->region_spatial_dimensions;
   return spatial_max;
 }
-
 
 glm::dvec3 OccupancyMap::regionSpatialCentre(const glm::i16vec3 &region_key) const
 {
@@ -446,18 +414,15 @@ glm::dvec3 OccupancyMap::regionSpatialCentre(const glm::i16vec3 &region_key) con
   return centre;
 }
 
-
 void OccupancyMap::setOrigin(const glm::dvec3 &origin)
 {
   imp_->origin = origin;
 }
 
-
 const glm::dvec3 &OccupancyMap::origin() const
 {
   return imp_->origin;
 }
-
 
 void OccupancyMap::calculateExtents(glm::dvec3 &min_ext, glm::dvec3 &max_ext) const
 {
@@ -490,43 +455,36 @@ void OccupancyMap::calculateExtents(glm::dvec3 &min_ext, glm::dvec3 &max_ext) co
   }
 }
 
-
 MapInfo &OccupancyMap::mapInfo()
 {
   return imp_->info;
 }
-
 
 const MapInfo &OccupancyMap::mapInfo() const
 {
   return imp_->info;
 }
 
-
 const MapLayout &OccupancyMap::layout() const
 {
   return imp_->layout;
 }
-
 
 MapLayout &OccupancyMap::layout()
 {
   return imp_->layout;
 }
 
-
 bool OccupancyMap::subVoxelsEnabled() const
 {
   return imp_->layout.hasSubVoxelPattern();
 }
-
 
 size_t OccupancyMap::regionCount() const
 {
   std::unique_lock<decltype(imp_->mutex)> guard(imp_->mutex);
   return imp_->chunks.size();
 }
-
 
 unsigned OccupancyMap::expireRegions(double timestamp)
 {
@@ -541,7 +499,6 @@ unsigned OccupancyMap::expireRegions(double timestamp)
 
   return cullRegions(should_remove_chunk);
 }
-
 
 unsigned OccupancyMap::removeDistanceRegions(const glm::dvec3 &relative_to, float distance)
 {
@@ -561,7 +518,6 @@ unsigned OccupancyMap::removeDistanceRegions(const glm::dvec3 &relative_to, floa
   return cullRegions(should_remove_chunk);
 }
 
-
 unsigned OccupancyMap::cullRegionsOutside(const glm::dvec3 &min_extents, const glm::dvec3 &max_extents)
 {
   const glm::dvec3 region_extents = imp_->region_spatial_dimensions;
@@ -574,7 +530,6 @@ unsigned OccupancyMap::cullRegionsOutside(const glm::dvec3 &min_extents, const g
   return cullRegions(should_remove_chunk);
 }
 
-
 void OccupancyMap::touchRegionByKey(const glm::i16vec3 &region_key, double timestamp, bool allow_create)
 {
   MapChunk *chunk = region(region_key, allow_create);
@@ -584,12 +539,10 @@ void OccupancyMap::touchRegionByKey(const glm::i16vec3 &region_key, double times
   }
 }
 
-
 glm::dvec3 OccupancyMap::regionCentreGlobal(const glm::i16vec3 &region_key) const
 {
   return imp_->origin + regionCentreLocal(region_key);
 }
-
 
 glm::dvec3 OccupancyMap::regionCentreLocal(const glm::i16vec3 &region_key) const
 {
@@ -600,25 +553,21 @@ glm::dvec3 OccupancyMap::regionCentreLocal(const glm::i16vec3 &region_key) const
   return centre;
 }
 
-
 glm::i16vec3 OccupancyMap::regionKey(const glm::dvec3 &point) const
 {
   MapRegion region(point, imp_->origin, imp_->region_spatial_dimensions);
   return region.coord;
 }
 
-
 float OccupancyMap::hitValue() const
 {
   return imp_->hit_value;
 }
 
-
 float OccupancyMap::hitProbability() const
 {
   return imp_->hit_probability;
 }
-
 
 void OccupancyMap::setHitProbability(float probability)
 {
@@ -627,18 +576,15 @@ void OccupancyMap::setHitProbability(float probability)
   imp_->hit_value = probabilityToValue(probability);
 }
 
-
 float OccupancyMap::missValue() const
 {
   return imp_->miss_value;
 }
 
-
 float OccupancyMap::missProbability() const
 {
   return imp_->miss_probability;
 }
-
 
 void OccupancyMap::setMissProbability(float probability)
 {
@@ -647,26 +593,34 @@ void OccupancyMap::setMissProbability(float probability)
   imp_->miss_value = probabilityToValue(probability);
 }
 
-
 float OccupancyMap::occupancyThresholdValue() const
 {
   return imp_->occupancy_threshold_value;
 }
-
 
 float OccupancyMap::occupancyThresholdProbability() const
 {
   return imp_->occupancy_threshold_probability;
 }
 
-
 void OccupancyMap::setOccupancyThresholdProbability(float probability)
 {
   imp_->occupancy_threshold_probability = probability;
-  ;
   imp_->occupancy_threshold_value = probabilityToValue(probability);
 }
 
+Voxel OccupancyMap::integrateHit(const glm::dvec3 &point, MapCache *cache)
+{
+  Key key = voxelKey(point);
+  Voxel voxel = integrateHit(key, cache);
+  if (imp_->layout.hasSubVoxelPattern() && voxel.isValid())
+  {
+    OccupancyVoxel *voxel_occupancy = voxel.layerContent<OccupancyVoxel *>(imp_->layout.occupancyLayer());
+    voxel_occupancy->sub_voxel = subVoxelCoord(point - voxel.centreGlobal(), imp_->resolution);
+  }
+
+  return voxel;
+}
 
 Voxel OccupancyMap::addNode(const Key &key, float value)
 {
@@ -692,66 +646,55 @@ Voxel OccupancyMap::addNode(const Key &key, float value)
   return voxel;
 }
 
-
 float OccupancyMap::minNodeValue() const
 {
   return imp_->min_voxel_value;
 }
-
 
 void OccupancyMap::setMinNodeValue(float value)
 {
   imp_->min_voxel_value = value;
 }
 
-
 bool OccupancyMap::saturateAtMinValue() const
 {
   return imp_->saturate_at_min_value;
 }
-
 
 void OccupancyMap::setSaturateAtMinValue(bool saturate)
 {
   imp_->saturate_at_min_value = saturate;
 }
 
-
 float OccupancyMap::maxNodeValue() const
 {
   return imp_->max_voxel_value;
 }
-
 
 void OccupancyMap::setMaxNodeValue(float value)
 {
   imp_->max_voxel_value = value;
 }
 
-
 bool OccupancyMap::saturateAtMaxValue() const
 {
   return imp_->saturate_at_max_value;
 }
-
 
 void OccupancyMap::setSaturateAtMaxValue(bool saturate)
 {
   imp_->saturate_at_max_value = saturate;
 }
 
-
 glm::dvec3 OccupancyMap::voxelCentreLocal(const Key &key) const
 {
   return voxel::centreLocal(key, *imp_);
 }
 
-
 glm::dvec3 OccupancyMap::voxelCentreGlobal(const Key &key) const
 {
   return voxel::centreGlobal(key, *imp_);
 }
-
 
 Key OccupancyMap::voxelKey(const glm::dvec3 &point) const
 {
@@ -783,7 +726,6 @@ Key OccupancyMap::voxelKey(const glm::dvec3 &point) const
   return key;
 }
 
-
 Key OccupancyMap::voxelKey(const glm::vec3 &point) const
 {
   Key key;
@@ -792,7 +734,6 @@ Key OccupancyMap::voxelKey(const glm::vec3 &point) const
                   imp_->resolution);
   return key;
 }
-
 
 Key OccupancyMap::voxelKeyLocal(const glm::vec3 &local_point) const
 {
@@ -804,12 +745,10 @@ Key OccupancyMap::voxelKeyLocal(const glm::vec3 &local_point) const
   return key;
 }
 
-
 void OccupancyMap::moveKeyAlongAxis(Key &key, int axis, int step) const
 {
   imp_->moveKeyAlongAxis(key, axis, step);
 }
-
 
 void OccupancyMap::stepKey(Key &key, int axis, int dir) const
 {
@@ -831,14 +770,12 @@ void OccupancyMap::stepKey(Key &key, int axis, int dir) const
   key.setRegionAxis(axis, uint16_t(region_key));
 }
 
-
 void OccupancyMap::moveKey(Key &key, int x, int y, int z) const
 {
   moveKeyAlongAxis(key, 0, x);
   moveKeyAlongAxis(key, 1, y);
   moveKeyAlongAxis(key, 2, z);
 }
-
 
 size_t OccupancyMap::calculateSegmentKeys(KeyList &keys, const glm::dvec3 &start_point, const glm::dvec3 &end_point,
                                           bool include_end_point) const
@@ -860,30 +797,25 @@ size_t OccupancyMap::calculateSegmentKeys(KeyList &keys, const glm::dvec3 &start
   const glm::dvec3 start_point_local = glm::dvec3(start_point - origin());
   const glm::dvec3 end_point_local = glm::dvec3(end_point - origin());
 
-
   keys.clear();
   return ohmutil::walkSegmentKeys<Key>([&keys](const Key &key) { keys.add(key); }, start_point_local, end_point_local,
                                        include_end_point, KeyAdaptor(*this));
 }
-
 
 void OccupancyMap::setRayFilter(const RayFilterFunction &ray_filter)
 {
   imp_->ray_filter = ray_filter;
 }
 
-
 const RayFilterFunction &OccupancyMap::rayFilter() const
 {
   return imp_->ray_filter;
 }
 
-
 void OccupancyMap::clearRayFilter()
 {
   imp_->ray_filter = RayFilterFunction();
 }
-
 
 void OccupancyMap::integrateRays(const glm::dvec3 *rays, size_t element_count, bool end_points_as_occupied)
 {
@@ -900,7 +832,6 @@ void OccupancyMap::integrateRays(const glm::dvec3 *rays, size_t element_count, b
     filter_flags = 0;
     start = rays[i];
     end = rays[i + 1];
-
 
     if (use_filter)
     {
@@ -935,13 +866,11 @@ void OccupancyMap::integrateRays(const glm::dvec3 *rays, size_t element_count, b
   }
 }
 
-
 OccupancyMap *OccupancyMap::clone() const
 {
   return clone(-glm::dvec3(std::numeric_limits<double>::infinity()),
                glm::dvec3(std::numeric_limits<double>::infinity()));
 }
-
 
 OccupancyMap *OccupancyMap::clone(const glm::dvec3 &min_ext, const glm::dvec3 &max_ext) const
 {
@@ -989,7 +918,6 @@ OccupancyMap *OccupancyMap::clone(const glm::dvec3 &min_ext, const glm::dvec3 &m
   return new_map;
 }
 
-
 void OccupancyMap::enumerateRegions(std::vector<const MapChunk *> &chunks) const
 {
   std::unique_lock<decltype(imp_->mutex)> guard(imp_->mutex);
@@ -998,7 +926,6 @@ void OccupancyMap::enumerateRegions(std::vector<const MapChunk *> &chunks) const
     chunks.push_back(chunk_iter.second);
   }
 }
-
 
 MapChunk *OccupancyMap::region(const glm::i16vec3 &region_key, bool allow_create)
 {
@@ -1026,7 +953,6 @@ MapChunk *OccupancyMap::region(const glm::i16vec3 &region_key, bool allow_create
   return nullptr;
 }
 
-
 const MapChunk *OccupancyMap::region(const glm::i16vec3 &region_key) const
 {
   std::unique_lock<decltype(imp_->mutex)> guard(imp_->mutex);
@@ -1039,7 +965,6 @@ const MapChunk *OccupancyMap::region(const glm::i16vec3 &region_key) const
 
   return nullptr;
 }
-
 
 unsigned OccupancyMap::collectDirtyRegions(uint64_t from_stamp,
                                            std::vector<std::pair<uint64_t, glm::i16vec3>> &regions) const
@@ -1079,7 +1004,6 @@ unsigned OccupancyMap::collectDirtyRegions(uint64_t from_stamp,
 
   return added_count;
 }
-
 
 void OccupancyMap::calculateDirtyExtents(uint64_t *from_stamp, glm::i16vec3 *min_ext, glm::i16vec3 *max_ext) const
 {
@@ -1146,7 +1070,6 @@ void OccupancyMap::calculateDirtyClearanceExtents(glm::i16vec3 *min_ext, glm::i1
   }
 }
 
-
 void OccupancyMap::clear()
 {
   std::unique_lock<decltype(imp_->mutex)> guard(imp_->mutex);
@@ -1163,7 +1086,6 @@ void OccupancyMap::clear()
   }
 }
 
-
 Key OccupancyMap::firstIterationKey() const
 {
   std::unique_lock<decltype(imp_->mutex)> guard(imp_->mutex);
@@ -1177,7 +1099,6 @@ Key OccupancyMap::firstIterationKey() const
   return Key::kNull;
 }
 
-
 MapChunk *OccupancyMap::newChunk(const Key &for_key)
 {
   MapChunk *chunk = new MapChunk(MapRegion(voxelCentreGlobal(for_key), imp_->origin, imp_->region_spatial_dimensions),
@@ -1185,12 +1106,10 @@ MapChunk *OccupancyMap::newChunk(const Key &for_key)
   return chunk;
 }
 
-
 void OccupancyMap::releaseChunk(const MapChunk *chunk)
 {
   delete chunk;
 }
-
 
 unsigned OccupancyMap::cullRegions(const RegionCullFunc &cull_func)
 {

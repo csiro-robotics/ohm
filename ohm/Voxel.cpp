@@ -128,6 +128,24 @@ void Voxel::setClearance(float range)
 }
 
 
+bool Voxel::setPosition(const glm::dvec3 &position) const
+{
+  if (isValid())
+  {
+    if (chunk_->layout->hasSubVoxelPattern())
+    {
+      OccupancyVoxel *voxel_occupancy = layerContent<OccupancyVoxel *>(map_->layout.occupancyLayer());
+      voxel_occupancy->sub_voxel = subVoxelCoord(position - centreGlobal(), map_->resolution);
+
+      return true;
+    }
+
+  }
+
+  return false;
+}
+
+
 void Voxel::touchRegion(double timestamp)
 {
   if (chunk_)

@@ -271,6 +271,16 @@ namespace ohm
     /// @param range The new obstacle range.
     void setClearance(float range);
 
+    /// Sets the position of the voxel using sub-voxel positioning. This requires that the occupancy layer supports
+    /// sub-voxel positioning, which may be enabled when the map is constructed. Note that the position set will not
+    /// be accurately reflected when queried with @c position() as sub-voxel positioning uses quantisation.
+    ///
+    /// The call fails if the map does not have sub-voxel positioning enabled, or if the voxel reference is invalid.
+    ///
+    /// @param position The target position to set should be within the voxel bounds, but will be clamped.
+    /// @return True on success.
+    bool setPosition(const glm::dvec3 &position) const;
+
     /// Updates the timestamp for the @c MapRegion to which this voxel belongs.
     /// This may be used to manage time based expiry.
     /// @param timestamp The timestamp to set for the region.

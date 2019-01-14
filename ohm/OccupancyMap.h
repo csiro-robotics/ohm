@@ -73,7 +73,7 @@ namespace ohm
   {
   public:
     /// Base iterator class.
-    class ohm_API base_iterator // NOLINT
+    class ohm_API base_iterator  // NOLINT
     {
     public:
       /// Invalid constructor.
@@ -119,8 +119,8 @@ namespace ohm
       /// Iterator is unchanged if already invalid.
       void walkNext();
 
-      OccupancyMapDetail *map_; ///< The referenced map.
-      Key key_;        ///< The current voxel key.
+      OccupancyMapDetail *map_;  ///< The referenced map.
+      Key key_;                  ///< The current voxel key.
       /// Memory used to track an iterator into a hidden container type.
       /// We use an anonymous, fixed size memory chunk and placement new to prevent exposing STL
       /// types as part of the ABI.
@@ -128,7 +128,7 @@ namespace ohm
     };
 
     /// Non-constant iterator into an @c OccupancyMap.
-    class iterator : public base_iterator // NOLINT
+    class iterator : public base_iterator  // NOLINT
     {
     public:
       /// Constructor of an invalid iterator.
@@ -136,10 +136,14 @@ namespace ohm
       /// Iterator into @p map starting at @p key. Map must remain unchanged during iteration.
       /// @param map The map to iterate in.
       /// @param key The key to start iterating at.
-      inline iterator(OccupancyMapDetail *map, const Key &key) : base_iterator(map, key) { }
+      inline iterator(OccupancyMapDetail *map, const Key &key)
+        : base_iterator(map, key)
+      {}
       /// Copy constructor.
       /// @param other Object to shallow copy.
-      inline iterator(const iterator &other) : base_iterator(other) {}
+      inline iterator(const iterator &other)
+        : base_iterator(other)
+      {}
 
       /// Empty destructor.
       ~iterator() = default;
@@ -147,12 +151,21 @@ namespace ohm
       /// Prefix increment for the iterator. Iterator becomes invalid when incrementing an iterator
       /// referencing the last voxel in the map. Safe to call on an invalid iterator (no change).
       /// @return This iterator after the increment.
-      inline iterator &operator++() { walkNext(); return *this; }
+      inline iterator &operator++()
+      {
+        walkNext();
+        return *this;
+      }
 
       /// Postfix increment for the iterator. Iterator becomes invalid when incrementing an iterator
       /// referencing the last voxel in the map. Safe to call on an invalid iterator (no change).
       /// @return @c This iterator before the increment.
-      inline iterator operator++(int) { iterator iter(*this);  walkNext(); return iter; }
+      inline iterator operator++(int)
+      {
+        iterator iter(*this);
+        walkNext();
+        return iter;
+      }
 
       /// Access the voxel this iterator refers to. Iterator must be valid before calling.
       /// @return A non-constant reference wrapper for the iterator's voxel.
@@ -161,19 +174,35 @@ namespace ohm
 
       /// Alias for @c voxel().
       /// @return Same as @c voxel().
-      inline Voxel &operator *() { resolveNode(); return voxel_; }
+      inline Voxel &operator*()
+      {
+        resolveNode();
+        return voxel_;
+      }
 
       /// Alias for @c voxel().
       /// @return Same as @c voxel().
-      inline const Voxel &operator *() const { resolveNode(); return voxel_; }
+      inline const Voxel &operator*() const
+      {
+        resolveNode();
+        return voxel_;
+      }
 
       /// Alias for @c voxel().
       /// @return Same as @c voxel().
-      inline Voxel *operator ->() { resolveNode(); return &voxel_; }
+      inline Voxel *operator->()
+      {
+        resolveNode();
+        return &voxel_;
+      }
 
       /// Alias for @c voxel().
       /// @return Same as @c voxel().
-      inline const Voxel *operator ->() const { resolveNode(); return &voxel_; }
+      inline const Voxel *operator->() const
+      {
+        resolveNode();
+        return &voxel_;
+      }
 
     private:
       /// Resolve the @c base_iterator data into @c _voxel.
@@ -185,7 +214,7 @@ namespace ohm
     };
 
     /// Constant (read only) iterator for an @c OccupancyMap.
-    class const_iterator : public base_iterator // NOLINT
+    class const_iterator : public base_iterator  // NOLINT
     {
     public:
       /// Constructor of an invalid iterator.
@@ -193,27 +222,48 @@ namespace ohm
       /// Iterator into @p map starting at @p key. Map must remain unchanged during iteration.
       /// @param map The map to iterate in.
       /// @param key The key to start iterating at.
-      inline const_iterator(OccupancyMapDetail *map, const Key &key) : base_iterator(map, key) {}
+      inline const_iterator(OccupancyMapDetail *map, const Key &key)
+        : base_iterator(map, key)
+      {}
       /// Copy constructor.
       /// @param other Object to shallow copy.
-      inline const_iterator(const base_iterator &other) : base_iterator(other) {}
+      inline const_iterator(const base_iterator &other)
+        : base_iterator(other)
+      {}
 
       /// Prefix increment for the iterator. Iterator becomes invalid when incrementing an iterator
       /// referencing the last voxel in the map. Safe to call on an invalid iterator (no change).
       /// @return This iterator after the increment.
-      inline const_iterator &operator++() { walkNext(); return *this; }
+      inline const_iterator &operator++()
+      {
+        walkNext();
+        return *this;
+      }
       /// Postfix increment for the iterator. Iterator becomes invalid when incrementing an iterator
       /// referencing the last voxel in the map. Safe to call on an invalid iterator (no change).
       /// @return @c This iterator before the increment.
-      inline const_iterator operator++(int) { const_iterator iter(*this);  walkNext(); return iter; }
+      inline const_iterator operator++(int)
+      {
+        const_iterator iter(*this);
+        walkNext();
+        return iter;
+      }
 
       /// Alias for @c voxel().
       /// @return Same as @c voxel().
-      inline const VoxelConst &operator *() const { resolveNode(); return voxel_; }
+      inline const VoxelConst &operator*() const
+      {
+        resolveNode();
+        return voxel_;
+      }
 
       /// Alias for @c voxel().
       /// @return Same as @c voxel().
-      inline const VoxelConst *operator ->() const { resolveNode(); return &voxel_; }
+      inline const VoxelConst *operator->() const
+      {
+        resolveNode();
+        return &voxel_;
+      }
 
     private:
       /// Resolve the @c base_iterator data into @c _voxel.
@@ -237,7 +287,9 @@ namespace ohm
     /// @param resolution The resolution for a single voxel in the map. Any zero value
     ///   dimension is replaced with its default value; e.g., @c OHM_DEFAULT_CHUNK_DIM_X.
     /// @param region_voxel_dimensions Sets the number of voxels in each map region.
-    OccupancyMap(double resolution = 1.0, const glm::u8vec3 &region_voxel_dimensions = glm::u8vec3(0, 0, 0));
+    /// @param enable_sub_voxel_positioning Enable sub voxel positioning information?
+    OccupancyMap(double resolution = 1.0, const glm::u8vec3 &region_voxel_dimensions = glm::u8vec3(0, 0, 0),
+                 bool enable_sub_voxel_positioning = false);
     /// Destructor.
     ~OccupancyMap();
 
@@ -387,14 +439,20 @@ namespace ohm
     /// @param timestamp The timestamp to update the region touch time to.
     /// @param allow_create Create the region (all uncertain) if it doesn't exist?
     /// @see @c touchRegionByKey()
-    inline void touchRegion(const glm::vec3 &point, double timestamp, bool allow_create = false) { touchRegion(voxelKey(point), timestamp, allow_create); }
+    inline void touchRegion(const glm::vec3 &point, double timestamp, bool allow_create = false)
+    {
+      touchRegion(voxelKey(point), timestamp, allow_create);
+    }
 
     /// Touch the @c MapRegion which contains @p voxelKey.
     /// @param voxel_key A voxel key from which to resolve a containing region.
     /// @param timestamp The timestamp to update the region touch time to.
     /// @param allow_create Create the region (all uncertain) if it doesn't exist?
     /// @see @c touchRegionByKey()
-    inline void touchRegion(const Key &voxel_key, double timestamp, bool allow_create = false) { touchRegionByKey(voxel_key.regionKey(), timestamp, allow_create); }
+    inline void touchRegion(const Key &voxel_key, double timestamp, bool allow_create = false)
+    {
+      touchRegionByKey(voxel_key.regionKey(), timestamp, allow_create);
+    }
 
     /// Touch the @c MapRegion identified by @p regionKey.
     ///
@@ -529,10 +587,18 @@ namespace ohm
 
     /// Adjust the value of @p voxel by forcibly setting its occupancy probabilty to @c hitProbability().
     /// @param voxel The voxel to increase the occupancy probabilty for. Must be a valid, non-null voxel.
-    inline void setHit(Voxel &voxel) const { if (voxel.isValid()) voxel.setValue(hitValue()); }
+    inline void setHit(Voxel &voxel) const
+    {
+      if (voxel.isValid())
+        voxel.setValue(hitValue());
+    }
     /// Adjust the value of @p voxel by forcibly setting its occupancy probabilty to @c missProbability().
     /// @param voxel The voxel to increase the occupancy probabilty for. Must be a valid, non-null voxel.
-    inline void setMiss(Voxel &voxel) const { if (voxel.isValid()) voxel.setValue(missValue()); }
+    inline void setMiss(Voxel &voxel) const
+    {
+      if (voxel.isValid())
+        voxel.setValue(missValue());
+    }
 
     /// The minimum value a voxel can have. Value adjustments are clamped to this minimum.
     /// @return The minimum voxel value.
@@ -761,7 +827,8 @@ namespace ohm
     unsigned collectDirtyRegions(uint64_t from_stamp, std::vector<std::pair<uint64_t, glm::i16vec3>> &regions) const;
 
     void calculateDirtyExtents(uint64_t *from_stamp, glm::i16vec3 *min_ext, glm::i16vec3 *max_ext) const;
-    void calculateDirtyClearanceExtents(glm::i16vec3 *min_ext, glm::i16vec3 *max_ext, unsigned region_padding = 0) const;
+    void calculateDirtyClearanceExtents(glm::i16vec3 *min_ext, glm::i16vec3 *max_ext,
+                                        unsigned region_padding = 0) const;
 
     /// Clear the map content and release map memory.
     void clear();
@@ -772,7 +839,7 @@ namespace ohm
     static void releaseChunk(const MapChunk *chunk);
 
     /// Culling function for @c cullRegions().
-    using RegionCullFunc = std::function<bool (const MapChunk &)>;
+    using RegionCullFunc = std::function<bool(const MapChunk &)>;
 
     /// Remove regions/chunks for which @c cull_func returns true.
     /// @param cull_func The culling criteria.
@@ -781,7 +848,6 @@ namespace ohm
 
     OccupancyMapDetail *imp_;
   };
-
 
   inline void OccupancyMap::integrateHit(Voxel &voxel) const
   {
@@ -798,21 +864,12 @@ namespace ohm
     }
   }
 
-
-  inline Voxel OccupancyMap::integrateHit(const glm::dvec3 &point, MapCache *cache)
-  {
-    Key key = voxelKey(point);
-    return integrateHit(key, cache);
-  }
-
-
   inline Voxel OccupancyMap::integrateHit(const Key &key, MapCache *cache)
   {
     Voxel voxel = this->voxel(key, true, cache);
     integrateHit(voxel);
     return voxel;
   }
-
 
   inline void OccupancyMap::integrateMiss(Voxel &voxel) const
   {
@@ -829,13 +886,11 @@ namespace ohm
     }
   }
 
-
   inline Voxel OccupancyMap::integrateMiss(const glm::dvec3 &point, MapCache *cache)
   {
     Key key = voxelKey(point);
     return integrateMiss(key, cache);
   }
-
 
   inline Voxel OccupancyMap::integrateMiss(const Key &key, MapCache *cache)
   {
@@ -844,29 +899,19 @@ namespace ohm
     return voxel;
   }
 
-
   inline void OccupancyMap::setMinNodeProbability(float probability)
   {
     setMinNodeValue(probabilityToValue(probability));
   }
 
-
-  inline float OccupancyMap::minNodeProbability() const
-  {
-    return valueToProbability(minNodeValue());
-  }
-
+  inline float OccupancyMap::minNodeProbability() const { return valueToProbability(minNodeValue()); }
 
   inline void OccupancyMap::setMaxNodeProbability(float probability)
   {
     setMaxNodeValue(probabilityToValue(probability));
   }
 
+  inline float OccupancyMap::maxNodeProbability() const { return valueToProbability(maxNodeValue()); }
+}  // namespace ohm
 
-  inline float OccupancyMap::maxNodeProbability() const
-  {
-    return valueToProbability(maxNodeValue());
-  }
-}
-
-#endif // OCCUPANCYMAP_H
+#endif  // OCCUPANCYMAP_H

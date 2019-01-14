@@ -49,20 +49,24 @@ namespace ohm
   {
     // We divide the voxel into a voxel_local_coord, 3D grid, then assign 1 bit per cell.
     const unsigned bits_per_axis = 10;
+    const unsigned sub_voxel_positions = (1 << bits_per_axis) - 1;
     const unsigned used_bit = (1 << 31);
-    const coord_real sub_voxel_resolution = resolution / (coord_real)bits_per_axis;
-
+    const coord_real sub_voxel_resolution = resolution / (coord_real)sub_voxel_positions;
     const coord_real offset = (coord_real)0.5 * resolution;
-    unsigned index_x = (unsigned)pointToRegionCoord(voxel_local_coord.x + offset, resolution);
-    unsigned index_y = (unsigned)pointToRegionCoord(voxel_local_coord.y + offset, resolution);
-    unsigned index_z = (unsigned)pointToRegionCoord(voxel_local_coord.z + offset, resolution);
 
-    index_x = (index_x < bits_per_axis) ? index_x : bits_per_axis;
-    index_y = (index_y < bits_per_axis) ? index_y : bits_per_axis;
-    index_z = (index_z < bits_per_axis) ? index_z : bits_per_axis;
+    int pos_x = pointToRegionCoord(voxel_local_coord.x + offset, sub_voxel_resolution);
+    int pos_y = pointToRegionCoord(voxel_local_coord.y + offset, sub_voxel_resolution);
+    int pos_z = pointToRegionCoord(voxel_local_coord.z + offset, sub_voxel_resolution);
 
-    const unsigned pattern = used_bit |
-      (1 << index_x) | ((1 << index_y) << bits_per_axis) | ((1 << index_z) << (2 * bits_per_axis));
+    pos_x = (pos_x >= 0 ? (pos_x < (1 << bits_per_axis) ? pos_x : sub_voxel_positions) : 0) ;
+    pos_y = (pos_y >= 0 ? (pos_y < (1 << bits_per_axis) ? pos_y : sub_voxel_positions) : 0) ;
+    pos_z = (pos_z >= 0 ? (pos_z < (1 << bits_per_axis) ? pos_z : sub_voxel_positions) : 0) ;
+
+    unsigned pattern = 0;
+    pattern |= (unsigned)pos_x;
+    pattern |= ((unsigned)pos_y << bits_per_axis);
+    pattern |= ((unsigned)pos_z << (2 * bits_per_axis));
+    pattern |= used_bit;
     return pattern;
   }
 
@@ -71,11 +75,15 @@ namespace ohm
   vec3 subVoxelToLocalCoord(unsigned pattern, coord_real resolution)
   {
     const unsigned bits_per_axis = 10;
+    const unsigned sub_voxel_positions = (1 << bits_per_axis) - 1;
     const unsigned used_bit = (1 << 31);
+    const coord_real sub_voxel_resolution = resolution / (coord_real)sub_voxel_positions;
+    const coord_real offset = (coord_real)0.5 * resolution;
+
     vec3 coord;
-    coord.x = (used_bit) ? regionCentreCoord((int)(pattern & 0x3FFu), resolution) : 0;
-    coord.y = (used_bit) ? regionCentreCoord((int)((pattern >> bits_per_axis) & 0x3FFu), resolution) : 0;
-    coord.z = (used_bit) ? regionCentreCoord((int)((pattern >> (2 * bits_per_axis)) & 0x3FFu), resolution) : 0;
+    coord.x = (used_bit) ? regionCentreCoord((int)(pattern & sub_voxel_positions), sub_voxel_resolution) - offset : 0;
+    coord.y = (used_bit) ? regionCentreCoord((int)((pattern >> bits_per_axis) & sub_voxel_positions), sub_voxel_resolution) - offset : 0;
+    coord.z = (used_bit) ? regionCentreCoord((int)((pattern >> (2 * bits_per_axis)) & sub_voxel_positions), sub_voxel_resolution) - offset : 0;
     return coord;
   }
 
