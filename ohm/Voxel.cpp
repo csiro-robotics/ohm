@@ -128,7 +128,7 @@ void Voxel::setClearance(float range)
 }
 
 
-bool Voxel::setPosition(const glm::dvec3 &position) const
+bool Voxel::setPosition(const glm::dvec3 &position)
 {
   if (isValid())
   {
@@ -137,6 +137,25 @@ bool Voxel::setPosition(const glm::dvec3 &position) const
       OccupancyVoxel *voxel_occupancy = layerContent<OccupancyVoxel *>(map_->layout.occupancyLayer());
       voxel_occupancy->sub_voxel = subVoxelCoord(position - centreGlobal(), map_->resolution);
 
+      return true;
+    }
+
+  }
+
+  return false;
+}
+
+
+bool Voxel::updatePosition(const glm::dvec3 &position, double update_weighting)
+{
+  if (isValid())
+  {
+    if (chunk_->layout->hasSubVoxelPattern())
+    {
+      update_weighting = (update_weighting >= 0) ? update_weighting : map_->sub_voxel_weighting;
+      OccupancyVoxel *voxel_occupancy = layerContent<OccupancyVoxel *>(map_->layout.occupancyLayer());
+      voxel_occupancy->sub_voxel = subVoxelUpdate(voxel_occupancy->sub_voxel, position - centreGlobal(),
+                                                  map_->resolution, update_weighting);
       return true;
     }
 

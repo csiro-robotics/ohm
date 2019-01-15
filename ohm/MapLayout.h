@@ -137,6 +137,9 @@ namespace ohm
     /// @return true if sub-voxel patterns are in use.
     bool hasSubVoxelPattern() const;
 
+    /// Invalidate the @c hasSubVoxelPattern() flag.
+    void invalidateSubVoxelPatternState();
+
     /// Remove all layers except for the named layers. Removing interleaved layers may create gaps in the layer
     /// array. These gaps are removed with the array being repacked.
     /// @param preserve_layers Names of the layers to preserve. Exact match required.
@@ -168,6 +171,14 @@ namespace ohm
     /// @param index The layer index.
     /// @return The layer at the given @p index or null if @p index is out of range [0, @c layerCount()).
     const MapLayer *layerPtr(size_t index) const;
+
+    /// Retrieve a layer pointer by index. This allows @p index to be out of range.
+    ///
+    /// For internal use only. Changing a layer will invalidate a map leading to undefined behaviour.
+    ///
+    /// @param index The layer index.
+    /// @return The layer at the given @p index or null if @p index is out of range [0, @c layerCount()).
+    MapLayer *layerPtr(size_t index);
 
     /// Retrieve the number of layers.
     /// @return The number of registered layers.

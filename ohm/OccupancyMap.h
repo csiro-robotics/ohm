@@ -337,6 +337,16 @@ namespace ohm
     /// @return The leaf voxel resolution.
     double resolution() const;
 
+    /// Returns the sub-voxel weighting used to update sub-voxel positioning.
+    /// @return The sub voxel weighting.
+    /// @seealso @ref subvoxel
+    double subVoxelWeighting() const;
+
+    /// Set the sub-voxel weighting used to update sub-voxel positioning.
+    /// @param weighting The new sub voxel weighting.
+    /// @seealso @ref subvoxel
+    void setSubVoxelWeighting(double weighting);
+
     /// A cyclic stamp value which changes whenever the map is touched. May be used to note when the map has
     /// been changed from a previous stamp value.
     /// @return The current cyclic stamp value.
@@ -400,6 +410,17 @@ namespace ohm
     // reset to only preserve the occupancy layer.
     /// @return Layout details.
     MapLayout &layout();
+
+    /// Enables or disables sub-voxel positioning. This invalidates any existing @c Voxel or @c VoxelConst references.
+    ///
+    /// Note that disabling sub-voxel positioning destroys any existing data for sub-voxel positioning.
+    ///
+    /// Also note that changing the requires all map chunks be re-allocated which may be take some time.
+    ///
+    /// Does nothing if @p enable matches the state of @p subVoxelsEnabled().
+    ///
+    /// @param enable True to enable sub-voxel positioning.
+    void setSubVoxelsEnabled(bool enable);
 
     /// Is sub-voxel positioning enabled on this map?
     bool subVoxelsEnabled() const;
@@ -562,13 +583,34 @@ namespace ohm
     void integrateHit(Voxel &voxel) const;
 
     /// Integrate a hit into the map, creating the occupancy voxel as required.
+    ///
+    /// Supports sub-voxel positioning.
     /// @param point The global coordinate to integrate a hit at.
     /// @param cache Optional cache used to expidite region search.
     /// @return A reference to the voxel containing @p point after integrating the hit.
     Voxel integrateHit(const glm::dvec3 &point, MapCache *cache = nullptr);
 
-    /// @overload
+    /// Integrate a hit into the map, creating the occupancy voxel as required.
+    ///
+    /// Does not support sub-voxel positioning.
+    /// @param key The key identifying the voxel to update. May be generated from a coordinate using the
+    /// @c voxelKey() method.
+    /// @param cache Optional cache used to expidite region search.
+    /// @return A reference to the voxel containing @p point after integrating the hit.
     Voxel integrateHit(const Key &key, MapCache *cache = nullptr);
+
+    /// Integrate a hit into the map, creating the occupancy voxel identified by @p key as required.
+    ///
+    /// This overload supports sub-voxel positioning, if enabled. The @p key is used to identify the voxel regardless
+    /// of the @p position. The @p position is used only for sub-voxel positioning.
+    ///
+    /// This is not recommended for use by external libraries and @c integrateHit(const glm::dvec3 &, MapCache *) should
+    /// be prefered.
+    ///
+    /// @param point The global coordinate to integrate a hit at.
+    /// @param cache Optional cache used to expidite region search.
+    /// @return A reference to the voxel containing @p point after integrating the hit.
+    Voxel integrateHit(const Key &key, const glm::dvec3 &point, MapCache *cache = nullptr);
 
     /// Adjust @p voxel by decreasing its occupancy probability. The value of the voxel is adjusted by
     /// adding @c missValue() which should be negative. This logically decreases its occupancy probability
@@ -864,10 +906,16 @@ namespace ohm
     }
   }
 
+  inline Voxel OccupancyMap::integrateHit(const glm::dvec3 &point, MapCache *cache)
+  {
+    return integrateHit(voxelKey(point), point, cache);
+  }
+
+
   inline Voxel OccupancyMap::integrateHit(const Key &key, MapCache *cache)
   {
     Voxel voxel = this->voxel(key, true, cache);
-    integrateHit(voxel);
+    voxel.setValue(!voxel.isUncertain() ? voxel.value() + hitValue() : hitValue());
     return voxel;
   }
 

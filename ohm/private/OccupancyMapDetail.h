@@ -27,10 +27,14 @@ namespace ohm
 
   struct OccupancyMapDetail
   {
+    // "sub_voxel"
+    static const char *kSubVoxelLayerName;
+
     glm::dvec3 origin = glm::dvec3(0);
     glm::dvec3 region_spatial_dimensions = glm::dvec3(0);
     glm::u8vec3 region_voxel_dimensions = glm::u8vec3(0);
     double resolution = 0.0;
+    double sub_voxel_weighting = 0.1;
     uint64_t stamp = 0;
     float occupancy_threshold_value = 0.0f;
     float occupancy_threshold_probability = 0.0f;

@@ -17,6 +17,8 @@
 
 using namespace ohm;
 
+const char *OccupancyMapDetail::kSubVoxelLayerName = "sub_voxel";
+
 OccupancyMapDetail::~OccupancyMapDetail()
 {
   delete gpu_cache;
@@ -112,7 +114,7 @@ void OccupancyMapDetail::setDefaultLayout(bool enable_sub_voxel_positioning)
   voxel.addMember(default_layer::occupancyLayerName(), DataType::kFloat, clear_value);
   if (enable_sub_voxel_positioning)
   {
-    voxel.addMember("sub_voxel", DataType::kUInt32, clear_value);
+    voxel.addMember(kSubVoxelLayerName, DataType::kUInt32, clear_value);
   }
 
   const float default_clearance = -1.0f;

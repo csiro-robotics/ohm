@@ -17,6 +17,8 @@
 #include "SubVoxel.h"
 #include "Voxel.h"
 
+#include "OccupancyUtil.h"
+
 #include "GpuCache.h"
 
 #include "private/OccupancyMapDetail.h"
@@ -366,6 +368,16 @@ double OccupancyMap::resolution() const
   return imp_->resolution;
 }
 
+double OccupancyMap::subVoxelWeighting() const
+{
+  return imp_->sub_voxel_weighting;
+}
+
+void OccupancyMap::setSubVoxelWeighting(double weighting)
+{
+  imp_->sub_voxel_weighting = weighting;
+}
+
 uint64_t OccupancyMap::stamp() const
 {
   return imp_->stamp;
@@ -473,6 +485,86 @@ const MapLayout &OccupancyMap::layout() const
 MapLayout &OccupancyMap::layout()
 {
   return imp_->layout;
+}
+
+void OccupancyMap::setSubVoxelsEnabled(bool enable)
+{
+  if (enable == imp_->layout.hasSubVoxelPattern())
+  {
+    // No change.
+    return;
+  }
+
+  // Need to change the layout. This also means we need to change the map chunks. Only the occupancy layer is affected.
+  const int occupancy_layer_index = imp_->layout.occupancyLayer();
+  if (occupancy_layer_index < 0)
+  {
+    // No occupancy layer for some reason. Unlikely, but it doesn't hurt to check in this context.
+    return;
+  }
+
+  imp_->layout.invalidateSubVoxelPatternState();
+
+  MapLayer *occupancy_layer = imp_->layout.layerPtr(occupancy_layer_index);
+  const size_t voxel_count = size_t(imp_->region_voxel_dimensions.x) * size_t(imp_->region_voxel_dimensions.y) * size_t(imp_->region_voxel_dimensions.z);
+  if (enable)
+  {
+    // Adding sub-voxel patterns to the occupancy layer.
+    const size_t clear_value = 0u;
+    occupancy_layer->voxelLayout().addMember(OccupancyMapDetail::kSubVoxelLayerName, DataType::kUInt32, clear_value);
+
+    // Update all existing chunks to add the required member.
+    for (auto && chunk_ref : imp_->chunks)
+    {
+      MapChunk &chunk = *chunk_ref.second;
+      // Get the existing occupancy values.
+      uint8_t *existing_occupancy_mem = occupancy_layer->voxels(chunk);
+      // Allocate new memory for the occupancy layer of this chunk.
+      uint8_t *new_occupancy_mem = occupancy_layer->allocate(imp_->region_voxel_dimensions);
+
+      float *existing_occupancy = reinterpret_cast<float *>(existing_occupancy_mem);
+      OccupancyVoxel *new_occupancy = reinterpret_cast<OccupancyVoxel *>(new_occupancy_mem);
+
+      for (size_t i = 0; i < voxel_count; ++i)
+      {
+        new_occupancy->occupancy = *existing_occupancy;
+        new_occupancy->sub_voxel = 0;
+        ++existing_occupancy;
+        ++new_occupancy;
+      }
+
+      chunk.voxel_maps[occupancy_layer_index] = new_occupancy_mem;
+      occupancy_layer->release(existing_occupancy_mem);
+    }
+  }
+  else
+  {
+    // Remove sub-voxel information.
+    occupancy_layer->voxelLayout().removeMember(OccupancyMapDetail::kSubVoxelLayerName);
+
+    // Update all existing chunks to add the required member.
+    for (auto && chunk_ref : imp_->chunks)
+    {
+      MapChunk &chunk = *chunk_ref.second;
+      // Get the existing occupancy values.
+      uint8_t *existing_occupancy_mem = occupancy_layer->voxels(chunk);
+      // Allocate new memory for the occupancy layer of this chunk.
+      uint8_t *new_occupancy_mem = occupancy_layer->allocate(imp_->region_voxel_dimensions);
+
+      OccupancyVoxel *existing_occupancy = reinterpret_cast<OccupancyVoxel *>(existing_occupancy_mem);
+      float *new_occupancy = reinterpret_cast<float *>(new_occupancy_mem);
+
+      for (size_t i = 0; i < voxel_count; ++i)
+      {
+        *new_occupancy = existing_occupancy->occupancy;
+        ++existing_occupancy;
+        ++new_occupancy;
+      }
+
+      chunk.voxel_maps[occupancy_layer_index] = new_occupancy_mem;
+      occupancy_layer->release(existing_occupancy_mem);
+    }
+  }
 }
 
 bool OccupancyMap::subVoxelsEnabled() const
@@ -609,14 +701,14 @@ void OccupancyMap::setOccupancyThresholdProbability(float probability)
   imp_->occupancy_threshold_value = probabilityToValue(probability);
 }
 
-Voxel OccupancyMap::integrateHit(const glm::dvec3 &point, MapCache *cache)
+Voxel OccupancyMap::integrateHit(const Key &key, const glm::dvec3 &point, MapCache *cache)
 {
-  Key key = voxelKey(point);
   Voxel voxel = integrateHit(key, cache);
-  if (imp_->layout.hasSubVoxelPattern() && voxel.isValid())
+  if (imp_->layout.hasSubVoxelPattern())
   {
     OccupancyVoxel *voxel_occupancy = voxel.layerContent<OccupancyVoxel *>(imp_->layout.occupancyLayer());
-    voxel_occupancy->sub_voxel = subVoxelCoord(point - voxel.centreGlobal(), imp_->resolution);
+    voxel_occupancy->sub_voxel = subVoxelUpdate(voxel_occupancy->sub_voxel, point - voxel.centreGlobal(),
+                                                imp_->resolution, imp_->sub_voxel_weighting);
   }
 
   return voxel;
@@ -856,7 +948,7 @@ void OccupancyMap::integrateRays(const glm::dvec3 *rays, size_t element_count, b
     {
       if (end_points_as_occupied)
       {
-        integrateHit(voxelKey(rays[i + 1]), &cache);
+        integrateHit(voxelKey(rays[i + 1]), end, &cache);
       }
       else
       {

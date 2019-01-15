@@ -74,6 +74,10 @@ struct LineWalkData
   float voxelValueMin;
   // MapMode/voxel maximum allowed value.
   float voxelValueMax;
+#ifdef SUB_VOXEL
+  // Weighting given to new position when integrating sub-voxel positions.
+  float sub_voxel_weighting;
+#endif // SUB_VOXEL
   // Number of regions in regionKeys/regionMemOffsets.
   uint regionCount;
   // The regionMemOffsets value corresponding to the currentRegion. This is an index offset into voxels, not
@@ -92,7 +96,8 @@ struct LineWalkData
 /// This is done using atomic operations.
 ///
 /// Each bit in the pattern indicates occupancy at a particular sub-voxel location.
-void updateSubVoxelPosition(__global SubVoxelPatternType *target_address, float3 sub_voxel_pos, float voxel_resolution);
+void updateSubVoxelPosition(__global SubVoxelPatternType *target_address, float3 sub_voxel_pos, float voxel_resolution,
+                            float sub_voxel_weigthing);
 #endif // SUB_VOXEL
 
 //------------------------------------------------------------------------------
@@ -100,7 +105,8 @@ void updateSubVoxelPosition(__global SubVoxelPatternType *target_address, float3
 //------------------------------------------------------------------------------
 
 #ifdef SUB_VOXEL
-void updateSubVoxelPosition(__global SubVoxelPatternType *target_address, float3 sub_voxel_pos, float voxel_resolution)
+void updateSubVoxelPosition(__global SubVoxelPatternType *target_address, float3 sub_voxel_pos, float voxel_resolution,
+                            float sub_voxel_weigthing)
 {
   uint old_value;
   uint new_value;
@@ -111,7 +117,7 @@ void updateSubVoxelPosition(__global SubVoxelPatternType *target_address, float3
   do
   {
     old_value = *target_address;
-    new_value = subVoxelUpdate(old_value, sub_voxel_pos, voxel_resolution);
+    new_value = subVoxelUpdate(old_value, sub_voxel_pos, voxel_resolution, sub_voxel_weigthing);
     ++iteration_count;
   }
 #if __OPENCL_C_VERSION__ >= 200
@@ -244,7 +250,8 @@ bool walkLineVoxel(const struct GpuKey *voxelKey, bool isEndVoxel, float voxelRe
 #ifdef SUB_VOXEL
     if (adjustment > 0)
     {
-      updateSubVoxelPosition(&lineData->voxels[vi].sub_voxel, lineData->subVoxelCoord, voxelResolution);
+      updateSubVoxelPosition(&lineData->voxels[vi].sub_voxel, lineData->subVoxelCoord, voxelResolution,
+                             lineData->sub_voxel_weighting);
     }
 #endif // SUB_VOXEL
   }
@@ -295,7 +302,7 @@ __kernel void regionRayUpdate(__global VoxelType *voxels_mem,
                               __global struct GpuKey *lineKeys, __global float3 *localLines, uint lineCount,
                               int3 regionDimensions, float voxelResolution,
                               float rayAdjustment, float lastVoxelAdjustment,
-                              float voxelValueMin, float voxelValueMax
+                              float voxelValueMin, float voxelValueMax, float sub_voxel_weighting
                              )
 {
   // #ifdef SUB_VOXEL
@@ -317,6 +324,9 @@ __kernel void regionRayUpdate(__global VoxelType *voxels_mem,
   lineData.sampleAdjustment = lastVoxelAdjustment;
   lineData.voxelValueMin = voxelValueMin;
   lineData.voxelValueMax = voxelValueMax;
+#ifdef SUB_VOXEL
+  lineData.sub_voxel_weighting = sub_voxel_weighting;
+#endif // SUB_VOXEL
   lineData.regionCount = regionCount;
 
   regionsInitCurrent(&lineData.currentRegion, &lineData.regionVoxelOffset);
@@ -342,9 +352,11 @@ __kernel void regionRayUpdate(__global VoxelType *voxels_mem,
   lineData.subVoxelCoord.y = lineEnd.y - pointToRegionCoord(lineEnd.y, voxelResolution) * voxelResolution;
   lineData.subVoxelCoord.z = lineEnd.z - pointToRegionCoord(lineEnd.z, voxelResolution) * voxelResolution;
 
-  if (lineData.subVoxelCoord.x < -0.5 * voxelResolution || lineData.subVoxelCoord.x > 0.5 * voxelResolution ||
-      lineData.subVoxelCoord.y < -0.5 * voxelResolution || lineData.subVoxelCoord.y > 0.5 * voxelResolution ||
-      lineData.subVoxelCoord.z < -0.5 * voxelResolution || lineData.subVoxelCoord.z > 0.5 * voxelResolution)
+  // Validate sub-voxel coordinate calculation.
+  // We use 0.5001 * resolution rather than 0.5 to allow for floating point error when clipping to exact voxel bounds.
+  if (lineData.subVoxelCoord.x < -0.5001 * voxelResolution || lineData.subVoxelCoord.x > 0.5001 * voxelResolution ||
+      lineData.subVoxelCoord.y < -0.5001 * voxelResolution || lineData.subVoxelCoord.y > 0.5001 * voxelResolution ||
+      lineData.subVoxelCoord.z < -0.5001 * voxelResolution || lineData.subVoxelCoord.z > 0.5001 * voxelResolution)
   {
     printf("sub-voxel-out [%f, %f]: (%f %f %f) -> (%f %f %f)\n",
       -0.5 * voxelResolution, 0.5 * voxelResolution,

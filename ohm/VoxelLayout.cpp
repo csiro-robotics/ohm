@@ -105,6 +105,63 @@ namespace ohm
 }  // namespace ohm
 
 
+namespace
+{
+  uint16_t fixAlignment(uint16_t base_alignment)
+  {
+    // Support 1, 2, 4, 8 byte alignments.
+    switch (base_alignment)
+    {
+    case 1:
+      return 1;
+    case 2:
+      return 2;
+    case 3:
+    case 4:
+      return 4;
+    default:
+      break;
+    }
+
+    return 8;
+  }
+
+  void updateOffsets(VoxelLayoutDetail *detail, VoxelMember *member)
+  {
+    uint16_t member_size = DataType::size(member->type);
+
+    // Resolve packing. Member size dictates the required alignment at the next increment of 1, 2, 4 or 8 bytes.
+    uint16_t alignment = fixAlignment(member_size);
+    if (alignment == 0)
+    {
+      alignment = 4;
+    }
+    // Set the initial member offset to the next target offset.
+    member->offset = detail->next_offset;
+
+    // Is the proposed offset correctly aligned?
+    if (member->offset % alignment != 0)
+    {
+      // Not aligned. Padd to the required alignment.
+      member->offset += alignment - member->offset % alignment;
+    }
+
+    // Adjust the next offset to the member offset + the size.
+    detail->next_offset = uint16_t(member->offset + member_size);
+
+    // Now we calculate the aligned voxel size to be aligned to 4 or 8 bytes.
+    detail->voxel_byte_size = detail->next_offset;
+    if (detail->voxel_byte_size <= 4)
+    {
+      detail->voxel_byte_size = 4;
+    }
+    else
+    {
+      detail->voxel_byte_size = 8 * ((detail->next_offset + 7) / 8);
+    }
+  }
+}
+
 VoxelLayout::VoxelLayout()
   : VoxelLayoutT<VoxelLayoutDetail>(nullptr)
 {}
@@ -129,62 +186,36 @@ void VoxelLayout::addMember(const char *name, DataType::Type type, uint64_t clea
   member.type = type;
   member.offset = 0;
 
-  // Resolve packing. The size dictates the expected alignment.
-  uint16_t alignment = uint16_t(DataType::size(type));
-  if (alignment == 0)
-  {
-    alignment = 4;
-  }
-  member.offset = detail_->next_offset;
-
-  // Is the proposed offset correctly aligned?
-  if (member.offset % alignment != 0)
-  {
-    // Not aligned. Padd to the required alignment.
-    member.offset += alignment - member.offset % alignment;
-  }
-
+  updateOffsets(detail_, &member);
   detail_->members.push_back(member);
+}
 
-  // Now fix up the voxel alignment and size.
-  detail_->next_offset = uint16_t(member.offset + DataType::size(type));
 
-  // We allow alignments at 1, 2, 4, 8 bytes.
-  // After that we must be 8 byte aligned. Hopefully this matches alignent of the compiler.
-  switch (detail_->next_offset)
+bool VoxelLayout::removeMember(const char *name)
+{
+  std::string name_str(name);
+  bool removed = false;
+
+  // Recalculate next offset and voxel size as we go.
+  detail_->next_offset = detail_->voxel_byte_size = 0;
+  for (auto iter = detail_->members.begin(); iter != detail_->members.end(); )
   {
-  case 1:
-    detail_->voxel_byte_size += 1;
-    break;
-  case 2:
-    detail_->voxel_byte_size += 2;
-    break;
-  case 3:
-  case 4:
-    detail_->voxel_byte_size += 4;
-    break;
-  case 5:
-  case 6:
-  case 7:
-  case 8:
-    detail_->voxel_byte_size += 8;
-    break;
-
-  default:
-    // Next 8 byte alignment.
-    detail_->voxel_byte_size = detail_->next_offset;
-    break;
+    VoxelMember &member = *iter;
+    if (name_str.compare(member.name) == 0)
+    {
+      iter = detail_->members.erase(iter);
+      removed = true;
+    }
+    else
+    {
+      // Update offsets.
+      member.offset = detail_->next_offset;
+      updateOffsets(detail_, &member);
+      ++iter;
+    }
   }
 
-  // Allow 4 byte voxel size, but force 8 byte alignment for larger voxels.
-  if (detail_->next_offset <= 4)
-  {
-    detail_->voxel_byte_size = 4;
-  }
-  else
-  {
-    detail_->voxel_byte_size = 8 * ((detail_->next_offset + 7) / 8);
-  }
+  return removed;
 }
 
 

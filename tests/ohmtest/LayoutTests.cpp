@@ -87,3 +87,55 @@ TEST(Layout, Filter)
   layout.clear();
   EXPECT_EQ(layout.layerCount(), 0);
 }
+
+
+TEST(Layout, Structure)
+{
+  // Structure with variable packing and alignment.
+  // We are simulating the following structure
+  // struct LayoutTestStruct
+  // {
+  //   uint8_t m1_0;
+  //   uint8_t m1_1;
+  //   uint16_t m2_3;
+  //   uint16_t m2_4;
+  //   uint32_t m4_5;
+  //   uint64_t m8_6;
+  //   uint8_t m1_7;
+  // };
+
+  struct MemberInfo
+  {
+    const char *name;
+    ohm::DataType::Type type;
+    unsigned expected_offset;
+    unsigned expected_cumulative_size;
+  };
+
+  static const MemberInfo members[] = //
+  { //
+    { "0", ohm::DataType::kUInt8, 0, 4 },
+    { "1", ohm::DataType::kUInt8, 1, 4 },
+    { "2", ohm::DataType::kUInt16, 2, 4 },
+    { "3", ohm::DataType::kUInt16, 4, 8 },
+    { "4", ohm::DataType::kUInt32, 8, 16 },
+    { "5", ohm::DataType::kUInt64, 16, 24 },
+    { "6", ohm::DataType::kUInt8, 24, 32 },
+  };
+
+  MapLayout layout;
+  MapLayer *layer = layout.addLayer("structured");
+  VoxelLayout voxel = layer->voxelLayout();
+
+  size_t clear_value = 0u;
+
+  size_t i = 0;
+  for (const MemberInfo &member : members)
+  {
+    std::cout << "member " << member.name << std::endl;
+    voxel.addMember(member.name, member.type, clear_value);
+    EXPECT_EQ(voxel.memberOffset(i), member.expected_offset);
+    EXPECT_EQ(voxel.voxelByteSize(), member.expected_cumulative_size);
+    ++i;
+  }
+}

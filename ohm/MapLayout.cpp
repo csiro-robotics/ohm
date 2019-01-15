@@ -91,6 +91,7 @@ void MapLayout::clear()
       delete layer;
     }
     imp_->layers.clear();
+    imp_->using_sub_voxel_patterns = MapLayoutDetail::kSubUnknown;
   }
 }
 
@@ -124,6 +125,12 @@ bool MapLayout::hasSubVoxelPattern() const
   }
 
   return imp_->using_sub_voxel_patterns == MapLayoutDetail::kSubOn;
+}
+
+
+void MapLayout::invalidateSubVoxelPatternState()
+{
+  imp_->using_sub_voxel_patterns = MapLayoutDetail::kSubUnknown;
 }
 
 
@@ -196,6 +203,12 @@ const MapLayer &MapLayout::layer(size_t index) const
 
 
 const MapLayer *MapLayout::layerPtr(size_t index) const
+{
+  return (imp_ && index < imp_->layers.size()) ? imp_->layers[index] : nullptr;
+}
+
+
+MapLayer *MapLayout::layerPtr(size_t index)
 {
   return (imp_ && index < imp_->layers.size()) ? imp_->layers[index] : nullptr;
 }

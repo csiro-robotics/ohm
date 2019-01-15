@@ -162,6 +162,17 @@ namespace ohm
     /// @param clear_value The value used with memset to initialise the data member.
     void addMember(const char *name, DataType::Type type, uint64_t clear_value);
 
+    /// Remove a member from the layout by name.
+    ///
+    /// Warning: this should be used with great care and may yield unintended side effects and undefined behaviour.
+    /// This method is best left to internal use only.
+    ///
+    /// Offsets of other members are updated as required.
+    ///
+    /// @param name The name of the member to remove.
+    /// @return True if a member matching @p name was found and remove.
+    bool removeMember(const char *name);
+
     /// Assignment operator.
     /// @param other Object to shallow copy.
     inline VoxelLayout &operator=(const VoxelLayout &other) { detail_ = other.detail(); return *this; }

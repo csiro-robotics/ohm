@@ -633,7 +633,7 @@ void GpuMap::finaliseBatch(gputil::PinnedBuffer &regions_buffer, gputil::PinnedB
                       gputil::BufferArg<gputil::float3>(imp_->ray_buffers[buf_idx]), ray_count, region_dim_gpu,
                       float(map->resolution), map->miss_value,
                       (end_points_as_occupied) ? map->hit_value : map->miss_value, map->min_voxel_value,
-                      map->max_voxel_value);
+                      map->max_voxel_value, float(map->sub_voxel_weighting));
 
   // gpu_cache.gpuQueue().flush();
 

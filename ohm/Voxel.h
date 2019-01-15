@@ -111,6 +111,8 @@ namespace ohm
 
     /// Retrieves the (global) position of a voxel with consideration to sub-voxel positioning.
     /// This is equivalent to @c centreGlobal() if sub-voxel positioning is not enabled, or not resolved for the voxel.
+    ///
+    /// @seealso @ref subvoxel
     /// @return The global voxel coordinates with sub-voxel positioning.
     glm::dvec3 position() const { return voxel::position(key_, *chunk_, *map_); }
 
@@ -277,9 +279,27 @@ namespace ohm
     ///
     /// The call fails if the map does not have sub-voxel positioning enabled, or if the voxel reference is invalid.
     ///
+    /// @seealso @ref subvoxel
+    ///
     /// @param position The target position to set should be within the voxel bounds, but will be clamped.
-    /// @return True on success.
-    bool setPosition(const glm::dvec3 &position) const;
+    /// @return True on success. False indicates there is not sub-voxel positioning enabled, or the voxel is invalid.
+    bool setPosition(const glm::dvec3 &position);
+
+    /// Updates the sub-voxel positioning of this voxel. As with @c setPosition(), this request the @c MapLayout
+    /// occupancy layer supports sub-voxel positioning.
+    ///
+    /// This method takes the given @c position, assumed to be within the voxel bounds, and combines it with the
+    /// current sub-voxel @c position(). This process uses a weighted sum where new position is weighted by
+    /// @p update_weighting and the pre-existing position is weighted as <tt>1.0 - update_weighting</tt>.
+    ///
+    /// @seealso @ref subvoxel
+    ///
+    /// @param position The new position information used to update the sub-voxel position. Expected to be within the
+    ///   bounds of the voxel.
+    /// @param update_weighting Weighting overwrite for the weight given to the new @p position [0, 1]. A negative
+    ///   weight is used to indicate no override: use the map's weighting value.
+    /// @return True on success. False indicates there is not sub-voxel positioning enabled, or the voxel is invalid.
+    bool updatePosition(const glm::dvec3 &position, double update_weighting = -1.0);
 
     /// Updates the timestamp for the @c MapRegion to which this voxel belongs.
     /// This may be used to manage time based expiry.
