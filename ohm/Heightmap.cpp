@@ -107,13 +107,13 @@ namespace
   }
 
 
-  inline bool voxelHeight(double *height, const VoxelConst &voxel, const glm::dvec3 &up)
+  inline bool sourceVoxelHeight(double *height, const VoxelConst &voxel, const glm::dvec3 &up, bool force_voxel_centre)
   {
     if (voxel.isOccupied())
     {
       // Determine the height offset for voxel.
-      const glm::dvec3 voxel_centre = voxel.centreGlobal();
-      *height = glm::dot(voxel_centre, up);
+      const glm::dvec3 voxel_position = (force_voxel_centre) ? voxel.centreGlobal() : voxel.position();
+      *height = glm::dot(voxel_position, up);
       return true;
     }
     return false;
@@ -121,11 +121,11 @@ namespace
 
 
   bool calculateHeightAt(double *height, const VoxelConst &voxel, Heightmap::Axis axis_id, const glm::dvec3 &up,
-                         int blur_level)
+                         int blur_level, bool force_voxel_centre)
   {
     if (blur_level == 0)
     {
-      return voxelHeight(height, voxel, up);
+      return sourceVoxelHeight(height, voxel, up, force_voxel_centre);
     }
 
     double voxel_height = 0;
@@ -164,7 +164,7 @@ namespace
       {
         deltas[axis_a] = da;
         VoxelConst neighbour = voxel.neighbour(deltas[0], deltas[1], deltas[2]);
-        if (voxelHeight(&voxel_height, neighbour, up))
+        if (sourceVoxelHeight(&voxel_height, neighbour, up, force_voxel_centre))
         {
           *height = std::min(*height, voxel_height);
           have_height = true;
@@ -307,6 +307,18 @@ int Heightmap::blurLevel() const
 }
 
 
+void Heightmap::setIgnoreSubVoxelPositioning(bool ignore)
+{
+  imp_->ignore_sub_voxel_positioning = ignore;
+}
+
+
+bool Heightmap::ignoreSubVoxelPositioning() const
+{
+  return imp_->ignore_sub_voxel_positioning;
+}
+
+
 Heightmap::Axis Heightmap::upAxis() const
 {
   return Heightmap::Axis(imp_->up_axis_id);
@@ -441,9 +453,9 @@ bool Heightmap::update(double base_height)
       VoxelConst src_voxel = src_map.voxel(src_key, &src_cache);
 
 #if POST_BLUR
-      if (voxelHeight(&height, src_voxel, imp_->up))
+      if (sourceVoxelHeight(&height, src_voxel, imp_->up, imp_->ignore_sub_voxel_positioning))
 #else   // POST_BLUR
-      if (calculateHeightAt(&height, src_voxel, upAxis(), imp_->up, imp_->blur_level))
+      if (calculateHeightAt(&height, src_voxel, upAxis(), imp_->up, imp_->blur_level, imp_->ignore_sub_voxel_positioning))
 #endif  // POST_BLUR
       {
         if (imp_->floor > 0 && height < base_height - imp_->floor)

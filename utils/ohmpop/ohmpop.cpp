@@ -68,6 +68,7 @@ namespace
     double start_time = 0;
     double time_limit = 0;
     double resolution = 0.25;
+    double sub_voxel_weighting = 0.0f;
     double progressive_mapping_slice = 0.0;
     double mapping_interval = 0.2;
     float prob_hit = 0.9f;
@@ -408,6 +409,12 @@ int populateMap(const Options &opt)
   std::atomic<uint64_t> elapsed_ms(0);
   Clock::time_point start_time, end_time;
   ProgressMonitor prog(10);
+
+  if (opt.sub_voxel_weighting > 0)
+  {
+    map.setSubVoxelsEnabled(true);
+    map.setSubVoxelWeighting(opt.sub_voxel_weighting);
+  }
 
   if (!gpu_map.gpuOk())
   {
@@ -763,6 +770,16 @@ namespace
       // std::string mem_size_string;
       // util::makeMemoryDisplayString(mem_size_string, ohm::OccupancyMap::voxelMemoryPerRegion(opt.region_voxel_dim));
       **out << "Map resolution: " << opt.resolution << '\n';
+      **out << "Sub-voxel weighting: ";
+      if (opt.sub_voxel_weighting > 0)
+      {
+        **out << opt.sub_voxel_weighting << '\n';
+      }
+      else
+      {
+        **out << "off\n";
+      }
+
       glm::i16vec3 region_dim = opt.region_voxel_dim;
       region_dim.x = (region_dim.x) ? region_dim.x : OHM_DEFAULT_CHUNK_DIM_X;
       region_dim.y = (region_dim.y) ? region_dim.y : OHM_DEFAULT_CHUNK_DIM_Y;
@@ -820,6 +837,10 @@ int parseOptions(Options &opt, int argc, char *argv[])
       ("h,hit", "The occupancy probability due to a hit. Must be >= 0.5.", optVal(opt.prob_hit))
       ("m,miss", "The occupancy probability due to a miss. Must be < 0.5.", optVal(opt.prob_miss))
       ("r,resolution", "The voxel resolution of the generated map.", optVal(opt.resolution))
+      ("sub-voxel", "Sub voxel positioning weighting. Adding this option with no value enables sub-voxel positioning "
+                    "with the default weighting. Specifying a value (0, 1] sets the weight of new samples vs. the "
+                    "existing sub-voxel position.",
+                    optVal(opt.sub_voxel_weighting)->implicit_value("0.1"))
       ("threshold", "Sets the occupancy threshold assigned when exporting the map to a cloud.", optVal(opt.prob_thresh)->implicit_value(optStr(opt.prob_thresh)))
       ;
 

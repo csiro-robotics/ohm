@@ -53,6 +53,7 @@ namespace
     double floor = 0;
     double ceiling = 0;
     int blur = 0;
+    bool no_sub_voxel = false;
   };
 
 
@@ -90,6 +91,7 @@ int parseOptions(Options &opt, int argc, char *argv[])
        optVal(opt.floor))  //
       ("ceiling", "Heightmap excludes voxels above this (positive) value above the --base height. Positive to enable.",
        optVal(opt.ceiling))  //
+      ("no-sub-vox", "Ignore sub-voxel positioning if available?.", optVal(opt.no_sub_voxel))       //
       ;
 
     optParse.parse_positional({ "i", "o" });
@@ -192,6 +194,8 @@ int main(int argc, char *argv[])
   {
     heightmap.setBlurLevel(opt.blur);
   }
+
+  heightmap.setIgnoreSubVoxelPositioning(opt.no_sub_voxel);
 
   heightmap.update(opt.base_height);
 

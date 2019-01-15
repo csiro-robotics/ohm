@@ -124,8 +124,18 @@ namespace ohm
     /// Gets the blur level. See class comments.
     int blurLevel() const;
 
+    /// Sets whether sub-voxel positions are ignored (true) forcing the use of voxel centres.
+    /// @param ignore True to force voxel centres even when sub-voxel positions are present.
+    void setIgnoreSubVoxelPositioning(bool ignore);
+
+    /// Force voxel centres even when sub-voxel positions are present?
+    /// @return True to ignore sub-voxel positioning.
+    /// @seealso @ref subvoxel
+    bool ignoreSubVoxelPositioning() const;
+
     /// The layer number which contains @c HeightmapVoxel structures.
     /// @return The heightmap layer index or -1 on error (not present).
+    /// @seealso @ref subvoxel
     int heightmapVoxelLayer() const;
 
     /// The layer number which contains @c HeightmapVoxel structures during heightmap construction.
