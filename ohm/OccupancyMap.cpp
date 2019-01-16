@@ -339,13 +339,16 @@ size_t OccupancyMap::calculateApproximateMemory() const
   if (imp_)
   {
     std::unique_lock<decltype(imp_->mutex)> guard(imp_->mutex);
-    const glm::ivec3 dim = imp_->region_voxel_dimensions;
-    const size_t voxels_per_chunk = size_t(dim.x) * size_t(dim.y) * size_t(dim.z);
 
+    const size_t chunk_count = (!imp_->chunks.empty()) ? imp_->chunks.size() : imp_->loaded_region_count;
     byte_count += sizeof(OccupancyMapDetail);
-    byte_count += imp_->chunks.size() * sizeof(MapChunk);
-    byte_count += imp_->chunks.size() * 2 * sizeof(float) * voxels_per_chunk;
-    // TODO: consider coarseClearance array.
+    byte_count += chunk_count * sizeof(MapChunk);
+
+    for (unsigned i = 0; i < imp_->layout.layerCount(); ++i)
+    {
+      const MapLayer &layer = imp_->layout.layer(i);
+      byte_count += chunk_count * layer.layerByteSize(imp_->region_voxel_dimensions);
+    }
 
     // Approximate hash map usage.
     const size_t map_bucked_count = imp_->chunks.bucket_count();
@@ -1198,6 +1201,7 @@ void OccupancyMap::clear()
     releaseChunk(chunk_ref.second);
   }
   imp_->chunks.clear();
+  imp_->loaded_region_count = 0;
 
   // Clear the GPU cache (if present).
   if (imp_->gpu_cache)

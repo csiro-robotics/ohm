@@ -430,6 +430,7 @@ namespace ohm
     ok = readRaw<double>(stream, map.miss_value) && ok;
     region_count = 0;
     ok = readRaw<uint32_t>(stream, region_count) && ok;
+    map.loaded_region_count = region_count;
 
     if (version.version.major > 0 || version.version.major == 0 && version.version.minor > 2)
     {

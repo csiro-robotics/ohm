@@ -49,6 +49,8 @@ namespace ohm
     MapLayout layout;
     ChunkMap chunks;
     mutable std::mutex mutex;
+    // Region count at load time. Useful when only the header is loaded.
+    size_t loaded_region_count = 0;
 
     GpuCache *gpu_cache = nullptr;
 

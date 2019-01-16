@@ -138,6 +138,10 @@ int main(int argc, char *argv[])
   std::cout << "File format version: " << version.major << '.' << version.minor << '.' << version.patch << std::endl;
   std::cout << std::endl;
 
+  std::string mem_str;
+  util::makeMemoryDisplayString(mem_str, map.calculateApproximateMemory());
+  std::cout << "Estimated memory (CPU only): " << mem_str << std::endl;
+
   std::cout << "Voxel resolution: " << map.resolution() << std::endl;
   std::cout << "Map origin: " << map.origin() << std::endl;
   std::cout << "Region spatial dimensions: " << map.regionSpatialResolution() << std::endl;
