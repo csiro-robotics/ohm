@@ -42,6 +42,7 @@ namespace
   enum ExportMode
   {
     kExportOccupancy,
+    kExportOccupancyCentre,
     kExportClearance,
     kExportHeightmap,
   };
@@ -100,6 +101,10 @@ std::istream &operator>>(std::istream &in, ExportMode &mode)
   {
     mode = kExportOccupancy;
   }
+  else if (mode_str.compare("occupancy-centre") == 0)
+  {
+    mode = kExportOccupancyCentre;
+  }
   else if (mode_str.compare("clearance") == 0)
   {
     mode = kExportClearance;
@@ -121,6 +126,9 @@ std::ostream &operator<<(std::ostream &out, const ExportMode mode)
   {
   case kExportOccupancy:
     out << "occupancy";
+    break;
+  case kExportOccupancyCentre:
+    out << "occupancy-centre";
     break;
   case kExportClearance:
     out << "clearance";
@@ -152,7 +160,9 @@ int parseOptions(Options &opt, int argc, char *argv[])
       ("cloud", "The output cloud file (ply).", cxxopts::value(opt.ply_file))
       ("cull", "Remove regions farther than the specified distance from the map origin.", cxxopts::value(opt.cull_distance)->default_value(optStr(opt.cull_distance)))
       ("map", "The input map file (ohm).", cxxopts::value(opt.map_file))
-      ("mode", "Export mode [occupancy,clearance,heightmap]: select which data to export from the map.", cxxopts::value(opt.mode)->default_value(optStr(opt.mode)))
+      ("mode", "Export mode [occupancy,occupancy-centre,clearance,heightmap]: select which data to export from the "
+               "map. occupancy and occupancy-centre differ only in that the latter forces positioning on voxel "
+               "centres.", cxxopts::value(opt.mode)->default_value(optStr(opt.mode)))
       ("heightmap-axis", "Axis for the heightmap vertical axis [x, y, z].", cxxopts::value(opt.heightmap_axis)->default_value(optStr(opt.heightmap_axis)))
       ("expire", "Expire regions with a timestamp before the specified time. These are not exported.", cxxopts::value(opt.expiry_time))
       ("threshold", "Override the map's occupancy threshold. Only occupied points are exported.", cxxopts::value(opt.occupancy_threshold)->default_value(optStr(opt.occupancy_threshold)))
@@ -207,6 +217,7 @@ int main(int argc, char *argv[])
   signal(SIGTERM, onSignal);
 
   std::cout << "Loading map " << opt.map_file.c_str() << std::endl;
+  std::cout << "Export mode: " << opt.mode << std::endl;
   ProgressMonitor prog(10);
   LoadMapProgress load_progress(prog);
   ohm::OccupancyMap map(1.0f);
@@ -268,6 +279,7 @@ int main(int argc, char *argv[])
   switch (opt.mode)
   {
   case kExportOccupancy:
+  case kExportOccupancyCentre:
     if (map.layout().layer("occupancy") == nullptr)
     {
       std::cerr << "Missing 'occupancy' layer" << std::endl;
@@ -338,11 +350,11 @@ int main(int argc, char *argv[])
       prog.incrementProgress();
       last_region = iter.key().regionKey();
     }
-    if (opt.mode == kExportOccupancy)
+    if (opt.mode == kExportOccupancy || kExportOccupancyCentre)
     {
       if (map.occupancyType(voxel) == ohm::Occupied)
       {
-        v = voxel.position();
+        v = (opt.mode == kExportOccupancy) ? voxel.position() : voxel.centreGlobal();
         ply.addVertex(v);
         ++point_count;
       }
