@@ -8,6 +8,8 @@
 
 #include "OhmConfig.h"
 
+#include "GpuCachePostSyncHandler.h"
+
 namespace ohm
 {
   /// Flags used to create a @c GpuLayerCache.
@@ -33,10 +35,12 @@ namespace ohm
     int map_layer = 0;
     /// Cache creation flags.
     unsigned flags = kGcfDefaultFlags;
+    GpuCachePostSyncHandler on_sync;
 
     GpuCacheParams() = default;
-    GpuCacheParams(size_t mem_size, int layer, unsigned flags)
-      : gpu_mem_size(mem_size), map_layer(layer), flags(flags)
+    GpuCacheParams(size_t mem_size, int layer, unsigned flags,
+                   const GpuCachePostSyncHandler &on_sync = GpuCachePostSyncHandler())
+      : gpu_mem_size(mem_size), map_layer(layer), flags(flags), on_sync(on_sync)
     {}
   };
 }

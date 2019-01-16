@@ -17,6 +17,14 @@
 
 using namespace ohm;
 
+namespace
+{
+  void onOccupancyLayerChunkSync(MapChunk *chunk, const glm::u8vec3 &region_dimensions)
+  {
+    chunk->searchAndUpdateFirstValid(region_dimensions);
+  }
+}
+
 GpuMapDetail::~GpuMapDetail()
 {
   if (!borrowed_map)
@@ -53,7 +61,10 @@ GpuCache *ohm::initialiseGpuCache(OccupancyMap &map, size_t layer_gpu_mem_size, 
     if (occupancy_layer >= 0)
     {
       detail->gpu_cache->createCache(kGcIdOccupancy,
-                                     GpuCacheParams{ 0, occupancy_layer, kGcfRead | kGcfWrite | mappable_flag });
+                                     // On sync, ensure the first valid voxel is updated.
+                                     GpuCacheParams{ 0, occupancy_layer, kGcfRead | kGcfWrite | mappable_flag,
+                                                     &onOccupancyLayerChunkSync }
+                                     );
     }
 
     // Note: we create the clearance gpu cache if we have a clearance layer, but it caches the occupancy_layer as that

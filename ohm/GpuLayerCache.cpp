@@ -73,6 +73,7 @@ namespace ohm
     unsigned layer_index = 0;
     unsigned flags = 0;
     uint8_t *dummy_chunk = nullptr;
+    GpuCachePostSyncHandler on_sync;
 
     ~GpuLayerCacheDetail()
     {
@@ -85,7 +86,8 @@ namespace ohm
 }
 
 GpuLayerCache::GpuLayerCache(const gputil::Device &gpu, const gputil::Queue &gpu_queue,
-                             OccupancyMap &map, unsigned layer_index, size_t target_gpu_mem_size, unsigned flags)
+                             OccupancyMap &map, unsigned layer_index, size_t target_gpu_mem_size, unsigned flags,
+                             GpuCachePostSyncHandler on_sync)
   : imp_(new GpuLayerCacheDetail)
 {
   assert(layer_index < map.layout().layerCount());
@@ -94,6 +96,7 @@ GpuLayerCache::GpuLayerCache(const gputil::Device &gpu, const gputil::Queue &gpu
   imp_->gpu_queue = gpu_queue;
   imp_->layer_index = layer_index;
   imp_->flags = flags;
+  imp_->on_sync = on_sync;
 
   allocateBuffers(map, map.layout().layer(layer_index), target_gpu_mem_size);
 }
@@ -259,9 +262,9 @@ void GpuLayerCache::syncToMainMemory()
   {
     GpuCacheEntry &entry = iter.second;
     entry.sync_event.wait();
-    if (entry.chunk)
+    if (entry.chunk && imp_->on_sync)
     {
-      entry.chunk->searchAndUpdateFirstValid(imp_->region_size);
+      imp_->on_sync(entry.chunk, imp_->region_size);
     }
     // Up to date.
     entry.skip_download = true;
@@ -532,12 +535,19 @@ void GpuLayerCache::syncToMainMemory(GpuCacheEntry &entry, bool wait_on_sync)
   }
 
   // Do we block now on the sync? This could be changed to execute only when we don't skip download.
+  // Must wait if we have an on_sync handler (to call it). Eventually we may be able to use a GPU post event hook, but
+  /// there are thread-safety issues with that.
   if (wait_on_sync)
   {
     // Wait for operations to complete.
     entry.sync_event.wait();
     // Up to date.
     entry.skip_download = true;
+
+    if (imp_->on_sync)
+    {
+      imp_->on_sync(entry.chunk, imp_->region_size);
+    }
   }
 }
 

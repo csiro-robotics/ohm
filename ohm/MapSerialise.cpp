@@ -54,7 +54,7 @@ namespace ohm
 
   const uint32_t kMapHeaderMarker = 0x44330011u;
   const MapVersion kSupportedVersionMin = { 0, 0, 0 };
-  const MapVersion kSupportedVersionMax = { 0, 3, 0 };
+  const MapVersion kSupportedVersionMax = { 0, 3, 1 };
 
   // Digits are arranged as follows:
   //    vvvMMMPPP
@@ -62,7 +62,7 @@ namespace ohm
   // - vvv is the major version number (any number)
   // - MMM is a three digit specification of the current minor version.
   // - PPP is a three digit specification of the current patch version.
-  const MapVersion kCurrentVersion = { 0, 3, 0 };
+  const MapVersion kCurrentVersion = { 0, 3, 1 };
 
   int saveItem(OutputStream &stream, const MapValue &value)
   {
@@ -272,6 +272,9 @@ namespace ohm
     // Saving the map stamp has become important to ensure MapChunk::touched_stamps are correctly maintained.
     ok = writeUncompressed<uint64_t>(stream, map.stamp) && ok;
 
+    // Add v0.3.1
+    ok = writeUncompressed<double>(stream, map.sub_voxel_weighting) && ok;
+
     return (ok) ? 0 : kSeFileWriteFailure;
   }
 
@@ -351,6 +354,7 @@ namespace ohm
     for (size_t i = 0; i < layout.layerCount(); ++i)
     {
       const MapLayer &layer = layout.layer(i);
+
       if (layer.flags() & MapLayer::kSkipSerialise)
       {
         // Not to be serialised.
@@ -436,6 +440,12 @@ namespace ohm
     {
       // Read the map stamp.
       ok = readRaw<uint64_t>(stream, map.stamp) && ok;
+    }
+
+    // v0.3.1 added serialisation of sub_voxel_weighting.
+    if (version.version.major > 0 || version.version.minor > 3 || version.version.patch > 0)
+    {
+      ok = readRaw<double>(stream, map.sub_voxel_weighting) && ok;
     }
 
     if (!ok)

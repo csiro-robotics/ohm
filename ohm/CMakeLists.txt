@@ -176,6 +176,7 @@ if(OHM_GPU)
     GpuCache.cpp
     GpuCache.h
     GpuCacheParams.h
+    GpuCachePostSyncHandler.h
     GpuLayerCache.cpp
     GpuLayerCache.h
     GpuMap.cpp
@@ -187,6 +188,7 @@ if(OHM_GPU)
   list(APPEND PUBLIC_HEADERS
     GpuCache.h
     GpuCacheParams.h
+    GpuCachePostSyncHandler.h
     GpuKey.h
     GpuLayerCache.h
     GpuMap.h

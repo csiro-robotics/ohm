@@ -177,6 +177,8 @@ int main(int argc, char *argv[])
 
   std::cout << "]" << std::endl;
   std::cout << "Touched stamp: " << map.stamp() << std::endl;
+  std::cout << "Sub-voxel positioning: " << (map.subVoxelsEnabled() ? "on" : "off") << std::endl;
+  std::cout << "Sub-voxel-weighting: "<< map.subVoxelWeighting() << std::endl;
   std::cout << std::endl;
 
   // Meta info.
