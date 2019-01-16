@@ -208,6 +208,7 @@ if(OHM_GPU)
         get_filename_component(CLSOURCENAME_WE "${CLSOURCE}" NAME_WE)
         text_file_resource("${CLSOURCE}" "${CLSOURCENAME_WE}Code"
           TYPE opencl
+          # ECHO
           PATHS "${CMAKE_CURRENT_LIST_DIR}" "${CMAKE_CURRENT_LIST_DIR}/gpu" "${GPUTIL_DEVICE_INCLUDE_DIRS}"
           # Append to the SOURCES list.
           FILELIST SOURCES

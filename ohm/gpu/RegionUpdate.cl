@@ -20,6 +20,10 @@
 //------------------------------------------------------------------------------
 #include "gpu_ext.h"
 
+// Explicitly include MapCoord.h first. It's included from each of the subsequent includes, but leaving it to SubVoxel.h
+// has issues with the resource generation. Essentially it causes MapCoord.h to be only included within the SUB_VOXEL
+// define.
+#include "MapCoord.h"
 #ifdef SUB_VOXEL
 #include "SubVoxel.h"
 #endif // SUB_VOXEL

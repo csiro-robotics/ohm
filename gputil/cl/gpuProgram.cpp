@@ -168,7 +168,7 @@ int Program::buildFromSource(const char *source, size_t source_length, const Bui
   prepareDebugBuildArgs(imp_->device, build_args, debug_opt, build_opt, source_file_opt);
 
   cl_int clerr = clu::buildProgramFromString(imp_->program, ocl_context, source, source_length, std::cerr,
-                                             programName(), debug_opt.str().c_str(), nullptr);
+                                             programName(), build_opt.str().c_str(), debug_opt.str().c_str());
 
   if (clerr != CL_SUCCESS)
   {

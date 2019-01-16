@@ -8,6 +8,8 @@
 #include <ohm/Aabb.h>
 #include <ohm/GpuMap.h>
 #include <ohm/KeyList.h>
+#include <ohm/GpuCache.h>
+#include <ohm/GpuLayerCache.h>
 #include <ohm/MapCache.h>
 #include <ohm/MapChunk.h>
 #include <ohm/MapProbability.h>
@@ -43,6 +45,8 @@ namespace subvoxel
     {
       return;
     }
+
+    std::cout << std::setfill(' ');
 
     // Error checking first, then pretty reporting.
     for (const SubVoxelResult &result : sub_voxel_results)
@@ -142,6 +146,13 @@ namespace subvoxel
 
     // Test core sub-voxel positioning
     OccupancyMap map(resolution, region_size, false);
+    // Setup a GPU cache to validate the change in cache size.
+    GpuMap gpu_wrap(&map, true, 2048);  // Borrow pointer.
+
+    ASSERT_TRUE(gpu_wrap.gpuOk());
+
+    const GpuLayerCache *gpu_occupancy_cache = gpu_wrap.gpuCache()->layerCache(map.layout().occupancyLayer());
+    const size_t without_sub_voxels_chunk_size = gpu_occupancy_cache->chunkSize();
 
     // First integrate without sub-voxel positioning
     glm::dvec3 sample_pos = glm::dvec3(1.1);
@@ -159,7 +170,10 @@ namespace subvoxel
     // voxel becomes invalid.
 
     map.setSubVoxelsEnabled(true);
+    const size_t with_sub_voxels_chunk_size = gpu_occupancy_cache->chunkSize();
     voxel = map.voxel(map.voxelKey(sample_pos), true);
+
+    EXPECT_GE(with_sub_voxels_chunk_size, without_sub_voxels_chunk_size);
 
     ASSERT_TRUE(voxel.isValid());
     EXPECT_TRUE(voxel.isOccupied());
@@ -179,7 +193,10 @@ namespace subvoxel
 
     // Now remove sub-voxel positioning.
     map.setSubVoxelsEnabled(false);
+    const size_t without_sub_voxels_chunk_size2 = gpu_occupancy_cache->chunkSize();
     voxel = map.voxel(map.voxelKey(sample_pos), true);
+
+    EXPECT_EQ(without_sub_voxels_chunk_size2, without_sub_voxels_chunk_size);
 
     // Expect occupancy to be unchanged.
     ASSERT_TRUE(voxel.isValid());

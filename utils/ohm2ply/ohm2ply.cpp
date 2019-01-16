@@ -342,7 +342,7 @@ int main(int argc, char *argv[])
     {
       if (map.occupancyType(voxel) == ohm::Occupied)
       {
-        v = voxel.centreGlobal();
+        v = voxel.position();
         ply.addVertex(v);
         ++point_count;
       }

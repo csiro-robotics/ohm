@@ -202,6 +202,15 @@ namespace ohm
     GpuCache *gpuCache() const;
 
   private:
+    /// Cache the correct GPU program to cater for @c with_sub_voxels. Releases the existing program first when
+    /// @p force is true or @p with_sub_voxels does not match the cached program.
+    /// @param with_sub_voxels True to cache the program which supports sub-voxel positioning (@ref subvoxel).
+    /// @param force Force release and program caching even if already correct. Must be used on initialisation.
+    void cacheGpuProgram(bool with_sub_voxels, bool force);
+
+    /// Release the current GPU program.
+    void releaseGpuProgram();
+
     template <typename VEC_TYPE>
     unsigned integrateRaysT(const VEC_TYPE *rays, unsigned element_count, bool end_points_as_occupied,
                             const RayFilterFunction &filter);

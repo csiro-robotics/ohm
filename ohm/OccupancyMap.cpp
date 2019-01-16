@@ -7,6 +7,8 @@
 
 #include "Aabb.h"
 #include "DefaultLayer.h"
+#include "GpuCache.h"
+#include "GpuLayerCache.h"
 #include "KeyList.h"
 #include "MapCache.h"
 #include "MapChunk.h"
@@ -18,8 +20,6 @@
 #include "Voxel.h"
 
 #include "OccupancyUtil.h"
-
-#include "GpuCache.h"
 
 #include "private/OccupancyMapDetail.h"
 
@@ -505,6 +505,19 @@ void OccupancyMap::setSubVoxelsEnabled(bool enable)
 
   imp_->layout.invalidateSubVoxelPatternState();
 
+  // First we have to synchronise the GPU cache(s).
+  if (imp_->gpu_cache)
+  {
+    for (unsigned i = 0; i < imp_->gpu_cache->layerCount(); ++i)
+    {
+      if (GpuLayerCache *layer = imp_->gpu_cache->layerCache(i))
+      {
+        layer->syncToMainMemory();
+        layer->clear();
+      }
+    }
+  }
+
   MapLayer *occupancy_layer = imp_->layout.layerPtr(occupancy_layer_index);
   const size_t voxel_count = size_t(imp_->region_voxel_dimensions.x) * size_t(imp_->region_voxel_dimensions.y) * size_t(imp_->region_voxel_dimensions.z);
   if (enable)
@@ -563,6 +576,21 @@ void OccupancyMap::setSubVoxelsEnabled(bool enable)
 
       chunk.voxel_maps[occupancy_layer_index] = new_occupancy_mem;
       occupancy_layer->release(existing_occupancy_mem);
+    }
+  }
+
+  // Now reallocate any GPU cache which relies on the occupancy layer.
+  if (imp_->gpu_cache)
+  {
+    for (unsigned i = 0; i < imp_->gpu_cache->layerCount(); ++i)
+    {
+      if (GpuLayerCache *layer = imp_->gpu_cache->layerCache(i))
+      {
+        if (layer->layerIndex() == unsigned(occupancy_layer_index))
+        {
+          layer->reallocate(*this);
+        }
+      }
     }
   }
 }

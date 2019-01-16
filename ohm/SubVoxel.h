@@ -6,15 +6,10 @@
 #ifndef SUBVOXEL_H
 #define SUBVOXEL_H
 
-#ifndef __OPENCL_C_VERSION__
-#include <OhmConfig.h>
-#endif // !__OPENCL_C_VERSION__
-
-
 #include "MapCoord.h"
 
 // Note: this header is included in GPU code.
-// Because of this <cmath> cannot be included here and you may need to include that first.
+// Because of this "OhmConfig.h" and <cmath> cannot be included here and you may need to include those first.
 
 /// @defgroup subvoxel Sub-Voxel Positioning
 /// These functions are used to manipulate the sub-voxel positioning voxel fields. Sub-voxel allows a voxel to store

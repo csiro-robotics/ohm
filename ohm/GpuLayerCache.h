@@ -261,6 +261,23 @@ namespace ohm
     /// @return The number of regions the cache can hold at any one time.
     unsigned cacheSize() const;
 
+    /// Total size of the GPU buffer(s) allocated by this layer cache.
+    /// @return The byte size of this cache's GPU buffer(s).
+    unsigned bufferSize() const;
+
+    /// Bytes used by each cache entry in the GPU buffer.
+    /// @return The byte size of each cached chunk in GPU.
+    unsigned chunkSize() const;
+
+    /// Clear the cache then reallocate using the initial constraints. This should be called whenever the layout of
+    /// the associated @c MapLayer changes, although this should be a rare occurrence.
+    ///
+    /// This method does not perform a @c syncToMainMemory() before clearing the cache. When reorganising layers
+    /// the sync should be performed before the reorganisation, not on reallocation.
+    ///
+    /// @param map The map to which the @c GpuLayerCache belongs.
+    void reallocate(const OccupancyMap &map);
+
     /// Drop all cache entries. Call @c syncToMainMemory() first if data should be synched first.
     void clear();
 

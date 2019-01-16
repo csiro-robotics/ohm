@@ -251,42 +251,13 @@ GpuMap::GpuMap(OccupancyMap *map, bool borrowed_map, unsigned expected_element_c
   }
   imp_->transform_samples = new GpuTransformSamples(gpu_cache.gpu());
 
-  if (map->subVoxelsEnabled())
-  {
-    imp_->program_ref = &sub_vox_program_ref;
-  }
-  else
-  {
-    imp_->program_ref = &no_sub_vox_program_ref;
-  }
-
-  if (imp_->program_ref->addReference(gpu_cache.gpu()))
-  {
-#if OHM_GPU == OHM_GPU_OPENCL
-    imp_->update_kernel = gputil::openCLKernel(imp_->program_ref->program(), "regionRayUpdate");
-#endif  // OHM_GPU == OHM_GPU_OPENCL
-    imp_->update_kernel.calculateOptimalWorkGroupSize();
-
-    imp_->gpu_ok = imp_->update_kernel.isValid();
-  }
-  else
-  {
-    imp_->gpu_ok = false;
-  }
+  cacheGpuProgram(map->subVoxelsEnabled(), true);
 }
 
 
 GpuMap::~GpuMap()
 {
-  if (imp_ && imp_->update_kernel.isValid())
-  {
-    imp_->update_kernel = gputil::Kernel();
-    if (imp_->program_ref)
-    {
-      imp_->program_ref->releaseReference();
-      imp_->program_ref = nullptr;
-    }
-  }
+  releaseGpuProgram();
   delete imp_;
 }
 
@@ -362,6 +333,57 @@ GpuCache *GpuMap::gpuCache() const
 }
 
 
+void GpuMap::cacheGpuProgram(bool with_sub_voxels, bool force)
+{
+  if (!force && with_sub_voxels == imp_->cached_sub_voxel_program)
+  {
+    return;
+  }
+
+  releaseGpuProgram();
+
+  GpuCache &gpu_cache = *imp_->map->detail()->gpu_cache;
+  imp_->cached_sub_voxel_program = with_sub_voxels;
+  if (with_sub_voxels)
+  {
+    imp_->program_ref = &sub_vox_program_ref;
+  }
+  else
+  {
+    imp_->program_ref = &no_sub_vox_program_ref;
+  }
+
+  if (imp_->program_ref->addReference(gpu_cache.gpu()))
+  {
+#if OHM_GPU == OHM_GPU_OPENCL
+    imp_->update_kernel = gputil::openCLKernel(imp_->program_ref->program(), "regionRayUpdate");
+#endif  // OHM_GPU == OHM_GPU_OPENCL
+    imp_->update_kernel.calculateOptimalWorkGroupSize();
+
+    imp_->gpu_ok = imp_->update_kernel.isValid();
+  }
+  else
+  {
+    imp_->gpu_ok = false;
+  }
+}
+
+
+void GpuMap::releaseGpuProgram()
+{
+  if (imp_ && imp_->update_kernel.isValid())
+  {
+    imp_->update_kernel = gputil::Kernel();
+  }
+
+  if (imp_->program_ref)
+  {
+    imp_->program_ref->releaseReference();
+    imp_->program_ref = nullptr;
+  }
+}
+
+
 template <typename VEC_TYPE>
 unsigned GpuMap::integrateRaysT(const VEC_TYPE *rays, unsigned element_count, bool end_points_as_occupied,
                                 const RayFilterFunction &filter)
@@ -388,6 +410,9 @@ unsigned GpuMap::integrateRaysT(const VEC_TYPE *rays, unsigned element_count, bo
   {
     return 0u;
   }
+
+  // Ensure we are using the correct GPU program. Sub-voxel support may have changed.
+  cacheGpuProgram(map.subVoxelsEnabled(), false);
 
   // Resolve the buffer index to use. We need to support cases where buffer is already one fo the imp_->ray_buffers.
   // Check this first.

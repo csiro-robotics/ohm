@@ -73,6 +73,7 @@ namespace ohm
     unsigned batch_marker = 1;  // Will cycle odd numbers to avoid zero.
     bool borrowed_map = false;
     bool gpu_ok = false;
+    bool cached_sub_voxel_program = false;
 
     GpuMapDetail(OccupancyMap *map, bool borrowed_map)
       : map(map)

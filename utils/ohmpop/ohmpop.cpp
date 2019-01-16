@@ -344,7 +344,7 @@ namespace
         }
         if (voxel.isOccupied())
         {
-          v = map.voxelCentreLocal(voxel.key());
+          v = voxel.position();
           ply.addVertex(v);
           ++point_count;
         }
@@ -389,7 +389,7 @@ int populateMap(const Options &opt)
     return -2;
   }
 
-  ohm::OccupancyMap map(opt.resolution, opt.region_voxel_dim);
+  ohm::OccupancyMap map(opt.resolution, opt.region_voxel_dim, opt.sub_voxel_weighting > 0);
   ohm::GpuMap gpu_map(&map, true, opt.batch_size);
   // MapperThread mapper(map, opt);
   ohm::Mapper mapper(&map);
