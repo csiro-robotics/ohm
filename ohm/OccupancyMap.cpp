@@ -204,7 +204,7 @@ OccupancyMap::OccupancyMap(double resolution, const glm::u8vec3 &region_voxel_di
   setOccupancyThresholdProbability(0.5f);
   imp_->setDefaultLayout(enable_sub_voxel_positioning);
   imp_->ray_filter = [](glm::dvec3 *start, glm::dvec3 *end, unsigned *filter_flags) {
-    return ohm::goodRayFilter(start, end, filter_flags, 0);
+    return ohm::goodRayFilter(start, end, filter_flags, 1e10);
   };
 }
 

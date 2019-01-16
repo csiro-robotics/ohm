@@ -62,7 +62,7 @@ struct SlamCloudLoaderDetail
   std::function<bool(TrajectoryPoint &point)> read_trajectory_point;
   std::ifstream trajectory_file;
   std::string traj_line;
-  glm::dvec3 trajectory_to_sensor_offset;
+  glm::dvec3 trajectory_to_sensor_offset = glm::dvec3(0);
   TrajectoryPoint trajectory_buffer[2];
 
   std::vector<SamplePoint> samples_buffer;

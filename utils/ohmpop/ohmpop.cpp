@@ -131,6 +131,15 @@ namespace
       // std::string mem_size_string;
       // util::makeMemoryDisplayString(mem_size_string, ohm::OccupancyMap::voxelMemoryPerRegion(region_voxel_dim));
       **out << "Map resolution: " << resolution << '\n';
+      **out << "Sub-voxel weighting: ";
+      if (sub_voxel_weighting > 0)
+      {
+        **out << sub_voxel_weighting << '\n';
+      }
+      else
+      {
+        **out << "off\n";
+      }
       glm::i16vec3 region_dim = region_voxel_dim;
       region_dim.x = (region_dim.x) ? region_dim.x : OHM_DEFAULT_CHUNK_DIM_X;
       region_dim.y = (region_dim.y) ? region_dim.y : OHM_DEFAULT_CHUNK_DIM_Y;
@@ -184,91 +193,6 @@ namespace
   private:
     ProgressMonitor &monitor_;
   };
-
-
-  class MapperThread
-  {
-  public:
-    MapperThread(ohm::OccupancyMap &map, const Options &opt);
-    ~MapperThread();
-
-    void start();
-    void join(bool wait_for_completion = true);
-
-  private:
-    void run();
-
-    ohm::Mapper mapper_;
-    std::thread *thread_ = nullptr;
-    double time_slice_sec_ = 0.001;
-    double interval_sec_ = 0.0;
-    std::atomic_bool allow_completion_;
-    std::atomic_bool quit_request_;
-  };
-
-  MapperThread::MapperThread(ohm::OccupancyMap &map, const Options &opt)
-    : time_slice_sec_(opt.progressive_mapping_slice)
-    , interval_sec_(opt.mapping_interval)
-    , allow_completion_(true)
-    , quit_request_(false)
-  {
-    mapper_.setMap(&map);
-    if (opt.clearance > 0)
-    {
-      mapper_.addProcess(new ohm::ClearanceProcess(opt.clearance, ohm::kQfGpuEvaluate));
-    }
-  }
-
-
-  MapperThread::~MapperThread()
-  {
-    join(false);
-    delete thread_;
-  }
-
-
-  void MapperThread::start()
-  {
-    if (!thread_)
-    {
-      thread_ = new std::thread(std::bind(&MapperThread::run, this));
-    }
-  }
-
-
-  void MapperThread::join(bool wait_for_completion)
-  {
-    if (thread_)
-    {
-      allow_completion_ = wait_for_completion;
-      quit_request_ = true;
-      thread_->join();
-      delete thread_;
-      thread_ = nullptr;
-    }
-  }
-
-
-  void MapperThread::run()
-  {
-    while (!quit_request_)
-    {
-      const auto loop_start = Clock::now();
-      if (time_slice_sec_ > 0)
-      {
-        mapper_.update(time_slice_sec_);
-      }
-      if (interval_sec_ > 0)
-      {
-        std::this_thread::sleep_until(loop_start + std::chrono::duration<double>(interval_sec_));
-      }
-    }
-
-    if (allow_completion_)
-    {
-      mapper_.update(0);
-    }
-  }
 
 
   enum SaveFlags : unsigned
@@ -391,7 +315,6 @@ int populateMap(const Options &opt)
 
   ohm::OccupancyMap map(opt.resolution, opt.region_voxel_dim, opt.sub_voxel_weighting > 0);
   ohm::GpuMap gpu_map(&map, true, opt.batch_size);
-  // MapperThread mapper(map, opt);
   ohm::Mapper mapper(&map);
   std::vector<double> sample_timestamps;
   std::vector<glm::dvec3> origin_sample_pairs;
@@ -705,7 +628,7 @@ int populateMap(const Options &opt)
     **out << "Population completed in " << mapper_start - start_time << std::endl;
     **out << "Post mapper completed in " << end_time - mapper_start << std::endl;
     **out << "Total processing time: " << end_time - start_time << '\n';
-    **out << "Efficiency: " << ((time_range) ? processing_time_sec / time_range : 0.0) << '\n';
+    **out << "Efficiency: " << ((processing_time_sec && time_range) ? time_range / processing_time_sec : 0.0) << '\n';
     **out << "Points/sec: " << ((processing_time_sec > 0) ? point_count / processing_time_sec : 0.0) << '\n';
     **out << "Memory (approx): " << map.calculateApproximateMemory() / (1024.0 * 1024.0) << " MiB\n";
     **out << std::flush;
@@ -722,80 +645,6 @@ int populateMap(const Options &opt)
   return 0;
 }
 
-
-namespace
-{
-  void printOptions(std::ostream **out, const Options &opt, const ohm::OccupancyMap &map)
-  {
-    while (*out)
-    {
-      **out << "Cloud: " << opt.cloud_file;
-      if (!opt.trajectory_file.empty())
-      {
-        **out << " + " << opt.trajectory_file << '\n';
-      }
-      else
-      {
-        **out << " (no trajectory)\n";
-      }
-      if (opt.preload_count)
-      {
-        **out << "Preload: ";
-        if (opt.preload_count < 0)
-        {
-          **out << "all";
-        }
-        else
-        {
-          **out << opt.preload_count;
-        }
-        **out << '\n';
-      }
-
-      if (opt.point_limit)
-      {
-        **out << "Maximum point: " << opt.point_limit << '\n';
-      }
-
-      if (opt.start_time)
-      {
-        **out << "Process from timestamp: " << opt.start_time << '\n';
-      }
-
-      if (opt.time_limit)
-      {
-        **out << "Process to timestamp: " << opt.time_limit << '\n';
-      }
-
-      // std::string mem_size_string;
-      // util::makeMemoryDisplayString(mem_size_string, ohm::OccupancyMap::voxelMemoryPerRegion(opt.region_voxel_dim));
-      **out << "Map resolution: " << opt.resolution << '\n';
-      **out << "Sub-voxel weighting: ";
-      if (opt.sub_voxel_weighting > 0)
-      {
-        **out << opt.sub_voxel_weighting << '\n';
-      }
-      else
-      {
-        **out << "off\n";
-      }
-
-      glm::i16vec3 region_dim = opt.region_voxel_dim;
-      region_dim.x = (region_dim.x) ? region_dim.x : OHM_DEFAULT_CHUNK_DIM_X;
-      region_dim.y = (region_dim.y) ? region_dim.y : OHM_DEFAULT_CHUNK_DIM_Y;
-      region_dim.z = (region_dim.z) ? region_dim.z : OHM_DEFAULT_CHUNK_DIM_Z;
-      **out << "Map region dimensions: " << region_dim << '\n';
-      // **out << "Map region memory: " << mem_size_string << '\n';
-      **out << "Hit probability: " << opt.prob_hit << " (" << ohm::probabilityToValue(opt.prob_hit) << ")\n";
-      **out << "Miss probability: " << opt.prob_miss << " (" << ohm::probabilityToValue(opt.prob_miss) << ")\n";
-      **out << "Occupancy threshold: " << opt.prob_thresh << " (" << ohm::probabilityToValue(opt.prob_thresh) << ")\n";
-      **out << "Probability range: [" << map.minNodeProbability() << ' ' << map.maxNodeProbability() << "]\n";
-      **out << "Ray batch size: " << opt.batch_size << '\n';
-
-      ++out;
-    }
-  }
-}  // namespace
 
 int parseOptions(Options &opt, int argc, char *argv[])
 {
@@ -840,7 +689,7 @@ int parseOptions(Options &opt, int argc, char *argv[])
       ("sub-voxel", "Sub voxel positioning weighting. Adding this option with no value enables sub-voxel positioning "
                     "with the default weighting. Specifying a value (0, 1] sets the weight of new samples vs. the "
                     "existing sub-voxel position.",
-                    optVal(opt.sub_voxel_weighting)->implicit_value("0.1"))
+                    optVal(opt.sub_voxel_weighting)->implicit_value("0.3"))
       ("threshold", "Sets the occupancy threshold assigned when exporting the map to a cloud.", optVal(opt.prob_thresh)->implicit_value(optStr(opt.prob_thresh)))
       ;
 
