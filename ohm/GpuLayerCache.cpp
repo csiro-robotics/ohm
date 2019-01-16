@@ -310,13 +310,13 @@ unsigned GpuLayerCache::cacheSize() const
 
 unsigned GpuLayerCache::bufferSize() const
 {
-  return (imp_->buffer) ? imp_->buffer->actualSize() : 0;
+  return (imp_->buffer) ? unsigned(imp_->buffer->actualSize()) : 0;
 }
 
 
 unsigned GpuLayerCache::chunkSize() const
 {
-  return imp_->chunk_mem_size;
+  return unsigned(imp_->chunk_mem_size);
 }
 
 
@@ -529,7 +529,7 @@ void GpuLayerCache::syncToMainMemory(GpuCacheEntry &entry, bool wait_on_sync)
     gputil::Event last_event = entry.sync_event;
     // Release the entry's sync event. We will git it a new one.
     entry.sync_event.release();
-    // Queue memory read blocking on the last event and traking a new one in entry.syncEvent
+    // Queue memory read blocking on the last event and tracking a new one in entry.syncEvent
     uint8_t *voxel_mem = entry.chunk->layout->layer(imp_->layer_index).voxels(*entry.chunk);
     imp_->buffer->read(voxel_mem, imp_->chunk_mem_size, entry.mem_offset, &imp_->gpu_queue, &last_event, &entry.sync_event);
   }

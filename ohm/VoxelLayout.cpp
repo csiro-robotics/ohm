@@ -128,7 +128,7 @@ namespace
 
   void updateOffsets(VoxelLayoutDetail *detail, VoxelMember *member)
   {
-    uint16_t member_size = DataType::size(member->type);
+    uint16_t member_size = uint16_t(DataType::size(member->type));
 
     // Resolve packing. Member size dictates the required alignment at the next increment of 1, 2, 4 or 8 bytes.
     uint16_t alignment = fixAlignment(member_size);
@@ -142,7 +142,7 @@ namespace
     // Is the proposed offset correctly aligned?
     if (member->offset % alignment != 0)
     {
-      // Not aligned. Padd to the required alignment.
+      // Not aligned. Pad to the required alignment.
       member->offset += alignment - member->offset % alignment;
     }
 
