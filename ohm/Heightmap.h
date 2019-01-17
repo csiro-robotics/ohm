@@ -41,7 +41,8 @@ namespace ohm
   ///
   /// A @c blurLevel() may be set to expand the column. Each blur factor expands the search space into a square around
   /// the original column. A blur level of 1 tests 9 voxels per source map layer to populate a heightmap voxel, blur 2
-  /// uses 25, 3 uses 49, etc.
+  /// uses 25, 3 uses 49, etc. Note that setting a blur level prevents the heightmap voxels from storing laterally
+  /// offset positions (i.e., prevents lateral sub-voxel positioning in the heightmap).
   ///
   /// The resulting heightmap may be accessed via @c heightmap().
   ///
