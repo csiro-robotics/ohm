@@ -421,7 +421,10 @@ namespace clu
     std::vector<std::string> tokens;
     ArgParse parse_result = kApOk;
 
-    type = CL_DEVICE_TYPE_GPU | CL_DEVICE_TYPE_ACCELERATOR;
+    if (!type)
+    {
+      type = CL_DEVICE_TYPE_GPU | CL_DEVICE_TYPE_ACCELERATOR;
+    }
 
     for (auto iter = args.begin(); iter != args.end(); ++iter)
     {

@@ -42,6 +42,12 @@ int main(int argc, char **argv)
   }
 
   ::testing::InitGoogleTest(&argc, argv);
-  ohm::configureGpuFromArgs(argc, argv, true);
-  return RUN_ALL_TESTS();
+  int err = ohm::configureGpuFromArgs(argc, argv, true);
+  if (err)
+  {
+    std::cerr << "failed to initialise GPU" << std::endl;
+    return err;
+  }
+  err = RUN_ALL_TESTS();
+  return err;
 }
