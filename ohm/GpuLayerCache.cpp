@@ -17,7 +17,6 @@
 #include <unordered_map>
 
 #include <cassert>
-#include <iostream>
 #include <memory>
 
 using namespace ohm;
@@ -466,7 +465,6 @@ GpuCacheEntry *GpuLayerCache::resolveCacheEntry(OccupancyMap &map, const glm::i1
 
   if (upload)
   {
-    // std::cout << "upload " << chunk.region.coord << '\n';
     const uint8_t *voxel_mem = (chunk) ? layer.voxels(*chunk) : imp_->dummy_chunk;
     imp_->buffer->write(voxel_mem, imp_->chunk_mem_size, entry->mem_offset, &imp_->gpu_queue, nullptr, &entry->sync_event);
   }
@@ -495,7 +493,6 @@ void GpuLayerCache::allocateBuffers(const OccupancyMap &map, const MapLayer &lay
   imp_->target_gpu_mem_size = target_gpu_mem_size;
   imp_->region_size = layer.dimensions(map.regionVoxelDimensions());
   imp_->chunk_mem_size = layer.layerByteSize(map.regionVoxelDimensions());
-  // std::cout << "gpu mem size: " << imp_->chunk_mem_size << std::endl;
 
   size_t allocated = 0;
 

@@ -309,10 +309,6 @@ __kernel void regionRayUpdate(__global VoxelType *voxels_mem,
                               float voxelValueMin, float voxelValueMax, float sub_voxel_weighting
                              )
 {
-  // #ifdef SUB_VOXEL
-  // printf("gpu-sub-voxels\n");
-  // #endif // SUB_VOXEL
-
   // Only process valid lines.
   if (get_global_id(0) >= lineCount)
   {

@@ -17,10 +17,10 @@
 #include "private/OccupancyMapDetail.h"
 #include "private/SerialiseUtil.h"
 
-#include "serialise/MapSerialiseV0.h"
 #include "serialise/MapSerialiseV0.1.h"
 #include "serialise/MapSerialiseV0.2.h"
 #include "serialise/MapSerialiseV0.3.h"
+#include "serialise/MapSerialiseV0.h"
 
 #include <glm/glm.hpp>
 
@@ -455,7 +455,6 @@ namespace ohm
 
     return kSeOk;
   }
-
 
 
   // Current version of chunk loading.

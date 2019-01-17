@@ -104,7 +104,7 @@ void Voxel::setValue(float value, bool force)
       _chunk->validateFirstValid(_map->region_voxel_dimensions);
 #endif  // OHM_VALIDATION
     }
-    touchMap();
+    touchMap(chunk_->layout->occupancyLayer());
   }
 #ifdef OHM_VALIDATION
   else
@@ -122,7 +122,7 @@ void Voxel::setClearance(float range)
     if (float *voxel_ptr = voxel::voxelPtrAs<float *>(key_, chunk_, map_, chunk_->layout->clearanceLayer()))
     {
       *voxel_ptr = range;
-      // touchMap();
+      touchMap(chunk_->layout->clearanceLayer());
     }
   }
 }
@@ -174,12 +174,13 @@ void Voxel::touchRegion(double timestamp)
 }
 
 
-void Voxel::touchMap()
+void Voxel::touchMap(int layer)
 {
   if (map_ && chunk_)
   {
+    assert(0 <= layer && layer < chunk_->layout->layerCount());
     ++map_->stamp;
-    chunk_->dirty_stamp = chunk_->touched_stamps[chunk_->layout->occupancyLayer()] = map_->stamp;
+    chunk_->dirty_stamp = chunk_->touched_stamps[layer] = map_->stamp;
   }
 }
 
