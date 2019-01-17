@@ -17,6 +17,9 @@
 
 #include "Colour.h"
 
+namespace ohm
+{
+
 /// Represents a mesh which can be saved to Ply. Intended as a debugging device.
 class ohmutil_API PlyMesh
 {
@@ -146,5 +149,7 @@ private:
 
   std::unordered_map<unsigned, unsigned> *index_mapper_;
 };
+
+} // namespace ohm
 
 #endif  // OHMUTIL_PLYMESH_H

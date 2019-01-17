@@ -334,7 +334,7 @@ int main(int argc, char *argv[])
   }
 
   std::cout << "Converting to PLY cloud" << std::endl;
-  PlyMesh ply;
+  ohm::PlyMesh ply;
   glm::vec3 v;
   const size_t region_count = map.regionCount();
   glm::i16vec3 last_region = map.begin().key().regionKey();

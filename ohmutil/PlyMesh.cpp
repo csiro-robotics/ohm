@@ -20,6 +20,8 @@
 #endif
 #endif // ZU
 
+using namespace ohm;
+
 namespace
 {
   bool isBigEndian()

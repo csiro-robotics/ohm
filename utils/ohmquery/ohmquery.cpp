@@ -285,7 +285,7 @@ void saveQueryCloud(const ohm::OccupancyMap &map, const ohm::Query &query, const
   const float *ranges = query.ranges();
   glm::dvec3 voxel_pos;
 
-  PlyMesh ply;
+  ohm::PlyMesh ply;
   for (size_t i = 0; i < result_count; ++i)
   {
     const ohm::Key &key = keys[i];
@@ -315,7 +315,7 @@ void saveRangesCloud(const ohm::OccupancyMap &map, const ohm::VoxelRanges &query
   std::string str = opt.outputBase;
   str += suffix + ".ply";
   printf("Exporting ranges cloud to %s\n", str.c_str());
-  PlyMesh ply;
+  ohm::PlyMesh ply;
   glm::vec3 v;
   auto mapEndIter = map.end();
   size_t regionCount = map.regionCount();

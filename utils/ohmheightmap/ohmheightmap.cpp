@@ -8,7 +8,6 @@
 #include <ohm/Voxel.h>
 
 #include <ohmutil/OhmUtil.h>
-#include <ohmutil/PlyMesh.h>
 #include <ohmutil/ProgressMonitor.h>
 #include <ohmutil/SafeIO.h>
 #include <ohmutil/ScopedTimeDisplay.h>

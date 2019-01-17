@@ -11,7 +11,6 @@ find_package(glfw3 REQUIRED)
 configure_file(OhmHeightmapUtilConfig.in.h "${CMAKE_CURRENT_BINARY_DIR}/ohmheightmaputil/OhmHeightmapUtilConfig.h")
 
 set(SOURCES
-  3rdparty/delaunator.hpp
   HeightmapImage.cpp
   HeightmapImage.h
   OhmHeightmapUtilConfig.in.h

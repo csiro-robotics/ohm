@@ -17,7 +17,7 @@ namespace ohmtools
 {
   void saveCloud(const char *file_name, const ohm::OccupancyMap &map, const ProgressCallback &prog)
   {
-    PlyMesh ply;
+    ohm::PlyMesh ply;
     glm::vec3 v;
     const size_t region_count = map.regionCount();
     size_t processed_region_count = 0;
@@ -55,7 +55,7 @@ namespace ohmtools
     const float *ranges = query.ranges();
     glm::dvec3 voxel_pos;
 
-    PlyMesh ply;
+    ohm::PlyMesh ply;
     for (size_t i = 0; i < result_count; ++i)
     {
       const ohm::Key &key = keys[i];
@@ -89,7 +89,7 @@ namespace ohmtools
     size_t processed_region_count = 0;
     glm::dvec3 v;
     glm::i16vec3 last_region = map.begin().key().regionKey();
-    PlyMesh ply;
+    ohm::PlyMesh ply;
     size_t point_count = 0;
 
     glm::i16vec3 min_region = map.regionKey(min_extents);
