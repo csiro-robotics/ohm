@@ -8,16 +8,13 @@
 
 #include "OhmConfig.h"
 
+#include "GpuCachePostSyncHandler.h"
+
 #include <glm/glm.hpp>
 
 #include <gputil/gpuBuffer.h>
 #include <gputil/gpuDevice.h>
 #include <gputil/gpuQueue.h>
-
-// FIXME:
-// MapNode has been split into two arrays. The GPU cache must now maintain these separately or we use two caches.
-// Occupancy values are for populating the map, while clearance values are for range queries, normally to be
-// calculated periodically during map population.
 
 namespace ohm
 {
@@ -92,8 +89,10 @@ namespace ohm
     /// @param layer_index Identifies @c MapLayer from which to cache voxel data.
     /// @param target_gpu_mem_size The maximum allowed buffer size (bytes).
     /// @param flags Creation flags: see @c GpuCacheFlag. @c GCFRead is currently mandatory.
+    /// @param on_sync Defines a function to invoke after a @c MapChunk is synched to main memory (CPU).
     GpuLayerCache(const gputil::Device &gpu, const gputil::Queue &gpu_queue, OccupancyMap &map, unsigned layer_index,
-                  size_t target_gpu_mem_size, unsigned flags);
+                  size_t target_gpu_mem_size, unsigned flags,
+                  GpuCachePostSyncHandler on_sync = GpuCachePostSyncHandler());
 
     /// Release the GPU cache. Does not synchronise to host memory.
     ~GpuLayerCache();
@@ -105,6 +104,10 @@ namespace ohm
     /// Identifies the voxel layer the GPU cache operates on. See @c MapLayout and @c MapChunk::voxel_maps.
     /// @return The voxel layer index this cache operates on.
     unsigned layerIndex() const;
+
+    /// Handler invoked after a MapChunk has been synchronised to main memory.
+    /// @return The function object invoked on sync.
+    const GpuCachePostSyncHandler &onSyncHandler() const;
 
     /// Allocate space for voxel data from the @c MapChunk identified by @c regionKey to GPU.
     /// The GPU memory is directly associated with the @c MapChunk voxel layer given by
@@ -261,6 +264,23 @@ namespace ohm
     /// @return The number of regions the cache can hold at any one time.
     unsigned cacheSize() const;
 
+    /// Total size of the GPU buffer(s) allocated by this layer cache.
+    /// @return The byte size of this cache's GPU buffer(s).
+    unsigned bufferSize() const;
+
+    /// Bytes used by each cache entry in the GPU buffer.
+    /// @return The byte size of each cached chunk in GPU.
+    unsigned chunkSize() const;
+
+    /// Clear the cache then reallocate using the initial constraints. This should be called whenever the layout of
+    /// the associated @c MapLayer changes, although this should be a rare occurrence.
+    ///
+    /// This method does not perform a @c syncToMainMemory() before clearing the cache. When reorganising layers
+    /// the sync should be performed before the reorganisation, not on reallocation.
+    ///
+    /// @param map The map to which the @c GpuLayerCache belongs.
+    void reallocate(const OccupancyMap &map);
+
     /// Drop all cache entries. Call @c syncToMainMemory() first if data should be synched first.
     void clear();
 
@@ -274,6 +294,12 @@ namespace ohm
 
     void allocateBuffers(const OccupancyMap &map, const MapLayer &layer, size_t target_gpu_mem_size);
 
+    /// Sync a cache entry to main memory.
+    ///
+    /// Note: this method invoked the @c GpuCachePostSyncHandler only when @p wait_on_sync is true.
+    /// When @p wait_on_sync is false, the caller must resolve calling the @c GpuCachePostSyncHandler.
+    /// @param entry The cache entry.
+    /// @param wait_on_sync Wait for sync to finish?
     void syncToMainMemory(GpuCacheEntry &entry, bool wait_on_sync);
 
     GpuCacheEntry *findCacheEntry(const glm::i16vec3 &region_key);

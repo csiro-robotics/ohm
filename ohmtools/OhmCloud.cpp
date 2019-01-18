@@ -37,7 +37,8 @@ namespace ohmtools
       }
       if (map.occupancyType(voxel) == ohm::Occupied)
       {
-        v = map.voxelCentreLocal(voxel.key());
+        // v = map.voxelCentreLocal(voxel.key());
+        v = voxel.position() - map.origin();
         ply.addVertex(v);
       }
     }

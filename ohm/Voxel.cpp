@@ -9,6 +9,7 @@
 
 #include "DefaultLayer.h"
 #include "MapChunk.h"
+#include "SubVoxel.h"
 #include "VoxelLayout.h"
 
 #include <algorithm>
@@ -19,32 +20,6 @@ using namespace ohm;
 
 namespace
 {
-  // Get a voxel pointer as uint8_t * or const uint8_t *. No other types for T are supported.
-  template <typename T, typename MAPCHUNK>
-  T getVoxelBytePtr(const Key &key, MAPCHUNK *chunk, const OccupancyMapDetail *map, int layer_index, size_t expected_size)
-  {
-    if (chunk && map && key.regionKey() == chunk->region.coord)
-    {
-      // Validate layer.
-      assert(layer_index < int(chunk->layout->layerCount()));
-      const MapLayer *layer = chunk->layout->layerPtr(layer_index);
-      if (expected_size > 0 && layer->voxelByteSize() != expected_size)
-      {
-        return nullptr;
-      }
-      // Account for sub sampling.
-      const glm::u8vec3 layer_dim = layer->dimensions(map->region_voxel_dimensions);
-      // Resolve voxel index within this layer.
-      const unsigned index = ::voxelIndex(key, layer_dim);
-      T voxels = layer->voxels(*chunk);
-      assert(index < unsigned(layer_dim.x * layer_dim.y * layer_dim.z));
-      voxels += layer->voxelByteSize() * index;
-      return voxels;
-    }
-
-    return nullptr;
-  }
-
 
 
   template <typename VOXEL, typename MAPCHUNK, typename MAPDETAIL>
@@ -60,7 +35,7 @@ namespace
     map->moveKeyAlongAxis(neighbour_key, 1, dy);
     map->moveKeyAlongAxis(neighbour_key, 2, dz);
 
-    if (neighbour_key.regionKey() ==  key.regionKey())
+    if (neighbour_key.regionKey() == key.regionKey())
     {
       // Same region.
       return VOXEL(neighbour_key, chunk, map);
@@ -78,69 +53,7 @@ namespace
     // Invalid neighbouring region.
     return VOXEL(neighbour_key, nullptr, map);
   }
-}  // namespace
-
-namespace ohm
-{
-  namespace voxel
-  {
-    uint8_t *voxelPtr(const Key &key, MapChunk *chunk, OccupancyMapDetail *map, int layer_index, size_t expected_size)
-    {
-      uint8_t *ptr = ::getVoxelBytePtr<uint8_t *>(key, chunk, map, layer_index, expected_size);
-      return ptr;
-    }
-
-    const uint8_t *voxelPtr(const Key &key, const MapChunk *chunk, OccupancyMapDetail *map, int layer_index,
-                            size_t expected_size)
-    {
-      const uint8_t *ptr = ::getVoxelBytePtr<const uint8_t *>(key, chunk, map, layer_index, expected_size);
-      return ptr;
-    }
-
-
-    float occupancyThreshold(const OccupancyMapDetail &map) { return map.occupancy_threshold_value; }
-
-
-    glm::u8vec3 regionVoxelDimensions(const OccupancyMapDetail &map) { return map.region_voxel_dimensions; }
-
-
-    glm::dvec3 centreLocal(const Key &key, const OccupancyMapDetail &map)
-    {
-      glm::dvec3 centre;
-      // Region centre
-      centre = glm::vec3(key.regionKey());
-      centre.x *= map.region_spatial_dimensions.x;
-      centre.y *= map.region_spatial_dimensions.y;
-      centre.z *= map.region_spatial_dimensions.z;
-      // Offset to the lower extents of the region.
-      centre -= 0.5 * map.region_spatial_dimensions;
-      // Local offset.
-      centre += glm::dvec3(key.localKey()) * map.resolution;
-      centre += glm::dvec3(0.5 * map.resolution);
-      return centre;
-    }
-
-
-    glm::dvec3 centreGlobal(const Key &key, const OccupancyMapDetail &map)
-    {
-      glm::dvec3 centre;
-      // Region centre
-      centre = glm::dvec3(key.regionKey());
-      centre.x *= map.region_spatial_dimensions.x;
-      centre.y *= map.region_spatial_dimensions.y;
-      centre.z *= map.region_spatial_dimensions.z;
-      // Offset to the lower extents of the region.
-      centre -= 0.5 * glm::dvec3(map.region_spatial_dimensions);
-      // Map offset.
-      centre += map.origin;
-      // Local offset.
-      centre += glm::dvec3(key.localKey()) * double(map.resolution);
-      centre += glm::dvec3(0.5 * map.resolution);
-      return centre;
-    }
-  }  // namespace voxel
-}  // namespace ohm
-
+} // namespace
 
 Voxel VoxelConst::makeMutable() const
 {
@@ -154,25 +67,32 @@ Voxel VoxelConst::makeMutable() const
 
 void Voxel::setValue(float value, bool force)
 {
-  if (float *voxel_ptr = ohm::voxel::voxelPtrAs<float *>(key_, chunk_, map_, kDlOccupancy))
+  float *occupancy_ptr = nullptr;
+
+  if (isValid())
+  {
+    occupancy_ptr = voxel::voxelOccupancyPtr(key_, chunk_, map_);
+  }
+
+  if (occupancy_ptr)
   {
     if (value != voxel::invalidMarkerValue())
     {
       // Clamp the value to the allowed voxel range.
       value = std::max(map_->min_voxel_value, std::min(value, map_->max_voxel_value));
       // Honour saturation. Once saturated a voxel value could not change.
-      if (force || *voxel_ptr == voxel::invalidMarkerValue() ||
-          (value < *voxel_ptr && (!map_->saturate_at_max_value || *voxel_ptr < map_->max_voxel_value)) ||
-          (value > *voxel_ptr && (!map_->saturate_at_min_value || *voxel_ptr > map_->min_voxel_value)))
+      if (force || *occupancy_ptr == voxel::invalidMarkerValue() ||
+          (value < *occupancy_ptr && (!map_->saturate_at_max_value || *occupancy_ptr < map_->max_voxel_value)) ||
+          (value > *occupancy_ptr && (!map_->saturate_at_min_value || *occupancy_ptr > map_->min_voxel_value)))
       {
-        *voxel_ptr = value;
+        *occupancy_ptr = value;
         // This voxel is now valid. Update the chunk's first valid key as required.
         chunk_->updateFirstValid(key_.localKey(), map_->region_voxel_dimensions);
       }
     }
     else
     {
-      *voxel_ptr = value;
+      *occupancy_ptr = value;
       // This voxel is now invalid. If it was the first valid voxel, then it no longer is and
       // we need to update it (brute force).
       if (chunk_->first_valid_index == key_.localKey())
@@ -184,7 +104,7 @@ void Voxel::setValue(float value, bool force)
       _chunk->validateFirstValid(_map->region_voxel_dimensions);
 #endif  // OHM_VALIDATION
     }
-    touchMap();
+    touchMap(chunk_->layout->occupancyLayer());
   }
 #ifdef OHM_VALIDATION
   else
@@ -197,11 +117,51 @@ void Voxel::setValue(float value, bool force)
 
 void Voxel::setClearance(float range)
 {
-  if (float *voxel_ptr = voxel::voxelPtrAs<float *>(key_, chunk_, map_, kDlClearance))
+  if (isValid() && chunk_->layout->clearanceLayer() >= 0)
   {
-    *voxel_ptr = range;
-    // touchMap();
+    if (float *voxel_ptr = voxel::voxelPtrAs<float *>(key_, chunk_, map_, chunk_->layout->clearanceLayer()))
+    {
+      *voxel_ptr = range;
+      touchMap(chunk_->layout->clearanceLayer());
+    }
   }
+}
+
+
+bool Voxel::setPosition(const glm::dvec3 &position)
+{
+  if (isValid())
+  {
+    if (chunk_->layout->hasSubVoxelPattern())
+    {
+      OccupancyVoxel *voxel_occupancy = layerContent<OccupancyVoxel *>(map_->layout.occupancyLayer());
+      voxel_occupancy->sub_voxel = subVoxelCoord(position - centreGlobal(), map_->resolution);
+
+      return true;
+    }
+
+  }
+
+  return false;
+}
+
+
+bool Voxel::updatePosition(const glm::dvec3 &position, double update_weighting)
+{
+  if (isValid())
+  {
+    if (chunk_->layout->hasSubVoxelPattern())
+    {
+      update_weighting = (update_weighting >= 0) ? update_weighting : map_->sub_voxel_weighting;
+      OccupancyVoxel *voxel_occupancy = layerContent<OccupancyVoxel *>(map_->layout.occupancyLayer());
+      voxel_occupancy->sub_voxel = subVoxelUpdate(voxel_occupancy->sub_voxel, position - centreGlobal(),
+                                                  map_->resolution, update_weighting);
+      return true;
+    }
+
+  }
+
+  return false;
 }
 
 
@@ -214,12 +174,13 @@ void Voxel::touchRegion(double timestamp)
 }
 
 
-void Voxel::touchMap()
+void Voxel::touchMap(int layer)
 {
   if (map_ && chunk_)
   {
+    assert(0 <= layer && layer < chunk_->layout->layerCount());
     ++map_->stamp;
-    chunk_->dirty_stamp = chunk_->touched_stamps[kDlOccupancy] = map_->stamp;
+    chunk_->dirty_stamp = chunk_->touched_stamps[layer] = map_->stamp;
   }
 }
 

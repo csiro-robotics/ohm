@@ -11,6 +11,7 @@ set(_TEXT_FILE_RESOURCE_PY "${CMAKE_CURRENT_LIST_DIR}/TextFileResource.py")
 #     [NO_IMPORT]
 #     [MINIFY]
 #     [BINARY]
+#     [ECHO]
 #     [PATHS path1 path2 ...]
 # )
 #
@@ -81,12 +82,14 @@ set(_TEXT_FILE_RESOURCE_PY "${CMAKE_CURRENT_LIST_DIR}/TextFileResource.py")
 # The INCLUDE_PATTERN matches patterns such as '#include "somefile.h"' with the capture extracting 'somefile.h'.
 # This will be replaced with the contents of 'somefile.h' resolved from one of the PATHS.
 #
+# Finally, the command line executed may be shown by adding ECHO.
+#
 # FIXME: strings are limited to 2^16 - 1 characters. Provide a workaround.
 function(text_file_resource TEXT_FILE RESOURCE_NAME)
   # Requires python to do the conversion.
   find_package(PythonInterp 3 REQUIRED)
 
-  cmake_parse_arguments(TFR "BINARY;MINIFY;NO_IMPORT" "COMMENT_PATTERN;INCLUDE_PATTERN;FILELIST;TYPE" "PATHS" ${ARGN})
+  cmake_parse_arguments(TFR "BINARY;MINIFY;NO_IMPORT;ECHO" "COMMENT_PATTERN;INCLUDE_PATTERN;FILELIST;TYPE" "PATHS" ${ARGN})
 
   # Prepare command line arguments.
   set(_ARGS)
@@ -123,6 +126,10 @@ function(text_file_resource TEXT_FILE RESOURCE_NAME)
     set(${TFR_FILELIST} ${${TFR_FILELIST}} PARENT_SCOPE)
     # message("...${TFR_FILELIST}: ${CMAKE_CURRENT_BINARY_DIR}/${RESOURCE_NAME}.cpp ${CMAKE_CURRENT_BINARY_DIR}/${RESOURCE_NAME}.h")
   endif(TFR_FILELIST)
+
+  if(TFR_ECHO)
+    message("${PYTHON_EXECUTABLE} ${_TEXT_FILE_RESOURCE_PY} ${TEXT_FILE} ${CMAKE_CURRENT_BINARY_DIR}/${BASE_FILE} --name=${RESOURCE_NAME} ${ARGS}")
+  endif(TFR_ECHO)
 
   # Python 3 available. Use python version.
   execute_process(

@@ -6,9 +6,10 @@
 ///
 /// @param voxelKey The key for the voxel currently being traversed. This voxel is on the line.
 /// @param isEndVoxel True if @p voxelKey is the last voxel on the line.
+/// @param voxelResolution The edge length of each voxel cube.
 /// @param userData User data pointer.
 /// @return True to continue traversing the line, false to abort traversal.
-bool walkLineVoxel(const struct GpuKey *voxelKey, bool isEndVoxel, void *userData);
+bool walkLineVoxel(const struct GpuKey *voxelKey, bool isEndVoxel, float voxelResolution, void *userData);
 
 /// Calculate the @p GpuKey for @p point local to the region's minimum extents corner.
 /// @param[out] key The output key.
@@ -227,7 +228,7 @@ void walkLineVoxels(const struct GpuKey *startKey, const struct GpuKey *endKey,
       break;
     }
     #endif // LIMIT_LINE_WALK_ITERATIONS
-    continueTraversal = walkLineVoxel(&currentKey, false, userData);
+    continueTraversal = walkLineVoxel(&currentKey, false, voxelResolution, userData);
     // Select the minimum timeMax as the next axis.
     axis = (timeMax[0] < timeMax[2]) ? ((timeMax[0] < timeMax[1]) ? 0 : 1) : ((timeMax[1] < timeMax[2]) ? 1 : 2);
     limitReached = fabs(timeMax[axis]) > timeLimit[axis];
@@ -253,6 +254,6 @@ void walkLineVoxels(const struct GpuKey *startKey, const struct GpuKey *endKey,
   // Walk end point.
   if (continueTraversal)
   {
-    walkLineVoxel(endKey, endKey->voxel[3] == 0, userData);
+    walkLineVoxel(endKey, endKey->voxel[3] == 0, voxelResolution, userData);
   }
 }

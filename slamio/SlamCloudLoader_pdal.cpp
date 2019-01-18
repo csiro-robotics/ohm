@@ -62,10 +62,10 @@ struct SlamCloudLoaderDetail
   std::function<bool(TrajectoryPoint &point)> read_trajectory_point;
   std::ifstream trajectory_file;
   std::string traj_line;
-  glm::dvec3 trajectory_to_sensor_offset;
+  glm::dvec3 trajectory_to_sensor_offset = glm::dvec3(0);
   TrajectoryPoint trajectory_buffer[2];
 
-  std::vector<SamplePoint> samples_buffer;
+  SamplePoint next_sample;
   uint64_t next_sample_read_index = 0;
 
   Clock::time_point first_sample_read_time;
@@ -331,20 +331,9 @@ bool SlamCloudLoader::trajectoryFileIsOpen() const
 }
 
 
-void SlamCloudLoader::preload(size_t point_count)
+void SlamCloudLoader::preload(size_t /*point_count*/)
 {
-  if (point_count)
-  {
-    imp_->samples_buffer.reserve(point_count);
-    while (point_count && loadPoint())
-    {
-      --point_count;
-    }
-  }
-  else
-  {
-    while (loadPoint());
-  }
+  // PDAL doesn't support streaming.
 }
 
 
@@ -353,8 +342,9 @@ bool SlamCloudLoader::nextPoint(glm::dvec3 &sample, glm::dvec3 *origin, double *
   loadPoint();
   if (imp_->next_sample_read_index < imp_->samples->size())
   {
+    ++imp_->next_sample_read_index;
     // Read next sample.
-    const SamplePoint sample_point = imp_->samples_buffer[imp_->next_sample_read_index++];
+    const SamplePoint sample_point = imp_->next_sample;
     //if (_imp->nextSampleReadIndex == _imp->samplesBuffer.size() || _imp->nextSampleReadIndex >= 1024)
     //{
     //  // Shrink the remaining points.
@@ -419,7 +409,7 @@ bool SlamCloudLoader::loadPoint()
     ++imp_->samples_view_index;
 
     sampleTrajectory(sample.origin, sample.orientation, sample.timestamp);
-    imp_->samples_buffer.push_back(sample);
+    imp_->next_sample = sample;
 
     if (imp_->first_sample_timestamp < 0)
     {

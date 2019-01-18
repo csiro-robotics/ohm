@@ -17,7 +17,7 @@
 #include <unordered_map>
 
 #include <cassert>
-#include <iostream>
+#include <memory>
 
 using namespace ohm;
 
@@ -55,7 +55,7 @@ namespace ohm
   struct GpuLayerCacheDetail
   {
     // Not part of the public API. We can put whatever we want here.
-    gputil::Buffer *buffer = nullptr;
+    std::unique_ptr<gputil::Buffer> buffer;
     unsigned cache_size = 0;
     unsigned batch_marker = 1;
     std::unordered_multimap<unsigned, GpuCacheEntry> cache;
@@ -67,13 +67,15 @@ namespace ohm
     gputil::Queue gpu_queue;
     gputil::Device gpu;
     size_t chunk_mem_size = 0;
+    /// Initial target allocation size.
+    size_t target_gpu_mem_size = 0;
     unsigned layer_index = 0;
     unsigned flags = 0;
     uint8_t *dummy_chunk = nullptr;
+    GpuCachePostSyncHandler on_sync;
 
     ~GpuLayerCacheDetail()
     {
-      delete buffer;
       delete [] dummy_chunk;
       // We must clean up the cache explicitly. Otherwise it may be cleaned up after the _gpu device, in which case
       // the events will no longer be valid.
@@ -83,7 +85,8 @@ namespace ohm
 }
 
 GpuLayerCache::GpuLayerCache(const gputil::Device &gpu, const gputil::Queue &gpu_queue,
-                             OccupancyMap &map, unsigned layer_index, size_t target_gpu_mem_size, unsigned flags)
+                             OccupancyMap &map, unsigned layer_index, size_t target_gpu_mem_size, unsigned flags,
+                             GpuCachePostSyncHandler on_sync)
   : imp_(new GpuLayerCacheDetail)
 {
   assert(layer_index < map.layout().layerCount());
@@ -92,6 +95,7 @@ GpuLayerCache::GpuLayerCache(const gputil::Device &gpu, const gputil::Queue &gpu
   imp_->gpu_queue = gpu_queue;
   imp_->layer_index = layer_index;
   imp_->flags = flags;
+  imp_->on_sync = on_sync;
 
   allocateBuffers(map, map.layout().layer(layer_index), target_gpu_mem_size);
 }
@@ -166,7 +170,7 @@ bool GpuLayerCache::lookup(OccupancyMap &/*map*/, const glm::i16vec3 &region_key
 
 gputil::Buffer *GpuLayerCache::buffer() const
 {
-  return imp_->buffer;
+  return imp_->buffer.get();
 }
 
 
@@ -257,9 +261,9 @@ void GpuLayerCache::syncToMainMemory()
   {
     GpuCacheEntry &entry = iter.second;
     entry.sync_event.wait();
-    if (entry.chunk)
+    if (entry.chunk && imp_->on_sync)
     {
-      entry.chunk->searchAndUpdateFirstValid(imp_->region_size);
+      imp_->on_sync(entry.chunk, imp_->region_size);
     }
     // Up to date.
     entry.skip_download = true;
@@ -300,6 +304,26 @@ unsigned GpuLayerCache::cachedCount() const
 unsigned GpuLayerCache::cacheSize() const
 {
   return imp_->cache_size;
+}
+
+
+unsigned GpuLayerCache::bufferSize() const
+{
+  return (imp_->buffer) ? unsigned(imp_->buffer->actualSize()) : 0;
+}
+
+
+unsigned GpuLayerCache::chunkSize() const
+{
+  return unsigned(imp_->chunk_mem_size);
+}
+
+
+void GpuLayerCache::reallocate(const OccupancyMap &map)
+{
+  clear();
+  imp_->buffer.reset(nullptr);
+  allocateBuffers(map, map.layout().layer(imp_->layer_index), imp_->target_gpu_mem_size);
 }
 
 
@@ -441,7 +465,6 @@ GpuCacheEntry *GpuLayerCache::resolveCacheEntry(OccupancyMap &map, const glm::i1
 
   if (upload)
   {
-    // std::cout << "upload " << chunk.region.coord << '\n';
     const uint8_t *voxel_mem = (chunk) ? layer.voxels(*chunk) : imp_->dummy_chunk;
     imp_->buffer->write(voxel_mem, imp_->chunk_mem_size, entry->mem_offset, &imp_->gpu_queue, nullptr, &entry->sync_event);
   }
@@ -467,8 +490,10 @@ void GpuLayerCache::allocateBuffers(const OccupancyMap &map, const MapLayer &lay
   mem_limit = (mem_limit * 1) / 2;
   target_gpu_mem_size = (target_gpu_mem_size <= mem_limit) ? target_gpu_mem_size : mem_limit;
 
+  imp_->target_gpu_mem_size = target_gpu_mem_size;
   imp_->region_size = layer.dimensions(map.regionVoxelDimensions());
   imp_->chunk_mem_size = layer.layerByteSize(map.regionVoxelDimensions());
+
   size_t allocated = 0;
 
   // Do loop to ensure we allocate at least one buffer.
@@ -486,7 +511,7 @@ void GpuLayerCache::allocateBuffers(const OccupancyMap &map, const MapLayer &lay
     ++imp_->cache_size;
   } while (allocated + imp_->chunk_mem_size <= target_gpu_mem_size);
 
-  imp_->buffer = new gputil::Buffer(imp_->gpu, allocated, buffer_flags);
+  imp_->buffer.reset(new gputil::Buffer(imp_->gpu, allocated, buffer_flags));
 
   imp_->dummy_chunk = new uint8_t[layer.layerByteSize(map.regionVoxelDimensions())];
   layer.clear(imp_->dummy_chunk, map.regionVoxelDimensions());
@@ -501,18 +526,25 @@ void GpuLayerCache::syncToMainMemory(GpuCacheEntry &entry, bool wait_on_sync)
     gputil::Event last_event = entry.sync_event;
     // Release the entry's sync event. We will git it a new one.
     entry.sync_event.release();
-    // Queue memory read blocking on the last event and traking a new one in entry.syncEvent
+    // Queue memory read blocking on the last event and tracking a new one in entry.syncEvent
     uint8_t *voxel_mem = entry.chunk->layout->layer(imp_->layer_index).voxels(*entry.chunk);
     imp_->buffer->read(voxel_mem, imp_->chunk_mem_size, entry.mem_offset, &imp_->gpu_queue, &last_event, &entry.sync_event);
   }
 
   // Do we block now on the sync? This could be changed to execute only when we don't skip download.
+  // Must wait if we have an on_sync handler (to call it). Eventually we may be able to use a GPU post event hook, but
+  /// there are thread-safety issues with that.
   if (wait_on_sync)
   {
     // Wait for operations to complete.
     entry.sync_event.wait();
     // Up to date.
     entry.skip_download = true;
+
+    if (imp_->on_sync)
+    {
+      imp_->on_sync(entry.chunk, imp_->region_size);
+    }
   }
 }
 

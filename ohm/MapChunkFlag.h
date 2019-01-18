@@ -14,6 +14,7 @@ namespace ohm
   {
     MainMemDirty = (1 << 0),
     GpuMemDirty = (1 << 1),
+    SubVoxels = (1 << 2),
   };
 }
 

@@ -107,28 +107,30 @@ namespace
   }
 
 
-  inline bool voxelHeight(double *height, const VoxelConst &voxel, const glm::dvec3 &up)
+  inline bool sourceVoxelHeight(glm::dvec3 *voxel_position, double *height, const VoxelConst &voxel,
+                                const glm::dvec3 &up, bool force_voxel_centre)
   {
     if (voxel.isOccupied())
     {
       // Determine the height offset for voxel.
-      const glm::dvec3 voxel_centre = voxel.centreGlobal();
-      *height = glm::dot(voxel_centre, up);
+      *voxel_position = (force_voxel_centre) ? voxel.centreGlobal() : voxel.position();
+      *height = glm::dot(*voxel_position, up);
       return true;
     }
     return false;
   }
 
 
-  bool calculateHeightAt(double *height, const VoxelConst &voxel, Heightmap::Axis axis_id, const glm::dvec3 &up,
-                         int blur_level)
+  bool calculateHeightAt(glm::dvec3 *voxel_position, double *height, const VoxelConst &voxel, Heightmap::Axis axis_id,
+                         const glm::dvec3 &up, int blur_level, bool force_voxel_centre)
   {
     if (blur_level == 0)
     {
-      return voxelHeight(height, voxel, up);
+      return sourceVoxelHeight(voxel_position, height, voxel, up, force_voxel_centre);
     }
 
-    double voxel_height = 0;
+    glm::dvec3 cur_voxel_pos;
+    double cur_voxel_height = 0;
     bool have_height = false;
 
     *height = std::numeric_limits<double>::max();
@@ -164,9 +166,10 @@ namespace
       {
         deltas[axis_a] = da;
         VoxelConst neighbour = voxel.neighbour(deltas[0], deltas[1], deltas[2]);
-        if (voxelHeight(&voxel_height, neighbour, up))
+        if (sourceVoxelHeight(&cur_voxel_pos, &cur_voxel_height, neighbour, up, true))
         {
-          *height = std::min(*height, voxel_height);
+          *height = std::min(*height, cur_voxel_height);
+          *voxel_position = cur_voxel_pos;
           have_height = true;
         }
       }
@@ -207,7 +210,7 @@ Heightmap::Heightmap(double grid_resolution, double min_clearance, Axis up_axis,
   // Setup the heightmap voxel layout.
   MapLayout &layout = imp_->heightmap->layout();
 
-  layout.filterLayers({ defaultLayerName(kDlOccupancy) });
+  layout.filterLayers({ default_layer::occupancyLayerName() });
 
   MapLayer *layer;
   VoxelLayout voxels;
@@ -222,13 +225,13 @@ Heightmap::Heightmap(double grid_resolution, double min_clearance, Axis up_axis,
   // Initialise the data structure to have both ranges at float max.
   memset(&clear_value, max_clearance_int, sizeof(clear_value));
   layer = layout.addLayer(HeightmapVoxel::kHeightmapLayer, 0);
-  imp_->heightmap_layer = layer->layerIndex();
+  imp_->heightmap_layer = (int)layer->layerIndex();
   voxels = layer->voxelLayout();
   voxels.addMember("height", DataType::kFloat, 0);
   voxels.addMember("clearance", DataType::kFloat, 0);
 
   layer = layout.addLayer(HeightmapVoxel::kHeightmapBuildLayer, 0);
-  imp_->heightmap_build_layer = layer->layerIndex();
+  imp_->heightmap_build_layer = (int)layer->layerIndex();
   voxels = layer->voxelLayout();
   voxels.addMember("height", DataType::kFloat, 0);
   voxels.addMember("clearance", DataType::kFloat, 0);
@@ -307,6 +310,18 @@ int Heightmap::blurLevel() const
 }
 
 
+void Heightmap::setIgnoreSubVoxelPositioning(bool ignore)
+{
+  imp_->ignore_sub_voxel_positioning = ignore;
+}
+
+
+bool Heightmap::ignoreSubVoxelPositioning() const
+{
+  return imp_->ignore_sub_voxel_positioning;
+}
+
+
 Heightmap::Axis Heightmap::upAxis() const
 {
   return Heightmap::Axis(imp_->up_axis_id);
@@ -355,9 +370,15 @@ const glm::dvec3 &Heightmap::surfaceAxisB(int axis_id)
 }
 
 
-unsigned Heightmap::heightmapVoxelLayer() const
+int Heightmap::heightmapVoxelLayer() const
 {
   return imp_->heightmap_layer;
+}
+
+
+int Heightmap::heightmapVoxelBuildLayer() const
+{
+  return imp_->heightmap_build_layer;
 }
 
 
@@ -383,6 +404,10 @@ bool Heightmap::update(double base_height)
   // Clear previous results.
   heightmap.clear();
 
+  // Allow sub-voxel positioning.
+  const bool sub_voxel_allowed = !imp_->ignore_sub_voxel_positioning && imp_->blur_level == 0;
+  heightmap.setSubVoxelsEnabled(src_map.subVoxelsEnabled() && sub_voxel_allowed);
+
   heightmap.setOrigin(upAxisNormal() * base_height);
 
   // 1. Calculate the map extents.
@@ -406,9 +431,9 @@ bool Heightmap::update(double base_height)
   Key target_key;
 
 #if POST_BLUR
-  unsigned heightmap_build_layer = (imp_->blur_level) ? imp_->heightmap_build_layer : imp_->heightmap_layer;
+  int heightmap_build_layer = (imp_->blur_level) ? imp_->heightmap_build_layer : imp_->heightmap_layer;
 #else   // POST_BLUR
-  const unsigned heightmap_build_layer = imp_->heightmap_layer;
+  const int heightmap_build_layer = imp_->heightmap_layer;
 #endif  // POST_BLUR
 
   for (walker.begin(target_key); walker.walkNext(target_key);)
@@ -425,6 +450,8 @@ bool Heightmap::update(double base_height)
 
     // Walk the src column up.
     Key src_key = (upAxis() >= 0) ? src_min_key : src_max_key;
+    glm::dvec3 sub_voxel_pos(0);
+    glm::dvec3 column_voxel_pos(0);
     double height = 0;
 
     // Select walking direction based on the up axis being aligned with the primary axis or not.
@@ -435,9 +462,10 @@ bool Heightmap::update(double base_height)
       VoxelConst src_voxel = src_map.voxel(src_key, &src_cache);
 
 #if POST_BLUR
-      if (voxelHeight(&height, src_voxel, imp_->up))
+      if (sourceVoxelHeight(&sub_voxel_pos, &height, src_voxel, imp_->up, imp_->ignore_sub_voxel_positioning))
 #else   // POST_BLUR
-      if (calculateHeightAt(&height, src_voxel, upAxis(), imp_->up, imp_->blur_level))
+      if (calculateHeightAt(&sub_voxel_pos, &height, src_voxel, upAxis(), imp_->up, imp_->blur_level,
+                            imp_->ignore_sub_voxel_positioning))
 #endif  // POST_BLUR
       {
         if (imp_->floor > 0 && height < base_height - imp_->floor)
@@ -456,6 +484,7 @@ bool Heightmap::update(double base_height)
         {
           // First voxel in column.
           column_height = column_clearance_height = height;
+          column_voxel_pos = sub_voxel_pos;
         }
         else if (column_clearance_height == column_height)
         {
@@ -470,6 +499,7 @@ bool Heightmap::update(double base_height)
           {
             // Insufficient clearance. This becomes our new base voxel; keep looking for clearance.
             column_height = column_clearance_height = height;
+            column_voxel_pos = sub_voxel_pos;
           }
         }
       }
@@ -483,6 +513,12 @@ bool Heightmap::update(double base_height)
     if (column_height < std::numeric_limits<double>::max())
     {
       heightmap_voxel.setValue(heightmap.occupancyThresholdValue());
+      if (!imp_->ignore_sub_voxel_positioning && imp_->blur_level == 0)
+      {
+        // Reset to voxel centre on the primary axis because the height is encoded in the heightmap layer.
+        column_voxel_pos[imp_->vertical_axis_id] = heightmap_voxel.centreGlobal()[imp_->vertical_axis_id];
+        heightmap_voxel.setPosition(column_voxel_pos);
+      }
     }
   }
 

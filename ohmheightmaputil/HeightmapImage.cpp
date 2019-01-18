@@ -446,7 +446,13 @@ void HeightmapImage::triangulate()
   // Walk heightmap voxels.
   const OccupancyMap &heightmap = imp_->heightmap->heightmap();
   const MapLayer *heightmap_layer = heightmap.layout().layer(HeightmapVoxel::kHeightmapLayer);
-  const unsigned heightmap_layer_index = heightmap_layer->layerIndex();
+  const int heightmap_layer_index = heightmap_layer->layerIndex();
+
+  if (heightmap_layer_index < 0)
+  {
+    // Fail.
+    return;
+  }
 
   const glm::dvec3 up = imp_->heightmap->upAxisNormal();
   const glm::vec3 upf(up);
@@ -462,7 +468,7 @@ void HeightmapImage::triangulate()
     if (voxel.isOccupied())
     {
       const ohm::HeightmapVoxel *height_info = voxel.layerContent<const ohm::HeightmapVoxel *>(heightmap_layer_index);
-      point = voxel.centreGlobal() + double(height_info->height) * up;
+      point = voxel.position() + double(height_info->height) * up;
       imp_->coords_2d.push_back(point.x);
       imp_->coords_2d.push_back(point.y);
       imp_->vertices_d.push_back(point);

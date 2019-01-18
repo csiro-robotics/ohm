@@ -5,6 +5,7 @@
 // Author: Kazys Stepanas
 #include "MapLayout.h"
 
+#include "DefaultLayer.h"
 #include "MapChunk.h"
 
 #include "private/MapLayoutDetail.h"
@@ -52,7 +53,7 @@ namespace
       }
     }
   }
-}
+}  // namespace
 
 
 MapLayout::MapLayout()
@@ -90,7 +91,46 @@ void MapLayout::clear()
       delete layer;
     }
     imp_->layers.clear();
+    imp_->using_sub_voxel_patterns = MapLayoutDetail::kSubUnknown;
   }
+}
+
+
+int MapLayout::occupancyLayer() const
+{
+  return imp_->occupancy_layer;
+}
+
+
+int MapLayout::clearanceLayer() const
+{
+  return imp_->clearance_layer;
+}
+
+
+bool MapLayout::hasSubVoxelPattern() const
+{
+  if (imp_->using_sub_voxel_patterns == MapLayoutDetail::kSubUnknown)
+  {
+    // Need to look up the layer.
+    if (occupancyLayer() >= 0)
+    {
+      const MapLayer *layer = imp_->layers[occupancyLayer()];
+      if (layer && layer->voxelByteSize() > 0)
+      {
+        imp_->using_sub_voxel_patterns =
+          (layer->voxelByteSize() == sizeof(float)) ? MapLayoutDetail::kSubOff : MapLayoutDetail::kSubOn;
+      }
+    }
+  }
+
+  return imp_->using_sub_voxel_patterns == MapLayoutDetail::kSubOn;
+}
+
+
+void MapLayout::invalidateSubVoxelPatternState()
+{
+  imp_->using_sub_voxel_patterns = MapLayoutDetail::kSubUnknown;
 }
 
 
@@ -126,6 +166,17 @@ MapLayer *MapLayout::addLayer(const char *name, unsigned short subsampling)
 {
   MapLayer *new_layer = new MapLayer(name, static_cast<unsigned short>(imp_->layers.size()), subsampling);
   imp_->layers.push_back(new_layer);
+
+  std::string name_str(name);
+  if (imp_->occupancy_layer == -1 && name_str.compare(default_layer::occupancyLayerName()) == 0)
+  {
+    imp_->occupancy_layer = new_layer->layerIndex();
+  }
+  else if (imp_->clearance_layer == -1 && name_str.compare(default_layer::clearanceLayerName()) == 0)
+  {
+    imp_->clearance_layer = new_layer->layerIndex();
+  }
+
   return new_layer;
 }
 
@@ -152,6 +203,12 @@ const MapLayer &MapLayout::layer(size_t index) const
 
 
 const MapLayer *MapLayout::layerPtr(size_t index) const
+{
+  return (imp_ && index < imp_->layers.size()) ? imp_->layers[index] : nullptr;
+}
+
+
+MapLayer *MapLayout::layerPtr(size_t index)
 {
   return (imp_ && index < imp_->layers.size()) ? imp_->layers[index] : nullptr;
 }

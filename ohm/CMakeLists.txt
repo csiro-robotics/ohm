@@ -95,6 +95,8 @@ set(SOURCES
   Voxel.h
   VoxelLayout.cpp
   VoxelLayout.h
+  VoxelUtil.cpp
+  VoxelUtil.h
 )
 
 if(TES_ENABLE)
@@ -136,6 +138,7 @@ set(PUBLIC_HEADERS
   Stream.h
   Voxel.h
   VoxelLayout.h
+  VoxelUtil.h
   "${CMAKE_CURRENT_BINARY_DIR}/ohm/OhmConfig.h"
   "${CMAKE_CURRENT_BINARY_DIR}/ohm/OhmExport.h"
   )
@@ -161,6 +164,7 @@ if(OHM_GPU)
   set(GPU_HEADERS
     GpuKey.h
     MapCoord.h
+    SubVoxel.h
   )
 
   list(APPEND SOURCES
@@ -172,6 +176,7 @@ if(OHM_GPU)
     GpuCache.cpp
     GpuCache.h
     GpuCacheParams.h
+    GpuCachePostSyncHandler.h
     GpuLayerCache.cpp
     GpuLayerCache.h
     GpuMap.cpp
@@ -183,6 +188,7 @@ if(OHM_GPU)
   list(APPEND PUBLIC_HEADERS
     GpuCache.h
     GpuCacheParams.h
+    GpuCachePostSyncHandler.h
     GpuKey.h
     GpuLayerCache.h
     GpuMap.h
@@ -204,6 +210,7 @@ if(OHM_GPU)
         get_filename_component(CLSOURCENAME_WE "${CLSOURCE}" NAME_WE)
         text_file_resource("${CLSOURCE}" "${CLSOURCENAME_WE}Code"
           TYPE opencl
+          # ECHO
           PATHS "${CMAKE_CURRENT_LIST_DIR}" "${CMAKE_CURRENT_LIST_DIR}/gpu" "${GPUTIL_DEVICE_INCLUDE_DIRS}"
           # Append to the SOURCES list.
           FILELIST SOURCES

@@ -38,8 +38,13 @@ namespace clu
   {
     static cl_int set(cl::Kernel &kernel, int arg_index, const gputil::BufferArg<T> &arg)
     {
-      cl::Buffer &buffer = arg.buffer.detail()->buffer;
-      return ::clSetKernelArg(kernel(), arg_index, sizeof(buffer()), &buffer());
+      if (arg.buffer)
+      {
+        cl::Buffer &buffer = arg.buffer->detail()->buffer;
+        return ::clSetKernelArg(kernel(), arg_index, sizeof(buffer()), &buffer());
+      }
+      cl_mem null_mem = 0;
+      return ::clSetKernelArg(kernel(), arg_index, sizeof(null_mem), null_mem);
     }
   };
 }  // namespace clu

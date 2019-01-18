@@ -41,7 +41,8 @@ namespace ohm
   ///
   /// A @c blurLevel() may be set to expand the column. Each blur factor expands the search space into a square around
   /// the original column. A blur level of 1 tests 9 voxels per source map layer to populate a heightmap voxel, blur 2
-  /// uses 25, 3 uses 49, etc.
+  /// uses 25, 3 uses 49, etc. Note that setting a blur level prevents the heightmap voxels from storing laterally
+  /// offset positions (i.e., prevents lateral sub-voxel positioning in the heightmap).
   ///
   /// The resulting heightmap may be accessed via @c heightmap().
   ///
@@ -124,8 +125,23 @@ namespace ohm
     /// Gets the blur level. See class comments.
     int blurLevel() const;
 
+    /// Sets whether sub-voxel positions are ignored (true) forcing the use of voxel centres.
+    /// @param ignore True to force voxel centres even when sub-voxel positions are present.
+    void setIgnoreSubVoxelPositioning(bool ignore);
+
+    /// Force voxel centres even when sub-voxel positions are present?
+    /// @return True to ignore sub-voxel positioning.
+    /// @seealso @ref subvoxel
+    bool ignoreSubVoxelPositioning() const;
+
     /// The layer number which contains @c HeightmapVoxel structures.
-    unsigned heightmapVoxelLayer() const;
+    /// @return The heightmap layer index or -1 on error (not present).
+    /// @seealso @ref subvoxel
+    int heightmapVoxelLayer() const;
+
+    /// The layer number which contains @c HeightmapVoxel structures during heightmap construction.
+    /// @return The heightmap build layer index or -1 on error (not present).
+    int heightmapVoxelBuildLayer() const;
 
     /// Get the up axis identifier used to generate the heightmap.
     Axis upAxis() const;

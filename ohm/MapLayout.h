@@ -56,27 +56,20 @@ namespace ohm
   ///   /// Write the invalidMarkerValue value into a size_t item which will be the clear value for the member.
   ///   memcpy(&clearValue, &invalidMarkerValue, std::min(sizeof(invalidMarkerValue), sizeof(clearValue)));
   ///   // Create the occupancy layer.
-  ///   layer = layout.addLayer(defaultLayerName(kDlOccupancy), 0);
+  ///   layer = layout.addLayer(default_layer::occupancyLayerName(), 0);
   ///   // Get it's VoxelLayout for modification.
   ///   voxel = layer->voxelLayout();
   ///   /// Add the occupancy value member as a float. Set the default value to -1.
-  ///   voxel.addMember(defaultLayerName(kDlOccupancy), DataType::Float, clearValue);
+  ///   voxel.addMember(default_layer::occupancyLayerName(), DataType::Float, clearValue);
   ///
   ///   // Setup DL_Clearance
   ///   const float defaultClearance = -1.0f; // Default value is -1.
   ///   memcpy(&clearValue, &defaultClearance, std::min(sizeof(defaultClearance), sizeof(clearValue)));
   ///   // Create the layer.
-  ///   layer = layout.addLayer(defaultLayerName(kDlClearance), 0);
+  ///   layer = layout.addLayer(default_layer::clearanceLayerName(), 0);
   ///   voxel = layer->voxelLayout();
   ///   // Add clearance value member.
-  ///   voxel.addMember(defaultLayerName(kDlClearance), DataType::Float, clearValue);
-  ///
-  ///   // Do the same for CL_CoarseClearance.
-  ///   memcpy(&clearValue, &defaultClearance, std::min(sizeof(defaultClearance), sizeof(clearValue)));
-  ///   // Add the layer downsampled by 1 voxel. Each voxel in this layer covers 8 voxels at the map resolution.
-  ///   layer = layout.addLayer(defaultLayerName(kDlCoarseClearance), 1);
-  ///   voxel = layer->voxelLayout();
-  ///   voxel.addMember(defaultLayerName(kDlCoarseClearance), DataType::Float, clearValue);
+  ///   voxel.addMember(default_layer::clearanceLayerName(), DataType::Float, clearValue);
   ///
   ///   // Add a layer supporting UserLayerStruct above. Always clear to zero for these members.
   ///   clearValue = 0;
@@ -128,6 +121,25 @@ namespace ohm
     /// Drop all layout information, resulting in an empty layout.
     void clear();
 
+    /// Cached index to the "occupancy" layer.
+    /// @return The occupancy layer index or -1 if not present.
+    int occupancyLayer() const;
+
+    /// Cached index to the "clearance" layer.
+    /// @return The clearance layer index or -1 if not present.
+    int clearanceLayer() const;
+
+    /// Returns true if the "occupancy" layer includes sub-voxel pattern values.
+    ///
+    /// The occupancy layer may contain either only @c float occupancy values or @c float occupancy and @c uint32_t
+    /// sub-voxel patters for each voxel. This function returns true if the sub-voxel pattern is present in the
+    /// @c occupancyLayer().
+    /// @return true if sub-voxel patterns are in use.
+    bool hasSubVoxelPattern() const;
+
+    /// Invalidate the @c hasSubVoxelPattern() flag.
+    void invalidateSubVoxelPatternState();
+
     /// Remove all layers except for the named layers. Removing interleaved layers may create gaps in the layer
     /// array. These gaps are removed with the array being repacked.
     /// @param preserve_layers Names of the layers to preserve. Exact match required.
@@ -159,6 +171,14 @@ namespace ohm
     /// @param index The layer index.
     /// @return The layer at the given @p index or null if @p index is out of range [0, @c layerCount()).
     const MapLayer *layerPtr(size_t index) const;
+
+    /// Retrieve a layer pointer by index. This allows @p index to be out of range.
+    ///
+    /// For internal use only. Changing a layer will invalidate a map leading to undefined behaviour.
+    ///
+    /// @param index The layer index.
+    /// @return The layer at the given @p index or null if @p index is out of range [0, @c layerCount()).
+    MapLayer *layerPtr(size_t index);
 
     /// Retrieve the number of layers.
     /// @return The number of registered layers.

@@ -32,6 +32,8 @@ namespace ohm
     kGcIdOccupancy,
     /// Cache of occupancy map values when calculating voxel clearance values. Does not write back to host.
     kGcIdClearance,
+    /// Cache used for sub-voxel positioning.
+    kGcIdSubVoxel,
   };
 
   /// Provides access to the @c GpuLayerCache objects used to cache host voxel data in GPU memory and manage
@@ -91,7 +93,7 @@ namespace ohm
     /// Request or create a new @c GpuLayerCache.
     ///
     /// The cache is uniquely identified by the specified @p id, the sematics of which depend on usage. A default
-    /// set of IDs is defined in @@@. The call also specifies a @p layer which identifies the @c MapLayer associated
+    /// set of IDs is defined in @c GpuCacheId The call also specifies a @p layer which identifies the @c MapLayer associated
     /// with the cache.
     GpuLayerCache *layerCache(unsigned id);
 

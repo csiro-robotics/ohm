@@ -16,7 +16,7 @@ namespace ohm
     is_good = is_good && !glm::any(glm::isnan(end));
 
     const glm::dvec3 ray = end - start;
-    is_good = is_good && (max_range <= 0 || glm::dot(ray, ray) > max_range * max_range);
+    is_good = is_good && (max_range <= 0 || glm::dot(ray, ray) <= max_range * max_range);
 
     return is_good;
   }

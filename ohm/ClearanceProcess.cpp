@@ -5,23 +5,23 @@
 // Author: Kazys Stepanas
 #include "ClearanceProcess.h"
 
-#include "GpuCache.h"
-#include "MapChunk.h"
-#include "MapLayout.h"
-#include "Key.h"
-#include "OccupancyMap.h"
-#include "QueryFlag.h"
 #include "DefaultLayer.h"
-#include "OccupancyUtil.h"
+#include "GpuCache.h"
 #include "GpuLayerCache.h"
 #include "GpuMap.h"
+#include "Key.h"
+#include "MapChunk.h"
+#include "MapLayout.h"
+#include "OccupancyMap.h"
+#include "OccupancyUtil.h"
 #include "OhmGpu.h"
+#include "QueryFlag.h"
 
 #include "private/ClearanceProcessDetail.h"
 #include "private/MapLayoutDetail.h"
 #include "private/OccupancyMapDetail.h"
-#include "private/VoxelAlgorithms.h"
 #include "private/OccupancyQueryAlg.h"
+#include "private/VoxelAlgorithms.h"
 
 #include <ohmutil/Profile.h>
 
@@ -68,9 +68,8 @@ namespace
           if (!voxel.isNull())
           {
             range = calculateNearestNeighbour(
-              voxel_key, map, voxel_search_half_extents, (query.query_flags & kQfUnknownAsOccupied) != 0,
-              false, query.search_radius, query.axis_scaling,
-              (query.query_flags & kQfReportUnscaledResults) != 0);
+              voxel_key, map, voxel_search_half_extents, (query.query_flags & kQfUnknownAsOccupied) != 0, false,
+              query.search_radius, query.axis_scaling, (query.query_flags & kQfReportUnscaledResults) != 0);
             voxel.setClearance(range);
           }
         }
@@ -81,7 +80,7 @@ namespace
 
   void regionSeedFloodFillCpuBlock(OccupancyMap &map, ClearanceProcessDetail &query, const glm::ivec3 &block_start,
                                    const glm::ivec3 &block_end, const glm::i16vec3 &region_key, MapChunk *chunk,
-                                   const glm::ivec3 &/*voxel_search_half_extents*/)
+                                   const glm::ivec3 & /*voxel_search_half_extents*/)
   {
     OccupancyMapDetail &map_data = *map.detail();
     Key voxel_key(nullptr);
@@ -190,27 +189,28 @@ namespace
     MapChunk *chunk = chunk_search->second;
 
 #ifdef OHM_THREADS
-    const auto parallel_query_func = [&query, &map, region_key, chunk, voxel_search_half_extents]
-                                     (const tbb::blocked_range3d<int> &range) {
+    const auto parallel_query_func = [&query, &map, region_key, chunk,
+                                      voxel_search_half_extents](const tbb::blocked_range3d<int> &range) {
       regionClearanceProcessCpuBlock(map, query,
                                      glm::ivec3(range.cols().begin(), range.rows().begin(), range.pages().begin()),
-                                     glm::ivec3(range.cols().end(), range.rows().end(), range.pages().end()), region_key,
-                                     chunk, voxel_search_half_extents);
+                                     glm::ivec3(range.cols().end(), range.rows().end(), range.pages().end()),
+                                     region_key, chunk, voxel_search_half_extents);
     };
-    tbb::parallel_for(tbb::blocked_range3d<int>(0, map_data.region_voxel_dimensions.z, 0, map_data.region_voxel_dimensions.y,
-                                                0, map_data.region_voxel_dimensions.x),
-                      parallel_query_func);
+    tbb::parallel_for(
+      tbb::blocked_range3d<int>(0, map_data.region_voxel_dimensions.z, 0, map_data.region_voxel_dimensions.y, 0,
+                                map_data.region_voxel_dimensions.x),
+      parallel_query_func);
 
 #else   // OHM_THREADS
     regionClearanceProcessCpuBlock(map, query, glm::ivec3(0, 0, 0), map_data.region_voxel_dimensions, region_key, chunk,
-      voxel_search_half_extents);
+                                   voxel_search_half_extents);
 #endif  // OHM_THREADS
 
     return unsigned(map.regionVoxelVolume());
   }
 
   unsigned regionSeedFloodFillCpu(OccupancyMap &map, ClearanceProcessDetail &query, const glm::i16vec3 &region_key,
-                                  const glm::ivec3 &/*voxel_extents*/, const glm::ivec3 &calc_extents)
+                                  const glm::ivec3 & /*voxel_extents*/, const glm::ivec3 &calc_extents)
   {
     OccupancyMapDetail &map_data = *map.detail();
     const auto chunk_search = map_data.findRegion(region_key);
@@ -227,15 +227,16 @@ namespace
 
 #ifdef OHM_THREADS
     const auto parallel_query_func = [&query, &map, region_key, chunk,
-                                     voxel_search_half_extents](const tbb::blocked_range3d<int> &range) {
+                                      voxel_search_half_extents](const tbb::blocked_range3d<int> &range) {
       regionSeedFloodFillCpuBlock(map, query,
                                   glm::ivec3(range.cols().begin(), range.rows().begin(), range.pages().begin()),
                                   glm::ivec3(range.cols().end(), range.rows().end(), range.pages().end()), region_key,
                                   chunk, voxel_search_half_extents);
     };
-    tbb::parallel_for(tbb::blocked_range3d<int>(0, map_data.region_voxel_dimensions.z, 0, map_data.region_voxel_dimensions.y,
-                                                0, map_data.region_voxel_dimensions.x),
-                      parallel_query_func);
+    tbb::parallel_for(
+      tbb::blocked_range3d<int>(0, map_data.region_voxel_dimensions.z, 0, map_data.region_voxel_dimensions.y, 0,
+                                map_data.region_voxel_dimensions.x),
+      parallel_query_func);
 
 #else   // OHM_THREADS
     regionSeedFloodFillCpuBlock(map, query, glm::ivec3(0, 0, 0), map_data.region_voxel_dimensions, region_key, chunk,
@@ -246,7 +247,7 @@ namespace
   }
 
   unsigned regionFloodFillStepCpu(OccupancyMap &map, ClearanceProcessDetail &query, const glm::i16vec3 &region_key,
-                                  const glm::ivec3 &/*voxel_extents*/, const glm::ivec3 &calc_extents)
+                                  const glm::ivec3 & /*voxel_extents*/, const glm::ivec3 &calc_extents)
   {
     OccupancyMapDetail &map_data = *map.detail();
     const auto chunk_search = map_data.findRegion(region_key);
@@ -263,15 +264,16 @@ namespace
 
 #ifdef OHM_THREADS
     const auto parallel_query_func = [&query, &map, region_key, chunk,
-                                     voxel_search_half_extents](const tbb::blocked_range3d<int> &range) {
+                                      voxel_search_half_extents](const tbb::blocked_range3d<int> &range) {
       regionFloodFillStepCpuBlock(map, query,
                                   glm::ivec3(range.cols().begin(), range.rows().begin(), range.pages().begin()),
                                   glm::ivec3(range.cols().end(), range.rows().end(), range.pages().end()), region_key,
                                   chunk, voxel_search_half_extents);
     };
-    tbb::parallel_for(tbb::blocked_range3d<int>(0, map_data.region_voxel_dimensions.z, 0, map_data.region_voxel_dimensions.y,
-                                                0, map_data.region_voxel_dimensions.x),
-                      parallel_query_func);
+    tbb::parallel_for(
+      tbb::blocked_range3d<int>(0, map_data.region_voxel_dimensions.z, 0, map_data.region_voxel_dimensions.y, 0,
+                                map_data.region_voxel_dimensions.x),
+      parallel_query_func);
 
 #else   // OHM_THREADS
     regionFloodFillStepCpuBlock(map, query, glm::ivec3(0, 0, 0), map_data.region_voxel_dimensions, region_key, chunk,
@@ -280,7 +282,7 @@ namespace
 
     return calc_extents.x * calc_extents.y * calc_extents.z;
   }
-}
+}  // namespace
 
 
 ClearanceProcess::ClearanceProcess()
@@ -390,7 +392,7 @@ int ClearanceProcess::update(OccupancyMap &map, double time_slice)
   {
     // Iterate dirty regions
     updateRegion(map, d->current_dirty_cursor, false);
-    //updateExtendedRegion(map, d->mapStamp, d->currentDirtyCursor, d->currentDirtyCursor + step - glm::i16vec3(1));
+    // updateExtendedRegion(map, d->mapStamp, d->currentDirtyCursor, d->currentDirtyCursor + step - glm::i16vec3(1));
     d->stepCursor(step);
 
     total_processed += volumeOf(step);
@@ -414,7 +416,7 @@ void ohm::ClearanceProcess::calculateForExtents(OccupancyMap &map, const glm::dv
   const glm::i16vec3 min_region = map.regionKey(min_extents);
   const glm::i16vec3 max_region = map.regionKey(max_extents);
   //// Process in blocks containing up to this many regions in each dimension.
-  //const int blockMax = 5;
+  // const int blockMax = 5;
 
   glm::i16vec3 region_key;
 
@@ -453,14 +455,23 @@ bool ClearanceProcess::updateRegion(OccupancyMap &map, const glm::i16vec3 &regio
     return false;
   }
 
+  const int occupancy_layer_index = map.layout().occupancyLayer();
+  const int clearance_layer_index = map.layout().clearanceLayer();
+
+  if (occupancy_layer_index < 0 || clearance_layer_index < 0)
+  {
+    return false;
+  }
+
   // Explore the region neighbours to see if they are out of date. That would invalidate this regon.
   glm::i16vec3 neighbour_key;
 
-  // We are dirty if any input region has updated occupancy values since the last region->touchedStamps[DL_Clearance]
-  // value. We iterate to work out the maximum touchedStamps[DL_Occupancy] value in the neighbourhood and compare
-  // that to our region DL_Clerance stamp. Dirty if clearance stamp is lower. The target value also sets the
-  // new stamp to apply to the region clearance stamp.
-  uint64_t target_update_stamp = region->touched_stamps[kDlOccupancy];
+  // We are dirty if any input region has updated occupancy values since the last
+  // region->touchedStamps[clearance_layer_index] value. We iterate to work out the maximum
+  // touchedStamps[occupancy_layer_index] value in the neighbourhood and compare that to our region
+  // clearance_layer_index stamp. Dirty if clearance stamp is lower. The target value also sets the new stamp to apply
+  // to the region clearance stamp.
+  uint64_t target_update_stamp = region->touched_stamps[occupancy_layer_index];
   for (int z = -1; z <= 1; ++z)
   {
     neighbour_key.z = region_key.z + z;
@@ -473,20 +484,22 @@ bool ClearanceProcess::updateRegion(OccupancyMap &map, const glm::i16vec3 &regio
         MapChunk *neighbour = map.region(neighbour_key, false);
         if (neighbour)
         {
-          target_update_stamp = std::max(target_update_stamp, uint64_t(neighbour->touched_stamps[kDlOccupancy]));
+          target_update_stamp =
+            std::max(target_update_stamp, uint64_t(neighbour->touched_stamps[occupancy_layer_index]));
         }
       }
     }
   }
 
-  if (!force && region->touched_stamps[kDlClearance] >= target_update_stamp)
+  if (!force && region->touched_stamps[clearance_layer_index] >= target_update_stamp)
   {
     // Nothing to update in these extents.
     return false;
   }
 
   // Debug highlight the region.
-  TES_BOX_W(g_3es, TES_COLOUR(FireBrick), uint32_t((size_t)&map), glm::value_ptr(map.regionSpatialCentre(region_key)), glm::value_ptr(map.regionSpatialResolution()));
+  TES_BOX_W(g_3es, TES_COLOUR(FireBrick), uint32_t((size_t)&map), glm::value_ptr(map.regionSpatialCentre(region_key)),
+            glm::value_ptr(map.regionSpatialResolution()));
 
   if ((d->query_flags & kQfGpuEvaluate) && d->gpu_query->valid())
   {
@@ -503,23 +516,20 @@ bool ClearanceProcess::updateRegion(OccupancyMap &map, const glm::i16vec3 &regio
       std::cerr << "ClearanceProcess requested GPU unavailable. Using CPU." << std::endl;
     }
 
-    std::function<unsigned(OccupancyMap&, ClearanceProcessDetail&, const glm::i16vec3&, ClosestResult&)> query_func;
+    std::function<unsigned(OccupancyMap &, ClearanceProcessDetail &, const glm::i16vec3 &, ClosestResult &)> query_func;
 
 #if 1
-    query_func = [](OccupancyMap &map, ClearanceProcessDetail &query,
-                                              const glm::i16vec3 &region_key, ClosestResult &
-                                              /* closest */) -> unsigned {
-      return regionClearanceProcessCpu(map, query, region_key);
-    };
+    query_func = [](OccupancyMap &map, ClearanceProcessDetail &query, const glm::i16vec3 &region_key, ClosestResult &
+                    /* closest */) -> unsigned { return regionClearanceProcessCpu(map, query, region_key); };
     ClosestResult closest;  // Not used.
     ohm::occupancyQueryRegions(map, *d, closest, map.regionSpatialMin(region_key) - glm::dvec3(d->search_radius),
                                map.regionSpatialMin(region_key) + glm::dvec3(d->search_radius), query_func);
 #else   // #
     // Flood fill experiment. Incorrect as it will propagate changes from the current iteration
     // to some neighbours. Protect against that it it can be much faster than the brute force method.
-    queryFunc = [&voxel_extents, &calc_extents](OccupancyMap &map, ClearanceProcessDetail &query,
-                                              const glm::i16vec3 &region_key, ClosestResult &
-                                              /* closest */) -> unsigned {
+    queryFunc = [&voxel_extents, &calc_extents](
+                  OccupancyMap &map, ClearanceProcessDetail &query, const glm::i16vec3 &region_key, ClosestResult &
+                  /* closest */) -> unsigned {
       // return regionClearanceProcessCpu(map, query, region_key, voxel_extents, calc_extents);
       return regionSeedFloodFillCpu(map, query, region_key, voxel_extents, calc_extents);
     };
@@ -528,9 +538,9 @@ bool ClearanceProcess::updateRegion(OccupancyMap &map, const glm::i16vec3 &regio
     ohm::occupancyQueryRegions(map, *d, closest, minExtents - glm::dvec3(d->searchRadius),
                                maxExtents + glm::dvec3(d->searchRadius), queryFunc);
 
-    queryFunc = [&voxel_extents, &calc_extents, map](OccupancyMap &constMap, ClearanceProcessDetail &query,
-                                                   const glm::i16vec3 &region_key, ClosestResult &
-                                                   /* closest */) -> unsigned {
+    queryFunc = [&voxel_extents, &calc_extents, map](
+                  OccupancyMap &constMap, ClearanceProcessDetail &query, const glm::i16vec3 &region_key, ClosestResult &
+                  /* closest */) -> unsigned {
       return regionFloodFillStepCpu(map, query, region_key, voxel_extents, calc_extents);
     };
 
@@ -548,7 +558,7 @@ bool ClearanceProcess::updateRegion(OccupancyMap &map, const glm::i16vec3 &regio
   TES_BOX_END(g_3es, uint32_t((size_t)&map));
 
   // Regions are up to date *now*.
-  region->touched_stamps[kDlClearance] = target_update_stamp;
+  region->touched_stamps[clearance_layer_index] = target_update_stamp;
   return true;
 }
 

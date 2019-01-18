@@ -17,6 +17,8 @@
 
 using namespace ohm;
 
+const char *OccupancyMapDetail::kSubVoxelLayerName = "sub_voxel";
+
 OccupancyMapDetail::~OccupancyMapDetail()
 {
   delete gpu_cache;
@@ -93,7 +95,7 @@ void OccupancyMapDetail::moveKeyAlongAxis(Key &key, int axis, int step) const
 }
 
 
-void OccupancyMapDetail::setDefaultLayout()
+void OccupancyMapDetail::setDefaultLayout(bool enable_sub_voxel_positioning)
 {
   // Setup the default layers
   layout.clear();
@@ -105,23 +107,22 @@ void OccupancyMapDetail::setDefaultLayout()
   const float invalid_marker_value = voxel::invalidMarkerValue();
 
   clear_value = 0;
-  memcpy(&clear_value, &invalid_marker_value, std::min(sizeof(invalid_marker_value), sizeof(clear_value)));
-  layer = layout.addLayer(defaultLayerName(kDlOccupancy), 0);
+  memcpy(&clear_value, &invalid_marker_value, sizeof(invalid_marker_value));
+
+  layer = layout.addLayer(default_layer::occupancyLayerName(), 0);
   voxel = layer->voxelLayout();
-  voxel.addMember(defaultLayerName(kDlOccupancy), DataType::kFloat, clear_value);
+  voxel.addMember(default_layer::occupancyLayerName(), DataType::kFloat, clear_value);
+  if (enable_sub_voxel_positioning)
+  {
+    voxel.addMember(kSubVoxelLayerName, DataType::kUInt32, clear_value);
+  }
 
   const float default_clearance = -1.0f;
   clear_value = 0;
   memcpy(&clear_value, &default_clearance, std::min(sizeof(default_clearance), sizeof(clear_value)));
-  layer = layout.addLayer(defaultLayerName(kDlClearance), 0);
+  layer = layout.addLayer(default_layer::clearanceLayerName(), 0);
   voxel = layer->voxelLayout();
-  voxel.addMember(defaultLayerName(kDlClearance), DataType::kFloat, clear_value);
-
-  // clear_value = 0;
-  // memcpy(&clear_value, &default_clearance, std::min(sizeof(default_clearance), sizeof(clear_value)));
-  // layer = layout.addLayer(defaultLayerName(kDlCoarseClearance), 1);
-  // voxel = layer->voxelLayout();
-  // voxel.addMember(defaultLayerName(kDlCoarseClearance), DataType::kFloat, clear_value);
+  voxel.addMember(default_layer::clearanceLayerName(), DataType::kFloat, clear_value);
 }
 
 

@@ -68,9 +68,10 @@ namespace ohm
     {
       bool ok = true;
 
-      const MapLayer *occupancy_layer = chunk.layout->layerPtr(kDlOccupancy);
-      const MapLayer *clearance_layer = chunk.layout->layerPtr(kDlClearance);
-      const MapLayer *coarse_clearance_layer = chunk.layout->layerPtr(kDlCoarseClearance);
+      const MapLayer *occupancy_layer = chunk.layout->layerPtr(chunk.layout->occupancyLayer());
+      const MapLayer *clearance_layer = chunk.layout->layerPtr(chunk.layout->clearanceLayer());
+      // Use a hard coded reference to the legacy layer "coarseClearance". The layer was never used anywhere.
+      const MapLayer *coarse_clearance_layer = chunk.layout->layer("coarseClearance");
 
       if (coarse_clearance_layer)
       {

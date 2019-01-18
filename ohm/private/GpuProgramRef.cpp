@@ -21,6 +21,14 @@ GpuProgramRef::GpuProgramRef(const char *name, SourceType source_type, const cha
 }
 
 
+GpuProgramRef::GpuProgramRef(const char *name, SourceType source_type, const char *source_str, size_t source_str_length,
+                             const std::initializer_list<std::string> &build_args)
+  : GpuProgramRef(name, source_type, source_str, source_str_length)
+{
+  build_args_ = build_args;
+}
+
+
 GpuProgramRef::~GpuProgramRef()
 {
   releaseReference();
@@ -34,7 +42,7 @@ bool GpuProgramRef::addReference(gputil::Device &gpu)
   {
     gputil::BuildArgs build_args;
     ohm::setGpuBuildVersion(build_args);
-    build_args.args = nullptr;
+    build_args.args = &build_args_;
 
     int err = 0;
     program_ = gputil::Program(gpu, name_.c_str());

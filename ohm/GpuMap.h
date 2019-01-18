@@ -32,7 +32,7 @@ namespace ohm
     /// Flags for GPU initialisation.
     enum GpuFlag
     {
-      /// Allow host mappable buffers. Used if device/host memory is unified.
+      /// Allow host (mapable) buffers. Used if device/host memory is unified.
       kGpuAllowMappedBuffers = (1 << 0),
       /// Force mappable buffers.
       kGpuForceMappedBuffers = (1 << 1),
@@ -124,7 +124,8 @@ namespace ohm
     /// @param borrowed_map True to borrow the map, @c false for this object to take ownership.
     /// @param expected_element_count The expected point count for calls to @c integrateRays(). Used as a hint.
     /// @param gpu_mem_size Optionally specify the target GPU cache memory to allocate.
-    GpuMap(OccupancyMap *map, bool borrowed_map = true, unsigned expected_element_count = 2048, size_t gpu_mem_size = 0u);
+    GpuMap(OccupancyMap *map, bool borrowed_map = true, unsigned expected_element_count = 2048,
+           size_t gpu_mem_size = 0u);
 
     /// Destructor. Will wait on outstanding GPU operations first and destroy the @c map() if not using a
     /// @c borrowedPointer().
@@ -201,6 +202,15 @@ namespace ohm
     GpuCache *gpuCache() const;
 
   private:
+    /// Cache the correct GPU program to cater for @c with_sub_voxels. Releases the existing program first when
+    /// @p force is true or @p with_sub_voxels does not match the cached program.
+    /// @param with_sub_voxels True to cache the program which supports sub-voxel positioning (@ref subvoxel).
+    /// @param force Force release and program caching even if already correct. Must be used on initialisation.
+    void cacheGpuProgram(bool with_sub_voxels, bool force);
+
+    /// Release the current GPU program.
+    void releaseGpuProgram();
+
     template <typename VEC_TYPE>
     unsigned integrateRaysT(const VEC_TYPE *rays, unsigned element_count, bool end_points_as_occupied,
                             const RayFilterFunction &filter);

@@ -1,5 +1,4 @@
 #include "GpuKey.h"
-#include "MapCoord.h"
 
 /// Initialises the @c currentRegion and @c regionVoxelOffset parameters for @c regionsResolveRegion().
 ///

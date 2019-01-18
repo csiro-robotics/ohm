@@ -121,7 +121,9 @@ void MapChunk::searchAndUpdateFirstValid(const glm::ivec3 &region_voxel_dimensio
   size_t voxel_index;
   first_valid_index = search_from;
 
-  const float *occupancy = layout->layer(kDlOccupancy).voxelsAs<float>(*this);
+  size_t voxel_stride = layout->layer(layout->occupancyLayer()).voxelByteSize();
+  const uint8_t *voxel_mem = voxel_maps[layout->occupancyLayer()];
+
   for (int z = 0; z < region_voxel_dimensions.z; ++z)
   {
     for (int y = 0; y < region_voxel_dimensions.y; ++y)
@@ -129,7 +131,8 @@ void MapChunk::searchAndUpdateFirstValid(const glm::ivec3 &region_voxel_dimensio
       for (int x = 0; x < region_voxel_dimensions.x; ++x)
       {
         voxel_index = x + y * region_voxel_dimensions.x + z * region_voxel_dimensions.y * region_voxel_dimensions.x;
-        if (occupancy[voxel_index] != voxel::invalidMarkerValue())
+        const float occupancy = *reinterpret_cast<const float *>(voxel_mem + voxel_stride * voxel_index);
+        if (occupancy != voxel::invalidMarkerValue())
         {
           first_valid_index.x = x;
           first_valid_index.y = y;
@@ -148,14 +151,17 @@ bool MapChunk::validateFirstValid(const glm::ivec3 &region_voxel_dimensions) con
 {
   size_t voxel_index = 0;
 
-  const float *occupancy = layout->layer(kDlOccupancy).voxelsAs<float>(*this);
+  size_t voxel_stride = layout->layer(layout->occupancyLayer()).voxelByteSize();
+  const uint8_t *voxel_mem = voxel_maps[layout->occupancyLayer()];
+
   for (int z = 0; z < region_voxel_dimensions.z; ++z)
   {
     for (int y = 0; y < region_voxel_dimensions.y; ++y)
     {
       for (int x = 0; x < region_voxel_dimensions.x; ++x)
       {
-        if (occupancy[voxel_index] != voxel::invalidMarkerValue())
+        const float occupancy = *reinterpret_cast<const float *>(voxel_mem + voxel_stride * voxel_index);
+        if (occupancy != voxel::invalidMarkerValue())
         {
           if (first_valid_index.x != x || first_valid_index.y != y || first_valid_index.z != z)
           {

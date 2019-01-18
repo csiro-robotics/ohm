@@ -9,7 +9,10 @@
 
 #include "DefaultLayer.h"
 #include "Key.h"
+#include "MapChunk.h"
+#include "MapLayout.h"
 #include "MapProbability.h"
+#include "VoxelUtil.h"
 
 #include <limits>
 #include <type_traits>
@@ -18,104 +21,6 @@ namespace ohm
 {
   struct OccupancyMapDetail;
   struct MapChunk;
-
-  namespace voxel
-  {
-    /// Get the address of the voxel referenced by @p key in @p layer_index.
-    ///
-    /// This function function decodes accesses the voxel memory for @p layer_index in @p chunk and returns a pointer
-    /// to the voxel referenced by @p key. There are several expectations on this method, or it will fail, returning
-    /// null:
-    /// - @p chunk and @p map are non null.
-    /// - @p key references the @p chunk (see @c Key::regionCoord() and @c MapRegion::coord)
-    /// - @p expected_size is either zero (no validation) or exactly matches the voxel size.
-    ///
-    /// Some additional assumptions are made which the caller *must* ensure or results are undefined.
-    /// - @p layer_index is valid in the map's @c MapLayout.
-    /// - @p key.localKey() is in range of the map's region dimensions.
-    ///
-    /// This function operated on a mutable @c chunk and returns a non-const pointer.
-    ///
-    /// @param key The key for the voxel to access.
-    /// @param chunk The chunk in which the voxel lies.
-    /// @param map Internal details of the @c OccupancyMap.
-    /// @param expected_size Optional voxel size validation. Fails if voxels do not match this size. Zero to skip
-    ///     validation.
-    /// @return A pointer to the voxel memory of voxel at @p key, or null on failure.
-    uint8_t *voxelPtr(const Key &key, MapChunk *chunk, OccupancyMapDetail *map, int layer_index, size_t expected_size);
-
-    /// Get the address of the voxel referenced by @p key in @p layer_index.
-    ///
-    /// This function overload deals with non-mutable @p chunk pointers.
-    ///
-    /// @param key The key for the voxel to access.
-    /// @param chunk The chunk in which the voxel lies.
-    /// @param map Internal details of the @c OccupancyMap.
-    /// @param expected_size Optional voxel size validation. Fails if voxels do not match this size. Zero to skip
-    ///     validation.
-    /// @return A pointer to the voxel memory of voxel at @p key, or null on failure.
-    const uint8_t *voxelPtr(const Key &key, const MapChunk *chunk, OccupancyMapDetail *map, int layer_index,
-                            size_t expected_size);
-
-    /// The address of the voxel referenced by @p key as type @c T.
-    ///
-    /// This function has the same requirements as @c voxelPtr(), however the voxel size is validated against the
-    /// @p sizeof(T).
-    ///
-    /// This overload requires @c T is a pointer type.
-    ///
-    /// @param key The key for the voxel to access.
-    /// @param chunk The chunk in which the voxel lies.
-    /// @param map Internal details of the @c OccupancyMap.
-    /// @return A pointer to the voxel memory of voxel at @p key, or null on failure.
-    template <typename T>
-    T voxelPtrAs(const Key &key, MapChunk *chunk, OccupancyMapDetail *map, int layer_index)
-    {
-      return reinterpret_cast<T>(voxelPtr(key, chunk, map, layer_index, sizeof(typename std::remove_pointer<T>::type)));
-    }
-
-    /// The address of the voxel referenced by @p key as type @c T.
-    ///
-    /// This function has the same requirements as @c voxelPtr(), however the voxel size is validated against the
-    /// @p sizeof(T).
-    ///
-    /// This overload requires @c T is a constant pointer type.
-    ///
-    /// @param key The key for the voxel to access.
-    /// @param chunk The chunk in which the voxel lies.
-    /// @param map Internal details of the @c OccupancyMap.
-    /// @return A pointer to the voxel memory of voxel at @p key, or null on failure.
-    template <typename T>
-    T voxelPtrAs(const Key &key, const MapChunk *chunk, OccupancyMapDetail *map, int layer_index)
-    {
-      return reinterpret_cast<T>(voxelPtr(key, chunk, map, layer_index, sizeof(typename std::remove_pointer<T>::type)));
-    }
-
-    /// A helper function for accessing the occupancy threshold of @p map.
-    /// @return The equivalent to @c OccupancyMap::occupancyThreshold().
-    float occupancyThreshold(const OccupancyMapDetail &map);
-
-    /// A helper function for accessing the voxel dimensions of each region in @p map.
-    /// @return The equivalent to @c OccupancyMap::regionVoxelDimensions().
-    glm::u8vec3 regionVoxelDimensions(const OccupancyMapDetail &map);
-
-    /// Retrieve the coordinates for the centre of the voxel identified by @p key, local to the map origin.
-    /// @param key The voxel of interest.
-    /// @param map Internal details of the @c OccupancyMap of interest.
-    /// @return The voxel coordinates, relative to the @c OccupancyMap::origin().
-    glm::dvec3 centreLocal(const Key &key, const OccupancyMapDetail &map);
-
-    /// Retrieve the global coordinates for the centre of the voxel identified by @p key. This includes the
-    /// @c OccupancyMap::origin().
-    /// @param key The voxel of interest.
-    /// @param map Internal details of the @c OccupancyMap of interest.
-    /// @return The global voxel coordinates.
-    glm::dvec3 centreGlobal(const Key &key, const OccupancyMapDetail &map);
-
-    /// Value used to identify invalid or uninitialised voxel voxels.
-    /// @return A numeric value considered invalid for a voxel value.
-    constexpr float invalidMarkerValue() { return std::numeric_limits<float>::infinity(); }
-  }  // namespace voxel
 
   /// Represents a voxel in an @c OccupancyMap.
   ///
@@ -203,6 +108,13 @@ namespace ohm
     /// Results are undefined if @c isValid() is @c false.
     /// @return The global voxel coordinates.
     glm::dvec3 centreGlobal() const { return voxel::centreGlobal(key_, *map_); }
+
+    /// Retrieves the (global) position of a voxel with consideration to sub-voxel positioning.
+    /// This is equivalent to @c centreGlobal() if sub-voxel positioning is not enabled, or not resolved for the voxel.
+    ///
+    /// @seealso @ref subvoxel
+    /// @return The global voxel coordinates with sub-voxel positioning.
+    glm::dvec3 position() const { return voxel::position(key_, *chunk_, *map_); }
 
     /// Does this voxel reference a valid map?
     ///
@@ -354,12 +266,40 @@ namespace ohm
     /// @param force Force set the value without honouring saturation or min/max voxel values.
     void setValue(float value, bool force = false);
 
-    /// Set the voxel's @c clearange() value. This is normally generated by the @c VoxelRanges
+    /// Set the voxel's @c clearace() value. This is normally generated by the @c VoxelRanges
     /// query.
     ///
-    /// This will @c touchMap() on a valid voxel..
+    /// This will @c touchMap() on the clearance layer.
     /// @param range The new obstacle range.
     void setClearance(float range);
+
+    /// Sets the position of the voxel using sub-voxel positioning. This requires that the occupancy layer supports
+    /// sub-voxel positioning, which may be enabled when the map is constructed. Note that the position set will not
+    /// be accurately reflected when queried with @c position() as sub-voxel positioning uses quantisation.
+    ///
+    /// The call fails if the map does not have sub-voxel positioning enabled, or if the voxel reference is invalid.
+    ///
+    /// @seealso @ref subvoxel
+    ///
+    /// @param position The target position to set should be within the voxel bounds, but will be clamped.
+    /// @return True on success. False indicates there is not sub-voxel positioning enabled, or the voxel is invalid.
+    bool setPosition(const glm::dvec3 &position);
+
+    /// Updates the sub-voxel positioning of this voxel. As with @c setPosition(), this request the @c MapLayout
+    /// occupancy layer supports sub-voxel positioning.
+    ///
+    /// This method takes the given @c position, assumed to be within the voxel bounds, and combines it with the
+    /// current sub-voxel @c position(). This process uses a weighted sum where new position is weighted by
+    /// @p update_weighting and the pre-existing position is weighted as <tt>1.0 - update_weighting</tt>.
+    ///
+    /// @seealso @ref subvoxel
+    ///
+    /// @param position The new position information used to update the sub-voxel position. Expected to be within the
+    ///   bounds of the voxel.
+    /// @param update_weighting Weighting overwrite for the weight given to the new @p position [0, 1]. A negative
+    ///   weight is used to indicate no override: use the map's weighting value.
+    /// @return True on success. False indicates there is not sub-voxel positioning enabled, or the voxel is invalid.
+    bool updatePosition(const glm::dvec3 &position, double update_weighting = -1.0);
 
     /// Updates the timestamp for the @c MapRegion to which this voxel belongs.
     /// This may be used to manage time based expiry.
@@ -367,7 +307,8 @@ namespace ohm
     void touchRegion(double timestamp);
 
     /// Touch the underlying map, modifying the @p OccupancyMap::stamp() value.
-    void touchMap();
+    /// @param layer Specifies which voxel layer is touched. The layer value must be in [0, MapLayout::layerCount()].
+    void touchMap(int layer);
 
     /// Retrieve another voxel relative to this one.
     /// @param dx The number of voxels to offset from this one along the X axis.
@@ -466,7 +407,7 @@ namespace ohm
   template <typename MAPCHUNK>
   float VoxelBase<MAPCHUNK>::occupancy() const
   {
-    if (const float *occupancy = ohm::voxel::voxelPtrAs<const float *>(key_, chunk_, map_, kDlOccupancy))
+    if (const float *occupancy = voxel::voxelOccupancyPtr(key_, chunk_, map_))
     {
       return *occupancy;
     }
@@ -478,9 +419,13 @@ namespace ohm
   template <typename MAPCHUNK>
   float VoxelBase<MAPCHUNK>::clearance(bool invalid_as_obstructed) const
   {
-    if (const float *clearance = ohm::voxel::voxelPtrAs<const float *>(key_, chunk_, map_, kDlClearance))
+    if (isValid() && chunk_->layout->clearanceLayer() >= 0)
     {
-      return *clearance;
+      if (const float *clearance =
+            ohm::voxel::voxelPtrAs<const float *>(key_, chunk_, map_, chunk_->layout->clearanceLayer()))
+      {
+        return *clearance;
+      }
     }
 
     return (invalid_as_obstructed) ? 0.0f : -1.0f;

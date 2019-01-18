@@ -51,9 +51,14 @@ using namespace ohm;
 namespace
 {
 #ifdef OHM_EMBED_GPU_CODE
-  GpuProgramRef program_ref("RegionUpdate", GpuProgramRef::kSourceString, RegionUpdateCode, RegionUpdateCode_length);
-#else  // OHM_EMBED_GPU_CODE
-  GpuProgramRef program_ref("RegionUpdate", GpuProgramRef::kSourceFile, "RegionUpdate.cl");
+  GpuProgramRef sub_vox_program_ref("RegionUpdate_sub", GpuProgramRef::kSourceString, RegionUpdateCode,
+                                    RegionUpdateCode_length, { "-DSUB_VOXEL" });
+  GpuProgramRef no_sub_vox_program_ref("RegionUpdate_no_sub", GpuProgramRef::kSourceString, RegionUpdateCode,
+                                       RegionUpdateCode_length);
+#else   // OHM_EMBED_GPU_CODE
+  GpuProgramRef sub_vox_program_ref("RegionUpdate_sub", GpuProgramRef::kSourceFile, "RegionUpdate.cl", 0u,
+                                    { "-DSUB_VOXEL" });
+  GpuProgramRef no_sub_vox_program_ref("RegionUpdate_no_sub", GpuProgramRef::kSourceFile, "RegionUpdate.cl");
 #endif  // OHM_EMBED_GPU_CODE
 
   typedef std::function<void(const glm::i16vec3 &, const glm::dvec3 &, const glm::dvec3 &)> RegionWalkFunction;
@@ -246,29 +251,13 @@ GpuMap::GpuMap(OccupancyMap *map, bool borrowed_map, unsigned expected_element_c
   }
   imp_->transform_samples = new GpuTransformSamples(gpu_cache.gpu());
 
-  if (program_ref.addReference(gpu_cache.gpu()))
-  {
-#if OHM_GPU == OHM_GPU_OPENCL
-    imp_->update_kernel = gputil::openCLKernel(program_ref.program(), "regionRayUpdate");
-#endif  // OHM_GPU == OHM_GPU_OPENCL
-    imp_->update_kernel.calculateOptimalWorkGroupSize();
-
-    imp_->gpu_ok = imp_->update_kernel.isValid();
-  }
-  else
-  {
-    imp_->gpu_ok = false;
-  }
+  cacheGpuProgram(map->subVoxelsEnabled(), true);
 }
 
 
 GpuMap::~GpuMap()
 {
-  if (imp_ && imp_->update_kernel.isValid())
-  {
-    imp_->update_kernel = gputil::Kernel();
-    program_ref.releaseReference();
-  }
+  releaseGpuProgram();
   delete imp_;
 }
 
@@ -344,6 +333,57 @@ GpuCache *GpuMap::gpuCache() const
 }
 
 
+void GpuMap::cacheGpuProgram(bool with_sub_voxels, bool force)
+{
+  if (!force && with_sub_voxels == imp_->cached_sub_voxel_program)
+  {
+    return;
+  }
+
+  releaseGpuProgram();
+
+  GpuCache &gpu_cache = *imp_->map->detail()->gpu_cache;
+  imp_->cached_sub_voxel_program = with_sub_voxels;
+  if (with_sub_voxels)
+  {
+    imp_->program_ref = &sub_vox_program_ref;
+  }
+  else
+  {
+    imp_->program_ref = &no_sub_vox_program_ref;
+  }
+
+  if (imp_->program_ref->addReference(gpu_cache.gpu()))
+  {
+#if OHM_GPU == OHM_GPU_OPENCL
+    imp_->update_kernel = gputil::openCLKernel(imp_->program_ref->program(), "regionRayUpdate");
+#endif  // OHM_GPU == OHM_GPU_OPENCL
+    imp_->update_kernel.calculateOptimalWorkGroupSize();
+
+    imp_->gpu_ok = imp_->update_kernel.isValid();
+  }
+  else
+  {
+    imp_->gpu_ok = false;
+  }
+}
+
+
+void GpuMap::releaseGpuProgram()
+{
+  if (imp_ && imp_->update_kernel.isValid())
+  {
+    imp_->update_kernel = gputil::Kernel();
+  }
+
+  if (imp_->program_ref)
+  {
+    imp_->program_ref->releaseReference();
+    imp_->program_ref = nullptr;
+  }
+}
+
+
 template <typename VEC_TYPE>
 unsigned GpuMap::integrateRaysT(const VEC_TYPE *rays, unsigned element_count, bool end_points_as_occupied,
                                 const RayFilterFunction &filter)
@@ -370,6 +410,9 @@ unsigned GpuMap::integrateRaysT(const VEC_TYPE *rays, unsigned element_count, bo
   {
     return 0u;
   }
+
+  // Ensure we are using the correct GPU program. Sub-voxel support may have changed.
+  cacheGpuProgram(map.subVoxelsEnabled(), false);
 
   // Resolve the buffer index to use. We need to support cases where buffer is already one fo the imp_->ray_buffers.
   // Check this first.
@@ -578,7 +621,7 @@ void GpuMap::enqueueRegion(unsigned region_hash, const glm::i16vec3 &region_key,
   }
 
   // Mark the region as dirty.
-  chunk->dirty_stamp = chunk->touched_stamps[kDlOccupancy] = imp_->map->stamp();
+  chunk->dirty_stamp = chunk->touched_stamps[imp_->map->layout().occupancyLayer()] = imp_->map->stamp();
 }
 
 
@@ -591,6 +634,7 @@ void GpuMap::finaliseBatch(gputil::PinnedBuffer &regions_buffer, gputil::PinnedB
   // Complete region data upload.
   GpuCache &gpu_cache = *this->gpuCache();
   GpuLayerCache &layer_cache = *gpu_cache.layerCache(kGcIdOccupancy);
+
   regions_buffer.unpin(&layer_cache.gpuQueue(), nullptr, &imp_->region_key_upload_events[buf_idx]);
   offsets_buffer.unpin(&layer_cache.gpuQueue(), nullptr, &imp_->region_offset_upload_events[buf_idx]);
 
@@ -605,15 +649,16 @@ void GpuMap::finaliseBatch(gputil::PinnedBuffer &regions_buffer, gputil::PinnedB
   gputil::EventList wait({ imp_->key_upload_events[buf_idx], imp_->ray_upload_events[buf_idx],
                            imp_->region_key_upload_events[buf_idx], imp_->region_offset_upload_events[buf_idx] });
 
-  imp_->update_kernel(
-    global_size, local_size, wait, imp_->region_update_events[buf_idx], &layer_cache.gpuQueue(),
-    // Kernel args begin:
-    gputil::BufferArg<float>(*layer_cache.buffer()), gputil::BufferArg<gputil::int3>(imp_->region_key_buffers[buf_idx]),
-    gputil::BufferArg<gputil::ulong>(imp_->region_offset_buffers[buf_idx]), region_count,
-    gputil::BufferArg<GpuKey>(imp_->key_buffers[buf_idx]),
-    gputil::BufferArg<gputil::float3>(imp_->ray_buffers[buf_idx]), ray_count, region_dim_gpu, float(map->resolution),
-    map->miss_value, (end_points_as_occupied) ? map->hit_value : map->miss_value, map->min_voxel_value,
-    map->max_voxel_value);
+  imp_->update_kernel(global_size, local_size, wait, imp_->region_update_events[buf_idx], &layer_cache.gpuQueue(),
+                      // Kernel args begin:
+                      gputil::BufferArg<float>(*layer_cache.buffer()),
+                      gputil::BufferArg<gputil::int3>(imp_->region_key_buffers[buf_idx]),
+                      gputil::BufferArg<gputil::ulong>(imp_->region_offset_buffers[buf_idx]), region_count,
+                      gputil::BufferArg<GpuKey>(imp_->key_buffers[buf_idx]),
+                      gputil::BufferArg<gputil::float3>(imp_->ray_buffers[buf_idx]), ray_count, region_dim_gpu,
+                      float(map->resolution), map->miss_value,
+                      (end_points_as_occupied) ? map->hit_value : map->miss_value, map->min_voxel_value,
+                      map->max_voxel_value, float(map->sub_voxel_weighting));
 
   // gpu_cache.gpuQueue().flush();
 

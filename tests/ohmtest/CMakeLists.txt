@@ -19,6 +19,7 @@ set(SOURCES
   OhmTestUtil.h
   RangesTests.cpp
   SerialisationTests.cpp
+  SubVoxelTests.cpp
   TestMain.cpp
 )
 

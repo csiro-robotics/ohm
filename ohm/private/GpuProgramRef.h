@@ -11,6 +11,7 @@
 #include <gputil/gpuProgram.h>
 
 #include <mutex>
+#include <vector>
 
 namespace gputil
 {
@@ -39,6 +40,8 @@ namespace ohm
     };
 
     GpuProgramRef(const char *name, SourceType source_type, const char *source_str, size_t source_str_length = 0u);
+    GpuProgramRef(const char *name, SourceType source_type, const char *source_str, size_t source_str_length,
+                  const std::initializer_list<std::string> &build_args);
     ~GpuProgramRef();
 
     inline gputil::Program &program() { return program_; }
@@ -55,6 +58,7 @@ namespace ohm
     std::string name_;
     std::string source_str_;
     SourceType source_type_;
+    std::vector<std::string> build_args_;
   };
 }
 

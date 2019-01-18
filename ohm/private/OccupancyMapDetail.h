@@ -27,10 +27,14 @@ namespace ohm
 
   struct OccupancyMapDetail
   {
+    // "sub_voxel"
+    static const char *kSubVoxelLayerName;
+
     glm::dvec3 origin = glm::dvec3(0);
     glm::dvec3 region_spatial_dimensions = glm::dvec3(0);
     glm::u8vec3 region_voxel_dimensions = glm::u8vec3(0);
     double resolution = 0.0;
+    double sub_voxel_weighting = 0.3;
     uint64_t stamp = 0;
     float occupancy_threshold_value = 0.0f;
     float occupancy_threshold_probability = 0.0f;
@@ -45,6 +49,8 @@ namespace ohm
     MapLayout layout;
     ChunkMap chunks;
     mutable std::mutex mutex;
+    // Region count at load time. Useful when only the header is loaded.
+    size_t loaded_region_count = 0;
 
     GpuCache *gpu_cache = nullptr;
 
@@ -71,7 +77,8 @@ namespace ohm
     void moveKeyAlongAxis(Key &key, int axis, int step) const;
 
     /// Setup the default @c MapLayout: occupancy layer and clearance layer.
-    void setDefaultLayout();
+    /// @param enable_sub_voxel_positioning Enable the sub_voxel positioning information?
+    void setDefaultLayout(bool enable_sub_voxel_positioning = false);
 
     /// Copy internal details from @p other. For cloning.
     /// @param other The map detail to copy from.
