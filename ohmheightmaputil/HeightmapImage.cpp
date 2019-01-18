@@ -17,8 +17,8 @@
 
 #include <3esservermacros.h>
 
-#include <mutex>
 #include <iostream>
+#include <mutex>
 
 // Include GLEW
 #include <GL/glew.h>
@@ -427,8 +427,9 @@ bool HeightmapImage::generateBitmap()
   }
 
   // Render the mesh to a depth buffer.
-  return renderHeightMesh(imp_->mesh_builder.meshBoundingBox().minExtents(), imp_->mesh_builder.meshBoundingBox().maxExtents(),
-                          imp_->type, imp_->heightmap->heightmap().resolution());
+  return renderHeightMesh(imp_->mesh_builder.meshBoundingBox().minExtents(),
+                          imp_->mesh_builder.meshBoundingBox().maxExtents(), imp_->type,
+                          imp_->heightmap->heightmap().resolution());
 }
 
 
@@ -457,7 +458,8 @@ bool HeightmapImage::renderHeightMesh(const glm::dvec3 &min_ext_spatial, const g
   glm::vec3 max_ext_vertices = glm::vec3(max_ext_spatial - min_ext_spatial);
 
   TES_TRIANGLES(g_3es, TES_COLOUR(White), glm::value_ptr(*imp_->vertices.data()), unsigned(imp_->vertices.size()),
-                sizeof(*imp_->vertices.data()), imp_->mesh_builder.triangles(), unsigned(imp_->mesh_builder.triangleCount() * 3));
+                sizeof(*imp_->vertices.data()), imp_->mesh_builder.triangles(),
+                unsigned(imp_->mesh_builder.triangleCount() * 3));
   TES_SERVER_UPDATE(g_3es, 0.0f);
   TES_SERVER_UPDATE(g_3es, 0.0f);
 
@@ -540,8 +542,9 @@ bool HeightmapImage::renderHeightMesh(const glm::dvec3 &min_ext_spatial, const g
   GLuint index_buffer;
   glGenBuffers(1, &index_buffer);
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, index_buffer);
-  glBufferData(GL_ELEMENT_ARRAY_BUFFER, imp_->mesh_builder.triangleCount() * 3 * sizeof(*imp_->mesh_builder.triangles()), imp_->mesh_builder.triangles(),
-               GL_STATIC_DRAW);
+  glBufferData(GL_ELEMENT_ARRAY_BUFFER,
+               imp_->mesh_builder.triangleCount() * 3 * sizeof(*imp_->mesh_builder.triangles()),
+               imp_->mesh_builder.triangles(), GL_STATIC_DRAW);
 
   //----------------------------------------------------------------------------
   // FBO setup.
@@ -682,10 +685,10 @@ bool HeightmapImage::renderHeightMesh(const glm::dvec3 &min_ext_spatial, const g
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, index_buffer);
 
   // Draw the triangles !
-  glDrawElements(GL_TRIANGLES,                   // mode
+  glDrawElements(GL_TRIANGLES,                                     // mode
                  GLsizei(imp_->mesh_builder.triangleCount() * 3),  // count
-                 GL_UNSIGNED_INT,                // type
-                 (void *)0                       // element array buffer offset
+                 GL_UNSIGNED_INT,                                  // type
+                 (void *)0                                         // element array buffer offset
   );
 
   glDisableVertexAttribArray(0);

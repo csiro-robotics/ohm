@@ -416,7 +416,7 @@ int main(int argc, char *argv[])
       ply.save(opt.ply_file.c_str(), true);
     }
   }
-  else // mode == kHeightmapMesh
+  else  // mode == kHeightmapMesh
   {
     ohm::Heightmap heightmap;
     prog.startThread();
@@ -432,7 +432,7 @@ int main(int argc, char *argv[])
     }
 
     ohm::HeightmapMesh mesh;
-    mesh.buildMesh(heightmap);;
+    mesh.buildMesh(heightmap);
     mesh.extractPlyMesh(ply);
 
     ply.save(opt.ply_file.c_str(), true);

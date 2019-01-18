@@ -18,7 +18,7 @@
 #else
 #define ZU "zu"
 #endif
-#endif // ZU
+#endif  // ZU
 
 using namespace ohm;
 
@@ -30,19 +30,28 @@ namespace
     {
       uint32_t i;
       char c[4];
-    } bint = {0x01020304};
+    } bint = { 0x01020304 };
 
     return bint.c[0] == 1;
   }
-}
+}  // namespace
 
 // File wrapper specialisations.
 template <>
 class PlyMesh::FileWrapper<FILE>
 {
 public:
-  inline FileWrapper(FILE *file, bool close_file) : file_(file), close_file_(close_file) {}
-  inline ~FileWrapper() { if (file_ && close_file_) { fclose(file_); } }
+  inline FileWrapper(FILE *file, bool close_file)
+    : file_(file)
+    , close_file_(close_file)
+  {}
+  inline ~FileWrapper()
+  {
+    if (file_ && close_file_)
+    {
+      fclose(file_);
+    }
+  }
 
   inline bool isOpen() const { return file_ != nullptr; }
 
@@ -76,10 +85,7 @@ public:
     buffer_ = new char[kBufferSize];
   }
 
-  inline ~FileWrapper()
-  {
-    delete [] buffer_;
-  }
+  inline ~FileWrapper() { delete[] buffer_; }
 
   inline bool isOpen() const { return stream_ != nullptr; }
 
@@ -112,9 +118,7 @@ PlyMesh::PlyMesh()
   , edge_colours_(false)
   , face_colours_(false)
   , index_mapper_(nullptr)
-{
-
-}
+{}
 
 
 PlyMesh::~PlyMesh()
@@ -273,7 +277,6 @@ bool PlyMesh::save(const char *out_path, bool binary) const
 }
 
 
-
 bool PlyMesh::save(FILE *file, bool binary) const
 {
   FileWrapper<FILE> out(file, false);
@@ -281,13 +284,11 @@ bool PlyMesh::save(FILE *file, bool binary) const
 }
 
 
-
 bool PlyMesh::save(std::ostream &stream, bool binary) const
 {
   FileWrapper<std::ostream> out(stream);
   return save(out, binary);
 }
-
 
 
 unsigned PlyMesh::addVertices(const glm::vec3 *verts, unsigned count, const Colour *colours)
@@ -355,7 +356,7 @@ void PlyMesh::addMappedTriangle(const glm::vec3 *verts, const unsigned *vert_ids
 {
   if (!index_mapper_)
   {
-    index_mapper_ = new std::unordered_map < unsigned, unsigned > ;
+    index_mapper_ = new std::unordered_map<unsigned, unsigned>;
   }
 
   Tri tri;
@@ -382,7 +383,7 @@ void PlyMesh::addMappedPolygon(const glm::vec3 *verts, const unsigned *vert_ids,
 {
   if (!index_mapper_)
   {
-    index_mapper_ = new std::unordered_map < unsigned, unsigned > ;
+    index_mapper_ = new std::unordered_map<unsigned, unsigned>;
   }
 
   Poly poly;
@@ -411,7 +412,7 @@ void PlyMesh::addMappedEdge(const glm::vec3 *verts, const unsigned *vert_ids, co
 {
   if (!index_mapper_)
   {
-    index_mapper_ = new std::unordered_map < unsigned, unsigned > ;
+    index_mapper_ = new std::unordered_map<unsigned, unsigned>;
   }
 
   Edge edge;

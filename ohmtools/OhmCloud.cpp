@@ -6,8 +6,8 @@
 #include "OhmCloud.h"
 
 #include <ohm/OccupancyMap.h>
-#include <ohm/Query.h>
 #include <ohm/OccupancyType.h>
+#include <ohm/Query.h>
 
 #include <ohmutil/PlyMesh.h>
 
@@ -47,8 +47,8 @@ namespace ohmtools
   }
 
 
-  void saveQueryCloud(const char *file_name, const ohm::OccupancyMap &map, const ohm::Query &query,
-                      float colour_range, const ProgressCallback &prog)
+  void saveQueryCloud(const char *file_name, const ohm::OccupancyMap &map, const ohm::Query &query, float colour_range,
+                      const ProgressCallback &prog)
   {
     const size_t result_count = query.numberOfResults();
     const ohm::Key *keys = query.intersectedVoxels();
@@ -111,11 +111,10 @@ namespace ohmtools
       }
 
       // Ensure the voxel is in a region we have calculated data for.
-      if (min_region.x <= last_region.x && last_region.x <= max_region.x &&
-          min_region.y <= last_region.y && last_region.y <= max_region.y &&
+      if (min_region.x <= last_region.x && last_region.x <= max_region.x &&  //
+          min_region.y <= last_region.y && last_region.y <= max_region.y &&  //
           min_region.z <= last_region.z && last_region.z <= max_region.z)
       {
-        //if (voxel.isOccupied() || voxel.isFree())
         const bool export_match = !voxel.isNull() && map.occupancyType(voxel) >= export_type;
         if (export_match)
         {
@@ -139,4 +138,4 @@ namespace ohmtools
 
     return point_count;
   }
-}
+}  // namespace ohmtools

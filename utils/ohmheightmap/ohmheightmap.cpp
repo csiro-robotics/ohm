@@ -89,8 +89,8 @@ int parseOptions(Options &opt, int argc, char *argv[])
       ("floor", "Heightmap excludes voxels below this (positive) value below the --base height. Positive to enable.",
        optVal(opt.floor))  //
       ("ceiling", "Heightmap excludes voxels above this (positive) value above the --base height. Positive to enable.",
-       optVal(opt.ceiling))  //
-      ("no-sub-vox", "Ignore sub-voxel positioning if available?.", optVal(opt.no_sub_voxel))       //
+       optVal(opt.ceiling))                                                                    //
+      ("no-sub-vox", "Ignore sub-voxel positioning if available?.", optVal(opt.no_sub_voxel))  //
       ;
 
     optParse.parse_positional({ "i", "o" });

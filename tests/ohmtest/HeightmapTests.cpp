@@ -35,8 +35,7 @@ namespace
   const double kBoxHalfExtents = 2.5;
 
   void heightmapBoxTest(const std::string &prefix, Heightmap::Axis axis, int blur,
-                        std::shared_ptr<Heightmap> *map_out = nullptr,
-                        const TestParams *params = nullptr)
+                        std::shared_ptr<Heightmap> *map_out = nullptr, const TestParams *params = nullptr)
   {
     Profile profile;
     const float boundary_distance = float(kBoxHalfExtents);
@@ -73,9 +72,9 @@ namespace
     // Convert axis reference into an index [0, 2].
     const int axis_index = (axis >= 0) ? axis : -axis - 1;
 
-    double ground_height =
-      (axis >= 0) ? map.voxelCentreGlobal(map.voxelKey(glm::dvec3(-boundary_distance)))[axis_index] :
-                    -1.0 * map.voxelCentreGlobal(map.voxelKey(glm::dvec3(boundary_distance)))[axis_index];
+    double ground_height = (axis >= 0) ?
+                             map.voxelCentreGlobal(map.voxelKey(glm::dvec3(-boundary_distance)))[axis_index] :
+                             -1.0 * map.voxelCentreGlobal(map.voxelKey(glm::dvec3(boundary_distance)))[axis_index];
     double top_of_wall_height =
       (axis >= 0) ? map.voxelCentreGlobal(map.voxelKey(glm::dvec3(boundary_distance)))[axis_index] :
                     -1.0 * map.voxelCentreGlobal(map.voxelKey(glm::dvec3(-boundary_distance)))[axis_index];
@@ -403,17 +402,8 @@ TEST(Heightmap, Mesh)
   for (size_t t = 0; t < triangle_count; ++t)
   {
     const TriangleNeighbours &neighbours = mesh.triangleNeighbours()[t];
+
     // Check the triangle's neighbours.
-    // bool open_triangle = false;
-
-    // for (int i = 0; i < 3; ++i)
-    // {
-    //   if (neighbours.neighbours[i] == ~0u)
-    //   {
-    //     open_triangle = true;
-    //   }
-    // }
-
     // Get the height of the vertices. All should be either height_low or height_height.
     for (int i = 3; i < 3; ++i)
     {

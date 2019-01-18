@@ -76,6 +76,7 @@ namespace ohm
       tri_normals.clear();
       triangles.clear();
       triangle_neighbours.clear();
+      edges.clear();
       coords_2d.clear();
       mesh_extents = Aabb(0.0);
     }

@@ -3,25 +3,24 @@
 //
 #include "OhmQueryConfig.h"
 
-#include <glm/glm.hpp>
 #include <3esservermacros.h>
+#include <glm/glm.hpp>
 
-#include <ohm/OhmGpu.h>
 #include <ohm/GpuMap.h>
 #include <ohm/LineQuery.h>
-#include <ohm/OccupancyMap.h>
 #include <ohm/MapSerialise.h>
 #include <ohm/NearestNeighbours.h>
-#include <ohm/Voxel.h>
+#include <ohm/OccupancyMap.h>
 #include <ohm/OccupancyType.h>
 #include <ohm/OccupancyUtil.h>
+#include <ohm/OhmGpu.h>
 #include <ohm/QueryFlag.h>
-#include <ohm/OccupancyType.h>
+#include <ohm/Voxel.h>
 
+#include <ohmutil/GlmStream.h>
 #include <ohmutil/OhmUtil.h>
 #include <ohmutil/PlyMesh.h>
 #include <ohmutil/ProgressMonitor.h>
-#include <ohmutil/GlmStream.h>
 #include <ohmutil/SafeIO.h>
 
 #include <ohm/DebugIDs.h>
@@ -33,8 +32,8 @@
 #include <csignal>
 #include <cstddef>
 #include <fstream>
-#include <locale>
 #include <iostream>
+#include <locale>
 #include <sstream>
 
 typedef std::chrono::high_resolution_clock TimingClock;
@@ -82,10 +81,7 @@ namespace
     bool hard_reset_on_repeat = false;
     bool quiet = false;
 
-    inline bool haveQuery() const
-    {
-      return neighbours.radius > 0 || line.radius > 0 || ranges.radius > 0;
-    }
+    inline bool haveQuery() const { return neighbours.radius > 0 || line.radius > 0 || ranges.radius > 0; }
 
     void print() const;
   };
@@ -110,21 +106,22 @@ namespace
   }
 
 
-
   class LoadMapProgress : public ohm::SerialiseProgress
   {
   public:
-    LoadMapProgress(ProgressMonitor &monitor) : monitor_(monitor) {}
+    LoadMapProgress(ProgressMonitor &monitor)
+      : monitor_(monitor)
+    {}
 
     bool quit() const override { return ::quit > 1; }
 
     void setTargetProgress(unsigned target) override { monitor_.beginProgress(ProgressMonitor::Info(target)); }
-    void incrementProgress(unsigned inc = 1) override { monitor_.incrementProgressBy(inc);  }
+    void incrementProgress(unsigned inc = 1) override { monitor_.incrementProgressBy(inc); }
 
   private:
     ProgressMonitor &monitor_;
   };
-}
+}  // namespace
 
 
 inline std::istream &operator>>(std::istream &in, Options::Neighbours &n)
@@ -161,7 +158,8 @@ inline std::istream &operator>>(std::istream &in, Options::Line &l)
 
 inline std::ostream &operator<<(std::ostream &out, const Options::Line &l)
 {
-  out << l.start[0] << ',' << l.start[1] << ',' << l.start[2] << ',' << l.end[0] << ',' << l.end[1] << ',' << l.end[2] << ',' << l.radius;
+  out << l.start[0] << ',' << l.start[1] << ',' << l.start[2] << ',' << l.end[0] << ',' << l.end[1] << ',' << l.end[2]
+      << ',' << l.radius;
   return out;
 }
 
@@ -181,7 +179,8 @@ inline std::istream &operator>>(std::istream &in, Options::Ranges &r)
 
 inline std::ostream &operator<<(std::ostream &out, const Options::Ranges &r)
 {
-  out << r.min[0] << ',' << r.min[1] << ',' << r.min[2] << ',' << r.max[0] << ',' << r.max[1] << ',' << r.max[2] << ',' << r.radius;
+  out << r.min[0] << ',' << r.min[1] << ',' << r.min[2] << ',' << r.max[0] << ',' << r.max[1] << ',' << r.max[2] << ','
+      << r.radius;
   return out;
 }
 
@@ -192,12 +191,11 @@ inline std::ostream &operator<<(std::ostream &out, const Options::Ranges &r)
 int parseOptions(Options &opt, int argc, char *argv[])
 {
   cxxopts::Options opt_parse(argv[0],
-"\nLoads an occupancy map file and runs a single query on the map, exporting the\n"
-"results to a new PLY cloud. trajectory file. The trajectory marks the scanner\n"
-"trajectory with timestamps loosely corresponding to cloud point timestamps.\n"
-"Trajectory points are interpolated for each cloud point based on corresponding\n"
-"times in the trajectory."
-  );
+                             "\nLoads an occupancy map file and runs a single query on the map, exporting the\n"
+                             "results to a new PLY cloud. trajectory file. The trajectory marks the scanner\n"
+                             "trajectory with timestamps loosely corresponding to cloud point timestamps.\n"
+                             "Trajectory points are interpolated for each cloud point based on corresponding\n"
+                             "times in the trajectory.");
   opt_parse.positional_help("<map.ohm> <--near=x,y,z,r | --line=x1,y1,z1,x2,y2,z2,r | --ranges=x1,y1,z1,x2,y2,z2,r>");
 
   try

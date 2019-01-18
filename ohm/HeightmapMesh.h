@@ -161,6 +161,6 @@ namespace ohm
   private:
     std::unique_ptr<HeightmapMeshDetail> imp_;
   };
-}
+}  // namespace ohm
 
-#endif // HEIGHTMAPMESH_H
+#endif  // HEIGHTMAPMESH_H
