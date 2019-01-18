@@ -67,7 +67,7 @@ namespace ohm
     std::vector<Edge> edges;
     std::vector<double> coords_2d;
     HeightmapMesh::NormalsMode normals_mode = HeightmapMesh::kNormalsAverage;
-    Aabb mesh_extents;
+    Aabb mesh_extents = Aabb(0.0);
 
     void clear()
     {
@@ -77,7 +77,7 @@ namespace ohm
       triangles.clear();
       triangle_neighbours.clear();
       coords_2d.clear();
-      mesh_extents = Aabb();
+      mesh_extents = Aabb(0.0);
     }
   };
 }
@@ -114,7 +114,7 @@ bool HeightmapMesh::buildMesh(const Heightmap &heightmap)
   imp_->clear();
 
   // Walk heightmap voxels.
-  const OccupancyMap &heightmap_occupancy = *heightmap.occupancyMap();
+  const OccupancyMap &heightmap_occupancy = heightmap.heightmap();
   const MapLayer *heightmap_layer = heightmap_occupancy.layout().layer(HeightmapVoxel::kHeightmapLayer);
   const int heightmap_layer_index = heightmap_layer->layerIndex();
 
@@ -250,32 +250,37 @@ bool HeightmapMesh::buildMesh(const Heightmap &heightmap)
       ++tri_count;
     }
 
-    // Use the vertex to edges to build the triangle neighbour information.
-    // First sort to ensure all triangle mappings for a vertex are adjacent.
-    std::sort(imp_->edges.begin(), imp_->edges.end());
-
-    // Edges should end up paired and we know from how the mesh is built that there can only be either one or two
-    // triangles per edge.
-    auto previous_edge = imp_->edges.begin();
-    for (auto current_edge = previous_edge + 1; current_edge != imp_->edges.end(); ++current_edge, ++previous_edge)
+    if (!imp_->edges.empty())
     {
-      if (current_edge->v0 == previous_edge->v0 && current_edge->v0 == previous_edge->v0)
+      // Use the vertex to edges to build the triangle neighbour information.
+      // First sort to ensure all triangle mappings for a vertex are adjacent.
+      std::sort(imp_->edges.begin(), imp_->edges.end());
+
+      // Edges should end up paired and we know from how the mesh is built that there can only be either one or two
+      // triangles per edge.
+      const Edge *previous_edge = &imp_->edges[0];
+      const Edge *current_edge;
+      for (size_t i = 1; i < imp_->edges.size(); ++i)
       {
-        // We have a shared edge. Update neighbour information for both triangles.
-        TriangleNeighbours &n0 = imp_->triangle_neighbours[current_edge->triangle];
-        TriangleNeighbours &n1 = imp_->triangle_neighbours[previous_edge->triangle];
+        current_edge = &imp_->edges[i];
+        if (current_edge->v0 == previous_edge->v0 && current_edge->v1== previous_edge->v1)
+        {
+          // We have a shared edge. Update neighbour information for both triangles.
+          TriangleNeighbours &n0 = imp_->triangle_neighbours[current_edge->triangle];
+          TriangleNeighbours &n1 = imp_->triangle_neighbours[previous_edge->triangle];
 
-        n0.neighbours[current_edge->triangle_edge_index] = previous_edge->triangle;
-        n0.neighbour_edge_indices[current_edge->triangle_edge_index] = previous_edge->triangle_edge_index;
+          n0.neighbours[current_edge->triangle_edge_index] = previous_edge->triangle;
+          n0.neighbour_edge_indices[current_edge->triangle_edge_index] = previous_edge->triangle_edge_index;
 
-        n1.neighbours[previous_edge->triangle_edge_index] = current_edge->triangle;
-        n1.neighbour_edge_indices[previous_edge->triangle_edge_index] = current_edge->triangle_edge_index;
+          n1.neighbours[previous_edge->triangle_edge_index] = current_edge->triangle;
+          n1.neighbour_edge_indices[previous_edge->triangle_edge_index] = current_edge->triangle_edge_index;
 
-        // Done. Make sure we move iteration on the pair.
-        ++previous_edge;
-        ++current_edge;
+          // Done. Make sure we move iteration on the pair.
+          ++i;
+        }
+        // else We have an open edge and need do nothing.
+        previous_edge = current_edge;
       }
-      // else We have an open edge and need do nothing.
     }
   }
 

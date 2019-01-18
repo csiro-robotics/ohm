@@ -6,6 +6,7 @@
 #include <gtest/gtest.h>
 
 #include <ohm/Heightmap.h>
+#include <ohm/HeightmapMesh.h>
 #include <ohm/HeightmapVoxel.h>
 #include <ohm/MapCache.h>
 #include <ohm/MapLayer.h>
@@ -31,12 +32,14 @@ namespace
     double ceiling = 0;
   };
 
+  const double kBoxHalfExtents = 2.5;
+
   void heightmapBoxTest(const std::string &prefix, Heightmap::Axis axis, int blur,
                         std::shared_ptr<Heightmap> *map_out = nullptr,
                         const TestParams *params = nullptr)
   {
     Profile profile;
-    const float boundary_distance = 2.5f;
+    const float boundary_distance = float(kBoxHalfExtents);
     const double base_height = 0;
     OccupancyMap map(0.2);
 
@@ -371,4 +374,114 @@ TEST(Heightmap, Layout)
 
   validate_heightmap_voxel_layout(heightmap_voxel);
   validate_heightmap_voxel_layout(heightmap_build_voxel);
+}
+
+
+TEST(Heightmap, Mesh)
+{
+  std::shared_ptr<Heightmap> heightmap;
+  heightmapBoxTest("", Heightmap::AxisZ, 0, &heightmap);
+  HeightmapMesh mesh;
+
+  bool ok = mesh.buildMesh(*heightmap);
+  ASSERT_TRUE(ok);
+
+  PlyMesh ply;
+  mesh.extractPlyMesh(ply);
+  ply.save("hmm.ply", true);
+
+  // Since we have generated a heightmap from a box, we can assume and verify the following characteristics:
+  // - Verify all neighbour information.
+  // - By inspecting triangle neighbours, we can validate triangle normals.
+
+  const size_t vertex_count = mesh.vertexCount();
+  const size_t triangle_count = mesh.triangleCount();
+  const glm::dvec3 up = heightmap->upAxisNormal();
+
+  const double height_low = -kBoxHalfExtents;
+  const double height_high = kBoxHalfExtents;
+  for (size_t t = 0; t < triangle_count; ++t)
+  {
+    const TriangleNeighbours &neighbours = mesh.triangleNeighbours()[t];
+    // Check the triangle's neighbours.
+    // bool open_triangle = false;
+
+    // for (int i = 0; i < 3; ++i)
+    // {
+    //   if (neighbours.neighbours[i] == ~0u)
+    //   {
+    //     open_triangle = true;
+    //   }
+    // }
+
+    // Get the height of the vertices. All should be either height_low or height_height.
+    for (int i = 3; i < 3; ++i)
+    {
+      glm::dvec3 vertex = mesh.vertices()[mesh.triangles()[t * 3 + i]];
+      double vertex_height = glm::dot(up, vertex);
+      if (vertex_height < 0)
+      {
+        EXPECT_NEAR(vertex_height, height_low, 1e-4);
+      }
+      else
+      {
+        EXPECT_NEAR(vertex_height, height_high, 1e-4);
+      }
+    }
+
+    // Confirm the neighbour indices match.
+    for (int i = 0; i < 3; ++i)
+    {
+      const unsigned nt = neighbours.neighbours[i];
+
+      if (nt == ~0u)
+      {
+        // No neighbour.
+        continue;
+      }
+
+      int e0, e1;
+      int ne0, ne1;
+      unsigned v0, v1;
+      unsigned nv0, nv1;
+
+      e0 = i;
+      e1 = (e0 + 1) % 3;
+
+      // Get the triangle edge vertex indices.
+      v0 = mesh.triangles()[t * 3 + e0];
+      v1 = mesh.triangles()[t * 3 + e1];
+
+      ASSERT_LT(v0, vertex_count);
+      ASSERT_LT(v1, vertex_count);
+
+      // Define edge indices in the neighbour.
+      ne0 = neighbours.neighbour_edge_indices[i];
+      ASSERT_GE(ne0, 0);
+      ASSERT_LT(ne0, 3);
+
+      ne1 = (ne0 + 1) % 3;
+
+      // Get the neighbour edge vertex indices.
+      nv0 = mesh.triangles()[nt * 3 + ne0];
+      nv1 = mesh.triangles()[nt * 3 + ne1];
+
+      ASSERT_LT(ne0, vertex_count);
+      ASSERT_LT(ne1, vertex_count);
+
+      // Validate the edge indices match.
+      // Index order may be reversed due to winding, so make both have lower value index come first.
+      if (v0 > v1)
+      {
+        std::swap(v0, v1);
+      }
+      if (nv0 > nv1)
+      {
+        std::swap(nv0, nv1);
+      }
+
+      EXPECT_EQ(v0, nv0) << "vertex mismatch between triangles: " << t << "," << nt;
+      EXPECT_EQ(v1, nv1) << "vertex mismatch between triangles: " << t << "," << nt;
+    }
+  }
 }

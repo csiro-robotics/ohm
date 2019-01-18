@@ -3,6 +3,8 @@
 //
 #include <glm/glm.hpp>
 
+#include <ohm/Heightmap.h>
+#include <ohm/HeightmapMesh.h>
 #include <ohm/HeightmapVoxel.h>
 #include <ohm/Key.h>
 #include <ohm/KeyList.h>
@@ -45,6 +47,7 @@ namespace
     kExportOccupancyCentre,
     kExportClearance,
     kExportHeightmap,
+    kExportHeightmapMesh,
   };
 
   struct Options
@@ -113,6 +116,10 @@ std::istream &operator>>(std::istream &in, ExportMode &mode)
   {
     mode = kExportHeightmap;
   }
+  else if (mode_str.compare("heightmap-mesh") == 0)
+  {
+    mode = kExportHeightmapMesh;
+  }
   // else
   // {
   //   throw cxxopts::invalid_option_format_error(modeStr);
@@ -135,6 +142,9 @@ std::ostream &operator<<(std::ostream &out, const ExportMode mode)
     break;
   case kExportHeightmap:
     out << "heightmap";
+    break;
+  case kExportHeightmapMesh:
+    out << "heightmap-mesh";
     break;
   }
   return out;
@@ -160,7 +170,7 @@ int parseOptions(Options &opt, int argc, char *argv[])
       ("cloud", "The output cloud file (ply).", cxxopts::value(opt.ply_file))
       ("cull", "Remove regions farther than the specified distance from the map origin.", cxxopts::value(opt.cull_distance)->default_value(optStr(opt.cull_distance)))
       ("map", "The input map file (ohm).", cxxopts::value(opt.map_file))
-      ("mode", "Export mode [occupancy,occupancy-centre,clearance,heightmap]: select which data to export from the "
+      ("mode", "Export mode [occupancy,occupancy-centre,clearance,heightmap,heightmap-mesh]: select which data to export from the "
                "map. occupancy and occupancy-centre differ only in that the latter forces positioning on voxel "
                "centres.", cxxopts::value(opt.mode)->default_value(optStr(opt.mode)))
       ("heightmap-axis", "Axis for the heightmap vertical axis [x, y, z].", cxxopts::value(opt.heightmap_axis)->default_value(optStr(opt.heightmap_axis)))
@@ -221,6 +231,7 @@ int main(int argc, char *argv[])
   ProgressMonitor prog(10);
   LoadMapProgress load_progress(prog);
   ohm::OccupancyMap map(1.0f);
+  ohm::PlyMesh ply;
 
   prog.setDisplayFunction([](const ProgressMonitor::Progress &prog) {
     // if (!opt.quiet)
@@ -244,18 +255,6 @@ int main(int argc, char *argv[])
     }
   });
 
-  prog.startThread();
-  res = ohm::load(opt.map_file.c_str(), map, &load_progress);
-  prog.endProgress();
-
-  std::cout << std::endl;
-
-  if (res != 0)
-  {
-    std::cerr << "Failed to load map. Error(" << res << "): " << ohm::errorCodeString(res) << std::endl;
-    return res;
-  }
-
   int heightmap_axis = -1;
   if (opt.heightmap_axis.compare("x") == 0)
   {
@@ -275,131 +274,167 @@ int main(int argc, char *argv[])
     return -1;
   }
 
-  // Validate the required layer is present.
-  switch (opt.mode)
+  if (opt.mode != kExportHeightmapMesh)
   {
-  case kExportOccupancy:
-  case kExportOccupancyCentre:
-    if (map.layout().layer("occupancy") == nullptr)
+    prog.startThread();
+    res = ohm::load(opt.map_file.c_str(), map, &load_progress);
+    prog.endProgress();
+
+    std::cout << std::endl;
+
+    if (res != 0)
     {
-      std::cerr << "Missing 'occupancy' layer" << std::endl;
-      return -1;
-    }
-    break;
-  case kExportClearance:
-    if (map.layout().layer("clearance") == nullptr)
-    {
-      std::cerr << "Missing 'clearance' layer" << std::endl;
-      return -1;
-    }
-    break;
-  case kExportHeightmap:
-  {
-    const ohm::MapLayer *layer = map.layout().layer(ohm::HeightmapVoxel::kHeightmapLayer);
-    if (!layer)
-    {
-      std::cerr << "Missing '" << ohm::HeightmapVoxel::kHeightmapLayer << "' layer" << std::endl;
-      return -1;
-    }
-    if (layer->voxelByteSize() < sizeof(ohm::HeightmapVoxel))
-    {
-      std::cerr << "Layer '" << ohm::HeightmapVoxel::kHeightmapLayer << "' is not large enough. Expect "
-                << sizeof(ohm::HeightmapVoxel) << " actual " << layer->voxelByteSize() << std::endl;
-      return -1;
+      std::cerr << "Failed to load map. Error(" << res << "): " << ohm::errorCodeString(res) << std::endl;
+      return res;
     }
 
-    break;
-  }
-  default:
-    break;
-  }
-
-  if (opt.occupancy_threshold >= 0)
-  {
-    map.setOccupancyThresholdProbability(opt.occupancy_threshold);
-  }
-
-  if (opt.cull_distance)
-  {
-    std::cout << "Culling regions beyond range : " << opt.cull_distance << std::endl;
-    const unsigned removed = map.removeDistanceRegions(map.origin(), opt.cull_distance);
-    std::cout << "Removed " << removed << " regions" << std::endl;
-    ;
-  }
-  if (opt.expiry_time)
-  {
-    std::cout << "Expiring regions before time: " << opt.expiry_time << std::endl;
-    unsigned removed = map.expireRegions(opt.expiry_time);
-    std::cout << "Removed " << removed << " regions" << std::endl;
-  }
-
-  std::cout << "Converting to PLY cloud" << std::endl;
-  ohm::PlyMesh ply;
-  glm::vec3 v;
-  const size_t region_count = map.regionCount();
-  glm::i16vec3 last_region = map.begin().key().regionKey();
-  uint64_t point_count = 0;
-
-  prog.beginProgress(ProgressMonitor::Info(region_count));
-
-  for (auto iter = map.begin(); iter != map.end() && !quit; ++iter)
-  {
-    const ohm::VoxelConst voxel = *iter;
-    if (last_region != iter.key().regionKey())
+    // Validate the required layer is present.
+    switch (opt.mode)
     {
-      prog.incrementProgress();
-      last_region = iter.key().regionKey();
-    }
-    if (opt.mode == kExportOccupancy || kExportOccupancyCentre)
-    {
-      if (map.occupancyType(voxel) == ohm::Occupied)
+    case kExportOccupancy:
+    case kExportOccupancyCentre:
+      if (map.layout().layer("occupancy") == nullptr)
       {
-        v = (opt.mode == kExportOccupancy) ? voxel.position() : voxel.centreGlobal();
-        ply.addVertex(v);
-        ++point_count;
+        std::cerr << "Missing 'occupancy' layer" << std::endl;
+        return -1;
       }
-    }
-    else if (opt.mode == kExportClearance)
-    {
-      if (voxel.isValid() && voxel.clearance() >= 0 && voxel.clearance() < opt.colour_scale)
+      break;
+    case kExportClearance:
+      if (map.layout().layer("clearance") == nullptr)
       {
-        const float range_value = voxel.clearance();
-        uint8_t c = uint8_t(255 * std::max(0.0f, (opt.colour_scale - range_value) / opt.colour_scale));
-        v = voxel.centreGlobal();
-        ply.addVertex(v, Colour(c, 128, 0));
-        ++point_count;
+        std::cerr << "Missing 'clearance' layer" << std::endl;
+        return -1;
       }
-    }
-    else if (opt.mode == kExportHeightmap)
+      break;
+    case kExportHeightmap:
     {
-      if (voxel.isValid() && voxel.isOccupied())
+      const ohm::MapLayer *layer = map.layout().layer(ohm::HeightmapVoxel::kHeightmapLayer);
+      if (!layer)
       {
-        const ohm::HeightmapVoxel *voxel_height = voxel.layerContent<const ohm::HeightmapVoxel *>(
-          map.layout().layer(ohm::HeightmapVoxel::kHeightmapLayer)->layerIndex());
+        std::cerr << "Missing '" << ohm::HeightmapVoxel::kHeightmapLayer << "' layer" << std::endl;
+        return -1;
+      }
+      if (layer->voxelByteSize() < sizeof(ohm::HeightmapVoxel))
+      {
+        std::cerr << "Layer '" << ohm::HeightmapVoxel::kHeightmapLayer << "' is not large enough. Expect "
+                  << sizeof(ohm::HeightmapVoxel) << " actual " << layer->voxelByteSize() << std::endl;
+        return -1;
+      }
 
-        uint8_t c = uint8_t(255 * std::max(0.0f, (opt.colour_scale - voxel_height->clearance) / opt.colour_scale));
-        if (voxel_height->clearance <= 0)
+      break;
+    }
+    default:
+      break;
+    }
+
+    if (opt.occupancy_threshold >= 0)
+    {
+      map.setOccupancyThresholdProbability(opt.occupancy_threshold);
+    }
+
+    if (opt.cull_distance)
+    {
+      std::cout << "Culling regions beyond range : " << opt.cull_distance << std::endl;
+      const unsigned removed = map.removeDistanceRegions(map.origin(), opt.cull_distance);
+      std::cout << "Removed " << removed << " regions" << std::endl;
+      ;
+    }
+    if (opt.expiry_time)
+    {
+      std::cout << "Expiring regions before time: " << opt.expiry_time << std::endl;
+      unsigned removed = map.expireRegions(opt.expiry_time);
+      std::cout << "Removed " << removed << " regions" << std::endl;
+    }
+
+    std::cout << "Converting to PLY cloud" << std::endl;
+    glm::vec3 v;
+    const size_t region_count = map.regionCount();
+    glm::i16vec3 last_region = map.begin().key().regionKey();
+    uint64_t point_count = 0;
+
+    prog.beginProgress(ProgressMonitor::Info(region_count));
+
+    for (auto iter = map.begin(); iter != map.end() && !quit; ++iter)
+    {
+      const ohm::VoxelConst voxel = *iter;
+      if (last_region != iter.key().regionKey())
+      {
+        prog.incrementProgress();
+        last_region = iter.key().regionKey();
+      }
+      if (opt.mode == kExportOccupancy || kExportOccupancyCentre)
+      {
+        if (map.occupancyType(voxel) == ohm::Occupied)
         {
-          // Max clearance. No red.
-          c = 0;
+          v = (opt.mode == kExportOccupancy) ? voxel.position() : voxel.centreGlobal();
+          ply.addVertex(v);
+          ++point_count;
         }
+      }
+      else if (opt.mode == kExportClearance)
+      {
+        if (voxel.isValid() && voxel.clearance() >= 0 && voxel.clearance() < opt.colour_scale)
+        {
+          const float range_value = voxel.clearance();
+          uint8_t c = uint8_t(255 * std::max(0.0f, (opt.colour_scale - range_value) / opt.colour_scale));
+          v = voxel.centreGlobal();
+          ply.addVertex(v, Colour(c, 128, 0));
+          ++point_count;
+        }
+      }
+      else if (opt.mode == kExportHeightmap)
+      {
+        if (voxel.isValid() && voxel.isOccupied())
+        {
+          const ohm::HeightmapVoxel *voxel_height = voxel.layerContent<const ohm::HeightmapVoxel *>(
+            map.layout().layer(ohm::HeightmapVoxel::kHeightmapLayer)->layerIndex());
 
-        glm::dvec3 up(0);
-        up[heightmap_axis] = 1;
-        v = voxel.centreGlobal() + up * double(voxel_height->height);
-        ply.addVertex(v, Colour(c, 128, 0));
-        ++point_count;
+          uint8_t c = uint8_t(255 * std::max(0.0f, (opt.colour_scale - voxel_height->clearance) / opt.colour_scale));
+          if (voxel_height->clearance <= 0)
+          {
+            // Max clearance. No red.
+            c = 0;
+          }
+
+          glm::dvec3 up(0);
+          up[heightmap_axis] = 1;
+          v = voxel.centreGlobal() + up * double(voxel_height->height);
+          ply.addVertex(v, Colour(c, 128, 0));
+          ++point_count;
+        }
       }
     }
+
+    prog.endProgress();
+    prog.pause();
+    prog.joinThread();
+
+    std::cout << "\nExporting " << point_count << " points" << std::endl;
+
+    if (!quit)
+    {
+      ply.save(opt.ply_file.c_str(), true);
+    }
   }
-
-  prog.endProgress();
-  prog.pause();
-  prog.joinThread();
-  std::cout << "\nExporting " << point_count << " points" << std::endl;
-
-  if (!quit)
+  else // mode == kHeightmapMesh
   {
+    ohm::Heightmap heightmap;
+    prog.startThread();
+    res = ohm::load(opt.map_file.c_str(), heightmap, &load_progress);
+    prog.endProgress();
+    prog.pause();
+    std::cout << std::endl;
+
+    if (res != 0)
+    {
+      std::cerr << "Failed to load heightmap. Error(" << res << "): " << ohm::errorCodeString(res) << std::endl;
+      return res;
+    }
+
+    ohm::HeightmapMesh mesh;
+    mesh.buildMesh(heightmap);;
+    mesh.extractPlyMesh(ply);
+
     ply.save(opt.ply_file.c_str(), true);
   }
 
