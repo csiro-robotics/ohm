@@ -23,6 +23,7 @@
 //
 // Original source:
 // https://github.com/delfrrr/delaunator-cpp @ v0.4.0
+// clang-format off
 
 #pragma once
 
@@ -586,3 +587,5 @@ void Delaunator::link(std::size_t a, std::size_t b) {
 }
 
 } //namespace delaunator
+
+// clang-format on

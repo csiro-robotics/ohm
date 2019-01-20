@@ -12,6 +12,7 @@ set(TES_ENABLE ${OHM_TES_DEBUG})
 configure_file(OhmConfig.in.h "${CMAKE_CURRENT_BINARY_DIR}/ohm/OhmConfig.h")
 
 set(SOURCES
+  3rdparty/delaunator.hpp
   private/ClearanceProcessDetail.cpp
   private/ClearanceProcessDetail.h
   private/HeightmapDetail.cpp
@@ -46,6 +47,8 @@ set(SOURCES
   DefaultLayer.h
   Heightmap.cpp
   Heightmap.h
+  HeightmapMesh.cpp
+  HeightmapMesh.h
   HeightmapVoxel.cpp
   HeightmapVoxel.h
   Key.cpp
@@ -110,6 +113,7 @@ set(PUBLIC_HEADERS
   DataType.h
   DefaultLayer.h
   Heightmap.h
+  HeightmapMesh.h
   HeightmapVoxel.h
   Key.h
   KeyList.h

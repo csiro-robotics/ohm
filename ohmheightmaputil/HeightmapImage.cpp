@@ -5,20 +5,19 @@
 // Author: Kazys Stepanas
 #include "HeightmapImage.h"
 
-#include "3rdparty/delaunator.hpp"
-
 #include <ohm/Heightmap.h>
+#include <ohm/HeightmapMesh.h>
 #include <ohm/HeightmapVoxel.h>
 #include <ohm/MapLayer.h>
 #include <ohm/MapLayout.h>
 #include <ohm/OccupancyMap.h>
 #include <ohm/Voxel.h>
 
-#include <ohmutil/PlyMesh.h>
 #include <ohmutil/Profile.h>
 
 #include <3esservermacros.h>
 
+#include <iostream>
 #include <mutex>
 
 // Include GLEW
@@ -229,19 +228,14 @@ namespace ohm
   struct HeightmapImageDetail
   {
     const Heightmap *heightmap;
-    std::vector<glm::dvec3> vertices_d;
+    HeightmapMesh mesh_builder;
     std::vector<glm::vec3> vertices;
-    std::vector<glm::vec3> vertex_normals;
-    std::vector<unsigned> indices;
-    std::vector<glm::vec3> tri_normals;
-    std::vector<double> coords_2d;
 
     HeightmapImage::BitmapInfo image_info;
     std::vector<uint8_t> image;
 
     HeightmapImage::ImageType type = HeightmapImage::kImageNormals;
     unsigned pixels_per_voxel = 1;
-    HeightmapImage::NormalsMode normals_mode = HeightmapImage::kNormalsWorst;
 
     struct RenderData
     {
@@ -359,14 +353,12 @@ namespace ohm
 }  // namespace ohm
 
 
-HeightmapImage::HeightmapImage(const Heightmap &heightmap, ImageType type, NormalsMode normals_mode,
-                               unsigned pixels_per_voxel)
+HeightmapImage::HeightmapImage(const Heightmap &heightmap, ImageType type, unsigned pixels_per_voxel)
   : imp_(new HeightmapImageDetail)
 {
   PROFILE(HeightmapImageDetail);
   imp_->heightmap = &heightmap;
   imp_->type = type;
-  imp_->normals_mode = normals_mode;
   imp_->pixels_per_voxel = pixels_per_voxel;
   imp_->render_data.init();
 }
@@ -375,6 +367,18 @@ HeightmapImage::HeightmapImage(const Heightmap &heightmap, ImageType type, Norma
 HeightmapImage::~HeightmapImage()
 {
   PROFILE(_HeightmapImageDetail);
+}
+
+
+HeightmapMesh &HeightmapImage::meshBuilder()
+{
+  return imp_->mesh_builder;
+}
+
+
+const HeightmapMesh &HeightmapImage::meshBuilder() const
+{
+  return imp_->mesh_builder;
 }
 
 
@@ -387,18 +391,6 @@ HeightmapImage::ImageType HeightmapImage::imageType()
 void HeightmapImage::setImageType(ImageType type)
 {
   imp_->type = type;
-}
-
-
-HeightmapImage::NormalsMode HeightmapImage::normalsMode()
-{
-  return imp_->normals_mode;
-}
-
-
-void HeightmapImage::setNormalsMode(NormalsMode mode)
-{
-  imp_->normals_mode = mode;
 }
 
 
@@ -423,156 +415,21 @@ const uint8_t *HeightmapImage::bitmap(BitmapInfo *info) const
 
 bool HeightmapImage::generateBitmap()
 {
+  if (!imp_->heightmap)
+  {
+    return false;
+  }
+
   PROFILE(HeightmapImage_generateBitmap);
-  triangulate();
+  if (!imp_->mesh_builder.buildMesh(*imp_->heightmap))
+  {
+    return false;
+  }
 
   // Render the mesh to a depth buffer.
-  return renderHeightMesh(imp_->image_info.image_extents.minExtents(), imp_->image_info.image_extents.maxExtents(),
-                          imp_->type, imp_->heightmap->heightmap().resolution());
-}
-
-
-void HeightmapImage::triangulate()
-{
-  PROFILE(HeightmapImage_triangulate);
-  // Populate the coordinates.
-  imp_->vertices_d.clear();
-  imp_->vertices.clear();
-  imp_->vertex_normals.clear();
-  imp_->indices.clear();
-  imp_->tri_normals.clear();
-  imp_->coords_2d.clear();
-
-  // Walk heightmap voxels.
-  const OccupancyMap &heightmap = imp_->heightmap->heightmap();
-  const MapLayer *heightmap_layer = heightmap.layout().layer(HeightmapVoxel::kHeightmapLayer);
-  const int heightmap_layer_index = heightmap_layer->layerIndex();
-
-  if (heightmap_layer_index < 0)
-  {
-    // Fail.
-    return;
-  }
-
-  const glm::dvec3 up = imp_->heightmap->upAxisNormal();
-  const glm::vec3 upf(up);
-  glm::dvec3 point;
-  glm::dvec3 min_map_ext, max_map_ext;
-
-  min_map_ext = glm::dvec3(std::numeric_limits<double>::max());
-  max_map_ext = glm::dvec3(-std::numeric_limits<double>::max());
-
-  for (auto voxel_iter = heightmap.begin(); voxel_iter != heightmap.end(); ++voxel_iter)
-  {
-    const VoxelConst &voxel = *voxel_iter;
-    if (voxel.isOccupied())
-    {
-      const ohm::HeightmapVoxel *height_info = voxel.layerContent<const ohm::HeightmapVoxel *>(heightmap_layer_index);
-      point = voxel.position() + double(height_info->height) * up;
-      imp_->coords_2d.push_back(point.x);
-      imp_->coords_2d.push_back(point.y);
-      imp_->vertices_d.push_back(point);
-
-      // Adjust to modified extents with height.
-      min_map_ext.x = std::min(point.x, min_map_ext.x);
-      min_map_ext.y = std::min(point.y, min_map_ext.y);
-      min_map_ext.z = std::min(point.z, min_map_ext.z);
-
-      max_map_ext.x = std::max(point.x, max_map_ext.x);
-      max_map_ext.y = std::max(point.y, max_map_ext.y);
-      max_map_ext.z = std::max(point.z, max_map_ext.z);
-    }
-  }
-
-  if (imp_->vertices_d.empty())
-  {
-    min_map_ext = max_map_ext = glm::dvec3(0.0);
-  }
-
-  // Now convert into single precision coordinates for rendering by subtracting the updated min_map_extents.
-  imp_->vertices.reserve(imp_->vertices_d.size());
-  for (auto &&point : imp_->vertices_d)
-  {
-    imp_->vertices.push_back(glm::vec3(point - min_map_ext));
-  }
-
-  imp_->image_info.image_extents = Aabb(min_map_ext, max_map_ext);
-
-  // Triangulate.
-  delaunator::Delaunator delaunay(imp_->coords_2d);
-
-  imp_->vertex_normals.clear();
-  imp_->vertex_normals.reserve(imp_->vertices.size());
-  for (size_t i = 0; i < imp_->vertices.size(); ++i)
-  {
-    imp_->vertex_normals.push_back(glm::vec3(0.0f));
-  }
-
-  // Extract indices into imp_->indices.
-  imp_->indices.resize(delaunay.triangles.size());
-  if (!delaunay.triangles.empty())
-  {
-    imp_->indices.clear();
-    imp_->indices.reserve(delaunay.triangles.size());
-    imp_->tri_normals.reserve(delaunay.triangles.size() / 3);
-
-    glm::vec3 tri[3];
-    glm::vec3 normal;
-    unsigned indices[3];
-    for (size_t i = 0; i < delaunay.triangles.size(); i += 3)
-    {
-      indices[0] = unsigned(delaunay.triangles[i + 0]);
-      indices[1] = unsigned(delaunay.triangles[i + 1]);
-      indices[2] = unsigned(delaunay.triangles[i + 2]);
-      tri[0] = imp_->vertices[indices[0]];
-      tri[1] = imp_->vertices[indices[1]];
-      tri[2] = imp_->vertices[indices[2]];
-
-      // Calculate the triangle normal.
-      normal = glm::triangleNormal(tri[0], tri[1], tri[2]);
-
-      // Adjust winding to suit rendering clipping.
-      if (glm::dot(normal, glm::vec3(up)) < 0)
-      {
-        std::swap(indices[1], indices[2]);
-        normal *= -1.0f;
-      }
-      imp_->indices.push_back(indices[0]);
-      imp_->indices.push_back(indices[1]);
-      imp_->indices.push_back(indices[2]);
-
-      // Vertex normals generated by considering all faces.
-      if (imp_->normals_mode == kNormalsAverage)
-      {
-        imp_->vertex_normals[indices[0]] += normal;
-        imp_->vertex_normals[indices[1]] += normal;
-        imp_->vertex_normals[indices[2]] += normal;
-      }
-      else if (imp_->normals_mode == kNormalsWorst)
-      {
-        // Vertex normals by least horizontal.
-        for (int j = 0; j < 3; ++j)
-        {
-          const glm::vec3 existing_normal = imp_->vertex_normals[indices[j]];
-          const float existing_dot = glm::dot(existing_normal, upf);
-          const float new_dot = glm::dot(normal, upf);
-          if (existing_normal == glm::vec3(0.0f) || existing_dot > new_dot)
-          {
-            // No existing normal or existing is more horizontal. Override.
-            imp_->vertex_normals[indices[j]] = normal;
-          }
-        }
-      }
-
-      imp_->tri_normals.push_back(normal);
-    }
-  }
-
-  // Normalise data stored in vertex_normals to get the final normals.
-  for (auto &vertex_normal : imp_->vertex_normals)
-  {
-    vertex_normal = glm::normalize(vertex_normal);
-  }
+  return renderHeightMesh(imp_->mesh_builder.meshBoundingBox().minExtents(),
+                          imp_->mesh_builder.meshBoundingBox().maxExtents(), imp_->type,
+                          imp_->heightmap->heightmap().resolution());
 }
 
 
@@ -580,24 +437,29 @@ bool HeightmapImage::renderHeightMesh(const glm::dvec3 &min_ext_spatial, const g
                                       ImageType type, double voxel_resolution)
 {
   PROFILE(HeightmapImage_renderHeightMesh);
-  if (imp_->vertices.empty() || imp_->indices.empty())
+  if (imp_->mesh_builder.vertexCount() == 0 || imp_->mesh_builder.triangleCount() == 0)
   {
     return false;
+  }
+
+  // First convert vertices to single precision coordinates local to min_ext_spatial. We need to render on single
+  // precision.
+  const glm::dvec3 *vertices_d = imp_->mesh_builder.vertices();
+  const glm::dvec3 *last_vertex_d = vertices_d + imp_->mesh_builder.vertexCount();
+  imp_->vertices.clear();
+  imp_->vertices.reserve(imp_->mesh_builder.vertexCount());
+  for (auto v = vertices_d; v < last_vertex_d; ++v)
+  {
+    imp_->vertices.push_back(glm::vec3(*v - min_ext_spatial));
   }
 
   // Get local extents. Vertices are always relative to min_ext_spatial
   glm::vec3 min_ext_vertices = glm::vec3(0.0f);
   glm::vec3 max_ext_vertices = glm::vec3(max_ext_spatial - min_ext_spatial);
 
-  // {
-  //   PlyMesh mesh;
-  //   mesh.addVertices(imp_->vertices.data(), unsigned(imp_->vertices.size()));
-  //   mesh.addTriangles(imp_->indices.data(), unsigned(imp_->indices.size() / 3));
-  //   mesh.save("hm-mesh.ply", true);
-  // }
-
   TES_TRIANGLES(g_3es, TES_COLOUR(White), glm::value_ptr(*imp_->vertices.data()), unsigned(imp_->vertices.size()),
-                sizeof(*imp_->vertices.data()), imp_->indices.data(), unsigned(imp_->indices.size()));
+                sizeof(*imp_->vertices.data()), imp_->mesh_builder.triangles(),
+                unsigned(imp_->mesh_builder.triangleCount() * 3));
   TES_SERVER_UPDATE(g_3es, 0.0f);
   TES_SERVER_UPDATE(g_3es, 0.0f);
 
@@ -662,7 +524,7 @@ bool HeightmapImage::renderHeightMesh(const glm::dvec3 &min_ext_spatial, const g
   glGenVertexArrays(1, &vertex_array_id);
   glBindVertexArray(vertex_array_id);
 
-  static_assert(sizeof(*imp_->indices.data()) == sizeof(GLuint), "GLuint/indices type size mismatch");
+  static_assert(sizeof(*imp_->mesh_builder.triangles()) == sizeof(GLuint), "GLuint/indices type size mismatch");
 
   GLuint vertex_buffer;
   glGenBuffers(1, &vertex_buffer);
@@ -673,15 +535,16 @@ bool HeightmapImage::renderHeightMesh(const glm::dvec3 &min_ext_spatial, const g
   GLuint normals_buffer;
   glGenBuffers(1, &normals_buffer);
   glBindBuffer(GL_ARRAY_BUFFER, normals_buffer);
-  glBufferData(GL_ARRAY_BUFFER, imp_->vertex_normals.size() * sizeof(*imp_->vertex_normals.data()),
-               imp_->vertex_normals.data(), GL_STATIC_DRAW);
+  glBufferData(GL_ARRAY_BUFFER, imp_->mesh_builder.vertexCount() * sizeof(*imp_->mesh_builder.vertexNormals()),
+               imp_->mesh_builder.vertexNormals(), GL_STATIC_DRAW);
 
   // Generate a buffer for the indices as well
   GLuint index_buffer;
   glGenBuffers(1, &index_buffer);
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, index_buffer);
-  glBufferData(GL_ELEMENT_ARRAY_BUFFER, imp_->indices.size() * sizeof(*imp_->indices.data()), imp_->indices.data(),
-               GL_STATIC_DRAW);
+  glBufferData(GL_ELEMENT_ARRAY_BUFFER,
+               imp_->mesh_builder.triangleCount() * 3 * sizeof(*imp_->mesh_builder.triangles()),
+               imp_->mesh_builder.triangles(), GL_STATIC_DRAW);
 
   //----------------------------------------------------------------------------
   // FBO setup.
@@ -822,10 +685,10 @@ bool HeightmapImage::renderHeightMesh(const glm::dvec3 &min_ext_spatial, const g
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, index_buffer);
 
   // Draw the triangles !
-  glDrawElements(GL_TRIANGLES,                   // mode
-                 GLsizei(imp_->indices.size()),  // count
-                 GL_UNSIGNED_INT,                // type
-                 (void *)0                       // element array buffer offset
+  glDrawElements(GL_TRIANGLES,                                     // mode
+                 GLsizei(imp_->mesh_builder.triangleCount() * 3),  // count
+                 GL_UNSIGNED_INT,                                  // type
+                 (void *)0                                         // element array buffer offset
   );
 
   glDisableVertexAttribArray(0);

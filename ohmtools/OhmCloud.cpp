@@ -6,8 +6,8 @@
 #include "OhmCloud.h"
 
 #include <ohm/OccupancyMap.h>
-#include <ohm/Query.h>
 #include <ohm/OccupancyType.h>
+#include <ohm/Query.h>
 
 #include <ohmutil/PlyMesh.h>
 
@@ -17,7 +17,7 @@ namespace ohmtools
 {
   void saveCloud(const char *file_name, const ohm::OccupancyMap &map, const ProgressCallback &prog)
   {
-    PlyMesh ply;
+    ohm::PlyMesh ply;
     glm::vec3 v;
     const size_t region_count = map.regionCount();
     size_t processed_region_count = 0;
@@ -47,15 +47,15 @@ namespace ohmtools
   }
 
 
-  void saveQueryCloud(const char *file_name, const ohm::OccupancyMap &map, const ohm::Query &query,
-                      float colour_range, const ProgressCallback &prog)
+  void saveQueryCloud(const char *file_name, const ohm::OccupancyMap &map, const ohm::Query &query, float colour_range,
+                      const ProgressCallback &prog)
   {
     const size_t result_count = query.numberOfResults();
     const ohm::Key *keys = query.intersectedVoxels();
     const float *ranges = query.ranges();
     glm::dvec3 voxel_pos;
 
-    PlyMesh ply;
+    ohm::PlyMesh ply;
     for (size_t i = 0; i < result_count; ++i)
     {
       const ohm::Key &key = keys[i];
@@ -89,7 +89,7 @@ namespace ohmtools
     size_t processed_region_count = 0;
     glm::dvec3 v;
     glm::i16vec3 last_region = map.begin().key().regionKey();
-    PlyMesh ply;
+    ohm::PlyMesh ply;
     size_t point_count = 0;
 
     glm::i16vec3 min_region = map.regionKey(min_extents);
@@ -111,11 +111,10 @@ namespace ohmtools
       }
 
       // Ensure the voxel is in a region we have calculated data for.
-      if (min_region.x <= last_region.x && last_region.x <= max_region.x &&
-          min_region.y <= last_region.y && last_region.y <= max_region.y &&
+      if (min_region.x <= last_region.x && last_region.x <= max_region.x &&  //
+          min_region.y <= last_region.y && last_region.y <= max_region.y &&  //
           min_region.z <= last_region.z && last_region.z <= max_region.z)
       {
-        //if (voxel.isOccupied() || voxel.isFree())
         const bool export_match = !voxel.isNull() && map.occupancyType(voxel) >= export_type;
         if (export_match)
         {
@@ -139,4 +138,4 @@ namespace ohmtools
 
     return point_count;
   }
-}
+}  // namespace ohmtools

@@ -243,7 +243,7 @@ namespace
     {
       // Save a cloud representation.
       std::cout << "Converting to point cloud." << std::endl;
-      PlyMesh ply;
+      ohm::PlyMesh ply;
       glm::vec3 v;
       const auto map_end_iter = map.end();
       const size_t region_count = map.regionCount();

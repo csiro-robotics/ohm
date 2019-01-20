@@ -17,6 +17,7 @@
 namespace ohm
 {
   class Heightmap;
+  class HeightmapMesh;
 
   struct HeightmapImageDetail;
 
@@ -58,15 +59,6 @@ namespace ohm
       kImageHeights
     };
 
-    /// Vertex normal generation mode.
-    enum NormalsMode
-    {
-      /// Average each vertex triangle normals.
-      kNormalsAverage,
-      /// Select the "worst" triangle normal where "worst" is the least horizontal.
-      kNormalsWorst,
-    };
-
     struct BitmapInfo
     {
       unsigned image_width;
@@ -77,14 +69,19 @@ namespace ohm
       Aabb image_extents;
     };
 
-    HeightmapImage(const Heightmap &heightmap, ImageType type = kImageNormals,
-                   NormalsMode normals_mode = kNormalsAverage, unsigned pixels_per_voxel = 1);
+    HeightmapImage(const Heightmap &heightmap, ImageType type = kImageNormals, unsigned pixels_per_voxel = 1);
     ~HeightmapImage();
+
+    /// Access the mesh building class. May be used to configure mesh building.
+    /// @return The heightmap mesh builder use.
+    HeightmapMesh &meshBuilder();
+
+    /// Access the mesh building class.
+    /// @return The heightmap mesh builder use.
+    const HeightmapMesh &meshBuilder() const;
 
     ImageType imageType();
     void setImageType(ImageType type);
-    NormalsMode normalsMode();
-    void setNormalsMode(NormalsMode mode);
     unsigned pixelsPerVoxel();
     void setPixelsPerVoxel(unsigned ppv);
 
@@ -101,7 +98,6 @@ namespace ohm
     bool generateBitmap();
 
   private:
-    void triangulate();
     bool renderHeightMesh(const glm::dvec3 &min_ext_spatial, const glm::dvec3 &max_ext_spatial, ImageType type,
                           double voxel_resolution);
 

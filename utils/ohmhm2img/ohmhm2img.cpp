@@ -3,6 +3,7 @@
 //
 
 #include <ohm/Heightmap.h>
+#include <ohm/HeightmapMesh.h>
 #include <ohm/HeightmapVoxel.h>
 #include <ohm/MapSerialise.h>
 #include <ohm/OccupancyMap.h>
@@ -11,7 +12,6 @@
 #include <ohmheightmaputil/HeightmapImage.h>
 
 #include <ohmutil/OhmUtil.h>
-#include <ohmutil/PlyMesh.h>
 #include <ohmutil/ProgressMonitor.h>
 #include <ohmutil/SafeIO.h>
 #include <ohmutil/ScopedTimeDisplay.h>
@@ -64,7 +64,7 @@ namespace
     std::string map_file;
     std::string image_file;
     ExportMode image_mode = kNormals16;
-    ohm::HeightmapImage::NormalsMode normals_mode = ohm::HeightmapImage::kNormalsAverage;
+    ohm::HeightmapMesh::NormalsMode normals_mode = ohm::HeightmapMesh::kNormalsAverage;
     double traverse_angle = 45.0;
 
     ohm::HeightmapImage::ImageType imageType() const
@@ -319,17 +319,17 @@ std::ostream &operator<<(std::ostream &out, const ExportMode mode)
   return out;
 }
 
-std::istream &operator>>(std::istream &in, ohm::HeightmapImage::NormalsMode &mode)
+std::istream &operator>>(std::istream &in, ohm::HeightmapMesh::NormalsMode &mode)
 {
   std::string mode_str;
   in >> mode_str;
   if (mode_str.compare("average") == 0 || mode_str.compare("avg") == 0)
   {
-    mode = ohm::HeightmapImage::kNormalsAverage;
+    mode = ohm::HeightmapMesh::kNormalsAverage;
   }
   else if (mode_str.compare("worst") == 0)
   {
-    mode = ohm::HeightmapImage::kNormalsWorst;
+    mode = ohm::HeightmapMesh::kNormalsWorst;
   }
   // else
   // {
@@ -338,14 +338,14 @@ std::istream &operator>>(std::istream &in, ohm::HeightmapImage::NormalsMode &mod
   return in;
 }
 
-std::ostream &operator<<(std::ostream &out, const ohm::HeightmapImage::NormalsMode mode)
+std::ostream &operator<<(std::ostream &out, const ohm::HeightmapMesh::NormalsMode mode)
 {
   switch (mode)
   {
-  case ohm::HeightmapImage::kNormalsAverage:
+  case ohm::HeightmapMesh::kNormalsAverage:
     out << "average";
     break;
-  case ohm::HeightmapImage::kNormalsWorst:
+  case ohm::HeightmapMesh::kNormalsWorst:
     out << "worst";
     break;
   }
@@ -565,8 +565,11 @@ int main(int argc, char *argv[])
     return res;
   }
 
-  ohm::HeightmapImage hmImage(heightmap, opt.imageType(), opt.normals_mode);
+  ohm::HeightmapImage hmImage(heightmap, opt.imageType());
   ohm::HeightmapImage::BitmapInfo info;
+
+  hmImage.meshBuilder().setNormalsMode(opt.normals_mode);
+
   hmImage.generateBitmap();
   const uint8_t *image = hmImage.bitmap(&info);
   if (!image)

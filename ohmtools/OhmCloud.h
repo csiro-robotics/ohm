@@ -16,13 +16,13 @@ namespace ohm
 {
   class OccupancyMap;
   class Query;
-}
+}  // namespace ohm
 
 namespace ohmtools
 {
   /// Callback used by @c saveCloud() etc to report on progress.
   /// The arguments passed are the current progress and the target progress respectively.
-  typedef std::function<void (size_t, size_t)> ProgressCallback;
+  typedef std::function<void(size_t, size_t)> ProgressCallback;
 
   /// Save @p map to a ply file, exporting only Occupied voxels.
   /// @param file_name File to save to. Please add the .ply extension.
@@ -39,9 +39,8 @@ namespace ohmtools
   /// @param query The query to save results from.
   /// @param colour_range Affects voxel colouring as described above. Green at this range.
   /// @param prog Optional function called to report on progress.
-  void ohmtools_API saveQueryCloud(const char *file_name, const ohm::OccupancyMap &map,
-                                   const ohm::Query &query, float colour_range = 0.0f,
-                                   const ProgressCallback &prog = ProgressCallback());
+  void ohmtools_API saveQueryCloud(const char *file_name, const ohm::OccupancyMap &map, const ohm::Query &query,
+                                   float colour_range = 0.0f, const ProgressCallback &prog = ProgressCallback());
 
   /// Save a point cloud representing the @c Voxel::clearance() values for voxels in @p map.
   ///
@@ -62,6 +61,6 @@ namespace ohmtools
                                          const glm::dvec3 &min_extents, const glm::dvec3 &max_extents,
                                          float colour_range = 0.0f, int export_type = 0,
                                          const ProgressCallback &prog = ProgressCallback());
-}
+}  // namespace ohmtools
 
-#endif // OHMTOOLS_OHMCLOUD_H
+#endif  // OHMTOOLS_OHMCLOUD_H
