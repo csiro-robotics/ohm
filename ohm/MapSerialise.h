@@ -13,20 +13,20 @@
 
 #ifdef major
 #undef major
-#endif // major
+#endif  // major
 #ifdef minor
 #undef minor
-#endif // minor
+#endif  // minor
 #ifdef patch
 #undef patch
-#endif // patch
+#endif  // patch
 
 namespace ohm
 {
   class Heightmap;
   class OccupancyMap;
 
-    /// An enumeration of potential serialisation errors.
+  /// An enumeration of potential serialisation errors.
   enum SerialisationError
   {
     /// No error.
@@ -66,38 +66,36 @@ namespace ohm
 
     inline MapVersion() = default;
     inline MapVersion(uint32_t major, uint16_t minor = 0, uint16_t patch = 0)
-      : major(major), minor(minor), patch(patch)
-    {
-    }
+      : major(major)
+      , minor(minor)
+      , patch(patch)
+    {}
 
-    inline MapVersion &operator = (const MapVersion &other) = default;
+    inline MapVersion &operator=(const MapVersion &other) = default;
 
-    inline bool operator == (const MapVersion &other) const
+    inline bool operator==(const MapVersion &other) const
     {
       return major == other.major && minor == other.minor && patch == other.patch;
     }
 
-    inline bool operator != (const MapVersion &other) const
-    {
-      return !operator==(other);
-    }
+    inline bool operator!=(const MapVersion &other) const { return !operator==(other); }
 
-    inline bool operator < (const MapVersion &other) const
+    inline bool operator<(const MapVersion &other) const
     {
       return major < other.major && minor < other.minor && patch < other.patch;
     }
 
-    inline bool operator <= (const MapVersion &other) const
+    inline bool operator<=(const MapVersion &other) const
     {
       return major <= other.major && minor <= other.minor && patch <= other.patch;
     }
 
-    inline bool operator > (const MapVersion &other) const
+    inline bool operator>(const MapVersion &other) const
     {
       return major > other.major && minor > other.minor && patch > other.patch;
     }
 
-    inline bool operator >= (const MapVersion &other) const
+    inline bool operator>=(const MapVersion &other) const
     {
       return major >= other.major && minor >= other.minor && patch >= other.patch;
     }
@@ -168,9 +166,11 @@ namespace ohm
   /// @param progress Optional progress tracking object.
   /// @param[out] version_out When present, set to the version number of the loaded map format.
   /// @return @c SE_OK on success, or a non zero @c SerialisationError on failure.
-  int ohm_API load(const char *filename, OccupancyMap &map, SerialiseProgress *progress = nullptr, MapVersion *version_out = nullptr);
+  int ohm_API load(const char *filename, OccupancyMap &map, SerialiseProgress *progress = nullptr,
+                   MapVersion *version_out = nullptr);
 
-  int ohm_API load(const char *filename, Heightmap &heightmap, SerialiseProgress *progress = nullptr, MapVersion *version_out = nullptr);
+  int ohm_API load(const char *filename, Heightmap &heightmap, SerialiseProgress *progress = nullptr,
+                   MapVersion *version_out = nullptr);
 
   /// Loads the header and layers of a map file without loading the chunks for voxel data.
   ///
@@ -186,6 +186,6 @@ namespace ohm
   /// @return @c SE_OK on success, or a non zero @c SerialisationError on failure.
   int ohm_API loadHeader(const char *filename, OccupancyMap &map, MapVersion *version_out = nullptr,
                          size_t *region_count = nullptr);
-}
+}  // namespace ohm
 
-#endif // OHM_MAPSERIALISATION_H
+#endif  // OHM_MAPSERIALISATION_H

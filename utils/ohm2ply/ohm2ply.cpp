@@ -378,7 +378,7 @@ int main(int argc, char *argv[])
           const float range_value = voxel.clearance();
           uint8_t c = uint8_t(255 * std::max(0.0f, (opt.colour_scale - range_value) / opt.colour_scale));
           v = voxel.centreGlobal();
-          ply.addVertex(v, Colour(c, 128, 0));
+          ply.addVertex(v, ohm::Colour(c, 128, 0));
           ++point_count;
         }
       }
@@ -399,7 +399,7 @@ int main(int argc, char *argv[])
           glm::dvec3 up(0);
           up[heightmap_axis] = 1;
           v = voxel.centreGlobal() + up * double(voxel_height->height);
-          ply.addVertex(v, Colour(c, 128, 0));
+          ply.addVertex(v, ohm::Colour(c, 128, 0));
           ++point_count;
         }
       }

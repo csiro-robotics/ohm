@@ -8,8 +8,8 @@
 
 #include "OhmConfig.h"
 
-#include "MapRegion.h"
 #include "Key.h"
+#include "MapRegion.h"
 
 #include <atomic>
 
@@ -153,7 +153,7 @@ namespace ohm
     /// @param region_coord The coordinate of the containing region.
     /// @return An @c Key to reference the requested voxel.
     static Key keyForIndex(size_t voxel_index, const glm::ivec3 &region_voxel_dimensions,
-                                    const glm::i16vec3 &region_coord);
+                           const glm::i16vec3 &region_coord);
 
     /// @overload
     inline Key keyForIndex(size_t voxel_index, const glm::ivec3 &region_voxel_dimensions) const
@@ -193,6 +193,6 @@ namespace ohm
 
     void extents(glm::dvec3 &min_ext, glm::dvec3 &max_ext, const glm::dvec3 &region_spatial_dimensions) const;
   };
-}
+}  // namespace ohm
 
 #endif  // OHM_MAPCHUNK_H

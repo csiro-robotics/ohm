@@ -5,19 +5,19 @@
 // Author: Kazys Stepanas
 #include "OhmTestUtil.h"
 
-#include <ohm/MapCache.h>
-#include <ohm/OhmGpu.h>
+#include <ohm/ClearanceProcess.h>
+#include <ohm/DefaultLayer.h>
 #include <ohm/GpuMap.h>
 #include <ohm/Key.h>
 #include <ohm/KeyList.h>
 #include <ohm/LineQuery.h>
+#include <ohm/MapCache.h>
+#include <ohm/MapSerialise.h>
+#include <ohm/Mapper.h>
 #include <ohm/OccupancyMap.h>
 #include <ohm/OccupancyType.h>
 #include <ohm/OccupancyUtil.h>
-#include <ohm/ClearanceProcess.h>
-#include <ohm/Mapper.h>
-#include <ohm/MapSerialise.h>
-#include <ohm/DefaultLayer.h>
+#include <ohm/OhmGpu.h>
 
 #include <ohmtools/OhmCloud.h>
 #include <ohmtools/OhmGen.h>
@@ -33,7 +33,6 @@
 #include <gtest/gtest.h>
 
 using namespace ohm;
-using namespace ohmutil;
 
 namespace mappertests
 {
@@ -103,7 +102,7 @@ namespace mappertests
     {
       std::cout << "Saving map" << std::endl;
       ohm::save("mapper.ohm", map);
-      //ohmtools::saveClearanceCloud("mapper-clearance.ply", map, glm::dvec3(-10), glm::dvec3(10), clearanceRange);
+      // ohmtools::saveClearanceCloud("mapper-clearance.ply", map, glm::dvec3(-10), glm::dvec3(10), clearanceRange);
     }
 
     // Clone the map and calculate clearance values accross the whole map for verification.
@@ -125,4 +124,4 @@ namespace mappertests
     ohm::save("map1.ohm", map);
     ohm::save("ref1.ohm", *ref_map);
   }
-}
+}  // namespace mappertests

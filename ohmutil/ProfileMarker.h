@@ -6,7 +6,7 @@
 #ifndef OHMUTIL_PROFILEMARKER_H
 #define OHMUTIL_PROFILEMARKER_H
 
-namespace ohmutil
+namespace ohm
 {
   class Profile;
 
@@ -56,6 +56,6 @@ namespace ohmutil
     Profile *profile_;
     bool active_;
   };
-}
+}  // namespace ohm
 
-#endif // OHMUTIL_PROFILEMARKER_H
+#endif  // OHMUTIL_PROFILEMARKER_H

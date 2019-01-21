@@ -522,7 +522,8 @@ void OccupancyMap::setSubVoxelsEnabled(bool enable)
   }
 
   MapLayer *occupancy_layer = imp_->layout.layerPtr(occupancy_layer_index);
-  const size_t voxel_count = size_t(imp_->region_voxel_dimensions.x) * size_t(imp_->region_voxel_dimensions.y) * size_t(imp_->region_voxel_dimensions.z);
+  const size_t voxel_count = size_t(imp_->region_voxel_dimensions.x) * size_t(imp_->region_voxel_dimensions.y) *
+                             size_t(imp_->region_voxel_dimensions.z);
   if (enable)
   {
     // Adding sub-voxel patterns to the occupancy layer.
@@ -530,7 +531,7 @@ void OccupancyMap::setSubVoxelsEnabled(bool enable)
     occupancy_layer->voxelLayout().addMember(OccupancyMapDetail::kSubVoxelLayerName, DataType::kUInt32, clear_value);
 
     // Update all existing chunks to add the required member.
-    for (auto && chunk_ref : imp_->chunks)
+    for (auto &&chunk_ref : imp_->chunks)
     {
       MapChunk &chunk = *chunk_ref.second;
       // Get the existing occupancy values.
@@ -559,7 +560,7 @@ void OccupancyMap::setSubVoxelsEnabled(bool enable)
     occupancy_layer->voxelLayout().removeMember(OccupancyMapDetail::kSubVoxelLayerName);
 
     // Update all existing chunks to add the required member.
-    for (auto && chunk_ref : imp_->chunks)
+    for (auto &&chunk_ref : imp_->chunks)
     {
       MapChunk &chunk = *chunk_ref.second;
       // Get the existing occupancy values.
@@ -921,7 +922,7 @@ size_t OccupancyMap::calculateSegmentKeys(KeyList &keys, const glm::dvec3 &start
   const glm::dvec3 end_point_local = glm::dvec3(end_point - origin());
 
   keys.clear();
-  return ohmutil::walkSegmentKeys<Key>([&keys](const Key &key) { keys.add(key); }, start_point_local, end_point_local,
+  return ohm::walkSegmentKeys<Key>([&keys](const Key &key) { keys.add(key); }, start_point_local, end_point_local,
                                        include_end_point, KeyAdaptor(*this));
 }
 

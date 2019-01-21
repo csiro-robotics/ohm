@@ -27,7 +27,7 @@ namespace ohm
              size_t region_count, const ChunkFunc &load_chunk);
 
     int loadChunk(InputStream &stream, MapChunk &chunk, const OccupancyMapDetail &detail);
-  }  // namespace v0
+  }  // namespace v0_3
 }  // namespace ohm
 
 #endif  // MAPSERIALISEV0_3_H

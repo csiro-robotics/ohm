@@ -480,7 +480,7 @@ namespace ranges
     const glm::u8vec3 region_size(32);
     const float search_range = 2.0f;
 
-    ohmutil::Profile profile;
+    ohm::Profile profile;
     OccupancyMap map(resolution, region_size);
 
     // Offset the map origin so that 0, 0, 0 is the centre of a voxel.
@@ -501,14 +501,14 @@ namespace ranges
 
     const char *label = gpu ? "GPU" : "CPU";
     std::cout << "Evaluating " << label << std::endl;
-    ohmutil::ProfileMarker mark(label, &profile);
+    ohm::ProfileMarker mark(label, &profile);
 
     ClearanceProcess clearance_process(search_range, kQfGpuEvaluate * !!gpu);
     VoxelConst voxel = map.voxel(origin_key);
 
     const auto make_query = [&clearance_process, &map, &voxel, &profile](
                               const char *context, const glm::vec3 &axis_scaling, float expected, bool report_scaling) {
-      ohmutil::ProfileMarker mark("Query", &profile);
+      ohm::ProfileMarker mark("Query", &profile);
       unsigned flags = clearance_process.queryFlags();
       flags &= ~kQfReportUnscaledResults;
       flags |= !report_scaling * kQfReportUnscaledResults;

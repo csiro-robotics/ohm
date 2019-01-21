@@ -16,7 +16,7 @@ namespace ohm
   {
   public:
     /// Iterator for an @c KeyList.
-    class ohm_API iterator // NOLINT
+    class ohm_API iterator  // NOLINT
     {
     public:
       /// Empty constructor: creates an undefined iterator object.
@@ -86,7 +86,7 @@ namespace ohm
     };
 
     /// Iterator referencing an @c KeyList referencing a @c const @c Key.
-    class ohm_API const_iterator // NOLINT
+    class ohm_API const_iterator  // NOLINT
     {
     public:
       /// Empty constructor: creates an undefined iterator object.
@@ -233,7 +233,7 @@ namespace ohm
     /// Add a key to the end of the list.
     /// The list will grow if required, reallocating the underlying memory.
     /// @param key The key to add.
-    void push_back(const Key &key); // NOLINT
+    void push_back(const Key &key);  // NOLINT
 
     /// Add a key to the end of the list and return a reference to the new key.
     /// The list will grow if required, reallocating the underlying memory.
@@ -253,6 +253,6 @@ namespace ohm
     size_t capacity_;
     size_t count_;
   };
-}
+}  // namespace ohm
 
 #endif  // OHM_KEYLIST_H

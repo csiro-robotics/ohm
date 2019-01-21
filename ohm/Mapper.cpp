@@ -65,7 +65,8 @@ int Mapper::update(double time_slice_sec)
     bool first_iteration = true;
 
     // Update until we consume the timeSliceSec or everything is up to date.
-    while ((time_slice_sec == 0 || elpased_sec < time_slice_sec) && (first_iteration || imp_->nextProcess != initial_index))
+    while ((time_slice_sec == 0 || elpased_sec < time_slice_sec) &&
+           (first_iteration || imp_->nextProcess != initial_index))
     {
       // Enforce range of imp_->nextProcess. This plus the increment ensures we run processes in a round robin,
       // but don't go out of range.
@@ -113,7 +114,7 @@ bool Mapper::hasProcess(const MappingProcess *process) const
 }
 
 
-unsigned Mapper::indexOfProcess(const MappingProcess* process) const
+unsigned Mapper::indexOfProcess(const MappingProcess *process) const
 {
   if (imp_)
   {

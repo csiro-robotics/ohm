@@ -28,6 +28,6 @@ namespace gputil
   private:
     char *message_;
   };
-}
+}  // namespace gputil
 
-#endif // GPUEXCEPTION_H
+#endif  // GPUEXCEPTION_H

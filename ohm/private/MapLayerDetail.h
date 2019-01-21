@@ -22,6 +22,6 @@ namespace ohm
     unsigned short subsampling = 0;
     unsigned flags = 0;
   };
-}
+}  // namespace ohm
 
-#endif // OHM_MAPLAYERDETAIL_H
+#endif  // OHM_MAPLAYERDETAIL_H

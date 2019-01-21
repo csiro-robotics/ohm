@@ -190,7 +190,8 @@ namespace ohm
     /// @param[out] current_event Set to the most recent GPU data manipulation event associated with this chunk.
     ///   May be null.
     /// @return True if the region is cached, false otherwise.
-    bool lookup(OccupancyMap &map, const glm::i16vec3 &region_key, size_t *offset, gputil::Event *current_event = nullptr);
+    bool lookup(OccupancyMap &map, const glm::i16vec3 &region_key, size_t *offset,
+                gputil::Event *current_event = nullptr);
 
     /// Access the GPU memory buffer to which regions are uploaded. Required as an argument to GPU kernels.
     /// @return The cache's region GPU buffer.
@@ -285,12 +286,11 @@ namespace ohm
     void clear();
 
   private:
-
     /// Internal cache resolution/allocation function. The @p upload flag controls whether the call
     /// just makes space for the chunk, or if it uploads data s well.
     GpuCacheEntry *resolveCacheEntry(OccupancyMap &map, const glm::i16vec3 &region_key, MapChunk *&chunk,
-                                     gputil::Event *event, CacheStatus *status, unsigned batch_marker,
-                                     unsigned flags, bool upload);
+                                     gputil::Event *event, CacheStatus *status, unsigned batch_marker, unsigned flags,
+                                     bool upload);
 
     void allocateBuffers(const OccupancyMap &map, const MapLayer &layer, size_t target_gpu_mem_size);
 
@@ -330,6 +330,6 @@ namespace ohm
   // private:
   //   GpuLayerCache *_cache;
   // };
-}
+}  // namespace ohm
 
 #endif  // OHM_GPULAYERCACHE_H

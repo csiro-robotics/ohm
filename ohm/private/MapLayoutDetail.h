@@ -46,6 +46,6 @@ namespace ohm
       using_sub_voxel_patterns = kSubUnknown;
     }
   };
-}
+}  // namespace ohm
 
-#endif // OHM_MAPLAYOUTDETAIL_H
+#endif  // OHM_MAPLAYOUTDETAIL_H

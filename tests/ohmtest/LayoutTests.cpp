@@ -15,11 +15,10 @@
 #include <iostream>
 #include <random>
 
-#include "OhmTestUtil.h"
 #include <gtest/gtest.h>
+#include "OhmTestUtil.h"
 
 using namespace ohm;
-// using namespace ohmutil;
 
 TEST(Layout, Default)
 {
@@ -65,7 +64,7 @@ TEST(Layout, Filter)
   ASSERT_NE(occupancy_layer, nullptr);
 
   // Remove the occupancy layer.
-  layout.filterLayers({default_layer::clearanceLayerName()});
+  layout.filterLayers({ default_layer::clearanceLayerName() });
 
   EXPECT_EQ(layout.layerCount(), 1);
   occupancy_layer = layout.layer(default_layer::occupancyLayerName());
@@ -112,16 +111,16 @@ TEST(Layout, Structure)
     unsigned expected_cumulative_size;
   };
 
-  static const MemberInfo members[] = //
-  { //
-    { "0", ohm::DataType::kUInt8, 0, 4 },
-    { "1", ohm::DataType::kUInt8, 1, 4 },
-    { "2", ohm::DataType::kUInt16, 2, 4 },
-    { "3", ohm::DataType::kUInt16, 4, 8 },
-    { "4", ohm::DataType::kUInt32, 8, 16 },
-    { "5", ohm::DataType::kUInt64, 16, 24 },
-    { "6", ohm::DataType::kUInt8, 24, 32 },
-  };
+  static const MemberInfo members[] =  //
+    {
+      { "0", ohm::DataType::kUInt8, 0, 4 },     //
+      { "1", ohm::DataType::kUInt8, 1, 4 },     //
+      { "2", ohm::DataType::kUInt16, 2, 4 },    //
+      { "3", ohm::DataType::kUInt16, 4, 8 },    //
+      { "4", ohm::DataType::kUInt32, 8, 16 },   //
+      { "5", ohm::DataType::kUInt64, 16, 24 },  //
+      { "6", ohm::DataType::kUInt8, 24, 32 },   //
+    };
 
   MapLayout layout;
   MapLayer *layer = layout.addLayer("structured");

@@ -35,7 +35,9 @@ namespace ohm
     /// Copy constructor supporting casting from non-const to const @c VoxelLayoutDetail.
     /// @param detail The @c VoxelLayoutDetail.
     template <typename U>
-    inline VoxelLayoutT(U *detail = nullptr) : detail_(detail) {}
+    inline VoxelLayoutT(U *detail = nullptr)
+      : detail_(detail)
+    {}
 
     /// Copy constructor.
     /// @param other Object to shallow copy.
@@ -175,7 +177,11 @@ namespace ohm
 
     /// Assignment operator.
     /// @param other Object to shallow copy.
-    inline VoxelLayout &operator=(const VoxelLayout &other) { detail_ = other.detail(); return *this; }
+    inline VoxelLayout &operator=(const VoxelLayout &other)
+    {
+      detail_ = other.detail();
+      return *this;
+    }
   };
 
   /// A readonly voxel layout for use in @p MapLayout.
@@ -199,26 +205,32 @@ namespace ohm
 
     /// Assignment operator.
     /// @param other Object to shallow copy.
-    inline VoxelLayoutConst &operator=(const VoxelLayoutConst &other) { detail_ = other.detail(); return *this; }
+    inline VoxelLayoutConst &operator=(const VoxelLayoutConst &other)
+    {
+      detail_ = other.detail();
+      return *this;
+    }
 
     /// Assignment operator from writable object.
     /// @param other Object to shallow copy.
-    inline VoxelLayoutConst &operator=(const VoxelLayout &other) { detail_ = other.detail(); return *this; }
+    inline VoxelLayoutConst &operator=(const VoxelLayout &other)
+    {
+      detail_ = other.detail();
+      return *this;
+    }
   };
 
 
   template <typename T>
   VoxelLayoutT<T>::VoxelLayoutT(T *detail)
     : detail_(detail)
-  {
-  }
+  {}
 
 
   template <typename T>
   VoxelLayoutT<T>::VoxelLayoutT(const VoxelLayoutT &other)
     : detail_(other.detail_)
-  {
-  }
+  {}
 
 
   template <typename T>
@@ -227,6 +239,6 @@ namespace ohm
   {
     other.detail_ = nullptr;
   }
-}
+}  // namespace ohm
 
-#endif // OHMVOXELLAYOUT_H
+#endif  // OHMVOXELLAYOUT_H

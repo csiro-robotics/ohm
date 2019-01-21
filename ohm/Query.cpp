@@ -12,7 +12,7 @@
 using namespace ohm;
 
 Query::Query(QueryDetail *detail)
-: imp_(detail)
+  : imp_(detail)
 {
   if (!imp_)
   {

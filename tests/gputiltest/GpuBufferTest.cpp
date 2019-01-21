@@ -5,12 +5,12 @@
 // Author: Kazys Stepanas
 #include <gtest/gtest.h>
 
+#include <gputil/cl/gpuEventDetail.h>
 #include <gputil/gpuBuffer.h>
 #include <gputil/gpuDevice.h>
 #include <gputil/gpuEvent.h>
 #include <gputil/gpuPinnedBuffer.h>
 #include <gputil/gpuQueue.h>
-#include <gputil/cl/gpuEventDetail.h>
 
 #include <chrono>
 
@@ -28,16 +28,7 @@ namespace gpubuffertest
 
   std::ostream &logBytes(std::ostream &out, size_t bytes)
   {
-    static const char *suffixes[] =
-    {
-      "byte(s)",
-      "KiB",
-      "MiB",
-      "GiB",
-      "TiB",
-      "PiB",
-      "EiB"
-    };
+    static const char *suffixes[] = { "byte(s)", "KiB", "MiB", "GiB", "TiB", "PiB", "EiB" };
     static const size_t kSuffixCount = sizeof(suffixes) / sizeof(suffixes[0]);
 
     int fraction = 0;
@@ -140,8 +131,8 @@ namespace gpubuffertest
     const auto mapped_up1_queued = TimingClock::now();
     large_buffer_event.wait();
     const auto mapped_up1_end = TimingClock::now();
-    std::cout << mapped_up1_end - mapped_up1_start << " total => " << mapped_up1_queued - mapped_up1_start << " queue + "
-              << mapped_up1_end - mapped_up1_queued << " wait." << std::endl;
+    std::cout << mapped_up1_end - mapped_up1_start << " total => " << mapped_up1_queued - mapped_up1_start
+              << " queue + " << mapped_up1_end - mapped_up1_queued << " wait." << std::endl;
     std::cout << '\n';
     queue.finish();
     //--------------------------------------------------------------------------
@@ -159,8 +150,8 @@ namespace gpubuffertest
     const auto mapped_up2_queued = TimingClock::now();
     gputil::Event::wait(small_buffer_events.data(), small_buffer_count);
     const auto mapped_up2_end = TimingClock::now();
-    std::cout << mapped_up2_end - mapped_up2_start << " total => " << mapped_up2_queued - mapped_up2_start << " queue + "
-              << mapped_up2_end - mapped_up2_queued << " wait." << std::endl;
+    std::cout << mapped_up2_end - mapped_up2_start << " total => " << mapped_up2_queued - mapped_up2_start
+              << " queue + " << mapped_up2_end - mapped_up2_queued << " wait." << std::endl;
     std::cout << '\n';
     queue.finish();
     //--------------------------------------------------------------------------
@@ -266,15 +257,16 @@ namespace gpubuffertest
     const auto queued_up1_start = TimingClock::now();
     for (size_t i = 0; i < small_buffer_count; ++i)
     {
-      large_buffer.write(host_buffer.data(), small_buffer_size, small_buffer_size * i, &queue, nullptr, &large_buffer_events[i]);
+      large_buffer.write(host_buffer.data(), small_buffer_size, small_buffer_size * i, &queue, nullptr,
+                         &large_buffer_events[i]);
     }
     queue.flush();
     const auto queued_up1_queued = TimingClock::now();
     gputil::Event::wait(large_buffer_events.data(), small_buffer_count);
     queue.finish();
     const auto queued_up1_end = TimingClock::now();
-    std::cout << queued_up1_end - queued_up1_start << " total => " << queued_up1_queued - queued_up1_start << " queue + "
-              << queued_up1_end - queued_up1_queued << " wait." << std::endl;
+    std::cout << queued_up1_end - queued_up1_start << " total => " << queued_up1_queued - queued_up1_start
+              << " queue + " << queued_up1_end - queued_up1_queued << " wait." << std::endl;
     std::cout << '\n';
     //--------------------------------------------------------------------------
 
@@ -289,8 +281,8 @@ namespace gpubuffertest
     const auto queued_up2_queued = TimingClock::now();
     gputil::Event::wait(small_buffer_events.data(), small_buffer_count);
     const auto queued_up2_end = TimingClock::now();
-    std::cout << queued_up2_end - queued_up2_start << " total => " << queued_up2_queued - queued_up2_start << " queue + "
-              << queued_up2_end - queued_up2_queued << " wait." << std::endl;
+    std::cout << queued_up2_end - queued_up2_start << " total => " << queued_up2_queued - queued_up2_start
+              << " queue + " << queued_up2_end - queued_up2_queued << " wait." << std::endl;
     std::cout << '\n';
     queue.finish();
     //--------------------------------------------------------------------------
@@ -314,7 +306,8 @@ namespace gpubuffertest
     const auto queued_down1_start = TimingClock::now();
     for (size_t i = 0; i < small_buffer_count; ++i)
     {
-      large_buffer.read(test_buffer.data(), small_buffer_size, small_buffer_size * i, &queue, nullptr, &large_buffer_events[i]);
+      large_buffer.read(test_buffer.data(), small_buffer_size, small_buffer_size * i, &queue, nullptr,
+                        &large_buffer_events[i]);
     }
     queue.flush();
     const auto queued_down1_queued = TimingClock::now();
@@ -376,16 +369,12 @@ namespace gpubuffertest
 
     //--------------------------------------------------------------------------
     //--------------------------------------------------------------------------
-    const auto log_timing = [large_buffer_size]
-                        (const char *name,
-                         const TimingClock::duration &up,
-                         const TimingClock::duration &down, int width)
-    {
+    const auto log_timing = [large_buffer_size](const char *name, const TimingClock::duration &up,
+                                                const TimingClock::duration &down, int width) {
       std::ostringstream sstr;
       size_t bytes_per_second;
       int w;
-      auto whitespace = [] (int count)
-      {
+      auto whitespace = [](int count) {
         while (count-- > 0)
         {
           std::cout << ' ';
@@ -404,7 +393,8 @@ namespace gpubuffertest
       whitespace(width - w);
       sstr.str(std::string());
 
-      bytes_per_second = size_t(large_buffer_size / std::chrono::duration_cast<std::chrono::duration<double>>(up).count() + 0.5);
+      bytes_per_second =
+        size_t(large_buffer_size / std::chrono::duration_cast<std::chrono::duration<double>>(up).count() + 0.5);
       logBytes(sstr, bytes_per_second) << "/s" << std::flush;
       w = int(sstr.str().size());
       std::cout << sstr.str();
@@ -417,7 +407,8 @@ namespace gpubuffertest
       whitespace(width - w);
       sstr.str(std::string());
 
-      bytes_per_second = size_t(large_buffer_size / std::chrono::duration_cast<std::chrono::duration<double>>(down).count() + 0.5);
+      bytes_per_second =
+        size_t(large_buffer_size / std::chrono::duration_cast<std::chrono::duration<double>>(down).count() + 0.5);
       logBytes(sstr, bytes_per_second) << "/s" << std::flush;
       // w = (int)sstr.str().size();
       std::cout << sstr.str();
@@ -438,7 +429,7 @@ namespace gpubuffertest
 
   TEST(GpuBuffer, Ref)
   {
-    #if GPUTIL_TYPE == GPUTIL_OPENCL
+#if GPUTIL_TYPE == GPUTIL_OPENCL
     gputil::Event event;
     gputil::Device &gpu = g_gpu;
     gputil::Buffer buffer(gpu, 64 * 1024u, gputil::kBfReadWriteHost);
@@ -476,7 +467,7 @@ namespace gpubuffertest
     EXPECT_EQ(ref_count, 1u);
 
     clReleaseEvent(event_ocl);
-    #endif // GPUTIL_TYPE == GPUTIL_OPENCL
+#endif  // GPUTIL_TYPE == GPUTIL_OPENCL
   }
 
   TEST(GpuBuffer, ReadWriteCopy)
@@ -543,4 +534,4 @@ namespace gpubuffertest
       std::cout << i + 1 << " / " << iter_count << std::endl;
     }
   }
-}
+}  // namespace gpubuffertest

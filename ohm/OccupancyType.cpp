@@ -9,13 +9,13 @@ namespace ohm
 {
   const char *occupancyTypeToString(int occupancy_type)
   {
-    const char *type_names[] =
-    {
-      "null",
-      "uncertain",
-      "free",
-      "occupied"
-    };
+    const char *type_names[] =  //
+      {
+        "null",       //
+        "uncertain",  //
+        "free",       //
+        "occupied"    //
+      };
 
     const int index = occupancy_type - ohm::Null;
     if (index >= 0 && unsigned(index) < sizeof(type_names) / sizeof(type_names[0]))
@@ -25,4 +25,4 @@ namespace ohm
 
     return "<unknown>";
   }
-}
+}  // namespace ohm

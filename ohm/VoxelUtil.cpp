@@ -50,7 +50,8 @@ namespace ohm
 {
   namespace voxel
   {
-    uint8_t *voxelPtr(const Key &key, MapChunk *chunk, const OccupancyMapDetail *map, int layer_index, size_t expected_size)
+    uint8_t *voxelPtr(const Key &key, MapChunk *chunk, const OccupancyMapDetail *map, int layer_index,
+                      size_t expected_size)
     {
       uint8_t *ptr = ::getVoxelBytePtr<uint8_t *>(key, chunk, map, layer_index, expected_size);
       return ptr;

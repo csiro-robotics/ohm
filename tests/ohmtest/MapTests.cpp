@@ -21,11 +21,10 @@
 #include <iostream>
 #include <random>
 
-#include "OhmTestUtil.h"
 #include <gtest/gtest.h>
+#include "OhmTestUtil.h"
 
 using namespace ohm;
-using namespace ohmutil;
 
 namespace maptests
 {
@@ -128,7 +127,7 @@ namespace maptests
     rays.push_back(glm::dvec3(0, 0, 3));
     rays.push_back(glm::dvec3(0, 0, -2));
 
-    map.setRayFilter([&clip_box] (glm::dvec3 *start, glm::dvec3 *end, unsigned *filter_flags) {
+    map.setRayFilter([&clip_box](glm::dvec3 *start, glm::dvec3 *end, unsigned *filter_flags) {
       return clipBounded(start, end, filter_flags, clip_box);
     });
 

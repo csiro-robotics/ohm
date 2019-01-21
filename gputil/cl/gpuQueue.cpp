@@ -17,9 +17,9 @@ namespace
 {
   struct CallbackWrapper
   {
-    std::function<void (void)> callback;
+    std::function<void(void)> callback;
 
-    inline CallbackWrapper(const std::function<void (void)> &callback)
+    inline CallbackWrapper(const std::function<void(void)> &callback)
       : callback(callback)
     {}
   };
@@ -32,12 +32,11 @@ namespace
     wrapper->callback();
     delete wrapper;
   }
-}
+}  // namespace
 
 Queue::Queue()
   : queue_(nullptr)
-{
-}
+{}
 
 
 Queue::Queue(Queue &&other) noexcept
@@ -102,7 +101,7 @@ void Queue::finish()
 }
 
 
-void Queue::queueCallback(const std::function<void (void)> &callback)
+void Queue::queueCallback(const std::function<void(void)> &callback)
 {
   CallbackWrapper *wrapper = nullptr;
   cl_event barrier_event;
@@ -128,7 +127,7 @@ QueueDetail *Queue::internal() const
 }
 
 
-Queue &Queue::operator = (const Queue &other)
+Queue &Queue::operator=(const Queue &other)
 {
   if (!queue_)
   {
@@ -139,7 +138,8 @@ Queue &Queue::operator = (const Queue &other)
 }
 
 
-Queue &Queue::operator = (Queue &&other) noexcept {
+Queue &Queue::operator=(Queue &&other) noexcept
+{
   delete queue_;
   queue_ = other.queue_;
   other.queue_ = nullptr;

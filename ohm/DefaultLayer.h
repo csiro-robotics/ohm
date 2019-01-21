@@ -14,11 +14,11 @@ namespace ohm
   {
     /// Name of the occupancy layer.
     /// @return "occupancy"
-    const char * ohm_API occupancyLayerName();
+    const char *ohm_API occupancyLayerName();
     /// Name of the voxel clearance layer.
     /// @return "clearance"
-    const char * ohm_API clearanceLayerName();
-  }
-}
+    const char *ohm_API clearanceLayerName();
+  }  // namespace default_layer
+}  // namespace ohm
 
-#endif // OHMDEFAULTLAYER_H
+#endif  // OHMDEFAULTLAYER_H

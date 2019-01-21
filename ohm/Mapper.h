@@ -74,7 +74,7 @@ namespace ohm
 
     /// Adds @p process to the update list. The @c Mapper takes ownership of the pointer. The specific @p process
     /// must not already be registered in this or any other @c Mapper.
-    /// 
+    ///
     /// @param process The new process to add.
     void addProcess(MappingProcess *process);
 
@@ -113,6 +113,6 @@ namespace ohm
   private:
     MapperDetail *imp_;
   };
-}
+}  // namespace ohm
 
-#endif // OHM_MAPPER_H
+#endif  // OHM_MAPPER_H

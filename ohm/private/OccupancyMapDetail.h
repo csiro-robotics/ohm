@@ -56,7 +56,7 @@ namespace ohm
 
     RayFilterFunction ray_filter;
 
-    MapInfo info; ///< Meta information storage about the map.
+    MapInfo info;  ///< Meta information storage about the map.
 
     ~OccupancyMapDetail();
 
@@ -119,6 +119,6 @@ namespace ohm
 
     return chunks.end();
   }
-}
+}  // namespace ohm
 
-#endif // OHM_MAPDETAIL_H
+#endif  // OHM_MAPDETAIL_H

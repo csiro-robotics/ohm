@@ -12,11 +12,11 @@
 #include <sstream>
 #include <string>
 
-using namespace ohmutil;
+using namespace ohm;
 
 using Clock = std::chrono::high_resolution_clock;
 
-namespace ohmutil
+namespace ohm
 {
   struct ScopedTimeDisplayDetail
   {
@@ -27,7 +27,7 @@ namespace ohmutil
     std::ostream *out = nullptr;
     bool enabled = true;
   };
-}
+}  // namespace ohm
 
 ScopedTimeDisplay::ScopedTimeDisplay(const char *msg_prefix)
   : imp_(new ScopedTimeDisplayDetail)

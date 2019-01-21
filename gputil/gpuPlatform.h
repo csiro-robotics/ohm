@@ -14,6 +14,6 @@
 #include "cuda/gpuPlatform2.h"
 #else  // GPUTIL_TYPE == ???
 #error Unknown GPU base API
-#endif // GPUTIL_TYPE
+#endif  // GPUTIL_TYPE
 
-#endif // GPUPLATFORM_H
+#endif  // GPUPLATFORM_H

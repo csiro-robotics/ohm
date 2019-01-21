@@ -9,10 +9,8 @@ using namespace ohm;
 
 MappingProcess::MappingProcess()
   : paused_(false)
-{
-}
+{}
 
 
 MappingProcess::~MappingProcess()
-{
-}
+{}

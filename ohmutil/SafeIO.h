@@ -17,6 +17,6 @@
 
 int ohmutil_API fopen_s(FILE **file, const char *name, const char *mode);
 
-#endif // !defined(_MSC_VER)
+#endif  // !defined(_MSC_VER)
 
-#endif // OHMUTIL_SAFEIO_H
+#endif  // OHMUTIL_SAFEIO_H

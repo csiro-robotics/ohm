@@ -31,6 +31,6 @@ namespace ohm
     size_t index = 0;
     float range = std::numeric_limits<float>::max();
   };
-}
+}  // namespace ohm
 
-#endif // OHM_QUERYDETAIL_H
+#endif  // OHM_QUERYDETAIL_H

@@ -6,7 +6,7 @@
 #ifdef _MSC_VER
 // std::equal with parameters that may be unsafe warning under Visual Studio.
 #pragma warning(disable : 4996)
-#endif // _MSC_VER
+#endif  // _MSC_VER
 
 #include <ohmutil/SafeIO.h>
 
@@ -41,7 +41,7 @@ namespace
   };
 
   typedef std::chrono::high_resolution_clock Clock;
-}
+}  // namespace
 
 struct SlamCloudLoaderDetail
 {
@@ -72,10 +72,7 @@ struct SlamCloudLoaderDetail
   double first_sample_timestamp = -1.0;
   bool real_time_mode = false;
 
-  inline SlamCloudLoaderDetail()
-  {
-    memset(&trajectory_buffer, 0, sizeof(trajectory_buffer));
-  }
+  inline SlamCloudLoaderDetail() { memset(&trajectory_buffer, 0, sizeof(trajectory_buffer)); }
 
   inline ~SlamCloudLoaderDetail()
   {
@@ -130,7 +127,7 @@ namespace
 
     return reader;
   }
-}
+}  // namespace
 
 SlamCloudLoader::SlamCloudLoader(bool real_time_mode)
   : imp_(new SlamCloudLoaderDetail)
@@ -214,8 +211,7 @@ bool SlamCloudLoader::open(const char *sample_file_path, const char *trajectory_
   imp_->traj_view_index = 0u;
   if (text_trajectory)
   {
-    imp_->read_trajectory_point = [this](TrajectoryPoint &point) -> bool
-    {
+    imp_->read_trajectory_point = [this](TrajectoryPoint &point) -> bool {
       if (!std::getline(imp_->trajectory_file, imp_->traj_line))
       {
         // End of file.
@@ -223,10 +219,9 @@ bool SlamCloudLoader::open(const char *sample_file_path, const char *trajectory_
       }
 
       // sscanf is far faster than using stream operators.
-      if (sscanf_s(imp_->traj_line.c_str(), "%lg %lg %lg %lg %lg %lg %lg %lg",
-                 &point.timestamp,
-                 &point.origin.x, &point.origin.y, &point.origin.z,
-                 &point.orientation.x, &point.orientation.y, &point.orientation.z, &point.orientation.w) != 8)
+      if (sscanf_s(imp_->traj_line.c_str(), "%lg %lg %lg %lg %lg %lg %lg %lg", &point.timestamp, &point.origin.x,
+                   &point.origin.y, &point.origin.z, &point.orientation.x, &point.orientation.y, &point.orientation.z,
+                   &point.orientation.w) != 8)
       {
         return false;
       }
@@ -249,8 +244,7 @@ bool SlamCloudLoader::open(const char *sample_file_path, const char *trajectory_
     imp_->trajectory = *point_sets.begin();
     imp_->traj_view_index = 0u;
 
-    imp_->read_trajectory_point = [this](TrajectoryPoint &point) -> bool
-    {
+    imp_->read_trajectory_point = [this](TrajectoryPoint &point) -> bool {
       if (imp_->traj_view_index >= imp_->trajectory->size())
       {
         return false;
@@ -303,7 +297,7 @@ void SlamCloudLoader::close()
   imp_->trajectory_file_path.clear();
   imp_->read_trajectory_point = [](TrajectoryPoint &) { return false; };
   imp_->trajectory_file.close();
-  imp_->next_sample_read_index = imp_-> samples_view_index = imp_->traj_view_index = 0u;
+  imp_->next_sample_read_index = imp_->samples_view_index = imp_->traj_view_index = 0u;
 }
 
 
@@ -345,11 +339,11 @@ bool SlamCloudLoader::nextPoint(glm::dvec3 &sample, glm::dvec3 *origin, double *
     ++imp_->next_sample_read_index;
     // Read next sample.
     const SamplePoint sample_point = imp_->next_sample;
-    //if (_imp->nextSampleReadIndex == _imp->samplesBuffer.size() || _imp->nextSampleReadIndex >= 1024)
+    // if (_imp->nextSampleReadIndex == _imp->samplesBuffer.size() || _imp->nextSampleReadIndex >= 1024)
     //{
     //  // Shrink the remaining points.
-    //  const size_t newSize = (_imp->nextSampleReadIndex < _imp->samplesBuffer.size()) ? _imp->samplesBuffer.size() - _imp->nextSampleReadIndex : 0;
-    //  if (_imp->nextSampleReadIndex < _imp->samplesBuffer.size())
+    //  const size_t newSize = (_imp->nextSampleReadIndex < _imp->samplesBuffer.size()) ? _imp->samplesBuffer.size() -
+    //  _imp->nextSampleReadIndex : 0; if (_imp->nextSampleReadIndex < _imp->samplesBuffer.size())
     //  {
     //    memmove(_imp->samplesBuffer.data(),
     //            _imp->samplesBuffer.data() + _imp->nextSampleReadIndex,
@@ -380,7 +374,8 @@ bool SlamCloudLoader::nextPoint(glm::dvec3 &sample, glm::dvec3 *origin, double *
       if (sample_relative_time > 0)
       {
         auto uptime = Clock::now() - imp_->first_sample_read_time;
-        const double sleep_time = sample_relative_time - std::chrono::duration_cast<std::chrono::duration<double>>(uptime).count();
+        const double sleep_time =
+          sample_relative_time - std::chrono::duration_cast<std::chrono::duration<double>>(uptime).count();
         if (sleep_time > 0)
         {
           std::this_thread::sleep_for(std::chrono::duration<double>(sleep_time));
@@ -434,12 +429,13 @@ bool SlamCloudLoader::sampleTrajectory(glm::dvec3 &position, glm::dquat &orienta
       imp_->trajectory_buffer[1] = traj_point;
     }
 
-    if (imp_->trajectory_buffer[0].timestamp <= timestamp &&
-        timestamp <= imp_->trajectory_buffer[1].timestamp &&
+    if (imp_->trajectory_buffer[0].timestamp <= timestamp && timestamp <= imp_->trajectory_buffer[1].timestamp &&
         imp_->trajectory_buffer[0].timestamp != imp_->trajectory_buffer[1].timestamp)
     {
-      const double lerp = (timestamp - imp_->trajectory_buffer[0].timestamp) / (imp_->trajectory_buffer[1].timestamp - imp_->trajectory_buffer[0].timestamp);
-      position = imp_->trajectory_buffer[0].origin + lerp * (imp_->trajectory_buffer[1].origin - imp_->trajectory_buffer[0].origin);
+      const double lerp = (timestamp - imp_->trajectory_buffer[0].timestamp) /
+                          (imp_->trajectory_buffer[1].timestamp - imp_->trajectory_buffer[0].timestamp);
+      position = imp_->trajectory_buffer[0].origin +
+                 lerp * (imp_->trajectory_buffer[1].origin - imp_->trajectory_buffer[0].origin);
       orientation = glm::slerp(imp_->trajectory_buffer[0].orientation, imp_->trajectory_buffer[1].orientation, lerp);
       return true;
     }

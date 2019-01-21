@@ -155,6 +155,6 @@ namespace ohm
     LineQueryDetail *imp();
     const LineQueryDetail *imp() const;
   };
-}
+}  // namespace ohm
 
-#endif // OHM_LINEQUERY_H
+#endif  // OHM_LINEQUERY_H

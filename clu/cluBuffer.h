@@ -21,7 +21,8 @@ namespace clu
   /// @param requested_allocation_size The requested allocation in bytes.
   /// @param byte_size_alignment The requested data alignment. Zero to use the cache line size.
   /// @return The padded/aligned allocation size.
-  inline size_t bestAllocationSize(const cl::Context &context, size_t requested_allocation_size, size_t byte_size_alignment = 0)
+  inline size_t bestAllocationSize(const cl::Context &context, size_t requested_allocation_size,
+                                   size_t byte_size_alignment = 0)
   {
     size_t allocation_size = requested_allocation_size;
 
@@ -32,8 +33,8 @@ namespace clu
       cl_device_id device_id = getFirstDevice(context);
       if (device_id)
       {
-        clGetDeviceInfo(device_id, CL_DEVICE_GLOBAL_MEM_CACHELINE_SIZE,
-                        sizeof(byte_size_alignment), &byte_size_alignment, nullptr);
+        clGetDeviceInfo(device_id, CL_DEVICE_GLOBAL_MEM_CACHELINE_SIZE, sizeof(byte_size_alignment),
+                        &byte_size_alignment, nullptr);
       }
     }
 
@@ -67,8 +68,8 @@ namespace clu
   /// @return True if the @p buffer has been allocated for the first time or reallocated.
   /// False if the buffer has been left as is. Errors are reported via @p error.
   template <typename T>
-  bool ensureBufferSize(cl::Buffer &buffer, cl_mem_flags flags, const cl::Context &context,
-                        size_t element_count, cl_int *error = nullptr, cl_uint byte_size_alignment = 0)
+  bool ensureBufferSize(cl::Buffer &buffer, cl_mem_flags flags, const cl::Context &context, size_t element_count,
+                        cl_int *error = nullptr, cl_uint byte_size_alignment = 0)
   {
     if (buffer())
     {
@@ -83,10 +84,10 @@ namespace clu
         return false;
       }
 
-//      if (bufferSize)
-//      {
-//        std::cout << "Free " << bufferSize << std::endl;
-//      }
+      //      if (bufferSize)
+      //      {
+      //        std::cout << "Free " << bufferSize << std::endl;
+      //      }
 
       // Current buffer too small. Release existing buffer first (if any).
       buffer = cl::Buffer();
@@ -96,7 +97,7 @@ namespace clu
     cl_int clerr;
     const size_t allocation_size = bestAllocationSize(context, sizeof(T) * element_count, byte_size_alignment);
     buffer = cl::Buffer(context, flags, allocation_size, nullptr, &clerr);
-//    std::cout << "Allocate " << allocationSize << std::endl;
+    //    std::cout << "Allocate " << allocationSize << std::endl;
     if (error)
     {
       *error = clerr;
@@ -126,9 +127,8 @@ namespace clu
   /// @tparam GPUT The GPU buffer type to upload to.
   /// @tparam CPUT The CPU buffer type to upload to.
   template <typename GPUT, typename CPUT>
-  bool upload(cl::CommandQueue &queue, cl::Context &context,
-              cl::Buffer &gpu_buffer, const CPUT *cpu_buffer, size_t element_count,
-              bool allow_write, const char *reference, std::ostream &log = std::cerr)
+  bool upload(cl::CommandQueue &queue, cl::Context &context, cl::Buffer &gpu_buffer, const CPUT *cpu_buffer,
+              size_t element_count, bool allow_write, const char *reference, std::ostream &log = std::cerr)
   {
     static_assert(sizeof(GPUT) >= sizeof(GPUT), "GPU type smaller than CPU type.");
     const CPUT *cpu = cpu_buffer;
@@ -142,10 +142,8 @@ namespace clu
     }
 
     // Map target buffer.
-    GPUT *gpu_mem = static_cast<GPUT *>(clEnqueueMapBuffer(queue(), gpu_buffer(),
-                                                           CL_TRUE, CL_MAP_WRITE,
-                                                           0, sizeof(GPUT) * element_count,
-                                                           0, nullptr, nullptr, &clerr));
+    GPUT *gpu_mem = static_cast<GPUT *>(clEnqueueMapBuffer(queue(), gpu_buffer(), CL_TRUE, CL_MAP_WRITE, 0,
+                                                           sizeof(GPUT) * element_count, 0, nullptr, nullptr, &clerr));
 
     if (!clu::checkError(log, clerr, reference))
     {
@@ -166,8 +164,7 @@ namespace clu
     }
 
     // Unmap buffer.
-    clerr = clEnqueueUnmapMemObject(queue(), gpu_buffer(),
-                                    gpu_mem, 0, nullptr, nullptr);
+    clerr = clEnqueueUnmapMemObject(queue(), gpu_buffer(), gpu_mem, 0, nullptr, nullptr);
     return clu::checkError(log, clerr, reference);
   }
 
@@ -186,18 +183,16 @@ namespace clu
   /// @tparam GPUT The GPU buffer type to upload to.
   /// @tparam CPUT The CPU buffer type to upload to.
   template <typename GPUT, typename CPUT>
-  bool download(cl::CommandQueue &queue, CPUT *cpu_buffer, cl::Buffer &gpu_buffer,
-                size_t element_count, const char *reference, std::ostream &log = std::cerr)
+  bool download(cl::CommandQueue &queue, CPUT *cpu_buffer, cl::Buffer &gpu_buffer, size_t element_count,
+                const char *reference, std::ostream &log = std::cerr)
   {
     static_assert(sizeof(GPUT) >= sizeof(GPUT), "GPU type smaller than CPU type.");
     CPUT *cpu = cpu_buffer;
 
     cl_int clerr = 0;
     // Map target buffer.
-    GPUT *gpu_mem = static_cast<GPUT *>(clEnqueueMapBuffer(queue(), gpu_buffer(),
-                                                           CL_TRUE, CL_MAP_READ,
-                                                           0, sizeof(GPUT) * element_count,
-                                                           0, nullptr, nullptr, &clerr));
+    GPUT *gpu_mem = static_cast<GPUT *>(clEnqueueMapBuffer(queue(), gpu_buffer(), CL_TRUE, CL_MAP_READ, 0,
+                                                           sizeof(GPUT) * element_count, 0, nullptr, nullptr, &clerr));
 
     if (!clu::checkError(log, clerr, reference))
     {
@@ -218,10 +213,9 @@ namespace clu
     }
 
     // Unmap buffer.
-    clerr = clEnqueueUnmapMemObject(queue(), gpu_buffer(),
-                                    gpu_mem, 0, nullptr, nullptr);
+    clerr = clEnqueueUnmapMemObject(queue(), gpu_buffer(), gpu_mem, 0, nullptr, nullptr);
     return clu::checkError(log, clerr, reference);
   }
-}
+}  // namespace clu
 
-#endif // CLUBUFFER_H
+#endif  // CLUBUFFER_H

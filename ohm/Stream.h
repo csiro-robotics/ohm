@@ -23,7 +23,7 @@ namespace ohm
   enum StreamFlag
   {
     /// Compression is enabled.
-    SfCompress = (1<<0),
+    SfCompress = (1 << 0),
   };
 
 
@@ -32,7 +32,6 @@ namespace ohm
   class Stream
   {
   public:
-
     /// Returns true if the stream (file) is open.
     /// @return True when open.
     virtual bool isOpen() const = 0;
@@ -258,8 +257,8 @@ namespace ohm
 
     /// Conversion to the underlying implementation.
     /// @return The underlying implementation.
-    const OutputStreamPrivate  *imp() const;
+    const OutputStreamPrivate *imp() const;
   };
-}
+}  // namespace ohm
 
 #endif  // OHMSTREAM_H

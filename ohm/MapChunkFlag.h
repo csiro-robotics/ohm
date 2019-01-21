@@ -18,4 +18,4 @@ namespace ohm
   };
 }
 
-#endif // MAPCHUNKFLAG_H_
+#endif  // MAPCHUNKFLAG_H_

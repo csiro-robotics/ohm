@@ -8,8 +8,8 @@
 #include "MapCache.h"
 #include "MapLayer.h"
 #include "MapLayout.h"
-#include "VoxelLayout.h"
 #include "OccupancyMap.h"
+#include "VoxelLayout.h"
 
 #include "GpuCache.h"
 

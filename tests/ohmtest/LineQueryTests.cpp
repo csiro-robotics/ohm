@@ -3,15 +3,15 @@
 // ABN 41 687 119 230
 //
 // Author: Kazys Stepanas
-#include <ohm/OhmGpu.h>
+#include <ohm/ClearanceProcess.h>
 #include <ohm/Key.h>
 #include <ohm/KeyList.h>
 #include <ohm/LineQuery.h>
+#include <ohm/MapSerialise.h>
 #include <ohm/OccupancyMap.h>
 #include <ohm/OccupancyType.h>
 #include <ohm/OccupancyUtil.h>
-#include <ohm/ClearanceProcess.h>
-#include <ohm/MapSerialise.h>
+#include <ohm/OhmGpu.h>
 
 #include <ohmtools/OhmCloud.h>
 #include <ohmtools/OhmGen.h>
@@ -26,7 +26,6 @@
 #include <gtest/gtest.h>
 
 using namespace ohm;
-using namespace ohmutil;
 
 namespace linequerytests
 {
@@ -50,7 +49,8 @@ namespace linequerytests
   void lineQueryTest(OccupancyMap &map, bool gpu)
   {
     const double map_res = map.resolution();
-    LineQuery query(map, glm::dvec3(0) - glm::dvec3(map_res), glm::dvec3(0), 2.0f, LineQuery::kDefaultFlags | kQfNearestResult);
+    LineQuery query(map, glm::dvec3(0) - glm::dvec3(map_res), glm::dvec3(0), 2.0f,
+                    LineQuery::kDefaultFlags | kQfNearestResult);
     query.setStartPoint(glm::dvec3(-2, 0, 0));
     query.setEndPoint(glm::dvec3(2, 0, 0));
     if (gpu)
@@ -136,8 +136,8 @@ namespace linequerytests
     // Seed the query with a known line(s).
     line_points.push_back(glm::dvec3(-0.5f * boundary_distance, -0.25f * boundary_distance, 0.25f * boundary_distance));
     line_points.push_back(glm::dvec3(1.2f * boundary_distance));
-    //linePoints.push_back(glm::dvec3(-1.2f * boundaryDistance, 0, 0));
-    //linePoints.push_back(glm::dvec3(1.2f * boundaryDistance, 0, 0));
+    // linePoints.push_back(glm::dvec3(-1.2f * boundaryDistance, 0, 0));
+    // linePoints.push_back(glm::dvec3(1.2f * boundaryDistance, 0, 0));
 
     const int query_iterations = 50;
     // const int queryIterations = 1;
@@ -165,7 +165,7 @@ namespace linequerytests
     gpuClearance.end();
     auto clearanceElapsed = timing_clock::now() - clearanceStartTime;
     std::cout << clearanceElapsed << std::endl;
-#endif // #
+#endif  // #
 
     std::cout << "Compare results from " << query_iterations << " line queries." << std::endl;
     for (int i = 0; i < query_iterations; ++i)
@@ -177,8 +177,8 @@ namespace linequerytests
       gpu_query.setEndPoint(cpu_query.endPoint());
 
       std::cout << std::setprecision(4) << "Line: (" << cpu_query.startPoint().x << ", " << cpu_query.startPoint().y
-                << ", " << cpu_query.startPoint().z << ")->(" << cpu_query.endPoint().x << ", " << cpu_query.endPoint().y
-                << ", " << cpu_query.endPoint().z << ")" << std::endl;
+                << ", " << cpu_query.startPoint().z << ")->(" << cpu_query.endPoint().x << ", "
+                << cpu_query.endPoint().y << ", " << cpu_query.endPoint().z << ")" << std::endl;
 
       // Run CPU query
       std::cout << "CPU: " << std::flush;
@@ -326,4 +326,4 @@ namespace linequerytests
     EXPECT_LT(gpu_total_duration.count(), cpu_total_duration.count());
     EXPECT_LT(gpu_average_duration.count(), cpu_average_duration.count());
   }
-}
+}  // namespace linequerytests

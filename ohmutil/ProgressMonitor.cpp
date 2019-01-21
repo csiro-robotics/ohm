@@ -82,7 +82,8 @@ void ProgressMonitor::pause()
   if (!pause_)
   {
     pause_.store(true);
-    while (!paused_);
+    while (!paused_)
+      ;
   }
 }
 
@@ -149,7 +150,7 @@ void ProgressMonitor::endProgress()
 
 void ProgressMonitor::entry()
 {
-  const unsigned sleep_time_ms = 1000/update_frequency_;
+  const unsigned sleep_time_ms = 1000 / update_frequency_;
   const std::chrono::milliseconds sleep_duration(sleep_time_ms);
   unsigned last_pass = 0u;
   uint64_t last_progress = 0u;
@@ -178,7 +179,7 @@ void ProgressMonitor::entry()
     std::this_thread::sleep_for(sleep_duration);
   }
 
-  //std::cout << std::endl;
+  // std::cout << std::endl;
 }
 
 

@@ -27,6 +27,6 @@ namespace gputil
   private:
     int error_code_;
   };
-}
+}  // namespace gputil
 
-#endif // GPUGPUAPICHECK_H
+#endif  // GPUGPUAPICHECK_H

@@ -40,9 +40,12 @@ namespace ohm
     GpuCacheParams() = default;
     GpuCacheParams(size_t mem_size, int layer, unsigned flags,
                    const GpuCachePostSyncHandler &on_sync = GpuCachePostSyncHandler())
-      : gpu_mem_size(mem_size), map_layer(layer), flags(flags), on_sync(on_sync)
+      : gpu_mem_size(mem_size)
+      , map_layer(layer)
+      , flags(flags)
+      , on_sync(on_sync)
     {}
   };
-}
+}  // namespace ohm
 
-#endif // GPUCACHEPARAMS_H
+#endif  // GPUCACHEPARAMS_H

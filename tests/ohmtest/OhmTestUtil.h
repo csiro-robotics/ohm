@@ -38,6 +38,6 @@ namespace ohmtestutil
 
   void compareMaps(const ohm::OccupancyMap &map, const ohm::OccupancyMap &reference_map, const glm::dvec3 &min_ext,
                    const glm::dvec3 &max_ext, unsigned compare_flags = kCfDefault);
-}
+}  // namespace ohmtestutil
 
 #endif  // OHMTESTUTIL_H

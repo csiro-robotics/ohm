@@ -27,10 +27,7 @@ namespace ohm
   /// Convert a probability to a storable value. Inverse of @p valueToProbability().
   /// @param probability The probability to convert
   /// @return The value associated with @p probability."ohmconfig.h"
-  inline float ohm_API probabilityToValue(float probability)
-  {
-    return log(probability / (1.0f - probability));
-  }
-}
+  inline float ohm_API probabilityToValue(float probability) { return log(probability / (1.0f - probability)); }
+}  // namespace ohm
 
 #endif  // OHM_PROBABILITY_H

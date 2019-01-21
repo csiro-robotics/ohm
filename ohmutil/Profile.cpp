@@ -18,11 +18,11 @@
 
 #ifdef OHM_THREADS
 #include <tbb/tbb_thread.h>
-#endif // OHM_THREADS
+#endif  // OHM_THREADS
 
-using namespace ohmutil;
+using namespace ohm;
 
-namespace ohmutil
+namespace ohm
 {
   struct ProfileRecord
   {
@@ -38,7 +38,7 @@ namespace ohmutil
     ProfileClock::time_point start_time;
     ProfileRecord *record;
 
-    inline ProfileScope() {};
+    inline ProfileScope(){};
     inline ProfileScope(const char *name)
       : name(name)
       , start_time(ProfileClock::now())
@@ -83,12 +83,12 @@ namespace ohmutil
   void compareThreadIds(std::thread::id stdId, tbb::internal::tbb_thread_v3::id tbbId)
   {
     static bool once = true;
-    if (once && *(unsigned*)&stdId != *(unsigned*)&tbbId)
+    if (once && *(unsigned *)&stdId != *(unsigned *)&tbbId)
     {
       once = false;
     }
   }
-#endif // OHM_THREADS
+#endif  // OHM_THREADS
 
   struct ProfileDetail
   {
@@ -107,8 +107,8 @@ namespace ohmutil
     {
       std::unique_lock<std::mutex> guard(mutex);
 #ifdef OHM_THREADS
-      //compareThreadIds(std::this_thread::get_id(), tbb::this_tbb_thread::get_id());
-#endif // OHM_THREADS
+      // compareThreadIds(std::this_thread::get_id(), tbb::this_tbb_thread::get_id());
+#endif  // OHM_THREADS
       auto search = thread_records.find(std::this_thread::get_id());
       if (search != thread_records.end())
       {
@@ -124,9 +124,11 @@ namespace ohmutil
   {
     std::string indent(level * 2, ' ');
     std::string count_str;
-    const auto average_time = (record.marker_count) ? record.total_time / record.marker_count : ProfileClock::duration(0);
+    const auto average_time =
+      (record.marker_count) ? record.total_time / record.marker_count : ProfileClock::duration(0);
     delimetedInteger(count_str, record.marker_count);
-    o << indent << record.name << " avg: " << average_time << " total: " << record.total_time << " / " << count_str << " calls\n";
+    o << indent << record.name << " avg: " << average_time << " total: " << record.total_time << " / " << count_str
+      << " calls\n";
 
     // Recurse on children.
     for (auto &&entry : thread_records.records)
@@ -159,7 +161,7 @@ namespace ohmutil
       }
     }
   }
-}
+}  // namespace ohm
 
 
 Profile Profile::s_instance_;
@@ -167,8 +169,7 @@ Profile Profile::s_instance_;
 
 Profile::Profile()
   : imp_(new ProfileDetail)
-{
-}
+{}
 
 
 Profile::~Profile()
@@ -193,7 +194,7 @@ bool Profile::push(const char *name)
     if (strcmp(records.marker_stack.back().name, name) == 0)
     {
       // Self reference.
-      //std::cout << "selfref\n";
+      // std::cout << "selfref\n";
       return false;
     }
   }
@@ -242,7 +243,7 @@ void Profile::pop()
 
 void Profile::report(std::ostream *optr)
 {
-  //DebugBreak();
+  // DebugBreak();
   if (!imp_->reported && !imp_->supress_report)
   {
     std::ostream &out = (optr) ? *optr : std::cout;

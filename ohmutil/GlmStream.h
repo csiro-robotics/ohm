@@ -81,9 +81,9 @@ inline void parseVector(std::istream &in, unsigned char *v, int elements)
 // This assumes version 1.0 will be 1000
 #if GLM_VERSION < 99
 using GlmQualifier = glm::precision;
-#else // GLM_VERSION
+#else   // GLM_VERSION
 using GlmQualifier = glm::qualifier;
-#endif // GLM_VERSION
+#endif  // GLM_VERSION
 
 
 template <typename T, GlmQualifier Q>
@@ -109,4 +109,4 @@ inline std::istream &operator>>(std::istream &in, glm::tvec4<T, Q> &value)
   return in;
 }
 
-#endif // OHMUTIL_GLMSTREAM_H
+#endif  // OHMUTIL_GLMSTREAM_H

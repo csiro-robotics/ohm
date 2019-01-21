@@ -11,5 +11,5 @@ namespace ohm
   {
     const char *occupancyLayerName() { return "occupancy"; }
     const char *clearanceLayerName() { return "clearance"; }
-  }
-}
+  }  // namespace default_layer
+}  // namespace ohm

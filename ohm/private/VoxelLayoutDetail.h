@@ -26,6 +26,6 @@ namespace ohm
     uint16_t next_offset = 0u;
     uint16_t voxel_byte_size = 0u;
   };
-}
+}  // namespace ohm
 
-#endif // OHM_VOXELLAYOUTDETAIL_H
+#endif  // OHM_VOXELLAYOUTDETAIL_H

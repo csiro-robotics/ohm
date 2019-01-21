@@ -23,7 +23,7 @@
 
 #ifndef NULL
 #define NULL 0
-#endif // !NULL
+#endif  // !NULL
 
 // For CUDA import:
 #ifdef __CUDACC__
@@ -31,61 +31,61 @@
 //-----------------------------------------------------------------------------
 // CUDA defines
 //-----------------------------------------------------------------------------
-# define __localarg
+#define __localarg
 
 #else  // __CUDACC__
 
 //-----------------------------------------------------------------------------
 // OpenCL defines
 //-----------------------------------------------------------------------------
-# define __localarg __local
-# define __device__
+#define __localarg __local
+#define __device__
 
-# ifndef make_char2
-#   define make_char2 (char2)
-#   define make_char3 (char3)
-#   define make_char4 (char4)
-#   define make_uchar2 (uchar2)
-#   define make_uchar3 (uchar3)
-#   define make_uchar4 (uchar4)
-#   define make_short2 (short2)
-#   define make_short3 (short3)
-#   define make_short4 (short4)
-#   define make_short16 (short16)
-#   define make_ushort2 (ushort2)
-#   define make_ushort3 (ushort3)
-#   define make_ushort4 (ushort4)
-#   define make_int2 (int2)
-#   define make_int3 (int3)
-#   define make_int4 (int4)
-#   define make_uint2 (uint2)
-#   define make_uint3 (uint3)
-#   define make_uint4 (uint4)
-#   define make_long2 (long2)
-#   define make_long3 (long3)
-#   define make_long4 (long4)
-#   define make_ulong2 (ulong2)
-#   define make_ulong3 (ulong3)
-#   define make_ulong4 (ulong4)
-#   define make_float2 (float2)
-#   define make_float3 (float3)
-#   define make_float4 (float4)
-#   define make_double2 (double2)
-# endif // make_char2
+#ifndef make_char2
+#define make_char2 (char2)
+#define make_char3 (char3)
+#define make_char4 (char4)
+#define make_uchar2 (uchar2)
+#define make_uchar3 (uchar3)
+#define make_uchar4 (uchar4)
+#define make_short2 (short2)
+#define make_short3 (short3)
+#define make_short4 (short4)
+#define make_short16 (short16)
+#define make_ushort2 (ushort2)
+#define make_ushort3 (ushort3)
+#define make_ushort4 (ushort4)
+#define make_int2 (int2)
+#define make_int3 (int3)
+#define make_int4 (int4)
+#define make_uint2 (uint2)
+#define make_uint3 (uint3)
+#define make_uint4 (uint4)
+#define make_long2 (long2)
+#define make_long3 (long3)
+#define make_long4 (long4)
+#define make_ulong2 (ulong2)
+#define make_ulong3 (ulong3)
+#define make_ulong4 (ulong4)
+#define make_float2 (float2)
+#define make_float3 (float3)
+#define make_float4 (float4)
+#define make_double2 (double2)
+#endif  // make_char2
 
-# ifndef xyz
-#   define xyz(V) (V).xyz
-# endif // xyz
+#ifndef xyz
+#define xyz(V) (V).xyz
+#endif  // xyz
 
 // Missing defines on some OpenCL devices.
 // TODO: add more.
-# ifndef M_PI
-#   define M_PI 3.14159265358979323846264338327950288f
-# endif // M_PI
+#ifndef M_PI
+#define M_PI 3.14159265358979323846264338327950288f
+#endif  // M_PI
 
 #define SQR(X) ((X) * (X))
 
-#endif // __CUDACC__
+#endif  // __CUDACC__
 
 inline bool isGlobalThread(size_t x, size_t y, size_t z)
 {
@@ -102,4 +102,4 @@ inline bool isInGroup(size_t x, size_t y, size_t z)
   return x == get_group_id(0) && y == get_group_id(1) && z == get_group_id(2);
 }
 
-#endif // GPU_EXT_H_
+#endif  // GPU_EXT_H_

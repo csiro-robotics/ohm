@@ -41,10 +41,10 @@ namespace ohm
       static const PreferredDevice preferred_device[] =  //
         {
           //
-          PreferredDevice{"Intel", gputil::Device::kGpu}, //
-          PreferredDevice{nullptr, gputil::Device::kGpu}, //
-          PreferredDevice{nullptr, gputil::Device::kAccelerator}, //
-          PreferredDevice{nullptr, 0}, //
+          PreferredDevice{ "Intel", gputil::Device::kGpu },          //
+          PreferredDevice{ nullptr, gputil::Device::kGpu },          //
+          PreferredDevice{ nullptr, gputil::Device::kAccelerator },  //
+          PreferredDevice{ nullptr, 0 },                             //
         };
       static const size_t preferred_device_count = sizeof(preferred_device) / sizeof(preferred_device[0]);
 
@@ -246,7 +246,7 @@ namespace ohm
     const ArgInfo arg_pairs[1] = { "", "", 0 };
     unsigned arg_pair_count = 0;
 #endif // OHM_GPU == OHM_GPU_OPENCL
-    // clang-format on
+        // clang-format on
 
     if (args_info)
     {

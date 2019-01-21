@@ -9,21 +9,21 @@ using namespace ohm;
 
 const char *DataType::name(unsigned type)
 {
-  static const char *names[] =
-  {
-    "<unknown>",
-    "int8_t",
-    "uint8_t",
-    "int16_t",
-    "uint16_t",
-    "int32_t",
-    "uint32_t",
-    "int64_t",
-    "uint64_t",
-    "float",
-    "double",
-    "struct",
-  };
+  static const char *names[] =  //
+    {
+      "<unknown>",  //
+      "int8_t",     //
+      "uint8_t",    //
+      "int16_t",    //
+      "uint16_t",   //
+      "int32_t",    //
+      "uint32_t",   //
+      "int64_t",    //
+      "uint64_t",   //
+      "float",      //
+      "double",     //
+      "struct",     //
+    };
 
   if (type < kUser)
   {
@@ -41,21 +41,21 @@ const char *DataType::name(unsigned type)
 
 size_t DataType::size(unsigned type)
 {
-  static size_t sizes[] =
-  {
-    0u,
-    1u,
-    1u,
-    2u,
-    2u,
-    4u,
-    4u,
-    8u,
-    8u,
-    4u,
-    8u,
-    0u,
-  };
+  static size_t sizes[] =  //
+    {
+      0u,  // unknown
+      1u,  // int8
+      1u,  // uint8
+      2u,  // int16
+      2u,  // uin16
+      4u,  // int32
+      4u,  // uint32
+      8u,  // int64
+      8u,  // uint64
+      4u,  // float
+      8u,  // double
+      0u,  // struct
+    };
 
   if (type < kUser)
   {

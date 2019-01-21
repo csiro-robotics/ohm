@@ -34,11 +34,31 @@ public:
     unsigned total_passes;
     uint64_t total;
 
-    Info() : info(""), total_passes(0), total(0) {}
-    Info(uint64_t total) : info(""), total_passes(0), total(total) {}
-    Info(unsigned passes, uint64_t total) : info(""), total_passes(passes), total(total) {}
-    Info(const char *info, uint64_t total) : info(info), total_passes(0), total(total) {}
-    Info(const char *info, unsigned passes, uint64_t total) : info(info), total_passes(passes), total(total) {}
+    Info()
+      : info("")
+      , total_passes(0)
+      , total(0)
+    {}
+    Info(uint64_t total)
+      : info("")
+      , total_passes(0)
+      , total(total)
+    {}
+    Info(unsigned passes, uint64_t total)
+      : info("")
+      , total_passes(passes)
+      , total(total)
+    {}
+    Info(const char *info, uint64_t total)
+      : info(info)
+      , total_passes(0)
+      , total(total)
+    {}
+    Info(const char *info, unsigned passes, uint64_t total)
+      : info(info)
+      , total_passes(passes)
+      , total(total)
+    {}
   };
 
   struct Progress
@@ -48,7 +68,7 @@ public:
     uint64_t progress;
   };
 
-  typedef std::function<void (const Progress &)> DisplayFunction;
+  typedef std::function<void(const Progress &)> DisplayFunction;
 
   ProgressMonitor(unsigned update_frequency = 20);
   ProgressMonitor(const DisplayFunction &display_func, unsigned update_frequency = 20);
@@ -127,4 +147,4 @@ inline const ProgressMonitor::DisplayFunction &ProgressMonitor::displayFunction(
   return display_func_;
 }
 
-#endif // OHMUTIL_PROGRESSMONITOR_H
+#endif  // OHMUTIL_PROGRESSMONITOR_H

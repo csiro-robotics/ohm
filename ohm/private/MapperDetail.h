@@ -21,6 +21,6 @@ namespace ohm
     OccupancyMap *map = nullptr;
     unsigned nextProcess = 0;
   };
-}
+}  // namespace ohm
 
-#endif // MAPPERDETAIL_H_
+#endif  // MAPPERDETAIL_H_

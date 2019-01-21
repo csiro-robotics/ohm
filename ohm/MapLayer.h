@@ -131,10 +131,12 @@ namespace ohm
     /// @tparam T The type to cast to.
     /// @param chunk The map chunk to get layer data for.
     /// @return The data for this layer in @p chunk or null on a size mismatch.
-    template <typename T> const T *voxelsAs(const MapChunk &chunk) const;
+    template <typename T>
+    const T *voxelsAs(const MapChunk &chunk) const;
 
     /// @overload
-    template <typename T> T *voxelsAs(MapChunk &chunk) const;
+    template <typename T>
+    T *voxelsAs(MapChunk &chunk) const;
 
     /// @internal
     /// Set the layer index. Used in layer reordering. Must be maintained correctly.
@@ -166,6 +168,6 @@ namespace ohm
     }
     return nullptr;
   }
-}
+}  // namespace ohm
 
-#endif // OHM_MAPLAYER_H
+#endif  // OHM_MAPLAYER_H

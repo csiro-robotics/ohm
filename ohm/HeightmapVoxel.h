@@ -22,6 +22,6 @@ namespace ohm
     float height;
     float clearance;
   };
-}
+}  // namespace ohm
 
-#endif // HEIGHTMAPVOXEL_H
+#endif  // HEIGHTMAPVOXEL_H

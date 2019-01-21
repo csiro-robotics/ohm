@@ -201,7 +201,8 @@ bool RoiRangeFill::calculateForRegion(OccupancyMap &map, const glm::i16vec3 &reg
   gpu_region_keys_.elementsResize<gputil::int3>(volumeOf(glm::ivec3(1) + 2 * region_padding));
   gpu_occupancy_region_offsets_.elementsResize<gputil::ulong1>(volumeOf(glm::ivec3(1) + 2 * region_padding));
 
-  gpu_region_clearance_buffer_.resize(map.layout().layer(clearance_layer_index).layerByteSize(map.regionVoxelDimensions()));
+  gpu_region_clearance_buffer_.resize(
+    map.layout().layer(clearance_layer_index).layerByteSize(map.regionVoxelDimensions()));
 
   gputil::PinnedBuffer region_keys(gpu_region_keys_, gputil::kPinWrite);
   gputil::PinnedBuffer occupancy_region_offsets(gpu_occupancy_region_offsets_, gputil::kPinWrite);

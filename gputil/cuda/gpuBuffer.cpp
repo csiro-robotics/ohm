@@ -14,16 +14,16 @@
 #include "gpuQueue.h"
 #include "gpuThrow.h"
 
-#include <algorithm>
-#include <cinttypes>
 #include <cuda.h>
 #include <cuda_runtime.h>
+#include <algorithm>
+#include <cinttypes>
 
 using namespace gputil;
 
 namespace gputil
 {
-  //cudaMemcpyKind copyKind(unsigned dstFlags, unsigned srcFlags)
+  // cudaMemcpyKind copyKind(unsigned dstFlags, unsigned srcFlags)
   //{
   //  if (dstFlags & BF_Host)
   //  {
@@ -66,8 +66,8 @@ namespace gputil
   /// @param block_on Event to wait for before copying.
   /// @param completion Event to set to mark completion.
   /// @return @c true when the synchronous, blocking code path was taken, @c false for asynchronous copy.
-  bool bufferCopy(void *dst, const void *src, size_t byte_count, cudaMemcpyKind kind,
-                  Queue *queue, Event *block_on, Event *completion)
+  bool bufferCopy(void *dst, const void *src, size_t byte_count, cudaMemcpyKind kind, Queue *queue, Event *block_on,
+                  Event *completion)
   {
     cudaError_t err = cudaSuccess;
     // Manage asynchronous.
@@ -185,8 +185,7 @@ namespace gputil
   }
 
 
-  void unpin(BufferDetail &imp, void *pinned_ptr, PinMode mode,
-             Queue *queue, Event *block_on, Event *completion)
+  void unpin(BufferDetail &imp, void *pinned_ptr, PinMode mode, Queue *queue, Event *block_on, Event *completion)
   {
     if (completion)
     {
@@ -238,7 +237,7 @@ namespace gputil
       buf->alloc_size = 0;
     }
   }
-}
+}  // namespace gputil
 
 Buffer::Buffer()
   : imp_(new BufferDetail)
@@ -352,9 +351,7 @@ size_t Buffer::forceResize(size_t new_size)
 }
 
 
-
-void Buffer::fill(const void *pattern, size_t pattern_size,
-                  Queue *queue, Event *block_on, Event *completion)
+void Buffer::fill(const void *pattern, size_t pattern_size, Queue *queue, Event *block_on, Event *completion)
 {
   if (isValid())
   {
@@ -369,16 +366,15 @@ void Buffer::fill(const void *pattern, size_t pattern_size,
       uint8_t *dst_mem = static_cast<uint8_t *>(imp_->mem);
       while (wrote + pattern_size < imp_->alloc_size)
       {
-        bufferCopy(dst_mem + wrote, pattern, pattern_size, cudaMemcpyHostToDevice,
-                   queue, block_on, nullptr);
+        bufferCopy(dst_mem + wrote, pattern, pattern_size, cudaMemcpyHostToDevice, queue, block_on, nullptr);
         wrote += pattern_size;
       }
 
       // Last copy.
       if (wrote < imp_->alloc_size)
       {
-        bufferCopy(dst_mem + wrote, pattern, imp_->alloc_size - wrote, cudaMemcpyHostToDevice,
-                   queue, block_on, completion);
+        bufferCopy(dst_mem + wrote, pattern, imp_->alloc_size - wrote, cudaMemcpyHostToDevice, queue, block_on,
+                   completion);
         wrote += imp_->alloc_size - wrote;
       }
     }
@@ -411,16 +407,15 @@ void Buffer::fillPartial(const void *pattern, size_t pattern_size, size_t fill_b
       size_t wrote = 0;
       while (wrote + pattern_size < fill_bytes)
       {
-        bufferCopy(dst_mem + wrote, pattern, pattern_size, cudaMemcpyHostToDevice,
-                   queue, nullptr, nullptr);
+        bufferCopy(dst_mem + wrote, pattern, pattern_size, cudaMemcpyHostToDevice, queue, nullptr, nullptr);
         wrote += pattern_size;
       }
 
       // Last copy.
       if (wrote < fill_bytes)
       {
-        bufferCopy(dst_mem + wrote + offset, pattern, fill_bytes - wrote, cudaMemcpyHostToDevice,
-                   queue, nullptr, nullptr);
+        bufferCopy(dst_mem + wrote + offset, pattern, fill_bytes - wrote, cudaMemcpyHostToDevice, queue, nullptr,
+                   nullptr);
         wrote += fill_bytes - wrote;
       }
     }
@@ -428,8 +423,8 @@ void Buffer::fillPartial(const void *pattern, size_t pattern_size, size_t fill_b
 }
 
 
-size_t Buffer::read(void *dst, size_t read_byte_count, size_t src_offset,
-                    Queue *queue, Event *block_on, Event *completion)
+size_t Buffer::read(void *dst, size_t read_byte_count, size_t src_offset, Queue *queue, Event *block_on,
+                    Event *completion)
 {
   size_t copy_bytes = 0;
   if (imp_ && imp_->mem)
@@ -451,8 +446,8 @@ size_t Buffer::read(void *dst, size_t read_byte_count, size_t src_offset,
 }
 
 
-size_t Buffer::write(const void *src, size_t write_byte_count, size_t dst_offset,
-                     Queue *queue, Event *block_on, Event *completion)
+size_t Buffer::write(const void *src, size_t write_byte_count, size_t dst_offset, Queue *queue, Event *block_on,
+                     Event *completion)
 {
   size_t copy_bytes = 0;
   if (imp_ && imp_->mem)
@@ -474,8 +469,8 @@ size_t Buffer::write(const void *src, size_t write_byte_count, size_t dst_offset
 }
 
 
-size_t Buffer::readElements(void *dst, size_t element_size, size_t element_count, size_t offset_elements, size_t buffer_element_size,
-                            Queue *queue, Event *block_on, Event *completion)
+size_t Buffer::readElements(void *dst, size_t element_size, size_t element_count, size_t offset_elements,
+                            size_t buffer_element_size, Queue *queue, Event *block_on, Event *completion)
 {
   if (element_size == buffer_element_size || buffer_element_size == 0)
   {
@@ -492,8 +487,8 @@ size_t Buffer::readElements(void *dst, size_t element_size, size_t element_count
   for (size_t i = 0; i < element_count && src_offset <= imp_->alloc_size; ++i)
   {
     const bool final_copy = i + 1 == element_count || src_offset + buffer_element_size > imp_->alloc_size;
-    bufferCopy(dst2, src + src_offset, copy_size, cudaMemcpyDeviceToHost,
-               queue, block_on, (!final_copy) ? nullptr : completion);
+    bufferCopy(dst2, src + src_offset, copy_size, cudaMemcpyDeviceToHost, queue, block_on,
+               (!final_copy) ? nullptr : completion);
 
     dst2 += element_size;
     src_offset += buffer_element_size;
@@ -503,8 +498,8 @@ size_t Buffer::readElements(void *dst, size_t element_size, size_t element_count
 }
 
 
-size_t Buffer::writeElements(const void *src, size_t element_size, size_t element_count, size_t offset_elements, size_t buffer_element_size,
-                             Queue *queue, Event *block_on, Event *completion)
+size_t Buffer::writeElements(const void *src, size_t element_size, size_t element_count, size_t offset_elements,
+                             size_t buffer_element_size, Queue *queue, Event *block_on, Event *completion)
 {
   if (element_size == buffer_element_size || buffer_element_size == 0)
   {
@@ -521,8 +516,8 @@ size_t Buffer::writeElements(const void *src, size_t element_size, size_t elemen
   for (size_t i = 0; i < element_count && dst_offset <= imp_->alloc_size; ++i)
   {
     const bool final_copy = i + 1 == element_count || dst_offset + buffer_element_size > imp_->alloc_size;
-    bufferCopy(dst + dst_offset, src2, copy_size, cudaMemcpyDeviceToHost,
-               queue, block_on, (!final_copy) ? nullptr : completion);
+    bufferCopy(dst + dst_offset, src2, copy_size, cudaMemcpyDeviceToHost, queue, block_on,
+               (!final_copy) ? nullptr : completion);
 
     dst += element_size;
     dst_offset += buffer_element_size;
@@ -545,8 +540,7 @@ void *Buffer::pin(PinMode mode)
 
 
 void Buffer::unpin(void *ptr, Queue *queue, Event *block_on, Event *completion)
-{
-}
+{}
 
 
 namespace gputil
@@ -557,8 +551,7 @@ namespace gputil
   }
 
 
-  size_t copyBuffer(Buffer &dst, const Buffer &src, size_t byte_count,
-                    Queue *queue, Event *block_on, Event *completion)
+  size_t copyBuffer(Buffer &dst, const Buffer &src, size_t byte_count, Queue *queue, Event *block_on, Event *completion)
   {
     return copyBuffer(dst, 0, src, 0, byte_count, queue, block_on, completion);
   }
@@ -593,4 +586,4 @@ namespace gputil
 
     return byte_count;
   }
-}
+}  // namespace gputil

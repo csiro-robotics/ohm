@@ -26,4 +26,4 @@ namespace
   int avoid_no_symbols_link_warning = 0;
 }
 
-#endif // !defined(_MSC_VER)
+#endif  // !defined(_MSC_VER)

@@ -21,6 +21,8 @@
  * MATERIALS OR THE USE OR OTHER DEALINGS IN THE MATERIALS.
  ******************************************************************************/
 
+// clang-format off
+
 /*! \file
  *
  *   \brief C++ bindings for OpenCL 1.0 (rev 48), OpenCL 1.1 (rev 33),
@@ -9520,3 +9522,5 @@ namespace compatibility {
 } // namespace cl
 
 #endif // CL_HPP_
+
+// clang-format on

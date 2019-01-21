@@ -75,12 +75,12 @@ namespace gputil
     /// Internal data access for private code.
     QueueDetail *internal() const;
 
-    Queue &operator = (const Queue &other);
-    Queue &operator = (Queue &&other) noexcept;
+    Queue &operator=(const Queue &other);
+    Queue &operator=(Queue &&other) noexcept;
 
   private:
     QueueDetail *queue_;
   };
-}
+}  // namespace gputil
 
-#endif // GPUQUEUE_H
+#endif  // GPUQUEUE_H

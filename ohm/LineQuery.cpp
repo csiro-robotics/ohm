@@ -5,16 +5,16 @@
 // Author: Kazys Stepanas
 #include "LineQuery.h"
 
-#include "MapCache.h"
+#include "ClearanceProcess.h"
 #include "GpuMap.h"
 #include "Key.h"
+#include "MapCache.h"
 #include "OccupancyMap.h"
 #include "QueryFlag.h"
-#include "ClearanceProcess.h"
 #include "private/LineQueryDetail.h"
 #include "private/OccupancyMapDetail.h"
-#include "private/VoxelAlgorithms.h"
 #include "private/OccupancyQueryAlg.h"
+#include "private/VoxelAlgorithms.h"
 
 #include "GpuLayerCache.h"
 
@@ -68,7 +68,8 @@ namespace
 
     // Perform query.
 #ifdef OHM_THREADS
-    const auto parallel_query_func = [&query, &map, voxel_search_half_extents](const tbb::blocked_range<size_t> &range) {
+    const auto parallel_query_func = [&query, &map,
+                                      voxel_search_half_extents](const tbb::blocked_range<size_t> &range) {
       calculateNearestNeighboursRange(query, range.begin(), range.end(), map, voxel_search_half_extents);
     };
     tbb::parallel_for(tbb::blocked_range<size_t>(0u, query.segment_keys.size()), parallel_query_func);
@@ -90,7 +91,7 @@ namespace
 
     return unsigned(query.segment_keys.size());
   }
-}
+}  // namespace
 
 
 LineQuery::LineQuery(LineQueryDetail *detail)
@@ -314,7 +315,7 @@ bool LineQuery::onExecuteAsync()
 
 void LineQuery::onReset(bool /*hard_reset*/)
 {
-  //LineQueryDetail *d = imp();
+  // LineQueryDetail *d = imp();
 }
 
 

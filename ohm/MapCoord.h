@@ -12,12 +12,12 @@
 #ifndef __OPENCL_C_VERSION__
 namespace ohm
 {
-#endif // !__OPENCL_C_VERSION__
+#endif  // !__OPENCL_C_VERSION__
 
   // Define real coordinate for functions below. Normally double, float for GPU.
 #if defined(__OPENCL_C_VERSION__) && !defined(coord_real)
   typedef float coord_real;
-#endif // defined(__OPENCL_C_VERSION__) && !defined(coord_real)
+#endif  // defined(__OPENCL_C_VERSION__) && !defined(coord_real)
 
   /// Calculate the map local centre coordinate for a region along a single axis.
   /// @param regionCoord The coordinate of the region in the map along the axis of interest.
@@ -25,7 +25,7 @@ namespace ohm
   /// @return The centre of the region along this axis local to the map centre.
 #ifndef __OPENCL_C_VERSION__
   template <typename coord_real>
-#endif // !__OPENCL_C_VERSION__
+#endif  // !__OPENCL_C_VERSION__
   inline coord_real regionCentreCoord(int region_coord, const coord_real region_dimesion)
   {
     return region_coord * region_dimesion;
@@ -33,7 +33,7 @@ namespace ohm
 
 #ifndef __OPENCL_C_VERSION__
   template <typename coord_real>
-#endif // !__OPENCL_C_VERSION__
+#endif  // !__OPENCL_C_VERSION__
   inline int pointToRegionVoxel(coord_real coord, coord_real voxel_resolution, coord_real region_resolution)
   {
     // Due to precision error, we can end up with coordinates just outside the region spatial boundary.
@@ -55,7 +55,7 @@ namespace ohm
         largestDelta = coord;
         fprintf(stderr, "W: pointToRegionVoxel(%lg, %lg) : negative coord\n", coord, voxelResolution);
       }
-#endif // TEST_EPSILON_MAGNITUDE
+#endif  // TEST_EPSILON_MAGNITUDE
       coord = 0;
     }
     else if (coord >= region_resolution && coord - epsilon < region_resolution)
@@ -67,13 +67,13 @@ namespace ohm
 
 #ifndef __OPENCL_C_VERSION__
   template <typename coord_real>
-#endif // !__OPENCL_C_VERSION__
+#endif  // !__OPENCL_C_VERSION__
   inline int pointToRegionCoord(coord_real coord, coord_real resolution)
   {
     return (int)floor(coord / resolution + (coord_real)0.5);
   }
 #ifndef __OPENCL_C_VERSION__
 }
-#endif // !__OPENCL_C_VERSION__
+#endif  // !__OPENCL_C_VERSION__
 
-#endif // OHM_MAPCOORD_H
+#endif  // OHM_MAPCOORD_H

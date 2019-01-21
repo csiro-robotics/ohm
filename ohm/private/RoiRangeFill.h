@@ -55,16 +55,16 @@ namespace ohm
     void setQueryFlags(unsigned flags) { query_flags_ = flags; }
 
     unsigned regionCount() const { return region_count_; }
-    //void setRegionCount(unsigned count) { region_count_ = count; }
+    // void setRegionCount(unsigned count) { region_count_ = count; }
 
     bool valid() const { return valid_; }
 
     bool calculateForRegion(OccupancyMap &map, const glm::i16vec3 &region_key);
 
   private:
-  void finishRegion(const glm::i16vec3 &region_key, OccupancyMap &map, RoiRangeFill &query, GpuCache &gpu_cache,
-                    GpuLayerCache &clearance_cache, const glm::ivec3 &batch_voxel_extents,
-                    const std::vector<gputil::Event> &upload_events);
+    void finishRegion(const glm::i16vec3 &region_key, OccupancyMap &map, RoiRangeFill &query, GpuCache &gpu_cache,
+                      GpuLayerCache &clearance_cache, const glm::ivec3 &batch_voxel_extents,
+                      const std::vector<gputil::Event> &upload_events);
 
     int invoke(const OccupancyMapDetail &map, RoiRangeFill &query, GpuCache &gpu_cache,
                GpuLayerCache &clearance_layer_cache, const glm::ivec3 &input_data_extents,
@@ -92,6 +92,6 @@ namespace ohm
     unsigned region_count_ = 0;
     bool valid_ = false;
   };
-} // namespace ohm
+}  // namespace ohm
 
-#endif // OHM_ROIRANGEFILL_H
+#endif  // OHM_ROIRANGEFILL_H

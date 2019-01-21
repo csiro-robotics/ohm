@@ -39,7 +39,7 @@ namespace
 #else   // OHM_EMBED_GPU_CODE
   GpuProgramRef program_ref("LineKeys", GpuProgramRef::kSourceFile, "LineKeys.cl");
 #endif  // OHM_EMBED_GPU_CODE
-  
+
   bool readGpuResults(LineKeysQueryDetail &query);
 
   unsigned nextPow2(unsigned v)
@@ -79,7 +79,7 @@ namespace
       return false;
     }
 
-  #if OHM_GPU == OHM_GPU_OPENCL
+#if OHM_GPU == OHM_GPU_OPENCL
     query.line_keys_kernel = gputil::openCLKernel(program_ref.program(), "calculateLines");
 #endif  // OHM_GPU == OHM_GPU_OPENCL
     query.line_keys_kernel.calculateOptimalWorkGroupSize();
@@ -91,8 +91,7 @@ namespace
 
     // Initialise buffer to dummy size. We'll resize as required.
     gpu_data.linesOut = gputil::Buffer(query.gpu, 1 * kGpuKeySize, gputil::kBfReadWriteHost);
-    gpu_data.linePoints =
-      gputil::Buffer(query.gpu, 1 * sizeof(gputil::float3), gputil::kBfReadHost);
+    gpu_data.linePoints = gputil::Buffer(query.gpu, 1 * sizeof(gputil::float3), gputil::kBfReadHost);
     query.gpuOk = true;
 
     return true;

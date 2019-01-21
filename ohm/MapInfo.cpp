@@ -13,7 +13,7 @@
 #ifndef _MSC_VER
 #include <strings.h>
 #define _stricmp strcasecmp
-#endif // _MSC_VER
+#endif  // _MSC_VER
 
 using namespace ohm;
 
@@ -27,16 +27,13 @@ namespace std
       return std::hash<std::string>()(*static_cast<const std::string *>(value.namePtr()));
     }
   };
-}
+}  // namespace std
 
 namespace ohm
 {
   struct TreeSearchPredicate
   {
-    bool operator()(const MapValue &left, const MapValue &right) const
-    {
-      return left.namesEqual(right);
-    }
+    bool operator()(const MapValue &left, const MapValue &right) const { return left.namesEqual(right); }
   };
 
 
@@ -44,7 +41,7 @@ namespace ohm
   {
     std::unordered_set<MapValue, std::hash<MapValue>, TreeSearchPredicate> dictionary;
   };
-}
+}  // namespace ohm
 
 namespace
 {
@@ -68,7 +65,7 @@ namespace
 
 
   template <>
-  class StringConvert < const char * >
+  class StringConvert<const char *>
   {
   public:
     static const char *convert(const char *str) { return str; }
@@ -76,7 +73,7 @@ namespace
 
 
   template <>
-  class StringConvert < bool >
+  class StringConvert<bool>
   {
   public:
     static bool convert(const char *str)
@@ -98,7 +95,7 @@ namespace
       return StringConvert<float>::convert(str) != 0;
     }
   };
-}
+}  // namespace
 
 MapValue::MapValue()
   : name_(nullptr)
@@ -445,7 +442,7 @@ MapValue MapValue::toStringValue() const
 }
 
 
-MapValue &MapValue::operator = (const MapValue &other)
+MapValue &MapValue::operator=(const MapValue &other)
 {
   clearValue();
   type_ = other.type_;
@@ -463,9 +460,9 @@ MapValue &MapValue::operator = (const MapValue &other)
     {
 #ifdef _MSC_VER
       strncpy_s(value_.str, len + 1, other.value_.str, len);
-#else  // !_MSC_VER
+#else   // !_MSC_VER
       strncpy(value_.str, other.value_.str, len);
-#endif // _MSC_VER
+#endif  // _MSC_VER
       value_.str[len] = '\0';
     }
   }
@@ -475,7 +472,7 @@ MapValue &MapValue::operator = (const MapValue &other)
 }
 
 
-MapValue &MapValue::operator = (int8_t val)
+MapValue &MapValue::operator=(int8_t val)
 {
   clearValue();
   type_ = kInt8;
@@ -484,7 +481,7 @@ MapValue &MapValue::operator = (int8_t val)
 }
 
 
-MapValue &MapValue::operator = (uint8_t val)
+MapValue &MapValue::operator=(uint8_t val)
 {
   clearValue();
   type_ = kUInt8;
@@ -493,7 +490,7 @@ MapValue &MapValue::operator = (uint8_t val)
 }
 
 
-MapValue &MapValue::operator = (int16_t val)
+MapValue &MapValue::operator=(int16_t val)
 {
   clearValue();
   type_ = kInt16;
@@ -502,7 +499,7 @@ MapValue &MapValue::operator = (int16_t val)
 }
 
 
-MapValue &MapValue::operator = (uint16_t val)
+MapValue &MapValue::operator=(uint16_t val)
 {
   clearValue();
   type_ = kUInt16;
@@ -511,7 +508,7 @@ MapValue &MapValue::operator = (uint16_t val)
 }
 
 
-MapValue &MapValue::operator = (int32_t val)
+MapValue &MapValue::operator=(int32_t val)
 {
   clearValue();
   type_ = kInt32;
@@ -520,7 +517,7 @@ MapValue &MapValue::operator = (int32_t val)
 }
 
 
-MapValue &MapValue::operator = (uint32_t val)
+MapValue &MapValue::operator=(uint32_t val)
 {
   clearValue();
   type_ = kUInt32;
@@ -529,7 +526,7 @@ MapValue &MapValue::operator = (uint32_t val)
 }
 
 
-MapValue &MapValue::operator = (int64_t val)
+MapValue &MapValue::operator=(int64_t val)
 {
   clearValue();
   type_ = kInt64;
@@ -538,7 +535,7 @@ MapValue &MapValue::operator = (int64_t val)
 }
 
 
-MapValue &MapValue::operator = (uint64_t val)
+MapValue &MapValue::operator=(uint64_t val)
 {
   clearValue();
   type_ = kUInt64;
@@ -547,7 +544,7 @@ MapValue &MapValue::operator = (uint64_t val)
 }
 
 
-MapValue &MapValue::operator = (float val)
+MapValue &MapValue::operator=(float val)
 {
   clearValue();
   type_ = kFloat32;
@@ -556,7 +553,7 @@ MapValue &MapValue::operator = (float val)
 }
 
 
-MapValue &MapValue::operator = (double val)
+MapValue &MapValue::operator=(double val)
 {
   clearValue();
   type_ = kFloat64;
@@ -565,7 +562,7 @@ MapValue &MapValue::operator = (double val)
 }
 
 
-MapValue &MapValue::operator = (bool val)
+MapValue &MapValue::operator=(bool val)
 {
   clearValue();
   type_ = kBoolean;
@@ -574,7 +571,7 @@ MapValue &MapValue::operator = (bool val)
 }
 
 
-MapValue &MapValue::operator = (const char *string)
+MapValue &MapValue::operator=(const char *string)
 {
   clearValue();
   type_ = kString;
@@ -586,16 +583,16 @@ MapValue &MapValue::operator = (const char *string)
   {
 #ifdef _MSC_VER
     strncpy_s(value_.str, len + 1, string, len);
-#else  // _MSC_VER
+#else   // _MSC_VER
     strncpy(value_.str, string, len);
-#endif // _MSC_VER
+#endif  // _MSC_VER
     value_.str[len] = '\0';
   }
   return *this;
 }
 
 
-bool MapValue::operator == (const MapValue &other) const
+bool MapValue::operator==(const MapValue &other) const
 {
   if (type_ != other.type_)
   {
@@ -605,12 +602,7 @@ bool MapValue::operator == (const MapValue &other) const
   const std::string *n1 = static_cast<const std::string *>(name_);
   const std::string *n2 = static_cast<const std::string *>(other.name_);
 
-  if (!(
-        n1 == nullptr && n2 == nullptr ||
-        n1 == nullptr && n2->empty() ||
-        n1->empty() && n2 == nullptr ||
-        n1 == n2
-      ))
+  if (!(n1 == nullptr && n2 == nullptr || n1 == nullptr && n2->empty() || n1->empty() && n2 == nullptr || n1 == n2))
   {
     return false;
   }
@@ -651,7 +643,7 @@ bool MapValue::operator == (const MapValue &other) const
 }
 
 
-bool MapValue::operator != (const MapValue &other) const
+bool MapValue::operator!=(const MapValue &other) const
 {
   return !(*this == other);
 }
@@ -659,8 +651,8 @@ bool MapValue::operator != (const MapValue &other) const
 
 #ifdef _MSC_VER
 #pragma warning(push)
-#pragma warning(disable:4800)
-#endif // _MSC_VER
+#pragma warning(disable : 4800)
+#endif  // _MSC_VER
 template <typename T>
 T MapValue::value() const
 {
@@ -698,10 +690,10 @@ T MapValue::value() const
 }
 #ifdef _MSC_VER
 #pragma warning(pop)
-#endif // _MSC_VER
+#endif  // _MSC_VER
 
 
-bool MapValue::operator < (const MapValue &other) const
+bool MapValue::operator<(const MapValue &other) const
 {
   return *static_cast<const std::string *>(name_) < *static_cast<const std::string *>(other.name_);
 }
@@ -715,8 +707,7 @@ bool MapValue::sortCompare(const MapValue &a, const MapValue &b)
 
 MapInfo::MapInfo()
   : imp_(new MapInfoDetail)
-{
-}
+{}
 
 
 MapInfo::MapInfo(const MapInfo &other)

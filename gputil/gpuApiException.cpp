@@ -28,6 +28,4 @@ ApiException::ApiException(int error_code, const char *msg)
 ApiException::ApiException(ApiException &&other) noexcept
   : Exception(std::move(other))
   , error_code_(other.error_code_)
-{
-
-}
+{}

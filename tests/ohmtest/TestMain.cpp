@@ -19,7 +19,7 @@
 namespace
 {
   std::string app_dir;
-}
+}  // namespace
 
 const char *dataRelPath()
 {

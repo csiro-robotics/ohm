@@ -146,7 +146,7 @@ void MapLayer::clear(uint8_t *mem, const glm::u8vec3 &region_dim) const
     // Work out the member size by the difference in offets to the next member or the end of the voxel.
     size_t member_size = ((i + 1 < imp_->voxel_layout->members.size()) ? imp_->voxel_layout->members[i + 1].offset :
                                                                          imp_->voxel_layout->voxel_byte_size) -
-                        member.offset;
+                         member.offset;
     // Work out how may bytes to clear. Either the member size or the clear value size.
     const size_t clear_size = std::min(member_size, sizeof(member.clear_value));
     // Clear the bytes.

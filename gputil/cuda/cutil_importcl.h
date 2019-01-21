@@ -175,4 +175,4 @@ inline __device__ float3 xyz(float4 v)
 
 #include "cutil_math.h"
 
-#endif // CUDA_IMPORTCL_H
+#endif  // CUDA_IMPORTCL_H

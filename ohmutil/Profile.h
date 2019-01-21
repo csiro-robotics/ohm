@@ -11,7 +11,7 @@
 #include <chrono>
 #include <iosfwd>
 
-namespace ohmutil
+namespace ohm
 {
   typedef std::chrono::high_resolution_clock ProfileClock;
   struct ProfileDetail;
@@ -100,7 +100,7 @@ namespace ohmutil
     ProfileDetail *imp_;
     static Profile s_instance_;
   };
-}
+}  // namespace ohm
 
 /// @def PROFILE(name)
 /// Pushes a @c ProfileMarker to the default @c Profile using the given @p name.
@@ -127,13 +127,13 @@ namespace ohmutil
 
 #if PROFILING
 
-#define PROFILE(name) ohmutil::ProfileMarker __profile##name(#name);
-#define PROFILE_IF(name, cond) ohmutil::ProfileMarker __profile##name(#name, cond);
+#define PROFILE(name) ohm::ProfileMarker __profile##name(#name);
+#define PROFILE_IF(name, cond) ohm::ProfileMarker __profile##name(#name, cond);
 #define PROFILE_END(name) __profile##name.end();
 #define PROFILE_RESTART(name) __profile##name.restart();
 #define PROFILE_RESTART_IF(name, cond) __profile##name.restart(cond);
 
-#else   // PROFILING
+#else  // PROFILING
 
 #define PROFILE(name)
 #define PROFIILE_IF(name)
@@ -141,6 +141,6 @@ namespace ohmutil
 #define PROFILE_RESTART(name)
 #define PROFILE_RESTART_IF(name)
 
-#endif // PROFILING
+#endif  // PROFILING
 
-#endif // OHMUTIL_PROFILE_H
+#endif  // OHMUTIL_PROFILE_H

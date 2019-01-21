@@ -3,16 +3,16 @@
 //
 #include <glm/glm.hpp>
 
-#include <ohm/MapCache.h>
 #include <ohm/Key.h>
-#include <ohm/OccupancyMap.h>
+#include <ohm/MapCache.h>
 #include <ohm/MapSerialise.h>
-#include <ohm/Voxel.h>
+#include <ohm/OccupancyMap.h>
 #include <ohm/OccupancyType.h>
+#include <ohm/Voxel.h>
 
 #include <ohmutil/OhmUtil.h>
-#include <ohmutil/ProgressMonitor.h>
 #include <ohmutil/Options.h>
+#include <ohmutil/ProgressMonitor.h>
 
 #include <liblas/liblas.hpp>
 #include <liblas/reader.hpp>
@@ -58,24 +58,27 @@ namespace
   class MapProgress : public ohm::SerialiseProgress
   {
   public:
-    MapProgress(ProgressMonitor &monitor) : monitor_(monitor) {}
+    MapProgress(ProgressMonitor &monitor)
+      : monitor_(monitor)
+    {}
 
     bool quit() const override { return ::quit > 1; }
 
-    void setTargetProgress(unsigned target) override { monitor_.beginProgress(ProgressMonitor::Info("Loading", target)); }
+    void setTargetProgress(unsigned target) override
+    {
+      monitor_.beginProgress(ProgressMonitor::Info("Loading", target));
+    }
     void incrementProgress(unsigned inc = 1) override { monitor_.incrementProgressBy(inc); }
 
   private:
     ProgressMonitor &monitor_;
   };
-}
+}  // namespace
 
 
 int parseOptions(Options &opt, int argc, char *argv[])
 {
-  cxxopts::Options opt_parse(argv[0],
-    "\nFilters a cloud against an occupancy map, removing points in free voxels."
-  );
+  cxxopts::Options opt_parse(argv[0], "\nFilters a cloud against an occupancy map, removing points in free voxels.");
   opt_parse.positional_help("<map-in.ohm> <cloud-in.laz> <cloud-out.laz>");
 
   try
@@ -197,7 +200,7 @@ size_t filterCloud(ProgressMonitor &prog, const ohm::OccupancyMap &map, const Op
       prog.incrementProgress();
     }
   }
-  catch (std::exception const& e)
+  catch (std::exception const &e)
   {
     std::cerr << "Error: " << e.what() << std::endl;
   }
@@ -205,7 +208,7 @@ size_t filterCloud(ProgressMonitor &prog, const ohm::OccupancyMap &map, const Op
   prog.endProgress();
   std::cout << std::endl;
 
-  std::cout << "Exported " << exported << " / " <<  number_of_points << " point(s)" << std::endl;
+  std::cout << "Exported " << exported << " / " << number_of_points << " point(s)" << std::endl;
 
   return exported;
 }
@@ -232,8 +235,7 @@ int main(int argc, char *argv[])
   MapProgress load_progress(prog);
   ohm::OccupancyMap map(1.0f);
 
-  prog.setDisplayFunction([](const ProgressMonitor::Progress &prog)
-  {
+  prog.setDisplayFunction([](const ProgressMonitor::Progress &prog) {
     std::ostringstream out;
     out.imbue(std::locale(""));
     out << '\r';

@@ -294,7 +294,7 @@ void saveQueryCloud(const ohm::OccupancyMap &map, const ohm::Query &query, const
       c = uint8_t(255 * std::max(0.0f, (colour_range - range_value) / colour_range));
     }
     voxel_pos = map.voxelCentreGlobal(key);
-    ply.addVertex(voxel_pos, Colour(c, 128, 0));
+    ply.addVertex(voxel_pos, ohm::Colour(c, 128, 0));
   }
 
   std::string str = opt.output_base;
@@ -382,7 +382,7 @@ void showTiming(const char *info, const TimingClock::time_point &start_time, con
 {
   std::string timing_str;
   TimingClock::duration exec_time = end_time - start_time;
-  util::timeString(timing_str, exec_time);
+  ohm::util::timeString(timing_str, exec_time);
   if (cycles <= 1)
   {
     printf("%s query completed in %s\n", info, timing_str.c_str());
@@ -391,7 +391,7 @@ void showTiming(const char *info, const TimingClock::time_point &start_time, con
   {
     printf("%s query completed %d queries in %s\n", info, cycles, timing_str.c_str());
     exec_time /= cycles;
-    util::timeString(timing_str, exec_time);
+    ohm::util::timeString(timing_str, exec_time);
     printf("average time per query: %s\n", timing_str.c_str());
   }
 }

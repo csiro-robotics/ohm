@@ -56,6 +56,6 @@ namespace ohm
     val = static_cast<S>(val2);
     return true;
   }
-}
+}  // namespace ohm
 
-#endif // SERIALISEUTIL_H
+#endif  // SERIALISEUTIL_H

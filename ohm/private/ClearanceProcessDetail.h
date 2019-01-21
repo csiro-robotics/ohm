@@ -52,6 +52,6 @@ namespace ohm
 
     void getWork(OccupancyMap &map);
   };
-}
+}  // namespace ohm
 
-#endif // OHM_CLEARANCEPROCESSEDETAIL_H
+#endif  // OHM_CLEARANCEPROCESSEDETAIL_H

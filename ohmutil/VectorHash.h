@@ -106,7 +106,7 @@ namespace vhash
 #ifdef __GNUC__
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wstrict-aliasing"
-#endif // __GNUC__
+#endif  // __GNUC__
 
   /// Generate a hash code for a 3-component vertex.
   /// @param x A vector coordinate.

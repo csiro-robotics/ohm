@@ -19,6 +19,6 @@ namespace gputil
     AccessException(const char *msg = nullptr);
     AccessException(AccessException &&other) noexcept;
   };
-}
+}  // namespace gputil
 
-#endif // GPUACCESSEXCEPTION_H
+#endif  // GPUACCESSEXCEPTION_H

@@ -4,9 +4,9 @@
 //
 // Author: Kazys Stepanas
 #include <ohm/Key.h>
-#include <ohm/OccupancyMap.h>
 #include <ohm/MapChunk.h>
 #include <ohm/MapCoord.h>
+#include <ohm/OccupancyMap.h>
 
 #include <cstdio>
 #include <vector>
@@ -105,7 +105,8 @@ namespace keytests
     addSample(samples, map, glm::vec3(region_max.x, region_max.y, region_max.z));
   }
 
-  bool testSamples(const std::vector<SampleInfo> &samples, OccupancyMap &map, const Key &reference_key, bool expect_region_match)
+  bool testSamples(const std::vector<SampleInfo> &samples, OccupancyMap &map, const Key &reference_key,
+                   bool expect_region_match)
   {
     Key key;
     glm::dvec3 coord;
@@ -114,10 +115,10 @@ namespace keytests
     enum FailureFlag
     {
       kFfZero = 0,
-      kFfRegion = (1<<0),
-      kFfLocal = (1<<1),
-      kFfCoord = (1<<2),
-      kFfExpectedKey = (1<<3)
+      kFfRegion = (1 << 0),
+      kFfLocal = (1 << 1),
+      kFfCoord = (1 << 2),
+      kFfExpectedKey = (1 << 3)
     };
     unsigned failures;
 
@@ -140,8 +141,7 @@ namespace keytests
         failures |= kFfRegion;
       }
 
-      if (key.localKey().x >= map.regionVoxelDimensions().x ||
-          key.localKey().y >= map.regionVoxelDimensions().y ||
+      if (key.localKey().x >= map.regionVoxelDimensions().x || key.localKey().y >= map.regionVoxelDimensions().y ||
           key.localKey().z >= map.regionVoxelDimensions().z)
       {
         failures |= kFfLocal;
@@ -163,11 +163,10 @@ namespace keytests
       {
         tests_ok = false;
 
-        fprintf(stderr, "Sample/key failure: (%g %g %g) : [(%d %d %d) (%u %u %u)]]n",
-            sample.point.x, sample.point.y, sample.point.z,
-            int(sample.expected_key.localKey().x), int(sample.expected_key.localKey().y), int(sample.expected_key.localKey().z),
-            sample.expected_key.regionKey().x, sample.expected_key.regionKey().y, sample.expected_key.regionKey().z
-          );
+        fprintf(stderr, "Sample/key failure: (%g %g %g) : [(%d %d %d) (%u %u %u)]]n", sample.point.x, sample.point.y,
+                sample.point.z, int(sample.expected_key.localKey().x), int(sample.expected_key.localKey().y),
+                int(sample.expected_key.localKey().z), sample.expected_key.regionKey().x,
+                sample.expected_key.regionKey().y, sample.expected_key.regionKey().z);
 
         if (failures & kFfRegion)
         {
@@ -176,27 +175,22 @@ namespace keytests
 
         if (failures & kFfLocal)
         {
-          fprintf(stderr, "  Invalid local index: (%i %i %i) Max (%i %i %i)\n",
-              int(key.localKey().x), int(key.localKey().y), int(key.localKey().z),
-              int(map.regionVoxelDimensions().x), int(map.regionVoxelDimensions().y), int(map.regionVoxelDimensions().z)
-            );
+          fprintf(stderr, "  Invalid local index: (%i %i %i) Max (%i %i %i)\n", int(key.localKey().x),
+                  int(key.localKey().y), int(key.localKey().z), int(map.regionVoxelDimensions().x),
+                  int(map.regionVoxelDimensions().y), int(map.regionVoxelDimensions().z));
         }
 
         if (failures & kFfCoord)
         {
           fprintf(stderr, "  Voxel centre too far from sample (%g): S:(%g %g %g) V:(%g %g %g) D:(%g %g %g)\n",
-              map.resolution(), sample.point.x, sample.point.y, sample.point.z,
-              coord.x, coord.y, coord.z,
-              separation.x, separation.y, separation.z
-            );
+                  map.resolution(), sample.point.x, sample.point.y, sample.point.z, coord.x, coord.y, coord.z,
+                  separation.x, separation.y, separation.z);
         }
 
         if (failures & kFfExpectedKey)
         {
-          fprintf(stderr, "  Unexpected key: [(%d %d %d) (%u %u %u)]]\n",
-              int(key.localKey().x), int(key.localKey().y), int(key.localKey().z),
-              key.regionKey().x, key.regionKey().y, key.regionKey().z
-            );
+          fprintf(stderr, "  Unexpected key: [(%d %d %d) (%u %u %u)]]\n", int(key.localKey().x), int(key.localKey().y),
+                  int(key.localKey().z), key.regionKey().x, key.regionKey().y, key.regionKey().z);
         }
       }
     }
@@ -255,7 +249,8 @@ namespace keytests
   void quantisationTest(const REAL coord, const int region_size, const REAL voxel_resolution)
   {
     int r = ohm::pointToRegionCoord(coord, region_size * voxel_resolution);
-    REAL rmin = (ohm::regionCentreCoord(r, region_size * voxel_resolution) - REAL(0.5) * region_size * voxel_resolution);
+    REAL rmin =
+      (ohm::regionCentreCoord(r, region_size * voxel_resolution) - REAL(0.5) * region_size * voxel_resolution);
     int v = ohm::pointToRegionVoxel(coord - rmin, voxel_resolution, region_size * voxel_resolution);
     EXPECT_LT(v, region_size);
   }
@@ -270,7 +265,7 @@ namespace keytests
     // Attempting to quantise a coordinate at the upper boundary of region -1 would generate a bad voxel coordinate.
     // This is testing that this case is fixed.
     {
-      //const float badValue = -6.4000005722045898f;
+      // const float badValue = -6.4000005722045898f;
       const float epsilon = 5e-7f;
       const float bad_value = region_size * resolution_f * -0.5f - epsilon;
       quantisationTest(bad_value, region_size, resolution_f);
@@ -282,4 +277,4 @@ namespace keytests
       quantisationTest(bad_value, region_size, resolution);
     }
   }
-}
+}  // namespace keytests

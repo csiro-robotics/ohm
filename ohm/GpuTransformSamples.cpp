@@ -38,7 +38,7 @@ namespace
   GpuProgramRef program_ref("TransformSamples", GpuProgramRef::kSourceFile, "TransformSamples.cl");
 #endif  // OHM_EMBED_GPU_CODE
 
-  
+
   inline bool goodSample(const glm::dvec3 &sample, double max_range)
   {
     if (glm::any(glm::isnan(sample)))

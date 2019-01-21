@@ -44,6 +44,6 @@ namespace ohm
   private:
     bool paused_;
   };
-}
+}  // namespace ohm
 
-#endif // OHM_MAPPROCESS_H
+#endif  // OHM_MAPPROCESS_H

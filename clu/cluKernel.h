@@ -17,10 +17,7 @@ namespace clu
   template <typename T>
   struct KernelArgHandler
   {
-    static cl_int set(cl::Kernel &kernel, int arg_index, const T &arg)
-    {
-      return kernel.setArg(arg_index, arg);
-    }
+    static cl_int set(cl::Kernel &kernel, int arg_index, const T &arg) { return kernel.setArg(arg_index, arg); }
   };
 
   /// @internal

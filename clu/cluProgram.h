@@ -59,9 +59,7 @@ namespace clu
   ///     work groups size.
   /// @param err Error code return.
   /// @return The maximum work group size.
-  size_t maxWorkgroupSize(const cl::Kernel &kernel,
-                          const LocalMemCalcFunc &local_mem_func,
-                          cl_int *err);
+  size_t maxWorkgroupSize(const cl::Kernel &kernel, const LocalMemCalcFunc &local_mem_func, cl_int *err);
 
   /// @overload
   inline size_t maxWorkgroupSize(const cl::Kernel &kernel, cl_int *err = nullptr)
@@ -145,20 +143,13 @@ namespace clu
   ///     Source file path is not passed if this is null. Warning: no spaces are inserted
   ///     between the argument and the source file name. The caller must do so if required.
   /// @param search_paths Additional search paths for the @p sourceFileName. Use comma as a path separator.
-  cl_int buildProgramFromFile(cl::Program &program, cl::Context &ocl,
-                              std::string &source_file_name,
-                              std::ostream &log,
-                              const char *args = nullptr,
-                              const char *debug_option = nullptr,
-                              const char *source_file_opt = nullptr,
-                              const char *search_paths = nullptr);
+  cl_int buildProgramFromFile(cl::Program &program, cl::Context &ocl, std::string &source_file_name, std::ostream &log,
+                              const char *args = nullptr, const char *debug_option = nullptr,
+                              const char *source_file_opt = nullptr, const char *search_paths = nullptr);
 
-  cl_int buildProgramFromString(cl::Program &program, cl::Context &ocl,
-                                const char *source_code, size_t source_length,
-                                std::ostream &log,
-                                const char *reference_name,
-                                const char *build_args = nullptr,
+  cl_int buildProgramFromString(cl::Program &program, cl::Context &ocl, const char *source_code, size_t source_length,
+                                std::ostream &log, const char *reference_name, const char *build_args = nullptr,
                                 const char *debug_option = nullptr);
-}
+}  // namespace clu
 
-#endif // CLUPROGRAM_H
+#endif  // CLUPROGRAM_H

@@ -60,6 +60,6 @@ namespace ohm
     up = upAxisNormal(up_axis_id);
     vertical_axis_id = (up_axis_id >= 0) ? up_axis_id : -(up_axis_id + 1);
   }
-} // namespace ohm
+}  // namespace ohm
 
-#endif // HEIGHTMAPDETAIL_H
+#endif  // HEIGHTMAPDETAIL_H

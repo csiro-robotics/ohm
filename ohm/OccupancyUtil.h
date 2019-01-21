@@ -22,23 +22,22 @@ namespace ohm
   // This assumes version 1.0 will be 1000
 #if GLM_VERSION < 99
   using GlmQualifier = glm::precision;
-#else // GLM_VERSION
+#else   // GLM_VERSION
   using GlmQualifier = glm::qualifier;
-#endif // GLM_VERSION
+#endif  // GLM_VERSION
 
   template <typename T, GlmQualifier Q>
   inline T volumeOf(const glm::tvec3<T, Q> &expanse)
   {
     return expanse.x * expanse.y * expanse.z;
   }
-}
+}  // namespace ohm
 
 
 inline std::ostream &operator<<(std::ostream &out, const ohm::Key &key)
 {
-  out << "[ R(" << key.regionKey().x << ',' << key.regionKey().y << ',' << key.regionKey().z
-      << ") V(" << int(key.localKey().x) << ',' << int(key.localKey().y) << ',' << int(key.localKey().z)
-      << ") ]";
+  out << "[ R(" << key.regionKey().x << ',' << key.regionKey().y << ',' << key.regionKey().z << ") V("
+      << int(key.localKey().x) << ',' << int(key.localKey().y) << ',' << int(key.localKey().z) << ") ]";
   return out;
 }
 
@@ -91,4 +90,4 @@ inline std::ostream &operator<<(std::ostream &out, const glm::tvec4<unsigned cha
   return out;
 }
 
-#endif // OCCUPANCYUTIL
+#endif  // OCCUPANCYUTIL

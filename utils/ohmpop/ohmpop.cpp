@@ -297,7 +297,7 @@ namespace
 
 int populateMap(const Options &opt)
 {
-  ohmutil::ScopedTimeDisplay time_display("Execution time");
+  ohm::ScopedTimeDisplay time_display("Execution time");
   if (opt.quiet)
   {
     time_display.disable();

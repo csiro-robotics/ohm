@@ -111,7 +111,7 @@ namespace gputil
     ///     @p elementSize.
     /// @return The number of elements read. May be less than @c element_count if this buffer is not
     ///     large enough to hold @c element_count.
-    size_t readElements(void *dst, size_t element_size, size_t element_count, size_t offset_elements, 
+    size_t readElements(void *dst, size_t element_size, size_t element_count, size_t offset_elements,
                         size_t buffer_element_size);
 
     /// An overload of @c readElements() using the template sizes to determine the sizes.
@@ -203,6 +203,6 @@ namespace gputil
     void *pinned_;
     PinMode mode_;
   };
-}
+}  // namespace gputil
 
-#endif // GPUPINNEDBUFFER_H
+#endif  // GPUPINNEDBUFFER_H

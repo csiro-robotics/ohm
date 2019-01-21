@@ -14,9 +14,7 @@ using namespace gputil;
 
 Event::Event()
   : imp_(nullptr)  // created as needed
-{
-
-}
+{}
 
 Event::Event(const Event &other)
   : imp_(nullptr)  // created as needed
@@ -150,7 +148,8 @@ Event &Event::operator=(const Event &other)
 }
 
 
-Event &Event::operator=(Event &&other) noexcept {
+Event &Event::operator=(Event &&other) noexcept
+{
   release();
   if (other.imp_)
   {

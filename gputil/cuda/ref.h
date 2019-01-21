@@ -8,8 +8,8 @@
 
 #include "gpuConfig.h"
 
-#include <mutex>
 #include <functional>
+#include <mutex>
 
 namespace gputil
 {
@@ -17,7 +17,7 @@ namespace gputil
   class Ref
   {
   public:
-    typedef std::function<void (T&)> ReleaseFunc;
+    typedef std::function<void(T &)> ReleaseFunc;
 
     Ref(T obj, unsigned initial_ref_count, const ReleaseFunc &release);
     Ref(Ref &&other);
@@ -55,8 +55,7 @@ namespace gputil
     : obj_(obj)
     , reference_count_(initial_ref_count)
     , release_func_(release)
-  {
-  }
+  {}
 
 
   template <typename T>
@@ -71,8 +70,7 @@ namespace gputil
 
   template <typename T>
   inline Ref<T>::~Ref()
-  {
-  }
+  {}
 
 
   template <typename T>
@@ -133,6 +131,6 @@ namespace gputil
     other.reference_count_ = 0;
     return *this;
   }
-}
+}  // namespace gputil
 
-#endif // REF_H
+#endif  // REF_H

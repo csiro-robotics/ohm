@@ -33,7 +33,7 @@ namespace ohm
   /// @param end A pointer to the sample ray end coordinate. May be modified.
   /// @param filter_flags A pointer to the flags. May be added to using flags from @c RayFilterFlag.
   /// @return True if the sample ray may be processed, false to skip this sample.
-  typedef std::function<bool (glm::dvec3 *, glm::dvec3 *, unsigned *)> RayFilterFunction;
+  typedef std::function<bool(glm::dvec3 *, glm::dvec3 *, unsigned *)> RayFilterFunction;
 
   /// A helper function to validate a sample ray. Fails on rays which have start or end point as infinite or NaN or
   /// if the ray length exceeds @p max_range (skipped if @p max_range <= 0).
@@ -82,6 +82,6 @@ namespace ohm
   /// @return True
   bool ohm_API clipNear(glm::dvec3 *start, glm::dvec3 *end, unsigned *filter_flags, const ohm::Aabb &clip_box);
 
-} // namespace ohm
+}  // namespace ohm
 
-#endif // RAYFILTER_H
+#endif  // RAYFILTER_H

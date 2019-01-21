@@ -23,6 +23,6 @@ namespace ohm
     RES_Map = 1,
     RES_MapMesh = 1,  // OK to be the same as RES_Map. One is object, the other is resource.
   };
-}
+}  // namespace ohm
 
-#endif // DEBUG_IDS_H_
+#endif  // DEBUG_IDS_H_

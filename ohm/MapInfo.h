@@ -187,55 +187,55 @@ namespace ohm
     /// Copy assignment.
     /// @param other Value to assign.
     /// @return A reference to this object.
-    MapValue &operator = (const MapValue &other);
+    MapValue &operator=(const MapValue &other);
     /// Value assignment. This changes the @c Type as required.
     /// @param val Value to assign.
     /// @return A reference to this object.
-    MapValue &operator = (int8_t val);
+    MapValue &operator=(int8_t val);
     /// Value assignment. This changes the @c Type as required.
     /// @param val Value to assign.
     /// @return A reference to this object.
-    MapValue &operator = (uint8_t val);
+    MapValue &operator=(uint8_t val);
     /// Value assignment. This changes the @c Type as required.
     /// @param val Value to assign.
     /// @return A reference to this object.
-    MapValue &operator = (int16_t val);
+    MapValue &operator=(int16_t val);
     /// Value assignment. This changes the @c Type as required.
     /// @param val Value to assign.
     /// @return A reference to this object.
-    MapValue &operator = (uint16_t val);
+    MapValue &operator=(uint16_t val);
     /// Value assignment. This changes the @c Type as required.
     /// @param val Value to assign.
     /// @return A reference to this object.
-    MapValue &operator = (int32_t val);
+    MapValue &operator=(int32_t val);
     /// Value assignment. This changes the @c Type as required.
     /// @param val Value to assign.
     /// @return A reference to this object.
-    MapValue &operator = (uint32_t val);
+    MapValue &operator=(uint32_t val);
     /// Value assignment. This changes the @c Type as required.
     /// @param val Value to assign.
     /// @return A reference to this object.
-    MapValue &operator = (int64_t val);
+    MapValue &operator=(int64_t val);
     /// Value assignment. This changes the @c Type as required.
     /// @param val Value to assign.
     /// @return A reference to this object.
-    MapValue &operator = (uint64_t val);
+    MapValue &operator=(uint64_t val);
     /// Value assignment. This changes the @c Type as required.
     /// @param val Value to assign.
     /// @return A reference to this object.
-    MapValue &operator = (float val);
+    MapValue &operator=(float val);
     /// Value assignment. This changes the @c Type as required.
     /// @param val Value to assign.
     /// @return A reference to this object.
-    MapValue &operator = (double val);
+    MapValue &operator=(double val);
     /// Value assignment. This changes the @c Type as required.
     /// @param val Value to assign.
     /// @return A reference to this object.
-    MapValue &operator = (bool val);
+    MapValue &operator=(bool val);
     /// Value assignment. This changes the @c Type as required.
     /// @param val Value to assign.
     /// @return A reference to this object.
-    MapValue &operator = (const char *val);
+    MapValue &operator=(const char *val);
 
     /// Equality comparison. Equality requires:
     /// - Same @c Type (including @c kTypeNone).
@@ -243,16 +243,16 @@ namespace ohm
     /// - Equal values.
     /// @param other Item to compare.
     /// @return True if this equals @p other as described above.
-    bool operator == (const MapValue &other) const;
+    bool operator==(const MapValue &other) const;
 
     /// Inequality. Negation of ==.
     /// @param other Item to compare.
     /// @return False if this equals @p other as described in the == operator.
-    bool operator != (const MapValue &other) const;
+    bool operator!=(const MapValue &other) const;
 
     /// Less than operator for sorting. The result is entirely based on the names
     /// and the result of a less than comparison on the names.
-    bool operator < (const MapValue &other) const;
+    bool operator<(const MapValue &other) const;
 
     /// Comparison function for sorting list of @c MapValue objects.
     /// @param a The first value.
@@ -261,7 +261,6 @@ namespace ohm
     static bool sortCompare(const MapValue &a, const MapValue &b);
 
   private:
-
     /// Internal type cast.
     /// @tparam T Target type.
     /// @return The converted value.
@@ -283,8 +282,8 @@ namespace ohm
       double f64;
       bool b;
       char *str;
-    } value_; ///< Value member.
-    Type type_; ///< Type member.
+    } value_;    ///< Value member.
+    Type type_;  ///< Type member.
   };
 
 
@@ -343,6 +342,6 @@ namespace ohm
   private:
     MapInfoDetail *imp_;  ///< Data implementation.
   };
-}
+}  // namespace ohm
 
 #endif  // MAPINFO_H

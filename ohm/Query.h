@@ -153,6 +153,6 @@ namespace ohm
   protected:
     QueryDetail *imp_;
   };
-}
+}  // namespace ohm
 
-#endif // OCCUPANCYQUERY_H
+#endif  // OCCUPANCYQUERY_H

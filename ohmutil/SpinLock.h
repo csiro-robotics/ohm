@@ -27,7 +27,7 @@ public:
 
   /// Try attain the lock without blocking.
   /// @return True if the lock is attained, false if it could not be attained.
-  bool try_lock(); // NOLINT
+  bool try_lock();  // NOLINT
 
   /// Unlock the lock. Should only ever be called by the scope which called @c lock()
   /// or succeeded at @c try_lock.
@@ -40,12 +40,37 @@ private:
 class ScopedSpinLock
 {
 public:
-  inline ScopedSpinLock(SpinLock &lock) : lock_(lock), have_lock_(true) { lock_.lock(); }
+  inline ScopedSpinLock(SpinLock &lock)
+    : lock_(lock)
+    , have_lock_(true)
+  {
+    lock_.lock();
+  }
   inline ~ScopedSpinLock() { unlock(); }
 
-  inline void lock() { if (!have_lock_) { lock_.lock(); have_lock_ = true; } }
-  inline void unlock() { if (have_lock_) { lock_.unlock(); have_lock_ = false; } }
-  inline void try_lock() { if (!have_lock_) { have_lock_ = lock_.try_lock(); } } // NOLINT
+  inline void lock()
+  {
+    if (!have_lock_)
+    {
+      lock_.lock();
+      have_lock_ = true;
+    }
+  }
+  inline void unlock()
+  {
+    if (have_lock_)
+    {
+      lock_.unlock();
+      have_lock_ = false;
+    }
+  }
+  inline void try_lock()
+  {
+    if (!have_lock_)
+    {
+      have_lock_ = lock_.try_lock();
+    }
+  }  // NOLINT
 
 private:
   SpinLock lock_;
@@ -53,4 +78,4 @@ private:
 };
 
 
-#endif // OHMUTIL_SPINLOCK_H
+#endif  // OHMUTIL_SPINLOCK_H

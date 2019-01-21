@@ -54,7 +54,7 @@ namespace
 
     if (str[0] == str[str.length() - 1])
     {
-      if (str[0] == '"' || str[0] == '\'') // fix syntax hilighting in VSCode :"
+      if (str[0] == '"' || str[0] == '\'')  // fix syntax hilighting in VSCode :"
       {
         return str.substr(1, str.length() - 2);
       }
@@ -284,7 +284,8 @@ namespace clu
 
       // const cl_uint min_version_major = 1;
       // const cl_uint min_version_minor = 2;
-      // if (version_major < min_version_major || version_major == min_version_major && version_minor < min_version_minor)
+      // if (version_major < min_version_major || version_major == min_version_major && version_minor <
+      // min_version_minor)
       // {
       //   continue;
       // }

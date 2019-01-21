@@ -12,7 +12,8 @@
 
 using namespace ohm;
 
-template <typename T> const char *VoxelLayoutT<T>::memberName(size_t member_index) const
+template <typename T>
+const char *VoxelLayoutT<T>::memberName(size_t member_index) const
 {
   if (member_index >= detail_->members.size())
   {
@@ -23,7 +24,8 @@ template <typename T> const char *VoxelLayoutT<T>::memberName(size_t member_inde
 }
 
 
-template <typename T> size_t VoxelLayoutT<T>::memberOffset(size_t member_index) const
+template <typename T>
+size_t VoxelLayoutT<T>::memberOffset(size_t member_index) const
 {
   if (member_index >= detail_->members.size())
   {
@@ -34,7 +36,8 @@ template <typename T> size_t VoxelLayoutT<T>::memberOffset(size_t member_index) 
 }
 
 
-template <typename T> DataType::Type VoxelLayoutT<T>::memberType(size_t member_index) const
+template <typename T>
+DataType::Type VoxelLayoutT<T>::memberType(size_t member_index) const
 {
   if (member_index >= detail_->members.size())
   {
@@ -45,7 +48,8 @@ template <typename T> DataType::Type VoxelLayoutT<T>::memberType(size_t member_i
 }
 
 
-template <typename T> size_t VoxelLayoutT<T>::memberSize(size_t member_index) const
+template <typename T>
+size_t VoxelLayoutT<T>::memberSize(size_t member_index) const
 {
   if (member_index >= detail_->members.size())
   {
@@ -56,25 +60,29 @@ template <typename T> size_t VoxelLayoutT<T>::memberSize(size_t member_index) co
 }
 
 
-template <typename T> uint64_t VoxelLayoutT<T>::memberClearValue(size_t member_index) const
+template <typename T>
+uint64_t VoxelLayoutT<T>::memberClearValue(size_t member_index) const
 {
   return detail_->members[member_index].clear_value;
 }
 
 
-template <typename T> size_t VoxelLayoutT<T>::voxelByteSize() const
+template <typename T>
+size_t VoxelLayoutT<T>::voxelByteSize() const
 {
   return detail_->voxel_byte_size;
 }
 
 
-template <typename T> size_t VoxelLayoutT<T>::memberCount() const
+template <typename T>
+size_t VoxelLayoutT<T>::memberCount() const
 {
   return detail_->members.size();
 }
 
 
-template <typename T> const void *VoxelLayoutT<T>::memberPtr(size_t member_index, const void *mem) const
+template <typename T>
+const void *VoxelLayoutT<T>::memberPtr(size_t member_index, const void *mem) const
 {
   if (member_index >= detail_->members.size())
   {
@@ -86,7 +94,8 @@ template <typename T> const void *VoxelLayoutT<T>::memberPtr(size_t member_index
 }
 
 
-template <typename T> void *VoxelLayoutT<T>::memberPtr(size_t member_index, void *mem) const
+template <typename T>
+void *VoxelLayoutT<T>::memberPtr(size_t member_index, void *mem) const
 {
   if (member_index >= detail_->members.size())
   {
@@ -175,7 +184,7 @@ namespace
       detail->voxel_byte_size = 8 * ((detail->next_offset + 7) / 8);
     }
   }
-}
+}  // namespace
 
 VoxelLayout::VoxelLayout()
   : VoxelLayoutT<VoxelLayoutDetail>(nullptr)
@@ -213,7 +222,7 @@ bool VoxelLayout::removeMember(const char *name)
 
   // Recalculate next offset and voxel size as we go.
   detail_->next_offset = detail_->voxel_byte_size = 0;
-  for (auto iter = detail_->members.begin(); iter != detail_->members.end(); )
+  for (auto iter = detail_->members.begin(); iter != detail_->members.end();)
   {
     VoxelMember &member = *iter;
     if (name_str.compare(member.name) == 0)

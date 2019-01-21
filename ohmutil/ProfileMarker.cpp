@@ -7,12 +7,11 @@
 
 #include "Profile.h"
 
-using namespace ohmutil;
+using namespace ohm;
 
 ProfileMarker::ProfileMarker(const char *name, bool activate)
- : ProfileMarker(name, nullptr, activate)
-{
-}
+  : ProfileMarker(name, nullptr, activate)
+{}
 
 
 ProfileMarker::ProfileMarker(const char *name, Profile *profile, bool activate)

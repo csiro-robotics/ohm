@@ -38,11 +38,11 @@ namespace ohmtestutil
       layout_matches = layout_matches && layer.flags() == ref_layer.flags();
       EXPECT_EQ(layer.flags(), ref_layer.flags());
       layout_matches = layout_matches && layer.dimensions(map.regionVoxelDimensions()) ==
-                                         ref_layer.dimensions(reference_map.regionVoxelDimensions());
+                                           ref_layer.dimensions(reference_map.regionVoxelDimensions());
       EXPECT_EQ(layer.dimensions(map.regionVoxelDimensions()),
                 ref_layer.dimensions(reference_map.regionVoxelDimensions()));
       layout_matches = layout_matches && layer.layerByteSize(map.regionVoxelDimensions()) ==
-                                         ref_layer.layerByteSize(reference_map.regionVoxelDimensions());
+                                           ref_layer.layerByteSize(reference_map.regionVoxelDimensions());
       EXPECT_EQ(layer.layerByteSize(map.regionVoxelDimensions()),
                 ref_layer.layerByteSize(reference_map.regionVoxelDimensions()));
 
@@ -185,4 +185,4 @@ namespace ohmtestutil
       }
     }
   }
-}
+}  // namespace ohmtestutil

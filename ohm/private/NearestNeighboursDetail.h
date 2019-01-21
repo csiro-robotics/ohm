@@ -46,14 +46,11 @@ namespace ohm
       unsigned queued_voxels = 0u;
       unsigned result_count = 0u;
 
-      inline void clear()
-      {
-        queued_voxels = result_count = 0u;
-      }
+      inline void clear() { queued_voxels = result_count = 0u; }
 
     } gpu_data;
     bool gpu_ok = false;
   };
-}
+}  // namespace ohm
 
-#endif // OHM_NEARESTNEIGHBOURSDETAIL_H
+#endif  // OHM_NEARESTNEIGHBOURSDETAIL_H

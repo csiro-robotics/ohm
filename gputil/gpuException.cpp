@@ -12,7 +12,7 @@ using namespace gputil;
 
 #ifdef WIN32
 #define strncpy(dst, msg, len) strncpy_s(dst, len + 1, msg, len)
-#endif // WIN32
+#endif  // WIN32
 
 Exception::Exception(const char *msg)
   : message_(nullptr)

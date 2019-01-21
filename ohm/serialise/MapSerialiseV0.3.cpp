@@ -79,6 +79,7 @@ namespace ohm
         chunk.region.hash = MapRegion::Hash::calculate(chunk.region);
       }
 
-      return (ok) ? 0 : kSeFileReadFailure;    }
-  }  // namespace v0
+      return (ok) ? 0 : kSeFileReadFailure;
+    }
+  }  // namespace v0_3
 }  // namespace ohm

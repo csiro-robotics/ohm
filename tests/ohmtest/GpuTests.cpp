@@ -203,12 +203,12 @@ namespace gpumap
     }
 
     // Not currently fast enough. Revisit once I have a clear idea on how many input points to expect.
-//#ifdef NDEBUG
-//    if (compare_performance)
-//    {
-//      EXPECT_LE(gpu_time, cpu_time) << "CPU execution less than GPU.";
-//    }
-//#endif // NDEBUG
+    //#ifdef NDEBUG
+    //    if (compare_performance)
+    //    {
+    //      EXPECT_LE(gpu_time, cpu_time) << "CPU execution less than GPU.";
+    //    }
+    //#endif // NDEBUG
   }
 
 

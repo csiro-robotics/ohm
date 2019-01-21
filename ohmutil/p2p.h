@@ -33,6 +33,6 @@ inline const glm::vec3 *p2pArray(const tes::Vector3f *points)
   return reinterpret_cast<const glm::vec3 *>(points);
 }
 
-#endif // TES_ENABLE
+#endif  // TES_ENABLE
 
 #endif  // OHMUTIL_P2P_H

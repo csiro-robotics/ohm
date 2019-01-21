@@ -10,8 +10,8 @@
 #include <ohm/OccupancyUtil.h>
 // #include <ohm/OccupancyType.h>
 
-#include <ohmutil/OhmUtil.h>
 #include <ohmtools/OhmGen.h>
+#include <ohmutil/OhmUtil.h>
 
 #include <chrono>
 #include <random>
@@ -60,7 +60,8 @@ namespace linekeys
       if (compare_key_count)
       {
         EXPECT_EQ(query.intersectedVoxels()[index_offset], reference.intersectedVoxels()[index_offset_ref]);
-        EXPECT_EQ(query.intersectedVoxels()[index_offset + key_count - 1], reference.intersectedVoxels()[index_offset_ref + key_count_ref - 1]);
+        EXPECT_EQ(query.intersectedVoxels()[index_offset + key_count - 1],
+                  reference.intersectedVoxels()[index_offset_ref + key_count_ref - 1]);
       }
 
       // Start at index 1. Already checked the start voxel.
@@ -83,7 +84,8 @@ namespace linekeys
               if (key.localKey()[a] != key_ref.localKey()[a])
               {
                 // Divergent axis. We expect only a single voxel difference.
-                const bool allowed_voxel_shift = std::abs(key.localKey()[a] - key_ref.localKey()[a]) <= allow_voxel_deviation;
+                const bool allowed_voxel_shift =
+                  std::abs(key.localKey()[a] - key_ref.localKey()[a]) <= allow_voxel_deviation;
                 keys_ok = keys_ok && allowed_voxel_shift;
                 EXPECT_LE(std::abs(key.localKey()[a] - key_ref.localKey()[a]), allow_voxel_deviation);
               }
@@ -112,9 +114,12 @@ namespace linekeys
                 {
                   // Divergent axis. We expect one voxel to be zero and the other to be the maximum of
                   // the next region.
-                  bool allowed_voxel_shift = key.localKey()[a] == 0 && key_ref.localKey()[a] == map.regionVoxelDimensions()[a] - allow_voxel_deviation ||
-                                           key_ref.localKey()[a] == 0 && key.localKey()[a] == map.regionVoxelDimensions()[a] - allow_voxel_deviation ||
-                                           std::abs(key.regionKey()[a] - key_ref.regionKey()[a]) <= allow_voxel_deviation;
+                  bool allowed_voxel_shift =
+                    key.localKey()[a] == 0 &&
+                      key_ref.localKey()[a] == map.regionVoxelDimensions()[a] - allow_voxel_deviation ||
+                    key_ref.localKey()[a] == 0 &&
+                      key.localKey()[a] == map.regionVoxelDimensions()[a] - allow_voxel_deviation ||
+                    std::abs(key.regionKey()[a] - key_ref.regionKey()[a]) <= allow_voxel_deviation;
                   EXPECT_TRUE(allowed_voxel_shift);
                   if (!allowed_voxel_shift)
                   {
@@ -141,7 +146,8 @@ namespace linekeys
       if (!line_ok)
       {
         std::cout << std::setprecision(20);
-        std::cout << "Failed with line [" << r << "]: " << (query.rays()[r * 2 + 0]) << " to " << (query.rays()[r * 2 + 1]) << std::endl;
+        std::cout << "Failed with line [" << r << "]: " << (query.rays()[r * 2 + 0]) << " to "
+                  << (query.rays()[r * 2 + 1]) << std::endl;
         EXPECT_TRUE(line_ok);
       }
     }
@@ -200,12 +206,12 @@ namespace linekeys
       line_points.push_back(glm::dvec3(rand(rand_engine), rand(rand_engine), rand(rand_engine)));
       line_points.push_back(glm::dvec3(rand(rand_engine), rand(rand_engine), rand(rand_engine)));
     }
-#else  // #
+#else   // #
     // The following line highlights a deviation between CPU and GPU algorithms. If you push these points
     // as dvec3, then there is a discrepancy between the CPU/GPU results.
-    line_points.push_back(glm::vec3(8.249521446748637743,1.6640723158759520572,15.084516018081700395));
-    line_points.push_back(glm::vec3(11.186323857973910378,-14.315011276937029905,6.2049214437162198976));
-#endif // #
+    line_points.push_back(glm::vec3(8.249521446748637743, 1.6640723158759520572, 15.084516018081700395));
+    line_points.push_back(glm::vec3(11.186323857973910378, -14.315011276937029905, 6.2049214437162198976));
+#endif  // #
     gpu_query.setRays(line_points.data(), line_points.size());
     gpu_query2.setRays(line_points.data(), line_points.size());
     cpu_query.setRays(line_points.data(), line_points.size());
@@ -226,9 +232,9 @@ namespace linekeys
       const auto gpu_end = TimingClock::now();
       const auto gpu_duration = gpu_end - gpu_start;
       const auto gpu_per_line = gpu_duration / line_count;
-      util::logDuration(std::cout, gpu_duration);
+      ohm::util::logDuration(std::cout, gpu_duration);
       std::cout << " ";
-      util::logDuration(std::cout, gpu_per_line);
+      ohm::util::logDuration(std::cout, gpu_per_line);
       std::cout << " per line" << std::endl;
       EXPECT_TRUE(gpu_exec_ok);
 
@@ -239,9 +245,9 @@ namespace linekeys
       const auto gpu_end2 = TimingClock::now();
       const auto gpu_duration2 = gpu_end2 - gpu_start2;
       const auto gpu_per_line2 = gpu_duration / line_count;
-      util::logDuration(std::cout, gpu_duration2);
+      ohm::util::logDuration(std::cout, gpu_duration2);
       std::cout << " ";
-      util::logDuration(std::cout, gpu_per_line2);
+      ohm::util::logDuration(std::cout, gpu_per_line2);
       std::cout << " per line" << std::endl;
       EXPECT_TRUE(gpu_exec_ok2);
 
@@ -251,9 +257,9 @@ namespace linekeys
       auto cpu_end = TimingClock::now();
       auto cpu_duration = cpu_end - cpu_start;
       auto cpu_per_line = cpu_duration / line_count;
-      util::logDuration(std::cout, cpu_duration);
+      ohm::util::logDuration(std::cout, cpu_duration);
       std::cout << " ";
-      util::logDuration(std::cout, cpu_per_line);
+      ohm::util::logDuration(std::cout, cpu_per_line);
       std::cout << " per line" << std::endl;
       EXPECT_TRUE(cpu_exec_ok);
 
@@ -266,18 +272,18 @@ namespace linekeys
       cpu_end = TimingClock::now();
       cpu_duration = cpu_end - cpu_start;
       cpu_per_line = cpu_duration / line_count;
-      util::logDuration(std::cout, cpu_duration);
+      ohm::util::logDuration(std::cout, cpu_duration);
       std::cout << " ";
-      util::logDuration(std::cout, cpu_per_line);
+      ohm::util::logDuration(std::cout, cpu_per_line);
       std::cout << " per line" << std::endl;
 
-      //std::cout << "GPU:\n";
-      //dumpLines(gpuQuery);
-      //std::cout << "CPU:\n";
-      //dumpLines(cpuQuery);
+      // std::cout << "GPU:\n";
+      // dumpLines(gpuQuery);
+      // std::cout << "CPU:\n";
+      // dumpLines(cpuQuery);
       compareResults(gpu_query, cpu_query);
       // Compare cached GPU query against the original.
       compareResults(gpu_query, gpu_query2);
     }
   }
-}
+}  // namespace linekeys

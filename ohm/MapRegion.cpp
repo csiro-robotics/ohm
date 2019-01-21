@@ -4,13 +4,13 @@
 //
 #include "MapRegion.h"
 
+#include <ohmutil/VectorHash.h>
 #include "Key.h"
 #include "MapCoord.h"
-#include <ohmutil/VectorHash.h>
 
 #ifdef OHM_VALIDATION
 #include <cstdio>
-#endif // OHM_VALIDATION
+#endif  // OHM_VALIDATION
 
 using namespace ohm;
 
@@ -45,11 +45,8 @@ MapRegion::MapRegion(const glm::dvec3 &point, const glm::dvec3 &map_origin, cons
 }
 
 
-bool MapRegion::voxelKey(Key &key,
-                         const glm::dvec3 &point,
-                         const glm::dvec3 &map_origin,
-                         const glm::dvec3 &region_dimensions,
-                         const glm::ivec3 &voxel_counts,
+bool MapRegion::voxelKey(Key &key, const glm::dvec3 &point, const glm::dvec3 &map_origin,
+                         const glm::dvec3 &region_dimensions, const glm::ivec3 &voxel_counts,
                          double voxel_resolution) const
 {
   // Localise.
@@ -60,9 +57,7 @@ bool MapRegion::voxelKey(Key &key,
                      pointToRegionVoxel(p.y, voxel_resolution, region_dimensions.y),
                      pointToRegionVoxel(p.z, voxel_resolution, region_dimensions.z));
 
-  if (0 <= q.x && q.x < voxel_counts.x &&
-      0 <= q.y && q.y < voxel_counts.y &&
-      0 <= q.z && q.z < voxel_counts.z)
+  if (0 <= q.x && q.x < voxel_counts.x && 0 <= q.y && q.y < voxel_counts.y && 0 <= q.z && q.z < voxel_counts.z)
   {
     key.setRegionKey(coord);
     key.setLocalKey(q);

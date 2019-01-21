@@ -22,19 +22,17 @@ namespace gputil
   {
     inline EventDetail(cudaEvent_t obj, unsigned initial_ref_count, const ReleaseFunc &release)
       : Ref<cudaEvent_t>(obj, initial_ref_count, release)
-    {
-    }
+    {}
 
     inline EventDetail(Ref &&other)
       : Ref<cudaEvent_t>(std::move(other))
-    {
-    }
+    {}
 
     inline EventDetail(const Ref &other) = delete;
 
   protected:
     inline ~EventDetail() {}
   };
-}
+}  // namespace gputil
 
-#endif // GPUEVENTDETAIL_H
+#endif  // GPUEVENTDETAIL_H

@@ -9,13 +9,13 @@
 
 #ifndef _USE_MATH_DEFINES
 #define _USE_MATH_DEFINES
-#endif // _USE_MATH_DEFINES
+#endif  // _USE_MATH_DEFINES
 #ifndef NOMINMAX
 #define NOMINMAX
-#endif // NOMINMAX
+#endif  // NOMINMAX
 #ifndef NOMINMAX
 #define NOMINMAX
-#endif // NOMINMAX
+#endif  // NOMINMAX
 #include <cmath>
 
 // Shared library import/export configuration:
@@ -24,22 +24,22 @@
 #ifdef GPUTIL_SHARED
 
 // Built as a shared library/DLL.
-# ifdef WIN32
-#   ifdef GPUTIL_EXPORTS
-#     define gputilAPI __declspec(dllexport)
-#   else  // GPUTIL_EXPORTS
-#     define gputilAPI __declspec(dllimport)
-#   endif // GPUTIL_EXPORTS
-#   define gputil_HIDDEN
-# else  // WIN32
-#   ifdef GPUTIL_EXPORTS
-#     define gputilAPI __attribute__((visibility("default")))
-#     define gputil_HIDDEN __attribute__((visibility("hidden")))
-#   else  // GPUTIL_EXPORTS
-#     define gputilAPI
-#     define gputil_HIDDEN
-#   endif // GPUTIL_EXPORTS
-#endif // WIN32
+#ifdef WIN32
+#ifdef GPUTIL_EXPORTS
+#define gputilAPI __declspec(dllexport)
+#else  // GPUTIL_EXPORTS
+#define gputilAPI __declspec(dllimport)
+#endif  // GPUTIL_EXPORTS
+#define gputil_HIDDEN
+#else  // WIN32
+#ifdef GPUTIL_EXPORTS
+#define gputilAPI __attribute__((visibility("default")))
+#define gputil_HIDDEN __attribute__((visibility("hidden")))
+#else  // GPUTIL_EXPORTS
+#define gputilAPI
+#define gputil_HIDDEN
+#endif  // GPUTIL_EXPORTS
+#endif  // WIN32
 
 #else  // GPUTIL_SHARED
 
@@ -47,12 +47,14 @@
 #define gputilAPI
 #define gputil_HIDDEN
 
-#endif // GPUTIL_SHARED
+#endif  // GPUTIL_SHARED
 
+// clang-format off
 #define GPUTIL_NONE 0
 #define GPUTIL_OPENCL 1
 #define GPUTIL_CUDA 2
 
 #define GPUTIL_TYPE @GPUTIL_TYPE@
+// clang-format on
 
-#endif // GPUCONFIG_H
+#endif  // GPUCONFIG_H

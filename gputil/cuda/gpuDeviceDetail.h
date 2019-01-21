@@ -25,6 +25,6 @@ namespace gputil
       : device(-1)
     {}
   };
-}
+}  // namespace gputil
 
-#endif // GPUDEVICEDETAIL_H
+#endif  // GPUDEVICEDETAIL_H

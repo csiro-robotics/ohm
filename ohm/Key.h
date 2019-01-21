@@ -8,6 +8,7 @@
 #include "OhmConfig.h"
 
 #include <glm/glm.hpp>
+
 #include <cinttypes>
 
 namespace ohm

@@ -42,6 +42,6 @@ namespace ohm
     /// @return The byte size of @p type or zero if the size is unknown, variable or @p type is invalid.
     static size_t size(unsigned type);
   };
-}
+}  // namespace ohm
 
-#endif // OHM_DATATYPE_H
+#endif  // OHM_DATATYPE_H

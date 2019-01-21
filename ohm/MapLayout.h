@@ -195,6 +195,6 @@ namespace ohm
   private:
     MapLayoutDetail *imp_;
   };
-}
+}  // namespace ohm
 
-#endif // OHM_MAPLAYOUT_H
+#endif  // OHM_MAPLAYOUT_H

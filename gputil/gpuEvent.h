@@ -62,7 +62,6 @@ namespace gputil
   private:
     EventDetail *imp_;
   };
-}
+}  // namespace gputil
 
-#endif // GPUTILEVENT_H
-
+#endif  // GPUTILEVENT_H

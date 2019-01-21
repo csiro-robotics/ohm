@@ -29,8 +29,7 @@ Kernel::Kernel()
   : optimal_work_group_size_(0)
   , local_mem_arg_count_(0)
   , local_mem_first_(false)
-{
-}
+{}
 
 
 Kernel::Kernel(cl::Program &program, const char *entry_point, std::ostream *log)
@@ -47,9 +46,7 @@ Kernel::Kernel(cl::Kernel &cl_kernel)
   , optimal_work_group_size_(0)
   , local_mem_arg_count_(0)
   , local_mem_first_(false)
-{
-
-}
+{}
 
 
 bool Kernel::isValid() const
@@ -95,8 +92,7 @@ size_t Kernel::calculateOptimalWorkGroupSize()
 
   if (local_mem_arg_count_)
   {
-    clu::LocalMemCalcFunc local_mem_func = [this] (size_t work_group_size) -> size_t
-    {
+    clu::LocalMemCalcFunc local_mem_func = [this](size_t work_group_size) -> size_t {
       size_t mem_size = 0;
       for (int i = 0; i < local_mem_arg_count_; ++i)
       {
@@ -161,14 +157,11 @@ cl_int Kernel::invoke(cl::CommandQueue &queue, const KernelGrid &grid, const Eve
   // Invoke the kernel.
   cl_int clerr;
   clerr = clEnqueueNDRangeKernel(queue(), kernel_(),
-                                grid.global_size.dimensions(), // Dimensions
-                                !grid.global_offset.isNull() ? grid.global_offset.arg() : nullptr,  // Global offset
-                                grid.adjustedGlobal().arg(),    // Global size
-                                grid.work_group_size.arg(), // Work group size
-                                events.event_count,
-                                wait_on_events,
-                                events.completion ? &local_event : nullptr
-                                );
+                                 grid.global_size.dimensions(),                                      // Dimensions
+                                 !grid.global_offset.isNull() ? grid.global_offset.arg() : nullptr,  // Global offset
+                                 grid.adjustedGlobal().arg(),                                        // Global size
+                                 grid.work_group_size.arg(),                                         // Work group size
+                                 events.event_count, wait_on_events, events.completion ? &local_event : nullptr);
   if (clerr == CL_SUCCESS && events.completion)
   {
     *events.completion = local_event;

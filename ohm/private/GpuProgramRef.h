@@ -60,6 +60,6 @@ namespace ohm
     SourceType source_type_;
     std::vector<std::string> build_args_;
   };
-}
+}  // namespace ohm
 
-#endif // OHM_GPUPROGRAMREF_H
+#endif  // OHM_GPUPROGRAMREF_H

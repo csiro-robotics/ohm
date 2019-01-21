@@ -9,7 +9,7 @@
 #include <functional>
 #include <iosfwd>
 
-namespace ohmutil
+namespace ohm
 {
   struct ScopedTimeDisplayDetail;
 
@@ -82,6 +82,6 @@ namespace ohmutil
   private:
     ScopedTimeDisplayDetail *imp_;
   };
-}  // namespace ohmutil
+}  // namespace ohm
 
 #endif  // OHMUTIL_SCOPEDTIMEDISPLAY_H

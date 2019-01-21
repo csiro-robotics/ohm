@@ -37,7 +37,7 @@ namespace gputil
     inline size_t size() const { return count_; }
 
     void add(const Event &event);
-    inline void push_back(const Event &event) { add(event); } // NOLINT
+    inline void push_back(const Event &event) { add(event); }  // NOLINT
 
     void add(std::initializer_list<Event> events);
     void add(std::initializer_list<const Event *> events);
@@ -56,6 +56,6 @@ namespace gputil
     /// Extended list. Allocated when the number of events is ShortCount or greater.
     Event *extended_;
   };
-}
+}  // namespace gputil
 
-#endif // GPUEVENTLIST_H
+#endif  // GPUEVENTLIST_H

@@ -13,11 +13,9 @@ using namespace gputil;
 
 AccessException::AccessException(const char *msg)
   : Exception(msg ? msg : DEFAULT_MSG)
-{
-}
+{}
 
 
 AccessException::AccessException(AccessException &&other) noexcept
   : Exception(std::move(other))
-{
-}
+{}

@@ -54,7 +54,8 @@ namespace ohm
 
     /// Initialise a region containing the given @p point, based on the given map details.
     /// @param point A spatial point contained by the region.
-    /// @param map_origin The origin of the map containing the region. The @p point internally is made relative to this origin.
+    /// @param map_origin The origin of the map containing the region. The @p point internally is made relative to this
+    /// origin.
     /// @param region_dimensions Spatial expanse of a region within the map of interest.
     MapRegion(const glm::dvec3 &point, const glm::dvec3 &map_origin, const glm::dvec3 &region_dimensions);
 
@@ -71,13 +72,9 @@ namespace ohm
     /// @param voxel_resolution The length of a voxel cube edge.
     /// @return True if the @p point lies within this region and @p key has been set to reference
     ///   the containing voxel. Otherwise @p key is a @c OccupancyMap::null key.
-    bool voxelKey(Key &key,
-                  const glm::dvec3 &point,
-                  const glm::dvec3 &map_origin,
-                  const glm::dvec3 &region_dimensions,
-                  const glm::ivec3 &voxel_counts,
-                  double voxel_resolution) const;
+    bool voxelKey(Key &key, const glm::dvec3 &point, const glm::dvec3 &map_origin, const glm::dvec3 &region_dimensions,
+                  const glm::ivec3 &voxel_counts, double voxel_resolution) const;
   };
-}
+}  // namespace ohm
 
-#endif // OHM_MAPREGION_H
+#endif  // OHM_MAPREGION_H

@@ -18,7 +18,7 @@
 #include <tbb/blocked_range3d.h>
 #include <tbb/parallel_for.h>
 #include <atomic>
-#endif // OHM_THREADS
+#endif  // OHM_THREADS
 
 #include <functional>
 
@@ -28,8 +28,9 @@
 namespace ohm
 {
   template <typename QUERY>
-  unsigned occupancyQueryRegions(OccupancyMap &map, QUERY &query, ClosestResult &closest,
-    const glm::dvec3 &queryMinExtents, const glm::dvec3 &queryMaxExtents,
+  unsigned occupancyQueryRegions(
+    OccupancyMap &map, QUERY &query, ClosestResult &closest, const glm::dvec3 &queryMinExtents,
+    const glm::dvec3 &queryMaxExtents,
     const std::function<unsigned(OccupancyMap &, QUERY &, const glm::i16vec3 &, ClosestResult &)> &regionQueryFunc)
   {
     glm::i16vec3 minRegionKey;
@@ -59,18 +60,21 @@ namespace ohm
     return currentNeighbours;
   }
 
-  template <typename QUERY> inline
-    unsigned occupancyQueryRegions(OccupancyMap &map, QUERY &query, ClosestResult &closest,
-      const glm::dvec3 &queryMinExtents, const glm::dvec3 &queryMaxExtents,
-      unsigned(*regionQueryFunc)(OccupancyMap &, QUERY &, const glm::i16vec3 &, ClosestResult &))
+  template <typename QUERY>
+  inline unsigned occupancyQueryRegions(OccupancyMap &map, QUERY &query, ClosestResult &closest,
+                                        const glm::dvec3 &queryMinExtents, const glm::dvec3 &queryMaxExtents,
+                                        unsigned (*regionQueryFunc)(OccupancyMap &, QUERY &, const glm::i16vec3 &,
+                                                                    ClosestResult &))
   {
-    const std::function<unsigned(OccupancyMap &, QUERY &, const glm::i16vec3 &, ClosestResult &)> regionOp = regionQueryFunc;
+    const std::function<unsigned(OccupancyMap &, QUERY &, const glm::i16vec3 &, ClosestResult &)> regionOp =
+      regionQueryFunc;
     return occupancyQueryRegions(map, query, closest, queryMinExtents, queryMaxExtents, regionOp);
   }
 
   template <typename QUERY>
-  unsigned occupancyQueryRegionsParallel(OccupancyMap &map, QUERY &query, ClosestResult &closest,
-    const glm::dvec3 &queryMinExtents, const glm::dvec3 &queryMaxExtents,
+  unsigned occupancyQueryRegionsParallel(
+    OccupancyMap &map, QUERY &query, ClosestResult &closest, const glm::dvec3 &queryMinExtents,
+    const glm::dvec3 &queryMaxExtents,
     const std::function<unsigned(OccupancyMap &, QUERY &, const glm::i16vec3 &, ClosestResult &)> &regionQueryFunc)
   {
 #ifdef OHM_THREADS
@@ -82,43 +86,42 @@ namespace ohm
     minRegionKey = map.regionKey(queryMinExtents);
     maxRegionKey = map.regionKey(queryMaxExtents);
 
-    tbb::parallel_for(tbb::blocked_range3d<size_t>(maxRegionKey.z, maxRegionKey.z + 1,
-                                           maxRegionKey.y, maxRegionKey.y + 1,
-                                           maxRegionKey.x, maxRegionKey.x + 1),
-        [&currentNeighbours, &map, &query, &closest, &regionQueryFunc]
-        (const tbb::blocked_range3d<int> &range)
+    tbb::parallel_for(
+      tbb::blocked_range3d<size_t>(maxRegionKey.z, maxRegionKey.z + 1, maxRegionKey.y, maxRegionKey.y + 1,
+                                   maxRegionKey.x, maxRegionKey.x + 1),
+      [&currentNeighbours, &map, &query, &closest, &regionQueryFunc](const tbb::blocked_range3d<int> &range) {
+        glm::i16vec3 regionKey;
+        for (int z = range.pages().begin(); z != range.pages().end(); ++z)
         {
-          glm::i16vec3 regionKey;
-          for (int z = range.pages().begin(); z != range.pages().end(); ++z)
+          regionKey.z = z;
+          for (int y = range.rows().begin(); y != range.rows().end(); ++y)
           {
-            regionKey.z = z;
-            for (int y = range.rows().begin(); y != range.rows().end(); ++y)
+            regionKey.y = y;
+            for (int x = range.cols().begin(); x != range.cols().end(); ++x)
             {
-              regionKey.y = y;
-              for (int x = range.cols().begin(); x != range.cols().end(); ++x)
-              {
-                regionKey.x = x;
-                currentNeighbours += regionQueryFunc(map, query, regionKey, closest);
-              }
+              regionKey.x = x;
+              currentNeighbours += regionQueryFunc(map, query, regionKey, closest);
             }
           }
         }
-      );
+      });
 
     return currentNeighbours;
-#else  // OHM_THREADS
+#else   // OHM_THREADS
     return occupancyQueryRegions(map, query, closest, queryMinExtents, queryMaxExtents, regionQueryFunc);
-#endif // OHM_THREADS
+#endif  // OHM_THREADS
   }
 
-  template <typename QUERY> inline
-    unsigned occupancyQueryRegionsParallel(OccupancyMap &map, QUERY &query, ClosestResult &closest,
-      const glm::dvec3 &queryMinExtents, const glm::dvec3 &queryMaxExtents,
-      unsigned(*regionQueryFunc)(OccupancyMap &, QUERY &, const glm::i16vec3 &, ClosestResult &))
+  template <typename QUERY>
+  inline unsigned occupancyQueryRegionsParallel(OccupancyMap &map, QUERY &query, ClosestResult &closest,
+                                                const glm::dvec3 &queryMinExtents, const glm::dvec3 &queryMaxExtents,
+                                                unsigned (*regionQueryFunc)(OccupancyMap &, QUERY &,
+                                                                            const glm::i16vec3 &, ClosestResult &))
   {
-    const std::function<unsigned(OccupancyMap &, QUERY &, const glm::i16vec3 &, ClosestResult &)> regionOp = regionQueryFunc;
+    const std::function<unsigned(OccupancyMap &, QUERY &, const glm::i16vec3 &, ClosestResult &)> regionOp =
+      regionQueryFunc;
     return occupancyQueryRegionsParallel(map, query, closest, queryMinExtents, queryMaxExtents, regionOp);
   }
-}
+}  // namespace ohm
 
-#endif // OCCUPANCYQUERYALG_H
+#endif  // OCCUPANCYQUERYALG_H

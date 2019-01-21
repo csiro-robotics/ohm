@@ -8,8 +8,8 @@
 
 #ifdef _MSC_VER
 #pragma warning(push)
-#pragma warning(disable:4267)
-#endif // _MSC_VER
+#pragma warning(disable : 4267)
+#endif  // _MSC_VER
 
 #include "GlmStream.h"
 
@@ -36,4 +36,4 @@ inline std::shared_ptr<cxxopts::Value> optVal(bool &val)
 
 #pragma warning(pop)
 
-#endif // OHMUTIL_OPTIONS_H
+#endif  // OHMUTIL_OPTIONS_H

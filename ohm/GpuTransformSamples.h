@@ -68,8 +68,8 @@ namespace ohm
     /// @return The number of valid samples queued for translation on GPU.
     unsigned transform(const double *transform_times, const glm::dvec3 *transform_translations,
                        const glm::dquat *transform_rotations, unsigned transform_count, const double *sample_times,
-                       const glm::dvec3 *local_samples, unsigned point_count,
-                       gputil::Queue &gpu_queue, gputil::Buffer &output_buffer, gputil::Event &completion_event,
+                       const glm::dvec3 *local_samples, unsigned point_count, gputil::Queue &gpu_queue,
+                       gputil::Buffer &output_buffer, gputil::Event &completion_event,
                        double max_range = std::numeric_limits<double>::infinity());
 
   private:

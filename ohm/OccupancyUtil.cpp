@@ -10,4 +10,4 @@ namespace ohm
 {
   tes::Server *g_3es = nullptr;
 }
-#endif // TES_ENABLE
+#endif  // TES_ENABLE

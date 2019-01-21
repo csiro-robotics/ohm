@@ -17,6 +17,6 @@ namespace gputil
     kPinWrite,
     kPinReadWrite
   };
-}
+}  // namespace gputil
 
-#endif // GPUPINMODE_H
+#endif  // GPUPINMODE_H

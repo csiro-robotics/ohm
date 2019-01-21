@@ -104,7 +104,7 @@ namespace ohm
     LineKeysQueryDetail *imp();
     const LineKeysQueryDetail *imp() const;
   };
-}
+}  // namespace ohm
 
 
-#endif // OHM_LINEKEYSQUERY_H
+#endif  // OHM_LINEKEYSQUERY_H

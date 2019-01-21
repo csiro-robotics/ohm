@@ -7,7 +7,7 @@
 
 #ifdef OHM_ZIP
 #include <zlib.h>
-#endif // OHM_ZIP
+#endif  // OHM_ZIP
 
 #include <cstring>
 #include <fstream>
@@ -44,10 +44,7 @@ namespace ohm
   }
 
 
-  Compression::~Compression()
-  {
-    delete[] buffer;
-  }
+  Compression::~Compression() { delete[] buffer; }
 
 
   int Compression::initDeflate()
@@ -93,7 +90,7 @@ namespace ohm
     return Z_OK;
   }
 
-#endif // OHM_ZIP
+#endif  // OHM_ZIP
 
   struct StreamPrivate
   {
@@ -106,7 +103,7 @@ namespace ohm
     std::ifstream in;
 #ifdef OHM_ZIP
     Compression compress;
-#endif // OHM_ZIP
+#endif  // OHM_ZIP
   };
 
   struct OutputStreamPrivate : StreamPrivate
@@ -115,9 +112,9 @@ namespace ohm
 #ifdef OHM_ZIP
     Compression compress;
     bool needs_flush;
-#endif // OHM_ZIP
+#endif  // OHM_ZIP
   };
-}
+}  // namespace ohm
 
 using namespace ohm;
 
@@ -172,8 +169,7 @@ Stream::Stream(StreamPrivate *imp)
 
 
 Stream::~Stream()
-{
-}
+{}
 
 
 InputStream::InputStream(const char *file_path, unsigned flags)
@@ -207,7 +203,7 @@ void InputStream::setCompressedFlag()
   {
     imp()->compress.initInflate();
   }
-#endif // OHM_ZIP
+#endif  // OHM_ZIP
 }
 
 
@@ -245,13 +241,12 @@ unsigned InputStream::read(void *buffer, unsigned max_bytes)
       {
         return max_bytes - imp.compress.stream.avail_out;
       }
-    }
-    while (imp.compress.stream.avail_out);
+    } while (imp.compress.stream.avail_out);
 
     have = max_bytes - imp.compress.stream.avail_out;
     return have;
   }
-#endif // OHM_ZIP
+#endif  // OHM_ZIP
   return readRaw(buffer, max_bytes);
 }
 
@@ -274,8 +269,7 @@ bool InputStream::isOpen() const
 
 
 void InputStream::flush()
-{
-}
+{}
 
 
 bool InputStream::doOpen(const char *file_path, unsigned flags)
@@ -284,14 +278,14 @@ bool InputStream::doOpen(const char *file_path, unsigned flags)
   imp()->file_path = file_path;
 #ifndef OHM_ZIP
   flags &= ~SF_Compress;
-#endif // OHM_ZIP
+#endif  // OHM_ZIP
   imp()->flags = flags;
 #ifdef OHM_ZIP
   if (flags & SfCompress)
   {
     imp()->compress.initInflate();
   }
-#endif // OHM_ZIP
+#endif  // OHM_ZIP
   return imp()->in.is_open();
 }
 
@@ -303,7 +297,7 @@ void InputStream::doClose()
   {
     imp()->compress.doneInflate();
   }
-#endif // OHM_ZIP
+#endif  // OHM_ZIP
   imp()->in.close();
   imp_->flags = 0;
   imp_->file_path = std::string();
@@ -344,7 +338,7 @@ OutputStream::OutputStream(const char *file_path, unsigned flags)
 
 #ifdef OHM_ZIP
   imp()->needs_flush = false;
-#endif // OHM_ZIP
+#endif  // OHM_ZIP
 }
 
 
@@ -353,7 +347,6 @@ OutputStream::~OutputStream()
   close();
   delete imp();
 }
-
 
 
 unsigned OutputStream::write(const void *buffer, unsigned max_bytes)
@@ -388,12 +381,11 @@ unsigned OutputStream::write(const void *buffer, unsigned max_bytes)
         imp.compress.stream.avail_out = imp.compress.buffer_size;
         imp.compress.stream.next_out = imp.compress.buffer;
       }
-    }
-    while (imp.compress.stream.avail_in);
+    } while (imp.compress.stream.avail_in);
 
     return max_bytes;
   }
-#endif // OHM_ZIP
+#endif  // OHM_ZIP
   return writeUncompressed(buffer, max_bytes);
 }
 
@@ -438,12 +430,11 @@ void OutputStream::flush()
 
       imp.compress.stream.avail_out = imp.compress.buffer_size;
       imp.compress.stream.next_out = imp.compress.buffer;
-    }
-    while (ret == Z_OK);
+    } while (ret == Z_OK);
 
     imp.needs_flush = false;
   }
-#endif // OHM_ZIP
+#endif  // OHM_ZIP
   imp.out.flush();
 }
 
@@ -454,14 +445,14 @@ bool OutputStream::doOpen(const char *file_path, unsigned flags /*= 0u*/)
   imp()->file_path = file_path;
 #ifndef OHM_ZIP
   flags &= ~SF_Compress;
-#endif // OHM_ZIP
+#endif  // OHM_ZIP
   imp()->flags = flags;
 #ifdef OHM_ZIP
   if (flags & SfCompress)
   {
     imp()->compress.initDeflate();
   }
-#endif // OHM_ZIP
+#endif  // OHM_ZIP
   return imp()->out.is_open();
 }
 
@@ -473,7 +464,7 @@ void OutputStream::doClose()
   {
     imp()->compress.doneDeflate();
   }
-#endif // OHM_ZIP
+#endif  // OHM_ZIP
   imp()->out.close();
   imp_->flags = 0;
   imp_->file_path = std::string();
@@ -492,13 +483,13 @@ size_t OutputStream::doTell()
 }
 
 
-OutputStreamPrivate   *OutputStream::imp()
+OutputStreamPrivate *OutputStream::imp()
 {
   return static_cast<OutputStreamPrivate *>(imp_);
 }
 
 
-const OutputStreamPrivate   *OutputStream::imp() const
+const OutputStreamPrivate *OutputStream::imp() const
 {
   return static_cast<const OutputStreamPrivate *>(imp_);
 }

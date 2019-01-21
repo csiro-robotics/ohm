@@ -16,6 +16,6 @@ namespace gputil
   {
     cl_event event;
   };
-}
+}  // namespace gputil
 
-#endif // GPUEVENTDETAIL_H
+#endif  // GPUEVENTDETAIL_H

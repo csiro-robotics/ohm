@@ -23,7 +23,7 @@ namespace
   {
     chunk->searchAndUpdateFirstValid(region_dimensions);
   }
-}
+}  // namespace
 
 GpuMapDetail::~GpuMapDetail()
 {
@@ -60,11 +60,10 @@ GpuCache *ohm::initialiseGpuCache(OccupancyMap &map, size_t layer_gpu_mem_size, 
     const int occupancy_layer = map.layout().occupancyLayer();
     if (occupancy_layer >= 0)
     {
-      detail->gpu_cache->createCache(kGcIdOccupancy,
-                                     // On sync, ensure the first valid voxel is updated.
-                                     GpuCacheParams{ 0, occupancy_layer, kGcfRead | kGcfWrite | mappable_flag,
-                                                     &onOccupancyLayerChunkSync }
-                                     );
+      detail->gpu_cache->createCache(
+        kGcIdOccupancy,
+        // On sync, ensure the first valid voxel is updated.
+        GpuCacheParams{ 0, occupancy_layer, kGcfRead | kGcfWrite | mappable_flag, &onOccupancyLayerChunkSync });
     }
 
     // Note: we create the clearance gpu cache if we have a clearance layer, but it caches the occupancy_layer as that

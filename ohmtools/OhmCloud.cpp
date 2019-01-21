@@ -13,6 +13,8 @@
 
 #include <algorithm>
 
+using namespace ohm;
+
 namespace ohmtools
 {
   void saveCloud(const char *file_name, const ohm::OccupancyMap &map, const ProgressCallback &prog)

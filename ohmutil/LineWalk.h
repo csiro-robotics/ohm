@@ -10,7 +10,7 @@
 
 #include <cassert>
 
-namespace ohmutil
+namespace ohm
 {
   /// A templatised, voxel based line walking algorithm. Voxels are accurately traversed from @p startPoint to
   /// @p endPoint, invoking @p walkFunc for each traversed voxel.
@@ -45,8 +45,7 @@ namespace ohmutil
   /// @param funcs Key helper functions object.
   /// @return The number of voxels traversed. This includes @p endPoint when @p includeEndPoint is true.
   template <typename KEY, typename KEYFUNCS, typename WALKFUNC>
-  size_t walkSegmentKeys(const WALKFUNC &walk_func,
-                         const glm::dvec3 &start_point, const glm::dvec3 &end_point,
+  size_t walkSegmentKeys(const WALKFUNC &walk_func, const glm::dvec3 &start_point, const glm::dvec3 &end_point,
                          bool include_end_point, const KEYFUNCS &funcs)
   {
     // see "A Faster Voxel Traversal Algorithm for Ray Tracing" by Amanatides & Woo
@@ -82,9 +81,9 @@ namespace ohmutil
     size_t added = 0;
     KEY current_key = start_point_key;
 
-  //  debugOut = true;
+    //  debugOut = true;
     voxel = funcs.voxelCentre(current_key);
-  //  debugOut = false;
+    //  debugOut = false;
 
     // printf("Start point : %f %f %f\n", startPoint.x, startPoint.y, startPoint.z);
     // printf("End point : %f %f %f\n", endPoint.x, endPoint.y, endPoint.z);
@@ -103,7 +102,8 @@ namespace ohmutil
         // Calculate the distance from the origin to the nearest voxel edge for this axis.
         next_voxel_border = voxel[i] + step[i] * 0.5 * funcs.voxelResolution(i);
         time_max[i] = (next_voxel_border - start_point[i]) * direction_axis_inv;
-        time_limit[i] = std::abs((end_point[i] - start_point[i]) * direction_axis_inv);// +0.5f * funcs.voxelResolution(i);
+        time_limit[i] =
+          std::abs((end_point[i] - start_point[i]) * direction_axis_inv);  // +0.5f * funcs.voxelResolution(i);
       }
       else
       {
@@ -118,7 +118,8 @@ namespace ohmutil
     {
       walk_func(current_key);
       ++added;
-      axis = (time_max[0] < time_max[2]) ? ((time_max[0] < time_max[1]) ? 0 : 1) : ((time_max[1] < time_max[2]) ? 1 : 2);
+      axis =
+        (time_max[0] < time_max[2]) ? ((time_max[0] < time_max[1]) ? 0 : 1) : ((time_max[1] < time_max[2]) ? 1 : 2);
       limit_reached = std::abs(time_max[axis]) > time_limit[axis];
       funcs.stepKey(current_key, axis, step[axis]);
       time_max[axis] += time_delta[axis];
@@ -142,8 +143,7 @@ namespace ohmutil
   /// @param funcs Key helper functions object.
   /// @return The number of voxels traversed. This includes @p endPoint.
   template <typename KEY, typename KEYFUNCS, typename WALKFUNC>
-  size_t walkSegmentKeys(const WALKFUNC &walk_func,
-                         const glm::dvec3 &start_point, const glm::dvec3 &end_point,
+  size_t walkSegmentKeys(const WALKFUNC &walk_func, const glm::dvec3 &start_point, const glm::dvec3 &end_point,
                          const KEYFUNCS &funcs)
   {
     return walkSegmentKeys(walk_func, start_point, end_point, true, funcs);
@@ -156,11 +156,10 @@ namespace ohmutil
   /// @param end_point The end of the line in 3D space.
   /// @return The number of voxels traversed. This includes @p endPoint.
   template <typename KEY, typename KEYFUNCS, typename WALKFUNC>
-  size_t walkSegmentKeys(const WALKFUNC &walk_func,
-                         const glm::dvec3 &start_point, const glm::dvec3 &end_point)
+  size_t walkSegmentKeys(const WALKFUNC &walk_func, const glm::dvec3 &start_point, const glm::dvec3 &end_point)
   {
     return walkSegmentKeys(walk_func, start_point, end_point, true, KEYFUNCS());
   }
-}
+}  // namespace ohm
 
-#endif // OHMUTIL_LINEWALK_H
+#endif  // OHMUTIL_LINEWALK_H

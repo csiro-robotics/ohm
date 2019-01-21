@@ -58,6 +58,6 @@ namespace ohm
     /// The default query flags applied.
     kQfDefaultFlags = kQfUnknownAsOccupied
   };
-}
+}  // namespace ohm
 
 #endif  // OHMQUERYFLAG_H

@@ -49,6 +49,6 @@ namespace gputil
   typedef ::float4 float4;
   typedef ::double1 double1;
   typedef ::double2 double2;
-}
+}  // namespace gputil
 
-#endif // GPUPLATFORM2_H
+#endif  // GPUPLATFORM2_H

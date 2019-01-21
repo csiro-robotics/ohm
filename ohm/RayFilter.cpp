@@ -56,7 +56,7 @@ namespace ohm
   bool clipNear(glm::dvec3 * /*start*/, glm::dvec3 *end, unsigned *filter_flags, const ohm::Aabb &clip_box)
   {
     const bool clipped = clip_box.contains(*end);
-    *filter_flags |= !!(clipped) * kRffClippedEnd;
+    *filter_flags |= !!(clipped)*kRffClippedEnd;
     return true;
   }
-} // namespace ohm
+}  // namespace ohm

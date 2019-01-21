@@ -12,14 +12,12 @@ struct SpinLockImp
 
   inline SpinLockImp()
     : lock(false)
-  {
-  }
+  {}
 };
 
 SpinLock::SpinLock()
   : imp_(new SpinLockImp)
-{
-}
+{}
 
 
 SpinLock::~SpinLock()
@@ -37,7 +35,7 @@ void SpinLock::lock()
 }
 
 
-bool SpinLock::try_lock() // NOLINT
+bool SpinLock::try_lock()  // NOLINT
 {
   return !imp_->lock.exchange(true);
 }

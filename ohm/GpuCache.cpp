@@ -72,9 +72,8 @@ GpuLayerCache *GpuCache::createCache(unsigned id, const GpuCacheParams &params)
   }
 
   const size_t layer_mem_size = (params.gpu_mem_size) ? params.gpu_mem_size : imp_->default_gpu_mem_size;
-  GpuLayerCache *new_cache =
-    new GpuLayerCache(imp_->gpu, imp_->gpu_queue, *imp_->map, params.map_layer, layer_mem_size, params.flags,
-                      params.on_sync);
+  GpuLayerCache *new_cache = new GpuLayerCache(imp_->gpu, imp_->gpu_queue, *imp_->map, params.map_layer, layer_mem_size,
+                                               params.flags, params.on_sync);
   imp_->layer_caches[id] = std::unique_ptr<GpuLayerCache>(new_cache);
 
   return new_cache;

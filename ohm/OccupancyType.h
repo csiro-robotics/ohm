@@ -24,6 +24,6 @@ namespace ohm
   };
 
   const char ohm_API *occupancyTypeToString(int occupancy_type);
-}
+}  // namespace ohm
 
-#endif // OCCUPANCYTYPE_H_
+#endif  // OCCUPANCYTYPE_H_

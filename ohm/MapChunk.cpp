@@ -68,7 +68,7 @@ MapChunk::~MapChunk()
 
 
 Key MapChunk::keyForIndex(size_t voxel_index, const glm::ivec3 &region_voxel_dimensions,
-                                   const glm::i16vec3 &region_coord)
+                          const glm::i16vec3 &region_coord)
 {
   Key key;
 
@@ -102,10 +102,11 @@ bool MapChunk::hasValidNodes() const
 
 void MapChunk::updateFirstValid(const glm::u8vec3 &local_index, const glm::ivec3 &region_voxel_dimensions)
 {
-  const unsigned current_first = voxelIndex(first_valid_index.x, first_valid_index.y, first_valid_index.z, region_voxel_dimensions.x,
-                                    region_voxel_dimensions.y, region_voxel_dimensions.z);
+  const unsigned current_first =
+    voxelIndex(first_valid_index.x, first_valid_index.y, first_valid_index.z, region_voxel_dimensions.x,
+               region_voxel_dimensions.y, region_voxel_dimensions.z);
   const unsigned test_first = voxelIndex(local_index.x, local_index.y, local_index.z, region_voxel_dimensions.x,
-                                 region_voxel_dimensions.y, region_voxel_dimensions.z);
+                                         region_voxel_dimensions.y, region_voxel_dimensions.z);
   if (test_first < current_first)
   {
     first_valid_index = local_index;

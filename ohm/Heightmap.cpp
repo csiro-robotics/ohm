@@ -181,8 +181,7 @@ namespace
 
 Heightmap::Heightmap()
   : Heightmap(0.2, 2.0, AxisZ)
-{
-}
+{}
 
 
 Heightmap::Heightmap(double grid_resolution, double min_clearance, Axis up_axis, unsigned region_size)
@@ -572,7 +571,8 @@ bool Heightmap::update(double base_height)
               // Ignore unoccupied neighbours.
               if (neighbour_content->height < std::numeric_limits<float>::max())
               {
-                double neighbour_height = glm::dot(upAxisNormal(), neighbour.centreGlobal()) + neighbour_content->height;
+                double neighbour_height =
+                  glm::dot(upAxisNormal(), neighbour.centreGlobal()) + neighbour_content->height;
 
                 if (!heightmap_voxel.isOccupied())
                 {

@@ -16,12 +16,13 @@
 /// GpuKey key = { 1, 2, 3, 4, 5, 6, 7 };
 /// printf("Key is: " KEY_F "\n", KEY_A(key));
 /// @endcode
-#define KEY_A(key) (key).region[0], (key).region[1], (key).region[2], (int)(key).voxel[0], (int)(key).voxel[1], (int)(key).voxel[2]
+#define KEY_A(key) \
+  (key).region[0], (key).region[1], (key).region[2], (int)(key).voxel[0], (int)(key).voxel[1], (int)(key).voxel[2]
 
 #ifndef __OPENCL_C_VERSION__
 namespace ohm
 {
-#endif // !__OPENCL_C_VERSION__
+#endif  // !__OPENCL_C_VERSION__
   /// @c ohm::Key representation in GPU.
   ///
   /// This structure must exactly match the memory alignment of ohm::Key.
@@ -34,8 +35,8 @@ namespace ohm
     unsigned char voxel[4];
   };
 #ifndef __OPENCL_C_VERSION__
-} // namespace ohm
-#endif // !__OPENCL_C_VERSION__
+}  // namespace ohm
+#endif  // !__OPENCL_C_VERSION__
 
 #ifdef __OPENCL_C_VERSION__
 
@@ -58,17 +59,17 @@ void copyKey(struct GpuKey *out, const struct GpuKey *in)
 #else  // __OPENCL_C_VERSION__ >= 200
 // copyKey implemented with a macro as before OpenCL 2.0 we need to cater for __global memory qualifier.
 #define copyKey(out, in) *out = *in
-#endif // __OPENCL_C_VERSION__ >= 200
+#endif  // __OPENCL_C_VERSION__ >= 200
 
 void stepKeyAlongAxis(struct GpuKey *key, int axis, int step, const int3 *regionDim)
 {
   const int axisDim = (axis == 0) ? regionDim->x : ((axis == 1) ? regionDim->y : regionDim->z);
   int vind = key->voxel[axis] + step;
   // Manage region stepping.
-  key->region[axis] += (vind < 0) ? -1 : 0;       // Step down a region
-  key->region[axis] += (vind >= axisDim) ? 1 : 0; // Step up a region
-  vind = (vind >= 0) ? vind : axisDim - 1;        // Underflow voxel index.
-  vind = (vind < axisDim) ? vind : 0;             // Overflow voxel index.
+  key->region[axis] += (vind < 0) ? -1 : 0;        // Step down a region
+  key->region[axis] += (vind >= axisDim) ? 1 : 0;  // Step up a region
+  vind = (vind >= 0) ? vind : axisDim - 1;         // Underflow voxel index.
+  vind = (vind < axisDim) ? vind : 0;              // Overflow voxel index.
   key->voxel[axis] = (uchar)vind;
 }
 
@@ -81,7 +82,7 @@ void moveKeyAlongAxis(struct GpuKey *key, int axis, int step, const int3 *region
   // stepped local axis value. We need to expand the byte precision of the voxel key to support region changes.
   int localKey[3] = { key->voxel[0], key->voxel[1], key->voxel[2] };
   localKey[axis] += step;
-  //glm::i16vec3 regionKey = key.regionKey();
+  // glm::i16vec3 regionKey = key.regionKey();
   if (step >= 0)
   {
     // Positive step or zero step.
@@ -134,6 +135,6 @@ void moveKeyAlongAxis(struct GpuKey *key, int axis, int step, const int3 *region
   key->voxel[2] = localKey[2];
 }
 
-#endif // __OPENCL_C_VERSION__
+#endif  // __OPENCL_C_VERSION__
 
-#endif // GPUKEY_H
+#endif  // GPUKEY_H

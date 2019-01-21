@@ -26,13 +26,11 @@ namespace gputil
       GPUAPICHECK2(err, cudaSuccess);
     }
   }
-}
+}  // namespace gputil
 
 Event::Event()
   : imp_(nullptr)  // created as needed
-{
-
-}
+{}
 
 Event::Event(const Event &other)
   : imp_(nullptr)  // created as needed

@@ -37,11 +37,11 @@ const glm::dvec3 &HeightmapDetail::surfaceNormalA(int axis_id)
 {
   static const glm::dvec3 kAxes[] =  //
     {
-      glm::dvec3(1, 0, 0),  // -Z
-      glm::dvec3(1, 0, 0),  // -Y
+      glm::dvec3(1, 0, 0),   // -Z
+      glm::dvec3(1, 0, 0),   // -Y
       glm::dvec3(0, -1, 0),  // -X
       glm::dvec3(0, 1, 0),   // X
-      glm::dvec3(-1, 0, 0),   // Y
+      glm::dvec3(-1, 0, 0),  // Y
       glm::dvec3(1, 0, 0),   // Z
       glm::dvec3(0, 0, 0),   // Dummy
     };
@@ -62,8 +62,8 @@ const glm::dvec3 &HeightmapDetail::surfaceNormalB(int axis_id)
   static const glm::dvec3 kAxes[] =  //
     {
       glm::dvec3(0, -1, 0),  // -Z
-      glm::dvec3(0, 0, 1),  // -Y
-      glm::dvec3(0, 0, 1),  // -X
+      glm::dvec3(0, 0, 1),   // -Y
+      glm::dvec3(0, 0, 1),   // -X
       glm::dvec3(0, 0, 1),   // X
       glm::dvec3(0, 0, 1),   // Y
       glm::dvec3(0, 1, 0),   // Z

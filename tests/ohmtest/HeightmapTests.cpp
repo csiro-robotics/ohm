@@ -22,7 +22,6 @@
 #include <ohmutil/Profile.h>
 
 using namespace ohm;
-using namespace ohmutil;
 
 namespace
 {

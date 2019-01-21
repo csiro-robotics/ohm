@@ -65,6 +65,6 @@ namespace clu
   /// @param ignore_case True for case insensitive checks.
   /// @return The device constraint function object.
   DeviceConstraint deviceVendorLike(const char *name, bool ignore_case);
-}
+}  // namespace clu
 
 #endif

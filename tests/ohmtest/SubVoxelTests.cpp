@@ -6,10 +6,10 @@
 #include <gtest/gtest.h>
 
 #include <ohm/Aabb.h>
-#include <ohm/GpuMap.h>
-#include <ohm/KeyList.h>
 #include <ohm/GpuCache.h>
 #include <ohm/GpuLayerCache.h>
+#include <ohm/GpuMap.h>
+#include <ohm/KeyList.h>
 #include <ohm/MapCache.h>
 #include <ohm/MapChunk.h>
 #include <ohm/MapProbability.h>

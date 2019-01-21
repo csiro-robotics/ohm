@@ -19,8 +19,8 @@
 #include <ohmutil/PlyMesh.h>
 #include <ohmutil/Profile.h>
 
-#include <glm/glm.hpp>
 #include <glm/ext.hpp>
+#include <glm/glm.hpp>
 
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/normal.hpp>
@@ -37,10 +37,10 @@ namespace ohm
   /// Only two triangles can share one edge because we build the mesh without T intersections.
   struct Edge
   {
-    unsigned v0;  ///< The lower magnitude vertex index.
-    unsigned v1;  ///< The higher magnitude vertex index.
-    unsigned triangle;  ///< The index of the triangle which generated this edge.
-    unsigned triangle_edge_index; ///< The index of this edge in @p triangle.
+    unsigned v0;                   ///< The lower magnitude vertex index.
+    unsigned v1;                   ///< The higher magnitude vertex index.
+    unsigned triangle;             ///< The index of the triangle which generated this edge.
+    unsigned triangle_edge_index;  ///< The index of this edge in @p triangle.
 
     inline Edge(unsigned v0, unsigned v1, unsigned triangle, unsigned edge_index)
       : triangle(triangle)
@@ -50,10 +50,7 @@ namespace ohm
       this->v1 = std::max(v0, v1);
     }
 
-    inline bool operator < (const Edge &other) const
-    {
-      return v0 < other.v0 || v0 == other.v0 && v1 < other.v1;
-    }
+    inline bool operator<(const Edge &other) const { return v0 < other.v0 || v0 == other.v0 && v1 < other.v1; }
   };
 
   class HeightmapMeshDetail
@@ -81,7 +78,7 @@ namespace ohm
       mesh_extents = Aabb(0.0);
     }
   };
-}
+}  // namespace ohm
 
 
 HeightmapMesh::HeightmapMesh(NormalsMode normals_mode)
@@ -92,8 +89,7 @@ HeightmapMesh::HeightmapMesh(NormalsMode normals_mode)
 
 
 HeightmapMesh::~HeightmapMesh()
-{
-}
+{}
 
 
 HeightmapMesh::NormalsMode HeightmapMesh::normalsMode()
@@ -264,7 +260,7 @@ bool HeightmapMesh::buildMesh(const Heightmap &heightmap)
       for (size_t i = 1; i < imp_->edges.size(); ++i)
       {
         current_edge = &imp_->edges[i];
-        if (current_edge->v0 == previous_edge->v0 && current_edge->v1== previous_edge->v1)
+        if (current_edge->v0 == previous_edge->v0 && current_edge->v1 == previous_edge->v1)
         {
           // We have a shared edge. Update neighbour information for both triangles.
           TriangleNeighbours &n0 = imp_->triangle_neighbours[current_edge->triangle];

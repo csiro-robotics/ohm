@@ -31,6 +31,6 @@ namespace ohm
     float default_range = -1;
     float search_radius = 0;
   };
-}
+}  // namespace ohm
 
-#endif // OHM_LINEQUERYDETAIL_H
+#endif  // OHM_LINEQUERYDETAIL_H

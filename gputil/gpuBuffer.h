@@ -44,6 +44,8 @@ namespace gputil
     kBfReadWriteHost = kBfRead | kBfWrite | kBfHostAccess
   };
 
+  // clang-format off
+  /// @class Buffer
   /// Represents a GPU based buffer. Implementation depends on the
   /// GPU SDK.
   ///
@@ -64,9 +66,10 @@ namespace gputil
   /// nullptr   | non-null    | ignored       | Blocking call, waiting on @p blockOn first. Providing @p completion is redundant.
   /// non-null  | nullptr     | nullptr       | Asynchronous call, no event information available.
   /// non-null  | non-null    | -             | Asynchronous call. Memory transfer occurs after @p blockOn completes.
-  /// non-null  | any         | non-null      | Asynchronous call. @p completion tracks the completion of the transfer.s
+  /// non-null  | any         | non-null      | Asynchronous call. @p completion tracks the completion of the transfers.
   ///
   /// Note that using asychronous transfer may invoke a less optimal memory tranfer path (in OpenCL).
+// clang-format off
   class gputilAPI Buffer
   {
   public:
@@ -136,7 +139,10 @@ namespace gputil
     /// @tparam T The data type defining the element size.
     /// @return The number of elements the buffer has the capacity for.
     template <typename T>
-    inline size_t elementCount() const { return size() / sizeof(T); }
+    inline size_t elementCount() const
+    {
+      return size() / sizeof(T);
+    }
 
     /// Check the number of data elements of size @p bufferElementSize the buffer can hold.
     /// @param buffer_element_size The size or stride of a single element in the buffer.
@@ -206,8 +212,8 @@ namespace gputil
     ///     changes the operation to occur asynchronously.
     /// @param block_on Optional event to wait for be performing the fill.
     /// @param completion Optional event to setup to mark completion of the fill operation.
-    void fill(const void *pattern, size_t pattern_size,
-              Queue *queue = nullptr, Event *block_on = nullptr, Event *completion = nullptr);
+    void fill(const void *pattern, size_t pattern_size, Queue *queue = nullptr, Event *block_on = nullptr,
+              Event *completion = nullptr);
 
     /// Fill part of the buffer with @p pattern.
     ///
@@ -221,10 +227,12 @@ namespace gputil
     /// @param pattern The memory pattern to fill with.
     /// @param pattern_size The size of the data at @p pattern, in bytes.
     /// @param offset Offset into the buffer to write at (bytes).
-    /// @param fill_bytes Number of total bytes to fill in the buffer. Best to be a multiple of @p patternSize, but need not be.
+    /// @param fill_bytes Number of total bytes to fill in the buffer. Best to be a multiple of @p patternSize, but need
+    /// not be.
     /// @param queue The command queue in which to perform the operation.
-    void fillPartial(const void *pattern, size_t pattern_size, size_t fill_bytes, size_t offset,
-                     Queue *queue = nullptr);// too tricky for now: , Event *blockOn = nullptr, Event *completion = nullptr);
+    void fillPartial(
+      const void *pattern, size_t pattern_size, size_t fill_bytes, size_t offset,
+      Queue *queue = nullptr);  // too tricky for now: , Event *blockOn = nullptr, Event *completion = nullptr);
 
     /// Read data from the buffer.
     ///
@@ -240,8 +248,8 @@ namespace gputil
     /// @param block_on Optional event to wait for be performing the read.
     /// @param completion Optional event to setup to mark completion of the read operation.
     /// @return The number of bytes read.
-    size_t read(void *dst, size_t read_byte_count, size_t src_offset = 0,
-                Queue *queue = nullptr, Event *block_on = nullptr, Event *completion = nullptr);
+    size_t read(void *dst, size_t read_byte_count, size_t src_offset = 0, Queue *queue = nullptr,
+                Event *block_on = nullptr, Event *completion = nullptr);
 
     /// Write data to the buffer.
     ///
@@ -260,8 +268,8 @@ namespace gputil
     /// @param block_on Optional event to wait for be performing the write.
     /// @param completion Optional event to setup to mark completion of the write operation.
     /// @return The number of bytes written.
-    size_t write(const void *src, size_t byte_count, size_t dst_offset = 0,
-                 Queue *queue = nullptr, Event *block_on = nullptr, Event *completion = nullptr);
+    size_t write(const void *src, size_t byte_count, size_t dst_offset = 0, Queue *queue = nullptr,
+                 Event *block_on = nullptr, Event *completion = nullptr);
 
     /// Read an array of data elements from the buffer.
     ///
@@ -289,9 +297,9 @@ namespace gputil
     /// @param completion Optional event to setup to mark completion of the read operation.
     /// @return The number of elements read. May be less than @c element_count if this buffer is not
     ///     large enough to hold @c element_count.
-    size_t readElements(void *dst, size_t element_size, size_t element_count,
-                        size_t offset_elements, size_t buffer_element_size,
-                        Queue *queue = nullptr, Event *block_on = nullptr, Event *completion = nullptr);
+    size_t readElements(void *dst, size_t element_size, size_t element_count, size_t offset_elements,
+                        size_t buffer_element_size, Queue *queue = nullptr, Event *block_on = nullptr,
+                        Event *completion = nullptr);
 
     /// An overload of @c readElements() using the template sizes to determine the sizes.
     /// @tparam T The data type to read into and assumed to exactly match that stored in the GPU buffer.
@@ -306,8 +314,8 @@ namespace gputil
     /// @return The number of elements read. May be less than @c element_count if this buffer is not
     ///     large enough to hold @c element_count.
     template <typename T>
-    inline size_t readElements(T *dst, size_t element_count, size_t offset_elements = 0,
-                               Queue *queue = nullptr, Event *block_on = nullptr, Event *completion = nullptr)
+    inline size_t readElements(T *dst, size_t element_count, size_t offset_elements = 0, Queue *queue = nullptr,
+                               Event *block_on = nullptr, Event *completion = nullptr)
     {
       return readElements(dst, sizeof(T), element_count, offset_elements, 0u, queue, block_on, completion);
     }
@@ -327,11 +335,11 @@ namespace gputil
     /// @return The number of elements read. May be less than @c element_count if this buffer is not
     ///     large enough to hold @c element_count.
     template <typename BUFFER_TYPE, typename T>
-    inline size_t readElements(T *dst, size_t element_count, size_t offset_elements = 0,
-                               Queue *queue = nullptr, Event *block_on = nullptr, Event *completion = nullptr)
+    inline size_t readElements(T *dst, size_t element_count, size_t offset_elements = 0, Queue *queue = nullptr,
+                               Event *block_on = nullptr, Event *completion = nullptr)
     {
-      return readElements(dst, sizeof(T), element_count, offset_elements, sizeof(BUFFER_TYPE),
-                          queue, block_on, completion);
+      return readElements(dst, sizeof(T), element_count, offset_elements, sizeof(BUFFER_TYPE), queue, block_on,
+                          completion);
     }
 
     /// Write an array of data elements to the buffer.
@@ -354,9 +362,9 @@ namespace gputil
     /// @param completion Optional event to setup to mark completion of the write operation.
     /// @return The number of elements written. May be less than @c element_count if this buffer is not
     ///     large enough to hold @c element_count.
-    size_t writeElements(const void *src, size_t element_size, size_t element_count,
-                         size_t offset_elements, size_t buffer_element_size,
-                         Queue *queue = nullptr, Event *block_on = nullptr, Event *completion = nullptr);
+    size_t writeElements(const void *src, size_t element_size, size_t element_count, size_t offset_elements,
+                         size_t buffer_element_size, Queue *queue = nullptr, Event *block_on = nullptr,
+                         Event *completion = nullptr);
 
     /// An overload of @c writeElements() using the template sizes to determine the sizes.
     /// @tparam T The data type to read into and assumed to exactly match that stored in the GPU buffer.
@@ -371,8 +379,8 @@ namespace gputil
     /// @return The number of elements written. May be less than @c element_count if this buffer is not
     ///     large enough to hold @c element_count.
     template <typename T>
-    inline size_t writeElements(const T *src, size_t element_count, size_t offset_elements = 0,
-                                Queue *queue = nullptr, Event *block_on = nullptr, Event *completion = nullptr)
+    inline size_t writeElements(const T *src, size_t element_count, size_t offset_elements = 0, Queue *queue = nullptr,
+                                Event *block_on = nullptr, Event *completion = nullptr)
     {
       return writeElements(src, sizeof(T), element_count, offset_elements, 0u, queue, block_on, completion);
     }
@@ -392,11 +400,11 @@ namespace gputil
     /// @return The number of elements written. May be less than @c element_count if this buffer is not
     ///     large enough to hold @c element_count.
     template <typename BUFFER_TYPE, typename T>
-    inline size_t writeElements(const T *src, size_t element_count, size_t offset_elements = 0,
-                                Queue *queue = nullptr, Event *block_on = nullptr, Event *completion = nullptr)
+    inline size_t writeElements(const T *src, size_t element_count, size_t offset_elements = 0, Queue *queue = nullptr,
+                                Event *block_on = nullptr, Event *completion = nullptr)
     {
-      return writeElements(src, sizeof(T), element_count, offset_elements, sizeof(BUFFER_TYPE),
-                           queue, block_on, completion);
+      return writeElements(src, sizeof(T), element_count, offset_elements, sizeof(BUFFER_TYPE), queue, block_on,
+                           completion);
     }
 
     /// Internal pointer for argument passing to the device function/kernel.
@@ -424,10 +432,18 @@ namespace gputil
     ///   //...
     ///   kernel.setArg(0, buffer.arg<cl_mem>());
     /// @endcode
-    template <typename T> inline T arg() { return static_cast<T>(argPtr()); }
+    template <typename T>
+    inline T arg()
+    {
+      return static_cast<T>(argPtr());
+    }
 
     /// @c overload
-    template <typename T> inline T arg() const { return static_cast<T>(argPtr()); }
+    template <typename T>
+    inline T arg() const
+    {
+      return static_cast<T>(argPtr());
+    }
 
     void *pin(PinMode mode);
     void unpin(void *ptr, Queue *queue = nullptr, Event *block_on = nullptr, Event *completion = nullptr);
@@ -450,8 +466,8 @@ namespace gputil
   /// @param block_on Optional event to wait for be performing the copy.
   /// @param completion Optional event to setup to mark completion of the copy operation.
   /// @return The number of bytes copied
-  size_t copyBuffer(Buffer &dst, const Buffer &src,
-                    Queue *queue = nullptr, Event *block_on = nullptr, Event *completion = nullptr);
+  size_t copyBuffer(Buffer &dst, const Buffer &src, Queue *queue = nullptr, Event *block_on = nullptr,
+                    Event *completion = nullptr);
 
   /// Copy data from @p src to @p dst copying only @p byteCount bytes.
   /// Both buffers must support @p byteCount bytes.
@@ -466,8 +482,8 @@ namespace gputil
   /// @param block_on Optional event to wait for be performing the copy.
   /// @param completion Optional event to setup to mark completion of the copy operation.
   /// @return The number of bytes copied
-  size_t copyBuffer(Buffer &dst, const Buffer &src, size_t byte_count,
-                    Queue *queue = nullptr, Event *block_on = nullptr, Event *completion = nullptr);
+  size_t copyBuffer(Buffer &dst, const Buffer &src, size_t byte_count, Queue *queue = nullptr,
+                    Event *block_on = nullptr, Event *completion = nullptr);
 
   /// Copy data from @p src to @p dst with offsets, copying only @p byteCount bytes.
   /// Both buffers must support @p byteCount bytes and the given offsets.
@@ -486,6 +502,6 @@ namespace gputil
   /// @return The number of bytes copied
   size_t copyBuffer(Buffer &dst, size_t dst_offset, const Buffer &src, size_t src_offset, size_t byte_count,
                     Queue *queue = nullptr, Event *block_on = nullptr, Event *completion = nullptr);
-}
+}  // namespace gputil
 
-#endif // GPUBUFFER_H
+#endif  // GPUBUFFER_H

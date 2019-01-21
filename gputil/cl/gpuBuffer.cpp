@@ -83,12 +83,12 @@ namespace
     cl_mem_flags actual_flags = 0;
     clGetMemObjectInfo(imp.buffer(), CL_MEM_FLAGS, sizeof(actual_flags), &actual_flags, nullptr);
 
-    imp.flags = imp.request_flags; 
+    imp.flags = imp.request_flags;
     if ((imp.request_flags & kBfHostAccess) && !(actual_flags & CL_MEM_ALLOC_HOST_PTR))
     {
       // Failed to allocate in host memory.
       imp.flags &= ~kBfHostAccess;
-      //std::cout << "Failed host access " << std::endl;
+      // std::cout << "Failed host access " << std::endl;
     }
 
     imp.requested_size = new_size;

@@ -41,17 +41,16 @@
 #ifndef __OPENCL_C_VERSION__
 namespace ohm
 {
-
 #define SUB_VOX_FUNC_PREFACE template <typename vec3, typename coord_real>
 
 #else  // !__OPENCL_C_VERSION__
 
 #if !defined(coord_real)
-  typedef float coord_real;
+typedef float coord_real;
 #endif  // !defined(coord_real)
 
 #if !defined(vec3)
-  typedef float3 vec3;
+typedef float3 vec3;
 #endif  // !defined(vec3)
 
 #define SUB_VOX_FUNC_PREFACE
@@ -79,9 +78,9 @@ namespace ohm
     int pos_y = pointToRegionCoord(voxel_local_coord.y + offset, sub_voxel_resolution);
     int pos_z = pointToRegionCoord(voxel_local_coord.z + offset, sub_voxel_resolution);
 
-    pos_x = (pos_x >= 0 ? (pos_x < (1 << bits_per_axis) ? pos_x : sub_voxel_positions) : 0) ;
-    pos_y = (pos_y >= 0 ? (pos_y < (1 << bits_per_axis) ? pos_y : sub_voxel_positions) : 0) ;
-    pos_z = (pos_z >= 0 ? (pos_z < (1 << bits_per_axis) ? pos_z : sub_voxel_positions) : 0) ;
+    pos_x = (pos_x >= 0 ? (pos_x < (1 << bits_per_axis) ? pos_x : sub_voxel_positions) : 0);
+    pos_y = (pos_y >= 0 ? (pos_y < (1 << bits_per_axis) ? pos_y : sub_voxel_positions) : 0);
+    pos_z = (pos_z >= 0 ? (pos_z < (1 << bits_per_axis) ? pos_z : sub_voxel_positions) : 0);
 
     unsigned pattern = 0;
     pattern |= (unsigned)pos_x;
@@ -109,8 +108,14 @@ namespace ohm
 
     vec3 coord;
     coord.x = (used_bit) ? regionCentreCoord((int)(pattern & sub_voxel_positions), sub_voxel_resolution) - offset : 0;
-    coord.y = (used_bit) ? regionCentreCoord((int)((pattern >> bits_per_axis) & sub_voxel_positions), sub_voxel_resolution) - offset : 0;
-    coord.z = (used_bit) ? regionCentreCoord((int)((pattern >> (2 * bits_per_axis)) & sub_voxel_positions), sub_voxel_resolution) - offset : 0;
+    coord.y =
+      (used_bit) ?
+        regionCentreCoord((int)((pattern >> bits_per_axis) & sub_voxel_positions), sub_voxel_resolution) - offset :
+        0;
+    coord.z = (used_bit) ?
+                regionCentreCoord((int)((pattern >> (2 * bits_per_axis)) & sub_voxel_positions), sub_voxel_resolution) -
+                  offset :
+                0;
     return coord;
   }
 
@@ -127,11 +132,11 @@ namespace ohm
   {
     vec3 old_local =
 #ifndef __OPENCL_C_VERSION__
-                              subVoxelToLocalCoord<vec3>(initial_pattern, resolution)
-#else  //  __OPENCL_C_VERSION__
-                              subVoxelToLocalCoord(initial_pattern, resolution)
-#endif //  __OPENCL_C_VERSION__
-    ;
+      subVoxelToLocalCoord<vec3>(initial_pattern, resolution)
+#else   //  __OPENCL_C_VERSION__
+    subVoxelToLocalCoord(initial_pattern, resolution)
+#endif  //  __OPENCL_C_VERSION__
+      ;
     old_local.x *= (1.0 - weighting);
     old_local.y *= (1.0 - weighting);
     old_local.z *= (1.0 - weighting);

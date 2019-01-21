@@ -24,8 +24,8 @@ namespace ohm
       return load(stream, detail, progress, version, region_count, v0_1::loadChunk);
     }
 
-    int load(InputStream &stream, OccupancyMapDetail &detail, SerialiseProgress *progress, const MapVersion &/*version*/,
-             size_t region_count, const ChunkFunc &load_chunk)
+    int load(InputStream &stream, OccupancyMapDetail &detail, SerialiseProgress *progress,
+             const MapVersion & /*version*/, size_t region_count, const ChunkFunc &load_chunk)
     {
       int err = loadLayout(stream, detail);
       if (err)

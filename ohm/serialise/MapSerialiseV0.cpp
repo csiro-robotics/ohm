@@ -18,8 +18,8 @@ namespace ohm
 {
   namespace v0
   {
-    int load(InputStream &stream, OccupancyMapDetail &detail, SerialiseProgress *progress, const MapVersion &/*version*/,
-             size_t region_count)
+    int load(InputStream &stream, OccupancyMapDetail &detail, SerialiseProgress *progress,
+             const MapVersion & /*version*/, size_t region_count)
     {
       int err = kSeOk;
 

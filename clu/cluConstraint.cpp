@@ -18,8 +18,7 @@ namespace clu
       std::transform(like_name.begin(), like_name.end(), like_name.begin(), ::tolower);
     }
 
-    PlatformConstraint constraint = [like_name, ignore_case](const cl::Platform &platform) -> bool
-    {
+    PlatformConstraint constraint = [like_name, ignore_case](const cl::Platform &platform) -> bool {
       std::string platform_name;
       platform.getInfo(CL_PLATFORM_NAME, &platform_name);
       if (ignore_case)
@@ -41,13 +40,12 @@ namespace clu
       std::transform(like_name.begin(), like_name.end(), like_name.begin(), ::tolower);
     }
 
-    PlatformConstraint constraint = [like_name, ignore_case](const cl::Platform &platform) -> bool
-    {
+    PlatformConstraint constraint = [like_name, ignore_case](const cl::Platform &platform) -> bool {
       std::string vendor;
 #ifndef NDEBUG
       std::string name;
       platform.getInfo(CL_PLATFORM_NAME, &name);
-#endif // NDEBUG
+#endif  // NDEBUG
       platform.getInfo(CL_PLATFORM_VENDOR, &vendor);
       if (ignore_case)
       {
@@ -62,8 +60,7 @@ namespace clu
 
   PlatformConstraint platformVersionMin(unsigned major, unsigned minor)
   {
-    PlatformConstraint constraint = [major, minor](const cl::Platform &platform) -> bool
-    {
+    PlatformConstraint constraint = [major, minor](const cl::Platform &platform) -> bool {
       cl_uint major_version = 0;
       cl_uint minor_version = 0;
       platformVersion(platform(), &major_version, &minor_version);
@@ -76,8 +73,7 @@ namespace clu
 
   DeviceConstraint deviceVersionMin(unsigned major, unsigned minor)
   {
-    DeviceConstraint constraint = [major, minor](const cl::Platform &, const cl::Device &device) -> bool
-    {
+    DeviceConstraint constraint = [major, minor](const cl::Platform &, const cl::Device &device) -> bool {
       ::size_t size = 0;
       clGetDeviceInfo(device(), CL_DEVICE_VERSION, 0, nullptr, &size);
       cl::string version_info;
@@ -105,8 +101,7 @@ namespace clu
       std::transform(like_name.begin(), like_name.end(), like_name.begin(), ::tolower);
     }
 
-    DeviceConstraint constraint = [like_name, ignore_case](const cl::Platform &, const cl::Device &device) -> bool
-    {
+    DeviceConstraint constraint = [like_name, ignore_case](const cl::Platform &, const cl::Device &device) -> bool {
       std::string device_name;
       device.getInfo(CL_DEVICE_NAME, &device_name);
       if (ignore_case)
@@ -128,8 +123,8 @@ namespace clu
       std::transform(like_name.begin(), like_name.end(), like_name.begin(), ::tolower);
     }
 
-    DeviceConstraint constraint = [like_name, ignore_case](const cl::Platform &platform, const cl::Device &device) -> bool
-    {
+    DeviceConstraint constraint = [like_name, ignore_case](const cl::Platform &platform,
+                                                           const cl::Device &device) -> bool {
       std::string platform_vendor;
       std::string device_vendor;
       platform.getInfo(CL_PLATFORM_VENDOR, &platform_vendor);
@@ -144,4 +139,4 @@ namespace clu
 
     return constraint;
   }
-}
+}  // namespace clu

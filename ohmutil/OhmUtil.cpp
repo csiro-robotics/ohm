@@ -5,7 +5,7 @@
 // Author: Kazys Stepanas
 #include "ohmutil.h"
 
-namespace util
+namespace
 {
-
+  int dummy_symbol = 0;
 }

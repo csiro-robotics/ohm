@@ -7,20 +7,20 @@
 
 #include "clu.h"
 
+#include <fstream>
 #include <ostream>
 #include <sstream>
-#include <fstream>
 
 #ifdef WIN32
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
 #else  // WIN32
 #include <unistd.h>
-#endif // WIN32
+#endif  // WIN32
 
 #ifdef __APPLE__
 #include <mach-o/dyld.h>
-#endif // __APPLE__
+#endif  // __APPLE__
 
 namespace clu
 {
@@ -44,7 +44,8 @@ namespace clu
     {
       log.resize(log_size + 1);
     }
-    clGetProgramBuildInfo(program(), device(), CL_PROGRAM_BUILD_LOG, sizeof(*log.data()) * log.size(), &log.at(0), nullptr);
+    clGetProgramBuildInfo(program(), device(), CL_PROGRAM_BUILD_LOG, sizeof(*log.data()) * log.size(), &log.at(0),
+                          nullptr);
     device.getInfo(CL_DEVICE_NAME, &device_name);
     out << device_name << '\n';
     out << log << std::endl;
@@ -76,7 +77,8 @@ namespace clu
       {
         log.resize(log_size + 1);
       }
-      clGetProgramBuildInfo(program(), device(), CL_PROGRAM_BUILD_LOG, sizeof(*log.data()) * log.size(), &log.at(0), nullptr);
+      clGetProgramBuildInfo(program(), device(), CL_PROGRAM_BUILD_LOG, sizeof(*log.data()) * log.size(), &log.at(0),
+                            nullptr);
       device.getInfo(CL_DEVICE_NAME, &device_name);
       out << device_name << '\n';
       out << log << std::endl;
@@ -110,9 +112,7 @@ namespace clu
     return device_count;
   }
 
-  size_t maxWorkgroupSize(const cl::Kernel &kernel,
-                          const LocalMemCalcFunc &local_mem_func,
-                          cl_int *err)
+  size_t maxWorkgroupSize(const cl::Kernel &kernel, const LocalMemCalcFunc &local_mem_func, cl_int *err)
   {
     cl_int clerr;
     cl_program program = nullptr;
@@ -156,7 +156,7 @@ namespace clu
     {
       cl_device_id device = device_ids[i];
 
-      //size_t maxItems1 = 0;
+      // size_t maxItems1 = 0;
       const cl_kernel kernel_obj = kernel();
       // Interesting note: using Apple OpenCL 1.2 and the CPU driver can give what seems to be
       // odd results here for CL_KERNEL_WORK_GROUP_SIZE. Specifically I noted that it kept being
@@ -164,8 +164,8 @@ namespace clu
       // (say 128) to 1 as soon as the OpenCL call included a call to barrier(), either local or global.
       // I guess that the thread synchronisation for this implementation is not very good, so it simply
       // drops the resolution back to avoid having any synchronisation code.
-      clerr = clGetKernelWorkGroupInfo(kernel_obj, device, CL_KERNEL_WORK_GROUP_SIZE,
-                                       sizeof(max_items), &max_items, nullptr);
+      clerr =
+        clGetKernelWorkGroupInfo(kernel_obj, device, CL_KERNEL_WORK_GROUP_SIZE, sizeof(max_items), &max_items, nullptr);
       if (clerr != CL_SUCCESS)
       {
         if (clerr == CL_INVALID_DEVICE)
@@ -191,8 +191,8 @@ namespace clu
         cl_ulong available_local_memory = 0;
 
         // Get the base memory used by the kernel.
-        clerr = clGetKernelWorkGroupInfo(kernel_obj, device, CL_KERNEL_LOCAL_MEM_SIZE,
-                                         sizeof(kernel_local_memory), &kernel_local_memory, nullptr);
+        clerr = clGetKernelWorkGroupInfo(kernel_obj, device, CL_KERNEL_LOCAL_MEM_SIZE, sizeof(kernel_local_memory),
+                                         &kernel_local_memory, nullptr);
         if (clerr != CL_SUCCESS)
         {
           if (err)
@@ -201,8 +201,8 @@ namespace clu
           }
           return 0;
         }
-        clerr = clGetKernelWorkGroupInfo(kernel_obj, device, CL_KERNEL_PRIVATE_MEM_SIZE,
-                                         sizeof(kernel_private_memory), &kernel_private_memory, nullptr);
+        clerr = clGetKernelWorkGroupInfo(kernel_obj, device, CL_KERNEL_PRIVATE_MEM_SIZE, sizeof(kernel_private_memory),
+                                         &kernel_private_memory, nullptr);
         if (clerr != CL_SUCCESS)
         {
           if (err)
@@ -213,7 +213,8 @@ namespace clu
         }
 
         // Get the max local memory.
-        clerr = clGetDeviceInfo(device, CL_DEVICE_LOCAL_MEM_SIZE, sizeof(available_local_memory), &available_local_memory, nullptr);
+        clerr = clGetDeviceInfo(device, CL_DEVICE_LOCAL_MEM_SIZE, sizeof(available_local_memory),
+                                &available_local_memory, nullptr);
         if (clerr != CL_SUCCESS)
         {
           if (err)
@@ -250,8 +251,7 @@ namespace clu
           last_limit = max_items;
           max_items = max_items >> 1;
           local_mem_used = local_mem_func(max_items);
-        }
-        while (local_mem_used > available_local_memory && loops++ < loop_limit);
+        } while (local_mem_used > available_local_memory && loops++ < loop_limit);
 
         if (local_mem_used > available_local_memory)
         {
@@ -275,13 +275,12 @@ namespace clu
               max_items = test_items;
             }
             last_limit = test_items;
-          }
-          while (diff > 0 && loops++ < loop_limit);
+          } while (diff > 0 && loops++ < loop_limit);
         }
       }
     }
 
-    //clGetDeviceInfo(device_, CL_DEVICE_MAX_WORK_GROUP_SIZE, sizeof(maxItems1), &maxItems1, nullptr);
+    // clGetDeviceInfo(device_, CL_DEVICE_MAX_WORK_GROUP_SIZE, sizeof(maxItems1), &maxItems1, nullptr);
     return max_items;
   }
 
@@ -328,7 +327,7 @@ namespace clu
       {
         return true;
       }
-#endif // WIN32
+#endif  // WIN32
     }
     return false;
   }
@@ -366,10 +365,10 @@ namespace clu
   {
 #ifdef WIN32
     GetCurrentDirectoryA(static_cast<DWORD>(buffer_length), path);
-#else  // WIN32
+#else   // WIN32
     // const char *ignore =
     path = getcwd(path, buffer_length);
-#endif // WIN32
+#endif  // WIN32
     // Guarantee null termination.
     path[buffer_length - 1] = '\0';
     return path;
@@ -380,9 +379,9 @@ namespace clu
   {
 #ifdef WIN32
     return '\\';
-#else  // WIN32
+#else   // WIN32
     return '/';
-#endif // WIN32
+#endif  // WIN32
   }
 
 
@@ -404,9 +403,9 @@ namespace clu
       // File is in current working directory.
 #ifdef _MSC_VER
       strcpy_s(file_name, buffer_length, str.str().c_str());
-#else // _MSC_VER
+#else   // _MSC_VER
       strcpy(file_name, str.str().c_str());
-#endif // _MSC_VER
+#endif  // _MSC_VER
       return file_name;
     }
 
@@ -421,9 +420,9 @@ namespace clu
       // File is in application directory.
 #ifdef _MSC_VER
       strncpy_s(file_name, buffer_length, str.str().c_str(), buffer_length);
-#else // _MSC_VER
+#else   // _MSC_VER
       strncpy(file_name, str.str().c_str(), buffer_length);
-#endif // _MSC_VER
+#endif  // _MSC_VER
       file_name[buffer_length - 1] = '\0';
       return file_name;
     }
@@ -448,9 +447,9 @@ namespace clu
           {
 #ifdef _MSC_VER
             strncpy_s(cwd, path, path_len);
-#else // _MSC_VER
+#else   // _MSC_VER
             strncpy(cwd, path, path_len);
-#endif // _MSC_VER
+#endif  // _MSC_VER
 
             cwd[path_len] = '\0';
             // Try the path.
@@ -469,9 +468,9 @@ namespace clu
               // File is on a search path.
 #ifdef _MSC_VER
               strncpy_s(file_name, buffer_length, str.str().c_str(), buffer_length);
-#else // _MSC_VER
+#else   // _MSC_VER
               strncpy(file_name, str.str().c_str(), buffer_length);
-#endif // _MSC_VER
+#endif  // _MSC_VER
               file_name[buffer_length - 1] = '\0';
               return file_name;
             }
@@ -481,13 +480,11 @@ namespace clu
             do
             {
               ++path;
-            }
-            while (*path && *path == ',');
+            } while (*path && *path == ',');
           }
         }
         ++ch;
-      }
-      while (ch[-1]);
+      } while (ch[-1]);
     }
     // Not found.
     return nullptr;
@@ -513,9 +510,9 @@ namespace clu
       // File is in current working directory.
 #ifdef _MSC_VER
       strcpy_s(file_name, buffer_length, cwd);
-#else // _MSC_VER
+#else   // _MSC_VER
       strcpy(file_name, cwd);
-#endif // _MSC_VER
+#endif  // _MSC_VER
       return file_name;
     }
 
@@ -531,9 +528,9 @@ namespace clu
       // File is in application directory.
 #ifdef _MSC_VER
       strncpy_s(file_name, buffer_length, cwd, buffer_length);
-#else // _MSC_VER
+#else   // _MSC_VER
       strncpy(file_name, cwd, buffer_length);
-#endif // _MSC_VER
+#endif  // _MSC_VER
       file_name[buffer_length - 1] = '\0';
       return file_name;
     }
@@ -558,9 +555,9 @@ namespace clu
           {
 #ifdef _MSC_VER
             strncpy_s(cwd, path, path_len);
-#else // _MSC_VER
+#else   // _MSC_VER
             strncpy(cwd, path, path_len);
-#endif // _MSC_VER
+#endif  // _MSC_VER
 
             cwd[path_len] = '\0';
             // Try the path.
@@ -579,9 +576,9 @@ namespace clu
               // File is on a search path.
 #ifdef _MSC_VER
               strncpy_s(file_name, buffer_length, cwd, buffer_length);
-#else // _MSC_VER
+#else   // _MSC_VER
               strncpy(file_name, cwd, buffer_length);
-#endif // _MSC_VER
+#endif  // _MSC_VER
               file_name[buffer_length - 1] = '\0';
               return file_name;
             }
@@ -591,25 +588,19 @@ namespace clu
             do
             {
               ++path;
-            }
-            while (*path && *path == ',');
+            } while (*path && *path == ',');
           }
         }
         ++ch;
-      }
-      while (ch[-1]);
+      } while (ch[-1]);
     }
 
     // Not found.
     return nullptr;
   }
 
-  cl_int buildProgramFromFile(cl::Program &program, cl::Context &ocl,
-                              std::string &source_file_name,
-                              std::ostream &log,
-                              const char *args,
-                              const char *debug_option,
-                              const char *source_file_opt,
+  cl_int buildProgramFromFile(cl::Program &program, cl::Context &ocl, std::string &source_file_name, std::ostream &log,
+                              const char *args, const char *debug_option, const char *source_file_opt,
                               const char *search_paths)
   {
     if (program())
@@ -619,13 +610,13 @@ namespace clu
     }
 
     // Compile and initialise.
-    char source_dir[260]; // MAX_PATH length.
+    char source_dir[260];  // MAX_PATH length.
     std::ostringstream source_file;
 #ifdef _MSC_VER
     strcpy_s(source_dir, source_file_name.c_str());
-#else  // !_MSC_VER
+#else   // !_MSC_VER
     strcpy(source_dir, source_file_name.c_str());
-#endif // _MSC_VER
+#endif  // _MSC_VER
     if (!clu::findProgramDir(source_dir, sizeof(source_dir), search_paths))
     {
       // Not found.
@@ -671,11 +662,8 @@ namespace clu
                                   build_opt_str.c_str(), nullptr);
   }
 
-  cl_int buildProgramFromString(cl::Program &program, cl::Context &ocl,
-                                const char *source_code, size_t source_length,
-                                std::ostream &log,
-                                const char *reference_name,
-                                const char *build_args,
+  cl_int buildProgramFromString(cl::Program &program, cl::Context &ocl, const char *source_code, size_t source_length,
+                                std::ostream &log, const char *reference_name, const char *build_args,
                                 const char *debug_option)
   {
     if (source_length == 0)
@@ -690,8 +678,7 @@ namespace clu
     std::ostringstream build_opt;
     bool first_opt = true;
 
-    auto prefix_opt = [&first_opt](std::ostream &out) -> std::ostream &
-    {
+    auto prefix_opt = [&first_opt](std::ostream &out) -> std::ostream & {
       if (!first_opt)
       {
         out << ' ';
@@ -724,4 +711,4 @@ namespace clu
 
     return clerr;
   }
-}
+}  // namespace clu

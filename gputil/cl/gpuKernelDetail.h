@@ -24,6 +24,6 @@ namespace gputil
     Program program;
     std::vector<std::function<size_t(size_t)>> local_mem_args;
   };
-}
+}  // namespace gputil
 
-#endif // GPUKERNELDETAIL_H
+#endif  // GPUKERNELDETAIL_H

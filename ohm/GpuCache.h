@@ -16,7 +16,7 @@ namespace gputil
 {
   class Device;
   class Queue;
-}
+}  // namespace gputil
 
 namespace ohm
 {
@@ -93,8 +93,8 @@ namespace ohm
     /// Request or create a new @c GpuLayerCache.
     ///
     /// The cache is uniquely identified by the specified @p id, the sematics of which depend on usage. A default
-    /// set of IDs is defined in @c GpuCacheId The call also specifies a @p layer which identifies the @c MapLayer associated
-    /// with the cache.
+    /// set of IDs is defined in @c GpuCacheId The call also specifies a @p layer which identifies the @c MapLayer
+    /// associated with the cache.
     GpuLayerCache *layerCache(unsigned id);
 
     /// Remove data associated with @p region_key from all @c GpuLayerCache layers in the cache.
@@ -118,6 +118,6 @@ namespace ohm
   private:
     GpuCacheDetail *imp_;
   };
-}
+}  // namespace ohm
 
-#endif // OHM_GPUCACHE_H
+#endif  // OHM_GPUCACHE_H

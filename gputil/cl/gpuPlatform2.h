@@ -10,7 +10,7 @@
 #include <OpenCL/opencl.h>
 #else
 #include <CL/opencl.h>
-#endif // !__APPLE__
+#endif  // !__APPLE__
 
 namespace gputil
 {
@@ -54,6 +54,6 @@ namespace gputil
   typedef cl_float4 float4;
   typedef cl_double double1;
   typedef cl_double2 double2;
-}
+}  // namespace gputil
 
-#endif // GPUPLATFORM2_H
+#endif  // GPUPLATFORM2_H

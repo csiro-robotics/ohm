@@ -76,16 +76,16 @@ namespace ohm
 
     ~GpuLayerCacheDetail()
     {
-      delete [] dummy_chunk;
+      delete[] dummy_chunk;
       // We must clean up the cache explicitly. Otherwise it may be cleaned up after the _gpu device, in which case
       // the events will no longer be valid.
       cache.clear();
     }
   };
-}
+}  // namespace ohm
 
-GpuLayerCache::GpuLayerCache(const gputil::Device &gpu, const gputil::Queue &gpu_queue,
-                             OccupancyMap &map, unsigned layer_index, size_t target_gpu_mem_size, unsigned flags,
+GpuLayerCache::GpuLayerCache(const gputil::Device &gpu, const gputil::Queue &gpu_queue, OccupancyMap &map,
+                             unsigned layer_index, size_t target_gpu_mem_size, unsigned flags,
                              GpuCachePostSyncHandler on_sync)
   : imp_(new GpuLayerCacheDetail)
 {
@@ -120,8 +120,8 @@ unsigned GpuLayerCache::layerIndex() const
 }
 
 
-size_t GpuLayerCache::allocate(OccupancyMap &map, const glm::i16vec3 &region_key, MapChunk *&chunk, gputil::Event *event,
-                               CacheStatus *status, unsigned batch_marker, unsigned flags)
+size_t GpuLayerCache::allocate(OccupancyMap &map, const glm::i16vec3 &region_key, MapChunk *&chunk,
+                               gputil::Event *event, CacheStatus *status, unsigned batch_marker, unsigned flags)
 {
   GpuCacheEntry *entry = resolveCacheEntry(map, region_key, chunk, event, status, batch_marker, flags, false);
   if (entry)
@@ -146,7 +146,8 @@ size_t GpuLayerCache::upload(OccupancyMap &map, const glm::i16vec3 &region_key, 
 }
 
 
-bool GpuLayerCache::lookup(OccupancyMap &/*map*/, const glm::i16vec3 &region_key, size_t *offset, gputil::Event *current_event)
+bool GpuLayerCache::lookup(OccupancyMap & /*map*/, const glm::i16vec3 &region_key, size_t *offset,
+                           gputil::Event *current_event)
 {
   // const MapLayer &layer = map.layout().layer(_layerIndex);
   GpuCacheEntry *entry = findCacheEntry(region_key);
@@ -210,7 +211,7 @@ void GpuLayerCache::remove(const glm::i16vec3 &region_key)
   auto search_iter = imp_->cache.find(region_hash);
 
   while (search_iter != imp_->cache.end() && search_iter->first == region_hash &&
-          search_iter->second.region_key != region_key)
+         search_iter->second.region_key != region_key)
   {
     ++search_iter;
   }
@@ -338,9 +339,8 @@ void GpuLayerCache::clear()
 }
 
 
-GpuCacheEntry *GpuLayerCache::resolveCacheEntry(OccupancyMap &map, const glm::i16vec3 &region_key,
-                                                MapChunk *&chunk, gputil::Event *event,
-                                                CacheStatus *status, unsigned batch_marker,
+GpuCacheEntry *GpuLayerCache::resolveCacheEntry(OccupancyMap &map, const glm::i16vec3 &region_key, MapChunk *&chunk,
+                                                gputil::Event *event, CacheStatus *status, unsigned batch_marker,
                                                 unsigned flags, bool upload)
 {
   const MapLayer &layer = map.layout().layer(imp_->layer_index);
@@ -466,7 +466,8 @@ GpuCacheEntry *GpuLayerCache::resolveCacheEntry(OccupancyMap &map, const glm::i1
   if (upload)
   {
     const uint8_t *voxel_mem = (chunk) ? layer.voxels(*chunk) : imp_->dummy_chunk;
-    imp_->buffer->write(voxel_mem, imp_->chunk_mem_size, entry->mem_offset, &imp_->gpu_queue, nullptr, &entry->sync_event);
+    imp_->buffer->write(voxel_mem, imp_->chunk_mem_size, entry->mem_offset, &imp_->gpu_queue, nullptr,
+                        &entry->sync_event);
   }
 
   if (event)
@@ -528,7 +529,8 @@ void GpuLayerCache::syncToMainMemory(GpuCacheEntry &entry, bool wait_on_sync)
     entry.sync_event.release();
     // Queue memory read blocking on the last event and tracking a new one in entry.syncEvent
     uint8_t *voxel_mem = entry.chunk->layout->layer(imp_->layer_index).voxels(*entry.chunk);
-    imp_->buffer->read(voxel_mem, imp_->chunk_mem_size, entry.mem_offset, &imp_->gpu_queue, &last_event, &entry.sync_event);
+    imp_->buffer->read(voxel_mem, imp_->chunk_mem_size, entry.mem_offset, &imp_->gpu_queue, &last_event,
+                       &entry.sync_event);
   }
 
   // Do we block now on the sync? This could be changed to execute only when we don't skip download.
@@ -562,8 +564,7 @@ namespace
       ++search_iter;
     }
 
-    if (search_iter != cache.end() && search_iter->first == region_hash &&
-        search_iter->second.region_key == region_key)
+    if (search_iter != cache.end() && search_iter->first == region_hash && search_iter->second.region_key == region_key)
     {
       return &search_iter->second;
     }
@@ -571,7 +572,7 @@ namespace
     // Not in the GPU cache.
     return nullptr;
   }
-}
+}  // namespace
 
 
 GpuCacheEntry *GpuLayerCache::findCacheEntry(const glm::i16vec3 &region_key)

@@ -22,6 +22,8 @@ THE SOFTWARE.
 
 */
 
+// clang-format off
+
 #ifndef CXXOPTS_HPP_INCLUDED
 #define CXXOPTS_HPP_INCLUDED
 
@@ -2045,3 +2047,5 @@ Options::group_help(const std::string& group) const
 }
 
 #endif //CXXOPTS_HPP_INCLUDED
+
+// clang-format on

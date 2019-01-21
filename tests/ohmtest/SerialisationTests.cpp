@@ -5,16 +5,16 @@
 // Author: Kazys Stepanas
 #include "OhmTestUtil.h"
 
-#include <ohm/OhmGpu.h>
+#include <ohm/ClearanceProcess.h>
 #include <ohm/Key.h>
 #include <ohm/KeyList.h>
 #include <ohm/LineQuery.h>
-#include <ohm/OccupancyMap.h>
+#include <ohm/MapCache.h>
 #include <ohm/MapSerialise.h>
+#include <ohm/OccupancyMap.h>
 #include <ohm/OccupancyType.h>
 #include <ohm/OccupancyUtil.h>
-#include <ohm/ClearanceProcess.h>
-#include <ohm/MapCache.h>
+#include <ohm/OhmGpu.h>
 
 #include <ohmtools/OhmCloud.h>
 #include <ohmtools/OhmGen.h>
@@ -31,7 +31,6 @@
 #include <gtest/gtest.h>
 
 using namespace ohm;
-using namespace ohmutil;
 
 // TODO: move declaration into a shared header.
 const char *dataRelPath();
@@ -116,8 +115,7 @@ namespace searialisationtests
   {
     int extents = int(boundary_range / map.resolution());
 
-    const auto build_walls = [&map, extents, voxel_step](int a0, int a1, int a2)
-    {
+    const auto build_walls = [&map, extents, voxel_step](int a0, int a1, int a2) {
       const double map_res = map.resolution();
       KeyList ray;
       glm::dvec3 point;
@@ -147,7 +145,6 @@ namespace searialisationtests
     build_walls(1, 2, 0);
     build_walls(0, 2, 1);
   }
-
 
 
   TEST(Serialisation, Upgrade)
@@ -180,4 +177,4 @@ namespace searialisationtests
 
     ohmtestutil::compareMaps(load_map, test_map, ohmtestutil::kCfDefault);
   }
-}
+}  // namespace searialisationtests

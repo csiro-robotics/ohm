@@ -5,10 +5,10 @@
 // Author: Kazys Stepanas
 #include "gpuPinnedBuffer.h"
 
+#include "cuda/gpuBufferDetail.h"
 #include "gpuApiException.h"
 #include "gpuBuffer.h"
 #include "gpuThrow.h"
-#include "cuda/gpuBufferDetail.h"
 
 #include <cuda.h>
 #include <cuda_runtime.h>

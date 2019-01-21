@@ -20,8 +20,6 @@ using namespace ohm;
 
 namespace
 {
-
-
   template <typename VOXEL, typename MAPCHUNK, typename MAPDETAIL>
   VOXEL voxelNeighbour(int dx, int dy, int dz, const Key &key, MAPCHUNK *chunk, MAPDETAIL *map)
   {
@@ -53,7 +51,7 @@ namespace
     // Invalid neighbouring region.
     return VOXEL(neighbour_key, nullptr, map);
   }
-} // namespace
+}  // namespace
 
 Voxel VoxelConst::makeMutable() const
 {
@@ -139,7 +137,6 @@ bool Voxel::setPosition(const glm::dvec3 &position)
 
       return true;
     }
-
   }
 
   return false;
@@ -154,11 +151,10 @@ bool Voxel::updatePosition(const glm::dvec3 &position, double update_weighting)
     {
       update_weighting = (update_weighting >= 0) ? update_weighting : map_->sub_voxel_weighting;
       OccupancyVoxel *voxel_occupancy = layerContent<OccupancyVoxel *>(map_->layout.occupancyLayer());
-      voxel_occupancy->sub_voxel = subVoxelUpdate(voxel_occupancy->sub_voxel, position - centreGlobal(),
-                                                  map_->resolution, update_weighting);
+      voxel_occupancy->sub_voxel =
+        subVoxelUpdate(voxel_occupancy->sub_voxel, position - centreGlobal(), map_->resolution, update_weighting);
       return true;
     }
-
   }
 
   return false;

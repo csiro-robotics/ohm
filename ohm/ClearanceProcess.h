@@ -145,10 +145,10 @@ namespace ohm
     /// @param max_extents The maximum extents corner of the region to calculate.
     /// @param force Force recalculation of the clearance values even if they seem up to date.
     ///   This is required if any of the clearance calculation parameters change.
-    void calculateForExtents(OccupancyMap &map, const glm::dvec3 &min_extents, const glm::dvec3 &max_extents, bool force = true);
+    void calculateForExtents(OccupancyMap &map, const glm::dvec3 &min_extents, const glm::dvec3 &max_extents,
+                             bool force = true);
 
   protected:
-
     /// Update clearance for the given region.
     /// @param map The operating map.
     /// @param region_key The key of the region to update.
@@ -162,6 +162,6 @@ namespace ohm
   private:
     ClearanceProcessDetail *imp_;
   };
-}
+}  // namespace ohm
 
-#endif // OHM_CLEARANCEPROCESS_H
+#endif  // OHM_CLEARANCEPROCESS_H

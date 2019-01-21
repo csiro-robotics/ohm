@@ -321,12 +321,12 @@ TEST(Maths, AabbClip)
     EXPECT_FALSE(glm::any(glm::greaterThan(glm::abs(dir1 - dir2), glm::dvec3(1e-9))));
   }
 
-   lines.clear();
+  lines.clear();
   // Add lines which do not intersect the box.
-   lines.push_back(reference_box.corner(Aabb::kCornerLll) * 2.5);
-   lines.push_back(reference_box.corner(Aabb::kCornerLlu) * 2.5);
+  lines.push_back(reference_box.corner(Aabb::kCornerLll) * 2.5);
+  lines.push_back(reference_box.corner(Aabb::kCornerLlu) * 2.5);
 
-   for (size_t i = 0; i < lines.size(); i += 2)
+  for (size_t i = 0; i < lines.size(); i += 2)
   {
     start = lines[i];
     end = lines[i + 1];
