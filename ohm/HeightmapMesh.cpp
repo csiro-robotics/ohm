@@ -159,6 +159,11 @@ bool HeightmapMesh::buildMesh(const Heightmap &heightmap)
 
   imp_->mesh_extents = Aabb(min_map_ext, max_map_ext);
 
+  if (imp_->coords_2d.empty())
+  {
+    return false;
+  }
+
   // Triangulate using Delaunay triangulation.
   delaunator::Delaunator delaunay(imp_->coords_2d);
 
