@@ -174,7 +174,7 @@ void Voxel::touchMap(int layer)
 {
   if (map_ && chunk_)
   {
-    assert(0 <= layer && layer < chunk_->layout->layerCount());
+    assert(0 <= layer && layer < int(chunk_->layout->layerCount()));
     ++map_->stamp;
     chunk_->dirty_stamp = chunk_->touched_stamps[layer] = map_->stamp;
   }

@@ -182,7 +182,7 @@ Voxel OccupancyMap::iterator::voxel()
 }
 
 OccupancyMap::OccupancyMap(double resolution, const glm::u8vec3 &region_voxel_dimensions,
-                           bool enable_sub_voxel_positioning)
+                           MapFlag flags)
   : imp_(new OccupancyMapDetail)
 {
   imp_->resolution = resolution;
@@ -202,7 +202,9 @@ OccupancyMap::OccupancyMap(double resolution, const glm::u8vec3 &region_voxel_di
   setHitProbability(0.7f);
   setMissProbability(0.4f);
   setOccupancyThresholdProbability(0.5f);
-  imp_->setDefaultLayout(enable_sub_voxel_positioning);
+
+  imp_->flags = flags;
+  imp_->setDefaultLayout((flags & MapFlag::SubVoxelPosition) != MapFlag::None);
   imp_->ray_filter = [](glm::dvec3 *start, glm::dvec3 *end, unsigned *filter_flags) {
     return ohm::goodRayFilter(start, end, filter_flags, 1e10);
   };
@@ -478,6 +480,11 @@ MapInfo &OccupancyMap::mapInfo()
 const MapInfo &OccupancyMap::mapInfo() const
 {
   return imp_->info;
+}
+
+MapFlag OccupancyMap::flags() const
+{
+  return imp_->flags;
 }
 
 const MapLayout &OccupancyMap::layout() const
@@ -808,6 +815,16 @@ bool OccupancyMap::saturateAtMaxValue() const
 void OccupancyMap::setSaturateAtMaxValue(bool saturate)
 {
   imp_->saturate_at_max_value = saturate;
+}
+
+float OccupancyMap::subVoxelFilterScale() const
+{
+  return imp_->sub_voxel_filter_scale;
+}
+
+void OccupancyMap::setSubVoxelFilterScale(float scale)
+{
+  imp_->sub_voxel_filter_scale = scale;
 }
 
 glm::dvec3 OccupancyMap::voxelCentreLocal(const Key &key) const

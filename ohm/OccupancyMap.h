@@ -9,6 +9,7 @@
 #include "OhmConfig.h"
 
 #include "Key.h"
+#include "MapFlag.h"
 #include "RayFilter.h"
 #include "Voxel.h"
 
@@ -289,7 +290,7 @@ namespace ohm
     /// @param region_voxel_dimensions Sets the number of voxels in each map region.
     /// @param enable_sub_voxel_positioning Enable sub voxel positioning information?
     OccupancyMap(double resolution = 1.0, const glm::u8vec3 &region_voxel_dimensions = glm::u8vec3(0, 0, 0),
-                 bool enable_sub_voxel_positioning = false);
+                 MapFlag flags = MapFlag::None);
     /// Destructor.
     ~OccupancyMap();
 
@@ -397,6 +398,10 @@ namespace ohm
 
     /// @overload
     const MapInfo &mapInfo() const;
+
+    /// Get the initialisation flags for the map.
+    /// @return Initialisation flags.
+    MapFlag flags() const;
 
     //-------------------------------------------------------
     // Region management.
@@ -695,6 +700,14 @@ namespace ohm
     /// using some value adjustment functions.
     /// @param saturate True to have voxels prevent further value adjustments at the minimum value.
     void setSaturateAtMaxValue(bool saturate);
+
+    /// Get the sub-voxel filtering scale. See @c subVoxelOccupancyFilter2().
+    /// @return The sub-voxel filtering scale.
+    float subVoxelFilterScale() const;
+
+    /// Set the sub-voxel filtering scale. See @c subVoxelOccupancyFilter2().
+    /// @param scale The new sub-voxel filtering scale.
+    void setSubVoxelFilterScale(float scale);
 
     //-------------------------------------------------------
     // General map manipulation.

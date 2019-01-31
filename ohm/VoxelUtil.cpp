@@ -124,6 +124,23 @@ namespace ohm
     }
 
 
+    bool subVoxelOccupancyFilter(const Key &key, const MapChunk *chunk, const OccupancyMapDetail *map)
+    {
+      if ((map->flags & MapFlag::SubVoxelOccupancy) == MapFlag::None)
+      {
+        return true;
+      }
+
+      const uint32_t *sub_voxel_pattern_ptr = subVoxelPatternPtr(key, chunk, map);
+      if (sub_voxel_pattern_ptr && *sub_voxel_pattern_ptr)
+      {
+        return ohm::subVoxelOccupancyFilter2(*sub_voxel_pattern_ptr, map->sub_voxel_filter_scale);
+      }
+
+      return true;
+    }
+
+
     float occupancyThreshold(const OccupancyMapDetail &map) { return map.occupancy_threshold_value; }
 
 
@@ -178,6 +195,12 @@ namespace ohm
         pos += sub_voxel_offset;
       }
       return pos;
+    }
+
+
+    bool subVoxelOccupancyFilterEnabled(const OccupancyMapDetail &map)
+    {
+      return (map.flags & MapFlag::SubVoxel) == MapFlag::SubVoxel;
     }
   }  // namespace voxel
 }  // namespace ohm

@@ -109,6 +109,8 @@ namespace ohm
     const uint32_t *subVoxelPatternPtr(const Key &key, const MapChunk *chunk, const OccupancyMapDetail *map);
     uint32_t *subVoxelPatternPtr(const Key &key, MapChunk *chunk, const OccupancyMapDetail *map);
 
+    bool subVoxelOccupancyFilter(const Key &key, const MapChunk *chunk, const OccupancyMapDetail *map);
+
     /// A helper function for accessing the occupancy threshold of @p map.
     /// @return The equivalent to @c OccupancyMap::occupancyThreshold().
     float occupancyThreshold(const OccupancyMapDetail &map);
@@ -136,6 +138,11 @@ namespace ohm
     /// @param map Internal details of the @c OccupancyMap of interest.
     /// @return The global voxel coordinates with sub-voxel positioning.
     glm::dvec3 position(const Key &key, const MapChunk &chunk, const OccupancyMapDetail &map);
+
+    /// Checks if the given @c map has sub-voxel occupancy filtering enabled. Voxel reference must be valid.
+    /// @return True if sub-voxel occupancy filtering is enabled.
+    /// @see @c subVoxelOccupancyFilter()
+    bool subVoxelOccupancyFilterEnabled(const OccupancyMapDetail &map);
 
     /// Value used to identify invalid or uninitialised voxel voxels.
     /// @return A numeric value considered invalid for a voxel value.

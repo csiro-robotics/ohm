@@ -82,10 +82,14 @@ namespace ohm
     /// Buffer of int4 used to propagate obstacles.
     gputil::Buffer gpu_work_[2];
     gputil::Device gpu_;
-    gputil::Kernel seed_kernel_;
-    gputil::Kernel seed_outer_kernel_;
-    gputil::Kernel propagate_kernel_;
-    gputil::Kernel migrate_kernel_;
+    gputil::Kernel seed_kernel_sub_vox_;
+    gputil::Kernel seed_outer_kernel_sub_vox_;
+    gputil::Kernel propagate_kernel_sub_vox_;
+    gputil::Kernel migrate_kernel_sub_vox_;
+    gputil::Kernel seed_kernel_no_vox_;
+    gputil::Kernel seed_outer_kernel_no_vox_;
+    gputil::Kernel propagate_kernel_no_vox_;
+    gputil::Kernel migrate_kernel_no_vox_;
     glm::vec3 axis_scaling_ = glm::vec3(1.0f);
     float search_radius_ = 0.0f;
     unsigned query_flags_ = 0;

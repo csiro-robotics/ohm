@@ -4,7 +4,17 @@
 //
 // Author: Kazys Stepanas
 #include "gpu_ext.h"
+
+// Explicitly include MapCoord.h first. It's included from each of the subsequent includes, but leaving it to SubVoxel.h
+// has issues with the resource generation. Essentially it causes MapCoord.h to be only included within the SUB_VOXEL
+// define.
+#include "MapCoord.h"
+
 #include "Regions.cl"
+
+#ifdef SUB_VOXEL
+#include "SubVoxel.h"
+#endif // SUB_VOXEL
 
 /// @defgroup voxelClearanceGpu Voxel Clearance GPU
 /// @{
@@ -54,7 +64,8 @@
 #define DBG_Z 28
 
 // TODO: include flags header instead of repeating definitions here.
-#define QF_UnknownAsOccupied (1 << 0)
+#define kUnknownAsOccupied (1 << 0)
+#define kSubVoxelFiltering (1 << 1)
 
 // Limit the number of cells we can traverse in the line traversal. This is a worst case limit.
 //#define LIMIT_LINE_WALK_ITERATIONS
@@ -74,10 +85,26 @@ typedef atomic_uint voxel_type;
 typedef char4 voxel_type;
 #endif // __OPENCL_C_VERSION__ >= 200
 
+typedef float OccupancyType;
+typedef uint SubVoxelPatternType;
+
+#ifdef SUB_VOXEL
+typedef struct VoxelType_
+{
+  OccupancyType occupancy;
+  SubVoxelPatternType sub_voxel;
+} VoxelType;
+#else  // SUB_VOXEL
+typedef struct VoxelType_
+{
+  OccupancyType occupancy;
+} VoxelType;
+#endif  // SUB_VOXEL
+
 //-----------------------------------------------------------------------------
 // Function prototypes.
 //-----------------------------------------------------------------------------
-bool isOccupied(float value, float threshold, bool unknownAsOccupied);
+bool isOccupied(const VoxelType *value, float threshold, unsigned flags, float sub_voxel_filter_scale);
 /// Get the index of a voxel within the provided extents.
 int getGlobalVoxelIndex(int3 coord, int3 voxelExtents);
 int3 linearIndexToCoord(unsigned linearIndex, int3 expanse);
@@ -163,9 +190,14 @@ inline char4 voxelToObstruction(uint voxel);
 //-----------------------------------------------------------------------------
 // Implementation
 //-----------------------------------------------------------------------------
-bool isOccupied(float value, float threshold, bool unknownAsOccupied)
+bool isOccupied(const VoxelType *voxel, float threshold, unsigned flags, float sub_voxel_filter_scale)
 {
-  return (value == INFINITY && unknownAsOccupied) || (value != INFINITY && value >= threshold);
+  return (voxel->occupancy == INFINITY && (flags & kUnknownAsOccupied)) ||
+         (voxel->occupancy != INFINITY && voxel->occupancy >= threshold
+#ifdef SUB_VOXEL
+          && (!(flags & kSubVoxelFiltering) || subVoxelOccupancyFilter2(voxel->sub_voxel, sub_voxel_filter_scale))
+#endif // SUB_VOXEL
+         );
 }
 
 int getGlobalVoxelIndex(int3 coord, int3 voxelExtents)
@@ -724,7 +756,7 @@ void loadPropagationLocalVoxels(__global char4 *srcVoxels, __local char4 *localV
 ///   The w coordinate is zero if there is no obstructed in range and the voxel itself isn't and obstructed.
 ///   The w coordinate is 1 if there is an obstructed to consider.
 __kernel void seedRegionVoxels(__global struct GpuKey *cornerVoxelKey,
-                                 __global float *voxelOccupancy,
+                                 __global VoxelType *voxelOccupancy,
                                  __global char4 *workingVoxels,
                                  __global int3 *regionKeysGlobal,
                                  __global ulong *regionMemOffsetsGlobal,
@@ -733,7 +765,8 @@ __kernel void seedRegionVoxels(__global struct GpuKey *cornerVoxelKey,
                                  int3 workingVoxelExtents,
                                  float occupancyThresholdValue,
                                  uint flags,
-                                 int zbatch
+                                 int zbatch,
+                                 float sub_voxel_filter_scale
                                 )
 {
   int3 effectiveGlobalId = make_int3(get_global_id(0), get_global_id(1), get_global_id(2) * zbatch);
@@ -768,8 +801,8 @@ __kernel void seedRegionVoxels(__global struct GpuKey *cornerVoxelKey,
         const uint widx = effectiveGlobalId.x +
                           effectiveGlobalId.y * workingVoxelExtents.x +
                           effectiveGlobalId.z * workingVoxelExtents.x * workingVoxelExtents.y;
-        const float occupancy = voxelOccupancy[vidx];
-        const bool isObstruction = isOccupied(occupancy, occupancyThresholdValue, (flags & QF_UnknownAsOccupied) != 0);
+        const VoxelType occupancy = voxelOccupancy[vidx];
+        const bool isObstruction = isOccupied(&occupancy, occupancyThresholdValue, flags, sub_voxel_filter_scale);
         workingVoxels[widx] = make_char4(0, 0, 0, (isObstruction) ? 1 : 0);
       }
     }
@@ -820,7 +853,7 @@ __kernel void seedRegionVoxels(__global struct GpuKey *cornerVoxelKey,
 /// @param flags Flags modifying behaviour. See @c QF_ flags above.
 /// @param zbatch Number of items each thread should process.
 __kernel void seedFromOuterRegions(__global struct GpuKey *cornerVoxelKey,
-                                 __global float *voxelOccupancy,
+                                 __global VoxelType *voxelOccupancy,
                                  __global voxel_type *workingVoxels,
                                  __global int3 *regionKeysGlobal,
                                  __global ulong *regionMemOffsetsGlobal,
@@ -831,7 +864,8 @@ __kernel void seedFromOuterRegions(__global struct GpuKey *cornerVoxelKey,
                                  float3 axisScaling,
                                  float occupancyThresholdValue,
                                  uint flags,
-                                 int batch)
+                                 int batch, float sub_voxel_filter_scale
+                                 )
 {
   local uint faceVolumeSizes[6];
   local int3 minFaceExtents[6];
@@ -892,8 +926,8 @@ __kernel void seedFromOuterRegions(__global struct GpuKey *cornerVoxelKey,
                         voxelKey.voxel[0] +
                         voxelKey.voxel[1] * regionVoxelDimensions.x +
                         voxelKey.voxel[2] * regionVoxelDimensions.x * regionVoxelDimensions.y;
-      const float occupancy = voxelOccupancy[vidx];
-      const bool isObstruction = isOccupied(occupancy, occupancyThresholdValue, (flags & QF_UnknownAsOccupied) != 0);
+      const VoxelType occupancy = voxelOccupancy[vidx];
+      const bool isObstruction = isOccupied(&occupancy, occupancyThresholdValue, flags, sub_voxel_filter_scale);
 
       if (isObstruction)
       {
