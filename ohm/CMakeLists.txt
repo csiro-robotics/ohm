@@ -64,6 +64,8 @@ set(SOURCES
   MapChunk.cpp
   MapChunk.h
   MapCoord.h
+  MapFlag.cpp
+  MapFlag.h
   MapInfo.cpp
   MapInfo.h
   MapLayer.cpp
@@ -123,6 +125,7 @@ set(PUBLIC_HEADERS
   MapChunk.h
   MapChunkFlag.h
   MapCoord.h
+  MapFlag.h
   MapInfo.h
   MapLayer.h
   MapLayout.h

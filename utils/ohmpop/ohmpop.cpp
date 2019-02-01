@@ -61,6 +61,7 @@ namespace
     std::string cloud_file;
     std::string trajectory_file;
     std::string output_base_name;
+    std::string prior_map;
     glm::dvec3 sensor_offset = glm::dvec3(0.0);
     glm::u8vec3 region_voxel_dim = glm::u8vec3(32);
     uint64_t point_limit = 0;
@@ -71,10 +72,12 @@ namespace
     double sub_voxel_weighting = 0.0f;
     double progressive_mapping_slice = 0.0;
     double mapping_interval = 0.2;
+    double clip_near_range = 0.0;
     float prob_hit = 0.9f;
     float prob_miss = 0.49f;
     float prob_thresh = 0.5f;
     float clearance = 0.0f;
+    float sub_voxel_filter = 0.0f;
     glm::vec2 prob_range = glm::vec2(0, 0);
     unsigned batch_size = 2048;
     bool post_population_mapping = true;
@@ -178,10 +181,10 @@ namespace
     }
   }
 
-  class SaveMapProgress : public ohm::SerialiseProgress
+  class SerialiseMapProgress : public ohm::SerialiseProgress
   {
   public:
-    SaveMapProgress(ProgressMonitor &monitor)
+    SerialiseMapProgress(ProgressMonitor &monitor)
       : monitor_(monitor)
     {}
 
@@ -205,7 +208,7 @@ namespace
   void saveMap(const Options &opt, const ohm::OccupancyMap &map, const std::string &base_name, ProgressMonitor *prog,
                unsigned save_flags = SaveMap)
   {
-    std::unique_ptr<SaveMapProgress> save_progress(prog ? new SaveMapProgress(*prog) : nullptr);
+    std::unique_ptr<SerialiseMapProgress> save_progress(prog ? new SerialiseMapProgress(*prog) : nullptr);
 
     if (quit >= 2)
     {
@@ -313,7 +316,54 @@ int populateMap(const Options &opt)
     return -2;
   }
 
-  ohm::OccupancyMap map(opt.resolution, opt.region_voxel_dim, opt.sub_voxel_weighting > 0);
+  ohm::MapFlag map_flags = ohm::MapFlag::None;
+  map_flags |= (opt.sub_voxel_weighting > 0) ? ohm::MapFlag::SubVoxelPosition : ohm::MapFlag::None;
+  map_flags |= (opt.sub_voxel_filter > 0) ? ohm::MapFlag::SubVoxelOccupancy : ohm::MapFlag::None;
+  ohm::OccupancyMap map(opt.resolution, opt.region_voxel_dim, map_flags);
+  std::atomic<uint64_t> elapsed_ms(0);
+  ProgressMonitor prog(10);
+
+  prog.setDisplayFunction([&elapsed_ms, &opt](const ProgressMonitor::Progress &prog) {
+    if (!opt.quiet)
+    {
+      const uint64_t elapsed_ms_local = elapsed_ms;
+      const uint64_t sec = elapsed_ms_local / 1000u;
+      const unsigned ms = unsigned(elapsed_ms_local - sec * 1000);
+
+      std::ostringstream out;
+      out.imbue(std::locale(""));
+      out << '\r';
+
+      if (prog.info.info && prog.info.info[0])
+      {
+        out << prog.info.info << " : ";
+      }
+
+      out << sec << '.' << std::setfill('0') << std::setw(3) << ms << "s : ";
+
+      out << std::setfill(' ') << std::setw(12) << prog.progress;
+      if (prog.info.total)
+      {
+        out << " / " << std::setfill(' ') << std::setw(12) << prog.info.total;
+      }
+      out << "    ";
+      std::cout << out.str() << std::flush;
+    }
+  });
+
+  if (!opt.prior_map.empty())
+  {
+    std::cout << "Loading prior map " << opt.prior_map << std::endl;
+    SerialiseMapProgress load_progress(prog);
+    int load_err = ohm::load(opt.prior_map.c_str(), map, &load_progress);
+    if (load_err)
+    {
+      std::cerr << "Error(" << load_err << ") loading prior map " << opt.prior_map << " : "
+                << ohm::errorCodeString(load_err) << std::endl;
+      return -3;
+    }
+  }
+
   ohm::GpuMap gpu_map(&map, true, opt.batch_size);
   ohm::Mapper mapper(&map);
   std::vector<double> sample_timestamps;
@@ -329,9 +379,7 @@ int populateMap(const Options &opt)
   double last_timestamp = -1;
   double first_batch_timestamp = -1;
   double next_mapper_update = opt.mapping_interval;
-  std::atomic<uint64_t> elapsed_ms(0);
   Clock::time_point start_time, end_time;
-  ProgressMonitor prog(10);
 
   if (opt.sub_voxel_weighting > 0)
   {
@@ -339,10 +387,38 @@ int populateMap(const Options &opt)
     map.setSubVoxelWeighting(opt.sub_voxel_weighting);
   }
 
+  if (opt.sub_voxel_filter)
+  {
+    map.setSubVoxelFilterScale(opt.sub_voxel_filter);
+  }
+
   if (!gpu_map.gpuOk())
   {
     std::cerr << "Failed to initialise GpuMap programs." << std::endl;
     return -3;
+  }
+
+  if (opt.clip_near_range)
+  {
+    std::cout << "Filtering samples closer than: " << opt.clip_near_range << std::endl;
+    // Install a self-strike removing clipping box.
+    map.setRayFilter([&opt, &sample](glm::dvec3 *start, glm::dvec3 *end, unsigned *filter_flags) -> bool
+    {
+      // Range filter.
+      if (!ohm::goodRayFilter(start, end, filter_flags, 1e3))
+      {
+        return false;
+      }
+
+      const glm::dvec3 ray = *end - *start;
+      if (glm::dot(ray, ray) < opt.clip_near_range * opt.clip_near_range)
+      {
+        // Too close.
+        *filter_flags |= ohm::kRffClippedEnd;
+      }
+
+      return true;
+    });
   }
 
   map.setHitProbability(opt.prob_hit);
@@ -410,33 +486,6 @@ int populateMap(const Options &opt)
   start_time = Clock::now();
   std::cout << "Populating map" << std::endl;
 
-  prog.setDisplayFunction([&elapsed_ms, &opt](const ProgressMonitor::Progress &prog) {
-    if (!opt.quiet)
-    {
-      const uint64_t elapsed_ms_local = elapsed_ms;
-      const uint64_t sec = elapsed_ms_local / 1000u;
-      const unsigned ms = unsigned(elapsed_ms_local - sec * 1000);
-
-      std::ostringstream out;
-      out.imbue(std::locale(""));
-      out << '\r';
-
-      if (prog.info.info && prog.info.info[0])
-      {
-        out << prog.info.info << " : ";
-      }
-
-      out << sec << '.' << std::setfill('0') << std::setw(3) << ms << "s : ";
-
-      out << std::setfill(' ') << std::setw(12) << prog.progress;
-      if (prog.info.total)
-      {
-        out << " / " << std::setfill(' ') << std::setw(12) << prog.info.total;
-      }
-      out << "    ";
-      std::cout << out.str() << std::flush;
-    }
-  });
   prog.beginProgress(ProgressMonitor::Info((point_count && timebase == 0) ?
                                              std::min<uint64_t>(point_count, loader.numberOfPoints()) :
                                              loader.numberOfPoints()));
@@ -678,10 +727,12 @@ int parseOptions(Options &opt, int argc, char *argv[])
       ("save-info", "Save timing information to text based on the output file name.", optVal(opt.save_info))
       ("t,time-limit", "Limit the elapsed time in the LIDAR data to process (seconds). Measured relative to the first data sample.", optVal(opt.time_limit))
       ("trajectory", "The trajectory (text) file to load.", cxxopts::value(opt.trajectory_file))
+      ("prior", "Prior map file to load and continue to populate.", cxxopts::value(opt.prior_map))
       ;
 
     opt_parse.add_options("Map")
       ("clamp", "Set probability clamping to the given min/max.", optVal(opt.prob_range))
+      ("clip-near", "Range within which samples are considered too close and are ignored. May be used to filter operator strikes.", optVal(opt.clip_near_range))
       ("d,dim", "Set the voxel dimensions of each region in the map. Range for each is [0, 255).", optVal(opt.region_voxel_dim))
       ("h,hit", "The occupancy probability due to a hit. Must be >= 0.5.", optVal(opt.prob_hit))
       ("m,miss", "The occupancy probability due to a miss. Must be < 0.5.", optVal(opt.prob_miss))
@@ -690,6 +741,9 @@ int parseOptions(Options &opt, int argc, char *argv[])
                     "with the default weighting. Specifying a value (0, 1] sets the weight of new samples vs. the "
                     "existing sub-voxel position.",
                     optVal(opt.sub_voxel_weighting)->implicit_value("0.3"))
+      ("sub-voxel-filter", "Enable sub-voxel occupancy filtering? Occupied voxels with may be considered free when "
+                    "the sub-voxel positioning is far from the voxel centre.",
+                    optVal(opt.sub_voxel_filter)->implicit_value("1.0"))
       ("threshold", "Sets the occupancy threshold assigned when exporting the map to a cloud.", optVal(opt.prob_thresh)->implicit_value(optStr(opt.prob_thresh)))
       ;
 

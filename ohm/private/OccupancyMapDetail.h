@@ -9,6 +9,7 @@
 #include <glm/glm.hpp>
 
 #include "MapChunk.h"
+#include "MapFlag.h"
 #include "MapInfo.h"
 #include "MapLayout.h"
 #include "MapRegion.h"
@@ -44,6 +45,7 @@ namespace ohm
     float miss_probability = 0.0f;
     float min_voxel_value = 0.0f;
     float max_voxel_value = 0.0f;
+    float sub_voxel_filter_scale = 1.0f;
     bool saturate_at_min_value = false;
     bool saturate_at_max_value = false;
     MapLayout layout;
@@ -51,6 +53,7 @@ namespace ohm
     mutable std::mutex mutex;
     // Region count at load time. Useful when only the header is loaded.
     size_t loaded_region_count = 0;
+    MapFlag flags = MapFlag::None;
 
     GpuCache *gpu_cache = nullptr;
 

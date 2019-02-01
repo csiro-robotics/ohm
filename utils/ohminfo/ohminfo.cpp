@@ -177,8 +177,25 @@ int main(int argc, char *argv[])
 
   std::cout << "]" << std::endl;
   std::cout << "Touched stamp: " << map.stamp() << std::endl;
-  std::cout << "Sub-voxel positioning: " << (map.subVoxelsEnabled() ? "on" : "off") << std::endl;
   std::cout << "Sub-voxel-weighting: " << map.subVoxelWeighting() << std::endl;
+  std::cout << "Sub-voxel-filter-scale: " << map.subVoxelFilterScale() << std::endl;
+  std::cout << "Flags: " << std::endl;
+  if (map.flags() != ohm::MapFlag::None)
+  {
+    unsigned bit = 1;
+    for (unsigned i = 0; i < sizeof(ohm::MapFlag) * 8; ++i, bit <<= 1)
+    {
+      if (unsigned(map.flags()) & bit)
+      {
+        std::cout << "  " << mapFlagToString(ohm::MapFlag(bit)) << std::endl;
+      }
+    }
+  }
+  else
+  {
+    std::cout << "  None" << std::endl;
+  }
+
   std::cout << std::endl;
 
   // Meta info.

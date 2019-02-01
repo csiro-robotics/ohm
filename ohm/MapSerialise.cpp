@@ -26,6 +26,7 @@
 
 #include <cstdio>
 #include <functional>
+#include <type_traits>
 #include <vector>
 
 #define OM_ZIP 1
@@ -53,8 +54,6 @@ namespace ohm
   };
 
   const uint32_t kMapHeaderMarker = 0x44330011u;
-  const MapVersion kSupportedVersionMin = { 0, 0, 0 };
-  const MapVersion kSupportedVersionMax = { 0, 3, 1 };
 
   // Digits are arranged as follows:
   //    vvvMMMPPP
@@ -62,7 +61,9 @@ namespace ohm
   // - vvv is the major version number (any number)
   // - MMM is a three digit specification of the current minor version.
   // - PPP is a three digit specification of the current patch version.
-  const MapVersion kCurrentVersion = { 0, 3, 1 };
+  const MapVersion kSupportedVersionMin = { 0, 0, 0 };
+  const MapVersion kSupportedVersionMax = { 0, 3, 2 };
+  const MapVersion kCurrentVersion = { 0, 3, 2 };
 
   int saveItem(OutputStream &stream, const MapValue &value)
   {
@@ -275,6 +276,10 @@ namespace ohm
     // Add v0.3.1
     ok = writeUncompressed<double>(stream, map.sub_voxel_weighting) && ok;
 
+    // Add v0.3.2
+    ok = writeUncompressed<float>(stream, map.sub_voxel_filter_scale) && ok;
+    ok = writeUncompressed<uint32_t>(stream, std::underlying_type_t<ohm::MapFlag>(map.flags)) && ok;
+
     return (ok) ? 0 : kSeFileWriteFailure;
   }
 
@@ -446,6 +451,21 @@ namespace ohm
     if (version.version.major > 0 || version.version.minor > 3 || version.version.patch > 0)
     {
       ok = readRaw<double>(stream, map.sub_voxel_weighting) && ok;
+    }
+
+    // v0.3.2 added serialisation of map flags and sub-voxel filtering
+    if (version.version.major > 0 || version.version.minor > 3 || version.version.patch > 1)
+    {
+      ok = readRaw<float>(stream, map.sub_voxel_filter_scale) && ok;
+
+      uint32_t flags = 0;
+      ok = readRaw<std::underlying_type_t<ohm::MapFlag>>(stream, map.flags) && ok;
+      map.flags = static_cast<ohm::MapFlag>(flags);
+    }
+    else
+    {
+      map.flags = MapFlag::None;
+      map.sub_voxel_filter_scale = 1.0f;
     }
 
     if (!ok)
@@ -701,7 +721,28 @@ int ohm::loadHeader(const char *filename, OccupancyMap &map, MapVersion *version
 
   if (!err)
   {
-    err = v0_1::loadLayout(stream, detail);
+    if (version.version.major == 0 && version.version.minor == 0 && version.version.patch == 0)
+    {
+      // Version 0.0.0 had no layout.
+      detail.setDefaultLayout(false);
+    }
+    else
+    {
+      err = v0_1::loadLayout(stream, detail);
+    }
+  }
+
+  // Correct the sub-voxel flags. The flags may not match the reality of the map layout, such as when we load an older version.
+  if (!err)
+  {
+    if (detail.layout.hasSubVoxelPattern())
+    {
+      detail.flags |= MapFlag::SubVoxelPosition;
+    }
+    else
+    {
+      detail.flags &= ~MapFlag::SubVoxelPosition;
+    }
   }
 
   return err;

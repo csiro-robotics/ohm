@@ -116,6 +116,20 @@ namespace ohm
     /// @return The global voxel coordinates with sub-voxel positioning.
     glm::dvec3 position() const { return voxel::position(key_, *chunk_, *map_); }
 
+    /// Return the sub-voxel positioning pattern of the voxel. Must ve a valid voxel. Returns when sub-voxel positioning
+    /// is not enabled.
+    /// @return The @ref subvoxel positioning pattern.
+    uint32_t subVoxelPattern() const
+    {
+      const uint32_t *ptr = voxel::subVoxelPatternPtr(key_, chunk_, map_);
+      return ptr ? *ptr : 0u;
+    }
+
+    /// Checks if the owning map has sub-voxel occupancy filtering enabled. Voxel reference must be valid.
+    /// @return True if sub-voxel occupancy filtering is enabled.
+    /// @see @c subVoxelOccupancyFilter()
+    bool subVoxelOccupancyFilterEnabled() const { return voxel::subVoxelOccupancyFilterEnabled(*map_); }
+
     /// Does this voxel reference a valid map?
     ///
     /// This is slightly different from @c isValid(). Whereas @c isValid() ensures values can be read from this voxel
@@ -443,15 +457,15 @@ namespace ohm
   bool VoxelBase<MAPCHUNK>::isOccupied() const
   {
     const float val = value();
-    return !isNull() && val >= voxel::occupancyThreshold(*map_) && val != voxel::invalidMarkerValue();
+    return !isNull() && val >= voxel::occupancyThreshold(*map_) && val != voxel::invalidMarkerValue() &&
+           voxel::subVoxelOccupancyFilter(key_, chunk_, map_);
   }
 
 
   template <typename MAPCHUNK>
   bool VoxelBase<MAPCHUNK>::isFree() const
   {
-    const float val = value();
-    return !isNull() && val < voxel::occupancyThreshold(*map_) && val != voxel::invalidMarkerValue();
+    return !isUncertain() && !isOccupied();
   }
 
 

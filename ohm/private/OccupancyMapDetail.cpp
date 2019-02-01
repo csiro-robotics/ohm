@@ -115,7 +115,13 @@ void OccupancyMapDetail::setDefaultLayout(bool enable_sub_voxel_positioning)
   if (enable_sub_voxel_positioning)
   {
     voxel.addMember(kSubVoxelLayerName, DataType::kUInt32, clear_value);
+    flags |= MapFlag::SubVoxelPosition;
   }
+  else
+  {
+    flags &= ~MapFlag::SubVoxelPosition;
+  }
+
 
   const float default_clearance = -1.0f;
   clear_value = 0;
