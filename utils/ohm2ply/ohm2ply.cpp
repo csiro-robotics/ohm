@@ -362,7 +362,7 @@ int main(int argc, char *argv[])
         prog.incrementProgress();
         last_region = iter.key().regionKey();
       }
-      if (opt.mode == kExportOccupancy || kExportOccupancyCentre)
+      if (opt.mode == kExportOccupancy || opt.mode == kExportOccupancyCentre)
       {
         if (map.occupancyType(voxel) == ohm::Occupied)
         {
