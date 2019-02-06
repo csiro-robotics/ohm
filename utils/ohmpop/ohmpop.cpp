@@ -83,7 +83,7 @@ namespace
     bool post_population_mapping = true;
     bool serialise = true;
     bool save_info = false;
-    bool clearance_unkown_as_occupied = false;
+    bool clearance_unknown_as_occupied = false;
     bool quiet = false;
 
     void print(std::ostream **out, const ohm::OccupancyMap &map) const;
@@ -158,7 +158,7 @@ namespace
       if (clearance > 0)
       {
         **out << clearance << "m range\n";
-        **out << "Unkown as occupied: " << (clearance_unkown_as_occupied ? "on" : "off") << '\n';
+        **out << "Unknown as occupied: " << (clearance_unknown_as_occupied ? "on" : "off") << '\n';
       }
       else
       {
@@ -444,7 +444,7 @@ int populateMap(const Options &opt)
   if (opt.clearance > 0)
   {
     unsigned clearance_flags = ohm::kQfGpuEvaluate;
-    if (opt.clearance_unkown_as_occupied)
+    if (opt.clearance_unknown_as_occupied)
     {
       clearance_flags |= ohm::kQfUnknownAsOccupied;
     }
@@ -756,7 +756,7 @@ int parseOptions(Options &opt, int argc, char *argv[])
 
     opt_parse.add_options("Mapping")
       ("clearance", "Calculate clearance values for the map using this as the maximum search range. Zero to disable.", optVal(opt.clearance))
-      ("clearance-uao", "During clearance value calculations, consider 'Unknown(voxels)-As-Occupied'.", optVal(opt.clearance_unkown_as_occupied))
+      ("clearance-uao", "During clearance value calculations, consider 'Unknown(voxels)-As-Occupied'.", optVal(opt.clearance_unknown_as_occupied))
       ("progressive", "Time slice allowed for progressive mapping processes. Zero to disable and update after population.", optVal(opt.progressive_mapping_slice))
       ("progressive-interval", "Interval for progressive mapping. Time is based on input data time.", cxxopts::value(opt.mapping_interval)->default_value(optStr(opt.mapping_interval)))
       ("post-mapping", "Allow mapping thread to complete after population?", optVal(opt.post_population_mapping))
