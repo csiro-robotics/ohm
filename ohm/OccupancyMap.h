@@ -797,6 +797,13 @@ namespace ohm
     /// @param z The voxel offset to apply to @p key on the X axis.
     void moveKey(Key &key, int x, int y, int z) const;
 
+    /// @overload
+    template <typename VEC_TYPE>
+    inline void moveKey(Key &key, const VEC_TYPE &v) const
+    {
+      moveKey(key, v.x, v.y, v.z);
+    }
+
     /// Builds the list of voxel keys intersected by the line segment connecting @p startPoint and @p endPoint.
     ///
     /// The @p keys list is populated with all voxels intersected by the specified line segment.

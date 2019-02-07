@@ -53,6 +53,7 @@ set(SOURCES
   HeightmapVoxel.h
   Key.cpp
   Key.h
+  KeyHash.h
   KeyList.cpp
   KeyList.h
   LineKeysQuery.cpp
@@ -118,6 +119,7 @@ set(PUBLIC_HEADERS
   HeightmapMesh.h
   HeightmapVoxel.h
   Key.h
+  KeyHash.h
   KeyList.h
   LineKeysQuery.h
   LineQuery.h
