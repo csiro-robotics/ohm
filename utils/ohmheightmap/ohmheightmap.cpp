@@ -46,7 +46,7 @@ namespace
   {
     std::string map_file;
     std::string heightmap_file;
-    ohm::Heightmap::Axis axis_id = ohm::Heightmap::AxisZ;
+    ohm::UpAxis axis_id = ohm::UpAxis::Z;
     double base_height = 0;
     double clearance = 2.0;
     double floor = 0;

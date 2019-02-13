@@ -8,6 +8,8 @@
 
 #include "OhmConfig.h"
 
+#include "UpAxis.h"
+
 #include <memory>
 
 #include <glm/fwd.hpp>
@@ -31,7 +33,7 @@ namespace ohm
   ///
   /// The height specifies the absolute height of the surface, while clearance denotes how much room there is above
   /// the surface voxel before the next obstruction. Note that the height values always increase going up, so the
-  /// height value will be inverted when using any @c AxisNegN @c Axis value. Similarly, the clearance is always
+  /// height value will be inverted when using any @c UpAxis::NegN @c UpAxis value. Similarly, the clearance is always
   /// positive unless there are no further voxels above the surface, in which case the clearance is zero
   /// (no information).
   ///
@@ -59,17 +61,6 @@ namespace ohm
   class Heightmap
   {
   public:
-    /// Possible values for setting the @c upAxis() in @c update().
-    enum Axis : int
-    {
-      AxisNegZ = -3,
-      AxisNegY = -2,
-      AxisNegX = -1,
-      AxisX,
-      AxisY,
-      AxisZ,
-    };
-
     static const unsigned kDefaultRegionSize = 128;
 
     /// Construct a default initialised heightmap.
@@ -80,7 +71,7 @@ namespace ohm
     /// @param min_clearance The minimum clearance value expected above each surface voxel.
     /// @param up_axis Identifies the up axis for the map.
     /// @param region_size Grid size of each region in the heightmap.
-    Heightmap(double grid_resolution, double min_clearance, Axis up_axis = AxisZ, unsigned region_size = 0);
+    Heightmap(double grid_resolution, double min_clearance, UpAxis up_axis = UpAxis::Z, unsigned region_size = 0);
 
     /// Destructor.
     ~Heightmap();
@@ -144,7 +135,7 @@ namespace ohm
     int heightmapVoxelBuildLayer() const;
 
     /// Get the up axis identifier used to generate the heightmap.
-    Axis upAxis() const;
+    UpAxis upAxis() const;
 
     /// Get the up axis index [0, 2] marking XYZ respectively. Ignores direction.
     int upAxisIndex() const;

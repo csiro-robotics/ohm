@@ -184,6 +184,22 @@ namespace ohm
     /// @return The blue channel.
     inline const uint8_t &b() const { return rgb[kB]; }
 
+    /// Access red channel as a float.
+    /// @return Red channel as a float.
+    inline float rf() const { return float(r()) / 255.0f; }
+
+    /// Access green channel as a float.
+    /// @return Green channel as a float.
+    inline float gf() const { return float(g()) / 255.0f; }
+
+    /// Access blue channel as a float.
+    /// @return Blue channel as a float.
+    inline float bf() const { return float(b()) / 255.0f; }
+
+    /// Access alpha channel as a float.
+    /// @return Alpha channel as a float.
+    inline float af() const { return float(a()) / 255.0f; }
+
     /// An enumerationn of predefined colours (web colours).
     enum Names
     {

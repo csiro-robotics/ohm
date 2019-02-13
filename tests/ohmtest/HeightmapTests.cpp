@@ -33,7 +33,7 @@ namespace
 
   const double kBoxHalfExtents = 2.5;
 
-  void heightmapBoxTest(const std::string &prefix, Heightmap::Axis axis, int blur,
+  void heightmapBoxTest(const std::string &prefix, UpAxis axis, int blur,
                         std::shared_ptr<Heightmap> *map_out = nullptr, const TestParams *params = nullptr)
   {
     Profile profile;
@@ -69,13 +69,13 @@ namespace
     const Key max_key = heightmap->heightmap().voxelKey(glm::dvec3(boundary_distance));
 
     // Convert axis reference into an index [0, 2].
-    const int axis_index = (axis >= 0) ? axis : -axis - 1;
+    const int axis_index = (int(axis) >= 0) ? int(axis) : -int(axis) - 1;
 
-    double ground_height = (axis >= 0) ?
+    double ground_height = (int(axis) >= 0) ?
                              map.voxelCentreGlobal(map.voxelKey(glm::dvec3(-boundary_distance)))[axis_index] :
                              -1.0 * map.voxelCentreGlobal(map.voxelKey(glm::dvec3(boundary_distance)))[axis_index];
     double top_of_wall_height =
-      (axis >= 0) ? map.voxelCentreGlobal(map.voxelKey(glm::dvec3(boundary_distance)))[axis_index] :
+      (int(axis) >= 0) ? map.voxelCentreGlobal(map.voxelKey(glm::dvec3(boundary_distance)))[axis_index] :
                     -1.0 * map.voxelCentreGlobal(map.voxelKey(glm::dvec3(-boundary_distance)))[axis_index];
 
     if (params)
@@ -194,20 +194,20 @@ namespace
 
     // Tricky stuff to resolve indexing the plane axes.
     int axis_indices[3];
-    switch (heightmap->upAxisIndex())
+    switch (UpAxis(heightmap->upAxisIndex()))
     {
-    case Heightmap::AxisX:
+    case UpAxis::X:
       axis_indices[0] = 1;
       axis_indices[1] = 2;
       axis_indices[2] = 0;
       break;
-    case Heightmap::AxisY:
+    case UpAxis::Y:
       axis_indices[0] = 0;
       axis_indices[1] = 2;
       axis_indices[2] = 1;
       break;
     default:
-    case Heightmap::AxisZ:
+    case UpAxis::Z:
       axis_indices[0] = 0;
       axis_indices[1] = 1;
       axis_indices[2] = 2;
@@ -251,7 +251,7 @@ namespace
 
 TEST(Heightmap, Box)
 {
-  heightmapBoxTest("heightmap-box", Heightmap::AxisZ, 0);
+  heightmapBoxTest("heightmap-box", UpAxis::Z, 0);
 }
 
 
@@ -259,7 +259,7 @@ TEST(Heightmap, Ceiling)
 {
   TestParams params;
   params.ceiling = 0.5;
-  heightmapBoxTest("heightmap-ceiling", Heightmap::AxisZ, 0, nullptr, &params);
+  heightmapBoxTest("heightmap-ceiling", UpAxis::Z, 0, nullptr, &params);
 }
 
 
@@ -267,7 +267,7 @@ TEST(Heightmap, Floor)
 {
   TestParams params;
   params.floor = 0.5;
-  heightmapBoxTest("heightmap-floor", Heightmap::AxisZ, 0, nullptr, &params);
+  heightmapBoxTest("heightmap-floor", UpAxis::Z, 0, nullptr, &params);
 }
 
 
@@ -276,63 +276,63 @@ TEST(Heightmap, FloorAndCeiling)
   TestParams params;
   params.floor = 0.3;
   params.ceiling = 0.5;
-  heightmapBoxTest("heightmap-ceiling-floor", Heightmap::AxisZ, 0, nullptr, &params);
+  heightmapBoxTest("heightmap-ceiling-floor", UpAxis::Z, 0, nullptr, &params);
 }
 
 
 TEST(Heightmap, Blur)
 {
-  // heightmapBoxTest("heightmap-blur-1", Heightmap::AxisZ, 1);
-  heightmapBoxTest("heightmap-blur-2", Heightmap::AxisZ, 2);
+  // heightmapBoxTest("heightmap-blur-1", UpAxis::Z, 1);
+  heightmapBoxTest("heightmap-blur-2", UpAxis::Z, 2);
 }
 
 
 TEST(Heightmap, AxisX)
 {
-  heightmapBoxTest("heightmap-x", Heightmap::AxisX, 0);
-  heightmapBoxTest("heightmap-x", Heightmap::AxisX, 1);
+  heightmapBoxTest("heightmap-x", UpAxis::X, 0);
+  heightmapBoxTest("heightmap-x", UpAxis::X, 1);
 }
 
 
 TEST(Heightmap, AxisY)
 {
-  heightmapBoxTest("heightmap-y", Heightmap::AxisY, 0);
-  heightmapBoxTest("heightmap-y", Heightmap::AxisY, 1);
+  heightmapBoxTest("heightmap-y", UpAxis::Y, 0);
+  heightmapBoxTest("heightmap-y", UpAxis::Y, 1);
 }
 
 
 TEST(Heightmap, AxisZ)
 {
-  heightmapBoxTest("heightmap-z", Heightmap::AxisNegZ, 0);
-  heightmapBoxTest("heightmap-z", Heightmap::AxisNegZ, 1);
+  heightmapBoxTest("heightmap-z", UpAxis::NegZ, 0);
+  heightmapBoxTest("heightmap-z", UpAxis::NegZ, 1);
 }
 
 
 TEST(Heightmap, AxisNegX)
 {
-  heightmapBoxTest("heightmap-negx", Heightmap::AxisX, 0);
-  heightmapBoxTest("heightmap-negx", Heightmap::AxisX, 1);
+  heightmapBoxTest("heightmap-negx", UpAxis::X, 0);
+  heightmapBoxTest("heightmap-negx", UpAxis::X, 1);
 }
 
 
 TEST(Heightmap, AxisNegY)
 {
-  heightmapBoxTest("heightmap-negy", Heightmap::AxisY, 0);
-  heightmapBoxTest("heightmap-negy", Heightmap::AxisY, 1);
+  heightmapBoxTest("heightmap-negy", UpAxis::Y, 0);
+  heightmapBoxTest("heightmap-negy", UpAxis::Y, 1);
 }
 
 
 TEST(Heightmap, AxisNegZ)
 {
-  heightmapBoxTest("heightmap-negz", Heightmap::AxisNegZ, 0);
-  heightmapBoxTest("heightmap-negz", Heightmap::AxisNegZ, 1);
+  heightmapBoxTest("heightmap-negz", UpAxis::NegZ, 0);
+  heightmapBoxTest("heightmap-negz", UpAxis::NegZ, 1);
 }
 
 
 TEST(Heightmap, Layout)
 {
   std::shared_ptr<Heightmap> heightmap;
-  heightmapBoxTest("", Heightmap::AxisZ, 0, &heightmap);
+  heightmapBoxTest("", UpAxis::Z, 0, &heightmap);
   const MapLayout &layout = heightmap->heightmap().layout();
 
   EXPECT_EQ(layout.layerCount(), 3);
@@ -378,7 +378,7 @@ TEST(Heightmap, Layout)
 TEST(Heightmap, Mesh)
 {
   std::shared_ptr<Heightmap> heightmap;
-  heightmapBoxTest("", Heightmap::AxisZ, 0, &heightmap);
+  heightmapBoxTest("", UpAxis::Z, 0, &heightmap);
   HeightmapMesh mesh;
 
   bool ok = mesh.buildMesh(*heightmap);

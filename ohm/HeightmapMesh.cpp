@@ -65,6 +65,7 @@ namespace ohm
     std::vector<double> coords_2d;
     HeightmapMesh::NormalsMode normals_mode = HeightmapMesh::kNormalsAverage;
     Aabb mesh_extents = Aabb(0.0);
+    double resolution = 0.0;
 
     void clear()
     {
@@ -76,6 +77,7 @@ namespace ohm
       edges.clear();
       coords_2d.clear();
       mesh_extents = Aabb(0.0);
+      resolution = 0.0;
     }
   };
 }  // namespace ohm
@@ -120,6 +122,8 @@ bool HeightmapMesh::buildMesh(const Heightmap &heightmap)
     // Fail.
     return false;
   }
+
+  imp_->resolution = heightmap_occupancy.resolution();
 
   const glm::dvec3 up = heightmap.upAxisNormal();
   const glm::vec3 upf(up);
@@ -293,6 +297,12 @@ bool HeightmapMesh::buildMesh(const Heightmap &heightmap)
   }
 
   return true;
+}
+
+
+double HeightmapMesh::resolution() const
+{
+  return imp_->resolution;
 }
 
 
