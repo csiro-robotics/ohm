@@ -97,6 +97,7 @@ set(SOURCES
   RayFilter.h
   Stream.cpp
   Stream.h
+  UpAxis.h
   Voxel.cpp
   Voxel.h
   VoxelLayout.cpp
@@ -145,6 +146,7 @@ set(PUBLIC_HEADERS
   QueryFlag.h
   RayFilter.h
   Stream.h
+  UpAxis.h
   Voxel.h
   VoxelLayout.h
   VoxelUtil.h

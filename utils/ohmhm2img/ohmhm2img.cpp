@@ -107,6 +107,13 @@ namespace
   ExportImageType convertImage(std::vector<uint8_t> &export_pixels, const uint8_t *raw,
                                const ohm::HeightmapImage::BitmapInfo &info, const Options &opt)
   {
+    if (info.type == ohm::HeightmapImage::kImageVertexColours888)
+    {
+      export_pixels.resize(info.image_width * info.image_height * 3);
+      memcpy(export_pixels.data(), raw, export_pixels.size());
+      return kExportRGB8;
+    }
+
     if (opt.image_mode == kNormals16 && info.type == ohm::HeightmapImage::kImageNormals)
     {
       // Need to convert float colour to u16
@@ -565,13 +572,14 @@ int main(int argc, char *argv[])
     return res;
   }
 
-  ohm::HeightmapImage hmImage(heightmap, opt.imageType());
+  ohm::HeightmapImage hm_image(opt.imageType());
   ohm::HeightmapImage::BitmapInfo info;
+  ohm::HeightmapMesh mesh_builder(opt.normals_mode);
 
-  hmImage.meshBuilder().setNormalsMode(opt.normals_mode);
+  mesh_builder.buildMesh(heightmap);
 
-  hmImage.generateBitmap();
-  const uint8_t *image = hmImage.bitmap(&info);
+  hm_image.generateBitmap(mesh_builder, heightmap.upAxis());
+  const uint8_t *image = hm_image.bitmap(&info);
   if (!image)
   {
     std::cerr << "Failed to generate heightmap image" << std::endl;

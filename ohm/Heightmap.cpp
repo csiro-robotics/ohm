@@ -28,7 +28,7 @@ using namespace ohm;
 namespace
 {
   /// Helper class for walking a plane in the heightmap given any up axis.
-  /// Manages walking the correct axis based on the Heightmap::Axis.
+  /// Manages walking the correct axis based on the @c UpAxis.
   ///
   /// Usage:
   /// - Initialise
@@ -41,30 +41,30 @@ namespace
     const Key &min_ext_key, &max_ext_key;
     int axis_indices[3] = { 0, 0, 0 };
 
-    PlaneWalker(const OccupancyMap &map, const Key &min_ext_key, const Key &max_ext_key, Heightmap::Axis up_axis)
+    PlaneWalker(const OccupancyMap &map, const Key &min_ext_key, const Key &max_ext_key, UpAxis up_axis)
       : map(map)
       , min_ext_key(min_ext_key)
       , max_ext_key(max_ext_key)
     {
       switch (up_axis)
       {
-      case Heightmap::AxisX:
+      case UpAxis::X:
         /* fallthrough */
-      case Heightmap::AxisNegX:
+      case UpAxis::NegX:
         axis_indices[0] = 1;
         axis_indices[1] = 2;
         axis_indices[2] = 0;
         break;
-      case Heightmap::AxisY:
+      case UpAxis::Y:
         /* fallthrough */
-      case Heightmap::AxisNegY:
+      case UpAxis::NegY:
         axis_indices[0] = 0;
         axis_indices[1] = 2;
         axis_indices[2] = 1;
         break;
-      case Heightmap::AxisZ:
+      case UpAxis::Z:
         /* fallthrough */
-      case Heightmap::AxisNegZ:
+      case UpAxis::NegZ:
         axis_indices[0] = 0;
         axis_indices[1] = 1;
         axis_indices[2] = 2;
@@ -121,7 +121,7 @@ namespace
   }
 
 
-  bool calculateHeightAt(glm::dvec3 *voxel_position, double *height, const VoxelConst &voxel, Heightmap::Axis axis_id,
+  bool calculateHeightAt(glm::dvec3 *voxel_position, double *height, const VoxelConst &voxel, UpAxis axis_id,
                          const glm::dvec3 &up, int blur_level, bool force_voxel_centre)
   {
     if (blur_level == 0)
@@ -143,12 +143,12 @@ namespace
     glm::ivec3 deltas(0);
     int axis_a, axis_b;
 
-    if (axis_id == Heightmap::AxisX || axis_id == Heightmap::AxisNegX)
+    if (axis_id == UpAxis::X || axis_id == UpAxis::NegX)
     {
       axis_a = 1;
       axis_b = 2;
     }
-    else if (axis_id == Heightmap::AxisY || axis_id == Heightmap::AxisNegY)
+    else if (axis_id == UpAxis::Y || axis_id == UpAxis::NegY)
     {
       axis_a = 0;
       axis_b = 2;
@@ -180,21 +180,21 @@ namespace
 }  // namespace
 
 Heightmap::Heightmap()
-  : Heightmap(0.2, 2.0, AxisZ)
+  : Heightmap(0.2, 2.0, UpAxis::Z)
 {}
 
 
-Heightmap::Heightmap(double grid_resolution, double min_clearance, Axis up_axis, unsigned region_size)
+Heightmap::Heightmap(double grid_resolution, double min_clearance, UpAxis up_axis, unsigned region_size)
   : imp_(new HeightmapDetail)
 {
   region_size = region_size ? region_size : kDefaultRegionSize;
 
   imp_->min_clearance = min_clearance;
 
-  if (up_axis < AxisNegZ || up_axis > AxisZ)
+  if (up_axis < UpAxis::NegZ || up_axis > UpAxis::Z)
   {
-    std::cerr << "Unknown up axis ID: " << up_axis << std::endl;
-    up_axis = AxisZ;
+    std::cerr << "Unknown up axis ID: " << int(up_axis) << std::endl;
+    up_axis = UpAxis::Z;
   }
 
   // Cache the up axis normal.
@@ -203,7 +203,7 @@ Heightmap::Heightmap(double grid_resolution, double min_clearance, Axis up_axis,
 
   // Use an OccupancyMap to store grid cells. Each region is 1 voxel thick.
   glm::u8vec3 region_dim(region_size);
-  region_dim[imp_->vertical_axis_id] = 1;
+  region_dim[int(imp_->vertical_axis_id)] = 1;
   imp_->heightmap.reset(new OccupancyMap(grid_resolution, region_dim));
 
   // Setup the heightmap voxel layout.
@@ -321,15 +321,15 @@ bool Heightmap::ignoreSubVoxelPositioning() const
 }
 
 
-Heightmap::Axis Heightmap::upAxis() const
+UpAxis Heightmap::upAxis() const
 {
-  return Heightmap::Axis(imp_->up_axis_id);
+  return UpAxis(imp_->up_axis_id);
 }
 
 
 int Heightmap::upAxisIndex() const
 {
-  return imp_->vertical_axis_id;
+  return int(imp_->vertical_axis_id);
 }
 
 
@@ -341,13 +341,13 @@ const glm::dvec3 &Heightmap::upAxisNormal() const
 
 const glm::dvec3 &Heightmap::surfaceAxisA() const
 {
-  return HeightmapDetail::surfaceNormalA(imp_->up_axis_id);
+  return HeightmapDetail::surfaceNormalA(int(imp_->up_axis_id));
 }
 
 
 const glm::dvec3 &Heightmap::surfaceAxisB() const
 {
-  return HeightmapDetail::surfaceNormalB(imp_->up_axis_id);
+  return HeightmapDetail::surfaceNormalB(int(imp_->up_axis_id));
 }
 
 
@@ -448,13 +448,13 @@ bool Heightmap::update(double base_height)
     const Key src_max_key = src_map.voxelKey(column_reference);
 
     // Walk the src column up.
-    Key src_key = (upAxis() >= 0) ? src_min_key : src_max_key;
+    Key src_key = (int(upAxis()) >= 0) ? src_min_key : src_max_key;
     glm::dvec3 sub_voxel_pos(0);
     glm::dvec3 column_voxel_pos(0);
     double height = 0;
 
     // Select walking direction based on the up axis being aligned with the primary axis or not.
-    const int step_dir = (upAxis() >= 0) ? 1 : -1;
+    const int step_dir = (int(upAxis()) >= 0) ? 1 : -1;
     for (; src_key.isBounded(imp_->vertical_axis_id, src_min_key, src_max_key);
          src_map.stepKey(src_key, imp_->vertical_axis_id, step_dir))
     {
@@ -542,21 +542,21 @@ bool Heightmap::update(double base_height)
             int dx = 0, dy = 0, dz = 0;
             switch (imp_->up_axis_id)
             {
-            case Heightmap::AxisX:
+            case UpAxis::X:
               /* fallthrough */
-            case Heightmap::AxisNegX:
+            case UpAxis::NegX:
               dy = i;
               dz = j;
               break;
-            case Heightmap::AxisY:
+            case UpAxis::Y:
               /* fallthrough */
-            case Heightmap::AxisNegY:
+            case UpAxis::NegY:
               dx = i;
               dz = j;
               break;
-            case Heightmap::AxisZ:
+            case UpAxis::Z:
               /* fallthrough */
-            case Heightmap::AxisNegZ:
+            case UpAxis::NegZ:
               dx = i;
               dy = j;
               break;

@@ -82,6 +82,10 @@ namespace ohm
     /// @return True on success.
     bool buildMesh(const Heightmap &heightmap);
 
+    /// Get the voxel resolution fo the heightmap from which the last mesh was generated.
+    /// @return The heightmap voxel resolution.
+    double resolution() const;
+
     /// Get the number of vertices in the generated mesh.
     ///
     /// Only valid when @c buildMesh() is successful.

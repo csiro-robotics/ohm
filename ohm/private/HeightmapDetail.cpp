@@ -83,7 +83,7 @@ const glm::dvec3 &HeightmapDetail::surfaceNormalB(int axis_id)
 
 void HeightmapDetail::fromMapInfo(const MapInfo &info)
 {
-  up_axis_id = int(info.get("heightmap-axis"));
+  up_axis_id = UpAxis(int(info.get("heightmap-axis")));
   blur_level = int(info.get("heightmap-blur"));
   min_clearance = float(info.get("heightmap-clearance"));
   floor = float(info.get("heightmap-floor"));
