@@ -72,9 +72,13 @@ function(register_target TARGET INCLUDES_VAR LIBRARIES_VAR)
   endif(TARGET ${TARGET})
 endfunction(register_target)
 
+# Packages required for ohmheightmaputil
+find_package(OpenGL REQUIRED)
+
 register_target(ohm::clu OHM_INCLUDE_DIRS OHM_LIBRARIES)
 register_target(ohm::gputil OHM_INCLUDE_DIRS OHM_LIBRARIES)
 register_target(ohm::ohm OHM_INCLUDE_DIRS OHM_LIBRARIES)
 register_target(ohm::ohmtools OHM_INCLUDE_DIRS OHM_LIBRARIES)
 register_target(ohm::ohmutil OHM_INCLUDE_DIRS OHM_LIBRARIES)
+register_target(ohm::ohmheightmaputil OHM_INCLUDE_DIRS OHM_LIBRARIES)
 register_target(ohm::slamio OHM_INCLUDE_DIRS OHM_LIBRARIES)
