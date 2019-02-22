@@ -119,6 +119,9 @@ namespace gputil
 
     switch (mode)
     {
+    default:
+    case kPinNone:
+      break;
     case kPinRead:
       map_flags = CL_MAP_READ;
       break;
@@ -681,16 +684,16 @@ void *Buffer::argPtr() const
 }
 
 
-void *Buffer::pin(PinMode mode)
-{
-  return ::pin(*imp_, mode);
-}
+// void *Buffer::pin(PinMode mode)
+// {
+//   return ::pin(*imp_, mode);
+// }
 
 
-void Buffer::unpin(void *ptr, Queue *queue, Event *block_on, Event *completion)
-{
-  ::unpin(*imp_, ptr, queue, block_on, completion);
-}
+// void Buffer::unpin(void *ptr, Queue *queue, Event *block_on, Event *completion)
+// {
+//   ::unpin(*imp_, ptr, queue, block_on, completion);
+// }
 
 
 namespace gputil

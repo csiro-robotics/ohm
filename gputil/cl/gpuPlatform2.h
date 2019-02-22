@@ -23,9 +23,11 @@ namespace gputil
   typedef cl_uchar2 uchar2;
   typedef cl_uchar3 uchar3;
   typedef cl_uchar4 uchar4;
+  typedef short short1;
   typedef cl_short2 short2;
   typedef cl_short3 short3;
   typedef cl_short4 short4;
+  typedef cl_ushort ushort;
   typedef cl_ushort ushort1;
   typedef cl_ushort2 ushort2;
   typedef cl_ushort3 ushort3;

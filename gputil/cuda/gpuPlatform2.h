@@ -14,6 +14,7 @@ namespace gputil
   typedef ::char2 char2;
   typedef ::char3 char3;
   typedef ::char4 char4;
+  typedef ::uchar uchar;
   typedef ::uchar1 uchar1;
   typedef ::uchar2 uchar2;
   typedef ::uchar3 uchar3;
@@ -22,6 +23,7 @@ namespace gputil
   typedef ::short2 short2;
   typedef ::short3 short3;
   typedef ::short4 short4;
+  typedef ::ushort1 ushort;
   typedef ::ushort1 ushort1;
   typedef ::ushort2 ushort2;
   typedef ::ushort3 ushort3;
@@ -30,6 +32,7 @@ namespace gputil
   typedef ::int2 int2;
   typedef ::int3 int3;
   typedef ::int4 int4;
+  typedef ::uint1 uint;
   typedef ::uint1 uint1;
   typedef ::uint2 uint2;
   typedef ::uint3 uint3;
@@ -39,6 +42,7 @@ namespace gputil
   typedef ::long3 long3;
   typedef ::long4 long4;
   typedef ::ulong ulong;
+  typedef ::ulong1 ulong;
   typedef ::ulong1 ulong1;
   typedef ::ulong2 ulong2;
   typedef ::ulong3 ulong3;

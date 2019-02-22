@@ -1,6 +1,12 @@
 
-__kernel void matrixMultiply(__global float *out, __global float *a, __global float *b, unsigned n, __local float *work)
+__kernel void matrixMultiply(__global float *out, __global float *a, __global float *b, unsigned n
+  LOCAL_ARG(float *, work)
+)
 {
+  // LOCAL_MEM_DECL();
+  // LOCAL_DEFINITION(float *, work);
+  extern __shared__ char shared_mem[];
+  float *work = (float *)shared_mem;
   if (get_global_id(0) >= n)
   {
     return;

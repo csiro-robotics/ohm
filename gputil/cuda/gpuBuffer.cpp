@@ -6,13 +6,13 @@
 
 #include "gpuBuffer.h"
 
-#include "cuda/gpuBufferDetail.h"
-#include "cuda/gpuEventDetail.h"
-#include "cuda/gpuQueueDetail.h"
+#include "gputil/cuda/gpuBufferDetail.h"
+#include "gputil/cuda/gpuEventDetail.h"
+#include "gputil/cuda/gpuQueueDetail.h"
 
-#include "gpuApiException.h"
-#include "gpuQueue.h"
-#include "gpuThrow.h"
+#include "gputil/gpuApiException.h"
+#include "gputil/gpuQueue.h"
+#include "gputil/gpuThrow.h"
 
 #include <cuda.h>
 #include <cuda_runtime.h>
@@ -20,6 +20,46 @@
 #include <cinttypes>
 
 using namespace gputil;
+
+/// Pinned memory garbage collector for asynchronous pinned memory copies. We can't call a cuda function from the
+/// asynchronous callback, so we instead add it to the collector, then periodically collect. We collect on:
+/// - Any pin()
+/// - Any unpin()
+/// - Any Buffer destructor.
+/// - PinnedGarbageCollector destructor (final cleanup).
+class PinnedGarbageCollector
+{
+public:
+  inline ~PinnedGarbageCollector() { collect(); }
+
+  inline void add(void *ptr)
+  {
+    std::unique_lock<std::mutex> guard(mutex_);
+    garbage_.push_back(ptr);
+  }
+
+  inline void collect()
+  {
+    std::unique_lock<std::mutex> guard(mutex_);
+    cudaError_t err = cudaSuccess;
+    for (void *ptr : garbage_)
+    {
+      err = cudaFreeHost(ptr);
+      GPUAPICHECK2(err, cudaSuccess);
+    }
+    garbage_.clear();
+  }
+
+private:
+  std::mutex mutex_;
+  std::vector<void *> garbage_;
+};
+
+namespace
+{
+  // Static pinned garbage collector.
+  PinnedGarbageCollector gc;
+}
 
 namespace gputil
 {
@@ -47,11 +87,11 @@ namespace gputil
     return (queue && queue->internal()) ? queue->internal()->obj() : nullptr;
   }
 
-  void releasePinnedMemoryCallback(cudaStream_t stream, cudaError_t status, void *pinned_ptr)
+  void releasePinnedMemoryCallback(cudaStream_t /*stream*/, cudaError_t status, void *pinned_ptr)
   {
     GPUAPICHECK2(status, cudaSuccess);
-    cudaError_t err = cudaFreeHost(pinned_ptr);
-    GPUAPICHECK2(err, cudaSuccess);
+    // Cannot call CUDA functions from this callback, so we can't free pinned_ptr. Instead, push it into the garbage.
+    gc.add(pinned_ptr);
   }
 
   /// Internal copy command. Manages synchronous vs. asynchronous code paths.
@@ -166,21 +206,22 @@ namespace gputil
 
   uint8_t *pin(BufferDetail &buf, PinMode mode)
   {
+    // TODO(KS): explore how CUDA actually deals with memory pinning. This setup is a bit weak.
     unsigned flags = 0;
-    if (mode == PinWrite)
+    if (mode == kPinWrite)
     {
       flags |= cudaHostAllocWriteCombined;
     }
     void *pinned = nullptr;
     cudaError_t err = cudaHostAlloc(&pinned, buf.alloc_size, flags);
     GPUAPICHECK(err, cudaSuccess, nullptr);
-    if (mode == PinRead)
-    {
-      // Copy from GPU to host.
-      // Currently only support synchronous mem copy.
-      err = cudaMemcpy(pinned, buf.mem, buf.alloc_size, cudaMemcpyDeviceToHost);
-      GPUAPICHECK(err, cudaSuccess, nullptr);
-    }
+    // Copy from GPU to host.
+    // Currently only support synchronous mem copy.
+    err = cudaMemcpy(pinned, buf.mem, buf.alloc_size, cudaMemcpyDeviceToHost);
+    GPUAPICHECK(err, cudaSuccess, nullptr);
+
+    gc.collect();
+
     return static_cast<uint8_t *>(pinned);
   }
 
@@ -192,8 +233,13 @@ namespace gputil
       completion->release();
     }
 
+    if (!pinned_ptr)
+    {
+      return;
+    }
+
     cudaError_t err;
-    if (mode == PinWrite)
+    if (mode == kPinWrite)
     {
       if (bufferCopy(imp.mem, pinned_ptr, imp.alloc_size, cudaMemcpyHostToDevice, queue, block_on, completion))
       {
@@ -209,6 +255,8 @@ namespace gputil
         GPUAPICHECK2(err, cudaSuccess);
       }
     }
+
+    gc.collect();
   }
 
   cudaError_t bufferAlloc(BufferDetail *buf, size_t alloc_size)
@@ -253,7 +301,7 @@ Buffer::Buffer(const Device &device, size_t byte_size, unsigned flags)
 }
 
 
-Buffer::Buffer(Buffer &&other)
+Buffer::Buffer(Buffer &&other) noexcept
   : imp_(other.imp_)
 {
   other.imp_ = nullptr;
@@ -264,10 +312,11 @@ Buffer::~Buffer()
 {
   release();
   delete imp_;
+  gc.collect();
 }
 
 
-Buffer &Buffer::operator=(Buffer &&other)
+Buffer &Buffer::operator=(Buffer &&other) noexcept
 {
   bufferFree(imp_);
   delete imp_;
@@ -293,7 +342,7 @@ void Buffer::release()
 }
 
 
-void Buffer::swap(Buffer &other)
+void Buffer::swap(Buffer &other) noexcept
 {
   std::swap(imp_, other.imp_);
 }
@@ -355,7 +404,6 @@ void Buffer::fill(const void *pattern, size_t pattern_size, Queue *queue, Event 
 {
   if (isValid())
   {
-    cudaError_t err = cudaSuccess;
     if (pattern_size == sizeof(int))
     {
       bufferSet(imp_->mem, *(const int *)pattern, imp_->alloc_size, queue, block_on, completion);
@@ -396,7 +444,6 @@ void Buffer::fillPartial(const void *pattern, size_t pattern_size, size_t fill_b
       fill_bytes = imp_->alloc_size - offset;
     }
 
-    cudaError_t err = cudaSuccess;
     uint8_t *dst_mem = static_cast<uint8_t *>(imp_->mem) + offset;
     if (pattern_size == sizeof(int))
     {
@@ -440,7 +487,8 @@ size_t Buffer::read(void *dst, size_t read_byte_count, size_t src_offset, Queue 
       copy_bytes = imp_->alloc_size - src_offset;
     }
 
-    bufferCopy(dst, imp_->mem, copy_bytes, cudaMemcpyDeviceToHost, queue, block_on, completion);
+    bufferCopy(dst, reinterpret_cast<const uint8_t *>(imp_->mem) + src_offset, copy_bytes, cudaMemcpyDeviceToHost,
+               queue, block_on, completion);
   }
   return copy_bytes;
 }
@@ -463,7 +511,8 @@ size_t Buffer::write(const void *src, size_t write_byte_count, size_t dst_offset
       copy_bytes = imp_->alloc_size - dst_offset;
     }
 
-    bufferCopy(imp_->mem, src, copy_bytes, cudaMemcpyHostToDevice, queue, block_on, completion);
+    bufferCopy(reinterpret_cast<uint8_t *>(imp_->mem) + dst_offset, src, copy_bytes, cudaMemcpyHostToDevice, queue,
+               block_on, completion);
   }
   return copy_bytes;
 }
@@ -481,7 +530,6 @@ size_t Buffer::readElements(void *dst, size_t element_size, size_t element_count
   uint8_t *dst2 = reinterpret_cast<uint8_t *>(dst);
   size_t copy_size = std::min(element_size, buffer_element_size);
   size_t src_offset = 0;
-  cudaError_t err = cudaSuccess;
 
   src += offset_elements * buffer_element_size;
   for (size_t i = 0; i < element_count && src_offset <= imp_->alloc_size; ++i)
@@ -510,7 +558,6 @@ size_t Buffer::writeElements(const void *src, size_t element_size, size_t elemen
   const uint8_t *src2 = reinterpret_cast<const uint8_t *>(src);
   size_t copy_size = std::min(element_size, buffer_element_size);
   size_t dst_offset = 0;
-  cudaError_t err = cudaSuccess;
 
   dst += offset_elements * buffer_element_size;
   for (size_t i = 0; i < element_count && dst_offset <= imp_->alloc_size; ++i)
@@ -527,20 +574,25 @@ size_t Buffer::writeElements(const void *src, size_t element_size, size_t elemen
 }
 
 
-void *Buffer::arg_() const
+void *Buffer::argPtr() const
 {
   return imp_->mem;
 }
 
 
-void *Buffer::pin(PinMode mode)
-{
-  return nullptr;
-}
+// void *Buffer::pin(PinMode mode)
+// {
+//   return (imp_) ? gputil::pin(*imp_, mode) : nullptr;
+// }
 
 
-void Buffer::unpin(void *ptr, Queue *queue, Event *block_on, Event *completion)
-{}
+// void Buffer::unpin(void *ptr, Queue *queue, Event *block_on, Event *completion)
+// {
+//   if (imp_)
+//   {
+//     gputil::unpin(*imp_, ptr, queue, block_on, completion);
+//   }
+// }
 
 
 namespace gputil

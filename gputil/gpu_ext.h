@@ -35,6 +35,10 @@
 
 #else  // __CUDACC__
 
+#define LOCAL_ARG(TYPE, VAR), __local TYPE VAR
+#define LOCAL_VAR(TYPE, VAR)
+#define LOCAL_MEM_DECL()
+
 //-----------------------------------------------------------------------------
 // OpenCL defines
 //-----------------------------------------------------------------------------

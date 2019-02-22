@@ -6,6 +6,7 @@ endif(NOT DEFINED GPU_ACCEL)
 include(TextFileResource)
 
 find_package(GTest)
+find_package(CUDA)
 
 set(SOURCES
   GpuBufferTest.cpp
@@ -17,7 +18,6 @@ set(SOURCES
 set(GPU_SOURCES
   matrix.cl
 )
-
 
 if(GPU_ACCEL STREQUAL "OpenCL")
   # Embedding GPU code. Generate source file resources.
@@ -33,9 +33,14 @@ if(GPU_ACCEL STREQUAL "OpenCL")
       FILELIST SOURCES
     )
   endforeach(CLSOURCE)
+  add_executable(gputiltest ${SOURCES} ${GPU_SOURCES})
+elseif(GPU_ACCEL STREQUAL "CUDA")
+  list(APPEND GPU_SOURCES
+    cuda/matrix_kernel.cu
+  )
+  cuda_add_executable(gputiltest ${SOURCES} ${GPU_SOURCES})
 endif(GPU_ACCEL STREQUAL "OpenCL")
 
-add_executable(gputiltest ${SOURCES} ${GPU_SOURCES})
 set_target_properties(gputiltest PROPERTIES FOLDER tests)
 if(MSVC)
   set_target_properties(gputiltest PROPERTIES DEBUG_POSTFIX "d")
@@ -52,7 +57,6 @@ target_include_directories(gputiltest SYSTEM
     "${GTEST_INCLUDE_DIRS}"
     $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}>
 )
-
 
 target_link_libraries(gputiltest ohmutil gputil GTest::Main)
 

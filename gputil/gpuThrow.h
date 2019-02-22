@@ -9,7 +9,7 @@
 
 #include "gpuConfig.h"
 
-#define GPU_EXCEPTIONS 0
+#define GPU_EXCEPTIONS 1
 
 #if GPU_EXCEPTIONS
 // Return statement present to prevent compilation errors when switching GPU_EXCEPTIONS.

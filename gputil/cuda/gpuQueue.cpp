@@ -5,11 +5,11 @@
 // Author: Kazys Stepanas
 #include "gpuQueue.h"
 
-#include "cuda/gpuQueueDetail.h"
-#include "cuda/gpuEventDetail.h"
+#include "gputil/cuda/gpuQueueDetail.h"
+#include "gputil/cuda/gpuEventDetail.h"
 
-#include "gpuApiException.h"
-#include "gpuThrow.h"
+#include "gputil/gpuApiException.h"
+#include "gputil/gpuThrow.h"
 
 #include <cuda_runtime.h>
 
@@ -36,7 +36,7 @@ namespace gputil
     {}
   };
 
-  void streamCallback(cudaStream_t event, cudaError_t status, void *user_data)
+  void streamCallback(cudaStream_t /*event*/, cudaError_t /*status*/, void *user_data)
   {
     CallbackWrapper *wrapper = static_cast<CallbackWrapper *>(user_data);
     wrapper->callback();
@@ -51,7 +51,7 @@ Queue::Queue()
 }
 
 
-Queue::Queue(Queue &&other)
+Queue::Queue(Queue &&other) noexcept
   : queue_(other.queue_)
 {
   other.queue_ = nullptr;
@@ -104,6 +104,7 @@ Event Queue::mark()
   cudaError_t err;
   err = cudaEventRecord(event.detail()->obj(), queue_->obj());
   GPUAPICHECK(err, cudaSuccess, Event());
+  return event;
 }
 
 
@@ -157,7 +158,7 @@ Queue &Queue::operator = (const Queue &other)
 }
 
 
-Queue &Queue::operator = (Queue &&other)
+Queue &Queue::operator = (Queue &&other) noexcept
 {
   if (queue_)
   {

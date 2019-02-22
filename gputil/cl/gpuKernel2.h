@@ -20,6 +20,8 @@
 
 #include <cstdlib>
 
+#define GPUTIL_MAKE_KERNEL(program, kernel_name) gputil::openCLKernel(program, #kernel_name)
+
 namespace clu
 {
   /// Override kernel argument setting using @c gputil::Buffer to map to @c cl_mem.

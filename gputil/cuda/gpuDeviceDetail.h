@@ -9,6 +9,8 @@
 
 #include "gpuConfig.h"
 
+#include "gputil/gpuDeviceInfo.h"
+
 #include <cuda_runtime.h>
 
 #include <string>
@@ -19,7 +21,7 @@ namespace gputil
   {
     int device;
     std::string name;
-    std::string info;
+    DeviceInfo info;
 
     inline DeviceDetail()
       : device(-1)

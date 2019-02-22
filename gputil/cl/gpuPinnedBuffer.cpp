@@ -3,10 +3,10 @@
 // ABN 41 687 119 230
 //
 // Author: Kazys Stepanas
-#include "gpuPinnedBuffer.h"
+#include "gputil/gpuPinnedBuffer.h"
 
-#include "gpuBuffer.h"
-#include "gpuBufferDetail.h"
+#include "gputil/gpuBuffer.h"
+#include "gputil/cl/gpuBufferDetail.h"
 
 #include <algorithm>
 
@@ -16,7 +16,7 @@ using namespace gputil;
 PinnedBuffer::PinnedBuffer()
   : buffer_(nullptr)
   , pinned_(nullptr)
-  , mode_(kPinRead)
+  , mode_(kPinNone)
 {}
 
 

@@ -14,6 +14,10 @@
 #define __global
 #define __local __shared__
 
+#define LOCAL_ARG(TYPE, VAR)
+#define LOCAL_VAR(TYPE, VAR) TYPE VAR = (TYPE)shared_mem;
+#define LOCAL_MEM_DECL() extern __shared__ char shared_mem[]
+
 // Useful information:
 // https://www.sharcnet.ca/help/index.php/Porting_CUDA_to_OpenCL
 
@@ -171,7 +175,7 @@ inline __device__ float3 xyz(float4 v)
 
 #include <math_constants.h>
 
-#define M_PI CUDART_PI
+// #define M_PI CUDART_PI
 
 #include "cutil_math.h"
 

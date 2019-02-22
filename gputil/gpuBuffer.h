@@ -95,7 +95,7 @@ namespace gputil
     /// Use @c swap().
     Buffer &operator=(const Buffer &) = delete;
 
-    /// R-ralue assignment.
+    /// R-value assignment.
     /// @return *this
     Buffer &operator=(Buffer &&other) noexcept;
 
@@ -445,8 +445,8 @@ namespace gputil
       return static_cast<T>(argPtr());
     }
 
-    void *pin(PinMode mode);
-    void unpin(void *ptr, Queue *queue = nullptr, Event *block_on = nullptr, Event *completion = nullptr);
+    // void *pin(PinMode mode);
+    // void unpin(void *ptr, Queue *queue = nullptr, Event *block_on = nullptr, Event *completion = nullptr);
 
     /// @internal
     inline BufferDetail *detail() const { return imp_; }

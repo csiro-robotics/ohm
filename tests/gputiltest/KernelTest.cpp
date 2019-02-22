@@ -18,6 +18,8 @@
 
 extern gputil::Device g_gpu;
 
+const void *matrixMultiplyPtr();
+
 namespace gpukerneltest
 {
   const unsigned kN = 32;
@@ -97,11 +99,14 @@ namespace gpukerneltest
     int err;
     gputil::Program program(g_gpu, "test-program");
 
+#if GPUTIL_TYPE == GPUTIL_OPENCL
     err = program.buildFromSource(matrixCode, matrixCode_length, gputil::BuildArgs{});
+#else  // GPUTIL_TYPE == GPUTIL_OPENCL
+#endif // CUDA
 
     ASSERT_EQ(err, 0) << gputil::ApiException::errorCodeString(err);
 
-    gputil::Kernel kernel = gputil::openCLKernel(program, "matrixMultiply");
+    gputil::Kernel kernel = GPUTIL_MAKE_KERNEL(program, matrixMultiply);
     ASSERT_TRUE(kernel.isValid());
 
     kernel.addLocal([](size_t group_size)

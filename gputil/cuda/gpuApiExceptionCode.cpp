@@ -4,7 +4,7 @@
 //
 // Author: Kazys Stepanas
 
-#include "gpuApiException.h"
+#include "gputil/gpuApiException.h"
 
 #include <cuda_runtime.h>
 

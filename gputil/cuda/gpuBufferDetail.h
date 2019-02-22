@@ -7,7 +7,7 @@
 #ifndef GPUBUFFERDETAIL_H
 #define GPUBUFFERDETAIL_H
 
-#include "gpuDevice.h"
+#include "gputil/gpuDevice.h"
 
 #include <string>
 
@@ -15,16 +15,10 @@ namespace gputil
 {
   struct BufferDetail
   {
-    void *mem;
-    size_t alloc_size;
-    unsigned flags;
+    void *mem = nullptr;
+    size_t alloc_size = 0;
+    unsigned flags = 0;
     Device device;
-
-    inline BufferDetail()
-      : mem(nullptr)
-      , alloc_size(0)
-      , flags(0)
-    {}
   };
 
   uint8_t *pin(BufferDetail &imp, PinMode mode);

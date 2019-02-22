@@ -76,7 +76,7 @@ elseif(GPU_ACCEL STREQUAL "CUDA")
   set(GPUTIL_TYPE 2)
 
   list(APPEND SOURCES
-    cuda/cuda_importcl.h
+    cuda/cutil_importcl.h
     cuda/cutil_math.h
     cuda/gpuApiExceptionCode.cpp
     cuda/gpuBuffer.cpp
@@ -85,8 +85,13 @@ elseif(GPU_ACCEL STREQUAL "CUDA")
     cuda/gpuDeviceDetail.h
     cuda/gpuEvent.cpp
     cuda/gpuEventDetail.h
+    cuda/gpuKernel.cpp
+    cuda/gpuKernel2.h
+    cuda/gpuKernelDetail.h
     cuda/gpuPinnedBuffer.cpp
     cuda/gpuPlatform2.h
+    cuda/gpuProgram.cpp
+    cuda/gpuProgramDetail.h
     cuda/gpuQueue.cpp
     cuda/gpuQueueDetail.h
     cuda/ref.h
@@ -105,7 +110,11 @@ configure_file(gpuConfig.in.h "${CMAKE_CURRENT_BINARY_DIR}/gputil/gpuConfig.h")
 
 if(GPU_ACCEL STREQUAL "CUDA")
   cuda_add_library(gputil STATIC ${SOURCES})
-  target_include_directories(gputil PRIVATE
+  target_include_directories(gputil
+    PUBLIC
+      # TODO: make the need for CUDA directories private.
+      "${CUDA_INCLUDE_DIRS}"
+    PRIVATE
       $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/cuda>
   )
 else()
