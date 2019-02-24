@@ -31,11 +31,14 @@
 //-----------------------------------------------------------------------------
 // CUDA defines
 //-----------------------------------------------------------------------------
-#define __localarg
+#define LOCAL_ARG(TYPE, VAR)
+#define LOCAL_VAR(TYPE, VAR) TYPE VAR = (TYPE)shared_mem;
+#define LOCAL_MEM_DECL() extern __shared__ char shared_mem[]
 
 #else  // __CUDACC__
 
-#define LOCAL_ARG(TYPE, VAR), __local TYPE VAR
+#define LOCAL_ARG(TYPE, VAR) \
+  , __local TYPE VAR
 #define LOCAL_VAR(TYPE, VAR)
 #define LOCAL_MEM_DECL()
 
@@ -91,17 +94,17 @@
 
 #endif  // __CUDACC__
 
-inline bool isGlobalThread(size_t x, size_t y, size_t z)
+inline __device__ bool isGlobalThread(size_t x, size_t y, size_t z)
 {
   return x == get_global_id(0) && y == get_global_id(1) && z == get_global_id(2);
 }
 
-inline bool isLocalThread(size_t x, size_t y, size_t z)
+inline __device__ bool isLocalThread(size_t x, size_t y, size_t z)
 {
   return x == get_local_id(0) && y == get_local_id(1) && z == get_local_id(2);
 }
 
-inline bool isInGroup(size_t x, size_t y, size_t z)
+inline __device__ bool isInGroup(size_t x, size_t y, size_t z)
 {
   return x == get_group_id(0) && y == get_group_id(1) && z == get_group_id(2);
 }

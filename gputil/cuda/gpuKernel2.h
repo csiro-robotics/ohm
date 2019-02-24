@@ -37,6 +37,18 @@ namespace gputil
       return 1u + countArgs(args...);
     }
 
+    template <typename ARG>
+    inline void *collateArgPtr(const ARG &arg)
+    {
+      return const_cast<void *>(reinterpret_cast<const void *>(&arg));
+    }
+
+    template <typename T>
+    inline void *collateArgPtr(const BufferArg<T> &arg)
+    {
+      return arg.buffer->argPtr();
+    }
+
     inline void collateArgs(unsigned /*index*/, void ** /*collated_args*/)
     {
       // NOOP
@@ -45,7 +57,7 @@ namespace gputil
     template <typename ARG, typename... ARGS>
     inline void collateArgs(unsigned index, void **collated_args, const ARG &arg, ARGS... args)
     {
-      collated_args[index] = const_cast<void *>(reinterpret_cast<const void *>(&arg));
+      collated_args[index] = collateArgPtr(arg);
       collateArgs(index + 1, collated_args, args...);
     }
 

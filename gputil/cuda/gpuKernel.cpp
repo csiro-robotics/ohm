@@ -32,7 +32,7 @@ namespace gputil
       // Select device.
       cudaError_t err = cudaSuccess;
       err = cudaSetDevice(device.detail()->device);
-      GPUTHROW(ApiException(err), err);
+      GPUAPICHECK(err, cudaSuccess, err);
       return err;
     }
 
@@ -85,14 +85,14 @@ namespace gputil
           cudaEvent_t cuda_event = event->detail()->obj();
           const unsigned flags = 0u;  // Must be zero at the time of implementation.
           err = cudaStreamWaitEvent(cuda_stream, cuda_event, flags);
-          GPUTHROW(ApiException(err), err);
+          GPUAPICHECK(err, cudaSuccess, err);
         }
       }
 
       // Launch kernel.
       err = cudaLaunchKernel(imp.cuda_kernel_function, dim3(global_size.x, global_size.y, global_size.z),
                              dim3(local_size.x, local_size.y, local_size.z), args, shared_mem_size, cuda_stream);
-      GPUTHROW(ApiException(err), err);
+      GPUAPICHECK(err, cudaSuccess, err);
 
       // Hook up completion event.
       if (completion_event)

@@ -1,12 +1,11 @@
+#include "gpu_ext.h"
 
 __kernel void matrixMultiply(__global float *out, __global float *a, __global float *b, unsigned n
   LOCAL_ARG(float *, work)
 )
 {
-  // LOCAL_MEM_DECL();
-  // LOCAL_DEFINITION(float *, work);
-  extern __shared__ char shared_mem[];
-  float *work = (float *)shared_mem;
+  LOCAL_MEM_DECL();
+  LOCAL_VAR(float *, work);
   if (get_global_id(0) >= n)
   {
     return;

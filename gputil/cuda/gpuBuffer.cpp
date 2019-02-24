@@ -217,6 +217,9 @@ namespace gputil
     GPUAPICHECK(err, cudaSuccess, nullptr);
     // Copy from GPU to host.
     // Currently only support synchronous mem copy.
+    // TODO(KS): We do not need to copy the buffer content if we are writing to the entire buffer. However, we do not
+    // know that ahead of time. To fix this, we need to maintain a list regions in the buffer which have been written
+    // to an upload those back to the GPU. This will obviate the need for the following mem copy when pinning for write.
     err = cudaMemcpy(pinned, buf.mem, buf.alloc_size, cudaMemcpyDeviceToHost);
     GPUAPICHECK(err, cudaSuccess, nullptr);
 

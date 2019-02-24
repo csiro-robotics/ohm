@@ -96,7 +96,7 @@ namespace gpukerneltest
 
   TEST(GpuKernel, Simple)
   {
-    int err;
+    int err = 0;
     gputil::Program program(g_gpu, "test-program");
 
 #if GPUTIL_TYPE == GPUTIL_OPENCL
