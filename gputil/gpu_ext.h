@@ -32,15 +32,19 @@
 // CUDA defines
 //-----------------------------------------------------------------------------
 #define LOCAL_ARG(TYPE, VAR)
-#define LOCAL_VAR(TYPE, VAR) TYPE VAR = (TYPE)shared_mem;
-#define LOCAL_MEM_DECL() extern __shared__ char shared_mem[]
+#define LOCAL_VAR(TYPE, VAR, SIZE) TYPE VAR = (TYPE)&shared_mem_[(shared_mem_offset_ =+ SIZE)];
+#define LOCAL_ENABLE() \
+  size_t shared_mem_offset_ = 0; \
+  extern __shared__ char shared_mem_[]
+#define LM_PER_THREAD(per_thread_size) ((per_thread_size) * blockDim.x * blockDim.y * blockDim.z)
 
 #else  // __CUDACC__
 
 #define LOCAL_ARG(TYPE, VAR) \
   , __local TYPE VAR
-#define LOCAL_VAR(TYPE, VAR)
-#define LOCAL_MEM_DECL()
+#define LOCAL_VAR(TYPE, VAR, SIZE)
+#define LOCAL_ENABLE()
+#define LM_PER_THREAD(PER_THREAD_SIZE)
 
 //-----------------------------------------------------------------------------
 // OpenCL defines
