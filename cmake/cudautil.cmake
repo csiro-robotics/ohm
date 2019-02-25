@@ -2,7 +2,7 @@
 # Setup some CUDA complilation control options using the given PREFIX.
 #==============================================================================
 function(nvcc_setup PREFIX)
-  set(${PREFIX}_CUDA_ARCHITECTURES "30" CACHE STRING "Specifies the list of CUDA compute architectures to compile for.")
+  set(${PREFIX}_CUDA_ARCHITECTURES "50;60" CACHE STRING "Specifies the list of CUDA compute architectures to compile for.")
   foreach(ARCH ${${PREFIX}_CUDA_ARCHITECTURES})
     list(APPEND CUDA_NVCC_FLAGS "-gencode arch=compute_${ARCH},code=sm_${ARCH}")
   endforeach(ARCH)

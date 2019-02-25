@@ -33,6 +33,10 @@ namespace gputil
       cudaError_t err = cudaSuccess;
       err = cudaSetDevice(device.detail()->device);
       GPUAPICHECK(err, cudaSuccess, err);
+      cudaDeviceProp info;
+      memset(&info, 0, sizeof(info));
+      err = cudaGetDeviceProperties(&info, device.detail()->device);
+      GPUAPICHECK(err, cudaSuccess, err);
       return err;
     }
 
@@ -88,6 +92,16 @@ namespace gputil
           GPUAPICHECK(err, cudaSuccess, err);
         }
       }
+
+      // int n = 0;
+      // std::vector<void *> dummy_args(5);
+      // for (int i = 0; i < 5; ++i)
+      // {
+      //   dummy_args[i] = nullptr;
+      // }
+      // dummy_args[3] = &n;
+
+      // args = dummy_args.data();
 
       // Launch kernel.
       err = cudaLaunchKernel(imp.cuda_kernel_function, dim3(global_size.x, global_size.y, global_size.z),

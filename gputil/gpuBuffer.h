@@ -409,10 +409,17 @@ namespace gputil
 
     /// Internal pointer for argument passing to the device function/kernel.
     ///
-    /// For CUDA this is the CUDA address which can be passed directly as an argument.
+    /// For CUDA this is a pointer to a pointer at which which the device memory is made.
     ///
     /// For OpenCL the type is @c cl_mem, which may be set as kernel argument.
     void *argPtr() const;
+
+    /// Internal pointer for argument passing to the device function/kernel.
+    ///
+    /// For CUDA this the address of the allocation.
+    ///
+    /// For OpenCL the same as @c argPtr().
+    void *address() const;
 
     /// Return the internal pointer for argument passing as the given pointer type.
     ///
@@ -435,14 +442,14 @@ namespace gputil
     template <typename T>
     inline T arg()
     {
-      return static_cast<T>(argPtr());
+      return static_cast<T>(address());
     }
 
     /// @c overload
     template <typename T>
     inline T arg() const
     {
-      return static_cast<T>(argPtr());
+      return static_cast<T>(address());
     }
 
     // void *pin(PinMode mode);

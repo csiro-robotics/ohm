@@ -579,6 +579,12 @@ size_t Buffer::writeElements(const void *src, size_t element_size, size_t elemen
 
 void *Buffer::argPtr() const
 {
+  return &imp_->mem;
+}
+
+
+void *Buffer::address() const
+{
   return imp_->mem;
 }
 

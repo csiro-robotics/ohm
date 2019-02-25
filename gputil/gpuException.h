@@ -10,9 +10,11 @@
 #include "gpuConfig.h"
 #include "gpuThrow.h"
 
+#include <exception>
+
 namespace gputil
 {
-  class gputilAPI Exception
+  class gputilAPI Exception : public std::exception
   {
   public:
     Exception(const char *msg = nullptr);
@@ -20,7 +22,7 @@ namespace gputil
 
     virtual ~Exception();
 
-    inline const char *message() const { return message_ ? message_ : ""; }
+    const char *what() const noexcept override;
 
   protected:
     void setMessage(const char *message);

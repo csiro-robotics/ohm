@@ -4,6 +4,7 @@ __kernel void matrixMultiply(__global float *out, __global float *a, __global fl
   LOCAL_ARG(float *, work)
 )
 {
+#if 1
   LOCAL_MEM_DECL();
   LOCAL_VAR(float *, work);
   if (get_global_id(0) >= n)
@@ -26,4 +27,20 @@ __kernel void matrixMultiply(__global float *out, __global float *a, __global fl
       out[i] = r;
     }
   }
+#else  // #
+  if (get_global_id(0) >= 1)
+  {
+    return;
+  }
+
+  for (unsigned i = 0; i < n; ++i)
+  {
+    __global float *out_val = out + i;
+    *out_val = 0;
+    for (unsigned j = 0; j < n; ++j)
+    {
+      *out_val += a[i * n + j] * b[j * n + i];
+    }
+  }
+#endif // #
 }

@@ -34,6 +34,12 @@ Exception::~Exception()
 }
 
 
+const char *Exception::what() const noexcept
+{
+  return message_ ? message_ : "";
+}
+
+
 void Exception::setMessage(const char *message)
 {
   delete[] message_;

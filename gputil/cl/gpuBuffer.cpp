@@ -684,16 +684,10 @@ void *Buffer::argPtr() const
 }
 
 
-// void *Buffer::pin(PinMode mode)
-// {
-//   return ::pin(*imp_, mode);
-// }
-
-
-// void Buffer::unpin(void *ptr, Queue *queue, Event *block_on, Event *completion)
-// {
-//   ::unpin(*imp_, ptr, queue, block_on, completion);
-// }
+void *Buffer::address() const
+{
+  return argPtr();
+}
 
 
 namespace gputil
