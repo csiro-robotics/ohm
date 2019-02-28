@@ -1,863 +1,577 @@
-/*
- * Copyright 1993-2009 NVIDIA Corporation.  All rights reserved.
- *
- * NVIDIA Corporation and its licensors retain all intellectual property and
- * proprietary rights in and to this software and related documentation and
- * any modifications thereto.  Any use, reproduction, disclosure, or distribution
- * of this software and related documentation without an express license
- * agreement from NVIDIA Corporation is strictly prohibited.
- *
- */
-
-/*
-    This file implements common mathematical operations on vector types
-    (float3, float4 etc.) since these are not provided as standard by CUDA.
-
-    The syntax is modelled on the Cg standard library.
-*/
-
+// Copyright (c) 2019
+// Commonwealth Scientific and Industrial Research Organisation (CSIRO)
+// ABN 41 687 119 230
+//
+// Author: Kazys Stepanas
 #ifndef CUTIL_MATH_H
 #define CUTIL_MATH_H
 
-#include "cuda_runtime.h"
-
-////////////////////////////////////////////////////////////////////////////////
-typedef unsigned int uint;
-typedef unsigned short ushort;
-
-#ifndef __CUDACC__
-#include <math.h>
-
-inline float fminf(float a, float b)
-{
-  return a < b ? a : b;
-}
-
-inline float fmaxf(float a, float b)
-{
-  return a > b ? a : b;
-}
-
-inline int max(int a, int b)
-{
-  return a > b ? a : b;
-}
-
-inline int min(int a, int b)
-{
-  return a < b ? a : b;
-}
-
-inline float rsqrtf(float x)
-{
-  return 1.0f / sqrtf(x);
-}
-#endif
-
-// float functions
-////////////////////////////////////////////////////////////////////////////////
-
-// lerp
-inline __device__ __host__ float lerp(float a, float b, float t)
-{
-  return a + t * (b - a);
-}
-
-// clamp
-inline __device__ __host__ float clamp(float f, float a, float b)
-{
-  return fmaxf(a, fminf(f, b));
-}
-
-// int2 functions
-////////////////////////////////////////////////////////////////////////////////
-
-// Compare
-inline __host__ __device__ bool operator==(const int2 &a, const int2 &b)
-{
-  return a.x == b.x && a.y == b.y;
-}
-
-// Compare
-inline __host__ __device__ bool operator!=(const int2 &a, const int2 &b)
-{
-  return a.x != b.x || a.y != b.y;
-}
-
-// negate
-inline __host__ __device__ int2 operator-(int2 &a)
-{
-  return make_int2(-a.x, -a.y);
-}
-
-// addition
-inline __host__ __device__ int2 operator+(int2 a, int2 b)
-{
-  return make_int2(a.x + b.x, a.y + b.y);
-}
-inline __host__ __device__ void operator+=(int2 &a, int2 b)
-{
-  a.x += b.x;
-  a.y += b.y;
-}
-
-// subtract
-inline __host__ __device__ int2 operator-(int2 a, int2 b)
-{
-  return make_int2(a.x - b.x, a.y - b.y);
-}
-inline __host__ __device__ void operator-=(int2 &a, int2 b)
-{
-  a.x -= b.x;
-  a.y -= b.y;
-}
-
-// multiply
-inline __host__ __device__ int2 operator*(int2 a, int2 b)
-{
-  return make_int2(a.x * b.x, a.y * b.y);
-}
-inline __host__ __device__ int2 operator*(int2 a, int s)
-{
-  return make_int2(a.x * s, a.y * s);
-}
-inline __host__ __device__ int2 operator*(int s, int2 a)
-{
-  return make_int2(a.x * s, a.y * s);
-}
-inline __host__ __device__ void operator*=(int2 &a, int s)
-{
-  a.x *= s;
-  a.y *= s;
-}
-
-// float2 functions
-////////////////////////////////////////////////////////////////////////////////
-
-// additional constructors
-inline __host__ __device__ float2 make_float2(float s)
-{
-  return make_float2(s, s);
-}
-inline __host__ __device__ float2 make_float2(int2 a)
-{
-  return make_float2(float(a.x), float(a.y));
-}
-
-// Compare
-inline __host__ __device__ bool operator==(const float2 &a, const float2 &b)
-{
-  return a.x == b.x && a.y == b.y;
-}
-
-// Compare
-inline __host__ __device__ bool operator!=(const float2 &a, const float2 &b)
-{
-  return a.x != b.x || a.y != b.y;
-}
-
-// negate
-inline __host__ __device__ float2 operator-(float2 &a)
-{
-  return make_float2(-a.x, -a.y);
-}
-
-// addition
-inline __host__ __device__ float2 operator+(float2 a, float2 b)
-{
-  return make_float2(a.x + b.x, a.y + b.y);
-}
-inline __host__ __device__ void operator+=(float2 &a, float2 b)
-{
-  a.x += b.x;
-  a.y += b.y;
-}
-
-// subtract
-inline __host__ __device__ float2 operator-(float2 a, float2 b)
-{
-  return make_float2(a.x - b.x, a.y - b.y);
-}
-inline __host__ __device__ void operator-=(float2 &a, float2 b)
-{
-  a.x -= b.x;
-  a.y -= b.y;
-}
-
-// multiply
-inline __host__ __device__ float2 operator*(float2 a, float2 b)
-{
-  return make_float2(a.x * b.x, a.y * b.y);
-}
-inline __host__ __device__ float2 operator*(float2 a, float s)
-{
-  return make_float2(a.x * s, a.y * s);
-}
-inline __host__ __device__ float2 operator*(float s, float2 a)
-{
-  return make_float2(a.x * s, a.y * s);
-}
-inline __host__ __device__ void operator*=(float2 &a, float s)
-{
-  a.x *= s;
-  a.y *= s;
-}
-
-// divide
-inline __host__ __device__ float2 operator/(float2 a, float2 b)
-{
-  return make_float2(a.x / b.x, a.y / b.y);
-}
-inline __host__ __device__ float2 operator/(float2 a, float s)
-{
-  float inv = 1.0f / s;
-  return a * inv;
-}
-inline __host__ __device__ float2 operator/(float s, float2 a)
-{
-  float inv = 1.0f / s;
-  return a * inv;
-}
-inline __host__ __device__ void operator/=(float2 &a, float s)
-{
-  float inv = 1.0f / s;
-  a *= inv;
-}
-
-// lerp
-inline __device__ __host__ float2 lerp(float2 a, float2 b, float t)
-{
-  return a + t * (b - a);
-}
-
-// clamp
-inline __device__ __host__ float2 clamp(float2 v, float a, float b)
-{
-  return make_float2(clamp(v.x, a, b), clamp(v.y, a, b));
-}
-
-inline __device__ __host__ float2 clamp(float2 v, float2 a, float2 b)
-{
-  return make_float2(clamp(v.x, a.x, b.x), clamp(v.y, a.y, b.y));
-}
-
-// dot product
-inline __host__ __device__ float dot(float2 a, float2 b)
-{
-  return a.x * b.x + a.y * b.y;
-}
-
-// length
-inline __host__ __device__ float length(float2 v)
-{
-  return sqrtf(dot(v, v));
-}
-
-// normalize
-inline __host__ __device__ float2 normalize(float2 v)
-{
-  float invLen = rsqrtf(dot(v, v));
-  return v * invLen;
-}
-
-// floor
-inline __host__ __device__ float2 floor(const float2 v)
-{
-  return make_float2(floor(v.x), floor(v.y));
-}
-
-// reflect
-inline __host__ __device__ float2 reflect(float2 i, float2 n)
-{
-  return i - 2.0f * n * dot(n, i);
-}
-
-// absolute value
-inline __host__ __device__ float2 fabs(float2 v)
-{
-  return make_float2(fabs(v.x), fabs(v.y));
-}
-
-// float3 functions
-////////////////////////////////////////////////////////////////////////////////
-
-// additional constructors
-inline __host__ __device__ float3 make_float3(float s)
-{
-  return make_float3(s, s, s);
-}
-inline __host__ __device__ float3 make_float3(float2 a)
-{
-  return make_float3(a.x, a.y, 0.0f);
-}
-inline __host__ __device__ float3 make_float3(float2 a, float s)
-{
-  return make_float3(a.x, a.y, s);
-}
-inline __host__ __device__ float3 make_float3(float4 a)
-{
-  return make_float3(a.x, a.y, a.z);  // discards w
-}
-inline __host__ __device__ float3 make_float3(int3 a)
-{
-  return make_float3(float(a.x), float(a.y), float(a.z));
-}
-
-// Compare
-inline __host__ __device__ bool operator==(const float3 &a, const float3 &b)
-{
-  return a.x == b.x && a.y == b.y && a.z == b.z;
-}
-
-// Compare
-inline __host__ __device__ bool operator!=(const float3 &a, const float3 &b)
-{
-  return a.x != b.x || a.y != b.y || a.z != b.z;
-}
-
-// negate
-inline __host__ __device__ float3 operator-(float3 &a)
-{
-  return make_float3(-a.x, -a.y, -a.z);
-}
-
-// min
-static __inline__ __host__ __device__ float3 fminf(float3 a, float3 b)
-{
-  return make_float3(fminf(a.x, b.x), fminf(a.y, b.y), fminf(a.z, b.z));
-}
-
-// max
-static __inline__ __host__ __device__ float3 fmaxf(float3 a, float3 b)
-{
-  return make_float3(fmaxf(a.x, b.x), fmaxf(a.y, b.y), fmaxf(a.z, b.z));
-}
-
-// addition
-inline __host__ __device__ float3 operator+(float3 a, float3 b)
-{
-  return make_float3(a.x + b.x, a.y + b.y, a.z + b.z);
-}
-inline __host__ __device__ float3 operator+(float3 a, float b)
-{
-  return make_float3(a.x + b, a.y + b, a.z + b);
-}
-inline __host__ __device__ void operator+=(float3 &a, float3 b)
-{
-  a.x += b.x;
-  a.y += b.y;
-  a.z += b.z;
-}
-
-// subtract
-inline __host__ __device__ float3 operator-(float3 a, float3 b)
-{
-  return make_float3(a.x - b.x, a.y - b.y, a.z - b.z);
-}
-inline __host__ __device__ float3 operator-(float3 a, float b)
-{
-  return make_float3(a.x - b, a.y - b, a.z - b);
-}
-inline __host__ __device__ void operator-=(float3 &a, float3 b)
-{
-  a.x -= b.x;
-  a.y -= b.y;
-  a.z -= b.z;
-}
-
-// multiply
-inline __host__ __device__ float3 operator*(float3 a, float3 b)
-{
-  return make_float3(a.x * b.x, a.y * b.y, a.z * b.z);
-}
-inline __host__ __device__ float3 operator*(float3 a, float s)
-{
-  return make_float3(a.x * s, a.y * s, a.z * s);
-}
-inline __host__ __device__ float3 operator*(float s, float3 a)
-{
-  return make_float3(a.x * s, a.y * s, a.z * s);
-}
-inline __host__ __device__ void operator*=(float3 &a, float s)
-{
-  a.x *= s;
-  a.y *= s;
-  a.z *= s;
-}
-
-// divide
-inline __host__ __device__ float3 operator/(float3 a, float3 b)
-{
-  return make_float3(a.x / b.x, a.y / b.y, a.z / b.z);
-}
-inline __host__ __device__ float3 operator/(float3 a, float s)
-{
-  float inv = 1.0f / s;
-  return a * inv;
-}
-inline __host__ __device__ float3 operator/(float s, float3 a)
-{
-  float inv = 1.0f / s;
-  return a * inv;
-}
-inline __host__ __device__ void operator/=(float3 &a, float s)
-{
-  float inv = 1.0f / s;
-  a *= inv;
-}
-
-// lerp
-inline __device__ __host__ float3 lerp(float3 a, float3 b, float t)
-{
-  return a + t * (b - a);
-}
-
-// clamp
-inline __device__ __host__ float3 clamp(float3 v, float a, float b)
-{
-  return make_float3(clamp(v.x, a, b), clamp(v.y, a, b), clamp(v.z, a, b));
-}
-
-inline __device__ __host__ float3 clamp(float3 v, float3 a, float3 b)
-{
-  return make_float3(clamp(v.x, a.x, b.x), clamp(v.y, a.y, b.y), clamp(v.z, a.z, b.z));
-}
-
-// dot product
-inline __host__ __device__ float dot(float3 a, float3 b)
-{
-  return a.x * b.x + a.y * b.y + a.z * b.z;
-}
-
-// cross product
-inline __host__ __device__ float3 cross(float3 a, float3 b)
-{
-  return make_float3(a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x);
-}
-
-// length
-inline __host__ __device__ float length(float3 v)
-{
-  return sqrtf(dot(v, v));
-}
-
-// normalize
-inline __host__ __device__ float3 normalize(float3 v)
-{
-  float invLen = rsqrtf(dot(v, v));
-  return v * invLen;
-}
-
-// floor
-inline __host__ __device__ float3 floor(const float3 v)
-{
-  return make_float3(floor(v.x), floor(v.y), floor(v.z));
-}
-
-// reflect
-inline __host__ __device__ float3 reflect(float3 i, float3 n)
-{
-  return i - 2.0f * n * dot(n, i);
-}
-
-// absolute value
-inline __host__ __device__ float3 fabs(float3 v)
-{
-  return make_float3(fabs(v.x), fabs(v.y), fabs(v.z));
-}
-
-// float4 functions
-////////////////////////////////////////////////////////////////////////////////
-
-// additional constructors
-inline __host__ __device__ float4 make_float4(float s)
-{
-  return make_float4(s, s, s, s);
-}
-inline __host__ __device__ float4 make_float4(float3 a)
-{
-  return make_float4(a.x, a.y, a.z, 0.0f);
-}
-inline __host__ __device__ float4 make_float4(float3 a, float w)
-{
-  return make_float4(a.x, a.y, a.z, w);
-}
-inline __host__ __device__ float4 make_float4(int4 a)
-{
-  return make_float4(float(a.x), float(a.y), float(a.z), float(a.w));
-}
-
-// Compare
-inline __host__ __device__ bool operator==(const float4 &a, const float4 &b)
-{
-  return a.x == b.x && a.y == b.y && a.z == b.z && a.w == b.w;
-}
-
-// Compare
-inline __host__ __device__ bool operator!=(const float4 &a, const float4 &b)
-{
-  return a.x != b.x || a.y != b.y || a.z != b.z || a.w != b.w;
-}
-
-// negate
-inline __host__ __device__ float4 operator-(float4 &a)
-{
-  return make_float4(-a.x, -a.y, -a.z, -a.w);
-}
-
-// min
-static __inline__ __host__ __device__ float4 fminf(float4 a, float4 b)
-{
-  return make_float4(fminf(a.x, b.x), fminf(a.y, b.y), fminf(a.z, b.z), fminf(a.w, b.w));
-}
-
-// max
-static __inline__ __host__ __device__ float4 fmaxf(float4 a, float4 b)
-{
-  return make_float4(fmaxf(a.x, b.x), fmaxf(a.y, b.y), fmaxf(a.z, b.z), fmaxf(a.w, b.w));
-}
-
-// addition
-inline __host__ __device__ float4 operator+(float4 a, float4 b)
-{
-  return make_float4(a.x + b.x, a.y + b.y, a.z + b.z, a.w + b.w);
-}
-inline __host__ __device__ void operator+=(float4 &a, float4 b)
-{
-  a.x += b.x;
-  a.y += b.y;
-  a.z += b.z;
-  a.w += b.w;
-}
-
-// subtract
-inline __host__ __device__ float4 operator-(float4 a, float4 b)
-{
-  return make_float4(a.x - b.x, a.y - b.y, a.z - b.z, a.w - b.w);
-}
-inline __host__ __device__ void operator-=(float4 &a, float4 b)
-{
-  a.x -= b.x;
-  a.y -= b.y;
-  a.z -= b.z;
-  a.w -= b.w;
-}
-
-// multiply
-inline __host__ __device__ float4 operator*(float4 a, float s)
-{
-  return make_float4(a.x * s, a.y * s, a.z * s, a.w * s);
-}
-inline __host__ __device__ float4 operator*(float s, float4 a)
-{
-  return make_float4(a.x * s, a.y * s, a.z * s, a.w * s);
-}
-inline __host__ __device__ void operator*=(float4 &a, float s)
-{
-  a.x *= s;
-  a.y *= s;
-  a.z *= s;
-  a.w *= s;
-}
-
-// divide
-inline __host__ __device__ float4 operator/(float4 a, float4 b)
-{
-  return make_float4(a.x / b.x, a.y / b.y, a.z / b.z, a.w / b.w);
-}
-inline __host__ __device__ float4 operator/(float4 a, float s)
-{
-  float inv = 1.0f / s;
-  return a * inv;
-}
-inline __host__ __device__ float4 operator/(float s, float4 a)
-{
-  float inv = 1.0f / s;
-  return a * inv;
-}
-inline __host__ __device__ void operator/=(float4 &a, float s)
-{
-  float inv = 1.0f / s;
-  a *= inv;
-}
-
-// lerp
-inline __device__ __host__ float4 lerp(float4 a, float4 b, float t)
-{
-  return a + t * (b - a);
-}
-
-// clamp
-inline __device__ __host__ float4 clamp(float4 v, float a, float b)
-{
-  return make_float4(clamp(v.x, a, b), clamp(v.y, a, b), clamp(v.z, a, b), clamp(v.w, a, b));
-}
-
-inline __device__ __host__ float4 clamp(float4 v, float4 a, float4 b)
-{
-  return make_float4(clamp(v.x, a.x, b.x), clamp(v.y, a.y, b.y), clamp(v.z, a.z, b.z), clamp(v.w, a.w, b.w));
-}
-
-// dot product
-inline __host__ __device__ float dot(float4 a, float4 b)
-{
-  return a.x * b.x + a.y * b.y + a.z * b.z + a.w * b.w;
-}
-
-// length
-inline __host__ __device__ float length(float4 r)
-{
-  return sqrtf(dot(r, r));
-}
-
-// normalize
-inline __host__ __device__ float4 normalize(float4 v)
-{
-  float invLen = rsqrtf(dot(v, v));
-  return v * invLen;
-}
-
-// floor
-inline __host__ __device__ float4 floor(const float4 v)
-{
-  return make_float4(floor(v.x), floor(v.y), floor(v.z), floor(v.w));
-}
-
-// absolute value
-inline __host__ __device__ float4 fabs(float4 v)
-{
-  return make_float4(fabs(v.x), fabs(v.y), fabs(v.z), fabs(v.w));
-}
-
-// int3 functions
-////////////////////////////////////////////////////////////////////////////////
-
-// additional constructors
-inline __host__ __device__ int3 make_int3(int s)
-{
-  return make_int3(s, s, s);
-}
-inline __host__ __device__ int3 make_int3(float3 a)
-{
-  return make_int3(int(a.x), int(a.y), int(a.z));
-}
-
-// Compare
-inline __host__ __device__ bool operator==(const int3 &a, const int3 &b)
-{
-  return a.x == b.x && a.y == b.y && a.z == b.z;
-}
-
-// Compare
-inline __host__ __device__ bool operator!=(const int3 &a, const int3 &b)
-{
-  return a.x != b.x || a.y != b.y || a.z != b.z;
-}
-
-// negate
-inline __host__ __device__ int3 operator-(int3 &a)
-{
-  return make_int3(-a.x, -a.y, -a.z);
-}
-
-// min
-inline __host__ __device__ int3 min(int3 a, int3 b)
-{
-  return make_int3(min(a.x, b.x), min(a.y, b.y), min(a.z, b.z));
-}
-
-// max
-inline __host__ __device__ int3 max(int3 a, int3 b)
-{
-  return make_int3(max(a.x, b.x), max(a.y, b.y), max(a.z, b.z));
-}
-
-// addition
-inline __host__ __device__ int3 operator+(int3 a, int3 b)
-{
-  return make_int3(a.x + b.x, a.y + b.y, a.z + b.z);
-}
-inline __host__ __device__ void operator+=(int3 &a, int3 b)
-{
-  a.x += b.x;
-  a.y += b.y;
-  a.z += b.z;
-}
-
-// subtract
-inline __host__ __device__ int3 operator-(int3 a, int3 b)
-{
-  return make_int3(a.x - b.x, a.y - b.y, a.z - b.z);
-}
-
-inline __host__ __device__ void operator-=(int3 &a, int3 b)
-{
-  a.x -= b.x;
-  a.y -= b.y;
-  a.z -= b.z;
-}
-
-// multiply
-inline __host__ __device__ int3 operator*(int3 a, int3 b)
-{
-  return make_int3(a.x * b.x, a.y * b.y, a.z * b.z);
-}
-inline __host__ __device__ int3 operator*(int3 a, int s)
-{
-  return make_int3(a.x * s, a.y * s, a.z * s);
-}
-inline __host__ __device__ int3 operator*(int s, int3 a)
-{
-  return make_int3(a.x * s, a.y * s, a.z * s);
-}
-inline __host__ __device__ void operator*=(int3 &a, int s)
-{
-  a.x *= s;
-  a.y *= s;
-  a.z *= s;
-}
-
-// divide
-inline __host__ __device__ int3 operator/(int3 a, int3 b)
-{
-  return make_int3(a.x / b.x, a.y / b.y, a.z / b.z);
-}
-inline __host__ __device__ int3 operator/(int3 a, int s)
-{
-  return make_int3(a.x / s, a.y / s, a.z / s);
-}
-inline __host__ __device__ int3 operator/(int s, int3 a)
-{
-  return make_int3(a.x / s, a.y / s, a.z / s);
-}
-inline __host__ __device__ void operator/=(int3 &a, int s)
-{
-  a.x /= s;
-  a.y /= s;
-  a.z /= s;
-}
-
-// clamp
-inline __device__ __host__ int clamp(int f, int a, int b)
-{
-  return max(a, min(f, b));
-}
-
-inline __device__ __host__ int3 clamp(int3 v, int a, int b)
-{
-  return make_int3(clamp(v.x, a, b), clamp(v.y, a, b), clamp(v.z, a, b));
-}
-
-inline __device__ __host__ int3 clamp(int3 v, int3 a, int3 b)
-{
-  return make_int3(clamp(v.x, a.x, b.x), clamp(v.y, a.y, b.y), clamp(v.z, a.z, b.z));
-}
-
-
-// uint3 functions
-////////////////////////////////////////////////////////////////////////////////
-
-// additional constructors
-inline __host__ __device__ uint3 make_uint3(uint s)
-{
-  return make_uint3(s, s, s);
-}
-inline __host__ __device__ uint3 make_uint3(float3 a)
-{
-  return make_uint3(uint(a.x), uint(a.y), uint(a.z));
-}
-
-// min
-inline __host__ __device__ uint3 min(uint3 a, uint3 b)
-{
-  return make_uint3(min(a.x, b.x), min(a.y, b.y), min(a.z, b.z));
-}
-
-// max
-inline __host__ __device__ uint3 max(uint3 a, uint3 b)
-{
-  return make_uint3(max(a.x, b.x), max(a.y, b.y), max(a.z, b.z));
-}
-
-// addition
-inline __host__ __device__ uint3 operator+(uint3 a, uint3 b)
-{
-  return make_uint3(a.x + b.x, a.y + b.y, a.z + b.z);
-}
-inline __host__ __device__ void operator+=(uint3 &a, uint3 b)
-{
-  a.x += b.x;
-  a.y += b.y;
-  a.z += b.z;
-}
-
-// subtract
-inline __host__ __device__ uint3 operator-(uint3 a, uint3 b)
-{
-  return make_uint3(a.x - b.x, a.y - b.y, a.z - b.z);
-}
-
-inline __host__ __device__ void operator-=(uint3 &a, uint3 b)
-{
-  a.x -= b.x;
-  a.y -= b.y;
-  a.z -= b.z;
-}
-
-// multiply
-inline __host__ __device__ uint3 operator*(uint3 a, uint3 b)
-{
-  return make_uint3(a.x * b.x, a.y * b.y, a.z * b.z);
-}
-inline __host__ __device__ uint3 operator*(uint3 a, uint s)
-{
-  return make_uint3(a.x * s, a.y * s, a.z * s);
-}
-inline __host__ __device__ uint3 operator*(uint s, uint3 a)
-{
-  return make_uint3(a.x * s, a.y * s, a.z * s);
-}
-inline __host__ __device__ void operator*=(uint3 &a, uint s)
-{
-  a.x *= s;
-  a.y *= s;
-  a.z *= s;
-}
-
-// divide
-inline __host__ __device__ uint3 operator/(uint3 a, uint3 b)
-{
-  return make_uint3(a.x / b.x, a.y / b.y, a.z / b.z);
-}
-inline __host__ __device__ uint3 operator/(uint3 a, uint s)
-{
-  return make_uint3(a.x / s, a.y / s, a.z / s);
-}
-inline __host__ __device__ uint3 operator/(uint s, uint3 a)
-{
-  return make_uint3(a.x / s, a.y / s, a.z / s);
-}
-inline __host__ __device__ void operator/=(uint3 &a, uint s)
-{
-  a.x /= s;
-  a.y /= s;
-  a.z /= s;
-}
-
-// clamp
-inline __device__ __host__ uint clamp(uint f, uint a, uint b)
-{
-  return max(a, min(f, b));
-}
-
-inline __device__ __host__ uint3 clamp(uint3 v, uint a, uint b)
-{
-  return make_uint3(clamp(v.x, a, b), clamp(v.y, a, b), clamp(v.z, a, b));
-}
-
-inline __device__ __host__ uint3 clamp(uint3 v, uint3 a, uint3 b)
-{
-  return make_uint3(clamp(v.x, a.x, b.x), clamp(v.y, a.y, b.y), clamp(v.z, a.z, b.z));
-}
-
-#endif
+#include <cuda_runtime.h>
+
+#include <cmath>
+
+using uchar = unsigned char;
+using ushort = unsigned short;
+using uint = unsigned int;
+
+//----------------------------------------------------------------------------------------------------------------------
+// Basic vector operations.
+//----------------------------------------------------------------------------------------------------------------------
+#define _VECTOR_OPS(type) \
+  inline __host__ __device__ bool operator==(const type##2 &a, const type##2 &b) \
+  { \
+    return a.x == b.x && a.y == b.y; \
+  } \
+ \
+  inline __host__ __device__ bool operator!=(const type##2 &a, const type##2 &b) \
+  { \
+    return !operator==(a, b); \
+  } \
+  \
+  inline __host__ __device__ type##2 operator-(const type##2 &a) \
+  { \
+    return make_##type##2(-a.x, -a.y); \
+  } \
+ \
+  inline __host__ __device__ type##2 operator+(const type##2 &a, const type##2 &b) \
+  { \
+    return make_##type##2(a.x + b.x, a.y + b.y); \
+  } \
+ \
+  template <typename S> \
+  inline __host__ __device__ type##2 operator+(const type##2 &a, const S &scalar) \
+  { \
+    return make_##type##2(a.x + scalar, a.y + scalar); \
+  } \
+ \
+  inline __host__ __device__ type##2 operator-(const type##2 &a, const type##2 &b) \
+  { \
+    return make_##type##2(a.x - b.x, a.y - b.y); \
+  } \
+ \
+  template <typename S> \
+  inline __host__ __device__ type##2 operator-(const type##2 &a, const S &scalar) \
+  { \
+    return make_##type##2(a.x - scalar, a.y - scalar); \
+  } \
+ \
+  inline __host__ __device__ type##2 &operator+=(type##2 &a, const type##2 &b) \
+  { \
+    a.x += b.x; \
+    a.y += b.y; \
+    return a; \
+  } \
+ \
+  template <typename S> \
+  inline __host__ __device__ type##2 &operator+=(type##2 &a, const S &scalar) \
+  { \
+    a.x += scalar; \
+    a.y += scalar; \
+    return a; \
+  } \
+ \
+  inline __host__ __device__ type##2 &operator-=(type##2 &a, const type##2 &b) \
+  { \
+    a.x -= b.x; \
+    a.y -= b.y; \
+    return a; \
+  } \
+ \
+  template <typename S> \
+  inline __host__ __device__ type##2 &operator-=(type##2 &a, const S &scalar) \
+  { \
+    a.x -= scalar; \
+    a.y -= scalar; \
+    return a; \
+  } \
+ \
+  inline __host__ __device__ type##2 operator*(const type##2 &a, const type##2 &b) \
+  { \
+    return make_##type##2(a.x * b.x, a.y * b.y); \
+  } \
+ \
+  inline __host__ __device__ type##2 &operator*=(type##2 &a, const type##2 &b) \
+  { \
+    a.x *= b.x; \
+    a.y *= b.y; \
+    return a; \
+  } \
+ \
+  template <typename S> \
+  inline __host__ __device__ type##2 operator*(const type##2 &a, const S &scalar) \
+  { \
+    return make_##type##2(a.x * scalar, a.y * scalar); \
+  } \
+ \
+  template <typename S> \
+  inline __host__ __device__ type##2 operator*(const S &scalar, const type##2 &a) \
+  { \
+    return make_##type##2(a.x * scalar, a.y * scalar); \
+  } \
+ \
+  template <typename S> \
+  inline __host__ __device__ type##2 &operator*=(type##2 &a, const S &scalar) \
+  { \
+    a.x *= scalar; \
+    a.y *= scalar; \
+    return a; \
+  } \
+ \
+  inline __host__ __device__ type##2 operator/(const type##2 &a, const type##2 &b) \
+  { \
+    return make_##type##2(a.x / b.x, a.y / b.y); \
+  } \
+ \
+  inline __host__ __device__ type##2 &operator/=(type##2 &a, const type##2 &b) \
+  { \
+    a.x /= b.x; \
+    a.y /= b.y; \
+    return a; \
+  } \
+ \
+  template <typename S> \
+  inline __host__ __device__ type##2 operator/(const type##2 &a, const S &scalar) \
+  { \
+    return make_##type##2(a.x / scalar, a.y / scalar); \
+  } \
+ \
+  template <typename S> \
+  inline __host__ __device__ type##2 &operator/=(type##2 &a, const S &scalar) \
+  { \
+    a.x /= scalar; \
+    a.y /= scalar; \
+    return a; \
+  } \
+ \
+  inline __host__ __device__ bool operator==(const type##3 &a, const type##3 &b) \
+  { \
+    return a.x == b.x && a.y == b.y && a.z == b.z; \
+  } \
+ \
+  inline __host__ __device__ bool operator!=(const type##3 &a, const type##3 &b) \
+  { \
+    return !operator==(a, b); \
+  } \
+ \
+  inline __host__ __device__ type##3 operator-(const type##3 &a) \
+  { \
+    return make_##type##3(-a.x, -a.y, -a.z); \
+  } \
+ \
+  inline __host__ __device__ type##3 operator+(const type##3 &a, const type##3 &b) \
+  { \
+    return make_##type##3(a.x + b.x, a.y + b.y, a.z + b.z); \
+  } \
+ \
+  inline __host__ __device__ type##3 operator-(const type##3 &a, const type##3 &b) \
+  { \
+    return make_##type##3(a.x - b.x, a.y - b.y, a.z - b.z); \
+  } \
+  \
+  template <typename S> \
+  inline __host__ __device__ type##3 operator+(const type##3 &a, const S &scalar) \
+  { \
+    return make_##type##3(a.x + scalar, a.y + scalar, a.z + scalar); \
+  } \
+  \
+  template <typename S> \
+  inline __host__ __device__ type##3 operator-(const type##3 &a, const S &scalar) \
+  { \
+    return make_##type##3(a.x - scalar, a.y - scalar, a.z - scalar); \
+  } \
+ \
+  inline __host__ __device__ type##3 &operator+=(type##3 &a, const type##3 &b) \
+  { \
+    a.x += b.x; \
+    a.y += b.y; \
+    a.z += b.z; \
+    return a; \
+  } \
+ \
+  inline __host__ __device__ type##3 &operator-=(type##3 &a, const type##3 &b) \
+  { \
+    a.x -= b.x; \
+    a.y -= b.y; \
+    a.z -= b.z; \
+    return a; \
+  } \
+  \
+  template <typename S> \
+  inline __host__ __device__ type##3 &operator+=(type##3 &a, const S &scalar) \
+  { \
+    a.x += scalar; \
+    a.y += scalar; \
+    a.z += scalar; \
+    return a; \
+  } \
+  \
+  template <typename S> \
+  inline __host__ __device__ type##3 &operator-=(type##3 &a, const S &scalar) \
+  { \
+    a.x -= scalar; \
+    a.y -= scalar; \
+    a.z -= scalar; \
+    return a; \
+  } \
+ \
+  inline __host__ __device__ type##3 operator*(const type##3 &a, const type##3 &b) \
+  { \
+    return make_##type##3(a.x * b.x, a.y * b.y, a.z * b.z); \
+  } \
+ \
+  inline __host__ __device__ type##3 &operator*=(type##3 &a, const type##3 &b) \
+  { \
+    a.x *= b.x; \
+    a.y *= b.y; \
+    a.z *= b.z; \
+    return a; \
+  } \
+ \
+  template <typename S> \
+  inline __host__ __device__ type##3 operator*(const type##3 &a, const S &scalar) \
+  { \
+    return make_##type##3(a.x * scalar, a.y * scalar, a.z * scalar); \
+  } \
+ \
+  template <typename S> \
+  inline __host__ __device__ type##3 operator*(const S &scalar, const type##3 &a) \
+  { \
+    return make_##type##3(a.x * scalar, a.y * scalar, a.z * scalar); \
+  } \
+ \
+  template <typename S> \
+  inline __host__ __device__ type##3 &operator*=(type##3 &a, const S &scalar) \
+  { \
+    a.x *= scalar; \
+    a.y *= scalar; \
+    a.z *= scalar; \
+    return a; \
+  } \
+ \
+  inline __host__ __device__ type##3 operator/(const type##3 &a, const type##3 &b) \
+  { \
+    return make_##type##3(a.x / b.x, a.y / b.y, a.z / b.z); \
+  } \
+ \
+  inline __host__ __device__ type##3 &operator/=(type##3 &a, const type##3 &b) \
+  { \
+    a.x /= b.x; \
+    a.y /= b.y; \
+    a.z /= b.z; \
+    return a; \
+  } \
+ \
+  template <typename S> \
+  inline __host__ __device__ type##3 operator/(const type##3 &a, const S &scalar) \
+  { \
+    return make_##type##3(a.x / scalar, a.y / scalar, a.z / scalar); \
+  } \
+ \
+  template <typename S> \
+  inline __host__ __device__ type##3 &operator/=(type##3 &a, const S &scalar) \
+  { \
+    a.x /= scalar; \
+    a.y /= scalar; \
+    a.z /= scalar; \
+    return a; \
+  } \
+ \
+  inline __host__ __device__ bool operator==(const type##4 &a, const type##4 &b) \
+  { \
+    return a.x == b.x && a.y == b.y && a.z == b.z && a.w == b.w; \
+  } \
+ \
+  inline __host__ __device__ bool operator!=(const type##4 &a, const type##4 &b) \
+  { \
+    return !operator==(a, b); \
+  } \
+ \
+  inline __host__ __device__ type##4 operator-(const type##4 &a) \
+  { \
+    return make_##type##4(-a.x, -a.y, -a.z, -a.w); \
+  } \
+  \
+  inline __host__ __device__ type##4 operator+(const type##4 &a, const type##4 &b) \
+  { \
+    return make_##type##4(a.x + b.x, a.y + b.y, a.z + b.z, a.w + b.w); \
+  } \
+ \
+  inline __host__ __device__ type##4 operator-(const type##4 &a, const type##4 &b) \
+  { \
+    return make_##type##4(a.x - b.x, a.y - b.y, a.z - b.z, a.w - b.w); \
+  } \
+  \
+  template <typename S> \
+  inline __host__ __device__ type##4 operator+(const type##4 &a, const S &scalar) \
+  { \
+    return make_##type##4(a.x + scalar, a.y + scalar, a.z + scalar, a.w + scalar); \
+  } \
+  \
+  template <typename S> \
+  inline __host__ __device__ type##4 operator-(const type##4 &a, const S &scalar) \
+  { \
+    return make_##type##4(a.x - scalar, a.y - scalar, a.z - scalar, a.w - scalar); \
+  } \
+ \
+  inline __host__ __device__ type##4 &operator+=(type##4 &a, const type##4 &b) \
+  { \
+    a.x += b.x; \
+    a.y += b.y; \
+    a.z += b.z; \
+    a.w += b.w; \
+    return a; \
+  } \
+ \
+  inline __host__ __device__ type##4 &operator-=(type##4 &a, const type##4 &b) \
+  { \
+    a.x -= b.x; \
+    a.y -= b.y; \
+    a.z -= b.z; \
+    a.w -= b.w; \
+    return a; \
+  } \
+ \
+  inline __host__ __device__ type##4 operator*(const type##4 &a, const type##4 &b) \
+  { \
+    return make_##type##4(a.x * b.x, a.y * b.y, a.z * b.z, a.w * b.w); \
+  } \
+ \
+  inline __host__ __device__ type##4 &operator*=(type##4 &a, const type##4 &b) \
+  { \
+    a.x *= b.x; \
+    a.y *= b.y; \
+    a.z *= b.z; \
+    a.w *= b.w; \
+    return a; \
+  } \
+ \
+  template <typename S> \
+  inline __host__ __device__ type##4 operator*(const type##4 &a, const S &scalar) \
+  { \
+    return make_##type##4(a.x * scalar, a.y * scalar, a.z * scalar, a.w * scalar); \
+  } \
+ \
+  template <typename S> \
+  inline __host__ __device__ type##4 operator*(const S &scalar, const type##4 &a) \
+  { \
+    return make_##type##4(a.x * scalar, a.y * scalar, a.z * scalar, a.w * scalar); \
+  } \
+ \
+  template <typename S> \
+  inline __host__ __device__ type##4 &operator*=(type##4 &a, const S &scalar) \
+  { \
+    a.x *= scalar; \
+    a.y *= scalar; \
+    a.z *= scalar; \
+    a.w *= scalar; \
+    return a; \
+  } \
+ \
+  inline __host__ __device__ type##4 operator/(const type##4 &a, const type##4 &b) \
+  { \
+    return make_##type##4(a.x / b.x, a.y / b.y, a.z / b.z, a.w / b.w); \
+  } \
+ \
+  inline __host__ __device__ type##4 &operator/=(type##4 &a, const type##4 &b) \
+  { \
+    a.x /= b.x; \
+    a.y /= b.y; \
+    a.z /= b.z; \
+    a.w /= b.w; \
+    return a; \
+  } \
+ \
+  template <typename S> \
+  inline __host__ __device__ type##4 operator/(const type##4 &a, const S &scalar) \
+  { \
+    return make_##type##4(a.x / scalar, a.y / scalar, a.z / scalar, a.w / scalar); \
+  } \
+ \
+  template <typename S> \
+  inline __host__ __device__ type##4 &operator/=(type##4 &a, const S &scalar) \
+  { \
+    a.x /= scalar; \
+    a.y /= scalar; \
+    a.z /= scalar; \
+    a.w /= scalar; \
+    return a; \
+  }
+
+_VECTOR_OPS(char);
+_VECTOR_OPS(uchar);
+_VECTOR_OPS(short);
+_VECTOR_OPS(ushort);
+_VECTOR_OPS(int);
+_VECTOR_OPS(uint);
+_VECTOR_OPS(long);
+_VECTOR_OPS(ulong);
+_VECTOR_OPS(float);
+_VECTOR_OPS(double);
+
+//----------------------------------------------------------------------------------------------------------------------
+// OpenCL equivalent extensions
+//----------------------------------------------------------------------------------------------------------------------
+#define _VECTOR_LOGIC(type, itype) \
+  inline __device__ __host__ itype##2 isequal(const type##2 &a, const type##2 &b) \
+  { \
+    return make_##itype##2((a.x == b.x) ? -1 : 0, (a.y == b.y) ? -1 : 0); \
+  } \
+  \
+  inline __device__ __host__ itype##3 isequal(const type##3 &a, const type##3 &b) \
+  { \
+    return make_##itype##3((a.x == b.x) ? -1 : 0, (a.y == b.y) ? -1 : 0, (a.z == b.z) ? -1 : 0); \
+  } \
+  \
+  inline __device__ __host__ itype##4 isequal(const type##4 &a, const type##4 &b) \
+  { \
+    return make_##itype##4((a.x == b.x) ? -1 : 0, (a.y == b.y) ? -1 : 0, (a.z == b.z) ? -1 : 0, (a.w == b.w) ? -1 : 0); \
+  } \
+  \
+  inline __device__ __host__ int any(const type##2 &x) \
+  { \
+    return (x.x != 0 || x.y != 0) ? 1 : 0; \
+  } \
+  \
+  inline __device__ __host__ int any(const type##3 x) \
+  { \
+    return (x.x != 0 || x.y != 0 || x.z != 0) ? 1 : 0; \
+  } \
+  \
+  inline __device__ __host__ int any(const type##4 &x) \
+  { \
+    return (x.x != 0 || x.y != 0 || x.z != 0 || x.w != 0) ? 1 : 0; \
+  } \
+  \
+  inline __device__ __host__ int all(type##2 x) \
+  { \
+    return (x.x != 0 && x.y != 0) ? 1 : 0; \
+  } \
+  \
+  inline __device__ __host__ int all(type##3 x) \
+  { \
+    return (x.x != 0 && x.y != 0 && x.z != 0) ? 1 : 0; \
+  } \
+  \
+  inline __device__ __host__ int all(type##4 x) \
+  { \
+    return (x.x != 0 && x.y != 0 && x.z != 0 && x.w != 0) ? 1 : 0; \
+  }
+
+_VECTOR_LOGIC(char, int);
+_VECTOR_LOGIC(uchar, int);
+_VECTOR_LOGIC(short, int);
+_VECTOR_LOGIC(ushort, int);
+_VECTOR_LOGIC(int, int);
+_VECTOR_LOGIC(uint, int);
+_VECTOR_LOGIC(long, long);
+_VECTOR_LOGIC(ulong, long);
+_VECTOR_LOGIC(float, int);
+_VECTOR_LOGIC(double, long);
+
+//----------------------------------------------------------------------------------------------------------------------
+// Vector product
+//----------------------------------------------------------------------------------------------------------------------
+
+#define _VECTOR_GEOM(type) \
+  inline __host__ __device__ type dot(const type##2 &a, const type##2 &b) \
+  { \
+    return a.x * b.x + a.y * b.y; \
+  } \
+  \
+  inline __host__ __device__ type dot(const type##3 &a, const type##3 &b) \
+  { \
+    return a.x * b.x + a.y * b.y + a.z * b.z; \
+  } \
+  \
+  inline __host__ __device__ type dot(const type##4 &a, const type##4 &b) \
+  { \
+    return a.x * b.x + a.y * b.y + a.z * b.z + a.w * b.w; \
+  } \
+  \
+  inline __host__ __device__ type length(const type##2 &a) \
+  { \
+    return std::sqrt(dot(a, a)); \
+  } \
+  \
+  inline __host__ __device__ type length(const type##3 &a) \
+  { \
+    return std::sqrt(dot(a, a)); \
+  } \
+  \
+  inline __host__ __device__ type length(const type##4 &a) \
+  { \
+    return std::sqrt(dot(a, a)); \
+  } \
+  \
+  inline __host__ __device__ type##2 normalize(const type##2 &a) \
+  { \
+    return a * (1.0f / std::sqrt(dot(a, a))); \
+  } \
+  \
+  inline __host__ __device__ type##3 normalize(const type##3 &a) \
+  { \
+    return a * (1.0f / std::sqrt(dot(a, a))); \
+  } \
+  \
+  inline __host__ __device__ type##4 normalize(const type##4 &a) \
+  { \
+    return a * (1.0f / std::sqrt(dot(a, a))); \
+  } \
+  \
+  inline __host__ __device__ type##3 cross(type##3 a, type##3 b) \
+  { \
+    return make_##type##3(a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x); \
+  }
+
+_VECTOR_GEOM(float)
+_VECTOR_GEOM(double)
+
+//----------------------------------------------------------------------------------------------------------------------
+// Conversion
+//----------------------------------------------------------------------------------------------------------------------
+#define _VECTOR_CONVERT(to, from) \
+  inline __host__ __device__ to##2 convert_##to##2(const from##2 &a) \
+  { \
+    return make_##to##2(to(a.x), to(a.y)); \
+  } \
+  \
+  inline __host__ __device__ to##3 convert_##to##3(const from##3 &a) \
+  { \
+    return make_##to##3(to(a.x), to(a.y), to(a.z)); \
+  } \
+  \
+  inline __host__ __device__ to##4 convert_##to##4(const from##4 &a) \
+  { \
+    return make_##to##4(to(a.x), to(a.y), to(a.z), to(a.w)); \
+  }
+
+#define _VECTOR_CONVERT_SET(to) \
+  _VECTOR_CONVERT(to, char) \
+_VECTOR_CONVERT(to, uchar) \
+_VECTOR_CONVERT(to, short) \
+_VECTOR_CONVERT(to, ushort) \
+_VECTOR_CONVERT(to, int) \
+_VECTOR_CONVERT(to, uint) \
+_VECTOR_CONVERT(to, float) \
+_VECTOR_CONVERT(to, double)
+
+_VECTOR_CONVERT_SET(char)
+_VECTOR_CONVERT_SET(uchar)
+_VECTOR_CONVERT_SET(short)
+_VECTOR_CONVERT_SET(ushort)
+_VECTOR_CONVERT_SET(int)
+_VECTOR_CONVERT_SET(uint)
+_VECTOR_CONVERT_SET(float)
+_VECTOR_CONVERT_SET(double)
+
+//----------------------------------------------------------------------------------------------------------------------
+// Utility
+//----------------------------------------------------------------------------------------------------------------------
+template <typename T>
+inline __host__ __device__ T clamp(const T &val, const T &min_val, const T &max_val)
+{
+  return (val < min_val) ? min_val : (val > max_val) ? max_val : val;
+}
+
+
+#endif // CUTIL_MATH_H

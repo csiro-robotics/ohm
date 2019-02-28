@@ -14,43 +14,51 @@
 // This is a work in progress and will be extended as needed.
 //
 // Other usage notes:
-// - Do not use __local as a prefix to local memory arguments in OpenCL. Use __localarg instead.
+// - Use __local as a prefix to local memory arguments in OpenCL. Removed in CUDA
+// - Use local for local memory delcarations. Converted to __shared__ in CUDA.
 //   This is then removed in CUDA compilation as it is not needed. __local already has meaning
 //   in CUDA so we couldn't just use that.
 
 #ifndef GPU_EXT_H_
 #define GPU_EXT_H_
 
+#define GPUTIL_NULL 0
+#define GPUTIL_OPENCL 1
+#define GPUTIL_CUDA 2
+
+// Setup GPUTIL_DEVICE. This has a non-zero value only when building device code.
+#if defined(__OPENCL_C_VERSION__)
+#define GPUTIL_DEVICE GPUTIL_OPENCL
+#elif defined(__CUDACC__)
+#define GPUTIL_DEVICE GPUTIL_CUDA
+#else
+#define GPUTIL_DEVICE GPUTIL_NULL
+#endif
+
+#if GPUTIL_DEVICE == GPUTIL_OPENCL
+#endif // GPUTIL_DEVICE == GPUTIL_OPENCL
+
+#if GPUTIL_DEVICE == GPUTIL_CUDA
+#include <gputil/cuda/cutil_importcl.h>
+#endif // GPUTIL_DEVICE == GPUTIL_OPENCL
+
+#if GPUTIL_DEVICE == GPUTIL_OPENCL
+
 #ifndef NULL
 #define NULL 0
 #endif  // !NULL
 
-// For CUDA import:
-#ifdef __CUDACC__
-
-//-----------------------------------------------------------------------------
-// CUDA defines
-//-----------------------------------------------------------------------------
-#define LOCAL_ARG(TYPE, VAR)
-#define LOCAL_VAR(TYPE, VAR, SIZE) TYPE VAR = (TYPE)&shared_mem_[(shared_mem_offset_ =+ SIZE)];
-#define LOCAL_ENABLE() \
-  size_t shared_mem_offset_ = 0; \
-  extern __shared__ char shared_mem_[]
-#define LM_PER_THREAD(per_thread_size) ((per_thread_size) * blockDim.x * blockDim.y * blockDim.z)
-
-#else  // __CUDACC__
-
 #define LOCAL_ARG(TYPE, VAR) \
   , __local TYPE VAR
 #define LOCAL_VAR(TYPE, VAR, SIZE)
-#define LOCAL_ENABLE()
+#define LOCAL_MEM_ENABLE()
 #define LM_PER_THREAD(PER_THREAD_SIZE)
 
 //-----------------------------------------------------------------------------
 // OpenCL defines
 //-----------------------------------------------------------------------------
-#define __localarg __local
 #define __device__
+#define __host__
 
 #ifndef make_char2
 #define make_char2 (char2)
@@ -96,7 +104,7 @@
 
 #define SQR(X) ((X) * (X))
 
-#endif  // __CUDACC__
+#endif  // GPUTIL_DEVICE == GPUTIL_OPENCL
 
 inline __device__ bool isGlobalThread(size_t x, size_t y, size_t z)
 {

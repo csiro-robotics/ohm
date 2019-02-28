@@ -6,13 +6,27 @@
 #ifndef CUDA_IMPORTCL_H
 #define CUDA_IMPORTCL_H
 
+#include <cstddef>
+#include <cstdio>
+#include <cfloat>
+
+#define LOCAL_ARG(TYPE, VAR)
+#define LOCAL_VAR(TYPE, VAR, SIZE) TYPE VAR = (TYPE)&shared_mem_[(shared_mem_offset_ =+ (SIZE))];
+#define LOCAL_MEM_ENABLE() \
+  size_t shared_mem_offset_ = 0; \
+  extern __shared__ char shared_mem_[]
+#define LM_PER_THREAD(per_thread_size) ((per_thread_size) * blockDim.x * blockDim.y * blockDim.z)
+
 // Kernel
 #define __kernel __global__
 
 // Memory
+// For CUDA compatibility, we use __local on arguments, (removed in CUDA) and local for local delcarations (convert to
+// __shared__)
 #define __constant __constant__
 #define __global
-#define __local __shared__
+#define __local
+#define local __shared__
 
 // Useful information:
 // https://www.sharcnet.ca/help/index.php/Porting_CUDA_to_OpenCL
@@ -36,7 +50,8 @@ __constant__ variable declaration   __constant variable declaration
 __device__ function                 No annotation necessary
 __device__ variable declaration     __global variable declaration
 __global__ function                 __kernel function
-__shared__ variable declaration     __local variable declaration
+__shared__ variable declaration     local variable declaration
+argument declaration declaration    __local variable declaration
 
 
 Kernels Indexing
@@ -156,23 +171,24 @@ inline __device__ float3 xyz(float4 v)
   return make_float3(v.x, v.y, v.z);
 }
 
-// Atomic operation mapping : OpenCL to CUDA
-#define atomic_add atomicAdd
-#define atomic_sub atomicSub
-#define atomic_xchg atomicExch
-#define atomic_min atomicMin
-#define atomic_max atomicMax
-#define atomic_inc(addr) atomicAdd(addr, 1)
-#define atomic_dec(addr) atomicSub(addr, 1)
-#define atomic_cmpxchg atomicCAS
-#define atomic_and atomicAnd
-#define atomic_or atomicOr
-#define atomic_xor atomicXor
+// // Atomic operation mapping : OpenCL to CUDA
+// #define atomic_add atomicAdd
+// #define atomic_sub atomicSub
+// #define atomic_xchg atomicExch
+// #define atomic_min atomicMin
+// #define atomic_max atomicMax
+// #define atomic_inc(addr) atomicAdd(addr, 1)
+// #define atomic_dec(addr) atomicSub(addr, 1)
+// #define atomic_cmpxchg atomicCAS
+// #define atomic_and atomicAnd
+// #define atomic_or atomicOr
+// #define atomic_xor atomicXor
 
 #include <math_constants.h>
 
 // #define M_PI CUDART_PI
 
+#include "cutil_atomic.h"
 #include "cutil_math.h"
 
 #endif  // CUDA_IMPORTCL_H

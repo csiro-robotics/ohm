@@ -79,11 +79,11 @@
 //-----------------------------------------------------------------------------
 // Types
 //-----------------------------------------------------------------------------
-#if __OPENCL_C_VERSION__ >= 200
+#if __OPENCL_C_VERSION__ >= 200 || defined(__CUDACC__)
 typedef atomic_uint voxel_type;
-#else  // __OPENCL_C_VERSION__ >= 200
+#else  // __OPENCL_C_VERSION__ >= 200 || defined(__CUDACC__)
 typedef char4 voxel_type;
-#endif // __OPENCL_C_VERSION__ >= 200
+#endif // __OPENCL_C_VERSION__ >= 200 || defined(__CUDACC__)
 
 typedef float OccupancyType;
 typedef uint SubVoxelPatternType;
@@ -104,14 +104,14 @@ typedef struct VoxelType_
 //-----------------------------------------------------------------------------
 // Function prototypes.
 //-----------------------------------------------------------------------------
-bool isOccupied(const VoxelType *value, float threshold, unsigned flags, float sub_voxel_filter_scale);
+bool __device__ isOccupied(const VoxelType *value, float threshold, unsigned flags, float sub_voxel_filter_scale);
 /// Get the index of a voxel within the provided extents.
-int getGlobalVoxelIndex(int3 coord, int3 voxelExtents);
-int3 linearIndexToCoord(unsigned linearIndex, int3 expanse);
-bool isInExpanse(int3 coord, int3 expanseMin, int3 expanseMax);
-bool onROIEdge(int3 coord, int3 roiExtents);
+int __device__ getGlobalVoxelIndex(int3 coord, int3 voxelExtents);
+int3 __device__ linearIndexToCoord(unsigned linearIndex, int3 expanse);
+bool __device__ isInExpanse(int3 coord, int3 expanseMin, int3 expanseMax);
+bool __device__ onROIEdge(int3 coord, int3 roiExtents);
 /// Calculate the volume of @p expanse: <tt>x * y * z</tt>.
-unsigned volumeOf(int3 expanse);
+unsigned __device__ volumeOf(int3 expanse);
 
 /// Select the best obstruction considering the neighbour of the current voxel offset
 /// at <tt>(nx, ny, nz)</tt>. The current voxel coordinate is determined by the
@@ -124,15 +124,15 @@ unsigned volumeOf(int3 expanse);
 /// @param localVoxel Cache of voxels with their current best results.
 /// @param axisScaling Scaling applied to each axis when calculating the nearest obstruction. See comments above.
 /// @return The closest obstructing voxel selected from the neighbour and @p currentClosest.
-char4 selectObstructionForNeighbour(int nx, int ny, int nz,
+char4 __device__ selectObstructionForNeighbour(int nx, int ny, int nz,
                                     char4 currentClosest, float *currentDistSqr,
                                     __local char4 *localVoxels,
                                     float3 axisScaling);
 
 /// Precalculate parameters for @c resolvePaddingVoxelIndex().
-void calculateFacePadding(int3 workingVoxelExtents, int3 outerRegionPadding,
-                          local uint *faceVolumeSizes, local int3 *minFaceExtents, local int3 *maxFaceExtents,
-                          local int3 *faceVolumes);
+void __device__ calculateFacePadding(int3 workingVoxelExtents, int3 outerRegionPadding,
+                          __local uint *faceVolumeSizes, __local int3 *minFaceExtents, __local int3 *maxFaceExtents,
+                          __local int3 *faceVolumes);
 
 /// Convert an index into the padding region into a 3D index local to the @p workingVoxelExtents.
 ///
@@ -148,9 +148,9 @@ void calculateFacePadding(int3 workingVoxelExtents, int3 outerRegionPadding,
 /// @param outerRegionPadding Defines the padding added to @p workingVoxelExtents in which we do index.
 /// @return A 3D index in the range [-outerRegionPadding, workingVoxelExtents + outerRegionPadding), excluding the
 ///   range [0, workingVoxelExtents). Returns (0, 0, 0) on failure.
-int3 resolvePaddingVoxelIndex(uint index, int3 workingVoxelExtents, int3 outerRegionPadding,
-                              local uint *faceVolumeSizes, local int3 *minFaceExtents, local int3 *maxFaceExtents,
-                              local int3 *faceVolumes);
+int3 __device__ resolvePaddingVoxelIndex(uint index, int3 workingVoxelExtents, int3 outerRegionPadding,
+                              __local uint *faceVolumeSizes, __local int3 *minFaceExtents, __local int3 *maxFaceExtents,
+                              __local int3 *faceVolumes);
 
 /// Find the voxel index within the @p voxelExtents closest to @p voxelIndex3 (outside the region).
 ///
@@ -158,7 +158,7 @@ int3 resolvePaddingVoxelIndex(uint index, int3 workingVoxelExtents, int3 outerRe
 ///     outside the @p voxelExtents.
 /// @param voxelExtents Defines the voxel region of interest. A valid index lies within [0, voxelExtents).
 /// @return The closest voxel in [0, voxelExtents) to @p voxelIndex3, or @p voxelIndex on failure.
-int3 findClosestRegionVoxel(int3 voxelIndex3, int3 voxelExtents);
+int3 __device__ findClosestRegionVoxel(int3 voxelIndex3, int3 voxelExtents);
 
 /// Update a working voxel obstruction using compare and swap semantics.
 ///
@@ -169,28 +169,28 @@ int3 findClosestRegionVoxel(int3 voxelIndex3, int3 voxelExtents);
 /// @param voxel A pointer to the @p voxel data.
 /// @param newObstruction The new obstruction to write. XYZ are relative offsets from @p voxelIndex, while W must be 1.
 /// @param axisScaling Per axis scaling applied to distance calculations.
-bool updateVoxelObstructionCas(int3 voxelIndex, __global voxel_type *voxel, char4 newObstruction, float3 axisScaling);
+bool __device__ updateVoxelObstructionCas(int3 voxelIndex, __global voxel_type *voxel, char4 newObstruction, float3 axisScaling);
 
 // Load voxel data into local memory.
-void loadPropagationLocalVoxels(__global char4 *srcVoxels, __local char4 *localVoxels, int3 voxelExtents,
+void __device__ loadPropagationLocalVoxels(__global char4 *srcVoxels, __local char4 *localVoxels, int3 voxelExtents,
                                 int3 globalWorkItem, int3 localWorkItem, int3 localExpance);
 
-#if __OPENCL_C_VERSION__ >= 200
+#if __OPENCL_C_VERSION__ >= 200 || defined(__CUDACC__)
 /// Convert from obstruction value to uint for use in atomic operations in @c seedFromOuterRegions()
 /// @param obstruction Offset to nearest current obstruction, with w = 1 if there is an obstruction, w = 0 otherwise.
 /// @return A 32-bit uint representation of obstruction.
-inline uint obstructionToVoxel(char4 obstruction);
+inline uint __device__ obstructionToVoxel(char4 obstruction);
 /// Convert from 32-bit uint voxel representation to a char4 obstruction representation for use in atomic operations in
 /// @c seedFromOuterRegions()
 /// @param voxel The voxel representation to convert.
 /// @retrun Offset to nearest current obstruction, with w = 1 if there is an obstruction, w = 0 otherwise.
-inline char4 voxelToObstruction(uint voxel);
-#endif // __OPENCL_C_VERSION__ >= 200
+inline char4 __device__ voxelToObstruction(uint voxel);
+#endif // __OPENCL_C_VERSION__ >= 200 || defined(__CUDACC__)
 
 //-----------------------------------------------------------------------------
 // Implementation
 //-----------------------------------------------------------------------------
-bool isOccupied(const VoxelType *voxel, float threshold, unsigned flags, float sub_voxel_filter_scale)
+bool __device__ isOccupied(const VoxelType *voxel, float threshold, unsigned flags, float sub_voxel_filter_scale)
 {
   return (voxel->occupancy == INFINITY && (flags & kUnknownAsOccupied)) ||
          (voxel->occupancy != INFINITY && voxel->occupancy >= threshold
@@ -200,7 +200,7 @@ bool isOccupied(const VoxelType *voxel, float threshold, unsigned flags, float s
          );
 }
 
-int getGlobalVoxelIndex(int3 coord, int3 voxelExtents)
+int __device__ getGlobalVoxelIndex(int3 coord, int3 voxelExtents)
 {
   if (isInExpanse(coord, make_int3(0, 0, 0), voxelExtents))
   {
@@ -211,7 +211,7 @@ int getGlobalVoxelIndex(int3 coord, int3 voxelExtents)
 }
 
 
-int3 linearIndexToCoord(unsigned linearIndex, int3 expanse)
+int3 __device__ linearIndexToCoord(unsigned linearIndex, int3 expanse)
 {
   int3 coord;
   coord.x = (int)(linearIndex % expanse.x);
@@ -222,14 +222,14 @@ int3 linearIndexToCoord(unsigned linearIndex, int3 expanse)
   return coord;
 }
 
-bool isInExpanse(int3 coord, int3 expanseMin, int3 expanseMax)
+bool __device__ isInExpanse(int3 coord, int3 expanseMin, int3 expanseMax)
 {
   return expanseMin.x <= coord.x && coord.x < expanseMax.x &&
          expanseMin.y <= coord.y && coord.y < expanseMax.y &&
          expanseMin.z <= coord.z && coord.z < expanseMax.z;
 }
 
-bool onROIEdge(int3 coord, int3 roiExtents)
+bool __device__ onROIEdge(int3 coord, int3 roiExtents)
 {
   return
     // in region
@@ -241,13 +241,13 @@ bool onROIEdge(int3 coord, int3 roiExtents)
     coord.x == roiExtents.x - 1 || coord.y == roiExtents.y - 1 || coord.z == roiExtents.z - 1);
 }
 
-unsigned volumeOf(int3 expanse)
+unsigned __device__ volumeOf(int3 expanse)
 {
   return (unsigned)(expanse.x) * (unsigned)(expanse.y) * (unsigned)(expanse.z);
 }
 
 
-char4 selectObstructionForNeighbour(int nx, int ny, int nz,
+char4 __device__ selectObstructionForNeighbour(int nx, int ny, int nz,
                                     char4 currentClosest, float *currentDistSqr,
                                     __local char4 *localVoxels,
                                     float3 axisScaling)
@@ -264,7 +264,7 @@ char4 selectObstructionForNeighbour(int nx, int ny, int nz,
   char4 neighbourObstacle = localVoxels[linearIndexN];
 
   // Localise the obstacle from the neighbour frame.
-  neighbourObstacle += make_char4(nx, ny, nz, 0);
+  neighbourObstacle = neighbourObstacle + make_char4(nx, ny, nz, 0);
 
   // Use neighbourObstacle if:
   // 1. It is an obstacle (w == 1)
@@ -286,9 +286,9 @@ char4 selectObstructionForNeighbour(int nx, int ny, int nz,
 }
 
 
-void calculateFacePadding(int3 workingVoxelExtents, int3 outerRegionPadding,
-                          local uint *faceVolumeSizes, local int3 *minFaceExtents, local int3 *maxFaceExtents,
-                          local int3 *faceVolumes)
+void __device__ calculateFacePadding(int3 workingVoxelExtents, int3 outerRegionPadding,
+                          __local uint *faceVolumeSizes, __local int3 *minFaceExtents, __local int3 *maxFaceExtents,
+                          __local int3 *faceVolumes)
 {
   // Indexing here is tricky. We essentially have a working volume in the range:
   // [workingVoxelExtents - outerRegionPadding, workingVoxelExtents + outerRegionPadding)
@@ -395,9 +395,9 @@ void calculateFacePadding(int3 workingVoxelExtents, int3 outerRegionPadding,
 }
 
 
-int3 resolvePaddingVoxelIndex(uint index, int3 workingVoxelExtents, int3 outerRegionPadding,
-                              local uint *faceVolumeSizes, local int3 *minFaceExtents, local int3 *maxFaceExtents,
-                              local int3 *faceVolumes)
+int3 __device__ resolvePaddingVoxelIndex(uint index, int3 workingVoxelExtents, int3 outerRegionPadding,
+                              __local uint *faceVolumeSizes, __local int3 *minFaceExtents, __local int3 *maxFaceExtents,
+                              __local int3 *faceVolumes)
 {
   int face = -1;
   uint faceIndex1D = index;
@@ -453,13 +453,13 @@ int3 resolvePaddingVoxelIndex(uint index, int3 workingVoxelExtents, int3 outerRe
 
 
 
-inline float calcTimeVal(float limit, float origin, float direction)
+inline float __device__ calcTimeVal(float limit, float origin, float direction)
 {
   return (limit - origin) * direction;
 }
 
 
-inline bool rangesOverlap(float2 range1, float2 range2, float2 *overlap)
+inline bool __device__ rangesOverlap(float2 range1, float2 range2, float2 *overlap)
 {
   overlap->x = max(range1.x, range2.x);
   overlap->y = min(range1.y, range2.y);
@@ -467,7 +467,7 @@ inline bool rangesOverlap(float2 range1, float2 range2, float2 *overlap)
 }
 
 
-int3 findClosestRegionVoxel(int3 voxelIndex3, int3 voxelExtents)
+int3 __device__ findClosestRegionVoxel(int3 voxelIndex3, int3 voxelExtents)
 {
   // Convert to a ray/box interection test.
 
@@ -480,7 +480,7 @@ int3 findClosestRegionVoxel(int3 voxelIndex3, int3 voxelExtents)
   // Tagret the centre of the box.
   const float3 end = 0.5f * convert_float3(voxelExtents);
   const float3 direction = end - origin;
-  const float3 inv_direction = 1.0f / direction;
+  const float3 inv_direction = make_float3(1.0f, 1.0f, 1.0f) / direction;
   const int3 sign = make_int3(inv_direction.x < 0 ? 1 : 0, inv_direction.y < 0 ? 1 : 0, inv_direction.z < 0 ? 1 : 0);
 
   float2 hitTimes;
@@ -503,8 +503,8 @@ int3 findClosestRegionVoxel(int3 voxelIndex3, int3 voxelExtents)
 }
 
 
-#if __OPENCL_C_VERSION__ >= 200
-inline uint obstructionToVoxel(char4 obstruction)
+#if __OPENCL_C_VERSION__ >= 200 || defined(__CUDACC__)
+inline __device__ uint obstructionToVoxel(char4 obstruction)
 {
 #if __ENDIAN_LITTLE__
   return (uint)
@@ -518,7 +518,7 @@ inline uint obstructionToVoxel(char4 obstruction)
 }
 
 
-inline char4 voxelToObstruction(uint voxel)
+inline __device__ char4 voxelToObstruction(uint voxel)
 {
 #if __ENDIAN_LITTLE__
   return make_char4(
@@ -536,19 +536,19 @@ inline char4 voxelToObstruction(uint voxel)
     );
 #endif // __ENDIAN_LITTLE__
 }
-#endif // __OPENCL_C_VERSION__ >= 200
+#endif // __OPENCL_C_VERSION__ >= 200 || defined(__CUDACC__)
 
 
-bool updateVoxelObstructionCas(int3 voxelIndex, __global voxel_type *voxel, char4 newObstruction, float3 axisScaling)
+bool __device__ updateVoxelObstructionCas(int3 voxelIndex, __global voxel_type *voxel, char4 newObstruction, float3 axisScaling)
 {
-#if __OPENCL_C_VERSION__ >= 200
+#if __OPENCL_C_VERSION__ >= 200 || defined(__CUDACC__)
   uint reference_value, new_value;
   voxel_type *voxel_ptr;
 
   // Prepare the new value we may write.
   new_value = obstructionToVoxel(newObstruction);
   voxel_ptr = voxel;
-#else  // __OPENCL_C_VERSION__ >= 200
+#else  // __OPENCL_C_VERSION__ >= 200 || defined(__CUDACC__)
   union
   {
     char4 voxel;
@@ -575,7 +575,7 @@ bool updateVoxelObstructionCas(int3 voxelIndex, __global voxel_type *voxel, char
   // Begin the contended write loop:
   do
   {
-    #if __OPENCL_C_VERSION__ >= 200
+    #if __OPENCL_C_VERSION__ >= 200 || defined(__CUDACC__)
     // Cache the current value as a reference value.
     reference_value = atomic_load_explicit(voxel_ptr, memory_order_relaxed);
 
@@ -585,7 +585,7 @@ bool updateVoxelObstructionCas(int3 voxelIndex, __global voxel_type *voxel, char
     offset = make_float3(ref.x, ref.y, ref.z) * axisScaling;
 
     const bool existing_obstruction = ref.w == 1;
-    #else  // __OPENCL_C_VERSION__ >= 200
+    #else  // __OPENCL_C_VERSION__ >= 200 || defined(__CUDACC__)
     // Cache the current value as a reference value.
     reference_value.voxel = *voxel_ptr.voxel;
 
@@ -594,7 +594,7 @@ bool updateVoxelObstructionCas(int3 voxelIndex, __global voxel_type *voxel, char
     offset = make_float3(reference_value.voxel.x, reference_value.voxel.y, reference_value.voxel.z) * axisScaling;
 
     const bool existing_obstruction = reference_value.voxel.w == 1;
-    #endif // __OPENCL_C_VERSION__ >= 200
+    #endif // __OPENCL_C_VERSION__ >= 200 || defined(__CUDACC__)
 
     // Apply axis scaling to the distance calculation.
     const float currentDistSqr = dot(offset, offset);
@@ -605,12 +605,12 @@ bool updateVoxelObstructionCas(int3 voxelIndex, __global voxel_type *voxel, char
       // Attempt to write to the target location. This is done with contention, so we use
       // atomics to test for success. On failure we'll iterate again until we hit the iteration
       // limit.
-      #if __OPENCL_C_VERSION__ >= 200
+      #if __OPENCL_C_VERSION__ >= 200 || defined(__CUDACC__)
       needsUpdate = !atomic_compare_exchange_weak_explicit(voxel_ptr, &reference_value, new_value,
                                                            memory_order_release, memory_order_relaxed);
-      #else  // __OPENCL_C_VERSION__ >= 200
+      #else  // __OPENCL_C_VERSION__ >= 200 || defined(__CUDACC__)
       needsUpdate = atomic_cmpxchg(voxel_ptr.i, reference_value.i, new_value.i) != reference_value.i;
-      #endif  // __OPENCL_C_VERSION__ >= 200
+      #endif  // __OPENCL_C_VERSION__ >= 200 || defined(__CUDACC__)
 
       updated = !needsUpdate;
     }
@@ -634,7 +634,7 @@ bool updateVoxelObstructionCas(int3 voxelIndex, __global voxel_type *voxel, char
 
 
 /// Load voxels into local memory for propagation kernels.
-void loadPropagationLocalVoxels(__global char4 *srcVoxels, __local char4 *localVoxels, int3 voxelExtents,
+void __device__ loadPropagationLocalVoxels(__global char4 *srcVoxels, __local char4 *localVoxels, int3 voxelExtents,
                                 int3 globalWorkItem, int3 localWorkItem, int3 localExpanse)
 {
   const int3 localGroupExpanse = localExpanse;
@@ -1005,9 +1005,12 @@ __kernel void propagateObstacles(__global char4 *srcVoxels,
                                  int3 voxelExtents,
                                  float searchRange,
                                  float3 axisScaling
-                               , __local char4 *localVoxels
+                                 LOCAL_ARG(char4 *, localVoxels)
                                 )
 {
+  LOCAL_MEM_ENABLE();
+  LOCAL_VAR(char4 *, localVoxels, 0); // FIXME(KS): match size to CPU size. Won't actually have effect unless more locals are used.
+
   int3 effectiveGlobalId = make_int3(get_global_id(0), get_global_id(1), get_global_id(2));
   int3 effectiveLocalId = make_int3(get_local_id(0), get_local_id(1), get_local_id(2));
   const int3 effectiveLocalSize = make_int3(get_local_size(0), get_local_size(1), get_local_size(2));

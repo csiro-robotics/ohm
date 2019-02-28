@@ -2,7 +2,7 @@
 
 /// Initialises the @c currentRegion and @c regionVoxelOffset parameters for @c regionsResolveRegion().
 ///
-void regionsInitCurrent(int3 *currentRegion, uint *regionVoxelOffset);
+__device__ void regionsInitCurrent(int3 *currentRegion, uint *regionVoxelOffset);
 
 /// A utility function for resolving the correct memory offset to the voxels for the region containing @p voxelKey.
 ///
@@ -34,17 +34,17 @@ void regionsInitCurrent(int3 *currentRegion, uint *regionVoxelOffset);
 /// @param regionMemOffsets Byte offsets into a region memory buffer for each region identified in @p regionKeys.
 /// @param regionCount The number of regions in @p regionKeys and @p regionMemOffsets.
 /// @return True if a region for @p voxelKey is found, false otherwise.
-bool regionsResolveRegion(const struct GpuKey *voxelKey, int3 *currentRegion, uint *regionVoxelOffset,
+__device__ bool regionsResolveRegion(const struct GpuKey *voxelKey, int3 *currentRegion, uint *regionVoxelOffset,
                           __global int3 *regionKeys, __global ulong *regionMemOffsets, uint regionCount,
                           unsigned voxelSizeBytes);
 
-void regionsInitCurrent(int3 *currentRegion, uint *regionVoxelOffset)
+__device__ void regionsInitCurrent(int3 *currentRegion, uint *regionVoxelOffset)
 {
   currentRegion->x = currentRegion->y = currentRegion->z = 2147483647;
   *regionVoxelOffset = 0u;
 }
 
-bool regionsResolveRegion(const struct GpuKey *voxelKey, int3 *currentRegion, uint *regionVoxelOffset,
+__device__ bool regionsResolveRegion(const struct GpuKey *voxelKey, int3 *currentRegion, uint *regionVoxelOffset,
                           __global int3 *regionKeys, __global ulong *regionMemOffsets, uint regionCount,
                           unsigned voxelSizeBytes)
 {

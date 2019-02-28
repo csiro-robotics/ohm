@@ -4,7 +4,7 @@ __kernel void matrixMultiply(__global float *out, __global float *a, __global fl
   LOCAL_ARG(float *, work)
 )
 {
-  LOCAL_ENABLE();
+  LOCAL_MEM_ENABLE();
   LOCAL_VAR(float *, work, LM_PER_THREAD(sizeof(float)));
 
   if (get_global_id(0) >= n)

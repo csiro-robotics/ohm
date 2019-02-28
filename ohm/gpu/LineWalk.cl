@@ -9,7 +9,7 @@
 /// @param voxelResolution The edge length of each voxel cube.
 /// @param userData User data pointer.
 /// @return True to continue traversing the line, false to abort traversal.
-bool walkLineVoxel(const struct GpuKey *voxelKey, bool isEndVoxel, float voxelResolution, void *userData);
+__device__ bool walkLineVoxel(const struct GpuKey *voxelKey, bool isEndVoxel, float voxelResolution, void *userData);
 
 /// Calculate the @p GpuKey for @p point local to the region's minimum extents corner.
 /// @param[out] key The output key.
@@ -17,23 +17,23 @@ bool walkLineVoxel(const struct GpuKey *voxelKey, bool isEndVoxel, float voxelRe
 /// @paramregionDim Defines the size of a region in voxels. Used to update the @p GpuKey.
 /// @param voxelResolution Size of a voxel from one face to another.
 /// @return True if @c point lies in the region, false otherwise.
-bool coordToKey(struct GpuKey *key, const float3 *point, const int3 *regionDim, float voxelResolution);
+__device__ bool coordToKey(struct GpuKey *key, const float3 *point, const int3 *regionDim, float voxelResolution);
 
 /// Calculates the centre of the voxel defined by @p key (global space).
 /// @param key The key marking the voxel of interest.
 /// @paramregionDim Defines the size of a region in voxels. Used to update the @p GpuKey.
 /// @param voxelResolution Size of a voxel from one face to another.
 /// @return The centre of the voxel defined by @p key.
-inline float3 voxelCentre(const struct GpuKey *key, const int3 *regionDim, float voxelResolution);
+inline __device__ float3 voxelCentre(const struct GpuKey *key, const int3 *regionDim, float voxelResolution);
 
 /// Test for equality between two @c GpuKey objects.
 /// @param a The first key.
 /// @param b The second key.
 /// @return True if @p a and @p b are exactly equal.
-inline bool equal(const struct GpuKey *a, const struct GpuKey *b);
+inline __device__ bool equal(const struct GpuKey *a, const struct GpuKey *b);
 
-inline float getf3(const float3 *v, int index);
-inline int geti3(const int3 *v, int index);
+inline __device__ float getf3(const float3 *v, int index);
+inline __device__ int geti3(const int3 *v, int index);
 
 /// Line walking function for use by kernels.
 /// The algorithm walks the voxels from @p startKey to @p endKey. The line segment is defined relative to the centre of
@@ -50,12 +50,12 @@ inline int geti3(const int3 *v, int index);
 /// @paramregionDim Defines the size of a region in voxels. Used to update the @p GpuKey.
 /// @param voxelResolution Size of a voxel from one face to another.
 /// @param userData User pointer passed to @c walkLineVoxel().
-void walkLineVoxels(const struct GpuKey *startKey, const struct GpuKey *endKey,
+__device__ void walkLineVoxels(const struct GpuKey *startKey, const struct GpuKey *endKey,
                     const float3 *voxelRelativeStartPoint, const float3 *voxelRelativeEndPoint,
                     const int3 *regionDim, float voxelResolution, void *userData);
 
 
-bool coordToKey(struct GpuKey *key, const float3 *point, const int3 *regionDim, float voxelResolution)
+__device__ bool coordToKey(struct GpuKey *key, const float3 *point, const int3 *regionDim, float voxelResolution)
 {
   // Quantise.
   key->region[0] = pointToRegionCoord(point->x, regionDim->x * voxelResolution);
@@ -83,9 +83,7 @@ bool coordToKey(struct GpuKey *key, const float3 *point, const int3 *regionDim, 
                   (regionCentreCoord(key->region[2], regionDim->z * voxelResolution) - 0.5f * regionDim->z * voxelResolution),
                   voxelResolution, regionDim->z * voxelResolution);
 
-  if (0 <= key->voxel[0] && key->voxel[0] < regionDim->x &&
-      0 <= key->voxel[1] && key->voxel[1] < regionDim->y &&
-      0 <= key->voxel[2] && key->voxel[2] < regionDim->z)
+  if (key->voxel[0] < regionDim->x && key->voxel[1] < regionDim->y && key->voxel[2] < regionDim->z)
   {
     return true;
   }
@@ -112,7 +110,7 @@ bool coordToKey(struct GpuKey *key, const float3 *point, const int3 *regionDim, 
 }
 
 
-inline float3 voxelCentre(const struct GpuKey *key, const int3 *regionDim, float voxelResolution)
+inline __device__ float3 voxelCentre(const struct GpuKey *key, const int3 *regionDim, float voxelResolution)
 {
   float3 voxel;
 
@@ -130,25 +128,25 @@ inline float3 voxelCentre(const struct GpuKey *key, const int3 *regionDim, float
 }
 
 
-inline bool equal(const struct GpuKey *a, const struct GpuKey *b)
+inline __device__ bool equal(const struct GpuKey *a, const struct GpuKey *b)
 {
   return a->region[0] == b->region[0] && a->region[1] == b->region[1] && a->region[2] == b->region[2] &&
          a->voxel[0] == b->voxel[0] && a->voxel[1] == b->voxel[1] && a->voxel[2] == b->voxel[2];
 }
 
 
-inline float getf3(const float3 *v, int index)
+inline __device__ float getf3(const float3 *v, int index)
 {
   return (index == 0) ? v->x : ((index == 1) ? v->y : v->z);
 }
 
 
-inline int geti3(const int3 *v, int index)
+inline __device__ int geti3(const int3 *v, int index)
 {
   return (index == 0) ? v->x : ((index == 1) ? v->y : v->z);
 }
 
-void walkLineVoxels(const struct GpuKey *startKey, const struct GpuKey *endKey,
+__device__ void walkLineVoxels(const struct GpuKey *startKey, const struct GpuKey *endKey,
                     const float3 *voxelRelativeStartPoint, const float3 *voxelRelativeEndPoint,
                     const int3 *regionDim, float voxelResolution, void *userData)
 {

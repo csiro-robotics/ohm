@@ -5,8 +5,11 @@
 // Author: Kazys Stepanas
 #include "OhmGpu.h"
 
-#include <gputil/cl/gpuDeviceDetail.h>
 #include <gputil/gpuDevice.h>
+
+#if OHM_GPU == OHM_GPU_OPENCL
+#include <gputil/cl/gpuDeviceDetail.h>
+#endif // OHM_GPU == OHM_GPU_OPENCL
 
 #include <gputil/gpuProgram.h>
 

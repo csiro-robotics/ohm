@@ -233,8 +233,11 @@ if(OHM_GPU)
     set(USE_CUDA TRUE)
     find_package(CUDA)
     list(APPEND SOURCES
-      cuda/NearestNeighboursQuery.cu
-      cuda/RoiRangeFill.cu
+      gpu/LineKeys.cu
+      gpu/NearestNeighboursQuery.cu
+      gpu/RegionUpdate.cu
+      gpu/RoiRangeFill.cu
+      gpu/TransformSamples.cu
     )
   endif(OHM_GPU EQUAL OHM_GPU_OPENCL)
 endif(OHM_GPU)

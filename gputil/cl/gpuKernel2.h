@@ -20,6 +20,10 @@
 
 #include <cstdlib>
 
+#define GPUTIL_BUILD_FROM_FILE(program, file_name, build_args) \
+  (program).buildFromFile(file_name, build_args)
+#define GPUTIL_BUILD_FROM_SOURCE(program, source, source_length, build_args) \
+  (program).buildFromSource(source, source_length, build_args)
 #define GPUTIL_MAKE_KERNEL(program, kernel_name) gputil::openCLKernel(program, #kernel_name)
 
 namespace clu

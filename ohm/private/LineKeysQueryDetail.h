@@ -19,9 +19,6 @@
 #include <gputil/gpuKernel.h>
 #include <gputil/gpuQueue.h>
 
-// TODO: add a GPU specific header and migrate these includes and the GpuData structure there.
-#include <clu/clu.h>
-
 #include <atomic>
 
 namespace ohm

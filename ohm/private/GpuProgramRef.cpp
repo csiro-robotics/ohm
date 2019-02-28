@@ -6,6 +6,8 @@
 #include "GpuProgramRef.h"
 #include "OhmGpu.h"
 
+#include <gputil/gpuKernel.h>
+
 using namespace ohm;
 
 GpuProgramRef::GpuProgramRef(const char *name, SourceType source_type, const char *source_str, size_t source_str_length)
@@ -48,11 +50,11 @@ bool GpuProgramRef::addReference(gputil::Device &gpu)
     program_ = gputil::Program(gpu, name_.c_str());
     if (source_type_ == kSourceFile)
     {
-      err = program_.buildFromFile(source_str_.c_str(), build_args);
+      err = GPUTIL_BUILD_FROM_FILE(program_, source_str_.c_str(), build_args);
     }
     else
     {
-      program_.buildFromSource(source_str_.c_str(), source_str_.size(), build_args);
+      err = GPUTIL_BUILD_FROM_SOURCE(program_, source_str_.c_str(), source_str_.size(), build_args);
     }
 
     if (err)

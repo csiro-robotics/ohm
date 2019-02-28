@@ -1,14 +1,17 @@
 
 #include "gpu_ext.h"
 
-float4 slerp(float4 from, float4 to, float interpolation_factor);
-float4 quaternion_rotate_quaterion(float4 a, float4 b);
-float3 quaternion_rotate_point(float4 rotation, float3 point);
+__device__ float4 slerp(float4 from, float4 to, float interpolation_factor);
+__device__ float4 quaternion_rotate_quaterion(float4 a, float4 b);
+__device__ float3 quaternion_rotate_point(float4 rotation, float3 point);
 
 
-float4 slerp(float4 from, float4 to, float interpolation_factor)
+__device__ float4 slerp(float4 from, float4 to, float interpolation_factor)
 {
-  if (all(isequal(from, to)))
+  // bool b = all(isequal(from, to));
+  const bool all_equal = all(isequal(from, to));
+  // if (all(isequal(from, to)))
+  if (all_equal)
   {
     return from;
   }
@@ -45,7 +48,7 @@ float4 slerp(float4 from, float4 to, float interpolation_factor)
 }
 
 
-float4 quaternion_rotate_quaterion(float4 a, float4 b)
+__device__ float4 quaternion_rotate_quaterion(float4 a, float4 b)
 {
   float4 q;
   q.x = a.w * b.x + a.x * b.w + a.y * b.z - a.z * b.y;
@@ -56,7 +59,7 @@ float4 quaternion_rotate_quaterion(float4 a, float4 b)
 }
 
 
-float3 quaternion_rotate_point(float4 rotation, float3 v)
+__device__ float3 quaternion_rotate_point(float4 rotation, float3 v)
 {
   const float xx = rotation.x * rotation.x;
   const float xy = rotation.x * rotation.y;

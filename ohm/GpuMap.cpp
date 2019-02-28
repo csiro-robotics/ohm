@@ -36,9 +36,9 @@
 #include <iostream>
 #include "OhmGpu.h"
 
-#ifdef OHM_EMBED_GPU_CODE
+#if defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
 #include "RegionUpdateResource.h"
-#endif  // OHM_EMBED_GPU_CODE
+#endif  // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
 
 #define DEBUG_RAY 0
 

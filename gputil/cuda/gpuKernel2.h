@@ -20,6 +20,8 @@
 
 #include <cstdlib>
 
+#define GPUTIL_BUILD_FROM_FILE(program, file_name, build_args) 0
+#define GPUTIL_BUILD_FROM_SOURCE(program, source, source_length, build_args) 0
 #define GPUTIL_MAKE_KERNEL(program, kernel_name) gputil::cudaKernel(program, kernel_name##Ptr())
 
 namespace gputil

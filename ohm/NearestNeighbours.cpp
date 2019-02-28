@@ -29,9 +29,9 @@
 #include <functional>
 #include <iostream>
 
-#ifdef OHM_EMBED_GPU_CODE
+#if defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
 #include "NearestNeighboursQueryResource.h"
-#endif  // OHM_EMBED_GPU_CODE
+#endif  // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
 
 // See nearestneighbours.cl define of the same name.
 // #define CACHE_LOCAL_RESULTS

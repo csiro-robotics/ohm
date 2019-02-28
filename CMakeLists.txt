@@ -138,20 +138,19 @@ endif(OHM_GPU_API STREQUAL "OpenCL")
 add_subdirectory(gputil)
 
 add_subdirectory(ohmutil)
+add_subdirectory(slamio)
+add_subdirectory(ohm)
 
 if(NOT OHM_GPU_API STREQUAL "CUDA")
-
-  add_subdirectory(slamio)
-  add_subdirectory(ohm)
 
   # Experimental
   add_subdirectory(ohmheightmaputil)
 
   add_subdirectory(ohmtools)
 
-  add_subdirectory(utils)
-
 endif(NOT OHM_GPU_API STREQUAL "CUDA")
+
+add_subdirectory(utils)
 
 if(OHM_UNIT_TESTS)
   enable_testing()

@@ -14,13 +14,15 @@
 
 #include <chrono>
 
+#if GPUTIL_TYPE == GPUTIL_OPENCL
 #include "matrixResource.h"
+#endif // GPUTIL_TYPE == GPUTIL_OPENCL
 
 extern gputil::Device g_gpu;
 
 const void *matrixMultiplyPtr();
 
-namespace gpukerneltest
+namespace gpukernel7test
 {
   const unsigned kN = 32;
   extern const float kMatrixA[kN * kN];
@@ -99,10 +101,7 @@ namespace gpukerneltest
     int err = 0;
     gputil::Program program(g_gpu, "test-program");
 
-#if GPUTIL_TYPE == GPUTIL_OPENCL
-    err = program.buildFromSource(matrixCode, matrixCode_length, gputil::BuildArgs{});
-#else  // GPUTIL_TYPE == GPUTIL_OPENCL
-#endif // CUDA
+    err = GPUTIL_BUILD_FROM_SOURCE(program, matrixCode, matrixCode_length, gputil::BuildArgs{});
 
     ASSERT_EQ(err, 0) << gputil::ApiException::errorCodeString(err);
 

@@ -34,13 +34,16 @@
 // Declarations
 //------------------------------------------------------------------------------
 
-#if __OPENCL_C_VERSION__ >= 200
+#if defined(__CUDACC__)
+using OccupancyType = atomic_float;
+using SubVoxelPatternType = atomic_uint;
+#elif __OPENCL_C_VERSION__ >= 200 || defined(__CUDACC__)
 typedef atomic_float OccupancyType;
 typedef atomic_uint SubVoxelPatternType;
-#else  // __OPENCL_C_VERSION__ >= 200
+#else  // __OPENCL_C_VERSION__ >= 200 || defined(__CUDACC__)
 typedef float OccupancyType;
 typedef uint SubVoxelPatternType;
-#endif // __OPENCL_C_VERSION__ >= 200
+#endif // __OPENCL_C_VERSION__ >= 200 || defined(__CUDACC__)
 
 #ifdef SUB_VOXEL
 typedef struct VoxelType_
@@ -100,7 +103,7 @@ struct LineWalkData
 /// This is done using atomic operations.
 ///
 /// Each bit in the pattern indicates occupancy at a particular sub-voxel location.
-void updateSubVoxelPosition(__global SubVoxelPatternType *target_address, float3 sub_voxel_pos, float voxel_resolution,
+__device__ void updateSubVoxelPosition(__global SubVoxelPatternType *target_address, float3 sub_voxel_pos, float voxel_resolution,
                             float sub_voxel_weigthing);
 #endif // SUB_VOXEL
 
@@ -109,7 +112,7 @@ void updateSubVoxelPosition(__global SubVoxelPatternType *target_address, float3
 //------------------------------------------------------------------------------
 
 #ifdef SUB_VOXEL
-void updateSubVoxelPosition(__global SubVoxelPatternType *target_address, float3 sub_voxel_pos, float voxel_resolution,
+__device__ void updateSubVoxelPosition(__global SubVoxelPatternType *target_address, float3 sub_voxel_pos, float voxel_resolution,
                             float sub_voxel_weigthing)
 {
   uint old_value;
@@ -124,24 +127,24 @@ void updateSubVoxelPosition(__global SubVoxelPatternType *target_address, float3
     new_value = subVoxelUpdate(old_value, sub_voxel_pos, voxel_resolution, sub_voxel_weigthing);
     ++iteration_count;
   }
-#if __OPENCL_C_VERSION__ >= 200
+#if __OPENCL_C_VERSION__ >= 200 || defined(__CUDACC__)
   while(!atomic_compare_exchange_weak_explicit(target_address, &old_value, new_value,
                                                memory_order_release, memory_order_relaxed) &&
          iteration_limit < iteration_count);
-#else  // __OPENCL_C_VERSION__ >= 200
+#else  // __OPENCL_C_VERSION__ >= 200 || defined(__CUDACC__)
   while (atomic_cmpxchg(target_address, old_value, new_value) != old_value &&
          iteration_limit < iteration_count);
-#endif // __OPENCL_C_VERSION__ >= 200
+#endif // __OPENCL_C_VERSION__ >= 200 || defined(__CUDACC__)
 }
 #endif // SUB_VOXEL
 
 // Implement the voxel travesal function. We update the value of the voxel using atomic instructions.
-bool walkLineVoxel(const struct GpuKey *voxelKey, bool isEndVoxel, float voxelResolution, void *userData)
+__device__ bool walkLineVoxel(const struct GpuKey *voxelKey, bool isEndVoxel, float voxelResolution, void *userData)
 {
-#if __OPENCL_C_VERSION__ >= 200
+#if __OPENCL_C_VERSION__ >= 200 || defined(__CUDACC__)
   float old_value, new_value;
   __global OccupancyType *occupancy_ptr;
-#else  // __OPENCL_C_VERSION__ >= 200
+#else  // __OPENCL_C_VERSION__ >= 200 || defined(__CUDACC__)
   union
   {
     float f;
@@ -153,7 +156,7 @@ bool walkLineVoxel(const struct GpuKey *voxelKey, bool isEndVoxel, float voxelRe
     __global volatile float *f;
     __global volatile int *i;
   } occupancy_ptr;
-#endif // __OPENCL_C_VERSION__ >= 200
+#endif // __OPENCL_C_VERSION__ >= 200 || defined(__CUDACC__)
 
   struct LineWalkData *lineData = (struct LineWalkData *)userData;
 
@@ -199,11 +202,11 @@ bool walkLineVoxel(const struct GpuKey *voxelKey, bool isEndVoxel, float voxelRe
       voxelKey->voxel[1] < lineData->regionDimensions.y &&
       voxelKey->voxel[2] < lineData->regionDimensions.z)
   {
-    #if __OPENCL_C_VERSION__ >= 200
+    #if __OPENCL_C_VERSION__ >= 200 || defined(__CUDACC__)
     occupancy_ptr = &lineData->voxels[vi].occupancy;
-    #else  // __OPENCL_C_VERSION__ >= 200
+    #else  // __OPENCL_C_VERSION__ >= 200 || defined(__CUDACC__)
     occupancy_ptr.f = &lineData->voxels[vi].occupancy;
-    #endif // __OPENCL_C_VERSION__ >= 200
+    #endif // __OPENCL_C_VERSION__ >= 200 || defined(__CUDACC__)
 
     #ifdef LIMIT_VOXEL_WRITE_ITERATIONS
     // Under high contension we can end up repeatedly failing to write the voxel value.
@@ -223,33 +226,33 @@ bool walkLineVoxel(const struct GpuKey *voxelKey, bool isEndVoxel, float voxelRe
       #endif // LIMIT_VOXEL_WRITE_ITERATIONS
 
       // Calculate a new value for the voxel.
-      #if __OPENCL_C_VERSION__ >= 200
+      #if __OPENCL_C_VERSION__ >= 200 || defined(__CUDACC__)
       old_value = new_value = atomic_load_explicit(occupancy_ptr, memory_order_relaxed);
-      #else  // __OPENCL_C_VERSION__ >= 200
+      #else  // __OPENCL_C_VERSION__ >= 200 || defined(__CUDACC__)
       old_value.i = new_value.i = *occupancy_ptr.i;
-      #endif  // __OPENCL_C_VERSION__ >= 200
+      #endif  // __OPENCL_C_VERSION__ >= 200 || defined(__CUDACC__)
 
-      #if __OPENCL_C_VERSION__ >= 200
+      #if __OPENCL_C_VERSION__ >= 200 || defined(__CUDACC__)
       // Uninitialised voxels start at INFINITY.
       new_value = (new_value != INFINITY) ? new_value + adjustment : adjustment;
       // Clamp the value.
       new_value = clamp(new_value, lineData->voxelValueMin, lineData->voxelValueMax);
-      #else  // __OPENCL_C_VERSION__ >= 200
+      #else  // __OPENCL_C_VERSION__ >= 200 || defined(__CUDACC__)
       // Uninitialised voxels start at INFINITY.
       new_value.f = (new_value.f != INFINITY) ? new_value.f + adjustment : adjustment;
       // Clamp the value.
       new_value.f = clamp(new_value.f, lineData->voxelValueMin, lineData->voxelValueMax);
-      #endif // __OPENCL_C_VERSION__ >= 200
+      #endif // __OPENCL_C_VERSION__ >= 200 || defined(__CUDACC__)
 
       // Now try write the value, looping if we fail to write the new value.
       //mem_fence(CLK_GLOBAL_MEM_FENCE);
-    #if __OPENCL_C_VERSION__ >= 200
+    #if __OPENCL_C_VERSION__ >= 200 || defined(__CUDACC__)
     } while(!atomic_compare_exchange_weak_explicit(occupancy_ptr, &old_value, new_value,
                                                    memory_order_release, memory_order_relaxed));
-    #else  // __OPENCL_C_VERSION__ >= 200
+    #else  // __OPENCL_C_VERSION__ >= 200 || defined(__CUDACC__)
     } while(atomic_cmpxchg(occupancy_ptr.i, old_value.i, new_value.i) != old_value.i);
     //atomic_cmpxchg(occupancy_ptr.i, old_value.i, new_value.i);
-    #endif  // __OPENCL_C_VERSION__ >= 200
+    #endif  // __OPENCL_C_VERSION__ >= 200 || defined(__CUDACC__)
 
 #ifdef SUB_VOXEL
     if (adjustment > 0)

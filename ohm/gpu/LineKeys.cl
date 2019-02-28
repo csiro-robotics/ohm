@@ -12,13 +12,13 @@ struct LineWalkData
   uint keyCount;
 };
 
-void calculateLineKeys(__global struct GpuKey *lineOut, uint maxKeys,
+__device__ void calculateLineKeys(__global struct GpuKey *lineOut, uint maxKeys,
                        const struct GpuKey *startKey, const struct GpuKey *endKey,
                        const float3 *startPoint, const float3 *endPoint,
                        const int3 *regionDim, float voxelResolution);
 
 
-bool walkLineVoxel(const struct GpuKey *voxelKey, bool isEndVoxel, float voxelResolution, void *userData)
+__device__ bool walkLineVoxel(const struct GpuKey *voxelKey, bool isEndVoxel, float voxelResolution, void *userData)
 {
   struct LineWalkData *lineData = (struct LineWalkData *)userData;
   copyKey(&lineData->lineOut[1 + lineData->keyCount++], voxelKey);
@@ -26,7 +26,7 @@ bool walkLineVoxel(const struct GpuKey *voxelKey, bool isEndVoxel, float voxelRe
 }
 
 
-void calculateLineKeys(__global struct GpuKey *lineOut, uint maxKeys,
+__device__ void calculateLineKeys(__global struct GpuKey *lineOut, uint maxKeys,
                        const struct GpuKey *startKey, const struct GpuKey *endKey,
                        const float3 *startPoint, const float3 *endPoint,
                        const int3 *regionDim, float voxelResolution)
