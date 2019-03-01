@@ -170,9 +170,20 @@ namespace gpubuffertest
     large_buffer_event.wait();
     const auto mapped_down1_end = TimingClock::now();
 
+    const size_t failure_limit = 32;
+    size_t failure_count = 0;
     for (size_t i = 0; i < test_buffer.size(); ++i)
     {
       EXPECT_EQ(test_buffer[i], host_buffer[i]);
+      if (test_buffer[i] != host_buffer[i])
+      {
+        ++failure_count;
+        if (failure_count >= failure_limit)
+        {
+          std::cerr << "Aborting memory validation after " << failure_limit  << " failures" << std::endl;
+          break;
+        }
+      }
     }
 
     std::cout << mapped_down1_end - mapped_down1_start << " total => " << mapped_down1_queued - mapped_down1_start
@@ -209,9 +220,19 @@ namespace gpubuffertest
     gputil::Event::wait(small_buffer_events.data(), small_buffer_count);
     const auto mapped_down2_end = TimingClock::now();
 
+    failure_count = 0;
     for (size_t i = 0; i < test_buffer.size(); ++i)
     {
       EXPECT_EQ(test_buffer[i], host_buffer[i]);
+      if (test_buffer[i] != host_buffer[i])
+      {
+        ++failure_count;
+        if (failure_count >= failure_limit)
+        {
+          std::cerr << "Aborting memory validation after " << failure_limit << " failures" << std::endl;
+          break;
+        }
+      }
     }
 
     std::cout << mapped_down2_end - mapped_down2_start << " total => " << mapped_down2_queued - mapped_down2_start
@@ -314,9 +335,19 @@ namespace gpubuffertest
     gputil::Event::wait(large_buffer_events.data(), small_buffer_count);
     const auto queued_down1_end = TimingClock::now();
 
+    failure_count = 0;
     for (size_t i = 0; i < test_buffer.size(); ++i)
     {
       EXPECT_EQ(test_buffer[i], host_buffer[i]);
+      if (test_buffer[i] != host_buffer[i])
+      {
+        ++failure_count;
+        if (failure_count >= failure_limit)
+        {
+          std::cerr << "Aborting memory validation after " << failure_limit << " failures" << std::endl;
+          break;
+        }
+      }
     }
 
     std::cout << queued_down1_end - queued_down1_start << " total => " << queued_down1_queued - queued_down1_start
@@ -337,9 +368,19 @@ namespace gpubuffertest
     gputil::Event::wait(small_buffer_events.data(), small_buffer_count);
     const auto queued_down2_end = TimingClock::now();
 
+    failure_count = 0u;
     for (size_t i = 0; i < test_buffer.size(); ++i)
     {
       EXPECT_EQ(test_buffer[i], host_buffer[i]);
+      if (test_buffer[i] != host_buffer[i])
+      {
+        ++failure_count;
+        if (failure_count >= failure_limit)
+        {
+          std::cerr << "Aborting memory validation after " << failure_limit << " failures" << std::endl;
+          break;
+        }
+      }
     }
 
     std::cout << queued_down2_end - queued_down2_start << " total => " << queued_down2_queued - queued_down2_start
@@ -429,45 +470,45 @@ namespace gpubuffertest
 
   TEST(GpuBuffer, Ref)
   {
-// #if GPUTIL_TYPE == GPUTIL_OPENCL
-//     gputil::Event event;
-//     gputil::Device &gpu = g_gpu;
-//     gputil::Buffer buffer(gpu, 64 * 1024u, gputil::kBfReadWriteHost);
-//     gputil::Queue queue = gpu.createQueue();
-//     std::vector<uint8_t> host_buffer(buffer.size());
+    // #if GPUTIL_TYPE == GPUTIL_OPENCL
+    //     gputil::Event event;
+    //     gputil::Device &gpu = g_gpu;
+    //     gputil::Buffer buffer(gpu, 64 * 1024u, gputil::kBfReadWriteHost);
+    //     gputil::Queue queue = gpu.createQueue();
+    //     std::vector<uint8_t> host_buffer(buffer.size());
 
-//     for (size_t i = 0; i < host_buffer.size(); ++i)
-//     {
-//       host_buffer[i] = uint8_t(i % 256);
-//     }
+    //     for (size_t i = 0; i < host_buffer.size(); ++i)
+    //     {
+    //       host_buffer[i] = uint8_t(i % 256);
+    //     }
 
-//     buffer.write(host_buffer.data(), host_buffer.size(), 0, &queue, nullptr, &event);
+    //     buffer.write(host_buffer.data(), host_buffer.size(), 0, &queue, nullptr, &event);
 
-//     cl_uint ref_count = 0;
-//     const cl_event event_ocl = event.detail()->event;
+    //     cl_uint ref_count = 0;
+    //     const cl_event event_ocl = event.detail()->event;
 
-//     clGetEventInfo(event_ocl, CL_EVENT_REFERENCE_COUNT, sizeof(ref_count), &ref_count, nullptr);
-//     std::cout << ref_count << " : queued" << std::endl;
-//     // Expected references : event, OpenCL(?)
-//     EXPECT_GE(ref_count, 1u);
-//     clRetainEvent(event_ocl);
-//     clGetEventInfo(event_ocl, CL_EVENT_REFERENCE_COUNT, sizeof(ref_count), &ref_count, nullptr);
-//     std::cout << ref_count << " : +ref" << std::endl;
-//     // Expected references : event, eventOcl + OpenCL(?)
-//     EXPECT_GE(ref_count, 2u);
-//     queue.finish();
-//     clGetEventInfo(event_ocl, CL_EVENT_REFERENCE_COUNT, sizeof(ref_count), &ref_count, nullptr);
-//     std::cout << ref_count << " : finish" << std::endl;
-//     // Expected references : event, eventOcl
-//     EXPECT_EQ(ref_count, 2u);
-//     event.release();
-//     clGetEventInfo(event_ocl, CL_EVENT_REFERENCE_COUNT, sizeof(ref_count), &ref_count, nullptr);
-//     std::cout << ref_count << " : release" << std::endl;
-//     // Expected references : eventOcl
-//     EXPECT_EQ(ref_count, 1u);
+    //     clGetEventInfo(event_ocl, CL_EVENT_REFERENCE_COUNT, sizeof(ref_count), &ref_count, nullptr);
+    //     std::cout << ref_count << " : queued" << std::endl;
+    //     // Expected references : event, OpenCL(?)
+    //     EXPECT_GE(ref_count, 1u);
+    //     clRetainEvent(event_ocl);
+    //     clGetEventInfo(event_ocl, CL_EVENT_REFERENCE_COUNT, sizeof(ref_count), &ref_count, nullptr);
+    //     std::cout << ref_count << " : +ref" << std::endl;
+    //     // Expected references : event, eventOcl + OpenCL(?)
+    //     EXPECT_GE(ref_count, 2u);
+    //     queue.finish();
+    //     clGetEventInfo(event_ocl, CL_EVENT_REFERENCE_COUNT, sizeof(ref_count), &ref_count, nullptr);
+    //     std::cout << ref_count << " : finish" << std::endl;
+    //     // Expected references : event, eventOcl
+    //     EXPECT_EQ(ref_count, 2u);
+    //     event.release();
+    //     clGetEventInfo(event_ocl, CL_EVENT_REFERENCE_COUNT, sizeof(ref_count), &ref_count, nullptr);
+    //     std::cout << ref_count << " : release" << std::endl;
+    //     // Expected references : eventOcl
+    //     EXPECT_EQ(ref_count, 1u);
 
-//     clReleaseEvent(event_ocl);
-// #endif  // GPUTIL_TYPE == GPUTIL_OPENCL
+    //     clReleaseEvent(event_ocl);
+    // #endif  // GPUTIL_TYPE == GPUTIL_OPENCL
   }
 
   TEST(GpuBuffer, ReadWriteCopy)

@@ -122,7 +122,8 @@ namespace gputil
         GPUAPICHECK(err, cudaSuccess, true);
       }
 
-      err = cudaMemcpyAsync(dst, src, byte_count, cudaMemcpyDeviceToHost, stream);
+      err = cudaMemcpyAsync(dst, src, byte_count, kind, stream);
+      GPUAPICHECK(err, cudaSuccess, true);
 
       if (completion)
       {

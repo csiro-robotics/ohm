@@ -5,8 +5,8 @@
 // Author: Kazys Stepanas
 #include "gpuQueue.h"
 
-#include "gputil/cuda/gpuQueueDetail.h"
 #include "gputil/cuda/gpuEventDetail.h"
+#include "gputil/cuda/gpuQueueDetail.h"
 
 #include "gputil/gpuApiException.h"
 #include "gputil/gpuThrow.h"
@@ -29,9 +29,9 @@ namespace gputil
 
   struct CallbackWrapper
   {
-    std::function<void (void)> callback;
+    std::function<void(void)> callback;
 
-    inline CallbackWrapper(const std::function<void (void)> &callback)
+    inline CallbackWrapper(const std::function<void(void)> &callback)
       : callback(callback)
     {}
   };
@@ -42,13 +42,12 @@ namespace gputil
     wrapper->callback();
     delete wrapper;
   }
-}
+}  // namespace gputil
 
 
 Queue::Queue()
   : queue_(nullptr)
-{
-}
+{}
 
 
 Queue::Queue(Queue &&other) noexcept
@@ -59,7 +58,7 @@ Queue::Queue(Queue &&other) noexcept
 
 
 Queue::Queue(const Queue &other)
-: queue_(nullptr)
+  : queue_(nullptr)
 {
   queue_ = other.queue_;
   if (queue_)
@@ -70,10 +69,9 @@ Queue::Queue(const Queue &other)
 
 
 Queue::Queue(void *platform_queue)
-// Note: the platform_queue will be null for the default stream.
+  // Note: the platform_queue will be null for the default stream.
   : queue_(new QueueDetail(static_cast<cudaStream_t>(platform_queue), 1, &gputil::destroyStream))
-{
-}
+{}
 
 
 Queue::~Queue()
@@ -116,11 +114,12 @@ void Queue::flush()
 
 void Queue::finish()
 {
-  cudaStreamSynchronize(queue_->obj());
+  cudaError_t err = cudaStreamSynchronize(queue_->obj());
+  GPUAPICHECK2(err, cudaSuccess);
 }
 
 
-void Queue::queueCallback(const std::function<void (void)> &callback)
+void Queue::queueCallback(const std::function<void(void)> &callback)
 {
   CallbackWrapper *wrapper = nullptr;
 
@@ -143,7 +142,7 @@ QueueDetail *Queue::internal() const
 }
 
 
-Queue &Queue::operator = (const Queue &other)
+Queue &Queue::operator=(const Queue &other)
 {
   if (queue_)
   {
@@ -158,7 +157,7 @@ Queue &Queue::operator = (const Queue &other)
 }
 
 
-Queue &Queue::operator = (Queue &&other) noexcept
+Queue &Queue::operator=(Queue &&other) noexcept
 {
   if (queue_)
   {
