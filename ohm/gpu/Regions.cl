@@ -6,14 +6,15 @@ __device__ void regionsInitCurrent(int3 *currentRegion, uint *regionVoxelOffset)
 
 /// A utility function for resolving the correct memory offset to the voxels for the region containing @p voxelKey.
 ///
-/// This function expect region voxel memory to be layed out in a contiguous memory buffer, where each voxel is represented
-/// by a data of size @p voxelSizeBytes. The voxels for specific regions are uploaded with memory offsets into the buffer.
-/// Information about the regions is stored two buffers: an int3 buffer containing the region keys (@p regionKeys),
-/// and a memory offset buffer (@p regionMemOffets) identifying the corresponding byte offsets into the global voxels
-/// buffer.
+/// This function expect region voxel memory to be layed out in a contiguous memory buffer, where each voxel is
+/// represented by a data of size @p voxelSizeBytes. The voxels for specific regions are uploaded with memory offsets
+/// into the buffer. Information about the regions is stored two buffers: an int3 buffer containing the region keys (@p
+/// regionKeys), and a memory offset buffer (@p regionMemOffets) identifying the corresponding byte offsets into the
+/// global voxels buffer.
 ///
 /// The function updated @p currentRegion and @p regionVoxelOffset to the region containing @p voxelKey if possible.
-/// Note that the @p regionVoxelOffset is an index offset assuming @p voxelSizeBytes striding, rather than a byte offset.
+/// Note that the @p regionVoxelOffset is an index offset assuming @p voxelSizeBytes striding, rather than a byte
+/// offset.
 ///
 /// The function will early out (with associated GPU thread group issues) if the @p currentRegion already references
 /// the region containing @p voxelKey. The expectation is that the same region will be generally referenced repeatedly
@@ -35,9 +36,11 @@ __device__ void regionsInitCurrent(int3 *currentRegion, uint *regionVoxelOffset)
 /// @param regionCount The number of regions in @p regionKeys and @p regionMemOffsets.
 /// @return True if a region for @p voxelKey is found, false otherwise.
 __device__ bool regionsResolveRegion(const struct GpuKey *voxelKey, int3 *currentRegion, uint *regionVoxelOffset,
-                          __global int3 *regionKeys, __global ulong *regionMemOffsets, uint regionCount,
-                          unsigned voxelSizeBytes);
+                                     __global int3 *regionKeys, __global ulong *regionMemOffsets, uint regionCount,
+                                     unsigned voxelSizeBytes);
 
+#ifndef REGIONS_CL
+#define REGIONS_CL
 __device__ void regionsInitCurrent(int3 *currentRegion, uint *regionVoxelOffset)
 {
   currentRegion->x = currentRegion->y = currentRegion->z = 2147483647;
@@ -45,12 +48,11 @@ __device__ void regionsInitCurrent(int3 *currentRegion, uint *regionVoxelOffset)
 }
 
 __device__ bool regionsResolveRegion(const struct GpuKey *voxelKey, int3 *currentRegion, uint *regionVoxelOffset,
-                          __global int3 *regionKeys, __global ulong *regionMemOffsets, uint regionCount,
-                          unsigned voxelSizeBytes)
+                                     __global int3 *regionKeys, __global ulong *regionMemOffsets, uint regionCount,
+                                     unsigned voxelSizeBytes)
 {
   // Check if the current region is the same as the last. This will generally be the case.
-  if (voxelKey->region[0] == currentRegion->x &&
-      voxelKey->region[1] == currentRegion->y &&
+  if (voxelKey->region[0] == currentRegion->x && voxelKey->region[1] == currentRegion->y &&
       voxelKey->region[2] == currentRegion->z)
   {
     // Same region.
@@ -61,8 +63,7 @@ __device__ bool regionsResolveRegion(const struct GpuKey *voxelKey, int3 *curren
   // Need to search for the region.
   for (uint i = 0; i < regionCount; ++i)
   {
-    if (voxelKey->region[0] == regionKeys[i].x &&
-        voxelKey->region[1] == regionKeys[i].y &&
+    if (voxelKey->region[0] == regionKeys[i].x && voxelKey->region[1] == regionKeys[i].y &&
         voxelKey->region[2] == regionKeys[i].z)
     {
       // Found the region for voxelKey.
@@ -83,3 +84,6 @@ __device__ bool regionsResolveRegion(const struct GpuKey *voxelKey, int3 *curren
 
   return false;
 }
+
+#endif  // REGIONS_CL
+

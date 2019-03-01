@@ -9,7 +9,7 @@
 
 #if OHM_GPU == OHM_GPU_OPENCL
 #include <gputil/cl/gpuDeviceDetail.h>
-#endif // OHM_GPU == OHM_GPU_OPENCL
+#endif  // OHM_GPU == OHM_GPU_OPENCL
 
 #include <gputil/gpuProgram.h>
 
@@ -42,13 +42,15 @@ namespace ohm
         unsigned type_flags = gputil::Device::kGpu;
       };
       static const PreferredDevice preferred_device[] =  //
-        {
-          //
-          PreferredDevice{ "Intel", gputil::Device::kGpu },          //
-          PreferredDevice{ nullptr, gputil::Device::kGpu },          //
-          PreferredDevice{ nullptr, gputil::Device::kAccelerator },  //
-          PreferredDevice{ nullptr, 0 },                             //
-        };
+      {
+//
+#if GPUTIL_TYPE == GPUTIL_OPENCL
+        PreferredDevice{ "Intel", gputil::Device::kGpu },  //
+#endif // GPUTIL_TYPE == GPUTIL_OPENCL
+        PreferredDevice{ nullptr, gputil::Device::kGpu },          //
+        PreferredDevice{ nullptr, gputil::Device::kAccelerator },  //
+        PreferredDevice{ nullptr, 0 },                             //
+      };
       static const size_t preferred_device_count = sizeof(preferred_device) / sizeof(preferred_device[0]);
 
       for (size_t i = 0; !gpu_initialised && i < preferred_device_count; ++i)

@@ -56,7 +56,7 @@ __kernel void nearestNeighbours(uchar3 regionVoxelDimensions,
                                 __global float *ranges,
                                 __global short3 *resultRegionKeys,
                                 __global uchar3 *resultVoxelKeys,
-                                volatile __global uint *resultCount,
+                                __global atomic_uint *resultCount,
                                 float3 nearPoint,
                                 float searchRadius,
                                 float occupancyThresholdValue,
@@ -86,7 +86,7 @@ __kernel void nearestNeighbours(uchar3 regionVoxelDimensions,
 
   if (validIndex && range < searchRadius && occupied)
   {
-    uint globalIndex = atomic_inc(resultCount);
+    uint globalIndex = gputilAtomicInc(resultCount);
     ranges[globalIndex] = range;
     resultVoxelKeys[globalIndex] = nodeKey;
     resultRegionKeys[globalIndex] = regionKey;

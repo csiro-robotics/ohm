@@ -35,23 +35,33 @@
 #include "RoiRangeFillResource.h"
 #endif  // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
 
-using namespace ohm;
+#if GPUTIL_TYPE == GPUTIL_CUDA
+const void *seedRegionVoxelsSubVoxPtr();
+const void *seedFromOuterRegionsSubVoxPtr();
+const void *propagateObstaclesSubVoxPtr();
+const void *migrateResultsSubVoxPtr();
 
+const void *seedRegionVoxelsPtr();
+const void *seedFromOuterRegionsPtr();
+const void *propagateObstaclesPtr();
+const void *migrateResultsPtr();
+#endif // GPUTIL_TYPE == GPUTIL_CUDA
+
+using namespace ohm;
 
 namespace
 {
 #if defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
-  GpuProgramRef program_ref_sub_vox("RoiRangeFill_sub", GpuProgramRef::kSourceString, RoiRangeFillCode,
-                                    RoiRangeFillCode_length, { "-DSUB_VOXEL" });
-  GpuProgramRef program_ref_no_vox("RoiRangeFill", GpuProgramRef::kSourceString, RoiRangeFillCode,
-                                   RoiRangeFillCode_length);
+  GpuProgramRef program_ref("RoiRangeFill", GpuProgramRef::kSourceString, RoiRangeFillCode, RoiRangeFillCode_length);
 #else   // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
-  GpuProgramRef program_ref_sub_vox("RoiRangeFill", GpuProgramRef::kSourceFile, "RoiRangeFill.cl", 0u,
-                                    { "-DSUB_VOXEL" });
-  GpuProgramRef program_ref_no_vox("RoiRangeFill", GpuProgramRef::kSourceFile, "RoiRangeFill.cl");
+  GpuProgramRef program_ref("RoiRangeFill", GpuProgramRef::kSourceFile, "RoiRangeFill.cl", 0u);
 #endif  // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
 }  // namespace
 
+const void *seedRegionVoxelsPtr();
+const void *seedFromOuterRegionsPtr();
+const void *propagateObstaclesPtr();
+const void *migrateResultsPtr();
 
 RoiRangeFill::RoiRangeFill(gputil::Device &gpu)
 {
@@ -70,30 +80,37 @@ RoiRangeFill::RoiRangeFill(gputil::Device &gpu)
 
   valid_ = false;
 
-  bool have_sub_vox_ref = false;
-  if (program_ref_sub_vox.addReference(gpu))
+  if (program_ref.addReference(gpu))
   {
     valid_ = true;
-    have_sub_vox_ref = true;
-#if OHM_GPU == OHM_GPU_OPENCL
-    seed_kernel_sub_vox_ = gputil::openCLKernel(program_ref_sub_vox.program(), "seedRegionVoxels");
-    seed_outer_kernel_sub_vox_ = gputil::openCLKernel(program_ref_sub_vox.program(), "seedFromOuterRegions");
-    propagate_kernel_sub_vox_ = gputil::openCLKernel(program_ref_sub_vox.program(), "propagateObstacles");
-    migrate_kernel_sub_vox_ = gputil::openCLKernel(program_ref_sub_vox.program(), "migrateResults");
+    seed_kernel_sub_vox_ = GPUTIL_MAKE_KERNEL(program_ref.program(), seedRegionVoxelsSubVox);
+    seed_outer_kernel_sub_vox_ = GPUTIL_MAKE_KERNEL(program_ref.program(), seedFromOuterRegionsSubVox);
+    propagate_kernel_sub_vox_ = GPUTIL_MAKE_KERNEL(program_ref.program(), propagateObstaclesSubVox);
+    migrate_kernel_sub_vox_ = GPUTIL_MAKE_KERNEL(program_ref.program(), migrateResultsSubVox);
+
+    seed_kernel_no_vox_ = GPUTIL_MAKE_KERNEL(program_ref.program(), seedRegionVoxels);
+    seed_outer_kernel_no_vox_ = GPUTIL_MAKE_KERNEL(program_ref.program(), seedFromOuterRegions);
+    propagate_kernel_no_vox_ = GPUTIL_MAKE_KERNEL(program_ref.program(), propagateObstacles);
+    migrate_kernel_no_vox_ = GPUTIL_MAKE_KERNEL(program_ref.program(), migrateResults);
 
     if (!seed_kernel_sub_vox_.isValid() || !seed_outer_kernel_sub_vox_.isValid() ||
-        !propagate_kernel_sub_vox_.isValid() || !migrate_kernel_sub_vox_.isValid())
+        !propagate_kernel_sub_vox_.isValid() || !migrate_kernel_sub_vox_.isValid() || !seed_kernel_no_vox_.isValid() ||
+        !seed_outer_kernel_no_vox_.isValid() || !propagate_kernel_no_vox_.isValid() ||
+        !migrate_kernel_no_vox_.isValid())
     {
       seed_kernel_sub_vox_ = gputil::Kernel();
       seed_outer_kernel_sub_vox_ = gputil::Kernel();
       propagate_kernel_sub_vox_ = gputil::Kernel();
       migrate_kernel_sub_vox_ = gputil::Kernel();
 
-      program_ref_sub_vox.releaseReference();
+      seed_kernel_no_vox_ = gputil::Kernel();
+      seed_outer_kernel_no_vox_ = gputil::Kernel();
+      propagate_kernel_no_vox_ = gputil::Kernel();
+      migrate_kernel_no_vox_ = gputil::Kernel();
+
+      program_ref.releaseReference();
       valid_ = false;
-      have_sub_vox_ref = false;
     }
-#endif  // OHM_GPU == OHM_GPU_OPENCL
 
     if (valid_)
     {
@@ -111,36 +128,7 @@ RoiRangeFill::RoiRangeFill(gputil::Device &gpu)
       propagate_kernel_sub_vox_.calculateOptimalWorkGroupSize();
 
       migrate_kernel_sub_vox_.calculateOptimalWorkGroupSize();
-    }
-  }
 
-  bool have_no_vox_ref = false;
-  if (valid_ && program_ref_no_vox.addReference(gpu))
-  {
-    valid_ = true;
-    have_no_vox_ref = true;
-#if OHM_GPU == OHM_GPU_OPENCL
-    seed_kernel_no_vox_ = gputil::openCLKernel(program_ref_no_vox.program(), "seedRegionVoxels");
-    seed_outer_kernel_no_vox_ = gputil::openCLKernel(program_ref_no_vox.program(), "seedFromOuterRegions");
-    propagate_kernel_no_vox_ = gputil::openCLKernel(program_ref_no_vox.program(), "propagateObstacles");
-    migrate_kernel_no_vox_ = gputil::openCLKernel(program_ref_no_vox.program(), "migrateResults");
-
-    if (!seed_kernel_no_vox_.isValid() || !seed_outer_kernel_no_vox_.isValid() || !propagate_kernel_no_vox_.isValid() ||
-        !migrate_kernel_no_vox_.isValid())
-    {
-      seed_kernel_no_vox_ = gputil::Kernel();
-      seed_outer_kernel_no_vox_ = gputil::Kernel();
-      propagate_kernel_no_vox_ = gputil::Kernel();
-      migrate_kernel_no_vox_ = gputil::Kernel();
-
-      program_ref_no_vox.releaseReference();
-      valid_ = false;
-      have_no_vox_ref = false;
-    }
-#endif  // OHM_GPU == OHM_GPU_OPENCL
-
-    if (valid_)
-    {
       seed_kernel_no_vox_.calculateOptimalWorkGroupSize();
       seed_outer_kernel_no_vox_.calculateOptimalWorkGroupSize();
       // Add local voxels cache.
@@ -160,15 +148,7 @@ RoiRangeFill::RoiRangeFill(gputil::Device &gpu)
 
   if (!valid_)
   {
-    if (have_sub_vox_ref)
-    {
-      program_ref_sub_vox.releaseReference();
-    }
-
-    if (have_no_vox_ref)
-    {
-      program_ref_no_vox.releaseReference();
-    }
+    program_ref.releaseReference();
   }
 }
 
@@ -183,19 +163,18 @@ RoiRangeFill::~RoiRangeFill()
   gpu_work_[0] = gputil::Buffer();
   gpu_work_[1] = gputil::Buffer();
   gpu_ = gputil::Device();
+
   seed_kernel_sub_vox_ = gputil::Kernel();
   seed_outer_kernel_sub_vox_ = gputil::Kernel();
   propagate_kernel_sub_vox_ = gputil::Kernel();
   migrate_kernel_sub_vox_ = gputil::Kernel();
-
-  program_ref_sub_vox.releaseReference();
 
   seed_kernel_no_vox_ = gputil::Kernel();
   seed_outer_kernel_no_vox_ = gputil::Kernel();
   propagate_kernel_no_vox_ = gputil::Kernel();
   migrate_kernel_no_vox_ = gputil::Kernel();
 
-  program_ref_no_vox.releaseReference();
+  program_ref.releaseReference();
 }
 
 

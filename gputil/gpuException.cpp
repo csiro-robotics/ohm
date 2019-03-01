@@ -70,7 +70,7 @@ void Exception::setMessage(const char *message, const char *filename, int line_n
   {
     size_t msglen = str.length();
     message_ = new char[msglen + 1];
-    strncpy(message_, message, msglen);
+    strncpy(message_, str.c_str(), msglen);
     message_[msglen] = '\0';
   }
 }

@@ -36,6 +36,11 @@
 // See nearestneighbours.cl define of the same name.
 // #define CACHE_LOCAL_RESULTS
 
+#if GPUTIL_TYPE == GPUTIL_CUDA
+const void *showNNInfoPtr();
+const void *nearestNeighboursPtr();
+#endif // GPUTIL_TYPE == GPUTIL_CUDA
+
 using namespace ohm;
 
 namespace

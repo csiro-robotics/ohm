@@ -40,6 +40,11 @@
 #include "RegionUpdateResource.h"
 #endif  // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
 
+#if GPUTIL_TYPE == GPUTIL_CUDA
+const void *regionRayUpdatePtr();
+const void *regionRayUpdateSubVoxPtr();
+#endif  // GPUTIL_TYPE == GPUTIL_CUDA
+
 #define DEBUG_RAY 0
 
 #if DEBUG_RAY
@@ -51,14 +56,9 @@ using namespace ohm;
 namespace
 {
 #if defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
-  GpuProgramRef sub_vox_program_ref("RegionUpdate_sub", GpuProgramRef::kSourceString, RegionUpdateCode,
-                                    RegionUpdateCode_length, { "-DSUB_VOXEL" });
-  GpuProgramRef no_sub_vox_program_ref("RegionUpdate_no_sub", GpuProgramRef::kSourceString, RegionUpdateCode,
-                                       RegionUpdateCode_length);
+  GpuProgramRef program_ref("RegionUpdate", GpuProgramRef::kSourceString, RegionUpdateCode, RegionUpdateCode_length);
 #else   // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
-  GpuProgramRef sub_vox_program_ref("RegionUpdate_sub", GpuProgramRef::kSourceFile, "RegionUpdate.cl", 0u,
-                                    { "-DSUB_VOXEL" });
-  GpuProgramRef no_sub_vox_program_ref("RegionUpdate_no_sub", GpuProgramRef::kSourceFile, "RegionUpdate.cl");
+  GpuProgramRef program_ref("RegionUpdate", GpuProgramRef::kSourceFile, "RegionUpdate.cl", 0u);
 #endif  // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
 
   typedef std::function<void(const glm::i16vec3 &, const glm::dvec3 &, const glm::dvec3 &)> RegionWalkFunction;
@@ -344,20 +344,13 @@ void GpuMap::cacheGpuProgram(bool with_sub_voxels, bool force)
 
   GpuCache &gpu_cache = *imp_->map->detail()->gpu_cache;
   imp_->cached_sub_voxel_program = with_sub_voxels;
-  if (with_sub_voxels)
-  {
-    imp_->program_ref = &sub_vox_program_ref;
-  }
-  else
-  {
-    imp_->program_ref = &no_sub_vox_program_ref;
-  }
+  imp_->program_ref = &program_ref;
 
   if (imp_->program_ref->addReference(gpu_cache.gpu()))
   {
-#if OHM_GPU == OHM_GPU_OPENCL
-    imp_->update_kernel = gputil::openCLKernel(imp_->program_ref->program(), "regionRayUpdate");
-#endif  // OHM_GPU == OHM_GPU_OPENCL
+    imp_->update_kernel = with_sub_voxels ?
+      GPUTIL_MAKE_KERNEL(imp_->program_ref->program(), regionRayUpdate) :
+      GPUTIL_MAKE_KERNEL(imp_->program_ref->program(), regionRayUpdateSubVox);
     imp_->update_kernel.calculateOptimalWorkGroupSize();
 
     imp_->gpu_ok = imp_->update_kernel.isValid();

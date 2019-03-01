@@ -104,8 +104,141 @@
 
 #define SQR(X) ((X) * (X))
 
+//----------------------------------------------------------------------------------------------------------------------
+// Atomic definitions. Make consistent atomic function interface across all GPU code versions.
+//
+// Only 32-bit types are supported.
+//----------------------------------------------------------------------------------------------------------------------
+#if __OPENCL_C_VERSION__ >= 210
+
+inline void gputilAtomicInit(__global atomic_int *obj, int val) { atomic_init(obj, val); }
+inline void gputilAtomicInit(__local atomic_int *obj, int val) { atomic_init(obj, val); }
+inline void gputilAtomicStore(__global atomic_int *obj, int val) { atomic_store(obj, val); }
+inline void gputilAtomicStore(__local atomic_int *obj, int val) { atomic_store(obj, val); }
+inline int gputilAtomicLoad(__global atomic_int *obj) { return atomic_load(obj); }
+inline int gputilAtomicLoad(__local atomic_int *obj) { return atomic_load(obj); }
+inline int gputilAtomicExchange(__global atomic_int *obj, int desired) { return atomic_exchange(obj, desired); }
+inline int gputilAtomicExchange(__local atomic_int *obj, int desired) { return atomic_exchange(obj, desired); }
+inline bool gputilAtomicCas(__global atomic_int *obj, int expected, int desired) { return atomic_compare_exchange_weak(obj, &expected, desired); }
+inline bool gputilAtomicCas(__local atomic_int *obj, int expected, int desired) { return atomic_compare_exchange_weak(obj, &expected, desired); }
+
+inline void gputilAtomicInit(__global atomic_uint *obj, uint val) { atomic_init(obj, val); }
+inline void gputilAtomicInit(__local atomic_uint *obj, uint val) { atomic_init(obj, val); }
+inline void gputilAtomicStore(__global atomic_uint *obj, uint val) { atomic_store(obj, val); }
+inline void gputilAtomicStore(__local atomic_uint *obj, uint val) { atomic_store(obj, val); }
+inline uint gputilAtomicLoad(__global atomic_uint *obj) { return atomic_load(obj); }
+inline uint gputilAtomicLoad(__local atomic_uint *obj) { return atomic_load(obj); }
+inline uint gputilAtomicExchange(__global atomic_uint *obj, uint desired) { return atomic_exchange(obj, desired); }
+inline uint gputilAtomicExchange(__local atomic_uint *obj, uint desired) { return atomic_exchange(obj, desired); }
+inline bool gputilAtomicCas(__global atomic_uint *obj, uint expected, uint desired) { return atomic_compare_exchange_weak(obj, &expected, desired); }
+inline bool gputilAtomicCas(__local atomic_uint *obj, uint expected, uint desired) { return atomic_compare_exchange_weak(obj, &expected, desired); }
+
+inline void gputilAtomicInit(__global atomic_float *obj, float val) { atomic_init(obj, val); }
+inline void gputilAtomicInit(__local atomic_float *obj, float val) { atomic_init(obj, val); }
+inline void gputilAtomicStore(__global atomic_float *obj, float val) { atomic_store(obj, val); }
+inline void gputilAtomicStore(__local atomic_float *obj, float val) { atomic_store(obj, val); }
+inline float gputilAtomicLoad(__global atomic_float *obj) { return atomic_load(obj); }
+inline float gputilAtomicLoad(__local atomic_float *obj) { return atomic_load(obj); }
+inline float gputilAtomicExchange(__global atomic_float *obj, float desired) { return atomic_exchange(obj, desired); }
+inline float gputilAtomicExchange(__local atomic_float *obj, float desired) { return atomic_exchange(obj, desired); }
+inline bool gputilAtomicCas(__global atomic_float *obj, float expected, float desired) { return atomic_compare_exchange_weak(obj, &expected, desired); }
+inline bool gputilAtomicCas(__local atomic_float *obj, float expected, float desired) { return atomic_compare_exchange_weak(obj, &expected, desired); }
+
+#else  // __OPENCL_C_VERSION__ < 210
+typedef volatile int gputil_atomic_int;
+typedef volatile uint gputil_atomic_uint;
+typedef volatile float gputil_atomic_float;
+
+inline void gputilAtomicInit(__global atomic_int *obj, int val) { *obj = val; }
+inline void gputilAtomicInit(__local atomic_int *obj, int val) { *obj = val; }
+inline void gputilAtomicStore(__global atomic_int *obj, int val) { *obj = val; }
+inline void gputilAtomicStore(__local atomic_int *obj, int val) { *obj = val; }
+inline int gputilAtomicLoad(__global atomic_int *obj) { return return *obj; }
+inline int gputilAtomicLoad(__local atomic_int *obj) { return return *obj; }
+inline int gputilAtomicExchange(__global atomic_int *obj, int desired) { return atomic_xchg(obj, desired); }
+inline int gputilAtomicExchange(__local atomic_int *obj, int desired) { return atomic_xchg(obj, desired); }
+inline bool gputilAtomicCas(__global atomic_int *obj, int expected, int desired) { return atomic_cmpxchg(obj, expected, desired) == expected; }
+inline bool gputilAtomicCas(__local atomic_int *obj, int expected, int desired) { return atomic_cmpxchg(obj, expected, desired) == expected; }
+
+inline void gputilAtomicInit(__global atomic_uint *obj, uint val) { *obj = val; }
+inline void gputilAtomicInit(__local atomic_uint *obj, uint val) { *obj = val; }
+inline void gputilAtomicStore(__global atomic_uint *obj, uint val) { *obj = val; }
+inline void gputilAtomicStore(__local atomic_uint *obj, uint val) { *obj = val; }
+inline uint gputilAtomicLoad(__global atomic_uint *obj) { return return *obj; }
+inline uint gputilAtomicLoad(__local atomic_uint *obj) { return return *obj; }
+inline uint gputilAtomicExchange(__global atomic_uint *obj, uint desired) { return atomic_xchg(obj, desired); }
+inline uint gputilAtomicExchange(__local atomic_uint *obj, uint desired) { return atomic_xchg(obj, desired); }
+inline bool gputilAtomicCas(__global atomic_uint *obj, uint expected, uint desired) { return atomic_cmpxchg(obj, expected, desired) == expected; }
+inline bool gputilAtomicCas(__local atomic_uint *obj, uint expected, uint desired) { return atomic_cmpxchg(obj, expected, desired) == expected; }
+
+inline void gputilAtomicInit(__global atomic_float *obj, float val) { *obj = val; }
+inline void gputilAtomicInit(__local atomic_float *obj, float val) { *obj = val; }
+inline void gputilAtomicStore(__global atomic_float *obj, float val) { *obj = val; }
+inline void gputilAtomicStore(__local atomic_float *obj, float val) { *obj = val; }
+inline float gputilAtomicLoad(__global atomic_float *obj) { return return *obj; }
+inline float gputilAtomicLoad(__local atomic_float *obj) { return return *obj; }
+inline float gputilAtomicExchange(__global atomic_float *obj, float desired)
+{
+  return atomic_xchg((__global atomic_int *)obj, *(int *)&desired);
+}
+inline float gputilAtomicExchange(__local atomic_float *obj, float desired)
+{
+  return atomic_xchg((__local atomic_int *)obj, *(int *)&desired);
+}
+inline bool gputilAtomicCas(__global atomic_float *obj, float expected, float desired)
+{
+  return atomic_cmpxchg((__global atomic_int *)obj, *(int *)&expected, *(int *)&desired) == expected;
+}
+inline bool gputilAtomicCas(__local atomic_float *obj, float expected, float desired)
+{
+  return atomic_cmpxchg((__local atomic_int *)obj, *(int *)&expected, *(int *)&desired) == expected;
+}
+
+#endif // __OPENCL_C_VERSION__
+
+inline int gputilAtomicAdd(__global atomic_int *p, int val) { return atomic_add(p, val); }
+inline int gputilAtomicAdd(__local atomic_int *p, int val) { return atomic_add(p, val); }
+inline int gputilAtomicSub(__global atomic_int *p, int val) { return atomic_sub(p, val); }
+inline int gputilAtomicSub(__local atomic_int *p, int val) { return atomic_sub(p, val); }
+inline int gputilAtomicInc(__global atomic_int *p) { return atomic_inc(p); }
+inline int gputilAtomicInc(__local atomic_int *p) { return atomic_inc(p); }
+inline int gputilAtomicDec(__global atomic_int *p) { return atomic_dec(p); }
+inline int gputilAtomicDec(__local atomic_int *p) { return atomic_dec(p); }
+inline int gputilAtomicMin(__global atomic_int *p, int val) { return atomic_min(p, val); }
+inline int gputilAtomicMin(__local atomic_int *p, int val) { return atomic_min(p, val); }
+inline int gputilAtomicMax(__global atomic_int *p, int val) { return atomic_max(p, val); }
+inline int gputilAtomicMax(__local atomic_int *p, int val) { return atomic_max(p, val); }
+inline int gputilAtomicAnd(__global atomic_int *p, int val) { return atomic_and(p, val); }
+inline int gputilAtomicAnd(__local atomic_int *p, int val) { return atomic_and(p, val); }
+inline int gputilAtomicOr(__global atomic_int *p, int val) { return atomic_or(p, val); }
+inline int gputilAtomicOr(__local atomic_int *p, int val) { return atomic_or(p, val); }
+inline int gputilAtomicXor(__global atomic_int *p, int val) { return atomic_xor(p, val); }
+inline int gputilAtomicXor(__local atomic_int *p, int val) { return atomic_xor(p, val); }
+
+inline uint gputilAtomicAdd(__global atomic_uint *p, uint val) { return atomic_add(p, val); }
+inline uint gputilAtomicAdd(__local atomic_uint *p, uint val) { return atomic_add(p, val); }
+inline uint gputilAtomicSub(__global atomic_uint *p, uint val) { return atomic_sub(p, val); }
+inline uint gputilAtomicSub(__local atomic_uint *p, uint val) { return atomic_sub(p, val); }
+inline uint gputilAtomicInc(__global atomic_uint *p) { return atomic_inc(p); }
+inline uint gputilAtomicInc(__local atomic_uint *p) { return atomic_inc(p); }
+inline uint gputilAtomicDec(__global atomic_uint *p) { return atomic_dec(p); }
+inline uint gputilAtomicDec(__local atomic_uint *p) { return atomic_dec(p); }
+inline uint gputilAtomicMin(__global atomic_uint *p, uint val) { return atomic_min(p, val); }
+inline uint gputilAtomicMin(__local atomic_uint *p, uint val) { return atomic_min(p, val); }
+inline uint gputilAtomicMax(__global atomic_uint *p, uint val) { return atomic_max(p, val); }
+inline uint gputilAtomicMax(__local atomic_uint *p, uint val) { return atomic_max(p, val); }
+inline uint gputilAtomicAnd(__global atomic_uint *p, uint val) { return atomic_and(p, val); }
+inline uint gputilAtomicAnd(__local atomic_uint *p, uint val) { return atomic_and(p, val); }
+inline uint gputilAtomicOr(__global atomic_uint *p, uint val) { return atomic_or(p, val); }
+inline uint gputilAtomicOr(__local atomic_uint *p, uint val) { return atomic_or(p, val); }
+inline uint gputilAtomicXor(__global atomic_uint *p, uint val) { return atomic_xor(p, val); }
+inline uint gputilAtomicXor(__local atomic_uint *p, uint val) { return atomic_xor(p, val); }
+
 #endif  // GPUTIL_DEVICE == GPUTIL_OPENCL
 
+//----------------------------------------------------------------------------------------------------------------------
+// Utility/helper functions.
+//----------------------------------------------------------------------------------------------------------------------
 inline __device__ bool isGlobalThread(size_t x, size_t y, size_t z)
 {
   return x == get_global_id(0) && y == get_global_id(1) && z == get_global_id(2);

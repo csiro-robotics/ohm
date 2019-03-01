@@ -78,7 +78,7 @@ typedef float3 vec3;
     // We divide the voxel into a voxel_local_coord, 3D grid, then assign 1 bit per cell.
     const unsigned bits_per_axis = 10;
     const unsigned sub_voxel_positions = (1 << bits_per_axis) - 1;
-    const unsigned used_bit = (1 << 31);
+    const unsigned used_bit = (1u << 31);
     const coord_real sub_voxel_resolution = resolution / (coord_real)sub_voxel_positions;
     const coord_real offset = (coord_real)0.5 * resolution;
 
@@ -110,7 +110,7 @@ typedef float3 vec3;
   {
     const unsigned bits_per_axis = 10;
     const unsigned sub_voxel_positions = (1 << bits_per_axis) - 1;
-    const unsigned used_bit = (1 << 31);
+    const unsigned used_bit = (1u << 31);
     const coord_real sub_voxel_resolution = resolution / (coord_real)sub_voxel_positions;
     const coord_real offset = (coord_real)0.5 * resolution;
 
@@ -145,9 +145,9 @@ typedef float3 vec3;
     subVoxelToLocalCoord(initial_pattern, resolution)
 #endif  //  GPUTIL_DEVICE
       ;
-    old_local.x *= (1.0 - weighting);
-    old_local.y *= (1.0 - weighting);
-    old_local.z *= (1.0 - weighting);
+    old_local.x *= (1.0f - weighting);
+    old_local.y *= (1.0f - weighting);
+    old_local.z *= (1.0f - weighting);
     voxel_local_coord.x *= weighting;
     voxel_local_coord.y *= weighting;
     voxel_local_coord.z *= weighting;

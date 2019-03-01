@@ -21,3 +21,23 @@ const void *migrateResultsPtr()
 {
   return (const void *)&migrateResults;
 }
+
+const void *seedRegionVoxelsSubVoxPtr()
+{
+  return (const void *)&seedRegionVoxelsSubVox;
+}
+
+const void *seedFromOuterRegionsSubVoxPtr()
+{
+  return (const void *)&seedFromOuterRegionsSubVox;
+}
+
+const void *propagateObstaclesSubVoxPtr()
+{
+  return (const void *)&propagateObstaclesSubVox;
+}
+
+const void *migrateResultsSubVoxPtr()
+{
+  return (const void *)&migrateResultsSubVox;
+}

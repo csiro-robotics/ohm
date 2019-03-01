@@ -170,6 +170,8 @@ if(OHM_GPU)
   if(NOT OHM_EMBED_GPU_CODE)
     list(APPEND GPU_SOURCES gpu/LineWalk.cl)
     list(APPEND GPU_SOURCES gpu/Regions.cl)
+    list(APPEND GPU_SOURCES gpu/RegionUpdateBase.cl)
+    list(APPEND GPU_SOURCES gpu/RoiRangeFillBase.cl)
   endif(NOT OHM_EMBED_GPU_CODE)
 
   set(GPU_HEADERS

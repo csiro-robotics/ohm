@@ -1,5 +1,14 @@
-#include "GpuKey.h"
-
+//------------------------------------------------------------------------------
+// Note on building this code.
+// This code may be used by multiple OpenCL kernels, but has to support the same
+// for CUDA compilation. This is slightly tricky because OpenCL has entiredly
+// separate compilation units, while CUDA does not. To work around this, we
+// allow the code to be included/compiled multiple times with a different set
+// of controlling defines. These are documented below:
+// - WALK_LINE_VOXELS : the main function name
+// - VISIT_LINE_VOXEL : the function to call when visiting a voxel. Must have
+// the signature given below.
+//
 /// This function is called for each voxel traversed by the line walking function.
 ///
 /// This function is not implemented in this source file, and must be implemented by the source including this file.
@@ -9,7 +18,17 @@
 /// @param voxelResolution The edge length of each voxel cube.
 /// @param userData User data pointer.
 /// @return True to continue traversing the line, false to abort traversal.
-__device__ bool walkLineVoxel(const struct GpuKey *voxelKey, bool isEndVoxel, float voxelResolution, void *userData);
+// __device__ bool VISIT_LINE_VOXEL(const struct GpuKey *voxelKey, bool isEndVoxel, float voxelResolution, void *userData);
+//------------------------------------------------------------------------------
+#include "GpuKey.h"
+
+#ifndef WALK_LINE_VOXELS
+#error WALK_LINE_VOXELS must be used to define the voxel walking function.
+#endif // WALK_LINE_VOXELS
+
+#ifndef VISIT_LINE_VOXEL
+#error VISIT_LINE_VOXEL must be used to define the voxel visiting function
+#endif // VISIT_LINE_VOXEL
 
 /// Calculate the @p GpuKey for @p point local to the region's minimum extents corner.
 /// @param[out] key The output key.
@@ -35,6 +54,9 @@ inline __device__ bool equal(const struct GpuKey *a, const struct GpuKey *b);
 inline __device__ float getf3(const float3 *v, int index);
 inline __device__ int geti3(const int3 *v, int index);
 
+// Psuedo header guard to prevent symbol duplication.
+#ifndef LINE_WALK_CL
+#define LINE_WALK_CL
 /// Line walking function for use by kernels.
 /// The algorithm walks the voxels from @p startKey to @p endKey. The line segment is defined relative to the centre of
 /// the @p startkey voxel with line points @p voxelRelativeStartPoint and @p voxelRelativeEndPoint respectively.
@@ -145,10 +167,11 @@ inline __device__ int geti3(const int3 *v, int index)
 {
   return (index == 0) ? v->x : ((index == 1) ? v->y : v->z);
 }
+#endif // LINE_WALK_CL
 
-__device__ void walkLineVoxels(const struct GpuKey *startKey, const struct GpuKey *endKey,
-                    const float3 *voxelRelativeStartPoint, const float3 *voxelRelativeEndPoint,
-                    const int3 *regionDim, float voxelResolution, void *userData)
+__device__ void WALK_LINE_VOXELS(const struct GpuKey *startKey, const struct GpuKey *endKey,
+                  const float3 *voxelRelativeStartPoint, const float3 *voxelRelativeEndPoint,
+                  const int3 *regionDim, float voxelResolution, void *userData)
 {
   // see "A Faster Voxel Traversal Algorithm for Ray Tracing" by Amanatides & Woo
   float timeMax[3];
@@ -226,7 +249,7 @@ __device__ void walkLineVoxels(const struct GpuKey *startKey, const struct GpuKe
       break;
     }
     #endif // LIMIT_LINE_WALK_ITERATIONS
-    continueTraversal = walkLineVoxel(&currentKey, false, voxelResolution, userData);
+    continueTraversal = VISIT_LINE_VOXEL(&currentKey, false, voxelResolution, userData);
     // Select the minimum timeMax as the next axis.
     axis = (timeMax[0] < timeMax[2]) ? ((timeMax[0] < timeMax[1]) ? 0 : 1) : ((timeMax[1] < timeMax[2]) ? 1 : 2);
     limitReached = fabs(timeMax[axis]) > timeLimit[axis];
@@ -252,6 +275,6 @@ __device__ void walkLineVoxels(const struct GpuKey *startKey, const struct GpuKe
   // Walk end point.
   if (continueTraversal)
   {
-    walkLineVoxel(endKey, endKey->voxel[3] == 0, voxelResolution, userData);
+    VISIT_LINE_VOXEL(endKey, endKey->voxel[3] == 0, voxelResolution, userData);
   }
 }

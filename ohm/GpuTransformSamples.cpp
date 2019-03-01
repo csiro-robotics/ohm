@@ -27,6 +27,10 @@
 #include "TransformSamplesResource.h"
 #endif  // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
 
+#if GPUTIL_TYPE == GPUTIL_CUDA
+const void *transformTimestampedPointsPtr();
+#endif  // GPUTIL_TYPE == GPUTIL_CUDA
+
 using namespace ohm;
 
 namespace
