@@ -23,7 +23,7 @@ namespace gputil
   using short2 = ::short2;
   using short3 = ::short3;
   using short4 = ::short4;
-  using ushort = ::ushort1;
+  using ushort = unsigned short;
   using ushort1 = ::ushort1;
   using ushort2 = ::ushort2;
   using ushort3 = ::ushort3;
@@ -32,7 +32,7 @@ namespace gputil
   using int2 = ::int2;
   using int3 = ::int3;
   using int4 = ::int4;
-  using uint = ::uint1;
+  using uint = unsigned int;
   using uint1 = ::uint1;
   using uint2 = ::uint2;
   using uint3 = ::uint3;
@@ -41,7 +41,7 @@ namespace gputil
   using long2 = ::long2;
   using long3 = ::long3;
   using long4 = ::long4;
-  using ulong = ::ulong;
+  using ulong = unsigned long long int;
   using ulong1 = ::ulong1;
   using ulong2 = ::ulong2;
   using ulong3 = ::ulong3;

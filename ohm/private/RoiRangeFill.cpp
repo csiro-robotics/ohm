@@ -40,16 +40,16 @@ using namespace ohm;
 
 namespace
 {
-#ifdef OHM_EMBED_GPU_CODE
+#if defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
   GpuProgramRef program_ref_sub_vox("RoiRangeFill_sub", GpuProgramRef::kSourceString, RoiRangeFillCode,
                                     RoiRangeFillCode_length, { "-DSUB_VOXEL" });
   GpuProgramRef program_ref_no_vox("RoiRangeFill", GpuProgramRef::kSourceString, RoiRangeFillCode,
                                    RoiRangeFillCode_length);
-#else   // OHM_EMBED_GPU_CODE
+#else   // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
   GpuProgramRef program_ref_sub_vox("RoiRangeFill", GpuProgramRef::kSourceFile, "RoiRangeFill.cl", 0u,
                                     { "-DSUB_VOXEL" });
   GpuProgramRef program_ref_no_vox("RoiRangeFill", GpuProgramRef::kSourceFile, "RoiRangeFill.cl");
-#endif  // OHM_EMBED_GPU_CODE
+#endif  // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
 }  // namespace
 
 
@@ -296,7 +296,7 @@ bool RoiRangeFill::calculateForRegion(OccupancyMap &map, const glm::i16vec3 &reg
         // Copy region occupancy voxels into the clearanceCache. This may come from either
         // a. The occupancyCache
         // b. Main memory.
-        gputil::ulong1 clearance_mem_offset = 0u;
+        gputil::ulong clearance_mem_offset = 0u;
         size_t occupancy_mem_offset = 0u;
 
         gputil::Event occupancy_event;
@@ -468,7 +468,7 @@ int RoiRangeFill::invoke(const OccupancyMapDetail &map, RoiRangeFill &query, Gpu
   }
 
   // Seed from data outside of the ROI.
-  const cl_int seed_outer_batch = 32;
+  const int seed_outer_batch = 32;
   const size_t padding_volume = volumeOf(input_data_extents) - volumeOf(map.region_voxel_dimensions);
 
   global_size = gputil::Dim3((padding_volume + seed_outer_batch - 1) / seed_outer_batch);

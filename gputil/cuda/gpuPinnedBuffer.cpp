@@ -13,6 +13,8 @@
 #include <cuda.h>
 #include <cuda_runtime.h>
 
+#include <algorithm>
+
 using namespace gputil;
 
 PinnedBuffer::PinnedBuffer()

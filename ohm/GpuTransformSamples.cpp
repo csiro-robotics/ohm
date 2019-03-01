@@ -31,12 +31,12 @@ using namespace ohm;
 
 namespace
 {
-#ifdef OHM_EMBED_GPU_CODE
+#if defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
   GpuProgramRef program_ref("TransformSamples", GpuProgramRef::kSourceString, TransformSamplesCode,
                             TransformSamplesCode_length);
-#else   // OHM_EMBED_GPU_CODE
+#else   // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
   GpuProgramRef program_ref("TransformSamples", GpuProgramRef::kSourceFile, "TransformSamples.cl");
-#endif  // OHM_EMBED_GPU_CODE
+#endif  // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
 
 
   inline bool goodSample(const glm::dvec3 &sample, double max_range)

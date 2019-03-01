@@ -25,7 +25,7 @@ namespace
   void initDeviceInfo(DeviceInfo &gputil_info, const cudaDeviceProp &cuda_info)
   {
     gputil_info.name = cuda_info.name;
-    gputil_info.platform = "CUDA";//cuda_info.name;
+    gputil_info.platform = "CUDA";  // cuda_info.name;
     gputil_info.version.major = cuda_info.major;
     gputil_info.version.minor = cuda_info.minor;
     gputil_info.version.patch = 0;
@@ -59,7 +59,7 @@ namespace
 
     return false;
   }
-}
+}  // namespace
 
 Device::Device(bool default_device)
   : imp_(new DeviceDetail)
@@ -127,7 +127,6 @@ unsigned Device::enumerateDevices(std::vector<DeviceInfo> &devices)
 }
 
 
-
 const char *Device::name() const
 {
   return imp_->name.c_str();
@@ -155,7 +154,10 @@ Queue Device::defaultQueue() const
 Queue Device::createQueue(unsigned /*flags*/) const
 {
   cudaStream_t stream = nullptr;
-  cudaError_t err = cudaStreamCreate(&stream);
+  cudaError_t err;
+  err = cudaSetDevice(imp_->device);
+  GPUAPICHECK(err, cudaSuccess, Queue());
+  err = cudaStreamCreate(&stream);
   GPUAPICHECK(err, cudaSuccess, Queue());
   return Queue(stream);
 }
@@ -206,7 +208,7 @@ bool Device::select(int argc, const char **argv, const char *default_device, uns
 
   std::transform(name_constraint.begin(), name_constraint.end(), name_constraint.begin(), ::tolower);
 
-  const auto name_check = [] (const std::string &device_name, const std::string &constraint) -> bool //
+  const auto name_check = [](const std::string &device_name, const std::string &constraint) -> bool  //
   {
     if (constraint.empty())
     {
@@ -322,9 +324,23 @@ uint64_t Device::deviceMemory() const
 {
   size_t free = 0;
   size_t total = 0;
-  cudaError_t err = cudaMemGetInfo(&free, &total);
-  GPUAPICHECK(err, cudaSuccess, 0);
+  cudaError_t err = cudaSuccess;
+  err = cudaSetDevice(imp_->device);
+  GPUAPICHECK(err, cudaSuccess, 0u);
+  err = cudaMemGetInfo(&free, &total);
+  GPUAPICHECK(err, cudaSuccess, 0u);
   return total;
+}
+
+
+bool Device::unifiedMemory() const
+{
+  cudaDeviceProp cuda_info;
+  memset(&cuda_info, 0, sizeof(cuda_info));
+  cudaError_t err = cudaGetDeviceProperties(&cuda_info, imp_->device);
+  GPUAPICHECK(err, cudaSuccess, false);
+  // This is a bit of an assumption.
+  return cuda_info.integrated != 0;
 }
 
 

@@ -34,11 +34,11 @@ using namespace ohm;
 
 namespace
 {
-#ifdef OHM_EMBED_GPU_CODE
+#if defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
   GpuProgramRef program_ref("LineKeys", GpuProgramRef::kSourceString, LineKeysCode, LineKeysCode_length);
-#else   // OHM_EMBED_GPU_CODE
+#else   // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
   GpuProgramRef program_ref("LineKeys", GpuProgramRef::kSourceFile, "LineKeys.cl");
-#endif  // OHM_EMBED_GPU_CODE
+#endif  // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
 
   bool readGpuResults(LineKeysQueryDetail &query);
 
@@ -150,7 +150,7 @@ namespace
                                      // Kernel args
                                      gputil::BufferArg<GpuKey>(query.gpuData.linesOut), query.gpuData.maxKeysPerLine,
                                      gputil::BufferArg<gputil::float3>(query.gpuData.linePoints),
-                                     cl_uint(query.rays.size() / 2), region_dim, float(query.map->resolution()));
+                                     gputil::uint(query.rays.size() / 2), region_dim, float(query.map->resolution()));
 
     if (err)
     {

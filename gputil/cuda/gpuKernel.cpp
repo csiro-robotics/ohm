@@ -19,6 +19,7 @@
 
 #include <cuda_runtime.h>
 
+#include <algorithm>
 #include <cstring>
 
 using namespace gputil;
@@ -104,8 +105,9 @@ namespace gputil
       // args = dummy_args.data();
 
       // Launch kernel.
-      err = cudaLaunchKernel(imp.cuda_kernel_function, dim3(global_size.x, global_size.y, global_size.z),
-                             dim3(local_size.x, local_size.y, local_size.z), args, shared_mem_size, cuda_stream);
+      err = cudaLaunchKernel(imp.cuda_kernel_function, dim3(unsigned(global_size.x), unsigned(global_size.y), unsigned(global_size.z)),
+                             dim3(unsigned(local_size.x), unsigned(local_size.y), unsigned(local_size.z)),
+                             args, shared_mem_size, cuda_stream);
       GPUAPICHECK(err, cudaSuccess, err);
 
       // Hook up completion event.

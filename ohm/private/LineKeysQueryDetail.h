@@ -34,7 +34,6 @@ namespace ohm
 
     struct GpuData
     {
-      typedef cl_float3 float3;
       gputil::Queue queue;
 
       gputil::Buffer linesOut;

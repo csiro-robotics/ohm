@@ -43,12 +43,12 @@ namespace
   // TODO: base this value on GPU capabilities.
   const size_t kGpuBatchSize = 32 * 32 * 32;
 
-#ifdef OHM_EMBED_GPU_CODE
+#if defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
   GpuProgramRef program_ref("NearestNeighboursQuery", GpuProgramRef::kSourceString, NearestNeighboursQueryCode,
                             NearestNeighboursQueryCode_length);
-#else   // OHM_EMBED_GPU_CODE
+#else   // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
   GpuProgramRef program_ref("NearestNeighboursQuery", GpuProgramRef::kSourceFile, "NearestNeighboursQuery.cl");
-#endif  // OHM_EMBED_GPU_CODE
+#endif  // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
 
   int initialiseGpu(const OccupancyMapDetail & /*map*/, NearestNeighboursDetail &query)
   {
@@ -296,12 +296,12 @@ namespace
     const OccupancyMapDetail &map = *query.map->detail();
     const glm::dvec3 near_point_local = query.near_point - map.origin;
     const gputil::float3 near_point_gpu = { float(near_point_local.x), float(near_point_local.y),
-                                            float(near_point_local.z), 0 };
+                                            float(near_point_local.z) };
     const gputil::uchar3 voxel_dim_gpu = { map.region_voxel_dimensions.x, map.region_voxel_dimensions.y,
                                            map.region_voxel_dimensions.z };
-    const gputil::float3 region_spatial_dim_gpu = { cl_float(map.region_spatial_dimensions.x),
-                                                    cl_float(map.region_spatial_dimensions.y),
-                                                    cl_float(map.region_spatial_dimensions.z) };
+    const gputil::float3 region_spatial_dim_gpu = { float(map.region_spatial_dimensions.x),
+                                                    float(map.region_spatial_dimensions.y),
+                                                    float(map.region_spatial_dimensions.z) };
 
     gputil::Dim3 local_size(
       std::min<size_t>(gpu_data.nn_kernel.calculateOptimalWorkGroupSize(), gpu_data.queued_voxels));
@@ -320,7 +320,7 @@ namespace
                              gputil::BufferArg<gputil::uchar3>(gpu_data.gpu_result_voxel_keys),
                              gputil::BufferArg<gputil::uint1>(gpu_data.gpu_result_count), near_point_gpu,
                              float(query.search_radius), float(map.occupancy_threshold_value), float(map.resolution),
-                             cl_int((query.query_flags & kQfUnknownAsOccupied) ? 1 : 0), gpu_data.queued_voxels
+                             int((query.query_flags & kQfUnknownAsOccupied) ? 1 : 0), gpu_data.queued_voxels
                              // , __local float *localRanges
                              // , __local short3 *localVoxelKeys
                              // , __local int3 *localRegionKeys

@@ -141,15 +141,10 @@ add_subdirectory(ohmutil)
 add_subdirectory(slamio)
 add_subdirectory(ohm)
 
-if(NOT OHM_GPU_API STREQUAL "CUDA")
+# Experimental
+add_subdirectory(ohmheightmaputil)
 
-  # Experimental
-  add_subdirectory(ohmheightmaputil)
-
-  add_subdirectory(ohmtools)
-
-endif(NOT OHM_GPU_API STREQUAL "CUDA")
-
+add_subdirectory(ohmtools)
 add_subdirectory(utils)
 
 if(OHM_UNIT_TESTS)

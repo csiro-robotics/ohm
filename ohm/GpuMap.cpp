@@ -50,16 +50,16 @@ using namespace ohm;
 
 namespace
 {
-#ifdef OHM_EMBED_GPU_CODE
+#if defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
   GpuProgramRef sub_vox_program_ref("RegionUpdate_sub", GpuProgramRef::kSourceString, RegionUpdateCode,
                                     RegionUpdateCode_length, { "-DSUB_VOXEL" });
   GpuProgramRef no_sub_vox_program_ref("RegionUpdate_no_sub", GpuProgramRef::kSourceString, RegionUpdateCode,
                                        RegionUpdateCode_length);
-#else   // OHM_EMBED_GPU_CODE
+#else   // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
   GpuProgramRef sub_vox_program_ref("RegionUpdate_sub", GpuProgramRef::kSourceFile, "RegionUpdate.cl", 0u,
                                     { "-DSUB_VOXEL" });
   GpuProgramRef no_sub_vox_program_ref("RegionUpdate_no_sub", GpuProgramRef::kSourceFile, "RegionUpdate.cl");
-#endif  // OHM_EMBED_GPU_CODE
+#endif  // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
 
   typedef std::function<void(const glm::i16vec3 &, const glm::dvec3 &, const glm::dvec3 &)> RegionWalkFunction;
 
@@ -566,13 +566,13 @@ void GpuMap::enqueueRegion(unsigned region_hash, const glm::i16vec3 &region_key,
   // Upload chunk to GPU.
   MapChunk *chunk = nullptr;
   gputil::Event upload_event;
-  gputil::ulong1 mem_offset;
+  gputil::ulong mem_offset;
   GpuLayerCache::CacheStatus status;
 
   int buf_idx = imp_->next_buffers_index;
   GpuCache &gpu_cache = *this->gpuCache();
   GpuLayerCache &layer_cache = *gpu_cache.layerCache(kGcIdOccupancy);
-  mem_offset = gputil::ulong1(layer_cache.upload(*imp_->map, region_key, chunk, &upload_event, &status,
+  mem_offset = gputil::ulong(layer_cache.upload(*imp_->map, region_key, chunk, &upload_event, &status,
                                                  imp_->batch_marker, GpuLayerCache::kAllowRegionCreate));
 
   if (status != GpuLayerCache::kCacheFull)
