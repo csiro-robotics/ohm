@@ -14,9 +14,50 @@
 
 #include <chrono>
 
-#include <ohmutil/OhmUtil.h>
-
 extern gputil::Device g_gpu;
+
+
+template <typename T, typename R>
+inline std::ostream &operator<<(std::ostream &out, const std::chrono::duration<T, R> &duration)
+{
+  using Duration = std::chrono::duration<T, R>;
+  const bool negative = std::chrono::duration_cast<std::chrono::nanoseconds>(duration).count() < 0;
+  const char *sign = (!negative) ? "" : "-";
+  Duration abs_duration = (!negative) ? duration : duration * -1;
+  auto s = std::chrono::duration_cast<std::chrono::seconds>(abs_duration).count();
+  auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(abs_duration).count();
+  ms = ms % 1000;
+
+  if (s)
+  {
+    out << sign << s << "." << std::setw(3) << std::setfill('0') << ms << "s";
+  }
+  else
+  {
+    auto us = std::chrono::duration_cast<std::chrono::microseconds>(abs_duration).count();
+    us = us % 1000;
+
+    if (ms)
+    {
+      out << sign << ms << "." << std::setw(3) << std::setfill('0') << us << "ms";
+    }
+    else
+    {
+      auto ns = std::chrono::duration_cast<std::chrono::nanoseconds>(abs_duration).count();
+      ns = ns % 1000;
+
+      if (us)
+      {
+        out << sign << us << "." << std::setw(3) << std::setfill('0') << ns << "us";
+      }
+      else
+      {
+        out << sign << ns << "ns";
+      }
+    }
+  }
+  return out;
+}
 
 namespace gpubuffertest
 {

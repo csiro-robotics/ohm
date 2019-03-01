@@ -185,7 +185,22 @@ bool Device::select(int argc, const char **argv, const char *default_device, uns
       // Read value from "--device="
       if (argv[i][8])
       {
-        default_device = argv[i] + 9;
+        name_constraint = argv[i] + 9;
+        // Strip quotes
+        if (!name_constraint.empty())
+        {
+          if (name_constraint.front() == '"')
+          {
+            name_constraint.erase(name_constraint.begin());
+            if (!name_constraint.empty())
+            {
+              if (name_constraint.back() == '"')
+              {
+                name_constraint.pop_back();
+              }
+            }
+          }
+        }
       }
     }
     else if (strncmp("--clver", argv[i], 7) == 0)
@@ -240,6 +255,7 @@ bool Device::select(int argc, const char **argv, const char *default_device, uns
         }
         else if (device_version.patch == constraint.patch)
         {
+          return true;
         }
       }
     }

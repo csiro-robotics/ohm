@@ -17,7 +17,7 @@ namespace gputil
   class gputilAPI ApiException : public Exception
   {
   public:
-    ApiException(int error_code, const char *msg = nullptr);
+    ApiException(int error_code, const char *msg = nullptr, const char *filename = nullptr, int line_number = 0);
     ApiException(ApiException &&other) noexcept;
 
     static const char *errorCodeString(int error_code);

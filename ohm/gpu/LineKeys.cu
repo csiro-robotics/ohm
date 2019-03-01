@@ -2,7 +2,7 @@
 
 #include "LineKeys.cl"
 
-const void * __host__ calculateLinesPtr()
+const void *calculateLinesPtr()
 {
   return (const void *)&calculateLines;
 }

@@ -2,12 +2,12 @@
 
 #include "NearestNeighboursQuery.cl"
 
-const void * __host__ showNNInfoPtr()
+const void *showNNInfoPtr()
 {
   return (const void *)&showNNInfo;
 }
 
-const void * __host__ nearestNeighboursPtr()
+const void *nearestNeighboursPtr()
 {
   return (const void *)&nearestNeighbours;
 }

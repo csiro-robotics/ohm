@@ -17,7 +17,7 @@ namespace gputil
   class gputilAPI Exception : public std::exception
   {
   public:
-    Exception(const char *msg = nullptr);
+    Exception(const char *msg = nullptr, const char *filename = nullptr, int line_number = 0);
     Exception(Exception &&other) noexcept;
 
     virtual ~Exception();
@@ -25,7 +25,7 @@ namespace gputil
     const char *what() const noexcept override;
 
   protected:
-    void setMessage(const char *message);
+    void setMessage(const char *message, const char *filename = nullptr, int line_number = 0);
 
   private:
     char *message_;

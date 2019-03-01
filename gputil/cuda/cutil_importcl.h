@@ -11,10 +11,12 @@
 #include <cfloat>
 
 #define LOCAL_ARG(TYPE, VAR)
-#define LOCAL_VAR(TYPE, VAR, SIZE) TYPE VAR = (TYPE)&shared_mem_[(shared_mem_offset_ =+ (SIZE))];
 #define LOCAL_MEM_ENABLE() \
   size_t shared_mem_offset_ = 0; \
   extern __shared__ char shared_mem_[]
+#define LOCAL_VAR(TYPE, VAR, SIZE) \
+  TYPE VAR = (TYPE)&shared_mem_[shared_mem_offset_]; \
+  shared_mem_offset_ += (SIZE)
 #define LM_PER_THREAD(per_thread_size) ((per_thread_size) * blockDim.x * blockDim.y * blockDim.z)
 
 // Kernel

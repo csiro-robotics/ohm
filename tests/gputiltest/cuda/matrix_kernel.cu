@@ -3,7 +3,7 @@
 
 #include "matrix.cl"
 
-const void * __host__ matrixMultiplyPtr()
+const void * matrixMultiplyPtr()
 {
   return (const void *)&matrixMultiply;
 }

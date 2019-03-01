@@ -58,7 +58,7 @@ target_include_directories(gputiltest SYSTEM
     $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}>
 )
 
-target_link_libraries(gputiltest ohmutil gputil GTest::Main)
+target_link_libraries(gputiltest gputil GTest::Main)
 
 add_test(NAME gputiltest COMMAND gputiltest --gtest_output=xml:test-reports/)
 

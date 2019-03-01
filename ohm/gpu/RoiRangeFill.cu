@@ -2,22 +2,22 @@
 
 #include "RoiRangeFill.cl"
 
-const void * __host__ seedRegionVoxelsPtr()
+const void *seedRegionVoxelsPtr()
 {
   return (const void *)&seedRegionVoxels;
 }
 
-const void * __host__ seedFromOuterRegionsPtr()
+const void *seedFromOuterRegionsPtr()
 {
   return (const void *)&seedFromOuterRegions;
 }
 
-const void * __host__ propagateObstaclesPtr()
+const void *propagateObstaclesPtr()
 {
   return (const void *)&propagateObstacles;
 }
 
-const void * __host__ migrateResultsPtr()
+const void *migrateResultsPtr()
 {
   return (const void *)&migrateResults;
 }

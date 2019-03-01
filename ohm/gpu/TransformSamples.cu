@@ -2,7 +2,7 @@
 
 #include "TransformSamples.cl"
 
-const void * __host__ transformTimestampedPointsPtr()
+const void *transformTimestampedPointsPtr()
 {
   return (const void *)&transformTimestampedPoints;
 }

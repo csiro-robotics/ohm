@@ -2,7 +2,7 @@
 
 #include "RegionUpdate.cl"
 
-const void * __host__ regionRayUpdatePtr()
+const void *regionRayUpdatePtr()
 {
   return (const void *)&regionRayUpdate;
 }

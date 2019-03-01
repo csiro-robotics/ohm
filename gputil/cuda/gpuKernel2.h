@@ -40,15 +40,21 @@ namespace gputil
     }
 
     template <typename ARG>
-    inline void *collateArgPtr(const ARG &arg)
+    inline void *collateArgPtr(ARG *arg)
     {
-      return const_cast<void *>(reinterpret_cast<const void *>(&arg));
+      return const_cast<void *>(reinterpret_cast<const void *>(arg));
     }
 
     template <typename T>
-    inline void *collateArgPtr(const BufferArg<T> &arg)
+    inline void *collateArgPtr(BufferArg<T> *arg)
     {
-      return arg.buffer->argPtr();
+      return arg->buffer->argPtr();
+    }
+
+    template <typename T>
+    inline void *collateArgPtr(const BufferArg<T> *arg)
+    {
+      return arg->buffer->argPtr();
     }
 
     inline void collateArgs(unsigned /*index*/, void ** /*collated_args*/)
@@ -82,7 +88,8 @@ namespace gputil
     // Collate arguments into void **
     size_t arg_count = cuda::countArgs(args...);
     void **collated_args = (arg_count) ? reinterpret_cast<void **>(alloca(arg_count * sizeof(void *))) : nullptr;
-    cuda::collateArgs(0, collated_args, args...);
+    // Capture args by pointer as we will be packing that address into collated_args and it must stay valid.
+    cuda::collateArgs(0, collated_args, &args...);
 
     // Invoke
     err = cuda::invokeKernel(*detail(), global_size, local_size, nullptr, nullptr, queue, collated_args, arg_count);
@@ -105,7 +112,8 @@ namespace gputil
     // Collate arguments into void **
     size_t arg_count = cuda::countArgs(args...);
     void **collated_args = (arg_count) ? reinterpret_cast<void **>(alloca(arg_count * sizeof(void *))) : nullptr;
-    cuda::collateArgs(0, collated_args, args...);
+    // Capture args by pointer as we will be packing that address into collated_args and it must stay valid.
+    cuda::collateArgs(0, collated_args, &args...);
 
     // Invoke
     err = cuda::invokeKernel(*detail(), global_size, local_size, nullptr, &completion_event, queue, collated_args, arg_count);
@@ -128,7 +136,8 @@ namespace gputil
     // Collate arguments into void **
     size_t arg_count = cuda::countArgs(args...);
     void **collated_args = (arg_count) ? reinterpret_cast<void **>(alloca(arg_count * sizeof(void *))) : nullptr;
-    cuda::collateArgs(0, collated_args, args...);
+    // Capture args by pointer as we will be packing that address into collated_args and it must stay valid.
+    cuda::collateArgs(0, collated_args, &args...);
 
     // Invoke
     err = cuda::invokeKernel(*detail(), global_size, local_size, &event_list, nullptr, queue, collated_args, arg_count);
@@ -151,7 +160,8 @@ namespace gputil
     // Collate arguments into void **
     size_t arg_count = cuda::countArgs(args...);
     void **collated_args = (arg_count) ? reinterpret_cast<void **>(alloca(arg_count * sizeof(void *))) : nullptr;
-    cuda::collateArgs(0, collated_args, args...);
+    // Capture args by pointer as we will be packing that address into collated_args and it must stay valid.
+    cuda::collateArgs(0, collated_args, &args...);
 
     // Invoke
     err = cuda::invokeKernel(*detail(), global_size, local_size, &event_list, &completion_event, queue, collated_args, arg_count);

@@ -5,6 +5,8 @@
 // Author: Kazys Stepanas
 
 #include "gpuException.h"
+#include <cstdio>
+#include <sstream>
 
 using namespace gputil;
 
@@ -14,10 +16,10 @@ using namespace gputil;
 #define strncpy(dst, msg, len) strncpy_s(dst, len + 1, msg, len)
 #endif  // WIN32
 
-Exception::Exception(const char *msg)
+Exception::Exception(const char *msg, const char *filename, int line_number)
   : message_(nullptr)
 {
-  setMessage(msg);
+  setMessage(msg, filename, line_number);
 }
 
 
@@ -40,13 +42,33 @@ const char *Exception::what() const noexcept
 }
 
 
-void Exception::setMessage(const char *message)
+void Exception::setMessage(const char *message, const char *filename, int line_number)
 {
+  std::string str;
+  if (message || filename)
+  {
+    std::ostringstream sstr;
+    if (filename)
+    {
+      sstr << filename;
+      if (line_number > 0)
+      {
+        sstr << '(' << line_number << "):";
+      }
+      sstr << ' ';
+    }
+    if (message)
+    {
+      sstr << message;
+    }
+    str = sstr.str();
+  }
+
   delete[] message_;
   message_ = nullptr;
-  if (message)
+  if (str.length())
   {
-    size_t msglen = strlen(message);
+    size_t msglen = str.length();
     message_ = new char[msglen + 1];
     strncpy(message_, message, msglen);
     message_[msglen] = '\0';

@@ -35,12 +35,12 @@
 #define GPUAPICHECK(err, expect, r)         \
   if (err != expect)                        \
   {                                         \
-    GPUTHROW(gputil::ApiException(err), r); \
+    GPUTHROW(gputil::ApiException(err, nullptr, __FILE__, __LINE__), r); \
   }
 #define GPUAPICHECK2(err, expect)         \
   if (err != expect)                      \
   {                                       \
-    GPUTHROW2(gputil::ApiException(err)); \
+    GPUTHROW2(gputil::ApiException(err, nullptr, __FILE__, __LINE__)); \
   }
 
 namespace gputil
