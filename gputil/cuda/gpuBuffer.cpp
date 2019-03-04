@@ -46,6 +46,7 @@ public:
                     << std::endl;
         }
       }
+      garbage_[i].clear();
     }
   }
 
