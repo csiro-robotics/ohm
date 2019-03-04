@@ -76,6 +76,8 @@ elseif(GPU_ACCEL STREQUAL "CUDA")
   set(GPUTIL_TYPE 2)
 
   list(APPEND SOURCES
+    cuda/cutil_atomic.h
+    cuda/cutil_decl.h
     cuda/cutil_importcl.h
     cuda/cutil_math.h
     cuda/gpuApiExceptionCode.cpp

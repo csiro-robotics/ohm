@@ -36,15 +36,15 @@
 #endif  // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
 
 #if GPUTIL_TYPE == GPUTIL_CUDA
-const void *seedRegionVoxelsSubVoxPtr();
-const void *seedFromOuterRegionsSubVoxPtr();
-const void *propagateObstaclesSubVoxPtr();
-const void *migrateResultsSubVoxPtr();
+GPUTIL_CUDA_DECLARE_KERNEL(seedRegionVoxelsSubVox);
+GPUTIL_CUDA_DECLARE_KERNEL(seedFromOuterRegionsSubVox);
+GPUTIL_CUDA_DECLARE_KERNEL(propagateObstaclesSubVox);
+GPUTIL_CUDA_DECLARE_KERNEL(migrateResultsSubVox);
 
-const void *seedRegionVoxelsPtr();
-const void *seedFromOuterRegionsPtr();
-const void *propagateObstaclesPtr();
-const void *migrateResultsPtr();
+GPUTIL_CUDA_DECLARE_KERNEL(seedRegionVoxels);
+GPUTIL_CUDA_DECLARE_KERNEL(seedFromOuterRegions);
+GPUTIL_CUDA_DECLARE_KERNEL(propagateObstacles);
+GPUTIL_CUDA_DECLARE_KERNEL(migrateResults);
 #endif // GPUTIL_TYPE == GPUTIL_CUDA
 
 using namespace ohm;

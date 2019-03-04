@@ -10,6 +10,8 @@
 #include <cstdio>
 #include <cfloat>
 
+#include "cutil_decl.h"
+
 #define LOCAL_ARG(TYPE, VAR)
 #define LOCAL_MEM_ENABLE() \
   size_t shared_mem_offset_ = 0; \

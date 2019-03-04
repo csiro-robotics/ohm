@@ -41,8 +41,8 @@
 #endif  // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
 
 #if GPUTIL_TYPE == GPUTIL_CUDA
-const void *regionRayUpdatePtr();
-const void *regionRayUpdateSubVoxPtr();
+GPUTIL_CUDA_DECLARE_KERNEL(regionRayUpdate);
+GPUTIL_CUDA_DECLARE_KERNEL(regionRayUpdateSubVox);
 #endif  // GPUTIL_TYPE == GPUTIL_CUDA
 
 #define DEBUG_RAY 0

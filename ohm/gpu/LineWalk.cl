@@ -77,7 +77,7 @@ __device__ void walkLineVoxels(const struct GpuKey *startKey, const struct GpuKe
                     const int3 *regionDim, float voxelResolution, void *userData);
 
 
-__device__ bool coordToKey(struct GpuKey *key, const float3 *point, const int3 *regionDim, float voxelResolution)
+inline __device__ bool coordToKey(struct GpuKey *key, const float3 *point, const int3 *regionDim, float voxelResolution)
 {
   // Quantise.
   key->region[0] = pointToRegionCoord(point->x, regionDim->x * voxelResolution);

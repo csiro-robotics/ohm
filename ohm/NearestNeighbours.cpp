@@ -37,8 +37,8 @@
 // #define CACHE_LOCAL_RESULTS
 
 #if GPUTIL_TYPE == GPUTIL_CUDA
-const void *showNNInfoPtr();
-const void *nearestNeighboursPtr();
+GPUTIL_CUDA_DECLARE_KERNEL(showNNInfo);
+GPUTIL_CUDA_DECLARE_KERNEL(nearestNeighbours);
 #endif // GPUTIL_TYPE == GPUTIL_CUDA
 
 using namespace ohm;
@@ -75,9 +75,7 @@ namespace
     gpu_data.region_keys.resize(kGpuBatchSize);
     gpu_data.local_keys.resize(kGpuBatchSize);
 
-#if OHM_GPU == OHM_GPU_OPENCL
-    gpu_data.nn_kernel = gputil::openCLKernel(program_ref.program(), "nearestNeighbours");
-#endif  // OHM_GPU == OHM_GPU_OPENCL
+    gpu_data.nn_kernel = GPUTIL_MAKE_KERNEL(program_ref.program(), nearestNeighbours);
 
     if (!gpu_data.nn_kernel.isValid())
     {
@@ -96,9 +94,7 @@ namespace
 
     gpu_data.nn_kernel.calculateOptimalWorkGroupSize();
 
-#if OHM_GPU == OHM_GPU_OPENCL
-    gpu_data.info_kernel = gputil::openCLKernel(program_ref.program(), "showNNInfo");
-#endif  // OHM_GPU == OHM_GPU_OPENCL
+    gpu_data.info_kernel = GPUTIL_MAKE_KERNEL(program_ref.program(), showNNInfo);
     if (!gpu_data.info_kernel.isValid())
     {
       program_ref.releaseReference();

@@ -2,7 +2,4 @@
 
 #include "TransformSamples.cl"
 
-const void *transformTimestampedPointsPtr()
-{
-  return (const void *)&transformTimestampedPoints;
-}
+GPUTIL_CUDA_DEFINE_KERNEL(transformTimestampedPoints);

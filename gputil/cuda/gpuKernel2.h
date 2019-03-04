@@ -16,13 +16,16 @@
 #include "gputil/cuda/gpuKernelDetail.h"
 #include "gputil/cuda/gpuQueueDetail.h"
 
+#include "gputil/cuda/cutil_decl.h"
+
 #include <cuda_runtime.h>
 
 #include <cstdlib>
 
 #define GPUTIL_BUILD_FROM_FILE(program, file_name, build_args) 0
 #define GPUTIL_BUILD_FROM_SOURCE(program, source, source_length, build_args) 0
-#define GPUTIL_MAKE_KERNEL(program, kernel_name) gputil::cudaKernel(program, kernel_name##Ptr())
+#define GPUTIL_MAKE_KERNEL(program, kernel_name) \
+  gputil::cudaKernel(program, kernel_name##Ptr(), kernel_name##OptimalGroupSizeCalculator())
 
 namespace gputil
 {
@@ -169,7 +172,7 @@ namespace gputil
   }
 
 
-  Kernel cudaKernel(Program &program, const void *kernel_function_ptr);
+  Kernel cudaKernel(Program &program, const void *kernel_function_ptr, const gputil::OptimalGroupSizeCalculation &group_calc);
 }  // namespace gputil
 
 #endif  // GPUKERNEL2_H

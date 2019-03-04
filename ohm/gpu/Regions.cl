@@ -41,13 +41,13 @@ __device__ bool regionsResolveRegion(const struct GpuKey *voxelKey, int3 *curren
 
 #ifndef REGIONS_CL
 #define REGIONS_CL
-__device__ void regionsInitCurrent(int3 *currentRegion, uint *regionVoxelOffset)
+inline __device__ void regionsInitCurrent(int3 *currentRegion, uint *regionVoxelOffset)
 {
   currentRegion->x = currentRegion->y = currentRegion->z = 2147483647;
   *regionVoxelOffset = 0u;
 }
 
-__device__ bool regionsResolveRegion(const struct GpuKey *voxelKey, int3 *currentRegion, uint *regionVoxelOffset,
+inline __device__ bool regionsResolveRegion(const struct GpuKey *voxelKey, int3 *currentRegion, uint *regionVoxelOffset,
                                      __global int3 *regionKeys, __global ulong *regionMemOffsets, uint regionCount,
                                      unsigned voxelSizeBytes)
 {

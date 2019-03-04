@@ -31,7 +31,7 @@
 #endif  // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
 
 #if GPUTIL_TYPE == GPUTIL_CUDA
-const void *calculateLinesPtr();
+GPUTIL_CUDA_DECLARE_KERNEL(calculateLines);
 #endif  // GPUTIL_TYPE == GPUTIL_CUDA
 
 using namespace ohm;
@@ -83,9 +83,7 @@ namespace
       return false;
     }
 
-#if OHM_GPU == OHM_GPU_OPENCL
-    query.line_keys_kernel = gputil::openCLKernel(program_ref.program(), "calculateLines");
-#endif  // OHM_GPU == OHM_GPU_OPENCL
+    query.line_keys_kernel = GPUTIL_MAKE_KERNEL(program_ref.program(), calculateLines);
     query.line_keys_kernel.calculateOptimalWorkGroupSize();
 
     if (!query.line_keys_kernel.isValid())

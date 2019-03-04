@@ -2,12 +2,7 @@
 
 #include "NearestNeighboursQuery.cl"
 
-const void *showNNInfoPtr()
-{
-  return (const void *)&showNNInfo;
-}
+#include <functional>
 
-const void *nearestNeighboursPtr()
-{
-  return (const void *)&nearestNeighbours;
-}
+GPUTIL_CUDA_DEFINE_KERNEL(showNNInfo);
+GPUTIL_CUDA_DEFINE_KERNEL(nearestNeighbours);

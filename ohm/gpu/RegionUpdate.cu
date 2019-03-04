@@ -2,12 +2,5 @@
 
 #include "RegionUpdate.cl"
 
-const void *regionRayUpdatePtr()
-{
-  return (const void *)&regionRayUpdate;
-}
-
-const void *regionRayUpdateSubVoxPtr()
-{
-  return (const void *)&regionRayUpdateSubVox;
-}
+GPUTIL_CUDA_DEFINE_KERNEL(regionRayUpdate);
+GPUTIL_CUDA_DEFINE_KERNEL(regionRayUpdateSubVox);

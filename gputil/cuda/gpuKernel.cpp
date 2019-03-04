@@ -34,10 +34,10 @@ namespace gputil
       cudaError_t err = cudaSuccess;
       err = cudaSetDevice(device.detail()->device);
       GPUAPICHECK(err, cudaSuccess, err);
-      cudaDeviceProp info;
-      memset(&info, 0, sizeof(info));
-      err = cudaGetDeviceProperties(&info, device.detail()->device);
-      GPUAPICHECK(err, cudaSuccess, err);
+      //cudaDeviceProp info;
+      //memset(&info, 0, sizeof(info));
+      //err = cudaGetDeviceProperties(&info, device.detail()->device);
+      //GPUAPICHECK(err, cudaSuccess, err);
       return err;
     }
 
@@ -161,20 +161,21 @@ void Kernel::addLocal(const std::function<size_t(size_t)> &local_calc)
 
 size_t Kernel::calculateOptimalWorkGroupSize()
 {
-  // if (!imp_->maximum_potential_workgroup_size)
-  // {
-  //   const auto calc_shared_mem_size = [this](size_t block_size)  //
-  //   {                                                            //
-  //     return cuda::calcSharedMemSize(*imp_, block_size);
-  //   };
-
-  //   int min_grid_size = 0;
-  //   int optimal_block_size = 0;
-  //   cudaError_t err =
-  //     ::cudaOccupancyMaxPotentialBlockSizeVariableSMem(&min_grid_size, &optimal_block_size, calc_shared_mem_size);
-  //   GPUTHROW(ApiException(err), 0);
-  //   imp_->maximum_potential_workgroup_size = size_t(optimal_block_size);
-  // }
+  if (!imp_->maximum_potential_workgroup_size)
+  {
+    int err = cuda::preInvokeKernel(device());
+    GPUAPICHECK(err, cudaSuccess, 0u);
+    const auto calc_shared_mem_size = [this](size_t block_size)  //
+    {                                                            //
+      return cuda::calcSharedMemSize(*imp_, block_size);
+    };
+    err = imp_->optimal_group_size_calc(&imp_->maximum_potential_workgroup_size, calc_shared_mem_size);
+    if (!imp_->maximum_potential_workgroup_size)
+    {
+      imp_->maximum_potential_workgroup_size = 8;
+    }
+    GPUAPICHECK(err, cudaSuccess, 0);
+  }
 
   return imp_->maximum_potential_workgroup_size;
 }
@@ -201,7 +202,7 @@ void Kernel::calculateGrid(gputil::Dim3 *global_size, gputil::Dim3 *local_size, 
   cudaDeviceProp cuda_info;
   memset(&cuda_info, 0, sizeof(cuda_info));
   err = cudaGetDeviceProperties(&cuda_info, gpu.detail()->device);
-  GPUTHROW2(ApiException(err));
+  GPUAPICHECK2(err, cudaSuccess);
 
   // Try to setup the workgroup as a cubic spatial division.
   unsigned target_dimension_value = unsigned(std::floor(std::pow(float(target_group_size), 1.0f / 3.0f)));
@@ -261,10 +262,11 @@ Kernel &Kernel::operator=(Kernel &&other)
 
 namespace gputil
 {
-  Kernel cudaKernel(Program &program, const void *kernel_function_ptr)
+  Kernel cudaKernel(Program &program, const void *kernel_function_ptr, const gputil::OptimalGroupSizeCalculation &group_calc)
   {
     Kernel kernel;
     kernel.detail()->cuda_kernel_function = kernel_function_ptr;
+    kernel.detail()->optimal_group_size_calc = group_calc;
     kernel.detail()->program = program;
     // TODO(KS): count arguments
     return kernel;

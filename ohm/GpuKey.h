@@ -68,7 +68,7 @@ __device__ __host__ void copyKey(struct GpuKey *out, const struct GpuKey *in)
 #define copyKey(out, in) *out = *in
 #endif  // __OPENCL_C_VERSION__ >= 200
 
-__device__ __host__ void stepKeyAlongAxis(struct GpuKey *key, int axis, int step, const int3 *regionDim)
+inline __device__ __host__ void stepKeyAlongAxis(struct GpuKey *key, int axis, int step, const int3 *regionDim)
 {
   const int axisDim = (axis == 0) ? regionDim->x : ((axis == 1) ? regionDim->y : regionDim->z);
   int vind = key->voxel[axis] + step;
@@ -81,7 +81,7 @@ __device__ __host__ void stepKeyAlongAxis(struct GpuKey *key, int axis, int step
 }
 
 
-__device__ __host__ void moveKeyAlongAxis(struct GpuKey *key, int axis, int step, const int3 *regionDim)
+inline __device__ __host__ void moveKeyAlongAxis(struct GpuKey *key, int axis, int step, const int3 *regionDim)
 {
   const int axisDim = (axis == 0) ? regionDim->x : ((axis == 1) ? regionDim->y : regionDim->z);
 

@@ -3,7 +3,4 @@
 
 #include "matrix.cl"
 
-const void * matrixMultiplyPtr()
-{
-  return (const void *)&matrixMultiply;
-}
+GPUTIL_CUDA_DEFINE_KERNEL(matrixMultiply);

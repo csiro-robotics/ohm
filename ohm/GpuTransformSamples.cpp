@@ -28,7 +28,7 @@
 #endif  // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
 
 #if GPUTIL_TYPE == GPUTIL_CUDA
-const void *transformTimestampedPointsPtr();
+GPUTIL_CUDA_DECLARE_KERNEL(transformTimestampedPoints);
 #endif  // GPUTIL_TYPE == GPUTIL_CUDA
 
 using namespace ohm;
@@ -41,7 +41,6 @@ namespace
 #else   // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
   GpuProgramRef program_ref("TransformSamples", GpuProgramRef::kSourceFile, "TransformSamples.cl");
 #endif  // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
-
 
   inline bool goodSample(const glm::dvec3 &sample, double max_range)
   {
@@ -69,9 +68,7 @@ GpuTransformSamples::GpuTransformSamples(gputil::Device &gpu)
   imp_->transform_times_buffer = gputil::Buffer(gpu, sizeof(float) * 8, gputil::kBfReadHost);
   if (program_ref.addReference(gpu))
   {
-#if OHM_GPU == OHM_GPU_OPENCL
-    imp_->kernel = gputil::openCLKernel(program_ref.program(), "transformTimestampedPoints");
-#endif  // OHM_GPU == OHM_GPU_OPENCL
+    imp_->kernel = GPUTIL_MAKE_KERNEL(program_ref.program(), transformTimestampedPoints);
     imp_->kernel.calculateOptimalWorkGroupSize();
   }
 }

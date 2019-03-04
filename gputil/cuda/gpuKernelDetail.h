@@ -11,6 +11,8 @@
 #include "gputil/gpuDevice.h"
 #include "gputil/gpuProgram.h"
 
+#include <gputil/cuda/cutil_decl.h>
+
 #include <functional>
 
 namespace gputil
@@ -19,6 +21,7 @@ namespace gputil
   {
     Device gpu;
     const void *cuda_kernel_function = nullptr;
+    OptimalGroupSizeCalculation optimal_group_size_calc;
     size_t arg_count = 0u;
     std::vector<std::function<size_t(size_t)>> local_mem_args;
     size_t maximum_potential_workgroup_size = 0;

@@ -2,7 +2,4 @@
 
 #include "LineKeys.cl"
 
-const void *calculateLinesPtr()
-{
-  return (const void *)&calculateLines;
-}
+GPUTIL_CUDA_DEFINE_KERNEL(calculateLines);
