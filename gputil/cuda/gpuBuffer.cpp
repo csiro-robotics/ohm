@@ -18,6 +18,7 @@
 #include <cuda_runtime.h>
 #include <algorithm>
 #include <cinttypes>
+#include <iostream>
 
 using namespace gputil;
 
@@ -30,36 +31,60 @@ using namespace gputil;
 class PinnedGarbageCollector
 {
 public:
-  inline ~PinnedGarbageCollector() { collect(); }
+  inline ~PinnedGarbageCollector()
+  {
+    std::unique_lock<std::mutex> guard(mutex_);
+    cudaError_t err = cudaSuccess;
+    for (int i = 0; i < 2; ++i)
+    {
+      for (void *ptr : garbage_[i])
+      {
+        err = cudaFreeHost(ptr);
+        if (err)
+        {
+          std::cerr << "Error (" << err << ") collecting CUDA allocation: " << ApiException::errorCodeString(err)
+                    << std::endl;
+        }
+      }
+    }
+  }
 
   inline void add(void *ptr)
   {
     std::unique_lock<std::mutex> guard(mutex_);
-    garbage_.push_back(ptr);
+    garbage_[active_garbage_].push_back(ptr);
   }
 
   inline void collect()
   {
+    // We can't have the mutex locked while calling cudaFreeHost() as as that call may wait on the add() call to finish
+    // from a cuda callback.
     std::unique_lock<std::mutex> guard(mutex_);
+    std::vector<void *> &to_delete = garbage_[active_garbage_];
+    active_garbage_ = 1 - active_garbage_;
+    guard.unlock();
+
     cudaError_t err = cudaSuccess;
-    for (void *ptr : garbage_)
+    for (void *ptr : to_delete)
     {
       err = cudaFreeHost(ptr);
       GPUAPICHECK2(err, cudaSuccess);
     }
-    garbage_.clear();
+    to_delete.clear();
   }
 
 private:
   std::mutex mutex_;
-  std::vector<void *> garbage_;
+  // Mutex cannot be locked while freeing memory, so use a kind of double buffer to allow early unlock.
+  std::vector<void *> garbage_[2];
+  int active_garbage_ = 0;
 };
 
 namespace
 {
   // Static pinned garbage collector.
   PinnedGarbageCollector gc;
-}
+}  // namespace
 
 namespace gputil
 {
