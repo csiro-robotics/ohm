@@ -221,7 +221,7 @@ __device__ bool VISIT_LINE_VOXEL(const struct GpuKey *voxelKey, bool isEndVoxel,
       }
 #endif
       // Calculate a new value for the voxel.
-      old_value = new_value = gputilAtomicLoad(occupancy_ptr);
+      old_value = new_value = gputilAtomicLoadF32(occupancy_ptr);
 
       // Uninitialised voxels start at INFINITY.
       new_value = (new_value != INFINITY) ? new_value + adjustment : adjustment;
@@ -230,7 +230,7 @@ __device__ bool VISIT_LINE_VOXEL(const struct GpuKey *voxelKey, bool isEndVoxel,
 
       // Now try write the value, looping if we fail to write the new value.
       // mem_fence(CLK_GLOBAL_MEM_FENCE);
-    } while (!gputilAtomicCas(occupancy_ptr, old_value, new_value));
+    } while (new_value != old_value && !gputilAtomicCasF32(occupancy_ptr, old_value, new_value));
 
 #ifdef SUB_VOX
     if (adjustment > 0)

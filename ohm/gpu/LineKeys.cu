@@ -1,3 +1,4 @@
+#include <gputil/cuda/cutil_importcl.h>
 #include <gputil/gpu_ext.h>
 
 #include "LineKeys.cl"

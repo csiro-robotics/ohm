@@ -17,7 +17,7 @@
 
 namespace ohm
 {
-  class Colour;
+  struct Colour;
   class Heightmap;
   class HeightmapMesh;
 

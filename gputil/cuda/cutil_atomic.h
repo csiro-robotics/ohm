@@ -35,13 +35,13 @@ inline __device__ uint gputilAtomicLoad(atomic_uint *obj) { return *obj; }
 inline __device__ uint gputilAtomicExchange(atomic_uint *obj, uint desired) { return atomicExch(obj, desired); }
 inline __device__ bool gputilAtomicCas(atomic_uint *obj, uint expected, uint desired) { return atomicCAS(obj, expected, desired) == expected; }
 
-inline __device__ void gputilAtomicInit(atomic_float *obj, float val) { *obj = val; }
-inline __device__ void gputilAtomicStore(atomic_float *obj, float val) { *obj = val; }
-inline __device__ float gputilAtomicLoad(atomic_float *obj) { return *obj; }
-inline __device__ float gputilAtomicExchange(atomic_float *obj, float desired) { return atomicExch(obj, desired); }
-inline __device__ bool gputilAtomicCas(atomic_float *obj, float expected, float desired)
+inline __device__ void gputilAtomicInitF32(atomic_float *obj, float val) { *obj = val; }
+inline __device__ void gputilAtomicStoreF32(atomic_float *obj, float val) { *obj = val; }
+inline __device__ float gputilAtomicLoadF32(atomic_float *obj) { return *obj; }
+inline __device__ float gputilAtomicExchangeF32(atomic_float *obj, float desired) { return atomicExch(obj, desired); }
+inline __device__ bool gputilAtomicCasF32(atomic_float *obj, float expected, float desired)
 {
-  return atomicCAS((atomic_int *)obj, *(int *)&expected, *(int *)&desired) == *(int *)&expected;
+  return __int_as_float(atomicCAS((atomic_int *)obj, __float_as_int(expected), __float_as_int(desired))) == expected;
 }
 
 // Note: CUDA semantics for atomicInc/Dec differ from OpenCL atomic_inc/dec. We use the OpenCL semantics, where there
