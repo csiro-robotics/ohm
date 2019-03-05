@@ -79,7 +79,7 @@ typedef struct VoxelSimple_
 #define REGION_UPDATE_KERNEL regionRayUpdate
 #define VISIT_LINE_VOXEL visitVoxelRegionUpdate
 #define WALK_LINE_VOXELS walkRegionLine
-#define VOXEL_TYPE VoxelSubVox
+#define VOXEL_TYPE VoxelSimple
 
 #endif  // SUB_VOX
 
@@ -320,6 +320,7 @@ __kernel void REGION_UPDATE_KERNEL(__global VOXEL_TYPE *voxels_mem, __global int
   const float3 lineStart = localLines[get_global_id(0) * 2 + 0];
   const float3 lineEnd = localLines[get_global_id(0) * 2 + 1];
 
+#ifdef SUB_VOX
   // We don't need a precise conversion to a voxel key here. We simply need to logically quantise in order to work out
   // the sub-voxel offset. Essentially we have:
   //   s = E - R floor(E/R + 0.5)
@@ -342,6 +343,9 @@ __kernel void REGION_UPDATE_KERNEL(__global VOXEL_TYPE *voxels_mem, __global int
            lineEnd.x, lineEnd.y, lineEnd.z, lineData.subVoxelCoord.x, lineData.subVoxelCoord.y,
            lineData.subVoxelCoord.z);
   }
+#else  // SUB_VOX
+  lineData.subVoxelCoord = make_float3(0, 0, 0);
+#endif // SUB_VOX
 
 #ifdef STORE_DEBUG_INFO
   lineData.startKey = &startKey;

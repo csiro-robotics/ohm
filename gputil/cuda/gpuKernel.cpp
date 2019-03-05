@@ -34,10 +34,10 @@ namespace gputil
       cudaError_t err = cudaSuccess;
       err = cudaSetDevice(device.detail()->device);
       GPUAPICHECK(err, cudaSuccess, err);
-      //cudaDeviceProp info;
-      //memset(&info, 0, sizeof(info));
-      //err = cudaGetDeviceProperties(&info, device.detail()->device);
-      //GPUAPICHECK(err, cudaSuccess, err);
+      // cudaDeviceProp info;
+      // memset(&info, 0, sizeof(info));
+      // err = cudaGetDeviceProperties(&info, device.detail()->device);
+      // GPUAPICHECK(err, cudaSuccess, err);
       return err;
     }
 
@@ -87,10 +87,13 @@ namespace gputil
         const Event *event = event_list->events();
         for (size_t i = 0; i < event_list->count(); ++i, ++event)
         {
-          cudaEvent_t cuda_event = event->detail()->obj();
-          const unsigned flags = 0u;  // Must be zero at the time of implementation.
-          err = cudaStreamWaitEvent(cuda_stream, cuda_event, flags);
-          GPUAPICHECK(err, cudaSuccess, err);
+          if (event && event->detail() && event->detail()->obj())
+          {
+            cudaEvent_t cuda_event = event->detail()->obj();
+            const unsigned flags = 0u;  // Must be zero at the time of implementation.
+            err = cudaStreamWaitEvent(cuda_stream, cuda_event, flags);
+            GPUAPICHECK(err, cudaSuccess, err);
+          }
         }
       }
 
@@ -105,9 +108,10 @@ namespace gputil
       // args = dummy_args.data();
 
       // Launch kernel.
-      err = cudaLaunchKernel(imp.cuda_kernel_function, dim3(unsigned(global_size.x), unsigned(global_size.y), unsigned(global_size.z)),
-                             dim3(unsigned(local_size.x), unsigned(local_size.y), unsigned(local_size.z)),
-                             args, shared_mem_size, cuda_stream);
+      err = cudaLaunchKernel(imp.cuda_kernel_function,
+                             dim3(unsigned(global_size.x), unsigned(global_size.y), unsigned(global_size.z)),
+                             dim3(unsigned(local_size.x), unsigned(local_size.y), unsigned(local_size.z)), args,
+                             shared_mem_size, cuda_stream);
       GPUAPICHECK(err, cudaSuccess, err);
 
       // Hook up completion event.
@@ -262,7 +266,8 @@ Kernel &Kernel::operator=(Kernel &&other)
 
 namespace gputil
 {
-  Kernel cudaKernel(Program &program, const void *kernel_function_ptr, const gputil::OptimalGroupSizeCalculation &group_calc)
+  Kernel cudaKernel(Program &program, const void *kernel_function_ptr,
+                    const gputil::OptimalGroupSizeCalculation &group_calc)
   {
     Kernel kernel;
     kernel.detail()->cuda_kernel_function = kernel_function_ptr;

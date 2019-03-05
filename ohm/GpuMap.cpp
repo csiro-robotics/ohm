@@ -348,7 +348,7 @@ void GpuMap::cacheGpuProgram(bool with_sub_voxels, bool force)
 
   if (imp_->program_ref->addReference(gpu_cache.gpu()))
   {
-    imp_->update_kernel = with_sub_voxels ?
+    imp_->update_kernel = (!with_sub_voxels) ?
       GPUTIL_MAKE_KERNEL(imp_->program_ref->program(), regionRayUpdate) :
       GPUTIL_MAKE_KERNEL(imp_->program_ref->program(), regionRayUpdateSubVox);
     imp_->update_kernel.calculateOptimalWorkGroupSize();
