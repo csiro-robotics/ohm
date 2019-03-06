@@ -90,6 +90,8 @@ elseif(GPU_ACCEL STREQUAL "CUDA")
     cuda/gpuKernel.cpp
     cuda/gpuKernel2.h
     cuda/gpuKernelDetail.h
+    cuda/gpuMemRegion.cpp
+    cuda/gpuMemRegion.h
     cuda/gpuPinnedBuffer.cpp
     cuda/gpuPlatform2.h
     cuda/gpuProgram.cpp
@@ -100,7 +102,20 @@ elseif(GPU_ACCEL STREQUAL "CUDA")
     )
 
   set(PUBLIC_PLATFORM_HEADERS
+    cuda/cutil_atomic.h
+    cuda/cutil_decl.h
+    cuda/cutil_importcl.h
+    cuda/cutil_math.h
+    cuda/gpuBufferDetail.h
+    cuda/gpuDeviceDetail.h
+    cuda/gpuEventDetail.h
+    cuda/gpuKernel2.h
+    cuda/gpuKernelDetail.h
+    cuda/gpuMemRegion.h
     cuda/gpuPlatform2.h
+    cuda/gpuProgramDetail.h
+    cuda/gpuQueueDetail.h
+    cuda/ref.h
   )
 
   set(PUBLIC_PLATFORM_HEADERS_DIR cuda)

@@ -49,9 +49,9 @@ namespace gputil
   /// Represents a GPU based buffer. Implementation depends on the
   /// GPU SDK.
   ///
-  /// @par Synchronous vs Asynchronous tansfer
+  /// @par Synchronous vs Asynchronous transfer
   /// Memory transfer function typically accept three optional parameters: a @c Queue and two @c Event pointers,
-  /// typically labelled @c blockOn and @c competion. The behaviour of memory transfer functions may differ depending
+  /// typically labelled @c blockOn and @c completion. The behaviour of memory transfer functions may differ depending
   /// on whether a @c Queue is provide and whether @c blockOn and/or @c completion events are provide. Firstly,
   /// providing a non-null @c Queue invokes an asynchronous data transfer. As such the host memory buffer must remain
   /// valid until the transfer completes. The @p completion event supports the asynchronous transfer providing a means

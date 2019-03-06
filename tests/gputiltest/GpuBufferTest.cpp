@@ -610,7 +610,7 @@ namespace gpubuffertest
     buffer_read.resize(buffer_ref.size());
 
     // Allocate a larger buffer to allow writing with offset.
-    gputil::Buffer buffer(gpu, buffer_ref.size() * 2);
+    gputil::Buffer buffer(gpu, buffer_ref.size() * 2, gputil::kBfReadWriteHost);
 
     {
       // Use one buffer for read and write to validate RValue operators.

@@ -6,6 +6,7 @@
 #include "gpuPinnedBuffer.h"
 
 #include "gputil/cuda/gpuBufferDetail.h"
+#include "gputil/cuda/gpuQueueDetail.h"
 #include "gputil/gpuApiException.h"
 #include "gputil/gpuBuffer.h"
 #include "gputil/gpuThrow.h"
@@ -14,15 +15,32 @@
 #include <cuda_runtime.h>
 
 #include <algorithm>
+#include <iostream>
+#include <mutex>
 
 using namespace gputil;
+
+namespace
+{
+  void addDirty(std::vector<MemRegion> &dirty_list, const MemRegion &region)
+  {
+    // Merge into the last region if possible. Better for contiguous writes.
+    if (!dirty_list.empty() && dirty_list.back().overlaps(region))
+    {
+      dirty_list.back().merge(region);
+    }
+    else
+    {
+      dirty_list.push_back(region);
+    }
+  }
+}  // namespace
 
 PinnedBuffer::PinnedBuffer()
   : buffer_(nullptr)
   , pinned_(nullptr)
   , mode_(kPinNone)
-{
-}
+{}
 
 
 PinnedBuffer::PinnedBuffer(Buffer &buffer, PinMode mode)
@@ -44,16 +62,10 @@ PinnedBuffer::PinnedBuffer(PinnedBuffer &&other) noexcept
 }
 
 
-PinnedBuffer::~PinnedBuffer()
-{
-  unpin();
-}
+PinnedBuffer::~PinnedBuffer() { unpin(); }
 
 
-bool PinnedBuffer::isPinned() const
-{
-  return pinned_ != nullptr;
-}
+bool PinnedBuffer::isPinned() const { return pinned_ != nullptr; }
 
 
 void PinnedBuffer::pin()
@@ -61,7 +73,7 @@ void PinnedBuffer::pin()
   if (buffer_ && !pinned_)
   {
     BufferDetail *imp = buffer_->detail();
-    pinned_ = gputil::pin(*imp, mode_);
+    pinned_ = ::pin(*imp, mode_);
   }
 }
 
@@ -70,7 +82,7 @@ void PinnedBuffer::unpin(Queue *queue, Event *block_on, Event *completion)
 {
   if (buffer_ && pinned_)
   {
-    gputil::unpin(*buffer_->detail(), pinned_, mode_, queue, block_on, completion);
+    ::unpin(*buffer_->detail(), pinned_, mode_, queue, block_on, completion);
     pinned_ = nullptr;
   }
 }
@@ -114,6 +126,8 @@ size_t PinnedBuffer::write(const void *src, size_t byte_count, size_t dst_offset
       dst_mem += dst_offset;
       err = cudaMemcpy(dst_mem, src_mem, byte_count, cudaMemcpyHostToHost);
       GPUAPICHECK(err, cudaSuccess, 0u);
+      addDirty(buffer_->detail()->dirty_write, MemRegion{ dst_offset, byte_count });
+
       return byte_count;
     }
 
@@ -192,6 +206,7 @@ size_t PinnedBuffer::writeElements(const void *src, size_t element_size, size_t 
     const size_t byte_count = std::min(element_count * element_size, buffer_->size() - dst_offset);
     err = cudaMemcpy(dst_mem + dst_offset, src_mem, byte_count, cudaMemcpyHostToHost);
     GPUAPICHECK(err, cudaSuccess, 0u);
+    addDirty(buffer_->detail()->dirty_write, MemRegion{ dst_offset, byte_count });
     return byte_count / element_count;
   }
 
@@ -204,6 +219,7 @@ size_t PinnedBuffer::writeElements(const void *src, size_t element_size, size_t 
   {
     err = cudaMemcpy(dst_mem, src_mem, element_copy_size, cudaMemcpyHostToHost);
     GPUAPICHECK(err, cudaSuccess, 0u);
+    addDirty(buffer_->detail()->dirty_write, MemRegion{ size_t(dst_mem - static_cast<uint8_t *>(pinned_)), element_copy_size });
     dst_mem += buffer_element_size;
     src_mem += element_size;
     ++copy_count;
