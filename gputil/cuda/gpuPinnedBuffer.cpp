@@ -11,11 +11,7 @@
 #include "gputil/gpuBuffer.h"
 #include "gputil/gpuThrow.h"
 
-#include <cuda.h>
-#include <cuda_runtime.h>
-
 #include <algorithm>
-#include <iostream>
 #include <mutex>
 
 using namespace gputil;
@@ -96,12 +92,11 @@ size_t PinnedBuffer::read(void *dst, size_t byte_count, size_t src_offset) const
     {
       const uint8_t *src_mem = static_cast<const uint8_t *>(pinned_);
       uint8_t *dst_mem = static_cast<uint8_t *>(dst);
-      cudaError_t err = cudaSuccess;
 
       byte_count = std::min(byte_count, buffer_->size() - src_offset);
       src_mem += src_offset;
-      err = cudaMemcpy(dst_mem, src_mem, byte_count, cudaMemcpyHostToHost);
-      GPUAPICHECK(err, cudaSuccess, 0);
+      // Pinned pointers are host accessible. Don't need to use the CUDA API.
+      memcpy(dst_mem, src_mem, byte_count);
       return byte_count;
     }
 
@@ -120,12 +115,11 @@ size_t PinnedBuffer::write(const void *src, size_t byte_count, size_t dst_offset
     {
       const uint8_t *src_mem = static_cast<const uint8_t *>(src);
       uint8_t *dst_mem = static_cast<uint8_t *>(pinned_);
-      cudaError_t err = cudaSuccess;
 
       byte_count = std::min(byte_count, buffer_->size() - dst_offset);
       dst_mem += dst_offset;
-      err = cudaMemcpy(dst_mem, src_mem, byte_count, cudaMemcpyHostToHost);
-      GPUAPICHECK(err, cudaSuccess, 0u);
+      // Pinned pointers are host accessible. Don't need to use the CUDA API.
+      memcpy(dst_mem, src_mem, byte_count);
       addDirty(buffer_->detail()->dirty_write, MemRegion{ dst_offset, byte_count });
 
       return byte_count;
