@@ -616,21 +616,6 @@ void *Buffer::address() const
 }
 
 
-// void *Buffer::pin(PinMode mode)
-// {
-//   return (imp_) ? gputil::pin(*imp_, mode) : nullptr;
-// }
-
-
-// void Buffer::unpin(void *ptr, Queue *queue, Event *block_on, Event *completion)
-// {
-//   if (imp_)
-//   {
-//     gputil::unpin(*imp_, ptr, queue, block_on, completion);
-//   }
-// }
-
-
 namespace gputil
 {
   size_t copyBuffer(Buffer &dst, const Buffer &src, Queue *queue, Event *block_on, Event *completion)

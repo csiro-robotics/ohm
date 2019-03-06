@@ -552,7 +552,7 @@ bool __device__ updateVoxelObstructionCas(int3 voxelIndex, __global voxel_type *
     const char4 ref = voxelToObstruction(reference_value);
     offset = make_float3(ref.x, ref.y, ref.z) * axisScaling;
 
-    const bool existing_obstruction = ref.w == 1;
+    const bool existing_obstruction = ref.w != 0;
 
     // Apply axis scaling to the distance calculation.
     const float currentDistSqr = dot(offset, offset);
@@ -740,8 +740,7 @@ __kernel void seedRegionVoxels(__global struct GpuKey *cornerVoxelKey, __global 
         const uint widx = effectiveGlobalId.x + effectiveGlobalId.y * workingVoxelExtents.x +
                           effectiveGlobalId.z * workingVoxelExtents.x * workingVoxelExtents.y;
         const VOXEL_TYPE occupancy = voxelOccupancy[vidx];
-        const bool isObstruction =
-          isOccupied(&occupancy, occupancyThresholdValue, flags, sub_voxel_filter_scale);
+        const bool isObstruction = isOccupied(&occupancy, occupancyThresholdValue, flags, sub_voxel_filter_scale);
         workingVoxels[widx] = make_char4(0, 0, 0, (isObstruction) ? 1 : 0);
       }
     }
@@ -929,7 +928,7 @@ __kernel void seedFromOuterRegions(__global struct GpuKey *cornerVoxelKey,
 /// @par Invocation
 /// In layer batches, one thread per X/Z coordinate, processing zbatch items in Z.
 __kernel void propagateObstacles(__global char4 *srcVoxels, __global char4 *dstVoxels, int3 voxelExtents,
-                                            float searchRange, float3 axisScaling LOCAL_ARG(char4 *, localVoxels))
+                                 float searchRange, float3 axisScaling LOCAL_ARG(char4 *, localVoxels))
 {
   LOCAL_MEM_ENABLE();
   LOCAL_VAR(char4 *, localVoxels,
@@ -951,16 +950,17 @@ __kernel void propagateObstacles(__global char4 *srcVoxels, __global char4 *dstV
   loadPropagationLocalVoxels(srcVoxels, localVoxels, voxelExtents, effectiveGlobalId, effectiveLocalId,
                              effectiveLocalSize);
 
-  char4 closestObstruction;
-  float currentClosestDistSqr;
+  if (!validVoxel)
+  {
+    // Stop invalid voxel references here.
+    return;
+  }
 
   // Set range for an unobstructed voxel at the maximum range.
-  const char4 unobstructedVoxel = make_char4(-128, -128, -128, 0);
-  closestObstruction = (validVoxel) ? srcVoxels[voxelIndex] : unobstructedVoxel;
-
+  char4 closestObstruction = srcVoxels[voxelIndex];
   const float3 currentScaledSeparation =
     make_float3(closestObstruction.x, closestObstruction.y, closestObstruction.z) * axisScaling;
-  currentClosestDistSqr = dot(currentScaledSeparation, currentScaledSeparation);
+  float currentClosestDistSqr = dot(currentScaledSeparation, currentScaledSeparation);
 
   // 2. Consider each neighbour range value and select the best result.
   for (int z = -1; z <= 1; ++z)

@@ -32,6 +32,9 @@
 #define __local
 #define local __shared__
 
+// CUDA devices are so far little endian
+#define __ENDIAN_LITTLE__ 1
+
 // Useful information:
 // https://www.sharcnet.ca/help/index.php/Porting_CUDA_to_OpenCL
 
