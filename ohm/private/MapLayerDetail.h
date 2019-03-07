@@ -14,7 +14,7 @@ namespace ohm
 {
   struct VoxelLayoutDetail;
 
-  struct MapLayerDetail
+  struct ohm_API MapLayerDetail
   {
     std::string name;
     VoxelLayoutDetail *voxel_layout = nullptr;

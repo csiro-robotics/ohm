@@ -7,14 +7,13 @@
 
 #include "Aabb.h"
 #include "DefaultLayer.h"
-#include "GpuCache.h"
-#include "GpuLayerCache.h"
 #include "KeyList.h"
 #include "MapCache.h"
 #include "MapChunk.h"
 #include "MapCoord.h"
 #include "MapLayer.h"
 #include "MapProbability.h"
+#include "MapRegionCache.h"
 #include "OccupancyType.h"
 #include "SubVoxel.h"
 #include "Voxel.h"
@@ -181,8 +180,7 @@ Voxel OccupancyMap::iterator::voxel()
   return isValid() ? Voxel(key_, chunkIter(chunk_mem_)->second, map_) : Voxel();
 }
 
-OccupancyMap::OccupancyMap(double resolution, const glm::u8vec3 &region_voxel_dimensions,
-                           MapFlag flags)
+OccupancyMap::OccupancyMap(double resolution, const glm::u8vec3 &region_voxel_dimensions, MapFlag flags)
   : imp_(new OccupancyMapDetail)
 {
   imp_->resolution = resolution;
@@ -518,14 +516,15 @@ void OccupancyMap::setSubVoxelsEnabled(bool enable)
   // First we have to synchronise the GPU cache(s).
   if (imp_->gpu_cache)
   {
-    for (unsigned i = 0; i < imp_->gpu_cache->layerCount(); ++i)
-    {
-      if (GpuLayerCache *layer = imp_->gpu_cache->layerCache(i))
-      {
-        layer->syncToMainMemory();
-        layer->clear();
-      }
-    }
+    imp_->gpu_cache->clear();
+    // for (unsigned i = 0; i < imp_->gpu_cache->layerCount(); ++i)
+    //{
+    //  if (GpuLayerCache *layer = imp_->gpu_cache->layerCache(i))
+    //  {
+    //    layer->syncToMainMemory();
+    //    layer->clear();
+    //  }
+    //}
   }
 
   MapLayer *occupancy_layer = imp_->layout.layerPtr(occupancy_layer_index);
@@ -593,16 +592,17 @@ void OccupancyMap::setSubVoxelsEnabled(bool enable)
   // Now reallocate any GPU cache which relies on the occupancy layer.
   if (imp_->gpu_cache)
   {
-    for (unsigned i = 0; i < imp_->gpu_cache->layerCount(); ++i)
-    {
-      if (GpuLayerCache *layer = imp_->gpu_cache->layerCache(i))
-      {
-        if (layer->layerIndex() == unsigned(occupancy_layer_index))
-        {
-          layer->reallocate(*this);
-        }
-      }
-    }
+    imp_->gpu_cache->reinitialise();
+    //for (unsigned i = 0; i < imp_->gpu_cache->layerCount(); ++i)
+    //{
+    //  if (GpuLayerCache *layer = imp_->gpu_cache->layerCache(i))
+    //  {
+    //    if (layer->layerIndex() == unsigned(occupancy_layer_index))
+    //    {
+    //      layer->reallocate(*this);
+    //    }
+    //  }
+    //}
   }
 }
 
@@ -940,7 +940,7 @@ size_t OccupancyMap::calculateSegmentKeys(KeyList &keys, const glm::dvec3 &start
 
   keys.clear();
   return ohm::walkSegmentKeys<Key>([&keys](const Key &key) { keys.add(key); }, start_point_local, end_point_local,
-                                       include_end_point, KeyAdaptor(*this));
+                                   include_end_point, KeyAdaptor(*this));
 }
 
 void OccupancyMap::setRayFilter(const RayFilterFunction &ray_filter)

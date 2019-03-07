@@ -39,7 +39,7 @@ target_include_directories(ohmpop SYSTEM
     "${GLM_INCLUDE_DIR}"
 )
 
-target_link_libraries(ohmpop ohm slamio ohmutil)
+target_link_libraries(ohmpop ${OHM_LIBRARY} slamio ohmutil)
 
 source_group("source" REGULAR_EXPRESSION ".*$")
 # Needs CMake 3.8+:

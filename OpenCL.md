@@ -89,11 +89,11 @@ These drivers are incompatible with beignet.
 
 ## NVidia OpenCL Compatibility
 
-NVidia OpenCL requires installation of official NVidia drivers for your video card. Discussion of how to do so is beyond the scope of this document. Use `clinfo | grep "Device Name"` to determine whether NVidia drivers are correctly installed. You should see an NVidia related device name such as "GeForce GT 640".
+NVidia OpenCL requires installation of official NVidia drivers for your video card. Discussion of how to do so is beyond the scope of this document. Use `clinfo | grep "Device Name"` to determine whether NVidia drivers are correctly installed. You should see an NVidia related device name such as "GeForce XXX".
 
 In order to build ohm to run on NVidia, the library must be build for OpenCL 1.2 (host API) and OpenCL 1.2 runtime (device standard). To do so, configure the following CMake variables to "1.2" using `ccmake`, `cmake-gui`, or editing the `CMakeCache.txt` file directly.
 
-- `OHM_OPENCL_STD` : 1.2
-- `OHM_OPENCL_VER` : 1.2
+- `OHM_OPENCL_STD` : 1.2 (OpenCL runtime compilation)
+- `OHM_OPENCL_VER` : 1.2 (OpenCL SDK selection)
 
-Note that NVidia performance will generally be worse than Intel OpenCL because of the way ohm uses global memory.
+Note that NVidia performance will generally be worse than Intel OpenCL because of the way ohm uses global memory. Building for CUDA

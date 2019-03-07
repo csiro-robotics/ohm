@@ -53,8 +53,6 @@
 #define GPUTIL_NONE 0
 #define GPUTIL_OPENCL 1
 #define GPUTIL_CUDA 2
-
-#define GPUTIL_TYPE @GPUTIL_TYPE@
 // clang-format on
 
 #endif  // GPUCONFIG_H

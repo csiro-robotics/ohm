@@ -10,20 +10,19 @@
 
 #include "QueryDetail.h"
 
-#include "KeyList.h"
+#include "ohm/KeyList.h"
 
 namespace ohm
 {
   class ClearanceProcess;
 
-  struct LineQueryDetail : QueryDetail
+  struct ohm_API LineQueryDetail : QueryDetail
   {
     glm::dvec3 start_point = glm::dvec3(0);
     glm::dvec3 end_point = glm::dvec3(0);
     // Internal: calculated on execute.
     glm::dvec3 segment_dir = glm::dvec3(0);
     glm::dvec3 axis_scaling = glm::dvec3(1, 1, 1);
-    ClearanceProcess *clearance_calculator = nullptr;
     KeyList segment_keys;
     // Internal: calculated on execute.
     double segment_length = 0;

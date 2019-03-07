@@ -8,7 +8,7 @@
 
 #include "OhmConfig.h"
 
-#include "Stream.h"
+#include "ohm/Stream.h"
 
 namespace ohm
 {

@@ -8,12 +8,12 @@
 
 #include <glm/glm.hpp>
 
-#include "MapChunk.h"
-#include "MapFlag.h"
-#include "MapInfo.h"
-#include "MapLayout.h"
-#include "MapRegion.h"
-#include "RayFilter.h"
+#include "ohm/MapChunk.h"
+#include "ohm/MapFlag.h"
+#include "ohm/MapInfo.h"
+#include "ohm/MapLayout.h"
+#include "ohm/MapRegion.h"
+#include "ohm/RayFilter.h"
 
 #include <mutex>
 #include <unordered_map>
@@ -23,10 +23,10 @@ namespace ohm
 {
   typedef std::unordered_multimap<unsigned, MapChunk *> ChunkMap;
 
-  class GpuCache;
+  class MapRegionCache;
   class OccupancyMap;
 
-  struct OccupancyMapDetail
+  struct ohm_API OccupancyMapDetail
   {
     // "sub_voxel"
     static const char *kSubVoxelLayerName;
@@ -55,7 +55,9 @@ namespace ohm
     size_t loaded_region_count = 0;
     MapFlag flags = MapFlag::None;
 
-    GpuCache *gpu_cache = nullptr;
+    /// GPU cache pointer. Note: this is declared here, but implemented in a dependent library. We simply ensure that
+    /// the map detail supports a GPU cache.
+    MapRegionCache *gpu_cache = nullptr;
 
     RayFilterFunction ray_filter;
 

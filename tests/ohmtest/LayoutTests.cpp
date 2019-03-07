@@ -16,7 +16,7 @@
 #include <random>
 
 #include <gtest/gtest.h>
-#include "OhmTestUtil.h"
+#include "ohmtestcommon/OhmTestUtil.h"
 
 using namespace ohm;
 

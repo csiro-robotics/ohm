@@ -27,7 +27,7 @@ target_include_directories(ohmquery SYSTEM
     "${GLM_INCLUDE_DIR}"
 )
 
-target_link_libraries(ohmquery ohm ohmutil)
+target_link_libraries(ohmquery ${OHM_LIBRARY} ohmutil)
 
 if(OHM_TES_DEBUG)
   target_link_libraries(ohmquery 3es::3es-core)

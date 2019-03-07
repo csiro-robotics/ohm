@@ -6,7 +6,7 @@
 #ifndef SUBVOXEL_H
 #define SUBVOXEL_H
 
-#include "MapCoord.h"
+#include "ohm/MapCoord.h"
 
 // Note: this header is included in GPU code.
 // Because of this "OhmConfig.h" and <cmath> cannot be included here and you may need to include those first.
@@ -73,7 +73,7 @@ typedef float3 vec3;
   /// @param resolution The length of each voxel cube edge.
   /// @return The sub-voxel pattern approximating @p voxel_local_coord.
   SUB_VOX_FUNC_PREFACE
-inline __device__ __host__ unsigned subVoxelCoord(vec3 voxel_local_coord, coord_real resolution)
+  inline __device__ __host__ unsigned subVoxelCoord(vec3 voxel_local_coord, coord_real resolution)
   {
     // We divide the voxel into a voxel_local_coord, 3D grid, then assign 1 bit per cell.
     const unsigned bits_per_axis = 10;

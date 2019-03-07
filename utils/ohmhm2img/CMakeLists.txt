@@ -18,9 +18,7 @@ target_include_directories(ohmhm2img SYSTEM
     "${ZLIB_INCLUDE_DIRS}"
 )
 
-target_link_libraries(ohmhm2img ohm ohmutil ${ZLIB_LIBRARIES})
-
-target_link_libraries(ohmhm2img ohmheightmaputil PNG::PNG)
+target_link_libraries(ohmhm2img ${OHM_LIBRARY} ohmutil ${ZLIB_LIBRARIES} ohmheightmaputil PNG::PNG)
 
 source_group("source" REGULAR_EXPRESSION ".*$")
 # Needs CMake 3.8+:

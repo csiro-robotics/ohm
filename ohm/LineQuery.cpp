@@ -5,8 +5,6 @@
 // Author: Kazys Stepanas
 #include "LineQuery.h"
 
-#include "ClearanceProcess.h"
-#include "GpuMap.h"
 #include "Key.h"
 #include "MapCache.h"
 #include "OccupancyMap.h"
@@ -15,8 +13,6 @@
 #include "private/OccupancyMapDetail.h"
 #include "private/OccupancyQueryAlg.h"
 #include "private/VoxelAlgorithms.h"
-
-#include "GpuLayerCache.h"
 
 #include <3esservermacros.h>
 
@@ -121,7 +117,6 @@ LineQuery::~LineQuery()
   LineQueryDetail *d = imp();
   if (d)
   {
-    delete d->clearance_calculator;
     delete d;
   }
   // Clear pointer for base class.
@@ -208,87 +203,8 @@ bool LineQuery::onExecute()
     return false;
   }
 
-  bool used_cache_clearance = !(d->query_flags & kQfNoCache);
   ClosestResult closest;
-  if (d->query_flags & kQfGpuEvaluate)
-  {
-    gpumap::enableGpu(*d->map);
-
-    // GPU evaluation requested. Use the ClearanceProcess to do so.
-    glm::dvec3 min_ext, max_ext;
-    for (int i = 0; i < 3; ++i)
-    {
-      min_ext[i] = std::min(d->start_point[i], d->end_point[i]);
-      max_ext[i] = std::max(d->start_point[i], d->end_point[i]);
-    }
-    unsigned clearance_flags = kQfGpuEvaluate;
-    if (d->query_flags & kQfUnknownAsOccupied)
-    {
-      clearance_flags |= kQfUnknownAsOccupied;
-    }
-    if (!d->clearance_calculator)
-    {
-      d->clearance_calculator = new ClearanceProcess();
-    }
-    d->clearance_calculator->setSearchRadius(d->search_radius);
-    d->clearance_calculator->setQueryFlags(clearance_flags);
-    d->clearance_calculator->setAxisScaling(d->axis_scaling);
-    // Force recalculation if not using cached values. Otherwise we'll only calculate dirty regions.
-    const bool force = (d->query_flags & kQfNoCache);
-    d->clearance_calculator->calculateForExtents(*d->map, min_ext, max_ext, force);
-    // QF_NoCache behaviour differs slightly for GPU calculation. The GPU only pushes
-    // into the voxel clearance layer so set usedCacheClearance to read that information.
-    used_cache_clearance = true;
-  }
-
-  if (used_cache_clearance)
-  {
-    // Calculate the voxels the line intersects.
-    d->map->calculateSegmentKeys(d->segment_keys, d->start_point, d->end_point);
-
-    // Populate results.
-    d->intersected_voxels.resize(d->segment_keys.size());
-    d->ranges.resize(d->segment_keys.size());
-    VoxelConst voxel;
-
-    if (!d->segment_keys.empty())
-    {
-      float range;
-      closest.index = 0;
-      closest.range = -1;
-      for (size_t i = 0; i < d->segment_keys.size(); ++i)
-      {
-        d->intersected_voxels[i] = d->segment_keys[i];
-        voxel = d->map->voxel(d->segment_keys[i]);
-
-        if (voxel.isValid())
-        {
-          range = voxel.clearance((d->query_flags & kQfUnknownAsOccupied) != 0);
-          // Range will be -1 from ClearanceProcess for unobstructed voxels (to the search radius).
-          // Override the result with d->default_range, which defaults to -1 as well.
-          if (range < 0)
-          {
-            range = d->default_range;
-          }
-        }
-        else
-        {
-          range = d->default_range;
-        }
-
-        d->ranges[i] = range;
-        if (i == 0 || range >= 0 && (range < closest.range || closest.range < 0))
-        {
-          closest.index = i;
-          closest.range = range;
-        }
-      }
-    }
-  }
-  else
-  {
-    occupancyLineQueryCpu(*d->map, *d, closest);
-  }
+  occupancyLineQueryCpu(*d->map, *d, closest);
 
   if ((d->query_flags & kQfNearestResult) && !d->intersected_voxels.empty())
   {

@@ -13,8 +13,6 @@ configure_file(OhmConfig.in.h "${CMAKE_CURRENT_BINARY_DIR}/ohm/OhmConfig.h")
 
 set(SOURCES
   3rdparty/delaunator.hpp
-  private/ClearanceProcessDetail.cpp
-  private/ClearanceProcessDetail.h
   private/HeightmapDetail.cpp
   private/HeightmapDetail.h
   private/LineQueryDetail.h
@@ -24,8 +22,6 @@ set(SOURCES
   private/OccupancyMapDetail.cpp
   private/OccupancyMapDetail.h
   private/QueryDetail.h
-  private/RoiRangeFill.cpp
-  private/RoiRangeFill.h
   private/SerialiseUtil.h
   private/VoxelAlgorithms.cpp
   private/VoxelAlgorithms.h
@@ -39,8 +35,6 @@ set(SOURCES
   serialise/MapSerialiseV0.cpp
   serialise/MapSerialiseV0.h
   Aabb.h
-  ClearanceProcess.cpp
-  ClearanceProcess.h
   DataType.cpp
   DataType.h
   DefaultLayer.cpp
@@ -80,6 +74,8 @@ set(SOURCES
   MapProbability.h
   MapRegion.cpp
   MapRegion.h
+  MapRegionCache.cpp
+  MapRegionCache.h
   MapSerialise.cpp
   MapSerialise.h
   NearestNeighbours.cpp
@@ -88,8 +84,6 @@ set(SOURCES
   OccupancyMap.h
   OccupancyType.cpp
   OccupancyType.h
-  OhmGpu.cpp
-  OhmGpu.h
   Query.cpp
   Query.h
   QueryFlag.h
@@ -116,6 +110,13 @@ set(PUBLIC_HEADERS
   ClearanceProcess.h
   DataType.h
   DefaultLayer.h
+  GpuCache.h
+  GpuCacheParams.h
+  GpuCachePostSyncHandler.h
+  GpuKey.h
+  GpuLayerCache.h
+  GpuMap.h
+  GpuTransformSamples.h
   Heightmap.h
   HeightmapMesh.h
   HeightmapVoxel.h
@@ -136,12 +137,12 @@ set(PUBLIC_HEADERS
   MappingProcess.h
   MapProbability.h
   MapRegion.h
+  MapRegionCache.h
   MapSerialise.h
   NearestNeighbours.h
   OccupancyMap.h
   OccupancyType.h
   OccupancyUtil.h
-  OhmGpu.h
   Query.h
   QueryFlag.h
   RayFilter.h
@@ -154,142 +155,9 @@ set(PUBLIC_HEADERS
   "${CMAKE_CURRENT_BINARY_DIR}/ohm/OhmExport.h"
   )
 
-if(OHM_GPU)
-  # Add gputil:gpu_ext.h to this project for correct marshalling.
-  # Always re-resolve gpu_ext.h in case it moves.
-  unset(GPU_EXT_H CACHE)
-  find_file(GPU_EXT_H gpu_ext.h PATHS ${GPUTIL_DEVICE_INCLUDE_DIRS})
+add_library(ohm ${SOURCES})
 
-  set(GPU_SOURCES
-    gpu/LineKeys.cl
-    gpu/NearestNeighboursQuery.cl
-    gpu/RegionUpdate.cl
-    gpu/RoiRangeFill.cl
-    gpu/TransformSamples.cl
-  )
-  if(NOT OHM_EMBED_GPU_CODE)
-    list(APPEND GPU_SOURCES gpu/LineWalk.cl)
-    list(APPEND GPU_SOURCES gpu/Regions.cl)
-    list(APPEND GPU_SOURCES gpu/RegionUpdateBase.cl)
-    list(APPEND GPU_SOURCES gpu/RoiRangeFillBase.cl)
-  endif(NOT OHM_EMBED_GPU_CODE)
-
-  set(GPU_HEADERS
-    GpuKey.h
-    MapCoord.h
-    SubVoxel.h
-  )
-
-  list(APPEND SOURCES
-    private/GpuMapDetail.cpp
-    private/GpuMapDetail.h
-    private/GpuProgramRef.cpp
-    private/GpuProgramRef.h
-    private/GpuTransformSamplesDetail.h
-    GpuCache.cpp
-    GpuCache.h
-    GpuCacheParams.h
-    GpuCachePostSyncHandler.h
-    GpuLayerCache.cpp
-    GpuLayerCache.h
-    GpuMap.cpp
-    GpuMap.h
-    GpuTransformSamples.cpp
-    GpuTransformSamples.h
-  )
-
-  list(APPEND PUBLIC_HEADERS
-    GpuCache.h
-    GpuCacheParams.h
-    GpuCachePostSyncHandler.h
-    GpuKey.h
-    GpuLayerCache.h
-    GpuMap.h
-    GpuTransformSamples.h
-  )
-endif(OHM_GPU)
-
-set(USE_CUDA FALSE)
-if(OHM_GPU)
-  list(APPEND SOURCES ${GPU_SOURCES} ${GPU_HEADERS} "${GPU_EXT_H}")
-  if(OHM_GPU EQUAL OHM_GPU_OPENCL)
-    get_target_property(CLU_INCLUDE_DIRS clu INCLUDE_DIRECTORIES)
-
-    if(OHM_EMBED_GPU_CODE)
-      # Embedding GPU code. Generate source file resources.
-      # Only need to embed for OpenCL.
-      foreach(CLSOURCE ${GPU_SOURCES})
-        get_filename_component(CLSOURCENAME "${CLSOURCE}" NAME)
-        get_filename_component(CLSOURCENAME_WE "${CLSOURCE}" NAME_WE)
-        text_file_resource("${CLSOURCE}" "${CLSOURCENAME_WE}Code"
-          TYPE opencl
-          # ECHO
-          PATHS "${CMAKE_CURRENT_LIST_DIR}" "${CMAKE_CURRENT_LIST_DIR}/gpu" "${GPUTIL_DEVICE_INCLUDE_DIRS}"
-          # Append to the SOURCES list.
-          FILELIST SOURCES
-        )
-      endforeach(CLSOURCE)
-    endif(OHM_EMBED_GPU_CODE)
-  else()
-    # CUDA
-    set(USE_CUDA TRUE)
-    find_package(CUDA)
-    list(APPEND SOURCES
-      gpu/LineKeys.cu
-      gpu/NearestNeighboursQuery.cu
-      gpu/RegionUpdate.cu
-      gpu/RoiRangeFill.cu
-      gpu/TransformSamples.cu
-    )
-  endif(OHM_GPU EQUAL OHM_GPU_OPENCL)
-endif(OHM_GPU)
-
-if(USE_CUDA)
-  cuda_add_library(ohm ${SOURCES})
-else(USE_CUDA)
-  add_library(ohm ${SOURCES})
-endif(USE_CUDA)
-
-target_link_libraries(ohm ${ZLIB_LIBRARIES} ohmutil gputil)
-
-if(OHM_TES_DEBUG)
-  target_link_libraries(ohm 3es::3es-core)
-else(OHM_TES_DEBUG)
-  target_include_directories(ohm PRIVATE SYSTEM "${3ES_INCLUDE_DIRS}")
-endif(OHM_TES_DEBUG)
-
-
-if(OHM_GPU EQUAL OHM_GPU_OPENCL)
-  target_link_libraries(ohm clu)
-
-  if(NOT OHM_EMBED_GPU_CODE)
-    # Not embedding GPU source code. Make sure we marshal GPU headers as well as code.
-    get_filename_component(CLSOURCENAME "${GPU_EXT_H}" NAME)
-    add_custom_command(
-      OUTPUT "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${CLSOURCENAME}"
-      COMMAND "${CMAKE_COMMAND}" -E copy_if_different "${GPU_EXT_H}" "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${CLSOURCENAME}"
-      MAIN_DEPENDENCY "${GPU_EXT_H}"
-      COMMENT "Copying ${CLSOURCENAME}"
-    )
-
-    list(APPEND GPU_SOURCES "${GPU_HEADERS}")
-    foreach(CLSOURCE ${GPU_SOURCES})
-      get_filename_component(CLSOURCENAME "${CLSOURCE}" NAME)
-      # Not embedding GPU code. Marshal GPU source files.
-      add_custom_command(
-        OUTPUT "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${CLSOURCENAME}"
-        COMMAND "${CMAKE_COMMAND}" -E copy_if_different "${CMAKE_CURRENT_LIST_DIR}/${CLSOURCE}" "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${CLSOURCENAME}"
-        MAIN_DEPENDENCY "${CMAKE_CURRENT_LIST_DIR}/${CLSOURCE}"
-        COMMENT "Copying ${CLSOURCE}"
-      )
-    endforeach(CLSOURCE)
-  endif(NOT OHM_EMBED_GPU_CODE)
-endif(OHM_GPU EQUAL OHM_GPU_OPENCL)
-
-generate_export_header(ohm
-      EXPORT_MACRO_NAME ohm_API
-      EXPORT_FILE_NAME ohm/OhmExport.h
-      STATIC_DEFINE OHM_STATIC)
+target_link_libraries(ohm ${ZLIB_LIBRARIES} ohmutil ${GPUTIL_LIBRARY})
 
 target_include_directories(ohm
   PUBLIC
@@ -301,15 +169,25 @@ target_include_directories(ohm
     $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}>
 )
 
+if(OHM_THREADS)
+  target_link_libraries(ohm ${TBB_LIBRARIES})
+endif(OHM_THREADS)
+
 target_include_directories(ohm SYSTEM
   PUBLIC "${GLM_INCLUDE_DIR}"
   PRIVATE "${ZLIB_INCLUDE_DIR}"
 )
 
-if(OHM_THREADS)
-  target_link_libraries(ohm ${TBB_LIBRARIES})
-endif(OHM_THREADS)
+if(OHM_TES_DEBUG)
+  target_link_libraries(ohm 3es::3es-core)
+else(OHM_TES_DEBUG)
+  target_include_directories(ohm PRIVATE SYSTEM "${3ES_INCLUDE_DIRS}")
+endif(OHM_TES_DEBUG)
 
+generate_export_header(ohm
+  EXPORT_MACRO_NAME ohm_API
+  EXPORT_FILE_NAME ohm/OhmExport.h
+  STATIC_DEFINE OHM_STATIC)
 
 install(TARGETS ohm EXPORT ${CMAKE_PROJECT_NAME}-config-targets
   LIBRARY DESTINATION lib
@@ -321,6 +199,5 @@ install(TARGETS ohm EXPORT ${CMAKE_PROJECT_NAME}-config-targets
 install(FILES ${PUBLIC_HEADERS} DESTINATION ${OHM_PREFIX_INCLUDE}/ohm)
 
 source_group("source" REGULAR_EXPRESSION ".*$")
-source_group("source\\cl" REGULAR_EXPRESSION "/cl/.*$")
-source_group("source\\gpu" REGULAR_EXPRESSION "/gpu/.*$")
 source_group("source\\private" REGULAR_EXPRESSION "/private/.*$")
+source_group("source\\serialise" REGULAR_EXPRESSION "/serialise/.*$")

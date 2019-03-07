@@ -3,9 +3,8 @@
 // ABN 41 687 119 230
 //
 // Author: Kazys Stepanas
-#include "OhmTestUtil.h"
+#include "ohmtestcommon/OhmTestUtil.h"
 
-#include <ohm/ClearanceProcess.h>
 #include <ohm/Key.h>
 #include <ohm/KeyList.h>
 #include <ohm/LineQuery.h>
@@ -14,7 +13,6 @@
 #include <ohm/OccupancyMap.h>
 #include <ohm/OccupancyType.h>
 #include <ohm/OccupancyUtil.h>
-#include <ohm/OhmGpu.h>
 
 #include <ohmtools/OhmCloud.h>
 #include <ohmtools/OhmGen.h>
@@ -31,9 +29,6 @@
 #include <gtest/gtest.h>
 
 using namespace ohm;
-
-// TODO: move declaration into a shared header.
-const char *dataRelPath();
 
 namespace searialisationtests
 {
@@ -82,10 +77,6 @@ namespace searialisationtests
     // Build a cloud with real samples around a cubic boundary. Does not cover every voxel in the boundary.
     ohmgen::boxRoom(save_map, glm::dvec3(-boundary_distance), glm::dvec3(boundary_distance));
 
-    // Calculate clearance values.
-    ClearanceProcess clearance(1.0f, kQfGpuEvaluate);
-    clearance.update(save_map, 0);
-
     ProgressDisplay progress;
     std::cout << "Saving" << std::endl;
     error_code = save(map_name, save_map, &progress);
@@ -106,7 +97,7 @@ namespace searialisationtests
     std::cout << std::endl;
     ASSERT_EQ(error_code, 0);
 
-    ohmtestutil::compareMaps(load_map, save_map, ohmtestutil::kCfCompareAll | ohmtestutil::kCfExpectClearance);
+    ohmtestutil::compareMaps(load_map, save_map, ohmtestutil::kCfCompareAll);
   }
 
 
@@ -150,7 +141,7 @@ namespace searialisationtests
   TEST(Serialisation, Upgrade)
   {
     // Test loading older version data files.
-    std::string map_name = std::string(dataRelPath()) + "test-map.0.ohm";
+    std::string map_name = std::string(ohmtestutil::applicationDir()) + "test-map.0.ohm";
     // Profile profile;
     int error_code = 0;
     const float boundary_distance = 5.0f;

@@ -8,10 +8,10 @@
 
 #include "OhmConfig.h"
 
-#include "OccupancyMap.h"
+#include "ohm/OccupancyMap.h"
 
-#include "private/OccupancyMapDetail.h"
-#include "private/QueryDetail.h"
+#include "ohm/private/OccupancyMapDetail.h"
+#include "ohm/private/QueryDetail.h"
 
 #ifdef OHM_THREADS
 #include <tbb/blocked_range.h>
