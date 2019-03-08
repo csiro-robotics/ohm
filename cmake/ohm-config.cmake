@@ -80,17 +80,6 @@ function(register_target TARGET INCLUDES_VAR LIBRARIES_VAR)
   endif(TARGET ${TARGET})
 endfunction(register_target)
 
-if(OHM_BUILD_OPENCL)
-  register_target(ohm::clu OHM_INCLUDE_DIRS OHM_LIBRARIES)
-  register_target(ohm::gputilocl OHM_INCLUDE_DIRS OHM_LIBRARIES)
-  register_target(ohm::ohmocl OHM_INCLUDE_DIRS OHM_LIBRARIES)
-endif(OHM_BUILD_OPENCL)
-
-if(OHM_BUILD_CUDA)
-  register_target(ohm::gputilcuda OHM_INCLUDE_DIRS OHM_LIBRARIES)
-  register_target(ohm::ohmcuda OHM_INCLUDE_DIRS OHM_LIBRARIES)
-endif(OHM_BUILD_CUDA)
-
 # Define the OHM library according to the selected component
 if(ohm_FIND_COMPONENTS)
   foreach(_comp ${ohm_FIND_COMPONENTS})
@@ -106,7 +95,19 @@ endif(ohm_FIND_COMPONENTS)
 
 register_target(ohm::ohmtools OHM_INCLUDE_DIRS OHM_LIBRARIES)
 register_target(ohm::ohmutil OHM_INCLUDE_DIRS OHM_LIBRARIES)
+register_target(ohm::ohm OHM_INCLUDE_DIRS OHM_LIBRARIES)
 register_target(ohm::slamio OHM_INCLUDE_DIRS OHM_LIBRARIES)
+
+if(OHM_BUILD_OPENCL)
+  register_target(ohm::clu OHM_INCLUDE_DIRS OHM_LIBRARIES)
+  register_target(ohm::gputilocl OHM_INCLUDE_DIRS OHM_LIBRARIES)
+  register_target(ohm::ohmocl OHM_INCLUDE_DIRS OHM_LIBRARIES)
+endif(OHM_BUILD_OPENCL)
+
+if(OHM_BUILD_CUDA)
+  register_target(ohm::gputilcuda OHM_INCLUDE_DIRS OHM_LIBRARIES)
+  register_target(ohm::ohmcuda OHM_INCLUDE_DIRS OHM_LIBRARIES)
+endif(OHM_BUILD_CUDA)
 
 # Packages required for ohmheightmaputil
 if(OHM_BUILD_HEIGHTMAPUTIL)

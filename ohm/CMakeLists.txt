@@ -107,16 +107,8 @@ endif(TES_ENABLE)
 
 set(PUBLIC_HEADERS
   Aabb.h
-  ClearanceProcess.h
   DataType.h
   DefaultLayer.h
-  GpuCache.h
-  GpuCacheParams.h
-  GpuCachePostSyncHandler.h
-  GpuKey.h
-  GpuLayerCache.h
-  GpuMap.h
-  GpuTransformSamples.h
   Heightmap.h
   HeightmapMesh.h
   HeightmapVoxel.h
@@ -127,7 +119,6 @@ set(PUBLIC_HEADERS
   LineQuery.h
   MapCache.h
   MapChunk.h
-  MapChunkFlag.h
   MapCoord.h
   MapFlag.h
   MapInfo.h
@@ -142,7 +133,6 @@ set(PUBLIC_HEADERS
   NearestNeighbours.h
   OccupancyMap.h
   OccupancyType.h
-  OccupancyUtil.h
   Query.h
   QueryFlag.h
   RayFilter.h
