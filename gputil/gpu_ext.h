@@ -103,6 +103,9 @@
 // Atomic definitions. Make consistent atomic function interface across all GPU code versions.
 //
 // Only 32-bit types are supported.
+//
+// Note: The selection of which underlying OpenCL functions to use is currently based on OpenCL standard used with
+// Intel GPU. This may not be portable enough. We may need to define this API based on capabilities instead.
 //----------------------------------------------------------------------------------------------------------------------
 #if __OPENCL_C_VERSION__ >= 200
 
