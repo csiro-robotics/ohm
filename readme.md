@@ -84,8 +84,8 @@ sudo apt-get install libglew-dev libglfw3-dev libpng-dev
 
 - OpenCL compatibility with certain devices may vary.
 - OpenCL performance on various devices may vary especially with memory transfer rates.
-- Installation scripts have yet to be verified.
-- Using the 2.x SDK and selecting an NVIDIA GPU will result in runtime crashes.
+- Using the OpenCL 2.x SDK and selecting an NVIDIA GPU will result in runtime crashes.
+- When installing, OHM_EMBED_GPU_CODE must be defined in order to run ohmocl; otherwise OpenCL source is not found.
 
 ## Resolving OpenCL SDK With Multiple Options
 
