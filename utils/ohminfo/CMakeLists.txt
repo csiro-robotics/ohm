@@ -18,7 +18,7 @@ target_include_directories(ohminfo SYSTEM
     "${ZLIB_INCLUDE_DIRS}"
 )
 
-target_link_libraries(ohminfo ${OHM_LIBRARY} ohmutil ${ZLIB_LIBRARIES})
+target_link_libraries(ohminfo ohm ohmutil ${ZLIB_LIBRARIES})
 
 source_group("source" REGULAR_EXPRESSION ".*$")
 # Needs CMake 3.8+:

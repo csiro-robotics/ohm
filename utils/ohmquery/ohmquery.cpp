@@ -6,16 +6,17 @@
 #include <3esservermacros.h>
 #include <glm/glm.hpp>
 
-#include <ohm/GpuMap.h>
 #include <ohm/LineQuery.h>
 #include <ohm/MapSerialise.h>
 #include <ohm/NearestNeighbours.h>
 #include <ohm/OccupancyMap.h>
 #include <ohm/OccupancyType.h>
 #include <ohm/OccupancyUtil.h>
-#include <ohm/OhmGpu.h>
 #include <ohm/QueryFlag.h>
 #include <ohm/Voxel.h>
+
+#include <ohmgpu/GpuMap.h>
+#include <ohmgpu/OhmGpu.h>
 
 #include <ohmutil/GlmStream.h>
 #include <ohmutil/OhmUtil.h>

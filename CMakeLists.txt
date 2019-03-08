@@ -151,7 +151,7 @@ if(OHM_BUILD_HEIGHTMAPUTIL)
 endif(OHM_BUILD_HEIGHTMAPUTIL)
 
 add_subdirectory(ohmtools)
-# add_subdirectory(utils)
+add_subdirectory(utils)
 
 if(OHM_UNIT_TESTS)
   enable_testing()

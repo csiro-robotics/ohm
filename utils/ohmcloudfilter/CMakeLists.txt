@@ -25,7 +25,7 @@ target_include_directories(ohmcloudfilter SYSTEM
 )
 
 target_link_libraries(ohmcloudfilter
-  ${OHM_LIBRARY}
+  ohm
   ohmutil
   ${LIBLAS_LIBRARIES}
 )

@@ -7,15 +7,16 @@
 
 #include <slamio/SlamCloudLoader.h>
 
-#include <ohm/ClearanceProcess.h>
-#include <ohm/GpuMap.h>
 #include <ohm/MapSerialise.h>
 #include <ohm/Mapper.h>
 #include <ohm/OccupancyMap.h>
-#include <ohm/OccupancyType.h>
 #include <ohm/OccupancyUtil.h>
-#include <ohm/OhmGpu.h>
 #include <ohm/Voxel.h>
+
+#include <ohmgpu/ClearanceProcess.h>
+#include <ohmgpu/GpuMap.h>
+#include <ohmgpu/OhmGpu.h>
+
 #include <ohmutil/OhmUtil.h>
 #include <ohmutil/PlyMesh.h>
 #include <ohmutil/ProgressMonitor.h>
