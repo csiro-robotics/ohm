@@ -12,19 +12,20 @@
 #if !GPUTIL_DEVICE
 #ifndef __device__
 #define __device__
-#endif // __device__
+#endif  // __device__
 #ifndef __host__
 #define __host__
-#endif // __host__
+#endif  // __host__
 
 namespace ohm
 {
 #endif  // !GPUTIL_DEVICE
 
   // Define real coordinate for functions below. Normally double, float for GPU.
-#if GPUTIL_DEVICE == 1 && !defined(coord_real)
+#if GPUTIL_DEVICE == 1 && !defined(COORD_REAL)
+#define COORD_REAL
   typedef float coord_real;
-#endif  // GPUTIL_DEVICE && !defined(coord_real)
+#endif  // GPUTIL_DEVICE && !defined(COORD_REAL)
 
   /// Calculate the map local centre coordinate for a region along a single axis.
   /// @param regionCoord The coordinate of the region in the map along the axis of interest.
@@ -41,7 +42,8 @@ namespace ohm
 #if GPUTIL_DEVICE != 1
   template <typename coord_real>
 #endif  // GPUTIL_DEVICE != 1
-  inline __device__ __host__ int pointToRegionVoxel(coord_real coord, coord_real voxel_resolution, coord_real region_resolution)
+  inline __device__ __host__ int pointToRegionVoxel(coord_real coord, coord_real voxel_resolution,
+                                                    coord_real region_resolution)
   {
     // Due to precision error, we can end up with coordinates just outside the region spatial boundary.
     // That is, either just below zero, or just above regionResolution. Since by now we should have determined

@@ -11,6 +11,10 @@
 
 // clang-format off
 
+#define OHM_GPU_NONE 0
+#define OHM_GPU_OPENCL 1
+#define OHM_GPU_CUDA 2
+
 /// Target OpenCL standard. 'max' => maximum device version (min 1.2)
 #define OHM_OPENCL_STD "@OHM_OPENCL_STD@"
 /// OpenCL required features to enable OpenCL 2.0 code.

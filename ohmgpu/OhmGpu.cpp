@@ -45,8 +45,8 @@ namespace ohm
       {
 //
 #if GPUTIL_TYPE == GPUTIL_OPENCL
-        PreferredDevice{ "Intel", gputil::Device::kGpu },  //
-#endif // GPUTIL_TYPE == GPUTIL_OPENCL
+        PreferredDevice{ "Intel", gputil::Device::kGpu },          //
+#endif                                                             // GPUTIL_TYPE == GPUTIL_OPENCL
         PreferredDevice{ nullptr, gputil::Device::kGpu },          //
         PreferredDevice{ nullptr, gputil::Device::kAccelerator },  //
         PreferredDevice{ nullptr, 0 },                             //

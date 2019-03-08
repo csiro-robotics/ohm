@@ -41,21 +41,22 @@
 #if !GPUTIL_DEVICE
 #ifndef __device__
 #define __device__
-#endif // __device__
+#endif  // __device__
 #ifndef __host__
 #define __host__
-#endif // __host__
+#endif  // __host__
 
 namespace ohm
 {
 #define SUB_VOX_FUNC_PREFACE template <typename vec3, typename coord_real>
-using vec3 = glm::vec3;
+  using vec3 = glm::vec3;
 
 #else  // GPUTIL_DEVICE
 
-#if !defined(coord_real)
+#if !defined(COORD_REAL)
+#define COORD_REAL
 typedef float coord_real;
-#endif  // !defined(coord_real)
+#endif  // !defined(COORD_REAL)
 
 #if !defined(vec3)
 typedef float3 vec3;
@@ -199,7 +200,7 @@ typedef float3 vec3;
 #if !GPUTIL_DEVICE
     const vec3 v = subVoxelToLocalCoord<vec3>(sub_voxel_pattern, 1.0f);
 #else   //  GPUTIL_DEVICE
-    const vec3 v = subVoxelToLocalCoord(sub_voxel_pattern, 1.0f);
+  const vec3 v = subVoxelToLocalCoord(sub_voxel_pattern, 1.0f);
 #endif  //  GPUTIL_DEVICE
     return sub_voxel_pattern == 0 ||
            (v.x * v.x + v.y * v.y + v.z * v.z) < ((0.5f * sphere_scale) * (0.5f * sphere_scale));

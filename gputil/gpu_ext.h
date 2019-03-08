@@ -104,7 +104,7 @@
 //
 // Only 32-bit types are supported.
 //----------------------------------------------------------------------------------------------------------------------
-#if __OPENCL_C_VERSION__ >= 210
+#if __OPENCL_C_VERSION__ >= 200
 
 inline void gputilAtomicInitI32(__global atomic_int *obj, int val) { atomic_init(obj, val); }
 inline void gputilAtomicInitI32L(__local atomic_int *obj, int val) { atomic_init(obj, val); }
@@ -128,6 +128,18 @@ inline uint gputilAtomicExchangeU32L(__local atomic_uint *obj, uint desired) { r
 inline bool gputilAtomicCasU32(__global atomic_uint *obj, uint expected, uint desired) { return atomic_compare_exchange_weak(obj, &expected, desired); }
 inline bool gputilAtomicCasU32L(__local atomic_uint *obj, uint expected, uint desired) { return atomic_compare_exchange_weak(obj, &expected, desired); }
 
+#if __OPENCL_C_VERSION__ < 210
+inline void gputilAtomicInitF32(__global atomic_float *obj, float val) { gputilAtomicInitI32((__global atomic_int *)obj, *(int *)&val); }
+inline void gputilAtomicInitF32L(__local atomic_float *obj, float val) { gputilAtomicInitI32L((__local atomic_int *)obj, *(int *)&val); }
+inline void gputilAtomicStoreF32(__global atomic_float *obj, float val) { gputilAtomicStoreI32((__global atomic_int *)obj, *(int *)&val); }
+inline void gputilAtomicStoreF32L(__local atomic_float *obj, float val) { gputilAtomicStoreI32L((__local atomic_int *)obj, *(int *)&val); }
+inline float gputilAtomicLoadF32(__global atomic_float *obj) { int r = gputilAtomicLoadI32((__global atomic_int *)obj); return *(float *)&r; }
+inline float gputilAtomicLoadF32L(__local atomic_float *obj) { int r = gputilAtomicLoadI32L((__local atomic_int *)obj); return *(float *)&r; }
+inline float gputilAtomicExchangeF32(__global atomic_float *obj, float desired) { int r = gputilAtomicExchangeI32((__global atomic_int *)obj, *(int *)&desired); return *(float *)&r; }
+inline float gputilAtomicExchangeF32L(__local atomic_float *obj, float desired) { int r = gputilAtomicExchangeI32L((__local atomic_int *)obj, *(int *)&desired); return *(float *)&r; }
+inline bool gputilAtomicCasF32(__global atomic_float *obj, float expected, float desired) { return gputilAtomicCasI32((__global atomic_int *)obj, *(int *)&expected, *(int *)&desired); }
+inline bool gputilAtomicCasF32L(__local atomic_float *obj, float expected, float desired) { return gputilAtomicCasI32L((__local atomic_int *)obj, *(int *)&expected, *(int *)&desired); }
+#else  // __OPENCL_C_VERSION__ < 210
 inline void gputilAtomicInitF32(__global atomic_float *obj, float val) { atomic_init(obj, val); }
 inline void gputilAtomicInitF32L(__local atomic_float *obj, float val) { atomic_init(obj, val); }
 inline void gputilAtomicStoreF32(__global atomic_float *obj, float val) { atomic_store(obj, val); }
@@ -138,8 +150,9 @@ inline float gputilAtomicExchangeF32(__global atomic_float *obj, float desired) 
 inline float gputilAtomicExchangeF32L(__local atomic_float *obj, float desired) { return atomic_exchange(obj, desired); }
 inline bool gputilAtomicCasF32(__global atomic_float *obj, float expected, float desired) { return atomic_compare_exchange_weak(obj, &expected, desired); }
 inline bool gputilAtomicCasF32L(__local atomic_float *obj, float expected, float desired) { return atomic_compare_exchange_weak(obj, &expected, desired); }
+#endif // __OPENCL_C_VERSION__ < 210
 
-#else  // __OPENCL_C_VERSION__ < 210
+#else  // __OPENCL_C_VERSION__ < 200
 typedef volatile int atomic_int;
 typedef volatile uint atomic_uint;
 typedef volatile float atomic_float;
@@ -172,8 +185,8 @@ typedef volatile float atomic_float;
 #define gputilAtomicStoreF32L(obj, val) *(obj) = val
 #define gputilAtomicLoadF32(obj) *(obj)
 #define gputilAtomicLoadF32L(obj) *(obj)
-#define gputilAtomicExchangeF32(obj, desired) atomic_xchg((__global atomic_int *)obj, *(int *)&desired)
-#define gputilAtomicExchangeF32L(obj, desired) atomic_xchg((__local atomic_int *)obj, *(int *)&desired)
+inline float gputilAtomicExchangeF32(__global atomic_float *obj, float desired) { int r = atomic_xchg((__global atomic_int *)obj, *(int *)&desired); return *(float *)&r; }
+inline float gputilAtomicExchangeF32L(__local atomic_float *obj, float desired) { int r = atomic_xchg((__local atomic_int *)obj, *(int *)&desired); return *(float *)&r; }
 
 #define gputilAtomicCasF32(obj, expected,  desired) (atomic_cmpxchg((__global atomic_int *)obj, *(int *)&expected, *(int *)&desired) == *(int *)&expected)
 #define gputilAtomicCasF32L(obj, expected,  desired) (atomic_cmpxchg((__local atomic_int *)obj, *(int *)&expected, *(int *)&desired) == *(int *)&expected)

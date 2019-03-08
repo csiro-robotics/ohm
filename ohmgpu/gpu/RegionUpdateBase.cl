@@ -150,7 +150,7 @@ __device__ void updateSubVoxelPosition(__global SubVoxelPatternType *target_addr
   int iteration_count = 0;
   do
   {
-    old_value = *target_address;
+    old_value = gputilAtomicLoadU32(target_address);
     new_value = subVoxelUpdate(old_value, sub_voxel_pos, voxel_resolution, sub_voxel_weigthing);
     ++iteration_count;
   } while (!gputilAtomicCasU32(target_address, old_value, new_value) && iteration_limit < iteration_count);
