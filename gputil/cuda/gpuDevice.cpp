@@ -338,14 +338,19 @@ bool Device::isValid() const
 
 uint64_t Device::deviceMemory() const
 {
-  size_t free = 0;
-  size_t total = 0;
   cudaError_t err = cudaSuccess;
-  err = cudaSetDevice(imp_->device);
+  cudaDeviceProp cuda_info;
+  memset(&cuda_info, 0, sizeof(cuda_info));
+  err = cudaGetDeviceProperties(&cuda_info, imp_->device);
   GPUAPICHECK(err, cudaSuccess, 0u);
-  err = cudaMemGetInfo(&free, &total);
-  GPUAPICHECK(err, cudaSuccess, 0u);
-  return total;
+  return cuda_info.totalGlobalMem;
+}
+
+
+uint64_t Device::maxAllocationSize() const
+{
+  // Is this right?
+  return deviceMemory();
 }
 
 

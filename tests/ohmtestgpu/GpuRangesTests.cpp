@@ -474,14 +474,14 @@ namespace ranges
   }
 
 
-  void scalingTest(bool gpu)
+  void scalingTest(bool gpu, bool sub_voxel = false)
   {
     const double resolution = 0.25;
     const glm::u8vec3 region_size(32);
     const float search_range = 2.0f;
 
     ohm::Profile profile;
-    OccupancyMap map(resolution, region_size);
+    OccupancyMap map(resolution, region_size, (sub_voxel) ? MapFlag::SubVoxel : MapFlag::None);
 
     // Offset the map origin so that 0, 0, 0 is the centre of a voxel.
     map.setOrigin(glm::dvec3(-0.5 * resolution));
@@ -539,4 +539,11 @@ namespace ranges
 
 
   TEST(Ranges, ScalingGpu) { scalingTest(true); }
+
+
+  TEST(Ranges, SubVoxelGpu)
+  {
+    // A duplicate of ScalingGpu with subvoxel positioning enabled (but not really used).
+    scalingTest(true, true);
+  }
 }  // namespace ranges

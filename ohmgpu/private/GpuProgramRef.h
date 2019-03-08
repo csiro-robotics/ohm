@@ -33,13 +33,29 @@ namespace ohm
   class GpuProgramRef
   {
   public:
+    /// Type of source being used/referenced
     enum SourceType
     {
+      /// Null value. For internal use.
+      kSourceNull,
+      /// Loading source from a file name.
       kSourceFile,
+      /// Building from a provided source string.
       kSourceString
     };
 
+    /// Create a program reference.
+    /// @param name Program's reference name.
+    /// @param source_type Identified how to treat @p source_str
+    /// @param source_str Either a file name or string containing to code to build.
+    /// @param source_str_length Optional length of @p source_str.
     GpuProgramRef(const char *name, SourceType source_type, const char *source_str, size_t source_str_length = 0u);
+    /// Create a program reference with build arguments.
+    /// @param name Program's reference name.
+    /// @param source_type Identified how to treat @p source_str
+    /// @param source_str Either a file name or string containing to code to build.
+    /// @param source_str_length Optional length of @p source_str.
+    /// @param build_args Additional build arguments.
     GpuProgramRef(const char *name, SourceType source_type, const char *source_str, size_t source_str_length,
                   const std::initializer_list<std::string> &build_args);
     ~GpuProgramRef();

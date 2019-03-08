@@ -107,37 +107,37 @@
 #if __OPENCL_C_VERSION__ >= 210
 
 inline void gputilAtomicInitI32(__global atomic_int *obj, int val) { atomic_init(obj, val); }
-inline void gputilAtomicInitI32(__local atomic_int *obj, int val) { atomic_init(obj, val); }
+inline void gputilAtomicInitI32L(__local atomic_int *obj, int val) { atomic_init(obj, val); }
 inline void gputilAtomicStoreI32(__global atomic_int *obj, int val) { atomic_store(obj, val); }
-inline void gputilAtomicStoreI32(__local atomic_int *obj, int val) { atomic_store(obj, val); }
+inline void gputilAtomicStoreI32L(__local atomic_int *obj, int val) { atomic_store(obj, val); }
 inline int gputilAtomicLoadI32(__global atomic_int *obj) { return atomic_load(obj); }
-inline int gputilAtomicLoadI32(__local atomic_int *obj) { return atomic_load(obj); }
+inline int gputilAtomicLoadI32L(__local atomic_int *obj) { return atomic_load(obj); }
 inline int gputilAtomicExchangeI32(__global atomic_int *obj, int desired) { return atomic_exchange(obj, desired); }
-inline int gputilAtomicExchangeI32(__local atomic_int *obj, int desired) { return atomic_exchange(obj, desired); }
+inline int gputilAtomicExchangeI32L(__local atomic_int *obj, int desired) { return atomic_exchange(obj, desired); }
 inline bool gputilAtomicCasI32(__global atomic_int *obj, int expected, int desired) { return atomic_compare_exchange_weak(obj, &expected, desired); }
-inline bool gputilAtomicCasI32(__local atomic_int *obj, int expected, int desired) { return atomic_compare_exchange_weak(obj, &expected, desired); }
+inline bool gputilAtomicCasI32L(__local atomic_int *obj, int expected, int desired) { return atomic_compare_exchange_weak(obj, &expected, desired); }
 
 inline void gputilAtomicInitU32(__global atomic_uint *obj, uint val) { atomic_init(obj, val); }
-inline void gputilAtomicInitU32(__local atomic_uint *obj, uint val) { atomic_init(obj, val); }
+inline void gputilAtomicInitU32L(__local atomic_uint *obj, uint val) { atomic_init(obj, val); }
 inline void gputilAtomicStoreU32(__global atomic_uint *obj, uint val) { atomic_store(obj, val); }
-inline void gputilAtomicStoreU32(__local atomic_uint *obj, uint val) { atomic_store(obj, val); }
+inline void gputilAtomicStoreU32L(__local atomic_uint *obj, uint val) { atomic_store(obj, val); }
 inline uint gputilAtomicLoadU32(__global atomic_uint *obj) { return atomic_load(obj); }
-inline uint gputilAtomicLoadU32(__local atomic_uint *obj) { return atomic_load(obj); }
+inline uint gputilAtomicLoadU32L(__local atomic_uint *obj) { return atomic_load(obj); }
 inline uint gputilAtomicExchangeU32(__global atomic_uint *obj, uint desired) { return atomic_exchange(obj, desired); }
-inline uint gputilAtomicExchangeU32(__local atomic_uint *obj, uint desired) { return atomic_exchange(obj, desired); }
+inline uint gputilAtomicExchangeU32L(__local atomic_uint *obj, uint desired) { return atomic_exchange(obj, desired); }
 inline bool gputilAtomicCasU32(__global atomic_uint *obj, uint expected, uint desired) { return atomic_compare_exchange_weak(obj, &expected, desired); }
-inline bool gputilAtomicCasU32(__local atomic_uint *obj, uint expected, uint desired) { return atomic_compare_exchange_weak(obj, &expected, desired); }
+inline bool gputilAtomicCasU32L(__local atomic_uint *obj, uint expected, uint desired) { return atomic_compare_exchange_weak(obj, &expected, desired); }
 
 inline void gputilAtomicInitF32(__global atomic_float *obj, float val) { atomic_init(obj, val); }
-inline void gputilAtomicInitF32(__local atomic_float *obj, float val) { atomic_init(obj, val); }
+inline void gputilAtomicInitF32L(__local atomic_float *obj, float val) { atomic_init(obj, val); }
 inline void gputilAtomicStoreF32(__global atomic_float *obj, float val) { atomic_store(obj, val); }
-inline void gputilAtomicStoreF32(__local atomic_float *obj, float val) { atomic_store(obj, val); }
+inline void gputilAtomicStoreF32L(__local atomic_float *obj, float val) { atomic_store(obj, val); }
 inline float gputilAtomicLoadF32(__global atomic_float *obj) { return atomic_load(obj); }
-inline float gputilAtomicLoadF32(__local atomic_float *obj) { return atomic_load(obj); }
+inline float gputilAtomicLoadF32L(__local atomic_float *obj) { return atomic_load(obj); }
 inline float gputilAtomicExchangeF32(__global atomic_float *obj, float desired) { return atomic_exchange(obj, desired); }
-inline float gputilAtomicExchangeF32(__local atomic_float *obj, float desired) { return atomic_exchange(obj, desired); }
+inline float gputilAtomicExchangeF32L(__local atomic_float *obj, float desired) { return atomic_exchange(obj, desired); }
 inline bool gputilAtomicCasF32(__global atomic_float *obj, float expected, float desired) { return atomic_compare_exchange_weak(obj, &expected, desired); }
-inline bool gputilAtomicCasF32(__local atomic_float *obj, float expected, float desired) { return atomic_compare_exchange_weak(obj, &expected, desired); }
+inline bool gputilAtomicCasF32L(__local atomic_float *obj, float expected, float desired) { return atomic_compare_exchange_weak(obj, &expected, desired); }
 
 #else  // __OPENCL_C_VERSION__ < 210
 typedef volatile int atomic_int;
@@ -145,19 +145,38 @@ typedef volatile uint atomic_uint;
 typedef volatile float atomic_float;
 
 #define gputilAtomicInitI32(obj, val) *(obj) = val
+#define gputilAtomicInitI32L(obj, val) *(obj) = val
 #define gputilAtomicStoreI32(obj, val) *(obj) = val
+#define gputilAtomicStoreI32L(obj, val) *(obj) = val
 #define gputilAtomicLoadI32(obj) *(obj)
+#define gputilAtomicLoadI32L(obj) *(obj)
 #define gputilAtomicExchangeI32(obj, desired) atomic_xchg(obj, desired)
-#define gputilAtomicCas(obj, expected, desired) (atomic_cmpxchg(obj, expected, desired) == (expected))
+#define gputilAtomicExchangeI32L(obj, desired) atomic_xchg(obj, desired)
+#define gputilAtomicCasI32(obj, expected, desired) (atomic_cmpxchg(obj, expected, desired) == (expected))
+#define gputilAtomicCasI32L(obj, expected, desired) (atomic_cmpxchg(obj, expected, desired) == (expected))
+
+#define gputilAtomicInitU32(obj, val) *(obj) = val
+#define gputilAtomicInitU32L(obj, val) *(obj) = val
+#define gputilAtomicStoreU32(obj, val) *(obj) = val
+#define gputilAtomicStoreU32L(obj, val) *(obj) = val
+#define gputilAtomicLoadU32(obj) *(obj)
+#define gputilAtomicLoadU32L(obj) *(obj)
+#define gputilAtomicExchangeU32(obj, desired) atomic_xchg(obj, desired)
+#define gputilAtomicExchangeU32L(obj, desired) atomic_xchg(obj, desired)
+#define gputilAtomicCasU32(obj, expected, desired) (atomic_cmpxchg(obj, expected, desired) == (expected))
+#define gputilAtomicCasU32L(obj, expected, desired) (atomic_cmpxchg(obj, expected, desired) == (expected))
 
 #define gputilAtomicInitF32(obj, val) *(obj) = val
+#define gputilAtomicInitF32L(obj, val) *(obj) = val
 #define gputilAtomicStoreF32(obj, val) *(obj) = val
+#define gputilAtomicStoreF32L(obj, val) *(obj) = val
 #define gputilAtomicLoadF32(obj) *(obj)
-#define gputilAtomicExchangeF32L(obj, desired) atomic_xchg((__local atomic_int *)obj, *(int *)&desired)
+#define gputilAtomicLoadF32L(obj) *(obj)
 #define gputilAtomicExchangeF32(obj, desired) atomic_xchg((__global atomic_int *)obj, *(int *)&desired)
+#define gputilAtomicExchangeF32L(obj, desired) atomic_xchg((__local atomic_int *)obj, *(int *)&desired)
 
-#define gputilAtomicCasF32L(obj, expected,  desired) (atomic_cmpxchg((__local atomic_int *)obj, *(int *)&expected, *(int *)&desired) == *(int *)&expected)
 #define gputilAtomicCasF32(obj, expected,  desired) (atomic_cmpxchg((__global atomic_int *)obj, *(int *)&expected, *(int *)&desired) == *(int *)&expected)
+#define gputilAtomicCasF32L(obj, expected,  desired) (atomic_cmpxchg((__local atomic_int *)obj, *(int *)&expected, *(int *)&desired) == *(int *)&expected)
 
 #endif // __OPENCL_C_VERSION__
 

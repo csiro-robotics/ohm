@@ -6,7 +6,7 @@
 #ifndef SUBVOXEL_H
 #define SUBVOXEL_H
 
-#include "ohm/MapCoord.h"
+#include "MapCoord.h"
 
 // Note: this header is included in GPU code.
 // Because of this "OhmConfig.h" and <cmath> cannot be included here and you may need to include those first.

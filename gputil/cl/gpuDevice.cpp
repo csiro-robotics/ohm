@@ -462,6 +462,20 @@ uint64_t Device::deviceMemory() const
 }
 
 
+uint64_t Device::maxAllocationSize() const
+{
+  if (!isValid())
+  {
+    return 0;
+  }
+
+  cl_ulong mem = 0;
+  clGetDeviceInfo(imp_->device(), CL_DEVICE_MAX_MEM_ALLOC_SIZE, sizeof(mem), &mem, nullptr);
+
+  return static_cast<uint64_t>(mem);
+}
+
+
 bool Device::unifiedMemory() const
 {
   if (!isValid())

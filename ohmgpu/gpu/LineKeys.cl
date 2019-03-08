@@ -1,6 +1,6 @@
 
 #include "gpu_ext.h"
-#include "ohm/MapCoord.h"
+#include "MapCoord.h"
 #include "GpuKey.h"
 
 #define WALK_LINE_VOXELS lineKeysWalkLine

@@ -671,7 +671,15 @@ namespace gpubuffertest
   TEST(GpuBuffer, Allocation)
   {
     gputil::Device &gpu = g_gpu;
-    uint64_t device_mem = gpu.deviceMemory();
+    uint64_t alloc_size = gpu.maxAllocationSize();
+    // Limit to 2 GiB.
+    alloc_size = std::min<size_t>(alloc_size, 2u * 1024u * 1024u * 1024u);
+
+    std::cout << "Max allocation size: ";
+    logBytes(std::cout, alloc_size) << std::endl;
+    alloc_size /= 2;
+    std::cout << "Using allocation size: ";
+    logBytes(std::cout, alloc_size) << std::endl;
 
     // Allocate and release large amounts of memory. Ensure we are releasing it correctly.
     // This should raise an exception if we are not correctly releasing memory.
@@ -679,7 +687,7 @@ namespace gpubuffertest
     const int fill_value = 42;
     for (int i = 0; i < 20; ++i)
     {
-      gputil::Buffer mem_buffer(gpu, device_mem / 3);
+      gputil::Buffer mem_buffer(gpu, alloc_size);
       mem_buffer.fill(&fill_value, sizeof(fill_value));
       std::cout << i + 1 << " / " << iter_count << std::endl;
     }

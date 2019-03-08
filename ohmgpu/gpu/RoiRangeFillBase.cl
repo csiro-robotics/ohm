@@ -16,12 +16,12 @@
 // Explicitly include MapCoord.h first. It's included from each of the subsequent includes, but leaving it to SubVoxel.h
 // has issues with the resource generation. Essentially it causes MapCoord.h to be only included within the SUB_VOXEL
 // define.
-#include "ohm/MapCoord.h"
+#include "MapCoord.h"
 
 #include "Regions.cl"
 
 #ifdef SUB_VOXEL
-#include "ohm/SubVoxel.h"
+#include "SubVoxel.h"
 #endif  // SUB_VOXEL
 
 /// @defgroup voxelClearanceGpu Voxel Clearance GPU
@@ -257,6 +257,7 @@ unsigned __device__ volumeOf(int3 expanse)
 {
   return (unsigned)(expanse.x) * (unsigned)(expanse.y) * (unsigned)(expanse.z);
 }
+
 
 
 char4 __device__ selectObstructionForNeighbour(int nx, int ny, int nz, char4 currentClosest, float *currentDistSqr,
@@ -525,11 +526,12 @@ inline __device__ char4 voxelToObstruction(uint voxel)
 }
 
 
+
 bool __device__ updateVoxelObstructionCas(int3 voxelIndex, __global voxel_type *voxel, char4 newObstruction,
                                           float3 axisScaling)
 {
   uint reference_value, new_value;
-  voxel_type *voxel_ptr;
+  __global voxel_type *voxel_ptr;
 
   // Prepare the new value we may write.
   new_value = obstructionToVoxel(newObstruction);
@@ -545,7 +547,7 @@ bool __device__ updateVoxelObstructionCas(int3 voxelIndex, __global voxel_type *
   do
   {
     // Cache the current value as a reference value.
-    reference_value = gputilAtomicLoad(voxel_ptr);
+    reference_value = gputilAtomicLoadU32(voxel_ptr);
 
     // Evaluate the range to the voxel currently considered the closest obstruction for the target voxel.
     // No need to apply voxelResolution as we are making relative comparisons.
@@ -563,7 +565,7 @@ bool __device__ updateVoxelObstructionCas(int3 voxelIndex, __global voxel_type *
       // Attempt to write to the target location. This is done with contention, so we use
       // atomics to test for success. On failure we'll iterate again until we hit the iteration
       // limit.
-      needsUpdate = !gputilAtomicCas(voxel_ptr, reference_value, new_value);
+      needsUpdate = !gputilAtomicCasU32(voxel_ptr, reference_value, new_value);
       updated = !needsUpdate;
     }
     else
@@ -681,7 +683,8 @@ void __device__ loadPropagationLocalVoxels(__global char4 *srcVoxels, __local ch
   barrier(CLK_LOCAL_MEM_FENCE);
 #endif  // VALIDATE_LOCAL_MEM_LOAD
 }
-#endif  // ROI_RANGE_FILL_BASE_CL
+
+#endif // ROI_RANGE_FILL_BASE_CL
 
 //-----------------------------------------------------------------------------
 // Kernels
@@ -933,6 +936,7 @@ __kernel void propagateObstacles(__global char4 *srcVoxels, __global char4 *dstV
   LOCAL_MEM_ENABLE();
   LOCAL_VAR(char4 *, localVoxels,
             0);  // FIXME(KS): match size to CPU size. Won't actually have effect unless more locals are used.
+
 
   int3 effectiveGlobalId = make_int3(get_global_id(0), get_global_id(1), get_global_id(2));
   int3 effectiveLocalId = make_int3(get_local_id(0), get_local_id(1), get_local_id(2));

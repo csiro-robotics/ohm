@@ -23,17 +23,29 @@ using atomic_uintptr_t = size_t;
 using atomic_size_t = size_t;
 using atomic_ptrdiff_t = size_t;
 
-inline __device__ void gputilAtomicInit(atomic_int *obj, int val) { *obj = val; }
-inline __device__ void gputilAtomicStore(atomic_int *obj, int val) { *obj = val; }
-inline __device__ int gputilAtomicLoad(atomic_int *obj) { return *obj; }
-inline __device__ int gputilAtomicExchange(atomic_int *obj, int desired) { return atomicExch(obj, desired); }
-inline __device__ bool gputilAtomicCas(atomic_int *obj, int expected, int desired) { return atomicCAS(obj, expected, desired) == expected; }
+inline __device__ void gputilAtomicInitI32(atomic_int *obj, int val) { *obj = val; }
+inline __device__ void gputilAtomicStoreI32(atomic_int *obj, int val) { *obj = val; }
+inline __device__ int gputilAtomicLoadI32(atomic_int *obj) { return *obj; }
+inline __device__ int gputilAtomicExchangeI32(atomic_int *obj, int desired) { return atomicExch(obj, desired); }
+inline __device__ bool gputilAtomicCasI32(atomic_int *obj, int expected, int desired) { return atomicCAS(obj, expected, desired) == expected; }
 
-inline __device__ void gputilAtomicInit(atomic_uint *obj, uint val) { *obj = val; }
-inline __device__ void gputilAtomicStore(atomic_uint *obj, uint val) { *obj = val; }
-inline __device__ uint gputilAtomicLoad(atomic_uint *obj) { return *obj; }
-inline __device__ uint gputilAtomicExchange(atomic_uint *obj, uint desired) { return atomicExch(obj, desired); }
-inline __device__ bool gputilAtomicCas(atomic_uint *obj, uint expected, uint desired) { return atomicCAS(obj, expected, desired) == expected; }
+#define gputilAtomicInitI32L gputilAtomicInitI32
+#define gputilAtomicStoreI32L gputilAtomicStoreI32
+#define gputilAtomicLoadI32L gputilAtomicLoadI32
+#define gputilAtomicExchangeI32L gputilAtomicExchangeI32
+#define gputilAtomicCasI32L gputilAtomicCasI32
+
+inline __device__ void gputilAtomicInitU32(atomic_uint *obj, uint val) { *obj = val; }
+inline __device__ void gputilAtomicStoreU32(atomic_uint *obj, uint val) { *obj = val; }
+inline __device__ uint gputilAtomicLoadU32(atomic_uint *obj) { return *obj; }
+inline __device__ uint gputilAtomicExchangeU32(atomic_uint *obj, uint desired) { return atomicExch(obj, desired); }
+inline __device__ bool gputilAtomicCasU32(atomic_uint *obj, uint expected, uint desired) { return atomicCAS(obj, expected, desired) == expected; }
+
+#define gputilAtomicInitU32L gputilAtomicInitU32
+#define gputilAtomicStoreU32L gputilAtomicStoreU32
+#define gputilAtomicLoadU32L gputilAtomicLoadU32
+#define gputilAtomicExchangeU32L gputilAtomicExchangeU32
+#define gputilAtomicCasU32L gputilAtomicCasU32
 
 inline __device__ void gputilAtomicInitF32(atomic_float *obj, float val) { *obj = val; }
 inline __device__ void gputilAtomicStoreF32(atomic_float *obj, float val) { *obj = val; }
@@ -43,6 +55,12 @@ inline __device__ bool gputilAtomicCasF32(atomic_float *obj, float expected, flo
 {
   return __int_as_float(atomicCAS((atomic_int *)obj, __float_as_int(expected), __float_as_int(desired))) == expected;
 }
+
+#define gputilAtomicInitF32L gputilAtomicInitF32
+#define gputilAtomicStoreF32L gputilAtomicStoreF32
+#define gputilAtomicLoadF32L gputilAtomicLoadF32
+#define gputilAtomicExchangeF32L gputilAtomicExchangeF32
+#define gputilAtomicCasF32L gputilAtomicCasF32
 
 // Note: CUDA semantics for atomicInc/Dec differ from OpenCL atomic_inc/dec. We use the OpenCL semantics, where there
 // is no validation value and always increments/decrements.

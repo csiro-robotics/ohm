@@ -83,12 +83,15 @@ function(_ohmgpu_setup_target TARGET_NAME GPUTIL_LIBRARY OHM_GPU)
     PUBLIC
       $<INSTALL_INTERFACE:${OHM_PREFIX_INCLUDE}>
       # Access private ohm interfaces
-      $<BUILD_INTERFACE:${OHM_SOURCE_DIR}/private>
       $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
       $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/ohmgpu>
       $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}>
     PRIVATE
       $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}>
+      # The following include directories are required to get the GPU code building in all different context.
+      # Otherwise we have a lot of book keeping in managing include statements.
+      $<BUILD_INTERFACE:${OHM_SOURCE_DIR}>
+      $<BUILD_INTERFACE:${OHM_SOURCE_DIR}/private>
   )
 
   if(OHM_TES_DEBUG)
@@ -112,10 +115,12 @@ endfunction(_ohmgpu_setup_target)
 
 
 if(OHM_BUILD_OPENCL)
-  # Add gputil:gpu_ext.h to this project for correct marshalling.
-  # Always re-resolve gpu_ext.h in case it moves.
   get_target_property(OHM_INCLUDE_DIRS ohm SOURCE_DIR)
+
+  # Add gputil:gpu_ext.h to this project for correct marshalling.
   get_target_property(GPUTIL_INCLUDE_DIRS gputilocl SOURCE_DIR)
+  get_target_property(GPUTIL_SOURCE_DIR gputilocl SOURCE_DIR)
+  list(APPEND GPU_HEADERS ${GPUTIL_SOURCE_DIR}/gpu_ext.h)
 
   set(GPU_SOURCES
     gpu/LineKeys.cl
@@ -151,22 +156,15 @@ if(OHM_BUILD_OPENCL)
 
   if(NOT OHM_EMBED_GPU_CODE)
     # Not embedding GPU source code. Make sure we marshal GPU headers as well as code.
-    get_filename_component(CLSOURCENAME "${GPU_EXT_H}" NAME)
-    add_custom_command(
-      OUTPUT "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${CLSOURCENAME}"
-      COMMAND "${CMAKE_COMMAND}" -E copy_if_different "${GPU_EXT_H}" "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${CLSOURCENAME}"
-      MAIN_DEPENDENCY "${GPU_EXT_H}"
-      COMMENT "Copying ${CLSOURCENAME}"
-    )
-
     list(APPEND GPU_SOURCES "${GPU_HEADERS}")
     foreach(CLSOURCE ${GPU_SOURCES})
       get_filename_component(CLSOURCENAME "${CLSOURCE}" NAME)
+      get_filename_component(CLSOURCEPATH "${CLSOURCE}" ABSOLUTE)
       # Not embedding GPU code. Marshal GPU source files.
       add_custom_command(
         OUTPUT "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${CLSOURCENAME}"
-        COMMAND "${CMAKE_COMMAND}" -E copy_if_different "${CMAKE_CURRENT_LIST_DIR}/${CLSOURCE}" "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${CLSOURCENAME}"
-        MAIN_DEPENDENCY "${CMAKE_CURRENT_LIST_DIR}/${CLSOURCE}"
+        COMMAND "${CMAKE_COMMAND}" -E copy_if_different "${CLSOURCEPATH}" "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${CLSOURCENAME}"
+        MAIN_DEPENDENCY "${CLSOURCE}"
         COMMENT "Copying ${CLSOURCE}"
       )
     endforeach(CLSOURCE)

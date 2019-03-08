@@ -60,11 +60,6 @@ namespace
 #endif  // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
 }  // namespace
 
-const void *seedRegionVoxelsPtr();
-const void *seedFromOuterRegionsPtr();
-const void *propagateObstaclesPtr();
-const void *migrateResultsPtr();
-
 RoiRangeFill::RoiRangeFill(gputil::Device &gpu)
 {
   gpu_ = gpu;

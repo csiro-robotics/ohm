@@ -6,7 +6,7 @@
 #ifndef GPUKEY_H
 #define GPUKEY_H
 
-#include "ohm/MapCoord.h"
+#include "MapCoord.h"
 
 /// printf formating string macro for @c GpuKey.
 #define KEY_F "[%d %d %d : %d %d %d]"

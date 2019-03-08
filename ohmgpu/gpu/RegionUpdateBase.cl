@@ -39,8 +39,8 @@
 // Explicitly include MapCoord.h first. It's included from each of the subsequent includes, but leaving it to SubVoxel.h
 // has issues with the resource generation. Essentially it causes MapCoord.h to be only included within the SUB_VOXEL
 // define.
-#include "ohm/MapCoord.h"
-#include "ohm/SubVoxel.h"
+#include "MapCoord.h"
+#include "SubVoxel.h"
 
 #include "Regions.cl"
 
@@ -153,7 +153,7 @@ __device__ void updateSubVoxelPosition(__global SubVoxelPatternType *target_addr
     old_value = *target_address;
     new_value = subVoxelUpdate(old_value, sub_voxel_pos, voxel_resolution, sub_voxel_weigthing);
     ++iteration_count;
-  } while (!gputilAtomicCas(target_address, old_value, new_value) && iteration_limit < iteration_count);
+  } while (!gputilAtomicCasU32(target_address, old_value, new_value) && iteration_limit < iteration_count);
 }
 #endif  // SUB_VOX
 
