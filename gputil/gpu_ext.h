@@ -99,6 +99,10 @@
 
 #define SQR(X) ((X) * (X))
 
+// ulong may be defined for CUDA linux as a 32-bit type.
+// TODO(KS): Find a better way of seting with this by forcing CUDA to use ulong as a 64-bit type.
+typedef ulong ulonglong;
+
 //----------------------------------------------------------------------------------------------------------------------
 // Atomic definitions. Make consistent atomic function interface across all GPU code versions.
 //

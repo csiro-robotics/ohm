@@ -12,6 +12,7 @@
 #include "gputil/gpuThrow.h"
 
 #include <algorithm>
+#include <cstring>
 #include <mutex>
 
 using namespace gputil;

@@ -54,9 +54,15 @@ using namespace ohm;
 namespace
 {
 #if defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
-  GpuProgramRef program_ref("RoiRangeFill", GpuProgramRef::kSourceString, RoiRangeFillCode, RoiRangeFillCode_length);
+  GpuProgramRef program_ref_sub_vox("RoiRangeFill", GpuProgramRef::kSourceString, RoiRangeFillCode, RoiRangeFillCode_length, { "-DSUB_VOXEL" });
 #else   // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
-  GpuProgramRef program_ref("RoiRangeFill", GpuProgramRef::kSourceFile, "RoiRangeFill.cl", 0u);
+  GpuProgramRef program_ref_sub_vox("RoiRangeFill", GpuProgramRef::kSourceFile, "RoiRangeFill.cl", 0u, { "-DSUB_VOXEL" });
+#endif  // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
+
+#if defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
+  GpuProgramRef program_ref_no_sub("RoiRangeFill", GpuProgramRef::kSourceString, RoiRangeFillCode, RoiRangeFillCode_length);
+#else   // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
+  GpuProgramRef program_ref_no_sub("RoiRangeFill", GpuProgramRef::kSourceFile, "RoiRangeFill.cl", 0u);
 #endif  // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
 }  // namespace
 
@@ -74,79 +80,6 @@ RoiRangeFill::RoiRangeFill(gputil::Device &gpu)
   {
     gpu_work = gputil::Buffer(gpu, 1 * sizeof(gputil::char4), gputil::kBfReadWrite);
   }
-
-  valid_ = false;
-
-  if (program_ref.addReference(gpu))
-  {
-    valid_ = true;
-    seed_kernel_sub_vox_ = GPUTIL_MAKE_KERNEL(program_ref.program(), seedRegionVoxelsSubVox);
-    seed_outer_kernel_sub_vox_ = GPUTIL_MAKE_KERNEL(program_ref.program(), seedFromOuterRegionsSubVox);
-    propagate_kernel_sub_vox_ = GPUTIL_MAKE_KERNEL(program_ref.program(), propagateObstaclesSubVox);
-    migrate_kernel_sub_vox_ = GPUTIL_MAKE_KERNEL(program_ref.program(), migrateResultsSubVox);
-
-    seed_kernel_no_vox_ = GPUTIL_MAKE_KERNEL(program_ref.program(), seedRegionVoxels);
-    seed_outer_kernel_no_vox_ = GPUTIL_MAKE_KERNEL(program_ref.program(), seedFromOuterRegions);
-    propagate_kernel_no_vox_ = GPUTIL_MAKE_KERNEL(program_ref.program(), propagateObstacles);
-    migrate_kernel_no_vox_ = GPUTIL_MAKE_KERNEL(program_ref.program(), migrateResults);
-
-    if (!seed_kernel_sub_vox_.isValid() || !seed_outer_kernel_sub_vox_.isValid() ||
-        !propagate_kernel_sub_vox_.isValid() || !migrate_kernel_sub_vox_.isValid() || !seed_kernel_no_vox_.isValid() ||
-        !seed_outer_kernel_no_vox_.isValid() || !propagate_kernel_no_vox_.isValid() ||
-        !migrate_kernel_no_vox_.isValid())
-    {
-      seed_kernel_sub_vox_ = gputil::Kernel();
-      seed_outer_kernel_sub_vox_ = gputil::Kernel();
-      propagate_kernel_sub_vox_ = gputil::Kernel();
-      migrate_kernel_sub_vox_ = gputil::Kernel();
-
-      seed_kernel_no_vox_ = gputil::Kernel();
-      seed_outer_kernel_no_vox_ = gputil::Kernel();
-      propagate_kernel_no_vox_ = gputil::Kernel();
-      migrate_kernel_no_vox_ = gputil::Kernel();
-
-      program_ref.releaseReference();
-      valid_ = false;
-    }
-
-    if (valid_)
-    {
-      seed_kernel_sub_vox_.calculateOptimalWorkGroupSize();
-      seed_outer_kernel_sub_vox_.calculateOptimalWorkGroupSize();
-      // Add local voxels cache.
-      propagate_kernel_sub_vox_.addLocal([](size_t workgroup_size) {
-        // Convert workgroupSize to a cubic dimension (conservatively) then add
-        // padding of 1 either size. This forms the actual size, but ends up being
-        // a conservative estimate of the memory requirement.
-        const size_t cubic_size = size_t(std::ceil(std::pow(double(workgroup_size), 1.0 / 3.0))) + 2;
-        return sizeof(gputil::char4) * cubic_size * cubic_size * cubic_size;
-      });
-
-      propagate_kernel_sub_vox_.calculateOptimalWorkGroupSize();
-
-      migrate_kernel_sub_vox_.calculateOptimalWorkGroupSize();
-
-      seed_kernel_no_vox_.calculateOptimalWorkGroupSize();
-      seed_outer_kernel_no_vox_.calculateOptimalWorkGroupSize();
-      // Add local voxels cache.
-      propagate_kernel_no_vox_.addLocal([](size_t workgroup_size) {
-        // Convert workgroupSize to a cubic dimension (conservatively) then add
-        // padding of 1 either size. This forms the actual size, but ends up being
-        // a conservative estimate of the memory requirement.
-        const size_t cubic_size = size_t(std::ceil(std::pow(double(workgroup_size), 1.0 / 3.0))) + 2;
-        return sizeof(gputil::char4) * cubic_size * cubic_size * cubic_size;
-      });
-
-      propagate_kernel_no_vox_.calculateOptimalWorkGroupSize();
-
-      migrate_kernel_no_vox_.calculateOptimalWorkGroupSize();
-    }
-  }
-
-  if (!valid_)
-  {
-    program_ref.releaseReference();
-  }
 }
 
 
@@ -161,17 +94,7 @@ RoiRangeFill::~RoiRangeFill()
   gpu_work_[1] = gputil::Buffer();
   gpu_ = gputil::Device();
 
-  seed_kernel_sub_vox_ = gputil::Kernel();
-  seed_outer_kernel_sub_vox_ = gputil::Kernel();
-  propagate_kernel_sub_vox_ = gputil::Kernel();
-  migrate_kernel_sub_vox_ = gputil::Kernel();
-
-  seed_kernel_no_vox_ = gputil::Kernel();
-  seed_outer_kernel_no_vox_ = gputil::Kernel();
-  propagate_kernel_no_vox_ = gputil::Kernel();
-  migrate_kernel_no_vox_ = gputil::Kernel();
-
-  program_ref.releaseReference();
+  releaseGpuProgram();
 }
 
 
@@ -330,6 +253,76 @@ bool RoiRangeFill::calculateForRegion(OccupancyMap &map, const glm::i16vec3 &reg
 }
 
 
+void RoiRangeFill::cacheGpuProgram(bool with_sub_voxels, bool force)
+{
+  if (!force && program_ref_ != nullptr && with_sub_voxels == using_sub_voxels_program_)
+  {
+    // Already loaded.
+    return;
+  }
+
+  releaseGpuProgram();
+
+  program_ref_ = (with_sub_voxels) ? &program_ref_sub_vox : &program_ref_no_sub;
+  using_sub_voxels_program_ = with_sub_voxels;
+
+  if (program_ref_->addReference(gpu_))
+  {
+    if (using_sub_voxels_program_)
+    {
+      seed_kernel_ = GPUTIL_MAKE_KERNEL(program_ref_->program(), seedRegionVoxelsSubVox);
+      seed_outer_kernel_ = GPUTIL_MAKE_KERNEL(program_ref_->program(), seedFromOuterRegionsSubVox);
+      propagate_kernel_ = GPUTIL_MAKE_KERNEL(program_ref_->program(), propagateObstaclesSubVox);
+      migrate_kernel_ = GPUTIL_MAKE_KERNEL(program_ref_->program(), migrateResultsSubVox);
+    }
+    else
+    {
+      seed_kernel_ = GPUTIL_MAKE_KERNEL(program_ref_->program(), seedRegionVoxels);
+      seed_outer_kernel_ = GPUTIL_MAKE_KERNEL(program_ref_->program(), seedFromOuterRegions);
+      propagate_kernel_ = GPUTIL_MAKE_KERNEL(program_ref_->program(), propagateObstacles);
+      migrate_kernel_ = GPUTIL_MAKE_KERNEL(program_ref_->program(), migrateResults);
+    }
+
+    if (!seed_kernel_.isValid() || !seed_outer_kernel_.isValid() ||
+        !propagate_kernel_.isValid() || !migrate_kernel_.isValid())
+    {
+      releaseGpuProgram();
+    }
+    else
+    {
+      seed_kernel_.calculateOptimalWorkGroupSize();
+      seed_outer_kernel_.calculateOptimalWorkGroupSize();
+      // Add local voxels cache.
+      propagate_kernel_.addLocal([](size_t workgroup_size) {
+        // Convert workgroupSize to a cubic dimension (conservatively) then add
+        // padding of 1 either size. This forms the actual size, but ends up being
+        // a conservative estimate of the memory requirement.
+        const size_t cubic_size = size_t(std::ceil(std::pow(double(workgroup_size), 1.0 / 3.0))) + 2;
+        return sizeof(gputil::char4) * cubic_size * cubic_size * cubic_size;
+      });
+
+      propagate_kernel_.calculateOptimalWorkGroupSize();
+
+      migrate_kernel_.calculateOptimalWorkGroupSize();
+    }
+  }
+}
+
+
+void RoiRangeFill::releaseGpuProgram()
+{
+  seed_kernel_ = gputil::Kernel();
+  seed_outer_kernel_ = gputil::Kernel();
+  propagate_kernel_ = gputil::Kernel();
+  migrate_kernel_ = gputil::Kernel();
+
+  if (program_ref_)
+  {
+    program_ref_->releaseReference();
+  }
+}
+
+
 void RoiRangeFill::finishRegion(const glm::i16vec3 &region_key, OccupancyMap &map, RoiRangeFill &query,
                                 GpuCache &gpu_cache, GpuLayerCache &clearance_cache,
                                 const glm::ivec3 &batch_voxel_extents, const std::vector<gputil::Event> &upload_events)
@@ -383,24 +376,7 @@ int RoiRangeFill::invoke(const OccupancyMapDetail &map, RoiRangeFill &query, Gpu
   gputil::Queue &queue = gpu_cache.gpuQueue();
 
   // Select kernels based on sub-voxel usage or not.
-  gputil::Kernel *seed_kernel = nullptr;
-  gputil::Kernel *seed_outer_kernel = nullptr;
-  gputil::Kernel *propagate_kernel = nullptr;
-  gputil::Kernel *migrate_kernel = nullptr;
-  if (map.layout.hasSubVoxelPattern())
-  {
-    seed_kernel = &seed_kernel_sub_vox_;
-    seed_outer_kernel = &seed_outer_kernel_sub_vox_;
-    propagate_kernel = &propagate_kernel_sub_vox_;
-    migrate_kernel = &migrate_kernel_sub_vox_;
-  }
-  else
-  {
-    seed_kernel = &seed_kernel_no_vox_;
-    seed_outer_kernel = &seed_outer_kernel_no_vox_;
-    propagate_kernel = &propagate_kernel_no_vox_;
-    migrate_kernel = &migrate_kernel_no_vox_;
-  }
+  cacheGpuProgram(map.layout.hasSubVoxelPattern(), false);
 
   PROFILE(seed);
   // For now just wait on the sync events here.
@@ -427,17 +403,17 @@ int RoiRangeFill::invoke(const OccupancyMapDetail &map, RoiRangeFill &query, Gpu
                                size_t((region_voxel_extents_gpu.z + zbatch - 1) / zbatch));
 
   gputil::Dim3 global_size, local_size;
-  seed_kernel->calculateGrid(&global_size, &local_size, seed_grid);
+  seed_kernel_.calculateGrid(&global_size, &local_size, seed_grid);
 
-  err = (*seed_kernel)(global_size, local_size, seed_kernel_event, &queue,
-                       // Kernel arguments
-                       gputil::BufferArg<GpuKey>(gpu_corner_voxel_key_),
-                       gputil::BufferArg<float>(*clearance_layer_cache.buffer()),
-                       gputil::BufferArg<gputil::char4>(query.gpuWork(src_buffer_index)),
-                       gputil::BufferArg<gputil::int3>(query.gpuRegionKeys()),
-                       gputil::BufferArg<uint64_t>(query.gpuOccupancyRegionOffsets()), query.regionCount(),
-                       region_voxel_extents_gpu, region_voxel_extents_gpu, float(map.occupancy_threshold_value),
-                       kernel_algorithm_flags, zbatch, map.sub_voxel_filter_scale);
+  err = seed_kernel_(global_size, local_size, seed_kernel_event, &queue,
+                     // Kernel arguments
+                     gputil::BufferArg<GpuKey>(gpu_corner_voxel_key_),
+                     gputil::BufferArg<float>(*clearance_layer_cache.buffer()),
+                     gputil::BufferArg<gputil::char4>(query.gpuWork(src_buffer_index)),
+                     gputil::BufferArg<gputil::int3>(query.gpuRegionKeys()),
+                     gputil::BufferArg<uint64_t>(query.gpuOccupancyRegionOffsets()), query.regionCount(),
+                     region_voxel_extents_gpu, region_voxel_extents_gpu, float(map.occupancy_threshold_value),
+                     kernel_algorithm_flags, zbatch, map.sub_voxel_filter_scale);
   if (err)
   {
     return err;
@@ -450,7 +426,7 @@ int RoiRangeFill::invoke(const OccupancyMapDetail &map, RoiRangeFill &query, Gpu
   global_size = gputil::Dim3((padding_volume + seed_outer_batch - 1) / seed_outer_batch);
   local_size = gputil::Dim3(256);
 
-  err = (*seed_outer_kernel)(
+  err = seed_outer_kernel_(
     global_size, local_size, gputil::EventList({ seed_kernel_event }), seed_outer_kernel_event, &queue,
     // Kernel arguments
     gputil::BufferArg<GpuKey>(query.gpuCornerVoxelKey()), gputil::BufferArg<float *>(*clearance_layer_cache.buffer()),
@@ -474,7 +450,7 @@ int RoiRangeFill::invoke(const OccupancyMapDetail &map, RoiRangeFill &query, Gpu
 
   PROFILE(propagate);
 
-  propagate_kernel->calculateGrid(
+  propagate_kernel_.calculateGrid(
     &global_size, &local_size,
     gputil::Dim3(region_voxel_extents_gpu.x, region_voxel_extents_gpu.y, region_voxel_extents_gpu.z));
 
@@ -485,7 +461,7 @@ int RoiRangeFill::invoke(const OccupancyMapDetail &map, RoiRangeFill &query, Gpu
   // std::cout << "Iterations: " << propagationIterations << std::endl;
   for (int i = 0; i < propagation_iterations; ++i)
   {
-    err = (*propagate_kernel)(global_size, local_size, { previous_event }, propagate_event, &queue,
+    err = propagate_kernel_(global_size, local_size, { previous_event }, propagate_event, &queue,
                               // Kernel args
                               gputil::BufferArg<gputil::char4>(query.gpuWork(src_buffer_index)),
                               gputil::BufferArg<gputil::char4>(query.gpuWork(1 - src_buffer_index)),
@@ -517,17 +493,17 @@ int RoiRangeFill::invoke(const OccupancyMapDetail &map, RoiRangeFill &query, Gpu
   PROFILE(migrate);
 
   // Only queue migration kernel for the target region.
-  migrate_kernel->calculateGrid(
+  migrate_kernel_.calculateGrid(
     &global_size, &local_size,
     gputil::Dim3(region_voxel_extents_gpu.x, region_voxel_extents_gpu.y, region_voxel_extents_gpu.z));
 
   gputil::Event migrate_event;
-  err = (*migrate_kernel)(global_size, local_size, gputil::EventList({ previous_event }), migrate_event, &queue,
-                          // Kernel args
-                          gputil::BufferArg<gputil::char4>(query.gpuRegionClearanceBuffer()),
-                          gputil::BufferArg<gputil::char4>(query.gpuWork(src_buffer_index)), region_voxel_extents_gpu,
-                          region_voxel_extents_gpu, float(query.searchRadius()), float(map.resolution),
-                          axis_scaling_gpu, unsigned(query.queryFlags()));
+  err = migrate_kernel_(global_size, local_size, gputil::EventList({ previous_event }), migrate_event, &queue,
+                        // Kernel args
+                        gputil::BufferArg<gputil::char4>(query.gpuRegionClearanceBuffer()),
+                        gputil::BufferArg<gputil::char4>(query.gpuWork(src_buffer_index)), region_voxel_extents_gpu,
+                        region_voxel_extents_gpu, float(query.searchRadius()), float(map.resolution),
+                        axis_scaling_gpu, unsigned(query.queryFlags()));
 
   if (err)
   {

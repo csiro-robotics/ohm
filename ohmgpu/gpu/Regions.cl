@@ -36,7 +36,7 @@ __device__ void regionsInitCurrent(int3 *currentRegion, uint *regionVoxelOffset)
 /// @param regionCount The number of regions in @p regionKeys and @p regionMemOffsets.
 /// @return True if a region for @p voxelKey is found, false otherwise.
 __device__ bool regionsResolveRegion(const struct GpuKey *voxelKey, int3 *currentRegion, uint *regionVoxelOffset,
-                                     __global int3 *regionKeys, __global ulong *regionMemOffsets, uint regionCount,
+                                     __global int3 *regionKeys, __global ulonglong *regionMemOffsets, uint regionCount,
                                      unsigned voxelSizeBytes);
 
 #ifndef REGIONS_CL
@@ -48,7 +48,7 @@ inline __device__ void regionsInitCurrent(int3 *currentRegion, uint *regionVoxel
 }
 
 inline __device__ bool regionsResolveRegion(const struct GpuKey *voxelKey, int3 *currentRegion, uint *regionVoxelOffset,
-                                     __global int3 *regionKeys, __global ulong *regionMemOffsets, uint regionCount,
+                                     __global int3 *regionKeys, __global ulonglong *regionMemOffsets, uint regionCount,
                                      unsigned voxelSizeBytes)
 {
   // Check if the current region is the same as the last. This will generally be the case.

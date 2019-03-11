@@ -146,8 +146,6 @@ if(OHM_BUILD_OPENCL)
   else(OHM_EMBED_GPU_CODE)
     list(APPEND GPU_SOURCES gpu/LineWalk.cl)
     list(APPEND GPU_SOURCES gpu/Regions.cl)
-    list(APPEND GPU_SOURCES gpu/RegionUpdateBase.cl)
-    list(APPEND GPU_SOURCES gpu/RoiRangeFillBase.cl)
   endif(OHM_EMBED_GPU_CODE)
 
   add_library(ohmocl ${SOURCES} ${GPU_SOURCES} ${GPU_HEADERS})

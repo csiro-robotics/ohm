@@ -20,6 +20,7 @@ namespace ohm
   struct OccupancyMapDetail;
   class GpuCache;
   class GpuLayerCache;
+  class GpuProgramRef;
 
   /// GPU algorithm to calculate per voxel clearance values (range to nearest obstruction).
   class RoiRangeFill
@@ -57,11 +58,12 @@ namespace ohm
     unsigned regionCount() const { return region_count_; }
     // void setRegionCount(unsigned count) { region_count_ = count; }
 
-    bool valid() const { return valid_; }
-
     bool calculateForRegion(OccupancyMap &map, const glm::i16vec3 &region_key);
 
   private:
+    void cacheGpuProgram(bool with_sub_voxels, bool force);
+    void releaseGpuProgram();
+
     void finishRegion(const glm::i16vec3 &region_key, OccupancyMap &map, RoiRangeFill &query, GpuCache &gpu_cache,
                       GpuLayerCache &clearance_cache, const glm::ivec3 &batch_voxel_extents,
                       const std::vector<gputil::Event> &upload_events);
@@ -82,19 +84,16 @@ namespace ohm
     /// Buffer of int4 used to propagate obstacles.
     gputil::Buffer gpu_work_[2];
     gputil::Device gpu_;
-    gputil::Kernel seed_kernel_sub_vox_;
-    gputil::Kernel seed_outer_kernel_sub_vox_;
-    gputil::Kernel propagate_kernel_sub_vox_;
-    gputil::Kernel migrate_kernel_sub_vox_;
-    gputil::Kernel seed_kernel_no_vox_;
-    gputil::Kernel seed_outer_kernel_no_vox_;
-    gputil::Kernel propagate_kernel_no_vox_;
-    gputil::Kernel migrate_kernel_no_vox_;
+    gputil::Kernel seed_kernel_;
+    gputil::Kernel seed_outer_kernel_;
+    gputil::Kernel propagate_kernel_;
+    gputil::Kernel migrate_kernel_;
+    GpuProgramRef *program_ref_ = nullptr;
     glm::vec3 axis_scaling_ = glm::vec3(1.0f);
     float search_radius_ = 0.0f;
     unsigned query_flags_ = 0;
     unsigned region_count_ = 0;
-    bool valid_ = false;
+    bool using_sub_voxels_program_ = false;
   };
 }  // namespace ohm
 

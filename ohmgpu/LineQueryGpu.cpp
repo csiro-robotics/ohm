@@ -87,7 +87,6 @@ bool LineQueryGpu::onExecute()
     return LineQuery::onExecute();
   }
 
-  bool used_cache_clearance = !(d->query_flags & kQfNoCache);
   ClosestResult closest;
 
   gpumap::enableGpu(*d->map);

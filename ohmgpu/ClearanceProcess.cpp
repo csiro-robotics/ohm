@@ -503,7 +503,7 @@ bool ClearanceProcess::updateRegion(OccupancyMap &map, const glm::i16vec3 &regio
   TES_BOX_W(g_3es, TES_COLOUR(FireBrick), uint32_t((size_t)&map), glm::value_ptr(map.regionSpatialCentre(region_key)),
             glm::value_ptr(map.regionSpatialResolution()));
 
-  if ((d->query_flags & kQfGpuEvaluate) && d->gpu_query->valid())
+  if ((d->query_flags & kQfGpuEvaluate))
   {
     PROFILE(occupancyClearanceProcessGpu);
     d->gpu_query->setAxisScaling(d->axis_scaling);

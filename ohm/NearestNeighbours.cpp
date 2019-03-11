@@ -237,12 +237,6 @@ void NearestNeighbours::setSearchRadius(float range)
 }
 
 
-void NearestNeighbours::onSetMap()
-{
-  NearestNeighboursDetail *d = imp();
-}
-
-
 bool NearestNeighbours::onExecute()
 {
   NearestNeighboursDetail *d = imp();

@@ -1,6 +1,11 @@
 #include <gputil/cuda/cutil_importcl.h>
 #include <gputil/gpu_ext.h>
 
+// Build base without sub-voxels
+#include "RoiRangeFill.cl"
+
+// Build base with sub-voxels
+#define SUB_VOXEL
 #include "RoiRangeFill.cl"
 
 GPUTIL_CUDA_DEFINE_KERNEL(seedRegionVoxels);

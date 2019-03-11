@@ -67,7 +67,6 @@ namespace ohm
     void setSearchRadius(float range);
 
   protected:
-    void onSetMap() override;
     bool onExecute() override;
     bool onExecuteAsync() override;
     void onReset(bool hard_reset) override;

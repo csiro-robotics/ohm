@@ -52,10 +52,6 @@ LineKeysQuery::LineKeysQuery(unsigned query_flags)
   : LineKeysQuery(new LineKeysQueryDetail)
 {
   setQueryFlags(query_flags);
-  if (query_flags & kQfGpuEvaluate)
-  {
-    LineKeysQueryDetail *d = static_cast<LineKeysQueryDetail *>(imp_);
-  }
 }
 
 
