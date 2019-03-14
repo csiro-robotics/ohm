@@ -10,7 +10,7 @@
 # as required. That is, this is a good place to find external dependencies for the project libraries.
 # https://cmake.org/cmake/help/v3.5/manual/cmake-packages.7.html#creating-a-package-configuration-file
 
-# Supports selection between OpenCL and CUDA implementations vai find_package(ohm COMPONENTS [OpenCL,CUDA]). The
+# Supports selection between OpenCL and CUDA implementations via find_package(ohm COMPONENTS [OpenCL,CUDA]). The
 # selected library is defined in the variable OHM_GPU_LIBRARY with the supporting gputil library defined in
 # OHM_GPUTIL_LIBRARY
 
