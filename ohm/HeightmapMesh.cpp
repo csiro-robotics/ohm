@@ -280,9 +280,6 @@ bool HeightmapMesh::buildMesh(const Heightmap &heightmap)
 
           n1.neighbours[previous_edge->triangle_edge_index] = current_edge->triangle;
           n1.neighbour_edge_indices[previous_edge->triangle_edge_index] = current_edge->triangle_edge_index;
-
-          // Done. Make sure we move iteration on the pair.
-          ++i;
         }
         // else We have an open edge and need do nothing.
         previous_edge = current_edge;
