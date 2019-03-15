@@ -21,7 +21,7 @@ set(PUBLIC_HEADERS
   gpuAccessException.h
   gpuApiException.h
   gpuBuffer.h
-  "${CMAKE_CURRENT_BINARY_DIR}/gputil/gpuConfig.h"
+  gpuConfig.in.h
   gpuDevice.h
   gpuDeviceInfo.h
   gpuEvent.h
@@ -35,6 +35,7 @@ set(PUBLIC_HEADERS
   gpuQueue.h
   gpuThrow.h
   gpuVersion.h
+  "${CMAKE_CURRENT_BINARY_DIR}/gputil/gpuConfig.h"
 )
 
 set(SOURCES

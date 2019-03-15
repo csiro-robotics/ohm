@@ -119,6 +119,7 @@ set(PUBLIC_HEADERS
   LineQuery.h
   MapCache.h
   MapChunk.h
+  MapChunkFlag.h
   MapCoord.h
   MapFlag.h
   MapInfo.h
@@ -133,10 +134,12 @@ set(PUBLIC_HEADERS
   NearestNeighbours.h
   OccupancyMap.h
   OccupancyType.h
+  OccupancyUtil.h
   Query.h
   QueryFlag.h
   RayFilter.h
   Stream.h
+  SubVoxel.h
   UpAxis.h
   Voxel.h
   VoxelLayout.h
