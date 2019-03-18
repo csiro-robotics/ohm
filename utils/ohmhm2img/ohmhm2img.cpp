@@ -364,7 +364,7 @@ std::ostream &operator<<(std::ostream &out, const ohm::HeightmapMesh::NormalsMod
 int parseOptions(Options &opt, int argc, char *argv[])
 {
   cxxopts::Options optParse(argv[0], "\nCreate a heightmap from an occupancy map.\n");
-  optParse.positional_help("<map.ohm> <heightmap.ohm>");
+  optParse.positional_help("<heightmap.ohm> <image.png>");
 
   try
   {

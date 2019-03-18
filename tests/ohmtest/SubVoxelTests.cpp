@@ -15,6 +15,8 @@
 #include <ohm/OccupancyUtil.h>
 
 #include <ohmtools/OhmCloud.h>
+
+#include <ohmutil/GlmStream.h>
 #include <ohmutil/OhmUtil.h>
 
 #include <chrono>

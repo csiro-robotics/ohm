@@ -158,7 +158,7 @@ int main(int argc, char *argv[])
   {
     if (map.saturateAtMinValue())
     {
-      std::cout << map.minNodeProbability();
+      std::cout << map.minVoxelProbability();
     }
     else
     {
@@ -167,7 +167,7 @@ int main(int argc, char *argv[])
     std::cout << ",";
     if (map.saturateAtMaxValue())
     {
-      std::cout << map.maxNodeProbability();
+      std::cout << map.maxVoxelProbability();
     }
     else
     {
