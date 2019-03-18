@@ -3,12 +3,12 @@
 // ABN 41 687 119 230
 //
 // Author: Kazys Stepanas
-#include "gpuEvent.h"
+#include "gputil/gpuEvent.h"
 
-#include "cuda/gpuEventDetail.h"
+#include "gputil/cuda/gpuEventDetail.h"
 
-#include "gpuApiException.h"
-#include "gpuThrow.h"
+#include "gputil/gpuApiException.h"
+#include "gputil/gpuThrow.h"
 
 #include <cuda.h>
 #include <cuda_runtime.h>
@@ -43,7 +43,7 @@ Event::Event(const Event &other)
 }
 
 
-Event::Event(Event &&other)
+Event::Event(Event &&other) noexcept
   : imp_(other.imp_)
 {
   other.imp_ = nullptr;
@@ -135,7 +135,7 @@ Event &Event::operator=(const Event &other)
 }
 
 
-Event &Event::operator=(Event &&other)
+Event &Event::operator=(Event &&other) noexcept
 {
   release();
   imp_ = other.imp_;
@@ -154,5 +154,11 @@ EventDetail *Event::detail()
     GPUAPICHECK(err, cudaSuccess, nullptr);
     imp_ = new EventDetail(event, 1, &destroyEvent);
   }
+  return imp_;
+}
+
+
+EventDetail *Event::detail() const
+{
   return imp_;
 }

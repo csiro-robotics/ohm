@@ -159,6 +159,10 @@ namespace gputil
     /// @return The device memory in bytes.
     uint64_t deviceMemory() const;
 
+    /// Query the maximum device allocation size for a single allocation.
+    /// @return The maximum, single allocation size in bytes.
+    uint64_t maxAllocationSize() const;
+
     /// Does the device have unified memory with the host?
     /// @return True for unified host/device memory.
     bool unifiedMemory() const;

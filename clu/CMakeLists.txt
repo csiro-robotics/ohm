@@ -1,7 +1,7 @@
 
 
 # Convert version string to a list of versions.
-string(REPLACE "." ";" OPENCL_VERSION_LIST ${OHM_OPENCL_VER})
+string(REPLACE "." ";" OPENCL_VERSION_LIST ${OHM_OPENCL_SDK_VER})
 
 set(OPENCL_VERSION_MINOR 0)
 set(OPENCL_VERSION_PATCH 0)
@@ -17,7 +17,7 @@ endif(VERSION_COMPONENTS GREATER 1)
 # Convert version into an integer for use in code. Each version component is a digit.
 set(CLU_TARGET_OPENCL_VERSION ${OPENCL_VERSION_MAJOR}${OPENCL_VERSION_MINOR}${OPENCL_VERSION_PATCH})
 
-find_package(OpenCL ${OHM_OPENCL_VER})
+find_package(OpenCL ${OHM_OPENCL_SDK_VER})
 
 configure_file(cluConfig.in.h "${CMAKE_CURRENT_BINARY_DIR}/clu/cluConfig.h")
 

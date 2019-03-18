@@ -38,17 +38,25 @@
 ///
 /// The weighting is given by @c OccupancyMap::subVoxelWeighting(), but is expected to be low (e.g., 0.1).
 
-#ifndef __OPENCL_C_VERSION__
+#if !GPUTIL_DEVICE
+#ifndef __device__
+#define __device__
+#endif  // __device__
+#ifndef __host__
+#define __host__
+#endif  // __host__
+
 namespace ohm
 {
 #define SUB_VOX_FUNC_PREFACE template <typename vec3, typename coord_real>
-using vec3 = glm::vec3;
+  using vec3 = glm::vec3;
 
-#else  // !__OPENCL_C_VERSION__
+#else  // GPUTIL_DEVICE
 
-#if !defined(coord_real)
+#if !defined(COORD_REAL)
+#define COORD_REAL
 typedef float coord_real;
-#endif  // !defined(coord_real)
+#endif  // !defined(COORD_REAL)
 
 #if !defined(vec3)
 typedef float3 vec3;
@@ -56,7 +64,7 @@ typedef float3 vec3;
 
 #define SUB_VOX_FUNC_PREFACE
 
-#endif  // !__OPENCL_C_VERSION__
+#endif  // GPUTIL_DEVICE
 
   /// @ingroup subvoxel
   /// Convert @p voxel_local_coord into a sub-voxel positioning pattern.
@@ -66,12 +74,12 @@ typedef float3 vec3;
   /// @param resolution The length of each voxel cube edge.
   /// @return The sub-voxel pattern approximating @p voxel_local_coord.
   SUB_VOX_FUNC_PREFACE
-  unsigned subVoxelCoord(vec3 voxel_local_coord, coord_real resolution)
+  inline __device__ __host__ unsigned subVoxelCoord(vec3 voxel_local_coord, coord_real resolution)
   {
     // We divide the voxel into a voxel_local_coord, 3D grid, then assign 1 bit per cell.
     const unsigned bits_per_axis = 10;
     const unsigned sub_voxel_positions = (1 << bits_per_axis) - 1;
-    const unsigned used_bit = (1 << 31);
+    const unsigned used_bit = (1u << 31);
     const coord_real sub_voxel_resolution = resolution / (coord_real)sub_voxel_positions;
     const coord_real offset = (coord_real)0.5 * resolution;
 
@@ -99,11 +107,11 @@ typedef float3 vec3;
   /// @return The unpacked coordinate, relative to the voxel centre, in the range [-0.5 * resolution, 0.5 resolution].
   ///   The result is (0, 0, 0) if @p pattern has yet to be used (bit-31 not set).
   SUB_VOX_FUNC_PREFACE
-  vec3 subVoxelToLocalCoord(unsigned pattern, coord_real resolution)
+  inline __device__ __host__ vec3 subVoxelToLocalCoord(unsigned pattern, coord_real resolution)
   {
     const unsigned bits_per_axis = 10;
     const unsigned sub_voxel_positions = (1 << bits_per_axis) - 1;
-    const unsigned used_bit = (1 << 31);
+    const unsigned used_bit = (1u << 31);
     const coord_real sub_voxel_resolution = resolution / (coord_real)sub_voxel_positions;
     const coord_real offset = (coord_real)0.5 * resolution;
 
@@ -129,18 +137,19 @@ typedef float3 vec3;
   /// @param resolution The length of each voxel cube edge.
   /// @param weighting The weighting for the new @p voxel_coord_local [0, 1].
   SUB_VOX_FUNC_PREFACE
-  unsigned subVoxelUpdate(unsigned initial_pattern, vec3 voxel_local_coord, coord_real resolution, coord_real weighting)
+  inline __device__ __host__ unsigned subVoxelUpdate(unsigned initial_pattern, vec3 voxel_local_coord,
+                                                     coord_real resolution, coord_real weighting)
   {
     vec3 old_local =
-#ifndef __OPENCL_C_VERSION__
+#if !GPUTIL_DEVICE
       subVoxelToLocalCoord<vec3>(initial_pattern, resolution)
-#else   //  __OPENCL_C_VERSION__
+#else   //  GPUTIL_DEVICE
     subVoxelToLocalCoord(initial_pattern, resolution)
-#endif  //  __OPENCL_C_VERSION__
+#endif  //  GPUTIL_DEVICE
       ;
-    old_local.x *= (1.0 - weighting);
-    old_local.y *= (1.0 - weighting);
-    old_local.z *= (1.0 - weighting);
+    old_local.x *= (1.0f - weighting);
+    old_local.y *= (1.0f - weighting);
+    old_local.z *= (1.0f - weighting);
     voxel_local_coord.x *= weighting;
     voxel_local_coord.y *= weighting;
     voxel_local_coord.z *= weighting;
@@ -185,14 +194,14 @@ typedef float3 vec3;
   /// @param sphere_scale Scale factor for the sphere [0, 1]. A scale of 1 fills the cube without over flow.
   /// @return True if the sub-voxel position lies within the filtering sphere confirming occupancy. False if the
   ///   position lies outside the sphere implying a rejection of occupancy (convert to free voxel).
-  inline bool subVoxelOccupancyFilter2(unsigned sub_voxel_pattern, float sphere_scale)
+  inline __device__ __host__ bool subVoxelOccupancyFilter2(unsigned sub_voxel_pattern, float sphere_scale)
   {
     // We work in a voxel space of a unit cube as only relative positions are relevant.
-#ifndef __OPENCL_C_VERSION__
+#if !GPUTIL_DEVICE
     const vec3 v = subVoxelToLocalCoord<vec3>(sub_voxel_pattern, 1.0f);
-#else   //  __OPENCL_C_VERSION__
-    const vec3 v = subVoxelToLocalCoord(sub_voxel_pattern, 1.0f);
-#endif  //  __OPENCL_C_VERSION__
+#else   //  GPUTIL_DEVICE
+  const vec3 v = subVoxelToLocalCoord(sub_voxel_pattern, 1.0f);
+#endif  //  GPUTIL_DEVICE
     return sub_voxel_pattern == 0 ||
            (v.x * v.x + v.y * v.y + v.z * v.z) < ((0.5f * sphere_scale) * (0.5f * sphere_scale));
   }
@@ -202,12 +211,12 @@ typedef float3 vec3;
   /// @param sub_voxel_pattern The sub-voxel positioning pattern of the voxel of interest.
   /// @return True if the sub-voxel position lies within the filtering sphere confirming occupancy. False if the
   ///   position lies outside the sphere implying a rejection of occupancy (convert to free voxel).
-  inline bool subVoxelOccupancyFilter(unsigned sub_voxel_pattern)
+  inline __device__ __host__ bool subVoxelOccupancyFilter(unsigned sub_voxel_pattern)
   {
     return subVoxelOccupancyFilter2(sub_voxel_pattern, 1.0f);
   }
-#ifndef __OPENCL_C_VERSION__
+#if !GPUTIL_DEVICE
 }
-#endif  // !__OPENCL_C_VERSION__
+#endif  // !GPUTIL_DEVICE
 
 #endif  // SUBVOXEL_H

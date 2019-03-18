@@ -49,9 +49,9 @@ namespace gputil
   /// Represents a GPU based buffer. Implementation depends on the
   /// GPU SDK.
   ///
-  /// @par Synchronous vs Asynchronous tansfer
+  /// @par Synchronous vs Asynchronous transfer
   /// Memory transfer function typically accept three optional parameters: a @c Queue and two @c Event pointers,
-  /// typically labelled @c blockOn and @c competion. The behaviour of memory transfer functions may differ depending
+  /// typically labelled @c blockOn and @c completion. The behaviour of memory transfer functions may differ depending
   /// on whether a @c Queue is provide and whether @c blockOn and/or @c completion events are provide. Firstly,
   /// providing a non-null @c Queue invokes an asynchronous data transfer. As such the host memory buffer must remain
   /// valid until the transfer completes. The @p completion event supports the asynchronous transfer providing a means
@@ -95,7 +95,7 @@ namespace gputil
     /// Use @c swap().
     Buffer &operator=(const Buffer &) = delete;
 
-    /// R-ralue assignment.
+    /// R-value assignment.
     /// @return *this
     Buffer &operator=(Buffer &&other) noexcept;
 
@@ -409,10 +409,17 @@ namespace gputil
 
     /// Internal pointer for argument passing to the device function/kernel.
     ///
-    /// For CUDA this is the CUDA address which can be passed directly as an argument.
+    /// For CUDA this is a pointer to a pointer at which which the device memory is made.
     ///
     /// For OpenCL the type is @c cl_mem, which may be set as kernel argument.
     void *argPtr() const;
+
+    /// Internal pointer for argument passing to the device function/kernel.
+    ///
+    /// For CUDA this the address of the allocation.
+    ///
+    /// For OpenCL the same as @c argPtr().
+    void *address() const;
 
     /// Return the internal pointer for argument passing as the given pointer type.
     ///
@@ -435,18 +442,18 @@ namespace gputil
     template <typename T>
     inline T arg()
     {
-      return static_cast<T>(argPtr());
+      return static_cast<T>(address());
     }
 
     /// @c overload
     template <typename T>
     inline T arg() const
     {
-      return static_cast<T>(argPtr());
+      return static_cast<T>(address());
     }
 
-    void *pin(PinMode mode);
-    void unpin(void *ptr, Queue *queue = nullptr, Event *block_on = nullptr, Event *completion = nullptr);
+    // void *pin(PinMode mode);
+    // void unpin(void *ptr, Queue *queue = nullptr, Event *block_on = nullptr, Event *completion = nullptr);
 
     /// @internal
     inline BufferDetail *detail() const { return imp_; }

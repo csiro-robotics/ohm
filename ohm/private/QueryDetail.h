@@ -8,7 +8,7 @@
 
 #include "OhmConfig.h"
 
-#include "Key.h"
+#include "ohm/Key.h"
 
 #include <limits>
 #include <vector>
@@ -17,16 +17,18 @@ namespace ohm
 {
   class OccupancyMap;
 
-  struct QueryDetail
+  struct ohm_API QueryDetail
   {
     OccupancyMap *map = nullptr;
     std::vector<Key> intersected_voxels;
     std::vector<float> ranges;
     size_t number_of_results = 0;
     unsigned query_flags = 0;
+
+    virtual ~QueryDetail() = default;
   };
 
-  struct ClosestResult
+  struct ohm_API ClosestResult
   {
     size_t index = 0;
     float range = std::numeric_limits<float>::max();

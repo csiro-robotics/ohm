@@ -19,7 +19,7 @@ namespace ohm
   class OccupancyMap;
   class MapInfo;
 
-  struct HeightmapDetail
+  struct ohm_API HeightmapDetail
   {
     ohm::OccupancyMap *occupancy_map = nullptr;
     /// Use a very thin occupancy map for the heightmap representation.

@@ -27,7 +27,6 @@ namespace gpudevicetest
 
     EXPECT_EQ(device.info(), device_infos[0]);
 
-#if GPUTIL_TYPE == GPUTIL_OPENCL
     // Select the first device by simulated command line arguments.
     std::vector<std::string> args;
     std::string arg;
@@ -63,6 +62,5 @@ namespace gpudevicetest
     ASSERT_TRUE(device.isValid());
     const gputil::DeviceInfo &info = device.info();
     EXPECT_EQ(info, device_info);
-#endif  // GPUTIL_TYPE == GPUTIL_OPENCL
   }
 }  // namespace gpudevicetest

@@ -81,23 +81,28 @@ namespace gputil
     {
       ++reference_count_;
     }
+    return reference_count_;
   }
 
 
   template <typename T>
   inline unsigned Ref<T>::release()
   {
-    lock_.lock();
+    std::unique_lock<std::mutex> guard(lock_);
+    unsigned released_count = 0;
     if (reference_count_)
     {
       --reference_count_;
+      released_count = reference_count_;
       if (reference_count_ == 0)
       {
         release_func_(obj_);
+        guard.unlock();
         delete this;
       }
     }
-    lock_.unlock();
+
+    return released_count;
   }
 
 

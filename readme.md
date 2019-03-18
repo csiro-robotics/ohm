@@ -6,13 +6,19 @@ The ohm library is a probabilistic voxel occupancy map supporting fast GPU based
 
 ### Prerequisites and Requirements
 
-Development of the ohm library focuses on GCC and Visual Studio running on an Intel OpenCL GPU device. AMD and NVIDIA GPUs are not guaranteed to work and compatibility with Intel GPUs may vary. ohm requires:
+The ohm library supports both OpenCL and CUDA GPU processing. OpenCL development focuses on GCC and Visual Studio running on an Intel OpenCL GPU device. AMD and NVIDIA GPUs have been tested and should also function. The CUDA implementation has been built for compute 5.0 and 6.0. Other architectures may work, but must be specifically tested.
+
+Building ohm requires:
 
 - C++14 compatible compiler such as:
   - GCC 5.7
   - Visual Studio 15 2017
   - APPLE LLVM 9.1
-- OpenCL 1.2
+- For OpenCL
+  - An OpenCL 1.2 or 2.0 SDK. 1.2 must be used if running on NVIDIA hardware.
+  - OpenCL 1.2 runtime. OpenCL 2.x also supported (command line selectable)
+- For CUDA
+  - CUDA 10
 
 The following 3rd-party libraries are required to build ohm:
 
@@ -55,6 +61,8 @@ sudo cp *.a /usr/lib
 
 Setup of OpenCL requires mode detailed [instructions (link)](./OpenCL.md).
 
+For CUDA setup instructions, visit [NVIDIA CUDA Zone](https://developer.nvidia.com/cuda-zone).
+
 Optional packages for heightmap generation and image conversion:
 ```
 sudo apt-get install libglew-dev libglfw3-dev libpng-dev
@@ -76,9 +84,8 @@ sudo apt-get install libglew-dev libglfw3-dev libpng-dev
 
 - OpenCL compatibility with certain devices may vary.
 - OpenCL performance on various devices may vary especially with memory transfer rates.
-- There is mention of CUDA in the code, but there is currently no CUDA compatibilty.
-- Installation scripts have yet to be verified.
-- A coding standards pass will be shortly effected which will significantly change file and variable naming.
+- Using the OpenCL 2.x SDK and selecting an NVIDIA GPU will result in runtime crashes.
+- When installing, OHM_EMBED_GPU_CODE must be defined in order to run ohmocl; otherwise OpenCL source is not found.
 
 ## Resolving OpenCL SDK With Multiple Options
 

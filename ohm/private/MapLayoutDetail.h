@@ -8,13 +8,13 @@
 
 #include "OhmConfig.h"
 
-#include "MapLayer.h"
+#include "ohm/MapLayer.h"
 
 #include <vector>
 
 namespace ohm
 {
-  struct MapLayoutDetail
+  struct ohm_API MapLayoutDetail
   {
     /// Possible values for tracking whether sub-voxel patterns are in use.
     enum SubVoxelState : uint8_t

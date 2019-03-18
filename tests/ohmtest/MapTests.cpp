@@ -4,7 +4,6 @@
 //
 // Author: Kazys Stepanas
 #include <ohm/Aabb.h>
-#include <ohm/ClearanceProcess.h>
 #include <ohm/Key.h>
 #include <ohm/LineQuery.h>
 #include <ohm/MapCache.h>
@@ -22,7 +21,7 @@
 #include <random>
 
 #include <gtest/gtest.h>
-#include "OhmTestUtil.h"
+#include "ohmtestcommon/OhmTestUtil.h"
 
 using namespace ohm;
 
@@ -66,10 +65,6 @@ namespace maptests
     const double box_size = 5.0;
     ohmgen::boxRoom(map, glm::dvec3(-box_size), glm::dvec3(box_size));
 
-    // Generate clearance values.
-    ClearanceProcess ref_clearance(2.0f, kQfGpuEvaluate);
-    ref_clearance.update(map, 0.0);
-
     // Clone the map
     const std::unique_ptr<OccupancyMap> map_copy(map.clone());
 
@@ -77,7 +72,7 @@ namespace maptests
     MapCache cache;
 
     // Compare maps.
-    ohmtestutil::compareMaps(*map_copy, map, ohmtestutil::kCfCompareAll | ohmtestutil::kCfExpectClearance);
+    ohmtestutil::compareMaps(*map_copy, map, ohmtestutil::kCfCompareAll);
   }
 
 
@@ -91,10 +86,6 @@ namespace maptests
     const double box_size = 5.0;
     ohmgen::boxRoom(map, glm::dvec3(-box_size), glm::dvec3(box_size));
 
-    // Generate clearance values.
-    ClearanceProcess ref_clearance(2.0f, kQfGpuEvaluate);
-    ref_clearance.update(map, 0.0);
-
     // Clone the map
     const std::unique_ptr<OccupancyMap> map_copy(map.clone(clone_min, clone_max));
 
@@ -102,8 +93,7 @@ namespace maptests
     MapCache cache;
 
     // Compare maps.
-    ohmtestutil::compareMaps(*map_copy, map, clone_min, clone_max,
-                             ohmtestutil::kCfCompareAll | ohmtestutil::kCfExpectClearance);
+    ohmtestutil::compareMaps(*map_copy, map, clone_min, clone_max, ohmtestutil::kCfCompareAll);
   }
 
 

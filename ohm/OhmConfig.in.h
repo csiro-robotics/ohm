@@ -39,18 +39,6 @@
 #define PROFILING 1
 #endif  // OHM_PROFILE
 
-// Enable GPU acceleration.
-/// GPU usage: 0 for off, one of the OHM_GPU_XXX values when on.
-#define OHM_GPU @OHM_GPU@
-
-#define OHM_GPU_OPENCL @OHM_GPU_OPENCL@
-#define OHM_GPU_CUDA @OHM_GPU_CUDA@
-
-/// Target OpenCL standard. 'max' => maximum device version (min 1.2)
-#define OHM_OPENCL_STD "@OHM_OPENCL_STD@"
-/// OpenCL required features to enable OpenCL 2.0 code.
-#define OHM_OPENCL_2_FEATURES "@OHM_OPENCL_2_FEATURES@"
-
 #cmakedefine TES_ENABLE
 #ifdef TES_ENABLE
 namespace tes

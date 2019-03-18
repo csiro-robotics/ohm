@@ -5,11 +5,11 @@
 // Author: Kazys Stepanas
 #include "gpuQueue.h"
 
-#include "cuda/gpuQueueDetail.h"
-#include "cuda/gpuEventDetail.h"
+#include "gputil/cuda/gpuEventDetail.h"
+#include "gputil/cuda/gpuQueueDetail.h"
 
-#include "gpuApiException.h"
-#include "gpuThrow.h"
+#include "gputil/gpuApiException.h"
+#include "gputil/gpuThrow.h"
 
 #include <cuda_runtime.h>
 
@@ -29,29 +29,28 @@ namespace gputil
 
   struct CallbackWrapper
   {
-    std::function<void (void)> callback;
+    std::function<void(void)> callback;
 
-    inline CallbackWrapper(const std::function<void (void)> &callback)
+    inline CallbackWrapper(const std::function<void(void)> &callback)
       : callback(callback)
     {}
   };
 
-  void streamCallback(cudaStream_t event, cudaError_t status, void *user_data)
+  void streamCallback(cudaStream_t /*event*/, cudaError_t /*status*/, void *user_data)
   {
     CallbackWrapper *wrapper = static_cast<CallbackWrapper *>(user_data);
     wrapper->callback();
     delete wrapper;
   }
-}
+}  // namespace gputil
 
 
 Queue::Queue()
   : queue_(nullptr)
-{
-}
+{}
 
 
-Queue::Queue(Queue &&other)
+Queue::Queue(Queue &&other) noexcept
   : queue_(other.queue_)
 {
   other.queue_ = nullptr;
@@ -59,7 +58,7 @@ Queue::Queue(Queue &&other)
 
 
 Queue::Queue(const Queue &other)
-: queue_(nullptr)
+  : queue_(nullptr)
 {
   queue_ = other.queue_;
   if (queue_)
@@ -70,10 +69,9 @@ Queue::Queue(const Queue &other)
 
 
 Queue::Queue(void *platform_queue)
-// Note: the platform_queue will be null for the default stream.
+  // Note: the platform_queue will be null for the default stream.
   : queue_(new QueueDetail(static_cast<cudaStream_t>(platform_queue), 1, &gputil::destroyStream))
-{
-}
+{}
 
 
 Queue::~Queue()
@@ -104,6 +102,7 @@ Event Queue::mark()
   cudaError_t err;
   err = cudaEventRecord(event.detail()->obj(), queue_->obj());
   GPUAPICHECK(err, cudaSuccess, Event());
+  return event;
 }
 
 
@@ -115,11 +114,12 @@ void Queue::flush()
 
 void Queue::finish()
 {
-  cudaStreamSynchronize(queue_->obj());
+  cudaError_t err = cudaStreamSynchronize(queue_->obj());
+  GPUAPICHECK2(err, cudaSuccess);
 }
 
 
-void Queue::queueCallback(const std::function<void (void)> &callback)
+void Queue::queueCallback(const std::function<void(void)> &callback)
 {
   CallbackWrapper *wrapper = nullptr;
 
@@ -142,7 +142,7 @@ QueueDetail *Queue::internal() const
 }
 
 
-Queue &Queue::operator = (const Queue &other)
+Queue &Queue::operator=(const Queue &other)
 {
   if (queue_)
   {
@@ -157,7 +157,7 @@ Queue &Queue::operator = (const Queue &other)
 }
 
 
-Queue &Queue::operator = (Queue &&other)
+Queue &Queue::operator=(Queue &&other) noexcept
 {
   if (queue_)
   {

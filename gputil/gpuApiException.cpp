@@ -12,15 +12,19 @@ using namespace gputil;
 
 #define DEFAULT_MSG "Attempting write access to read only memory."
 
-ApiException::ApiException(int error_code, const char *msg)
-  : Exception(msg)
+ApiException::ApiException(int error_code, const char *msg, const char *filename, int line_number)
+  : Exception()
   , error_code_(error_code)
 {
-  if (!msg)
+  if (msg)
+  {
+    setMessage(msg, filename, line_number);
+  }
+  else
   {
     std::ostringstream str;
     str << "API error " << errorCodeString(error_code) << " (" << error_code << ")";
-    setMessage(str.str().c_str());
+    setMessage(str.str().c_str(), filename, line_number);
   }
 }
 

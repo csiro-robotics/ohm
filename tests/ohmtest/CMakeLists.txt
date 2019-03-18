@@ -5,19 +5,12 @@ find_package(GLM)
 find_package(GTest)
 
 set(SOURCES
-  GpuMapTest.cpp
-  GpuTests.cpp
   HeightmapTests.cpp
   KeyTests.cpp
   LayoutTests.cpp
-  LineKeysTests.cpp
   LineQueryTests.cpp
-  MapperTests.cpp
   MapTests.cpp
   MathsTests.cpp
-  OhmTestUtil.cpp
-  OhmTestUtil.h
-  RangesTests.cpp
   SerialisationTests.cpp
   SubVoxelTests.cpp
   TestMain.cpp
@@ -42,9 +35,7 @@ target_include_directories(ohmtest SYSTEM
     "${GTEST_INCLUDE_DIRS}"
 )
 
-target_link_libraries(ohmtest ohmtools ohm ohmutil GTest::Main)
-
-add_dependencies(ohmtest marshal_test_data)
+target_link_libraries(ohmtest ohmtestcommon ohmtools ohm ohmutil GTest::Main)
 
 if(OHM_TES_DEBUG)
   target_link_libraries(ohmtest 3es::3es-core)

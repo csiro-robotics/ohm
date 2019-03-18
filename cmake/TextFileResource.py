@@ -120,16 +120,15 @@ def resolveIncludeDirectives(regex, content, include_dirs):
     haveShownPaths = False
     included_file_paths = []
     while directive:
-        # For now just remove
         include_file_path = resolveIncludeFilePath(directive.group(1), include_dirs)
         next_search_offset = directive.start()
         if include_file_path:
             # Load replacement text if we haven't already
             include_content = ''
-            if not include_file_path in included_file_paths:
-                with open(include_file_path, 'r') as include_file:
-                    include_content = include_file.read()
-                included_file_paths.append(include_file_path)
+            # if not include_file_path in included_file_paths:
+            with open(include_file_path, 'r') as include_file:
+                include_content = include_file.read()
+            included_file_paths.append(include_file_path)
             content = content[:directive.start()] + include_content + content[directive.end():]
         else:
             # Failed to resolve.

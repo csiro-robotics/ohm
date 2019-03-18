@@ -9,7 +9,7 @@
 
 #include "gpuConfig.h"
 
-#define GPU_EXCEPTIONS 0
+#define GPU_EXCEPTIONS 1
 
 #if GPU_EXCEPTIONS
 // Return statement present to prevent compilation errors when switching GPU_EXCEPTIONS.
@@ -35,12 +35,12 @@
 #define GPUAPICHECK(err, expect, r)         \
   if (err != expect)                        \
   {                                         \
-    GPUTHROW(gputil::ApiException(err), r); \
+    GPUTHROW(gputil::ApiException(err, nullptr, __FILE__, __LINE__), r); \
   }
 #define GPUAPICHECK2(err, expect)         \
   if (err != expect)                      \
   {                                       \
-    GPUTHROW2(gputil::ApiException(err)); \
+    GPUTHROW2(gputil::ApiException(err, nullptr, __FILE__, __LINE__)); \
   }
 
 namespace gputil

@@ -9,32 +9,41 @@
 // Note: this header is included in GPU code.
 // Because of this <cmath> cannot be included here and you may need to include that first.
 
-#ifndef __OPENCL_C_VERSION__
+#if !GPUTIL_DEVICE
+#ifndef __device__
+#define __device__
+#endif  // __device__
+#ifndef __host__
+#define __host__
+#endif  // __host__
+
 namespace ohm
 {
-#endif  // !__OPENCL_C_VERSION__
+#endif  // !GPUTIL_DEVICE
 
   // Define real coordinate for functions below. Normally double, float for GPU.
-#if defined(__OPENCL_C_VERSION__) && !defined(coord_real)
+#if GPUTIL_DEVICE == 1 && !defined(COORD_REAL)
+#define COORD_REAL
   typedef float coord_real;
-#endif  // defined(__OPENCL_C_VERSION__) && !defined(coord_real)
+#endif  // GPUTIL_DEVICE && !defined(COORD_REAL)
 
   /// Calculate the map local centre coordinate for a region along a single axis.
   /// @param regionCoord The coordinate of the region in the map along the axis of interest.
   /// @param regionDimension The global size of each region along the axis of interest.
   /// @return The centre of the region along this axis local to the map centre.
-#ifndef __OPENCL_C_VERSION__
+#if GPUTIL_DEVICE != 1
   template <typename coord_real>
-#endif  // !__OPENCL_C_VERSION__
-  inline coord_real regionCentreCoord(int region_coord, const coord_real region_dimesion)
+#endif  // GPUTIL_DEVICE != 1
+  inline __device__ __host__ coord_real regionCentreCoord(int region_coord, const coord_real region_dimesion)
   {
     return region_coord * region_dimesion;
   }
 
-#ifndef __OPENCL_C_VERSION__
+#if GPUTIL_DEVICE != 1
   template <typename coord_real>
-#endif  // !__OPENCL_C_VERSION__
-  inline int pointToRegionVoxel(coord_real coord, coord_real voxel_resolution, coord_real region_resolution)
+#endif  // GPUTIL_DEVICE != 1
+  inline __device__ __host__ int pointToRegionVoxel(coord_real coord, coord_real voxel_resolution,
+                                                    coord_real region_resolution)
   {
     // Due to precision error, we can end up with coordinates just outside the region spatial boundary.
     // That is, either just below zero, or just above regionResolution. Since by now we should have determined
@@ -65,15 +74,15 @@ namespace ohm
     return (int)floor((coord / voxel_resolution));
   }
 
-#ifndef __OPENCL_C_VERSION__
+#if GPUTIL_DEVICE != 1
   template <typename coord_real>
-#endif  // !__OPENCL_C_VERSION__
-  inline int pointToRegionCoord(coord_real coord, coord_real resolution)
+#endif  // GPUTIL_DEVICE != 1
+  inline __device__ __host__ int pointToRegionCoord(coord_real coord, coord_real resolution)
   {
     return (int)floor(coord / resolution + (coord_real)0.5);
   }
-#ifndef __OPENCL_C_VERSION__
+#if !GPUTIL_DEVICE
 }
-#endif  // !__OPENCL_C_VERSION__
+#endif  // !GPUTIL_DEVICE
 
 #endif  // OHM_MAPCOORD_H

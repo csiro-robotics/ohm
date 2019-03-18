@@ -5,7 +5,7 @@
 // Author: Kazys Stepanas
 #include <gtest/gtest.h>
 
-#include <gputil/cl/gpuEventDetail.h>
+// #include <gputil/cl/gpuEventDetail.h>
 #include <gputil/gpuBuffer.h>
 #include <gputil/gpuDevice.h>
 #include <gputil/gpuEvent.h>
@@ -14,9 +14,50 @@
 
 #include <chrono>
 
-#include <ohmutil/OhmUtil.h>
-
 extern gputil::Device g_gpu;
+
+
+template <typename T, typename R>
+inline std::ostream &operator<<(std::ostream &out, const std::chrono::duration<T, R> &duration)
+{
+  using Duration = std::chrono::duration<T, R>;
+  const bool negative = std::chrono::duration_cast<std::chrono::nanoseconds>(duration).count() < 0;
+  const char *sign = (!negative) ? "" : "-";
+  Duration abs_duration = (!negative) ? duration : duration * -1;
+  auto s = std::chrono::duration_cast<std::chrono::seconds>(abs_duration).count();
+  auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(abs_duration).count();
+  ms = ms % 1000;
+
+  if (s)
+  {
+    out << sign << s << "." << std::setw(3) << std::setfill('0') << ms << "s";
+  }
+  else
+  {
+    auto us = std::chrono::duration_cast<std::chrono::microseconds>(abs_duration).count();
+    us = us % 1000;
+
+    if (ms)
+    {
+      out << sign << ms << "." << std::setw(3) << std::setfill('0') << us << "ms";
+    }
+    else
+    {
+      auto ns = std::chrono::duration_cast<std::chrono::nanoseconds>(abs_duration).count();
+      ns = ns % 1000;
+
+      if (us)
+      {
+        out << sign << us << "." << std::setw(3) << std::setfill('0') << ns << "us";
+      }
+      else
+      {
+        out << sign << ns << "ns";
+      }
+    }
+  }
+  return out;
+}
 
 namespace gpubuffertest
 {
@@ -170,9 +211,20 @@ namespace gpubuffertest
     large_buffer_event.wait();
     const auto mapped_down1_end = TimingClock::now();
 
+    const size_t failure_limit = 32;
+    size_t failure_count = 0;
     for (size_t i = 0; i < test_buffer.size(); ++i)
     {
       EXPECT_EQ(test_buffer[i], host_buffer[i]);
+      if (test_buffer[i] != host_buffer[i])
+      {
+        ++failure_count;
+        if (failure_count >= failure_limit)
+        {
+          std::cerr << "Aborting memory validation after " << failure_limit  << " failures" << std::endl;
+          break;
+        }
+      }
     }
 
     std::cout << mapped_down1_end - mapped_down1_start << " total => " << mapped_down1_queued - mapped_down1_start
@@ -209,9 +261,19 @@ namespace gpubuffertest
     gputil::Event::wait(small_buffer_events.data(), small_buffer_count);
     const auto mapped_down2_end = TimingClock::now();
 
+    failure_count = 0;
     for (size_t i = 0; i < test_buffer.size(); ++i)
     {
       EXPECT_EQ(test_buffer[i], host_buffer[i]);
+      if (test_buffer[i] != host_buffer[i])
+      {
+        ++failure_count;
+        if (failure_count >= failure_limit)
+        {
+          std::cerr << "Aborting memory validation after " << failure_limit << " failures" << std::endl;
+          break;
+        }
+      }
     }
 
     std::cout << mapped_down2_end - mapped_down2_start << " total => " << mapped_down2_queued - mapped_down2_start
@@ -314,9 +376,19 @@ namespace gpubuffertest
     gputil::Event::wait(large_buffer_events.data(), small_buffer_count);
     const auto queued_down1_end = TimingClock::now();
 
+    failure_count = 0;
     for (size_t i = 0; i < test_buffer.size(); ++i)
     {
       EXPECT_EQ(test_buffer[i], host_buffer[i]);
+      if (test_buffer[i] != host_buffer[i])
+      {
+        ++failure_count;
+        if (failure_count >= failure_limit)
+        {
+          std::cerr << "Aborting memory validation after " << failure_limit << " failures" << std::endl;
+          break;
+        }
+      }
     }
 
     std::cout << queued_down1_end - queued_down1_start << " total => " << queued_down1_queued - queued_down1_start
@@ -337,9 +409,19 @@ namespace gpubuffertest
     gputil::Event::wait(small_buffer_events.data(), small_buffer_count);
     const auto queued_down2_end = TimingClock::now();
 
+    failure_count = 0u;
     for (size_t i = 0; i < test_buffer.size(); ++i)
     {
       EXPECT_EQ(test_buffer[i], host_buffer[i]);
+      if (test_buffer[i] != host_buffer[i])
+      {
+        ++failure_count;
+        if (failure_count >= failure_limit)
+        {
+          std::cerr << "Aborting memory validation after " << failure_limit << " failures" << std::endl;
+          break;
+        }
+      }
     }
 
     std::cout << queued_down2_end - queued_down2_start << " total => " << queued_down2_queued - queued_down2_start
@@ -429,49 +511,50 @@ namespace gpubuffertest
 
   TEST(GpuBuffer, Ref)
   {
-#if GPUTIL_TYPE == GPUTIL_OPENCL
-    gputil::Event event;
-    gputil::Device &gpu = g_gpu;
-    gputil::Buffer buffer(gpu, 64 * 1024u, gputil::kBfReadWriteHost);
-    gputil::Queue queue = gpu.createQueue();
-    std::vector<uint8_t> host_buffer(buffer.size());
+    // #if GPUTIL_TYPE == GPUTIL_OPENCL
+    //     gputil::Event event;
+    //     gputil::Device &gpu = g_gpu;
+    //     gputil::Buffer buffer(gpu, 64 * 1024u, gputil::kBfReadWriteHost);
+    //     gputil::Queue queue = gpu.createQueue();
+    //     std::vector<uint8_t> host_buffer(buffer.size());
 
-    for (size_t i = 0; i < host_buffer.size(); ++i)
-    {
-      host_buffer[i] = uint8_t(i % 256);
-    }
+    //     for (size_t i = 0; i < host_buffer.size(); ++i)
+    //     {
+    //       host_buffer[i] = uint8_t(i % 256);
+    //     }
 
-    buffer.write(host_buffer.data(), host_buffer.size(), 0, &queue, nullptr, &event);
+    //     buffer.write(host_buffer.data(), host_buffer.size(), 0, &queue, nullptr, &event);
 
-    cl_uint ref_count = 0;
-    const cl_event event_ocl = event.detail()->event;
+    //     cl_uint ref_count = 0;
+    //     const cl_event event_ocl = event.detail()->event;
 
-    clGetEventInfo(event_ocl, CL_EVENT_REFERENCE_COUNT, sizeof(ref_count), &ref_count, nullptr);
-    std::cout << ref_count << " : queued" << std::endl;
-    // Expected references : event, OpenCL(?)
-    EXPECT_GE(ref_count, 1u);
-    clRetainEvent(event_ocl);
-    clGetEventInfo(event_ocl, CL_EVENT_REFERENCE_COUNT, sizeof(ref_count), &ref_count, nullptr);
-    std::cout << ref_count << " : +ref" << std::endl;
-    // Expected references : event, eventOcl + OpenCL(?)
-    EXPECT_GE(ref_count, 2u);
-    queue.finish();
-    clGetEventInfo(event_ocl, CL_EVENT_REFERENCE_COUNT, sizeof(ref_count), &ref_count, nullptr);
-    std::cout << ref_count << " : finish" << std::endl;
-    // Expected references : event, eventOcl
-    EXPECT_EQ(ref_count, 2u);
-    event.release();
-    clGetEventInfo(event_ocl, CL_EVENT_REFERENCE_COUNT, sizeof(ref_count), &ref_count, nullptr);
-    std::cout << ref_count << " : release" << std::endl;
-    // Expected references : eventOcl
-    EXPECT_EQ(ref_count, 1u);
+    //     clGetEventInfo(event_ocl, CL_EVENT_REFERENCE_COUNT, sizeof(ref_count), &ref_count, nullptr);
+    //     std::cout << ref_count << " : queued" << std::endl;
+    //     // Expected references : event, OpenCL(?)
+    //     EXPECT_GE(ref_count, 1u);
+    //     clRetainEvent(event_ocl);
+    //     clGetEventInfo(event_ocl, CL_EVENT_REFERENCE_COUNT, sizeof(ref_count), &ref_count, nullptr);
+    //     std::cout << ref_count << " : +ref" << std::endl;
+    //     // Expected references : event, eventOcl + OpenCL(?)
+    //     EXPECT_GE(ref_count, 2u);
+    //     queue.finish();
+    //     clGetEventInfo(event_ocl, CL_EVENT_REFERENCE_COUNT, sizeof(ref_count), &ref_count, nullptr);
+    //     std::cout << ref_count << " : finish" << std::endl;
+    //     // Expected references : event, eventOcl
+    //     EXPECT_EQ(ref_count, 2u);
+    //     event.release();
+    //     clGetEventInfo(event_ocl, CL_EVENT_REFERENCE_COUNT, sizeof(ref_count), &ref_count, nullptr);
+    //     std::cout << ref_count << " : release" << std::endl;
+    //     // Expected references : eventOcl
+    //     EXPECT_EQ(ref_count, 1u);
 
-    clReleaseEvent(event_ocl);
-#endif  // GPUTIL_TYPE == GPUTIL_OPENCL
+    //     clReleaseEvent(event_ocl);
+    // #endif  // GPUTIL_TYPE == GPUTIL_OPENCL
   }
 
   TEST(GpuBuffer, ReadWriteCopy)
   {
+    // Basic buffer read/write with offsets.
     gputil::Device &gpu = g_gpu;
     const std::string buffer_ref = "The quick brown fox jumps over the lazy dog.";
     std::string buffer_read;
@@ -517,11 +600,86 @@ namespace gpubuffertest
     EXPECT_EQ(buffer_read, buffer_ref);
   }
 
+  TEST(GpuBuffer, Pinned)
+  {
+    // Pinned buffer usage.
+    gputil::Device &gpu = g_gpu;
+    const std::string buffer_ref = "The quick brown fox jumps over the lazy dog.";
+    std::string buffer_read;
+
+    buffer_read.resize(buffer_ref.size());
+
+    // Allocate a larger buffer to allow writing with offset.
+    gputil::Buffer buffer(gpu, buffer_ref.size() * 2, gputil::kBfReadWriteHost);
+
+    {
+      // Use one buffer for read and write to validate RValue operators.
+      gputil::PinnedBuffer pin;
+
+      // Pin and write.
+      pin = gputil::PinnedBuffer(buffer, gputil::kPinWrite);
+      ASSERT_TRUE(pin.isPinned());
+      pin.write(buffer_ref.data(), buffer_ref.size());
+      pin.unpin();
+      ASSERT_FALSE(pin.isPinned());
+
+      // Pin and read.
+      pin = gputil::PinnedBuffer(buffer, gputil::kPinRead);
+      ASSERT_TRUE(pin.isPinned());
+      pin.read(&buffer_read.front(), buffer_read.size());
+      pin.unpin();
+      ASSERT_FALSE(pin.isPinned());
+
+      std::cout << "Write/read: " << buffer_read << std::endl;
+      EXPECT_EQ(buffer_read, buffer_ref);
+    }
+
+    // Now use separate read/write pins.
+
+    // Write with offset. Target result is: "The The quick..."
+    const unsigned offset = 4;
+    gputil::PinnedBuffer writePin(buffer, gputil::kPinWrite);
+    ASSERT_TRUE(writePin.isPinned());
+    writePin.write(buffer_ref.data(), buffer_ref.size(), offset);
+    writePin.unpin();
+    ASSERT_FALSE(writePin.isPinned());
+
+    gputil::PinnedBuffer readPin(buffer, gputil::kPinRead);
+    ASSERT_TRUE(readPin.isPinned());
+    readPin.read(&buffer_read.front(), buffer_read.size(), offset);
+    readPin.unpin();
+    ASSERT_FALSE(readPin.isPinned());
+
+    std::cout << "Write + offset/read + offset: " << buffer_read << std::endl;
+    EXPECT_EQ(buffer_read, buffer_ref);
+
+    // Read at byte zero.
+    const std::string offset_ref = "The The quick brown fox jumps over the lazy dog.";
+
+    readPin.pin();
+    ASSERT_TRUE(readPin.isPinned());
+    buffer_read.resize(buffer_ref.size() + offset);
+    readPin.read(&buffer_read.front(), buffer_read.size());
+    readPin.unpin();
+    ASSERT_FALSE(readPin.isPinned());
+
+    std::cout << "Write + offset/read: " << buffer_read << std::endl;
+    EXPECT_EQ(buffer_read, offset_ref);
+  }
+
   // Ensure we are not retaining buffer memory.
   TEST(GpuBuffer, Allocation)
   {
     gputil::Device &gpu = g_gpu;
-    uint64_t device_mem = gpu.deviceMemory();
+    uint64_t alloc_size = gpu.maxAllocationSize();
+    // Limit to 2 GiB.
+    alloc_size = std::min<size_t>(alloc_size, 2u * 1024u * 1024u * 1024u);
+
+    std::cout << "Max allocation size: ";
+    logBytes(std::cout, alloc_size) << std::endl;
+    alloc_size /= 2;
+    std::cout << "Using allocation size: ";
+    logBytes(std::cout, alloc_size) << std::endl;
 
     // Allocate and release large amounts of memory. Ensure we are releasing it correctly.
     // This should raise an exception if we are not correctly releasing memory.
@@ -529,7 +687,7 @@ namespace gpubuffertest
     const int fill_value = 42;
     for (int i = 0; i < 20; ++i)
     {
-      gputil::Buffer mem_buffer(gpu, device_mem / 3);
+      gputil::Buffer mem_buffer(gpu, alloc_size);
       mem_buffer.fill(&fill_value, sizeof(fill_value));
       std::cout << i + 1 << " / " << iter_count << std::endl;
     }

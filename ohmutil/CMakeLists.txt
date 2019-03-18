@@ -2,7 +2,6 @@
 include(GenerateExportHeader)
 
 find_package(GLM)
-
 find_package(Threads)
 
 set(SOURCES

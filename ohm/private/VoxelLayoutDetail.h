@@ -12,7 +12,7 @@
 
 namespace ohm
 {
-  struct VoxelMember
+  struct ohm_API VoxelMember
   {
     char name[52];
     uint64_t clear_value;
@@ -20,7 +20,7 @@ namespace ohm
     uint16_t offset;
   };
 
-  struct VoxelLayoutDetail
+  struct ohm_API VoxelLayoutDetail
   {
     std::vector<VoxelMember> members;
     uint16_t next_offset = 0u;

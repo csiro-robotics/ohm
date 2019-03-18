@@ -52,6 +52,7 @@ void Kernel::release()
 
 void Kernel::addLocal(const std::function<size_t(size_t)> &local_calc)
 {
+  imp_->local_mem_args.push_back(local_calc);
   imp_->kernel.addLocal(local_calc);
 }
 
@@ -72,6 +73,7 @@ void Kernel::calculateGrid(gputil::Dim3 *global_size, gputil::Dim3 *local_size, 
   if (!isValid())
   {
     *global_size = *local_size = Dim3(0, 0, 0);
+    return;
   }
 
   const size_t calc_volume = total_work_items.x * total_work_items.y * total_work_items.z;

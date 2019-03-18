@@ -2,7 +2,7 @@
 # Setup some CUDA complilation control options using the given PREFIX.
 #==============================================================================
 function(nvcc_setup PREFIX)
-  set(${PREFIX}_CUDA_ARCHITECTURES "30" CACHE STRING "Specifies the list of CUDA compute architectures to compile for.")
+  set(${PREFIX}_CUDA_ARCHITECTURES "50;60" CACHE STRING "Specifies the list of CUDA compute architectures to compile for.")
   foreach(ARCH ${${PREFIX}_CUDA_ARCHITECTURES})
     list(APPEND CUDA_NVCC_FLAGS "-gencode arch=compute_${ARCH},code=sm_${ARCH}")
   endforeach(ARCH)
@@ -13,12 +13,12 @@ function(nvcc_setup PREFIX)
 
   find_package(CUDA)
   if(${PREFIX}_CUDA_DEBUG STREQUAL "full")
-    list(APPEND CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -g -G -O0 -lineinfo")
+    list(APPEND CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -g -G -O0")
   elseif(${PREFIX}_CUDA_DEBUG STREQUAL "lineinfo")
     list(APPEND CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -g -lineinfo")
   endif(${PREFIX}_CUDA_DEBUG STREQUAL "full")
   if(NOT ${PREFIX}_CUDA_DEBUG STREQUAL "none")
-    set(CUDA_NVCC_FLAGS_DEBUG "${CUDA_NVCC_FLAGS_DEBUG} -g -G -O0 -lineinfo")
+    set(CUDA_NVCC_FLAGS_DEBUG "${CUDA_NVCC_FLAGS_DEBUG} -g -G -O0")
   endif(NOT ${PREFIX}_CUDA_DEBUG STREQUAL "none")
 
   set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS}" PARENT_SCOPE)

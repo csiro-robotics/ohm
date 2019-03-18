@@ -13,6 +13,7 @@ namespace gputil
   // Pinning functions. Need to check CUDA for an equivalent to OpenCL pinning.
   enum PinMode
   {
+    kPinNone = 0,
     kPinRead,
     kPinWrite,
     kPinReadWrite

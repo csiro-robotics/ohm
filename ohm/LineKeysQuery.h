@@ -99,7 +99,6 @@ namespace ohm
     bool onExecute() override;
     bool onExecuteAsync() override;
     void onReset(bool hard_reset) override;
-    bool onWaitAsync(unsigned timeout_ms) override;
 
     LineKeysQueryDetail *imp();
     const LineKeysQueryDetail *imp() const;

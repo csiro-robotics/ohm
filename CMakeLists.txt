@@ -43,13 +43,27 @@ set(OHM_PREFIX_PACKAGE share/${CMAKE_PROJECT_NAME}/cmake) # For catkin interoper
 # Prefix for include directories.
 set(OHM_PREFIX_INCLUDE include/ohm)
 
+# Look for OpenCL and CUDA to setup GPU build options
+find_package(CUDA QUIET)
+find_package(OpenCL QUIET)
+
+set(OHM_BUILD_CUDA_DEFAULT NO)
+set(OHM_BUILD_OPENCL_DEFAULT NO)
+
+if(CUDA_FOUND)
+  set(OHM_BUILD_CUDA_DEFAULT YES)
+endif(CUDA_FOUND)
+if(OPENCL_FOUND)
+  set(OHM_BUILD_OPENCL_DEFAULT YES)
+endif(OPENCL_FOUND)
+
 # Build options
 option(OHM_BUILD_DOXYGEN "Build doxygen documentation?" Off)
 
 option(OHM_EMBED_GPU_CODE "Embed GPU code into the executable (OpenCL)? Otherwise GPU code files are loaded from disk (better for development)." ON)
 
-set(OHM_OPENCL_VER 1.2 CACHE STRING "Select the OpenCL runtime API to use.")
-set_property(CACHE OHM_OPENCL_VER PROPERTY STRINGS 1.2 2.0 2.1 2.2)
+set(OHM_OPENCL_SDK_VER 1.2 CACHE STRING "Select the OpenCL runtime API to use.")
+set_property(CACHE OHM_OPENCL_SDK_VER PROPERTY STRINGS 1.2 2.0 2.1 2.2)
 
 set(OHM_OPENCL_STD 1.2 CACHE STRING "Select the default OpenCL standard to compile GPU code against. Also runtime configurable. [max] uses the reported device allowing for 2.x requires features.")
 set_property(CACHE OHM_OPENCL_STD PROPERTY STRINGS 1.2 2.0 max)
@@ -75,25 +89,14 @@ option(OHM_TES_DEBUG "Enable visual debuging code?" Off)
 option(OHM_THREADS "Enable CPU threading (using Thread Building Blocks)? Not advisable for onboard compilation." ${TBB_THREADS_DEFAULT})
 option(OHM_UNIT_TESTS "Build ohm units tests?" On)
 option(OHM_VALIDATION "Enable various validation tests in the occupancy map code. Has some performance impact." Off)
-
-set(OHM_GPU_API "OpenCL" CACHE STRING "Select the GPU acceleration API.")
-set_property(CACHE OHM_GPU_API PROPERTY STRINGS CUDA OpenCL)
-
-# Migrate to gputil library variable.
-set(GPU_ACCEL ${OHM_GPU_API})
+option(OHM_BUILD_CUDA "Build ohm library and utlities for CUDA?" ${OHM_BUILD_CUDA_DEFAULT})
+option(OHM_BUILD_OPENCL "Build ohm library and utlities for OpenCL?" ${OHM_BUILD_OPENCL_DEFAULT})
+option(OHM_BUILD_HEIGHTMAPUTIL "Build the heightmap to image conversion library and utility?" ON)
 
 # Configure OHM_GPU as a value for configure_file
 set(OHM_GPU_OPENCL 1)
 set(OHM_GPU_CUDA 2)
 set(OHM_GPU 0)
-
-if(OHM_GPU_API STREQUAL "OpenCL")
-  set(OHM_GPU ${OHM_GPU_OPENCL})
-elseif(OHM_GPU_API STREQUAL "CUDA")
-  include(cudautil)
-  nvcc_setup(OHM)
-  set(OHM_GPU ${OHM_GPU_CUDA})
-endif()
 
 # Configure use of 3rd-Eye-Scene visual debugging (use for development only)
 if(OHM_TES_DEBUG)
@@ -132,20 +135,22 @@ if(CLOUD_IO_LIB STREQUAL "auto")
   message(STATUS "Cloud IO auto selected: ${CLOUD_IO_LIB}")
 endif(CLOUD_IO_LIB STREQUAL "auto")
 
-if(OHM_GPU_API STREQUAL "OpenCL")
+if(OHM_BUILD_OPENCL)
   add_subdirectory(clu)
-endif(OHM_GPU_API STREQUAL "OpenCL")
+endif(OHM_BUILD_OPENCL)
 add_subdirectory(gputil)
 
 add_subdirectory(ohmutil)
 add_subdirectory(slamio)
 add_subdirectory(ohm)
+add_subdirectory(ohmgpu)
 
-# Experimental
-add_subdirectory(ohmheightmaputil)
+if(OHM_BUILD_HEIGHTMAPUTIL)
+  # Experimental
+  add_subdirectory(ohmheightmaputil)
+endif(OHM_BUILD_HEIGHTMAPUTIL)
 
 add_subdirectory(ohmtools)
-
 add_subdirectory(utils)
 
 if(OHM_UNIT_TESTS)
@@ -174,7 +179,7 @@ write_basic_package_version_file(
 
 # Installation of the package configuration file.
 configure_file(cmake/${CMAKE_PROJECT_NAME}-packages.cmake "${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_PROJECT_NAME}-packages.cmake")
-configure_file(cmake/${CMAKE_PROJECT_NAME}-config.cmake "${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_PROJECT_NAME}-config.cmake" COPYONLY)
+configure_file(cmake/${CMAKE_PROJECT_NAME}-config.cmake "${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_PROJECT_NAME}-config.cmake" @ONLY)
 install(FILES
     "${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_PROJECT_NAME}-config.cmake"
     "${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_PROJECT_NAME}-packages.cmake"

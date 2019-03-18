@@ -15,7 +15,7 @@ namespace ohm
   class MappingProcess;
   class OccupancyMap;
 
-  struct MapperDetail
+  struct ohm_API MapperDetail
   {
     std::vector<MappingProcess *> processes;
     OccupancyMap *map = nullptr;

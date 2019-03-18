@@ -8,7 +8,7 @@
 
 #include "gpuConfig.h"
 
-#include "cuda/ref.h"
+#include "gputil/cuda/ref.h"
 
 #include <cuda_runtime.h>
 
