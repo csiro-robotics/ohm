@@ -170,7 +170,6 @@ int main(int argc, char *argv[])
   ohm::OccupancyMap map(1.0f);
   ohm::MapVersion version;
 
-  size_t region_count = 0;
   std::cout << "Loading" << std::flush;
   res = ohm::load(opt.map_in.c_str(), map);
   std::cout << std::endl;
