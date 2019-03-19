@@ -27,6 +27,7 @@ add_subdirectory(ohmheightmap)
 add_subdirectory(ohminfo)
 add_subdirectory(ohmpop)
 add_subdirectory(ohmquery)
+add_subdirectory(ohmsubmap)
 
 if(OHM_BUILD_HEIGHTMAPUTIL)
   add_subdirectory(ohmhm2img)

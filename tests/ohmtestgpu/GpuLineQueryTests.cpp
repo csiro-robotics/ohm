@@ -15,6 +15,7 @@
 
 #include <ohmtools/OhmCloud.h>
 #include <ohmtools/OhmGen.h>
+#include <ohmutil/GlmStream.h>
 #include <ohmutil/OhmUtil.h>
 #include <ohmutil/Profile.h>
 

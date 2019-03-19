@@ -240,7 +240,7 @@ OccupancyMap::const_iterator OccupancyMap::end() const
 namespace
 {
   template <typename NODE, typename DETAIL>
-  NODE getMapNode(DETAIL *detail, const Key &key, const OccupancyMapDetail *map)
+  NODE getMapVoxel(DETAIL *detail, const Key &key, const OccupancyMapDetail *map)
   {
     std::unique_lock<decltype(map->mutex)> guard(map->mutex);
     auto region_ref = detail->findRegion(key.regionKey());
@@ -753,7 +753,7 @@ Voxel OccupancyMap::integrateHit(const Key &key, const glm::dvec3 &point, MapCac
   return voxel;
 }
 
-Voxel OccupancyMap::addNode(const Key &key, float value)
+Voxel OccupancyMap::addVoxel(const Key &key, float value)
 {
   MapChunk *chunk;
   std::unique_lock<decltype(imp_->mutex)> guard(imp_->mutex);
@@ -777,12 +777,12 @@ Voxel OccupancyMap::addNode(const Key &key, float value)
   return voxel;
 }
 
-float OccupancyMap::minNodeValue() const
+float OccupancyMap::minVoxelValue() const
 {
   return imp_->min_voxel_value;
 }
 
-void OccupancyMap::setMinNodeValue(float value)
+void OccupancyMap::setMinVoxelValue(float value)
 {
   imp_->min_voxel_value = value;
 }
@@ -797,12 +797,12 @@ void OccupancyMap::setSaturateAtMinValue(bool saturate)
   imp_->saturate_at_min_value = saturate;
 }
 
-float OccupancyMap::maxNodeValue() const
+float OccupancyMap::maxVoxelValue() const
 {
   return imp_->max_voxel_value;
 }
 
-void OccupancyMap::setMaxNodeValue(float value)
+void OccupancyMap::setMaxVoxelValue(float value)
 {
   imp_->max_voxel_value = value;
 }

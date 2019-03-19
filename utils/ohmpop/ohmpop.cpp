@@ -153,7 +153,7 @@ namespace
       // **out << "Map region memory: " << mem_size_string << '\n';
       **out << "Hit probability: " << prob_hit << '\n';
       **out << "Miss probability: " << prob_miss << '\n';
-      **out << "Probability range: [" << map.minNodeProbability() << ' ' << map.maxNodeProbability() << "]\n";
+      **out << "Probability range: [" << map.minVoxelProbability() << ' ' << map.maxVoxelProbability() << "]\n";
       **out << "Ray batch size: " << batch_size << '\n';
       **out << "Clearance mapping: ";
       if (clearance > 0)
@@ -429,11 +429,11 @@ int populateMap(const Options &opt)
   map.setMissProbability(opt.prob_miss);
   if (opt.prob_range[0])
   {
-    map.setMinNodeProbability(opt.prob_range[0]);
+    map.setMinVoxelProbability(opt.prob_range[0]);
   }
   if (opt.prob_range[1])
   {
-    map.setMaxNodeProbability(opt.prob_range[1]);
+    map.setMaxVoxelProbability(opt.prob_range[1]);
   }
   // map.setSaturateAtMinValue(opt.saturateMin);
   // map.setSaturateAtMaxValue(opt.saturateMax);

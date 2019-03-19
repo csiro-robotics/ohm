@@ -11,6 +11,7 @@
 // #include <ohm/OccupancyType.h>
 
 #include <ohmtools/OhmGen.h>
+#include <ohmutil/GlmStream.h>
 #include <ohmutil/OhmUtil.h>
 
 #include <chrono>

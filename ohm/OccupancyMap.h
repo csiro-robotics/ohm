@@ -48,7 +48,7 @@ namespace ohm
   /// to GPU based operations. The default size of 32*32*32, or an equivalent volume is
   /// recommended.
   ///
-  /// Nodes in the tree have two associated values: an occupancy value and a user value.
+  /// Voxels in the tree have two associated values: an occupancy value and a user value.
   /// The occupancy value may be updated probabilistically, but this only serves in when
   /// it is possible to mark free voxels in the tree as well as unoccupied voxels, or
   /// voxel occupancy may decay over time.
@@ -177,7 +177,7 @@ namespace ohm
       /// @return Same as @c voxel().
       inline Voxel &operator*()
       {
-        resolveNode();
+        resolveVoxel();
         return voxel_;
       }
 
@@ -185,7 +185,7 @@ namespace ohm
       /// @return Same as @c voxel().
       inline const Voxel &operator*() const
       {
-        resolveNode();
+        resolveVoxel();
         return voxel_;
       }
 
@@ -193,7 +193,7 @@ namespace ohm
       /// @return Same as @c voxel().
       inline Voxel *operator->()
       {
-        resolveNode();
+        resolveVoxel();
         return &voxel_;
       }
 
@@ -201,13 +201,13 @@ namespace ohm
       /// @return Same as @c voxel().
       inline const Voxel *operator->() const
       {
-        resolveNode();
+        resolveVoxel();
         return &voxel_;
       }
 
     private:
       /// Resolve the @c base_iterator data into @c _voxel.
-      inline void resolveNode() const { voxel_ = const_cast<iterator *>(this)->voxel(); }
+      inline void resolveVoxel() const { voxel_ = const_cast<iterator *>(this)->voxel(); }
 
       /// A cached @c Voxel version of the underlying @c base_iterator data, here to support
       /// the @c * and @c -> operators.
@@ -254,7 +254,7 @@ namespace ohm
       /// @return Same as @c voxel().
       inline const VoxelConst &operator*() const
       {
-        resolveNode();
+        resolveVoxel();
         return voxel_;
       }
 
@@ -262,13 +262,13 @@ namespace ohm
       /// @return Same as @c voxel().
       inline const VoxelConst *operator->() const
       {
-        resolveNode();
+        resolveVoxel();
         return &voxel_;
       }
 
     private:
       /// Resolve the @c base_iterator data into @c _voxel.
-      inline void resolveNode() const { voxel_ = voxel(); }
+      inline void resolveVoxel() const { voxel_ = voxel(); }
 
       /// A cached @c VoxelConst version of the underlying @c base_iterator data, here to support
       /// the @c * and @c -> operators.
@@ -319,7 +319,7 @@ namespace ohm
     /// @param key The key for the voxel to access.
     /// @param allow_create True to create the voxel if it does not exist.
     /// @param cache Optional cache used to expidite region search.
-    /// @return An @c Voxel wrapper object for the keyed @p MayNode. The voxel is
+    /// @return An @c Voxel wrapper object for the keyed voxel. The voxel is
     ///   null if does not exist and creation is not allowed.
     Voxel voxel(const Key &key, bool allow_create, MapCache *cache = nullptr);
     /// @overload
@@ -649,21 +649,21 @@ namespace ohm
 
     /// The minimum value a voxel can have. Value adjustments are clamped to this minimum.
     /// @return The minimum voxel value.
-    float minNodeValue() const;
+    float minVoxelValue() const;
 
     /// Set the minimum value a voxel can have. Value adjustments are clamped to this minimum.
     /// Changing the minimum value does not affect any existing voxels with smaller values.
     /// @param value The new minimum value.
-    void setMinNodeValue(float value);
+    void setMinVoxelValue(float value);
 
     /// Set the minimum value for a voxel expressed as a probability.
-    /// @see @c setMinNodeValue
+    /// @see @c setMinVoxelValue
     /// @param probability The minimum probability value allowed.
-    void setMinNodeProbability(float probability);
+    void setMinVoxelProbability(float probability);
 
     /// Get the minimum value for a voxel expressed as a probability.
     /// @return The minimum voxel occupancy probability.
-    float minNodeProbability() const;
+    float minVoxelProbability() const;
 
     /// Do voxels saturate at the minimum value, preventing further adjustment?
     /// @return True if voxels saturate and maintain state at the minimum value.
@@ -676,21 +676,21 @@ namespace ohm
 
     /// The maximum value a voxel can have. Value adjustments are clamped to this maximum.
     /// @return The maximum voxel value.
-    float maxNodeValue() const;
+    float maxVoxelValue() const;
 
     /// Set the maximum value a voxel can have. Value adjustments are clamped to this maximum.
     /// Changing the maximum value does not affect any existing voxels with larger values.
     /// @param value The new maximum value.
-    void setMaxNodeValue(float value);
+    void setMaxVoxelValue(float value);
 
     /// Set the maximum value for a voxel expressed as a probability.
-    /// @see @c setMinNodeValue
+    /// @see @c setMinVoxelValue
     /// @param probability The maximum probability value allowed.
-    void setMaxNodeProbability(float probability);
+    void setMaxVoxelProbability(float probability);
 
     /// Get the maximum value for a voxel expressed as a probability.
     /// @return The maximum voxel occupancy probability.
-    float maxNodeProbability() const;
+    float maxVoxelProbability() const;
 
     /// Do voxels saturate at the maximum value, preventing further adjustment?
     /// @return True if voxels saturate and maintain state at the maximum value.
@@ -722,7 +722,7 @@ namespace ohm
     /// @return A mutable reference to the voxel. This object may be short lived and should only be
     ///   briefly retained.
     /// @see voxelKey(), voxelKeyLocal()
-    Voxel addNode(const Key &key, float value);
+    Voxel addVoxel(const Key &key, float value);
 
     /// Retrieve the coordinates for the centre of the voxel identified by @p key local to the map origin.
     ///
@@ -967,19 +967,19 @@ namespace ohm
     return voxel;
   }
 
-  inline void OccupancyMap::setMinNodeProbability(float probability)
+  inline void OccupancyMap::setMinVoxelProbability(float probability)
   {
-    setMinNodeValue(probabilityToValue(probability));
+    setMinVoxelValue(probabilityToValue(probability));
   }
 
-  inline float OccupancyMap::minNodeProbability() const { return valueToProbability(minNodeValue()); }
+  inline float OccupancyMap::minVoxelProbability() const { return valueToProbability(minVoxelValue()); }
 
-  inline void OccupancyMap::setMaxNodeProbability(float probability)
+  inline void OccupancyMap::setMaxVoxelProbability(float probability)
   {
-    setMaxNodeValue(probabilityToValue(probability));
+    setMaxVoxelValue(probabilityToValue(probability));
   }
 
-  inline float OccupancyMap::maxNodeProbability() const { return valueToProbability(maxNodeValue()); }
+  inline float OccupancyMap::maxVoxelProbability() const { return valueToProbability(maxVoxelValue()); }
 }  // namespace ohm
 
 #endif  // OCCUPANCYMAP_H
