@@ -114,6 +114,10 @@ namespace ohm
     /// @return The coordinates of the requested corner.
     glm::dvec3 corner(int corner_index) const;
 
+    /// Expand the extents to include @p pt. Does not handle the first point of a point set.
+    /// @param pt The point to expand the extents to include.
+    void expand(const glm::dvec3 &pt);
+
     /// Test whether this box and @p other overlap. Touching is considered an overlap.
     ///
     /// The box is optionally extended by @p epsilon.
@@ -235,11 +239,22 @@ namespace ohm
 
   inline glm::dvec3 Aabb::corner(int corner_index) const
   {
-    glm::dvec3 corner;
-    corner[0] = (corner_index & 1) == 0 ? corners_[0][0] : corners_[1][0];
-    corner[1] = (corner_index & 2) == 0 ? corners_[0][1] : corners_[1][1];
-    corner[2] = (corner_index & 4) == 0 ? corners_[0][2] : corners_[1][2];
-    return corner;
+    glm::dvec3 c;
+    c[0] = (corner_index & 1) == 0 ? corners_[0][0] : corners_[1][0];
+    c[1] = (corner_index & 2) == 0 ? corners_[0][1] : corners_[1][1];
+    c[2] = (corner_index & 4) == 0 ? corners_[0][2] : corners_[1][2];
+    return c;
+  }
+
+
+  inline void Aabb::expand(const glm::dvec3 &pt)
+  {
+    corners_[0].x = std::min(corners_[0].x, pt.x);
+    corners_[0].y = std::min(corners_[0].y, pt.y);
+    corners_[0].z = std::min(corners_[0].z, pt.z);
+    corners_[1].x = std::max(corners_[1].x, pt.x);
+    corners_[1].y = std::max(corners_[1].y, pt.y);
+    corners_[1].z = std::max(corners_[1].z, pt.z);
   }
 
 
