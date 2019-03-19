@@ -15,13 +15,24 @@
 #include "ohm/MapRegion.h"
 #include "ohm/RayFilter.h"
 
+#include <ohmutil/VectorHash.h>
+
+#ifdef __GNUC__
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wconversion"
+#endif // __GNUC__
+#include <ohmutil/ska/bytell_hash_map.hpp>
+#ifdef __GNUC__
+#pragma GCC diagnostic pop
+#endif // __GNUC__
+
 #include <mutex>
 #include <unordered_map>
 #include <vector>
 
 namespace ohm
 {
-  typedef std::unordered_multimap<unsigned, MapChunk *> ChunkMap;
+  using ChunkMap = ska::bytell_hash_map<glm::i16vec3, MapChunk *, Vector3Hash<glm::i16vec3>>;
 
   class MapRegionCache;
   class OccupancyMap;
@@ -65,15 +76,6 @@ namespace ohm
 
     ~OccupancyMapDetail();
 
-    /// A helper function for finding the @c MapChunk for the given @p regionKey.
-    /// Deals with having regions with the same hash in the map (though unlikely).
-    /// @param region_key They key for the region of interest.
-    /// @return The interator in @c chunks to the region of interest or @c chunks.end() when not found.
-    ChunkMap::iterator findRegion(const glm::i16vec3 &region_key);
-
-    /// @overload
-    ChunkMap::const_iterator findRegion(const glm::i16vec3 &region_key) const;
-
     /// Move an @c Key along a selected axis.
     /// This is the implementation to @c OccupancyMap::moveKeyAlongAxis(). See that function for details.
     /// @param key The key to adjust.
@@ -88,42 +90,7 @@ namespace ohm
     /// Copy internal details from @p other. For cloning.
     /// @param other The map detail to copy from.
     void copyFrom(const OccupancyMapDetail &other);
-
-  protected:
-    template <typename ITER, typename T>
-    static ITER findRegion(T &chunks, const glm::i16vec3 &region_key);
   };
-
-
-  inline ChunkMap::iterator OccupancyMapDetail::findRegion(const glm::i16vec3 &region_key)
-  {
-    return findRegion<ChunkMap::iterator>(chunks, region_key);
-  }
-
-
-  inline ChunkMap::const_iterator OccupancyMapDetail::findRegion(const glm::i16vec3 &region_key) const
-  {
-    return findRegion<ChunkMap::const_iterator>(chunks, region_key);
-  }
-
-
-  template <typename ITER, typename T>
-  inline ITER OccupancyMapDetail::findRegion(T &chunks, const glm::i16vec3 &region_key)
-  {
-    const unsigned region_hash = MapRegion::Hash::calculate(region_key);
-    ITER iter = chunks.find(region_hash);
-    while (iter != chunks.end() && iter->first == region_hash && iter->second->region.coord != region_key)
-    {
-      ++iter;
-    }
-
-    if (iter != chunks.end() && iter->first == region_hash && iter->second->region.coord == region_key)
-    {
-      return iter;
-    }
-
-    return chunks.end();
-  }
 }  // namespace ohm
 
 #endif  // OHM_MAPDETAIL_H

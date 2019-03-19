@@ -89,3 +89,13 @@ ___________________________________________________________________
 GLFW Library https://www.glfw.org/
 This software is licensed under the zlib/libpng license
 ___________________________________________________________________
+
+___________________________________________________________________
+SKA fast hash https://github.com/skarupke/flat_hash_map
+This software is licensed under the Boost Software License, Version 1.0.
+___________________________________________________________________
+
+___________________________________________________________________
+SKA fast sort https://github.com/skarupke/ska_sort
+This software is licensed under the Boost Software License, Version 1.0.
+___________________________________________________________________

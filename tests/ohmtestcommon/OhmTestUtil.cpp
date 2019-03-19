@@ -158,7 +158,6 @@ namespace ohmtestutil
 
         EXPECT_EQ(chunk->region.centre, ref_chunk->region.centre);
         EXPECT_EQ(chunk->region.coord, ref_chunk->region.coord);
-        EXPECT_EQ(chunk->region.hash, ref_chunk->region.hash);
 
         if (compare_flags & kCfChunksFine)
         {

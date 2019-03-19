@@ -35,9 +35,6 @@ MapRegion::MapRegion(const glm::dvec3 &point, const glm::dvec3 &map_origin, cons
   coord.y = pointToRegionCoord(double(point.y - map_origin.y), region_dimensions.y);
   coord.z = pointToRegionCoord(double(point.z - map_origin.z), region_dimensions.z);
 
-  // Hash.
-  hash = Hash::calculate(*this);
-
   // Centre
   centre.x = regionCentreCoord(coord.x, region_dimensions.x);
   centre.y = regionCentreCoord(coord.y, region_dimensions.y);

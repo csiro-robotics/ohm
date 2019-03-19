@@ -106,7 +106,7 @@ OccupancyMap::base_iterator::base_iterator(OccupancyMapDetail *map, const Key &k
   if (!key.isNull())
   {
     std::unique_lock<decltype(map->mutex)> guard(map->mutex);
-    chunk_iter = map->findRegion(key.regionKey());
+    chunk_iter = map->chunks.find(key.regionKey());
   }
 }
 
@@ -243,7 +243,7 @@ namespace
   NODE getMapVoxel(DETAIL *detail, const Key &key, const OccupancyMapDetail *map)
   {
     std::unique_lock<decltype(map->mutex)> guard(map->mutex);
-    auto region_ref = detail->findRegion(key.regionKey());
+    auto region_ref = detail->chunks.find(key.regionKey());
     if (region_ref != detail->chunks.end())
     {
       return NODE(key, region_ref->second, map);
@@ -259,7 +259,7 @@ Voxel OccupancyMap::voxel(const Key &key, bool allow_create, MapCache *cache)
   if (!chunk)
   {
     std::unique_lock<decltype(imp_->mutex)> guard(imp_->mutex);
-    const auto region_ref = imp_->findRegion(key.regionKey());
+    const auto region_ref = imp_->chunks.find(key.regionKey());
     if (region_ref != imp_->chunks.end())
     {
       chunk = region_ref->second;
@@ -268,7 +268,7 @@ Voxel OccupancyMap::voxel(const Key &key, bool allow_create, MapCache *cache)
     {
       // No such chunk. Create one.
       chunk = newChunk(key);
-      imp_->chunks.insert(std::make_pair(chunk->region.hash, chunk));
+      imp_->chunks.insert(std::make_pair(chunk->region.coord, chunk));
       // No need to touch the map here. We haven't changed the semantics of the map until
       // we change the value of a voxel in the region.
     }
@@ -292,7 +292,7 @@ VoxelConst OccupancyMap::voxel(const Key &key, MapCache *cache) const
   if (!chunk)
   {
     std::unique_lock<decltype(imp_->mutex)> guard(imp_->mutex);
-    const auto region_ref = imp_->findRegion(key.regionKey());
+    const auto region_ref = imp_->chunks.find(key.regionKey());
     if (region_ref != imp_->chunks.end())
     {
       chunk = region_ref->second;
@@ -757,12 +757,12 @@ Voxel OccupancyMap::addVoxel(const Key &key, float value)
 {
   MapChunk *chunk;
   std::unique_lock<decltype(imp_->mutex)> guard(imp_->mutex);
-  const auto region_search = imp_->findRegion(key.regionKey());
+  const auto region_search = imp_->chunks.find(key.regionKey());
   if (region_search == imp_->chunks.end())
   {
     // Allocate a new chunk.
     chunk = newChunk(key);
-    imp_->chunks.insert(std::make_pair(chunk->region.hash, chunk));
+    imp_->chunks.insert(std::make_pair(chunk->region.coord, chunk));
     // No need to touch here. We haven't changed the semantics of the map at this point.
     // Also, the setValue() call below will touch the map.
   }
@@ -1071,7 +1071,7 @@ void OccupancyMap::enumerateRegions(std::vector<const MapChunk *> &chunks) const
 MapChunk *OccupancyMap::region(const glm::i16vec3 &region_key, bool allow_create)
 {
   std::unique_lock<decltype(imp_->mutex)> guard(imp_->mutex);
-  const auto region_search = imp_->findRegion(region_key);
+  const auto region_search = imp_->chunks.find(region_key);
   if (region_search != imp_->chunks.end())
   {
     MapChunk *chunk = region_search->second;
@@ -1085,7 +1085,7 @@ MapChunk *OccupancyMap::region(const glm::i16vec3 &region_key, bool allow_create
   {
     // No such chunk. Create one.
     MapChunk *chunk = newChunk(Key(region_key, 0, 0, 0));
-    imp_->chunks.insert(std::make_pair(chunk->region.hash, chunk));
+    imp_->chunks.insert(std::make_pair(chunk->region.coord, chunk));
     // No need to touch the map here. We haven't changed the semantics of the map.
     // That happens when the value of a voxel in the region changes.
     return chunk;
@@ -1097,7 +1097,7 @@ MapChunk *OccupancyMap::region(const glm::i16vec3 &region_key, bool allow_create
 const MapChunk *OccupancyMap::region(const glm::i16vec3 &region_key) const
 {
   std::unique_lock<decltype(imp_->mutex)> guard(imp_->mutex);
-  const auto region_search = imp_->findRegion(region_key);
+  const auto region_search = imp_->chunks.find(region_key);
   if (region_search != imp_->chunks.end())
   {
     const MapChunk *chunk = region_search->second;

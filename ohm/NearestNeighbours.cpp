@@ -33,7 +33,7 @@ namespace
                                       ClosestResult &closest)
   {
     const OccupancyMapDetail &map_data = *map.detail();
-    const auto chunk_search = map_data.findRegion(region_key);
+    const auto chunk_search = map_data.chunks.find(region_key);
     glm::vec3 query_origin, voxel_vector;
     Key voxel_key(nullptr);
     const MapChunk *chunk = nullptr;

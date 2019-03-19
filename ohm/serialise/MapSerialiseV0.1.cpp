@@ -59,7 +59,7 @@ namespace ohm
 
         // Resolve map chunk details.
         chunk->searchAndUpdateFirstValid(detail.region_voxel_dimensions);
-        detail.chunks.insert(std::make_pair(chunk->region.hash, chunk));
+        detail.chunks.insert(std::make_pair(chunk->region.coord, chunk));
 
         if (progress)
         {
@@ -186,8 +186,6 @@ namespace ohm
 
           ok = stream.read(layer_mem, unsigned(node_byte_count)) == node_byte_count && ok;
         }
-
-        chunk.region.hash = MapRegion::Hash::calculate(chunk.region);
       }
 
       return (ok) ? 0 : kSeFileReadFailure;
