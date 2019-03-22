@@ -75,8 +75,6 @@ namespace ohm
 
           ok = stream.read(layer_mem, unsigned(node_byte_count)) == node_byte_count && ok;
         }
-
-        chunk.region.hash = MapRegion::Hash::calculate(chunk.region);
       }
 
       return (ok) ? 0 : kSeFileReadFailure;

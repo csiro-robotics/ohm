@@ -15,7 +15,16 @@
 
 #include <gputil/gpuDevice.h>
 
-#include <unordered_map>
+#include <ohmutil/VectorHash.h>
+
+#ifdef __GNUC__
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wconversion"
+#endif  // __GNUC__
+#include <ohmutil/ska/bytell_hash_map.hpp>
+#ifdef __GNUC__
+#pragma GCC diagnostic pop
+#endif  // __GNUC__
 
 #include <cassert>
 #include <memory>
@@ -55,11 +64,13 @@ namespace ohm
 
   struct GpuLayerCacheDetail
   {
+    using CacheMap = ska::bytell_hash_map<glm::i16vec3, GpuCacheEntry, Vector3Hash<glm::i16vec3>>;
+
     // Not part of the public API. We can put whatever we want here.
     std::unique_ptr<gputil::Buffer> buffer;
     unsigned cache_size = 0;
     unsigned batch_marker = 1;
-    std::unordered_multimap<unsigned, GpuCacheEntry> cache;
+    CacheMap cache;
     /// List of memory offsets available for re-use. Populated when we remove entries from the cache rather than
     /// replacing them.
     std::vector<size_t> mem_offset_free_list;
@@ -208,14 +219,7 @@ void GpuLayerCache::updateEvents(unsigned batch_marker, gputil::Event &event)
 
 void GpuLayerCache::remove(const glm::i16vec3 &region_key)
 {
-  const unsigned region_hash = MapRegion::Hash::calculate(region_key);
-  auto search_iter = imp_->cache.find(region_hash);
-
-  while (search_iter != imp_->cache.end() && search_iter->first == region_hash &&
-         search_iter->second.region_key != region_key)
-  {
-    ++search_iter;
-  }
+  auto search_iter = imp_->cache.find(region_key);
 
   if (search_iter != imp_->cache.end())
   {
@@ -392,7 +396,6 @@ GpuCacheEntry *GpuLayerCache::resolveCacheEntry(OccupancyMap &map, const glm::i1
 
   // Ensure the map chunk exists in the map.
   chunk = map.region(region_key, (flags & kAllowRegionCreate));
-  const unsigned region_hash = (chunk) ? chunk->region.hash : MapRegion::Hash::calculate(region_key);
 
   // Now add the chunk to the cache.
   // Check if there are unallocated buffers.
@@ -411,8 +414,8 @@ GpuCacheEntry *GpuLayerCache::resolveCacheEntry(OccupancyMap &map, const glm::i1
     {
       new_entry.mem_offset = imp_->chunk_mem_size * cachedCount();
     }
-    auto inserted = imp_->cache.insert(std::make_pair(region_hash, new_entry));
-    entry = &inserted->second;
+    auto inserted = imp_->cache.insert(std::make_pair(region_key, new_entry));
+    entry = &inserted.first->second;
   }
   else
   {
@@ -449,8 +452,8 @@ GpuCacheEntry *GpuLayerCache::resolveCacheEntry(OccupancyMap &map, const glm::i1
     imp_->cache.erase(oldest_entry);
 
     // Insert the new entry.
-    auto inserted = imp_->cache.insert(std::make_pair(region_hash, new_entry));
-    entry = &inserted->second;
+    auto inserted = imp_->cache.insert(std::make_pair(region_key, new_entry));
+    entry = &inserted.first->second;
   }
 
   // Complete the cache entry.
@@ -555,17 +558,11 @@ void GpuLayerCache::syncToMainMemory(GpuCacheEntry &entry, bool wait_on_sync)
 namespace
 {
   template <typename ENTRY, typename T>
-  inline ENTRY *findCacheEntry(T &cache, unsigned region_hash, const glm::i16vec3 &region_key)
+  inline ENTRY *findCacheEntry(T &cache, const glm::i16vec3 &region_key)
   {
-    auto search_iter = cache.find(region_hash);
+    auto search_iter = cache.find(region_key);
 
-    while (search_iter != cache.end() && search_iter->first == region_hash &&
-           search_iter->second.region_key != region_key)
-    {
-      ++search_iter;
-    }
-
-    if (search_iter != cache.end() && search_iter->first == region_hash && search_iter->second.region_key == region_key)
+    if (search_iter != cache.end())
     {
       return &search_iter->second;
     }
@@ -578,25 +575,23 @@ namespace
 
 GpuCacheEntry *GpuLayerCache::findCacheEntry(const glm::i16vec3 &region_key)
 {
-  const unsigned region_hash = MapRegion::Hash::calculate(region_key);
-  return ::findCacheEntry<GpuCacheEntry>(imp_->cache, region_hash, region_key);
+  return ::findCacheEntry<GpuCacheEntry>(imp_->cache, region_key);
 }
 
 
 const GpuCacheEntry *GpuLayerCache::findCacheEntry(const glm::i16vec3 &region_key) const
 {
-  const unsigned region_hash = MapRegion::Hash::calculate(region_key);
-  return ::findCacheEntry<const GpuCacheEntry>(imp_->cache, region_hash, region_key);
+  return ::findCacheEntry<const GpuCacheEntry>(imp_->cache, region_key);
 }
 
 
 GpuCacheEntry *GpuLayerCache::findCacheEntry(const MapChunk &chunk)
 {
-  return ::findCacheEntry<GpuCacheEntry>(imp_->cache, chunk.region.hash, chunk.region.coord);
+  return ::findCacheEntry<GpuCacheEntry>(imp_->cache, chunk.region.coord);
 }
 
 
 const GpuCacheEntry *GpuLayerCache::findCacheEntry(const MapChunk &chunk) const
 {
-  return ::findCacheEntry<const GpuCacheEntry>(imp_->cache, chunk.region.hash, chunk.region.coord);
+  return ::findCacheEntry<const GpuCacheEntry>(imp_->cache, chunk.region.coord);
 }

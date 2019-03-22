@@ -5,6 +5,10 @@ find_package(GLM)
 find_package(Threads)
 
 set(SOURCES
+  ska/bytell_hash_map.hpp
+  ska/flat_hash_map.hpp
+  ska/ska_sort.hpp
+  ska/unordered_map.hpp
   Colour.cpp
   Colour.h
   cxxopts.hpp
@@ -33,6 +37,13 @@ set(SOURCES
   SpinLock.cpp
   SpinLock.h
   VectorHash.h
+)
+
+set(PUBLIC_SKA_HEADERS
+  ska/bytell_hash_map.hpp
+  ska/flat_hash_map.hpp
+  ska/ska_sort.hpp
+  ska/unordered_map.hpp
 )
 
 set(PUBLIC_HEADERS
@@ -90,6 +101,7 @@ install(TARGETS ohmutil EXPORT ${CMAKE_PROJECT_NAME}-config-targets
 )
 
 install(FILES ${PUBLIC_HEADERS} DESTINATION ${OHM_PREFIX_INCLUDE}/ohmutil)
+install(FILES ${PUBLIC_SKA_HEADERS} DESTINATION ${OHM_PREFIX_INCLUDE}/ohmutil/ska)
 
 source_group("source" REGULAR_EXPRESSION ".*$")
 # Needs CMake 3.8+:

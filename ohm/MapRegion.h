@@ -22,8 +22,6 @@ namespace ohm
     glm::dvec3 centre;
     /// Quantised integer indexing of the region within the map.
     glm::i16vec3 coord;
-    /// A hash of the @p coord value.
-    unsigned hash;
 
     /// Hashing function converting a region key or region coordinates into a 32-bit hash value.
     ///
@@ -38,11 +36,11 @@ namespace ohm
       /// @param key The region to hash.
       /// @return The 32-bit hash for @p key.
       static unsigned calculate(const MapRegion &key);
-      /// Hash quantised interger indexing coordinates for a region.
+      /// Hash quantised integer indexing coordinates for a region.
       /// @param region_coord The region coordinates to hash.
       /// @return The 32-bit hash for @p key.
       inline unsigned operator()(const glm::i16vec3 &region_coord) const { return calculate(region_coord); }
-      /// Hash quantised interger indexing coordinates for a region.
+      /// Hash quantised integer indexing coordinates for a region.
       /// @param region_coord The region coordinates to hash.
       /// @return The 32-bit hash for @p key.
       static unsigned calculate(const glm::i16vec3 &region_coord);

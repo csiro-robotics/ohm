@@ -431,10 +431,9 @@ unsigned GpuMap::integrateRaysT(const VEC_TYPE *rays, unsigned element_count, bo
   // affected by a ray.
   const auto region_func = [this](const glm::i16vec3 &region_key, const glm::dvec3 & /*origin*/,
                                   const glm::dvec3 & /*sample*/) {
-    const unsigned region_hash = MapRegion::Hash::calculate(region_key);
-    if (imp_->findRegion(region_hash, region_key) == imp_->regions.end())
+    if (imp_->regions.find(region_key) == imp_->regions.end())
     {
-      imp_->regions.insert(std::make_pair(region_hash, region_key));
+      imp_->regions.insert(region_key);
     }
   };
 
@@ -530,9 +529,9 @@ unsigned GpuMap::integrateRaysT(const VEC_TYPE *rays, unsigned element_count, bo
   gputil::PinnedBuffer offsets_buffer(imp_->region_offset_buffers[buf_idx], gputil::kPinWrite);
   // Note: bufIdx may have change when calling
   // enqueueRegion. Do not use after this point.
-  for (auto &&region_iter : imp_->regions)
+  for (const auto &region_iter : imp_->regions)
   {
-    enqueueRegion(region_iter.first, region_iter.second, regions_buffer, offsets_buffer, end_points_as_occupied, true);
+    enqueueRegion(region_iter, regions_buffer, offsets_buffer, end_points_as_occupied, true);
   }
 
   finaliseBatch(regions_buffer, offsets_buffer, end_points_as_occupied);
@@ -560,7 +559,7 @@ void GpuMap::waitOnPreviousOperation(int buffer_index)
 }
 
 
-void GpuMap::enqueueRegion(unsigned region_hash, const glm::i16vec3 &region_key, gputil::PinnedBuffer &regions_buffer,
+void GpuMap::enqueueRegion(const glm::i16vec3 &region_key, gputil::PinnedBuffer &regions_buffer,
                            gputil::PinnedBuffer &offsets_buffer, bool end_points_as_occupied, bool allow_retry)
 {
   // Upload chunk to GPU.
@@ -602,8 +601,7 @@ void GpuMap::enqueueRegion(unsigned region_hash, const glm::i16vec3 &region_key,
                        &imp_->ray_upload_events[previous_buf_idx]);
     imp_->ray_counts[buf_idx] = imp_->ray_counts[previous_buf_idx];
 
-    // This statement should always be true, but it would be
-    // bad to underflow.
+    // This statement should always be true, but it would be bad to underflow.
     if (regions_processed < imp_->regions.size())
     {
       // Size the region buffers.
@@ -616,7 +614,7 @@ void GpuMap::enqueueRegion(unsigned region_hash, const glm::i16vec3 &region_key,
       offsets_buffer = gputil::PinnedBuffer(imp_->region_offset_buffers[buf_idx], gputil::kPinRead);
 
       // Try again, but don't allow retry.
-      enqueueRegion(region_hash, region_key, regions_buffer, offsets_buffer, end_points_as_occupied, false);
+      enqueueRegion(region_key, regions_buffer, offsets_buffer, end_points_as_occupied, false);
     }
   }
 

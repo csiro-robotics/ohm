@@ -677,7 +677,7 @@ namespace gpubuffertest
 
     std::cout << "Max allocation size: ";
     logBytes(std::cout, alloc_size) << std::endl;
-    alloc_size /= 2;
+    alloc_size /= 4;
     std::cout << "Using allocation size: ";
     logBytes(std::cout, alloc_size) << std::endl;
 

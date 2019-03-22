@@ -58,7 +58,7 @@ macro(setup_msvc)
 
   # Level 3 warnings by default is fine. May go to level 4.
   # Enable multi-processor project compilation.
-  option(COMPILER_MULTI_PROCESSOR "Use multiple processor compilation (MSVC)?" ON)
+  option(COMPILER_MULTI_PROCESSOR "Use multiple processor compilation (MSVC)?" OFF)
   if(COMPILER_MULTI_PROCESSOR)
     add_compile_options("/MP")
   endif(COMPILER_MULTI_PROCESSOR)

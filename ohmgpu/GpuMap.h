@@ -230,7 +230,6 @@ namespace ohm
     /// the current batch executes. The function will then recurse once (using @c allowRetry) modifying the
     /// @p regionsBuffer and @p offsetsBuffer to fill alternative GPU buffers for the next batch.
     ///
-    /// @param region_hash The hash code for the region of interest.
     /// @param region_key The key for the region of interest.
     /// @param[in,out] regions_buffer GPU buffer to upload @c regionKey to. Will be assigned a different buffer when the
     ///   @c GpuLayerCache is full.
@@ -239,7 +238,7 @@ namespace ohm
     /// @param end_points_as_occupied When @c true, the end points of the rays increase the occupancy probability.
     ///   Otherwise they decrease the probability just as the rest of the ray.
     /// @param allow_retry Allow recursion when the @c GpuLayerCache?
-    void enqueueRegion(unsigned region_hash, const glm::i16vec3 &region_key, gputil::PinnedBuffer &regions_buffer,
+    void enqueueRegion(const glm::i16vec3 &region_key, gputil::PinnedBuffer &regions_buffer,
                        gputil::PinnedBuffer &offsets_buffer, bool end_points_as_occupied, bool allow_retry);
 
     /// Finalise the current ray/region batch and start executing GPU kernel.

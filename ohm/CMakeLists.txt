@@ -91,6 +91,9 @@ set(SOURCES
   RayFilter.h
   Stream.cpp
   Stream.h
+  SubVoxel.h
+  TriangleEdge.h
+  TriangleNeighbours.h
   UpAxis.h
   Voxel.cpp
   Voxel.h
@@ -140,6 +143,8 @@ set(PUBLIC_HEADERS
   RayFilter.h
   Stream.h
   SubVoxel.h
+  TriangleEdge.h
+  TriangleNeighbours.h
   UpAxis.h
   Voxel.h
   VoxelLayout.h

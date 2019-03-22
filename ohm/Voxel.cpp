@@ -41,7 +41,7 @@ namespace
 
     // Different region. Need to resolve the region.
     std::unique_lock<decltype(map->mutex)> guard(map->mutex);
-    const auto region_ref = map->findRegion(neighbour_key.regionKey());
+    const auto region_ref = map->chunks.find(neighbour_key.regionKey());
     if (region_ref != map->chunks.end())
     {
       // Valid neighbouring region.

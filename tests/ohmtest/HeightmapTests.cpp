@@ -13,6 +13,7 @@
 #include <ohm/MapLayout.h>
 #include <ohm/MapSerialise.h>
 #include <ohm/OccupancyMap.h>
+#include <ohm/TriangleNeighbours.h>
 #include <ohm/VoxelLayout.h>
 
 #include <ohmtools/OhmCloud.h>

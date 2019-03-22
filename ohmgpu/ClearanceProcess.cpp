@@ -178,7 +178,7 @@ namespace
   unsigned regionClearanceProcessCpu(OccupancyMap &map, ClearanceProcessDetail &query, const glm::i16vec3 &region_key)
   {
     OccupancyMapDetail &map_data = *map.detail();
-    const auto chunk_search = map_data.findRegion(region_key);
+    const auto chunk_search = map_data.chunks.find(region_key);
     glm::ivec3 voxel_search_half_extents;
 
     if (chunk_search == map_data.chunks.end())
@@ -215,7 +215,7 @@ namespace
                                   const glm::ivec3 & /*voxel_extents*/, const glm::ivec3 &calc_extents)
   {
     OccupancyMapDetail &map_data = *map.detail();
-    const auto chunk_search = map_data.findRegion(region_key);
+    const auto chunk_search = map_data.chunks.find(region_key);
     glm::ivec3 voxel_search_half_extents;
 
     if (chunk_search == map_data.chunks.end())
@@ -252,7 +252,7 @@ namespace
                                   const glm::ivec3 & /*voxel_extents*/, const glm::ivec3 &calc_extents)
   {
     OccupancyMapDetail &map_data = *map.detail();
-    const auto chunk_search = map_data.findRegion(region_key);
+    const auto chunk_search = map_data.chunks.find(region_key);
     glm::ivec3 voxel_search_half_extents;
 
     if (chunk_search == map_data.chunks.end())
