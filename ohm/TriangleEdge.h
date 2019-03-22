@@ -15,7 +15,7 @@ namespace ohm
   /// A helper for tracking edges in mesh generation. Stores edge vertices such that v0 < v1 regardless of the input
   /// ordering. This allows the edge array to be sorted to clump the edge pairings where two triangles share an edge.
   /// Only two triangles can share one edge because we build the mesh without T intersections.
-  struct TriangleEdge
+  struct ohm_API TriangleEdge
   {
     unsigned v0;                   ///< The lower magnitude vertex index.
     unsigned v1;                   ///< The higher magnitude vertex index.

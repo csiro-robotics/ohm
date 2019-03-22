@@ -17,8 +17,6 @@ namespace ohm
   /// Identifies the @p neighbour triangle indices (multiply by 3 when indexing HeighmapMesh::triangles()) and the
   /// edge ID of the shared edge in the neighbour. The index into @c neighbours [0, 2] identifies the edge ID in the
   /// current triangle.
-  ///
-  /// @todo Move into its own file.
   struct ohm_API TriangleNeighbours
   {
     /// Indices to the neighbouring triangles.
