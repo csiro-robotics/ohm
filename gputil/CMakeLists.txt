@@ -108,7 +108,7 @@ if(OPENCL_FOUND)
     cl/gpuQueueDetail.h
   )
 
-  add_library(gputilocl STATIC ${SOURCES} ${SOURCES_OPENCL})
+  add_library(gputilocl ${SOURCES} ${SOURCES_OPENCL})
   target_include_directories(gputilocl PRIVATE
       $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/cl>
   )
@@ -164,7 +164,7 @@ if(CUDA_FOUND)
     cuda/ref.h
   )
 
-  cuda_add_library(gputilcuda STATIC ${SOURCES} ${SOURCES_CUDA})
+  cuda_add_library(gputilcuda ${SOURCES} ${SOURCES_CUDA})
   target_include_directories(gputilcuda
     PUBLIC
       # TODO: make the need for CUDA directories private.

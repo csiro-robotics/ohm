@@ -44,7 +44,7 @@ set(PUBLIC_HEADERS
   "${CMAKE_CURRENT_BINARY_DIR}/clu/cluConfig.h"
 )
 
-add_library(clu STATIC ${SOURCES} ${PUBLIC_HEADERS})
+add_library(clu ${SOURCES} ${PUBLIC_HEADERS})
 target_include_directories(clu
   PUBLIC
     $<INSTALL_INTERFACE:${OHM_PREFIX_INCLUDE}>
