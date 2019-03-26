@@ -1002,14 +1002,22 @@ void OccupancyMap::integrateRays(const glm::dvec3 *rays, size_t element_count, u
     {
       Voxel voxel = this->voxel(key, true, &cache);
       const float voxel_value = voxel.value();
+
+      bool stop_traversal = false;
+      if ((ray_update_flags & kRfStopOnFirstOccupied) && voxel_value >= imp_->occupancy_threshold_value &&
+          voxel_value != voxel::invalidMarkerValue())
+      {
+        // Found first occupied voxel and request is to stop on the first occupied voxel. Abort traversal after update.
+        stop_traversal = true;
+      }
+
       // kRfClearOnly flag set => only affect occupied voxels.
-      if (!(ray_update_flags & kRfClearOnly) || voxel_value < imp_->occupancy_threshold_value)
+      if (!(ray_update_flags & kRfClearOnly) || voxel_value >= imp_->occupancy_threshold_value)
       {
         integrateMiss(voxel);
       }
 
-      if ((ray_update_flags & kRfStopOnFirstOccupied) && voxel_value >= imp_->occupancy_threshold_value &&
-          voxel_value != voxel::invalidMarkerValue())
+      if (stop_traversal)
       {
         // Found first occupied voxel and request is to stop on the first occupied voxel. Abort traversal.
         // Make sure we do not update the en voxel.

@@ -46,9 +46,10 @@ void ClearingPattern::apply(OccupancyMap *map, const glm::dvec3 &position, const
 }
 
 
-const std::vector<glm::dvec3> &ClearingPattern::buildRaySet(const glm::dvec3 &position, const glm::dquat &rotation,
-                                                            double scaling)
+const glm::dvec3 *ClearingPattern::buildRaySet(size_t *element_count, const glm::dvec3 &position,
+                                               const glm::dquat &rotation, double scaling)
 {
   imp_->pattern->buildRays(&imp_->ray_set, position, rotation, scaling);
-  return imp_->ray_set;
+  *element_count = imp_->ray_set.size();
+  return imp_->ray_set.data();
 }

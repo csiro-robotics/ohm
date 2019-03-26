@@ -57,7 +57,8 @@ namespace ohm
     void apply(MAP *map, const glm::dvec3 &position, const glm::dquat &rotation, double scaling = 1.0);
 
   private:
-    const std::vector<glm::dvec3> &buildRaySet(const glm::dvec3 &position, const glm::dquat &rotation, double scaling);
+    const glm::dvec3 *buildRaySet(size_t *element_count, const glm::dvec3 &position, const glm::dquat &rotation,
+                                  double scaling);
 
     std::unique_ptr<ClearingPatternDetail> imp_;
   };
@@ -66,8 +67,9 @@ namespace ohm
   void ClearingPattern::apply(MAP *map, const glm::dvec3 &position, const glm::dquat &rotation, double scaling)
   {
     // Reserve memory for the ray set.
-    const std::vector<glm::dvec3> &ray_set = buildRaySet(position, rotation, scaling);
-    map->integrateRays(ray_set, ray_set.size(), kRfEndPointAsFree | kRfStopOnFirstOccupied | kRfClearOnly);
+    size_t ray_element_count = 0u;
+    const glm::dvec3 *ray_set = buildRaySet(&ray_element_count, position, rotation, scaling);
+    map->integrateRays(ray_set, unsigned(ray_element_count), kRfEndPointAsFree | kRfStopOnFirstOccupied | kRfClearOnly);
   }
 }  // namespace ohm
 
