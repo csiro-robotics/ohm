@@ -3,6 +3,12 @@ cmake_minimum_required(VERSION 3.5)
 
 find_package(GLM)
 find_package(GTest)
+find_package(PNG QUIET)
+
+if(PNG_FOUND)
+  set(OHM_WITH_PNG ON)
+endif(PNG_FOUND)
+configure_file(OhmTestConfig.in.h "${CMAKE_CURRENT_BINARY_DIR}/OhmTestConfig.h")
 
 set(SOURCES
   HeightmapTests.cpp
@@ -11,9 +17,14 @@ set(SOURCES
   LineQueryTests.cpp
   MapTests.cpp
   MathsTests.cpp
+  OhmTestConfig.in.h
   SerialisationTests.cpp
   SubVoxelTests.cpp
+  RayPatternTests.cpp
+  RayValidation.cpp
+  RayValidation.h
   TestMain.cpp
+  "${CMAKE_CURRENT_BINARY_DIR}/OhmTestConfig.h"
 )
 
 add_executable(ohmtest ${SOURCES})
@@ -36,6 +47,7 @@ target_include_directories(ohmtest SYSTEM
 )
 
 target_link_libraries(ohmtest ohmtestcommon ohmtools ohm ohmutil GTest::Main)
+target_link_libraries(ohmtest PNG::PNG)
 
 if(OHM_TES_DEBUG)
   target_link_libraries(ohmtest 3es::3es-core)

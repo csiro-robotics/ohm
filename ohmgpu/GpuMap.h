@@ -9,6 +9,7 @@
 #include "OhmGpuConfig.h"
 
 #include <ohm/RayFilter.h>
+#include <ohm/RayFlag.h>
 
 #include <glm/glm.hpp>
 
@@ -191,11 +192,13 @@ namespace ohm
     ///
     /// @param rays Array of origin/sample point pairs.
     /// @param element_count The number of points in @p rays. The ray count is half this value.
-    /// @param end_points_as_occupied When @c true, the end points of the rays increase the occupancy probability.
-    ///   Otherwise they decrease the probability just as the rest of the ray.
+    /// @param region_update_flags Flags controlling ray integration behaviour. See @c RayFlag.
     /// @return The number of rays integrated. Zero indicates a failure when @p pointCount is not zero.
     ///   In this case either the GPU is unavailable, or all @p rays are invalid.
-    unsigned integrateRays(const glm::dvec3 *rays, unsigned element_count, bool end_points_as_occupied = true);
+    unsigned integrateRays(const glm::dvec3 *rays, unsigned element_count, unsigned region_update_flags = kRfDefault);
+
+    void applyClearingPattern(const glm::dvec3 &position, const glm::dvec3 &cone_axis, double cone_angle, double range, double angular_resolution = 0);
+    void applyClearingPattern(const glm::dvec3 *rays, unsigned element_count);
 
     /// Internal use: get the GPU cache used by this map.
     /// @return The GPU cache this map uses.
@@ -212,7 +215,7 @@ namespace ohm
     void releaseGpuProgram();
 
     template <typename VEC_TYPE>
-    unsigned integrateRaysT(const VEC_TYPE *rays, unsigned element_count, bool end_points_as_occupied,
+    unsigned integrateRaysT(const VEC_TYPE *rays, unsigned element_count, unsigned region_update_flags,
                             const RayFilterFunction &filter);
 
     /// Wait for previous ray batch, as indicated by @p buffer_index, to complete.
@@ -235,19 +238,17 @@ namespace ohm
     ///   @c GpuLayerCache is full.
     /// @param[in,out] offsets_buffer GPU buffer to upload the memory offset for the region to. Will be assigned a
     ///   different buffer when the @c GpuLayerCache is full.
-    /// @param end_points_as_occupied When @c true, the end points of the rays increase the occupancy probability.
-    ///   Otherwise they decrease the probability just as the rest of the ray.
+    /// @param region_update_flags Flags controlling ray integration behaviour. See @c RayFlag.
     /// @param allow_retry Allow recursion when the @c GpuLayerCache?
     void enqueueRegion(const glm::i16vec3 &region_key, gputil::PinnedBuffer &regions_buffer,
-                       gputil::PinnedBuffer &offsets_buffer, bool end_points_as_occupied, bool allow_retry);
+                       gputil::PinnedBuffer &offsets_buffer, unsigned region_update_flags, bool allow_retry);
 
     /// Finalise the current ray/region batch and start executing GPU kernel.
     /// @param[in,out] regions_buffer GPU buffer containing uploaded region keys. Will be unpinned.
     /// @param[in,out] offsets_buffer GPU buffer containing memory offsets for regions. Will be unpinned.
-    /// @param end_points_as_occupied When @c true, the end points of the rays increase the occupancy probability.
-    ///   Otherwise they decrease the probability just as the rest of the ray.
+    /// @param region_update_flags Flags controlling ray integration behaviour. See @c RayFlag.
     void finaliseBatch(gputil::PinnedBuffer &regions_buffer, gputil::PinnedBuffer &offsets_buffer,
-                       bool end_points_as_occupied);
+                       unsigned region_update_flags);
 
     GpuMapDetail *imp_;
   };

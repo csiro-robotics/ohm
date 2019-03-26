@@ -72,6 +72,7 @@ get_target_property(OHM_SOURCE_DIR ohm SOURCE_DIR)
 set(GPU_HEADERS
   GpuKey.h
   ${OHM_SOURCE_DIR}/MapCoord.h
+  ${OHM_SOURCE_DIR}/RayFlag.h
   ${OHM_SOURCE_DIR}/SubVoxel.h
 )
 

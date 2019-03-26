@@ -58,13 +58,16 @@ using namespace ohm;
 namespace
 {
 #if defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
-  GpuProgramRef program_ref_sub_vox("RegionUpdate", GpuProgramRef::kSourceString, RegionUpdateCode, RegionUpdateCode_length, { "-DSUB_VOXEL" });
+  GpuProgramRef program_ref_sub_vox("RegionUpdate", GpuProgramRef::kSourceString, RegionUpdateCode,
+                                    RegionUpdateCode_length, { "-DSUB_VOXEL" });
 #else   // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
-  GpuProgramRef program_ref_sub_vox("RegionUpdate", GpuProgramRef::kSourceFile, "RegionUpdate.cl", 0u, { "-DSUB_VOXEL" });
+  GpuProgramRef program_ref_sub_vox("RegionUpdate", GpuProgramRef::kSourceFile, "RegionUpdate.cl", 0u,
+                                    { "-DSUB_VOXEL" });
 #endif  // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
 
 #if defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
-  GpuProgramRef program_ref_no_sub("RegionUpdate", GpuProgramRef::kSourceString, RegionUpdateCode, RegionUpdateCode_length);
+  GpuProgramRef program_ref_no_sub("RegionUpdate", GpuProgramRef::kSourceString, RegionUpdateCode,
+                                   RegionUpdateCode_length);
 #else   // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
   GpuProgramRef program_ref_no_sub("RegionUpdate", GpuProgramRef::kSourceFile, "RegionUpdate.cl", 0u);
 #endif  // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
@@ -328,9 +331,64 @@ void GpuMap::clearRayFilter()
 }
 
 
-unsigned GpuMap::integrateRays(const glm::dvec3 *rays, unsigned element_count, bool end_points_as_occupied)
+unsigned GpuMap::integrateRays(const glm::dvec3 *rays, unsigned element_count, unsigned region_update_flags)
 {
-  return integrateRaysT<glm::dvec3>(rays, element_count, end_points_as_occupied, effectiveRayFilter());
+  return integrateRaysT<glm::dvec3>(rays, element_count, region_update_flags, effectiveRayFilter());
+}
+
+
+void GpuMap::applyClearingPattern(const glm::dvec3 &position, const glm::dvec3 &cone_axis, double cone_angle,
+                                  double range, double angular_resolution)
+{
+  // Build a set of rays to process from the cone definition.
+  if (angular_resolution <= 0)
+  {
+    // Set the default angular resolution.
+    angular_resolution = glm::radians(2.0);
+  }
+
+  // Ensure cone_axis is normalised.
+  const glm::dvec3 cone_normal = glm::normalize(cone_axis);
+
+  // First setup an axis perpendicular to the cone_axis in order to be able to walk the circle. For this we will
+  // just swizzle the cone_axis components.
+  const glm::dvec3 deflection_base = glm::dvec3(cone_normal.z, cone_normal.x, cone_normal.y);
+
+  // Build the ray set. Here we walk start with the deflection_base, and gradually rotate it around cone_axis at the
+  // requested angular_resolution. As we rotate around cone_axis, we create rays which are deviate from cone_axis
+  // by an ever increasing amount along deflection_base to the requested angular_resolution.
+  std::vector<glm::dvec3> rays;
+  for (double circle_angle = 0; circle_angle < 2.0 * M_PI; circle_angle += angular_resolution)
+  {
+    // Rotate deflection_base around cone_axis by the circle_angle.
+    const glm::dquat circle_rotation = glm::angleAxis(circle_angle, cone_normal);
+    const glm::dvec3 deflection_axis = circle_rotation * deflection_base;
+
+    // Now deflect by deflection axis at an ever increasing angle.
+    for (double deflection_angle = 0; deflection_angle <= cone_angle; deflection_angle += angular_resolution)
+    {
+      const glm::dquat deflection = glm::angleAxis(deflection_angle, deflection_axis);
+      const glm::dvec3 ray = deflection * cone_normal;
+      const glm::dvec3 end_point = position + ray * range;
+      rays.push_back(position);
+      rays.push_back(end_point);
+    }
+  }
+
+  // Now apply these rays.
+  applyClearingPattern(rays.data(), unsigned(rays.size()));
+}
+
+
+void GpuMap::applyClearingPattern(const glm::dvec3 *rays, unsigned element_count)
+{
+  // Only apply the good ray filter.
+  const auto clearing_ray_filter = [](glm::dvec3 *start, glm::dvec3 *end, unsigned *filter_flags)  //
+  { //
+    return goodRayFilter(start, end, filter_flags, 1e4);
+  };
+  const unsigned flags = kRfEndPointAsFree | kRfStopOnFirstOccupied | kRfClearOnly;
+  integrateRaysT(rays, element_count, flags, clearing_ray_filter);
 }
 
 
@@ -355,9 +413,8 @@ void GpuMap::cacheGpuProgram(bool with_sub_voxels, bool force)
 
   if (imp_->program_ref->addReference(gpu_cache.gpu()))
   {
-    imp_->update_kernel = (!with_sub_voxels) ?
-      GPUTIL_MAKE_KERNEL(imp_->program_ref->program(), regionRayUpdate) :
-      GPUTIL_MAKE_KERNEL(imp_->program_ref->program(), regionRayUpdateSubVox);
+    imp_->update_kernel = (!with_sub_voxels) ? GPUTIL_MAKE_KERNEL(imp_->program_ref->program(), regionRayUpdate) :
+                                               GPUTIL_MAKE_KERNEL(imp_->program_ref->program(), regionRayUpdateSubVox);
     imp_->update_kernel.calculateOptimalWorkGroupSize();
 
     imp_->gpu_ok = imp_->update_kernel.isValid();
@@ -385,7 +442,7 @@ void GpuMap::releaseGpuProgram()
 
 
 template <typename VEC_TYPE>
-unsigned GpuMap::integrateRaysT(const VEC_TYPE *rays, unsigned element_count, bool end_points_as_occupied,
+unsigned GpuMap::integrateRaysT(const VEC_TYPE *rays, unsigned element_count, unsigned region_update_flags,
                                 const RayFilterFunction &filter)
 {
   if (!imp_->map)
@@ -531,10 +588,10 @@ unsigned GpuMap::integrateRaysT(const VEC_TYPE *rays, unsigned element_count, bo
   // enqueueRegion. Do not use after this point.
   for (const auto &region_iter : imp_->regions)
   {
-    enqueueRegion(region_iter, regions_buffer, offsets_buffer, end_points_as_occupied, true);
+    enqueueRegion(region_iter, regions_buffer, offsets_buffer, region_update_flags, true);
   }
 
-  finaliseBatch(regions_buffer, offsets_buffer, end_points_as_occupied);
+  finaliseBatch(regions_buffer, offsets_buffer, region_update_flags);
 
   return upload_count;
 }
@@ -560,7 +617,7 @@ void GpuMap::waitOnPreviousOperation(int buffer_index)
 
 
 void GpuMap::enqueueRegion(const glm::i16vec3 &region_key, gputil::PinnedBuffer &regions_buffer,
-                           gputil::PinnedBuffer &offsets_buffer, bool end_points_as_occupied, bool allow_retry)
+                           gputil::PinnedBuffer &offsets_buffer, unsigned region_update_flags, bool allow_retry)
 {
   // Upload chunk to GPU.
   MapChunk *chunk = nullptr;
@@ -571,8 +628,8 @@ void GpuMap::enqueueRegion(const glm::i16vec3 &region_key, gputil::PinnedBuffer 
   int buf_idx = imp_->next_buffers_index;
   GpuCache &gpu_cache = *this->gpuCache();
   GpuLayerCache &layer_cache = *gpu_cache.layerCache(kGcIdOccupancy);
-  mem_offset = uint64_t(layer_cache.upload(*imp_->map, region_key, chunk, &upload_event, &status,
-                                                 imp_->batch_marker, GpuLayerCache::kAllowRegionCreate));
+  mem_offset = uint64_t(layer_cache.upload(*imp_->map, region_key, chunk, &upload_event, &status, imp_->batch_marker,
+                                           GpuLayerCache::kAllowRegionCreate));
 
   if (status != GpuLayerCache::kCacheFull)
   {
@@ -588,7 +645,7 @@ void GpuMap::enqueueRegion(const glm::i16vec3 &region_key, gputil::PinnedBuffer 
   else if (allow_retry)
   {
     const int previous_buf_idx = buf_idx;
-    finaliseBatch(regions_buffer, offsets_buffer, end_points_as_occupied);
+    finaliseBatch(regions_buffer, offsets_buffer, region_update_flags);
 
     // Repin these buffers, but the index has changed.
     const unsigned regions_processed = imp_->region_counts[buf_idx];
@@ -608,13 +665,13 @@ void GpuMap::enqueueRegion(const glm::i16vec3 &region_key, gputil::PinnedBuffer 
       imp_->region_key_buffers[buf_idx].gputil::Buffer::elementsResize<gputil::int3>(imp_->regions.size() -
                                                                                      regions_processed);
       imp_->region_offset_buffers[buf_idx].gputil::Buffer::elementsResize<uint64_t>(imp_->regions.size() -
-                                                                                          regions_processed);
+                                                                                    regions_processed);
 
       regions_buffer = gputil::PinnedBuffer(imp_->region_key_buffers[buf_idx], gputil::kPinRead);
       offsets_buffer = gputil::PinnedBuffer(imp_->region_offset_buffers[buf_idx], gputil::kPinRead);
 
       // Try again, but don't allow retry.
-      enqueueRegion(region_key, regions_buffer, offsets_buffer, end_points_as_occupied, false);
+      enqueueRegion(region_key, regions_buffer, offsets_buffer, region_update_flags, false);
     }
   }
 
@@ -624,7 +681,7 @@ void GpuMap::enqueueRegion(const glm::i16vec3 &region_key, gputil::PinnedBuffer 
 
 
 void GpuMap::finaliseBatch(gputil::PinnedBuffer &regions_buffer, gputil::PinnedBuffer &offsets_buffer,
-                           bool end_points_as_occupied)
+                           unsigned region_update_flags)
 {
   const int buf_idx = imp_->next_buffers_index;
   const OccupancyMapDetail *map = imp_->map->detail();
@@ -654,8 +711,8 @@ void GpuMap::finaliseBatch(gputil::PinnedBuffer &regions_buffer, gputil::PinnedB
     gputil::BufferArg<uint64_t>(imp_->region_offset_buffers[buf_idx]), region_count,
     gputil::BufferArg<GpuKey>(imp_->key_buffers[buf_idx]),
     gputil::BufferArg<gputil::float3>(imp_->ray_buffers[buf_idx]), ray_count, region_dim_gpu, float(map->resolution),
-    map->miss_value, (end_points_as_occupied) ? map->hit_value : map->miss_value, map->min_voxel_value,
-    map->max_voxel_value, float(map->sub_voxel_weighting));
+    map->miss_value, map->hit_value, map->occupancy_threshold_value, map->min_voxel_value,
+    map->max_voxel_value, float(map->sub_voxel_weighting), region_update_flags);
 
   // gpu_cache.gpuQueue().flush();
 

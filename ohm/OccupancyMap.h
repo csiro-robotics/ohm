@@ -11,6 +11,7 @@
 #include "Key.h"
 #include "MapFlag.h"
 #include "RayFilter.h"
+#include "RayFlag.h"
 #include "Voxel.h"
 
 #include <glm/glm.hpp>
@@ -587,6 +588,12 @@ namespace ohm
     /// @param voxel The voxel to increase the occupancy probabilty for. Must be a valid, non-null voxel.
     void integrateHit(Voxel &voxel) const;
 
+    /// Adjust @p voxel by increasing its occupancy probability. Equivalent to @c integrateHit(Voxel&), but
+    /// introduces sub-voxel positioning.
+    /// @param voxel The voxel to increase the occupancy probabilty for. Must be a valid, non-null voxel.
+    /// @param point The sample point to integrate. Must lie within @p voxel. Used to update sub-voxel positioning.
+    void integrateHit(Voxel &voxel, const glm::dvec3 &point) const;
+
     /// Integrate a hit into the map, creating the occupancy voxel as required.
     ///
     /// Supports sub-voxel positioning.
@@ -846,9 +853,8 @@ namespace ohm
     ///
     /// @param rays Array of origin/sample point pairs.
     /// @param element_count The number of points in @p rays. The ray count is half this value.
-    /// @param end_points_as_occupied When @c true, the end points of the rays increase the occupancy probability.
-    ///   Otherwise they decrease the probability just as the rest of the ray. Defaults to @c true in overloads.
-    void integrateRays(const glm::dvec3 *rays, size_t element_count, bool end_points_as_occupied = true);
+    /// @param ray_update_flags Flags controlling ray integration behaviour. See @c RayFlag.
+    void integrateRays(const glm::dvec3 *rays, size_t element_count, unsigned ray_update_flags = kRfDefault);
 
     /// Clone the entire map.
     /// @return A deep clone of this map. Caller takes ownership.
