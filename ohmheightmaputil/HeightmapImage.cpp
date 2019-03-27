@@ -34,6 +34,17 @@ using namespace ohm;
 
 namespace
 {
+  /// Relevant texture formats.
+  enum AttachmentFormat
+  {
+    /// RGB 3 bytes per pixel, uint8_t per channel.
+    kAfRgb8,
+    /// RGB 12 bytes per pixel, float32 per channel.
+    kAfRgb32f,
+    /// Mono 4 bytes per pixel, float32 per channel.
+    kAfMono32f
+  };
+
   // Fragment shader colour by input.
   const char *normals_fragment_shader = "#version 330 core\n"
                                         "in vec3 v_normal;\n"
@@ -130,43 +141,44 @@ namespace
     GLint compile_success = GL_FALSE;
 
     // Setup error cleanup handling.
-    OnExit on_exit([&]()  //
-                   {
-                     if (!compile_success)
-                     {
-                       if (program_id)
-                       {
-                         if (vertex_shader_id)
-                         {
-                           glDetachShader(program_id, vertex_shader_id);
-                         }
-                         if (fragment_shader_id)
-                         {
-                           glDetachShader(program_id, fragment_shader_id);
-                         }
-                         glDeleteProgram(program_id);
-                       }
+    OnExit on_exit(  //
+      [&]()          //
+      {
+        if (!compile_success)
+        {
+          if (program_id)
+          {
+            if (vertex_shader_id)
+            {
+              glDetachShader(program_id, vertex_shader_id);
+            }
+            if (fragment_shader_id)
+            {
+              glDetachShader(program_id, fragment_shader_id);
+            }
+            glDeleteProgram(program_id);
+          }
 
-                       if (vertex_shader_id)
-                       {
-                         glDeleteShader(vertex_shader_id);
-                         vertex_shader_id = 0;
-                       }
+          if (vertex_shader_id)
+          {
+            glDeleteShader(vertex_shader_id);
+            vertex_shader_id = 0;
+          }
 
-                       if (fragment_shader_id)
-                       {
-                         glDeleteShader(fragment_shader_id);
-                         fragment_shader_id = 0;
-                       }
-                     }
-                   });
+          if (fragment_shader_id)
+          {
+            glDeleteShader(fragment_shader_id);
+            fragment_shader_id = 0;
+          }
+        }
+      });
 
     int info_msg_length = 0;
 
     // Compile Vertex Shader
     // printf("Compiling shader vertex : %s\n", name);
     vertex_shader_id = glCreateShader(GL_VERTEX_SHADER);
-    glShaderSource(vertex_shader_id, 1, &vertex_shader_code, NULL);
+    glShaderSource(vertex_shader_id, 1, &vertex_shader_code, nullptr);
     glCompileShader(vertex_shader_id);
 
     // Check Vertex Shader
@@ -175,7 +187,7 @@ namespace
     if (info_msg_length > 0)
     {
       std::vector<char> error_msg(info_msg_length + 1);
-      glGetShaderInfoLog(vertex_shader_id, info_msg_length, NULL, error_msg.data());
+      glGetShaderInfoLog(vertex_shader_id, info_msg_length, nullptr, error_msg.data());
       std::cerr << error_msg.data() << std::endl;
     }
 
@@ -187,7 +199,7 @@ namespace
     // Compile Fragment Shader
     // printf("Compiling shader fragment: %s\n", name);
     fragment_shader_id = glCreateShader(GL_FRAGMENT_SHADER);
-    glShaderSource(fragment_shader_id, 1, &fragment_shader_code, NULL);
+    glShaderSource(fragment_shader_id, 1, &fragment_shader_code, nullptr);
     glCompileShader(fragment_shader_id);
 
     // Check Fragment Shader
@@ -196,7 +208,7 @@ namespace
     if (info_msg_length > 0)
     {
       std::vector<char> error_msg(info_msg_length + 1);
-      glGetShaderInfoLog(fragment_shader_id, info_msg_length, NULL, &error_msg[0]);
+      glGetShaderInfoLog(fragment_shader_id, info_msg_length, nullptr, &error_msg[0]);
       std::cerr << error_msg.data() << std::endl;
     }
 
@@ -218,7 +230,7 @@ namespace
     if (info_msg_length > 0)
     {
       std::vector<char> error_msg(info_msg_length + 1);
-      glGetProgramInfoLog(program_id, info_msg_length, NULL, &error_msg[0]);
+      glGetProgramInfoLog(program_id, info_msg_length, nullptr, &error_msg[0]);
       std::cerr << error_msg.data() << std::endl;
     }
 
@@ -287,6 +299,58 @@ namespace
       }
     }
   }
+
+  void textureBufferInfo(GLint texture_id)
+  {
+    struct TexParam
+    {
+      int id;
+      const char *name;
+    };
+
+    static const TexParam params[] =  //
+      {                               //
+        { GL_TEXTURE_WIDTH, "width" },
+        { GL_TEXTURE_HEIGHT, "height" },
+        { GL_TEXTURE_DEPTH, "depth" },
+        { GL_TEXTURE_INTERNAL_FORMAT, "format-internal" },
+        { GL_TEXTURE_RED_TYPE, "red-type" },
+        { GL_TEXTURE_GREEN_TYPE, "green-type" },
+        { GL_TEXTURE_BLUE_TYPE, "blue-type" },
+        { GL_TEXTURE_ALPHA_TYPE, "alpha-type" },
+        { GL_TEXTURE_DEPTH_TYPE, "depth-type" },
+        { GL_TEXTURE_RED_SIZE, "red-size" },
+        { GL_TEXTURE_GREEN_SIZE, "green-size" },
+        { GL_TEXTURE_BLUE_SIZE, "blue-size" },
+        { GL_TEXTURE_ALPHA_SIZE, "alpha-size" },
+        { GL_TEXTURE_DEPTH_SIZE, "depth-size" },
+        { GL_TEXTURE_COMPRESSED, "compressed" },
+        { GL_TEXTURE_COMPRESSED_IMAGE_SIZE, "compressed-size" },
+        { GL_TEXTURE_BUFFER_OFFSET, "buffer-offset" },
+        { GL_TEXTURE_BUFFER_SIZE, "buffer-size" }
+      };
+    static const size_t param_count = sizeof(params) / sizeof(params[0]);
+
+    glBindTexture(GL_TEXTURE_2D, texture_id);
+    int param_value = 0;
+    printf("texture-info:\n");
+    for (size_t i = 0; i < param_count; ++i)
+    {
+      glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, params[i].id, &param_value);
+      printf("  %s: %d\n", params[i].name, param_value);
+    }
+    glBindTexture(GL_TEXTURE_2D, 0);
+  }
+
+  unsigned makeMultipleOf(unsigned value, unsigned of)
+  {
+    const unsigned overflow = value % of;
+    if (overflow)
+    {
+      return value + of - overflow;
+    }
+    return value;
+  }
 }  // namespace
 
 namespace ohm
@@ -314,6 +378,7 @@ namespace ohm
       GLuint fbo_tex_id = 0xffffffffu;
       // Debug visualisation flag.
       bool show_window = false;
+      bool block_on_show_window = false;
 
       bool init();
 
@@ -341,7 +406,7 @@ namespace ohm
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
     glfwWindowHint(GLFW_VISIBLE, show_window ? GLFW_TRUE : GLFW_FALSE);
 
-    window = glfwCreateWindow(32, 32, "", NULL, NULL);
+    window = glfwCreateWindow(64, 64, "ohm", nullptr, nullptr);
 
     if (!window)
     {
@@ -468,6 +533,41 @@ void HeightmapImage::setPixelsPerVoxel(unsigned ppv)
 }
 
 
+bool HeightmapImage::showWindow() const
+{
+  return imp_->render_data.show_window;
+}
+
+
+void HeightmapImage::setShowWindow(bool show_window)
+{
+  if (imp_->render_data.show_window != show_window)
+  {
+    imp_->render_data.show_window = show_window;
+    if (show_window)
+    {
+      glfwShowWindow(imp_->render_data.window);
+    }
+    else
+    {
+      glfwHideWindow(imp_->render_data.window);
+    }
+  }
+}
+
+
+bool HeightmapImage::blockOnShowWindow() const
+{
+  return imp_->render_data.block_on_show_window;
+}
+
+
+void HeightmapImage::setBlockOnShowWindow(bool block)
+{
+  imp_->render_data.block_on_show_window = block;
+}
+
+
 const uint8_t *HeightmapImage::bitmap(BitmapInfo *info) const
 {
   *info = imp_->image_info;
@@ -481,8 +581,8 @@ bool HeightmapImage::generateBitmap(const Aabb &extents, double resolution, cons
 {
   PROFILE(HeightmapImage_generateBitmap);
   // Render the mesh to a depth buffer.
-  return renderHeightMesh(imp_->desired_type, extents, resolution, vertices, vertex_count, indices, index_count, vertex_normals,
-                          colours, up_axis);
+  return renderHeightMesh(imp_->desired_type, extents, resolution, vertices, vertex_count, indices, index_count,
+                          vertex_normals, colours, up_axis);
 }
 
 
@@ -492,8 +592,8 @@ bool HeightmapImage::generateBitmap(const Aabb &extents, double resolution, cons
 {
   PROFILE(HeightmapImage_generateBitmap);
   // Render the mesh to a depth buffer.
-  return renderHeightMesh(imp_->desired_type, extents, resolution, vertices, vertex_count, indices, index_count, vertex_normals,
-                          colours, up_axis);
+  return renderHeightMesh(imp_->desired_type, extents, resolution, vertices, vertex_count, indices, index_count,
+                          vertex_normals, colours, up_axis);
 }
 
 
@@ -503,8 +603,8 @@ bool HeightmapImage::generateBitmap(const Aabb &extents, double resolution, cons
 {
   PROFILE(HeightmapImage_generateBitmap);
   // Render the mesh to a depth buffer.
-  return renderHeightMesh(imp_->desired_type, extents, resolution, vertices, vertex_count, indices, index_count, vertex_normals,
-                          colours, up_axis);
+  return renderHeightMesh(imp_->desired_type, extents, resolution, vertices, vertex_count, indices, index_count,
+                          vertex_normals, colours, up_axis);
 }
 
 
@@ -519,9 +619,10 @@ bool HeightmapImage::generateBitmap(const HeightmapMesh &mesh, UpAxis up_axis)
     colours[i] = (mesh.vertices()[i] - mesh.meshBoundingBox().minExtents()) / (mesh.meshBoundingBox().maxExtents() - mesh.meshBoundingBox().minExtents());
   }
   colours_ptr = colours.data();
-#endif // #
-  return renderHeightMesh(imp_->desired_type, mesh.meshBoundingBox(), mesh.resolution(), mesh.vertices(), mesh.vertexCount(),
-                          mesh.triangles(), mesh.triangleCount() * 3, mesh.vertexNormals(), colours_ptr, up_axis);
+#endif  // #
+  return renderHeightMesh(imp_->desired_type, mesh.meshBoundingBox(), mesh.resolution(), mesh.vertices(),
+                          mesh.vertexCount(), mesh.triangles(), mesh.triangleCount() * 3, mesh.vertexNormals(),
+                          colours_ptr, up_axis);
 }
 
 
@@ -635,18 +736,32 @@ bool HeightmapImage::renderHeightMesh(ImageType image_type, const Aabb &spatial_
   }
 
   // Open a window and create its OpenGL context
-  const unsigned render_width = std::max(
-    1u, imp_->pixels_per_voxel *
-          unsigned((spatial_extents.maxExtents()[axes[0]] - spatial_extents.minExtents()[axes[0]]) / voxel_resolution));
-  const unsigned render_height = std::max(
-    1u, imp_->pixels_per_voxel *
-          unsigned((spatial_extents.maxExtents()[axes[1]] - spatial_extents.minExtents()[axes[1]]) / voxel_resolution));
-  glfwSetWindowSize(imp_->render_data.window, render_width, render_height);
+  const unsigned target_width =
+    imp_->pixels_per_voxel *
+    unsigned(std::ceil(spatial_extents.maxExtents()[axes[0]] - spatial_extents.minExtents()[axes[0]]) /
+             voxel_resolution);
+  const unsigned target_height =
+    imp_->pixels_per_voxel *
+    unsigned(std::ceil(spatial_extents.maxExtents()[axes[1]] - spatial_extents.minExtents()[axes[1]]) /
+             voxel_resolution);
+
+  // For some reason it seems the either the buffer size must be a multiple of 16, or the individual dimentions of 8.
+  // Making both of 8 addresses both.
+  // Otherwise the render texture reports the correct size, but overruns when getting the image back.
+  const unsigned render_width = makeMultipleOf(target_width, 8);
+  const unsigned render_height = makeMultipleOf(target_height, 8);
+
+  // Adjust the extents to cover the additional pixels.
+  max_ext_vertices[axes[0]] += imp_->pixels_per_voxel * (render_width - target_width) * voxel_resolution;
+  max_ext_vertices[axes[1]] += imp_->pixels_per_voxel * (render_height - target_height) * voxel_resolution;
 
   //----------------------------------------------------------------------------
   // Rendering setup.
   //----------------------------------------------------------------------------
+
+  glfwSetWindowSize(imp_->render_data.window, render_width, render_height);
   glfwMakeContextCurrent(imp_->render_data.window);
+  glViewport(0, 0, render_width, render_height);
 
   //----------------------------------------------------------------------------
   // Render data setup
@@ -657,18 +772,26 @@ bool HeightmapImage::renderHeightMesh(ImageType image_type, const Aabb &spatial_
 
   static_assert(sizeof(*indices) == sizeof(GLuint), "GLuint/indices type size mismatch");
 
+  if (imp_->vertex_normals.empty())
+  {
+    return false;
+  }
+
+  // Bind vertex buffer
   GLuint vertex_buffer;
   glGenBuffers(1, &vertex_buffer);
   glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer);
   glBufferData(GL_ARRAY_BUFFER, imp_->vertices.size() * sizeof(*imp_->vertices.data()), imp_->vertices.data(),
                GL_STATIC_DRAW);
 
+  // Bind normals buffer.
   GLuint normals_buffer;
   glGenBuffers(1, &normals_buffer);
   glBindBuffer(GL_ARRAY_BUFFER, normals_buffer);
   glBufferData(GL_ARRAY_BUFFER, vertex_count * sizeof(*imp_->vertex_normals.data()), imp_->vertex_normals.data(),
                GL_STATIC_DRAW);
 
+  // Bind colour buffer.
   GLuint colours_buffer;
   glGenBuffers(1, &colours_buffer);
   glBindBuffer(GL_ARRAY_BUFFER, colours_buffer);
@@ -689,8 +812,9 @@ bool HeightmapImage::renderHeightMesh(ImageType image_type, const Aabb &spatial_
   glGenFramebuffers(1, &frame_buffer_id);
   glBindFramebuffer(GL_FRAMEBUFFER, frame_buffer_id);
 
-  // The texture we're going to render to
+  // Setup a colour attachment texture.
   GLuint render_texture;
+  AttachmentFormat render_texture_format = kAfRgb8;
   glGenTextures(1, &render_texture);
 
   // "Bind" the newly created texture : all future texture functions will modify this texture
@@ -698,35 +822,47 @@ bool HeightmapImage::renderHeightMesh(ImageType image_type, const Aabb &spatial_
 
   if (image_type == kImageNormals && colours == nullptr)
   {
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, render_width, render_height, 0, GL_RGB, GL_FLOAT, 0);
+    render_texture_format = kAfRgb32f;
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, render_width, render_height, 0, GL_RGB, GL_FLOAT, nullptr);
   }
   else
   {
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, render_width, render_height, 0, GL_RGB, GL_UNSIGNED_BYTE, 0);
+    render_texture_format = kAfRgb8;
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, render_width, render_height, 0, GL_RGB, GL_UNSIGNED_BYTE, nullptr);
   }
 
   // Poor filtering
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+  // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+  // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
-  // The depth buffer
-  GLuint depth_render_buffer;
-  glGenRenderbuffers(1, &depth_render_buffer);
-  glBindRenderbuffer(GL_RENDERBUFFER, depth_render_buffer);
-  glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, render_width, render_height);
-  glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, depth_render_buffer);
+  glBindTexture(GL_TEXTURE_2D, 0);
+
+  // // The depth buffer
+  // GLuint depth_render_buffer;
+  // glGenRenderbuffers(1, &depth_render_buffer);
+  // glBindRenderbuffer(GL_RENDERBUFFER, depth_render_buffer);
+  // glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, render_width, render_height);
+  // glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, depth_render_buffer);
 
   // Alternative : Depth texture. Slower, but you can sample it later in your shader
   GLuint depth_texture;
+  AttachmentFormat depth_texture_format = kAfMono32f;
   glGenTextures(1, &depth_texture);
   glBindTexture(GL_TEXTURE_2D, depth_texture);
-  glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32, render_width, render_height, 0, GL_DEPTH_COMPONENT, GL_FLOAT, 0);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32, render_width, render_height, 0, GL_DEPTH_COMPONENT, GL_FLOAT,
+               nullptr);
+  // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+  // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+  glBindTexture(GL_TEXTURE_2D, 0);
 
   // Set "render_texture" as our colour attachment #0
   glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, render_texture, 0);
@@ -741,6 +877,11 @@ bool HeightmapImage::renderHeightMesh(ImageType image_type, const Aabb &spatial_
   {
     return false;
   }
+
+  const bool output_render_texture = (colours != nullptr || image_type != kImageHeights);
+  GLuint output_texture_id = (output_render_texture) ? render_texture : depth_texture;
+  AttachmentFormat output_texture_format = (output_render_texture) ? render_texture_format : depth_texture_format;
+  GLenum output_format_type = (output_render_texture) ? GL_RGB : GL_DEPTH_COMPONENT;
 
   //----------------------------------------------------------------------------
   // Camera setup
@@ -840,6 +981,8 @@ bool HeightmapImage::renderHeightMesh(ImageType image_type, const Aabb &spatial_
 
   glDisableVertexAttribArray(0);
 
+  glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
   // Render to window
   if (imp_->render_data.show_window)
   {
@@ -862,14 +1005,7 @@ bool HeightmapImage::renderHeightMesh(ImageType image_type, const Aabb &spatial_
 
       // Bind our texture in Texture Unit 0
       glActiveTexture(GL_TEXTURE0);
-      if (image_type != kImageHeights && colours == nullptr)
-      {
-        glBindTexture(GL_TEXTURE_2D, render_texture);
-      }
-      else
-      {
-        glBindTexture(GL_TEXTURE_2D, depth_texture);
-      }
+      glBindTexture(GL_TEXTURE_2D, output_texture_id);
       // Set our "render_texture" sampler to use Texture Unit 0
       glUniform1i(imp_->render_data.fbo_tex_id, 0);
 
@@ -891,41 +1027,71 @@ bool HeightmapImage::renderHeightMesh(ImageType image_type, const Aabb &spatial_
 
       // Swap buffers
       glfwSwapBuffers(imp_->render_data.window);
+      glfwSwapBuffers(imp_->render_data.window);
       glfwPollEvents();
-    } while (glfwGetKey(imp_->render_data.window, GLFW_KEY_ESCAPE) != GLFW_PRESS &&
+    } while (imp_->render_data.block_on_show_window &&
+             glfwGetKey(imp_->render_data.window, GLFW_KEY_ESCAPE) != GLFW_PRESS &&
              glfwWindowShouldClose(imp_->render_data.window) == 0);
   }
 
   imp_->image_info.image_width = render_width;
   imp_->image_info.image_height = render_height;
-  imp_->image_info.image_extents = Aabb(spatial_extents.minExtents(), spatial_extents.maxExtents());
+
+  imp_->image_info.image_extents = Aabb(spatial_extents.minExtents(), spatial_extents.minExtents() + glm::dvec3(max_ext_vertices));
   imp_->image_info.type = (colours) ? kImageVertexColours888 : image_type;
-  if (image_type == kImageNormals && !colours)
+
+  // Read pixels:
+  switch (output_texture_format)
   {
-    // Read pixels:
-    imp_->image_info.bpp = 3 * sizeof(float);
-    imp_->image_info.byte_count = imp_->image_info.image_width * imp_->image_info.image_height * imp_->image_info.bpp;
-    imp_->image.resize(imp_->image_info.byte_count);
-    glBindTexture(GL_TEXTURE_2D, render_texture);
-    glGetTexImage(GL_TEXTURE_2D, 0, GL_RGB, GL_FLOAT, imp_->image.data());
-  }
-  else if (colours || image_type == kImageNormals888)
-  {
-    // Read pixels:
+  case kAfRgb8:
     imp_->image_info.bpp = 3;
     imp_->image_info.byte_count = imp_->image_info.image_width * imp_->image_info.image_height * imp_->image_info.bpp;
     imp_->image.resize(imp_->image_info.byte_count);
-    glBindTexture(GL_TEXTURE_2D, render_texture);
-    glGetTexImage(GL_TEXTURE_2D, 0, GL_RGB, GL_UNSIGNED_BYTE, imp_->image.data());
-  }
-  else
-  {
+    // imp_->image.resize(imp_->image_info.byte_count * 2);
+    // memset(imp_->image.data() + imp_->image_info.byte_count, 0xcf, imp_->image_info.byte_count);
+
+    // textureBufferInfo(output_texture_id);
+    glBindTexture(GL_TEXTURE_2D, output_texture_id);
+    glGetTexImage(GL_TEXTURE_2D, 0, output_format_type, GL_UNSIGNED_BYTE, imp_->image.data());
+    // if (imp_->image[imp_->image_info.image_width * imp_->image_info.image_height * imp_->image_info.bpp] != 0xcf)
+    // {
+    //   unsigned last_bad_index = imp_->image_info.image_width * imp_->image_info.image_height * imp_->image_info.bpp;
+    //   while (last_bad_index < imp_->image_info.image_width * imp_->image_info.image_height * imp_->image_info.bpp * 2 &&
+    //          imp_->image[last_bad_index] != 0xcf)
+    //   {
+    //     ++last_bad_index;
+    //   }
+    //   printf("(%u,%u) x %u -> %u : prev(%u,%u) bad pixel to %u\n\n", render_width, render_height, image_size,
+    //          image_size * imp_->image_info.bpp, prev_width, prev_height,
+    //          (last_bad_index - imp_->image_info.image_width * imp_->image_info.image_height * imp_->image_info.bpp) /
+    //            imp_->image_info.bpp);
+    // }
+    // else
+    // {
+    //   printf("(%u,%u) x %u -> %u : prev(%u,%u)\n",
+    //          render_width, render_height, image_size, image_size * imp_->image_info.bpp, prev_width, prev_height);
+    // }
+    // savePng(imp_->image, render_width, render_height);
+    break;
+  case kAfRgb32f:
+    imp_->image_info.bpp = 3 * sizeof(float);
+    imp_->image_info.byte_count = imp_->image_info.image_width * imp_->image_info.image_height *
+    imp_->image_info.bpp; imp_->image.resize(imp_->image_info.byte_count); glBindTexture(GL_TEXTURE_2D,
+    output_texture_id); glGetTexImage(GL_TEXTURE_2D, 0, output_format_type, GL_FLOAT, imp_->image.data()); break;
+  case kAfMono32f:
     // We are reading the depth buffer, which is float format. We size the image bytes appropriately.
     imp_->image_info.bpp = sizeof(float);
-    imp_->image_info.byte_count = imp_->image_info.image_width * imp_->image_info.image_height * imp_->image_info.bpp;
-    imp_->image.resize(imp_->image_info.byte_count);
-    glBindTexture(GL_TEXTURE_2D, depth_texture);
-    glGetTexImage(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, GL_FLOAT, imp_->image.data());
+    imp_->image_info.byte_count = imp_->image_info.image_width * imp_->image_info.image_height *
+    imp_->image_info.bpp; imp_->image.resize(imp_->image_info.byte_count); glBindTexture(GL_TEXTURE_2D,
+    output_texture_id); glGetTexImage(GL_TEXTURE_2D, 0, output_format_type, GL_FLOAT, imp_->image.data()); break;
+  default:
+    // Unkown type;
+    imp_->image_info.bpp = 0;
+    imp_->image_info.byte_count = 0;
+    imp_->image_info.image_width = 0;
+    imp_->image_info.image_height = 0;
+    imp_->image.resize(0);
+    break;
   }
 
   // Cleanup
@@ -938,7 +1104,7 @@ bool HeightmapImage::renderHeightMesh(ImageType image_type, const Aabb &spatial_
   glDeleteFramebuffers(1, &frame_buffer_id);
   glDeleteTextures(1, &render_texture);
   glDeleteTextures(1, &depth_texture);
-  glDeleteRenderbuffers(1, &depth_render_buffer);
+  // glDeleteRenderbuffers(1, &depth_render_buffer);
 
   return 0;
 }
