@@ -130,43 +130,44 @@ namespace
     GLint compile_success = GL_FALSE;
 
     // Setup error cleanup handling.
-    OnExit on_exit([&]()  //
-                   {
-                     if (!compile_success)
-                     {
-                       if (program_id)
-                       {
-                         if (vertex_shader_id)
-                         {
-                           glDetachShader(program_id, vertex_shader_id);
-                         }
-                         if (fragment_shader_id)
-                         {
-                           glDetachShader(program_id, fragment_shader_id);
-                         }
-                         glDeleteProgram(program_id);
-                       }
+    OnExit on_exit(  //
+      [&]()          //
+      {
+        if (!compile_success)
+        {
+          if (program_id)
+          {
+            if (vertex_shader_id)
+            {
+              glDetachShader(program_id, vertex_shader_id);
+            }
+            if (fragment_shader_id)
+            {
+              glDetachShader(program_id, fragment_shader_id);
+            }
+            glDeleteProgram(program_id);
+          }
 
-                       if (vertex_shader_id)
-                       {
-                         glDeleteShader(vertex_shader_id);
-                         vertex_shader_id = 0;
-                       }
+          if (vertex_shader_id)
+          {
+            glDeleteShader(vertex_shader_id);
+            vertex_shader_id = 0;
+          }
 
-                       if (fragment_shader_id)
-                       {
-                         glDeleteShader(fragment_shader_id);
-                         fragment_shader_id = 0;
-                       }
-                     }
-                   });
+          if (fragment_shader_id)
+          {
+            glDeleteShader(fragment_shader_id);
+            fragment_shader_id = 0;
+          }
+        }
+      });
 
     int info_msg_length = 0;
 
     // Compile Vertex Shader
     // printf("Compiling shader vertex : %s\n", name);
     vertex_shader_id = glCreateShader(GL_VERTEX_SHADER);
-    glShaderSource(vertex_shader_id, 1, &vertex_shader_code, NULL);
+    glShaderSource(vertex_shader_id, 1, &vertex_shader_code, nullptr);
     glCompileShader(vertex_shader_id);
 
     // Check Vertex Shader
@@ -175,7 +176,7 @@ namespace
     if (info_msg_length > 0)
     {
       std::vector<char> error_msg(info_msg_length + 1);
-      glGetShaderInfoLog(vertex_shader_id, info_msg_length, NULL, error_msg.data());
+      glGetShaderInfoLog(vertex_shader_id, info_msg_length, nullptr, error_msg.data());
       std::cerr << error_msg.data() << std::endl;
     }
 
@@ -187,7 +188,7 @@ namespace
     // Compile Fragment Shader
     // printf("Compiling shader fragment: %s\n", name);
     fragment_shader_id = glCreateShader(GL_FRAGMENT_SHADER);
-    glShaderSource(fragment_shader_id, 1, &fragment_shader_code, NULL);
+    glShaderSource(fragment_shader_id, 1, &fragment_shader_code, nullptr);
     glCompileShader(fragment_shader_id);
 
     // Check Fragment Shader
@@ -196,7 +197,7 @@ namespace
     if (info_msg_length > 0)
     {
       std::vector<char> error_msg(info_msg_length + 1);
-      glGetShaderInfoLog(fragment_shader_id, info_msg_length, NULL, &error_msg[0]);
+      glGetShaderInfoLog(fragment_shader_id, info_msg_length, nullptr, &error_msg[0]);
       std::cerr << error_msg.data() << std::endl;
     }
 
@@ -218,7 +219,7 @@ namespace
     if (info_msg_length > 0)
     {
       std::vector<char> error_msg(info_msg_length + 1);
-      glGetProgramInfoLog(program_id, info_msg_length, NULL, &error_msg[0]);
+      glGetProgramInfoLog(program_id, info_msg_length, nullptr, &error_msg[0]);
       std::cerr << error_msg.data() << std::endl;
     }
 
@@ -254,6 +255,12 @@ namespace
     static glm::vec3 vec3(const Colour &c) { return glm::vec3(c.rf(), c.gf(), c.bf()); }
     static glm::vec4 vec4(const Colour &c) { return glm::vec4(vec3(c), 1.0f); }
   };
+
+
+  void onFramebufferResize(GLFWwindow *window, int width, int height)
+  {
+    printf("Framebuffer resize %d,%d\n", width, height);
+  }
 }  // namespace
 
 
@@ -314,6 +321,7 @@ namespace ohm
       GLuint fbo_tex_id = 0xffffffffu;
       // Debug visualisation flag.
       bool show_window = false;
+      bool block_on_show_window = false;
 
       bool init();
 
@@ -341,7 +349,8 @@ namespace ohm
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
     glfwWindowHint(GLFW_VISIBLE, show_window ? GLFW_TRUE : GLFW_FALSE);
 
-    window = glfwCreateWindow(32, 32, "", NULL, NULL);
+    window = glfwCreateWindow(32, 32, "ohm", nullptr, nullptr);
+    glfwSetFramebufferSizeCallback(window, onFramebufferResize);
 
     if (!window)
     {
@@ -468,6 +477,41 @@ void HeightmapImage::setPixelsPerVoxel(unsigned ppv)
 }
 
 
+bool HeightmapImage::showWindow() const
+{
+  return imp_->render_data.show_window;
+}
+
+
+void HeightmapImage::setShowWindow(bool show_window)
+{
+  if (imp_->render_data.show_window != show_window)
+  {
+    imp_->render_data.show_window = show_window;
+    if (show_window)
+    {
+      glfwShowWindow(imp_->render_data.window);
+    }
+    else
+    {
+      glfwHideWindow(imp_->render_data.window);
+    }
+  }
+}
+
+
+bool HeightmapImage::blockOnShowWindow() const
+{
+  return imp_->render_data.block_on_show_window;
+}
+
+
+void HeightmapImage::setBlockOnShowWindow(bool block)
+{
+  imp_->render_data.block_on_show_window = block;
+}
+
+
 const uint8_t *HeightmapImage::bitmap(BitmapInfo *info) const
 {
   *info = imp_->image_info;
@@ -481,8 +525,8 @@ bool HeightmapImage::generateBitmap(const Aabb &extents, double resolution, cons
 {
   PROFILE(HeightmapImage_generateBitmap);
   // Render the mesh to a depth buffer.
-  return renderHeightMesh(imp_->desired_type, extents, resolution, vertices, vertex_count, indices, index_count, vertex_normals,
-                          colours, up_axis);
+  return renderHeightMesh(imp_->desired_type, extents, resolution, vertices, vertex_count, indices, index_count,
+                          vertex_normals, colours, up_axis);
 }
 
 
@@ -492,8 +536,8 @@ bool HeightmapImage::generateBitmap(const Aabb &extents, double resolution, cons
 {
   PROFILE(HeightmapImage_generateBitmap);
   // Render the mesh to a depth buffer.
-  return renderHeightMesh(imp_->desired_type, extents, resolution, vertices, vertex_count, indices, index_count, vertex_normals,
-                          colours, up_axis);
+  return renderHeightMesh(imp_->desired_type, extents, resolution, vertices, vertex_count, indices, index_count,
+                          vertex_normals, colours, up_axis);
 }
 
 
@@ -503,8 +547,8 @@ bool HeightmapImage::generateBitmap(const Aabb &extents, double resolution, cons
 {
   PROFILE(HeightmapImage_generateBitmap);
   // Render the mesh to a depth buffer.
-  return renderHeightMesh(imp_->desired_type, extents, resolution, vertices, vertex_count, indices, index_count, vertex_normals,
-                          colours, up_axis);
+  return renderHeightMesh(imp_->desired_type, extents, resolution, vertices, vertex_count, indices, index_count,
+                          vertex_normals, colours, up_axis);
 }
 
 
@@ -519,9 +563,10 @@ bool HeightmapImage::generateBitmap(const HeightmapMesh &mesh, UpAxis up_axis)
     colours[i] = (mesh.vertices()[i] - mesh.meshBoundingBox().minExtents()) / (mesh.meshBoundingBox().maxExtents() - mesh.meshBoundingBox().minExtents());
   }
   colours_ptr = colours.data();
-#endif // #
-  return renderHeightMesh(imp_->desired_type, mesh.meshBoundingBox(), mesh.resolution(), mesh.vertices(), mesh.vertexCount(),
-                          mesh.triangles(), mesh.triangleCount() * 3, mesh.vertexNormals(), colours_ptr, up_axis);
+#endif  // #
+  return renderHeightMesh(imp_->desired_type, mesh.meshBoundingBox(), mesh.resolution(), mesh.vertices(),
+                          mesh.vertexCount(), mesh.triangles(), mesh.triangleCount() * 3, mesh.vertexNormals(),
+                          colours_ptr, up_axis);
 }
 
 
@@ -641,12 +686,14 @@ bool HeightmapImage::renderHeightMesh(ImageType image_type, const Aabb &spatial_
   const unsigned render_height = std::max(
     1u, imp_->pixels_per_voxel *
           unsigned((spatial_extents.maxExtents()[axes[1]] - spatial_extents.minExtents()[axes[1]]) / voxel_resolution));
-  glfwSetWindowSize(imp_->render_data.window, render_width, render_height);
 
   //----------------------------------------------------------------------------
   // Rendering setup.
   //----------------------------------------------------------------------------
+
+  glfwSetWindowSize(imp_->render_data.window, render_width, render_height);
   glfwMakeContextCurrent(imp_->render_data.window);
+  glViewport(0, 0, render_width, render_height);
 
   //----------------------------------------------------------------------------
   // Render data setup
@@ -657,18 +704,26 @@ bool HeightmapImage::renderHeightMesh(ImageType image_type, const Aabb &spatial_
 
   static_assert(sizeof(*indices) == sizeof(GLuint), "GLuint/indices type size mismatch");
 
+  if (imp_->vertex_normals.empty())
+  {
+    return false;
+  }
+
+  // Bind vertex buffer
   GLuint vertex_buffer;
   glGenBuffers(1, &vertex_buffer);
   glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer);
   glBufferData(GL_ARRAY_BUFFER, imp_->vertices.size() * sizeof(*imp_->vertices.data()), imp_->vertices.data(),
                GL_STATIC_DRAW);
 
+  // Bind normals buffer.
   GLuint normals_buffer;
   glGenBuffers(1, &normals_buffer);
   glBindBuffer(GL_ARRAY_BUFFER, normals_buffer);
   glBufferData(GL_ARRAY_BUFFER, vertex_count * sizeof(*imp_->vertex_normals.data()), imp_->vertex_normals.data(),
                GL_STATIC_DRAW);
 
+  // Bind colour buffer.
   GLuint colours_buffer;
   glGenBuffers(1, &colours_buffer);
   glBindBuffer(GL_ARRAY_BUFFER, colours_buffer);
@@ -892,7 +947,8 @@ bool HeightmapImage::renderHeightMesh(ImageType image_type, const Aabb &spatial_
       // Swap buffers
       glfwSwapBuffers(imp_->render_data.window);
       glfwPollEvents();
-    } while (glfwGetKey(imp_->render_data.window, GLFW_KEY_ESCAPE) != GLFW_PRESS &&
+    } while (imp_->render_data.block_on_show_window &&
+             glfwGetKey(imp_->render_data.window, GLFW_KEY_ESCAPE) != GLFW_PRESS &&
              glfwWindowShouldClose(imp_->render_data.window) == 0);
   }
 
@@ -935,10 +991,10 @@ bool HeightmapImage::renderHeightMesh(ImageType image_type, const Aabb &spatial_
   glDeleteBuffers(1, &index_buffer);
   glDeleteVertexArrays(1, &vertex_array_id);
 
-  glDeleteFramebuffers(1, &frame_buffer_id);
   glDeleteTextures(1, &render_texture);
   glDeleteTextures(1, &depth_texture);
   glDeleteRenderbuffers(1, &depth_render_buffer);
+  glDeleteFramebuffers(1, &frame_buffer_id);
 
   return 0;
 }

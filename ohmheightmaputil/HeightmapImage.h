@@ -90,6 +90,12 @@ namespace ohm
     unsigned pixelsPerVoxel();
     void setPixelsPerVoxel(unsigned ppv);
 
+    bool showWindow() const;
+    void setShowWindow(bool show_window);
+
+    bool blockOnShowWindow() const;
+    void setBlockOnShowWindow(bool block);
+
     /// Query the number of bytes required to extract the heightmap into a bitmap using @c extractBitmap().
     ///
     /// Note the @c ImageType in @p info will differ from @c desiredImageType() when vertex colours were provided in
