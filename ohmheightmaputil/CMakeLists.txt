@@ -36,6 +36,8 @@ target_link_libraries(ohmheightmaputil
   glfw
   )# OpenGL::GLX)
 
+target_link_libraries(ohmheightmaputil)
+
 target_include_directories(ohmheightmaputil
   PUBLIC
     $<INSTALL_INTERFACE:${OHM_PREFIX_INCLUDE}>
