@@ -44,7 +44,10 @@ namespace ohm
     std::vector<TriangleEdge> edges;
     std::vector<double> coords_2d;
     HeightmapMesh::NormalsMode normals_mode = HeightmapMesh::kNormalsAverage;
-    Aabb mesh_extents = Aabb(0.0);
+    /// Loose mesh extents enclosing the generating 2D voxels. The extents are tight along the height axis.
+    Aabb loose_mesh_extents = Aabb(0.0);
+    /// Tight mesh extents exactly enclosing the mesh vertices.
+    Aabb tight_mesh_extents = Aabb(0.0);
     double resolution = 0.0;
 
     void clear()
@@ -56,7 +59,7 @@ namespace ohm
       triangle_neighbours.clear();
       edges.clear();
       coords_2d.clear();
-      mesh_extents = Aabb(0.0);
+      loose_mesh_extents = tight_mesh_extents = Aabb(0.0);
       resolution = 0.0;
     }
   };
@@ -107,11 +110,14 @@ bool HeightmapMesh::buildMesh(const Heightmap &heightmap)
 
   const glm::dvec3 up = heightmap.upAxisNormal();
   const glm::vec3 upf(up);
+  const double heightmap_resolution = heightmap_occupancy.resolution();
   glm::dvec3 point;
   glm::dvec3 min_map_ext, max_map_ext;
+  glm::dvec3 min_vert_ext, max_vert_ext;
+  glm::dvec3 voxel_centre;
 
-  min_map_ext = glm::dvec3(std::numeric_limits<double>::max());
-  max_map_ext = glm::dvec3(-std::numeric_limits<double>::max());
+  min_map_ext = min_vert_ext = glm::dvec3(std::numeric_limits<double>::max());
+  max_map_ext = max_vert_ext = glm::dvec3(-std::numeric_limits<double>::max());
 
   // Build vertices and map extents.
   for (auto voxel_iter = heightmap_occupancy.begin(); voxel_iter != heightmap_occupancy.end(); ++voxel_iter)
@@ -125,23 +131,41 @@ bool HeightmapMesh::buildMesh(const Heightmap &heightmap)
       imp_->coords_2d.push_back(point.y);
       imp_->vertices.push_back(point);
 
-      // Adjust to modified extents with height.
-      min_map_ext.x = std::min(point.x, min_map_ext.x);
-      min_map_ext.y = std::min(point.y, min_map_ext.y);
-      min_map_ext.z = std::min(point.z, min_map_ext.z);
+      // Adjust tight extents
+      min_vert_ext.x = std::min(point.x, min_vert_ext.x);
+      min_vert_ext.y = std::min(point.y, min_vert_ext.y);
+      min_vert_ext.z = std::min(point.z, min_vert_ext.z);
 
-      max_map_ext.x = std::max(point.x, max_map_ext.x);
-      max_map_ext.y = std::max(point.y, max_map_ext.y);
-      max_map_ext.z = std::max(point.z, max_map_ext.z);
+      max_vert_ext.x = std::max(point.x, max_vert_ext.x);
+      max_vert_ext.y = std::max(point.y, max_vert_ext.y);
+      max_vert_ext.z = std::max(point.z, max_vert_ext.z);
+
+      // Adjust loose extents
+      voxel_centre = voxel.centreGlobal();
+      min_map_ext.x = std::min(voxel_centre.x - 0.5 * heightmap_resolution, min_map_ext.x);
+      min_map_ext.y = std::min(voxel_centre.y - 0.5 * heightmap_resolution, min_map_ext.y);
+      min_map_ext.z = std::min(voxel_centre.z - 0.5 * heightmap_resolution, min_map_ext.z);
+
+      max_map_ext.x = std::max(voxel_centre.x + 0.5 * heightmap_resolution, max_map_ext.x);
+      max_map_ext.y = std::max(voxel_centre.y + 0.5 * heightmap_resolution, max_map_ext.y);
+      max_map_ext.z = std::max(voxel_centre.z + 0.5 * heightmap_resolution, max_map_ext.z);
     }
   }
 
-  if (imp_->vertices.empty())
+  if (!imp_->vertices.empty())
   {
-    min_map_ext = max_map_ext = glm::dvec3(0.0);
+    // Fixup the loose extents along the height axis. This matches that of the tight extents.
+    const int up_axis_index = heightmap.upAxisIndex();
+    min_map_ext[up_axis_index] = min_vert_ext[up_axis_index];
+    max_map_ext[up_axis_index] = max_vert_ext[up_axis_index];
+  }
+  else
+  {
+    min_map_ext = max_map_ext = min_vert_ext = max_vert_ext = glm::dvec3(0.0);
   }
 
-  imp_->mesh_extents = Aabb(min_map_ext, max_map_ext);
+  imp_->loose_mesh_extents = Aabb(min_map_ext, max_map_ext);
+  imp_->tight_mesh_extents = Aabb(min_vert_ext, max_vert_ext);
 
   if (imp_->coords_2d.empty())
   {
@@ -321,7 +345,13 @@ const unsigned *HeightmapMesh::triangles() const
 
 const Aabb &HeightmapMesh::meshBoundingBox() const
 {
-  return imp_->mesh_extents;
+  return imp_->loose_mesh_extents;
+}
+
+
+const Aabb &HeightmapMesh::tightMeshBoundingBox() const
+{
+  return imp_->tight_mesh_extents;
 }
 
 
@@ -340,7 +370,7 @@ bool HeightmapMesh::extractPlyMesh(PlyMesh &mesh, bool offset_by_extents)
 
   mesh.clear();
 
-  const glm::dvec3 offset = (offset_by_extents) ? imp_->mesh_extents.minExtents() : glm::dvec3(0.0);
+  const glm::dvec3 offset = (offset_by_extents) ? imp_->loose_mesh_extents.minExtents() : glm::dvec3(0.0);
 
   for (const glm::dvec3 &vert : imp_->vertices)
   {

@@ -406,7 +406,7 @@ namespace ohm
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
     glfwWindowHint(GLFW_VISIBLE, show_window ? GLFW_TRUE : GLFW_FALSE);
 
-    window = glfwCreateWindow(640, 640, "ohm", nullptr, nullptr);
+    window = glfwCreateWindow(64, 64, "ohm", nullptr, nullptr);
 
     if (!window)
     {

@@ -128,12 +128,22 @@ namespace ohm
     /// @return A pointer to the triangle index array.
     const TriangleNeighbours *triangleNeighbours() const;
 
-    /// Get the axis aligned bounding box enclosing the resulting mesh.
+    /// Get the axis aligned bounding box enclosing the resulting mesh and the 2D grid of voxels which generated it.
+    /// The box will be slightly larger than the mesh to enclose the 2D voxel grid which generated it. The height axis
+    /// tightly encloses the vertices used to generate the mesh.
     ///
     /// Only valid when @c buildMesh() is successful.
     ///
     /// @return The mesh axis aligned bounding box.
     const Aabb &meshBoundingBox() const;
+
+    /// Get the axis aligned bounding box which tightly encloses the vertices of the mesh. Whereas @c meshBoundingBox()
+    /// encloses the generating voxels, this version tightly encompasses the vertices.
+    ///
+    /// Only valid when @c buildMesh() is successful.
+    ///
+    /// @return The mesh axis aligned bounding box.
+    const Aabb &tightMeshBoundingBox() const;
 
     /// Extract the heightmap mesh into a @c PlyMesh object for saving to file.
     ///
