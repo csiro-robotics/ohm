@@ -41,9 +41,6 @@ namespace ohm
     /// Identifies the up axis as aligned to XYZ, [0, 2] but ignores sign/direction.
     /// Same as up_axis_id if that value is >= 0.
     int vertical_axis_id = int(UpAxis::Z);
-    /// Pseudo blur factor: 2D voxel search range when building heightmap.
-    /// I.e., a @c blur_level or 1 makes for an neighbourhood 3 (N3) search, level 2 is N5, 3 is N7, etc.
-    unsigned blur_level = 0;
     /// Should heightmap generation ignore the presence of sub-voxel positions, forcing voxel centres instead?
     bool ignore_sub_voxel_positioning = false;
 

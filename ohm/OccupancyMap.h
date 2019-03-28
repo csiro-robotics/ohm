@@ -804,6 +804,12 @@ namespace ohm
       moveKey(key, v.x, v.y, v.z);
     }
 
+    /// Calculate the number of voxels along each axis between two keys. Semantically, <tt>b - a</tt>.
+    /// @param a The first key.
+    /// @param b The second key.
+    /// @return The voxel offset from @p a to @p b along each axis.
+    glm::ivec3 rangeBetween(const Key &a, const Key &b) const;
+
     /// Builds the list of voxel keys intersected by the line segment connecting @p startPoint and @p endPoint.
     ///
     /// The @p keys list is populated with all voxels intersected by the specified line segment.

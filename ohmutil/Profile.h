@@ -133,6 +133,9 @@ namespace ohm
 #define PROFILE_RESTART(name) __profile##name.restart();
 #define PROFILE_RESTART_IF(name, cond) __profile##name.restart(cond);
 
+#define PROFILE2(name, prof) ohm::ProfileMarker __profile##name(#name, prof);
+#define PROFILE_IF2(name, cond) ohm::ProfileMarker __profile##name(#name, prof, cond);
+
 #else  // PROFILING
 
 #define PROFILE(name)

@@ -110,12 +110,6 @@ namespace ohm
     /// @return The height clearance value.
     double minClearance() const;
 
-    /// Sets the blur level. See class comments.
-    void setBlurLevel(int blur);
-
-    /// Gets the blur level. See class comments.
-    int blurLevel() const;
-
     /// Sets whether sub-voxel positions are ignored (true) forcing the use of voxel centres.
     /// @param ignore True to force voxel centres even when sub-voxel positions are present.
     void setIgnoreSubVoxelPositioning(bool ignore);

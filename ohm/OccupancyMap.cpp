@@ -918,6 +918,21 @@ void OccupancyMap::moveKey(Key &key, int x, int y, int z) const
   moveKeyAlongAxis(key, 2, z);
 }
 
+glm::ivec3 OccupancyMap::rangeBetween(const Key &a, const Key &b) const
+{
+  // First diff the regions.
+  const glm::ivec3 region_diff = b.regionKey() - a.regionKey();
+  glm::ivec3 voxel_diff;
+
+  // Voxel difference is the sum of the local difference plus the region step difference.
+  for (int i = 0; i < 3; ++i)
+  {
+    voxel_diff[i] = int(b.localKey()[i]) - int(a.localKey()[i]) + region_diff[i] * imp_->region_voxel_dimensions[i];
+  }
+
+  return voxel_diff;
+}
+
 size_t OccupancyMap::calculateSegmentKeys(KeyList &keys, const glm::dvec3 &start_point, const glm::dvec3 &end_point,
                                           bool include_end_point) const
 {
