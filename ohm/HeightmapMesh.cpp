@@ -167,7 +167,8 @@ bool HeightmapMesh::buildMesh(const Heightmap &heightmap)
   imp_->loose_mesh_extents = Aabb(min_map_ext, max_map_ext);
   imp_->tight_mesh_extents = Aabb(min_vert_ext, max_vert_ext);
 
-  if (imp_->coords_2d.empty())
+  // Need at least 3 points to triangulate.
+  if (imp_->coords_2d.size() < 3)
   {
     return false;
   }

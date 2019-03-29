@@ -5,13 +5,14 @@
 // Author: Kazys Stepanas
 #include "Profile.h"
 
+#include "ska/bytell_hash_map.hpp"
+
 #include <atomic>
 #include <cinttypes>
 #include <cstring>
 #include <iostream>
 #include <mutex>
 #include <thread>
-#include <unordered_map>
 #include <vector>
 
 #include "OhmUtil.h"
@@ -29,6 +30,7 @@ namespace ohm
     const char *name;
     const char *parent_name;
     ProfileClock::duration total_time;
+    ProfileClock::duration recent;
     unsigned marker_count;
   };
 
@@ -67,7 +69,7 @@ namespace ohm
 
   struct ThreadRecords
   {
-    std::unordered_map<std::string, ProfileRecord *> records;
+    ska::bytell_hash_map<std::string, ProfileRecord *> records;
     std::vector<ProfileScope> marker_stack;
 
     ~ThreadRecords()
@@ -93,7 +95,7 @@ namespace ohm
   struct ProfileDetail
   {
     std::mutex mutex;
-    std::unordered_map<std::thread::id, ThreadRecords> thread_records;
+    std::vector<std::pair<std::thread::id, ThreadRecords>> thread_records;
     std::atomic_bool reported;
     std::atomic_bool supress_report;
 
@@ -109,13 +111,16 @@ namespace ohm
 #ifdef OHM_THREADS
       // compareThreadIds(std::this_thread::get_id(), tbb::this_tbb_thread::get_id());
 #endif  // OHM_THREADS
-      auto search = thread_records.find(std::this_thread::get_id());
-      if (search != thread_records.end())
+      for (auto &search : thread_records)
       {
-        return search->second;
+        if (search.first == std::this_thread::get_id())
+        {
+          return search.second;
+        }
       }
 
-      return thread_records.insert(std::make_pair(std::this_thread::get_id(), ThreadRecords())).first->second;
+      thread_records.emplace_back(std::make_pair(std::this_thread::get_id(), ThreadRecords()));
+      return thread_records.back().second;
     }
   };
 
@@ -127,7 +132,7 @@ namespace ohm
     const auto average_time =
       (record.marker_count) ? record.total_time / record.marker_count : ProfileClock::duration(0);
     delimetedInteger(count_str, record.marker_count);
-    o << indent << record.name << " avg: " << average_time << " total: " << record.total_time << " / " << count_str
+    o << indent << record.name << " cur: " << record.recent << " avg: " << average_time << " total: " << record.total_time << " / " << count_str
       << " calls\n";
 
     // Recurse on children.
@@ -228,7 +233,7 @@ void Profile::pop()
   else
   {
     const ProfileClock::duration zero_duration(0);
-    record = new ProfileRecord{ popped_scope.name, nullptr, zero_duration, 0u };
+    record = new ProfileRecord{ popped_scope.name, nullptr, zero_duration, zero_duration, 0u };
     if (!records.marker_stack.empty())
     {
       record->parent_name = parent_name;
@@ -237,13 +242,13 @@ void Profile::pop()
   }
 
   record->total_time += elapsed;
+  record->recent = elapsed;
   ++record->marker_count;
 }
 
 
 void Profile::report(std::ostream *optr)
 {
-  // DebugBreak();
   if (!imp_->reported && !imp_->supress_report)
   {
     std::ostream &out = (optr) ? *optr : std::cout;

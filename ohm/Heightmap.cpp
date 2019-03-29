@@ -24,10 +24,11 @@
 #define PROFILING 0
 #include <ohmutil/Profile.h>
 
+// #undef OHM_THREADS
 #ifdef OHM_THREADS
-#include <tbb/parallel_for.h>
 #include <tbb/blocked_range3d.h>
-#include <tbb/task_scheduler_init.h>
+#include <tbb/parallel_for.h>
+#include <tbb/task_arena.h>
 #endif // OHM_THREADS
 
 using namespace ohm;
@@ -141,7 +142,6 @@ namespace
 
     const int heightmap_build_layer = imp->heightmap_layer;
 
-    // unsigned occupied_count = 0;
     walker.begin(target_key);
     do
     {
@@ -217,7 +217,6 @@ namespace
       voxel_content->clearance = float(column_clearance_height - column_height);
       if (column_height < std::numeric_limits<double>::max())
       {
-        // ++occupied_count;
         heightmap_voxel.setValue(heightmap.occupancyThresholdValue());
         if (!imp->ignore_sub_voxel_positioning)
         {
@@ -227,8 +226,6 @@ namespace
         }
       }
     } while (walker.walkNext(target_key));
-
-    // printf("Heightmap voxels: %u\n", occupied_count);
   }
 }  // namespace
 
@@ -294,6 +291,24 @@ Heightmap::Heightmap(double grid_resolution, double min_clearance, UpAxis up_axi
 
 Heightmap::~Heightmap()
 {}
+
+
+bool Heightmap::setThreadCount(unsigned thread_count)
+{
+#ifdef OHM_THREADS
+  imp_->thread_count = thread_count;
+  return true;
+#else  // OHM_THREADS
+  (void)thread_count; // Unused.
+  return false;
+#endif // OHM_THREADS
+}
+
+
+unsigned Heightmap::threadCount() const
+{
+  return imp_->thread_count;
+}
 
 
 void Heightmap::setOccupancyMap(OccupancyMap *map)
@@ -428,7 +443,7 @@ double Heightmap::baseHeight() const
 }
 
 
-bool Heightmap::update(double base_height)
+bool Heightmap::update(double base_height, const ohm::Aabb &cull_to)
 {
   if (!imp_->occupancy_map)
   {
@@ -458,6 +473,16 @@ bool Heightmap::update(double base_height)
   glm::dvec3 min_ext, max_ext;
   src_map.calculateExtents(min_ext, max_ext);
 
+  // Clip to the cull box.
+  for (int i = 0; i < 3; ++i)
+  {
+    if (cull_to.diagonal()[i] > 0)
+    {
+      min_ext[i] = std::max(cull_to.minExtents()[i], min_ext[i]);
+      max_ext[i] = std::min(cull_to.maxExtents()[i], max_ext[i]);
+    }
+  }
+
   // Collapse the vertical axis for the keys.
   glm::dvec3 min_ext_collapsed = min_ext;
   glm::dvec3 max_ext_collapsed = max_ext;
@@ -470,28 +495,49 @@ bool Heightmap::update(double base_height)
 
   PROFILE(walk)
 #ifdef OHM_THREADS
-  const auto updateHeightmapBlock = [&] (const tbb::blocked_range3d<unsigned, unsigned, unsigned> &range) //
-  { //
-    Key min_key_local = min_ext_key;
-    Key max_key_local = min_ext_key;
+  if (imp_->thread_count != 1)
+  {
+    const auto updateHeightmapBlock = [&] (const tbb::blocked_range3d<unsigned, unsigned, unsigned> &range) //
+    { //
+      Key min_key_local = min_ext_key;
+      Key max_key_local = min_ext_key;
 
-    // Move to the target offset.
-    imp_->heightmap->moveKey(min_key_local, range.cols().begin(), range.rows().begin(), range.pages().begin());
-    imp_->heightmap->moveKey(max_key_local, range.cols().end() - 1, range.rows().end() - 1, range.pages().end() - 1);
-    updateHeightmapForRegion(imp_.get(), base_height, min_key_local, max_key_local, upAxis(), Aabb(min_ext, max_ext));
-  };
+      // Move to the target offset.
+      imp_->heightmap->moveKey(min_key_local, range.cols().begin(), range.rows().begin(), range.pages().begin());
+      imp_->heightmap->moveKey(max_key_local, range.cols().end() - 1, range.rows().end() - 1, range.pages().end() - 1);
+      updateHeightmapForRegion(imp_.get(), base_height, min_key_local, max_key_local, upAxis(), Aabb(min_ext, max_ext));
+    };
 
-  const glm::ivec3 voxel_range = heightmap.rangeBetween(min_ext_key, max_ext_key);
-  const unsigned grain_size = 8;
+    const glm::ivec3 voxel_range = heightmap.rangeBetween(min_ext_key, max_ext_key);
 
-  // tbb::task_scheduler_init init(1);
-  tbb::parallel_for(tbb::blocked_range3d<unsigned, unsigned, unsigned>(0, voxel_range.z + 1, grain_size,  //
-                                                                       0, voxel_range.y + 1, grain_size,  //
-                                                                       0, voxel_range.x + 1, grain_size),
-                    updateHeightmapBlock);
-#else   // OHM_THREADS
-  updateHeightmapForRegion(imp_.get(), base_height, min_ext_key, max_ext_key, upAxis(), Aabb(min_ext, max_ext));
+    const auto parallel_loop = [&]  //
+    {
+      tbb::parallel_for(tbb::blocked_range3d<unsigned, unsigned, unsigned>(0, voxel_range.z + 1,  //
+                                                                           0, voxel_range.y + 1,  //
+                                                                           0, voxel_range.x + 1),
+                        updateHeightmapBlock);
+      // const unsigned grain_size = 8;
+      // tbb::parallel_for(tbb::blocked_range3d<unsigned, unsigned, unsigned>(0, voxel_range.z + 1, grain_size,  //
+      //                                                                      0, voxel_range.y + 1, grain_size,  //
+      //                                                                      0, voxel_range.x + 1, grain_size),
+      //                   updateHeightmapBlock);
+    };
+
+    if (imp_->thread_count)
+    {
+      tbb::task_arena limited_arena(imp_->thread_count);
+      limited_arena.execute(parallel_loop);
+    }
+    else
+    {
+      parallel_loop();
+    }
+  }
+  else
 #endif  // OHM_THREADS
+  {
+    updateHeightmapForRegion(imp_.get(), base_height, min_ext_key, max_ext_key, upAxis(), Aabb(min_ext, max_ext));
+  }
   PROFILE_END(walk)
 
   return true;

@@ -41,6 +41,8 @@ namespace ohm
     /// Identifies the up axis as aligned to XYZ, [0, 2] but ignores sign/direction.
     /// Same as up_axis_id if that value is >= 0.
     int vertical_axis_id = int(UpAxis::Z);
+    /// Target number of threads to use. 1 => no threading.
+    unsigned thread_count = 1;
     /// Should heightmap generation ignore the presence of sub-voxel positions, forcing voxel centres instead?
     bool ignore_sub_voxel_positioning = false;
 
