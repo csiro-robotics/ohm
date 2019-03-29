@@ -81,6 +81,9 @@ namespace ohm
     ///
     /// Setting the @p thread_count to zero enabled multi-threading using the maximum number of threads. Setting the
     /// @p thread_count to 1 disables threads (default).
+    ///
+    /// Using multiple threads may not yield significant gains.
+    ///
     /// @param thread_count The number of threads to set.
     /// @return True if mult-threading is available. False when no mult-threading is available and @p thread_count is
     /// ignored.
