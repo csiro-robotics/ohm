@@ -51,7 +51,6 @@ namespace
     double clearance = 2.0;
     double floor = 0;
     double ceiling = 0;
-    int blur = 0;
     bool no_sub_voxel = false;
   };
 
@@ -84,7 +83,6 @@ int parseOptions(Options &opt, int argc, char *argv[])
     optParse.add_options()("help", "Show help.")("i", "The input map file (ohm).", cxxopts::value(opt.map_file))  //
       ("o", "The output heightmap file (ohm).", cxxopts::value(opt.heightmap_file))                               //
       ("base", "Base height: heightmap values are stored relative to this height.", optVal(opt.base_height))      //
-      ("blur", "Blur factor in generating the heightmap. Must be >= 0, recommended < 5.", optVal(opt.blur))       //
       ("clearance", "The required height clearance for a heightmap surface voxel.", optVal(opt.clearance))        //
       ("floor", "Heightmap excludes voxels below this (positive) value below the --base height. Positive to enable.",
        optVal(opt.floor))  //
@@ -189,10 +187,6 @@ int main(int argc, char *argv[])
 
   ohm::Heightmap heightmap(map.resolution(), opt.clearance, opt.axis_id);
   heightmap.setOccupancyMap(&map);
-  if (opt.blur >= 0)
-  {
-    heightmap.setBlurLevel(opt.blur);
-  }
 
   heightmap.setIgnoreSubVoxelPositioning(opt.no_sub_voxel);
 

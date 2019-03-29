@@ -34,7 +34,7 @@ namespace
 
   const double kBoxHalfExtents = 2.5;
 
-  void heightmapBoxTest(const std::string &prefix, UpAxis axis, int blur,
+  void heightmapBoxTest(const std::string &prefix, UpAxis axis,
                         std::shared_ptr<Heightmap> *map_out = nullptr, const TestParams *params = nullptr)
   {
     Profile profile;
@@ -51,7 +51,6 @@ namespace
       *map_out = heightmap;
     }
     heightmap->setOccupancyMap(&map);
-    heightmap->setBlurLevel(blur);
 
     if (params)
     {
@@ -141,50 +140,12 @@ namespace
 
     // Helper function to work out if we are at the top of the box or not.
     // Basically, at the limits of the box extents, we should report the top of the wall.
-    // This also accounts for the blur level.
-    const auto is_top_of_wall = [](const OccupancyMap &map, const Key &key, const Key &min_key, const Key &max_key,
-                                   int *test_axes, int blur_level) {
-      if (blur_level == 0)
+    const auto is_top_of_wall = [](const Key &key, const Key &min_key, const Key &max_key,
+                                   int *test_axes) {
+      if (key.axisMatches(test_axes[0], min_key) || key.axisMatches(test_axes[0], max_key) ||
+          key.axisMatches(test_axes[1], min_key) || key.axisMatches(test_axes[1], max_key))
       {
-        if (key.axisMatches(test_axes[0], min_key) || key.axisMatches(test_axes[0], max_key) ||
-            key.axisMatches(test_axes[1], min_key) || key.axisMatches(test_axes[1], max_key))
-        {
-          return true;
-        }
-      }
-      else
-      {
-        // Have blur. Add edge tolerance.
-        for (int i = 0; i <= blur_level; ++i)
-        {
-          Key test_key = key;
-          map.moveKeyAlongAxis(test_key, test_axes[0], -i);
-          if (test_key.axisMatches(test_axes[0], min_key))
-          {
-            return true;
-          }
-
-          test_key = key;
-          map.moveKeyAlongAxis(test_key, test_axes[0], +i);
-          if (test_key.axisMatches(test_axes[0], max_key))
-          {
-            return true;
-          }
-
-          test_key = key;
-          map.moveKeyAlongAxis(test_key, test_axes[1], -i);
-          if (test_key.axisMatches(test_axes[1], min_key))
-          {
-            return true;
-          }
-
-          test_key = key;
-          map.moveKeyAlongAxis(test_key, test_axes[1], +i);
-          if (test_key.axisMatches(test_axes[1], max_key))
-          {
-            return true;
-          }
-        }
+        return true;
       }
 
       return false;
@@ -228,7 +189,7 @@ namespace
 
         double expected_height = ground_height;
         bool wall = false;
-        if (is_top_of_wall(heightmap->heightmap(), key, min_key, max_key, axis_indices, blur))
+        if (is_top_of_wall(key, min_key, max_key, axis_indices))
         {
           expected_height = top_of_wall_height;
           wall = true;
@@ -252,7 +213,7 @@ namespace
 
 TEST(Heightmap, Box)
 {
-  heightmapBoxTest("heightmap-box", UpAxis::Z, 0);
+  heightmapBoxTest("heightmap-box", UpAxis::Z);
 }
 
 
@@ -260,7 +221,7 @@ TEST(Heightmap, Ceiling)
 {
   TestParams params;
   params.ceiling = 0.5;
-  heightmapBoxTest("heightmap-ceiling", UpAxis::Z, 0, nullptr, &params);
+  heightmapBoxTest("heightmap-ceiling", UpAxis::Z, nullptr, &params);
 }
 
 
@@ -268,7 +229,7 @@ TEST(Heightmap, Floor)
 {
   TestParams params;
   params.floor = 0.5;
-  heightmapBoxTest("heightmap-floor", UpAxis::Z, 0, nullptr, &params);
+  heightmapBoxTest("heightmap-floor", UpAxis::Z, nullptr, &params);
 }
 
 
@@ -277,63 +238,50 @@ TEST(Heightmap, FloorAndCeiling)
   TestParams params;
   params.floor = 0.3;
   params.ceiling = 0.5;
-  heightmapBoxTest("heightmap-ceiling-floor", UpAxis::Z, 0, nullptr, &params);
-}
-
-
-TEST(Heightmap, Blur)
-{
-  // heightmapBoxTest("heightmap-blur-1", UpAxis::Z, 1);
-  heightmapBoxTest("heightmap-blur-2", UpAxis::Z, 2);
+  heightmapBoxTest("heightmap-ceiling-floor", UpAxis::Z, nullptr, &params);
 }
 
 
 TEST(Heightmap, AxisX)
 {
-  heightmapBoxTest("heightmap-x", UpAxis::X, 0);
-  heightmapBoxTest("heightmap-x", UpAxis::X, 1);
+  heightmapBoxTest("heightmap-x", UpAxis::X);
 }
 
 
 TEST(Heightmap, AxisY)
 {
-  heightmapBoxTest("heightmap-y", UpAxis::Y, 0);
-  heightmapBoxTest("heightmap-y", UpAxis::Y, 1);
+  heightmapBoxTest("heightmap-y", UpAxis::Y);
 }
 
 
 TEST(Heightmap, AxisZ)
 {
-  heightmapBoxTest("heightmap-z", UpAxis::NegZ, 0);
-  heightmapBoxTest("heightmap-z", UpAxis::NegZ, 1);
+  heightmapBoxTest("heightmap-z", UpAxis::NegZ);
 }
 
 
 TEST(Heightmap, AxisNegX)
 {
-  heightmapBoxTest("heightmap-negx", UpAxis::X, 0);
-  heightmapBoxTest("heightmap-negx", UpAxis::X, 1);
+  heightmapBoxTest("heightmap-negx", UpAxis::X);
 }
 
 
 TEST(Heightmap, AxisNegY)
 {
-  heightmapBoxTest("heightmap-negy", UpAxis::Y, 0);
-  heightmapBoxTest("heightmap-negy", UpAxis::Y, 1);
+  heightmapBoxTest("heightmap-negy", UpAxis::Y);
 }
 
 
 TEST(Heightmap, AxisNegZ)
 {
-  heightmapBoxTest("heightmap-negz", UpAxis::NegZ, 0);
-  heightmapBoxTest("heightmap-negz", UpAxis::NegZ, 1);
+  heightmapBoxTest("heightmap-negz", UpAxis::NegZ);
 }
 
 
 TEST(Heightmap, Layout)
 {
   std::shared_ptr<Heightmap> heightmap;
-  heightmapBoxTest("", UpAxis::Z, 0, &heightmap);
+  heightmapBoxTest("", UpAxis::Z, &heightmap);
   const MapLayout &layout = heightmap->heightmap().layout();
 
   EXPECT_EQ(layout.layerCount(), 3);
@@ -379,7 +327,7 @@ TEST(Heightmap, Layout)
 TEST(Heightmap, Mesh)
 {
   std::shared_ptr<Heightmap> heightmap;
-  heightmapBoxTest("", UpAxis::Z, 0, &heightmap);
+  heightmapBoxTest("", UpAxis::Z, &heightmap);
   HeightmapMesh mesh;
 
   bool ok = mesh.buildMesh(*heightmap);

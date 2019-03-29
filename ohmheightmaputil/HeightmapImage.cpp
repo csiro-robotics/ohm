@@ -736,14 +736,11 @@ bool HeightmapImage::renderHeightMesh(ImageType image_type, const Aabb &spatial_
   }
 
   // Open a window and create its OpenGL context
+  const unsigned pixels_per_voxel = std::max(imp_->pixels_per_voxel, 1u);
   const unsigned target_width =
-    imp_->pixels_per_voxel *
-    unsigned(std::ceil(spatial_extents.maxExtents()[axes[0]] - spatial_extents.minExtents()[axes[0]]) /
-             voxel_resolution);
+    pixels_per_voxel * unsigned(std::ceil(spatial_extents.diagonal()[axes[0]] / voxel_resolution));
   const unsigned target_height =
-    imp_->pixels_per_voxel *
-    unsigned(std::ceil(spatial_extents.maxExtents()[axes[1]] - spatial_extents.minExtents()[axes[1]]) /
-             voxel_resolution);
+    pixels_per_voxel * unsigned(std::ceil(spatial_extents.diagonal()[axes[1]] / voxel_resolution));
 
   // For some reason it seems the either the buffer size must be a multiple of 16, or the individual dimentions of 8.
   // Making both of 8 addresses both.
@@ -752,8 +749,8 @@ bool HeightmapImage::renderHeightMesh(ImageType image_type, const Aabb &spatial_
   const unsigned render_height = makeMultipleOf(target_height, 8);
 
   // Adjust the extents to cover the additional pixels.
-  max_ext_vertices[axes[0]] += imp_->pixels_per_voxel * (render_width - target_width) * voxel_resolution;
-  max_ext_vertices[axes[1]] += imp_->pixels_per_voxel * (render_height - target_height) * voxel_resolution;
+  max_ext_vertices[axes[0]] += float(render_width - target_width) / float(pixels_per_voxel) * voxel_resolution;
+  max_ext_vertices[axes[1]] += float(render_height - target_height) / float(pixels_per_voxel) * voxel_resolution;
 
   //----------------------------------------------------------------------------
   // Rendering setup.

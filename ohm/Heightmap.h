@@ -8,6 +8,7 @@
 
 #include "OhmConfig.h"
 
+#include "Aabb.h"
 #include "UpAxis.h"
 
 #include <memory>
@@ -76,6 +77,23 @@ namespace ohm
     /// Destructor.
     ~Heightmap();
 
+    /// Set number of threads to use in heightmap generation, enabling multi-threaded code path as required.
+    ///
+    /// Setting the @p thread_count to zero enabled multi-threading using the maximum number of threads. Setting the
+    /// @p thread_count to 1 disables threads (default).
+    /// @param thread_count The number of threads to set.
+    /// @return True if mult-threading is available. False when no mult-threading is available and @p thread_count is
+    /// ignored.
+    bool setThreadCount(unsigned thread_count);
+
+    /// Get the number of threads to use.
+    ///
+    /// - 0: use all available
+    /// - 1: force single threaded, or no multi-threading is available.
+    /// - n: Use n threads.
+    /// @return The number of threads to use.
+    unsigned threadCount() const;
+
     /// Set the occupancy map on which to base the heightmap. The heightmap does not takes no ownership of the pointer
     /// so the @p map must persist until @c update() is called.
     void setOccupancyMap(OccupancyMap *map);
@@ -109,12 +127,6 @@ namespace ohm
     /// Get the minimum clearance required above a voxel in order to consider it a heightmap voxel.
     /// @return The height clearance value.
     double minClearance() const;
-
-    /// Sets the blur level. See class comments.
-    void setBlurLevel(int blur);
-
-    /// Gets the blur level. See class comments.
-    int blurLevel() const;
 
     /// Sets whether sub-voxel positions are ignored (true) forcing the use of voxel centres.
     /// @param ignore True to force voxel centres even when sub-voxel positions are present.
@@ -173,7 +185,7 @@ namespace ohm
     /// @param base_height The base heightmap value. All heights are relative to this value. This helps reduce floating
     ///   point error with heights being stored in single precision.
     /// @return true on success.
-    bool update(double base_height);
+    bool update(double base_height, const ohm::Aabb &cull_to = ohm::Aabb(0.0));
 
     //-------------------------------------------------------
     // Internal
