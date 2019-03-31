@@ -47,7 +47,9 @@ target_include_directories(ohmtest SYSTEM
 )
 
 target_link_libraries(ohmtest ohmtestcommon ohmtools ohm ohmutil GTest::Main)
-target_link_libraries(ohmtest PNG::PNG)
+if(PNG_FOUND)
+  target_link_libraries(ohmtest PNG::PNG)
+endif(PNG_FOUND)
 
 if(OHM_TES_DEBUG)
   target_link_libraries(ohmtest 3es::3es-core)

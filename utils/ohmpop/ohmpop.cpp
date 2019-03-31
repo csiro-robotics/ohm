@@ -613,7 +613,6 @@ int populateMap(const Options &opt)
       sample_timestamps.clear();
       origin_sample_pairs.clear();
 
-      const double elapsed_time = timestamp - last_timestamp;
       first_batch_timestamp = -1;
 
       prog.incrementProgressBy(ray_batch_size);
@@ -622,6 +621,7 @@ int populateMap(const Options &opt)
       elapsed_ms = uint64_t((last_timestamp - timebase) * 1e3);
 
 #ifndef OHMPOP_CPU
+      const double elapsed_time = timestamp - last_timestamp;
       if (opt.progressive_mapping_slice > 0)
       {
         if (opt.mapping_interval >= 0)
