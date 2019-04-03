@@ -113,7 +113,7 @@ if(OPENCL_FOUND)
       $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/cl>
   )
 
-  target_link_libraries(gputilocl clu ${OpenCL_LIBRARIES})
+  target_link_libraries(gputilocl PUBLIC clu ${OpenCL_LIBRARIES})
   _gputil_setup_library(gputilocl ${GPUTIL_TYPE_OPENCL})
 endif(OPENCL_FOUND)
 

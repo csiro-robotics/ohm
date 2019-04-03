@@ -167,7 +167,7 @@ set(PUBLIC_HEADERS
 
 add_library(ohm ${SOURCES})
 
-target_link_libraries(ohm ${ZLIB_LIBRARIES} ohmutil ${GPUTIL_LIBRARY})
+target_link_libraries(ohm PUBLIC ${ZLIB_LIBRARIES} ohmutil ${GPUTIL_LIBRARY})
 
 target_include_directories(ohm
   PUBLIC
@@ -180,7 +180,7 @@ target_include_directories(ohm
 )
 
 if(OHM_THREADS)
-  target_link_libraries(ohm ${TBB_LIBRARIES})
+  target_link_libraries(ohm PUBLIC ${TBB_LIBRARIES})
 endif(OHM_THREADS)
 
 target_include_directories(ohm SYSTEM
@@ -189,7 +189,7 @@ target_include_directories(ohm SYSTEM
 )
 
 if(OHM_TES_DEBUG)
-  target_link_libraries(ohm 3es::3es-core)
+  target_link_libraries(ohm PUBLIC 3es::3es-core)
 else(OHM_TES_DEBUG)
   target_include_directories(ohm PRIVATE SYSTEM "${3ES_INCLUDE_DIRS}")
 endif(OHM_TES_DEBUG)

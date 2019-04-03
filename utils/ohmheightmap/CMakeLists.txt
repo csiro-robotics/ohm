@@ -6,6 +6,7 @@ set(SOURCES
 )
 
 add_executable(ohmheightmap ${SOURCES})
+leak_track_target_enable(ohmheightmap CONDITION OHM_LEAK_TRACK)
 
 set_target_properties(ohmheightmap PROPERTIES FOLDER utils)
 if(MSVC)
@@ -18,10 +19,10 @@ target_include_directories(ohmheightmap SYSTEM
     "${ZLIB_INCLUDE_DIRS}"
 )
 
-target_link_libraries(ohmheightmap ohm ohmutil ${ZLIB_LIBRARIES} ohmheightmaputil)
+target_link_libraries(ohmheightmap PUBLIC ohm ohmutil ${ZLIB_LIBRARIES} ohmheightmaputil)
 
 if(OHM_TES_DEBUG)
-  # target_link_libraries(ohmheightmap 3es::3es-core)
+  # target_link_libraries(ohmheightmap PUBLIC 3es::3es-core)
 else(OHM_TES_DEBUG)
   target_include_directories(ohmheightmap PRIVATE SYSTEM "${3ES_INCLUDE_DIRS}")
 endif(OHM_TES_DEBUG)

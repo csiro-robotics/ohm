@@ -11,6 +11,7 @@ set(SOURCES
 )
 
 add_executable(ohmcloudfilter ${SOURCES})
+leak_track_target_enable(ohmcloudfilter CONDITION OHM_LEAK_TRACK)
 
 set_target_properties(ohmcloudfilter PROPERTIES FOLDER utils)
 if(MSVC)
@@ -24,7 +25,7 @@ target_include_directories(ohmcloudfilter SYSTEM
     "${LIBLAS_INCLUDE_DIR}"
 )
 
-target_link_libraries(ohmcloudfilter
+target_link_libraries(ohmcloudfilter PUBLIC
   ohm
   ohmutil
   ${LIBLAS_LIBRARIES}

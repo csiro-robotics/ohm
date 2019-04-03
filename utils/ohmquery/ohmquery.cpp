@@ -16,6 +16,7 @@
 #include <ohm/Voxel.h>
 
 #include <ohmgpu/GpuMap.h>
+#include <ohmgpu/LineQueryGpu.h>
 #include <ohmgpu/OhmGpu.h>
 
 #include <ohmutil/GlmStream.h>
@@ -54,19 +55,21 @@ namespace
   {
     struct Neighbours
     {
-      glm::dvec3 point;
+      glm::dvec3 point = glm::dvec3(0);
       float radius = -1;
     };
 
     struct Line
     {
-      glm::dvec3 start, end;
+      glm::dvec3 start = glm::dvec3(0);
+      glm::dvec3 end = glm::dvec3(0);
       float radius = -1;
     };
 
     struct Ranges
     {
-      glm::dvec3 min, max;
+      glm::dvec3 min = glm::dvec3(0);
+      glm::dvec3 max = glm::dvec3(0);
       float radius = -1;
     };
 
@@ -197,7 +200,8 @@ int parseOptions(Options &opt, int argc, char *argv[])
                              "trajectory with timestamps loosely corresponding to cloud point timestamps.\n"
                              "Trajectory points are interpolated for each cloud point based on corresponding\n"
                              "times in the trajectory.");
-  opt_parse.positional_help("<map.ohm> <--near=x,y,z,r | --line=x1,y1,z1,x2,y2,z2,r | --ranges=x1,y1,z1,x2,y2,z2,r>");
+  opt_parse.positional_help(
+    "<map.ohm> [<output.ply>] <--near=x,y,z,r | --line=x1,y1,z1,x2,y2,z2,r>");  // | --ranges=x1,y1,z1,x2,y2,z2,r>");
 
   try
   {
@@ -207,16 +211,17 @@ int parseOptions(Options &opt, int argc, char *argv[])
       ("q,quiet", "Run in quiet mode. Suppresses progress messages.", optVal(opt.use_gpu))
       ("gpu-compare", "Compare CPU and GPU results for the query. Implies '--gpu'.", optVal(opt.gpu_compare))
       ("hard-reset", "Perform a hard reset when repeatedly executing a query (--repeat option). Soft reset is the default.", optVal(opt.hard_reset_on_repeat))
+      ("map", "The input map file to load <<mapfile>-near.ply> and <<mapfile>-line.ply>", optVal(opt.map_file))
       ("o,output", "Sets the base PLY file names to save results to. Defaults to <<mapfile>-near.ply> and <<mapfile>-line.ply>", optVal(opt.output_base))
       ("line", "Perform a line segment test from (x1,y1,z1) to (x2,y2,z2) considering voxels withing radius r of the line segment.", optVal(opt.line), "x1,y1,z1,x2,y2,z2,r")
       ("near", "Perform a nearest neighbours query at the point (x,y,z) with a radius of r.", optVal(opt.neighbours), "x,y,z,r")
-      ("ranges", "Calculate the nearest occupied voxel for each voxel in the specified min/max extents, (x1,y1,z1) to (x2,y2,z2).", optVal(opt.ranges), "x1,y1,z1,x2,y2,z2,r")
+      // ("ranges", "Calculate the nearest occupied voxel for each voxel in the specified min/max extents, (x1,y1,z1) to (x2,y2,z2).", optVal(opt.ranges), "x1,y1,z1,x2,y2,z2,r")
       ("repeat", "Repeat the query N times. For timing evaluation.", optVal(opt.repeat))
       ("uao", "Treat unknown space as occupied/obstructed?", optVal(opt.unknown_as_occupied))
     ;
     // clang-format off
 
-    opt_parse.parse_positional({ "output" });
+    opt_parse.parse_positional({ "map", "output" });
 
     cxxopts::ParseResult parsed = opt_parse.parse(argc, argv);
 
@@ -252,6 +257,11 @@ int parseOptions(Options &opt, int argc, char *argv[])
   {
     std::cerr << "Argument error\n" << e.what() << std::endl;
     return -1;
+  }
+
+  if (opt.gpu_compare)
+  {
+    opt.use_gpu = true;
   }
 
   return 0;
@@ -404,7 +414,7 @@ bool compareCpuGpuQuery(const char *query_name, ohm::Query &query, const float e
   TimingClock::time_point query_start, query_end;
 
   // CPU execution.
-  query.setQueryFlags(query.queryFlags() & ~ohm::kQfGpuEvaluate);
+  query.setQueryFlags(query.queryFlags() & ~ohm::kQfGpu);
   query_start = TimingClock::now();
   query.reset();
   query.execute();
@@ -621,10 +631,18 @@ int runQueries(const Options &opt)
            opt.line.radius
           );
 
-    ohm::LineQuery line_query(map, opt.line.start, opt.line.end, opt.line.radius, query_flags);
+    std::unique_ptr<ohm::LineQuery> line_query;
+    if (opt.use_gpu)
+    {
+      line_query = std::make_unique<ohm::LineQueryGpu>(map, opt.line.start, opt.line.end, opt.line.radius, query_flags);
+    }
+    else
+    {
+      line_query = std::make_unique<ohm::LineQuery>(map, opt.line.start, opt.line.end, opt.line.radius, query_flags);
+    }
     // Allow single voxel epsilon value.
-    executeQuery("line query", opt, line_query, float(map.resolution()));
-    saveQueryCloud(map, line_query, opt, "-line", opt.line.radius);
+    executeQuery("line query", opt, *line_query, float(map.resolution()));
+    saveQueryCloud(map, *line_query, opt, "-line", opt.line.radius);
   }
 
 #ifdef FIXME

@@ -667,6 +667,7 @@ int populateMap(const Options &opt)
     sample_timestamps.clear();
     origin_sample_pairs.clear();
   }
+  end_time = Clock::now();
 
   prog.endProgress();
   prog.pause();
@@ -700,13 +701,13 @@ int populateMap(const Options &opt)
   gpu_map.syncOccupancy();
 #endif  // OHMPOP_CPU
 
-  const double processing_time_sec =
-    std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count() * 1e-3;
-
   std::ostream **out = streams;
   while (*out)
   {
     const double time_range = last_timestamp - first_timestamp;
+    const double processing_time_sec =
+      std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count() * 1e-3;
+
     **out << "Point count: " << point_count << '\n';
     **out << "Data time: " << time_range << '\n';
 #ifndef OHMPOP_CPU
@@ -715,7 +716,7 @@ int populateMap(const Options &opt)
 #endif  // OHMPOP_CPU
     **out << "Total processing time: " << end_time - start_time << '\n';
     **out << "Efficiency: " << ((processing_time_sec && time_range) ? time_range / processing_time_sec : 0.0) << '\n';
-    **out << "Points/sec: " << ((processing_time_sec > 0) ? point_count / processing_time_sec : 0.0) << '\n';
+    **out << "Points/sec: " << unsigned((processing_time_sec > 0) ? point_count / processing_time_sec : 0.0) << '\n';
     **out << "Memory (approx): " << map.calculateApproximateMemory() / (1024.0 * 1024.0) << " MiB\n";
     **out << std::flush;
     ++out;

@@ -24,7 +24,7 @@ namespace ohm
   {
   public:
     static const uint32_t kDefaultColour = 0xffffffff;
-    typedef glm::vec3 VertexType;
+    using VertexType = glm::vec3;
 
     /// Constructor.
     PlyMesh();
@@ -43,7 +43,12 @@ namespace ohm
     inline unsigned addVertex(const glm::vec3 &vert) { return addVertices(&vert, 1, nullptr); }
     inline unsigned addVertex(const glm::vec3 &vert, const Colour &colour) { return addVertices(&vert, 1, &colour); }
 
+    unsigned addVertices(const glm::dvec3 *verts, unsigned count, const Colour *colours = nullptr);
+    inline unsigned addVertex(const glm::dvec3 &vert) { return addVertices(&vert, 1, nullptr); }
+    inline unsigned addVertex(const glm::dvec3 &vert, const Colour &colour) { return addVertices(&vert, 1, &colour); }
+
     void setNormal(unsigned vertex_index, const glm::vec3 &normal);
+    void setNormal(unsigned vertex_index, const glm::dvec3 &normal);
 
     void addEdges(const unsigned *edge_indices, unsigned edge_count, const Colour *colours = nullptr);
     inline void addEdge(unsigned v0, unsigned v1)
@@ -57,6 +62,7 @@ namespace ohm
       return addEdges(vi, 1, &colour);
     }
     void addEdge(const glm::vec3 &v0, const glm::vec3 &v1, const Colour &colour);
+    void addEdge(const glm::dvec3 &v0, const glm::dvec3 &v1, const Colour &colour);
 
     void addTriangles(const unsigned *triangle_indices, unsigned triangle_count, const Colour *colours = nullptr);
     inline void addTriangle(unsigned v0, unsigned v1, unsigned v2)
@@ -70,9 +76,11 @@ namespace ohm
       return addTriangles(vi, 1, &colour);
     }
     void addTriangle(const glm::vec3 &v0, const glm::vec3 &v1, const glm::vec3 &v2, const Colour &colour);
+    void addTriangle(const glm::dvec3 &v0, const glm::dvec3 &v1, const glm::dvec3 &v2, const Colour &colour);
 
     void addPolygon(const unsigned *indices, unsigned order, const Colour &colour);
     void addPolygon(const glm::vec3 *verts, unsigned order, const Colour &colour);
+    void addPolygon(const glm::dvec3 *verts, unsigned order, const Colour &colour);
 
     /// Add a triangle with support for vertex mapping.
     ///
@@ -88,8 +96,10 @@ namespace ohm
     /// @param vert_ids An array of three vertex Ids for @p verts.
     /// @param colour An optional colour for the face. Single item only, for the face not the vertices.
     void addMappedTriangle(const glm::vec3 *verts, const unsigned *vert_ids, const Colour *colour = nullptr);
+    void addMappedTriangle(const glm::dvec3 *verts, const unsigned *vert_ids, const Colour *colour = nullptr);
 
     void addMappedPolygon(const glm::vec3 *verts, const unsigned *vert_ids, unsigned order, const Colour *colour);
+    void addMappedPolygon(const glm::dvec3 *verts, const unsigned *vert_ids, unsigned order, const Colour *colour);
 
     /// Add an edge with support for vertex mapping.
     ///
@@ -99,6 +109,11 @@ namespace ohm
     /// @param colour An optional colour for the edge. Single item only, for the edge not the vertices.
     void addMappedEdge(const glm::vec3 *verts, const unsigned *vert_ids, const Colour *colour = nullptr);
     inline void addMappedEdge(const glm::vec3 *verts, const unsigned *vert_ids, const Colour &colour)
+    {
+      return addMappedEdge(verts, vert_ids, &colour);
+    }
+    void addMappedEdge(const glm::dvec3 *verts, const unsigned *vert_ids, const Colour *colour = nullptr);
+    inline void addMappedEdge(const glm::dvec3 *verts, const unsigned *vert_ids, const Colour &colour)
     {
       return addMappedEdge(verts, vert_ids, &colour);
     }
@@ -124,6 +139,28 @@ namespace ohm
   private:
     template <typename T>
     bool save(FileWrapper<T> &out, bool binary) const;
+
+    template <typename VEC3>
+    unsigned addVerticesT(const VEC3 *verts, unsigned count, const Colour *colours);
+
+    template <typename VEC3>
+    void setNormalT(unsigned vertex_index, const VEC3 &normal);
+
+    template <typename VEC3>
+    void addEdgeT(const VEC3 &v0, const VEC3 &v1, const Colour &colour);
+
+    template <typename VEC3>
+    void addTriangleT(const VEC3 &v0, const VEC3 &v1, const VEC3 &v2, const Colour &colour);
+
+    template <typename VEC3>
+    void addPolygonT(const VEC3 *verts, unsigned order, const Colour &colour);
+
+    template <typename VEC3>
+    void addMappedTriangleT(const VEC3 *verts, const unsigned *vert_ids, const Colour *colour = nullptr);
+    template <typename VEC3>
+    void addMappedPolygonT(const VEC3 *verts, const unsigned *vert_ids, unsigned order, const Colour *colour);
+    template <typename VEC3>
+    void addMappedEdgeT(const VEC3 *verts, const unsigned *vert_ids, const Colour *colour = nullptr);
 
     struct Vertex
     {

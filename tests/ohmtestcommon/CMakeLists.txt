@@ -24,12 +24,12 @@ target_include_directories(ohmtestcommon SYSTEM
     "${GLM_INCLUDE_DIR}"
 )
 
-target_link_libraries(ohmtestcommon ohmtools ohm ohmutil)
+target_link_libraries(ohmtestcommon PUBLIC ohmtools ohm ohmutil)
 
 add_dependencies(ohmtestcommon marshal_test_data)
 
 if(OHM_TES_DEBUG)
-  target_link_libraries(ohmtestcommon 3es::3es-core)
+  target_link_libraries(ohmtestcommon PUBLIC 3es::3es-core)
 else(OHM_TES_DEBUG)
   target_include_directories(ohmtestcommon PRIVATE SYSTEM "${3ES_INCLUDE_DIRS}")
 endif(OHM_TES_DEBUG)

@@ -139,6 +139,30 @@ void PlyMesh::clear()
 }
 
 
+unsigned PlyMesh::addVertices(const glm::vec3 *verts, unsigned count, const Colour *colours)
+{
+  return addVerticesT(verts, count, colours);
+}
+
+
+unsigned PlyMesh::addVertices(const glm::dvec3 *verts, unsigned count, const Colour *colours)
+{
+  return addVerticesT(verts, count, colours);
+}
+
+
+void PlyMesh::setNormal(unsigned vertex_index, const glm::vec3 &normal)
+{
+  setNormalT(vertex_index, normal);
+}
+
+
+void PlyMesh::setNormal(unsigned vertex_index, const glm::dvec3 &normal)
+{
+  setNormalT(vertex_index, normal);
+}
+
+
 void PlyMesh::addEdges(const unsigned *edge_indices, unsigned edge_count, const Colour *colours)
 {
   for (unsigned i = 0; i < edge_count; ++i)
@@ -164,12 +188,13 @@ void PlyMesh::addEdges(const unsigned *edge_indices, unsigned edge_count, const 
 
 void PlyMesh::addEdge(const glm::vec3 &v0, const glm::vec3 &v1, const Colour &colour)
 {
-  unsigned i0, i1;
-  i0 = unsigned(vertices_.size());
-  addVertices(&v0, 1);
-  i1 = unsigned(vertices_.size());
-  addVertices(&v1, 1);
-  addEdge(i0, i1, colour);
+  addEdgeT(v0, v1, colour);
+}
+
+
+void PlyMesh::addEdge(const glm::dvec3 &v0, const glm::dvec3 &v1, const Colour &colour)
+{
+  addEdgeT(v0, v1, colour);
 }
 
 
@@ -200,14 +225,13 @@ void PlyMesh::addTriangles(const unsigned *triangle_indices, unsigned triangle_c
 
 void PlyMesh::addTriangle(const glm::vec3 &v0, const glm::vec3 &v1, const glm::vec3 &v2, const Colour &colour)
 {
-  unsigned i0, i1, i2;
-  i0 = unsigned(vertices_.size());
-  addVertices(&v0, 1);
-  i1 = unsigned(vertices_.size());
-  addVertices(&v1, 1);
-  i2 = unsigned(vertices_.size());
-  addVertices(&v2, 1);
-  addTriangle(i0, i1, i2, colour);
+  addTriangleT(v0, v1, v2, colour);
+}
+
+
+void PlyMesh::addTriangle(const glm::dvec3 &v0, const glm::dvec3 &v1, const glm::dvec3 &v2, const Colour &colour)
+{
+  addTriangleT(v0, v1, v2, colour);
 }
 
 
@@ -233,6 +257,54 @@ void PlyMesh::addPolygon(const unsigned *indices, unsigned order, const Colour &
   face_colours_ = face_colours_ || colour != Colour::kColours[Colour::kWhite];
 
   polygons_.push_back(poly);
+}
+
+
+void PlyMesh::addPolygon(const glm::vec3 *verts, unsigned order, const Colour &colour)
+{
+  addPolygonT(verts, order, colour);
+}
+
+
+void PlyMesh::addPolygon(const glm::dvec3 *verts, unsigned order, const Colour &colour)
+{
+  addPolygonT(verts, order, colour);
+}
+
+
+void PlyMesh::addMappedTriangle(const glm::vec3 *verts, const unsigned *vert_ids, const Colour *colour)
+{
+  addMappedTriangleT(verts, vert_ids, colour);
+}
+
+
+void PlyMesh::addMappedTriangle(const glm::dvec3 *verts, const unsigned *vert_ids, const Colour *colour)
+{
+  addMappedTriangleT(verts, vert_ids, colour);
+}
+
+
+void PlyMesh::addMappedPolygon(const glm::vec3 *verts, const unsigned *vert_ids, unsigned order, const Colour *colour)
+{
+  addMappedPolygonT(verts, vert_ids, order, colour);
+}
+
+
+void PlyMesh::addMappedPolygon(const glm::dvec3 *verts, const unsigned *vert_ids, unsigned order, const Colour *colour)
+{
+  addMappedPolygonT(verts, vert_ids, order, colour);
+}
+
+
+void PlyMesh::addMappedEdge(const glm::vec3 *verts, const unsigned *vert_ids, const Colour *colour)
+{
+  addMappedEdgeT(verts, vert_ids, colour);
+}
+
+
+void PlyMesh::addMappedEdge(const glm::dvec3 *verts, const unsigned *vert_ids, const Colour *colour)
+{
+  addMappedEdgeT(verts, vert_ids, colour);
 }
 
 
@@ -288,150 +360,6 @@ bool PlyMesh::save(std::ostream &stream, bool binary) const
 {
   FileWrapper<std::ostream> out(stream);
   return save(out, binary);
-}
-
-
-unsigned PlyMesh::addVertices(const glm::vec3 *verts, unsigned count, const Colour *colours)
-{
-  unsigned index = unsigned(vertices_.size());
-  for (unsigned i = 0; i < count; ++i)
-  {
-    Vertex v;
-    v.point = VertexType(verts[i]);
-    v.colour = Colour(255, 255, 255);
-    if (colours)
-    {
-      vertex_colours_ = true;
-      v.colour = colours[i];
-    }
-    vertices_.push_back(v);
-  }
-  return index;
-}
-
-
-void PlyMesh::setNormal(unsigned vertex_index, const glm::vec3 &normal)
-{
-  if (normals_.size() <= vertex_index)
-  {
-    normals_.reserve(std::max<size_t>(vertex_index + 1, vertices_.size()));
-    while (normals_.size() <= vertex_index)
-    {
-      normals_.push_back(VertexType(0, 0, 0));
-    }
-  }
-
-  normals_[vertex_index] = normal;
-}
-
-
-void PlyMesh::addPolygon(const glm::vec3 *verts, unsigned order, const Colour &colour)
-{
-  if (!order)
-  {
-    return;
-  }
-
-  Poly poly;
-  poly.indices_start = polygon_indices_.size();
-  poly.order = order;
-  poly.colour = colour;
-
-  // Use push_back() for indices, not resize() to allow vector
-  // to increase in size in a more expansive way (reduce reallocation).
-  const unsigned index_offset = unsigned(vertices_.size());
-  addVertices(verts, order);
-  for (unsigned i = 0; i < order; ++i)
-  {
-    polygon_indices_.push_back(index_offset + i);
-  }
-
-  face_colours_ = face_colours_ || colour != Colour::kColours[Colour::kWhite];
-
-  polygons_.push_back(poly);
-}
-
-
-void PlyMesh::addMappedTriangle(const glm::vec3 *verts, const unsigned *vert_ids, const Colour *colour)
-{
-  if (!index_mapper_)
-  {
-    index_mapper_ = new std::unordered_map<unsigned, unsigned>;
-  }
-
-  Tri tri;
-  tri.colour = (colour) ? *colour : Colour(kDefaultColour);
-  face_colours_ = face_colours_ || colour != nullptr;
-  for (unsigned i = 0; i < 3; ++i)
-  {
-    auto search = index_mapper_->find(vert_ids[i]);
-    if (search == index_mapper_->end())
-    {
-      tri.v[i] = uint32_t(vertices_.size());
-      addVertex(verts[i]);
-    }
-    else
-    {
-      tri.v[i] = search->second;
-    }
-  }
-  triangles_.push_back(tri);
-}
-
-
-void PlyMesh::addMappedPolygon(const glm::vec3 *verts, const unsigned *vert_ids, unsigned order, const Colour *colour)
-{
-  if (!index_mapper_)
-  {
-    index_mapper_ = new std::unordered_map<unsigned, unsigned>;
-  }
-
-  Poly poly;
-  poly.indices_start = polygon_indices_.size();
-  poly.order = 0;
-  poly.colour = (colour) ? *colour : Colour(kDefaultColour);
-  face_colours_ = face_colours_ || colour != nullptr;
-  for (unsigned i = 0; i < order; ++i)
-  {
-    auto search = index_mapper_->find(vert_ids[i]);
-    if (search == index_mapper_->end())
-    {
-      polygon_indices_.push_back(uint32_t(vertices_.size()));
-      addVertex(verts[i]);
-    }
-    else
-    {
-      polygon_indices_.push_back(search->second);
-    }
-  }
-  polygons_.push_back(poly);
-}
-
-
-void PlyMesh::addMappedEdge(const glm::vec3 *verts, const unsigned *vert_ids, const Colour *colour)
-{
-  if (!index_mapper_)
-  {
-    index_mapper_ = new std::unordered_map<unsigned, unsigned>;
-  }
-
-  Edge edge;
-  edge.colour = (colour) ? *colour : Colour(kDefaultColour);
-  edge_colours_ = edge_colours_ || colour != nullptr;
-  for (unsigned i = 0; i < 2; ++i)
-  {
-    auto search = index_mapper_->find(vert_ids[i]);
-    if (search == index_mapper_->end())
-    {
-      edge.v[i] = uint32_t(vertices_.size());
-      addVertex(verts[i]);
-    }
-    else
-    {
-      edge.v[i] = search->second;
-    }
-  }
-  edges_.push_back(edge);
 }
 
 
@@ -641,5 +569,199 @@ bool PlyMesh::save(FileWrapper<T> &out, bool binary) const
 }
 
 
-template bool PlyMesh::save<FILE>(FileWrapper<FILE> &out, bool binary) const;
-template bool PlyMesh::save<std::ostream>(FileWrapper<std::ostream> &out, bool binary) const;
+template bool PlyMesh::save(FileWrapper<FILE> &out, bool binary) const;
+template bool PlyMesh::save(FileWrapper<std::ostream> &out, bool binary) const;
+
+
+template <typename VEC3>
+unsigned PlyMesh::addVerticesT(const VEC3 *verts, unsigned count, const Colour *colours)
+{
+  unsigned index = unsigned(vertices_.size());
+  for (unsigned i = 0; i < count; ++i)
+  {
+    Vertex v;
+    v.point = VertexType(verts[i]);
+    v.colour = Colour(255, 255, 255);
+    if (colours)
+    {
+      vertex_colours_ = true;
+      v.colour = colours[i];
+    }
+    vertices_.push_back(v);
+  }
+  return index;
+}
+
+template unsigned PlyMesh::addVerticesT(const glm::vec3 *verts, unsigned count, const Colour *colours);
+template unsigned PlyMesh::addVerticesT(const glm::dvec3 *verts, unsigned count, const Colour *colours);
+
+
+template <typename VEC3>
+void PlyMesh::setNormalT(unsigned vertex_index, const VEC3 &normal)
+{
+  if (normals_.size() <= vertex_index)
+  {
+    normals_.reserve(std::max<size_t>(vertex_index + 1, vertices_.size()));
+    while (normals_.size() <= vertex_index)
+    {
+      normals_.push_back(VertexType(0, 0, 0));
+    }
+  }
+
+  normals_[vertex_index] = VertexType(normal);
+}
+
+template void PlyMesh::setNormalT(unsigned vertex_index, const glm::vec3 &normal);
+template void PlyMesh::setNormalT(unsigned vertex_index, const glm::dvec3 &normal);
+
+template <typename VEC3>
+void PlyMesh::addEdgeT(const VEC3 &v0, const VEC3 &v1, const Colour &colour)
+{
+  unsigned i0, i1;
+  i0 = unsigned(vertices_.size());
+  addVertices(&v0, 1);
+  i1 = unsigned(vertices_.size());
+  addVertices(&v1, 1);
+  addEdge(i0, i1, colour);
+}
+
+template void PlyMesh::addEdgeT(const glm::vec3 &v0, const glm::vec3 &v1, const Colour &colour);
+template void PlyMesh::addEdgeT(const glm::dvec3 &v0, const glm::dvec3 &v1, const Colour &colour);
+
+template <typename VEC3>
+void PlyMesh::addTriangleT(const VEC3 &v0, const VEC3 &v1, const VEC3 &v2, const Colour &colour)
+{
+  unsigned i0, i1, i2;
+  i0 = unsigned(vertices_.size());
+  addVertices(&v0, 1);
+  i1 = unsigned(vertices_.size());
+  addVertices(&v1, 1);
+  i2 = unsigned(vertices_.size());
+  addVertices(&v2, 1);
+  addTriangle(i0, i1, i2, colour);
+}
+
+template void PlyMesh::addTriangleT(const glm::vec3 &v0, const glm::vec3 &v1, const glm::vec3 &v2, const Colour &colour);
+template void PlyMesh::addTriangleT(const glm::dvec3 &v0, const glm::dvec3 &v1, const glm::dvec3 &v2, const Colour &colour);
+
+template <typename VEC3>
+void PlyMesh::addPolygonT(const VEC3 *verts, unsigned order, const Colour &colour)
+{
+  if (!order)
+  {
+    return;
+  }
+
+  Poly poly;
+  poly.indices_start = polygon_indices_.size();
+  poly.order = order;
+  poly.colour = colour;
+
+  // Use push_back() for indices, not resize() to allow vector
+  // to increase in size in a more expansive way (reduce reallocation).
+  const unsigned index_offset = unsigned(vertices_.size());
+  addVertices(verts, order);
+  for (unsigned i = 0; i < order; ++i)
+  {
+    polygon_indices_.push_back(index_offset + i);
+  }
+
+  face_colours_ = face_colours_ || colour != Colour::kColours[Colour::kWhite];
+
+  polygons_.push_back(poly);
+}
+
+template void PlyMesh::addPolygonT(const glm::vec3 *verts, unsigned order, const Colour &colour);
+template void PlyMesh::addPolygonT(const glm::dvec3 *verts, unsigned order, const Colour &colour);
+
+template <typename VEC3>
+void PlyMesh::addMappedTriangleT(const VEC3 *verts, const unsigned *vert_ids, const Colour *colour)
+{
+  if (!index_mapper_)
+  {
+    index_mapper_ = new std::unordered_map<unsigned, unsigned>;
+  }
+
+  Tri tri;
+  tri.colour = (colour) ? *colour : Colour(kDefaultColour);
+  face_colours_ = face_colours_ || colour != nullptr;
+  for (unsigned i = 0; i < 3; ++i)
+  {
+    auto search = index_mapper_->find(vert_ids[i]);
+    if (search == index_mapper_->end())
+    {
+      tri.v[i] = uint32_t(vertices_.size());
+      addVertex(verts[i]);
+    }
+    else
+    {
+      tri.v[i] = search->second;
+    }
+  }
+  triangles_.push_back(tri);
+}
+
+template void PlyMesh::addMappedTriangleT(const glm::vec3 *verts, const unsigned *vert_ids, const Colour *colour);
+template void PlyMesh::addMappedTriangleT(const glm::dvec3 *verts, const unsigned *vert_ids, const Colour *colour);
+
+template <typename VEC3>
+void PlyMesh::addMappedPolygonT(const VEC3 *verts, const unsigned *vert_ids, unsigned order, const Colour *colour)
+{
+  if (!index_mapper_)
+  {
+    index_mapper_ = new std::unordered_map<unsigned, unsigned>;
+  }
+
+  Poly poly;
+  poly.indices_start = polygon_indices_.size();
+  poly.order = 0;
+  poly.colour = (colour) ? *colour : Colour(kDefaultColour);
+  face_colours_ = face_colours_ || colour != nullptr;
+  for (unsigned i = 0; i < order; ++i)
+  {
+    auto search = index_mapper_->find(vert_ids[i]);
+    if (search == index_mapper_->end())
+    {
+      polygon_indices_.push_back(uint32_t(vertices_.size()));
+      addVertex(verts[i]);
+    }
+    else
+    {
+      polygon_indices_.push_back(search->second);
+    }
+  }
+  polygons_.push_back(poly);
+}
+
+template void PlyMesh::addMappedPolygonT(const glm::vec3 *verts, const unsigned *vert_ids, unsigned order, const Colour *colour);
+template void PlyMesh::addMappedPolygonT(const glm::dvec3 *verts, const unsigned *vert_ids, unsigned order, const Colour *colour);
+
+template <typename VEC3>
+void PlyMesh::addMappedEdgeT(const VEC3 *verts, const unsigned *vert_ids, const Colour *colour)
+{
+  if (!index_mapper_)
+  {
+    index_mapper_ = new std::unordered_map<unsigned, unsigned>;
+  }
+
+  Edge edge;
+  edge.colour = (colour) ? *colour : Colour(kDefaultColour);
+  edge_colours_ = edge_colours_ || colour != nullptr;
+  for (unsigned i = 0; i < 2; ++i)
+  {
+    auto search = index_mapper_->find(vert_ids[i]);
+    if (search == index_mapper_->end())
+    {
+      edge.v[i] = uint32_t(vertices_.size());
+      addVertex(verts[i]);
+    }
+    else
+    {
+      edge.v[i] = search->second;
+    }
+  }
+  edges_.push_back(edge);
+}
+
+template void PlyMesh::addMappedEdgeT(const glm::vec3 *verts, const unsigned *vert_ids, const Colour *colour);
+template void PlyMesh::addMappedEdgeT(const glm::dvec3 *verts, const unsigned *vert_ids, const Colour *colour);

@@ -6,6 +6,7 @@ set(SOURCES
 )
 
 add_executable(ohm2ply ${SOURCES})
+leak_track_target_enable(ohm2ply CONDITION OHM_LEAK_TRACK)
 
 set_target_properties(ohm2ply PROPERTIES FOLDER utils)
 if(MSVC)
@@ -18,7 +19,7 @@ target_include_directories(ohm2ply SYSTEM
     "${ZLIB_INCLUDE_DIRS}"
 )
 
-target_link_libraries(ohm2ply ohm ohmutil ${ZLIB_LIBRARIES})
+target_link_libraries(ohm2ply PUBLIC ohm ohmutil ${ZLIB_LIBRARIES})
 
 source_group("source" REGULAR_EXPRESSION ".*$")
 # Needs CMake 3.8+:

@@ -31,7 +31,7 @@ inline std::shared_ptr<cxxopts::Value> optVal(T &val)
 
 inline std::shared_ptr<cxxopts::Value> optVal(bool &val)
 {
-  return cxxopts::value(val)->implicit_value(optStr(val))->default_value(val ? "true" : "false");
+  return cxxopts::value(val)->implicit_value("true")->default_value(val ? "true" : "false");
 }
 
 #pragma warning(pop)

@@ -28,15 +28,13 @@ generate_export_header(ohmheightmaputil
       EXPORT_FILE_NAME ohmheightmaputil/OhmHeightmapUtilExport.h
       STATIC_DEFINE OHMTOOLS_STATIC)
 
-target_link_libraries(ohmheightmaputil ohm ohmutil)
-target_link_libraries(ohmheightmaputil
+target_link_libraries(ohmheightmaputil PUBLIC ohm ohmutil)
+target_link_libraries(ohmheightmaputil PUBLIC
   OpenGL::GL
   OpenGL::GLU
   ${GLEW_LIBRARIES}
   glfw
   )# OpenGL::GLX)
-
-target_link_libraries(ohmheightmaputil)
 
 target_include_directories(ohmheightmaputil
   PUBLIC
@@ -53,7 +51,7 @@ target_include_directories(ohmheightmaputil SYSTEM
 )
 
 if(OHM_TES_DEBUG)
-  target_link_libraries(ohmheightmaputil 3es::3es-core)
+  target_link_libraries(ohmheightmaputil PUBLIC 3es::3es-core)
 else(OHM_TES_DEBUG)
   target_include_directories(ohmheightmaputil PRIVATE SYSTEM "${3ES_INCLUDE_DIRS}")
 endif(OHM_TES_DEBUG)

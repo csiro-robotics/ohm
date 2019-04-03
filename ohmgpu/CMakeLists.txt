@@ -78,7 +78,7 @@ set(GPU_HEADERS
 
 function(_ohmgpu_setup_target TARGET_NAME GPUTIL_LIBRARY OHM_GPU)
   target_compile_definitions(${TARGET_NAME} PUBLIC "-DOHM_GPU=${OHM_GPU}")
-  target_link_libraries(${TARGET_NAME} ohm ohmutil ${GPUTIL_LIBRARY})
+  target_link_libraries(${TARGET_NAME} PUBLIC ohm ohmutil ${GPUTIL_LIBRARY})
 
   target_include_directories(${TARGET_NAME}
     PUBLIC
@@ -96,7 +96,7 @@ function(_ohmgpu_setup_target TARGET_NAME GPUTIL_LIBRARY OHM_GPU)
   )
 
   if(OHM_TES_DEBUG)
-    target_link_libraries(${TARGET_NAME} 3es::3es-core)
+    target_link_libraries(${TARGET_NAME} PUBLIC 3es::3es-core)
   else(OHM_TES_DEBUG)
     target_include_directories(${TARGET_NAME} PRIVATE SYSTEM "${3ES_INCLUDE_DIRS}")
   endif(OHM_TES_DEBUG)
@@ -151,7 +151,7 @@ if(OHM_BUILD_OPENCL)
 
   add_library(ohmocl ${SOURCES} ${GPU_SOURCES} ${GPU_HEADERS})
   _ohmgpu_setup_target(ohmocl gputilocl ${OHM_GPU_OPENCL})
-  target_link_libraries(ohmocl clu)
+  target_link_libraries(ohmocl PUBLIC clu)
 
   if(NOT OHM_EMBED_GPU_CODE)
     # Not embedding GPU source code. Make sure we marshal GPU headers as well as code.
