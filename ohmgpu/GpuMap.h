@@ -197,8 +197,26 @@ namespace ohm
     ///   In this case either the GPU is unavailable, or all @p rays are invalid.
     unsigned integrateRays(const glm::dvec3 *rays, unsigned element_count, unsigned region_update_flags = kRfDefault);
 
-    void applyClearingPattern(const glm::dvec3 &position, const glm::dvec3 &cone_axis, double cone_angle, double range, double angular_resolution = 0);
+    /// Integrate a ray clearing pattern into the map. A clearing is integrated as a set of rays using the @c RayFlag
+    /// set: @c kRfStopOnFirstOccupied, @c kRfClearOnly. This has the effect of reducing the probability of the first
+    /// occupied voxel encountered, then stopping ray traversal.
+    ///
+    /// Clearing patterns are intended as a way to remove samples which would otherwise persist. This may occur when
+    /// lidar samples are added from a transient object, the object moves, but no new samples are attained behind the
+    /// transient samples. A clearing pattern will erode these. The erosion is countered by resampling where obstacles
+    /// persist.
+    ///
+    /// @param rays The set of clearing pattern rays to integrate into the map.
+    /// @param element_count Number of origin/end point pairs in @p rays. Must be even/
     void applyClearingPattern(const glm::dvec3 *rays, unsigned element_count);
+
+    /// An overload which builds a clearance pattern from a cone.
+    /// @param apex The apex of the cone.
+    /// @param cone_axis The central axis of the cone.
+    /// @param cone_angle The angle between @p cone_axis and the cone wall (radians).
+    /// @param range The length of each ray in the cone. Note this makes for a round bottom cone.
+    /// @param angular_resolution The angular resolution to build the cone to (radians).
+    void applyClearingPattern(const glm::dvec3 &apex, const glm::dvec3 &cone_axis, double cone_angle, double range, double angular_resolution = 0);
 
     /// Internal use: get the GPU cache used by this map.
     /// @return The GPU cache this map uses.
@@ -214,6 +232,13 @@ namespace ohm
     /// Release the current GPU program.
     void releaseGpuProgram();
 
+    /// Implementation for various ways we can integrate rays into the map. See @c integrateRays() for general detail.
+    /// @param rays Array of origin/sample point pairs. Expect either @c glm::dvec3 (preferred) or @c glm::vec3.
+    /// @param element_count The number of points in @p rays. The ray count is half this value.
+    /// @param region_update_flags Flags controlling ray integration behaviour. See @c RayFlag.
+    /// @param filter Filter function apply to each ray before passing to GPU. May be empty.
+    /// @return The number of rays integrated. Zero indicates a failure when @p pointCount is not zero.
+    ///   In this case either the GPU is unavailable, or all @p rays are invalid.
     template <typename VEC_TYPE>
     unsigned integrateRaysT(const VEC_TYPE *rays, unsigned element_count, unsigned region_update_flags,
                             const RayFilterFunction &filter);

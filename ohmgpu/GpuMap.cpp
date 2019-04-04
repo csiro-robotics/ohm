@@ -337,7 +337,19 @@ unsigned GpuMap::integrateRays(const glm::dvec3 *rays, unsigned element_count, u
 }
 
 
-void GpuMap::applyClearingPattern(const glm::dvec3 &position, const glm::dvec3 &cone_axis, double cone_angle,
+void GpuMap::applyClearingPattern(const glm::dvec3 *rays, unsigned element_count)
+{
+  // Only apply the good ray filter.
+  const auto clearing_ray_filter = [](glm::dvec3 *start, glm::dvec3 *end, unsigned *filter_flags)  //
+  { //
+    return goodRayFilter(start, end, filter_flags, 1e4);
+  };
+  const unsigned flags = kRfEndPointAsFree | kRfStopOnFirstOccupied | kRfClearOnly;
+  integrateRaysT(rays, element_count, flags, clearing_ray_filter);
+}
+
+
+void GpuMap::applyClearingPattern(const glm::dvec3 &apex, const glm::dvec3 &cone_axis, double cone_angle,
                                   double range, double angular_resolution)
 {
   // Build a set of rays to process from the cone definition.
@@ -369,26 +381,14 @@ void GpuMap::applyClearingPattern(const glm::dvec3 &position, const glm::dvec3 &
     {
       const glm::dquat deflection = glm::angleAxis(deflection_angle, deflection_axis);
       const glm::dvec3 ray = deflection * cone_normal;
-      const glm::dvec3 end_point = position + ray * range;
-      rays.push_back(position);
+      const glm::dvec3 end_point = apex + ray * range;
+      rays.push_back(apex);
       rays.push_back(end_point);
     }
   }
 
   // Now apply these rays.
   applyClearingPattern(rays.data(), unsigned(rays.size()));
-}
-
-
-void GpuMap::applyClearingPattern(const glm::dvec3 *rays, unsigned element_count)
-{
-  // Only apply the good ray filter.
-  const auto clearing_ray_filter = [](glm::dvec3 *start, glm::dvec3 *end, unsigned *filter_flags)  //
-  { //
-    return goodRayFilter(start, end, filter_flags, 1e4);
-  };
-  const unsigned flags = kRfEndPointAsFree | kRfStopOnFirstOccupied | kRfClearOnly;
-  integrateRaysT(rays, element_count, flags, clearing_ray_filter);
 }
 
 

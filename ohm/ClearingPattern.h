@@ -20,7 +20,7 @@ namespace ohm
   struct ClearingPatternDetail;
   class OccupancyMap;
 
-  /// A helper class for applying a @c RayPattern as a clearing patter to an @c OccupancyMap. The @p apply() method is
+  /// A helper class for applying a @c RayPattern as a clearing pattern to an @c OccupancyMap. The @p apply() method is
   /// templated so that it may also be used to apply a clearing pattern to a @c GpuMap.
   ///
   /// The class is constructed with a @c RayPattern, optionally taking ownership of the pointer. The @c apply() method
@@ -28,7 +28,7 @@ namespace ohm
   /// This means the rays are applied with the following flags: <tt>kRfEndPointAsFree | kRfStopOnFirstOccupied |
   /// kRfClearOnly</tt>.
   ///
-  /// This has the effect of having rays only degrade the first occupied voxel struck, then halt traversal. Interveining
+  /// This has the effect of having rays only degrade the first occupied voxel struck, then halt traversal. Intervening
   /// voxels are left unchanged.
   class ClearingPattern
   {
@@ -49,10 +49,10 @@ namespace ohm
     /// @return True if this class owns the @p pattern() memory.
     bool hasPatternOwnership() const;
 
-    /// Apply the clearing patter to the @p map. This clears
+    /// Apply the clearing pattern to the @p map. This clears
     void apply(OccupancyMap *map, const glm::dvec3 &position, const glm::dquat &rotation, double scaling = 1.0);
 
-    /// Apply the clearing patter to the @p map. This clears
+    /// Apply the clearing pattern to the @p map. This clears
     template <typename MAP>
     void apply(MAP *map, const glm::dvec3 &position, const glm::dquat &rotation, double scaling = 1.0);
 

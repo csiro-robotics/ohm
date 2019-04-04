@@ -20,7 +20,7 @@ namespace ohm
   /// A @c RayPattern defines a set of ray end points with a common origin. The class may be used to define a custom
   /// point set or derived to define a pre-determined pattern.
   ///
-  /// The @c RayPattern is indended for use with the @c ClearingPattern utility.
+  /// The @c RayPattern is intended for use with the @c ClearingPattern utility.
   class ohm_API RayPattern
   {
   protected:
@@ -60,7 +60,7 @@ namespace ohm
     /// @param scaling Optional uniform scaling to apply to the pattern.
     /// @return The number of elements added to @p rays (twice the @c pointCount()).
     size_t buildRays(std::vector<glm::dvec3> *rays, const glm::dvec3 &position, const glm::dquat &rotation,
-                     const double scaling = 1.0) const;
+                     double scaling = 1.0) const;
 
   private:
     std::unique_ptr<ohm::RayPatternDetail> imp_;

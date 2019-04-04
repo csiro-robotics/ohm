@@ -43,14 +43,14 @@ const glm::dvec3 *RayPattern::points() const
 }
 
 size_t RayPattern::buildRays(std::vector<glm::dvec3> *rays, const glm::dvec3 &position, const glm::dquat &rotation,
-                             double scale) const
+                             double scaling) const
 {
   rays->clear();
   rays->reserve(pointCount() * 2);
   for (glm::dvec3 ray : imp_->points)
   {
     rays->push_back(position);
-    ray = rotation * (scale * ray) + position;
+    ray = rotation * (scaling * ray) + position;
     rays->push_back(ray);
   }
 
