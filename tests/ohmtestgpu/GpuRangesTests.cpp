@@ -474,10 +474,10 @@ namespace ranges
   }
 
 
-  void scalingTest(bool gpu, bool sub_voxel = false)
+  void scalingTest(bool gpu, bool sub_voxel = false, unsigned region_dim = 8)
   {
     const double resolution = 0.25;
-    const glm::u8vec3 region_size(32);
+    const glm::u8vec3 region_size(region_dim);
     const float search_range = 2.0f;
 
     ohm::Profile profile;

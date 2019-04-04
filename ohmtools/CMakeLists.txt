@@ -27,7 +27,7 @@ generate_export_header(ohmtools
       EXPORT_FILE_NAME ohmtools/OhmToolsExport.h
       STATIC_DEFINE OHMTOOLS_STATIC)
 
-target_link_libraries(ohmtools ohm ohmutil)
+target_link_libraries(ohmtools PUBLIC ohm ohmutil)
 
 target_include_directories(ohmtools
   PUBLIC

@@ -15,6 +15,7 @@ set(GPU_SOURCES
 )
 
 function(_gputiltest_setup_target TARGET_NAME GPUTIL_LIBRARY)
+  leak_track_target_enable(${TARGET_NAME} CONDITION OHM_LEAK_TRACK)
   set_target_properties(${TARGET_NAME} PROPERTIES FOLDER tests)
   if(MSVC)
     set_target_properties(${TARGET_NAME} PROPERTIES DEBUG_POSTFIX "d")
@@ -32,7 +33,7 @@ function(_gputiltest_setup_target TARGET_NAME GPUTIL_LIBRARY)
       $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}>
   )
 
-  target_link_libraries(${TARGET_NAME} ${GPUTIL_LIBRARY} GTest::Main)
+  target_link_libraries(${TARGET_NAME} PUBLIC ${GPUTIL_LIBRARY} GTest::Main)
 
   add_test(NAME ${TARGET_NAME} COMMAND ${TARGET_NAME} --gtest_output=xml:test-reports/)
 
@@ -57,6 +58,11 @@ if(OPENCL_FOUND)
 
   add_executable(gputiltestocl ${SOURCES} ${GPU_SOURCES})
   _gputiltest_setup_target(gputiltestocl gputilocl)
+  # Required to run NVIDIA OpenCL
+  leak_track_default_options(gputiltestocl CONDITION OHM_LEAK_TRACK ${OHM_ASAN_OPTIONS_CUDA})
+  leak_track_suppress(gputiltestocl CONDITION OHM_LEAK_TRACK
+    ${OHM_LEAK_SUPPRESS_OCL}
+  )
 endif(OPENCL_FOUND)
 
 if(CUDA_FOUND)
@@ -65,6 +71,10 @@ if(CUDA_FOUND)
   )
   cuda_add_executable(gputiltestcuda ${SOURCES} ${GPU_SOURCES})
   _gputiltest_setup_target(gputiltestcuda gputilcuda)
+  leak_track_default_options(gputiltestcuda CONDITION OHM_LEAK_TRACK ${OHM_ASAN_OPTIONS_CUDA})
+  leak_track_suppress(gputiltestcuda CONDITION OHM_LEAK_TRACK
+    ${OHM_LEAK_SUPPRESS_CUDA}
+  )
 endif(CUDA_FOUND)
 
 source_group("source" REGULAR_EXPRESSION ".*$")

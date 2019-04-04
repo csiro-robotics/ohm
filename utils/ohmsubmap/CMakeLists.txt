@@ -6,6 +6,7 @@ set(SOURCES
 )
 
 add_executable(ohmsubmap ${SOURCES})
+leak_track_target_enable(ohmsubmap CONDITION OHM_LEAK_TRACK)
 
 set_target_properties(ohmsubmap PROPERTIES FOLDER utils)
 if(MSVC)
@@ -18,7 +19,7 @@ target_include_directories(ohmsubmap SYSTEM
     "${ZLIB_INCLUDE_DIRS}"
 )
 
-target_link_libraries(ohmsubmap ohm ohmutil ${ZLIB_LIBRARIES})
+target_link_libraries(ohmsubmap PUBLIC ohm ohmutil ${ZLIB_LIBRARIES})
 
 source_group("source" REGULAR_EXPRESSION ".*$")
 # Needs CMake 3.8+:

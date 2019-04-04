@@ -52,6 +52,7 @@ namespace ohm
     if (!initialised)
     {
       memset(&stream, 0u, sizeof(stream));
+      initialised = true;
       return deflateInit(&stream, Z_DEFAULT_COMPRESSION);
     }
     return Z_OK;
@@ -74,6 +75,7 @@ namespace ohm
     if (!initialised)
     {
       memset(&stream, 0u, sizeof(stream));
+      initialised = true;
       return inflateInit(&stream);
     }
     return Z_OK;
@@ -184,6 +186,7 @@ InputStream::InputStream(const char *file_path, unsigned flags)
 
 InputStream::~InputStream()
 {
+  close();
   delete imp();
 }
 

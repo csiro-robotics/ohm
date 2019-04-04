@@ -45,6 +45,9 @@ endif(CMAKE_POSITION_INDEPENDENT_CODE)
 # Use CMAKE_MODULE_PATH and include(warnings) if warnings.cmake is moved.
 include(compilerSetup)
 
+# Add memory leak tracking support.
+include(LeakTrack)
+
 # Configure installation prefixes.
 # set(OHM_PREFIX_PACKAGE lib/cmake/${CMAKE_PROJECT_NAME})
 set(OHM_PREFIX_PACKAGE share/${CMAKE_PROJECT_NAME}/cmake) # For catkin interoperation
@@ -53,6 +56,8 @@ set(OHM_PREFIX_INCLUDE include/ohm)
 
 # Look for OpenCL and CUDA to setup GPU build options
 find_package(CUDA QUIET)
+# Ensure CUDA libraries are linked with the PUBLIC keyword to support dependency propagation.
+set(CUDA_LINK_LIBRARIES_KEYWORD PUBLIC)
 find_package(OpenCL QUIET)
 
 set(OHM_BUILD_CUDA_DEFAULT NO)
@@ -100,6 +105,34 @@ option(OHM_VALIDATION "Enable various validation tests in the occupancy map code
 option(OHM_BUILD_CUDA "Build ohm library and utlities for CUDA?" ${OHM_BUILD_CUDA_DEFAULT})
 option(OHM_BUILD_OPENCL "Build ohm library and utlities for OpenCL?" ${OHM_BUILD_OPENCL_DEFAULT})
 option(OHM_BUILD_HEIGHTMAPUTIL "Build the heightmap to image conversion library and utility?" ON)
+option(OHM_LEAK_TRACK "Enable memory leak tracking?" OFF)
+
+# Setup default memory leak tracking suppressions and options (GCC/Clang AddressSanitizer).
+set(OHM_LEAK_SUPPRESS_OCL_INIT
+  # OpenCL memory allocation overrides
+  "__interceptor_malloc"
+  "__interceptor_calloc"
+  # Intel OpenCL leaks
+  "libigdrcl"
+  "llvm::FPPassManager::runOnFunction"
+  "llvm::SmallVectorBase"
+  "libigc"
+  "basic_string<char, std::char_traits<char>, std::allocator<char> >::_M_mutate"
+)
+
+set(OHM_LEAK_SUPPRESS_TBB_INIT
+  "libtbb"
+)
+
+set(OHM_LEAK_SUPPRESS_CUDA_INIT
+)
+
+set(OHM_ASAN_OPTIONS_CUDA_INIT "protect_shadow_gap=0")
+
+set(OHM_LEAK_SUPPRESS_OCL "${OHM_LEAK_SUPPRESS_OCL_INIT}" CACHE STRING "Memory leak suppression list for OpenCL")
+set(OHM_LEAK_SUPPRESS_TBB "${OHM_LEAK_SUPPRESS_TBB_INIT}" CACHE STRING "Memory leak suppression list for Intel Threading Building Blocks")
+set(OHM_LEAK_SUPPRESS_CUDA "${OHM_LEAK_SUPPRESS_CUDA_INIT}" CACHE STRING "Memory leak suppression list for CUDA")
+set(OHM_ASAN_OPTIONS_CUDA "${OHM_ASAN_OPTIONS_CUDA_INIT}" CACHE STRING "Address Sanitizer options for CUDA")
 
 # Configure OHM_GPU as a value for configure_file
 set(OHM_GPU_OPENCL 1)

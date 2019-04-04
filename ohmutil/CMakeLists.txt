@@ -90,7 +90,7 @@ target_include_directories(ohmutil SYSTEM
 
 # Kazys: Why did this suddenly become necessary on my Linux desktop?
 if(TARGET Threads::Threads)
-  target_link_libraries(ohmutil Threads::Threads)
+  target_link_libraries(ohmutil PUBLIC Threads::Threads)
 endif()
 
 install(TARGETS ohmutil EXPORT ${CMAKE_PROJECT_NAME}-config-targets

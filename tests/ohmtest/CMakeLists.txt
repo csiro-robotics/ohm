@@ -28,6 +28,10 @@ set(SOURCES
 )
 
 add_executable(ohmtest ${SOURCES})
+leak_track_target_enable(ohmtest CONDITION OHM_LEAK_TRACK)
+leak_track_suppress(ohmtest CONDITION OHM_LEAK_TRACK
+  ${OHM_LEAK_SUPPRESS_TBB}
+)
 
 set_target_properties(ohmtest PROPERTIES FOLDER tests)
 if(MSVC)
@@ -46,13 +50,13 @@ target_include_directories(ohmtest SYSTEM
     "${GTEST_INCLUDE_DIRS}"
 )
 
-target_link_libraries(ohmtest ohmtestcommon ohmtools ohm ohmutil GTest::Main)
+target_link_libraries(ohmtest PUBLIC ohmtestcommon ohmtools ohm ohmutil GTest::Main)
 if(PNG_FOUND)
-  target_link_libraries(ohmtest PNG::PNG)
+  target_link_libraries(ohmtest PUBLIC PNG::PNG)
 endif(PNG_FOUND)
 
 if(OHM_TES_DEBUG)
-  target_link_libraries(ohmtest 3es::3es-core)
+  target_link_libraries(ohmtest PUBLIC 3es::3es-core)
 else(OHM_TES_DEBUG)
   target_include_directories(ohmtest PRIVATE SYSTEM "${3ES_INCLUDE_DIRS}")
 endif(OHM_TES_DEBUG)

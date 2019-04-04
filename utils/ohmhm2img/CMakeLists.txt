@@ -6,6 +6,7 @@ set(SOURCES
 )
 
 add_executable(ohmhm2img ${SOURCES})
+leak_track_target_enable(ohmhm2img CONDITION OHM_LEAK_TRACK)
 
 set_target_properties(ohmhm2img PROPERTIES FOLDER utils)
 if(MSVC)
@@ -18,7 +19,7 @@ target_include_directories(ohmhm2img SYSTEM
     "${ZLIB_INCLUDE_DIRS}"
 )
 
-target_link_libraries(ohmhm2img ohm ohmutil ${ZLIB_LIBRARIES} ohmheightmaputil PNG::PNG)
+target_link_libraries(ohmhm2img PUBLIC ohm ohmutil ${ZLIB_LIBRARIES} ohmheightmaputil PNG::PNG)
 
 source_group("source" REGULAR_EXPRESSION ".*$")
 # Needs CMake 3.8+:
