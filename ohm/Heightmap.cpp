@@ -16,6 +16,7 @@
 #include "MapLayer.h"
 #include "MapLayout.h"
 #include "OccupancyMap.h"
+#include "OccupancyType.h"
 #include "Voxel.h"
 
 #include <algorithm>
@@ -115,17 +116,24 @@ namespace
   }
 
 
-  inline bool sourceVoxelHeight(glm::dvec3 *voxel_position, double *height, const VoxelConst &voxel,
-                                const glm::dvec3 &up, bool force_voxel_centre)
+  inline ohm::OccupancyType sourceVoxelHeight(glm::dvec3 *voxel_position, double *height, const OccupancyMap &map,
+                                              const VoxelConst &voxel, const Key &voxel_key, const glm::dvec3 &up,
+                                              bool force_voxel_centre)
   {
-    if (voxel.isOccupied())
+    ohm::OccupancyType voxel_type = ohm::OccupancyType(map.occupancyType(voxel));
+    if (voxel_type == ohm::Occupied)
     {
       // Determine the height offset for voxel.
       *voxel_position = (force_voxel_centre) ? voxel.centreGlobal() : voxel.position();
-      *height = glm::dot(*voxel_position, up);
-      return true;
     }
-    return false;
+    else
+    {
+      // Return the voxel centre. Voxel may be invalid, so use the map interface on the key.
+      *voxel_position = map.voxelCentreGlobal(voxel_key);
+    }
+    *height = glm::dot(*voxel_position, up);
+
+    return voxel_type;
   }
 
 
@@ -170,20 +178,22 @@ namespace
         // PROFILE(column);
         VoxelConst src_voxel = src_map.voxel(src_key, &src_cache);
 
-        if (sourceVoxelHeight(&sub_voxel_pos, &height, src_voxel, imp->up, imp->ignore_sub_voxel_positioning))
+        const ohm::OccupancyType voxel_type = sourceVoxelHeight(&sub_voxel_pos, &height, src_map, src_voxel, src_key,
+                                                                imp->up, imp->ignore_sub_voxel_positioning);
+        if (imp->floor > 0 && height < base_height - imp->floor)
         {
-          if (imp->floor > 0 && height < base_height - imp->floor)
-          {
-            // Below floor: don't start heightmap yet.
-            continue;
-          }
+          // Below floor: don't start heightmap yet.
+          continue;
+        }
 
-          if (imp->ceiling > 0 && height > base_height + imp->ceiling)
-          {
-            // Above ceiling: done with this column.
-            break;
-          }
+        if (imp->ceiling > 0 && height > base_height + imp->ceiling)
+        {
+          // Above ceiling: done with this column.
+          break;
+        }
 
+        if (voxel_type == ohm::Occupied)
+        {
           if (height < column_height)
           {
             // First voxel in column.
