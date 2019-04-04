@@ -13,9 +13,11 @@
 #include <ohm/OccupancyUtil.h>
 #include <ohm/Voxel.h>
 
+#ifndef OHMPOP_CPU
 #include <ohmgpu/ClearanceProcess.h>
 #include <ohmgpu/GpuMap.h>
 #include <ohmgpu/OhmGpu.h>
+#endif  // OHMPOP_CPU
 
 #include <ohmutil/OhmUtil.h>
 #include <ohmutil/PlyMesh.h>
@@ -71,20 +73,22 @@ namespace
     double time_limit = 0;
     double resolution = 0.25;
     double sub_voxel_weighting = 0.0f;
-    double progressive_mapping_slice = 0.0;
-    double mapping_interval = 0.2;
     double clip_near_range = 0.0;
     float prob_hit = 0.9f;
     float prob_miss = 0.49f;
     float prob_thresh = 0.5f;
-    float clearance = 0.0f;
     float sub_voxel_filter = 0.0f;
     glm::vec2 prob_range = glm::vec2(0, 0);
     unsigned batch_size = 2048;
-    bool post_population_mapping = true;
     bool serialise = true;
     bool save_info = false;
+#ifndef OHMPOP_CPU
+    double mapping_interval = 0.2;
+    double progressive_mapping_slice = 0.0;
+    float clearance = 0.0f;
+    bool post_population_mapping = true;
     bool clearance_unknown_as_occupied = false;
+#endif  // OHMPOP_CPU
     bool quiet = false;
 
     void print(std::ostream **out, const ohm::OccupancyMap &map) const;
@@ -155,6 +159,7 @@ namespace
       **out << "Miss probability: " << prob_miss << '\n';
       **out << "Probability range: [" << map.minVoxelProbability() << ' ' << map.maxVoxelProbability() << "]\n";
       **out << "Ray batch size: " << batch_size << '\n';
+#ifndef OHMPOP_CPU
       **out << "Clearance mapping: ";
       if (clearance > 0)
       {
@@ -177,6 +182,7 @@ namespace
       {
         **out << "post" << '\n';
       }
+#endif  // OHMPOP_CPU
 
       **out << std::flush;
 
@@ -367,7 +373,9 @@ int populateMap(const Options &opt)
     }
   }
 
+#ifndef OHMPOP_CPU
   ohm::GpuMap gpu_map(&map, true, opt.batch_size);
+#endif  // OHMPOP_CPU
   ohm::Mapper mapper(&map);
   std::vector<double> sample_timestamps;
   std::vector<glm::dvec3> origin_sample_pairs;
@@ -381,7 +389,9 @@ int populateMap(const Options &opt)
   double first_timestamp = -1;
   double last_timestamp = -1;
   double first_batch_timestamp = -1;
+#ifndef OHMPOP_CPU
   double next_mapper_update = opt.mapping_interval;
+#endif  // OHMPOP_CPU
   Clock::time_point start_time, end_time;
 
   if (opt.sub_voxel_weighting > 0)
@@ -395,18 +405,19 @@ int populateMap(const Options &opt)
     map.setSubVoxelFilterScale(opt.sub_voxel_filter);
   }
 
+#ifndef OHMPOP_CPU
   if (!gpu_map.gpuOk())
   {
     std::cerr << "Failed to initialise GpuMap programs." << std::endl;
     return -3;
   }
+#endif  // OHMPOP_CPU
 
   if (opt.clip_near_range)
   {
     std::cout << "Filtering samples closer than: " << opt.clip_near_range << std::endl;
     // Install a self-strike removing clipping box.
-    map.setRayFilter([&opt, &sample](glm::dvec3 *start, glm::dvec3 *end, unsigned *filter_flags) -> bool
-    {
+    map.setRayFilter([&opt, &sample](glm::dvec3 *start, glm::dvec3 *end, unsigned *filter_flags) -> bool {
       // Range filter.
       if (!ohm::goodRayFilter(start, end, filter_flags, 1e3))
       {
@@ -442,6 +453,7 @@ int populateMap(const Options &opt)
   // map.setClampingThresMin(0.01);
   // printf("min: %g\n", map.getClampingThresMinLog());
 
+#ifndef OHMPOP_CPU
   if (opt.clearance > 0)
   {
     unsigned clearance_flags = ohm::kQfGpuEvaluate;
@@ -451,6 +463,7 @@ int populateMap(const Options &opt)
     }
     mapper.addProcess(new ohm::ClearanceProcess(opt.clearance, clearance_flags));
   }
+#endif  // OHMPOP_CPU
 
   std::ostream *streams[] = { &std::cout, nullptr, nullptr };
   std::ofstream info_stream;
@@ -574,7 +587,11 @@ int populateMap(const Options &opt)
 #if COLLECT_STATS
       const auto then = Clock::now();
 #endif  // COLLECT_STATS
+#ifndef OHMPOP_CPU
       gpu_map.integrateRays(origin_sample_pairs.data(), unsigned(origin_sample_pairs.size()));
+#else   // OHMPOP_CPU
+      map.integrateRays(origin_sample_pairs.data(), unsigned(origin_sample_pairs.size()));
+#endif  // OHMPOP_CPU
 #if COLLECT_STATS
       const auto integrateTime = Clock::now() - then;
 #if COLLECT_STATS_IGNORE_FIRST
@@ -596,7 +613,6 @@ int populateMap(const Options &opt)
       sample_timestamps.clear();
       origin_sample_pairs.clear();
 
-      const double elapsed_time = timestamp - last_timestamp;
       first_batch_timestamp = -1;
 
       prog.incrementProgressBy(ray_batch_size);
@@ -604,6 +620,8 @@ int populateMap(const Options &opt)
       // Store into elapsedMs atomic.
       elapsed_ms = uint64_t((last_timestamp - timebase) * 1e3);
 
+#ifndef OHMPOP_CPU
+      const double elapsed_time = timestamp - last_timestamp;
       if (opt.progressive_mapping_slice > 0)
       {
         if (opt.mapping_interval >= 0)
@@ -621,6 +639,7 @@ int populateMap(const Options &opt)
           // std::cout << msg.str();
         }
       }
+#endif  // OHMPOP_CPU
 
       if (opt.point_limit && point_count >= opt.point_limit ||
           opt.time_limit && last_timestamp - timebase >= opt.time_limit || quit)
@@ -636,7 +655,11 @@ int populateMap(const Options &opt)
 #if COLLECT_STATS
     const auto then = Clock::now();
 #endif  // COLLECT_STATS
+#ifndef OHMPOP_CPU
     gpu_map.integrateRays(origin_sample_pairs.data(), unsigned(origin_sample_pairs.size()));
+#else   // OHMPOP_CPU
+    map.integrateRays(origin_sample_pairs.data(), unsigned(origin_sample_pairs.size()));
+#endif  // OHMPOP_CPU
 #if COLLECT_STATS
     const auto integrateTime = Clock::now() - then;
     stats.add(integrateTime);
@@ -648,6 +671,7 @@ int populateMap(const Options &opt)
   prog.endProgress();
   prog.pause();
 
+#ifndef OHMPOP_CPU
   const auto mapper_start = Clock::now();
   if (opt.post_population_mapping && !quit)
   {
@@ -656,6 +680,7 @@ int populateMap(const Options &opt)
   }
   // mapper.join(!quit && opt.postPopulationMapping);
   end_time = Clock::now();
+#endif  // OHMPOP_CPU
 
 #if COLLECT_STATS
   stats.print();
@@ -671,7 +696,9 @@ int populateMap(const Options &opt)
   {
     std::cout << "syncing map" << std::endl;
   }
+#ifndef OHMPOP_CPU
   gpu_map.syncOccupancy();
+#endif  // OHMPOP_CPU
 
   const double processing_time_sec =
     std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count() * 1e-3;
@@ -682,8 +709,10 @@ int populateMap(const Options &opt)
     const double time_range = last_timestamp - first_timestamp;
     **out << "Point count: " << point_count << '\n';
     **out << "Data time: " << time_range << '\n';
+#ifndef OHMPOP_CPU
     **out << "Population completed in " << mapper_start - start_time << std::endl;
     **out << "Post mapper completed in " << end_time - mapper_start << std::endl;
+#endif  // OHMPOP_CPU
     **out << "Total processing time: " << end_time - start_time << '\n';
     **out << "Efficiency: " << ((processing_time_sec && time_range) ? time_range / processing_time_sec : 0.0) << '\n';
     **out << "Points/sec: " << ((processing_time_sec > 0) ? point_count / processing_time_sec : 0.0) << '\n';
@@ -715,10 +744,12 @@ int parseOptions(Options &opt, int argc, char *argv[])
 
   try
   {
+#ifndef OHMPOP_CPU
     // Build GPU options set.
     std::vector<int> gpu_options_types(ohm::gpuArgsInfo(nullptr, nullptr, 0));
     std::vector<const char *> gpu_options(gpu_options_types.size() * 2);
     ohm::gpuArgsInfo(gpu_options.data(), gpu_options_types.data(), unsigned(gpu_options_types.size()));
+#endif  // OHMPOP_CPU
 
     // clang-format off
     opt_parse.add_options()
@@ -755,6 +786,10 @@ int parseOptions(Options &opt, int argc, char *argv[])
       ("threshold", "Sets the occupancy threshold assigned when exporting the map to a cloud.", optVal(opt.prob_thresh)->implicit_value(optStr(opt.prob_thresh)))
       ;
 
+    // clang-format on
+
+#ifndef OHMPOP_CPU
+    // clang-format off
     opt_parse.add_options("Mapping")
       ("clearance", "Calculate clearance values for the map using this as the maximum search range. Zero to disable.", optVal(opt.clearance))
       ("clearance-uao", "During clearance value calculations, consider 'Unknown(voxels)-As-Occupied'.", optVal(opt.clearance_unknown_as_occupied))
@@ -774,6 +809,7 @@ int parseOptions(Options &opt, int argc, char *argv[])
               gpu_options_types[i] == 0 ? ::cxxopts::value<bool>() : ::cxxopts::value<std::string>());
       }
     }
+#endif  // OHMPOP_CPU
 
 
     opt_parse.parse_positional({ "cloud", "trajectory", "output" });
@@ -837,7 +873,9 @@ int main(int argc, char *argv[])
     }
   }
 
+#ifndef OHMPOP_CPU
   res = ohm::configureGpuFromArgs(argc, argv);
+#endif  // OHMPOP_CPU
   if (res)
   {
     return res;

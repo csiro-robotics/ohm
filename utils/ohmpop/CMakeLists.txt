@@ -23,6 +23,13 @@ set(SOURCES
 
 function(_ohmpop_setup GPU_MODE)
   set(TARGET_NAME ohmpop${GPU_MODE})
+  if(NOT GPU_MODE STREQUAL "cpu")
+    set(OHMLIB_NAME ohm${GPU_MODE})
+  else(NOT GPU_MODE STREQUAL "cpu")
+    set(OHMLIB_NAME ohm)
+  endif(NOT GPU_MODE STREQUAL "cpu")
+
+  set(TARGET_NAME ohmpop${GPU_MODE})
   add_executable(${TARGET_NAME} ${SOURCES})
 
   set_target_properties(${TARGET_NAME} PROPERTIES FOLDER utils)
@@ -41,7 +48,11 @@ function(_ohmpop_setup GPU_MODE)
       "${GLM_INCLUDE_DIR}"
   )
 
-  target_link_libraries(${TARGET_NAME} ohm${GPU_MODE} slamio ohmutil)
+  target_link_libraries(${TARGET_NAME} ${OHMLIB_NAME} slamio ohmutil)
+
+  if(GPU_MODE STREQUAL "cpu")
+    target_compile_definitions(${TARGET_NAME} PUBLIC "-DOHMPOP_CPU")
+  endif(GPU_MODE STREQUAL "cpu")
 
   install(TARGETS ${TARGET_NAME} DESTINATION bin)
 endfunction(_ohmpop_setup)
@@ -52,6 +63,7 @@ endif(OHM_BUILD_OPENCL)
 if(OHM_BUILD_CUDA)
   _ohmpop_setup(cuda)
 endif(OHM_BUILD_CUDA)
+_ohmpop_setup(cpu)
 
 source_group("source" REGULAR_EXPRESSION ".*$")
 # Needs CMake 3.8+:

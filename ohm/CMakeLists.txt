@@ -13,6 +13,7 @@ configure_file(OhmConfig.in.h "${CMAKE_CURRENT_BINARY_DIR}/ohm/OhmConfig.h")
 
 set(SOURCES
   3rdparty/delaunator.hpp
+  private/ClearingPatternDetail.h
   private/HeightmapDetail.cpp
   private/HeightmapDetail.h
   private/LineQueryDetail.h
@@ -35,6 +36,8 @@ set(SOURCES
   serialise/MapSerialiseV0.cpp
   serialise/MapSerialiseV0.h
   Aabb.h
+  ClearingPattern.cpp
+  ClearingPattern.h
   DataType.cpp
   DataType.h
   DefaultLayer.cpp
@@ -89,6 +92,11 @@ set(SOURCES
   QueryFlag.h
   RayFilter.cpp
   RayFilter.h
+  RayFlag.h
+  RayPattern.cpp
+  RayPattern.h
+  RayPatternConical.cpp
+  RayPatternConical.h
   Stream.cpp
   Stream.h
   SubVoxel.h
@@ -110,6 +118,7 @@ endif(TES_ENABLE)
 
 set(PUBLIC_HEADERS
   Aabb.h
+  ClearingPattern.h
   DataType.h
   DefaultLayer.h
   Heightmap.h
@@ -141,6 +150,9 @@ set(PUBLIC_HEADERS
   Query.h
   QueryFlag.h
   RayFilter.h
+  RayFlag.h
+  RayPattern.h
+  RayPatternConical.h
   Stream.h
   SubVoxel.h
   TriangleEdge.h

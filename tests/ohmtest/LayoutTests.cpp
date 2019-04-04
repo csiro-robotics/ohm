@@ -3,6 +3,8 @@
 // ABN 41 687 119 230
 //
 // Author: Kazys Stepanas
+#include "OhmTestConfig.h"
+
 #include <ohm/MapLayer.h>
 #include <ohm/MapLayout.h>
 #include <ohm/OccupancyMap.h>

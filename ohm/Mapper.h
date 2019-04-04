@@ -17,7 +17,7 @@ namespace ohm
   /// The @c Mapper class manages a set of @c MappingProcess objects to execute as the map changes.
   ///
   /// The @c Mapper update is invoked interspersed with occupancy map generation in order to make
-  /// additional calculatations supporting the occupancy map. For example, a @c Mapper instance may
+  /// additional calculations supporting the occupancy map. For example, a @c Mapper instance may
   /// contain a @c MappingProcess which updates map layers derived from the current occupancy layer.
   /// More concretely, the @c ClearanceProcess uses the occupancy layer to generate a clearance layer
   /// which specifies the range to the nearest obstacle for each voxel.

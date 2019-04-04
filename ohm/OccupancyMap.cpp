@@ -517,14 +517,6 @@ void OccupancyMap::setSubVoxelsEnabled(bool enable)
   if (imp_->gpu_cache)
   {
     imp_->gpu_cache->clear();
-    // for (unsigned i = 0; i < imp_->gpu_cache->layerCount(); ++i)
-    //{
-    //  if (GpuLayerCache *layer = imp_->gpu_cache->layerCache(i))
-    //  {
-    //    layer->syncToMainMemory();
-    //    layer->clear();
-    //  }
-    //}
   }
 
   MapLayer *occupancy_layer = imp_->layout.layerPtr(occupancy_layer_index);
@@ -593,16 +585,6 @@ void OccupancyMap::setSubVoxelsEnabled(bool enable)
   if (imp_->gpu_cache)
   {
     imp_->gpu_cache->reinitialise();
-    //for (unsigned i = 0; i < imp_->gpu_cache->layerCount(); ++i)
-    //{
-    //  if (GpuLayerCache *layer = imp_->gpu_cache->layerCache(i))
-    //  {
-    //    if (layer->layerIndex() == unsigned(occupancy_layer_index))
-    //    {
-    //      layer->reallocate(*this);
-    //    }
-    //  }
-    //}
   }
 }
 
@@ -739,6 +721,19 @@ void OccupancyMap::setOccupancyThresholdProbability(float probability)
   imp_->occupancy_threshold_probability = probability;
   imp_->occupancy_threshold_value = probabilityToValue(probability);
 }
+
+void OccupancyMap::integrateHit(Voxel &voxel, const glm::dvec3 &point) const
+{
+  integrateHit(voxel);
+
+  if (imp_->layout.hasSubVoxelPattern())
+  {
+    OccupancyVoxel *voxel_occupancy = voxel.layerContent<OccupancyVoxel *>(imp_->layout.occupancyLayer());
+    voxel_occupancy->sub_voxel = subVoxelUpdate(voxel_occupancy->sub_voxel, point - voxel.centreGlobal(),
+                                                imp_->resolution, imp_->sub_voxel_weighting);
+  }
+}
+
 
 Voxel OccupancyMap::integrateHit(const Key &key, const glm::dvec3 &point, MapCache *cache)
 {
@@ -973,7 +968,7 @@ void OccupancyMap::clearRayFilter()
   imp_->ray_filter = RayFilterFunction();
 }
 
-void OccupancyMap::integrateRays(const glm::dvec3 *rays, size_t element_count, bool end_points_as_occupied)
+void OccupancyMap::integrateRays(const glm::dvec3 *rays, size_t element_count, unsigned ray_update_flags)
 {
   KeyList keys;
   MapCache cache;
@@ -1005,18 +1000,42 @@ void OccupancyMap::integrateRays(const glm::dvec3 *rays, size_t element_count, b
 
     for (auto &&key : keys)
     {
-      integrateMiss(key, &cache);
+      Voxel voxel = this->voxel(key, true, &cache);
+      const float voxel_value = voxel.value();
+
+      bool stop_traversal = false;
+      if ((ray_update_flags & kRfStopOnFirstOccupied) && voxel_value >= imp_->occupancy_threshold_value &&
+          voxel_value != voxel::invalidMarkerValue())
+      {
+        // Found first occupied voxel and request is to stop on the first occupied voxel. Abort traversal after update.
+        stop_traversal = true;
+      }
+
+      // kRfClearOnly flag set => only affect occupied voxels.
+      if (!(ray_update_flags & kRfClearOnly) || voxel_value >= imp_->occupancy_threshold_value)
+      {
+        integrateMiss(voxel);
+      }
+
+      if (stop_traversal)
+      {
+        // Found first occupied voxel and request is to stop on the first occupied voxel. Abort traversal.
+        // Make sure we do not update the en voxel.
+        clipped_sample_voxel = true;
+        break;
+      }
     }
 
     if (!clipped_sample_voxel)
     {
-      if (end_points_as_occupied)
+      Voxel voxel = this->voxel(voxelKey(rays[i + 1]), true, &cache);
+      if (!(ray_update_flags & kRfEndPointAsFree))
       {
-        integrateHit(voxelKey(rays[i + 1]), end, &cache);
+        integrateHit(voxel, end);
       }
       else
       {
-        integrateMiss(voxelKey(rays[i + 1]), &cache);
+        integrateMiss(voxel);
       }
     }
   }

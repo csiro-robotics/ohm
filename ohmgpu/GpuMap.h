@@ -9,6 +9,7 @@
 #include "OhmGpuConfig.h"
 
 #include <ohm/RayFilter.h>
+#include <ohm/RayFlag.h>
 
 #include <glm/glm.hpp>
 
@@ -191,11 +192,31 @@ namespace ohm
     ///
     /// @param rays Array of origin/sample point pairs.
     /// @param element_count The number of points in @p rays. The ray count is half this value.
-    /// @param end_points_as_occupied When @c true, the end points of the rays increase the occupancy probability.
-    ///   Otherwise they decrease the probability just as the rest of the ray.
+    /// @param region_update_flags Flags controlling ray integration behaviour. See @c RayFlag.
     /// @return The number of rays integrated. Zero indicates a failure when @p pointCount is not zero.
     ///   In this case either the GPU is unavailable, or all @p rays are invalid.
-    unsigned integrateRays(const glm::dvec3 *rays, unsigned element_count, bool end_points_as_occupied = true);
+    unsigned integrateRays(const glm::dvec3 *rays, unsigned element_count, unsigned region_update_flags = kRfDefault);
+
+    /// Integrate a ray clearing pattern into the map. A clearing is integrated as a set of rays using the @c RayFlag
+    /// set: @c kRfStopOnFirstOccupied, @c kRfClearOnly. This has the effect of reducing the probability of the first
+    /// occupied voxel encountered, then stopping ray traversal.
+    ///
+    /// Clearing patterns are intended as a way to remove samples which would otherwise persist. This may occur when
+    /// lidar samples are added from a transient object, the object moves, but no new samples are attained behind the
+    /// transient samples. A clearing pattern will erode these. The erosion is countered by resampling where obstacles
+    /// persist.
+    ///
+    /// @param rays The set of clearing pattern rays to integrate into the map.
+    /// @param element_count Number of origin/end point pairs in @p rays. Must be even/
+    void applyClearingPattern(const glm::dvec3 *rays, unsigned element_count);
+
+    /// An overload which builds a clearance pattern from a cone.
+    /// @param apex The apex of the cone.
+    /// @param cone_axis The central axis of the cone.
+    /// @param cone_angle The angle between @p cone_axis and the cone wall (radians).
+    /// @param range The length of each ray in the cone. Note this makes for a round bottom cone.
+    /// @param angular_resolution The angular resolution to build the cone to (radians).
+    void applyClearingPattern(const glm::dvec3 &apex, const glm::dvec3 &cone_axis, double cone_angle, double range, double angular_resolution = 0);
 
     /// Internal use: get the GPU cache used by this map.
     /// @return The GPU cache this map uses.
@@ -211,8 +232,15 @@ namespace ohm
     /// Release the current GPU program.
     void releaseGpuProgram();
 
+    /// Implementation for various ways we can integrate rays into the map. See @c integrateRays() for general detail.
+    /// @param rays Array of origin/sample point pairs. Expect either @c glm::dvec3 (preferred) or @c glm::vec3.
+    /// @param element_count The number of points in @p rays. The ray count is half this value.
+    /// @param region_update_flags Flags controlling ray integration behaviour. See @c RayFlag.
+    /// @param filter Filter function apply to each ray before passing to GPU. May be empty.
+    /// @return The number of rays integrated. Zero indicates a failure when @p pointCount is not zero.
+    ///   In this case either the GPU is unavailable, or all @p rays are invalid.
     template <typename VEC_TYPE>
-    unsigned integrateRaysT(const VEC_TYPE *rays, unsigned element_count, bool end_points_as_occupied,
+    unsigned integrateRaysT(const VEC_TYPE *rays, unsigned element_count, unsigned region_update_flags,
                             const RayFilterFunction &filter);
 
     /// Wait for previous ray batch, as indicated by @p buffer_index, to complete.
@@ -235,19 +263,17 @@ namespace ohm
     ///   @c GpuLayerCache is full.
     /// @param[in,out] offsets_buffer GPU buffer to upload the memory offset for the region to. Will be assigned a
     ///   different buffer when the @c GpuLayerCache is full.
-    /// @param end_points_as_occupied When @c true, the end points of the rays increase the occupancy probability.
-    ///   Otherwise they decrease the probability just as the rest of the ray.
+    /// @param region_update_flags Flags controlling ray integration behaviour. See @c RayFlag.
     /// @param allow_retry Allow recursion when the @c GpuLayerCache?
     void enqueueRegion(const glm::i16vec3 &region_key, gputil::PinnedBuffer &regions_buffer,
-                       gputil::PinnedBuffer &offsets_buffer, bool end_points_as_occupied, bool allow_retry);
+                       gputil::PinnedBuffer &offsets_buffer, unsigned region_update_flags, bool allow_retry);
 
     /// Finalise the current ray/region batch and start executing GPU kernel.
     /// @param[in,out] regions_buffer GPU buffer containing uploaded region keys. Will be unpinned.
     /// @param[in,out] offsets_buffer GPU buffer containing memory offsets for regions. Will be unpinned.
-    /// @param end_points_as_occupied When @c true, the end points of the rays increase the occupancy probability.
-    ///   Otherwise they decrease the probability just as the rest of the ray.
+    /// @param region_update_flags Flags controlling ray integration behaviour. See @c RayFlag.
     void finaliseBatch(gputil::PinnedBuffer &regions_buffer, gputil::PinnedBuffer &offsets_buffer,
-                       bool end_points_as_occupied);
+                       unsigned region_update_flags);
 
     GpuMapDetail *imp_;
   };
