@@ -49,16 +49,30 @@ namespace ohm
     /// @return True if this class owns the @p pattern() memory.
     bool hasPatternOwnership() const;
 
-    /// Apply the clearing pattern to the @p map. This clears
-    void apply(OccupancyMap *map, const glm::dvec3 &position, const glm::dquat &rotation, double scaling = 1.0);
-
-    /// Apply the clearing pattern to the @p map. This clears
+    /// Apply the clearing @c pattern() to @p map. This supports both APIs for both @c OccupancyMap and the @p GpuMap
+    /// extension.
+    ///
+    /// This @c pattern() rays are transformed by the given @p position and @p rotation before being integrated
+    /// into the @p map. Each ray reduced the probabilty of the first occupied voxel it encounters but no further.
+    ///
+    /// @param map The map to integrate the clearing pattern into.
+    /// @param position Used to the origin of the rays in this clearing pattern.
+    /// @param rotation Rotates the ray end points in this clearing pattern.
+    /// @param scaling Used to optionally scale the length of the rays in this clearing pattern.
     template <typename MAP>
     void apply(MAP *map, const glm::dvec3 &position, const glm::dquat &rotation, double scaling = 1.0);
+
+    /// @overload
+    template <typename MAP>
+    void apply(MAP *map, const glm::dmat4 &pattern_transform);
+
+    const glm::dvec3 *lastRaySet(size_t *element_count) const;
 
   private:
     const glm::dvec3 *buildRaySet(size_t *element_count, const glm::dvec3 &position, const glm::dquat &rotation,
                                   double scaling);
+
+    const glm::dvec3 *buildRaySet(size_t *element_count, const glm::dmat4 &pattern_transform);
 
     std::unique_ptr<ClearingPatternDetail> imp_;
   };
@@ -66,9 +80,17 @@ namespace ohm
   template <typename MAP>
   void ClearingPattern::apply(MAP *map, const glm::dvec3 &position, const glm::dquat &rotation, double scaling)
   {
-    // Reserve memory for the ray set.
     size_t ray_element_count = 0u;
     const glm::dvec3 *ray_set = buildRaySet(&ray_element_count, position, rotation, scaling);
+    map->integrateRays(ray_set, unsigned(ray_element_count), kRfEndPointAsFree | kRfStopOnFirstOccupied | kRfClearOnly);
+  }
+
+  template <typename MAP>
+  void ClearingPattern::apply(MAP *map, const glm::dmat4 &pattern_transform)
+  {
+    // Reserve memory for the ray set.
+    size_t ray_element_count = 0u;
+    const glm::dvec3 *ray_set = buildRaySet(&ray_element_count, pattern_transform);
     map->integrateRays(ray_set, unsigned(ray_element_count), kRfEndPointAsFree | kRfStopOnFirstOccupied | kRfClearOnly);
   }
 }  // namespace ohm
