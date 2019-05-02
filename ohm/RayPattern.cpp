@@ -56,3 +56,19 @@ size_t RayPattern::buildRays(std::vector<glm::dvec3> *rays, const glm::dvec3 &po
 
   return rays->size();
 }
+
+size_t RayPattern::buildRays(std::vector<glm::dvec3> *rays, const glm::dmat4 &pattern_transform) const
+{
+  const glm::dvec3 position = pattern_transform[3];
+  rays->clear();
+  rays->reserve(pointCount() * 2);
+  for (glm::dvec3 ray : imp_->points)
+  {
+    rays->push_back(position);
+    // Apply transformation.
+    ray = glm::dvec3(pattern_transform * glm::dvec4(ray, 1.0));
+    rays->push_back(ray);
+  }
+
+  return rays->size();
+}

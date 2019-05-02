@@ -62,6 +62,9 @@ namespace ohm
     size_t buildRays(std::vector<glm::dvec3> *rays, const glm::dvec3 &position, const glm::dquat &rotation,
                      double scaling = 1.0) const;
 
+    /// @overload
+    size_t buildRays(std::vector<glm::dvec3> *rays, const glm::dmat4 &pattern_transform) const;
+
   private:
     std::unique_ptr<ohm::RayPatternDetail> imp_;
   };

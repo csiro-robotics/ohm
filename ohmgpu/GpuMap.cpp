@@ -331,6 +331,30 @@ void GpuMap::clearRayFilter()
 }
 
 
+float GpuMap::hitValue() const
+{
+  return imp_->map->hitValue();
+}
+
+
+void GpuMap::setHitValue(float value)
+{
+  imp_->map->setHitValue(value);
+}
+
+
+float GpuMap::missValue() const
+{
+  return imp_->map->missValue();
+}
+
+
+void GpuMap::setMissValue(float value)
+{
+  imp_->map->setMissValue(value);
+}
+
+
 unsigned GpuMap::integrateRays(const glm::dvec3 *rays, unsigned element_count, unsigned region_update_flags)
 {
   return integrateRaysT<glm::dvec3>(rays, element_count, region_update_flags, effectiveRayFilter());

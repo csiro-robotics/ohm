@@ -147,6 +147,8 @@ namespace ohm
     /// @return The underlying @c OccupancyMap.
     const OccupancyMap &map() const;
 
+
+
     /// Is the @c GpuMap using a borrowed pointer to @c map()?
     /// If not borrowed, then the @c GpuMap will destroy the @c OccupancyMap on destruction.
     bool borrowedMap() const;
@@ -177,6 +179,22 @@ namespace ohm
     /// filter. For the @p GpuMap, @c clearRayFilter() restores the default behaviour of using the same filter
     /// as the underlying @c OccupancyMap.
     void clearRayFilter();
+
+    /// Access the @c OccupancyMap::hitValue() for API compatibility.
+    /// @return @c OccupancyMap::hitValue().
+    float hitValue() const;
+
+    /// Pass-through to @c OccupancyMap::setHitValue() for API compatibility.
+    /// @param value New hit value.
+    void setHitValue(float value);
+
+    /// Access the @c OccupancyMap::missValue() for API compatibility.
+    /// @return @c OccupancyMap::missValue().
+    float missValue() const;
+
+    /// Pass-through to @c OccupancyMap::setMissValue() for API compatibility.
+    /// @param value New miss value.
+    void setMissValue(float value);
 
     /// Integrate the given @p rays into the map. The @p rays form a list of origin/sample pairs for which
     /// we generally consider the sample voxel as a hit when (increasing occupancy) and all other voxels as misses

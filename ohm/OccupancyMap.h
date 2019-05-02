@@ -540,6 +540,10 @@ namespace ohm
     ///
     /// @param probability The new probability associated with a hit. Should be in the range (0.5, 1.0].
     void setHitProbability(float probability);
+    /// Set the voxel occupancy hit value.
+    /// @param value New hit value; must be > 0 for well defined behaviour.
+    /// @see setHitProbability()
+    void setHitValue(float value);
 
     /// Defines the value adjustment made to a voxel when integrating a miss or free space into the map.
     /// This is equivalent to <tt>valueToProbability(missProbability())</tt>.
@@ -565,6 +569,10 @@ namespace ohm
     ///
     /// @param probability The new probability associated with a miss. Should be in the range [0, 0.5).
     void setMissProbability(float probability);
+    /// Set the voxel occupancy miss value.
+    /// @param value New miss value; must be < 0 for well defined behaviour.
+    /// @see setMissProbability()
+    void setMissValue(float value);
 
     /// Get threshold value at which a voxel is considered occupied.
     /// This is equivalent to <tt>valueToProbability(occupancyThresholdProbability())</tt>.

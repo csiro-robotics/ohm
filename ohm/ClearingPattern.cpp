@@ -36,20 +36,26 @@ bool ClearingPattern::hasPatternOwnership() const
   return imp_->has_pattern_ownership;
 }
 
-void ClearingPattern::apply(OccupancyMap *map, const glm::dvec3 &position, const glm::dquat &rotation,
-                            double scaling)
+const glm::dvec3 *ClearingPattern::lastRaySet(size_t *element_count) const
 {
-  // Reserve memory for the ray set.
-  imp_->pattern->buildRays(&imp_->ray_set, position, rotation, scaling);
-  map->integrateRays(imp_->ray_set.data(), imp_->ray_set.size(),
-                     kRfEndPointAsFree | kRfStopOnFirstOccupied | kRfClearOnly);
+
+  *element_count = imp_->ray_set.size();
+  return imp_->ray_set.data();
 }
 
 
 const glm::dvec3 *ClearingPattern::buildRaySet(size_t *element_count, const glm::dvec3 &position,
-                                               const glm::dquat &rotation, double scaling)
+                                               const glm::dquat &rotation)
 {
-  imp_->pattern->buildRays(&imp_->ray_set, position, rotation, scaling);
+  imp_->pattern->buildRays(&imp_->ray_set, position, rotation);
+  *element_count = imp_->ray_set.size();
+  return imp_->ray_set.data();
+}
+
+
+const glm::dvec3 *ClearingPattern::buildRaySet(size_t *element_count, const glm::dmat4 &pattern_transform)
+{
+  imp_->pattern->buildRays(&imp_->ray_set, pattern_transform);
   *element_count = imp_->ray_set.size();
   return imp_->ray_set.data();
 }
