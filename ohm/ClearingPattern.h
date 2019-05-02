@@ -58,19 +58,18 @@ namespace ohm
     /// @param map The map to integrate the clearing pattern into.
     /// @param position Used to the origin of the rays in this clearing pattern.
     /// @param rotation Rotates the ray end points in this clearing pattern.
-    /// @param scaling Used to optionally scale the length of the rays in this clearing pattern.
+    /// @param probability_scaling Scaling factor applied to probability values.
     template <typename MAP>
-    void apply(MAP *map, const glm::dvec3 &position, const glm::dquat &rotation, double scaling = 1.0);
+    void apply(MAP *map, const glm::dvec3 &position, const glm::dquat &rotation, float probability_scaling = 1.0);
 
     /// @overload
     template <typename MAP>
-    void apply(MAP *map, const glm::dmat4 &pattern_transform);
+    void apply(MAP *map, const glm::dmat4 &pattern_transform, float probability_scaling = 1.0);
 
     const glm::dvec3 *lastRaySet(size_t *element_count) const;
 
   private:
-    const glm::dvec3 *buildRaySet(size_t *element_count, const glm::dvec3 &position, const glm::dquat &rotation,
-                                  double scaling);
+    const glm::dvec3 *buildRaySet(size_t *element_count, const glm::dvec3 &position, const glm::dquat &rotation);
 
     const glm::dvec3 *buildRaySet(size_t *element_count, const glm::dmat4 &pattern_transform);
 
@@ -78,20 +77,26 @@ namespace ohm
   };
 
   template <typename MAP>
-  void ClearingPattern::apply(MAP *map, const glm::dvec3 &position, const glm::dquat &rotation, double scaling)
+  void ClearingPattern::apply(MAP *map, const glm::dvec3 &position, const glm::dquat &rotation, float probability_scaling)
   {
     size_t ray_element_count = 0u;
-    const glm::dvec3 *ray_set = buildRaySet(&ray_element_count, position, rotation, scaling);
+    const glm::dvec3 *ray_set = buildRaySet(&ray_element_count, position, rotation);
+    const float initial_miss_value = map->missValue();
+    map->setMissValue(initial_miss_value * probability_scaling);
     map->integrateRays(ray_set, unsigned(ray_element_count), kRfEndPointAsFree | kRfStopOnFirstOccupied | kRfClearOnly);
+    map->setMissValue(initial_miss_value);
   }
 
   template <typename MAP>
-  void ClearingPattern::apply(MAP *map, const glm::dmat4 &pattern_transform)
+  void ClearingPattern::apply(MAP *map, const glm::dmat4 &pattern_transform, float probability_scaling)
   {
     // Reserve memory for the ray set.
     size_t ray_element_count = 0u;
     const glm::dvec3 *ray_set = buildRaySet(&ray_element_count, pattern_transform);
+    const float initial_miss_value = map->missValue();
+    map->setMissValue(initial_miss_value * probability_scaling);
     map->integrateRays(ray_set, unsigned(ray_element_count), kRfEndPointAsFree | kRfStopOnFirstOccupied | kRfClearOnly);
+    map->setMissValue(initial_miss_value);
   }
 }  // namespace ohm
 

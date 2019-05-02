@@ -685,8 +685,13 @@ float OccupancyMap::hitProbability() const
 void OccupancyMap::setHitProbability(float probability)
 {
   imp_->hit_probability = probability;
-  ;
   imp_->hit_value = probabilityToValue(probability);
+}
+
+void OccupancyMap::setHitValue(float value)
+{
+  imp_->hit_probability = valueToProbability(value);
+  imp_->hit_value = value;;
 }
 
 float OccupancyMap::missValue() const
@@ -702,8 +707,13 @@ float OccupancyMap::missProbability() const
 void OccupancyMap::setMissProbability(float probability)
 {
   imp_->miss_probability = probability;
-  ;
   imp_->miss_value = probabilityToValue(probability);
+}
+
+void OccupancyMap::setMissValue(float value)
+{
+  imp_->miss_probability = valueToProbability(value);
+  imp_->miss_value = value;;
 }
 
 float OccupancyMap::occupancyThresholdValue() const

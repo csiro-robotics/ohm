@@ -45,9 +45,9 @@ const glm::dvec3 *ClearingPattern::lastRaySet(size_t *element_count) const
 
 
 const glm::dvec3 *ClearingPattern::buildRaySet(size_t *element_count, const glm::dvec3 &position,
-                                               const glm::dquat &rotation, double scaling)
+                                               const glm::dquat &rotation)
 {
-  imp_->pattern->buildRays(&imp_->ray_set, position, rotation, scaling);
+  imp_->pattern->buildRays(&imp_->ray_set, position, rotation);
   *element_count = imp_->ray_set.size();
   return imp_->ray_set.data();
 }
