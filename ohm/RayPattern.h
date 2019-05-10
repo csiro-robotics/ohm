@@ -34,7 +34,7 @@ namespace ohm
     /// Virtual destructor.
     virtual ~RayPattern();
 
-    /// A a set of points to the pattern.
+    /// Add a set of points to the pattern. This implicitly adds a ray origin for each @p point at (0, 0, 0).
     /// @param points The array of points to add.
     /// @param point_count Number of elements in @p points.
     void addPoints(const glm::dvec3 *points, size_t point_count);
@@ -42,6 +42,16 @@ namespace ohm
     /// Add a single point to the pattern.
     /// @param point The new point to add.
     inline void addPoint(const glm::dvec3 &point) { addPoints(&point, 1); }
+
+    /// Add a set of ray start/end point pairs to the pattern.
+    /// @param ray_pairs An array of ray start/end point pairs in sensor space.
+    /// @param elements Number of elements in @p ray_pairs. Must be even for well defined behaviour.
+    void addRays(const glm::dvec3 *ray_pairs, size_t elements);
+
+    /// Add a single ray to the pattern.
+    /// @param ray_start Origin of the ray in sensor space.
+    /// @param ray_end End point of the ray in sensor space.
+    void addRay(const glm::dvec3 &ray_start, const glm::dvec3 &ray_end);
 
     /// Query the number of points in the pattern.
     /// @return The number of points in the pattern.

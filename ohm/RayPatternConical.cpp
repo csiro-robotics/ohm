@@ -18,7 +18,8 @@
 using namespace ohm;
 
 RayPatternConical::RayPatternConical(const glm::dvec3 &cone_axis, double cone_angle, double range,
-                                     double angular_resolution)
+                                     double angular_resolution, double min_range)
+  : RayPattern()
 {
   TES_CONE_T(g_3es, TES_COLOUR_A(YellowGreen, 128), TES_PTR_ID(this), tes::V3Arg(0, 0, 0), glm::value_ptr(cone_axis),
              float(cone_angle), float(range));
@@ -31,7 +32,7 @@ RayPatternConical::RayPatternConical(const glm::dvec3 &cone_axis, double cone_an
   TES_ARROW(g_3es, TES_COLOUR(Yellow), TES_PTR_ID(this), tes::V3Arg(0, 0, 0), glm::value_ptr(cone_normal));
 
   // Add the cone axis.
-  addPoint(cone_normal * range);
+  addRay(cone_normal * min_range, cone_normal * range);
 
   // Find a perpendicular to the cone normal. We will use this to define a radius vector around the unit circle through
   // the cone.
@@ -58,8 +59,8 @@ RayPatternConical::RayPatternConical(const glm::dvec3 &cone_axis, double cone_an
     {
       // Rotate the cone_normal by the deflection angle around the deflection axis and scale by range.
       const glm::dquat rotation = glm::angleAxis(deflection_angle, deflection_axis);
-      const glm::dvec3 ray = rotation * cone_normal * range;
-      addPoint(ray);
+      const glm::dvec3 ray_dir = rotation * cone_normal;
+      addRay(ray_dir * min_range, ray_dir * range);
 
       TES_LINE(g_3es, TES_COLOUR(PowderBlue), tes::V3Arg(0, 0, 0), glm::value_ptr(ray));
     }
