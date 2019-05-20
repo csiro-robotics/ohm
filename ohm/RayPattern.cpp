@@ -48,12 +48,12 @@ void RayPattern::addRay(const glm::dvec3 &ray_start, const glm::dvec3 &ray_end)
   imp_->sample_pairs.push_back(ray_end);
 }
 
-size_t RayPattern::pointCount() const
+size_t RayPattern::rayCount() const
 {
-  return imp_->sample_pairs.size();
+  return imp_->sample_pairs.size() / 2;
 }
 
-const glm::dvec3 *RayPattern::points() const
+const glm::dvec3 *RayPattern::rayPoints() const
 {
   return imp_->sample_pairs.data();
 }
@@ -62,7 +62,7 @@ size_t RayPattern::buildRays(std::vector<glm::dvec3> *rays, const glm::dvec3 &po
                              double scaling) const
 {
   rays->clear();
-  rays->reserve(pointCount() * 2);
+  rays->reserve(rayCount());
   for (glm::dvec3 sample : imp_->sample_pairs)
   {
     sample = rotation * (scaling * sample) + position;
@@ -74,9 +74,8 @@ size_t RayPattern::buildRays(std::vector<glm::dvec3> *rays, const glm::dvec3 &po
 
 size_t RayPattern::buildRays(std::vector<glm::dvec3> *rays, const glm::dmat4 &pattern_transform) const
 {
-  const glm::dvec3 position = pattern_transform[3];
   rays->clear();
-  rays->reserve(pointCount() * 2);
+  rays->reserve(rayCount());
   for (glm::dvec3 sample : imp_->sample_pairs)
   {
     // Apply transformation.
