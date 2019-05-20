@@ -53,13 +53,14 @@ namespace ohm
     /// @param ray_end End point of the ray in sensor space.
     void addRay(const glm::dvec3 &ray_start, const glm::dvec3 &ray_end);
 
-    /// Query the number of points in the pattern.
-    /// @return The number of points in the pattern.
-    size_t pointCount() const;
+    /// Query the number of rays in the pattern. This is the number of start/end point pairs.
+    /// @return The number of ray pairs in the pattern.
+    size_t rayCount() const;
 
-    /// Access the point array.
-    /// @return A pointer to the start of the array of points in the pattern. They are @c pointCount() in number.
-    const glm::dvec3 *points() const;
+    /// Access the ray sample array. This is an array of start/end point pairs (in that order).
+    /// @return A pointer to the start of the array of ray pairs in the pattern. There are @c rayCount() pairs
+    ///   meaning there are <tt>2 * rayCount()</tt> elements.
+    const glm::dvec3 *rayPoints() const;
 
     /// Build the ray set from the base pattern of points. The @p rays container is populated with pairs of start/end
     /// points which can be used with @c OccupancyMap::intergratePoints(). The first item of every pair is equal to

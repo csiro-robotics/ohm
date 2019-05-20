@@ -117,9 +117,9 @@ namespace raypattern
     std::fill(spherical_image.begin(), spherical_image.end(), uint8_t(0));
 
     // Access the ray pattern and quantise in polar space.
-    const size_t ray_count = pattern.pointCount();
-    const glm::dvec3 *ray_end = pattern.points();
-    for (size_t i = 0; i < ray_count; ++i, ++ray_end)
+    const size_t ray_count = pattern.rayCount();
+    const glm::dvec3 *ray_end = pattern.rayPoints() + 1;
+    for (size_t i = 0; i < ray_count; ++i, ray_end += 2)
     {
       glm::dvec2 ray_xy(ray_end->x, ray_end->y);
       const double scale_2d = glm::length(ray_xy);
