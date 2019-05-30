@@ -6,6 +6,12 @@
     <maintainer email="kazys.stepanas@csiro.au">Kazys Stepanas</maintainer>
     <license>Modified MIT</license>
 
+    <depend>boost</depend>
+    <depend>libglew-dev</depend>
+    <depend>libglfw3-dev</depend>
+    <depend>libglm-dev</depend>
+    <depend>ocl-icd-opencl-dev</depend>
+
     <export>
         <build_type>cmake</build_type>
     </export>
