@@ -34,7 +34,7 @@ namespace ohm
     /// Virtual destructor.
     virtual ~RayPattern();
 
-    /// A a set of points to the pattern.
+    /// Add a set of points to the pattern. This implicitly adds a ray origin for each @p point at (0, 0, 0).
     /// @param points The array of points to add.
     /// @param point_count Number of elements in @p points.
     void addPoints(const glm::dvec3 *points, size_t point_count);
@@ -43,13 +43,24 @@ namespace ohm
     /// @param point The new point to add.
     inline void addPoint(const glm::dvec3 &point) { addPoints(&point, 1); }
 
-    /// Query the number of points in the pattern.
-    /// @return The number of points in the pattern.
-    size_t pointCount() const;
+    /// Add a set of ray start/end point pairs to the pattern.
+    /// @param ray_pairs An array of ray start/end point pairs in sensor space.
+    /// @param elements Number of elements in @p ray_pairs. Must be even for well defined behaviour.
+    void addRays(const glm::dvec3 *ray_pairs, size_t elements);
 
-    /// Access the point array.
-    /// @return A pointer to the start of the array of points in the pattern. They are @c pointCount() in number.
-    const glm::dvec3 *points() const;
+    /// Add a single ray to the pattern.
+    /// @param ray_start Origin of the ray in sensor space.
+    /// @param ray_end End point of the ray in sensor space.
+    void addRay(const glm::dvec3 &ray_start, const glm::dvec3 &ray_end);
+
+    /// Query the number of rays in the pattern. This is the number of start/end point pairs.
+    /// @return The number of ray pairs in the pattern.
+    size_t rayCount() const;
+
+    /// Access the ray sample array. This is an array of start/end point pairs (in that order).
+    /// @return A pointer to the start of the array of ray pairs in the pattern. There are @c rayCount() pairs
+    ///   meaning there are <tt>2 * rayCount()</tt> elements.
+    const glm::dvec3 *rayPoints() const;
 
     /// Build the ray set from the base pattern of points. The @p rays container is populated with pairs of start/end
     /// points which can be used with @c OccupancyMap::intergratePoints(). The first item of every pair is equal to

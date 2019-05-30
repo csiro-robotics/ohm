@@ -1,6 +1,6 @@
 # Occupancy Homogeneous Map
 
-The ohm library is a probabilistic voxel occupancy map supporting fast GPU based population and operations. The ohm library defines an occupancy map consisting of regions or chunks of homogeneous voxels, arranged in continguous memory blocks. This homogeneous voxel layout, rather than an octree layout, supports fast GPU based map population using Intel OpenCL GPUs.
+The ohm library is a probabilistic voxel occupancy map supporting fast GPU based population and operations. The ohm library defines an occupancy map consisting of regions or chunks of homogeneous voxels, arranged in contiguous memory blocks. This homogeneous voxel layout, rather than an octree layout, supports fast GPU based map population using OpenCL and CUDA.
 
 ## Building
 
@@ -22,10 +22,10 @@ Building ohm requires:
 
 The following 3rd-party libraries are required to build ohm:
 
+- Either an [OpenCL SDK](./OpenCL.md) or the [CUDA](https://developer.nvidia.com/cuda-zone) SDK
 - [ZLib](https://www.zlib.net/) for serialisation compression.
 - [CMake](https://cmake.org/) for project set up
 - [OpenGL Mathematics (GLM)](https://glm.g-truc.net/) for 3D data types.
-- An [OpenCL SDK](./OpenCL.md).
 
 Additional, the following 3rd-party libraries may optionally be used:
 

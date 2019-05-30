@@ -1,20 +1,26 @@
 # OpenCL Usage
 
-OpenCL is required for the Occupancy map (ohm), however, it is specifically only tested with Intel OpenCL. NVidia OpenCL has been known to work, but is not as extensively tested.
+OpenCL is one of the two GPU library options required for the Occupancy map (ohm). Most development has occurred on top of the Intel OpenCL implementation, but the NVIDIA implementation also works. These instructions focus on installation requirements for Intel OpenCL. For the NVIDIA support, download and install the [CUDA development kit](https://developer.nvidia.com/cuda-zone).
 
 Both runtime drivers and an SDK need to be installed in order to get it running. Getting Intel drivers running can be an issue so the following instructions are maintained to help the installation process. The following process is focused entirely on Ubuntu 18.04.
 
-## Installing the OpenCL SDK
+## Windows SDK and Drvier Installation
 
-Intel publish an OpenCL SDK which includes kernel debugging capabilities. This is has not been tested here under Ubuntu and the Windows version tends to be somewhat difficult to get working. Thus, that avenue is only recommended if debugging is essential.
+The [Intel OpenCL SDK](https://software.intel.com/en-us/intel-opencl) is recommended for Windows development. Follow the installation instructions in the link.
 
-For most installations it is enough to install the appropriate apt packages.
+Note that there are some pathing issues which may cause issues under Windows, especially when the CUDA SDK is also installed. It is recommended that the PATH environment variable is set up to find the Intel OpenCL DLLs and executables before the NVIDIA implementation is located.
+
+OpenCL runtime drivers are installed as part of the video card driver package.
+
+## Linux SDK Installation
+
+The Intel OpenCL SDK is also available for Linux, however, for most Debian installations it is enough to install the appropriate apt packages provided the correct device drivers are installed.
 
 ```
 sudo apt-get install opencl-headers ocl-icd-dev ocl-icd-libopencl1 ocl-icd-opencl-dev
 ```
 
-## Intel CPU Compatibility
+### Installing Intel OpenCL Drivers
 
 Extensive Intel CPU/GPU testing has not been made, but the following information may help address some OpenCL standard compatibility issues. The OpenCL standard defines the GPU code compilation, not the SDK version. This can be set on OHM_OPENCL_STD.
 
@@ -26,25 +32,24 @@ Intel CPU Generation    | Recommended OpenCL Standard
 8th Generation          | 2.0
 9th Generation          | 2.0
 
-### Installing Intel OpenCL Drivers
-
 There are three different drivers which may be relevant to the installation process.
 
-- beignet: apt package for Intel NEO drivers.
-- Intel Linux drivers: https://software.intel.com/en-us/articles/opencl-drivers
-- Intel Legacy Linux drivers: https://software.intel.com/en-us/articles/legacy-opencl-drivers#latest_linux_SDK_release
-
+1. Intel Linux drivers:
+    - Direct link: https://github.com/intel/compute-runtime/releases
+    - General information https://software.intel.com/en-us/articles/opencl-drivers
+2. beignet: apt package for Intel NEO drivers.
+3. Intel Legacy Linux drivers: https://software.intel.com/en-us/articles/legacy-opencl-drivers#latest_linux_SDK_release
 
 For general installation:
 
 - Determine your CPU generation:
     - `grep -m 1 name /proc/cpuinfo`
     - Results should look something like: `Intel(R) Core(TM) i7-6700 CPU @ 3.40GHz` The first digit of the CPU number - in this case 6700 - indicates the generation '6'.
+- Install the most appropriate driver (see below) based on your CPU generation.
+    - For 6th generation use the legacy drivers (option 3).
+    - For 7th+ generation use the current Intel Drives (option 1).
 - Install `clinfo` apt package to confirm successful installation
     - `sudo apt-get install clinfo`
-- Install the most appropriate driver (see below) based on your CPU generation.
-    - For 6th generation use the legacy drivers.
-    - For 7th+ generation, try beignet and the current Intel Drives.
 - Verify installation:
     - `clinfo | grep "Device Name"`
 
@@ -56,10 +61,18 @@ If installation is successful you should see a results like the following:
   Device Name                                     Intel(R) Core(TM) i7-6700 CPU @ 3.40GHz
 ```
 
-Not that this is also listing the CUDA device.
+Not that this example is also listing a CUDA device.
+
+#### Intel Linux Driver
+This installs the current Intel OpenCL drivers for 7th, 8th and 9th generation CPU. The beignet drivers are preferred since Unbutu is not officially supported. The downloaded instructions are available at https://software.intel.com/en-us/articles/opencl-drivers.
+
+- Download the .deb runtime drivers and follow the installation instructions from https://github.com/intel/compute-runtime/releases
+- Verify installation (above)
+
+These drivers are incompatible with beignet.
 
 #### Beignet
-First preference is to use the beignet package. In 18.04 these are drivers for the NEO architecture used in 7th, 8th and 9th generation core processors. This is the preferred approach, but may not work.
+In 18.04 these are drivers for the NEO architecture used in 7th, 8th and 9th generation core processors. Run the following command to install the Beignet drivers:
 
 ```
 sudo apt-get install beignet-dev
@@ -72,15 +85,6 @@ If this fails, you will need to `apt-get purge <package>` the following apt-pack
 - beignet
 - beignet-dev
 - beignet-opencl-icd
-
-#### Intel Linux Driver
-This installs the current Intel OpenCL drivers for 7th, 8th and 9th generation CPU. The beignet drivers are preferred since Unbutu is not officially supported. The downloaded instructions are available hereat https://software.intel.com/en-us/articles/opencl-drivers.
-
-- Download the .deb runtime driver from https://github.com/intel/compute-runtime/releases
-- Run: `sudo dpkg -i <pkg>.deb`
-- Verify installation (above)
-
-These drivers are incompatible with beignet.
 
 #### Intel Legacy Linux Driver
 Legacy drivers are appropriate only for 6th (and 5th) generation intel chips. These are downloaded from https://software.intel.com/en-us/articles/legacy-opencl-drivers#latest_linux_SDK_release and the installation process is described at http://registrationcenter-download.intel.com/akdlm/irc_nas/11396/SRB5.0_intel-opencl-installation.pdf
@@ -96,4 +100,4 @@ In order to build ohm to run on NVidia, the library must be build for OpenCL 1.2
 - `OHM_OPENCL_STD` : 1.2 (OpenCL runtime compilation)
 - `OHM_OPENCL_SDK_VER` : 1.2 (OpenCL SDK selection)
 
-Note that NVidia performance will generally be worse than Intel OpenCL because of the way ohm uses global memory. Building for CUDA
+Note that NVidia performance will generally be worse than Intel OpenCL because of the way ohm uses global memory.

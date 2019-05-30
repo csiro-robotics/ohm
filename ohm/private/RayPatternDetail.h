@@ -16,7 +16,8 @@ namespace ohm
 {
   struct RayPatternDetail
   {
-    std::vector<glm::dvec3> points;
+    /// Ray start/end point pairs in sensor space.
+    std::vector<glm::dvec3> sample_pairs;
   };
 }
 
