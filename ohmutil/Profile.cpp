@@ -31,6 +31,7 @@ namespace ohm
     const char *parent_name;
     ProfileClock::duration total_time;
     ProfileClock::duration recent;
+    ProfileClock::duration max_time;
     unsigned marker_count;
   };
 
@@ -132,7 +133,7 @@ namespace ohm
     const auto average_time =
       (record.marker_count) ? record.total_time / record.marker_count : ProfileClock::duration(0);
     delimetedInteger(count_str, record.marker_count);
-    o << indent << record.name << " cur: " << record.recent << " avg: " << average_time << " total: " << record.total_time << " / " << count_str
+    o << indent << record.name << " cur: " << record.recent << " avg: " << average_time << " max: " << record.max_time << " total: " << record.total_time << " / " << count_str
       << " calls\n";
 
     // Recurse on children.
@@ -233,7 +234,7 @@ void Profile::pop()
   else
   {
     const ProfileClock::duration zero_duration(0);
-    record = new ProfileRecord{ popped_scope.name, nullptr, zero_duration, zero_duration, 0u };
+    record = new ProfileRecord{ popped_scope.name, nullptr, zero_duration, zero_duration, zero_duration, 0u };
     if (!records.marker_stack.empty())
     {
       record->parent_name = parent_name;
@@ -243,6 +244,7 @@ void Profile::pop()
 
   record->total_time += elapsed;
   record->recent = elapsed;
+  record->max_time = std::max(record->max_time, record->recent);
   ++record->marker_count;
 }
 
