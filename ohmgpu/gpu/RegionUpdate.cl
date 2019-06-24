@@ -304,6 +304,33 @@ __device__ bool VISIT_LINE_VOXEL(const struct GpuKey *voxelKey, bool isEndVoxel,
 /// - kRfEndPointAsFree: use ray_adjustment for the last voxel rather than sample_adjustment.
 /// - kRfStopOnFirstOccupied: terminate line walking after touching the first occupied voxel found.
 /// - kRfClearOnly: only adjust the probability of occupied voxels.
+///
+/// @param voxels_mem Pointer to the dense voxel maps the currently available regions. Offsets for a specific region
+///     are available by looking up a region key in @p occupancy_region_keys_global and using the cooresponding
+///     @c occupancy_region_mem_offsets_global byte offset into this array.
+/// @param occupancy_region_keys_global Array of voxel region keys identifying regions available in GPU. There are
+///     @c region_count elements in this array.
+/// @param occupancy_region_mem_offsets_global Array of voxel region memory offsets into @c voxels_mem. Each element
+///     corresponds to a key in occupancy_region_keys_global. The offsets are in bytes.
+/// @param line_keys Array of line segment pairs converted into @c GpuKey references to integrate into the map.
+/// @param local_lines Array array of line segments which generated the @c line_keys. These are converted from the
+///     original, double precision, map frame coordinates into a set of local frames. Each start/end point pair is
+///     relative to the centre of the voxel containing the start point. This is to reduce floating point error in
+///     double to single precision conversion. The original coordinates are not recoverable in this code.
+/// @param line_count number of lines in @p line_keys and @p local_lines. These come in pairs, so the number of elements
+///     in those arrays is double this value.
+/// @param region_dimensions Specifies the size of any one region in voxels.
+/// @param voxel_resolution Specifies the size of a voxel cube.
+/// @param ray_adjustment Specifies the value adjustment to apply to voxels along the line segment leading up to the
+///     final sample voxel. This should be < 0 to re-enforce as free.
+/// @param sample_adjustment Specifiest the value adjustment applied to voxels containing the sample point (line end
+///     point). Should be > 0 to re-enforce as occupied.
+/// @param voxel_value_min Minimum clamping value for voxel adjustments.
+/// @param voxel_value_max Maximum clamping value for voxel adjustments.
+/// @param sub_voxel_weighting The weighting applied to new points when using subvoxel positioning. This is as opposed
+///     to the existing value. The position is updated as
+///     <tt>old_pos * (1 - sub_voxel_weighting) + new_pos * sub_voxel_weighting</tt>
+/// @param region_update_flags Update control values as per @c RayFlag.
 __kernel void REGION_UPDATE_KERNEL(__global VOXEL_TYPE *voxels_mem, __global int3 *occupancy_region_keys_global,
                                    __global ulonglong *occupancy_region_mem_offsets_global, uint region_count,
                                    __global struct GpuKey *line_keys, __global float3 *local_lines, uint line_count,
