@@ -198,7 +198,7 @@ __device__ void WALK_LINE_VOXELS(const struct GpuKey *startKey, const struct Gpu
     // Scoped to try reduce local variable load on local memory.
     float3 direction;
     // Check for degenerate rays: start/end in the same voxel.
-    if (abs(dot(*voxelRelativeEndPoint - *voxelRelativeStartPoint, *voxelRelativeEndPoint - *voxelRelativeStartPoint)) > 1e-3f)
+    if (fabs(dot(*voxelRelativeEndPoint - *voxelRelativeStartPoint, *voxelRelativeEndPoint - *voxelRelativeStartPoint)) > 1e-3f)
     {
       direction = normalize(*voxelRelativeEndPoint - *voxelRelativeStartPoint);
     }

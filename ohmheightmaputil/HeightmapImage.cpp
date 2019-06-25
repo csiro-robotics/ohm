@@ -749,8 +749,8 @@ bool HeightmapImage::renderHeightMesh(ImageType image_type, const Aabb &spatial_
   const unsigned render_height = makeMultipleOf(target_height, 8);
 
   // Adjust the extents to cover the additional pixels.
-  max_ext_vertices[axes[0]] += float(render_width - target_width) / float(pixels_per_voxel) * voxel_resolution;
-  max_ext_vertices[axes[1]] += float(render_height - target_height) / float(pixels_per_voxel) * voxel_resolution;
+  max_ext_vertices[axes[0]] += float(render_width - target_width) / float(pixels_per_voxel) * float(voxel_resolution);
+  max_ext_vertices[axes[1]] += float(render_height - target_height) / float(pixels_per_voxel) * float(voxel_resolution);
 
   //----------------------------------------------------------------------------
   // Rendering setup.
