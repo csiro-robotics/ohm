@@ -848,7 +848,8 @@ namespace ohm
     void setRayFilter(const RayFilterFunction &ray_filter);
 
     /// Get the range filter applied to all rays given to @c integrateRays().
-    /// The map starts with a filter configured to remove any infinite or NaN points.
+    /// The map starts with a filter configured to remove any infinite or NaN points by rejecting rays longer than
+    /// @c 1e10.
     /// @return The current ray filter.
     const RayFilterFunction &rayFilter() const;
 
