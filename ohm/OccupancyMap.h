@@ -290,8 +290,21 @@ namespace ohm
     ///   dimension is replaced with its default value; e.g., @c OHM_DEFAULT_CHUNK_DIM_X.
     /// @param region_voxel_dimensions Sets the number of voxels in each map region.
     /// @param enable_sub_voxel_positioning Enable sub voxel positioning information?
+    /// @param seed_layout The @p MapLayout to create the map with. The constructed map clones the @c seed_layout
+    ///   object.
+    OccupancyMap(double resolution, const glm::u8vec3 &region_voxel_dimensions, MapFlag flags,
+                 const MapLayout &seed_layout);
+
+    /// @overload
     OccupancyMap(double resolution = 1.0, const glm::u8vec3 &region_voxel_dimensions = glm::u8vec3(0, 0, 0),
                  MapFlag flags = MapFlag::None);
+
+    /// @overload
+    OccupancyMap(double resolution, MapFlag flags, const MapLayout &seed_layout);
+
+    /// @overload
+    OccupancyMap(double resolution, MapFlag flags);
+
     /// Destructor.
     ~OccupancyMap();
 
@@ -625,7 +638,7 @@ namespace ohm
     /// of the @p position. The @p position is used only for sub-voxel positioning.
     ///
     /// This is not recommended for use by external libraries and @c integrateHit(const glm::dvec3 &, MapCache *) should
-    /// be prefered.
+    /// be preferred.
     ///
     /// @param point The global coordinate to integrate a hit at.
     /// @param cache Optional cache used to expidite region search.

@@ -158,9 +158,15 @@ namespace ohm
     /// Get the normal vector for the up axis used to last @c update().
     const glm::dvec3 &upAxisNormal() const;
 
+    /// Component index of the first surface axis normal [0, 2].
+    int surfaceAxisIndexA() const;
+
     /// Get a unit vector which lies along the surface of the heightmap, perpendicular to @c surfaceAxisB() and
     /// upAxisNormal().
     const glm::dvec3 &surfaceAxisA() const;
+
+    /// Component of the second surface axis normal [0, 2].
+    int surfaceAxisIndexB() const;
 
     /// Get a unit vector which lies along the surface of the heightmap, perpendicular to @c surfaceAxisA() and
     /// upAxisNormal().

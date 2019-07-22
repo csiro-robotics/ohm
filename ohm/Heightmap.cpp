@@ -405,9 +405,21 @@ const glm::dvec3 &Heightmap::upAxisNormal() const
 }
 
 
+int Heightmap::surfaceAxisIndexA() const
+{
+  return HeightmapDetail::surfaceIndexA(int(imp_->up_axis_id));
+}
+
+
 const glm::dvec3 &Heightmap::surfaceAxisA() const
 {
   return HeightmapDetail::surfaceNormalA(int(imp_->up_axis_id));
+}
+
+
+int Heightmap::surfaceAxisIndexB() const
+{
+  return HeightmapDetail::surfaceIndexB(int(imp_->up_axis_id));
 }
 
 

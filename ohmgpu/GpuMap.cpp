@@ -501,7 +501,7 @@ unsigned GpuMap::integrateRaysT(const VEC_TYPE *rays, unsigned element_count, un
   const int buf_idx = imp_->next_buffers_index;
   waitOnPreviousOperation(buf_idx);
 
-  // Touch the map.
+  // Touch the map to update stamping.
   map.touch();
 
   // Get the GPU cache.

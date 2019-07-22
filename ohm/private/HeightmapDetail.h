@@ -48,7 +48,9 @@ namespace ohm
 
     void updateAxis();
     static const glm::dvec3 &upAxisNormal(int axis_id);
+    static int surfaceIndexA(int up_axis_id);
     static const glm::dvec3 &surfaceNormalA(int axis_id);
+    static int surfaceIndexB(int up_axis_id);
     static const glm::dvec3 &surfaceNormalB(int axis_id);
 
     void fromMapInfo(const MapInfo &info);

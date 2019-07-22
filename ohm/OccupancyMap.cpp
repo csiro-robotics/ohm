@@ -180,6 +180,13 @@ Voxel OccupancyMap::iterator::voxel()
   return isValid() ? Voxel(key_, chunkIter(chunk_mem_)->second, map_) : Voxel();
 }
 
+OccupancyMap::OccupancyMap(double resolution, const glm::u8vec3 &region_voxel_dimensions, MapFlag flags,
+                           const MapLayout &seed_layout)
+  : OccupancyMap(resolution, region_voxel_dimensions, flags)
+{
+  imp_->layout = seed_layout;
+}
+
 OccupancyMap::OccupancyMap(double resolution, const glm::u8vec3 &region_voxel_dimensions, MapFlag flags)
   : imp_(new OccupancyMapDetail)
 {
@@ -207,6 +214,14 @@ OccupancyMap::OccupancyMap(double resolution, const glm::u8vec3 &region_voxel_di
     return ohm::goodRayFilter(start, end, filter_flags, 1e10);
   };
 }
+
+OccupancyMap::OccupancyMap(double resolution, MapFlag flags, const MapLayout &seed_layout)
+  : OccupancyMap(resolution, glm::u8vec3(0, 0, 0), flags, seed_layout)
+{}
+
+OccupancyMap::OccupancyMap(double resolution, MapFlag flags)
+  : OccupancyMap(resolution, glm::u8vec3(0, 0, 0), flags)
+{}
 
 OccupancyMap::~OccupancyMap()
 {
@@ -691,7 +706,8 @@ void OccupancyMap::setHitProbability(float probability)
 void OccupancyMap::setHitValue(float value)
 {
   imp_->hit_probability = valueToProbability(value);
-  imp_->hit_value = value;;
+  imp_->hit_value = value;
+  ;
 }
 
 float OccupancyMap::missValue() const
@@ -713,7 +729,8 @@ void OccupancyMap::setMissProbability(float probability)
 void OccupancyMap::setMissValue(float value)
 {
   imp_->miss_probability = valueToProbability(value);
-  imp_->miss_value = value;;
+  imp_->miss_value = value;
+  ;
 }
 
 float OccupancyMap::occupancyThresholdValue() const

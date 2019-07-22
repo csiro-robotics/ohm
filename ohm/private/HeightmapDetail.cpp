@@ -33,6 +33,29 @@ const glm::dvec3 &HeightmapDetail::upAxisNormal(int axis_id)
 }
 
 
+int HeightmapDetail::surfaceIndexA(int up_axis_id)
+{
+  static const int kIndices[] =  //
+    {
+      0, // -Z
+      0, // -Z
+      1, // -X
+      1, // X
+      0, // Y
+      0, // Z
+      0, // Dummy
+    };
+
+  if (up_axis_id < 0 || up_axis_id >= int(sizeof(kIndices) - sizeof(kIndices[0])))
+  {
+    // Reference the dummy index.
+    up_axis_id = int(sizeof(kIndices) - sizeof(kIndices[0]) - 1);
+  };
+
+  return kIndices[up_axis_id];
+}
+
+
 const glm::dvec3 &HeightmapDetail::surfaceNormalA(int axis_id)
 {
   static const glm::dvec3 kAxes[] =  //
@@ -54,6 +77,29 @@ const glm::dvec3 &HeightmapDetail::surfaceNormalA(int axis_id)
   };
 
   return kAxes[axis_index];
+}
+
+
+int HeightmapDetail::surfaceIndexB(int up_axis_id)
+{
+  static const int kIndices[] =  //
+    {
+      1, // -Z
+      2, // -Z
+      2, // -X
+      2, // X
+      2, // Y
+      1, // Z
+      1, // Dummy
+    };
+
+  if (up_axis_id < 0 || up_axis_id >= int(sizeof(kIndices) - sizeof(kIndices[0])))
+  {
+    // Reference the dummy index.
+    up_axis_id = int(sizeof(kIndices) - sizeof(kIndices[0]) - 1);
+  };
+
+  return kIndices[up_axis_id];
 }
 
 
