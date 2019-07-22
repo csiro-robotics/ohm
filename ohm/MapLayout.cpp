@@ -231,6 +231,7 @@ MapLayout &MapLayout::operator=(MapLayout &&other) noexcept
 
 MapLayout &MapLayout::operator=(const MapLayout &other)
 {
+  clear();
   if (other.imp_)
   {
     for (auto &&layer : other.imp_->layers)
