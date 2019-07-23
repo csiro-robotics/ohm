@@ -130,7 +130,7 @@ namespace
           const HeightmapVoxel *voxel = iter->layerContent<const HeightmapVoxel *>(heightmap->heightmapVoxelLayer());
           // Get the coordinate of the voxel.
           coord = heightmap->heightmap().voxelCentreGlobal(iter.key());
-          coord += double(voxel->height) * Heightmap::upAxisNormal(axis_index);
+          coord += double(voxel->height) * Heightmap::upAxisNormal(ohm::UpAxis(axis_index));
           // Add to the cloud.
           heightmapCloud.addVertex(coord);
         }

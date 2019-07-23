@@ -137,8 +137,8 @@ namespace
   }
 
 
-  void updateHeightmapForRegion(HeightmapDetail *imp, double base_height, const Key &min_ext_key,
-                                const Key &max_ext_key, UpAxis up_axis, const Aabb &src_map_extents)
+  unsigned updateHeightmapForRegion(HeightmapDetail *imp, double base_height, const Key &min_ext_key,
+                                    const Key &max_ext_key, UpAxis up_axis, const Aabb &src_map_extents)
   {
     // Walk the heightmap voxels which are potentially occupied. We only walk the X/Y plane.
     MapCache heightmap_cache;
@@ -147,6 +147,7 @@ namespace
     OccupancyMap &heightmap = *imp->heightmap;
     PlaneWalker walker(heightmap, min_ext_key, max_ext_key, up_axis);
     Key target_key;
+    unsigned populated_count = 0;
 
     const int heightmap_build_layer = imp->heightmap_layer;
 
@@ -159,9 +160,9 @@ namespace
       // Start walking the voxels in the source map.
       glm::dvec3 column_reference = heightmap.voxelCentreGlobal(target_key);
       // Set to the min Z extents of the source map.
-      column_reference[imp->vertical_axis_id] = src_map_extents.minExtents()[imp->vertical_axis_id];
+      column_reference[imp->vertical_axis_index] = src_map_extents.minExtents()[imp->vertical_axis_index];
       const Key src_min_key = src_map.voxelKey(column_reference);
-      column_reference[imp->vertical_axis_id] = src_map_extents.maxExtents()[imp->vertical_axis_id];
+      column_reference[imp->vertical_axis_index] = src_map_extents.maxExtents()[imp->vertical_axis_index];
       const Key src_max_key = src_map.voxelKey(column_reference);
 
       // Walk the src column up.
@@ -172,8 +173,8 @@ namespace
 
       // Select walking direction based on the up axis being aligned with the primary axis or not.
       const int step_dir = (int(up_axis) >= 0) ? 1 : -1;
-      for (; src_key.isBounded(imp->vertical_axis_id, src_min_key, src_max_key);
-          src_map.stepKey(src_key, imp->vertical_axis_id, step_dir))
+      for (; src_key.isBounded(imp->vertical_axis_index, src_min_key, src_max_key);
+          src_map.stepKey(src_key, imp->vertical_axis_index, step_dir))
       {
         // PROFILE(column);
         VoxelConst src_voxel = src_map.voxel(src_key, &src_cache);
@@ -228,14 +229,17 @@ namespace
       if (column_height < std::numeric_limits<double>::max())
       {
         heightmap_voxel.setValue(heightmap.occupancyThresholdValue());
+        ++populated_count;
         if (!imp->ignore_sub_voxel_positioning)
         {
           // Reset to voxel centre on the primary axis because the height is encoded in the heightmap layer.
-          column_voxel_pos[imp->vertical_axis_id] = heightmap_voxel.centreGlobal()[imp->vertical_axis_id];
+          column_voxel_pos[imp->vertical_axis_index] = heightmap_voxel.centreGlobal()[imp->vertical_axis_index];
           heightmap_voxel.setPosition(column_voxel_pos);
         }
       }
     } while (walker.walkNext(target_key));
+
+    return populated_count;
   }
 }  // namespace
 
@@ -263,8 +267,8 @@ Heightmap::Heightmap(double grid_resolution, double min_clearance, UpAxis up_axi
 
   // Use an OccupancyMap to store grid cells. Each region is 1 voxel thick.
   glm::u8vec3 region_dim(region_size);
-  region_dim[int(imp_->vertical_axis_id)] = 1;
-  imp_->heightmap.reset(new OccupancyMap(grid_resolution, region_dim));
+  region_dim[int(imp_->vertical_axis_index)] = 1;
+  imp_->heightmap.reset(new OccupancyMap(grid_resolution, region_dim, ohm::MapFlag::SubVoxelPosition));
 
   // Setup the heightmap voxel layout.
   MapLayout &layout = imp_->heightmap->layout();
@@ -395,7 +399,7 @@ UpAxis Heightmap::upAxis() const
 
 int Heightmap::upAxisIndex() const
 {
-  return int(imp_->vertical_axis_id);
+  return int(imp_->vertical_axis_index);
 }
 
 
@@ -407,41 +411,41 @@ const glm::dvec3 &Heightmap::upAxisNormal() const
 
 int Heightmap::surfaceAxisIndexA() const
 {
-  return HeightmapDetail::surfaceIndexA(int(imp_->up_axis_id));
+  return HeightmapDetail::surfaceIndexA(imp_->up_axis_id);
 }
 
 
 const glm::dvec3 &Heightmap::surfaceAxisA() const
 {
-  return HeightmapDetail::surfaceNormalA(int(imp_->up_axis_id));
+  return HeightmapDetail::surfaceNormalA(imp_->up_axis_id);
 }
 
 
 int Heightmap::surfaceAxisIndexB() const
 {
-  return HeightmapDetail::surfaceIndexB(int(imp_->up_axis_id));
+  return HeightmapDetail::surfaceIndexB(imp_->up_axis_id);
 }
 
 
 const glm::dvec3 &Heightmap::surfaceAxisB() const
 {
-  return HeightmapDetail::surfaceNormalB(int(imp_->up_axis_id));
+  return HeightmapDetail::surfaceNormalB(imp_->up_axis_id);
 }
 
 
-const glm::dvec3 &Heightmap::upAxisNormal(int axis_id)
+const glm::dvec3 &Heightmap::upAxisNormal(UpAxis axis_id)
 {
   return HeightmapDetail::upAxisNormal(axis_id);
 }
 
 
-const glm::dvec3 &Heightmap::surfaceAxisA(int axis_id)
+const glm::dvec3 &Heightmap::surfaceAxisA(UpAxis axis_id)
 {
   return HeightmapDetail::surfaceNormalA(axis_id);
 }
 
 
-const glm::dvec3 &Heightmap::surfaceAxisB(int axis_id)
+const glm::dvec3 &Heightmap::surfaceAxisB(UpAxis axis_id)
 {
   return HeightmapDetail::surfaceNormalB(axis_id);
 }
@@ -517,6 +521,7 @@ bool Heightmap::update(double base_height, const ohm::Aabb &cull_to)
 
   PROFILE(walk)
 #ifdef OHM_THREADS
+  std::atomic_uint populated_count(0);
   if (imp_->thread_count != 1)
   {
     const auto updateHeightmapBlock = [&] (const tbb::blocked_range3d<unsigned, unsigned, unsigned> &range) //
@@ -527,7 +532,7 @@ bool Heightmap::update(double base_height, const ohm::Aabb &cull_to)
       // Move to the target offset.
       imp_->heightmap->moveKey(min_key_local, range.cols().begin(), range.rows().begin(), range.pages().begin());
       imp_->heightmap->moveKey(max_key_local, range.cols().end() - 1, range.rows().end() - 1, range.pages().end() - 1);
-      updateHeightmapForRegion(imp_.get(), base_height, min_key_local, max_key_local, upAxis(), Aabb(min_ext, max_ext));
+      populated_count += updateHeightmapForRegion(imp_.get(), base_height, min_key_local, max_key_local, upAxis(), Aabb(min_ext, max_ext));
     };
 
     const glm::ivec3 voxel_range = heightmap.rangeBetween(min_ext_key, max_ext_key);
@@ -556,13 +561,15 @@ bool Heightmap::update(double base_height, const ohm::Aabb &cull_to)
     }
   }
   else
+#else   // OHM_THREADS
+  unsigned populated_count = 0;
 #endif  // OHM_THREADS
   {
-    updateHeightmapForRegion(imp_.get(), base_height, min_ext_key, max_ext_key, upAxis(), Aabb(min_ext, max_ext));
+    populated_count += updateHeightmapForRegion(imp_.get(), base_height, min_ext_key, max_ext_key, upAxis(), Aabb(min_ext, max_ext));
   }
   PROFILE_END(walk)
 
-  return true;
+  return populated_count != 0;
 }
 
 

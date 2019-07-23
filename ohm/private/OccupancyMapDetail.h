@@ -74,6 +74,7 @@ namespace ohm
 
     MapInfo info;  ///< Meta information storage about the map.
 
+    OccupancyMapDetail() = default;
     ~OccupancyMapDetail();
 
     /// Move an @c Key along a selected axis.

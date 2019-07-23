@@ -180,13 +180,6 @@ Voxel OccupancyMap::iterator::voxel()
   return isValid() ? Voxel(key_, chunkIter(chunk_mem_)->second, map_) : Voxel();
 }
 
-OccupancyMap::OccupancyMap(double resolution, const glm::u8vec3 &region_voxel_dimensions, MapFlag flags,
-                           const MapLayout &seed_layout)
-  : OccupancyMap(resolution, region_voxel_dimensions, flags)
-{
-  imp_->layout = seed_layout;
-}
-
 OccupancyMap::OccupancyMap(double resolution, const glm::u8vec3 &region_voxel_dimensions, MapFlag flags)
   : imp_(new OccupancyMapDetail)
 {
@@ -208,11 +201,24 @@ OccupancyMap::OccupancyMap(double resolution, const glm::u8vec3 &region_voxel_di
   setMissProbability(0.4f);
   setOccupancyThresholdProbability(0.5f);
 
-  imp_->flags = flags;
-  imp_->setDefaultLayout((flags & MapFlag::SubVoxelPosition) != MapFlag::None);
   imp_->ray_filter = [](glm::dvec3 *start, glm::dvec3 *end, unsigned *filter_flags) {
     return ohm::goodRayFilter(start, end, filter_flags, 1e10);
   };
+
+  imp_->flags = flags;
+  imp_->setDefaultLayout((flags & MapFlag::SubVoxelPosition) != MapFlag::None);
+}
+
+OccupancyMap::OccupancyMap(double resolution, const glm::u8vec3 &region_voxel_dimensions, MapFlag flags,
+                           const MapLayout &seed_layout)
+  : OccupancyMap(resolution, region_voxel_dimensions, flags)
+{
+  imp_->layout = seed_layout;
+  const bool want_sub_voxel = (flags & MapFlag::SubVoxelPosition) != MapFlag::None;
+  if (imp_->layout.hasSubVoxelPattern() != want_sub_voxel)
+  {
+    setSubVoxelsEnabled(want_sub_voxel);
+  }
 }
 
 OccupancyMap::OccupancyMap(double resolution, MapFlag flags, const MapLayout &seed_layout)
@@ -940,16 +946,16 @@ void OccupancyMap::moveKey(Key &key, int x, int y, int z) const
   moveKeyAlongAxis(key, 2, z);
 }
 
-glm::ivec3 OccupancyMap::rangeBetween(const Key &a, const Key &b) const
+glm::ivec3 OccupancyMap::rangeBetween(const Key &from, const Key &to) const
 {
   // First diff the regions.
-  const glm::ivec3 region_diff = b.regionKey() - a.regionKey();
+  const glm::ivec3 region_diff = to.regionKey() - from.regionKey();
   glm::ivec3 voxel_diff;
 
   // Voxel difference is the sum of the local difference plus the region step difference.
   for (int i = 0; i < 3; ++i)
   {
-    voxel_diff[i] = int(b.localKey()[i]) - int(a.localKey()[i]) + region_diff[i] * imp_->region_voxel_dimensions[i];
+    voxel_diff[i] = int(to.localKey()[i]) - int(from.localKey()[i]) + region_diff[i] * imp_->region_voxel_dimensions[i];
   }
 
   return voxel_diff;
