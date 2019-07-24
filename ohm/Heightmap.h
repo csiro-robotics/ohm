@@ -158,9 +158,15 @@ namespace ohm
     /// Get the normal vector for the up axis used to last @c update().
     const glm::dvec3 &upAxisNormal() const;
 
+    /// Component index of the first surface axis normal [0, 2].
+    int surfaceAxisIndexA() const;
+
     /// Get a unit vector which lies along the surface of the heightmap, perpendicular to @c surfaceAxisB() and
     /// upAxisNormal().
     const glm::dvec3 &surfaceAxisA() const;
+
+    /// Component of the second surface axis normal [0, 2].
+    int surfaceAxisIndexB() const;
 
     /// Get a unit vector which lies along the surface of the heightmap, perpendicular to @c surfaceAxisA() and
     /// upAxisNormal().
@@ -168,15 +174,15 @@ namespace ohm
 
     /// Static resolution of @c Axis to a normal.
     /// @param id The @c Axis ID.
-    static const glm::dvec3 &upAxisNormal(int axis_id);
+    static const glm::dvec3 &upAxisNormal(UpAxis axis_id);
 
     /// Get a unit vector which lies along the surface of the heightmap, perpendicular to @c surfaceAxisB() and
     /// upAxisNormal().
-    static const glm::dvec3 &surfaceAxisA(int axis_id);
+    static const glm::dvec3 &surfaceAxisA(UpAxis axis_id);
 
     /// Get a unit vector which lies along the surface of the heightmap, perpendicular to @c surfaceAxisA() and
     /// upAxisNormal().
-    static const glm::dvec3 &surfaceAxisB(int axis_id);
+    static const glm::dvec3 &surfaceAxisB(UpAxis axis_id);
 
     /// The last base height value given to @p update().
     double baseHeight() const;

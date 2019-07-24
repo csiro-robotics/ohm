@@ -40,16 +40,18 @@ namespace ohm
     UpAxis up_axis_id = UpAxis::Z;
     /// Identifies the up axis as aligned to XYZ, [0, 2] but ignores sign/direction.
     /// Same as up_axis_id if that value is >= 0.
-    int vertical_axis_id = int(UpAxis::Z);
+    int vertical_axis_index = int(UpAxis::Z);
     /// Target number of threads to use. 1 => no threading.
     unsigned thread_count = 1;
     /// Should heightmap generation ignore the presence of sub-voxel positions, forcing voxel centres instead?
     bool ignore_sub_voxel_positioning = false;
 
     void updateAxis();
-    static const glm::dvec3 &upAxisNormal(int axis_id);
-    static const glm::dvec3 &surfaceNormalA(int axis_id);
-    static const glm::dvec3 &surfaceNormalB(int axis_id);
+    static const glm::dvec3 &upAxisNormal(UpAxis axis_id);
+    static int surfaceIndexA(UpAxis up_axis_id);
+    static const glm::dvec3 &surfaceNormalA(UpAxis axis_id);
+    static int surfaceIndexB(UpAxis up_axis_id);
+    static const glm::dvec3 &surfaceNormalB(UpAxis axis_id);
 
     void fromMapInfo(const MapInfo &info);
     void toMapInfo(MapInfo &info) const;
@@ -58,8 +60,8 @@ namespace ohm
 
   inline void HeightmapDetail::updateAxis()
   {
-    up = upAxisNormal(int(up_axis_id));
-    vertical_axis_id = (int(up_axis_id) >= 0) ? int(up_axis_id) : -(int(up_axis_id) + 1);
+    up = upAxisNormal(up_axis_id);
+    vertical_axis_index = (int(up_axis_id) >= 0) ? int(up_axis_id) : -(int(up_axis_id) + 1);
   }
 }  // namespace ohm
 

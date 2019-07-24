@@ -276,6 +276,10 @@ namespace ohm
       mutable VoxelConst voxel_;
     };
 
+    /// @overload
+    OccupancyMap(double resolution = 1.0, const glm::u8vec3 &region_voxel_dimensions = glm::u8vec3(0, 0, 0),
+                 MapFlag flags = MapFlag::None);
+
     /// Construct an @c OccupancyMap at the given voxels resolution.
     ///
     /// The @p regionVoxelDimensions controls the size of the map regions. The number of voxels
@@ -290,8 +294,17 @@ namespace ohm
     ///   dimension is replaced with its default value; e.g., @c OHM_DEFAULT_CHUNK_DIM_X.
     /// @param region_voxel_dimensions Sets the number of voxels in each map region.
     /// @param enable_sub_voxel_positioning Enable sub voxel positioning information?
-    OccupancyMap(double resolution = 1.0, const glm::u8vec3 &region_voxel_dimensions = glm::u8vec3(0, 0, 0),
-                 MapFlag flags = MapFlag::None);
+    /// @param seed_layout The @p MapLayout to create the map with. The constructed map clones the @c seed_layout
+    ///   object.
+    OccupancyMap(double resolution, const glm::u8vec3 &region_voxel_dimensions, MapFlag flags,
+                 const MapLayout &seed_layout);
+
+    /// @overload
+    OccupancyMap(double resolution, MapFlag flags, const MapLayout &seed_layout);
+
+    /// @overload
+    OccupancyMap(double resolution, MapFlag flags);
+
     /// Destructor.
     ~OccupancyMap();
 
@@ -625,7 +638,7 @@ namespace ohm
     /// of the @p position. The @p position is used only for sub-voxel positioning.
     ///
     /// This is not recommended for use by external libraries and @c integrateHit(const glm::dvec3 &, MapCache *) should
-    /// be prefered.
+    /// be preferred.
     ///
     /// @param point The global coordinate to integrate a hit at.
     /// @param cache Optional cache used to expidite region search.
@@ -823,7 +836,7 @@ namespace ohm
     /// @param a The first key.
     /// @param b The second key.
     /// @return The voxel offset from @p a to @p b along each axis.
-    glm::ivec3 rangeBetween(const Key &a, const Key &b) const;
+    glm::ivec3 rangeBetween(const Key &from, const Key &to) const;
 
     /// Builds the list of voxel keys intersected by the line segment connecting @p startPoint and @p endPoint.
     ///
