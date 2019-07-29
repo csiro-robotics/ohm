@@ -25,7 +25,7 @@ namespace ohm
     int load(InputStream &stream, OccupancyMapDetail &detail, SerialiseProgress *progress, const MapVersion &version,
              size_t region_count);
     int load(InputStream &stream, OccupancyMapDetail &detail, SerialiseProgress *progress, const MapVersion &version,
-             size_t region_count, const ChunkFunc &chunkFunc);
+             size_t region_count, const ChunkFunc &load_chunk);
 
     int loadMapInfo(InputStream &in, MapInfo &info);
     int loadItem(InputStream &in, MapValue &value);

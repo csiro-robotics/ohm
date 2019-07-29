@@ -32,6 +32,7 @@ if(CLOUD_IO_LIB STREQUAL "pdal")
 endif(CLOUD_IO_LIB STREQUAL "pdal")
 
 add_library(slamio ${SOURCES})
+clang_tidy_target(slamio)
 
 generate_export_header(slamio
       EXPORT_MACRO_NAME slamio_API

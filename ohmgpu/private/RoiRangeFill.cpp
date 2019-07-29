@@ -391,7 +391,7 @@ int RoiRangeFill::invoke(const OccupancyMapDetail &map, RoiRangeFill &query, Gpu
   {
     kernel_algorithm_flags |= 1;
   }
-  if ((map.flags & MapFlag::SubVoxelOccupancy) != MapFlag::None)
+  if ((map.flags & MapFlag::kSubVoxelOccupancy) != MapFlag::kNone)
   {
     kernel_algorithm_flags |= (1 << 1);
   }

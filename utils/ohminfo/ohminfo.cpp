@@ -180,7 +180,7 @@ int main(int argc, char *argv[])
   std::cout << "Sub-voxel-weighting: " << map.subVoxelWeighting() << std::endl;
   std::cout << "Sub-voxel-filter-scale: " << map.subVoxelFilterScale() << std::endl;
   std::cout << "Flags: " << std::endl;
-  if (map.flags() != ohm::MapFlag::None)
+  if (map.flags() != ohm::MapFlag::kNone)
   {
     unsigned bit = 1;
     for (unsigned i = 0; i < sizeof(ohm::MapFlag) * 8; ++i, bit <<= 1)

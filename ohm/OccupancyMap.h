@@ -278,7 +278,7 @@ namespace ohm
 
     /// @overload
     OccupancyMap(double resolution = 1.0, const glm::u8vec3 &region_voxel_dimensions = glm::u8vec3(0, 0, 0),
-                 MapFlag flags = MapFlag::None);
+                 MapFlag flags = MapFlag::kNone);
 
     /// Construct an @c OccupancyMap at the given voxels resolution.
     ///
@@ -665,14 +665,18 @@ namespace ohm
     inline void setHit(Voxel &voxel) const
     {
       if (voxel.isValid())
+      {
         voxel.setValue(hitValue());
+      }
     }
     /// Adjust the value of @p voxel by forcibly setting its occupancy probabilty to @c missProbability().
     /// @param voxel The voxel to increase the occupancy probabilty for. Must be a valid, non-null voxel.
     inline void setMiss(Voxel &voxel) const
     {
       if (voxel.isValid())
+      {
         voxel.setValue(missValue());
+      }
     }
 
     /// The minimum value a voxel can have. Value adjustments are clamped to this minimum.

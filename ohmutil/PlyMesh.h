@@ -125,7 +125,7 @@ namespace ohm
 
     bool save(const char *out_path, bool binary) const;
     bool save(FILE *outfile, bool binary) const;
-    bool save(std::ostream &out, bool binary) const;
+    bool save(std::ostream &stream, bool binary) const;
 
     template <typename T>
     class FileWrapper

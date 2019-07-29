@@ -160,18 +160,18 @@ namespace
     int axis_indices[3];
     switch (UpAxis(heightmap->upAxisIndex()))
     {
-    case UpAxis::X:
+    case UpAxis::kX:
       axis_indices[0] = 1;
       axis_indices[1] = 2;
       axis_indices[2] = 0;
       break;
-    case UpAxis::Y:
+    case UpAxis::kY:
       axis_indices[0] = 0;
       axis_indices[1] = 2;
       axis_indices[2] = 1;
       break;
     default:
-    case UpAxis::Z:
+    case UpAxis::kZ:
       axis_indices[0] = 0;
       axis_indices[1] = 1;
       axis_indices[2] = 2;
@@ -215,7 +215,7 @@ namespace
 
 TEST(Heightmap, Box)
 {
-  heightmapBoxTest("heightmap-box", UpAxis::Z);
+  heightmapBoxTest("heightmap-box", UpAxis::kZ);
 }
 
 
@@ -223,7 +223,7 @@ TEST(Heightmap, Ceiling)
 {
   TestParams params;
   params.ceiling = 0.5;
-  heightmapBoxTest("heightmap-ceiling", UpAxis::Z, nullptr, &params);
+  heightmapBoxTest("heightmap-ceiling", UpAxis::kZ, nullptr, &params);
 }
 
 
@@ -231,7 +231,7 @@ TEST(Heightmap, Floor)
 {
   TestParams params;
   params.floor = 0.5;
-  heightmapBoxTest("heightmap-floor", UpAxis::Z, nullptr, &params);
+  heightmapBoxTest("heightmap-floor", UpAxis::kZ, nullptr, &params);
 }
 
 
@@ -240,56 +240,56 @@ TEST(Heightmap, FloorAndCeiling)
   TestParams params;
   params.floor = 0.3;
   params.ceiling = 0.5;
-  heightmapBoxTest("heightmap-ceiling-floor", UpAxis::Z, nullptr, &params);
+  heightmapBoxTest("heightmap-ceiling-floor", UpAxis::kZ, nullptr, &params);
 }
 
 
 TEST(Heightmap, AxisX)
 {
-  heightmapBoxTest("heightmap-x", UpAxis::X);
+  heightmapBoxTest("heightmap-x", UpAxis::kX);
 }
 
 
 TEST(Heightmap, AxisY)
 {
-  heightmapBoxTest("heightmap-y", UpAxis::Y);
+  heightmapBoxTest("heightmap-y", UpAxis::kY);
 }
 
 
 TEST(Heightmap, AxisZ)
 {
-  heightmapBoxTest("heightmap-z", UpAxis::NegZ);
+  heightmapBoxTest("heightmap-z", UpAxis::kNegZ);
 }
 
 
 TEST(Heightmap, AxisNegX)
 {
-  heightmapBoxTest("heightmap-negx", UpAxis::X);
+  heightmapBoxTest("heightmap-negx", UpAxis::kX);
 }
 
 
 TEST(Heightmap, AxisNegY)
 {
-  heightmapBoxTest("heightmap-negy", UpAxis::Y);
+  heightmapBoxTest("heightmap-negy", UpAxis::kY);
 }
 
 
 TEST(Heightmap, AxisNegZ)
 {
-  heightmapBoxTest("heightmap-negz", UpAxis::NegZ);
+  heightmapBoxTest("heightmap-negz", UpAxis::kNegZ);
 }
 
 
 TEST(Heightmap, Layout)
 {
   std::shared_ptr<Heightmap> heightmap;
-  heightmapBoxTest("", UpAxis::Z, &heightmap);
+  heightmapBoxTest("", UpAxis::kZ, &heightmap);
   const MapLayout &layout = heightmap->heightmap().layout();
 
   EXPECT_EQ(layout.layerCount(), 3);
   const MapLayer *occupancy_layer = layout.layer(default_layer::occupancyLayerName());
-  const MapLayer *heightmap_layer = layout.layer(HeightmapVoxel::kHeightmapLayer);
-  const MapLayer *heightmap_build_layer = layout.layer(HeightmapVoxel::kHeightmapBuildLayer);
+  const MapLayer *heightmap_layer = layout.layer(HeightmapVoxel::heightmap_layer);
+  const MapLayer *heightmap_build_layer = layout.layer(HeightmapVoxel::heightmap_build_layer);
   ASSERT_NE(occupancy_layer, nullptr);
   ASSERT_NE(heightmap_layer, nullptr);
   ASSERT_NE(heightmap_build_layer, nullptr);
@@ -329,7 +329,7 @@ TEST(Heightmap, Layout)
 TEST(Heightmap, Mesh)
 {
   std::shared_ptr<Heightmap> heightmap;
-  heightmapBoxTest("", UpAxis::Z, &heightmap);
+  heightmapBoxTest("", UpAxis::kZ, &heightmap);
   HeightmapMesh mesh;
 
   bool ok = mesh.buildMesh(*heightmap);

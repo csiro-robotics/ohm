@@ -9,10 +9,10 @@
 
 #if !defined(_MSC_VER)
 
-int fopen_s(FILE **file, const char *name, const char *mode)
+int fopen_s(FILE **file, const char *name, const char *mode) // NOLINT
 {
   *file = fopen(name, mode);
-  if (file)
+  if (*file)
   {
     return 0;
   }

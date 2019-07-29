@@ -201,9 +201,9 @@ namespace ohm
   }
 
 
-  int saveMapInfo(OutputStream &stream, const MapInfo &mapInfo)
+  int saveMapInfo(OutputStream &stream, const MapInfo &map_info)
   {
-    uint32_t item_count = mapInfo.extract(nullptr, 0);
+    uint32_t item_count = map_info.extract(nullptr, 0);
 
     bool ok = true;
     ok = writeUncompressed<uint32_t>(stream, item_count) && ok;
@@ -220,7 +220,7 @@ namespace ohm
 
     std::vector<MapValue> values(item_count);
     values.resize(item_count);
-    unsigned extracted = mapInfo.extract(values.data(), item_count);
+    unsigned extracted = map_info.extract(values.data(), item_count);
 
     if (extracted != item_count)
     {
@@ -464,7 +464,7 @@ namespace ohm
     }
     else
     {
-      map.flags = MapFlag::None;
+      map.flags = MapFlag::kNone;
       map.sub_voxel_filter_scale = 1.0f;
     }
 
@@ -552,7 +552,7 @@ const char *ohm::errorCodeString(int err)
 
 int ohm::save(const char *filename, const OccupancyMap &map, SerialiseProgress *progress)
 {
-  OutputStream stream(filename, SfCompress);
+  OutputStream stream(filename, kSfCompress);
   const OccupancyMapDetail &detail = *map.detail();
 
   if (!stream.isOpen())
@@ -609,7 +609,7 @@ int ohm::save(const char *filename, const OccupancyMap &map, SerialiseProgress *
 
 int ohm::load(const char *filename, OccupancyMap &map, SerialiseProgress *progress, MapVersion *version_out)
 {
-  InputStream stream(filename, SfCompress);
+  InputStream stream(filename, kSfCompress);
   OccupancyMapDetail &detail = *map.detail();
 
   if (!stream.isOpen())
@@ -683,7 +683,7 @@ int ohm::load(const char *filename, Heightmap &heightmap, SerialiseProgress *pro
 
 int ohm::loadHeader(const char *filename, OccupancyMap &map, MapVersion *version_out, size_t *region_count)
 {
-  InputStream stream(filename, SfCompress);
+  InputStream stream(filename, kSfCompress);
   OccupancyMapDetail &detail = *map.detail();
 
   if (!stream.isOpen())
@@ -735,11 +735,11 @@ int ohm::loadHeader(const char *filename, OccupancyMap &map, MapVersion *version
   {
     if (detail.layout.hasSubVoxelPattern())
     {
-      detail.flags |= MapFlag::SubVoxelPosition;
+      detail.flags |= MapFlag::kSubVoxelPosition;
     }
     else
     {
-      detail.flags &= ~MapFlag::SubVoxelPosition;
+      detail.flags &= ~MapFlag::kSubVoxelPosition;
     }
   }
 

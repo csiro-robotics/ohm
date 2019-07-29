@@ -9,34 +9,25 @@
 
 
 ProgressMonitor::ProgressMonitor(unsigned update_frequency)
-  : update_frequency_(update_frequency)
+  : progress_(0)
+  , total_progress_(0)
+  , pass_(0)
+  , quit_(false)
+  , pause_(false)
+  , paused_(false)
+  , displayed_(false)
+  , update_frequency_(update_frequency)
   , thread_(nullptr)
 {
-  progress_ = 0;
-  total_progress_ = 0;
-  pass_ = 0;
-  total_passes_ = 0;
-  quit_ = false;
-  pause_ = false;
-  paused_ = false;
-  displayed_ = false;
   clearDisplayFunction();
 }
 
 
 ProgressMonitor::ProgressMonitor(const DisplayFunction &display_func, unsigned update_frequency)
-  : display_func_(display_func)
-  , update_frequency_(update_frequency)
-  , thread_(nullptr)
+  : ProgressMonitor(update_frequency)
 {
-  progress_ = 0;
-  total_progress_ = 0;
-  pass_ = 0;
-  total_passes_ = 0;
-  quit_ = false;
-  pause_ = false;
-  paused_ = false;
-  displayed_ = false;
+  display_func_ = display_func;
+  update_frequency_ = update_frequency;
 }
 
 
@@ -83,7 +74,9 @@ void ProgressMonitor::pause()
   {
     pause_.store(true);
     while (!paused_)
-      ;
+    {
+      // no op
+    }
   }
 }
 

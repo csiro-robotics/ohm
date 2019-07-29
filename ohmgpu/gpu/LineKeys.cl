@@ -49,7 +49,7 @@ __device__ void calculateLineKeys(__global struct GpuKey *lineOut, uint maxKeys,
 }
 
 
-__kernel void calculateLines(__global struct GpuKey *linesOut, uint maxKeysPerLine,
+__kernel void calculateLines(__global struct GpuKey *lines_out, uint max_keys_per_line,
                              const __global float3 *queryPointPairs,
                              uint queryCount, int3 regionDim, float voxelResolution
                              )
@@ -63,7 +63,7 @@ __kernel void calculateLines(__global struct GpuKey *linesOut, uint maxKeysPerLi
 
   float3 startPoint = (validThread) ? queryPointPairs[get_global_id(0) * 2 + 0] : make_float3(0, 0, 0);
   float3 endPoint = (validThread) ? queryPointPairs[get_global_id(0) * 2 + 1] : make_float3(0, 0, 0);
-  __global struct GpuKey *lineOut = linesOut + (get_global_id(0) * maxKeysPerLine);
+  __global struct GpuKey *lineOut = lines_out + (get_global_id(0) * max_keys_per_line);
   // We convert regionDim from an int3 to an array to allow indexed access.
   struct GpuKey startKey, endKey;
 
@@ -79,5 +79,5 @@ __kernel void calculateLines(__global struct GpuKey *linesOut, uint maxKeysPerLi
   startPoint -= voxelCentre(&startKey, &regionDim, voxelResolution);
   endPoint -= voxelCentre(&startKey, &regionDim, voxelResolution);
 
-  calculateLineKeys(lineOut, maxKeysPerLine, &startKey, &endKey, &startPoint, &endPoint, &regionDim, voxelResolution);
+  calculateLineKeys(lineOut, max_keys_per_line, &startKey, &endKey, &startPoint, &endPoint, &regionDim, voxelResolution);
 }

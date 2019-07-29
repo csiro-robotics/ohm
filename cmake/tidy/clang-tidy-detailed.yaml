@@ -140,10 +140,6 @@ CheckOptions:
     value: lower_case
   - key:  readability-identifier-naming.ClassMethodCase
     value: camelBack
-  - key:  readability-identifier-naming.ConstantCase
-    value: CamelCase
-  - key:  readability-identifier-naming.ConstantPrefix
-    value: 'k'
   - key:  readability-identifier-naming.ConstexprFunctionCase
     value: camelBack
   - key:  readability-identifier-naming.ConstexprMethodCase
@@ -167,18 +163,18 @@ CheckOptions:
   - key:  readability-identifier-naming.GlobalVariableCase
     value: lower_case
   - key:  readability-identifier-naming.InlineNamespaceCase
-    value: camelBack
+    value: lower_case
   - key:  readability-identifier-naming.LocalConstantCase
-    value: CamelCase
+    value: lower_case
   - key:  readability-identifier-naming.LocalConstantPrefix
-    value: 'k'
+    value: ''
   - key:  readability-identifier-naming.LocalVariableCase
     value: lower_case
   - key:  readability-identifier-naming.MemberCase
     value: lower_case
   - key:  readability-identifier-naming.ConstantMemberCase
-    value: CamelCase
-  - key: readability-identifier-naming.ConstantMemberPrefix
+    value: camelBack
+  - key:  readability-identifier-naming.ConstantMemberCasePrefix
     value: 'k'
   - key:  readability-identifier-naming.PrivateMemberCase
     value: lower_case
@@ -193,17 +189,15 @@ CheckOptions:
   - key:  readability-identifier-naming.MethodCase
     value: camelBack
   - key:  readability-identifier-naming.NamespaceCase
-    value: camelBack
+    value: lower_case
   - key:  readability-identifier-naming.ParameterCase
     value: lower_case
   - key:  readability-identifier-naming.ConstantParameterCase
     value: lower_case
   - key:  readability-identifier-naming.StaticConstantCase
-    value: CamelCase
+    value: lower_case
   - key:  readability-identifier-naming.StaticVariableCase
     value: lower_case
-  - key:  readability-identifier-naming.StaticVariablePrefix
-    value: 's_'
   - key:  readability-identifier-naming.StructCase
     value: CamelCase
   - key:  readability-identifier-naming.TemplateParameterCase
@@ -221,31 +215,9 @@ CheckOptions:
   - key:  readability-identifier-naming.UsingCase
     value: CamelCase
   - key:  readability-identifier-naming.ValueTemplateParameterCase
-    value: camelBack
+    value: UPPER_CASE
   - key:  readability-identifier-naming.VariableCase
     value: lower_case
   - key:  readability-identifier-naming.IgnoreFailedSplit
     value: '0'
-
-
-# Note: add // NOLINT to disable clang-tidy for a line.
-
-# Items for review:
-  # cert-dcl50-cpp, # Don't declare C style variadic functions
-  # modernize-use-uncaught-exceptions, # Not until C++17
-#  cert-dcl50-cpp, # Don't declare C style variadic functions
-# cert-err34-c, # Check use of unchecked str to int such as atoi
-# cert-flp30-c, # Don't use float as for loop variables
-# google-build-using-namespace # Do not allow "using namespace foo" anywhere! Prefer shortenning
-# google-explicit-constructor # require single argument constructors to use explicit
-# modernize-use-auto, # Enabled only for long types. Intended to catch iterators.
-#   modernize-use-auto.MinTypeNameLength = 10
-# readability-implicit-bool-conversion # if (ptr) => if (ptr != nullptr)
-
-# Items to avoid:
-# - cppcoreguidelines-owning-memory # requires all pointer allocations to be wrapped.
-
-# Other potentially needed options
-#  - key: bugprone-dangling-handle.HandleClasses
-#    value: 'std::experimental::basic_string_view'
 ...

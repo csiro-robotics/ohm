@@ -30,9 +30,9 @@ namespace
     {
       uint32_t i;
       char c[4];
-    } bint = { 0x01020304 };
+    } check_int = { 0x01020304 };
 
-    return bint.c[0] == 1;
+    return check_int.c[0] == 1;
   }
 }  // namespace
 
@@ -107,7 +107,7 @@ public:
   }
 
 private:
-  const unsigned kBufferSize = 1024u;  // Far to big for usage here.
+  static const unsigned kBufferSize = 1024u;  // Far to big for usage here.
   std::ostream *stream_;
   char *buffer_;
 };

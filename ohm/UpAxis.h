@@ -16,17 +16,17 @@ namespace ohm
   enum class UpAxis : int
   {
     /// (0, 0, -1)
-    NegZ = -3,
+    kNegZ = -3,
     /// (0, -1, 0)
-    NegY = -2,
+    kNegY = -2,
     /// (-1, 0, 0)
-    NegX = -1,
+    kNegX = -1,
     /// (1, 0, 0)
-    X,
+    kX,
     /// (0, 1, 0)
-    Y,
+    kY,
     /// (0, 0, 1)
-    Z,
+    kZ,
   };
 }
 

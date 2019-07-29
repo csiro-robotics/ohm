@@ -21,7 +21,7 @@
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wconversion"
 #endif  // __GNUC__
-#include <ohmutil/ska/bytell_hash_map.hpp>
+#include <ska/bytell_hash_map.hpp>
 #ifdef __GNUC__
 #pragma GCC diagnostic pop
 #endif  // __GNUC__

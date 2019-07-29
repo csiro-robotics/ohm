@@ -37,7 +37,7 @@ namespace ohmtools
         }
         last_region = iter.key().regionKey();
       }
-      if (map.occupancyType(voxel) == ohm::Occupied)
+      if (map.occupancyType(voxel) == ohm::kOccupied)
       {
         // v = map.voxelCentreLocal(voxel.key());
         v = voxel.position() - map.origin();

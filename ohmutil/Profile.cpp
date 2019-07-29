@@ -5,7 +5,7 @@
 // Author: Kazys Stepanas
 #include "Profile.h"
 
-#include "ska/bytell_hash_map.hpp"
+#include "ska/bytell_hash_map.hpp" // NOLINT
 
 #include <atomic>
 #include <cinttypes>
@@ -98,11 +98,11 @@ namespace ohm
     std::mutex mutex;
     std::vector<std::pair<std::thread::id, ThreadRecords>> thread_records;
     std::atomic_bool reported;
-    std::atomic_bool supress_report;
+    std::atomic_bool suppress_report;
 
     inline ProfileDetail()
       : reported(true)
-      , supress_report(false)
+      , suppress_report(false)
     {}
 
 
@@ -170,7 +170,7 @@ namespace ohm
 }  // namespace ohm
 
 
-Profile Profile::s_instance_;
+Profile Profile::s_instance;
 
 
 Profile::Profile()
@@ -187,7 +187,7 @@ Profile::~Profile()
 
 Profile &Profile::instance()
 {
-  return s_instance_;
+  return s_instance;
 }
 
 
@@ -251,7 +251,7 @@ void Profile::pop()
 
 void Profile::report(std::ostream *optr)
 {
-  if (!imp_->reported && !imp_->supress_report)
+  if (!imp_->reported && !imp_->suppress_report)
   {
     std::ostream &out = (optr) ? *optr : std::cout;
     std::unique_lock<std::mutex> guard(imp_->mutex);
@@ -277,11 +277,11 @@ void Profile::report(std::ostream *optr)
 
 void Profile::suppressReport(bool suppress)
 {
-  imp_->supress_report = suppress;
+  imp_->suppress_report = suppress;
 }
 
 
 bool Profile::reportSupressed() const
 {
-  return imp_->supress_report;
+  return imp_->suppress_report;
 }

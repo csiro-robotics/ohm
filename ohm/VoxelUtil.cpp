@@ -126,7 +126,7 @@ namespace ohm
 
     bool subVoxelOccupancyFilter(const Key &key, const MapChunk *chunk, const OccupancyMapDetail *map)
     {
-      if ((map->flags & MapFlag::SubVoxelOccupancy) == MapFlag::None)
+      if ((map->flags & MapFlag::kSubVoxelOccupancy) == MapFlag::kNone)
       {
         return true;
       }
@@ -200,7 +200,7 @@ namespace ohm
 
     bool subVoxelOccupancyFilterEnabled(const OccupancyMapDetail &map)
     {
-      return (map.flags & MapFlag::SubVoxel) == MapFlag::SubVoxel;
+      return (map.flags & MapFlag::kSubVoxel) == MapFlag::kSubVoxel;
     }
   }  // namespace voxel
 }  // namespace ohm

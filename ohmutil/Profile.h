@@ -30,7 +30,7 @@ namespace ohm
   /// Markers may be nested, where one @c ProfileMarker scope contained another with the outer scope including the
   /// time spend in the inner scope. The profiling system maintains a named scope stack per thread via @c push() and
   /// @c pop(). This is threadsafe with each call implicitly resolving the active @c std::thread. Scope naming is
-  /// relative to the parent scope, so two scopes may have the same name with different parents (and/or within diferent
+  /// relative to the parent scope, so two scopes may have the same name with different parents (and/or within different
   /// threads) and will be individually tracked.
   ///
   /// On program exit, the profile report is automatically shown so long as @c Profile::instance() has been called at
@@ -98,7 +98,7 @@ namespace ohm
 
   private:
     ProfileDetail *imp_;
-    static Profile s_instance_;
+    static Profile s_instance;
   };
 }  // namespace ohm
 

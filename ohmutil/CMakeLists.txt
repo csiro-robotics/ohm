@@ -5,10 +5,6 @@ find_package(GLM)
 find_package(Threads)
 
 set(SOURCES
-  ska/bytell_hash_map.hpp
-  ska/flat_hash_map.hpp
-  ska/ska_sort.hpp
-  ska/unordered_map.hpp
   Colour.cpp
   Colour.h
   cxxopts.hpp
@@ -40,10 +36,10 @@ set(SOURCES
 )
 
 set(PUBLIC_SKA_HEADERS
-  ska/bytell_hash_map.hpp
-  ska/flat_hash_map.hpp
-  ska/ska_sort.hpp
-  ska/unordered_map.hpp
+  3rdparty/ska/bytell_hash_map.hpp
+  3rdparty/ska/flat_hash_map.hpp
+  3rdparty/ska/ska_sort.hpp
+  3rdparty/ska/unordered_map.hpp
 )
 
 set(PUBLIC_HEADERS
@@ -70,6 +66,7 @@ set(PUBLIC_HEADERS
 )
 
 add_library(ohmutil ${SOURCES})
+clang_tidy_target(ohmutil EXCLUDE_MATCHES ".*ska/\\*\\.hpp")
 
 generate_export_header(ohmutil
       EXPORT_MACRO_NAME ohmutil_API
@@ -85,7 +82,9 @@ target_include_directories(ohmutil
 )
 
 target_include_directories(ohmutil SYSTEM
-  PUBLIC "${GLM_INCLUDE_DIR}"
+  PUBLIC
+  "${GLM_INCLUDE_DIR}"
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/3rdparty>
 )
 
 # Kazys: Why did this suddenly become necessary on my Linux desktop?

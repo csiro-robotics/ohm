@@ -213,8 +213,8 @@ with open(args.output_header, 'w') as header_file:
 #ifndef {1}
 #define {1}
 
-extern const unsigned {2}_length;
-extern const char *{2};
+extern const unsigned {2}_length; // NOLINT
+extern const char *{2}; // NOLINT
 
 #endif // {1}
 """.format(args.input, header_guard, resource_name))
@@ -281,10 +281,10 @@ with open(args.output_source, 'w') as source_file:
     source_file.write("""// Resource file generated from {0}
 #include "{1}"
 
-const unsigned {2}_length = {3};
-static const char {2}_[] = """.format(args.input, os.path.basename(args.output_header), resource_name, input_file_content_length))
+const unsigned {2}_length = {3};  // NOLINT
+static const char {2}_[] =  // NOLINT\n""".format(args.input, os.path.basename(args.output_header), resource_name, input_file_content_length))
 
     source_file.write(input_file_content_string)
-    source_file.write(';\n')
-    source_file.write("const char *{0} = {0}_;\n".format(resource_name))
+    source_file.write('; // NOLINT\n')
+    source_file.write("const char *{0} = {0}_; // NOLINT\n".format(resource_name))
     source_file.write('\n')

@@ -112,7 +112,7 @@ namespace
                                    "}\n";
 
   // The fullscreen quad's FBO
-  static const GLfloat g_quad_vertex_buffer_data[] =  //
+  static const GLfloat kQuadVertexBufferData[] =  //
     {
       -1.0f, -1.0f, 0.0f,  //
       1.0f,  -1.0f, 0.0f,  //
@@ -445,7 +445,7 @@ namespace ohm
 
     glGenBuffers(1, &quad_vertex_buffer);
     glBindBuffer(GL_ARRAY_BUFFER, quad_vertex_buffer);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(g_quad_vertex_buffer_data), g_quad_vertex_buffer_data, GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(kQuadVertexBufferData), kQuadVertexBufferData, GL_STATIC_DRAW);
 
     // Create and compile our GLSL program from the shaders
     quad_program_id = loadShaders("fbo", quad_vertex_shader, quad_fragment_shader);
@@ -702,33 +702,33 @@ bool HeightmapImage::renderHeightMesh(ImageType image_type, const Aabb &spatial_
   int axes[3];
   switch (up_axis)
   {
-  case UpAxis::NegZ:
+  case UpAxis::kNegZ:
     axes[0] = 1;
     axes[1] = 0;
     axes[2] = 2;
     break;
-  case UpAxis::NegY:
+  case UpAxis::kNegY:
     axes[0] = 2;
     axes[1] = 0;
     axes[2] = 1;
     break;
-  case UpAxis::NegX:
+  case UpAxis::kNegX:
     axes[0] = 2;
     axes[1] = 1;
     axes[2] = 0;
     break;
-  case UpAxis::X:
+  case UpAxis::kX:
     axes[0] = 1;
     axes[1] = 2;
     axes[2] = 0;
     break;
-  case UpAxis::Y:
+  case UpAxis::kY:
     axes[0] = 0;
     axes[1] = 2;
     axes[2] = 1;
     break;
   default:
-  case UpAxis::Z:
+  case UpAxis::kZ:
     axes[0] = 0;
     axes[1] = 1;
     axes[2] = 2;
@@ -896,7 +896,7 @@ bool HeightmapImage::renderHeightMesh(ImageType image_type, const Aabb &spatial_
   const float camera_offset = 0.0f;
   // Near and far clip planes require sufficient buffering to exceed the min/max extents range.
   // So near is at 1.0f (to avoid some depth precision issues), far is near clip (1) + range + camera_offset (2)
-  const glm::mat4 ProjectionMatrix =
+  const glm::mat4 projection_matrix =
     glm::ortho(-0.5f * max_ext_vertices[axes[0]] - min_ext_vertices[axes[0]],
                0.5f * max_ext_vertices[axes[0]] - min_ext_vertices[axes[0]],
                -0.5f * max_ext_vertices[axes[1]] - min_ext_vertices[axes[1]],
@@ -912,7 +912,7 @@ bool HeightmapImage::renderHeightMesh(ImageType image_type, const Aabb &spatial_
   const glm::mat4 view_matrix = glm::lookAt(eye, target, view_up);
 
   const glm::mat4 model_matrix = glm::mat4(1.0);
-  const glm::mat4 mvp_matrix = ProjectionMatrix * view_matrix * model_matrix;
+  const glm::mat4 mvp_matrix = projection_matrix * view_matrix * model_matrix;
 
   // Send our transformation to the currently bound shader,
   // in the "mvp_matrix" uniform

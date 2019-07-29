@@ -15,8 +15,7 @@ string(REGEX REPLACE "\\<version\\>(.*)\\</version\\>" "\\1" ohm_VERSION ${ohm_V
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
 
 # Setup clang-tidy
-set(CLANG_TIDY_PROJECT_PREFIX OHM)
-include(clang-tidy)
+include(ClangTidy)
 
 # Allow the use of folders to group targets in supporting environments.
 # For example Visual Studio solution folders.
@@ -198,6 +197,8 @@ if(OHM_UNIT_TESTS)
   enable_testing()
   add_subdirectory(tests)
 endif(OHM_UNIT_TESTS)
+
+clang_tidy_global()
 
 export(EXPORT ${CMAKE_PROJECT_NAME}-config-targets
   FILE "${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_PROJECT_NAME}-config-targets.cmake"

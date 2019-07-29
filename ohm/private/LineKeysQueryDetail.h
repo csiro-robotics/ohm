@@ -16,8 +16,8 @@ namespace ohm
   struct ohm_API LineKeysQueryDetail : QueryDetail
   {
     std::vector<glm::dvec3> rays;
-    std::vector<size_t> resultIndices;
-    std::vector<size_t> resultCounts;
+    std::vector<size_t> result_indices;
+    std::vector<size_t> result_counts;
   };
 }
 

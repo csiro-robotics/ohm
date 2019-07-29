@@ -104,18 +104,18 @@ void Event::wait() const
 }
 
 
-void Event::wait(const Event *events, size_t eventCount)
+void Event::wait(const Event *events, size_t event_count)
 {
-  for (size_t i = 0; i < eventCount; ++i)
+  for (size_t i = 0; i < event_count; ++i)
   {
     events[i].wait();
   }
 }
 
 
-void Event::wait(const Event **events, size_t eventCount)
+void Event::wait(const Event **events, size_t event_count)
 {
-  for (size_t i = 0; i < eventCount; ++i)
+  for (size_t i = 0; i < event_count; ++i)
   {
     events[i]->wait();
   }

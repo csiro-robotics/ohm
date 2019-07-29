@@ -87,10 +87,10 @@ namespace ohm
     /// If referencing an uncertain voxel, then the result depends on @p uncertainAsObstructed.
     /// When @c true (default) the return value is 0 (obstruction) otherwise it is -1 (clear).
     ///
-    /// @param uncertain_as_obstructed Defines the behaviour when referencing an uncertain voxel.
+    /// @param invalid_as_obstructed Defines the behaviour when referencing an invalid voxel.
     /// @return The range to the nearest obstacle, zero if this is an obstructed voxel,
     ///     or negative (-1) if there are no obstacles within the specified query range.
-    float clearance(bool uncertain_as_obstructed = true) const;
+    float clearance(bool invalid_as_obstructed = true) const;
 
     /// Queries the timestamp for the chunk containing this voxel.
     /// @return The last timestamp associated to the chunk. See @c Voxel::touchRegion()
@@ -249,9 +249,7 @@ namespace ohm
     typedef VoxelBase<MapChunk> Super;
 
     /// Default constructor (null voxel).
-    inline Voxel()
-      : Super()
-    {}
+    inline Voxel() {}
 
     /// Construct a voxel reference to an existing voxel.
     /// @param key The key of the voxel to reference.
@@ -348,9 +346,7 @@ namespace ohm
     typedef VoxelBase<const MapChunk> Super;
 
     /// Default constructor (null voxel).
-    inline VoxelConst()
-      : Super()
-    {}
+    inline VoxelConst() {}
 
     /// Construct a voxel reference to an existing voxel.
     /// @param key The key of the voxel to reference.

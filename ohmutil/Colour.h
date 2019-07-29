@@ -95,7 +95,7 @@ namespace ohm
     /// Empty constructor: the colour channels are uninitialised.
     inline Colour() {}
 
-    /// Initialse a colour with the given channel values.
+    /// Initialise a colour with the given channel values.
     /// @param r The red colour channel.
     /// @param g The green colour channel.
     /// @param b The blue colour channel.
@@ -112,17 +112,17 @@ namespace ohm
     /// @param c The colour to copy.
     inline Colour(const Colour &c) { *this = c; }
 
-    /// Initialse from a 32-bit integer.
+    /// Initialise from a 32-bit integer.
     ///
     /// Colour channels are extracted according to the values of
     /// @c AShift, @c RShift, @c GShift and @c BShift.
     /// @param c The integer colour value.
-    inline Colour(uint32_t c)
+    inline Colour(uint32_t c) // NOLINT
     {
-      rgba[kA] = uint8_t((c >> kAShift) & 0xffu);
-      rgb[kR] = uint8_t((c >> kRShift) & 0xffu);
-      rgb[kG] = uint8_t((c >> kGShift) & 0xffu);
-      rgb[kB] = uint8_t((c >> kBShift) & 0xffu);
+      rgba[kA] = uint8_t((c >> kAShift) & 0xFFu);
+      rgb[kR] = uint8_t((c >> kRShift) & 0xFFu);
+      rgb[kG] = uint8_t((c >> kGShift) & 0xFFu);
+      rgb[kB] = uint8_t((c >> kBShift) & 0xFFu);
     }
 
     /// Convert to a 32-bit integer colour value.
@@ -200,7 +200,7 @@ namespace ohm
     /// @return Alpha channel as a float.
     inline float af() const { return float(a()) / 255.0f; }
 
-    /// An enumerationn of predefined colours (web colours).
+    /// An enumeration of predefined colours (web colours).
     enum Names
     {
       // Blacks.

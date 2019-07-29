@@ -109,6 +109,7 @@ if(OPENCL_FOUND)
   )
 
   add_library(gputilocl ${SOURCES} ${SOURCES_OPENCL})
+  clang_tidy_target(gputilocl EXCLUDE_MATCHES ".*\.cl")
   target_include_directories(gputilocl PRIVATE
       $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/cl>
   )
@@ -165,7 +166,8 @@ if(CUDA_FOUND)
   )
 
   cuda_add_library(gputilcuda ${SOURCES} ${SOURCES_CUDA})
-  target_include_directories(gputilcuda
+  clang_tidy_target(gputilcuda EXCLUDE_MATCHES ".*\.cl")
+  target_include_directories(gputilcuda SYSTEM
     PUBLIC
       # TODO: make the need for CUDA directories private.
       "${CUDA_INCLUDE_DIRS}"

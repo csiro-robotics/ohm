@@ -325,9 +325,9 @@ int populateMap(const Options &opt)
     return -2;
   }
 
-  ohm::MapFlag map_flags = ohm::MapFlag::None;
-  map_flags |= (opt.sub_voxel_weighting > 0) ? ohm::MapFlag::SubVoxelPosition : ohm::MapFlag::None;
-  map_flags |= (opt.sub_voxel_filter > 0) ? ohm::MapFlag::SubVoxelOccupancy : ohm::MapFlag::None;
+  ohm::MapFlag map_flags = ohm::MapFlag::kNone;
+  map_flags |= (opt.sub_voxel_weighting > 0) ? ohm::MapFlag::kSubVoxelPosition : ohm::MapFlag::kNone;
+  map_flags |= (opt.sub_voxel_filter > 0) ? ohm::MapFlag::kSubVoxelOccupancy : ohm::MapFlag::kNone;
   ohm::OccupancyMap map(opt.resolution, opt.region_voxel_dim, map_flags);
   std::atomic<uint64_t> elapsed_ms(0);
   ProgressMonitor prog(10);

@@ -57,28 +57,28 @@ int Mapper::update(double time_slice_sec)
   if (map && !imp_->processes.empty())
   {
     int process_result;
-    double elpased_sec = 0;
+    double elapsed_sec = 0;
 
     // Ensure first item is in range.
-    imp_->nextProcess = imp_->nextProcess % unsigned(imp_->processes.size());
-    const unsigned initial_index = imp_->nextProcess;
+    imp_->next_process = imp_->next_process % unsigned(imp_->processes.size());
+    const unsigned initial_index = imp_->next_process;
     bool first_iteration = true;
 
     // Update until we consume the timeSliceSec or everything is up to date.
-    while ((time_slice_sec == 0 || elpased_sec < time_slice_sec) &&
-           (first_iteration || imp_->nextProcess != initial_index))
+    while ((time_slice_sec == 0 || elapsed_sec < time_slice_sec) &&
+           (first_iteration || imp_->next_process != initial_index))
     {
-      // Enforce range of imp_->nextProcess. This plus the increment ensures we run processes in a round robin,
+      // Enforce range of imp_->next_process. This plus the increment ensures we run processes in a round robin,
       // but don't go out of range.
-      MappingProcess *process = imp_->processes[imp_->nextProcess++];
-      imp_->nextProcess = imp_->nextProcess % unsigned(imp_->processes.size());
+      MappingProcess *process = imp_->processes[imp_->next_process++];
+      imp_->next_process = imp_->next_process % unsigned(imp_->processes.size());
       if (!process->paused())
       {
         process_result = process->update(*map, time_slice_sec);
         status = std::max(process_result, status);
       }
       cur_time = Clock::now();
-      elpased_sec = std::chrono::duration_cast<std::chrono::duration<double>>(cur_time - start_time).count();
+      elapsed_sec = std::chrono::duration_cast<std::chrono::duration<double>>(cur_time - start_time).count();
       first_iteration = false;
     }
   }

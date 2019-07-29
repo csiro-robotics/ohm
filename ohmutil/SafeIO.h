@@ -15,7 +15,7 @@
 #define sprintf_s snprintf
 #define sscanf_s sscanf
 
-int ohmutil_API fopen_s(FILE **file, const char *name, const char *mode);
+int ohmutil_API fopen_s(FILE **file, const char *name, const char *mode); // NOLINT
 
 #endif  // !defined(_MSC_VER)
 

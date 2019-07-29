@@ -19,7 +19,6 @@ using namespace ohm;
 
 RayPatternConical::RayPatternConical(const glm::dvec3 &cone_axis, double cone_angle, double range,
                                      double angular_resolution, double min_range)
-  : RayPattern()
 {
   TES_CONE_T(g_3es, TES_COLOUR_A(YellowGreen, 128), TES_PTR_ID(this), tes::V3Arg(0, 0, 0), glm::value_ptr(cone_axis),
              float(cone_angle), float(range));

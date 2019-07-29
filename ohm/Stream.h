@@ -23,7 +23,7 @@ namespace ohm
   enum StreamFlag
   {
     /// Compression is enabled.
-    SfCompress = (1 << 0),
+    kSfCompress = (1 << 0),
   };
 
 

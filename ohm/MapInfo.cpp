@@ -777,15 +777,15 @@ void MapInfo::clear()
 }
 
 
-unsigned MapInfo::extract(MapValue *values, unsigned maxCount, unsigned offset) const
+unsigned MapInfo::extract(MapValue *values, unsigned max_count, unsigned offset) const
 {
-  if (!values || !maxCount)
+  if (!values || !max_count)
   {
     return unsigned(imp_->dictionary.size());
   }
 
   unsigned extracted = 0;
-  for (auto iter = imp_->dictionary.begin(); iter != imp_->dictionary.end() && extracted < maxCount; ++iter)
+  for (auto iter = imp_->dictionary.begin(); iter != imp_->dictionary.end() && extracted < max_count; ++iter)
   {
     if (!offset)
     {

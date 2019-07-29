@@ -21,7 +21,7 @@
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wconversion"
 #endif // __GNUC__
-#include <ohmutil/ska/bytell_hash_map.hpp>
+#include <ska/bytell_hash_map.hpp>
 #ifdef __GNUC__
 #pragma GCC diagnostic pop
 #endif // __GNUC__
@@ -40,7 +40,7 @@ namespace ohm
   struct ohm_API OccupancyMapDetail
   {
     // "sub_voxel"
-    static const char *kSubVoxelLayerName;
+    static const char *sub_voxel_layer_name;
 
     glm::dvec3 origin = glm::dvec3(0);
     glm::dvec3 region_spatial_dimensions = glm::dvec3(0);
@@ -64,7 +64,7 @@ namespace ohm
     mutable std::mutex mutex;
     // Region count at load time. Useful when only the header is loaded.
     size_t loaded_region_count = 0;
-    MapFlag flags = MapFlag::None;
+    MapFlag flags = MapFlag::kNone;
 
     /// GPU cache pointer. Note: this is declared here, but implemented in a dependent library. We simply ensure that
     /// the map detail supports a GPU cache.

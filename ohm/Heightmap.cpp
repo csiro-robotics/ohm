@@ -57,23 +57,23 @@ namespace
     {
       switch (up_axis)
       {
-      case UpAxis::X:
+      case UpAxis::kX:
         /* fallthrough */
-      case UpAxis::NegX:
+      case UpAxis::kNegX:
         axis_indices[0] = 1;
         axis_indices[1] = 2;
         axis_indices[2] = 0;
         break;
-      case UpAxis::Y:
+      case UpAxis::kY:
         /* fallthrough */
-      case UpAxis::NegY:
+      case UpAxis::kNegY:
         axis_indices[0] = 0;
         axis_indices[1] = 2;
         axis_indices[2] = 1;
         break;
-      case UpAxis::Z:
+      case UpAxis::kZ:
         /* fallthrough */
-      case UpAxis::NegZ:
+      case UpAxis::kNegZ:
         axis_indices[0] = 0;
         axis_indices[1] = 1;
         axis_indices[2] = 2;
@@ -121,7 +121,7 @@ namespace
                                               bool force_voxel_centre)
   {
     ohm::OccupancyType voxel_type = ohm::OccupancyType(map.occupancyType(voxel));
-    if (voxel_type == ohm::Occupied)
+    if (voxel_type == ohm::kOccupied)
     {
       // Determine the height offset for voxel.
       *voxel_position = (force_voxel_centre) ? voxel.centreGlobal() : voxel.position();
@@ -193,7 +193,7 @@ namespace
           break;
         }
 
-        if (voxel_type == ohm::Occupied)
+        if (voxel_type == ohm::kOccupied)
         {
           if (height < column_height)
           {
@@ -210,12 +210,10 @@ namespace
               // Found our heightmap voxels.
               break;
             }
-            else
-            {
-              // Insufficient clearance. This becomes our new base voxel; keep looking for clearance.
-              column_height = column_clearance_height = height;
-              column_voxel_pos = sub_voxel_pos;
-            }
+
+            // Insufficient clearance. This becomes our new base voxel; keep looking for clearance.
+            column_height = column_clearance_height = height;
+            column_voxel_pos = sub_voxel_pos;
           }
         }
       }
@@ -244,7 +242,7 @@ namespace
 }  // namespace
 
 Heightmap::Heightmap()
-  : Heightmap(0.2, 2.0, UpAxis::Z)
+  : Heightmap(0.2, 2.0, UpAxis::kZ)
 {}
 
 
@@ -255,10 +253,10 @@ Heightmap::Heightmap(double grid_resolution, double min_clearance, UpAxis up_axi
 
   imp_->min_clearance = min_clearance;
 
-  if (up_axis < UpAxis::NegZ || up_axis > UpAxis::Z)
+  if (up_axis < UpAxis::kNegZ || up_axis > UpAxis::kZ)
   {
     std::cerr << "Unknown up axis ID: " << int(up_axis) << std::endl;
-    up_axis = UpAxis::Z;
+    up_axis = UpAxis::kZ;
   }
 
   // Cache the up axis normal.
@@ -268,7 +266,7 @@ Heightmap::Heightmap(double grid_resolution, double min_clearance, UpAxis up_axi
   // Use an OccupancyMap to store grid cells. Each region is 1 voxel thick.
   glm::u8vec3 region_dim(region_size);
   region_dim[int(imp_->vertical_axis_index)] = 1;
-  imp_->heightmap.reset(new OccupancyMap(grid_resolution, region_dim, ohm::MapFlag::SubVoxelPosition));
+  imp_->heightmap.reset(new OccupancyMap(grid_resolution, region_dim, ohm::MapFlag::kSubVoxelPosition));
 
   // Setup the heightmap voxel layout.
   MapLayout &layout = imp_->heightmap->layout();
@@ -287,13 +285,13 @@ Heightmap::Heightmap(double grid_resolution, double min_clearance, UpAxis up_axi
   size_t clear_value = 0;
   // Initialise the data structure to have both ranges at float max.
   memset(&clear_value, max_clearance_int, sizeof(clear_value));
-  layer = layout.addLayer(HeightmapVoxel::kHeightmapLayer, 0);
+  layer = layout.addLayer(HeightmapVoxel::heightmap_layer, 0);
   imp_->heightmap_layer = (int)layer->layerIndex();
   voxels = layer->voxelLayout();
   voxels.addMember("height", DataType::kFloat, 0);
   voxels.addMember("clearance", DataType::kFloat, 0);
 
-  layer = layout.addLayer(HeightmapVoxel::kHeightmapBuildLayer, 0);
+  layer = layout.addLayer(HeightmapVoxel::heightmap_build_layer, 0);
   imp_->heightmap_build_layer = (int)layer->layerIndex();
   voxels = layer->voxelLayout();
   voxels.addMember("height", DataType::kFloat, 0);
@@ -524,7 +522,7 @@ bool Heightmap::update(double base_height, const ohm::Aabb &cull_to)
   std::atomic_uint populated_count(0);
   if (imp_->thread_count != 1)
   {
-    const auto updateHeightmapBlock = [&] (const tbb::blocked_range3d<unsigned, unsigned, unsigned> &range) //
+    const auto update_heightmap_block = [&] (const tbb::blocked_range3d<unsigned, unsigned, unsigned> &range) //
     { //
       Key min_key_local = min_ext_key;
       Key max_key_local = min_ext_key;
@@ -542,12 +540,12 @@ bool Heightmap::update(double base_height, const ohm::Aabb &cull_to)
       tbb::parallel_for(tbb::blocked_range3d<unsigned, unsigned, unsigned>(0, voxel_range.z + 1,  //
                                                                            0, voxel_range.y + 1,  //
                                                                            0, voxel_range.x + 1),
-                        updateHeightmapBlock);
+                        update_heightmap_block);
       // const unsigned grain_size = 8;
       // tbb::parallel_for(tbb::blocked_range3d<unsigned, unsigned, unsigned>(0, voxel_range.z + 1, grain_size,  //
       //                                                                      0, voxel_range.y + 1, grain_size,  //
       //                                                                      0, voxel_range.x + 1, grain_size),
-      //                   updateHeightmapBlock);
+      //                   update_heightmap_block);
     };
 
     if (imp_->thread_count)

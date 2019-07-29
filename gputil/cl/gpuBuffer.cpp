@@ -157,11 +157,11 @@ namespace gputil
 
       cl_event event;
       cl_event *event_ptr = (!explicit_queue || completion) ? &event : nullptr;
-      int blockOnCount = (block_on && block_on->isValid()) ? 1 : 0;
-      cl_event block_on_ocl = (blockOnCount) ? block_on->detail()->event : nullptr;
+      int block_on_count = (block_on && block_on->isValid()) ? 1 : 0;
+      cl_event block_on_ocl = (block_on_count) ? block_on->detail()->event : nullptr;
 
-      clerr = clEnqueueUnmapMemObject(queue_cl, imp.buffer(), pinned_ptr, blockOnCount,
-                                      (blockOnCount) ? &block_on_ocl : nullptr, event_ptr);
+      clerr = clEnqueueUnmapMemObject(queue_cl, imp.buffer(), pinned_ptr, block_on_count,
+                                      (block_on_count) ? &block_on_ocl : nullptr, event_ptr);
 
       GPUAPICHECK2(clerr, CL_SUCCESS);
 
@@ -290,7 +290,7 @@ void Buffer::fill(const void *pattern, size_t pattern_size, Queue *queue, Event 
   if (isValid())
   {
     cl_int clerr = CL_SUCCESS;
-    cl_command_queue clQueue = selectQueue(imp_->device, queue);
+    cl_command_queue ocl_queue = selectQueue(imp_->device, queue);
 
     // Note: clEnqueueFillBuffer() appears to be faster than memory mapping. That is, it doesn't
     // suffer the same performance issues as clEnqueueReadBuffer()/clEnqueueWriteBuffer().
@@ -298,7 +298,7 @@ void Buffer::fill(const void *pattern, size_t pattern_size, Queue *queue, Event 
 
     const int block_on_count = (block_on && block_on->isValid()) ? 1 : 0;
     cl_event block_on_ocl = (block_on_count) ? block_on->detail()->event : nullptr;
-    clerr = clEnqueueFillBuffer(clQueue, imp_->buffer(), pattern, pattern_size, 0, actualSize(), block_on_count,
+    clerr = clEnqueueFillBuffer(ocl_queue, imp_->buffer(), pattern, pattern_size, 0, actualSize(), block_on_count,
                                 (block_on_count) ? &block_on_ocl : nullptr,
                                 (queue && completion) ? &completion->detail()->event : nullptr);
     GPUAPICHECK2(clerr, CL_SUCCESS);
@@ -306,7 +306,7 @@ void Buffer::fill(const void *pattern, size_t pattern_size, Queue *queue, Event 
     if (!queue)
     {
       // Blocking operation.
-      clerr = clFinish(clQueue);
+      clerr = clFinish(ocl_queue);
       GPUAPICHECK2(clerr, CL_SUCCESS);
     }
   }
@@ -359,8 +359,8 @@ void Buffer::fillPartial(const void *pattern, size_t pattern_size, size_t fill_b
   if (filled < fill_bytes)
   {
     // Finish the last (partial pattern) write.
-    size_t lastWriteSize = fill_bytes - filled;
-    write(pattern, lastWriteSize, offset + filled, queue);
+    size_t last_write_size = fill_bytes - filled;
+    write(pattern, last_write_size, offset + filled, queue);
   }
 }
 
@@ -401,22 +401,22 @@ size_t Buffer::read(void *dst, size_t read_byte_count, size_t src_offset, Queue 
   }
 #endif  // USE_PINNED
 
-  cl_command_queue clQueue = selectQueue(imp_->device, queue);
-  int blockOnCount = (block_on && block_on->isValid()) ? 1 : 0;
-  cl_event block_on_ocl = (blockOnCount) ? block_on->detail()->event : nullptr;
+  cl_command_queue ocl_queue = selectQueue(imp_->device, queue);
+  int block_on_count = (block_on && block_on->isValid()) ? 1 : 0;
+  cl_event block_on_ocl = (block_on_count) ? block_on->detail()->event : nullptr;
 
 // Non-blocking when an explicit queue has been provided.
 #if 1
-  clerr = clEnqueueReadBuffer(clQueue, imp_->buffer(), (!queue) ? CL_TRUE : CL_FALSE, src_offset, copy_bytes, dst,
-                              blockOnCount, (blockOnCount) ? &block_on_ocl : nullptr,
+  clerr = clEnqueueReadBuffer(ocl_queue, imp_->buffer(), (!queue) ? CL_TRUE : CL_FALSE, src_offset, copy_bytes, dst,
+                              block_on_count, (block_on_count) ? &block_on_ocl : nullptr,
                               (queue && completion) ? &completion->detail()->event : nullptr);
 // if (queue && completion)
 // {
 //   clWaitForEvents(1, &completion->detail()->event);
 // }
 #else   // #
-  clerr = clEnqueueReadBuffer(clQueue, _imp->buffer(), CL_TRUE, srcOffset, copyBytes, dst, blockOnCount,
-                              (blockOnCount) ? &blockOnOcl : nullptr, nullptr);
+  clerr = clEnqueueReadBuffer(ocl_queue, _imp->buffer(), CL_TRUE, srcOffset, copyBytes, dst, block_on_count,
+                              (block_on_count) ? &blockOnOcl : nullptr, nullptr);
 #endif  // #
 
   GPUAPICHECK(clerr, CL_SUCCESS, 0u);

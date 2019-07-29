@@ -36,8 +36,8 @@ namespace gpumap
                   size_t gpu_mem_size = 0u, bool sub_voxels = false)
   {
     // Test basic map populate using GPU and ensure it matches CPU (close enough).
-    OccupancyMap cpu_map(resolution, region_size, sub_voxels ? MapFlag::SubVoxel : MapFlag::None);
-    OccupancyMap gpu_map(resolution, region_size, sub_voxels ? MapFlag::SubVoxel : MapFlag::None);
+    OccupancyMap cpu_map(resolution, region_size, sub_voxels ? MapFlag::kSubVoxel : MapFlag::kNone);
+    OccupancyMap gpu_map(resolution, region_size, sub_voxels ? MapFlag::kSubVoxel : MapFlag::kNone);
     GpuMap gpu_wrap(&gpu_map, true, unsigned(batch_size * 2), gpu_mem_size);  // Borrow pointer.
 
     ASSERT_TRUE(gpu_wrap.gpuOk());

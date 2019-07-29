@@ -30,7 +30,7 @@ namespace gputil
     unsigned reference();
     unsigned release();
 
-    void set(T obj, unsigned refCount);
+    void set(T obj, unsigned ref_count);
 
     inline T obj() { return obj_; }
     inline const T obj() const { return obj_; }
@@ -107,7 +107,7 @@ namespace gputil
 
 
   template <typename T>
-  inline void Ref<T>::set(T obj, unsigned refCount)
+  inline void Ref<T>::set(T obj, unsigned ref_count)
   {
     std::unique_lock<std::mutex> guard(lock_);
     if (reference_count_)
@@ -117,7 +117,7 @@ namespace gputil
     }
 
     obj_ = obj;
-    reference_count_ = refCount;
+    reference_count_ = ref_count;
   }
 
 

@@ -88,14 +88,14 @@ size_t LineKeysQuery::rayPointCount() const
 const size_t *LineKeysQuery::resultIndices() const
 {
   LineKeysQueryDetail *d = static_cast<LineKeysQueryDetail *>(imp_);
-  return d->resultIndices.data();
+  return d->result_indices.data();
 }
 
 
 const size_t *LineKeysQuery::resultCounts() const
 {
   LineKeysQueryDetail *d = static_cast<LineKeysQueryDetail *>(imp_);
-  return d->resultCounts.data();
+  return d->result_counts.data();
 }
 
 
@@ -104,21 +104,21 @@ bool LineKeysQuery::onExecute()
   LineKeysQueryDetail *d = static_cast<LineKeysQueryDetail *>(imp_);
 
   KeyList key_list;
-  d->resultIndices.resize(d->rays.size() / 2);
-  d->resultCounts.resize(d->rays.size() / 2);
+  d->result_indices.resize(d->rays.size() / 2);
+  d->result_counts.resize(d->rays.size() / 2);
   for (size_t i = 0; i < d->rays.size(); i += 2)
   {
     key_list.clear();
     d->map->calculateSegmentKeys(key_list, d->rays[i + 0], d->rays[i + 1], true);
-    d->resultIndices[i / 2] = d->intersected_voxels.size();
-    d->resultCounts[i / 2] = key_list.size();
+    d->result_indices[i / 2] = d->intersected_voxels.size();
+    d->result_counts[i / 2] = key_list.size();
     for (auto &&key : key_list)
     {
       d->intersected_voxels.push_back(key);
     }
   }
 
-  d->number_of_results = d->resultIndices.size();
+  d->number_of_results = d->result_indices.size();
 
   return true;
 }
@@ -145,8 +145,8 @@ bool LineKeysQuery::onExecuteAsync()
 void LineKeysQuery::onReset(bool /*hard_reset*/)
 {
   LineKeysQueryDetail *d = static_cast<LineKeysQueryDetail *>(imp_);
-  d->resultIndices.clear();
-  d->resultCounts.clear();
+  d->result_indices.clear();
+  d->result_counts.clear();
 }
 
 

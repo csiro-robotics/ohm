@@ -9,13 +9,13 @@
 
 namespace
 {
-  const char *kMapFlagNames[] = //
+  const char *map_flag_names[] = //
     { //
       "SubVoxelPosition",
       "SubVoxelOccupancy",
     };
 
-  const unsigned kMapFlagsCount = unsigned(sizeof(kMapFlagNames) / sizeof(kMapFlagNames[0]));
+  const unsigned kMapFlagsCount = unsigned(sizeof(map_flag_names) / sizeof(map_flag_names[0]));
 } // namespace
 
 namespace ohm
@@ -27,7 +27,7 @@ namespace ohm
     {
       if (unsigned(flag) & bit)
       {
-        return kMapFlagNames[i];
+        return map_flag_names[i];
       }
     }
 
@@ -41,13 +41,13 @@ namespace ohm
     unsigned bit = 1;
     for (unsigned i = 0; i < kMapFlagsCount; ++i, bit <<= 1)
     {
-      if (name.compare(kMapFlagNames[i]) == 0)
+      if (name.compare(map_flag_names[i]) == 0)
       {
         return MapFlag(bit);
       }
     }
 
-    return MapFlag::None;
+    return MapFlag::kNone;
   }
 
 } // namespace ohm

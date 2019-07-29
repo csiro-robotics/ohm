@@ -7,5 +7,5 @@
 
 using namespace ohm;
 
-const char *HeightmapVoxel::kHeightmapLayer = "heightmap";
-const char *HeightmapVoxel::kHeightmapBuildLayer = "heightmap_build";
+const char *HeightmapVoxel::heightmap_layer = "heightmap";
+const char *HeightmapVoxel::heightmap_build_layer = "heightmap_build";

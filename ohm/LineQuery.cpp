@@ -115,10 +115,7 @@ LineQuery::LineQuery(OccupancyMap &map, const glm::dvec3 &start_point, const glm
 LineQuery::~LineQuery()
 {
   LineQueryDetail *d = imp();
-  if (d)
-  {
-    delete d;
-  }
+  delete d;
   // Clear pointer for base class.
   imp_ = nullptr;
 }

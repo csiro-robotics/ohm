@@ -200,8 +200,8 @@ void InputStream::setCompressedFlag()
   }
 
   unsigned &flags = imp()->flags;
-  bool changed = !(flags & SfCompress);
-  flags |= SfCompress;
+  bool changed = !(flags & kSfCompress);
+  flags |= kSfCompress;
   if (changed)
   {
     imp()->compress.initInflate();
@@ -213,7 +213,7 @@ void InputStream::setCompressedFlag()
 unsigned InputStream::read(void *buffer, unsigned max_bytes)
 {
 #ifdef OHM_ZIP
-  if (imp()->flags & SfCompress)
+  if (imp()->flags & kSfCompress)
   {
     InputStreamPrivate &imp = *this->imp();
     int ret;
@@ -284,7 +284,7 @@ bool InputStream::doOpen(const char *file_path, unsigned flags)
 #endif  // OHM_ZIP
   imp()->flags = flags;
 #ifdef OHM_ZIP
-  if (flags & SfCompress)
+  if (flags & kSfCompress)
   {
     imp()->compress.initInflate();
   }
@@ -296,7 +296,7 @@ bool InputStream::doOpen(const char *file_path, unsigned flags)
 void InputStream::doClose()
 {
 #ifdef OHM_ZIP
-  if (imp_->flags & SfCompress)
+  if (imp_->flags & kSfCompress)
   {
     imp()->compress.doneInflate();
   }
@@ -355,7 +355,7 @@ OutputStream::~OutputStream()
 unsigned OutputStream::write(const void *buffer, unsigned max_bytes)
 {
 #ifdef OHM_ZIP
-  if (imp()->flags & SfCompress)
+  if (imp()->flags & kSfCompress)
   {
     OutputStreamPrivate &imp = *this->imp();
     int ret;
@@ -416,7 +416,7 @@ void OutputStream::flush()
   OutputStreamPrivate &imp = *this->imp();
 #ifdef OHM_ZIP
   // Finish deflating.
-  if (imp.needs_flush && imp.flags & SfCompress)
+  if (imp.needs_flush && imp.flags & kSfCompress)
   {
     int ret;
     imp.compress.stream.next_in = nullptr;
@@ -451,7 +451,7 @@ bool OutputStream::doOpen(const char *file_path, unsigned flags /*= 0u*/)
 #endif  // OHM_ZIP
   imp()->flags = flags;
 #ifdef OHM_ZIP
-  if (flags & SfCompress)
+  if (flags & kSfCompress)
   {
     imp()->compress.initDeflate();
   }
@@ -463,7 +463,7 @@ bool OutputStream::doOpen(const char *file_path, unsigned flags /*= 0u*/)
 void OutputStream::doClose()
 {
 #ifdef OHM_ZIP
-  if (imp_->flags & SfCompress)
+  if (imp_->flags & kSfCompress)
   {
     imp()->compress.doneDeflate();
   }

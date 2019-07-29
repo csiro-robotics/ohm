@@ -29,12 +29,12 @@ namespace ohm
   /// two layers:
   /// - **occupancy** layer
   ///   - float occupancy
-  /// - *heightmap* layer (named from @c HeightmapVoxel::kHeightmapLayer)
+  /// - *heightmap* layer (named from @c HeightmapVoxel::heightmap_layer)
   ///   - @c HeightmapVoxel
   ///
   /// The height specifies the absolute height of the surface, while clearance denotes how much room there is above
   /// the surface voxel before the next obstruction. Note that the height values always increase going up, so the
-  /// height value will be inverted when using any @c UpAxis::NegN @c UpAxis value. Similarly, the clearance is always
+  /// height value will be inverted when using any @c UpAxis::kNegN @c UpAxis value. Similarly, the clearance is always
   /// positive unless there are no further voxels above the surface, in which case the clearance is zero
   /// (no information).
   ///
@@ -72,7 +72,7 @@ namespace ohm
     /// @param min_clearance The minimum clearance value expected above each surface voxel.
     /// @param up_axis Identifies the up axis for the map.
     /// @param region_size Grid size of each region in the heightmap.
-    Heightmap(double grid_resolution, double min_clearance, UpAxis up_axis = UpAxis::Z, unsigned region_size = 0);
+    Heightmap(double grid_resolution, double min_clearance, UpAxis up_axis = UpAxis::kZ, unsigned region_size = 0);
 
     /// Destructor.
     ~Heightmap();

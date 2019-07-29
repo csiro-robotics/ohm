@@ -12,7 +12,6 @@ set(TES_ENABLE ${OHM_TES_DEBUG})
 configure_file(OhmConfig.in.h "${CMAKE_CURRENT_BINARY_DIR}/ohm/OhmConfig.h")
 
 set(SOURCES
-  3rdparty/delaunator.hpp
   private/ClearingPatternDetail.h
   private/HeightmapDetail.cpp
   private/HeightmapDetail.h
@@ -166,6 +165,7 @@ set(PUBLIC_HEADERS
   )
 
 add_library(ohm ${SOURCES})
+clang_tidy_target(ohm)
 
 target_link_libraries(ohm PUBLIC ${ZLIB_LIBRARIES} ohmutil ${GPUTIL_LIBRARY})
 
@@ -186,6 +186,7 @@ endif(OHM_THREADS)
 target_include_directories(ohm SYSTEM
   PUBLIC "${GLM_INCLUDE_DIR}"
   PRIVATE "${ZLIB_INCLUDE_DIR}"
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/3rdparty>
 )
 
 if(OHM_TES_DEBUG)

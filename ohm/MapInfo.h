@@ -235,7 +235,7 @@ namespace ohm
     /// Value assignment. This changes the @c Type as required.
     /// @param val Value to assign.
     /// @return A reference to this object.
-    MapValue &operator=(const char *val);
+    MapValue &operator=(const char *string);
 
     /// Equality comparison. Equality requires:
     /// - Same @c Type (including @c kTypeNone).

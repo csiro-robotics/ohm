@@ -32,7 +32,7 @@ namespace ohm
   /// @param regionDimension The global size of each region along the axis of interest.
   /// @return The centre of the region along this axis local to the map centre.
 #if GPUTIL_DEVICE != 1
-  template <typename coord_real>
+  template <typename coord_real> // NOLINT(readability-identifier-naming)
 #endif  // GPUTIL_DEVICE != 1
   inline __device__ __host__ coord_real regionCentreCoord(int region_coord, const coord_real region_dimesion)
   {
@@ -40,7 +40,7 @@ namespace ohm
   }
 
 #if GPUTIL_DEVICE != 1
-  template <typename coord_real>
+  template <typename coord_real> // NOLINT(readability-identifier-naming)
 #endif  // GPUTIL_DEVICE != 1
   inline __device__ __host__ int pointToRegionVoxel(coord_real coord, coord_real voxel_resolution,
                                                     coord_real region_resolution)
@@ -75,7 +75,7 @@ namespace ohm
   }
 
 #if GPUTIL_DEVICE != 1
-  template <typename coord_real>
+  template <typename coord_real> // NOLINT(readability-identifier-naming)
 #endif  // GPUTIL_DEVICE != 1
   inline __device__ __host__ int pointToRegionCoord(coord_real coord, coord_real resolution)
   {

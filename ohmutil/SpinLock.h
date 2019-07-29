@@ -64,7 +64,9 @@ public:
       have_lock_ = false;
     }
   }
-  inline void try_lock()
+
+  // Match naming with std::mutex
+  inline void try_lock() // NOLINT
   {
     if (!have_lock_)
     {

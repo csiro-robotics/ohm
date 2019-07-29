@@ -30,12 +30,12 @@ namespace ohm
 
     gputil::Queue queue;
 
-    gputil::Buffer linesOut;
-    gputil::Buffer linePoints;
-    unsigned maxKeysPerLine = 0;
+    gputil::Buffer lines_out;
+    gputil::Buffer line_points;
+    unsigned max_keys_per_line = 0;
     std::atomic_bool inflight{false};
 
-    bool gpuOk = false;
+    bool gpu_ok = false;
   };
 }
 

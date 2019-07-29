@@ -17,7 +17,7 @@ namespace ohm
         "occupied"    //
       };
 
-    const int index = occupancy_type - ohm::Null;
+    const int index = occupancy_type - ohm::kNull;
     if (index >= 0 && unsigned(index) < sizeof(type_names) / sizeof(type_names[0]))
     {
       return type_names[index];

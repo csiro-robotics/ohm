@@ -84,7 +84,7 @@ namespace ohm
     /// @return Index offsets into @p intersectedVoxels() for each ray.
     const size_t *resultIndices() const;
 
-    /// Get the array of result voxel counts in @c intersectecVoxels() for each ray.
+    /// Get the array of result voxel counts in @c intersectedVoxels() for each ray.
     ///
     /// This identifies the number of voxels for each ray in @c intersectedVoxels(). The corresponding offset for
     /// each ray into @c intersectedVoxels() is available via @c resultIndices(). The number of elements

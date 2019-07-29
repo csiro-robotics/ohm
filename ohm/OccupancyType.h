@@ -14,13 +14,13 @@ namespace ohm
   enum OccupancyType
   {
     /// Invalid/null voxel.
-    Null = -2,
+    kNull = -2,
     /// Uncertain: no data recorded or available for the voxel.
-    Uncertain = -1,
+    kUncertain = -1,
     /// Know to be empty or free (traversable).
-    Free = 0,
+    kFree = 0,
     /// Occupied voxel.
-    Occupied = 1
+    kOccupied = 1
   };
 
   const char ohm_API *occupancyTypeToString(int occupancy_type);

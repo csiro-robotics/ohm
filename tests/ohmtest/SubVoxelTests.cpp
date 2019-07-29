@@ -102,7 +102,7 @@ namespace subvoxel
     const glm::u8vec3 region_size(32);
 
     // Test core sub-voxel positioning
-    OccupancyMap map(resolution, region_size, MapFlag::SubVoxel);
+    OccupancyMap map(resolution, region_size, MapFlag::kSubVoxel);
 
     Voxel voxel = map.voxel(map.voxelKey(glm::dvec3(0.5 * resolution)), true);
 
@@ -211,7 +211,7 @@ namespace subvoxel
     rays.emplace_back(glm::dvec3(1, -2.2, -3.3));
 
     // Test basic map populate using GPU and ensure it matches CPU (close enough).
-    OccupancyMap map(resolution, region_size, MapFlag::SubVoxel);
+    OccupancyMap map(resolution, region_size, MapFlag::kSubVoxel);
 
     // Set the sub-voxel weighting to 1.0 to ensure we get a result close to the input value.
     map.setSubVoxelWeighting(1.0);

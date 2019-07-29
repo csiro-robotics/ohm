@@ -72,12 +72,13 @@ namespace
     return false;
   }
 
-  ChunkMap::iterator &initChunkIter(uint8_t *mem)
+  ChunkMap::iterator &initChunkIter(uint8_t *mem) // NOLINT(readability-non-const-parameter)
   {
     // Placement new.
     return *(new (mem) ChunkMap::iterator());
   }
 
+  // NOLINTNEXTLINE(readability-non-const-parameter)
   ChunkMap::iterator &chunkIter(uint8_t *mem) { return *reinterpret_cast<ChunkMap::iterator *>(mem); }
 
   const ChunkMap::iterator &chunkIter(const uint8_t *mem) { return *reinterpret_cast<const ChunkMap::iterator *>(mem); }
@@ -206,7 +207,7 @@ OccupancyMap::OccupancyMap(double resolution, const glm::u8vec3 &region_voxel_di
   };
 
   imp_->flags = flags;
-  imp_->setDefaultLayout((flags & MapFlag::SubVoxelPosition) != MapFlag::None);
+  imp_->setDefaultLayout((flags & MapFlag::kSubVoxelPosition) != MapFlag::kNone);
 }
 
 OccupancyMap::OccupancyMap(double resolution, const glm::u8vec3 &region_voxel_dimensions, MapFlag flags,
@@ -214,7 +215,7 @@ OccupancyMap::OccupancyMap(double resolution, const glm::u8vec3 &region_voxel_di
   : OccupancyMap(resolution, region_voxel_dimensions, flags)
 {
   imp_->layout = seed_layout;
-  const bool want_sub_voxel = (flags & MapFlag::SubVoxelPosition) != MapFlag::None;
+  const bool want_sub_voxel = (flags & MapFlag::kSubVoxelPosition) != MapFlag::kNone;
   if (imp_->layout.hasSubVoxelPattern() != want_sub_voxel)
   {
     setSubVoxelsEnabled(want_sub_voxel);
@@ -341,16 +342,16 @@ int OccupancyMap::occupancyType(const VoxelConst &voxel) const
     {
       if (value < occupancyThresholdValue())
       {
-        return Free;
+        return kFree;
       }
 
-      return Occupied;
+      return kOccupied;
     }
 
-    return Uncertain;
+    return kUncertain;
   }
 
-  return Null;
+  return kNull;
 }
 
 size_t OccupancyMap::calculateApproximateMemory() const
@@ -547,7 +548,7 @@ void OccupancyMap::setSubVoxelsEnabled(bool enable)
   {
     // Adding sub-voxel patterns to the occupancy layer.
     const size_t clear_value = 0u;
-    occupancy_layer->voxelLayout().addMember(OccupancyMapDetail::kSubVoxelLayerName, DataType::kUInt32, clear_value);
+    occupancy_layer->voxelLayout().addMember(OccupancyMapDetail::sub_voxel_layer_name, DataType::kUInt32, clear_value);
 
     // Update all existing chunks to add the required member.
     for (auto &&chunk_ref : imp_->chunks)
@@ -576,7 +577,7 @@ void OccupancyMap::setSubVoxelsEnabled(bool enable)
   else
   {
     // Remove sub-voxel information.
-    occupancy_layer->voxelLayout().removeMember(OccupancyMapDetail::kSubVoxelLayerName);
+    occupancy_layer->voxelLayout().removeMember(OccupancyMapDetail::sub_voxel_layer_name);
 
     // Update all existing chunks to add the required member.
     for (auto &&chunk_ref : imp_->chunks)
@@ -655,9 +656,9 @@ unsigned OccupancyMap::removeDistanceRegions(const glm::dvec3 &relative_to, floa
 unsigned OccupancyMap::cullRegionsOutside(const glm::dvec3 &min_extents, const glm::dvec3 &max_extents)
 {
   const glm::dvec3 region_extents = imp_->region_spatial_dimensions;
-  const Aabb cullBox(min_extents, max_extents);
-  const auto should_remove_chunk = [cullBox, region_extents](const MapChunk &chunk) {
-    return !cullBox.overlaps(
+  const Aabb cull_box(min_extents, max_extents);
+  const auto should_remove_chunk = [cull_box, region_extents](const MapChunk &chunk) {
+    return !cull_box.overlaps(
       Aabb(chunk.region.centre - 0.5 * region_extents, chunk.region.centre + 0.5 * region_extents));
   };
 

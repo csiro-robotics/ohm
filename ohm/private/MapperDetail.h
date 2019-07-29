@@ -19,7 +19,7 @@ namespace ohm
   {
     std::vector<MappingProcess *> processes;
     OccupancyMap *map = nullptr;
-    unsigned nextProcess = 0;
+    unsigned next_process = 0;
   };
 }  // namespace ohm
 
