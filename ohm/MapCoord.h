@@ -53,7 +53,7 @@ namespace ohm
     // In testing, the largest double precision delta I've seen has been on the order of 1e-15, while
     // the largest single precision delta should be around 5e-7. We use an epsilon of 1e-6 to support
     // single precision. Anything larger is treated as an invalid input.
-    const coord_real epsilon = (coord_real)1e-6;
+    const coord_real epsilon = (coord_real)1e-6; // NOLINT
     if (-epsilon <= coord && coord < 0)
     {
       // Note: TEST_EPSILON_MAGNITUDE is not explicitly defined anywhere. The code is for testing only.
@@ -71,7 +71,7 @@ namespace ohm
     {
       coord -= epsilon;
     }
-    return (int)floor((coord / voxel_resolution));
+    return (int)floor((coord / voxel_resolution)); // NOLINT
   }
 
 #if GPUTIL_DEVICE != 1
@@ -79,7 +79,7 @@ namespace ohm
 #endif  // GPUTIL_DEVICE != 1
   inline __device__ __host__ int pointToRegionCoord(coord_real coord, coord_real resolution)
   {
-    return (int)floor(coord / resolution + (coord_real)0.5);
+    return (int)floor(coord / resolution + (coord_real)0.5); // NOLINT
   }
 #if !GPUTIL_DEVICE
 }

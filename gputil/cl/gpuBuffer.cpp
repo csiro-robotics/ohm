@@ -175,7 +175,9 @@ namespace gputil
         clerr = clWaitForEvents(1, event_ptr);
         GPUAPICHECK2(clerr, CL_SUCCESS);
         if (clerr != CL_SUCCESS)
+        {
           GPUAPICHECK2(clerr, CL_SUCCESS);
+        }
       }
     }
   }
@@ -202,10 +204,7 @@ Buffer::Buffer(Buffer &&other) noexcept
 
 Buffer::~Buffer()
 {
-  if (imp_)
-  {
-    delete imp_;
-  }
+  delete imp_;
 }
 
 

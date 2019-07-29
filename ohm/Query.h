@@ -18,7 +18,7 @@ namespace ohm
 
   /// Base class for a query operation on an @p OccupancyMap.
   ///
-  /// Typical usage is to setup the dervied query, then call @c exec() or @c execAsync() and @c wait().
+  /// Typical usage is to setup the derived query, then call @c exec() or @c execAsync() and @c wait().
   /// Results may be available via methods such as @c numberOfResults() and @p intersectedVoxels(). Query behaviour may
   /// be modified by setting various @c QueryFlag values in @c setQueryFlags(), although not all flags are honoured by
   /// all query implementations.
@@ -142,7 +142,7 @@ namespace ohm
     /// @return True on successfully starting an asynchronous query.
     virtual bool onExecuteAsync() = 0;
 
-    // TODO: make pure virtual
+    // TODO(KS): make pure virtual
     virtual bool onWaitAsync(unsigned timeout_ms);
 
     /// Called from @c reset(bool hardReset) to complete or terminate any

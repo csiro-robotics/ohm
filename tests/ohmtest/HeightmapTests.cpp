@@ -288,8 +288,8 @@ TEST(Heightmap, Layout)
 
   EXPECT_EQ(layout.layerCount(), 3);
   const MapLayer *occupancy_layer = layout.layer(default_layer::occupancyLayerName());
-  const MapLayer *heightmap_layer = layout.layer(HeightmapVoxel::heightmap_layer);
-  const MapLayer *heightmap_build_layer = layout.layer(HeightmapVoxel::heightmap_build_layer);
+  const MapLayer *heightmap_layer = layout.layer(HeightmapVoxel::kHeightmapLayer);
+  const MapLayer *heightmap_build_layer = layout.layer(HeightmapVoxel::kHeightmapBuildLayer);
   ASSERT_NE(occupancy_layer, nullptr);
   ASSERT_NE(heightmap_layer, nullptr);
   ASSERT_NE(heightmap_build_layer, nullptr);

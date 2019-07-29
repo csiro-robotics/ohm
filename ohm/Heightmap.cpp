@@ -285,13 +285,13 @@ Heightmap::Heightmap(double grid_resolution, double min_clearance, UpAxis up_axi
   size_t clear_value = 0;
   // Initialise the data structure to have both ranges at float max.
   memset(&clear_value, max_clearance_int, sizeof(clear_value));
-  layer = layout.addLayer(HeightmapVoxel::heightmap_layer, 0);
+  layer = layout.addLayer(HeightmapVoxel::kHeightmapLayer, 0);
   imp_->heightmap_layer = (int)layer->layerIndex();
   voxels = layer->voxelLayout();
   voxels.addMember("height", DataType::kFloat, 0);
   voxels.addMember("clearance", DataType::kFloat, 0);
 
-  layer = layout.addLayer(HeightmapVoxel::heightmap_build_layer, 0);
+  layer = layout.addLayer(HeightmapVoxel::kHeightmapBuildLayer, 0);
   imp_->heightmap_build_layer = (int)layer->layerIndex();
   voxels = layer->voxelLayout();
   voxels.addMember("height", DataType::kFloat, 0);

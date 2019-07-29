@@ -241,19 +241,19 @@ bool Device::select(int argc, const char **argv, const char *default_device, uns
     {
       return true;
     }
-    else if (device_version.major == constraint.major)
+    if (device_version.major == constraint.major)
     {
       if (device_version.minor > constraint.minor)
       {
         return true;
       }
-      else if (device_version.minor == constraint.minor)
+      if (device_version.minor == constraint.minor)
       {
         if (device_version.patch > constraint.patch)
         {
           return true;
         }
-        else if (device_version.patch == constraint.patch)
+        if (device_version.patch == constraint.patch)
         {
           return true;
         }

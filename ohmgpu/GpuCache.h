@@ -77,8 +77,8 @@ namespace ohm
     void clear() override;
 
     /// Remove a particular region from the cache.
-    /// @param region_coord The region to flush from the cache.
-    void remove(const glm::i16vec3 &region_coord) override;
+    /// @param region_key The region to flush from the cache.
+    void remove(const glm::i16vec3 &region_key) override;
 
     /// Query the default byte size of each layer cache.
     /// @return The default size of for a layer cache in bytes.

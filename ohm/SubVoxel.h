@@ -80,8 +80,8 @@ typedef float3 vec3;
     const unsigned bits_per_axis = 10;
     const unsigned sub_voxel_positions = (1 << bits_per_axis) - 1;
     const unsigned used_bit = (1u << 31);
-    const coord_real sub_voxel_resolution = resolution / (coord_real)sub_voxel_positions;
-    const coord_real offset = (coord_real)0.5 * resolution;
+    const coord_real sub_voxel_resolution = resolution / (coord_real)sub_voxel_positions; // NOLINT
+    const coord_real offset = (coord_real)0.5 * resolution; // NOLINT
 
     int pos_x = pointToRegionCoord(voxel_local_coord.x + offset, sub_voxel_resolution);
     int pos_y = pointToRegionCoord(voxel_local_coord.y + offset, sub_voxel_resolution);
@@ -92,9 +92,9 @@ typedef float3 vec3;
     pos_z = (pos_z >= 0 ? (pos_z < (1 << bits_per_axis) ? pos_z : sub_voxel_positions) : 0);
 
     unsigned pattern = 0;
-    pattern |= (unsigned)pos_x;
-    pattern |= ((unsigned)pos_y << bits_per_axis);
-    pattern |= ((unsigned)pos_z << (2 * bits_per_axis));
+    pattern |= (unsigned)pos_x; // NOLINT
+    pattern |= ((unsigned)pos_y << bits_per_axis); // NOLINT
+    pattern |= ((unsigned)pos_z << (2 * bits_per_axis)); // NOLINT
     pattern |= used_bit;
     return pattern;
   }
@@ -112,16 +112,19 @@ typedef float3 vec3;
     const unsigned bits_per_axis = 10;
     const unsigned sub_voxel_positions = (1 << bits_per_axis) - 1;
     const unsigned used_bit = (1u << 31);
-    const coord_real sub_voxel_resolution = resolution / (coord_real)sub_voxel_positions;
-    const coord_real offset = (coord_real)0.5 * resolution;
+    const coord_real sub_voxel_resolution = resolution / (coord_real)sub_voxel_positions; // NOLINT
+    const coord_real offset = (coord_real)0.5 * resolution; // NOLINT
 
     vec3 coord;
+     // NOLINTNEXTLINE
     coord.x = (used_bit) ? regionCentreCoord((int)(pattern & sub_voxel_positions), sub_voxel_resolution) - offset : 0;
     coord.y =
       (used_bit) ?
+        // NOLINTNEXTLINE
         regionCentreCoord((int)((pattern >> bits_per_axis) & sub_voxel_positions), sub_voxel_resolution) - offset :
         0;
     coord.z = (used_bit) ?
+                // NOLINTNEXTLINE
                 regionCentreCoord((int)((pattern >> (2 * bits_per_axis)) & sub_voxel_positions), sub_voxel_resolution) -
                   offset :
                 0;

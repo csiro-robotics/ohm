@@ -308,15 +308,15 @@ int main(int argc, char *argv[])
       break;
     case kExportHeightmap:
     {
-      const ohm::MapLayer *layer = map.layout().layer(ohm::HeightmapVoxel::heightmap_layer);
+      const ohm::MapLayer *layer = map.layout().layer(ohm::HeightmapVoxel::kHeightmapLayer);
       if (!layer)
       {
-        std::cerr << "Missing '" << ohm::HeightmapVoxel::heightmap_layer << "' layer" << std::endl;
+        std::cerr << "Missing '" << ohm::HeightmapVoxel::kHeightmapLayer << "' layer" << std::endl;
         return -1;
       }
       if (layer->voxelByteSize() < sizeof(ohm::HeightmapVoxel))
       {
-        std::cerr << "Layer '" << ohm::HeightmapVoxel::heightmap_layer << "' is not large enough. Expect "
+        std::cerr << "Layer '" << ohm::HeightmapVoxel::kHeightmapLayer << "' is not large enough. Expect "
                   << sizeof(ohm::HeightmapVoxel) << " actual " << layer->voxelByteSize() << std::endl;
         return -1;
       }
@@ -387,7 +387,7 @@ int main(int argc, char *argv[])
         if (voxel.isValid() && voxel.isOccupied())
         {
           const ohm::HeightmapVoxel *voxel_height = voxel.layerContent<const ohm::HeightmapVoxel *>(
-            map.layout().layer(ohm::HeightmapVoxel::heightmap_layer)->layerIndex());
+            map.layout().layer(ohm::HeightmapVoxel::kHeightmapLayer)->layerIndex());
 
           uint8_t c = uint8_t(255 * std::max(0.0f, (opt.colour_scale - voxel_height->clearance) / opt.colour_scale));
           if (voxel_height->clearance <= 0)

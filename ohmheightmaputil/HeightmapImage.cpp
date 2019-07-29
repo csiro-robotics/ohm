@@ -112,7 +112,7 @@ namespace
                                    "}\n";
 
   // The fullscreen quad's FBO
-  static const GLfloat kQuadVertexBufferData[] =  //
+  const GLfloat kQuadVertexBufferData[] =  //
     {
       -1.0f, -1.0f, 0.0f,  //
       1.0f,  -1.0f, 0.0f,  //

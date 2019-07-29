@@ -200,7 +200,7 @@ bool SlamCloudLoader::open(const char *sample_file_path, const char *trajectory_
   imp_->sample_table = new pdal::PointTable;
   imp_->sample_reader->prepare(*imp_->sample_table);
   pdal::PointViewSet point_sets = imp_->sample_reader->execute(*imp_->sample_table);
-  if (point_sets.size() == 0)
+  if (point_sets.empty())
   {
     close();
     return false;
@@ -235,7 +235,7 @@ bool SlamCloudLoader::open(const char *sample_file_path, const char *trajectory_
     imp_->traj_table = new pdal::PointTable;
     imp_->trajectory_reader->prepare(*imp_->traj_table);
     point_sets = imp_->trajectory_reader->execute(*imp_->traj_table);
-    if (point_sets.size() == 0)
+    if (point_sets.empty())
     {
       close();
       return false;

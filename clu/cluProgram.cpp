@@ -361,17 +361,17 @@ namespace clu
   }
 
 
-  char *currentWorkingDirectory(char *path, size_t buffer_length)
+  char *currentWorkingDirectory(char *cwd, size_t buffer_length)
   {
 #ifdef WIN32
-    GetCurrentDirectoryA(static_cast<DWORD>(buffer_length), path);
+    GetCurrentDirectoryA(static_cast<DWORD>(buffer_length), cwd);
 #else   // WIN32
     // const char *ignore =
-    path = getcwd(path, buffer_length);
+    cwd = getcwd(cwd, buffer_length);
 #endif  // WIN32
     // Guarantee null termination.
-    path[buffer_length - 1] = '\0';
-    return path;
+    cwd[buffer_length - 1] = '\0';
+    return cwd;
   }
 
 

@@ -548,7 +548,7 @@ void OccupancyMap::setSubVoxelsEnabled(bool enable)
   {
     // Adding sub-voxel patterns to the occupancy layer.
     const size_t clear_value = 0u;
-    occupancy_layer->voxelLayout().addMember(OccupancyMapDetail::sub_voxel_layer_name, DataType::kUInt32, clear_value);
+    occupancy_layer->voxelLayout().addMember(OccupancyMapDetail::kSubVoxelLayerName, DataType::kUInt32, clear_value);
 
     // Update all existing chunks to add the required member.
     for (auto &&chunk_ref : imp_->chunks)
@@ -577,7 +577,7 @@ void OccupancyMap::setSubVoxelsEnabled(bool enable)
   else
   {
     // Remove sub-voxel information.
-    occupancy_layer->voxelLayout().removeMember(OccupancyMapDetail::sub_voxel_layer_name);
+    occupancy_layer->voxelLayout().removeMember(OccupancyMapDetail::kSubVoxelLayerName);
 
     // Update all existing chunks to add the required member.
     for (auto &&chunk_ref : imp_->chunks)

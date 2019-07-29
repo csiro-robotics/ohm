@@ -383,11 +383,9 @@ namespace clu
           iter = next;
           return kApOk;
         }
-        else
-        {
-          // Argument missing value.
-          return kApMissingValue;
-        }
+
+        // Argument missing value.
+        return kApMissingValue;
       }
       // Not enough additional arguments.
       return kApMissingValue;

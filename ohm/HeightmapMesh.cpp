@@ -97,7 +97,7 @@ bool HeightmapMesh::buildMesh(const Heightmap &heightmap)
 
   // Walk heightmap voxels.
   const OccupancyMap &heightmap_occupancy = heightmap.heightmap();
-  const MapLayer *heightmap_layer = heightmap_occupancy.layout().layer(HeightmapVoxel::heightmap_layer);
+  const MapLayer *heightmap_layer = heightmap_occupancy.layout().layer(HeightmapVoxel::kHeightmapLayer);
   const int heightmap_layer_index = heightmap_layer->layerIndex();
 
   if (heightmap_layer_index < 0)

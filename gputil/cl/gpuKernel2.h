@@ -112,7 +112,7 @@ namespace gputil
     int err = detail()->kernel(queue_cl, grid, events_clu, args...);
 
     // Cleanup stack objects.
-    // TODO: RAIA for this while avoiding a head allocation.
+    // TODO(KS): RAIA for this while avoiding a head allocation.
     for (unsigned i = 0; i < events_clu.event_count; ++i)
     {
       using namespace cl;
@@ -150,7 +150,7 @@ namespace gputil
     int err = detail()->kernel(queue_cl, grid, events_clu, args...);
 
     // Cleanup stack objects.
-    // TODO: RAIA for this while avoiding a head allocation.
+    // TODO(KS): RAIA for this while avoiding a head allocation.
     for (unsigned i = 0; i < events_clu.event_count; ++i)
     {
       using namespace cl;

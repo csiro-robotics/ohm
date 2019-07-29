@@ -40,7 +40,7 @@ namespace ohm
   struct ohm_API OccupancyMapDetail
   {
     // "sub_voxel"
-    static const char *sub_voxel_layer_name;
+    static const char * const kSubVoxelLayerName;
 
     glm::dvec3 origin = glm::dvec3(0);
     glm::dvec3 region_spatial_dimensions = glm::dvec3(0);

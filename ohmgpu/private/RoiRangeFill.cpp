@@ -243,7 +243,7 @@ bool RoiRangeFill::calculateForRegion(OccupancyMap &map, const glm::i16vec3 &reg
   PROFILE_END(upload)
 
   // All regions for this patch pushed. Make the calculation.
-  // TODO: async unpin.
+  // TODO(KS): async unpin.
   region_keys.unpin();
   occupancy_region_offsets.unpin();
   finishRegion(region_key, map, *this, *gpu_cache, *clearance_cache, batch_voxel_extents, upload_events);

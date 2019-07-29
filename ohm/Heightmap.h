@@ -29,7 +29,7 @@ namespace ohm
   /// two layers:
   /// - **occupancy** layer
   ///   - float occupancy
-  /// - *heightmap* layer (named from @c HeightmapVoxel::heightmap_layer)
+  /// - *heightmap* layer (named from @c HeightmapVoxel::kHeightmapLayer)
   ///   - @c HeightmapVoxel
   ///
   /// The height specifies the absolute height of the surface, while clearance denotes how much room there is above

@@ -20,7 +20,7 @@ namespace gputil
   {
     cl::Context context;
     cl::Device device;
-    // TODO: this needs to be separated out into a queue object.
+    // TODO(KS): this needs to be separated out into a queue object.
     // We may preserve this member as the default queue.
     cl::CommandQueue queue;
     DeviceInfo info;

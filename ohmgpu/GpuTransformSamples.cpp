@@ -92,7 +92,7 @@ GpuTransformSamples::~GpuTransformSamples()
 }
 
 
-unsigned GpuTransformSamples::transform(const double *transform_times, const glm::dvec3 *transform_positions,
+unsigned GpuTransformSamples::transform(const double *transform_times, const glm::dvec3 *transform_translations,
                                         const glm::dquat *transform_rotations, unsigned transform_count,
                                         const double *sample_times, const glm::dvec3 *local_samples,
                                         unsigned point_count, gputil::Queue &gpu_queue, gputil::Buffer &output_buffer,
@@ -160,7 +160,7 @@ unsigned GpuTransformSamples::transform(const double *transform_times, const glm
   float single_precision_timestamp;
   for (unsigned i = 0; i < transform_count; ++i)
   {
-    position = glm::vec3(transform_positions[i]);
+    position = glm::vec3(transform_translations[i]);
     rotation = glm::quat(transform_rotations[i]);
     positions_buffer.write(glm::value_ptr(position), sizeof(position), i * sizeof(gputil::float3));
     rotations_buffer.write(glm::value_ptr(rotation), sizeof(rotation), i * sizeof(gputil::float4));
