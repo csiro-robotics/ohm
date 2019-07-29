@@ -30,6 +30,42 @@ endif(CLANG_TIDY_CMAKE_INCLUDED)
 
 set(CLANG_TIDY_CMAKE_INCLUDED YES)
 
+# Look for clang-tidy
+find_program(CLANG_TIDY_EXE
+             NAMES
+              "clang-tidy"
+              "clang-tidy-7.0"
+              "clang-tidy-7"
+              "clang-tidy-6.0"
+              "clang-tidy-6"
+              "clang-tidy-5.0"
+              "clang-tidy-5"
+            DOC "Path to clang-tidy executable")
+
+if(NOT CLANG_TIDY_EXE)
+  message("clang-tidy not found: clang-tidy directives will be ignored")
+  function(clang_tidy_target)
+  endfunction(clang_tidy_target)
+  function(clang_tidy_global)
+  endfunction(clang_tidy_global)
+  return()
+endif(NOT CLANG_TIDY_EXE)
+
+find_program(CLANG_APPLY_REPLACEMENTS_EXE
+             NAMES
+              "clang-apply-replacements"
+              "clang-apply-replacements-7.0"
+              "clang-apply-replacements-7"
+              "clang-apply-replacements-6.0"
+              "clang-apply-replacements-6"
+              "clang-apply-replacements-5.0"
+              "clang-apply-replacements-5"
+            DOC "Path to clang-apply-replacements executable")
+
+if(NOT CLANG_APPLY_REPLACEMENTS_EXE)
+  message("clang-apply-replacements not found: clang-tidy fixes will not be available")
+endif(NOT CLANG_APPLY_REPLACEMENTS_EXE)
+
 #-------------------------------------------------------------------------------
 # Enable generation of compile_commands.json for Makefiles and Ninja.
 #-------------------------------------------------------------------------------
@@ -83,17 +119,6 @@ endif(NOT CLANG_TIDY_DEFAULT_CONFIG AND CLANG_TIDY_CONFIGS)
 
 # set(CTT_DEBUG ON)
 
-# Look for clang-tidy
-find_program(CLANG_TIDY_EXE
-             NAMES
-              "clang-tidy"
-              "clang-tidy-7.0"
-              "clang-tidy-7"
-              "clang-tidy-6.0"
-              "clang-tidy-6"
-              "clang-tidy-5.0"
-              "clang-tidy-5"
-            DOC "Path to clang-tidy executable")
 # Enable clang-tidy if it was found.
 set(CLANG_TIDY_LEVEL "${CLANG_TIDY_DEFAULT_CONFIG}" CACHE STRING "Defines the level of clang tidy checks to invoke.")
 if(CLANG_TIDY_CONFIGS)
@@ -113,7 +138,7 @@ function(_ctt_debug)
 endfunction(_ctt_debug)
 
 function(__ctt_setup_target TARGET WORKING_DIRECTORY)
-  cmake_parse_arguments(CTT "" "CONFIG_LEVEL;BUILD_PATH" "" ${ARGN})
+  cmake_parse_arguments(CTT "FIX" "CONFIG_LEVEL;BUILD_PATH" "" ${ARGN})
   if(CTT_CONFIG_LEVEL)
     set(CONFIG_ARG "-config-file=${CLANG_TIDY_CONFIG_PATH}/clang-tidy-${CTT_CONFIG_LEVEL}.yaml")
   endif(CTT_CONFIG_LEVEL)
@@ -122,18 +147,35 @@ function(__ctt_setup_target TARGET WORKING_DIRECTORY)
     set(CTT_BUILD_PATH "-p=${CTT_BUILD_PATH}")
   endif(CTT_BUILD_PATH)
 
-  set(CTT_TARGET_NAME ${TARGET}-clang-tidy-${CTT_CONFIG_LEVEL})
+  # Convert CTT_FIX to either be empty or '-fix' when the argument is present. Also set CTT_SUFFIX to '-fix' to the in
+  # the latter case.
+  set(CTT_APPLY_FIX_EXE_ARG)
+  if(CTT_FIX)
+    set(CTT_FIX "-fix")
+    set(CTT_SUFFIX "-fix")
+    # run-clang-tidy.py needs the exe clang-apply-replacements to apply fixes.
+    set(CTT_APPLY_FIX_EXE_ARG "-clang-apply-replacements-binary=${CLANG_APPLY_REPLACEMENTS_EXE}")
+    set(CTT_)
+  else(CTT_FIX)
+    set(CTT_FIX)
+    set(CTT_SUFFIX)
+  endif(CTT_FIX)
+
+  set(CTT_TARGET_NAME ${TARGET}-clang-tidy-${CTT_CONFIG_LEVEL}${CTT_SUFFIX})
   add_custom_target(${CTT_TARGET_NAME}
     WORKING_DIRECTORY "${WORKING_DIRECTORY}"
-    COMMAND "${PYTHON_EXECUTABLE}" "${CLANG_TIDY_CONFIG_PATH}/wrap-clang-tidy.py" "-runner-py=${CLANG_TIDY_CONFIG_PATH}/run-clang-tidy.py" "-clang-tidy-binary=${CLANG_TIDY_EXE}" ${CONFIG_ARG} ${CTT_BUILD_PATH} ${CTT_UNPARSED_ARGUMENTS}
+    COMMAND
+      "${PYTHON_EXECUTABLE}" "${CLANG_TIDY_CONFIG_PATH}/wrap-clang-tidy.py"
+      "-runner-py=${CLANG_TIDY_CONFIG_PATH}/run-clang-tidy.py" "-clang-tidy-binary=${CLANG_TIDY_EXE}"
+      ${CONFIG_ARG} ${CTT_BUILD_PATH} ${CTT_UNPARSED_ARGUMENTS} ${CTT_APPLY_FIX_EXE_ARG} ${CTT_FIX}
   )
   set_target_properties(${CTT_TARGET_NAME} PROPERTIES FOLDER clang-tidy)
 
   # Track the added clang-tidy target in the cache.
-  set(CTT_TARGETS ${CLANG_TIDY_TARGETS_${CTT_CONFIG_LEVEL}})
+  set(CTT_TARGETS ${CLANG_TIDY_TARGETS_${CTT_CONFIG_LEVEL}${CTT_SUFFIX}})
   list(APPEND CTT_TARGETS)
   list(APPEND CTT_TARGETS ${CTT_TARGET_NAME})
-  set(CLANG_TIDY_TARGETS_${CTT_CONFIG_LEVEL} "${CTT_TARGETS}" CACHE INTERNAL "" FORCE)
+  set(CLANG_TIDY_TARGETS_${CTT_CONFIG_LEVEL}${CTT_SUFFIX} "${CTT_TARGETS}" CACHE INTERNAL "" FORCE)
 endfunction(__ctt_setup_target TARGET WORKING_DIRECTORY)
 
 # clang_tidy_target(
@@ -255,21 +297,25 @@ function(clang_tidy_target TARGET)
   if("${CLANG_TIDY_LEVEL}" STREQUAL "all")
     foreach(LEVEL ${CLANG_TIDY_CONFIGS})
       if(NOT "${LEVEL}" STREQUAL "all")
-        __ctt_setup_target(
-          ${TARGET} "${CMAKE_CURRENT_LIST_DIR}"
-          CONFIG_LEVEL "${LEVEL}"
-          BUILD_PATH "${CMAKE_BINARY_DIR}"
-          ${SOURCES}
+        __ctt_setup_target(${TARGET} "${CMAKE_CURRENT_LIST_DIR}" CONFIG_LEVEL "${LEVEL}"
+          BUILD_PATH "${CMAKE_BINARY_DIR}" ${SOURCES}
         )
+        if(CLANG_APPLY_REPLACEMENTS_EXE)
+          __ctt_setup_target(${TARGET} "${CMAKE_CURRENT_LIST_DIR}" FIX CONFIG_LEVEL "${LEVEL}"
+            BUILD_PATH "${CMAKE_BINARY_DIR}" ${SOURCES}
+          )
+        endif(CLANG_APPLY_REPLACEMENTS_EXE)
       endif(NOT "${LEVEL}" STREQUAL "all")
     endforeach(LEVEL)
   else("${CLANG_TIDY_LEVEL}" STREQUAL "all")
-    __ctt_setup_target(
-      ${TARGET} "${CMAKE_CURRENT_LIST_DIR}"
-      CONFIG_LEVEL "${CLANG_TIDY_LEVEL}"
-      BUILD_PATH "${CMAKE_BINARY_DIR}"
-      ${SOURCES}
+    __ctt_setup_target(${TARGET} "${CMAKE_CURRENT_LIST_DIR}" CONFIG_LEVEL "${CLANG_TIDY_LEVEL}"
+      BUILD_PATH "${CMAKE_BINARY_DIR}" ${SOURCES}
     )
+    if(CLANG_APPLY_REPLACEMENTS_EXE)
+      __ctt_setup_target(${TARGET} "${CMAKE_CURRENT_LIST_DIR}" FIX CONFIG_LEVEL "${CLANG_TIDY_LEVEL}"
+        BUILD_PATH "${CMAKE_BINARY_DIR}" ${SOURCES}
+      )
+    endif(CLANG_APPLY_REPLACEMENTS_EXE)
   endif("${CLANG_TIDY_LEVEL}" STREQUAL "all")
 endfunction(clang_tidy_target)
 
@@ -291,6 +337,9 @@ function(clang_tidy_global)
     foreach(LEVEL ${CLANG_TIDY_CONFIGS})
       if(NOT "${LEVEL}" STREQUAL "all")
         __ctt_add_clang_tidy_global(${LEVEL} ${LEVEL})
+        if(CLANG_APPLY_REPLACEMENTS_EXE)
+          __ctt_add_clang_tidy_global(${LEVEL}-fix ${LEVEL}-fix)
+        endif(CLANG_APPLY_REPLACEMENTS_EXE)
         set(ADDED_SOMETHING TRUE)
       endif(NOT "${LEVEL}" STREQUAL "all")
     endforeach(LEVEL)
@@ -301,5 +350,8 @@ function(clang_tidy_global)
 
   else("${CLANG_TIDY_LEVEL}" STREQUAL "all")
     __ctt_add_clang_tidy_global(${CLANG_TIDY_LEVEL} ${CLANG_TIDY_LEVEL})
+    if(CLANG_APPLY_REPLACEMENTS_EXE)
+      __ctt_add_clang_tidy_global(${CLANG_TIDY_LEVEL}-fix ${CLANG_TIDY_LEVEL}-fix)
+    endif(CLANG_APPLY_REPLACEMENTS_EXE)
   endif("${CLANG_TIDY_LEVEL}" STREQUAL "all")
 endfunction(clang_tidy_global)

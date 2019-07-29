@@ -186,7 +186,7 @@ def main():
                       default='clang-tidy',
                       help='path to clang-tidy binary')
   parser.add_argument('-clang-apply-replacements-binary', metavar='PATH',
-                      default='clang-apply-replacements',
+                      default='clang-apply-replacements-7',
                       help='path to clang-apply-replacements binary')
   parser.add_argument('-checks', default=None,
                       help='checks filter, when not specified, use clang-tidy '

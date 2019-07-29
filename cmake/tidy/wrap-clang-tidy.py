@@ -10,8 +10,10 @@ import sys
 def setup_args():
     parser = argparse.ArgumentParser(description="")
     # parser.add_argument("csv", type=str, help="CSV file to load")
-    parser.add_argument("-clang-tidy-binary", help="Delay before executing the test (seconds)")
-    parser.add_argument("-runner-py", help="Python script wrapping clang-tidy with support for multiple jobs. run-clang-tidy.py ships with clang-tidy")
+    parser.add_argument("-clang-tidy-binary", help="Path to the clang-tidy executable.",  metavar='PATH')
+    parser.add_argument("-clang-apply-replacements-binary", help="Path to the clang-apply-replacements binary. Required when using -fix and -runner-py arguments.")
+    parser.add_argument("-runner-py", help="Python script wrapping clang-tidy with support for multiple jobs. run-clang-tidy.py ships with clang-tidy. Without this clang-tidy is run directly.", metavar='PATH')
+    parser.add_argument("-fix", action='store_true', help="Apply automatic fixes. Passes -fix to clang-tidy. When using -runner-py (run-clang-tidy.py), the argument -clang-apply-replacements-binary must also be set to the clang-apply-fixes binary.")
     parser.add_argument("-config-file", help="clang-tidy configuration file. Extracted and passed as the -config argument to clang-tidy.")
     return parser
 
@@ -24,9 +26,15 @@ if __name__ == "__main__":
     if args[0].runner_py:
         tidy_args.append(sys.executable)
         tidy_args.append(args[0].runner_py)
-        tidy_args.append('-clang-tidy-binary=' + args[0].clang_tidy_binary)
+        if args[0].clang_tidy_binary:
+            tidy_args.append('-clang-tidy-binary=' + args[0].clang_tidy_binary)
+        if args[0].clang_apply_replacements_binary:
+            tidy_args.append('-clang-apply-replacements-binary=' + args[0].clang_apply_replacements_binary)
     else:
         tidy_args.append(args[0].clang_tidy_binary)
+
+    if args[0].fix:
+        tidy_args.append('-fix')
 
     if args[0].config_file:
         # Read the config file to use.
@@ -41,8 +49,6 @@ if __name__ == "__main__":
     # Need to filter output from clang-tidy. Warnings are logged on stdout, but we need it on stderr to make it show up in
     # the catkin log. We also need to filter out some stderr messages to do with suppressing warnings, so we don't pollute
     # the log.
-
-    tidy = subprocess.Popen(tidy_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines = True)
 
     # Need to escape back slashes in args[0].clang_tidy_binary for Windows.
     clang_tidy_binary = args[0].clang_tidy_binary
@@ -73,6 +79,7 @@ if __name__ == "__main__":
             if not stderr_filter.match(line):
                 sys.stderr.write(line)
 
+    tidy = subprocess.Popen(tidy_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines = True)
     while tidy.poll() == None:
         pump_output(tidy, filter_regex)
     # Flush final output
