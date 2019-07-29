@@ -100,30 +100,14 @@ foreach(CONFIG ${CLANG_TIDY_CONFIGS})
   set(CLANG_TIDY_TARGETS_${CONFIG} "" CACHE INTERNAL "" FORCE)
 endforeach(CONFIG)
 
-list(APPEND CLANG_TIDY_CONFIGS all)
+list(APPEND CLANG_TIDY_CONFIGS file all)
 
-# Set default config name. Try 'default' and 'standard' if present. Otherwise use the first one found.
-set(CLANG_TIDY_DEFAULT_CONFIG "")
-foreach(CONFIG_NAME default standard)
-  list(FIND CLANG_TIDY_CONFIGS ${CONFIG_NAME} CONFIG_INDEX)
-  if(NOT CONFIG_INDEX EQUAL -1)
-    set(CLANG_TIDY_DEFAULT_CONFIG "${CONFIG_NAME}")
-    break()
-  endif(NOT CONFIG_INDEX EQUAL -1)
-endforeach(CONFIG_NAME)
-
-# Fallack to first config
-if(NOT CLANG_TIDY_DEFAULT_CONFIG AND CLANG_TIDY_CONFIGS)
-  list(GET CLANG_TIDY_CONFIGS 0 CLANG_TIDY_DEFAULT_CONFIG)
-endif(NOT CLANG_TIDY_DEFAULT_CONFIG AND CLANG_TIDY_CONFIGS)
-
+# Add 'file' as a config implying using the standard .clang-tidy file finding approach.
 # set(CTT_DEBUG ON)
 
 # Enable clang-tidy if it was found.
-set(CLANG_TIDY_LEVEL "${CLANG_TIDY_DEFAULT_CONFIG}" CACHE STRING "Defines the level of clang tidy checks to invoke.")
-if(CLANG_TIDY_CONFIGS)
-  set_property(CACHE CLANG_TIDY_LEVEL PROPERTY STRINGS ${CLANG_TIDY_CONFIGS})
-endif(CLANG_TIDY_CONFIGS)
+set(CLANG_TIDY_LEVEL "all" CACHE STRING "Defines the level of clang tidy checks to invoke.")
+set_property(CACHE CLANG_TIDY_LEVEL PROPERTY STRINGS ${CLANG_TIDY_CONFIGS})
 
 #-------------------------------------------------------------------------------
 # Utility functions.
@@ -140,7 +124,9 @@ endfunction(_ctt_debug)
 function(__ctt_setup_target TARGET WORKING_DIRECTORY)
   cmake_parse_arguments(CTT "FIX" "CONFIG_LEVEL;BUILD_PATH" "" ${ARGN})
   if(CTT_CONFIG_LEVEL)
-    set(CONFIG_ARG "-config-file=${CLANG_TIDY_CONFIG_PATH}/clang-tidy-${CTT_CONFIG_LEVEL}.yaml")
+    if(NOT CTT_CONFIG_LEVEL STREQUAL "file")
+      set(CONFIG_ARG "-config-file=${CLANG_TIDY_CONFIG_PATH}/clang-tidy-${CTT_CONFIG_LEVEL}.yaml")
+    endif(NOT CTT_CONFIG_LEVEL STREQUAL "file")
   endif(CTT_CONFIG_LEVEL)
 
   if(CTT_BUILD_PATH)
