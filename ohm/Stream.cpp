@@ -360,7 +360,7 @@ unsigned OutputStream::write(const void *buffer, unsigned max_bytes)
     OutputStreamPrivate &imp = *this->imp();
     int ret;
 
-    imp.compress.stream.next_in = (Bytef *)buffer;
+    imp.compress.stream.next_in = (Bytef *)buffer; // NOLINT
     imp.compress.stream.avail_in = max_bytes;
 
     if (imp.compress.stream.avail_out == 0)

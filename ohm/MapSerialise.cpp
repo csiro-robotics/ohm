@@ -83,7 +83,7 @@ namespace ohm
     // {
     //   endian::endianSwap(&len16);
     // }
-    stream.write((char *)&len16, sizeof(len16));
+    stream.write(reinterpret_cast<char *>(&len16), sizeof(len16));
 
     if (len)
     {
@@ -91,83 +91,83 @@ namespace ohm
     }
 
     uint8_t type = value.type();
-    stream.write((char *)&type, 1);
+    stream.write(reinterpret_cast<char *>(&type), 1);
 
     switch (value.type())
     {
     case MapValue::kInt8:
     {
       int8_t val = value;
-      stream.write((char *)&val, 1);
+      stream.write(reinterpret_cast<char *>(&val), 1);
       break;
     }
     case MapValue::kUInt8:
     {
       uint8_t val = value;
-      stream.write((char *)&val, 1);
+      stream.write(reinterpret_cast<char *>(&val), 1);
       break;
     }
     case MapValue::kInt16:
     {
       int16_t val = value;
       // if (endianSwap) { endian::endianSwap(&val); }
-      stream.write((char *)&val, sizeof(val));
+      stream.write(reinterpret_cast<char *>(&val), sizeof(val));
       break;
     }
     case MapValue::kUInt16:
     {
       uint16_t val = value;
       // if (endianSwap) { endian::endianSwap(&val); }
-      stream.write((char *)&val, sizeof(val));
+      stream.write(reinterpret_cast<char *>(&val), sizeof(val));
       break;
     }
     case MapValue::kInt32:
     {
       int32_t val = value;
       // if (endianSwap) { endian::endianSwap(&val); }
-      stream.write((char *)&val, sizeof(val));
+      stream.write(reinterpret_cast<char *>(&val), sizeof(val));
       break;
     }
     case MapValue::kUInt32:
     {
       uint32_t val = value;
       // if (endianSwap) { endian::endianSwap(&val); }
-      stream.write((char *)&val, sizeof(val));
+      stream.write(reinterpret_cast<char *>(&val), sizeof(val));
       break;
     }
     case MapValue::kInt64:
     {
       int64_t val = value;
       // if (endianSwap) { endian::endianSwap(&val); }
-      stream.write((char *)&val, sizeof(val));
+      stream.write(reinterpret_cast<char *>(&val), sizeof(val));
       break;
     }
     case MapValue::kUInt64:
     {
       uint64_t val = value;
       // if (endianSwap) { endian::endianSwap(&val); }
-      stream.write((char *)&val, sizeof(val));
+      stream.write(reinterpret_cast<char *>(&val), sizeof(val));
       break;
     }
     case MapValue::kFloat32:
     {
       float val = value;
       // if (endianSwap) { endian::endianSwap(&val); }
-      stream.write((char *)&val, sizeof(val));
+      stream.write(reinterpret_cast<char *>(&val), sizeof(val));
       break;
     }
     case MapValue::kFloat64:
     {
       double val = value;
       // if (endianSwap) { endian::endianSwap(&val); }
-      stream.write((char *)&val, sizeof(val));
+      stream.write(reinterpret_cast<char *>(&val), sizeof(val));
       break;
     }
     case MapValue::kBoolean:
     {
       bool bval = value;
       uint8_t val = (bval) ? 1 : 0;
-      stream.write((char *)&val, 1);
+      stream.write(reinterpret_cast<char *>(&val), 1);
       break;
     }
     case MapValue::kString:
@@ -184,7 +184,7 @@ namespace ohm
       // {
       //   endian::endianSwap(&len16);
       // }
-      stream.write((char *)&len16, sizeof(len16));
+      stream.write(reinterpret_cast<char *>(&len16), sizeof(len16));
 
       if (unsigned(len))
       {

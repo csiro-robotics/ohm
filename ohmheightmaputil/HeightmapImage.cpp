@@ -742,7 +742,7 @@ bool HeightmapImage::renderHeightMesh(ImageType image_type, const Aabb &spatial_
   const unsigned target_height =
     pixels_per_voxel * unsigned(std::ceil(spatial_extents.diagonal()[axes[1]] / voxel_resolution));
 
-  // For some reason it seems the either the buffer size must be a multiple of 16, or the individual dimentions of 8.
+  // For some reason it seems the either the buffer size must be a multiple of 16, or the individual dimensions of 8.
   // Making both of 8 addresses both.
   // Otherwise the render texture reports the correct size, but overruns when getting the image back.
   const unsigned render_width = makeMultipleOf(target_width, 8);
@@ -941,7 +941,7 @@ bool HeightmapImage::renderHeightMesh(ImageType image_type, const Aabb &spatial_
                         GL_FLOAT,  // type
                         GL_FALSE,  // normalized?
                         0,         // stride
-                        (void *)0  // array buffer offset
+                        nullptr    // array buffer offset
   );
 
   // Normals stream.
@@ -952,7 +952,7 @@ bool HeightmapImage::renderHeightMesh(ImageType image_type, const Aabb &spatial_
                         GL_FLOAT,  // type
                         GL_TRUE,   // normalized?
                         0,         // stride
-                        (void *)0  // array buffer offset
+                        nullptr    // array buffer offset
   );
 
   // Vertex colour stream.
@@ -963,7 +963,7 @@ bool HeightmapImage::renderHeightMesh(ImageType image_type, const Aabb &spatial_
                         GL_FLOAT,  // type
                         GL_FALSE,  // normalized?
                         0,         // stride
-                        (void *)0  // array buffer offset
+                        nullptr    // array buffer offset
   );
 
   // Index buffer
@@ -973,7 +973,7 @@ bool HeightmapImage::renderHeightMesh(ImageType image_type, const Aabb &spatial_
   glDrawElements(GL_TRIANGLES,          // mode
                  GLsizei(index_count),  // count
                  GL_UNSIGNED_INT,       // type
-                 (void *)0              // element array buffer offset
+                 nullptr                // element array buffer offset
   );
 
   glDisableVertexAttribArray(0);
@@ -1014,7 +1014,7 @@ bool HeightmapImage::renderHeightMesh(ImageType image_type, const Aabb &spatial_
                             GL_FLOAT,  // type
                             GL_FALSE,  // normalized?
                             0,         // stride
-                            (void *)0  // array buffer offset
+                            nullptr    // array buffer offset
       );
 
       // Draw the triangles !
@@ -1034,7 +1034,8 @@ bool HeightmapImage::renderHeightMesh(ImageType image_type, const Aabb &spatial_
   imp_->image_info.image_width = render_width;
   imp_->image_info.image_height = render_height;
 
-  imp_->image_info.image_extents = Aabb(spatial_extents.minExtents(), spatial_extents.minExtents() + glm::dvec3(max_ext_vertices));
+  imp_->image_info.image_extents =
+    Aabb(spatial_extents.minExtents(), spatial_extents.minExtents() + glm::dvec3(max_ext_vertices));
   imp_->image_info.type = (colours) ? kImageVertexColours888 : image_type;
 
   // Read pixels:
@@ -1053,7 +1054,8 @@ bool HeightmapImage::renderHeightMesh(ImageType image_type, const Aabb &spatial_
     // if (imp_->image[imp_->image_info.image_width * imp_->image_info.image_height * imp_->image_info.bpp] != 0xcf)
     // {
     //   unsigned last_bad_index = imp_->image_info.image_width * imp_->image_info.image_height * imp_->image_info.bpp;
-    //   while (last_bad_index < imp_->image_info.image_width * imp_->image_info.image_height * imp_->image_info.bpp * 2 &&
+    //   while (last_bad_index < imp_->image_info.image_width * imp_->image_info.image_height * imp_->image_info.bpp * 2
+    //   &&
     //          imp_->image[last_bad_index] != 0xcf)
     //   {
     //     ++last_bad_index;
@@ -1072,15 +1074,19 @@ bool HeightmapImage::renderHeightMesh(ImageType image_type, const Aabb &spatial_
     break;
   case kAfRgb32f:
     imp_->image_info.bpp = 3 * sizeof(float);
-    imp_->image_info.byte_count = imp_->image_info.image_width * imp_->image_info.image_height *
-    imp_->image_info.bpp; imp_->image.resize(imp_->image_info.byte_count); glBindTexture(GL_TEXTURE_2D,
-    output_texture_id); glGetTexImage(GL_TEXTURE_2D, 0, output_format_type, GL_FLOAT, imp_->image.data()); break;
+    imp_->image_info.byte_count = imp_->image_info.image_width * imp_->image_info.image_height * imp_->image_info.bpp;
+    imp_->image.resize(imp_->image_info.byte_count);
+    glBindTexture(GL_TEXTURE_2D, output_texture_id);
+    glGetTexImage(GL_TEXTURE_2D, 0, output_format_type, GL_FLOAT, imp_->image.data());
+    break;
   case kAfMono32f:
     // We are reading the depth buffer, which is float format. We size the image bytes appropriately.
     imp_->image_info.bpp = sizeof(float);
-    imp_->image_info.byte_count = imp_->image_info.image_width * imp_->image_info.image_height *
-    imp_->image_info.bpp; imp_->image.resize(imp_->image_info.byte_count); glBindTexture(GL_TEXTURE_2D,
-    output_texture_id); glGetTexImage(GL_TEXTURE_2D, 0, output_format_type, GL_FLOAT, imp_->image.data()); break;
+    imp_->image_info.byte_count = imp_->image_info.image_width * imp_->image_info.image_height * imp_->image_info.bpp;
+    imp_->image.resize(imp_->image_info.byte_count);
+    glBindTexture(GL_TEXTURE_2D, output_texture_id);
+    glGetTexImage(GL_TEXTURE_2D, 0, output_format_type, GL_FLOAT, imp_->image.data());
+    break;
   default:
     // Unkown type;
     imp_->image_info.bpp = 0;

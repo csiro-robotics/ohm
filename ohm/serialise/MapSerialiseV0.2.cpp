@@ -73,7 +73,7 @@ namespace ohm
     int loadItem(InputStream &in, MapValue &value)  //, const bool endianSwap)
     {
       uint16_t len16;
-      in.read((char *)&len16, sizeof(len16));
+      in.read(reinterpret_cast<char *>(&len16), sizeof(len16));
       // if (endianSwap)
       // {
       //   endian::endianSwap(&len16);
@@ -89,28 +89,28 @@ namespace ohm
       delete[] str;
 
       uint8_t type;
-      in.read((char *)&type, 1);
+      in.read(reinterpret_cast<char *>(&type), 1);
 
       switch (type)
       {
       case MapValue::kInt8:
       {
         int8_t val;
-        in.read((char *)&val, 1);
+        in.read(reinterpret_cast<char *>(&val), 1);
         value = val;
         break;
       }
       case MapValue::kUInt8:
       {
         uint8_t val;
-        in.read((char *)&val, 1);
+        in.read(reinterpret_cast<char *>(&val), 1);
         value = val;
         break;
       }
       case MapValue::kInt16:
       {
         int16_t val;
-        in.read((char *)&val, sizeof(val));
+        in.read(reinterpret_cast<char *>(&val), sizeof(val));
         // if (endianSwap) { endian::endianSwap(&val); }
         value = val;
         break;
@@ -118,7 +118,7 @@ namespace ohm
       case MapValue::kUInt16:
       {
         uint16_t val;
-        in.read((char *)&val, sizeof(val));
+        in.read(reinterpret_cast<char *>(&val), sizeof(val));
         // if (endianSwap) { endian::endianSwap(&val); }
         value = val;
         break;
@@ -126,7 +126,7 @@ namespace ohm
       case MapValue::kInt32:
       {
         int32_t val;
-        in.read((char *)&val, sizeof(val));
+        in.read(reinterpret_cast<char *>(&val), sizeof(val));
         // if (endianSwap) { endian::endianSwap(&val); }
         value = val;
         break;
@@ -134,7 +134,7 @@ namespace ohm
       case MapValue::kUInt32:
       {
         uint32_t val;
-        in.read((char *)&val, sizeof(val));
+        in.read(reinterpret_cast<char *>(&val), sizeof(val));
         // if (endianSwap) { endian::endianSwap(&val); }
         value = val;
         break;
@@ -142,7 +142,7 @@ namespace ohm
       case MapValue::kInt64:
       {
         int64_t val;
-        in.read((char *)&val, sizeof(val));
+        in.read(reinterpret_cast<char *>(&val), sizeof(val));
         // if (endianSwap) { endian::endianSwap(&val); }
         value = val;
         break;
@@ -150,7 +150,7 @@ namespace ohm
       case MapValue::kUInt64:
       {
         uint64_t val;
-        in.read((char *)&val, sizeof(val));
+        in.read(reinterpret_cast<char *>(&val), sizeof(val));
         // if (endianSwap) { endian::endianSwap(&val); }
         value = val;
         break;
@@ -158,7 +158,7 @@ namespace ohm
       case MapValue::kFloat32:
       {
         float val;
-        in.read((char *)&val, sizeof(val));
+        in.read(reinterpret_cast<char *>(&val), sizeof(val));
         // if (endianSwap) { endian::endianSwap(&val); }
         value = val;
         break;
@@ -166,7 +166,7 @@ namespace ohm
       case MapValue::kFloat64:
       {
         double val;
-        in.read((char *)&val, sizeof(val));
+        in.read(reinterpret_cast<char *>(&val), sizeof(val));
         // if (endianSwap) { endian::endianSwap(&val); }
         value = val;
         break;
@@ -174,7 +174,7 @@ namespace ohm
       case MapValue::kBoolean:
       {
         uint8_t val;
-        in.read((char *)&val, 1);
+        in.read(reinterpret_cast<char *>(&val), 1);
         if (val)
         {
           value = true;
@@ -187,7 +187,7 @@ namespace ohm
       }
       case MapValue::kString:
       {
-        in.read((char *)&len16, sizeof(len16));
+        in.read(reinterpret_cast<char *>(&len16), sizeof(len16));
         // if (endianSwap)
         // {
         //   endian::endianSwap(&len16);

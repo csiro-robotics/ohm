@@ -1189,7 +1189,7 @@ unsigned OccupancyMap::collectDirtyRegions(uint64_t from_stamp,
       added = false;
 
       // Insertion sorted on the chunk's dirty stamp. Least recently touched (oldtest) first.
-      // TODO: test efficiency of the sorted insertion on a vector.
+      // TODO(KS): test efficiency of the sorted insertion on a vector.
       // Scope should be small so I expect little impact.
       auto item = std::make_pair(chunk_ref.second->dirty_stamp, chunk_ref.second->region.coord);
       for (auto iter = regions.begin(); iter != regions.end(); ++iter)

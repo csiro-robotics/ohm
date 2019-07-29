@@ -391,7 +391,7 @@ void Buffer::fill(const void *pattern, size_t pattern_size, Queue *queue, Event 
   {
     if (pattern_size == sizeof(int))
     {
-      bufferSet(imp_->device_mem, *(const int *)pattern, imp_->alloc_size, queue, block_on, completion);
+      bufferSet(imp_->device_mem, *static_cast<const int *>(pattern), imp_->alloc_size, queue, block_on, completion);
     }
     else
     {
@@ -432,7 +432,7 @@ void Buffer::fillPartial(const void *pattern, size_t pattern_size, size_t fill_b
     uint8_t *dst_mem = static_cast<uint8_t *>(imp_->device_mem) + offset;
     if (pattern_size == sizeof(int))
     {
-      bufferSet(dst_mem, *(int *)pattern, fill_bytes, queue, nullptr, nullptr);
+      bufferSet(dst_mem, *static_cast<const int *>(pattern), fill_bytes, queue, nullptr, nullptr);
     }
     else
     {
