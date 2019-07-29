@@ -1,0 +1,206 @@
+---
+Checks: >
+  clang-diagnostic-*,
+  clang-analyzer-*,
+  boost-use-to-string,
+  bugprone-*,
+  cert-dcl03-c,
+  cert-dcl21-cpp,
+  cert-dcl58-cpp,
+  cert-env33-c,
+  cert-err52-cpp,
+  cert-err58-cpp,
+  cert-err60-cpp,
+  cppcoreguidelines-avoid-goto,
+  cppcoreguidelines-interfaces-global-init,
+  cppcoreguidelines-no-malloc,
+  cppcoreguidelines-pro-type-const-cast,
+  cppcoreguidelines-pro-type-cstyle-cast,
+  cppcoreguidelines-pro-type-member-init,
+  cppcoreguidelines-slicing,
+  fuchsia-multiple-inheritance,
+  fuchsia-virtual-inheritance,
+  google-build-namespaces,
+  google-default-arguments,
+  google-global-names-in-headers,
+  google-readability-casting,
+  google-readability-todo,
+  google-runtime-int,
+  google-runtime-operator,
+  google-runtime-references,
+  hicpp-exception-baseclass,
+  hicpp-multiway-paths-covered,
+  hicpp-no-assembler,
+  hicpp-signed-bitwise,
+  llvm-include-order,
+  llvm-namespace-comment,
+  misc-definitions-in-headers,
+  misc-misplaced-const,
+  misc-new-delete-overloads,
+  misc-noexcept-move-constructor,
+  misc-non-copyable-objects,
+  misc-redundant-expression,
+  misc-static-assert,
+  misc-throw-by-value-catch-by-reference,
+  misc-unconventional-assign-operator,
+  misc-uniqueptr-reset-release,
+  misc-unused-alias-decls,
+  misc-unused-parameters,
+  misc-unused-using-decls,
+  modernize-avoid-bind,
+  modernize-deprecated-headers,
+  modernize-loop-convert,
+  modernize-make-shared,
+  modernize-make-unique,
+  modernize-raw-string-literal,
+  modernize-redundant-void-arg,
+  modernize-replace-auto-ptr,
+  modernize-replace-random-shuffle,
+  modernize-return-braced-init-list,
+  modernize-shrink-to-fit,
+  modernize-unary-static-assert,
+  modernize-use-bool-literals,
+  modernize-use-default-member-init,
+  modernize-use-emplace,
+  modernize-use-equals-default,
+  modernize-use-equals-delete,
+  modernize-use-noexcept,
+  modernize-use-nullptr,
+  modernize-use-override,
+  modernize-use-transparent-functors,
+  modernize-use-using,
+  mpi-*,
+  performance-faster-string-find,
+  performance-for-range-copy,
+  performance-implicit-conversion-in-loop,
+  performance-inefficient-algorithm,
+  performance-inefficient-string-concatenation,
+  performance-inefficient-vector-operation,
+  performance-move-const-arg,
+  performance-move-constructor-init,
+  performance-noexcept-move-constructor,
+  performance-type-promotion-in-math-fn,
+  performance-unnecessary-copy-initialization,
+  portability-simd-intrinsics,
+  readability-avoid-const-params-in-decls,
+  readability-braces-around-statements,
+  readability-container-size-empty,
+  readability-delete-null-pointer,
+  readability-deleted-default,
+  readability-else-after-return,
+  readability-function-size,
+  readability-inconsistent-declaration-parameter-name,
+  readability-identifier-naming,
+  readability-misleading-indentation,
+  readability-misplaced-array-index,
+  readability-non-const-parameter,
+  readability-redundant-control-flow,
+  readability-redundant-declaration,
+  readability-redundant-function-ptr-dereference,
+  readability-redundant-member-init,
+  readability-redundant-smartptr-get,
+  readability-redundant-string-cstr,
+  readability-redundant-string-init,
+  readability-simplify-subscript-expr,
+  readability-static-accessed-through-instance,
+  readability-static-definition-in-anonymous-namespace,
+  readability-uniqueptr-delete-release
+WarningsAsErrors: ''
+HeaderFilterRegex: '.*'
+AnalyzeTemporaryDtors: false
+FormatStyle:     none
+User: csiro
+CheckOptions:
+  - key:  readability-identifier-naming.AbstractClassCase
+    value: CamelCase
+  - key:  readability-identifier-naming.ClassCase
+    value: CamelCase
+  - key:  readability-identifier-naming.ClassConstantCase
+    value: CamelCase
+  - key:  readability-identifier-naming.ClassConstantPrefix
+    value: 'k'
+  - key:  readability-identifier-naming.ClassMemberCase
+    value: lower_case
+  - key:  readability-identifier-naming.ClassMethodCase
+    value: camelBack
+  - key:  readability-identifier-naming.ConstexprFunctionCase
+    value: camelBack
+  - key:  readability-identifier-naming.ConstexprMethodCase
+    value: camelBack
+  - key:  readability-identifier-naming.ConstexprVariableCase
+    value: CamelCase
+  - key:  readability-identifier-naming.EnumCase
+    value: CamelCase
+  - key:  readability-identifier-naming.EnumConstantCase
+    value: CamelCase
+  - key:  readability-identifier-naming.EnumConstantPrefix
+    value: 'k'
+  - key:  readability-identifier-naming.FunctionCase
+    value: camelBack
+  - key:  readability-identifier-naming.GlobalConstantCase
+    value: CamelCase
+  - key:  readability-identifier-naming.GlobalConstantPrefix
+    value: 'k'
+  - key:  readability-identifier-naming.GlobalFunctionCase
+    value: camelBack
+  - key:  readability-identifier-naming.GlobalVariableCase
+    value: lower_case
+  - key:  readability-identifier-naming.InlineNamespaceCase
+    value: lower_case
+  - key:  readability-identifier-naming.LocalConstantCase
+    value: lower_case
+  - key:  readability-identifier-naming.LocalConstantPrefix
+    value: ''
+  - key:  readability-identifier-naming.LocalVariableCase
+    value: lower_case
+  - key:  readability-identifier-naming.MemberCase
+    value: lower_case
+  - key:  readability-identifier-naming.ConstantMemberCase
+    value: camelBack
+  - key:  readability-identifier-naming.ConstantMemberCasePrefix
+    value: 'k'
+  - key:  readability-identifier-naming.PrivateMemberCase
+    value: lower_case
+  - key:  readability-identifier-naming.PrivateMemberSuffix
+    value: '_'
+  - key:  readability-identifier-naming.ProtectedMemberCase
+    value: lower_case
+  - key:  readability-identifier-naming.ProtectedMemberSuffix
+    value: '_'
+  - key:  readability-identifier-naming.PublicMemberCase
+    value: lower_case
+  - key:  readability-identifier-naming.MethodCase
+    value: camelBack
+  - key:  readability-identifier-naming.NamespaceCase
+    value: lower_case
+  - key:  readability-identifier-naming.ParameterCase
+    value: lower_case
+  - key:  readability-identifier-naming.ConstantParameterCase
+    value: lower_case
+  - key:  readability-identifier-naming.StaticConstantCase
+    value: lower_case
+  - key:  readability-identifier-naming.StaticVariableCase
+    value: lower_case
+  - key:  readability-identifier-naming.StructCase
+    value: CamelCase
+  - key:  readability-identifier-naming.TemplateParameterCase
+    value: UPPER_CASE
+  - key:  readability-identifier-naming.TemplateTemplateParameterCase
+    value: UPPER_CASE
+  - key:  readability-identifier-naming.TemplateUsingCase
+    value: CamelCase
+  - key:  readability-identifier-naming.TypeTemplateParameterCase
+    value: UPPER_CASE
+  - key:  readability-identifier-naming.TypedefCase
+    value: CamelCase
+  - key:  readability-identifier-naming.UnionCase
+    value: CamelCase
+  - key:  readability-identifier-naming.UsingCase
+    value: CamelCase
+  - key:  readability-identifier-naming.ValueTemplateParameterCase
+    value: UPPER_CASE
+  - key:  readability-identifier-naming.VariableCase
+    value: lower_case
+  - key:  readability-identifier-naming.IgnoreFailedSplit
+    value: '0'
+...

@@ -1,6 +1,8 @@
 ---
 Checks: >
   -*,
+  google-readability-casting,
+  google-readability-todo,
   readability-avoid-const-params-in-decls,
   readability-braces-around-statements,
   readability-container-size-empty,

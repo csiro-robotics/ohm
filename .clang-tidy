@@ -89,11 +89,10 @@ Checks: >
   readability-deleted-default,
   readability-else-after-return,
   readability-function-size,
-  readability-identifier-naming,
   readability-inconsistent-declaration-parameter-name,
+  readability-identifier-naming,
   readability-misleading-indentation,
   readability-misplaced-array-index,
-  readability-named-parameter,
   readability-non-const-parameter,
   readability-redundant-control-flow,
   readability-redundant-declaration,
@@ -102,11 +101,9 @@ Checks: >
   readability-redundant-smartptr-get,
   readability-redundant-string-cstr,
   readability-redundant-string-init,
-  readability-simplify-boolean-expr,
   readability-simplify-subscript-expr,
   readability-static-accessed-through-instance,
   readability-static-definition-in-anonymous-namespace,
-  readability-string-compare,
   readability-uniqueptr-delete-release
 WarningsAsErrors: ''
 HeaderFilterRegex: '.*'
@@ -114,20 +111,6 @@ AnalyzeTemporaryDtors: false
 FormatStyle:     none
 User: csiro
 CheckOptions:
-  - key: bugprone-argument-comment.StrictMode
-    value: '1'
-  - key: bugprone-misplaced-widening-cast.CheckImplicitCasts
-    value: '1'
-  - key: performance-move-constructor-init.IncludeStyle
-    value: 'llvm'
-  - key: cppcoreguidelines-special-member-functions.AllowSoleDefaultDtor
-    value: '1'
-  - key: cppcoreguidelines-special-member-functions.AllowMissingMoveFunctions
-    value: '1'
-  - key: google-runtime-int.TypeSuffix
-    value: '_t'
-  - key: modernize-use-default-member-init.UseAssignment
-    value: '1'
   - key:  readability-identifier-naming.AbstractClassCase
     value: CamelCase
   - key:  readability-identifier-naming.ClassCase
