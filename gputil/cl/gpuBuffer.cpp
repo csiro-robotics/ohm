@@ -15,6 +15,7 @@
 
 #include <clu/clu.h>
 #include <clu/cluBuffer.h>
+
 #include <algorithm>
 #include <cinttypes>
 #include <cstring>
@@ -29,7 +30,7 @@ namespace
   /// device.
   /// @param device The device holding the default command queue.
   /// @param explicit_queue The preferred command queue. May be null.
-  inline cl_command_queue selectQueue(Device &device, Queue *explicit_queue)
+  inline cl_command_queue selectQueue(Device &device, Queue *explicit_queue)  // NOLINT(google-runtime-references)
   {
     if (explicit_queue)
     {
@@ -39,7 +40,8 @@ namespace
   }
 
 
-  size_t resizeBuffer(Buffer &buffer, BufferDetail &imp, size_t new_size, bool force)
+  size_t resizeBuffer(Buffer &buffer, BufferDetail &imp,  // NOLINT(google-runtime-references)
+                      size_t new_size, bool force)
   {
     const size_t initial_size = buffer.actualSize();
     size_t best_size = clu::bestAllocationSize(imp.device.detail()->context, new_size);
@@ -98,7 +100,7 @@ namespace
   }
 
 
-  size_t actualSize(BufferDetail &imp)
+  size_t actualSize(const BufferDetail &imp)
   {
     size_t buffer_size = 0;
     if (imp.buffer())
@@ -129,7 +131,7 @@ namespace gputil
       map_flags = CL_MAP_WRITE;
       break;
     case kPinReadWrite:
-      map_flags = CL_MAP_WRITE | CL_MAP_WRITE;
+      map_flags = CL_MAP_READ | CL_MAP_WRITE;
       break;
     }
 

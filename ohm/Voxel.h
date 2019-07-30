@@ -246,10 +246,10 @@ namespace ohm
   {
   public:
     /// Parent class type.
-    typedef VoxelBase<MapChunk> Super;
+    using Super = VoxelBase<MapChunk>;
 
     /// Default constructor (null voxel).
-    inline Voxel() {}
+    inline Voxel() = default;
 
     /// Construct a voxel reference to an existing voxel.
     /// @param key The key of the voxel to reference.
@@ -261,9 +261,7 @@ namespace ohm
 
     /// Copy constructor.
     /// @param other Voxel to copy.
-    inline Voxel(const Voxel &other)
-      : Super(other)
-    {}
+    inline Voxel(const Voxel &other) = default;
 
     /// Set the value of the referenced tree voxel. May expand pruned voxels. Voxel must be valid.
     ///
@@ -343,10 +341,10 @@ namespace ohm
   {
   public:
     /// Parent class type.
-    typedef VoxelBase<const MapChunk> Super;
+    using Super = VoxelBase<const MapChunk>;
 
     /// Default constructor (null voxel).
-    inline VoxelConst() {}
+    inline VoxelConst() = default;
 
     /// Construct a voxel reference to an existing voxel.
     /// @param key The key of the voxel to reference.
@@ -358,9 +356,7 @@ namespace ohm
 
     /// Copy constructor.
     /// @param other Voxel to copy.
-    inline VoxelConst(const VoxelConst &other)
-      : Super(other)
-    {}
+    inline VoxelConst(const VoxelConst &other) = default;
 
     /// Copy constructor.
     /// @param other Voxel to copy.

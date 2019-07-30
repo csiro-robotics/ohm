@@ -21,7 +21,7 @@ namespace gputil
     int version_major = -1;
     int version_minor = -1;
     int debug_level = 0;
-    std::vector<std::string> *args;
+    std::vector<std::string> *args = nullptr;
   };
 
   /// Defines a compiled GPU program.
@@ -31,8 +31,8 @@ namespace gputil
   {
   public:
     Program();
-    Program(Device &device, const char *program_name);
-    Program(Program &&other);
+    Program(Device &device, const char *program_name);  // NOLINT(google-runtime-references)
+    Program(Program &&other) noexcept;
     ~Program();
 
     bool isValid() const;
@@ -48,7 +48,7 @@ namespace gputil
     inline const ProgramDetail *detail() const { return imp_; }
 
     Program &operator=(const Program &other);
-    Program &operator=(Program &&other);
+    Program &operator=(Program &&other) noexcept;
 
   private:
     ProgramDetail *imp_;

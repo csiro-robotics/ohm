@@ -20,13 +20,14 @@ namespace ohm
 
   namespace v0_3
   {
-    int load(InputStream &stream, OccupancyMapDetail &detail, SerialiseProgress *progress, const MapVersion &version,
-             size_t region_count);
+    int load(InputStream &stream, OccupancyMapDetail &detail,  // NOLINT(google-runtime-references)
+             SerialiseProgress *progress, const MapVersion &version, size_t region_count);
 
-    int load(InputStream &stream, OccupancyMapDetail &detail, SerialiseProgress *progress, const MapVersion &version,
-             size_t region_count, const ChunkFunc &load_chunk);
+    int load(InputStream &stream, OccupancyMapDetail &detail,  // NOLINT(google-runtime-references)
+             SerialiseProgress *progress, const MapVersion &version, size_t region_count, const ChunkFunc &load_chunk);
 
-    int loadChunk(InputStream &stream, MapChunk &chunk, const OccupancyMapDetail &detail);
+    int loadChunk(InputStream &stream, MapChunk &chunk,  // NOLINT(google-runtime-references)
+                  const OccupancyMapDetail &detail);
   }  // namespace v0_3
 }  // namespace ohm
 

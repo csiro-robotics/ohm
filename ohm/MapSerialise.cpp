@@ -65,7 +65,7 @@ namespace ohm
   const MapVersion kSupportedVersionMax = { 0, 3, 2 };
   const MapVersion kCurrentVersion = { 0, 3, 2 };
 
-  int saveItem(OutputStream &stream, const MapValue &value)
+  int saveItem(OutputStream &stream, const MapValue &value)  // NOLINT(google-runtime-references)
   {
     //{
     //  MapValue strValue = value.toStringValue();
@@ -201,7 +201,7 @@ namespace ohm
   }
 
 
-  int saveMapInfo(OutputStream &stream, const MapInfo &map_info)
+  int saveMapInfo(OutputStream &stream, const MapInfo &map_info)  // NOLINT(google-runtime-references)
   {
     uint32_t item_count = map_info.extract(nullptr, 0);
 
@@ -241,7 +241,7 @@ namespace ohm
   }
 
 
-  int saveHeader(OutputStream &stream, const OccupancyMapDetail &map)
+  int saveHeader(OutputStream &stream, const OccupancyMapDetail &map)  // NOLINT(google-runtime-references)
   {
     bool ok = true;
     // Header marker + version
@@ -284,7 +284,7 @@ namespace ohm
   }
 
 
-  int saveLayout(OutputStream &stream, const OccupancyMapDetail &map)
+  int saveLayout(OutputStream &stream, const OccupancyMapDetail &map)  // NOLINT(google-runtime-references)
   {
     // Save details about the map layers.
     const MapLayout &layout = map.layout;
@@ -341,7 +341,8 @@ namespace ohm
   }
 
 
-  int saveChunk(OutputStream &stream, const MapChunk &chunk, const OccupancyMapDetail &detail)
+  int saveChunk(OutputStream &stream,  // NOLINT(google-runtime-references)
+                const MapChunk &chunk, const OccupancyMapDetail &detail)
   {
     bool ok = true;
 
@@ -385,7 +386,8 @@ namespace ohm
   }
 
 
-  int loadHeader(InputStream &stream, HeaderVersion &version, OccupancyMapDetail &map, size_t &region_count)
+  int loadHeader(InputStream &stream, HeaderVersion &version,    // NOLINT(google-runtime-references)
+                 OccupancyMapDetail &map, size_t &region_count)  // NOLINT(google-runtime-references)
   {
     bool ok = true;
 
@@ -478,7 +480,8 @@ namespace ohm
 
 
   // Current version of chunk loading.
-  int loadChunk(InputStream &stream, MapChunk &chunk, const OccupancyMapDetail &detail)
+  int loadChunk(InputStream &stream, MapChunk &chunk,  // NOLINT(google-runtime-references)
+                const OccupancyMapDetail &detail)
   {
     bool ok = true;
 
@@ -730,7 +733,8 @@ int ohm::loadHeader(const char *filename, OccupancyMap &map, MapVersion *version
     }
   }
 
-  // Correct the sub-voxel flags. The flags may not match the reality of the map layout, such as when we load an older version.
+  // Correct the sub-voxel flags. The flags may not match the reality of the map layout, such as when we load an older
+  // version.
   if (!err)
   {
     if (detail.layout.hasSubVoxelPattern())

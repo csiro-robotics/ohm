@@ -29,9 +29,12 @@ using namespace ohm;
 
 namespace
 {
-  unsigned regionNearestNeighboursCpu(OccupancyMap &map, NearestNeighboursDetail &query, const glm::i16vec3 &region_key,
-                                      ClosestResult &closest)
+  unsigned regionNearestNeighboursCpu(OccupancyMap &map,               // NOLINT(google-runtime-references)
+                                      NearestNeighboursDetail &query,  // NOLINT(google-runtime-references)
+                                      const glm::i16vec3 &region_key,
+                                      ClosestResult &closest)  // NOLINT(google-runtime-references)
   {
+    static const float invalid_occupancy_value = voxel::invalidMarkerValue();
     const OccupancyMapDetail &map_data = *map.detail();
     const auto chunk_search = map_data.chunks.find(region_key);
     glm::vec3 query_origin, voxel_vector;
@@ -56,7 +59,7 @@ namespace
 
       // ... and we have to treat unknown space as occupied.
       chunk = nullptr;
-      occupancy = nullptr;
+      occupancy = &invalid_occupancy_value;
       // Setup voxel occupancy test function to pass all voxels in this region.
       voxel_occupied_func = [](const float, const OccupancyMapDetail &) -> bool { return true; };
     }
@@ -184,6 +187,7 @@ namespace
 
 NearestNeighbours::NearestNeighbours(NearestNeighboursDetail *detail)
   : Query(detail)
+  , query_flags_(0)
 {
   // Can't initalise GPU until onSetMap() (need a valid map).
 }

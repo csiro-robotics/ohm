@@ -30,16 +30,16 @@ namespace ohm
     static const int q_index[] = { 3, 0, 3, 1, 3, 2 };
     static const int t_index[] = { 1, 3, 2, 3, 0, 3 };
 
-    float rgb[4];
+    float rgb[4] = { 0 };
     rgb[v_index[sector_index]] = v;
     rgb[p_index[sector_index]] = p;
     rgb[q_index[sector_index]] = q;
     rgb[t_index[sector_index]] = t;
 
     // Handle achromatic here by testing s inline.
-    r = (s) ? rgb[0] : v;
-    g = (s) ? rgb[1] : v;
-    b = (s) ? rgb[2] : v;
+    r = (s != 0) ? rgb[0] : v;
+    g = (s != 0) ? rgb[1] : v;
+    b = (s != 0) ? rgb[2] : v;
   }
 
 
@@ -63,11 +63,11 @@ namespace ohm
 
 #if 1
     v = c_max;
-    s = (c_max) ? delta / c_max : 0;
+    s = (c_max != 0) ? delta / c_max : 0;
 
-    const float yellow_to_magenta = (r == c_max && c_max) ? 1.0f : 0.0f;
-    const float cyan_to_yellow = (g == c_max && c_max) ? 1.0f : 0.0f;
-    const float magenta_to_cyan = (b == c_max && c_max) ? 1.0f : 0.0f;
+    const float yellow_to_magenta = (r == c_max && c_max != 0) ? 1.0f : 0.0f;
+    const float cyan_to_yellow = (g == c_max && c_max != 0) ? 1.0f : 0.0f;
+    const float magenta_to_cyan = (b == c_max && c_max != 0) ? 1.0f : 0.0f;
 
     h = (yellow_to_magenta * ((g - b) / delta) + cyan_to_yellow * ((g - b) / delta) +
          magenta_to_cyan * ((g - b) / delta)) *

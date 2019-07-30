@@ -46,7 +46,10 @@ void KeyList::reserve(size_t capacity)
     Key *keys = new Key[capacity];
     if (keys_ && count_)
     {
-      memcpy(keys, keys_, sizeof(*keys) * count_);
+      for (size_t i = 0; i < count_; ++i)
+      {
+        keys[i] = keys_[i];
+      }
     }
     delete[] keys_;
     keys_ = keys;

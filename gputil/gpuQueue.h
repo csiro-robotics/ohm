@@ -15,7 +15,6 @@
 namespace gputil
 {
   struct QueueDetail;
-  class Device;
 
   /// Represents a command queue or stream on the GPU.
   ///

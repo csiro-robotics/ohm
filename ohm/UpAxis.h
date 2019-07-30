@@ -28,6 +28,6 @@ namespace ohm
     /// (0, 0, 1)
     kZ,
   };
-}
+}  // namespace ohm
 
-#endif // UPAXIS_H
+#endif  // UPAXIS_H

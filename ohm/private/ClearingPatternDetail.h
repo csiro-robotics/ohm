@@ -22,6 +22,6 @@ namespace ohm
     const RayPattern *pattern = nullptr;
     bool has_pattern_ownership = false;
   };
-}
+} // namespace ohm
 
 #endif // CLEARINGPATTERNDETAIL_H

@@ -16,6 +16,6 @@ namespace gputil
   {
     cl::CommandQueue queue;
   };
-}
+}  // namespace gputil
 
-#endif // GPUQUEUEDETAIL_H
+#endif  // GPUQUEUEDETAIL_H

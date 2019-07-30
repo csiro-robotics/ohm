@@ -19,6 +19,6 @@ namespace ohm
     std::vector<size_t> result_indices;
     std::vector<size_t> result_counts;
   };
-}
+}  // namespace ohm
 
-#endif // OHM_LINEKEYSQUERYDETAIL_H_
+#endif  // OHM_LINEKEYSQUERYDETAIL_H_

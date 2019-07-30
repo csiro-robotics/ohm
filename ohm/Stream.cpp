@@ -34,7 +34,7 @@ namespace ohm
   };
 
 
-  Compression::Compression(unsigned buffer_size)
+  Compression::Compression(unsigned buffer_size) // NOLINT
     : buffer(nullptr)
     , buffer_size(buffer_size)
     , initialised(false)
@@ -97,7 +97,7 @@ namespace ohm
   struct StreamPrivate
   {
     std::string file_path;
-    unsigned flags;
+    unsigned flags = 0;
   };
 
   struct InputStreamPrivate : StreamPrivate
@@ -113,7 +113,7 @@ namespace ohm
     std::ofstream out;
 #ifdef OHM_ZIP
     Compression compress;
-    bool needs_flush;
+    bool needs_flush = false;
 #endif  // OHM_ZIP
   };
 }  // namespace ohm
@@ -170,8 +170,7 @@ Stream::Stream(StreamPrivate *imp)
 }
 
 
-Stream::~Stream()
-{}
+Stream::~Stream() = default;
 
 
 InputStream::InputStream(const char *file_path, unsigned flags)
@@ -179,7 +178,7 @@ InputStream::InputStream(const char *file_path, unsigned flags)
 {
   if (file_path && file_path[0])
   {
-    doOpen(file_path, flags);
+    InputStream::doOpen(file_path, flags);
   }
 }
 
@@ -336,7 +335,7 @@ OutputStream::OutputStream(const char *file_path, unsigned flags)
 {
   if (file_path && file_path[0])
   {
-    doOpen(file_path, flags);
+    OutputStream::doOpen(file_path, flags);
   }
 
 #ifdef OHM_ZIP
@@ -360,7 +359,7 @@ unsigned OutputStream::write(const void *buffer, unsigned max_bytes)
     OutputStreamPrivate &imp = *this->imp();
     int ret;
 
-    imp.compress.stream.next_in = (Bytef *)buffer; // NOLINT
+    imp.compress.stream.next_in = (Bytef *)buffer;  // NOLINT
     imp.compress.stream.avail_in = max_bytes;
 
     if (imp.compress.stream.avail_out == 0)
@@ -421,11 +420,10 @@ void OutputStream::flush()
     int ret;
     imp.compress.stream.next_in = nullptr;
     imp.compress.stream.avail_in = 0;
-    unsigned have = imp.compress.buffer_size - imp.compress.stream.avail_out;
     do
     {
       ret = deflate(&imp.compress.stream, Z_FINISH);
-      have = imp.compress.buffer_size - imp.compress.stream.avail_out;
+      unsigned have = imp.compress.buffer_size - imp.compress.stream.avail_out;
       if (have)
       {
         imp.out.write(reinterpret_cast<char *>(imp.compress.buffer), have);
@@ -442,7 +440,7 @@ void OutputStream::flush()
 }
 
 
-bool OutputStream::doOpen(const char *file_path, unsigned flags /*= 0u*/)
+bool OutputStream::doOpen(const char *file_path, unsigned flags)
 {
   imp()->out.open(file_path, std::ios_base::binary);
   imp()->file_path = file_path;

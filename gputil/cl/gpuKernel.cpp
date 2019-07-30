@@ -25,7 +25,7 @@ Kernel::Kernel()
 }
 
 
-Kernel::Kernel(Kernel &&other)
+Kernel::Kernel(Kernel &&other) noexcept
   : imp_(other.imp_)
 {
   other.imp_ = nullptr;
@@ -147,7 +147,7 @@ Device Kernel::device()
 }
 
 
-Kernel &Kernel::operator=(Kernel &&other)
+Kernel &Kernel::operator=(Kernel &&other) noexcept
 {
   delete imp_;
   imp_ = other.imp_;

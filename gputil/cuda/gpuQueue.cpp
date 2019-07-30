@@ -17,7 +17,7 @@ using namespace gputil;
 
 namespace gputil
 {
-  void destroyStream(cudaStream_t &stream)
+  void destroyStream(cudaStream_t &stream)  // NOLINT(google-runtime-references)
   {
     if (stream)
     {
@@ -147,10 +147,11 @@ Queue &Queue::operator=(const Queue &other)
   if (queue_)
   {
     queue_->release();
+    queue_ = nullptr;
   }
-  queue_ = other.queue_;
-  if (queue_)
+  if (other.queue_)
   {
+    queue_ = other.queue_;
     queue_->reference();
   }
   return *this;

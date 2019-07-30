@@ -53,8 +53,7 @@ EventList::EventList(std::initializer_list<const Event *> events)
 }
 
 
-EventList::~EventList()
-{}
+EventList::~EventList() = default;
 
 
 void EventList::add(const Event &event)

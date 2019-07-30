@@ -5,6 +5,7 @@
 #include "MapRegion.h"
 
 #include <ohmutil/VectorHash.h>
+
 #include "Key.h"
 #include "MapCoord.h"
 

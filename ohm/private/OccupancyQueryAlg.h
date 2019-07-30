@@ -17,6 +17,7 @@
 #include <tbb/blocked_range.h>
 #include <tbb/blocked_range3d.h>
 #include <tbb/parallel_for.h>
+
 #include <atomic>
 #endif  // OHM_THREADS
 
@@ -29,8 +30,8 @@ namespace ohm
 {
   template <typename QUERY>
   unsigned occupancyQueryRegions(
-    OccupancyMap &map, QUERY &query, ClosestResult &closest, const glm::dvec3 &query_min_extents,
-    const glm::dvec3 &query_max_extents,
+    OccupancyMap &map, QUERY &query, ClosestResult &closest,  // NOLINT(google-runtime-references)
+    const glm::dvec3 &query_min_extents, const glm::dvec3 &query_max_extents,
     const std::function<unsigned(OccupancyMap &, QUERY &, const glm::i16vec3 &, ClosestResult &)> &region_query_func)
   {
     glm::i16vec3 min_region_key;
@@ -43,13 +44,13 @@ namespace ohm
     max_region_key = map.regionKey(query_max_extents);
 
     // Iterate the regions, invoking region_query_func for each.
-    for (short z = min_region_key.z; z <= max_region_key.z; ++z)
+    for (int16_t z = min_region_key.z; z <= max_region_key.z; ++z)
     {
       region_key.z = z;
-      for (short y = min_region_key.y; y <= max_region_key.y; ++y)
+      for (int16_t y = min_region_key.y; y <= max_region_key.y; ++y)
       {
         region_key.y = y;
-        for (short x = min_region_key.x; x <= max_region_key.x; ++x)
+        for (int16_t x = min_region_key.x; x <= max_region_key.x; ++x)
         {
           region_key.x = x;
           current_neighbours += region_query_func(map, query, region_key, closest);
@@ -61,10 +62,11 @@ namespace ohm
   }
 
   template <typename QUERY>
-  inline unsigned occupancyQueryRegions(OccupancyMap &map, QUERY &query, ClosestResult &closest,
+  inline unsigned occupancyQueryRegions(OccupancyMap &map, QUERY &query,  // NOLINT(google-runtime-references)
+                                        ClosestResult &closest,           // NOLINT(google-runtime-references)
                                         const glm::dvec3 &query_min_extents, const glm::dvec3 &query_max_extents,
                                         unsigned (*region_query_func)(OccupancyMap &, QUERY &, const glm::i16vec3 &,
-                                                                    ClosestResult &))
+                                                                      ClosestResult &))
   {
     const std::function<unsigned(OccupancyMap &, QUERY &, const glm::i16vec3 &, ClosestResult &)> region_op =
       region_query_func;
@@ -73,8 +75,8 @@ namespace ohm
 
   template <typename QUERY>
   unsigned occupancyQueryRegionsParallel(
-    OccupancyMap &map, QUERY &query, ClosestResult &closest, const glm::dvec3 &query_min_extents,
-    const glm::dvec3 &query_max_extents,
+    OccupancyMap &map, QUERY &query, ClosestResult &closest,  // NOLINT(google-runtime-references)
+    const glm::dvec3 &query_min_extents, const glm::dvec3 &query_max_extents,
     const std::function<unsigned(OccupancyMap &, QUERY &, const glm::i16vec3 &, ClosestResult &)> &region_query_func)
   {
 #ifdef OHM_THREADS
@@ -113,10 +115,10 @@ namespace ohm
   }
 
   template <typename QUERY>
-  inline unsigned occupancyQueryRegionsParallel(OccupancyMap &map, QUERY &query, ClosestResult &closest,
-                                                const glm::dvec3 &query_min_extents, const glm::dvec3 &query_max_extents,
-                                                unsigned (*region_query_func)(OccupancyMap &, QUERY &,
-                                                                            const glm::i16vec3 &, ClosestResult &))
+  inline unsigned occupancyQueryRegionsParallel(
+    OccupancyMap &map, QUERY &query, ClosestResult &closest,  // NOLINT(google-runtime-references)
+    const glm::dvec3 &query_min_extents, const glm::dvec3 &query_max_extents,
+    unsigned (*region_query_func)(OccupancyMap &, QUERY &, const glm::i16vec3 &, ClosestResult &))
   {
     const std::function<unsigned(OccupancyMap &, QUERY &, const glm::i16vec3 &, ClosestResult &)> region_op =
       region_query_func;

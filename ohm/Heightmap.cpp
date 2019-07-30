@@ -30,7 +30,7 @@
 #include <tbb/blocked_range3d.h>
 #include <tbb/parallel_for.h>
 #include <tbb/task_arena.h>
-#endif // OHM_THREADS
+#endif  // OHM_THREADS
 
 using namespace ohm;
 
@@ -81,14 +81,14 @@ namespace
       }
     }
 
-    void begin(Key &key) const
+    void begin(Key &key) const  // NOLINT(google-runtime-references)
     {
       key = min_ext_key;
       key.setRegionAxis(axis_indices[2], 0);
       key.setLocalAxis(axis_indices[2], 0);
     }
 
-    bool walkNext(Key &key) const
+    bool walkNext(Key &key) const  // NOLINT(google-runtime-references)
     {
       map.stepKey(key, axis_indices[0], 1);
       if (!key.isBounded(axis_indices[0], min_ext_key, max_ext_key))
@@ -174,7 +174,7 @@ namespace
       // Select walking direction based on the up axis being aligned with the primary axis or not.
       const int step_dir = (int(up_axis) >= 0) ? 1 : -1;
       for (; src_key.isBounded(imp->vertical_axis_index, src_min_key, src_max_key);
-          src_map.stepKey(src_key, imp->vertical_axis_index, step_dir))
+           src_map.stepKey(src_key, imp->vertical_axis_index, step_dir))
       {
         // PROFILE(column);
         VoxelConst src_voxel = src_map.voxel(src_key, &src_cache);
@@ -266,7 +266,7 @@ Heightmap::Heightmap(double grid_resolution, double min_clearance, UpAxis up_axi
   // Use an OccupancyMap to store grid cells. Each region is 1 voxel thick.
   glm::u8vec3 region_dim(region_size);
   region_dim[int(imp_->vertical_axis_index)] = 1;
-  imp_->heightmap.reset(new OccupancyMap(grid_resolution, region_dim, ohm::MapFlag::kSubVoxelPosition));
+  imp_->heightmap = std::make_unique<OccupancyMap>(grid_resolution, region_dim, ohm::MapFlag::kSubVoxelPosition);
 
   // Setup the heightmap voxel layout.
   MapLayout &layout = imp_->heightmap->layout();
@@ -301,8 +301,7 @@ Heightmap::Heightmap(double grid_resolution, double min_clearance, UpAxis up_axi
 }
 
 
-Heightmap::~Heightmap()
-{}
+Heightmap::~Heightmap() = default;
 
 
 bool Heightmap::setThreadCount(unsigned thread_count)
@@ -310,10 +309,10 @@ bool Heightmap::setThreadCount(unsigned thread_count)
 #ifdef OHM_THREADS
   imp_->thread_count = thread_count;
   return true;
-#else  // OHM_THREADS
-  (void)thread_count; // Unused.
+#else   // OHM_THREADS
+  (void)thread_count;  // Unused.
   return false;
-#endif // OHM_THREADS
+#endif  // OHM_THREADS
 }
 
 
@@ -522,15 +521,16 @@ bool Heightmap::update(double base_height, const ohm::Aabb &cull_to)
   std::atomic_uint populated_count(0);
   if (imp_->thread_count != 1)
   {
-    const auto update_heightmap_block = [&] (const tbb::blocked_range3d<unsigned, unsigned, unsigned> &range) //
-    { //
+    const auto update_heightmap_block = [&](const tbb::blocked_range3d<unsigned, unsigned, unsigned> &range)  //
+    {                                                                                                         //
       Key min_key_local = min_ext_key;
       Key max_key_local = min_ext_key;
 
       // Move to the target offset.
       imp_->heightmap->moveKey(min_key_local, range.cols().begin(), range.rows().begin(), range.pages().begin());
       imp_->heightmap->moveKey(max_key_local, range.cols().end() - 1, range.rows().end() - 1, range.pages().end() - 1);
-      populated_count += updateHeightmapForRegion(imp_.get(), base_height, min_key_local, max_key_local, upAxis(), Aabb(min_ext, max_ext));
+      populated_count += updateHeightmapForRegion(imp_.get(), base_height, min_key_local, max_key_local, upAxis(),
+                                                  Aabb(min_ext, max_ext));
     };
 
     const glm::ivec3 voxel_range = heightmap.rangeBetween(min_ext_key, max_ext_key);
@@ -563,7 +563,8 @@ bool Heightmap::update(double base_height, const ohm::Aabb &cull_to)
   unsigned populated_count = 0;
 #endif  // OHM_THREADS
   {
-    populated_count += updateHeightmapForRegion(imp_.get(), base_height, min_ext_key, max_ext_key, upAxis(), Aabb(min_ext, max_ext));
+    populated_count +=
+      updateHeightmapForRegion(imp_.get(), base_height, min_ext_key, max_ext_key, upAxis(), Aabb(min_ext, max_ext));
   }
   PROFILE_END(walk)
 

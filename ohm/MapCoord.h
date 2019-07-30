@@ -32,16 +32,16 @@ namespace ohm
   /// @param regionDimension The global size of each region along the axis of interest.
   /// @return The centre of the region along this axis local to the map centre.
 #if GPUTIL_DEVICE != 1
-  template <typename coord_real> // NOLINT(readability-identifier-naming)
-#endif  // GPUTIL_DEVICE != 1
+  template <typename coord_real>  // NOLINT(readability-identifier-naming)
+#endif                            // GPUTIL_DEVICE != 1
   inline __device__ __host__ coord_real regionCentreCoord(int region_coord, const coord_real region_dimesion)
   {
     return region_coord * region_dimesion;
   }
 
 #if GPUTIL_DEVICE != 1
-  template <typename coord_real> // NOLINT(readability-identifier-naming)
-#endif  // GPUTIL_DEVICE != 1
+  template <typename coord_real>  // NOLINT(readability-identifier-naming)
+#endif                            // GPUTIL_DEVICE != 1
   inline __device__ __host__ int pointToRegionVoxel(coord_real coord, coord_real voxel_resolution,
                                                     coord_real region_resolution)
   {
@@ -53,7 +53,7 @@ namespace ohm
     // In testing, the largest double precision delta I've seen has been on the order of 1e-15, while
     // the largest single precision delta should be around 5e-7. We use an epsilon of 1e-6 to support
     // single precision. Anything larger is treated as an invalid input.
-    const coord_real epsilon = (coord_real)1e-6; // NOLINT
+    const coord_real epsilon = (coord_real)1e-6;  // NOLINT
     if (-epsilon <= coord && coord < 0)
     {
       // Note: TEST_EPSILON_MAGNITUDE is not explicitly defined anywhere. The code is for testing only.
@@ -71,18 +71,18 @@ namespace ohm
     {
       coord -= epsilon;
     }
-    return (int)floor((coord / voxel_resolution)); // NOLINT
+    return (int)floor((coord / voxel_resolution));  // NOLINT
   }
 
 #if GPUTIL_DEVICE != 1
-  template <typename coord_real> // NOLINT(readability-identifier-naming)
-#endif  // GPUTIL_DEVICE != 1
+  template <typename coord_real>  // NOLINT(readability-identifier-naming)
+#endif                            // GPUTIL_DEVICE != 1
   inline __device__ __host__ int pointToRegionCoord(coord_real coord, coord_real resolution)
   {
-    return (int)floor(coord / resolution + (coord_real)0.5); // NOLINT
+    return (int)floor(coord / resolution + (coord_real)0.5);  // NOLINT
   }
 #if !GPUTIL_DEVICE
-}
+} // namespace ohm
 #endif  // !GPUTIL_DEVICE
 
 #endif  // OHM_MAPCOORD_H

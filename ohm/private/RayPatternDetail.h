@@ -19,6 +19,6 @@ namespace ohm
     /// Ray start/end point pairs in sensor space.
     std::vector<glm::dvec3> sample_pairs;
   };
-}
+}  // namespace ohm
 
-#endif // RAYPATTERNDETAIL_H
+#endif  // RAYPATTERNDETAIL_H

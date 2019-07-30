@@ -24,14 +24,14 @@ namespace gputil
       : Ref<cudaEvent_t>(obj, initial_ref_count, release)
     {}
 
-    inline EventDetail(Ref &&other)
+    inline EventDetail(Ref &&other) noexcept
       : Ref<cudaEvent_t>(std::move(other))
     {}
 
     inline EventDetail(const Ref &other) = delete;
 
   protected:
-    inline ~EventDetail() {}
+    inline ~EventDetail() = default;
   };
 }  // namespace gputil
 

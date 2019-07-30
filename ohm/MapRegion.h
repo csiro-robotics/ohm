@@ -19,9 +19,9 @@ namespace ohm
   struct ohm_API MapRegion
   {
     /// Centre of the map region local to the map origin.
-    glm::dvec3 centre;
+    glm::dvec3 centre = glm::dvec3(0);
     /// Quantised integer indexing of the region within the map.
-    glm::i16vec3 coord;
+    glm::i16vec3 coord = glm::dvec3(0);
 
     /// Hashing function converting a region key or region coordinates into a 32-bit hash value.
     ///
@@ -70,8 +70,9 @@ namespace ohm
     /// @param voxel_resolution The length of a voxel cube edge.
     /// @return True if the @p point lies within this region and @p key has been set to reference
     ///   the containing voxel. Otherwise @p key is a @c OccupancyMap::null key.
-    bool voxelKey(Key &key, const glm::dvec3 &point, const glm::dvec3 &map_origin, const glm::dvec3 &region_dimensions,
-                  const glm::ivec3 &voxel_counts, double voxel_resolution) const;
+    bool voxelKey(Key &key, const glm::dvec3 &point,  // NOLINT(google-runtime-references)
+                  const glm::dvec3 &map_origin, const glm::dvec3 &region_dimensions, const glm::ivec3 &voxel_counts,
+                  double voxel_resolution) const;
   };
 }  // namespace ohm
 

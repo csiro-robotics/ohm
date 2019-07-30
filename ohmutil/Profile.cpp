@@ -5,7 +5,7 @@
 // Author: Kazys Stepanas
 #include "Profile.h"
 
-#include "ska/bytell_hash_map.hpp" // NOLINT
+#include "ska/bytell_hash_map.hpp"  // NOLINT
 
 #include <atomic>
 #include <cinttypes>
@@ -35,36 +35,37 @@ namespace ohm
     unsigned marker_count;
   };
 
-  struct ProfileScope
+  struct ProfileScope  // NOLINT(cppcoreguidelines-pro-type-member-init)
   {
     const char *name;
     ProfileClock::time_point start_time;
     ProfileRecord *record;
 
-    inline ProfileScope(){};
+    inline ProfileScope() = default;  // NOLINT(cppcoreguidelines-pro-type-member-init)
     inline ProfileScope(const char *name)
       : name(name)
       , start_time(ProfileClock::now())
+      , record(nullptr)
     {}
 
     inline ProfileScope(const char *name, const ProfileClock::time_point &start_time)
       : name(name)
       , start_time(start_time)
+      , record(nullptr)
     {}
 
     inline ProfileScope(const char *name, ProfileClock::time_point &&start_time)
       : name(name)
       , start_time(start_time)
+      , record(nullptr)
     {}
 
-    inline ProfileScope(const ProfileScope &other)
-      : name(other.name)
-      , start_time(other.start_time)
-    {}
+    inline ProfileScope(const ProfileScope &other) = default;
 
     inline ProfileScope(ProfileScope &&other) noexcept
       : name(other.name)
-      , start_time(std::move(other.start_time))
+      , start_time(other.start_time)
+      , record(other.record)
     {}
   };
 
@@ -133,8 +134,8 @@ namespace ohm
     const auto average_time =
       (record.marker_count) ? record.total_time / record.marker_count : ProfileClock::duration(0);
     delimetedInteger(count_str, record.marker_count);
-    o << indent << record.name << " cur: " << record.recent << " avg: " << average_time << " max: " << record.max_time << " total: " << record.total_time << " / " << count_str
-      << " calls\n";
+    o << indent << record.name << " cur: " << record.recent << " avg: " << average_time << " max: " << record.max_time
+      << " total: " << record.total_time << " / " << count_str << " calls\n";
 
     // Recurse on children.
     for (auto &&entry : thread_records.records)
@@ -204,7 +205,7 @@ bool Profile::push(const char *name)
       return false;
     }
   }
-  records.marker_stack.push_back(ProfileScope(name));
+  records.marker_stack.emplace_back(ProfileScope(name));
   return true;
 }
 

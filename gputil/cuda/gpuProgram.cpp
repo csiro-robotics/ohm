@@ -22,7 +22,7 @@ Program::Program(Device &device, const char *program_name)
 }
 
 
-Program::Program(Program &&other)
+Program::Program(Program &&other) noexcept
   : imp_(other.imp_)
 {
   other.imp_ = nullptr;
@@ -50,12 +50,12 @@ Device Program::device()
   return (imp_) ? imp_->device : Device();
 }
 
-int Program::buildFromFile(const char * /*file_name*/, const BuildArgs &/*build_args*/)
+int Program::buildFromFile(const char * /*file_name*/, const BuildArgs & /*build_args*/)
 {
   return 0;
 }
 
-int Program::buildFromSource(const char * /*source*/, size_t /*source_length*/, const BuildArgs &/*build_args*/)
+int Program::buildFromSource(const char * /*source*/, size_t /*source_length*/, const BuildArgs & /*build_args*/)
 {
   return 0;
 }
@@ -79,7 +79,7 @@ Program &Program::operator=(const Program &other)
   return *this;
 }
 
-Program &Program::operator=(Program &&other)
+Program &Program::operator=(Program &&other) noexcept
 {
   delete imp_;
   imp_ = other.imp_;

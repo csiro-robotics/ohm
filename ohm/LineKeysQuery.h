@@ -50,14 +50,14 @@ namespace ohm
     /// Construct a new query using the given parameters.
     /// @param map The map to operate on. Only the voxel resolution and region sizes are used.
     /// @param query_flags Flags controlling the query behaviour. See @c QueryFlag and @c LineKeysQuery::Flag.
-    LineKeysQuery(ohm::OccupancyMap &map, unsigned query_flags = 0u);
+    LineKeysQuery(ohm::OccupancyMap &map, unsigned query_flags = 0u);  // NOLINT(google-runtime-references)
 
     /// Construct a new query using the given parameters.
     /// @param query_flags Flags controlling the query behaviour. See @c QueryFlag and @c LineKeysQuery::Flag.
     LineKeysQuery(unsigned query_flags = 0);
 
     /// Destructor.
-    ~LineKeysQuery();
+    ~LineKeysQuery() override;
 
     /// Set the ray point pairs to operate on. The @p rays elements must be in start/end point pairs.
     /// @param rays Ray start/end point pairs.
@@ -73,7 +73,7 @@ namespace ohm
     /// @return The number of elements in @p rays().
     size_t rayPointCount() const;
 
-    /// Get the array of result index offsets into @c intersectecVoxels().
+    /// Get the array of result index offsets into @c intersectsVoxels().
     ///
     /// This identifies the offsets for each ray into @c intersectedVoxels() where the results for that ray begin.
     /// The corresponding number of voxels for each ray are accessible via @c resultCounts(). The number of elements

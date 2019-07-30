@@ -16,6 +16,7 @@
 
 #include <cuda.h>
 #include <cuda_runtime.h>
+
 #include <algorithm>
 #include <cinttypes>
 #include <iostream>
@@ -244,8 +245,15 @@ namespace gputil
       {
         // Allocate mapped memory buffer too.
         err = cudaHostAlloc(&buf->mapped_mem, alloc_size, 0);
-        // Ignore errors. May run out of mapped memory.
-        err = cudaSuccess;
+        if (err == cudaErrorMemoryAllocation)
+        {
+          // Ignore error. Ok to run out of mapped memory.
+          err = cudaSuccess;
+        }
+        else
+        {
+          return err;
+        }
       }
     }
     else
@@ -408,7 +416,7 @@ void Buffer::fill(const void *pattern, size_t pattern_size, Queue *queue, Event 
       {
         bufferCopy(dst_mem + wrote, pattern, imp_->alloc_size - wrote, cudaMemcpyHostToDevice, queue, block_on,
                    completion);
-        wrote += imp_->alloc_size - wrote;
+        // wrote += imp_->alloc_size - wrote;
       }
     }
   }
@@ -448,7 +456,7 @@ void Buffer::fillPartial(const void *pattern, size_t pattern_size, size_t fill_b
       {
         bufferCopy(dst_mem + wrote + offset, pattern, fill_bytes - wrote, cudaMemcpyHostToDevice, queue, nullptr,
                    nullptr);
-        wrote += fill_bytes - wrote;
+        // wrote += fill_bytes - wrote;
       }
     }
   }

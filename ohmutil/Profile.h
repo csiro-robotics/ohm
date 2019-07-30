@@ -13,7 +13,7 @@
 
 namespace ohm
 {
-  typedef std::chrono::high_resolution_clock ProfileClock;
+  using ProfileClock = std::chrono::high_resolution_clock;
   struct ProfileDetail;
 
   /// A generalised instrumented profiling API.

@@ -26,7 +26,8 @@ namespace ohm
     /// @param h The colour hue channel [0, 360].
     /// @param s The colour saturation channel.
     /// @param v The colour value channel.
-    void ohmutil_API hsvToRgb(float &r, float &g, float &b, float h, float s, float v);
+    void ohmutil_API hsvToRgb(float &r, float &g, float &b,  // NOLINT(google-runtime-references)
+                              float h, float s, float v);
 
     /// Converts from HSV to RGB colour.
     ///
@@ -39,7 +40,8 @@ namespace ohm
     /// @param h The colour hue channel [0, 360].
     /// @param s The colour saturation channel.
     /// @param v The colour value channel.
-    void ohmutil_API hsvToRgb(uint8_t &r, uint8_t &g, uint8_t &b, float h, float s, float v);
+    void ohmutil_API hsvToRgb(uint8_t &r, uint8_t &g, uint8_t &b,  // NOLINT(google-runtime-references)
+                              float h, float s, float v);
 
     /// Converts from RGB to HSV colour.
     ///
@@ -52,7 +54,8 @@ namespace ohm
     /// @param r The red colour channel.
     /// @param g The green colour channel.
     /// @param b The blue colour channel.
-    void rgbToHsv(float &h, float &s, float &v, float r, float g, float b);
+    void rgbToHsv(float &h, float &s, float &v,  // NOLINT(google-runtime-references)
+                  float r, float g, float b);
 
     /// Converts from RGB to HSV colour.
     ///
@@ -62,7 +65,8 @@ namespace ohm
     /// @param r The red colour channel.
     /// @param g The green colour channel.
     /// @param b The blue colour channel.
-    void rgbToHsv(float &h, float &s, float &v, uint8_t r, uint8_t g, uint8_t b);
+    void rgbToHsv(float &h, float &s, float &v,  // NOLINT(google-runtime-references)
+                  uint8_t r, uint8_t g, uint8_t b);
   }  // namespace colour
 
   /// Defines an RGB or RGBA colour value. Each colour channel is represented by an unsigned byte.
@@ -93,14 +97,14 @@ namespace ohm
     };
 
     /// Empty constructor: the colour channels are uninitialised.
-    inline Colour() {}
+    inline Colour() = default;
 
     /// Initialise a colour with the given channel values.
     /// @param r The red colour channel.
     /// @param g The green colour channel.
     /// @param b The blue colour channel.
     /// @param a The alpha colour channel. Defaults to opaque.
-    inline Colour(uint8_t r, uint8_t g, uint8_t b, uint8_t a = 255)
+    inline Colour(uint8_t r, uint8_t g, uint8_t b, uint8_t a = 255)  // NOLINT(cppcoreguidelines-pro-type-member-init)
     {
       rgb[kR] = r;
       rgb[kG] = g;
@@ -110,14 +114,14 @@ namespace ohm
 
     /// Copy constructor.
     /// @param c The colour to copy.
-    inline Colour(const Colour &c) { *this = c; }
+    inline Colour(const Colour &c) { *this = c; }  // NOLINT(cppcoreguidelines-pro-type-member-init)
 
     /// Initialise from a 32-bit integer.
     ///
     /// Colour channels are extracted according to the values of
     /// @c AShift, @c RShift, @c GShift and @c BShift.
     /// @param c The integer colour value.
-    inline Colour(uint32_t c) // NOLINT
+    inline Colour(uint32_t c)  // NOLINT
     {
       rgba[kA] = uint8_t((c >> kAShift) & 0xFFu);
       rgb[kR] = uint8_t((c >> kRShift) & 0xFFu);

@@ -59,7 +59,7 @@ Voxel VoxelConst::makeMutable() const
   // 1. Find the chunk again in the map has.
   // 2. Const cast the chunk pointer.
   // Whilst 1. is more technically correct, 2. is much faster...
-  return Voxel(key_, const_cast<MapChunk *>(chunk_), map_);
+  return Voxel(key_, const_cast<MapChunk *>(chunk_), map_);  // NOLINT(cppcoreguidelines-pro-type-const-cast)
 }
 
 

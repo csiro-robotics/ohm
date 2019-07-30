@@ -30,28 +30,22 @@ class ohmutil_API ProgressMonitor
 public:
   struct Info
   {
-    const char *info;
-    unsigned total_passes;
-    uint64_t total;
+    const char *info = nullptr;
+    unsigned total_passes = 0;
+    uint64_t total = 0;
 
     Info()
       : info("")
-      , total_passes(0)
-      , total(0)
     {}
     Info(uint64_t total)
-      : info("")
-      , total_passes(0)
-      , total(total)
+      : total(total)
     {}
     Info(unsigned passes, uint64_t total)
-      : info("")
-      , total_passes(passes)
+      : total_passes(passes)
       , total(total)
     {}
     Info(const char *info, uint64_t total)
       : info(info)
-      , total_passes(0)
       , total(total)
     {}
     Info(const char *info, unsigned passes, uint64_t total)
@@ -64,11 +58,11 @@ public:
   struct Progress
   {
     Info info;
-    unsigned pass;
-    uint64_t progress;
+    unsigned pass = 0;
+    uint64_t progress = 0;
   };
 
-  typedef std::function<void(const Progress &)> DisplayFunction;
+  using DisplayFunction = std::function<void(const Progress &)>;
 
   ProgressMonitor(unsigned update_frequency = 20);
   ProgressMonitor(const DisplayFunction &display_func, unsigned update_frequency = 20);

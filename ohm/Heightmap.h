@@ -206,7 +206,7 @@ namespace ohm
 
     /// Update @c info to reflect the details of how the heightmap is generated. See class comments.
     /// @param info The info object to update.
-    void updateMapInfo(MapInfo &info) const;
+    void updateMapInfo(MapInfo &info) const;  // NOLINT(google-runtime-references)
 
   private:
     std::unique_ptr<HeightmapDetail> imp_;

@@ -20,7 +20,7 @@ namespace gputil
     Exception(const char *msg = nullptr, const char *filename = nullptr, int line_number = 0);
     Exception(Exception &&other) noexcept;
 
-    virtual ~Exception();
+    ~Exception() override;
 
     const char *what() const noexcept override;
 

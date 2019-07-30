@@ -13,13 +13,8 @@ namespace ohm
   {
     // empty
   };
-} // namespace ohm
+}  // namespace ohm
 
-MapRegionCache::MapRegionCache()
-{
-}
+MapRegionCache::MapRegionCache() = default;
 
-
-MapRegionCache::~MapRegionCache()
-{
-}
+MapRegionCache::~MapRegionCache() = default;

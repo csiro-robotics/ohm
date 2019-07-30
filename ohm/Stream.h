@@ -80,7 +80,7 @@ namespace ohm
     /// @param file_path The relative or absolute file path.
     /// @param flags @c StreamFlag values to open with.
     /// @return True on success.
-    virtual bool doOpen(const char *file_path, unsigned flags = 0u) = 0;
+    virtual bool doOpen(const char *file_path, unsigned flags) = 0;
 
     /// Called to close the file (after a @c flush()).
     virtual void doClose() = 0;
@@ -129,7 +129,7 @@ namespace ohm
     InputStream(const char *file_path = nullptr, unsigned flags = 0u);
 
     /// Destructor. Flushes and closes the file.
-    ~InputStream();
+    ~InputStream() override;
 
     /// Enables reading compressed data after opening.
     ///
@@ -166,7 +166,7 @@ namespace ohm
     /// @param file_path The relative or absolute file path.
     /// @param flags @c StreamFlag values to open with.
     /// @return True on success.
-    bool doOpen(const char *file_path, unsigned flags = 0u) override;
+    bool doOpen(const char *file_path, unsigned flags) override;
 
     /// Called to close the file (after a @c flush()).
     void doClose() override;
@@ -213,7 +213,7 @@ namespace ohm
     OutputStream(const char *file_path = nullptr, unsigned flags = 0u);
 
     /// Destructor. Flushes and closes the file.
-    ~OutputStream();
+    ~OutputStream() override;
 
     /// Write bytes to the file, compression enabled.
     unsigned write(const void *buffer, unsigned max_bytes);
@@ -238,7 +238,7 @@ namespace ohm
     /// @param file_path The relative or absolute file path.
     /// @param flags @c StreamFlag values to open with.
     /// @return True on success.
-    bool doOpen(const char *file_path, unsigned flags = 0u) override;
+    bool doOpen(const char *file_path, unsigned flags) override;
 
     /// Called to close the file (after a @c flush()).
     void doClose() override;

@@ -39,7 +39,7 @@ namespace ohm
 
     virtual void reset() = 0;
 
-    virtual int update(OccupancyMap &map, double time_slice) = 0;
+    virtual int update(OccupancyMap &map, double time_slice) = 0;  // NOLINT(google-runtime-references)
 
   private:
     bool paused_;

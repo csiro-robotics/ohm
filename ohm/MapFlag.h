@@ -31,48 +31,48 @@ namespace ohm
 
   const char *mapFlagToString(MapFlag flag);
   MapFlag mapFlagFromString(const char *str);
-}
+}  // namespace ohm
 
-inline ohm::MapFlag operator | (ohm::MapFlag left, ohm::MapFlag right)
+inline ohm::MapFlag operator|(ohm::MapFlag left, ohm::MapFlag right)
 {
   using T = std::underlying_type_t<ohm::MapFlag>;
   return static_cast<ohm::MapFlag>(static_cast<T>(left) | static_cast<T>(right));
 }
 
-inline ohm::MapFlag &operator |= (ohm::MapFlag &left, ohm::MapFlag right)
+inline ohm::MapFlag &operator|=(ohm::MapFlag &left, ohm::MapFlag right)
 {
   left = left | right;
   return left;
 }
 
-inline ohm::MapFlag operator & (ohm::MapFlag left, ohm::MapFlag right)
+inline ohm::MapFlag operator&(ohm::MapFlag left, ohm::MapFlag right)
 {
   using T = std::underlying_type_t<ohm::MapFlag>;
   return static_cast<ohm::MapFlag>(static_cast<T>(left) & static_cast<T>(right));
 }
 
-inline ohm::MapFlag &operator &= (ohm::MapFlag &left, ohm::MapFlag right)
+inline ohm::MapFlag &operator&=(ohm::MapFlag &left, ohm::MapFlag right)
 {
   left = left & right;
   return left;
 }
 
-inline ohm::MapFlag operator ^ (ohm::MapFlag left, ohm::MapFlag right)
+inline ohm::MapFlag operator^(ohm::MapFlag left, ohm::MapFlag right)
 {
   using T = std::underlying_type_t<ohm::MapFlag>;
   return static_cast<ohm::MapFlag>(static_cast<T>(left) ^ static_cast<T>(right));
 }
 
-inline ohm::MapFlag &operator ^= (ohm::MapFlag &left, ohm::MapFlag right)
+inline ohm::MapFlag &operator^=(ohm::MapFlag &left, ohm::MapFlag right)
 {
   left = left ^ right;
   return left;
 }
 
-inline ohm::MapFlag operator ~ (ohm::MapFlag value)
+inline ohm::MapFlag operator~(ohm::MapFlag value)
 {
   using T = std::underlying_type_t<ohm::MapFlag>;
   return static_cast<ohm::MapFlag>(~static_cast<T>(value));
 }
 
-#endif // MAPFLAG_H
+#endif  // MAPFLAG_H

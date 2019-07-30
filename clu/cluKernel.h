@@ -17,7 +17,10 @@ namespace clu
   template <typename T>
   struct KernelArgHandler
   {
-    static cl_int set(cl::Kernel &kernel, int arg_index, const T &arg) { return kernel.setArg(arg_index, arg); }
+    static cl_int set(cl::Kernel &kernel, int arg_index, const T &arg)  // NOLINT(google-runtime-references)
+    {
+      return kernel.setArg(arg_index, arg);
+    }
   };
 
   /// @internal
@@ -29,7 +32,8 @@ namespace clu
   template <>
   struct KernelArgHandler<cl_mem>
   {
-    static cl_int set(cl::Kernel &kernel, int arg_index, cl_mem arg)
+    static cl_int set(cl::Kernel &kernel,  // NOLINT(google-runtime-references)
+                      int arg_index, cl_mem arg)
     {
       return ::clSetKernelArg(kernel(), arg_index, sizeof(arg), &arg);
     }
@@ -38,7 +42,8 @@ namespace clu
 
   /// @internal
   template <typename T>
-  cl_int setKernelArgs2(cl::Kernel &kernel, int &arg_index, const T &arg)
+  cl_int setKernelArgs2(cl::Kernel &kernel, int &arg_index,  // NOLINT(google-runtime-references)
+                        const T &arg)
   {
     const cl_int clerr = KernelArgHandler<T>::set(kernel, arg_index, arg);
     ++arg_index;
@@ -49,7 +54,8 @@ namespace clu
 
   /// @internal
   template <typename T, typename... ARGS>
-  cl_int setKernelArgs2(cl::Kernel &kernel, int &arg_index, const T &arg, ARGS... args)
+  cl_int setKernelArgs2(cl::Kernel &kernel, int &arg_index,  // NOLINT(google-runtime-references)
+                        const T &arg, ARGS... args)
   {
     const cl_int clerr = KernelArgHandler<T>::set(kernel, arg_index, arg);
     ++arg_index;
@@ -74,7 +80,8 @@ namespace clu
   /// @param args The arguments to pass. Captured by const reference.
   /// @return @c CL_SUCCESS on success or the first failure error code on failure.
   template <typename... ARGS>
-  cl_int setKernelArgs(cl::Kernel &kernel, ARGS... args)
+  cl_int setKernelArgs(cl::Kernel &kernel,  // NOLINT(google-runtime-references)
+                       ARGS... args)
   {
     int arg_index = 0;
     return setKernelArgs2(kernel, arg_index, args...);
@@ -155,7 +162,7 @@ namespace clu
     }
 
   private:
-    size_t sizes_[3];
+    size_t sizes_[3] = { 0, 0, 0 };
   };
 
 
@@ -166,7 +173,7 @@ namespace clu
     KernelSize global_size;
     KernelSize work_group_size;
 
-    inline KernelGrid() {}
+    inline KernelGrid() = default;
 
     inline KernelGrid(const KernelSize &global_offset, const KernelSize &global_size, const KernelSize &work_group_size)
       : global_offset(global_offset)
@@ -201,23 +208,19 @@ namespace clu
   /// Used as an argument to @c Kernel::operator() to aid in overloading event setup.
   struct EventList
   {
-    cl::Event *completion;
-    cl::Event *wait_on_events;
-    unsigned event_count;
+    cl::Event *completion = nullptr;
+    cl::Event *wait_on_events = nullptr;
+    unsigned event_count = 0;
 
-    inline EventList()
-      : completion(nullptr)
-      , wait_on_events(nullptr)
-      , event_count(0)
-    {}
+    inline EventList() = default;
+
     inline EventList(cl::Event *completion_event)
       : completion(completion_event)
-      , wait_on_events(nullptr)
-      , event_count(0)
     {}
+
     inline EventList(cl::Event *wait_on, unsigned event_count, cl::Event *completion_event = nullptr)
       : completion(completion_event)
-      , wait_on_events(event_count ? wait_on : nullptr)
+      , wait_on_events(wait_on)
       , event_count(event_count)
     {}
   };
@@ -248,11 +251,12 @@ namespace clu
     /// Typedef for functional objects used to calculate the size of a local memory argument.
     /// The argument passed is the work group size while the return value specifies the
     /// required local memory for the corresponding work group size (bytes).
-    typedef std::function<size_t(size_t)> LocalMemArgSizeFunc;
+    using LocalMemArgSizeFunc = std::function<size_t(size_t)>;
 
     Kernel();
-    Kernel(cl::Program &program, const char *entry_point, std::ostream *log = nullptr);
-    Kernel(cl::Kernel &cl_kernel);
+    Kernel(cl::Program &program,  // NOLINT(google-runtime-references)
+           const char *entry_point, std::ostream *log = nullptr);
+    Kernel(cl::Kernel &cl_kernel);  // NOLINT(google-runtime-references)
 
     /// Is this a valid kernel?
     bool isValid() const;
@@ -262,7 +266,8 @@ namespace clu
     /// @param entry_point The kernel entry point/function name.
     /// @param log Optional error logging stream.
     /// @return @c CL_SUCCESS on success, an OpenCL error code otherwise.
-    cl_int setEntry(cl::Program &program, const char *entry_point, std::ostream *log = nullptr);
+    cl_int setEntry(cl::Program &program,  // NOLINT(google-runtime-references)
+                    const char *entry_point, std::ostream *log = nullptr);
 
     /// Set local memory arguments ordering. See class notes.
     /// @param first True to have local memory arguments before other arguments.
@@ -327,7 +332,8 @@ namespace clu
     /// @param args Arguments to pass to the kernel.
     /// @return @c CL_SUCCESS on success, or an error code on failure.
     template <typename... ARGS>
-    cl_int operator()(cl::CommandQueue &queue, const KernelGrid &grid, const EventList &events, ARGS... args)
+    cl_int operator()(cl::CommandQueue &queue,  // NOLINT(google-runtime-references)
+                      const KernelGrid &grid, const EventList &events, ARGS... args)
     {
       cl_int clerr = preInvoke(args...);
       if (clerr != CL_SUCCESS)
@@ -365,13 +371,14 @@ namespace clu
     /// @return @c CL_SUCCESS on success, an OpenCL error code on failure.
     cl_int setLocalMemArgs(int arg_count);
 
-    cl_int invoke(cl::CommandQueue &queue, const KernelGrid &grid, const EventList &events);
+    cl_int invoke(cl::CommandQueue &queue,  // NOLINT(google-runtime-references)
+                  const KernelGrid &grid, const EventList &events);
 
     cl::Kernel kernel_;
-    size_t optimal_work_group_size_;
+    size_t optimal_work_group_size_ = 0;
     LocalMemArgSizeFunc local_mem_args_[kMaxLocalMemArgs];
-    int local_mem_arg_count_;
-    bool local_mem_first_;
+    int local_mem_arg_count_ = 0;
+    bool local_mem_first_ = false;
   };
 }  // namespace clu
 

@@ -13,7 +13,7 @@
 
 #if defined(TES_ENABLE) && !DEBUG_VISUALISE
 #undef TES_ENABLE
-#endif // defined(TES_ENABLE) && !DEBUG_VISUALISE
+#endif  // defined(TES_ENABLE) && !DEBUG_VISUALISE
 
 using namespace ohm;
 
@@ -22,8 +22,8 @@ RayPatternConical::RayPatternConical(const glm::dvec3 &cone_axis, double cone_an
 {
   TES_CONE_T(g_3es, TES_COLOUR_A(YellowGreen, 128), TES_PTR_ID(this), tes::V3Arg(0, 0, 0), glm::value_ptr(cone_axis),
              float(cone_angle), float(range));
-  TES_CONE_W(g_3es, TES_COLOUR_A(YellowGreen, 128), TES_PTR_ID(this) + 100, tes::V3Arg(0, 0, 0), glm::value_ptr(cone_axis),
-             float(cone_angle), float(range));
+  TES_CONE_W(g_3es, TES_COLOUR_A(YellowGreen, 128), TES_PTR_ID(this) + 100, tes::V3Arg(0, 0, 0),
+             glm::value_ptr(cone_axis), float(cone_angle), float(range));
 
   // First ensure the cone axis is normalised.
   const glm::dvec3 &cone_normal = glm::normalize(cone_axis);
@@ -43,6 +43,7 @@ RayPatternConical::RayPatternConical(const glm::dvec3 &cone_axis, double cone_an
   TES_SERVER_UPDATE(g_3es, 0.0f);
 
   // Now walk inscribe the circle which makes the base.
+  // NOLINTNEXTLINE(clang-analyzer-security.FloatLoopCounter)
   for (double circle_angle = 0; circle_angle < 2 * M_PI; circle_angle += angular_resolution)
   {
     // Define a deflection angle for this circle angle.
@@ -53,6 +54,7 @@ RayPatternConical::RayPatternConical(const glm::dvec3 &cone_axis, double cone_an
     TES_ARROW(g_3es, TES_COLOUR(Cyan), 0, tes::V3Arg(0, 0, 0), glm::value_ptr(deflection_axis));
 
     // Now create deflected rates starting at angular_resolution up to the cone angle.
+    // NOLINTNEXTLINE(clang-analyzer-security.FloatLoopCounter)
     for (double deflection_angle = angular_resolution; deflection_angle <= 0.5 * cone_angle;
          deflection_angle += angular_resolution)
     {

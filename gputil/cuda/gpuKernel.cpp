@@ -132,7 +132,7 @@ Kernel::Kernel()
 {}
 
 
-Kernel::Kernel(Kernel &&other)
+Kernel::Kernel(Kernel &&other) noexcept
   : imp_(other.imp_)
 {
   other.imp_ = nullptr;
@@ -203,7 +203,7 @@ void Kernel::calculateGrid(gputil::Dim3 *global_size, gputil::Dim3 *local_size, 
   const Device &gpu = imp_->program.device();
 
   cudaError_t err = cudaSuccess;
-  cudaDeviceProp cuda_info;
+  cudaDeviceProp cuda_info{};
   memset(&cuda_info, 0, sizeof(cuda_info));
   err = cudaGetDeviceProperties(&cuda_info, gpu.detail()->device);
   GPUAPICHECK2(err, cudaSuccess);
@@ -255,7 +255,7 @@ Device Kernel::device()
 }
 
 
-Kernel &Kernel::operator=(Kernel &&other)
+Kernel &Kernel::operator=(Kernel &&other) noexcept
 {
   delete imp_;
   imp_ = other.imp_;

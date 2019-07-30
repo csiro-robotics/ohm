@@ -84,7 +84,7 @@ namespace ohm
     /// @param time_str The string to populate with the result.
     /// @param duration The duration to convert to string.
     template <typename D>
-    inline void timeString(std::string &time_str, const D &duration)
+    inline void timeString(std::string &time_str, const D &duration)  // NOLINT(google-runtime-references)
     {
       std::ostringstream out;
       logDuration(out, duration);
@@ -98,7 +98,7 @@ namespace ohm
     /// Note: unlink harddrive manufacturers, this function uses base 1024 units not base 1000.
     /// @param[out] str The result is written here.
     /// @param bytes The byte value to convert.
-    inline void makeMemoryDisplayString(std::string &str, uint64_t bytes)
+    inline void makeMemoryDisplayString(std::string &str, uint64_t bytes)  // NOLINT(google-runtime-references)
     {
       const char *unit_suffix[] =  //
         {
@@ -155,7 +155,7 @@ namespace ohm
 
 
   template <typename N>
-  void delimetedInteger(std::string &str, const N &integer, char delimiter = ',')
+  void delimetedInteger(std::string &str, const N &integer, char delimiter = ',')  // NOLINT(google-runtime-references)
   {
     N thousands = integer % 1000;
     N remainder = integer / 1000;

@@ -196,14 +196,12 @@ VoxelLayout::VoxelLayout(VoxelLayoutDetail *detail)
 {}
 
 
-VoxelLayout::VoxelLayout(const VoxelLayout &other)
-  : VoxelLayoutT<VoxelLayoutDetail>(other)
-{}
+VoxelLayout::VoxelLayout(const VoxelLayout &other) = default;
 
 
 void VoxelLayout::addMember(const char *name, DataType::Type type, uint64_t clear_value)
 {
-  VoxelMember member;
+  VoxelMember member{};
   strncpy(member.name, name, sizeof(member.name));
   member.name[sizeof(member.name) - 1] = '\0';
   member.clear_value = clear_value;
@@ -253,9 +251,7 @@ VoxelLayoutConst::VoxelLayoutConst(const VoxelLayoutDetail *detail)
 {}
 
 
-VoxelLayoutConst::VoxelLayoutConst(const VoxelLayoutConst &other)
-  : VoxelLayoutT<const VoxelLayoutDetail>(other)
-{}
+VoxelLayoutConst::VoxelLayoutConst(const VoxelLayoutConst &other) = default;
 
 
 VoxelLayoutConst::VoxelLayoutConst(const VoxelLayout &other)

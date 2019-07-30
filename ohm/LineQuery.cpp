@@ -33,8 +33,9 @@ using namespace ohm;
 
 namespace
 {
-  void calculateNearestNeighboursRange(LineQueryDetail &query, size_t start_index, size_t end_index,
-                                       const OccupancyMap &map, const glm::ivec3 &voxel_search_half_extents)
+  void calculateNearestNeighboursRange(LineQueryDetail &query,  // NOLINT(google-runtime-references)
+                                       size_t start_index, size_t end_index, const OccupancyMap &map,
+                                       const glm::ivec3 &voxel_search_half_extents)
   {
     float range;
 
@@ -53,7 +54,8 @@ namespace
     }
   }
 
-  unsigned occupancyLineQueryCpu(const OccupancyMap &map, LineQueryDetail &query, ClosestResult &closest)
+  unsigned occupancyLineQueryCpu(const OccupancyMap &map, LineQueryDetail &query,  // NOLINT(google-runtime-references)
+                                 ClosestResult &closest)                           // NOLINT(google-runtime-references)
   {
     glm::ivec3 voxel_search_half_extents = calculateVoxelSearchHalfExtents(map, query.search_radius);
     map.calculateSegmentKeys(query.segment_keys, query.start_point, query.end_point);

@@ -8,11 +8,11 @@
 
 #include "OhmConfig.h"
 
-#include <algorithm>
-
+#include <glm/geometric.hpp>
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
-#include <glm/geometric.hpp>
+
+#include <algorithm>
 
 namespace ohm
 {
@@ -159,7 +159,8 @@ namespace ohm
     /// @param[out] clip_flags Clipping flags indicating how the line has been clipped. See : @c ClipResult.
     /// @return True when the line segment intersects the box and has been clipped. Essentially, false when @p start
     ///     and @p end are unmodified.
-    bool clipLine(glm::dvec3 &start, glm::dvec3 &end, unsigned *clip_flags = nullptr) const;
+    bool clipLine(glm::dvec3 &start, glm::dvec3 &end,  // NOLINT(google-runtime-references)
+                  unsigned *clip_flags = nullptr) const;
 
     /// Test for precise quality between this and @p other.
     /// @param other The box to test against.
@@ -174,7 +175,7 @@ namespace ohm
     /// Assignment operator.
     /// @param other The value to assign.
     /// @return *this
-    const Aabb &operator=(const Aabb &other);
+    Aabb &operator=(const Aabb &other);
 
     /// Translate the box by @p offset.
     /// @param offset Translation to apply.
@@ -205,20 +206,23 @@ namespace ohm
   };
 
 
-  inline Aabb::Aabb() {}
+  inline Aabb::Aabb() = default;  // NOLINT(cppcoreguidelines-pro-type-member-init)
 
 
-  inline Aabb::Aabb(double seed) { corners_[0] = corners_[1] = glm::dvec3(seed); }
+  inline Aabb::Aabb(double seed)  // NOLINT(cppcoreguidelines-pro-type-member-init)
+  {
+    corners_[0] = corners_[1] = glm::dvec3(seed);
+  }
 
 
-  inline Aabb::Aabb(const Aabb &other)
+  inline Aabb::Aabb(const Aabb &other)  // NOLINT(cppcoreguidelines-pro-type-member-init)
   {
     corners_[0] = other.corners_[0];
     corners_[1] = other.corners_[1];
   }
 
 
-  inline Aabb::Aabb(const glm::dvec3 &min_ext, const glm::dvec3 &max_ext)
+  inline Aabb::Aabb(const glm::dvec3 &min_ext, const glm::dvec3 &max_ext)  // NOLINT
   {
     corners_[0] = min_ext;
     corners_[1] = max_ext;
@@ -367,7 +371,7 @@ namespace ohm
   inline bool Aabb::operator!=(const Aabb &other) const { return !(*this == other); }
 
 
-  inline const Aabb &Aabb::operator=(const Aabb &other)
+  inline Aabb &Aabb::operator=(const Aabb &other)
   {
     corners_[0] = other.corners_[0];
     corners_[1] = other.corners_[1];
@@ -469,6 +473,7 @@ namespace ohm
     (*overlap)[1] = std::min(a[1], b[1]);
     return true;
   }
+
 }  // namespace ohm
 
 #endif  // OHM_AABB_H

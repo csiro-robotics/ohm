@@ -29,11 +29,11 @@ namespace gputil
     unsigned request_flags = 0;
   };
 
-  uint8_t *pin(BufferDetail &imp, PinMode mode);
+  uint8_t *pin(BufferDetail &imp, PinMode mode);  // NOLINT(google-runtime-references)
   /// Unpin memory. Supports asynchronous unpinning by providing a queue, in which case
   /// a @p completion event is also recommended.
-  void unpin(BufferDetail &imp, void *pinned_ptr, Queue *queue = nullptr, Event *block_on = nullptr,
-             Event *completion = nullptr);
+  void unpin(BufferDetail &imp, void *pinned_ptr,  // NOLINT(google-runtime-references)
+             Queue *queue = nullptr, Event *block_on = nullptr, Event *completion = nullptr);
 }  // namespace gputil
 
 #endif  // GPUBUFFERDETAIL_H

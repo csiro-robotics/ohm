@@ -51,8 +51,8 @@ namespace gputil
 
     /// Sorts and merged the list @p regions. The merged regions are reduced to zero size, but left in the list.
     /// @param regions The list to sort and merge.
-    static void mergeRegionList(std::vector<MemRegion> &regions);
+    static void mergeRegionList(std::vector<MemRegion> &regions);  // NOLINT(google-runtime-references)
   };
-}
+}  // namespace gputil
 
-#endif // MEM_REGION_H
+#endif  // MEM_REGION_H

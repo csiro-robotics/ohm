@@ -27,7 +27,7 @@ namespace gputil
     std::string name;
     std::string platform;
     Version version;
-    DeviceType type;
+    DeviceType type = DeviceType::kDeviceNull;
 
     inline bool operator==(const DeviceInfo &other) const
     {

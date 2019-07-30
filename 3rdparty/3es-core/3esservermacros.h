@@ -7,7 +7,7 @@
 namespace tes
 {
   inline void noopohm() {}
-}
+}  // namespace tes
 
 #define TES_STMT(...) tes::noopohm()
 #define TES_IF(...) if (false)
@@ -129,4 +129,4 @@ namespace tes
 #define TES_RSC_UPDATE(...) tes::noopohm()
 #define TES_PRSC_UPDATE(...) tes::noopohm()
 
-#endif // _3ESSERVERMACROS_H
+#endif  // _3ESSERVERMACROS_H

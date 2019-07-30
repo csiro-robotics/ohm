@@ -46,7 +46,7 @@ namespace ohm
   {
   public:
     /// Custom logging function signature.
-    typedef std::function<void(const char *)> CustomLogger;
+    using CustomLogger = std::function<void(const char *)>;
 
     /// Create time display with the given message prefix.
     /// @param msg_prefix Output message prefix.

@@ -48,9 +48,10 @@ namespace ohm
     /// @param near_point The global coordinate to search around.
     /// @param search_radius Defines the search radius around @p nearPoint.
     /// @param query_flags Flags controlling the query behaviour. See @c QueryFlag and @c LineQuery::Flag.
-    NearestNeighbours(OccupancyMap &map, const glm::dvec3 &near_point, float search_radius, unsigned query_flags);
+    NearestNeighbours(OccupancyMap &map,  // NOLINT(google-runtime-references)
+                      const glm::dvec3 &near_point, float search_radius, unsigned query_flags);
     /// Destructor.
-    ~NearestNeighbours();
+    ~NearestNeighbours() override;
 
     /// Get the global coordinate around which the search is centred.
     /// @return The centre of the search.

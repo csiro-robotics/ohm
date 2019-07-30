@@ -24,7 +24,7 @@ namespace ohm
     ohm::OccupancyMap *occupancy_map = nullptr;
     /// Use a very thin occupancy map for the heightmap representation.
     std::unique_ptr<ohm::OccupancyMap> heightmap;
-    glm::dvec3 up;
+    glm::dvec3 up = glm::dvec3(0, 0, 1);
     /// Ignore all source voxels which lie lower than this below the base height.
     /// Enable by setting a positive value.
     double floor = 0;
@@ -54,7 +54,7 @@ namespace ohm
     static const glm::dvec3 &surfaceNormalB(UpAxis axis_id);
 
     void fromMapInfo(const MapInfo &info);
-    void toMapInfo(MapInfo &info) const;
+    void toMapInfo(MapInfo &info) const;  // NOLINT(google-runtime-references)
   };
 
 

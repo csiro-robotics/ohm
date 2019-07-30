@@ -59,7 +59,8 @@ namespace
     // return key;
   }
 
-  bool nextChunk(OccupancyMapDetail &map, ChunkMap::iterator &chunk_iter, Key &key)
+  bool nextChunk(OccupancyMapDetail &map, ChunkMap::iterator &chunk_iter,  // NOLINT(google-runtime-references)
+                 Key &key)                                                 // NOLINT(google-runtime-references)
   {
     ++chunk_iter;
     if (chunk_iter != map.chunks.end())
@@ -72,7 +73,7 @@ namespace
     return false;
   }
 
-  ChunkMap::iterator &initChunkIter(uint8_t *mem) // NOLINT(readability-non-const-parameter)
+  ChunkMap::iterator &initChunkIter(uint8_t *mem)  // NOLINT(readability-non-const-parameter)
   {
     // Placement new.
     return *(new (mem) ChunkMap::iterator());
@@ -90,7 +91,7 @@ namespace
   }
 }  // namespace
 
-OccupancyMap::base_iterator::base_iterator()
+OccupancyMap::base_iterator::base_iterator()  // NOLINT
   : map_(nullptr)
   , key_(Key::kNull)
 {
@@ -99,7 +100,7 @@ OccupancyMap::base_iterator::base_iterator()
   initChunkIter(chunk_mem_);
 }
 
-OccupancyMap::base_iterator::base_iterator(OccupancyMapDetail *map, const Key &key)
+OccupancyMap::base_iterator::base_iterator(OccupancyMapDetail *map, const Key &key)  // NOLINT
   : map_(map)
   , key_(key)
 {
@@ -111,12 +112,12 @@ OccupancyMap::base_iterator::base_iterator(OccupancyMapDetail *map, const Key &k
   }
 }
 
-OccupancyMap::base_iterator::base_iterator(const base_iterator &other)
+OccupancyMap::base_iterator::base_iterator(const base_iterator &other)  // NOLINT
   : map_(other.map_)
   , key_(other.key_)
 {
-  static_assert(sizeof(ChunkMap::iterator) <= sizeof(OccupancyMap::base_iterator::chunk_mem_), "Insufficient space for "
-                                                                                               "chunk iterator.");
+  static_assert(sizeof(ChunkMap::iterator) <= sizeof(OccupancyMap::base_iterator::chunk_mem_),  //
+                "Insufficient space for chunk iterator.");
   initChunkIter(chunk_mem_) = chunkIter(other.chunk_mem_);
 }
 
@@ -357,7 +358,7 @@ int OccupancyMap::occupancyType(const VoxelConst &voxel) const
 size_t OccupancyMap::calculateApproximateMemory() const
 {
   size_t byte_count = 0;
-  byte_count += sizeof(this);
+  byte_count += sizeof(*this);
   if (imp_)
   {
     std::unique_lock<decltype(imp_->mutex)> guard(imp_->mutex);
@@ -976,7 +977,10 @@ size_t OccupancyMap::calculateSegmentKeys(KeyList &keys, const glm::dvec3 &start
     inline Key voxelKey(const glm::dvec3 &pt) const { return map.voxelKey(pt); }
     inline bool isNull(const Key &key) const { return key.isNull(); }
     inline glm::dvec3 voxelCentre(const Key &key) const { return map.voxelCentreLocal(key); }
-    inline void stepKey(Key &key, int axis, int dir) const { map.stepKey(key, axis, dir); }
+    inline void stepKey(Key &key, int axis, int dir) const  // NOLINT(google-runtime-references)
+    {
+      map.stepKey(key, axis, dir);
+    }
     inline double voxelResolution(int /*axis*/) const { return map.resolution(); }
   };
   const glm::dvec3 start_point_local = glm::dvec3(start_point - origin());

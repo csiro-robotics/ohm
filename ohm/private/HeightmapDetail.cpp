@@ -26,7 +26,7 @@ const glm::dvec3 &HeightmapDetail::upAxisNormal(UpAxis axis_id)
   if (lookup_index < 0 || lookup_index >= int(sizeof(axes) - sizeof(axes[0])))
   {
     // Reference the dummy index.
-    lookup_index = int(sizeof(axes) - sizeof(axes[0]) - 1);
+    lookup_index = int(sizeof(axes) / sizeof(axes[0]) - 1);
   };
 
   return axes[lookup_index];
@@ -50,7 +50,7 @@ int HeightmapDetail::surfaceIndexA(UpAxis up_axis_id)
   if (lookup_index < 0 || lookup_index >= int(sizeof(indices) - sizeof(indices[0])))
   {
     // Reference the dummy index.
-    lookup_index = int(sizeof(indices) - sizeof(indices[0]) - 1);
+    lookup_index = int(sizeof(indices) / sizeof(indices[0]) - 1);
   };
 
   return indices[lookup_index];
@@ -74,7 +74,7 @@ const glm::dvec3 &HeightmapDetail::surfaceNormalA(UpAxis axis_id)
   if (lookup_index < 0 || lookup_index >= int(sizeof(axes) - sizeof(axes[0])))
   {
     // Reference the dummy index.
-    lookup_index = int(sizeof(axes) - sizeof(axes[0]) - 1);
+    lookup_index = int(sizeof(axes) / sizeof(axes[0]) - 1);
   };
 
   return axes[lookup_index];
@@ -98,7 +98,7 @@ int HeightmapDetail::surfaceIndexB(UpAxis up_axis_id)
   if (lookup_index < 0 || lookup_index >= int(sizeof(indices) - sizeof(indices[0])))
   {
     // Reference the dummy index.
-    lookup_index = int(sizeof(indices) - sizeof(indices[0]) - 1);
+    lookup_index = int(sizeof(indices) / sizeof(indices[0]) - 1);
   };
 
   return indices[lookup_index];
@@ -122,7 +122,7 @@ const glm::dvec3 &HeightmapDetail::surfaceNormalB(UpAxis axis_id)
   if (lookup_index < 0 || lookup_index >= int(sizeof(axes) - sizeof(axes[0])))
   {
     // Reference the dummy index.
-    lookup_index = int(sizeof(axes) - sizeof(axes[0]) - 1);
+    lookup_index = int(sizeof(axes) / sizeof(axes[0]) - 1);
   };
 
   return axes[lookup_index];

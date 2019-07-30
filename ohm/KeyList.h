@@ -20,12 +20,10 @@ namespace ohm
     {
     public:
       /// Empty constructor: creates an undefined iterator object.
-      inline iterator() {}
+      inline iterator() = default;
       /// Copy constuctor.
       /// @param other Iterator to copy.
-      inline iterator(const iterator &other)
-        : key_(other.key_)
-      {}
+      inline iterator(const iterator &other) = default;
       /// Internal constructor used to iterator the given set of keys.
       /// @param key The first key in the set.
       inline iterator(Key *key)
@@ -51,7 +49,7 @@ namespace ohm
       }
       /// Increment to the next key (postfix).
       /// @return A reference to @c this.
-      inline iterator operator++(int)
+      inline const iterator operator++(int)
       {
         iterator i(key_);
         ++key_;
@@ -67,7 +65,7 @@ namespace ohm
       }
       /// Decrement to the previous key (postfix).
       /// @return A reference to @c this.
-      inline iterator operator--(int)
+      inline const iterator operator--(int)
       {
         iterator i(key_);
         --key_;
@@ -90,12 +88,10 @@ namespace ohm
     {
     public:
       /// Empty constructor: creates an undefined iterator object.
-      inline const_iterator() {}
+      inline const_iterator() = default;
       /// Copy constuctor.
       /// @param other Iterator to copy.
-      inline const_iterator(const const_iterator &other)
-        : key_(other.key_)
-      {}
+      inline const_iterator(const const_iterator &other) = default;
       /// Copy constuctor from a non-const @c iterator.
       /// @param other Iterator to copy.
       inline const_iterator(const iterator &other)
@@ -125,7 +121,7 @@ namespace ohm
       }
       /// Increment to the next key (postfix).
       /// @return A reference to @c this.
-      inline const_iterator operator++(int)
+      inline const const_iterator operator++(int)
       {
         const_iterator i(key_);
         ++key_;
@@ -141,7 +137,7 @@ namespace ohm
       }
       /// Decrement to the previous key (postfix).
       /// @return A reference to @c this.
-      inline const_iterator operator--(int)
+      inline const const_iterator operator--(int)
       {
         const_iterator i(key_);
         --key_;

@@ -60,7 +60,8 @@ namespace gputil
     Device(int argc, const char **argv, const char *default_device = nullptr, unsigned device_type_flags = kGpu);
     /// @overload
     inline Device(int argc, char **argv, const char *default_device = nullptr, unsigned device_type_flags = kGpu)
-      : Device(argc, const_cast<const char **>(argv), default_device, device_type_flags)
+      : Device(argc, const_cast<const char **>(argv),  // NOLINT(cppcoreguidelines-pro-type-const-cast)
+               default_device, device_type_flags)
     {}
 
     /// Copy constructor.
@@ -75,7 +76,7 @@ namespace gputil
     ~Device();
 
     /// Enumerate all devices attached to the current host.
-    static unsigned enumerateDevices(std::vector<DeviceInfo> &devices);
+    static unsigned enumerateDevices(std::vector<DeviceInfo> &devices);  // NOLINT(google-runtime-references)
 
     /// Display name for the device.
     const char *name() const;
@@ -117,7 +118,8 @@ namespace gputil
     /// @overload
     inline bool select(int argc, char **argv, const char *default_device = nullptr, unsigned device_type_flags = kGpu)
     {
-      return select(argc, const_cast<const char **>(argv), default_device, device_type_flags);
+      return select(argc, const_cast<const char **>(argv),  // NOLINT(cppcoreguidelines-pro-type-const-cast)
+                    default_device, device_type_flags);
     }
 
     /// Select a device from the given @c DeviceInfo.
