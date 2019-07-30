@@ -268,6 +268,7 @@ function(clang_tidy_target TARGET)
 
     if(ADD_SRC)
       _ctt_debug("Add ${SRC}")
+      get_filename_component(SRC "${SRC}" ABSOLUTE BASE_DIR ${CMAKE_CURRENT_LIST_DIR})
       list(APPEND SOURCES "${SRC}")
     endif(ADD_SRC)
   endforeach(SRC)
