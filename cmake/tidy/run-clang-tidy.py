@@ -270,6 +270,10 @@ def main():
     tmpdir = tempfile.mkdtemp()
 
   # Build up a big regexy filter from all command line arguments.
+  # For windows, make sure we escape backslash path separators.
+  if os.name == 'nt':
+    for i in range(len(args.files)):
+      args.files[i] = args.files[i].replace('\\', '\\\\')
   file_name_re = re.compile('|'.join(args.files))
 
   return_code = 0

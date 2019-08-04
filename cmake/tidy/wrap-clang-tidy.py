@@ -1,12 +1,10 @@
 from __future__ import print_function
 
 import argparse
+import os
 import re
 import subprocess
 import sys
-
-# sys.stderr.write(str(sys.argv))
-# sys.exit(1)
 
 # Command line parser setup.
 def setup_args():
@@ -46,12 +44,17 @@ if __name__ == "__main__":
 
     tidy = subprocess.Popen(tidy_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines = True)
 
+    # Need to escape back slashes in args[0].clang_tidy_binary for Windows.
+    clang_tidy_binary = args[0].clang_tidy_binary
+    if os.name == 'nt':
+        clang_tidy_binary = clang_tidy_binary.replace('\\', '\\\\')
+
     filter_expressions = (
         r'^Skipping .*',
         r'^Suppressed [^\s]+ warnings.*',
         r'^[^\s]+ warning(s)? generated*',
         r'^Use -header-filter=.*',
-        r'^' + args[0].clang_tidy_binary + r'.*'
+        r'^' + clang_tidy_binary + r'.*'
     )
 
     filter_re_string = ''
