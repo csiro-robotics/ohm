@@ -53,19 +53,20 @@ namespace ohm
   {
   public:
     /// Define for 1 MiB in bytes.
-    static const size_t kMiB = 1024u * 1024u;
+    static const size_t kMiB = 1024ull * 1024ull;
     /// Define for 1 GiB in bytes.
-    static const size_t kGiB = 1024u * 1024u * 1024u;
+    static const size_t kGiB = 1024ull * 1024ull * 1024ull;
     /// The default byte size of each GPU layer if not specified.
     static const size_t kDefaultLayerMemSize = kGiB / 2;
 
     /// Instantiate the @c GpuCache for @p map.
     /// @param map The map to cache data for.
     /// @param default_gpu_mem_size The default size of allocated @c GpuLayerCache objects if not specified.
-    GpuCache(OccupancyMap &map, size_t default_gpu_mem_size = kDefaultLayerMemSize);
+    GpuCache(OccupancyMap &map,  // NOLINT(google-runtime-references)
+             size_t default_gpu_mem_size = kDefaultLayerMemSize);
 
     /// Destructor, cleaning up all owned @c GpuLayerCache objects.
-    ~GpuCache();
+    ~GpuCache() override;
 
     /// Flush and clear the cache, then reallocate GPU buffers. For use when voxel layout changes.
     void reinitialise() override;

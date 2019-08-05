@@ -82,7 +82,7 @@ inline std::ostream &operator<<(std::ostream &out, const ohm::Aabb &box)
 #include <ohmutil/Options.h>
 
 
-int parseOptions(Options &opt, int argc, char *argv[])
+int parseOptions(Options *opt, int argc, char *argv[])
 {
   cxxopts::Options optParse(argv[0], "\nExtract a submap from an existing map.\n");
   optParse.positional_help("<map-in.ohm> <map-out.ohm>");
@@ -90,11 +90,11 @@ int parseOptions(Options &opt, int argc, char *argv[])
   try
   {
     optParse.add_options()("help", "Show help.")                                                                 //
-      ("i,map", "The input map file (ohm) to load.", cxxopts::value(opt.map_in))                                 //
-      ("o", "The input map file (ohm) to load.", cxxopts::value(opt.map_out))                                    //
-      ("box", "Specify the submap extents as six floats; minx,miny,minz,maxx,maxy,maxz", optVal(opt.box))        //
-      ("centre", "Centre of the extents specified extents as three floats; x,y,z", optVal(opt.centre))           //
-      ("extents", "Specify the submap extents diagonal as three floats (positive); x,y,z", optVal(opt.extents))  //
+      ("i,map", "The input map file (ohm) to load.", cxxopts::value(opt->map_in))                                 //
+      ("o", "The input map file (ohm) to load.", cxxopts::value(opt->map_out))                                    //
+      ("box", "Specify the submap extents as six floats; minx,miny,minz,maxx,maxy,maxz", optVal(opt->box))        //
+      ("centre", "Centre of the extents specified extents as three floats; x,y,z", optVal(opt->centre))           //
+      ("extents", "Specify the submap extents diagonal as three floats (positive); x,y,z", optVal(opt->extents))  //
       ;
 
     optParse.parse_positional({ "i", "o" });
@@ -108,24 +108,24 @@ int parseOptions(Options &opt, int argc, char *argv[])
       return 1;
     }
 
-    if (opt.map_in.empty())
+    if (opt->map_in.empty())
     {
       std::cerr << "Missing input map file name" << std::endl;
       return -1;
     }
 
-    if (opt.map_out.empty())
+    if (opt->map_out.empty())
     {
       std::cerr << "Missing output map file name" << std::endl;
       return -1;
     }
 
-    if (glm::length(opt.box.diagonal()) < 1e-6)
+    if (glm::length(opt->box.diagonal()) < 1e-6)
     {
       // No box. Try centre/extents setup.
-      opt.box = ohm::Aabb::fromCentreHalfExtents(opt.centre, 0.5 * opt.extents);
+      opt->box = ohm::Aabb::fromCentreHalfExtents(opt->centre, 0.5 * opt->extents);
 
-      if (glm::length(opt.box.diagonal()) < 1e-6)
+      if (glm::length(opt->box.diagonal()) < 1e-6)
       {
         // Still bad.
         std::cerr << "Extents not specified or too small" << std::endl;
@@ -133,9 +133,9 @@ int parseOptions(Options &opt, int argc, char *argv[])
       }
     }
 
-    std::cout << "Extents: (" << opt.box << ")" << std::endl;
+    std::cout << "Extents: (" << opt->box << ")" << std::endl;
 
-    if (opt.box.halfExtents().x <= 0 || opt.box.halfExtents().y <= 0 && opt.box.halfExtents().z <= 0)
+    if (opt->box.halfExtents().x <= 0 || opt->box.halfExtents().y <= 0 && opt->box.halfExtents().z <= 0)
     {
       std::cerr << "Zero or negative extents" << std::endl;
       return -1;
@@ -157,7 +157,7 @@ int main(int argc, char *argv[])
   std::cout.imbue(std::locale(""));
 
   int res = 0;
-  res = parseOptions(opt, argc, argv);
+  res = parseOptions(&opt, argc, argv);
 
   if (res)
   {
@@ -168,7 +168,7 @@ int main(int argc, char *argv[])
   signal(SIGTERM, onSignal);
 
   ohm::OccupancyMap map(1.0f);
-  ohm::MapVersion version;
+  ohm::MapVersion version{};
 
   std::cout << "Loading" << std::flush;
   res = ohm::load(opt.map_in.c_str(), map);

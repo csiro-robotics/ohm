@@ -46,7 +46,7 @@ namespace
 }  // namespace
 
 
-int parseOptions(Options &opt, int argc, char *argv[])
+int parseOptions(Options *opt, int argc, char *argv[])
 {
   cxxopts::Options optParse(argv[0], "\nProvide information about the contents of an occupancy map file.\n");
   optParse.positional_help("<map.ohm>");
@@ -54,9 +54,9 @@ int parseOptions(Options &opt, int argc, char *argv[])
   try
   {
     optParse.add_options()("help", "Show help.")("i,map", "The input map file (ohm) to load.",
-                                                 cxxopts::value(opt.map_file))(
+                                                 cxxopts::value(opt->map_file))(
       "extents", "Run in quiet mode. Suppresses progress messages.",
-      optVal(opt.calculate_extents)->implicit_value("true"));
+      optVal(opt->calculate_extents)->implicit_value("true"));
 
     optParse.parse_positional({ "map" });
 
@@ -69,7 +69,7 @@ int parseOptions(Options &opt, int argc, char *argv[])
       return 1;
     }
 
-    if (opt.map_file.empty())
+    if (opt->map_file.empty())
     {
       std::cerr << "Missing input map" << std::endl;
       return -1;
@@ -113,7 +113,7 @@ int main(int argc, char *argv[])
   std::cout.imbue(std::locale(""));
 
   int res = 0;
-  res = parseOptions(opt, argc, argv);
+  res = parseOptions(&opt, argc, argv);
 
   if (res)
   {

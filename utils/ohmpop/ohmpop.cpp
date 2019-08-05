@@ -127,12 +127,12 @@ namespace
         **out << "Maximum point: " << point_limit << '\n';
       }
 
-      if (start_time)
+      if (start_time > 0)
       {
         **out << "Process from timestamp: " << start_time << '\n';
       }
 
-      if (time_limit)
+      if (time_limit > 0)
       {
         **out << "Process to timestamp: " << time_limit << '\n';
       }
@@ -172,7 +172,7 @@ namespace
       }
 
       **out << "Mapping mode: ";
-      if (progressive_mapping_slice)
+      if (progressive_mapping_slice > 0)
       {
         **out << "progressive time slice " << progressive_mapping_slice << "s\n";
         **out << "Mapping interval: " << mapping_interval << "s\n";
@@ -193,14 +193,14 @@ namespace
   class SerialiseMapProgress : public ohm::SerialiseProgress
   {
   public:
-    SerialiseMapProgress(ProgressMonitor &monitor)
+    SerialiseMapProgress(ProgressMonitor &monitor) // NOLINT(google-runtime-references)
       : monitor_(monitor)
     {}
 
     bool quit() const override { return ::quit > 1; }
 
     void setTargetProgress(unsigned target) override { monitor_.beginProgress(ProgressMonitor::Info(target)); }
-    void incrementProgress(unsigned inc = 1) override { monitor_.incrementProgressBy(inc); }
+    void incrementProgress(unsigned inc) override { monitor_.incrementProgressBy(inc); }
 
   private:
     ProgressMonitor &monitor_;
@@ -400,7 +400,7 @@ int populateMap(const Options &opt)
     map.setSubVoxelWeighting(opt.sub_voxel_weighting);
   }
 
-  if (opt.sub_voxel_filter)
+  if (opt.sub_voxel_filter > 0)
   {
     map.setSubVoxelFilterScale(opt.sub_voxel_filter);
   }
@@ -413,11 +413,11 @@ int populateMap(const Options &opt)
   }
 #endif  // OHMPOP_CPU
 
-  if (opt.clip_near_range)
+  if (opt.clip_near_range > 0)
   {
     std::cout << "Filtering samples closer than: " << opt.clip_near_range << std::endl;
     // Install a self-strike removing clipping box.
-    map.setRayFilter([&opt, &sample](glm::dvec3 *start, glm::dvec3 *end, unsigned *filter_flags) -> bool {
+    map.setRayFilter([&opt](glm::dvec3 *start, glm::dvec3 *end, unsigned *filter_flags) -> bool {
       // Range filter.
       if (!ohm::goodRayFilter(start, end, filter_flags, 1e3))
       {
@@ -438,11 +438,11 @@ int populateMap(const Options &opt)
   map.setHitProbability(opt.prob_hit);
   map.setOccupancyThresholdProbability(opt.prob_thresh);
   map.setMissProbability(opt.prob_miss);
-  if (opt.prob_range[0])
+  if (opt.prob_range[0] > 0)
   {
     map.setMinVoxelProbability(opt.prob_range[0]);
   }
-  if (opt.prob_range[1])
+  if (opt.prob_range[1] > 0)
   {
     map.setMaxVoxelProbability(opt.prob_range[1]);
   }
@@ -642,7 +642,7 @@ int populateMap(const Options &opt)
 #endif  // OHMPOP_CPU
 
       if (opt.point_limit && point_count >= opt.point_limit ||
-          opt.time_limit && last_timestamp - timebase >= opt.time_limit || quit)
+          opt.time_limit > 0 && last_timestamp - timebase >= opt.time_limit || quit)
       {
         break;
       }
@@ -715,7 +715,8 @@ int populateMap(const Options &opt)
     **out << "Post mapper completed in " << end_time - mapper_start << std::endl;
 #endif  // OHMPOP_CPU
     **out << "Total processing time: " << end_time - start_time << '\n';
-    **out << "Efficiency: " << ((processing_time_sec && time_range) ? time_range / processing_time_sec : 0.0) << '\n';
+    **out << "Efficiency: " << ((processing_time_sec > 0 && time_range > 0) ? time_range / processing_time_sec : 0.0)
+          << '\n';
     **out << "Points/sec: " << unsigned((processing_time_sec > 0) ? point_count / processing_time_sec : 0.0) << '\n';
     **out << "Memory (approx): " << map.calculateApproximateMemory() / (1024.0 * 1024.0) << " MiB\n";
     **out << std::flush;
@@ -733,7 +734,7 @@ int populateMap(const Options &opt)
 }
 
 
-int parseOptions(Options &opt, int argc, char *argv[])
+int parseOptions(Options *opt, int argc, char *argv[])
 {
   cxxopts::Options opt_parse(argv[0],
                              "Generate an occupancy map from a LAS/LAZ based point cloud and accompanying "
@@ -754,37 +755,37 @@ int parseOptions(Options &opt, int argc, char *argv[])
 
     // clang-format off
     opt_parse.add_options()
-      ("b,batch-size", "The number of points to process in each batch. Controls debug display.", optVal(opt.batch_size))
+      ("b,batch-size", "The number of points to process in each batch. Controls debug display.", optVal(opt->batch_size))
       ("help", "Show help.")
-      ("i,cloud", "The input cloud (las/laz) to load.", cxxopts::value(opt.cloud_file))
-      ("o,output","Output base name", optVal(opt.output_base_name))
-      ("p,point-limit", "Limit the number of points loaded.", optVal(opt.point_limit))
-      ("preload", "Preload this number of points before starting processing. Zero for all. May be used for separating processing and loading time.", optVal(opt.preload_count)->default_value("0"))
-      ("q,quiet", "Run in quiet mode. Suppresses progress messages.", optVal(opt.quiet))
-      ("sensor", "Offset from the trajectory to the sensor position. Helps correct trajectory to the sensor centre for better rays.", optVal(opt.sensor_offset))
-      ("s,start-time", "Only process points time stamped later than the specified time.", optVal(opt.start_time))
-      ("serialise", "Serialise the results? This option is intended for skipping saving during performance analysis.", optVal(opt.serialise))
-      ("save-info", "Save timing information to text based on the output file name.", optVal(opt.save_info))
-      ("t,time-limit", "Limit the elapsed time in the LIDAR data to process (seconds). Measured relative to the first data sample.", optVal(opt.time_limit))
-      ("trajectory", "The trajectory (text) file to load.", cxxopts::value(opt.trajectory_file))
-      ("prior", "Prior map file to load and continue to populate.", cxxopts::value(opt.prior_map))
+      ("i,cloud", "The input cloud (las/laz) to load.", cxxopts::value(opt->cloud_file))
+      ("o,output","Output base name", optVal(opt->output_base_name))
+      ("p,point-limit", "Limit the number of points loaded.", optVal(opt->point_limit))
+      ("preload", "Preload this number of points before starting processing. Zero for all. May be used for separating processing and loading time.", optVal(opt->preload_count)->default_value("0"))
+      ("q,quiet", "Run in quiet mode. Suppresses progress messages.", optVal(opt->quiet))
+      ("sensor", "Offset from the trajectory to the sensor position. Helps correct trajectory to the sensor centre for better rays.", optVal(opt->sensor_offset))
+      ("s,start-time", "Only process points time stamped later than the specified time.", optVal(opt->start_time))
+      ("serialise", "Serialise the results? This option is intended for skipping saving during performance analysis.", optVal(opt->serialise))
+      ("save-info", "Save timing information to text based on the output file name.", optVal(opt->save_info))
+      ("t,time-limit", "Limit the elapsed time in the LIDAR data to process (seconds). Measured relative to the first data sample.", optVal(opt->time_limit))
+      ("trajectory", "The trajectory (text) file to load.", cxxopts::value(opt->trajectory_file))
+      ("prior", "Prior map file to load and continue to populate.", cxxopts::value(opt->prior_map))
       ;
 
     opt_parse.add_options("Map")
-      ("clamp", "Set probability clamping to the given min/max.", optVal(opt.prob_range))
-      ("clip-near", "Range within which samples are considered too close and are ignored. May be used to filter operator strikes.", optVal(opt.clip_near_range))
-      ("d,dim", "Set the voxel dimensions of each region in the map. Range for each is [0, 255).", optVal(opt.region_voxel_dim))
-      ("h,hit", "The occupancy probability due to a hit. Must be >= 0.5.", optVal(opt.prob_hit))
-      ("m,miss", "The occupancy probability due to a miss. Must be < 0.5.", optVal(opt.prob_miss))
-      ("r,resolution", "The voxel resolution of the generated map.", optVal(opt.resolution))
+      ("clamp", "Set probability clamping to the given min/max.", optVal(opt->prob_range))
+      ("clip-near", "Range within which samples are considered too close and are ignored. May be used to filter operator strikes.", optVal(opt->clip_near_range))
+      ("d,dim", "Set the voxel dimensions of each region in the map. Range for each is [0, 255).", optVal(opt->region_voxel_dim))
+      ("h,hit", "The occupancy probability due to a hit. Must be >= 0.5.", optVal(opt->prob_hit))
+      ("m,miss", "The occupancy probability due to a miss. Must be < 0.5.", optVal(opt->prob_miss))
+      ("r,resolution", "The voxel resolution of the generated map.", optVal(opt->resolution))
       ("sub-voxel", "Sub voxel positioning weighting. Adding this option with no value enables sub-voxel positioning "
                     "with the default weighting. Specifying a value (0, 1] sets the weight of new samples vs. the "
                     "existing sub-voxel position.",
-                    optVal(opt.sub_voxel_weighting)->implicit_value("0.3"))
+                    optVal(opt->sub_voxel_weighting)->implicit_value("0.3"))
       ("sub-voxel-filter", "Enable sub-voxel occupancy filtering? Occupied voxels with may be considered free when "
                     "the sub-voxel positioning is far from the voxel centre.",
-                    optVal(opt.sub_voxel_filter)->implicit_value("1.0"))
-      ("threshold", "Sets the occupancy threshold assigned when exporting the map to a cloud.", optVal(opt.prob_thresh)->implicit_value(optStr(opt.prob_thresh)))
+                    optVal(opt->sub_voxel_filter)->implicit_value("1.0"))
+      ("threshold", "Sets the occupancy threshold assigned when exporting the map to a cloud.", optVal(opt->prob_thresh)->implicit_value(optStr(opt->prob_thresh)))
       ;
 
     // clang-format on
@@ -792,11 +793,11 @@ int parseOptions(Options &opt, int argc, char *argv[])
 #ifndef OHMPOP_CPU
     // clang-format off
     opt_parse.add_options("Mapping")
-      ("clearance", "Calculate clearance values for the map using this as the maximum search range. Zero to disable.", optVal(opt.clearance))
-      ("clearance-uao", "During clearance value calculations, consider 'Unknown(voxels)-As-Occupied'.", optVal(opt.clearance_unknown_as_occupied))
-      ("progressive", "Time slice allowed for progressive mapping processes. Zero to disable and update after population.", optVal(opt.progressive_mapping_slice))
-      ("progressive-interval", "Interval for progressive mapping. Time is based on input data time.", cxxopts::value(opt.mapping_interval)->default_value(optStr(opt.mapping_interval)))
-      ("post-mapping", "Allow mapping thread to complete after population?", optVal(opt.post_population_mapping))
+      ("clearance", "Calculate clearance values for the map using this as the maximum search range. Zero to disable.", optVal(opt->clearance))
+      ("clearance-uao", "During clearance value calculations, consider 'Unknown(voxels)-As-Occupied'.", optVal(opt->clearance_unknown_as_occupied))
+      ("progressive", "Time slice allowed for progressive mapping processes. Zero to disable and update after population.", optVal(opt->progressive_mapping_slice))
+      ("progressive-interval", "Interval for progressive mapping. Time is based on input data time.", cxxopts::value(opt->mapping_interval)->default_value(optStr(opt->mapping_interval)))
+      ("post-mapping", "Allow mapping thread to complete after population?", optVal(opt->post_population_mapping))
       ;
 
     // clang-format on
@@ -824,12 +825,12 @@ int parseOptions(Options &opt, int argc, char *argv[])
       return 1;
     }
 
-    if (opt.cloud_file.empty())
+    if (opt->cloud_file.empty())
     {
       std::cerr << "Missing input cloud" << std::endl;
       return -1;
     }
-    if (opt.trajectory_file.empty())
+    if (opt->trajectory_file.empty())
     {
       std::cerr << "Missing trajectory file" << std::endl;
       return -1;
@@ -850,7 +851,7 @@ int main(int argc, char *argv[])
 
   std::cout.imbue(std::locale(""));
 
-  int res = parseOptions(opt, argc, argv);
+  int res = parseOptions(&opt, argc, argv);
 
   if (res)
   {
@@ -863,7 +864,7 @@ int main(int argc, char *argv[])
   // Generate output name based on input if not specified.
   if (opt.output_base_name.empty())
   {
-    const auto extension_start = opt.cloud_file.find_last_of(".");
+    const auto extension_start = opt.cloud_file.find_last_of('.');
     if (extension_start != std::string::npos)
     {
       opt.output_base_name = opt.cloud_file.substr(0, extension_start);

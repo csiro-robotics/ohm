@@ -50,7 +50,7 @@ namespace ohm
 
     void stepCursor(const glm::i16vec3 &step = glm::i16vec3(1));
 
-    void getWork(OccupancyMap &map);
+    void getWork(OccupancyMap &map);  // NOLINT(google-runtime-references)
   };
 }  // namespace ohm
 

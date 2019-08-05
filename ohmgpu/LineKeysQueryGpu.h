@@ -49,15 +49,15 @@ namespace ohm
     /// Construct a new query using the given parameters.
     /// @param map The map to operate on. Only the voxel resolution and region sizes are used.
     /// @param query_flags Flags controlling the query behaviour. See @c QueryFlag and @c LineKeysQuery::Flag.
-    LineKeysQueryGpu(ohm::OccupancyMap &map, unsigned query_flags = 0u);
+    LineKeysQueryGpu(ohm::OccupancyMap &map, unsigned query_flags = 0u);  // NOLINT(google-runtime-references)
 
     /// Construct a new query using the given parameters.
     /// @param query_flags Flags controlling the query behaviour. See @c QueryFlag and @c LineKeysQuery::Flag.
     LineKeysQueryGpu(unsigned query_flags = 0);
 
     /// Destructor.
-    ~LineKeysQueryGpu();
-    
+    ~LineKeysQueryGpu() override;
+
   protected:
     bool onExecute() override;
     bool onExecuteAsync() override;

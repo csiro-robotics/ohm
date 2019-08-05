@@ -645,7 +645,7 @@ bool HeightmapImage::renderHeightMesh(ImageType image_type, const Aabb &spatial_
   imp_->vertices.reserve(vertex_count);
   for (auto v = vertices; v < end_vertex; ++v)
   {
-    imp_->vertices.push_back(glm::vec3(*v - spatial_extents.minExtents()));
+    imp_->vertices.emplace_back(glm::vec3(*v - spatial_extents.minExtents()));
   }
 
   imp_->vertex_normals.clear();
@@ -662,7 +662,7 @@ bool HeightmapImage::renderHeightMesh(ImageType image_type, const Aabb &spatial_
   {
     for (size_t i = 0; i < vertex_count; ++i)
     {
-      imp_->vertex_normals.push_back(glm::vec3(0, 0, 1));
+      imp_->vertex_normals.emplace_back(glm::vec3(0, 0, 1));
     }
   }
 
@@ -680,7 +680,7 @@ bool HeightmapImage::renderHeightMesh(ImageType image_type, const Aabb &spatial_
   {
     for (size_t i = 0; i < vertex_count; ++i)
     {
-      imp_->vertex_colours.push_back(glm::vec3(1.0f));
+      imp_->vertex_colours.emplace_back(glm::vec3(1.0f));
     }
   }
 
@@ -1043,7 +1043,8 @@ bool HeightmapImage::renderHeightMesh(ImageType image_type, const Aabb &spatial_
   {
   case kAfRgb8:
     imp_->image_info.bpp = 3;
-    imp_->image_info.byte_count = imp_->image_info.image_width * imp_->image_info.image_height * imp_->image_info.bpp;
+    imp_->image_info.byte_count =
+      size_t(imp_->image_info.image_width) * size_t(imp_->image_info.image_height) * size_t(imp_->image_info.bpp);
     imp_->image.resize(imp_->image_info.byte_count);
     // imp_->image.resize(imp_->image_info.byte_count * 2);
     // memset(imp_->image.data() + imp_->image_info.byte_count, 0xcf, imp_->image_info.byte_count);
@@ -1074,7 +1075,8 @@ bool HeightmapImage::renderHeightMesh(ImageType image_type, const Aabb &spatial_
     break;
   case kAfRgb32f:
     imp_->image_info.bpp = 3 * sizeof(float);
-    imp_->image_info.byte_count = imp_->image_info.image_width * imp_->image_info.image_height * imp_->image_info.bpp;
+    imp_->image_info.byte_count =
+      size_t(imp_->image_info.image_width) * size_t(imp_->image_info.image_height) * size_t(imp_->image_info.bpp);
     imp_->image.resize(imp_->image_info.byte_count);
     glBindTexture(GL_TEXTURE_2D, output_texture_id);
     glGetTexImage(GL_TEXTURE_2D, 0, output_format_type, GL_FLOAT, imp_->image.data());
@@ -1082,7 +1084,8 @@ bool HeightmapImage::renderHeightMesh(ImageType image_type, const Aabb &spatial_
   case kAfMono32f:
     // We are reading the depth buffer, which is float format. We size the image bytes appropriately.
     imp_->image_info.bpp = sizeof(float);
-    imp_->image_info.byte_count = imp_->image_info.image_width * imp_->image_info.image_height * imp_->image_info.bpp;
+    imp_->image_info.byte_count =
+      size_t(imp_->image_info.image_width) * size_t(imp_->image_info.image_height) * size_t(imp_->image_info.bpp);
     imp_->image.resize(imp_->image_info.byte_count);
     glBindTexture(GL_TEXTURE_2D, output_texture_id);
     glGetTexImage(GL_TEXTURE_2D, 0, output_format_type, GL_FLOAT, imp_->image.data());
@@ -1109,5 +1112,5 @@ bool HeightmapImage::renderHeightMesh(ImageType image_type, const Aabb &spatial_
   glDeleteTextures(1, &depth_texture);
   // glDeleteRenderbuffers(1, &depth_render_buffer);
 
-  return 0;
+  return true;
 }

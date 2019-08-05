@@ -21,6 +21,8 @@ target_include_directories(ohm2ply SYSTEM
 
 target_link_libraries(ohm2ply PUBLIC ohm ohmutil ${ZLIB_LIBRARIES})
 
+clang_tidy_target(ohm2ply)
+
 source_group("source" REGULAR_EXPRESSION ".*$")
 # Needs CMake 3.8+:
 # source_group(TREE "${CMAKE_CURRENT_LIST_DIR}" PREFIX source FILES ${SOURCES})

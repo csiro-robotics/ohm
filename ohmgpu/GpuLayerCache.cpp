@@ -34,32 +34,23 @@ using namespace ohm;
 namespace ohm
 {
   /// Data required for a single cache entry.
-  struct GpuCacheEntry
+  struct GpuCacheEntry  // NOLINT
   {
     /// The cached chunk. May be null when the chunk does not exist in the map.
-    MapChunk *chunk;
+    MapChunk *chunk = nullptr;
     /// Region key for @c chunk.
-    glm::i16vec3 region_key;
+    glm::i16vec3 region_key = glm::i16vec3(0);
     /// Offset into the GPU buffer at which this chunk's voxels have been uploaded (bytes).
-    size_t mem_offset;
+    size_t mem_offset = 0;
     /// Event associated with the most recent operation on @c gpuMem.
     /// This may be an upload, download or kernel execution using the buffer.
     gputil::Event sync_event;
     /// Stamp value used to assess the oldest cache entry.
-    uint64_t stamp;
+    uint64_t stamp = 0;
     /// Most recent @c  batch_marker from @c upload().
-    unsigned batch_marker;
+    unsigned batch_marker = 0;
     /// Can/should download of this item be skipped?
-    bool skip_download;
-
-    void init()
-    {
-      chunk = nullptr;
-      mem_offset = 0;
-      stamp = 0;
-      batch_marker = 0;
-      skip_download = true;
-    }
+    bool skip_download = true;
   };
 
   struct GpuLayerCacheDetail
@@ -74,7 +65,7 @@ namespace ohm
     /// List of memory offsets available for re-use. Populated when we remove entries from the cache rather than
     /// replacing them.
     std::vector<size_t> mem_offset_free_list;
-    glm::u8vec3 region_size;
+    glm::u8vec3 region_size = glm::u8vec3(0);
     uint64_t stamp = 0;
     gputil::Queue gpu_queue;
     gputil::Device gpu;
@@ -141,7 +132,7 @@ size_t GpuLayerCache::allocate(OccupancyMap &map, const glm::i16vec3 &region_key
     return entry->mem_offset;
   }
 
-  return size_t(~0u);
+  return ~size_t{ 0u };
 }
 
 
@@ -154,7 +145,7 @@ size_t GpuLayerCache::upload(OccupancyMap &map, const glm::i16vec3 &region_key, 
     return entry->mem_offset;
   }
 
-  return size_t(~0u);
+  return ~size_t{ 0u };
 }
 
 
@@ -358,7 +349,7 @@ GpuCacheEntry *GpuLayerCache::resolveCacheEntry(OccupancyMap &map, const glm::i1
     bool update_required = upload && (flags & kForceUpload) != 0;
 
     // Check if it was previously added, but without allowing creation.
-    if (!chunk && (flags & kAllowRegionCreate))
+    if (!entry->chunk && (flags & kAllowRegionCreate))
     {
       // Now allowed to create. Do so.
       entry->chunk = chunk = map.region(region_key, true);
@@ -369,8 +360,8 @@ GpuCacheEntry *GpuLayerCache::resolveCacheEntry(OccupancyMap &map, const glm::i1
     {
       // Upload the chunk in case it has been created while it's been in the cache.
       gputil::Event wait_for_previous = entry->sync_event;
-      gputil::Event *wait_for_ptr = wait_for_previous.isValid() ? &wait_for_previous : nullptr;
-      const uint8_t *voxel_mem = layer.voxels(*chunk);
+      gputil::Event *wait_for_ptr = (wait_for_previous.isValid()) ? &wait_for_previous : nullptr;
+      const uint8_t *voxel_mem = (entry->chunk) ? layer.voxels(*entry->chunk) : imp_->dummy_chunk;
       imp_->buffer->write(voxel_mem, layer.layerByteSize(map.regionVoxelDimensions()), entry->mem_offset,
                           &imp_->gpu_queue, wait_for_ptr, &entry->sync_event);
     }
@@ -402,8 +393,7 @@ GpuCacheEntry *GpuLayerCache::resolveCacheEntry(OccupancyMap &map, const glm::i1
   if (cachedCount() < cacheSize())
   {
     // Use the next buffer.
-    GpuCacheEntry new_entry;
-    new_entry.init();
+    GpuCacheEntry new_entry{};
     // First we try poping an entry off the free list.
     if (!imp_->mem_offset_free_list.empty())
     {
@@ -445,8 +435,7 @@ GpuCacheEntry *GpuLayerCache::resolveCacheEntry(OccupancyMap &map, const glm::i1
     // Synchronise the oldest entry back to main memory.
     syncToMainMemory(oldest_entry->second, true);
 
-    GpuCacheEntry new_entry;
-    new_entry.init();
+    GpuCacheEntry new_entry{};
     new_entry.mem_offset = oldest_entry->second.mem_offset;
     // Remove oldest entry from the cache
     imp_->cache.erase(oldest_entry);
@@ -516,7 +505,7 @@ void GpuLayerCache::allocateBuffers(const OccupancyMap &map, const MapLayer &lay
     ++imp_->cache_size;
   } while (allocated + imp_->chunk_mem_size <= target_gpu_mem_size);
 
-  imp_->buffer.reset(new gputil::Buffer(imp_->gpu, allocated, buffer_flags));
+  imp_->buffer = std::make_unique<gputil::Buffer>(imp_->gpu, allocated, buffer_flags);
 
   imp_->dummy_chunk = new uint8_t[layer.layerByteSize(map.regionVoxelDimensions())];
   layer.clear(imp_->dummy_chunk, map.regionVoxelDimensions());

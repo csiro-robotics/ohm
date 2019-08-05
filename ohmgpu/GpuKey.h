@@ -22,10 +22,10 @@
 #if !GPUTIL_DEVICE
 #ifndef __device__
 #define __device__
-#endif // __device__
+#endif  // __device__
 #ifndef __host__
 #define __host__
-#endif // __host__
+#endif  // __host__
 
 namespace ohm
 {
@@ -36,7 +36,7 @@ namespace ohm
   struct GpuKey
   {
     /// Region key.
-    short region[3];
+    short region[3];  // NOLINT
     /// Voxel key.
     // Element 3 is provided for padding, but may be used as a context based value.
     unsigned char voxel[4];

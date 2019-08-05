@@ -68,17 +68,17 @@ namespace ohm
     struct BitmapInfo
     {
       /// Image pixel width.
-      unsigned image_width;
+      unsigned image_width = 0;
       /// Image pixel height.
-      unsigned image_height;
+      unsigned image_height = 0;
       /// Number of bytes per pixel.
-      unsigned bpp;
+      unsigned bpp = 0;
       /// Details on the pixel format.
-      ImageType type;
+      ImageType type = kImageNormals;
       /// Number of bytes in the image.
-      size_t byte_count;
+      size_t byte_count = 0;
       /// Image spatial extents.
-      Aabb image_extents;
+      Aabb image_extents = Aabb(0.0);
     };
 
     HeightmapImage(ImageType type = kImageNormals, unsigned pixels_per_voxel = 1);

@@ -60,6 +60,7 @@ endfunction(_ohmpop_setup)
 
 if(OHM_BUILD_OPENCL)
   _ohmpop_setup(ocl)
+  clang_tidy_target(ohmpopocl)
   # Required to run NVIDIA OpenCL
   leak_track_default_options(ohmpopocl CONDITION OHM_LEAK_TRACK ${OHM_ASAN_OPTIONS_CUDA})
   leak_track_suppress(ohmpopocl CONDITION OHM_LEAK_TRACK
@@ -69,6 +70,7 @@ if(OHM_BUILD_OPENCL)
 endif(OHM_BUILD_OPENCL)
 if(OHM_BUILD_CUDA)
   _ohmpop_setup(cuda)
+  clang_tidy_target(ohmpopcuda)
   leak_track_default_options(ohmpopcuda CONDITION OHM_LEAK_TRACK ${OHM_ASAN_OPTIONS_CUDA})
   leak_track_suppress(ohmpopcuda CONDITION OHM_LEAK_TRACK
     ${OHM_LEAK_SUPPRESS_CUDA}
@@ -76,6 +78,7 @@ if(OHM_BUILD_CUDA)
   )
 endif(OHM_BUILD_CUDA)
 _ohmpop_setup(cpu)
+clang_tidy_target(ohmpopcpu)
 leak_track_suppress(ohmpopcpu CONDITION OHM_LEAK_TRACK
   "libpdal_base"
 )

@@ -133,28 +133,28 @@ inline std::ostream &operator<<(std::ostream &out, const glm::tvec4<T, Q> &v)
 template <GlmQualifier Q>
 inline std::ostream &operator<<(std::ostream &out, const glm::tvec3<char, Q> &v)
 {
-  out << '(' << (int)v.x << ',' << (int)v.y << ',' << (int)v.z << ')';
+  out << '(' << int(v.x) << ',' << int(v.y) << ',' << int(v.z) << ')';
   return out;
 }
 
 template <GlmQualifier Q>
 inline std::ostream &operator<<(std::ostream &out, const glm::tvec3<unsigned char, Q> &v)
 {
-  out << '(' << (int)v.x << ',' << (int)v.y << ',' << (int)v.z << ')';
+  out << '(' << int(v.x) << ',' << int(v.y) << ',' << int(v.z) << ')';
   return out;
 }
 
 template <GlmQualifier Q>
 inline std::ostream &operator<<(std::ostream &out, const glm::tvec4<char, Q> &v)
 {
-  out << '(' << (int)v.w << ',' << (int)v.x << ',' << (int)v.y << ',' << (int)v.z << ')';
+  out << '(' << int(v.w) << ',' << int(v.x) << ',' << int(v.y) << ',' << int(v.z) << ')';
   return out;
 }
 
 template <GlmQualifier Q>
 inline std::ostream &operator<<(std::ostream &out, const glm::tvec4<unsigned char, Q> &v)
 {
-  out << '(' << (int)v.w << ',' << (int)v.x << ',' << (int)v.y << ',' << (int)v.z << ')';
+  out << '(' << int(v.w) << ',' << int(v.x) << ',' << int(v.y) << ',' << int(v.z) << ')';
   return out;
 }
 

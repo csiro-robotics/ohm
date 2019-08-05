@@ -33,10 +33,10 @@ namespace ohm
     gputil::Buffer lines_out;
     gputil::Buffer line_points;
     unsigned max_keys_per_line = 0;
-    std::atomic_bool inflight{false};
+    std::atomic_bool inflight{ false };
 
     bool gpu_ok = false;
   };
-}
+}  // namespace ohm
 
-#endif // OHMGPU_LINEKEYSQUERYDETAILGPU_H_
+#endif  // OHMGPU_LINEKEYSQUERYDETAILGPU_H_

@@ -58,14 +58,14 @@ namespace
   class LoadMapProgress : public ohm::SerialiseProgress
   {
   public:
-    LoadMapProgress(ProgressMonitor &monitor)
+    LoadMapProgress(ProgressMonitor &monitor)  // NOLINT(google-runtime-references)
       : monitor_(monitor)
     {}
 
     bool quit() const override { return ::quit > 1; }
 
     void setTargetProgress(unsigned target) override { monitor_.beginProgress(ProgressMonitor::Info(target)); }
-    void incrementProgress(unsigned inc = 1) override { monitor_.incrementProgressBy(inc); }
+    void incrementProgress(unsigned inc) override { monitor_.incrementProgressBy(inc); }
 
   private:
     ProgressMonitor &monitor_;
@@ -73,22 +73,22 @@ namespace
 }  // namespace
 
 
-int parseOptions(Options &opt, int argc, char *argv[])
+int parseOptions(Options *opt, int argc, char *argv[])
 {
   cxxopts::Options optParse(argv[0], "\nCreate a heightmap from an occupancy map.\n");
   optParse.positional_help("<map.ohm> <heightmap.ohm>");
 
   try
   {
-    optParse.add_options()("help", "Show help.")("i", "The input map file (ohm).", cxxopts::value(opt.map_file))  //
-      ("o", "The output heightmap file (ohm).", cxxopts::value(opt.heightmap_file))                               //
-      ("base", "Base height: heightmap values are stored relative to this height.", optVal(opt.base_height))      //
-      ("clearance", "The required height clearance for a heightmap surface voxel.", optVal(opt.clearance))        //
+    optParse.add_options()("help", "Show help.")("i", "The input map file (ohm).", cxxopts::value(opt->map_file))  //
+      ("o", "The output heightmap file (ohm).", cxxopts::value(opt->heightmap_file))                               //
+      ("base", "Base height: heightmap values are stored relative to this height.", optVal(opt->base_height))      //
+      ("clearance", "The required height clearance for a heightmap surface voxel.", optVal(opt->clearance))        //
       ("floor", "Heightmap excludes voxels below this (positive) value below the --base height. Positive to enable.",
-       optVal(opt.floor))  //
+       optVal(opt->floor))  //
       ("ceiling", "Heightmap excludes voxels above this (positive) value above the --base height. Positive to enable.",
-       optVal(opt.ceiling))                                                                    //
-      ("no-sub-vox", "Ignore sub-voxel positioning if available?.", optVal(opt.no_sub_voxel))  //
+       optVal(opt->ceiling))                                                                    //
+      ("no-sub-vox", "Ignore sub-voxel positioning if available?.", optVal(opt->no_sub_voxel))  //
       ;
 
     optParse.parse_positional({ "i", "o" });
@@ -102,13 +102,13 @@ int parseOptions(Options &opt, int argc, char *argv[])
       return 1;
     }
 
-    if (opt.map_file.empty())
+    if (opt->map_file.empty())
     {
       std::cerr << "Missing input map" << std::endl;
       return -1;
     }
 
-    if (opt.heightmap_file.empty())
+    if (opt->heightmap_file.empty())
     {
       std::cerr << "Missing output name" << std::endl;
       return -1;
@@ -130,7 +130,7 @@ int main(int argc, char *argv[])
   std::cout.imbue(std::locale(""));
 
   int res = 0;
-  res = parseOptions(opt, argc, argv);
+  res = parseOptions(&opt, argc, argv);
 
   if (res)
   {
@@ -159,7 +159,7 @@ int main(int argc, char *argv[])
   ohm::OccupancyMap map(1.0);
   ohm::MapVersion version;
 
-  prog.setDisplayFunction([&opt](const ProgressMonitor::Progress &prog) {
+  prog.setDisplayFunction([](const ProgressMonitor::Progress &prog) {
     std::ostringstream str;
     str << '\r';
     str << prog.progress;

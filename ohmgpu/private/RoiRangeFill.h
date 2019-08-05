@@ -26,7 +26,7 @@ namespace ohm
   class RoiRangeFill
   {
   public:
-    RoiRangeFill(gputil::Device &gpu);
+    RoiRangeFill(gputil::Device &gpu);  // NOLINT(google-runtime-references)
     ~RoiRangeFill();
 
     gputil::Buffer &gpuCornerVoxelKey() { return gpu_corner_voxel_key_; }
@@ -58,19 +58,20 @@ namespace ohm
     unsigned regionCount() const { return region_count_; }
     // void setRegionCount(unsigned count) { region_count_ = count; }
 
-    bool calculateForRegion(OccupancyMap &map, const glm::i16vec3 &region_key);
+    bool calculateForRegion(OccupancyMap &map, const glm::i16vec3 &region_key);  // NOLINT(google-runtime-references)
 
   private:
     void cacheGpuProgram(bool with_sub_voxels, bool force);
     void releaseGpuProgram();
 
-    void finishRegion(const glm::i16vec3 &region_key, OccupancyMap &map, RoiRangeFill &query, GpuCache &gpu_cache,
-                      GpuLayerCache &clearance_cache, const glm::ivec3 &batch_voxel_extents,
-                      const std::vector<gputil::Event> &upload_events);
+    void finishRegion(const glm::i16vec3 &region_key, OccupancyMap &map,  // NOLINT(google-runtime-references)
+                      RoiRangeFill &query, GpuCache &gpu_cache,           // NOLINT(google-runtime-references)
+                      GpuLayerCache &clearance_cache,                     // NOLINT(google-runtime-references)
+                      const glm::ivec3 &batch_voxel_extents, const std::vector<gputil::Event> &upload_events);
 
-    int invoke(const OccupancyMapDetail &map, RoiRangeFill &query, GpuCache &gpu_cache,
-               GpuLayerCache &clearance_layer_cache, const glm::ivec3 &input_data_extents,
-               const std::vector<gputil::Event> &upload_events);
+    int invoke(const OccupancyMapDetail &map, RoiRangeFill &query,         // NOLINT(google-runtime-references)
+               GpuCache &gpu_cache, GpuLayerCache &clearance_layer_cache,  // NOLINT(google-runtime-references)
+               const glm::ivec3 &input_data_extents, const std::vector<gputil::Event> &upload_events);
 
     /// Key for the lower extents corner of the global work group. All other GPU threads can resolve their key by
     /// adjusting this key using their 3D global ID.

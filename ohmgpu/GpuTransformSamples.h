@@ -30,8 +30,8 @@ namespace ohm
   class ohmgpu_API GpuTransformSamples
   {
   public:
-    GpuTransformSamples(gputil::Device &gpu);
-    GpuTransformSamples(GpuTransformSamples &&other);
+    GpuTransformSamples(gputil::Device &gpu);  // NOLINT(google-runtime-references)
+    GpuTransformSamples(GpuTransformSamples &&other) noexcept;
 
     ~GpuTransformSamples();
 
@@ -68,8 +68,10 @@ namespace ohm
     /// @return The number of valid samples queued for translation on GPU.
     unsigned transform(const double *transform_times, const glm::dvec3 *transform_translations,
                        const glm::dquat *transform_rotations, unsigned transform_count, const double *sample_times,
-                       const glm::dvec3 *local_samples, unsigned point_count, gputil::Queue &gpu_queue,
-                       gputil::Buffer &output_buffer, gputil::Event &completion_event,
+                       const glm::dvec3 *local_samples, unsigned point_count,
+                       gputil::Queue &gpu_queue,         // NOLINT(google-runtime-references)
+                       gputil::Buffer &output_buffer,    // NOLINT(google-runtime-references)
+                       gputil::Event &completion_event,  // NOLINT(google-runtime-references)
                        double max_range = std::numeric_limits<double>::infinity());
 
   private:

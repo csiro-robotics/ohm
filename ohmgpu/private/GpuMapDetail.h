@@ -23,11 +23,11 @@
 #ifdef __GNUC__
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wconversion"
-#endif // __GNUC__
-#include <ska/bytell_hash_map.hpp> // NOLINT
+#endif                              // __GNUC__
+#include <ska/bytell_hash_map.hpp>  // NOLINT
 #ifdef __GNUC__
 #pragma GCC diagnostic pop
-#endif // __GNUC__
+#endif  // __GNUC__
 
 #include <vector>
 
@@ -99,7 +99,8 @@ namespace ohm
 
   /// Ensure the GPU cache is initialised. Ok to call if already initialised.
   /// @param flags @c GpuFlag values.
-  GpuCache *initialiseGpuCache(OccupancyMap &map, size_t layer_gpu_mem_size, unsigned flags);
+  GpuCache *initialiseGpuCache(OccupancyMap &map,  // NOLINT(google-runtime-references)
+                               size_t layer_gpu_mem_size, unsigned flags);
 }  // namespace ohm
 
 #endif  // OHMGPU_GPUMAPDETAIL_H

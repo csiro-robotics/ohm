@@ -43,6 +43,7 @@ endfunction(_ohmquery_setup)
 
 if(OHM_BUILD_OPENCL)
   _ohmquery_setup(ocl)
+  clang_tidy_target(ohmqueryocl)
   # Required to run NVIDIA OpenCL
   leak_track_default_options(ohmqueryocl CONDITION OHM_LEAK_TRACK ${OHM_ASAN_OPTIONS_CUDA})
   leak_track_suppress(ohmqueryocl CONDITION OHM_LEAK_TRACK
@@ -52,6 +53,7 @@ if(OHM_BUILD_OPENCL)
 endif(OHM_BUILD_OPENCL)
 if(OHM_BUILD_CUDA)
   _ohmquery_setup(cuda)
+  clang_tidy_target(ohmquerycuda)
   leak_track_default_options(ohmquerycuda CONDITION OHM_LEAK_TRACK ${OHM_ASAN_OPTIONS_CUDA})
   leak_track_suppress(ohmquerycuda CONDITION OHM_LEAK_TRACK
     ${OHM_LEAK_SUPPRESS_CUDA}

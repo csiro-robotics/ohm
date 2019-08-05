@@ -40,12 +40,12 @@ using namespace ohm;
 namespace
 {
 #if defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
-  GpuProgramRef program_ref("LineKeys", GpuProgramRef::kSourceString, LineKeysCode, LineKeysCode_length);
+  GpuProgramRef program_ref("LineKeys", GpuProgramRef::kSourceString, LineKeysCode, LineKeysCode_length);  // NOLINT
 #else   // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
   GpuProgramRef program_ref("LineKeys", GpuProgramRef::kSourceFile, "LineKeys.cl");
 #endif  // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
 
-  bool readGpuResults(LineKeysQueryDetailGpu &query);
+  bool readGpuResults(LineKeysQueryDetailGpu &query);  // NOLINT(google-runtime-references)
 
   unsigned nextPow2(unsigned v)
   {
@@ -63,7 +63,7 @@ namespace
   // TODO(KS): Verify alignment.
   const size_t kGpuKeySize = sizeof(GpuKey);
 
-  bool initialiseGpu(LineKeysQueryDetailGpu &query)
+  bool initialiseGpu(LineKeysQueryDetailGpu &query)  // NOLINT(google-runtime-references)
   {
     if (query.gpu_ok)
     {
@@ -100,7 +100,7 @@ namespace
   }
 
 
-  bool lineKeysQueryGpu(LineKeysQueryDetailGpu &query, bool /*async*/)
+  bool lineKeysQueryGpu(LineKeysQueryDetailGpu &query, bool /*async*/)  // NOLINT(google-runtime-references)
   {
     // std::cout << "Prime kernel\n" << std::flush;
     // Size the buffers.
@@ -174,7 +174,7 @@ namespace
 
     const size_t ray_count = query.rays.size() / 2;
     size_t read_offset_count = 0;
-    short result_count = 0;
+    int16_t result_count = 0;
     for (size_t i = 0; i < ray_count; ++i)
     {
       // Read result count.

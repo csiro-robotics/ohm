@@ -20,6 +20,7 @@ target_include_directories(ohmhm2img SYSTEM
 )
 
 target_link_libraries(ohmhm2img PUBLIC ohm ohmutil ${ZLIB_LIBRARIES} ohmheightmaputil PNG::PNG)
+clang_tidy_target(ohmhm2img)
 
 source_group("source" REGULAR_EXPRESSION ".*$")
 # Needs CMake 3.8+:

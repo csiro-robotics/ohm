@@ -36,7 +36,7 @@ using namespace ohm;
 namespace
 {
 #if defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
-  GpuProgramRef program_ref("TransformSamples", GpuProgramRef::kSourceString, TransformSamplesCode,
+  GpuProgramRef program_ref("TransformSamples", GpuProgramRef::kSourceString, TransformSamplesCode,// NOLINT
                             TransformSamplesCode_length);
 #else   // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
   GpuProgramRef program_ref("TransformSamples", GpuProgramRef::kSourceFile, "TransformSamples.cl");
@@ -74,7 +74,7 @@ GpuTransformSamples::GpuTransformSamples(gputil::Device &gpu)
 }
 
 
-GpuTransformSamples::GpuTransformSamples(GpuTransformSamples &&other)
+GpuTransformSamples::GpuTransformSamples(GpuTransformSamples &&other) noexcept
   : imp_(other.imp_)
 {
   other.imp_ = nullptr;

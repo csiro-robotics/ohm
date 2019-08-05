@@ -80,14 +80,14 @@ namespace
   class LoadMapProgress : public ohm::SerialiseProgress
   {
   public:
-    LoadMapProgress(ProgressMonitor &monitor)
+    LoadMapProgress(ProgressMonitor &monitor)  // NOLINT(google-runtime-references)
       : monitor_(monitor)
     {}
 
     bool quit() const override { return ::quit > 1; }
 
     void setTargetProgress(unsigned target) override { monitor_.beginProgress(ProgressMonitor::Info(target)); }
-    void incrementProgress(unsigned inc = 1) override { monitor_.incrementProgressBy(inc); }
+    void incrementProgress(unsigned inc) override { monitor_.incrementProgressBy(inc); }
 
   private:
     ProgressMonitor &monitor_;
@@ -154,7 +154,7 @@ std::ostream &operator<<(std::ostream &out, const ExportMode mode)
 // Must be after argument streaming operators.
 #include <ohmutil/Options.h>
 
-int parseOptions(Options &opt, int argc, char *argv[])
+int parseOptions(Options *opt, int argc, char *argv[])
 {
   cxxopts::Options opt_parse(argv[0], "Convert an occupancy map to a point cloud. Defaults to generate a positional "
                                       "point cloud, but can generate a clearance cloud as well.");
@@ -166,16 +166,16 @@ int parseOptions(Options &opt, int argc, char *argv[])
     // clang-format off
     opt_parse.add_options()
       ("help", "Show help.")
-      ("colour-scale", "Colour max scaling value for colouring a clearance or heightmap cloud. Max colour at this range..", cxxopts::value(opt.colour_scale))
-      ("cloud", "The output cloud file (ply).", cxxopts::value(opt.ply_file))
-      ("cull", "Remove regions farther than the specified distance from the map origin.", cxxopts::value(opt.cull_distance)->default_value(optStr(opt.cull_distance)))
-      ("map", "The input map file (ohm).", cxxopts::value(opt.map_file))
+      ("colour-scale", "Colour max scaling value for colouring a clearance or heightmap cloud. Max colour at this range..", cxxopts::value(opt->colour_scale))
+      ("cloud", "The output cloud file (ply).", cxxopts::value(opt->ply_file))
+      ("cull", "Remove regions farther than the specified distance from the map origin.", cxxopts::value(opt->cull_distance)->default_value(optStr(opt->cull_distance)))
+      ("map", "The input map file (ohm).", cxxopts::value(opt->map_file))
       ("mode", "Export mode [occupancy,occupancy-centre,clearance,heightmap,heightmap-mesh]: select which data to export from the "
                "map. occupancy and occupancy-centre differ only in that the latter forces positioning on voxel "
-               "centres.", cxxopts::value(opt.mode)->default_value(optStr(opt.mode)))
-      ("heightmap-axis", "Axis for the heightmap vertical axis [x, y, z].", cxxopts::value(opt.heightmap_axis)->default_value(optStr(opt.heightmap_axis)))
-      ("expire", "Expire regions with a timestamp before the specified time. These are not exported.", cxxopts::value(opt.expiry_time))
-      ("threshold", "Override the map's occupancy threshold. Only occupied points are exported.", cxxopts::value(opt.occupancy_threshold)->default_value(optStr(opt.occupancy_threshold)))
+               "centres.", cxxopts::value(opt->mode)->default_value(optStr(opt->mode)))
+      ("heightmap-axis", "Axis for the heightmap vertical axis [x, y, z].", cxxopts::value(opt->heightmap_axis)->default_value(optStr(opt->heightmap_axis)))
+      ("expire", "Expire regions with a timestamp before the specified time. These are not exported.", cxxopts::value(opt->expiry_time))
+      ("threshold", "Override the map's occupancy threshold. Only occupied points are exported.", cxxopts::value(opt->occupancy_threshold)->default_value(optStr(opt->occupancy_threshold)))
       ;
     // clang-format on
 
@@ -190,12 +190,12 @@ int parseOptions(Options &opt, int argc, char *argv[])
       return 1;
     }
 
-    if (opt.map_file.empty())
+    if (opt->map_file.empty())
     {
       std::cerr << "Missing input map file name" << std::endl;
       return -1;
     }
-    if (opt.ply_file.empty())
+    if (opt->ply_file.empty())
     {
       std::cerr << "Missing output file name" << std::endl;
       return -1;
@@ -216,7 +216,7 @@ int main(int argc, char *argv[])
   Options opt;
   std::cout.imbue(std::locale(""));
 
-  int res = parseOptions(opt, argc, argv);
+  int res = parseOptions(&opt, argc, argv);
 
   if (res)
   {
@@ -332,14 +332,14 @@ int main(int argc, char *argv[])
       map.setOccupancyThresholdProbability(opt.occupancy_threshold);
     }
 
-    if (opt.cull_distance)
+    if (opt.cull_distance > 0)
     {
       std::cout << "Culling regions beyond range : " << opt.cull_distance << std::endl;
       const unsigned removed = map.removeDistanceRegions(map.origin(), opt.cull_distance);
       std::cout << "Removed " << removed << " regions" << std::endl;
       ;
     }
-    if (opt.expiry_time)
+    if (opt.expiry_time > 0)
     {
       std::cout << "Expiring regions before time: " << opt.expiry_time << std::endl;
       unsigned removed = map.expireRegions(opt.expiry_time);

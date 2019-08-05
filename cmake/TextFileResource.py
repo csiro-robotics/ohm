@@ -214,7 +214,7 @@ with open(args.output_header, 'w') as header_file:
 #define {1}
 
 extern const unsigned {2}_length; // NOLINT
-extern const char *{2}; // NOLINT
+extern const char * const {2}; // NOLINT
 
 #endif // {1}
 """.format(args.input, header_guard, resource_name))
@@ -286,5 +286,5 @@ static const char {2}_[] =  // NOLINT\n""".format(args.input, os.path.basename(a
 
     source_file.write(input_file_content_string)
     source_file.write('; // NOLINT\n')
-    source_file.write("const char *{0} = {0}_; // NOLINT\n".format(resource_name))
+    source_file.write("const char * const {0} = {0}_; // NOLINT\n".format(resource_name))
     source_file.write('\n')

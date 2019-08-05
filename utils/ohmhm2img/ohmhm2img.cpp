@@ -91,25 +91,25 @@ namespace
   class LoadMapProgress : public ohm::SerialiseProgress
   {
   public:
-    LoadMapProgress(ProgressMonitor &monitor)
+    LoadMapProgress(ProgressMonitor &monitor)  // NOLINT(google-runtime-references)
       : monitor_(monitor)
     {}
 
     bool quit() const override { return ::quit > 1; }
 
     void setTargetProgress(unsigned target) override { monitor_.beginProgress(ProgressMonitor::Info(target)); }
-    void incrementProgress(unsigned inc = 1) override { monitor_.incrementProgressBy(inc); }
+    void incrementProgress(unsigned inc) override { monitor_.incrementProgressBy(inc); }
 
   private:
     ProgressMonitor &monitor_;
   };
 
-  ExportImageType convertImage(std::vector<uint8_t> &export_pixels, const uint8_t *raw,
-                               const ohm::HeightmapImage::BitmapInfo &info, const Options &opt)
+  ExportImageType convertImage(std::vector<uint8_t> &export_pixels,  // NOLINT(google-runtime-references)
+                               const uint8_t *raw, const ohm::HeightmapImage::BitmapInfo &info, const Options &opt)
   {
     if (info.type == ohm::HeightmapImage::kImageVertexColours888)
     {
-      export_pixels.resize(info.image_width * info.image_height * 3);
+      export_pixels.resize(size_t(info.image_width) * size_t(info.image_height) * 3u);
       memcpy(export_pixels.data(), raw, export_pixels.size());
       return kExportRGB8;
     }
@@ -136,7 +136,8 @@ namespace
         *reinterpret_cast<uint16_t *>(&out[insert_index]) = c;
       };
 
-      for (size_t i = 0; i < info.image_width * info.image_height * info.bpp; i += 3 * sizeof(float))
+      for (size_t i = 0; i < size_t(info.image_width) * size_t(info.image_height) * size_t(info.bpp);
+           i += 3 * sizeof(float))
       {
         red = *reinterpret_cast<const float *>(raw + i);
         green = *reinterpret_cast<const float *>(raw + i + sizeof(float));
@@ -162,7 +163,7 @@ namespace
 
     if (opt.image_mode == kNormals8 && info.type == ohm::HeightmapImage::kImageNormals888)
     {
-      export_pixels.resize(info.image_width * info.image_height * 3);
+      export_pixels.resize(size_t(info.image_width) * size_t(info.image_height) * 3u);
       memcpy(export_pixels.data(), raw, export_pixels.size());
       return kExportRGB8;
     }
@@ -173,7 +174,7 @@ namespace
       const float *depth_pixels = reinterpret_cast<const float *>(raw);
       uint16_t *depth_out = reinterpret_cast<uint16_t *>(export_pixels.data());
 
-      for (size_t i = 0; i < info.image_width * info.image_height; ++i)
+      for (size_t i = 0; i < size_t(info.image_width) * size_t(info.image_height); ++i)
       {
         depth_out[i] = uint16_t(1.0f - depth_pixels[i] * float(0xffffu));
       }
@@ -185,7 +186,7 @@ namespace
     {
       static_assert(sizeof(glm::vec3) == sizeof(float) * 3, "glm::vec3 mismatch");
       const glm::vec3 *pseudo_normals = reinterpret_cast<const glm::vec3 *>(raw);
-      export_pixels.resize(info.image_width * info.image_height);
+      export_pixels.resize(size_t(info.image_width) * size_t(info.image_height));
 
       const uint8_t c_unknown = 127u;
       const uint8_t c_blocked = 0u;
@@ -195,7 +196,7 @@ namespace
       float dot;
       const float free_threshold = float(std::cos(M_PI * opt.traverse_angle / 180.0));
 
-      for (size_t i = 0; i < info.image_width * info.image_height; ++i)
+      for (size_t i = 0; i < size_t(info.image_width) * size_t(info.image_height); ++i)
       {
         if (glm::dot(pseudo_normals[i], pseudo_normals[i]) > 0.5f * 0.5f)
         {
@@ -361,29 +362,29 @@ std::ostream &operator<<(std::ostream &out, const ohm::HeightmapMesh::NormalsMod
 // Must be after argument streaming operators.
 #include <ohmutil/Options.h>
 
-int parseOptions(Options &opt, int argc, char *argv[])
+int parseOptions(Options *opt, int argc, char *argv[])
 {
   cxxopts::Options optParse(argv[0], "\nCreate a heightmap from an occupancy map.\n");
   optParse.positional_help("<heightmap.ohm> <image.png>");
 
   try
   {
-    optParse.add_options()("help", "Show help.")                                       //
-      ("i", "The input heightmap file (ohm).", cxxopts::value(opt.map_file))           //
-      ("o", "The output heightmap image file (png).", cxxopts::value(opt.image_file))  //
+    optParse.add_options()("help", "Show help.")                                        //
+      ("i", "The input heightmap file (ohm).", cxxopts::value(opt->map_file))           //
+      ("o", "The output heightmap image file (png).", cxxopts::value(opt->image_file))  //
       ("m,mode",
        "The image output mode [norm8, norm16, height, traverse]. norm8 exports a normal map image with 8 bits per "
        "pixel. norm16 "
        "uses 16 bits per pixel. height is a greyscale image where the colour is the relative heights. traverse colours "
        "by traversability black (non-traversable), white (traversable), grey (unknown) based on the --traverse-angle "
        "argument.",
-       cxxopts::value(opt.image_mode)->default_value(optStr(opt.image_mode)))  //
+       cxxopts::value(opt->image_mode)->default_value(optStr(opt->image_mode)))  //
       ("traverse-angle", "The maximum traversable angle (degrees) for use with mode=traverse.",
-       cxxopts::value(opt.traverse_angle)->default_value(optStr(opt.traverse_angle)))  //
+       cxxopts::value(opt->traverse_angle)->default_value(optStr(opt->traverse_angle)))  //
       ("normals",
        "Defines how vertex normals are calculated: [average/avg, worst]. average averages triangle normals, worst "
        "selects the least horizontal triangle normal for a vertex.",
-       cxxopts::value(opt.normals_mode)->default_value(optStr(opt.normals_mode)))  //
+       cxxopts::value(opt->normals_mode)->default_value(optStr(opt->normals_mode)))  //
       ;
 
     optParse.parse_positional({ "i", "o" });
@@ -397,13 +398,13 @@ int parseOptions(Options &opt, int argc, char *argv[])
       return 1;
     }
 
-    if (opt.map_file.empty())
+    if (opt->map_file.empty())
     {
       std::cerr << "Missing input map" << std::endl;
       return -1;
     }
 
-    if (opt.image_file.empty())
+    if (opt->image_file.empty())
     {
       std::cerr << "Missing output name" << std::endl;
       return -1;
@@ -422,7 +423,7 @@ int parseOptions(Options &opt, int argc, char *argv[])
 std::string generateYamlName(const std::string &image_file)
 {
   // Find replace the extension with .yaml
-  auto last_dot_pos = image_file.find_last_of(".");
+  auto last_dot_pos = image_file.find_last_of('.');
   std::string yaml_name;
   if (last_dot_pos != std::string::npos)
   {
@@ -438,7 +439,8 @@ std::string generateYamlName(const std::string &image_file)
 }
 
 
-bool saveMetaData(const std::string yaml_file, const Options &opt, ohm::Heightmap &heightmap,
+bool saveMetaData(const std::string yaml_file, const Options &opt,
+                  ohm::Heightmap &heightmap,  // NOLINT(google-runtime-references)
                   const ohm::HeightmapImage::BitmapInfo &info, ExportImageType image_format)
 {
   std::ofstream out(yaml_file.c_str());
@@ -532,7 +534,7 @@ int main(int argc, char *argv[])
   std::cout.imbue(std::locale(""));
 
   int res = 0;
-  res = parseOptions(opt, argc, argv);
+  res = parseOptions(&opt, argc, argv);
 
   if (res)
   {
@@ -548,7 +550,7 @@ int main(int argc, char *argv[])
   ohm::Heightmap heightmap;
   ohm::MapVersion version;
 
-  prog.setDisplayFunction([&opt](const ProgressMonitor::Progress &prog) {
+  prog.setDisplayFunction([](const ProgressMonitor::Progress &prog) {
     std::ostringstream str;
     str << '\r';
     str << prog.progress;

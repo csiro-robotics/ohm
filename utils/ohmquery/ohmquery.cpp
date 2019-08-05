@@ -38,10 +38,10 @@
 #include <locale>
 #include <sstream>
 
-typedef std::chrono::high_resolution_clock TimingClock;
-
 namespace
 {
+  using TimingClock = std::chrono::high_resolution_clock;
+
   int quit = 0;
 
   void onSignal(int arg)
@@ -113,14 +113,14 @@ namespace
   class LoadMapProgress : public ohm::SerialiseProgress
   {
   public:
-    LoadMapProgress(ProgressMonitor &monitor)
+    LoadMapProgress(ProgressMonitor &monitor)  // NOLINT(google-runtime-references)
       : monitor_(monitor)
     {}
 
     bool quit() const override { return ::quit > 1; }
 
     void setTargetProgress(unsigned target) override { monitor_.beginProgress(ProgressMonitor::Info(target)); }
-    void incrementProgress(unsigned inc = 1) override { monitor_.incrementProgressBy(inc); }
+    void incrementProgress(unsigned inc) override { monitor_.incrementProgressBy(inc); }
 
   private:
     ProgressMonitor &monitor_;
@@ -192,7 +192,7 @@ inline std::ostream &operator<<(std::ostream &out, const Options::Ranges &r)
 // Must come after streaming operators for custom command line arguments are defined.
 #include <ohmutil/Options.h>
 
-int parseOptions(Options &opt, int argc, char *argv[])
+int parseOptions(Options *opt, int argc, char *argv[])
 {
   cxxopts::Options opt_parse(argv[0],
                              "\nLoads an occupancy map file and runs a single query on the map, exporting the\n"
@@ -207,17 +207,17 @@ int parseOptions(Options &opt, int argc, char *argv[])
   {
     // clang-format off
     opt_parse.add_options()
-      ("gpu", "Use GPU based queries where possible", optVal(opt.use_gpu))
-      ("q,quiet", "Run in quiet mode. Suppresses progress messages.", optVal(opt.use_gpu))
-      ("gpu-compare", "Compare CPU and GPU results for the query. Implies '--gpu'.", optVal(opt.gpu_compare))
-      ("hard-reset", "Perform a hard reset when repeatedly executing a query (--repeat option). Soft reset is the default.", optVal(opt.hard_reset_on_repeat))
-      ("map", "The input map file to load <<mapfile>-near.ply> and <<mapfile>-line.ply>", optVal(opt.map_file))
-      ("o,output", "Sets the base PLY file names to save results to. Defaults to <<mapfile>-near.ply> and <<mapfile>-line.ply>", optVal(opt.output_base))
-      ("line", "Perform a line segment test from (x1,y1,z1) to (x2,y2,z2) considering voxels withing radius r of the line segment.", optVal(opt.line), "x1,y1,z1,x2,y2,z2,r")
-      ("near", "Perform a nearest neighbours query at the point (x,y,z) with a radius of r.", optVal(opt.neighbours), "x,y,z,r")
-      // ("ranges", "Calculate the nearest occupied voxel for each voxel in the specified min/max extents, (x1,y1,z1) to (x2,y2,z2).", optVal(opt.ranges), "x1,y1,z1,x2,y2,z2,r")
-      ("repeat", "Repeat the query N times. For timing evaluation.", optVal(opt.repeat))
-      ("uao", "Treat unknown space as occupied/obstructed?", optVal(opt.unknown_as_occupied))
+      ("gpu", "Use GPU based queries where possible", optVal(opt->use_gpu))
+      ("q,quiet", "Run in quiet mode. Suppresses progress messages.", optVal(opt->use_gpu))
+      ("gpu-compare", "Compare CPU and GPU results for the query. Implies '--gpu'.", optVal(opt->gpu_compare))
+      ("hard-reset", "Perform a hard reset when repeatedly executing a query (--repeat option). Soft reset is the default.", optVal(opt->hard_reset_on_repeat))
+      ("map", "The input map file to load <<mapfile>-near.ply> and <<mapfile>-line.ply>", optVal(opt->map_file))
+      ("o,output", "Sets the base PLY file names to save results to. Defaults to <<mapfile>-near.ply> and <<mapfile>-line.ply>", optVal(opt->output_base))
+      ("line", "Perform a line segment test from (x1,y1,z1) to (x2,y2,z2) considering voxels withing radius r of the line segment.", optVal(opt->line), "x1,y1,z1,x2,y2,z2,r")
+      ("near", "Perform a nearest neighbours query at the point (x,y,z) with a radius of r.", optVal(opt->neighbours), "x,y,z,r")
+      // ("ranges", "Calculate the nearest occupied voxel for each voxel in the specified min/max extents, (x1,y1,z1) to (x2,y2,z2).", optVal(opt->ranges), "x1,y1,z1,x2,y2,z2,r")
+      ("repeat", "Repeat the query N times. For timing evaluation.", optVal(opt->repeat))
+      ("uao", "Treat unknown space as occupied/obstructed?", optVal(opt->unknown_as_occupied))
     ;
     // clang-format off
 
@@ -234,18 +234,18 @@ int parseOptions(Options &opt, int argc, char *argv[])
 
     bool ok = true;
 
-    if (opt.map_file.empty())
+    if (opt->map_file.empty())
     {
       ok = false;
       std::cerr << "Missing input map" << std::endl;
     }
 
-    if (opt.ranges.min.x > opt.ranges.max.x ||
-        opt.ranges.min.y > opt.ranges.max.y ||
-        opt.ranges.min.z > opt.ranges.max.z)
+    if (opt->ranges.min.x > opt->ranges.max.x ||
+        opt->ranges.min.y > opt->ranges.max.y ||
+        opt->ranges.min.z > opt->ranges.max.z)
     {
       ok = false;
-      std::cerr << "Minimum range " << opt.ranges.min << " exceeds maximum " << opt.ranges.max << std::endl;
+      std::cerr << "Minimum range " << opt->ranges.min << " exceeds maximum " << opt->ranges.max << std::endl;
     }
 
     if (!ok)
@@ -259,9 +259,9 @@ int parseOptions(Options &opt, int argc, char *argv[])
     return -1;
   }
 
-  if (opt.gpu_compare)
+  if (opt->gpu_compare)
   {
-    opt.use_gpu = true;
+    opt->use_gpu = true;
   }
 
   return 0;
@@ -408,7 +408,8 @@ void showTiming(const char *info, const TimingClock::time_point &start_time, con
 }
 
 
-bool compareCpuGpuQuery(const char *query_name, ohm::Query &query, const float epsilon = 1e-5f)
+bool compareCpuGpuQuery(const char *query_name, ohm::Query &query,  // NOLINT(google-runtime-references)
+                        const float epsilon = 1e-5f)
 {
   std::string timing_info_str;
   TimingClock::time_point query_start, query_end;
@@ -428,8 +429,11 @@ bool compareCpuGpuQuery(const char *query_name, ohm::Query &query, const float e
 
   if (query.numberOfResults())
   {
-    memcpy(keys.data(), query.intersectedVoxels(), sizeof(*keys.data()) * query.numberOfResults());
-    memcpy(ranges.data(), query.ranges(), sizeof(*ranges.data()) * query.numberOfResults());
+    for (size_t i = 0; i < query.numberOfResults(); ++i)
+    {
+      keys[i] = query.intersectedVoxels()[i];
+      ranges[i] = query.ranges()[i];
+    }
   }
 
   std::cout <<
@@ -514,7 +518,8 @@ bool compareCpuGpuQuery(const char *query_name, ohm::Query &query, const float e
 }
 
 
-void executeQuery(const char *query_name, const Options &opt, ohm::Query &query, const float range_epsilon = 1e-5f)
+void executeQuery(const char *query_name, const Options &opt, ohm::Query &query,  // NOLINT(google-runtime-references)
+                  const float range_epsilon = 1e-5f)
 {
   if (!opt.gpu_compare)
   {
@@ -794,7 +799,7 @@ int main(int argc, char *argv[])
 
   std::cout.imbue(std::locale(""));
 
-  int res = parseOptions(opt, argc, argv);
+  int res = parseOptions(&opt, argc, argv);
 
   if (res)
   {
@@ -807,7 +812,7 @@ int main(int argc, char *argv[])
   // Generate output name based on input if not specified.
   if (opt.output_base.empty())
   {
-    const auto extension_start = opt.map_file.find_last_of(".");
+    const auto extension_start = opt.map_file.find_last_of('.');
     if (extension_start != std::string::npos)
     {
       opt.output_base = opt.map_file.substr(0, extension_start);
