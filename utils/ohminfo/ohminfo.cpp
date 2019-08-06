@@ -48,24 +48,24 @@ namespace
 
 int parseOptions(Options *opt, int argc, char *argv[])
 {
-  cxxopts::Options optParse(argv[0], "\nProvide information about the contents of an occupancy map file.\n");
-  optParse.positional_help("<map.ohm>");
+  cxxopts::Options opt_parse(argv[0], "\nProvide information about the contents of an occupancy map file.\n");
+  opt_parse.positional_help("<map.ohm>");
 
   try
   {
-    optParse.add_options()("help", "Show help.")("i,map", "The input map file (ohm) to load.",
+    opt_parse.add_options()("help", "Show help.")("i,map", "The input map file (ohm) to load.",
                                                  cxxopts::value(opt->map_file))(
       "extents", "Run in quiet mode. Suppresses progress messages.",
       optVal(opt->calculate_extents)->implicit_value("true"));
 
-    optParse.parse_positional({ "map" });
+    opt_parse.parse_positional({ "map" });
 
-    cxxopts::ParseResult parsed = optParse.parse(argc, argv);
+    cxxopts::ParseResult parsed = opt_parse.parse(argc, argv);
 
     if (parsed.count("help") || parsed.arguments().empty())
     {
       // show usage.
-      std::cout << optParse.help({ "", "Group" }) << std::endl;
+      std::cout << opt_parse.help({ "", "Group" }) << std::endl;
       return 1;
     }
 

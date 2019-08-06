@@ -84,12 +84,12 @@ inline std::ostream &operator<<(std::ostream &out, const ohm::Aabb &box)
 
 int parseOptions(Options *opt, int argc, char *argv[])
 {
-  cxxopts::Options optParse(argv[0], "\nExtract a submap from an existing map.\n");
-  optParse.positional_help("<map-in.ohm> <map-out.ohm>");
+  cxxopts::Options opt_parse(argv[0], "\nExtract a submap from an existing map.\n");
+  opt_parse.positional_help("<map-in.ohm> <map-out.ohm>");
 
   try
   {
-    optParse.add_options()("help", "Show help.")                                                                 //
+    opt_parse.add_options()("help", "Show help.")                                                                 //
       ("i,map", "The input map file (ohm) to load.", cxxopts::value(opt->map_in))                                 //
       ("o", "The input map file (ohm) to load.", cxxopts::value(opt->map_out))                                    //
       ("box", "Specify the submap extents as six floats; minx,miny,minz,maxx,maxy,maxz", optVal(opt->box))        //
@@ -97,14 +97,14 @@ int parseOptions(Options *opt, int argc, char *argv[])
       ("extents", "Specify the submap extents diagonal as three floats (positive); x,y,z", optVal(opt->extents))  //
       ;
 
-    optParse.parse_positional({ "i", "o" });
+    opt_parse.parse_positional({ "i", "o" });
 
-    cxxopts::ParseResult parsed = optParse.parse(argc, argv);
+    cxxopts::ParseResult parsed = opt_parse.parse(argc, argv);
 
     if (parsed.count("help") || parsed.arguments().empty())
     {
       // show usage.
-      std::cout << optParse.help({ "", "Group" }) << std::endl;
+      std::cout << opt_parse.help({ "", "Group" }) << std::endl;
       return 1;
     }
 
@@ -168,7 +168,6 @@ int main(int argc, char *argv[])
   signal(SIGTERM, onSignal);
 
   ohm::OccupancyMap map(1.0f);
-  ohm::MapVersion version{};
 
   std::cout << "Loading" << std::flush;
   res = ohm::load(opt.map_in.c_str(), map);

@@ -13,7 +13,7 @@
 
 #include "GlmStream.h"
 
-#include "cxxopts.hpp"
+#include <cxxopts/cxxopts.hpp>
 
 template <typename T>
 inline std::string optStr(const T &value)

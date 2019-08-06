@@ -209,13 +209,13 @@ namespace
 
   enum SaveFlags : unsigned
   {
-    SaveMap = (1 << 0),
-    SaveCloud = (1 << 1),
+    kSaveMap = (1 << 0),
+    kSaveCloud = (1 << 1),
     // SaveClearanceCloud = (1 << 2),
   };
 
   void saveMap(const Options &opt, const ohm::OccupancyMap &map, const std::string &base_name, ProgressMonitor *prog,
-               unsigned save_flags = SaveMap)
+               unsigned save_flags = kSaveMap)
   {
     std::unique_ptr<SerialiseMapProgress> save_progress(prog ? new SerialiseMapProgress(*prog) : nullptr);
 
@@ -224,7 +224,7 @@ namespace
       return;
     }
 
-    if (save_flags & SaveMap)
+    if (save_flags & kSaveMap)
     {
       std::string output_file = base_name + ".ohm";
       std::cout << "Saving map to " << output_file.c_str() << std::endl;
@@ -251,7 +251,7 @@ namespace
       }
     }
 
-    if (save_flags & SaveCloud)
+    if (save_flags & kSaveCloud)
     {
       // Save a cloud representation.
       std::cout << "Converting to point cloud." << std::endl;
@@ -725,7 +725,7 @@ int populateMap(const Options &opt)
 
   if (opt.serialise)
   {
-    saveMap(opt, map, opt.output_base_name, &prog, SaveMap | SaveCloud);
+    saveMap(opt, map, opt.output_base_name, &prog, kSaveMap | kSaveCloud);
   }
 
   prog.joinThread();

@@ -269,21 +269,21 @@ int parseOptions(Options *opt, int argc, char *argv[])
 
 void initialiseDebugCategories(const Options &/*opt*/)
 {
-  // TES_CATEGORY(ohm::g_3es, "Map", CAT_Map, 0, true);
-  // TES_CATEGORY(ohm::g_3es, "Populate", CAT_Populate, 0, true);
+  // TES_CATEGORY(ohm::g_3es, "Map", Category::kMap, 0, true);
+  // TES_CATEGORY(ohm::g_3es, "Populate", Category::kPopulate, 0, true);
   // TES_IF(opt.rays & Rays_Lines)
   // {
-  //   TES_CATEGORY(ohm::g_3es, "Rays", CAT_Rays, CAT_Populate, (opt.rays & Rays_Lines) != 0);
+  //   TES_CATEGORY(ohm::g_3es, "Rays", Category::kRays, Category::kPopulate, (opt.rays & Rays_Lines) != 0);
   // }
   // TES_IF(opt.rays & Rays_Voxels)
   // {
-  //   TES_CATEGORY(ohm::g_3es, "Free", CAT_FreeCells, CAT_Populate, (opt.rays & Rays_Lines) == 0);
+  //   TES_CATEGORY(ohm::g_3es, "Free", Category::kFreeCells, Category::kPopulate, (opt.rays & Rays_Lines) == 0);
   // }
   // TES_IF(opt.samples)
   // {
-  //   TES_CATEGORY(ohm::g_3es, "Occupied", CAT_OccupiedCells, CAT_Populate, true);
+  //   TES_CATEGORY(ohm::g_3es, "Occupied", Category::kOccupiedCells, Category::kPopulate, true);
   // }
-  // TES_CATEGORY(ohm::g_3es, "Info", CAT_Info, 0, true);
+  // TES_CATEGORY(ohm::g_3es, "Info", Category::kInfo, 0, true);
 }
 
 void saveQueryCloud(const ohm::OccupancyMap &map, const ohm::Query &query, const Options &opt,

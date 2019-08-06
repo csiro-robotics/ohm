@@ -7,7 +7,6 @@ find_package(Threads)
 set(SOURCES
   Colour.cpp
   Colour.h
-  cxxopts.hpp
   p2p.h
   # OhmUtil.cpp
   OhmUtil.h
@@ -35,11 +34,16 @@ set(SOURCES
   VectorHash.h
 )
 
+# Split 3rd-party headers so we can include them as system headers and don't need to address clang-tidy issues.
 set(PUBLIC_SKA_HEADERS
   3rdparty/ska/bytell_hash_map.hpp
   3rdparty/ska/flat_hash_map.hpp
   3rdparty/ska/ska_sort.hpp
   3rdparty/ska/unordered_map.hpp
+)
+
+set(PUBLIC_CXXOPT_HEADERS
+  3rdparty/cxxopts/cxxopts.hpp
 )
 
 set(PUBLIC_HEADERS
@@ -101,6 +105,7 @@ install(TARGETS ohmutil EXPORT ${CMAKE_PROJECT_NAME}-config-targets
 
 install(FILES ${PUBLIC_HEADERS} DESTINATION ${OHM_PREFIX_INCLUDE}/ohmutil)
 install(FILES ${PUBLIC_SKA_HEADERS} DESTINATION ${OHM_PREFIX_INCLUDE}/ohmutil/ska)
+install(FILES ${PUBLIC_3P_HEADERS} DESTINATION ${OHM_PREFIX_INCLUDE}/ohmutil/cxxopts)
 
 source_group("source" REGULAR_EXPRESSION ".*$")
 # Needs CMake 3.8+:

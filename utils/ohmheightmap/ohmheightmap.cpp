@@ -75,12 +75,12 @@ namespace
 
 int parseOptions(Options *opt, int argc, char *argv[])
 {
-  cxxopts::Options optParse(argv[0], "\nCreate a heightmap from an occupancy map.\n");
-  optParse.positional_help("<map.ohm> <heightmap.ohm>");
+  cxxopts::Options opt_parse(argv[0], "\nCreate a heightmap from an occupancy map.\n");
+  opt_parse.positional_help("<map.ohm> <heightmap.ohm>");
 
   try
   {
-    optParse.add_options()("help", "Show help.")("i", "The input map file (ohm).", cxxopts::value(opt->map_file))  //
+    opt_parse.add_options()("help", "Show help.")("i", "The input map file (ohm).", cxxopts::value(opt->map_file))  //
       ("o", "The output heightmap file (ohm).", cxxopts::value(opt->heightmap_file))                               //
       ("base", "Base height: heightmap values are stored relative to this height.", optVal(opt->base_height))      //
       ("clearance", "The required height clearance for a heightmap surface voxel.", optVal(opt->clearance))        //
@@ -91,14 +91,14 @@ int parseOptions(Options *opt, int argc, char *argv[])
       ("no-sub-vox", "Ignore sub-voxel positioning if available?.", optVal(opt->no_sub_voxel))  //
       ;
 
-    optParse.parse_positional({ "i", "o" });
+    opt_parse.parse_positional({ "i", "o" });
 
-    cxxopts::ParseResult parsed = optParse.parse(argc, argv);
+    cxxopts::ParseResult parsed = opt_parse.parse(argc, argv);
 
     if (parsed.count("help") || parsed.arguments().empty())
     {
       // show usage.
-      std::cout << optParse.help({ "", "Group" }) << std::endl;
+      std::cout << opt_parse.help({ "", "Group" }) << std::endl;
       return 1;
     }
 

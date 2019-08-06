@@ -6,22 +6,22 @@
 
 namespace ohm
 {
-  enum Category
+  enum class Category
   {
-    CAT_Default,
-    CAT_Map,
+    kDefault,
+    kMap,
     // Parent category for below.
-    CAT_Populate,
-    CAT_Rays,
-    CAT_FreeCells,
-    CAT_OccupiedCells,
-    CAT_Info
+    kPopulate,
+    kRays,
+    kFreeCells,
+    kOccupiedCells,
+    kInfo
   };
 
   enum Resource
   {
-    RES_Map = 1,
-    RES_MapMesh = 1,  // OK to be the same as RES_Map. One is object, the other is resource.
+    kMap = 1,
+    kMapMesh = 1,  // OK to be the same as kMap. One is object, the other is resource.
   };
 }  // namespace ohm
 

@@ -59,7 +59,8 @@ public:
   {
     va_list args;
     va_start(args, format);
-    vfprintf(file_, format, args);
+    // Why does clang-tidy think args is not initialised?
+    vfprintf(file_, format, args);  // NOLINT(clang-analyzer-valist.Uninitialized)
     va_end(args);
   }
 
@@ -94,7 +95,8 @@ public:
     int written = 0;
     va_list args;
     va_start(args, format);
-    written = vsnprintf(buffer_, kBufferSize, format, args);
+    // Why does clang-tidy think args is not initialised?
+    written = vsnprintf(buffer_, kBufferSize, format, args);  // NOLINT(clang-analyzer-valist.Uninitialized)
     va_end(args);
     buffer_[std::min<unsigned>(written, kBufferSize)] = '\0';
     *stream_ << buffer_;
