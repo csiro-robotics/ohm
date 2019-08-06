@@ -87,7 +87,7 @@ set(_TEXT_FILE_RESOURCE_PY "${CMAKE_CURRENT_LIST_DIR}/TextFileResource.py")
 # FIXME: strings are limited to 2^16 - 1 characters. Provide a workaround.
 function(text_file_resource TEXT_FILE RESOURCE_NAME)
   # Requires python to do the conversion.
-  find_package(PythonInterp 3 REQUIRED)
+  find_package(PythonInterp REQUIRED)
 
   cmake_parse_arguments(TFR "BINARY;MINIFY;NO_IMPORT;ECHO" "COMMENT_PATTERN;INCLUDE_PATTERN;FILELIST;TYPE" "PATHS" ${ARGN})
 
@@ -131,7 +131,6 @@ function(text_file_resource TEXT_FILE RESOURCE_NAME)
     message("${PYTHON_EXECUTABLE} ${_TEXT_FILE_RESOURCE_PY} ${TEXT_FILE} ${CMAKE_CURRENT_BINARY_DIR}/${BASE_FILE} --name=${RESOURCE_NAME} ${ARGS}")
   endif(TFR_ECHO)
 
-  # Python 3 available. Use python version.
   execute_process(
     COMMAND "${PYTHON_EXECUTABLE}" "${_TEXT_FILE_RESOURCE_PY}" "${TEXT_FILE}" "${CMAKE_CURRENT_BINARY_DIR}/${BASE_FILE}" --name=${RESOURCE_NAME} ${ARGS}
     OUTPUT_VARIABLE PROCESS_OUTPUT ERROR_VARIABLE PROCESS_OUTPUT

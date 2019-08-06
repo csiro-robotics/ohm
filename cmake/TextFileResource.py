@@ -9,6 +9,9 @@ import os.path
 import re
 import sys
 
+if sys.version_info[0] == 2:
+    import __future__
+
 #-------------------------------------------------------------------------------
 # Argument parsing setup
 #-------------------------------------------------------------------------------
@@ -262,12 +265,15 @@ if input_file_content_length < 1 << 16 and args.mode == 'text':
     input_file_content_string = '"' + input_file_content_string + '"'
 else:
     # String too long. Convert the original content to byte array.
+    input_file_content_bytes = []
     input_file_content_bytes = input_file_content.encode('utf8')
     input_file_content_length = len(input_file_content_bytes)
     input_file_content_string = ''
     content_buffer = ['{\n']
     buffered_count = 0
     for byte in input_file_content_bytes:
+        if sys.version_info < (3, 0):
+            byte = ord(byte)
         content_buffer.append(str(byte))
         content_buffer.append(',')
         buffered_count += 2
