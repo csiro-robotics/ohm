@@ -51,21 +51,6 @@ if(NOT CLANG_TIDY_EXE)
   return()
 endif(NOT CLANG_TIDY_EXE)
 
-find_program(CLANG_APPLY_REPLACEMENTS_EXE
-             NAMES
-              "clang-apply-replacements"
-              "clang-apply-replacements-7.0"
-              "clang-apply-replacements-7"
-              "clang-apply-replacements-6.0"
-              "clang-apply-replacements-6"
-              "clang-apply-replacements-5.0"
-              "clang-apply-replacements-5"
-            DOC "Path to clang-apply-replacements executable")
-
-if(NOT CLANG_APPLY_REPLACEMENTS_EXE)
-  message("clang-apply-replacements not found: clang-tidy fixes will not be available")
-endif(NOT CLANG_APPLY_REPLACEMENTS_EXE)
-
 #-------------------------------------------------------------------------------
 # Enable generation of compile_commands.json for Makefiles and Ninja.
 #-------------------------------------------------------------------------------
@@ -135,12 +120,9 @@ function(__ctt_setup_target TARGET WORKING_DIRECTORY)
 
   # Convert CTT_FIX to either be empty or '-fix' when the argument is present. Also set CTT_SUFFIX to '-fix' to the in
   # the latter case.
-  set(CTT_APPLY_FIX_EXE_ARG)
   if(CTT_FIX)
     set(CTT_FIX "-fix")
     set(CTT_SUFFIX "-fix")
-    # run-clang-tidy.py needs the exe clang-apply-replacements to apply fixes.
-    set(CTT_APPLY_FIX_EXE_ARG "-clang-apply-replacements-binary=${CLANG_APPLY_REPLACEMENTS_EXE}")
     set(CTT_)
   else(CTT_FIX)
     set(CTT_FIX)
@@ -149,13 +131,38 @@ function(__ctt_setup_target TARGET WORKING_DIRECTORY)
 
   set(CTT_TARGET_NAME ${TARGET}-clang-tidy-${CTT_CONFIG_LEVEL}${CTT_SUFFIX})
   add_custom_target(${CTT_TARGET_NAME}
-    WORKING_DIRECTORY "${WORKING_DIRECTORY}"
+    WORKING_DIRECTORY "${CMAKE_CURRENT_LIST_DIR}"
     COMMAND
       "${PYTHON_EXECUTABLE}" "${CLANG_TIDY_CONFIG_PATH}/wrap-clang-tidy.py"
-      "-runner-py=${CLANG_TIDY_CONFIG_PATH}/run-clang-tidy.py" "-clang-tidy-binary=${CLANG_TIDY_EXE}"
-      ${CONFIG_ARG} ${CTT_BUILD_PATH} ${CTT_UNPARSED_ARGUMENTS} ${CTT_APPLY_FIX_EXE_ARG} ${CTT_FIX}
+      "-clang-tidy-binary=${CLANG_TIDY_EXE}"
+      ${CONFIG_ARG} ${CTT_BUILD_PATH} ${CTT_UNPARSED_ARGUMENTS} ${CTT_FIX}
   )
   set_target_properties(${CTT_TARGET_NAME} PROPERTIES FOLDER clang-tidy)
+
+  # Experiment: add a target per source file in order to allow multi-thread compilation across the board.
+  # Requires the CTT_TARGET_NAME target have no command.
+  # Using run-clang-tidy.py allows a single project to use multiple threads, but this has two problems:
+  # 1. When the build system (ninja or make) also runs multiple threads per target, then we have multiple threads
+  #   spawning multiple threads which takes longer over all.
+  # 2. Output is some times missed (bug)
+  #
+  # Early experiments shows the build system threading is faster than run-clang-tidy: using ohm analysis as an example
+  # run-clang-tidy is ~34s, using the approach below is ~18s.
+  # foreach(SOURCE_FILE ${CTT_UNPARSED_ARGUMENTS})
+  #   get_filename_component(SOURCE_FILE_RELATIVE "${SOURCE_FILE}" REALPATH BASE_DIR "${CMAKE_CURRENT_LIST_DIR}")
+  #   string(REGEX REPLACE "[/ \t]" "_" SOURCE_FILE_RELATIVE "${SOURCE_FILE_RELATIVE}")
+  #   # set(SOURCE_TARGET_NAME ${SOURCE_FILE_RELATIVE}-${CTT_CONFIG_LEVEL}${CTT_SUFFIX})
+  #   set(SOURCE_TARGET_NAME ${CTT_TARGET_NAME}-${SOURCE_FILE_RELATIVE})
+  #   # message("SOURCE_TARGET_NAME: ${SOURCE_TARGET_NAME}")
+  #   add_custom_target(${SOURCE_TARGET_NAME}
+  #     WORKING_DIRECTORY "${WORKING_DIRECTORY}"
+  #     COMMAND
+  #       "${PYTHON_EXECUTABLE}" "${CLANG_TIDY_CONFIG_PATH}/wrap-clang-tidy.py"
+  #       "-clang-tidy-binary=${CLANG_TIDY_EXE}"
+  #       ${CONFIG_ARG} ${CTT_BUILD_PATH} "${SOURCE_FILE}" ${CTT_FIX}
+  #   )
+  #   add_dependencies(${CTT_TARGET_NAME} ${SOURCE_TARGET_NAME})
+  # endforeach(SOURCE_FILE)
 
   # Track the added clang-tidy target in the cache.
   set(CTT_TARGETS ${CLANG_TIDY_TARGETS_${CTT_CONFIG_LEVEL}${CTT_SUFFIX}})
