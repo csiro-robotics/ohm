@@ -80,12 +80,17 @@ if(NOT CLANG_TIDY_CONFIGS)
 endif(NOT CLANG_TIDY_CONFIGS)
 set(CLANG_TIDY_CONFIGS ${CLANG_TIDY_CONFIGS} CACHE INTERNAL "Available clang-tidy configurations")
 
+# Add 'file' config before we clear the cached target list.
+list(APPEND CLANG_TIDY_CONFIGS file)
+
 foreach(CONFIG ${CLANG_TIDY_CONFIGS})
   # Clear cache variable listing all -clang-tidy targets
   set(CLANG_TIDY_TARGETS_${CONFIG} "" CACHE INTERNAL "" FORCE)
+  set(CLANG_TIDY_TARGETS_${CONFIG}-fix "" CACHE INTERNAL "" FORCE)
 endforeach(CONFIG)
 
-list(APPEND CLANG_TIDY_CONFIGS file all)
+# Add the 'all' config after everything else.
+list(APPEND CLANG_TIDY_CONFIGS all)
 
 # Add 'file' as a config implying using the standard .clang-tidy file finding approach.
 # set(CTT_DEBUG ON)

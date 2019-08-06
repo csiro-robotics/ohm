@@ -78,7 +78,7 @@ endfunction(_gputil_setup_library)
 
 configure_file(gpuConfig.in.h "${CMAKE_CURRENT_BINARY_DIR}/gputil/gpuConfig.h")
 
-if(OPENCL_FOUND)
+if(OHM_BUILD_OPENCL)
   set(SOURCES_OPENCL
     cl/gpuApiExceptionCode.cpp
     cl/gpuBuffer.cpp
@@ -116,9 +116,9 @@ if(OPENCL_FOUND)
 
   target_link_libraries(gputilocl PUBLIC clu ${OpenCL_LIBRARIES})
   _gputil_setup_library(gputilocl ${GPUTIL_TYPE_OPENCL})
-endif(OPENCL_FOUND)
+endif(OHM_BUILD_OPENCL)
 
-if(CUDA_FOUND)
+if(OHM_BUILD_CUDA)
   include(cudautil)
   nvcc_setup(OHM)
 
@@ -175,7 +175,7 @@ if(CUDA_FOUND)
       $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/cuda>
   )
   _gputil_setup_library(gputilcuda ${GPUTIL_TYPE_CUDA})
-endif(CUDA_FOUND)
+endif(OHM_BUILD_CUDA)
 
 install(FILES ${PUBLIC_HEADERS} DESTINATION ${OHM_PREFIX_INCLUDE}/gputil)
 if(PUBLIC_HEADERS_CUDA)
