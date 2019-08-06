@@ -109,7 +109,7 @@ public:
   }
 
 private:
-  static const unsigned kBufferSize = 1024u;  // Far to big for usage here.
+  const unsigned kBufferSize = 1024u;  // Far to big for usage here.
   std::ostream *stream_;
   char *buffer_;
 };

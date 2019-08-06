@@ -48,7 +48,6 @@ set(PUBLIC_CXXOPT_HEADERS
 
 set(PUBLIC_HEADERS
   Colour.h
-  cxxopts.hpp
   GlmStream.h
   LineWalk.h
   OhmUtil.h
@@ -105,7 +104,7 @@ install(TARGETS ohmutil EXPORT ${CMAKE_PROJECT_NAME}-config-targets
 
 install(FILES ${PUBLIC_HEADERS} DESTINATION ${OHM_PREFIX_INCLUDE}/ohmutil)
 install(FILES ${PUBLIC_SKA_HEADERS} DESTINATION ${OHM_PREFIX_INCLUDE}/ohmutil/ska)
-install(FILES ${PUBLIC_3P_HEADERS} DESTINATION ${OHM_PREFIX_INCLUDE}/ohmutil/cxxopts)
+install(FILES ${PUBLIC_CXXOPT_HEADERS} DESTINATION ${OHM_PREFIX_INCLUDE}/ohmutil/cxxopts)
 
 source_group("source" REGULAR_EXPRESSION ".*$")
 # Needs CMake 3.8+:
