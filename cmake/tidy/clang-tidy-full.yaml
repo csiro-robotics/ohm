@@ -27,7 +27,6 @@ Checks: >
   google-readability-todo,
   google-runtime-int,
   google-runtime-operator,
-  google-runtime-references,
   hicpp-exception-baseclass,
   hicpp-multiway-paths-covered,
   hicpp-no-assembler,
