@@ -210,7 +210,10 @@ endfunction(__ctt_setup_target TARGET WORKING_DIRECTORY)
 #
 # Finally, this mode of operation also considered the C++ standard using the CXX_STANDARD target property.
 function(clang_tidy_target TARGET)
-  # CXX_CLANG_TIDY doesn't work with -config="multi line string"
+  if(CMAKE_GENERATOR MATCHES "Visual Studio")
+    return()
+  endif(CMAKE_GENERATOR MATCHES "Visual Studio")
+# CXX_CLANG_TIDY doesn't work with -config="multi line string"
   # if(NOT CMAKE_VERSION VERSION_LESS 3.6)
   #   # From CMake 3.6+, Ninja and Makefiles have in-built clang-tidy support.
   #   # We assume support if compile_commands.json has been generated.
@@ -331,6 +334,10 @@ endfunction(__ctt_add_clang_tidy_global)
 
 # Setup a single target which makes all the other clang-tidy targets.
 function(clang_tidy_global)
+  if(CMAKE_GENERATOR MATCHES "Visual Studio")
+    return()
+  endif(CMAKE_GENERATOR MATCHES "Visual Studio")
+
   if("${CLANG_TIDY_LEVEL}" STREQUAL "all")
     set(ADDED_SOMETHING FALSE)
     foreach(LEVEL ${CLANG_TIDY_CONFIGS})
