@@ -24,9 +24,9 @@ using namespace ohm;
 
 namespace
 {
-  bool isBigEndian()
+  constexpr bool isBigEndian()
   {
-    union
+    const union
     {
       uint32_t i;
       char c[4];
@@ -600,7 +600,7 @@ void PlyMesh::setNormalT(unsigned vertex_index, const VEC3 &normal)
 {
   if (normals_.size() <= vertex_index)
   {
-    normals_.reserve(std::max<size_t>(vertex_index + 1, vertices_.size()));
+    normals_.reserve(std::max(size_t(vertex_index) + 1, vertices_.size()));
     while (normals_.size() <= vertex_index)
     {
       normals_.emplace_back(VertexType(0, 0, 0));

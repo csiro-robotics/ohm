@@ -104,7 +104,7 @@ namespace ohm
     /// @param g The green colour channel.
     /// @param b The blue colour channel.
     /// @param a The alpha colour channel. Defaults to opaque.
-    inline Colour(uint8_t r, uint8_t g, uint8_t b, uint8_t a = 255)  // NOLINT(cppcoreguidelines-pro-type-member-init)
+    inline Colour(uint8_t r, uint8_t g, uint8_t b, uint8_t a = 255) noexcept // NOLINT(cppcoreguidelines-pro-type-member-init)
     {
       rgb[kR] = r;
       rgb[kG] = g;
@@ -121,7 +121,7 @@ namespace ohm
     /// Colour channels are extracted according to the values of
     /// @c AShift, @c RShift, @c GShift and @c BShift.
     /// @param c The integer colour value.
-    inline Colour(uint32_t c)  // NOLINT
+    inline Colour(uint32_t c) noexcept // NOLINT
     {
       rgba[kA] = uint8_t((c >> kAShift) & 0xFFu);
       rgb[kR] = uint8_t((c >> kRShift) & 0xFFu);
@@ -134,7 +134,7 @@ namespace ohm
     /// Colour channels are extracted according to the values of
     /// @c AShift, @c RShift, @c GShift and @c BShift.
     /// @return The integer colour representation.
-    inline operator uint32_t() const
+    inline operator uint32_t() const noexcept
     {
       uint32_t c = 0;
       c |= (rgba[kA]) << kAShift;
@@ -147,7 +147,7 @@ namespace ohm
     /// Assignment operator.
     /// @param c The colour to copy.
     /// @return This.
-    inline Colour &operator=(const Colour &c)
+    inline Colour &operator=(const Colour &c) noexcept
     {
       rgb[kR] = c.rgb[kR];
       rgb[kG] = c.rgb[kG];
