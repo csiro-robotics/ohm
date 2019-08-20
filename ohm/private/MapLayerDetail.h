@@ -18,8 +18,8 @@ namespace ohm
   {
     std::string name;
     VoxelLayoutDetail *voxel_layout = nullptr;
-    unsigned short layer_index = 0;
-    unsigned short subsampling = 0;
+    uint16_t layer_index = 0;
+    uint16_t subsampling = 0;
     unsigned flags = 0;
   };
 }  // namespace ohm

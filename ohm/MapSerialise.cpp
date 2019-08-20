@@ -65,7 +65,7 @@ namespace ohm
   const MapVersion kSupportedVersionMax = { 0, 3, 2 };
   const MapVersion kCurrentVersion = { 0, 3, 2 };
 
-  int saveItem(OutputStream &stream, const MapValue &value)
+  int saveItem(OutputStream &stream, const MapValue &value)  // NOLINT(google-runtime-references)
   {
     //{
     //  MapValue strValue = value.toStringValue();
@@ -83,7 +83,7 @@ namespace ohm
     // {
     //   endian::endianSwap(&len16);
     // }
-    stream.write((char *)&len16, sizeof(len16));
+    stream.write(reinterpret_cast<char *>(&len16), sizeof(len16));
 
     if (len)
     {
@@ -91,83 +91,83 @@ namespace ohm
     }
 
     uint8_t type = value.type();
-    stream.write((char *)&type, 1);
+    stream.write(reinterpret_cast<char *>(&type), 1);
 
     switch (value.type())
     {
     case MapValue::kInt8:
     {
       int8_t val = value;
-      stream.write((char *)&val, 1);
+      stream.write(reinterpret_cast<char *>(&val), 1);
       break;
     }
     case MapValue::kUInt8:
     {
       uint8_t val = value;
-      stream.write((char *)&val, 1);
+      stream.write(reinterpret_cast<char *>(&val), 1);
       break;
     }
     case MapValue::kInt16:
     {
       int16_t val = value;
       // if (endianSwap) { endian::endianSwap(&val); }
-      stream.write((char *)&val, sizeof(val));
+      stream.write(reinterpret_cast<char *>(&val), sizeof(val));
       break;
     }
     case MapValue::kUInt16:
     {
       uint16_t val = value;
       // if (endianSwap) { endian::endianSwap(&val); }
-      stream.write((char *)&val, sizeof(val));
+      stream.write(reinterpret_cast<char *>(&val), sizeof(val));
       break;
     }
     case MapValue::kInt32:
     {
       int32_t val = value;
       // if (endianSwap) { endian::endianSwap(&val); }
-      stream.write((char *)&val, sizeof(val));
+      stream.write(reinterpret_cast<char *>(&val), sizeof(val));
       break;
     }
     case MapValue::kUInt32:
     {
       uint32_t val = value;
       // if (endianSwap) { endian::endianSwap(&val); }
-      stream.write((char *)&val, sizeof(val));
+      stream.write(reinterpret_cast<char *>(&val), sizeof(val));
       break;
     }
     case MapValue::kInt64:
     {
       int64_t val = value;
       // if (endianSwap) { endian::endianSwap(&val); }
-      stream.write((char *)&val, sizeof(val));
+      stream.write(reinterpret_cast<char *>(&val), sizeof(val));
       break;
     }
     case MapValue::kUInt64:
     {
       uint64_t val = value;
       // if (endianSwap) { endian::endianSwap(&val); }
-      stream.write((char *)&val, sizeof(val));
+      stream.write(reinterpret_cast<char *>(&val), sizeof(val));
       break;
     }
     case MapValue::kFloat32:
     {
       float val = value;
       // if (endianSwap) { endian::endianSwap(&val); }
-      stream.write((char *)&val, sizeof(val));
+      stream.write(reinterpret_cast<char *>(&val), sizeof(val));
       break;
     }
     case MapValue::kFloat64:
     {
       double val = value;
       // if (endianSwap) { endian::endianSwap(&val); }
-      stream.write((char *)&val, sizeof(val));
+      stream.write(reinterpret_cast<char *>(&val), sizeof(val));
       break;
     }
     case MapValue::kBoolean:
     {
       bool bval = value;
       uint8_t val = (bval) ? 1 : 0;
-      stream.write((char *)&val, 1);
+      stream.write(reinterpret_cast<char *>(&val), 1);
       break;
     }
     case MapValue::kString:
@@ -184,7 +184,7 @@ namespace ohm
       // {
       //   endian::endianSwap(&len16);
       // }
-      stream.write((char *)&len16, sizeof(len16));
+      stream.write(reinterpret_cast<char *>(&len16), sizeof(len16));
 
       if (unsigned(len))
       {
@@ -201,9 +201,9 @@ namespace ohm
   }
 
 
-  int saveMapInfo(OutputStream &stream, const MapInfo &mapInfo)
+  int saveMapInfo(OutputStream &stream, const MapInfo &map_info)  // NOLINT(google-runtime-references)
   {
-    uint32_t item_count = mapInfo.extract(nullptr, 0);
+    uint32_t item_count = map_info.extract(nullptr, 0);
 
     bool ok = true;
     ok = writeUncompressed<uint32_t>(stream, item_count) && ok;
@@ -220,7 +220,7 @@ namespace ohm
 
     std::vector<MapValue> values(item_count);
     values.resize(item_count);
-    unsigned extracted = mapInfo.extract(values.data(), item_count);
+    unsigned extracted = map_info.extract(values.data(), item_count);
 
     if (extracted != item_count)
     {
@@ -241,7 +241,7 @@ namespace ohm
   }
 
 
-  int saveHeader(OutputStream &stream, const OccupancyMapDetail &map)
+  int saveHeader(OutputStream &stream, const OccupancyMapDetail &map)  // NOLINT(google-runtime-references)
   {
     bool ok = true;
     // Header marker + version
@@ -284,7 +284,7 @@ namespace ohm
   }
 
 
-  int saveLayout(OutputStream &stream, const OccupancyMapDetail &map)
+  int saveLayout(OutputStream &stream, const OccupancyMapDetail &map)  // NOLINT(google-runtime-references)
   {
     // Save details about the map layers.
     const MapLayout &layout = map.layout;
@@ -341,7 +341,8 @@ namespace ohm
   }
 
 
-  int saveChunk(OutputStream &stream, const MapChunk &chunk, const OccupancyMapDetail &detail)
+  int saveChunk(OutputStream &stream,  // NOLINT(google-runtime-references)
+                const MapChunk &chunk, const OccupancyMapDetail &detail)
   {
     bool ok = true;
 
@@ -385,7 +386,8 @@ namespace ohm
   }
 
 
-  int loadHeader(InputStream &stream, HeaderVersion &version, OccupancyMapDetail &map, size_t &region_count)
+  int loadHeader(InputStream &stream, HeaderVersion &version,    // NOLINT(google-runtime-references)
+                 OccupancyMapDetail &map, size_t &region_count)  // NOLINT(google-runtime-references)
   {
     bool ok = true;
 
@@ -464,7 +466,7 @@ namespace ohm
     }
     else
     {
-      map.flags = MapFlag::None;
+      map.flags = MapFlag::kNone;
       map.sub_voxel_filter_scale = 1.0f;
     }
 
@@ -478,7 +480,8 @@ namespace ohm
 
 
   // Current version of chunk loading.
-  int loadChunk(InputStream &stream, MapChunk &chunk, const OccupancyMapDetail &detail)
+  int loadChunk(InputStream &stream, MapChunk &chunk,  // NOLINT(google-runtime-references)
+                const OccupancyMapDetail &detail)
   {
     bool ok = true;
 
@@ -552,7 +555,7 @@ const char *ohm::errorCodeString(int err)
 
 int ohm::save(const char *filename, const OccupancyMap &map, SerialiseProgress *progress)
 {
-  OutputStream stream(filename, SfCompress);
+  OutputStream stream(filename, kSfCompress);
   const OccupancyMapDetail &detail = *map.detail();
 
   if (!stream.isOpen())
@@ -609,7 +612,7 @@ int ohm::save(const char *filename, const OccupancyMap &map, SerialiseProgress *
 
 int ohm::load(const char *filename, OccupancyMap &map, SerialiseProgress *progress, MapVersion *version_out)
 {
-  InputStream stream(filename, SfCompress);
+  InputStream stream(filename, kSfCompress);
   OccupancyMapDetail &detail = *map.detail();
 
   if (!stream.isOpen())
@@ -683,7 +686,7 @@ int ohm::load(const char *filename, Heightmap &heightmap, SerialiseProgress *pro
 
 int ohm::loadHeader(const char *filename, OccupancyMap &map, MapVersion *version_out, size_t *region_count)
 {
-  InputStream stream(filename, SfCompress);
+  InputStream stream(filename, kSfCompress);
   OccupancyMapDetail &detail = *map.detail();
 
   if (!stream.isOpen())
@@ -730,16 +733,17 @@ int ohm::loadHeader(const char *filename, OccupancyMap &map, MapVersion *version
     }
   }
 
-  // Correct the sub-voxel flags. The flags may not match the reality of the map layout, such as when we load an older version.
+  // Correct the sub-voxel flags. The flags may not match the reality of the map layout, such as when we load an older
+  // version.
   if (!err)
   {
     if (detail.layout.hasSubVoxelPattern())
     {
-      detail.flags |= MapFlag::SubVoxelPosition;
+      detail.flags |= MapFlag::kSubVoxelPosition;
     }
     else
     {
-      detail.flags &= ~MapFlag::SubVoxelPosition;
+      detail.flags &= ~MapFlag::kSubVoxelPosition;
     }
   }
 

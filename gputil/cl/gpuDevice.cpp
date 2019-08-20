@@ -19,7 +19,7 @@ using namespace gputil;
 
 namespace
 {
-  void finaliseDetail(DeviceDetail &detail, const DeviceInfo *info)
+  void finaliseDetail(DeviceDetail &detail, const DeviceInfo *info)  // NOLINT(google-runtime-references)
   {
     if (info)
     {
@@ -79,7 +79,8 @@ namespace
   }
 
 
-  unsigned enumerateDevices(std::vector<cl::Device> &cl_devices, std::vector<DeviceInfo> &device_infos)
+  unsigned enumerateDevices(std::vector<cl::Device> &cl_devices,    // NOLINT(google-runtime-references)
+                            std::vector<DeviceInfo> &device_infos)  // NOLINT(google-runtime-references)
   {
     std::vector<cl::Platform> platforms;
     std::vector<cl::Device> devices;

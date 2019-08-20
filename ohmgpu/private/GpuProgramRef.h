@@ -16,7 +16,7 @@
 namespace gputil
 {
   class Device;
-}
+}  // namespace gputil
 
 namespace ohm
 {
@@ -62,7 +62,7 @@ namespace ohm
 
     inline gputil::Program &program() { return program_; }
 
-    bool addReference(gputil::Device &gpu);
+    bool addReference(gputil::Device &gpu);  // NOLINT(google-runtime-references)
     void releaseReference();
 
     bool isValid();

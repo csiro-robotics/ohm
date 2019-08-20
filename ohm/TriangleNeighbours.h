@@ -29,6 +29,6 @@ namespace ohm
     /// identifies the shared edge. -1 is used for empty edges.
     int8_t neighbour_edge_indices[3];
   };
-}
+}  // namespace ohm
 
-#endif // OHM_TRIANGLENEIGHBOURS_H
+#endif  // OHM_TRIANGLENEIGHBOURS_H

@@ -92,7 +92,7 @@ namespace ohm
         len = 0;
         ok = read<uint32_t>(stream, len) && ok;
 
-        layer_name.resize(len + 1);
+        layer_name.resize(len + 1u);  // NOLINT
         ok = stream.read(layer_name.data(), len) == len && ok;
         layer_name[len] = '\0';
 
@@ -120,7 +120,7 @@ namespace ohm
           len = 0;
           ok = read<uint32_t>(stream, len) && ok;
 
-          member_name.resize(len + 1);
+          member_name.resize(len + 1u);  // NOLINT
           ok = stream.read(member_name.data(), len) == len && ok;
           member_name[len] = '\0';
 
@@ -137,7 +137,7 @@ namespace ohm
             voxel_layout.addMember(member_name.data(), DataType::Type(type), clear_value);
             if (voxel_layout.memberOffset(j) != offset)
             {
-              ok = false;
+              // ok = false;
               return kSeMemberOffsetError;
             }
           }

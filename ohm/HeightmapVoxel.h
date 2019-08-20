@@ -14,10 +14,10 @@ namespace ohm
   struct HeightmapVoxel
   {
     /// The name of the layer which stores these voxels.
-    static const char *kHeightmapLayer;
+    static const char * const kHeightmapLayer;
     /// The name of the layer used to build the first pass heightmap. This is the layer without blur.
     /// Only used when using blur.
-    static const char *kHeightmapBuildLayer;
+    static const char * const kHeightmapBuildLayer;
 
     float height;
     float clearance;

@@ -8,7 +8,7 @@
 
 struct SpinLockImp;
 
-/// A spin lock implementation. Prefered over std::mutex as that class
+/// A spin lock implementation. Preferred over std::mutex as that class
 /// can be very slow (i.e, Clang OSX).
 ///
 /// This is a naive implementation and does not support re-locking.
@@ -40,7 +40,7 @@ private:
 class ScopedSpinLock
 {
 public:
-  inline ScopedSpinLock(SpinLock &lock)
+  inline ScopedSpinLock(SpinLock &lock)  // NOLINT(google-runtime-references)
     : lock_(lock)
     , have_lock_(true)
   {
@@ -64,7 +64,9 @@ public:
       have_lock_ = false;
     }
   }
-  inline void try_lock()
+
+  // Match naming with std::mutex
+  inline void try_lock()  // NOLINT
   {
     if (!have_lock_)
     {

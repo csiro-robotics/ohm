@@ -62,7 +62,7 @@ namespace ohm
     /// Clear the cache.
     void clear();
 
-    void getStats(Stats &stats) const;
+    void getStats(Stats &stats) const;  // NOLINT(google-runtime-references)
 
   private:
 #if OHM_MULTI_CACHE

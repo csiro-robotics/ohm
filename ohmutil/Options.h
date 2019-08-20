@@ -13,7 +13,7 @@
 
 #include "GlmStream.h"
 
-#include "cxxopts.hpp"
+#include <cxxopts/cxxopts.hpp>
 
 template <typename T>
 inline std::string optStr(const T &value)
@@ -29,7 +29,7 @@ inline std::shared_ptr<cxxopts::Value> optVal(T &val)
   return cxxopts::value(val)->implicit_value(optStr(val));
 }
 
-inline std::shared_ptr<cxxopts::Value> optVal(bool &val)
+inline std::shared_ptr<cxxopts::Value> optVal(bool &val) // NOLINT(google-runtime-references)
 {
   return cxxopts::value(val)->implicit_value("true")->default_value(val ? "true" : "false");
 }

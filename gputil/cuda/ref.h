@@ -17,10 +17,10 @@ namespace gputil
   class Ref
   {
   public:
-    typedef std::function<void(T &)> ReleaseFunc;
+    using ReleaseFunc = std::function<void(T &)>;
 
     Ref(T obj, unsigned initial_ref_count, const ReleaseFunc &release);
-    Ref(Ref &&other);
+    Ref(Ref &&other) noexcept;
     Ref(const Ref &other) = delete;
 
   protected:
@@ -30,7 +30,7 @@ namespace gputil
     unsigned reference();
     unsigned release();
 
-    void set(T obj, unsigned refCount);
+    void set(T obj, unsigned ref_count);
 
     inline T obj() { return obj_; }
     inline const T obj() const { return obj_; }
@@ -40,7 +40,7 @@ namespace gputil
 
     inline unsigned referenceCount() const { return reference_count_; }
 
-    Ref &operator=(Ref &&other);
+    Ref &operator=(Ref &&other) noexcept;
     Ref &operator=(const Ref &other) = delete;
 
   private:
@@ -59,18 +59,17 @@ namespace gputil
 
 
   template <typename T>
-  inline Ref<T>::Ref(Ref &&other)
+  inline Ref<T>::Ref(Ref &&other) noexcept
     : obj_(other.obj_)
     , reference_count_(other.reference_count_)
-    , release_func_(other.release_func_)
+    , release_func_(std::move(other.release_func_))
   {
     other.reference_count_ = 0;
   }
 
 
   template <typename T>
-  inline Ref<T>::~Ref()
-  {}
+  inline Ref<T>::~Ref() = default;
 
 
   template <typename T>
@@ -107,7 +106,7 @@ namespace gputil
 
 
   template <typename T>
-  inline void Ref<T>::set(T obj, unsigned refCount)
+  inline void Ref<T>::set(T obj, unsigned ref_count)
   {
     std::unique_lock<std::mutex> guard(lock_);
     if (reference_count_)
@@ -117,12 +116,12 @@ namespace gputil
     }
 
     obj_ = obj;
-    reference_count_ = refCount;
+    reference_count_ = ref_count;
   }
 
 
   template <typename T>
-  inline Ref<T> &Ref<T>::operator=(Ref &&other)
+  inline Ref<T> &Ref<T>::operator=(Ref &&other) noexcept
   {
     std::unique_lock<std::mutex> guard(lock_);
     if (reference_count_)

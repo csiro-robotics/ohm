@@ -22,7 +22,6 @@ find_package(OpenCL ${OHM_OPENCL_SDK_VER})
 configure_file(cluConfig.in.h "${CMAKE_CURRENT_BINARY_DIR}/clu/cluConfig.h")
 
 set(SOURCES
-  cl2.hpp
   clu.cpp
   clu.h
   cluBuffer.h
@@ -35,7 +34,6 @@ set(SOURCES
 )
 
 set(PUBLIC_HEADERS
-  cl2.hpp
   clu.h
   cluBuffer.h
   cluConstraint.h
@@ -44,7 +42,13 @@ set(PUBLIC_HEADERS
   "${CMAKE_CURRENT_BINARY_DIR}/clu/cluConfig.h"
 )
 
+set(3P_HEADERS
+  3rdparty/cl2.hpp
+)
+
 add_library(clu ${SOURCES} ${PUBLIC_HEADERS})
+clang_tidy_target(clu)
+
 target_include_directories(clu
   PUBLIC
     $<INSTALL_INTERFACE:${OHM_PREFIX_INCLUDE}>
@@ -54,6 +58,7 @@ target_include_directories(clu
 
 target_include_directories(clu SYSTEM
   PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/3rdparty>
     "${OpenCL_INCLUDE_DIRS}"
 )
 # set_property(TARGET clu PROPERTY DEBUG_POSTFIX "d")
@@ -66,5 +71,6 @@ install(TARGETS clu EXPORT ${CMAKE_PROJECT_NAME}-config-targets
 )
 
 install(FILES ${PUBLIC_HEADERS} DESTINATION ${OHM_PREFIX_INCLUDE}/clu)
+install(FILES ${3P_HEADERS} DESTINATION ${OHM_PREFIX_INCLUDE}/clu)
 
 source_group("source" REGULAR_EXPRESSION ".*$")

@@ -87,10 +87,10 @@ namespace ohm
     /// If referencing an uncertain voxel, then the result depends on @p uncertainAsObstructed.
     /// When @c true (default) the return value is 0 (obstruction) otherwise it is -1 (clear).
     ///
-    /// @param uncertain_as_obstructed Defines the behaviour when referencing an uncertain voxel.
+    /// @param invalid_as_obstructed Defines the behaviour when referencing an invalid voxel.
     /// @return The range to the nearest obstacle, zero if this is an obstructed voxel,
     ///     or negative (-1) if there are no obstacles within the specified query range.
-    float clearance(bool uncertain_as_obstructed = true) const;
+    float clearance(bool invalid_as_obstructed = true) const;
 
     /// Queries the timestamp for the chunk containing this voxel.
     /// @return The last timestamp associated to the chunk. See @c Voxel::touchRegion()
@@ -246,12 +246,10 @@ namespace ohm
   {
   public:
     /// Parent class type.
-    typedef VoxelBase<MapChunk> Super;
+    using Super = VoxelBase<MapChunk>;
 
     /// Default constructor (null voxel).
-    inline Voxel()
-      : Super()
-    {}
+    inline Voxel() = default;
 
     /// Construct a voxel reference to an existing voxel.
     /// @param key The key of the voxel to reference.
@@ -263,9 +261,7 @@ namespace ohm
 
     /// Copy constructor.
     /// @param other Voxel to copy.
-    inline Voxel(const Voxel &other)
-      : Super(other)
-    {}
+    inline Voxel(const Voxel &other) = default;
 
     /// Set the value of the referenced tree voxel. May expand pruned voxels. Voxel must be valid.
     ///
@@ -345,12 +341,10 @@ namespace ohm
   {
   public:
     /// Parent class type.
-    typedef VoxelBase<const MapChunk> Super;
+    using Super = VoxelBase<const MapChunk>;
 
     /// Default constructor (null voxel).
-    inline VoxelConst()
-      : Super()
-    {}
+    inline VoxelConst() = default;
 
     /// Construct a voxel reference to an existing voxel.
     /// @param key The key of the voxel to reference.
@@ -362,9 +356,7 @@ namespace ohm
 
     /// Copy constructor.
     /// @param other Voxel to copy.
-    inline VoxelConst(const VoxelConst &other)
-      : Super(other)
-    {}
+    inline VoxelConst(const VoxelConst &other) = default;
 
     /// Copy constructor.
     /// @param other Voxel to copy.

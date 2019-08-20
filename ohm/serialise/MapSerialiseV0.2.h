@@ -22,14 +22,14 @@ namespace ohm
 
   namespace v0_2
   {
-    int load(InputStream &stream, OccupancyMapDetail &detail, SerialiseProgress *progress, const MapVersion &version,
-             size_t region_count);
-    int load(InputStream &stream, OccupancyMapDetail &detail, SerialiseProgress *progress, const MapVersion &version,
-             size_t region_count, const ChunkFunc &chunkFunc);
+    int load(InputStream &stream, OccupancyMapDetail &detail,  // NOLINT(google-runtime-references)
+             SerialiseProgress *progress, const MapVersion &version, size_t region_count);
+    int load(InputStream &stream, OccupancyMapDetail &detail,  // NOLINT(google-runtime-references)
+             SerialiseProgress *progress, const MapVersion &version, size_t region_count, const ChunkFunc &load_chunk);
 
-    int loadMapInfo(InputStream &in, MapInfo &info);
-    int loadItem(InputStream &in, MapValue &value);
-  }  // namespace v0_2
+    int loadMapInfo(InputStream &in, MapInfo &info);  // NOLINT(google-runtime-references)
+    int loadItem(InputStream &in, MapValue &value);   // NOLINT(google-runtime-references)
+  }                                                   // namespace v0_2
 }  // namespace ohm
 
 #endif  // MAPSERIALISEV0_2_H

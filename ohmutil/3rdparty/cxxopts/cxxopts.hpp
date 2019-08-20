@@ -27,7 +27,7 @@ THE SOFTWARE.
 #ifndef CXXOPTS_HPP_INCLUDED
 #define CXXOPTS_HPP_INCLUDED
 
-#include <cstring>
+#include <cstring>  // NOLINT
 #include <cctype>
 #include <exception>
 #include <iostream>
@@ -58,7 +58,7 @@ namespace cxxopts
     CXXOPTS__VERSION_MINOR,
     CXXOPTS__VERSION_PATCH
   };
-}
+}   // namespace cxxopts
 
 //when we ask cxxopts to use Unicode, help strings are processed using ICU,
 //which results in the correct lengths being computed for strings when they
@@ -129,14 +129,14 @@ namespace cxxopts
 
   inline
   String&
-  stringAppend(String&s, String a)
+  stringAppend(String&s, String a)  // NOLINT
   {
     return s.append(std::move(a));
   }
 
   inline
   String&
-  stringAppend(String& s, int n, UChar32 c)
+  stringAppend(String& s, int n, UChar32 c) // NOLINT
   {
     for (int i = 0; i != n; ++i)
     {
@@ -148,7 +148,7 @@ namespace cxxopts
 
   template <typename Iterator>
   String&
-  stringAppend(String& s, Iterator begin, Iterator end)
+  stringAppend(String& s, Iterator begin, Iterator end) // NOLINT
   {
     while (begin != end)
     {
@@ -161,14 +161,14 @@ namespace cxxopts
 
   inline
   size_t
-  stringLength(const String& s)
+  stringLength(const String& s) // NOLINT
   {
     return s.length();
   }
 
   inline
   std::string
-  toUTF8String(const String& s)
+  toUTF8String(const String& s) // NOLINT
   {
     std::string result;
     s.toUTF8String(result);
@@ -178,7 +178,7 @@ namespace cxxopts
 
   inline
   bool
-  empty(const String& s)
+  empty(const String& s)  // NOLINT
   {
     return s.isEmpty();
   }
@@ -206,13 +206,13 @@ namespace std
 
 namespace cxxopts
 {
-  typedef std::string String;
+  typedef std::string String; // NOLINT
 
   template <typename T>
   T
   toLocalString(T&& t)
   {
-    return t;
+    return t; // NOLINT
   }
 
   inline
@@ -224,21 +224,21 @@ namespace cxxopts
 
   inline
   String&
-  stringAppend(String&s, String a)
+  stringAppend(String&s, String a)  // NOLINT
   {
-    return s.append(std::move(a));
+    return s.append(std::move(a));  // NOLINT
   }
 
   inline
   String&
-  stringAppend(String& s, size_t n, char c)
+  stringAppend(String& s, size_t n, char c) // NOLINT
   {
     return s.append(n, c);
   }
 
   template <typename Iterator>
   String&
-  stringAppend(String& s, Iterator begin, Iterator end)
+  stringAppend(String& s, Iterator begin, Iterator end) // NOLINT
   {
     return s.append(begin, end);
   }
@@ -256,23 +256,23 @@ namespace cxxopts
   {
     return s.empty();
   }
-}
+}   // namespace cxxopts
 
 //ifdef CXXOPTS_USE_UNICODE
 #endif
 
 namespace cxxopts
 {
-  namespace
+  namespace // NOLINT
   {
 #ifdef _WIN32
-    const std::string LQUOTE("\'");
-    const std::string RQUOTE("\'");
+    const std::string LQUOTE("\'"); // NOLINT
+    const std::string RQUOTE("\'"); // NOLINT
 #else
-    const std::string LQUOTE("‘");
-    const std::string RQUOTE("’");
+    const std::string LQUOTE("‘");  // NOLINT
+    const std::string RQUOTE("’");  // NOLINT
 #endif
-  }
+  }   // namespace
 
   class Value : public std::enable_shared_from_this<Value>
   {
@@ -324,7 +324,7 @@ namespace cxxopts
     }
 
     virtual const char*
-    what() const noexcept
+    what() const noexcept // NOLINT
     {
       return m_message.c_str();
     }
@@ -454,15 +454,15 @@ namespace cxxopts
 
   namespace values
   {
-    namespace
+    namespace // NOLINT
     {
-      std::basic_regex<char> integer_pattern
+      std::basic_regex<char> integer_pattern  // NOLINT
         ("(-)?(0x)?([0-9a-zA-Z]+)|((0x)?0)");
-      std::basic_regex<char> truthy_pattern
+      std::basic_regex<char> truthy_pattern // NOLINT
         ("([Tt](rue)?)|([Oo]n)");
-      std::basic_regex<char> falsy_pattern
+      std::basic_regex<char> falsy_pattern  // NOLINT
         ("(([Ff](alse)?)?)|([Oo]ff)");
-    }
+    }   // namespace
 
     namespace detail
     {
@@ -507,7 +507,7 @@ namespace cxxopts
       {
         SignedCheck<T, std::numeric_limits<T>::is_signed>()(negative, value, text);
       }
-    }
+    }   // namespace detail
 
     template <typename R, typename T>
     R
@@ -565,11 +565,11 @@ namespace cxxopts
         }
         else if (base == 16 && *iter >= 'a' && *iter <= 'f')
         {
-          digit = *iter - 'a' + 10;
+          digit = *iter - 'a' + 10; // NOLINT
         }
         else if (base == 16 && *iter >= 'A' && *iter <= 'F')
         {
-          digit = *iter - 'A' + 10;
+          digit = *iter - 'A' + 10; // NOLINT
         }
         else
         {
@@ -599,7 +599,7 @@ namespace cxxopts
     }
 
     template <typename T>
-    void stringstream_parser(const std::string& text, T& value)
+    void stringstream_parser(const std::string& text, T& value) // NOLINT
     {
       std::stringstream in(text);
       in >> value;
@@ -610,63 +610,63 @@ namespace cxxopts
 
     inline
     void
-    parse_value(const std::string& text, uint8_t& value)
+    parse_value(const std::string& text, uint8_t& value)  // NOLINT
     {
       integer_parser(text, value);
     }
 
     inline
     void
-    parse_value(const std::string& text, int8_t& value)
+    parse_value(const std::string& text, int8_t& value) // NOLINT
     {
       integer_parser(text, value);
     }
 
     inline
     void
-    parse_value(const std::string& text, uint16_t& value)
+    parse_value(const std::string& text, uint16_t& value) // NOLINT
     {
       integer_parser(text, value);
     }
 
     inline
     void
-    parse_value(const std::string& text, int16_t& value)
+    parse_value(const std::string& text, int16_t& value)  // NOLINT
     {
       integer_parser(text, value);
     }
 
     inline
     void
-    parse_value(const std::string& text, uint32_t& value)
+    parse_value(const std::string& text, uint32_t& value) // NOLINT
     {
       integer_parser(text, value);
     }
 
     inline
     void
-    parse_value(const std::string& text, int32_t& value)
+    parse_value(const std::string& text, int32_t& value)  // NOLINT
     {
       integer_parser(text, value);
     }
 
     inline
     void
-    parse_value(const std::string& text, uint64_t& value)
+    parse_value(const std::string& text, uint64_t& value) // NOLINT
     {
       integer_parser(text, value);
     }
 
     inline
     void
-    parse_value(const std::string& text, int64_t& value)
+    parse_value(const std::string& text, int64_t& value)  // NOLINT
     {
       integer_parser(text, value);
     }
 
     inline
     void
-    parse_value(const std::string& text, bool& value)
+    parse_value(const std::string& text, bool& value) // NOLINT
     {
       std::smatch result;
       std::regex_match(text, result, truthy_pattern);
@@ -689,7 +689,7 @@ namespace cxxopts
 
     inline
     void
-    parse_value(const std::string& text, std::string& value)
+    parse_value(const std::string& text, std::string& value)  // NOLINT
     {
       value = text;
     }
@@ -752,7 +752,7 @@ namespace cxxopts
       {
       }
 
-      virtual ~abstract_value() = default;
+      virtual ~abstract_value() = default;  // NOLINT
 
       abstract_value(const abstract_value& rhs)
       {
@@ -773,37 +773,37 @@ namespace cxxopts
       }
 
       void
-      parse(const std::string& text) const
+      parse(const std::string& text) const  // NOLINT
       {
         parse_value(text, *m_store);
       }
 
       bool
-      is_container() const
+      is_container() const  // NOLINT
       {
         return type_is_container<T>::value;
       }
 
       void
-      parse() const
+      parse() const // NOLINT
       {
         parse_value(m_default_value, *m_store);
       }
 
       bool
-      has_default() const
+      has_default() const // NOLINT
       {
         return m_default;
       }
 
       bool
-      has_implicit() const
+      has_implicit() const  // NOLINT
       {
         return m_implicit;
       }
 
       std::shared_ptr<Value>
-      default_value(const std::string& value)
+      default_value(const std::string& value) // NOLINT
       {
         m_default = true;
         m_default_value = value;
@@ -811,7 +811,7 @@ namespace cxxopts
       }
 
       std::shared_ptr<Value>
-      implicit_value(const std::string& value)
+      implicit_value(const std::string& value)  // NOLINT
       {
         m_implicit = true;
         m_implicit_value = value;
@@ -819,19 +819,19 @@ namespace cxxopts
       }
 
       std::string
-      get_default_value() const
+      get_default_value() const // NOLINT
       {
         return m_default_value;
       }
 
       std::string
-      get_implicit_value() const
+      get_implicit_value() const  // NOLINT
       {
         return m_implicit_value;
       }
 
       bool
-      is_boolean() const
+      is_boolean() const  // NOLINT
       {
         return std::is_same<T, bool>::value;
       }
@@ -843,7 +843,7 @@ namespace cxxopts
         {
           return *m_result;
         }
-        else
+        else  // NOLINT
         {
           return *m_store;
         }
@@ -867,7 +867,7 @@ namespace cxxopts
       using abstract_value<T>::abstract_value;
 
       std::shared_ptr<Value>
-      clone() const
+      clone() const // NOLINT
       {
         return std::make_shared<standard_value<T>>(*this);
       }
@@ -877,7 +877,7 @@ namespace cxxopts
     class standard_value<bool> : public abstract_value<bool>
     {
       public:
-      ~standard_value() = default;
+      ~standard_value() = default;  // NOLINT
 
       standard_value()
       {
@@ -891,7 +891,7 @@ namespace cxxopts
       }
 
       std::shared_ptr<Value>
-      clone() const
+      clone() const // NOLINT
       {
         return std::make_shared<standard_value<bool>>(*this);
       }
@@ -907,7 +907,7 @@ namespace cxxopts
         m_implicit_value = "true";
       }
     };
-  }
+  }  // namespace values
 
   template <typename T>
   std::shared_ptr<Value>
@@ -1106,7 +1106,7 @@ namespace cxxopts
       const std::unordered_map<std::string, std::shared_ptr<OptionDetails>>&,
       std::vector<std::string>,
       bool allow_unrecognised,
-      int&, char**&);
+      int&, char**&); // NOLINT
 
     size_t
     count(const std::string& o) const
@@ -1149,7 +1149,7 @@ namespace cxxopts
     get_option(std::shared_ptr<OptionDetails>);
 
     void
-    parse(int& argc, char**& argv);
+    parse(int& argc, char**& argv); // NOLINT
 
     void
     add_to_option(const std::string& option, const std::string& arg);
@@ -1173,7 +1173,7 @@ namespace cxxopts
     (
       int argc,
       char* argv[],
-      int& current,
+      int& current, // NOLINT
       std::shared_ptr<OptionDetails> value,
       const std::string& name
     );
@@ -1234,7 +1234,7 @@ namespace cxxopts
     }
 
     ParseResult
-    parse(int& argc, char**& argv);
+    parse(int& argc, char**& argv); // NOLINT
 
     OptionAdder
     add_options(std::string group = "");
@@ -1284,12 +1284,12 @@ namespace cxxopts
     void
     generate_group_help
     (
-      String& result,
+      String& result, // NOLINT
       const std::vector<std::string>& groups
     ) const;
 
     void
-    generate_all_groups_help(String& result) const;
+    generate_all_groups_help(String& result) const; // NOLINT
 
     std::string m_program;
     String m_help_string;
@@ -1311,7 +1311,7 @@ namespace cxxopts
   {
     public:
 
-    OptionAdder(Options& options, std::string group)
+    OptionAdder(Options& options, std::string group)  // NOLINT
     : m_options(options), m_group(std::move(group))
     {
     }
@@ -1331,19 +1331,19 @@ namespace cxxopts
     std::string m_group;
   };
 
-  namespace
+  namespace // NOLINT
   {
-    constexpr int OPTION_LONGEST = 30;
-    constexpr int OPTION_DESC_GAP = 2;
+    constexpr int OPTION_LONGEST = 30;  // NOLINT
+    constexpr int OPTION_DESC_GAP = 2;  // NOLINT
 
-    std::basic_regex<char> option_matcher
+    std::basic_regex<char> option_matcher // NOLINT
       ("--([[:alnum:]][-_[:alnum:]]+)(=(.*))?|-([[:alnum:]]+)");
 
-    std::basic_regex<char> option_specifier
+    std::basic_regex<char> option_specifier // NOLINT
       ("(([[:alnum:]]),)?[ ]*([[:alnum:]][-_[:alnum:]]*)?");
 
     String
-    format_option
+    format_option // NOLINT
     (
       const HelpOptionDetails& o
     )
@@ -1353,7 +1353,7 @@ namespace cxxopts
 
       String result = "  ";
 
-      if (s.size() > 0)
+      if (s.size() > 0) // NOLINT
       {
         result += "-" + toLocalString(s) + ",";
       }
@@ -1362,12 +1362,12 @@ namespace cxxopts
         result += "   ";
       }
 
-      if (l.size() > 0)
+      if (l.size() > 0) // NOLINT
       {
         result += " --" + toLocalString(l);
       }
 
-      auto arg = o.arg_help.size() > 0 ? toLocalString(o.arg_help) : "arg";
+      auto arg = o.arg_help.size() > 0 ? toLocalString(o.arg_help) : "arg"; // NOLINT
 
       if (!o.is_boolean)
       {
@@ -1385,7 +1385,7 @@ namespace cxxopts
     }
 
     String
-    format_description
+    format_description  // NOLINT
     (
       const HelpOptionDetails& o,
       size_t start,
@@ -1446,7 +1446,7 @@ namespace cxxopts
 
       return result;
     }
-  }
+  }   // namespace
 
 inline
 ParseResult::ParseResult
@@ -1495,7 +1495,7 @@ OptionAdder::operator()
   if (!short_match.length() && !long_match.length())
   {
     throw invalid_option_format_error(opts);
-  } else if (long_match.length() == 1 && short_match.length())
+  } else if (long_match.length() == 1 && short_match.length())  // NOLINT
   {
     throw invalid_option_format_error(opts);
   }
@@ -1510,7 +1510,7 @@ OptionAdder::operator()
     {
       return std::make_tuple(long_.str(), short_.str());
     }
-    else
+    else  // NOLINT
     {
       return std::make_tuple(short_.str(), long_.str());
     }
@@ -1619,7 +1619,7 @@ ParseResult::consume_positional(std::string a)
           ++m_next_positional;
           return true;
         }
-        else
+        else  // NOLINT
         {
           ++m_next_positional;
           continue;
@@ -1658,7 +1658,7 @@ inline
 void
 Options::parse_positional(std::initializer_list<std::string> options)
 {
-  parse_positional(std::vector<std::string>(std::move(options)));
+  parse_positional(std::vector<std::string>(std::move(options))); // NOLINT
 }
 
 inline
@@ -1725,7 +1725,7 @@ ParseResult::parse(int& argc, char**& argv)
             {
               continue;
             }
-            else
+            else  // NOLINT
             {
               //error
               throw option_not_exists_exception(name);
@@ -1766,7 +1766,7 @@ ParseResult::parse(int& argc, char**& argv)
             ++current;
             continue;
           }
-          else
+          else  // NOLINT
           {
             //error
             throw option_not_exists_exception(name);
@@ -1843,12 +1843,12 @@ Options::add_option
   auto stringDesc = toLocalString(std::move(desc));
   auto option = std::make_shared<OptionDetails>(s, l, stringDesc, value);
 
-  if (s.size() > 0)
+  if (s.size() > 0) // NOLINT
   {
     add_one_option(s, option);
   }
 
-  if (l.size() > 0)
+  if (l.size() > 0) // NOLINT
   {
     add_one_option(l, option);
   }
@@ -1884,7 +1884,7 @@ inline
 String
 Options::help_one_group(const std::string& g) const
 {
-  typedef std::vector<std::pair<String, String>> OptionHelp;
+  typedef std::vector<std::pair<String, String>> OptionHelp;  // NOLINT
 
   auto group = m_help.find(g);
   if (group == m_help.end())
@@ -2000,13 +2000,13 @@ Options::help(const std::vector<std::string>& help_groups) const
   String result = m_help_string + "\nUsage:\n  " +
     toLocalString(m_program) + " " + toLocalString(m_custom_help);
 
-  if (m_positional.size() > 0 && m_positional_help.size() > 0) {
+  if (m_positional.size() > 0 && m_positional_help.size() > 0) {  // NOLINT
     result += " " + toLocalString(m_positional_help);
   }
 
   result += "\n\n";
 
-  if (help_groups.size() == 0)
+  if (help_groups.size() == 0) // NOLINT
   {
     generate_all_groups_help(result);
   }
@@ -2044,7 +2044,7 @@ Options::group_help(const std::string& group) const
   return m_help.at(group);
 }
 
-}
+}  // namespace cxxopts
 
 #endif //CXXOPTS_HPP_INCLUDED
 

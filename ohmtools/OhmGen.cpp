@@ -15,8 +15,8 @@ using namespace ohm;
 
 namespace ohmgen
 {
-  void fillWithValue(OccupancyMap &map, const Key &min_key, const Key &max_key, float fill_value,
-                     const float *expect_value, int step)
+  void fillWithValue(OccupancyMap &map,  // NOLINT(google-runtime-references)
+                     const Key &min_key, const Key &max_key, float fill_value, const float *expect_value, int step)
   {
     Voxel voxel;
     MapCache cache;
@@ -64,7 +64,8 @@ namespace ohmgen
   }
 
 
-  void buildWall(OccupancyMap &map, int a0, int a1, int a2, int a0min, int a1min, int a0max, int a1max, int a2val)
+  void buildWall(OccupancyMap &map,  // NOLINT(google-runtime-references)
+                 int a0, int a1, int a2, int a0min, int a1min, int a0max, int a1max, int a2val)
   {
     Voxel voxel;
     Key key;

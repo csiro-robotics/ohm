@@ -22,7 +22,7 @@ namespace ohmtools
 {
   /// Callback used by @c saveCloud() etc to report on progress.
   /// The arguments passed are the current progress and the target progress respectively.
-  typedef std::function<void(size_t, size_t)> ProgressCallback;
+  using ProgressCallback = std::function<void(size_t, size_t)>;
 
   /// Save @p map to a ply file, exporting only Occupied voxels.
   /// @param file_name File to save to. Please add the .ply extension.

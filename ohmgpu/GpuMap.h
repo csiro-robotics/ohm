@@ -46,7 +46,7 @@ namespace ohm
     ///
     /// @param map The map to enable GPU usage on.
     /// @return The @c GpuCache for the map. Null if GPU code is not enabled.
-    GpuCache *ohmgpu_API enableGpu(OccupancyMap &map);
+    GpuCache *ohmgpu_API enableGpu(OccupancyMap &map);  // NOLINT(google-runtime-references)
 
     /// Enable GPU usage for the given @p map.
     ///
@@ -56,8 +56,8 @@ namespace ohm
     /// @param layer_gpu_mem_size GPU memory buffer size per map layer.
     /// @param gpu_flags @c GpuFlag values controlling initialisation.
     /// @return The @c GpuCache for the map. Null if GPU code is not enabled.
-    GpuCache *ohmgpu_API enableGpu(OccupancyMap &map, size_t layer_gpu_mem_size,
-                                unsigned gpu_flags = kGpuAllowMappedBuffers);
+    GpuCache *ohmgpu_API enableGpu(OccupancyMap &map, size_t layer_gpu_mem_size,  // NOLINT(google-runtime-references)
+                                   unsigned gpu_flags = kGpuAllowMappedBuffers);
 
     // /// Reports the status of setting up the associated GPU program for populating the map.
     // ///
@@ -73,19 +73,19 @@ namespace ohm
     ///
     /// Does nothing if the map has no GPU cache or GPU code is disabled.
     /// @param map The map to sync GPU memory for.
-    void ohmgpu_API sync(OccupancyMap &map);
+    void ohmgpu_API sync(OccupancyMap &map);  // NOLINT(google-runtime-references)
 
     /// Sync a specific GPU memory layer to main memory.
     ///
     /// Does nothing if the map has no GPU cache or GPU code is disabled.
     /// @param map The map to sync GPU memory for.
     /// @param layer_index The index of the layer to sync.
-    void ohmgpu_API sync(OccupancyMap &map, unsigned layer_index);
+    void ohmgpu_API sync(OccupancyMap &map, unsigned layer_index);  // NOLINT(google-runtime-references)
 
     /// Retrieves the GPU cache used by @p map if GPU usage has been enabled for @p map.
     /// @return The GPU cache for @p map.
-    GpuCache *ohmgpu_API gpuCache(OccupancyMap &map);
-  }  // namespace gpumap
+    GpuCache *ohmgpu_API gpuCache(OccupancyMap &map);  // NOLINT(google-runtime-references)
+  }                                                    // namespace gpumap
 
   /// A wrapper for an @c OccupancyMap that uses GPU to update and manage the wrapped map.
   ///
@@ -146,7 +146,6 @@ namespace ohm
     /// Request the @c OccupancyMap this @c GpuMap wraps.
     /// @return The underlying @c OccupancyMap.
     const OccupancyMap &map() const;
-
 
 
     /// Is the @c GpuMap using a borrowed pointer to @c map()?
@@ -234,7 +233,8 @@ namespace ohm
     /// @param cone_angle The angle between @p cone_axis and the cone wall (radians).
     /// @param range The length of each ray in the cone. Note this makes for a round bottom cone.
     /// @param angular_resolution The angular resolution to build the cone to (radians).
-    void applyClearingPattern(const glm::dvec3 &apex, const glm::dvec3 &cone_axis, double cone_angle, double range, double angular_resolution = 0);
+    void applyClearingPattern(const glm::dvec3 &apex, const glm::dvec3 &cone_axis, double cone_angle, double range,
+                              double angular_resolution = 0);
 
     /// Internal use: get the GPU cache used by this map.
     /// @return The GPU cache this map uses.
@@ -283,14 +283,17 @@ namespace ohm
     ///   different buffer when the @c GpuLayerCache is full.
     /// @param region_update_flags Flags controlling ray integration behaviour. See @c RayFlag.
     /// @param allow_retry Allow recursion when the @c GpuLayerCache?
-    void enqueueRegion(const glm::i16vec3 &region_key, gputil::PinnedBuffer &regions_buffer,
-                       gputil::PinnedBuffer &offsets_buffer, unsigned region_update_flags, bool allow_retry);
+    void enqueueRegion(const glm::i16vec3 &region_key,
+                       gputil::PinnedBuffer &regions_buffer,  // NOLINT(google-runtime-references)
+                       gputil::PinnedBuffer &offsets_buffer,  // NOLINT(google-runtime-references)
+                       unsigned region_update_flags, bool allow_retry);
 
     /// Finalise the current ray/region batch and start executing GPU kernel.
     /// @param[in,out] regions_buffer GPU buffer containing uploaded region keys. Will be unpinned.
     /// @param[in,out] offsets_buffer GPU buffer containing memory offsets for regions. Will be unpinned.
     /// @param region_update_flags Flags controlling ray integration behaviour. See @c RayFlag.
-    void finaliseBatch(gputil::PinnedBuffer &regions_buffer, gputil::PinnedBuffer &offsets_buffer,
+    void finaliseBatch(gputil::PinnedBuffer &regions_buffer,  // NOLINT(google-runtime-references)
+                       gputil::PinnedBuffer &offsets_buffer,  // NOLINT(google-runtime-references)
                        unsigned region_update_flags);
 
     GpuMapDetail *imp_;

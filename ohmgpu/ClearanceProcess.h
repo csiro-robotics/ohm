@@ -75,7 +75,7 @@ namespace ohm
     /// @param query_flags Flags controlling the query behaviour. See @c QueryFlag and @c ClearanceProcess::QueryFlag.
     ClearanceProcess(float search_radius, unsigned query_flags);
     /// Destructor.
-    ~ClearanceProcess();
+    ~ClearanceProcess() override;
 
     /// Get the search radius to which we look for obstructing voxels.
     /// @return The radius to look for obstacles within.
@@ -145,8 +145,8 @@ namespace ohm
     /// @param max_extents The maximum extents corner of the region to calculate.
     /// @param force Force recalculation of the clearance values even if they seem up to date.
     ///   This is required if any of the clearance calculation parameters change.
-    void calculateForExtents(OccupancyMap &map, const glm::dvec3 &min_extents, const glm::dvec3 &max_extents,
-                             bool force = true);
+    void calculateForExtents(OccupancyMap &map,  // NOLINT(google-runtime-references)
+                             const glm::dvec3 &min_extents, const glm::dvec3 &max_extents, bool force = true);
 
   protected:
     /// Update clearance for the given region.
@@ -154,7 +154,8 @@ namespace ohm
     /// @param region_key The key of the region to update.
     /// @param force Force update => update even if not dirty.
     /// @return True if work was done. False if nothing need be done.
-    bool updateRegion(OccupancyMap &map, const glm::i16vec3 &region_key, bool force);
+    bool updateRegion(OccupancyMap &map,  // NOLINT(google-runtime-references)
+                      const glm::i16vec3 &region_key, bool force);
 
     ClearanceProcessDetail *imp();
     const ClearanceProcessDetail *imp() const;

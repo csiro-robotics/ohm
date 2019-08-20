@@ -19,16 +19,13 @@ RayPattern::RayPattern()
   : RayPattern(new ohm::RayPatternDetail)
 {}
 
-RayPattern::~RayPattern()
-{
-  // no-op
-}
+RayPattern::~RayPattern() = default;
 
 void RayPattern::addPoints(const glm::dvec3 *points, size_t point_count)
 {
   for (size_t pidx = 0; pidx < point_count; ++pidx)
   {
-    imp_->sample_pairs.push_back(glm::dvec3(0.0));
+    imp_->sample_pairs.emplace_back(glm::dvec3(0.0));
     imp_->sample_pairs.push_back(points[pidx]);
   }
 }

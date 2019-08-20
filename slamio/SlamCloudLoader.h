@@ -36,8 +36,8 @@ public:
 
   void preload(size_t point_count = 0);
 
-  bool nextPoint(glm::dvec3 &sample, glm::dvec3 *origin = nullptr, double *timestamp = nullptr,
-                 glm::dquat *orientation = nullptr);
+  bool nextPoint(glm::dvec3 &sample,  // NOLINT(google-runtime-references)
+                 glm::dvec3 *origin = nullptr, double *timestamp = nullptr, glm::dquat *orientation = nullptr);
 
 private:
   bool loadPoint();
@@ -51,7 +51,8 @@ private:
   /// @param[out] orientation Set to the trajectory orientation on success.
   /// @param timestamp The desired sample time.
   /// @return True on success, false when @p timestamp is out of range.
-  bool sampleTrajectory(glm::dvec3 &position, glm::dquat &orientation, double timestamp);
+  bool sampleTrajectory(glm::dvec3 &position, glm::dquat &orientation,  // NOLINT(google-runtime-references)
+                        double timestamp);
 
   SlamCloudLoaderDetail *imp_;
 };

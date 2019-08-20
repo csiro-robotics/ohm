@@ -5,7 +5,7 @@
 // Author: Kazys Stepanas
 #include "Profile.h"
 
-#include "ska/bytell_hash_map.hpp"
+#include "ska/bytell_hash_map.hpp"  // NOLINT
 
 #include <atomic>
 #include <cinttypes>
@@ -35,36 +35,37 @@ namespace ohm
     unsigned marker_count;
   };
 
-  struct ProfileScope
+  struct ProfileScope  // NOLINT(cppcoreguidelines-pro-type-member-init)
   {
     const char *name;
     ProfileClock::time_point start_time;
     ProfileRecord *record;
 
-    inline ProfileScope(){};
+    inline ProfileScope() = default;  // NOLINT(cppcoreguidelines-pro-type-member-init)
     inline ProfileScope(const char *name)
       : name(name)
       , start_time(ProfileClock::now())
+      , record(nullptr)
     {}
 
     inline ProfileScope(const char *name, const ProfileClock::time_point &start_time)
       : name(name)
       , start_time(start_time)
+      , record(nullptr)
     {}
 
     inline ProfileScope(const char *name, ProfileClock::time_point &&start_time)
       : name(name)
       , start_time(start_time)
+      , record(nullptr)
     {}
 
-    inline ProfileScope(const ProfileScope &other)
-      : name(other.name)
-      , start_time(other.start_time)
-    {}
+    inline ProfileScope(const ProfileScope &other) = default;
 
     inline ProfileScope(ProfileScope &&other) noexcept
       : name(other.name)
-      , start_time(std::move(other.start_time))
+      , start_time(other.start_time)
+      , record(other.record)
     {}
   };
 
@@ -98,11 +99,11 @@ namespace ohm
     std::mutex mutex;
     std::vector<std::pair<std::thread::id, ThreadRecords>> thread_records;
     std::atomic_bool reported;
-    std::atomic_bool supress_report;
+    std::atomic_bool suppress_report;
 
     inline ProfileDetail()
       : reported(true)
-      , supress_report(false)
+      , suppress_report(false)
     {}
 
 
@@ -133,8 +134,8 @@ namespace ohm
     const auto average_time =
       (record.marker_count) ? record.total_time / record.marker_count : ProfileClock::duration(0);
     delimetedInteger(count_str, record.marker_count);
-    o << indent << record.name << " cur: " << record.recent << " avg: " << average_time << " max: " << record.max_time << " total: " << record.total_time << " / " << count_str
-      << " calls\n";
+    o << indent << record.name << " cur: " << record.recent << " avg: " << average_time << " max: " << record.max_time
+      << " total: " << record.total_time << " / " << count_str << " calls\n";
 
     // Recurse on children.
     for (auto &&entry : thread_records.records)
@@ -170,7 +171,7 @@ namespace ohm
 }  // namespace ohm
 
 
-Profile Profile::s_instance_;
+Profile Profile::s_instance;
 
 
 Profile::Profile()
@@ -187,7 +188,7 @@ Profile::~Profile()
 
 Profile &Profile::instance()
 {
-  return s_instance_;
+  return s_instance;
 }
 
 
@@ -204,7 +205,7 @@ bool Profile::push(const char *name)
       return false;
     }
   }
-  records.marker_stack.push_back(ProfileScope(name));
+  records.marker_stack.emplace_back(ProfileScope(name));
   return true;
 }
 
@@ -251,7 +252,7 @@ void Profile::pop()
 
 void Profile::report(std::ostream *optr)
 {
-  if (!imp_->reported && !imp_->supress_report)
+  if (!imp_->reported && !imp_->suppress_report)
   {
     std::ostream &out = (optr) ? *optr : std::cout;
     std::unique_lock<std::mutex> guard(imp_->mutex);
@@ -277,11 +278,11 @@ void Profile::report(std::ostream *optr)
 
 void Profile::suppressReport(bool suppress)
 {
-  imp_->supress_report = suppress;
+  imp_->suppress_report = suppress;
 }
 
 
 bool Profile::reportSupressed() const
 {
-  return imp_->supress_report;
+  return imp_->suppress_report;
 }

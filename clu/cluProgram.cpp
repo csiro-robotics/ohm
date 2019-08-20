@@ -85,7 +85,8 @@ namespace clu
     }
   }
 
-  unsigned listDevices(std::vector<cl::Device> &devices, const cl::Program &program)
+  unsigned listDevices(std::vector<cl::Device> &devices,  // NOLINT(google-runtime-references)
+                       const cl::Program &program)
   {
     cl_uint device_count = 0;
     devices.clear();
@@ -157,7 +158,7 @@ namespace clu
       cl_device_id device = device_ids[i];
 
       // size_t maxItems1 = 0;
-      const cl_kernel kernel_obj = kernel();
+      cl_kernel kernel_obj = kernel();
       // Interesting note: using Apple OpenCL 1.2 and the CPU driver can give what seems to be
       // odd results here for CL_KERNEL_WORK_GROUP_SIZE. Specifically I noted that it kept being
       // reported as 1. Playing with the OpenCL code, I found that it dropped from 'reasonable values'
@@ -361,17 +362,17 @@ namespace clu
   }
 
 
-  char *currentWorkingDirectory(char *path, size_t buffer_length)
+  char *currentWorkingDirectory(char *cwd, size_t buffer_length)
   {
 #ifdef WIN32
-    GetCurrentDirectoryA(static_cast<DWORD>(buffer_length), path);
+    GetCurrentDirectoryA(static_cast<DWORD>(buffer_length), cwd);
 #else   // WIN32
     // const char *ignore =
-    path = getcwd(path, buffer_length);
+    cwd = getcwd(cwd, buffer_length);
 #endif  // WIN32
     // Guarantee null termination.
-    path[buffer_length - 1] = '\0';
-    return path;
+    cwd[buffer_length - 1] = '\0';
+    return cwd;
   }
 
 
@@ -404,7 +405,7 @@ namespace clu
 #ifdef _MSC_VER
       strcpy_s(file_name, buffer_length, str.str().c_str());
 #else   // _MSC_VER
-      strcpy(file_name, str.str().c_str());
+      strncpy(file_name, str.str().c_str(), buffer_length);
 #endif  // _MSC_VER
       return file_name;
     }
@@ -480,7 +481,7 @@ namespace clu
             do
             {
               ++path;
-            } while (*path && *path == ',');
+            } while (*path == ',');
           }
         }
         ++ch;
@@ -511,7 +512,7 @@ namespace clu
 #ifdef _MSC_VER
       strcpy_s(file_name, buffer_length, cwd);
 #else   // _MSC_VER
-      strcpy(file_name, cwd);
+      strncpy(file_name, cwd, buffer_length);
 #endif  // _MSC_VER
       return file_name;
     }
@@ -588,7 +589,7 @@ namespace clu
             do
             {
               ++path;
-            } while (*path && *path == ',');
+            } while (*path == ',');
           }
         }
         ++ch;
@@ -610,12 +611,13 @@ namespace clu
     }
 
     // Compile and initialise.
-    char source_dir[260];  // MAX_PATH length.
+    const size_t max_path = 260;
+    char source_dir[max_path];  // MAX_PATH length.
     std::ostringstream source_file;
 #ifdef _MSC_VER
     strcpy_s(source_dir, source_file_name.c_str());
 #else   // !_MSC_VER
-    strcpy(source_dir, source_file_name.c_str());
+    strncpy(source_dir, source_file_name.c_str(), max_path);
 #endif  // _MSC_VER
     if (!clu::findProgramDir(source_dir, sizeof(source_dir), search_paths))
     {

@@ -34,7 +34,7 @@ namespace gputil
     /// Try pin @p buffer in the given @p mode.
     /// @param buffer Buffer to pin.
     /// @param mode The mode to pin in.
-    PinnedBuffer(Buffer &buffer, PinMode mode);
+    PinnedBuffer(Buffer &buffer, PinMode mode); // NOLINT(google-runtime-references)
 
     /// RValue constructor.
     /// @param other Temporary object to copy from.

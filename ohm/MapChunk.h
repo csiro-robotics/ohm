@@ -52,7 +52,7 @@ namespace ohm
   /// @param local_key The local_key to adjust.
   /// @param dim The region voxel dimensions.
   /// @return False if the key is out of range or at the limit of the region.
-  inline bool nextLocalKey(glm::u8vec3 &local_key, const glm::ivec3 &dim)
+  inline bool nextLocalKey(glm::u8vec3 &local_key, const glm::ivec3 &dim)  // NOLINT(google-runtime-references)
   {
     if (local_key.x + 1 < dim.x)
     {
@@ -84,7 +84,7 @@ namespace ohm
   /// @param key The key to adjust the local coordinates of.
   /// @param dim The region voxel dimensions.
   /// @return False if the key is out of range or at the limit of the region.
-  inline bool nextLocalKey(Key &key, const glm::ivec3 &dim)
+  inline bool nextLocalKey(Key &key, const glm::ivec3 &dim)  // NOLINT(google-runtime-references)
   {
     glm::u8vec3 local_key = key.localKey();
     if (nextLocalKey(local_key, dim))
@@ -115,7 +115,7 @@ namespace ohm
   struct MapChunk
   {
     /// Defines the spatial region covered by the chunk.
-    MapRegion region;
+    MapRegion region = MapRegion{};
     /// Describes the layers and voxel layout of the chunk (from the map as a whole).
     const MapLayout *layout = nullptr;
     /// Index of the first voxel with valid data: occupied or free, but not uncertain.s
@@ -136,7 +136,7 @@ namespace ohm
     uint8_t **voxel_maps = nullptr;
 
     /// Chunk flags set from @c MapChunkFlag.
-    unsigned flags;
+    unsigned flags = 0;
 
     MapChunk() = default;
     MapChunk(const MapLayout &layout, const glm::uvec3 &region_dim);
@@ -191,7 +191,8 @@ namespace ohm
     bool overlapsExtents(const glm::dvec3 &min_ext, const glm::dvec3 &max_ext,
                          const glm::dvec3 &region_spatial_dimensions) const;
 
-    void extents(glm::dvec3 &min_ext, glm::dvec3 &max_ext, const glm::dvec3 &region_spatial_dimensions) const;
+    void extents(glm::dvec3 &min_ext, glm::dvec3 &max_ext,  // NOLINT(google-runtime-references)
+                 const glm::dvec3 &region_spatial_dimensions) const;
   };
 }  // namespace ohm
 

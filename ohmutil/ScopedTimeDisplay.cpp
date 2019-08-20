@@ -72,8 +72,8 @@ std::ostream *ScopedTimeDisplay::out() const
 
 const ScopedTimeDisplay::CustomLogger &ScopedTimeDisplay::customLogger() const
 {
-  static ScopedTimeDisplay::CustomLogger empty;
-  return imp_ ? imp_->logger : empty;
+  static ScopedTimeDisplay::CustomLogger s_empty;
+  return imp_ ? imp_->logger : s_empty;
 }
 
 

@@ -25,17 +25,10 @@ KernelSize KernelGrid::adjustedGlobal() const
   return adjusted;
 }
 
-Kernel::Kernel()
-  : optimal_work_group_size_(0)
-  , local_mem_arg_count_(0)
-  , local_mem_first_(false)
-{}
+Kernel::Kernel() = default;
 
 
 Kernel::Kernel(cl::Program &program, const char *entry_point, std::ostream *log)
-  : optimal_work_group_size_(0)
-  , local_mem_arg_count_(0)
-  , local_mem_first_(false)
 {
   setEntry(program, entry_point, log);
 }
@@ -43,9 +36,6 @@ Kernel::Kernel(cl::Program &program, const char *entry_point, std::ostream *log)
 
 Kernel::Kernel(cl::Kernel &cl_kernel)
   : kernel_(cl_kernel)
-  , optimal_work_group_size_(0)
-  , local_mem_arg_count_(0)
-  , local_mem_first_(false)
 {}
 
 

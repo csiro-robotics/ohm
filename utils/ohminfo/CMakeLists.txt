@@ -20,6 +20,7 @@ target_include_directories(ohminfo SYSTEM
 )
 
 target_link_libraries(ohminfo PUBLIC ohm ohmutil ${ZLIB_LIBRARIES})
+clang_tidy_target(ohminfo)
 
 source_group("source" REGULAR_EXPRESSION ".*$")
 # Needs CMake 3.8+:

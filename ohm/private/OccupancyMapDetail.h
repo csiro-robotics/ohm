@@ -20,11 +20,11 @@
 #ifdef __GNUC__
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wconversion"
-#endif // __GNUC__
-#include <ohmutil/ska/bytell_hash_map.hpp>
+#endif  // __GNUC__
+#include <ska/bytell_hash_map.hpp>
 #ifdef __GNUC__
 #pragma GCC diagnostic pop
-#endif // __GNUC__
+#endif  // __GNUC__
 
 #include <mutex>
 #include <unordered_map>
@@ -40,7 +40,7 @@ namespace ohm
   struct ohm_API OccupancyMapDetail
   {
     // "sub_voxel"
-    static const char *kSubVoxelLayerName;
+    static const char *const kSubVoxelLayerName;
 
     glm::dvec3 origin = glm::dvec3(0);
     glm::dvec3 region_spatial_dimensions = glm::dvec3(0);
@@ -64,7 +64,7 @@ namespace ohm
     mutable std::mutex mutex;
     // Region count at load time. Useful when only the header is loaded.
     size_t loaded_region_count = 0;
-    MapFlag flags = MapFlag::None;
+    MapFlag flags = MapFlag::kNone;
 
     /// GPU cache pointer. Note: this is declared here, but implemented in a dependent library. We simply ensure that
     /// the map detail supports a GPU cache.
@@ -82,7 +82,7 @@ namespace ohm
     /// @param key The key to adjust.
     /// @param axis Axis ID to move along [0, 2].
     /// @param step How far to move/step.
-    void moveKeyAlongAxis(Key &key, int axis, int step) const;
+    void moveKeyAlongAxis(Key &key, int axis, int step) const;  // NOLINT(google-runtime-references)
 
     /// Setup the default @c MapLayout: occupancy layer and clearance layer.
     /// @param enable_sub_voxel_positioning Enable the sub_voxel positioning information?

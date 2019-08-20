@@ -22,6 +22,7 @@ set(PUBLIC_HEADERS
   "${CMAKE_CURRENT_BINARY_DIR}/ohmheightmaputil/OhmHeightmapUtilExport.h"
 )
 add_library(ohmheightmaputil ${SOURCES})
+clang_tidy_target(ohmheightmaputil)
 
 generate_export_header(ohmheightmaputil
       EXPORT_MACRO_NAME ohmheightmaputil_API

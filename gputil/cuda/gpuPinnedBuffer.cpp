@@ -19,7 +19,7 @@ using namespace gputil;
 
 namespace
 {
-  void addDirty(std::vector<MemRegion> &dirty_list, const MemRegion &region)
+  void addDirty(std::vector<MemRegion> &dirty_list, const MemRegion &region)  // NOLINT(google-runtime-references)
   {
     // Merge into the last region if possible. Better for contiguous writes.
     if (!dirty_list.empty() && dirty_list.back().overlaps(region))
@@ -59,10 +59,16 @@ PinnedBuffer::PinnedBuffer(PinnedBuffer &&other) noexcept
 }
 
 
-PinnedBuffer::~PinnedBuffer() { unpin(); }
+PinnedBuffer::~PinnedBuffer()
+{
+  unpin();
+}
 
 
-bool PinnedBuffer::isPinned() const { return pinned_ != nullptr; }
+bool PinnedBuffer::isPinned() const
+{
+  return pinned_ != nullptr;
+}
 
 
 void PinnedBuffer::pin()
@@ -214,7 +220,8 @@ size_t PinnedBuffer::writeElements(const void *src, size_t element_size, size_t 
   {
     err = cudaMemcpy(dst_mem, src_mem, element_copy_size, cudaMemcpyHostToHost);
     GPUAPICHECK(err, cudaSuccess, 0u);
-    addDirty(buffer_->detail()->dirty_write, MemRegion{ size_t(dst_mem - static_cast<uint8_t *>(pinned_)), element_copy_size });
+    addDirty(buffer_->detail()->dirty_write,
+             MemRegion{ size_t(dst_mem - static_cast<uint8_t *>(pinned_)), element_copy_size });
     dst_mem += buffer_element_size;
     src_mem += element_size;
     ++copy_count;

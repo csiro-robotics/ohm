@@ -473,8 +473,8 @@ namespace gputil
   /// @param block_on Optional event to wait for be performing the copy.
   /// @param completion Optional event to setup to mark completion of the copy operation.
   /// @return The number of bytes copied
-  size_t copyBuffer(Buffer &dst, const Buffer &src, Queue *queue = nullptr, Event *block_on = nullptr,
-                    Event *completion = nullptr);
+  size_t copyBuffer(Buffer &dst, const Buffer &src, // NOLINT(google-runtime-references)
+                    Queue *queue = nullptr, Event *block_on = nullptr, Event *completion = nullptr);
 
   /// Copy data from @p src to @p dst copying only @p byteCount bytes.
   /// Both buffers must support @p byteCount bytes.
@@ -489,8 +489,8 @@ namespace gputil
   /// @param block_on Optional event to wait for be performing the copy.
   /// @param completion Optional event to setup to mark completion of the copy operation.
   /// @return The number of bytes copied
-  size_t copyBuffer(Buffer &dst, const Buffer &src, size_t byte_count, Queue *queue = nullptr,
-                    Event *block_on = nullptr, Event *completion = nullptr);
+  size_t copyBuffer(Buffer &dst, const Buffer &src, size_t byte_count,  // NOLINT(google-runtime-references)
+                    Queue *queue = nullptr, Event *block_on = nullptr, Event *completion = nullptr);
 
   /// Copy data from @p src to @p dst with offsets, copying only @p byteCount bytes.
   /// Both buffers must support @p byteCount bytes and the given offsets.
@@ -507,7 +507,8 @@ namespace gputil
   /// @param block_on Optional event to wait for be performing the copy.
   /// @param completion Optional event to setup to mark completion of the copy operation.
   /// @return The number of bytes copied
-  size_t copyBuffer(Buffer &dst, size_t dst_offset, const Buffer &src, size_t src_offset, size_t byte_count,
+  size_t copyBuffer(Buffer &dst, size_t dst_offset, // NOLINT(google-runtime-references)
+                    const Buffer &src, size_t src_offset, size_t byte_count,
                     Queue *queue = nullptr, Event *block_on = nullptr, Event *completion = nullptr);
 }  // namespace gputil
 

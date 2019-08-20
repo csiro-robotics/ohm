@@ -25,21 +25,21 @@ namespace ohm
     const float q = v * (1 - s * f);
     const float t = v * (1 - s * (1 - f));
 
-    static const int kVindex[] = { 0, 1, 1, 2, 2, 0 };
-    static const int kPindex[] = { 2, 2, 0, 0, 1, 1 };
-    static const int kQindex[] = { 3, 0, 3, 1, 3, 2 };
-    static const int kTindex[] = { 1, 3, 2, 3, 0, 3 };
+    static const int v_index[] = { 0, 1, 1, 2, 2, 0 };
+    static const int p_index[] = { 2, 2, 0, 0, 1, 1 };
+    static const int q_index[] = { 3, 0, 3, 1, 3, 2 };
+    static const int t_index[] = { 1, 3, 2, 3, 0, 3 };
 
-    float rgb[4];
-    rgb[kVindex[sector_index]] = v;
-    rgb[kPindex[sector_index]] = p;
-    rgb[kQindex[sector_index]] = q;
-    rgb[kTindex[sector_index]] = t;
+    float rgb[4] = { 0 };
+    rgb[v_index[sector_index]] = v;
+    rgb[p_index[sector_index]] = p;
+    rgb[q_index[sector_index]] = q;
+    rgb[t_index[sector_index]] = t;
 
     // Handle achromatic here by testing s inline.
-    r = (s) ? rgb[0] : v;
-    g = (s) ? rgb[1] : v;
-    b = (s) ? rgb[2] : v;
+    r = (s != 0) ? rgb[0] : v;
+    g = (s != 0) ? rgb[1] : v;
+    b = (s != 0) ? rgb[2] : v;
   }
 
 
@@ -55,40 +55,40 @@ namespace ohm
 
   void colour::rgbToHsv(float &h, float &s, float &v, float r, float g, float b)
   {
-    const float cmin = std::min<float>(r, std::min<float>(g, b));
-    const float cmax = std::max<float>(r, std::max<float>(g, b));
+    const float c_min = std::min<float>(r, std::min<float>(g, b));
+    const float c_max = std::max<float>(r, std::max<float>(g, b));
 
-    const float delta = cmax - cmin;
+    const float delta = c_max - c_min;
 
 
 #if 1
-    v = cmax;
-    s = (cmax) ? delta / cmax : 0;
+    v = c_max;
+    s = (c_max != 0) ? delta / c_max : 0;
 
-    const float yellow_to_magenta = (r == cmax && cmax) ? 1.0f : 0.0f;
-    const float cyan_to_yellow = (g == cmax && cmax) ? 1.0f : 0.0f;
-    const float magenta_to_cyan = (b == cmax && cmax) ? 1.0f : 0.0f;
+    const float yellow_to_magenta = (r == c_max && c_max != 0) ? 1.0f : 0.0f;
+    const float cyan_to_yellow = (g == c_max && c_max != 0) ? 1.0f : 0.0f;
+    const float magenta_to_cyan = (b == c_max && c_max != 0) ? 1.0f : 0.0f;
 
     h = (yellow_to_magenta * ((g - b) / delta) + cyan_to_yellow * ((g - b) / delta) +
          magenta_to_cyan * ((g - b) / delta)) *
         60.0f;
 #else   // #
-    if (!cmax)
+    if (!c_max)
     {
       // Black. s = 0, v is undefined.
       s = v = h = 0;
       return;
     }
 
-    v = cmax;
-    s = delta / cmax;
+    v = c_max;
+    s = delta / c_max;
 
-    if (r == cmax)
+    if (r == c_max)
     {
       // Yellow to magenta.
       h = (g - b) / delta;
     }
-    else if (g == cmax)
+    else if (g == c_max)
     {
       // Cyan to yellow
       h = 2 + (b - r) / delta;

@@ -59,7 +59,8 @@ namespace
     // return key;
   }
 
-  bool nextChunk(OccupancyMapDetail &map, ChunkMap::iterator &chunk_iter, Key &key)
+  bool nextChunk(OccupancyMapDetail &map, ChunkMap::iterator &chunk_iter,  // NOLINT(google-runtime-references)
+                 Key &key)                                                 // NOLINT(google-runtime-references)
   {
     ++chunk_iter;
     if (chunk_iter != map.chunks.end())
@@ -72,12 +73,13 @@ namespace
     return false;
   }
 
-  ChunkMap::iterator &initChunkIter(uint8_t *mem)
+  ChunkMap::iterator &initChunkIter(uint8_t *mem)  // NOLINT(readability-non-const-parameter)
   {
     // Placement new.
     return *(new (mem) ChunkMap::iterator());
   }
 
+  // NOLINTNEXTLINE(readability-non-const-parameter)
   ChunkMap::iterator &chunkIter(uint8_t *mem) { return *reinterpret_cast<ChunkMap::iterator *>(mem); }
 
   const ChunkMap::iterator &chunkIter(const uint8_t *mem) { return *reinterpret_cast<const ChunkMap::iterator *>(mem); }
@@ -89,7 +91,7 @@ namespace
   }
 }  // namespace
 
-OccupancyMap::base_iterator::base_iterator()
+OccupancyMap::base_iterator::base_iterator()  // NOLINT
   : map_(nullptr)
   , key_(Key::kNull)
 {
@@ -98,7 +100,7 @@ OccupancyMap::base_iterator::base_iterator()
   initChunkIter(chunk_mem_);
 }
 
-OccupancyMap::base_iterator::base_iterator(OccupancyMapDetail *map, const Key &key)
+OccupancyMap::base_iterator::base_iterator(OccupancyMapDetail *map, const Key &key)  // NOLINT
   : map_(map)
   , key_(key)
 {
@@ -110,12 +112,12 @@ OccupancyMap::base_iterator::base_iterator(OccupancyMapDetail *map, const Key &k
   }
 }
 
-OccupancyMap::base_iterator::base_iterator(const base_iterator &other)
+OccupancyMap::base_iterator::base_iterator(const base_iterator &other)  // NOLINT
   : map_(other.map_)
   , key_(other.key_)
 {
-  static_assert(sizeof(ChunkMap::iterator) <= sizeof(OccupancyMap::base_iterator::chunk_mem_), "Insufficient space for "
-                                                                                               "chunk iterator.");
+  static_assert(sizeof(ChunkMap::iterator) <= sizeof(OccupancyMap::base_iterator::chunk_mem_),  //
+                "Insufficient space for chunk iterator.");
   initChunkIter(chunk_mem_) = chunkIter(other.chunk_mem_);
 }
 
@@ -206,7 +208,7 @@ OccupancyMap::OccupancyMap(double resolution, const glm::u8vec3 &region_voxel_di
   };
 
   imp_->flags = flags;
-  imp_->setDefaultLayout((flags & MapFlag::SubVoxelPosition) != MapFlag::None);
+  imp_->setDefaultLayout((flags & MapFlag::kSubVoxelPosition) != MapFlag::kNone);
 }
 
 OccupancyMap::OccupancyMap(double resolution, const glm::u8vec3 &region_voxel_dimensions, MapFlag flags,
@@ -214,7 +216,7 @@ OccupancyMap::OccupancyMap(double resolution, const glm::u8vec3 &region_voxel_di
   : OccupancyMap(resolution, region_voxel_dimensions, flags)
 {
   imp_->layout = seed_layout;
-  const bool want_sub_voxel = (flags & MapFlag::SubVoxelPosition) != MapFlag::None;
+  const bool want_sub_voxel = (flags & MapFlag::kSubVoxelPosition) != MapFlag::kNone;
   if (imp_->layout.hasSubVoxelPattern() != want_sub_voxel)
   {
     setSubVoxelsEnabled(want_sub_voxel);
@@ -341,22 +343,22 @@ int OccupancyMap::occupancyType(const VoxelConst &voxel) const
     {
       if (value < occupancyThresholdValue())
       {
-        return Free;
+        return kFree;
       }
 
-      return Occupied;
+      return kOccupied;
     }
 
-    return Uncertain;
+    return kUncertain;
   }
 
-  return Null;
+  return kNull;
 }
 
 size_t OccupancyMap::calculateApproximateMemory() const
 {
   size_t byte_count = 0;
-  byte_count += sizeof(this);
+  byte_count += sizeof(*this);
   if (imp_)
   {
     std::unique_lock<decltype(imp_->mutex)> guard(imp_->mutex);
@@ -655,9 +657,9 @@ unsigned OccupancyMap::removeDistanceRegions(const glm::dvec3 &relative_to, floa
 unsigned OccupancyMap::cullRegionsOutside(const glm::dvec3 &min_extents, const glm::dvec3 &max_extents)
 {
   const glm::dvec3 region_extents = imp_->region_spatial_dimensions;
-  const Aabb cullBox(min_extents, max_extents);
-  const auto should_remove_chunk = [cullBox, region_extents](const MapChunk &chunk) {
-    return !cullBox.overlaps(
+  const Aabb cull_box(min_extents, max_extents);
+  const auto should_remove_chunk = [cull_box, region_extents](const MapChunk &chunk) {
+    return !cull_box.overlaps(
       Aabb(chunk.region.centre - 0.5 * region_extents, chunk.region.centre + 0.5 * region_extents));
   };
 
@@ -975,7 +977,10 @@ size_t OccupancyMap::calculateSegmentKeys(KeyList &keys, const glm::dvec3 &start
     inline Key voxelKey(const glm::dvec3 &pt) const { return map.voxelKey(pt); }
     inline bool isNull(const Key &key) const { return key.isNull(); }
     inline glm::dvec3 voxelCentre(const Key &key) const { return map.voxelCentreLocal(key); }
-    inline void stepKey(Key &key, int axis, int dir) const { map.stepKey(key, axis, dir); }
+    inline void stepKey(Key &key, int axis, int dir) const  // NOLINT(google-runtime-references)
+    {
+      map.stepKey(key, axis, dir);
+    }
     inline double voxelResolution(int /*axis*/) const { return map.resolution(); }
   };
   const glm::dvec3 start_point_local = glm::dvec3(start_point - origin());
@@ -1188,7 +1193,7 @@ unsigned OccupancyMap::collectDirtyRegions(uint64_t from_stamp,
       added = false;
 
       // Insertion sorted on the chunk's dirty stamp. Least recently touched (oldtest) first.
-      // TODO: test efficiency of the sorted insertion on a vector.
+      // TODO(KS): test efficiency of the sorted insertion on a vector.
       // Scope should be small so I expect little impact.
       auto item = std::make_pair(chunk_ref.second->dirty_stamp, chunk_ref.second->region.coord);
       for (auto iter = regions.begin(); iter != regions.end(); ++iter)

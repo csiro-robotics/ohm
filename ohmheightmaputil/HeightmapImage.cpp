@@ -112,7 +112,7 @@ namespace
                                    "}\n";
 
   // The fullscreen quad's FBO
-  static const GLfloat g_quad_vertex_buffer_data[] =  //
+  const GLfloat kQuadVertexBufferData[] =  //
     {
       -1.0f, -1.0f, 0.0f,  //
       1.0f,  -1.0f, 0.0f,  //
@@ -445,7 +445,7 @@ namespace ohm
 
     glGenBuffers(1, &quad_vertex_buffer);
     glBindBuffer(GL_ARRAY_BUFFER, quad_vertex_buffer);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(g_quad_vertex_buffer_data), g_quad_vertex_buffer_data, GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(kQuadVertexBufferData), kQuadVertexBufferData, GL_STATIC_DRAW);
 
     // Create and compile our GLSL program from the shaders
     quad_program_id = loadShaders("fbo", quad_vertex_shader, quad_fragment_shader);
@@ -645,7 +645,7 @@ bool HeightmapImage::renderHeightMesh(ImageType image_type, const Aabb &spatial_
   imp_->vertices.reserve(vertex_count);
   for (auto v = vertices; v < end_vertex; ++v)
   {
-    imp_->vertices.push_back(glm::vec3(*v - spatial_extents.minExtents()));
+    imp_->vertices.emplace_back(glm::vec3(*v - spatial_extents.minExtents()));
   }
 
   imp_->vertex_normals.clear();
@@ -662,7 +662,7 @@ bool HeightmapImage::renderHeightMesh(ImageType image_type, const Aabb &spatial_
   {
     for (size_t i = 0; i < vertex_count; ++i)
     {
-      imp_->vertex_normals.push_back(glm::vec3(0, 0, 1));
+      imp_->vertex_normals.emplace_back(glm::vec3(0, 0, 1));
     }
   }
 
@@ -680,7 +680,7 @@ bool HeightmapImage::renderHeightMesh(ImageType image_type, const Aabb &spatial_
   {
     for (size_t i = 0; i < vertex_count; ++i)
     {
-      imp_->vertex_colours.push_back(glm::vec3(1.0f));
+      imp_->vertex_colours.emplace_back(glm::vec3(1.0f));
     }
   }
 
@@ -702,33 +702,33 @@ bool HeightmapImage::renderHeightMesh(ImageType image_type, const Aabb &spatial_
   int axes[3];
   switch (up_axis)
   {
-  case UpAxis::NegZ:
+  case UpAxis::kNegZ:
     axes[0] = 1;
     axes[1] = 0;
     axes[2] = 2;
     break;
-  case UpAxis::NegY:
+  case UpAxis::kNegY:
     axes[0] = 2;
     axes[1] = 0;
     axes[2] = 1;
     break;
-  case UpAxis::NegX:
+  case UpAxis::kNegX:
     axes[0] = 2;
     axes[1] = 1;
     axes[2] = 0;
     break;
-  case UpAxis::X:
+  case UpAxis::kX:
     axes[0] = 1;
     axes[1] = 2;
     axes[2] = 0;
     break;
-  case UpAxis::Y:
+  case UpAxis::kY:
     axes[0] = 0;
     axes[1] = 2;
     axes[2] = 1;
     break;
   default:
-  case UpAxis::Z:
+  case UpAxis::kZ:
     axes[0] = 0;
     axes[1] = 1;
     axes[2] = 2;
@@ -742,7 +742,7 @@ bool HeightmapImage::renderHeightMesh(ImageType image_type, const Aabb &spatial_
   const unsigned target_height =
     pixels_per_voxel * unsigned(std::ceil(spatial_extents.diagonal()[axes[1]] / voxel_resolution));
 
-  // For some reason it seems the either the buffer size must be a multiple of 16, or the individual dimentions of 8.
+  // For some reason it seems the either the buffer size must be a multiple of 16, or the individual dimensions of 8.
   // Making both of 8 addresses both.
   // Otherwise the render texture reports the correct size, but overruns when getting the image back.
   const unsigned render_width = makeMultipleOf(target_width, 8);
@@ -896,7 +896,7 @@ bool HeightmapImage::renderHeightMesh(ImageType image_type, const Aabb &spatial_
   const float camera_offset = 0.0f;
   // Near and far clip planes require sufficient buffering to exceed the min/max extents range.
   // So near is at 1.0f (to avoid some depth precision issues), far is near clip (1) + range + camera_offset (2)
-  const glm::mat4 ProjectionMatrix =
+  const glm::mat4 projection_matrix =
     glm::ortho(-0.5f * max_ext_vertices[axes[0]] - min_ext_vertices[axes[0]],
                0.5f * max_ext_vertices[axes[0]] - min_ext_vertices[axes[0]],
                -0.5f * max_ext_vertices[axes[1]] - min_ext_vertices[axes[1]],
@@ -912,7 +912,7 @@ bool HeightmapImage::renderHeightMesh(ImageType image_type, const Aabb &spatial_
   const glm::mat4 view_matrix = glm::lookAt(eye, target, view_up);
 
   const glm::mat4 model_matrix = glm::mat4(1.0);
-  const glm::mat4 mvp_matrix = ProjectionMatrix * view_matrix * model_matrix;
+  const glm::mat4 mvp_matrix = projection_matrix * view_matrix * model_matrix;
 
   // Send our transformation to the currently bound shader,
   // in the "mvp_matrix" uniform
@@ -941,7 +941,7 @@ bool HeightmapImage::renderHeightMesh(ImageType image_type, const Aabb &spatial_
                         GL_FLOAT,  // type
                         GL_FALSE,  // normalized?
                         0,         // stride
-                        (void *)0  // array buffer offset
+                        nullptr    // array buffer offset
   );
 
   // Normals stream.
@@ -952,7 +952,7 @@ bool HeightmapImage::renderHeightMesh(ImageType image_type, const Aabb &spatial_
                         GL_FLOAT,  // type
                         GL_TRUE,   // normalized?
                         0,         // stride
-                        (void *)0  // array buffer offset
+                        nullptr    // array buffer offset
   );
 
   // Vertex colour stream.
@@ -963,7 +963,7 @@ bool HeightmapImage::renderHeightMesh(ImageType image_type, const Aabb &spatial_
                         GL_FLOAT,  // type
                         GL_FALSE,  // normalized?
                         0,         // stride
-                        (void *)0  // array buffer offset
+                        nullptr    // array buffer offset
   );
 
   // Index buffer
@@ -973,7 +973,7 @@ bool HeightmapImage::renderHeightMesh(ImageType image_type, const Aabb &spatial_
   glDrawElements(GL_TRIANGLES,          // mode
                  GLsizei(index_count),  // count
                  GL_UNSIGNED_INT,       // type
-                 (void *)0              // element array buffer offset
+                 nullptr                // element array buffer offset
   );
 
   glDisableVertexAttribArray(0);
@@ -1014,7 +1014,7 @@ bool HeightmapImage::renderHeightMesh(ImageType image_type, const Aabb &spatial_
                             GL_FLOAT,  // type
                             GL_FALSE,  // normalized?
                             0,         // stride
-                            (void *)0  // array buffer offset
+                            nullptr    // array buffer offset
       );
 
       // Draw the triangles !
@@ -1034,7 +1034,8 @@ bool HeightmapImage::renderHeightMesh(ImageType image_type, const Aabb &spatial_
   imp_->image_info.image_width = render_width;
   imp_->image_info.image_height = render_height;
 
-  imp_->image_info.image_extents = Aabb(spatial_extents.minExtents(), spatial_extents.minExtents() + glm::dvec3(max_ext_vertices));
+  imp_->image_info.image_extents =
+    Aabb(spatial_extents.minExtents(), spatial_extents.minExtents() + glm::dvec3(max_ext_vertices));
   imp_->image_info.type = (colours) ? kImageVertexColours888 : image_type;
 
   // Read pixels:
@@ -1042,7 +1043,8 @@ bool HeightmapImage::renderHeightMesh(ImageType image_type, const Aabb &spatial_
   {
   case kAfRgb8:
     imp_->image_info.bpp = 3;
-    imp_->image_info.byte_count = imp_->image_info.image_width * imp_->image_info.image_height * imp_->image_info.bpp;
+    imp_->image_info.byte_count =
+      size_t(imp_->image_info.image_width) * size_t(imp_->image_info.image_height) * size_t(imp_->image_info.bpp);
     imp_->image.resize(imp_->image_info.byte_count);
     // imp_->image.resize(imp_->image_info.byte_count * 2);
     // memset(imp_->image.data() + imp_->image_info.byte_count, 0xcf, imp_->image_info.byte_count);
@@ -1053,7 +1055,8 @@ bool HeightmapImage::renderHeightMesh(ImageType image_type, const Aabb &spatial_
     // if (imp_->image[imp_->image_info.image_width * imp_->image_info.image_height * imp_->image_info.bpp] != 0xcf)
     // {
     //   unsigned last_bad_index = imp_->image_info.image_width * imp_->image_info.image_height * imp_->image_info.bpp;
-    //   while (last_bad_index < imp_->image_info.image_width * imp_->image_info.image_height * imp_->image_info.bpp * 2 &&
+    //   while (last_bad_index < imp_->image_info.image_width * imp_->image_info.image_height * imp_->image_info.bpp * 2
+    //   &&
     //          imp_->image[last_bad_index] != 0xcf)
     //   {
     //     ++last_bad_index;
@@ -1072,15 +1075,21 @@ bool HeightmapImage::renderHeightMesh(ImageType image_type, const Aabb &spatial_
     break;
   case kAfRgb32f:
     imp_->image_info.bpp = 3 * sizeof(float);
-    imp_->image_info.byte_count = imp_->image_info.image_width * imp_->image_info.image_height *
-    imp_->image_info.bpp; imp_->image.resize(imp_->image_info.byte_count); glBindTexture(GL_TEXTURE_2D,
-    output_texture_id); glGetTexImage(GL_TEXTURE_2D, 0, output_format_type, GL_FLOAT, imp_->image.data()); break;
+    imp_->image_info.byte_count =
+      size_t(imp_->image_info.image_width) * size_t(imp_->image_info.image_height) * size_t(imp_->image_info.bpp);
+    imp_->image.resize(imp_->image_info.byte_count);
+    glBindTexture(GL_TEXTURE_2D, output_texture_id);
+    glGetTexImage(GL_TEXTURE_2D, 0, output_format_type, GL_FLOAT, imp_->image.data());
+    break;
   case kAfMono32f:
     // We are reading the depth buffer, which is float format. We size the image bytes appropriately.
     imp_->image_info.bpp = sizeof(float);
-    imp_->image_info.byte_count = imp_->image_info.image_width * imp_->image_info.image_height *
-    imp_->image_info.bpp; imp_->image.resize(imp_->image_info.byte_count); glBindTexture(GL_TEXTURE_2D,
-    output_texture_id); glGetTexImage(GL_TEXTURE_2D, 0, output_format_type, GL_FLOAT, imp_->image.data()); break;
+    imp_->image_info.byte_count =
+      size_t(imp_->image_info.image_width) * size_t(imp_->image_info.image_height) * size_t(imp_->image_info.bpp);
+    imp_->image.resize(imp_->image_info.byte_count);
+    glBindTexture(GL_TEXTURE_2D, output_texture_id);
+    glGetTexImage(GL_TEXTURE_2D, 0, output_format_type, GL_FLOAT, imp_->image.data());
+    break;
   default:
     // Unkown type;
     imp_->image_info.bpp = 0;
@@ -1103,5 +1112,5 @@ bool HeightmapImage::renderHeightMesh(ImageType image_type, const Aabb &spatial_
   glDeleteTextures(1, &depth_texture);
   // glDeleteRenderbuffers(1, &depth_render_buffer);
 
-  return 0;
+  return true;
 }

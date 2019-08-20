@@ -162,7 +162,7 @@ namespace ohm
       /// Postfix increment for the iterator. Iterator becomes invalid when incrementing an iterator
       /// referencing the last voxel in the map. Safe to call on an invalid iterator (no change).
       /// @return @c This iterator before the increment.
-      inline iterator operator++(int)
+      inline const iterator operator++(int)
       {
         iterator iter(*this);
         walkNext();
@@ -208,7 +208,10 @@ namespace ohm
 
     private:
       /// Resolve the @c base_iterator data into @c _voxel.
-      inline void resolveVoxel() const { voxel_ = const_cast<iterator *>(this)->voxel(); }
+      inline void resolveVoxel() const
+      {
+        voxel_ = const_cast<iterator *>(this)->voxel();  // NOLINT(cppcoreguidelines-pro-type-const-cast)
+      }
 
       /// A cached @c Voxel version of the underlying @c base_iterator data, here to support
       /// the @c * and @c -> operators.
@@ -244,7 +247,7 @@ namespace ohm
       /// Postfix increment for the iterator. Iterator becomes invalid when incrementing an iterator
       /// referencing the last voxel in the map. Safe to call on an invalid iterator (no change).
       /// @return @c This iterator before the increment.
-      inline const_iterator operator++(int)
+      inline const const_iterator operator++(int)
       {
         const_iterator iter(*this);
         walkNext();
@@ -278,7 +281,7 @@ namespace ohm
 
     /// @overload
     OccupancyMap(double resolution = 1.0, const glm::u8vec3 &region_voxel_dimensions = glm::u8vec3(0, 0, 0),
-                 MapFlag flags = MapFlag::None);
+                 MapFlag flags = MapFlag::kNone);
 
     /// Construct an @c OccupancyMap at the given voxels resolution.
     ///
@@ -399,7 +402,7 @@ namespace ohm
     /// Calculate the extents of the map based on existing regions containing known data.
     /// @param[out] min_ext Set to the minimum corner of the axis aligned extents.
     /// @param[out] max_ext Set to the maximum corner of the axis aligned extents.
-    void calculateExtents(glm::dvec3 &min_ext, glm::dvec3 &max_ext) const;
+    void calculateExtents(glm::dvec3 &min_ext, glm::dvec3 &max_ext) const;  // NOLINT(google-runtime-references)
 
     /// Access to the map info structure for storing general meta data.
     ///
@@ -607,13 +610,13 @@ namespace ohm
     /// Adjust @p voxel by increasing its occupancy probability. The value of the voxel is adjusted by
     /// adding @c hitValue(), which logically increases its occupancy probability by @c hitProbability().
     /// @param voxel The voxel to increase the occupancy probabilty for. Must be a valid, non-null voxel.
-    void integrateHit(Voxel &voxel) const;
+    void integrateHit(Voxel &voxel) const;  // NOLINT(google-runtime-references)
 
     /// Adjust @p voxel by increasing its occupancy probability. Equivalent to @c integrateHit(Voxel&), but
     /// introduces sub-voxel positioning.
     /// @param voxel The voxel to increase the occupancy probabilty for. Must be a valid, non-null voxel.
     /// @param point The sample point to integrate. Must lie within @p voxel. Used to update sub-voxel positioning.
-    void integrateHit(Voxel &voxel, const glm::dvec3 &point) const;
+    void integrateHit(Voxel &voxel, const glm::dvec3 &point) const;  // NOLINT(google-runtime-references)
 
     /// Integrate a hit into the map, creating the occupancy voxel as required.
     ///
@@ -649,7 +652,7 @@ namespace ohm
     /// adding @c missValue() which should be negative. This logically decreases its occupancy probability
     /// by @c missProbability().
     /// @param voxel The voxel to decrease the occupancy probabilty for. Must be a valid, non-null voxel.
-    void integrateMiss(Voxel &voxel) const;
+    void integrateMiss(Voxel &voxel) const;  // NOLINT(google-runtime-references)
 
     /// Integrate a miss into the map, creating the occupancy voxel as required.
     /// @param point The global coordinate to integrate a hit at.
@@ -662,17 +665,21 @@ namespace ohm
 
     /// Adjust the value of @p voxel by forcibly setting its occupancy probabilty to @c hitProbability().
     /// @param voxel The voxel to increase the occupancy probabilty for. Must be a valid, non-null voxel.
-    inline void setHit(Voxel &voxel) const
+    inline void setHit(Voxel &voxel) const  // NOLINT(google-runtime-references)
     {
       if (voxel.isValid())
+      {
         voxel.setValue(hitValue());
+      }
     }
     /// Adjust the value of @p voxel by forcibly setting its occupancy probabilty to @c missProbability().
     /// @param voxel The voxel to increase the occupancy probabilty for. Must be a valid, non-null voxel.
-    inline void setMiss(Voxel &voxel) const
+    inline void setMiss(Voxel &voxel) const  // NOLINT(google-runtime-references)
     {
       if (voxel.isValid())
+      {
         voxel.setValue(missValue());
+      }
     }
 
     /// The minimum value a voxel can have. Value adjustments are clamped to this minimum.
@@ -795,7 +802,7 @@ namespace ohm
     /// @param key The key to move.
     /// @param axis The axis to move along: [0, 1, 2] mapping to X, Y, Z respectively.
     /// @param step Defines the step direction and magnitude along the selected @p axis.
-    void moveKeyAlongAxis(Key &key, int axis, int step) const;
+    void moveKeyAlongAxis(Key &key, int axis, int step) const;  // NOLINT(google-runtime-references)
 
     /// Step the @p key along the @p axis in the given @p dir.
     ///
@@ -804,7 +811,7 @@ namespace ohm
     /// @param key The key to modify.
     /// @param axis The axis to modify. Must be [0, 2] mapping to XYZ respectively, or behaviour is undefined.
     /// @param dir Direction to step. Must be 1 or -1 or behaviour is undefined.
-    void stepKey(Key &key, int axis, int dir) const;
+    void stepKey(Key &key, int axis, int dir) const;  // NOLINT(google-runtime-references)
 
     /// Move an @c Key by a given offset.
     ///
@@ -823,11 +830,11 @@ namespace ohm
     /// @param x The voxel offset to apply to @p key on the X axis.
     /// @param y The voxel offset to apply to @p key on the Y axis.
     /// @param z The voxel offset to apply to @p key on the X axis.
-    void moveKey(Key &key, int x, int y, int z) const;
+    void moveKey(Key &key, int x, int y, int z) const;  // NOLINT(google-runtime-references)
 
     /// @overload
     template <typename VEC_TYPE>
-    inline void moveKey(Key &key, const VEC_TYPE &v) const
+    inline void moveKey(Key &key, const VEC_TYPE &v) const  // NOLINT(google-runtime-references)
     {
       moveKey(key, v.x, v.y, v.z);
     }
@@ -852,7 +859,8 @@ namespace ohm
     /// @param include_end_point @c true to incldue the voxel containing @p endPoint, @c false to exclude this
     ///   voxel from @p keys.
     /// @return The number of voxels added to @p keys.
-    size_t calculateSegmentKeys(KeyList &keys, const glm::dvec3 &start_point, const glm::dvec3 &end_point,
+    size_t calculateSegmentKeys(KeyList &keys,  // NOLINT(google-runtime-references)
+                                const glm::dvec3 &start_point, const glm::dvec3 &end_point,
                                 bool include_end_point = true) const;
 
     /// Set the range filter applied to all rays given to @c integrateRays().
@@ -902,7 +910,7 @@ namespace ohm
 
     /// Enumerate the regions within this map.
     /// @param[out] chunks The enumerated chunks are added to this container.
-    void enumerateRegions(std::vector<const MapChunk *> &chunks) const;
+    void enumerateRegions(std::vector<const MapChunk *> &chunks) const;  // NOLINT(google-runtime-references)
 
     /// @internal
     /// Fetch a region, potentially creating it.
@@ -920,7 +928,9 @@ namespace ohm
     ///
     /// @param from_stamp The map stamp value from which to fetch regions.
     /// @param regions The list to add to.
-    unsigned collectDirtyRegions(uint64_t from_stamp, std::vector<std::pair<uint64_t, glm::i16vec3>> &regions) const;
+    unsigned collectDirtyRegions(
+      uint64_t from_stamp, std::vector<std::pair<uint64_t, glm::i16vec3>> &regions  // NOLINT(google-runtime-references)
+      ) const;
 
     void calculateDirtyExtents(uint64_t *from_stamp, glm::i16vec3 *min_ext, glm::i16vec3 *max_ext) const;
     void calculateDirtyClearanceExtents(glm::i16vec3 *min_ext, glm::i16vec3 *max_ext,

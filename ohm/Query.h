@@ -18,14 +18,14 @@ namespace ohm
 
   /// Base class for a query operation on an @p OccupancyMap.
   ///
-  /// Typical usage is to setup the dervied query, then call @c exec() or @c execAsync() and @c wait().
+  /// Typical usage is to setup the derived query, then call @c exec() or @c execAsync() and @c wait().
   /// Results may be available via methods such as @c numberOfResults() and @p intersectedVoxels(). Query behaviour may
   /// be modified by setting various @c QueryFlag values in @c setQueryFlags(), although not all flags are honoured by
   /// all query implementations.
   ///
   /// Most queries operate on searching for occupied voxels, as defined by @c OccupancyMap::occupancyType(). By default
-  /// only voxels of type @c OccupancyType::Occupied are considered occupied. For most queries, setting the query flag
-  /// @c QF_UnknownAsOccupied ensures that @c OccupancyType::Uncertain are also considered as relevant obstructions.
+  /// only voxels of type @c OccupancyType::kOccupied are considered occupied. For most queries, setting the query flag
+  /// @c QF_UnknownAsOccupied ensures that @c OccupancyType::kUncertain are also considered as relevant obstructions.
   /// We define the set of such relevant voxels as the set of @em obstructed voxels.
   ///
   /// @todo Create a base class for the @c Query called @c MapOperation. @c Query adds the concept of results, which
@@ -142,7 +142,7 @@ namespace ohm
     /// @return True on successfully starting an asynchronous query.
     virtual bool onExecuteAsync() = 0;
 
-    // TODO: make pure virtual
+    // TODO(KS): make pure virtual
     virtual bool onWaitAsync(unsigned timeout_ms);
 
     /// Called from @c reset(bool hardReset) to complete or terminate any

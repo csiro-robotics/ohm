@@ -20,6 +20,7 @@ target_include_directories(ohmsubmap SYSTEM
 )
 
 target_link_libraries(ohmsubmap PUBLIC ohm ohmutil ${ZLIB_LIBRARIES})
+clang_tidy_target(ohmsubmap)
 
 source_group("source" REGULAR_EXPRESSION ".*$")
 # Needs CMake 3.8+:

@@ -40,7 +40,7 @@ function(_gputiltest_setup_target TARGET_NAME GPUTIL_LIBRARY)
   install(TARGETS ${TARGET_NAME} DESTINATION bin)
 endfunction(_gputiltest_setup_target)
 
-if(OPENCL_FOUND)
+if(OHM_BUILD_OPENCL)
   get_target_property(GPUTIL_DEVICE_INCLUDE_DIRS gputilocl SOURCE_DIR)
   # Embedding GPU code. Generate source file resources.
   # Only need to embed for OpenCL.
@@ -63,9 +63,9 @@ if(OPENCL_FOUND)
   leak_track_suppress(gputiltestocl CONDITION OHM_LEAK_TRACK
     ${OHM_LEAK_SUPPRESS_OCL}
   )
-endif(OPENCL_FOUND)
+endif(OHM_BUILD_OPENCL)
 
-if(CUDA_FOUND)
+if(OHM_BUILD_CUDA)
   list(APPEND GPU_SOURCES
     cuda/matrix_kernel.cu
   )
@@ -75,7 +75,7 @@ if(CUDA_FOUND)
   leak_track_suppress(gputiltestcuda CONDITION OHM_LEAK_TRACK
     ${OHM_LEAK_SUPPRESS_CUDA}
   )
-endif(CUDA_FOUND)
+endif(OHM_BUILD_CUDA)
 
 source_group("source" REGULAR_EXPRESSION ".*$")
 # Needs CMake 3.8+:

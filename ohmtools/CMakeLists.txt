@@ -21,6 +21,7 @@ set(PUBLIC_HEADERS
 )
 
 add_library(ohmtools ${SOURCES})
+clang_tidy_target(ohmtools)
 
 generate_export_header(ohmtools
       EXPORT_MACRO_NAME ohmtools_API

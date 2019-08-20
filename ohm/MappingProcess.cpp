@@ -12,5 +12,4 @@ MappingProcess::MappingProcess()
 {}
 
 
-MappingProcess::~MappingProcess()
-{}
+MappingProcess::~MappingProcess() = default;

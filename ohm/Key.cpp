@@ -10,8 +10,8 @@
 
 using namespace ohm;
 
-const Key Key::kNull(glm::ivec3(INVALID_VALUE), 0, 0, 0);
 const int16_t Key::kInvalidValue = INVALID_VALUE;
+const Key Key::kNull(glm::ivec3(INVALID_VALUE), 0, 0, 0); // NOLINT
 
 size_t Key::Hash::operator()(const Key &key) const
 {

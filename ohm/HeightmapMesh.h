@@ -154,7 +154,7 @@ namespace ohm
     /// @param[in,out] mesh The mesh object to populate. Mesh cleared first.
     /// @param offset_by_extents When true, relocate vertices relative to @c meshBoundingBox() minimum extents.
     /// @return True on success, false when empty.
-    bool extractPlyMesh(PlyMesh &mesh, bool offset_by_extents = true);
+    bool extractPlyMesh(PlyMesh &mesh, bool offset_by_extents = true);  // NOLINT(google-runtime-references)
 
   private:
     std::unique_ptr<HeightmapMeshDetail> imp_;

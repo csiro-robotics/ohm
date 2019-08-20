@@ -8,11 +8,11 @@
 
 #include "OhmConfig.h"
 
-#include <algorithm>
-
+#include <glm/geometric.hpp>
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
-#include <glm/geometric.hpp>
+
+#include <algorithm>
 
 namespace ohm
 {
@@ -37,7 +37,7 @@ namespace ohm
     /// Initialise with the given min/max extents.
     /// @param min_ext Minimum extents. Must be <= @p max_ext.
     /// @param max_ext Maximum extents.
-    Aabb(const glm::dvec3 min_ext, const glm::dvec3 &max_ext);
+    Aabb(const glm::dvec3 &min_ext, const glm::dvec3 &max_ext);
 
     /// Initialise from @p centre and @p half_extents.
     ///
@@ -159,7 +159,8 @@ namespace ohm
     /// @param[out] clip_flags Clipping flags indicating how the line has been clipped. See : @c ClipResult.
     /// @return True when the line segment intersects the box and has been clipped. Essentially, false when @p start
     ///     and @p end are unmodified.
-    bool clipLine(glm::dvec3 &start, glm::dvec3 &end, unsigned *clip_flags = nullptr) const;
+    bool clipLine(glm::dvec3 &start, glm::dvec3 &end,  // NOLINT(google-runtime-references)
+                  unsigned *clip_flags = nullptr) const;
 
     /// Test for precise quality between this and @p other.
     /// @param other The box to test against.
@@ -174,7 +175,7 @@ namespace ohm
     /// Assignment operator.
     /// @param other The value to assign.
     /// @return *this
-    const Aabb &operator=(const Aabb &other);
+    Aabb &operator=(const Aabb &other);
 
     /// Translate the box by @p offset.
     /// @param offset Translation to apply.
@@ -205,20 +206,23 @@ namespace ohm
   };
 
 
-  inline Aabb::Aabb() {}
+  inline Aabb::Aabb() = default;  // NOLINT(cppcoreguidelines-pro-type-member-init)
 
 
-  inline Aabb::Aabb(double seed) { corners_[0] = corners_[1] = glm::dvec3(seed); }
+  inline Aabb::Aabb(double seed)  // NOLINT(cppcoreguidelines-pro-type-member-init)
+  {
+    corners_[0] = corners_[1] = glm::dvec3(seed);
+  }
 
 
-  inline Aabb::Aabb(const Aabb &other)
+  inline Aabb::Aabb(const Aabb &other)  // NOLINT(cppcoreguidelines-pro-type-member-init)
   {
     corners_[0] = other.corners_[0];
     corners_[1] = other.corners_[1];
   }
 
 
-  inline Aabb::Aabb(const glm::dvec3 min_ext, const glm::dvec3 &max_ext)
+  inline Aabb::Aabb(const glm::dvec3 &min_ext, const glm::dvec3 &max_ext)  // NOLINT
   {
     corners_[0] = min_ext;
     corners_[1] = max_ext;
@@ -308,9 +312,9 @@ namespace ohm
     ty[0] = calcTimeVal(corners_[sign[1]].y, origin.y, inv_dir.y);
     ty[1] = calcTimeVal(corners_[1 - sign[1]].y, origin.y, inv_dir.y);
 
-    glm::dvec2 tbest;
+    glm::dvec2 time_best;
 
-    if (!calcIntervalOverlap(tx, ty, &tbest))
+    if (!calcIntervalOverlap(tx, ty, &time_best))
     {
       return false;
     }
@@ -318,15 +322,15 @@ namespace ohm
     tz[0] = calcTimeVal(corners_[sign[2]].z, origin.z, inv_dir.z);
     tz[1] = calcTimeVal(corners_[1 - sign[2]].z, origin.z, inv_dir.z);
 
-    if (!calcIntervalOverlap(tbest, tz, &tbest))
+    if (!calcIntervalOverlap(time_best, tz, &time_best))
     {
       return false;
     }
 
     bool intersected = false;
-    if (tbest[0] > 0)
+    if (time_best[0] > 0)
     {
-      start = origin + tbest[0] * direction;
+      start = origin + time_best[0] * direction;
       // Clamp to the box to cater for floating point error.
       start[0] = std::max(corners_[0][0], std::min(start[0], corners_[1][0]));
       start[1] = std::max(corners_[0][1], std::min(start[1], corners_[1][1]));
@@ -339,9 +343,9 @@ namespace ohm
       intersected = true;
     }
 
-    if (tbest[1] < max_time)
+    if (time_best[1] < max_time)
     {
-      end = origin + tbest[1] * direction;
+      end = origin + time_best[1] * direction;
       // Clamp to the box to cater for floating point error.
       end[0] = std::max(corners_[0][0], std::min(end[0], corners_[1][0]));
       end[1] = std::max(corners_[0][1], std::min(end[1], corners_[1][1]));
@@ -367,7 +371,7 @@ namespace ohm
   inline bool Aabb::operator!=(const Aabb &other) const { return !(*this == other); }
 
 
-  inline const Aabb &Aabb::operator=(const Aabb &other)
+  inline Aabb &Aabb::operator=(const Aabb &other)
   {
     corners_[0] = other.corners_[0];
     corners_[1] = other.corners_[1];
@@ -446,7 +450,7 @@ namespace ohm
     {
       return sign(limit - origin) * std::numeric_limits<double>::infinity();
     }
-    else if (direction == -std::numeric_limits<double>::infinity())
+    if (direction == -std::numeric_limits<double>::infinity())
     {
       return sign(limit - origin) * -std::numeric_limits<double>::infinity();
     }
@@ -460,7 +464,7 @@ namespace ohm
     {
       return false;
     }
-    else if (b[0] > a[1])
+    if (b[0] > a[1])
     {
       return false;
     }
@@ -469,6 +473,7 @@ namespace ohm
     (*overlap)[1] = std::min(a[1], b[1]);
     return true;
   }
+
 }  // namespace ohm
 
 #endif  // OHM_AABB_H

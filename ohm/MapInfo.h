@@ -58,7 +58,7 @@ namespace ohm
     MapValue(const MapValue &other);
     /// R-value reference constructor.
     /// @param other The reference to steal data from.
-    MapValue(MapValue &&other);
+    MapValue(MapValue &&other) noexcept;
     /// Create a @c kInt8 value.
     /// @param name The value key.
     /// @param val The value to assign.
@@ -235,7 +235,7 @@ namespace ohm
     /// Value assignment. This changes the @c Type as required.
     /// @param val Value to assign.
     /// @return A reference to this object.
-    MapValue &operator=(const char *val);
+    MapValue &operator=(const char *string);
 
     /// Equality comparison. Equality requires:
     /// - Same @c Type (including @c kTypeNone).
@@ -306,7 +306,7 @@ namespace ohm
 
     /// R-value reference constructor, taking ownership of data in @c other and invalidating @c other.
     /// @param other Data to take ownership of.
-    MapInfo(MapInfo &&other);
+    MapInfo(MapInfo &&other) noexcept;
 
     /// Destructor.
     ~MapInfo();

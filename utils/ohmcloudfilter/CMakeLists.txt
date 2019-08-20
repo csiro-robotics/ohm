@@ -30,6 +30,7 @@ target_link_libraries(ohmcloudfilter PUBLIC
   ohmutil
   ${LIBLAS_LIBRARIES}
 )
+clang_tidy_target(ohmcloudfilter)
 
 source_group("source" REGULAR_EXPRESSION ".*$")
 # Needs CMake 3.8+:

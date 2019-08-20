@@ -16,63 +16,63 @@ namespace ohm
   enum class MapFlag : unsigned
   {
     /// No special features.
-    None = 0u,
+    kNone = 0u,
     /// Enable sub-voxel positioning.
-    SubVoxelPosition = (1u << 0),
+    kSubVoxelPosition = (1u << 0),
     /// Use sub-voxel positioning to augment occupancy probability. Occupied voxels with points falling towards the
     /// outer extents of a voxel are considered free, not occupied. This is essentially an outlier or noise reduction
     /// inference.
     /// @see @c subVoxelOccupancyFilter()
-    SubVoxelOccupancy = (1u << 1),
+    kSubVoxelOccupancy = (1u << 1),
 
     /// Full sub-voxel features: positioning and occupancy augmentation.
-    SubVoxel = SubVoxelPosition | SubVoxelOccupancy
+    kSubVoxel = kSubVoxelPosition | kSubVoxelOccupancy
   };
 
   const char *mapFlagToString(MapFlag flag);
   MapFlag mapFlagFromString(const char *str);
-}
+}  // namespace ohm
 
-inline ohm::MapFlag operator | (ohm::MapFlag left, ohm::MapFlag right)
+inline ohm::MapFlag operator|(ohm::MapFlag left, ohm::MapFlag right)
 {
   using T = std::underlying_type_t<ohm::MapFlag>;
   return static_cast<ohm::MapFlag>(static_cast<T>(left) | static_cast<T>(right));
 }
 
-inline ohm::MapFlag &operator |= (ohm::MapFlag &left, ohm::MapFlag right)
+inline ohm::MapFlag &operator|=(ohm::MapFlag &left, ohm::MapFlag right)
 {
   left = left | right;
   return left;
 }
 
-inline ohm::MapFlag operator & (ohm::MapFlag left, ohm::MapFlag right)
+inline ohm::MapFlag operator&(ohm::MapFlag left, ohm::MapFlag right)
 {
   using T = std::underlying_type_t<ohm::MapFlag>;
   return static_cast<ohm::MapFlag>(static_cast<T>(left) & static_cast<T>(right));
 }
 
-inline ohm::MapFlag &operator &= (ohm::MapFlag &left, ohm::MapFlag right)
+inline ohm::MapFlag &operator&=(ohm::MapFlag &left, ohm::MapFlag right)
 {
   left = left & right;
   return left;
 }
 
-inline ohm::MapFlag operator ^ (ohm::MapFlag left, ohm::MapFlag right)
+inline ohm::MapFlag operator^(ohm::MapFlag left, ohm::MapFlag right)
 {
   using T = std::underlying_type_t<ohm::MapFlag>;
   return static_cast<ohm::MapFlag>(static_cast<T>(left) ^ static_cast<T>(right));
 }
 
-inline ohm::MapFlag &operator ^= (ohm::MapFlag &left, ohm::MapFlag right)
+inline ohm::MapFlag &operator^=(ohm::MapFlag &left, ohm::MapFlag right)
 {
   left = left ^ right;
   return left;
 }
 
-inline ohm::MapFlag operator ~ (ohm::MapFlag value)
+inline ohm::MapFlag operator~(ohm::MapFlag value)
 {
   using T = std::underlying_type_t<ohm::MapFlag>;
   return static_cast<ohm::MapFlag>(~static_cast<T>(value));
 }
 
-#endif // MAPFLAG_H
+#endif  // MAPFLAG_H

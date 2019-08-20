@@ -481,7 +481,7 @@ namespace ranges
     const float search_range = 2.0f;
 
     ohm::Profile profile;
-    OccupancyMap map(resolution, region_size, (sub_voxel) ? MapFlag::SubVoxel : MapFlag::None);
+    OccupancyMap map(resolution, region_size, (sub_voxel) ? MapFlag::kSubVoxel : MapFlag::kNone);
 
     // Offset the map origin so that 0, 0, 0 is the centre of a voxel.
     map.setOrigin(glm::dvec3(-0.5 * resolution));

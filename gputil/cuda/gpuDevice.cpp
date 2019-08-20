@@ -22,7 +22,7 @@ using namespace gputil;
 
 namespace
 {
-  void initDeviceInfo(DeviceInfo &gputil_info, const cudaDeviceProp &cuda_info)
+  void initDeviceInfo(DeviceInfo &gputil_info, const cudaDeviceProp &cuda_info)  // NOLINT(google-runtime-references)
   {
     gputil_info.name = cuda_info.name;
     gputil_info.platform = "CUDA";  // cuda_info.name;
@@ -44,7 +44,7 @@ namespace
 
     if (err == cudaSuccess)
     {
-      cudaDeviceProp cuda_info;
+      cudaDeviceProp cuda_info{};
       memset(&cuda_info, 0, sizeof(cuda_info));
       if (cudaGetDeviceProperties(&cuda_info, device_id) == cudaSuccess)
       {
@@ -113,7 +113,7 @@ unsigned Device::enumerateDevices(std::vector<DeviceInfo> &devices)
 
   for (int i = 0; i < device_count; ++i)
   {
-    cudaDeviceProp cuda_info;
+    cudaDeviceProp cuda_info{};
     DeviceInfo gputil_info;
     memset(&cuda_info, 0, sizeof(cuda_info));
     if (cudaGetDeviceProperties(&cuda_info, i) == cudaSuccess)
@@ -241,19 +241,19 @@ bool Device::select(int argc, const char **argv, const char *default_device, uns
     {
       return true;
     }
-    else if (device_version.major == constraint.major)
+    if (device_version.major == constraint.major)
     {
       if (device_version.minor > constraint.minor)
       {
         return true;
       }
-      else if (device_version.minor == constraint.minor)
+      if (device_version.minor == constraint.minor)
       {
         if (device_version.patch > constraint.patch)
         {
           return true;
         }
-        else if (device_version.patch == constraint.patch)
+        if (device_version.patch == constraint.patch)
         {
           return true;
         }
@@ -282,7 +282,7 @@ bool Device::select(const DeviceInfo &device_info)
 
   for (int i = 0; i < device_count; ++i)
   {
-    cudaDeviceProp cuda_info;
+    cudaDeviceProp cuda_info{};
     DeviceInfo gputil_info;
     memset(&cuda_info, 0, sizeof(cuda_info));
     if (cudaGetDeviceProperties(&cuda_info, i) == cudaSuccess)
@@ -339,7 +339,7 @@ bool Device::isValid() const
 uint64_t Device::deviceMemory() const
 {
   cudaError_t err = cudaSuccess;
-  cudaDeviceProp cuda_info;
+  cudaDeviceProp cuda_info{};
   memset(&cuda_info, 0, sizeof(cuda_info));
   err = cudaGetDeviceProperties(&cuda_info, imp_->device);
   GPUAPICHECK(err, cudaSuccess, 0u);
@@ -356,7 +356,7 @@ uint64_t Device::maxAllocationSize() const
 
 bool Device::unifiedMemory() const
 {
-  cudaDeviceProp cuda_info;
+  cudaDeviceProp cuda_info{};
   memset(&cuda_info, 0, sizeof(cuda_info));
   cudaError_t err = cudaGetDeviceProperties(&cuda_info, imp_->device);
   GPUAPICHECK(err, cudaSuccess, false);

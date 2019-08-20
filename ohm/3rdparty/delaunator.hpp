@@ -84,7 +84,7 @@ inline double circumradius(
 
     if ((bl > 0.0 || bl < 0.0) && (cl > 0.0 || cl < 0.0) && (d > 0.0 || d < 0.0)) {
         return x * x + y * y;
-    } else {
+    } else { // NOLINT(readability-else-after-return)
         return std::numeric_limits<double>::max();
     }
 }
@@ -135,14 +135,14 @@ inline double compare(
 
     if (diff1 > 0.0 || diff1 < 0.0) {
         return diff1;
-    } else if (diff2 > 0.0 || diff2 < 0.0) {
+    } else if (diff2 > 0.0 || diff2 < 0.0) { // NOLINT(readability-else-after-return)
         return diff2;
     } else {
         return diff3;
     }
 }
 
-struct sort_to_center {
+struct sort_to_center { // NOLINT(readability-identifier-naming)
 
     std::vector<double> const& coords;
     double cx;
@@ -153,7 +153,7 @@ struct sort_to_center {
     }
 };
 
-inline bool in_circle(
+inline bool in_circle( // NOLINT(readability-identifier-naming)
     double ax,
     double ay,
     double bx,
@@ -179,15 +179,15 @@ inline bool in_circle(
 }
 
 constexpr double EPSILON = std::numeric_limits<double>::epsilon();
-constexpr std::size_t INVALID_INDEX = std::numeric_limits<std::size_t>::max();
+constexpr std::size_t INVALID_INDEX = std::numeric_limits<std::size_t>::max(); // NOLINT(readability-identifier-naming)
 
-inline bool check_pts_equal(double x1, double y1, double x2, double y2) {
+inline bool check_pts_equal(double x1, double y1, double x2, double y2) { // NOLINT(readability-identifier-naming)
     return std::fabs(x1 - x2) <= EPSILON &&
            std::fabs(y1 - y2) <= EPSILON;
 }
 
 // monotonically increases with real angle, but doesn't need expensive trigonometry
-inline double pseudo_angle(double dx, double dy) {
+inline double pseudo_angle(double dx, double dy) { // NOLINT(readability-identifier-naming)
     const double p = dx / (std::abs(dx) + std::abs(dy));
     return (dy > 0.0 ? 3.0 - p : 1.0 + p) / 4.0; // [0..1)
 }
@@ -215,17 +215,17 @@ public:
 
     Delaunator(std::vector<double> const& in_coords);
 
-    double get_hull_area();
+    double get_hull_area(); // NOLINT(readability-identifier-naming)
 
 private:
-    std::vector<std::size_t> m_hash;
-    double m_center_x;
-    double m_center_y;
-    std::size_t m_hash_size;
+    std::vector<std::size_t> m_hash; // NOLINT(readability-identifier-naming)
+    double m_center_x; // NOLINT(readability-identifier-naming)
+    double m_center_y; // NOLINT(readability-identifier-naming)
+    std::size_t m_hash_size; // NOLINT(readability-identifier-naming)
 
     std::size_t legalize(std::size_t a);
-    std::size_t hash_key(double x, double y);
-    std::size_t add_triangle(
+    std::size_t hash_key(double x, double y); // NOLINT(readability-identifier-naming)
+    std::size_t add_triangle( // NOLINT(readability-identifier-naming)
         std::size_t i0,
         std::size_t i1,
         std::size_t i2,
@@ -237,13 +237,13 @@ private:
 
 Delaunator::Delaunator(std::vector<double> const& in_coords)
     : coords(in_coords),
-      triangles(),
-      halfedges(),
-      hull_prev(),
-      hull_next(),
-      hull_tri(),
+      triangles(), // NOLINT(readability-redundant-member-init)
+      halfedges(), // NOLINT(readability-redundant-member-init)
+      hull_prev(), // NOLINT(readability-redundant-member-init)
+      hull_next(), // NOLINT(readability-redundant-member-init)
+      hull_tri(), // NOLINT(readability-redundant-member-init)
       hull_start(),
-      m_hash(),
+      m_hash(), // NOLINT(readability-redundant-member-init)
       m_center_x(),
       m_center_y(),
       m_hash_size() {
@@ -260,10 +260,10 @@ Delaunator::Delaunator(std::vector<double> const& in_coords)
         const double x = coords[2 * i];
         const double y = coords[2 * i + 1];
 
-        if (x < min_x) min_x = x;
-        if (y < min_y) min_y = y;
-        if (x > max_x) max_x = x;
-        if (y > max_y) max_y = y;
+        if (x < min_x) min_x = x; // NOLINT(readability-braces-around-statements)
+        if (y < min_y) min_y = y; // NOLINT(readability-braces-around-statements)
+        if (x > max_x) max_x = x; // NOLINT(readability-braces-around-statements)
+        if (y > max_y) max_y = y; // NOLINT(readability-braces-around-statements)
 
         ids.push_back(i);
     }
@@ -291,7 +291,7 @@ Delaunator::Delaunator(std::vector<double> const& in_coords)
 
     // find the point closest to the seed
     for (std::size_t i = 0; i < n; i++) {
-        if (i == i0) continue;
+        if (i == i0) continue; // NOLINT(readability-braces-around-statements)
         const double d = dist(i0x, i0y, coords[2 * i], coords[2 * i + 1]);
         if (d < min_dist && d > 0.0) {
             i1 = i;
@@ -306,7 +306,7 @@ Delaunator::Delaunator(std::vector<double> const& in_coords)
 
     // find the third point which forms the smallest circumcircle with the first two
     for (std::size_t i = 0; i < n; i++) {
-        if (i == i0 || i == i1) continue;
+        if (i == i0 || i == i1) continue; // NOLINT(readability-braces-around-statements)
 
         const double r = circumradius(
             i0x, i0y, i1x, i1y, coords[2 * i], coords[2 * i + 1]);
@@ -373,7 +373,7 @@ Delaunator::Delaunator(std::vector<double> const& in_coords)
         const double y = coords[2 * i + 1];
 
         // skip near-duplicate points
-        if (k > 0 && check_pts_equal(x, y, xp, yp)) continue;
+        if (k > 0 && check_pts_equal(x, y, xp, yp)) continue; // NOLINT(readability-braces-around-statements)
         xp = x;
         yp = y;
 
@@ -381,7 +381,7 @@ Delaunator::Delaunator(std::vector<double> const& in_coords)
         if (
             check_pts_equal(x, y, i0x, i0y) ||
             check_pts_equal(x, y, i1x, i1y) ||
-            check_pts_equal(x, y, i2x, i2y)) continue;
+            check_pts_equal(x, y, i2x, i2y)) continue; // NOLINT(readability-braces-around-statements)
 
         // find a visible edge on the convex hull using edge hash
         std::size_t start = 0;
@@ -389,7 +389,7 @@ Delaunator::Delaunator(std::vector<double> const& in_coords)
         size_t key = hash_key(x, y);
         for (size_t j = 0; j < m_hash_size; j++) {
             start = m_hash[(key + j) % m_hash_size];
-            if (start != INVALID_INDEX && start != hull_next[start]) break;
+            if (start != INVALID_INDEX && start != hull_next[start]) break; // NOLINT(readability-braces-around-statements)
         }
 
         start = hull_prev[start];
@@ -404,6 +404,7 @@ Delaunator::Delaunator(std::vector<double> const& in_coords)
             }
         }
 
+         // NOLINTNEXTLINE(readability-braces-around-statements)
         if (e == INVALID_INDEX) continue; // likely a near-duplicate point; skip it
 
         // add the first triangle from the point
@@ -457,7 +458,7 @@ Delaunator::Delaunator(std::vector<double> const& in_coords)
     }
 }
 
-double Delaunator::get_hull_area() {
+double Delaunator::get_hull_area() { // NOLINT(readability-identifier-naming)
     std::vector<double> hull_area;
     size_t e = hull_start;
     do {
@@ -540,7 +541,7 @@ std::size_t Delaunator::legalize(std::size_t a) {
     return ar;
 }
 
-std::size_t Delaunator::hash_key(double x, double y) {
+std::size_t Delaunator::hash_key(double x, double y) { // NOLINT(readability-identifier-naming)
     const double dx = x - m_center_x;
     const double dy = y - m_center_y;
     return static_cast<std::size_t>(std::llround(
@@ -548,7 +549,7 @@ std::size_t Delaunator::hash_key(double x, double y) {
            m_hash_size;
 }
 
-std::size_t Delaunator::add_triangle(
+std::size_t Delaunator::add_triangle( // NOLINT(readability-identifier-naming)
     std::size_t i0,
     std::size_t i1,
     std::size_t i2,

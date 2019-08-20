@@ -38,6 +38,6 @@ namespace ohm
     /// Comparison operator for sorting.
     inline bool operator<(const TriangleEdge &other) const { return v0 < other.v0 || v0 == other.v0 && v1 < other.v1; }
   };
-}
+}  // namespace ohm
 
-#endif // OHM_TRIANGLEEDGE_H
+#endif  // OHM_TRIANGLEEDGE_H

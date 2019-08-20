@@ -16,7 +16,7 @@
 
 using namespace ohm;
 
-const char *OccupancyMapDetail::kSubVoxelLayerName = "sub_voxel";
+const char * const OccupancyMapDetail::kSubVoxelLayerName = "sub_voxel";
 
 OccupancyMapDetail::~OccupancyMapDetail()
 {
@@ -114,11 +114,11 @@ void OccupancyMapDetail::setDefaultLayout(bool enable_sub_voxel_positioning)
   if (enable_sub_voxel_positioning)
   {
     voxel.addMember(kSubVoxelLayerName, DataType::kUInt32, clear_value);
-    flags |= MapFlag::SubVoxelPosition;
+    flags |= MapFlag::kSubVoxelPosition;
   }
   else
   {
-    flags &= ~MapFlag::SubVoxelPosition;
+    flags &= ~MapFlag::kSubVoxelPosition;
   }
 
 

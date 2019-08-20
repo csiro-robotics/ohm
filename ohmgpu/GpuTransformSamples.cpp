@@ -36,7 +36,7 @@ using namespace ohm;
 namespace
 {
 #if defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
-  GpuProgramRef program_ref("TransformSamples", GpuProgramRef::kSourceString, TransformSamplesCode,
+  GpuProgramRef program_ref("TransformSamples", GpuProgramRef::kSourceString, TransformSamplesCode,// NOLINT
                             TransformSamplesCode_length);
 #else   // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
   GpuProgramRef program_ref("TransformSamples", GpuProgramRef::kSourceFile, "TransformSamples.cl");
@@ -74,7 +74,7 @@ GpuTransformSamples::GpuTransformSamples(gputil::Device &gpu)
 }
 
 
-GpuTransformSamples::GpuTransformSamples(GpuTransformSamples &&other)
+GpuTransformSamples::GpuTransformSamples(GpuTransformSamples &&other) noexcept
   : imp_(other.imp_)
 {
   other.imp_ = nullptr;
@@ -92,7 +92,7 @@ GpuTransformSamples::~GpuTransformSamples()
 }
 
 
-unsigned GpuTransformSamples::transform(const double *transform_times, const glm::dvec3 *transform_positions,
+unsigned GpuTransformSamples::transform(const double *transform_times, const glm::dvec3 *transform_translations,
                                         const glm::dquat *transform_rotations, unsigned transform_count,
                                         const double *sample_times, const glm::dvec3 *local_samples,
                                         unsigned point_count, gputil::Queue &gpu_queue, gputil::Buffer &output_buffer,
@@ -160,7 +160,7 @@ unsigned GpuTransformSamples::transform(const double *transform_times, const glm
   float single_precision_timestamp;
   for (unsigned i = 0; i < transform_count; ++i)
   {
-    position = glm::vec3(transform_positions[i]);
+    position = glm::vec3(transform_translations[i]);
     rotation = glm::quat(transform_rotations[i]);
     positions_buffer.write(glm::value_ptr(position), sizeof(position), i * sizeof(gputil::float3));
     rotations_buffer.write(glm::value_ptr(rotation), sizeof(rotation), i * sizeof(gputil::float4));

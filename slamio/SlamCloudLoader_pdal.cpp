@@ -40,7 +40,7 @@ namespace
     glm::dvec3 sample;
   };
 
-  typedef std::chrono::high_resolution_clock Clock;
+  using Clock = std::chrono::high_resolution_clock;
 }  // namespace
 
 struct SlamCloudLoaderDetail
@@ -63,9 +63,9 @@ struct SlamCloudLoaderDetail
   std::ifstream trajectory_file;
   std::string traj_line;
   glm::dvec3 trajectory_to_sensor_offset = glm::dvec3(0);
-  TrajectoryPoint trajectory_buffer[2];
+  TrajectoryPoint trajectory_buffer[2] = { TrajectoryPoint{}, TrajectoryPoint{} };
 
-  SamplePoint next_sample;
+  SamplePoint next_sample = SamplePoint{};
   uint64_t next_sample_read_index = 0;
 
   Clock::time_point first_sample_read_time;
@@ -87,7 +87,7 @@ namespace
 {
   std::string getFileExtension(const std::string &file)
   {
-    const size_t last_dot = file.find_last_of(".");
+    const size_t last_dot = file.find_last_of('.');
     if (last_dot != std::string::npos)
     {
       return file.substr(last_dot + 1);
@@ -96,7 +96,8 @@ namespace
     return "";
   }
 
-  pdal::Stage *createReader(pdal::StageFactory &factory, const std::string &file_name)
+  pdal::Stage *createReader(pdal::StageFactory &factory,  // NOLINT(google-runtime-references)
+                            const std::string &file_name)
   {
     const std::string ext = getFileExtension(file_name);
     std::string reader_type;
@@ -200,7 +201,7 @@ bool SlamCloudLoader::open(const char *sample_file_path, const char *trajectory_
   imp_->sample_table = new pdal::PointTable;
   imp_->sample_reader->prepare(*imp_->sample_table);
   pdal::PointViewSet point_sets = imp_->sample_reader->execute(*imp_->sample_table);
-  if (point_sets.size() == 0)
+  if (point_sets.empty())
   {
     close();
     return false;
@@ -235,7 +236,7 @@ bool SlamCloudLoader::open(const char *sample_file_path, const char *trajectory_
     imp_->traj_table = new pdal::PointTable;
     imp_->trajectory_reader->prepare(*imp_->traj_table);
     point_sets = imp_->trajectory_reader->execute(*imp_->traj_table);
-    if (point_sets.size() == 0)
+    if (point_sets.empty())
     {
       close();
       return false;
@@ -392,7 +393,7 @@ bool SlamCloudLoader::loadPoint()
 {
   if (imp_->samples_view_index < imp_->samples->size())
   {
-    SamplePoint sample;
+    SamplePoint sample{};
 
     sample.timestamp = imp_->samples->getFieldAs<double>(pdal::Dimension::Id::GpsTime, imp_->samples_view_index);
     sample.sample.x = imp_->samples->getFieldAs<double>(pdal::Dimension::Id::X, imp_->samples_view_index);
@@ -421,7 +422,7 @@ bool SlamCloudLoader::sampleTrajectory(glm::dvec3 &position, glm::dquat &orienta
 {
   if (imp_->read_trajectory_point)
   {
-    TrajectoryPoint traj_point;
+    TrajectoryPoint traj_point{};
 
     while (timestamp > imp_->trajectory_buffer[1].timestamp && imp_->read_trajectory_point(traj_point))
     {

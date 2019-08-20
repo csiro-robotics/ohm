@@ -32,7 +32,7 @@ namespace gputil
     size_t z = 1;
 
     /// Default constructor: @c volume() is 1.
-    Dim3() {}
+    Dim3() = default;
 
     /// Constructor.
     /// @param x The x item count.
@@ -60,6 +60,8 @@ namespace gputil
         return y;
       case 2:
         return z;
+      default:
+        break; // Fallout
       }
       return 0;
     }
@@ -75,6 +77,8 @@ namespace gputil
         return y;
       case 2:
         return z;
+      default:
+        break; // Fall out to invalid.
       }
       static size_t invalid = 0u;
       return invalid;
@@ -110,7 +114,7 @@ namespace gputil
 
     /// Constructor.
     /// @param buffer The buffer to wrap.
-    inline BufferArg(Buffer &buffer)
+    inline BufferArg(Buffer &buffer)  // NOLINT(google-runtime-references)
       : buffer(&buffer)
     {}
 
@@ -157,7 +161,7 @@ namespace gputil
   {
   public:
     Kernel();
-    Kernel(Kernel &&other);
+    Kernel(Kernel &&other) noexcept;
 
     ~Kernel();
 
@@ -206,8 +210,9 @@ namespace gputil
     int operator()(const Dim3 &global_size, const Dim3 &local_size, Queue *queue, ARGS... args);
 
     template <typename... ARGS>
-    int operator()(const Dim3 &global_size, const Dim3 &local_size, Event &completion_event, Queue *queue,
-                   ARGS... args);
+    int operator()(const Dim3 &global_size, const Dim3 &local_size,
+                   Event &completion_event,  // NOLINT(google-runtime-references)
+                   Queue *queue, ARGS... args);
 
     template <typename... ARGS>
     int operator()(const Dim3 &global_size, const Dim3 &local_size, const EventList &event_list, Queue *queue,
@@ -215,13 +220,13 @@ namespace gputil
 
     template <typename... ARGS>
     int operator()(const Dim3 &global_size, const Dim3 &local_size, const EventList &event_list,
-                   Event &completion_event, Queue *queue, ARGS... args);
+                   Event &completion_event, Queue *queue, ARGS... args);  // NOLINT(google-runtime-references)
 
     KernelDetail *detail() const { return imp_; }
 
     Device device();
 
-    Kernel &operator=(Kernel &&other);
+    Kernel &operator=(Kernel &&other) noexcept;
 
   private:
     KernelDetail *imp_;

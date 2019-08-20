@@ -29,7 +29,7 @@ namespace gputil
 
 /// Definition of the a function which exposes a CUDA kernel for use with gputil.
 #define GPUTIL_CUDA_DEFINE_KERNEL(kernel_name)                                                                 \
-  __host__ _GPUTIL_DECLARE_KERNEL(kernel_name) { return (const void *)&kernel_name; }                          \
+  __host__ _GPUTIL_DECLARE_KERNEL(kernel_name) { return (const void *)&(kernel_name); }                        \
   __host__ _GPUTIL_DECLARE_GROUP_CALC(kernel_name)                                                             \
   {                                                                                                            \
     return [](size_t *optimal_size, const gputil::SharedMemCalculation &shared_mem_calc) {                     \

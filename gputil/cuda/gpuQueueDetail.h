@@ -29,7 +29,7 @@ namespace gputil
     inline QueueDetail(const Ref &other) = delete;
 
   protected:
-    inline ~QueueDetail() {}
+    inline ~QueueDetail() = default;
   };
 }  // namespace gputil
 

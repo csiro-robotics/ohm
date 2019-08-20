@@ -68,8 +68,9 @@ namespace clu
   /// @return True if the @p buffer has been allocated for the first time or reallocated.
   /// False if the buffer has been left as is. Errors are reported via @p error.
   template <typename T>
-  bool ensureBufferSize(cl::Buffer &buffer, cl_mem_flags flags, const cl::Context &context, size_t element_count,
-                        cl_int *error = nullptr, cl_uint byte_size_alignment = 0)
+  bool ensureBufferSize(cl::Buffer &buffer, cl_mem_flags flags,  // NOLINT(google-runtime-references)
+                        const cl::Context &context, size_t element_count, cl_int *error = nullptr,
+                        cl_uint byte_size_alignment = 0)
   {
     if (buffer())
     {
@@ -127,8 +128,10 @@ namespace clu
   /// @tparam GPUT The GPU buffer type to upload to.
   /// @tparam CPUT The CPU buffer type to upload to.
   template <typename GPUT, typename CPUT>
-  bool upload(cl::CommandQueue &queue, cl::Context &context, cl::Buffer &gpu_buffer, const CPUT *cpu_buffer,
-              size_t element_count, bool allow_write, const char *reference, std::ostream &log = std::cerr)
+  bool upload(cl::CommandQueue &queue, cl::Context &context,  // NOLINT(google-runtime-references)
+              cl::Buffer &gpu_buffer,                         // NOLINT(google-runtime-references)
+              const CPUT *cpu_buffer, size_t element_count, bool allow_write, const char *reference,
+              std::ostream &log = std::cerr)
   {
     static_assert(sizeof(GPUT) >= sizeof(GPUT), "GPU type smaller than CPU type.");
     const CPUT *cpu = cpu_buffer;
@@ -183,8 +186,8 @@ namespace clu
   /// @tparam GPUT The GPU buffer type to upload to.
   /// @tparam CPUT The CPU buffer type to upload to.
   template <typename GPUT, typename CPUT>
-  bool download(cl::CommandQueue &queue, CPUT *cpu_buffer, cl::Buffer &gpu_buffer, size_t element_count,
-                const char *reference, std::ostream &log = std::cerr)
+  bool download(cl::CommandQueue &queue, CPUT *cpu_buffer, cl::Buffer &gpu_buffer,  // NOLINT(google-runtime-references)
+                size_t element_count, const char *reference, std::ostream &log = std::cerr)
   {
     static_assert(sizeof(GPUT) >= sizeof(GPUT), "GPU type smaller than CPU type.");
     CPUT *cpu = cpu_buffer;

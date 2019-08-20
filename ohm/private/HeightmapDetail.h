@@ -24,7 +24,7 @@ namespace ohm
     ohm::OccupancyMap *occupancy_map = nullptr;
     /// Use a very thin occupancy map for the heightmap representation.
     std::unique_ptr<ohm::OccupancyMap> heightmap;
-    glm::dvec3 up;
+    glm::dvec3 up = glm::dvec3(0, 0, 1);
     /// Ignore all source voxels which lie lower than this below the base height.
     /// Enable by setting a positive value.
     double floor = 0;
@@ -37,10 +37,10 @@ namespace ohm
     /// Voxel layer used to build the first pass heightmap without blur.
     int heightmap_build_layer = -1;
     /// Identifies the up axis: @c UpAxis
-    UpAxis up_axis_id = UpAxis::Z;
+    UpAxis up_axis_id = UpAxis::kZ;
     /// Identifies the up axis as aligned to XYZ, [0, 2] but ignores sign/direction.
     /// Same as up_axis_id if that value is >= 0.
-    int vertical_axis_index = int(UpAxis::Z);
+    int vertical_axis_index = int(UpAxis::kZ);
     /// Target number of threads to use. 1 => no threading.
     unsigned thread_count = 1;
     /// Should heightmap generation ignore the presence of sub-voxel positions, forcing voxel centres instead?
@@ -54,7 +54,7 @@ namespace ohm
     static const glm::dvec3 &surfaceNormalB(UpAxis axis_id);
 
     void fromMapInfo(const MapInfo &info);
-    void toMapInfo(MapInfo &info) const;
+    void toMapInfo(MapInfo &info) const;  // NOLINT(google-runtime-references)
   };
 
 

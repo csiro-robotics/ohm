@@ -24,6 +24,8 @@ namespace ohm
   class ohm_API Key
   {
   public:
+    /// Initialiser value for @c kNull.
+    static const int16_t kInvalidValue;
     /// A static instance of a null key (equivalent to @c Key(nullptr) ).
     static const Key kNull;
 
@@ -52,7 +54,7 @@ namespace ohm
     /// @param x The x coordinate for the local key. Must be in range for the region.
     /// @param y The y coordinate for the local key. Must be in range for the region.
     /// @param z The z coordinate for the local key. Must be in range for the region.
-    Key(short rx, short ry, short rz, uint8_t x, uint8_t y, uint8_t z);
+    Key(int16_t rx, int16_t ry, int16_t rz, uint8_t x, uint8_t y, uint8_t z);
 
     /// Construct a key for a region.
     /// @param region_key Initialises the region key part of the key.
@@ -191,14 +193,12 @@ namespace ohm
   private:
     glm::i16vec3 region_key_;
     glm::u8vec3 local_;
-
-    static const int16_t kInvalidValue;
   };
 
-  inline Key::Key() {}
+  inline Key::Key() = default; // NOLINT
 
 
-  inline Key::Key(short rx, short ry, short rz, uint8_t x, uint8_t y, uint8_t z)
+  inline Key::Key(int16_t rx, int16_t ry, int16_t rz, uint8_t x, uint8_t y, uint8_t z)
     : Key(glm::i16vec3(rx, ry, rz), glm::u8vec3(x, y, z))
   {}
 
@@ -215,6 +215,8 @@ namespace ohm
 
 
   inline Key::Key(void *ptr)
+    : region_key_(0)
+    , local_(0)
   {
     if (ptr == nullptr)
     {
@@ -270,12 +272,7 @@ namespace ohm
   }
 
 
-  inline Key &Key::operator=(const Key &other)
-  {
-    region_key_ = other.region_key_;
-    local_ = other.local_;
-    return *this;
-  }
+  inline Key &Key::operator=(const Key &other) = default;
 
   inline bool Key::operator==(const Key &other) const
   {

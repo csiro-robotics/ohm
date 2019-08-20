@@ -9,6 +9,9 @@ import os.path
 import re
 import sys
 
+if sys.version_info[0] == 2:
+    import __future__
+
 #-------------------------------------------------------------------------------
 # Argument parsing setup
 #-------------------------------------------------------------------------------
@@ -213,8 +216,8 @@ with open(args.output_header, 'w') as header_file:
 #ifndef {1}
 #define {1}
 
-extern const unsigned {2}_length;
-extern const char *{2};
+extern const unsigned {2}_length; // NOLINT
+extern const char * const {2}; // NOLINT
 
 #endif // {1}
 """.format(args.input, header_guard, resource_name))
@@ -262,12 +265,15 @@ if input_file_content_length < 1 << 16 and args.mode == 'text':
     input_file_content_string = '"' + input_file_content_string + '"'
 else:
     # String too long. Convert the original content to byte array.
+    input_file_content_bytes = []
     input_file_content_bytes = input_file_content.encode('utf8')
     input_file_content_length = len(input_file_content_bytes)
     input_file_content_string = ''
     content_buffer = ['{\n']
     buffered_count = 0
     for byte in input_file_content_bytes:
+        if sys.version_info < (3, 0):
+            byte = ord(byte)
         content_buffer.append(str(byte))
         content_buffer.append(',')
         buffered_count += 2
@@ -281,10 +287,10 @@ with open(args.output_source, 'w') as source_file:
     source_file.write("""// Resource file generated from {0}
 #include "{1}"
 
-const unsigned {2}_length = {3};
-static const char {2}_[] = """.format(args.input, os.path.basename(args.output_header), resource_name, input_file_content_length))
+const unsigned {2}_length = {3};  // NOLINT
+static const char {2}_[] =  // NOLINT\n""".format(args.input, os.path.basename(args.output_header), resource_name, input_file_content_length))
 
     source_file.write(input_file_content_string)
-    source_file.write(';\n')
-    source_file.write("const char *{0} = {0}_;\n".format(resource_name))
+    source_file.write('; // NOLINT\n')
+    source_file.write("const char * const {0} = {0}_; // NOLINT\n".format(resource_name))
     source_file.write('\n')

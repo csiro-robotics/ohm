@@ -18,7 +18,8 @@ using namespace gputil;
 namespace
 {
   void prepareDebugBuildArgs(const gputil::Device &gpu, const BuildArgs &build_args, std::ostream &debug_opt,
-                             std::ostream &build_opt, std::string &source_file_opt)
+                             std::ostream &build_opt,
+                             std::string &source_file_opt)  // NOLINT(google-runtime-references)
   {
     // Compile and initialise.
     source_file_opt = std::string();
@@ -102,7 +103,7 @@ Program::Program(Device &device, const char *program_name)
 }
 
 
-Program::Program(Program &&other)
+Program::Program(Program &&other) noexcept
   : imp_(other.imp_)
 {
   other.imp_ = nullptr;
@@ -200,7 +201,7 @@ Program &Program::operator=(const Program &other)
 }
 
 
-Program &Program::operator=(Program &&other)
+Program &Program::operator=(Program &&other) noexcept
 {
   delete imp_;
   imp_ = other.imp_;

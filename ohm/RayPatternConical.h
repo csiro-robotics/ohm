@@ -18,6 +18,6 @@ namespace ohm
     RayPatternConical(const glm::dvec3 &cone_axis, double cone_angle, double range, double angular_resolution,
                       double min_range = 0);
   };
-}
+}  // namespace ohm
 
-#endif // RAYPATTERNCONICAL_H
+#endif  // RAYPATTERNCONICAL_H

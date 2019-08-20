@@ -53,19 +53,20 @@ namespace ohm
   {
   public:
     /// Define for 1 MiB in bytes.
-    static const size_t kMiB = 1024u * 1024u;
+    static const size_t kMiB = 1024ull * 1024ull;
     /// Define for 1 GiB in bytes.
-    static const size_t kGiB = 1024u * 1024u * 1024u;
+    static const size_t kGiB = 1024ull * 1024ull * 1024ull;
     /// The default byte size of each GPU layer if not specified.
     static const size_t kDefaultLayerMemSize = kGiB / 2;
 
     /// Instantiate the @c GpuCache for @p map.
     /// @param map The map to cache data for.
     /// @param default_gpu_mem_size The default size of allocated @c GpuLayerCache objects if not specified.
-    GpuCache(OccupancyMap &map, size_t default_gpu_mem_size = kDefaultLayerMemSize);
+    GpuCache(OccupancyMap &map,  // NOLINT(google-runtime-references)
+             size_t default_gpu_mem_size = kDefaultLayerMemSize);
 
     /// Destructor, cleaning up all owned @c GpuLayerCache objects.
-    ~GpuCache();
+    ~GpuCache() override;
 
     /// Flush and clear the cache, then reallocate GPU buffers. For use when voxel layout changes.
     void reinitialise() override;
@@ -77,8 +78,8 @@ namespace ohm
     void clear() override;
 
     /// Remove a particular region from the cache.
-    /// @param region_coord The region to flush from the cache.
-    void remove(const glm::i16vec3 &region_coord) override;
+    /// @param region_key The region to flush from the cache.
+    void remove(const glm::i16vec3 &region_key) override;
 
     /// Query the default byte size of each layer cache.
     /// @return The default size of for a layer cache in bytes.

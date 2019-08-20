@@ -5,13 +5,8 @@ find_package(GLM)
 find_package(Threads)
 
 set(SOURCES
-  ska/bytell_hash_map.hpp
-  ska/flat_hash_map.hpp
-  ska/ska_sort.hpp
-  ska/unordered_map.hpp
   Colour.cpp
   Colour.h
-  cxxopts.hpp
   p2p.h
   # OhmUtil.cpp
   OhmUtil.h
@@ -39,16 +34,20 @@ set(SOURCES
   VectorHash.h
 )
 
+# Split 3rd-party headers so we can include them as system headers and don't need to address clang-tidy issues.
 set(PUBLIC_SKA_HEADERS
-  ska/bytell_hash_map.hpp
-  ska/flat_hash_map.hpp
-  ska/ska_sort.hpp
-  ska/unordered_map.hpp
+  3rdparty/ska/bytell_hash_map.hpp
+  3rdparty/ska/flat_hash_map.hpp
+  3rdparty/ska/ska_sort.hpp
+  3rdparty/ska/unordered_map.hpp
+)
+
+set(PUBLIC_CXXOPT_HEADERS
+  3rdparty/cxxopts/cxxopts.hpp
 )
 
 set(PUBLIC_HEADERS
   Colour.h
-  cxxopts.hpp
   GlmStream.h
   LineWalk.h
   OhmUtil.h
@@ -70,6 +69,7 @@ set(PUBLIC_HEADERS
 )
 
 add_library(ohmutil ${SOURCES})
+clang_tidy_target(ohmutil EXCLUDE_MATCHES ".*ska/\\*\\.hpp")
 
 generate_export_header(ohmutil
       EXPORT_MACRO_NAME ohmutil_API
@@ -85,7 +85,9 @@ target_include_directories(ohmutil
 )
 
 target_include_directories(ohmutil SYSTEM
-  PUBLIC "${GLM_INCLUDE_DIR}"
+  PUBLIC
+  "${GLM_INCLUDE_DIR}"
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/3rdparty>
 )
 
 # Kazys: Why did this suddenly become necessary on my Linux desktop?
@@ -102,6 +104,7 @@ install(TARGETS ohmutil EXPORT ${CMAKE_PROJECT_NAME}-config-targets
 
 install(FILES ${PUBLIC_HEADERS} DESTINATION ${OHM_PREFIX_INCLUDE}/ohmutil)
 install(FILES ${PUBLIC_SKA_HEADERS} DESTINATION ${OHM_PREFIX_INCLUDE}/ohmutil/ska)
+install(FILES ${PUBLIC_CXXOPT_HEADERS} DESTINATION ${OHM_PREFIX_INCLUDE}/ohmutil/cxxopts)
 
 source_group("source" REGULAR_EXPRESSION ".*$")
 # Needs CMake 3.8+:

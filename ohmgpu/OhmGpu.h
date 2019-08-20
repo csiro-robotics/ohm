@@ -42,7 +42,8 @@ namespace ohm
   /// @overload
   inline int ohmgpu_API configureGpuFromArgs(int argc, char **argv, bool show_device = true)
   {
-    return configureGpuFromArgs(argc, const_cast<const char **>(argv), show_device);
+    return configureGpuFromArgs(argc, const_cast<const char **>(argv),  // NOLINT(cppcoreguidelines-pro-type-const-cast)
+                                show_device);
   }
 
   /// Make a GPU/accelerator selection.
@@ -92,7 +93,7 @@ namespace ohm
   /// Used to set "-cl-std=x.x" in OpenCL compilation. Validated required extended features.
   ///
   /// @return An argument string which should be included when building GPU code.
-  void ohmgpu_API setGpuBuildVersion(gputil::BuildArgs &build_args);
+  void ohmgpu_API setGpuBuildVersion(gputil::BuildArgs &build_args);  // NOLINT(google-runtime-references)
 }  // namespace ohm
 
 #endif  // OHMGPU_H

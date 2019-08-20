@@ -68,17 +68,17 @@ namespace ohm
     struct BitmapInfo
     {
       /// Image pixel width.
-      unsigned image_width;
+      unsigned image_width = 0;
       /// Image pixel height.
-      unsigned image_height;
+      unsigned image_height = 0;
       /// Number of bytes per pixel.
-      unsigned bpp;
+      unsigned bpp = 0;
       /// Details on the pixel format.
-      ImageType type;
+      ImageType type = kImageNormals;
       /// Number of bytes in the image.
-      size_t byte_count;
+      size_t byte_count = 0;
       /// Image spatial extents.
-      Aabb image_extents;
+      Aabb image_extents = Aabb(0.0);
     };
 
     HeightmapImage(ImageType type = kImageNormals, unsigned pixels_per_voxel = 1);
@@ -140,7 +140,7 @@ namespace ohm
                         const unsigned *indices, size_t index_count,
                         const glm::dvec3 *vertex_normals = nullptr,
                         const Colour *colours = nullptr,
-                        UpAxis up_axis = UpAxis::Z);
+                        UpAxis up_axis = UpAxis::kZ);
 
     /// @overload
     bool generateBitmap(const Aabb &extents, double resolution,
@@ -148,7 +148,7 @@ namespace ohm
                         const unsigned *indices, size_t index_count,
                         const glm::dvec3 *vertex_normals,
                         const glm::vec3 *colours,
-                        UpAxis up_axis = UpAxis::Z);
+                        UpAxis up_axis = UpAxis::kZ);
 
     /// @overload
     bool generateBitmap(const Aabb &extents, double resolution,
@@ -156,12 +156,12 @@ namespace ohm
                         const unsigned *indices, size_t index_count,
                         const glm::dvec3 *vertex_normals,
                         const glm::dvec3 *colours,
-                        UpAxis up_axis = UpAxis::Z);
+                        UpAxis up_axis = UpAxis::kZ);
 
     /// Generate a bitmap image from a @c HeightmapMesh. Does not support @c kImageVertexColours888 image mode.
     /// @param mesh The mesh to generate an image of.
     /// @param up_axis Identifies the up axis.
-    bool generateBitmap(const HeightmapMesh &mesh, UpAxis up_axis = UpAxis::Z);
+    bool generateBitmap(const HeightmapMesh &mesh, UpAxis up_axis = UpAxis::kZ);
 
   private:
     template <typename NORMAL_VEC3, typename COLOUR_VEC>

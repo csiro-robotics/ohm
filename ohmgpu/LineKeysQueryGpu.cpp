@@ -40,12 +40,12 @@ using namespace ohm;
 namespace
 {
 #if defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
-  GpuProgramRef program_ref("LineKeys", GpuProgramRef::kSourceString, LineKeysCode, LineKeysCode_length);
+  GpuProgramRef program_ref("LineKeys", GpuProgramRef::kSourceString, LineKeysCode, LineKeysCode_length);  // NOLINT
 #else   // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
   GpuProgramRef program_ref("LineKeys", GpuProgramRef::kSourceFile, "LineKeys.cl");
 #endif  // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
 
-  bool readGpuResults(LineKeysQueryDetailGpu &query);
+  bool readGpuResults(LineKeysQueryDetailGpu &query);  // NOLINT(google-runtime-references)
 
   unsigned nextPow2(unsigned v)
   {
@@ -63,9 +63,9 @@ namespace
   // TODO(KS): Verify alignment.
   const size_t kGpuKeySize = sizeof(GpuKey);
 
-  bool initialiseGpu(LineKeysQueryDetailGpu &query)
+  bool initialiseGpu(LineKeysQueryDetailGpu &query)  // NOLINT(google-runtime-references)
   {
-    if (query.gpuOk)
+    if (query.gpu_ok)
     {
       return true;
     }
@@ -92,45 +92,45 @@ namespace
     }
 
     // Initialise buffer to dummy size. We'll resize as required.
-    query.linesOut = gputil::Buffer(query.gpu, 1 * kGpuKeySize, gputil::kBfReadWriteHost);
-    query.linePoints = gputil::Buffer(query.gpu, 1 * sizeof(gputil::float3), gputil::kBfReadHost);
-    query.gpuOk = true;
+    query.lines_out = gputil::Buffer(query.gpu, 1 * kGpuKeySize, gputil::kBfReadWriteHost);
+    query.line_points = gputil::Buffer(query.gpu, 1 * sizeof(gputil::float3), gputil::kBfReadHost);
+    query.gpu_ok = true;
 
     return true;
   }
 
 
-  bool lineKeysQueryGpu(LineKeysQueryDetailGpu &query, bool /*async*/)
+  bool lineKeysQueryGpu(LineKeysQueryDetailGpu &query, bool /*async*/)  // NOLINT(google-runtime-references)
   {
     // std::cout << "Prime kernel\n" << std::flush;
     // Size the buffers.
-    query.maxKeysPerLine = 1;
+    query.max_keys_per_line = 1;
     const double voxel_res = query.map->resolution();
     for (size_t i = 0; i < query.rays.size(); i += 2)
     {
-      query.maxKeysPerLine = std::max<unsigned>(
+      query.max_keys_per_line = std::max<unsigned>(
         unsigned(std::ceil((glm::length(query.rays[i + 1] - query.rays[i + 0]) / voxel_res) * std::pow(3.0, 0.5)) + 1u),
-        query.maxKeysPerLine);
+        query.max_keys_per_line);
     }
-    // std::cout << "Worst case key requirement: " << query.maxKeysPerLine << std::endl;
+    // std::cout << "Worst case key requirement: " << query.max_keys_per_line << std::endl;
     // std::cout << "Occupancy Key size " << sizeof(Key) << " GPU Key size: " << GpuKeySize << std::endl;
 
-    size_t required_size = query.rays.size() / 2 * query.maxKeysPerLine * kGpuKeySize;
-    if (query.linesOut.size() < required_size)
+    size_t required_size = query.rays.size() / 2 * query.max_keys_per_line * kGpuKeySize;
+    if (query.lines_out.size() < required_size)
     {
       // std::cout << "Required bytes " << requiredSize << " for " << query.rays.size() / 2u << " lines" << std::endl;
-      query.linesOut.resize(required_size);
+      query.lines_out.resize(required_size);
     }
     required_size = query.rays.size() * sizeof(gputil::float3);
-    if (query.linePoints.size() < required_size)
+    if (query.line_points.size() < required_size)
     {
-      // std::cout << "linePoints size: " << requiredSize << std::endl;
-      query.linePoints.resize(required_size);
+      // std::cout << "line_points size: " << requiredSize << std::endl;
+      query.line_points.resize(required_size);
     }
 
     // Upload rays. Need to write one at a time due to precision change and size differences.
     glm::vec3 point_f;
-    gputil::PinnedBuffer line_points_mem(query.linePoints, gputil::kPinWrite);
+    gputil::PinnedBuffer line_points_mem(query.line_points, gputil::kPinWrite);
     for (size_t i = 0; i < query.rays.size(); ++i)
     {
       point_f = query.rays[i] - query.map->origin();
@@ -150,8 +150,8 @@ namespace
     query.queue.insertBarrier();
     int err = query.line_keys_kernel(global_size, local_size, &query.queue,
                                      // Kernel args
-                                     gputil::BufferArg<GpuKey>(query.linesOut), query.maxKeysPerLine,
-                                     gputil::BufferArg<gputil::float3>(query.linePoints),
+                                     gputil::BufferArg<GpuKey>(query.lines_out), query.max_keys_per_line,
+                                     gputil::BufferArg<gputil::float3>(query.line_points),
                                      gputil::uint(query.rays.size() / 2), region_dim, float(query.map->resolution()));
 
     if (err)
@@ -167,21 +167,21 @@ namespace
   {
     // std::cout << "Reading results\n" << std::flush;
     // Download results.
-    gputil::PinnedBuffer gpu_mem(query.linesOut, gputil::kPinRead);
+    gputil::PinnedBuffer gpu_mem(query.lines_out, gputil::kPinRead);
 
-    query.resultIndices.resize(query.rays.size() / 2);
-    query.resultCounts.resize(query.rays.size() / 2);
+    query.result_indices.resize(query.rays.size() / 2);
+    query.result_counts.resize(query.rays.size() / 2);
 
     const size_t ray_count = query.rays.size() / 2;
     size_t read_offset_count = 0;
-    short result_count = 0;
+    int16_t result_count = 0;
     for (size_t i = 0; i < ray_count; ++i)
     {
       // Read result count.
       gpu_mem.read(&result_count, sizeof(result_count), read_offset_count * kGpuKeySize);
 
-      query.resultIndices[i] = query.intersected_voxels.size();
-      query.resultCounts[i] = result_count;
+      query.result_indices[i] = query.intersected_voxels.size();
+      query.result_counts[i] = result_count;
 
       // Read keys.
       if (result_count)
@@ -196,7 +196,7 @@ namespace
           query.intersected_voxels.reserve(reserve);
         }
         query.intersected_voxels.resize(query.intersected_voxels.size() + result_count);
-        gpu_mem.read(query.intersected_voxels.data() + query.resultIndices[i], kGpuKeySize * result_count,
+        gpu_mem.read(query.intersected_voxels.data() + query.result_indices[i], kGpuKeySize * result_count,
                      (read_offset_count + 1) * kGpuKeySize);
 #else   // #
         GpuKey gpuKey;
@@ -211,7 +211,7 @@ namespace
 #endif  // #
       }
 
-      read_offset_count += query.maxKeysPerLine;
+      read_offset_count += query.max_keys_per_line;
     }
 
     gpu_mem.unpin();
@@ -248,7 +248,7 @@ LineKeysQueryGpu::LineKeysQueryGpu(unsigned query_flags)
 LineKeysQueryGpu::~LineKeysQueryGpu()
 {
   LineKeysQueryDetailGpu *d = static_cast<LineKeysQueryDetailGpu *>(imp_);
-  if (d && d->gpuOk)
+  if (d && d->gpu_ok)
   {
     if (d->line_keys_kernel.isValid())
     {
@@ -272,7 +272,7 @@ bool LineKeysQueryGpu::onExecute()
 
   initialiseGpu(*d);
 
-  if (d->gpuOk)
+  if (d->gpu_ok)
   {
     bool ok = lineKeysQueryGpu(*d, false);
     if (ok)
@@ -291,21 +291,21 @@ bool LineKeysQueryGpu::onExecute()
   }
 
   KeyList key_list;
-  d->resultIndices.resize(d->rays.size() / 2);
-  d->resultCounts.resize(d->rays.size() / 2);
+  d->result_indices.resize(d->rays.size() / 2);
+  d->result_counts.resize(d->rays.size() / 2);
   for (size_t i = 0; i < d->rays.size(); i += 2)
   {
     key_list.clear();
     d->map->calculateSegmentKeys(key_list, d->rays[i + 0], d->rays[i + 1], true);
-    d->resultIndices[i / 2] = d->intersected_voxels.size();
-    d->resultCounts[i / 2] = key_list.size();
+    d->result_indices[i / 2] = d->intersected_voxels.size();
+    d->result_counts[i / 2] = key_list.size();
     for (auto &&key : key_list)
     {
       d->intersected_voxels.push_back(key);
     }
   }
 
-  d->number_of_results = d->resultIndices.size();
+  d->number_of_results = d->result_indices.size();
 
   return true;
 }
@@ -319,7 +319,7 @@ bool LineKeysQueryGpu::onExecuteAsync()
   {
     initialiseGpu(*d);
 
-    if (d->gpuOk)
+    if (d->gpu_ok)
     {
       bool ok = lineKeysQueryGpu(*d, true);
       if (ok)
@@ -345,8 +345,8 @@ bool LineKeysQueryGpu::onExecuteAsync()
 void LineKeysQueryGpu::onReset(bool /*hard_reset*/)
 {
   LineKeysQueryDetailGpu *d = static_cast<LineKeysQueryDetailGpu *>(imp_);
-  d->resultIndices.clear();
-  d->resultCounts.clear();
+  d->result_indices.clear();
+  d->result_counts.clear();
 }
 
 

@@ -20,7 +20,8 @@ using namespace ohm;
 
 namespace
 {
-  void filterLayers(MapLayoutDetail &imp, const std::vector<unsigned> &preserve_layers)
+  void filterLayers(MapLayoutDetail &imp,  // NOLINT(google-runtime-references)
+                    const std::vector<unsigned> &preserve_layers)
   {
     if (imp.layers.empty())
     {
@@ -162,9 +163,9 @@ void MapLayout::filterLayers(const std::initializer_list<unsigned> &preserve_lay
 }
 
 
-MapLayer *MapLayout::addLayer(const char *name, unsigned short subsampling)
+MapLayer *MapLayout::addLayer(const char *name, uint16_t subsampling)
 {
-  MapLayer *new_layer = new MapLayer(name, static_cast<unsigned short>(imp_->layers.size()), subsampling);
+  MapLayer *new_layer = new MapLayer(name, static_cast<uint16_t>(imp_->layers.size()), subsampling);
   imp_->layers.push_back(new_layer);
 
   std::string name_str(name);

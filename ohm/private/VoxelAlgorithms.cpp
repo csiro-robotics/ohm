@@ -5,8 +5,8 @@
 // Author: Kazys Stepanas
 #include "VoxelAlgorithms.h"
 
-#include "MapCache.h"
 #include "Key.h"
+#include "MapCache.h"
 #include "OccupancyMap.h"
 #include "Voxel.h"
 
@@ -21,9 +21,9 @@ namespace ohm
 
 
   float calculateNearestNeighbour(const Key &voxel_key, const OccupancyMap &map,
-                                  const glm::ivec3 &voxel_search_half_extents,
-                                  bool unknown_as_occupied, bool ignore_self, float search_range,
-                                  const glm::vec3 &axis_scaling, bool report_unscaled_distance)
+                                  const glm::ivec3 &voxel_search_half_extents, bool unknown_as_occupied,
+                                  bool ignore_self, float search_range, const glm::vec3 &axis_scaling,
+                                  bool report_unscaled_distance)
   {
     Key search_key;
     VoxelConst test_voxel;
@@ -93,4 +93,4 @@ namespace ohm
 
     return -1.0f;
   }
-}
+}  // namespace ohm

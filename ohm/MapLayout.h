@@ -155,7 +155,7 @@ namespace ohm
     /// @param name The name of the new layer. Should be unique, but this is not checked.
     /// @param subsampling Voxel subsampling. Each increment combines 8 voxels into 1.
     /// @return The new layer. The @c MapLayer::layerIndex() serves as it's id for use with @c layer() calls.
-    MapLayer *addLayer(const char *name, unsigned short subsampling = 0);
+    MapLayer *addLayer(const char *name, uint16_t subsampling = 0);
 
     /// Retrieve a layer by name (exact match). By iterative search.
     /// @param layer_name The name of the layer to search for.

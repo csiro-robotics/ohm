@@ -27,12 +27,14 @@ MapCache::MapCache(unsigned cache_size)  // NOLINT
 }
 
 
+#if OHM_MULTI_CACHE
 MapCache::~MapCache()
 {
-#if OHM_MULTI_CACHE
   delete[] _chunks;
-#endif  // OHM_MULTI_CACHE
 }
+#else  // OHM_MULTI_CACHE
+MapCache::~MapCache() = default;
+#endif  // OHM_MULTI_CACHE
 
 
 MapChunk *MapCache::lookup(const Key &key)

@@ -27,7 +27,7 @@ namespace ohm
     kRfClearOnly = (1 << 2)
   };
 #if !GPUTIL_DEVICE
-}
+} // namespace ohm
 #endif  // !GPUTIL_DEVICE
 
 #endif // RAYFLAG_H

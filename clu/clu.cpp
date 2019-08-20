@@ -24,7 +24,7 @@ namespace
   };
 
 
-  void split(const std::string &str, char delim, std::vector<std::string> &tokens)
+  void split(const std::string &str, char delim, std::vector<std::string> &tokens)  // NOLINT(google-runtime-references)
   {
     size_t prev = 0;
     size_t pos;
@@ -363,10 +363,11 @@ namespace clu
   }
 
 
-  ArgParse argValue(std::string &val, const std::string &arg, std::list<std::string>::const_iterator &iter,
+  ArgParse argValue(std::string &val, const std::string &arg,      // NOLINT(google-runtime-references)
+                    std::list<std::string>::const_iterator &iter,  // NOLINT(google-runtime-references)
                     const std::list<std::string>::const_iterator &end)
   {
-    std::string::size_type eqpos = arg.find("=");
+    std::string::size_type eqpos = arg.find('=');
     std::list<std::string>::const_iterator next = iter;
 
     ++next;
@@ -383,11 +384,9 @@ namespace clu
           iter = next;
           return kApOk;
         }
-        else
-        {
-          // Argument missing value.
-          return kApMissingValue;
-        }
+
+        // Argument missing value.
+        return kApMissingValue;
       }
       // Not enough additional arguments.
       return kApMissingValue;
@@ -406,7 +405,7 @@ namespace clu
     std::list<std::string> args;
     for (int i = 0; i < argc; ++i)
     {
-      args.push_back(argv[i]);
+      args.emplace_back(argv[i]);
     }
 
     return constraintsFromArgs(args, type, platform_constraints, device_constraints, arg_prefix);

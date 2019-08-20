@@ -130,8 +130,8 @@ namespace linequerytests
     // Seed the query with a known line(s).
     line_points.push_back(glm::dvec3(-0.5f * boundary_distance, -0.25f * boundary_distance, 0.25f * boundary_distance));
     line_points.push_back(glm::dvec3(1.2f * boundary_distance));
-    // linePoints.push_back(glm::dvec3(-1.2f * boundaryDistance, 0, 0));
-    // linePoints.push_back(glm::dvec3(1.2f * boundaryDistance, 0, 0));
+    // line_points.push_back(glm::dvec3(-1.2f * boundaryDistance, 0, 0));
+    // line_points.push_back(glm::dvec3(1.2f * boundaryDistance, 0, 0));
 
     const int query_iterations = 50;
     // const int queryIterations = 1;

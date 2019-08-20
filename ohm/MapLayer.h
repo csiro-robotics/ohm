@@ -122,7 +122,7 @@ namespace ohm
     const uint8_t *voxels(const MapChunk &chunk) const;
 
     /// @overload
-    uint8_t *voxels(MapChunk &chunk) const;
+    uint8_t *voxels(MapChunk &chunk) const;  // NOLINT(google-runtime-references)
 
     /// Get a pointer the the voxel data for this layer in @p chunk cast as type @c T.
     ///
@@ -136,7 +136,7 @@ namespace ohm
 
     /// @overload
     template <typename T>
-    T *voxelsAs(MapChunk &chunk) const;
+    T *voxelsAs(MapChunk &chunk) const;  // NOLINT(google-runtime-references)
 
     /// @internal
     /// Set the layer index. Used in layer reordering. Must be maintained correctly.

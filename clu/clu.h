@@ -29,9 +29,9 @@
 namespace clu
 {
   /// Constraint function prototype used in platform selection.
-  typedef std::function<bool(const cl::Platform &)> PlatformConstraint;
+  using PlatformConstraint = std::function<bool(const cl::Platform &)>;
   /// Constraint function prototype used in device selection.
-  typedef std::function<bool(const cl::Platform &, const cl::Device &)> DeviceConstraint;
+  using DeviceConstraint = std::function<bool(const cl::Platform &, const cl::Device &)>;
 
   /// Create the OpenCL platform optionally applying the given constraints.
   ///
@@ -67,8 +67,8 @@ namespace clu
   /// @param constraints The constraints to filter by.
   /// @param constraint_count The number of @p constraints.
   /// @return True if there is at least one valid platform left in @p platforms.
-  bool filterPlatforms(std::vector<cl::Platform> &platforms, cl_device_type type, const PlatformConstraint *constraints,
-                       unsigned constraint_count);
+  bool filterPlatforms(std::vector<cl::Platform> &platforms, cl_device_type type,  // NOLINT(google-runtime-references)
+                       const PlatformConstraint *constraints, unsigned constraint_count);
 
   /// Filter the given list of @p devices, removing all which do not match @p type or pass
   /// @p constraints.
@@ -80,14 +80,16 @@ namespace clu
   /// @param constraints The device constraints to filter by.
   /// @param constraint_count The number of @p constraints.
   /// @return True if there is at least one valid device left in @p devices.
-  bool filterDevices(const cl::Platform &platform, std::vector<cl::Device> &devices,
+  bool filterDevices(const cl::Platform &platform,      // NOLINT(google-runtime-references)
+                     std::vector<cl::Device> &devices,  // NOLINT(google-runtime-references)
                      const DeviceConstraint *constraints, unsigned constraint_count);
 
   /// List all the available devices in @p context.
   /// @param devices Populated with the devices from @p context.
   /// @param context The OpenCL context of interest.
   /// @return The number of items in @p devices.
-  unsigned listDevices(std::vector<cl::Device> &devices, const cl::Context &context);
+  unsigned listDevices(std::vector<cl::Device> &devices,  // NOLINT(google-runtime-references)
+                       const cl::Context &context);
 
   /// Retrieve the first available device from @p context.
   /// @param context The OpenCL context of interest.
@@ -178,7 +180,7 @@ namespace clu
   /// @param[out] context Set to the primary context.
   /// @param device The OpenCL device to operate on.
   /// @return True on success, false if not context has been initialised.
-  bool getPrimaryContext(cl::Context &context, cl::Device &device);
+  bool getPrimaryContext(cl::Context &context, cl::Device &device);  // NOLINT(google-runtime-references)
 
   /// Read and initialise constraints from command line arguments.
   ///
@@ -200,30 +202,36 @@ namespace clu
   /// platform | &lt;string&gt;       | Uses @c platformNameLike() to match the platform name.
   /// vendor   | &lt;string&gt;       | Uses @c platformVendorLike() to match the platform vendor.
   ///
-  /// @param argc Nubmer of arguments in @p argv.
+  /// @param argc Number of arguments in @p argv.
   /// @param argv Command line arguments.
   /// @param[out] type Set to the requested @c accel type or @c CL_DEVICE_TYPE_ALL.
   /// @param platform_constraints Populated with requested platform constraints.
   /// @param device_constraints Populated with requested device constraints.
   /// @param arg_prefix Optional prefix to required an all arguments described above.
-  void constraintsFromCommandLine(int argc, const char **argv, cl_device_type &type,
-                                  std::vector<PlatformConstraint> &platform_constraints,
-                                  std::vector<DeviceConstraint> &device_constraints, const char *arg_prefix = nullptr);
+  void constraintsFromCommandLine(
+    int argc, const char **argv, cl_device_type &type,      // NOLINT(google-runtime-references)
+    std::vector<PlatformConstraint> &platform_constraints,  // NOLINT(google-runtime-references)
+    std::vector<DeviceConstraint> &device_constraints,      // NOLINT(google-runtime-references)
+    const char *arg_prefix = nullptr);
 
   /// @overload
-  inline void constraintsFromCommandLine(int argc, char **argv, cl_device_type &type,
-                                         std::vector<PlatformConstraint> &platform_constraints,
-                                         std::vector<DeviceConstraint> &device_constraints,
-                                         const char *arg_prefix = nullptr)
+  inline void constraintsFromCommandLine(
+    int argc, char **argv, cl_device_type &type,            // NOLINT(google-runtime-references)
+    std::vector<PlatformConstraint> &platform_constraints,  // NOLINT(google-runtime-references)
+    std::vector<DeviceConstraint> &device_constraints,      // NOLINT(google-runtime-references)
+    const char *arg_prefix = nullptr)
   {
-    return constraintsFromCommandLine(argc, const_cast<const char **>(argv), type, platform_constraints,
-                                      device_constraints, arg_prefix);
+    return constraintsFromCommandLine(argc,
+                                      const_cast<const char **>(argv),  // NOLINT(cppcoreguidelines-pro-type-const-cast)
+                                      type, platform_constraints, device_constraints, arg_prefix);
   }
 
   /// @overload
-  void constraintsFromArgs(const std::list<std::string> &args, cl_device_type &type,
-                           std::vector<PlatformConstraint> &platform_constraints,
-                           std::vector<DeviceConstraint> &device_constraints, const char *arg_prefix = nullptr);
+  void constraintsFromArgs(const std::list<std::string> &args,
+                           cl_device_type &type,                                   // NOLINT(google-runtime-references)
+                           std::vector<PlatformConstraint> &platform_constraints,  // NOLINT(google-runtime-references)
+                           std::vector<DeviceConstraint> &device_constraints,      // NOLINT(google-runtime-references)
+                           const char *arg_prefix = nullptr);
 
   /// Parse an OpenCL version string. This supports both device and platform version strings of the form:
   /// "OpenCL <major>.<minor>".

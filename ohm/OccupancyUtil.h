@@ -26,8 +26,8 @@ namespace ohm
   using GlmQualifier = glm::qualifier;
 #endif  // GLM_VERSION
 
-  template <typename T, GlmQualifier Q>
-  inline T volumeOf(const glm::tvec3<T, Q> &expanse)
+  template <typename T, GlmQualifier QUALITY>
+  inline T volumeOf(const glm::tvec3<T, QUALITY> &expanse)
   {
     return expanse.x * expanse.y * expanse.z;
   }

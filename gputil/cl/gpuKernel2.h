@@ -20,8 +20,7 @@
 
 #include <cstdlib>
 
-#define GPUTIL_BUILD_FROM_FILE(program, file_name, build_args) \
-  (program).buildFromFile(file_name, build_args)
+#define GPUTIL_BUILD_FROM_FILE(program, file_name, build_args) (program).buildFromFile(file_name, build_args)
 #define GPUTIL_BUILD_FROM_SOURCE(program, source, source_length, build_args) \
   (program).buildFromSource(source, source_length, build_args)
 #define GPUTIL_MAKE_KERNEL(program, kernel_name) gputil::openCLKernel(program, #kernel_name)
@@ -32,7 +31,8 @@ namespace clu
   template <>
   struct KernelArgHandler<gputil::Buffer>
   {
-    static cl_int set(cl::Kernel &kernel, int arg_index, const gputil::Buffer &arg)
+    static cl_int set(cl::Kernel &kernel, int arg_index,  // NOLINT(google-runtime-references)
+                      const gputil::Buffer &arg)
     {
       return ::clSetKernelArg(kernel(), arg_index, sizeof(arg.detail()->buffer()), &arg.detail()->buffer());
     }
@@ -42,14 +42,15 @@ namespace clu
   template <typename T>
   struct KernelArgHandler<gputil::BufferArg<T>>
   {
-    static cl_int set(cl::Kernel &kernel, int arg_index, const gputil::BufferArg<T> &arg)
+    static cl_int set(cl::Kernel &kernel, int arg_index,  // NOLINT(google-runtime-references)
+                      const gputil::BufferArg<T> &arg)
     {
       if (arg.buffer)
       {
         cl::Buffer &buffer = arg.buffer->detail()->buffer;
         return ::clSetKernelArg(kernel(), arg_index, sizeof(buffer()), &buffer());
       }
-      cl_mem null_mem = 0;
+      cl_mem null_mem = nullptr;
       return ::clSetKernelArg(kernel(), arg_index, sizeof(null_mem), null_mem);
     }
   };
@@ -112,7 +113,7 @@ namespace gputil
     int err = detail()->kernel(queue_cl, grid, events_clu, args...);
 
     // Cleanup stack objects.
-    // TODO: RAIA for this while avoiding a head allocation.
+    // TODO(KS): RAIA for this while avoiding a head allocation.
     for (unsigned i = 0; i < events_clu.event_count; ++i)
     {
       using namespace cl;
@@ -150,7 +151,7 @@ namespace gputil
     int err = detail()->kernel(queue_cl, grid, events_clu, args...);
 
     // Cleanup stack objects.
-    // TODO: RAIA for this while avoiding a head allocation.
+    // TODO(KS): RAIA for this while avoiding a head allocation.
     for (unsigned i = 0; i < events_clu.event_count; ++i)
     {
       using namespace cl;
@@ -166,7 +167,7 @@ namespace gputil
 
 
   class Program;
-  Kernel openCLKernel(Program &program, const char *kernel_name);
+  Kernel openCLKernel(Program &program, const char *kernel_name);  // NOLINT(google-runtime-references)
 }  // namespace gputil
 
 #endif  // GPUKERNEL2_H

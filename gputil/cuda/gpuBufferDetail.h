@@ -34,10 +34,11 @@ namespace gputil
     std::vector<MemRegion> dirty_write;
   };
 
-    bool bufferCopy(void *dst, const void *src, size_t byte_count, cudaMemcpyKind kind, Queue *queue, Event *block_on,
+  bool bufferCopy(void *dst, const void *src, size_t byte_count, cudaMemcpyKind kind, Queue *queue, Event *block_on,
                   Event *completion);
-    uint8_t *pin(BufferDetail &buf, PinMode mode);
-    void unpin(BufferDetail &imp, void *pinned_ptr, PinMode mode, Queue *queue, Event *block_on, Event *completion);
+  uint8_t *pin(BufferDetail &buf, PinMode mode);  // NOLINT(google-runtime-references)
+  void unpin(BufferDetail &imp,                   // NOLINT(google-runtime-references)
+             void *pinned_ptr, PinMode mode, Queue *queue, Event *block_on, Event *completion);
 }  // namespace gputil
 
 #endif  // GPUBUFFERDETAIL_H

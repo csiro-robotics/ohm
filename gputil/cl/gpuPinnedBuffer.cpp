@@ -5,8 +5,8 @@
 // Author: Kazys Stepanas
 #include "gputil/gpuPinnedBuffer.h"
 
-#include "gputil/gpuBuffer.h"
 #include "gputil/cl/gpuBufferDetail.h"
+#include "gputil/gpuBuffer.h"
 
 #include <algorithm>
 

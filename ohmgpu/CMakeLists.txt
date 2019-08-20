@@ -101,6 +101,8 @@ function(_ohmgpu_setup_target TARGET_NAME GPUTIL_LIBRARY OHM_GPU)
     target_include_directories(${TARGET_NAME} PRIVATE SYSTEM "${3ES_INCLUDE_DIRS}")
   endif(OHM_TES_DEBUG)
 
+  clang_tidy_target(${TARGET_NAME} EXCLUDE_MATCHES ".*\.cl")
+
   generate_export_header(${TARGET_NAME}
     EXPORT_MACRO_NAME ohmgpu_API
     EXPORT_FILE_NAME ohmgpu/OhmGpuExport.h

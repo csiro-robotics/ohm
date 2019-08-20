@@ -125,7 +125,7 @@ namespace ohm
 
     bool save(const char *out_path, bool binary) const;
     bool save(FILE *outfile, bool binary) const;
-    bool save(std::ostream &out, bool binary) const;
+    bool save(std::ostream &stream, bool binary) const;
 
     template <typename T>
     class FileWrapper
@@ -162,25 +162,25 @@ namespace ohm
     template <typename VEC3>
     void addMappedEdgeT(const VEC3 *verts, const unsigned *vert_ids, const Colour *colour = nullptr);
 
-    struct Vertex
+    struct Vertex  // NOLINT(cppcoreguidelines-pro-type-member-init)
     {
       VertexType point;
       Colour colour;
     };
 
-    struct Edge
+    struct Edge  // NOLINT(cppcoreguidelines-pro-type-member-init)
     {
       uint32_t v[2];
       Colour colour;
     };
 
-    struct Tri
+    struct Tri  // NOLINT(cppcoreguidelines-pro-type-member-init)
     {
       uint32_t v[3];
       Colour colour;
     };
 
-    struct Poly
+    struct Poly  // NOLINT(cppcoreguidelines-pro-type-member-init)
     {
       size_t indices_start;  ///< Index into _polygonIndices for first index.
       unsigned order;        ///< Number of indices in the polygon (and in _polygonIndices).

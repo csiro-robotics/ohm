@@ -15,7 +15,7 @@
 // Return statement present to prevent compilation errors when switching GPU_EXCEPTIONS.
 #define GPUTHROW(e, r) \
   {                    \
-    throw e;           \
+    throw(e);          \
     return r;          \
   }
 #define GPUTHROW2(e) throw e
@@ -32,14 +32,14 @@
   }
 #endif  // GPU_EXCEPTIONS
 
-#define GPUAPICHECK(err, expect, r)         \
-  if (err != expect)                        \
-  {                                         \
+#define GPUAPICHECK(err, expect, r)                                      \
+  if ((err) != (expect))                                                 \
+  {                                                                      \
     GPUTHROW(gputil::ApiException(err, nullptr, __FILE__, __LINE__), r); \
   }
-#define GPUAPICHECK2(err, expect)         \
-  if (err != expect)                      \
-  {                                       \
+#define GPUAPICHECK2(err, expect)                                      \
+  if ((err) != (expect))                                               \
+  {                                                                    \
     GPUTHROW2(gputil::ApiException(err, nullptr, __FILE__, __LINE__)); \
   }
 

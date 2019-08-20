@@ -97,7 +97,7 @@ namespace
   };
 }  // namespace
 
-MapValue::MapValue()
+MapValue::MapValue()  // NOLINT(cppcoreguidelines-pro-type-member-init)
   : name_(nullptr)
   , type_(kTypeNone)
 {
@@ -105,7 +105,7 @@ MapValue::MapValue()
 }
 
 
-MapValue::MapValue(const MapValue &other)
+MapValue::MapValue(const MapValue &other)  // NOLINT(cppcoreguidelines-pro-type-member-init)
   : name_(nullptr)
   , type_(kTypeNone)
 {
@@ -114,7 +114,7 @@ MapValue::MapValue(const MapValue &other)
 }
 
 
-MapValue::MapValue(MapValue &&other)
+MapValue::MapValue(MapValue &&other) noexcept  // NOLINT(cppcoreguidelines-pro-type-member-init)
   : name_(other.name_)
   , type_(other.type_)
 {
@@ -125,7 +125,7 @@ MapValue::MapValue(MapValue &&other)
 }
 
 
-MapValue::MapValue(const char *name, int8_t val)
+MapValue::MapValue(const char *name, int8_t val)  // NOLINT(cppcoreguidelines-pro-type-member-init)
   : name_(nullptr)
   , type_(kTypeNone)
 {
@@ -135,7 +135,7 @@ MapValue::MapValue(const char *name, int8_t val)
 }
 
 
-MapValue::MapValue(const char *name, uint8_t val)
+MapValue::MapValue(const char *name, uint8_t val)  // NOLINT(cppcoreguidelines-pro-type-member-init)
   : name_(nullptr)
   , type_(kTypeNone)
 {
@@ -145,7 +145,7 @@ MapValue::MapValue(const char *name, uint8_t val)
 }
 
 
-MapValue::MapValue(const char *name, int16_t val)
+MapValue::MapValue(const char *name, int16_t val)  // NOLINT(cppcoreguidelines-pro-type-member-init)
   : name_(nullptr)
   , type_(kTypeNone)
 {
@@ -155,7 +155,7 @@ MapValue::MapValue(const char *name, int16_t val)
 }
 
 
-MapValue::MapValue(const char *name, uint16_t val)
+MapValue::MapValue(const char *name, uint16_t val)  // NOLINT(cppcoreguidelines-pro-type-member-init)
   : name_(nullptr)
   , type_(kTypeNone)
 {
@@ -165,7 +165,7 @@ MapValue::MapValue(const char *name, uint16_t val)
 }
 
 
-MapValue::MapValue(const char *name, int32_t val)
+MapValue::MapValue(const char *name, int32_t val)  // NOLINT(cppcoreguidelines-pro-type-member-init)
   : name_(nullptr)
   , type_(kTypeNone)
 {
@@ -175,7 +175,7 @@ MapValue::MapValue(const char *name, int32_t val)
 }
 
 
-MapValue::MapValue(const char *name, uint32_t val)
+MapValue::MapValue(const char *name, uint32_t val)  // NOLINT(cppcoreguidelines-pro-type-member-init)
   : name_(nullptr)
   , type_(kTypeNone)
 {
@@ -185,7 +185,7 @@ MapValue::MapValue(const char *name, uint32_t val)
 }
 
 
-MapValue::MapValue(const char *name, int64_t val)
+MapValue::MapValue(const char *name, int64_t val)  // NOLINT(cppcoreguidelines-pro-type-member-init)
   : name_(nullptr)
   , type_(kTypeNone)
 {
@@ -195,7 +195,7 @@ MapValue::MapValue(const char *name, int64_t val)
 }
 
 
-MapValue::MapValue(const char *name, uint64_t val)
+MapValue::MapValue(const char *name, uint64_t val)  // NOLINT(cppcoreguidelines-pro-type-member-init)
   : name_(nullptr)
   , type_(kTypeNone)
 {
@@ -205,7 +205,7 @@ MapValue::MapValue(const char *name, uint64_t val)
 }
 
 
-MapValue::MapValue(const char *name, float val)
+MapValue::MapValue(const char *name, float val)  // NOLINT(cppcoreguidelines-pro-type-member-init)
   : name_(nullptr)
   , type_(kTypeNone)
 {
@@ -215,7 +215,7 @@ MapValue::MapValue(const char *name, float val)
 }
 
 
-MapValue::MapValue(const char *name, double val)
+MapValue::MapValue(const char *name, double val)  // NOLINT(cppcoreguidelines-pro-type-member-init)
   : name_(nullptr)
   , type_(kTypeNone)
 {
@@ -225,7 +225,7 @@ MapValue::MapValue(const char *name, double val)
 }
 
 
-MapValue::MapValue(const char *name, bool val)
+MapValue::MapValue(const char *name, bool val)  // NOLINT(cppcoreguidelines-pro-type-member-init)
   : name_(nullptr)
   , type_(kTypeNone)
 {
@@ -235,7 +235,7 @@ MapValue::MapValue(const char *name, bool val)
 }
 
 
-MapValue::MapValue(const char *name, const char *string)
+MapValue::MapValue(const char *name, const char *string)  // NOLINT(cppcoreguidelines-pro-type-member-init)
   : name_(nullptr)
   , type_(kTypeNone)
 {
@@ -602,7 +602,8 @@ bool MapValue::operator==(const MapValue &other) const
   const std::string *n1 = static_cast<const std::string *>(name_);
   const std::string *n2 = static_cast<const std::string *>(other.name_);
 
-  if (!(n1 == nullptr && n2 == nullptr || n1 == nullptr && n2->empty() || n1->empty() && n2 == nullptr || n1 == n2))
+  if (!(n1 == nullptr && n2 == nullptr || n1 == nullptr && n2->empty() || n1 && n1->empty() && n2 == nullptr ||
+        n1 == n2))
   {
     return false;
   }
@@ -720,7 +721,7 @@ MapInfo::MapInfo(const MapInfo &other)
 }
 
 
-MapInfo::MapInfo(MapInfo &&other)
+MapInfo::MapInfo(MapInfo &&other) noexcept
   : imp_(other.imp_)
 {
   other.imp_ = nullptr;
@@ -777,15 +778,15 @@ void MapInfo::clear()
 }
 
 
-unsigned MapInfo::extract(MapValue *values, unsigned maxCount, unsigned offset) const
+unsigned MapInfo::extract(MapValue *values, unsigned max_count, unsigned offset) const
 {
-  if (!values || !maxCount)
+  if (!values || !max_count)
   {
     return unsigned(imp_->dictionary.size());
   }
 
   unsigned extracted = 0;
-  for (auto iter = imp_->dictionary.begin(); iter != imp_->dictionary.end() && extracted < maxCount; ++iter)
+  for (auto iter = imp_->dictionary.begin(); iter != imp_->dictionary.end() && extracted < max_count; ++iter)
   {
     if (!offset)
     {
