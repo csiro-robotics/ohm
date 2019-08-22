@@ -384,11 +384,11 @@ __kernel void REGION_UPDATE_KERNEL(__global VOXEL_TYPE *voxels_mem, __global int
 
   // Validate sub-voxel coordinate calculation.
   // We use 0.5001 * resolution rather than 0.5 to allow for floating point error when clipping to exact voxel bounds.
-  if (line_data.sub_voxel_coord.x < -0.5001 * voxel_resolution || line_data.sub_voxel_coord.x > 0.5001 * voxel_resolution ||
-      line_data.sub_voxel_coord.y < -0.5001 * voxel_resolution || line_data.sub_voxel_coord.y > 0.5001 * voxel_resolution ||
-      line_data.sub_voxel_coord.z < -0.5001 * voxel_resolution || line_data.sub_voxel_coord.z > 0.5001 * voxel_resolution)
+  if (line_data.sub_voxel_coord.x < -0.5001f * voxel_resolution || line_data.sub_voxel_coord.x > 0.5001f * voxel_resolution ||
+      line_data.sub_voxel_coord.y < -0.5001f * voxel_resolution || line_data.sub_voxel_coord.y > 0.5001f * voxel_resolution ||
+      line_data.sub_voxel_coord.z < -0.5001f * voxel_resolution || line_data.sub_voxel_coord.z > 0.5001f * voxel_resolution)
   {
-    printf("sub-voxel-out [%f, %f]: (%f %f %f) -> (%f %f %f)\n", -0.5 * voxel_resolution, 0.5 * voxel_resolution,
+    printf("sub-voxel-out [%f, %f]: (%f %f %f) -> (%f %f %f)\n", -0.5f * voxel_resolution, 0.5f * voxel_resolution,
            lineEnd.x, lineEnd.y, lineEnd.z, line_data.sub_voxel_coord.x, line_data.sub_voxel_coord.y,
            line_data.sub_voxel_coord.z);
   }

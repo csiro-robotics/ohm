@@ -142,9 +142,9 @@ inline __device__ float3 voxelCentre(const struct GpuKey *key, const int3 *regio
   //  - region centre - region half extents => region min extents.
   //  - add voxel region local coordiate.
   // Using terse code to reduce local variable load.
-  voxel.x = regionCentreCoord(key->region[0], regionDim->x * voxelResolution) - 0.5f * regionDim->x * voxelResolution + key->voxel[0] * voxelResolution + 0.5 * voxelResolution;
-  voxel.y = regionCentreCoord(key->region[1], regionDim->y * voxelResolution) - 0.5f * regionDim->y * voxelResolution + key->voxel[1] * voxelResolution + 0.5 * voxelResolution;
-  voxel.z = regionCentreCoord(key->region[2], regionDim->z * voxelResolution) - 0.5f * regionDim->z * voxelResolution + key->voxel[2] * voxelResolution + 0.5 * voxelResolution;
+  voxel.x = regionCentreCoord(key->region[0], regionDim->x * voxelResolution) - 0.5f * regionDim->x * voxelResolution + key->voxel[0] * voxelResolution + 0.5f * voxelResolution;
+  voxel.y = regionCentreCoord(key->region[1], regionDim->y * voxelResolution) - 0.5f * regionDim->y * voxelResolution + key->voxel[1] * voxelResolution + 0.5f * voxelResolution;
+  voxel.z = regionCentreCoord(key->region[2], regionDim->z * voxelResolution) - 0.5f * regionDim->z * voxelResolution + key->voxel[2] * voxelResolution + 0.5f * voxelResolution;
 
   return voxel;
 }
