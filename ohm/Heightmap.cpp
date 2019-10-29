@@ -12,11 +12,14 @@
 #include "Key.h"
 #include "MapCache.h"
 #include "MapChunk.h"
+#include "MapCoord.h"
 #include "MapInfo.h"
 #include "MapLayer.h"
 #include "MapLayout.h"
 #include "OccupancyMap.h"
 #include "OccupancyType.h"
+#include "PlaneFillWalker.h"
+#include "PlaneWalker.h"
 #include "Voxel.h"
 
 #include <algorithm>
@@ -36,79 +39,6 @@ using namespace ohm;
 
 namespace
 {
-  /// Helper class for walking a plane in the heightmap given any up axis.
-  /// Manages walking the correct axis based on the @c UpAxis.
-  ///
-  /// Usage:
-  /// - Initialise
-  /// - call @c begin().
-  /// - do work
-  /// - call @c walkNext() and loop if true.
-  struct PlaneWalker
-  {
-    const OccupancyMap &map;
-    const Key &min_ext_key, &max_ext_key;
-    int axis_indices[3] = { 0, 0, 0 };
-
-    PlaneWalker(const OccupancyMap &map, const Key &min_ext_key, const Key &max_ext_key, UpAxis up_axis)
-      : map(map)
-      , min_ext_key(min_ext_key)
-      , max_ext_key(max_ext_key)
-    {
-      switch (up_axis)
-      {
-      case UpAxis::kX:
-        /* fallthrough */
-      case UpAxis::kNegX:
-        axis_indices[0] = 1;
-        axis_indices[1] = 2;
-        axis_indices[2] = 0;
-        break;
-      case UpAxis::kY:
-        /* fallthrough */
-      case UpAxis::kNegY:
-        axis_indices[0] = 0;
-        axis_indices[1] = 2;
-        axis_indices[2] = 1;
-        break;
-      case UpAxis::kZ:
-        /* fallthrough */
-      case UpAxis::kNegZ:
-        axis_indices[0] = 0;
-        axis_indices[1] = 1;
-        axis_indices[2] = 2;
-        break;
-      }
-    }
-
-    void begin(Key &key) const  // NOLINT(google-runtime-references)
-    {
-      key = min_ext_key;
-      key.setRegionAxis(axis_indices[2], 0);
-      key.setLocalAxis(axis_indices[2], 0);
-    }
-
-    bool walkNext(Key &key) const  // NOLINT(google-runtime-references)
-    {
-      map.stepKey(key, axis_indices[0], 1);
-      if (!key.isBounded(axis_indices[0], min_ext_key, max_ext_key))
-      {
-        // Finished walking this axis. Reset and walk outer axis.
-        key.setLocalAxis(axis_indices[0], min_ext_key.localKey()[axis_indices[0]]);
-        key.setRegionAxis(axis_indices[0], min_ext_key.regionKey()[axis_indices[0]]);
-
-        map.stepKey(key, axis_indices[1], 1);
-        if (!key.isBounded(axis_indices[1], min_ext_key, max_ext_key))
-        {
-          return false;
-        }
-      }
-
-      return true;
-    }
-  };
-
-
   inline float relativeVoxelHeight(double absolute_height, const VoxelConst &voxel, const glm::dvec3 &up)
   {
     const float relative_height = float(absolute_height - glm::dot(voxel.centreGlobal(), up));
@@ -238,6 +168,120 @@ namespace
     } while (walker.walkNext(target_key));
 
     return populated_count;
+  }
+
+  Key findNearestSupportingVoxel(const OccupancyMap &map, const Key &seed_key, int up_axis_index,  //
+                                 const Key &min_key, const Key &max_key, int voxel_ceiling)
+  {
+    // Walk up and down at the same time until we find the nearest occupied voxel.
+    int key_offset = 0;
+    bool in_range = false;  // False when both keys above and below are invalid.
+    do
+    {
+      Key above = seed_key;
+      Key below = seed_key;
+      in_range = false;
+
+      map.moveKeyAlongAxis(above, up_axis_index, key_offset);
+      map.moveKeyAlongAxis(below, up_axis_index, -key_offset);
+
+      // Preference below.
+      if (below.isBounded(up_axis_index, min_key, max_key))
+      {
+        // Key still valid. Ensure we keep walking.
+        in_range = true;
+        if (map.voxel(below).isOccupied())
+        {
+          return below;
+        }
+      }
+
+      // Limit how much we search up by the voxel_ceiling (if set).
+      if ((voxel_ceiling <= 0 || key_offset <= voxel_ceiling) && above.isBounded(up_axis_index, min_key, max_key))
+      {
+        // Key still valid. Ensure we keep walking.
+        in_range = true;
+        if (map.voxel(above).isOccupied())
+        {
+          return above;
+        }
+      }
+
+      ++key_offset;
+    } while (in_range);
+
+    return Key::kNull;
+  }
+
+
+  Key findGround(double *height_out, double *clearance_out, const OccupancyMap &map, const Key &seed_key,
+                 const Key &min_key, const Key &max_key, MapCache *cache, const HeightmapDetail &imp)
+  {
+    // Start with the seed_key and look for ground. We only walk up from the seed key.
+    double column_height = std::numeric_limits<double>::max();
+    double column_clearance_height = column_height;
+
+    // Start walking the voxels in the source map.
+    // glm::dvec3 column_reference = heightmap.voxelCentreGlobal(target_key);
+
+    // Walk the src column up.
+    const int up_axis_index = std::abs(int(imp.up_axis_id));
+    const int step_dir = (int(imp.up_axis_id) >= 0) ? 1 : -1;
+    glm::dvec3 sub_voxel_pos(0);
+    glm::dvec3 column_voxel_pos(0);
+    double height = 0;
+    bool have_candidate = false;
+
+    // Select walking direction based on the up axis being aligned with the primary axis or not.
+
+    Key ground_key = Key::kNull;
+    for (Key key = seed_key; key.isBounded(up_axis_index, min_key, max_key); map.stepKey(key, up_axis_index, step_dir))
+    {
+      // PROFILE(column);
+      const VoxelConst voxel = map.voxel(key, cache);
+
+      const ohm::OccupancyType voxel_type =
+        sourceVoxelHeight(&sub_voxel_pos, &height, map, voxel, key, imp.up, imp.ignore_sub_voxel_positioning);
+      if (voxel_type == ohm::kOccupied)
+      {
+        if (have_candidate)
+        {
+          // Branch condition where we have a candidate ground_key, but have yet to check or record its clearance.
+          // Clearance height is the height of the current voxel associated with key.
+          column_clearance_height = height;
+          if (column_clearance_height - column_height >= imp.min_clearance)
+          {
+            // Found our heightmap voxels.
+            // We have sufficient clearance so ground_key is our ground voxel.
+            break;
+          }
+
+          // Insufficient clearance. The current voxel becomes our new base voxel; keep looking for clearance.
+          column_height = column_clearance_height = height;
+          column_voxel_pos = sub_voxel_pos;
+          // Current voxel becomes our new ground candidate voxel.
+          ground_key = key;
+        }
+        else
+        {
+          // Branch condition only for the first voxel in column.
+          ground_key = key;
+          column_height = column_clearance_height = height;
+          column_voxel_pos = sub_voxel_pos;
+          have_candidate = true;
+        }
+      }
+    }
+
+    // Did we find a valid candidate?
+    if (have_candidate)
+    {
+      *height_out = height;
+      *clearance_out = column_clearance_height - column_height;
+      return ground_key;
+    }
+
+    return Key::kNull;
   }
 }  // namespace
 
@@ -493,8 +537,8 @@ bool Heightmap::update(double base_height, const ohm::Aabb &cull_to)
   //  b. Project occupancy map extents onto heightmap plane.
   // 2. Populate heightmap voxels
 
-  glm::dvec3 min_ext, max_ext;
-  src_map.calculateExtents(min_ext, max_ext);
+  glm::dvec3 min_ext(0.0), max_ext(0.0);
+  src_map.calculateExtents(&min_ext, &max_ext);
 
   // Clip to the cull box.
   for (int i = 0; i < 3; ++i)
@@ -572,7 +616,153 @@ bool Heightmap::update(double base_height, const ohm::Aabb &cull_to)
 }
 
 
+bool Heightmap::update(const glm::dvec3 &reference_pos, const ohm::Aabb &cull_to)
+{
+  if (!imp_->occupancy_map)
+  {
+    return false;
+  }
+
+  // Brute force initial approach.
+  const OccupancyMap &src_map = *imp_->occupancy_map;
+  OccupancyMap &heightmap = *imp_->heightmap;
+
+  updateMapInfo(heightmap.mapInfo());
+
+  // Clear previous results.
+  heightmap.clear();
+
+  // Allow sub-voxel positioning.
+  const bool sub_voxel_allowed = !imp_->ignore_sub_voxel_positioning;
+  heightmap.setSubVoxelsEnabled(src_map.subVoxelsEnabled() && sub_voxel_allowed);
+
+  heightmap.setOrigin(upAxisNormal() * reference_pos[upAxisIndex()]);
+
+  // 1. Calculate the map extents.
+  //  a. Calculate occupancy map extents.
+  //  b. Project occupancy map extents onto heightmap plane.
+  // 2. Populate heightmap voxels
+
+  ohm::Aabb src_region;
+  src_map.calculateExtents(&src_region.minExtentsMutable(), &src_region.maxExtentsMutable());
+
+  // Clip to the cull box.
+  for (int i = 0; i < 3; ++i)
+  {
+    if (cull_to.diagonal()[i] > 0)
+    {
+      src_region.minExtentsMutable()[i] = std::min(cull_to.minExtents()[i], src_region.minExtentsMutable()[i]);
+      src_region.maxExtentsMutable()[i] = std::max(cull_to.maxExtents()[i], src_region.maxExtentsMutable()[i]);
+    }
+  }
+
+  // Generate keys for these extents.
+  const Key min_ext_key = src_map.voxelKey(src_region.minExtents());
+  const Key max_ext_key = src_map.voxelKey(src_region.maxExtents());
+
+  PROFILE(walk)
+
+  const int heightmap_build_layer = imp_->heightmap_layer;
+
+  // Set the initial key.
+  Key walk_key = src_map.voxelKey(reference_pos);
+
+  // Bound the walk_key to the search bounds.
+  if (!walk_key.isBounded(min_ext_key, max_ext_key))
+  {
+    walk_key.clampToAxis(surfaceAxisIndexA(), min_ext_key, max_ext_key);
+    walk_key.clampToAxis(surfaceAxisIndexB(), min_ext_key, max_ext_key);
+  }
+
+  PlaneFillWalker walker(src_map, min_ext_key, max_ext_key, imp_->up_axis_id, false);
+
+  if (!walker.begin(walk_key))
+  {
+    return false;
+  }
+
+  // Walk the 2D extraction region in a spiral around walk_key.
+  MapCache src_map_cache, heightmap_cache;
+  unsigned populated_count = 0;
+  const int voxel_ceiling = ohm::pointToRegionCoord(imp_->ceiling, src_map.resolution());
+  do
+  {
+    // Find the nearest voxel to the current key which may be a ground candidate.
+    Key candidate_key =
+      findNearestSupportingVoxel(src_map, walk_key, upAxisIndex(), min_ext_key, max_ext_key, voxel_ceiling);
+
+    if (candidate_key.isNull())
+    {
+      // Candidate is invalid. Add walk_key neighbours for walking.
+      walker.addNeighbours(walk_key, PlaneFillWalker::Revisit::None);
+      continue;
+    }
+
+    // Walk up from the candidate to find the best heightmap voxel.
+    double height = 0;
+    double clearance = 0;
+    const Key ground_key =
+      findGround(&height, &clearance, src_map, candidate_key, min_ext_key, max_ext_key, &src_map_cache, *imp_);
+
+    // Write into the heightmap.
+    if (!ground_key.isNull())
+    {
+      // We have a ground key. Add it's neighbours (adjusted height) for walking.
+      const PlaneFillWalker::Revisit revisit_behaviour =
+        int(imp_->up_axis_id) >= 0 ? PlaneFillWalker::Revisit::Lower : PlaneFillWalker::Revisit::Higher;
+      walker.addNeighbours(ground_key, revisit_behaviour);
+
+      // Write to the heightmap.
+      VoxelConst src_voxel = src_map.voxel(ground_key);
+      if (src_voxel.isOccupied())
+      {
+        glm::dvec3 pos = src_voxel.position();
+        // Cache the height then clear from the position.
+        const double src_height = pos[upAxisIndex()];
+        pos[upAxisIndex()] = 0;
+
+        // Get the heightmap voxel to update.
+        Key hm_key = heightmap.voxelKey(pos);
+        project(&hm_key);
+        Voxel hm_voxel = heightmap.voxel(hm_key, true, &heightmap_cache);
+        hm_voxel.setValue(heightmap.occupancyThresholdValue());
+        // Set sub-voxel position as required.
+        if (sub_voxel_allowed)
+        {
+          hm_voxel.setPosition(pos);
+        }
+
+        // Write the height and clearance values.
+        HeightmapVoxel *voxel_content = hm_voxel.layerContent<HeightmapVoxel *>(heightmap_build_layer);
+        if (voxel_content)
+        {
+          voxel_content->height = relativeVoxelHeight(src_height, hm_voxel, imp_->up);
+          voxel_content->clearance = float(clearance);
+        }
+
+        ++populated_count;
+      }
+      else
+      {
+        // No ground found. Add walk_key neighbours for walking.
+        walker.addNeighbours(walk_key, PlaneFillWalker::Revisit::None);
+      }
+    }
+  } while (walker.walkNext(walk_key));
+
+  return populated_count != 0;
+}
+
+
 void Heightmap::updateMapInfo(MapInfo &info) const
 {
   imp_->toMapInfo(info);
+}
+
+
+Key &Heightmap::project(Key *key)
+{
+  key->setRegionAxis(upAxisIndex(), 0);
+  key->setLocalAxis(upAxisIndex(), 0);
+  return *key;
 }

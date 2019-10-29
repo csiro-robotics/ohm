@@ -15,9 +15,12 @@
 
 #include <glm/fwd.hpp>
 
+#include <vector>
+
 namespace ohm
 {
   struct HeightmapDetail;
+  class Key;
   class MapInfo;
   class OccupancyMap;
 
@@ -193,8 +196,17 @@ namespace ohm
     ///
     /// @param base_height The base heightmap value. All heights are relative to this value. This helps reduce floating
     ///   point error with heights being stored in single precision.
+    /// @param cull_to Limit heightmap generation to this region.
     /// @return true on success.
     bool update(double base_height, const ohm::Aabb &cull_to = ohm::Aabb(0.0));
+
+    /// Update the heightmap around a reference position. This sets the @c base_height as in the overload, but also
+    /// changes the behaviour to flood fill out from the reference position.
+    ///
+    /// @param reference_pos The staring position to build a heightmap around. Nominally a vehicle position.
+    /// @param cull_to Limit heightmap generation to this region.
+    /// @return true on success.
+    bool update(const glm::dvec3 &reference_pos, const ohm::Aabb &cull_to = ohm::Aabb(0.0));
 
     //-------------------------------------------------------
     // Internal
@@ -207,6 +219,11 @@ namespace ohm
     /// Update @c info to reflect the details of how the heightmap is generated. See class comments.
     /// @param info The info object to update.
     void updateMapInfo(MapInfo &info) const;  // NOLINT(google-runtime-references)
+
+    /// Ensure that @p key is referencing a voxel within the heightmap plane.'
+    /// @param key[in,out] The key to project. May be modified by this call. Must not be null.
+    /// @return A reference to @p key.
+    Key &project(Key *key);
 
   private:
     std::unique_ptr<HeightmapDetail> imp_;

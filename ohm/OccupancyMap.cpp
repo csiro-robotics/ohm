@@ -462,19 +462,41 @@ const glm::dvec3 &OccupancyMap::origin() const
   return imp_->origin;
 }
 
-void OccupancyMap::calculateExtents(glm::dvec3 &min_ext, glm::dvec3 &max_ext) const
+bool OccupancyMap::calculateExtents(glm::dvec3 *min_ext, glm::dvec3 *max_ext, Key *min_key, Key *max_key) const
 {
   glm::dvec3 region_min, region_max;
   std::unique_lock<decltype(imp_->mutex)> guard(imp_->mutex);
-  if (imp_->chunks.empty())
+  // Empty map if there are no chunks or the voxel dimensions are zero (latter just shouldn't happen).
+  if (imp_->chunks.empty() || glm::any(glm::equal(imp_->region_voxel_dimensions, glm::u8vec3(0))))
   {
     // Empty map. Use the origin.
-    min_ext = max_ext = imp_->origin;
-    return;
+    if (min_ext)
+    {
+      *min_ext = imp_->origin;
+    }
+    if (max_ext)
+    {
+      *max_ext = imp_->origin;
+    }
+
+    if (min_key)
+    {
+      *min_key = Key::kNull;
+    }
+    if (max_key)
+    {
+      *max_key = Key::kNull;
+    }
+    return false;
   }
 
-  min_ext = glm::dvec3(std::numeric_limits<double>::max());
-  max_ext = glm::dvec3(-std::numeric_limits<double>::max());
+  glm::dvec3 min_spatial(std::numeric_limits<double>::max());
+  glm::dvec3 max_spatial(-std::numeric_limits<double>::max());
+  // We only need to track the min/max region keys. The min local voxel coordinate within a region is always (0, 0, 0),
+  // while the maximum is always the region voxel dimensions - 1
+  glm::i16vec3 min_region_key(std::numeric_limits<uint16_t>::max());
+  glm::i16vec3 max_region_key(std::numeric_limits<uint16_t>::min());
+  bool have_extents = false;
 
   for (auto &&chunk : imp_->chunks)
   {
@@ -483,14 +505,50 @@ void OccupancyMap::calculateExtents(glm::dvec3 &min_ext, glm::dvec3 &max_ext) co
     region_min -= 0.5 * regionSpatialResolution();
     region_max += 0.5 * regionSpatialResolution();
 
-    min_ext.x = std::min(min_ext.x, region_min.x);
-    min_ext.y = std::min(min_ext.y, region_min.y);
-    min_ext.z = std::min(min_ext.z, region_min.z);
+    min_spatial.x = std::min(min_spatial.x, region_min.x);
+    min_spatial.y = std::min(min_spatial.y, region_min.y);
+    min_spatial.z = std::min(min_spatial.z, region_min.z);
 
-    max_ext.x = std::max(max_ext.x, region_max.x);
-    max_ext.y = std::max(max_ext.y, region_max.y);
-    max_ext.z = std::max(max_ext.z, region_max.z);
+    max_spatial.x = std::max(max_spatial.x, region_max.x);
+    max_spatial.y = std::max(max_spatial.y, region_max.y);
+    max_spatial.z = std::max(max_spatial.z, region_max.z);
+
+    min_region_key.x = std::min(region.coord.x, min_region_key.x);
+    min_region_key.y = std::min(region.coord.y, min_region_key.y);
+    min_region_key.z = std::min(region.coord.z, min_region_key.z);
+    max_region_key.x = std::max(region.coord.x, max_region_key.x);
+    max_region_key.y = std::max(region.coord.y, max_region_key.y);
+    max_region_key.z = std::max(region.coord.z, max_region_key.z);
+
+    have_extents = true;
   }
+
+  // Finalise the min/max voxel keys.
+  const Key min_voxel(min_region_key, glm::u8vec3(0, 0, 0));
+  const Key max_voxel(max_region_key, imp_->region_voxel_dimensions - glm::u8vec3(1, 1, 1));
+
+  // Write output values.
+  if (min_ext)
+  {
+    *min_ext = min_spatial;
+  }
+
+  if (max_ext)
+  {
+    *max_ext = max_spatial;
+  }
+
+  if (min_key)
+  {
+    *min_key = min_voxel;
+  }
+
+  if (max_key)
+  {
+    *max_key = max_voxel;
+  }
+
+  return have_extents;
 }
 
 MapInfo &OccupancyMap::mapInfo()
@@ -957,7 +1015,8 @@ glm::ivec3 OccupancyMap::rangeBetween(const Key &from, const Key &to) const
   // Voxel difference is the sum of the local difference plus the region step difference.
   for (int i = 0; i < 3; ++i)
   {
-    voxel_diff[i] = int(to.localKey()[i]) - int(from.localKey()[i]) + region_diff[i] * imp_->region_voxel_dimensions[i];
+    voxel_diff[i] =
+      int(to.localKey()[i]) - int(from.localKey()[i]) + region_diff[i] * int(imp_->region_voxel_dimensions[i]);
   }
 
   return voxel_diff;

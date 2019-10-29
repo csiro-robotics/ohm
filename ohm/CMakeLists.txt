@@ -86,6 +86,10 @@ set(SOURCES
   OccupancyMap.h
   OccupancyType.cpp
   OccupancyType.h
+  PlaneFillWalker.cpp
+  PlaneFillWalker.h
+  PlaneWalker.cpp
+  PlaneWalker.h
   Query.cpp
   Query.h
   QueryFlag.h
@@ -146,6 +150,8 @@ set(PUBLIC_HEADERS
   OccupancyMap.h
   OccupancyType.h
   OccupancyUtil.h
+  PlaneFillWalker.h
+  PlaneWalker.h
   Query.h
   QueryFlag.h
   RayFilter.h

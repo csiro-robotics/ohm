@@ -251,12 +251,9 @@ int main(int argc, char *argv[])
       return res;
     }
 
-    glm::dvec3 min_ext, max_ext;
-    ohm::Key min_key, max_key;
-
-    map.calculateExtents(min_ext, max_ext);
-    min_key = map.voxelKey(min_ext);
-    max_key = map.voxelKey(max_ext);
+    glm::dvec3 min_ext(0.0), max_ext(0.0);
+    ohm::Key min_key(ohm::Key::kNull), max_key(ohm::Key::kNull);
+    map.calculateExtents(&min_ext, &max_ext, &min_key, &max_key);
 
     std::cout << std::endl;
     std::cout << "Spatial Extents: " << min_ext << " - " << max_ext << std::endl;
