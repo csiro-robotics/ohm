@@ -8,6 +8,7 @@
 
 #include "OhmConfig.h"
 
+#include "ohm/Key.h"
 #include "ohm/UpAxis.h"
 
 #include <glm/vec3.hpp>
