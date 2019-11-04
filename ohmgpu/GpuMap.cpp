@@ -34,6 +34,7 @@
 #include <glm/ext.hpp>
 
 #include <cassert>
+#include <cmath>
 #include <functional>
 #include <initializer_list>
 #include <iostream>
@@ -58,7 +59,7 @@ using namespace ohm;
 namespace
 {
 #if defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
-  GpuProgramRef program_ref_sub_vox("RegionUpdate", GpuProgramRef::kSourceString, RegionUpdateCode,// NOLINT
+  GpuProgramRef program_ref_sub_vox("RegionUpdate", GpuProgramRef::kSourceString, RegionUpdateCode,  // NOLINT
                                     RegionUpdateCode_length, { "-DSUB_VOXEL" });
 #else   // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
   GpuProgramRef program_ref_sub_vox("RegionUpdate", GpuProgramRef::kSourceFile, "RegionUpdate.cl", 0u,
@@ -66,7 +67,7 @@ namespace
 #endif  // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
 
 #if defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
-  GpuProgramRef program_ref_no_sub("RegionUpdate", GpuProgramRef::kSourceString, RegionUpdateCode,// NOLINT
+  GpuProgramRef program_ref_no_sub("RegionUpdate", GpuProgramRef::kSourceString, RegionUpdateCode,  // NOLINT
                                    RegionUpdateCode_length);
 #else   // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
   GpuProgramRef program_ref_no_sub("RegionUpdate", GpuProgramRef::kSourceFile, "RegionUpdate.cl", 0u);
@@ -86,12 +87,31 @@ namespace
 
     glm::dvec3 direction = glm::vec3(end_point - start_point);
     double length = glm::dot(direction, direction);
-    length = (length >= 1e-6) ? std::sqrt(length) : 0;
-    direction *= 1.0 / length;
 
-    if (start_point_key == end_point_key)
+    // Very small segments which straddle a voxel boundary can be problematic. We want to avoid
+    // a sqrt on a very small number, but be robust enough to handle the situation.
+    // To that end, we skip normalising the direction for directions below a tenth of the voxel.
+    // Then we will exit either with start/end voxels being the same, or we will step from start
+    // to end in one go.
+    const bool valid_length = (length >= 0.1 * map.resolution() * 0.1 * map.resolution());
+    if (valid_length)
+    {
+      length = std::sqrt(length);
+      direction *= 1.0 / length;
+    }
+
+    if (start_point_key == end_point_key)  // || !valid_length)
     {
       func(start_point_key, start_point, end_point);
+      return;
+    }
+
+    if (!valid_length)
+    {
+      // Start/end points are in different, but adjacent voxels. Prevent issues with the loop by
+      // early out.
+      func(start_point_key, start_point, end_point);
+      func(end_point_key, start_point, end_point);
       return;
     }
 
