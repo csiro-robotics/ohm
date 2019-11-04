@@ -156,8 +156,8 @@ inline __device__ __host__ void moveKeyAlongAxis(struct GpuKey *key, int axis, i
 // . 0 end_region == start_region && end_voxel == start_voxel
 #define _OHM_GPUKEY_AXIS_DIFF(start, end, axis) \
   ((end)->region[axis] != (start)->region[axis] ?             \
-    ((end)->region[axis] > (start)->region[axis] ? 1 : -1) : \
-    ((end)->voxel[axis] != (end)->voxel[1] ? ((end)->voxel[axis] > (start)->voxel[axis] ? 1 : -1) : 0))
+    ((end)->region[axis] > (start)->region[axis] ? 1.0f : -1.0f) : \
+    ((end)->voxel[axis] != (end)->voxel[1] ? ((end)->voxel[axis] > (start)->voxel[axis] ? 1.0f : -1.0f) : 0.0f))
 
 inline __device__ __host__ float3 keyDirection(const struct GpuKey *start, const struct GpuKey *end)
 {
