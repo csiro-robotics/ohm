@@ -400,9 +400,14 @@ namespace ohm
     const glm::dvec3 &origin() const;
 
     /// Calculate the extents of the map based on existing regions containing known data.
-    /// @param[out] min_ext Set to the minimum corner of the axis aligned extents.
-    /// @param[out] max_ext Set to the maximum corner of the axis aligned extents.
-    void calculateExtents(glm::dvec3 &min_ext, glm::dvec3 &max_ext) const;  // NOLINT(google-runtime-references)
+    /// @param[out] min_ext Set to the minimum corner of the axis aligned extents. May be nullptr.
+    /// @param[out] max_ext Set to the maximum corner of the axis aligned extents. May be nullptr.
+    /// @param[out] min_key Set to the voxel key of the minimum corner of the axis aligned extents. May be nullptr.
+    /// @param[out] max_key Set to the voxel key of the maximum corner of the axis aligned extents. May be nullptr.
+    /// @return True if the map is non-empty and resulting extents are valid. False for an empty map in which case the
+    ///   out values are undefined.
+    bool calculateExtents(glm::dvec3 *min_ext, glm::dvec3 *max_ext,  //
+                          Key *min_key = nullptr, Key *max_key = nullptr) const;
 
     /// Access to the map info structure for storing general meta data.
     ///

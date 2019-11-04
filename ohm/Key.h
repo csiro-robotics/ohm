@@ -164,6 +164,19 @@ namespace ohm
     /// @return True if this key lies within the X range of [min_bounds, max_bounds].
     bool isBounded(int axis, const Key &min_bounds, const Key &max_bounds) const;
 
+    /// Clamp this key to the given bounds region. Behaviour is undefined if @p min_bounds and @p max_bounds do not
+    /// define a valid bounding volume.
+    /// @param min_bounds The lower bounding key.
+    /// @param max_bounds The upper bounding key.
+    void clampTo(const Key &min_bounds, const Key &max_bounds);
+
+    /// Clamp this key to the given bounds region on a single @p axis. Behaviour is undefined if @p min_bounds and @p
+    /// max_bounds do not define a valid bounding volume.
+    /// @param axis The index of the axis to clamp [0, 2].
+    /// @param min_bounds The lower bounding key.
+    /// @param max_bounds The upper bounding key.
+    void clampToAxis(int axis, const Key &min_bounds, const Key &max_bounds);
+
     /// Do the region and local key coordinates along @p axis match @p other?
     /// @param axis The axis to test. Must be [0, 2] identifying XYZ respectively.
     /// @param other The key to test against.
@@ -195,7 +208,7 @@ namespace ohm
     glm::u8vec3 local_;
   };
 
-  inline Key::Key() = default; // NOLINT
+  inline Key::Key() = default;  // NOLINT
 
 
   inline Key::Key(int16_t rx, int16_t ry, int16_t rz, uint8_t x, uint8_t y, uint8_t z)
@@ -263,6 +276,14 @@ namespace ohm
     }
 
     return true;
+  }
+
+
+  inline void Key::clampTo(const Key &min_bounds, const Key &max_bounds)
+  {
+    clampToAxis(0, min_bounds, max_bounds);
+    clampToAxis(1, min_bounds, max_bounds);
+    clampToAxis(2, min_bounds, max_bounds);
   }
 
 

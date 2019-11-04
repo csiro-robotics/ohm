@@ -75,9 +75,17 @@ namespace ohm
     /// @return The lower bounds of the box.
     inline glm::dvec3 minExtents() const { return corners_[0]; }
 
+    /// Access a mutable reference to the minimum extents. Incorrect usage may result in undefined behaviour.
+    /// @return A reference to the lower bounds.
+    inline glm::dvec3 &minExtentsMutable() { return corners_[0]; }
+
     /// Query the upper box extents.
     /// @return The upper bounds of the box.
     inline glm::dvec3 maxExtents() const { return corners_[1]; }
+
+    /// Access a mutable reference to the maximum extents. Incorrect usage may result in undefined behaviour.
+    /// @return A reference to the upper bounds.
+    inline glm::dvec3 &maxExtentsMutable() { return corners_[1]; }
 
     /// Query the box centre.
     /// @return The box centre.
