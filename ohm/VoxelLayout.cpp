@@ -9,6 +9,7 @@
 
 #include <cinttypes>
 #include <cstring>
+#include <string>
 
 using namespace ohm;
 
