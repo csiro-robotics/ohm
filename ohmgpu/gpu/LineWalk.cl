@@ -169,6 +169,7 @@ inline __device__ int geti3(const int3 *v, int index)
 }
 #endif // LINE_WALK_CL
 
+
 __device__ void WALK_LINE_VOXELS(const struct GpuKey *startKey, const struct GpuKey *endKey,
                   const float3 *voxelRelativeStartPoint, const float3 *voxelRelativeEndPoint,
                   const int3 *regionDim, float voxelResolution, void *userData)
@@ -204,7 +205,12 @@ __device__ void WALK_LINE_VOXELS(const struct GpuKey *startKey, const struct Gpu
     }
     else
     {
-      direction = make_float3(1, 0, 0);
+      // Denegerate ray. Set the direction to be endKey - startKey.
+      direction = keyDirection(startKey, endKey);
+      if (direction.x || direction.y || direction.z)
+      {
+        direction = normalize(direction);
+      }
     }
 
     // const float3 voxel = voxelCentre(&currentKey, regionDim, voxelResolution);

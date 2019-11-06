@@ -142,6 +142,30 @@ inline __device__ __host__ void moveKeyAlongAxis(struct GpuKey *key, int axis, i
   key->voxel[2] = localKey[2];
 }
 
+// GpuKey diff calculator for a single axis. Results are:
+// . 0 => keys are equal on axis.
+// . 1 => end key indexes a higher voxel along axis.
+// . -1 => end key indexes a lower voxel along axis.
+//
+// Calculated as follows:
+//
+// . -1 end_region < start_region
+// . 1 end_region > start_region
+// . -1 end_region == start_region && end_voxel < start_voxel
+// . 1 end_region == start_region && end_voxel > start_voxel
+// . 0 end_region == start_region && end_voxel == start_voxel
+#define _OHM_GPUKEY_AXIS_DIFF(start, end, axis) \
+  ((end)->region[axis] != (start)->region[axis] ?             \
+    ((end)->region[axis] > (start)->region[axis] ? 1.0f : -1.0f) : \
+    ((end)->voxel[axis] != (end)->voxel[1] ? ((end)->voxel[axis] > (start)->voxel[axis] ? 1.0f : -1.0f) : 0.0f))
+
+inline __device__ __host__ float3 keyDirection(const struct GpuKey *start, const struct GpuKey *end)
+{
+  return make_float3(_OHM_GPUKEY_AXIS_DIFF(start, end, 0),
+                     _OHM_GPUKEY_AXIS_DIFF(start, end, 1),
+                     _OHM_GPUKEY_AXIS_DIFF(start, end, 2));
+}
+
 #endif  // GPUTIL_DEVICE
 
 #endif  // GPUKEY_H

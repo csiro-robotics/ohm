@@ -46,27 +46,50 @@ namespace ohm
   /// @return The number of voxels traversed. This includes @p endPoint when @p includeEndPoint is true.
   template <typename KEY, typename KEYFUNCS, typename WALKFUNC>
   size_t walkSegmentKeys(const WALKFUNC &walk_func, const glm::dvec3 &start_point, const glm::dvec3 &end_point,
-                         bool include_end_point, const KEYFUNCS &funcs)
+                         bool include_end_point, const KEYFUNCS &funcs, double length_epsilon = 1e-6)
   {
     // see "A Faster Voxel Traversal Algorithm for Ray Tracing" by Amanatides & Woo
     KEY start_point_key = funcs.voxelKey(start_point);
     KEY end_point_key = funcs.voxelKey(end_point);
-
-    glm::dvec3 direction = glm::dvec3(end_point - start_point);
-    double length = glm::dot(direction, direction);
-    length = (length >= 1e-6) ? std::sqrt(length) : 0;
-    direction *= 1.0 / length;
 
     if (funcs.isNull(start_point_key) || funcs.isNull(end_point_key))
     {
       return 0;
     }
 
+    glm::dvec3 direction = glm::dvec3(end_point - start_point);
+    double length = glm::dot(direction, direction);
+
+    // Very small segments which straddle a voxel boundary can be problematic. We want to avoid
+    // a sqrt on a very small number, but be robust enough to handle the situation.
+    // To that end, we skip normalising the direction for directions below a tenth of the voxel.
+    // Then we will exit either with start/end voxels being the same, or we will step from start
+    // to end in one go.
+    const bool valid_length = (length >= length_epsilon * length_epsilon);
+    if (valid_length)
+    {
+      length = std::sqrt(length);
+      direction *= 1.0 / length;
+    }
+
     if (start_point_key == end_point_key)
     {
       if (include_end_point)
       {
-        walk_func(start_point_key);
+        walk_func(end_point_key);
+      }
+      return 1;
+    }
+
+    if (!valid_length)
+    {
+      // Start/end points are in different, but adjacent voxels. Prevent issues with the loop by
+      // early out.
+      walk_func(start_point_key);
+      if (include_end_point)
+      {
+        walk_func(end_point_key);
+        return 2;
       }
       return 1;
     }

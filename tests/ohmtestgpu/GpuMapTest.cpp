@@ -20,8 +20,26 @@
 
 #include <chrono>
 #include <fstream>
+#include <future>
 #include <iostream>
 #include <random>
+#include <thread>
+
+// Assertion courtesy of https://github.com/google/googletest/issues/348
+#define ASSERT_DURATION_LE(secs, stmt)                                                               \
+  {                                                                                                  \
+    std::promise<bool> completed;                                                                    \
+    auto stmt_future = completed.get_future();                                                       \
+    std::thread(                                                                                     \
+      [&](std::promise<bool> &completed) {                                                           \
+        stmt;                                                                                        \
+        completed.set_value(true);                                                                   \
+      },                                                                                             \
+      std::ref(completed))                                                                           \
+      .detach();                                                                                     \
+    if (stmt_future.wait_for(std::chrono::seconds(secs)) == std::future_status::timeout)             \
+      GTEST_FATAL_FAILURE_("       timed out (> " #secs " seconds). Check code for infinite loops"); \
+  }
 
 using namespace ohm;
 
@@ -642,5 +660,23 @@ namespace gpumap
     }
 
     gpuMapTest(resolution, region_size, rays, compareCpuGpuMaps, "subvoxel", batch_size, 0, true);
+  }
+
+  TEST(GpuMap, CheckBadRays)
+  {
+    const double resolution = 0.1;
+    const glm::u8vec3 region_size(32);
+    const unsigned batch_size = 32;
+
+    // Rays which have been known to cause infinite loops.
+    std::vector<glm::dvec3> rays = //
+    { //
+      // Infinite loop walking regions before integrating into the map.
+      glm::dvec3{-2.699077907025583, -1.5999031032475868, 1.0755428728082643},
+      glm::dvec3{-2.6998157732186034, -1.6000298354709896, 1.0756803244026165}
+    };
+
+
+    ASSERT_DURATION_LE(5, gpuMapTest(resolution, region_size, rays, compareCpuGpuMaps, "bad-rays", batch_size, 0, true));
   }
 }  // namespace gpumap
