@@ -9,6 +9,7 @@
 #include "gputil/gpuBuffer.h"
 
 #include <algorithm>
+#include <cstring>
 
 using namespace gputil;
 

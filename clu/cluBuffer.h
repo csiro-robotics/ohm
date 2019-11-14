@@ -8,6 +8,8 @@
 
 #include "clu.h"
 
+#include <cstring>
+
 namespace clu
 {
   /// Calculate the best allocation size for @p requestedAllocationSize.

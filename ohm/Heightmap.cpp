@@ -23,6 +23,7 @@
 #include "Voxel.h"
 
 #include <algorithm>
+#include <cstring>
 #include <iostream>
 
 #define PROFILING 0

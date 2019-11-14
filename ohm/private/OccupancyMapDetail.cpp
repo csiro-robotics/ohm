@@ -13,6 +13,7 @@
 #include "VoxelLayout.h"
 
 #include <algorithm>
+#include <cstring>
 
 using namespace ohm;
 

@@ -29,6 +29,7 @@
 #ifdef OHM_VALIDATION
 #include <cstdio>
 #endif  // OHM_VALIDATION
+#include <cstring>
 #include <functional>
 #include <limits>
 #include <utility>
