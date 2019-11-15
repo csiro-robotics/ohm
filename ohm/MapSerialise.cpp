@@ -25,6 +25,7 @@
 #include <glm/glm.hpp>
 
 #include <cstdio>
+#include <cstring>
 #include <functional>
 #include <type_traits>
 #include <vector>
