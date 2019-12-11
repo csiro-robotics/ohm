@@ -31,7 +31,9 @@ namespace ohm
     /// Ignore all source voxels which lie higher than this above the base height.
     /// Enable by setting a positive value.
     double ceiling = 0;
+    /// Minimum clearance above a potential ground/surface voxel required to accept the voxel as a viable surface.
     double min_clearance = 1.0;
+    double negative_obstacle_radius = 3.0;
     /// Voxel layer containing the @c HeightmapVoxel data.
     int heightmap_layer = -1;
     /// Voxel layer used to build the first pass heightmap without blur.
@@ -45,6 +47,10 @@ namespace ohm
     unsigned thread_count = 1;
     /// Should heightmap generation ignore the presence of sub-voxel positions, forcing voxel centres instead?
     bool ignore_sub_voxel_positioning = false;
+    /// Allow the generation of a heightmap floor around the transition from unknown to free voxels?
+    ///
+    /// @see @c Heightmap::setGenerateFloorFromUnknown()
+    bool generate_floor_from_unknown = false;
 
     void updateAxis();
     static const glm::dvec3 &upAxisNormal(UpAxis axis_id);

@@ -143,6 +143,21 @@ namespace ohm
     /// @seealso @ref subvoxel
     bool ignoreSubVoxelPositioning() const;
 
+    /// Set the generation of a heightmap floor around the transition from unknown to free voxels?
+    ///
+    /// This option allows a heightmap floor to be generated in columns where there is no clear occupied floor voxel.
+    /// When enabled, the heightmap generates a floor level at the lowest transition point from unknown to free voxel.
+    ///
+    /// @param enable Enable this option?
+    void setGenerateFloorFromUnknown(bool enable);
+
+    /// Allow the generation of a heightmap floor around the transition from unknown to free voxels?
+    ///
+    /// @see @c setGenerateFloorFromUnknown()
+    ///
+    /// @retrun True if this option is enabled.
+    bool generateFloorFromUnknown() const;
+
     /// The layer number which contains @c HeightmapVoxel structures.
     /// @return The heightmap layer index or -1 on error (not present).
     /// @seealso @ref subvoxel
@@ -206,7 +221,8 @@ namespace ohm
     /// @param reference_pos The staring position to build a heightmap around. Nominally a vehicle position.
     /// @param cull_to Limit heightmap generation to this region.
     /// @return true on success.
-    bool update(const glm::dvec3 &reference_pos, const ohm::Aabb &cull_to = ohm::Aabb(0.0));
+    bool update(const glm::dvec3 &reference_pos, const ohm::Aabb &cull_to = ohm::Aabb(0.0),
+                const ohm::Aabb &exclude = ohm::Aabb(0.0));
 
     //-------------------------------------------------------
     // Internal

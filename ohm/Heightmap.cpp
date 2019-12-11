@@ -101,6 +101,7 @@ namespace
       glm::dvec3 sub_voxel_pos(0);
       glm::dvec3 column_voxel_pos(0);
       double height = 0;
+      bool have_transitioned_from_unknown = false;
 
       // Select walking direction based on the up axis being aligned with the primary axis or not.
       const int step_dir = (int(up_axis) >= 0) ? 1 : -1;
@@ -124,7 +125,8 @@ namespace
           break;
         }
 
-        if (voxel_type == ohm::kOccupied)
+        if (voxel_type == ohm::kOccupied ||
+            imp->generate_floor_from_unknown && !have_transitioned_from_unknown && voxel_type == ohm::kFree)
         {
           if (height < column_height)
           {
@@ -146,6 +148,11 @@ namespace
             column_height = column_clearance_height = height;
             column_voxel_pos = sub_voxel_pos;
           }
+        }
+
+        if (voxel_type != ohm::kUncertain)
+        {
+          have_transitioned_from_unknown = true;
         }
       }
 
@@ -172,10 +179,11 @@ namespace
   }
 
   Key findNearestSupportingVoxel(const OccupancyMap &map, const Key &seed_key, int up_axis_index,  //
-                                 const Key &min_key, const Key &max_key, int voxel_ceiling)
+                                 const Key &min_key, const Key &max_key, int voxel_ceiling, bool floor_from_unknown)
   {
     // Walk up and down at the same time until we find the nearest occupied voxel.
     int key_offset = 0;
+    Key best_unknown_floor = Key::kNull;
     bool in_range = false;  // False when both keys above and below are invalid.
     do
     {
@@ -191,9 +199,17 @@ namespace
       {
         // Key still valid. Ensure we keep walking.
         in_range = true;
-        if (map.voxel(below).isOccupied())
+        switch (map.occupancyType(map.voxel(below)))
         {
+        case ohm::kOccupied:
+          // Found a occupied voxel. This is the floor candidate.
           return below;
+        case ohm::kFree:
+          // Free voxel. Track this voxel as a potential floor voxel for generating floor_from_unknown.
+          best_unknown_floor = below;
+          break;
+        default:
+          break;
         }
       }
 
@@ -206,10 +222,31 @@ namespace
         {
           return above;
         }
+        switch (map.occupancyType(map.voxel(above)))
+        {
+        case ohm::kOccupied:
+          // Found a occupied voxel. This is the floor candidate.
+          return above;
+        case ohm::kFree:
+          // Free voxel. Track this voxel as a potential floor voxel for generating floor_from_unknown so long as we
+          // don't already have one. This ensures we only track the lowest candidate.
+          if (best_unknown_floor.isNull())
+          {
+            best_unknown_floor = above;
+          }
+          break;
+        default:
+          break;
+        }
       }
 
       ++key_offset;
     } while (in_range);
+
+    if (floor_from_unknown)
+    {
+      return best_unknown_floor;
+    }
 
     return Key::kNull;
   }
@@ -232,6 +269,7 @@ namespace
     glm::dvec3 column_voxel_pos(0);
     double height = 0;
     bool have_candidate = false;
+    bool have_transitioned_from_unknown = false;
 
     // Select walking direction based on the up axis being aligned with the primary axis or not.
 
@@ -243,7 +281,9 @@ namespace
 
       const ohm::OccupancyType voxel_type =
         sourceVoxelHeight(&sub_voxel_pos, &height, map, voxel, key, imp.up, imp.ignore_sub_voxel_positioning);
-      if (voxel_type == ohm::kOccupied)
+
+      if (voxel_type == ohm::kOccupied ||
+          imp.generate_floor_from_unknown && !have_transitioned_from_unknown && voxel_type == ohm::kFree)
       {
         if (have_candidate)
         {
@@ -271,6 +311,11 @@ namespace
           column_voxel_pos = sub_voxel_pos;
           have_candidate = true;
         }
+      }
+
+      if (voxel_type != ohm::kUncertain)
+      {
+        have_transitioned_from_unknown = true;
       }
     }
 
@@ -430,6 +475,18 @@ void Heightmap::setIgnoreSubVoxelPositioning(bool ignore)
 bool Heightmap::ignoreSubVoxelPositioning() const
 {
   return imp_->ignore_sub_voxel_positioning;
+}
+
+
+void Heightmap::setGenerateFloorFromUnknown(bool enable)
+{
+  imp_->generate_floor_from_unknown = enable;
+}
+
+
+bool Heightmap::generateFloorFromUnknown() const
+{
+  return imp_->generate_floor_from_unknown;
 }
 
 
@@ -617,7 +674,7 @@ bool Heightmap::update(double base_height, const ohm::Aabb &cull_to)
 }
 
 
-bool Heightmap::update(const glm::dvec3 &reference_pos, const ohm::Aabb &cull_to)
+bool Heightmap::update(const glm::dvec3 &reference_pos, const ohm::Aabb &cull_to, const ohm::Aabb &exclude)
 {
   if (!imp_->occupancy_map)
   {
@@ -689,8 +746,8 @@ bool Heightmap::update(const glm::dvec3 &reference_pos, const ohm::Aabb &cull_to
   do
   {
     // Find the nearest voxel to the current key which may be a ground candidate.
-    Key candidate_key =
-      findNearestSupportingVoxel(src_map, walk_key, upAxisIndex(), min_ext_key, max_ext_key, voxel_ceiling);
+    Key candidate_key = findNearestSupportingVoxel(src_map, walk_key, upAxisIndex(), min_ext_key, max_ext_key,
+                                                   voxel_ceiling, imp_->generate_floor_from_unknown);
 
     if (candidate_key.isNull())
     {
@@ -715,38 +772,105 @@ bool Heightmap::update(const glm::dvec3 &reference_pos, const ohm::Aabb &cull_to
 
       // Write to the heightmap.
       VoxelConst src_voxel = src_map.voxel(ground_key);
-      if (src_voxel.isOccupied())
+      const ohm::OccupancyType voxel_type = ohm::OccupancyType(src_map.occupancyType(src_voxel));
+
+      bool is_floor_voxel = false;
+      bool is_excluded = false;
+      glm::dvec3 voxel_pos = src_voxel.position();
+      if (voxel_type == ohm::kOccupied || voxel_type == ohm::kFree && imp_->generate_floor_from_unknown)
       {
-        glm::dvec3 pos = src_voxel.position();
-        // Cache the height then clear from the position.
-        const double src_height = pos[upAxisIndex()];
-        pos[upAxisIndex()] = 0;
 
-        // Get the heightmap voxel to update.
-        Key hm_key = heightmap.voxelKey(pos);
-        project(&hm_key);
-        Voxel hm_voxel = heightmap.voxel(hm_key, true, &heightmap_cache);
-        hm_voxel.setValue(heightmap.occupancyThresholdValue());
-        // Set sub-voxel position as required.
-        if (sub_voxel_allowed)
+        if (voxel_type == ohm::kFree && imp_->generate_floor_from_unknown && exclude.contains(voxel_pos))
         {
-          hm_voxel.setPosition(pos);
-        }
+          is_floor_voxel = false;
+          is_excluded = true;
 
-        // Write the height and clearance values.
-        HeightmapVoxel *voxel_content = hm_voxel.layerContent<HeightmapVoxel *>(heightmap_build_layer);
-        if (voxel_content)
+          // // The nominated surface is actually the interface between free and unknown space. Use historic data from the
+          // // surface cache if available.
+          // if (surface_cache)
+          // {
+          //   const int up_index = upAxisIndex();
+          //   glm::dvec3 coord = src_voxel.centreGlobal();
+          //   ohm::Key cache_key = surface_cache->voxelKey(coord);
+          //   // Clamp the vertical aspect of the key.
+          //   cache_key.setRegionAxis(up_index, 0);
+          //   cache_key.setLocalAxis(up_index, 0);
+          //   const VoxelConst cache_voxel = surface_cache->voxel(cache_key);
+          //   if (cache_voxel.isValid() && cache_voxel.isOccupied())
+          //   {
+          //     voxel_pos = cache_voxel.position();
+
+          //     const ohm::MapLayer *heightmap_layer = surface_cache->layout().layer(ohm::HeightmapVoxel::kHeightmapLayer);
+          //     const int heightmap_layer_index = heightmap_layer->layerIndex();
+
+          //     // Read the height then clear it to reset for next update.
+          //     const ohm::HeightmapVoxel *cache_height_info =
+          //       cache_voxel.layerContent<const ohm::HeightmapVoxel *>(heightmap_layer_index);
+          //     voxel_pos[up_index] += cache_height_info->height;
+          //   }
+          // }
+        }
+        else
         {
-          voxel_content->height = relativeVoxelHeight(src_height, hm_voxel, imp_->up);
-          voxel_content->clearance = float(clearance);
-        }
+          is_floor_voxel = true;
+          // Cache the height then clear from the position.
+          const double src_height = voxel_pos[upAxisIndex()];
+          voxel_pos[upAxisIndex()] = 0;
 
-        ++populated_count;
+          // Get the heightmap voxel to update.
+          Key hm_key = heightmap.voxelKey(voxel_pos);
+          project(&hm_key);
+          Voxel hm_voxel = heightmap.voxel(hm_key, true, &heightmap_cache);
+          hm_voxel.setValue(heightmap.occupancyThresholdValue());
+          // Set sub-voxel position as required.
+          if (sub_voxel_allowed)
+          {
+            hm_voxel.setPosition(voxel_pos);
+          }
+
+          // Write the height and clearance values.
+          HeightmapVoxel *voxel_content = hm_voxel.layerContent<HeightmapVoxel *>(heightmap_build_layer);
+          if (voxel_content)
+          {
+            voxel_content->height = relativeVoxelHeight(src_height, hm_voxel, imp_->up);
+            voxel_content->clearance = float(clearance);
+          }
+
+          ++populated_count;
+        }
       }
-      else
+
+      if (!is_floor_voxel)
       {
         // No ground found. Add walk_key neighbours for walking.
         walker.addNeighbours(walk_key, PlaneFillWalker::Revisit::None);
+
+        if (!is_excluded)
+        {
+          // If the voxel is within the negative obstacle range then we create a fake surface at a low height to create
+          // a steep and high cost transition.
+          if (glm::dot(voxel_pos - reference_pos, voxel_pos - reference_pos) <=
+              imp_->negative_obstacle_radius * imp_->negative_obstacle_radius)
+          {
+            Key hm_key = heightmap.voxelKey(voxel_pos);
+            project(&hm_key);
+            Voxel hm_voxel = heightmap.voxel(hm_key, true, &heightmap_cache);
+            hm_voxel.setValue(heightmap.occupancyThresholdValue());
+            // Set sub-voxel position as required.
+            if (sub_voxel_allowed)
+            {
+              hm_voxel.setPosition(voxel_pos);
+            }
+
+            // Write the height and clearance values.
+            HeightmapVoxel *voxel_content = hm_voxel.layerContent<HeightmapVoxel *>(heightmap_build_layer);
+            if (voxel_content)
+            {
+              voxel_content->height = reference_pos[upAxisIndex()] - 100.0;
+              voxel_content->clearance = 0.01;
+            }
+          }
+        }
       }
     }
   } while (walker.walkNext(walk_key));
