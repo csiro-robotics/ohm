@@ -122,10 +122,8 @@ bool HeightmapMesh::buildMesh(const Heightmap &heightmap)
   for (auto voxel_iter = heightmap_occupancy.begin(); voxel_iter != heightmap_occupancy.end(); ++voxel_iter)
   {
     const VoxelConst &voxel = *voxel_iter;
-    if (voxel.isOccupied())
+    if (heightmap.heightmapVoxelPosition(voxel, &point, nullptr))
     {
-      const ohm::HeightmapVoxel *height_info = voxel.layerContent<const ohm::HeightmapVoxel *>(heightmap_layer_index);
-      point = voxel.position() + double(height_info->height) * up;
       imp_->coords_2d.push_back(point.x);
       imp_->coords_2d.push_back(point.y);
       imp_->vertices.push_back(point);

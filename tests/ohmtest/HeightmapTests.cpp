@@ -61,7 +61,7 @@ namespace
     }
 
     ProfileMarker mark_heightmap("heightmap", &profile);
-    heightmap->update(base_height);
+    heightmap->update(base_height * heightmap->upAxisNormal());
     mark_heightmap.end();
 
     // Verify output. Boundaries should be at ~ +boundary_distance (top of walls). All other voxels should be at

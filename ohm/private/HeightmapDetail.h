@@ -8,6 +8,7 @@
 
 #include "OhmConfig.h"
 
+#include <ohm/Aabb.h>
 #include <ohm/UpAxis.h>
 
 #include <glm/glm.hpp>
@@ -21,9 +22,28 @@ namespace ohm
 
   struct ohm_API HeightmapDetail
   {
-    ohm::OccupancyMap *occupancy_map = nullptr;
+    OccupancyMap *occupancy_map = nullptr;
     /// Use a very thin occupancy map for the heightmap representation.
-    std::unique_ptr<ohm::OccupancyMap> heightmap;
+    ///
+    /// Within the heightmap the occupancy values are used independently of any of the threshold values.
+    /// For each voxel the values have the following meanings:
+    /// - @c ohm::voxel::invalidMarkerValue() => unobserved region (standard semantics)
+    /// - <tt>value < 0</tt> => virtual surface
+    /// - <tt>value == 0</tt> => vacant due to local cache seeding
+    /// - <tt>value > 0</tt> => real surface
+    ///
+    /// The case where @c value is zero indicates that there are no observations for the column and it has not been
+    /// able to be observed. This only comes from the @c heightmap_local_cache where the cache has been seeded at a
+    /// start position and the nearby voxels cannot be observed due to sensor blind spots. Once the sensor moves the
+    /// local cache will gradually be updated with real observations and this case will disappear.
+    std::unique_ptr<OccupancyMap> heightmap;
+    /// A cache of the previous heightmap surface around the reference position.
+    /// Used to maintain previous heightmap information around the reference pos and deal with sensor visibility issues
+    /// (lack thereof).
+    std::unique_ptr<OccupancyMap> heightmap_local_cache;
+    /// TODO(KS): external configuration for these bounds.
+    Aabb local_cache_bounds = Aabb(glm::dvec3(-2), glm::dvec3(2));
+    /// The direct of up used in heightmap generation. Must be aligned to a specific access.
     glm::dvec3 up = glm::dvec3(0, 0, 1);
     /// Ignore all source voxels which lie lower than this below the base height.
     /// Enable by setting a positive value.
@@ -47,10 +67,10 @@ namespace ohm
     unsigned thread_count = 1;
     /// Should heightmap generation ignore the presence of sub-voxel positions, forcing voxel centres instead?
     bool ignore_sub_voxel_positioning = false;
-    /// Allow the generation of a heightmap floor around the transition from unknown to free voxels?
+    /// Allow the generation of a virtual heightmap floor around the transition from unknown to free voxels?
     ///
-    /// @see @c Heightmap::setGenerateFloorFromUnknown()
-    bool generate_floor_from_unknown = false;
+    /// @see @c Heightmap::setGenerateVirtualFloor()
+    bool generate_virtual_floor = false;
 
     void updateAxis();
     static const glm::dvec3 &upAxisNormal(UpAxis axis_id);

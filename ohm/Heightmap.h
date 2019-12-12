@@ -23,6 +23,7 @@ namespace ohm
   class Key;
   class MapInfo;
   class OccupancyMap;
+  class VoxelConst;
 
   /// A 2D voxel map variant which calculate a heightmap surface from another @c OccupancyMap.
   ///
@@ -65,7 +66,15 @@ namespace ohm
   class Heightmap
   {
   public:
+    /// Size of regions in the heightmap. This is a 2D voxel extent. The region height is always one voxel.
     static const unsigned kDefaultRegionSize = 128;
+    /// Voxel value assigned to heightmap cells which represent a real surface extracted from the source map.
+    static constexpr float kHeightmapSurfaceValue = 1.0f;
+    /// Voxel value assigned to heightmap cells which represent a virtual surface extracted from the source map.
+    /// Virtual surfaces may be formed by the interface between a free voxel supported by an uncertain/null voxel.
+    static constexpr float kHeightmapVirtualSurfaceValue = -1.0f;
+    /// Voxel value assigned to heightmap cells which have no valid voxel in the entire column from the source map.
+    static constexpr float kHeightmapVacantValue = 0.0f;
 
     /// Construct a default initialised heightmap.
     Heightmap();
@@ -149,14 +158,14 @@ namespace ohm
     /// When enabled, the heightmap generates a floor level at the lowest transition point from unknown to free voxel.
     ///
     /// @param enable Enable this option?
-    void setGenerateFloorFromUnknown(bool enable);
+    void setGenerateVirtualFloor(bool enable);
 
     /// Allow the generation of a heightmap floor around the transition from unknown to free voxels?
     ///
-    /// @see @c setGenerateFloorFromUnknown()
+    /// @see @c setGenerateVirtualFloor()
     ///
     /// @retrun True if this option is enabled.
-    bool generateFloorFromUnknown() const;
+    bool generateVirtualFloor() const;
 
     /// The layer number which contains @c HeightmapVoxel structures.
     /// @return The heightmap layer index or -1 on error (not present).
@@ -205,25 +214,18 @@ namespace ohm
     /// The last base height value given to @p update().
     double baseHeight() const;
 
-    /// Update the heightmap from the source @c occupancyMap(). This clears the existing content first.
-    ///
-    /// Voxels are project onto this plane to calculate each voxels' closest two clusters to the plane.
-    ///
-    /// @param base_height The base heightmap value. All heights are relative to this value. This helps reduce floating
-    ///   point error with heights being stored in single precision.
-    /// @param cull_to Limit heightmap generation to this region.
-    /// @return true on success.
-    bool update(double base_height, const ohm::Aabb &cull_to = ohm::Aabb(0.0));
+    void seedLocalCache(const glm::dvec3 &reference_pos);
 
     /// Update the heightmap around a reference position. This sets the @c base_height as in the overload, but also
     /// changes the behaviour to flood fill out from the reference position.
     ///
     /// @param reference_pos The staring position to build a heightmap around. Nominally a vehicle position.
-    /// @param cull_to Limit heightmap generation to this region.
     /// @return true on success.
-    bool update(const glm::dvec3 &reference_pos, const ohm::Aabb &cull_to = ohm::Aabb(0.0),
-                const ohm::Aabb &exclude = ohm::Aabb(0.0));
+    bool update(const glm::dvec3 &reference_pos, const ohm::Aabb &cull_to = ohm::Aabb(0.0));
 
+    bool heightmapVoxelPosition(const VoxelConst &heightmap_voxel, glm::dvec3 *pos, float *clearance = nullptr) const;
+
+  public:
     //-------------------------------------------------------
     // Internal
     //-------------------------------------------------------
@@ -242,6 +244,10 @@ namespace ohm
     Key &project(Key *key);
 
   private:
+    void updateLocalCache(const glm::dvec3 &reference_pos);
+
+    bool lookupLocalCache(const glm::dvec3 &lookup_pos, glm::dvec3 *cache_pos, float *cache_value, double *clearance);
+
     std::unique_ptr<HeightmapDetail> imp_;
   };
 }  // namespace ohm
