@@ -28,20 +28,12 @@ using namespace ohm;
 
 namespace
 {
-  struct TestParams
-  {
-    double floor = 0;
-    double ceiling = 0;
-  };
-
   const double kBoxHalfExtents = 2.5;
 
-  void heightmapBoxTest(const std::string &prefix, UpAxis axis,
-                        std::shared_ptr<Heightmap> *map_out = nullptr, const TestParams *params = nullptr)
+  void heightmapBoxTest(const std::string &prefix, UpAxis axis, std::shared_ptr<Heightmap> *map_out = nullptr)
   {
     Profile profile;
     const float boundary_distance = float(kBoxHalfExtents);
-    const double base_height = 0;
     OccupancyMap map(0.2);
 
     // Build a cloud with real samples around a cubic boundary. Does not cover every voxel in the boundary.
@@ -54,14 +46,9 @@ namespace
     }
     heightmap->setOccupancyMap(&map);
 
-    if (params)
-    {
-      heightmap->setFloor(params->floor);
-      heightmap->setCeiling(params->ceiling);
-    }
-
     ProfileMarker mark_heightmap("heightmap", &profile);
-    heightmap->update(base_height * heightmap->upAxisNormal());
+    const double base_height = 0.0;
+    heightmap->buildHeightmap(base_height * heightmap->upAxisNormal());
     mark_heightmap.end();
 
     // Verify output. Boundaries should be at ~ +boundary_distance (top of walls). All other voxels should be at
@@ -79,33 +66,6 @@ namespace
     double top_of_wall_height =
       (int(axis) >= 0) ? map.voxelCentreGlobal(map.voxelKey(glm::dvec3(boundary_distance)))[axis_index] :
                     -1.0 * map.voxelCentreGlobal(map.voxelKey(glm::dvec3(-boundary_distance)))[axis_index];
-
-    if (params)
-    {
-      double adjusted_ceiling = top_of_wall_height;
-      double adjusted_ground = ground_height;
-      if (params->ceiling > 0)
-      {
-        adjusted_ceiling = std::min(adjusted_ceiling, base_height + params->ceiling);
-      }
-      if (params->floor > 0)
-      {
-        adjusted_ground = std::max(adjusted_ground, base_height - params->floor);
-        if (adjusted_ground > ground_height)
-        {
-          adjusted_ground = top_of_wall_height;
-
-          if (adjusted_ground > adjusted_ceiling)
-          {
-            // Ground is clipped at both ends. Remove completely.
-            adjusted_ground = std::numeric_limits<double>::infinity();
-          }
-        }
-      }
-
-      ground_height = adjusted_ground;
-      top_of_wall_height = adjusted_ceiling;
-    }
 
     std::string filename;
     if (!prefix.empty())
@@ -130,7 +90,7 @@ namespace
           const HeightmapVoxel *voxel = iter->layerContent<const HeightmapVoxel *>(heightmap->heightmapVoxelLayer());
           // Get the coordinate of the voxel.
           coord = heightmap->heightmap().voxelCentreGlobal(iter.key());
-          coord += double(voxel->height) * Heightmap::upAxisNormal(ohm::UpAxis(axis_index));
+          coord += double(voxel->height) * Heightmap::upAxisNormal(axis);
           // Add to the cloud.
           heightmapCloud.addVertex(coord);
         }
@@ -197,6 +157,11 @@ namespace
           wall = true;
         }
 
+        if (int(axis) < 0)
+        {
+          expected_height *= -1.0;
+        }
+
         ASSERT_TRUE(voxel.isValid());
 
         const HeightmapVoxel *voxel_content =
@@ -219,31 +184,6 @@ TEST(Heightmap, Box)
 }
 
 
-TEST(Heightmap, Ceiling)
-{
-  TestParams params;
-  params.ceiling = 0.5;
-  heightmapBoxTest("heightmap-ceiling", UpAxis::kZ, nullptr, &params);
-}
-
-
-TEST(Heightmap, Floor)
-{
-  TestParams params;
-  params.floor = 0.5;
-  heightmapBoxTest("heightmap-floor", UpAxis::kZ, nullptr, &params);
-}
-
-
-TEST(Heightmap, FloorAndCeiling)
-{
-  TestParams params;
-  params.floor = 0.3;
-  params.ceiling = 0.5;
-  heightmapBoxTest("heightmap-ceiling-floor", UpAxis::kZ, nullptr, &params);
-}
-
-
 TEST(Heightmap, AxisX)
 {
   heightmapBoxTest("heightmap-x", UpAxis::kX);
@@ -258,19 +198,19 @@ TEST(Heightmap, AxisY)
 
 TEST(Heightmap, AxisZ)
 {
-  heightmapBoxTest("heightmap-z", UpAxis::kNegZ);
+  heightmapBoxTest("heightmap-z", UpAxis::kZ);
 }
 
 
 TEST(Heightmap, AxisNegX)
 {
-  heightmapBoxTest("heightmap-negx", UpAxis::kX);
+  heightmapBoxTest("heightmap-negx", UpAxis::kNegX);
 }
 
 
 TEST(Heightmap, AxisNegY)
 {
-  heightmapBoxTest("heightmap-negy", UpAxis::kY);
+  heightmapBoxTest("heightmap-negy", UpAxis::kNegY);
 }
 
 

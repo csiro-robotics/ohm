@@ -88,7 +88,7 @@ void HeightmapMesh::setNormalsMode(NormalsMode mode)
 }
 
 
-bool HeightmapMesh::buildMesh(const Heightmap &heightmap)
+bool HeightmapMesh::buildMesh(const Heightmap &heightmap, const glm::dvec3 &reference_position, double negative_obstacle_radius)
 {
   PROFILE(HeightmapMesh_buildMesh);
   // Populate the coordinates.
@@ -122,7 +122,7 @@ bool HeightmapMesh::buildMesh(const Heightmap &heightmap)
   for (auto voxel_iter = heightmap_occupancy.begin(); voxel_iter != heightmap_occupancy.end(); ++voxel_iter)
   {
     const VoxelConst &voxel = *voxel_iter;
-    if (heightmap.heightmapVoxelPosition(voxel, &point, nullptr))
+    if (heightmap.getHeightmapVoxelPosition(voxel, reference_position, negative_obstacle_radius, &point, nullptr))
     {
       imp_->coords_2d.push_back(point.x);
       imp_->coords_2d.push_back(point.y);
@@ -296,6 +296,12 @@ bool HeightmapMesh::buildMesh(const Heightmap &heightmap)
   }
 
   return true;
+}
+
+
+bool HeightmapMesh::buildMesh(const Heightmap &heightmap)
+{
+  return buildMesh(heightmap, glm::dvec3(0.0), 0.0);
 }
 
 

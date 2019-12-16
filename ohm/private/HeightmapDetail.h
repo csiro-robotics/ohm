@@ -41,19 +41,17 @@ namespace ohm
     /// Used to maintain previous heightmap information around the reference pos and deal with sensor visibility issues
     /// (lack thereof).
     std::unique_ptr<OccupancyMap> heightmap_local_cache;
-    /// TODO(KS): external configuration for these bounds.
-    Aabb local_cache_bounds = Aabb(glm::dvec3(-2), glm::dvec3(2));
     /// The direct of up used in heightmap generation. Must be aligned to a specific access.
     glm::dvec3 up = glm::dvec3(0, 0, 1);
-    /// Ignore all source voxels which lie lower than this below the base height.
-    /// Enable by setting a positive value.
-    double floor = 0;
-    /// Ignore all source voxels which lie higher than this above the base height.
+    /// Extents used to generate the @c heightmap_local_cache .
+    double local_cache_extents = 0;
+    /// Ignore all source voxels which lie higher than this above the reference position height.
     /// Enable by setting a positive value.
     double ceiling = 0;
     /// Minimum clearance above a potential ground/surface voxel required to accept the voxel as a viable surface.
     double min_clearance = 1.0;
-    double negative_obstacle_radius = 3.0;
+    /// Range at which to generate negative obstacle surfaces.
+    double negative_obstacle_radius = 0;
     /// Voxel layer containing the @c HeightmapVoxel data.
     int heightmap_layer = -1;
     /// Voxel layer used to build the first pass heightmap without blur.
@@ -70,7 +68,7 @@ namespace ohm
     /// Allow the generation of a virtual heightmap floor around the transition from unknown to free voxels?
     ///
     /// @see @c Heightmap::setGenerateVirtualFloor()
-    bool generate_virtual_floor = false;
+    bool generate_virtual_surface = false;
 
     void updateAxis();
     static const glm::dvec3 &upAxisNormal(UpAxis axis_id);
