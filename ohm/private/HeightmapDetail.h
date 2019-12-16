@@ -54,15 +54,11 @@ namespace ohm
     double negative_obstacle_radius = 0;
     /// Voxel layer containing the @c HeightmapVoxel data.
     int heightmap_layer = -1;
-    /// Voxel layer used to build the first pass heightmap without blur.
-    int heightmap_build_layer = -1;
     /// Identifies the up axis: @c UpAxis
     UpAxis up_axis_id = UpAxis::kZ;
     /// Identifies the up axis as aligned to XYZ, [0, 2] but ignores sign/direction.
     /// Same as up_axis_id if that value is >= 0.
     int vertical_axis_index = int(UpAxis::kZ);
-    /// Target number of threads to use. 1 => no threading.
-    unsigned thread_count = 1;
     /// Should heightmap generation ignore the presence of sub-voxel positions, forcing voxel centres instead?
     bool ignore_sub_voxel_positioning = false;
     /// Allow the generation of a virtual heightmap floor around the transition from unknown to free voxels?

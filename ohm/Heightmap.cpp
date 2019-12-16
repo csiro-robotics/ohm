@@ -271,35 +271,11 @@ Heightmap::Heightmap(double grid_resolution, double min_clearance, UpAxis up_axi
   voxels.addMember("height", DataType::kFloat, 0);
   voxels.addMember("clearance", DataType::kFloat, 0);
 
-  layer = layout.addLayer(HeightmapVoxel::kHeightmapBuildLayer, 0);
-  imp_->heightmap_build_layer = static_cast<int>(layer->layerIndex());
-  voxels = layer->voxelLayout();
-  voxels.addMember("height", DataType::kFloat, 0);
-  voxels.addMember("clearance", DataType::kFloat, 0);
-
   updateMapInfo(imp_->heightmap->mapInfo());
 }
 
 
 Heightmap::~Heightmap() = default;
-
-
-bool Heightmap::setThreadCount(unsigned thread_count)
-{
-#ifdef OHM_THREADS
-  imp_->thread_count = thread_count;
-  return true;
-#else   // OHM_THREADS
-  (void)thread_count;  // Unused.
-  return false;
-#endif  // OHM_THREADS
-}
-
-
-unsigned Heightmap::threadCount() const
-{
-  return imp_->thread_count;
-}
 
 
 void Heightmap::setOccupancyMap(OccupancyMap *map)
@@ -452,12 +428,6 @@ int Heightmap::heightmapVoxelLayer() const
 }
 
 
-int Heightmap::heightmapVoxelBuildLayer() const
-{
-  return imp_->heightmap_build_layer;
-}
-
-
 bool Heightmap::buildHeightmap(const glm::dvec3 &reference_pos, const ohm::Aabb &cull_to)
 {
   if (!imp_->occupancy_map)
@@ -502,7 +472,7 @@ bool Heightmap::buildHeightmap(const glm::dvec3 &reference_pos, const ohm::Aabb 
 
   PROFILE(walk)
 
-  const int heightmap_build_layer = imp_->heightmap_layer;
+  const int heightmap_layer = imp_->heightmap_layer;
 
   // Set the initial key.
   Key walk_key = src_map.voxelKey(reference_pos);
@@ -599,7 +569,7 @@ bool Heightmap::buildHeightmap(const glm::dvec3 &reference_pos, const ohm::Aabb 
         }
 
         // Write the height and clearance values.
-        HeightmapVoxel *voxel_content = hm_voxel.layerContent<HeightmapVoxel *>(heightmap_build_layer);
+        HeightmapVoxel *voxel_content = hm_voxel.layerContent<HeightmapVoxel *>(heightmap_layer);
         if (voxel_content)
         {
           voxel_content->height = relativeVoxelHeight(src_height, hm_voxel, imp_->up);
