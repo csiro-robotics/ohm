@@ -163,9 +163,6 @@ namespace
     const Key &search_up_to = (int(up_axis) >= 0) ? max_key : min_key;
     below = findNearestSupportingVoxel2(map, seed_key, search_down_to, up_axis_index, 0, false, floor_from_unknown,
                                         &offset_below, &virtual_below);
-    // Only search up to the search limit, or to the same distance as we found a real voxel below.
-    const int search_up_limit =
-      (!virtual_below) ? ((voxel_ceiling) ? std::min(voxel_ceiling, offset_below) : offset_below) : voxel_ceiling;
     above = findNearestSupportingVoxel2(map, seed_key, search_up_to, up_axis_index, voxel_ceiling, true,
                                         floor_from_unknown, &offset_above, &virtual_above);
 
@@ -492,6 +489,9 @@ bool Heightmap::buildHeightmap(const glm::dvec3 &reference_pos, const ohm::Aabb 
   // Clear previous results.
   heightmap.clear();
 
+  // Encode the base height of the heightmap in the origin.
+  heightmap.setOrigin(upAxisNormal() * glm::dot(upAxisNormal(), reference_pos));
+
   // Allow sub-voxel positioning.
   const bool sub_voxel_allowed = !imp_->ignore_sub_voxel_positioning;
   heightmap.setSubVoxelsEnabled(src_map.subVoxelsEnabled() && sub_voxel_allowed);
@@ -780,6 +780,8 @@ void Heightmap::updateLocalCache(const glm::dvec3 &reference_pos)
 
   // Up the local surface from the heightmap.
   local_cache_map.clear();
+
+  local_cache_map.setOrigin(heightmap.origin());
 
   // Update the search extents.
   const glm::dvec3 min_range = reference_pos - glm::dvec3(imp_->local_cache_extents);
