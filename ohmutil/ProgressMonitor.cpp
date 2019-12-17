@@ -111,7 +111,7 @@ void ProgressMonitor::updateProgress(uint64_t progress)
 
 void ProgressMonitor::beginProgress(unsigned pass, const Info &info, bool unpause)
 {
-  info_ = info.info;
+  info_ = (info.info) ? info.info : "";
   progress_ = 0;
   pass_ = pass;
   total_progress_ = info.total;
