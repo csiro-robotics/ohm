@@ -839,12 +839,16 @@ bool Heightmap::buildHeightmapT(KeyWalker &walker, const glm::dvec3 &reference_p
   do
   {
     // Find the nearest voxel to the current key which may be a ground candidate.
+    // This is key closest to the walk_key which could be ground. This will be either an occupied voxel, or virtual ground
+    /// voxel. Virtual ground is where a free is supported by an uncertain or null voxel below it.
     Key candidate_key = findNearestSupportingVoxel(src_map, walk_key, upAxis(), walker.min_ext_key, walker.max_ext_key,
                                                    voxel_ceiling, imp_->generate_virtual_surface);
 
     // Walk up from the candidate to find the best heightmap voxel.
     double height = 0;
     double clearance = 0;
+    // Walk the column of candidate_key to find the first occupied voxel with sufficent clearance. A virtual voxel
+    // with sufficient clearance may be given if there is no valid occupied voxel.
     const Key ground_key = (!candidate_key.isNull()) ?
                              findGround(&height, &clearance, src_map, candidate_key, walker.min_ext_key,
                                         walker.max_ext_key, &src_map_cache, *imp_) :
