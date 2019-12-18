@@ -132,9 +132,10 @@ const glm::dvec3 &HeightmapDetail::surfaceNormalB(UpAxis axis_id)
 void HeightmapDetail::fromMapInfo(const MapInfo &info)
 {
   up_axis_id = UpAxis(int(info.get("heightmap-axis")));
-  min_clearance = float(info.get("heightmap-clearance"));
-  floor = float(info.get("heightmap-floor"));
-  ceiling = float(info.get("heightmap-ceiling"));
+  min_clearance = double(info.get("heightmap-clearance"));
+  ceiling = double(info.get("heightmap-ceiling"));
+  negative_obstacle_radius = double(info.get("heightmap-negative-obstacle-radius"));
+  generate_virtual_surface = bool(info.get("heightmap-virtual-surface"));
   updateAxis();
 }
 
@@ -147,6 +148,7 @@ void HeightmapDetail::toMapInfo(MapInfo &info) const
   info.set(MapValue("heightmap-axis-y", up.y));
   info.set(MapValue("heightmap-axis-z", up.z));
   info.set(MapValue("heightmap-clearance", min_clearance));
-  info.set(MapValue("heightmap-floor", floor));
   info.set(MapValue("heightmap-ceiling", ceiling));
+  info.set(MapValue("heightmap-negative-obstacle-radius", negative_obstacle_radius));
+  info.set(MapValue("heightmap-virtual-surface", generate_virtual_surface));
 }

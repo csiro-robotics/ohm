@@ -63,7 +63,15 @@ namespace ohm
     /// Possible failure conditions:
     /// - The heightmap occupancy map does not contain the required voxel layers.
     ///
+    /// @param heightmap The heightmap to generate a mesh for.
+    /// @param reference_position The reference position around which the heightmap was generated. Only needed when
+    ///   using @p negative_obstacle_radius .
+    /// @param negative_obstacle_radius 2D range around @p reference_position where uncertain and virtual surface
+    ///    heightmap voxels are considered negative obstacles.
     /// @return True on success.
+    bool buildMesh(const Heightmap &heightmap, const glm::dvec3 &reference_position, double negative_obstacle_radius);
+
+    /// @overload
     bool buildMesh(const Heightmap &heightmap);
 
     /// Get the voxel resolution fo the heightmap from which the last mesh was generated.

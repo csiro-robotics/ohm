@@ -190,7 +190,7 @@ int main(int argc, char *argv[])
 
   heightmap.setIgnoreSubVoxelPositioning(opt.no_sub_voxel);
 
-  heightmap.update(opt.base_height);
+  heightmap.buildHeightmap(opt.base_height * heightmap.upAxisNormal());
 
   std::cout << "Saving " << opt.heightmap_file << std::endl;
   ohm::save(opt.heightmap_file.c_str(), heightmap.heightmap(), nullptr);
