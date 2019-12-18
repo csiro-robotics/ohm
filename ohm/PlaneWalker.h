@@ -8,11 +8,12 @@
 
 #include "OhmConfig.h"
 
+#include "ohm/Key.h"
 #include "ohm/UpAxis.h"
+
 
 namespace ohm
 {
-  class Key;
   class OccupancyMap;
 
   /// Helper class for walking a plane in the heightmap given any up axis.
@@ -28,11 +29,13 @@ namespace ohm
   public:
     const OccupancyMap &map;
     const Key &min_ext_key, &max_ext_key;
+    const Key plane_key;
     int axis_indices[3] = { 0, 0, 0 };
 
-    PlaneWalker(const OccupancyMap &map, const Key &min_ext_key, const Key &max_ext_key, UpAxis up_axis);
+    PlaneWalker(const OccupancyMap &map, const Key &min_ext_key, const Key &max_ext_key, UpAxis up_axis,
+                const Key *plane_key_ptr = nullptr);
 
-    void begin(Key &key) const;  // NOLINT(google-runtime-references)
+    bool begin(Key &key) const;  // NOLINT(google-runtime-references)
 
     bool walkNext(Key &key) const;  // NOLINT(google-runtime-references)
   };

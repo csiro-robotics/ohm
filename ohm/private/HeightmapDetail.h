@@ -65,6 +65,8 @@ namespace ohm
     ///
     /// @see @c Heightmap::setGenerateVirtualFloor()
     bool generate_virtual_surface = false;
+    /// Use the flood fill technique? Slower, but better at following surfaces.
+    bool use_flood_fill = false;
 
     void updateAxis();
     static const glm::dvec3 &upAxisNormal(UpAxis axis_id);

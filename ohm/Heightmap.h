@@ -54,10 +54,10 @@ namespace ohm
   /// it, but only in a column which does not have an occupied voxel within the search range. Virtual surface voxels
   /// are marked as free in the heightmap.
   ///
-  /// The heightmap is generated using a flood fill from the reference position. Whenver a surface (or virtual surface)
-  /// voxel is added, then its neighbours are added for processing filling out to the specified range. Where a column
-  /// has no supporting voxel, it's neighbours are added at the same height as the column which failed to generate a
-  /// surface was processed.
+  /// The heightmap is generated either using a planar seach or a flood fill from the reference position. The planar
+  /// search operates at a fixed reference height at each column, while the flood fill search height is dependent on
+  /// the height of neighbour voxels. The flood fill is better at following surfaces, however it is significantly
+  /// slower.
   ///
   /// Some variables limit the search for a supporting voxel in each column. To be considered as a support candidate, a
   /// voxel must;
@@ -182,6 +182,14 @@ namespace ohm
     /// @retrun True if this option is enabled.
     bool generateVirtualSurface() const;
 
+    /// Set the heightmap generation to flood fill (@c true) or planar (@c false).
+    /// @param flood_fill True to enable the flood fill technique.
+    void setUseFloodFill(bool flood_fill);
+
+    /// Is the flood fill generation technique in use (@c true) or planar technique (@c false).
+    /// @return True when using flood fill.
+    bool useFloodFill() const;
+
     /// Set the size of the @c heightmapLocalCache() .
     /// @param extents The cache extents (axis aligned).
     void setLocalCacheExtents(double extents);
@@ -279,7 +287,6 @@ namespace ohm
     bool getHeightmapVoxelPosition(const VoxelConst &heightmap_voxel, glm::dvec3 *pos,
                                    float *clearance = nullptr) const;
 
-  public:
     //-------------------------------------------------------
     // Internal
     //-------------------------------------------------------
@@ -309,6 +316,17 @@ namespace ohm
     /// @param[out] clearance The overhead clearance value of the cache voxel.
     /// @return True when @p lookup_pos has resolved into a valid cache voxel.
     bool lookupLocalCache(const glm::dvec3 &lookup_pos, glm::dvec3 *cache_pos, float *cache_value, double *clearance);
+
+    /// @internal
+    /// Internal implementation of heightmap construction. Supports the different key walking techniques available.
+    /// @param walker The key walker used to iterate the source map and heightmap overlap.
+    /// @param reference_pos Reference position around which to generate the heightmap
+    /// @param on_visit Optional callback invoked for each key visited. Parameters are: @p walker, this object's
+    ///   internal details, the candidate key first evaluated for the column search start, the ground key to be migrated
+    ///   to the heightmap. Both keys reference the source map.
+    template <typename KeyWalker>
+    bool buildHeightmapT(KeyWalker &walker, const glm::dvec3 &reference_pos,
+                         void (*on_visit)(KeyWalker &, const HeightmapDetail &, const Key &, const Key &) = nullptr);
 
     std::unique_ptr<HeightmapDetail> imp_;
   };
