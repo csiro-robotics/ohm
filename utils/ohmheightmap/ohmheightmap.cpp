@@ -186,6 +186,7 @@ int main(int argc, char *argv[])
   std::cout << "Generating heightmap" << std::endl;
 
   ohm::Heightmap heightmap(map.resolution(), opt.clearance, opt.axis_id);
+  heightmap.setUseFloodFill(true);  // For better surface following.
   heightmap.setOccupancyMap(&map);
 
   heightmap.setIgnoreSubVoxelPositioning(opt.no_sub_voxel);

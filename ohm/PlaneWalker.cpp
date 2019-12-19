@@ -5,15 +5,16 @@
 // Author: Kazys Stepanas
 #include "PlaneWalker.h"
 
-#include "ohm/Key.h"
 #include "ohm/OccupancyMap.h"
 
 using namespace ohm;
 
-PlaneWalker::PlaneWalker(const OccupancyMap &map, const Key &min_ext_key, const Key &max_ext_key, UpAxis up_axis)
+PlaneWalker::PlaneWalker(const OccupancyMap &map, const Key &min_ext_key, const Key &max_ext_key, UpAxis up_axis,
+                         const Key *plane_key_ptr)
   : map(map)
   , min_ext_key(min_ext_key)
   , max_ext_key(max_ext_key)
+  , plane_key(plane_key_ptr ? *plane_key_ptr : Key(0, 0, 0, 0, 0, 0))
 {
   switch (up_axis)
   {
@@ -42,11 +43,13 @@ PlaneWalker::PlaneWalker(const OccupancyMap &map, const Key &min_ext_key, const 
 }
 
 
-void PlaneWalker::begin(Key &key) const  // NOLINT(google-runtime-references)
+bool PlaneWalker::begin(Key &key) const  // NOLINT(google-runtime-references)
 {
   key = min_ext_key;
-  key.setRegionAxis(axis_indices[2], 0);
-  key.setLocalAxis(axis_indices[2], 0);
+  // Flatten the key onto the plane.
+  key.setRegionAxis(axis_indices[2], plane_key.regionKey()[axis_indices[2]]);
+  key.setLocalAxis(axis_indices[2], plane_key.localKey()[axis_indices[2]]);
+  return true;
 }
 
 
