@@ -534,8 +534,8 @@ bool Heightmap::buildHeightmap(const glm::dvec3 &reference_pos, const ohm::Aabb 
   {
     if (cull_to.diagonal()[i] > 0)
     {
-      src_region.minExtentsMutable()[i] = std::max(cull_to.minExtents()[i], src_region.minExtentsMutable()[i]);
-      src_region.maxExtentsMutable()[i] = std::min(cull_to.maxExtents()[i], src_region.maxExtentsMutable()[i]);
+      src_region.minExtentsMutable()[i] = cull_to.minExtents()[i];
+      src_region.maxExtentsMutable()[i] = cull_to.maxExtents()[i];
     }
   }
 
