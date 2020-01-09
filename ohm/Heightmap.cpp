@@ -367,12 +367,6 @@ OccupancyMap &Heightmap::heightmap() const
 }
 
 
-OccupancyMap *Heightmap::heightmapLocalCache() const
-{
-  return imp_->heightmap_local_cache.get();
-}
-
-
 void Heightmap::setCeiling(double ceiling)
 {
   imp_->ceiling = ceiling;
@@ -430,18 +424,6 @@ void Heightmap::setUseFloodFill(bool flood_fill)
 bool Heightmap::useFloodFill() const
 {
   return imp_->use_flood_fill;
-}
-
-
-void Heightmap::setLocalCacheExtents(double extents)
-{
-  imp_->local_cache_extents = extents;
-}
-
-
-double Heightmap::localCacheExtents() const
-{
-  return imp_->local_cache_extents;
 }
 
 
@@ -556,9 +538,6 @@ bool Heightmap::buildHeightmap(const glm::dvec3 &reference_pos, const ohm::Aabb 
     processedCount = buildHeightmapT(walker, reference_pos, &onVisitPlaneFill);
   }
 
-  // Update the local cache.
-  updateLocalCache(reference_pos);
-
 #if PROFILING
   ohm::Profile::instance().report();
 #endif  // PROFILING
@@ -615,161 +594,6 @@ Key &Heightmap::project(Key *key)
   key->setRegionAxis(upAxisIndex(), 0);
   key->setLocalAxis(upAxisIndex(), 0);
   return *key;
-}
-
-
-void Heightmap::seedLocalCache(const glm::dvec3 &reference_pos)
-{
-  if (!imp_->heightmap_local_cache)
-  {
-    imp_->heightmap_local_cache =
-      std::make_unique<OccupancyMap>(imp_->heightmap->resolution(), imp_->heightmap->regionVoxelDimensions(),
-                                     ohm::MapFlag::kSubVoxelPosition, imp_->heightmap->layout());
-  }
-
-  // local_surface_map has the same MapLayout as the heightmap.
-  OccupancyMap &local_cache = *imp_->heightmap_local_cache;
-  MapCache voxel_lookup_cache;
-  const ohm::MapLayer *heightmap_layer = local_cache.layout().layer(ohm::HeightmapVoxel::kHeightmapLayer);
-  const int heightmap_layer_index = heightmap_layer->layerIndex();
-  const int row_axis = surfaceAxisIndexA();
-  const int col_axis = surfaceAxisIndexB();
-
-  const glm::dvec3 min_range = reference_pos - glm::dvec3(imp_->local_cache_extents);
-  const glm::dvec3 max_range = reference_pos + glm::dvec3(imp_->local_cache_extents);
-
-  ohm::Key min_key = local_cache.voxelKey(min_range);
-  ohm::Key max_key = local_cache.voxelKey(max_range);
-
-  // Flatten on to a plane.
-  project(&min_key);
-  project(&max_key);
-
-  const glm::ivec3 key_range = local_cache.rangeBetween(min_key, max_key) + glm::ivec3(1);
-
-  // Initialise the local surface as a flat region around 0, 0, 0.
-  ohm::Key key;
-  for (int row = 0; row < key_range[row_axis]; ++row)
-  {
-    key = min_key;
-    local_cache.moveKeyAlongAxis(key, row_axis, row);
-    for (int col = 0; col < key_range[col_axis]; ++col)
-    {
-      local_cache.moveKeyAlongAxis(key, col_axis, 1);
-      // Add the seed surface.
-      ohm::Voxel voxel = local_cache.voxel(key, true, &voxel_lookup_cache);
-      voxel.setValue(0.0f);
-
-      ohm::HeightmapVoxel *height_info = voxel.layerContent<ohm::HeightmapVoxel *>(heightmap_layer_index);
-      height_info->height = 0.0f;
-      height_info->clearance = 0.0f;
-    }
-  }
-}
-
-
-void Heightmap::updateLocalCache(const glm::dvec3 &reference_pos)
-{
-  if (!imp_->heightmap_local_cache)
-  {
-    return;
-  }
-
-  OccupancyMap &heightmap = *imp_->heightmap;
-  OccupancyMap &local_cache_map = *imp_->heightmap_local_cache;
-  const MapLayer *heightmap_layer = heightmap.layout().layer(HeightmapVoxel::kHeightmapLayer);
-  const int heightmap_layer_index = heightmap_layer->layerIndex();
-  const int col_axis = surfaceAxisIndexA();
-  const int row_axis = surfaceAxisIndexB();
-
-  MapCache heightmap_lookup_cache;
-  MapCache surface_lookup_cache;
-
-  // Up the local surface from the heightmap.
-  local_cache_map.clear();
-
-  local_cache_map.setOrigin(heightmap.origin());
-
-  // Update the search extents.
-  const glm::dvec3 min_range = reference_pos - glm::dvec3(imp_->local_cache_extents);
-  const glm::dvec3 max_range = reference_pos + glm::dvec3(imp_->local_cache_extents);
-
-  // Flatten the key range to the heightmap surface.
-  Key min_key = local_cache_map.voxelKey(min_range);
-  Key max_key = local_cache_map.voxelKey(max_range);
-  project(&min_key);
-  project(&max_key);
-
-  const glm::ivec3 key_range = local_cache_map.rangeBetween(min_key, max_key) + glm::ivec3(1);
-  bool have_vacant_voxel = false;
-
-  // Read back into the surface cache.
-  Key key;
-  for (int row = 0; row < key_range[row_axis]; ++row)
-  {
-    key = min_key;
-    local_cache_map.moveKeyAlongAxis(key, row_axis, row);
-    for (int col = 0; col < key_range[col_axis]; ++col)
-    {
-      local_cache_map.moveKeyAlongAxis(key, col_axis, 1);
-
-      // Convert to a voxel centre to have a coordinate to lookup in the heightmap.
-      glm::dvec3 coord = local_cache_map.voxelCentreGlobal(key);
-
-      // Resolve the key in the heightmap.
-      Key hm_key = heightmap.voxelKey(coord);
-      project(&hm_key);
-
-      // Ensure the hm_key up_axis indexing is all zero so we only work on a single layer (working in 2D)
-      const VoxelConst hm_voxel = heightmap.voxel(hm_key, false, &heightmap_lookup_cache);
-
-      if (!hm_voxel.isUncertainOrNull())
-      {
-        Voxel cache_voxel = local_cache_map.voxel(key, true, &surface_lookup_cache);
-        const float value = hm_voxel.value();
-        cache_voxel.setValue(value);
-        have_vacant_voxel = have_vacant_voxel || value == 0;
-
-        const HeightmapVoxel *src_height_info = hm_voxel.layerContent<const HeightmapVoxel *>(heightmap_layer_index);
-
-        HeightmapVoxel *dst_height_info = cache_voxel.layerContent<HeightmapVoxel *>(heightmap_layer_index);
-        *dst_height_info = *src_height_info;
-      }
-    }
-  }
-}
-
-
-bool Heightmap::lookupLocalCache(const glm::dvec3 &lookup_pos, glm::dvec3 *cache_pos, float *cache_value,
-                                 double *clearance)
-{
-  if (!imp_->heightmap_local_cache)
-  {
-    return false;
-  }
-
-  Key key = imp_->heightmap_local_cache->voxelKey(lookup_pos);
-  if (key.isNull())
-  {
-    return false;
-  }
-
-  project(&key);
-
-  const VoxelConst cache_voxel = imp_->heightmap_local_cache->voxel(key);
-  if (!cache_voxel.isUncertainOrNull())
-  {
-    *cache_pos = cache_voxel.position();
-    const MapLayer *heightmap_layer = imp_->heightmap_local_cache->layout().layer(HeightmapVoxel::kHeightmapLayer);
-    const int heightmap_layer_index = heightmap_layer->layerIndex();
-    const HeightmapVoxel *height_info = cache_voxel.layerContent<const HeightmapVoxel *>(heightmap_layer_index);
-    *cache_value = cache_voxel.value();
-    (*cache_pos)[upAxisIndex()] = cache_voxel.centreGlobal()[upAxisIndex()] * double(height_info->height);
-    *clearance = height_info->clearance;
-    return true;
-  }
-
-  return false;
 }
 
 
@@ -853,27 +677,8 @@ bool Heightmap::buildHeightmapT(KeyWalker &walker, const glm::dvec3 &reference_p
     {
       // Real or virtual surface.
       float surface_value = (voxel_type == kOccupied) ? kHeightmapSurfaceValue : kHeightmapVirtualSurfaceValue;
-      bool should_populate = voxel_type != kUncertain && voxel_type != kNull;
 
-      if (voxel_type != kOccupied)
-      {
-        // For virtual surface cells, first lookup the local heightmap cache. We prefer the cache if it has a real
-        // surface stored or it has a kHeightmapVacantValue value.
-        // We do not replace a virtual surface with a virtual surface though.
-        float local_cache_value = 0;
-        glm::dvec3 local_cache_pos(0.0);
-        if (lookupLocalCache(src_voxel_centre, &local_cache_pos, &local_cache_value, &clearance))
-        {
-          if (local_cache_value >= 0)
-          {
-            surface_value = local_cache_value;
-            voxel_pos = local_cache_pos;
-            should_populate = true;
-          }
-        }
-      }
-
-      if (should_populate)
+      if (voxel_type != kUncertain && voxel_type != kNull)
       {
         // Cache the height then clear from the position.
         const double src_height = voxel_pos[upAxisIndex()];

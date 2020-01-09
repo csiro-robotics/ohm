@@ -43,8 +43,6 @@ namespace ohm
     std::unique_ptr<OccupancyMap> heightmap_local_cache;
     /// The direct of up used in heightmap generation. Must be aligned to a specific access.
     glm::dvec3 up = glm::dvec3(0, 0, 1);
-    /// Extents used to generate the @c heightmap_local_cache .
-    double local_cache_extents = 0;
     /// Ignore all source voxels which lie higher than this above the reference position height.
     /// Enable by setting a positive value.
     double ceiling = 0;
