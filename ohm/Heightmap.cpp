@@ -567,9 +567,7 @@ bool Heightmap::buildHeightmap(const glm::dvec3 &reference_pos, const ohm::Aabb 
 }
 
 
-HeightmapVoxelType Heightmap::getHeightmapVoxelInfo(const VoxelConst &heightmap_voxel,
-                                                    const glm::dvec3 &reference_position,
-                                                    double negative_obstacle_radius, glm::dvec3 *pos,
+HeightmapVoxelType Heightmap::getHeightmapVoxelInfo(const VoxelConst &heightmap_voxel, glm::dvec3 *pos,
                                                     float *clearance) const
 {
   if (heightmap_voxel.isNull())
@@ -602,33 +600,7 @@ HeightmapVoxelType Heightmap::getHeightmapVoxelInfo(const VoxelConst &heightmap_
     }
   }
 
-  // Check for a virtual surface or unobserved voxel within the fatal obstacle range.
-  if (negative_obstacle_radius > 0 && negative_obstacle_radius > 0 && heightmap_voxel_value < 0)
-  {
-    glm::dvec3 from_reference_pos = *pos - reference_position;
-    from_reference_pos[upAxisIndex()] = 0;
-    const double voxel_distance_squared = glm::dot(from_reference_pos, from_reference_pos);
-    const double threshold_squared = negative_obstacle_radius * negative_obstacle_radius;
-    if (voxel_distance_squared < threshold_squared)
-    {
-      // Within fatal negative obstacle range. Give it a dramatic position variance from the reference pos.
-      (*pos)[upAxisIndex()] = reference_position[upAxisIndex()] - voxel_distance_squared;
-      if (clearance)
-      {
-        *clearance = -1.0f;
-      }
-      return HeightmapVoxelType::InferredFatal;
-    }
-  }
-
   return (!is_uncertain) ? HeightmapVoxelType::VirtualSurface : HeightmapVoxelType::Unknown;
-}
-
-
-HeightmapVoxelType Heightmap::getHeightmapVoxelInfo(const VoxelConst &heightmap_voxel, glm::dvec3 *pos,
-                                                    float *clearance) const
-{
-  return getHeightmapVoxelInfo(heightmap_voxel, glm::dvec3(0.0), 0.0, pos, clearance);
 }
 
 

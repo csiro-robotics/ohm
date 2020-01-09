@@ -262,31 +262,13 @@ namespace ohm
     /// are made. All position queries should be made via this function. The return value is used indicate whether
     /// the voxel is relevant/occupied within the occupancy map.
     ///
-    /// This overload accepts a @p reference_position which nominally indicates the position of a vehicle navigating
-    /// the heightmap. This position is used to help with the identification of negative obstacles (holes and drops).
-    ///
-    /// The @p negative_obstacle_radius identifies a 2D range from the @p reference_position within which voxels may be
-    /// considered as negative obstacles. Voxels cannot be adequately resolved from the source map into the heightmap
-    /// may represent negative obstacles. Such voxels, either uncertain or representing virtual surfaces, falling within
-    /// this radius report a height designed to generate a parabolic surface. When later costing by slope this leads to
-    /// high cost regions.
-    ///
     /// @param heightmap_voxel The voxel to test for validity and to retrieve the position of. This voxel must be from
     ///   either the @p heightmap() or @p heightmapLocalCache() of this object or behaviour is undefined.
-    /// @param reference_position A reference position of a vehicle navigating the map. Used to generate negative
-    ///     obstacle surfaces.
-    /// @param negative_obstacle_radius The 2D range from the @c reference_position within which negative obstacle
-    ///     surfaces may be generated.
     /// @param[out] pos The retrieved position of @p heightmap_voxel. Only valid when this function returns @c true.
     /// @param[out] clearance The available height clearance above @p heightmap_voxel. Only valid when this function
     ///     returns @c true.
     /// @return True the type of the voxel in question. May return @c HeightmapVoxel::Unknown @p heightmap_voxel is
     ///       invalid.
-    HeightmapVoxelType getHeightmapVoxelInfo(const VoxelConst &heightmap_voxel, const glm::dvec3 &reference_position,
-                                             double negative_obstacle_radius, glm::dvec3 *pos,
-                                             float *clearance = nullptr) const;
-
-    /// @overload
     HeightmapVoxelType getHeightmapVoxelInfo(const VoxelConst &heightmap_voxel, glm::dvec3 *pos,
                                              float *clearance = nullptr) const;
 
