@@ -123,7 +123,9 @@ bool HeightmapMesh::buildMesh(const Heightmap &heightmap, const glm::dvec3 &refe
   for (auto voxel_iter = heightmap_occupancy.begin(); voxel_iter != heightmap_occupancy.end(); ++voxel_iter)
   {
     const VoxelConst &voxel = *voxel_iter;
-    if (heightmap.getHeightmapVoxelPosition(voxel, reference_position, negative_obstacle_radius, &point, nullptr))
+    const auto voxel_type =
+      heightmap.getHeightmapVoxelInfo(voxel, reference_position, negative_obstacle_radius, &point, nullptr);
+    if (voxel_type != HeightmapVoxelType::Unknown && voxel_type != HeightmapVoxelType::Vacant)
     {
       imp_->coords_2d.push_back(point.x);
       imp_->coords_2d.push_back(point.y);

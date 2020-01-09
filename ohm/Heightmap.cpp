@@ -567,12 +567,14 @@ bool Heightmap::buildHeightmap(const glm::dvec3 &reference_pos, const ohm::Aabb 
 }
 
 
-bool Heightmap::getHeightmapVoxelPosition(const VoxelConst &heightmap_voxel, const glm::dvec3 &reference_position,
-                                          double negative_obstacle_radius, glm::dvec3 *pos, float *clearance) const
+HeightmapVoxelType Heightmap::getHeightmapVoxelInfo(const VoxelConst &heightmap_voxel,
+                                                    const glm::dvec3 &reference_position,
+                                                    double negative_obstacle_radius, glm::dvec3 *pos,
+                                                    float *clearance) const
 {
   if (heightmap_voxel.isNull())
   {
-    return false;
+    return HeightmapVoxelType::Unknown;
   }
 
   *pos = heightmap_voxel.position();
@@ -591,7 +593,12 @@ bool Heightmap::getHeightmapVoxelPosition(const VoxelConst &heightmap_voxel, con
     if (heightmap_voxel_value == 0)
     {
       // Vacant
-      return false;
+      return HeightmapVoxelType::Vacant;
+    }
+
+    if (heightmap_voxel_value > 0)
+    {
+      return HeightmapVoxelType::Surface;
     }
   }
 
@@ -610,17 +617,18 @@ bool Heightmap::getHeightmapVoxelPosition(const VoxelConst &heightmap_voxel, con
       {
         *clearance = -1.0f;
       }
-      return true;
+      return HeightmapVoxelType::InferredFatal;
     }
   }
 
-  return !is_uncertain;
+  return (!is_uncertain) ? HeightmapVoxelType::VirtualSurface : HeightmapVoxelType::Unknown;
 }
 
 
-bool Heightmap::getHeightmapVoxelPosition(const VoxelConst &heightmap_voxel, glm::dvec3 *pos, float *clearance) const
+HeightmapVoxelType Heightmap::getHeightmapVoxelInfo(const VoxelConst &heightmap_voxel, glm::dvec3 *pos,
+                                                    float *clearance) const
 {
-  return getHeightmapVoxelPosition(heightmap_voxel, glm::dvec3(0.0), 0.0, pos, clearance);
+  return getHeightmapVoxelInfo(heightmap_voxel, glm::dvec3(0.0), 0.0, pos, clearance);
 }
 
 

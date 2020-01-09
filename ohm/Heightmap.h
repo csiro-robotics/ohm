@@ -9,6 +9,7 @@
 #include "OhmConfig.h"
 
 #include "Aabb.h"
+#include "HeightmapVoxelType.h"
 #include "UpAxis.h"
 
 #include <memory>
@@ -93,9 +94,6 @@ namespace ohm
     /// Voxel value assigned to heightmap cells which represent a virtual surface extracted from the source map.
     /// Virtual surfaces may be formed by the interface between a free voxel supported by an uncertain/null voxel.
     static constexpr float kHeightmapVirtualSurfaceValue = -1.0f;
-    /// Voxel value assigned to heightmap cells which represent a virtual surface extracted from the source map.
-    /// Virtual surfaces may be formed by the interface between a free voxel supported by an uncertain/null voxel.
-    static constexpr float kHeightmapInferredFatal = -2.0f;
     /// Voxel value assigned to heightmap cells which have no valid voxel in the entire column from the source map.
     static constexpr float kHeightmapVacantValue = 0.0f;
 
@@ -256,7 +254,7 @@ namespace ohm
     /// @return true on success.
     bool buildHeightmap(const glm::dvec3 &reference_pos, const ohm::Aabb &cull_to = ohm::Aabb(0.0));
 
-    /// Query the position of a voxel in the @c heightmap() occupancy map. This method also supports voxels from
+    /// Query the information about a voxel in the @c heightmap() occupancy map. This method also supports voxels from
     /// @c heightmapLocalCache().
     ///
     /// Heightmap voxel values, positions and semantics are specialised from the general @c OccupancyMap usage. This
@@ -282,13 +280,15 @@ namespace ohm
     /// @param[out] pos The retrieved position of @p heightmap_voxel. Only valid when this function returns @c true.
     /// @param[out] clearance The available height clearance above @p heightmap_voxel. Only valid when this function
     ///     returns @c true.
-    /// @return True if @p heightmap_voxel is valid and occupied.
-    bool getHeightmapVoxelPosition(const VoxelConst &heightmap_voxel, const glm::dvec3 &reference_position,
-                                   double negative_obstacle_radius, glm::dvec3 *pos, float *clearance = nullptr) const;
+    /// @return True the type of the voxel in question. May return @c HeightmapVoxel::Unknown @p heightmap_voxel is
+    ///       invalid.
+    HeightmapVoxelType getHeightmapVoxelInfo(const VoxelConst &heightmap_voxel, const glm::dvec3 &reference_position,
+                                             double negative_obstacle_radius, glm::dvec3 *pos,
+                                             float *clearance = nullptr) const;
 
     /// @overload
-    bool getHeightmapVoxelPosition(const VoxelConst &heightmap_voxel, glm::dvec3 *pos,
-                                   float *clearance = nullptr) const;
+    HeightmapVoxelType getHeightmapVoxelInfo(const VoxelConst &heightmap_voxel, glm::dvec3 *pos,
+                                             float *clearance = nullptr) const;
 
     //-------------------------------------------------------
     // Internal
