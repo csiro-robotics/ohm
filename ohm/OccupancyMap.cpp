@@ -495,8 +495,8 @@ bool OccupancyMap::calculateExtents(glm::dvec3 *min_ext, glm::dvec3 *max_ext, Ke
   glm::dvec3 max_spatial(-std::numeric_limits<double>::max());
   // We only need to track the min/max region keys. The min local voxel coordinate within a region is always (0, 0, 0),
   // while the maximum is always the region voxel dimensions - 1
-  glm::i16vec3 min_region_key(std::numeric_limits<uint16_t>::max());
-  glm::i16vec3 max_region_key(std::numeric_limits<uint16_t>::min());
+  glm::i16vec3 min_region_key(std::numeric_limits<int16_t>::max());
+  glm::i16vec3 max_region_key(std::numeric_limits<int16_t>::min());
   bool have_extents = false;
 
   for (auto &&chunk : imp_->chunks)
