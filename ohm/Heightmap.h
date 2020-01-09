@@ -93,6 +93,9 @@ namespace ohm
     /// Voxel value assigned to heightmap cells which represent a virtual surface extracted from the source map.
     /// Virtual surfaces may be formed by the interface between a free voxel supported by an uncertain/null voxel.
     static constexpr float kHeightmapVirtualSurfaceValue = -1.0f;
+    /// Voxel value assigned to heightmap cells which represent a virtual surface extracted from the source map.
+    /// Virtual surfaces may be formed by the interface between a free voxel supported by an uncertain/null voxel.
+    static constexpr float kHeightmapInferredFatal = -2.0f;
     /// Voxel value assigned to heightmap cells which have no valid voxel in the entire column from the source map.
     static constexpr float kHeightmapVacantValue = 0.0f;
 
