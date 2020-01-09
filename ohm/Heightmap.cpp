@@ -67,7 +67,7 @@ namespace
   {
     *is_virtual = true;
 
-    int vertical_range = map.rangeBetween(from_key, to_key)[up_axis_index];
+    int vertical_range = map.rangeBetween(from_key, to_key)[up_axis_index] + 1;
     if (step_limit > 0)
     {
       vertical_range = std::min(vertical_range, step_limit);
@@ -665,7 +665,7 @@ void Heightmap::seedLocalCache(const glm::dvec3 &reference_pos)
   project(&min_key);
   project(&max_key);
 
-  const glm::ivec3 key_range = local_cache.rangeBetween(min_key, max_key);
+  const glm::ivec3 key_range = local_cache.rangeBetween(min_key, max_key) + glm::ivec3(1);
 
   // Initialise the local surface as a flat region around 0, 0, 0.
   ohm::Key key;
@@ -720,7 +720,7 @@ void Heightmap::updateLocalCache(const glm::dvec3 &reference_pos)
   project(&min_key);
   project(&max_key);
 
-  const glm::ivec3 key_range = local_cache_map.rangeBetween(min_key, max_key);
+  const glm::ivec3 key_range = local_cache_map.rangeBetween(min_key, max_key) + glm::ivec3(1);
   bool have_vacant_voxel = false;
 
   // Read back into the surface cache.
