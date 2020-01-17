@@ -156,7 +156,7 @@ namespace
 
   inline Key findNearestSupportingVoxel(const OccupancyMap &map, const Key &seed_key, UpAxis up_axis,
                                         const Key &min_key, const Key &max_key, int voxel_ceiling,
-                                        bool floor_from_unknown)
+                                        int clearance_voxel_count_permissive, bool floor_from_unknown)
   {
     PROFILE(findNearestSupportingVoxel);
     Key above, below;
@@ -191,7 +191,10 @@ namespace
       return below;
     }
 
-    if (offset_below >= 0 && (offset_above < 0 || offset_below <= offset_above))
+    // When both above and below have valid candidates. We prefer the lower one if there is sufficient clearance from
+    // it to the higher one (should be optimistic). Otherwise we prefer the one which has had less searching.
+    if (offset_below >= 0 && (offset_above < 0 || offset_below <= offset_above ||
+                              offset_below + offset_below >= clearance_voxel_count_permissive))
     {
       return below;
     }
@@ -640,13 +643,16 @@ bool Heightmap::buildHeightmapT(KeyWalker &walker, const glm::dvec3 &reference_p
   MapCache src_map_cache, heightmap_cache;
   unsigned populated_count = 0;
   const int voxel_ceiling = ohm::pointToRegionCoord(imp_->ceiling, src_map.resolution());
+  const int clearance_voxel_count_permissive =
+    std::max(1, ohm::pointToRegionCoord(imp_->min_clearance, src_map.resolution()) - 1);
   do
   {
     // Find the nearest voxel to the current key which may be a ground candidate.
     // This is key closest to the walk_key which could be ground. This will be either an occupied voxel, or virtual ground
     /// voxel. Virtual ground is where a free is supported by an uncertain or null voxel below it.
-    Key candidate_key = findNearestSupportingVoxel(src_map, walk_key, upAxis(), walker.min_ext_key, walker.max_ext_key,
-                                                   voxel_ceiling, imp_->generate_virtual_surface);
+    Key candidate_key =
+      findNearestSupportingVoxel(src_map, walk_key, upAxis(), walker.min_ext_key, walker.max_ext_key, voxel_ceiling,
+                                 clearance_voxel_count_permissive, imp_->generate_virtual_surface);
 
     // Walk up from the candidate to find the best heightmap voxel.
     double height = 0;
