@@ -193,8 +193,9 @@ namespace
 
     // When both above and below have valid candidates. We prefer the lower one if there is sufficient clearance from
     // it to the higher one (should be optimistic). Otherwise we prefer the one which has had less searching.
-    if (offset_below >= 0 && (offset_above < 0 || offset_below <= offset_above ||
-                              offset_below + offset_above >= clearance_voxel_count_permissive))
+    if (offset_below >= 0 &&
+        (offset_above < 0 || offset_below <= offset_above ||
+         offset_below >= 0 && offset_above >= 0 && offset_below + offset_above >= clearance_voxel_count_permissive))
     {
       return below;
     }
