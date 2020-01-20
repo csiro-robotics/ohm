@@ -551,7 +551,7 @@ HeightmapVoxelType Heightmap::getHeightmapVoxelInfo(const VoxelConst &heightmap_
 {
   if (heightmap_voxel.isNull())
   {
-    return HeightmapVoxelType::Unknown;
+    return HeightmapVoxelType::kUnknown;
   }
 
   *pos = heightmap_voxel.position();
@@ -569,17 +569,17 @@ HeightmapVoxelType Heightmap::getHeightmapVoxelInfo(const VoxelConst &heightmap_
 
     if (heightmap_voxel_value == 0)
     {
-      // Vacant
-      return HeightmapVoxelType::Vacant;
+      // kVacant
+      return HeightmapVoxelType::kVacant;
     }
 
     if (heightmap_voxel_value > 0)
     {
-      return HeightmapVoxelType::Surface;
+      return HeightmapVoxelType::kSurface;
     }
   }
 
-  return (!is_uncertain) ? HeightmapVoxelType::VirtualSurface : HeightmapVoxelType::Unknown;
+  return (!is_uncertain) ? HeightmapVoxelType::kVirtualSurface : HeightmapVoxelType::kUnknown;
 }
 
 

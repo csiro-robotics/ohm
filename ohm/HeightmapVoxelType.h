@@ -14,19 +14,19 @@ namespace ohm
   enum class HeightmapVoxelType : uint8_t
   {
     /// Unkown or unobserved voxel.
-    Unknown = 0,
+    kUnknown = 0,
     /// A voxel which is being kept forcibly vacant. Normally this represents voxels which have yet to be able to
     /// observed at the startup location.
-    Vacant,
+    kVacant,
     /// Represents a real surface voxel in the heightmap.
-    Surface,
+    kSurface,
     /// Represents a virtual surface voxel in the heightmap. Virtual surfaces are created at the interface between
     /// free and unknown voxels (free supported by unknown).
-    VirtualSurface,
+    kVirtualSurface,
     /// A voxel which has been inferred as fatal. This occurs where virtual surfaces appear near the reference point.
-    InferredFatal,
+    kInferredFatal,
     /// An otherwise forcibly fatal cost voxel.
-    Fatal
+    kFatal
   };
 }
 
