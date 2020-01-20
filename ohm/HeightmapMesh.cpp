@@ -129,7 +129,7 @@ bool HeightmapMesh::buildMesh(const Heightmap &heightmap, const MeshVoxelModifie
       voxel_type = voxel_modifier(voxel, voxel_type, &point, &clearance);
     }
 
-    if (voxel_type != HeightmapVoxelType::Unknown && voxel_type != HeightmapVoxelType::Vacant)
+    if (voxel_type != HeightmapVoxelType::kUnknown && voxel_type != HeightmapVoxelType::kVacant)
     {
       imp_->coords_2d.push_back(point.x);
       imp_->coords_2d.push_back(point.y);
