@@ -58,7 +58,7 @@ namespace ohm
 
     /// Query the data type of the member at @p memberIndex.
     /// @param member_index The index of the member to query.
-    /// @return The @c DataType of @p memberIndex or @c DataType::Unknown if out of range.
+    /// @return The @c DataType of @p memberIndex or @c DataType::kUnknown if out of range.
     DataType::Type memberType(size_t member_index) const;
 
     /// Query the byte size to the member at @p memberIndex.

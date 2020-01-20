@@ -9,6 +9,7 @@
 #include "OhmConfig.h"
 
 #include "Aabb.h"
+#include "HeightmapVoxelType.h"
 #include "UpAxis.h"
 
 #include <memory>
@@ -67,13 +68,6 @@ namespace ohm
   ///
   /// The generated heightmap may be accessed via @c heightmap() and voxel positions should be retrieved using
   /// @c getHeightmapVoxelPosition() .
-  ///
-  /// Finally, the heightmap supports a local cache, to preseve features around the @c reference_position given to
-  /// @c buildHeightmap() . This is intended to deal with potential blind spots and occupancy map erosion issues.
-  /// When enabled, the cache is used for each column where a real surface cannot be generated (virtual surface or
-  /// uncertain). The cache is regenerated after the heightmap is generated. The cache must be seeded to enable it's
-  /// use by calling @c seedLocalCache(). The cache is accessible via @c heightmapLocalCache(). The cache represents
-  /// a region around a vehicle or sensor and requires a reference position.
   ///
   /// The @c OccupancyMap used to represent the heightmap has additional meta data stored in it's @c MapInfo:
   /// - <b>heightmap</b> - Present and true if this is a heightmap.
@@ -139,9 +133,6 @@ namespace ohm
     /// Access the currently generated heightmap.
     OccupancyMap &heightmap() const;
 
-    /// Access the cache of the heightmap around the last reference position.
-    OccupancyMap *heightmapLocalCache() const;
-
     /// Set the ceiling level. Points above this distance above the base height in the source map are ignored.
     /// @param ceiling The new ceiling value. Positive to enable.
     void setCeiling(double ceiling);
@@ -189,14 +180,6 @@ namespace ohm
     /// Is the flood fill generation technique in use (@c true) or planar technique (@c false).
     /// @return True when using flood fill.
     bool useFloodFill() const;
-
-    /// Set the size of the @c heightmapLocalCache() .
-    /// @param extents The cache extents (axis aligned).
-    void setLocalCacheExtents(double extents);
-
-    /// Get the size of the @c heightmapLocalCache() .
-    /// @return The cache extents (axis aligned).
-    double localCacheExtents() const;
 
     /// The layer number which contains @c HeightmapVoxel structures.
     /// @return The heightmap layer index or -1 on error (not present).
@@ -253,39 +236,22 @@ namespace ohm
     /// @return true on success.
     bool buildHeightmap(const glm::dvec3 &reference_pos, const ohm::Aabb &cull_to = ohm::Aabb(0.0));
 
-    /// Query the position of a voxel in the @c heightmap() occupancy map. This method also supports voxels from
-    /// @c heightmapLocalCache().
+    /// Query the information about a voxel in the @c heightmap() occupancy map.
     ///
     /// Heightmap voxel values, positions and semantics are specialised from the general @c OccupancyMap usage. This
     /// method may be used to ensure the correct position values are retrieved and consistent voxel interpretations
     /// are made. All position queries should be made via this function. The return value is used indicate whether
     /// the voxel is relevant/occupied within the occupancy map.
     ///
-    /// This overload accepts a @p reference_position which nominally indicates the position of a vehicle navigating
-    /// the heightmap. This position is used to help with the identification of negative obstacles (holes and drops).
-    ///
-    /// The @p negative_obstacle_radius identifies a 2D range from the @p reference_position within which voxels may be
-    /// considered as negative obstacles. Voxels cannot be adequately resolved from the source map into the heightmap
-    /// may represent negative obstacles. Such voxels, either uncertain or representing virtual surfaces, falling within
-    /// this radius report a height designed to generate a parabolic surface. When later costing by slope this leads to
-    /// high cost regions.
-    ///
     /// @param heightmap_voxel The voxel to test for validity and to retrieve the position of. This voxel must be from
-    ///   either the @p heightmap() or @p heightmapLocalCache() of this object or behaviour is undefined.
-    /// @param reference_position A reference position of a vehicle navigating the map. Used to generate negative
-    ///     obstacle surfaces.
-    /// @param negative_obstacle_radius The 2D range from the @c reference_position within which negative obstacle
-    ///     surfaces may be generated.
+    ///   either the @p heightmap() of this object or behaviour is undefined.
     /// @param[out] pos The retrieved position of @p heightmap_voxel. Only valid when this function returns @c true.
     /// @param[out] clearance The available height clearance above @p heightmap_voxel. Only valid when this function
     ///     returns @c true.
-    /// @return True if @p heightmap_voxel is valid and occupied.
-    bool getHeightmapVoxelPosition(const VoxelConst &heightmap_voxel, const glm::dvec3 &reference_position,
-                                   double negative_obstacle_radius, glm::dvec3 *pos, float *clearance = nullptr) const;
-
-    /// @overload
-    bool getHeightmapVoxelPosition(const VoxelConst &heightmap_voxel, glm::dvec3 *pos,
-                                   float *clearance = nullptr) const;
+    /// @return True the type of the voxel in question. May return @c HeightmapVoxel::Unknown @p heightmap_voxel is
+    ///       invalid.
+    HeightmapVoxelType getHeightmapVoxelInfo(const VoxelConst &heightmap_voxel, glm::dvec3 *pos,
+                                             float *clearance = nullptr) const;
 
     //-------------------------------------------------------
     // Internal
@@ -305,18 +271,6 @@ namespace ohm
     Key &project(Key *key);
 
   private:
-    /// Update the local cache from the current heightmap.
-    /// @param reference_pos The position around which to generate the cache.
-    void updateLocalCache(const glm::dvec3 &reference_pos);
-
-    /// Query the local cache.
-    /// @param lookup_pos The source position to query. Will be flattened to 2D.
-    /// @param[out] cache_pos The position value retrieved from the cache on success.
-    /// @param[out] cache_value The voxel value of the cache voxel.
-    /// @param[out] clearance The overhead clearance value of the cache voxel.
-    /// @return True when @p lookup_pos has resolved into a valid cache voxel.
-    bool lookupLocalCache(const glm::dvec3 &lookup_pos, glm::dvec3 *cache_pos, float *cache_value, double *clearance);
-
     /// @internal
     /// Internal implementation of heightmap construction. Supports the different key walking techniques available.
     /// @param walker The key walker used to iterate the source map and heightmap overlap.

@@ -8,9 +8,12 @@
 
 #include "OhmConfig.h"
 
+#include <ohm/HeightmapVoxelType.h>
+
 #include <glm/fwd.hpp>
 
 #include <algorithm>
+#include <functional>
 #include <memory>
 
 namespace ohm
@@ -19,6 +22,7 @@ namespace ohm
   class Heightmap;
   class HeightmapMeshDetail;
   class PlyMesh;
+  class VoxelConst;
   struct TriangleNeighbours;
 
   /// A utility class for generating a triangle mesh from a @c Heightmap occupancy map.
@@ -43,6 +47,15 @@ namespace ohm
       kNormalsWorst,
     };
 
+    /// Optional modifier function which can be applied to a voxel before moving it the mesh.
+    /// @param voxel The current heightmap voxel.
+    /// @param voxel_type The initial voxel type.
+    /// @param voxel_position The voxel position. May be modified.
+    /// @param clearance The voxel overhead clearance. May be modified.
+    /// @return The @c HeightmapVoxelType after filtering or @p voxel_type if no modification is required.
+    using MeshVoxelModifier =
+      std::function<HeightmapVoxelType(const VoxelConst &, HeightmapVoxelType, glm::dvec3 *, float *)>;
+
     /// Construct a heightmap mesh using the given vertex normal generation mode.
     /// @param normals_mode The initial vertex generation mode.
     HeightmapMesh(NormalsMode normals_mode = kNormalsAverage);
@@ -64,15 +77,8 @@ namespace ohm
     /// - The heightmap occupancy map does not contain the required voxel layers.
     ///
     /// @param heightmap The heightmap to generate a mesh for.
-    /// @param reference_position The reference position around which the heightmap was generated. Only needed when
-    ///   using @p negative_obstacle_radius .
-    /// @param negative_obstacle_radius 2D range around @p reference_position where uncertain and virtual surface
-    ///    heightmap voxels are considered negative obstacles.
     /// @return True on success.
-    bool buildMesh(const Heightmap &heightmap, const glm::dvec3 &reference_position, double negative_obstacle_radius);
-
-    /// @overload
-    bool buildMesh(const Heightmap &heightmap);
+    bool buildMesh(const Heightmap &heightmap, const MeshVoxelModifier &voxel_modifier = MeshVoxelModifier());
 
     /// Get the voxel resolution fo the heightmap from which the last mesh was generated.
     /// @return The heightmap voxel resolution.

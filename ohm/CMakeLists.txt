@@ -47,6 +47,7 @@ set(SOURCES
   HeightmapMesh.h
   HeightmapVoxel.cpp
   HeightmapVoxel.h
+  HeightmapVoxelType.h
   Key.cpp
   Key.h
   KeyHash.h
@@ -127,6 +128,7 @@ set(PUBLIC_HEADERS
   Heightmap.h
   HeightmapMesh.h
   HeightmapVoxel.h
+  HeightmapVoxelType.h
   Key.h
   KeyHash.h
   KeyList.h
