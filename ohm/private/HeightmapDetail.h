@@ -63,6 +63,9 @@ namespace ohm
     ///
     /// @see @c Heightmap::setGenerateVirtualFloor()
     bool generate_virtual_surface = false;
+    /// Prefer a virtual surface below the reference position to a real surface above.
+    /// @see @c Heightmap::setPromoteVirtualBelow()
+    bool promote_virtual_below = false;
     /// Use the flood fill technique? Slower, but better at following surfaces.
     bool use_flood_fill = false;
 

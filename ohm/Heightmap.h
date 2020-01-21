@@ -173,6 +173,24 @@ namespace ohm
     /// @retrun True if this option is enabled.
     bool generateVirtualSurface() const;
 
+    /// Set whether virtual surface candidates below the reference position are preferred to real above.
+    ///
+    /// When building a heightmap column, the default behaviour is for virtual surfaces to be reported only if the
+    /// search expanse does not include a real occupied voxel from which a real surface can be derived. This option
+    /// changes the behaviour to make a virtual surface candidate which lies below the reference position a preferred
+    /// seed candidate to an occupied voxel which lies above the reference position. This can generate better ground
+    /// results where the ground cannot be properly observed.
+    ///
+    /// @param enable True to promote virtual candidate below the reference position.
+    void setPromoteVirtualBelow(bool enable);
+
+    /// Query whether virtual surface voxels below the reference position are preferred to real voxels above.
+    ///
+    /// @see @c setPromoteVirtualBelow()
+    ///
+    /// @return True to prefer virtual voxels below the reference position.
+    bool promoteVirtualBelow() const;
+
     /// Set the heightmap generation to flood fill (@c true) or planar (@c false).
     /// @param flood_fill True to enable the flood fill technique.
     void setUseFloodFill(bool flood_fill);

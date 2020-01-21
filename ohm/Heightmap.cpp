@@ -62,7 +62,7 @@ namespace
 
 
   Key findNearestSupportingVoxel2(const OccupancyMap &map, const Key &from_key, const Key &to_key, int up_axis_index,
-                                  int step_limit, bool search_up, bool floor_from_unknown, int *offset,
+                                  int step_limit, bool search_up, bool allow_virtual_surface, int *offset,
                                   bool *is_virtual)
   {
     *is_virtual = true;
@@ -96,7 +96,7 @@ namespace
         return current_key;
       case kFree:
         // When searching up, we have a virtual surface when we transition from uncertain to free.
-        if (floor_from_unknown && (last_voxel_type == kNull || last_voxel_type == kUncertain) && search_up &&
+        if (allow_virtual_surface && (last_voxel_type == kNull || last_voxel_type == kUncertain) && search_up &&
             best_virtual.isNull())
         {
           best_virtual = current_key;
@@ -104,8 +104,8 @@ namespace
         break;
 
       default:
-        // Transition to uncertain. When searchign down, we have a virtual surface if we transitioned from free.
-        if (floor_from_unknown && !search_up && last_voxel_type == kFree)
+        // Transition to uncertain. When searching down, we have a virtual surface if we transitioned from free.
+        if (allow_virtual_surface && !search_up && last_voxel_type == kFree)
         {
           best_virtual = last_key;
         }
@@ -156,7 +156,8 @@ namespace
 
   inline Key findNearestSupportingVoxel(const OccupancyMap &map, const Key &seed_key, UpAxis up_axis,
                                         const Key &min_key, const Key &max_key, int voxel_ceiling,
-                                        int clearance_voxel_count_permissive, bool floor_from_unknown)
+                                        int clearance_voxel_count_permissive, bool allow_virtual_surface,
+                                        bool promote_virtual_below)
   {
     PROFILE(findNearestSupportingVoxel);
     Key above, below;
@@ -168,34 +169,40 @@ namespace
     const int up_axis_index = (int(up_axis) >= 0) ? int(up_axis) : -int(up_axis) - 1;
     const Key &search_down_to = (int(up_axis) >= 0) ? min_key : max_key;
     const Key &search_up_to = (int(up_axis) >= 0) ? max_key : min_key;
-    below = findNearestSupportingVoxel2(map, seed_key, search_down_to, up_axis_index, 0, false, floor_from_unknown,
+    below = findNearestSupportingVoxel2(map, seed_key, search_down_to, up_axis_index, 0, false, allow_virtual_surface,
                                         &offset_below, &virtual_below);
     above = findNearestSupportingVoxel2(map, seed_key, search_up_to, up_axis_index, voxel_ceiling, true,
-                                        floor_from_unknown, &offset_above, &virtual_above);
+                                        allow_virtual_surface, &offset_above, &virtual_above);
+
+    const bool have_candidate_below = offset_below >= 0;
+    const bool have_candidate_above = offset_above >= 0;
+
+    // Ignore the fact that the voxel below is virtual when prefer_virtual_below is set.
+    virtual_below = have_candidate_below && virtual_below && !promote_virtual_below;
 
     // Prefer non-virtual over virtual. Prefer the closer result.
-    if (virtual_above && !virtual_below)
+    if (have_candidate_below && virtual_above && !virtual_below)
     {
       return below;
     }
 
-    if (!virtual_above && virtual_below)
+    if (have_candidate_above && !virtual_above && virtual_below)
     {
       return above;
     }
 
     // We never allow virtual voxels above as this generates better heightmaps. Virtual surfaces are more interesting
     // when approaching a slope down than any such information above.
-    if (virtual_above && virtual_below)
+    if (have_candidate_below && virtual_above && virtual_below)
     {
       return below;
     }
 
     // When both above and below have valid candidates. We prefer the lower one if there is sufficient clearance from
     // it to the higher one (should be optimistic). Otherwise we prefer the one which has had less searching.
-    if (offset_below >= 0 &&
-        (offset_above < 0 || offset_below <= offset_above ||
-         offset_below >= 0 && offset_above >= 0 && offset_below + offset_above >= clearance_voxel_count_permissive))
+    if (have_candidate_below && (!have_candidate_above || offset_below <= offset_above ||
+                              have_candidate_below && have_candidate_above &&
+                                offset_below + offset_above >= clearance_voxel_count_permissive))
     {
       return below;
     }
@@ -416,6 +423,18 @@ void Heightmap::setGenerateVirtualSurface(bool enable)
 bool Heightmap::generateVirtualSurface() const
 {
   return imp_->generate_virtual_surface;
+}
+
+
+void Heightmap::setPromoteVirtualBelow(bool enable)
+{
+  imp_->promote_virtual_below = enable;
+}
+
+
+bool Heightmap::promoteVirtualBelow() const
+{
+  return imp_->promote_virtual_below;
 }
 
 
@@ -651,9 +670,9 @@ bool Heightmap::buildHeightmapT(KeyWalker &walker, const glm::dvec3 &reference_p
     // Find the nearest voxel to the current key which may be a ground candidate.
     // This is key closest to the walk_key which could be ground. This will be either an occupied voxel, or virtual ground
     /// voxel. Virtual ground is where a free is supported by an uncertain or null voxel below it.
-    Key candidate_key =
-      findNearestSupportingVoxel(src_map, walk_key, upAxis(), walker.min_ext_key, walker.max_ext_key, voxel_ceiling,
-                                 clearance_voxel_count_permissive, imp_->generate_virtual_surface);
+    Key candidate_key = findNearestSupportingVoxel(src_map, walk_key, upAxis(), walker.min_ext_key, walker.max_ext_key,
+                                                   voxel_ceiling, clearance_voxel_count_permissive,
+                                                   imp_->generate_virtual_surface, imp_->promote_virtual_below);
 
     // Walk up from the candidate to find the best heightmap voxel.
     double height = 0;
