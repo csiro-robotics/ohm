@@ -697,9 +697,10 @@ bool Heightmap::buildHeightmapT(KeyWalker &walker, const glm::dvec3 &reference_p
     // subvoxel positioning can result in looking up the wrong cell.
     glm::dvec3 src_voxel_centre =
       (src_voxel.isValid()) ? src_voxel.centreGlobal() : src_map.voxelCentreGlobal(ground_key);
-    glm::dvec3 voxel_pos = (src_voxel.isValid()) ? src_voxel.position() : src_voxel_centre;
+    // We only use sub-voxel positioning for occupied voxels. The information is unreliable for free voxels.
+    glm::dvec3 voxel_pos = (voxel_type == kOccupied) ? src_voxel.position() : src_voxel_centre;
 
-    if (voxel_type == ohm::kOccupied || imp_->generate_virtual_surface)
+    if (voxel_type == kOccupied || imp_->generate_virtual_surface)
     {
       // Real or virtual surface.
       float surface_value = (voxel_type == kOccupied) ? kHeightmapSurfaceValue : kHeightmapVirtualSurfaceValue;
