@@ -375,13 +375,13 @@ void GpuMap::setMissValue(float value)
 }
 
 
-unsigned GpuMap::integrateRays(const glm::dvec3 *rays, unsigned element_count, unsigned region_update_flags)
+size_t GpuMap::integrateRays(const glm::dvec3 *rays, size_t element_count, unsigned region_update_flags)
 {
   return integrateRaysT<glm::dvec3>(rays, element_count, region_update_flags, effectiveRayFilter());
 }
 
 
-void GpuMap::applyClearingPattern(const glm::dvec3 *rays, unsigned element_count)
+void GpuMap::applyClearingPattern(const glm::dvec3 *rays, size_t element_count)
 {
   // Only apply the good ray filter.
   const auto clearing_ray_filter = [](glm::dvec3 *start, glm::dvec3 *end, unsigned *filter_flags)  //
@@ -488,8 +488,8 @@ void GpuMap::releaseGpuProgram()
 
 
 template <typename VEC_TYPE>
-unsigned GpuMap::integrateRaysT(const VEC_TYPE *rays, unsigned element_count, unsigned region_update_flags,
-                                const RayFilterFunction &filter)
+size_t GpuMap::integrateRaysT(const VEC_TYPE *rays, size_t element_count, unsigned region_update_flags,
+                              const RayFilterFunction &filter)
 {
   if (!imp_->map)
   {

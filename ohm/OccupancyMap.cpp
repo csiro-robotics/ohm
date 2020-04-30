@@ -670,6 +670,47 @@ void OccupancyMap::setSubVoxelsEnabled(bool enable)
   }
 }
 
+void OccupancyMap::updateLayout(const MapLayout &newLayout)
+{
+  // First check if there is a difference between the @c MapLayout and the actual layout.
+  // There's no work to do otherwise.
+
+  const MapLayoutMatch match = imp_->layout.checkEquivalent(newLayout);
+  if (match == MapLayoutMatch::Exact)
+  {
+    // Already matches the current layout. Nothing to do.
+    return;
+  }
+
+  // Check for partial match. In this case we just have to update to the new layout values and don't need to adjust
+  // the chunks.
+  if (match == MapLayoutMatch::Equivalent)
+  {
+    imp_->layout = newLayout;
+    return;
+  }
+
+  // We have a memory change. A full update is required.
+
+  // First we have to synchronise the GPU cache(s).
+  if (imp_->gpu_cache)
+  {
+    imp_->gpu_cache->clear();
+  }
+
+  // TODO: try and preserve what information we can. For now, we just destroy the map assuming that we will be using
+  // this on initialisation.
+  clear();
+  imp_->layout = newLayout;
+
+  // Now reallocate any GPU cache which relies on the occupancy layer.
+  if (imp_->gpu_cache)
+  {
+    imp_->gpu_cache->reinitialise();
+  }
+}
+
+
 bool OccupancyMap::subVoxelsEnabled() const
 {
   return imp_->layout.hasSubVoxelPattern();

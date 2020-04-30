@@ -10,6 +10,7 @@
 
 #include <ohm/RayFilter.h>
 #include <ohm/RayFlag.h>
+#include <ohm/RayMapperBase.h>
 
 #include <glm/glm.hpp>
 
@@ -113,7 +114,7 @@ namespace ohm
   /// at all by GPU. We only download data for touched regions and create the @c MapChunk then.
   ///
   /// @todo This class has been deprecated as the GPU cache is now included in the OccupancyMap.
-  class ohmgpu_API GpuMap
+  class ohmgpu_API GpuMap : public RayMapperBase
   {
   public:
     /// Construct @c GpuMap support capabilities around @p map. The @p map pointer may be borrowed or owned.
@@ -212,7 +213,8 @@ namespace ohm
     /// @param region_update_flags Flags controlling ray integration behaviour. See @c RayFlag.
     /// @return The number of rays integrated. Zero indicates a failure when @p pointCount is not zero.
     ///   In this case either the GPU is unavailable, or all @p rays are invalid.
-    unsigned integrateRays(const glm::dvec3 *rays, unsigned element_count, unsigned region_update_flags = kRfDefault);
+    size_t integrateRays(const glm::dvec3 *rays, size_t element_count,
+                         unsigned region_update_flags = kRfDefault) override;
 
     /// Integrate a ray clearing pattern into the map. A clearing is integrated as a set of rays using the @c RayFlag
     /// set: @c kRfStopOnFirstOccupied, @c kRfClearOnly. This has the effect of reducing the probability of the first
@@ -225,7 +227,7 @@ namespace ohm
     ///
     /// @param rays The set of clearing pattern rays to integrate into the map.
     /// @param element_count Number of origin/end point pairs in @p rays. Must be even/
-    void applyClearingPattern(const glm::dvec3 *rays, unsigned element_count);
+    void applyClearingPattern(const glm::dvec3 *rays, size_t element_count);
 
     /// An overload which builds a clearance pattern from a cone.
     /// @param apex The apex of the cone.
@@ -258,8 +260,8 @@ namespace ohm
     /// @return The number of rays integrated. Zero indicates a failure when @p pointCount is not zero.
     ///   In this case either the GPU is unavailable, or all @p rays are invalid.
     template <typename VEC_TYPE>
-    unsigned integrateRaysT(const VEC_TYPE *rays, unsigned element_count, unsigned region_update_flags,
-                            const RayFilterFunction &filter);
+    size_t integrateRaysT(const VEC_TYPE *rays, size_t element_count, unsigned region_update_flags,
+                          const RayFilterFunction &filter);
 
     /// Wait for previous ray batch, as indicated by @p buffer_index, to complete.
     /// @param buffer_index Identifies the batch to wait on.

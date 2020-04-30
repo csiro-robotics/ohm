@@ -96,6 +96,52 @@ VoxelLayout MapLayer::voxelLayout()
 }
 
 
+MapLayoutMatch MapLayer::checkEquivalent(const MapLayer &other) const
+{
+  if (this == &other)
+  {
+    return MapLayoutMatch::Exact;
+  }
+
+  // Check the obvious first: number of layers and layer sizes.
+  if (imp_->subsampling != other.imp_->subsampling || imp_->flags != other.imp_->flags)
+  {
+    return MapLayoutMatch::Different;
+  }
+
+  if (imp_->voxel_layout->next_offset != other.imp_->voxel_layout->next_offset ||
+      imp_->voxel_layout->voxel_byte_size != other.imp_->voxel_layout->voxel_byte_size ||
+      imp_->voxel_layout->members.size() != other.imp_->voxel_layout->members.size())
+  {
+    return MapLayoutMatch::Different;
+  }
+
+  MapLayoutMatch match = MapLayoutMatch::Exact;
+
+  if (imp_->name != other.imp_->name)
+  {
+    // No name match. At best the layers are equivalent.
+    match = MapLayoutMatch::Equivalent;
+  }
+
+  for (size_t i = 0; i < imp_->voxel_layout->members.size(); ++i)
+  {
+    const VoxelMember &a = imp_->voxel_layout->members[i];
+    const VoxelMember &b = other.imp_->voxel_layout->members[i];
+    if (a.clear_value != b.clear_value || a.type != b.type || a.offset != b.offset)
+    {
+      return MapLayoutMatch::Different;
+    }
+
+    if (strncmp(a.name, b.name, sizeof(a.name)) != 0)
+    {
+      match = MapLayoutMatch::Equivalent;
+    }
+  }
+
+  return match;
+}
+
 glm::u8vec3 MapLayer::dimensions(const glm::u8vec3 &region_dim) const
 {
   const glm::u8vec3 dim = region_dim / uint8_t(1 + imp_->subsampling);

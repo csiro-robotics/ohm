@@ -11,8 +11,10 @@
 #include "Voxel.h"
 #include "VoxelLayout.h"
 
-#include <glm/mat3.hpp>
+#include <glm/mat3x3.hpp>
 #include <glm/vec4.hpp>
+
+#include <glm/gtc/matrix_access.hpp>
 
 #include <cassert>
 
@@ -31,48 +33,92 @@ namespace ohm
   {
     float cov_sqrt_diag[6];
     // TODO: check packing. Should be tightly packed.
-    uint16_t point_count;
+    uint32_t point_count;
+    // Padding: voxel alignment is 8 bytes
+    uint32_t padding;
 
     /// Unpack the covariance matrix storage.
+    ///
+    /// The unpacked matrix represents a sparse 3,4 matrix of the following form:
+    ///
+    /// |   |   |   |
+    /// | - | - | - |
+    /// | 0 | 1 | 3 |
+    /// | . | 2 | 4 |
+    /// | . | . | 5 |
+    /// | 6 | 7 | 8 |
+    ///
+    /// Items marked '.' are not represented in the martix and are treated as zero.
+    ///
+    /// @param A The matrix to unpack to.
     /// @param sample_to_mean The difference between the new sample point and the voxel mean.
     /// @return An unpacked 3x3 covariance martrix (approximate).
-    glm::dmat3 unpackedCovariance(const glm::dmat3 sample_to_mean) const
+    double *unpackedA(double A[9], const glm::dvec3 sample_to_mean) const
     {
       if (point_count == 0)
       {
-        return glm::dmat3(0.0);
+        for (int i = 0; i < 9; ++i)
+        {
+          A[i] = 0;
+        }
+        return A;
       }
 
-      glm::dmat3 cov;
       const double one_on_num_pt_plus_one = 1.0 / (double(point_count) + 1);
       const double sc_1 = std::sqrt(double(point_count) * one_on_num_pt_plus_one);
       const double sc_2 = one_on_num_pt_plus_one * std::sqrt(double(point_count));
 
-      for (size_t i = 0; i < 6; ++i)
+      for (int i = 0; i < 6; ++i)
       {
-        cov[i] = sc_1 * double(cov_sqrt_diag[i]);
+        A[i] = sc_1 * double(cov_sqrt_diag[i]);
       }
 
-      for (size_t i = 0; i < 3; ++i)
+      for (int i = 0; i < 3; ++i)
       {
-        cov[i + 6] = sc_2 * sample_to_mean[i];
+        A[i + 6] = sc_2 * sample_to_mean[i];
       }
 
-      return cov;
+      return A;
     }
   };
 
 
-  double packed_dot(const double *A, const int j, const int k)
+  /// dot product of j-th and k-th columns of A
+  /// A is (4,3), assumed to be packed as follows, where z is non-represented zero
+  /// 0 1 3
+  /// z 2 4
+  /// z z 5
+  /// 6 7 8
+  double packed_dot(const double A[9], const int j, const int k)
   {
     const static int col_first_el[] = {0, 1, 3};
     double d = A[6 + k] * A[6 + j];
-    const size_t indj = col_first_el[j], indk = col_first_el[k], m = std::min(j, k);
-    for (size_t i = 0; i <= m; ++i)
+    const int indj = col_first_el[j], indk = col_first_el[k], m = std::min(j, k);
+    for (int i = 0; i <= m; ++i)
     {
       d += A[indj + i] * A[indk + i];
     }
     return d;
+  }
+
+  glm::dmat3 unpackCovariance(const double A[9])
+  {
+    glm::dmat3 cov;
+    glm::dvec3 *col = &cov[0];
+    (*col)[0] = A[0];
+    (*col)[1] = (*col)[2] = 0;
+
+    col = &cov[1];
+    (*col)[0] = A[1];
+    (*col)[1] = A[2];
+    (*col)[2] = 0;
+
+    col = &cov[2];
+    (*col)[0] = A[3];
+    (*col)[1] = A[4];
+    (*col)[2] = A[5];
+
+    return cov;
   }
 }
 
@@ -90,7 +136,7 @@ NdtMap::~NdtMap()
 {
   if (imp_)
   {
-    if (imp_->borrowed_map)
+    if (!imp_->borrowed_map)
     {
       delete imp_->map;
     }
@@ -117,32 +163,9 @@ bool NdtMap::borrowedMap() const
 }
 
 
-int NdtMap::enableNdt(OccupancyMap *map)
-{
-  map->setSubVoxelsEnabled(true);
-
-  // We need additional layers in the map to store information for the NDT update.
-  MapLayout &layout = map->layout();
-  MapLayer &layer = *layout.addLayer("covariance");
-  VoxelLayout voxel = layer.voxelLayout();
-  // Add members to represent a diagonal of the covariance matrix. This is an approximation of the full matrix
-  // but it greatly reduces the per voxel memory usage.
-  voxel.addMember("P00", DataType::kFloat, 0);
-  voxel.addMember("P11", DataType::kFloat, 0);
-  voxel.addMember("P22", DataType::kFloat, 0);
-  voxel.addMember("P33", DataType::kFloat, 0);
-  voxel.addMember("P44", DataType::kFloat, 0);
-  voxel.addMember("P55", DataType::kFloat, 0);
-  voxel.addMember("sample_count", DataType::kUInt16, 0);
-
-  return layer.layerIndex();
-}
-
-
-void NdtMap::integrateHit(const Key &key, const glm::dvec3 &sensor, const glm::dvec3 &sample, MapCache *cache)
+void NdtMap::integrateHit(Voxel &voxel, const glm::dvec3 &/*sensor*/, const glm::dvec3 &sample)
 {
   OccupancyMap &map = *imp_->map;
-  Voxel voxel = map.voxel(key, true, cache);
   // NDT probably value update is the same as for the basic occupancy map.
   voxel.setValue(!voxel.isUncertain() ? voxel.value() + map.hitValue() : map.hitValue());
 
@@ -158,10 +181,10 @@ void NdtMap::integrateHit(const Key &key, const glm::dvec3 &sensor, const glm::d
 
   // Resolve the covariance matrix for the voxel.
   NdtVoxelDetail *ndt_voxel = voxel.layerContent<NdtVoxelDetail *>(imp_->covariance_layer_index);
-  double A[9];
   double cov_sqrt[6];
   const glm::dvec3 sample_to_mean = sample - voxel_mean;
-  glm::dmat3 A = ndt_voxel->unpackedCovariance(sample_to_mean);
+  double A[9];
+  ndt_voxel->unpackedA(A, sample_to_mean);
 
   // Update covariance.
   for (int k = 0; k < 3; ++k)
@@ -204,10 +227,9 @@ void NdtMap::integrateHit(const Key &key, const glm::dvec3 &sensor, const glm::d
 }
 
 
-void NdtMap::integrateMiss(const Key &key, const glm::dvec3 &sensor, const glm::dvec3 &sample, MapCache *cache)
+void NdtMap::integrateMiss(Voxel &voxel, const glm::dvec3 &sensor, const glm::dvec3 &sample)
 {
   OccupancyMap &map = *imp_->map;
-  Voxel voxel = map.voxel(key, true, cache);
   float update_value = map.missValue();
 
   if (voxel.isUncertain())
@@ -242,7 +264,9 @@ void NdtMap::integrateMiss(const Key &key, const glm::dvec3 &sensor, const glm::
   // Unapack the covariance data into a matrix.
   // FIXME: Validate that this is correctly extracting the covariance matrix.
   const glm::dvec3 sample_to_mean = sample - voxel_mean;
-  const glm::dmat3 covariance = ndt_voxel->unpackedCovariance(sample_to_mean);
+  double A[9];
+  ndt_voxel->unpackedA(A, sample_to_mean);
+  glm::dmat3 covariance = unpackCovariance(A);
 
   // Notes:
   // - Equation references are in relation to the paper on which this is based (see class comments).
@@ -293,7 +317,7 @@ void NdtMap::integrateMiss(const Key &key, const glm::dvec3 &sensor, const glm::
   // TODO: should probably validate this falls within the voxel.
 
   // (22)
-  const double prob_hit_given_cov = std::exp(-0.5 * (voxel_maximum_likelyhood - voxel_mean) * covariance_inv * (voxel_maximum_likelyhood - voxel_mean));
+  const double prob_hit_given_cov = std::exp(-0.5 * glm::dot(voxel_maximum_likelyhood - voxel_mean, covariance_inv * (voxel_maximum_likelyhood - voxel_mean)));
 
   // (23)
   const glm::dvec3 sample_to_voxel_ml = sample - voxel_maximum_likelyhood;
@@ -303,8 +327,36 @@ void NdtMap::integrateMiss(const Key &key, const glm::dvec3 &sensor, const glm::
   const double scaling_factor = 0.4;
   const double probability_update = 0.5 - scaling_factor * prob_hit_given_cov * prob_voxel_given_sample;
 
+  if (std::isnan(probability_update))
+  {
+    // TODO: (KS) work out how we get a nan value here. It should not happen.
+    return;
+  }
+
   update_value = ohm::probabilityToValue(probability_update);
   assert(update_value <= 0);
   voxel.setValue(update_value + voxel.value());
 }
 
+
+int NdtMap::enableNdt(OccupancyMap *map)
+{
+  map->setSubVoxelsEnabled(true);
+
+  // We need additional layers in the map to store information for the NDT update.
+  MapLayout layout = map->layout();
+  MapLayer &layer = *layout.addLayer("covariance");
+  VoxelLayout voxel = layer.voxelLayout();
+  // Add members to represent a diagonal of the covariance matrix. This is an approximation of the full matrix
+  // but it greatly reduces the per voxel memory usage.
+  voxel.addMember("P00", DataType::kFloat, 0);
+  voxel.addMember("P11", DataType::kFloat, 0);
+  voxel.addMember("P22", DataType::kFloat, 0);
+  voxel.addMember("P33", DataType::kFloat, 0);
+  voxel.addMember("P44", DataType::kFloat, 0);
+  voxel.addMember("P55", DataType::kFloat, 0);
+  voxel.addMember("sample_count", DataType::kUInt32, 0);
+
+  map->updateLayout(layout);
+  return layer.layerIndex();
+}

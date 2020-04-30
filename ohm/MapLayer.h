@@ -8,6 +8,7 @@
 
 #include "OhmConfig.h"
 
+#include "MapLayoutMatch.h"
 #include "VoxelLayout.h"
 
 #include <glm/fwd.hpp>
@@ -73,6 +74,17 @@ namespace ohm
     /// Writable access to the voxel layout of this layer.
     /// @return Voxel layout configuration.
     VoxelLayout voxelLayout();
+
+    /// Check if this @c MapLayer is equivalent to @p other.
+    ///
+    /// The layers are may be equivalent if voxel patterns are the same and the clearing patterns match. The names do
+    /// not have to be the same.
+    ///
+    /// The layers match if the names also match.
+    ///
+    /// @param other The other layer to compare against.
+    /// @return The equivalence @c MapLayoutMatch
+    MapLayoutMatch checkEquivalent(const MapLayer &other) const;
 
     /// Gives the per chunk voxel dimensions of this layer given @p regionDim defines the maximum voxel dimensions.
     ///

@@ -81,6 +81,9 @@ set(SOURCES
   MapRegionCache.h
   MapSerialise.cpp
   MapSerialise.h
+  NdtMap.cpp
+  NdtMap.h
+  NdtRayMapperInterface.h
   NearestNeighbours.cpp
   NearestNeighbours.h
   OccupancyMap.cpp
@@ -97,6 +100,10 @@ set(SOURCES
   RayFilter.cpp
   RayFilter.h
   RayFlag.h
+  RayMapperBase.cpp
+  RayMapperBase.h
+  RayMapperInterface.h
+  RayMapper.h
   RayPattern.cpp
   RayPattern.h
   RayPatternConical.cpp

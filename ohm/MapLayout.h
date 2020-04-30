@@ -8,6 +8,8 @@
 
 #include "OhmConfig.h"
 
+#include "MapLayoutMatch.h"
+
 #include <initializer_list>
 
 namespace ohm
@@ -139,6 +141,17 @@ namespace ohm
 
     /// Invalidate the @c hasSubVoxelPattern() flag.
     void invalidateSubVoxelPatternState();
+
+    /// Check if this @c MapLayout is equivalent to @p other.
+    ///
+    /// The layouts are may be equivalent if they share the same number of layers, the voxel patterns are the same
+    /// for each layer and the clearing patterns match. The names do not have to be the same.
+    ///
+    /// The layouts match if all layers names and voxel layouts match.
+    ///
+    /// @param other The other layout to compare against.
+    /// @return The equivalence @c MapLayoutMatch
+    MapLayoutMatch checkEquivalent(const MapLayout &other) const;
 
     /// Remove all layers except for the named layers. Removing interleaved layers may create gaps in the layer
     /// array. These gaps are removed with the array being repacked.

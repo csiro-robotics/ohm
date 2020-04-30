@@ -7,11 +7,12 @@
 
 #include "OhmConfig.h"
 
+#include <glm/fwd.hpp>
+
 namespace ohm
 {
-  class Key;
-  class MapCache;
   class OccupancyMap;
+  class Voxel;
   struct NdtMapDetail;
 
   /// A variation on @c OccupancyMap which uses a 3D Normal Distribution Transform (NDT) to calculate occupancy
@@ -34,8 +35,8 @@ namespace ohm
 
     bool borrowedMap() const;
 
-    void integrateHit(const Key &key, const glm::dvec3 &sensor, const glm::dvec3 &sample, MapCache *cache = nullptr);
-    void integrateMiss(const Key &key, const glm::dvec3 &sensor, const glm::dvec3 &sample, MapCache *cache = nullptr);
+    void integrateHit(Voxel &voxel, const glm::dvec3 &sensor, const glm::dvec3 &sample);
+    void integrateMiss(Voxel &voxel, const glm::dvec3 &sensor, const glm::dvec3 &sample);
 
   private:
     /// Enable NDT for the given @p map. This enables sub-voxel positioning and adds a voxel layer to store the

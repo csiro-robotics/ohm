@@ -452,6 +452,17 @@ namespace ohm
     /// Is sub-voxel positioning enabled on this map?
     bool subVoxelsEnabled() const;
 
+    /// Update the memory layout to match that in this map's @c MapLayout. Must be called after updating
+    /// the @p layout() after construction.
+    ///
+    /// This is currently a destructive operation when the new layout has differs in memory structure to the current
+    /// one. In this case the current map is cleared.
+    ///
+    /// @todo Preserve what map data we can.
+    ///
+    /// @param newLayout The map layout to update to.
+    void updateLayout(const MapLayout &newLayout);
+
     /// Query the number of regions in the map.
     size_t regionCount() const;
 

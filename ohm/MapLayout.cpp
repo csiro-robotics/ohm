@@ -135,6 +135,34 @@ void MapLayout::invalidateSubVoxelPatternState()
 }
 
 
+MapLayoutMatch MapLayout::checkEquivalent(const MapLayout &other) const
+{
+  if (this == &other)
+  {
+    return MapLayoutMatch::Exact;
+  }
+
+  // Check the obvious first: number of layers and layer sizes.
+  if (layerCount() != other.layerCount())
+  {
+    return MapLayoutMatch::Different;
+  }
+
+  MapLayoutMatch match = MapLayoutMatch::Exact;
+  for (size_t i = 0; i < layerCount(); ++i)
+  {
+    const MapLayoutMatch layer_match = layer(i).checkEquivalent(other.layer(i)); 
+    match = std::min(match, layer_match);
+    if (match == MapLayoutMatch::Different)
+    {
+      return MapLayoutMatch::Different;
+    }
+  }
+
+  return match;
+}
+
+
 void MapLayout::filterLayers(const std::initializer_list<const char *> &preserve_layers)
 {
   if (imp_->layers.empty())

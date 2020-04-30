@@ -11,7 +11,12 @@
 #include <ohm/Mapper.h>
 #include <ohm/OccupancyMap.h>
 #include <ohm/OccupancyUtil.h>
+#include <ohm/RayMapper.h>
 #include <ohm/Voxel.h>
+#ifdef OHMPOP_CPU
+#include <ohm/NdtMap.h>
+#include <ohm/NdtRayMapperInterface.h>
+#endif  // OHMPOP_CPU
 
 #ifndef OHMPOP_CPU
 #include <ohmgpu/ClearanceProcess.h>
@@ -88,6 +93,8 @@ namespace
     float clearance = 0.0f;
     bool post_population_mapping = true;
     bool clearance_unknown_as_occupied = false;
+#else  //OHMPOP_CPU 
+    bool ndt = false;
 #endif  // OHMPOP_CPU
     bool quiet = false;
 
@@ -373,9 +380,25 @@ int populateMap(const Options &opt)
     }
   }
 
-#ifndef OHMPOP_CPU
+  ohm::RayMapperBase *ray_mapper = nullptr;
+#ifdef OHMPOP_CPU
+  std::unique_ptr<ohm::NdtMap> ndt_map;
+  std::unique_ptr<ohm::RayMapper<ohm::NdtMap>> ndt_ray_mapper;
+  ohm::RayMapper<decltype(map)> ray_mapper_(&map);
+  if (opt.ndt)
+  {
+    ndt_map = std::make_unique<ohm::NdtMap>(&map, true);
+    ndt_ray_mapper = std::make_unique<ohm::RayMapper<ohm::NdtMap>>(ndt_map.get());
+    ray_mapper = ndt_ray_mapper.get();
+  }
+  else
+  {
+    ray_mapper = &ray_mapper_;
+  }
+#else  // OHMPOP_CPU
   ohm::GpuMap gpu_map(&map, true, opt.batch_size);
-#endif  // OHMPOP_CPU
+  ray_mapper = &gpu_map;
+#endif // OHMPOP_CPU
   ohm::Mapper mapper(&map);
   std::vector<double> sample_timestamps;
   std::vector<glm::dvec3> origin_sample_pairs;
@@ -508,7 +531,7 @@ int populateMap(const Options &opt)
   std::cout << "Populating map" << std::endl;
 
   prog.beginProgress(ProgressMonitor::Info((point_count && timebase == 0) ?
-                                             std::min<uint64_t>(point_count, loader.numberOfPoints()) :
+std::min<uint64_t>(point_count, loader.numberOfPoints()) :
                                              loader.numberOfPoints()));
   prog.startThread();
 
@@ -587,11 +610,7 @@ int populateMap(const Options &opt)
 #if COLLECT_STATS
       const auto then = Clock::now();
 #endif  // COLLECT_STATS
-#ifndef OHMPOP_CPU
-      gpu_map.integrateRays(origin_sample_pairs.data(), unsigned(origin_sample_pairs.size()));
-#else   // OHMPOP_CPU
-      map.integrateRays(origin_sample_pairs.data(), unsigned(origin_sample_pairs.size()));
-#endif  // OHMPOP_CPU
+      ray_mapper->integrateRays(origin_sample_pairs.data(), unsigned(origin_sample_pairs.size()));
 #if COLLECT_STATS
       const auto integrateTime = Clock::now() - then;
 #if COLLECT_STATS_IGNORE_FIRST
@@ -655,11 +674,7 @@ int populateMap(const Options &opt)
 #if COLLECT_STATS
     const auto then = Clock::now();
 #endif  // COLLECT_STATS
-#ifndef OHMPOP_CPU
-    gpu_map.integrateRays(origin_sample_pairs.data(), unsigned(origin_sample_pairs.size()));
-#else   // OHMPOP_CPU
-    map.integrateRays(origin_sample_pairs.data(), unsigned(origin_sample_pairs.size()));
-#endif  // OHMPOP_CPU
+    ray_mapper->integrateRays(origin_sample_pairs.data(), unsigned(origin_sample_pairs.size()));
 #if COLLECT_STATS
     const auto integrateTime = Clock::now() - then;
     stats.add(integrateTime);
@@ -786,6 +801,9 @@ int parseOptions(Options *opt, int argc, char *argv[])
                     "the sub-voxel positioning is far from the voxel centre.",
                     optVal(opt->sub_voxel_filter)->implicit_value("1.0"))
       ("threshold", "Sets the occupancy threshold assigned when exporting the map to a cloud.", optVal(opt->prob_thresh)->implicit_value(optStr(opt->prob_thresh)))
+#ifdef OHMPOP_CPU
+      ("ndt", "Use normal distibution transform map generation.", optVal(opt->ndt))
+#endif // OHMPOP_CPU
       ;
 
     // clang-format on
@@ -811,7 +829,7 @@ int parseOptions(Options *opt, int argc, char *argv[])
               gpu_options_types[i] == 0 ? ::cxxopts::value<bool>() : ::cxxopts::value<std::string>());
       }
     }
-#endif  // OHMPOP_CPU
+#endif // OHMPOP_CPU
 
 
     opt_parse.parse_positional({ "cloud", "trajectory", "output" });
