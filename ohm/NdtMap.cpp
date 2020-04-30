@@ -171,16 +171,20 @@ void NdtMap::integrateHit(Voxel &voxel, const glm::dvec3 &/*sensor*/, const glm:
 
   assert(map.layout().hasSubVoxelPattern());
   OccupancyVoxel *voxel_occupancy = voxel.layerContent<OccupancyVoxel *>(map.layout().occupancyLayer());
-  const glm::dvec3 voxel_mean(subVoxelToLocalCoord<glm::dvec3>(voxel_occupancy->sub_voxel, map.resolution()));
-  voxel_occupancy->sub_voxel = subVoxelUpdate(voxel_occupancy->sub_voxel, sample - voxel.centreGlobal(),
-                                              map.resolution(), map.subVoxelWeighting());
+  NdtVoxelDetail *ndt_voxel = voxel.layerContent<NdtVoxelDetail *>(imp_->covariance_layer_index);
+
+  const glm::dvec3 voxel_centre = voxel.centreGlobal();
+  glm::dvec3 voxel_mean(subVoxelToLocalCoord<glm::dvec3>(voxel_occupancy->sub_voxel, map.resolution()) + voxel_centre);
+  // Calculate new mean position. We have more information than the simple sub-voxel positioning so we can
+  // generate what is in theory a better result.
+  voxel_mean = (double(ndt_voxel->point_count) * voxel_mean + sample) / (double(ndt_voxel->point_count) + 1.0);
+  voxel_occupancy->sub_voxel = subVoxelCoord(voxel_mean - voxel_centre, map.resolution());
 
   // This has been taken from example code provided by Jason Williams as a sample on storing and using covarance data
   // using a packed, diagonal.
   // FIXME: document the reasoning and maths behind this cose.
 
   // Resolve the covariance matrix for the voxel.
-  NdtVoxelDetail *ndt_voxel = voxel.layerContent<NdtVoxelDetail *>(imp_->covariance_layer_index);
   double cov_sqrt[6];
   const glm::dvec3 sample_to_mean = sample - voxel_mean;
   double A[9];
@@ -259,7 +263,7 @@ void NdtMap::integrateMiss(Voxel &voxel, const glm::dvec3 &sensor, const glm::dv
 
   assert(map.layout().hasSubVoxelPattern());
   const OccupancyVoxel *voxel_occupancy = voxel.layerContent<const OccupancyVoxel *>(map.layout().occupancyLayer());
-  const glm::dvec3 voxel_mean(subVoxelToLocalCoord<glm::dvec3>(voxel_occupancy->sub_voxel, map.resolution()));
+  const glm::dvec3 voxel_mean(subVoxelToLocalCoord<glm::dvec3>(voxel_occupancy->sub_voxel, map.resolution()) + voxel.centreGlobal());
 
   // Unapack the covariance data into a matrix.
   // FIXME: Validate that this is correctly extracting the covariance matrix.
