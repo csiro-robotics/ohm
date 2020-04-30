@@ -387,6 +387,7 @@ int populateMap(const Options &opt)
   ohm::RayMapper<decltype(map)> ray_mapper_(&map);
   if (opt.ndt)
   {
+    std::cout << "Building NDT map" << std::endl;
     ndt_map = std::make_unique<ohm::NdtMap>(&map, true);
     ndt_ray_mapper = std::make_unique<ohm::RayMapper<ohm::NdtMap>>(ndt_map.get());
     ray_mapper = ndt_ray_mapper.get();
