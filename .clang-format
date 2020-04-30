@@ -73,7 +73,7 @@ NamespaceIndentation: All
 # PenaltyReturnTypeOnItsOwnLine: <int>
 PointerAlignment: Right
 ReflowComments: true
-SortIncludes: true
+SortIncludes: false
 SortUsingDeclarations: true
 SpaceAfterCStyleCast: false
 SpaceAfterTemplateKeyword: true
