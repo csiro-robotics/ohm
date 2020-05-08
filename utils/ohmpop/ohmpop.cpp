@@ -11,6 +11,7 @@
 #include <ohm/Mapper.h>
 #include <ohm/OccupancyMap.h>
 #include <ohm/OccupancyUtil.h>
+#include <ohm/Trace.h>
 #include <ohm/RayMapper.h>
 #include <ohm/Voxel.h>
 #ifdef OHMPOP_CPU
@@ -84,6 +85,7 @@ namespace
     float prob_thresh = 0.5f;
     float sub_voxel_filter = 0.0f;
     glm::vec2 prob_range = glm::vec2(0, 0);
+    glm::vec3 cloud_colour = glm::vec3(0);
     unsigned batch_size = 2048;
     bool serialise = true;
     bool save_info = false;
@@ -93,7 +95,7 @@ namespace
     float clearance = 0.0f;
     bool post_population_mapping = true;
     bool clearance_unknown_as_occupied = false;
-#else  //OHMPOP_CPU 
+#else   // OHMPOP_CPU
     bool ndt = false;
 #endif  // OHMPOP_CPU
     bool quiet = false;
@@ -200,7 +202,7 @@ namespace
   class SerialiseMapProgress : public ohm::SerialiseProgress
   {
   public:
-    SerialiseMapProgress(ProgressMonitor &monitor) // NOLINT(google-runtime-references)
+    SerialiseMapProgress(ProgressMonitor &monitor)  // NOLINT(google-runtime-references)
       : monitor_(monitor)
     {}
 
@@ -274,6 +276,16 @@ namespace
         prog->beginProgress(ProgressMonitor::Info(region_count));
       }
 
+      const auto colour_channel_f = [](float cf) -> uint8_t  //
+      {
+        cf = 255.0f * std::max(cf, 0.0f);
+        unsigned cu = unsigned(cf);
+        return uint8_t(std::min(cu, 255u));
+      };
+      bool use_colour = opt.cloud_colour.r > 0 || opt.cloud_colour.g > 0 || opt.cloud_colour.b > 0;
+      const ohm::Colour c(colour_channel_f(opt.cloud_colour.r), colour_channel_f(opt.cloud_colour.g),
+                          colour_channel_f(opt.cloud_colour.b));
+
       for (auto iter = map.begin(); iter != map_end_iter && quit < 2; ++iter)
       {
         const ohm::VoxelConst voxel = *iter;
@@ -288,7 +300,14 @@ namespace
         if (voxel.isOccupied())
         {
           v = voxel.position();
-          ply.addVertex(v);
+          if (use_colour)
+          {
+            ply.addVertex(v, c);
+          }
+          else
+          {
+            ply.addVertex(v);
+          }
           ++point_count;
         }
       }
@@ -396,10 +415,10 @@ int populateMap(const Options &opt)
   {
     ray_mapper = &ray_mapper_;
   }
-#else  // OHMPOP_CPU
+#else   // OHMPOP_CPU
   ohm::GpuMap gpu_map(&map, true, opt.batch_size);
   ray_mapper = &gpu_map;
-#endif // OHMPOP_CPU
+#endif  // OHMPOP_CPU
   ohm::Mapper mapper(&map);
   std::vector<double> sample_timestamps;
   std::vector<glm::dvec3> origin_sample_pairs;
@@ -532,7 +551,7 @@ int populateMap(const Options &opt)
   std::cout << "Populating map" << std::endl;
 
   prog.beginProgress(ProgressMonitor::Info((point_count && timebase == 0) ?
-std::min<uint64_t>(point_count, loader.numberOfPoints()) :
+                                             std::min<uint64_t>(point_count, loader.numberOfPoints()) :
                                              loader.numberOfPoints()));
   prog.startThread();
 
@@ -746,6 +765,13 @@ std::min<uint64_t>(point_count, loader.numberOfPoints()) :
 
   prog.joinThread();
 
+#ifdef OHMPOP_CPU
+  if (opt.ndt)
+  {
+    ndt_map->debugDraw();
+  }
+#endif  //  OHMPOP_CPU
+
   return 0;
 }
 
@@ -785,6 +811,7 @@ int parseOptions(Options *opt, int argc, char *argv[])
       ("t,time-limit", "Limit the elapsed time in the LIDAR data to process (seconds). Measured relative to the first data sample.", optVal(opt->time_limit))
       ("trajectory", "The trajectory (text) file to load.", cxxopts::value(opt->trajectory_file))
       ("prior", "Prior map file to load and continue to populate.", cxxopts::value(opt->prior_map))
+      ("cloud-colour", "Colour for points in the saved cloud (if saving).", optVal(opt->cloud_colour))
       ;
 
     opt_parse.add_options("Map")
@@ -830,7 +857,7 @@ int parseOptions(Options *opt, int argc, char *argv[])
               gpu_options_types[i] == 0 ? ::cxxopts::value<bool>() : ::cxxopts::value<std::string>());
       }
     }
-#endif // OHMPOP_CPU
+#endif  // OHMPOP_CPU
 
 
     opt_parse.parse_positional({ "cloud", "trajectory", "output" });
@@ -877,6 +904,9 @@ int main(int argc, char *argv[])
     return res;
   }
 
+  // Initialise TES
+  ohm::Trace trace("ohmpop.3es");
+
   signal(SIGINT, onSignal);
   signal(SIGTERM, onSignal);
 
@@ -903,5 +933,6 @@ int main(int argc, char *argv[])
   }
 
   res = populateMap(opt);
+
   return res;
 }

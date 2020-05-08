@@ -5,6 +5,9 @@ find_package(GLM)
 find_package(GTest)
 find_package(PNG QUIET)
 
+# Eigen required to support some tests - NDT in particular
+find_package(Eigen3 QUIET)
+
 if(PNG_FOUND)
   set(OHM_WITH_PNG ON)
 endif(PNG_FOUND)
@@ -26,6 +29,11 @@ set(SOURCES
   TestMain.cpp
   "${CMAKE_CURRENT_BINARY_DIR}/OhmTestConfig.h"
 )
+
+if(Eigen3_FOUND)
+  message(STATUS "Eigen3 found. Adding NDT tests.")
+  list(APPEND SOURCES NdtTests.cpp)
+endif(Eigen3_FOUND)
 
 add_executable(ohmtest ${SOURCES})
 leak_track_target_enable(ohmtest CONDITION OHM_LEAK_TRACK)
@@ -60,6 +68,10 @@ if(OHM_TES_DEBUG)
 else(OHM_TES_DEBUG)
   target_include_directories(ohmtest PRIVATE SYSTEM "${3ES_INCLUDE_DIRS}")
 endif(OHM_TES_DEBUG)
+
+if(Eigen3_FOUND)
+  target_link_libraries(ohmtest PRIVATE Eigen3::Eigen)
+endif(Eigen3_FOUND)
 
 add_test(NAME ohmtest COMMAND ohmtest --gtest_output=xml:test-reports/)
 

@@ -8,6 +8,8 @@ if(OHM_THREADS)
   find_package(TBB)
 endif(OHM_THREADS)
 
+find_package(Eigen3 QUIET)
+
 set(TES_ENABLE ${OHM_TES_DEBUG})
 configure_file(OhmConfig.in.h "${CMAKE_CURRENT_BINARY_DIR}/ohm/OhmConfig.h")
 
@@ -84,6 +86,8 @@ set(SOURCES
   NdtMap.cpp
   NdtMap.h
   NdtRayMapperInterface.h
+  NdtVoxel.cpp
+  NdtVoxel.h
   NearestNeighbours.cpp
   NearestNeighbours.h
   OccupancyMap.cpp
@@ -111,6 +115,8 @@ set(SOURCES
   Stream.cpp
   Stream.h
   SubVoxel.h
+  Trace.cpp
+  Trace.h
   TriangleEdge.h
   TriangleNeighbours.h
   UpAxis.h
@@ -155,6 +161,9 @@ set(PUBLIC_HEADERS
   MapRegion.h
   MapRegionCache.h
   MapSerialise.h
+  NdtMap.h
+  NdtRayMapperInterface.h
+  NdtVoxel.h
   NearestNeighbours.h
   OccupancyMap.h
   OccupancyType.h
@@ -165,10 +174,13 @@ set(PUBLIC_HEADERS
   QueryFlag.h
   RayFilter.h
   RayFlag.h
+  RayMapperBase.h
+  RayMapper.h
   RayPattern.h
   RayPatternConical.h
   Stream.h
   SubVoxel.h
+  Trace.h
   TriangleEdge.h
   TriangleNeighbours.h
   UpAxis.h
@@ -209,6 +221,10 @@ if(OHM_TES_DEBUG)
 else(OHM_TES_DEBUG)
   target_include_directories(ohm PRIVATE SYSTEM "${3ES_INCLUDE_DIRS}")
 endif(OHM_TES_DEBUG)
+
+if(Eigen3_FOUND)
+  target_link_libraries(ohm PRIVATE Eigen3::Eigen)
+endif(Eigen3_FOUND)
 
 generate_export_header(ohm
   EXPORT_MACRO_NAME ohm_API

@@ -5,6 +5,7 @@
 #include <ohm/HeightmapVoxel.h>
 #include <ohm/MapSerialise.h>
 #include <ohm/OccupancyMap.h>
+#include <ohm/Trace.h>
 #include <ohm/Voxel.h>
 
 #include <ohmutil/OhmUtil.h>
@@ -138,17 +139,7 @@ int main(int argc, char *argv[])
   }
 
   // Initialise TES
-  TES_SETTINGS(settings, tes::SF_Compress | tes::SF_Collate);
-  // Initialise server info.
-  TES_SERVER_INFO(info, tes::XYZ);
-  // Create the server. Use tesServer declared globally above.
-  TES_SERVER_CREATE(ohm::g_3es, settings, &info);
-
-  // Start the server and wait for the connection monitor to start.
-  TES_SERVER_START(ohm::g_3es, tes::ConnectionMonitor::Asynchronous);
-
-  TES_SERVER_START_WAIT(ohm::g_3es, 1000);
-  TES_LOCAL_FILE_STREAM(ohm::g_3es, "ohmheightmap.3es");
+  ohm::Trace trace("ohmheightmap.3es");
 
   signal(SIGINT, onSignal);
   signal(SIGTERM, onSignal);
@@ -195,8 +186,6 @@ int main(int argc, char *argv[])
 
   std::cout << "Saving " << opt.heightmap_file << std::endl;
   ohm::save(opt.heightmap_file.c_str(), heightmap.heightmap(), nullptr);
-
-  TES_SERVER_STOP(ohm::g_3es);
 
   return res;
 }

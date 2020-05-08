@@ -35,8 +35,24 @@ namespace ohm
 
     bool borrowedMap() const;
 
+    void setSensorNoise(double noise_range);
+    double sensorNoise() const;
+
+    /// Set the number of samples required in a voxel before using the NDT algorithm for @c integateMiss() adjustments.
+    void setNdtSampleThreshold(unsigned sample_count);
+    unsigned ndtSampleThreshold();
+
+    void setTrace(bool trace);
+    bool trace() const;
+
+    /// Query the voxel layer index which stores the @c NdtVoxel covariance data.
+    /// @return The covariance voxel layer index.
+    int covarianceLayerIndex() const;
+
     void integrateHit(Voxel &voxel, const glm::dvec3 &sensor, const glm::dvec3 &sample);
     void integrateMiss(Voxel &voxel, const glm::dvec3 &sensor, const glm::dvec3 &sample);
+
+    void debugDraw();
 
   private:
     /// Enable NDT for the given @p map. This enables sub-voxel positioning and adds a voxel layer to store the
@@ -47,6 +63,6 @@ namespace ohm
 
     NdtMapDetail *imp_;
   };
-}
+}  // namespace ohm
 
-#endif // NDTMAP_H
+#endif  // NDTMAP_H

@@ -63,7 +63,7 @@ RayPatternConical::RayPatternConical(const glm::dvec3 &cone_axis, double cone_an
       const glm::dvec3 ray_dir = rotation * cone_normal;
       addRay(ray_dir * min_range, ray_dir * range);
 
-      TES_LINE(g_3es, TES_COLOUR(PowderBlue), tes::V3Arg(0, 0, 0), glm::value_ptr(ray));
+      TES_LINE(g_3es, TES_COLOUR(PowderBlue), tes::V3Arg(0, 0, 0), glm::value_ptr(ray_dir));
     }
 
     TES_SERVER_UPDATE(g_3es, 0.0f);
