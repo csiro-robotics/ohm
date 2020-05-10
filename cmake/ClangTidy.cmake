@@ -31,19 +31,21 @@ endif(CLANG_TIDY_CMAKE_INCLUDED)
 set(CLANG_TIDY_CMAKE_INCLUDED YES)
 
 # Look for clang-tidy
-find_program(CLANG_TIDY_EXE
-             NAMES
-              "clang-tidy"
-              "clang-tidy-7.0"
-              "clang-tidy-7"
-              "clang-tidy-6.0"
-              "clang-tidy-6"
-              "clang-tidy-5.0"
-              "clang-tidy-5"
+set(CLANG_TIDY_NAMES "clang-tidy")
+set(CLANG_TIDY_START_VERSION 10)
+set(CLANG_TIDY_END_VERSION 5)
+set(CLANG_TIDY_SEARCH_VERSION ${CLANG_TIDY_START_VERSION})
+while(CLANG_TIDY_SEARCH_VERSION GREATER_EQUAL ${CLANG_TIDY_END_VERSION})
+  list(APPEND CLANG_TIDY_NAMES "clang-tidy-${CLANG_TIDY_SEARCH_VERSION}")
+  list(APPEND CLANG_TIDY_NAMES "clang-tidy-${CLANG_TIDY_SEARCH_VERSION}.0")
+  math(EXPR CLANG_TIDY_SEARCH_VERSION "${CLANG_TIDY_SEARCH_VERSION} - 1")
+endwhile(CLANG_TIDY_SEARCH_VERSION GREATER_EQUAL ${CLANG_TIDY_END_VERSION})
+
+find_program(CLANG_TIDY_EXE NAMES ${CLANG_TIDY_NAMES}
             DOC "Path to clang-tidy executable")
 
 if(NOT CLANG_TIDY_EXE)
-  message("clang-tidy not found: clang-tidy directives will be ignored")
+  message(STATUS "clang-tidy not found: clang-tidy directives will be ignored")
   function(clang_tidy_target)
   endfunction(clang_tidy_target)
   function(clang_tidy_global)
