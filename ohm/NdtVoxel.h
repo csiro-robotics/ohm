@@ -11,7 +11,7 @@
 #include <glm/vec3.hpp>
 #include <glm/mat3x3.hpp>
 
-#define OHM_NDT_UNPACKED_MEAN 1
+#define OHM_NDT_UNPACKED_MEAN 0
 
 namespace ohm
 {

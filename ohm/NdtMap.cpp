@@ -348,7 +348,7 @@ void NdtMap::integrateMiss(Voxel &voxel, const glm::dvec3 &sensor, const glm::dv
   const double sensor_noise_variance = imp_->sensor_noise * imp_->sensor_noise;
   const double p_x_ml_given_sample = exp(-0.5 * glm::length2(voxel_maximum_likelyhood - sample) / sensor_noise_variance);
 
-  const double scaling_factor = 0.45;
+  const double scaling_factor = map.missProbability();
   // Verified: json line 267
   const double probability_update = 0.5 - scaling_factor * p_x_ml_given_voxel * (1.0 - p_x_ml_given_sample);
 
@@ -374,6 +374,21 @@ void NdtMap::integrateMiss(Voxel &voxel, const glm::dvec3 &sensor, const glm::dv
     // Maximum likelyhood
     TES_SPHERE_W(g_3es, TES_COLOUR(PowderBlue), TES_PTR_ID(&voxel_maximum_likelyhood),
                  glm::value_ptr(voxel_maximum_likelyhood), 0.1f);
+
+#ifdef TES_ENABLE
+    glm::dvec3 pos = voxel.centreGlobal();
+    char text[64];
+    const float z_step = float(map.resolution() * 0.05);
+    pos.z += z_step;
+    sprintf(text, "Px_u %.3f", p_x_ml_given_voxel);
+    TES_TEXT2D_WORLD(g_3es, TES_COLOUR(White), text, glm::value_ptr(pos));
+    pos.z -= z_step;
+    sprintf(text, "Px_z %.3f", p_x_ml_given_sample);
+    TES_TEXT2D_WORLD(g_3es, TES_COLOUR(White), text, glm::value_ptr(pos));
+    pos.z -= z_step;
+    sprintf(text, "P %.3f", probability_update);
+    TES_TEXT2D_WORLD(g_3es, TES_COLOUR(White), text, glm::value_ptr(pos));
+#endif // TES_ENABLE
 
     TES_SERVER_UPDATE(g_3es, 0.0f);
     TES_BOX_END(g_3es, TES_PTR_ID(ndt_voxel));

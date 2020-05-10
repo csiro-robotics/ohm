@@ -249,8 +249,8 @@ namespace ndttests
     const double voxel_resolution = 2.0;
     std::uniform_real_distribution<double> uniform(0.01, 1.99);
     const size_t sample_count = 10000;
-    std::vector<glm::dvec3> samples;
-    samples.reserve(sample_count);
+    std::vector<glm::dvec3> vertices;
+    vertices.reserve(sample_count);
 
 
     // Create samples which populate a single voxel and define a plane.
@@ -262,12 +262,14 @@ namespace ndttests
       sample.y = uniform(rng);
       sample.z = 1.0;
       sample.z += 0.025 * uniform(rng);
-      samples.emplace_back(sample);
+      vertices.emplace_back(sample);
     }
 
     ohm::OccupancyMap map(voxel_resolution, ohm::MapFlag::kSubVoxelPosition);
     ohm::NdtMap ndt(&map, true);
     ohm::MapCache cache;
+
+    map.setMissProbability(0.45f);
 
     // Simulate a sensor at the origin. Not used.
     const glm::dvec3 sensor(1, 1, 5);
@@ -275,9 +277,9 @@ namespace ndttests
     // First process the
     ohm::Key target_key;
     TES_STMT(std::vector<glm::vec3> lines);
-    for (size_t i = 0; i < samples.size(); ++i)
+    for (size_t i = 0; i < vertices.size(); ++i)
     {
-      const glm::dvec3 &sample = samples[i];
+      const glm::dvec3 &sample = vertices[i];
 
       ohm::Key key = map.voxelKey(sample);
       target_key = key;
@@ -291,12 +293,52 @@ namespace ndttests
     TES_SERVER_UPDATE(ohm::g_3es, 0.0f);
 
     // Now trace a ray through the voxel, but not ending in the voxel.
-    glm::dvec3 target(1, 1, -5);
+    std::vector<float> expected_probably_approx;
+    vertices.clear();
+    // Ray straight down throught the voxel
+    vertices.emplace_back(sensor);
+    vertices.emplace_back(glm::dvec3(1, 1, -5));
+    expected_probably_approx.emplace_back(0.05f);
+    // Reverse the ray above
+    vertices.emplace_back(vertices[1]);
+    vertices.emplace_back(vertices[0]);
+    expected_probably_approx.emplace_back(0.05f);
+    // Ray parallel to the voxel ellipsoid - expected to miss.
+    vertices.emplace_back(glm::dvec3(-5, 1, 0.25));
+    vertices.emplace_back(glm::dvec3(5, 1, 0.25));
+    expected_probably_approx.emplace_back(0.5f);
+    // Ray parallel to the voxel ellipsoid, but near the centre.
+    vertices.emplace_back(glm::dvec3(1, 5, 1));
+    vertices.emplace_back(glm::dvec3(1, -5, 1));
+    expected_probably_approx.emplace_back(0.417f);
+    // Ray running across the voxel, down towards the ellipsoid, but not crossing. This simulates rays running near
+    // parallel a ground plane as it approaches the sample position.
+    vertices.emplace_back(glm::dvec3(-5, 1, 2));
+    vertices.emplace_back(glm::dvec3(5, 1, 1));
+    expected_probably_approx.emplace_back(0.5f);
+    // Ray running across the voxel, and throught the ellipsoid.
+    vertices.emplace_back(glm::dvec3(-5, 1, 2));
+    vertices.emplace_back(glm::dvec3(5, 1, 0.5));
+    expected_probably_approx.emplace_back(0.184f);
 
     ohm::Voxel target_voxel = map.voxel(target_key, false, &cache);
-    TES_LINE(ohm::g_3es, TES_COLOUR(Cornsilk), glm::value_ptr(sensor), glm::value_ptr(target), TES_PTR_ID(&sensor));
-    TES_SERVER_UPDATE(ohm::g_3es, 0.0f);
+    const float initial_value = target_voxel;
     ndt.setTrace(true);
-    ndt.integrateMiss(target_voxel, sensor, target);
+
+    for (size_t i = 0; i < vertices.size(); i += 2)
+    {
+      target_voxel.setValue(initial_value);
+      TES_LINE(ohm::g_3es, TES_COLOUR(Cornsilk), glm::value_ptr(vertices[i]), glm::value_ptr(vertices[i + 1]),
+               TES_PTR_ID(&sensor));
+      TES_SERVER_UPDATE(ohm::g_3es, 0.0f);
+      ndt.integrateMiss(target_voxel, vertices[i], vertices[i + 1]);
+      TES_LINES_END(ohm::g_3es, TES_PTR_ID(&sensor));
+      // Calculate the value adjustment.
+      float value_adjustment = target_voxel.value() - initial_value;
+      // Convert to probability.
+      float ray_probability = ohm::valueToProbability(value_adjustment);
+      // Validate
+      EXPECT_NEAR(ray_probability, expected_probably_approx[i / 2], 0.01f);
+    }
   }
 }  // namespace ndttests
