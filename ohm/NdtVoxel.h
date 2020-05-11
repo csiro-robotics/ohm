@@ -124,6 +124,20 @@ namespace ohm
 
     return cov;
   }
+
+
+  inline void initialise(NdtVoxel *ndt, float sensor_noise)
+  {
+    ndt->point_count = 0;
+    // Initialise the covariance matrix to a scaled identity matrix based on the sensor noise.
+    ndt->cov_sqrt_diag[0] = ndt->cov_sqrt_diag[2] = ndt->cov_sqrt_diag[5] = sensor_noise * sensor_noise;
+    ndt->cov_sqrt_diag[1] = ndt->cov_sqrt_diag[3] = ndt->cov_sqrt_diag[4] = 0;
+#if OHM_NDT_UNPACKED_MEAN
+    ndt->mean[0] = ndt->mean[1] = ndt->mean[2] = 0;
+#else   // OHM_NDT_UNPACKED_MEAN
+    ndt->padding = 0;
+#endif  // OHM_NDT_UNPACKED_MEAN
+  }
 }  // namespace ohm
 
 #endif  // NDTVOXEL_H

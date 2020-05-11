@@ -261,7 +261,7 @@ namespace ndttests
       sample.x = uniform(rng);
       sample.y = uniform(rng);
       sample.z = 1.0;
-      sample.z += 0.025 * uniform(rng);
+      // sample.z += 0.025 * uniform(rng);
       vertices.emplace_back(sample);
     }
 
@@ -270,6 +270,7 @@ namespace ndttests
     ohm::MapCache cache;
 
     map.setMissProbability(0.45f);
+    ndt.setSensorNoise(0.05f);
 
     // Simulate a sensor at the origin. Not used.
     const glm::dvec3 sensor(1, 1, 5);
@@ -310,7 +311,7 @@ namespace ndttests
     // Ray parallel to the voxel ellipsoid, but near the centre.
     vertices.emplace_back(glm::dvec3(1, 5, 1));
     vertices.emplace_back(glm::dvec3(1, -5, 1));
-    expected_probably_approx.emplace_back(0.417f);
+    expected_probably_approx.emplace_back(0.227f);
     // Ray running across the voxel, down towards the ellipsoid, but not crossing. This simulates rays running near
     // parallel a ground plane as it approaches the sample position.
     vertices.emplace_back(glm::dvec3(-5, 1, 2));
@@ -319,7 +320,7 @@ namespace ndttests
     // Ray running across the voxel, and throught the ellipsoid.
     vertices.emplace_back(glm::dvec3(-5, 1, 2));
     vertices.emplace_back(glm::dvec3(5, 1, 0.5));
-    expected_probably_approx.emplace_back(0.184f);
+    expected_probably_approx.emplace_back(0.272);
 
     ohm::Voxel target_voxel = map.voxel(target_key, false, &cache);
     const float initial_value = target_voxel;

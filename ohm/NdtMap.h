@@ -58,6 +58,8 @@ namespace ohm
     bool borrowedMap() const;
 
     /// Set the range sensor noise estimate. For example, the range noise for a lidar sensor.
+    ///
+    /// @param noise_range The sensor noise range. Must be greater than zero.
     void setSensorNoise(double noise_range);
     /// Read the range sensor noise estimate.
     double sensorNoise() const;

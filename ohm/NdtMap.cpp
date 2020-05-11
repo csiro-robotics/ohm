@@ -147,12 +147,21 @@ int NdtMap::covarianceLayerIndex() const
 void NdtMap::integrateHit(Voxel &voxel, const glm::dvec3 & /*sensor*/, const glm::dvec3 &sample)
 {
   OccupancyMap &map = *imp_->map;
+  const bool was_uncertain = voxel.isUncertain();
+  const float initial_value = voxel.value();
   // NDT probably value update is the same as for the basic occupancy map.
-  voxel.setValue(!voxel.isUncertain() ? voxel.value() + map.hitValue() : map.hitValue());
+  voxel.setValue(!was_uncertain ? initial_value + map.hitValue() : map.hitValue());
 
   assert(map.layout().hasSubVoxelPattern());
   OccupancyVoxel *voxel_occupancy = voxel.layerContent<OccupancyVoxel *>(map.layout().occupancyLayer());
   NdtVoxel *ndt_voxel = voxel.layerContent<NdtVoxel *>(imp_->covariance_layer_index);
+
+  // Initialise the ndt_voxel data if this transitions the voxel to an occupied state.
+  if (was_uncertain || initial_value <= map.occupancyThresholdValue())
+  {
+    // Transitioned to occupied. Initialise.
+    initialise(ndt_voxel, imp_->sensor_noise);
+  }
 
   const glm::dvec3 voxel_centre = voxel.centreGlobal();
   glm::dvec3 voxel_mean;
@@ -174,7 +183,6 @@ void NdtMap::integrateHit(Voxel &voxel, const glm::dvec3 & /*sensor*/, const glm
   // Reference: Maybeck 1978 Stochastic Models, Estimation and Control, vol 1, p381
   // https://www.sciencedirect.com/bookseries/mathematics-in-science-and-engineering/vol/141/part/P1
 
-  // FIXME: (KS) Need to apply the information in the following comment.
   const glm::dvec3 sample_to_mean = sample - voxel_mean;
   double A[9];
   unpackedA(*ndt_voxel, A, sample_to_mean);
@@ -352,9 +360,9 @@ void NdtMap::integrateMiss(Voxel &voxel, const glm::dvec3 &sensor, const glm::dv
   // Verified: json line 267
   const double probability_update = 0.5 - scaling_factor * p_x_ml_given_voxel * (1.0 - p_x_ml_given_sample);
 
+#ifdef TES_ENABLE
   TES_IF(imp_->trace)
   {
-#ifdef TES_ENABLE
     bool drew_surfel = false;
     glm::dvec3 evals;
     glm::dmat3 evecs;
@@ -366,7 +374,6 @@ void NdtMap::integrateMiss(Voxel &voxel, const glm::dvec3 &sensor, const glm::dv
                  glm::value_ptr(2.0 * evals), tes::Quaterniond(rot.x, rot.y, rot.z, rot.w));
       drew_surfel = true;
     }
-#endif  // TES_ENABLE
 
     // Trace the voxel mean, maximum likelyhood point and the ellipsoid.
     // Mean
@@ -375,7 +382,6 @@ void NdtMap::integrateMiss(Voxel &voxel, const glm::dvec3 &sensor, const glm::dv
     TES_SPHERE_W(g_3es, TES_COLOUR(PowderBlue), TES_PTR_ID(&voxel_maximum_likelyhood),
                  glm::value_ptr(voxel_maximum_likelyhood), 0.1f);
 
-#ifdef TES_ENABLE
     glm::dvec3 pos = voxel.centreGlobal();
     char text[64];
     const float z_step = float(map.resolution() * 0.05);
@@ -388,7 +394,6 @@ void NdtMap::integrateMiss(Voxel &voxel, const glm::dvec3 &sensor, const glm::dv
     pos.z -= z_step;
     sprintf(text, "P %.3f", probability_update);
     TES_TEXT2D_WORLD(g_3es, TES_COLOUR(White), text, glm::value_ptr(pos));
-#endif // TES_ENABLE
 
     TES_SERVER_UPDATE(g_3es, 0.0f);
     TES_BOX_END(g_3es, TES_PTR_ID(ndt_voxel));
@@ -396,6 +401,7 @@ void NdtMap::integrateMiss(Voxel &voxel, const glm::dvec3 &sensor, const glm::dv
     TES_SPHERE_END(g_3es, TES_PTR_ID(&voxel_maximum_likelyhood));
     TES_IF(drew_surfel) { TES_SPHERE_END(g_3es, TES_PTR_ID(ndt_voxel)); }
   }
+#endif // TES_ENABLE
 
   if (std::isnan(probability_update))
   {
