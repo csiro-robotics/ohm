@@ -51,6 +51,19 @@ set(GPU_SOURCES
   gpu/TransformSamples.cl
 )
 
+get_target_property(OHM_SOURCE_DIR ohm SOURCE_DIR)
+set(GPU_HEADERS
+  gpu/AdjustNdt.cl
+  gpu/AdjustOccupancy.cl
+  gpu/SubVoxel.cl
+  GpuKey.h
+  # Need some headers from the OHM core project.
+  ${OHM_SOURCE_DIR}/MapCoord.h
+  ${OHM_SOURCE_DIR}/NdtVoxel.h
+  ${OHM_SOURCE_DIR}/RayFlag.h
+  ${OHM_SOURCE_DIR}/SubVoxel.h
+)
+
 set(PUBLIC_HEADERS
   ClearanceProcess.h
   GpuCache.h
@@ -66,15 +79,6 @@ set(PUBLIC_HEADERS
   "${CMAKE_CURRENT_BINARY_DIR}/ohmgpu/OhmGpuConfig.h"
   "${CMAKE_CURRENT_BINARY_DIR}/ohmgpu/OhmGpuExport.h"
   )
-
-get_target_property(OHM_SOURCE_DIR ohm SOURCE_DIR)
-
-set(GPU_HEADERS
-  GpuKey.h
-  ${OHM_SOURCE_DIR}/MapCoord.h
-  ${OHM_SOURCE_DIR}/RayFlag.h
-  ${OHM_SOURCE_DIR}/SubVoxel.h
-)
 
 function(_ohmgpu_setup_target TARGET_NAME GPUTIL_LIBRARY OHM_GPU)
   target_compile_definitions(${TARGET_NAME} PUBLIC "-DOHM_GPU=${OHM_GPU}")
@@ -124,13 +128,6 @@ if(OHM_BUILD_OPENCL)
   get_target_property(GPUTIL_INCLUDE_DIRS gputilocl SOURCE_DIR)
   get_target_property(GPUTIL_SOURCE_DIR gputilocl SOURCE_DIR)
   list(APPEND GPU_HEADERS ${GPUTIL_SOURCE_DIR}/gpu_ext.h)
-
-  set(GPU_SOURCES
-    gpu/LineKeys.cl
-    gpu/RegionUpdate.cl
-    gpu/RoiRangeFill.cl
-    gpu/TransformSamples.cl
-  )
 
   if(OHM_EMBED_GPU_CODE)
     # Embedding GPU code. Generate source file resources.

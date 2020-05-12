@@ -68,7 +68,8 @@ namespace ndttests
     const double one_on_num_pt_plus_one = 1.0 / (num_pt + 1.0);
     glm::dvec3 mean(ndt->mean[0], ndt->mean[1], ndt->mean[2]);
     const glm::dvec3 diff = sample - mean;
-    const double sc_1 = std::sqrt(num_pt * one_on_num_pt_plus_one), sc_2 = one_on_num_pt_plus_one * std::sqrt(num_pt);
+    const double sc_1 = num_pt ? std::sqrt(num_pt * one_on_num_pt_plus_one) : 1;
+    const double sc_2 = one_on_num_pt_plus_one * std::sqrt(num_pt);
     std::vector<double> A(9);
     for (size_t i = 0; i < 6; ++i)
     {
@@ -111,16 +112,24 @@ namespace ndttests
 
   void validate(const glm::dvec3 &mean, const ohm::NdtVoxel &ndt, const NdtTestVoxel &ref)
   {
+#if OHM_NDT_UNPACKED_MEAN
+    const double epsilon_cov = 1e-9;
+    const double epsilon_mean = 1e-2;
+#else   // OHM_NDT_UNPACKED_MEAN
+    // Quantisation in the mean storage create more signficant absolute errors in the covariance and mean.
+    const double epsilon_cov = 1e-2;
+    const double epsilon_mean = 1e-1;
+#endif  // OHM_NDT_UNPACKED_MEAN
     for (int i = 0; i < 6; ++i)
     {
-      EXPECT_NEAR(ndt.cov_sqrt_diag[i], ref.cov_sqrt_diag[i], 1e-9);
+      EXPECT_NEAR(ndt.cov_sqrt_diag[i], ref.cov_sqrt_diag[i], epsilon_cov);
     }
 
     EXPECT_EQ(ndt.point_count, ref.point_count);
 
     const glm::dvec3 ref_mean(ref.mean[0], ref.mean[1], ref.mean[2]);
     const double mean_diff = glm::length(mean - ref_mean);
-    EXPECT_NEAR(mean_diff, 0.0, 1e-2);
+    EXPECT_NEAR(mean_diff, 0.0, epsilon_mean);
   }
 
   void testNdtHits(const std::vector<glm::dvec3> &samples, double resolution)
@@ -150,7 +159,7 @@ namespace ndttests
       {
         // New voxel. Initialise.
         NdtTestVoxel ref_voxel;
-        memset(&ref_voxel, 0, sizeof(ref_voxel));
+        initialiseNdt(&ref_voxel, ndt.sensorNoise());
         ref = reference_voxels.insert(std::make_pair(key, ref_voxel)).first;
       }
 
@@ -239,9 +248,9 @@ namespace ndttests
   }
 
 
-  TEST(Ndt, Miss)
+  TEST(Ndt, MissPlanar)
   {
-    ohm::Trace trace("ndt-miss.3es");
+    ohm::Trace trace("ndt-miss-planar.3es");
 
     uint32_t seed = 1153297050u;
     std::default_random_engine rng(seed);
@@ -294,33 +303,37 @@ namespace ndttests
     TES_SERVER_UPDATE(ohm::g_3es, 0.0f);
 
     // Now trace a ray through the voxel, but not ending in the voxel.
-    std::vector<float> expected_probably_approx;
+    std::vector<float> expected_prob_approx;
     vertices.clear();
-    // Ray straight down throught the voxel
+    // Ray straight down through the voxel
     vertices.emplace_back(sensor);
     vertices.emplace_back(glm::dvec3(1, 1, -5));
-    expected_probably_approx.emplace_back(0.05f);
+    expected_prob_approx.emplace_back(0.05f);
     // Reverse the ray above
     vertices.emplace_back(vertices[1]);
     vertices.emplace_back(vertices[0]);
-    expected_probably_approx.emplace_back(0.05f);
+    expected_prob_approx.emplace_back(0.05f);
     // Ray parallel to the voxel ellipsoid - expected to miss.
     vertices.emplace_back(glm::dvec3(-5, 1, 0.25));
     vertices.emplace_back(glm::dvec3(5, 1, 0.25));
-    expected_probably_approx.emplace_back(0.5f);
+    expected_prob_approx.emplace_back(0.5f);
     // Ray parallel to the voxel ellipsoid, but near the centre.
-    vertices.emplace_back(glm::dvec3(1, 5, 1));
-    vertices.emplace_back(glm::dvec3(1, -5, 1));
-    expected_probably_approx.emplace_back(0.227f);
+    // Note: we build a perfect plane above in the centre of the voxel. However, the quantisation of the mean
+    // can offset the plane. Running exactly on the plane on which we generated the points will not result in the same
+    // effect in testing. We must offset the ray a little to ensure we are a bit off the plane either when using
+    // voxel mean quantisation or not (OHM_NDT_UNPACKED_MEAN)
+    vertices.emplace_back(glm::dvec3(1, 5, 1.01));
+    vertices.emplace_back(glm::dvec3(1, -5, 1.01));
+    expected_prob_approx.emplace_back(0.5f);
     // Ray running across the voxel, down towards the ellipsoid, but not crossing. This simulates rays running near
     // parallel a ground plane as it approaches the sample position.
     vertices.emplace_back(glm::dvec3(-5, 1, 2));
     vertices.emplace_back(glm::dvec3(5, 1, 1));
-    expected_probably_approx.emplace_back(0.5f);
-    // Ray running across the voxel, and throught the ellipsoid.
+    expected_prob_approx.emplace_back(0.5f);
+    // Ray running across the voxel, and through the ellipsoid.
     vertices.emplace_back(glm::dvec3(-5, 1, 2));
     vertices.emplace_back(glm::dvec3(5, 1, 0.5));
-    expected_probably_approx.emplace_back(0.272);
+    expected_prob_approx.emplace_back(0.269);
 
     ohm::Voxel target_voxel = map.voxel(target_key, false, &cache);
     const float initial_value = target_voxel;
@@ -339,7 +352,235 @@ namespace ndttests
       // Convert to probability.
       float ray_probability = ohm::valueToProbability(value_adjustment);
       // Validate
-      EXPECT_NEAR(ray_probability, expected_probably_approx[i / 2], 0.01f);
+      EXPECT_NEAR(ray_probability, expected_prob_approx[i / 2], 0.01f);
+    }
+  }
+
+
+  TEST(Ndt, MissCylindrical)
+  {
+    ohm::Trace trace("ndt-miss-cylindrical.3es");
+
+    // Generate points within a 2m cube.
+    const double voxel_resolution = 2.0;
+    ohm::OccupancyMap map(voxel_resolution, ohm::MapFlag::kSubVoxelPosition);
+    ohm::NdtMap ndt(&map, true);
+    ohm::MapCache cache;
+
+    // Offset the map so that we have a voxel centred on the origin.
+    map.setOrigin(glm::dvec3(-0.5 * voxel_resolution));
+    map.setMissProbability(0.45f);
+    ndt.setSensorNoise(0.05f);
+
+    const double cylinder_radius = 0.3;
+    uint32_t seed = 1153297050u;
+    std::default_random_engine rng(seed);
+    std::uniform_real_distribution<double> uniform(-0.99, 0.99);
+    std::uniform_real_distribution<double> uniform_radius(cylinder_radius - ndt.sensorNoise(),
+                                                          cylinder_radius + ndt.sensorNoise());
+    const size_t sample_count = 10000;
+    std::vector<glm::dvec3> vertices;
+    vertices.reserve(sample_count);
+
+    // Create samples which populate a single voxel and define a plane.
+
+    for (size_t i = 0; i < sample_count; ++i)
+    {
+      glm::dvec3 sample;
+      // Create a random sample in the voxel
+      sample.x = uniform(rng);
+      sample.y = uniform(rng);
+      sample.z = uniform(rng);
+      // Convert into a cylinder.
+      // Normalise in X/Y, create a random radius (to the limit) and scale by this radius.
+      double length_xy = std::sqrt(sample.x * sample.x + sample.y * sample.y);
+      if (length_xy > 1e-6)
+      {
+        const double radius = uniform_radius(rng);
+        sample.x = radius * sample.x / length_xy;
+        sample.y = radius * sample.y / length_xy;
+      }
+      vertices.emplace_back(sample);
+    }
+
+    // Simulate a sensor at the origin. Not used.
+    const glm::dvec3 sensor(0, 0, 5);
+
+    // First process the
+    ohm::Key target_key;
+    TES_STMT(std::vector<glm::vec3> lines);
+    for (size_t i = 0; i < vertices.size(); ++i)
+    {
+      const glm::dvec3 &sample = vertices[i];
+
+      ohm::Key key = map.voxelKey(sample);
+      target_key = key;
+      ohm::Voxel voxel = map.voxel(key, true, &cache);
+      ndt.integrateHit(voxel, sensor, sample);
+      TES_LINE(ohm::g_3es, TES_COLOUR(Yellow), glm::value_ptr(sensor), glm::value_ptr(sample));
+      TES_STMT(lines.emplace_back(glm::vec3(sensor)));
+      TES_STMT(lines.emplace_back(glm::vec3(sample)));
+    }
+    TES_LINES(ohm::g_3es, TES_COLOUR(Yellow), glm::value_ptr(*lines.data()), lines.size(), sizeof(*lines.data()));
+    TES_SERVER_UPDATE(ohm::g_3es, 0.0f);
+
+    // Now trace a ray through the voxel, but not ending in the voxel.
+    std::vector<float> expected_prob_approx;
+    vertices.clear();
+    // // Ray straight down through the voxel
+    vertices.emplace_back(sensor);
+    vertices.emplace_back(glm::dvec3(0, 0, -5));
+    expected_prob_approx.emplace_back(0.05f);
+    // Reverse the ray above
+    vertices.emplace_back(vertices[1]);
+    vertices.emplace_back(vertices[0]);
+    expected_prob_approx.emplace_back(0.05f);
+    // Ray running parallel to the cylinder near the edge. Should be a near hit.
+    vertices.emplace_back(glm::dvec3(cylinder_radius, cylinder_radius, 5));
+    vertices.emplace_back(glm::dvec3(cylinder_radius, cylinder_radius, -5));
+    expected_prob_approx.emplace_back(0.438f);
+    // Ray running parallel to the cylinder, but should miss.
+    vertices.emplace_back(glm::dvec3(1.5 * cylinder_radius, 1.5 * cylinder_radius, -5));
+    vertices.emplace_back(glm::dvec3(2.0 * cylinder_radius, 2.0 * cylinder_radius, 5));
+    expected_prob_approx.emplace_back(0.499f);
+    // Ray across the middle of the cylinder.
+    vertices.emplace_back(glm::dvec3(2, -cylinder_radius, 0));
+    vertices.emplace_back(glm::dvec3(-2, -cylinder_radius, 0));
+    expected_prob_approx.emplace_back(0.332f);
+    // Ray across the end (top) of the cylinder.
+    vertices.emplace_back(glm::dvec3(2, -cylinder_radius, 0.85));
+    vertices.emplace_back(glm::dvec3(-2, -cylinder_radius, 0.85));
+    expected_prob_approx.emplace_back(0.444f);
+    // Ray across the voxel, missing the cylinder (top) of the cylinder.
+    vertices.emplace_back(glm::dvec3(2, 2.0 * cylinder_radius, 0.85));
+    vertices.emplace_back(glm::dvec3(-2, 2.0 * cylinder_radius, 0.85));
+    expected_prob_approx.emplace_back(0.497f);
+
+    ohm::Voxel target_voxel = map.voxel(target_key, false, &cache);
+    const float initial_value = target_voxel;
+    ndt.setTrace(true);
+
+    for (size_t i = 0; i < vertices.size(); i += 2)
+    {
+      target_voxel.setValue(initial_value);
+      TES_LINE(ohm::g_3es, TES_COLOUR(Cornsilk), glm::value_ptr(vertices[i]), glm::value_ptr(vertices[i + 1]),
+               TES_PTR_ID(&sensor));
+      TES_SERVER_UPDATE(ohm::g_3es, 0.0f);
+      ndt.integrateMiss(target_voxel, vertices[i], vertices[i + 1]);
+      TES_LINES_END(ohm::g_3es, TES_PTR_ID(&sensor));
+      // Calculate the value adjustment.
+      float value_adjustment = target_voxel.value() - initial_value;
+      // Convert to probability.
+      float ray_probability = ohm::valueToProbability(value_adjustment);
+      // Validate
+      EXPECT_NEAR(ray_probability, expected_prob_approx[i / 2], 0.01f);
+    }
+  }
+
+
+  TEST(Ndt, MissSpherical)
+  {
+    ohm::Trace trace("ndt-miss-spherical.3es");
+
+    // Generate points within a 2m cube.
+    const double voxel_resolution = 2.0;
+    ohm::OccupancyMap map(voxel_resolution, ohm::MapFlag::kSubVoxelPosition);
+    ohm::NdtMap ndt(&map, true);
+    ohm::MapCache cache;
+
+    // Offset the map so that we have a voxel centred on the origin.
+    map.setOrigin(glm::dvec3(-0.5 * voxel_resolution));
+    map.setMissProbability(0.45f);
+    ndt.setSensorNoise(0.05f);
+
+    const double radius = 0.3;
+    uint32_t seed = 1153297050u;
+    std::default_random_engine rng(seed);
+    std::uniform_real_distribution<double> uniform(-0.99, 0.99);
+    std::uniform_real_distribution<double> uniform_radius(radius - ndt.sensorNoise(), radius + ndt.sensorNoise());
+    const size_t sample_count = 10000;
+    std::vector<glm::dvec3> vertices;
+    vertices.reserve(sample_count);
+
+    // Create samples which populate a single voxel and define a plane.
+
+    for (size_t i = 0; i < sample_count; ++i)
+    {
+      glm::dvec3 sample;
+      double sample_len2 = 0;
+      // Keep trying while we have a near zero vector.
+      while (sample_len2 < 1e-6)
+      {
+        // Create a random sample in the voxel
+        sample.x = uniform(rng);
+        sample.y = uniform(rng);
+        sample.z = uniform(rng);
+        sample_len2 = glm::length2(sample);
+      }
+      sample = glm::normalize(sample);
+      sample *= uniform_radius(rng);
+      vertices.emplace_back(sample);
+    }
+
+    // Simulate a sensor at the origin. Not used.
+    const glm::dvec3 sensor(0, 0, 5);
+
+    // First process the
+    ohm::Key target_key;
+    TES_STMT(std::vector<glm::vec3> lines);
+    for (size_t i = 0; i < vertices.size(); ++i)
+    {
+      const glm::dvec3 &sample = vertices[i];
+
+      ohm::Key key = map.voxelKey(sample);
+      target_key = key;
+      ohm::Voxel voxel = map.voxel(key, true, &cache);
+      ndt.integrateHit(voxel, sensor, sample);
+      TES_LINE(ohm::g_3es, TES_COLOUR(Yellow), glm::value_ptr(sensor), glm::value_ptr(sample));
+      TES_STMT(lines.emplace_back(glm::vec3(sensor)));
+      TES_STMT(lines.emplace_back(glm::vec3(sample)));
+    }
+    TES_LINES(ohm::g_3es, TES_COLOUR(Yellow), glm::value_ptr(*lines.data()), lines.size(), sizeof(*lines.data()));
+    TES_SERVER_UPDATE(ohm::g_3es, 0.0f);
+
+    // Now trace a ray through the voxel, but not ending in the voxel.
+    std::vector<float> expected_prob_approx;
+    vertices.clear();
+    // // Ray straight down through the voxel
+    vertices.emplace_back(sensor);
+    vertices.emplace_back(glm::dvec3(0, 0, -5));
+    expected_prob_approx.emplace_back(0.05f);
+    // Reverse the ray above
+    vertices.emplace_back(vertices[1]);
+    vertices.emplace_back(vertices[0]);
+    expected_prob_approx.emplace_back(0.05f);
+    // Edge of the sphere..
+    vertices.emplace_back(glm::dvec3(radius, radius, 5));
+    vertices.emplace_back(glm::dvec3(radius, radius, -5));
+    expected_prob_approx.emplace_back(0.477f);
+    // Near the edge of the sphere, but should miss.
+    vertices.emplace_back(glm::dvec3(1.5 * radius, 1.5 * radius, -5));
+    vertices.emplace_back(glm::dvec3(2.0 * radius, 2.0 * radius, 5));
+    expected_prob_approx.emplace_back(0.5f);
+
+    ohm::Voxel target_voxel = map.voxel(target_key, false, &cache);
+    const float initial_value = target_voxel;
+    ndt.setTrace(true);
+
+    for (size_t i = 0; i < vertices.size(); i += 2)
+    {
+      target_voxel.setValue(initial_value);
+      TES_LINE(ohm::g_3es, TES_COLOUR(Cornsilk), glm::value_ptr(vertices[i]), glm::value_ptr(vertices[i + 1]),
+               TES_PTR_ID(&sensor));
+      TES_SERVER_UPDATE(ohm::g_3es, 0.0f);
+      ndt.integrateMiss(target_voxel, vertices[i], vertices[i + 1]);
+      TES_LINES_END(ohm::g_3es, TES_PTR_ID(&sensor));
+      // Calculate the value adjustment.
+      float value_adjustment = target_voxel.value() - initial_value;
+      // Convert to probability.
+      float ray_probability = ohm::valueToProbability(value_adjustment);
+      // Validate
+      EXPECT_NEAR(ray_probability, expected_prob_approx[i / 2], 0.01f);
     }
   }
 }  // namespace ndttests

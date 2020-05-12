@@ -3,6 +3,8 @@
 // ABN 41 687 119 230
 //
 // Author: Kazys Stepanas
+#include "OhmConfig.h"
+
 #include "NdtVoxel.h"
 
 #include <glm/gtc/matrix_access.hpp>
