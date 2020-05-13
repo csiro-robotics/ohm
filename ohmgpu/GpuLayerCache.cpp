@@ -117,6 +117,12 @@ unsigned GpuLayerCache::beginBatch()
 }
 
 
+void GpuLayerCache::beginBatch(unsigned batch_marker)
+{
+  imp_->batch_marker = batch_marker;
+}
+
+
 unsigned GpuLayerCache::layerIndex() const
 {
   return imp_->layer_index;

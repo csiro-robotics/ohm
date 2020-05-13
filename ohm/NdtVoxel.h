@@ -27,12 +27,15 @@
 typedef float3 ndtvec3;
 typedef double ndtreal;
 typedef uint uint32_t;
-#else   // GPUTIL_DEVICE
+#else  // GPUTIL_DEVICE
 namespace ohm
 {
   // Define CPU type aliases
   using ndtvec3 = glm::dvec3;
   using ndtreal = double;
+#ifndef __device__
+#define __device__
+#endif  //  __device__
 #endif  // GPUTIL_DEVICE
 struct NdtVoxel
 {
@@ -50,7 +53,7 @@ struct NdtVoxel
 };
 
 
-inline void initialiseNdt(NdtVoxel *ndt, float sensor_noise)
+inline __device__ void initialiseNdt(NdtVoxel *ndt, float sensor_noise)
 {
   ndt->point_count = 0;
   // Initialise the covariance matrix to a scaled identity matrix based on the sensor noise.
@@ -70,7 +73,7 @@ inline void initialiseNdt(NdtVoxel *ndt, float sensor_noise)
 /// z 2 4
 /// z z 5
 /// 6 7 8
-inline double packedDot(const ndtreal A[9], const int j, const int k)
+inline __device__ double packedDot(const ndtreal A[9], const int j, const int k)
 {
   const int col_first_el[] = { 0, 1, 3 };
   const int indj = col_first_el[j];
@@ -100,7 +103,7 @@ inline double packedDot(const ndtreal A[9], const int j, const int k)
 ///
 /// @param A The matrix to unpack to.
 /// @param sample_to_mean The difference between the new sample point and the voxel mean.
-inline void unpackedA(const NdtVoxel &ndt, ndtreal A[9], const ndtvec3 sample_to_mean)
+inline __device__ void unpackedA(const NdtVoxel &ndt, ndtreal A[9], const ndtvec3 sample_to_mean)
 {
   const ndtreal point_count = ndtreal(ndt.point_count);
   const ndtreal one_on_num_pt_plus_one = ndtreal(1) / (point_count + ndtreal(1));
@@ -123,7 +126,7 @@ inline void unpackedA(const NdtVoxel &ndt, ndtreal A[9], const ndtvec3 sample_to
 // 0 z z
 // 1 2 z
 // 3 4 5
-inline ndtvec3 solveTriangular(const NdtVoxel &ndt, const ndtvec3 &y)
+inline __device__ ndtvec3 solveTriangular(const NdtVoxel &ndt, const ndtvec3 &y)
 {
   // Note: if we generate the voxel with point on a perfect plane, say (0, 0, 1, 0), then do this operation,
   // we get a divide by zero. We avoid this by seeding the covariance matrix with an identity matrix scaled
@@ -146,9 +149,9 @@ inline ndtvec3 solveTriangular(const NdtVoxel &ndt, const ndtvec3 &y)
   return x;
 }
 
-inline ndtvec3 calculateHit(NdtVoxel *ndt_voxel, float *voxel_value, ndtvec3 sample, ndtvec3 voxel_mean,
-                            float hit_value, float occupancy_threshold_value, float uninitialised_value,
-                            float sensor_noise)
+inline __device__ ndtvec3 calculateHit(NdtVoxel *ndt_voxel, float *voxel_value, ndtvec3 sample, ndtvec3 voxel_mean,
+                                       float hit_value, float occupancy_threshold_value, float uninitialised_value,
+                                       float sensor_noise)
 {
   const float initial_value = *voxel_value;
   const bool was_uncertain = initial_value == uninitialised_value;
@@ -224,9 +227,9 @@ inline ndtvec3 calculateHit(NdtVoxel *ndt_voxel, float *voxel_value, ndtvec3 sam
   return voxel_mean;
 }
 
-inline ndtvec3 calculateMiss(NdtVoxel *ndt_voxel, float *voxel_value, ndtvec3 sensor, ndtvec3 sample,
-                             ndtvec3 voxel_mean, float occupancy_threshold_value, float uninitialised_value,
-                             float miss_value, float sensor_noise, unsigned sample_threshold)
+inline __device__ ndtvec3 calculateMiss(NdtVoxel *ndt_voxel, float *voxel_value, ndtvec3 sensor, ndtvec3 sample,
+                                        ndtvec3 voxel_mean, float occupancy_threshold_value, float uninitialised_value,
+                                        float miss_value, float sensor_noise, unsigned sample_threshold)
 {
   if (*voxel_value == uninitialised_value)
   {

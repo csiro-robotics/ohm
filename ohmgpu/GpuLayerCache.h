@@ -102,6 +102,9 @@ namespace ohm
     /// @return The next rolling batch marker.
     unsigned beginBatch();
 
+    /// Start a new batch usin ghte given marker.
+    void beginBatch(unsigned batch_marker);
+
     /// Identifies the voxel layer the GPU cache operates on. See @c MapLayout and @c MapChunk::voxel_maps.
     /// @return The voxel layer index this cache operates on.
     unsigned layerIndex() const;

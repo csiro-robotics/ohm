@@ -118,6 +118,10 @@ struct LineWalkData
   uint region_update_flags;
   // Local coordinate within the end voxel.
   float3 sub_voxel_coord;
+#ifdef NDT
+  // An estimate on the sensor range noise error.
+  float sensor_noise;
+#endif // NDT
 #ifdef STORE_DEBUG_INFO
   const struct GpuKey *start_key;
   const struct GpuKey *end_key;
@@ -128,6 +132,11 @@ struct LineWalkData
 #ifdef SUB_VOXEL
 #include "SubVoxel.cl"
 #endif  // SUB_VOXEL
+#ifdef NDT
+#include "AdjustNdt.cl"
+#else  // NDT
+#include "AdjustOccupancy.cl"
+#endif // NDT
 
 // Implement the voxel traversal function. We update the value of the voxel using atomic instructions.
 __device__ bool VISIT_LINE_VOXEL(const struct GpuKey *voxelKey, bool isEndVoxel, float voxel_resolution, void *userData)
@@ -138,8 +147,7 @@ __device__ bool VISIT_LINE_VOXEL(const struct GpuKey *voxelKey, bool isEndVoxel,
   __global VOXEL_TYPE *voxels = (__global VOXEL_TYPE *)line_data->voxels;
 
   // Adjust value by ray_adjustment unless this is the sample voxel.
-  const float adjustment = (!isEndVoxel || line_data->region_update_flags & kRfEndPointAsFree) ?
-            line_data->ray_adjustment : line_data->sample_adjustment;
+  const float adjustment = calculateOccupancyAdjustment(isEndVoxel, line_data, voxel_resolution);
 
   // Resolve memory offset for the region of interest.
   if (!regionsResolveRegion(voxelKey, &line_data->current_region, &line_data->region_voxel_offset, line_data->region_keys,
@@ -309,13 +317,23 @@ __device__ bool VISIT_LINE_VOXEL(const struct GpuKey *voxelKey, bool isEndVoxel,
 ///     to the existing value. The position is updated as
 ///     <tt>old_pos * (1 - sub_voxel_weighting) + new_pos * sub_voxel_weighting</tt>
 /// @param region_update_flags Update control values as per @c RayFlag.
-__kernel void REGION_UPDATE_KERNEL(__global VOXEL_TYPE *voxels_mem, __global int3 *occupancy_region_keys_global,
-                                   __global ulonglong *occupancy_region_mem_offsets_global, uint region_count,
+__kernel void REGION_UPDATE_KERNEL(__global VOXEL_TYPE *voxels_mem,
+                                   __global ulonglong *occupancy_region_mem_offsets_global,
+// #ifdef SUB_VOXEL
+//                                    __global uint *sub_voxels,
+//                                    __global ulonglong *sub_voxel_region_mem_offsets_global,
+// #endif // SUB_VOXEL
+#ifdef NDT
+                                   __global NdtVoxel *ndt_voxels,
+                                   __global ulonglong *ndt_region_mem_offsets_global,
+#endif // NDT
+                                   __global int3 *occupancy_region_keys_global, uint region_count,
                                    __global struct GpuKey *line_keys, __global float3 *local_lines, uint line_count,
                                    int3 region_dimensions, float voxel_resolution, float ray_adjustment,
                                    float sample_adjustment, float occupied_threshold,
                                    float voxel_value_min, float voxel_value_max,
-                                   float sub_voxel_weighting, uint region_update_flags)
+                                   float sub_voxel_weighting, uint region_update_flags
+                                   )
 {
   // Only process valid lines.
   if (get_global_id(0) >= line_count)
@@ -325,6 +343,12 @@ __kernel void REGION_UPDATE_KERNEL(__global VOXEL_TYPE *voxels_mem, __global int
 
   struct LineWalkData line_data;
   line_data.voxels = voxels_mem;
+// #ifdef SUB_VOXEL
+//   line_data.sub_voxels = sub_voxels;
+// #endif // SUB_VOXEL
+#ifdef NDT
+  line_data.ndt_voxels = ndt_voxels;
+#endif // NDT
   line_data.region_keys = occupancy_region_keys_global;
   line_data.region_mem_offsets = occupancy_region_mem_offsets_global;
   line_data.region_dimensions = region_dimensions;

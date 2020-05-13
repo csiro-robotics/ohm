@@ -29,6 +29,8 @@ namespace ohm
   class OccupancyMap;
   class RayFilter;
 
+  struct VoxelUploadInfo;
+
   namespace gpumap
   {
     /// Flags for GPU initialisation.
@@ -116,6 +118,9 @@ namespace ohm
   /// @todo This class has been deprecated as the GPU cache is now included in the OccupancyMap.
   class ohmgpu_API GpuMap : public RayMapperBase
   {
+  protected:
+    GpuMap(GpuMapDetail *detail, unsigned expected_element_count = 2048, size_t gpu_mem_size = 0u);
+
   public:
     /// Construct @c GpuMap support capabilities around @p map. The @p map pointer may be borrowed or owned.
     ///
@@ -242,7 +247,7 @@ namespace ohm
     /// @return The GPU cache this map uses.
     GpuCache *gpuCache() const;
 
-  private:
+  protected:
     /// Cache the correct GPU program to cater for @c with_sub_voxels. Releases the existing program first when
     /// @p force is true or @p with_sub_voxels does not match the cached program.
     /// @param with_sub_voxels True to cache the program which supports sub-voxel positioning (@ref subvoxel).
@@ -267,6 +272,8 @@ namespace ohm
     /// @param buffer_index Identifies the batch to wait on.
     void waitOnPreviousOperation(int buffer_index);
 
+    virtual void enqueueRegions(int buffer_index, unsigned region_update_flags);
+
     /// Enqueue a region for update.
     ///
     /// Ensure the following:
@@ -285,18 +292,13 @@ namespace ohm
     ///   different buffer when the @c GpuLayerCache is full.
     /// @param region_update_flags Flags controlling ray integration behaviour. See @c RayFlag.
     /// @param allow_retry Allow recursion when the @c GpuLayerCache?
-    void enqueueRegion(const glm::i16vec3 &region_key,
-                       gputil::PinnedBuffer &regions_buffer,  // NOLINT(google-runtime-references)
-                       gputil::PinnedBuffer &offsets_buffer,  // NOLINT(google-runtime-references)
-                       unsigned region_update_flags, bool allow_retry);
+    virtual bool enqueueRegion(const glm::i16vec3 &region_key, int buffer_index, unsigned region_update_flags);
 
     /// Finalise the current ray/region batch and start executing GPU kernel.
     /// @param[in,out] regions_buffer GPU buffer containing uploaded region keys. Will be unpinned.
     /// @param[in,out] offsets_buffer GPU buffer containing memory offsets for regions. Will be unpinned.
     /// @param region_update_flags Flags controlling ray integration behaviour. See @c RayFlag.
-    void finaliseBatch(gputil::PinnedBuffer &regions_buffer,  // NOLINT(google-runtime-references)
-                       gputil::PinnedBuffer &offsets_buffer,  // NOLINT(google-runtime-references)
-                       unsigned region_update_flags);
+    virtual void finaliseBatch(unsigned region_update_flags);
 
     GpuMapDetail *imp_;
   };

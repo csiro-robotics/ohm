@@ -36,7 +36,7 @@ namespace ohm
     OccupancyMap *map = nullptr;
     double sensor_noise = 0.05;
     int covariance_layer_index = -1;
-    unsigned sample_threshold = 10;
+    unsigned sample_threshold = 4;
     bool borrowed_map = false;
     bool trace = false;
   };

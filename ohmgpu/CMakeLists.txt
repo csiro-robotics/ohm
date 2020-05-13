@@ -34,6 +34,8 @@ set(SOURCES
   GpuLayerCache.h
   GpuMap.cpp
   GpuMap.h
+  GpuNdtMap.cpp
+  GpuNdtMap.h
   GpuTransformSamples.cpp
   GpuTransformSamples.h
   LineKeysQueryGpu.cpp
@@ -72,6 +74,7 @@ set(PUBLIC_HEADERS
   GpuKey.h
   GpuLayerCache.h
   GpuMap.h
+  GpuNdtMap.h
   GpuTransformSamples.h
   LineKeysQueryGpu.h
   LineQueryGpu.h

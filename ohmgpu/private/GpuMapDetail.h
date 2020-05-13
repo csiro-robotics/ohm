@@ -17,6 +17,7 @@
 #include <gputil/gpuBuffer.h>
 #include <gputil/gpuEvent.h>
 #include <gputil/gpuKernel.h>
+#include <gputil/gpuPinnedBuffer.h>
 
 #include <ohmutil/VectorHash.h>
 
@@ -37,6 +38,30 @@ namespace ohm
   class GpuProgramRef;
   class GpuTransformSamples;
 
+  /// Tracks information about voxel data being uploaded.
+  struct VoxelUploadInfo
+  {
+    /// A GPU buffer which tracks the voxel memory offsets for each region being uploaded. This contains uint64_t
+    /// offsets, one for each region being uploaded. It corresponds directly to the region keys in
+    /// @c GpuMapDetail::region_offset_buffers .
+    ///
+    /// @todo comment about how this contains offsets in voxels, not bytes as relating to data in the a
+    /// @c GpuLayerCache buffer.
+    gputil::Buffer offsets_buffer;
+    /// Pinned wrapper to @c offsets_buffer
+    gputil::PinnedBuffer offsets_buffer_pinned;
+    /// Last upload event to @c offsets_buffer
+    gputil::Event offset_upload_event;
+    /// The @c GpuLayerCache in the @c GpuCache which this structure references.
+    int gpu_layer_id;
+
+    inline VoxelUploadInfo() = default;
+
+    inline VoxelUploadInfo(int gpu_layer_id)
+      : gpu_layer_id(gpu_layer_id)
+    {}
+  };
+
   struct GpuMapDetail
   {
     using RegionSet = ska::bytell_hash_set<glm::i16vec3, Vector3Hash<glm::i16vec3>>;
@@ -52,24 +77,18 @@ namespace ohm
     gputil::Event ray_upload_events[kBuffersCount];
     /// Buffers of rays to process float3 pairs. Coordinates are local to the centre of the start voxel for each pair.
     gputil::Buffer ray_buffers[kBuffersCount];
-    /// Buffers for sub-voxel positioning: uint
-    gputil::Buffer sub_voxel_buffers[kBuffersCount];
 
     gputil::Event region_key_upload_events[kBuffersCount];
-    gputil::Event region_offset_upload_events[kBuffersCount];
+    // gputil::Event region_offset_upload_events[kBuffersCount];
     gputil::Buffer region_key_buffers[kBuffersCount];
-    gputil::Buffer region_offset_buffers[kBuffersCount];
-
+    // gputil::Buffer region_offset_buffers[kBuffersCount];
     gputil::Event region_update_events[kBuffersCount];
 
-    /// CPU buffer to read back results from GPU ray transformation.
-    /// Only ever used in a transient fashion.
-    std::vector<glm::vec4> transformed_rays;
+    // Item 0 is always the occupancy layer.
+    std::vector<VoxelUploadInfo> voxel_upload_info[kBuffersCount];
 
     GpuProgramRef *program_ref = nullptr;
     gputil::Kernel update_kernel;
-
-    GpuTransformSamples *transform_samples = nullptr;
 
     RayFilterFunction ray_filter;
     bool custom_ray_filter = false;
@@ -93,7 +112,7 @@ namespace ohm
       , borrowed_map(borrowed_map)
     {}
 
-    ~GpuMapDetail();
+    virtual ~GpuMapDetail();
   };
 
 

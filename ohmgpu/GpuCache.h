@@ -32,8 +32,10 @@ namespace ohm
     kGcIdOccupancy,
     /// Cache of occupancy map values when calculating voxel clearance values. Does not write back to host.
     kGcIdClearance,
-    /// Cache used for sub-voxel positioning.
+    /// Cache used for sub voxel positioning.
     kGcIdSubVoxel,
+    /// Cache used for @c NdtVoxel data.
+    kGcIdNdt,
   };
 
   /// Provides access to the @c GpuLayerCache objects used to cache host voxel data in GPU memory and manage

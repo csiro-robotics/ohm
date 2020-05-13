@@ -262,10 +262,10 @@ GpuCache *ohm::gpumap::gpuCache(OccupancyMap &map)
 }
 
 
-GpuMap::GpuMap(OccupancyMap *map, bool borrowed_map, unsigned expected_element_count, size_t gpu_mem_size)
-  : imp_(new GpuMapDetail(map, borrowed_map))
+GpuMap::GpuMap(GpuMapDetail *detail, unsigned expected_element_count, size_t gpu_mem_size)
+  : imp_(detail)
 {
-  GpuCache &gpu_cache = *gpumap::enableGpu(*map, gpu_mem_size, gpumap::kGpuAllowMappedBuffers);
+  GpuCache &gpu_cache = *gpumap::enableGpu(*imp_->map, gpu_mem_size, gpumap::kGpuAllowMappedBuffers);
 
   const unsigned prealloc_region_count = 1024u;
   for (unsigned i = 0; i < GpuMapDetail::kBuffersCount; ++i)
@@ -276,13 +276,25 @@ GpuMap::GpuMap(OccupancyMap *map, bool borrowed_map, unsigned expected_element_c
       gputil::Buffer(gpu_cache.gpu(), sizeof(gputil::float3) * expected_element_count, gputil::kBfReadHost);
     imp_->region_key_buffers[i] =
       gputil::Buffer(gpu_cache.gpu(), sizeof(gputil::int3) * prealloc_region_count, gputil::kBfReadHost);
-    imp_->region_offset_buffers[i] =
-      gputil::Buffer(gpu_cache.gpu(), sizeof(uint64_t) * prealloc_region_count, gputil::kBfReadHost);
   }
-  imp_->transform_samples = new GpuTransformSamples(gpu_cache.gpu());
 
-  cacheGpuProgram(map->subVoxelsEnabled(), true);
+  cacheGpuProgram(imp_->map->subVoxelsEnabled(), true);
+
+  // Add structures for managing uploads of regino offsets to the cache buffer.
+  for (int i = 0; i < 2; ++i)
+  {
+    imp_->voxel_upload_info[i].emplace_back(VoxelUploadInfo(kGcIdOccupancy));
+    // if (imp_->map->subVoxelsEnabled())
+    // {
+    //   imp_->voxel_upload_info[i].emplace_back(VoxelUploadInfo(kGcIdSubVoxel));
+    // }
+  }
 }
+
+
+GpuMap::GpuMap(OccupancyMap *map, bool borrowed_map, unsigned expected_element_count, size_t gpu_mem_size)
+  : GpuMap(new GpuMapDetail(map, borrowed_map), expected_element_count, gpu_mem_size)
+{}
 
 
 GpuMap::~GpuMap()
@@ -613,8 +625,8 @@ size_t GpuMap::integrateRaysT(const VEC_TYPE *rays, size_t element_count, unsign
   }
 
   // Asynchronous unpin. Kernels will wait on the associated event.
-  keys_pinned.unpin(&layer_cache.gpuQueue(), nullptr, &imp_->key_upload_events[buf_idx]);
-  rays_pinned.unpin(&layer_cache.gpuQueue(), nullptr, &imp_->ray_upload_events[buf_idx]);
+  keys_pinned.unpin(&gpu_cache->gpuQueue(), nullptr, &imp_->key_upload_events[buf_idx]);
+  rays_pinned.unpin(&gpu_cache->gpuQueue(), nullptr, &imp_->ray_upload_events[buf_idx]);
 
   imp_->ray_counts[buf_idx] = unsigned(upload_count / 2);
 
@@ -623,21 +635,7 @@ size_t GpuMap::integrateRaysT(const VEC_TYPE *rays, size_t element_count, unsign
     return 0u;
   }
 
-  // Size the region buffers.
-  imp_->region_key_buffers[buf_idx].elementsResize<gputil::int3>(imp_->regions.size());
-  imp_->region_offset_buffers[buf_idx].elementsResize<uint64_t>(imp_->regions.size());
-
-  // Execute on each region.
-  gputil::PinnedBuffer regions_buffer(imp_->region_key_buffers[buf_idx], gputil::kPinWrite);
-  gputil::PinnedBuffer offsets_buffer(imp_->region_offset_buffers[buf_idx], gputil::kPinWrite);
-  // Note: bufIdx may have change when calling
-  // enqueueRegion. Do not use after this point.
-  for (const auto &region_iter : imp_->regions)
-  {
-    enqueueRegion(region_iter, regions_buffer, offsets_buffer, region_update_flags, true);
-  }
-
-  finaliseBatch(regions_buffer, offsets_buffer, region_update_flags);
+  enqueueRegions(buf_idx, region_update_flags);
 
   return upload_count;
 }
@@ -657,87 +655,155 @@ void GpuMap::waitOnPreviousOperation(int buffer_index)
   imp_->region_key_upload_events[buffer_index].wait();
   imp_->region_key_upload_events[buffer_index].release();
 
-  imp_->region_offset_upload_events[buffer_index].wait();
-  imp_->region_offset_upload_events[buffer_index].release();
+  for (VoxelUploadInfo &upload_info : imp_->voxel_upload_info[buffer_index])
+  {
+    upload_info.offset_upload_event.wait();
+    upload_info.offset_upload_event.release();
+  }
 }
 
 
-void GpuMap::enqueueRegion(const glm::i16vec3 &region_key, gputil::PinnedBuffer &regions_buffer,
-                           gputil::PinnedBuffer &offsets_buffer, unsigned region_update_flags, bool allow_retry)
+void GpuMap::enqueueRegions(int buffer_index, unsigned region_update_flags)
+{
+  // For each region we need to enqueue the voxel data for that region. Within the GpuCache, each GpuLayerCache manages
+  // the voxel data for a voxel layer and uploads into a single buffer for that layer returning an offset into that
+  // buffer. For each (relevant) layer, we need to record the memory offset and upload corresponding event.
+  // These need to be later fed to the update kernel.
+  // Size the region buffers.
+  imp_->region_key_buffers[buffer_index].elementsResize<gputil::int3>(imp_->regions.size());
+
+  for (VoxelUploadInfo &upload_info : imp_->voxel_upload_info[buffer_index])
+  {
+    upload_info.offsets_buffer.elementsResize<uint64_t>(imp_->regions.size());
+    upload_info.offsets_buffer_pinned = gputil::PinnedBuffer(upload_info.offsets_buffer, gputil::kPinWrite);
+  }
+
+  // Execute on each region.
+  gputil::PinnedBuffer regions_buffer(imp_->region_key_buffers[buffer_index], gputil::kPinWrite);
+
+  GpuCache &gpu_cache = *this->gpuCache();
+  for (const auto &region_key : imp_->regions)
+  {
+    const int try_limit = 2;
+    for (int tries = 0; tries < try_limit; ++tries)
+    {
+      if (enqueueRegion(region_key, buffer_index, region_update_flags))
+      {
+        // std::cout << "region: [" << regionKey.x << ' ' <<
+        // regionKey.y << ' ' << regionKey.z << ']' <<
+        // std::endl;
+        gputil::int3 gpu_region_key = { region_key.x, region_key.y, region_key.z };
+        regions_buffer.write(&gpu_region_key, sizeof(gpu_region_key),
+                             imp_->region_counts[buffer_index] * sizeof(gpu_region_key));
+        ++imp_->region_counts[buffer_index];
+        break;
+      }
+      else if (tries + 1 < try_limit)
+      {
+        // Enqueue region failed. Flush pending operations and before trying again.
+        const int previous_buf_idx = buffer_index;
+
+        regions_buffer.unpin(&gpu_cache.gpuQueue(), nullptr, &imp_->region_key_upload_events[buffer_index]);
+        for (VoxelUploadInfo &upload_info : imp_->voxel_upload_info[buffer_index])
+        {
+          upload_info.offsets_buffer_pinned.unpin(&gpu_cache.gpuQueue(), nullptr, &upload_info.offset_upload_event);
+        }
+        finaliseBatch(region_update_flags);
+
+        // Repin these buffers, but the index has changed.
+        const unsigned regions_processed = imp_->region_counts[buffer_index];
+        buffer_index = imp_->next_buffers_index;
+        waitOnPreviousOperation(buffer_index);
+
+        // Copy the rays buffer from the batch we just
+        // finalised.
+        gputil::copyBuffer(imp_->ray_buffers[buffer_index], imp_->ray_buffers[previous_buf_idx], &gpu_cache.gpuQueue(),
+                           nullptr, &imp_->ray_upload_events[previous_buf_idx]);
+        imp_->ray_counts[buffer_index] = imp_->ray_counts[previous_buf_idx];
+
+        // This statement should always be true, but it would be bad to underflow.
+        if (regions_processed < imp_->regions.size())
+        {
+          // Size the region buffers.
+          imp_->region_key_buffers[buffer_index].gputil::Buffer::elementsResize<gputil::int3>(imp_->regions.size() -
+                                                                                              regions_processed);
+
+          for (VoxelUploadInfo &upload_info : imp_->voxel_upload_info[buffer_index])
+          {
+            upload_info.offsets_buffer.elementsResize<uint64_t>(imp_->regions.size() - regions_processed);
+            upload_info.offsets_buffer_pinned = gputil::PinnedBuffer(upload_info.offsets_buffer, gputil::kPinWrite);
+          }
+
+          regions_buffer = gputil::PinnedBuffer(imp_->region_key_buffers[buffer_index], gputil::kPinRead);
+        }
+      }
+      else
+      {
+        // TODO: throw with more information.
+        std::cout << "Failed to enqueue region data" << std::endl;
+      }
+    }
+  }
+
+  regions_buffer.unpin(&gpu_cache.gpuQueue(), nullptr, &imp_->region_key_upload_events[buffer_index]);
+  for (VoxelUploadInfo &upload_info : imp_->voxel_upload_info[buffer_index])
+  {
+    upload_info.offsets_buffer_pinned.unpin(&gpu_cache.gpuQueue(), nullptr, &upload_info.offset_upload_event);
+  }
+
+  finaliseBatch(region_update_flags);
+}
+
+
+bool GpuMap::enqueueRegion(const glm::i16vec3 &region_key, int buffer_index, unsigned region_update_flags)
 {
   // Upload chunk to GPU.
   MapChunk *chunk = nullptr;
   gputil::Event upload_event;
-  uint64_t mem_offset;
+  // uint64_t mem_offset;
   GpuLayerCache::CacheStatus status;
 
-  int buf_idx = imp_->next_buffers_index;
   GpuCache &gpu_cache = *this->gpuCache();
-  GpuLayerCache &layer_cache = *gpu_cache.layerCache(kGcIdOccupancy);
-  mem_offset = uint64_t(layer_cache.upload(*imp_->map, region_key, chunk, &upload_event, &status, imp_->batch_marker,
-                                           GpuLayerCache::kAllowRegionCreate));
 
-  if (status != GpuLayerCache::kCacheFull)
+  for (VoxelUploadInfo &voxel_info : imp_->voxel_upload_info[buffer_index])
   {
+    GpuLayerCache &layer_cache = *gpu_cache.layerCache(voxel_info.gpu_layer_id);
+    uint64_t mem_offset = uint64_t(layer_cache.upload(*imp_->map, region_key, chunk, &upload_event, &status,
+                                                      imp_->batch_marker, GpuLayerCache::kAllowRegionCreate));
+
+    if (status == GpuLayerCache::kCacheFull)
+    {
+      return false;
+    }
+
     // std::cout << "region: [" << regionKey.x << ' ' <<
     // regionKey.y << ' ' << regionKey.z << ']' <<
     // std::endl;
-    gputil::int3 gpu_region_key = { region_key.x, region_key.y, region_key.z };
-    regions_buffer.write(&gpu_region_key, sizeof(gpu_region_key),
-                         imp_->region_counts[buf_idx] * sizeof(gpu_region_key));
-    offsets_buffer.write(&mem_offset, sizeof(mem_offset), imp_->region_counts[buf_idx] * sizeof(mem_offset));
-    ++imp_->region_counts[buf_idx];
-  }
-  else if (allow_retry)
-  {
-    const int previous_buf_idx = buf_idx;
-    finaliseBatch(regions_buffer, offsets_buffer, region_update_flags);
+    voxel_info.offsets_buffer_pinned.write(&mem_offset, sizeof(mem_offset),
+                                           imp_->region_counts[buffer_index] * sizeof(mem_offset));
 
-    // Repin these buffers, but the index has changed.
-    const unsigned regions_processed = imp_->region_counts[buf_idx];
-    buf_idx = imp_->next_buffers_index;
-    waitOnPreviousOperation(buf_idx);
-
-    // Copy the rays buffer from the batch we just
-    // finalised.
-    gputil::copyBuffer(imp_->ray_buffers[buf_idx], imp_->ray_buffers[previous_buf_idx], &gpu_cache.gpuQueue(), nullptr,
-                       &imp_->ray_upload_events[previous_buf_idx]);
-    imp_->ray_counts[buf_idx] = imp_->ray_counts[previous_buf_idx];
-
-    // This statement should always be true, but it would be bad to underflow.
-    if (regions_processed < imp_->regions.size())
-    {
-      // Size the region buffers.
-      imp_->region_key_buffers[buf_idx].gputil::Buffer::elementsResize<gputil::int3>(imp_->regions.size() -
-                                                                                     regions_processed);
-      imp_->region_offset_buffers[buf_idx].gputil::Buffer::elementsResize<uint64_t>(imp_->regions.size() -
-                                                                                    regions_processed);
-
-      regions_buffer = gputil::PinnedBuffer(imp_->region_key_buffers[buf_idx], gputil::kPinRead);
-      offsets_buffer = gputil::PinnedBuffer(imp_->region_offset_buffers[buf_idx], gputil::kPinRead);
-
-      // Try again, but don't allow retry.
-      enqueueRegion(region_key, regions_buffer, offsets_buffer, region_update_flags, false);
-    }
+    // Mark the region as dirty.
+    chunk->dirty_stamp = chunk->touched_stamps[layer_cache.layerIndex()] = imp_->map->stamp();
   }
 
-  // Mark the region as dirty.
-  chunk->dirty_stamp = chunk->touched_stamps[imp_->map->layout().occupancyLayer()] = imp_->map->stamp();
+  return true;
 }
 
 
-void GpuMap::finaliseBatch(gputil::PinnedBuffer &regions_buffer, gputil::PinnedBuffer &offsets_buffer,
-                           unsigned region_update_flags)
+void GpuMap::finaliseBatch(unsigned region_update_flags)
 {
   const int buf_idx = imp_->next_buffers_index;
   const OccupancyMapDetail *map = imp_->map->detail();
 
   // Complete region data upload.
   GpuCache &gpu_cache = *this->gpuCache();
-  GpuLayerCache &layer_cache = *gpu_cache.layerCache(kGcIdOccupancy);
+  GpuLayerCache &occupancy_layer_cache = *gpu_cache.layerCache(kGcIdOccupancy);
+  GpuLayerCache *sub_voxel_layer_cache = nullptr;
 
-  regions_buffer.unpin(&layer_cache.gpuQueue(), nullptr, &imp_->region_key_upload_events[buf_idx]);
-  offsets_buffer.unpin(&layer_cache.gpuQueue(), nullptr, &imp_->region_offset_upload_events[buf_idx]);
+  // if (imp_->map->subVoxelsEnabled())
+  // {
+  //   sub_voxel_layer_cache = gpu_cache.layerCache(kGcIdSubVoxel);
+  // }
 
   // Enqueue update kernel.
   const gputil::int3 region_dim_gpu = { map->region_voxel_dimensions.x, map->region_voxel_dimensions.y,
@@ -748,29 +814,62 @@ void GpuMap::finaliseBatch(gputil::PinnedBuffer &regions_buffer, gputil::PinnedB
   gputil::Dim3 global_size(ray_count);
   gputil::Dim3 local_size(std::min<size_t>(imp_->update_kernel.optimalWorkGroupSize(), ray_count));
   gputil::EventList wait({ imp_->key_upload_events[buf_idx], imp_->ray_upload_events[buf_idx],
-                           imp_->region_key_upload_events[buf_idx], imp_->region_offset_upload_events[buf_idx] });
+                           imp_->region_key_upload_events[buf_idx],
+                           imp_->voxel_upload_info[buf_idx][0].offset_upload_event });
 
-  imp_->update_kernel(global_size, local_size, wait, imp_->region_update_events[buf_idx], &layer_cache.gpuQueue(),
-                      // Kernel args begin:
-                      gputil::BufferArg<float>(*layer_cache.buffer()),
-                      gputil::BufferArg<gputil::int3>(imp_->region_key_buffers[buf_idx]),
-                      gputil::BufferArg<uint64_t>(imp_->region_offset_buffers[buf_idx]), region_count,
-                      gputil::BufferArg<GpuKey>(imp_->key_buffers[buf_idx]),
-                      gputil::BufferArg<gputil::float3>(imp_->ray_buffers[buf_idx]), ray_count, region_dim_gpu,
-                      float(map->resolution), map->miss_value, map->hit_value, map->occupancy_threshold_value,
-                      map->min_voxel_value, map->max_voxel_value, float(map->sub_voxel_weighting), region_update_flags);
+  // // Add sub-voxel offset upload events.
+  // if (sub_voxel_layer_cache)
+  // {
+  //   wait.add(imp_->voxel_upload_info[buf_idx][1].offset_upload_event);
+  // }
+
+  if (sub_voxel_layer_cache)
+  {
+    imp_->update_kernel(global_size, local_size, wait, imp_->region_update_events[buf_idx], &gpu_cache.gpuQueue(),
+                        // Kernel args begin:
+                        gputil::BufferArg<float>(*occupancy_layer_cache.buffer()),
+                        gputil::BufferArg<uint64_t>(imp_->voxel_upload_info[buf_idx][0].offsets_buffer),
+                        // gputil::BufferArg<unsigned>(*sub_voxel_layer_cache->buffer()),
+                        // gputil::BufferArg<uint64_t>(imp_->voxel_upload_info[buf_idx][1].offsets_buffer),
+                        gputil::BufferArg<gputil::int3>(imp_->region_key_buffers[buf_idx]), region_count,
+                        gputil::BufferArg<GpuKey>(imp_->key_buffers[buf_idx]),
+                        gputil::BufferArg<gputil::float3>(imp_->ray_buffers[buf_idx]), ray_count, region_dim_gpu,
+                        float(map->resolution), map->miss_value, map->hit_value, map->occupancy_threshold_value,
+                        map->min_voxel_value, map->max_voxel_value, float(map->sub_voxel_weighting),
+                        region_update_flags);
+  }
+  else
+  {
+    imp_->update_kernel(global_size, local_size, wait, imp_->region_update_events[buf_idx], &gpu_cache.gpuQueue(),
+                        // Kernel args begin:
+                        gputil::BufferArg<float>(*occupancy_layer_cache.buffer()),
+                        gputil::BufferArg<uint64_t>(imp_->voxel_upload_info[buf_idx][0].offsets_buffer),
+                        gputil::BufferArg<gputil::int3>(imp_->region_key_buffers[buf_idx]), region_count,
+                        gputil::BufferArg<GpuKey>(imp_->key_buffers[buf_idx]),
+                        gputil::BufferArg<gputil::float3>(imp_->ray_buffers[buf_idx]), ray_count, region_dim_gpu,
+                        float(map->resolution), map->miss_value, map->hit_value, map->occupancy_threshold_value,
+                        map->min_voxel_value, map->max_voxel_value, float(map->sub_voxel_weighting),
+                        region_update_flags);
+  }
 
   // gpu_cache.gpuQueue().flush();
 
   // Update most recent chunk GPU event.
-  layer_cache.updateEvents(imp_->batch_marker, imp_->region_update_events[buf_idx]);
+  occupancy_layer_cache.updateEvents(imp_->batch_marker, imp_->region_update_events[buf_idx]);
+  if (sub_voxel_layer_cache)
+  {
+    sub_voxel_layer_cache->updateEvents(imp_->batch_marker, imp_->region_update_events[buf_idx]);
+  }
 
   // std::cout << imp_->region_counts[bufIdx] << "
   // regions\n" << std::flush;
 
   imp_->region_counts[buf_idx] = 0;
-  // Cycle odd numbers to avoid zero which is a special case
-  // value.
-  imp_->batch_marker = layer_cache.beginBatch();
+  // Start a new batch for the GPU layers.
+  imp_->batch_marker = occupancy_layer_cache.beginBatch();
+  if (sub_voxel_layer_cache)
+  {
+    sub_voxel_layer_cache->beginBatch(imp_->batch_marker);
+  }
   imp_->next_buffers_index = 1 - imp_->next_buffers_index;
 }

@@ -32,7 +32,6 @@ GpuMapDetail::~GpuMapDetail()
   {
     delete map;
   }
-  delete transform_samples;
 }
 
 
