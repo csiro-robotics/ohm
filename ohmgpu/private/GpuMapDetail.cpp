@@ -68,6 +68,16 @@ GpuCache *ohm::initialiseGpuCache(OccupancyMap &map, size_t layer_gpu_mem_size, 
         GpuCacheParams{ 0, occupancy_layer, kGcfRead | kGcfWrite | mappable_flag, &onOccupancyLayerChunkSync });
     }
 
+    // Initialise the voxel mean layer.
+    const int mean_layer = map.layout().meanLayer();
+    if (mean_layer >= 0)
+    {
+      gpu_cache->createCache(
+        kGcIdVoxelMean,
+        // On sync, ensure the first valid voxel is updated.
+        GpuCacheParams{ 0, mean_layer, kGcfRead | kGcfWrite | mappable_flag });
+    }
+
     // Note: we create the clearance gpu cache if we have a clearance layer, but it caches the occupancy_layer as that
     // is the information it reads.
     if (map.layout().clearanceLayer() >= 0)

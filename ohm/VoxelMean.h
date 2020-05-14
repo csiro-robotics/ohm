@@ -12,7 +12,7 @@
 // Because of this "OhmConfig.h" and <cmath> cannot be included here and you may need to include those first.
 
 /// @defgroup voxelmean Voxel Mean Position
-/// These functions are used to manipulate the voxel mean positioning voxel fields. Sub-voxel allows a voxel to store
+/// These functions are used to manipulate the voxel mean positioning voxel fields. @c VoxelMean allows a voxel to store
 /// a position field offset from the centre of the voxel, thereby refining the precision of the voxel position.
 ///
 /// To support voxel mean positioning, an @c OccupancyMap must first enable this feature by the constructor flag, or

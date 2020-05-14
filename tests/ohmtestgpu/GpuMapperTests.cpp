@@ -92,7 +92,7 @@ namespace mappertests
     {
       ProfileMarker sync_marker("sync");
       std::cout << "Syncing occupancy" << std::endl;
-      gpu_map.syncOccupancy();
+      gpu_map.syncVoxels();
     }
 
     // Debug feature

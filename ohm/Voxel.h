@@ -434,15 +434,16 @@ namespace ohm
   template <typename MAPCHUNK>
   bool VoxelBase<MAPCHUNK>::isOccupied() const
   {
-    const float val = value();
-    return !isNull() && val >= voxel::occupancyThreshold(*map_) && val != voxel::invalidMarkerValue();
+    const float val = (isValid()) ? value() : voxel::invalidMarkerValue();
+    return val != voxel::invalidMarkerValue() && val >= voxel::occupancyThreshold(*map_);
   }
 
 
   template <typename MAPCHUNK>
   bool VoxelBase<MAPCHUNK>::isFree() const
   {
-    return !isUncertain() && !isOccupied();
+    const float val = (isValid()) ? value() : voxel::invalidMarkerValue();
+    return val != voxel::invalidMarkerValue() && val < voxel::occupancyThreshold(*map_);
   }
 
 

@@ -119,7 +119,7 @@ namespace gpumap
     std::cout << gpu_queued - gpu_start << '\n';
 
     std::cout << "GPU sync: " << std::flush;
-    gpu_wrap.syncOccupancy();
+    gpu_wrap.syncVoxels();
     const auto gpu_end = TimingClock::now();
     std::cout << (gpu_end - gpu_queued) << '\n';
     std::cout << "Per ray: " << (gpu_end - gpu_start) / (rays.size() / 2);
@@ -375,19 +375,19 @@ namespace gpumap
 
       GpuMap gpu_map3(&map3, true);  // Borrow pointer.
       gpu_map3.integrateRays(rays.data() + i, current_batch_size);
-      gpu_map3.syncOccupancy();
+      gpu_map3.syncVoxels();
 
       // Forth, transient map.
       OccupancyMap map4(resolution, region_size);
       // std::cout << "\n" << map4.origin() << std::endl;
       GpuMap gpu_map4(&map4, true);  // Borrow pointer.
       gpu_map4.integrateRays(rays.data() + i, current_batch_size);
-      gpu_map4.syncOccupancy();
+      gpu_map4.syncVoxels();
     }
     std::cout << "\r" << rays.size() << " / " << rays.size() << std::endl;
 
-    gpu_map1.syncOccupancy();
-    gpu_map2.syncOccupancy();
+    gpu_map1.syncVoxels();
+    gpu_map2.syncVoxels();
 
     std::cout << "Comparing maps" << std::endl;
     compareMaps(map1, map2);
@@ -482,7 +482,7 @@ namespace gpumap
       gpu_map.integrateRays(clear_rays.data(), unsigned(clear_rays.size()));
       // dumpKeys = true;
       cpu_map.integrateRays(clear_rays.data(), unsigned(clear_rays.size()));
-      gpu_map.syncOccupancy();
+      gpu_map.syncVoxels();
 
       compare_results(cpu_map, gpu_map.map());
     };
@@ -521,7 +521,7 @@ namespace gpumap
     rays.push_back(glm::dvec3(0, 0, -2));
 
     gpu_wrap.integrateRays(rays.data(), unsigned(rays.size()));
-    gpu_wrap.syncOccupancy();
+    gpu_wrap.syncVoxels();
 
     // Validate the map contains no occupied points; only free and unknown.
     const glm::dvec3 voxel_half_extents(0.5 * gpu_map.resolution());
@@ -562,7 +562,7 @@ namespace gpumap
     rays.push_back(glm::dvec3(0, 0, 0));
 
     gpu_wrap.integrateRays(rays.data(), unsigned(rays.size()));
-    gpu_wrap.syncOccupancy();
+    gpu_wrap.syncVoxels();
 
     // Validate the map contains no occupied points; only free and unknown.
     const Key target_key = gpu_map.voxelKey(glm::dvec3(0));
@@ -635,7 +635,7 @@ namespace gpumap
 
     cpu_map.integrateRays(rays.data(), unsigned(rays.size()));
     gpu_wrap.integrateRays(rays.data(), unsigned(rays.size()));
-    gpu_wrap.syncOccupancy();
+    gpu_wrap.syncVoxels();
 
     compareMaps(cpu_map, gpu_map);
   }
@@ -648,6 +648,7 @@ namespace gpumap
     const unsigned ray_count = 64;
     const unsigned batch_size = 32;
     const glm::u8vec3 region_size(32);
+    
     // Make some rays.
     std::mt19937 rand_engine;
     std::uniform_real_distribution<double> rand(-map_extents, map_extents);

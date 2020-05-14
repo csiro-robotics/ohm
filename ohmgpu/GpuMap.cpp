@@ -328,11 +328,13 @@ bool GpuMap::borrowedMap() const
 }
 
 
-void GpuMap::syncOccupancy()
+void GpuMap::syncVoxels()
 {
   if (imp_->map)
   {
     gpumap::sync(*imp_->map, kGcIdOccupancy);
+    gpumap::sync(*imp_->map, kGcIdVoxelMean);
+    gpumap::sync(*imp_->map, kGcIdNdt);
   }
 }
 
@@ -526,7 +528,7 @@ size_t GpuMap::integrateRaysT(const VEC_TYPE *rays, size_t element_count, unsign
     return 0u;
   }
 
-  // Ensure we are using the correct GPU program. Sub-voxel support may have changed.
+  // Ensure we are using the correct GPU program. Voxel mean support may have changed.
   cacheGpuProgram(map.voxelMeanEnabled(), false);
 
   // Resolve the buffer index to use. We need to support cases where buffer is already one fo the imp_->ray_buffers.

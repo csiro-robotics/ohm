@@ -66,7 +66,7 @@ namespace voxelmean
     const int col = 30;
     std::ostringstream s;
     std::cout << std::left;
-    std::cout << std::setw(col) << "Input position" << std::setw(col) << "Sub-voxel";
+    std::cout << std::setw(col) << "Input position" << std::setw(col) << "Voxel mean";
     if (!common_voxel_centre)
     {
       std::cout << std::setw(col) << "Centre";

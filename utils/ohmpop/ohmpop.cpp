@@ -716,7 +716,7 @@ int populateMap(const Options &opt)
     std::cout << "syncing map" << std::endl;
   }
 #ifndef OHMPOP_CPU
-  gpu_map.syncOccupancy();
+  gpu_map.syncVoxels();
 #endif  // OHMPOP_CPU
 
   std::ostream **out = streams;

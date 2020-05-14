@@ -158,8 +158,9 @@ namespace ohm
     /// If not borrowed, then the @c GpuMap will destroy the @c OccupancyMap on destruction.
     bool borrowedMap() const;
 
-    /// Sync the GPU memory use for the occupancy layer to main memory ensuring main memory is up to date.
-    void syncOccupancy();
+    /// Sync the GPU memory use for the occupancy, voxel mean and NDT layers to main memory ensuring main memory is up
+    /// to date.
+    void syncVoxels();
 
     /// Set the range filter applied to all rays given to @c integrateRays(). Setting a null filter ensures no
     /// filtering is performed. The default behaviour is to use the same filter as the @c OccupancyMap.

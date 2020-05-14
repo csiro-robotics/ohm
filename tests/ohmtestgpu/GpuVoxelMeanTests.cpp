@@ -66,7 +66,7 @@ namespace voxelmean
     const int col = 30;
     std::ostringstream s;
     std::cout << std::left;
-    std::cout << std::setw(col) << "Input position" << std::setw(col) << "Sub-voxel";
+    std::cout << std::setw(col) << "Input position" << std::setw(col) << "Voxel mean";
     if (!common_voxel_centre)
     {
       std::cout << std::setw(col) << "Centre";
@@ -272,7 +272,7 @@ namespace voxelmean
     ASSERT_TRUE(gpu_wrap.gpuOk());
 
     gpu_wrap.integrateRays(rays.data(), unsigned(rays.size()));
-    gpu_wrap.syncOccupancy();
+    gpu_wrap.syncVoxels();
 
     std::vector<VoxelMeanResult> results;
     for (size_t i = 1; i < rays.size(); i += 2)
@@ -319,7 +319,7 @@ namespace voxelmean
 
     cpu_map.integrateRays(rays.data(), unsigned(rays.size()));
     gpu_wrap.integrateRays(rays.data(), unsigned(rays.size()));
-    gpu_wrap.syncOccupancy();
+    gpu_wrap.syncVoxels();
 
     std::vector<VoxelMeanResult> results;
     for (size_t i = 1; i < rays.size(); i += 2)
