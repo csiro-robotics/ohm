@@ -11,6 +11,7 @@
 #include "GpuTransformSamples.h"
 
 #include <ohm/DefaultLayer.h>
+#include <ohm/MapLayer.h>
 #include <ohm/OccupancyMap.h>
 #include <ohm/private/OccupancyMapDetail.h>
 
@@ -72,10 +73,13 @@ GpuCache *ohm::initialiseGpuCache(OccupancyMap &map, size_t layer_gpu_mem_size, 
     const int mean_layer = map.layout().meanLayer();
     if (mean_layer >= 0)
     {
-      gpu_cache->createCache(
-        kGcIdVoxelMean,
-        // On sync, ensure the first valid voxel is updated.
-        GpuCacheParams{ 0, mean_layer, kGcfRead | kGcfWrite | mappable_flag });
+      gpu_cache->createCache(kGcIdVoxelMean, GpuCacheParams{ 0, mean_layer, kGcfRead | kGcfWrite | mappable_flag });
+    }
+
+    if (const MapLayer *covariance_layer = map.layout().layer(default_layer::covarianceLayerName()))
+    {
+      // TODO: (KS) add the write flag if we move to being able to process the samples on GPU too.
+      gpu_cache->createCache(kGcIdNdt, GpuCacheParams{ 0, int(covariance_layer->layerIndex()), kGcfRead | mappable_flag });
     }
 
     // Note: we create the clearance gpu cache if we have a clearance layer, but it caches the occupancy_layer as that

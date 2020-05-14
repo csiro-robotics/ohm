@@ -176,6 +176,7 @@ if(OHM_BUILD_CUDA)
   list(APPEND GPU_SOURCES
     gpu/LineKeys.cu
     gpu/RegionUpdate.cu
+    gpu/RegionUpdateNdt.cu
     gpu/RegionUpdateWithMean.cu
     gpu/RoiRangeFill.cu
     gpu/TransformSamples.cu

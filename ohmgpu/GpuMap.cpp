@@ -332,9 +332,11 @@ void GpuMap::syncVoxels()
 {
   if (imp_->map)
   {
+    // TODO: (KS) split the logic for starting synching and waiting on completion.
+    // This will allow us to kick synching off all layers in parallel and should reduce the overall latency.
     gpumap::sync(*imp_->map, kGcIdOccupancy);
     gpumap::sync(*imp_->map, kGcIdVoxelMean);
-    gpumap::sync(*imp_->map, kGcIdNdt);
+    // gpumap::sync(*imp_->map, kGcIdNdt);
   }
 }
 
@@ -391,7 +393,7 @@ void GpuMap::setMissValue(float value)
 
 size_t GpuMap::integrateRays(const glm::dvec3 *rays, size_t element_count, unsigned region_update_flags)
 {
-  return integrateRaysT<glm::dvec3>(rays, element_count, region_update_flags, effectiveRayFilter());
+  return integrateRays(rays, element_count, region_update_flags, effectiveRayFilter());
 }
 
 
@@ -403,7 +405,7 @@ void GpuMap::applyClearingPattern(const glm::dvec3 *rays, size_t element_count)
     return goodRayFilter(start, end, filter_flags, 1e4);
   };
   const unsigned flags = kRfEndPointAsFree | kRfStopOnFirstOccupied | kRfClearOnly;
-  integrateRaysT(rays, element_count, flags, clearing_ray_filter);
+  integrateRays(rays, element_count, flags, clearing_ray_filter);
 }
 
 
@@ -460,9 +462,12 @@ GpuCache *GpuMap::gpuCache() const
 
 void GpuMap::cacheGpuProgram(bool with_voxel_mean, bool force)
 {
-  if (!force && with_voxel_mean == imp_->cached_sub_voxel_program)
+  if (imp_->program_ref)
   {
-    return;
+    if (!force && with_voxel_mean == imp_->cached_sub_voxel_program)
+    {
+      return;
+    }
   }
 
   releaseGpuProgram();
@@ -501,10 +506,10 @@ void GpuMap::releaseGpuProgram()
 }
 
 
-template <typename VEC_TYPE>
-size_t GpuMap::integrateRaysT(const VEC_TYPE *rays, size_t element_count, unsigned region_update_flags,
-                              const RayFilterFunction &filter)
+size_t GpuMap::integrateRays(const glm::dvec3 *rays, size_t element_count, unsigned region_update_flags,
+                             const RayFilterFunction &filter)
 {
+  imp_->current_ray_ids.clear();
   if (!imp_->map)
   {
     return 0u;
@@ -618,6 +623,8 @@ size_t GpuMap::integrateRaysT(const VEC_TYPE *rays, size_t element_count, unsign
     rays_pinned.write(glm::value_ptr(ray_start), sizeof(glm::vec3), (upload_count + 0) * sizeof(gputil::float3));
     rays_pinned.write(glm::value_ptr(ray_end), sizeof(glm::vec3), (upload_count + 1) * sizeof(gputil::float3));
     upload_count += 2;
+
+    imp_->current_ray_ids.emplace_back(i / 2);
 
     // std::cout << i / 2 << ' ' << imp_->map->voxelKey(rays[i + 0]) << " -> " << imp_->map->voxelKey(rays[i + 1]) << "
     // "

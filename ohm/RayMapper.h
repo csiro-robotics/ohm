@@ -98,7 +98,7 @@ namespace ohm
         }
       }
 
-      if (!clipped_sample_voxel)
+      if (!clipped_sample_voxel && !(ray_update_flags & kRfExcludeSample))
       {
         Voxel voxel = MapInterface::voxel(*map_, MapInterface::voxelKey(*map_, rays[i + 1]), &cache);
         if (!(ray_update_flags & kRfEndPointAsFree))

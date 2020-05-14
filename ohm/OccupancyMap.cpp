@@ -277,33 +277,36 @@ namespace
 
 Voxel OccupancyMap::voxel(const Key &key, bool allow_create, MapCache *cache)
 {
-  MapChunk *chunk = (cache) ? cache->lookup(key) : nullptr;
-
-  if (!chunk)
+  if (!key.isNull())
   {
-    std::unique_lock<decltype(imp_->mutex)> guard(imp_->mutex);
-    const auto region_ref = imp_->chunks.find(key.regionKey());
-    if (region_ref != imp_->chunks.end())
-    {
-      chunk = region_ref->second;
-    }
-    else if (allow_create)
-    {
-      // No such chunk. Create one.
-      chunk = newChunk(key);
-      imp_->chunks.insert(std::make_pair(chunk->region.coord, chunk));
-      // No need to touch the map here. We haven't changed the semantics of the map until
-      // we change the value of a voxel in the region.
-    }
-  }
+    MapChunk *chunk = (cache) ? cache->lookup(key) : nullptr;
 
-  if (chunk)
-  {
-    if (cache)
+    if (!chunk)
     {
-      cache->push(chunk);
+      std::unique_lock<decltype(imp_->mutex)> guard(imp_->mutex);
+      const auto region_ref = imp_->chunks.find(key.regionKey());
+      if (region_ref != imp_->chunks.end())
+      {
+        chunk = region_ref->second;
+      }
+      else if (allow_create)
+      {
+        // No such chunk. Create one.
+        chunk = newChunk(key);
+        imp_->chunks.insert(std::make_pair(chunk->region.coord, chunk));
+        // No need to touch the map here. We haven't changed the semantics of the map until
+        // we change the value of a voxel in the region.
+      }
     }
-    return Voxel(key, chunk, imp_);
+
+    if (chunk)
+    {
+      if (cache)
+      {
+        cache->push(chunk);
+      }
+      return Voxel(key, chunk, imp_);
+    }
   }
   return Voxel();
 }
@@ -1120,7 +1123,7 @@ void OccupancyMap::integrateRays(const glm::dvec3 *rays, size_t element_count, u
       }
     }
 
-    if (!clipped_sample_voxel)
+    if (!clipped_sample_voxel && !(ray_update_flags & kRfExcludeSample))
     {
       Voxel voxel = this->voxel(voxelKey(rays[i + 1]), true, &cache);
       if (!(ray_update_flags & kRfEndPointAsFree))

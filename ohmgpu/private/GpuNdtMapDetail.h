@@ -10,12 +10,17 @@
 
 #include "private/GpuMapDetail.h"
 
+#include <ohm/NdtMap.h>
+
 namespace ohm
 {
   struct GpuNdtMapDetail : public GpuMapDetail
   {
+    ohm::NdtMap ndt_map;
+    
     GpuNdtMapDetail(OccupancyMap *map, bool borrowed_map)
       : GpuMapDetail(map, borrowed_map)
+      , ndt_map(map, true)
     {}
   };
 }

@@ -253,10 +253,10 @@ namespace ohm
     /// @p force is true or @p with_voxel_mean does not match the cached program.
     /// @param with_voxel_mean True to cache the program which supports voxel mean positioning (@ref voxelmean).
     /// @param force Force release and program caching even if already correct. Must be used on initialisation.
-    void cacheGpuProgram(bool with_voxel_mean, bool force);
+    virtual void cacheGpuProgram(bool with_voxel_mean, bool force);
 
     /// Release the current GPU program.
-    void releaseGpuProgram();
+    virtual void releaseGpuProgram();
 
     /// Implementation for various ways we can integrate rays into the map. See @c integrateRays() for general detail.
     /// @param rays Array of origin/sample point pairs. Expect either @c glm::dvec3 (preferred) or @c glm::vec3.
@@ -265,9 +265,8 @@ namespace ohm
     /// @param filter Filter function apply to each ray before passing to GPU. May be empty.
     /// @return The number of rays integrated. Zero indicates a failure when @p pointCount is not zero.
     ///   In this case either the GPU is unavailable, or all @p rays are invalid.
-    template <typename VEC_TYPE>
-    size_t integrateRaysT(const VEC_TYPE *rays, size_t element_count, unsigned region_update_flags,
-                          const RayFilterFunction &filter);
+    size_t integrateRays(const glm::dvec3 *rays, size_t element_count, unsigned region_update_flags, 
+                         const RayFilterFunction &filter);
 
     /// Wait for previous ray batch, as indicated by @p buffer_index, to complete.
     /// @param buffer_index Identifies the batch to wait on.

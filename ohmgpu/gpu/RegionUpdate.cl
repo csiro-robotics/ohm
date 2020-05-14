@@ -115,6 +115,10 @@ struct LineWalkData
   // Local coordinate within the end voxel.
   float3 sub_voxel_coord;
 #ifdef NDT
+  /// Modified sensor position. TODO: clarify "modified"
+  float3 sensor;
+  /// Modified sample position. TODO: clarify "modified"
+  float3 sample;
   // An estimate on the sensor range noise error.
   float sensor_noise;
 #endif  // NDT
@@ -143,8 +147,10 @@ __device__ bool VISIT_LINE_VOXEL(const struct GpuKey *voxelKey, bool isEndVoxel,
   struct LineWalkData *line_data = (struct LineWalkData *)userData;
   __global atomic_float *occupancy = line_data->occupancy;
 
-  // Adjust value by ray_adjustment unless this is the sample voxel.
-  const float adjustment = calculateOccupancyAdjustment(isEndVoxel, line_data, voxel_resolution);
+  if (isEndVoxel && (line_data->region_update_flags & kRfExcludeSample))
+  {
+    return true;
+  }
 
   // Resolve memory offset for the region of interest.
   if (!regionsResolveRegion(voxelKey, &line_data->current_region, &line_data->current_region_index,
@@ -170,6 +176,9 @@ __device__ bool VISIT_LINE_VOXEL(const struct GpuKey *voxelKey, bool isEndVoxel,
     return true;
   }
 
+  // Adjust value by ray_adjustment unless this is the sample voxel.
+  const float adjustment = calculateOccupancyAdjustment(voxelKey, isEndVoxel, line_data, voxel_resolution);
+
   // This voxel lies in the region. We will make a value adjustment.
   // Work out which voxel to modify.
   const ulonglong vi_local = voxelKey->voxel[0] + voxelKey->voxel[1] * line_data->region_dimensions.x +
@@ -183,8 +192,6 @@ __device__ bool VISIT_LINE_VOXEL(const struct GpuKey *voxelKey, bool isEndVoxel,
     __global atomic_float *occupancy_ptr = &occupancy[vi];
 
     bool was_occupied_voxel = false;
-
-    // i
 
 #ifdef LIMIT_VOXEL_WRITE_ITERATIONS
     // Under high contension we can end up repeatedly failing to write the voxel value.
@@ -289,6 +296,7 @@ __device__ bool VISIT_LINE_VOXEL(const struct GpuKey *voxelKey, bool isEndVoxel,
 /// - kRfEndPointAsFree: use ray_adjustment for the last voxel rather than sample_adjustment.
 /// - kRfStopOnFirstOccupied: terminate line walking after touching the first occupied voxel found.
 /// - kRfClearOnly: only adjust the probability of occupied voxels.
+/// - kRfExcludeSample: ignore the voxel containing the sample (the last voxel).
 ///
 /// @param occupancy Pointer to the dense voxel occupancy maps the currently available regions. Offsets for a
 ///     specific region are available by looking up a region key in @p occupancy_region_keys_global and using the
@@ -399,6 +407,11 @@ __kernel void REGION_UPDATE_KERNEL(__global atomic_float *occupancy,
   line_data.start_key = &start_key;
   line_data.end_key = &end_key;
 #endif
+
+#ifdef NDT
+  line_data.sensor = lineStart;
+  line_data.sample = lineEnd;
+#endif //  NDT
 
   WALK_LINE_VOXELS(&start_key, &end_key, &lineStart, &lineEnd, &region_dimensions, voxel_resolution, &line_data);
 }

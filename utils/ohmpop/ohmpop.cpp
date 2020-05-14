@@ -9,19 +9,20 @@
 
 #include <ohm/MapSerialise.h>
 #include <ohm/Mapper.h>
+#include <ohm/NdtMap.h>
 #include <ohm/OccupancyMap.h>
 #include <ohm/OccupancyUtil.h>
 #include <ohm/Trace.h>
 #include <ohm/RayMapper.h>
 #include <ohm/Voxel.h>
 #ifdef OHMPOP_CPU
-#include <ohm/NdtMap.h>
 #include <ohm/NdtRayMapperInterface.h>
 #endif  // OHMPOP_CPU
 
 #ifndef OHMPOP_CPU
 #include <ohmgpu/ClearanceProcess.h>
 #include <ohmgpu/GpuMap.h>
+#include <ohmgpu/GpuNdtMap.h>
 #include <ohmgpu/OhmGpu.h>
 #endif  // OHMPOP_CPU
 
@@ -44,6 +45,8 @@
 #include <locale>
 #include <sstream>
 #include <thread>
+
+#pragma GCC optmize("O0")
 
 #define COLLECT_STATS 0
 #define COLLECT_STATS_IGNORE_FIRST 1
@@ -405,8 +408,9 @@ int populateMap(const Options &opt)
     ray_mapper = &ray_mapper_;
   }
 #else   // OHMPOP_CPU
-  ohm::GpuMap gpu_map(&map, true, opt.batch_size);
-  ray_mapper = &gpu_map;
+  std::unique_ptr<ohm::GpuMap> gpu_map((!opt.ndt) ? new ohm::GpuMap(&map, true, opt.batch_size) :
+                                                    new ohm::GpuNdtMap(&map, true, opt.batch_size));
+  ray_mapper = gpu_map.get();
 #endif  // OHMPOP_CPU
   ohm::Mapper mapper(&map);
   std::vector<double> sample_timestamps;
@@ -432,7 +436,7 @@ int populateMap(const Options &opt)
   }
 
 #ifndef OHMPOP_CPU
-  if (!gpu_map.gpuOk())
+  if (!gpu_map->gpuOk())
   {
     std::cerr << "Failed to initialise GpuMap programs." << std::endl;
     return -3;
@@ -716,7 +720,7 @@ int populateMap(const Options &opt)
     std::cout << "syncing map" << std::endl;
   }
 #ifndef OHMPOP_CPU
-  gpu_map.syncVoxels();
+  gpu_map->syncVoxels();
 #endif  // OHMPOP_CPU
 
   std::ostream **out = streams;
@@ -748,12 +752,14 @@ int populateMap(const Options &opt)
 
   prog.joinThread();
 
-#ifdef OHMPOP_CPU
   if (opt.ndt)
   {
+#ifdef OHMPOP_CPU
     ndt_map->debugDraw();
-  }
+#else   // OHMPOP_CPU
+    static_cast<ohm::GpuNdtMap *>(gpu_map.get())->ndtMap().debugDraw();
 #endif  //  OHMPOP_CPU
+  }
 
   return 0;
 }
@@ -806,9 +812,7 @@ int parseOptions(Options *opt, int argc, char *argv[])
       ("r,resolution", "The voxel resolution of the generated map.", optVal(opt->resolution))
       ("voxel-mean", "Enable voxel mean coordinates?", optVal(opt->voxel_mean))
       ("threshold", "Sets the occupancy threshold assigned when exporting the map to a cloud.", optVal(opt->prob_thresh)->implicit_value(optStr(opt->prob_thresh)))
-#ifdef OHMPOP_CPU
       ("ndt", "Use normal distibution transform map generation.", optVal(opt->ndt))
-#endif // OHMPOP_CPU
       ;
 
     // clang-format on

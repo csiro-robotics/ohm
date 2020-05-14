@@ -5,12 +5,15 @@
 /// Each bit in the pattern indicates occupancy at a particular voxel mean location.
 __device__ void updateVoxelMeanPosition(__global VoxelMean *voxel, float3 sample_pos, float voxel_resolution);
 
+#ifndef VOXEL_MEAN_CL
+#define VOXEL_MEAN_CL
+
 //------------------------------------------------------------------------------
 // Functions
 //------------------------------------------------------------------------------
 
 // Psuedo header guard to prevent function implementation duplication.
-__device__ void updateVoxelMeanPosition(__global VoxelMean *voxel, float3 sample_pos, float voxel_resolution)
+inline __device__ void updateVoxelMeanPosition(__global VoxelMean *voxel, float3 sample_pos, float voxel_resolution)
 {
   uint point_count;
   uint old_value;
@@ -33,3 +36,5 @@ __device__ void updateVoxelMeanPosition(__global VoxelMean *voxel, float3 sample
   // Atomic increment for the point count.
   gputilAtomicInc(&voxel->count);
 }
+
+#endif // VOXEL_MEAN_CL

@@ -25,12 +25,23 @@
 typedef float3 ndtvec3;
 typedef double ndtreal;
 typedef uint uint32_t;
+
+// Vector support functions
+inline __device__ ndtreal ndtdot(const ndtvec3 &a, const ndtvec3 &b) { return dot(a, b); }
+inline __device__ ndtreal ndtlength2(const ndtvec3 &v) { return dot(v, v); }
+inline __device__ ndtvec3 ndtnormalize(const ndtvec3 &v) { return normalize(v); }
+
 #else  // GPUTIL_DEVICE
 namespace ohm
 {
   // Define CPU type aliases
   using ndtvec3 = glm::dvec3;
   using ndtreal = double;
+
+
+  inline ndtreal ndtdot(const ndtvec3 &a, const ndtvec3 &b) { return glm::dot(a, b); }
+  inline ndtreal ndtlength2(const ndtvec3 &v) { return glm::length2(v); }
+  inline ndtvec3 ndtnormalize(const ndtvec3 &v) { return glm::normalize(v); }
 #ifndef __device__
 #define __device__
 #endif  //  __device__
@@ -97,10 +108,9 @@ inline __device__ void unpackedA(const NdtVoxel &ndt, unsigned point_count, cons
     A[i] = sc_1 * ndt.cov_sqrt_diag[i];
   }
 
-  for (int i = 0; i < 3; ++i)
-  {
-    A[i + 6] = sc_2 * sample_to_mean[i];
-  }
+  A[0 + 6] = sc_2 * sample_to_mean.x;
+  A[1 + 6] = sc_2 * sample_to_mean.y;
+  A[2 + 6] = sc_2 * sample_to_mean.z;
 }
 
 // Find x for Mx = y, given lower triangular M where M is @c cov_sqrt_diag
@@ -253,7 +263,7 @@ inline __device__ ndtvec3 calculateMiss(NdtVoxel *ndt_voxel, float *voxel_value,
   // b = (l_0 - u)
 
   const ndtvec3 sensor_to_sample = sample - sensor;
-  const ndtvec3 sensor_ray = glm::normalize(sensor_to_sample);  // Verified
+  const ndtvec3 sensor_ray = ndtnormalize(sensor_to_sample);  // Verified
   const ndtvec3 sensor_to_mean = sensor - voxel_mean;
 
   // Packed data solutions:
@@ -262,8 +272,8 @@ inline __device__ ndtvec3 calculateMiss(NdtVoxel *ndt_voxel, float *voxel_value,
 
   // const ndtvec3 a = covariance_inv * sensor_ray;  // Verified (unpacked version)
   // (28)
-  // const ndtreal t = glm::dot(a, sensor_to_mean) / glm::dot(a, sensor_ray); // Verified (unpacked version)
-  const ndtreal t = -glm::dot(a, b_norm) / glm::dot(a, a);  // Verified
+  // const ndtreal t = ndtdot(a, sensor_to_mean) / ndtdot(a, sensor_ray); // Verified (unpacked version)
+  const ndtreal t = -ndtdot(a, b_norm) / ndtdot(a, a);  // Verified
 
   // (25)
   // Note: maximum_likelyhood is abbreviated to ml in assoicated variable names.
@@ -272,17 +282,17 @@ inline __device__ ndtvec3 calculateMiss(NdtVoxel *ndt_voxel, float *voxel_value,
   // (22)
   // Unverified: json line 264
   // const ndtreal p_x_ml_given_voxel = std::exp(
-  //   -0.5 * glm::dot(voxel_maximum_likelyhood - voxel_mean, covariance_inv * (voxel_maximum_likelyhood -
+  //   -0.5 * ndtdot(voxel_maximum_likelyhood - voxel_mean, covariance_inv * (voxel_maximum_likelyhood -
   //   voxel_mean)));
   // Corrected:
   const ndtreal p_x_ml_given_voxel =
-    exp(-0.5 * glm::length2(solveTriangular(*ndt_voxel, voxel_maximum_likelyhood - voxel_mean)));
+    exp(-0.5 * ndtlength2(solveTriangular(*ndt_voxel, voxel_maximum_likelyhood - voxel_mean)));
 
   // (23)
   // Verified: json: line 263
   const ndtreal sensor_noise_variance = sensor_noise * sensor_noise;
   const ndtreal p_x_ml_given_sample =
-    exp(-0.5 * glm::length2(voxel_maximum_likelyhood - sample) / sensor_noise_variance);
+    exp(-0.5 * ndtlength2(voxel_maximum_likelyhood - sample) / sensor_noise_variance);
 
   // Set the scaling factor by converting the miss value to a probability.
   const ndtreal scaling_factor = 1.0f - (1.0 / (1.0 + exp(miss_value)));

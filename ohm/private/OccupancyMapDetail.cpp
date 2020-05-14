@@ -113,7 +113,7 @@ void OccupancyMapDetail::setDefaultLayout(bool enable_voxel_mean)
 
   if (enable_voxel_mean)
   {
-    layer = addVoxelMean(layout);
+    addVoxelMean(layout);
     flags |= MapFlag::kVoxelMean;
   }
   else
@@ -121,12 +121,7 @@ void OccupancyMapDetail::setDefaultLayout(bool enable_voxel_mean)
     flags &= ~MapFlag::kVoxelMean;
   }
 
-  const float default_clearance = -1.0f;
-  clear_value = 0;
-  memcpy(&clear_value, &default_clearance, std::min(sizeof(default_clearance), sizeof(clear_value)));
-  layer = layout.addLayer(default_layer::clearanceLayerName(), 0);
-  voxel = layer->voxelLayout();
-  voxel.addMember(default_layer::clearanceLayerName(), DataType::kFloat, clear_value);
+  addClearance(layout);
 }
 
 

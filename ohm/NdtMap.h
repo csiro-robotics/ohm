@@ -92,7 +92,7 @@ namespace ohm
     void integrateMiss(Voxel &voxel, const glm::dvec3 &sensor, const glm::dvec3 &sample);
 
     /// Debug render the NDT map ellipsoids via 3rd Eye Scene.
-    void debugDraw();
+    void debugDraw() const;
 
   private:
     /// Enable NDT for the given @p map. This enables voxel mean positioning and adds a voxel layer to store the

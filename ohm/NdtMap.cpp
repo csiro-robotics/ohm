@@ -219,27 +219,21 @@ void NdtMap::integrateMiss(Voxel &voxel, const glm::dvec3 &sensor, const glm::dv
 
 int NdtMap::enableNdt(OccupancyMap *map)
 {
-  map->addVoxelMeanLayer();
+  // Prepare layout for update.
+  MapLayout new_layout = map->layout();
 
-  // We need additional layers in the map to store information for the NDT update.
-  MapLayout layout = map->layout();
-  MapLayer &layer = *layout.addLayer("covariance");
-  VoxelLayout voxel = layer.voxelLayout();
-  // Add members to represent a diagonal of the covariance matrix. This is an approximation of the full matrix
-  // but it greatly reduces the per voxel memory usage.
-  voxel.addMember("P00", DataType::kFloat, 0);
-  voxel.addMember("P11", DataType::kFloat, 0);
-  voxel.addMember("P22", DataType::kFloat, 0);
-  voxel.addMember("P33", DataType::kFloat, 0);
-  voxel.addMember("P44", DataType::kFloat, 0);
-  voxel.addMember("P55", DataType::kFloat, 0);
+  addVoxelMean(new_layout);
+  // Cache the layer index.
+  int layer_index = addCovariance(new_layout)->layerIndex();
 
-  map->updateLayout(layout);
-  return layer.layerIndex();
+  // Update the map.
+  map->updateLayout(new_layout);
+
+  return layer_index;
 }
 
 
-void NdtMap::debugDraw()
+void NdtMap::debugDraw() const
 {
 #ifdef TES_ENABLE
   if (!g_3es || g_3es->connectionCount() == 0)

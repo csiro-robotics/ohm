@@ -24,7 +24,9 @@ namespace ohm
     kRfStopOnFirstOccupied = (1 << 1),
     /// Change behaviour such that only voxels which are occupied have their probability adjusted. Free and unknown
     /// voxels are left unchanged.
-    kRfClearOnly = (1 << 2)
+    kRfClearOnly = (1 << 2),
+    /// Do not process the sample voxel.
+    kRfExcludeSample = (1 << 3)
   };
 #if !GPUTIL_DEVICE
 } // namespace ohm
