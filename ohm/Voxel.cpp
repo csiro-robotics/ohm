@@ -9,8 +9,8 @@
 
 #include "DefaultLayer.h"
 #include "MapChunk.h"
-#include "SubVoxel.h"
 #include "VoxelLayout.h"
+#include "VoxelMean.h"
 
 #include <algorithm>
 #include <cassert>
@@ -126,15 +126,18 @@ void Voxel::setClearance(float range)
 }
 
 
-bool Voxel::setPosition(const glm::dvec3 &position)
+bool Voxel::setPosition(const glm::dvec3 &position, unsigned point_count)
 {
   if (isValid())
   {
-    if (chunk_->layout->hasSubVoxelPattern())
+    if (chunk_->layout->hasVoxelMean())
     {
-      OccupancyVoxel *voxel_occupancy = layerContent<OccupancyVoxel *>(map_->layout.occupancyLayer());
-      voxel_occupancy->sub_voxel = subVoxelCoord(position - centreGlobal(), map_->resolution);
-
+      VoxelMean *voxel_mean = layerContent<VoxelMean *>(map_->layout.meanLayer());
+      voxel_mean->coord = subVoxelCoord(position - centreGlobal(), map_->resolution);
+      if (point_count)
+      {
+        voxel_mean->count = point_count;
+      }
       return true;
     }
   }
@@ -143,16 +146,16 @@ bool Voxel::setPosition(const glm::dvec3 &position)
 }
 
 
-bool Voxel::updatePosition(const glm::dvec3 &position, double update_weighting)
+bool Voxel::updatePosition(const glm::dvec3 &position)
 {
   if (isValid())
   {
-    if (chunk_->layout->hasSubVoxelPattern())
+    if (chunk_->layout->hasVoxelMean())
     {
-      update_weighting = (update_weighting >= 0) ? update_weighting : map_->sub_voxel_weighting;
-      OccupancyVoxel *voxel_occupancy = layerContent<OccupancyVoxel *>(map_->layout.occupancyLayer());
-      voxel_occupancy->sub_voxel =
-        subVoxelUpdate(voxel_occupancy->sub_voxel, position - centreGlobal(), map_->resolution, update_weighting);
+      VoxelMean *voxel_mean = layerContent<VoxelMean *>(map_->layout.meanLayer());
+      voxel_mean->coord =
+        subVoxelUpdate(voxel_mean->coord, voxel_mean->count, position - centreGlobal(), map_->resolution);
+      ++voxel_mean->count;
       return true;
     }
   }

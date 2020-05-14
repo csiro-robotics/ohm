@@ -19,16 +19,6 @@ namespace ohm
   struct OccupancyMapDetail;
   struct MapChunk;
 
-  /// Occupancy layer voxel layout when using sub-voxel patterns.
-  /// Without, it is just the @c float occupancy value.
-  struct OccupancyVoxel
-  {
-    /// Voxel occupancy.
-    float occupancy;
-    /// Sub-voxel pattern.
-    uint32_t sub_voxel;
-  };
-
   /// Contains functions which help manipulate common voxel data.
   namespace voxel
   {
@@ -106,11 +96,6 @@ namespace ohm
     const float *voxelOccupancyPtr(const Key &key, const MapChunk *chunk, const OccupancyMapDetail *map);
     float *voxelOccupancyPtr(const Key &key, MapChunk *chunk, const OccupancyMapDetail *map);
 
-    const uint32_t *subVoxelPatternPtr(const Key &key, const MapChunk *chunk, const OccupancyMapDetail *map);
-    uint32_t *subVoxelPatternPtr(const Key &key, MapChunk *chunk, const OccupancyMapDetail *map);
-
-    bool subVoxelOccupancyFilter(const Key &key, const MapChunk *chunk, const OccupancyMapDetail *map);
-
     /// A helper function for accessing the occupancy threshold of @p map.
     /// @return The equivalent to @c OccupancyMap::occupancyThreshold().
     float occupancyThreshold(const OccupancyMapDetail &map);
@@ -132,17 +117,12 @@ namespace ohm
     /// @return The global voxel coordinates.
     glm::dvec3 centreGlobal(const Key &key, const OccupancyMapDetail &map);
 
-    /// Retrieves the (global) position of a voxel with consideration to sub-voxel positioning.
-    /// This is equivalent to @c centreGlobal() if sub-voxel positioning is not enabled, or not resolved for the voxel.
+    /// Retrieves the (global) position of a voxel with consideration to voxel mean positioning.
+    /// This is equivalent to @c centreGlobal() if voxel mean positioning is not enabled, or not resolved for the voxel.
     /// @param key The voxel of interest.
     /// @param map Internal details of the @c OccupancyMap of interest.
-    /// @return The global voxel coordinates with sub-voxel positioning.
+    /// @return The global voxel coordinates with voxel mean positioning.
     glm::dvec3 position(const Key &key, const MapChunk &chunk, const OccupancyMapDetail &map);
-
-    /// Checks if the given @c map has sub-voxel occupancy filtering enabled. Voxel reference must be valid.
-    /// @return True if sub-voxel occupancy filtering is enabled.
-    /// @see @c subVoxelOccupancyFilter()
-    bool subVoxelOccupancyFilterEnabled(const OccupancyMapDetail &map);
 
     /// Value used to identify invalid or uninitialised voxel voxels.
     /// @return A numeric value considered invalid for a voxel value.

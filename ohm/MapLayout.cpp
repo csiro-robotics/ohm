@@ -87,12 +87,7 @@ void MapLayout::clear()
 {
   if (imp_)
   {
-    for (auto layer : imp_->layers)
-    {
-      delete layer;
-    }
-    imp_->layers.clear();
-    imp_->using_sub_voxel_patterns = MapLayoutDetail::kSubUnknown;
+    imp_->clear();
   }
 }
 
@@ -103,35 +98,21 @@ int MapLayout::occupancyLayer() const
 }
 
 
+int MapLayout::meanLayer() const
+{
+  return imp_->mean_layer;
+}
+
+
 int MapLayout::clearanceLayer() const
 {
   return imp_->clearance_layer;
 }
 
 
-bool MapLayout::hasSubVoxelPattern() const
+bool MapLayout::hasVoxelMean() const
 {
-  if (imp_->using_sub_voxel_patterns == MapLayoutDetail::kSubUnknown)
-  {
-    // Need to look up the layer.
-    if (occupancyLayer() >= 0)
-    {
-      const MapLayer *layer = imp_->layers[occupancyLayer()];
-      if (layer && layer->voxelByteSize() > 0)
-      {
-        imp_->using_sub_voxel_patterns =
-          (layer->voxelByteSize() == sizeof(float)) ? MapLayoutDetail::kSubOff : MapLayoutDetail::kSubOn;
-      }
-    }
-  }
-
-  return imp_->using_sub_voxel_patterns == MapLayoutDetail::kSubOn;
-}
-
-
-void MapLayout::invalidateSubVoxelPatternState()
-{
-  imp_->using_sub_voxel_patterns = MapLayoutDetail::kSubUnknown;
+  return imp_->mean_layer >= 0;
 }
 
 
@@ -200,6 +181,10 @@ MapLayer *MapLayout::addLayer(const char *name, uint16_t subsampling)
   if (imp_->occupancy_layer == -1 && name_str.compare(default_layer::occupancyLayerName()) == 0)
   {
     imp_->occupancy_layer = new_layer->layerIndex();
+  }
+  else if (imp_->mean_layer == -1 && name_str.compare(default_layer::meanLayerName()) == 0)
+  {
+    imp_->mean_layer = new_layer->layerIndex();
   }
   else if (imp_->clearance_layer == -1 && name_str.compare(default_layer::clearanceLayerName()) == 0)
   {

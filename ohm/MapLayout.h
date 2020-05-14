@@ -127,20 +127,18 @@ namespace ohm
     /// @return The occupancy layer index or -1 if not present.
     int occupancyLayer() const;
 
+    /// Cached index to the "mean" layer. This layer holds the mean position coordinate for samples fallen in a voxel.
+    /// @return The voxel mean layer index or -1 if not present.
+    int meanLayer() const;
+
     /// Cached index to the "clearance" layer.
     /// @return The clearance layer index or -1 if not present.
     int clearanceLayer() const;
 
-    /// Returns true if the "occupancy" layer includes sub-voxel pattern values.
-    ///
-    /// The occupancy layer may contain either only @c float occupancy values or @c float occupancy and @c uint32_t
-    /// sub-voxel patters for each voxel. This function returns true if the sub-voxel pattern is present in the
-    /// @c occupancyLayer().
-    /// @return true if sub-voxel patterns are in use.
-    bool hasSubVoxelPattern() const;
-
-    /// Invalidate the @c hasSubVoxelPattern() flag.
-    void invalidateSubVoxelPatternState();
+    /// Returns true if the layout includes a "mean" layer for @c VoxelMean. This is a aame check only and does not
+    /// confirm the layout.
+    /// @return true if voxel mean layer is present.
+    bool hasVoxelMean() const;
 
     /// Check if this @c MapLayout is equivalent to @p other.
     ///

@@ -9,9 +9,9 @@
 #include "MapLayer.h"
 #include "MapLayout.h"
 #include "NdtVoxel.h"
-#include "SubVoxel.h"
 #include "Voxel.h"
 #include "VoxelLayout.h"
+#include "VoxelMean.h"
 
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/mat3x3.hpp>
@@ -129,31 +129,25 @@ void NdtMap::integrateHit(Voxel &voxel, const glm::dvec3 & /*sensor*/, const glm
 {
   OccupancyMap &map = *imp_->map;
 
-  assert(map.layout().hasSubVoxelPattern());
-  OccupancyVoxel *voxel_occupancy = voxel.layerContent<OccupancyVoxel *>(map.layout().occupancyLayer());
+  assert(map.layout().hasVoxelMean());
   NdtVoxel *ndt_voxel = voxel.layerContent<NdtVoxel *>(imp_->covariance_layer_index);
+  VoxelMean *voxel_mean_info = voxel.layerContent<VoxelMean *>(map.layout().meanLayer());
 
   const glm::dvec3 voxel_centre = voxel.centreGlobal();
   glm::dvec3 voxel_mean;
-#if OHM_NDT_UNPACKED_MEAN
-  voxel_mean = glm::dvec3(ndt_voxel->mean[0], ndt_voxel->mean[1], ndt_voxel->mean[2]);
-#else   // OHM_NDT_UNPACKED_MEAN
-  voxel_mean = subVoxelToLocalCoord<glm::dvec3>(voxel_occupancy->sub_voxel, map.resolution()) + voxel_centre;
-#endif  // OHM_NDT_UNPACKED_MEAN
+  voxel_mean = subVoxelToLocalCoord<glm::dvec3>(voxel_mean_info->coord, map.resolution()) + voxel_centre;
 
   float voxel_value = voxel.value();
-  voxel_mean = calculateHit(ndt_voxel, &voxel_value, sample, voxel_mean, map.hitValue(),
+  calculateHit(ndt_voxel, &voxel_value, sample, voxel_mean, voxel_mean_info->count, map.hitValue(),
                             map.occupancyThresholdValue(), voxel::invalidMarkerValue(), imp_->sensor_noise);
 
   // NDT probably value update is the same as for the basic occupancy map.
   voxel.setValue(voxel_value);
 
-#if OHM_NDT_UNPACKED_MEAN
-  ndt_voxel->mean[0] = voxel_mean[0];
-  ndt_voxel->mean[1] = voxel_mean[1];
-  ndt_voxel->mean[2] = voxel_mean[2];
-#endif  //
-  voxel_occupancy->sub_voxel = subVoxelCoord(voxel_mean - voxel_centre, map.resolution());
+  // Update the voxel mean.
+  voxel_mean_info->coord =
+    subVoxelUpdate(voxel_mean_info->coord, voxel_mean_info->count, sample - voxel_centre, map.resolution());
+  ++voxel_mean_info->count;
 }
 
 
@@ -165,18 +159,14 @@ void NdtMap::integrateMiss(Voxel &voxel, const glm::dvec3 &sensor, const glm::dv
   float voxel_value = initial_value;
   NdtVoxel *ndt_voxel = voxel.layerContent<NdtVoxel *>(imp_->covariance_layer_index);
 
-#if OHM_NDT_UNPACKED_MEAN
-  const glm::dvec3 voxel_mean(ndt_voxel->mean[0], ndt_voxel->mean[1], ndt_voxel->mean[2]);
-#else   // OHM_NDT_UNPACKED_MEAN
-  assert(map.layout().hasSubVoxelPattern());
-  const OccupancyVoxel *voxel_occupancy = voxel.layerContent<const OccupancyVoxel *>(map.layout().occupancyLayer());
-  const glm::dvec3 voxel_mean(subVoxelToLocalCoord<glm::dvec3>(voxel_occupancy->sub_voxel, map.resolution()) +
+  assert(map.layout().hasVoxelMean());
+  VoxelMean *voxel_mean_info = voxel.layerContent<VoxelMean *>(map.layout().meanLayer());
+  const glm::dvec3 voxel_mean(subVoxelToLocalCoord<glm::dvec3>(voxel_mean_info->coord, map.resolution()) +
                               voxel.centreGlobal());
-#endif  // OHM_NDT_UNPACKED_MEAN
 
-  const glm::dvec3 voxel_maximum_likelyhood =
-    calculateMiss(ndt_voxel, &voxel_value, sensor, sample, voxel_mean, map.occupancyThresholdValue(),
-                  voxel::invalidMarkerValue(), map.missValue(), imp_->sensor_noise, imp_->sample_threshold);
+  const glm::dvec3 voxel_maximum_likelyhood = calculateMiss(
+    ndt_voxel, &voxel_value, sensor, sample, voxel_mean, voxel_mean_info->count, map.occupancyThresholdValue(),
+    voxel::invalidMarkerValue(), map.missValue(), imp_->sensor_noise, imp_->sample_threshold);
   voxel.setValue(voxel_value);
 
   TES_IF(imp_->trace)
@@ -229,7 +219,7 @@ void NdtMap::integrateMiss(Voxel &voxel, const glm::dvec3 &sensor, const glm::dv
 
 int NdtMap::enableNdt(OccupancyMap *map)
 {
-  map->setSubVoxelsEnabled(true);
+  map->addVoxelMeanLayer();
 
   // We need additional layers in the map to store information for the NDT update.
   MapLayout layout = map->layout();
@@ -243,12 +233,6 @@ int NdtMap::enableNdt(OccupancyMap *map)
   voxel.addMember("P33", DataType::kFloat, 0);
   voxel.addMember("P44", DataType::kFloat, 0);
   voxel.addMember("P55", DataType::kFloat, 0);
-#if OHM_NDT_UNPACKED_MEAN
-  voxel.addMember("mean_x", DataType::kFloat, 0);
-  voxel.addMember("mean_y", DataType::kFloat, 0);
-  voxel.addMember("mean_z", DataType::kFloat, 0);
-#endif  // OHM_NDT_UNPACKED_MEAN
-  voxel.addMember("sample_count", DataType::kUInt32, 0);
 
   map->updateLayout(layout);
   return layer.layerIndex();
@@ -296,11 +280,7 @@ void NdtMap::debugDraw()
         continue;
       }
 
-#if OHM_NDT_UNPACKED_MEAN
-      const glm::dvec3 voxel_mean(ndt_voxel.mean[0], ndt_voxel.mean[1], ndt_voxel.mean[2]);
-#else   // OHM_NDT_UNPACKED_MEAN
       const glm::dvec3 voxel_mean = voxel.position();
-#endif  // OHM_NDT_UNPACKED_MEAN
       tes::Sphere ellipsoid(next_id, glm::value_ptr(voxel_mean));
       glm::dquat q(evecs);
       ellipsoid.setRotation(tes::Quaterniond(q.x, q.y, q.z, q.w));

@@ -52,7 +52,7 @@ namespace
     double clearance = 2.0;
     double floor = 0;
     double ceiling = 0;
-    bool no_sub_voxel = false;
+    bool no_voxel_mean = false;
   };
 
 
@@ -89,7 +89,7 @@ int parseOptions(Options *opt, int argc, char *argv[])
        optVal(opt->floor))  //
       ("ceiling", "Heightmap excludes voxels above this (positive) value above the --base height. Positive to enable.",
        optVal(opt->ceiling))                                                                    //
-      ("no-sub-vox", "Ignore sub-voxel positioning if available?.", optVal(opt->no_sub_voxel))  //
+      ("no-voxel-mean", "Ignore voxel mean positioning if available?.", optVal(opt->no_voxel_mean))  //
       ;
 
     opt_parse.parse_positional({ "i", "o" });
@@ -180,7 +180,7 @@ int main(int argc, char *argv[])
   heightmap.setUseFloodFill(true);  // For better surface following.
   heightmap.setOccupancyMap(&map);
 
-  heightmap.setIgnoreSubVoxelPositioning(opt.no_sub_voxel);
+  heightmap.setIgnoreVoxelMean(opt.no_voxel_mean);
 
   heightmap.buildHeightmap(opt.base_height * heightmap.upAxisNormal());
 

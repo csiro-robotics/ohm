@@ -61,7 +61,7 @@ namespace ohm
     bool calculateForRegion(OccupancyMap &map, const glm::i16vec3 &region_key);  // NOLINT(google-runtime-references)
 
   private:
-    void cacheGpuProgram(bool with_sub_voxels, bool force);
+    void cacheGpuProgram(bool force);
     void releaseGpuProgram();
 
     void finishRegion(const glm::i16vec3 &region_key, OccupancyMap &map,  // NOLINT(google-runtime-references)
@@ -94,7 +94,6 @@ namespace ohm
     float search_radius_ = 0.0f;
     unsigned query_flags_ = 0;
     unsigned region_count_ = 0;
-    bool using_sub_voxels_program_ = false;
   };
 }  // namespace ohm
 

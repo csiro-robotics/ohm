@@ -13,8 +13,7 @@ namespace ohm
   enum MapChunkFlag
   {
     MainMemDirty = (1 << 0),
-    GpuMemDirty = (1 << 1),
-    SubVoxels = (1 << 2),
+    GpuMemDirty = (1 << 1)
   };
 }
 

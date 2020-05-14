@@ -10,13 +10,11 @@
 
 inline __device__ float calculateOccupancyAdjustment(bool isEndVoxel, struct LineWalkData *line_data, float voxel_resolution)
 {
-#if OHM_NDT_UNPACKED_MEAN
-  float3 voxel_mean = float3(ndt_voxel->mean[0], ndt_voxel->mean[1], ndt_voxel->mean[2]);
-#elif defined(SUB_VOXEL)
+#ifdef VOXEL_MEAN
   float3 voxel_mean = subVoxelToLocalCoord(voxels[vi].sub_voxel, voxel_resolution);
 #else
-#error No sub-voxel information available
-#endif  // OHM_NDT_UNPACKED_MEAN
+#error No voxel mean information available
+#endif  // VOXEL_MEAN
 
   float adjustment = 0;
   const int min_sample_threshold = 4; // Should be passed in.

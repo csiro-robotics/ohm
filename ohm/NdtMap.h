@@ -19,7 +19,7 @@ namespace ohm
   /// adjustments.
   ///
   /// This technique adds a voxel layer which includes a packed covariance matrix (see @c NdtVoxel ) and ensures
-  /// sub-voxel positioning is enabled.
+  /// voxel mean positioning is enabled.
   ///
   /// This covariance matrix describes an ellipsoid within the voxel which approximates the collection of samples used
   /// to populate that voxel. This is used to refine the probably adjustment of rays passing through the voxel.
@@ -95,7 +95,7 @@ namespace ohm
     void debugDraw();
 
   private:
-    /// Enable NDT for the given @p map. This enables sub-voxel positioning and adds a voxel layer to store the
+    /// Enable NDT for the given @p map. This enables voxel mean positioning and adds a voxel layer to store the
     /// voxel covariance matrix approximation.
     /// @param map The occupancy map to enable NDT for.
     /// @return The voxel layer index for the covariance matrix.

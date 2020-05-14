@@ -57,13 +57,13 @@ get_target_property(OHM_SOURCE_DIR ohm SOURCE_DIR)
 set(GPU_HEADERS
   gpu/AdjustNdt.cl
   gpu/AdjustOccupancy.cl
-  gpu/SubVoxel.cl
+  gpu/VoxelMean.cl
   GpuKey.h
   # Need some headers from the OHM core project.
   ${OHM_SOURCE_DIR}/MapCoord.h
   ${OHM_SOURCE_DIR}/NdtVoxel.h
   ${OHM_SOURCE_DIR}/RayFlag.h
-  ${OHM_SOURCE_DIR}/SubVoxel.h
+  ${OHM_SOURCE_DIR}/VoxelMean.h
 )
 
 set(PUBLIC_HEADERS
@@ -176,6 +176,7 @@ if(OHM_BUILD_CUDA)
   list(APPEND GPU_SOURCES
     gpu/LineKeys.cu
     gpu/RegionUpdate.cu
+    gpu/RegionUpdateWithMean.cu
     gpu/RoiRangeFill.cu
     gpu/TransformSamples.cu
   )

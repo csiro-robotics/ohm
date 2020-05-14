@@ -248,11 +248,11 @@ namespace ohm
     GpuCache *gpuCache() const;
 
   protected:
-    /// Cache the correct GPU program to cater for @c with_sub_voxels. Releases the existing program first when
-    /// @p force is true or @p with_sub_voxels does not match the cached program.
-    /// @param with_sub_voxels True to cache the program which supports sub-voxel positioning (@ref subvoxel).
+    /// Cache the correct GPU program to cater for @c with_voxel_mean. Releases the existing program first when
+    /// @p force is true or @p with_voxel_mean does not match the cached program.
+    /// @param with_voxel_mean True to cache the program which supports voxel mean positioning (@ref voxelmean).
     /// @param force Force release and program caching even if already correct. Must be used on initialisation.
-    void cacheGpuProgram(bool with_sub_voxels, bool force);
+    void cacheGpuProgram(bool with_voxel_mean, bool force);
 
     /// Release the current GPU program.
     void releaseGpuProgram();
@@ -286,13 +286,7 @@ namespace ohm
     /// @p regionsBuffer and @p offsetsBuffer to fill alternative GPU buffers for the next batch.
     ///
     /// @param region_key The key for the region of interest.
-    /// @param[in,out] regions_buffer GPU buffer to upload @c regionKey to. Will be assigned a different buffer when the
-    ///   @c GpuLayerCache is full.
-    /// @param[in,out] offsets_buffer GPU buffer to upload the memory offset for the region to. Will be assigned a
-    ///   different buffer when the @c GpuLayerCache is full.
-    /// @param region_update_flags Flags controlling ray integration behaviour. See @c RayFlag.
-    /// @param allow_retry Allow recursion when the @c GpuLayerCache?
-    virtual bool enqueueRegion(const glm::i16vec3 &region_key, int buffer_index, unsigned region_update_flags);
+    virtual bool enqueueRegion(const glm::i16vec3 &region_key, int buffer_index);
 
     /// Finalise the current ray/region batch and start executing GPU kernel.
     /// @param[in,out] regions_buffer GPU buffer containing uploaded region keys. Will be unpinned.

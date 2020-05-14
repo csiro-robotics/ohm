@@ -78,25 +78,23 @@ namespace
     double start_time = 0;
     double time_limit = 0;
     double resolution = 0.25;
-    double sub_voxel_weighting = 0.0f;
     double clip_near_range = 0.0;
     float prob_hit = 0.9f;
     float prob_miss = 0.49f;
     float prob_thresh = 0.5f;
-    float sub_voxel_filter = 0.0f;
     glm::vec2 prob_range = glm::vec2(0, 0);
     glm::vec3 cloud_colour = glm::vec3(0);
     unsigned batch_size = 2048;
     bool serialise = true;
     bool save_info = false;
+    bool voxel_mean = false;
+    bool ndt = false;
 #ifndef OHMPOP_CPU
     double mapping_interval = 0.2;
     double progressive_mapping_slice = 0.0;
     float clearance = 0.0f;
     bool post_population_mapping = true;
     bool clearance_unknown_as_occupied = false;
-#else   // OHMPOP_CPU
-    bool ndt = false;
 #endif  // OHMPOP_CPU
     bool quiet = false;
 
@@ -149,15 +147,7 @@ namespace
       // std::string mem_size_string;
       // util::makeMemoryDisplayString(mem_size_string, ohm::OccupancyMap::voxelMemoryPerRegion(region_voxel_dim));
       **out << "Map resolution: " << resolution << '\n';
-      **out << "Sub-voxel weighting: ";
-      if (sub_voxel_weighting > 0)
-      {
-        **out << sub_voxel_weighting << '\n';
-      }
-      else
-      {
-        **out << "off\n";
-      }
+      **out << "Voxel mean position: " << (map.voxelMeanEnabled() ? "on" : "off") << '\n';
       glm::i16vec3 region_dim = region_voxel_dim;
       region_dim.x = (region_dim.x) ? region_dim.x : OHM_DEFAULT_CHUNK_DIM_X;
       region_dim.y = (region_dim.y) ? region_dim.y : OHM_DEFAULT_CHUNK_DIM_Y;
@@ -352,8 +342,7 @@ int populateMap(const Options &opt)
   }
 
   ohm::MapFlag map_flags = ohm::MapFlag::kNone;
-  map_flags |= (opt.sub_voxel_weighting > 0) ? ohm::MapFlag::kSubVoxelPosition : ohm::MapFlag::kNone;
-  map_flags |= (opt.sub_voxel_filter > 0) ? ohm::MapFlag::kSubVoxelOccupancy : ohm::MapFlag::kNone;
+  map_flags |= (opt.voxel_mean) ? ohm::MapFlag::kVoxelMean : ohm::MapFlag::kNone;
   ohm::OccupancyMap map(opt.resolution, opt.region_voxel_dim, map_flags);
   std::atomic<uint64_t> elapsed_ms(0);
   ProgressMonitor prog(10);
@@ -437,15 +426,9 @@ int populateMap(const Options &opt)
 #endif  // OHMPOP_CPU
   Clock::time_point start_time, end_time;
 
-  if (opt.sub_voxel_weighting > 0)
+  if (opt.voxel_mean)
   {
-    map.setSubVoxelsEnabled(true);
-    map.setSubVoxelWeighting(opt.sub_voxel_weighting);
-  }
-
-  if (opt.sub_voxel_filter > 0)
-  {
-    map.setSubVoxelFilterScale(opt.sub_voxel_filter);
+    map.addVoxelMeanLayer();
   }
 
 #ifndef OHMPOP_CPU
@@ -821,13 +804,7 @@ int parseOptions(Options *opt, int argc, char *argv[])
       ("h,hit", "The occupancy probability due to a hit. Must be >= 0.5.", optVal(opt->prob_hit))
       ("m,miss", "The occupancy probability due to a miss. Must be < 0.5.", optVal(opt->prob_miss))
       ("r,resolution", "The voxel resolution of the generated map.", optVal(opt->resolution))
-      ("sub-voxel", "Sub voxel positioning weighting. Adding this option with no value enables sub-voxel positioning "
-                    "with the default weighting. Specifying a value (0, 1] sets the weight of new samples vs. the "
-                    "existing sub-voxel position.",
-                    optVal(opt->sub_voxel_weighting)->implicit_value("0.3"))
-      ("sub-voxel-filter", "Enable sub-voxel occupancy filtering? Occupied voxels with may be considered free when "
-                    "the sub-voxel positioning is far from the voxel centre.",
-                    optVal(opt->sub_voxel_filter)->implicit_value("1.0"))
+      ("voxel-mean", "Enable voxel mean coordinates?", optVal(opt->voxel_mean))
       ("threshold", "Sets the occupancy threshold assigned when exporting the map to a cloud.", optVal(opt->prob_thresh)->implicit_value(optStr(opt->prob_thresh)))
 #ifdef OHMPOP_CPU
       ("ndt", "Use normal distibution transform map generation.", optVal(opt->ndt))

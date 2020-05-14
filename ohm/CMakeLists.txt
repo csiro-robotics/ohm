@@ -32,8 +32,11 @@ set(SOURCES
   serialise/MapSerialiseV0.1.h
   serialise/MapSerialiseV0.2.cpp
   serialise/MapSerialiseV0.2.h
-  serialise/MapSerialiseV0.3.cpp
-  serialise/MapSerialiseV0.3.h
+  # Note: there is no ongong support for 0.3.x. That added "sub-voxel" support, but in a way which mutated the occupancy
+  # layer and did not generate good results. Version 0.4.0 introduced an explicit VoxelMean layer for much better
+  # results and obviated the need for map header changes.
+  serialise/MapSerialiseV0.4.cpp
+  serialise/MapSerialiseV0.4.h
   serialise/MapSerialiseV0.cpp
   serialise/MapSerialiseV0.h
   Aabb.h
@@ -114,7 +117,7 @@ set(SOURCES
   RayPatternConical.h
   Stream.cpp
   Stream.h
-  SubVoxel.h
+  VoxelMean.h
   Trace.cpp
   Trace.h
   TriangleEdge.h
@@ -179,7 +182,7 @@ set(PUBLIC_HEADERS
   RayPattern.h
   RayPatternConical.h
   Stream.h
-  SubVoxel.h
+  VoxelMean.h
   Trace.h
   TriangleEdge.h
   TriangleNeighbours.h

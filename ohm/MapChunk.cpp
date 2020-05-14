@@ -7,6 +7,8 @@
 
 #include "DefaultLayer.h"
 #include "Voxel.h"
+#include "MapLayer.h"
+#include "MapLayout.h"
 #include "private/MapLayoutDetail.h"
 #include "private/OccupancyMapDetail.h"
 
@@ -91,6 +93,64 @@ Key MapChunk::keyForIndex(size_t voxel_index, const glm::ivec3 &region_voxel_dim
   }
 
   return key;
+}
+
+
+void MapChunk::updateLayout(const MapLayout *new_layout, const glm::uvec3 &region_dim,
+                  const std::vector<std::pair<const MapLayer *, const MapLayer *>> &preserve_layer_mapping)
+{
+
+  // Allocate voxel pointer array.
+  uint8_t **new_voxel_maps = new uint8_t *[new_layout->layerCount()];
+  std::atomic_uint64_t *new_touched_stamps = new std::atomic_uint64_t[new_layout->layerCount()];
+
+  // Initialise voxel maps to null so we can track what's missed by preserve_layer_mapping.
+  for (size_t i = 0; i < new_layout->layerCount(); ++i)
+  {
+    new_voxel_maps[i] = nullptr;
+  }
+
+  for (const auto &mapping : preserve_layer_mapping)
+  {
+    new_voxel_maps[mapping.second->layerIndex()] = voxel_maps[mapping.first->layerIndex()];
+    new_touched_stamps[mapping.second->layerIndex()] = touched_stamps[mapping.first->layerIndex()].load();
+    // Memory ownership moved: nullify to prevent release.
+    voxel_maps[mapping.first->layerIndex()] = nullptr;
+  }
+
+  // Now initialise any new or unmapped layers and release those not preserved.
+  for (size_t i = 0; i < new_layout->layerCount(); ++i)
+  {
+    if (!new_voxel_maps[i])
+    {
+      // Initilised layer.
+      const MapLayer &layer = new_layout->layer(i);
+      new_voxel_maps[i] = layer.allocate(region_dim);
+      layer.clear(new_voxel_maps[i], region_dim);
+      new_touched_stamps[i] = 0u;
+    }
+  }
+
+  // Release redundant layers.
+  for (size_t i = 0; i < layout->layerCount(); ++i)
+  {
+    if (voxel_maps[i])
+    {
+      // Unmigrated/redudant layer. Release.
+      layout->layer(i).release(voxel_maps[i]);
+      voxel_maps[i] = nullptr;
+    }
+  }
+
+  // Release pointer arrays.
+  delete[] voxel_maps;
+  delete[] touched_stamps;
+
+  // Update pointers
+  voxel_maps = new_voxel_maps;
+  touched_stamps = new_touched_stamps;
+  // We do not update the layout pointer to new_layout. This pointer is to the owning occupancy map's layout which we
+  // assume is about to change internally. It's address will remain unchanged.
 }
 
 

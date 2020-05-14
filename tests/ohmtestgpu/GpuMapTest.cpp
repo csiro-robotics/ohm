@@ -51,11 +51,11 @@ namespace gpumap
 
   void gpuMapTest(double resolution, const glm::u8vec3 &region_size, const std::vector<glm::dvec3> &rays,
                   const PostGpuMapTestFunc &post_populate, const char *save_prefix = nullptr, size_t batch_size = 0u,
-                  size_t gpu_mem_size = 0u, bool sub_voxels = false)
+                  size_t gpu_mem_size = 0u, bool voxel_means = false)
   {
     // Test basic map populate using GPU and ensure it matches CPU (close enough).
-    OccupancyMap cpu_map(resolution, region_size, sub_voxels ? MapFlag::kSubVoxel : MapFlag::kNone);
-    OccupancyMap gpu_map(resolution, region_size, sub_voxels ? MapFlag::kSubVoxel : MapFlag::kNone);
+    OccupancyMap cpu_map(resolution, region_size, voxel_means ? MapFlag::kVoxelMean : MapFlag::kNone);
+    OccupancyMap gpu_map(resolution, region_size, voxel_means ? MapFlag::kVoxelMean : MapFlag::kNone);
     GpuMap gpu_wrap(&gpu_map, true, unsigned(batch_size * 2), gpu_mem_size);  // Borrow pointer.
 
     ASSERT_TRUE(gpu_wrap.gpuOk());
@@ -640,9 +640,9 @@ namespace gpumap
     compareMaps(cpu_map, gpu_map);
   }
 
-  TEST(GpuMap, SubVoxel)
+  TEST(GpuMap, VoxelMean)
   {
-    // Populate with sub-voxels
+    // Populate with voxel means
     const double map_extents = 50.0;
     const double resolution = 0.25;
     const unsigned ray_count = 64;
@@ -659,7 +659,7 @@ namespace gpumap
       rays.emplace_back(glm::dvec3(rand(rand_engine), rand(rand_engine), rand(rand_engine)));
     }
 
-    gpuMapTest(resolution, region_size, rays, compareCpuGpuMaps, "subvoxel", batch_size, 0, true);
+    gpuMapTest(resolution, region_size, rays, compareCpuGpuMaps, "voxelmean", batch_size, 0, true);
   }
 
   TEST(GpuMap, CheckBadRays)

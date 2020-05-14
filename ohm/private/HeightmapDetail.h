@@ -57,8 +57,8 @@ namespace ohm
     /// Identifies the up axis as aligned to XYZ, [0, 2] but ignores sign/direction.
     /// Same as up_axis_id if that value is >= 0.
     int vertical_axis_index = int(UpAxis::kZ);
-    /// Should heightmap generation ignore the presence of sub-voxel positions, forcing voxel centres instead?
-    bool ignore_sub_voxel_positioning = false;
+    /// Should heightmap generation ignore the presence of voxel mean positions, forcing voxel centres instead?
+    bool ignore_voxel_mean = false;
     /// Allow the generation of a virtual heightmap floor around the transition from unknown to free voxels?
     ///
     /// @see @c Heightmap::setGenerateVirtualFloor()

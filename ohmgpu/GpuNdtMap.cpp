@@ -61,13 +61,8 @@ void GpuNdtMap::finaliseBatch(unsigned region_update_flags)
   // Complete region data upload.
   GpuCache &gpu_cache = *this->gpuCache();
   GpuLayerCache &occupancy_layer_cache = *gpu_cache.layerCache(kGcIdOccupancy);
-  // GpuLayerCache &sub_voxel_layer_cache = *gpu_cache.layerCache(kGcIdSubVoxel);
+  GpuLayerCache &mean_layer_cache = *gpu_cache.layerCache(kGcIdVoxelMean);
   GpuLayerCache &ndt_voxel_layer_cache = *gpu_cache.layerCache(kGcIdNdt);
-
-  // if (imp_->map->subVoxelsEnabled())
-  // {
-  //   sub_voxel_layer_cache = gpu_cache.layerCache(kGcIdSubVoxel);
-  // }
 
   // Enqueue update kernel.
   const gputil::int3 region_dim_gpu = { map->region_voxel_dimensions.x, map->region_voxel_dimensions.y,
@@ -89,22 +84,21 @@ void GpuNdtMap::finaliseBatch(unsigned region_update_flags)
                       // Kernel args begin:
                       gputil::BufferArg<float>(*occupancy_layer_cache.buffer()),
                       gputil::BufferArg<uint64_t>(imp_->voxel_upload_info[buf_idx][0].offsets_buffer),
-                      // gputil::BufferArg<unsigned>(*sub_voxel_layer_cache.buffer()),
-                      // gputil::BufferArg<uint64_t>(imp_->voxel_upload_info[buf_idx][1].offsets_buffer),
+                      gputil::BufferArg<unsigned>(*mean_layer_cache.buffer()),
+                      gputil::BufferArg<uint64_t>(imp_->voxel_upload_info[buf_idx][1].offsets_buffer),
                       gputil::BufferArg<NdtVoxel>(*ndt_voxel_layer_cache.buffer()),
-                        gputil::BufferArg<uint64_t>(imp_->voxel_upload_info[buf_idx][1].offsets_buffer),
+                        gputil::BufferArg<uint64_t>(imp_->voxel_upload_info[buf_idx][2].offsets_buffer),
                       gputil::BufferArg<gputil::int3>(imp_->region_key_buffers[buf_idx]), region_count,
                       gputil::BufferArg<GpuKey>(imp_->key_buffers[buf_idx]),
                       gputil::BufferArg<gputil::float3>(imp_->ray_buffers[buf_idx]), ray_count, region_dim_gpu,
                       float(map->resolution), map->miss_value, map->hit_value, map->occupancy_threshold_value,
-                      map->min_voxel_value, map->max_voxel_value, float(map->sub_voxel_weighting),
-                      region_update_flags);
+                      map->min_voxel_value, map->max_voxel_value, region_update_flags);
 
   // gpu_cache.gpuQueue().flush();
 
   // Update most recent chunk GPU event.
   occupancy_layer_cache.updateEvents(imp_->batch_marker, imp_->region_update_events[buf_idx]);
-  // sub_voxel_layer_cache.updateEvents(imp_->batch_marker, imp_->region_update_events[buf_idx]);
+  // mean_layer_cache.updateEvents(imp_->batch_marker, imp_->region_update_events[buf_idx]);
   ndt_voxel_layer_cache.updateEvents(imp_->batch_marker, imp_->region_update_events[buf_idx]);
 
   // std::cout << imp_->region_counts[bufIdx] << "
@@ -113,7 +107,7 @@ void GpuNdtMap::finaliseBatch(unsigned region_update_flags)
   imp_->region_counts[buf_idx] = 0;
   // Start a new batch for the GPU layers.
   imp_->batch_marker = occupancy_layer_cache.beginBatch();
-  // sub_voxel_layer_cache.beginBatch(imp_->batch_marker);
+  mean_layer_cache.beginBatch(imp_->batch_marker);
   ndt_voxel_layer_cache.beginBatch(imp_->batch_marker);
   imp_->next_buffers_index = 1 - imp_->next_buffers_index;
 }

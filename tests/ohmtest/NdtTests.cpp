@@ -12,6 +12,7 @@
 #include <ohm/NdtVoxel.h>
 #include <ohm/OccupancyMap.h>
 #include <ohm/Trace.h>
+#include <ohm/VoxelMean.h>
 
 #include <gtest/gtest.h>
 #include "ohmtestcommon/OhmTestUtil.h"
@@ -37,12 +38,22 @@ namespace ndttests
   // consideration to using a packed covariance matrix. We use this code to validate the NDT results.
   // Note: Jason's code was written using Eigen for mathematical operations which we've converted to glm. The ohm
   // library prefers glm as it is a much ligher weight library and we do not require Eigen's advanced functionality.
+
+
+  /// Ndt reference data.
   struct NdtTestVoxel : public ohm::NdtVoxel
   {
-#if !OHM_NDT_UNPACKED_MEAN
     double mean[3];
-#endif  // !OHM_NDT_UNPACKED_MEAN
+    unsigned point_count;
   };
+
+
+  void initialiseTestVoxel(NdtTestVoxel *ref_voxel, double sensor_noise)
+  {
+    initialiseNdt(ref_voxel, sensor_noise);
+    ref_voxel->mean[0] = ref_voxel->mean[1] = ref_voxel->mean[2] = 0;
+    ref_voxel->point_count = 0;
+  }
 
   // dot product of j-th and k-th columns of A
   // A is (4,3), assumed to be packed as follows, where z is non-represented zero
@@ -110,22 +121,17 @@ namespace ndttests
     ++ndt->point_count;
   }
 
-  void validate(const glm::dvec3 &mean, const ohm::NdtVoxel &ndt, const NdtTestVoxel &ref)
+  void validate(const glm::dvec3 &mean, unsigned point_count, const ohm::NdtVoxel &ndt, const NdtTestVoxel &ref)
   {
-#if OHM_NDT_UNPACKED_MEAN
-    const double epsilon_cov = 1e-9;
-    const double epsilon_mean = 1e-2;
-#else   // OHM_NDT_UNPACKED_MEAN
     // Quantisation in the mean storage create more signficant absolute errors in the covariance and mean.
     const double epsilon_cov = 1e-2;
     const double epsilon_mean = 1e-1;
-#endif  // OHM_NDT_UNPACKED_MEAN
     for (int i = 0; i < 6; ++i)
     {
       EXPECT_NEAR(ndt.cov_sqrt_diag[i], ref.cov_sqrt_diag[i], epsilon_cov);
     }
 
-    EXPECT_EQ(ndt.point_count, ref.point_count);
+    EXPECT_EQ(point_count, ref.point_count);
 
     const glm::dvec3 ref_mean(ref.mean[0], ref.mean[1], ref.mean[2]);
     const double mean_diff = glm::length(mean - ref_mean);
@@ -136,7 +142,7 @@ namespace ndttests
   {
     std::unordered_map<ohm::Key, NdtTestVoxel, ohm::KeyHash> reference_voxels;
 
-    ohm::OccupancyMap map(resolution, ohm::MapFlag::kSubVoxelPosition);
+    ohm::OccupancyMap map(resolution, ohm::MapFlag::kVoxelMean);
     ohm::NdtMap ndt(&map, true);
     ohm::MapCache cache;
 
@@ -152,6 +158,7 @@ namespace ndttests
       ohm::Voxel voxel = map.voxel(key, true, &cache);
       ndt.integrateHit(voxel, sensor, sample);
       const ohm::NdtVoxel &ndt_voxel = *voxel.layerContent<const ohm::NdtVoxel *>(ndt.covarianceLayerIndex());
+      const ohm::VoxelMean &voxel_mean = *voxel.layerContent<const ohm::VoxelMean *>(ndt.map().layout().meanLayer());
 
       // Update the reference voxel as well.
       auto ref = reference_voxels.find(key);
@@ -159,7 +166,7 @@ namespace ndttests
       {
         // New voxel. Initialise.
         NdtTestVoxel ref_voxel;
-        initialiseNdt(&ref_voxel, ndt.sensorNoise());
+        initialiseTestVoxel(&ref_voxel, ndt.sensorNoise());
         ref = reference_voxels.insert(std::make_pair(key, ref_voxel)).first;
       }
 
@@ -167,7 +174,7 @@ namespace ndttests
       updateHit(&ref->second, sample);
 
       // Progressive validation
-      validate(voxel.position(), ndt_voxel, ref->second);
+      validate(voxel.position(), voxel_mean.count, ndt_voxel, ref->second);
     }
 
     // Finalise validation
@@ -176,15 +183,8 @@ namespace ndttests
       // Lookup the target voxel.
       ohm::VoxelConst voxel = const_cast<const ohm::OccupancyMap &>(map).voxel(ref.first, &cache);
       const ohm::NdtVoxel &ndt_voxel = *voxel.layerContent<const ohm::NdtVoxel *>(ndt.covarianceLayerIndex());
-      glm::dvec3 voxel_mean;
-#if OHM_NDT_UNPACKED_MEAN
-      voxel_mean[0] = ndt_voxel.mean[0];
-      voxel_mean[1] = ndt_voxel.mean[1];
-      voxel_mean[2] = ndt_voxel.mean[2];
-#else   // OHM_NDT_UNPACKED_MEAN
-      voxel_mean = voxel.position();
-#endif  // OHM_NDT_UNPACKED_MEAN
-      validate(voxel_mean, ndt_voxel, ref.second);
+      const ohm::VoxelMean &voxel_mean = *voxel.layerContent<const ohm::VoxelMean *>(ndt.map().layout().meanLayer());
+      validate(voxel.position(), voxel_mean.count, ndt_voxel, ref.second);
     }
   }
 
@@ -274,7 +274,7 @@ namespace ndttests
       vertices.emplace_back(sample);
     }
 
-    ohm::OccupancyMap map(voxel_resolution, ohm::MapFlag::kSubVoxelPosition);
+    ohm::OccupancyMap map(voxel_resolution, ohm::MapFlag::kVoxelMean);
     ohm::NdtMap ndt(&map, true);
     ohm::MapCache cache;
 
@@ -321,7 +321,7 @@ namespace ndttests
     // Note: we build a perfect plane above in the centre of the voxel. However, the quantisation of the mean
     // can offset the plane. Running exactly on the plane on which we generated the points will not result in the same
     // effect in testing. We must offset the ray a little to ensure we are a bit off the plane either when using
-    // voxel mean quantisation or not (OHM_NDT_UNPACKED_MEAN)
+    // voxel mean quantisation or not.
     vertices.emplace_back(glm::dvec3(1, 5, 1.01));
     vertices.emplace_back(glm::dvec3(1, -5, 1.01));
     expected_prob_approx.emplace_back(0.5f);
@@ -363,7 +363,7 @@ namespace ndttests
 
     // Generate points within a 2m cube.
     const double voxel_resolution = 2.0;
-    ohm::OccupancyMap map(voxel_resolution, ohm::MapFlag::kSubVoxelPosition);
+    ohm::OccupancyMap map(voxel_resolution, ohm::MapFlag::kVoxelMean);
     ohm::NdtMap ndt(&map, true);
     ohm::MapCache cache;
 
@@ -484,7 +484,7 @@ namespace ndttests
 
     // Generate points within a 2m cube.
     const double voxel_resolution = 2.0;
-    ohm::OccupancyMap map(voxel_resolution, ohm::MapFlag::kSubVoxelPosition);
+    ohm::OccupancyMap map(voxel_resolution, ohm::MapFlag::kVoxelMean);
     ohm::NdtMap ndt(&map, true);
     ohm::MapCache cache;
 

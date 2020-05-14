@@ -20,8 +20,6 @@
 #endif  // __host__
 #endif  // GPUTIL_DEVICE
 
-#define OHM_NDT_UNPACKED_MEAN 0
-
 #if GPUTIL_DEVICE
 // Define GPU type aliases
 typedef float3 ndtvec3;
@@ -41,29 +39,14 @@ struct NdtVoxel
 {
   /// The lower diagonal of the covariance matrix for the voxel.
   float cov_sqrt_diag[6];
-#if OHM_NDT_UNPACKED_MEAN
-  float mean[3];
-#endif  // OHM_NDT_UNPACKED_MEAN
-  // TODO: check packing. Should be tightly packed.
-  uint32_t point_count;
-#if !OHM_NDT_UNPACKED_MEAN
-  // Padding: voxel alignment is 8 bytes
-  uint32_t padding;
-#endif  // !OHM_NDT_UNPACKED_MEAN
 };
 
 
 inline __device__ void initialiseNdt(NdtVoxel *ndt, float sensor_noise)
 {
-  ndt->point_count = 0;
   // Initialise the covariance matrix to a scaled identity matrix based on the sensor noise.
   ndt->cov_sqrt_diag[0] = ndt->cov_sqrt_diag[2] = ndt->cov_sqrt_diag[5] = sensor_noise * sensor_noise;
   ndt->cov_sqrt_diag[1] = ndt->cov_sqrt_diag[3] = ndt->cov_sqrt_diag[4] = 0;
-#if OHM_NDT_UNPACKED_MEAN
-  ndt->mean[0] = ndt->mean[1] = ndt->mean[2] = 0;
-#else   // OHM_NDT_UNPACKED_MEAN
-    ndt->padding = 0;
-#endif  // OHM_NDT_UNPACKED_MEAN
 }
 
 
@@ -103,12 +86,11 @@ inline __device__ double packedDot(const ndtreal A[9], const int j, const int k)
 ///
 /// @param A The matrix to unpack to.
 /// @param sample_to_mean The difference between the new sample point and the voxel mean.
-inline __device__ void unpackedA(const NdtVoxel &ndt, ndtreal A[9], const ndtvec3 sample_to_mean)
+inline __device__ void unpackedA(const NdtVoxel &ndt, unsigned point_count, const ndtvec3 sample_to_mean, ndtreal A[9])
 {
-  const ndtreal point_count = ndtreal(ndt.point_count);
   const ndtreal one_on_num_pt_plus_one = ndtreal(1) / (point_count + ndtreal(1));
-  const ndtreal sc_1 = ndt.point_count ? sqrt(point_count * one_on_num_pt_plus_one) : ndtreal(1);
-  const ndtreal sc_2 = one_on_num_pt_plus_one * sqrt(point_count);
+  const ndtreal sc_1 = point_count ? sqrt(point_count * one_on_num_pt_plus_one) : ndtreal(1);
+  const ndtreal sc_2 = one_on_num_pt_plus_one * sqrt(ndtreal(point_count));
 
   for (int i = 0; i < 6; ++i)
   {
@@ -149,9 +131,9 @@ inline __device__ ndtvec3 solveTriangular(const NdtVoxel &ndt, const ndtvec3 &y)
   return x;
 }
 
-inline __device__ ndtvec3 calculateHit(NdtVoxel *ndt_voxel, float *voxel_value, ndtvec3 sample, ndtvec3 voxel_mean,
-                                       float hit_value, float occupancy_threshold_value, float uninitialised_value,
-                                       float sensor_noise)
+inline __device__ void calculateHit(NdtVoxel *ndt_voxel, float *voxel_value, ndtvec3 sample, ndtvec3 voxel_mean,
+                                    unsigned point_count, float hit_value, float occupancy_threshold_value,
+                                    float uninitialised_value, float sensor_noise)
 {
   const float initial_value = *voxel_value;
   const bool was_uncertain = initial_value == uninitialised_value;
@@ -181,7 +163,7 @@ inline __device__ ndtvec3 calculateHit(NdtVoxel *ndt_voxel, float *voxel_value, 
 
   const ndtvec3 sample_to_mean = sample - voxel_mean;
   ndtreal A[9];
-  unpackedA(*ndt_voxel, A, sample_to_mean);
+  unpackedA(*ndt_voxel, point_count, sample_to_mean, A);
 
   // Update covariance.
   for (int k = 0; k < 3; ++k)
@@ -208,28 +190,12 @@ inline __device__ ndtvec3 calculateHit(NdtVoxel *ndt_voxel, float *voxel_value, 
       }
     }
   }
-
-  // Update the mean sub-voxel pattern
-  const ndtreal point_count = ndtreal(ndt_voxel->point_count);
-  const ndtreal one_on_pt_count_plus_one = 1.0 / (point_count + 1.0);
-  voxel_mean = (point_count * voxel_mean + sample) * one_on_pt_count_plus_one;
-#if OHM_NDT_UNPACKED_MEAN
-  ndt_voxel->mean[0] = voxel_mean[0];
-  ndt_voxel->mean[1] = voxel_mean[1];
-  ndt_voxel->mean[2] = voxel_mean[2];
-#endif  //
-
-  if (ndt_voxel->point_count < 0xffffffffu)
-  {
-    ++ndt_voxel->point_count;
-  }
-
-  return voxel_mean;
 }
 
 inline __device__ ndtvec3 calculateMiss(NdtVoxel *ndt_voxel, float *voxel_value, ndtvec3 sensor, ndtvec3 sample,
-                                        ndtvec3 voxel_mean, float occupancy_threshold_value, float uninitialised_value,
-                                        float miss_value, float sensor_noise, unsigned sample_threshold)
+                                        ndtvec3 voxel_mean, unsigned point_count, float occupancy_threshold_value,
+                                        float uninitialised_value, float miss_value, float sensor_noise,
+                                        unsigned sample_threshold)
 {
   if (*voxel_value == uninitialised_value)
   {
@@ -240,7 +206,7 @@ inline __device__ ndtvec3 calculateMiss(NdtVoxel *ndt_voxel, float *voxel_value,
   }
 
   // Direct value adjustment if not occupied or insufficient samples.
-  if (*voxel_value < occupancy_threshold_value || ndt_voxel->point_count < sample_threshold)
+  if (*voxel_value < occupancy_threshold_value || point_count < sample_threshold)
   {
     // Re-enforcement of free voxel or too few points to resolve a guassing. Use standard value update.
     // Add miss value, same behaviour as OccupancyMap.
@@ -265,7 +231,7 @@ inline __device__ ndtvec3 calculateMiss(NdtVoxel *ndt_voxel, float *voxel_value,
 
   // p(x_ML|N(u,P)) ~ exp( -0.5(x_ML - u)[T] P[-1](x_ML - u))     (22)
   // Where know values are:
-  //  - u existing mean voxel position (sub-voxel position)
+  //  - u existing mean voxel position (voxel mean position)
   //  - P is the covariance matrix.
   //  - z_i is the sample
   // To be calcualated:

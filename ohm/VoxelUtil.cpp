@@ -11,8 +11,8 @@
 #include "DefaultLayer.h"
 #include "Key.h"
 #include "MapChunk.h"
-#include "SubVoxel.h"
 #include "VoxelLayout.h"
+#include "VoxelMean.h"
 
 using namespace ohm;
 
@@ -67,77 +67,13 @@ namespace ohm
 
     const float *voxelOccupancyPtr(const Key &key, const MapChunk *chunk, const OccupancyMapDetail *map)
     {
-      if (!chunk)
-      {
-        return nullptr;
-      }
-
-      if (chunk->layout->hasSubVoxelPattern())
-      {
-        const OccupancyVoxel *voxel =
-          voxelPtrAs<const OccupancyVoxel *>(key, chunk, map, chunk->layout->occupancyLayer());
-        return (voxel) ? &voxel->occupancy : nullptr;
-      }
-
       return voxelPtrAs<const float *>(key, chunk, map, chunk->layout->occupancyLayer());
     }
 
 
     float *voxelOccupancyPtr(const Key &key, MapChunk *chunk, const OccupancyMapDetail *map)
     {
-      if (!chunk)
-      {
-        return nullptr;
-      }
-
-      if (chunk->layout->hasSubVoxelPattern())
-      {
-        OccupancyVoxel *voxel = voxelPtrAs<OccupancyVoxel *>(key, chunk, map, chunk->layout->occupancyLayer());
-        return (voxel) ? &voxel->occupancy : nullptr;
-      }
-
       return voxelPtrAs<float *>(key, chunk, map, chunk->layout->occupancyLayer());
-    }
-
-    const uint32_t *subVoxelPatternPtr(const Key &key, const MapChunk *chunk, const OccupancyMapDetail *map)
-    {
-      if (chunk && chunk->layout->hasSubVoxelPattern())
-      {
-        const OccupancyVoxel *voxel =
-          voxelPtrAs<const OccupancyVoxel *>(key, chunk, map, chunk->layout->occupancyLayer());
-        return &voxel->sub_voxel;
-      }
-
-      return nullptr;
-    }
-
-
-    uint32_t *subVoxelPatternPtr(const Key &key, MapChunk *chunk, const OccupancyMapDetail *map)
-    {
-      if (chunk && chunk->layout->hasSubVoxelPattern())
-      {
-        OccupancyVoxel *voxel = voxelPtrAs<OccupancyVoxel *>(key, chunk, map, chunk->layout->occupancyLayer());
-        return &voxel->sub_voxel;
-      }
-
-      return nullptr;
-    }
-
-
-    bool subVoxelOccupancyFilter(const Key &key, const MapChunk *chunk, const OccupancyMapDetail *map)
-    {
-      if ((map->flags & MapFlag::kSubVoxelOccupancy) == MapFlag::kNone)
-      {
-        return true;
-      }
-
-      const uint32_t *sub_voxel_pattern_ptr = subVoxelPatternPtr(key, chunk, map);
-      if (sub_voxel_pattern_ptr && *sub_voxel_pattern_ptr)
-      {
-        return ohm::subVoxelOccupancyFilter2(*sub_voxel_pattern_ptr, map->sub_voxel_filter_scale);
-      }
-
-      return true;
     }
 
 
@@ -187,20 +123,18 @@ namespace ohm
     {
       // Start with the voxel centre.
       glm::dvec3 pos = centreGlobal(key, map);
-      // Now resolve the sub-voxel value.
-      const uint32_t *sub_voxel = subVoxelPatternPtr(key, &chunk, &map);
-      if (sub_voxel && *sub_voxel)
+      // Now resolve the voxel mean value.
+      int mean_layer = map.layout.meanLayer();
+      if (mean_layer >= 0)
       {
-        const glm::dvec3 sub_voxel_offset = subVoxelToLocalCoord<glm::dvec3>(*sub_voxel, map.resolution);
-        pos += sub_voxel_offset;
+        const VoxelMean *voxel_mean = voxelPtrAs<const VoxelMean *>(key, &chunk, &map, mean_layer);
+        if (voxel_mean)
+        {
+          const glm::dvec3 mean_offset = subVoxelToLocalCoord<glm::dvec3>(voxel_mean->coord, map.resolution);
+          pos += mean_offset;
+        }
       }
       return pos;
-    }
-
-
-    bool subVoxelOccupancyFilterEnabled(const OccupancyMapDetail &map)
-    {
-      return (map.flags & MapFlag::kSubVoxel) == MapFlag::kSubVoxel;
     }
   }  // namespace voxel
 }  // namespace ohm

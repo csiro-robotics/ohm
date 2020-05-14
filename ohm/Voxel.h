@@ -109,26 +109,12 @@ namespace ohm
     /// @return The global voxel coordinates.
     glm::dvec3 centreGlobal() const { return voxel::centreGlobal(key_, *map_); }
 
-    /// Retrieves the (global) position of a voxel with consideration to sub-voxel positioning.
-    /// This is equivalent to @c centreGlobal() if sub-voxel positioning is not enabled, or not resolved for the voxel.
+    /// Retrieves the (global) position of a voxel with consideration to voxel mean positioning.
+    /// This is equivalent to @c centreGlobal() if voxel mean positioning is not enabled, or not resolved for the voxel.
     ///
-    /// @seealso @ref subvoxel
-    /// @return The global voxel coordinates with sub-voxel positioning.
+    /// @seealso @ref voxelmean
+    /// @return The global voxel coordinates with voxel mean positioning.
     glm::dvec3 position() const { return voxel::position(key_, *chunk_, *map_); }
-
-    /// Return the sub-voxel positioning pattern of the voxel. Must ve a valid voxel. Returns when sub-voxel positioning
-    /// is not enabled.
-    /// @return The @ref subvoxel positioning pattern.
-    uint32_t subVoxelPattern() const
-    {
-      const uint32_t *ptr = voxel::subVoxelPatternPtr(key_, chunk_, map_);
-      return ptr ? *ptr : 0u;
-    }
-
-    /// Checks if the owning map has sub-voxel occupancy filtering enabled. Voxel reference must be valid.
-    /// @return True if sub-voxel occupancy filtering is enabled.
-    /// @see @c subVoxelOccupancyFilter()
-    bool subVoxelOccupancyFilterEnabled() const { return voxel::subVoxelOccupancyFilterEnabled(*map_); }
 
     /// Does this voxel reference a valid map?
     ///
@@ -283,33 +269,33 @@ namespace ohm
     /// @param range The new obstacle range.
     void setClearance(float range);
 
-    /// Sets the position of the voxel using sub-voxel positioning. This requires that the occupancy layer supports
-    /// sub-voxel positioning, which may be enabled when the map is constructed. Note that the position set will not
-    /// be accurately reflected when queried with @c position() as sub-voxel positioning uses quantisation.
+    /// Sets the position of the voxel mean. This requires that the occupancy layer supports the @c VoxelMean layer
     ///
-    /// The call fails if the map does not have sub-voxel positioning enabled, or if the voxel reference is invalid.
+    /// Calling this function resets the point count to @c point_count if that argument is given and non-zero. Otherwise
+    /// the current point count is retained.
     ///
-    /// @seealso @ref subvoxel
+    /// Note that the position set will not be accurately reflected when queried with @c position() as voxel mean
+    /// positioning uses quantisation.
+    ///
+    /// The call fails if the map does not have voxel mean positioning enabled, or if the voxel reference is invalid.
+    ///
+    /// @seealso @ref voxelmean
     ///
     /// @param position The target position to set should be within the voxel bounds, but will be clamped.
-    /// @return True on success. False indicates there is not sub-voxel positioning enabled, or the voxel is invalid.
-    bool setPosition(const glm::dvec3 &position);
+    /// @param point_count The new point count associated with the mean coordinate. Zero to leave the current as is.
+    /// @return True on success. False indicates there is not voxel mean positioning enabled, or the voxel is invalid.
+    bool setPosition(const glm::dvec3 &position, unsigned point_count = 0);
 
-    /// Updates the sub-voxel positioning of this voxel. As with @c setPosition(), this request the @c MapLayout
-    /// occupancy layer supports sub-voxel positioning.
+    /// Updates the voxel mean position of this voxel. As with @c setPosition(), this request the @c MapLayout
+    /// voxel layer for the @c VoxelMean.
     ///
-    /// This method takes the given @c position, assumed to be within the voxel bounds, and combines it with the
-    /// current sub-voxel @c position(). This process uses a weighted sum where new position is weighted by
-    /// @p update_weighting and the pre-existing position is weighted as <tt>1.0 - update_weighting</tt>.
+    /// This method takes the given @c position, assumed to be within the voxel bounds, and adds it to the voxel mean.
     ///
-    /// @seealso @ref subvoxel
+    /// @seealso @ref voxelmean
     ///
-    /// @param position The new position information used to update the sub-voxel position. Expected to be within the
+    /// @param position The new position information used to update the voxel mean position. Expected to be within the
     ///   bounds of the voxel.
-    /// @param update_weighting Weighting overwrite for the weight given to the new @p position [0, 1]. A negative
-    ///   weight is used to indicate no override: use the map's weighting value.
-    /// @return True on success. False indicates there is not sub-voxel positioning enabled, or the voxel is invalid.
-    bool updatePosition(const glm::dvec3 &position, double update_weighting = -1.0);
+    bool updatePosition(const glm::dvec3 &position);
 
     /// Updates the timestamp for the @c MapRegion to which this voxel belongs.
     /// This may be used to manage time based expiry.
@@ -449,8 +435,7 @@ namespace ohm
   bool VoxelBase<MAPCHUNK>::isOccupied() const
   {
     const float val = value();
-    return !isNull() && val >= voxel::occupancyThreshold(*map_) && val != voxel::invalidMarkerValue() &&
-           voxel::subVoxelOccupancyFilter(key_, chunk_, map_);
+    return !isNull() && val >= voxel::occupancyThreshold(*map_) && val != voxel::invalidMarkerValue();
   }
 
 

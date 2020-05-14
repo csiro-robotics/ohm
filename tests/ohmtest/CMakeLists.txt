@@ -22,7 +22,7 @@ set(SOURCES
   MathsTests.cpp
   OhmTestConfig.in.h
   SerialisationTests.cpp
-  SubVoxelTests.cpp
+  VoxelMeanTests.cpp
   RayPatternTests.cpp
   RayValidation.cpp
   RayValidation.h

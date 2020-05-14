@@ -60,10 +60,10 @@ namespace
 {
 #if defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
   GpuProgramRef program_ref_sub_vox("RegionUpdate", GpuProgramRef::kSourceString, RegionUpdateCode,  // NOLINT
-                                    RegionUpdateCode_length, { "-DSUB_VOXEL" });
+                                    RegionUpdateCode_length, { "-DVOXEL_MEAN" });
 #else   // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
   GpuProgramRef program_ref_sub_vox("RegionUpdate", GpuProgramRef::kSourceFile, "RegionUpdate.cl", 0u,
-                                    { "-DSUB_VOXEL" });
+                                    { "-DVOXEL_MEAN" });
 #endif  // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
 
 #if defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
@@ -278,16 +278,16 @@ GpuMap::GpuMap(GpuMapDetail *detail, unsigned expected_element_count, size_t gpu
       gputil::Buffer(gpu_cache.gpu(), sizeof(gputil::int3) * prealloc_region_count, gputil::kBfReadHost);
   }
 
-  cacheGpuProgram(imp_->map->subVoxelsEnabled(), true);
+  cacheGpuProgram(imp_->map->voxelMeanEnabled(), true);
 
   // Add structures for managing uploads of regino offsets to the cache buffer.
   for (int i = 0; i < 2; ++i)
   {
     imp_->voxel_upload_info[i].emplace_back(VoxelUploadInfo(kGcIdOccupancy));
-    // if (imp_->map->subVoxelsEnabled())
-    // {
-    //   imp_->voxel_upload_info[i].emplace_back(VoxelUploadInfo(kGcIdSubVoxel));
-    // }
+    if (imp_->map->voxelMeanEnabled())
+    {
+      imp_->voxel_upload_info[i].emplace_back(VoxelUploadInfo(kGcIdVoxelMean));
+    }
   }
 }
 
@@ -456,9 +456,9 @@ GpuCache *GpuMap::gpuCache() const
 }
 
 
-void GpuMap::cacheGpuProgram(bool with_sub_voxels, bool force)
+void GpuMap::cacheGpuProgram(bool with_voxel_mean, bool force)
 {
-  if (!force && with_sub_voxels == imp_->cached_sub_voxel_program)
+  if (!force && with_voxel_mean == imp_->cached_sub_voxel_program)
   {
     return;
   }
@@ -466,12 +466,12 @@ void GpuMap::cacheGpuProgram(bool with_sub_voxels, bool force)
   releaseGpuProgram();
 
   GpuCache &gpu_cache = *gpuCache();
-  imp_->cached_sub_voxel_program = with_sub_voxels;
-  imp_->program_ref = (with_sub_voxels) ? &program_ref_sub_vox : &program_ref_no_sub;
+  imp_->cached_sub_voxel_program = with_voxel_mean;
+  imp_->program_ref = (with_voxel_mean) ? &program_ref_sub_vox : &program_ref_no_sub;
 
   if (imp_->program_ref->addReference(gpu_cache.gpu()))
   {
-    imp_->update_kernel = (!with_sub_voxels) ? GPUTIL_MAKE_KERNEL(imp_->program_ref->program(), regionRayUpdate) :
+    imp_->update_kernel = (!with_voxel_mean) ? GPUTIL_MAKE_KERNEL(imp_->program_ref->program(), regionRayUpdate) :
                                                GPUTIL_MAKE_KERNEL(imp_->program_ref->program(), regionRayUpdateSubVox);
     imp_->update_kernel.calculateOptimalWorkGroupSize();
 
@@ -527,7 +527,7 @@ size_t GpuMap::integrateRaysT(const VEC_TYPE *rays, size_t element_count, unsign
   }
 
   // Ensure we are using the correct GPU program. Sub-voxel support may have changed.
-  cacheGpuProgram(map.subVoxelsEnabled(), false);
+  cacheGpuProgram(map.voxelMeanEnabled(), false);
 
   // Resolve the buffer index to use. We need to support cases where buffer is already one fo the imp_->ray_buffers.
   // Check this first.
@@ -687,7 +687,7 @@ void GpuMap::enqueueRegions(int buffer_index, unsigned region_update_flags)
     const int try_limit = 2;
     for (int tries = 0; tries < try_limit; ++tries)
     {
-      if (enqueueRegion(region_key, buffer_index, region_update_flags))
+      if (enqueueRegion(region_key, buffer_index))
       {
         // std::cout << "region: [" << regionKey.x << ' ' <<
         // regionKey.y << ' ' << regionKey.z << ']' <<
@@ -755,7 +755,7 @@ void GpuMap::enqueueRegions(int buffer_index, unsigned region_update_flags)
 }
 
 
-bool GpuMap::enqueueRegion(const glm::i16vec3 &region_key, int buffer_index, unsigned region_update_flags)
+bool GpuMap::enqueueRegion(const glm::i16vec3 &region_key, int buffer_index)
 {
   // Upload chunk to GPU.
   MapChunk *chunk = nullptr;
@@ -798,12 +798,12 @@ void GpuMap::finaliseBatch(unsigned region_update_flags)
   // Complete region data upload.
   GpuCache &gpu_cache = *this->gpuCache();
   GpuLayerCache &occupancy_layer_cache = *gpu_cache.layerCache(kGcIdOccupancy);
-  GpuLayerCache *sub_voxel_layer_cache = nullptr;
+  GpuLayerCache *mean_layer_cache = nullptr;
 
-  // if (imp_->map->subVoxelsEnabled())
-  // {
-  //   sub_voxel_layer_cache = gpu_cache.layerCache(kGcIdSubVoxel);
-  // }
+  if (imp_->map->voxelMeanEnabled())
+  {
+    mean_layer_cache = gpu_cache.layerCache(kGcIdVoxelMean);
+  }
 
   // Enqueue update kernel.
   const gputil::int3 region_dim_gpu = { map->region_voxel_dimensions.x, map->region_voxel_dimensions.y,
@@ -817,26 +817,25 @@ void GpuMap::finaliseBatch(unsigned region_update_flags)
                            imp_->region_key_upload_events[buf_idx],
                            imp_->voxel_upload_info[buf_idx][0].offset_upload_event });
 
-  // // Add sub-voxel offset upload events.
-  // if (sub_voxel_layer_cache)
-  // {
-  //   wait.add(imp_->voxel_upload_info[buf_idx][1].offset_upload_event);
-  // }
+  // Add voxel mean offset upload events.
+  if (mean_layer_cache)
+  {
+    wait.add(imp_->voxel_upload_info[buf_idx][1].offset_upload_event);
+  }
 
-  if (sub_voxel_layer_cache)
+  if (mean_layer_cache)
   {
     imp_->update_kernel(global_size, local_size, wait, imp_->region_update_events[buf_idx], &gpu_cache.gpuQueue(),
                         // Kernel args begin:
                         gputil::BufferArg<float>(*occupancy_layer_cache.buffer()),
                         gputil::BufferArg<uint64_t>(imp_->voxel_upload_info[buf_idx][0].offsets_buffer),
-                        // gputil::BufferArg<unsigned>(*sub_voxel_layer_cache->buffer()),
-                        // gputil::BufferArg<uint64_t>(imp_->voxel_upload_info[buf_idx][1].offsets_buffer),
+                        gputil::BufferArg<unsigned>(*mean_layer_cache->buffer()),
+                        gputil::BufferArg<uint64_t>(imp_->voxel_upload_info[buf_idx][1].offsets_buffer),
                         gputil::BufferArg<gputil::int3>(imp_->region_key_buffers[buf_idx]), region_count,
                         gputil::BufferArg<GpuKey>(imp_->key_buffers[buf_idx]),
                         gputil::BufferArg<gputil::float3>(imp_->ray_buffers[buf_idx]), ray_count, region_dim_gpu,
                         float(map->resolution), map->miss_value, map->hit_value, map->occupancy_threshold_value,
-                        map->min_voxel_value, map->max_voxel_value, float(map->sub_voxel_weighting),
-                        region_update_flags);
+                        map->min_voxel_value, map->max_voxel_value, region_update_flags);
   }
   else
   {
@@ -848,17 +847,16 @@ void GpuMap::finaliseBatch(unsigned region_update_flags)
                         gputil::BufferArg<GpuKey>(imp_->key_buffers[buf_idx]),
                         gputil::BufferArg<gputil::float3>(imp_->ray_buffers[buf_idx]), ray_count, region_dim_gpu,
                         float(map->resolution), map->miss_value, map->hit_value, map->occupancy_threshold_value,
-                        map->min_voxel_value, map->max_voxel_value, float(map->sub_voxel_weighting),
-                        region_update_flags);
+                        map->min_voxel_value, map->max_voxel_value, region_update_flags);
   }
 
   // gpu_cache.gpuQueue().flush();
 
   // Update most recent chunk GPU event.
   occupancy_layer_cache.updateEvents(imp_->batch_marker, imp_->region_update_events[buf_idx]);
-  if (sub_voxel_layer_cache)
+  if (mean_layer_cache)
   {
-    sub_voxel_layer_cache->updateEvents(imp_->batch_marker, imp_->region_update_events[buf_idx]);
+    mean_layer_cache->updateEvents(imp_->batch_marker, imp_->region_update_events[buf_idx]);
   }
 
   // std::cout << imp_->region_counts[bufIdx] << "
@@ -867,9 +865,9 @@ void GpuMap::finaliseBatch(unsigned region_update_flags)
   imp_->region_counts[buf_idx] = 0;
   // Start a new batch for the GPU layers.
   imp_->batch_marker = occupancy_layer_cache.beginBatch();
-  if (sub_voxel_layer_cache)
+  if (mean_layer_cache)
   {
-    sub_voxel_layer_cache->beginBatch(imp_->batch_marker);
+    mean_layer_cache->beginBatch(imp_->batch_marker);
   }
   imp_->next_buffers_index = 1 - imp_->next_buffers_index;
 }

@@ -12,7 +12,7 @@ set(SOURCES
   GpuRangesTests.cpp
   GpuRayPatternTests.cpp
   GpuSerialisationTests.cpp
-  GpuSubVoxelTests.cpp
+  GpuVoxelMeanTests.cpp
   GpuTestMain.cpp
   GpuTests.cpp
 )

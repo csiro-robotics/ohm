@@ -33,7 +33,7 @@ namespace ohm
     /// Cache of occupancy map values when calculating voxel clearance values. Does not write back to host.
     kGcIdClearance,
     /// Cache used for sub voxel positioning.
-    kGcIdSubVoxel,
+    kGcIdVoxelMean,
     /// Cache used for @c NdtVoxel data.
     kGcIdNdt,
   };

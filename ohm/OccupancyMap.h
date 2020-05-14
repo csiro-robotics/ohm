@@ -296,7 +296,7 @@ namespace ohm
     /// @param resolution The resolution for a single voxel in the map. Any zero value
     ///   dimension is replaced with its default value; e.g., @c OHM_DEFAULT_CHUNK_DIM_X.
     /// @param region_voxel_dimensions Sets the number of voxels in each map region.
-    /// @param enable_sub_voxel_positioning Enable sub voxel positioning information?
+    /// @param flags Map initialisation flags. See @c MapFlag .
     /// @param seed_layout The @p MapLayout to create the map with. The constructed map clones the @c seed_layout
     ///   object.
     OccupancyMap(double resolution, const glm::u8vec3 &region_voxel_dimensions, MapFlag flags,
@@ -354,16 +354,6 @@ namespace ohm
     /// Get the voxel resolution of the occupancy map. Voxels are cubes.
     /// @return The leaf voxel resolution.
     double resolution() const;
-
-    /// Returns the sub-voxel weighting used to update sub-voxel positioning.
-    /// @return The sub voxel weighting.
-    /// @seealso @ref subvoxel
-    double subVoxelWeighting() const;
-
-    /// Set the sub-voxel weighting used to update sub-voxel positioning.
-    /// @param weighting The new sub voxel weighting.
-    /// @seealso @ref subvoxel
-    void setSubVoxelWeighting(double weighting);
 
     /// A cyclic stamp value which changes whenever the map is touched. May be used to note when the map has
     /// been changed from a previous stamp value.
@@ -438,30 +428,34 @@ namespace ohm
     /// @return Layout details.
     MapLayout &layout();
 
-    /// Enables or disables sub-voxel positioning. This invalidates any existing @c Voxel or @c VoxelConst references.
+    /// Adds the voxel layer required to track voxel mean position (@c VoxelMean). This invalidates any existing
+    /// @c Voxel or @c VoxelConst references.
     ///
-    /// Note that disabling sub-voxel positioning destroys any existing data for sub-voxel positioning.
+    /// Note note that changing the requires all map chunks have additional voxel layers allocated.
     ///
-    /// Also note that changing the requires all map chunks be re-allocated which may be take some time.
+    /// Does nothing if already present.
     ///
-    /// Does nothing if @p enable matches the state of @p subVoxelsEnabled().
-    ///
-    /// @param enable True to enable sub-voxel positioning.
-    void setSubVoxelsEnabled(bool enable);
+    /// @param enable True to enable voxel mean positioning.
+    void addVoxelMeanLayer();
 
-    /// Is sub-voxel positioning enabled on this map?
-    bool subVoxelsEnabled() const;
+    /// Is voxel mean positioning enabled on this map?
+    bool voxelMeanEnabled() const;
 
     /// Update the memory layout to match that in this map's @c MapLayout. Must be called after updating
     /// the @p layout() after construction.
     ///
-    /// This is currently a destructive operation when the new layout has differs in memory structure to the current
-    /// one. In this case the current map is cleared.
+    /// By default this will attempt to preserve all voxel layers which are equivalent between the two layouts (see
+    /// @c MapLayer::checkEquivalent() ). Voxel layers not present in the new layer are destroyed, while new voxel
+    /// layers are allocated. This may take some time to process.
     ///
-    /// @todo Preserve what map data we can.
+    /// This behaviour may be modified, by setting @c preserve_map to @c false , in which case this call destroys the
+    /// current map content.
+    ///
+    /// In both cases the GPU cache is invalidated.
     ///
     /// @param newLayout The map layout to update to.
-    void updateLayout(const MapLayout &newLayout);
+    /// @param preserve_map Try to preserve the map content for equivalent layers?
+    void updateLayout(const MapLayout &newLayout, bool preserve_map = true);
 
     /// Query the number of regions in the map.
     size_t regionCount() const;
@@ -629,14 +623,14 @@ namespace ohm
     void integrateHit(Voxel &voxel) const;  // NOLINT(google-runtime-references)
 
     /// Adjust @p voxel by increasing its occupancy probability. Equivalent to @c integrateHit(Voxel&), but
-    /// introduces sub-voxel positioning.
+    /// introduces voxel mean positioning.
     /// @param voxel The voxel to increase the occupancy probabilty for. Must be a valid, non-null voxel.
-    /// @param point The sample point to integrate. Must lie within @p voxel. Used to update sub-voxel positioning.
+    /// @param point The sample point to integrate. Must lie within @p voxel. Used to update voxel mean positioning.
     void integrateHit(Voxel &voxel, const glm::dvec3 &point) const;  // NOLINT(google-runtime-references)
 
     /// Integrate a hit into the map, creating the occupancy voxel as required.
     ///
-    /// Supports sub-voxel positioning.
+    /// Supports voxel mean positioning.
     /// @param point The global coordinate to integrate a hit at.
     /// @param cache Optional cache used to expidite region search.
     /// @return A reference to the voxel containing @p point after integrating the hit.
@@ -644,7 +638,7 @@ namespace ohm
 
     /// Integrate a hit into the map, creating the occupancy voxel as required.
     ///
-    /// Does not support sub-voxel positioning.
+    /// Does not support voxel mean positioning.
     /// @param key The key identifying the voxel to update. May be generated from a coordinate using the
     /// @c voxelKey() method.
     /// @param cache Optional cache used to expidite region search.
@@ -653,8 +647,8 @@ namespace ohm
 
     /// Integrate a hit into the map, creating the occupancy voxel identified by @p key as required.
     ///
-    /// This overload supports sub-voxel positioning, if enabled. The @p key is used to identify the voxel regardless
-    /// of the @p position. The @p position is used only for sub-voxel positioning.
+    /// This overload supports voxel mean positioning, if enabled. The @p key is used to identify the voxel regardless
+    /// of the @p position. The @p position is used only for voxel mean positioning.
     ///
     /// This is not recommended for use by external libraries and @c integrateHit(const glm::dvec3 &, MapCache *) should
     /// be preferred.
@@ -751,14 +745,6 @@ namespace ohm
     /// using some value adjustment functions.
     /// @param saturate True to have voxels prevent further value adjustments at the minimum value.
     void setSaturateAtMaxValue(bool saturate);
-
-    /// Get the sub-voxel filtering scale. See @c subVoxelOccupancyFilter2().
-    /// @return The sub-voxel filtering scale.
-    float subVoxelFilterScale() const;
-
-    /// Set the sub-voxel filtering scale. See @c subVoxelOccupancyFilter2().
-    /// @param scale The new sub-voxel filtering scale.
-    void setSubVoxelFilterScale(float scale);
 
     //-------------------------------------------------------
     // General map manipulation.

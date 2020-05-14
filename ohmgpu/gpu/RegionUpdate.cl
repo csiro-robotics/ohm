@@ -8,7 +8,7 @@
 // - REGION_UPDATE_KERNEL : the kernel name for the entry point
 // - REGION_UPDATE_SUFFIX : suffix applied to distinguish potentially repeaded
 //  code and types.
-// - SUB_VOXEL : defined if compiling for sub-voxels
+// - VOXEL_MEAN : defined if compiling for voxel means
 //------------------------------------------------------------------------------
 
 //------------------------------------------------------------------------------
@@ -36,17 +36,17 @@
 //------------------------------------------------------------------------------
 #include "gpu_ext.h"
 
-// Explicitly include MapCoord.h first. It's included from each of the subsequent includes, but leaving it to SubVoxel.h
-// has issues with the resource generation. Essentially it causes MapCoord.h to be only included within the SUB_VOXEL
-// define.
+// Explicitly include MapCoord.h first. It's included from each of the subsequent includes, but leaving it to
+// VoxelMean.h has issues with the resource generation. Essentially it causes MapCoord.h to be only included within the
+// VOXEL_MEAN define.
 #include "MapCoord.h"
-#ifdef SUB_VOXEL
-#include "SubVoxel.h"
-#endif // SUB_VOXEL
+#if defined(VOXEL_MEAN) || defined(NDT)
+#include "VoxelMean.h"
+#endif  // VOXEL_MEAN || NDT
 #include "RayFlag.h"
 #ifdef NDT
 #include "NdtVoxel.h"
-#endif // NDT
+#endif  // NDT
 
 #include "Regions.cl"
 
@@ -54,46 +54,45 @@
 // Declarations
 //------------------------------------------------------------------------------
 
-#ifndef REGION_UPDATE_BASE_CL
-typedef struct VoxelSubVox_
-{
-  atomic_float occupancy;
-  atomic_uint sub_voxel;
-} VoxelSubVox;
+#ifdef NDT
+#define REGION_UPDATE_KERNEL regionRayUpdateNdt
+#define VISIT_LINE_VOXEL visitVoxelRegionUpdateNdt
+#define WALK_LINE_VOXELS walkRegionLineNdt
 
-typedef struct VoxelSimple_
-{
-  atomic_float occupancy;
-} VoxelSimple;
-#endif  // REGION_UPDATE_BASE_CL
-
-#ifdef SUB_VOXEL
+#elif defined(VOXEL_MEAN)
 #define REGION_UPDATE_KERNEL regionRayUpdateSubVox
 #define VISIT_LINE_VOXEL visitVoxelRegionUpdateSubVox
 #define WALK_LINE_VOXELS walkRegionLineSubVox
-#define VOXEL_TYPE VoxelSubVox
 
-#else  // SUB_VOXEL
+#else  // VOXEL_MEAN
 #define REGION_UPDATE_KERNEL regionRayUpdate
 #define VISIT_LINE_VOXEL visitVoxelRegionUpdate
 #define WALK_LINE_VOXELS walkRegionLine
-#define VOXEL_TYPE VoxelSimple
 
-#endif  // SUB_VOXEL
+#endif
 
 #ifndef REGION_UPDATE_BASE_CL
 // User data for voxel visit callback.
 struct LineWalkData
 {
   // Voxel occupancy memory. All regions use a shared buffer.
-  __global void *voxels;
+  __global atomic_float *occupancy;
+  // Array of offsets for each regionKey into occupancy. These are byte offsets.
+  __global ulonglong *occupancy_offsets;
+#if defined(VOXEL_MEAN) || defined(NDT)
+  __global VoxelMean *means;
+  // Array of offsets for each regionKey into means. These are byte offsets.
+  __global ulonglong *means_offsets;
+#endif // VOXEL_MEAN || NDT
 #ifdef NDT
   __global NdtVoxel *ndt_voxels;
-#endif // NDT
+  // Array of offsets for each regionKey into ndt_voxels. These are byte offsets.
+  __global ulonglong *ndt_offsets;
+#endif  // NDT
   // Array of region keys for currently loaded regions.
   __global int3 *region_keys;
-  // Array of offsets for each regionKey into voxels. These are byte offsets.
-  __global ulonglong *region_mem_offsets;
+  // // Array of offsets for each regionKey into voxels. These are byte offsets.
+  // __global ulonglong *region_mem_offsets;
   // The region currently being traversed. Also used to reduce searching the region_keys and region_mem_offsets.
   int3 current_region;
   // Size of a region in voxels.
@@ -108,20 +107,17 @@ struct LineWalkData
   float voxel_value_min;
   // MapMode/voxel maximum allowed value.
   float voxel_value_max;
-  // Weighting given to new position when integrating sub-voxel positions.
-  float sub_voxel_weighting;
   // Number of regions in region_keys/region_mem_offsets.
   uint region_count;
-  // The region_mem_offsets value corresponding to the current_region. This is an index offset into voxels, not
-  // a byte offset.
-  uint region_voxel_offset;
+  // Index of the @c current_region into region_keys and corresponding xxx_offsets arrays.
+  uint current_region_index;
   uint region_update_flags;
   // Local coordinate within the end voxel.
   float3 sub_voxel_coord;
 #ifdef NDT
   // An estimate on the sensor range noise error.
   float sensor_noise;
-#endif // NDT
+#endif  // NDT
 #ifdef STORE_DEBUG_INFO
   const struct GpuKey *start_key;
   const struct GpuKey *end_key;
@@ -129,14 +125,15 @@ struct LineWalkData
 };
 #endif  // REGION_UPDATE_BASE_CL
 
-#ifdef SUB_VOXEL
-#include "SubVoxel.cl"
-#endif  // SUB_VOXEL
+#if defined(VOXEL_MEAN) || defined(NDT)
+#include "VoxelMean.cl"
+#endif  // VOXEL_MEAN || NDT
+
 #ifdef NDT
 #include "AdjustNdt.cl"
 #else  // NDT
 #include "AdjustOccupancy.cl"
-#endif // NDT
+#endif  // NDT
 
 // Implement the voxel traversal function. We update the value of the voxel using atomic instructions.
 __device__ bool VISIT_LINE_VOXEL(const struct GpuKey *voxelKey, bool isEndVoxel, float voxel_resolution, void *userData)
@@ -144,14 +141,14 @@ __device__ bool VISIT_LINE_VOXEL(const struct GpuKey *voxelKey, bool isEndVoxel,
   float old_value, new_value;
 
   struct LineWalkData *line_data = (struct LineWalkData *)userData;
-  __global VOXEL_TYPE *voxels = (__global VOXEL_TYPE *)line_data->voxels;
+  __global atomic_float *occupancy = line_data->occupancy;
 
   // Adjust value by ray_adjustment unless this is the sample voxel.
   const float adjustment = calculateOccupancyAdjustment(isEndVoxel, line_data, voxel_resolution);
 
   // Resolve memory offset for the region of interest.
-  if (!regionsResolveRegion(voxelKey, &line_data->current_region, &line_data->region_voxel_offset, line_data->region_keys,
-                            line_data->region_mem_offsets, line_data->region_count, sizeof(VOXEL_TYPE)))
+  if (!regionsResolveRegion(voxelKey, &line_data->current_region, &line_data->current_region_index,
+                            line_data->region_keys, line_data->region_count))
   {
     // We can fail to resolve regions along the in the line. This can occurs for several reasons:
     // - Floating point error differences between CPU and GPU line walking means that the GPU may walk into the edge
@@ -175,14 +172,15 @@ __device__ bool VISIT_LINE_VOXEL(const struct GpuKey *voxelKey, bool isEndVoxel,
 
   // This voxel lies in the region. We will make a value adjustment.
   // Work out which voxel to modify.
-  ulonglong vi = voxelKey->voxel[0] + voxelKey->voxel[1] * line_data->region_dimensions.x +
-             voxelKey->voxel[2] * line_data->region_dimensions.x * line_data->region_dimensions.y +
-             line_data->region_voxel_offset;
+  const ulonglong vi_local = voxelKey->voxel[0] + voxelKey->voxel[1] * line_data->region_dimensions.x +
+                             voxelKey->voxel[2] * line_data->region_dimensions.x * line_data->region_dimensions.y;
+  ulonglong vi =
+    (line_data->occupancy_offsets[line_data->current_region_index] / sizeof(*line_data->occupancy)) + vi_local;
 
   if (voxelKey->voxel[0] < line_data->region_dimensions.x && voxelKey->voxel[1] < line_data->region_dimensions.y &&
       voxelKey->voxel[2] < line_data->region_dimensions.z)
   {
-    __global atomic_float *occupancy_ptr = &voxels[vi].occupancy;
+    __global atomic_float *occupancy_ptr = &occupancy[vi];
 
     bool was_occupied_voxel = false;
 
@@ -224,13 +222,14 @@ __device__ bool VISIT_LINE_VOXEL(const struct GpuKey *voxelKey, bool isEndVoxel,
       // mem_fence(CLK_GLOBAL_MEM_FENCE);
     } while (new_value != old_value && !gputilAtomicCasF32(occupancy_ptr, old_value, new_value));
 
-#ifdef SUB_VOXEL
+#if defined(VOXEL_MEAN) || defined(NDT)
     if (adjustment > 0)
     {
-      updateSubVoxelPosition(&voxels[vi].sub_voxel, line_data->sub_voxel_coord, voxel_resolution,
-                             line_data->sub_voxel_weighting);
+      ulonglong vi =
+        vi_local + (line_data->means_offsets[line_data->current_region_index] / sizeof(*line_data->means));
+      updateVoxelMeanPosition(&line_data->means[vi], line_data->sub_voxel_coord, voxel_resolution);
     }
-#endif  // SUB_VOXEL
+#endif // VOXEL_MEAN || NDT
 
     if (was_occupied_voxel && (line_data->region_update_flags & kRfStopOnFirstOccupied))
     {
@@ -238,7 +237,7 @@ __device__ bool VISIT_LINE_VOXEL(const struct GpuKey *voxelKey, bool isEndVoxel,
       return false;
     }
   }
- else
+  else
   {
     // printf("%u Out of bounds: %u " KEY_F "\n", get_global_id(0), vi, KEY_A(*voxelKey));
     // Abort traversal
@@ -267,11 +266,11 @@ __device__ bool VISIT_LINE_VOXEL(const struct GpuKey *voxelKey, bool isEndVoxel,
 /// issues which may be introduced in converting from a common double precision frame on CPU into a single precision
 /// frame in GPU (we do not support double precision GPU due to the limited driver support).
 ///
-/// For each voxel key along the line, we resolve a voxel in @p voxels_mem by cross referencing in
+/// For each voxel key along the line, we resolve a voxel in @p occupancy by cross referencing in
 /// @p occupancy_region_keys_global, @p occupancy_region_mem_offsets_global and @p region_count. Voxels are split into
-/// regions in contiguous chunks in @p voxels_mem. The @c GpuKey::region for a voxel is matched in lookup @p
+/// regions in contiguous chunks in @p occupancy. The @c GpuKey::region for a voxel is matched in lookup @p
 /// occupancy_region_keys_global and the index into @p occupancy_region_keys_global recorded. This index is used to
-/// lookup @p occupancy_region_mem_offsets_global, which provides a byte offset (not elements) from @p voxels_mem at
+/// lookup @p occupancy_region_mem_offsets_global, which provides a byte offset (not elements) from @p occupancy at
 /// which the voxel memory for this voxel begins. Each voxel region has a number of voxels equal to
 /// <tt>region_dimensions.x * region_dimensions.y * region_dimensions.z</tt>.
 ///
@@ -291,12 +290,12 @@ __device__ bool VISIT_LINE_VOXEL(const struct GpuKey *voxelKey, bool isEndVoxel,
 /// - kRfStopOnFirstOccupied: terminate line walking after touching the first occupied voxel found.
 /// - kRfClearOnly: only adjust the probability of occupied voxels.
 ///
-/// @param voxels_mem Pointer to the dense voxel maps the currently available regions. Offsets for a specific region
-///     are available by looking up a region key in @p occupancy_region_keys_global and using the cooresponding
-///     @c occupancy_region_mem_offsets_global byte offset into this array.
+/// @param occupancy Pointer to the dense voxel occupancy maps the currently available regions. Offsets for a
+///     specific region are available by looking up a region key in @p occupancy_region_keys_global and using the
+///     cooresponding @c occupancy_region_mem_offsets_global byte offset into this array.
 /// @param occupancy_region_keys_global Array of voxel region keys identifying regions available in GPU. There are
 ///     @c region_count elements in this array.
-/// @param occupancy_region_mem_offsets_global Array of voxel region memory offsets into @c voxels_mem. Each element
+/// @param occupancy_region_mem_offsets_global Array of voxel region memory offsets into @c occupancy. Each element
 ///     corresponds to a key in occupancy_region_keys_global. The offsets are in bytes.
 /// @param line_keys Array of line segment pairs converted into @c GpuKey references to integrate into the map.
 /// @param local_lines Array array of line segments which generated the @c line_keys. These are converted from the
@@ -313,27 +312,21 @@ __device__ bool VISIT_LINE_VOXEL(const struct GpuKey *voxelKey, bool isEndVoxel,
 ///     point). Should be > 0 to re-enforce as occupied.
 /// @param voxel_value_min Minimum clamping value for voxel adjustments.
 /// @param voxel_value_max Maximum clamping value for voxel adjustments.
-/// @param sub_voxel_weighting The weighting applied to new points when using subvoxel positioning. This is as opposed
-///     to the existing value. The position is updated as
-///     <tt>old_pos * (1 - sub_voxel_weighting) + new_pos * sub_voxel_weighting</tt>
 /// @param region_update_flags Update control values as per @c RayFlag.
-__kernel void REGION_UPDATE_KERNEL(__global VOXEL_TYPE *voxels_mem,
+__kernel void REGION_UPDATE_KERNEL(__global atomic_float *occupancy,
                                    __global ulonglong *occupancy_region_mem_offsets_global,
-// #ifdef SUB_VOXEL
-//                                    __global uint *sub_voxels,
-//                                    __global ulonglong *sub_voxel_region_mem_offsets_global,
-// #endif // SUB_VOXEL
+#if defined(VOXEL_MEAN) || defined(NDT)
+                                   __global VoxelMean *means,
+                                   __global ulonglong *means_region_mem_offsets_global,
+#endif // VOXEL_MEAN || NDT
 #ifdef NDT
-                                   __global NdtVoxel *ndt_voxels,
-                                   __global ulonglong *ndt_region_mem_offsets_global,
-#endif // NDT
+                                   __global NdtVoxel *ndt_voxels, __global ulonglong *ndt_region_mem_offsets_global,
+#endif  // NDT
                                    __global int3 *occupancy_region_keys_global, uint region_count,
                                    __global struct GpuKey *line_keys, __global float3 *local_lines, uint line_count,
                                    int3 region_dimensions, float voxel_resolution, float ray_adjustment,
-                                   float sample_adjustment, float occupied_threshold,
-                                   float voxel_value_min, float voxel_value_max,
-                                   float sub_voxel_weighting, uint region_update_flags
-                                   )
+                                   float sample_adjustment, float occupied_threshold, float voxel_value_min,
+                                   float voxel_value_max, uint region_update_flags)
 {
   // Only process valid lines.
   if (get_global_id(0) >= line_count)
@@ -342,26 +335,27 @@ __kernel void REGION_UPDATE_KERNEL(__global VOXEL_TYPE *voxels_mem,
   }
 
   struct LineWalkData line_data;
-  line_data.voxels = voxels_mem;
-// #ifdef SUB_VOXEL
-//   line_data.sub_voxels = sub_voxels;
-// #endif // SUB_VOXEL
+  line_data.occupancy = occupancy;
+  line_data.occupancy_offsets = occupancy_region_mem_offsets_global;
+#if defined(VOXEL_MEAN) || defined(NDT)
+  line_data.means = means;
+  line_data.means_offsets = means_region_mem_offsets_global;
+#endif // VOXEL_MEAN || NDT
 #ifdef NDT
   line_data.ndt_voxels = ndt_voxels;
-#endif // NDT
+  line_data.ndt_offsets = ndt_region_mem_offsets_global;
+#endif  // NDT
   line_data.region_keys = occupancy_region_keys_global;
-  line_data.region_mem_offsets = occupancy_region_mem_offsets_global;
   line_data.region_dimensions = region_dimensions;
   line_data.ray_adjustment = ray_adjustment;
   line_data.sample_adjustment = sample_adjustment;
   line_data.occupied_threshold = occupied_threshold;
   line_data.voxel_value_min = voxel_value_min;
   line_data.voxel_value_max = voxel_value_max;
-  line_data.sub_voxel_weighting = sub_voxel_weighting;
   line_data.region_count = region_count;
   line_data.region_update_flags = region_update_flags;
 
-  regionsInitCurrent(&line_data.current_region, &line_data.region_voxel_offset);
+  regionsInitCurrent(&line_data.current_region, &line_data.current_region_index);
 
   // Now walk the clipped ray.
   struct GpuKey start_key, end_key;
@@ -371,12 +365,12 @@ __kernel void REGION_UPDATE_KERNEL(__global VOXEL_TYPE *voxels_mem,
   const float3 lineStart = local_lines[get_global_id(0) * 2 + 0];
   const float3 lineEnd = local_lines[get_global_id(0) * 2 + 1];
 
-#ifdef SUB_VOXEL
+#if defined(VOXEL_MEAN) || defined(NDT)
   // We don't need a precise conversion to a voxel key here. We simply need to logically quantise in order to work out
-  // the sub-voxel offset. Essentially we have:
+  // the voxel mean offset. Essentially we have:
   //   s = E - R floor(E/R + 0.5)
   // where:
-  //   s: sub-voxel position
+  //   s: voxel mean position
   //   E: ray End point
   //   R: voxel resolution
   // The addition of 0.5 applies the same half voxel offset used elsewhere. We use pointToRegionCoord() to do this
@@ -384,19 +378,22 @@ __kernel void REGION_UPDATE_KERNEL(__global VOXEL_TYPE *voxels_mem,
   line_data.sub_voxel_coord.y = lineEnd.y - pointToRegionCoord(lineEnd.y, voxel_resolution) * voxel_resolution;
   line_data.sub_voxel_coord.z = lineEnd.z - pointToRegionCoord(lineEnd.z, voxel_resolution) * voxel_resolution;
 
-  // Validate sub-voxel coordinate calculation.
+  // Validate voxel mean coordinate calculation.
   // We use 0.5001 * resolution rather than 0.5 to allow for floating point error when clipping to exact voxel bounds.
-  if (line_data.sub_voxel_coord.x < -0.5001f * voxel_resolution || line_data.sub_voxel_coord.x > 0.5001f * voxel_resolution ||
-      line_data.sub_voxel_coord.y < -0.5001f * voxel_resolution || line_data.sub_voxel_coord.y > 0.5001f * voxel_resolution ||
-      line_data.sub_voxel_coord.z < -0.5001f * voxel_resolution || line_data.sub_voxel_coord.z > 0.5001f * voxel_resolution)
+  if (line_data.sub_voxel_coord.x < -0.5001f * voxel_resolution ||
+      line_data.sub_voxel_coord.x > 0.5001f * voxel_resolution ||
+      line_data.sub_voxel_coord.y < -0.5001f * voxel_resolution ||
+      line_data.sub_voxel_coord.y > 0.5001f * voxel_resolution ||
+      line_data.sub_voxel_coord.z < -0.5001f * voxel_resolution ||
+      line_data.sub_voxel_coord.z > 0.5001f * voxel_resolution)
   {
-    printf("sub-voxel-out [%f, %f]: (%f %f %f) -> (%f %f %f)\n", -0.5f * voxel_resolution, 0.5f * voxel_resolution,
+    printf("voxel mean-out [%f, %f]: (%f %f %f) -> (%f %f %f)\n", -0.5f * voxel_resolution, 0.5f * voxel_resolution,
            lineEnd.x, lineEnd.y, lineEnd.z, line_data.sub_voxel_coord.x, line_data.sub_voxel_coord.y,
            line_data.sub_voxel_coord.z);
   }
-#else  // SUB_VOXEL
+#else   // VOXEL_MEAN || NDT
   line_data.sub_voxel_coord = make_float3(0, 0, 0);
-#endif // SUB_VOXEL
+#endif  // VOXEL_MEAN || NDT
 
 #ifdef STORE_DEBUG_INFO
   line_data.start_key = &start_key;

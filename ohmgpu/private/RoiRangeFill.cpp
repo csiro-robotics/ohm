@@ -38,11 +38,6 @@
 #endif  // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
 
 #if GPUTIL_TYPE == GPUTIL_CUDA
-GPUTIL_CUDA_DECLARE_KERNEL(seedRegionVoxelsSubVox);
-GPUTIL_CUDA_DECLARE_KERNEL(seedFromOuterRegionsSubVox);
-GPUTIL_CUDA_DECLARE_KERNEL(propagateObstaclesSubVox);
-GPUTIL_CUDA_DECLARE_KERNEL(migrateResultsSubVox);
-
 GPUTIL_CUDA_DECLARE_KERNEL(seedRegionVoxels);
 GPUTIL_CUDA_DECLARE_KERNEL(seedFromOuterRegions);
 GPUTIL_CUDA_DECLARE_KERNEL(propagateObstacles);
@@ -54,18 +49,10 @@ using namespace ohm;
 namespace
 {
 #if defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
-  GpuProgramRef program_ref_sub_vox("RoiRangeFill", GpuProgramRef::kSourceString,  // NOLINT
-                                    RoiRangeFillCode, RoiRangeFillCode_length, { "-DSUB_VOXEL" });
-#else   // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
-  GpuProgramRef program_ref_sub_vox("RoiRangeFill", GpuProgramRef::kSourceFile, "RoiRangeFill.cl", 0u,
-                                    { "-DSUB_VOXEL" });
-#endif  // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
-
-#if defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
-  GpuProgramRef program_ref_no_sub("RoiRangeFill", GpuProgramRef::kSourceString,  // NOLINT
+  GpuProgramRef program_ref("RoiRangeFill", GpuProgramRef::kSourceString,  // NOLINT
                                    RoiRangeFillCode, RoiRangeFillCode_length);
 #else   // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
-  GpuProgramRef program_ref_no_sub("RoiRangeFill", GpuProgramRef::kSourceFile, "RoiRangeFill.cl", 0u);
+  GpuProgramRef program_ref("RoiRangeFill", GpuProgramRef::kSourceFile, "RoiRangeFill.cl", 0u);
 #endif  // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
 }  // namespace
 
@@ -256,9 +243,9 @@ bool RoiRangeFill::calculateForRegion(OccupancyMap &map, const glm::i16vec3 &reg
 }
 
 
-void RoiRangeFill::cacheGpuProgram(bool with_sub_voxels, bool force)
+void RoiRangeFill::cacheGpuProgram(bool force)
 {
-  if (!force && program_ref_ != nullptr && with_sub_voxels == using_sub_voxels_program_)
+  if (!force && program_ref_ != nullptr)
   {
     // Already loaded.
     return;
@@ -266,25 +253,13 @@ void RoiRangeFill::cacheGpuProgram(bool with_sub_voxels, bool force)
 
   releaseGpuProgram();
 
-  program_ref_ = (with_sub_voxels) ? &program_ref_sub_vox : &program_ref_no_sub;
-  using_sub_voxels_program_ = with_sub_voxels;
-
+  program_ref_ = &program_ref;
   if (program_ref_->addReference(gpu_))
   {
-    if (using_sub_voxels_program_)
-    {
-      seed_kernel_ = GPUTIL_MAKE_KERNEL(program_ref_->program(), seedRegionVoxelsSubVox);
-      seed_outer_kernel_ = GPUTIL_MAKE_KERNEL(program_ref_->program(), seedFromOuterRegionsSubVox);
-      propagate_kernel_ = GPUTIL_MAKE_KERNEL(program_ref_->program(), propagateObstaclesSubVox);
-      migrate_kernel_ = GPUTIL_MAKE_KERNEL(program_ref_->program(), migrateResultsSubVox);
-    }
-    else
-    {
-      seed_kernel_ = GPUTIL_MAKE_KERNEL(program_ref_->program(), seedRegionVoxels);
-      seed_outer_kernel_ = GPUTIL_MAKE_KERNEL(program_ref_->program(), seedFromOuterRegions);
-      propagate_kernel_ = GPUTIL_MAKE_KERNEL(program_ref_->program(), propagateObstacles);
-      migrate_kernel_ = GPUTIL_MAKE_KERNEL(program_ref_->program(), migrateResults);
-    }
+    seed_kernel_ = GPUTIL_MAKE_KERNEL(program_ref_->program(), seedRegionVoxels);
+    seed_outer_kernel_ = GPUTIL_MAKE_KERNEL(program_ref_->program(), seedFromOuterRegions);
+    propagate_kernel_ = GPUTIL_MAKE_KERNEL(program_ref_->program(), propagateObstacles);
+    migrate_kernel_ = GPUTIL_MAKE_KERNEL(program_ref_->program(), migrateResults);
 
     if (!seed_kernel_.isValid() || !seed_outer_kernel_.isValid() || !propagate_kernel_.isValid() ||
         !migrate_kernel_.isValid())
@@ -378,8 +353,8 @@ int RoiRangeFill::invoke(const OccupancyMapDetail &map, RoiRangeFill &query, Gpu
 
   gputil::Queue &queue = gpu_cache.gpuQueue();
 
-  // Select kernels based on sub-voxel usage or not.
-  cacheGpuProgram(map.layout.hasSubVoxelPattern(), false);
+  // Select kernels based on voxel mean usage or not.
+  cacheGpuProgram(false);
 
   PROFILE(seed);
   // For now just wait on the sync events here.
@@ -393,10 +368,6 @@ int RoiRangeFill::invoke(const OccupancyMapDetail &map, RoiRangeFill &query, Gpu
   if (query.queryFlags() & kQfUnknownAsOccupied)
   {
     kernel_algorithm_flags |= 1;
-  }
-  if ((map.flags & MapFlag::kSubVoxelOccupancy) != MapFlag::kNone)
-  {
-    kernel_algorithm_flags |= (1 << 1);
   }
 
   int src_buffer_index = 0;
@@ -416,7 +387,7 @@ int RoiRangeFill::invoke(const OccupancyMapDetail &map, RoiRangeFill &query, Gpu
                      gputil::BufferArg<gputil::int3>(query.gpuRegionKeys()),
                      gputil::BufferArg<uint64_t>(query.gpuOccupancyRegionOffsets()), query.regionCount(),
                      region_voxel_extents_gpu, region_voxel_extents_gpu, float(map.occupancy_threshold_value),
-                     kernel_algorithm_flags, zbatch, map.sub_voxel_filter_scale);
+                     kernel_algorithm_flags, zbatch);
   if (err)
   {
     return err;
@@ -437,7 +408,7 @@ int RoiRangeFill::invoke(const OccupancyMapDetail &map, RoiRangeFill &query, Gpu
     gputil::BufferArg<gputil::int3>(query.gpuRegionKeys()),
     gputil::BufferArg<uint64_t>(query.gpuOccupancyRegionOffsets()), query.regionCount(), region_voxel_extents_gpu,
     region_voxel_extents_gpu, padding_gpu, axis_scaling_gpu, float(map.occupancy_threshold_value),
-    kernel_algorithm_flags, seed_outer_batch, map.sub_voxel_filter_scale);
+    kernel_algorithm_flags, seed_outer_batch);
 
   if (err)
   {

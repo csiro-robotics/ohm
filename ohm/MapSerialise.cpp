@@ -19,7 +19,7 @@
 
 #include "serialise/MapSerialiseV0.1.h"
 #include "serialise/MapSerialiseV0.2.h"
-#include "serialise/MapSerialiseV0.3.h"
+#include "serialise/MapSerialiseV0.4.h"
 #include "serialise/MapSerialiseV0.h"
 
 #include <glm/glm.hpp>
@@ -63,8 +63,10 @@ namespace ohm
   // - MMM is a three digit specification of the current minor version.
   // - PPP is a three digit specification of the current patch version.
   const MapVersion kSupportedVersionMin = { 0, 0, 0 };
-  const MapVersion kSupportedVersionMax = { 0, 3, 2 };
-  const MapVersion kCurrentVersion = { 0, 3, 2 };
+  const MapVersion kSupportedVersionMax = { 0, 4, 0 };
+  const MapVersion kCurrentVersion = { 0, 4, 0 };
+
+  // Note: version 0.3.x is not supported.
 
   int saveItem(OutputStream &stream, const MapValue &value)  // NOLINT(google-runtime-references)
   {
@@ -274,11 +276,7 @@ namespace ohm
     // Saving the map stamp has become important to ensure MapChunk::touched_stamps are correctly maintained.
     ok = writeUncompressed<uint64_t>(stream, map.stamp) && ok;
 
-    // Add v0.3.1
-    ok = writeUncompressed<double>(stream, map.sub_voxel_weighting) && ok;
-
     // Add v0.3.2
-    ok = writeUncompressed<float>(stream, map.sub_voxel_filter_scale) && ok;
     ok = writeUncompressed<uint32_t>(stream, std::underlying_type_t<ohm::MapFlag>(map.flags)) && ok;
 
     return (ok) ? 0 : kSeFileWriteFailure;
@@ -414,6 +412,14 @@ namespace ohm
         return kSeUnsupportedVersion;
       }
 
+      if (version.version.major == 0 && version.version.minor == 3)
+      {
+        // Version 0.3.x not supported. That introduced voxel mean positioning using a progressive weighting.
+        // Support in 0.4.0 changed to separate VoxelMean layer using a progressive point count yielding much better
+        // coordinates.
+        return kSeUnsupportedVersion;
+      }
+
       ok = readRaw<double>(stream, map.origin.x) && ok;
     }
     else
@@ -450,17 +456,9 @@ namespace ohm
       ok = readRaw<uint64_t>(stream, map.stamp) && ok;
     }
 
-    // v0.3.1 added serialisation of sub_voxel_weighting.
-    if (version.version.major > 0 || version.version.minor > 3 || version.version.patch > 0)
-    {
-      ok = readRaw<double>(stream, map.sub_voxel_weighting) && ok;
-    }
-
-    // v0.3.2 added serialisation of map flags and sub-voxel filtering
+    // v0.3.2 added serialisation of map flags
     if (version.version.major > 0 || version.version.minor > 3 || version.version.patch > 1)
     {
-      ok = readRaw<float>(stream, map.sub_voxel_filter_scale) && ok;
-
       uint32_t flags = 0;
       ok = readRaw<std::underlying_type_t<ohm::MapFlag>>(stream, map.flags) && ok;
       map.flags = static_cast<ohm::MapFlag>(flags);
@@ -468,7 +466,6 @@ namespace ohm
     else
     {
       map.flags = MapFlag::kNone;
-      map.sub_voxel_filter_scale = 1.0f;
     }
 
     if (!ok)
@@ -652,9 +649,9 @@ int ohm::load(const char *filename, OccupancyMap &map, SerialiseProgress *progre
     {
       err = ohm::v0_2::load(stream, detail, progress, version.version, region_count);
     }
-    else if (version.version.major == 0 && version.version.minor == 3)
+    else if (version.version.major == 0 && version.version.minor == 4)
     {
-      err = ohm::v0_3::load(stream, detail, progress, version.version, region_count);
+      err = ohm::v0_4::load(stream, detail, progress, version.version, region_count);
     }
   }
 
@@ -734,17 +731,17 @@ int ohm::loadHeader(const char *filename, OccupancyMap &map, MapVersion *version
     }
   }
 
-  // Correct the sub-voxel flags. The flags may not match the reality of the map layout, such as when we load an older
+  // Correct the voxel mean flags. The flags may not match the reality of the map layout, such as when we load an older
   // version.
   if (!err)
   {
-    if (detail.layout.hasSubVoxelPattern())
+    if (detail.layout.hasVoxelMean())
     {
-      detail.flags |= MapFlag::kSubVoxelPosition;
+      detail.flags |= MapFlag::kVoxelMean;
     }
     else
     {
-      detail.flags &= ~MapFlag::kSubVoxelPosition;
+      detail.flags &= ~MapFlag::kVoxelMean;
     }
   }
 
