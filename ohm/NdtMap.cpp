@@ -29,6 +29,8 @@
 
 using namespace ohm;
 
+#pragma GCC optimize("O0")
+
 namespace ohm
 {
   struct NdtMapDetail

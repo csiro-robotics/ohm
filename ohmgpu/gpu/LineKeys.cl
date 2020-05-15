@@ -5,7 +5,9 @@
 
 #define WALK_LINE_VOXELS lineKeysWalkLine
 #define VISIT_LINE_VOXEL lineKeysVisitVoxel
-__device__ bool lineKeysVisitVoxel(const struct GpuKey *voxelKey, bool isEndVoxel, float voxelResolution, void *userData);
+__device__ bool lineKeysVisitVoxel(const struct GpuKey *voxelKey, bool isEndVoxel,
+                                   const GpuKey *startKey, const GpuKey *endKey,
+                                   float voxelResolution, void *userData);
 
 // Must be included after above defined
 #include "LineWalk.cl"
@@ -23,7 +25,9 @@ __device__ void calculateLineKeys(__global struct GpuKey *lineOut, uint maxKeys,
                        const int3 *regionDim, float voxelResolution);
 
 
-__device__ bool lineKeysVisitVoxel(const struct GpuKey *voxelKey, bool isEndVoxel, float voxelResolution, void *userData)
+__device__ bool lineKeysVisitVoxel(const struct GpuKey *voxelKey, bool isEndVoxel,
+                                   const GpuKey *startKey, const GpuKey *endKey,
+                                   float voxelResolution, void *userData)
 {
   struct LineWalkData *lineData = (struct LineWalkData *)userData;
   copyKey(&lineData->lineOut[1 + lineData->keyCount++], voxelKey);

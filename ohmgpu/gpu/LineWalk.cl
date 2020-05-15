@@ -18,7 +18,9 @@
 /// @param voxelResolution The edge length of each voxel cube.
 /// @param userData User data pointer.
 /// @return True to continue traversing the line, false to abort traversal.
-// __device__ bool VISIT_LINE_VOXEL(const struct GpuKey *voxelKey, bool isEndVoxel, float voxelResolution, void *userData);
+// __device__ bool VISIT_LINE_VOXEL(const struct GpuKey *voxelKey, bool isEndVoxel,
+//                                  const struct GpuKey *startKey, const struct GpuKey *endKey,
+//                                  float voxelResolution, void *userData);
 //------------------------------------------------------------------------------
 #include "GpuKey.h"
 
@@ -265,7 +267,7 @@ __device__ void WALK_LINE_VOXELS(const struct GpuKey *startKey, const struct Gpu
       break;
     }
     #endif // LIMIT_LINE_WALK_ITERATIONS
-    continueTraversal = VISIT_LINE_VOXEL(&currentKey, false, voxelResolution, userData);
+    continueTraversal = VISIT_LINE_VOXEL(&currentKey, false, startKey, endKey, voxelResolution, userData);
     // Select the minimum timeMax as the next axis.
     axis = (timeMax[0] < timeMax[2]) ? ((timeMax[0] < timeMax[1]) ? 0 : 1) : ((timeMax[1] < timeMax[2]) ? 1 : 2);
     limitReached = fabs(timeMax[axis]) > timeLimit[axis];
@@ -291,6 +293,6 @@ __device__ void WALK_LINE_VOXELS(const struct GpuKey *startKey, const struct Gpu
   // Walk end point.
   if (continueTraversal)
   {
-    VISIT_LINE_VOXEL(endKey, endKey->voxel[3] == 0, voxelResolution, userData);
+    VISIT_LINE_VOXEL(endKey, endKey->voxel[3] == 0, startKey, endKey, voxelResolution, userData);
   }
 }

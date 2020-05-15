@@ -26,11 +26,6 @@
 #define LIMIT_VOXEL_WRITE_ITERATIONS
 #endif  // LIMIT_VOXEL_WRITE_ITERATIONS
 
-#ifdef LIMIT_VOXEL_WRITE_ITERATIONS
-// Store additional debug information in LineWalkData for error reporting.
-//#define STORE_DEBUG_INFO
-#endif  // LIMIT_VOXEL_WRITE_ITERATIONS
-
 //------------------------------------------------------------------------------
 // Includes
 //------------------------------------------------------------------------------
@@ -122,10 +117,6 @@ struct LineWalkData
   // An estimate on the sensor range noise error.
   float sensor_noise;
 #endif  // NDT
-#ifdef STORE_DEBUG_INFO
-  const struct GpuKey *start_key;
-  const struct GpuKey *end_key;
-#endif  // STORE_DEBUG_INFO
 };
 #endif  // REGION_UPDATE_BASE_CL
 
@@ -140,7 +131,9 @@ struct LineWalkData
 #endif  // NDT
 
 // Implement the voxel traversal function. We update the value of the voxel using atomic instructions.
-__device__ bool VISIT_LINE_VOXEL(const struct GpuKey *voxelKey, bool isEndVoxel, float voxel_resolution, void *userData)
+__device__ bool VISIT_LINE_VOXEL(const struct GpuKey *voxelKey, bool isEndVoxel,
+                                 const struct GpuKey *startKey, const struct GpuKey *endKey,
+                                 float voxel_resolution, void *userData)
 {
   float old_value, new_value;
 
@@ -161,23 +154,16 @@ __device__ bool VISIT_LINE_VOXEL(const struct GpuKey *voxelKey, bool isEndVoxel,
     //   of a region not hit when walking the regions on CPU.
     // - Regions may not be uploaded due to extents limiting on CPU.
 #ifdef REPORT_MISSING_REGIONS
-    printf("%u region missing: " KEY_F "\n"
-#ifdef STORE_DEBUG_INFO
-           "  Voxels: " KEY_F "->" KEY_F "\n"
-#endif
-           ,
-           get_global_id(0), KEY_A(*voxelKey)
-#ifdef STORE_DEBUG_INFO
-                               ,
-           KEY_A(*line_data->start_key), KEY_A(*line_data->end_key)
-#endif
+    printf("%u region missing: " KEY_F "\n  Voxels: " KEY_F "->" KEY_F "\n",
+           get_global_id(0), KEY_A(*voxelKey), KEY_A(*startKey), KEY_A(*endKey)
     );
 #endif
     return true;
   }
 
   // Adjust value by ray_adjustment unless this is the sample voxel.
-  const float adjustment = calculateOccupancyAdjustment(voxelKey, isEndVoxel, line_data, voxel_resolution);
+  const float adjustment =
+    calculateOccupancyAdjustment(voxelKey, isEndVoxel, startKey, endKey, voxel_resolution, line_data);
 
   // This voxel lies in the region. We will make a value adjustment.
   // Work out which voxel to modify.
@@ -402,11 +388,6 @@ __kernel void REGION_UPDATE_KERNEL(__global atomic_float *occupancy,
 #else   // VOXEL_MEAN || NDT
   line_data.sub_voxel_coord = make_float3(0, 0, 0);
 #endif  // VOXEL_MEAN || NDT
-
-#ifdef STORE_DEBUG_INFO
-  line_data.start_key = &start_key;
-  line_data.end_key = &end_key;
-#endif
 
 #ifdef NDT
   line_data.sensor = lineStart;

@@ -142,7 +142,7 @@ inline __device__ __host__ void moveKeyAlongAxis(struct GpuKey *key, int axis, i
   key->voxel[2] = localKey[2];
 }
 
-// GpuKey diff calculator for a single axis. Results are:
+// GpuKey dir calculator for a single axis. Results are:
 // . 0 => keys are equal on axis.
 // . 1 => end key indexes a higher voxel along axis.
 // . -1 => end key indexes a lower voxel along axis.
@@ -154,16 +154,33 @@ inline __device__ __host__ void moveKeyAlongAxis(struct GpuKey *key, int axis, i
 // . -1 end_region == start_region && end_voxel < start_voxel
 // . 1 end_region == start_region && end_voxel > start_voxel
 // . 0 end_region == start_region && end_voxel == start_voxel
-#define _OHM_GPUKEY_AXIS_DIFF(start, end, axis) \
-  ((end)->region[axis] != (start)->region[axis] ?             \
-    ((end)->region[axis] > (start)->region[axis] ? 1.0f : -1.0f) : \
-    ((end)->voxel[axis] != (end)->voxel[1] ? ((end)->voxel[axis] > (start)->voxel[axis] ? 1.0f : -1.0f) : 0.0f))
+#define _OHM_GPUKEY_AXIS_DIR(start, end, axis)                      \
+  ((end)->region[axis] != (start)->region[axis] ?                   \
+     ((end)->region[axis] > (start)->region[axis] ? 1.0f : -1.0f) : \
+     ((end)->voxel[axis] != (end)->voxel[1] ? ((end)->voxel[axis] > (start)->voxel[axis] ? 1.0f : -1.0f) : 0.0f))
 
 inline __device__ __host__ float3 keyDirection(const struct GpuKey *start, const struct GpuKey *end)
 {
-  return make_float3(_OHM_GPUKEY_AXIS_DIFF(start, end, 0),
-                     _OHM_GPUKEY_AXIS_DIFF(start, end, 1),
-                     _OHM_GPUKEY_AXIS_DIFF(start, end, 2));
+  return make_float3(_OHM_GPUKEY_AXIS_DIR(start, end, 0), _OHM_GPUKEY_AXIS_DIR(start, end, 1),
+                     _OHM_GPUKEY_AXIS_DIR(start, end, 2));
+}
+
+// Calculate the number of voxels from start to end.
+//
+// @todo Consolidate this code with OccupancyMap::rangeBetween()
+inline __device__ __host__ int3 keyDiff(const struct GpuKey *start, const struct GpuKey *end, const int3 *regionDim)
+{
+  // First diff the regions.
+  const int3 region_diff =
+    make_int3(end->region[0] - start->region[0], end->region[1] - start->region[1], end->region[2] - start->region[2]);
+  int3 voxel_diff;
+
+  // Voxel difference is the sum of the local difference plus the region step difference.
+  voxel_diff.x = end->voxel[0] - start->voxel[0] + region_diff.x * regionDim->x;
+  voxel_diff.y = end->voxel[1] - start->voxel[1] + region_diff.y * regionDim->y;
+  voxel_diff.z = end->voxel[2] - start->voxel[2] + region_diff.z * regionDim->z;
+
+  return voxel_diff;
 }
 
 #endif  // GPUTIL_DEVICE
