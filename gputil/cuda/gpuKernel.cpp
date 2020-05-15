@@ -273,7 +273,7 @@ namespace gputil
     kernel.detail()->cuda_kernel_function = kernel_function_ptr;
     kernel.detail()->optimal_group_size_calc = group_calc;
     kernel.detail()->program = program;
-    // TODO(KS): count arguments
+    // TODO(KS): count arguments  
     return kernel;
   }
 }  // namespace gputil

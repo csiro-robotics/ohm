@@ -17,6 +17,7 @@
 #include <ohm/NdtVoxel.h>
 #include <ohm/MapCache.h>
 #include <ohm/OccupancyMap.h>
+#include <ohm/VoxelMean.h>
 
 #include <ohm/private/OccupancyMapDetail.h>
 
@@ -86,6 +87,10 @@ size_t GpuNdtMap::integrateRays(const glm::dvec3 *rays, size_t element_count, un
     ohm::Voxel voxel = imp->map->voxel(key, true, &cache);
     imp->ndt_map.integrateHit(voxel, sensor, sample);
   }
+
+  // FIXME: (KS) This is looses a lot of benefits in working on the GPU, but for now clear the GPU cache. We've
+  /// invalidated some of the GPU data.
+  gpuCache()->clear();
 
   return update_count;
 }
@@ -159,11 +164,13 @@ void GpuNdtMap::finaliseBatch(unsigned region_update_flags)
     wait.add(imp_->voxel_upload_info[buf_idx][i].offset_upload_event);
   }
 
+  gpu_cache.gpuQueue().finish();
+
   imp_->update_kernel(global_size, local_size, wait, imp_->region_update_events[buf_idx], &gpu_cache.gpuQueue(),
                       // Kernel args begin:
                       gputil::BufferArg<float>(*occupancy_layer_cache.buffer()),
                       gputil::BufferArg<uint64_t>(imp_->voxel_upload_info[buf_idx][0].offsets_buffer),
-                      gputil::BufferArg<unsigned>(*mean_layer_cache.buffer()),
+                      gputil::BufferArg<VoxelMean>(*mean_layer_cache.buffer()),
                       gputil::BufferArg<uint64_t>(imp_->voxel_upload_info[buf_idx][1].offsets_buffer),
                       gputil::BufferArg<NdtVoxel>(*ndt_voxel_layer_cache.buffer()),
                       gputil::BufferArg<uint64_t>(imp_->voxel_upload_info[buf_idx][2].offsets_buffer),
@@ -177,7 +184,7 @@ void GpuNdtMap::finaliseBatch(unsigned region_update_flags)
 
   // Update most recent chunk GPU event.
   occupancy_layer_cache.updateEvents(imp_->batch_marker, imp_->region_update_events[buf_idx]);
-  // mean_layer_cache.updateEvents(imp_->batch_marker, imp_->region_update_events[buf_idx]);
+  mean_layer_cache.updateEvents(imp_->batch_marker, imp_->region_update_events[buf_idx]);
   ndt_voxel_layer_cache.updateEvents(imp_->batch_marker, imp_->region_update_events[buf_idx]);
 
   // std::cout << imp_->region_counts[bufIdx] << "

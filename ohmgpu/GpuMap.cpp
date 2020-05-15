@@ -18,6 +18,7 @@
 #include <ohm/OccupancyMap.h>
 #include <ohm/OccupancyUtil.h>
 #include <ohm/RayFilter.h>
+#include <ohm/VoxelMean.h>
 
 #include "private/GpuMapDetail.h"
 #include "private/GpuProgramRef.h"
@@ -768,7 +769,6 @@ bool GpuMap::enqueueRegion(const glm::i16vec3 &region_key, int buffer_index)
 {
   // Upload chunk to GPU.
   MapChunk *chunk = nullptr;
-  gputil::Event upload_event;
   // uint64_t mem_offset;
   GpuLayerCache::CacheStatus status;
 
@@ -777,8 +777,8 @@ bool GpuMap::enqueueRegion(const glm::i16vec3 &region_key, int buffer_index)
   for (VoxelUploadInfo &voxel_info : imp_->voxel_upload_info[buffer_index])
   {
     GpuLayerCache &layer_cache = *gpu_cache.layerCache(voxel_info.gpu_layer_id);
-    uint64_t mem_offset = uint64_t(layer_cache.upload(*imp_->map, region_key, chunk, &upload_event, &status,
-                                                      imp_->batch_marker, GpuLayerCache::kAllowRegionCreate));
+    uint64_t mem_offset = uint64_t(layer_cache.upload(*imp_->map, region_key, chunk, &voxel_info.offset_upload_event,
+                                                      &status, imp_->batch_marker, GpuLayerCache::kAllowRegionCreate));
 
     if (status == GpuLayerCache::kCacheFull)
     {
@@ -838,7 +838,7 @@ void GpuMap::finaliseBatch(unsigned region_update_flags)
                         // Kernel args begin:
                         gputil::BufferArg<float>(*occupancy_layer_cache.buffer()),
                         gputil::BufferArg<uint64_t>(imp_->voxel_upload_info[buf_idx][0].offsets_buffer),
-                        gputil::BufferArg<unsigned>(*mean_layer_cache->buffer()),
+                        gputil::BufferArg<VoxelMean>(*mean_layer_cache->buffer()),
                         gputil::BufferArg<uint64_t>(imp_->voxel_upload_info[buf_idx][1].offsets_buffer),
                         gputil::BufferArg<gputil::int3>(imp_->region_key_buffers[buf_idx]), region_count,
                         gputil::BufferArg<GpuKey>(imp_->key_buffers[buf_idx]),

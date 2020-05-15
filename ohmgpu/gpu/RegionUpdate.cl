@@ -307,11 +307,9 @@ __device__ bool VISIT_LINE_VOXEL(const struct GpuKey *voxelKey, bool isEndVoxel,
 /// @param voxel_value_min Minimum clamping value for voxel adjustments.
 /// @param voxel_value_max Maximum clamping value for voxel adjustments.
 /// @param region_update_flags Update control values as per @c RayFlag.
-__kernel void REGION_UPDATE_KERNEL(__global atomic_float *occupancy,
-                                   __global ulonglong *occupancy_region_mem_offsets_global,
+__kernel void REGION_UPDATE_KERNEL(__global atomic_float *occupancy, __global ulonglong *occupancy_region_mem_offsets_global,
 #if defined(VOXEL_MEAN) || defined(NDT)
-                                   __global VoxelMean *means,
-                                   __global ulonglong *means_region_mem_offsets_global,
+                                   __global VoxelMean *means, __global ulonglong *means_region_mem_offsets_global,
 #endif // VOXEL_MEAN || NDT
 #ifdef NDT
                                    __global NdtVoxel *ndt_voxels, __global ulonglong *ndt_region_mem_offsets_global,
