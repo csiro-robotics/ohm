@@ -304,7 +304,7 @@ inline __device__ ndtvec3 calculateMiss(NdtVoxel *ndt_voxel, float *voxel_value,
   if (probability_update == probability_update)
   {
     // Convert the probability to a log value.
-    *voxel_value += log(probability_update / (1.0 - probability_update));
+    *voxel_value += (float)log(probability_update / ((ndtreal)1 - probability_update));
   }
 
   return voxel_maximum_likelyhood;

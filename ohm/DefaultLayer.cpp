@@ -8,6 +8,8 @@
 #include "MapLayer.h"
 #include "MapLayout.h"
 
+#include <algorithm>
+
 namespace ohm
 {
   namespace default_layer

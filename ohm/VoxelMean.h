@@ -153,7 +153,7 @@ struct VoxelMean
   /// @param voxel The @c VoxelMean structure to update.
   /// @param resolution The length of each voxel cube edge.
   SUB_VOX_FUNC_PREFACE
-  inline __device__ __host__ unsigned subVoxelUpdate(uint coord, uint point_count, vec3 voxel_local_coord,
+  inline __device__ __host__ unsigned subVoxelUpdate(unsigned coord, unsigned point_count, vec3 voxel_local_coord,
                                                      coord_real resolution)
   {
     vec3 mean =

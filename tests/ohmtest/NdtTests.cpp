@@ -48,7 +48,7 @@ namespace ndttests
   };
 
 
-  void initialiseTestVoxel(NdtTestVoxel *ref_voxel, double sensor_noise)
+  void initialiseTestVoxel(NdtTestVoxel *ref_voxel, float sensor_noise)
   {
     initialiseNdt(ref_voxel, sensor_noise);
     ref_voxel->mean[0] = ref_voxel->mean[1] = ref_voxel->mean[2] = 0;
@@ -82,31 +82,31 @@ namespace ndttests
     const double sc_1 = num_pt ? std::sqrt(num_pt * one_on_num_pt_plus_one) : 1;
     const double sc_2 = one_on_num_pt_plus_one * std::sqrt(num_pt);
     std::vector<double> A(9);
-    for (size_t i = 0; i < 6; ++i)
+    for (unsigned i = 0; i < 6; ++i)
     {
       A[i] = sc_1 * ndt->cov_sqrt_diag[i];
     }
-    for (size_t i = 0; i < 3; ++i)
+    for (unsigned i = 0; i < 3; ++i)
     {
       A[i + 6] = sc_2 * diff[i];
     }
-    for (size_t k = 0; k < 3; ++k)
+    for (unsigned k = 0; k < 3; ++k)
     {
-      const size_t ind1 = (k * (k + 3)) >> 1,  // packed index of (k,k) term
+      const unsigned ind1 = (k * (k + 3)) >> 1,  // packed index of (k,k) term
         indk = ind1 - k;                       // packed index of (1,k)
       const double ak = std::sqrt(packed_dot(&A[0], k, k));
-      ndt->cov_sqrt_diag[ind1] = ak;
+      ndt->cov_sqrt_diag[ind1] = float(ak);
       if (ak > 0.0)
       {
         const double aki = 1.0 / ak;
-        for (size_t j = k + 1; j < 3; ++j)
+        for (unsigned j = k + 1; j < 3; ++j)
         {
-          const size_t indj = (j * (j + 1)) >> 1, indkj = indj + k;
+          const unsigned indj = (j * (j + 1)) >> 1, indkj = indj + k;
           double c = packed_dot(&A[0], j, k) * aki;
           ndt->cov_sqrt_diag[indkj] = float(c);
           c *= aki;
           A[j + 6] -= c * A[k + 6];
-          for (size_t l = 0; l <= k; ++l)
+          for (unsigned l = 0; l <= k; ++l)
           {
             A[indj + l] -= c * A[indk + l];
           }
@@ -333,7 +333,7 @@ namespace ndttests
     // Ray running across the voxel, and through the ellipsoid.
     vertices.emplace_back(glm::dvec3(-5, 1, 2));
     vertices.emplace_back(glm::dvec3(5, 1, 0.5));
-    expected_prob_approx.emplace_back(0.269);
+    expected_prob_approx.emplace_back(0.269f);
 
     ohm::Voxel target_voxel = map.voxel(target_key, false, &cache);
     const float initial_value = target_voxel;

@@ -29,14 +29,12 @@
 
 using namespace ohm;
 
-#pragma GCC optimize("O0")
-
 namespace ohm
 {
   struct NdtMapDetail
   {
     OccupancyMap *map = nullptr;
-    double sensor_noise = 0.05;
+    float sensor_noise = 0.05f;
     int covariance_layer_index = -1;
     unsigned sample_threshold = 4;
     bool borrowed_map = false;
@@ -85,13 +83,13 @@ bool NdtMap::borrowedMap() const
 }
 
 
-void NdtMap::setSensorNoise(double noise_range)
+void NdtMap::setSensorNoise(float noise_range)
 {
   imp_->sensor_noise = noise_range;
 }
 
 
-double NdtMap::sensorNoise() const
+float NdtMap::sensorNoise() const
 {
   return imp_->sensor_noise;
 }
@@ -141,7 +139,7 @@ void NdtMap::integrateHit(Voxel &voxel, const glm::dvec3 & /*sensor*/, const glm
 
   float voxel_value = voxel.value();
   calculateHit(ndt_voxel, &voxel_value, sample, voxel_mean, voxel_mean_info->count, map.hitValue(),
-                            map.occupancyThresholdValue(), voxel::invalidMarkerValue(), imp_->sensor_noise);
+               map.occupancyThresholdValue(), voxel::invalidMarkerValue(), imp_->sensor_noise);
 
   // NDT probably value update is the same as for the basic occupancy map.
   voxel.setValue(voxel_value);
