@@ -95,9 +95,9 @@ inline __device__ double packedDot(const ndtreal A[9], const int j, const int k)
 ///
 /// Items marked '.' are not represented in the martix and are treated as zero.
 ///
-/// @param A The matrix to unpack to.
+/// @param A The matrix to unpack to. This is an array of 9 elements.
 /// @param sample_to_mean The difference between the new sample point and the voxel mean.
-inline __device__ void unpackedA(const NdtVoxel &ndt, unsigned point_count, const ndtvec3 sample_to_mean, ndtreal A[9])
+inline __device__ void unpackedA(const NdtVoxel &ndt, unsigned point_count, const ndtvec3 sample_to_mean, ndtreal *A)
 {
   const ndtreal one_on_num_pt_plus_one = ndtreal(1) / (point_count + ndtreal(1));
   const ndtreal sc_1 = point_count ? sqrt(point_count * one_on_num_pt_plus_one) : ndtreal(1);

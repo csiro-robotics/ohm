@@ -33,6 +33,7 @@ namespace ohm
     void cacheGpuProgram(bool with_voxel_mean, bool force) override;
 
     void finaliseBatch(unsigned region_update_flags) override;
+    void releaseGpuProgram() override;
   };
 }  // namespace ohm
 

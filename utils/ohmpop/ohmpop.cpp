@@ -886,7 +886,12 @@ int main(int argc, char *argv[])
   }
 
   // Initialise TES
-  ohm::Trace trace("ohmpop.3es");
+#ifdef OHMPOP_CPU
+  const char *trace_name = "ohmpopcpu.3es";
+#else   // OHMPOP_CPU
+  const char *trace_name = "ohmpopgpu.3es";
+#endif  // OHMPOP_CPU
+  ohm::Trace trace(trace_name);
 
   signal(SIGINT, onSignal);
   signal(SIGTERM, onSignal);

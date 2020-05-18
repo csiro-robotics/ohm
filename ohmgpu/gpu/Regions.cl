@@ -1,3 +1,9 @@
+// Copyright (c) 2018
+// Commonwealth Scientific and Industrial Research Organisation (CSIRO)
+// ABN 41 687 119 230
+//
+// Author: Kazys Stepanas
+
 #include "GpuKey.h"
 
 /// Initialises the @c currentRegion and @c regionIndex parameters for @c regionsResolveRegion().
@@ -54,7 +60,7 @@ inline __device__ bool regionsResolveRegion(const struct GpuKey *voxelKey, int3 
 {
   // Check if the current region is the same as the last. This will generally be the case.
   if (voxelKey->region[0] == currentRegion->x &&
-      voxelKey->region[1] == currentRegion->y && 
+      voxelKey->region[1] == currentRegion->y &&
       voxelKey->region[2] == currentRegion->z)
   {
     // Same region. No update required.

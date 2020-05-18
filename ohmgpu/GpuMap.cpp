@@ -337,7 +337,7 @@ void GpuMap::syncVoxels()
     // This will allow us to kick synching off all layers in parallel and should reduce the overall latency.
     gpumap::sync(*imp_->map, kGcIdOccupancy);
     gpumap::sync(*imp_->map, kGcIdVoxelMean);
-    // gpumap::sync(*imp_->map, kGcIdNdt);
+    gpumap::sync(*imp_->map, kGcIdNdt);
   }
 }
 
@@ -474,6 +474,7 @@ void GpuMap::cacheGpuProgram(bool with_voxel_mean, bool force)
   releaseGpuProgram();
 
   GpuCache &gpu_cache = *gpuCache();
+  imp_->gpu_ok = true;
   imp_->cached_sub_voxel_program = with_voxel_mean;
   imp_->program_ref = (with_voxel_mean) ? &program_ref_sub_vox : &program_ref_no_sub;
 
@@ -579,6 +580,16 @@ size_t GpuMap::integrateRays(const glm::dvec3 *rays, size_t element_count, unsig
   Key line_start_key, line_end_key;
   GpuKey line_start_key_gpu{}, line_end_key_gpu{};
 
+  // struct SortedRay
+  //{
+  //  ohm::Key sample_key;
+  //  unsigned ray_id;
+
+  //  inline bool operator<(const SortedRay &other) const { return sample_key < other.sample_key; }
+  //};
+
+  // std::vector<SortedRay> sorted_rays;
+
   for (unsigned i = 0; i < element_count; i += 2)
   {
     ray_start_d = rays[i + 0];
@@ -632,12 +643,37 @@ size_t GpuMap::integrateRays(const glm::dvec3 *rays, size_t element_count, unsig
     //          << ray_start << ':' << ray_end << "  <=>  " << rays[i + 0] << " -> " << rays[i + 1] << std::endl;
     // std::cout << "dirs: " << (ray_end - ray_start) << " vs " << (ray_end_d - ray_start_d) << std::endl;
     walkRegions(*imp_->map, ray_start_d, ray_end_d, region_func);
+
+     //sorted_rays.emplace_back(SortedRay{ line_end_key, i / 2 });
   }
 
   // Asynchronous unpin. Kernels will wait on the associated event.
   keys_pinned.unpin(&gpu_cache->gpuQueue(), nullptr, &imp_->key_upload_events[buf_idx]);
   rays_pinned.unpin(&gpu_cache->gpuQueue(), nullptr, &imp_->ray_upload_events[buf_idx]);
 
+  // std::sort(sorted_rays.begin(), sorted_rays.end());
+  // std::vector<unsigned> batches;
+  // Key last_key(Key::kNull);
+  // unsigned current_count = 0;
+  // unsigned largest_batch = 0;
+  // for (const SortedRay &ray : sorted_rays)
+  //{
+  //  if (ray.sample_key != last_key)
+  //  {
+  //    if (!last_key.isNull())
+  //    {
+  //      batches.emplace_back(current_count);
+  //      largest_batch = std::max(largest_batch, current_count);
+  //    }
+
+  //    last_key = ray.sample_key;
+  //    current_count = 0;
+  //  }
+
+  //  ++current_count;
+  //}
+
+  //std::cout << "largest batch: " << largest_batch << std::endl;
   imp_->ray_counts[buf_idx] = unsigned(upload_count / 2);
 
   if (upload_count == 0)

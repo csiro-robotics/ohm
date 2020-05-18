@@ -1,3 +1,8 @@
+// Copyright (c) 2020
+// Commonwealth Scientific and Industrial Research Organisation (CSIRO)
+// ABN 41 687 119 230
+//
+// Author: Kazys Stepanas
 
 /// Update the voxel mean pattern at @p target_address by including the bit(s) from @p pattern_to_add.
 /// This is done using atomic operations.
@@ -27,6 +32,7 @@ inline __device__ void updateVoxelMeanPosition(__global VoxelMean *voxel, float3
   // somewhat out.
   do
   {
+    //point_count = gputilAtomicLoadU32(&voxel->count);
     point_count = gputilAtomicLoadU32(&voxel->count);
     old_value = gputilAtomicLoadU32(&voxel->coord);
     new_value = subVoxelUpdate(old_value, point_count, sample_pos, voxel_resolution);

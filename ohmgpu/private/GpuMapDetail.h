@@ -90,9 +90,9 @@ namespace ohm
     GpuProgramRef *program_ref = nullptr;
     gputil::Kernel update_kernel;
 
-    /// Identifies the rays uploaded on the current @c GpuMap::integrateRays() call. Each element is an identifier
-    /// to a ray in the current @c rays argument of  @c GpuMap::integrateRays() where the index to the sensor position
-    /// is calculated as `current_ray_ids[i] * 2` and the sample position as `current_ray_ids[i] * 2 + 1`.
+    /// Identifies the rays uploaded on the current @c GpuMap::integrateRays() call. Each element is an identifier to a
+    /// ray in the current @c rays argument of  @c GpuMap::integrateRays() where the index to the sensor position is
+    /// calculated as `current_ray_ids[i] * 2` and the sample position as `current_ray_ids[i] * 2 + 1`.
     ///
     /// This array is only valid for the duraction of the current @c GpuMap::integrateRays() call for derivations
     /// such as the @c GpuNdtMap to use.

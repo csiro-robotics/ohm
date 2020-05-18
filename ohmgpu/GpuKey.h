@@ -47,6 +47,12 @@ namespace ohm
 
 #ifdef GPUTIL_DEVICE
 
+/// Test for equality between two @c GpuKey objects.
+/// @param a The first key.
+/// @param b The second key.
+/// @return True if @p a and @p b are exactly equal.
+inline __device__ __host__ bool equalKeys(const struct GpuKey *a, const struct GpuKey *b);
+
 __device__ __host__ void stepKeyAlongAxis(struct GpuKey *key, int axis, int step, const int3 *regionDim);
 __device__ __host__ void moveKeyAlongAxis(struct GpuKey *key, int axis, int step, const int3 *regionDim);
 
@@ -67,6 +73,12 @@ __device__ __host__ void copyKey(struct GpuKey *out, const struct GpuKey *in)
 // copyKey implemented with a macro as before OpenCL 2.0 we need to cater for __global memory qualifier.
 #define copyKey(out, in) *out = *in
 #endif  // __OPENCL_C_VERSION__ >= 200
+
+inline __device__ __host__ bool equalKeys(const struct GpuKey *a, const struct GpuKey *b)
+{
+  return a->region[0] == b->region[0] && a->region[1] == b->region[1] && a->region[2] == b->region[2] &&
+         a->voxel[0] == b->voxel[0] && a->voxel[1] == b->voxel[1] && a->voxel[2] == b->voxel[2];
+}
 
 inline __device__ __host__ void stepKeyAlongAxis(struct GpuKey *key, int axis, int step, const int3 *regionDim)
 {

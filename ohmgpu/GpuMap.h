@@ -265,7 +265,7 @@ namespace ohm
     /// @param filter Filter function apply to each ray before passing to GPU. May be empty.
     /// @return The number of rays integrated. Zero indicates a failure when @p pointCount is not zero.
     ///   In this case either the GPU is unavailable, or all @p rays are invalid.
-    size_t integrateRays(const glm::dvec3 *rays, size_t element_count, unsigned region_update_flags, 
+    size_t integrateRays(const glm::dvec3 *rays, size_t element_count, unsigned region_update_flags,
                          const RayFilterFunction &filter);
 
     /// Wait for previous ray batch, as indicated by @p buffer_index, to complete.

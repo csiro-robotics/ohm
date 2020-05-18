@@ -1,3 +1,9 @@
+// Copyright (c) 2017
+// Commonwealth Scientific and Industrial Research Organisation (CSIRO)
+// ABN 41 687 119 230
+//
+// Author: Kazys Stepanas
+
 //------------------------------------------------------------------------------
 // Note on building this code.
 // This code may be used by multiple OpenCL kernels, but has to support the same
@@ -46,12 +52,6 @@ __device__ bool coordToKey(struct GpuKey *key, const float3 *point, const int3 *
 /// @param voxelResolution Size of a voxel from one face to another.
 /// @return The centre of the voxel defined by @p key.
 inline __device__ float3 voxelCentre(const struct GpuKey *key, const int3 *regionDim, float voxelResolution);
-
-/// Test for equality between two @c GpuKey objects.
-/// @param a The first key.
-/// @param b The second key.
-/// @return True if @p a and @p b are exactly equal.
-inline __device__ bool equal(const struct GpuKey *a, const struct GpuKey *b);
 
 inline __device__ float getf3(const float3 *v, int index);
 inline __device__ int geti3(const int3 *v, int index);
@@ -152,13 +152,6 @@ inline __device__ float3 voxelCentre(const struct GpuKey *key, const int3 *regio
 }
 
 
-inline __device__ bool equal(const struct GpuKey *a, const struct GpuKey *b)
-{
-  return a->region[0] == b->region[0] && a->region[1] == b->region[1] && a->region[2] == b->region[2] &&
-         a->voxel[0] == b->voxel[0] && a->voxel[1] == b->voxel[1] && a->voxel[2] == b->voxel[2];
-}
-
-
 inline __device__ float getf3(const float3 *v, int index)
 {
   return (index == 0) ? v->x : ((index == 1) ? v->y : v->z);
@@ -255,7 +248,7 @@ __device__ void WALK_LINE_VOXELS(const struct GpuKey *startKey, const struct Gpu
   int iterations = 0;
   const int iterLimit = 2 * 32768;
   #endif // LIMIT_LINE_WALK_ITERATIONS
-  while (!limitReached && !equal(&currentKey, endKey) && continueTraversal)
+  while (!limitReached && !equalKeys(&currentKey, endKey) && continueTraversal)
   {
     #ifdef LIMIT_LINE_WALK_ITERATIONS
     if (iterations++ > iterLimit)
@@ -281,7 +274,7 @@ __device__ void WALK_LINE_VOXELS(const struct GpuKey *startKey, const struct Gpu
   //   printf("timeMax[%d]: %f timeLimit[%d]: %f timeDelta[%d]: %f\n",
   //          axis, timeMax[axis], axis, timeLimit[axis], axis, timeDelta[axis]);
   // }
-  // if (equal(&currentKey, endKey))
+  // if (equalKeys(&currentKey, endKey))
   // {
   //   printf("%u currentKey == endKey\n", get_global_id(0));
   // }
