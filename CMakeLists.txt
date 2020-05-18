@@ -32,14 +32,6 @@ foreach(CONF Debug;Release;MinSizeRel;RelWithDebInfo)
   set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_${CONFU} "${CMAKE_BINARY_DIR}/bin")
 endforeach(CONF)
 
-# CUDA compiler doesn't seem to respect the CMAKE_POSITION_INDEPENDENT_CODE variable. Explicitly add it for
-# GCC comilation. May be needed for Clang (untested).
-if(CMAKE_POSITION_INDEPENDENT_CODE)
-  if(CMAKE_CXX_COMPILER_ID MATCHES "GNU")# OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-    list(APPEND CUDA_NVCC_FLAGS "-Xcompiler -fPIC")
-  endif(CMAKE_CXX_COMPILER_ID MATCHES "GNU")# OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-endif(CMAKE_POSITION_INDEPENDENT_CODE)
-
 # Manage compiler warnings.
 # Use CMAKE_MODULE_PATH and include(warnings) if warnings.cmake is moved.
 include(compilerSetup)
@@ -137,6 +129,11 @@ set(OHM_ASAN_OPTIONS_CUDA "${OHM_ASAN_OPTIONS_CUDA_INIT}" CACHE STRING "Address 
 set(OHM_GPU_OPENCL 1)
 set(OHM_GPU_CUDA 2)
 set(OHM_GPU 0)
+
+if(OHM_BUILD_CUDA)
+  include(cudautil)
+  nvcc_setup(OHM)
+endif(OHM_BUILD_CUDA)
 
 # Configure use of 3rd-Eye-Scene visual debugging (use for development only)
 if(OHM_TES_DEBUG)
