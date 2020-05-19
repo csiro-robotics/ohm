@@ -215,7 +215,7 @@ void GpuNdtMap::finaliseBatch(unsigned region_update_flags)
   if (!(region_update_flags & (kRfExcludeSample | kRfEndPointAsFree)))
   {
     local_size = gputil::Dim3(std::min<size_t>(imp->ndt_hit_kernel.optimalWorkGroupSize(), ray_count));
-    imp->ndt_hit_kernel(global_size, local_size, gputil::EventList(imp->region_update_events[buf_idx]),
+    imp->ndt_hit_kernel(global_size, local_size, gputil::EventList(miss_event),
                         imp->region_update_events[buf_idx], &gpu_cache.gpuQueue(),
                         // Kernel args begin:
                         gputil::BufferArg<float>(*occupancy_layer_cache.buffer()),
