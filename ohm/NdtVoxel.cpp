@@ -23,7 +23,7 @@ using namespace ohm;
 // FIXME: add cmake option.
 #include <Eigen/Dense>
 
-bool ohm::eigenDecomposition(const NdtVoxel &ndt, glm::dvec3 *eigenvalues, glm::dmat3 *eigenvectors)
+bool ohm::eigenDecomposition(const NdtVoxel *ndt, glm::dvec3 *eigenvalues, glm::dmat3 *eigenvectors)
 {
   const glm::dmat3 cov_mat = covarianceMatrix(ndt);
   Eigen::Matrix3d cov_map;

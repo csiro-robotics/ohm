@@ -185,15 +185,15 @@ void GpuNdtMap::finaliseBatch(unsigned region_update_flags)
   const unsigned ray_count = imp->ray_counts[buf_idx];
   gputil::Dim3 global_size(ray_count);
   gputil::Dim3 local_size(std::min<size_t>(imp->update_kernel.optimalWorkGroupSize(), ray_count));
+  // Wait for: upload of ray keys, upload of rays, upload of region key mapping.
   gputil::EventList wait(
     { imp->key_upload_events[buf_idx], imp->ray_upload_events[buf_idx], imp->region_key_upload_events[buf_idx] });
 
+  // Add wait for region voxel offsets
   for (size_t i = 0; i < imp->voxel_upload_info[buf_idx].size(); ++i)
   {
     wait.add(imp->voxel_upload_info[buf_idx][i].offset_upload_event);
   }
-
-  gpu_cache.gpuQueue().finish();
 
   unsigned modify_flags = (!(region_update_flags & kRfEndPointAsFree)) ? kRfExcludeSample : 0;
 
@@ -211,6 +211,9 @@ void GpuNdtMap::finaliseBatch(unsigned region_update_flags)
                      gputil::BufferArg<gputil::float3>(imp->ray_buffers[buf_idx]), ray_count, region_dim_gpu,
                      float(map->resolution), map->miss_value, map->hit_value, map->occupancy_threshold_value,
                      map->min_voxel_value, map->max_voxel_value, region_update_flags | modify_flags);
+
+  // NDT can only have one hit sequence in flight. Ensure previous one has completed.
+  waitOnPreviousOperation(1 - buf_idx);
 
   if (!(region_update_flags & (kRfExcludeSample | kRfEndPointAsFree)))
   {
@@ -236,7 +239,7 @@ void GpuNdtMap::finaliseBatch(unsigned region_update_flags)
   mean_layer_cache.updateEvents(imp->batch_marker, imp->region_update_events[buf_idx]);
   ndt_voxel_layer_cache.updateEvents(imp->batch_marker, imp->region_update_events[buf_idx]);
 
-  // gpu_cache.gpuQueue().flush();
+  //gpu_cache.gpuQueue().finish();
 
   // std::cout << imp->region_counts[bufIdx] << "
   // regions\n" << std::flush;

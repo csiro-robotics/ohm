@@ -4,11 +4,15 @@
 //
 // Author: Kazys Stepanas
 
+#include "gpu_ext.h"
+
 #include "GpuKey.h"
 #include "NdtVoxel.h"
 #include "VoxelMean.h"
 
 #include "Regions.cl"
+
+#define WORKING_RAY_COUNT 128
 
 typedef struct WorkItem_t
 {
@@ -18,6 +22,13 @@ typedef struct WorkItem_t
   uint sample_count;
   float occupancy;
 } WorkItem;
+
+void __device__ collateSample(WorkItem *work_item, GpuKey *start, GpuKey *end,
+                              float3 sensor, float3 sample,
+                              int3 region_dimensions, float voxel_resolution,
+                              float sample_adjustment,
+                              float occupied_threshold, float sensor_noise);
+
 
 void __device__ collateSample(WorkItem *work_item, GpuKey *start, GpuKey *end,
                               float3 sensor, float3 sample,
@@ -88,10 +99,15 @@ __kernel void ndtHit(__global atomic_float *occupancy, __global ulonglong *occup
   work_item.occupancy = occupancy[occupancy_index];
   work_item.mean = subVoxelToLocalCoord(means[mean_index].coord, voxel_resolution);
   work_item.sample_count = means[mean_index].count;
-  work_item.ndt = ndt_voxels[ndt_index];
+  // Manual copy of the NDT voxel: we had some issues with OpenCL assignment on structures.
+  work_item.ndt.cov_sqrt_diag[0] = ndt_voxels[ndt_index].cov_sqrt_diag[0];
+  work_item.ndt.cov_sqrt_diag[1] = ndt_voxels[ndt_index].cov_sqrt_diag[1];
+  work_item.ndt.cov_sqrt_diag[2] = ndt_voxels[ndt_index].cov_sqrt_diag[2];
+  work_item.ndt.cov_sqrt_diag[3] = ndt_voxels[ndt_index].cov_sqrt_diag[3];
+  work_item.ndt.cov_sqrt_diag[4] = ndt_voxels[ndt_index].cov_sqrt_diag[4];
+  work_item.ndt.cov_sqrt_diag[5] = ndt_voxels[ndt_index].cov_sqrt_diag[5];
 
-  const uint working_item_count = 128;
-  uint working_rays[working_item_count];
+  uint working_rays[WORKING_RAY_COUNT];
   GpuKey start_key, end_key;
   uint collected_count = 0;
   bool is_first = true;
@@ -103,16 +119,16 @@ __kernel void ndtHit(__global atomic_float *occupancy, __global ulonglong *occup
   // inefficient, as multiple threads to the same work, but it avoids the contension issue and avoids sorting in CPU.
   for (uint i = 0; i < line_count; ++i)
   {
-    if (equalKeys(&target_voxel, &line_keys[i * 2 + 1]))
+    copyKey(&end_key, &line_keys[i * 2 + 1]);
+    if (equalKeys(&target_voxel, &end_key))
     {
-      if (collected_count == working_item_count)
+      if (collected_count == WORKING_RAY_COUNT)
       {
         if (allowed_write)
         {
           // We have collected too many items to process and must process them now. This is inefficient as we will have
           // very few threads doing this work at the same time.
           copyKey(&start_key, &line_keys[i * 2]);
-          copyKey(&end_key, &line_keys[i * 2 + 1]);
           collateSample(&work_item, &start_key, &end_key, local_lines[i * 2], local_lines[i * 2 + 1],
                         region_dimensions, voxel_resolution,
                         sample_adjustment, occupied_threshold, sensor_noise);
@@ -123,7 +139,7 @@ __kernel void ndtHit(__global atomic_float *occupancy, __global ulonglong *occup
         // Relevant voxel. Add to the working indices.
         working_rays[collected_count++] = i;
         // Allowed to write if this is the first item collected and the global id matches this one.
-        allowed_write = allowed_write || is_first && i == get_global_id(0);
+        allowed_write = allowed_write || (is_first && i == get_global_id(0));
         is_first = false;
       }
     }

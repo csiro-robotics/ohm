@@ -19,7 +19,7 @@ inline __device__ float calculateOccupancyAdjustment(const GpuKey *voxelKey, boo
   const ulonglong vi_local = voxelKey->voxel[0] + voxelKey->voxel[1] * line_data->region_dimensions.x +
                              voxelKey->voxel[2] * line_data->region_dimensions.x * line_data->region_dimensions.y;
   ulonglong vi = (line_data->means_offsets[line_data->current_region_index] / sizeof(*line_data->means)) + vi_local;
-  VoxelMean *mean_data = &line_data->means[vi];
+  __global VoxelMean *mean_data = &line_data->means[vi];
   float3 voxel_mean = subVoxelToLocalCoord(mean_data->coord, voxel_resolution);
   // voxel_mean is currently relative to the voxel centre. We need to change it to be in the same reference
   // frame as the incoming rays. We need to calculate the voxel centre relative to the first ray start coordinate.
@@ -37,12 +37,19 @@ inline __device__ float calculateOccupancyAdjustment(const GpuKey *voxelKey, boo
   voxel_mean.z += voxel_diff.z * voxel_resolution;
 
   vi = (line_data->ndt_offsets[line_data->current_region_index] / sizeof(*line_data->ndt_voxels)) + vi_local;
-  NdtVoxel *ndt_voxel = &line_data->ndt_voxels[vi];
+  NdtVoxel ndt_voxel;
+  // Manual copy of the NDT voxel: we had some issues with OpenCL assignment on structures.
+  ndt_voxel.cov_sqrt_diag[0] = line_data->ndt_voxels[vi].cov_sqrt_diag[0];
+  ndt_voxel.cov_sqrt_diag[1] = line_data->ndt_voxels[vi].cov_sqrt_diag[1];
+  ndt_voxel.cov_sqrt_diag[2] = line_data->ndt_voxels[vi].cov_sqrt_diag[2];
+  ndt_voxel.cov_sqrt_diag[3] = line_data->ndt_voxels[vi].cov_sqrt_diag[3];
+  ndt_voxel.cov_sqrt_diag[4] = line_data->ndt_voxels[vi].cov_sqrt_diag[4];
+  ndt_voxel.cov_sqrt_diag[5] = line_data->ndt_voxels[vi].cov_sqrt_diag[5];
 
   float adjustment = 0;
   const int min_sample_threshold = 4;  // Should be passed in.
   const float3 voxel_maximum_likelyhood = calculateMiss(
-    ndt_voxel, &adjustment, line_data->sensor, line_data->sample, voxel_mean, mean_data->count,
+    &ndt_voxel, &adjustment, line_data->sensor, line_data->sample, voxel_mean, mean_data->count,
     line_data->occupied_threshold, INFINITY, line_data->ray_adjustment, line_data->sensor_noise, min_sample_threshold);
 
   // NDT should do sample update in a separate process in order to update the covariance, so we should not get here.

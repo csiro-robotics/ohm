@@ -26,13 +26,13 @@
 #if GPUTIL_DEVICE
 // Define GPU type aliases
 typedef float3 ndtvec3;
-typedef double ndtreal;
+typedef float ndtreal;
 typedef uint uint32_t;
 
 // Vector support functions
-inline __device__ ndtreal ndtdot(const ndtvec3 &a, const ndtvec3 &b) { return dot(a, b); }
-inline __device__ ndtreal ndtlength2(const ndtvec3 &v) { return dot(v, v); }
-inline __device__ ndtvec3 ndtnormalize(const ndtvec3 &v) { return normalize(v); }
+inline __device__ ndtreal ndtdot(const ndtvec3 a, const ndtvec3 b) { return dot(a, b); }
+inline __device__ ndtreal ndtlength2(const ndtvec3 v) { return dot(v, v); }
+inline __device__ ndtvec3 ndtnormalize(const ndtvec3 v) { return normalize(v); }
 
 #else  // GPUTIL_DEVICE
 namespace ohm
@@ -100,15 +100,15 @@ inline __device__ double packedDot(const ndtreal A[9], const int j, const int k)
 ///
 /// @param A The matrix to unpack to. This is an array of 9 elements.
 /// @param sample_to_mean The difference between the new sample point and the voxel mean.
-inline __device__ void unpackedA(const NdtVoxel &ndt, unsigned point_count, const ndtvec3 sample_to_mean, ndtreal *A)
+inline __device__ void unpackedA(const NdtVoxel *ndt, unsigned point_count, const ndtvec3 sample_to_mean, ndtreal *A)
 {
-  const ndtreal one_on_num_pt_plus_one = ndtreal(1) / (point_count + ndtreal(1));
-  const ndtreal sc_1 = point_count ? sqrt(point_count * one_on_num_pt_plus_one) : ndtreal(1);
-  const ndtreal sc_2 = one_on_num_pt_plus_one * sqrt(ndtreal(point_count));
+  const ndtreal one_on_num_pt_plus_one = (ndtreal)1 / (point_count + (ndtreal)1);
+  const ndtreal sc_1 = point_count ? sqrt(point_count * one_on_num_pt_plus_one) : (ndtreal)1;
+  const ndtreal sc_2 = one_on_num_pt_plus_one * sqrt((ndtreal)point_count);
 
   for (int i = 0; i < 6; ++i)
   {
-    A[i] = sc_1 * ndt.cov_sqrt_diag[i];
+    A[i] = sc_1 * ndt->cov_sqrt_diag[i];
   }
 
   A[0 + 6] = sc_2 * sample_to_mean.x;
@@ -121,7 +121,7 @@ inline __device__ void unpackedA(const NdtVoxel &ndt, unsigned point_count, cons
 // 0 z z
 // 1 2 z
 // 3 4 5
-inline __device__ ndtvec3 solveTriangular(const NdtVoxel &ndt, const ndtvec3 &y)
+inline __device__ ndtvec3 solveTriangular(const NdtVoxel *ndt, const ndtvec3 y)
 {
   // Note: if we generate the voxel with point on a perfect plane, say (0, 0, 1, 0), then do this operation,
   // we get a divide by zero. We avoid this by seeding the covariance matrix with an identity matrix scaled
@@ -130,16 +130,16 @@ inline __device__ ndtvec3 solveTriangular(const NdtVoxel &ndt, const ndtvec3 &y)
   ndtreal d;
 
   d = y.x;
-  x.x = d / ndt.cov_sqrt_diag[0];
+  x.x = d / ndt->cov_sqrt_diag[0];
 
   d = y.y;
-  d -= ndt.cov_sqrt_diag[1 + 0] * x.x;
-  x.y = d / ndt.cov_sqrt_diag[1 + 1];
+  d -= ndt->cov_sqrt_diag[1 + 0] * x.x;
+  x.y = d / ndt->cov_sqrt_diag[1 + 1];
 
   d = y.z;
-  d -= ndt.cov_sqrt_diag[3 + 0] * x.x;
-  d -= ndt.cov_sqrt_diag[3 + 1] * x.y;
-  x.z = d / ndt.cov_sqrt_diag[3 + 2];
+  d -= ndt->cov_sqrt_diag[3 + 0] * x.x;
+  d -= ndt->cov_sqrt_diag[3 + 1] * x.y;
+  x.z = d / ndt->cov_sqrt_diag[3 + 2];
 
   return x;
 }
@@ -151,7 +151,8 @@ inline __device__ void calculateHit(NdtVoxel *ndt_voxel, float *voxel_value, ndt
   const float initial_value = *voxel_value;
   const bool was_uncertain = initial_value == uninitialised_value;
   // Initialise the ndt_voxel data if this transitions the voxel to an occupied state.
-  if (was_uncertain || initial_value <= occupancy_threshold_value)
+  // if (was_uncertain || initial_value <= occupancy_threshold_value)
+  if (was_uncertain || point_count == 0)
   {
     // Transitioned to occupied. Initialise.
     initialiseNdt(ndt_voxel, sensor_noise);
@@ -176,7 +177,7 @@ inline __device__ void calculateHit(NdtVoxel *ndt_voxel, float *voxel_value, ndt
 
   const ndtvec3 sample_to_mean = sample - voxel_mean;
   ndtreal A[9];
-  unpackedA(*ndt_voxel, point_count, sample_to_mean, A);
+  unpackedA(ndt_voxel, point_count, sample_to_mean, A);
 
   // Update covariance.
   for (int k = 0; k < 3; ++k)
@@ -184,16 +185,16 @@ inline __device__ void calculateHit(NdtVoxel *ndt_voxel, float *voxel_value, ndt
     const int ind1 = (k * (k + 3)) >> 1;  // packed index of (k,k) term
     const int indk = ind1 - k;            // packed index of (1,k)
     const ndtreal ak = sqrt(packedDot(A, k, k));
-    ndt_voxel->cov_sqrt_diag[ind1] = float(ak);
+    ndt_voxel->cov_sqrt_diag[ind1] = (float)ak;
     if (ak > 0)
     {
-      const ndtreal aki = ndtreal(1) / ak;
+      const ndtreal aki = (ndtreal)1 / ak;
       for (int j = k + 1; j < 3; ++j)
       {
         const int indj = (j * (j + 1)) >> 1;
         const int indkj = indj + k;
         ndtreal c = packedDot(A, j, k) * aki;
-        ndt_voxel->cov_sqrt_diag[indkj] = float(c);
+        ndt_voxel->cov_sqrt_diag[indkj] = (float)c;
         c *= aki;
         A[j + 6] -= c * A[k + 6];
         for (int l = 0; l <= k; ++l)
@@ -219,7 +220,8 @@ inline __device__ ndtvec3 calculateMiss(NdtVoxel *ndt_voxel, float *voxel_value,
   }
 
   // Direct value adjustment if not occupied or insufficient samples.
-  if (*voxel_value < occupancy_threshold_value || point_count < sample_threshold)
+  // if (*voxel_value < occupancy_threshold_value || point_count < sample_threshold)
+  if (point_count < sample_threshold)
   {
     // Re-enforcement of free voxel or too few points to resolve a guassing. Use standard value update.
     // Add miss value, same behaviour as OccupancyMap.
@@ -270,8 +272,8 @@ inline __device__ ndtvec3 calculateMiss(NdtVoxel *ndt_voxel, float *voxel_value,
   const ndtvec3 sensor_to_mean = sensor - voxel_mean;
 
   // Packed data solutions:
-  const ndtvec3 a = solveTriangular(*ndt_voxel, sensor_ray);
-  const ndtvec3 b_norm = solveTriangular(*ndt_voxel, sensor_to_mean);
+  const ndtvec3 a = solveTriangular(ndt_voxel, sensor_ray);
+  const ndtvec3 b_norm = solveTriangular(ndt_voxel, sensor_to_mean);
 
   // const ndtvec3 a = covariance_inv * sensor_ray;  // Verified (unpacked version)
   // (28)
@@ -289,7 +291,7 @@ inline __device__ ndtvec3 calculateMiss(NdtVoxel *ndt_voxel, float *voxel_value,
   //   voxel_mean)));
   // Corrected:
   const ndtreal p_x_ml_given_voxel =
-    exp(-0.5 * ndtlength2(solveTriangular(*ndt_voxel, voxel_maximum_likelyhood - voxel_mean)));
+    exp(-0.5 * ndtlength2(solveTriangular(ndt_voxel, voxel_maximum_likelyhood - voxel_mean)));
 
   // (23)
   // Verified: json: line 263
@@ -316,28 +318,28 @@ inline __device__ ndtvec3 calculateMiss(NdtVoxel *ndt_voxel, float *voxel_value,
 #if !GPUTIL_DEVICE
 /// Perform an eigen decomposition on the covariance dat ain @p ndt.
 /// Requires compilation with the Eigen maths library or it always returns false.
-bool ohm_API eigenDecomposition(const NdtVoxel &ndt, glm::dvec3 *eigenvalues, glm::dmat3 *eigenvectors);
+bool ohm_API eigenDecomposition(const NdtVoxel *ndt, glm::dvec3 *eigenvalues, glm::dmat3 *eigenvectors);
 
 
 /// Unpack @c ndt.cov_sqrt_diag into a 3x3 covariance matrix.
-inline glm::dmat3 covarianceMatrix(const NdtVoxel &ndt)
+inline glm::dmat3 covarianceMatrix(const NdtVoxel *ndt)
 {
   glm::dmat3 cov;
 
   glm::dvec3 *col = &cov[0];
-  (*col)[0] = ndt.cov_sqrt_diag[0];
-  (*col)[1] = ndt.cov_sqrt_diag[1];
-  (*col)[2] = ndt.cov_sqrt_diag[3];
+  (*col)[0] = ndt->cov_sqrt_diag[0];
+  (*col)[1] = ndt->cov_sqrt_diag[1];
+  (*col)[2] = ndt->cov_sqrt_diag[3];
 
   col = &cov[1];
   (*col)[0] = 0;
-  (*col)[1] = ndt.cov_sqrt_diag[2];
-  (*col)[2] = ndt.cov_sqrt_diag[4];
+  (*col)[1] = ndt->cov_sqrt_diag[2];
+  (*col)[2] = ndt->cov_sqrt_diag[4];
 
   col = &cov[2];
   (*col)[0] = 0;
   (*col)[1] = 0;
-  (*col)[2] = ndt.cov_sqrt_diag[5];
+  (*col)[2] = ndt->cov_sqrt_diag[5];
 
   return cov;
 }

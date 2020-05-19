@@ -184,7 +184,7 @@ void NdtMap::integrateMiss(Voxel &voxel, const glm::dvec3 &sensor, const glm::dv
     bool drew_surfel = false;
     glm::dvec3 evals;
     glm::dmat3 evecs;
-    if (eigenDecomposition(*ndt_voxel, &evals, &evecs))
+    if (eigenDecomposition(ndt_voxel, &evals, &evecs))
     {
       glm::dquat rot(evecs);
       rot = glm::normalize(rot);
@@ -270,7 +270,7 @@ void NdtMap::debugDraw() const
       const NdtVoxel &ndt_voxel = *voxel.layerContent<const NdtVoxel *>(imp_->covariance_layer_index);
       glm::dvec3 evals;
       glm::dmat3 evecs;
-      if (!eigenDecomposition(ndt_voxel, &evals, &evecs))
+      if (!eigenDecomposition(&ndt_voxel, &evals, &evecs))
       {
         continue;
       }
