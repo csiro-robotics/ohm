@@ -5,6 +5,12 @@
 // Author: Kazys Stepanas
 #include "OhmConfig.h"
 
+// #define GLM_ENABLE_EXPERIMENTAL
+#include <glm/vec3.hpp>
+#include <glm/mat3x3.hpp>
+#include <glm/gtx/norm.hpp>
+
+// Must come after glm includes due to usage on GPU.
 #include "NdtVoxel.h"
 
 #include <glm/gtc/matrix_access.hpp>

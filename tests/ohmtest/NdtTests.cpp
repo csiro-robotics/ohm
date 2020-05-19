@@ -9,7 +9,6 @@
 #include <ohm/KeyHash.h>
 #include <ohm/MapCache.h>
 #include <ohm/NdtMap.h>
-#include <ohm/NdtVoxel.h>
 #include <ohm/OccupancyMap.h>
 #include <ohm/Trace.h>
 #include <ohm/VoxelMean.h>
@@ -25,6 +24,10 @@
 #include <glm/mat3x3.hpp>
 #include <glm/gtc/matrix_access.hpp>
 #include <glm/gtc/type_ptr.hpp>
+#include <glm/gtx/norm.hpp>
+
+// Must come after glm includes due to usage on GPU.
+#include <ohm/NdtVoxel.h>
 
 #include <3esservermacros.h>
 

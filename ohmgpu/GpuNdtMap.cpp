@@ -14,7 +14,6 @@
 #include "private/GpuProgramRef.h"
 
 #include <ohm/MapChunk.h>
-#include <ohm/NdtVoxel.h>
 #include <ohm/MapCache.h>
 #include <ohm/OccupancyMap.h>
 #include <ohm/VoxelMean.h>
@@ -29,6 +28,10 @@
 #include <gputil/gpuProgram.h>
 
 #include <glm/ext.hpp>
+#include <glm/gtx/norm.hpp>
+
+// Must come after glm includes due to usage on GPU.
+#include <ohm/NdtVoxel.h>
 
 using namespace ohm;
 

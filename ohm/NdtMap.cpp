@@ -8,16 +8,17 @@
 #include "OccupancyMap.h"
 #include "MapLayer.h"
 #include "MapLayout.h"
-#include "NdtVoxel.h"
 #include "Voxel.h"
 #include "VoxelLayout.h"
 #include "VoxelMean.h"
 
-#define GLM_ENABLE_EXPERIMENTAL
 #include <glm/mat3x3.hpp>
+#include <glm/vec3.hpp>
 #include <glm/vec4.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtx/norm.hpp>
+
+#include "NdtVoxel.h"
 
 #include <3esservermacros.h>
 #ifdef TES_ENABLE
