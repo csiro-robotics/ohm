@@ -68,7 +68,7 @@ namespace ohm
 
   MapLayer *addClearance(MapLayout &layout)
   {
-    int layer_index = layout.meanLayer();
+    int layer_index = layout.clearanceLayer();
     if (layer_index != -1)
     {
       // Already present.
