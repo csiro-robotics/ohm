@@ -19,7 +19,6 @@ namespace gputil
 {
   struct KernelDetail
   {
-    Device gpu;
     clu::Kernel kernel;
     Program program;
     std::vector<std::function<size_t(size_t)>> local_mem_args;

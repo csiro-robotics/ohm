@@ -277,19 +277,16 @@ GpuMap::GpuMap(GpuMapDetail *detail, unsigned expected_element_count, size_t gpu
       gputil::Buffer(gpu_cache.gpu(), sizeof(gputil::float3) * expected_element_count, gputil::kBfReadHost);
     imp_->region_key_buffers[i] =
       gputil::Buffer(gpu_cache.gpu(), sizeof(gputil::int3) * prealloc_region_count, gputil::kBfReadHost);
+
+  // Add structures for managing uploads of regino offsets to the cache buffer.
+    imp_->voxel_upload_info[i].emplace_back(VoxelUploadInfo(kGcIdOccupancy, gpu_cache.gpu()));
+    if (imp_->map->voxelMeanEnabled())
+    {
+      imp_->voxel_upload_info[i].emplace_back(VoxelUploadInfo(kGcIdVoxelMean, gpu_cache.gpu()));
+    }
   }
 
   cacheGpuProgram(imp_->map->voxelMeanEnabled(), true);
-
-  // Add structures for managing uploads of regino offsets to the cache buffer.
-  for (int i = 0; i < 2; ++i)
-  {
-    imp_->voxel_upload_info[i].emplace_back(VoxelUploadInfo(kGcIdOccupancy));
-    if (imp_->map->voxelMeanEnabled())
-    {
-      imp_->voxel_upload_info[i].emplace_back(VoxelUploadInfo(kGcIdVoxelMean));
-    }
-  }
 }
 
 

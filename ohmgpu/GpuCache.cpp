@@ -10,6 +10,8 @@
 
 #include "OhmGpu.h"
 
+#include "private/GpuMapDetail.h"
+
 #include <gputil/gpuDevice.h>
 
 #include <memory>
@@ -26,11 +28,12 @@ namespace ohm
     gputil::Queue gpu_queue;
     OccupancyMap *map = nullptr;
     size_t default_gpu_mem_size = 0;
+    unsigned flags = 0;
   };
 }  // namespace ohm
 
 
-GpuCache::GpuCache(OccupancyMap &map, size_t default_gpu_mem_size)
+GpuCache::GpuCache(OccupancyMap &map, size_t default_gpu_mem_size, unsigned flags)
   : imp_(new GpuCacheDetail)
 {
   imp_->gpu = ohm::gpuDevice();
@@ -48,7 +51,7 @@ GpuCache::~GpuCache()
 
 void GpuCache::reinitialise()
 {
-  
+  reinitialiseGpuCache(this, *imp_->map, imp_->default_gpu_mem_size, imp_->flags);
 }
 
 
@@ -70,6 +73,12 @@ void GpuCache::clear()
       layer->clear();
     }
   }
+}
+
+
+void GpuCache::removeLayers()
+{
+  imp_->layer_caches.clear();
 }
 
 

@@ -63,7 +63,7 @@ GpuNdtMap::GpuNdtMap(OccupancyMap *map, bool borrowed_map, unsigned expected_ele
 {
   for (int i = 0; i < 2; ++i)
   {
-    imp_->voxel_upload_info[i].emplace_back(VoxelUploadInfo(kGcIdNdt));
+    imp_->voxel_upload_info[i].emplace_back(VoxelUploadInfo(kGcIdNdt, gpuCache()->gpu()));
   }
 
   // Cache the correct GPU program.

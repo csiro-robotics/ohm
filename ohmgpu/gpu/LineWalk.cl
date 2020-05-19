@@ -24,8 +24,8 @@
 /// @param voxelResolution The edge length of each voxel cube.
 /// @param userData User data pointer.
 /// @return True to continue traversing the line, false to abort traversal.
-// __device__ bool VISIT_LINE_VOXEL(const struct GpuKey *voxelKey, bool isEndVoxel,
-//                                  const struct GpuKey *startKey, const struct GpuKey *endKey,
+// __device__ bool VISIT_LINE_VOXEL(const GpuKey *voxelKey, bool isEndVoxel,
+//                                  const GpuKey *startKey, const GpuKey *endKey,
 //                                  float voxelResolution, void *userData);
 //------------------------------------------------------------------------------
 #include "GpuKey.h"
@@ -44,14 +44,14 @@
 /// @paramregionDim Defines the size of a region in voxels. Used to update the @p GpuKey.
 /// @param voxelResolution Size of a voxel from one face to another.
 /// @return True if @c point lies in the region, false otherwise.
-__device__ bool coordToKey(struct GpuKey *key, const float3 *point, const int3 *regionDim, float voxelResolution);
+__device__ bool coordToKey(GpuKey *key, const float3 *point, const int3 *regionDim, float voxelResolution);
 
 /// Calculates the centre of the voxel defined by @p key (global space).
 /// @param key The key marking the voxel of interest.
 /// @paramregionDim Defines the size of a region in voxels. Used to update the @p GpuKey.
 /// @param voxelResolution Size of a voxel from one face to another.
 /// @return The centre of the voxel defined by @p key.
-inline __device__ float3 voxelCentre(const struct GpuKey *key, const int3 *regionDim, float voxelResolution);
+inline __device__ float3 voxelCentre(const GpuKey *key, const int3 *regionDim, float voxelResolution);
 
 inline __device__ float getf3(const float3 *v, int index);
 inline __device__ int geti3(const int3 *v, int index);
@@ -74,12 +74,12 @@ inline __device__ int geti3(const int3 *v, int index);
 /// @paramregionDim Defines the size of a region in voxels. Used to update the @p GpuKey.
 /// @param voxelResolution Size of a voxel from one face to another.
 /// @param userData User pointer passed to @c walkLineVoxel().
-__device__ void walkLineVoxels(const struct GpuKey *startKey, const struct GpuKey *endKey,
+__device__ void walkLineVoxels(const GpuKey *startKey, const GpuKey *endKey,
                     const float3 *voxelRelativeStartPoint, const float3 *voxelRelativeEndPoint,
                     const int3 *regionDim, float voxelResolution, void *userData);
 
 
-inline __device__ bool coordToKey(struct GpuKey *key, const float3 *point, const int3 *regionDim, float voxelResolution)
+inline __device__ bool coordToKey(GpuKey *key, const float3 *point, const int3 *regionDim, float voxelResolution)
 {
   // Quantise.
   key->region[0] = pointToRegionCoord(point->x, regionDim->x * voxelResolution);
@@ -134,7 +134,7 @@ inline __device__ bool coordToKey(struct GpuKey *key, const float3 *point, const
 }
 
 
-inline __device__ float3 voxelCentre(const struct GpuKey *key, const int3 *regionDim, float voxelResolution)
+inline __device__ float3 voxelCentre(const GpuKey *key, const int3 *regionDim, float voxelResolution)
 {
   float3 voxel;
 
@@ -165,7 +165,7 @@ inline __device__ int geti3(const int3 *v, int index)
 #endif // LINE_WALK_CL
 
 
-__device__ void WALK_LINE_VOXELS(const struct GpuKey *startKey, const struct GpuKey *endKey,
+__device__ void WALK_LINE_VOXELS(const GpuKey *startKey, const GpuKey *endKey,
                   const float3 *voxelRelativeStartPoint, const float3 *voxelRelativeEndPoint,
                   const int3 *regionDim, float voxelResolution, void *userData)
 {
@@ -177,8 +177,8 @@ __device__ void WALK_LINE_VOXELS(const struct GpuKey *startKey, const struct Gpu
   bool continueTraversal = true;
 
   // BUG: Intel OpenCL 2.0 compiler does not effect the commented assignment below. I've had to unrolled it.
-  // struct GpuKey currentKey = *startKey;
-  struct GpuKey currentKey;
+  // GpuKey currentKey = *startKey;
+  GpuKey currentKey;
   copyKey(&currentKey, startKey);
 
   // printf("Start point : %f %f %f, " KEY_F "\n", voxelRelativeStartPoint->x, voxelRelativeStartPoint->y, voxelRelativeStartPoint->z, KEY_A(*startKey));

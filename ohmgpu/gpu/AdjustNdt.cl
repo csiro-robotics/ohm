@@ -8,9 +8,9 @@
 
 #include "NdtVoxel.h"
 
-inline __device__ float calculateOccupancyAdjustment(const struct GpuKey *voxelKey, bool isEndVoxel,
-                                                     const struct GpuKey *startKey, const struct GpuKey *endKey,
-                                                     float voxel_resolution, struct LineWalkData *line_data)
+inline __device__ float calculateOccupancyAdjustment(const GpuKey *voxelKey, bool isEndVoxel,
+                                                     const GpuKey *startKey, const GpuKey *endKey,
+                                                     float voxel_resolution, LineWalkData *line_data)
 {
 #ifndef VOXEL_MEAN
 #error VOXEL_MEAN must be enabled for NDT update.

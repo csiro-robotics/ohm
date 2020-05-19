@@ -10,16 +10,16 @@
 
 #include "Regions.cl"
 
-struct WorkItem
+typedef struct WorkItem_t
 {
-  struct NdtVoxel ndt;
+  NdtVoxel ndt;
   // Voxel mean relative to the voxel centre.
   float3 mean;
   uint sample_count;
   float occupancy;
-};
+} WorkItem;
 
-void __device__ collateSample(struct WorkItem *work_item, struct GpuKey *start, struct GpuKey *end,
+void __device__ collateSample(WorkItem *work_item, GpuKey *start, GpuKey *end,
                               float3 sensor, float3 sample,
                               int3 region_dimensions, float voxel_resolution,
                               float sample_adjustment,
@@ -49,7 +49,7 @@ __kernel void ndtHit(__global atomic_float *occupancy, __global ulonglong *occup
                                    __global VoxelMean *means, __global ulonglong *means_region_mem_offsets_global,
                                    __global NdtVoxel *ndt_voxels, __global ulonglong *ndt_region_mem_offsets_global,
                                    __global int3 *occupancy_region_keys_global, uint region_count,
-                                   __global struct GpuKey *line_keys, __global float3 *local_lines, uint line_count,
+                                   __global GpuKey *line_keys, __global float3 *local_lines, uint line_count,
                                    int3 region_dimensions, float voxel_resolution, float sample_adjustment,
                                    float occupied_threshold, float voxel_value_max,
                                    float sensor_noise)
@@ -60,7 +60,7 @@ __kernel void ndtHit(__global atomic_float *occupancy, __global ulonglong *occup
   }
 
   // Get the voxel for this thread. Remember, line_keys contains sensor/sample voxel pairs. Sample is second.
-  struct GpuKey target_voxel;
+  GpuKey target_voxel;
   // BUG: Intel OpenCL 2.0 compiler does not effect the commented assignment below. I've had to unrolled it.
   copyKey(&target_voxel, &line_keys[get_global_id(0) * 2 + 1]);
   const uint region_local_index = target_voxel.voxel[0] + target_voxel.voxel[1] * region_dimensions.x +
@@ -84,7 +84,7 @@ __kernel void ndtHit(__global atomic_float *occupancy, __global ulonglong *occup
   ndt_index = (uint)(region_local_index + ndt_region_mem_offsets_global[region_index] / sizeof(*ndt_voxels));
 
   // Cache the occupancy value.
-  struct WorkItem work_item;
+  WorkItem work_item;
   work_item.occupancy = occupancy[occupancy_index];
   work_item.mean = subVoxelToLocalCoord(means[mean_index].coord, voxel_resolution);
   work_item.sample_count = means[mean_index].count;

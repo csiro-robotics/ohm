@@ -73,11 +73,11 @@ typedef float3 vec3;
 #define SUB_VOX_FUNC_PREFACE
 
 // Voxel mean structure used on GPU. Must match the CPU structure, but the types are modified to support atomic operations.
-struct VoxelMean
+typedef struct VoxelMean_t
 {
   atomic_uint coord;
   atomic_uint count;
-};
+} VoxelMean;
 
 #endif  // GPUTIL_DEVICE
 

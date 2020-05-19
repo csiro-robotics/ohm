@@ -10,42 +10,42 @@
 
 #define WALK_LINE_VOXELS lineKeysWalkLine
 #define VISIT_LINE_VOXEL lineKeysVisitVoxel
-__device__ bool lineKeysVisitVoxel(const struct GpuKey *voxelKey, bool isEndVoxel,
+__device__ bool lineKeysVisitVoxel(const GpuKey *voxelKey, bool isEndVoxel,
                                    const GpuKey *startKey, const GpuKey *endKey,
                                    float voxelResolution, void *userData);
 
 // Must be included after above defined
 #include "LineWalk.cl"
 
-struct LineWalkData
+typedef struct LineWalkData_t
 {
-  __global struct GpuKey *lineOut;
+  __global GpuKey *lineOut;
   uint maxKeys;
   uint keyCount;
-};
+} LineWalkData;
 
-__device__ void calculateLineKeys(__global struct GpuKey *lineOut, uint maxKeys,
-                       const struct GpuKey *startKey, const struct GpuKey *endKey,
+__device__ void calculateLineKeys(__global GpuKey *lineOut, uint maxKeys,
+                       const GpuKey *startKey, const GpuKey *endKey,
                        const float3 *startPoint, const float3 *endPoint,
                        const int3 *regionDim, float voxelResolution);
 
 
-__device__ bool lineKeysVisitVoxel(const struct GpuKey *voxelKey, bool isEndVoxel,
+__device__ bool lineKeysVisitVoxel(const GpuKey *voxelKey, bool isEndVoxel,
                                    const GpuKey *startKey, const GpuKey *endKey,
                                    float voxelResolution, void *userData)
 {
-  struct LineWalkData *lineData = (struct LineWalkData *)userData;
+  LineWalkData *lineData = (LineWalkData *)userData;
   copyKey(&lineData->lineOut[1 + lineData->keyCount++], voxelKey);
   return lineData->keyCount + 1 < lineData->maxKeys;
 }
 
 
-__device__ void calculateLineKeys(__global struct GpuKey *lineOut, uint maxKeys,
-                       const struct GpuKey *startKey, const struct GpuKey *endKey,
+__device__ void calculateLineKeys(__global GpuKey *lineOut, uint maxKeys,
+                       const GpuKey *startKey, const GpuKey *endKey,
                        const float3 *startPoint, const float3 *endPoint,
                        const int3 *regionDim, float voxelResolution)
 {
-  struct LineWalkData lineData;
+  LineWalkData lineData;
   lineData.lineOut = lineOut;
   lineData.maxKeys = maxKeys;
   lineData.keyCount = 0;
@@ -58,7 +58,7 @@ __device__ void calculateLineKeys(__global struct GpuKey *lineOut, uint maxKeys,
 }
 
 
-__kernel void calculateLines(__global struct GpuKey *lines_out, uint max_keys_per_line,
+__kernel void calculateLines(__global GpuKey *lines_out, uint max_keys_per_line,
                              const __global float3 *queryPointPairs,
                              uint queryCount, int3 regionDim, float voxelResolution
                              )
@@ -72,9 +72,9 @@ __kernel void calculateLines(__global struct GpuKey *lines_out, uint max_keys_pe
 
   float3 startPoint = (validThread) ? queryPointPairs[get_global_id(0) * 2 + 0] : make_float3(0, 0, 0);
   float3 endPoint = (validThread) ? queryPointPairs[get_global_id(0) * 2 + 1] : make_float3(0, 0, 0);
-  __global struct GpuKey *lineOut = lines_out + (get_global_id(0) * max_keys_per_line);
+  __global GpuKey *lineOut = lines_out + (get_global_id(0) * max_keys_per_line);
   // We convert regionDim from an int3 to an array to allow indexed access.
-  struct GpuKey startKey, endKey;
+  GpuKey startKey, endKey;
 
   coordToKey(&startKey, &startPoint, &regionDim, voxelResolution);
   coordToKey(&endKey, &endPoint, &regionDim, voxelResolution);

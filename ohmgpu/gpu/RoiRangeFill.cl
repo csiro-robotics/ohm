@@ -662,7 +662,7 @@ void __device__ loadPropagationLocalVoxels(__global char4 *srcVoxels, __local ch
 /// @param workingVoxels Identifies the offset to the nearest obstructed voxel in voxel units.
 ///   The w coordinate is zero if there is no obstructed in range and the voxel itself isn't and obstructed.
 ///   The w coordinate is 1 if there is an obstructed to consider.
-__kernel void seedRegionVoxels(__global struct GpuKey *cornerVoxelKey, __global float *voxelOccupancy,
+__kernel void seedRegionVoxels(__global GpuKey *cornerVoxelKey, __global float *voxelOccupancy,
                                __global char4 *workingVoxels, __global int3 *regionKeysGlobal,
                                __global ulonglong *regionMemOffsetsGlobal, uint regionCount, int3 regionVoxelDimensions,
                                int3 workingVoxelExtents, float occupancyThresholdValue, uint flags, int zbatch)
@@ -672,7 +672,7 @@ __kernel void seedRegionVoxels(__global struct GpuKey *cornerVoxelKey, __global 
   uint regionVoxelOffset;
   regionsInitCurrent(&voxelRegion, &regionVoxelOffset);
 
-  struct GpuKey voxelKey = *cornerVoxelKey;
+  GpuKey voxelKey = *cornerVoxelKey;
 
   // Offset the voxel key.
   moveKeyAlongAxis(&voxelKey, 0, effectiveGlobalId.x, &regionVoxelDimensions);
@@ -746,7 +746,7 @@ __kernel void seedRegionVoxels(__global struct GpuKey *cornerVoxelKey, __global 
 ///   value is considered occupied except for @c INFINITY, which is considered unknown.
 /// @param flags Flags modifying behaviour. See @c QF_ flags above.
 /// @param zbatch Number of items each thread should process.
-__kernel void seedFromOuterRegions(__global struct GpuKey *cornerVoxelKey, __global float *voxelOccupancy,
+__kernel void seedFromOuterRegions(__global GpuKey *cornerVoxelKey, __global float *voxelOccupancy,
                                    __global voxel_type *workingVoxels, __global int3 *regionKeysGlobal,
                                    __global ulonglong *regionMemOffsetsGlobal, uint regionCount,
                                    int3 regionVoxelDimensions, int3 workingVoxelExtents, int3 outerRegionPadding,
@@ -795,7 +795,7 @@ __kernel void seedFromOuterRegions(__global struct GpuKey *cornerVoxelKey, __glo
     }
 
     // Offset the voxel key.
-    struct GpuKey voxelKey = *cornerVoxelKey;
+    GpuKey voxelKey = *cornerVoxelKey;
     moveKeyAlongAxis(&voxelKey, 0, workingIndex3.x, &regionVoxelDimensions);
     moveKeyAlongAxis(&voxelKey, 1, workingIndex3.y, &regionVoxelDimensions);
     moveKeyAlongAxis(&voxelKey, 2, workingIndex3.z, &regionVoxelDimensions);

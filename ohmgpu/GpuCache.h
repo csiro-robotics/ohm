@@ -65,7 +65,8 @@ namespace ohm
     /// @param map The map to cache data for.
     /// @param default_gpu_mem_size The default size of allocated @c GpuLayerCache objects if not specified.
     GpuCache(OccupancyMap &map,  // NOLINT(google-runtime-references)
-             size_t default_gpu_mem_size = kDefaultLayerMemSize);
+             size_t default_gpu_mem_size = kDefaultLayerMemSize,
+             unsigned flags = 0);
 
     /// Destructor, cleaning up all owned @c GpuLayerCache objects.
     ~GpuCache() override;
@@ -76,8 +77,11 @@ namespace ohm
     /// Sync to main memory.
     void flush() override;
 
-    /// Flush sync to main memory then drop all cache entries.
+    /// Flush sync to main memory then drop all cache entries. Cache layers are preserved.
     void clear() override;
+
+    /// Remove all layer caches.
+    void removeLayers();
 
     /// Remove a particular region from the cache.
     /// @param region_key The region to flush from the cache.

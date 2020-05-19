@@ -49,11 +49,11 @@ namespace ohm
 #define __device__
 #endif  //  __device__
 #endif  // GPUTIL_DEVICE
-struct NdtVoxel
+typedef struct NdtVoxel_t
 {
   /// The lower diagonal of the covariance matrix for the voxel.
   float cov_sqrt_diag[6];
-};
+} NdtVoxel;
 
 
 inline __device__ void initialiseNdt(NdtVoxel *ndt, float sensor_noise)

@@ -57,8 +57,9 @@ namespace ohm
 
     inline VoxelUploadInfo() = default;
 
-    inline VoxelUploadInfo(int gpu_layer_id)
+    inline VoxelUploadInfo(int gpu_layer_id, const gputil::Device &gpu, unsigned prealloc_elements = 1024u)
       : gpu_layer_id(gpu_layer_id)
+      , offsets_buffer(gpu, sizeof(uint64_t) * prealloc_elements, gputil::kBfReadHost)
     {}
   };
 

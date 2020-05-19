@@ -74,7 +74,7 @@
 
 #ifndef REGION_UPDATE_BASE_CL
 // User data for voxel visit callback.
-struct LineWalkData
+typedef struct LineWalkData_t
 {
   // Voxel occupancy memory. All regions use a shared buffer.
   __global atomic_float *occupancy;
@@ -123,7 +123,7 @@ struct LineWalkData
   // An estimate on the sensor range noise error.
   float sensor_noise;
 #endif  // NDT
-};
+} LineWalkData;
 #endif  // REGION_UPDATE_BASE_CL
 
 #if defined(VOXEL_MEAN) || defined(NDT)
@@ -137,13 +137,13 @@ struct LineWalkData
 #endif  // NDT
 
 // Implement the voxel traversal function. We update the value of the voxel using atomic instructions.
-__device__ bool VISIT_LINE_VOXEL(const struct GpuKey *voxelKey, bool isEndVoxel,
-                                 const struct GpuKey *startKey, const struct GpuKey *endKey,
+__device__ bool VISIT_LINE_VOXEL(const GpuKey *voxelKey, bool isEndVoxel,
+                                 const GpuKey *startKey, const GpuKey *endKey,
                                  float voxel_resolution, void *userData)
 {
   float old_value, new_value;
 
-  struct LineWalkData *line_data = (struct LineWalkData *)userData;
+  LineWalkData *line_data = (LineWalkData *)userData;
   __global atomic_float *occupancy = line_data->occupancy;
 
   if (isEndVoxel && (line_data->region_update_flags & kRfExcludeSample))
@@ -321,7 +321,7 @@ __kernel void REGION_UPDATE_KERNEL(__global atomic_float *occupancy, __global ul
                                    __global NdtVoxel *ndt_voxels, __global ulonglong *ndt_region_mem_offsets_global,
 #endif  // NDT
                                    __global int3 *occupancy_region_keys_global, uint region_count,
-                                   __global struct GpuKey *line_keys, __global float3 *local_lines, uint line_count,
+                                   __global GpuKey *line_keys, __global float3 *local_lines, uint line_count,
                                    int3 region_dimensions, float voxel_resolution, float ray_adjustment,
                                    float sample_adjustment, float occupied_threshold, float voxel_value_min,
                                    float voxel_value_max, uint region_update_flags)
@@ -332,7 +332,7 @@ __kernel void REGION_UPDATE_KERNEL(__global atomic_float *occupancy, __global ul
     return;
   }
 
-  struct LineWalkData line_data;
+  LineWalkData line_data;
   line_data.occupancy = occupancy;
   line_data.occupancy_offsets = occupancy_region_mem_offsets_global;
 #if defined(VOXEL_MEAN) || defined(NDT)
@@ -356,7 +356,7 @@ __kernel void REGION_UPDATE_KERNEL(__global atomic_float *occupancy, __global ul
   regionsInitCurrent(&line_data.current_region, &line_data.current_region_index);
 
   // Now walk the clipped ray.
-  struct GpuKey start_key, end_key;
+  GpuKey start_key, end_key;
   copyKey(&start_key, &line_keys[get_global_id(0) * 2 + 0]);
   copyKey(&end_key, &line_keys[get_global_id(0) * 2 + 1]);
 
