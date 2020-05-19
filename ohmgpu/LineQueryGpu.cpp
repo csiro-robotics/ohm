@@ -89,6 +89,7 @@ bool LineQueryGpu::onExecute()
 
   ClosestResult closest;
 
+  ClearanceProcess::ensureClearanceLayer(*d->map);
   gpumap::enableGpu(*d->map);
 
   // GPU evaluation requested. Use the ClearanceProcess to do so.

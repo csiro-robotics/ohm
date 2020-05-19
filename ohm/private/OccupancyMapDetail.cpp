@@ -120,8 +120,6 @@ void OccupancyMapDetail::setDefaultLayout(bool enable_voxel_mean)
   {
     flags &= ~MapFlag::kVoxelMean;
   }
-
-  addClearance(layout);
 }
 
 

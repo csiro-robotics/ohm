@@ -128,6 +128,12 @@ namespace ohm
   /// @param flags @c GpuFlag values.
   GpuCache *initialiseGpuCache(OccupancyMap &map,  // NOLINT(google-runtime-references)
                                size_t layer_gpu_mem_size, unsigned flags);
+
+
+  /// (Re)initialise the given GPU @p gpu_cache to reflect the given @p map layout.
+  /// @param flags @c GpuFlag values.
+  void reinitialiseGpuCache(GpuCache *gpu_cache, OccupancyMap &map,  // NOLINT(google-runtime-references)
+                            size_t layer_gpu_mem_size, unsigned flags);
 }  // namespace ohm
 
 #endif  // OHMGPU_GPUMAPDETAIL_H

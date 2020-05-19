@@ -35,7 +35,6 @@ GpuMapDetail::~GpuMapDetail()
   }
 }
 
-
 GpuCache *ohm::initialiseGpuCache(OccupancyMap &map, size_t layer_gpu_mem_size, unsigned flags)
 {
   OccupancyMapDetail *detail = map.detail();
@@ -44,6 +43,20 @@ GpuCache *ohm::initialiseGpuCache(OccupancyMap &map, size_t layer_gpu_mem_size, 
   {
     gpu_cache = new GpuCache(map, layer_gpu_mem_size);
     detail->gpu_cache = gpu_cache;
+
+    reinitialiseGpuCache(gpu_cache, map, layer_gpu_mem_size, flags);
+  }
+
+  return gpu_cache;
+}
+
+
+void ohm::reinitialiseGpuCache(GpuCache *gpu_cache, OccupancyMap &map, size_t layer_gpu_mem_size, unsigned flags)
+{
+  if (gpu_cache)
+  {
+    gpu_cache->clear();
+    gpu_cache->removeLayers();
 
     // Create default layers.
     unsigned mappable_flag = 0;
@@ -91,5 +104,4 @@ GpuCache *ohm::initialiseGpuCache(OccupancyMap &map, size_t layer_gpu_mem_size, 
       gpu_cache->createCache(kGcIdClearance, GpuCacheParams{ 0, occupancy_layer, kGcfRead | mappable_flag });
     }
   }
-  return gpu_cache;
 }

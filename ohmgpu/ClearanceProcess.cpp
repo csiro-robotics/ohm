@@ -371,9 +371,26 @@ void ClearanceProcess::reset()
 }
 
 
+void ClearanceProcess::ensureClearanceLayer(OccupancyMap &map)
+{
+  if (map.layout().clearanceLayer() != -1)
+  {
+    return;
+  }
+
+  // Duplicate the layout, add the layer and update the map, preserving the current map.
+  MapLayout updated_layout(map.layout());
+  addClearance(updated_layout);
+  map.updateLayout(updated_layout, true);
+}
+
+
 int ClearanceProcess::update(OccupancyMap &map, double time_slice)
 {
   ClearanceProcessDetail *d = imp();
+
+  // Ensure clearnce layer is present.
+  ensureClearanceLayer(map);
 
   using Clock = std::chrono::high_resolution_clock;
   const auto start_time = Clock::now();
@@ -427,6 +444,9 @@ int ClearanceProcess::update(OccupancyMap &map, double time_slice)
 void ohm::ClearanceProcess::calculateForExtents(OccupancyMap &map, const glm::dvec3 &min_extents,
                                                 const glm::dvec3 &max_extents, bool force)
 {
+  // Ensure clearnce layer is present.
+  ensureClearanceLayer(map);
+
   const glm::i16vec3 min_region = map.regionKey(min_extents);
   const glm::i16vec3 max_region = map.regionKey(max_extents);
   //// Process in blocks containing up to this many regions in each dimension.
