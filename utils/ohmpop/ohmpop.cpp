@@ -46,8 +46,6 @@
 #include <sstream>
 #include <thread>
 
-#pragma GCC optmize("O0")
-
 #define COLLECT_STATS 0
 #define COLLECT_STATS_IGNORE_FIRST 1
 
