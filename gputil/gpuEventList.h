@@ -32,7 +32,8 @@ namespace gputil
 
     ~EventList();
 
-    const Event *events() const { return events_; }
+    const Event *events() const { return (!extended_) ? events_ : extended_; }
+
     inline size_t count() const { return count_; }
     inline size_t size() const { return count_; }
 
