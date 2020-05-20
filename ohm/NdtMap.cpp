@@ -140,7 +140,7 @@ void NdtMap::integrateHit(Voxel &voxel, const glm::dvec3 & /*sensor*/, const glm
 
   float voxel_value = voxel.value();
   calculateHit(ndt_voxel, &voxel_value, sample, voxel_mean, voxel_mean_info->count, map.hitValue(),
-               map.occupancyThresholdValue(), voxel::invalidMarkerValue(), imp_->sensor_noise);
+               voxel::invalidMarkerValue(), imp_->sensor_noise);
 
   // NDT probably value update is the same as for the basic occupancy map.
   voxel.setValue(voxel_value);
@@ -165,9 +165,9 @@ void NdtMap::integrateMiss(Voxel &voxel, const glm::dvec3 &sensor, const glm::dv
   const glm::dvec3 voxel_mean(subVoxelToLocalCoord<glm::dvec3>(voxel_mean_info->coord, map.resolution()) +
                               voxel.centreGlobal());
 
-  const glm::dvec3 voxel_maximum_likelyhood = calculateMiss(
-    ndt_voxel, &voxel_value, sensor, sample, voxel_mean, voxel_mean_info->count, map.occupancyThresholdValue(),
-    voxel::invalidMarkerValue(), map.missValue(), imp_->sensor_noise, imp_->sample_threshold);
+  const glm::dvec3 voxel_maximum_likelyhood =
+    calculateMiss(ndt_voxel, &voxel_value, sensor, sample, voxel_mean, voxel_mean_info->count,
+                  voxel::invalidMarkerValue(), map.missValue(), imp_->sensor_noise, imp_->sample_threshold);
   voxel.setValue(voxel_value);
 
   TES_IF(imp_->trace)

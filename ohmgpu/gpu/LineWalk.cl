@@ -117,7 +117,7 @@ inline __device__ bool coordToKey(GpuKey *key, const float3 *point, const int3 *
   printf("%u Bad key: " KEY_F "\nfrom (%.16f,%.16f,%.16f)\n"
           "  quantisation: (%.16f,%.16f,%.16f)\n"
           "  region: (%.16f,%.16f,%.16f)\n",
-          get_global_id(0), KEY_A(*key), point->x, point->y, point->z,
+          (uint)get_global_id(0), KEY_A(*key), point->x, point->y, point->z,
           point->x - (regionCentreCoord(key->region[0], regionDim->x * voxelResolution) - 0.5f * regionDim->x * voxelResolution),
           point->y - (regionCentreCoord(key->region[1], regionDim->y * voxelResolution) - 0.5f * regionDim->y * voxelResolution),
           point->z - (regionCentreCoord(key->region[2], regionDim->z * voxelResolution) - 0.5f * regionDim->z * voxelResolution),

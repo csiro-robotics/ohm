@@ -30,9 +30,18 @@ typedef float ndtreal;
 typedef uint uint32_t;
 
 // Vector support functions
-inline __device__ ndtreal ndtdot(const ndtvec3 a, const ndtvec3 b) { return dot(a, b); }
-inline __device__ ndtreal ndtlength2(const ndtvec3 v) { return dot(v, v); }
-inline __device__ ndtvec3 ndtnormalize(const ndtvec3 v) { return normalize(v); }
+inline __device__ ndtreal ndtdot(const ndtvec3 a, const ndtvec3 b)
+{
+  return dot(a, b);
+}
+inline __device__ ndtreal ndtlength2(const ndtvec3 v)
+{
+  return dot(v, v);
+}
+inline __device__ ndtvec3 ndtnormalize(const ndtvec3 v)
+{
+  return normalize(v);
+}
 
 #else  // GPUTIL_DEVICE
 namespace ohm
@@ -145,13 +154,12 @@ inline __device__ ndtvec3 solveTriangular(const NdtVoxel *ndt, const ndtvec3 y)
 }
 
 inline __device__ void calculateHit(NdtVoxel *ndt_voxel, float *voxel_value, ndtvec3 sample, ndtvec3 voxel_mean,
-                                    unsigned point_count, float hit_value, float occupancy_threshold_value,
-                                    float uninitialised_value, float sensor_noise)
+                                    unsigned point_count, float hit_value, float uninitialised_value,
+                                    float sensor_noise)
 {
   const float initial_value = *voxel_value;
   const bool was_uncertain = initial_value == uninitialised_value;
   // Initialise the ndt_voxel data if this transitions the voxel to an occupied state.
-  // if (was_uncertain || initial_value <= occupancy_threshold_value)
   if (was_uncertain || point_count == 0)
   {
     // Transitioned to occupied. Initialise.
@@ -207,9 +215,8 @@ inline __device__ void calculateHit(NdtVoxel *ndt_voxel, float *voxel_value, ndt
 }
 
 inline __device__ ndtvec3 calculateMiss(NdtVoxel *ndt_voxel, float *voxel_value, ndtvec3 sensor, ndtvec3 sample,
-                                        ndtvec3 voxel_mean, unsigned point_count, float occupancy_threshold_value,
-                                        float uninitialised_value, float miss_value, float sensor_noise,
-                                        unsigned sample_threshold)
+                                        ndtvec3 voxel_mean, unsigned point_count, float uninitialised_value,
+                                        float miss_value, float sensor_noise, unsigned sample_threshold)
 {
   if (*voxel_value == uninitialised_value)
   {
@@ -220,7 +227,6 @@ inline __device__ ndtvec3 calculateMiss(NdtVoxel *ndt_voxel, float *voxel_value,
   }
 
   // Direct value adjustment if not occupied or insufficient samples.
-  // if (*voxel_value < occupancy_threshold_value || point_count < sample_threshold)
   if (point_count < sample_threshold)
   {
     // Re-enforcement of free voxel or too few points to resolve a guassing. Use standard value update.
@@ -296,8 +302,7 @@ inline __device__ ndtvec3 calculateMiss(NdtVoxel *ndt_voxel, float *voxel_value,
   // (23)
   // Verified: json: line 263
   const ndtreal sensor_noise_variance = sensor_noise * sensor_noise;
-  const ndtreal p_x_ml_given_sample =
-    exp(-0.5 * ndtlength2(voxel_maximum_likelyhood - sample) / sensor_noise_variance);
+  const ndtreal p_x_ml_given_sample = exp(-0.5 * ndtlength2(voxel_maximum_likelyhood - sample) / sensor_noise_variance);
 
   // Set the scaling factor by converting the miss value to a probability.
   const ndtreal scaling_factor = 1.0f - (1.0 / (1.0 + exp(miss_value)));

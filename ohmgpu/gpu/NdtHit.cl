@@ -23,17 +23,13 @@ typedef struct WorkItem_t
   float occupancy;
 } WorkItem;
 
-void __device__ collateSample(WorkItem *work_item, GpuKey *start, GpuKey *end,
-                              float3 sensor, float3 sample,
-                              int3 region_dimensions, float voxel_resolution,
-                              float sample_adjustment,
+void __device__ collateSample(WorkItem *work_item, GpuKey *start, GpuKey *end, float3 sensor, float3 sample,
+                              int3 region_dimensions, float voxel_resolution, float sample_adjustment,
                               float occupied_threshold, float sensor_noise);
 
 
-void __device__ collateSample(WorkItem *work_item, GpuKey *start, GpuKey *end,
-                              float3 sensor, float3 sample,
-                              int3 region_dimensions, float voxel_resolution,
-                              float sample_adjustment,
+void __device__ collateSample(WorkItem *work_item, GpuKey *start, GpuKey *end, float3 sensor, float3 sample,
+                              int3 region_dimensions, float voxel_resolution, float sample_adjustment,
                               float occupied_threshold, float sensor_noise)
 {
   // The sample is currently relative to the voxel centre of the start voxel. We need to change it to a consistent
@@ -46,7 +42,7 @@ void __device__ collateSample(WorkItem *work_item, GpuKey *start, GpuKey *end,
   sample += sensor_to_sample_correct;
 
   calculateHit(&work_item->ndt, &work_item->occupancy, sample, work_item->mean, work_item->sample_count,
-               sample_adjustment, occupied_threshold, INFINITY, sensor_noise);
+               sample_adjustment, INFINITY, sensor_noise);
   const float one_on_count_plus_one = 1.0f / (float)(work_item->sample_count + 1);
   work_item->mean = (work_item->sample_count * work_item->mean + sample) * one_on_count_plus_one;
   ++work_item->sample_count;
@@ -57,13 +53,11 @@ void __device__ collateSample(WorkItem *work_item, GpuKey *start, GpuKey *end,
 // - Each thread will handle one sample voxel
 //  - Contension avoided by having only the first thread targetting a particular voxel allowed to write resutls.
 __kernel void ndtHit(__global atomic_float *occupancy, __global ulonglong *occupancy_region_mem_offsets_global,
-                                   __global VoxelMean *means, __global ulonglong *means_region_mem_offsets_global,
-                                   __global NdtVoxel *ndt_voxels, __global ulonglong *ndt_region_mem_offsets_global,
-                                   __global int3 *occupancy_region_keys_global, uint region_count,
-                                   __global GpuKey *line_keys, __global float3 *local_lines, uint line_count,
-                                   int3 region_dimensions, float voxel_resolution, float sample_adjustment,
-                                   float occupied_threshold, float voxel_value_max,
-                                   float sensor_noise)
+                     __global VoxelMean *means, __global ulonglong *means_region_mem_offsets_global,
+                     __global NdtVoxel *ndt_voxels, __global ulonglong *ndt_region_mem_offsets_global,
+                     __global int3 *occupancy_region_keys_global, uint region_count, __global GpuKey *line_keys,
+                     __global float3 *local_lines, uint line_count, int3 region_dimensions, float voxel_resolution,
+                     float sample_adjustment, float occupied_threshold, float voxel_value_max, float sensor_noise)
 {
   if (get_global_id(0) >= line_count)
   {
@@ -84,7 +78,8 @@ __kernel void ndtHit(__global atomic_float *occupancy, __global ulonglong *occup
   uint region_index;
 
   regionsInitCurrent(&dummy_region_key, &region_index);
-  if (!regionsResolveRegion(&target_voxel, &dummy_region_key, &region_index, occupancy_region_keys_global, region_count))
+  if (!regionsResolveRegion(&target_voxel, &dummy_region_key, &region_index, occupancy_region_keys_global,
+                            region_count))
   {
     // Data not available in GPU memory.
     return;
@@ -129,9 +124,8 @@ __kernel void ndtHit(__global atomic_float *occupancy, __global ulonglong *occup
           // We have collected too many items to process and must process them now. This is inefficient as we will have
           // very few threads doing this work at the same time.
           copyKey(&start_key, &line_keys[i * 2]);
-          collateSample(&work_item, &start_key, &end_key, local_lines[i * 2], local_lines[i * 2 + 1],
-                        region_dimensions, voxel_resolution,
-                        sample_adjustment, occupied_threshold, sensor_noise);
+          collateSample(&work_item, &start_key, &end_key, local_lines[i * 2], local_lines[i * 2 + 1], region_dimensions,
+                        voxel_resolution, sample_adjustment, occupied_threshold, sensor_noise);
         }
       }
       else
@@ -153,9 +147,8 @@ __kernel void ndtHit(__global atomic_float *occupancy, __global ulonglong *occup
       uint li = working_rays[i];
       copyKey(&start_key, &line_keys[li * 2]);
       copyKey(&end_key, &line_keys[li * 2 + 1]);
-      collateSample(&work_item, &start_key, &end_key, local_lines[li * 2], local_lines[li * 2 + 1],
-                    region_dimensions, voxel_resolution,
-                    sample_adjustment, occupied_threshold, sensor_noise);
+      collateSample(&work_item, &start_key, &end_key, local_lines[li * 2], local_lines[li * 2 + 1], region_dimensions,
+                    voxel_resolution, sample_adjustment, occupied_threshold, sensor_noise);
     }
 
     // Cap occupancy to max.

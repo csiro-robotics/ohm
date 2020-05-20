@@ -40,6 +40,7 @@ GpuCache::GpuCache(OccupancyMap &map, size_t default_gpu_mem_size, unsigned flag
   imp_->gpu_queue = imp_->gpu.defaultQueue();
   imp_->map = &map;
   imp_->default_gpu_mem_size = default_gpu_mem_size;
+  imp_->flags = flags;
 }
 
 
