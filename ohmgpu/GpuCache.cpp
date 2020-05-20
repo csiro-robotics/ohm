@@ -52,7 +52,7 @@ GpuCache::~GpuCache()
 
 void GpuCache::reinitialise()
 {
-  reinitialiseGpuCache(this, *imp_->map, imp_->default_gpu_mem_size, imp_->flags);
+  reinitialiseGpuCache(this, *imp_->map, imp_->flags);
 }
 
 

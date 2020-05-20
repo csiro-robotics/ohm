@@ -41,17 +41,17 @@ GpuCache *ohm::initialiseGpuCache(OccupancyMap &map, size_t layer_gpu_mem_size, 
   GpuCache *gpu_cache = static_cast<GpuCache *>(detail->gpu_cache);
   if (!gpu_cache)
   {
-    gpu_cache = new GpuCache(map, layer_gpu_mem_size);
+    gpu_cache = new GpuCache(map, layer_gpu_mem_size, flags);
     detail->gpu_cache = gpu_cache;
 
-    reinitialiseGpuCache(gpu_cache, map, layer_gpu_mem_size, flags);
+    reinitialiseGpuCache(gpu_cache, map, flags);
   }
 
   return gpu_cache;
 }
 
 
-void ohm::reinitialiseGpuCache(GpuCache *gpu_cache, OccupancyMap &map, size_t layer_gpu_mem_size, unsigned flags)
+void ohm::reinitialiseGpuCache(GpuCache *gpu_cache, OccupancyMap &map, unsigned flags)
 {
   if (gpu_cache)
   {
