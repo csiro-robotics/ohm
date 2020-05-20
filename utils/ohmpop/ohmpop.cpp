@@ -755,7 +755,7 @@ int populateMap(const Options &opt)
 #ifdef OHMPOP_CPU
     ndt_map->debugDraw();
 #else   // OHMPOP_CPU
-    static_cast<ohm::GpuNdtMap *>(gpu_map.get())->ndtMap().debugDraw();
+    static_cast<ohm::GpuNdtMap *>(gpu_map.get())->debugDraw();
 #endif  //  OHMPOP_CPU
   }
 

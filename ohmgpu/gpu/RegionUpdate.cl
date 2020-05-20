@@ -324,7 +324,11 @@ __kernel void REGION_UPDATE_KERNEL(__global atomic_float *occupancy, __global ul
                                    __global GpuKey *line_keys, __global float3 *local_lines, uint line_count,
                                    int3 region_dimensions, float voxel_resolution, float ray_adjustment,
                                    float sample_adjustment, float occupied_threshold, float voxel_value_min,
-                                   float voxel_value_max, uint region_update_flags)
+                                   float voxel_value_max, uint region_update_flags
+#ifdef NDT
+                                 , float sensor_noise
+#endif // NDT
+)
 {
   // Only process valid lines.
   if (get_global_id(0) >= line_count)
@@ -342,6 +346,7 @@ __kernel void REGION_UPDATE_KERNEL(__global atomic_float *occupancy, __global ul
 #ifdef NDT
   line_data.ndt_voxels = ndt_voxels;
   line_data.ndt_offsets = ndt_region_mem_offsets_global;
+  line_data.sensor_noise = sensor_noise;
 #endif  // NDT
   line_data.region_keys = occupancy_region_keys_global;
   line_data.region_dimensions = region_dimensions;

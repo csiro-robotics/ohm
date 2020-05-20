@@ -16,13 +16,13 @@ namespace ohm
 {
   struct GpuNdtMapDetail : public GpuMapDetail
   {
-    ohm::NdtMap ndt_map;
     GpuProgramRef *ndt_hit_program_ref = nullptr;
     gputil::Kernel ndt_hit_kernel;
+    NdtMap ndt_map;
 
     GpuNdtMapDetail(OccupancyMap *map, bool borrowed_map)
       : GpuMapDetail(map, borrowed_map)
-      , ndt_map(map, true)
+      , ndt_map(map, true) // Ensures correct initialisation for NDT operations.
     {}
   };
 }

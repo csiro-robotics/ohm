@@ -52,6 +52,8 @@ namespace ohm
     gputil::PinnedBuffer offsets_buffer_pinned;
     /// Last upload event to @c offsets_buffer
     gputil::Event offset_upload_event;
+    /// Last voxel upload event vai the corresponding @c GpuLayerCache .
+    gputil::Event voxel_upload_event;
     /// The @c GpuLayerCache in the @c GpuCache which this structure references.
     int gpu_layer_id;
 

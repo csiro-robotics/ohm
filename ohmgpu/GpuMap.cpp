@@ -810,7 +810,7 @@ bool GpuMap::enqueueRegion(const glm::i16vec3 &region_key, int buffer_index)
   for (VoxelUploadInfo &voxel_info : imp_->voxel_upload_info[buffer_index])
   {
     GpuLayerCache &layer_cache = *gpu_cache.layerCache(voxel_info.gpu_layer_id);
-    uint64_t mem_offset = uint64_t(layer_cache.upload(*imp_->map, region_key, chunk, &voxel_info.offset_upload_event,
+    uint64_t mem_offset = uint64_t(layer_cache.upload(*imp_->map, region_key, chunk, &voxel_info.voxel_upload_event,
                                                       &status, imp_->batch_marker, GpuLayerCache::kAllowRegionCreate));
 
     if (status == GpuLayerCache::kCacheFull)
@@ -857,12 +857,14 @@ void GpuMap::finaliseBatch(unsigned region_update_flags)
   gputil::Dim3 local_size(std::min<size_t>(imp_->update_kernel.optimalWorkGroupSize(), ray_count));
   gputil::EventList wait({ imp_->key_upload_events[buf_idx], imp_->ray_upload_events[buf_idx],
                            imp_->region_key_upload_events[buf_idx],
-                           imp_->voxel_upload_info[buf_idx][0].offset_upload_event });
+                           imp_->voxel_upload_info[buf_idx][0].offset_upload_event,
+                           imp_->voxel_upload_info[buf_idx][0].voxel_upload_event });
 
   // Add voxel mean offset upload events.
   if (mean_layer_cache)
   {
     wait.add(imp_->voxel_upload_info[buf_idx][1].offset_upload_event);
+    wait.add(imp_->voxel_upload_info[buf_idx][1].voxel_upload_event);
   }
 
   if (mean_layer_cache)
