@@ -36,6 +36,7 @@ namespace gputil
 
     inline size_t count() const { return count_; }
     inline size_t size() const { return count_; }
+    inline size_t capacity() const { return (!extended_) ? kShortCount : capacity_; }
 
     void add(const Event &event);
     inline void push_back(const Event &event) { add(event); }  // NOLINT
