@@ -197,22 +197,22 @@ void GpuNdtMap::finaliseBatch(unsigned region_update_flags)
   if (!(region_update_flags & (kRfExcludeSample | kRfEndPointAsFree)))
   {
     local_size = gputil::Dim3(std::min<size_t>(imp->ndt_hit_kernel.optimalWorkGroupSize(), ray_count));
-    imp->ndt_hit_kernel(
-      global_size, local_size, wait, hit_event, &gpu_cache.gpuQueue(),
-      // Kernel args begin:
-      gputil::BufferArg<float>(*occupancy_layer_cache.buffer()),
-      gputil::BufferArg<uint64_t>(imp->voxel_upload_info[buf_idx][0].offsets_buffer),
-      gputil::BufferArg<VoxelMean>(*mean_layer_cache.buffer()),
-      gputil::BufferArg<uint64_t>(imp->voxel_upload_info[buf_idx][1].offsets_buffer),
-      gputil::BufferArg<NdtVoxel>(*ndt_voxel_layer_cache.buffer()),
-      gputil::BufferArg<uint64_t>(imp->voxel_upload_info[buf_idx][2].offsets_buffer),
-      gputil::BufferArg<gputil::int3>(imp->region_key_buffers[buf_idx]), region_count,
-      gputil::BufferArg<GpuKey>(imp->key_buffers[buf_idx]),
-      gputil::BufferArg<gputil::float3>(imp->ray_buffers[buf_idx]), ray_count, region_dim_gpu, float(map->resolution),
-      map->hit_value, map->occupancy_threshold_value, map->max_voxel_value, imp->ndt_map.sensorNoise());
+    imp->ndt_hit_kernel(global_size, local_size, wait, hit_event, &gpu_cache.gpuQueue(),
+                        // Kernel args begin:
+                        gputil::BufferArg<float>(*occupancy_layer_cache.buffer()),
+                        gputil::BufferArg<uint64_t>(imp->voxel_upload_info[buf_idx][0].offsets_buffer),
+                        gputil::BufferArg<VoxelMean>(*mean_layer_cache.buffer()),
+                        gputil::BufferArg<uint64_t>(imp->voxel_upload_info[buf_idx][1].offsets_buffer),
+                        gputil::BufferArg<NdtVoxel>(*ndt_voxel_layer_cache.buffer()),
+                        gputil::BufferArg<uint64_t>(imp->voxel_upload_info[buf_idx][2].offsets_buffer),
+                        gputil::BufferArg<gputil::int3>(imp->region_key_buffers[buf_idx]), region_count,
+                        gputil::BufferArg<GpuKey>(imp->key_buffers[buf_idx]),
+                        gputil::BufferArg<gputil::float3>(imp->ray_buffers[buf_idx]), ray_count, region_dim_gpu,
+                        float(map->resolution), map->hit_value, map->occupancy_threshold_value, map->max_voxel_value,
+                        imp->ndt_map.sensorNoise());
 
-      wait.clear();
-      wait.add(hit_event);
+    wait.clear();
+    wait.add(hit_event);
   }
 
   local_size = gputil::Dim3(std::min<size_t>(imp->update_kernel.optimalWorkGroupSize(), ray_count));
@@ -230,7 +230,7 @@ void GpuNdtMap::finaliseBatch(unsigned region_update_flags)
     ray_count, region_dim_gpu, float(map->resolution), map->miss_value, map->hit_value, map->occupancy_threshold_value,
     map->min_voxel_value, map->max_voxel_value, region_update_flags | modify_flags, imp->ndt_map.sensorNoise());
 
-#else  // REVERSE_KERNEL_ORDER
+#else   // REVERSE_KERNEL_ORDER
   gputil::Event miss_event;
   imp->update_kernel(
     global_size, local_size, wait, miss_event, &gpu_cache.gpuQueue(),
@@ -267,7 +267,7 @@ void GpuNdtMap::finaliseBatch(unsigned region_update_flags)
   {
     imp->region_update_events[buf_idx] = miss_event;
   }
-#endif // REVERSE_KERNEL_ORDER
+#endif  // REVERSE_KERNEL_ORDER
 
   // Update most recent chunk GPU event.
   occupancy_layer_cache.updateEvents(imp->batch_marker, imp->region_update_events[buf_idx]);
