@@ -108,8 +108,12 @@ namespace gputil
       // args = dummy_args.data();
 
       // Launch kernel.
+      dim3 grid_dim;
+      grid_dim.x = (local_size.x) ? unsigned((global_size.x + local_size.x - 1) / local_size.x) : 1u;
+      grid_dim.y = (local_size.y) ? unsigned((global_size.y + local_size.y - 1) / local_size.y) : 1u;
+      grid_dim.z = (local_size.z) ? unsigned((global_size.z + local_size.z - 1) / local_size.z) : 1u;
       err = cudaLaunchKernel(imp.cuda_kernel_function,
-                             dim3(unsigned(global_size.x), unsigned(global_size.y), unsigned(global_size.z)),
+                             grid_dim,
                              dim3(unsigned(local_size.x), unsigned(local_size.y), unsigned(local_size.z)), args,
                              shared_mem_size, cuda_stream);
       GPUAPICHECK(err, cudaSuccess, err);
@@ -273,7 +277,7 @@ namespace gputil
     kernel.detail()->cuda_kernel_function = kernel_function_ptr;
     kernel.detail()->optimal_group_size_calc = group_calc;
     kernel.detail()->program = program;
-    // TODO(KS): count arguments  
+    // TODO(KS): count arguments
     return kernel;
   }
 }  // namespace gputil
