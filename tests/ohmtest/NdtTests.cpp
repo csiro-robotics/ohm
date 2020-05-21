@@ -27,7 +27,7 @@
 #include <glm/gtx/norm.hpp>
 
 // Must come after glm includes due to usage on GPU.
-#include <ohm/NdtVoxel.h>
+#include <ohm/CovarianceVoxel.h>
 
 #include <3esservermacros.h>
 
@@ -44,16 +44,16 @@ namespace ndttests
 
 
   /// Ndt reference data.
-  struct NdtTestVoxel : public ohm::NdtVoxel
+  struct CovTestVoxel : public ohm::CovarianceVoxel
   {
     double mean[3];
     unsigned point_count;
   };
 
 
-  void initialiseTestVoxel(NdtTestVoxel *ref_voxel, float sensor_noise)
+  void initialiseTestVoxel(CovTestVoxel *ref_voxel, float sensor_noise)
   {
-    initialiseNdt(ref_voxel, sensor_noise);
+    initialiseCovariance(ref_voxel, sensor_noise);
     ref_voxel->mean[0] = ref_voxel->mean[1] = ref_voxel->mean[2] = 0;
     ref_voxel->point_count = 0;
   }
@@ -76,18 +76,18 @@ namespace ndttests
     return d;
   }
 
-  void updateHit(NdtTestVoxel *ndt, const glm::dvec3 &sample)
+  void updateHit(CovTestVoxel *cov, const glm::dvec3 &sample)
   {
-    const double num_pt = double(ndt->point_count);
+    const double num_pt = double(cov->point_count);
     const double one_on_num_pt_plus_one = 1.0 / (num_pt + 1.0);
-    glm::dvec3 mean(ndt->mean[0], ndt->mean[1], ndt->mean[2]);
+    glm::dvec3 mean(cov->mean[0], cov->mean[1], cov->mean[2]);
     const glm::dvec3 diff = sample - mean;
     const double sc_1 = num_pt ? std::sqrt(num_pt * one_on_num_pt_plus_one) : 1;
     const double sc_2 = one_on_num_pt_plus_one * std::sqrt(num_pt);
     std::vector<double> A(9);
     for (unsigned i = 0; i < 6; ++i)
     {
-      A[i] = sc_1 * ndt->cov_sqrt_diag[i];
+      A[i] = sc_1 * cov->cov_sqrt_diag[i];
     }
     for (unsigned i = 0; i < 3; ++i)
     {
@@ -98,7 +98,7 @@ namespace ndttests
       const unsigned ind1 = (k * (k + 3)) >> 1,  // packed index of (k,k) term
         indk = ind1 - k;                       // packed index of (1,k)
       const double ak = std::sqrt(packed_dot(&A[0], k, k));
-      ndt->cov_sqrt_diag[ind1] = float(ak);
+      cov->cov_sqrt_diag[ind1] = float(ak);
       if (ak > 0.0)
       {
         const double aki = 1.0 / ak;
@@ -106,7 +106,7 @@ namespace ndttests
         {
           const unsigned indj = (j * (j + 1)) >> 1, indkj = indj + k;
           double c = packed_dot(&A[0], j, k) * aki;
-          ndt->cov_sqrt_diag[indkj] = float(c);
+          cov->cov_sqrt_diag[indkj] = float(c);
           c *= aki;
           A[j + 6] -= c * A[k + 6];
           for (unsigned l = 0; l <= k; ++l)
@@ -118,20 +118,20 @@ namespace ndttests
     }
 
     mean = (num_pt * mean + sample) * one_on_num_pt_plus_one;
-    ndt->mean[0] = mean[0];
-    ndt->mean[1] = mean[1];
-    ndt->mean[2] = mean[2];
-    ++ndt->point_count;
+    cov->mean[0] = mean[0];
+    cov->mean[1] = mean[1];
+    cov->mean[2] = mean[2];
+    ++cov->point_count;
   }
 
-  void validate(const glm::dvec3 &mean, unsigned point_count, const ohm::NdtVoxel &ndt, const NdtTestVoxel &ref)
+  void validate(const glm::dvec3 &mean, unsigned point_count, const ohm::CovarianceVoxel &cov, const CovTestVoxel &ref)
   {
     // Quantisation in the mean storage create more signficant absolute errors in the covariance and mean.
     const double epsilon_cov = 1e-2;
     const double epsilon_mean = 1e-1;
     for (int i = 0; i < 6; ++i)
     {
-      EXPECT_NEAR(ndt.cov_sqrt_diag[i], ref.cov_sqrt_diag[i], epsilon_cov);
+      EXPECT_NEAR(cov.cov_sqrt_diag[i], ref.cov_sqrt_diag[i], epsilon_cov);
     }
 
     EXPECT_EQ(point_count, ref.point_count);
@@ -143,7 +143,7 @@ namespace ndttests
 
   void testNdtHits(const std::vector<glm::dvec3> &samples, double resolution)
   {
-    std::unordered_map<ohm::Key, NdtTestVoxel, ohm::KeyHash> reference_voxels;
+    std::unordered_map<ohm::Key, CovTestVoxel, ohm::KeyHash> reference_voxels;
 
     ohm::OccupancyMap map(resolution, ohm::MapFlag::kVoxelMean);
     ohm::NdtMap ndt(&map, true);
@@ -160,7 +160,7 @@ namespace ndttests
       ohm::Key key = map.voxelKey(sample);
       ohm::Voxel voxel = map.voxel(key, true, &cache);
       ndt.integrateHit(voxel, sensor, sample);
-      const ohm::NdtVoxel &ndt_voxel = *voxel.layerContent<const ohm::NdtVoxel *>(ndt.covarianceLayerIndex());
+      const ohm::CovarianceVoxel &cov_voxel = *voxel.layerContent<const ohm::CovarianceVoxel *>(ndt.covarianceLayerIndex());
       const ohm::VoxelMean &voxel_mean = *voxel.layerContent<const ohm::VoxelMean *>(ndt.map().layout().meanLayer());
 
       // Update the reference voxel as well.
@@ -168,7 +168,7 @@ namespace ndttests
       if (ref == reference_voxels.end())
       {
         // New voxel. Initialise.
-        NdtTestVoxel ref_voxel;
+        CovTestVoxel ref_voxel;
         initialiseTestVoxel(&ref_voxel, ndt.sensorNoise());
         ref = reference_voxels.insert(std::make_pair(key, ref_voxel)).first;
       }
@@ -177,7 +177,7 @@ namespace ndttests
       updateHit(&ref->second, sample);
 
       // Progressive validation
-      validate(voxel.position(), voxel_mean.count, ndt_voxel, ref->second);
+      validate(voxel.position(), voxel_mean.count, cov_voxel, ref->second);
     }
 
     // Finalise validation
@@ -185,9 +185,9 @@ namespace ndttests
     {
       // Lookup the target voxel.
       ohm::VoxelConst voxel = const_cast<const ohm::OccupancyMap &>(map).voxel(ref.first, &cache);
-      const ohm::NdtVoxel &ndt_voxel = *voxel.layerContent<const ohm::NdtVoxel *>(ndt.covarianceLayerIndex());
+      const ohm::CovarianceVoxel &cov_voxel = *voxel.layerContent<const ohm::CovarianceVoxel *>(ndt.covarianceLayerIndex());
       const ohm::VoxelMean &voxel_mean = *voxel.layerContent<const ohm::VoxelMean *>(ndt.map().layout().meanLayer());
-      validate(voxel.position(), voxel_mean.count, ndt_voxel, ref.second);
+      validate(voxel.position(), voxel_mean.count, cov_voxel, ref.second);
     }
   }
 

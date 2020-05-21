@@ -18,7 +18,7 @@ namespace ohm
     /// Name of the @c VoxelMean layer containing mean voxel coordinates.
     /// @return "mean"
     const char *ohm_API meanLayerName();
-    /// Name of the @c NdtVoxel layer containing packed voxel covariances.
+    /// Name of the @c CovarianceVoxel layer containing packed voxel covariances.
     /// @return "covariance"
     const char *ohm_API covarianceLayerName();
     /// Name of the voxel clearance layer.
@@ -39,15 +39,15 @@ namespace ohm
   /// @param layout The @p MapLayout to modify.
   /// @return The map layer added or the pre-existing layer named according to @c meanLayerName() .
   /// @see @c voxelmean
-  MapLayer * ohm_API addVoxelMean(MapLayout &layout);
+  MapLayer *ohm_API addVoxelMean(MapLayout &layout);
 
-  /// Add the @c NdtVoxel layer to @p layout.
+  /// Add the @c CovarianceVoxel layer to @p layout.
   ///
-  /// Similar to @c addVoxelMean() , this function adds @c NdtVoxel support using the @c covarianceLayerName() .
+  /// Similar to @c addVoxelMean() , this function adds @c CovarianceVoxel support using the @c covarianceLayerName() .
   ///
   /// @param layout The @p MapLayout to modify.
   /// @return The map layer added or the pre-existing layer named according to @c covarianceLayerName() .
-  MapLayer * ohm_API addCovariance(MapLayout &layout);
+  MapLayer *ohm_API addCovariance(MapLayout &layout);
 
   /// Add the voxel clearance layer to @p layout.
   ///
@@ -55,7 +55,7 @@ namespace ohm
   ///
   /// @param layout The @p MapLayout to modify.
   /// @return The map layer added or the pre-existing layer named according to @c clearanceLayerName() .
-  MapLayer * ohm_API addClearance(MapLayout &layout);
+  MapLayer *ohm_API addClearance(MapLayout &layout);
 }  // namespace ohm
 
 #endif  // OHMDEFAULTLAYER_H

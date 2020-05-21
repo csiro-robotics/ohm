@@ -334,7 +334,7 @@ void GpuMap::syncVoxels()
     // This will allow us to kick synching off all layers in parallel and should reduce the overall latency.
     gpumap::sync(*imp_->map, kGcIdOccupancy);
     gpumap::sync(*imp_->map, kGcIdVoxelMean);
-    gpumap::sync(*imp_->map, kGcIdNdt);
+    gpumap::sync(*imp_->map, kGcIdCovariance);
   }
 }
 

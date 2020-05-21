@@ -18,7 +18,7 @@
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtx/norm.hpp>
 
-#include "NdtVoxel.h"
+#include "CovarianceVoxel.h"
 
 #include <3esservermacros.h>
 #ifdef TES_ENABLE
@@ -131,7 +131,7 @@ void NdtMap::integrateHit(Voxel &voxel, const glm::dvec3 & /*sensor*/, const glm
   OccupancyMap &map = *imp_->map;
 
   assert(map.layout().hasVoxelMean());
-  NdtVoxel *ndt_voxel = voxel.layerContent<NdtVoxel *>(imp_->covariance_layer_index);
+  CovarianceVoxel *cov_voxel = voxel.layerContent<CovarianceVoxel *>(imp_->covariance_layer_index);
   VoxelMean *voxel_mean_info = voxel.layerContent<VoxelMean *>(map.layout().meanLayer());
 
   const glm::dvec3 voxel_centre = voxel.centreGlobal();
@@ -139,8 +139,8 @@ void NdtMap::integrateHit(Voxel &voxel, const glm::dvec3 & /*sensor*/, const glm
   voxel_mean = subVoxelToLocalCoord<glm::dvec3>(voxel_mean_info->coord, map.resolution()) + voxel_centre;
 
   float voxel_value = voxel.value();
-  calculateHit(ndt_voxel, &voxel_value, sample, voxel_mean, voxel_mean_info->count, map.hitValue(),
-               voxel::invalidMarkerValue(), imp_->sensor_noise);
+  calculateHitWithCovariance(cov_voxel, &voxel_value, sample, voxel_mean, voxel_mean_info->count, map.hitValue(),
+                             voxel::invalidMarkerValue(), imp_->sensor_noise);
 
   // NDT probably value update is the same as for the basic occupancy map.
   voxel.setValue(voxel_value);
@@ -158,7 +158,7 @@ void NdtMap::integrateMiss(Voxel &voxel, const glm::dvec3 &sensor, const glm::dv
 
   const float initial_value = voxel.value();
   float voxel_value = initial_value;
-  NdtVoxel *ndt_voxel = voxel.layerContent<NdtVoxel *>(imp_->covariance_layer_index);
+  CovarianceVoxel *cov_voxel = voxel.layerContent<CovarianceVoxel *>(imp_->covariance_layer_index);
 
   assert(map.layout().hasVoxelMean());
   VoxelMean *voxel_mean_info = voxel.layerContent<VoxelMean *>(map.layout().meanLayer());
@@ -166,14 +166,14 @@ void NdtMap::integrateMiss(Voxel &voxel, const glm::dvec3 &sensor, const glm::dv
                               voxel.centreGlobal());
 
   const glm::dvec3 voxel_maximum_likelyhood =
-    calculateMiss(ndt_voxel, &voxel_value, sensor, sample, voxel_mean, voxel_mean_info->count,
-                  voxel::invalidMarkerValue(), map.missValue(), imp_->sensor_noise, imp_->sample_threshold);
+    calculateMissNdt(cov_voxel, &voxel_value, sensor, sample, voxel_mean, voxel_mean_info->count,
+                     voxel::invalidMarkerValue(), map.missValue(), imp_->sensor_noise, imp_->sample_threshold);
   voxel.setValue(voxel_value);
 
   TES_IF(imp_->trace)
   {
     TES_BOX_W(g_3es, TES_COLOUR(OrangeRed),
-              TES_PTR_ID(voxel.layerContent<const NdtVoxel *>(imp_->covariance_layer_index)),
+              TES_PTR_ID(voxel.layerContent<const CovarianceVoxel *>(imp_->covariance_layer_index)),
               glm::value_ptr(voxel.centreGlobal()), glm::value_ptr(glm::dvec3(imp_->map->resolution())));
     TES_SERVER_UPDATE(g_3es, 0.0f);
   }
@@ -184,11 +184,11 @@ void NdtMap::integrateMiss(Voxel &voxel, const glm::dvec3 &sensor, const glm::dv
     bool drew_surfel = false;
     glm::dvec3 evals;
     glm::dmat3 evecs;
-    if (eigenDecomposition(ndt_voxel, &evals, &evecs))
+    if (eigenDecomposition(cov_voxel, &evals, &evecs))
     {
       glm::dquat rot(evecs);
       rot = glm::normalize(rot);
-      TES_SPHERE(g_3es, TES_COLOUR(SeaGreen), TES_PTR_ID(ndt_voxel), glm::value_ptr(voxel_mean),
+      TES_SPHERE(g_3es, TES_COLOUR(SeaGreen), TES_PTR_ID(cov_voxel), glm::value_ptr(voxel_mean),
                  glm::value_ptr(2.0 * evals), tes::Quaterniond(rot.x, rot.y, rot.z, rot.w));
       drew_surfel = true;
     }
@@ -206,12 +206,12 @@ void NdtMap::integrateMiss(Voxel &voxel, const glm::dvec3 &sensor, const glm::dv
     TES_TEXT2D_WORLD(g_3es, TES_COLOUR(White), text, glm::value_ptr(pos));
 
     TES_SERVER_UPDATE(g_3es, 0.0f);
-    TES_BOX_END(g_3es, TES_PTR_ID(ndt_voxel));
+    TES_BOX_END(g_3es, TES_PTR_ID(cov_voxel));
     TES_SPHERE_END(g_3es, TES_PTR_ID(&voxel_mean));
     TES_SPHERE_END(g_3es, TES_PTR_ID(&voxel_maximum_likelyhood));
     if (drew_surfel)
     {
-      TES_SPHERE_END(g_3es, TES_PTR_ID(ndt_voxel));
+      TES_SPHERE_END(g_3es, TES_PTR_ID(cov_voxel));
     }
   }
 #endif  // TES_ENABLE
@@ -267,10 +267,10 @@ void NdtMap::debugDraw() const
     const auto voxel = *iter;
     if (voxel.isOccupied())
     {
-      const NdtVoxel &ndt_voxel = *voxel.layerContent<const NdtVoxel *>(imp_->covariance_layer_index);
+      const CovarianceVoxel &cov_voxel = *voxel.layerContent<const CovarianceVoxel *>(imp_->covariance_layer_index);
       glm::dvec3 evals;
       glm::dmat3 evecs;
-      if (!eigenDecomposition(&ndt_voxel, &evals, &evecs))
+      if (!eigenDecomposition(&cov_voxel, &evals, &evecs))
       {
         continue;
       }

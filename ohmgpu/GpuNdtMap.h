@@ -20,7 +20,7 @@ namespace ohm
   /// For details of what the NDT algorithm is, see @c NdtMap. The comments here focus on how this algorithm is applied
   /// in GPU.
   ///
-  /// The NDT algorithm requires voxels to have @c VoxelMean and @c NdtVoxel (covariance) data in addition to occupancy
+  /// The NDT algorithm requires voxels to have @c VoxelMean and @c CovarianceVoxel data in addition to occupancy
   /// values. While the mean can still be reasonably updated with contension in GPU using atomic operations because of
   /// it's relatively independent values, the covariance has 6 floating point values. These 6 floats are highly
   /// dependent and must be calculated and updated together. This could be done in a lock free fashion using a double

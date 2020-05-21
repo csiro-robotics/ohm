@@ -34,8 +34,8 @@ namespace ohm
     kGcIdClearance,
     /// Cache used for sub voxel positioning.
     kGcIdVoxelMean,
-    /// Cache used for @c NdtVoxel data.
-    kGcIdNdt,
+    /// Cache used for @c CovarianceVoxel data.
+    kGcIdCovariance,
   };
 
   /// Provides access to the @c GpuLayerCache objects used to cache host voxel data in GPU memory and manage

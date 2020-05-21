@@ -93,7 +93,7 @@ void ohm::reinitialiseGpuCache(GpuCache *gpu_cache, OccupancyMap &map, unsigned 
     {
       // TODO: (KS) add the write flag if we move to being able to process the samples on GPU too.
       gpu_cache->createCache(
-        kGcIdNdt, GpuCacheParams{ 0, int(covariance_layer->layerIndex()), kGcfRead | kGcfWrite | mappable_flag });
+        kGcIdCovariance, GpuCacheParams{ 0, int(covariance_layer->layerIndex()), kGcfRead | kGcfWrite | mappable_flag });
     }
 
     // Note: we create the clearance gpu cache if we have a clearance layer, but it caches the occupancy_layer as that

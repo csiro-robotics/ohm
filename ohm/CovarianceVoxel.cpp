@@ -11,7 +11,7 @@
 #include <glm/gtx/norm.hpp>
 
 // Must come after glm includes due to usage on GPU.
-#include "NdtVoxel.h"
+#include "CovarianceVoxel.h"
 
 #include <glm/gtc/matrix_access.hpp>
 
@@ -23,9 +23,9 @@ using namespace ohm;
 // FIXME: add cmake option.
 #include <Eigen/Dense>
 
-bool ohm::eigenDecomposition(const NdtVoxel *ndt, glm::dvec3 *eigenvalues, glm::dmat3 *eigenvectors)
+bool ohm::eigenDecomposition(const CovarianceVoxel *cov, glm::dvec3 *eigenvalues, glm::dmat3 *eigenvectors)
 {
-  const glm::dmat3 cov_mat = covarianceMatrix(ndt);
+  const glm::dmat3 cov_mat = covarianceMatrix(cov);
   Eigen::Matrix3d cov_map;
 
   cov_map << glm::row(cov_mat, 0)[0], glm::row(cov_mat, 0)[1], glm::row(cov_mat, 0)[2],  //
@@ -65,7 +65,7 @@ bool ohm::eigenDecomposition(const NdtVoxel *ndt, glm::dvec3 *eigenvalues, glm::
 
 #else  // WITH_EIGEN
 
-bool ohm::eigenDecomposition(const NdtVoxel &, glm::dvec3 *, glm::mat3 *)
+bool ohm::eigenDecomposition(const CovarianceVoxel &, glm::dvec3 *, glm::mat3 *)
 {
   return false;
 }

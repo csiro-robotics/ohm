@@ -42,6 +42,8 @@ set(SOURCES
   Aabb.h
   ClearingPattern.cpp
   ClearingPattern.h
+  CovarianceVoxel.cpp
+  CovarianceVoxel.h
   DataType.cpp
   DataType.h
   DefaultLayer.cpp
@@ -89,8 +91,6 @@ set(SOURCES
   NdtMap.cpp
   NdtMap.h
   NdtRayMapperInterface.h
-  NdtVoxel.cpp
-  NdtVoxel.h
   NearestNeighbours.cpp
   NearestNeighbours.h
   OccupancyMap.cpp
@@ -139,6 +139,7 @@ endif(TES_ENABLE)
 set(PUBLIC_HEADERS
   Aabb.h
   ClearingPattern.h
+  CovarianceVoxel.h
   DataType.h
   DefaultLayer.h
   Heightmap.h
@@ -166,7 +167,6 @@ set(PUBLIC_HEADERS
   MapSerialise.h
   NdtMap.h
   NdtRayMapperInterface.h
-  NdtVoxel.h
   NearestNeighbours.h
   OccupancyMap.h
   OccupancyType.h

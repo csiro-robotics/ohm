@@ -47,8 +47,8 @@ set(SOURCES
 )
 
 set(GPU_SOURCES
+  gpu/CovarianceHit.cl
   gpu/LineKeys.cl
-  gpu/NdtHit.cl
   gpu/RegionUpdate.cl
   gpu/RoiRangeFill.cl
   gpu/TransformSamples.cl
@@ -63,7 +63,7 @@ set(GPU_HEADERS
   GpuKey.h
   # Need some headers from the OHM core project.
   ${OHM_SOURCE_DIR}/MapCoord.h
-  ${OHM_SOURCE_DIR}/NdtVoxel.h
+  ${OHM_SOURCE_DIR}/CovarianceVoxel.h
   ${OHM_SOURCE_DIR}/RayFlag.h
   ${OHM_SOURCE_DIR}/VoxelMean.h
 )
@@ -176,8 +176,8 @@ endif(OHM_BUILD_OPENCL)
 
 if(OHM_BUILD_CUDA)
   list(APPEND GPU_SOURCES
+    gpu/CovarianceHit.cu
     gpu/LineKeys.cu
-    gpu/NdtHit.cu
     gpu/RegionUpdate.cu
     gpu/RegionUpdateNdt.cu
     gpu/RegionUpdateWithMean.cu

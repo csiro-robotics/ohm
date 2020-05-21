@@ -46,7 +46,7 @@
 #endif  // VOXEL_MEAN || NDT
 #include "RayFlag.h"
 #ifdef NDT
-#include "NdtVoxel.h"
+#include "CovarianceVoxel.h"
 #endif  // NDT
 
 #include "Regions.cl"
@@ -86,9 +86,9 @@ typedef struct LineWalkData_t
   __global ulonglong *means_offsets;
 #endif // VOXEL_MEAN || NDT
 #ifdef NDT
-  __global NdtVoxel *ndt_voxels;
-  // Array of offsets for each regionKey into ndt_voxels. These are byte offsets.
-  __global ulonglong *ndt_offsets;
+  __global CovarianceVoxel *cov_voxels;
+  // Array of offsets for each regionKey into cov_voxels. These are byte offsets.
+  __global ulonglong *cov_offsets;
 #endif  // NDT
   // Array of region keys for currently loaded regions.
   __global int3 *region_keys;
@@ -318,7 +318,7 @@ __kernel void REGION_UPDATE_KERNEL(__global atomic_float *occupancy, __global ul
                                    __global VoxelMean *means, __global ulonglong *means_region_mem_offsets_global,
 #endif // VOXEL_MEAN || NDT
 #ifdef NDT
-                                   __global NdtVoxel *ndt_voxels, __global ulonglong *ndt_region_mem_offsets_global,
+                                   __global CovarianceVoxel *cov_voxels, __global ulonglong *cov_region_mem_offsets_global,
 #endif  // NDT
                                    __global int3 *occupancy_region_keys_global, uint region_count,
                                    __global GpuKey *line_keys, __global float3 *local_lines, uint line_count,
@@ -344,8 +344,8 @@ __kernel void REGION_UPDATE_KERNEL(__global atomic_float *occupancy, __global ul
   line_data.means_offsets = means_region_mem_offsets_global;
 #endif // VOXEL_MEAN || NDT
 #ifdef NDT
-  line_data.ndt_voxels = ndt_voxels;
-  line_data.ndt_offsets = ndt_region_mem_offsets_global;
+  line_data.cov_voxels = cov_voxels;
+  line_data.cov_offsets = cov_region_mem_offsets_global;
   line_data.sensor_noise = sensor_noise;
 #endif  // NDT
   line_data.region_keys = occupancy_region_keys_global;

@@ -16,8 +16,8 @@ namespace ohm
 {
   struct GpuNdtMapDetail : public GpuMapDetail
   {
-    GpuProgramRef *ndt_hit_program_ref = nullptr;
-    gputil::Kernel ndt_hit_kernel;
+    GpuProgramRef *cov_hit_program_ref = nullptr;
+    gputil::Kernel cov_hit_kernel;
     NdtMap ndt_map;
 
     GpuNdtMapDetail(OccupancyMap *map, bool borrowed_map)

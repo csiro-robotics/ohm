@@ -31,18 +31,18 @@
 #include <glm/gtx/norm.hpp>
 
 // Must come after glm includes due to usage on GPU.
-#include <ohm/NdtVoxel.h>
+#include <ohm/CovarianceVoxel.h>
 
 #if defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
 #include "RegionUpdateResource.h"
-#include "NdtHitResource.h"
+#include "CovarianceHitResource.h"
 #endif  // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
 
 using namespace ohm;
 
 #if GPUTIL_TYPE == GPUTIL_CUDA
 GPUTIL_CUDA_DECLARE_KERNEL(regionRayUpdateNdt);
-GPUTIL_CUDA_DECLARE_KERNEL(ndtHit);
+GPUTIL_CUDA_DECLARE_KERNEL(covarianceHit);
 #endif  // GPUTIL_TYPE == GPUTIL_CUDA
 
 #define REVERSE_KERNEL_ORDER 0
@@ -57,10 +57,11 @@ namespace
                                      { "-DVOXEL_MEAN", "-DNDT" });
 #endif  // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
 #if defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
-  GpuProgramRef program_ref_ndt_hit("NdtHit", GpuProgramRef::kSourceString, NdtHitCode,  // NOLINT
-                                    NdtHitCode_length, { "-DVOXEL_MEAN", "-DNDT" });
+  GpuProgramRef program_ref_cov_hit("CovarianceHit", GpuProgramRef::kSourceString, CovarianceHitCode,  // NOLINT
+                                    CovarianceHitCode_length, { "-DVOXEL_MEAN", "-DNDT" });
 #else   // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
-  GpuProgramRef program_ref_ndt_hit("NdtHit", GpuProgramRef::kSourceFile, "NdtHit.cl", 0u, { "-DVOXEL_MEAN", "-DNDT" });
+  GpuProgramRef program_ref_cov_hit("CovarianceHit", GpuProgramRef::kSourceFile, "CovarianceHit.cl", 0u,
+                                    { "-DVOXEL_MEAN", "-DNDT" });
 #endif  // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
 }  // namespace
 
@@ -71,7 +72,7 @@ GpuNdtMap::GpuNdtMap(OccupancyMap *map, bool borrowed_map, unsigned expected_ele
   // Ensure voxel mean and covariance layers are present.
   for (int i = 0; i < 2; ++i)
   {
-    imp_->voxel_upload_info[i].emplace_back(VoxelUploadInfo(kGcIdNdt, gpuCache()->gpu()));
+    imp_->voxel_upload_info[i].emplace_back(VoxelUploadInfo(kGcIdCovariance, gpuCache()->gpu()));
   }
 
   // Cache the correct GPU program.
@@ -143,13 +144,13 @@ void GpuNdtMap::cacheGpuProgram(bool /*with_voxel_mean*/, bool force)
 
   if (imp->gpu_ok)
   {
-    imp->ndt_hit_program_ref = &program_ref_ndt_hit;
+    imp->cov_hit_program_ref = &program_ref_cov_hit;
 
-    if (imp->ndt_hit_program_ref->addReference(gpu_cache.gpu()))
+    if (imp->cov_hit_program_ref->addReference(gpu_cache.gpu()))
     {
-      imp->ndt_hit_kernel = GPUTIL_MAKE_KERNEL(imp->ndt_hit_program_ref->program(), ndtHit);
-      imp->ndt_hit_kernel.calculateOptimalWorkGroupSize();
-      imp->gpu_ok = imp->ndt_hit_kernel.isValid();
+      imp->cov_hit_kernel = GPUTIL_MAKE_KERNEL(imp->cov_hit_program_ref->program(), covarianceHit);
+      imp->cov_hit_kernel.calculateOptimalWorkGroupSize();
+      imp->gpu_ok = imp->cov_hit_kernel.isValid();
     }
     else
     {
@@ -169,7 +170,7 @@ void GpuNdtMap::finaliseBatch(unsigned region_update_flags)
   GpuCache &gpu_cache = *this->gpuCache();
   GpuLayerCache &occupancy_layer_cache = *gpu_cache.layerCache(kGcIdOccupancy);
   GpuLayerCache &mean_layer_cache = *gpu_cache.layerCache(kGcIdVoxelMean);
-  GpuLayerCache &ndt_voxel_layer_cache = *gpu_cache.layerCache(kGcIdNdt);
+  GpuLayerCache &cov_voxel_layer_cache = *gpu_cache.layerCache(kGcIdCovariance);
 
   // Enqueue update kernel.
   const gputil::int3 region_dim_gpu = { map->region_voxel_dimensions.x, map->region_voxel_dimensions.y,
@@ -197,18 +198,18 @@ void GpuNdtMap::finaliseBatch(unsigned region_update_flags)
 
   if (!(region_update_flags & (kRfExcludeSample | kRfEndPointAsFree)))
   {
-    // NDT can only have one NdtHit batch in flight because it does not support contension. Ensure previous one has
-    // completed and it waits on the kernel above to finish too.
+    // NDT can only have one CovarianceHit batch in flight because it does not support contension. Ensure previous one
+    // has completed and it waits on the kernel above to finish too.
     waitOnPreviousOperation(1 - buf_idx);
 
-    local_size = gputil::Dim3(std::min<size_t>(imp->ndt_hit_kernel.optimalWorkGroupSize(), ray_count));
-    imp->ndt_hit_kernel(global_size, local_size, wait, hit_event, &gpu_cache.gpuQueue(),
+    local_size = gputil::Dim3(std::min<size_t>(imp->cov_hit_kernel.optimalWorkGroupSize(), ray_count));
+    imp->cov_hit_kernel(global_size, local_size, wait, hit_event, &gpu_cache.gpuQueue(),
                         // Kernel args begin:
                         gputil::BufferArg<float>(*occupancy_layer_cache.buffer()),
                         gputil::BufferArg<uint64_t>(imp->voxel_upload_info[buf_idx][0].offsets_buffer),
                         gputil::BufferArg<VoxelMean>(*mean_layer_cache.buffer()),
                         gputil::BufferArg<uint64_t>(imp->voxel_upload_info[buf_idx][1].offsets_buffer),
-                        gputil::BufferArg<NdtVoxel>(*ndt_voxel_layer_cache.buffer()),
+                        gputil::BufferArg<CovarianceVoxel>(*cov_voxel_layer_cache.buffer()),
                         gputil::BufferArg<uint64_t>(imp->voxel_upload_info[buf_idx][2].offsets_buffer),
                         gputil::BufferArg<gputil::int3>(imp->region_key_buffers[buf_idx]), region_count,
                         gputil::BufferArg<GpuKey>(imp->key_buffers[buf_idx]),
@@ -228,7 +229,7 @@ void GpuNdtMap::finaliseBatch(unsigned region_update_flags)
     gputil::BufferArg<uint64_t>(imp->voxel_upload_info[buf_idx][0].offsets_buffer),
     gputil::BufferArg<VoxelMean>(*mean_layer_cache.buffer()),
     gputil::BufferArg<uint64_t>(imp->voxel_upload_info[buf_idx][1].offsets_buffer),
-    gputil::BufferArg<NdtVoxel>(*ndt_voxel_layer_cache.buffer()),
+    gputil::BufferArg<CovarianceVoxel>(*cov_voxel_layer_cache.buffer()),
     gputil::BufferArg<uint64_t>(imp->voxel_upload_info[buf_idx][2].offsets_buffer),
     gputil::BufferArg<gputil::int3>(imp->region_key_buffers[buf_idx]), region_count,
     gputil::BufferArg<GpuKey>(imp->key_buffers[buf_idx]), gputil::BufferArg<gputil::float3>(imp->ray_buffers[buf_idx]),
@@ -244,7 +245,7 @@ void GpuNdtMap::finaliseBatch(unsigned region_update_flags)
     gputil::BufferArg<uint64_t>(imp->voxel_upload_info[buf_idx][0].offsets_buffer),
     gputil::BufferArg<VoxelMean>(*mean_layer_cache.buffer()),
     gputil::BufferArg<uint64_t>(imp->voxel_upload_info[buf_idx][1].offsets_buffer),
-    gputil::BufferArg<NdtVoxel>(*ndt_voxel_layer_cache.buffer()),
+    gputil::BufferArg<CovarianceVoxel>(*cov_voxel_layer_cache.buffer()),
     gputil::BufferArg<uint64_t>(imp->voxel_upload_info[buf_idx][2].offsets_buffer),
     gputil::BufferArg<gputil::int3>(imp->region_key_buffers[buf_idx]), region_count,
     gputil::BufferArg<GpuKey>(imp->key_buffers[buf_idx]), gputil::BufferArg<gputil::float3>(imp->ray_buffers[buf_idx]),
@@ -253,19 +254,19 @@ void GpuNdtMap::finaliseBatch(unsigned region_update_flags)
 
   if (!(region_update_flags & (kRfExcludeSample | kRfEndPointAsFree)))
   {
-    // NDT can only have one NdtHit batch in flight because it does not support contension. Ensure previous one has
-    // completed and it waits on the kernel above to finish too.
+    // NDT can only have one CovarianceHit batch in flight because it does not support contension. Ensure previous one
+    // has completed and it waits on the kernel above to finish too.
     waitOnPreviousOperation(1 - buf_idx);
 
-    local_size = gputil::Dim3(std::min<size_t>(imp->ndt_hit_kernel.optimalWorkGroupSize(), ray_count));
-    imp->ndt_hit_kernel(
+    local_size = gputil::Dim3(std::min<size_t>(imp->cov_hit_kernel.optimalWorkGroupSize(), ray_count));
+    imp->cov_hit_kernel(
       global_size, local_size, gputil::EventList(miss_event), imp->region_update_events[buf_idx], &gpu_cache.gpuQueue(),
       // Kernel args begin:
       gputil::BufferArg<float>(*occupancy_layer_cache.buffer()),
       gputil::BufferArg<uint64_t>(imp->voxel_upload_info[buf_idx][0].offsets_buffer),
       gputil::BufferArg<VoxelMean>(*mean_layer_cache.buffer()),
       gputil::BufferArg<uint64_t>(imp->voxel_upload_info[buf_idx][1].offsets_buffer),
-      gputil::BufferArg<NdtVoxel>(*ndt_voxel_layer_cache.buffer()),
+      gputil::BufferArg<CovarianceVoxel>(*cov_voxel_layer_cache.buffer()),
       gputil::BufferArg<uint64_t>(imp->voxel_upload_info[buf_idx][2].offsets_buffer),
       gputil::BufferArg<gputil::int3>(imp->region_key_buffers[buf_idx]), region_count,
       gputil::BufferArg<GpuKey>(imp->key_buffers[buf_idx]),
@@ -281,7 +282,7 @@ void GpuNdtMap::finaliseBatch(unsigned region_update_flags)
   // Update most recent chunk GPU event.
   occupancy_layer_cache.updateEvents(imp->batch_marker, imp->region_update_events[buf_idx]);
   mean_layer_cache.updateEvents(imp->batch_marker, imp->region_update_events[buf_idx]);
-  ndt_voxel_layer_cache.updateEvents(imp->batch_marker, imp->region_update_events[buf_idx]);
+  cov_voxel_layer_cache.updateEvents(imp->batch_marker, imp->region_update_events[buf_idx]);
 
   // std::cout << imp->region_counts[bufIdx] << "
   // regions\n" << std::flush;
@@ -290,7 +291,7 @@ void GpuNdtMap::finaliseBatch(unsigned region_update_flags)
   // Start a new batch for the GPU layers.
   imp->batch_marker = occupancy_layer_cache.beginBatch();
   mean_layer_cache.beginBatch(imp->batch_marker);
-  ndt_voxel_layer_cache.beginBatch(imp->batch_marker);
+  cov_voxel_layer_cache.beginBatch(imp->batch_marker);
   imp->next_buffers_index = 1 - imp->next_buffers_index;
 }
 
@@ -299,14 +300,14 @@ void GpuNdtMap::releaseGpuProgram()
 {
   GpuMap::releaseGpuProgram();
   GpuNdtMapDetail *imp = detail();
-  if (imp && imp->ndt_hit_kernel.isValid())
+  if (imp && imp->cov_hit_kernel.isValid())
   {
-    imp->ndt_hit_kernel = gputil::Kernel();
+    imp->cov_hit_kernel = gputil::Kernel();
   }
 
-  if (imp && imp->ndt_hit_program_ref)
+  if (imp && imp->cov_hit_program_ref)
   {
-    imp->ndt_hit_program_ref->releaseReference();
-    imp->ndt_hit_program_ref = nullptr;
+    imp->cov_hit_program_ref->releaseReference();
+    imp->cov_hit_program_ref = nullptr;
   }
 }

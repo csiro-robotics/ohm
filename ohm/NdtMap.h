@@ -18,7 +18,7 @@ namespace ohm
   /// A variation on @c OccupancyMap which uses a 3D Normal Distribution Transform (NDT) to calculate occupancy
   /// adjustments.
   ///
-  /// This technique adds a voxel layer which includes a packed covariance matrix (see @c NdtVoxel ) and ensures
+  /// This technique adds a voxel layer which includes a packed covariance matrix (see @c CovarianceVoxel ) and ensures
   /// voxel mean positioning is enabled.
   ///
   /// This covariance matrix describes an ellipsoid within the voxel which approximates the collection of samples used
@@ -37,7 +37,7 @@ namespace ohm
   {
   public:
     /// Create an NDT map for the given @c OccupancyMap . The voxel layout is adjusted to include a layer for
-    /// @c NdtVoxel data.
+    /// @c CovarianceVoxel data.
     ///
     /// The @p map ownership is passed to this object if @c borrowed_map is false, in which case the @c NdtMap takes
     /// ownership of the @c OccupancyMap .
@@ -75,7 +75,7 @@ namespace ohm
     /// Is tracing enabled?
     bool trace() const;
 
-    /// Query the voxel layer index which stores the @c NdtVoxel covariance data.
+    /// Query the voxel layer index which stores the @c CovarianceVoxel covariance data.
     /// @return The covariance voxel layer index.
     int covarianceLayerIndex() const;
 

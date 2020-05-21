@@ -7,7 +7,7 @@
 #include "gpu_ext.h"
 
 #include "GpuKey.h"
-#include "NdtVoxel.h"
+#include "CovarianceVoxel.h"
 #include "VoxelMean.h"
 
 #include "Regions.cl"
@@ -16,7 +16,7 @@
 
 typedef struct WorkItem_t
 {
-  NdtVoxel ndt;
+  CovarianceVoxel cov;
   // Voxel mean relative to the voxel centre.
   float3 mean;
   uint sample_count;
@@ -41,8 +41,8 @@ void __device__ collateSample(WorkItem *work_item, GpuKey *start, GpuKey *end, f
   sensor += sensor_to_sample_correct;
   sample += sensor_to_sample_correct;
 
-  calculateHit(&work_item->ndt, &work_item->occupancy, sample, work_item->mean, work_item->sample_count,
-               sample_adjustment, INFINITY, sensor_noise);
+  calculateHitWithCovariance(&work_item->cov, &work_item->occupancy, sample, work_item->mean, work_item->sample_count,
+                             sample_adjustment, INFINITY, sensor_noise);
   const float one_on_count_plus_one = 1.0f / (float)(work_item->sample_count + 1);
   work_item->mean = (work_item->sample_count * work_item->mean + sample) * one_on_count_plus_one;
   ++work_item->sample_count;
@@ -52,12 +52,13 @@ void __device__ collateSample(WorkItem *work_item, GpuKey *start, GpuKey *end, f
 // - Invocation is one thread per sample (subject to change)
 // - Each thread will handle one sample voxel
 //  - Contension avoided by having only the first thread targetting a particular voxel allowed to write resutls.
-__kernel void ndtHit(__global atomic_float *occupancy, __global ulonglong *occupancy_region_mem_offsets_global,
-                     __global VoxelMean *means, __global ulonglong *means_region_mem_offsets_global,
-                     __global NdtVoxel *ndt_voxels, __global ulonglong *ndt_region_mem_offsets_global,
-                     __global int3 *occupancy_region_keys_global, uint region_count, __global GpuKey *line_keys,
-                     __global float3 *local_lines, uint line_count, int3 region_dimensions, float voxel_resolution,
-                     float sample_adjustment, float occupied_threshold, float voxel_value_max, float sensor_noise)
+__kernel void covarianceHit(__global atomic_float *occupancy, __global ulonglong *occupancy_region_mem_offsets_global,
+                            __global VoxelMean *means, __global ulonglong *means_region_mem_offsets_global,
+                            __global CovarianceVoxel *cov_voxels, __global ulonglong *cov_region_mem_offsets_global,
+                            __global int3 *occupancy_region_keys_global, uint region_count, __global GpuKey *line_keys,
+                            __global float3 *local_lines, uint line_count, int3 region_dimensions,
+                            float voxel_resolution, float sample_adjustment, float occupied_threshold,
+                            float voxel_value_max, float sensor_noise)
 {
   if (get_global_id(0) >= line_count)
   {
@@ -70,9 +71,9 @@ __kernel void ndtHit(__global atomic_float *occupancy, __global ulonglong *occup
   copyKey(&target_voxel, &line_keys[get_global_id(0) * 2 + 1]);
   const uint region_local_index = target_voxel.voxel[0] + target_voxel.voxel[1] * region_dimensions.x +
                                   target_voxel.voxel[2] * region_dimensions.x * region_dimensions.y;
-  uint occupancy_index, mean_index, ndt_index;
+  uint occupancy_index, mean_index, cov_index;
 
-  // Resolve the read/write indices for the target voxel. We need indices into occupancy, means and ndt_voxels.
+  // Resolve the read/write indices for the target voxel. We need indices into occupancy, means and cov_voxels.
   // Dummy arguments for regionsResolveRegion(). We will only perform one lookup for each data type.
   int3 dummy_region_key;
   uint region_index;
@@ -87,7 +88,7 @@ __kernel void ndtHit(__global atomic_float *occupancy, __global ulonglong *occup
 
   occupancy_index = (uint)(region_local_index + occupancy_region_mem_offsets_global[region_index] / sizeof(*occupancy));
   mean_index = (uint)(region_local_index + means_region_mem_offsets_global[region_index] / sizeof(*means));
-  ndt_index = (uint)(region_local_index + ndt_region_mem_offsets_global[region_index] / sizeof(*ndt_voxels));
+  cov_index = (uint)(region_local_index + cov_region_mem_offsets_global[region_index] / sizeof(*cov_voxels));
 
   // Cache the occupancy value.
   WorkItem work_item;
@@ -95,12 +96,12 @@ __kernel void ndtHit(__global atomic_float *occupancy, __global ulonglong *occup
   work_item.mean = subVoxelToLocalCoord(means[mean_index].coord, voxel_resolution);
   work_item.sample_count = means[mean_index].count;
   // Manual copy of the NDT voxel: we had some issues with OpenCL assignment on structures.
-  work_item.ndt.cov_sqrt_diag[0] = ndt_voxels[ndt_index].cov_sqrt_diag[0];
-  work_item.ndt.cov_sqrt_diag[1] = ndt_voxels[ndt_index].cov_sqrt_diag[1];
-  work_item.ndt.cov_sqrt_diag[2] = ndt_voxels[ndt_index].cov_sqrt_diag[2];
-  work_item.ndt.cov_sqrt_diag[3] = ndt_voxels[ndt_index].cov_sqrt_diag[3];
-  work_item.ndt.cov_sqrt_diag[4] = ndt_voxels[ndt_index].cov_sqrt_diag[4];
-  work_item.ndt.cov_sqrt_diag[5] = ndt_voxels[ndt_index].cov_sqrt_diag[5];
+  work_item.cov.cov_sqrt_diag[0] = cov_voxels[cov_index].cov_sqrt_diag[0];
+  work_item.cov.cov_sqrt_diag[1] = cov_voxels[cov_index].cov_sqrt_diag[1];
+  work_item.cov.cov_sqrt_diag[2] = cov_voxels[cov_index].cov_sqrt_diag[2];
+  work_item.cov.cov_sqrt_diag[3] = cov_voxels[cov_index].cov_sqrt_diag[3];
+  work_item.cov.cov_sqrt_diag[4] = cov_voxels[cov_index].cov_sqrt_diag[4];
+  work_item.cov.cov_sqrt_diag[5] = cov_voxels[cov_index].cov_sqrt_diag[5];
 
   uint working_rays[WORKING_RAY_COUNT];
   GpuKey start_key, end_key;
@@ -161,6 +162,6 @@ __kernel void ndtHit(__global atomic_float *occupancy, __global ulonglong *occup
     occupancy[occupancy_index] = work_item.occupancy;
     means[mean_index].coord = subVoxelCoord(work_item.mean, voxel_resolution);
     means[mean_index].count = work_item.sample_count;
-    ndt_voxels[ndt_index] = work_item.ndt;
+    cov_voxels[cov_index] = work_item.cov;
   }
 }
