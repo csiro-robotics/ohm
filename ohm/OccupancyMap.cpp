@@ -571,38 +571,15 @@ MapLayout &OccupancyMap::layout()
 
 void OccupancyMap::addVoxelMeanLayer()
 {
-  MapLayout &layout = imp_->layout;
-  if (layout.hasVoxelMean())
+  if (imp_->layout.hasVoxelMean())
   {
     // Already present.
     return;
   }
 
-  // Add the mean layer.
-  MapLayer *layer = addVoxelMean(layout);
-  int layer_index = layer->layerIndex();
-
-  // Update all existing chunks to add the required voxel data.
-  for (auto &&chunk_ref : imp_->chunks)
-  {
-    MapChunk &chunk = *chunk_ref.second;
-
-    // Re-allocate chunk layer pointers.
-    uint8_t **voxel_maps = new uint8_t *[layout.layerCount()];
-    for (int i = 0; i < layer_index; ++i)
-    {
-      voxel_maps[i] = chunk.voxel_maps[i];
-    }
-
-    // Release the existing layer pointer array.
-    delete[] chunk.voxel_maps;
-    chunk.voxel_maps = voxel_maps;
-
-    // Allocate new memory for the occupancy layer of this chunk.
-    uint8_t *mean_mem = layer->allocate(imp_->region_voxel_dimensions);
-    layer->clear(mean_mem, imp_->region_voxel_dimensions);
-    chunk.voxel_maps[layer_index] = mean_mem;
-  }
+  MapLayout layout = imp_->layout;
+  addVoxelMean(layout);
+  updateLayout(layout);
 }
 
 

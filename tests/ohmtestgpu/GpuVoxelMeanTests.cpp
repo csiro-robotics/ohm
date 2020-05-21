@@ -152,7 +152,7 @@ namespace voxelmean
 
     ASSERT_TRUE(gpu_wrap.gpuOk());
 
-    const GpuLayerCache *gpu_occupancy_cache = gpu_wrap.gpuCache()->layerCache(map.layout().occupancyLayer());
+    const GpuLayerCache *gpu_occupancy_cache = gpu_wrap.gpuCache()->layerCache(kGcIdOccupancy);
     const size_t without_voxel_means_chunk_size = gpu_occupancy_cache->chunkSize();
 
     // First integrate without voxel mean positioning
@@ -172,11 +172,25 @@ namespace voxelmean
     // Cache the voxel layout so we can add and remove the voxel mean layer.
     MapLayout cached_layout = map.layout();
 
+    gpu_occupancy_cache = nullptr;
     map.addVoxelMeanLayer();
+    gpu_occupancy_cache = gpu_wrap.gpuCache()->layerCache(kGcIdOccupancy);
+
+    EXPECT_NE(gpu_wrap.gpuCache()->layerCache(kGcIdVoxelMean), nullptr);
+
     const size_t with_voxel_means_chunk_size = gpu_occupancy_cache->chunkSize();
     voxel = map.voxel(map.voxelKey(sample_pos), true);
 
-    EXPECT_GE(with_voxel_means_chunk_size, without_voxel_means_chunk_size);
+    EXPECT_EQ(with_voxel_means_chunk_size, without_voxel_means_chunk_size);
+    unsigned active_gpu_layers = 0;
+    for (unsigned i = 0; i < gpu_wrap.gpuCache()->layerCount(); ++i)
+    {
+      if (gpu_wrap.gpuCache()->layerCache(i) != nullptr)
+      {
+        ++active_gpu_layers;
+      }
+    }
+    EXPECT_EQ(active_gpu_layers, 2);
 
     ASSERT_TRUE(voxel.isValid());
     EXPECT_TRUE(voxel.isOccupied());
@@ -195,7 +209,10 @@ namespace voxelmean
     EXPECT_NEAR(voxel_pos.z, sample_pos.z, resolution / 1000.0);
 
     // Now remove voxel mean positioning.
+    gpu_occupancy_cache = nullptr;
     map.updateLayout(cached_layout);
+    EXPECT_EQ(gpu_wrap.gpuCache()->layerCount(), kGcIdOccupancy + 1);
+    gpu_occupancy_cache = gpu_wrap.gpuCache()->layerCache(kGcIdOccupancy);
     const size_t without_voxel_means_chunk_size2 = gpu_occupancy_cache->chunkSize();
     voxel = map.voxel(map.voxelKey(sample_pos), true);
 
@@ -210,44 +227,6 @@ namespace voxelmean
     EXPECT_EQ(voxel_centre.x, voxel_pos.x);
     EXPECT_EQ(voxel_centre.y, voxel_pos.y);
     EXPECT_EQ(voxel_centre.z, voxel_pos.z);
-  }
-
-  TEST(VoxelMean, Cpu)
-  {
-    const double resolution = 0.5;
-    const glm::u8vec3 region_size(32);
-
-    // Make a ray.
-    std::vector<glm::dvec3> rays;
-    rays.emplace_back(glm::dvec3(0));
-    rays.emplace_back(glm::dvec3(1.1));
-    rays.emplace_back(glm::dvec3(0));
-    rays.emplace_back(glm::dvec3(-2.4));
-    rays.emplace_back(glm::dvec3(0));
-    rays.emplace_back(glm::dvec3(1, -2.2, -3.3));
-
-    // Test basic map populate using GPU and ensure it matches CPU (close enough).
-    OccupancyMap map(resolution, region_size, MapFlag::kVoxelMean);
-
-    map.integrateRays(rays.data(), unsigned(rays.size()));
-
-    std::vector<VoxelMeanResult> results;
-    for (size_t i = 1; i < rays.size(); i += 2)
-    {
-      const VoxelConst voxel = map.voxel(map.voxelKey(rays[i]));
-      if (voxel.isValid())
-      {
-        VoxelMeanResult sub_vox;
-
-        sub_vox.expected_position = rays[i];
-        sub_vox.reported_position = voxel.position();
-        sub_vox.voxel_centre = voxel.centreGlobal();
-
-        results.push_back(sub_vox);
-      }
-    }
-
-    printVoxelPositionResults(results, false, map.resolution());
   }
 
   TEST(VoxelMean, Gpu)
