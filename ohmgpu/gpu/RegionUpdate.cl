@@ -84,7 +84,7 @@ typedef struct LineWalkData_t
   __global VoxelMean *means;
   // Array of offsets for each regionKey into means. These are byte offsets.
   __global ulonglong *means_offsets;
-#endif // VOXEL_MEAN || NDT
+#endif  // VOXEL_MEAN || NDT
 #ifdef NDT
   __global CovarianceVoxel *cov_voxels;
   // Array of offsets for each regionKey into cov_voxels. These are byte offsets.
@@ -113,13 +113,12 @@ typedef struct LineWalkData_t
   // Index of the @c current_region into region_keys and corresponding xxx_offsets arrays.
   uint current_region_index;
   uint region_update_flags;
-  // Local coordinate within the end voxel.
-  float3 sub_voxel_coord;
-#ifdef NDT
-  /// Modified sensor position. TODO: clarify "modified"
-  float3 sensor;
-  /// Modified sample position. TODO: clarify "modified"
+  /// A reference sample position. This is in a frame local to the centre of the voxel containing this sample
+  /// coordinate.
   float3 sample;
+#ifdef NDT
+  /// A reference sensor position. This is in a frame local to the centre of the voxel containing the sample coordinate.
+  float3 sensor;
   // An estimate on the sensor range noise error.
   float sensor_noise;
 #endif  // NDT
@@ -137,8 +136,7 @@ typedef struct LineWalkData_t
 #endif  // NDT
 
 // Implement the voxel traversal function. We update the value of the voxel using atomic instructions.
-__device__ bool VISIT_LINE_VOXEL(const GpuKey *voxelKey, bool isEndVoxel,
-                                 const GpuKey *startKey, const GpuKey *endKey,
+__device__ bool VISIT_LINE_VOXEL(const GpuKey *voxelKey, bool isEndVoxel, const GpuKey *startKey, const GpuKey *endKey,
                                  float voxel_resolution, void *userData)
 {
   float old_value, new_value;
@@ -165,9 +163,8 @@ __device__ bool VISIT_LINE_VOXEL(const GpuKey *voxelKey, bool isEndVoxel,
     //   of a region not hit when walking the regions on CPU.
     // - Regions may not be uploaded due to extents limiting on CPU.
 #ifdef REPORT_MISSING_REGIONS
-    printf("%u region missing: " KEY_F "\n  Voxels: " KEY_F "->" KEY_F "\n",
-           get_global_id(0), KEY_A(*voxelKey), KEY_A(*startKey), KEY_A(*endKey)
-    );
+    printf("%u region missing: " KEY_F "\n  Voxels: " KEY_F "->" KEY_F "\n", get_global_id(0), KEY_A(*voxelKey),
+           KEY_A(*startKey), KEY_A(*endKey));
 #endif
     return true;
   }
@@ -229,11 +226,10 @@ __device__ bool VISIT_LINE_VOXEL(const GpuKey *voxelKey, bool isEndVoxel,
 #if defined(VOXEL_MEAN) || defined(NDT)
     if (adjustment > 0)
     {
-      ulonglong vi =
-        vi_local + (line_data->means_offsets[line_data->current_region_index] / sizeof(*line_data->means));
-      updateVoxelMeanPosition(&line_data->means[vi], line_data->sub_voxel_coord, voxel_resolution);
+      ulonglong vi = vi_local + (line_data->means_offsets[line_data->current_region_index] / sizeof(*line_data->means));
+      updateVoxelMeanPosition(&line_data->means[vi], line_data->sample, voxel_resolution);
     }
-#endif // VOXEL_MEAN || NDT
+#endif  // VOXEL_MEAN || NDT
 
     if (was_occupied_voxel && (line_data->region_update_flags & kRfStopOnFirstOccupied))
     {
@@ -305,8 +301,9 @@ __device__ bool VISIT_LINE_VOXEL(const GpuKey *voxelKey, bool isEndVoxel,
 /// @param line_keys Array of line segment pairs converted into @c GpuKey references to integrate into the map.
 /// @param local_lines Array array of line segments which generated the @c line_keys. These are converted from the
 ///     original, double precision, map frame coordinates into a set of local frames. Each start/end point pair is
-///     relative to the centre of the voxel containing the start point. This is to reduce floating point error in
-///     double to single precision conversion. The original coordinates are not recoverable in this code.
+///     relative to the centre of the voxel containing the end point. This is to reduce floating point error in
+///     double to single precision conversion and assist in voxel mean calculations which are in the same frame.
+///     The original coordinates are not recoverable in this code.
 /// @param line_count number of lines in @p line_keys and @p local_lines. These come in pairs, so the number of elements
 ///     in those arrays is double this value.
 /// @param region_dimensions Specifies the size of any one region in voxels.
@@ -318,12 +315,14 @@ __device__ bool VISIT_LINE_VOXEL(const GpuKey *voxelKey, bool isEndVoxel,
 /// @param voxel_value_min Minimum clamping value for voxel adjustments.
 /// @param voxel_value_max Maximum clamping value for voxel adjustments.
 /// @param region_update_flags Update control values as per @c RayFlag.
-__kernel void REGION_UPDATE_KERNEL(__global atomic_float *occupancy, __global ulonglong *occupancy_region_mem_offsets_global,
+__kernel void REGION_UPDATE_KERNEL(__global atomic_float *occupancy,
+                                   __global ulonglong *occupancy_region_mem_offsets_global,
 #if defined(VOXEL_MEAN) || defined(NDT)
                                    __global VoxelMean *means, __global ulonglong *means_region_mem_offsets_global,
-#endif // VOXEL_MEAN || NDT
+#endif  // VOXEL_MEAN || NDT
 #ifdef NDT
-                                   __global CovarianceVoxel *cov_voxels, __global ulonglong *cov_region_mem_offsets_global,
+                                   __global CovarianceVoxel *cov_voxels,
+                                   __global ulonglong *cov_region_mem_offsets_global,
 #endif  // NDT
                                    __global int3 *occupancy_region_keys_global, uint region_count,
                                    __global GpuKey *line_keys, __global float3 *local_lines, uint line_count,
@@ -331,8 +330,9 @@ __kernel void REGION_UPDATE_KERNEL(__global atomic_float *occupancy, __global ul
                                    float sample_adjustment, float occupied_threshold, float voxel_value_min,
                                    float voxel_value_max, uint region_update_flags
 #ifdef NDT
-                                 , float sensor_noise
-#endif // NDT
+                                   ,
+                                   float sensor_noise
+#endif  // NDT
 )
 {
   // Only process valid lines.
@@ -347,7 +347,7 @@ __kernel void REGION_UPDATE_KERNEL(__global atomic_float *occupancy, __global ul
 #if defined(VOXEL_MEAN) || defined(NDT)
   line_data.means = means;
   line_data.means_offsets = means_region_mem_offsets_global;
-#endif // VOXEL_MEAN || NDT
+#endif  // VOXEL_MEAN || NDT
 #ifdef NDT
   line_data.cov_voxels = cov_voxels;
   line_data.cov_offsets = cov_region_mem_offsets_global;
@@ -373,42 +373,20 @@ __kernel void REGION_UPDATE_KERNEL(__global atomic_float *occupancy, __global ul
   const float3 lineStart = local_lines[get_global_id(0) * 2 + 0];
   const float3 lineEnd = local_lines[get_global_id(0) * 2 + 1];
 
-#if defined(VOXEL_MEAN) || defined(NDT)
-  // We don't need a precise conversion to a voxel key here. We simply need to logically quantise in order to work out
-  // the voxel mean offset. Essentially we have:
-  //   s = E - R floor(E/R + 0.5)
-  // where:
-  //   s: voxel mean position
-  //   E: ray End point
-  //   R: voxel resolution
-  // The addition of 0.5 applies the same half voxel offset used elsewhere. We use pointToRegionCoord() to do this
-  line_data.sub_voxel_coord.x = lineEnd.x - pointToRegionCoord(lineEnd.x, voxel_resolution) * voxel_resolution;
-  line_data.sub_voxel_coord.y = lineEnd.y - pointToRegionCoord(lineEnd.y, voxel_resolution) * voxel_resolution;
-  line_data.sub_voxel_coord.z = lineEnd.z - pointToRegionCoord(lineEnd.z, voxel_resolution) * voxel_resolution;
-
-  // Validate voxel mean coordinate calculation.
-  // We use 0.5001 * resolution rather than 0.5 to allow for floating point error when clipping to exact voxel bounds.
-  if (line_data.sub_voxel_coord.x < -0.5001f * voxel_resolution ||
-      line_data.sub_voxel_coord.x > 0.5001f * voxel_resolution ||
-      line_data.sub_voxel_coord.y < -0.5001f * voxel_resolution ||
-      line_data.sub_voxel_coord.y > 0.5001f * voxel_resolution ||
-      line_data.sub_voxel_coord.z < -0.5001f * voxel_resolution ||
-      line_data.sub_voxel_coord.z > 0.5001f * voxel_resolution)
-  {
-    printf("voxel mean-out [%f, %f]: (%f %f %f) -> (%f %f %f)\n", -0.5f * voxel_resolution, 0.5f * voxel_resolution,
-           lineEnd.x, lineEnd.y, lineEnd.z, line_data.sub_voxel_coord.x, line_data.sub_voxel_coord.y,
-           line_data.sub_voxel_coord.z);
-  }
-#else   // VOXEL_MEAN || NDT
-  line_data.sub_voxel_coord = make_float3(0, 0, 0);
-#endif  // VOXEL_MEAN || NDT
-
+  line_data.sample = lineEnd;
 #ifdef NDT
   line_data.sensor = lineStart;
-  line_data.sample = lineEnd;
-#endif //  NDT
+#endif  //  NDT
 
-  WALK_LINE_VOXELS(&start_key, &end_key, &lineStart, &lineEnd, &region_dimensions, voxel_resolution, &line_data);
+  // We need to calculate the start voxel centre in the right coordinate space. All coordinates are relative to the
+  // end voxel centre.
+  // 1. Calculate the voxel step from endKey to startKey.
+  // 2. Scale results by voxelResolution.
+  const int3 voxelDiff = keyDiff(&end_key, &start_key, &region_dimensions);
+  const float3 start_voxel_centre =
+    make_float3(voxelDiff.x * voxel_resolution, voxelDiff.y * voxel_resolution, voxelDiff.z * voxel_resolution);
+  WALK_LINE_VOXELS(&start_key, &end_key, &start_voxel_centre, &lineStart, &lineEnd, &region_dimensions,
+                   voxel_resolution, &line_data);
 }
 
 #undef REGION_UPDATE_KERNEL

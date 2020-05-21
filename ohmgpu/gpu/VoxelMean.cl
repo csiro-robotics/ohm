@@ -8,6 +8,9 @@
 /// This is done using atomic operations.
 ///
 /// Each bit in the pattern indicates occupancy at a particular voxel mean location.
+/// @param voxel The @c VoxelMean to update.
+/// @param sample_pos The sample position local to the centre of the voxel in falls in.
+/// @param voxel_resolution Voxel size.
 __device__ void updateVoxelMeanPosition(__global VoxelMean *voxel, float3 sample_pos, float voxel_resolution);
 
 #ifndef VOXEL_MEAN_CL

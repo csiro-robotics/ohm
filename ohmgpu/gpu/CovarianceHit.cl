@@ -23,24 +23,17 @@ typedef struct WorkItem_t
   float occupancy;
 } WorkItem;
 
-void __device__ collateSample(WorkItem *work_item, GpuKey *start, GpuKey *end, float3 sensor, float3 sample,
-                              int3 region_dimensions, float voxel_resolution, float sample_adjustment,
-                              float occupied_threshold, float sensor_noise);
+void __device__ collateSample(WorkItem *work_item, float3 sensor, float3 sample, int3 region_dimensions,
+                              float voxel_resolution, float sample_adjustment, float occupied_threshold,
+                              float sensor_noise);
 
 
-void __device__ collateSample(WorkItem *work_item, GpuKey *start, GpuKey *end, float3 sensor, float3 sample,
-                              int3 region_dimensions, float voxel_resolution, float sample_adjustment,
-                              float occupied_threshold, float sensor_noise)
+void __device__ collateSample(WorkItem *work_item, float3 sensor, float3 sample, int3 region_dimensions,
+                              float voxel_resolution, float sample_adjustment, float occupied_threshold,
+                              float sensor_noise)
 {
-  // The sample is currently relative to the voxel centre of the start voxel. We need to change it to a consistent
-  // frame. We choose the target voxel centre as the origin. We need to calculate the voxel difference between
-  // the start and end voxels, scale this by the voxel_resolution and add that.
-  const int3 voxel_diff = keyDiff(end, start, &region_dimensions);
-  const float3 sensor_to_sample_correct =
-    make_float3(voxel_diff.x * voxel_resolution, voxel_diff.y * voxel_resolution, voxel_diff.z * voxel_resolution);
-  sensor += sensor_to_sample_correct;
-  sample += sensor_to_sample_correct;
-
+  // The sample is currently relative to the voxel centre of the end voxel. This is the same reference frame we need
+  // to calculate the quantised mean, so no change is required.
   calculateHitWithCovariance(&work_item->cov, &work_item->occupancy, sample, work_item->mean, work_item->sample_count,
                              sample_adjustment, INFINITY, sensor_noise);
   const float one_on_count_plus_one = 1.0f / (float)(work_item->sample_count + 1);
@@ -104,7 +97,7 @@ __kernel void covarianceHit(__global atomic_float *occupancy, __global ulonglong
   work_item.cov.cov_sqrt_diag[5] = cov_voxels[cov_index].cov_sqrt_diag[5];
 
   uint working_rays[WORKING_RAY_COUNT];
-  GpuKey start_key, end_key;
+  GpuKey end_key;
   uint collected_count = 0;
   bool is_first = true;
   bool allowed_write = false;
@@ -124,9 +117,8 @@ __kernel void covarianceHit(__global atomic_float *occupancy, __global ulonglong
         {
           // We have collected too many items to process and must process them now. This is inefficient as we will have
           // very few threads doing this work at the same time.
-          copyKey(&start_key, &line_keys[i * 2]);
-          collateSample(&work_item, &start_key, &end_key, local_lines[i * 2], local_lines[i * 2 + 1], region_dimensions,
-                        voxel_resolution, sample_adjustment, occupied_threshold, sensor_noise);
+          collateSample(&work_item, local_lines[i * 2], local_lines[i * 2 + 1], region_dimensions, voxel_resolution,
+                        sample_adjustment, occupied_threshold, sensor_noise);
         }
       }
       else
@@ -146,10 +138,8 @@ __kernel void covarianceHit(__global atomic_float *occupancy, __global ulonglong
     for (uint i = 0; i < collected_count; ++i)
     {
       uint li = working_rays[i];
-      copyKey(&start_key, &line_keys[li * 2]);
-      copyKey(&end_key, &line_keys[li * 2 + 1]);
-      collateSample(&work_item, &start_key, &end_key, local_lines[li * 2], local_lines[li * 2 + 1], region_dimensions,
-                    voxel_resolution, sample_adjustment, occupied_threshold, sensor_noise);
+      collateSample(&work_item, local_lines[li * 2], local_lines[li * 2 + 1], region_dimensions, voxel_resolution,
+                    sample_adjustment, occupied_threshold, sensor_noise);
     }
 
     // Cap occupancy to max.

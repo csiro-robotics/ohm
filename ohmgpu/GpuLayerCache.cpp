@@ -47,9 +47,11 @@ namespace ohm
     gputil::Event sync_event;
     /// Stamp value used to assess the oldest cache entry.
     uint64_t age_stamp = 0;
-    /// Tracks the @c MapChunk::touched_stamps value for the voxel layer. We know the layer has been modified in CPU if
-    /// this does not match and we must ignore the cached entry.
-    uint64_t chunk_touch_stamp = 0;
+    // FIXME: (KS) Would be nice to resolve how chunk stamping is managed to sync between GPU and CPU.
+    // Currently we must clear the GpuCache when updating on CPU.
+    // /// Tracks the @c MapChunk::touched_stamps value for the voxel layer. We know the layer has been modified in CPU if
+    // /// this does not match and we must ignore the cached entry.
+    // uint64_t chunk_touch_stamp = 0;
     /// Most recent @c  batch_marker from @c upload().
     unsigned batch_marker = 0;
     /// Can/should download of this item be skipped?
@@ -375,11 +377,12 @@ GpuCacheEntry *GpuLayerCache::resolveCacheEntry(OccupancyMap &map, const glm::i1
       }
     }
 
-    if (upload && !update_required && entry->chunk)
-    {
-      // Check if the chunk has changed in CPU.
-      update_required = chunk->touched_stamps[imp_->layer_index] != entry->chunk_touch_stamp;
-    }
+    // FIXME: (KS) resolve detecting CPU changes. Currently must clear the cache.
+    // if (upload && !update_required && entry->chunk)
+    // {
+    //   // Check if the chunk has changed in CPU.
+    //   update_required = chunk->touched_stamps[imp_->layer_index] != entry->chunk_touch_stamp;
+    // }
 
     if (update_required)
     {

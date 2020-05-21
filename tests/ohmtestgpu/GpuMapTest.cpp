@@ -258,7 +258,7 @@ namespace gpumap
   TEST(GpuMap, PopulateTiny)
   {
     const double resolution = 0.25;
-    const unsigned batch_size = 1;
+    const unsigned batch_size = 2;
     const glm::u8vec3 region_size(32);
 
     // Make a ray.
@@ -266,8 +266,8 @@ namespace gpumap
     rays.emplace_back(glm::dvec3(0.3));
     rays.emplace_back(glm::dvec3(1.1));
 
-    // rays.emplace_back(glm::dvec3(-5.0));
-    // rays.emplace_back(glm::dvec3(0.3));
+    rays.emplace_back(glm::dvec3(-5.0));
+    rays.emplace_back(glm::dvec3(0.3));
 
     gpuMapTest(resolution, region_size, rays, compareCpuGpuMaps, "tiny", batch_size);
   }
@@ -648,7 +648,7 @@ namespace gpumap
     const unsigned ray_count = 64;
     const unsigned batch_size = 32;
     const glm::u8vec3 region_size(32);
-    
+
     // Make some rays.
     std::mt19937 rand_engine;
     std::uniform_real_distribution<double> rand(-map_extents, map_extents);

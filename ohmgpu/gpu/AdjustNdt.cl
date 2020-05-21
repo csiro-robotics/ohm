@@ -20,17 +20,14 @@ inline __device__ float calculateOccupancyAdjustment(const GpuKey *voxelKey, boo
                              voxelKey->voxel[2] * line_data->region_dimensions.x * line_data->region_dimensions.y;
   ulonglong vi = (line_data->means_offsets[line_data->current_region_index] / sizeof(*line_data->means)) + vi_local;
   __global VoxelMean *mean_data = &line_data->means[vi];
-  float3 voxel_mean = subVoxelToLocalCoord(mean_data->coord, voxel_resolution);
-  // voxel_mean is currently relative to the voxel centre. We need to change it to be in the same reference
-  // frame as the incoming rays. We need to calculate the voxel centre relative to the first ray start coordinate.
-  //
-  // line_data->sample is relative to the line_data->sensor, so we can get the right voxel mean as follows:
-  // 1. Calculate the number of voxel between line_data->start_key and voxelKey (per axis)
-  // 2. Scale this result by the voxel_resolution : this is the centre of voxelKey
-  // 3. Add to voxel_mean
 
-  // Calculate the number of voxel steps to the voxelKey
-  const int3 voxel_diff = keyDiff(voxelKey, startKey, &line_data->region_dimensions);
+  float3 voxel_mean = subVoxelToLocalCoord(mean_data->coord, voxel_resolution);
+  // voxel_mean is currently relative to the voxel centre of the voxelKey voxel. We need to change it to be in the same reference
+  // frame as the incoming rays, which is relative to the endKey voxel. For this we need to caculate the additional
+  // displacement from the centre of endKey to the centre of voxelKey and add this displacement.
+
+  // Calculate the number of voxel steps from endKey to the voxelKey
+  const int3 voxel_diff = keyDiff(endKey, voxelKey, &line_data->region_dimensions);
   // Scale by voxel resolution and add to voxel_mean
   voxel_mean.x += voxel_diff.x * voxel_resolution;
   voxel_mean.y += voxel_diff.y * voxel_resolution;

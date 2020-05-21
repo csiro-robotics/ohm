@@ -10,9 +10,8 @@
 
 #define WALK_LINE_VOXELS lineKeysWalkLine
 #define VISIT_LINE_VOXEL lineKeysVisitVoxel
-__device__ bool lineKeysVisitVoxel(const GpuKey *voxelKey, bool isEndVoxel,
-                                   const GpuKey *startKey, const GpuKey *endKey,
-                                   float voxelResolution, void *userData);
+__device__ bool lineKeysVisitVoxel(const GpuKey *voxelKey, bool isEndVoxel, const GpuKey *startKey,
+                                   const GpuKey *endKey, float voxelResolution, void *userData);
 
 // Must be included after above defined
 #include "LineWalk.cl"
@@ -24,15 +23,13 @@ typedef struct LineWalkData_t
   uint keyCount;
 } LineWalkData;
 
-__device__ void calculateLineKeys(__global GpuKey *lineOut, uint maxKeys,
-                       const GpuKey *startKey, const GpuKey *endKey,
-                       const float3 *startPoint, const float3 *endPoint,
-                       const int3 *regionDim, float voxelResolution);
+__device__ void calculateLineKeys(__global GpuKey *lineOut, uint maxKeys, const GpuKey *startKey, const GpuKey *endKey,
+                                  const float3 *startPoint, const float3 *endPoint, const int3 *regionDim,
+                                  float voxelResolution);
 
 
-__device__ bool lineKeysVisitVoxel(const GpuKey *voxelKey, bool isEndVoxel,
-                                   const GpuKey *startKey, const GpuKey *endKey,
-                                   float voxelResolution, void *userData)
+__device__ bool lineKeysVisitVoxel(const GpuKey *voxelKey, bool isEndVoxel, const GpuKey *startKey,
+                                   const GpuKey *endKey, float voxelResolution, void *userData)
 {
   LineWalkData *lineData = (LineWalkData *)userData;
   copyKey(&lineData->lineOut[1 + lineData->keyCount++], voxelKey);
@@ -40,17 +37,17 @@ __device__ bool lineKeysVisitVoxel(const GpuKey *voxelKey, bool isEndVoxel,
 }
 
 
-__device__ void calculateLineKeys(__global GpuKey *lineOut, uint maxKeys,
-                       const GpuKey *startKey, const GpuKey *endKey,
-                       const float3 *startPoint, const float3 *endPoint,
-                       const int3 *regionDim, float voxelResolution)
+__device__ void calculateLineKeys(__global GpuKey *lineOut, uint maxKeys, const GpuKey *startKey, const GpuKey *endKey,
+                                  const float3 *startPoint, const float3 *endPoint, const int3 *regionDim,
+                                  float voxelResolution)
 {
   LineWalkData lineData;
   lineData.lineOut = lineOut;
   lineData.maxKeys = maxKeys;
   lineData.keyCount = 0;
 
-  lineKeysWalkLine(startKey, endKey, startPoint, endPoint, regionDim, voxelResolution, &lineData);
+  const float3 origin = make_float3(0, 0, 0);
+  lineKeysWalkLine(startKey, endKey, &origin, startPoint, endPoint, regionDim, voxelResolution, &lineData);
 
   // Write result count to the first entry.
   lineOut[0].region[0] = lineOut[0].region[1] = lineOut[0].region[2] = lineData.keyCount;
@@ -58,10 +55,8 @@ __device__ void calculateLineKeys(__global GpuKey *lineOut, uint maxKeys,
 }
 
 
-__kernel void calculateLines(__global GpuKey *lines_out, uint max_keys_per_line,
-                             const __global float3 *queryPointPairs,
-                             uint queryCount, int3 regionDim, float voxelResolution
-                             )
+__kernel void calculateLines(__global GpuKey *lines_out, uint max_keys_per_line, const __global float3 *queryPointPairs,
+                             uint queryCount, int3 regionDim, float voxelResolution)
 {
   const bool validThread = (get_global_id(0) < queryCount);
 
@@ -81,12 +76,13 @@ __kernel void calculateLines(__global GpuKey *lines_out, uint max_keys_per_line,
 
   // printf("Query Count: %u\nValid? %d\n", queryCount, validThread ? 1 : 0);
   // printf("RD: %d %d %d   Res: %f\n", regionDim.x, regionDim.y, regionDim.z, voxelResolution);
-  // printf("From %f %f %f to %f %f %f\n", startPoint.x, startPoint.y, startPoint.z, endPoint.x, endPoint.y, endPoint.z);
-  // printf("Keys: " KEY_F " to " KEY_F "\n", KEY_A(startKey), KEY_A(endKey));
+  // printf("From %f %f %f to %f %f %f\n", startPoint.x, startPoint.y, startPoint.z, endPoint.x, endPoint.y,
+  // endPoint.z); printf("Keys: " KEY_F " to " KEY_F "\n", KEY_A(startKey), KEY_A(endKey));
 
   // Adjust start/end point to be relative to the centre of the startKey voxel.
   startPoint -= voxelCentre(&startKey, &regionDim, voxelResolution);
   endPoint -= voxelCentre(&startKey, &regionDim, voxelResolution);
 
-  calculateLineKeys(lineOut, max_keys_per_line, &startKey, &endKey, &startPoint, &endPoint, &regionDim, voxelResolution);
+  calculateLineKeys(lineOut, max_keys_per_line, &startKey, &endKey, &startPoint, &endPoint, &regionDim,
+                    voxelResolution);
 }

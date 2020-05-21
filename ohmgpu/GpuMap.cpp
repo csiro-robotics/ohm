@@ -570,8 +570,8 @@ size_t GpuMap::integrateRays(const glm::dvec3 *rays, size_t element_count, unsig
   // Build region set and upload rays.
   imp_->regions.clear();
 
-  glm::dvec3 ray_start_d, ray_end_d, start_voxel_centre;
-  glm::vec3 ray_start, ray_end;
+  glm::dvec3 ray_start_d, ray_end_d, end_voxel_centre;
+  gputil::float3 ray[2];
   unsigned upload_count = 0u;
   unsigned filter_flags;
   Key line_start_key, line_end_key;
@@ -626,11 +626,17 @@ size_t GpuMap::integrateRays(const glm::dvec3 *rays, size_t element_count, unsig
     keys_pinned.write(&line_end_key_gpu, sizeof(line_end_key_gpu), (upload_count + 1) * sizeof(GpuKey));
 
     // Localise the ray to single precision.
-    start_voxel_centre = map.voxelCentreGlobal(line_start_key);
-    ray_start = glm::vec3(ray_start_d - start_voxel_centre);
-    ray_end = glm::vec3(ray_end_d - start_voxel_centre);
-    rays_pinned.write(glm::value_ptr(ray_start), sizeof(glm::vec3), (upload_count + 0) * sizeof(gputil::float3));
-    rays_pinned.write(glm::value_ptr(ray_end), sizeof(glm::vec3), (upload_count + 1) * sizeof(gputil::float3));
+    // We change the ray coordinates to be relative to the end voxel centre. This assist later in voxel mean
+    // calculations which are all relative to that voxel centre. Normally in CPU we have to make this adjustment
+    // every time. We can avoid the adjustment via this logic.
+    end_voxel_centre = map.voxelCentreGlobal(line_end_key);
+    ray[0].x = float(ray_start_d.x - end_voxel_centre.x);
+    ray[0].y = float(ray_start_d.y - end_voxel_centre.y);
+    ray[0].z = float(ray_start_d.z - end_voxel_centre.z);
+    ray[1].x = float(ray_end_d.x - end_voxel_centre.x);
+    ray[1].y = float(ray_end_d.y - end_voxel_centre.y);
+    ray[1].z = float(ray_end_d.z - end_voxel_centre.z);
+    rays_pinned.write(ray, sizeof(ray), (upload_count + 0) * sizeof(gputil::float3));
     upload_count += 2;
 
     imp_->current_ray_ids.emplace_back(i / 2);

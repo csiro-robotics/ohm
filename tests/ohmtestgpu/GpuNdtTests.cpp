@@ -145,15 +145,15 @@ namespace ndttests
 
       // Sync from GPU.
       ndt_gpu.syncVoxels();
-      // Touch the map as we will be updating it in CPU. Ensures cache update.
-      ndt_gpu.map().touch();
+      // We will be updating on CPU. Invalidate the GPU cache.
+      ndt_gpu.gpuCache()->clear();
 
       // Read the voxel value from GPU update.
       ohm::Voxel target_voxel_gpu = ndt_gpu.map().voxel(target_key, false, nullptr);
       float ndt_cpu_value = target_voxel_cpu.value();
       float ndt_gpu_value = target_voxel_gpu.value();
 
-      EXPECT_NEAR(ndt_gpu_value, ndt_cpu_value, 1e-9f);
+      EXPECT_NEAR(ndt_gpu_value, ndt_cpu_value, 1e-4f);
 
       // Restore both voxel values.
       target_voxel_cpu.setValue(initial_value);
