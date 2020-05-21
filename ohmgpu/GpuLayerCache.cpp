@@ -46,7 +46,10 @@ namespace ohm
     /// This may be an upload, download or kernel execution using the buffer.
     gputil::Event sync_event;
     /// Stamp value used to assess the oldest cache entry.
-    uint64_t stamp = 0;
+    uint64_t age_stamp = 0;
+    /// Tracks the @c MapChunk::touched_stamps value for the voxel layer. We know the layer has been modified in CPU if
+    /// this does not match and we must ignore the cached entry.
+    uint64_t chunk_touch_stamp = 0;
     /// Most recent @c  batch_marker from @c upload().
     unsigned batch_marker = 0;
     /// Can/should download of this item be skipped?
@@ -66,7 +69,7 @@ namespace ohm
     /// replacing them.
     std::vector<size_t> mem_offset_free_list;
     glm::u8vec3 region_size = glm::u8vec3(0);
-    uint64_t stamp = 0;
+    uint64_t age_stamp = 0;
     gputil::Queue gpu_queue;
     gputil::Device gpu;
     size_t chunk_mem_size = 0;
@@ -195,7 +198,7 @@ void GpuLayerCache::updateEvent(MapChunk &chunk, gputil::Event &event)
 
   entry->sync_event = event;
   // Touch the chunk entry.
-  entry->stamp = imp_->stamp++;
+  entry->age_stamp = imp_->age_stamp++;
 }
 
 
@@ -207,10 +210,10 @@ void GpuLayerCache::updateEvents(unsigned batch_marker, gputil::Event &event)
     {
       iter.second.sync_event = event;
       // Touch the chunk entry.
-      iter.second.stamp = imp_->stamp;
+      iter.second.age_stamp = imp_->age_stamp;
     }
   }
-  ++imp_->stamp;
+  ++imp_->age_stamp;
 }
 
 
@@ -355,11 +358,27 @@ GpuCacheEntry *GpuLayerCache::resolveCacheEntry(OccupancyMap &map, const glm::i1
     bool update_required = upload && (flags & kForceUpload) != 0;
 
     // Check if it was previously added, but without allowing creation.
-    if (!entry->chunk && (flags & kAllowRegionCreate))
+    if (!entry->chunk)
     {
-      // Now allowed to create. Do so.
-      entry->chunk = chunk = map.region(region_key, true);
-      update_required = upload;
+      // First check if it's been created on CPU.
+      entry->chunk = chunk = map.region(region_key, false);
+      if (!entry->chunk && (flags & kAllowRegionCreate))
+      {
+        // Now allowed to create. Do so.
+        entry->chunk = chunk = map.region(region_key, true);
+        update_required = upload;
+      }
+      else if (entry->chunk)
+      {
+        // Has been created on CPU. Require upload.
+        update_required = true;
+      }
+    }
+
+    if (upload && !update_required && entry->chunk)
+    {
+      // Check if the chunk has changed in CPU.
+      update_required = chunk->touched_stamps[imp_->layer_index] != entry->chunk_touch_stamp;
     }
 
     if (update_required)
@@ -382,7 +401,7 @@ GpuCacheEntry *GpuLayerCache::resolveCacheEntry(OccupancyMap &map, const glm::i1
     {
       *status = kCacheExisting;
     }
-    entry->stamp = imp_->stamp++;
+    entry->age_stamp = imp_->age_stamp++;
     if (batch_marker)
     {
       // Update the batch marker.
@@ -419,8 +438,8 @@ GpuCacheEntry *GpuLayerCache::resolveCacheEntry(OccupancyMap &map, const glm::i1
     auto oldest_entry = imp_->cache.begin();
     for (auto iter = imp_->cache.begin(); iter != imp_->cache.end(); ++iter)
     {
-      // Check the stamp and the batch marker.
-      if (iter->second.stamp < oldest_entry->second.stamp &&
+      // Check the age_stamp and the batch marker.
+      if (iter->second.age_stamp < oldest_entry->second.age_stamp &&
           (batch_marker == 0 || iter->second.batch_marker != batch_marker))
       {
         oldest_entry = iter;
@@ -454,7 +473,7 @@ GpuCacheEntry *GpuLayerCache::resolveCacheEntry(OccupancyMap &map, const glm::i1
   // Complete the cache entry.
   entry->chunk = chunk;  // May be null.
   entry->region_key = region_key;
-  entry->stamp = imp_->stamp++;
+  entry->age_stamp = imp_->age_stamp++;
   if (batch_marker)
   {
     // Update the batch marker.
