@@ -67,34 +67,37 @@ namespace ohm
 
       clipped_sample_voxel = (filter_flags & kRffClippedEnd);
 
-      // Calculate line key for the last voxel if the end point has been clipped
-      calculateSegmentKeys(occupancy_map, keys, start, end, clipped_sample_voxel);
-
-      for (auto &&key : keys)
+      if (!(ray_update_flags & kRfExcludeRay))
       {
-        Voxel voxel = MapInterface::voxel(*map_, key, &cache);
-        const float voxel_value = voxel.value();
+        // Calculate line key for the last voxel if the end point has been clipped
+        calculateSegmentKeys(occupancy_map, keys, start, end, clipped_sample_voxel);
 
-        bool stop_traversal = false;
-        if ((ray_update_flags & kRfStopOnFirstOccupied) && voxel_value >= occupancy_threshold_value &&
-            voxel_value != voxel::invalidMarkerValue())
+        for (auto &&key : keys)
         {
-          // Found first occupied voxel and request is to stop on the first occupied voxel. Abort traversal after update.
-          stop_traversal = true;
-        }
+          Voxel voxel = MapInterface::voxel(*map_, key, &cache);
+          const float voxel_value = voxel.value();
 
-        // kRfClearOnly flag set => only affect occupied 7s.
-        if (!(ray_update_flags & kRfClearOnly) || voxel_value >= occupancy_threshold_value)
-        {
-          MapInterface::integrateMiss(*map_, voxel, start, end);
-        }
+          bool stop_traversal = false;
+          if ((ray_update_flags & kRfStopOnFirstOccupied) && voxel_value >= occupancy_threshold_value &&
+              voxel_value != voxel::invalidMarkerValue())
+          {
+            // Found first occupied voxel and request is to stop on the first occupied voxel. Abort traversal after update.
+            stop_traversal = true;
+          }
 
-        if (stop_traversal)
-        {
-          // Found first occupied voxel and request is to stop on the first occupied voxel. Abort traversal.
-          // Make sure we do not update the en voxel.
-          clipped_sample_voxel = true;
-          break;
+          // kRfClearOnly flag set => only affect occupied 7s.
+          if (!(ray_update_flags & kRfClearOnly) || voxel_value >= occupancy_threshold_value)
+          {
+            MapInterface::integrateMiss(*map_, voxel, start, end);
+          }
+
+          if (stop_traversal)
+          {
+            // Found first occupied voxel and request is to stop on the first occupied voxel. Abort traversal.
+            // Make sure we do not update the en voxel.
+            clipped_sample_voxel = true;
+            break;
+          }
         }
       }
 

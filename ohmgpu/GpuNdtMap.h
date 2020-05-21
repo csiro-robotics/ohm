@@ -62,6 +62,15 @@ namespace ohm
     /// Read the range sensor noise estimate.
     float sensorNoise() const;
 
+    /// Access the CPU based @c NdtMap wrapper. This should be used with great care as changes to the voxels via
+    /// this interface may not be correctly reflected in GPU.
+    /// @return The CPU based @c NdtMap
+    NdtMap &ndtMap();
+
+    /// Access the CPU based @c NdtMap wrapper.
+    /// @return The CPU based @c NdtMap
+    const NdtMap &ndtMap() const;
+
     /// Debug render the NDT map ellipsoids via 3rd Eye Scene.
     void debugDraw() const;
 

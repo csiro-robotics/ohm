@@ -151,6 +151,11 @@ __device__ bool VISIT_LINE_VOXEL(const GpuKey *voxelKey, bool isEndVoxel,
     return true;
   }
 
+  if (!isEndVoxel && (line_data->region_update_flags & kRfExcludeRay))
+  {
+    return true;
+  }
+
   // Resolve memory offset for the region of interest.
   if (!regionsResolveRegion(voxelKey, &line_data->current_region, &line_data->current_region_index,
                             line_data->region_keys, line_data->region_count))
