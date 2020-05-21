@@ -187,15 +187,15 @@ void GpuNdtMap::finaliseBatch(unsigned region_update_flags)
 
   unsigned modify_flags = (!(region_update_flags & kRfEndPointAsFree)) ? kRfExcludeSample : 0;
 
-  // NDT can only have one NdtHit batch in flight because it does not support contension. Ensure previous one has
-  // completed and it waits on the kernel above to finish too.
-  waitOnPreviousOperation(1 - buf_idx);
-
 #if REVERSE_KERNEL_ORDER
   gputil::Event hit_event;
 
   if (!(region_update_flags & (kRfExcludeSample | kRfEndPointAsFree)))
   {
+    // NDT can only have one NdtHit batch in flight because it does not support contension. Ensure previous one has
+    // completed and it waits on the kernel above to finish too.
+    waitOnPreviousOperation(1 - buf_idx);
+
     local_size = gputil::Dim3(std::min<size_t>(imp->ndt_hit_kernel.optimalWorkGroupSize(), ray_count));
     imp->ndt_hit_kernel(global_size, local_size, wait, hit_event, &gpu_cache.gpuQueue(),
                         // Kernel args begin:
@@ -248,6 +248,10 @@ void GpuNdtMap::finaliseBatch(unsigned region_update_flags)
 
   if (!(region_update_flags & (kRfExcludeSample | kRfEndPointAsFree)))
   {
+    // NDT can only have one NdtHit batch in flight because it does not support contension. Ensure previous one has
+    // completed and it waits on the kernel above to finish too.
+    waitOnPreviousOperation(1 - buf_idx);
+
     local_size = gputil::Dim3(std::min<size_t>(imp->ndt_hit_kernel.optimalWorkGroupSize(), ray_count));
     imp->ndt_hit_kernel(
       global_size, local_size, gputil::EventList(miss_event), imp->region_update_events[buf_idx], &gpu_cache.gpuQueue(),
