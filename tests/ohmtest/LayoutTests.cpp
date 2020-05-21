@@ -9,6 +9,7 @@
 #include <ohm/MapLayout.h>
 #include <ohm/OccupancyMap.h>
 #include <ohm/VoxelLayout.h>
+#include <ohm/VoxelMean.h>
 
 #include <ohmutil/OhmUtil.h>
 
@@ -22,36 +23,113 @@
 
 using namespace ohm;
 
-TEST(Layout, Default)
+TEST(Layout, Basic)
 {
   OccupancyMap map(1.0);
 
   const MapLayout &layout = map.layout();
 
-  EXPECT_EQ(layout.layerCount(), 2);
+  EXPECT_EQ(layout.layerCount(), 1);
   const MapLayer *occupancy_layer = layout.layer(default_layer::occupancyLayerName());
-  const MapLayer *clearance_layer = layout.layer(default_layer::clearanceLayerName());
   ASSERT_NE(occupancy_layer, nullptr);
+
+  EXPECT_EQ(occupancy_layer->layerIndex(), 0);
+
+  EXPECT_EQ(occupancy_layer->voxelByteSize(), sizeof(float));
+
+  VoxelLayoutConst occupancy_voxel = occupancy_layer->voxelLayout();
+
+  EXPECT_EQ(occupancy_voxel.memberCount(), 1);
+  EXPECT_STREQ(occupancy_voxel.memberName(0), default_layer::occupancyLayerName());
+  EXPECT_EQ(occupancy_voxel.memberOffset(0), 0);
+  EXPECT_EQ(occupancy_voxel.memberSize(0), sizeof(float));
+}
+
+
+TEST(Layout, DefaultLayers)
+{
+  OccupancyMap map(1.0);
+
+  MapLayout modified_layout = map.layout();
+
+  EXPECT_EQ(modified_layout.layerCount(), 1);
+  EXPECT_EQ(modified_layout.occupancyLayer(), 0);
+  EXPECT_EQ(modified_layout.meanLayer(), -1);
+  EXPECT_EQ(modified_layout.clearanceLayer(), -1);
+  EXPECT_EQ(modified_layout.layer(default_layer::covarianceLayerName()), nullptr);
+
+  addVoxelMean(modified_layout);
+  EXPECT_EQ(modified_layout.layerCount(), 2);
+  EXPECT_EQ(modified_layout.occupancyLayer(), 0);
+  EXPECT_EQ(modified_layout.meanLayer(), 1);
+  EXPECT_EQ(modified_layout.clearanceLayer(), -1);
+  EXPECT_EQ(modified_layout.layer(default_layer::covarianceLayerName()), nullptr);
+
+  addClearance(modified_layout);
+  EXPECT_EQ(modified_layout.layerCount(), 3);
+  EXPECT_EQ(modified_layout.occupancyLayer(), 0);
+  EXPECT_EQ(modified_layout.meanLayer(), 1);
+  EXPECT_EQ(modified_layout.clearanceLayer(), 2);
+  EXPECT_EQ(modified_layout.layer(default_layer::covarianceLayerName()), nullptr);
+
+  addCovariance(modified_layout);
+  EXPECT_EQ(modified_layout.layerCount(), 4);
+  EXPECT_EQ(modified_layout.occupancyLayer(), 0);
+  EXPECT_EQ(modified_layout.meanLayer(), 1);
+  EXPECT_EQ(modified_layout.clearanceLayer(), 2);
+  EXPECT_NE(modified_layout.layer(default_layer::covarianceLayerName()), nullptr);
+  EXPECT_EQ(modified_layout.layer(default_layer::covarianceLayerName())->layerIndex(), 3);
+
+  // Update the map.
+  map.updateLayout(modified_layout);
+
+  // Get the updated layout.
+  const MapLayout &layout = map.layout();
+  const MapLayer *occupancy_layer = layout.layer(default_layer::occupancyLayerName());
+  const MapLayer *mean_layer = layout.layer(default_layer::meanLayerName());
+  const MapLayer *clearance_layer = layout.layer(default_layer::clearanceLayerName());
+  const MapLayer *covariance_layer = layout.layer(default_layer::covarianceLayerName());
+  ASSERT_NE(occupancy_layer, nullptr);
+  ASSERT_NE(mean_layer, nullptr);
   ASSERT_NE(clearance_layer, nullptr);
 
   EXPECT_EQ(occupancy_layer->layerIndex(), 0);
-  EXPECT_EQ(clearance_layer->layerIndex(), 1);
+  EXPECT_EQ(mean_layer->layerIndex(), 1);
+  EXPECT_EQ(clearance_layer->layerIndex(), 2);
 
   EXPECT_EQ(occupancy_layer->voxelByteSize(), sizeof(float));
+  EXPECT_EQ(mean_layer->voxelByteSize(), sizeof(VoxelMean));
   EXPECT_EQ(clearance_layer->voxelByteSize(), sizeof(float));
 
   VoxelLayoutConst occupancy_voxel = occupancy_layer->voxelLayout();
+  VoxelLayoutConst mean_voxel = mean_layer->voxelLayout();
   VoxelLayoutConst clearance_voxel = clearance_layer->voxelLayout();
+  VoxelLayoutConst covariance_voxel = covariance_layer->voxelLayout();
 
   EXPECT_EQ(occupancy_voxel.memberCount(), 1);
   EXPECT_STREQ(occupancy_voxel.memberName(0), default_layer::occupancyLayerName());
   EXPECT_EQ(occupancy_voxel.memberOffset(0), 0);
   EXPECT_EQ(occupancy_voxel.memberSize(0), sizeof(float));
 
+  EXPECT_EQ(mean_voxel.memberCount(), 2);
+  EXPECT_STREQ(mean_voxel.memberName(0), "coord");
+  EXPECT_STREQ(mean_voxel.memberName(1), "count");
+  EXPECT_EQ(mean_voxel.memberOffset(0), 0);
+  EXPECT_EQ(mean_voxel.memberSize(0), sizeof(uint32_t));
+  EXPECT_EQ(mean_voxel.memberOffset(1), sizeof(uint32_t));
+  EXPECT_EQ(mean_voxel.memberSize(1), sizeof(uint32_t));
+
   EXPECT_EQ(clearance_voxel.memberCount(), 1);
   EXPECT_STREQ(clearance_voxel.memberName(0), default_layer::clearanceLayerName());
   EXPECT_EQ(clearance_voxel.memberOffset(0), 0);
   EXPECT_EQ(clearance_voxel.memberSize(0), sizeof(float));
+
+  EXPECT_EQ(covariance_voxel.memberCount(), 6);
+  for (unsigned i = 0; i < 6; ++i)
+  {
+    EXPECT_EQ(covariance_voxel.memberOffset(i), i * sizeof(float));
+    EXPECT_EQ(covariance_voxel.memberSize(i), sizeof(float));
+  }
 }
 
 
@@ -59,7 +137,9 @@ TEST(Layout, Filter)
 {
   OccupancyMap map(1.0);
 
-  MapLayout &layout = map.layout();
+  MapLayout layout = map.layout();
+
+  addClearance(layout);
 
   EXPECT_EQ(layout.layerCount(), 2);
   const MapLayer *occupancy_layer = layout.layer(default_layer::occupancyLayerName());

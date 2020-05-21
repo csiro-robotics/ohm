@@ -51,7 +51,7 @@ namespace ohm
       return layout.layerPtr(layer->layerIndex());
     }
 
-    MapLayer *layer = layout.addLayer("covariance");
+    MapLayer *layer = layout.addLayer(default_layer::covarianceLayerName());
     VoxelLayout voxel = layer->voxelLayout();
     // Add members to represent a diagonal of the covariance matrix. This is an approximation of the full matrix
     // but it greatly reduces the per voxel memory usage.

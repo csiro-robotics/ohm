@@ -24,6 +24,7 @@ namespace ohm
       int err = kSeOk;
 
       detail.setDefaultLayout();
+      addClearance(detail.layout);
 
       if (progress)
       {
