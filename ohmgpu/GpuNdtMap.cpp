@@ -33,6 +33,11 @@
 // Must come after glm includes due to usage on GPU.
 #include <ohm/NdtVoxel.h>
 
+#if defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
+#include "RegionUpdateResource.h"
+#include "NdtHitResource.h"
+#endif  // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
+
 using namespace ohm;
 
 #if GPUTIL_TYPE == GPUTIL_CUDA
