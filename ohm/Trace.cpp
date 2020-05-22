@@ -9,6 +9,7 @@
 
 void ohm::trace::init(const char *file_stream)
 {
+  (void)file_stream;
   // Initialise TES
   TES_SETTINGS(settings, tes::SF_Compress | tes::SF_Collate);
   // Initialise server info.

@@ -165,7 +165,9 @@ void NdtMap::integrateMiss(Voxel &voxel, const glm::dvec3 &sensor, const glm::dv
   const glm::dvec3 voxel_mean(subVoxelToLocalCoord<glm::dvec3>(voxel_mean_info->coord, map.resolution()) +
                               voxel.centreGlobal());
 
+#ifdef TES_ENABLE
   const glm::dvec3 voxel_maximum_likelyhood =
+#endif // TES_ENABLE
     calculateMissNdt(cov_voxel, &voxel_value, sensor, sample, voxel_mean, voxel_mean_info->count,
                      voxel::invalidMarkerValue(), map.missValue(), imp_->sensor_noise, imp_->sample_threshold);
   voxel.setValue(voxel_value);

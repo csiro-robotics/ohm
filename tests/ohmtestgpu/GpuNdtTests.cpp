@@ -133,15 +133,12 @@ namespace ndttests
     ohm::Voxel target_voxel_cpu = map_cpu.voxel(target_key, false, &cache);
     const float initial_value = target_voxel_cpu.value();
 
-    float value;
     for (size_t i = 0; i < test_rays.size(); i += 2)
     {
-      value = target_voxel_cpu.value();
       // Start the update in GPU (one ray -> inefficient).
       ndt_gpu.integrateRays(test_rays.data() + i, 2);
 
       ndt_cpu.integrateMiss(target_voxel_cpu, test_rays[i], test_rays[i + 1]);
-      value = target_voxel_cpu.value();
 
       // Sync from GPU.
       ndt_gpu.syncVoxels();
@@ -157,7 +154,6 @@ namespace ndttests
 
       // Restore both voxel values.
       target_voxel_cpu.setValue(initial_value);
-      value = target_voxel_cpu.value();
       target_voxel_gpu.setValue(initial_value);
     }
   }
