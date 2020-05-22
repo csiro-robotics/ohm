@@ -5,7 +5,7 @@ include(TextFileResource)
 find_package(GLM)
 find_package(ZLIB)
 if(OHM_THREADS)
-  find_package(TBB)
+  find_tbb()
 endif(OHM_THREADS)
 
 find_package(Eigen3 QUIET)
@@ -210,6 +210,7 @@ target_include_directories(ohm
 )
 
 if(OHM_THREADS)
+  target_include_directories(ohm PRIVATE SYSTEM ${TBB_INCLUDE_DIRS})
   target_link_libraries(ohm PUBLIC ${TBB_LIBRARIES})
 endif(OHM_THREADS)
 

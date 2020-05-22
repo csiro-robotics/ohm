@@ -75,10 +75,27 @@ set_property(CACHE OHM_OPENCL_STD PROPERTY STRINGS 1.2 2.0 max)
 # Identify any exteions required to compile with OpenCL 2.0 std.
 set(OHM_OPENCL_2_FEATURES "" CACHE STRING "Features required for OpenCL 2.x. Fallback to 1.2 otherwise.")
 
+# Helper macro to Find TBB prefering TBBConfig, falling back to FindTBB. TBB_LIBRARIES will be defined in both cases.
+# TBB_INCLUDE_DIRS will be empty for TBBConfig, and populated for FindTBB.
+macro(find_tbb)
+  # Try find TBB config file.
+  find_package(TBB QUIET CONFIG)
+  if(TBB_FOUND)
+    message(STATUS "TBB found using TBBConfig.cmake")
+    set(TBB_LIBRARIES "${TBB_IMPORTED_TARGETS}")
+  else(TBB_FOUND)
+    # No TBB config file. Try FindTBB.cmake
+    find_package(TBB QUIET)
+    if(TBB_FOUND)
+      message(STATUS "TBB found using FindTBB.cmake")
+    endif(TBB_FOUND)
+  endif(TBB_FOUND)
+endmacro(find_tbb)
+
 # Initialse OHM_THREADS based on whether we can find TBB or not.
 if(NOT DEFINED OHM_THREADS)
   set(TBB_THREADS_DEFAULT Off)
-  find_package(TBB QUIET)
+  find_tbb()
   if(TBB_FOUND)
     set(TBB_THREADS_DEFAULT On)
   else(TBB_FOUND)
