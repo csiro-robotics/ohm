@@ -12,8 +12,8 @@
 #include <ohm/NdtMap.h>
 #include <ohm/OccupancyMap.h>
 #include <ohm/OccupancyUtil.h>
+#include <ohm/RayMapperCpu.h>
 #include <ohm/Trace.h>
-#include <ohm/RayMapper.h>
 #include <ohm/Voxel.h>
 #ifdef OHMPOP_CPU
 #include <ohm/NdtRayMapperInterface.h>
@@ -389,16 +389,16 @@ int populateMap(const Options &opt)
     }
   }
 
-  ohm::RayMapperBase *ray_mapper = nullptr;
+  ohm::RayMapper *ray_mapper = nullptr;
 #ifdef OHMPOP_CPU
   std::unique_ptr<ohm::NdtMap> ndt_map;
-  std::unique_ptr<ohm::RayMapper<ohm::NdtMap>> ndt_ray_mapper;
-  ohm::RayMapper<decltype(map)> ray_mapper_(&map);
+  std::unique_ptr<ohm::RayMapperCpu<ohm::NdtMap>> ndt_ray_mapper;
+  ohm::RayMapperCpu<decltype(map)> ray_mapper_(&map);
   if (opt.ndt)
   {
     std::cout << "Building NDT map" << std::endl;
     ndt_map = std::make_unique<ohm::NdtMap>(&map, true);
-    ndt_ray_mapper = std::make_unique<ohm::RayMapper<ohm::NdtMap>>(ndt_map.get());
+    ndt_ray_mapper = std::make_unique<ohm::RayMapperCpu<ohm::NdtMap>>(ndt_map.get());
     ray_mapper = ndt_ray_mapper.get();
   }
   else

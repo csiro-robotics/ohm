@@ -10,7 +10,7 @@
 
 #include <ohm/RayFilter.h>
 #include <ohm/RayFlag.h>
-#include <ohm/RayMapperBase.h>
+#include <ohm/RayMapper.h>
 
 #include <glm/glm.hpp>
 
@@ -116,7 +116,7 @@ namespace ohm
   /// at all by GPU. We only download data for touched regions and create the @c MapChunk then.
   ///
   /// @todo This class has been deprecated as the GPU cache is now included in the OccupancyMap.
-  class ohmgpu_API GpuMap : public RayMapperBase
+  class ohmgpu_API GpuMap : public RayMapper
   {
   protected:
     GpuMap(GpuMapDetail *detail, unsigned expected_element_count = 2048, size_t gpu_mem_size = 0u);

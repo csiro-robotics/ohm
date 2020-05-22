@@ -40,6 +40,8 @@ set(SOURCES
   serialise/MapSerialiseV0.cpp
   serialise/MapSerialiseV0.h
   Aabb.h
+  CalculateSegmentKeys.cpp
+  CalculateSegmentKeys.h
   ClearingPattern.cpp
   ClearingPattern.h
   CovarianceVoxel.cpp
@@ -107,10 +109,10 @@ set(SOURCES
   RayFilter.cpp
   RayFilter.h
   RayFlag.h
-  RayMapperBase.cpp
-  RayMapperBase.h
-  RayMapperInterface.h
+  RayMapper.cpp
   RayMapper.h
+  RayMapperInterface.h
+  RayMapperCpu.h
   RayPattern.cpp
   RayPattern.h
   RayPatternConical.cpp
@@ -138,6 +140,7 @@ endif(TES_ENABLE)
 
 set(PUBLIC_HEADERS
   Aabb.h
+  CalculateSegmentKeys.h
   ClearingPattern.h
   CovarianceVoxel.h
   DataType.h
@@ -177,8 +180,8 @@ set(PUBLIC_HEADERS
   QueryFlag.h
   RayFilter.h
   RayFlag.h
-  RayMapperBase.h
   RayMapper.h
+  RayMapperCpu.h
   RayPattern.h
   RayPatternConical.h
   Stream.h

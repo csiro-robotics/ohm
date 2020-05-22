@@ -15,6 +15,7 @@
 #include "MapProbability.h"
 #include "MapRegionCache.h"
 #include "OccupancyType.h"
+#include "RayMapperCpu.h"
 #include "Voxel.h"
 #include "VoxelMean.h"
 
@@ -1044,75 +1045,11 @@ void OccupancyMap::clearRayFilter()
 
 void OccupancyMap::integrateRays(const glm::dvec3 *rays, size_t element_count, unsigned ray_update_flags)
 {
-  KeyList keys;
-  MapCache cache;
-  bool clipped_sample_voxel;
-
-  const bool use_filter = bool(imp_->ray_filter);
-
-  glm::dvec3 start, end;
-  unsigned filter_flags;
-  for (size_t i = 0; i < element_count; i += 2)
-  {
-    filter_flags = 0;
-    start = rays[i];
-    end = rays[i + 1];
-
-    if (use_filter)
-    {
-      if (!imp_->ray_filter(&start, &end, &filter_flags))
-      {
-        // Bad ray.
-        continue;
-      }
-    }
-
-    clipped_sample_voxel = (filter_flags & kRffClippedEnd);
-
-    // Calculate line key for the last voxel if the end point has been clipped
-    calculateSegmentKeys(keys, start, end, clipped_sample_voxel);
-
-    for (auto &&key : keys)
-    {
-      Voxel voxel = this->voxel(key, true, &cache);
-      const float voxel_value = voxel.value();
-
-      bool stop_traversal = false;
-      if ((ray_update_flags & kRfStopOnFirstOccupied) && voxel_value >= imp_->occupancy_threshold_value &&
-          voxel_value != voxel::invalidMarkerValue())
-      {
-        // Found first occupied voxel and request is to stop on the first occupied voxel. Abort traversal after update.
-        stop_traversal = true;
-      }
-
-      // kRfClearOnly flag set => only affect occupied voxels.
-      if (!(ray_update_flags & kRfClearOnly) || voxel_value >= imp_->occupancy_threshold_value)
-      {
-        integrateMiss(voxel);
-      }
-
-      if (stop_traversal)
-      {
-        // Found first occupied voxel and request is to stop on the first occupied voxel. Abort traversal.
-        // Make sure we do not update the en voxel.
-        clipped_sample_voxel = true;
-        break;
-      }
-    }
-
-    if (!clipped_sample_voxel && !(ray_update_flags & kRfExcludeSample))
-    {
-      Voxel voxel = this->voxel(voxelKey(rays[i + 1]), true, &cache);
-      if (!(ray_update_flags & kRfEndPointAsFree))
-      {
-        integrateHit(voxel, end);
-      }
-      else
-      {
-        integrateMiss(voxel);
-      }
-    }
-  }
+  // This function has been updated to leverage the new RayMapper interface and remove code duplication. It is
+  // maintained for legacy reasons.
+  // TODO: (KS) remove this function and require the use of a RayMapper.
+  RayMapperCpu<OccupancyMap> mapper(this);
+  mapper.integrateRays(rays, element_count, ray_update_flags);
 }
 
 OccupancyMap *OccupancyMap::clone() const
