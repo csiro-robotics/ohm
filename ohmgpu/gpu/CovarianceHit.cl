@@ -25,17 +25,25 @@ typedef struct WorkItem_t
 
 void __device__ collateSample(WorkItem *work_item, float3 sensor, float3 sample, int3 region_dimensions,
                               float voxel_resolution, float sample_adjustment, float occupied_threshold,
-                              float sensor_noise);
+                              float sensor_noise, float reinitialise_cov_threshold,
+                              unsigned reinitialise_cov_sample_count);
 
 
 void __device__ collateSample(WorkItem *work_item, float3 sensor, float3 sample, int3 region_dimensions,
                               float voxel_resolution, float sample_adjustment, float occupied_threshold,
-                              float sensor_noise)
+                              float sensor_noise, float reinitialise_cov_threshold,
+                              unsigned reinitialise_cov_sample_count)
 {
   // The sample is currently relative to the voxel centre of the end voxel. This is the same reference frame we need
   // to calculate the quantised mean, so no change is required.
-  calculateHitWithCovariance(&work_item->cov, &work_item->occupancy, sample, work_item->mean, work_item->sample_count,
-                             sample_adjustment, INFINITY, sensor_noise);
+  if (calculateHitWithCovariance(&work_item->cov, &work_item->occupancy, sample, work_item->mean,
+                                 work_item->sample_count, sample_adjustment, INFINITY, sensor_noise,
+                                 reinitialise_cov_threshold, reinitialise_cov_sample_count))
+  {
+    // Covariance matrix has reset. Reset the point count to clear the mean value.
+    work_item->sample_count = 0;
+  }
+
   const float one_on_count_plus_one = 1.0f / (float)(work_item->sample_count + 1);
   work_item->mean = (work_item->sample_count * work_item->mean + sample) * one_on_count_plus_one;
   ++work_item->sample_count;
@@ -51,7 +59,8 @@ __kernel void covarianceHit(__global atomic_float *occupancy, __global ulonglong
                             __global int3 *occupancy_region_keys_global, uint region_count, __global GpuKey *line_keys,
                             __global float3 *local_lines, uint line_count, int3 region_dimensions,
                             float voxel_resolution, float sample_adjustment, float occupied_threshold,
-                            float voxel_value_max, float sensor_noise)
+                            float voxel_value_max, float sensor_noise, float reinitialise_cov_threshold,
+                            unsigned reinitialise_cov_sample_count)
 {
   if (get_global_id(0) >= line_count)
   {
@@ -89,12 +98,12 @@ __kernel void covarianceHit(__global atomic_float *occupancy, __global ulonglong
   work_item.mean = subVoxelToLocalCoord(means[mean_index].coord, voxel_resolution);
   work_item.sample_count = means[mean_index].count;
   // Manual copy of the NDT voxel: we had some issues with OpenCL assignment on structures.
-  work_item.cov.cov_sqrt_diag[0] = cov_voxels[cov_index].cov_sqrt_diag[0];
-  work_item.cov.cov_sqrt_diag[1] = cov_voxels[cov_index].cov_sqrt_diag[1];
-  work_item.cov.cov_sqrt_diag[2] = cov_voxels[cov_index].cov_sqrt_diag[2];
-  work_item.cov.cov_sqrt_diag[3] = cov_voxels[cov_index].cov_sqrt_diag[3];
-  work_item.cov.cov_sqrt_diag[4] = cov_voxels[cov_index].cov_sqrt_diag[4];
-  work_item.cov.cov_sqrt_diag[5] = cov_voxels[cov_index].cov_sqrt_diag[5];
+  work_item.cov.trianglar_covariance[0] = cov_voxels[cov_index].trianglar_covariance[0];
+  work_item.cov.trianglar_covariance[1] = cov_voxels[cov_index].trianglar_covariance[1];
+  work_item.cov.trianglar_covariance[2] = cov_voxels[cov_index].trianglar_covariance[2];
+  work_item.cov.trianglar_covariance[3] = cov_voxels[cov_index].trianglar_covariance[3];
+  work_item.cov.trianglar_covariance[4] = cov_voxels[cov_index].trianglar_covariance[4];
+  work_item.cov.trianglar_covariance[5] = cov_voxels[cov_index].trianglar_covariance[5];
 
   uint working_rays[WORKING_RAY_COUNT];
   GpuKey end_key;
@@ -118,7 +127,8 @@ __kernel void covarianceHit(__global atomic_float *occupancy, __global ulonglong
           // We have collected too many items to process and must process them now. This is inefficient as we will have
           // very few threads doing this work at the same time.
           collateSample(&work_item, local_lines[i * 2], local_lines[i * 2 + 1], region_dimensions, voxel_resolution,
-                        sample_adjustment, occupied_threshold, sensor_noise);
+                        sample_adjustment, occupied_threshold, sensor_noise, reinitialise_cov_threshold,
+                        reinitialise_cov_sample_count);
         }
       }
       else
@@ -139,7 +149,8 @@ __kernel void covarianceHit(__global atomic_float *occupancy, __global ulonglong
     {
       uint li = working_rays[i];
       collateSample(&work_item, local_lines[li * 2], local_lines[li * 2 + 1], region_dimensions, voxel_resolution,
-                    sample_adjustment, occupied_threshold, sensor_noise);
+                    sample_adjustment, occupied_threshold, sensor_noise, reinitialise_cov_threshold,
+                    reinitialise_cov_sample_count);
     }
 
     // Cap occupancy to max.

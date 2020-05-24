@@ -20,6 +20,7 @@ set(SOURCES
   private/LineQueryDetail.h
   private/MapLayerDetail.h
   private/MapLayoutDetail.h
+  private/NdtMapDetail.h
   private/NearestNeighboursDetail.h
   private/OccupancyMapDetail.cpp
   private/OccupancyMapDetail.h

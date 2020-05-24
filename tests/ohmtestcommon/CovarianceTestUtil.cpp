@@ -51,7 +51,7 @@ namespace ohmtestutil
     std::vector<double> A(9);
     for (unsigned i = 0; i < 6; ++i)
     {
-      A[i] = sc_1 * cov->cov_sqrt_diag[i];
+      A[i] = sc_1 * cov->trianglar_covariance[i];
     }
     for (unsigned i = 0; i < 3; ++i)
     {
@@ -62,7 +62,7 @@ namespace ohmtestutil
       const unsigned ind1 = (k * (k + 3)) >> 1,  // packed index of (k,k) term
         indk = ind1 - k;                       // packed index of (1,k)
       const double ak = std::sqrt(packed_dot(&A[0], k, k));
-      cov->cov_sqrt_diag[ind1] = float(ak);
+      cov->trianglar_covariance[ind1] = float(ak);
       if (ak > 0.0)
       {
         const double aki = 1.0 / ak;
@@ -70,7 +70,7 @@ namespace ohmtestutil
         {
           const unsigned indj = (j * (j + 1)) >> 1, indkj = indj + k;
           double c = packed_dot(&A[0], j, k) * aki;
-          cov->cov_sqrt_diag[indkj] = float(c);
+          cov->trianglar_covariance[indkj] = float(c);
           c *= aki;
           A[j + 6] -= c * A[k + 6];
           for (unsigned l = 0; l <= k; ++l)
@@ -95,7 +95,7 @@ namespace ohmtestutil
     const double epsilon_mean = 1e-1;
     for (int i = 0; i < 6; ++i)
     {
-      if (std::abs(cov.cov_sqrt_diag[i] - ref.cov_sqrt_diag[i]) > epsilon_cov)
+      if (std::abs(cov.trianglar_covariance[i] - ref.trianglar_covariance[i]) > epsilon_cov)
       {
         return false;
       }

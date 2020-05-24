@@ -229,7 +229,8 @@ void GpuNdtMap::finaliseBatch(unsigned region_update_flags)
                         gputil::BufferArg<GpuKey>(imp->key_buffers[buf_idx]),
                         gputil::BufferArg<gputil::float3>(imp->ray_buffers[buf_idx]), ray_count, region_dim_gpu,
                         float(map->resolution), map->hit_value, map->occupancy_threshold_value, map->max_voxel_value,
-                        imp->ndt_map.sensorNoise());
+                        imp->ndt_map.sensorNoise(), imp->ndt_map.reinitialiseCovarianceTheshold(),
+                        imp->ndt_map.reinitialiseCovariancePointCount());
 
     wait.clear();
     wait.add(hit_event);
@@ -300,7 +301,8 @@ void GpuNdtMap::finaliseBatch(unsigned region_update_flags)
                         gputil::BufferArg<GpuKey>(imp->key_buffers[buf_idx]),
                         gputil::BufferArg<gputil::float3>(imp->ray_buffers[buf_idx]), ray_count, region_dim_gpu,
                         float(map->resolution), map->hit_value, map->occupancy_threshold_value, map->max_voxel_value,
-                        imp->ndt_map.sensorNoise());
+                        imp->ndt_map.sensorNoise(), imp->ndt_map.reinitialiseCovarianceTheshold(),
+                        imp->ndt_map.reinitialiseCovariancePointCount());
   }
   else
   {

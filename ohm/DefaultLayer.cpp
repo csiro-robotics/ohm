@@ -7,8 +7,16 @@
 
 #include "MapLayer.h"
 #include "MapLayout.h"
+#include "VoxelMean.h"
 
 #include <algorithm>
+
+#define GLM_ENABLE_EXPERIMENTAL
+#include <glm/vec3.hpp>
+#include <glm/mat3x3.hpp>
+#include <glm/gtx/norm.hpp>
+
+#include "CovarianceVoxel.h"
 
 namespace ohm
 {
@@ -37,6 +45,11 @@ namespace ohm
     const size_t clear_value = 0u;
     layer->voxelLayout().addMember("coord", DataType::kUInt32, clear_value);
     layer->voxelLayout().addMember("count", DataType::kUInt32, clear_value);
+    
+    if (layer->voxelByteSize() != sizeof(VoxelMean))
+    {
+      throw std::runtime_error("VoxelMean layer size mismatch");
+    }
 
     return layer;
   }
@@ -56,11 +69,16 @@ namespace ohm
     // Add members to represent a diagonal of the covariance matrix. This is an approximation of the full matrix
     // but it greatly reduces the per voxel memory usage.
     voxel.addMember("P00", DataType::kFloat, 0);
+    voxel.addMember("P01", DataType::kFloat, 0);
     voxel.addMember("P11", DataType::kFloat, 0);
+    voxel.addMember("P02", DataType::kFloat, 0);
+    voxel.addMember("P12", DataType::kFloat, 0);
     voxel.addMember("P22", DataType::kFloat, 0);
-    voxel.addMember("P33", DataType::kFloat, 0);
-    voxel.addMember("P44", DataType::kFloat, 0);
-    voxel.addMember("P55", DataType::kFloat, 0);
+    
+    if (layer->voxelByteSize() != sizeof(CovarianceVoxel))
+    {
+      throw std::runtime_error("CovarianceVoxel layer size mismatch");
+    }
 
     return layer;
   }
@@ -81,6 +99,11 @@ namespace ohm
     MapLayer *layer = layout.addLayer(default_layer::clearanceLayerName(), 0);
     VoxelLayout voxel = layer->voxelLayout();
     voxel.addMember(default_layer::clearanceLayerName(), DataType::kFloat, clear_value);
+    
+    if (layer->voxelByteSize() != sizeof(float))
+    {
+      throw std::runtime_error("Clearance layer size mismatch");
+    }
 
     return layer;
   }

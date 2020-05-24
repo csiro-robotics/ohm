@@ -69,6 +69,28 @@ namespace ohm
     /// Get the number of samples required in a voxel before using the NDT algorithm for @c integateMiss() adjustments.
     unsigned ndtSampleThreshold();
 
+    /// Set the occupancy theshold value at which the covariance matrix may be reinitialised.
+    ///
+    /// This maps to the @c reinitialise_threshold parameter of @c calculateHitWithCovariance() . See that function for
+    /// details.
+    /// @param theshold The probability theshold value. Must be < 0 or behaviour is undefined.
+    void setReinitialiseCovarianceTheshold(float threshold);
+
+    /// Get the occupancy theshold value at which the covariance matrix may be reinitialised.
+    /// @return The reset probability theshold value.
+    float reinitialiseCovarianceTheshold() const;
+
+    /// Set the occupancy theshold value at which the covariance matrix may be reinitialised.
+    ///
+    /// This maps to the @c reinitialise_sample_count parameter of @c calculateHitWithCovariance() . See that function
+    /// for details.
+    /// @param count The requires point count.
+    void setReinitialiseCovariancePointCount(unsigned count);
+
+    /// Get the occupancy theshold value at which the covariance matrix may be reinitialised.
+    /// @return The reset point count treshold.
+    unsigned reinitialiseCovariancePointCount() const;
+
     /// Enable details tracing via 3rd Eye Scene.
     /// @param trace True to enable tracing.
     void setTrace(bool trace);

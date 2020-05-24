@@ -36,12 +36,12 @@ inline __device__ float calculateOccupancyAdjustment(const GpuKey *voxelKey, boo
   vi = (line_data->cov_offsets[line_data->current_region_index] / sizeof(*line_data->cov_voxels)) + vi_local;
   CovarianceVoxel cov_voxel;
   // Manual copy of the NDT voxel: we had some issues with OpenCL assignment on structures.
-  cov_voxel.cov_sqrt_diag[0] = line_data->cov_voxels[vi].cov_sqrt_diag[0];
-  cov_voxel.cov_sqrt_diag[1] = line_data->cov_voxels[vi].cov_sqrt_diag[1];
-  cov_voxel.cov_sqrt_diag[2] = line_data->cov_voxels[vi].cov_sqrt_diag[2];
-  cov_voxel.cov_sqrt_diag[3] = line_data->cov_voxels[vi].cov_sqrt_diag[3];
-  cov_voxel.cov_sqrt_diag[4] = line_data->cov_voxels[vi].cov_sqrt_diag[4];
-  cov_voxel.cov_sqrt_diag[5] = line_data->cov_voxels[vi].cov_sqrt_diag[5];
+  cov_voxel.trianglar_covariance[0] = line_data->cov_voxels[vi].trianglar_covariance[0];
+  cov_voxel.trianglar_covariance[1] = line_data->cov_voxels[vi].trianglar_covariance[1];
+  cov_voxel.trianglar_covariance[2] = line_data->cov_voxels[vi].trianglar_covariance[2];
+  cov_voxel.trianglar_covariance[3] = line_data->cov_voxels[vi].trianglar_covariance[3];
+  cov_voxel.trianglar_covariance[4] = line_data->cov_voxels[vi].trianglar_covariance[4];
+  cov_voxel.trianglar_covariance[5] = line_data->cov_voxels[vi].trianglar_covariance[5];
 
   float adjustment = 0;
   const int min_sample_threshold = 4;  // Should be passed in.

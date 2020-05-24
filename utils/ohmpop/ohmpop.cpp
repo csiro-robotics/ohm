@@ -68,6 +68,14 @@ namespace
   // Min/max V: -2.00003 3.51103
   struct Options
   {
+    struct Ndt
+    {
+      float sensor_noise = 0.05;
+      float covariance_reset_probability = ohm::valueToProbability(0.1f);
+      unsigned covariance_reset_sample_count = 10;
+      bool enabled = false;
+    };
+
     std::string cloud_file;
     std::string trajectory_file;
     std::string output_base_name;
@@ -89,7 +97,6 @@ namespace
     bool serialise = true;
     bool save_info = false;
     bool voxel_mean = false;
-    bool ndt = false;
 #ifndef OHMPOP_CPU
     double mapping_interval = 0.2;
     double progressive_mapping_slice = 0.0;
@@ -98,6 +105,8 @@ namespace
     bool clearance_unknown_as_occupied = false;
 #endif  // OHMPOP_CPU
     bool quiet = false;
+
+    Ndt ndt;
 
     void print(std::ostream **out, const ohm::OccupancyMap &map) const;
   };
@@ -394,7 +403,7 @@ int populateMap(const Options &opt)
   std::unique_ptr<ohm::NdtMap> ndt_map;
   std::unique_ptr<ohm::RayMapperCpu<ohm::NdtMap>> ndt_ray_mapper;
   ohm::RayMapperCpu<decltype(map)> ray_mapper_(&map);
-  if (opt.ndt)
+  if (opt.ndt.enabled)
   {
     std::cout << "Building NDT map" << std::endl;
     ndt_map = std::make_unique<ohm::NdtMap>(&map, true);
@@ -406,8 +415,9 @@ int populateMap(const Options &opt)
     ray_mapper = &ray_mapper_;
   }
 #else   // OHMPOP_CPU
-  std::unique_ptr<ohm::GpuMap> gpu_map((!opt.ndt) ? new ohm::GpuMap(&map, true, opt.batch_size) :
-                                                    new ohm::GpuNdtMap(&map, true, opt.batch_size));
+  std::unique_ptr<ohm::GpuMap> gpu_map((!opt.ndt.enabled) ? new ohm::GpuMap(&map, true, opt.batch_size) :
+                                                            new ohm::GpuNdtMap(&map, true, opt.batch_size));
+  ohm::NdtMap *ndt_map = &static_cast<ohm::GpuNdtMap *>(gpu_map.get())->ndtMap();
   ray_mapper = gpu_map.get();
 #endif  // OHMPOP_CPU
   ohm::Mapper mapper(&map);
@@ -431,6 +441,13 @@ int populateMap(const Options &opt)
   if (opt.voxel_mean)
   {
     map.addVoxelMeanLayer();
+  }
+
+  if (opt.ndt.enabled)
+  {
+    ndt_map->setSensorNoise(opt.ndt.sensor_noise);
+    ndt_map->setReinitialiseCovarianceTheshold(opt.ndt.covariance_reset_probability);
+    ndt_map->setReinitialiseCovariancePointCount(opt.ndt.covariance_reset_sample_count);
   }
 
 #ifndef OHMPOP_CPU
@@ -750,7 +767,7 @@ int populateMap(const Options &opt)
 
   prog.joinThread();
 
-  if (opt.ndt)
+  if (opt.ndt.enabled)
   {
 #ifdef OHMPOP_CPU
     ndt_map->debugDraw();
@@ -810,7 +827,10 @@ int parseOptions(Options *opt, int argc, char *argv[])
       ("r,resolution", "The voxel resolution of the generated map.", optVal(opt->resolution))
       ("voxel-mean", "Enable voxel mean coordinates?", optVal(opt->voxel_mean))
       ("threshold", "Sets the occupancy threshold assigned when exporting the map to a cloud.", optVal(opt->prob_thresh)->implicit_value(optStr(opt->prob_thresh)))
-      ("ndt", "Use normal distibution transform map generation.", optVal(opt->ndt))
+      ("ndt", "Use normal distibution transform map generation.", optVal(opt->ndt.enabled))
+      ("ndt-cov-point-threshold", "Minimum number of samples requires in order to allow the covariance to reset at --ndt-cov-prob-threshold..", optVal(opt->ndt.covariance_reset_sample_count))
+      ("ndt-cov-prob-threshold", "Low probability threshold at which the covariance can be reset as samples accumulate once more. See also --ndt-cov-point-threshold.", optVal(opt->ndt.covariance_reset_probability))
+      ("ndt-sensor-noise", "Range sensor noise used for Ndt mapping. Must be > 0.", optVal(opt->ndt.sensor_noise))
       ;
 
     // clang-format on

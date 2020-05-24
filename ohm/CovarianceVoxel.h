@@ -60,8 +60,8 @@ namespace ohm
 #endif  // GPUTIL_DEVICE
 typedef struct CovarianceVoxel_t
 {
-  /// The lower diagonal of the covariance matrix for the voxel.
-  float cov_sqrt_diag[6];
+  /// Sparse covariance matrix. See @c unpackCovariance() for details.
+  float trianglar_covariance[6];
 } CovarianceVoxel;
 
 
@@ -72,8 +72,9 @@ typedef struct CovarianceVoxel_t
 inline __device__ void initialiseCovariance(CovarianceVoxel *cov, float sensor_noise)
 {
   // Initialise the covariance matrix to a scaled identity matrix based on the sensor noise.
-  cov->cov_sqrt_diag[0] = cov->cov_sqrt_diag[2] = cov->cov_sqrt_diag[5] = sensor_noise * sensor_noise;
-  cov->cov_sqrt_diag[1] = cov->cov_sqrt_diag[3] = cov->cov_sqrt_diag[4] = 0;
+  cov->trianglar_covariance[0] = cov->trianglar_covariance[2] = cov->trianglar_covariance[5] =
+    sensor_noise * sensor_noise;
+  cov->trianglar_covariance[1] = cov->trianglar_covariance[3] = cov->trianglar_covariance[4] = 0;
 }
 
 
@@ -100,21 +101,23 @@ inline __device__ double packedDot(const covreal A[9], const int j, const int k)
 
 /// Unpack the covariance matrix storage.
 ///
-/// The unpacked matrix represents a sparse 3,4 matrix of the following form:
+/// The unpacked covariance matrix represents a sparse 3,4 matrix of the following form:
 ///
-/// |   |   |   |
-/// | - | - | - |
-/// | 0 | 1 | 3 |
-/// | . | 2 | 4 |
-/// | . | . | 5 |
-/// | 6 | 7 | 8 |
+/// |         |         |         |
+/// | ------- | ------- | ------- |
+/// | cov[0]  | cov[1]  | cov[3]  |
+/// | .       | cov[2]  | cov[4]  |
+/// | .       | .       | cov[5]  |
+/// | mean[0] | mean[1] | mean[2] |
 ///
-/// Items marked '.' are not represented in the martix and are treated as zero.
+/// Items marked `cov[n]` are extracted from the @c cov->trianglar_covariance, while `mean[n]` items are derived from
+/// @p sample_to_mean . Items marked '.' are not represented in the martix and are treated as zero.
+/// Note that the extracted values also have a co-efficient applied based on the @p point_count .
 ///
-/// @param A The matrix to unpack to. This is an array of 9 elements.
+/// @param matrix The matrix to unpack to. This is an array of 9 elements.
 /// @param sample_to_mean The difference between the new sample point and the voxel mean.
-inline __device__ void unpackedA(const CovarianceVoxel *cov, unsigned point_count, const covvec3 sample_to_mean,
-                                 covreal *A)
+inline __device__ void unpackCovariance(const CovarianceVoxel *cov, unsigned point_count, const covvec3 sample_to_mean,
+                                        covreal *matrix)
 {
   const covreal one_on_num_pt_plus_one = (covreal)1 / (point_count + (covreal)1);
   const covreal sc_1 = point_count ? sqrt(point_count * one_on_num_pt_plus_one) : (covreal)1;
@@ -122,15 +125,15 @@ inline __device__ void unpackedA(const CovarianceVoxel *cov, unsigned point_coun
 
   for (int i = 0; i < 6; ++i)
   {
-    A[i] = sc_1 * cov->cov_sqrt_diag[i];
+    matrix[i] = sc_1 * cov->trianglar_covariance[i];
   }
 
-  A[0 + 6] = sc_2 * sample_to_mean.x;
-  A[1 + 6] = sc_2 * sample_to_mean.y;
-  A[2 + 6] = sc_2 * sample_to_mean.z;
+  matrix[0 + 6] = sc_2 * sample_to_mean.x;
+  matrix[1 + 6] = sc_2 * sample_to_mean.y;
+  matrix[2 + 6] = sc_2 * sample_to_mean.z;
 }
 
-// Find x for Mx = y, given lower triangular M where M is @c cov_sqrt_diag
+// Find x for Mx = y, given lower triangular M where M is @c trianglar_covariance
 // Storage order for M:
 // 0 z z
 // 1 2 z
@@ -144,16 +147,16 @@ inline __device__ covvec3 solveTriangular(const CovarianceVoxel *cov, const covv
   covreal d;
 
   d = y.x;
-  x.x = d / cov->cov_sqrt_diag[0];
+  x.x = d / cov->trianglar_covariance[0];
 
   d = y.y;
-  d -= cov->cov_sqrt_diag[1 + 0] * x.x;
-  x.y = d / cov->cov_sqrt_diag[1 + 1];
+  d -= cov->trianglar_covariance[1 + 0] * x.x;
+  x.y = d / cov->trianglar_covariance[1 + 1];
 
   d = y.z;
-  d -= cov->cov_sqrt_diag[3 + 0] * x.x;
-  d -= cov->cov_sqrt_diag[3 + 1] * x.y;
-  x.z = d / cov->cov_sqrt_diag[3 + 2];
+  d -= cov->trianglar_covariance[3 + 0] * x.x;
+  d -= cov->trianglar_covariance[3 + 1] * x.y;
+  x.z = d / cov->trianglar_covariance[3 + 2];
 
   return x;
 }
@@ -166,7 +169,14 @@ inline __device__ covvec3 solveTriangular(const CovarianceVoxel *cov, const covv
 /// @c point_count incremented, otherwise future behaviour is undefined.
 ///
 /// The @p cov_voxel may be zero and is fully initialised when the @p point_count is zero, implying this is the first
-/// hit.
+/// hit. It will also be reinitialised whenever the @p voxel_value is below the the @p reinitialise_threshold and the
+/// @p point_count is above @p reinitialise_sample_count .
+///
+/// This reinitialisation is to handle sitautions where a voxel may have been occupied by a transient object, become
+/// free, then becomes occupied once more. In this case, the new occupancy covariance may differ and should disregard
+/// the previous covariance and mean. The @c reinitialise_threshold is used a the primary trigger to indicate previous
+/// data may be invalid while the @c reinitialise_sample_count is intended to prevent repeated reintialisation as the
+/// probablity value may oscillate around the threshold.
 ///
 /// @param[in,out] cov_voxel The packed covariance to update for the voxel being updated.
 /// @param[in,out] voxel_value The occupancy value for the voxel being updated.
@@ -177,18 +187,26 @@ inline __device__ covvec3 solveTriangular(const CovarianceVoxel *cov, const covv
 /// the voxel occupancy probability.
 /// @param uninitialised_value The @p voxel_value for an uncertain voxel - one which has yet to be observed.
 /// @param sensor_noise The sensor range noise error. Must be greater than zero.
-inline __device__ void calculateHitWithCovariance(CovarianceVoxel *cov_voxel, float *voxel_value, covvec3 sample,
+/// @param reinitialise_threshold @p voxel_value threshold below which the covariance and mean should reset.
+/// @param reinitialise_sample_count The @p point_count requires to allow @c reinitialise_threshold to be triggered.
+/// @return True if the covariance value is re-initialised. This should be used as a signal to diregard the current
+///     @p voxel_mean and @c point_count and restart accumulating those values.
+inline __device__ bool calculateHitWithCovariance(CovarianceVoxel *cov_voxel, float *voxel_value, covvec3 sample,
                                                   covvec3 voxel_mean, unsigned point_count, float hit_value,
-                                                  float uninitialised_value, float sensor_noise)
+                                                  float uninitialised_value, float sensor_noise,
+                                                  float reinitialise_threshold, unsigned reinitialise_sample_count)
 {
   const float initial_value = *voxel_value;
   const bool was_uncertain = initial_value == uninitialised_value;
+  bool initialised_covariance = false;
   // Initialise the cov_voxel data if this transitions the voxel to an occupied state.
-  if (was_uncertain || point_count == 0)
+  if (was_uncertain || point_count == 0 ||
+      initial_value < reinitialise_threshold && point_count >= reinitialise_sample_count)
   {
     // Transitioned to occupied. Initialise.
     initialiseCovariance(cov_voxel, sensor_noise);
     *voxel_value = hit_value;
+    initialised_covariance = true;
   }
   else
   {
@@ -208,16 +226,16 @@ inline __device__ void calculateHitWithCovariance(CovarianceVoxel *cov_voxel, fl
   // https://www.sciencedirect.com/bookseries/mathematics-in-science-and-engineering/vol/141/part/P1
 
   const covvec3 sample_to_mean = sample - voxel_mean;
-  covreal A[9];
-  unpackedA(cov_voxel, point_count, sample_to_mean, A);
+  covreal unpacked_covariance[9];
+  unpackCovariance(cov_voxel, point_count, sample_to_mean, unpacked_covariance);
 
   // Update covariance.
   for (int k = 0; k < 3; ++k)
   {
     const int ind1 = (k * (k + 3)) >> 1;  // packed index of (k,k) term
     const int indk = ind1 - k;            // packed index of (1,k)
-    const covreal ak = sqrt(packedDot(A, k, k));
-    cov_voxel->cov_sqrt_diag[ind1] = (float)ak;
+    const covreal ak = sqrt(packedDot(unpacked_covariance, k, k));
+    cov_voxel->trianglar_covariance[ind1] = (float)ak;
     if (ak > 0)
     {
       const covreal aki = (covreal)1 / ak;
@@ -225,17 +243,19 @@ inline __device__ void calculateHitWithCovariance(CovarianceVoxel *cov_voxel, fl
       {
         const int indj = (j * (j + 1)) >> 1;
         const int indkj = indj + k;
-        covreal c = packedDot(A, j, k) * aki;
-        cov_voxel->cov_sqrt_diag[indkj] = (float)c;
+        covreal c = packedDot(unpacked_covariance, j, k) * aki;
+        cov_voxel->trianglar_covariance[indkj] = (float)c;
         c *= aki;
-        A[j + 6] -= c * A[k + 6];
+        unpacked_covariance[j + 6] -= c * unpacked_covariance[k + 6];
         for (int l = 0; l <= k; ++l)
         {
-          A[indj + l] -= c * A[indk + l];
+          unpacked_covariance[indj + l] -= c * unpacked_covariance[indk + l];
         }
       }
     }
   }
+
+  return initialised_covariance;
 }
 
 /// Calculate a voxel miss (ray passthrough) using Normalised Distribution Transform (NDT) logic.
@@ -375,25 +395,25 @@ inline __device__ covvec3 calculateMissNdt(const CovarianceVoxel *cov_voxel, flo
 bool ohm_API eigenDecomposition(const CovarianceVoxel *cov, glm::dvec3 *eigenvalues, glm::dmat3 *eigenvectors);
 
 
-/// Unpack @c cov.cov_sqrt_diag into a 3x3 covariance matrix.
+/// Unpack @c cov.trianglar_covariance into a 3x3 covariance matrix.
 inline glm::dmat3 covarianceMatrix(const CovarianceVoxel *cov)
 {
   glm::dmat3 cov_mat;
 
   glm::dvec3 *col = &cov_mat[0];
-  (*col)[0] = cov->cov_sqrt_diag[0];
-  (*col)[1] = cov->cov_sqrt_diag[1];
-  (*col)[2] = cov->cov_sqrt_diag[3];
+  (*col)[0] = cov->trianglar_covariance[0];
+  (*col)[1] = cov->trianglar_covariance[1];
+  (*col)[2] = cov->trianglar_covariance[3];
 
   col = &cov_mat[1];
   (*col)[0] = 0;
-  (*col)[1] = cov->cov_sqrt_diag[2];
-  (*col)[2] = cov->cov_sqrt_diag[4];
+  (*col)[1] = cov->trianglar_covariance[2];
+  (*col)[2] = cov->trianglar_covariance[4];
 
   col = &cov_mat[2];
   (*col)[0] = 0;
   (*col)[1] = 0;
-  (*col)[2] = cov->cov_sqrt_diag[5];
+  (*col)[2] = cov->trianglar_covariance[5];
 
   return cov_mat;
 }

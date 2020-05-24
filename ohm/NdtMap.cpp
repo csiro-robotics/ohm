@@ -5,9 +5,12 @@
 // Author: Kazys Stepanas, Jason Williams
 #include "NdtMap.h"
 
+#include "private/NdtMapDetail.h"
+
 #include "OccupancyMap.h"
 #include "MapLayer.h"
 #include "MapLayout.h"
+#include "MapProbability.h"
 #include "Voxel.h"
 #include "VoxelLayout.h"
 #include "VoxelMean.h"
@@ -29,20 +32,6 @@
 #include <cassert>
 
 using namespace ohm;
-
-namespace ohm
-{
-  struct NdtMapDetail
-  {
-    OccupancyMap *map = nullptr;
-    float sensor_noise = 0.05f;
-    int covariance_layer_index = -1;
-    unsigned sample_threshold = 4;
-    bool borrowed_map = false;
-    bool trace = false;
-  };
-}  // namespace ohm
-
 
 NdtMap::NdtMap(OccupancyMap *map, bool borrowed_map)
   : imp_(new NdtMapDetail)
@@ -108,6 +97,30 @@ unsigned NdtMap::ndtSampleThreshold()
 }
 
 
+void NdtMap::setReinitialiseCovarianceTheshold(float threshold)
+{
+  imp_->reinitialise_covariance_theshold = threshold;
+}
+
+
+float NdtMap::reinitialiseCovarianceTheshold() const
+{
+  return imp_->reinitialise_covariance_theshold;
+}
+
+
+void NdtMap::setReinitialiseCovariancePointCount(unsigned count)
+{
+  imp_->reinitialise_covariance_point_count = count;
+}
+
+
+unsigned NdtMap::reinitialiseCovariancePointCount() const
+{
+  return imp_->reinitialise_covariance_point_count;
+}
+
+
 void NdtMap::setTrace(bool trace)
 {
   imp_->trace = trace;
@@ -139,8 +152,13 @@ void NdtMap::integrateHit(Voxel &voxel, const glm::dvec3 & /*sensor*/, const glm
   voxel_mean = subVoxelToLocalCoord<glm::dvec3>(voxel_mean_info->coord, map.resolution()) + voxel_centre;
 
   float voxel_value = voxel.value();
-  calculateHitWithCovariance(cov_voxel, &voxel_value, sample, voxel_mean, voxel_mean_info->count, map.hitValue(),
-                             voxel::invalidMarkerValue(), imp_->sensor_noise);
+  if (calculateHitWithCovariance(cov_voxel, &voxel_value, sample, voxel_mean, voxel_mean_info->count, map.hitValue(),
+                                 voxel::invalidMarkerValue(), imp_->sensor_noise,
+                                 imp_->reinitialise_covariance_theshold, imp_->reinitialise_covariance_point_count))
+  {
+    // Covariance matrix has reset. Reset the point count to clear the mean value.
+    voxel_mean_info->count = 0;
+  }
 
   // NDT probably value update is the same as for the basic occupancy map.
   voxel.setValue(voxel_value);
@@ -167,7 +185,7 @@ void NdtMap::integrateMiss(Voxel &voxel, const glm::dvec3 &sensor, const glm::dv
 
 #ifdef TES_ENABLE
   const glm::dvec3 voxel_maximum_likelyhood =
-#endif // TES_ENABLE
+#endif  // TES_ENABLE
     calculateMissNdt(cov_voxel, &voxel_value, sensor, sample, voxel_mean, voxel_mean_info->count,
                      voxel::invalidMarkerValue(), map.missValue(), imp_->sensor_noise, imp_->sample_threshold);
   voxel.setValue(voxel_value);
