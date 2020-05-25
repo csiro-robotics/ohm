@@ -38,7 +38,7 @@ NdtMap::NdtMap(OccupancyMap *map, bool borrowed_map)
 {
   imp_->map = map;
   imp_->borrowed_map = borrowed_map;
-  imp_->covariance_layer_index = enableNdt(map);
+  enableNdt(map);
 }
 
 
@@ -133,18 +133,14 @@ bool NdtMap::trace() const
 }
 
 
-int NdtMap::covarianceLayerIndex() const
-{
-  return imp_->covariance_layer_index;
-}
-
-
 void NdtMap::integrateHit(Voxel &voxel, const glm::dvec3 & /*sensor*/, const glm::dvec3 &sample)
 {
   OccupancyMap &map = *imp_->map;
 
-  assert(map.layout().hasVoxelMean());
-  CovarianceVoxel *cov_voxel = voxel.layerContent<CovarianceVoxel *>(imp_->covariance_layer_index);
+  assert(map.layout().meanLayer() >= 0);
+  assert(map.layout().covarianceLayer() >= 0);
+  const int covariance_layer_index = map.layout().covarianceLayer();
+  CovarianceVoxel *cov_voxel = voxel.layerContent<CovarianceVoxel *>(covariance_layer_index);
   VoxelMean *voxel_mean_info = voxel.layerContent<VoxelMean *>(map.layout().meanLayer());
 
   const glm::dvec3 voxel_centre = voxel.centreGlobal();
@@ -176,9 +172,10 @@ void NdtMap::integrateMiss(Voxel &voxel, const glm::dvec3 &sensor, const glm::dv
 
   const float initial_value = voxel.value();
   float voxel_value = initial_value;
-  CovarianceVoxel *cov_voxel = voxel.layerContent<CovarianceVoxel *>(imp_->covariance_layer_index);
+  const int covariance_layer_index = map.layout().covarianceLayer();
+  CovarianceVoxel *cov_voxel = voxel.layerContent<CovarianceVoxel *>(covariance_layer_index);
 
-  assert(map.layout().hasVoxelMean());
+  assert(map.layout().meanLayer() >= 0);
   VoxelMean *voxel_mean_info = voxel.layerContent<VoxelMean *>(map.layout().meanLayer());
   const glm::dvec3 voxel_mean(subVoxelToLocalCoord<glm::dvec3>(voxel_mean_info->coord, map.resolution()) +
                               voxel.centreGlobal());
@@ -193,7 +190,7 @@ void NdtMap::integrateMiss(Voxel &voxel, const glm::dvec3 &sensor, const glm::dv
   TES_IF(imp_->trace)
   {
     TES_BOX_W(g_3es, TES_COLOUR(OrangeRed),
-              TES_PTR_ID(voxel.layerContent<const CovarianceVoxel *>(imp_->covariance_layer_index)),
+              TES_PTR_ID(voxel.layerContent<const CovarianceVoxel *>(covariance_layer_index)),
               glm::value_ptr(voxel.centreGlobal()), glm::value_ptr(glm::dvec3(imp_->map->resolution())));
     TES_SERVER_UPDATE(g_3es, 0.0f);
   }
@@ -282,12 +279,13 @@ void NdtMap::debugDraw() const
 
   uint32_t next_id = static_cast<uint32_t>((size_t)this);
   const tes::Colour c = tes::Colour::Colours[tes::Colour::SeaGreen];
+  const int covariance_layer_index = imp_->map->layout().covarianceLayer();
   for (auto iter = imp_->map->begin(); iter != imp_->map->end(); ++iter)
   {
     const auto voxel = *iter;
     if (voxel.isOccupied())
     {
-      const CovarianceVoxel &cov_voxel = *voxel.layerContent<const CovarianceVoxel *>(imp_->covariance_layer_index);
+      const CovarianceVoxel &cov_voxel = *voxel.layerContent<const CovarianceVoxel *>(covariance_layer_index);
       glm::dvec3 evals;
       glm::dmat3 evecs;
       if (!eigenDecomposition(&cov_voxel, &evals, &evecs))

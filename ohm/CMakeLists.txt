@@ -112,15 +112,14 @@ set(SOURCES
   RayFlag.h
   RayMapper.cpp
   RayMapper.h
-  RayMapperInterface.h
   RayMapperCpu.h
+  RayMapperInterface.h
   RayPattern.cpp
   RayPattern.h
   RayPatternConical.cpp
   RayPatternConical.h
   Stream.cpp
   Stream.h
-  VoxelMean.h
   Trace.cpp
   Trace.h
   TriangleEdge.h
@@ -130,6 +129,7 @@ set(SOURCES
   Voxel.h
   VoxelLayout.cpp
   VoxelLayout.h
+  VoxelMean.h
   VoxelUtil.cpp
   VoxelUtil.h
 )
@@ -186,13 +186,13 @@ set(PUBLIC_HEADERS
   RayPattern.h
   RayPatternConical.h
   Stream.h
-  VoxelMean.h
   Trace.h
   TriangleEdge.h
   TriangleNeighbours.h
   UpAxis.h
   Voxel.h
   VoxelLayout.h
+  VoxelMean.h
   VoxelUtil.h
   "${CMAKE_CURRENT_BINARY_DIR}/ohm/OhmConfig.h"
   "${CMAKE_CURRENT_BINARY_DIR}/ohm/OhmExport.h"

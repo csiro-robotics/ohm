@@ -183,7 +183,7 @@ __device__ void WALK_LINE_VOXELS(const GpuKey *startKey, const GpuKey *endKey, c
   int step[3] = { 0 };
   bool continueTraversal = true;
 
-  // BUG: Intel OpenCL 2.0 compiler does not effect the commented assignment below. I've had to unrolled it.
+  // BUG: Intel OpenCL 2.0 compiler does not effect the commented assignment below. I've had to unrolled it in copyKey()
   // GpuKey currentKey = *startKey;
   GpuKey currentKey;
   copyKey(&currentKey, startKey);

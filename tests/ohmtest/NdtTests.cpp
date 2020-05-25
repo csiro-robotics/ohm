@@ -39,6 +39,13 @@ using namespace ohmtestutil;
 
 namespace ndttests
 {
+  /// Helper for testing covariance update via @p NdtMap .
+  ///
+  /// We add each sample to the map as if the sensor were at the origin. The changes to the target voxels are
+  /// compared against a reference code implementation. Samples may affect any number of voxels.
+  ///
+  /// @param samples The set of sample points to integrate into the map.
+  /// @param voxel_resolution The voxel size for the @c OccupancyMap
   void testNdtHits(const std::vector<glm::dvec3> &samples, double resolution)
   {
     std::unordered_map<ohm::Key, CovTestVoxel, ohm::KeyHash> reference_voxels;
@@ -59,7 +66,7 @@ namespace ndttests
       ohm::Voxel voxel = map.voxel(key, true, &cache);
       ndt.integrateHit(voxel, sensor, sample);
       const ohm::CovarianceVoxel &cov_voxel =
-        *voxel.layerContent<const ohm::CovarianceVoxel *>(ndt.covarianceLayerIndex());
+        *voxel.layerContent<const ohm::CovarianceVoxel *>(map.layout().covarianceLayer());
       const ohm::VoxelMean &voxel_mean = *voxel.layerContent<const ohm::VoxelMean *>(ndt.map().layout().meanLayer());
 
       // Update the reference voxel as well.
@@ -85,14 +92,32 @@ namespace ndttests
       // Lookup the target voxel.
       ohm::VoxelConst voxel = const_cast<const ohm::OccupancyMap &>(map).voxel(ref.first, &cache);
       const ohm::CovarianceVoxel &cov_voxel =
-        *voxel.layerContent<const ohm::CovarianceVoxel *>(ndt.covarianceLayerIndex());
+        *voxel.layerContent<const ohm::CovarianceVoxel *>(map.layout().covarianceLayer());
       const ohm::VoxelMean &voxel_mean = *voxel.layerContent<const ohm::VoxelMean *>(ndt.map().layout().meanLayer());
       EXPECT_TRUE(validate(voxel.position(), voxel_mean.count, cov_voxel, ref.second));
     }
   }
 
+  /// Helper for testing NDT based voxel miss logic.
+  ///
+  /// We first build an @c NdtMap with the given set of @p samples . While we allow for these to be traced from
+  /// @p sensor only modify the voxel for each sample rather than integrating the full ray into the map. We assume that
+  /// all @p samples fall with in the same voxel.
+  ///
+  /// Once the sample voxel is populated, we trace all the @p test_rays through that voxel and compare the *change* in
+  /// probability against the @p expected_prob_approx .
+  ///
+  /// @param sensor The simulated sensor position for all the @p samples .
+  /// @param samples The set of sample points to integrate into the map. These should all fall in the same voxel.
+  /// @param voxel_resolution The voxel size for the @c OccupancyMap
+  /// @param sensor_noise Sensor noise value for the @c NdtMap
+  /// @param map_origin Origin for the @p OccupancyMap
+  /// @param test_rays Set of rays to test against the sample voxel. These are expected to all pass through, but not
+  ///   end in the sample voxel. There are two elements per ray in this array making ray origin, end pairs.
+  /// @param expected_prob_approx Expected probability adjustments for each of the @p test_rays . This array has half
+  ///   the elements of @p test_rays .
   void testNdtMiss(const glm::dvec3 &sensor, const std::vector<glm::dvec3> samples, double voxel_resolution,
-                   float sensor_noise, const glm::dvec3 &map_origin, const std::vector<glm::dvec3> test_rays,
+                   float sensor_noise, const glm::dvec3 &map_origin, const std::vector<glm::dvec3> &test_rays,
                    const std::vector<float> &expected_prob_approx)
   {
     ohm::OccupancyMap map(voxel_resolution, ohm::MapFlag::kVoxelMean);
@@ -103,7 +128,9 @@ namespace ndttests
     map.setMissProbability(0.45f);
     ndt.setSensorNoise(sensor_noise);
 
-    // First process the
+    // Integrate all the samples into the map to build voxel covariance and mean. We expect all samples to fall in one
+    // voxel and test rays to pass through this voxel. While this assumption is not enforced by the integrateHit() calls
+    // below, but we do cache the corresponding voxel key in target_key.
     ohm::Key target_key;
     TES_STMT(std::vector<glm::vec3> lines);
     for (size_t i = 0; i < samples.size(); ++i)
@@ -121,10 +148,14 @@ namespace ndttests
     TES_LINES(ohm::g_3es, TES_COLOUR(Yellow), glm::value_ptr(*lines.data()), lines.size(), sizeof(*lines.data()));
     TES_SERVER_UPDATE(ohm::g_3es, 0.0f);
 
+    // Fetch the target_voxel in which we expect all samples to fall.
     ohm::Voxel target_voxel = map.voxel(target_key, false, &cache);
     const float initial_value = target_voxel;
-    ndt.setTrace(true);
+    ndt.setTrace(true); // For 3es debugging
 
+    // Now trace all the test_rays through the target_voxel. For each we will restore the initial voxel value, so
+    // each test is independent. We then integrate the ray miss/passthrough and validate the probability adjustment
+    // against the expected result.
     for (size_t i = 0; i < test_rays.size(); i += 2)
     {
       target_voxel.setValue(initial_value);

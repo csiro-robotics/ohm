@@ -20,8 +20,6 @@ namespace ohm
     OccupancyMap *map = nullptr;
     /// Range sensor noise estimate
     float sensor_noise = 0.05f;
-    /// @c MapLayout index to the covariance @c MapLayer .
-    int covariance_layer_index = -1;
     /// Number of samples required before using NDT logic in a miss integration.
     unsigned sample_threshold = 4;
     /// Low probability value trehsold used to re-initialise covariance matrix and mean.

@@ -735,7 +735,7 @@ int ohm::loadHeader(const char *filename, OccupancyMap &map, MapVersion *version
   // version.
   if (!err)
   {
-    if (detail.layout.hasVoxelMean())
+    if (detail.layout.meanLayer() >= 0)
     {
       detail.flags |= MapFlag::kVoxelMean;
     }

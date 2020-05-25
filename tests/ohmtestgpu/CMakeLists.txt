@@ -15,9 +15,9 @@ set(SOURCES
   GpuRangesTests.cpp
   GpuRayPatternTests.cpp
   GpuSerialisationTests.cpp
-  GpuVoxelMeanTests.cpp
   GpuTestMain.cpp
   GpuTests.cpp
+  GpuVoxelMeanTests.cpp
 )
 
 if(Eigen3_FOUND)

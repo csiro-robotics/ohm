@@ -69,7 +69,7 @@ __kernel void covarianceHit(__global atomic_float *occupancy, __global ulonglong
 
   // Get the voxel for this thread. Remember, line_keys contains sensor/sample voxel pairs. Sample is second.
   GpuKey target_voxel;
-  // BUG: Intel OpenCL 2.0 compiler does not effect the commented assignment below. I've had to unrolled it.
+  // BUG: Intel OpenCL 2.0 compiler does not effect an assignment of GpuKey. I've had to unrolled it in copyKey().
   copyKey(&target_voxel, &line_keys[get_global_id(0) * 2 + 1]);
   const uint region_local_index = target_voxel.voxel[0] + target_voxel.voxel[1] * region_dimensions.x +
                                   target_voxel.voxel[2] * region_dimensions.x * region_dimensions.y;

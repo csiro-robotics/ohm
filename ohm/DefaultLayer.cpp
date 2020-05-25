@@ -66,8 +66,7 @@ namespace ohm
 
     MapLayer *layer = layout.addLayer(default_layer::covarianceLayerName());
     VoxelLayout voxel = layer->voxelLayout();
-    // Add members to represent a diagonal of the covariance matrix. This is an approximation of the full matrix
-    // but it greatly reduces the per voxel memory usage.
+    // Add members to represent an upper triangular covariance matrix.
     voxel.addMember("P00", DataType::kFloat, 0);
     voxel.addMember("P01", DataType::kFloat, 0);
     voxel.addMember("P11", DataType::kFloat, 0);

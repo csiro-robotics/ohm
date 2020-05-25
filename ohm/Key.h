@@ -314,13 +314,13 @@ namespace ohm
   {
     // Linearise the region index.
     uint64_t region_a, region_b;
-    region_a = uint64_t(int(region_key_.x) + 0xffff) | uint64_t(int(region_key_.y) + 0xffff) << 16 |
-               uint64_t(int(region_key_.z) + 0xffff) << 32;
-    region_b = uint64_t(int(other.region_key_.x) + 0xffff) | uint64_t(int(other.region_key_.y) + 0xffff) << 16 |
-               uint64_t(int(other.region_key_.z) + 0xffff) << 32;
+    region_a = uint64_t(int(region_key_.x) + 0xffff) | (uint64_t(int(region_key_.y) + 0xffff) << 16) |
+               (uint64_t(int(region_key_.z) + 0xffff) << 32);
+    region_b = uint64_t(int(other.region_key_.x) + 0xffff) | (uint64_t(int(other.region_key_.y) + 0xffff) << 16) |
+               (uint64_t(int(other.region_key_.z) + 0xffff) << 32);
     uint32_t local_a, local_b;
-    local_a = uint32_t(local_.x) | uint32_t(local_.y) << 8 | uint32_t(local_.z) << 16;
-    local_b = uint32_t(other.local_.x) | uint32_t(other.local_.y) << 8 | uint32_t(other.local_.z) << 16;
+    local_a = uint32_t(local_.x) | (uint32_t(local_.y) << 8) | (uint32_t(local_.z) << 16);
+    local_b = uint32_t(other.local_.x) | (uint32_t(other.local_.y) << 8) | (uint32_t(other.local_.z) << 16);
     return region_a < region_b || region_a == region_b && local_a < local_b;
   }
 }  // namespace ohm

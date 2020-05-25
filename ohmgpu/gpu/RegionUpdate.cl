@@ -92,8 +92,6 @@ typedef struct LineWalkData_t
 #endif  // NDT
   // Array of region keys for currently loaded regions.
   __global int3 *region_keys;
-  // // Array of offsets for each regionKey into voxels. These are byte offsets.
-  // __global ulonglong *region_mem_offsets;
   // The region currently being traversed. Also used to reduce searching the region_keys and region_mem_offsets.
   int3 current_region;
   // Size of a region in voxels.

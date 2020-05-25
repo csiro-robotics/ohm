@@ -8,10 +8,10 @@
 #include <algorithm>
 #include <vector>
 
-  // The reference code below was provided by Jason Williams as a guide to implementing the NDT map epsecially with
-  // consideration to using a packed covariance matrix. We use this code to validate the NDT results.
-  // Note: Jason's code was written using Eigen for mathematical operations which we've converted to glm. The ohm
-  // library prefers glm as it is a much ligher weight library and we do not require Eigen's advanced functionality.
+// The reference code below was provided by Jason Williams as a guide to implementing the NDT map epsecially with
+// consideration to using a packed covariance matrix. We use this code to validate the NDT results.
+// Note: Jason's code was written using Eigen for mathematical operations which we've converted to glm. The ohm
+// library prefers glm as it is a much ligher weight library and we do not require Eigen's advanced functionality.
 
 namespace ohmtestutil
 {

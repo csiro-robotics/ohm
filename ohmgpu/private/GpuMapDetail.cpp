@@ -89,11 +89,12 @@ void ohm::reinitialiseGpuCache(GpuCache *gpu_cache, OccupancyMap &map, unsigned 
       gpu_cache->createCache(kGcIdVoxelMean, GpuCacheParams{ 0, mean_layer, kGcfRead | kGcfWrite | mappable_flag });
     }
 
-    if (const MapLayer *covariance_layer = map.layout().layer(default_layer::covarianceLayerName()))
+    const int covariance_layer = map.layout().covarianceLayer();
+    if (covariance_layer >= 0)
     {
       // TODO: (KS) add the write flag if we move to being able to process the samples on GPU too.
       gpu_cache->createCache(
-        kGcIdCovariance, GpuCacheParams{ 0, int(covariance_layer->layerIndex()), kGcfRead | kGcfWrite | mappable_flag });
+        kGcIdCovariance, GpuCacheParams{ 0, covariance_layer, kGcfRead | kGcfWrite | mappable_flag });
     }
 
     // Note: we create the clearance gpu cache if we have a clearance layer, but it caches the occupancy_layer as that

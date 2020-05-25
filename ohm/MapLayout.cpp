@@ -104,15 +104,15 @@ int MapLayout::meanLayer() const
 }
 
 
-int MapLayout::clearanceLayer() const
+int MapLayout::covarianceLayer() const
 {
-  return imp_->clearance_layer;
+  return imp_->covariance_layer;
 }
 
 
-bool MapLayout::hasVoxelMean() const
+int MapLayout::clearanceLayer() const
 {
-  return imp_->mean_layer >= 0;
+  return imp_->clearance_layer;
 }
 
 
@@ -178,6 +178,7 @@ MapLayer *MapLayout::addLayer(const char *name, uint16_t subsampling)
   imp_->layers.push_back(new_layer);
 
   std::string name_str(name);
+  // This form of caching layer indices is not scalable. Do no more.
   if (imp_->occupancy_layer == -1 && name_str.compare(default_layer::occupancyLayerName()) == 0)
   {
     imp_->occupancy_layer = new_layer->layerIndex();
@@ -185,6 +186,10 @@ MapLayer *MapLayout::addLayer(const char *name, uint16_t subsampling)
   else if (imp_->mean_layer == -1 && name_str.compare(default_layer::meanLayerName()) == 0)
   {
     imp_->mean_layer = new_layer->layerIndex();
+  }
+  else if (imp_->covariance_layer == -1 && name_str.compare(default_layer::covarianceLayerName()) == 0)
+  {
+    imp_->covariance_layer = new_layer->layerIndex();
   }
   else if (imp_->clearance_layer == -1 && name_str.compare(default_layer::clearanceLayerName()) == 0)
   {

@@ -97,10 +97,6 @@ namespace ohm
     /// Is tracing enabled?
     bool trace() const;
 
-    /// Query the voxel layer index which stores the @c CovarianceVoxel covariance data.
-    /// @return The covariance voxel layer index.
-    int covarianceLayerIndex() const;
-
     /// Integrate a hit on @p voxel. Updates the voxel covariance.
     /// @param voxel The voxel containing the @p sample.
     /// @param sensor The location of the sensor from where the @p sample was detected.

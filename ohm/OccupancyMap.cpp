@@ -572,7 +572,7 @@ MapLayout &OccupancyMap::layout()
 
 void OccupancyMap::addVoxelMeanLayer()
 {
-  if (imp_->layout.hasVoxelMean())
+  if (imp_->layout.meanLayer() >= 0)
   {
     // Already present.
     return;
@@ -586,7 +586,7 @@ void OccupancyMap::addVoxelMeanLayer()
 
 bool OccupancyMap::voxelMeanEnabled() const
 {
-  return imp_->layout.hasVoxelMean();
+  return imp_->layout.meanLayer() >= 0;
 }
 
 
@@ -805,7 +805,7 @@ void OccupancyMap::integrateHit(Voxel &voxel, const glm::dvec3 &point) const
 {
   integrateHit(voxel);
 
-  if (imp_->layout.hasVoxelMean())
+  if (imp_->layout.meanLayer() >= 0)
   {
     VoxelMean *voxel_mean = voxel.layerContent<VoxelMean *>(imp_->layout.meanLayer());
     voxel_mean->coord =
@@ -818,7 +818,7 @@ void OccupancyMap::integrateHit(Voxel &voxel, const glm::dvec3 &point) const
 Voxel OccupancyMap::integrateHit(const Key &key, const glm::dvec3 &point, MapCache *cache)
 {
   Voxel voxel = integrateHit(key, cache);
-  if (imp_->layout.hasVoxelMean())
+  if (imp_->layout.meanLayer() >= 0)
   {
     VoxelMean *voxel_mean = voxel.layerContent<VoxelMean *>(imp_->layout.meanLayer());
     voxel_mean->coord =

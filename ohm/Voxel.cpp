@@ -124,13 +124,13 @@ void Voxel::setClearance(float range)
     }
   }
 }
-
+  
 
 bool Voxel::setPosition(const glm::dvec3 &position, unsigned point_count)
 {
   if (isValid())
   {
-    if (chunk_->layout->hasVoxelMean())
+    if (chunk_->layout->meanLayer() >= 0)
     {
       VoxelMean *voxel_mean = layerContent<VoxelMean *>(map_->layout.meanLayer());
       voxel_mean->coord = subVoxelCoord(position - centreGlobal(), map_->resolution);
@@ -150,7 +150,7 @@ bool Voxel::updatePosition(const glm::dvec3 &position)
 {
   if (isValid())
   {
-    if (chunk_->layout->hasVoxelMean())
+    if (chunk_->layout->meanLayer() >= 0)
     {
       VoxelMean *voxel_mean = layerContent<VoxelMean *>(map_->layout.meanLayer());
       voxel_mean->coord =

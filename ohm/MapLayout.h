@@ -127,18 +127,17 @@ namespace ohm
     /// @return The occupancy layer index or -1 if not present.
     int occupancyLayer() const;
 
-    /// Cached index to the "mean" layer. This layer holds the mean position coordinate for samples fallen in a voxel.
+    /// Cached index to the "mean" layer. This layer holds @c VoxelMean data.
     /// @return The voxel mean layer index or -1 if not present.
     int meanLayer() const;
+
+    /// Cached index to the "covariance" layer. This layer holds the @c CovarianceVoxel data.
+    /// @return The voxel covariance layer index or -1 if not present.
+    int covarianceLayer() const;
 
     /// Cached index to the "clearance" layer.
     /// @return The clearance layer index or -1 if not present.
     int clearanceLayer() const;
-
-    /// Returns true if the layout includes a "mean" layer for @c VoxelMean. This is a aame check only and does not
-    /// confirm the layout.
-    /// @return true if voxel mean layer is present.
-    bool hasVoxelMean() const;
 
     /// Check if this @c MapLayout is equivalent to @p other.
     ///

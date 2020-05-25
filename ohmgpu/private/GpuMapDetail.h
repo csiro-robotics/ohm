@@ -82,9 +82,7 @@ namespace ohm
     gputil::Buffer ray_buffers[kBuffersCount];
 
     gputil::Event region_key_upload_events[kBuffersCount];
-    // gputil::Event region_offset_upload_events[kBuffersCount];
     gputil::Buffer region_key_buffers[kBuffersCount];
-    // gputil::Buffer region_offset_buffers[kBuffersCount];
     gputil::Event region_update_events[kBuffersCount];
 
     // Item 0 is always the occupancy layer.
