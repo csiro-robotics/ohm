@@ -124,7 +124,7 @@ void Voxel::setClearance(float range)
     }
   }
 }
-  
+
 
 bool Voxel::setPosition(const glm::dvec3 &position, unsigned point_count)
 {
