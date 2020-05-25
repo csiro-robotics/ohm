@@ -60,7 +60,7 @@ namespace ohm
 #endif  // GPUTIL_DEVICE
 typedef struct CovarianceVoxel_t
 {
-  /// Sparse covariance matrix. See @c unpackCovariance() for details.
+  /// Trianglar covariance matrix. See @c unpackCovariance() for details.
   float trianglar_covariance[6];
 } CovarianceVoxel;
 
@@ -109,6 +109,15 @@ inline __device__ double packedDot(const covreal A[9], const int j, const int k)
 /// | .       | cov[2]  | cov[4]  |
 /// | .       | .       | cov[5]  |
 /// | mean[0] | mean[1] | mean[2] |
+///
+/// With corresponding layout in the output @p matrix.
+///
+/// |   |   |   |
+/// | - | - | - |
+/// | 0 | 1 | 3 |
+/// | . | 2 | 4 |
+/// | . | . | 5 |
+/// | 6 | 7 | 8 |
 ///
 /// Items marked `cov[n]` are extracted from the @c cov->trianglar_covariance, while `mean[n]` items are derived from
 /// @p sample_to_mean . Items marked '.' are not represented in the martix and are treated as zero.
