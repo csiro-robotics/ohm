@@ -33,7 +33,7 @@
 /// combining the existing coordinate and the new sample value.
 /// This is given as:
 /// @code{.unparsed}
-///   new_mean_coord = (point_count * current_mean_coord + sample) / (point_count + 1)
+///   new_mean_coord = current_mean_coord + (sample - current_mean_coord) / (point_count + 1)
 /// @endcode
 
 #if !GPUTIL_DEVICE
@@ -165,9 +165,9 @@ typedef struct VoxelMean_t
       ;
 
     const coord_real one_on_count_plus_one = (coord_real)1 / (coord_real)(point_count + 1);
-    mean.x = (point_count * mean.x + voxel_local_coord.x) * one_on_count_plus_one;
-    mean.y = (point_count * mean.y + voxel_local_coord.y) * one_on_count_plus_one;
-    mean.z = (point_count * mean.z + voxel_local_coord.z) * one_on_count_plus_one;
+    mean.x += (voxel_local_coord.x - mean.x) * one_on_count_plus_one;
+    mean.y += (voxel_local_coord.y - mean.y) * one_on_count_plus_one;
+    mean.z += (voxel_local_coord.z - mean.z) * one_on_count_plus_one;
     return subVoxelCoord(mean, resolution);
   }
 #if !GPUTIL_DEVICE
