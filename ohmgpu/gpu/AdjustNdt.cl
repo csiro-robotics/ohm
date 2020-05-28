@@ -45,7 +45,7 @@ inline __device__ float calculateOccupancyAdjustment(const GpuKey *voxelKey, boo
 
   float adjustment = 0;
   const int min_sample_threshold = 4;  // Should be passed in.
-  const float3 voxel_maximum_likelyhood =
+  const float3 voxel_maximum_likelihood =
     calculateMissNdt(&cov_voxel, &adjustment, line_data->sensor, line_data->sample, voxel_mean, mean_data->count,
                      INFINITY, line_data->ray_adjustment, line_data->sensor_noise, min_sample_threshold);
 

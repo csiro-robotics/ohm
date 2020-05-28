@@ -181,7 +181,7 @@ void NdtMap::integrateMiss(Voxel &voxel, const glm::dvec3 &sensor, const glm::dv
                               voxel.centreGlobal());
 
 #ifdef TES_ENABLE
-  const glm::dvec3 voxel_maximum_likelyhood =
+  const glm::dvec3 voxel_maximum_likelihood =
 #endif  // TES_ENABLE
     calculateMissNdt(cov_voxel, &voxel_value, sensor, sample, voxel_mean, voxel_mean_info->count,
                      voxel::invalidMarkerValue(), map.missValue(), imp_->sensor_noise, imp_->sample_threshold);
@@ -210,12 +210,12 @@ void NdtMap::integrateMiss(Voxel &voxel, const glm::dvec3 &sensor, const glm::dv
       drew_surfel = true;
     }
 
-    // Trace the voxel mean, maximum likelyhood point and the ellipsoid.
+    // Trace the voxel mean, maximum likelihood point and the ellipsoid.
     // Mean
     TES_SPHERE(g_3es, TES_COLOUR(OrangeRed), TES_PTR_ID(&voxel_mean), glm::value_ptr(voxel_mean), 0.05f);
-    // Maximum likelyhood
-    TES_SPHERE_W(g_3es, TES_COLOUR(PowderBlue), TES_PTR_ID(&voxel_maximum_likelyhood),
-                 glm::value_ptr(voxel_maximum_likelyhood), 0.1f);
+    // Maximum likelihood
+    TES_SPHERE_W(g_3es, TES_COLOUR(PowderBlue), TES_PTR_ID(&voxel_maximum_likelihood),
+                 glm::value_ptr(voxel_maximum_likelihood), 0.1f);
 
     glm::dvec3 pos = voxel.centreGlobal();
     char text[64];
@@ -225,7 +225,7 @@ void NdtMap::integrateMiss(Voxel &voxel, const glm::dvec3 &sensor, const glm::dv
     TES_SERVER_UPDATE(g_3es, 0.0f);
     TES_BOX_END(g_3es, TES_PTR_ID(cov_voxel));
     TES_SPHERE_END(g_3es, TES_PTR_ID(&voxel_mean));
-    TES_SPHERE_END(g_3es, TES_PTR_ID(&voxel_maximum_likelyhood));
+    TES_SPHERE_END(g_3es, TES_PTR_ID(&voxel_maximum_likelihood));
     if (drew_surfel)
     {
       TES_SPHERE_END(g_3es, TES_PTR_ID(cov_voxel));

@@ -60,20 +60,26 @@ namespace ohm
 #endif  // GPUTIL_DEVICE
 typedef struct CovarianceVoxel_t
 {
-  /// Trianglar covariance matrix. See @c unpackCovariance() for details.
+  /// Trianglar square root covariance matrix. Represents a covariance matrix via the triangular
+  /// square root matrix, P = C * C^T.
+  /// | cov[0]  |      .  |      .  |
+  /// | cov[1]  |      .  |      .  |
+  /// | cov[3]  | cov[4]  | cov[5]  |
+
+
   float trianglar_covariance[6];
 } CovarianceVoxel;
 
 
-/// Initialise the packed covariance matrix in @p cov
+/// Initialise the packed square root covariance matrix in @p cov
 /// The covariance value is initialised to an identity matrix, scaled by the @p sensor_noise squared.
 /// @param[out] cov The @c CovarianceVoxel to initialse.
-/// @param sensor_noise The sensor range noise error. Must be greater than zero.
+/// @param sensor_noise The sensor range noise error (standard deviation). Must be greater than zero.
 inline __device__ void initialiseCovariance(CovarianceVoxel *cov, float sensor_noise)
 {
-  // Initialise the covariance matrix to a scaled identity matrix based on the sensor noise.
+  // Initialise the square root covariance matrix to a scaled identity matrix based on the sensor noise.
   cov->trianglar_covariance[0] = cov->trianglar_covariance[2] = cov->trianglar_covariance[5] =
-    sensor_noise * sensor_noise;
+    sensor_noise;
   cov->trianglar_covariance[1] = cov->trianglar_covariance[3] = cov->trianglar_covariance[4] = 0;
 }
 
@@ -101,7 +107,7 @@ inline __device__ double packedDot(const covreal A[9], const int j, const int k)
 
 /// Unpack the covariance matrix storage.
 ///
-/// The unpacked covariance matrix represents a sparse 3,4 matrix of the following form:
+/// Unpacks covariance matrix square root and mean into the following sparse 3,4 form:
 ///
 /// |         |         |         |
 /// | ------- | ------- | ------- |
@@ -173,9 +179,9 @@ inline __device__ covvec3 solveTriangular(const CovarianceVoxel *cov, const covv
 /// Calculate a voxel hit with packed covariance. This supports Normalised Distribution Transform (NDT) logic in @c
 /// calculateMissNdt() .
 ///
-/// The covariance in @p cov_voxel and occupancy in @p voxel_value are both updated, but the voxel mean calculation
-/// is not performed here. However, it is expected that the voxel mean will be updated after this call and the
-/// @c point_count incremented, otherwise future behaviour is undefined.
+/// The square root covariance in @p cov_voxel and occupancy in @p voxel_value are both updated, but the voxel mean
+/// calculation is not performed here. However, it is expected that the voxel mean will be updated after this call and
+/// the @c point_count incremented, otherwise future behaviour is undefined.
 ///
 /// The @p cov_voxel may be zero and is fully initialised when the @p point_count is zero, implying this is the first
 /// hit. It will also be reinitialised whenever the @p voxel_value is below the the @p reinitialise_threshold and the
@@ -288,7 +294,7 @@ inline __device__ bool calculateHitWithCovariance(CovarianceVoxel *cov_voxel, fl
 /// @param uninitialised_value The @p voxel_value for an uncertain voxel - one which has yet to be observed.
 /// @param miss_value The @p voxel_value adjustment to apply from a miss. This must be less than zero to decrease the
 /// occupancy probability. The NDT scaling factor is also derived from this value.
-/// @param sensor_noise The sensor range noise error. Must be greater than zero.
+/// @param sensor_noise The sensor range noise error (standard deviation). Must be greater than zero.
 /// @param sample_threshold The @p point_count required before using NDT logic, i.e., before the covariance value is
 /// usable.
 inline __device__ covvec3 calculateMissNdt(const CovarianceVoxel *cov_voxel, float *voxel_value, covvec3 sensor,
@@ -365,22 +371,22 @@ inline __device__ covvec3 calculateMissNdt(const CovarianceVoxel *cov_voxel, flo
   const covreal t = -covdot(a, b_norm) / covdot(a, a);  // Verified
 
   // (25)
-  // Note: maximum_likelyhood is abbreviated to ml in assoicated variable names.
-  const covvec3 voxel_maximum_likelyhood = sensor_ray * t + sensor;  // Verified
+  // Note: maximum_likelihood is abbreviated to ml in assoicated variable names.
+  const covvec3 voxel_maximum_likelihood = sensor_ray * t + sensor;  // Verified
 
   // (22)
   // Unverified: json line 264
   // const covreal p_x_ml_given_voxel = std::exp(
-  //   -0.5 * covdot(voxel_maximum_likelyhood - voxel_mean, covariance_inv * (voxel_maximum_likelyhood -
+  //   -0.5 * covdot(voxel_maximum_likelihood - voxel_mean, covariance_inv * (voxel_maximum_likelihood -
   //   voxel_mean)));
   // Corrected:
   const covreal p_x_ml_given_voxel =
-    exp(-0.5 * covlength2(solveTriangular(cov_voxel, voxel_maximum_likelyhood - voxel_mean)));
+    exp(-0.5 * covlength2(solveTriangular(cov_voxel, voxel_maximum_likelihood - voxel_mean)));
 
   // (23)
   // Verified: json: line 263
   const covreal sensor_noise_variance = sensor_noise * sensor_noise;
-  const covreal p_x_ml_given_sample = exp(-0.5 * covlength2(voxel_maximum_likelyhood - sample) / sensor_noise_variance);
+  const covreal p_x_ml_given_sample = exp(-0.5 * covlength2(voxel_maximum_likelihood - sample) / sensor_noise_variance);
 
   // Set the scaling factor by converting the miss value to a probability.
   const covreal scaling_factor = 1.0f - (1.0 / (1.0 + exp(miss_value)));
@@ -395,7 +401,7 @@ inline __device__ covvec3 calculateMissNdt(const CovarianceVoxel *cov_voxel, flo
     *voxel_value += (float)log(probability_update / ((covreal)1 - probability_update));
   }
 
-  return voxel_maximum_likelyhood;
+  return voxel_maximum_likelihood;
 }
 
 #if !GPUTIL_DEVICE
