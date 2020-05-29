@@ -105,6 +105,7 @@ namespace
 
 
   /// Build a sphere approximation with an icosahedron.
+  /// @todo Make one subdivision for better spheres.
   void makeUnitSphere(std::vector<glm::dvec3> &vertices, std::vector<unsigned> &indices)
   {
     // We start with two hexagonal rings to approximate the sphere.
