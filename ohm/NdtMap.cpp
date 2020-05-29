@@ -294,10 +294,15 @@ void NdtMap::debugDraw() const
       }
 
       const glm::dvec3 voxel_mean = voxel.position();
+      tes::Vector3d scale;
+      for (int i = 0; i < 3; ++i)
+      {
+        scale[i] = (evals[i] > 1e-9) ? std::sqrt(evals[i]) : 0;
+      }
       tes::Sphere ellipsoid(next_id, glm::value_ptr(voxel_mean));
       glm::dquat q(evecs);
       ellipsoid.setRotation(tes::Quaterniond(q.x, q.y, q.z, q.w));
-      ellipsoid.setScale(2.0 * tes::Vector3d(evals[0], evals[1], evals[2]));
+      ellipsoid.setScale(2.0 * scale);
       ellipsoid.setColour(c);
       ellipsoids.emplace_back(ellipsoid);
 
