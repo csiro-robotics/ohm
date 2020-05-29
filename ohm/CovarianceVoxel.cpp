@@ -26,13 +26,13 @@ using namespace ohm;
 bool ohm::eigenDecomposition(const CovarianceVoxel *cov, glm::dvec3 *eigenvalues, glm::dmat3 *eigenvectors)
 {
   const glm::dmat3 cov_mat = covarianceMatrix(cov);
-  Eigen::Matrix3d cov_map;
+  Eigen::Matrix3d cov_eigen;
 
-  cov_map << glm::row(cov_mat, 0)[0], glm::row(cov_mat, 0)[1], glm::row(cov_mat, 0)[2],  //
+  cov_eigen << glm::row(cov_mat, 0)[0], glm::row(cov_mat, 0)[1], glm::row(cov_mat, 0)[2],  //
     glm::row(cov_mat, 1)[0], glm::row(cov_mat, 1)[1], glm::row(cov_mat, 1)[2],           //
     glm::row(cov_mat, 2)[0], glm::row(cov_mat, 2)[1], glm::row(cov_mat, 2)[2];
 
-  Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> eigensolver(cov_map);
+  Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> eigensolver(cov_eigen * cov_eigen.transpose());
   Eigen::Vector3d evals = Eigen::Vector3d::Ones();
   Eigen::Matrix3d evecs = Eigen::Matrix3d::Identity();
 
