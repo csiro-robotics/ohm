@@ -18,6 +18,15 @@
 #include <ohmutil/PlyMesh.h>
 #include <ohmutil/ProgressMonitor.h>
 
+// CovarianceVoxel.h must be included later due to GPU suppport for this file.
+#define GLM_ENABLE_EXPERIMENTAL
+#include <glm/vec3.hpp>
+#include <glm/mat3x3.hpp>
+#include <glm/gtx/norm.hpp>
+#include <glm/gtx/transform.hpp>
+
+#include <ohm/CovarianceVoxel.h>
+
 #include <algorithm>
 #include <chrono>
 #include <csignal>
@@ -48,6 +57,7 @@ namespace
     kExportClearance,
     kExportHeightmap,
     kExportHeightmapMesh,
+    kExportCovariance
   };
 
   struct Options
@@ -92,6 +102,71 @@ namespace
   private:
     ProgressMonitor &monitor_;
   };
+
+
+  /// Build a sphere approximation with an icosahedron.
+  void makeUnitSphere(std::vector<glm::dvec3> &vertices, std::vector<unsigned> &indices)
+  {
+    // We start with two hexagonal rings to approximate the sphere.
+    // All subdivision occurs on a unit radius sphere, at the origin. We translate and
+    // scale the vertices at the end.
+    vertices.clear();
+    indices.clear();
+
+    static const double ringControlAngle = 25.0 / 180.0 * M_PI;
+    static const double ringHeight = std::sin(ringControlAngle);
+    static const double ringRadius = std::cos(ringControlAngle);
+    static const double hexAngle = 2.0 * M_PI / 6.0;
+    static const double ring2OffsetAngle = 0.5 * hexAngle;
+    static const glm::dvec3 initialVertices[] = {
+      glm::dvec3(0, 0, 1),
+
+      // Upper hexagon.
+      glm::dvec3(ringRadius, 0, ringHeight),
+      glm::dvec3(ringRadius * std::cos(hexAngle), ringRadius * std::sin(hexAngle), ringHeight),
+      glm::dvec3(ringRadius * std::cos(2 * hexAngle), ringRadius * std::sin(2 * hexAngle), ringHeight),
+      glm::dvec3(ringRadius * std::cos(3 * hexAngle), ringRadius * std::sin(3 * hexAngle), ringHeight),
+      glm::dvec3(ringRadius * std::cos(4 * hexAngle), ringRadius * std::sin(4 * hexAngle), ringHeight),
+      glm::dvec3(ringRadius * std::cos(5 * hexAngle), ringRadius * std::sin(5 * hexAngle), ringHeight),
+
+      // Lower hexagon.
+      glm::dvec3(ringRadius * std::cos(ring2OffsetAngle), ringRadius * std::sin(ring2OffsetAngle), -ringHeight),
+      glm::dvec3(ringRadius * std::cos(ring2OffsetAngle + hexAngle), ringRadius * std::sin(ring2OffsetAngle + hexAngle),
+                 -ringHeight),
+      glm::dvec3(ringRadius * std::cos(ring2OffsetAngle + 2 * hexAngle),
+                 ringRadius * std::sin(ring2OffsetAngle + 2 * hexAngle), -ringHeight),
+      glm::dvec3(ringRadius * std::cos(ring2OffsetAngle + 3 * hexAngle),
+                 ringRadius * std::sin(ring2OffsetAngle + 3 * hexAngle), -ringHeight),
+      glm::dvec3(ringRadius * std::cos(ring2OffsetAngle + 4 * hexAngle),
+                 ringRadius * std::sin(ring2OffsetAngle + 4 * hexAngle), -ringHeight),
+      glm::dvec3(ringRadius * std::cos(ring2OffsetAngle + 5 * hexAngle),
+                 ringRadius * std::sin(ring2OffsetAngle + 5 * hexAngle), -ringHeight),
+
+      glm::dvec3(0, 0, -1),
+    };
+    const unsigned initialVertexCount = sizeof(initialVertices) / sizeof(initialVertices[0]);
+
+    const unsigned initialIndices[] = { 0, 1,  2, 0, 2,  3, 0, 3,  4,  0,  4,  5,  0,  5,  6,  0,  6,  1,
+
+                                        1, 7,  2, 2, 8,  3, 3, 9,  4,  4,  10, 5,  5,  11, 6,  6,  12, 1,
+
+                                        7, 8,  2, 8, 9,  3, 9, 10, 4,  10, 11, 5,  11, 12, 6,  12, 7,  1,
+
+                                        7, 13, 8, 8, 13, 9, 9, 13, 10, 10, 13, 11, 11, 13, 12, 12, 13, 7 };
+    const unsigned initialIndexCount = sizeof(initialIndices) / sizeof(initialIndices[0]);
+
+    for (unsigned i = 0; i < initialVertexCount; ++i)
+    {
+      vertices.push_back(initialVertices[i]);
+    }
+
+    for (unsigned i = 0; i < initialIndexCount; i += 3)
+    {
+      indices.push_back(initialIndices[i + 0]);
+      indices.push_back(initialIndices[i + 1]);
+      indices.push_back(initialIndices[i + 2]);
+    }
+  }
 }  // namespace
 
 
@@ -120,6 +195,10 @@ std::istream &operator>>(std::istream &in, ExportMode &mode)
   {
     mode = kExportHeightmapMesh;
   }
+  else if (mode_str.compare("covariance") == 0)
+  {
+    mode = kExportCovariance;
+  }
   // else
   // {
   //   throw cxxopts::invalid_option_format_error(modeStr);
@@ -145,6 +224,9 @@ std::ostream &operator<<(std::ostream &out, const ExportMode mode)
     break;
   case kExportHeightmapMesh:
     out << "heightmap-mesh";
+    break;
+  case kExportCovariance:
+    out << "covariance";
     break;
   }
   return out;
@@ -211,6 +293,320 @@ int parseOptions(Options *opt, int argc, char *argv[])
 }
 
 
+int exportPointCloud(const Options &opt, ProgressMonitor &prog, LoadMapProgress &load_progress)
+{
+  ohm::OccupancyMap map(1.0f);
+  ohm::PlyMesh ply;
+
+  prog.startThread();
+  int res = ohm::load(opt.map_file.c_str(), map, &load_progress);
+  prog.endProgress();
+
+  std::cout << std::endl;
+
+  if (res != 0)
+  {
+    std::cerr << "Failed to load map. Error(" << res << "): " << ohm::errorCodeString(res) << std::endl;
+    return res;
+  }
+
+  // Validate the required layer is present.
+  switch (opt.mode)
+  {
+  case kExportOccupancy:
+  case kExportOccupancyCentre:
+    if (map.layout().layer("occupancy") == nullptr)
+    {
+      std::cerr << "Missing 'occupancy' layer" << std::endl;
+      return -1;
+    }
+    break;
+  case kExportClearance:
+    if (map.layout().layer("clearance") == nullptr)
+    {
+      std::cerr << "Missing 'clearance' layer" << std::endl;
+      return -1;
+    }
+    break;
+  case kExportHeightmap: {
+    const ohm::MapLayer *layer = map.layout().layer(ohm::HeightmapVoxel::kHeightmapLayer);
+    if (!layer)
+    {
+      std::cerr << "Missing '" << ohm::HeightmapVoxel::kHeightmapLayer << "' layer" << std::endl;
+      return -1;
+    }
+    if (layer->voxelByteSize() < sizeof(ohm::HeightmapVoxel))
+    {
+      std::cerr << "Layer '" << ohm::HeightmapVoxel::kHeightmapLayer << "' is not large enough. Expect "
+                << sizeof(ohm::HeightmapVoxel) << " actual " << layer->voxelByteSize() << std::endl;
+      return -1;
+    }
+
+    break;
+  }
+  default:
+    std::cout << "Invalid mode for point cloud: " << opt.mode << std::endl;
+    return -1;
+  }
+
+  int heightmap_axis = -1;
+  if (opt.heightmap_axis.compare("x") == 0)
+  {
+    heightmap_axis = 0;
+  }
+  else if (opt.heightmap_axis.compare("y") == 0)
+  {
+    heightmap_axis = 1;
+  }
+  else if (opt.heightmap_axis.compare("z") == 0)
+  {
+    heightmap_axis = 2;
+  }
+  else
+  {
+    std::cerr << "Invalid heightmap axis: " << opt.heightmap_axis << std::endl;
+    return -1;
+  }
+
+  if (opt.occupancy_threshold >= 0)
+  {
+    map.setOccupancyThresholdProbability(opt.occupancy_threshold);
+  }
+
+  if (opt.cull_distance > 0)
+  {
+    std::cout << "Culling regions beyond range : " << opt.cull_distance << std::endl;
+    const unsigned removed = map.removeDistanceRegions(map.origin(), opt.cull_distance);
+    std::cout << "Removed " << removed << " regions" << std::endl;
+    ;
+  }
+  if (opt.expiry_time > 0)
+  {
+    std::cout << "Expiring regions before time: " << opt.expiry_time << std::endl;
+    unsigned removed = map.expireRegions(opt.expiry_time);
+    std::cout << "Removed " << removed << " regions" << std::endl;
+  }
+
+  std::cout << "Converting to PLY cloud" << std::endl;
+  glm::vec3 v;
+  const size_t region_count = map.regionCount();
+  glm::i16vec3 last_region = map.begin().key().regionKey();
+  uint64_t point_count = 0;
+
+  prog.beginProgress(ProgressMonitor::Info(region_count));
+
+  for (auto iter = map.begin(); iter != map.end() && !quit; ++iter)
+  {
+    const ohm::VoxelConst voxel = *iter;
+    if (last_region != iter.key().regionKey())
+    {
+      prog.incrementProgress();
+      last_region = iter.key().regionKey();
+    }
+    if (opt.mode == kExportOccupancy || opt.mode == kExportOccupancyCentre)
+    {
+      if (map.occupancyType(voxel) == ohm::kOccupied)
+      {
+        v = (opt.mode == kExportOccupancy) ? voxel.position() : voxel.centreGlobal();
+        ply.addVertex(v);
+        ++point_count;
+      }
+    }
+    else if (opt.mode == kExportClearance)
+    {
+      if (voxel.isValid() && voxel.clearance() >= 0 && voxel.clearance() < opt.colour_scale)
+      {
+        const float range_value = voxel.clearance();
+        uint8_t c = uint8_t(255 * std::max(0.0f, (opt.colour_scale - range_value) / opt.colour_scale));
+        v = voxel.centreGlobal();
+        ply.addVertex(v, ohm::Colour(c, 128, 0));
+        ++point_count;
+      }
+    }
+    else if (opt.mode == kExportHeightmap)
+    {
+      if (voxel.isValid() && voxel.isOccupied())
+      {
+        const ohm::HeightmapVoxel *voxel_height = voxel.layerContent<const ohm::HeightmapVoxel *>(
+          map.layout().layer(ohm::HeightmapVoxel::kHeightmapLayer)->layerIndex());
+
+        uint8_t c = uint8_t(255 * std::max(0.0f, (opt.colour_scale - voxel_height->clearance) / opt.colour_scale));
+        if (voxel_height->clearance <= 0)
+        {
+          // Max clearance. No red.
+          c = 0;
+        }
+
+        glm::dvec3 up(0);
+        up[heightmap_axis] = 1;
+        v = voxel.centreGlobal() + up * double(voxel_height->height);
+        ply.addVertex(v, ohm::Colour(c, 128, 0));
+        ++point_count;
+      }
+    }
+  }
+
+  prog.endProgress();
+  prog.pause();
+  prog.joinThread();
+
+  std::cout << "\nExporting " << point_count << " points" << std::endl;
+
+  if (!quit)
+  {
+    if (!ply.save(opt.ply_file.c_str(), true))
+    {
+      res = -1;
+    }
+  }
+
+  return res;
+}
+
+
+int exportHeightmapMesh(const Options &opt, ProgressMonitor &prog, LoadMapProgress &load_progress)
+{
+  ohm::Heightmap heightmap;
+  ohm::PlyMesh ply;
+  prog.startThread();
+  int res = ohm::load(opt.map_file.c_str(), heightmap, &load_progress);
+  prog.endProgress();
+  prog.pause();
+  std::cout << std::endl;
+
+  if (res != 0)
+  {
+    std::cerr << "Failed to load heightmap. Error(" << res << "): " << ohm::errorCodeString(res) << std::endl;
+    return res;
+  }
+
+  ohm::HeightmapMesh mesh;
+  mesh.buildMesh(heightmap);
+  mesh.extractPlyMesh(ply);
+
+  if (!quit)
+  {
+    if (!ply.save(opt.ply_file.c_str(), true))
+    {
+      res = -1;
+    }
+  }
+
+  return res;
+}
+
+int exportCovariance(const Options &opt, ProgressMonitor &prog, LoadMapProgress &load_progress)
+{
+  ohm::OccupancyMap map(1.0f);
+  ohm::PlyMesh ply;
+
+  prog.startThread();
+  int res = ohm::load(opt.map_file.c_str(), map, &load_progress);
+  prog.endProgress();
+
+  std::cout << std::endl;
+
+  if (res != 0)
+  {
+    std::cerr << "Failed to load map. Error(" << res << "): " << ohm::errorCodeString(res) << std::endl;
+    return res;
+  }
+
+  // Validate we have covariance and voxel mean.
+  if (map.layout().meanLayer() == -1)
+  {
+    std::cerr << "Missing voxel mean layer" << std::endl;
+    res = -1;
+  }
+
+  if (map.layout().covarianceLayer() == -1)
+  {
+    std::cerr << "Missing covariance layer" << std::endl;
+    res = -1;
+  }
+
+  if (res != 0)
+  {
+    return res;
+  }
+
+  std::vector<glm::dvec3> sphere_verts;
+  std::vector<unsigned> sphere_inds;
+  makeUnitSphere(sphere_verts, sphere_inds);
+
+  const auto add_ellipsoid = [&sphere_verts, &sphere_inds](ohm::PlyMesh &ply, const glm::dmat4 &transform)  //
+  {
+    unsigned index_offset = ~0u;
+
+    const ohm::Colour c = ohm::Colour::kColours[ohm::Colour::kSeaGreen];
+    for (const auto &v : sphere_verts)
+    {
+      index_offset = std::min(ply.addVertex(glm::dvec3(transform * glm::dvec4(v, 1.0)), c), index_offset);
+    }
+
+    for (size_t i = 0; i < sphere_inds.size(); i += 3)
+    {
+      ply.addTriangle(sphere_inds[i + 0] + index_offset, sphere_inds[i + 1] + index_offset,
+                      sphere_inds[i + 2] + index_offset, c);
+    }
+  };
+
+  const size_t region_count = map.regionCount();
+  glm::i16vec3 last_region = map.begin().key().regionKey();
+  const unsigned covariance_layer = unsigned(map.layout().covarianceLayer());
+  size_t missing_covariance_count = 0;
+
+  prog.beginProgress(ProgressMonitor::Info(region_count));
+
+  for (auto iter = map.begin(); iter != map.end() && !quit; ++iter)
+  {
+    const ohm::VoxelConst voxel = *iter;
+    if (last_region != iter.key().regionKey())
+    {
+      prog.incrementProgress();
+      last_region = iter.key().regionKey();
+    }
+
+    if (!voxel.isOccupied())
+    {
+      continue;
+    }
+
+    const glm::dvec3 pos = voxel.position();
+    const ohm::CovarianceVoxel *cov = voxel.layerContent<const ohm::CovarianceVoxel *>(covariance_layer);
+    if (!cov)
+    {
+      ++missing_covariance_count;
+      continue;
+    }
+
+    // Add an ellipsoid to the PLY
+    glm::dquat rot;
+    glm::dvec3 scale;
+    ohm::covarianceUnitSphereTransformation(cov, &rot, &scale);
+
+    const glm::dmat4 transform = glm::translate(pos) * glm::mat4_cast(rot) * glm::scale(scale);
+    add_ellipsoid(ply, transform);
+  }
+
+  if (missing_covariance_count)
+  {
+    std::cerr << "Missing covariance data for " << missing_covariance_count << " voxels. Results may be invalid."
+              << std::endl;
+    res = -1;
+  }
+
+  if (!quit)
+  {
+    if (!ply.save(opt.ply_file.c_str(), true))
+    {
+      res = -1;
+    }
+  }
+
+  return res;
+}
+
 int main(int argc, char *argv[])
 {
   Options opt;
@@ -230,8 +626,6 @@ int main(int argc, char *argv[])
   std::cout << "Export mode: " << opt.mode << std::endl;
   ProgressMonitor prog(10);
   LoadMapProgress load_progress(prog);
-  ohm::OccupancyMap map(1.0f);
-  ohm::PlyMesh ply;
 
   prog.setDisplayFunction([](const ProgressMonitor::Progress &prog) {
     // if (!opt.quiet)
@@ -255,188 +649,25 @@ int main(int argc, char *argv[])
     }
   });
 
-  int heightmap_axis = -1;
-  if (opt.heightmap_axis.compare("x") == 0)
+  switch (opt.mode)
   {
-    heightmap_axis = 0;
-  }
-  else if (opt.heightmap_axis.compare("y") == 0)
-  {
-    heightmap_axis = 1;
-  }
-  else if (opt.heightmap_axis.compare("z") == 0)
-  {
-    heightmap_axis = 2;
-  }
-  else
-  {
-    std::cerr << "Invalid heightmap axis: " << opt.heightmap_axis << std::endl;
-    return -1;
+  case kExportOccupancy:
+  case kExportOccupancyCentre:
+  case kExportClearance:
+  case kExportHeightmap:
+    res = exportPointCloud(opt, prog, load_progress);
+    break;
+  case kExportHeightmapMesh:
+    res = exportHeightmapMesh(opt, prog, load_progress);
+    break;
+  case kExportCovariance:
+    res = exportCovariance(opt, prog, load_progress);
+    break;
   }
 
-  if (opt.mode != kExportHeightmapMesh)
-  {
-    prog.startThread();
-    res = ohm::load(opt.map_file.c_str(), map, &load_progress);
-    prog.endProgress();
-
-    std::cout << std::endl;
-
-    if (res != 0)
-    {
-      std::cerr << "Failed to load map. Error(" << res << "): " << ohm::errorCodeString(res) << std::endl;
-      return res;
-    }
-
-    // Validate the required layer is present.
-    switch (opt.mode)
-    {
-    case kExportOccupancy:
-    case kExportOccupancyCentre:
-      if (map.layout().layer("occupancy") == nullptr)
-      {
-        std::cerr << "Missing 'occupancy' layer" << std::endl;
-        return -1;
-      }
-      break;
-    case kExportClearance:
-      if (map.layout().layer("clearance") == nullptr)
-      {
-        std::cerr << "Missing 'clearance' layer" << std::endl;
-        return -1;
-      }
-      break;
-    case kExportHeightmap:
-    {
-      const ohm::MapLayer *layer = map.layout().layer(ohm::HeightmapVoxel::kHeightmapLayer);
-      if (!layer)
-      {
-        std::cerr << "Missing '" << ohm::HeightmapVoxel::kHeightmapLayer << "' layer" << std::endl;
-        return -1;
-      }
-      if (layer->voxelByteSize() < sizeof(ohm::HeightmapVoxel))
-      {
-        std::cerr << "Layer '" << ohm::HeightmapVoxel::kHeightmapLayer << "' is not large enough. Expect "
-                  << sizeof(ohm::HeightmapVoxel) << " actual " << layer->voxelByteSize() << std::endl;
-        return -1;
-      }
-
-      break;
-    }
-    default:
-      break;
-    }
-
-    if (opt.occupancy_threshold >= 0)
-    {
-      map.setOccupancyThresholdProbability(opt.occupancy_threshold);
-    }
-
-    if (opt.cull_distance > 0)
-    {
-      std::cout << "Culling regions beyond range : " << opt.cull_distance << std::endl;
-      const unsigned removed = map.removeDistanceRegions(map.origin(), opt.cull_distance);
-      std::cout << "Removed " << removed << " regions" << std::endl;
-      ;
-    }
-    if (opt.expiry_time > 0)
-    {
-      std::cout << "Expiring regions before time: " << opt.expiry_time << std::endl;
-      unsigned removed = map.expireRegions(opt.expiry_time);
-      std::cout << "Removed " << removed << " regions" << std::endl;
-    }
-
-    std::cout << "Converting to PLY cloud" << std::endl;
-    glm::vec3 v;
-    const size_t region_count = map.regionCount();
-    glm::i16vec3 last_region = map.begin().key().regionKey();
-    uint64_t point_count = 0;
-
-    prog.beginProgress(ProgressMonitor::Info(region_count));
-
-    for (auto iter = map.begin(); iter != map.end() && !quit; ++iter)
-    {
-      const ohm::VoxelConst voxel = *iter;
-      if (last_region != iter.key().regionKey())
-      {
-        prog.incrementProgress();
-        last_region = iter.key().regionKey();
-      }
-      if (opt.mode == kExportOccupancy || opt.mode == kExportOccupancyCentre)
-      {
-        if (map.occupancyType(voxel) == ohm::kOccupied)
-        {
-          v = (opt.mode == kExportOccupancy) ? voxel.position() : voxel.centreGlobal();
-          ply.addVertex(v);
-          ++point_count;
-        }
-      }
-      else if (opt.mode == kExportClearance)
-      {
-        if (voxel.isValid() && voxel.clearance() >= 0 && voxel.clearance() < opt.colour_scale)
-        {
-          const float range_value = voxel.clearance();
-          uint8_t c = uint8_t(255 * std::max(0.0f, (opt.colour_scale - range_value) / opt.colour_scale));
-          v = voxel.centreGlobal();
-          ply.addVertex(v, ohm::Colour(c, 128, 0));
-          ++point_count;
-        }
-      }
-      else if (opt.mode == kExportHeightmap)
-      {
-        if (voxel.isValid() && voxel.isOccupied())
-        {
-          const ohm::HeightmapVoxel *voxel_height = voxel.layerContent<const ohm::HeightmapVoxel *>(
-            map.layout().layer(ohm::HeightmapVoxel::kHeightmapLayer)->layerIndex());
-
-          uint8_t c = uint8_t(255 * std::max(0.0f, (opt.colour_scale - voxel_height->clearance) / opt.colour_scale));
-          if (voxel_height->clearance <= 0)
-          {
-            // Max clearance. No red.
-            c = 0;
-          }
-
-          glm::dvec3 up(0);
-          up[heightmap_axis] = 1;
-          v = voxel.centreGlobal() + up * double(voxel_height->height);
-          ply.addVertex(v, ohm::Colour(c, 128, 0));
-          ++point_count;
-        }
-      }
-    }
-
-    prog.endProgress();
-    prog.pause();
-    prog.joinThread();
-
-    std::cout << "\nExporting " << point_count << " points" << std::endl;
-
-    if (!quit)
-    {
-      ply.save(opt.ply_file.c_str(), true);
-    }
-  }
-  else  // mode == kHeightmapMesh
-  {
-    ohm::Heightmap heightmap;
-    prog.startThread();
-    res = ohm::load(opt.map_file.c_str(), heightmap, &load_progress);
-    prog.endProgress();
-    prog.pause();
-    std::cout << std::endl;
-
-    if (res != 0)
-    {
-      std::cerr << "Failed to load heightmap. Error(" << res << "): " << ohm::errorCodeString(res) << std::endl;
-      return res;
-    }
-
-    ohm::HeightmapMesh mesh;
-    mesh.buildMesh(heightmap);
-    mesh.extractPlyMesh(ply);
-
-    ply.save(opt.ply_file.c_str(), true);
-  }
+  prog.endProgress();
+  prog.pause();
+  prog.joinThread();
 
   return res;
 }

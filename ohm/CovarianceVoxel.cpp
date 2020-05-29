@@ -13,61 +13,44 @@
 // Must come after glm includes due to usage on GPU.
 #include "CovarianceVoxel.h"
 
-#include <glm/gtc/matrix_access.hpp>
-
-#define WITH_EIGEN 1
+#include <glm/gtx/matrix_factorisation.hpp>
 
 using namespace ohm;
 
-#if WITH_EIGEN
-// FIXME: add cmake option.
-#include <Eigen/Dense>
-
-bool ohm::eigenDecomposition(const CovarianceVoxel *cov, glm::dvec3 *eigenvalues, glm::dmat3 *eigenvectors)
+void ohm::covarianceEigenDecomposition(const CovarianceVoxel *cov, glm::dmat3 *eigenvectors, glm::dvec3 *eigenvalues)
 {
   const glm::dmat3 cov_mat = covarianceMatrix(cov);
-  Eigen::Matrix3d cov_eigen;
+  const glm::dmat3 mat_p = cov_mat * glm::transpose(cov_mat);
 
-  cov_eigen << glm::row(cov_mat, 0)[0], glm::row(cov_mat, 0)[1], glm::row(cov_mat, 0)[2],  //
-    glm::row(cov_mat, 1)[0], glm::row(cov_mat, 1)[1], glm::row(cov_mat, 1)[2],           //
-    glm::row(cov_mat, 2)[0], glm::row(cov_mat, 2)[1], glm::row(cov_mat, 2)[2];
+  glm::dmat3 eigenvalues_matrix;
+  glm::qr_decompose(mat_p, *eigenvectors, eigenvalues_matrix);
+  (*eigenvalues)[0] = eigenvalues_matrix[0][0];
+  (*eigenvalues)[1] = eigenvalues_matrix[1][1];
+  (*eigenvalues)[2] = eigenvalues_matrix[2][2];
+}
 
-  Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> eigensolver(cov_eigen * cov_eigen.transpose());
-  Eigen::Vector3d evals = Eigen::Vector3d::Ones();
-  Eigen::Matrix3d evecs = Eigen::Matrix3d::Identity();
 
-  if (eigensolver.info() == Eigen::Success)
-  {
-    evals = eigensolver.eigenvalues();
-    evecs = eigensolver.eigenvectors();
-  }
-  const double det = evecs.determinant();
+bool ohm::covarianceUnitSphereTransformation(const CovarianceVoxel *cov, glm::dquat *rotation, glm::dvec3 *scale)
+{
+  glm::dmat3 eigenvectors;
+  glm::dvec3 eigenvalues;
+  covarianceEigenDecomposition(cov, &eigenvectors, &eigenvalues);
+
+  const double det = glm::determinant(eigenvectors);
   if (det < 0.0)
   {
-    evecs.col(0) = -evecs.col(0);  // must be valid rotation matrix (determinant=+1)
+    eigenvectors[0] = -eigenvectors[0];  // must be valid rotation matrix (determinant=+1)
   }
   else if (det == 0.0)
   {
-    evecs = Eigen::Matrix3d::Identity();
+    eigenvectors = glm::dmat3(1.0);
   }
 
-  *eigenvalues = glm::dvec3(evals[0], evals[1], evals[2]);
-  for (int r = 0; r < 3; ++r)
+  *rotation = glm::dquat(eigenvectors);
+  for (int i = 0; i < 3; ++i)
   {
-    for (int c = 0; c < 3; ++c)
-    {
-      (*eigenvectors)[c][r] = evecs(r, c);
-    }
+    (*scale)[i] = (eigenvalues[i] > 1e-9) ? 2.0 * std::sqrt(eigenvalues[i]) : eigenvalues[i];
   }
 
   return true;
 }
-
-#else  // WITH_EIGEN
-
-bool ohm::eigenDecomposition(const CovarianceVoxel &, glm::dvec3 *, glm::mat3 *)
-{
-  return false;
-}
-
-#endif  // WITH_EIGEN

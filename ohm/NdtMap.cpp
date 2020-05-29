@@ -199,14 +199,12 @@ void NdtMap::integrateMiss(Voxel &voxel, const glm::dvec3 &sensor, const glm::dv
   TES_IF(imp_->trace)
   {
     bool drew_surfel = false;
-    glm::dvec3 evals;
-    glm::dmat3 evecs;
-    if (eigenDecomposition(cov_voxel, &evals, &evecs))
+    glm::dquat rot;
+    glm::dvec3 scale;
+    if (covarianceUnitSphereTransformation(cov_voxel, &rot, &scale))
     {
-      glm::dquat rot(evecs);
-      rot = glm::normalize(rot);
       TES_SPHERE(g_3es, TES_COLOUR(SeaGreen), TES_PTR_ID(cov_voxel), glm::value_ptr(voxel_mean),
-                 glm::value_ptr(2.0 * evals), tes::Quaterniond(rot.x, rot.y, rot.z, rot.w));
+                 glm::value_ptr(scale), tes::Quaterniond(rot.x, rot.y, rot.z, rot.w));
       drew_surfel = true;
     }
 
@@ -286,23 +284,19 @@ void NdtMap::debugDraw() const
     if (voxel.isOccupied())
     {
       const CovarianceVoxel &cov_voxel = *voxel.layerContent<const CovarianceVoxel *>(covariance_layer_index);
-      glm::dvec3 evals;
-      glm::dmat3 evecs;
-      if (!eigenDecomposition(&cov_voxel, &evals, &evecs))
+
+      glm::dquat rot;
+      glm::dvec3 scale;
+      if (!covarianceUnitSphereTransformation(&cov_voxel, &rot, &scale))
       {
         continue;
       }
 
       const glm::dvec3 voxel_mean = voxel.position();
-      tes::Vector3d scale;
-      for (int i = 0; i < 3; ++i)
-      {
-        scale[i] = (evals[i] > 1e-9) ? std::sqrt(evals[i]) : 0;
-      }
+
       tes::Sphere ellipsoid(next_id, glm::value_ptr(voxel_mean));
-      glm::dquat q(evecs);
-      ellipsoid.setRotation(tes::Quaterniond(q.x, q.y, q.z, q.w));
-      ellipsoid.setScale(2.0 * scale);
+      ellipsoid.setRotation(tes::Quaterniond(rot.x, rot.y, rot.z, rot.w));
+      ellipsoid.setScale(2.0 * tes::Vector3d(scale.x, scale.y, scale.z));
       ellipsoid.setColour(c);
       ellipsoids.emplace_back(ellipsoid);
 

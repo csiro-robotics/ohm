@@ -78,8 +78,7 @@ typedef struct CovarianceVoxel_t
 inline __device__ void initialiseCovariance(CovarianceVoxel *cov, float sensor_noise)
 {
   // Initialise the square root covariance matrix to a scaled identity matrix based on the sensor noise.
-  cov->trianglar_covariance[0] = cov->trianglar_covariance[2] = cov->trianglar_covariance[5] =
-    sensor_noise;
+  cov->trianglar_covariance[0] = cov->trianglar_covariance[2] = cov->trianglar_covariance[5] = sensor_noise;
   cov->trianglar_covariance[1] = cov->trianglar_covariance[3] = cov->trianglar_covariance[4] = 0;
 }
 
@@ -405,10 +404,18 @@ inline __device__ covvec3 calculateMissNdt(const CovarianceVoxel *cov_voxel, flo
 }
 
 #if !GPUTIL_DEVICE
-/// Perform an eigen decomposition on the covariance dat ain @p cov.
-/// Requires compilation with the Eigen maths library or it always returns false.
-bool ohm_API eigenDecomposition(const CovarianceVoxel *cov, glm::dvec3 *eigenvalues, glm::dmat3 *eigenvectors);
+/// Perform an eigen decomposition on the covariance data in @p cov.
+/// @param cov The covariance voxel to operate on.
+void ohm_API covarianceEigenDecomposition(const CovarianceVoxel *cov, glm::dmat3 *eigenvectors,
+                                          glm::dvec3 *eigenvalues);
 
+/// Convert @p cov into a 3x3 transformation matrix which deforms a unit sphere to approximate the covariance cluster.
+///
+/// The @p transform matrix represents a rotation and a scale.
+///
+/// @param cov The covariance voxel to operate on.
+/// @param transform The rotation and scale matrix which approximates the @p cov cluster.
+bool ohm_API covarianceUnitSphereTransformation(const CovarianceVoxel *cov, glm::dquat *rotation, glm::dvec3 *scale);
 
 /// Unpack @c cov.trianglar_covariance into a 3x3 covariance matrix.
 inline glm::dmat3 covarianceMatrix(const CovarianceVoxel *cov)
