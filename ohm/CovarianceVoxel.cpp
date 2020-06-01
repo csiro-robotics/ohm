@@ -28,9 +28,10 @@ namespace
 void ohm::covarianceEigenDecomposition(const CovarianceVoxel *cov, glm::dmat3 *eigenvectors, glm::dvec3 *eigenvalues)
 {
   const glm::dmat3 cov_mat = covarianceMatrix(cov);
-  const glm::dmat3 mat_p = cov_mat * glm::transpose(cov_mat);
+  glm::dmat3 mat_p = cov_mat * glm::transpose(cov_mat);
 
-  glm::dmat3 eigenvalues_matrix;
+  *eigenvectors = glm::dmat3(1.0);  // Identity initialisation
+
   // Use QR decomposition to implement the QR algorithm.
   // For this algorithm, we iterate as follows:
   //
@@ -40,9 +41,12 @@ void ohm::covarianceEigenDecomposition(const CovarianceVoxel *cov, glm::dmat3 *e
   //   P = R * Q
   // end
   //
+  // The eigenvalues converge in the diagonal of R.
+  // Meanwhile the eigenvectors are found by the product all the Q matrices
+  //
   // We set a hard iteration limit, but we also check for convergence with last iteration and may early out.
-  // In practice we've yet to see the need for multiple iterations.
-  const unsigned iteration_limit = 10;
+  const unsigned iteration_limit = 20;
+  glm::dmat3 q, r;
   glm::dvec3 eigenvalues_last, eigenvalues_current(0);
   const glm::dvec3 delta_threshold(1e-9);
   for (unsigned i = 0; i < iteration_limit; ++i)
@@ -52,10 +56,15 @@ void ohm::covarianceEigenDecomposition(const CovarianceVoxel *cov, glm::dmat3 *e
     max_iterations = std::max(max_iterations, i + 1);
 #endif  // OHM_COV_DEBUG
 
-    glm::qr_decompose(mat_p, *eigenvectors, eigenvalues_matrix);
-    eigenvalues_current[0] = eigenvalues_matrix[0][0];
-    eigenvalues_current[1] = eigenvalues_matrix[1][1];
-    eigenvalues_current[2] = eigenvalues_matrix[2][2];
+    glm::qr_decompose(mat_p, q, r);
+    // Progressively refine the eigenvectors.
+    *eigenvectors = *eigenvectors * q;
+    // Update eigenvalues and check for convergence
+    eigenvalues_current[0] = r[0][0];
+    eigenvalues_current[1] = r[1][1];
+    eigenvalues_current[2] = r[2][2];
+
+    mat_p = r * q;
 
     const glm::dvec3 eval_delta = glm::abs(eigenvalues_current - eigenvalues_last);
     if (glm::all(glm::lessThanEqual(eval_delta, delta_threshold)))

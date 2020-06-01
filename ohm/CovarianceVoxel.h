@@ -408,8 +408,7 @@ inline __device__ covvec3 calculateMissNdt(const CovarianceVoxel *cov_voxel, flo
 /// Perform an eigen decomposition on the covariance data in @p cov.
 ///
 /// This currently uses the QR algorithm. This is an iterative solution, which is not recommended. Therefore this
-/// function is not recommended for high performance code. Having said that, empirically, a case has yet to be found
-/// for needing multiple iterations and the loop has always exited after the second QR decomposition.
+/// function is not recommended for high performance code.
 ///
 /// @param cov The covariance voxel to operate on.
 void ohm_API covarianceEigenDecomposition(const CovarianceVoxel *cov, glm::dmat3 *eigenvectors,
