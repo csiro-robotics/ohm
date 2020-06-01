@@ -590,6 +590,10 @@ int exportCovariance(const Options &opt, ProgressMonitor &prog, LoadMapProgress 
     add_ellipsoid(ply, transform);
   }
 
+#if OHM_COV_DEBUG
+  ohm::covDebugStats();
+#endif  // OHM_COV_DEBUG
+
   if (missing_covariance_count)
   {
     std::cerr << "Missing covariance data for " << missing_covariance_count << " voxels. Results may be invalid."

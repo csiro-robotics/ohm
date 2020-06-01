@@ -23,6 +23,9 @@
 // #endif  // __host__
 // #endif  // GPUTIL_DEVICE
 
+/// Allows additional debug information on @c covarianceEigenDecomposition()
+#define OHM_COV_DEBUG 0
+
 #if GPUTIL_DEVICE
 // Define GPU type aliases
 typedef float3 covvec3;
@@ -63,10 +66,8 @@ typedef struct CovarianceVoxel_t
   /// Trianglar square root covariance matrix. Represents a covariance matrix via the triangular
   /// square root matrix, P = C * C^T.
   /// | cov[0]  |      .  |      .  |
-  /// | cov[1]  |      .  |      .  |
+  /// | cov[1]  | cov[2]  |      .  |
   /// | cov[3]  | cov[4]  | cov[5]  |
-
-
   float trianglar_covariance[6];
 } CovarianceVoxel;
 
@@ -405,16 +406,22 @@ inline __device__ covvec3 calculateMissNdt(const CovarianceVoxel *cov_voxel, flo
 
 #if !GPUTIL_DEVICE
 /// Perform an eigen decomposition on the covariance data in @p cov.
+///
+/// This currently uses the QR algorithm. This is an iterative solution, which is not recommended. Therefore this
+/// function is not recommended for high performance code. Having said that, empirically, a case has yet to be found
+/// for needing multiple iterations and the loop has always exited after the second QR decomposition.
+///
 /// @param cov The covariance voxel to operate on.
 void ohm_API covarianceEigenDecomposition(const CovarianceVoxel *cov, glm::dmat3 *eigenvectors,
                                           glm::dvec3 *eigenvalues);
 
-/// Convert @p cov into a 3x3 transformation matrix which deforms a unit sphere to approximate the covariance cluster.
+/// Convert @p cov into a rotation and scale factors to deform a unit sphere to approximate the covariance cluster.
 ///
-/// The @p transform matrix represents a rotation and a scale.
+/// This calls @c covarianceEigenDecomposition() and suffers the same performance constraints.
 ///
 /// @param cov The covariance voxel to operate on.
-/// @param transform The rotation and scale matrix which approximates the @p cov cluster.
+/// @param[out] rotation The quaternion rotation to apply to the unit sphere after applying @p scale .
+/// @param[out] scale The scaling to apply to the unit sphere before @p rotation .
 bool ohm_API covarianceUnitSphereTransformation(const CovarianceVoxel *cov, glm::dquat *rotation, glm::dvec3 *scale);
 
 /// Unpack @c cov.trianglar_covariance into a 3x3 covariance matrix.
@@ -439,6 +446,10 @@ inline glm::dmat3 covarianceMatrix(const CovarianceVoxel *cov)
 
   return cov_mat;
 }
+
+#if OHM_COV_DEBUG
+void covDebugStats();
+#endif // OHM_COV_DEBUG
 }  // namespace ohm
 #endif  // !GPUTIL_DEVICE
 

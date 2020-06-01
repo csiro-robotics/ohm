@@ -17,16 +17,61 @@
 
 using namespace ohm;
 
+#if OHM_COV_DEBUG
+namespace
+{
+  unsigned max_iterations = 0;
+  double max_error = 0;
+}  // namespace
+#endif  // OHM_COV_DEBUG
+
 void ohm::covarianceEigenDecomposition(const CovarianceVoxel *cov, glm::dmat3 *eigenvectors, glm::dvec3 *eigenvalues)
 {
   const glm::dmat3 cov_mat = covarianceMatrix(cov);
   const glm::dmat3 mat_p = cov_mat * glm::transpose(cov_mat);
 
   glm::dmat3 eigenvalues_matrix;
-  glm::qr_decompose(mat_p, *eigenvectors, eigenvalues_matrix);
-  (*eigenvalues)[0] = eigenvalues_matrix[0][0];
-  (*eigenvalues)[1] = eigenvalues_matrix[1][1];
-  (*eigenvalues)[2] = eigenvalues_matrix[2][2];
+  // Use QR decomposition to implement the QR algorithm.
+  // For this algorithm, we iterate as follows:
+  //
+  // P = cov * cov^T  // cov by cov transpose
+  // for i = 1 to N
+  //   Q, R = qr_decomposition(P)
+  //   P = R * Q
+  // end
+  //
+  // We set a hard iteration limit, but we also check for convergence with last iteration and may early out.
+  // In practice we've yet to see the need for multiple iterations.
+  const unsigned iteration_limit = 10;
+  glm::dvec3 eigenvalues_last, eigenvalues_current(0);
+  const glm::dvec3 delta_threshold(1e-9);
+  for (unsigned i = 0; i < iteration_limit; ++i)
+  {
+    eigenvalues_last = eigenvalues_current;
+#if OHM_COV_DEBUG
+    max_iterations = std::max(max_iterations, i + 1);
+#endif  // OHM_COV_DEBUG
+
+    glm::qr_decompose(mat_p, *eigenvectors, eigenvalues_matrix);
+    eigenvalues_current[0] = eigenvalues_matrix[0][0];
+    eigenvalues_current[1] = eigenvalues_matrix[1][1];
+    eigenvalues_current[2] = eigenvalues_matrix[2][2];
+
+    const glm::dvec3 eval_delta = glm::abs(eigenvalues_current - eigenvalues_last);
+    if (glm::all(glm::lessThanEqual(eval_delta, delta_threshold)))
+    {
+      break;
+    }
+  }
+
+#if OHM_COV_DEBUG
+  const glm::dvec3 eval_delta = glm::abs(eigenvalues_current - eigenvalues_last);
+  max_error = std::max(eval_delta.x, max_error);
+  max_error = std::max(eval_delta.y, max_error);
+  max_error = std::max(eval_delta.z, max_error);
+#endif  // OHM_COV_DEBUG
+
+  *eigenvalues = eigenvalues_current;
 }
 
 
@@ -49,8 +94,19 @@ bool ohm::covarianceUnitSphereTransformation(const CovarianceVoxel *cov, glm::dq
   *rotation = glm::dquat(eigenvectors);
   for (int i = 0; i < 3; ++i)
   {
-    (*scale)[i] = (eigenvalues[i] > 1e-9) ? 2.0 * std::sqrt(eigenvalues[i]) : eigenvalues[i];
+    const double eval = std::abs(eigenvalues[i]);  // abs just in case.
+    (*scale)[i] = (eval > 1e-9) ? 2.0 * std::sqrt(eval) : eval;
   }
 
   return true;
 }
+
+
+#if OHM_COV_DEBUG
+#include <iostream>
+void ohm::covDebugStats()
+{
+  std::cout << "QR algorithm max iterations: " << max_iterations << std::endl;
+  std::cout << "QR algorithm max error: " << max_error << std::endl;
+}
+#endif  // OHM_COV_DEBUG
