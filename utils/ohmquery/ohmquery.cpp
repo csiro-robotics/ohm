@@ -13,6 +13,7 @@
 #include <ohm/OccupancyType.h>
 #include <ohm/OccupancyUtil.h>
 #include <ohm/QueryFlag.h>
+#include <ohm/Trace.h>
 #include <ohm/Voxel.h>
 
 #include <ohmgpu/GpuMap.h>
@@ -826,16 +827,7 @@ int main(int argc, char *argv[])
   opt.print();
 
   // Initialise TES
-  TES_SETTINGS(settings, tes::SF_Compress | tes::SF_Collate);
-  // Initialise server info.
-  TES_SERVER_INFO(info, tes::XYZ);
-  // Create the server. Use tesServer declared globally above.
-  TES_SERVER_CREATE(ohm::g_3es, settings, &info);
-  TES_STMT(ohm::g_3es = ohm::g_3es);
-
-  // Start the server and wait for the connection monitor to start.
-  TES_SERVER_START(ohm::g_3es, tes::ConnectionMonitor::Asynchronous);
-  TES_SERVER_START_WAIT(ohm::g_3es, 1000);
+  ohm::trace::init("ohmquery.3es");
 
 #ifdef TES_ENABLE
   std::cout << "Starting with " << ohm::g_3es->connectionCount() << " connection(s)." << std::endl;
@@ -854,6 +846,6 @@ int main(int argc, char *argv[])
   }
 
   res = runQueries(opt);
-  TES_SERVER_STOP(ohm::g_3es);
+  ohm::trace::done();
   return res;
 }

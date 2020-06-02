@@ -18,7 +18,7 @@ namespace ohm
   struct OccupancyMapDetail;
   class SerialiseProgress;
 
-  namespace v0_3
+  namespace v0_4
   {
     int load(InputStream &stream, OccupancyMapDetail &detail,  // NOLINT(google-runtime-references)
              SerialiseProgress *progress, const MapVersion &version, size_t region_count);
@@ -28,7 +28,7 @@ namespace ohm
 
     int loadChunk(InputStream &stream, MapChunk &chunk,  // NOLINT(google-runtime-references)
                   const OccupancyMapDetail &detail);
-  }  // namespace v0_3
+  }  // namespace v0_4
 }  // namespace ohm
 
 #endif  // MAPSERIALISEV0_3_H

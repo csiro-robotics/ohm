@@ -10,6 +10,7 @@
 
 #include "ohm/RayFlag.h"
 #include "ohm/RayPattern.h"
+#include "ohm/RayMapper.h"
 
 #include <glm/glm.hpp>
 

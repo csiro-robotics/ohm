@@ -19,7 +19,6 @@ namespace gputil
 {
   struct KernelDetail
   {
-    Device gpu;
     const void *cuda_kernel_function = nullptr;
     OptimalGroupSizeCalculation optimal_group_size_calc;
     size_t arg_count = 0u;

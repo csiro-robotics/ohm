@@ -15,8 +15,9 @@
 #include "MapProbability.h"
 #include "MapRegionCache.h"
 #include "OccupancyType.h"
-#include "SubVoxel.h"
+#include "RayMapperCpu.h"
 #include "Voxel.h"
+#include "VoxelMean.h"
 
 #include "OccupancyUtil.h"
 
@@ -209,7 +210,7 @@ OccupancyMap::OccupancyMap(double resolution, const glm::u8vec3 &region_voxel_di
   };
 
   imp_->flags = flags;
-  imp_->setDefaultLayout((flags & MapFlag::kSubVoxelPosition) != MapFlag::kNone);
+  imp_->setDefaultLayout((flags & MapFlag::kVoxelMean) != MapFlag::kNone);
 }
 
 OccupancyMap::OccupancyMap(double resolution, const glm::u8vec3 &region_voxel_dimensions, MapFlag flags,
@@ -217,10 +218,9 @@ OccupancyMap::OccupancyMap(double resolution, const glm::u8vec3 &region_voxel_di
   : OccupancyMap(resolution, region_voxel_dimensions, flags)
 {
   imp_->layout = seed_layout;
-  const bool want_sub_voxel = (flags & MapFlag::kSubVoxelPosition) != MapFlag::kNone;
-  if (imp_->layout.hasSubVoxelPattern() != want_sub_voxel)
+  if ((flags & MapFlag::kVoxelMean) != MapFlag::kNone)
   {
-    setSubVoxelsEnabled(want_sub_voxel);
+    addVoxelMeanLayer();
   }
 }
 
@@ -278,33 +278,36 @@ namespace
 
 Voxel OccupancyMap::voxel(const Key &key, bool allow_create, MapCache *cache)
 {
-  MapChunk *chunk = (cache) ? cache->lookup(key) : nullptr;
-
-  if (!chunk)
+  if (!key.isNull())
   {
-    std::unique_lock<decltype(imp_->mutex)> guard(imp_->mutex);
-    const auto region_ref = imp_->chunks.find(key.regionKey());
-    if (region_ref != imp_->chunks.end())
-    {
-      chunk = region_ref->second;
-    }
-    else if (allow_create)
-    {
-      // No such chunk. Create one.
-      chunk = newChunk(key);
-      imp_->chunks.insert(std::make_pair(chunk->region.coord, chunk));
-      // No need to touch the map here. We haven't changed the semantics of the map until
-      // we change the value of a voxel in the region.
-    }
-  }
+    MapChunk *chunk = (cache) ? cache->lookup(key) : nullptr;
 
-  if (chunk)
-  {
-    if (cache)
+    if (!chunk)
     {
-      cache->push(chunk);
+      std::unique_lock<decltype(imp_->mutex)> guard(imp_->mutex);
+      const auto region_ref = imp_->chunks.find(key.regionKey());
+      if (region_ref != imp_->chunks.end())
+      {
+        chunk = region_ref->second;
+      }
+      else if (allow_create)
+      {
+        // No such chunk. Create one.
+        chunk = newChunk(key);
+        imp_->chunks.insert(std::make_pair(chunk->region.coord, chunk));
+        // No need to touch the map here. We haven't changed the semantics of the map until
+        // we change the value of a voxel in the region.
+      }
     }
-    return Voxel(key, chunk, imp_);
+
+    if (chunk)
+    {
+      if (cache)
+      {
+        cache->push(chunk);
+      }
+      return Voxel(key, chunk, imp_);
+    }
   }
   return Voxel();
 }
@@ -393,16 +396,6 @@ size_t OccupancyMap::calculateApproximateMemory() const
 double OccupancyMap::resolution() const
 {
   return imp_->resolution;
-}
-
-double OccupancyMap::subVoxelWeighting() const
-{
-  return imp_->sub_voxel_weighting;
-}
-
-void OccupancyMap::setSubVoxelWeighting(double weighting)
-{
-  imp_->sub_voxel_weighting = weighting;
 }
 
 uint64_t OccupancyMap::stamp() const
@@ -577,23 +570,47 @@ MapLayout &OccupancyMap::layout()
   return imp_->layout;
 }
 
-void OccupancyMap::setSubVoxelsEnabled(bool enable)
+void OccupancyMap::addVoxelMeanLayer()
 {
-  if (enable == imp_->layout.hasSubVoxelPattern())
+  if (imp_->layout.meanLayer() >= 0)
   {
-    // No change.
+    // Already present.
     return;
   }
 
-  // Need to change the layout. This also means we need to change the map chunks. Only the occupancy layer is affected.
-  const int occupancy_layer_index = imp_->layout.occupancyLayer();
-  if (occupancy_layer_index < 0)
+  MapLayout layout = imp_->layout;
+  addVoxelMean(layout);
+  updateLayout(layout);
+}
+
+
+bool OccupancyMap::voxelMeanEnabled() const
+{
+  return imp_->layout.meanLayer() >= 0;
+}
+
+
+void OccupancyMap::updateLayout(const MapLayout &new_layout, bool preserve_map)
+{
+  // First check if there is a difference between the @c MapLayout and the actual layout.
+  // There's no work to do otherwise.
+
+  const MapLayoutMatch match = imp_->layout.checkEquivalent(new_layout);
+  if (match == MapLayoutMatch::Exact)
   {
-    // No occupancy layer for some reason. Unlikely, but it doesn't hurt to check in this context.
+    // Already matches the current layout. Nothing to do.
     return;
   }
 
-  imp_->layout.invalidateSubVoxelPatternState();
+  // Check for partial match. In this case we just have to update to the new layout values and don't need to adjust
+  // the chunks.
+  if (match == MapLayoutMatch::Equivalent)
+  {
+    imp_->layout = new_layout;
+    return;
+  }
+
+  // We have a memory change. A full update is required.
 
   // First we have to synchronise the GPU cache(s).
   if (imp_->gpu_cache)
@@ -601,67 +618,39 @@ void OccupancyMap::setSubVoxelsEnabled(bool enable)
     imp_->gpu_cache->clear();
   }
 
-  MapLayer *occupancy_layer = imp_->layout.layerPtr(occupancy_layer_index);
-  const size_t voxel_count = size_t(imp_->region_voxel_dimensions.x) * size_t(imp_->region_voxel_dimensions.y) *
-                             size_t(imp_->region_voxel_dimensions.z);
-  if (enable)
+  if (preserve_map)
   {
-    // Adding sub-voxel patterns to the occupancy layer.
-    const size_t clear_value = 0u;
-    occupancy_layer->voxelLayout().addMember(OccupancyMapDetail::kSubVoxelLayerName, DataType::kUInt32, clear_value);
+    /// Tracking of layer indices to preserve. First item is the layer index in the current layout, while the second is
+    /// in the new layout.
+    std::vector<std::pair<const MapLayer *, const MapLayer *>> layer_mapping;
 
-    // Update all existing chunks to add the required member.
-    for (auto &&chunk_ref : imp_->chunks)
+    for (size_t i = 0; i < new_layout.layerCount(); ++i)
     {
-      MapChunk &chunk = *chunk_ref.second;
-      // Get the existing occupancy values.
-      uint8_t *existing_occupancy_mem = occupancy_layer->voxels(chunk);
-      // Allocate new memory for the occupancy layer of this chunk.
-      uint8_t *new_occupancy_mem = occupancy_layer->allocate(imp_->region_voxel_dimensions);
-
-      float *existing_occupancy = reinterpret_cast<float *>(existing_occupancy_mem);
-      OccupancyVoxel *new_occupancy = reinterpret_cast<OccupancyVoxel *>(new_occupancy_mem);
-
-      for (size_t i = 0; i < voxel_count; ++i)
+      const MapLayer &new_layer = new_layout.layer(i);
+      // Look for a matching layer in the current layout.
+      if (const MapLayer *layer = imp_->layout.layer(new_layer.name()))
       {
-        new_occupancy->occupancy = *existing_occupancy;
-        new_occupancy->sub_voxel = 0;
-        ++existing_occupancy;
-        ++new_occupancy;
+        // Found a layer with matching name. Check for equivalent layout.
+        if (layer->checkEquivalent(new_layer) != MapLayoutMatch::Different)
+        {
+          // Layers are equivalent. Add a mapping.
+          layer_mapping.emplace_back(std::make_pair(layer, &new_layer));
+        }
       }
+    }
 
-      chunk.voxel_maps[occupancy_layer_index] = new_occupancy_mem;
-      occupancy_layer->release(existing_occupancy_mem);
+    // Walk the chunks preserving which layers we can.
+    for (auto &chunk : imp_->chunks)
+    {
+      chunk.second->updateLayout(&new_layout, imp_->region_voxel_dimensions, layer_mapping);
     }
   }
   else
   {
-    // Remove sub-voxel information.
-    occupancy_layer->voxelLayout().removeMember(OccupancyMapDetail::kSubVoxelLayerName);
-
-    // Update all existing chunks to add the required member.
-    for (auto &&chunk_ref : imp_->chunks)
-    {
-      MapChunk &chunk = *chunk_ref.second;
-      // Get the existing occupancy values.
-      uint8_t *existing_occupancy_mem = occupancy_layer->voxels(chunk);
-      // Allocate new memory for the occupancy layer of this chunk.
-      uint8_t *new_occupancy_mem = occupancy_layer->allocate(imp_->region_voxel_dimensions);
-
-      OccupancyVoxel *existing_occupancy = reinterpret_cast<OccupancyVoxel *>(existing_occupancy_mem);
-      float *new_occupancy = reinterpret_cast<float *>(new_occupancy_mem);
-
-      for (size_t i = 0; i < voxel_count; ++i)
-      {
-        *new_occupancy = existing_occupancy->occupancy;
-        ++existing_occupancy;
-        ++new_occupancy;
-      }
-
-      chunk.voxel_maps[occupancy_layer_index] = new_occupancy_mem;
-      occupancy_layer->release(existing_occupancy_mem);
-    }
+    clear();
   }
+
+  imp_->layout = new_layout;
 
   // Now reallocate any GPU cache which relies on the occupancy layer.
   if (imp_->gpu_cache)
@@ -670,10 +659,6 @@ void OccupancyMap::setSubVoxelsEnabled(bool enable)
   }
 }
 
-bool OccupancyMap::subVoxelsEnabled() const
-{
-  return imp_->layout.hasSubVoxelPattern();
-}
 
 size_t OccupancyMap::regionCount() const
 {
@@ -820,11 +805,12 @@ void OccupancyMap::integrateHit(Voxel &voxel, const glm::dvec3 &point) const
 {
   integrateHit(voxel);
 
-  if (imp_->layout.hasSubVoxelPattern())
+  if (imp_->layout.meanLayer() >= 0)
   {
-    OccupancyVoxel *voxel_occupancy = voxel.layerContent<OccupancyVoxel *>(imp_->layout.occupancyLayer());
-    voxel_occupancy->sub_voxel = subVoxelUpdate(voxel_occupancy->sub_voxel, point - voxel.centreGlobal(),
-                                                imp_->resolution, imp_->sub_voxel_weighting);
+    VoxelMean *voxel_mean = voxel.layerContent<VoxelMean *>(imp_->layout.meanLayer());
+    voxel_mean->coord =
+      subVoxelUpdate(voxel_mean->coord, voxel_mean->count, point - voxel.centreGlobal(), imp_->resolution);
+    ++voxel_mean->count;
   }
 }
 
@@ -832,11 +818,12 @@ void OccupancyMap::integrateHit(Voxel &voxel, const glm::dvec3 &point) const
 Voxel OccupancyMap::integrateHit(const Key &key, const glm::dvec3 &point, MapCache *cache)
 {
   Voxel voxel = integrateHit(key, cache);
-  if (imp_->layout.hasSubVoxelPattern())
+  if (imp_->layout.meanLayer() >= 0)
   {
-    OccupancyVoxel *voxel_occupancy = voxel.layerContent<OccupancyVoxel *>(imp_->layout.occupancyLayer());
-    voxel_occupancy->sub_voxel = subVoxelUpdate(voxel_occupancy->sub_voxel, point - voxel.centreGlobal(),
-                                                imp_->resolution, imp_->sub_voxel_weighting);
+    VoxelMean *voxel_mean = voxel.layerContent<VoxelMean *>(imp_->layout.meanLayer());
+    voxel_mean->coord =
+      subVoxelUpdate(voxel_mean->coord, voxel_mean->count, point - voxel.centreGlobal(), imp_->resolution);
+    ++voxel_mean->count;
   }
 
   return voxel;
@@ -904,16 +891,6 @@ bool OccupancyMap::saturateAtMaxValue() const
 void OccupancyMap::setSaturateAtMaxValue(bool saturate)
 {
   imp_->saturate_at_max_value = saturate;
-}
-
-float OccupancyMap::subVoxelFilterScale() const
-{
-  return imp_->sub_voxel_filter_scale;
-}
-
-void OccupancyMap::setSubVoxelFilterScale(float scale)
-{
-  imp_->sub_voxel_filter_scale = scale;
 }
 
 glm::dvec3 OccupancyMap::voxelCentreLocal(const Key &key) const
@@ -1068,75 +1045,11 @@ void OccupancyMap::clearRayFilter()
 
 void OccupancyMap::integrateRays(const glm::dvec3 *rays, size_t element_count, unsigned ray_update_flags)
 {
-  KeyList keys;
-  MapCache cache;
-  bool clipped_sample_voxel;
-
-  const bool use_filter = bool(imp_->ray_filter);
-
-  glm::dvec3 start, end;
-  unsigned filter_flags;
-  for (size_t i = 0; i < element_count; i += 2)
-  {
-    filter_flags = 0;
-    start = rays[i];
-    end = rays[i + 1];
-
-    if (use_filter)
-    {
-      if (!imp_->ray_filter(&start, &end, &filter_flags))
-      {
-        // Bad ray.
-        continue;
-      }
-    }
-
-    clipped_sample_voxel = (filter_flags & kRffClippedEnd);
-
-    // Calculate line key for the last voxel if the end point has been clipped
-    calculateSegmentKeys(keys, start, end, clipped_sample_voxel);
-
-    for (auto &&key : keys)
-    {
-      Voxel voxel = this->voxel(key, true, &cache);
-      const float voxel_value = voxel.value();
-
-      bool stop_traversal = false;
-      if ((ray_update_flags & kRfStopOnFirstOccupied) && voxel_value >= imp_->occupancy_threshold_value &&
-          voxel_value != voxel::invalidMarkerValue())
-      {
-        // Found first occupied voxel and request is to stop on the first occupied voxel. Abort traversal after update.
-        stop_traversal = true;
-      }
-
-      // kRfClearOnly flag set => only affect occupied voxels.
-      if (!(ray_update_flags & kRfClearOnly) || voxel_value >= imp_->occupancy_threshold_value)
-      {
-        integrateMiss(voxel);
-      }
-
-      if (stop_traversal)
-      {
-        // Found first occupied voxel and request is to stop on the first occupied voxel. Abort traversal.
-        // Make sure we do not update the en voxel.
-        clipped_sample_voxel = true;
-        break;
-      }
-    }
-
-    if (!clipped_sample_voxel)
-    {
-      Voxel voxel = this->voxel(voxelKey(rays[i + 1]), true, &cache);
-      if (!(ray_update_flags & kRfEndPointAsFree))
-      {
-        integrateHit(voxel, end);
-      }
-      else
-      {
-        integrateMiss(voxel);
-      }
-    }
-  }
+  // This function has been updated to leverage the new RayMapper interface and remove code duplication. It is
+  // maintained for legacy reasons.
+  // TODO: (KS) remove this function and require the use of a RayMapper.
+  RayMapperCpu<OccupancyMap> mapper(this);
+  mapper.integrateRays(rays, element_count, ray_update_flags);
 }
 
 OccupancyMap *OccupancyMap::clone() const

@@ -24,7 +24,12 @@ namespace ohm
     kRfStopOnFirstOccupied = (1 << 1),
     /// Change behaviour such that only voxels which are occupied have their probability adjusted. Free and unknown
     /// voxels are left unchanged.
-    kRfClearOnly = (1 << 2)
+    kRfClearOnly = (1 << 2),
+    /// Do not process the sample voxel.
+    kRfExcludeSample = (1 << 3),
+    /// Exclude the ray part, integrating only the sample. This flag is only recommended in debugging or validation.
+    /// @c RayMapperBase code is not optimised for this flag.
+    kRfExcludeRay = (1 << 4),
   };
 #if !GPUTIL_DEVICE
 } // namespace ohm

@@ -5,6 +5,7 @@
 #include <ohm/HeightmapVoxel.h>
 #include <ohm/MapSerialise.h>
 #include <ohm/OccupancyMap.h>
+#include <ohm/Trace.h>
 #include <ohm/Voxel.h>
 
 #include <ohmutil/OhmUtil.h>
@@ -51,7 +52,7 @@ namespace
     double clearance = 2.0;
     double floor = 0;
     double ceiling = 0;
-    bool no_sub_voxel = false;
+    bool no_voxel_mean = false;
   };
 
 
@@ -88,7 +89,7 @@ int parseOptions(Options *opt, int argc, char *argv[])
        optVal(opt->floor))  //
       ("ceiling", "Heightmap excludes voxels above this (positive) value above the --base height. Positive to enable.",
        optVal(opt->ceiling))                                                                    //
-      ("no-sub-vox", "Ignore sub-voxel positioning if available?.", optVal(opt->no_sub_voxel))  //
+      ("no-voxel-mean", "Ignore voxel mean positioning if available?.", optVal(opt->no_voxel_mean))  //
       ;
 
     opt_parse.parse_positional({ "i", "o" });
@@ -138,17 +139,7 @@ int main(int argc, char *argv[])
   }
 
   // Initialise TES
-  TES_SETTINGS(settings, tes::SF_Compress | tes::SF_Collate);
-  // Initialise server info.
-  TES_SERVER_INFO(info, tes::XYZ);
-  // Create the server. Use tesServer declared globally above.
-  TES_SERVER_CREATE(ohm::g_3es, settings, &info);
-
-  // Start the server and wait for the connection monitor to start.
-  TES_SERVER_START(ohm::g_3es, tes::ConnectionMonitor::Asynchronous);
-
-  TES_SERVER_START_WAIT(ohm::g_3es, 1000);
-  TES_LOCAL_FILE_STREAM(ohm::g_3es, "ohmheightmap.3es");
+  ohm::Trace trace("ohmheightmap.3es");
 
   signal(SIGINT, onSignal);
   signal(SIGTERM, onSignal);
@@ -189,14 +180,12 @@ int main(int argc, char *argv[])
   heightmap.setUseFloodFill(true);  // For better surface following.
   heightmap.setOccupancyMap(&map);
 
-  heightmap.setIgnoreSubVoxelPositioning(opt.no_sub_voxel);
+  heightmap.setIgnoreVoxelMean(opt.no_voxel_mean);
 
   heightmap.buildHeightmap(opt.base_height * heightmap.upAxisNormal());
 
   std::cout << "Saving " << opt.heightmap_file << std::endl;
   ohm::save(opt.heightmap_file.c_str(), heightmap.heightmap(), nullptr);
-
-  TES_SERVER_STOP(ohm::g_3es);
 
   return res;
 }

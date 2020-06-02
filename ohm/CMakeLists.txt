@@ -5,8 +5,10 @@ include(TextFileResource)
 find_package(GLM)
 find_package(ZLIB)
 if(OHM_THREADS)
-  find_package(TBB)
+  find_tbb()
 endif(OHM_THREADS)
+
+find_package(Eigen3 QUIET)
 
 set(TES_ENABLE ${OHM_TES_DEBUG})
 configure_file(OhmConfig.in.h "${CMAKE_CURRENT_BINARY_DIR}/ohm/OhmConfig.h")
@@ -18,6 +20,7 @@ set(SOURCES
   private/LineQueryDetail.h
   private/MapLayerDetail.h
   private/MapLayoutDetail.h
+  private/NdtMapDetail.h
   private/NearestNeighboursDetail.h
   private/OccupancyMapDetail.cpp
   private/OccupancyMapDetail.h
@@ -30,13 +33,20 @@ set(SOURCES
   serialise/MapSerialiseV0.1.h
   serialise/MapSerialiseV0.2.cpp
   serialise/MapSerialiseV0.2.h
-  serialise/MapSerialiseV0.3.cpp
-  serialise/MapSerialiseV0.3.h
+  # Note: there is no ongong support for 0.3.x. That added "sub-voxel" support, but in a way which mutated the occupancy
+  # layer and did not generate good results. Version 0.4.0 introduced an explicit VoxelMean layer for much better
+  # results and obviated the need for map header changes.
+  serialise/MapSerialiseV0.4.cpp
+  serialise/MapSerialiseV0.4.h
   serialise/MapSerialiseV0.cpp
   serialise/MapSerialiseV0.h
   Aabb.h
+  CalculateSegmentKeys.cpp
+  CalculateSegmentKeys.h
   ClearingPattern.cpp
   ClearingPattern.h
+  CovarianceVoxel.cpp
+  CovarianceVoxel.h
   DataType.cpp
   DataType.h
   DefaultLayer.cpp
@@ -81,6 +91,9 @@ set(SOURCES
   MapRegionCache.h
   MapSerialise.cpp
   MapSerialise.h
+  NdtMap.cpp
+  NdtMap.h
+  NdtRayMapperInterface.h
   NearestNeighbours.cpp
   NearestNeighbours.h
   OccupancyMap.cpp
@@ -97,13 +110,18 @@ set(SOURCES
   RayFilter.cpp
   RayFilter.h
   RayFlag.h
+  RayMapper.cpp
+  RayMapper.h
+  RayMapperCpu.h
+  RayMapperInterface.h
   RayPattern.cpp
   RayPattern.h
   RayPatternConical.cpp
   RayPatternConical.h
   Stream.cpp
   Stream.h
-  SubVoxel.h
+  Trace.cpp
+  Trace.h
   TriangleEdge.h
   TriangleNeighbours.h
   UpAxis.h
@@ -111,6 +129,7 @@ set(SOURCES
   Voxel.h
   VoxelLayout.cpp
   VoxelLayout.h
+  VoxelMean.h
   VoxelUtil.cpp
   VoxelUtil.h
 )
@@ -122,7 +141,9 @@ endif(TES_ENABLE)
 
 set(PUBLIC_HEADERS
   Aabb.h
+  CalculateSegmentKeys.h
   ClearingPattern.h
+  CovarianceVoxel.h
   DataType.h
   DefaultLayer.h
   Heightmap.h
@@ -148,6 +169,8 @@ set(PUBLIC_HEADERS
   MapRegion.h
   MapRegionCache.h
   MapSerialise.h
+  NdtMap.h
+  NdtRayMapperInterface.h
   NearestNeighbours.h
   OccupancyMap.h
   OccupancyType.h
@@ -158,15 +181,18 @@ set(PUBLIC_HEADERS
   QueryFlag.h
   RayFilter.h
   RayFlag.h
+  RayMapper.h
+  RayMapperCpu.h
   RayPattern.h
   RayPatternConical.h
   Stream.h
-  SubVoxel.h
+  Trace.h
   TriangleEdge.h
   TriangleNeighbours.h
   UpAxis.h
   Voxel.h
   VoxelLayout.h
+  VoxelMean.h
   VoxelUtil.h
   "${CMAKE_CURRENT_BINARY_DIR}/ohm/OhmConfig.h"
   "${CMAKE_CURRENT_BINARY_DIR}/ohm/OhmExport.h"
@@ -188,6 +214,7 @@ target_include_directories(ohm
 )
 
 if(OHM_THREADS)
+  target_include_directories(ohm PRIVATE SYSTEM ${TBB_INCLUDE_DIRS})
   target_link_libraries(ohm PUBLIC ${TBB_LIBRARIES})
 endif(OHM_THREADS)
 
@@ -202,6 +229,10 @@ if(OHM_TES_DEBUG)
 else(OHM_TES_DEBUG)
   target_include_directories(ohm PRIVATE SYSTEM "${3ES_INCLUDE_DIRS}")
 endif(OHM_TES_DEBUG)
+
+if(Eigen3_FOUND)
+  target_link_libraries(ohm PRIVATE Eigen3::Eigen)
+endif(Eigen3_FOUND)
 
 generate_export_header(ohm
   EXPORT_MACRO_NAME ohm_API

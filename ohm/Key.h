@@ -203,6 +203,9 @@ namespace ohm
     /// @return True when this key's region and local parts do not exactly match that of @p other.
     bool operator!=(const Key &other) const;
 
+    /// Less than operator used for sorting.
+    bool operator<(const Key &other) const;
+
   private:
     glm::i16vec3 region_key_;
     glm::u8vec3 local_;
@@ -304,6 +307,21 @@ namespace ohm
   inline bool Key::operator!=(const Key &other) const
   {
     return region_key_ != other.region_key_ || local_ != other.local_;
+  }
+
+
+  inline bool Key::operator<(const Key &other) const
+  {
+    // Linearise the region index.
+    uint64_t region_a, region_b;
+    region_a = uint64_t(int(region_key_.x) + 0xffff) | (uint64_t(int(region_key_.y) + 0xffff) << 16) |
+               (uint64_t(int(region_key_.z) + 0xffff) << 32);
+    region_b = uint64_t(int(other.region_key_.x) + 0xffff) | (uint64_t(int(other.region_key_.y) + 0xffff) << 16) |
+               (uint64_t(int(other.region_key_.z) + 0xffff) << 32);
+    uint32_t local_a, local_b;
+    local_a = uint32_t(local_.x) | (uint32_t(local_.y) << 8) | (uint32_t(local_.z) << 16);
+    local_b = uint32_t(other.local_.x) | (uint32_t(other.local_.y) << 8) | (uint32_t(other.local_.z) << 16);
+    return region_a < region_b || region_a == region_b && local_a < local_b;
   }
 }  // namespace ohm
 

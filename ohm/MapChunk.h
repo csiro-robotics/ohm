@@ -12,9 +12,12 @@
 #include "MapRegion.h"
 
 #include <atomic>
+#include <vector>
+#include <utility>
 
 namespace ohm
 {
+  class MapLayer;
   class MapLayout;
 
   /// Convert a 3D index into a @c MapChunk into a linear index into the chunk's voxels.
@@ -160,6 +163,17 @@ namespace ohm
     {
       return keyForIndex(voxel_index, region_voxel_dimensions, region.coord);
     }
+
+    /// Update the @p layout for the chunk, preserving current layers which have an equivalent in @p new_layout.
+    ///
+    /// Note: this does not change the @p layout pointer as it is assumed the object at that location is about to be
+    /// updated with the information from @p new_layout.
+    ///
+    /// @param new_layout The new memory layout for voxel chunks.
+    /// @param region_dim The dimensions of each region (voxels).
+    /// @param preserve_layer_mapping Indicates which layers from @p layout are mapped to new layers in @p new_layout.
+    void updateLayout(const MapLayout *new_layout, const glm::uvec3 &region_dim,
+                      const std::vector<std::pair<const MapLayer *, const MapLayer *>> &preserve_layer_mapping);
 
     /// Returns true if the chunk contains any valid voxels. A valid voxel is one who's value has
     /// been set.

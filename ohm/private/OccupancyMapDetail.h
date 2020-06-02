@@ -39,14 +39,10 @@ namespace ohm
 
   struct ohm_API OccupancyMapDetail
   {
-    // "sub_voxel"
-    static const char *const kSubVoxelLayerName;
-
     glm::dvec3 origin = glm::dvec3(0);
     glm::dvec3 region_spatial_dimensions = glm::dvec3(0);
     glm::u8vec3 region_voxel_dimensions = glm::u8vec3(0);
     double resolution = 0.0;
-    double sub_voxel_weighting = 0.3;
     uint64_t stamp = 0;
     float occupancy_threshold_value = 0.0f;
     float occupancy_threshold_probability = 0.0f;
@@ -56,7 +52,6 @@ namespace ohm
     float miss_probability = 0.0f;
     float min_voxel_value = 0.0f;
     float max_voxel_value = 0.0f;
-    float sub_voxel_filter_scale = 1.0f;
     bool saturate_at_min_value = false;
     bool saturate_at_max_value = false;
     MapLayout layout;
@@ -85,8 +80,8 @@ namespace ohm
     void moveKeyAlongAxis(Key &key, int axis, int step) const;  // NOLINT(google-runtime-references)
 
     /// Setup the default @c MapLayout: occupancy layer and clearance layer.
-    /// @param enable_sub_voxel_positioning Enable the sub_voxel positioning information?
-    void setDefaultLayout(bool enable_sub_voxel_positioning = false);
+    /// @param enable_voxel_mean Enable voxel mean positioning?
+    void setDefaultLayout(bool enable_voxel_mean = false);
 
     /// Copy internal details from @p other. For cloning.
     /// @param other The map detail to copy from.

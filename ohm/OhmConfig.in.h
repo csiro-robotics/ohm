@@ -55,6 +55,9 @@ namespace ohm
 
 #include <memory>
 
+/// Enable experimental parts of GLM, like `glm::length2()` (length squared)
+#define GLM_ENABLE_EXPERIMENTAL
+
 // clang-format on
 
 #endif  // OHMCONFIG_H

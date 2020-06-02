@@ -3,10 +3,21 @@ cmake_minimum_required(VERSION 3.5)
 
 find_package(GLM)
 
+# Eigen required to support some tests - NDT in particular
+find_package(Eigen3 QUIET)
+
 set(SOURCES
   OhmTestUtil.cpp
   OhmTestUtil.h
 )
+
+if(Eigen3_FOUND)
+  message(STATUS "Eigen3 found. Adding CovarianceTestUtil.")
+  list(APPEND SOURCES
+    CovarianceTestUtil.cpp
+    CovarianceTestUtil.h
+  )
+endif(Eigen3_FOUND)
 
 add_library(ohmtestcommon ${SOURCES})
 
@@ -33,6 +44,10 @@ if(OHM_TES_DEBUG)
 else(OHM_TES_DEBUG)
   target_include_directories(ohmtestcommon PRIVATE SYSTEM "${3ES_INCLUDE_DIRS}")
 endif(OHM_TES_DEBUG)
+
+if(Eigen3_FOUND)
+  target_link_libraries(ohmtestcommon PUBLIC Eigen3::Eigen)
+endif(Eigen3_FOUND)
 
 source_group("source" REGULAR_EXPRESSION ".*$")
 # Needs CMake 3.8+:

@@ -4,6 +4,9 @@ cmake_minimum_required(VERSION 3.5)
 find_package(GLM)
 find_package(GTest)
 
+# Eigen required to support some tests - NDT in particular
+find_package(Eigen3 QUIET)
+
 set(SOURCES
   GpuLineKeysTests.cpp
   GpuLineQueryTests.cpp
@@ -12,10 +15,15 @@ set(SOURCES
   GpuRangesTests.cpp
   GpuRayPatternTests.cpp
   GpuSerialisationTests.cpp
-  GpuSubVoxelTests.cpp
   GpuTestMain.cpp
   GpuTests.cpp
+  GpuVoxelMeanTests.cpp
 )
+
+if(Eigen3_FOUND)
+  message(STATUS "Eigen3 found. Adding NDT tests.")
+  list(APPEND SOURCES GpuNdtTests.cpp)
+endif(Eigen3_FOUND)
 
 function(_ohmtestgpu_setup GPU)
   add_executable(ohmtest${GPU} ${SOURCES})
@@ -45,6 +53,10 @@ function(_ohmtestgpu_setup GPU)
   else(OHM_TES_DEBUG)
     target_include_directories(ohmtest${GPU} PRIVATE SYSTEM "${3ES_INCLUDE_DIRS}")
   endif(OHM_TES_DEBUG)
+
+  if(Eigen3_FOUND)
+    target_link_libraries(ohmtest${GPU} PRIVATE Eigen3::Eigen)
+  endif(Eigen3_FOUND)
 
   add_test(NAME ohmtest${GPU} COMMAND ohmtest${GPU} --gtest_output=xml:test-reports/)
 endfunction(_ohmtestgpu_setup)

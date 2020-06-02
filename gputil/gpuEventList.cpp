@@ -53,23 +53,22 @@ EventList::EventList(std::initializer_list<const Event *> events)
 }
 
 
-EventList::~EventList() = default;
+EventList::~EventList()
+{
+  clear();
+  delete[] extended_;
+  extended_ = nullptr;
+}
 
 
 void EventList::add(const Event &event)
 {
-  const size_t new_event_count = 1;
-  Event *target_array = nullptr;
-  if (new_event_count + count_ <= kShortCount)
+  if (count_ + 1 >= capacity())
   {
-    target_array = events_;
-  }
-  else
-  {
-    reserve(std::max(capacity_ * 2, new_event_count + count_));
-    target_array = extended_;
+    reserve(std::max(capacity() * 2, capacity() + 1));
   }
 
+  Event *target_array = (extended_) ? extended_ : events_;
   target_array[count_++] = event;
 }
 
@@ -77,17 +76,12 @@ void EventList::add(const Event &event)
 void EventList::add(std::initializer_list<Event> events)
 {
   const size_t new_event_count = events.size();
-  Event *target_array = nullptr;
-  if (new_event_count + count_ <= kShortCount)
+  if (count_ + new_event_count >= capacity())
   {
-    target_array = events_;
-  }
-  else
-  {
-    reserve(std::max(capacity_ * 2, new_event_count + count_));
-    target_array = extended_;
+    reserve(std::max(capacity() * 2, capacity() + new_event_count));
   }
 
+  Event *target_array = (extended_) ? extended_ : events_;
   for (const Event &e : events)
   {
     target_array[count_++] = e;
@@ -98,17 +92,12 @@ void EventList::add(std::initializer_list<Event> events)
 void EventList::add(std::initializer_list<const Event *> events)
 {
   const size_t new_event_count = events.size();
-  Event *target_array = nullptr;
-  if (new_event_count + count_ <= kShortCount)
+  if (count_ + new_event_count >= capacity())
   {
-    target_array = events_;
-  }
-  else
-  {
-    reserve(std::max(capacity_ * 2, new_event_count + count_));
-    target_array = extended_;
+    reserve(std::max(capacity() * 2, capacity() + new_event_count));
   }
 
+  Event *target_array = (extended_) ? extended_ : events_;
   for (const Event *e : events)
   {
     target_array[count_++] = *e;
@@ -129,7 +118,7 @@ void EventList::clear()
 
 void EventList::reserve(size_t new_size)
 {
-  if (new_size < capacity_ || new_size < kShortCount)
+  if (new_size < capacity_ || !extended_ && new_size < kShortCount)
   {
     // Already large enough.
     return;

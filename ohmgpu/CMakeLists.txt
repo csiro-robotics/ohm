@@ -5,7 +5,7 @@ include(TextFileResource)
 find_package(GLM)
 find_package(ZLIB)
 if(OHM_THREADS)
-  find_package(TBB)
+  find_tbb()
 endif(OHM_THREADS)
 
 set(TES_ENABLE ${OHM_TES_DEBUG})
@@ -34,6 +34,8 @@ set(SOURCES
   GpuLayerCache.h
   GpuMap.cpp
   GpuMap.h
+  GpuNdtMap.cpp
+  GpuNdtMap.h
   GpuTransformSamples.cpp
   GpuTransformSamples.h
   LineKeysQueryGpu.cpp
@@ -45,10 +47,25 @@ set(SOURCES
 )
 
 set(GPU_SOURCES
+  gpu/CovarianceHit.cl
   gpu/LineKeys.cl
   gpu/RegionUpdate.cl
   gpu/RoiRangeFill.cl
   gpu/TransformSamples.cl
+)
+
+get_target_property(OHM_SOURCE_DIR ohm SOURCE_DIR)
+set(GPU_HEADERS
+  gpu/AdjustNdt.cl
+  gpu/AdjustOccupancy.cl
+  gpu/LineWalk.cl
+  gpu/VoxelMean.cl
+  GpuKey.h
+  # Need some headers from the OHM core project.
+  ${OHM_SOURCE_DIR}/CovarianceVoxel.h
+  ${OHM_SOURCE_DIR}/MapCoord.h
+  ${OHM_SOURCE_DIR}/RayFlag.h
+  ${OHM_SOURCE_DIR}/VoxelMean.h
 )
 
 set(PUBLIC_HEADERS
@@ -59,6 +76,7 @@ set(PUBLIC_HEADERS
   GpuKey.h
   GpuLayerCache.h
   GpuMap.h
+  GpuNdtMap.h
   GpuTransformSamples.h
   LineKeysQueryGpu.h
   LineQueryGpu.h
@@ -66,15 +84,6 @@ set(PUBLIC_HEADERS
   "${CMAKE_CURRENT_BINARY_DIR}/ohmgpu/OhmGpuConfig.h"
   "${CMAKE_CURRENT_BINARY_DIR}/ohmgpu/OhmGpuExport.h"
   )
-
-get_target_property(OHM_SOURCE_DIR ohm SOURCE_DIR)
-
-set(GPU_HEADERS
-  GpuKey.h
-  ${OHM_SOURCE_DIR}/MapCoord.h
-  ${OHM_SOURCE_DIR}/RayFlag.h
-  ${OHM_SOURCE_DIR}/SubVoxel.h
-)
 
 function(_ohmgpu_setup_target TARGET_NAME GPUTIL_LIBRARY OHM_GPU)
   target_compile_definitions(${TARGET_NAME} PUBLIC "-DOHM_GPU=${OHM_GPU}")
@@ -95,6 +104,10 @@ function(_ohmgpu_setup_target TARGET_NAME GPUTIL_LIBRARY OHM_GPU)
       $<BUILD_INTERFACE:${OHM_SOURCE_DIR}/private>
   )
 
+  if(OHM_THREADS)
+    target_include_directories(${TARGET_NAME} PRIVATE SYSTEM ${TBB_INCLUDE_DIRS})
+    target_link_libraries(${TARGET_NAME} PUBLIC ${TBB_LIBRARIES})
+  endif(OHM_THREADS)
   if(OHM_TES_DEBUG)
     target_link_libraries(${TARGET_NAME} PUBLIC 3es::3es-core)
   else(OHM_TES_DEBUG)
@@ -124,13 +137,6 @@ if(OHM_BUILD_OPENCL)
   get_target_property(GPUTIL_INCLUDE_DIRS gputilocl SOURCE_DIR)
   get_target_property(GPUTIL_SOURCE_DIR gputilocl SOURCE_DIR)
   list(APPEND GPU_HEADERS ${GPUTIL_SOURCE_DIR}/gpu_ext.h)
-
-  set(GPU_SOURCES
-    gpu/LineKeys.cl
-    gpu/RegionUpdate.cl
-    gpu/RoiRangeFill.cl
-    gpu/TransformSamples.cl
-  )
 
   if(OHM_EMBED_GPU_CODE)
     # Embedding GPU code. Generate source file resources.
@@ -174,8 +180,11 @@ endif(OHM_BUILD_OPENCL)
 
 if(OHM_BUILD_CUDA)
   list(APPEND GPU_SOURCES
+    gpu/CovarianceHit.cu
     gpu/LineKeys.cu
     gpu/RegionUpdate.cu
+    gpu/RegionUpdateNdt.cu
+    gpu/RegionUpdateWithMean.cu
     gpu/RoiRangeFill.cu
     gpu/TransformSamples.cu
   )

@@ -32,14 +32,6 @@ foreach(CONF Debug;Release;MinSizeRel;RelWithDebInfo)
   set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_${CONFU} "${CMAKE_BINARY_DIR}/bin")
 endforeach(CONF)
 
-# CUDA compiler doesn't seem to respect the CMAKE_POSITION_INDEPENDENT_CODE variable. Explicitly add it for
-# GCC comilation. May be needed for Clang (untested).
-if(CMAKE_POSITION_INDEPENDENT_CODE)
-  if(CMAKE_CXX_COMPILER_ID MATCHES "GNU")# OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-    list(APPEND CUDA_NVCC_FLAGS "-Xcompiler -fPIC")
-  endif(CMAKE_CXX_COMPILER_ID MATCHES "GNU")# OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-endif(CMAKE_POSITION_INDEPENDENT_CODE)
-
 # Manage compiler warnings.
 # Use CMAKE_MODULE_PATH and include(warnings) if warnings.cmake is moved.
 include(compilerSetup)
@@ -83,10 +75,27 @@ set_property(CACHE OHM_OPENCL_STD PROPERTY STRINGS 1.2 2.0 max)
 # Identify any exteions required to compile with OpenCL 2.0 std.
 set(OHM_OPENCL_2_FEATURES "" CACHE STRING "Features required for OpenCL 2.x. Fallback to 1.2 otherwise.")
 
+# Helper macro to Find TBB prefering TBBConfig, falling back to FindTBB. TBB_LIBRARIES will be defined in both cases.
+# TBB_INCLUDE_DIRS will be empty for TBBConfig, and populated for FindTBB.
+macro(find_tbb)
+  # Try find TBB config file.
+  find_package(TBB QUIET CONFIG)
+  if(TBB_FOUND)
+    message(STATUS "TBB found using TBBConfig.cmake")
+    set(TBB_LIBRARIES "${TBB_IMPORTED_TARGETS}")
+  else(TBB_FOUND)
+    # No TBB config file. Try FindTBB.cmake
+    find_package(TBB QUIET)
+    if(TBB_FOUND)
+      message(STATUS "TBB found using FindTBB.cmake")
+    endif(TBB_FOUND)
+  endif(TBB_FOUND)
+endmacro(find_tbb)
+
 # Initialse OHM_THREADS based on whether we can find TBB or not.
 if(NOT DEFINED OHM_THREADS)
   set(TBB_THREADS_DEFAULT Off)
-  find_package(TBB QUIET)
+  find_tbb()
   if(TBB_FOUND)
     set(TBB_THREADS_DEFAULT On)
   else(TBB_FOUND)
@@ -137,6 +146,11 @@ set(OHM_ASAN_OPTIONS_CUDA "${OHM_ASAN_OPTIONS_CUDA_INIT}" CACHE STRING "Address 
 set(OHM_GPU_OPENCL 1)
 set(OHM_GPU_CUDA 2)
 set(OHM_GPU 0)
+
+if(OHM_BUILD_CUDA)
+  include(cudautil)
+  nvcc_setup(OHM)
+endif(OHM_BUILD_CUDA)
 
 # Configure use of 3rd-Eye-Scene visual debugging (use for development only)
 if(OHM_TES_DEBUG)

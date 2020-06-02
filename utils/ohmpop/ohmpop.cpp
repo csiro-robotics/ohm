@@ -9,13 +9,20 @@
 
 #include <ohm/MapSerialise.h>
 #include <ohm/Mapper.h>
+#include <ohm/NdtMap.h>
 #include <ohm/OccupancyMap.h>
 #include <ohm/OccupancyUtil.h>
+#include <ohm/RayMapperCpu.h>
+#include <ohm/Trace.h>
 #include <ohm/Voxel.h>
+#ifdef OHMPOP_CPU
+#include <ohm/NdtRayMapperInterface.h>
+#endif  // OHMPOP_CPU
 
 #ifndef OHMPOP_CPU
 #include <ohmgpu/ClearanceProcess.h>
 #include <ohmgpu/GpuMap.h>
+#include <ohmgpu/GpuNdtMap.h>
 #include <ohmgpu/OhmGpu.h>
 #endif  // OHMPOP_CPU
 
@@ -61,6 +68,14 @@ namespace
   // Min/max V: -2.00003 3.51103
   struct Options
   {
+    struct Ndt
+    {
+      float sensor_noise = 0.05;
+      float covariance_reset_probability = ohm::valueToProbability(0.1f);
+      unsigned covariance_reset_sample_count = 10;
+      bool enabled = false;
+    };
+
     std::string cloud_file;
     std::string trajectory_file;
     std::string output_base_name;
@@ -72,16 +87,16 @@ namespace
     double start_time = 0;
     double time_limit = 0;
     double resolution = 0.25;
-    double sub_voxel_weighting = 0.0f;
     double clip_near_range = 0.0;
     float prob_hit = 0.9f;
     float prob_miss = 0.49f;
     float prob_thresh = 0.5f;
-    float sub_voxel_filter = 0.0f;
     glm::vec2 prob_range = glm::vec2(0, 0);
+    glm::vec3 cloud_colour = glm::vec3(0);
     unsigned batch_size = 2048;
     bool serialise = true;
     bool save_info = false;
+    bool voxel_mean = false;
 #ifndef OHMPOP_CPU
     double mapping_interval = 0.2;
     double progressive_mapping_slice = 0.0;
@@ -90,6 +105,8 @@ namespace
     bool clearance_unknown_as_occupied = false;
 #endif  // OHMPOP_CPU
     bool quiet = false;
+
+    Ndt ndt;
 
     void print(std::ostream **out, const ohm::OccupancyMap &map) const;
   };
@@ -140,15 +157,7 @@ namespace
       // std::string mem_size_string;
       // util::makeMemoryDisplayString(mem_size_string, ohm::OccupancyMap::voxelMemoryPerRegion(region_voxel_dim));
       **out << "Map resolution: " << resolution << '\n';
-      **out << "Sub-voxel weighting: ";
-      if (sub_voxel_weighting > 0)
-      {
-        **out << sub_voxel_weighting << '\n';
-      }
-      else
-      {
-        **out << "off\n";
-      }
+      **out << "Voxel mean position: " << (map.voxelMeanEnabled() ? "on" : "off") << '\n';
       glm::i16vec3 region_dim = region_voxel_dim;
       region_dim.x = (region_dim.x) ? region_dim.x : OHM_DEFAULT_CHUNK_DIM_X;
       region_dim.y = (region_dim.y) ? region_dim.y : OHM_DEFAULT_CHUNK_DIM_Y;
@@ -193,7 +202,7 @@ namespace
   class SerialiseMapProgress : public ohm::SerialiseProgress
   {
   public:
-    SerialiseMapProgress(ProgressMonitor &monitor) // NOLINT(google-runtime-references)
+    SerialiseMapProgress(ProgressMonitor &monitor)  // NOLINT(google-runtime-references)
       : monitor_(monitor)
     {}
 
@@ -267,6 +276,16 @@ namespace
         prog->beginProgress(ProgressMonitor::Info(region_count));
       }
 
+      const auto colour_channel_f = [](float cf) -> uint8_t  //
+      {
+        cf = 255.0f * std::max(cf, 0.0f);
+        unsigned cu = unsigned(cf);
+        return uint8_t(std::min(cu, 255u));
+      };
+      bool use_colour = opt.cloud_colour.r > 0 || opt.cloud_colour.g > 0 || opt.cloud_colour.b > 0;
+      const ohm::Colour c(colour_channel_f(opt.cloud_colour.r), colour_channel_f(opt.cloud_colour.g),
+                          colour_channel_f(opt.cloud_colour.b));
+
       for (auto iter = map.begin(); iter != map_end_iter && quit < 2; ++iter)
       {
         const ohm::VoxelConst voxel = *iter;
@@ -281,7 +300,14 @@ namespace
         if (voxel.isOccupied())
         {
           v = voxel.position();
-          ply.addVertex(v);
+          if (use_colour)
+          {
+            ply.addVertex(v, c);
+          }
+          else
+          {
+            ply.addVertex(v);
+          }
           ++point_count;
         }
       }
@@ -326,8 +352,7 @@ int populateMap(const Options &opt)
   }
 
   ohm::MapFlag map_flags = ohm::MapFlag::kNone;
-  map_flags |= (opt.sub_voxel_weighting > 0) ? ohm::MapFlag::kSubVoxelPosition : ohm::MapFlag::kNone;
-  map_flags |= (opt.sub_voxel_filter > 0) ? ohm::MapFlag::kSubVoxelOccupancy : ohm::MapFlag::kNone;
+  map_flags |= (opt.voxel_mean) ? ohm::MapFlag::kVoxelMean : ohm::MapFlag::kNone;
   ohm::OccupancyMap map(opt.resolution, opt.region_voxel_dim, map_flags);
   std::atomic<uint64_t> elapsed_ms(0);
   ProgressMonitor prog(10);
@@ -373,8 +398,27 @@ int populateMap(const Options &opt)
     }
   }
 
-#ifndef OHMPOP_CPU
-  ohm::GpuMap gpu_map(&map, true, opt.batch_size);
+  ohm::RayMapper *ray_mapper = nullptr;
+#ifdef OHMPOP_CPU
+  std::unique_ptr<ohm::NdtMap> ndt_map;
+  std::unique_ptr<ohm::RayMapperCpu<ohm::NdtMap>> ndt_ray_mapper;
+  ohm::RayMapperCpu<decltype(map)> ray_mapper_(&map);
+  if (opt.ndt.enabled)
+  {
+    std::cout << "Building NDT map" << std::endl;
+    ndt_map = std::make_unique<ohm::NdtMap>(&map, true);
+    ndt_ray_mapper = std::make_unique<ohm::RayMapperCpu<ohm::NdtMap>>(ndt_map.get());
+    ray_mapper = ndt_ray_mapper.get();
+  }
+  else
+  {
+    ray_mapper = &ray_mapper_;
+  }
+#else   // OHMPOP_CPU
+  std::unique_ptr<ohm::GpuMap> gpu_map((!opt.ndt.enabled) ? new ohm::GpuMap(&map, true, opt.batch_size) :
+                                                            new ohm::GpuNdtMap(&map, true, opt.batch_size));
+  ohm::NdtMap *ndt_map = &static_cast<ohm::GpuNdtMap *>(gpu_map.get())->ndtMap();
+  ray_mapper = gpu_map.get();
 #endif  // OHMPOP_CPU
   ohm::Mapper mapper(&map);
   std::vector<double> sample_timestamps;
@@ -394,19 +438,20 @@ int populateMap(const Options &opt)
 #endif  // OHMPOP_CPU
   Clock::time_point start_time, end_time;
 
-  if (opt.sub_voxel_weighting > 0)
+  if (opt.voxel_mean)
   {
-    map.setSubVoxelsEnabled(true);
-    map.setSubVoxelWeighting(opt.sub_voxel_weighting);
+    map.addVoxelMeanLayer();
   }
 
-  if (opt.sub_voxel_filter > 0)
+  if (opt.ndt.enabled)
   {
-    map.setSubVoxelFilterScale(opt.sub_voxel_filter);
+    ndt_map->setSensorNoise(opt.ndt.sensor_noise);
+    ndt_map->setReinitialiseCovarianceTheshold(opt.ndt.covariance_reset_probability);
+    ndt_map->setReinitialiseCovariancePointCount(opt.ndt.covariance_reset_sample_count);
   }
 
 #ifndef OHMPOP_CPU
-  if (!gpu_map.gpuOk())
+  if (!gpu_map->gpuOk())
   {
     std::cerr << "Failed to initialise GpuMap programs." << std::endl;
     return -3;
@@ -587,11 +632,7 @@ int populateMap(const Options &opt)
 #if COLLECT_STATS
       const auto then = Clock::now();
 #endif  // COLLECT_STATS
-#ifndef OHMPOP_CPU
-      gpu_map.integrateRays(origin_sample_pairs.data(), unsigned(origin_sample_pairs.size()));
-#else   // OHMPOP_CPU
-      map.integrateRays(origin_sample_pairs.data(), unsigned(origin_sample_pairs.size()));
-#endif  // OHMPOP_CPU
+      ray_mapper->integrateRays(origin_sample_pairs.data(), unsigned(origin_sample_pairs.size()));
 #if COLLECT_STATS
       const auto integrateTime = Clock::now() - then;
 #if COLLECT_STATS_IGNORE_FIRST
@@ -655,11 +696,7 @@ int populateMap(const Options &opt)
 #if COLLECT_STATS
     const auto then = Clock::now();
 #endif  // COLLECT_STATS
-#ifndef OHMPOP_CPU
-    gpu_map.integrateRays(origin_sample_pairs.data(), unsigned(origin_sample_pairs.size()));
-#else   // OHMPOP_CPU
-    map.integrateRays(origin_sample_pairs.data(), unsigned(origin_sample_pairs.size()));
-#endif  // OHMPOP_CPU
+    ray_mapper->integrateRays(origin_sample_pairs.data(), unsigned(origin_sample_pairs.size()));
 #if COLLECT_STATS
     const auto integrateTime = Clock::now() - then;
     stats.add(integrateTime);
@@ -698,7 +735,7 @@ int populateMap(const Options &opt)
     std::cout << "syncing map" << std::endl;
   }
 #ifndef OHMPOP_CPU
-  gpu_map.syncOccupancy();
+  gpu_map->syncVoxels();
 #endif  // OHMPOP_CPU
 
   std::ostream **out = streams;
@@ -729,6 +766,15 @@ int populateMap(const Options &opt)
   }
 
   prog.joinThread();
+
+  if (opt.ndt.enabled)
+  {
+#ifdef OHMPOP_CPU
+    ndt_map->debugDraw();
+#else   // OHMPOP_CPU
+    static_cast<ohm::GpuNdtMap *>(gpu_map.get())->debugDraw();
+#endif  //  OHMPOP_CPU
+  }
 
   return 0;
 }
@@ -769,6 +815,7 @@ int parseOptions(Options *opt, int argc, char *argv[])
       ("t,time-limit", "Limit the elapsed time in the LIDAR data to process (seconds). Measured relative to the first data sample.", optVal(opt->time_limit))
       ("trajectory", "The trajectory (text) file to load.", cxxopts::value(opt->trajectory_file))
       ("prior", "Prior map file to load and continue to populate.", cxxopts::value(opt->prior_map))
+      ("cloud-colour", "Colour for points in the saved cloud (if saving).", optVal(opt->cloud_colour))
       ;
 
     opt_parse.add_options("Map")
@@ -778,14 +825,12 @@ int parseOptions(Options *opt, int argc, char *argv[])
       ("h,hit", "The occupancy probability due to a hit. Must be >= 0.5.", optVal(opt->prob_hit))
       ("m,miss", "The occupancy probability due to a miss. Must be < 0.5.", optVal(opt->prob_miss))
       ("r,resolution", "The voxel resolution of the generated map.", optVal(opt->resolution))
-      ("sub-voxel", "Sub voxel positioning weighting. Adding this option with no value enables sub-voxel positioning "
-                    "with the default weighting. Specifying a value (0, 1] sets the weight of new samples vs. the "
-                    "existing sub-voxel position.",
-                    optVal(opt->sub_voxel_weighting)->implicit_value("0.3"))
-      ("sub-voxel-filter", "Enable sub-voxel occupancy filtering? Occupied voxels with may be considered free when "
-                    "the sub-voxel positioning is far from the voxel centre.",
-                    optVal(opt->sub_voxel_filter)->implicit_value("1.0"))
+      ("voxel-mean", "Enable voxel mean coordinates?", optVal(opt->voxel_mean))
       ("threshold", "Sets the occupancy threshold assigned when exporting the map to a cloud.", optVal(opt->prob_thresh)->implicit_value(optStr(opt->prob_thresh)))
+      ("ndt", "Use normal distibution transform map generation.", optVal(opt->ndt.enabled))
+      ("ndt-cov-point-threshold", "Minimum number of samples requires in order to allow the covariance to reset at --ndt-cov-prob-threshold..", optVal(opt->ndt.covariance_reset_sample_count))
+      ("ndt-cov-prob-threshold", "Low probability threshold at which the covariance can be reset as samples accumulate once more. See also --ndt-cov-point-threshold.", optVal(opt->ndt.covariance_reset_probability))
+      ("ndt-sensor-noise", "Range sensor noise used for Ndt mapping. Must be > 0.", optVal(opt->ndt.sensor_noise))
       ;
 
     // clang-format on
@@ -858,6 +903,14 @@ int main(int argc, char *argv[])
     return res;
   }
 
+  // Initialise TES
+#ifdef OHMPOP_CPU
+  const char *trace_name = "ohmpopcpu.3es";
+#else   // OHMPOP_CPU
+  const char *trace_name = "ohmpopgpu.3es";
+#endif  // OHMPOP_CPU
+  ohm::Trace trace(trace_name);
+
   signal(SIGINT, onSignal);
   signal(SIGTERM, onSignal);
 
@@ -884,5 +937,6 @@ int main(int argc, char *argv[])
   }
 
   res = populateMap(opt);
+
   return res;
 }

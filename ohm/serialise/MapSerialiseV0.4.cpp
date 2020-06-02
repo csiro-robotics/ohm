@@ -3,7 +3,7 @@
 // ABN 41 687 119 230
 //
 // Author: Kazys Stepanas
-#include "MapSerialiseV0.3.h"
+#include "MapSerialiseV0.4.h"
 
 #include "MapSerialiseV0.2.h"
 
@@ -18,12 +18,12 @@
 
 namespace ohm
 {
-  namespace v0_3
+  namespace v0_4
   {
     int load(InputStream &stream, OccupancyMapDetail &detail, SerialiseProgress *progress, const MapVersion &version,
              size_t region_count)
     {
-      return load(stream, detail, progress, version, region_count, &v0_3::loadChunk);
+      return load(stream, detail, progress, version, region_count, &v0_4::loadChunk);
     }
 
     int load(InputStream &stream, OccupancyMapDetail &detail, SerialiseProgress *progress, const MapVersion &version,
@@ -79,5 +79,5 @@ namespace ohm
 
       return (ok) ? 0 : kSeFileReadFailure;
     }
-  }  // namespace v0_3
+  }  // namespace v0_4
 }  // namespace ohm

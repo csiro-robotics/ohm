@@ -8,6 +8,8 @@
 
 #include "OhmConfig.h"
 
+#include "MapLayoutMatch.h"
+
 #include <initializer_list>
 
 namespace ohm
@@ -125,20 +127,28 @@ namespace ohm
     /// @return The occupancy layer index or -1 if not present.
     int occupancyLayer() const;
 
+    /// Cached index to the "mean" layer. This layer holds @c VoxelMean data.
+    /// @return The voxel mean layer index or -1 if not present.
+    int meanLayer() const;
+
+    /// Cached index to the "covariance" layer. This layer holds the @c CovarianceVoxel data.
+    /// @return The voxel covariance layer index or -1 if not present.
+    int covarianceLayer() const;
+
     /// Cached index to the "clearance" layer.
     /// @return The clearance layer index or -1 if not present.
     int clearanceLayer() const;
 
-    /// Returns true if the "occupancy" layer includes sub-voxel pattern values.
+    /// Check if this @c MapLayout is equivalent to @p other.
     ///
-    /// The occupancy layer may contain either only @c float occupancy values or @c float occupancy and @c uint32_t
-    /// sub-voxel patters for each voxel. This function returns true if the sub-voxel pattern is present in the
-    /// @c occupancyLayer().
-    /// @return true if sub-voxel patterns are in use.
-    bool hasSubVoxelPattern() const;
-
-    /// Invalidate the @c hasSubVoxelPattern() flag.
-    void invalidateSubVoxelPatternState();
+    /// The layouts are may be equivalent if they share the same number of layers, the voxel patterns are the same
+    /// for each layer and the clearing patterns match. The names do not have to be the same.
+    ///
+    /// The layouts match if all layers names and voxel layouts match.
+    ///
+    /// @param other The other layout to compare against.
+    /// @return The equivalence @c MapLayoutMatch
+    MapLayoutMatch checkEquivalent(const MapLayout &other) const;
 
     /// Remove all layers except for the named layers. Removing interleaved layers may create gaps in the layer
     /// array. These gaps are removed with the array being repacked.

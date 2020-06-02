@@ -149,14 +149,14 @@ namespace ohm
     /// @return The height clearance value.
     double minClearance() const;
 
-    /// Sets whether sub-voxel positions are ignored (true) forcing the use of voxel centres.
-    /// @param ignore True to force voxel centres even when sub-voxel positions are present.
-    void setIgnoreSubVoxelPositioning(bool ignore);
+    /// Sets whether voxel mean positions are ignored (true) forcing the use of voxel centres.
+    /// @param ignore True to force voxel centres even when voxel mean positions are present.
+    void setIgnoreVoxelMean(bool ignore);
 
-    /// Force voxel centres even when sub-voxel positions are present?
-    /// @return True to ignore sub-voxel positioning.
-    /// @seealso @ref subvoxel
-    bool ignoreSubVoxelPositioning() const;
+    /// Force voxel centres even when voxel mean positions are present?
+    /// @return True to ignore voxel mean positioning.
+    /// @seealso @ref voxelmean
+    bool ignoreVoxelMean() const;
 
     /// Set the generation of a heightmap floor around the transition from unknown to free voxels?
     ///
@@ -201,7 +201,7 @@ namespace ohm
 
     /// The layer number which contains @c HeightmapVoxel structures.
     /// @return The heightmap layer index or -1 on error (not present).
-    /// @seealso @ref subvoxel
+    /// @seealso @ref voxelmean
     int heightmapVoxelLayer() const;
 
     /// The layer number which contains @c HeightmapVoxel structures during heightmap construction.

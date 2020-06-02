@@ -33,27 +33,33 @@ namespace ohm
   /// @c ohm::Key representation in GPU.
   ///
   /// This structure must exactly match the memory alignment of ohm::Key.
-  struct GpuKey
+  typedef struct GpuKey_t
   {
     /// Region key.
     short region[3];  // NOLINT
     /// Voxel key.
     // Element 3 is provided for padding, but may be used as a context based value.
     unsigned char voxel[4];
-  };
+  } GpuKey;
 #if !GPUTIL_DEVICE
 }  // namespace ohm
 #endif  // !GPUTIL_DEVICE
 
 #ifdef GPUTIL_DEVICE
 
-__device__ __host__ void stepKeyAlongAxis(struct GpuKey *key, int axis, int step, const int3 *regionDim);
-__device__ __host__ void moveKeyAlongAxis(struct GpuKey *key, int axis, int step, const int3 *regionDim);
+/// Test for equality between two @c GpuKey objects.
+/// @param a The first key.
+/// @param b The second key.
+/// @return True if @p a and @p b are exactly equal.
+inline __device__ __host__ bool equalKeys(const GpuKey *a, const GpuKey *b);
+
+__device__ __host__ void stepKeyAlongAxis(GpuKey *key, int axis, int step, const int3 *regionDim);
+__device__ __host__ void moveKeyAlongAxis(GpuKey *key, int axis, int step, const int3 *regionDim);
 
 #if __OPENCL_C_VERSION__ >= 200
-__device__ __host__ void copyKey(struct GpuKey *out, const struct GpuKey *in);
+__device__ __host__ void copyKey(GpuKey *out, const GpuKey *in);
 
-__device__ __host__ void copyKey(struct GpuKey *out, const struct GpuKey *in)
+__device__ __host__ void copyKey(GpuKey *out, const GpuKey *in)
 {
   out->region[0] = in->region[0];
   out->region[1] = in->region[1];
@@ -68,7 +74,13 @@ __device__ __host__ void copyKey(struct GpuKey *out, const struct GpuKey *in)
 #define copyKey(out, in) *out = *in
 #endif  // __OPENCL_C_VERSION__ >= 200
 
-inline __device__ __host__ void stepKeyAlongAxis(struct GpuKey *key, int axis, int step, const int3 *regionDim)
+inline __device__ __host__ bool equalKeys(const GpuKey *a, const GpuKey *b)
+{
+  return a->region[0] == b->region[0] && a->region[1] == b->region[1] && a->region[2] == b->region[2] &&
+         a->voxel[0] == b->voxel[0] && a->voxel[1] == b->voxel[1] && a->voxel[2] == b->voxel[2];
+}
+
+inline __device__ __host__ void stepKeyAlongAxis(GpuKey *key, int axis, int step, const int3 *regionDim)
 {
   const int axisDim = (axis == 0) ? regionDim->x : ((axis == 1) ? regionDim->y : regionDim->z);
   int vind = key->voxel[axis] + step;
@@ -81,7 +93,7 @@ inline __device__ __host__ void stepKeyAlongAxis(struct GpuKey *key, int axis, i
 }
 
 
-inline __device__ __host__ void moveKeyAlongAxis(struct GpuKey *key, int axis, int step, const int3 *regionDim)
+inline __device__ __host__ void moveKeyAlongAxis(GpuKey *key, int axis, int step, const int3 *regionDim)
 {
   const int axisDim = (axis == 0) ? regionDim->x : ((axis == 1) ? regionDim->y : regionDim->z);
 
@@ -142,7 +154,7 @@ inline __device__ __host__ void moveKeyAlongAxis(struct GpuKey *key, int axis, i
   key->voxel[2] = localKey[2];
 }
 
-// GpuKey diff calculator for a single axis. Results are:
+// GpuKey dir calculator for a single axis. Results are:
 // . 0 => keys are equal on axis.
 // . 1 => end key indexes a higher voxel along axis.
 // . -1 => end key indexes a lower voxel along axis.
@@ -154,16 +166,33 @@ inline __device__ __host__ void moveKeyAlongAxis(struct GpuKey *key, int axis, i
 // . -1 end_region == start_region && end_voxel < start_voxel
 // . 1 end_region == start_region && end_voxel > start_voxel
 // . 0 end_region == start_region && end_voxel == start_voxel
-#define _OHM_GPUKEY_AXIS_DIFF(start, end, axis) \
-  ((end)->region[axis] != (start)->region[axis] ?             \
-    ((end)->region[axis] > (start)->region[axis] ? 1.0f : -1.0f) : \
-    ((end)->voxel[axis] != (end)->voxel[1] ? ((end)->voxel[axis] > (start)->voxel[axis] ? 1.0f : -1.0f) : 0.0f))
+#define _OHM_GPUKEY_AXIS_DIR(start, end, axis)                      \
+  ((end)->region[axis] != (start)->region[axis] ?                   \
+     ((end)->region[axis] > (start)->region[axis] ? 1.0f : -1.0f) : \
+     ((end)->voxel[axis] != (end)->voxel[1] ? ((end)->voxel[axis] > (start)->voxel[axis] ? 1.0f : -1.0f) : 0.0f))
 
-inline __device__ __host__ float3 keyDirection(const struct GpuKey *start, const struct GpuKey *end)
+inline __device__ __host__ float3 keyDirection(const GpuKey *start, const GpuKey *end)
 {
-  return make_float3(_OHM_GPUKEY_AXIS_DIFF(start, end, 0),
-                     _OHM_GPUKEY_AXIS_DIFF(start, end, 1),
-                     _OHM_GPUKEY_AXIS_DIFF(start, end, 2));
+  return make_float3(_OHM_GPUKEY_AXIS_DIR(start, end, 0), _OHM_GPUKEY_AXIS_DIR(start, end, 1),
+                     _OHM_GPUKEY_AXIS_DIR(start, end, 2));
+}
+
+// Calculate the number of voxels from start to end.
+//
+// @todo Consolidate this code with OccupancyMap::rangeBetween()
+inline __device__ __host__ int3 keyDiff(const GpuKey *start, const GpuKey *end, const int3 *regionDim)
+{
+  // First diff the regions.
+  const int3 region_diff =
+    make_int3(end->region[0] - start->region[0], end->region[1] - start->region[1], end->region[2] - start->region[2]);
+  int3 voxel_diff;
+
+  // Voxel difference is the sum of the local difference plus the region step difference.
+  voxel_diff.x = end->voxel[0] - start->voxel[0] + region_diff.x * regionDim->x;
+  voxel_diff.y = end->voxel[1] - start->voxel[1] + region_diff.y * regionDim->y;
+  voxel_diff.z = end->voxel[2] - start->voxel[2] + region_diff.z * regionDim->z;
+
+  return voxel_diff;
 }
 
 #endif  // GPUTIL_DEVICE

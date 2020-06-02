@@ -51,11 +51,11 @@ namespace gpumap
 
   void gpuMapTest(double resolution, const glm::u8vec3 &region_size, const std::vector<glm::dvec3> &rays,
                   const PostGpuMapTestFunc &post_populate, const char *save_prefix = nullptr, size_t batch_size = 0u,
-                  size_t gpu_mem_size = 0u, bool sub_voxels = false)
+                  size_t gpu_mem_size = 0u, bool voxel_means = false)
   {
     // Test basic map populate using GPU and ensure it matches CPU (close enough).
-    OccupancyMap cpu_map(resolution, region_size, sub_voxels ? MapFlag::kSubVoxel : MapFlag::kNone);
-    OccupancyMap gpu_map(resolution, region_size, sub_voxels ? MapFlag::kSubVoxel : MapFlag::kNone);
+    OccupancyMap cpu_map(resolution, region_size, voxel_means ? MapFlag::kVoxelMean : MapFlag::kNone);
+    OccupancyMap gpu_map(resolution, region_size, voxel_means ? MapFlag::kVoxelMean : MapFlag::kNone);
     GpuMap gpu_wrap(&gpu_map, true, unsigned(batch_size * 2), gpu_mem_size);  // Borrow pointer.
 
     ASSERT_TRUE(gpu_wrap.gpuOk());
@@ -119,7 +119,7 @@ namespace gpumap
     std::cout << gpu_queued - gpu_start << '\n';
 
     std::cout << "GPU sync: " << std::flush;
-    gpu_wrap.syncOccupancy();
+    gpu_wrap.syncVoxels();
     const auto gpu_end = TimingClock::now();
     std::cout << (gpu_end - gpu_queued) << '\n';
     std::cout << "Per ray: " << (gpu_end - gpu_start) / (rays.size() / 2);
@@ -258,7 +258,7 @@ namespace gpumap
   TEST(GpuMap, PopulateTiny)
   {
     const double resolution = 0.25;
-    const unsigned batch_size = 1;
+    const unsigned batch_size = 2;
     const glm::u8vec3 region_size(32);
 
     // Make a ray.
@@ -266,8 +266,8 @@ namespace gpumap
     rays.emplace_back(glm::dvec3(0.3));
     rays.emplace_back(glm::dvec3(1.1));
 
-    // rays.emplace_back(glm::dvec3(-5.0));
-    // rays.emplace_back(glm::dvec3(0.3));
+    rays.emplace_back(glm::dvec3(-5.0));
+    rays.emplace_back(glm::dvec3(0.3));
 
     gpuMapTest(resolution, region_size, rays, compareCpuGpuMaps, "tiny", batch_size);
   }
@@ -375,19 +375,19 @@ namespace gpumap
 
       GpuMap gpu_map3(&map3, true);  // Borrow pointer.
       gpu_map3.integrateRays(rays.data() + i, current_batch_size);
-      gpu_map3.syncOccupancy();
+      gpu_map3.syncVoxels();
 
       // Forth, transient map.
       OccupancyMap map4(resolution, region_size);
       // std::cout << "\n" << map4.origin() << std::endl;
       GpuMap gpu_map4(&map4, true);  // Borrow pointer.
       gpu_map4.integrateRays(rays.data() + i, current_batch_size);
-      gpu_map4.syncOccupancy();
+      gpu_map4.syncVoxels();
     }
     std::cout << "\r" << rays.size() << " / " << rays.size() << std::endl;
 
-    gpu_map1.syncOccupancy();
-    gpu_map2.syncOccupancy();
+    gpu_map1.syncVoxels();
+    gpu_map2.syncVoxels();
 
     std::cout << "Comparing maps" << std::endl;
     compareMaps(map1, map2);
@@ -482,7 +482,7 @@ namespace gpumap
       gpu_map.integrateRays(clear_rays.data(), unsigned(clear_rays.size()));
       // dumpKeys = true;
       cpu_map.integrateRays(clear_rays.data(), unsigned(clear_rays.size()));
-      gpu_map.syncOccupancy();
+      gpu_map.syncVoxels();
 
       compare_results(cpu_map, gpu_map.map());
     };
@@ -521,7 +521,7 @@ namespace gpumap
     rays.push_back(glm::dvec3(0, 0, -2));
 
     gpu_wrap.integrateRays(rays.data(), unsigned(rays.size()));
-    gpu_wrap.syncOccupancy();
+    gpu_wrap.syncVoxels();
 
     // Validate the map contains no occupied points; only free and unknown.
     const glm::dvec3 voxel_half_extents(0.5 * gpu_map.resolution());
@@ -562,7 +562,7 @@ namespace gpumap
     rays.push_back(glm::dvec3(0, 0, 0));
 
     gpu_wrap.integrateRays(rays.data(), unsigned(rays.size()));
-    gpu_wrap.syncOccupancy();
+    gpu_wrap.syncVoxels();
 
     // Validate the map contains no occupied points; only free and unknown.
     const Key target_key = gpu_map.voxelKey(glm::dvec3(0));
@@ -635,19 +635,20 @@ namespace gpumap
 
     cpu_map.integrateRays(rays.data(), unsigned(rays.size()));
     gpu_wrap.integrateRays(rays.data(), unsigned(rays.size()));
-    gpu_wrap.syncOccupancy();
+    gpu_wrap.syncVoxels();
 
     compareMaps(cpu_map, gpu_map);
   }
 
-  TEST(GpuMap, SubVoxel)
+  TEST(GpuMap, VoxelMean)
   {
-    // Populate with sub-voxels
+    // Populate with voxel means
     const double map_extents = 50.0;
     const double resolution = 0.25;
     const unsigned ray_count = 64;
     const unsigned batch_size = 32;
     const glm::u8vec3 region_size(32);
+
     // Make some rays.
     std::mt19937 rand_engine;
     std::uniform_real_distribution<double> rand(-map_extents, map_extents);
@@ -659,7 +660,7 @@ namespace gpumap
       rays.emplace_back(glm::dvec3(rand(rand_engine), rand(rand_engine), rand(rand_engine)));
     }
 
-    gpuMapTest(resolution, region_size, rays, compareCpuGpuMaps, "subvoxel", batch_size, 0, true);
+    gpuMapTest(resolution, region_size, rays, compareCpuGpuMaps, "voxelmean", batch_size, 0, true);
   }
 
   TEST(GpuMap, CheckBadRays)

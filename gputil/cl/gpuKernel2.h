@@ -103,7 +103,8 @@ namespace gputil
       for (unsigned i = 0; i < events_clu.event_count; ++i)
       {
         // Placement new into stack allocation.
-        ::new (&events_clu.wait_on_events[i]) cl::Event(event_list.events()[i].detail()->event, true);
+        ::new (&events_clu.wait_on_events[i])
+          cl::Event(event_list.events()[i].detail() ? event_list.events()[i].detail()->event : nullptr, true);
       }
     }
 

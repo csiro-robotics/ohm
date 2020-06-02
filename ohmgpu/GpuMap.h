@@ -10,6 +10,7 @@
 
 #include <ohm/RayFilter.h>
 #include <ohm/RayFlag.h>
+#include <ohm/RayMapper.h>
 
 #include <glm/glm.hpp>
 
@@ -27,6 +28,8 @@ namespace ohm
   struct GpuMapDetail;
   class OccupancyMap;
   class RayFilter;
+
+  struct VoxelUploadInfo;
 
   namespace gpumap
   {
@@ -113,8 +116,11 @@ namespace ohm
   /// at all by GPU. We only download data for touched regions and create the @c MapChunk then.
   ///
   /// @todo This class has been deprecated as the GPU cache is now included in the OccupancyMap.
-  class ohmgpu_API GpuMap
+  class ohmgpu_API GpuMap : public RayMapper
   {
+  protected:
+    GpuMap(GpuMapDetail *detail, unsigned expected_element_count = 2048, size_t gpu_mem_size = 0u);
+
   public:
     /// Construct @c GpuMap support capabilities around @p map. The @p map pointer may be borrowed or owned.
     ///
@@ -152,8 +158,9 @@ namespace ohm
     /// If not borrowed, then the @c GpuMap will destroy the @c OccupancyMap on destruction.
     bool borrowedMap() const;
 
-    /// Sync the GPU memory use for the occupancy layer to main memory ensuring main memory is up to date.
-    void syncOccupancy();
+    /// Sync the GPU memory use for the occupancy, voxel mean and NDT layers to main memory ensuring main memory is up
+    /// to date.
+    void syncVoxels();
 
     /// Set the range filter applied to all rays given to @c integrateRays(). Setting a null filter ensures no
     /// filtering is performed. The default behaviour is to use the same filter as the @c OccupancyMap.
@@ -212,7 +219,8 @@ namespace ohm
     /// @param region_update_flags Flags controlling ray integration behaviour. See @c RayFlag.
     /// @return The number of rays integrated. Zero indicates a failure when @p pointCount is not zero.
     ///   In this case either the GPU is unavailable, or all @p rays are invalid.
-    unsigned integrateRays(const glm::dvec3 *rays, unsigned element_count, unsigned region_update_flags = kRfDefault);
+    size_t integrateRays(const glm::dvec3 *rays, size_t element_count,
+                         unsigned region_update_flags = kRfDefault) override;
 
     /// Integrate a ray clearing pattern into the map. A clearing is integrated as a set of rays using the @c RayFlag
     /// set: @c kRfStopOnFirstOccupied, @c kRfClearOnly. This has the effect of reducing the probability of the first
@@ -225,7 +233,7 @@ namespace ohm
     ///
     /// @param rays The set of clearing pattern rays to integrate into the map.
     /// @param element_count Number of origin/end point pairs in @p rays. Must be even/
-    void applyClearingPattern(const glm::dvec3 *rays, unsigned element_count);
+    void applyClearingPattern(const glm::dvec3 *rays, size_t element_count);
 
     /// An overload which builds a clearance pattern from a cone.
     /// @param apex The apex of the cone.
@@ -240,15 +248,15 @@ namespace ohm
     /// @return The GPU cache this map uses.
     GpuCache *gpuCache() const;
 
-  private:
-    /// Cache the correct GPU program to cater for @c with_sub_voxels. Releases the existing program first when
-    /// @p force is true or @p with_sub_voxels does not match the cached program.
-    /// @param with_sub_voxels True to cache the program which supports sub-voxel positioning (@ref subvoxel).
+  protected:
+    /// Cache the correct GPU program to cater for @c with_voxel_mean. Releases the existing program first when
+    /// @p force is true or @p with_voxel_mean does not match the cached program.
+    /// @param with_voxel_mean True to cache the program which supports voxel mean positioning (@ref voxelmean).
     /// @param force Force release and program caching even if already correct. Must be used on initialisation.
-    void cacheGpuProgram(bool with_sub_voxels, bool force);
+    virtual void cacheGpuProgram(bool with_voxel_mean, bool force);
 
     /// Release the current GPU program.
-    void releaseGpuProgram();
+    virtual void releaseGpuProgram();
 
     /// Implementation for various ways we can integrate rays into the map. See @c integrateRays() for general detail.
     /// @param rays Array of origin/sample point pairs. Expect either @c glm::dvec3 (preferred) or @c glm::vec3.
@@ -257,13 +265,14 @@ namespace ohm
     /// @param filter Filter function apply to each ray before passing to GPU. May be empty.
     /// @return The number of rays integrated. Zero indicates a failure when @p pointCount is not zero.
     ///   In this case either the GPU is unavailable, or all @p rays are invalid.
-    template <typename VEC_TYPE>
-    unsigned integrateRaysT(const VEC_TYPE *rays, unsigned element_count, unsigned region_update_flags,
-                            const RayFilterFunction &filter);
+    size_t integrateRays(const glm::dvec3 *rays, size_t element_count, unsigned region_update_flags,
+                         const RayFilterFunction &filter);
 
     /// Wait for previous ray batch, as indicated by @p buffer_index, to complete.
     /// @param buffer_index Identifies the batch to wait on.
     void waitOnPreviousOperation(int buffer_index);
+
+    virtual void enqueueRegions(int buffer_index, unsigned region_update_flags);
 
     /// Enqueue a region for update.
     ///
@@ -277,24 +286,13 @@ namespace ohm
     /// @p regionsBuffer and @p offsetsBuffer to fill alternative GPU buffers for the next batch.
     ///
     /// @param region_key The key for the region of interest.
-    /// @param[in,out] regions_buffer GPU buffer to upload @c regionKey to. Will be assigned a different buffer when the
-    ///   @c GpuLayerCache is full.
-    /// @param[in,out] offsets_buffer GPU buffer to upload the memory offset for the region to. Will be assigned a
-    ///   different buffer when the @c GpuLayerCache is full.
-    /// @param region_update_flags Flags controlling ray integration behaviour. See @c RayFlag.
-    /// @param allow_retry Allow recursion when the @c GpuLayerCache?
-    void enqueueRegion(const glm::i16vec3 &region_key,
-                       gputil::PinnedBuffer &regions_buffer,  // NOLINT(google-runtime-references)
-                       gputil::PinnedBuffer &offsets_buffer,  // NOLINT(google-runtime-references)
-                       unsigned region_update_flags, bool allow_retry);
+    virtual bool enqueueRegion(const glm::i16vec3 &region_key, int buffer_index);
 
     /// Finalise the current ray/region batch and start executing GPU kernel.
     /// @param[in,out] regions_buffer GPU buffer containing uploaded region keys. Will be unpinned.
     /// @param[in,out] offsets_buffer GPU buffer containing memory offsets for regions. Will be unpinned.
     /// @param region_update_flags Flags controlling ray integration behaviour. See @c RayFlag.
-    void finaliseBatch(gputil::PinnedBuffer &regions_buffer,  // NOLINT(google-runtime-references)
-                       gputil::PinnedBuffer &offsets_buffer,  // NOLINT(google-runtime-references)
-                       unsigned region_update_flags);
+    virtual void finaliseBatch(unsigned region_update_flags);
 
     GpuMapDetail *imp_;
   };

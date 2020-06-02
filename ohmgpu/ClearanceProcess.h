@@ -127,6 +127,10 @@ namespace ohm
 
     void reset() override;
 
+    /// Ensure the mapping clearance layer is present in @p map .
+    /// @param map The map to ensure has a clearance layer.
+    static void ensureClearanceLayer(OccupancyMap &map);
+
     /// Update the processing queue to process part of the dirty list.
     /// @param map The map to process.
     /// @param time_slice The amount of time available for processing (seconds). Stop if exceeded.

@@ -17,8 +17,6 @@
 
 using namespace ohm;
 
-const char * const OccupancyMapDetail::kSubVoxelLayerName = "sub_voxel";
-
 OccupancyMapDetail::~OccupancyMapDetail()
 {
   delete gpu_cache;
@@ -95,7 +93,7 @@ void OccupancyMapDetail::moveKeyAlongAxis(Key &key, int axis, int step) const
 }
 
 
-void OccupancyMapDetail::setDefaultLayout(bool enable_sub_voxel_positioning)
+void OccupancyMapDetail::setDefaultLayout(bool enable_voxel_mean)
 {
   // Setup the default layers
   layout.clear();
@@ -112,23 +110,16 @@ void OccupancyMapDetail::setDefaultLayout(bool enable_sub_voxel_positioning)
   layer = layout.addLayer(default_layer::occupancyLayerName(), 0);
   voxel = layer->voxelLayout();
   voxel.addMember(default_layer::occupancyLayerName(), DataType::kFloat, clear_value);
-  if (enable_sub_voxel_positioning)
+
+  if (enable_voxel_mean)
   {
-    voxel.addMember(kSubVoxelLayerName, DataType::kUInt32, clear_value);
-    flags |= MapFlag::kSubVoxelPosition;
+    addVoxelMean(layout);
+    flags |= MapFlag::kVoxelMean;
   }
   else
   {
-    flags &= ~MapFlag::kSubVoxelPosition;
+    flags &= ~MapFlag::kVoxelMean;
   }
-
-
-  const float default_clearance = -1.0f;
-  clear_value = 0;
-  memcpy(&clear_value, &default_clearance, std::min(sizeof(default_clearance), sizeof(clear_value)));
-  layer = layout.addLayer(default_layer::clearanceLayerName(), 0);
-  voxel = layer->voxelLayout();
-  voxel.addMember(default_layer::clearanceLayerName(), DataType::kFloat, clear_value);
 }
 
 

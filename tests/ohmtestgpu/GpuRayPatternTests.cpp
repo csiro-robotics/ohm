@@ -64,7 +64,7 @@ namespace raypattern
 
       // Apply the pattern.
       clearing.apply(&gpu_map, pattern_translate, rotation);
-      gpu_map.syncOccupancy();
+      gpu_map.syncVoxels();
 
       // Validate we have removed a voxel.
       ASSERT_TRUE(!voxel.isOccupied());

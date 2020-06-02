@@ -102,6 +102,9 @@ namespace ohm
     /// @return The next rolling batch marker.
     unsigned beginBatch();
 
+    /// Start a new batch usin ghte given marker.
+    void beginBatch(unsigned batch_marker);
+
     /// Identifies the voxel layer the GPU cache operates on. See @c MapLayout and @c MapChunk::voxel_maps.
     /// @return The voxel layer index this cache operates on.
     unsigned layerIndex() const;
@@ -135,7 +138,7 @@ namespace ohm
     /// @param[out] chunk Set to the @c chunk identified by @p regionKey. Null if the region does not exist and @c
     ///     AllowRegionCreate is false.
     /// @param[out] event Optional to request the GPU event marking the any outstanding operations on the cache memory.
-    ///     Only relevant when the region is already in the cache.s
+    ///     Only relevant when the region is already in the cache.
     /// @param[out] status Optional to request the status of the cache entry.
     /// @param batch_marker Optionally set to demarcate a group of upload operations.
     /// @param flags a combination of @c CacheFlag flag values.

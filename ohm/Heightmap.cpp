@@ -239,7 +239,7 @@ namespace
       const VoxelConst voxel = map.voxel(key, cache);
 
       const ohm::OccupancyType voxel_type =
-        sourceVoxelHeight(&sub_voxel_pos, &height, map, voxel, key, imp.up, imp.ignore_sub_voxel_positioning);
+        sourceVoxelHeight(&sub_voxel_pos, &height, map, voxel, key, imp.up, imp.ignore_voxel_mean);
 
       if (voxel_type == ohm::kOccupied ||
           imp.generate_virtual_surface && !have_transitioned_from_unknown && voxel_type == ohm::kFree)
@@ -328,7 +328,7 @@ Heightmap::Heightmap(double grid_resolution, double min_clearance, UpAxis up_axi
   // Use an OccupancyMap to store grid cells. Each region is 1 voxel thick.
   glm::u8vec3 region_dim(region_size);
   region_dim[int(imp_->vertical_axis_index)] = 1;
-  imp_->heightmap = std::make_unique<OccupancyMap>(grid_resolution, region_dim, ohm::MapFlag::kSubVoxelPosition);
+  imp_->heightmap = std::make_unique<OccupancyMap>(grid_resolution, region_dim, ohm::MapFlag::kVoxelMean);
 
   // Setup the heightmap voxel layout.
   MapLayout &layout = imp_->heightmap->layout();
@@ -402,15 +402,15 @@ double Heightmap::minClearance() const
 }
 
 
-void Heightmap::setIgnoreSubVoxelPositioning(bool ignore)
+void Heightmap::setIgnoreVoxelMean(bool ignore)
 {
-  imp_->ignore_sub_voxel_positioning = ignore;
+  imp_->ignore_voxel_mean = ignore;
 }
 
 
-bool Heightmap::ignoreSubVoxelPositioning() const
+bool Heightmap::ignoreVoxelMean() const
 {
-  return imp_->ignore_sub_voxel_positioning;
+  return imp_->ignore_voxel_mean;
 }
 
 
@@ -636,9 +636,12 @@ bool Heightmap::buildHeightmapT(KeyWalker &walker, const glm::dvec3 &reference_p
   // Encode the base height of the heightmap in the origin.
   // heightmap.setOrigin(upAxisNormal() * glm::dot(upAxisNormal(), reference_pos));
 
-  // Allow sub-voxel positioning.
-  const bool sub_voxel_allowed = !imp_->ignore_sub_voxel_positioning;
-  heightmap.setSubVoxelsEnabled(src_map.subVoxelsEnabled() && sub_voxel_allowed);
+  // Allow voxel mean positioning.
+  const bool use_voxel_mean = src_map.voxelMeanEnabled() && !imp_->ignore_voxel_mean;
+  if (use_voxel_mean)
+  {
+    heightmap.addVoxelMeanLayer();
+  }
 
   PROFILE(walk)
 
@@ -697,7 +700,7 @@ bool Heightmap::buildHeightmapT(KeyWalker &walker, const glm::dvec3 &reference_p
     // subvoxel positioning can result in looking up the wrong cell.
     glm::dvec3 src_voxel_centre =
       (src_voxel.isValid()) ? src_voxel.centreGlobal() : src_map.voxelCentreGlobal(ground_key);
-    // We only use sub-voxel positioning for occupied voxels. The information is unreliable for free voxels.
+    // We only use voxel mean positioning for occupied voxels. The information is unreliable for free voxels.
     glm::dvec3 voxel_pos = (voxel_type == kOccupied) ? src_voxel.position() : src_voxel_centre;
 
     if (voxel_type == kOccupied || imp_->generate_virtual_surface)
@@ -716,8 +719,8 @@ bool Heightmap::buildHeightmapT(KeyWalker &walker, const glm::dvec3 &reference_p
         project(&hm_key);
         Voxel hm_voxel = heightmap.voxel(hm_key, true, &heightmap_cache);
         hm_voxel.setValue(surface_value);
-        // Set sub-voxel position as required.
-        if (sub_voxel_allowed)
+        // Set voxel mean position as required.
+        if (use_voxel_mean)
         {
           hm_voxel.setPosition(voxel_pos);
         }

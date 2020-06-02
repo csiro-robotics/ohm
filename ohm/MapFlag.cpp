@@ -11,8 +11,7 @@ namespace
 {
   const char *map_flag_names[] = //
     { //
-      "SubVoxelPosition",
-      "SubVoxelOccupancy",
+      "VoxelMean",
     };
 
   const unsigned kMapFlagsCount = unsigned(sizeof(map_flag_names) / sizeof(map_flag_names[0]));

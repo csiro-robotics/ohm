@@ -119,9 +119,6 @@ if(OHM_BUILD_OPENCL)
 endif(OHM_BUILD_OPENCL)
 
 if(OHM_BUILD_CUDA)
-  include(cudautil)
-  nvcc_setup(OHM)
-
   set(SOURCES_CUDA
     cuda/cutil_atomic.h
     cuda/cutil_decl.h
