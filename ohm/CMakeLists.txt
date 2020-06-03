@@ -8,8 +8,6 @@ if(OHM_THREADS)
   find_tbb()
 endif(OHM_THREADS)
 
-find_package(Eigen3 QUIET)
-
 set(TES_ENABLE ${OHM_TES_DEBUG})
 configure_file(OhmConfig.in.h "${CMAKE_CURRENT_BINARY_DIR}/ohm/OhmConfig.h")
 
@@ -156,18 +154,19 @@ set(PUBLIC_HEADERS
   LineKeysQuery.h
   LineQuery.h
   MapCache.h
-  MapChunk.h
   MapChunkFlag.h
+  MapChunk.h
   MapCoord.h
   MapFlag.h
   MapInfo.h
   MapLayer.h
   MapLayout.h
+  MapLayoutMatch.h
   Mapper.h
   MappingProcess.h
   MapProbability.h
-  MapRegion.h
   MapRegionCache.h
+  MapRegion.h
   MapSerialise.h
   NdtMap.h
   NdtRayMapperInterface.h
@@ -177,14 +176,15 @@ set(PUBLIC_HEADERS
   OccupancyUtil.h
   PlaneFillWalker.h
   PlaneWalker.h
-  Query.h
   QueryFlag.h
+  Query.h
   RayFilter.h
   RayFlag.h
-  RayMapper.h
   RayMapperCpu.h
-  RayPattern.h
+  RayMapper.h
+  RayMapperInterface.h
   RayPatternConical.h
+  RayPattern.h
   Stream.h
   Trace.h
   TriangleEdge.h
@@ -229,10 +229,6 @@ if(OHM_TES_DEBUG)
 else(OHM_TES_DEBUG)
   target_include_directories(ohm PRIVATE SYSTEM "${3ES_INCLUDE_DIRS}")
 endif(OHM_TES_DEBUG)
-
-if(Eigen3_FOUND)
-  target_link_libraries(ohm PRIVATE Eigen3::Eigen)
-endif(Eigen3_FOUND)
 
 generate_export_header(ohm
   EXPORT_MACRO_NAME ohm_API
