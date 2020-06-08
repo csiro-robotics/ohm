@@ -414,6 +414,14 @@ inline __device__ covvec3 calculateMissNdt(const CovarianceVoxel *cov_voxel, flo
 void ohm_API covarianceEigenDecomposition(const CovarianceVoxel *cov, glm::dmat3 *eigenvectors,
                                           glm::dvec3 *eigenvalues);
 
+/// Estimate a primary normal from the given covariance. This selects the eivenvector with the smallest eigenvalue.
+/// This may be ambiguous.
+/// @param cov The covariance data for the voxel.
+/// @param normal The normal value is written here.
+/// @param peferred_axis Optionally specify which axis to prefer when the covariance is ambiguous. E.g., for voxels
+/// with insufficient data.
+void ohm_API covarianceEstimatePrimaryNormal(const CovarianceVoxel *cov, glm::dvec3 *normal, int preferred_axis = 0);
+
 /// Convert @p cov into a rotation and scale factors to deform a unit sphere to approximate the covariance cluster.
 ///
 /// This calls @c covarianceEigenDecomposition() and suffers the same performance constraints.

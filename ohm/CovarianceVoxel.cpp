@@ -84,6 +84,26 @@ void ohm::covarianceEigenDecomposition(const CovarianceVoxel *cov, glm::dmat3 *e
 }
 
 
+void ohm::covarianceEstimatePrimaryNormal(const CovarianceVoxel *cov, glm::dvec3 *normal, int preferred_axis)
+{
+  glm::dmat3 eigenvectors;
+  glm::dvec3 eigenvalues;
+
+  covarianceEigenDecomposition(cov, &eigenvectors, &eigenvalues);
+
+  int smallest_eval_index = preferred_axis;
+  for (int i = 0; i < 3; ++i)
+  {
+    if (eigenvalues[i] < eigenvalues[smallest_eval_index])
+    {
+      smallest_eval_index = i;
+    }
+  }
+
+  *normal = glm::normalize(eigenvectors[smallest_eval_index]);
+}
+
+
 bool ohm::covarianceUnitSphereTransformation(const CovarianceVoxel *cov, glm::dquat *rotation, glm::dvec3 *scale)
 {
   glm::dmat3 eigenvectors;
