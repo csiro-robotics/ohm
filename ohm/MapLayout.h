@@ -203,6 +203,13 @@ namespace ohm
     MapLayout &operator=(const MapLayout &other);
 
   private:
+    /// Cache layer index if @p layer is a known layer such as @c meanLayer() .
+    /// @param layer The layer to check.
+    void cacheLayerIndex(const MapLayer *layer);
+
+    /// Cache all known layer indices such as @c meanLayer() .
+    void cacheLayerIndices();
+
     MapLayoutDetail *imp_;
   };
 }  // namespace ohm

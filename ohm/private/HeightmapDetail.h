@@ -50,7 +50,7 @@ namespace ohm
     double min_clearance = 1.0;
     /// Range at which to generate negative obstacle surfaces.
     double negative_obstacle_radius = 0;
-    /// Voxel layer containing the @c HeightmapVoxel data.
+    /// Voxel layer containing the @c HeightmapVoxel data in the @c heightmap.
     int heightmap_layer = -1;
     /// Identifies the up axis: @c UpAxis
     UpAxis up_axis_id = UpAxis::kZ;

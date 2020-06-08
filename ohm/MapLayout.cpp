@@ -163,12 +163,16 @@ void MapLayout::filterLayers(const std::initializer_list<const char *> &preserve
   }
 
   ::filterLayers(*imp_, preserve_indices);
+  // Rebind the layer index caches.
+  cacheLayerIndices();
 }
 
 
 void MapLayout::filterLayers(const std::initializer_list<unsigned> &preserve_layers)
 {
   ::filterLayers(*imp_, preserve_layers);
+  // Rebind the layer index caches.
+  cacheLayerIndices();
 }
 
 
@@ -177,26 +181,47 @@ MapLayer *MapLayout::addLayer(const char *name, uint16_t subsampling)
   MapLayer *new_layer = new MapLayer(name, static_cast<uint16_t>(imp_->layers.size()), subsampling);
   imp_->layers.push_back(new_layer);
 
-  std::string name_str(name);
-  // This form of caching layer indices is not scalable. Do no more.
-  if (imp_->occupancy_layer == -1 && name_str.compare(default_layer::occupancyLayerName()) == 0)
-  {
-    imp_->occupancy_layer = new_layer->layerIndex();
-  }
-  else if (imp_->mean_layer == -1 && name_str.compare(default_layer::meanLayerName()) == 0)
-  {
-    imp_->mean_layer = new_layer->layerIndex();
-  }
-  else if (imp_->covariance_layer == -1 && name_str.compare(default_layer::covarianceLayerName()) == 0)
-  {
-    imp_->covariance_layer = new_layer->layerIndex();
-  }
-  else if (imp_->clearance_layer == -1 && name_str.compare(default_layer::clearanceLayerName()) == 0)
-  {
-    imp_->clearance_layer = new_layer->layerIndex();
-  }
-
+  cacheLayerIndex(new_layer);
   return new_layer;
+}
+
+
+void MapLayout::cacheLayerIndex(const MapLayer *layer)
+{
+  if (layer)
+  {
+    std::string name_str(layer->name());
+    // This form of caching layer indices is not scalable. Do no more.
+    if (imp_->occupancy_layer == -1 && name_str.compare(default_layer::occupancyLayerName()) == 0)
+    {
+      imp_->occupancy_layer = layer->layerIndex();
+    }
+    else if (imp_->mean_layer == -1 && name_str.compare(default_layer::meanLayerName()) == 0)
+    {
+      imp_->mean_layer = layer->layerIndex();
+    }
+    else if (imp_->covariance_layer == -1 && name_str.compare(default_layer::covarianceLayerName()) == 0)
+    {
+      imp_->covariance_layer = layer->layerIndex();
+    }
+    else if (imp_->clearance_layer == -1 && name_str.compare(default_layer::clearanceLayerName()) == 0)
+    {
+      imp_->clearance_layer = layer->layerIndex();
+    }
+  }
+}
+
+
+void MapLayout::cacheLayerIndices()
+{
+  imp_->occupancy_layer = -1;
+  imp_->mean_layer = -1;
+  imp_->covariance_layer = -1;
+  imp_->clearance_layer = -1;
+  for (MapLayer *layer : imp_->layers)
+  {
+    cacheLayerIndex(layer);
+  }
 }
 
 
