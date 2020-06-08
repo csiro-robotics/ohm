@@ -316,7 +316,6 @@ Heightmap::Heightmap()
 {}
 
 
-#pragma GCC optimize("O0")
 Heightmap::Heightmap(double grid_resolution, double min_clearance, UpAxis up_axis, unsigned region_size)
   : imp_(new HeightmapDetail)
 {
