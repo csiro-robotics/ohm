@@ -38,7 +38,9 @@ namespace ohm
     /// Region key.
     short region[3];  // NOLINT
     /// Voxel key.
-    // Element 3 is provided for padding, but may be used as a context based value.
+    /// Element 3 is used to identify clipped ray keys. That is, voxel[3] = 1 for a "sample voxel" indicates we have
+    /// actually clipped the sample ray and, while the voxel is the last relevant voxel in the ray, it is not the
+    /// sample voxel.
     unsigned char voxel[4];
   } GpuKey;
 #if !GPUTIL_DEVICE

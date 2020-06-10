@@ -636,7 +636,6 @@ size_t GpuMap::integrateRays(const glm::dvec3 *rays, size_t element_count, unsig
     //          << ray_start << ':' << ray_end << "  <=>  " << rays[i + 0] << " -> " << rays[i + 1] << std::endl;
     // std::cout << "dirs: " << (ray_end - ray_start) << " vs " << (ray_end_d - ray_start_d) << std::endl;
     walkRegions(*imp_->map, ray_start_d, ray_end_d, region_func);
-
   }
 
   // Asynchronous unpin. Kernels will wait on the associated event.
