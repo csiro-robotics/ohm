@@ -20,11 +20,12 @@
 
 namespace ohm
 {
-  struct HeightmapDetail;
   class Key;
   class MapInfo;
   class OccupancyMap;
   class VoxelConst;
+  struct HeightmapDetail;
+  struct HeightmapVoxel;
 
   /// A 2D voxel map variant which calculate a heightmap surface from another @c OccupancyMap.
   ///
@@ -269,7 +270,7 @@ namespace ohm
     /// @return True the type of the voxel in question. May return @c HeightmapVoxel::Unknown @p heightmap_voxel is
     ///       invalid.
     HeightmapVoxelType getHeightmapVoxelInfo(const VoxelConst &heightmap_voxel, glm::dvec3 *pos,
-                                             float *clearance = nullptr) const;
+                                             HeightmapVoxel *voxel_info = nullptr) const;
 
     //-------------------------------------------------------
     // Internal

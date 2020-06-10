@@ -122,11 +122,11 @@ bool HeightmapMesh::buildMesh(const Heightmap &heightmap, const MeshVoxelModifie
   for (auto voxel_iter = heightmap_occupancy.begin(); voxel_iter != heightmap_occupancy.end(); ++voxel_iter)
   {
     const VoxelConst &voxel = *voxel_iter;
-    float clearance;
-    auto voxel_type = heightmap.getHeightmapVoxelInfo(voxel, &point, &clearance);
+    HeightmapVoxel voxel_info;
+    auto voxel_type = heightmap.getHeightmapVoxelInfo(voxel, &point, &voxel_info);
     if (voxel_modifier)
     {
-      voxel_type = voxel_modifier(voxel, voxel_type, &point, &clearance);
+      voxel_type = voxel_modifier(voxel, voxel_type, &point, &voxel_info.clearance);
     }
 
     if (voxel_type != HeightmapVoxelType::kUnknown && voxel_type != HeightmapVoxelType::kVacant)

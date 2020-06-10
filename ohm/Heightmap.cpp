@@ -22,6 +22,14 @@
 #include "PlaneWalker.h"
 #include "Voxel.h"
 
+#include <glm/mat3x3.hpp>
+#include <glm/vec3.hpp>
+#include <glm/vec4.hpp>
+#include <glm/gtc/type_ptr.hpp>
+#include <glm/gtx/norm.hpp>
+
+#include "CovarianceVoxel.h"
+
 #include <algorithm>
 #include <cstring>
 #include <iostream>
@@ -201,8 +209,8 @@ namespace
     // When both above and below have valid candidates. We prefer the lower one if there is sufficient clearance from
     // it to the higher one (should be optimistic). Otherwise we prefer the one which has had less searching.
     if (have_candidate_below && (!have_candidate_above || offset_below <= offset_above ||
-                              have_candidate_below && have_candidate_above &&
-                                offset_below + offset_above >= clearance_voxel_count_permissive))
+                                 have_candidate_below && have_candidate_above &&
+                                   offset_below + offset_above >= clearance_voxel_count_permissive))
     {
       return below;
     }
@@ -333,7 +341,7 @@ Heightmap::Heightmap(double grid_resolution, double min_clearance, UpAxis up_axi
   // Setup the heightmap voxel layout.
   MapLayout &layout = imp_->heightmap->layout();
 
-  layout.filterLayers({ default_layer::occupancyLayerName() });
+  layout.filterLayers({ default_layer::occupancyLayerName(), default_layer::meanLayerName() });
 
   MapLayer *layer;
   VoxelLayout voxels;
@@ -352,6 +360,10 @@ Heightmap::Heightmap(double grid_resolution, double min_clearance, UpAxis up_axi
   voxels = layer->voxelLayout();
   voxels.addMember("height", DataType::kFloat, 0);
   voxels.addMember("clearance", DataType::kFloat, 0);
+  voxels.addMember("normal_x", DataType::kFloat, 0);
+  voxels.addMember("normal_y", DataType::kFloat, 0);
+  voxels.addMember("normal_z", DataType::kFloat, 0);
+  voxels.addMember("reserved", DataType::kFloat, 0);
 
   updateMapInfo(imp_->heightmap->mapInfo());
 }
@@ -570,7 +582,7 @@ bool Heightmap::buildHeightmap(const glm::dvec3 &reference_pos, const ohm::Aabb 
 
 
 HeightmapVoxelType Heightmap::getHeightmapVoxelInfo(const VoxelConst &heightmap_voxel, glm::dvec3 *pos,
-                                                    float *clearance) const
+                                                    HeightmapVoxel *voxel_info) const
 {
   if (heightmap_voxel.isNull())
   {
@@ -585,9 +597,9 @@ HeightmapVoxelType Heightmap::getHeightmapVoxelInfo(const VoxelConst &heightmap_
     // Get height info.
     const HeightmapVoxel *heightmap_info = heightmap_voxel.layerContent<const HeightmapVoxel *>(imp_->heightmap_layer);
     (*pos)[upAxisIndex()] = heightmap_voxel.centreGlobal()[upAxisIndex()] + heightmap_info->height;
-    if (clearance)
+    if (voxel_info)
     {
-      *clearance = heightmap_info->clearance;
+      *voxel_info = *heightmap_info;
     }
 
     if (heightmap_voxel_value == 0)
@@ -662,6 +674,8 @@ bool Heightmap::buildHeightmapT(KeyWalker &walker, const glm::dvec3 &reference_p
     return false;
   }
 
+  const int src_covariance_layer = src_map.layout().covarianceLayer();
+
   // Walk the 2D extraction region in a spiral around walk_key.
   MapCache src_map_cache, heightmap_cache;
   unsigned populated_count = 0;
@@ -671,7 +685,8 @@ bool Heightmap::buildHeightmapT(KeyWalker &walker, const glm::dvec3 &reference_p
   do
   {
     // Find the nearest voxel to the current key which may be a ground candidate.
-    // This is key closest to the walk_key which could be ground. This will be either an occupied voxel, or virtual ground
+    // This is key closest to the walk_key which could be ground. This will be either an occupied voxel, or virtual
+    // ground
     /// voxel. Virtual ground is where a free is supported by an uncertain or null voxel below it.
     Key candidate_key = findNearestSupportingVoxel(src_map, walk_key, upAxis(), walker.min_ext_key, walker.max_ext_key,
                                                    voxel_ceiling, clearance_voxel_count_permissive,
@@ -731,6 +746,19 @@ bool Heightmap::buildHeightmapT(KeyWalker &walker, const glm::dvec3 &reference_p
         {
           voxel_content->height = relativeVoxelHeight(src_height, hm_voxel, imp_->up);
           voxel_content->clearance = float(clearance);
+          voxel_content->normal_x = voxel_content->normal_y = voxel_content->normal_z = 0;
+
+          if (src_voxel.isOccupied() && src_covariance_layer >= 0)
+          {
+            if (const CovarianceVoxel *cov = src_voxel.layerContent<const CovarianceVoxel *>(src_covariance_layer))
+            {
+              glm::dvec3 normal;
+              covarianceEstimatePrimaryNormal(cov, &normal);
+              voxel_content->normal_x = float(normal.x);
+              voxel_content->normal_y = float(normal.y);
+              voxel_content->normal_z = float(normal.z);
+            }
+          }
         }
 
         ++populated_count;

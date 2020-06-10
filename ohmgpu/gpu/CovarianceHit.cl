@@ -71,6 +71,14 @@ __kernel void covarianceHit(__global atomic_float *occupancy, __global ulonglong
   GpuKey target_voxel;
   // BUG: Intel OpenCL 2.0 compiler does not effect an assignment of GpuKey. I've had to unrolled it in copyKey().
   copyKey(&target_voxel, &line_keys[get_global_id(0) * 2 + 1]);
+
+  // We ignore this voxel if target_voxel.voxel[3] is set to 1. This indicates a clipped sample ray and the end voxel
+  // does not actually represent a real sample.
+  if (target_voxel.voxel[3] != 0)
+  {
+    return;
+  }
+
   const uint region_local_index = target_voxel.voxel[0] + target_voxel.voxel[1] * region_dimensions.x +
                                   target_voxel.voxel[2] * region_dimensions.x * region_dimensions.y;
   uint occupancy_index, mean_index, cov_index;
