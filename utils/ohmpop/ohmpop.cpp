@@ -70,7 +70,7 @@ namespace
   {
     struct Ndt
     {
-      float sensor_noise = 0.05;
+      float sensor_noise = 0.05f;
       float covariance_reset_probability = ohm::valueToProbability(0.1f);
       unsigned covariance_reset_sample_count = 10;
       bool enabled = false;
