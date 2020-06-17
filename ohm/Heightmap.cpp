@@ -336,7 +336,7 @@ Heightmap::Heightmap(double grid_resolution, double min_clearance, UpAxis up_axi
   // Use an OccupancyMap to store grid cells. Each region is 1 voxel thick.
   glm::u8vec3 region_dim(region_size);
   region_dim[int(imp_->vertical_axis_index)] = 1;
-  imp_->heightmap = std::make_unique<OccupancyMap>(grid_resolution, region_dim, ohm::MapFlag::kVoxelMean);
+  imp_->heightmap = std::make_unique<OccupancyMap>(grid_resolution, region_dim);
 
   // Setup the heightmap voxel layout.
   MapLayout &layout = imp_->heightmap->layout();

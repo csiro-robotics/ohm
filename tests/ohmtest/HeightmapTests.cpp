@@ -247,13 +247,18 @@ TEST(Heightmap, Layout)
   EXPECT_EQ(occupancy_voxel.memberSize(0), sizeof(float));
 
   const auto validate_heightmap_voxel_layout = [](const VoxelLayoutConst &layout) {
-    EXPECT_EQ(layout.memberCount(), 2);
+    EXPECT_EQ(layout.memberCount(), 6);
     EXPECT_STREQ(layout.memberName(0), "height");
     EXPECT_STREQ(layout.memberName(1), "clearance");
-    EXPECT_EQ(layout.memberOffset(0), 0);
-    EXPECT_EQ(layout.memberSize(0), sizeof(float));
-    EXPECT_EQ(layout.memberOffset(1), sizeof(float));
-    EXPECT_EQ(layout.memberSize(1), sizeof(float));
+    EXPECT_STREQ(layout.memberName(2), "normal_x");
+    EXPECT_STREQ(layout.memberName(3), "normal_y");
+    EXPECT_STREQ(layout.memberName(4), "normal_z");
+    EXPECT_STREQ(layout.memberName(5), "reserved");
+    for (int i = 0; i < 6; ++i)
+    {
+      EXPECT_EQ(layout.memberOffset(i), i * sizeof(float));
+      EXPECT_EQ(layout.memberSize(i), sizeof(float));
+    }
   };
 
   validate_heightmap_voxel_layout(heightmap_voxel);
