@@ -18,6 +18,8 @@
 
 #include "CovarianceVoxel.h"
 
+#include <stdexcept>
+
 namespace ohm
 {
   namespace default_layer
