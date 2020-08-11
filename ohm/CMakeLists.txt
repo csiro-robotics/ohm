@@ -214,7 +214,7 @@ target_include_directories(ohm
 )
 
 if(OHM_THREADS)
-  target_include_directories(ohm PRIVATE SYSTEM ${TBB_INCLUDE_DIRS})
+  target_include_directories(ohm SYSTEM PRIVATE ${TBB_INCLUDE_DIRS})
   target_link_libraries(ohm PUBLIC ${TBB_LIBRARIES})
 endif(OHM_THREADS)
 
@@ -224,10 +224,17 @@ target_include_directories(ohm SYSTEM
     $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/3rdparty>
 )
 
+if(OHM_WITH_EIGEN)
+  # Link Eigen as a private link target under the BUILD_INTERFACE. This allows Eigen definitions to be set,
+  # imports inlcude directories, but does not chain the dependency downstream, which is fine for static, or header only
+  # libraries (Eigen being header only).
+  target_link_libraries(ohm PRIVATE $<BUILD_INTERFACE:Eigen3::Eigen>)
+endif(OHM_WITH_EIGEN)
+
 if(OHM_TES_DEBUG)
   target_link_libraries(ohm PUBLIC 3es::3es-core)
 else(OHM_TES_DEBUG)
-  target_include_directories(ohm PRIVATE SYSTEM "${3ES_INCLUDE_DIRS}")
+  target_include_directories(ohm SYSTEM PRIVATE "${3ES_INCLUDE_DIRS}")
 endif(OHM_TES_DEBUG)
 
 generate_export_header(ohm
