@@ -150,8 +150,6 @@ namespace gputil
     inline size_t elementCount(size_t buffer_element_size) const { return size() / buffer_element_size; }
 
     /// Resize the buffer to the @p newSize if necessary.
-    /// This will shrink the buffer, but the actual size may end up larger than @p newSize
-    /// to improve performance.
     ///
     /// The buffer is only reallocated if @c actualSize() is insufficient to meet
     /// the needs of @p newSize.
