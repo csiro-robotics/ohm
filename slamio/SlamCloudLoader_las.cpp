@@ -27,7 +27,6 @@ namespace
   {
     double timestamp;
     glm::dvec3 origin;
-    glm::dquat orientation;
   };
 
   struct SamplePoint : TrajectoryPoint
@@ -179,9 +178,10 @@ bool SlamCloudLoader::open(const char *sample_file_path, const char *trajectory_
       }
 
       // sscanf is far faster than using stream operators.
+      glm::dquat orientation;
       if (sscanf_s(imp_->traj_line.c_str(), "%lg %lg %lg %lg %lg %lg %lg %lg", &point.timestamp, &point.origin.x,
-                   &point.origin.y, &point.origin.z, &point.orientation.x, &point.orientation.y, &point.orientation.z,
-                   &point.orientation.w) != 8)
+                   &point.origin.y, &point.origin.z, &orientation.x, &orientation.y, &orientation.z,
+                   &orientation.w) != 8)
       {
         return false;
       }
@@ -198,7 +198,6 @@ bool SlamCloudLoader::open(const char *sample_file_path, const char *trajectory_
         const liblas::Point &p = imp_->trajectory_reader->GetPoint();
         point.timestamp = p.GetTime();
         point.origin = glm::dvec3(p.GetX(), p.GetY(), p.GetZ());
-        point.orientation = glm::dquat();
         return true;
       }
       return false;
@@ -281,7 +280,7 @@ void SlamCloudLoader::preload(size_t point_count)
 }
 
 
-bool SlamCloudLoader::nextPoint(glm::dvec3 &sample, glm::dvec3 *origin, double *timestamp_out, glm::dquat *orientation)
+bool SlamCloudLoader::nextPoint(glm::dvec3 &sample, glm::dvec3 *origin, double *timestamp_out)
 {
   loadPoint();
   if (imp_->next_sample_read_index < imp_->samples_buffer.size())
@@ -310,10 +309,6 @@ bool SlamCloudLoader::nextPoint(glm::dvec3 &sample, glm::dvec3 *origin, double *
     if (origin)
     {
       *origin = sample_point.origin + imp_->trajectory_to_sensor_offset;
-    }
-    if (orientation)
-    {
-      *orientation = sample_point.orientation;
     }
 
     // If in real time mode, sleep until we should deliver this sample.
@@ -346,8 +341,7 @@ bool SlamCloudLoader::loadPoint()
     sample.timestamp = p.GetTime();
     sample.sample = glm::dvec3(p.GetX(), p.GetY(), p.GetZ());
     sample.origin = glm::dvec3(0);
-    sample.orientation = glm::dquat();
-    sampleTrajectory(sample.origin, sample.orientation, sample.timestamp);
+    sampleTrajectory(sample.origin, sample.timestamp);
     imp_->samples_buffer.push_back(sample);
 
     if (imp_->first_sample_timestamp < 0)
@@ -361,7 +355,7 @@ bool SlamCloudLoader::loadPoint()
 }
 
 
-bool SlamCloudLoader::sampleTrajectory(glm::dvec3 &position, glm::dquat &orientation, double timestamp)
+bool SlamCloudLoader::sampleTrajectory(glm::dvec3 &position, double timestamp)
 {
   if (imp_->read_trajectory_point)
   {
@@ -380,7 +374,6 @@ bool SlamCloudLoader::sampleTrajectory(glm::dvec3 &position, glm::dquat &orienta
                           (imp_->trajectory_buffer[1].timestamp - imp_->trajectory_buffer[0].timestamp);
       position = imp_->trajectory_buffer[0].origin +
                  lerp * (imp_->trajectory_buffer[1].origin - imp_->trajectory_buffer[0].origin);
-      orientation = glm::slerp(imp_->trajectory_buffer[0].orientation, imp_->trajectory_buffer[1].orientation, lerp);
       return true;
     }
   }
