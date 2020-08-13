@@ -26,6 +26,7 @@
 #include <pdal/PointView.hpp>
 #include <pdal/Reader.hpp>
 #include <pdal/StageFactory.hpp>
+#include <pdal/io/BpfReader.hpp>
 #include <pdal/io/LasReader.hpp>
 
 // This is a hacky port of the libLAS version. The text trajectory reader could be ported to a PDAL reader.
@@ -89,19 +90,35 @@ namespace
       return have_read;
     }
 
+    /// True once we have data available for reading.
     inline bool haveData() const { return _have_data; }
-    inline bool done() const { return _done; }
 
+    /// True once loading has been completed (@c markLoadComplete() called) and the read index is at the end of the
+    /// read buffer.
+    inline bool done()
+    {
+      if (_loading_complete)
+      {
+        std::unique_lock<std::mutex> guard(_buffer_mutex);
+        return _next_read >= _buffers[1 - _write_index].size();
+      }
+      return false;
+    }
+
+    /// Mark for abort. No more data points are stored.
     inline void abort()
     {
       _abort = true;
       _flip_wait.notify_all();
     }
 
+    /// Mark loading as done: only to be called from the loading thread.
+    inline void markLoadComplete() { _loading_complete = true; }
+
+  protected:
     // Not supported
     char *getPoint(pdal::PointId /* idx */) override { return nullptr; }
 
-  protected:
     void setFieldInternal(pdal::Dimension::Id dim, pdal::PointId idx, const void *val) override
     {
       if (!_abort)
@@ -135,18 +152,18 @@ namespace
     }
 
     /// Called whenever the buffer capacity is filled before starting on the next block.
-    /// We swap buffers here, blocking to wait on read completion if required. The number of points loaded in the block
-    /// will be @c numPoints() and should match the current @c _buffer size.
     void reset() override
     {
-      std::unique_lock<std::mutex> guard(_buffer_mutex);
-      const int read_buffer = 1 - _write_index;
-      _flip_wait.wait(guard, [this, read_buffer]() { return _abort || _next_read >= _buffers[read_buffer].size(); });
-      _write_index = read_buffer;
-      _buffers[read_buffer].clear();
-      _next_read = 0;
-      _have_data = true;
-      _done = numPoints() == 0;
+      if (!_abort)
+      {
+        std::unique_lock<std::mutex> guard(_buffer_mutex);
+        const int read_buffer = 1 - _write_index;
+        _flip_wait.wait(guard, [this, read_buffer]() { return _abort || _next_read >= _buffers[read_buffer].size(); });
+        _write_index = read_buffer;
+        _buffers[read_buffer].clear();
+        _next_read = 0;
+        _have_data = true;
+      }
     }
 
   private:
@@ -159,7 +176,7 @@ namespace
     std::mutex _buffer_mutex;
     std::condition_variable _flip_wait;
     std::atomic_bool _have_data{ false };
-    std::atomic_bool _done{ false };
+    std::atomic_bool _loading_complete{ false };
     std::atomic_bool _abort{ false };
   };
 }  // namespace
@@ -219,26 +236,27 @@ namespace
     std::string reader_type;
     pdal::Options options;
 
-    if (ext.compare("las") == 0)
-    {
-      reader_type = "las";
-    }
-    else if (ext.compare("laz") == 0)
+    reader_type = ext;
+
+    if (ext.compare("laz") == 0)
     {
       reader_type = "las";
       options.add("compression", "EITHER");
-    }
-    else
-    {
-      reader_type = ext;
     }
 
     reader_type = "readers." + reader_type;
     std::shared_ptr<pdal::Stage> reader(factory.createStage(reader_type),  //
                                         [&factory](pdal::Stage *stage) { factory.destroyStage(stage); });
 
+    if (!reader)
+    {
+      std::cerr << "PDAL reader for " << reader_type << " not available" << std::endl;
+      return nullptr;
+    }
+
     if (!reader->pipelineStreamable())
     {
+      std::cout << "PDAL reader for " << reader_type << " does not support streaming" << std::endl;
       return nullptr;
     }
 
@@ -251,6 +269,27 @@ namespace
     }
 
     return streamable_reader;
+  }
+
+
+  pdal::point_count_t pointCount(std::shared_ptr<pdal::Streamable> reader)
+  {
+    // Doesn't seem to be a consistent way to read the point count. `Reader::count()` didn't work with las, but casting
+    // and calling `LasReader::getNumPoints()` does.
+#define TRY_PDAL_POINT_COUNT(T, func)                        \
+  if (T *r = dynamic_cast<T *>(reader.get()))                \
+  {                                                          \
+    const auto count = r->func();                            \
+    if (count < std::numeric_limits<decltype(count)>::max()) \
+    {                                                        \
+      return r->func();                                      \
+    }                                                        \
+  }
+    TRY_PDAL_POINT_COUNT(pdal::BpfReader, numPoints);
+    TRY_PDAL_POINT_COUNT(pdal::LasReader, getNumPoints);
+    TRY_PDAL_POINT_COUNT(pdal::Reader, count);
+
+    return 0;
   }
 }  // namespace
 
@@ -325,7 +364,7 @@ bool SlamCloudLoader::open(const char *sample_file_path, const char *trajectory_
 
   imp_->sample_stream = std::make_unique<PointStream>(10000);
   imp_->sample_reader->prepare(*imp_->sample_stream);
-  imp_->sample_count = dynamic_cast<pdal::LasReader *>(imp_->sample_reader.get())->getNumPoints();
+  imp_->sample_count = pointCount(imp_->sample_reader);
 
   if (text_trajectory)
   {
@@ -369,11 +408,13 @@ bool SlamCloudLoader::open(const char *sample_file_path, const char *trajectory_
 
     imp_->traj_thread = std::thread([this]() {  //
       imp_->trajectory_reader->execute(*imp_->traj_stream);
+      imp_->traj_stream->markLoadComplete();
     });
   }
 
   imp_->sample_thread = std::thread([this]() {  //
     imp_->sample_reader->execute(*imp_->sample_stream);
+    imp_->sample_stream->markLoadComplete();
   });
 
   // Prime the trajectory buffer.
@@ -465,17 +506,25 @@ bool SlamCloudLoader::trajectoryFileIsOpen() const
 
 void SlamCloudLoader::preload(size_t point_count)
 {
-  if (point_count == 0 || point_count > numberOfPoints())
+  if (!imp_->sample_stream)
   {
-    point_count = numberOfPoints();
+    return;
   }
+
+  if (point_count && numberOfPoints())
+  {
+    point_count = std::min(point_count, numberOfPoints());
+  }
+
+  const bool load_all = point_count == 0 || numberOfPoints() && point_count >= numberOfPoints();
+
   std::vector<SamplePoint> preload_data;
   pdal::point_count_t initial_read_count = imp_->read_count;
   preload_data.reserve(point_count);
 
   bool ok = true;
   SamplePoint sample;
-  while (preload_data.size() < point_count)
+  while (!imp_->sample_stream->done() && (preload_data.size() < point_count || load_all))
   {
     ok = nextPoint(sample.sample, &sample.origin, &sample.timestamp);
     preload_data.emplace_back(sample);
@@ -495,9 +544,11 @@ void SlamCloudLoader::preload(size_t point_count)
 
 bool SlamCloudLoader::nextPoint(glm::dvec3 &sample, glm::dvec3 *origin, double *timestamp_out)
 {
-  if (imp_->read_count < imp_->sample_count && loadPoint())
+  if (loadPoint())
   {
     ++imp_->read_count;
+    imp_->sample_count = std::max(imp_->sample_count, imp_->read_count);
+
     // Read next sample.
     const SamplePoint sample_point = imp_->next_sample;
     sample = sample_point.sample;
@@ -539,7 +590,7 @@ bool SlamCloudLoader::loadPoint()
     return true;
   }
 
-  if (imp_->read_count < imp_->sample_count)
+  if (!imp_->sample_stream->done())
   {
     SamplePoint sample_data{};
 
