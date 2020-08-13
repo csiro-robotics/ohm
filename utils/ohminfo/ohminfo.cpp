@@ -272,6 +272,7 @@ int main(int argc, char *argv[])
     float max_occupancy = -std::numeric_limits<float>::max();
     uint64_t free_voxels = 0;
     uint64_t occupied_voxels = 0;
+    uint64_t total_point_count = 0;
     unsigned max_point_count = 0;
 
     const int mean_layer = map.layout().meanLayer();
@@ -291,6 +292,7 @@ int main(int argc, char *argv[])
         {
           const ohm::VoxelMean *mean = voxel->layerContent<const ohm::VoxelMean *>(mean_layer);
           max_point_count = std::max<unsigned>(mean->count, max_point_count);
+          total_point_count += mean->count;
         }
       }
     }
@@ -305,6 +307,7 @@ int main(int argc, char *argv[])
     if (mean_layer >= 0)
     {
       std::cout << "Max voxel samples: " << max_point_count << std::endl;
+      std::cout << "Average voxel samples: " << total_point_count / occupied_voxels << std::endl;
     }
   }
 
