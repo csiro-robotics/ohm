@@ -203,7 +203,7 @@ inline __device__ covvec3 solveTriangular(const CovarianceVoxel *cov, const covv
 /// @param uninitialised_value The @p voxel_value for an uncertain voxel - one which has yet to be observed.
 /// @param sensor_noise The sensor range noise error. Must be greater than zero.
 /// @param reinitialise_threshold @p voxel_value threshold below which the covariance and mean should reset.
-/// @param reinitialise_sample_count The @p point_count requires to allow @c reinitialise_threshold to be triggered.
+/// @param reinitialise_sample_count The @p point_count required to allow @c reinitialise_threshold to be triggered.
 /// @return True if the covariance value is re-initialised. This should be used as a signal to diregard the current
 ///     @p voxel_mean and @c point_count and restart accumulating those values.
 inline __device__ bool calculateHitWithCovariance(CovarianceVoxel *cov_voxel, float *voxel_value, covvec3 sample,
@@ -214,19 +214,15 @@ inline __device__ bool calculateHitWithCovariance(CovarianceVoxel *cov_voxel, fl
   const float initial_value = *voxel_value;
   const bool was_uncertain = initial_value == uninitialised_value;
   bool initialised_covariance = false;
-  // Initialise the cov_voxel data if this transitions the voxel to an occupied state.
-  if (was_uncertain || point_count == 0 ||
-      initial_value < reinitialise_threshold && point_count >= reinitialise_sample_count)
+
+  if (point_count == 0 || initial_value < reinitialise_threshold && point_count >= reinitialise_sample_count)
   {
-    // Transitioned to occupied. Initialise.
     initialiseCovariance(cov_voxel, sensor_noise);
-    *voxel_value = hit_value;
     initialised_covariance = true;
   }
-  else
-  {
-    *voxel_value += hit_value;
-  }
+
+  // Initialise the cov_voxel data if this transitions the voxel to an occupied state.
+  *voxel_value = hit_value + (!was_uncertain) * initial_value;
 
   // This has been taken from example code provided by Jason Williams as a sample on storing and using covarance data
   // using a packed, diagonal.
@@ -456,7 +452,7 @@ inline glm::dmat3 covarianceMatrix(const CovarianceVoxel *cov)
 
 #if OHM_COV_DEBUG
 void covDebugStats();
-#endif // OHM_COV_DEBUG
+#endif  // OHM_COV_DEBUG
 }  // namespace ohm
 #endif  // !GPUTIL_DEVICE
 

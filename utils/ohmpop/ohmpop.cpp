@@ -71,8 +71,8 @@ namespace
     struct Ndt
     {
       float sensor_noise = 0.05f;
-      float covariance_reset_probability = ohm::valueToProbability(0.1f);
-      unsigned covariance_reset_sample_count = 10;
+      float covariance_reset_probability = 0.2f;
+      unsigned covariance_reset_sample_count = 100;
       bool enabled = false;
     };
 
@@ -446,7 +446,7 @@ int populateMap(const Options &opt)
   if (opt.ndt.enabled)
   {
     ndt_map->setSensorNoise(opt.ndt.sensor_noise);
-    ndt_map->setReinitialiseCovarianceTheshold(opt.ndt.covariance_reset_probability);
+    ndt_map->setReinitialiseCovarianceTheshold(ohm::probabilityToValue(opt.ndt.covariance_reset_probability));
     ndt_map->setReinitialiseCovariancePointCount(opt.ndt.covariance_reset_sample_count);
   }
 
