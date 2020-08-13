@@ -8,6 +8,7 @@
 #include "private/NdtMapDetail.h"
 
 #include "OccupancyMap.h"
+#include "MapInfo.h"
 #include "MapLayer.h"
 #include "MapLayout.h"
 #include "MapProbability.h"
@@ -39,6 +40,7 @@ NdtMap::NdtMap(OccupancyMap *map, bool borrowed_map)
   imp_->map = map;
   imp_->borrowed_map = borrowed_map;
   enableNdt(map);
+  updateMapInfo();
 }
 
 
@@ -76,6 +78,7 @@ bool NdtMap::borrowedMap() const
 void NdtMap::setSensorNoise(float noise_range)
 {
   imp_->sensor_noise = noise_range;
+  updateMapInfo();
 }
 
 
@@ -88,6 +91,7 @@ float NdtMap::sensorNoise() const
 void NdtMap::setNdtSampleThreshold(unsigned sample_count)
 {
   imp_->sample_threshold = sample_count;
+  updateMapInfo();
 }
 
 
@@ -100,6 +104,7 @@ unsigned NdtMap::ndtSampleThreshold()
 void NdtMap::setReinitialiseCovarianceTheshold(float threshold)
 {
   imp_->reinitialise_covariance_theshold = threshold;
+  updateMapInfo();
 }
 
 
@@ -112,6 +117,7 @@ float NdtMap::reinitialiseCovarianceTheshold() const
 void NdtMap::setReinitialiseCovariancePointCount(unsigned count)
 {
   imp_->reinitialise_covariance_point_count = count;
+  updateMapInfo();
 }
 
 
@@ -203,8 +209,8 @@ void NdtMap::integrateMiss(Voxel &voxel, const glm::dvec3 &sensor, const glm::dv
     glm::dvec3 scale;
     if (covarianceUnitSphereTransformation(cov_voxel, &rot, &scale))
     {
-      TES_SPHERE(g_3es, TES_COLOUR(SeaGreen), TES_PTR_ID(cov_voxel), glm::value_ptr(voxel_mean),
-                 glm::value_ptr(scale), tes::Quaterniond(rot.x, rot.y, rot.z, rot.w));
+      TES_SPHERE(g_3es, TES_COLOUR(SeaGreen), TES_PTR_ID(cov_voxel), glm::value_ptr(voxel_mean), glm::value_ptr(scale),
+                 tes::Quaterniond(rot.x, rot.y, rot.z, rot.w));
       drew_surfel = true;
     }
 
@@ -230,22 +236,6 @@ void NdtMap::integrateMiss(Voxel &voxel, const glm::dvec3 &sensor, const glm::dv
     }
   }
 #endif  // TES_ENABLE
-}
-
-
-int NdtMap::enableNdt(OccupancyMap *map)
-{
-  // Prepare layout for update.
-  MapLayout new_layout = map->layout();
-
-  addVoxelMean(new_layout);
-  // Cache the layer index.
-  int layer_index = addCovariance(new_layout)->layerIndex();
-
-  // Update the map.
-  map->updateLayout(new_layout);
-
-  return layer_index;
 }
 
 
@@ -312,4 +302,36 @@ void NdtMap::debugDraw() const
 
   TES_SERVER_UPDATE(ohm::g_3es, 0.0f);
 #endif  // TES_ENABLE
+}
+
+
+void NdtMap::updateMapInfo()
+{
+  if (!imp_->map)
+  {
+    return;
+  }
+  MapInfo &info = imp_->map->mapInfo();
+  info.set(MapValue("Ndt sensor noise", imp_->sensor_noise));
+  info.set(MapValue("Ndt sample threshold", imp_->sample_threshold));
+  info.set(MapValue("Ndt reinitialisation threshold", imp_->reinitialise_covariance_theshold));
+  info.set(MapValue("Ndt reinitialisation threshold (probability)",
+                    valueToProbability(imp_->reinitialise_covariance_theshold)));
+  info.set(MapValue("Ndt reinitialisation point count", imp_->reinitialise_covariance_point_count));
+}
+
+
+int NdtMap::enableNdt(OccupancyMap *map)
+{
+  // Prepare layout for update.
+  MapLayout new_layout = map->layout();
+
+  addVoxelMean(new_layout);
+  // Cache the layer index.
+  int layer_index = addCovariance(new_layout)->layerIndex();
+
+  // Update the map.
+  map->updateLayout(new_layout);
+
+  return layer_index;
 }
