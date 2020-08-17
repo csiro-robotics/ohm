@@ -678,6 +678,7 @@ bool Heightmap::buildHeightmapT(KeyWalker &walker, const glm::dvec3 &reference_p
 
   // Walk the 2D extraction region in a spiral around walk_key.
   MapCache src_map_cache, heightmap_cache;
+  const glm::dvec3 up_axis_normal = upAxisNormal();
   unsigned populated_count = 0;
   const int voxel_ceiling = ohm::pointToRegionCoord(imp_->ceiling, src_map.resolution());
   const int clearance_voxel_count_permissive =
@@ -754,6 +755,8 @@ bool Heightmap::buildHeightmapT(KeyWalker &walker, const glm::dvec3 &reference_p
             {
               glm::dvec3 normal;
               covarianceEstimatePrimaryNormal(cov, &normal);
+              const double flip = (glm::dot(normal, up_axis_normal) >= 0) ? 1.0 : -1.0;
+              normal *= flip;
               voxel_content->normal_x = float(normal.x);
               voxel_content->normal_y = float(normal.y);
               voxel_content->normal_z = float(normal.z);

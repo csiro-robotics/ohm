@@ -279,6 +279,26 @@ namespace gputil
       buf->dirty_write.clear();
     }
   }
+
+  size_t resizeBuffer(BufferDetail *imp, size_t new_size, bool force)
+  {
+    if (new_size == imp->alloc_size || !force && new_size < imp->alloc_size)
+    {
+      return imp->alloc_size;
+    }
+
+    bufferFree(imp);
+    cudaError_t err = bufferAlloc(imp, new_size);
+    if (err != cudaSuccess)
+    {
+      imp->device_mem = nullptr;
+      imp->alloc_size = 0;
+      GPUTHROW(ApiException(err), 0);
+    }
+    imp->alloc_size = new_size;
+
+    return imp->alloc_size;
+  }
 }  // namespace gputil
 
 Buffer::Buffer()
@@ -367,28 +387,13 @@ size_t Buffer::actualSize() const
 
 size_t Buffer::resize(size_t new_size)
 {
-  if (new_size == imp_->alloc_size)
-  {
-    return imp_->alloc_size;
-  }
-
-  bufferFree(imp_);
-  cudaError_t err = bufferAlloc(imp_, new_size);
-  if (err != cudaSuccess)
-  {
-    imp_->device_mem = nullptr;
-    imp_->alloc_size = 0;
-    GPUTHROW(ApiException(err), 0);
-  }
-  imp_->alloc_size = new_size;
-
-  return size();
+  return resizeBuffer(imp_, new_size, false);
 }
 
 
 size_t Buffer::forceResize(size_t new_size)
 {
-  resize(new_size);
+  resizeBuffer(imp_, new_size, true);
   return actualSize();
 }
 
