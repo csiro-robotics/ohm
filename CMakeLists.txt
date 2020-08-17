@@ -169,6 +169,9 @@ find_package(LASZIP QUIET)
 set(OHM_CLOUD_IO_LIBRARY auto CACHE STRING "Select point cloud IO library to use:  auto (prefer pdal), liblas, pdal or none")
 set_property(CACHE OHM_CLOUD_IO_LIBRARY PROPERTY STRINGS auto liblas pdal none)
 
+find_package(Eigen3 QUIET)
+option(OHM_WITH_EIGEN "Use Eigen for more signficiant linear algebra algorithms (e.g., eigen decomposition)?" ${EIGEN3_FOUND})
+
 message(STATUS "Cloud IO Library: ${OHM_CLOUD_IO_LIBRARY}")
 
 # Select the cloud io library to use.
