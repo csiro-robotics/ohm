@@ -589,6 +589,12 @@ bool SlamCloudLoader::loadPoint()
     imp_->next_sample = imp_->preload_points[imp_->preload_index++];
     return true;
   }
+  else if (!imp_->preload_points.empty())
+  {
+    // Preload done. Release the memory for preload_points
+    imp_->preload_points = std::vector<SamplePoint>();
+    imp_->preload_index = 0;
+  }
 
   if (!imp_->sample_stream->done())
   {
