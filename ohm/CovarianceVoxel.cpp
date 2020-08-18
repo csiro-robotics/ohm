@@ -32,7 +32,7 @@ namespace
 
 namespace
 {
-  #ifdef OHM_WITH_EIGEN
+#ifdef OHM_WITH_EIGEN
   void covarianceEigenDecompositionEigen(const CovarianceVoxel *cov, glm::dmat3 *eigenvectors, glm::dvec3 *eigenvalues)
   {
     // This has been noted to be ~3x faster than the GLM iterative version.
@@ -69,7 +69,7 @@ namespace
       }
     }
   }
-  #else  // OHM_WITH_EIGEN
+#else  // OHM_WITH_EIGEN
   void covarianceEigenDecompositionGlm(const CovarianceVoxel *cov, glm::dmat3 *eigenvectors, glm::dvec3 *eigenvalues)
   {
     // This has been noted to be ~3x slower than the Eigen solver.
@@ -128,7 +128,7 @@ namespace
 
     *eigenvalues = eigenvalues_current;
   }
-  #endif  // OHM_WITH_EIGEN
+#endif  // OHM_WITH_EIGEN
 }  // namespace
 
 void ohm::covarianceEigenDecomposition(const CovarianceVoxel *cov, glm::dmat3 *eigenvectors, glm::dvec3 *eigenvalues)
@@ -184,7 +184,7 @@ bool ohm::covarianceUnitSphereTransformation(const CovarianceVoxel *cov, glm::dq
   for (int i = 0; i < 3; ++i)
   {
     const double eval = std::abs(eigenvalues[i]);  // abs just in case.
-    (*scale)[i] = (eval > 1e-9) ? 2.0 * std::sqrt(eval) : eval;
+    (*scale)[i] = (eval > 1e-9) ? std::sqrt(eval) : eval;
   }
 
   return true;
