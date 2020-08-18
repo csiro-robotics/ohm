@@ -15,9 +15,9 @@
 
 namespace ohmtestutil
 {
-  void initialiseTestVoxel(CovTestVoxel *ref_voxel, float sensor_noise)
+  void initialiseTestVoxel(CovTestVoxel *ref_voxel, float cov_init)
   {
-    initialiseCovariance(ref_voxel, sensor_noise);
+    initialiseCovariance(ref_voxel, cov_init);
     ref_voxel->mean[0] = ref_voxel->mean[1] = ref_voxel->mean[2] = 0;
     ref_voxel->point_count = 0;
   }
@@ -60,7 +60,7 @@ namespace ohmtestutil
     for (unsigned k = 0; k < 3; ++k)
     {
       const unsigned ind1 = (k * (k + 3)) >> 1,  // packed index of (k,k) term
-        indk = ind1 - k;                       // packed index of (1,k)
+        indk = ind1 - k;                         // packed index of (1,k)
       const double ak = std::sqrt(packed_dot(&A[0], k, k));
       cov->trianglar_covariance[ind1] = float(ak);
       if (ak > 0.0)
@@ -115,4 +115,4 @@ namespace ohmtestutil
 
     return true;
   }
-}
+}  // namespace ohmtestutil
