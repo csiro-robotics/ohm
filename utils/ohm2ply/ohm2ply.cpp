@@ -329,7 +329,8 @@ int exportPointCloud(const Options &opt, ProgressMonitor &prog, LoadMapProgress 
       return -1;
     }
     break;
-  case kExportHeightmap: {
+  case kExportHeightmap:
+  {
     const ohm::MapLayer *layer = map.layout().layer(ohm::HeightmapVoxel::kHeightmapLayer);
     if (!layer)
     {
@@ -585,6 +586,9 @@ int exportCovariance(const Options &opt, ProgressMonitor &prog, LoadMapProgress 
     glm::dquat rot;
     glm::dvec3 scale;
     ohm::covarianceUnitSphereTransformation(cov, &rot, &scale);
+    // For rendering niceness, we scale up a bit to get better overlap between voxels.
+    const double scale_factor = std::sqrt(3.0);
+    scale *= scale_factor;
 
     const glm::dmat4 transform = glm::translate(pos) * glm::mat4_cast(rot) * glm::scale(scale);
     add_ellipsoid(ply, transform);

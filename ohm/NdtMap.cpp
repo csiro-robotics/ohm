@@ -155,7 +155,7 @@ void NdtMap::integrateHit(Voxel &voxel, const glm::dvec3 & /*sensor*/, const glm
 
   float voxel_value = voxel.value();
   if (calculateHitWithCovariance(cov_voxel, &voxel_value, sample, voxel_mean, voxel_mean_info->count, map.hitValue(),
-                                 voxel::invalidMarkerValue(), imp_->sensor_noise,
+                                 voxel::invalidMarkerValue(), 0.1 * map.resolution(),
                                  imp_->reinitialise_covariance_theshold, imp_->reinitialise_covariance_point_count))
   {
     // Covariance matrix has reset. Reset the point count to clear the mean value.

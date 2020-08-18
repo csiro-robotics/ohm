@@ -151,7 +151,7 @@ namespace ndttests
     // Fetch the target_voxel in which we expect all samples to fall.
     ohm::Voxel target_voxel = map.voxel(target_key, false, &cache);
     const float initial_value = target_voxel;
-    ndt.setTrace(true); // For 3es debugging
+    ndt.setTrace(true);  // For 3es debugging
 
     // Now trace all the test_rays through the target_voxel. For each we will restore the initial voxel value, so
     // each test is independent. We then integrate the ray miss/passthrough and validate the probability adjustment

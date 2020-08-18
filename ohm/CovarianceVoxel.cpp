@@ -184,7 +184,7 @@ bool ohm::covarianceUnitSphereTransformation(const CovarianceVoxel *cov, glm::dq
   for (int i = 0; i < 3; ++i)
   {
     const double eval = std::abs(eigenvalues[i]);  // abs just in case.
-    (*scale)[i] = (eval > 1e-9) ? 2.0 * std::sqrt(eval) : eval;
+    (*scale)[i] = (eval > 1e-9) ? std::sqrt(eval) : eval;
   }
 
   return true;
