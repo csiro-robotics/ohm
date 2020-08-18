@@ -113,6 +113,9 @@ namespace ohm
     void debugDraw() const;
 
   private:
+    /// Update members of the underlying @c OccupancyMap::mapInfo() to include NDT parameters.
+    void updateMapInfo();
+
     /// Enable NDT for the given @p map. This enables voxel mean positioning and adds a voxel layer to store the
     /// voxel covariance matrix approximation.
     /// @param map The occupancy map to enable NDT for.
