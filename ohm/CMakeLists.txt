@@ -91,7 +91,6 @@ set(SOURCES
   MapSerialise.h
   NdtMap.cpp
   NdtMap.h
-  NdtRayMapperInterface.h
   NearestNeighbours.cpp
   NearestNeighbours.h
   OccupancyMap.cpp
@@ -110,8 +109,10 @@ set(SOURCES
   RayFlag.h
   RayMapper.cpp
   RayMapper.h
-  RayMapperCpu.h
-  RayMapperInterface.h
+  RayMapperNdt.cpp
+  RayMapperNdt.h
+  RayMapperOccupancy.cpp
+  RayMapperOccupancy.h
   RayPattern.cpp
   RayPattern.h
   RayPatternConical.cpp
@@ -128,6 +129,7 @@ set(SOURCES
   VoxelLayout.cpp
   VoxelLayout.h
   VoxelMean.h
+  VoxelOccupancy.h
   VoxelUtil.cpp
   VoxelUtil.h
 )
@@ -169,7 +171,6 @@ set(PUBLIC_HEADERS
   MapRegion.h
   MapSerialise.h
   NdtMap.h
-  NdtRayMapperInterface.h
   NearestNeighbours.h
   OccupancyMap.h
   OccupancyType.h
@@ -180,9 +181,9 @@ set(PUBLIC_HEADERS
   Query.h
   RayFilter.h
   RayFlag.h
-  RayMapperCpu.h
   RayMapper.h
-  RayMapperInterface.h
+  RayMapperNdt.h
+  RayMapperOccupancy.h
   RayPatternConical.h
   RayPattern.h
   Stream.h
@@ -193,6 +194,7 @@ set(PUBLIC_HEADERS
   Voxel.h
   VoxelLayout.h
   VoxelMean.h
+  VoxelOccupancy.h
   VoxelUtil.h
   "${CMAKE_CURRENT_BINARY_DIR}/ohm/OhmConfig.h"
   "${CMAKE_CURRENT_BINARY_DIR}/ohm/OhmExport.h"

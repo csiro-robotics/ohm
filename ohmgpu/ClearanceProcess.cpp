@@ -178,6 +178,8 @@ namespace
         }
       }
     }
+
+    chunk->touched_stamps[map.layout().clearanceLayer()] = chunk->dirty_stamp = map.touch();
   }
 
 

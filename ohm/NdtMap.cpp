@@ -164,6 +164,7 @@ void NdtMap::integrateHit(Voxel &voxel, const glm::dvec3 & /*sensor*/, const glm
 
   // NDT probably value update is the same as for the basic occupancy map.
   voxel.setValue(voxel_value);
+  voxel.touchMap(map.layout().occupancyLayer());
 
   // Update the voxel mean.
   voxel_mean_info->coord =
@@ -192,6 +193,7 @@ void NdtMap::integrateMiss(Voxel &voxel, const glm::dvec3 &sensor, const glm::dv
     calculateMissNdt(cov_voxel, &voxel_value, sensor, sample, voxel_mean, voxel_mean_info->count,
                      voxel::invalidMarkerValue(), map.missValue(), imp_->sensor_noise, imp_->sample_threshold);
   voxel.setValue(voxel_value);
+  voxel.touchMap(map.layout().occupancyLayer());
 
   TES_IF(imp_->trace)
   {

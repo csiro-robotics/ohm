@@ -5,33 +5,9 @@
 // Author: Kazys Stepanas
 #include "CalculateSegmentKeys.h"
 
-#include "Key.h"
 #include "KeyList.h"
-#include "OccupancyMap.h"
 
 #include <ohmutil/LineWalk.h>
-
-namespace
-{
-  struct KeyAdaptor
-  {
-    const ohm::OccupancyMap &map;
-
-    inline KeyAdaptor(const ohm::OccupancyMap &map)
-      : map(map)
-    {}
-
-    inline ohm::Key voxelKey(const glm::dvec3 &pt) const { return map.voxelKey(pt); }
-    inline bool isNull(const ohm::Key &key) const { return key.isNull(); }
-    inline glm::dvec3 voxelCentre(const ohm::Key &key) const { return map.voxelCentreLocal(key); }
-    inline void stepKey(ohm::Key &key, int axis, int dir) const  // NOLINT(google-runtime-references)
-    {
-      map.stepKey(key, axis, dir);
-    }
-    inline double voxelResolution(int /*axis*/) const { return map.resolution(); }
-  };
-}  // namespace
-
 
 namespace ohm
 {
@@ -43,6 +19,6 @@ namespace ohm
 
     keys.clear();
     return ohm::walkSegmentKeys<Key>([&keys](const Key &key) { keys.add(key); }, start_point_local, end_point_local,
-                                     include_end_point, KeyAdaptor(map));
+                                     include_end_point, WalkKeyAdaptor(map));
   }
 }  // namespace ohm

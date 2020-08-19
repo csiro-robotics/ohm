@@ -2,8 +2,8 @@
 // Author: Kazys Stepanas
 // Copyright (c) CSIRO 2020
 //
-#ifndef RAYMAPPERBASE_H
-#define RAYMAPPERBASE_H
+#ifndef RAYMAPPER_H
+#define RAYMAPPER_H
 
 #include "OhmConfig.h"
 
@@ -48,4 +48,4 @@ namespace ohm
 }  // namespace ohm
 
 
-#endif  // RAYMAPPERBASE_H
+#endif  // RAYMAPPER_H

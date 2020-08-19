@@ -14,35 +14,23 @@
 #include "VoxelLayout.h"
 #include "VoxelMean.h"
 
+#include <type_traits>
+
 using namespace ohm;
 
 namespace
 {
   // Get a voxel pointer as uint8_t * or const uint8_t *. No other types for T are supported.
   template <typename T, typename MAPCHUNK>
-  T getVoxelBytePtr(const Key &key, MAPCHUNK *chunk, const OccupancyMapDetail *map, int layer_index,
-                    size_t expected_size)
+  T getVoxelBytePtr(const Key &key, MAPCHUNK *chunk, int layer_index, const glm::u8vec3 &layer_dim,
+                    size_t voxel_byte_stride)
   {
-    if (chunk && map && key.regionKey() == chunk->region.coord)
-    {
-      // Validate layer.
-      assert(layer_index < int(chunk->layout->layerCount()));
-      const MapLayer *layer = chunk->layout->layerPtr(layer_index);
-      if (expected_size > 0 && layer->voxelByteSize() != expected_size)
-      {
-        return nullptr;
-      }
-      // Account for sub sampling.
-      const glm::u8vec3 layer_dim = layer->dimensions(map->region_voxel_dimensions);
-      // Resolve voxel index within this layer.
-      const unsigned index = ::voxelIndex(key, layer_dim);
-      T voxels = layer->voxels(*chunk);
-      assert(index < unsigned(layer_dim.x * layer_dim.y * layer_dim.z));
-      voxels += layer->voxelByteSize() * index;
-      return voxels;
-    }
-
-    return nullptr;
+    static_assert(sizeof(typename std::remove_pointer<T>::type) == 1, "Only byte types are supported");
+    // Resolve voxel index within this layer.
+    const unsigned index = ::voxelIndex(key, layer_dim);
+    T voxels = chunk->voxel_maps[layer_index];
+    voxels += voxel_byte_stride * index;
+    return voxels;
   }
 }  // namespace
 
@@ -50,30 +38,89 @@ namespace ohm
 {
   namespace voxel
   {
+    uint8_t *voxelPtr(const Key &key, MapChunk *chunk, int layer_index, const glm::u8vec3 &layer_dim,
+                      size_t voxel_byte_stride)
+    {
+      return ::getVoxelBytePtr<uint8_t *>(key, chunk, layer_index, layer_dim, voxel_byte_stride);
+    }
+
     uint8_t *voxelPtr(const Key &key, MapChunk *chunk, const OccupancyMapDetail *map, int layer_index,
                       size_t expected_size)
     {
-      uint8_t *ptr = ::getVoxelBytePtr<uint8_t *>(key, chunk, map, layer_index, expected_size);
-      return ptr;
+      const MapLayer &layer = map->layout.layer(layer_index);
+      if (expected_size == layer.voxelByteSize())
+      {
+        return ::getVoxelBytePtr<uint8_t *>(key, chunk, layer.layerIndex(),
+                                            layer.dimensions(map->region_voxel_dimensions), expected_size);
+      }
+      return nullptr;
+    }
+
+    uint8_t *voxelPtr(const Key &key, MapChunk *chunk, const OccupancyMapDetail *map, const MapLayer &layer,
+                      size_t expected_size)
+    {
+      if (expected_size == layer.voxelByteSize())
+      {
+        return ::getVoxelBytePtr<uint8_t *>(key, chunk, layer.layerIndex(),
+                                            layer.dimensions(map->region_voxel_dimensions), expected_size);
+      }
+      return nullptr;
+    }
+
+    const uint8_t *voxelPtr(const Key &key, const MapChunk *chunk, int layer_index, const glm::u8vec3 &layer_dim,
+                            size_t voxel_byte_stride)
+    {
+      return ::getVoxelBytePtr<const uint8_t *>(key, chunk, layer_index, layer_dim, voxel_byte_stride);
     }
 
     const uint8_t *voxelPtr(const Key &key, const MapChunk *chunk, const OccupancyMapDetail *map, int layer_index,
                             size_t expected_size)
     {
-      const uint8_t *ptr = ::getVoxelBytePtr<const uint8_t *>(key, chunk, map, layer_index, expected_size);
-      return ptr;
+      const MapLayer &layer = map->layout.layer(layer_index);
+      if (expected_size == layer.voxelByteSize())
+      {
+        return ::getVoxelBytePtr<const uint8_t *>(key, chunk, layer.layerIndex(),
+                                                  layer.dimensions(map->region_voxel_dimensions), expected_size);
+      }
+      return nullptr;
+    }
+
+    const uint8_t *voxelPtr(const Key &key, const MapChunk *chunk, const OccupancyMapDetail *map, const MapLayer &layer,
+                            size_t expected_size)
+    {
+      if (expected_size == layer.voxelByteSize())
+      {
+        return ::getVoxelBytePtr<const uint8_t *>(key, chunk, layer.layerIndex(),
+                                                  layer.dimensions(map->region_voxel_dimensions), expected_size);
+      }
+      return nullptr;
+    }
+
+
+    const float *voxelOccupancyPtr(const Key &key, const MapChunk *chunk, int occupancy_layer,
+                                   const glm::u8vec3 &layer_dim)
+    {
+      return reinterpret_cast<const float *>(voxelPtr(key, chunk, occupancy_layer, layer_dim, sizeof(float)));
+    }
+
+
+    float *voxelOccupancyPtr(const Key &key, MapChunk *chunk, int occupancy_layer, const glm::u8vec3 &layer_dim)
+    {
+      return reinterpret_cast<float *>(voxelPtr(key, chunk, occupancy_layer, layer_dim, sizeof(float)));
     }
 
 
     const float *voxelOccupancyPtr(const Key &key, const MapChunk *chunk, const OccupancyMapDetail *map)
     {
-      return voxelPtrAs<const float *>(key, chunk, map, chunk->layout->occupancyLayer());
+      return reinterpret_cast<const float *>(
+        voxelPtr(key, chunk, map->layout.occupancyLayer(), map->region_voxel_dimensions, sizeof(float)));
     }
 
 
     float *voxelOccupancyPtr(const Key &key, MapChunk *chunk, const OccupancyMapDetail *map)
     {
-      return voxelPtrAs<float *>(key, chunk, map, chunk->layout->occupancyLayer());
+      return reinterpret_cast<float *>(
+        voxelPtr(key, chunk, map->layout.occupancyLayer(), map->region_voxel_dimensions, sizeof(float)));
     }
 
 

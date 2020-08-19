@@ -10,6 +10,7 @@
 #include <ohm/LineQuery.h>
 #include <ohm/MapCache.h>
 #include <ohm/OccupancyMap.h>
+#include <ohm/RayMapperOccupancy.h>
 
 #include <ohmtools/OhmCloud.h>
 #include <ohmtools/OhmGen.h>
@@ -123,7 +124,7 @@ namespace maptests
       return clipBounded(start, end, filter_flags, clip_box);
     });
 
-    map.integrateRays(rays.data(), rays.size());
+    RayMapperOccupancy(&map).integrateRays(rays.data(), rays.size());
 
     // Validate the map contains no occupied points; only free and unknown.
     const glm::dvec3 voxel_half_extents(0.5 * map.resolution());
@@ -165,7 +166,7 @@ namespace maptests
     rays.push_back(glm::dvec3(0, 0, 3));
     rays.push_back(glm::dvec3(0, 0, 0));
 
-    map.integrateRays(rays.data(), rays.size());
+    RayMapperOccupancy(&map).integrateRays(rays.data(), rays.size());
 
     // Validate the map contains no occupied points; only free and unknown.
     const Key target_key = map.voxelKey(glm::dvec3(0));

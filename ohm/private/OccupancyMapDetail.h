@@ -26,6 +26,10 @@
 #pragma GCC diagnostic pop
 #endif  // __GNUC__
 
+#ifdef OHM_THREADS
+#include <tbb/spin_mutex.h>
+#endif  // OHM_THREADS
+
 #include <mutex>
 #include <unordered_map>
 #include <vector>
@@ -39,6 +43,12 @@ namespace ohm
 
   struct ohm_API OccupancyMapDetail
   {
+#ifdef OHM_THREADS
+    using Mutex = tbb::spin_mutex;
+#else   // OHM_THREADS
+    using Mutex = std::mutex;
+#endif  // OHM_THREADS
+
     glm::dvec3 origin = glm::dvec3(0);
     glm::dvec3 region_spatial_dimensions = glm::dvec3(0);
     glm::u8vec3 region_voxel_dimensions = glm::u8vec3(0);
@@ -56,7 +66,7 @@ namespace ohm
     bool saturate_at_max_value = false;
     MapLayout layout;
     ChunkMap chunks;
-    mutable std::mutex mutex;
+    mutable Mutex mutex;
     // Region count at load time. Useful when only the header is loaded.
     size_t loaded_region_count = 0;
     MapFlag flags = MapFlag::kNone;

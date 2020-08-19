@@ -18,6 +18,7 @@ namespace ohm
   class Key;
   struct OccupancyMapDetail;
   struct MapChunk;
+  class MapLayer;
 
   /// Contains functions which help manipulate common voxel data.
   namespace voxel
@@ -43,7 +44,13 @@ namespace ohm
     /// @param expected_size Optional voxel size validation. Fails if voxels do not match this size. Zero to skip
     ///     validation.
     /// @return A pointer to the voxel memory of voxel at @p key, or null on failure.
+    uint8_t *voxelPtr(const Key &key, MapChunk *chunk, int layer_index, const glm::u8vec3 &layer_dim,
+                      size_t expected_size);
+
     uint8_t *voxelPtr(const Key &key, MapChunk *chunk, const OccupancyMapDetail *map, int layer_index,
+                      size_t expected_size);
+
+    uint8_t *voxelPtr(const Key &key, MapChunk *chunk, const OccupancyMapDetail *map, const MapLayer &layer,
                       size_t expected_size);
 
     /// Get the address of the voxel referenced by @p key in @p layer_index.
@@ -56,7 +63,13 @@ namespace ohm
     /// @param expected_size Optional voxel size validation. Fails if voxels do not match this size. Zero to skip
     ///     validation.
     /// @return A pointer to the voxel memory of voxel at @p key, or null on failure.
+    const uint8_t *voxelPtr(const Key &key, const MapChunk *chunk, int layer_index, const glm::u8vec3 &layer_dim,
+                            size_t expected_size);
+
     const uint8_t *voxelPtr(const Key &key, const MapChunk *chunk, const OccupancyMapDetail *map, int layer_index,
+                            size_t expected_size);
+
+    const uint8_t *voxelPtr(const Key &key, const MapChunk *chunk, const OccupancyMapDetail *map, const MapLayer &layer,
                             size_t expected_size);
 
     /// The address of the voxel referenced by @p key as type @c T.
@@ -71,9 +84,22 @@ namespace ohm
     /// @param map Internal details of the @c OccupancyMap.
     /// @return A pointer to the voxel memory of voxel at @p key, or null on failure.
     template <typename T>
+    T voxelPtrAs(const Key &key, MapChunk *chunk, int layer_index, const glm::u8vec3 &layer_dim)
+    {
+      return reinterpret_cast<T>(
+        voxelPtr(key, chunk, layer_index, layer_dim, sizeof(typename std::remove_pointer<T>::type)));
+    }
+
+    template <typename T>
     T voxelPtrAs(const Key &key, MapChunk *chunk, const OccupancyMapDetail *map, int layer_index)
     {
       return reinterpret_cast<T>(voxelPtr(key, chunk, map, layer_index, sizeof(typename std::remove_pointer<T>::type)));
+    }
+
+    template <typename T>
+    T voxelPtrAs(const Key &key, MapChunk *chunk, const OccupancyMapDetail *map, const MapLayer &layer)
+    {
+      return reinterpret_cast<T>(voxelPtr(key, chunk, map, layer, sizeof(typename std::remove_pointer<T>::type)));
     }
 
     /// The address of the voxel referenced by @p key as type @c T.
@@ -88,10 +114,27 @@ namespace ohm
     /// @param map Internal details of the @c OccupancyMap.
     /// @return A pointer to the voxel memory of voxel at @p key, or null on failure.
     template <typename T>
+    T voxelPtrAs(const Key &key, const MapChunk *chunk, int layer_index, const glm::u8vec3 &layer_dim)
+    {
+      return reinterpret_cast<T>(
+        voxelPtr(key, chunk, layer_index, layer_dim, sizeof(typename std::remove_pointer<T>::type)));
+    }
+
+    template <typename T>
     T voxelPtrAs(const Key &key, const MapChunk *chunk, const OccupancyMapDetail *map, int layer_index)
     {
       return reinterpret_cast<T>(voxelPtr(key, chunk, map, layer_index, sizeof(typename std::remove_pointer<T>::type)));
     }
+
+    template <typename T>
+    T voxelPtrAs(const Key &key, const MapChunk *chunk, const OccupancyMapDetail *map, const MapLayer &layer)
+    {
+      return reinterpret_cast<T>(voxelPtr(key, chunk, map, layer, sizeof(typename std::remove_pointer<T>::type)));
+    }
+
+    const float *voxelOccupancyPtr(const Key &key, const MapChunk *chunk, int occupancy_layer,
+                                   const glm::u8vec3 &layer_dim);
+    float *voxelOccupancyPtr(const Key &key, MapChunk *chunk, int occupancy_layer, const glm::u8vec3 &layer_dim);
 
     const float *voxelOccupancyPtr(const Key &key, const MapChunk *chunk, const OccupancyMapDetail *map);
     float *voxelOccupancyPtr(const Key &key, MapChunk *chunk, const OccupancyMapDetail *map);

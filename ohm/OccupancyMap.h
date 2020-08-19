@@ -361,7 +361,8 @@ namespace ohm
     uint64_t stamp() const;
 
     /// Touches the map, progressing the @c stamp() value.
-    void touch();
+    /// @return The @c stamp() value after the touch.
+    uint64_t touch();
 
     /// Query the spatial resolution of each @c MapRegion. This represents the spatial extents of each region.
     /// @return The spatial resolution of a @c MapRegion.
@@ -865,9 +866,9 @@ namespace ohm
                                 const glm::dvec3 &start_point, const glm::dvec3 &end_point,
                                 bool include_end_point = true) const;
 
-    /// Set the range filter applied to all rays given to @c integrateRays().
-    /// @param ray_filter The range filter to install and apply to @c integrateRays().
-    ///   Accepts a null pointer, which clears the filter.
+    /// Set the range filter applied to all rays to be integrated into the map. @c RayMapper implementations must
+    /// repsect this filter in @c RayMapper::integrateRays() .
+    /// @param ray_filter The range filter to install and filter rays with. Accepts an empty, which clears the filter.
     void setRayFilter(const RayFilterFunction &ray_filter);
 
     /// Get the range filter applied to all rays given to @c integrateRays().

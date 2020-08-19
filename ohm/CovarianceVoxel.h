@@ -26,6 +26,18 @@
 /// Allows additional debug information on @c covarianceEigenDecomposition()
 #define OHM_COV_DEBUG 0
 
+
+/// @defgroup voxelcovariance Voxel Covariance Functions
+///
+/// These functions support updating @c VoxelCovariance in CPU and GPU. This update implements a normal distributions
+/// transform logic for occupancy voxels.
+///
+/// For reference, see:
+///
+/// Saarinen, Jari & Andreasson, Henrik & Stoyanov, Todor & Lilienthal, Achim. (2013). 3D Normal Distributions Transform
+/// Occupancy Maps: An Efficient Representation for Mapping in Dynamic Environments. The International Journal of
+/// Robotics Research. 32. 1627-1644. 10.1177/0278364913499415.
+
 #if GPUTIL_DEVICE
 // Define GPU type aliases
 typedef float3 covvec3;
@@ -61,6 +73,8 @@ namespace ohm
 #define __device__
 #endif  //  __device__
 #endif  // GPUTIL_DEVICE
+/// @ingroup voxelcovariance
+/// Defines the covariance voxel structure. This is a modified covariance matrix packed to reduce memory storage.
 typedef struct CovarianceVoxel_t
 {
   /// Trianglar square root covariance matrix. Represents a covariance matrix via the triangular
@@ -72,6 +86,7 @@ typedef struct CovarianceVoxel_t
 } CovarianceVoxel;
 
 
+/// @ingroup voxelcovariance
 /// Initialise the packed square root covariance matrix in @p cov
 /// The covariance value is initialised to an identity matrix, scaled by the @p covariance_initialisation .
 /// This is to ensure we do not start with a zero matrix, which causes all sorts of mathematical problems.
@@ -86,6 +101,7 @@ inline __device__ void initialiseCovariance(CovarianceVoxel *cov, float covarian
 }
 
 
+/// @ingroup voxelcovariance
 /// dot product of j-th and k-th columns of A
 /// A is (4,3), assumed to be packed as follows, where z is non-represented zero
 /// 0 1 3
@@ -107,6 +123,7 @@ inline __device__ double packedDot(const covreal A[9], const int j, const int k)
 }
 
 
+/// @ingroup voxelcovariance
 /// Unpack the covariance matrix storage.
 ///
 /// Unpacks covariance matrix square root and mean into the following sparse 3,4 form:
@@ -150,11 +167,15 @@ inline __device__ void unpackCovariance(const CovarianceVoxel *cov, unsigned poi
   matrix[2 + 6] = sc_2 * sample_to_mean.z;
 }
 
-// Find x for Mx = y, given lower triangular M where M is @c trianglar_covariance
-// Storage order for M:
-// 0 z z
-// 1 2 z
-// 3 4 5
+/// @ingroup voxelcovariance
+/// Find x for Mx = y, given lower triangular M where M is @c trianglar_covariance
+/// Storage order for M:
+///
+/// @code{.unparsed}
+/// 0 z z
+/// 1 2 z
+/// 3 4 5
+/// @endcode
 inline __device__ covvec3 solveTriangular(const CovarianceVoxel *cov, const covvec3 y)
 {
   // Note: if we generate the voxel with point on a perfect plane, say (0, 0, 1, 0), then do this operation,
@@ -178,6 +199,7 @@ inline __device__ covvec3 solveTriangular(const CovarianceVoxel *cov, const covv
   return x;
 }
 
+/// @ingroup voxelcovariance
 /// Calculate a voxel hit with packed covariance. This supports Normalised Distribution Transform (NDT) logic in @c
 /// calculateMissNdt() .
 ///
@@ -228,7 +250,7 @@ inline __device__ bool calculateHitWithCovariance(CovarianceVoxel *cov_voxel, fl
   }
 
   // Initialise the cov_voxel data if this transitions the voxel to an occupied state.
-  *voxel_value = hit_value + (!was_uncertain) * initial_value;
+  *voxel_value = (!was_uncertain) ? hit_value + initial_value : hit_value;
 
   // This has been taken from example code provided by Jason Williams as a sample on storing and using covarance data
   // using a packed, diagonal.
@@ -277,6 +299,7 @@ inline __device__ bool calculateHitWithCovariance(CovarianceVoxel *cov_voxel, fl
   return initialised_covariance;
 }
 
+/// @ingroup voxelcovariance
 /// Calculate a voxel miss (ray passthrough) using Normalised Distribution Transform (NDT) logic.
 ///
 /// This algorithm is based on the following paper:
@@ -409,6 +432,7 @@ inline __device__ covvec3 calculateMissNdt(const CovarianceVoxel *cov_voxel, flo
 }
 
 #if !GPUTIL_DEVICE
+/// @ingroup voxelcovariance
 /// Perform an eigen decomposition on the covariance data in @p cov.
 ///
 /// This currently uses the QR algorithm. This is an iterative solution, which is not recommended. Therefore this
@@ -418,6 +442,7 @@ inline __device__ covvec3 calculateMissNdt(const CovarianceVoxel *cov_voxel, flo
 void ohm_API covarianceEigenDecomposition(const CovarianceVoxel *cov, glm::dmat3 *eigenvectors,
                                           glm::dvec3 *eigenvalues);
 
+/// @ingroup voxelcovariance
 /// Estimate a primary normal from the given covariance. This selects the eivenvector with the smallest eigenvalue.
 /// This may be ambiguous.
 /// @param cov The covariance data for the voxel.
@@ -426,6 +451,7 @@ void ohm_API covarianceEigenDecomposition(const CovarianceVoxel *cov, glm::dmat3
 /// with insufficient data.
 void ohm_API covarianceEstimatePrimaryNormal(const CovarianceVoxel *cov, glm::dvec3 *normal, int preferred_axis = 0);
 
+/// @ingroup voxelcovariance
 /// Convert @p cov into a rotation and scale factors to deform a unit sphere to approximate the covariance cluster.
 ///
 /// This calls @c covarianceEigenDecomposition() and suffers the same performance constraints.
@@ -435,6 +461,7 @@ void ohm_API covarianceEstimatePrimaryNormal(const CovarianceVoxel *cov, glm::dv
 /// @param[out] scale The scaling to apply to the unit sphere before @p rotation .
 bool ohm_API covarianceUnitSphereTransformation(const CovarianceVoxel *cov, glm::dquat *rotation, glm::dvec3 *scale);
 
+/// @ingroup voxelcovariance
 /// Unpack @c cov.trianglar_covariance into a 3x3 covariance matrix.
 inline glm::dmat3 covarianceMatrix(const CovarianceVoxel *cov)
 {

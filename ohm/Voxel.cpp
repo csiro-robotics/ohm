@@ -11,6 +11,7 @@
 #include "MapChunk.h"
 #include "VoxelLayout.h"
 #include "VoxelMean.h"
+#include "VoxelOccupancy.h"
 
 #include <algorithm>
 #include <cassert>
@@ -65,50 +66,64 @@ Voxel VoxelConst::makeMutable() const
 
 void Voxel::setValue(float value, bool force)
 {
-  float *occupancy_ptr = nullptr;
-
-  if (isValid())
-  {
-    occupancy_ptr = voxel::voxelOccupancyPtr(key_, chunk_, map_);
-  }
-
-  if (occupancy_ptr)
-  {
-    if (value != voxel::invalidMarkerValue())
-    {
-      // Clamp the value to the allowed voxel range.
-      value = std::max(map_->min_voxel_value, std::min(value, map_->max_voxel_value));
-      // Honour saturation. Once saturated a voxel value could not change.
-      if (force || *occupancy_ptr == voxel::invalidMarkerValue() ||
-          (value < *occupancy_ptr && (!map_->saturate_at_max_value || *occupancy_ptr < map_->max_voxel_value)) ||
-          (value > *occupancy_ptr && (!map_->saturate_at_min_value || *occupancy_ptr > map_->min_voxel_value)))
-      {
-        *occupancy_ptr = value;
-        // This voxel is now valid. Update the chunk's first valid key as required.
-        chunk_->updateFirstValid(key_.localKey(), map_->region_voxel_dimensions);
-      }
-    }
-    else
-    {
-      *occupancy_ptr = value;
-      // This voxel is now invalid. If it was the first valid voxel, then it no longer is and
-      // we need to update it (brute force).
-      if (chunk_->first_valid_index == key_.localKey())
-      {
-        // Search for a new first valid index. We can start from the current first valid value.
-        chunk_->searchAndUpdateFirstValid(map_->region_voxel_dimensions, key_.localKey());
-      }
 #ifdef OHM_VALIDATION
-      _chunk->validateFirstValid(_map->region_voxel_dimensions);
-#endif  // OHM_VALIDATION
-    }
-    touchMap(chunk_->layout->occupancyLayer());
-  }
-#ifdef OHM_VALIDATION
-  else
+  if (!isValid())
   {
     fprintf(stderr, "Attempting to modify null voxel\n");
   }
+#endif  // OHM_VALIDATION
+
+  float *occupancy_ptr =
+    voxel::voxelOccupancyPtr(key_, chunk_, map_->layout.occupancyLayer(), map_->region_voxel_dimensions);
+  const float initial_value = *occupancy_ptr;
+  if (value != voxel::invalidMarkerValue())
+  {
+    if (value >= initial_value)
+    {
+      occupancyAdjustUp(
+        occupancy_ptr, initial_value, value, voxel::invalidMarkerValue(), map_->max_voxel_value,
+        (!force && map_->saturate_at_min_value) ? map_->min_voxel_value : std::numeric_limits<float>::lowest(),
+        (!force && map_->saturate_at_max_value) ? map_->max_voxel_value : std::numeric_limits<float>::max(), false);
+    }
+    else
+    {
+      occupancyAdjustDown(
+        occupancy_ptr, initial_value, value, voxel::invalidMarkerValue(), map_->min_voxel_value,
+        (!force && map_->saturate_at_min_value) ? map_->min_voxel_value : std::numeric_limits<float>::lowest(),
+        (!force && map_->saturate_at_max_value) ? map_->max_voxel_value : std::numeric_limits<float>::max(), false);
+    }
+    // This voxel is now valid. Update the chunk's first valid key as required.
+    chunk_->updateFirstValid(key_.localKey(), map_->region_voxel_dimensions);
+  }
+  else
+  {
+    *occupancy_ptr = value;
+  }
+}
+
+
+void Voxel::setUncertain()
+{
+#ifdef OHM_VALIDATION
+  if (!isValid())
+  {
+    fprintf(stderr, "Attempting to modify null voxel\n");
+  }
+#endif  // OHM_VALIDATION
+
+  float *occupancy_ptr =
+    voxel::voxelOccupancyPtr(key_, chunk_, map_->layout.occupancyLayer(), map_->region_voxel_dimensions);
+
+  *occupancy_ptr = voxel::invalidMarkerValue();
+  // This voxel is now invalid. If it was the first valid voxel, then it no longer is and
+  // we need to update it (brute force).
+  if (chunk_->first_valid_index == voxelIndex(key_.localKey(), map_->region_voxel_dimensions))
+  {
+    // Search for a new first valid index. We can start from the current first valid value.
+    chunk_->searchAndUpdateFirstValid(map_->region_voxel_dimensions, key_.localKey());
+  }
+#ifdef OHM_VALIDATION
+  _chunk->validateFirstValid(_map->region_voxel_dimensions);
 #endif  // OHM_VALIDATION
 }
 
@@ -120,7 +135,6 @@ void Voxel::setClearance(float range)
     if (float *voxel_ptr = voxel::voxelPtrAs<float *>(key_, chunk_, map_, chunk_->layout->clearanceLayer()))
     {
       *voxel_ptr = range;
-      touchMap(chunk_->layout->clearanceLayer());
     }
   }
 }
@@ -175,12 +189,8 @@ void Voxel::touchRegion(double timestamp)
 
 void Voxel::touchMap(int layer)
 {
-  if (map_ && chunk_)
-  {
-    assert(0 <= layer && layer < int(chunk_->layout->layerCount()));
-    ++map_->stamp;
-    chunk_->dirty_stamp = chunk_->touched_stamps[layer] = map_->stamp;
-  }
+  chunk_->dirty_stamp = ++map_->stamp;
+  chunk_->touched_stamps[layer].store(chunk_->dirty_stamp, std::memory_order_relaxed);
 }
 
 

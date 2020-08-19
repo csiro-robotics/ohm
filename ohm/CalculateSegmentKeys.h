@@ -10,6 +10,9 @@
 
 #include <cstddef>
 
+#include "Key.h"
+#include "OccupancyMap.h"
+
 #include <glm/fwd.hpp>
 
 namespace ohm
@@ -17,6 +20,43 @@ namespace ohm
   class Key;
   class KeyList;
   class OccupancyMap;
+
+  /// A utility key adaptor around an @c OccupancyMap for use with @c walkSegmentKeys() .
+  struct ohm_API WalkKeyAdaptor
+  {
+    /// Map reference.
+    const ohm::OccupancyMap &map;
+
+    /// Create an adaptor for @p map .
+    /// @param map The map to adapt
+    inline WalkKeyAdaptor(const ohm::OccupancyMap &map)
+      : map(map)
+    {}
+
+    /// Result a point @p pt to a voxel key.
+    /// @param pt The point of interest.
+    /// @return The key for @p pt
+    inline ohm::Key voxelKey(const glm::dvec3 &pt) const { return map.voxelKey(pt); }
+    /// Check if @p key is null.
+    /// @param key The key to test
+    /// @return True if @p key is a null entry
+    inline bool isNull(const ohm::Key &key) const { return key.isNull(); }
+    /// Result a @p key to the corresponding voxel centre coordinate.
+    /// @param key The key of interest.
+    /// @return The coordinate at the centre of the voxel which @p key reference.
+    inline glm::dvec3 voxelCentre(const ohm::Key &key) const { return map.voxelCentreLocal(key); }
+    /// Adjust the value of @p key by stepping it along @p axis
+    /// @param key The key to modify.
+    /// @param axis The axis to modifier where 0, 1, 2 map to X, Y, Z respectively.
+    /// @param dir The direction to step: must be 1 or -1
+    inline void stepKey(ohm::Key &key, int axis, int dir) const  // NOLINT(google-runtime-references)
+    {
+      map.stepKey(key, axis, dir);
+    }
+    /// Query the voxel resolution.
+    /// @return The voxel resolution.
+    inline double voxelResolution(int /*axis*/) const { return map.resolution(); }
+  };
 
   /// This poulates a @c KeyList with the voxel @c Key values intersected by a line segment.
   ///
@@ -31,6 +71,6 @@ namespace ohm
   ///     even when the @p start_point is in the same voxel (this case would generate an empty list).
   size_t ohm_API calculateSegmentKeys(KeyList &keys, const OccupancyMap &map, const glm::dvec3 &start_point,
                                       const glm::dvec3 &end_point, bool include_end_point);
-}
+}  // namespace ohm
 
 #endif  // CALCULATESEGMENTKEYS_H

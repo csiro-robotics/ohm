@@ -47,6 +47,12 @@ namespace ohm
   }
 
 
+  inline glm::u8vec3 voxelLocalKey(unsigned index, const glm::ivec3 &dim)
+  {
+    return glm::u8vec3(index % dim.x, (index % (dim.x * dim.y)) / dim.x, index / (dim.x * dim.y));
+  }
+
+
   /// Move a region local key to the next coordinate in that region. The operation is constrained by the region
   /// dimensions @p dim.
   ///
@@ -121,8 +127,9 @@ namespace ohm
     MapRegion region = MapRegion{};
     /// Describes the layers and voxel layout of the chunk (from the map as a whole).
     const MapLayout *layout = nullptr;
-    /// Index of the first voxel with valid data: occupied or free, but not uncertain.s
-    glm::u8vec3 first_valid_index = glm::u8vec3(255, 255, 255);
+    unsigned first_valid_index = ~0u;
+    // /// Index of the first voxel with valid data: occupied or free, but not uncertain.s
+    // glm::u8vec3 first_valid_index = glm::u8vec3(255, 255, 255);
     /// Last timestamp the occupancy layer of this chunk was modified.
     double touched_time = 0;
 
@@ -191,12 +198,18 @@ namespace ohm
     /// @param local_index The voxel index within this chunk. Equivalent to Key::localKey().
     /// @param region_voxel_dimensions The dimensions of each chunk/region along each axis.
     void updateFirstValid(const glm::u8vec3 &local_index, const glm::ivec3 &region_voxel_dimensions);
+    inline void updateFirstValid(unsigned index) { first_valid_index = std::min(index, first_valid_index); }
 
     /// Update the @c first_valid_index by brute force, searching for the first valid voxel.
     /// @param region_voxel_dimensions The dimensions of each chunk/region along each axis.
     /// @param search_from Start searching from this voxel index (must be a valid index).
     void searchAndUpdateFirstValid(const glm::ivec3 &region_voxel_dimensions,
                                    const glm::u8vec3 &search_from = glm::u8vec3(0, 0, 0));
+
+    inline glm::u8vec3 firstValidKey(const glm::ivec3 &region_voxel_dimensions) const
+    {
+      return voxelLocalKey(first_valid_index, region_voxel_dimensions);
+    }
 
     /// Recalculates what the @c first_valid_index should be (brute force) and validates against its current value.
     /// @return True when the @c first_valid_index value matches what it should be.
@@ -208,6 +221,35 @@ namespace ohm
     void extents(glm::dvec3 &min_ext, glm::dvec3 &max_ext,  // NOLINT(google-runtime-references)
                  const glm::dvec3 &region_spatial_dimensions) const;
   };
+
+
+  inline bool MapChunk::hasValidNodes() const
+  {
+    return first_valid_index != ~0u;
+    // return first_valid_index.x != 255 && first_valid_index.y != 255 && first_valid_index.z != 255;
+  }
+
+
+  inline void MapChunk::updateFirstValid(const glm::u8vec3 &local_index, const glm::ivec3 &region_voxel_dimensions)
+  {
+    first_valid_index = std::min(voxelIndex(local_index.x, local_index.y, local_index.z, region_voxel_dimensions.x,
+                                            region_voxel_dimensions.y, region_voxel_dimensions.z),
+                                 first_valid_index);
+    // const unsigned current_first =
+    //   voxelIndex(first_valid_index.x, first_valid_index.y, first_valid_index.z, region_voxel_dimensions.x,
+    //              region_voxel_dimensions.y, region_voxel_dimensions.z);
+    // const unsigned new_first = voxelIndex(local_index.x, local_index.y, local_index.z, region_voxel_dimensions.x,
+    //                                       region_voxel_dimensions.y, region_voxel_dimensions.z);
+    // first_valid_index = (new_first < current_first) ? local_index : first_valid_index;
+#ifdef OHM_VALIDATION
+    if (test_first < current_first)
+    {
+      validateFirstValid(regionVoxelDimensions);
+    }
+#endif  // OHM_VALIDATION
+  }
+
+
 }  // namespace ohm
 
 #endif  // OHM_MAPCHUNK_H

@@ -15,9 +15,9 @@
 #include "MapProbability.h"
 #include "MapRegionCache.h"
 #include "OccupancyType.h"
-#include "RayMapperCpu.h"
 #include "Voxel.h"
 #include "VoxelMean.h"
+#include "RayMapperOccupancy.h"
 
 #include "OccupancyUtil.h"
 
@@ -48,9 +48,10 @@ namespace
     // We use std::min() to ensure the first_valid_index is in range and we at least check
     // the last voxel. This primarily deals with iterating a chunk with contains no
     // valid voxels.
-    return Key(chunk.region.coord, std::min(chunk.first_valid_index.x, uint8_t(map.region_voxel_dimensions.x - 1)),
-               std::min(chunk.first_valid_index.y, uint8_t(map.region_voxel_dimensions.y - 1)),
-               std::min(chunk.first_valid_index.z, uint8_t(map.region_voxel_dimensions.z - 1)));
+    const glm::u8vec3 first_valid_key = chunk.firstValidKey(map.region_voxel_dimensions);
+    return Key(chunk.region.coord, std::min(first_valid_key.x, uint8_t(map.region_voxel_dimensions.x - 1)),
+               std::min(first_valid_key.y, uint8_t(map.region_voxel_dimensions.y - 1)),
+               std::min(first_valid_key.z, uint8_t(map.region_voxel_dimensions.z - 1)));
     // if (voxelIndex(key, map.region_voxel_dimensions) >= map.region_voxel_dimensions.x * map.region_voxel_dimensions.y
     // * map.region_voxel_dimensions.z)
     // {
@@ -403,9 +404,9 @@ uint64_t OccupancyMap::stamp() const
   return imp_->stamp;
 }
 
-void OccupancyMap::touch()
+uint64_t OccupancyMap::touch()
 {
-  ++imp_->stamp;
+  return ++imp_->stamp;
 }
 
 glm::dvec3 OccupancyMap::regionSpatialResolution() const
@@ -1048,8 +1049,7 @@ void OccupancyMap::integrateRays(const glm::dvec3 *rays, size_t element_count, u
   // This function has been updated to leverage the new RayMapper interface and remove code duplication. It is
   // maintained for legacy reasons.
   // TODO: (KS) remove this function and require the use of a RayMapper.
-  RayMapperCpu<OccupancyMap> mapper(this);
-  mapper.integrateRays(rays, element_count, ray_update_flags);
+  RayMapperOccupancy(this).integrateRays(rays, element_count, ray_update_flags);
 }
 
 OccupancyMap *OccupancyMap::clone() const
