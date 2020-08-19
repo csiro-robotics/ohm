@@ -98,6 +98,9 @@ namespace
         **out << '\n';
       }
 
+      **out << "lazy eval: " << ((!non_lazy_eval) ? "true" : "false") << '\n';
+      **out << "collapse (post): " << ((collapse) ? "true" : "false") << '\n';
+
       if (point_limit)
       {
         **out << "Maximum point: " << point_limit << '\n';
