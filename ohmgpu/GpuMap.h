@@ -146,13 +146,16 @@ namespace ohm
     /// @return True when the GPU has been successfully initialised.
     bool gpuOk() const;
 
+    /// Validate function from @c RayMapper . Based on @c gpuOk() result.
+    /// @return True if validated and @c integrateRays() is safe to call.
+    inline bool valid() const override { return gpuOk(); }
+
     /// Request the @c OccupancyMap this @c GpuMap wraps.
     /// @return The underlying @c OccupancyMap.
     OccupancyMap &map();
     /// Request the @c OccupancyMap this @c GpuMap wraps.
     /// @return The underlying @c OccupancyMap.
     const OccupancyMap &map() const;
-
 
     /// Is the @c GpuMap using a borrowed pointer to @c map()?
     /// If not borrowed, then the @c GpuMap will destroy the @c OccupancyMap on destruction.

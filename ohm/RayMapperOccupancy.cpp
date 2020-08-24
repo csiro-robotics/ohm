@@ -14,6 +14,33 @@
 
 using namespace ohm;
 
+RayMapperOccupancy::RayMapperOccupancy(OccupancyMap *map)
+  : map_(map)
+  , occupancy_layer_(map_->layout().occupancyLayer())
+  , mean_layer_(map_->layout().meanLayer())
+{
+  occupancy_dim_ = map_->layout().layer(occupancy_layer_).dimensions(map_->regionVoxelDimensions());
+  // Validate the mean layer size.
+  if (mean_layer_ >= 0)
+  {
+    if (map_->layout().layer(mean_layer_).voxelByteSize() != sizeof(VoxelMean))
+    {
+      // Won't be using voxel mean. Wrong voxel size.
+      mean_layer_ = -1;
+    }
+    else if (map_->layout().layer(mean_layer_).dimensions(map_->regionVoxelDimensions()) != occupancy_dim_)
+    {
+      // Won't be using voxel mean. Layer dimensions don't match occupancy layer.
+      mean_layer_ = -1;
+    }
+  }
+  valid_ = true;
+}
+
+
+RayMapperOccupancy::~RayMapperOccupancy() = default;
+
+
 size_t RayMapperOccupancy::integrateRays(const glm::dvec3 *rays, size_t element_count, unsigned ray_update_flags)
 {
   KeyList keys;
@@ -22,8 +49,9 @@ size_t RayMapperOccupancy::integrateRays(const glm::dvec3 *rays, size_t element_
 
   const RayFilterFunction ray_filter = map_->rayFilter();
   const bool use_filter = bool(ray_filter);
-  const auto occupancy_layer = map_->layout().occupancyLayer();
-  const auto occupancy_dim = map_->layout().layer(occupancy_layer).dimensions(map_->regionVoxelDimensions());
+  const auto occupancy_layer = occupancy_layer_;
+  const auto mean_layer = mean_layer_;
+  const auto occupancy_dim = occupancy_dim_;
   const auto occupancy_threshold_value = map_->occupancyThresholdValue();
   const auto map_origin = map_->origin();
   const auto miss_value = map_->missValue();
@@ -33,24 +61,6 @@ size_t RayMapperOccupancy::integrateRays(const glm::dvec3 *rays, size_t element_
   const auto voxel_max = map_->maxVoxelValue();
   const auto saturation_min = map_->saturateAtMinValue() ? voxel_min : std::numeric_limits<float>::lowest();
   const auto saturation_max = map_->saturateAtMinValue() ? voxel_max : std::numeric_limits<float>::max();
-
-  // Setup VoxelMean update if possible.
-  auto mean_layer = map_->layout().meanLayer();
-  // Validate the mean layer size.
-  if (mean_layer >= 0)
-  {
-    if (map_->layout().layer(mean_layer).voxelByteSize() != sizeof(VoxelMean))
-    {
-      // Won't be using voxel mean. Wrong voxel size.
-      mean_layer = -1;
-    }
-    else if (map_->layout().layer(mean_layer).dimensions(map_->regionVoxelDimensions()) != occupancy_dim)
-    {
-      // Won't be using voxel mean. Layer dimensions don't match occupancy layer.
-      mean_layer = -1;
-    }
-  }
-
   // Touch the map to flag changes.
   const auto touch_stamp = map_->touch();
 

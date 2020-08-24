@@ -32,9 +32,14 @@ namespace ohm
     /// Constructor, wrapping the interface around the given @p map .
     ///
     /// @param map The target map. Must outlive this class.
-    RayMapperOccupancy(OccupancyMap *map)
-      : map_(map)
-    {}
+    RayMapperOccupancy(OccupancyMap *map);
+
+    /// Destructor
+    ~RayMapperOccupancy();
+
+    /// Has the map been successfully validated?
+    /// @return True if valid and @c integrateRays() is safe to call.
+    inline bool valid() const override { return valid_; }
 
     /// Performs the ray integration.
     ///
@@ -44,6 +49,8 @@ namespace ohm
     /// updated if the map has a @c MapLayout::meanLayer() . This behaviour may be modified by the @p RayFlag
     /// bits in @p ray_update_flags .
     ///
+    /// Should only be called if @c valid() is true.
+    ///
     /// @param rays The array of start/end point pairs to integrate.
     /// @param element_count The number of @c glm::dvec3 elements in @p rays, which is twice the ray count.
     /// @param ray_update_flags @c RayFlag bitset used to modify the behaviour of this function. All flags are
@@ -51,7 +58,11 @@ namespace ohm
     size_t integrateRays(const glm::dvec3 *rays, size_t element_count, unsigned ray_update_flags = kRfDefault) override;
 
   protected:
-    OccupancyMap *map_;  ///< Target map.
+    OccupancyMap *map_ = nullptr;           ///< Target map.
+    int occupancy_layer_ = -1;              ///< Cached occupancy layer index.
+    int mean_layer_ = -1;                   ///< Cached voxel mean layer index.
+    glm::u8vec3 occupancy_dim_{ 0, 0, 0 };  ///< Cached occupancy layer voxel dimensions. Voxel mean must exactly match.
+    bool valid_ = false;                    ///< Has layer validation passed?
   };
 
 }  // namespace ohm

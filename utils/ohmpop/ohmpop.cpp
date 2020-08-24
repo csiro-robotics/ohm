@@ -352,6 +352,30 @@ int populateMap(const Options &opt)
   ohm::MapFlag map_flags = ohm::MapFlag::kNone;
   map_flags |= (opt.voxel_mean) ? ohm::MapFlag::kVoxelMean : ohm::MapFlag::kNone;
   ohm::OccupancyMap map(opt.resolution, opt.region_voxel_dim, map_flags);
+#ifdef OHMPOP_CPU
+  std::unique_ptr<ohm::NdtMap> ndt_map;
+  if (opt.ndt.enabled)
+  {
+    ndt_map = std::make_unique<ohm::NdtMap>(&map, true);
+  }
+#else   // OHMPOP_CPU
+  std::unique_ptr<ohm::GpuMap> gpu_map((!opt.ndt.enabled) ? new ohm::GpuMap(&map, true, opt.batch_size) :
+                                                            new ohm::GpuNdtMap(&map, true, opt.batch_size));
+  ohm::NdtMap *ndt_map = &static_cast<ohm::GpuNdtMap *>(gpu_map.get())->ndtMap();
+#endif  // OHMPOP_CPU
+
+  if (opt.voxel_mean)
+  {
+    map.addVoxelMeanLayer();
+  }
+
+  if (opt.ndt.enabled)
+  {
+    ndt_map->setSensorNoise(opt.ndt.sensor_noise);
+    ndt_map->setReinitialiseCovarianceTheshold(ohm::probabilityToValue(opt.ndt.covariance_reset_probability));
+    ndt_map->setReinitialiseCovariancePointCount(opt.ndt.covariance_reset_sample_count);
+  }
+
   std::atomic<uint64_t> elapsed_ms(0);
   ProgressMonitor prog(10);
 
@@ -398,13 +422,11 @@ int populateMap(const Options &opt)
 
   ohm::RayMapper *ray_mapper = nullptr;
 #ifdef OHMPOP_CPU
-  std::unique_ptr<ohm::NdtMap> ndt_map;
   std::unique_ptr<ohm::RayMapperNdt> ndt_ray_mapper;
   ohm::RayMapperOccupancy ray_mapper_(&map);
   if (opt.ndt.enabled)
   {
     std::cout << "Building NDT map" << std::endl;
-    ndt_map = std::make_unique<ohm::NdtMap>(&map, true);
     ndt_ray_mapper = std::make_unique<ohm::RayMapperNdt>(ndt_map.get());
     ray_mapper = ndt_ray_mapper.get();
   }
@@ -413,9 +435,6 @@ int populateMap(const Options &opt)
     ray_mapper = &ray_mapper_;
   }
 #else   // OHMPOP_CPU
-  std::unique_ptr<ohm::GpuMap> gpu_map((!opt.ndt.enabled) ? new ohm::GpuMap(&map, true, opt.batch_size) :
-                                                            new ohm::GpuNdtMap(&map, true, opt.batch_size));
-  ohm::NdtMap *ndt_map = &static_cast<ohm::GpuNdtMap *>(gpu_map.get())->ndtMap();
   ray_mapper = gpu_map.get();
 #endif  // OHMPOP_CPU
   ohm::Mapper mapper(&map);
@@ -435,18 +454,6 @@ int populateMap(const Options &opt)
   double next_mapper_update = opt.mapping_interval;
 #endif  // OHMPOP_CPU
   Clock::time_point start_time, end_time;
-
-  if (opt.voxel_mean)
-  {
-    map.addVoxelMeanLayer();
-  }
-
-  if (opt.ndt.enabled)
-  {
-    ndt_map->setSensorNoise(opt.ndt.sensor_noise);
-    ndt_map->setReinitialiseCovarianceTheshold(ohm::probabilityToValue(opt.ndt.covariance_reset_probability));
-    ndt_map->setReinitialiseCovariancePointCount(opt.ndt.covariance_reset_sample_count);
-  }
 
 #ifndef OHMPOP_CPU
   if (!gpu_map->gpuOk())

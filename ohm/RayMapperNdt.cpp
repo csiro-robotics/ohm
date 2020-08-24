@@ -23,6 +23,60 @@
 
 using namespace ohm;
 
+RayMapperNdt::RayMapperNdt(NdtMap *map)
+  : map_(map)
+  , occupancy_layer_(map_->map().layout().occupancyLayer())
+  , mean_layer_(map_->map().layout().meanLayer())
+  , covariance_layer_(map_->map().layout().covarianceLayer())
+{
+  OccupancyMap &omap = map_->map();
+  occupancy_dim_ = omap.layout().layer(occupancy_layer_).dimensions(omap.regionVoxelDimensions());
+  valid_ = true;
+  // Validate the mean layer size.
+  if (mean_layer_ >= 0)
+  {
+    if (omap.layout().layer(mean_layer_).voxelByteSize() != sizeof(VoxelMean))
+    {
+      // Unexpected layer size.
+      valid_ = false;
+    }
+    else if (omap.layout().layer(mean_layer_).dimensions(omap.regionVoxelDimensions()) != occupancy_dim_)
+    {
+      // Unexpected layer dimensions.
+      valid_ = false;
+    }
+  }
+  else
+  {
+    // Missing layer
+    valid_ = false;
+  }
+
+  // Validate the covariance layer size.
+  if (covariance_layer_ >= 0)
+  {
+    if (omap.layout().layer(covariance_layer_).voxelByteSize() != sizeof(CovarianceVoxel))
+    {
+      // Unexpected layer size.
+      valid_ = false;
+    }
+    else if (omap.layout().layer(covariance_layer_).dimensions(omap.regionVoxelDimensions()) != occupancy_dim_)
+    {
+      // Unexpected layer dimensions.
+      valid_ = false;
+    }
+  }
+  else
+  {
+    // Missing layer
+    valid_ = false;
+  }
+}
+
+
+RayMapperNdt::~RayMapperNdt() = default;
+
+
 size_t RayMapperNdt::integrateRays(const glm::dvec3 *rays, size_t element_count, unsigned ray_update_flags)
 {
   KeyList keys;
@@ -33,9 +87,8 @@ size_t RayMapperNdt::integrateRays(const glm::dvec3 *rays, size_t element_count,
   OccupancyMap &occupancy_map = map_->map();
   const RayFilterFunction ray_filter = occupancy_map.rayFilter();
   const bool use_filter = bool(ray_filter);
-  const auto occupancy_layer = occupancy_map.layout().occupancyLayer();
-  const auto occupancy_dim =
-    occupancy_map.layout().layer(occupancy_layer).dimensions(occupancy_map.regionVoxelDimensions());
+  const auto occupancy_layer = occupancy_layer_;
+  const auto occupancy_dim = occupancy_dim_;
   // const auto occupancy_threshold_value = occupancy_map.occupancyThresholdValue();
   const auto map_origin = occupancy_map.origin();
   const auto miss_value = occupancy_map.missValue();
@@ -49,8 +102,8 @@ size_t RayMapperNdt::integrateRays(const glm::dvec3 *rays, size_t element_count,
   const auto ndt_sample_threshold = map_->ndtSampleThreshold();
 
   // Mean and covariance layers must exists.
-  const auto mean_layer = occupancy_map.layout().meanLayer();
-  const auto covariance_layer = occupancy_map.layout().covarianceLayer();
+  const auto mean_layer = mean_layer_;
+  const auto covariance_layer = covariance_layer_;
 
   // Touch the map to flag changes.
   const auto touch_stamp = occupancy_map.touch();
