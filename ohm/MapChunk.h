@@ -121,6 +121,34 @@ namespace ohm
   ///
   /// The clearance values are 1-1 with the occupancy, while the coarse clearance map is a downsampled version of the
   /// clearance map. Details of the available maps is stored in a @c MapLayout.
+  ///
+  /// @par Voxel access
+  /// Direct access to the voxel data in @c voxel_maps is by far the fastest option for inner loops (as opposed to the
+  /// @c Voxel interface). However, it is a much more manual process and requires more care and process. In general
+  /// update logic for writing voxel data should be as follows:
+  /// - Resolve the desired layer indices via @c MapLayout and cache these values.
+  /// - Validate @c MapLayer size vs the expected size.
+  /// - Cache the @c MapLayer::dimensions() for use with @c voxelIndex() calls (below)
+  /// - Ensure GPU memory is synched if required - @c GpuMap::syncVoxels()
+  /// - Touch the map and cache the value @c OccupancyMap::touch()
+  /// - Generate the key of interest
+  /// - Request the @c MapChunk using @c Key::regionKey() and @c OccupancyMap::region() - see note below
+  /// - Get the memory for the required layer(s) - @c MapChunk::voxel_maps[layer_index]
+  /// - Cast the voxel memory to the expected type - e.g., @c float for occupancy, @c VoxelMean for the voxel mean layer
+  /// - Resolve the @c Key::localKey() into a one dimensional index using @c voxelIndex()
+  /// - Read/write to the indexed voxel as required
+  /// - Update the @c MapChunk::dirty_stamp to the cached @c OccupancyMap::touch() value
+  /// - Update the @c MapChunk::touched_stamps for the affected layer(s) to the same touch value.
+  ///     - Recommend using @c std::atomic_uint64_t::.store() with @c std::memory_order_relaxed if permitted
+  ///
+  /// This logic avoids constantly querying and validating @c MapLayer details, while ensuring that the
+  /// @c OccupancyMap::stamp() , @c MapChunk::dirty_stamp and are @c MapChunk::touched_stamps are correctly managed.
+  ///
+  /// An additional optimisation can be made by avoiding calls to @c OccupancyMap::region() . Iterative and line walk
+  /// style updates of a map have a strong spatial coherency from one voxel to update to the next. In this case, the
+  /// @c MapChunk will often be the same as the previous one. In this case, an easy peformance gain comes by keeping
+  /// checking if the new @c Key::regionKey() is the same as the last one, and using the previous @c MapChunk when the
+  /// @c regionKey() is unchanged.
   struct MapChunk
   {
     /// Defines the spatial region covered by the chunk.
