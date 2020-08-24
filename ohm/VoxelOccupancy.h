@@ -60,9 +60,12 @@ namespace ohm
   inline void occupancyAdjustHit(float *occupancy, float initial_value, float hit_adjustment, float uninitialised_value,
                                  float max_value, float saturation_min, float saturation_max, bool null_update)
   {
-    const float base_value = (null_update || initial_value != uninitialised_value) ? initial_value : 0.0f;
+    const bool uninitialised = initial_value == uninitialised_value;
+    const float base_value = (null_update || !uninitialised) ? initial_value : 0.0f;
     hit_adjustment =
-      (!null_update && saturation_min < initial_value && initial_value < saturation_max) ? hit_adjustment : 0.0f;
+      (!null_update && (uninitialised || saturation_min < initial_value && initial_value < saturation_max)) ?
+        hit_adjustment :
+        0.0f;
     *occupancy = (base_value != uninitialised_value) ? fmin(base_value + hit_adjustment, max_value) : base_value;
   }
 
@@ -91,10 +94,11 @@ namespace ohm
   inline void occupancyAdjustUp(float *occupancy, float initial_value, float adjusted_value, float uninitialised_value,
                                 float max_value, float saturation_min, float saturation_max, bool null_update)
   {
-    adjusted_value = (!null_update && (saturation_min < initial_value && initial_value < saturation_max ||
-                                       initial_value == uninitialised_value)) ?
-                       adjusted_value :
-                       initial_value;
+    const bool uninitialised = initial_value == uninitialised_value;
+    adjusted_value =
+      (!null_update && (uninitialised || saturation_min < initial_value && initial_value < saturation_max)) ?
+        adjusted_value :
+        initial_value;
     *occupancy = (adjusted_value != uninitialised_value) ? fmin(max_value, adjusted_value) : adjusted_value;
   }
 
@@ -123,9 +127,12 @@ namespace ohm
                                   float uninitialised_value, float min_value, float saturation_min,
                                   float saturation_max, bool null_update)
   {
-    const float base_value = (null_update || initial_value != uninitialised_value) ? initial_value : 0.0f;
+    const bool uninitialised = initial_value == uninitialised_value;
+    const float base_value = (null_update || !uninitialised) ? initial_value : 0.0f;
     miss_adjustment =
-      (!null_update && saturation_min < initial_value && initial_value < saturation_max) ? miss_adjustment : 0.0f;
+      (!null_update && (uninitialised || saturation_min < initial_value && initial_value < saturation_max)) ?
+        miss_adjustment :
+        0.0f;
     *occupancy = (base_value != uninitialised_value) ? fmax(min_value, base_value + miss_adjustment) : base_value;
   }
 
@@ -155,10 +162,11 @@ namespace ohm
                                   float uninitialised_value, float min_value, float saturation_min,
                                   float saturation_max, bool null_update)
   {
-    adjusted_value = (!null_update && (saturation_min < initial_value && initial_value < saturation_max ||
-                                       initial_value == uninitialised_value)) ?
-                       adjusted_value :
-                       initial_value;
+    const bool uninitialised = initial_value == uninitialised_value;
+    adjusted_value =
+      (!null_update && (uninitialised || saturation_min < initial_value && initial_value < saturation_max)) ?
+        adjusted_value :
+        initial_value;
     *occupancy = (adjusted_value != uninitialised_value) ? fmax(min_value, adjusted_value) : adjusted_value;
   }
 

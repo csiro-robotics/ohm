@@ -71,6 +71,10 @@ namespace ohm
   /// Some methods, such as @c integrateHit() and @c integrateMiss() support a @c MapCache argument.
   /// This may provide a small performance benefit when repeatedly accessing the same region. This
   /// will tend to be the case when processing results from @c calculateSegmentKeys().
+  ///
+  /// @note Functions which modify a single voxel such as @c integrateHit() and @c integrateMiss() are sub-optimal.
+  /// For best performance, direct, batched access to @c MapChunk memory is recommended - for example
+  /// @c RayMapperOccupancy .
   class ohm_API OccupancyMap
   {
   public:

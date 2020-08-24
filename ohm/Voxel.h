@@ -24,16 +24,18 @@ namespace ohm
 
   /// Represents a voxel in an @c OccupancyMap.
   ///
-  /// The @c VoxelBase is derived into a @c Voxel and @c VoxelConst. Those
-  /// two classes represent the public API for accessing voxels in an @c OccupancyMap.
+  /// The @c VoxelBase is derived into a @c Voxel and @c VoxelConst. Those two classes represent the public API for
+  /// accessing voxels in an @c OccupancyMap.
   ///
-  /// This class wraps an underlying occupancy voxel, tracks its associated @c Key
-  /// and @p MapChunk, and supports data access on voxel without calling into @c OccupancyMap
-  /// functions. This makes minor modifications, such as modifying the @c value() or accessing
-  /// @c voxel() much more efficient.
+  /// This class wraps an underlying occupancy voxel, tracks its associated @c Key and @p MapChunk, and supports data
+  /// access on voxel without calling into @c OccupancyMap functions. This makes minor modifications, such as modifying
+  /// the @c value() or accessing @c voxel() much more efficient.
   ///
-  /// A voxel may only be used so long as the @p MapChunk remains used within the
-  /// @p OccupancyMap. As such it should be used as a short lived object.
+  /// A voxel may only be used so long as the @p MapChunk remains used within the @p OccupancyMap. As such it should be
+  /// used as a short lived object.
+  ///
+  /// @note The @c Voxel and @c VoxelConst implementations are provided for convenience. However, they should be avoided
+  /// for optimal performance, in favour of accessing the @c MapChunk and associated memory directly.
   template <typename MAPCHUNK>
   class ohm_API VoxelBase
   {
@@ -93,7 +95,7 @@ namespace ohm
     float clearance(bool invalid_as_obstructed = true) const;
 
     /// Queries the timestamp for the chunk containing this voxel.
-    /// @return The last timestamp associated to the chunk. See @c Voxel::touchRegion()
+    /// @return The last timestamp associated to the chunk. See @c Voxel::touchRegionTimestamp()
     double regionTimestamp() const;
 
     /// Retrieve the coordinates for the centre of the voxel identified by @p key, local to the map origin.

@@ -109,8 +109,8 @@ size_t RayMapperOccupancy::integrateRays(const glm::dvec3 *rays, size_t element_
       }
     }
 
-    const bool include_sample_in_ray = !(filter_flags & kRffClippedEnd) && !(ray_update_flags & kRfExcludeSample) &&
-                                       (ray_update_flags & kRfEndPointAsFree);
+    const bool include_sample_in_ray =
+      (filter_flags & kRffClippedEnd) || (ray_update_flags & kRfEndPointAsFree) || (ray_update_flags & kRfClearOnly);
 
     if (!(ray_update_flags & kRfExcludeRay))
     {
@@ -123,7 +123,8 @@ size_t RayMapperOccupancy::integrateRays(const glm::dvec3 *rays, size_t element_
                                 WalkKeyAdaptor(*map_));
     }
 
-    if (!stop_adjustments && !include_sample_in_ray && !(ray_update_flags & kRfClearOnly))
+    if (!stop_adjustments && !include_sample_in_ray && !(ray_update_flags & (kRfClearOnly | kRfExcludeSample)) &&
+        !(ray_update_flags & kRfExcludeSample))
     {
       // Like the miss logic, we have similar obfuscation here to avoid branching. It's a little simpler though,
       // because we do have a branch above, which will filter some of the conditions catered for in miss integration.

@@ -78,7 +78,7 @@ void Voxel::setValue(float value, bool force)
   const float initial_value = *occupancy_ptr;
   if (value != voxel::invalidMarkerValue())
   {
-    if (value >= initial_value)
+    if (value >= initial_value || value > 0 && initial_value == voxel::invalidMarkerValue())
     {
       occupancyAdjustUp(
         occupancy_ptr, initial_value, value, voxel::invalidMarkerValue(), map_->max_voxel_value,
@@ -99,6 +99,8 @@ void Voxel::setValue(float value, bool force)
   {
     *occupancy_ptr = value;
   }
+
+  touchMap(map_->layout.occupancyLayer());
 }
 
 
@@ -135,6 +137,7 @@ void Voxel::setClearance(float range)
     if (float *voxel_ptr = voxel::voxelPtrAs<float *>(key_, chunk_, map_, chunk_->layout->clearanceLayer()))
     {
       *voxel_ptr = range;
+      touchMap(map_->layout.clearanceLayer());
     }
   }
 }
@@ -152,6 +155,7 @@ bool Voxel::setPosition(const glm::dvec3 &position, unsigned point_count)
       {
         voxel_mean->count = point_count;
       }
+      touchMap(map_->layout.meanLayer());
       return true;
     }
   }
@@ -170,6 +174,7 @@ bool Voxel::updatePosition(const glm::dvec3 &position)
       voxel_mean->coord =
         subVoxelUpdate(voxel_mean->coord, voxel_mean->count, position - centreGlobal(), map_->resolution);
       ++voxel_mean->count;
+      touchMap(map_->layout.meanLayer());
       return true;
     }
   }

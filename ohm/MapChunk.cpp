@@ -160,11 +160,11 @@ void MapChunk::searchAndUpdateFirstValid(const glm::ivec3 &region_voxel_dimensio
   size_t voxel_stride = layout->layer(layout->occupancyLayer()).voxelByteSize();
   const uint8_t *voxel_mem = voxel_maps[layout->occupancyLayer()];
 
-  for (int z = 0; z < region_voxel_dimensions.z; ++z)
+  for (int z = search_from.z; z < region_voxel_dimensions.z; ++z)
   {
-    for (int y = 0; y < region_voxel_dimensions.y; ++y)
+    for (int y = search_from.y; y < region_voxel_dimensions.y; ++y)
     {
-      for (int x = 0; x < region_voxel_dimensions.x; ++x)
+      for (int x = search_from.x; x < region_voxel_dimensions.x; ++x)
       {
         voxel_index =
           unsigned(x) + y * region_voxel_dimensions.x + z * region_voxel_dimensions.y * region_voxel_dimensions.x;
@@ -178,7 +178,8 @@ void MapChunk::searchAndUpdateFirstValid(const glm::ivec3 &region_voxel_dimensio
     }
   }
 
-  // first_valid_index = ~0u;
+  // Failed to find a valid item (at least from search_from). Mark as unknown.
+  first_valid_index = ~0u;
 }
 
 
