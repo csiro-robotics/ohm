@@ -733,6 +733,8 @@ bool Heightmap::buildHeightmapT(KeyWalker &walker, const glm::dvec3 &reference_p
         // Get the heightmap voxel to update.
         Key hm_key = heightmap.voxelKey(voxel_pos);
         project(&hm_key);
+        // TODO: (KS) Using the Voxel interface here is highly suboptimal. This needs to be modified to access the
+        // MapChunk directly for efficiency.
         Voxel hm_voxel = heightmap.voxel(hm_key, true, &heightmap_cache);
         hm_voxel.setValue(surface_value);
         // Set voxel mean position as required.
