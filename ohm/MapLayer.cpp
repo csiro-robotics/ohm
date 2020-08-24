@@ -21,63 +21,28 @@ using namespace ohm;
 
 
 MapLayer::MapLayer(const char *name, unsigned layer_index, unsigned subsampling)
-  : imp_(new MapLayerDetail)
 {
-  imp_->name = name;
-  imp_->voxel_layout = new VoxelLayoutDetail;
-  imp_->layer_index = layer_index;
-  imp_->subsampling = subsampling;
-  imp_->flags = 0;
+  name_ = name;
+  voxel_layout_ = std::make_unique<VoxelLayoutDetail>();
+  layer_index_ = layer_index;
+  subsampling_ = subsampling;
+  flags_ = 0;
 }
 
 
-MapLayer::~MapLayer()
-{
-  delete imp_->voxel_layout;
-  delete imp_;
-}
+MapLayer::~MapLayer() = default;
 
 
 void MapLayer::clear()
 {
-  imp_->voxel_layout->members.clear();
-}
-
-
-const char *MapLayer::name() const
-{
-  return imp_->name.c_str();
-}
-
-
-unsigned MapLayer::layerIndex() const
-{
-  return imp_->layer_index;
-}
-
-
-unsigned MapLayer::subsampling() const
-{
-  return imp_->subsampling;
-}
-
-
-unsigned MapLayer::flags() const
-{
-  return imp_->flags;
-}
-
-
-void MapLayer::setFlags(unsigned flags)
-{
-  imp_->flags = flags;
+  voxel_layout_->members.clear();
 }
 
 
 void MapLayer::copyVoxelLayout(const MapLayer &other)
 {
   VoxelLayout voxels = voxelLayout();
-  for (auto &&src_member : other.imp_->voxel_layout->members)
+  for (auto &&src_member : other.voxel_layout_->members)
   {
     voxels.addMember(src_member.name, DataType::Type(src_member.type), src_member.clear_value);
   }
@@ -86,13 +51,13 @@ void MapLayer::copyVoxelLayout(const MapLayer &other)
 
 VoxelLayoutConst MapLayer::voxelLayout() const
 {
-  return VoxelLayoutConst(imp_->voxel_layout);
+  return VoxelLayoutConst(voxel_layout_.get());
 }
 
 
 VoxelLayout MapLayer::voxelLayout()
 {
-  return VoxelLayout(imp_->voxel_layout);
+  return VoxelLayout(voxel_layout_.get());
 }
 
 
@@ -104,30 +69,30 @@ MapLayoutMatch MapLayer::checkEquivalent(const MapLayer &other) const
   }
 
   // Check the obvious first: number of layers and layer sizes.
-  if (imp_->subsampling != other.imp_->subsampling || imp_->flags != other.imp_->flags)
+  if (subsampling_ != other.subsampling_ || flags_ != other.flags_)
   {
     return MapLayoutMatch::Different;
   }
 
-  if (imp_->voxel_layout->next_offset != other.imp_->voxel_layout->next_offset ||
-      imp_->voxel_layout->voxel_byte_size != other.imp_->voxel_layout->voxel_byte_size ||
-      imp_->voxel_layout->members.size() != other.imp_->voxel_layout->members.size())
+  if (voxel_layout_->next_offset != other.voxel_layout_->next_offset ||
+      voxel_layout_->voxel_byte_size != other.voxel_layout_->voxel_byte_size ||
+      voxel_layout_->members.size() != other.voxel_layout_->members.size())
   {
     return MapLayoutMatch::Different;
   }
 
   MapLayoutMatch match = MapLayoutMatch::Exact;
 
-  if (imp_->name != other.imp_->name)
+  if (name_ != other.name_)
   {
     // No name match. At best the layers are equivalent.
     match = MapLayoutMatch::Equivalent;
   }
 
-  for (size_t i = 0; i < imp_->voxel_layout->members.size(); ++i)
+  for (size_t i = 0; i < voxel_layout_->members.size(); ++i)
   {
-    const VoxelMember &a = imp_->voxel_layout->members[i];
-    const VoxelMember &b = other.imp_->voxel_layout->members[i];
+    const VoxelMember &a = voxel_layout_->members[i];
+    const VoxelMember &b = other.voxel_layout_->members[i];
     if (a.clear_value != b.clear_value || a.type != b.type || a.offset != b.offset)
     {
       return MapLayoutMatch::Different;
@@ -142,30 +107,16 @@ MapLayoutMatch MapLayer::checkEquivalent(const MapLayer &other) const
   return match;
 }
 
-glm::u8vec3 MapLayer::dimensions(const glm::u8vec3 &region_dim) const
-{
-  const glm::u8vec3 dim = region_dim / uint8_t(1 + imp_->subsampling);
-  return glm::max(dim, glm::u8vec3(1));
-}
-
-
-size_t MapLayer::volume(const glm::u8vec3 &region_dim) const
-{
-  const glm::u8vec3 dim = dimensions(region_dim);
-  return size_t(dim.x) * size_t(dim.y) * size_t(dim.z);
-}
-
-
 size_t MapLayer::voxelByteSize() const
 {
-  return imp_->voxel_layout->voxel_byte_size;
+  return voxel_layout_->voxel_byte_size;
 }
 
 
 size_t MapLayer::layerByteSize(const glm::u8vec3 &region_dim) const
 {
   // Apply subsampling
-  return volume(region_dim) * imp_->voxel_layout->voxel_byte_size;
+  return volume(region_dim) * voxel_layout_->voxel_byte_size;
 }
 
 
@@ -184,15 +135,15 @@ void MapLayer::release(const uint8_t *voxels) const
 void MapLayer::clear(uint8_t *mem, const glm::u8vec3 &region_dim) const
 {
   // Build a clear pattern.
-  uint8_t *pattern = static_cast<uint8_t *>(alloca(imp_->voxel_layout->voxel_byte_size));
+  uint8_t *pattern = static_cast<uint8_t *>(alloca(voxel_layout_->voxel_byte_size));
   uint8_t *dst = pattern;
-  for (size_t i = 0; i < imp_->voxel_layout->members.size(); ++i)
+  for (size_t i = 0; i < voxel_layout_->members.size(); ++i)
   {
     // Grab the current member.
-    VoxelMember &member = imp_->voxel_layout->members[i];
+    VoxelMember &member = voxel_layout_->members[i];
     // Work out the member size by the difference in offets to the next member or the end of the voxel.
-    size_t member_size = ((i + 1 < imp_->voxel_layout->members.size()) ? imp_->voxel_layout->members[i + 1].offset :
-                                                                         imp_->voxel_layout->voxel_byte_size) -
+    size_t member_size = ((i + 1 < voxel_layout_->members.size()) ? voxel_layout_->members[i + 1].offset :
+                                                                    voxel_layout_->voxel_byte_size) -
                          member.offset;
     // Work out how may bytes to clear. Either the member size or the clear value size.
     const size_t clear_size = std::min(member_size, sizeof(member.clear_value));
@@ -208,25 +159,7 @@ void MapLayer::clear(uint8_t *mem, const glm::u8vec3 &region_dim) const
   dst = mem;
   for (size_t i = 0; i < voxel_count; ++i)
   {
-    memcpy(dst, pattern, imp_->voxel_layout->voxel_byte_size);
-    dst += imp_->voxel_layout->voxel_byte_size;
+    memcpy(dst, pattern, voxel_layout_->voxel_byte_size);
+    dst += voxel_layout_->voxel_byte_size;
   }
-}
-
-
-const uint8_t *MapLayer::voxels(const MapChunk &chunk) const
-{
-  return chunk.voxel_maps[layerIndex()];
-}
-
-
-uint8_t *MapLayer::voxels(MapChunk &chunk) const
-{
-  return chunk.voxel_maps[layerIndex()];
-}
-
-
-void MapLayer::setLayerIndex(unsigned index)
-{
-  imp_->layer_index = index;
 }

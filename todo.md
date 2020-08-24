@@ -9,3 +9,4 @@
 - Revisit default batch size for GPU processing, especially for NDT
   - This hasn't been checked for a while, but can have an impact on performance as we keep the GPU more efficently busy
 - Optimise Heightmap genertion to avoid Voxel interface
+- Convert to RAII (new/delete have been targetted)

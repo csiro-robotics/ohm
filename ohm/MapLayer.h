@@ -8,15 +8,18 @@
 
 #include "OhmConfig.h"
 
+#include "MapChunk.h"
 #include "MapLayoutMatch.h"
 #include "VoxelLayout.h"
 
-#include <glm/fwd.hpp>
+#include <glm/vec3.hpp>
+
+#include <memory>
 
 namespace ohm
 {
-  struct MapLayerDetail;
   struct MapChunk;
+  struct VoxelLayoutDetail;
 
   /// Defines a layer in a @c MapLayout.
   ///
@@ -45,23 +48,23 @@ namespace ohm
 
     /// Access the name.
     /// @return The layer name.
-    const char *name() const;
+    inline const char *name() const { return name_.c_str(); }
 
     /// Access the layer index.
     /// @return The layer index in it's @c MapLayout.
-    unsigned layerIndex() const;
+    inline unsigned layerIndex() const { return layer_index_; }
 
     /// Access the layer subsampling factor.
     /// @return The layer subsampling factor.
-    unsigned subsampling() const;
+    inline unsigned subsampling() const { return subsampling_; }
 
     /// Access the layer flags.
     /// @return The layer @c Flag values.
-    unsigned flags() const;
+    inline unsigned flags() const { return flags_; }
 
     /// Set the layer flags.
     /// @param flags New flags to set.
-    void setFlags(unsigned flags);
+    inline void setFlags(unsigned flags) { flags_ = flags; }
 
     /// Copy the @c VoxelLayout from @p other.
     /// @param other Layer to copy the voxel structure of.
@@ -92,7 +95,11 @@ namespace ohm
     ///
     /// @param region_dim The dimensions of each chunk the owning @c OccupancyMap.
     /// @return The voxel dimensions for this layer based on @p regionDim.
-    glm::u8vec3 dimensions(const glm::u8vec3 &region_dim) const;
+    inline glm::u8vec3 dimensions(const glm::u8vec3 &region_dim) const
+    {
+      const glm::u8vec3 dim = (subsampling_ == 0) ? region_dim : region_dim / uint8_t(1 + subsampling_);
+      return glm::max(dim, glm::u8vec3(1));
+    }
 
     /// Retrieve the volume of voxels in each chunk for this layer.
     ///
@@ -100,7 +107,11 @@ namespace ohm
     ///
     /// @param region_dim The dimensions of each chunk the owning @c OccupancyMap.
     /// @return The voxel volume for this layer based on @p regionDim.
-    size_t volume(const glm::u8vec3 &region_dim) const;
+    inline size_t volume(const glm::u8vec3 &region_dim) const
+    {
+      const glm::u8vec3 dim = dimensions(region_dim);
+      return size_t(dim.x) * size_t(dim.y) * size_t(dim.z);
+    }
 
     /// Query the size of each voxel in this layer in bytes.
     ///
@@ -131,10 +142,13 @@ namespace ohm
     /// Get a pointer the the voxel data for this layer in @p chunk.
     /// @param chunk The map chunk to get layer data for.
     /// @return The data for this layer in @p chunk.
-    const uint8_t *voxels(const MapChunk &chunk) const;
+    inline const uint8_t *voxels(const MapChunk &chunk) const { return chunk.voxel_maps[layerIndex()]; }
 
     /// @overload
-    uint8_t *voxels(MapChunk &chunk) const;  // NOLINT(google-runtime-references)
+    inline uint8_t *voxels(MapChunk &chunk) const  // NOLINT(google-runtime-references)
+    {
+      return chunk.voxel_maps[layerIndex()];
+    }
 
     /// Get a pointer the the voxel data for this layer in @p chunk cast as type @c T.
     ///
@@ -153,10 +167,14 @@ namespace ohm
     /// @internal
     /// Set the layer index. Used in layer reordering. Must be maintained correctly.
     /// @param index The new layer index.
-    void setLayerIndex(unsigned index);
+    inline void setLayerIndex(unsigned index) { layer_index_ = index; }
 
   private:
-    MapLayerDetail *imp_;
+    std::string name_;
+    std::unique_ptr<VoxelLayoutDetail> voxel_layout_;
+    uint16_t layer_index_ = 0;
+    uint16_t subsampling_ = 0;
+    unsigned flags_ = 0;
   };
 
 
