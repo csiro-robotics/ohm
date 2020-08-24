@@ -711,7 +711,7 @@ unsigned OccupancyMap::cullRegionsOutside(const glm::dvec3 &min_extents, const g
   return cullRegions(should_remove_chunk);
 }
 
-void OccupancyMap::touchRegionByKey(const glm::i16vec3 &region_key, double timestamp, bool allow_create)
+void OccupancyMap::touchRegionTimestampByKey(const glm::i16vec3 &region_key, double timestamp, bool allow_create)
 {
   MapChunk *chunk = region(region_key, allow_create);
   if (chunk)

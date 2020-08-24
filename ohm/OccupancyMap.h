@@ -470,7 +470,7 @@ namespace ohm
     ///
     /// This compares each @c MapRegion::touched_time against @p timestamp, removing regions
     /// with a @c touched_time before @p timestamp. The region touch time is updated via
-    /// @c Voxel::touch(), @c touchRegion() or @c touchRegionByKey().
+    /// @c Voxel::touch(), @c touchRegionTimestamp() or @c touchRegionTimestampByKey().
     ///
     /// @param timestamp The reference time.
     /// @return The number of removed regions.
@@ -496,20 +496,20 @@ namespace ohm
     /// @param point A spatial point from which to resolve a containing region. There may be border case issues.
     /// @param timestamp The timestamp to update the region touch time to.
     /// @param allow_create Create the region (all uncertain) if it doesn't exist?
-    /// @see @c touchRegionByKey()
-    inline void touchRegion(const glm::vec3 &point, double timestamp, bool allow_create = false)
+    /// @see @c touchRegionTimestampByKey()
+    inline void touchRegionTimestamp(const glm::vec3 &point, double timestamp, bool allow_create = false)
     {
-      touchRegion(voxelKey(point), timestamp, allow_create);
+      touchRegionTimestamp(voxelKey(point), timestamp, allow_create);
     }
 
     /// Touch the @c MapRegion which contains @p voxelKey.
     /// @param voxel_key A voxel key from which to resolve a containing region.
     /// @param timestamp The timestamp to update the region touch time to.
     /// @param allow_create Create the region (all uncertain) if it doesn't exist?
-    /// @see @c touchRegionByKey()
-    inline void touchRegion(const Key &voxel_key, double timestamp, bool allow_create = false)
+    /// @see @c touchRegionTimestampByKey()
+    inline void touchRegionTimestamp(const Key &voxel_key, double timestamp, bool allow_create = false)
     {
-      touchRegionByKey(voxel_key.regionKey(), timestamp, allow_create);
+      touchRegionTimestampByKey(voxel_key.regionKey(), timestamp, allow_create);
     }
 
     /// Touch the @c MapRegion identified by @p regionKey.
@@ -520,7 +520,7 @@ namespace ohm
     /// @param region_key The key for the region.
     /// @param timestamp The timestamp to update the region touch time to.
     /// @param allow_create Create the region (all uncertain) if it doesn't exist?
-    void touchRegionByKey(const glm::i16vec3 &region_key, double timestamp, bool allow_create = false);
+    void touchRegionTimestampByKey(const glm::i16vec3 &region_key, double timestamp, bool allow_create = false);
 
     /// Returns the centre of the region identified by @p regionKey.
     ///

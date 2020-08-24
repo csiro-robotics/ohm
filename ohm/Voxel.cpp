@@ -183,7 +183,7 @@ bool Voxel::updatePosition(const glm::dvec3 &position)
 }
 
 
-void Voxel::touchRegion(double timestamp)
+void Voxel::touchRegionTimestamp(double timestamp)
 {
   if (chunk_)
   {

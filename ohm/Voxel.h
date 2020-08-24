@@ -320,7 +320,7 @@ namespace ohm
     /// Updates the timestamp for the @c MapRegion to which this voxel belongs.
     /// This may be used to manage time based expiry.
     /// @param timestamp The timestamp to set for the region.
-    void touchRegion(double timestamp);
+    void touchRegionTimestamp(double timestamp);
 
     /// Touch the underlying map, modifying the @p OccupancyMap::stamp() value.
     ///
