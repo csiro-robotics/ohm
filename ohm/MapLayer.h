@@ -15,6 +15,7 @@
 #include <glm/vec3.hpp>
 
 #include <memory>
+#include <string>
 
 namespace ohm
 {

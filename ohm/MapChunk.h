@@ -11,6 +11,7 @@
 #include "Key.h"
 #include "MapRegion.h"
 
+#include <algorithm>
 #include <atomic>
 #include <vector>
 #include <utility>
