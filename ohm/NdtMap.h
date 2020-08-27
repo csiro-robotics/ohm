@@ -12,7 +12,6 @@
 namespace ohm
 {
   class OccupancyMap;
-  class Voxel;
   struct NdtMapDetail;
 
   /// A variation on @c OccupancyMap which uses a 3D Normal Distribution Transform (NDT) to calculate occupancy
@@ -96,18 +95,6 @@ namespace ohm
     void setTrace(bool trace);
     /// Is tracing enabled?
     bool trace() const;
-
-    /// Integrate a hit on @p voxel. Updates the voxel covariance.
-    /// @param voxel The voxel containing the @p sample.
-    /// @param sensor The location of the sensor from where the @p sample was detected.
-    /// @param sample The sample location within the @p voxel.
-    void integrateHit(Voxel &voxel, const glm::dvec3 &sensor, const glm::dvec3 &sample);
-
-    /// Integrate a miss on @p voxel. Uses the voxel covariance, but does not modify it.
-    /// @param voxel A voxel the @p sensor to @p sample ray passes through..
-    /// @param sensor The location of the sensor from where the @p sample was detected.
-    /// @param sample The sample location.
-    void integrateMiss(Voxel &voxel, const glm::dvec3 &sensor, const glm::dvec3 &sample);
 
     /// Debug render the NDT map ellipsoids via 3rd Eye Scene.
     void debugDraw() const;

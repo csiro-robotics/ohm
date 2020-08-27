@@ -11,6 +11,7 @@
 #include <ohm/OccupancyMap.h>
 #include <ohm/OccupancyType.h>
 #include <ohm/OccupancyUtil.h>
+#include <ohm/VoxelData.h>
 #include <ohmgpu/OhmGpu.h>
 
 #include <ohmtools/OhmCloud.h>
@@ -36,14 +37,16 @@ namespace linequerytests
   {
     ohmgen::fillMapWithEmptySpace(map, -64, -64, -64, 63, 63, 63);
     Key key = map.voxelKey(glm::dvec3(0.5 * map.resolution()));
-    VoxelConst voxel = map.voxel(key);
+    Voxel<float> voxel(&map, map.layout().occupancyLayer());
+    ASSERT_TRUE(voxel.isLayerValid());
     if (add_hit)
     {
+      voxel.setKey(key);
       for (int i = 0; i < 1; ++i)
       {
-        voxel = map.integrateHit(glm::dvec3(0));
+        integrateHit(voxel);
       }
-      EXPECT_TRUE(voxel.value() >= 0);
+      EXPECT_TRUE(voxel.data() >= 0);
     }
   }
 
@@ -51,7 +54,7 @@ namespace linequerytests
   {
     const double map_res = map.resolution();
     LineQueryGpu query(map, glm::dvec3(0) - glm::dvec3(map_res), glm::dvec3(0), 2.0f,
-                    LineQuery::kDefaultFlags | kQfNearestResult);
+                       LineQuery::kDefaultFlags | kQfNearestResult);
     query.setStartPoint(glm::dvec3(-2, 0, 0));
     query.setEndPoint(glm::dvec3(2, 0, 0));
     if (gpu)

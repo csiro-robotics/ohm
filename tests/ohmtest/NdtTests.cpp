@@ -7,11 +7,10 @@
 
 #include <ohm/Key.h>
 #include <ohm/KeyHash.h>
-#include <ohm/MapCache.h>
 #include <ohm/NdtMap.h>
 #include <ohm/OccupancyMap.h>
 #include <ohm/Trace.h>
-#include <ohm/VoxelMean.h>
+#include <ohm/VoxelData.h>
 
 #include <gtest/gtest.h>
 #include "ohmtestcommon/CovarianceTestUtil.h"
@@ -26,9 +25,6 @@
 #include <glm/gtc/matrix_access.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtx/norm.hpp>
-
-// Must come after glm includes due to usage on GPU.
-#include <ohm/CovarianceVoxel.h>
 
 #include <3esservermacros.h>
 
@@ -52,22 +48,29 @@ namespace ndttests
 
     ohm::OccupancyMap map(resolution, ohm::MapFlag::kVoxelMean);
     ohm::NdtMap ndt(&map, true);
-    ohm::MapCache cache;
 
     // Simulate a sensor at the origin. Not used.
     const glm::dvec3 sensor(0.0);
 
-    // First process the
+    ohm::Voxel<const ohm::VoxelMean> mean(&map, map.layout().meanLayer());
+    ohm::Voxel<const ohm::CovarianceVoxel> covariance(&map, map.layout().covarianceLayer());
+    ASSERT_TRUE(mean.isLayerValid());
+    ASSERT_TRUE(covariance.isLayerValid());
+
+    // Build a a set of samples into the NDT map and into a reference data set.
     for (size_t i = 0; i < samples.size(); ++i)
     {
       const glm::dvec3 &sample = samples[i];
 
       ohm::Key key = map.voxelKey(sample);
-      ohm::Voxel voxel = map.voxel(key, true, &cache);
-      ndt.integrateHit(voxel, sensor, sample);
-      const ohm::CovarianceVoxel &cov_voxel =
-        *voxel.layerContent<const ohm::CovarianceVoxel *>(map.layout().covarianceLayer());
-      const ohm::VoxelMean &voxel_mean = *voxel.layerContent<const ohm::VoxelMean *>(ndt.map().layout().meanLayer());
+
+      ohm::integrateNdtHit(ndt, key, sample);
+      setVoxelKey(key, mean, covariance);
+
+      ASSERT_TRUE(mean.isValid());
+      ASSERT_TRUE(covariance.isValid());
+      const ohm::CovarianceVoxel &cov_voxel = covariance.data();
+      const ohm::VoxelMean &voxel_mean = mean.data();
 
       // Update the reference voxel as well.
       auto ref = reference_voxels.find(key);
@@ -84,19 +87,26 @@ namespace ndttests
       updateHit(&ref->second, sample);
 
       // Progressive validation
-      EXPECT_TRUE(validate(voxel.position(), voxel_mean.count, cov_voxel, ref->second));
+      EXPECT_TRUE(validate(positionSafe(mean), voxel_mean.count, cov_voxel, ref->second));
     }
 
     // Finalise validation
+    // Reset the voxel references.
+    mean = ohm::Voxel<const ohm::VoxelMean>(&map, map.layout().meanLayer());
+    covariance = ohm::Voxel<const ohm::CovarianceVoxel>(&map, map.layout().covarianceLayer());
     for (const auto &ref : reference_voxels)
     {
       // Lookup the target voxel.
-      ohm::VoxelConst voxel = const_cast<const ohm::OccupancyMap &>(map).voxel(ref.first, &cache);
-      const ohm::CovarianceVoxel &cov_voxel =
-        *voxel.layerContent<const ohm::CovarianceVoxel *>(map.layout().covarianceLayer());
-      const ohm::VoxelMean &voxel_mean = *voxel.layerContent<const ohm::VoxelMean *>(ndt.map().layout().meanLayer());
-      EXPECT_TRUE(validate(voxel.position(), voxel_mean.count, cov_voxel, ref.second));
+      setVoxelKey(ref.first, mean, covariance);
+      ASSERT_TRUE(mean.isValid());
+      ASSERT_TRUE(covariance.isValid());
+      const ohm::CovarianceVoxel &cov_voxel = covariance.data();
+      const ohm::VoxelMean &voxel_mean = mean.data();
+      EXPECT_TRUE(validate(positionSafe(mean), voxel_mean.count, cov_voxel, ref.second));
     }
+
+    mean.reset();
+    covariance.reset();
   }
 
   /// Helper for testing NDT based voxel miss logic.
@@ -121,9 +131,9 @@ namespace ndttests
                    float sensor_noise, const glm::dvec3 &map_origin, const std::vector<glm::dvec3> &test_rays,
                    const std::vector<float> &expected_prob_approx)
   {
+    (void)sensor;  // Only used for 3es debugging.
     ohm::OccupancyMap map(voxel_resolution, ohm::MapFlag::kVoxelMean);
     ohm::NdtMap ndt(&map, true);
-    ohm::MapCache cache;
 
     map.setOrigin(map_origin);
     map.setMissProbability(0.45f);
@@ -140,8 +150,7 @@ namespace ndttests
 
       ohm::Key key = map.voxelKey(sample);
       target_key = key;
-      ohm::Voxel voxel = map.voxel(key, true, &cache);
-      ndt.integrateHit(voxel, sensor, sample);
+      ohm::integrateNdtHit(ndt, key, sample);
       TES_LINE(ohm::g_3es, TES_COLOUR(Yellow), glm::value_ptr(sensor), glm::value_ptr(sample));
       TES_STMT(lines.emplace_back(glm::vec3(sensor)));
       TES_STMT(lines.emplace_back(glm::vec3(sample)));
@@ -150,8 +159,9 @@ namespace ndttests
     TES_SERVER_UPDATE(ohm::g_3es, 0.0f);
 
     // Fetch the target_voxel in which we expect all samples to fall.
-    ohm::Voxel target_voxel = map.voxel(target_key, false, &cache);
-    const float initial_value = target_voxel;
+    Voxel<float> occupancy(&map, map.layout().occupancyLayer(), target_key);
+    ASSERT_TRUE(occupancy.isValid());
+    const float initial_value = occupancy.data();
     ndt.setTrace(true);  // For 3es debugging
 
     // Now trace all the test_rays through the target_voxel. For each we will restore the initial voxel value, so
@@ -159,19 +169,20 @@ namespace ndttests
     // against the expected result.
     for (size_t i = 0; i < test_rays.size(); i += 2)
     {
-      target_voxel.setValue(initial_value);
+      occupancy.data() = initial_value;
       TES_LINE(ohm::g_3es, TES_COLOUR(Cornsilk), glm::value_ptr(test_rays[i]), glm::value_ptr(test_rays[i + 1]),
                TES_PTR_ID(&sensor));
       TES_SERVER_UPDATE(ohm::g_3es, 0.0f);
-      ndt.integrateMiss(target_voxel, test_rays[i], test_rays[i + 1]);
+      ohm::integrateNdtMiss(ndt, target_key, test_rays[i], test_rays[i + 1]);
       TES_LINES_END(ohm::g_3es, TES_PTR_ID(&sensor));
       // Calculate the value adjustment.
-      float value_adjustment = target_voxel.value() - initial_value;
+      float value_adjustment = occupancy.data() - initial_value;
       // Convert to probability.
       float ray_probability = ohm::valueToProbability(value_adjustment);
       // Validate
       EXPECT_NEAR(ray_probability, expected_prob_approx[i / 2], 0.01f);
     }
+    occupancy.reset();
   }
 
   TEST(Ndt, Hit)

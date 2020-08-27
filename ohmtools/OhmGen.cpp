@@ -7,9 +7,9 @@
 
 #include <ohm/Key.h>
 #include <ohm/KeyList.h>
-#include <ohm/MapCache.h>
 #include <ohm/OccupancyMap.h>
 #include <ohm/OccupancyUtil.h>
+#include <ohm/VoxelData.h>
 
 using namespace ohm;
 
@@ -18,9 +18,13 @@ namespace ohmgen
   void fillWithValue(OccupancyMap &map,  // NOLINT(google-runtime-references)
                      const Key &min_key, const Key &max_key, float fill_value, const float *expect_value, int step)
   {
-    Voxel voxel;
-    MapCache cache;
+    Voxel<float> voxel(&map, map.layout().occupancyLayer());
     float initial_value;
+
+    if (!voxel.isLayerValid())
+    {
+      return;
+    }
 
     Key key = min_key;
     for (; key.isBoundedZ(min_key, max_key); map.moveKeyAlongAxis(key, 2, step))
@@ -35,13 +39,13 @@ namespace ohmgen
 
         for (; key.isBoundedX(min_key, max_key); map.moveKeyAlongAxis(key, 0, step))
         {
-          voxel = map.voxel(key, true, &cache);
-          initial_value = voxel::invalidMarkerValue();
+          voxel.setKey(key);
+          initial_value = unorbservedOccupancyValue();
           if (expect_value && initial_value != *expect_value)
           {
             throw std::logic_error("Voxel should start uncertain.");
           }
-          voxel.setValue(fill_value);
+          voxel.data() = fill_value;
         }
       }
     }
@@ -51,7 +55,7 @@ namespace ohmgen
   void fillMapWithEmptySpace(ohm::OccupancyMap &map, int x1, int y1, int z1, int x2, int y2, int z2,
                              bool expect_empty_map)
   {
-    const float expect_initial_value = voxel::invalidMarkerValue();
+    const float expect_initial_value = unorbservedOccupancyValue();
     const float *expect_value_ptr = (expect_empty_map) ? &expect_initial_value : nullptr;
 
     Key min_key, max_key;
@@ -67,9 +71,13 @@ namespace ohmgen
   void buildWall(OccupancyMap &map,  // NOLINT(google-runtime-references)
                  int a0, int a1, int a2, int a0min, int a1min, int a0max, int a1max, int a2val)
   {
-    Voxel voxel;
+    Voxel<float> voxel(&map, map.layout().occupancyLayer());
     Key key;
-    MapCache cache;
+
+    if (!voxel.isLayerValid())
+    {
+      return;
+    }
 
     for (int val0 = a0min; val0 < a0max; ++val0)
     {
@@ -79,8 +87,8 @@ namespace ohmgen
         map.moveKeyAlongAxis(key, a0, val0);
         map.moveKeyAlongAxis(key, a1, val1);
         map.moveKeyAlongAxis(key, a2, a2val);
-        voxel = map.voxel(key, true, &cache);
-        voxel.setValue(map.occupancyThresholdValue());
+        voxel.setKey(key);
+        voxel.data() = map.occupancyThresholdValue();
       }
     }
   }
@@ -137,6 +145,12 @@ namespace ohmgen
 
     const double tan_theta = std::tan(angle_deg * M_PI / 180.0);
     glm::dvec3 coord;
+    Voxel<float> voxel(&map, map.layout().occupancyLayer());
+    if (!voxel.isLayerValid())
+    {
+      return;
+    }
+
     for (int y = 0; y < range_y; y += voxel_step)
     {
       for (int x = 0; x < range_x; x += voxel_step)
@@ -145,8 +159,8 @@ namespace ohmgen
         map.moveKey(key, x, y, 0);
         coord = map.voxelCentreGlobal(key);
         coord.z = min_ext.z + double(coord.y) * tan_theta;
-        Voxel voxel = map.voxel(map.voxelKey(coord), true);
-        voxel.setValue(map.occupancyThresholdValue());
+        voxel.setKey(map.voxelKey(coord));
+        voxel.data() = map.occupancyThresholdValue();
       }
     }
   }

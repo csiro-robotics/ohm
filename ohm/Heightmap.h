@@ -269,7 +269,7 @@ namespace ohm
     ///     returns @c true.
     /// @return True the type of the voxel in question. May return @c HeightmapVoxel::Unknown @p heightmap_voxel is
     ///       invalid.
-    HeightmapVoxelType getHeightmapVoxelInfo(const VoxelConst &heightmap_voxel, glm::dvec3 *pos,
+    HeightmapVoxelType getHeightmapVoxelInfo(const Key &key, glm::dvec3 *pos,
                                              HeightmapVoxel *voxel_info = nullptr) const;
 
     //-------------------------------------------------------

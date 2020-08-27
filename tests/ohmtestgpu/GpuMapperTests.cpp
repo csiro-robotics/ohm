@@ -10,7 +10,6 @@
 #include <ohmgpu/GpuMap.h>
 #include <ohm/Key.h>
 #include <ohm/KeyList.h>
-#include <ohm/MapCache.h>
 #include <ohm/MapSerialise.h>
 #include <ohm/Mapper.h>
 #include <ohm/OccupancyMap.h>

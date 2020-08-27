@@ -45,6 +45,7 @@ set(SOURCES
   ClearingPattern.h
   CovarianceVoxel.cpp
   CovarianceVoxel.h
+  CovarianceVoxelCompute.h
   DataType.cpp
   DataType.h
   DefaultLayer.cpp
@@ -65,8 +66,6 @@ set(SOURCES
   LineKeysQuery.h
   LineQuery.cpp
   LineQuery.h
-  MapCache.cpp
-  MapCache.h
   MapChunk.cpp
   MapChunk.h
   MapCoord.h
@@ -126,9 +125,11 @@ set(SOURCES
   UpAxis.h
   Voxel.cpp
   Voxel.h
+  VoxelData.h
   VoxelLayout.cpp
   VoxelLayout.h
   VoxelMean.h
+  VoxelMeanCompute.h
   VoxelOccupancy.h
   VoxelUtil.cpp
   VoxelUtil.h
@@ -144,6 +145,7 @@ set(PUBLIC_HEADERS
   CalculateSegmentKeys.h
   ClearingPattern.h
   CovarianceVoxel.h
+  CovarianceVoxelCompute.h
   DataType.h
   DefaultLayer.h
   Heightmap.h
@@ -155,7 +157,6 @@ set(PUBLIC_HEADERS
   KeyList.h
   LineKeysQuery.h
   LineQuery.h
-  MapCache.h
   MapChunkFlag.h
   MapChunk.h
   MapCoord.h
@@ -192,8 +193,10 @@ set(PUBLIC_HEADERS
   TriangleNeighbours.h
   UpAxis.h
   Voxel.h
+  VoxelData.h
   VoxelLayout.h
   VoxelMean.h
+  VoxelMeanCompute.h
   VoxelOccupancy.h
   VoxelUtil.h
   "${CMAKE_CURRENT_BINARY_DIR}/ohm/OhmConfig.h"

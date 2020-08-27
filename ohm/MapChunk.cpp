@@ -6,9 +6,9 @@
 #include "MapChunk.h"
 
 #include "DefaultLayer.h"
-#include "Voxel.h"
 #include "MapLayer.h"
 #include "MapLayout.h"
+#include "VoxelOccupancy.h"
 #include "private/MapLayoutDetail.h"
 #include "private/OccupancyMapDetail.h"
 
@@ -169,7 +169,7 @@ void MapChunk::searchAndUpdateFirstValid(const glm::ivec3 &region_voxel_dimensio
         voxel_index =
           unsigned(x) + y * region_voxel_dimensions.x + z * region_voxel_dimensions.y * region_voxel_dimensions.x;
         const float occupancy = *reinterpret_cast<const float *>(voxel_mem + voxel_stride * voxel_index);
-        if (occupancy != voxel::invalidMarkerValue())
+        if (occupancy != unorbservedOccupancyValue())
         {
           first_valid_index = voxel_index;
           return;
@@ -197,7 +197,7 @@ bool MapChunk::validateFirstValid(const glm::ivec3 &region_voxel_dimensions) con
       for (int x = 0; x < region_voxel_dimensions.x; ++x)
       {
         const float occupancy = *reinterpret_cast<const float *>(voxel_mem + voxel_stride * voxel_index);
-        if (occupancy != voxel::invalidMarkerValue())
+        if (occupancy != unorbservedOccupancyValue())
         {
           if (first_valid_index != voxel_index)
           {

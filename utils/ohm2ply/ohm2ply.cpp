@@ -3,18 +3,19 @@
 //
 #include <glm/glm.hpp>
 
+#include <ohm/DefaultLayer.h>
 #include <ohm/Heightmap.h>
 #include <ohm/HeightmapMesh.h>
 #include <ohm/HeightmapVoxel.h>
 #include <ohm/Key.h>
 #include <ohm/KeyList.h>
-#include <ohm/MapCache.h>
 #include <ohm/MapLayer.h>
 #include <ohm/MapLayout.h>
 #include <ohm/MapSerialise.h>
 #include <ohm/OccupancyMap.h>
 #include <ohm/OccupancyType.h>
-#include <ohm/Voxel.h>
+#include <ohm/VoxelData.h>
+
 #include <ohmutil/PlyMesh.h>
 #include <ohmutil/ProgressMonitor.h>
 
@@ -397,43 +398,45 @@ int exportPointCloud(const Options &opt, ProgressMonitor &prog, LoadMapProgress 
 
   prog.beginProgress(ProgressMonitor::Info(region_count));
 
+  ohm::Voxel<const float> occupancy(&map, map.layout().occupancyLayer());
+  ohm::Voxel<const float> clearance(&map, map.layout().clearanceLayer());
+  ohm::Voxel<const ohm::VoxelMean> mean(&map, map.layout().meanLayer());
+  ohm::Voxel<const ohm::HeightmapVoxel> height(&map, map.layout().layerIndex(ohm::HeightmapVoxel::kHeightmapLayer));
   for (auto iter = map.begin(); iter != map.end() && !quit; ++iter)
   {
-    const ohm::VoxelConst voxel = *iter;
-    if (last_region != iter.key().regionKey())
+    clearance.setKey(mean.setKey(occupancy.setKey(iter)));
+    if (last_region != iter->regionKey())
     {
       prog.incrementProgress();
-      last_region = iter.key().regionKey();
+      last_region = iter->regionKey();
     }
     if (opt.mode == kExportOccupancy || opt.mode == kExportOccupancyCentre)
     {
-      if (map.occupancyType(voxel) == ohm::kOccupied)
+      if (occupancyType(occupancy) == ohm::kOccupied)
       {
-        v = (opt.mode == kExportOccupancy) ? voxel.position() : voxel.centreGlobal();
+        v = (opt.mode == kExportOccupancy) ? ohm::positionSafe(mean) : map.voxelCentreGlobal(*iter);
         ply.addVertex(v);
         ++point_count;
       }
     }
     else if (opt.mode == kExportClearance)
     {
-      if (voxel.isValid() && voxel.clearance() >= 0 && voxel.clearance() < opt.colour_scale)
+      if (clearance.isValid() && clearance.data() >= 0 && clearance.data() < opt.colour_scale)
       {
-        const float range_value = voxel.clearance();
+        const float range_value = clearance.data();
         uint8_t c = uint8_t(255 * std::max(0.0f, (opt.colour_scale - range_value) / opt.colour_scale));
-        v = voxel.centreGlobal();
+        v = map.voxelCentreGlobal(*iter);
         ply.addVertex(v, ohm::Colour(c, 128, 0));
         ++point_count;
       }
     }
     else if (opt.mode == kExportHeightmap)
     {
-      if (voxel.isValid() && voxel.isOccupied())
+      if (occupancy.isValid() && height.isValid() && isOccupied(occupancy))
       {
-        const ohm::HeightmapVoxel *voxel_height = voxel.layerContent<const ohm::HeightmapVoxel *>(
-          map.layout().layer(ohm::HeightmapVoxel::kHeightmapLayer)->layerIndex());
-
-        uint8_t c = uint8_t(255 * std::max(0.0f, (opt.colour_scale - voxel_height->clearance) / opt.colour_scale));
-        if (voxel_height->clearance <= 0)
+        const ohm::HeightmapVoxel &voxel_height = height.data();
+        uint8_t c = uint8_t(255 * std::max(0.0f, (opt.colour_scale - voxel_height.clearance) / opt.colour_scale));
+        if (voxel_height.clearance <= 0)
         {
           // Max clearance. No red.
           c = 0;
@@ -441,7 +444,7 @@ int exportPointCloud(const Options &opt, ProgressMonitor &prog, LoadMapProgress 
 
         glm::dvec3 up(0);
         up[heightmap_axis] = 1;
-        v = voxel.centreGlobal() + up * double(voxel_height->height);
+        v = map.voxelCentreGlobal(*iter) + up * double(voxel_height.height);
         ply.addVertex(v, ohm::Colour(c, 128, 0));
         ++point_count;
       }
@@ -555,37 +558,57 @@ int exportCovariance(const Options &opt, ProgressMonitor &prog, LoadMapProgress 
 
   const size_t region_count = map.regionCount();
   glm::i16vec3 last_region = map.begin().key().regionKey();
-  const unsigned covariance_layer = unsigned(map.layout().covarianceLayer());
-  size_t missing_covariance_count = 0;
+
+  ohm::Voxel<const float> occupancy(&map, map.layout().occupancyLayer());
+  ohm::Voxel<const ohm::VoxelMean> mean(&map, map.layout().meanLayer());
+  ohm::Voxel<const ohm::CovarianceVoxel> covariance(&map, map.layout().covarianceLayer());
+
+  if (!occupancy.isLayerValid())
+  {
+    std::cerr << "Missing " << ohm::default_layer::occupancyLayerName() << " layer" << std::endl;
+    res = -1;
+  }
+
+  if (!mean.isLayerValid())
+  {
+    std::cerr << "Missing " << ohm::default_layer::meanLayerName() << " layer" << std::endl;
+    res = -1;
+  }
+
+  if (!covariance.isLayerValid())
+  {
+    std::cerr << "Missing " << ohm::default_layer::covarianceLayerName() << " layer" << std::endl;
+    res = -1;
+  }
+
+  if (res != 0)
+  {
+    return res;
+  }
 
   prog.beginProgress(ProgressMonitor::Info(region_count));
 
   for (auto iter = map.begin(); iter != map.end() && !quit; ++iter)
   {
-    const ohm::VoxelConst voxel = *iter;
-    if (last_region != iter.key().regionKey())
+    ohm::setVoxelKey(*iter, occupancy, mean, covariance);
+    if (last_region != iter->regionKey())
     {
       prog.incrementProgress();
       last_region = iter.key().regionKey();
     }
 
-    if (!voxel.isOccupied())
+    if (!ohm::isOccupied(occupancy))
     {
       continue;
     }
 
-    const glm::dvec3 pos = voxel.position();
-    const ohm::CovarianceVoxel *cov = voxel.layerContent<const ohm::CovarianceVoxel *>(covariance_layer);
-    if (!cov)
-    {
-      ++missing_covariance_count;
-      continue;
-    }
+    const glm::dvec3 pos = ohm::positionSafe(mean);
+    const ohm::CovarianceVoxel &cov = covariance.data();
 
     // Add an ellipsoid to the PLY
     glm::dquat rot;
     glm::dvec3 scale;
-    ohm::covarianceUnitSphereTransformation(cov, &rot, &scale);
+    ohm::covarianceUnitSphereTransformation(&cov, &rot, &scale);
     // For rendering niceness, we scale up a bit to get better overlap between voxels.
     const double scale_factor = std::sqrt(3.0);
     scale *= scale_factor;
@@ -597,13 +620,6 @@ int exportCovariance(const Options &opt, ProgressMonitor &prog, LoadMapProgress 
 #if OHM_COV_DEBUG
   ohm::covDebugStats();
 #endif  // OHM_COV_DEBUG
-
-  if (missing_covariance_count)
-  {
-    std::cerr << "Missing covariance data for " << missing_covariance_count << " voxels. Results may be invalid."
-              << std::endl;
-    res = -1;
-  }
 
   if (!quit)
   {

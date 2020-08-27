@@ -16,7 +16,7 @@
 #include <ohm/OccupancyMap.h>
 #include <ohm/TriangleEdge.h>
 #include <ohm/TriangleNeighbours.h>
-#include <ohm/Voxel.h>
+#include <ohm/VoxelData.h>
 
 #include <ohmutil/PlyMesh.h>
 #include <ohmutil/Profile.h>
@@ -121,12 +121,11 @@ bool HeightmapMesh::buildMesh(const Heightmap &heightmap, const MeshVoxelModifie
   // Build vertices and map extents.
   for (auto voxel_iter = heightmap_occupancy.begin(); voxel_iter != heightmap_occupancy.end(); ++voxel_iter)
   {
-    const VoxelConst &voxel = *voxel_iter;
     HeightmapVoxel voxel_info;
-    auto voxel_type = heightmap.getHeightmapVoxelInfo(voxel, &point, &voxel_info);
+    auto voxel_type = heightmap.getHeightmapVoxelInfo(*voxel_iter, &point, &voxel_info);
     if (voxel_modifier)
     {
-      voxel_type = voxel_modifier(voxel, voxel_type, &point, &voxel_info.clearance);
+      voxel_type = voxel_modifier(*voxel_iter, voxel_type, &point, &voxel_info.clearance);
     }
 
     if (voxel_type != HeightmapVoxelType::kUnknown && voxel_type != HeightmapVoxelType::kVacant)
@@ -145,7 +144,7 @@ bool HeightmapMesh::buildMesh(const Heightmap &heightmap, const MeshVoxelModifie
       max_vert_ext.z = std::max(point.z, max_vert_ext.z);
 
       // Adjust loose extents
-      voxel_centre = voxel.centreGlobal();
+      voxel_centre = heightmap_occupancy.voxelCentreGlobal(*voxel_iter);
       min_map_ext.x = std::min(voxel_centre.x - 0.5 * heightmap_resolution, min_map_ext.x);
       min_map_ext.y = std::min(voxel_centre.y - 0.5 * heightmap_resolution, min_map_ext.y);
       min_map_ext.z = std::min(voxel_centre.z - 0.5 * heightmap_resolution, min_map_ext.z);

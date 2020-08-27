@@ -62,10 +62,10 @@ set(GPU_HEADERS
   gpu/VoxelMean.cl
   GpuKey.h
   # Need some headers from the OHM core project.
-  ${OHM_SOURCE_DIR}/CovarianceVoxel.h
+  ${OHM_SOURCE_DIR}/CovarianceVoxelCompute.h
   ${OHM_SOURCE_DIR}/MapCoord.h
   ${OHM_SOURCE_DIR}/RayFlag.h
-  ${OHM_SOURCE_DIR}/VoxelMean.h
+  ${OHM_SOURCE_DIR}/VoxelMeanCompute.h
 )
 
 set(PUBLIC_HEADERS

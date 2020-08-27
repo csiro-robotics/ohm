@@ -3,15 +3,15 @@
 // ABN 41 687 119 230
 //
 // Author: Kazys Stepanas, Jason Williams
+#include <ohm/DefaultLayer.h>
 #include <ohm/Key.h>
 #include <ohm/KeyHash.h>
-#include <ohm/MapCache.h>
 #include <ohm/MapLayer.h>
 #include <ohm/MapLayout.h>
 #include <ohm/NdtMap.h>
 #include <ohm/OccupancyMap.h>
 #include <ohm/Trace.h>
-#include <ohm/VoxelMean.h>
+#include <ohm/VoxelData.h>
 
 #include <ohmgpu/GpuCache.h>
 #include <ohmgpu/GpuNdtMap.h>
@@ -87,29 +87,32 @@ namespace ndttests
 
     ASSERT_GE(covariance_layer_index, 0);
 
-    ohm::MapCache cache;
+    ohm::Voxel<const ohm::VoxelMean> mean(&map, map.layout().meanLayer());
+    ohm::Voxel<const ohm::CovarianceVoxel> covariance(&map, map.layout().covarianceLayer());
     for (const auto &ref : reference_voxels)
     {
+      ohm::setVoxelKey(ref.first, mean, covariance);
+      ASSERT_TRUE(mean.isValid());
+      ASSERT_TRUE(covariance.isValid());
       // Lookup the target voxel.
-      ohm::VoxelConst voxel = const_cast<const ohm::OccupancyMap &>(map).voxel(ref.first, &cache);
-      const ohm::CovarianceVoxel &cov_voxel = *voxel.layerContent<const ohm::CovarianceVoxel *>(covariance_layer_index);
-      const ohm::VoxelMean &voxel_mean = *voxel.layerContent<const ohm::VoxelMean *>(ndt.map().layout().meanLayer());
-      EXPECT_TRUE(validate(voxel.position(), voxel_mean.count, cov_voxel, ref.second));
+      const ohm::VoxelMean &voxel_mean = mean.data();
+      const ohm::CovarianceVoxel &cov_voxel = covariance.data();
+      EXPECT_TRUE(validate(ohm::positionSafe(mean), voxel_mean.count, cov_voxel, ref.second));
     }
   }
 
   void testNdtMiss(const glm::dvec3 &sensor, const std::vector<glm::dvec3> samples, double voxel_resolution,
                    float sensor_noise, const glm::dvec3 &map_origin, const std::vector<glm::dvec3> test_rays)
   {
+    (void)sensor;
     ohm::OccupancyMap map_cpu(voxel_resolution, ohm::MapFlag::kVoxelMean);
     ohm::NdtMap ndt_cpu(&map_cpu, true);
-    ohm::MapCache cache;
 
     map_cpu.setOrigin(map_origin);
     map_cpu.setMissProbability(0.45f);
     ndt_cpu.setSensorNoise(sensor_noise);
 
-    // First process the
+    // First process the samples
     ohm::Key target_key;
     for (size_t i = 0; i < samples.size(); ++i)
     {
@@ -117,8 +120,7 @@ namespace ndttests
 
       ohm::Key key = map_cpu.voxelKey(sample);
       target_key = key;
-      ohm::Voxel voxel = map_cpu.voxel(key, true, &cache);
-      ndt_cpu.integrateHit(voxel, sensor, sample);
+      ohm::integrateNdtHit(ndt_cpu, key, sample);
     }
 
     // Clone the map for use in GPU.
@@ -131,15 +133,16 @@ namespace ndttests
 
     // Fire rays to punch through the target voxel, and compare the delta one at a time.
     // In between we reset the probability value of the target voxel.
-    ohm::Voxel target_voxel_cpu = map_cpu.voxel(target_key, false, &cache);
-    const float initial_value = target_voxel_cpu.value();
+    ohm::Voxel<float> target_voxel_cpu(&map_cpu, map_cpu.layout().occupancyLayer(), target_key);
+    ASSERT_TRUE(target_voxel_cpu.isValid());
+    const float initial_value = target_voxel_cpu.data();
 
     for (size_t i = 0; i < test_rays.size(); i += 2)
     {
       // Start the update in GPU (one ray -> inefficient).
       ndt_gpu.integrateRays(test_rays.data() + i, 2);
 
-      ndt_cpu.integrateMiss(target_voxel_cpu, test_rays[i], test_rays[i + 1]);
+      ohm::integrateNdtMiss(ndt_cpu, target_key, test_rays[i], test_rays[i + 1]);
 
       // Sync from GPU.
       ndt_gpu.syncVoxels();
@@ -147,15 +150,16 @@ namespace ndttests
       ndt_gpu.gpuCache()->clear();
 
       // Read the voxel value from GPU update.
-      ohm::Voxel target_voxel_gpu = ndt_gpu.map().voxel(target_key, false, nullptr);
-      float ndt_cpu_value = target_voxel_cpu.value();
-      float ndt_gpu_value = target_voxel_gpu.value();
+      ohm::Voxel<float> target_voxel_gpu(&ndt_gpu.map(), ndt_gpu.map().layout().occupancyLayer(), target_key);
+      ASSERT_TRUE(target_voxel_gpu.isValid());
+      float ndt_cpu_value = target_voxel_cpu.data();
+      float ndt_gpu_value = target_voxel_gpu.data();
 
       EXPECT_NEAR(ndt_gpu_value, ndt_cpu_value, 1e-4f);
 
       // Restore both voxel values.
-      target_voxel_cpu.setValue(initial_value);
-      target_voxel_gpu.setValue(initial_value);
+      target_voxel_cpu.data() = initial_value;
+      target_voxel_gpu.data() = initial_value;
     }
   }
 

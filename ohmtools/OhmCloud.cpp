@@ -8,6 +8,7 @@
 #include <ohm/OccupancyMap.h>
 #include <ohm/OccupancyType.h>
 #include <ohm/Query.h>
+#include <ohm/VoxelData.h>
 
 #include <ohmutil/PlyMesh.h>
 
@@ -25,9 +26,12 @@ namespace ohmtools
     size_t processed_region_count = 0;
     glm::i16vec3 last_region = map.begin().key().regionKey();
 
+    Voxel<const float> occupancy(&map, map.layout().occupancyLayer());
+    Voxel<const VoxelMean> mean(&map, map.layout().meanLayer());
+
     for (auto iter = map.begin(); iter != map.end(); ++iter)
     {
-      const ohm::VoxelConst voxel = *iter;
+      mean.setKey(occupancy.setKey(*iter));
       if (last_region != iter.key().regionKey())
       {
         ++processed_region_count;
@@ -37,10 +41,9 @@ namespace ohmtools
         }
         last_region = iter.key().regionKey();
       }
-      if (map.occupancyType(voxel) == ohm::kOccupied)
+      if (isOccupied(occupancy))
       {
-        // v = map.voxelCentreLocal(voxel.key());
-        v = voxel.position() - map.origin();
+        v = positionSafe(mean) - map.origin();
         ply.addVertex(v);
       }
     }
@@ -97,11 +100,14 @@ namespace ohmtools
     glm::i16vec3 min_region = map.regionKey(min_extents);
     glm::i16vec3 max_region = map.regionKey(max_extents);
 
+    Voxel<const float> occupancy(&map, map.layout().occupancyLayer());
+    Voxel<const float> clearance(&map, map.layout().clearanceLayer());
+
     const float colour_scale = colour_range;
     const auto map_end_iter = map.end();
     for (auto iter = map.begin(); iter != map_end_iter; ++iter)
     {
-      const ohm::VoxelConst voxel = *iter;
+      clearance.setKey(occupancy.setKey(*iter));
       if (last_region != iter.key().regionKey())
       {
         ++processed_region_count;
@@ -117,10 +123,10 @@ namespace ohmtools
           min_region.y <= last_region.y && last_region.y <= max_region.y &&  //
           min_region.z <= last_region.z && last_region.z <= max_region.z)
       {
-        const bool export_match = !voxel.isNull() && map.occupancyType(voxel) >= export_type;
+        const bool export_match = !occupancy.isNull() && occupancyType(occupancy) >= export_type;
         if (export_match)
         {
-          float range_value = voxel.clearance();
+          float range_value = clearance.data();
           if (range_value < 0)
           {
             range_value = colour_range;
@@ -128,7 +134,7 @@ namespace ohmtools
           if (range_value >= 0)
           {
             uint8_t c = uint8_t(255 * std::max(0.0f, (colour_scale - range_value) / colour_scale));
-            v = map.voxelCentreLocal(voxel.key());
+            v = map.voxelCentreLocal(*iter);
             ply.addVertex(v, Colour(c, 128, 0));
             ++point_count;
           }

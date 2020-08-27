@@ -14,7 +14,6 @@
 #include "private/GpuProgramRef.h"
 
 #include <ohm/MapChunk.h>
-#include <ohm/MapCache.h>
 #include <ohm/OccupancyMap.h>
 #include <ohm/VoxelMean.h>
 

@@ -9,7 +9,7 @@
 #include <ohm/MapLayer.h>
 #include <ohm/MapLayout.h>
 #include <ohm/OccupancyMap.h>
-#include <ohm/Voxel.h>
+#include <ohm/VoxelData.h>
 
 #include <gtest/gtest.h>
 
@@ -177,33 +177,48 @@ namespace ohmtestutil
     if (compare_flags & (kCfOccupancy | kCfClearance))
     {
       bool have_valid_clerance = false;
-      VoxelConst map_voxel;
-      VoxelConst ref_voxel;
-      for (auto iter = reference_map.begin(); iter != reference_map.end(); ++iter)
-      {
-        map_voxel = *iter;
-        ref_voxel = map.voxel(iter.key());
+      Voxel<const float> map_occupancy(&map, map.layout().occupancyLayer());
+      Voxel<const float> map_clearance(&map, map.layout().clearanceLayer());
+      Voxel<const float> ref_occupancy(&reference_map, reference_map.layout().occupancyLayer());
+      Voxel<const float> ref_clearance(&reference_map, reference_map.layout().clearanceLayer());
 
-        if (full_extents || map_voxel.chunk()->overlapsExtents(min_ext, max_ext, map.regionSpatialResolution()))
+      ASSERT_EQ(map_occupancy.isLayerValid(), ref_occupancy.isLayerValid());
+      if (compare_flags & kCfClearance)
+      {
+        ASSERT_EQ(map_clearance.isLayerValid(), ref_clearance.isLayerValid());
+      }
+
+      for (auto iter = map.begin(); iter != map.end(); ++iter)
+      {
+        map_clearance.setKey(map_occupancy.setKey(iter));
+        ref_clearance.setKey(ref_occupancy.setKey(iter.key()));
+
+        ASSERT_TRUE(map_occupancy.isValid());
+
+        if (full_extents || map_occupancy.chunk()->overlapsExtents(min_ext, max_ext, map.regionSpatialResolution()))
         {
-          ASSERT_TRUE(ref_voxel.isValid());
+          ASSERT_TRUE(ref_occupancy.isValid());
         }
 
-        if (!ref_voxel.isValid())
+        if (!ref_occupancy.isValid())
         {
           continue;
         }
 
-        ASSERT_EQ(ref_voxel.key(), map_voxel.key());
+        ASSERT_EQ(ref_clearance.key(), map_occupancy.key());
         if (compare_flags & kCfOccupancy)
         {
-          ASSERT_EQ(ref_voxel.occupancy(), map_voxel.occupancy());
+          ASSERT_EQ(ref_occupancy.data(), map_occupancy.data());
         }
 
         if (compare_flags & kCfClearance)
         {
-          ASSERT_EQ(ref_voxel.clearance(), map_voxel.clearance());
-          have_valid_clerance = have_valid_clerance || ref_voxel.clearance() >= 0.0f;
+          if (map_clearance.isValid())
+          {
+            ASSERT_TRUE(ref_clearance.isValid());
+            ASSERT_EQ(ref_clearance.data(), map_clearance.data());
+            have_valid_clerance = have_valid_clerance || ref_clearance.data() >= 0;
+          }
         }
       }
 

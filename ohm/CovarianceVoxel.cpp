@@ -13,12 +13,24 @@
 // Must come after glm includes due to usage on GPU.
 #include "CovarianceVoxel.h"
 
+#include "NdtMap.h"
+#include "OccupancyMap.h"
+#include "Voxel.h"
+#include "VoxelMean.h"
+#include "VoxelOccupancy.h"
+
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtx/matrix_factorisation.hpp>
 
 #ifdef OHM_WITH_EIGEN
 #include <Eigen/Dense>
 #endif  // OHM_WITH_EIGEN
+
+#include <3esservermacros.h>
+#ifdef TES_ENABLE
+#include <3esserver.h>
+#include <shapes/3esshapes.h>
+#endif  // TES_ENABLE
 
 using namespace ohm;
 
@@ -199,3 +211,108 @@ void ohm::covDebugStats()
   std::cout << "QR algorithm max error: " << max_error << std::endl;
 }
 #endif  // OHM_COV_DEBUG
+
+void ohm::integrateNdtHit(NdtMap &map, const Key &key, const glm::dvec3 &sample)
+{
+  OccupancyMap &occupancy_map = map.map();
+  Voxel<float> occupancy(&occupancy_map, occupancy_map.layout().occupancyLayer(), key);
+  Voxel<VoxelMean> mean(occupancy, occupancy_map.layout().meanLayer());
+  Voxel<CovarianceVoxel> cov(occupancy, occupancy_map.layout().covarianceLayer());
+
+  assert(occupancy.isValid());
+  assert(mean.isValid());
+  assert(cov.isValid());
+
+  glm::dvec3 voxel_mean = positionUnsafe(mean);
+
+  float *voxel_value = occupancy.dataPtr();
+  float updated_value = *voxel_value;
+  if (calculateHitWithCovariance(&cov.data(), &updated_value, sample, voxel_mean, mean.data().count,
+                                 occupancy_map.hitValue(), unorbservedOccupancyValue(),
+                                 float(0.1 * occupancy_map.resolution()), map.reinitialiseCovarianceTheshold(),
+                                 map.reinitialiseCovariancePointCount()))
+  {
+    // Covariance matrix has reset. Reset the point count to clear the mean value.
+    mean.data().count = 0;
+  }
+
+  // Ensure we update the occupancy within the configured map limits.
+  occupancyAdjustUp(
+    voxel_value, *voxel_value, updated_value, unorbservedOccupancyValue(), occupancy_map.maxVoxelValue(),
+    occupancy_map.saturateAtMinValue() ? occupancy_map.minVoxelValue() : std::numeric_limits<float>::lowest(),
+    occupancy_map.saturateAtMaxValue() ? occupancy_map.maxVoxelValue() : std::numeric_limits<float>::max(), false);
+
+  // Update the voxel mean.
+  updatePositionUnsafe(mean, sample);
+}
+
+
+void ohm::integrateNdtMiss(NdtMap &map, const Key &key, const glm::dvec3 &sensor, const glm::dvec3 &sample)
+{
+  OccupancyMap &occupancy_map = map.map();
+  Voxel<float> occupancy(&occupancy_map, occupancy_map.layout().occupancyLayer(), key);
+  Voxel<const VoxelMean> mean(occupancy, occupancy_map.layout().meanLayer());
+  Voxel<const CovarianceVoxel> cov(occupancy, occupancy_map.layout().covarianceLayer());
+
+  assert(occupancy.isValid());
+  assert(mean.isValid());
+  assert(cov.isValid());
+
+  float *voxel_value = occupancy.dataPtr();
+  float updated_value = *voxel_value;
+#ifdef TES_ENABLE
+  const float initial_value = *voxel_value;
+#endif  // TES_ENABLE
+  const glm::dvec3 voxel_mean = positionUnsafe(mean);
+
+#ifdef TES_ENABLE
+  const glm::dvec3 voxel_maximum_likelihood =
+#endif  // TES_ENABLE
+    calculateMissNdt(cov.dataPtr(), &updated_value, sensor, sample, voxel_mean, mean.data().count,
+                     unorbservedOccupancyValue(), occupancy_map.missValue(), map.sensorNoise(),
+                     map.ndtSampleThreshold());
+  occupancyAdjustDown(
+    voxel_value, *voxel_value, updated_value, unorbservedOccupancyValue(), occupancy_map.minVoxelValue(),
+    occupancy_map.saturateAtMinValue() ? occupancy_map.minVoxelValue() : std::numeric_limits<float>::lowest(),
+    occupancy_map.saturateAtMaxValue() ? occupancy_map.maxVoxelValue() : std::numeric_limits<float>::max(), false);
+
+#ifdef TES_ENABLE
+  if (map.trace())
+  {
+    TES_BOX_W(g_3es, TES_COLOUR(OrangeRed), TES_PTR_ID(cov.dataPtr()), glm::value_ptr(voxel.centreGlobal()),
+              glm::value_ptr(glm::dvec3(occupancy_map->resolution())));
+    TES_SERVER_UPDATE(g_3es, 0.0f);
+
+    bool drew_surfel = false;
+    glm::dquat rot;
+    glm::dvec3 scale;
+    if (covarianceUnitSphereTransformation(cov.dataPtr(), &rot, &scale))
+    {
+      TES_SPHERE(g_3es, TES_COLOUR(SeaGreen), TES_PTR_ID(cov.dataPtr()), glm::value_ptr(voxel_mean),
+                 glm::value_ptr(scale), tes::Quaterniond(rot.x, rot.y, rot.z, rot.w));
+      drew_surfel = true;
+    }
+
+    // Trace the voxel mean, maximum likelihood point and the ellipsoid.
+    // Mean
+    TES_SPHERE(g_3es, TES_COLOUR(OrangeRed), TES_PTR_ID(&voxel_mean), glm::value_ptr(voxel_mean), 0.05f);
+    // Maximum likelihood
+    TES_SPHERE_W(g_3es, TES_COLOUR(PowderBlue), TES_PTR_ID(&voxel_maximum_likelihood),
+                 glm::value_ptr(voxel_maximum_likelihood), 0.1f);
+
+    glm::dvec3 pos = voxel.centreGlobal();
+    char text[64];
+    sprintf(text, "P %.3f", ohm::valueToProbability(voxel_value - initial_value));
+    TES_TEXT2D_WORLD(g_3es, TES_COLOUR(White), text, glm::value_ptr(pos));
+
+    TES_SERVER_UPDATE(g_3es, 0.0f);
+    TES_BOX_END(g_3es, TES_PTR_ID(cov.dataPtr()));
+    TES_SPHERE_END(g_3es, TES_PTR_ID(&voxel_mean));
+    TES_SPHERE_END(g_3es, TES_PTR_ID(&voxel_maximum_likelihood));
+    if (drew_surfel)
+    {
+      TES_SPHERE_END(g_3es, TES_PTR_ID(cov.dataPtr()));
+    }
+  }
+#endif  // TES_ENABLE
+}

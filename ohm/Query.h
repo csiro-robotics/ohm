@@ -25,7 +25,7 @@ namespace ohm
   ///
   /// Most queries operate on searching for occupied voxels, as defined by @c OccupancyMap::occupancyType(). By default
   /// only voxels of type @c OccupancyType::kOccupied are considered occupied. For most queries, setting the query flag
-  /// @c QF_UnknownAsOccupied ensures that @c OccupancyType::kUncertain are also considered as relevant obstructions.
+  /// @c QF_UnknownAsOccupied ensures that @c OccupancyType::kUnobserved are also considered as relevant obstructions.
   /// We define the set of such relevant voxels as the set of @em obstructed voxels.
   ///
   /// @todo Create a base class for the @c Query called @c MapOperation. @c Query adds the concept of results, which

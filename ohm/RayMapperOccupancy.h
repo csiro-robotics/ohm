@@ -9,7 +9,6 @@
 
 #include "CalculateSegmentKeys.h"
 #include "KeyList.h"
-#include "MapCache.h"
 #include "RayFilter.h"
 #include "RayFlag.h"
 #include "RayMapper.h"

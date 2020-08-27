@@ -5,6 +5,7 @@
 // Author: Kazys Stepanas
 #include "OhmTestConfig.h"
 
+#include <ohm/DefaultLayer.h>
 #include <ohm/MapLayer.h>
 #include <ohm/MapLayout.h>
 #include <ohm/OccupancyMap.h>

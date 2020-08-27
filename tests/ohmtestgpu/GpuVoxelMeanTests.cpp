@@ -10,12 +10,11 @@
 #include <ohmgpu/GpuLayerCache.h>
 #include <ohmgpu/GpuMap.h>
 #include <ohm/KeyList.h>
-#include <ohm/MapCache.h>
-#include <ohm/MapChunk.h>
 #include <ohm/MapProbability.h>
 #include <ohm/MapSerialise.h>
 #include <ohm/OccupancyMap.h>
 #include <ohm/OccupancyUtil.h>
+#include <ohm/VoxelData.h>
 
 #include <ohmtools/OhmCloud.h>
 #include <ohmutil/GlmStream.h>
@@ -104,8 +103,6 @@ namespace voxelmean
     // Test core voxel mean positioning
     OccupancyMap map(resolution, region_size, MapFlag::kVoxelMean);
 
-    Voxel voxel = map.voxel(map.voxelKey(glm::dvec3(0.5 * resolution)), true);
-
     static const glm::dvec3 positions[] =  //
       {
         //
@@ -123,18 +120,21 @@ namespace voxelmean
 
     std::vector<VoxelMeanResult> results;
 
+    Voxel<ohm::VoxelMean> voxel(&map, map.layout().meanLayer(), map.voxelKey(glm::dvec3(0.5 * resolution)));
+    ASSERT_TRUE(voxel.isValid());
     for (unsigned i = 0; i < sizeof(positions) / sizeof(positions[0]); ++i)
     {
       VoxelMeanResult sub_vox;
 
-      voxel.setPosition(positions[i]);
+      setPositionSafe(voxel, positions[i]);
 
       sub_vox.expected_position = positions[i];
-      sub_vox.reported_position = voxel.position();
-      sub_vox.voxel_centre = voxel.centreGlobal();
+      sub_vox.reported_position = positionSafe(voxel);
+      sub_vox.voxel_centre = map.voxelCentreGlobal(voxel.key());
 
       results.push_back(sub_vox);
     }
+    voxel.reset();
 
     printVoxelPositionResults(results, true, map.resolution());
   }
@@ -157,15 +157,18 @@ namespace voxelmean
 
     // First integrate without voxel mean positioning
     glm::dvec3 sample_pos = glm::dvec3(1.1);
-    map.integrateHit(sample_pos);
-    Voxel voxel = map.voxel(map.voxelKey(sample_pos), true);
+    ohm::integrateHit(map, sample_pos);
 
-    glm::dvec3 voxel_centre = voxel.centreGlobal();
-    glm::dvec3 voxel_pos = voxel.position();
+    glm::dvec3 voxel_centre = map.voxelCentreGlobal(map.voxelKey(sample_pos));
 
-    EXPECT_EQ(voxel_centre.x, voxel_pos.x);
-    EXPECT_EQ(voxel_centre.y, voxel_pos.y);
-    EXPECT_EQ(voxel_centre.z, voxel_pos.z);
+    {
+      Voxel<const ohm::VoxelMean> voxel_mean(&map, map.layout().meanLayer(), map.voxelKey(sample_pos));
+      // Note: voxel_mean has no valid layer, but the key is valid.
+      glm::dvec3 voxel_pos = positionSafe(voxel_mean);
+      EXPECT_EQ(voxel_centre.x, voxel_pos.x);
+      EXPECT_EQ(voxel_centre.y, voxel_pos.y);
+      EXPECT_EQ(voxel_centre.z, voxel_pos.z);
+    }
 
     // Now enable voxel mean positioning.
     // voxel becomes invalid.
@@ -179,7 +182,10 @@ namespace voxelmean
     EXPECT_NE(gpu_wrap.gpuCache()->layerCache(kGcIdVoxelMean), nullptr);
 
     const size_t with_voxel_means_chunk_size = gpu_occupancy_cache->chunkSize();
-    voxel = map.voxel(map.voxelKey(sample_pos), true);
+    Voxel<ohm::VoxelMean> voxel_mean(&map, map.layout().meanLayer(), map.voxelKey(sample_pos));
+    Voxel<const float> voxel_occupancy(voxel_mean, map.layout().occupancyLayer());
+    ASSERT_TRUE(voxel_mean.isValid());
+    ASSERT_TRUE(voxel_occupancy.isValid());
 
     EXPECT_EQ(with_voxel_means_chunk_size, without_voxel_means_chunk_size);
     unsigned active_gpu_layers = 0;
@@ -192,14 +198,13 @@ namespace voxelmean
     }
     EXPECT_EQ(active_gpu_layers, 2);
 
-    ASSERT_TRUE(voxel.isValid());
-    EXPECT_TRUE(voxel.isOccupied());
+    EXPECT_TRUE(ohm::isOccupied(voxel_occupancy));
 
     // Set the voxel position.
-    voxel.setPosition(sample_pos);
+    setPositionSafe(voxel_mean, sample_pos, 1);
 
     // Position should no longer match the voxel centre.
-    voxel_pos = voxel.position();
+    glm::dvec3 voxel_pos = positionSafe(voxel_mean);
     EXPECT_NE(voxel_centre.x, voxel_pos.x);
     EXPECT_NE(voxel_centre.y, voxel_pos.y);
     EXPECT_NE(voxel_centre.z, voxel_pos.z);
@@ -208,25 +213,33 @@ namespace voxelmean
     EXPECT_NEAR(voxel_pos.y, sample_pos.y, resolution / 1000.0);
     EXPECT_NEAR(voxel_pos.z, sample_pos.z, resolution / 1000.0);
 
+    voxel_mean.reset();
+    voxel_occupancy.reset();
+
     // Now remove voxel mean positioning.
     gpu_occupancy_cache = nullptr;
     map.updateLayout(cached_layout);
     EXPECT_EQ(gpu_wrap.gpuCache()->layerCount(), kGcIdOccupancy + 1);
     gpu_occupancy_cache = gpu_wrap.gpuCache()->layerCache(kGcIdOccupancy);
     const size_t without_voxel_means_chunk_size2 = gpu_occupancy_cache->chunkSize();
-    voxel = map.voxel(map.voxelKey(sample_pos), true);
+
+    voxel_mean = Voxel<ohm::VoxelMean>(&map, map.layout().meanLayer(), map.voxelKey(sample_pos));
+    voxel_occupancy = Voxel<const float>(voxel_mean, map.layout().occupancyLayer());
 
     EXPECT_EQ(without_voxel_means_chunk_size2, without_voxel_means_chunk_size);
 
     // Expect occupancy to be unchanged.
-    ASSERT_TRUE(voxel.isValid());
-    EXPECT_TRUE(voxel.isOccupied());
+    ASSERT_FALSE(voxel_mean.isValid());
+    ASSERT_TRUE(voxel_occupancy.isValid());
+    EXPECT_TRUE(ohm::isOccupied(voxel_occupancy));
 
     // Expect the position to match the voxel centre.
-    voxel_pos = voxel.position();
+    voxel_pos = positionSafe(voxel_mean);
     EXPECT_EQ(voxel_centre.x, voxel_pos.x);
     EXPECT_EQ(voxel_centre.y, voxel_pos.y);
     EXPECT_EQ(voxel_centre.z, voxel_pos.z);
+    voxel_mean.reset();
+    voxel_occupancy.reset();
   }
 
   TEST(VoxelMean, Gpu)
@@ -254,20 +267,21 @@ namespace voxelmean
     gpu_wrap.syncVoxels();
 
     std::vector<VoxelMeanResult> results;
+    Voxel<const ohm::VoxelMean> voxel(&map, map.layout().meanLayer());
+    ASSERT_TRUE(voxel.isLayerValid());
     for (size_t i = 1; i < rays.size(); i += 2)
     {
-      const VoxelConst voxel = map.voxel(map.voxelKey(rays[i]));
-      if (voxel.isValid())
-      {
-        VoxelMeanResult sub_vox;
+      voxel.setKey(map.voxelKey(rays[i]));
+      ASSERT_TRUE(voxel.isValid());
+      VoxelMeanResult sub_vox;
 
-        sub_vox.expected_position = rays[i];
-        sub_vox.reported_position = voxel.position();
-        sub_vox.voxel_centre = voxel.centreGlobal();
+      sub_vox.expected_position = rays[i];
+      sub_vox.reported_position = positionSafe(voxel);
+      sub_vox.voxel_centre = map.voxelCentreGlobal(voxel.key());
 
-        results.push_back(sub_vox);
-      }
+      results.push_back(sub_vox);
     }
+    voxel.reset();
 
     printVoxelPositionResults(results, false, map.resolution());
   }
@@ -301,22 +315,29 @@ namespace voxelmean
     gpu_wrap.syncVoxels();
 
     std::vector<VoxelMeanResult> results;
+    Voxel<const ohm::VoxelMean> cpu_voxel(&cpu_map, cpu_map.layout().meanLayer());
+    Voxel<const ohm::VoxelMean> gpu_voxel(&gpu_map, gpu_map.layout().meanLayer());
+    ASSERT_TRUE(cpu_voxel.isLayerValid());
+    ASSERT_TRUE(gpu_voxel.isLayerValid());
     for (size_t i = 1; i < rays.size(); i += 2)
     {
-      const VoxelConst cpu_voxel = cpu_map.voxel(cpu_map.voxelKey(rays[i]));
-      const VoxelConst gpu_voxel = gpu_map.voxel(gpu_map.voxelKey(rays[i]));
+      cpu_voxel.setKey(cpu_map.voxelKey(rays[i]));
+      gpu_voxel.setKey(gpu_map.voxelKey(rays[i]));
+      EXPECT_TRUE(cpu_voxel.isValid());
       EXPECT_EQ(cpu_voxel.isValid(), gpu_voxel.isValid());
       if (cpu_voxel.isValid() && gpu_voxel.isValid())
       {
         VoxelMeanResult sub_vox;
 
-        sub_vox.expected_position = cpu_voxel.position();
-        sub_vox.reported_position = gpu_voxel.position();
-        sub_vox.voxel_centre = cpu_voxel.centreGlobal();
+        sub_vox.expected_position = positionSafe(cpu_voxel);
+        sub_vox.reported_position = positionSafe(gpu_voxel);
+        sub_vox.voxel_centre = cpu_map.voxelCentreGlobal(cpu_voxel.key());
 
         results.push_back(sub_vox);
       }
     }
+    cpu_voxel.reset();
+    gpu_voxel.reset();
 
     printVoxelPositionResults(results, false, cpu_map.resolution());
   }

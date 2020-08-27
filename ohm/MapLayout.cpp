@@ -132,7 +132,7 @@ MapLayoutMatch MapLayout::checkEquivalent(const MapLayout &other) const
   MapLayoutMatch match = MapLayoutMatch::Exact;
   for (size_t i = 0; i < layerCount(); ++i)
   {
-    const MapLayoutMatch layer_match = layer(i).checkEquivalent(other.layer(i)); 
+    const MapLayoutMatch layer_match = layer(i).checkEquivalent(other.layer(i));
     match = std::min(match, layer_match);
     if (match == MapLayoutMatch::Different)
     {
@@ -255,6 +255,21 @@ const MapLayer *MapLayout::layerPtr(size_t index) const
 MapLayer *MapLayout::layerPtr(size_t index)
 {
   return (imp_ && index < imp_->layers.size()) ? imp_->layers[index] : nullptr;
+}
+
+
+int MapLayout::layerIndex(const char *layer_name) const
+{
+  const std::string name(layer_name);
+  for (const MapLayer *layer : imp_->layers)
+  {
+    if (layer && name.compare(layer->name()) == 0)
+    {
+      return layer->layerIndex();
+    }
+  }
+
+  return -1;
 }
 
 

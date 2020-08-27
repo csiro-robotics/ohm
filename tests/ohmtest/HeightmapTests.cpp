@@ -10,12 +10,12 @@
 #include <ohm/Heightmap.h>
 #include <ohm/HeightmapMesh.h>
 #include <ohm/HeightmapVoxel.h>
-#include <ohm/MapCache.h>
 #include <ohm/MapLayer.h>
 #include <ohm/MapLayout.h>
 #include <ohm/MapSerialise.h>
 #include <ohm/OccupancyMap.h>
 #include <ohm/TriangleNeighbours.h>
+#include <ohm/VoxelData.h>
 #include <ohm/VoxelLayout.h>
 
 #include <ohmtools/OhmCloud.h>
@@ -65,7 +65,7 @@ namespace
                              -1.0 * map.voxelCentreGlobal(map.voxelKey(glm::dvec3(boundary_distance)))[axis_index];
     double top_of_wall_height =
       (int(axis) >= 0) ? map.voxelCentreGlobal(map.voxelKey(glm::dvec3(boundary_distance)))[axis_index] :
-                    -1.0 * map.voxelCentreGlobal(map.voxelKey(glm::dvec3(-boundary_distance)))[axis_index];
+                         -1.0 * map.voxelCentreGlobal(map.voxelKey(glm::dvec3(-boundary_distance)))[axis_index];
 
     std::string filename;
     if (!prefix.empty())
@@ -83,13 +83,17 @@ namespace
       // Save the 2.5d heightmap.
       PlyMesh heightmapCloud;
       glm::dvec3 coord;
+      Voxel<const float> occupancy(&heightmap->heightmap(), heightmap->heightmap().layout().occupancyLayer());
+      Voxel<const HeightmapVoxel> heigthmap_voxel(&heightmap->heightmap(), heightmap->heightmapVoxelLayer());
       for (auto iter = heightmap->heightmap().begin(); iter != heightmap->heightmap().end(); ++iter)
       {
-        if (iter->isOccupied())
+        occupancy.setKey(*iter);
+        if (isOccupied(occupancy))
         {
-          const HeightmapVoxel *voxel = iter->layerContent<const HeightmapVoxel *>(heightmap->heightmapVoxelLayer());
+          heigthmap_voxel.setKey(occupancy);
+          const HeightmapVoxel *voxel = heigthmap_voxel.dataPtr();
           // Get the coordinate of the voxel.
-          coord = heightmap->heightmap().voxelCentreGlobal(iter.key());
+          coord = heightmap->heightmap().voxelCentreGlobal(*iter);
           coord += double(voxel->height) * Heightmap::upAxisNormal(axis);
           // Add to the cloud.
           heightmapCloud.addVertex(coord);
@@ -102,8 +106,7 @@ namespace
 
     // Helper function to work out if we are at the top of the box or not.
     // Basically, at the limits of the box extents, we should report the top of the wall.
-    const auto is_top_of_wall = [](const Key &key, const Key &min_key, const Key &max_key,
-                                   int *test_axes) {
+    const auto is_top_of_wall = [](const Key &key, const Key &min_key, const Key &max_key, int *test_axes) {
       if (key.axisMatches(test_axes[0], min_key) || key.axisMatches(test_axes[0], max_key) ||
           key.axisMatches(test_axes[1], min_key) || key.axisMatches(test_axes[1], max_key))
       {
@@ -113,7 +116,6 @@ namespace
       return false;
     };
 
-    MapCache cache;
     Key key = min_key;
 
     // Tricky stuff to resolve indexing the plane axes.
@@ -141,13 +143,14 @@ namespace
     // Walk the plane.
     key.setRegionAxis(axis_indices[2], 0);
     key.setLocalAxis(axis_indices[2], 0);
+    Voxel<const HeightmapVoxel> voxel(&heightmap->heightmap(), heightmap->heightmapVoxelLayer());
     for (; key.isBounded(axis_indices[1], min_key, max_key); heightmap->heightmap().stepKey(key, axis_indices[1], 1))
     {
       for (key.setAxisFrom(axis_indices[0], min_key); key.isBounded(axis_indices[0], min_key, max_key);
            heightmap->heightmap().stepKey(key, axis_indices[0], 1))
       {
         // Get the plane voxel and validate.
-        VoxelConst voxel = heightmap->heightmap().voxel(key, false, &cache);
+        voxel.setKey(key);
 
         double expected_height = ground_height;
         bool wall = false;
@@ -164,8 +167,7 @@ namespace
 
         ASSERT_TRUE(voxel.isValid());
 
-        const HeightmapVoxel *voxel_content =
-          voxel.layerContent<const HeightmapVoxel *>(heightmap->heightmapVoxelLayer());
+        const HeightmapVoxel *voxel_content = voxel.dataPtr();
         ASSERT_NE(voxel_content, nullptr) << (wall ? "top" : "floor");
         // Need the equality to handle when both values are inf.
         if (voxel_content->height + base_height != expected_height)

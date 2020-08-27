@@ -6,7 +6,7 @@
 #ifndef ADJUSTNDT_CL
 #define ADJUSTNDT_CL
 
-#include "CovarianceVoxel.h"
+#include "CovarianceVoxelCompute.h"
 
 inline __device__ float calculateOccupancyAdjustment(const GpuKey *voxelKey, bool isEndVoxel, const GpuKey *startKey,
                                                      const GpuKey *endKey, float voxel_resolution,
@@ -22,9 +22,9 @@ inline __device__ float calculateOccupancyAdjustment(const GpuKey *voxelKey, boo
   __global VoxelMean *mean_data = &line_data->means[vi];
 
   float3 voxel_mean = subVoxelToLocalCoord(mean_data->coord, voxel_resolution);
-  // voxel_mean is currently relative to the voxel centre of the voxelKey voxel. We need to change it to be in the same reference
-  // frame as the incoming rays, which is relative to the endKey voxel. For this we need to caculate the additional
-  // displacement from the centre of endKey to the centre of voxelKey and add this displacement.
+  // voxel_mean is currently relative to the voxel centre of the voxelKey voxel. We need to change it to be in the same
+  // reference frame as the incoming rays, which is relative to the endKey voxel. For this we need to caculate the
+  // additional displacement from the centre of endKey to the centre of voxelKey and add this displacement.
 
   // Calculate the number of voxel steps from endKey to the voxelKey
   const int3 voxel_diff = keyDiff(endKey, voxelKey, &line_data->region_dimensions);

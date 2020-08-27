@@ -10,11 +10,10 @@
 #include <ohm/Key.h>
 #include <ohm/KeyList.h>
 #include <ohm/LineQuery.h>
-#include <ohm/MapCache.h>
 #include <ohm/MapSerialise.h>
 #include <ohm/OccupancyMap.h>
-#include <ohm/OccupancyType.h>
 #include <ohm/OccupancyUtil.h>
+#include <ohm/VoxelOccupancy.h>
 
 #include <ohmtools/OhmCloud.h>
 #include <ohmtools/OhmGen.h>
@@ -126,9 +125,9 @@ namespace searialisationtests
             map.calculateSegmentKeys(ray, origin, point, false);
             for (auto key : ray)
             {
-              map.integrateMiss(key);
+              ohm::integrateMiss(map, key);
             }
-            map.integrateHit(point);
+            ohm::integrateHit(map, map.voxelKey(point));
           }
         }
       }

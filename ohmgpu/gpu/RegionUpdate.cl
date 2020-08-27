@@ -37,16 +37,13 @@
 //------------------------------------------------------------------------------
 #include "gpu_ext.h"
 
-// Explicitly include MapCoord.h first. It's included from each of the subsequent includes, but leaving it to
-// VoxelMean.h has issues with the resource generation. Essentially it causes MapCoord.h to be only included within the
-// VOXEL_MEAN define.
 #include "MapCoord.h"
 #if defined(VOXEL_MEAN) || defined(NDT)
-#include "VoxelMean.h"
+#include "VoxelMeanCompute.h"
 #endif  // VOXEL_MEAN || NDT
 #include "RayFlag.h"
 #ifdef NDT
-#include "CovarianceVoxel.h"
+#include "CovarianceVoxelCompute.h"
 #endif  // NDT
 
 #include "Regions.cl"

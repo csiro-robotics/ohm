@@ -11,13 +11,14 @@
 
 #include "CovarianceVoxel.h"
 
+#include "CalculateSegmentKeys.h"
+#include "KeyList.h"
 #include "OccupancyMap.h"
-#include "MapCache.h"
 #include "MapLayer.h"
 #include "MapLayout.h"
 #include "NdtMap.h"
-#include "VoxelMean.h"
-#include "VoxelOccupancy.h"
+#include "RayFilter.h"
+#include "VoxelData.h"
 
 #include <ohmutil/LineWalk.h>
 
@@ -81,7 +82,6 @@ size_t RayMapperNdt::integrateRays(const glm::dvec3 *rays, size_t element_count,
 {
   KeyList keys;
   MapChunk *last_chunk = nullptr;
-  MapCache cache;
   bool stop_adjustments = false;
 
   OccupancyMap &occupancy_map = map_->map();
@@ -112,7 +112,6 @@ size_t RayMapperNdt::integrateRays(const glm::dvec3 *rays, size_t element_count,
 
   const auto visit_func = [&](const Key &key)  //
   {
-#if 1
     //
     // The update logic here is a little unclear as it tries to avoid outright branches.
     // The intended logic is described as follows:
@@ -144,9 +143,9 @@ size_t RayMapperNdt::integrateRays(const glm::dvec3 *rays, size_t element_count,
     const float initial_value = *occupancy_value;
     float adjusted_value = initial_value;
 
-    calculateMissNdt(cov, &adjusted_value, start, sample, mean, voxel_mean->count, voxel::invalidMarkerValue(),
+    calculateMissNdt(cov, &adjusted_value, start, sample, mean, voxel_mean->count, unorbservedOccupancyValue(),
                      miss_value, sensor_noise, ndt_sample_threshold);
-    occupancyAdjustDown(occupancy_value, initial_value, adjusted_value, voxel::invalidMarkerValue(), voxel_min,
+    occupancyAdjustDown(occupancy_value, initial_value, adjusted_value, unorbservedOccupancyValue(), voxel_min,
                         saturation_min, saturation_max, stop_adjustments);
     chunk->updateFirstValid(voxel_index);
 
@@ -155,10 +154,6 @@ size_t RayMapperNdt::integrateRays(const glm::dvec3 *rays, size_t element_count,
     // Update the touched_stamps with relaxed memory ordering. The important thing is to have an update,
     // not so much the sequencing. We really don't want to synchronise here.
     chunk->touched_stamps[occupancy_layer].store(touch_stamp, std::memory_order_relaxed);
-#else   // #
-    Voxel voxel = occupancy_map.voxel(key, true, &cache);
-    map_->integrateMiss(voxel, start, sample);
-#endif  // #
   };
 
   unsigned filter_flags;
@@ -192,7 +187,6 @@ size_t RayMapperNdt::integrateRays(const glm::dvec3 *rays, size_t element_count,
 
     if (!stop_adjustments && !include_sample_in_ray)
     {
-#if 1
       // Like the miss logic, we have similar obfuscation here to avoid branching. It's a little simpler though,
       // because we do have a branch above, which will filter some of the conditions catered for in miss integration.
       const ohm::Key key = occupancy_map.voxelKey(sample);
@@ -210,9 +204,9 @@ size_t RayMapperNdt::integrateRays(const glm::dvec3 *rays, size_t element_count,
       float adjusted_value = initial_value;
 
       const bool reset_mean = calculateHitWithCovariance(
-        cov, &adjusted_value, sample, mean, voxel_mean->count, hit_value, voxel::invalidMarkerValue(),
+        cov, &adjusted_value, sample, mean, voxel_mean->count, hit_value, unorbservedOccupancyValue(),
         float(0.1 * resolution), map_->reinitialiseCovarianceTheshold(), map_->reinitialiseCovariancePointCount());
-      occupancyAdjustUp(occupancy_value, initial_value, adjusted_value, voxel::invalidMarkerValue(), voxel_max,
+      occupancyAdjustUp(occupancy_value, initial_value, adjusted_value, unorbservedOccupancyValue(), voxel_max,
                         saturation_min, saturation_max, stop_adjustments);
 
       voxel_mean->count = (!reset_mean) ? voxel_mean->count : 0;
@@ -227,11 +221,6 @@ size_t RayMapperNdt::integrateRays(const glm::dvec3 *rays, size_t element_count,
       chunk->touched_stamps[occupancy_layer].store(touch_stamp, std::memory_order_relaxed);
       chunk->touched_stamps[mean_layer].store(touch_stamp, std::memory_order_relaxed);
       chunk->touched_stamps[covariance_layer].store(touch_stamp, std::memory_order_relaxed);
-#else   // #
-      const ohm::Key key = occupancy_map.voxelKey(sample);
-      Voxel voxel = occupancy_map.voxel(key, true, &cache);
-      map_->integrateHit(voxel, start, sample);
-#endif  // #
     }
   }
 

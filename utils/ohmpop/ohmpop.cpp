@@ -15,7 +15,7 @@
 #include <ohm/RayMapperNdt.h>
 #include <ohm/RayMapperOccupancy.h>
 #include <ohm/Trace.h>
-#include <ohm/Voxel.h>
+#include <ohm/VoxelData.h>
 
 #ifndef OHMPOP_CPU
 #include <ohmgpu/ClearanceProcess.h>
@@ -284,20 +284,22 @@ namespace
       const ohm::Colour c(colour_channel_f(opt.cloud_colour.r), colour_channel_f(opt.cloud_colour.g),
                           colour_channel_f(opt.cloud_colour.b));
 
+      ohm::Voxel<const float> voxel(&map, map.layout().occupancyLayer());
+      ohm::Voxel<const ohm::VoxelMean> mean(&map, map.layout().meanLayer());
       for (auto iter = map.begin(); iter != map_end_iter && quit < 2; ++iter)
       {
-        const ohm::VoxelConst voxel = *iter;
-        if (last_region != iter.key().regionKey())
+        ohm::setVoxelKey(iter, voxel, mean);
+        if (last_region != iter->regionKey())
         {
           if (prog)
           {
             prog->incrementProgress();
           }
-          last_region = iter.key().regionKey();
+          last_region = iter->regionKey();
         }
-        if (voxel.isOccupied())
+        if (ohm::isOccupied(voxel))
         {
-          v = voxel.position();
+          v = ohm::positionSafe(mean);
           if (use_colour)
           {
             ply.addVertex(v, c);

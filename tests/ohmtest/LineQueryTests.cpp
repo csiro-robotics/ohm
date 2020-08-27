@@ -12,6 +12,7 @@
 #include <ohm/OccupancyMap.h>
 #include <ohm/OccupancyType.h>
 #include <ohm/OccupancyUtil.h>
+#include <ohm/VoxelData.h>
 
 #include <ohmtools/OhmCloud.h>
 #include <ohmtools/OhmGen.h>
@@ -35,14 +36,15 @@ namespace linequerytests
   {
     ohmgen::fillMapWithEmptySpace(map, -64, -64, -64, 63, 63, 63);
     Key key = map.voxelKey(glm::dvec3(0.5 * map.resolution()));
-    VoxelConst voxel = map.voxel(key);
+    Voxel<float> voxel(&map, map.layout().occupancyLayer(), key);
+    ASSERT_TRUE(voxel.isValid());
     if (add_hit)
     {
       for (int i = 0; i < 1; ++i)
       {
-        voxel = map.integrateHit(glm::dvec3(0));
+        integrateHit(voxel);
       }
-      EXPECT_TRUE(voxel.value() >= 0);
+      EXPECT_TRUE(voxel.data() >= 0);
     }
   }
 

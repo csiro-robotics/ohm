@@ -6,10 +6,13 @@
 #ifndef VOXELMEAN_H
 #define VOXELMEAN_H
 
-#include "MapCoord.h"
+#include "OhmConfig.h"
 
-// Note: this header is included in GPU code.
-// Because of this "OhmConfig.h" and <cmath> cannot be included here and you may need to include those first.
+#include "MapCoord.h"
+#include "Voxel.h"
+#include "VoxelOccupancy.h"
+
+#include <glm/vec3.hpp>
 
 /// @defgroup voxelmean Voxel Mean Position
 /// These functions are used to manipulate the voxel mean positioning voxel fields. @c VoxelMean allows a voxel to store
@@ -36,142 +39,133 @@
 ///   new_mean_coord = current_mean_coord + (sample - current_mean_coord) / (point_count + 1)
 /// @endcode
 
-#if !GPUTIL_DEVICE
-#ifndef __device__
-#define __device__
-#endif  // __device__
-#ifndef __host__
-#define __host__
-#endif  // __host__
-
 namespace ohm
 {
-#define SUB_VOX_FUNC_PREFACE template <typename vec3, typename coord_real>
-  using vec3 = glm::vec3;
+#include "VoxelMeanCompute.h"
 
-  /// @ingroup voxelmean
-  /// The data structure is used to hold the voxel mean mean coordinate. See @ref voxelmean for details on usage and the
-  /// mean quantisation in @c coord .
-  /// @todo Rename this and assodiated code as VoxelMean
-  struct VoxelMean
+  /// @internal
+  template <typename V>
+  inline glm::dvec3 positionUnsafeT(const Voxel<V> &voxel)
   {
-    uint32_t coord;  ///< Quantised voxel mean coordinate.
-    uint32_t count;  ///< Number of samples used to generate the current @c coord value.
-  };
-
-#else  // GPUTIL_DEVICE
-
-#if !defined(COORD_REAL)
-#define COORD_REAL
-typedef float coord_real;
-#endif  // !defined(COORD_REAL)
-
-#if !defined(vec3)
-typedef float3 vec3;
-#endif  // !defined(vec3)
-
-#define SUB_VOX_FUNC_PREFACE
-
-// Voxel mean structure used on GPU. Must match the CPU structure, but the types are modified to support atomic operations.
-typedef struct VoxelMean_t
-{
-  atomic_uint coord;
-  atomic_uint count;
-} VoxelMean;
-
-#endif  // GPUTIL_DEVICE
-
-
-  /// @ingroup voxelmean
-  /// Convert @p voxel_local_coord into a voxel mean positioning pattern.
-  /// @param voxel_local_coord The new coordinate to store. This position should be within the voxel bounds relative
-  ///   to the centre of the voxel; i.e., [-0.5 * resolution, 0.5 * resolution]. The position is clamped to the voxel
-  ///   bounds.
-  /// @param resolution The length of each voxel cube edge.
-  /// @return The voxel mean pattern approximating @p voxel_local_coord.
-  SUB_VOX_FUNC_PREFACE
-  inline __device__ __host__ unsigned subVoxelCoord(vec3 voxel_local_coord, coord_real resolution)
-  {
-    // We divide the voxel into a voxel_local_coord, 3D grid, then assign 1 bit per cell.
-    const unsigned bits_per_axis = 10;
-    const unsigned mean_positions = (1 << bits_per_axis) - 1;
-    const unsigned used_bit = (1u << 31);
-    const coord_real mean_resolution = resolution / (coord_real)mean_positions;  // NOLINT
-    const coord_real offset = (coord_real)0.5 * resolution;                      // NOLINT
-
-    int pos_x = pointToRegionCoord(voxel_local_coord.x + offset, mean_resolution);
-    int pos_y = pointToRegionCoord(voxel_local_coord.y + offset, mean_resolution);
-    int pos_z = pointToRegionCoord(voxel_local_coord.z + offset, mean_resolution);
-
-    pos_x = (pos_x >= 0 ? (pos_x < (1 << bits_per_axis) ? pos_x : mean_positions) : 0);
-    pos_y = (pos_y >= 0 ? (pos_y < (1 << bits_per_axis) ? pos_y : mean_positions) : 0);
-    pos_z = (pos_z >= 0 ? (pos_z < (1 << bits_per_axis) ? pos_z : mean_positions) : 0);
-
-    unsigned pattern = 0;
-    pattern |= (unsigned)pos_x;                           // NOLINT
-    pattern |= ((unsigned)pos_y << bits_per_axis);        // NOLINT
-    pattern |= ((unsigned)pos_z << (2 * bits_per_axis));  // NOLINT
-    pattern |= used_bit;
-    return pattern;
+    const VoxelMean &mean_info = voxel.data();
+    glm::dvec3 mean = voxel.map()->voxelCentreGlobal(voxel.key());
+    mean += subVoxelToLocalCoord<glm::dvec3>(mean_info.coord, voxel.map()->resolution());
+    return mean;
   }
 
-
   /// @ingroup voxelmean
-  /// Convert a voxel mean pattern into a coordinate, relative to the voxel centre.
-  /// @param pattern The voxel mean pattern.
-  /// @param resolution The length of each voxel cube edge.
-  /// @return The unpacked coordinate, relative to the voxel centre, in the range [-0.5 * resolution, 0.5 resolution].
-  ///   The result is (0, 0, 0) if @p pattern has yet to be used (bit-31 not set).
-  SUB_VOX_FUNC_PREFACE
-  inline __device__ __host__ vec3 subVoxelToLocalCoord(unsigned pattern, coord_real resolution)
-  {
-    const unsigned bits_per_axis = 10;
-    const unsigned mean_positions = (1 << bits_per_axis) - 1;
-    const unsigned used_bit = (1u << 31);
-    const coord_real mean_resolution = resolution / (coord_real)mean_positions;  // NOLINT
-    const coord_real offset = (coord_real)0.5 * resolution;                      // NOLINT
-
-    vec3 coord;  // NOLINT
-    // NOLINTNEXTLINE
-    coord.x = (used_bit) ? regionCentreCoord((int)(pattern & mean_positions), mean_resolution) - offset : 0;
-    coord.y = (used_bit) ?
-                // NOLINTNEXTLINE
-                regionCentreCoord((int)((pattern >> bits_per_axis) & mean_positions), mean_resolution) - offset :
-                0;
-    coord.z = (used_bit) ?
-                // NOLINTNEXTLINE
-                regionCentreCoord((int)((pattern >> (2 * bits_per_axis)) & mean_positions), mean_resolution) - offset :
-                0;
-    return coord;
-  }
-
-
-  /// @ingroup voxelmean
-  /// Update the @c VoxelMean for a voxel adding @c voxel_local_coord to the coordinate. The @c voxel_local_coord
-  /// coordiate is sample coordinate to add relative to the voxel centre.
+  /// Calculate the mean position within the given @p voxel .
   ///
-  /// @param voxel The @c VoxelMean structure to update.
-  /// @param resolution The length of each voxel cube edge.
-  SUB_VOX_FUNC_PREFACE
-  inline __device__ __host__ unsigned subVoxelUpdate(unsigned coord, unsigned point_count, vec3 voxel_local_coord,
-                                                     coord_real resolution)
-  {
-    vec3 mean =
-#if !GPUTIL_DEVICE
-      subVoxelToLocalCoord<vec3>(coord, resolution)
-#else   //  GPUTIL_DEVICE
-    subVoxelToLocalCoord(coord, resolution)
-#endif  //  GPUTIL_DEVICE
-      ;
+  /// @c Voxel<VoxelMean>::isValid() must be true before calling.
+  /// @param voxel The voxel to query the mean coordinate for.
+  inline glm::dvec3 positionUnsafe(const Voxel<VoxelMean> &voxel) { return positionUnsafeT(voxel); }
 
-    const coord_real one_on_count_plus_one = (coord_real)1 / (coord_real)(point_count + 1);
-    mean.x += (voxel_local_coord.x - mean.x) * one_on_count_plus_one;
-    mean.y += (voxel_local_coord.y - mean.y) * one_on_count_plus_one;
-    mean.z += (voxel_local_coord.z - mean.z) * one_on_count_plus_one;
-    return subVoxelCoord(mean, resolution);
+  /// @ingroup voxelmean
+  /// Calculate the mean position within the given @p voxel .
+  ///
+  /// `Voxel<const VoxelMean>::isValid()` must be true before calling.
+  /// @param voxel The voxel to query the mean coordinate for.
+  inline glm::dvec3 positionUnsafe(const Voxel<const VoxelMean> &voxel) { return positionUnsafeT(voxel); }
+
+  /// @internal
+  template <typename V>
+  inline glm::dvec3 positionSafeT(const Voxel<V> &voxel)
+  {
+    if (voxel.isValid())
+    {
+      return positionUnsafeT(voxel);
+    }
+
+    if (!voxel.key().isNull() && voxel.map())
+    {
+      return voxel.map()->voxelCentreGlobal(voxel.key());
+    }
+    return glm::dvec3{ 0 };
   }
-#if !GPUTIL_DEVICE
+
+  /// Query the position of @c voxel if if the @p voxel is invalid or the voxel layer is invalid.
+  ///
+  /// In order of availability, the retun value will be:
+  /// - The @c VoxelMean position - @p voxel must be fully valid.
+  /// - The voxel centre of the @p voxel.key() - @p voxel map and key must be valid.
+  /// - `(0, 0, 0)`
+  /// @param voxel The voxel to query.
+  /// @return The best available coordinate for the voxel (see remarks).
+  inline glm::dvec3 positionSafe(const Voxel<VoxelMean> &voxel) { return positionSafeT(voxel); }
+  /// @overload
+  inline glm::dvec3 positionSafe(const Voxel<const VoxelMean> &voxel) { return positionSafeT(voxel); }
+
+  /// @ingroup voxelmean
+  /// Explicitly set the mean position for @p voxel .
+  ///
+  /// `Voxel<const VoxelMean>::isValid()` must be true before calling.
+  ///
+  /// @param voxel The voxel to modify.
+  /// @param pos The new mean position for @p voxel . Must be within the bounds of @p voxel .
+  /// @param count Optional argument to explicitly set the number of samples gather to attain the position.
+  ///   This affects subsequence mean updates, with larger values reducing the influence of new positions.
+  ///   Use 0 to leave the current count value as is.
+  inline void setPositionUnsafe(Voxel<VoxelMean> &voxel, const glm::dvec3 &pos, unsigned count = 0)
+  {
+    VoxelMean &mean_info = voxel.data();
+    mean_info.coord = subVoxelCoord(pos - voxel.map()->voxelCentreGlobal(voxel.key()), voxel.map()->resolution());
+    mean_info.count = (count) ? count : mean_info.count;
+  }
+
+  /// @ingroup voxelmean
+  /// A validated version fo @c setPositionUnsafe() ensuring @c voxel is valid before attepting to write.
+  /// @param voxel The voxel to modify. May be in invalid.
+  /// @param pos The new mean position for @p voxel . Must be within the bounds of @p voxel .
+  /// @param count Optional argument to explicitly set the number of samples gather to attain the position.
+  ///   This affects subsequence mean updates, with larger values reducing the influence of new positions.
+  ///   Use 0 to leave the current count value as is.
+  inline void setPositionSafe(Voxel<VoxelMean> &voxel, const glm::dvec3 &pos, unsigned count = 0)
+  {
+    if (voxel.isValid())
+    {
+      setPositionUnsafe(voxel, pos, count);
+    }
+  }
+
+  /// @ingroup voxelmean
+  /// Update the mean position for a voxel, adjusting the mean with the new coordinate @p pos .
+  ///
+  /// `Voxel<const VoxelMean>::isValid()` must be true before calling.
+  ///
+  /// @param voxel The voxel to modify.
+  /// @param pos The new coordinate to incorporate into the mean.
+  inline void updatePositionUnsafe(Voxel<VoxelMean> &voxel, const glm::dvec3 &pos)
+  {
+    VoxelMean &mean_info = voxel.data();
+    mean_info.coord = subVoxelUpdate(mean_info.coord, mean_info.count,
+                                     pos - voxel.map()->voxelCentreGlobal(voxel.key()), voxel.map()->resolution());
+    mean_info.count = std::min(mean_info.count, std::numeric_limits<unsigned>::max() - 1u) + 1;
+  }
+
+  /// @ingroup voxelmean
+  /// A validated version fo @c updatePositionUnsafe() ensuring @c voxel is valid before attepting to write.
+  /// @param voxel The voxel to modify. May be invalid.
+  /// @param pos The new coordinate to incorporate into the mean.
+  inline void updatePositionSafe(Voxel<VoxelMean> &voxel, const glm::dvec3 &pos)
+  {
+    if (voxel.isValid())
+    {
+      updatePositionUnsafe(voxel, pos);
+    }
+  }
+
+  /// A convenience function for integrating a single hit into @p map with a voxel mean update.
+  /// Note: this is a sub-optimal way of updating the @p map . Use a @c RayMapper or the @c Voxel API for batch updates.
+  /// @param map The map to update. Must have an occupancy layer, but the mean layer is optional.
+  /// @param sample The sample where the hit occurs.
+  inline void integrateHit(ohm::OccupancyMap &map, const glm::dvec3 &sample)
+  {
+    const Key key(map.voxelKey(sample));
+    Voxel<float> occupancy(&map, map.layout().occupancyLayer(), key);
+    integrateHit(occupancy);
+    Voxel<VoxelMean> mean(&map, map.layout().meanLayer(), key);
+    updatePositionSafe(mean, sample);
+  }
 }  // namespace ohm
-#endif  // !GPUTIL_DEVICE
 
 #endif  // VOXELMEAN_H

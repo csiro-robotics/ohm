@@ -90,8 +90,8 @@ size_t RayMapperOccupancy::integrateRays(const glm::dvec3 *rays, size_t element_
     float *occupancy_value = reinterpret_cast<float *>(chunk->voxel_maps[occupancy_layer]) + voxel_index;
     const float initial_value = *occupancy_value;
     const bool is_occupied =
-      (initial_value != voxel::invalidMarkerValue() && initial_value > occupancy_threshold_value);
-    occupancyAdjustMiss(occupancy_value, initial_value, miss_value, voxel::invalidMarkerValue(), voxel_min,
+      (initial_value != unorbservedOccupancyValue() && initial_value > occupancy_threshold_value);
+    occupancyAdjustMiss(occupancy_value, initial_value, miss_value, unorbservedOccupancyValue(), voxel_min,
                         saturation_min, saturation_max, stop_adjustments);
     chunk->updateFirstValid(voxel_index);
 
@@ -146,7 +146,7 @@ size_t RayMapperOccupancy::integrateRays(const glm::dvec3 *rays, size_t element_
 
       float *occupancy_value = reinterpret_cast<float *>(chunk->voxel_maps[occupancy_layer]) + voxel_index;
       const float initial_value = *occupancy_value;
-      occupancyAdjustHit(occupancy_value, initial_value, hit_value, voxel::invalidMarkerValue(), voxel_max,
+      occupancyAdjustHit(occupancy_value, initial_value, hit_value, unorbservedOccupancyValue(), voxel_max,
                          saturation_min, saturation_max, stop_adjustments);
 
       // update voxel mean if present.

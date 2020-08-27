@@ -6,8 +6,17 @@
 #ifndef VOXELOCCUPANCY_H
 #define VOXELOCCUPANCY_H
 
-// Note: this header is included in GPU code.
-// Because of this "OhmConfig.h" and <cmath> cannot be included here and you may need to include those first.
+#include "OhmConfig.h"
+
+#include "OccupancyMap.h"
+#include "OccupancyType.h"
+#include "Voxel.h"
+
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif  // NOMINMAX
+#include <cmath>
+
 
 /// @defgroup voxeloccupancy Voxel Occupancy Functions
 /// These functions are used to update the voxel occupancy value in a consistent way. This deals with various update
@@ -17,161 +26,202 @@
 /// - saturation
 /// - null update (noop)
 
-#if !GPUTIL_DEVICE
-#ifndef __device__
-#define __device__
-#endif  // __device__
-#ifndef __host__
-#define __host__
-#endif  // __host__
-
-#ifndef NOMINMAX
-#define NOMINMAX
-#endif  // NOMINMAX
-#include <cmath>
-
 namespace ohm
 {
-#else  // GPUTIL_DEVICE
-
-#endif  // GPUTIL_DEVICE
+#include "VoxelOccupancyCompute.h"
 
   /// @ingroup voxeloccupancy
-  /// Adjust the @p occupancy value up by adding @c hit_adjustment , assuming that @c hit_adjustment is positive.
+  /// Value used to identify invalid or uninitialised voxel voxels.
+  /// @return A numeric value considered invalid for a voxel value.
+  constexpr float unorbservedOccupancyValue() { return std::numeric_limits<float>::infinity(); }
+
+
+  /// @ingroup voxeloccupancy
+  /// Integrate a hit into the referenced @p voxel .
+  /// This adjust the occupancy data - @c Voxel<float>::data() - increasing it by the @c OccupancyMap::hitValue() .
   ///
-  /// The resulting occupancy is:
-  /// - unchanged if @p null_update is true
-  /// - unchanged if @p initial_value is at @c saturation_min
-  /// - unchanged if @p initial_value is at @c saturation_max
-  /// - min of @p hit_adjustment and @p max_value if @p initial_value is equal to @p uninitialised_value
-  /// - min of `initial_value + hit_adjustment` and @p max_value otherwise
+  /// Note @c voxel is self contained so long as it is valid.
   ///
-  /// @param occupancy The occupancy value to adjust.
-  /// @param initial_value The initial value for @p occupancy (i.e., `*occupancy`)
-  /// @param hit_adjustment The value to add to @p initial_value when initialised. Set this value when not initialised.
-  /// @param uninitialised_value The special value used to indicate an uninitialised occupancy value. Typically +inf
-  /// @param max_value The maximum value allowed for occupancy. Assumed to be positive.
-  /// @param saturation_min The minimum saturation value. Occupancy at this (low) value should not be modified.
-  ///   Use -inf to disable (or @c std::numeric_limits<float>::lowest() ).
-  /// @param saturation_max The maximum saturation value. Occupancy at this (high) value should not be modified.
-  ///   Use +inf to disable (or @c std::numeric_limits<float>::max() ).
-  /// @param null_update Flag indicating nothing should be modified by this function. Used for loops which may have
-  ///   such noop conditions.
-  inline void occupancyAdjustHit(float *occupancy, float initial_value, float hit_adjustment, float uninitialised_value,
-                                 float max_value, float saturation_min, float saturation_max, bool null_update)
+  /// @c Voxel<float>::isValid() must be true before calling.
+  ///
+  /// @param voxel The voxel to update.
+  inline void integrateHit(Voxel<float> &voxel)
   {
-    const bool uninitialised = initial_value == uninitialised_value;
-    const float base_value = (null_update || !uninitialised) ? initial_value : 0.0f;
-    hit_adjustment =
-      (!null_update && (uninitialised || saturation_min < initial_value && initial_value < saturation_max)) ?
-        hit_adjustment :
-        0.0f;
-    *occupancy = (base_value != uninitialised_value) ? fmin(base_value + hit_adjustment, max_value) : base_value;
+    float *occupancy = &voxel.data();
+    const float initial_value = *occupancy;
+    const OccupancyMap &map = *voxel.map();
+    occupancyAdjustHit(occupancy, initial_value, map.hitValue(), unorbservedOccupancyValue(), map.maxVoxelValue(),
+                       map.saturateAtMinValue() ? map.minVoxelValue() : std::numeric_limits<float>::lowest(),
+                       map.saturateAtMaxValue() ? map.maxVoxelValue() : std::numeric_limits<float>::max(), false);
+  }
+
+  /// A convenience function for integrating a single hit into @p map . Note this is a sub-optimal way of updating
+  /// the @p map . Use a @c RayMapper or the @c Voxel API for batch updates.
+  /// @param map The map to update.
+  /// @param key The key for the voxel to create/update.
+  inline void integrateHit(ohm::OccupancyMap &map, const ohm::Key &key)
+  {
+    Voxel<float> voxel(&map, map.layout().occupancyLayer(), key);
+    integrateHit(voxel);
   }
 
   /// @ingroup voxeloccupancy
-  /// Adjust the @p occupancy value by setting @p adjusted_value which is assumed to be an increase from the current
-  /// value (or from an uninitialised value). Note that @c adjusted_value may be negative so long as it effects an
-  /// increase in value.
+  /// Integrate a miss into the referenced @p voxel .
+  /// This adjust the occupancy data - @c Voxel<float>::data() - decreating it by adding @c OccupancyMap::missValue() .
   ///
-  /// The resulting occupancy is:
-  /// - unchanged if @p null_update is true
-  /// - unchanged if @p initial_value is at @c saturation_min
-  /// - unchanged if @p initial_value is at @c saturation_max
-  /// - min of @p adjusted_value and @p max_value otherwise
+  /// Note @c voxel is self contained so long as it is valid.
   ///
-  /// @param occupancy The occupancy value to adjust.
-  /// @param initial_value The initial value for @p occupancy (i.e., `*occupancy`)
-  /// @param adjusted_value The new value for @p occupancy assumed to be an increase from the @p initial_value .
-  /// @param uninitialised_value The special value used to indicate an uninitialised occupancy value. Typically +inf
-  /// @param max_value The maximum value allowed for occupancy. Assumed to be positive.
-  /// @param saturation_min The minimum saturation value. Occupancy at this (low) value should not be modified.
-  ///   Use -inf to disable (or @c std::numeric_limits<float>::lowest() ).
-  /// @param saturation_max The maximum saturation value. Occupancy at this (high) value should not be modified.
-  ///   Use +inf to disable (or @c std::numeric_limits<float>::max() ).
-  /// @param null_update Flag indicating nothing should be modified by this function. Used for loops which may have
-  ///   such noop conditions.
-  inline void occupancyAdjustUp(float *occupancy, float initial_value, float adjusted_value, float uninitialised_value,
-                                float max_value, float saturation_min, float saturation_max, bool null_update)
+  /// @c Voxel<float>::isValid() must be true before calling.
+  ///
+  /// @param voxel The voxel to update.
+  inline void integrateMiss(Voxel<float> &voxel)
   {
-    const bool uninitialised = initial_value == uninitialised_value;
-    adjusted_value =
-      (!null_update && (uninitialised || saturation_min < initial_value && initial_value < saturation_max)) ?
-        adjusted_value :
-        initial_value;
-    *occupancy = (adjusted_value != uninitialised_value) ? fmin(max_value, adjusted_value) : adjusted_value;
+    float *occupancy = &voxel.data();
+    const float initial_value = *occupancy;
+    const OccupancyMap &map = *voxel.map();
+    occupancyAdjustMiss(occupancy, initial_value, map.missValue(), unorbservedOccupancyValue(), map.minVoxelValue(),
+                        map.saturateAtMinValue() ? map.minVoxelValue() : std::numeric_limits<float>::lowest(),
+                        map.saturateAtMaxValue() ? map.maxVoxelValue() : std::numeric_limits<float>::max(), false);
+  }
+
+  /// A convenience function for integrating a single miss into @p map . Note this is a sub-optimal way of updating
+  /// the @p map . Use a @c RayMapper or the @c Voxel API for batch updates.
+  /// @param map The map to update.
+  /// @param key The key for the voxel to create/update.
+  inline void integrateMiss(ohm::OccupancyMap &map, const Key &key)
+  {
+    Voxel<float> voxel(&map, map.layout().occupancyLayer(), key);
+    integrateMiss(voxel);
   }
 
   /// @ingroup voxeloccupancy
-  /// Adjust the @p occupancy value down by adding @c miss_adjustment , assuming that @c miss_adjustment is negative.
+  /// Determine the @c OccupancyType for a of @p value
   ///
-  /// The resulting occupancy is:
-  /// - unchanged if @p null_update is true
-  /// - unchanged if @p initial_value is at @c saturation_min
-  /// - unchanged if @p initial_value is at @c saturation_max
-  /// - max of @p miss_adjustment and @p min_value if @p initial_value is equal to @p uninitialised_value
-  /// - max of `initial_value + miss_adjustment` and @p min_value otherwise
-  ///
-  /// @param occupancy The occupancy value to adjust.
-  /// @param initial_value The initial value for @p occupancy (i.e., `*occupancy`)
-  /// @param miss_adjustment The value to add to @p initial_value when initialised. Set this value when not initialised.
-  /// @param uninitialised_value The special value used to indicate an uninitialised occupancy value. Typically +inf
-  /// @param min_value The maximum value allowed for occupancy. Assumed to be negative.
-  /// @param saturation_min The minimum saturation value. Occupancy at this (low) value should not be modified.
-  ///   Use -inf to disable (or @c std::numeric_limits<float>::lowest() ).
-  /// @param saturation_max The maximum saturation value. Occupancy at this (high) value should not be modified.
-  ///   Use +inf to disable (or @c std::numeric_limits<float>::max() ).
-  /// @param null_update Flag indicating nothing should be modified by this function. Used for loops which may have
-  ///   such noop conditions.
-  inline void occupancyAdjustMiss(float *occupancy, float initial_value, float miss_adjustment,
-                                  float uninitialised_value, float min_value, float saturation_min,
-                                  float saturation_max, bool null_update)
+  /// @param value The value to categorise.
+  /// @param map The map within which the value sits.
+  /// @return The @c OccupancyType for the @p value .
+  inline OccupancyType occupancyType(float value, const OccupancyMap &map)
   {
-    const bool uninitialised = initial_value == uninitialised_value;
-    const float base_value = (null_update || !uninitialised) ? initial_value : 0.0f;
-    miss_adjustment =
-      (!null_update && (uninitialised || saturation_min < initial_value && initial_value < saturation_max)) ?
-        miss_adjustment :
-        0.0f;
-    *occupancy = (base_value != uninitialised_value) ? fmax(min_value, base_value + miss_adjustment) : base_value;
+    if (value < unorbservedOccupancyValue())
+    {
+      if (value < map.occupancyThresholdValue())
+      {
+        return kFree;
+      }
+
+      return kOccupied;
+    }
+
+    return kUnobserved;
+  }
+
+  /// @internal
+  template <typename T>
+  inline OccupancyType occupancyTypeT(const Voxel<T> &voxel)
+  {
+    return voxel.isValid() ? occupancyType(voxel.data(), *voxel.map()) : kNull;
+  }
+
+  /// Query the @c OccupancyType for @p voxel , which may be null/invalid.
+  /// @param voxel The voxel of interest by occupancy layer.
+  /// @return The occupancy type for the voxel given it's value. May be @c kNull when @p voxel is null.
+  inline OccupancyType occupancyType(const Voxel<float> &voxel) { return occupancyTypeT(voxel); }
+  /// @overload
+  inline OccupancyType occupancyType(const Voxel<const float> &voxel) { return occupancyTypeT(voxel); }
+
+  /// @ingroup voxeloccupancy
+  /// Return @c true if @p value represents an occupied voxel within @p map .
+  /// @param value The occupancy value to test.
+  /// @param map The map context within which to operate.
+  /// @return True if occupied.
+  inline bool isOccupied(float value, const OccupancyMap &map)
+  {
+    return value != unorbservedOccupancyValue() && value >= map.occupancyThresholdValue();
+  }
+
+  /// @internal
+  template <typename T>
+  inline bool isOccupiedT(const Voxel<T> &voxel)
+  {
+    return isOccupied(voxel.data(), *voxel.map());
   }
 
   /// @ingroup voxeloccupancy
-  /// Adjust the @p occupancy value by setting @p adjusted_value which is assumed to be a decrease from the current
-  /// value (or from an uninitialised value). Note that @c adjusted_value may be positive so long as it effects a
-  /// decrease in value.
-  ///
-  /// The resulting occupancy is:
-  /// - unchanged if @p null_update is true
-  /// - unchanged if @p initial_value is at @c saturation_min
-  /// - unchanged if @p initial_value is at @c saturation_max
-  /// - max of @p adjusted_value and @p min_value otherwise
-  ///
-  /// @param occupancy The occupancy value to adjust.
-  /// @param initial_value The initial value for @p occupancy (i.e., `*occupancy`)
-  /// @param adjusted_value The new value for @p occupancy assumed to be an increase from the @p initial_value .
-  /// @param uninitialised_value The special value used to indicate an uninitialised occupancy value. Typically +inf
-  /// @param min_value The maximum value allowed for occupancy. Assumed to be positive.
-  /// @param saturation_min The minimum saturation value. Occupancy at this (low) value should not be modified.
-  ///   Use -inf to disable (or @c std::numeric_limits<float>::lowest() ).
-  /// @param saturation_max The maximum saturation value. Occupancy at this (high) value should not be modified.
-  ///   Use +inf to disable (or @c std::numeric_limits<float>::max() ).
-  /// @param null_update Flag indicating nothing should be modified by this function. Used for loops which may have
-  ///   such noop conditions.
-  inline void occupancyAdjustDown(float *occupancy, float initial_value, float adjusted_value,
-                                  float uninitialised_value, float min_value, float saturation_min,
-                                  float saturation_max, bool null_update)
+  /// Return @c true if @p voxel represents an occupied voxel.
+  /// @param value The occupancy voxel test. Must not be null.
+  /// @return True if occupied.
+  inline bool isOccupied(const Voxel<float> &voxel) { return isOccupiedT(voxel); }
+  /// @overload
+  inline bool isOccupied(const Voxel<const float> &voxel) { return isOccupiedT(voxel); }
+
+
+  /// @ingroup voxeloccupancy
+  /// Return @c true if @p value represents a free voxel within @p map .
+  /// @param value The occupancy value to test. Must not be null.
+  /// @param map The map context within which to operate.
+  /// @return True if free.
+  inline bool isFree(float value, const OccupancyMap &map)
   {
-    const bool uninitialised = initial_value == uninitialised_value;
-    adjusted_value =
-      (!null_update && (uninitialised || saturation_min < initial_value && initial_value < saturation_max)) ?
-        adjusted_value :
-        initial_value;
-    *occupancy = (adjusted_value != uninitialised_value) ? fmax(min_value, adjusted_value) : adjusted_value;
+    return value != unorbservedOccupancyValue() && value < map.occupancyThresholdValue();
   }
 
-#if !GPUTIL_DEVICE
+  /// @internal
+  template <typename T>
+  inline bool isFreeT(const Voxel<T> &voxel)
+  {
+    return isFree(voxel.data(), *voxel.map());
+  }
+
+  /// @ingroup voxeloccupancy
+  /// Return @c true if @p voxel represents a free voxel.
+  /// @param value The occupancy voxel test. Must not be null.
+  /// @return True if free.
+  inline bool isFree(const Voxel<float> &voxel) { return isFreeT(voxel); }
+  /// @overload
+  inline bool isFree(const Voxel<const float> &voxel) { return isFreeT(voxel); }
+
+
+  /// @ingroup voxeloccupancy
+  /// Return @c true if @p value represents an unobserved voxel value.
+  /// @param value The occupancy value to test.
+  /// @param map The map context within which to operate. Not used.
+  /// @return True if unobserved.
+  inline bool isUnobserved(float value, const OccupancyMap &map)
+  {
+    (void)map;
+    return value == unorbservedOccupancyValue();
+  }
+  /// @overload
+  inline bool isUnobserved(float value) { return value == unorbservedOccupancyValue(); }
+
+  /// @internal
+  template <typename T>
+  inline bool isUnobservedT(const Voxel<T> &voxel)
+  {
+    return isUnobserved(voxel.data(), *voxel.map());
+  }
+
+  /// @ingroup voxeloccupancy
+  /// Return @c true if @p voxel represents an unobserved, but not null voxel.
+  /// @param value The occupancy voxel test. Must not be null.
+  /// @return True if unobserved.
+  inline bool isUnobserved(const Voxel<float> &voxel) { return isUnobservedT(voxel); }
+  /// @overload
+  inline bool isUnobserved(const Voxel<const float> &voxel) { return isUnobservedT(voxel); }
+
+  /// @internal
+  template <typename T>
+  inline bool isUnobservedOrNullT(const Voxel<T> &voxel)
+  {
+    return voxel.isNull() || isUnobserved(voxel);
+  }
+
+  /// @ingroup voxeloccupancy
+  /// Return @c true if @p voxel represents an unobserved, but not null voxel.
+  /// @param value The occupancy voxel test. May be null.
+  /// @return True if unobserved or null.
+  inline bool isUnobservedOrNull(const Voxel<float> &voxel) { return isUnobservedOrNullT(voxel); }
+  inline bool isUnobservedOrNull(const Voxel<const float> &voxel) { return isUnobservedOrNullT(voxel); }
 }  // namespace ohm
-#endif  // !GPUTIL_DEVICE
 
 #endif  // VOXELMEAN_H

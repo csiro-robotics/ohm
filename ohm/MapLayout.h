@@ -54,7 +54,7 @@ namespace ohm
   ///
   ///   // Setup DL_Occupancy layer.
   ///   // Fetch the value we'll clear voxels with (default value).
-  ///   const float invalidMarkerValue = voxel::invalidMarkerValue();
+  ///   const float invalidMarkerValue = unorbservedOccupancyValue();
   ///   /// Write the invalidMarkerValue value into a size_t item which will be the clear value for the member.
   ///   memcpy(&clearValue, &invalidMarkerValue, std::min(sizeof(invalidMarkerValue), sizeof(clearValue)));
   ///   // Create the occupancy layer.
@@ -189,6 +189,11 @@ namespace ohm
     /// @param index The layer index.
     /// @return The layer at the given @p index or null if @p index is out of range [0, @c layerCount()).
     MapLayer *layerPtr(size_t index);
+
+    /// Search for a layer matching @p layer_name and return it's index or -1 if not found.
+    /// @param layer_name Name of the layer to search for.
+    /// @return The index of the first layer matching @p layer_name or -1 if not found.
+    int layerIndex(const char *layer_name) const;
 
     /// Retrieve the number of layers.
     /// @return The number of registered layers.
