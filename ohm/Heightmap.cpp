@@ -189,7 +189,6 @@ namespace
     vertical_range = (vertical_range >= 0) ? vertical_range : -vertical_range;
 
     Key best_virtual(nullptr);
-    // int last_voxel_type = kNull;
     bool last_unknown = true;
     bool last_free = true;
 
@@ -200,8 +199,6 @@ namespace
       // We bias the offset to prefer searching down by one voxel.
       *offset = i + !!search_up;
       voxel.setKey(current_key);
-
-      // OccupancyType voxel_type = voxel.occupancyType();
 
       // This line yields performance issues likely due to the stochastic memory access.
       // For a true performance gain we'd have to access chunks linearly.
@@ -224,50 +221,6 @@ namespace
 
       last_unknown = !occupied && !free;
       last_free = free;
-
-      // switch (voxel_type)
-      // {
-      // case kFree:
-      //   // When searching up, we have a virtual surface when we transition from uncertain to free.
-      //   if (allow_virtual_surface && (last_voxel_type == kNull || last_voxel_type == kUnobserved) && search_up &&
-      //       best_virtual.isNull())
-      //   {
-      //     best_virtual = current_key;
-      //   }
-      //   break;
-      // case kOccupied:
-      //   // First occupied. Terminate.
-      //   *is_virtual = false;
-      //   return current_key;
-
-      // default:
-      //   // Transition to uncertain. When searching down, we have a virtual surface if we transitioned from free.
-      //   if (allow_virtual_surface && !search_up && last_voxel_type == kFree)
-      //   {
-      //     best_virtual = last_key;
-      //   }
-
-      // if (voxel_type == kNull)
-      // {
-      //   // Null region. Skip the entire region on the next step.
-      //   Key next_key = current_key;
-      //   if (step > 0)
-      //   {
-      //     next_key.setLocalAxis(up_axis_index, voxel.map().regionVoxelDimensions()[up_axis_index] - 1);
-      //     const int delta = next_key.localKey()[up_axis_index] - current_key.localKey()[up_axis_index];
-      //     i += delta;
-      //     current_key = next_key;
-      //   }
-      //   else
-      //   {
-      //     next_key.setLocalAxis(up_axis_index, 0);
-      //     const int delta = current_key.localKey()[up_axis_index] - next_key.localKey()[up_axis_index];
-      //     i += delta;
-      //     current_key = next_key;
-      //   }
-      // }
-      //   break;
-      // }
 
       int next_step = step;
       if (!voxel.occupancy.chunk())

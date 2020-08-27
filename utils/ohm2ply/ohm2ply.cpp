@@ -432,21 +432,25 @@ int exportPointCloud(const Options &opt, ProgressMonitor &prog, LoadMapProgress 
     }
     else if (opt.mode == kExportHeightmap)
     {
-      if (occupancy.isValid() && height.isValid() && isOccupied(occupancy))
+      if (occupancy.isValid() && isOccupied(occupancy))
       {
-        const ohm::HeightmapVoxel &voxel_height = height.data();
-        uint8_t c = uint8_t(255 * std::max(0.0f, (opt.colour_scale - voxel_height.clearance) / opt.colour_scale));
-        if (voxel_height.clearance <= 0)
+        height.setKey(occupancy);
+        if (height.isValid())
         {
-          // Max clearance. No red.
-          c = 0;
-        }
+          const ohm::HeightmapVoxel &voxel_height = height.data();
+          uint8_t c = uint8_t(255 * std::max(0.0f, (opt.colour_scale - voxel_height.clearance) / opt.colour_scale));
+          if (voxel_height.clearance <= 0)
+          {
+            // Max clearance. No red.
+            c = 0;
+          }
 
-        glm::dvec3 up(0);
-        up[heightmap_axis] = 1;
-        v = map.voxelCentreGlobal(*iter) + up * double(voxel_height.height);
-        ply.addVertex(v, ohm::Colour(c, 128, 0));
-        ++point_count;
+          glm::dvec3 up(0);
+          up[heightmap_axis] = 1;
+          v = map.voxelCentreGlobal(*iter) + up * double(voxel_height.height);
+          ply.addVertex(v, ohm::Colour(c, 128, 0));
+          ++point_count;
+        }
       }
     }
   }
