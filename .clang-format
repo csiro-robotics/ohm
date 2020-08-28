@@ -54,7 +54,7 @@ FixNamespaceComments: true
 #     Priority:        1
 # IncludeCategories: TODO
 # IncludeMainReges: TODO
-# IncludeBlocks: Regroup
+IncludeBlocks: Preserve
 IndentCaseLabels: false
 # IndentPPDirectives: None
 IndentWidth: 2
