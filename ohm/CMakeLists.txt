@@ -131,6 +131,7 @@ set(SOURCES
   VoxelMean.h
   VoxelMeanCompute.h
   VoxelOccupancy.h
+  VoxelOccupancyCompute.h
   VoxelUtil.cpp
   VoxelUtil.h
 )
@@ -198,6 +199,7 @@ set(PUBLIC_HEADERS
   VoxelMean.h
   VoxelMeanCompute.h
   VoxelOccupancy.h
+  VoxelOccupancyCompute.h
   VoxelUtil.h
   "${CMAKE_CURRENT_BINARY_DIR}/ohm/OhmConfig.h"
   "${CMAKE_CURRENT_BINARY_DIR}/ohm/OhmExport.h"
