@@ -6,6 +6,7 @@
 
 # Configure variables and incldue packages.
 set(OHM_TES_DEBUG @OHM_TES_DEBUG@)
+set(OHM_TBB_CONFIG @OHM_TBB_CONFIG@)
 
 # Find packages
 if(OHM_TES_DEBUG)
@@ -13,3 +14,6 @@ if(OHM_TES_DEBUG)
 endif(OHM_TES_DEBUG)
 find_package(Threads)
 
+if(OHM_TBB_CONFIG)
+  find_package(TBB CONFIG)
+endif(OHM_TBB_CONFIG)
