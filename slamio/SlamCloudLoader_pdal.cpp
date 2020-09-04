@@ -53,10 +53,6 @@ namespace
       : pdal::StreamPointTable(_layout, buffer_capacity)
     {
       // Register for the data we are interested in
-      _layout.registerDim(pdal::Dimension::Id::GpsTime, pdal::Dimension::Type::Double);
-      _layout.registerDim(pdal::Dimension::Id::X, pdal::Dimension::Type::Double);
-      _layout.registerDim(pdal::Dimension::Id::Y, pdal::Dimension::Type::Double);
-      _layout.registerDim(pdal::Dimension::Id::Z, pdal::Dimension::Type::Double);
       _buffers[0].reserve(buffer_capacity);
       _buffers[1].reserve(buffer_capacity);
       // Start with flipping allowed.
@@ -69,6 +65,56 @@ namespace
     {
       if (!_layout.finalized())
       {
+        // Validate the dimensions.
+        bool have_required_dimensions = true;
+        if (!_layout.hasDim(pdal::Dimension::Id::X) || !_layout.hasDim(pdal::Dimension::Id::Y) ||
+            !_layout.hasDim(pdal::Dimension::Id::Z))
+        {
+          have_required_dimensions = false;
+        }
+
+        // Resolve time dimension.
+        auto dim = pdal::Dimension::Id::Unknown;
+        // First try resolve by name.
+        const std::string time_dim_names[] = { "time", "timestamp" };
+        for (const auto &time_name : time_dim_names)
+        {
+          dim = _layout.findDim(time_name);
+          if (dim != pdal::Dimension::Id::Unknown)
+          {
+            break;
+          }
+        }
+
+        if (dim == pdal::Dimension::Id::Unknown)
+        {
+          // Not found by name. Try resolve by Dimension ID
+          // Not found by name.
+          const pdal::Dimension::Id time_ids[] = { pdal::Dimension::Id::GpsTime, pdal::Dimension::Id::InternalTime,
+                                                   pdal::Dimension::Id::OffsetTime };
+          for (const auto &time_dim : time_ids)
+          {
+            if (_layout.hasDim(time_dim))
+            {
+              dim = time_dim;
+              break;
+            }
+          }
+        }
+
+        if (dim != pdal::Dimension::Id::Unknown)
+        {
+          // Resolved time field.
+          _time_dimension = dim;
+        }
+        else
+        {
+          have_required_dimensions = false;
+        }
+
+        _valid_dimensions = have_required_dimensions;
+
+        _layout.finalize();
         pdal::StreamPointTable::finalize();
       }
     }
@@ -89,6 +135,8 @@ namespace
       _flip_wait.notify_one();
       return have_read;
     }
+
+    inline bool isValid() const { return _valid_dimensions; }
 
     /// True once we have data available for reading.
     inline bool haveData() const { return _have_data; }
@@ -142,10 +190,11 @@ namespace
         case pdal::Dimension::Id::Z:
           point.z = *static_cast<const double *>(val);
           break;
-        case pdal::Dimension::Id::GpsTime:
-          point.w = *static_cast<const double *>(val);
-          break;
         default:
+          if (dim == _time_dimension)
+          {
+            point.w = *static_cast<const double *>(val);
+          }
           break;
         }
       }
@@ -170,6 +219,7 @@ namespace
     // Double buffer to allow background thread streaming.
     // Use w channel for timetstamp
     std::vector<glm::dvec4> _buffers[2];
+    pdal::Dimension::Id _time_dimension{ pdal::Dimension::Id::GpsTime };
     std::atomic_uint _next_read{ 0 };
     std::atomic_int _write_index{ 0 };
     pdal::PointLayout _layout;
@@ -178,6 +228,7 @@ namespace
     std::atomic_bool _have_data{ false };
     std::atomic_bool _loading_complete{ false };
     std::atomic_bool _abort{ false };
+    std::atomic_bool _valid_dimensions{ false };
   };
 }  // namespace
 
@@ -260,7 +311,7 @@ namespace
       return nullptr;
     }
 
-    std::shared_ptr<pdal::Streamable> streamable_reader = std::dynamic_pointer_cast<pdal::Streamable>(reader);
+    auto streamable_reader = std::dynamic_pointer_cast<pdal::Streamable>(reader);
 
     if (streamable_reader)
     {
@@ -366,6 +417,15 @@ bool SlamCloudLoader::open(const char *sample_file_path, const char *trajectory_
   imp_->sample_reader->prepare(*imp_->sample_stream);
   imp_->sample_count = pointCount(imp_->sample_reader);
 
+  imp_->sample_stream->finalize();
+  if (!imp_->sample_stream->isValid())
+  {
+    std::cerr << "Unable to resolve time field in " << imp_->sample_file_path << std::endl;
+    std::cerr << "Require point X, Y, Z and time fields" << std::endl;
+    close();
+    return false;
+  }
+
   if (text_trajectory)
   {
     imp_->read_trajectory_point = [this](TrajectoryPoint &point) -> bool {
@@ -391,6 +451,15 @@ bool SlamCloudLoader::open(const char *sample_file_path, const char *trajectory_
   {
     imp_->traj_stream = std::make_unique<PointStream>(5000);
     imp_->trajectory_reader->prepare(*imp_->traj_stream);
+
+    imp_->traj_stream->finalize();
+    if (!imp_->traj_stream->isValid())
+    {
+      std::cerr << "Unable to resolve required fields in " << imp_->trajectory_file_path << std::endl;
+      std::cerr << "Require point X, Y, Z and time fields" << std::endl;
+      close();
+      return false;
+    }
 
     imp_->read_trajectory_point = [this](TrajectoryPoint &point) -> bool {
       glm::dvec4 pt;
@@ -459,12 +528,18 @@ void SlamCloudLoader::close()
 
   if (imp_->sample_reader)
   {
-    imp_->sample_thread.join();
+    if (imp_->sample_thread.joinable())
+    {
+      imp_->sample_thread.join();
+    }
     imp_->sample_reader = nullptr;
   }
   if (imp_->trajectory_reader)
   {
-    imp_->traj_thread.join();
+    if (imp_->traj_thread.joinable())
+    {
+      imp_->traj_thread.join();
+    }
     imp_->trajectory_reader = nullptr;
   }
 
