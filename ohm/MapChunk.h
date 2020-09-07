@@ -20,6 +20,8 @@ namespace ohm
 {
   class MapLayer;
   class MapLayout;
+  class VoxelBlock;
+  struct OccupancyMapDetail;
 
   /// Convert a 3D index into a @c MapChunk into a linear index into the chunk's voxels.
   /// @param x The index into the chunk along the X axis.
@@ -154,11 +156,10 @@ namespace ohm
   {
     /// Defines the spatial region covered by the chunk.
     MapRegion region = MapRegion{};
-    /// Describes the layers and voxel layout of the chunk (from the map as a whole).
-    const MapLayout *layout = nullptr;
+    /// Details of the map to which this chunk belongs.
+    const OccupancyMapDetail *map = nullptr;
+    /// Index of the first voxel with valid data: occupied or free, but not unobserved.
     unsigned first_valid_index = ~0u;
-    // /// Index of the first voxel with valid data: occupied or free, but not uncertain.s
-    // glm::u8vec3 first_valid_index = glm::u8vec3(255, 255, 255);
     /// Last timestamp the occupancy layer of this chunk was modified.
     double touched_time = 0;
 
@@ -170,19 +171,22 @@ namespace ohm
     /// The map maintains the most up to date stamp: @c OccupancyMap::stamp().
     std::atomic_uint64_t *touched_stamps = nullptr;
 
-    /// Array of voxel maps. Semantics are defined in the owning @c OccupancyMap.
+    /// Array of voxel blocks. Layer semantics are defined in the owning @c OccupancyMap.
     /// Use @c layout to access specific maps.
-    uint8_t **voxel_maps = nullptr;
+    VoxelBlock **voxel_blocks = nullptr;
 
     /// Chunk flags set from @c MapChunkFlag.
     unsigned flags = 0;
 
     MapChunk() = default;
-    MapChunk(const MapLayout &layout, const glm::uvec3 &region_dim);
-    MapChunk(const MapRegion &region, const MapLayout &layout, const glm::uvec3 &region_dim);
+    MapChunk(const OccupancyMapDetail &map);
+    MapChunk(const MapRegion &region, const OccupancyMapDetail &map);
     MapChunk(const MapChunk &other) = default;
     MapChunk(MapChunk &&other) noexcept;
     ~MapChunk();
+
+    /// Access details of the voxel layers and layouts for this map.
+    const MapLayout &layout() const;
 
     /// Given a @p voxelIndex into voxels, get the associated @c Key.
     /// @param voxel_index An index into voxels. Must be in range

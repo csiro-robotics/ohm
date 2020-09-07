@@ -12,6 +12,8 @@
 #include <ohm/MapLayout.h>
 #include <ohm/MapRegion.h>
 #include <ohm/OccupancyMap.h>
+#include <ohm/VoxelBlock.h>
+#include <ohm/VoxelBuffer.h>
 
 #include <gputil/gpuDevice.h>
 
@@ -47,9 +49,11 @@ namespace ohm
     gputil::Event sync_event;
     /// Stamp value used to assess the oldest cache entry.
     uint64_t age_stamp = 0;
+    /// Retains uncompressed voxel memory while the chunk remains in the cache.
+    VoxelBuffer<VoxelBlock> voxel_buffer;
     // FIXME: (KS) Would be nice to resolve how chunk stamping is managed to sync between GPU and CPU.
     // Currently we must clear the GpuCache when updating on CPU.
-    // /// Tracks the @c MapChunk::touched_stamps value for the voxel layer. We know the layer has been modified in CPU if
+    // /// Tracks the @c MapChunk::touched_stamps value for the voxel layer. We know the layer has been modified in CPU
     // /// this does not match and we must ignore the cached entry.
     // uint64_t chunk_touch_stamp = 0;
     /// Most recent @c  batch_marker from @c upload().
@@ -389,7 +393,14 @@ GpuCacheEntry *GpuLayerCache::resolveCacheEntry(OccupancyMap &map, const glm::i1
       // Upload the chunk in case it has been created while it's been in the cache.
       gputil::Event wait_for_previous = entry->sync_event;
       gputil::Event *wait_for_ptr = (wait_for_previous.isValid()) ? &wait_for_previous : nullptr;
-      const uint8_t *voxel_mem = (entry->chunk) ? layer.voxels(*entry->chunk) : imp_->dummy_chunk;
+
+      // Need to hold the voxel buffer until we have written to the GPU buffer.
+      if (entry->chunk && !entry->voxel_buffer.isValid())
+      {
+        entry->voxel_buffer = VoxelBuffer<VoxelBlock>(entry->chunk->voxel_blocks[imp_->layer_index]);
+      }
+      const uint8_t *voxel_mem =
+        (entry->voxel_buffer.isValid()) ? entry->voxel_buffer.voxelMemory() : imp_->dummy_chunk;
       imp_->buffer->write(voxel_mem, layer.layerByteSize(map.regionVoxelDimensions()), entry->mem_offset,
                           &imp_->gpu_queue, wait_for_ptr, &entry->sync_event);
     }
@@ -413,7 +424,9 @@ GpuCacheEntry *GpuLayerCache::resolveCacheEntry(OccupancyMap &map, const glm::i1
     return entry;
   }
 
-  // Ensure the map chunk exists in the map.
+  // Not in the cache yet.
+  // Ensure the map chunk exists in the map if kAllowRegionCreate is set.
+  // Otherwise chunk may be null.
   chunk = map.region(region_key, (flags & kAllowRegionCreate));
 
   // Now add the chunk to the cache.
@@ -475,6 +488,9 @@ GpuCacheEntry *GpuLayerCache::resolveCacheEntry(OccupancyMap &map, const glm::i1
 
   // Complete the cache entry.
   entry->chunk = chunk;  // May be null.
+  // Lock chunk memory for the relevant layer. This will be retained while the chunk is in this cache.
+  entry->voxel_buffer =
+    (chunk) ? VoxelBuffer<VoxelBlock>(chunk->voxel_blocks[imp_->layer_index]) : VoxelBuffer<VoxelBlock>();
   entry->region_key = region_key;
   entry->age_stamp = imp_->age_stamp++;
   if (batch_marker)
@@ -486,7 +502,7 @@ GpuCacheEntry *GpuLayerCache::resolveCacheEntry(OccupancyMap &map, const glm::i1
 
   if (upload)
   {
-    const uint8_t *voxel_mem = (chunk) ? layer.voxels(*chunk) : imp_->dummy_chunk;
+    const uint8_t *voxel_mem = (entry->voxel_buffer.isValid()) ? entry->voxel_buffer.voxelMemory() : imp_->dummy_chunk;
     imp_->buffer->write(voxel_mem, imp_->chunk_mem_size, entry->mem_offset, &imp_->gpu_queue, nullptr,
                         &entry->sync_event);
   }
@@ -548,10 +564,14 @@ void GpuLayerCache::syncToMainMemory(GpuCacheEntry &entry, bool wait_on_sync)
     gputil::Event last_event = entry.sync_event;
     // Release the entry's sync event. We will git it a new one.
     entry.sync_event.release();
-    // Queue memory read blocking on the last event and tracking a new one in entry.syncEvent
-    uint8_t *voxel_mem = entry.chunk->layout->layer(imp_->layer_index).voxels(*entry.chunk);
-    imp_->buffer->read(voxel_mem, imp_->chunk_mem_size, entry.mem_offset, &imp_->gpu_queue, &last_event,
-                       &entry.sync_event);
+    // This should technically always be true if chunk is not null.
+    if (entry.voxel_buffer.isValid())
+    {
+      // Queue memory read blocking on the last event and tracking a new one in entry.syncEvent
+      uint8_t *voxel_mem = entry.voxel_buffer.voxelMemory();
+      imp_->buffer->read(voxel_mem, imp_->chunk_mem_size, entry.mem_offset, &imp_->gpu_queue, &last_event,
+                         &entry.sync_event);
+    }
   }
 
   // Do we block now on the sync? This could be changed to execute only when we don't skip download.

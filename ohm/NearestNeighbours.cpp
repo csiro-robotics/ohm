@@ -16,6 +16,8 @@
 #include "OccupancyMap.h"
 #include "QueryFlag.h"
 #include "VoxelOccupancy.h"
+#include "VoxelBlock.h"
+#include "VoxelBuffer.h"
 
 #include <3esservermacros.h>
 
@@ -44,6 +46,7 @@ namespace
     const float *occupancy = nullptr;
     float range_squared = 0;
     unsigned added = 0;
+    VoxelBuffer<VoxelBlock> voxel_buffer;
 
     std::function<bool(float, const OccupancyMapDetail &)> voxel_occupied_func;
 
@@ -67,7 +70,10 @@ namespace
     else
     {
       chunk = chunk_search->second;
-      occupancy = chunk->layout->layer(chunk->layout->occupancyLayer()).voxelsAs<float>(*chunk);
+      // FIXME: (KS) This is a bit of a mix of legacy direct voxel access and newer VoxelBlock access. Makes things a
+      // bit unclear.
+      voxel_buffer = VoxelBuffer<VoxelBlock>(chunk->voxel_blocks[chunk->layout().occupancyLayer()]);
+      occupancy = reinterpret_cast<float *>(voxel_buffer.voxelMemory());
       // Setup the voxel test function to check the occupancy threshold and behaviour flags.
       voxel_occupied_func = [&query](const float voxel, const OccupancyMapDetail &map_data) -> bool {
         if (voxel == unorbservedOccupancyValue())

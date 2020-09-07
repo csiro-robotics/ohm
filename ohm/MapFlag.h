@@ -19,6 +19,11 @@ namespace ohm
     kNone = 0u,
     /// Enable voxel mean position tracking.
     kVoxelMean = (1u << 0),
+    /// Maintain compressed voxels in memory. Compression is performed off thread.
+    kCompressed = (1u << 1),
+
+    /// Default map creation flags.
+    kDefault = kCompressed
   };
 
   const char *mapFlagToString(MapFlag flag);

@@ -13,6 +13,8 @@
 #include "MapLayer.h"
 #include "MapSerialise.h"
 #include "Stream.h"
+#include "VoxelBlock.h"
+#include "VoxelBuffer.h"
 
 namespace ohm
 {
@@ -42,7 +44,7 @@ namespace ohm
       MapChunk *chunk = nullptr;
       for (unsigned i = 0; i < region_count && (!progress || !progress->quit()); ++i)
       {
-        chunk = new MapChunk(detail.layout, detail.region_voxel_dimensions);
+        chunk = new MapChunk(detail);
         err = v0::loadChunk(stream, *chunk, detail);
         if (err)
         {
@@ -69,15 +71,15 @@ namespace ohm
     {
       bool ok = true;
 
-      const MapLayer *occupancy_layer = chunk.layout->layerPtr(chunk.layout->occupancyLayer());
-      const MapLayer *clearance_layer = chunk.layout->layerPtr(chunk.layout->clearanceLayer());
+      const MapLayer *occupancy_layer = chunk.layout().layerPtr(chunk.layout().occupancyLayer());
+      const MapLayer *clearance_layer = chunk.layout().layerPtr(chunk.layout().clearanceLayer());
       // Use a hard coded reference to the legacy layer "coarseClearance". The layer was never used anywhere.
-      const MapLayer *coarse_clearance_layer = chunk.layout->layer("coarseClearance");
+      const MapLayer *coarse_clearance_layer = chunk.layout().layer("coarseClearance");
 
       if (coarse_clearance_layer)
       {
-        memset(coarse_clearance_layer->voxels(chunk), 0,
-               coarse_clearance_layer->layerByteSize(detail.region_voxel_dimensions));
+        VoxelBuffer<VoxelBlock> voxel_buffer(chunk.voxel_blocks[coarse_clearance_layer->layerIndex()]);
+        memset(voxel_buffer.voxelMemory(), 0, voxel_buffer.voxelMemorySize());
       }
 
       // Write region details, then nodes. MapChunk members are derived.
@@ -104,8 +106,10 @@ namespace ohm
         std::vector<float> node_data(node_count * 2);
         ok = stream.read(node_data.data(), unsigned(node_byte_count)) == node_byte_count && ok;
 
-        float *occupancy = occupancy_layer->voxelsAs<float>(chunk);
-        float *clearance = clearance_layer->voxelsAs<float>(chunk);
+        VoxelBuffer<VoxelBlock> occupancy_buffer(chunk.voxel_blocks[occupancy_layer->layerIndex()]);
+        VoxelBuffer<VoxelBlock> clearance_buffer(chunk.voxel_blocks[clearance_layer->layerIndex()]);
+        float *occupancy = reinterpret_cast<float *>(occupancy_buffer.voxelMemorySize());
+        float *clearance = reinterpret_cast<float *>(clearance_buffer.voxelMemorySize());
 
         for (size_t i = 0; i < node_data.size() / 2; ++i)
         {

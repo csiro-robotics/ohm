@@ -57,11 +57,10 @@ namespace ohm
     size_t integrateRays(const glm::dvec3 *rays, size_t element_count, unsigned ray_update_flags = kRfDefault) override;
 
   protected:
-    OccupancyMap *map_ = nullptr;           ///< Target map.
-    int occupancy_layer_ = -1;              ///< Cached occupancy layer index.
-    int mean_layer_ = -1;                   ///< Cached voxel mean layer index.
-    glm::u8vec3 occupancy_dim_{ 0, 0, 0 };  ///< Cached occupancy layer voxel dimensions. Voxel mean must exactly match.
-    bool valid_ = false;                    ///< Has layer validation passed?
+    OccupancyMap *map_ = nullptr;  ///< Target map.
+    int occupancy_layer_ = -1;     ///< Cached occupancy layer index.
+    int mean_layer_ = -1;          ///< Cached voxel mean layer index.
+    bool valid_ = false;           ///< Has layer validation passed?
   };
 
 }  // namespace ohm

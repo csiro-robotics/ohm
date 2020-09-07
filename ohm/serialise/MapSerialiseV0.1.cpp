@@ -13,6 +13,8 @@
 #include "MapLayer.h"
 #include "MapSerialise.h"
 #include "Stream.h"
+#include "VoxelBlock.h"
+#include "VoxelBuffer.h"
 
 namespace ohm
 {
@@ -49,7 +51,7 @@ namespace ohm
       MapChunk *chunk = nullptr;
       for (unsigned i = 0; i < region_count && (!progress || !progress->quit()); ++i)
       {
-        chunk = new MapChunk(detail.layout, detail.region_voxel_dimensions);
+        chunk = new MapChunk(detail);
         err = load_chunk(stream, *chunk, detail);
         if (err)
         {
@@ -167,16 +169,16 @@ namespace ohm
         for (size_t i = 0; i < layout.layerCount(); ++i)
         {
           const MapLayer &layer = layout.layer(i);
+          VoxelBuffer<VoxelBlock> voxel_buffer(chunk.voxel_blocks[i]);
+          uint8_t *layer_mem = voxel_buffer.voxelMemory();
 
           if (layer.flags() & MapLayer::kSkipSerialise)
           {
             // Not to be serialised. Clear instead.
-            layer.clear(layer.voxels(chunk), detail.region_voxel_dimensions);
+            layer.clear(layer_mem, detail.region_voxel_dimensions);
             continue;
           }
 
-          // Get the layer memory.
-          uint8_t *layer_mem = layer.voxels(chunk);
           const size_t node_count = layer.volume(detail.region_voxel_dimensions);
           const size_t node_byte_count = layer.voxelByteSize() * node_count;
           if (node_byte_count != unsigned(node_byte_count))

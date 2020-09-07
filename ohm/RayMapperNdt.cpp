@@ -30,48 +30,15 @@ RayMapperNdt::RayMapperNdt(NdtMap *map)
   , mean_layer_(map_->map().layout().meanLayer())
   , covariance_layer_(map_->map().layout().covarianceLayer())
 {
-  OccupancyMap &omap = map_->map();
-  occupancy_dim_ = omap.layout().layer(occupancy_layer_).dimensions(omap.regionVoxelDimensions());
-  valid_ = true;
-  // Validate the mean layer size.
-  if (mean_layer_ >= 0)
-  {
-    if (omap.layout().layer(mean_layer_).voxelByteSize() != sizeof(VoxelMean))
-    {
-      // Unexpected layer size.
-      valid_ = false;
-    }
-    else if (omap.layout().layer(mean_layer_).dimensions(omap.regionVoxelDimensions()) != occupancy_dim_)
-    {
-      // Unexpected layer dimensions.
-      valid_ = false;
-    }
-  }
-  else
-  {
-    // Missing layer
-    valid_ = false;
-  }
+  OccupancyMap *map_ptr = &map_->map();
 
-  // Validate the covariance layer size.
-  if (covariance_layer_ >= 0)
-  {
-    if (omap.layout().layer(covariance_layer_).voxelByteSize() != sizeof(CovarianceVoxel))
-    {
-      // Unexpected layer size.
-      valid_ = false;
-    }
-    else if (omap.layout().layer(covariance_layer_).dimensions(omap.regionVoxelDimensions()) != occupancy_dim_)
-    {
-      // Unexpected layer dimensions.
-      valid_ = false;
-    }
-  }
-  else
-  {
-    // Missing layer
-    valid_ = false;
-  }
+  Voxel<const float> occupancy(map_ptr, occupancy_layer_);
+  Voxel<const VoxelMean> mean(map_ptr, mean_layer_);
+  Voxel<const CovarianceVoxel> cov(map_ptr, covariance_layer_);
+
+  // Validate we have occupancy, mean and covariance layers and their dimensions match.
+  valid_ = occupancy.isLayerValid() && mean.isLayerValid() && cov.isLayerValid() &&
+           occupancy.layerDim() == mean.layerDim() && occupancy.layerDim() == cov.layerDim();
 }
 
 
@@ -88,7 +55,6 @@ size_t RayMapperNdt::integrateRays(const glm::dvec3 *rays, size_t element_count,
   const RayFilterFunction ray_filter = occupancy_map.rayFilter();
   const bool use_filter = bool(ray_filter);
   const auto occupancy_layer = occupancy_layer_;
-  const auto occupancy_dim = occupancy_dim_;
   // const auto occupancy_threshold_value = occupancy_map.occupancyThresholdValue();
   const auto map_origin = occupancy_map.origin();
   const auto miss_value = occupancy_map.missValue();
@@ -110,6 +76,10 @@ size_t RayMapperNdt::integrateRays(const glm::dvec3 *rays, size_t element_count,
 
   glm::dvec3 start, sample;
 
+  // Voxel structures when updating a miss. Only occupancy is mutable.
+  Voxel<float> occupancy(&occupancy_map, occupancy_layer_);
+  Voxel<const VoxelMean> vox_mean_const(&occupancy_map, mean_layer_);
+  Voxel<const CovarianceVoxel> vox_cov_const(&occupancy_map, covariance_layer_);
   const auto visit_func = [&](const Key &key)  //
   {
     //
@@ -130,14 +100,10 @@ size_t RayMapperNdt::integrateRays(const glm::dvec3 *rays, size_t element_count,
     // 3. Calculate new value
     // 4. Apply saturation logic: only min saturation relevant
     //    -
-    MapChunk *chunk = (last_chunk && key.regionKey() == last_chunk->region.coord) ?
-                        last_chunk :
-                        occupancy_map.region(key.regionKey(), true);
-    last_chunk = chunk;
-    const unsigned voxel_index = ::voxelIndex(key, occupancy_dim);
-    float *occupancy_value = reinterpret_cast<float *>(chunk->voxel_maps[occupancy_layer]) + +voxel_index;
-    const CovarianceVoxel *cov = reinterpret_cast<CovarianceVoxel *>(chunk->voxel_maps[covariance_layer]) + voxel_index;
-    const VoxelMean *voxel_mean = reinterpret_cast<VoxelMean *>(chunk->voxel_maps[mean_layer]) + voxel_index;
+    setVoxelKey(key, occupancy, vox_mean_const, vox_cov_const);
+    float *occupancy_value = occupancy.dataPtr();
+    const CovarianceVoxel *cov = vox_cov_const.dataPtr();
+    const VoxelMean *voxel_mean = vox_mean_const.dataPtr();
     const glm::dvec3 mean =
       subVoxelToLocalCoord<glm::dvec3>(voxel_mean->coord, resolution) + occupancy_map.voxelCentreGlobal(key);
     const float initial_value = *occupancy_value;
@@ -147,14 +113,11 @@ size_t RayMapperNdt::integrateRays(const glm::dvec3 *rays, size_t element_count,
                      miss_value, sensor_noise, ndt_sample_threshold);
     occupancyAdjustDown(occupancy_value, initial_value, adjusted_value, unorbservedOccupancyValue(), voxel_min,
                         saturation_min, saturation_max, stop_adjustments);
-    chunk->updateFirstValid(voxel_index);
-
-    // stop_adjustments = stop_adjustments || ((ray_update_flags & kRfStopOnFirstOccupied) && is_occupied);
-    chunk->dirty_stamp = touch_stamp;
-    // Update the touched_stamps with relaxed memory ordering. The important thing is to have an update,
-    // not so much the sequencing. We really don't want to synchronise here.
-    chunk->touched_stamps[occupancy_layer].store(touch_stamp, std::memory_order_relaxed);
   };
+
+  // Mutable voxel structures used when updating a hit.
+  Voxel<VoxelMean> vox_mean(&occupancy_map, mean_layer_);
+  Voxel<CovarianceVoxel> vox_cov(&occupancy_map, covariance_layer_);
 
   unsigned filter_flags;
   for (size_t i = 0; i < element_count; i += 2)
@@ -190,15 +153,11 @@ size_t RayMapperNdt::integrateRays(const glm::dvec3 *rays, size_t element_count,
       // Like the miss logic, we have similar obfuscation here to avoid branching. It's a little simpler though,
       // because we do have a branch above, which will filter some of the conditions catered for in miss integration.
       const ohm::Key key = occupancy_map.voxelKey(sample);
-      MapChunk *chunk = (last_chunk && key.regionKey() == last_chunk->region.coord) ?
-                          last_chunk :
-                          occupancy_map.region(key.regionKey(), true);
-      last_chunk = chunk;
-      const unsigned voxel_index = ::voxelIndex(key, occupancy_dim);
+      setVoxelKey(key, occupancy, vox_mean, vox_cov);
       const glm::dvec3 voxel_centre = occupancy_map.voxelCentreGlobal(key);
-      float *occupancy_value = reinterpret_cast<float *>(chunk->voxel_maps[occupancy_layer]) + voxel_index;
-      CovarianceVoxel *cov = reinterpret_cast<CovarianceVoxel *>(chunk->voxel_maps[covariance_layer]) + voxel_index;
-      VoxelMean *voxel_mean = reinterpret_cast<VoxelMean *>(chunk->voxel_maps[mean_layer]) + voxel_index;
+      float *occupancy_value = occupancy.dataPtr();
+      CovarianceVoxel *cov = vox_cov.dataPtr();
+      VoxelMean *voxel_mean = vox_mean.dataPtr();
       const glm::dvec3 mean = subVoxelToLocalCoord<glm::dvec3>(voxel_mean->coord, resolution) + voxel_centre;
       const float initial_value = *occupancy_value;
       float adjusted_value = initial_value;
@@ -212,15 +171,6 @@ size_t RayMapperNdt::integrateRays(const glm::dvec3 *rays, size_t element_count,
       voxel_mean->count = (!reset_mean) ? voxel_mean->count : 0;
       voxel_mean->coord = subVoxelUpdate(voxel_mean->coord, voxel_mean->count, sample - voxel_centre, resolution);
       ++voxel_mean->count;
-
-      chunk->updateFirstValid(voxel_index);
-
-      chunk->dirty_stamp = touch_stamp;
-      // Update the touched_stamps with relaxed memory ordering. The important thing is to have an update,
-      // not so much the sequencing. We really don't want to synchronise here.
-      chunk->touched_stamps[occupancy_layer].store(touch_stamp, std::memory_order_relaxed);
-      chunk->touched_stamps[mean_layer].store(touch_stamp, std::memory_order_relaxed);
-      chunk->touched_stamps[covariance_layer].store(touch_stamp, std::memory_order_relaxed);
     }
   }
 

@@ -8,7 +8,10 @@
 #include "DefaultLayer.h"
 #include "MapLayer.h"
 #include "MapLayout.h"
+#include "VoxelBlock.h"
+#include "VoxelBuffer.h"
 #include "VoxelOccupancy.h"
+
 #include "private/MapLayoutDetail.h"
 #include "private/OccupancyMapDetail.h"
 
@@ -17,55 +20,58 @@
 
 using namespace ohm;
 
-MapChunk::MapChunk(const MapRegion &region, const MapLayout &layout, const glm::uvec3 &region_dim)
+MapChunk::MapChunk(const MapRegion &region, const OccupancyMapDetail &map)
 {
   this->region = region;
-  this->layout = &layout;
+  this->map = &map;
 
-  voxel_maps = new uint8_t *[layout.layerCount()];
+  const MapLayout &layout = this->layout();
+  voxel_blocks = new VoxelBlock *[layout.layerCount()];
   touched_stamps = new std::atomic_uint64_t[layout.layerCount()];
   for (size_t i = 0; i < layout.layerCount(); ++i)
   {
     const MapLayer &layer = layout.layer(i);
-    voxel_maps[i] = layer.allocate(region_dim);
-    layer.clear(voxel_maps[i], region_dim);
+    voxel_blocks[i] = new VoxelBlock(&map, unsigned(i));
     touched_stamps[i] = 0u;
   }
 }
 
 
-MapChunk::MapChunk(const MapLayout &layout, const glm::uvec3 &region_dim)
-  : MapChunk(MapRegion(), layout, region_dim)
+MapChunk::MapChunk(const OccupancyMapDetail &map)
+  : MapChunk(MapRegion(), map)
 {}
 
 
 MapChunk::MapChunk(MapChunk &&other) noexcept
-  : region(other.region)
-  , layout(other.layout)
-  , first_valid_index(other.first_valid_index)
-  , touched_time(other.touched_time)
-  , dirty_stamp(other.dirty_stamp)
-  , touched_stamps(other.touched_stamps)
-  , voxel_maps(other.voxel_maps)
-  , flags(other.flags)
-{
-  other.layout = nullptr;
-  other.voxel_maps = nullptr;
-  other.touched_stamps = nullptr;
-}
+  : region(std::exchange(other.region, MapRegion()))
+  , map(std::exchange(other.map, nullptr))
+  , first_valid_index(std::exchange(other.first_valid_index, ~0u))
+  , touched_time(std::exchange(other.touched_time, 0))
+  , dirty_stamp(std::exchange(other.dirty_stamp, 0))
+  , touched_stamps(std::exchange(other.touched_stamps, nullptr))
+  , voxel_blocks(std::exchange(other.voxel_blocks, nullptr))
+  , flags(std::exchange(other.flags, 0))
+{}
 
 
 MapChunk::~MapChunk()
 {
-  if (layout)
+  if (map)
   {
-    for (unsigned i = 0; i < layout->layerCount(); ++i)
+    const MapLayout &layout = map->layout;
+    for (unsigned i = 0; i < layout.layerCount(); ++i)
     {
-      layout->layer(i).release(voxel_maps[i]);
+      voxel_blocks[i]->destroy();
     }
   }
-  delete[] voxel_maps;
+  delete[] voxel_blocks;
   delete[] touched_stamps;
+}
+
+
+const MapLayout &MapChunk::layout() const
+{
+  return map->layout;
 }
 
 
@@ -100,66 +106,72 @@ void MapChunk::updateLayout(const MapLayout *new_layout, const glm::uvec3 &regio
                             const std::vector<std::pair<const MapLayer *, const MapLayer *>> &preserve_layer_mapping)
 {
   // Allocate voxel pointer array.
-  uint8_t **new_voxel_maps = new uint8_t *[new_layout->layerCount()];
+  VoxelBlock **new_voxel_blocks = new VoxelBlock *[new_layout->layerCount()];
   std::atomic_uint64_t *new_touched_stamps = new std::atomic_uint64_t[new_layout->layerCount()];
 
   // Initialise voxel maps to null so we can track what's missed by preserve_layer_mapping.
   for (size_t i = 0; i < new_layout->layerCount(); ++i)
   {
-    new_voxel_maps[i] = nullptr;
+    new_voxel_blocks[i] = nullptr;
   }
 
   for (const auto &mapping : preserve_layer_mapping)
   {
-    new_voxel_maps[mapping.second->layerIndex()] = voxel_maps[mapping.first->layerIndex()];
+    new_voxel_blocks[mapping.second->layerIndex()] = voxel_blocks[mapping.first->layerIndex()];
     new_touched_stamps[mapping.second->layerIndex()] = touched_stamps[mapping.first->layerIndex()].load();
     // Memory ownership moved: nullify to prevent release.
-    voxel_maps[mapping.first->layerIndex()] = nullptr;
+    voxel_blocks[mapping.first->layerIndex()] = nullptr;
   }
 
   // Now initialise any new or unmapped layers and release those not preserved.
   for (size_t i = 0; i < new_layout->layerCount(); ++i)
   {
-    if (!new_voxel_maps[i])
+    const MapLayer &layer = new_layout->layer(i);
+    if (!new_voxel_blocks[i])
     {
       // Initilised layer.
-      const MapLayer &layer = new_layout->layer(i);
-      new_voxel_maps[i] = layer.allocate(region_dim);
-      layer.clear(new_voxel_maps[i], region_dim);
+      new_voxel_blocks[i] = new VoxelBlock(map, layer.layerIndex());
       new_touched_stamps[i] = 0u;
+    }
+    else
+    {
+      // Preserving layer. Ensure it's index is updated.
+      new_voxel_blocks[i]->updateLayerIndex(layer.layerIndex());
     }
   }
 
   // Release redundant layers.
-  for (size_t i = 0; i < layout->layerCount(); ++i)
+  const MapLayout &old_layout = layout();
+  for (size_t i = 0; i < old_layout.layerCount(); ++i)
   {
-    if (voxel_maps[i])
+    if (voxel_blocks[i])
     {
       // Unmigrated/redudant layer. Release.
-      layout->layer(i).release(voxel_maps[i]);
-      voxel_maps[i] = nullptr;
+      voxel_blocks[i]->destroy();
+      voxel_blocks[i] = nullptr;
     }
   }
 
   // Release pointer arrays.
-  delete[] voxel_maps;
+  delete[] voxel_blocks;
   delete[] touched_stamps;
 
   // Update pointers
-  voxel_maps = new_voxel_maps;
+  voxel_blocks = new_voxel_blocks;
   touched_stamps = new_touched_stamps;
-  // We do not update the layout pointer to new_layout. This pointer is to the owning occupancy map's layout which we
-  // assume is about to change internally. It's address will remain unchanged.
+  // We do nothing to update the layout() to new_layout. This object is owned by the occupancy map which we assume is
+  // about to change internally. It's address will remain unchanged.
 }
 
 
 void MapChunk::searchAndUpdateFirstValid(const glm::ivec3 &region_voxel_dimensions, const glm::u8vec3 &search_from)
 {
+  const MapLayout &layout = this->layout();
+  VoxelBuffer<const VoxelBlock> voxel_buffer(voxel_blocks[layout.occupancyLayer()]);
+  const size_t voxel_stride = layout.layer(layout.occupancyLayer()).voxelByteSize();
+  const uint8_t *voxel_mem = voxel_buffer.voxelMemory();
+
   unsigned voxel_index;
-
-  size_t voxel_stride = layout->layer(layout->occupancyLayer()).voxelByteSize();
-  const uint8_t *voxel_mem = voxel_maps[layout->occupancyLayer()];
-
   for (int z = search_from.z; z < region_voxel_dimensions.z; ++z)
   {
     for (int y = search_from.y; y < region_voxel_dimensions.y; ++y)
@@ -185,10 +197,12 @@ void MapChunk::searchAndUpdateFirstValid(const glm::ivec3 &region_voxel_dimensio
 
 bool MapChunk::validateFirstValid(const glm::ivec3 &region_voxel_dimensions) const
 {
-  unsigned voxel_index = 0;
+  const MapLayout &layout = this->layout();
+  VoxelBuffer<const VoxelBlock> voxel_buffer(voxel_blocks[layout.occupancyLayer()]);
+  const size_t voxel_stride = layout.layer(layout.occupancyLayer()).voxelByteSize();
+  const uint8_t *voxel_mem = voxel_buffer.voxelMemory();
 
-  size_t voxel_stride = layout->layer(layout->occupancyLayer()).voxelByteSize();
-  const uint8_t *voxel_mem = voxel_maps[layout->occupancyLayer()];
+  unsigned voxel_index = 0;
 
   for (int z = 0; z < region_voxel_dimensions.z; ++z)
   {

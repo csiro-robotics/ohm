@@ -351,7 +351,7 @@ int populateMap(const Options &opt)
     return -2;
   }
 
-  ohm::MapFlag map_flags = ohm::MapFlag::kNone;
+  ohm::MapFlag map_flags = ohm::MapFlag::kDefault;
   map_flags |= (opt.voxel_mean) ? ohm::MapFlag::kVoxelMean : ohm::MapFlag::kNone;
   ohm::OccupancyMap map(opt.resolution, opt.region_voxel_dim, map_flags);
 #ifdef OHMPOP_CPU
@@ -813,7 +813,7 @@ int parseOptions(Options *opt, int argc, char *argv[])
       ("i,cloud", "The input cloud (las/laz) to load.", cxxopts::value(opt->cloud_file))
       ("o,output","Output base name", optVal(opt->output_base_name))
       ("p,point-limit", "Limit the number of points loaded.", optVal(opt->point_limit))
-      ("preload", "Preload this number of points before starting processing. Zero for all. May be used for separating processing and loading time.", optVal(opt->preload_count)->default_value("0"))
+      ("preload", "Preload this number of points before starting processing. -1 for all. May be used for separating processing and loading time.", optVal(opt->preload_count)->default_value("-1"))
       ("q,quiet", "Run in quiet mode. Suppresses progress messages.", optVal(opt->quiet))
       ("sensor", "Offset from the trajectory to the sensor position. Helps correct trajectory to the sensor centre for better rays.", optVal(opt->sensor_offset))
       ("s,start-time", "Only process points time stamped later than the specified time.", optVal(opt->start_time))
