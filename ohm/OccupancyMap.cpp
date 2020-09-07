@@ -16,7 +16,6 @@
 #include "OccupancyType.h"
 #include "RayMapperOccupancy.h"
 #include "VoxelOccupancy.h"
-#include "VoxelUtil.h"
 
 #include "OccupancyUtil.h"
 
@@ -746,12 +745,30 @@ void OccupancyMap::setSaturateAtMaxValue(bool saturate)
 
 glm::dvec3 OccupancyMap::voxelCentreLocal(const Key &key) const
 {
-  return voxel::centreLocal(key, *imp_);
+  glm::dvec3 centre;
+  // Region centre
+  centre = glm::vec3(key.regionKey()) * glm::vec3(imp_->region_spatial_dimensions);
+  // Offset to the lower extents of the region.
+  centre -= 0.5 * imp_->region_spatial_dimensions;
+  // Local offset.
+  centre += glm::dvec3(key.localKey()) * imp_->resolution;
+  centre += glm::dvec3(0.5 * imp_->resolution);
+  return centre;
 }
 
 glm::dvec3 OccupancyMap::voxelCentreGlobal(const Key &key) const
 {
-  return voxel::centreGlobal(key, *imp_);
+  glm::dvec3 centre;
+  // Region centre
+  centre = glm::dvec3(key.regionKey()) * glm::dvec3(imp_->region_spatial_dimensions);
+  // Offset to the lower extents of the region.
+  centre -= 0.5 * glm::dvec3(imp_->region_spatial_dimensions);
+  // Map offset.
+  centre += imp_->origin;
+  // Local offset.
+  centre += glm::dvec3(key.localKey()) * double(imp_->resolution);
+  centre += glm::dvec3(0.5 * imp_->resolution);
+  return centre;
 }
 
 Key OccupancyMap::voxelKey(const glm::dvec3 &point) const
