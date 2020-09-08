@@ -447,7 +447,7 @@ namespace ohm
       {
         updateChunkTouchAndCompression();
         chunk_ = chunk;
-        if (chunk_ && chunk_->voxel_blocks[layer_index_])
+        if (chunk_ && layer_index_ != -1)
         {
           chunk_->voxel_blocks[layer_index_]->retain();
           flags_ |= unsigned(Flag::CompressionLock);
