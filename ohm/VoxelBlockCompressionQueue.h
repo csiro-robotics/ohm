@@ -8,7 +8,7 @@
 
 #include "OhmConfig.h"
 
-#include <tbb/mutex.h>
+#include <tbb/spin_mutex.h>
 
 #include <memory>
 #include <mutex>
@@ -16,7 +16,6 @@
 namespace ohm
 {
   class VoxelBlock;
-  struct VoxelBlockCompressionThreadInfo;
   struct VoxelBlockCompressionQueueDetail;
 
   /// Background compression thread used to manage compression of @c VoxelBlock data.
@@ -24,6 +23,8 @@ namespace ohm
   /// The queue supports reference counting in order to allow a single queue to be used accross multiple maps.
   /// Each map should call @c retain() on construction and @c release() when done. The queue supports releasing the
   /// last reference then attaining a new reference to start a new background thread.
+  ///
+  /// An @c OccupancyMap will call @c retain() and @c release() on construction and destruction respectively.
   class ohm_API VoxelBlockCompressionQueue
   {
   public:
@@ -39,6 +40,7 @@ namespace ohm
     void retain();
 
     /// Release the compression queue. Releasing the last reference joins the background thread.
+    /// The next @c retain() call after the last @c release() reference will start a new thread.
     void release();
 
     /// Push a @c VoxelBlock on the queue for compression.
@@ -46,12 +48,13 @@ namespace ohm
     void push(VoxelBlock *block);
 
   private:
-    void joinCurrentThread(std::unique_lock<tbb::mutex> &guard);
+    void joinCurrentThread();
 
-    void run(VoxelBlockCompressionThreadInfo *thread_data);
+    /// Main compression loop. This is the thread entry point.
+    void run();
 
     std::unique_ptr<VoxelBlockCompressionQueueDetail> imp_;
   };
-}
+}  // namespace ohm
 
-#endif // VOXELBLOCKCOMPRESSIONQUEUE_H
+#endif  // VOXELBLOCKCOMPRESSIONQUEUE_H

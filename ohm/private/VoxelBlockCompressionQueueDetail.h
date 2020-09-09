@@ -21,24 +21,16 @@ namespace ohm
 {
   class VoxelBlock;
 
-  /// Working data for the active voxel map compression thread.
-  struct VoxelBlockCompressionThreadInfo
-  {
-    std::vector<uint8_t> compression_buffer;
-    volatile bool quit_flag = false;
-  };
-
   struct VoxelBlockCompressionQueueDetail
   {
-    tbb::mutex queue_lock;
-    std::condition_variable_any queue_notify;
-    std::shared_ptr<std::thread> processing_thread;
+    using Mutex = tbb::mutex;
+    Mutex ref_lock;
     tbb::concurrent_queue<VoxelBlock *> compression_queue;
-    volatile unsigned reference_count = 0;
-    volatile VoxelBlock *current = nullptr;
-    /// Active thread working data.
-    VoxelBlockCompressionThreadInfo *thread_data = nullptr;
+    std::atomic_int reference_count{ 0 };
+    std::atomic_bool quit_flag{ false };
+    std::thread processing_thread;
+    bool running{ false };
   };
-}
+}  // namespace ohm
 
-#endif // VOXELMAPCOMPRESSIONQUEUEDETAIL_H
+#endif  // VOXELMAPCOMPRESSIONQUEUEDETAIL_H

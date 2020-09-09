@@ -10,6 +10,7 @@
 #include "private/VoxelBlockCompressionQueueDetail.h"
 
 #include <chrono>
+#include <cinttypes>
 
 using namespace ohm;
 
@@ -25,45 +26,45 @@ VoxelBlockCompressionQueue::VoxelBlockCompressionQueue()
 
 VoxelBlockCompressionQueue::~VoxelBlockCompressionQueue()
 {
-  std::unique_lock<tbb::mutex> guard(imp_->queue_lock);
-  if (imp_->thread_data)
+  if (imp_->running)
   {
-    joinCurrentThread(guard);
+    std::unique_lock<VoxelBlockCompressionQueueDetail::Mutex> guard(imp_->ref_lock);
+    joinCurrentThread();
   }
 }
 
 void VoxelBlockCompressionQueue::retain()
 {
-  std::unique_lock<tbb::mutex> guard(imp_->queue_lock);
+  std::unique_lock<VoxelBlockCompressionQueueDetail::Mutex> guard(imp_->ref_lock);
   if (++imp_->reference_count == 1)
   {
     // Start the thread.
-    VoxelBlockCompressionThreadInfo *thread_data = new VoxelBlockCompressionThreadInfo;
-    imp_->thread_data = thread_data;
-    imp_->processing_thread = std::make_shared<std::thread>([this, thread_data]() { this->run(thread_data); });
+    imp_->running = true;
+    imp_->processing_thread = std::thread([this]() { this->run(); });
   }
 }
 
 
 void VoxelBlockCompressionQueue::release()
 {
-  std::unique_lock<tbb::mutex> guard(imp_->queue_lock);
-  if (imp_->reference_count > 0)
+  std::unique_lock<VoxelBlockCompressionQueueDetail::Mutex> guard(imp_->ref_lock);
+  unsigned ref = --imp_->reference_count;
+  if (ref == 0)
   {
-    if (--imp_->reference_count == 0)
-    {
-      joinCurrentThread(guard);
-    }
+    joinCurrentThread();
+  }
+  else if (ref < 0)
+  {
+    imp_->reference_count = 0;
   }
 }
 
 
 void VoxelBlockCompressionQueue::push(VoxelBlock *block)
 {
-  if (imp_->processing_thread)
+  if (imp_->running)
   {
     imp_->compression_queue.push(block);
-    imp_->queue_notify.notify_all();
   }
   else
   {
@@ -75,31 +76,26 @@ void VoxelBlockCompressionQueue::push(VoxelBlock *block)
 }
 
 
-void VoxelBlockCompressionQueue::joinCurrentThread(std::unique_lock<tbb::mutex> &guard)
+void VoxelBlockCompressionQueue::joinCurrentThread()
 {
   // Mark thread for quit.
-  if (imp_->thread_data)
+  if (imp_->running)
   {
-    imp_->thread_data->quit_flag = true;
-    // Clear thread ptr and quit flag.
-    std::shared_ptr<std::thread> thread = imp_->processing_thread;
-    imp_->processing_thread.reset<std::thread>(nullptr);
-    imp_->thread_data = nullptr;
-    guard.unlock();
-    // Notify for quit and join.
-    imp_->queue_notify.notify_all();
-    thread->join();
+    imp_->quit_flag = true;
+    imp_->processing_thread.join();
+    // Clear the running and quit flags.
+    imp_->running = false;
+    imp_->quit_flag = false;
   }
 }
 
 
-void VoxelBlockCompressionQueue::run(VoxelBlockCompressionThreadInfo *thread_data)
+void VoxelBlockCompressionQueue::run()
 {
-  while (!thread_data->quit_flag)
+  std::vector<uint8_t> compression_buffer;
+  while (!imp_->quit_flag)
   {
-    std::unique_lock<tbb::mutex> guard(imp_->queue_lock);
-    imp_->queue_notify.wait_for(guard, std::chrono::milliseconds(200));
-    guard.unlock();
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
     const auto time_now = std::chrono::high_resolution_clock::now();
     VoxelBlock *voxels = nullptr;
@@ -111,11 +107,11 @@ void VoxelBlockCompressionQueue::run(VoxelBlockCompressionThreadInfo *thread_dat
         {
           // std::cout << "compress\n" << std::flush;
           // Compress the current item.
-          voxels->compressInto(thread_data->compression_buffer);
+          voxels->compressInto(compression_buffer);
           // The following call may fail as the voxels are retained once more. It should get re-added later if needed.
-          voxels->setCompressedBytes(thread_data->compression_buffer);
+          voxels->setCompressedBytes(compression_buffer);
         }
-        else if (!thread_data->quit_flag)
+        else if (!imp_->quit_flag)
         {
           // std::cout << "compress miss\n" << std::flush;
           // Too soon. Push to the back of the list.
@@ -133,6 +129,4 @@ void VoxelBlockCompressionQueue::run(VoxelBlockCompressionThreadInfo *thread_dat
       }
     }
   }
-
-  delete thread_data;
 }
