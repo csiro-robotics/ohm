@@ -137,7 +137,7 @@ namespace linequerytests
     // line_points.push_back(glm::dvec3(1.2f * boundaryDistance, 0, 0));
 
     const int query_iterations = 50;
-    // const int queryIterations = 1;
+    // const int query_iterations = 1;
     // Create new random line query points to meet the hard coded queryIterations.
     while (line_points.size() < query_iterations * 2)
     {
