@@ -47,7 +47,7 @@ VoxelBuffer<VoxelBlock>::~VoxelBuffer()
 }
 
 template <typename VoxelBlock>
-typename VoxelBuffer<VoxelBlock> &VoxelBuffer<VoxelBlock>::operator=(VoxelBuffer<VoxelBlock> &&other)
+VoxelBuffer<VoxelBlock> &VoxelBuffer<VoxelBlock>::operator=(VoxelBuffer<VoxelBlock> &&other)
 {
   std::swap(voxel_block_, other.voxel_block_);
   std::swap(voxel_memory_size_, other.voxel_memory_size_);
@@ -56,7 +56,7 @@ typename VoxelBuffer<VoxelBlock> &VoxelBuffer<VoxelBlock>::operator=(VoxelBuffer
 }
 
 template <typename VoxelBlock>
-typename VoxelBuffer<VoxelBlock> &VoxelBuffer<VoxelBlock>::operator=(const VoxelBuffer<VoxelBlock> &other)
+VoxelBuffer<VoxelBlock> &VoxelBuffer<VoxelBlock>::operator=(const VoxelBuffer<VoxelBlock> &other)
 {
   release();
   voxel_block_ = other.voxel_block_;

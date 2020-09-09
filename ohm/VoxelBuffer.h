@@ -32,8 +32,8 @@ namespace ohm
     VoxelBuffer(const VoxelBuffer<VoxelBlock> &other);
     ~VoxelBuffer();
 
-    typename VoxelBuffer<VoxelBlock> &operator=(typename VoxelBuffer<VoxelBlock> &&other);
-    typename VoxelBuffer<VoxelBlock> &operator=(const typename VoxelBuffer<VoxelBlock> &other);
+    VoxelBuffer<VoxelBlock> &operator=(VoxelBuffer<VoxelBlock> &&other);
+    VoxelBuffer<VoxelBlock> &operator=(const VoxelBuffer<VoxelBlock> &other);
 
     bool isValid() const { return voxel_memory_ != nullptr; }
 
