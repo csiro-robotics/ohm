@@ -82,7 +82,12 @@ void VoxelBlock::setCompressionControls(const CompressionControls &controls)
 VoxelBlock::VoxelBlock(const OccupancyMapDetail *map, unsigned layer_index)
   : map_(map)
   , layer_index_(layer_index)
-{}
+{
+  initUncompressed(voxel_bytes_);
+  flags_ |= kFUncompressed;
+  std::unique_lock<Mutex> guard(access_guard_);
+  queueCompression(guard);
+}
 
 
 VoxelBlock::~VoxelBlock()
@@ -130,49 +135,34 @@ const glm::u8vec3 VoxelBlock::regionDimensions() const
 
 void VoxelBlock::retain()
 {
-  std::unique_lock<decltype(access_guard_)> guard(access_guard_);
+  std::unique_lock<Mutex> guard(access_guard_);
   ++reference_count_;
   // Ensure uncompressed data are available.
   if (!(flags_ & kFUncompressed))
   {
-    if (!voxel_bytes_.empty())
-    {
-      std::vector<uint8_t> working_buffer;
-      uncompressUnguarded(working_buffer);
-      voxel_bytes_.swap(working_buffer);
-    }
-    else
-    {
-      initUncompressed(voxel_bytes_);
-    }
+    std::vector<uint8_t> working_buffer;
+    uncompressUnguarded(working_buffer);
+    voxel_bytes_.swap(working_buffer);
     flags_ |= kFUncompressed;
   }
 }
 
 void VoxelBlock::release()
 {
-  std::unique_lock<decltype(access_guard_)> guard(access_guard_);
+  std::unique_lock<Mutex> guard(access_guard_);
   if (reference_count_ > 0)
   {
     --reference_count_;
     if (needsCompression())
     {
-      release_after_ = std::chrono::high_resolution_clock::now() + kReleaseDelay;
-      if (!(flags_ & kFCompressionQueued))
-      {
-        // This flag will be cleared when processed for compression.
-        flags_ |= kFCompressionQueued;
-        guard.unlock();
-        // Add to compression queue.
-        VoxelBlockCompressionQueue::instance().push(this);
-      }
+      queueCompression(guard);
     }
   }
 }
 
 void VoxelBlock::compressInto(std::vector<uint8_t> &compression_buffer)
 {
-  std::unique_lock<decltype(access_guard_)> guard(access_guard_);
+  std::unique_lock<Mutex> guard(access_guard_);
 
   // Handle uninitialised buffer.
   if (voxel_bytes_.empty())
@@ -186,18 +176,8 @@ void VoxelBlock::compressInto(std::vector<uint8_t> &compression_buffer)
 
 const std::chrono::high_resolution_clock::time_point VoxelBlock::releaseAfter() const
 {
-  std::unique_lock<decltype(access_guard_)> guard(access_guard_);
+  std::unique_lock<Mutex> guard(access_guard_);
   return release_after_;
-}
-
-uint8_t *VoxelBlock::voxelBytes()
-{
-  return voxel_bytes_.data();
-}
-
-const uint8_t *VoxelBlock::voxelBytes() const
-{
-  return voxel_bytes_.data();
 }
 
 void VoxelBlock::updateLayerIndex(unsigned layer_index)
@@ -211,9 +191,21 @@ bool VoxelBlock::needsCompression() const
          (map_->flags & MapFlag::kCompressed) == MapFlag::kCompressed;
 }
 
+void VoxelBlock::queueCompression(std::unique_lock<Mutex> &guard)
+{
+  release_after_ = std::chrono::high_resolution_clock::now() + kReleaseDelay;
+  if (!(flags_ & kFCompressionQueued))
+  {
+    // This flag will be cleared when processed for compression.
+    flags_ |= kFCompressionQueued;
+    guard.unlock();
+    // Add to compression queue.
+    VoxelBlockCompressionQueue::instance().push(this);
+  }
+}
+
 bool VoxelBlock::compressUnguarded(std::vector<uint8_t> &compression_buffer)
 {
-  compression_buffer.clear();
   if (flags_ & kFUncompressed)
   {
     int ret = Z_OK;
@@ -381,7 +373,7 @@ void VoxelBlock::initUncompressed(std::vector<uint8_t> &expanded_buffer)
 
 bool VoxelBlock::setCompressedBytes(const std::vector<uint8_t> &compressed_voxels)
 {
-  std::unique_lock<decltype(access_guard_)> guard(access_guard_);
+  std::unique_lock<Mutex> guard(access_guard_);
   if (reference_count_ == 0)
   {
     voxel_bytes_.resize(compressed_voxels.size());

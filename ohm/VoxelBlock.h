@@ -47,6 +47,8 @@ namespace ohm
   class ohm_API VoxelBlock
   {
     friend VoxelBlockCompressionQueue;
+    /// The mutex used to protect threaded access.
+    using Mutex = tbb::spin_mutex;
 
   public:
     /// Flags marking the @c VoxelBlock status.
@@ -170,8 +172,24 @@ namespace ohm
     /// uncompressed. Mutex is not locked.
     bool needsCompression() const;
 
+    /// Queue compression of voxel data. Should only be called when @c needsCompression() is true.
+    void queueCompression(std::unique_lock<Mutex> &guard);
+
+    /// Perform the compression operation into @p compression_buffer without locking the mutex . This is called from
+    /// @c compressInto() after locking the @c access_guard_ .
+    ///
+    /// @param compression_buffer The buffer to compress into. Final size will exactly match the compressed data size
+    ///   though the capacity may be larger.
+    /// @return True if compressio into @p compression_buffer succeeded.
     bool compressUnguarded(std::vector<uint8_t> &compression_buffer);
+    /// Decompress voxel data into @p expanded_buffer without locking the mutex. This is called from @c retain() after
+    /// the mutex is locked.
+    /// @param expanded_buffer The buffer to populate with uncompressed data.
+    /// @return True on successfully decompressing.
     bool uncompressUnguarded(std::vector<uint8_t> &expanded_buffer);
+    /// Initialise the given buffer to uncompressed voxel data. The voxel data is cleared to the appropriate pattern
+    /// for the voxel layer.
+    /// @param expanded_buffer The buffer to initialised.
     void initUncompressed(std::vector<uint8_t> &expanded_buffer);
     /// Swap the voxel bytes with the given compressed voxel bytes, but only if there are currently no retained
     /// references. This is for use byte the @c VoxelBlockCompressionQueue.
@@ -180,13 +198,17 @@ namespace ohm
     bool setCompressedBytes(const std::vector<uint8_t> &compressed_voxels);
 
     std::vector<uint8_t> voxel_bytes_;
-    mutable tbb::spin_mutex access_guard_;
+    mutable Mutex access_guard_;
     volatile unsigned reference_count_ = 0;
     std::chrono::high_resolution_clock::time_point release_after_;
     volatile unsigned flags_ = 0;
     const OccupancyMapDetail *map_ = nullptr;
     unsigned layer_index_ = 0;
   };
+
+  inline uint8_t *VoxelBlock::voxelBytes() { return voxel_bytes_.data(); }
+
+  inline const uint8_t *VoxelBlock::voxelBytes() const { return voxel_bytes_.data(); }
 }  // namespace ohm
 
 #endif  // VOXELBLOCK_H
