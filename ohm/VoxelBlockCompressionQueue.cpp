@@ -97,7 +97,7 @@ void VoxelBlockCompressionQueue::run()
   {
     std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
-    const auto time_now = std::chrono::high_resolution_clock::now();
+    const auto time_now = VoxelBlock::Clock::now();
     VoxelBlock *voxels = nullptr;
     while (imp_->compression_queue.try_pop(voxels))
     {

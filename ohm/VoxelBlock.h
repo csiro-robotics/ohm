@@ -47,10 +47,13 @@ namespace ohm
   class ohm_API VoxelBlock
   {
     friend VoxelBlockCompressionQueue;
-    /// The mutex used to protect threaded access.
-    using Mutex = tbb::spin_mutex;
 
   public:
+    /// The mutex used to protect threaded access.
+    using Mutex = tbb::spin_mutex;
+    /// The clock to use for tracking release time.
+    using Clock = std::chrono::steady_clock;
+
     /// Flags marking the @c VoxelBlock status.
     enum Flag
     {
@@ -151,7 +154,7 @@ namespace ohm
 
     /// Query the time after which the background thread may compress the @c VoxelBlock.
     /// @return The time after which the block may be compressed.
-    const std::chrono::high_resolution_clock::time_point releaseAfter() const;
+    const Clock::time_point releaseAfter() const;
 
     /// @internal
     /// Direct access to the voxel bytes. Should be retained first.
@@ -200,7 +203,7 @@ namespace ohm
     std::vector<uint8_t> voxel_bytes_;
     mutable Mutex access_guard_;
     volatile unsigned reference_count_ = 0;
-    std::chrono::high_resolution_clock::time_point release_after_;
+    Clock::time_point release_after_;
     volatile unsigned flags_ = 0;
     const OccupancyMapDetail *map_ = nullptr;
     unsigned layer_index_ = 0;

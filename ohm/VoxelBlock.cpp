@@ -174,7 +174,7 @@ void VoxelBlock::compressInto(std::vector<uint8_t> &compression_buffer)
   compressUnguarded(compression_buffer);
 }
 
-const std::chrono::high_resolution_clock::time_point VoxelBlock::releaseAfter() const
+const VoxelBlock::Clock::time_point VoxelBlock::releaseAfter() const
 {
   std::unique_lock<Mutex> guard(access_guard_);
   return release_after_;
@@ -193,7 +193,7 @@ bool VoxelBlock::needsCompression() const
 
 void VoxelBlock::queueCompression(std::unique_lock<Mutex> &guard)
 {
-  release_after_ = std::chrono::high_resolution_clock::now() + kReleaseDelay;
+  release_after_ = Clock::now() + kReleaseDelay;
   if (!(flags_ & kFCompressionQueued))
   {
     // This flag will be cleared when processed for compression.
