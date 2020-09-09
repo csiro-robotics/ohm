@@ -273,8 +273,8 @@ namespace ohm
       None = 0,                      ///< Nothing of note
       IsOccupancyLayer = (1u << 0),  ///< Marks that this @c Voxel points to the occupancy layer of @c OccupancyMap.
       CompressionLock = (1u << 1),   ///< Indiates the layer's @c VoxelBlock has been retained in @c chunk_.
-      TouchedChunk = (1u << 1),      ///< Marks that the current @c MapChunk data has been accessed for mutation.
-      TouchedVoxel = (1u << 2),      ///< Marks that the current voxel data has been accessed for mutation.
+      TouchedChunk = (1u << 2),      ///< Marks that the current @c MapChunk data has been accessed for mutation.
+      TouchedVoxel = (1u << 3),      ///< Marks that the current voxel data has been accessed for mutation.
 
       /// Flag values which are not propagated in copy assigment.
       NonPropagatingFlags = TouchedChunk | TouchedVoxel | CompressionLock
