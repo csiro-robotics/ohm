@@ -307,6 +307,14 @@ namespace ohm
     /// @param layer_index The @c MapLayer to access for the type @c T .
     /// @param key The key for the voxel to initialy reference. May be changed layer with @c setKey() .
     Voxel(MapTypePtr map, int layer_index, const Key &key);
+
+    /// Set the @c Voxel to reference the start of the voxel buffer within the @c MapChunk associated with the given
+    /// @p region_key . This is equivalent to using @c Key(region_key,0,0,0) .
+    /// @param map The map to access and mutate for non-const @c Voxel types.
+    /// @param layer_index The @c MapLayer to access for the type @c T .
+    /// @param region_key The region coordinate key for the chunk to reference.
+    Voxel(MapTypePtr map, int layer_index, const glm::i16vec3 &region_key);
+
     /// Create a @c Voxel reference from a @c OccupancyMap::iterator (mutable @c Voxel ) or a
     /// @c OccupancyMap::const_iterator (const @c Voxel ). This is similar to using the
     /// @c Voxel(MapTypePtr,layer_index,key) constructor, with the map, chunk and key always coming from the iterator.
@@ -636,6 +644,12 @@ namespace ohm
       setKey(key);
     }
   }
+
+
+  template <typename T>
+  Voxel<T>::Voxel(MapTypePtr map, int layer_index, const glm::i16vec3 &region_key)
+    : Voxel<T>(map, layer_index, Key(region_key, 0, 0, 0))
+  {}
 
 
   template <typename T>
