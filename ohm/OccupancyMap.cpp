@@ -747,7 +747,12 @@ glm::dvec3 OccupancyMap::voxelCentreLocal(const Key &key) const
 {
   glm::dvec3 centre;
   // Region centre
-  centre = glm::vec3(key.regionKey()) * glm::vec3(imp_->region_spatial_dimensions);
+  centre = glm::vec3(key.regionKey());
+  // Note: converting imp_->region_spatial_dimensions to glm::vec3 then multiplying to vec3 values resulted in
+  // additional floating point error. The following compontentised multiplication of float/int generates better values.
+  centre.x *= imp_->region_spatial_dimensions.x;
+  centre.y *= imp_->region_spatial_dimensions.y;
+  centre.z *= imp_->region_spatial_dimensions.z;
   // Offset to the lower extents of the region.
   centre -= 0.5 * imp_->region_spatial_dimensions;
   // Local offset.
@@ -760,7 +765,12 @@ glm::dvec3 OccupancyMap::voxelCentreGlobal(const Key &key) const
 {
   glm::dvec3 centre;
   // Region centre
-  centre = glm::dvec3(key.regionKey()) * glm::dvec3(imp_->region_spatial_dimensions);
+  centre = glm::dvec3(key.regionKey());
+  // Note: converting imp_->region_spatial_dimensions to glm::vec3 then multiplying to vec3 values resulted in
+  // additional floating point error. The following compontentised multiplication of float/int generates better values.
+  centre.x *= imp_->region_spatial_dimensions.x;
+  centre.y *= imp_->region_spatial_dimensions.y;
+  centre.z *= imp_->region_spatial_dimensions.z;
   // Offset to the lower extents of the region.
   centre -= 0.5 * glm::dvec3(imp_->region_spatial_dimensions);
   // Map offset.
