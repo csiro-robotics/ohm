@@ -1143,18 +1143,20 @@ void OccupancyMap::calculateDirtyClearanceExtents(glm::i16vec3 *min_ext, glm::i1
 void OccupancyMap::clear()
 {
   std::unique_lock<decltype(imp_->mutex)> guard(imp_->mutex);
-  for (auto &&chunk_ref : imp_->chunks)
-  {
-    releaseChunk(chunk_ref.second);
-  }
-  imp_->chunks.clear();
-  imp_->loaded_region_count = 0;
-
   // Clear the GPU cache (if present).
+  // Must occur before deleting the chunks as it will be referencing some.
   if (imp_->gpu_cache)
   {
     imp_->gpu_cache->clear();
   }
+
+  for (auto &&chunk_ref : imp_->chunks)
+  {
+    releaseChunk(chunk_ref.second);
+  }
+
+  imp_->chunks.clear();
+  imp_->loaded_region_count = 0;
 }
 
 Key OccupancyMap::firstIterationKey() const
