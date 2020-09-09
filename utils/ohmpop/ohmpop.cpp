@@ -95,6 +95,7 @@ namespace
     bool serialise = true;
     bool save_info = false;
     bool voxel_mean = false;
+    bool uncompressed = false;
 #ifndef OHMPOP_CPU
     double mapping_interval = 0.2;
     double progressive_mapping_slice = 0.0;
@@ -156,6 +157,8 @@ namespace
       // util::makeMemoryDisplayString(mem_size_string, ohm::OccupancyMap::voxelMemoryPerRegion(region_voxel_dim));
       **out << "Map resolution: " << resolution << '\n';
       **out << "Voxel mean position: " << (map.voxelMeanEnabled() ? "on" : "off") << '\n';
+      **out << "Compressed: " << ((map.flags() & ohm::MapFlag::kCompressed) == ohm::MapFlag::kCompressed ? "on" : "off")
+            << '\n';
       glm::i16vec3 region_dim = region_voxel_dim;
       region_dim.x = (region_dim.x) ? region_dim.x : OHM_DEFAULT_CHUNK_DIM_X;
       region_dim.y = (region_dim.y) ? region_dim.y : OHM_DEFAULT_CHUNK_DIM_Y;
@@ -353,6 +356,7 @@ int populateMap(const Options &opt)
 
   ohm::MapFlag map_flags = ohm::MapFlag::kDefault;
   map_flags |= (opt.voxel_mean) ? ohm::MapFlag::kVoxelMean : ohm::MapFlag::kNone;
+  map_flags &= (opt.uncompressed) ? ~ohm::MapFlag::kCompressed : ~ohm::MapFlag::kNone;
   ohm::OccupancyMap map(opt.resolution, opt.region_voxel_dim, map_flags);
 #ifdef OHMPOP_CPU
   std::unique_ptr<ohm::NdtMap> ndt_map;
@@ -833,6 +837,7 @@ int parseOptions(Options *opt, int argc, char *argv[])
       ("h,hit", "The occupancy probability due to a hit. Must be >= 0.5.", optVal(opt->prob_hit))
       ("m,miss", "The occupancy probability due to a miss. Must be < 0.5.", optVal(opt->prob_miss))
       ("r,resolution", "The voxel resolution of the generated map.", optVal(opt->resolution))
+      ("uncompressed", "Maintain uncompressed map. By default, may regions may be compressed when no longer needed.", optVal(opt->uncompressed))
       ("voxel-mean", "Enable voxel mean coordinates?", optVal(opt->voxel_mean))
       ("threshold", "Sets the occupancy threshold assigned when exporting the map to a cloud.", optVal(opt->prob_thresh)->implicit_value(optStr(opt->prob_thresh)))
       ("ndt", "Use normal distibution transform map generation.", optVal(opt->ndt.enabled))
