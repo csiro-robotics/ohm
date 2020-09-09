@@ -108,8 +108,8 @@ namespace ohm
 
         VoxelBuffer<VoxelBlock> occupancy_buffer(chunk.voxel_blocks[occupancy_layer->layerIndex()]);
         VoxelBuffer<VoxelBlock> clearance_buffer(chunk.voxel_blocks[clearance_layer->layerIndex()]);
-        float *occupancy = reinterpret_cast<float *>(occupancy_buffer.voxelMemorySize());
-        float *clearance = reinterpret_cast<float *>(clearance_buffer.voxelMemorySize());
+        float *occupancy = reinterpret_cast<float *>(occupancy_buffer.voxelMemory());
+        float *clearance = reinterpret_cast<float *>(clearance_buffer.voxelMemory());
 
         for (size_t i = 0; i < node_data.size() / 2; ++i)
         {

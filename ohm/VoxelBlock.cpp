@@ -79,14 +79,18 @@ void VoxelBlock::setCompressionControls(const CompressionControls &controls)
 }
 
 
-VoxelBlock::VoxelBlock(const OccupancyMapDetail *map, unsigned layer_index)
+VoxelBlock::VoxelBlock(const OccupancyMapDetail *map, const MapLayer &layer)
   : map_(map)
-  , layer_index_(layer_index)
+  , layer_index_(layer.layerIndex())
+  , uncompressed_byte_size_(layer.layerByteSize(map->region_voxel_dimensions))
 {
-  initUncompressed(voxel_bytes_);
+  initUncompressed(voxel_bytes_, layer);
   flags_ |= kFUncompressed;
-  std::unique_lock<Mutex> guard(access_guard_);
-  queueCompression(guard);
+  if (needsCompression())
+  {
+    std::unique_lock<Mutex> guard(access_guard_);
+    queueCompression(guard);
+  }
 }
 
 
@@ -112,26 +116,6 @@ void VoxelBlock::destroy()
   }
 }
 
-
-const MapLayer &VoxelBlock::layerInfo() const
-{
-  return map_->layout.layer(layer_index_);
-}
-
-size_t VoxelBlock::perVoxelByteSize() const
-{
-  return layerInfo().voxelByteSize();
-}
-
-size_t VoxelBlock::uncompressedByteSize() const
-{
-  return layerInfo().layerByteSize(map_->region_voxel_dimensions);
-}
-
-const glm::u8vec3 VoxelBlock::regionDimensions() const
-{
-  return map_->region_voxel_dimensions;
-}
 
 void VoxelBlock::retain()
 {
@@ -167,7 +151,7 @@ void VoxelBlock::compressInto(std::vector<uint8_t> &compression_buffer)
   // Handle uninitialised buffer.
   if (voxel_bytes_.empty())
   {
-    initUncompressed(voxel_bytes_);
+    initUncompressed(voxel_bytes_, map_->layout.layer(layer_index_));
     flags_ |= kFUncompressed;
   }
 
@@ -288,7 +272,7 @@ bool VoxelBlock::uncompressUnguarded(std::vector<uint8_t> &expanded_buffer)
 {
   if (voxel_bytes_.empty())
   {
-    initUncompressed(voxel_bytes_);
+    initUncompressed(voxel_bytes_, map_->layout.layer(layer_index_));
     flags_ |= kFUncompressed;
   }
 
@@ -303,7 +287,7 @@ bool VoxelBlock::uncompressUnguarded(std::vector<uint8_t> &expanded_buffer)
     return true;
   }
 
-  expanded_buffer.resize(layerInfo().layerByteSize(map_->region_voxel_dimensions));
+  expanded_buffer.resize(uncompressed_byte_size_);
 
   int ret = Z_OK;
   z_stream stream;
@@ -362,12 +346,11 @@ bool VoxelBlock::uncompressUnguarded(std::vector<uint8_t> &expanded_buffer)
 }
 
 
-void VoxelBlock::initUncompressed(std::vector<uint8_t> &expanded_buffer)
+void VoxelBlock::initUncompressed(std::vector<uint8_t> &expanded_buffer, const MapLayer &layer)
 {
   // Potential optimisation issue: there was a sporradic crash here where teh
-  const size_t layer_byte_size = uncompressedByteSize();
-  expanded_buffer.resize(layer_byte_size);
-  layerInfo().clear(expanded_buffer.data(), map_->region_voxel_dimensions);
+  expanded_buffer.resize(uncompressedByteSize());
+  layer.clear(expanded_buffer.data(), map_->region_voxel_dimensions);
 }
 
 

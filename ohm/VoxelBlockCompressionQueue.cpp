@@ -64,7 +64,7 @@ void VoxelBlockCompressionQueue::push(VoxelBlock *block)
 {
   if (imp_->running)
   {
-    imp_->compression_queue.push(block);
+    ohm::push(*imp_, block);
   }
   else
   {
@@ -99,7 +99,7 @@ void VoxelBlockCompressionQueue::run()
 
     const auto time_now = VoxelBlock::Clock::now();
     VoxelBlock *voxels = nullptr;
-    while (imp_->compression_queue.try_pop(voxels))
+    while (ohm::tryPop(*imp_, &voxels))
     {
       if (!(voxels->flags_ & VoxelBlock::kFMarkedForDeath))
       {
@@ -115,7 +115,7 @@ void VoxelBlockCompressionQueue::run()
         {
           // std::cout << "compress miss\n" << std::flush;
           // Too soon. Push to the back of the list.
-          imp_->compression_queue.push(voxels);
+          ohm::push(*imp_, voxels);
           break;
         }
       }

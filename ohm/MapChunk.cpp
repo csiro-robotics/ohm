@@ -31,7 +31,7 @@ MapChunk::MapChunk(const MapRegion &region, const OccupancyMapDetail &map)
   for (size_t i = 0; i < layout.layerCount(); ++i)
   {
     const MapLayer &layer = layout.layer(i);
-    voxel_blocks[i] = new VoxelBlock(&map, unsigned(i));
+    voxel_blocks[i] = new VoxelBlock(&map, layer);
     touched_stamps[i] = 0u;
   }
 }
@@ -130,7 +130,7 @@ void MapChunk::updateLayout(const MapLayout *new_layout, const glm::uvec3 &regio
     if (!new_voxel_blocks[i])
     {
       // Initilised layer.
-      new_voxel_blocks[i] = new VoxelBlock(map, layer.layerIndex());
+      new_voxel_blocks[i] = new VoxelBlock(map, layer);
       new_touched_stamps[i] = 0u;
     }
     else

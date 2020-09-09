@@ -8,10 +8,10 @@
 
 #include "OhmConfig.h"
 
+#include "Mutex.h"
+
 #include <glm/fwd.hpp>
 #include <glm/vec3.hpp>
-
-#include <tbb/spin_mutex.h>
 
 #include <chrono>
 #include <mutex>
@@ -50,7 +50,7 @@ namespace ohm
 
   public:
     /// The mutex used to protect threaded access.
-    using Mutex = tbb::spin_mutex;
+    using Mutex = ohm::SpinMutex;
     /// The clock to use for tracking release time.
     using Clock = std::chrono::steady_clock;
 
@@ -105,9 +105,13 @@ namespace ohm
     static void setCompressionControls(const CompressionControls &controls);
 
     /// Create a voxel block within the given @p map for the given @p layer_index.
+    ///
+    /// @note At the time of the call, there are cases where the @p layer will not match the layout in @p map. This
+    /// occurs when updating the layout. The calling code must rectify this situation before other code may use the
+    /// @c VoxelBlock .
     /// @param map Details of the occupancy map to which the block belongs.
-    /// @param layer_index The @p MapLayer index within the @p map @p MapLayout which the voxel block represents.
-    VoxelBlock(const OccupancyMapDetail *map, unsigned layer_index);
+    /// @param layer The @p MapLayer which the voxel block represents.
+    VoxelBlock(const OccupancyMapDetail *map, const MapLayer &layer);
 
   private:
     /// Hidden destructor for dealing with the processing queue safely.
@@ -122,21 +126,13 @@ namespace ohm
     /// background thread releases it.
     void destroy();
 
-    /// Query the @p MapLayer information for this @c VoxelBlock.
-    /// @return The layer information for the voxel memory layout of this block.
-    const MapLayer &layerInfo() const;
-
     /// Size of a single voxel in the map.
     /// @return The size of a voxel in bytes.
     size_t perVoxelByteSize() const;
 
     /// Uncompressed data size.
     /// @return The uncompressed size of the voxel map in bytes.
-    size_t uncompressedByteSize() const;
-
-    /// Query the voxel region dimensions from the map.
-    /// @return The number of voxels along each axis within a single voxel region.
-    const glm::u8vec3 regionDimensions() const;
+    inline size_t uncompressedByteSize() const { return uncompressed_byte_size_; }
 
     /// Retain the uncompressed voxel memory until a corresponding @c release() call. Not recommended; use
     /// @c voxelBuffer().
@@ -193,7 +189,8 @@ namespace ohm
     /// Initialise the given buffer to uncompressed voxel data. The voxel data is cleared to the appropriate pattern
     /// for the voxel layer.
     /// @param expanded_buffer The buffer to initialised.
-    void initUncompressed(std::vector<uint8_t> &expanded_buffer);
+    /// @param layer The layer used to initialise the memory. Must be explicitly passed to handle map layout changes.
+    void initUncompressed(std::vector<uint8_t> &expanded_buffer, const MapLayer &layer);
     /// Swap the voxel bytes with the given compressed voxel bytes, but only if there are currently no retained
     /// references. This is for use byte the @c VoxelBlockCompressionQueue.
     /// @param compressed_voxels The compressed voxel data.
@@ -207,6 +204,7 @@ namespace ohm
     volatile unsigned flags_ = 0;
     const OccupancyMapDetail *map_ = nullptr;
     unsigned layer_index_ = 0;
+    size_t uncompressed_byte_size_ = 0;
   };
 
   inline uint8_t *VoxelBlock::voxelBytes() { return voxel_bytes_.data(); }

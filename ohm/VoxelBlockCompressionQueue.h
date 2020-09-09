@@ -8,11 +8,6 @@
 
 #include "OhmConfig.h"
 
-#include <tbb/spin_mutex.h>
-
-#include <memory>
-#include <mutex>
-
 namespace ohm
 {
   class VoxelBlock;

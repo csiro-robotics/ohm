@@ -407,6 +407,11 @@ namespace ohm
     /// @return The voxel data of type @c T for the currently referenced voxel as a pointer.
     inline const T *dataPtr() const { return &data(); }
 
+    /// Return a pointer to the start of the voxel memory for the current chunk.
+    /// @c isValid() must be true before calling.
+    /// @return A pointer to the voxel memory for the currently referenced chunk.
+    inline T *voxelMemory() { return voxel_memory_; }
+
     /// Attempt to step the voxel reference to the next voxel in the current @c MapChunk .
     ///
     /// This first validate @c isValidReference() before attempting to modifying the @c key() . On success, the
@@ -577,14 +582,16 @@ namespace ohm
     , flags_(other.flags_ & ~unsigned(Flag::NonPropagatingFlags))
     , error_flags_(other.error_flags_)
   {
-    // Do not set chunk pointer directly. Use the method call to ensure flags are correctly maintained.
+    // Do not set chunk or voxel_memory_ pointers directly. Use the method call to ensure flags are correctly
+    // maintained.
     setChunk(other.chunk_);
   }
 
 
   template <typename T>
   Voxel<T>::Voxel(Voxel<T> &&other)
-    : map_(std::exchange(other.map_, nullptr))
+    : voxel_memory_(std::exchange(other.voxel_memory_, nullptr))
+    , map_(std::exchange(other.map_, nullptr))
     , chunk_(std::exchange(other.chunk_, nullptr))
     , key_(std::exchange(other.key_, Key::kNull))
     , layer_index_(std::exchange(other.layer_index_, -1))
@@ -605,7 +612,8 @@ namespace ohm
     , error_flags_(other.errorFlags())
   {
     validateLayer();
-    // Do not set chunk pointer directly. Use the method call to ensure flags are correctly maintained.
+    // Do not set chunk or voxel_memory_ pointers directly. Use the method call to ensure flags are correctly
+    // maintained.
     setChunk(other.chunk());
   }
 
@@ -716,6 +724,7 @@ namespace ohm
   template <typename T>
   void Voxel<T>::swap(Voxel &other)
   {
+    std::swap(voxel_memory_, other.voxel_memory_);
     std::swap(map_, other.map_);
     std::swap(chunk_, other.chunk_);
     std::swap(key_, other.key_);
@@ -738,6 +747,8 @@ namespace ohm
     layer_dim_ = other.layer_dim_;
     flags_ = other.flags_ & ~unsigned(Flag::NonPropagatingFlags);
     error_flags_ = other.error_flags_;
+    // Do not set chunk or voxel_memory_ pointers directly. Use the method call to ensure flags are correctly
+    // maintained.
     voxel_memory_ = nullptr;  // About to be resolved in setChunk()
     setChunk(other.chunk_);
     return *this;

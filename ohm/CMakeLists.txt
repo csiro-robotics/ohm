@@ -89,6 +89,8 @@ set(SOURCES
   MapRegionCache.h
   MapSerialise.cpp
   MapSerialise.h
+  Mutex.cpp
+  Mutex.h
   NdtMap.cpp
   NdtMap.h
   NearestNeighbours.cpp
@@ -177,6 +179,7 @@ set(PUBLIC_HEADERS
   MapRegionCache.h
   MapRegion.h
   MapSerialise.h
+  Mutex.h
   NdtMap.h
   NearestNeighbours.h
   OccupancyMap.h
