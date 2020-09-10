@@ -269,7 +269,7 @@ void ohm::integrateNdtMiss(NdtMap &map, const Key &key, const glm::dvec3 &sensor
   const glm::dvec3 voxel_maximum_likelihood =
 #endif  // TES_ENABLE
     calculateMissNdt(cov.dataPtr(), &updated_value, sensor, sample, voxel_mean, mean.data().count,
-                     unorbservedOccupancyValue(), occupancy_map.missValue(), map.sensorNoise(),
+                     unorbservedOccupancyValue(), occupancy_map.missValue(), map.adaptationRate(), map.sensorNoise(),
                      map.ndtSampleThreshold());
   occupancyAdjustDown(
     voxel_value, *voxel_value, updated_value, unorbservedOccupancyValue(), occupancy_map.minVoxelValue(),

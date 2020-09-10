@@ -55,21 +55,18 @@ namespace ohm
     double resolution = 0.0;
     uint64_t stamp = 0;
     float occupancy_threshold_value = 0.0f;
-    float occupancy_threshold_probability = 0.0f;
     float hit_value = 0.0f;
-    float hit_probability = 0.0f;
     float miss_value = 0.0f;
-    float miss_probability = 0.0f;
     float min_voxel_value = 0.0f;
     float max_voxel_value = 0.0f;
     bool saturate_at_min_value = false;
     bool saturate_at_max_value = false;
+    MapFlag flags = MapFlag::kNone;
     MapLayout layout;
     ChunkMap chunks;
     mutable Mutex mutex;
     // Region count at load time. Useful when only the header is loaded.
     size_t loaded_region_count = 0;
-    MapFlag flags = MapFlag::kNone;
 
     /// GPU cache pointer. Note: this is declared here, but implemented in a dependent library. We simply ensure that
     /// the map detail supports a GPU cache.

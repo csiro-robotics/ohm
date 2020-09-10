@@ -21,7 +21,10 @@ namespace ohm
     /// Range sensor noise estimate
     float sensor_noise = 0.05f;
     /// Number of samples required before using NDT logic in a miss integration.
-    unsigned sample_threshold = 4;
+    unsigned sample_threshold = 3;
+    /// Rate at which ray intersections with NDT ellipsoids errode voxels. Range [0, 1] with 1 yielding stronger
+    /// effects.
+    float adaptation_rate = 1.0f;
     /// Low probability value threshold used to re-initialise covariance matrix and mean.
     /// Used with @c reinitialise_covariance_point_count in @c calculateHitWithCovariance()
     float reinitialise_covariance_theshold = probabilityToValue(0.2f);

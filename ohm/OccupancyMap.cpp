@@ -648,18 +648,16 @@ float OccupancyMap::hitValue() const
 
 float OccupancyMap::hitProbability() const
 {
-  return imp_->hit_probability;
+  return valueToProbability(imp_->hit_value);
 }
 
 void OccupancyMap::setHitProbability(float probability)
 {
-  imp_->hit_probability = probability;
   imp_->hit_value = probabilityToValue(probability);
 }
 
 void OccupancyMap::setHitValue(float value)
 {
-  imp_->hit_probability = valueToProbability(value);
   imp_->hit_value = value;
   ;
 }
@@ -671,18 +669,16 @@ float OccupancyMap::missValue() const
 
 float OccupancyMap::missProbability() const
 {
-  return imp_->miss_probability;
+  return valueToProbability(imp_->miss_value);
 }
 
 void OccupancyMap::setMissProbability(float probability)
 {
-  imp_->miss_probability = probability;
   imp_->miss_value = probabilityToValue(probability);
 }
 
 void OccupancyMap::setMissValue(float value)
 {
-  imp_->miss_probability = valueToProbability(value);
   imp_->miss_value = value;
   ;
 }
@@ -694,12 +690,11 @@ float OccupancyMap::occupancyThresholdValue() const
 
 float OccupancyMap::occupancyThresholdProbability() const
 {
-  return imp_->occupancy_threshold_probability;
+  return valueToProbability(imp_->occupancy_threshold_value);
 }
 
 void OccupancyMap::setOccupancyThresholdProbability(float probability)
 {
-  imp_->occupancy_threshold_probability = probability;
   imp_->occupancy_threshold_value = probabilityToValue(probability);
 }
 
@@ -1136,18 +1131,20 @@ void OccupancyMap::calculateDirtyClearanceExtents(glm::i16vec3 *min_ext, glm::i1
 void OccupancyMap::clear()
 {
   std::unique_lock<decltype(imp_->mutex)> guard(imp_->mutex);
-  for (auto &&chunk_ref : imp_->chunks)
-  {
-    releaseChunk(chunk_ref.second);
-  }
-  imp_->chunks.clear();
-  imp_->loaded_region_count = 0;
-
   // Clear the GPU cache (if present).
+  // Must occur before deleting the chunks as it will be referencing some.
   if (imp_->gpu_cache)
   {
     imp_->gpu_cache->clear();
   }
+
+  for (auto &&chunk_ref : imp_->chunks)
+  {
+    releaseChunk(chunk_ref.second);
+  }
+
+  imp_->chunks.clear();
+  imp_->loaded_region_count = 0;
 }
 
 Key OccupancyMap::firstIterationKey() const

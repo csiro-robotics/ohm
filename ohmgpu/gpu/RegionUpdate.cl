@@ -114,6 +114,8 @@ typedef struct LineWalkData_t
 #ifdef NDT
   /// A reference sensor position. This is in a frame local to the centre of the voxel containing the sample coordinate.
   float3 sensor;
+  // Affects how quickly NDT removes voxels: [0, 1].
+  float adaptation_rate;
   // An estimate on the sensor range noise error.
   float sensor_noise;
 #endif  // NDT
@@ -329,7 +331,7 @@ __kernel void REGION_UPDATE_KERNEL(__global atomic_float *occupancy,
                                    float voxel_value_max, uint region_update_flags
 #ifdef NDT
                                    ,
-                                   float sensor_noise
+                                   float adaptation_rate, float sensor_noise
 #endif  // NDT
 )
 {
@@ -349,6 +351,7 @@ __kernel void REGION_UPDATE_KERNEL(__global atomic_float *occupancy,
 #ifdef NDT
   line_data.cov_voxels = cov_voxels;
   line_data.cov_offsets = cov_region_mem_offsets_global;
+  line_data.adaptation_rate = adaptation_rate;
   line_data.sensor_noise = sensor_noise;
 #endif  // NDT
   line_data.region_keys = occupancy_region_keys_global;
