@@ -4,8 +4,10 @@
 #include "SlamCloudLoader.h"
 
 #ifdef _MSC_VER
-// std::equal with parameters that may be unsafe warning under Visual Studio.
-#pragma warning(disable : 4996)
+// Disable PDAL warnings:
+// - 4996: strerror not secure
+// - 4250: inheritance via dominance.
+#pragma warning(disable : 4996 4250)
 #endif  // _MSC_VER
 
 #include <ohmutil/SafeIO.h>
@@ -426,8 +428,10 @@ bool SlamCloudLoader::open(const char *sample_file_path, const char *trajectory_
     return false;
   }
 
+  bool using_trajectory = false;
   if (text_trajectory)
   {
+    using_trajectory = true;
     imp_->read_trajectory_point = [this](TrajectoryPoint &point) -> bool {
       if (!std::getline(imp_->trajectory_file, imp_->traj_line))
       {
@@ -449,6 +453,7 @@ bool SlamCloudLoader::open(const char *sample_file_path, const char *trajectory_
   }
   else if (imp_->trajectory_reader)
   {
+    using_trajectory = true;
     imp_->traj_stream = std::make_unique<PointStream>(5000);
     imp_->trajectory_reader->prepare(*imp_->traj_stream);
 
@@ -486,29 +491,31 @@ bool SlamCloudLoader::open(const char *sample_file_path, const char *trajectory_
     imp_->sample_stream->markLoadComplete();
   });
 
-  // Prime the trajectory buffer.
-
-  if (!text_trajectory && imp_->traj_stream)
+  if (using_trajectory)
   {
-    // Wait for first trajectory data.
-    for (int i = 0; i < 10000 && !imp_->traj_stream->haveData(); ++i)
+    // Prime the trajectory buffer.
+    if (!text_trajectory && imp_->traj_stream)
     {
-      std::this_thread::sleep_for(std::chrono::milliseconds(1));
+      // Wait for first trajectory data.
+      for (int i = 0; i < 10000 && !imp_->traj_stream->haveData(); ++i)
+      {
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+      }
     }
-  }
 
-  bool trajectory_primed = imp_->read_trajectory_point(imp_->trajectory_buffer[0]);
-  if (!trajectory_primed && text_trajectory)
-  {
-    // Try a second time to read the first trajectory point from text file. First line may be headings.
-    trajectory_primed = imp_->read_trajectory_point(imp_->trajectory_buffer[0]);
-  }
-  trajectory_primed = trajectory_primed && imp_->read_trajectory_point(imp_->trajectory_buffer[1]);
+    bool trajectory_primed = imp_->read_trajectory_point(imp_->trajectory_buffer[0]);
+    if (!trajectory_primed && text_trajectory)
+    {
+      // Try a second time to read the first trajectory point from text file. First line may be headings.
+      trajectory_primed = imp_->read_trajectory_point(imp_->trajectory_buffer[0]);
+    }
+    trajectory_primed = trajectory_primed && imp_->read_trajectory_point(imp_->trajectory_buffer[1]);
 
-  if (!trajectory_primed)
-  {
-    close();
-    return false;
+    if (!trajectory_primed)
+    {
+      close();
+      return false;
+    }
   }
 
   return true;
@@ -548,7 +555,7 @@ void SlamCloudLoader::close()
 
   imp_->sample_file_path.clear();
   imp_->trajectory_file_path.clear();
-  imp_->read_trajectory_point = [](TrajectoryPoint &) { return false; };
+  imp_->read_trajectory_point = std::function<bool(TrajectoryPoint &)>();
   imp_->trajectory_file.close();
   // imp_->next_sample_read_index = imp_->samples_view_index = imp_->traj_view_index = 0u;
   imp_->read_count = imp_->sample_count = 0;
@@ -686,13 +693,11 @@ bool SlamCloudLoader::loadPoint()
 
     if (have_read)
     {
-      sample_data.sample.x = sample.x;
-      sample_data.sample.y = sample.y;
-      sample_data.sample.z = sample.z;
+      sample_data.sample = glm::dvec3(sample);
       sample_data.timestamp = sample.w;
       sample_data.origin = glm::dvec3(0);
 
-      sampleTrajectory(sample_data.origin, sample_data.timestamp);
+      sampleTrajectory(sample_data.origin, sample_data.sample, sample_data.timestamp);
       imp_->next_sample = sample_data;
 
       if (imp_->first_sample_timestamp < 0)
@@ -707,7 +712,7 @@ bool SlamCloudLoader::loadPoint()
 }
 
 
-bool SlamCloudLoader::sampleTrajectory(glm::dvec3 &position, double timestamp)
+bool SlamCloudLoader::sampleTrajectory(glm::dvec3 &position, const glm::dvec3 &sample, double timestamp)
 {
   if (imp_->read_trajectory_point)
   {
@@ -729,5 +734,11 @@ bool SlamCloudLoader::sampleTrajectory(glm::dvec3 &position, double timestamp)
       return true;
     }
   }
+  else
+  {
+    // Handle no trajectory file.
+    position = sample;
+  }
+
   return false;
 }

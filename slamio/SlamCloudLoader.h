@@ -51,7 +51,7 @@ private:
   /// @param timestamp The desired sample time.
   /// @return True on success, false when @p timestamp is out of range.
   bool sampleTrajectory(glm::dvec3 &position,  // NOLINT(google-runtime-references)
-                        double timestamp);
+                        const glm::dvec3 &sample, double timestamp);
 
   SlamCloudLoaderDetail *imp_;
 };
