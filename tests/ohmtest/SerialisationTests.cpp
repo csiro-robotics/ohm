@@ -107,6 +107,10 @@ namespace searialisationtests
   {
     int extents = int(boundary_range / map.resolution());
 
+    // Set legacy probability values.
+    map.setHitProbability(0.7f);
+    map.setMissProbability(0.4f);
+
     const auto build_walls = [&map, extents, voxel_step](int a0, int a1, int a2) {
       const double map_res = map.resolution();
       KeyList ray;

@@ -136,7 +136,10 @@ namespace ndttests
     ohm::NdtMap ndt(&map, true);
 
     map.setOrigin(map_origin);
+    // Set explicit probabilities
+    map.setHitProbability(0.55f);
     map.setMissProbability(0.45f);
+    ndt.setAdaptationRate(1.0f);
     ndt.setSensorNoise(sensor_noise);
 
     // Integrate all the samples into the map to build voxel covariance and mean. We expect all samples to fall in one
@@ -180,7 +183,7 @@ namespace ndttests
       // Convert to probability.
       float ray_probability = ohm::valueToProbability(value_adjustment);
       // Validate
-      EXPECT_NEAR(ray_probability, expected_prob_approx[i / 2], 0.01f);
+      EXPECT_NEAR(ray_probability, expected_prob_approx[i / 2], 0.001f);
     }
     occupancy.reset();
   }
@@ -277,11 +280,11 @@ namespace ndttests
     // Ray straight down through the voxel
     rays.emplace_back(sensor);
     rays.emplace_back(glm::dvec3(1, 1, -5));
-    expected_prob_approx.emplace_back(0.05f);
+    expected_prob_approx.emplace_back(0.004f);
     // Reverse the ray above
     rays.emplace_back(rays[1]);
     rays.emplace_back(rays[0]);
-    expected_prob_approx.emplace_back(0.05f);
+    expected_prob_approx.emplace_back(0.004f);
     // Ray parallel to the voxel ellipsoid - expected to miss.
     rays.emplace_back(glm::dvec3(-5, 1, 0.25));
     rays.emplace_back(glm::dvec3(5, 1, 0.25));
@@ -302,7 +305,7 @@ namespace ndttests
     // Ray running across the voxel, and through the ellipsoid.
     rays.emplace_back(glm::dvec3(-5, 1, 2));
     rays.emplace_back(glm::dvec3(5, 1, 0.5));
-    expected_prob_approx.emplace_back(0.269f);
+    expected_prob_approx.emplace_back(0.234f);
 
     testNdtMiss(sensor, samples, voxel_resolution, 0.05f, glm::dvec3(0), rays, expected_prob_approx);
   }
@@ -354,15 +357,15 @@ namespace ndttests
     // Ray straight down through the voxel
     rays.emplace_back(sensor);
     rays.emplace_back(glm::dvec3(0, 0, -5));
-    expected_prob_approx.emplace_back(0.05f);
+    expected_prob_approx.emplace_back(0.004f);
     // Reverse the ray above
     rays.emplace_back(rays[1]);
     rays.emplace_back(rays[0]);
-    expected_prob_approx.emplace_back(0.05f);
+    expected_prob_approx.emplace_back(0.004f);
     // Ray running parallel to the cylinder near the edge. Should be a near hit.
     rays.emplace_back(glm::dvec3(cylinder_radius, cylinder_radius, 5));
     rays.emplace_back(glm::dvec3(cylinder_radius, cylinder_radius, -5));
-    expected_prob_approx.emplace_back(0.438f);
+    expected_prob_approx.emplace_back(0.425f);
     // Ray running parallel to the cylinder, but should miss.
     rays.emplace_back(glm::dvec3(1.5 * cylinder_radius, 1.5 * cylinder_radius, -5));
     rays.emplace_back(glm::dvec3(2.0 * cylinder_radius, 2.0 * cylinder_radius, 5));
@@ -370,11 +373,11 @@ namespace ndttests
     // Ray across the middle of the cylinder.
     rays.emplace_back(glm::dvec3(2, -cylinder_radius, 0));
     rays.emplace_back(glm::dvec3(-2, -cylinder_radius, 0));
-    expected_prob_approx.emplace_back(0.332f);
+    expected_prob_approx.emplace_back(0.312f);
     // Ray across the end (top) of the cylinder.
     rays.emplace_back(glm::dvec3(2, -cylinder_radius, 0.85));
     rays.emplace_back(glm::dvec3(-2, -cylinder_radius, 0.85));
-    expected_prob_approx.emplace_back(0.444f);
+    expected_prob_approx.emplace_back(0.436f);
     // Ray across the voxel, missing the cylinder (top) of the cylinder.
     rays.emplace_back(glm::dvec3(2, 2.0 * cylinder_radius, 0.85));
     rays.emplace_back(glm::dvec3(-2, 2.0 * cylinder_radius, 0.85));
@@ -410,15 +413,15 @@ namespace ndttests
     // Ray straight down through the voxel
     rays.emplace_back(sensor);
     rays.emplace_back(glm::dvec3(0, 0, -5));
-    expected_prob_approx.emplace_back(0.05f);
+    expected_prob_approx.emplace_back(0.004f);
     // Reverse the ray above
     rays.emplace_back(rays[1]);
     rays.emplace_back(rays[0]);
-    expected_prob_approx.emplace_back(0.05f);
+    expected_prob_approx.emplace_back(0.004f);
     // Edge of the sphere..
     rays.emplace_back(glm::dvec3(radius, radius, 5));
     rays.emplace_back(glm::dvec3(radius, radius, -5));
-    expected_prob_approx.emplace_back(0.477f);
+    expected_prob_approx.emplace_back(0.469f);
     // Near the edge of the sphere, but should miss.
     rays.emplace_back(glm::dvec3(1.5 * radius, 1.5 * radius, -5));
     rays.emplace_back(glm::dvec3(2.0 * radius, 2.0 * radius, 5));
