@@ -196,11 +196,11 @@ OccupancyMap::OccupancyMap(double resolution, const glm::u8vec3 &region_voxel_di
   imp_->region_spatial_dimensions.y = imp_->region_voxel_dimensions.y * resolution;
   imp_->region_spatial_dimensions.z = imp_->region_voxel_dimensions.z * resolution;
   imp_->saturate_at_min_value = imp_->saturate_at_max_value = false;
-  // Default thresholds taken from octomap as a guide.
+  // Default min/max thresholds taken from octomap as a guide.
   imp_->min_voxel_value = -2.0f;
   imp_->max_voxel_value = 3.511f;
-  setHitProbability(0.7f);
-  setMissProbability(0.4f);
+  setHitProbability(0.9f);
+  setMissProbability(0.45f);
   setOccupancyThresholdProbability(0.5f);
 
   imp_->ray_filter = [](glm::dvec3 *start, glm::dvec3 *end, unsigned *filter_flags) {
