@@ -42,7 +42,7 @@ namespace
     std::string map_file;
     std::string cloud_in;
     std::string cloud_out;
-    double expected_value_threshold = 0.2;
+    double expected_value_threshold = 0;
     bool occupancy_only = false;
   };
 
@@ -65,18 +65,21 @@ namespace
   bool filterPointByCovariance(const glm::dvec3 &point, const glm::dvec3 &mean, const glm::dmat3 &cov_sqrt,
                                double threshold)
   {
-    // transient point assessement vs NDT:
-    // (point - mean)^T cov^{-1} (point - mean)
-    // result is scalar
-    // expected value is ~= dimensionality (3)
+    // Transient point assessement vs NDT:
+    // With:
+    //  P:covariance
+    //  S:covariance square root
+    //  a:test value
+    // a = (point - mean)^T P^{-1} (point - mean)
+    // where P=covariance
+    // expected value is dimensionality (3)
+    // so to pass, we need a < 3.
     //
-    // Using CovarianceVoxel instead:
-    // we have S S^T = P
+    // Using CovarianceVoxel we have the square-root of P:
+    // P = S S^T
+    // so:
     // v = S^{-1} (point - mean)
-    // answer = v^T v
-    // S: Square root of the covariance
-    // P: covariance matrix
-    // C===S (alternative naming)
+    // a = v^T v
 
     const glm::dvec3 divergence_from_mean = point - mean;
     const auto v = glm::inverse(cov_sqrt) * divergence_from_mean;
