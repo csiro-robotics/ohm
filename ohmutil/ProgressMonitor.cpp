@@ -74,9 +74,9 @@ void ProgressMonitor::pause()
   if (!pause_)
   {
     pause_.store(true);
-    while (!paused_)
+    while (thread_ && !paused_)
     {
-      // no op
+      std::this_thread::yield();
     }
   }
 }
