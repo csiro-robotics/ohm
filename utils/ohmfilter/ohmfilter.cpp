@@ -62,7 +62,7 @@ namespace
     ProgressMonitor &monitor_;
   };
 
-  bool filterPointByCovariance(const glm::dvec3 &point, const glm::dvec3 &mean, const glm::dmat3 &covariance,
+  bool filterPointByCovariance(const glm::dvec3 &point, const glm::dvec3 &mean, const glm::dmat3 &cov_sqrt,
                                double threshold)
   {
     // transient point assessement vs NDT:
@@ -71,16 +71,18 @@ namespace
     // expected value is ~= dimensionality (3)
     //
     // Using CovarianceVoxel instead:
-    // we have S S^T = cov
+    // we have S S^T = P
     // v = S^{-1} (point - mean)
     // answer = v^T v
-    // S: Square of the covariance
+    // S: Square root of the covariance
+    // P: covariance matrix
+    // C===S (alternative naming)
 
     const glm::dvec3 divergence_from_mean = point - mean;
-    const auto v = glm::inverse(covariance) * divergence_from_mean;
+    const auto v = glm::inverse(cov_sqrt) * divergence_from_mean;
     const double value = glm::dot(v, v);
     const double expected_value = 3.0;  // In R3 => expected value is 3.
-    return std::abs(value - expected_value) <= threshold;
+    return std::abs(value) < expected_value + threshold;
   }
 }  // namespace
 
@@ -169,8 +171,7 @@ bool filterCloud(const Options &opt, const ohm::OccupancyMap &map, ProgressMonit
 
   // Select the filter function depending on available layers.
   FilterFunction filter;
-  glm::dmat3 cov{};
-  double unpack_cov[9];
+  glm::dmat3 cov_sqrt{};
   if (!opt.occupancy_only && voxel_cov.isLayerValid() && voxel_mean.isLayerValid())
   {
     std::cout << "Filtering with NDT information" << std::endl;
@@ -180,16 +181,8 @@ bool filterCloud(const Options &opt, const ohm::OccupancyMap &map, ProgressMonit
       {
         const glm::dvec3 mean = ohm::positionUnsafe(voxel_mean);
         const ohm::CovarianceVoxel *cov_data = voxel_cov.dataPtr();
-        // ohm::unpackCovariance(cov_data, voxel_mean.data().count, mean - point, unpack_cov);
-        // cov[0][0] = unpack_cov[0];
-        // cov[1][0] = unpack_cov[1];
-        // cov[1][2] = unpack_cov[2];
-        // cov[2][0] = unpack_cov[3];
-        // cov[2][1] = unpack_cov[4];
-        // cov[2][2] = unpack_cov[5];
-        cov = ohm::covarianceMatrix(cov_data);
-        ohm::unpackCovariance(cov_data, voxel_mean.data().count, mean - point, unpack_cov);
-        return filterPointByCovariance(point, mean, cov, opt.expected_value_threshold);
+        cov_sqrt = ohm::covarianceSqrtMatrix(cov_data);
+        return filterPointByCovariance(point, mean, cov_sqrt, opt.expected_value_threshold);
       }
 
       return false;
