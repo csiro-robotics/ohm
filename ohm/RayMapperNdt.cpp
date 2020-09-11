@@ -64,6 +64,7 @@ size_t RayMapperNdt::integrateRays(const glm::dvec3 *rays, size_t element_count,
   const auto voxel_max = occupancy_map.maxVoxelValue();
   const auto saturation_min = occupancy_map.saturateAtMinValue() ? voxel_min : std::numeric_limits<float>::lowest();
   const auto saturation_max = occupancy_map.saturateAtMinValue() ? voxel_max : std::numeric_limits<float>::max();
+  const auto adaptation_rate = map_->adaptationRate();
   const auto sensor_noise = map_->sensorNoise();
   const auto ndt_sample_threshold = map_->ndtSampleThreshold();
 
@@ -110,7 +111,7 @@ size_t RayMapperNdt::integrateRays(const glm::dvec3 *rays, size_t element_count,
     float adjusted_value = initial_value;
 
     calculateMissNdt(cov, &adjusted_value, start, sample, mean, voxel_mean->count, unorbservedOccupancyValue(),
-                     miss_value, sensor_noise, ndt_sample_threshold);
+                     miss_value, adaptation_rate, sensor_noise, ndt_sample_threshold);
     occupancyAdjustDown(occupancy_value, initial_value, adjusted_value, unorbservedOccupancyValue(), voxel_min,
                         saturation_min, saturation_max, stop_adjustments);
   };

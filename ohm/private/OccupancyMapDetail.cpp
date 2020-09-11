@@ -132,14 +132,12 @@ void OccupancyMapDetail::copyFrom(const OccupancyMapDetail &other)
   resolution = other.resolution;
   stamp = other.stamp;
   occupancy_threshold_value = other.occupancy_threshold_value;
-  occupancy_threshold_probability = other.occupancy_threshold_probability;
   hit_value = other.hit_value;
-  hit_probability = other.hit_probability;
   miss_value = other.miss_value;
-  miss_probability = other.miss_probability;
   min_voxel_value = other.min_voxel_value;
   max_voxel_value = other.max_voxel_value;
   saturate_at_min_value = other.saturate_at_min_value;
   saturate_at_max_value = other.saturate_at_max_value;
   layout = MapLayout(other.layout);
+  flags = other.flags;
 }

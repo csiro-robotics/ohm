@@ -35,6 +35,8 @@ NdtMap::NdtMap(OccupancyMap *map, bool borrowed_map)
   imp_->borrowed_map = borrowed_map;
   enableNdt(map);
   updateMapInfo();
+  // Much lower hit prob for NDT is better.
+  map->setHitProbability(0.55f);
 }
 
 
@@ -66,6 +68,19 @@ const OccupancyMap &NdtMap::map() const
 bool NdtMap::borrowedMap() const
 {
   return imp_->borrowed_map;
+}
+
+
+void NdtMap::setAdaptationRate(float rate)
+{
+  imp_->adaptation_rate = rate;
+  updateMapInfo();
+}
+
+
+float NdtMap::adaptationRate() const
+{
+  return imp_->adaptation_rate;
 }
 
 
@@ -168,7 +183,7 @@ void NdtMap::debugDraw() const
   {
     occupancy.setKey(*iter);
     const auto voxel = *iter;
-    if (isOccupied(occupancy.data()))
+    if (isOccupied(occupancy))
     {
       cov.setKey(occupancy);
 
@@ -181,7 +196,7 @@ void NdtMap::debugDraw() const
 
       mean.setKey(occupancy);
 
-      const glm::dvec3 voxel_mean = position(mean);
+      const glm::dvec3 voxel_mean = positionUnsafe(mean);
 
       tes::Sphere ellipsoid(next_id, glm::value_ptr(voxel_mean));
       ellipsoid.setRotation(tes::Quaterniond(rot.x, rot.y, rot.z, rot.w));
@@ -211,6 +226,7 @@ void NdtMap::updateMapInfo()
     return;
   }
   MapInfo &info = imp_->map->mapInfo();
+  info.set(MapValue("Ndt adaptation rate", imp_->adaptation_rate));
   info.set(MapValue("Ndt sensor noise", imp_->sensor_noise));
   info.set(MapValue("Ndt sample threshold", imp_->sample_threshold));
   info.set(MapValue("Ndt reinitialisation threshold", imp_->reinitialise_covariance_theshold));

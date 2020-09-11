@@ -159,28 +159,13 @@ int main(int argc, char *argv[])
             << ")" << std::endl;
   std::cout << "Hit probability: " << map.hitProbability() << " (" << map.hitValue() << ")" << std::endl;
   std::cout << "Miss probability: " << map.missProbability() << " (" << map.missValue() << ")" << std::endl;
-  std::cout << "Saturation min/max: [";
-  {
-    if (map.saturateAtMinValue())
-    {
-      std::cout << map.minVoxelProbability();
-    }
-    else
-    {
-      std::cout << "off";
-    }
-    std::cout << ",";
-    if (map.saturateAtMaxValue())
-    {
-      std::cout << map.maxVoxelProbability();
-    }
-    else
-    {
-      std::cout << "off";
-    }
-  }
+  std::cout << "Probability min/max: [" << map.minVoxelProbability() << "," << map.maxVoxelProbability() << "]"
+            << std::endl;
+  std::cout << "Value min/max: [" << map.minVoxelValue() << "," << map.maxVoxelValue() << "]" << std::endl;
+  std::cout << "Saturation min/max: [" << (map.saturateAtMinValue() ? "on" : "off") << ","
+            << (map.saturateAtMaxValue() ? "on" : "off") << "]" << std::endl;
+  ;
 
-  std::cout << "]" << std::endl;
   std::cout << "Touched stamp: " << map.stamp() << std::endl;
   std::cout << "Flags: " << std::endl;
   if (map.flags() != ohm::MapFlag::kNone)

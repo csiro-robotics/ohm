@@ -56,6 +56,14 @@ namespace ohm
     /// True if @p map() is a borrowed pointer, false if the NDT map takes ownership.
     bool borrowedMap() const;
 
+    /// Sets the adaptation rate for intersected NDT voxels. The value must be in the range [0, 1] with larger values
+    /// yielding stronger effects.
+    /// @param rate The adaptation rate to set [0, 1]
+    void setAdaptationRate(float rate);
+    /// Query the adaptation rate, which affects how quickly NDT logic removes intersected voxels.
+    /// @return The current adapatation rate.
+    float adaptationRate() const;
+
     /// Set the range sensor noise estimate. For example, the range noise for a lidar sensor.
     ///
     /// @param noise_range The sensor noise range. Must be greater than zero.

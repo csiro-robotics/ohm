@@ -13,6 +13,7 @@
 
 #include "Regions.cl"
 
+/// Value controlling how many sample each thread can buffer before forcing processing of the buffered data
 #define WORKING_RAY_COUNT 128
 
 typedef struct WorkItem_t

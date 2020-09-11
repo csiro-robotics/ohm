@@ -173,8 +173,10 @@ bool SlamCloudLoader::open(const char *sample_file_path, const char *trajectory_
 
   imp_->sample_reader = new liblas::Reader(imp_->las_reader_factory->CreateWithStream(imp_->sample_file));
 
+  bool using_trajectory = false;
   if (text_trajectory)
   {
+    using_trajectory = true;
     imp_->read_trajectory_point = [this](TrajectoryPoint &point) -> bool {
       if (!std::getline(imp_->trajectory_file, imp_->traj_line))
       {
@@ -194,8 +196,9 @@ bool SlamCloudLoader::open(const char *sample_file_path, const char *trajectory_
       return true;
     };
   }
-  else
+  else if (!imp_->trajectory_file.empty())
   {
+    using_trajectory = true;
     imp_->trajectory_reader = new liblas::Reader(imp_->las_reader_factory->CreateWithStream(imp_->trajectory_file));
     imp_->read_trajectory_point = [this](TrajectoryPoint &point) -> bool {
       if (imp_->trajectory_reader->ReadNextPoint())
@@ -210,19 +213,22 @@ bool SlamCloudLoader::open(const char *sample_file_path, const char *trajectory_
   }
   imp_->number_of_points = imp_->sample_reader->GetHeader().GetPointRecordsCount();
 
-  // Prime the trajectory buffer.
-  bool trajectory_primed = imp_->read_trajectory_point(imp_->trajectory_buffer[0]);
-  if (!trajectory_primed && text_trajectory)
+  if (using_trajectory)
   {
-    // Try a second time to read the first trajectory point from text file. First line may be headings.
-    trajectory_primed = imp_->read_trajectory_point(imp_->trajectory_buffer[0]);
-  }
-  trajectory_primed = trajectory_primed && imp_->read_trajectory_point(imp_->trajectory_buffer[1]);
+    // Prime the trajectory buffer.
+    bool trajectory_primed = imp_->read_trajectory_point(imp_->trajectory_buffer[0]);
+    if (!trajectory_primed && text_trajectory)
+    {
+      // Try a second time to read the first trajectory point from text file. First line may be headings.
+      trajectory_primed = imp_->read_trajectory_point(imp_->trajectory_buffer[0]);
+    }
+    trajectory_primed = trajectory_primed && imp_->read_trajectory_point(imp_->trajectory_buffer[1]);
 
-  if (!trajectory_primed)
-  {
-    close();
-    return false;
+    if (!trajectory_primed)
+    {
+      close();
+      return false;
+    }
   }
 
   return true;
@@ -238,7 +244,7 @@ void SlamCloudLoader::close()
   imp_->trajectory_file.close();
   imp_->sample_file_path.clear();
   imp_->trajectory_file_path.clear();
-  imp_->read_trajectory_point = [](TrajectoryPoint &) { return false; };
+  imp_->read_trajectory_point = std::function<bool(TrajectoryPoint &)>();
   imp_->number_of_points = 0;
 }
 
@@ -358,7 +364,7 @@ bool SlamCloudLoader::loadPoint()
     sample.timestamp = p.GetTime();
     sample.sample = glm::dvec3(p.GetX(), p.GetY(), p.GetZ());
     sample.origin = glm::dvec3(0);
-    sampleTrajectory(sample.origin, sample.timestamp);
+    sampleTrajectory(sample.origin, sample.sample, sample.timestamp);
     imp_->next_sample = sample;
 
     if (imp_->first_sample_timestamp < 0)
@@ -372,7 +378,7 @@ bool SlamCloudLoader::loadPoint()
 }
 
 
-bool SlamCloudLoader::sampleTrajectory(glm::dvec3 &position, double timestamp)
+bool SlamCloudLoader::sampleTrajectory(glm::dvec3 &position, const glm::dvec3 &sample, double timestamp)
 {
   if (imp_->read_trajectory_point)
   {
@@ -393,6 +399,10 @@ bool SlamCloudLoader::sampleTrajectory(glm::dvec3 &position, double timestamp)
                  lerp * (imp_->trajectory_buffer[1].origin - imp_->trajectory_buffer[0].origin);
       return true;
     }
+  }
+  else
+  {
+    position = sample;
   }
   return false;
 }

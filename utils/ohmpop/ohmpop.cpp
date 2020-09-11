@@ -44,9 +44,6 @@
 #include <sstream>
 #include <thread>
 
-#define COLLECT_STATS 0
-#define COLLECT_STATS_IGNORE_FIRST 1
-
 namespace
 {
   using Clock = std::chrono::high_resolution_clock;
@@ -68,9 +65,13 @@ namespace
   {
     struct Ndt
     {
-      float sensor_noise = 0.05f;
-      float covariance_reset_probability = 0.2f;
-      unsigned covariance_reset_sample_count = 100;
+      float adaptation_rate = 0.0f;               // re-initialised from a default map
+      float sensor_noise = 0.0f;                  // re-initialised from a default map
+      float covariance_reset_probability = 0.0f;  // re-initialised from a default map
+      // NDT map probabilities should be much narrower. The NDT process is more precise.
+      float prob_hit = 0.55f;
+      float prob_miss = 0.49f;
+      unsigned covariance_reset_sample_count = 0;  // re-initialised from a default map
       bool enabled = false;
     };
 
@@ -79,19 +80,19 @@ namespace
     std::string output_base_name;
     std::string prior_map;
     glm::dvec3 sensor_offset = glm::dvec3(0.0);
-    glm::u8vec3 region_voxel_dim = glm::u8vec3(32);
+    glm::u8vec3 region_voxel_dim = glm::u8vec3(0);  // re-initialised from a default map
     uint64_t point_limit = 0;
     int64_t preload_count = 0;
     double start_time = 0;
     double time_limit = 0;
-    double resolution = 0.25;
+    double resolution = 0.1;
     double clip_near_range = 0.0;
-    float prob_hit = 0.9f;
-    float prob_miss = 0.49f;
-    float prob_thresh = 0.5f;
-    glm::vec2 prob_range = glm::vec2(0, 0);
+    float prob_hit = 0.9f;                   // re-initialised from a default map
+    float prob_miss = 0.45f;                 // re-initialised from a default map
+    float prob_thresh = 0.5f;                // re-initialised from a default map
+    glm::vec2 prob_range = glm::vec2(0, 0);  // re-initialised from a default map
     glm::vec3 cloud_colour = glm::vec3(0);
-    unsigned batch_size = 2048;
+    unsigned batch_size = 4096;
     bool serialise = true;
     bool save_info = false;
     bool voxel_mean = false;
@@ -107,8 +108,31 @@ namespace
 
     Ndt ndt;
 
+    Options();
+
     void print(std::ostream **out, const ohm::OccupancyMap &map) const;
   };
+
+
+  Options::Options()
+  {
+    // Initialise defaults from map configurations.
+    ohm::OccupancyMap defaults_map;
+
+    region_voxel_dim = defaults_map.regionVoxelDimensions();
+    prob_hit = defaults_map.hitProbability();
+    prob_miss = defaults_map.missProbability();
+    prob_thresh = defaults_map.occupancyThresholdProbability();
+    prob_range[0] = defaults_map.minVoxelValue();
+    prob_range[1] = defaults_map.maxVoxelValue();
+
+    const ohm::NdtMap defaults_ndt(&defaults_map, true);
+    ndt.adaptation_rate = defaults_ndt.adaptationRate();
+    ndt.sensor_noise = defaults_ndt.sensorNoise();
+    ndt.covariance_reset_probability = ohm::valueToProbability(defaults_ndt.reinitialiseCovarianceTheshold());
+    ndt.covariance_reset_sample_count = defaults_ndt.reinitialiseCovariancePointCount();
+    ndt.adaptation_rate = defaults_ndt.adaptationRate();
+  }
 
 
   void Options::print(std::ostream **out, const ohm::OccupancyMap &map) const
@@ -165,11 +189,20 @@ namespace
       region_dim.z = (region_dim.z) ? region_dim.z : OHM_DEFAULT_CHUNK_DIM_Z;
       **out << "Map region dimensions: " << region_dim << '\n';
       // **out << "Map region memory: " << mem_size_string << '\n';
-      **out << "Hit probability: " << prob_hit << '\n';
-      **out << "Miss probability: " << prob_miss << '\n';
+      **out << "Hit probability: " << prob_hit << " (" << map.hitValue() << ")\n";
+      **out << "Miss probability: " << prob_miss << " (" << map.missValue() << ")\n";
       **out << "Probability range: [" << map.minVoxelProbability() << ' ' << map.maxVoxelProbability() << "]\n";
-      **out << "Ray batch size: " << batch_size << '\n';
+      **out << "Value range      : [" << map.minVoxelValue() << ' ' << map.maxVoxelValue() << "]\n";
+      if (ndt.enabled)
+      {
+        **out << "NDT map enabled:" << '\n';
+        **out << "NDT adaptation rate: " << ndt.adaptation_rate << '\n';
+        **out << "NDT sensor noise: " << ndt.sensor_noise << '\n';
+        **out << "NDT covariance reset probability: " << ndt.covariance_reset_probability << '\n';
+        **out << "NDT covariance reset sample cout: " << ndt.covariance_reset_sample_count << '\n';
+      }
 #ifndef OHMPOP_CPU
+      **out << "Ray batch size: " << batch_size << '\n';
       **out << "Clearance mapping: ";
       if (clearance > 0)
       {
@@ -328,6 +361,11 @@ namespace
       if (quit < 2)
       {
         std::string output_file = base_name + ".ply";
+        // Ensure we don't overwrite the input data file.
+        if (output_file == opt.cloud_file)
+        {
+          output_file = base_name + "-points.ply";
+        }
         std::cout << "Saving point cloud to " << output_file.c_str() << std::endl;
         ply.save(output_file.c_str(), true);
       }
@@ -377,6 +415,7 @@ int populateMap(const Options &opt)
 
   if (opt.ndt.enabled)
   {
+    ndt_map->setAdaptationRate(opt.ndt.adaptation_rate);
     ndt_map->setSensorNoise(opt.ndt.sensor_noise);
     ndt_map->setReinitialiseCovarianceTheshold(ohm::probabilityToValue(opt.ndt.covariance_reset_probability));
     ndt_map->setReinitialiseCovariancePointCount(opt.ndt.covariance_reset_sample_count);
@@ -446,7 +485,7 @@ int populateMap(const Options &opt)
   ohm::Mapper mapper(&map);
   std::vector<double> sample_timestamps;
   std::vector<glm::dvec3> origin_sample_pairs;
-  glm::dvec3 origin, sample;
+  glm::dvec3 origin, sample, last_batch_origin(0);
   // glm::vec3 voxel, ext(opt.resolution);
   double timestamp;
   uint64_t point_count = 0;
@@ -455,7 +494,9 @@ int populateMap(const Options &opt)
   double timebase = -1;
   double first_timestamp = -1;
   double last_timestamp = -1;
-  double first_batch_timestamp = -1;
+  double accumulated_motion = 0;
+  double delta_motion = 0;
+  bool warned_no_motion = false;
 #ifndef OHMPOP_CPU
   double next_mapper_update = opt.mapping_interval;
 #endif  // OHMPOP_CPU
@@ -494,13 +535,10 @@ int populateMap(const Options &opt)
   map.setHitProbability(opt.prob_hit);
   map.setOccupancyThresholdProbability(opt.prob_thresh);
   map.setMissProbability(opt.prob_miss);
-  if (opt.prob_range[0] > 0)
+  if (opt.prob_range[0] || opt.prob_range[1])
   {
-    map.setMinVoxelProbability(opt.prob_range[0]);
-  }
-  if (opt.prob_range[1] > 0)
-  {
-    map.setMaxVoxelProbability(opt.prob_range[1]);
+    map.setMinVoxelValue(opt.prob_range[0]);
+    map.setMaxVoxelValue(opt.prob_range[1]);
   }
   // map.setSaturateAtMinValue(opt.saturateMin);
   // map.setSaturateAtMaxValue(opt.saturateMax);
@@ -568,37 +606,6 @@ int populateMap(const Options &opt)
                                              loader.numberOfPoints()));
   prog.startThread();
 
-#if COLLECT_STATS
-  struct TimeStats
-  {
-    uint64_t totalNs = 0;
-    uint64_t maxNs = 0;
-    uint64_t updateCount = 0;
-
-    void add(const Clock::duration &elapsed)
-    {
-      const uint64_t timeNs = std::chrono::duration_cast<std::chrono::nanoseconds>(elapsed).count();
-      maxNs = std::max(timeNs, maxNs);
-      totalNs += timeNs;
-      ++updateCount;
-    }
-
-    void print() const
-    {
-      std::ostringstream str;
-      str << "\n*************************************" << std::endl;
-      const std::chrono::nanoseconds avgTNs(totalNs / updateCount);
-      str << "Average integration time: " << avgTNs << std::endl;
-      const std::chrono::nanoseconds maxTNs(maxNs);
-      str << "Max integration time: " << maxTNs << std::endl;
-      str << "*************************************" << std::endl;
-      std::cout << str.str() << std::flush;
-    }
-  };
-
-  TimeStats stats;
-#endif  // COLLECT_STATS
-
   //------------------------------------
   // Population loop.
   //------------------------------------
@@ -618,9 +625,15 @@ int populateMap(const Options &opt)
       continue;
     }
 
+    ++point_count;
+    sample_timestamps.push_back(timestamp);
+    origin_sample_pairs.push_back(origin);
+    origin_sample_pairs.push_back(sample);
+
     if (last_timestamp < 0)
     {
       last_timestamp = timestamp;
+      last_batch_origin = origin_sample_pairs[0];
     }
 
     if (first_timestamp < 0)
@@ -628,44 +641,21 @@ int populateMap(const Options &opt)
       first_timestamp = timestamp;
     }
 
-    ++point_count;
-    sample_timestamps.push_back(timestamp);
-    origin_sample_pairs.push_back(origin);
-    origin_sample_pairs.push_back(sample);
-
-    if (first_batch_timestamp < 0)
-    {
-      first_batch_timestamp = timestamp;
-    }
-
     if (point_count % ray_batch_size == 0 || quit)
     {
-#if COLLECT_STATS
-      const auto then = Clock::now();
-#endif  // COLLECT_STATS
       ray_mapper->integrateRays(origin_sample_pairs.data(), unsigned(origin_sample_pairs.size()));
-#if COLLECT_STATS
-      const auto integrateTime = Clock::now() - then;
-#if COLLECT_STATS_IGNORE_FIRST
-      if (firstBatchTimestamp != timestamp)
-#endif  // COLLECT_STATS_IGNORE_FIRST
+      delta_motion = glm::length(origin_sample_pairs[0] - last_batch_origin);
+      accumulated_motion += delta_motion;
+      last_batch_origin = origin_sample_pairs[0];
+
+      if (point_count != ray_batch_size && !warned_no_motion && delta_motion == 0)
       {
-        stats.add(integrateTime);
+        // Precisely zero motion seems awfully suspicious.
+        std::cerr << "\nWarning: Precisely zero motion in batch\n" << std::flush;
+        warned_no_motion = true;
       }
-      const unsigned kLongUpdateThresholdMs = 100u;
-      if (std::chrono::duration_cast<std::chrono::milliseconds>(integrateTime).count() > kLongUpdateThresholdMs)
-      {
-        std::ostringstream str;
-        str << '\n'
-            << sampleTimestamps.front() - firstTimestamp << " (" << sampleTimestamps.front() << "): long update "
-            << integrateTime << std::endl;
-        std::cout << str.str() << std::flush;
-      }
-#endif  // COLLECT_STATS
       sample_timestamps.clear();
       origin_sample_pairs.clear();
-
-      first_batch_timestamp = -1;
 
       prog.incrementProgressBy(ray_batch_size);
       last_timestamp = timestamp;
@@ -704,14 +694,9 @@ int populateMap(const Options &opt)
   // Make sure we have no more rays.
   if (!origin_sample_pairs.empty())
   {
-#if COLLECT_STATS
-    const auto then = Clock::now();
-#endif  // COLLECT_STATS
     ray_mapper->integrateRays(origin_sample_pairs.data(), unsigned(origin_sample_pairs.size()));
-#if COLLECT_STATS
-    const auto integrateTime = Clock::now() - then;
-    stats.add(integrateTime);
-#endif  // COLLECT_STATS
+    delta_motion = glm::length(origin_sample_pairs[0] - last_batch_origin);
+    accumulated_motion += delta_motion;
     sample_timestamps.clear();
     origin_sample_pairs.clear();
   }
@@ -720,25 +705,26 @@ int populateMap(const Options &opt)
   prog.endProgress();
   prog.pause();
 
+  if (!opt.quiet)
+  {
+    std::cout << std::endl;
+  }
+
+  if (accumulated_motion < 1e-6)
+  {
+    std::cerr << "Warning: very low accumulated motion: " << accumulated_motion << std::endl;
+  }
+
 #ifndef OHMPOP_CPU
   const auto mapper_start = Clock::now();
   if (opt.post_population_mapping && !quit)
   {
-    std::cout << "\nFinalising" << std::endl;
+    std::cout << "Finalising" << std::endl;
     mapper.update(0.0);
   }
   // mapper.join(!quit && opt.postPopulationMapping);
   end_time = Clock::now();
 #endif  // OHMPOP_CPU
-
-#if COLLECT_STATS
-  stats.print();
-#endif  // COLLECT_STATS
-
-  if (!opt.quiet)
-  {
-    std::cout << std::endl;
-  }
 
   // Sync the map.
   if (!opt.quiet)
@@ -812,37 +798,39 @@ int parseOptions(Options *opt, int argc, char *argv[])
 
     // clang-format off
     opt_parse.add_options()
-      ("b,batch-size", "The number of points to process in each batch. Controls debug display.", optVal(opt->batch_size))
+      ("batch-size", "The number of points to process in each batch. Controls debug display.", optVal(opt->batch_size))
       ("help", "Show help.")
-      ("i,cloud", "The input cloud (las/laz) to load.", cxxopts::value(opt->cloud_file))
-      ("o,output","Output base name", optVal(opt->output_base_name))
-      ("p,point-limit", "Limit the number of points loaded.", optVal(opt->point_limit))
+      ("cloud", "The input cloud (las/laz) to load.", cxxopts::value(opt->cloud_file))
+      ("output","Output base name", optVal(opt->output_base_name))
+      ("point-limit", "Limit the number of points loaded.", optVal(opt->point_limit))
       ("preload", "Preload this number of points before starting processing. -1 for all. May be used for separating processing and loading time.",
         optVal(opt->preload_count)->default_value("0")->implicit_value("-1"))
       ("q,quiet", "Run in quiet mode. Suppresses progress messages.", optVal(opt->quiet))
       ("sensor", "Offset from the trajectory to the sensor position. Helps correct trajectory to the sensor centre for better rays.", optVal(opt->sensor_offset))
-      ("s,start-time", "Only process points time stamped later than the specified time.", optVal(opt->start_time))
+      ("start-time", "Only process points time stamped later than the specified time.", optVal(opt->start_time))
       ("serialise", "Serialise the results? This option is intended for skipping saving during performance analysis.", optVal(opt->serialise))
       ("save-info", "Save timing information to text based on the output file name.", optVal(opt->save_info))
-      ("t,time-limit", "Limit the elapsed time in the LIDAR data to process (seconds). Measured relative to the first data sample.", optVal(opt->time_limit))
+      ("time-limit", "Limit the elapsed time in the LIDAR data to process (seconds). Measured relative to the first data sample.", optVal(opt->time_limit))
       ("trajectory", "The trajectory (text) file to load.", cxxopts::value(opt->trajectory_file))
       ("prior", "Prior map file to load and continue to populate.", cxxopts::value(opt->prior_map))
       ("cloud-colour", "Colour for points in the saved cloud (if saving).", optVal(opt->cloud_colour))
       ;
 
     opt_parse.add_options("Map")
-      ("clamp", "Set probability clamping to the given min/max.", optVal(opt->prob_range))
+      ("clamp", "Set probability clamping to the given min/max. Given as a value, not probability.", optVal(opt->prob_range))
       ("clip-near", "Range within which samples are considered too close and are ignored. May be used to filter operator strikes.", optVal(opt->clip_near_range))
-      ("d,dim", "Set the voxel dimensions of each region in the map. Range for each is [0, 255).", optVal(opt->region_voxel_dim))
-      ("h,hit", "The occupancy probability due to a hit. Must be >= 0.5.", optVal(opt->prob_hit))
-      ("m,miss", "The occupancy probability due to a miss. Must be < 0.5.", optVal(opt->prob_miss))
-      ("r,resolution", "The voxel resolution of the generated map.", optVal(opt->resolution))
+      ("dim", "Set the voxel dimensions of each region in the map. Range for each is [0, 255).", optVal(opt->region_voxel_dim))
+      ("hit", "The occupancy probability due to a hit. Must be >= 0.5.", optVal(opt->prob_hit))
+      ("miss", "The occupancy probability due to a miss. Must be < 0.5.", optVal(opt->prob_miss))
+      ("resolution", "The voxel resolution of the generated map.", optVal(opt->resolution))
       ("uncompressed", "Maintain uncompressed map. By default, may regions may be compressed when no longer needed.", optVal(opt->uncompressed))
       ("voxel-mean", "Enable voxel mean coordinates?", optVal(opt->voxel_mean))
       ("threshold", "Sets the occupancy threshold assigned when exporting the map to a cloud.", optVal(opt->prob_thresh)->implicit_value(optStr(opt->prob_thresh)))
       ("ndt", "Use normal distibution transform map generation.", optVal(opt->ndt.enabled))
       ("ndt-cov-point-threshold", "Minimum number of samples requires in order to allow the covariance to reset at --ndt-cov-prob-threshold..", optVal(opt->ndt.covariance_reset_sample_count))
       ("ndt-cov-prob-threshold", "Low probability threshold at which the covariance can be reset as samples accumulate once more. See also --ndt-cov-point-threshold.", optVal(opt->ndt.covariance_reset_probability))
+      ("ndt-adaptation-rate", "NDT adpatation rate [0, 1]. Controls how fast rays remove NDT voxels. Has a strong effect than miss_value when using NDT.",
+        optVal(opt->ndt.adaptation_rate))
       ("ndt-sensor-noise", "Range sensor noise used for Ndt mapping. Must be > 0.", optVal(opt->ndt.sensor_noise))
       ;
 
@@ -888,10 +876,35 @@ int parseOptions(Options *opt, int argc, char *argv[])
       std::cerr << "Missing input cloud" << std::endl;
       return -1;
     }
-    if (opt->trajectory_file.empty())
+
+    // Set default ndt probability if using.
+    if (opt->ndt.enabled)
     {
-      std::cerr << "Missing trajectory file" << std::endl;
-      return -1;
+      bool prob_hit_given = false;
+      bool prob_miss_given = false;
+      for (const auto &item : parsed.arguments())
+      {
+        if (item.key() == "hit")
+        {
+          prob_hit_given = true;
+        }
+        if (item.key() == "miss")
+        {
+          prob_miss_given = true;
+        }
+      }
+
+      if (!prob_hit_given)
+      {
+        // Use ndt default hit prob
+        opt->prob_hit = opt->ndt.prob_hit;
+      }
+
+      if (!prob_miss_given)
+      {
+        // Use ndt default hit prob
+        opt->prob_miss = opt->ndt.prob_miss;
+      }
     }
   }
   catch (const cxxopts::OptionException &e)

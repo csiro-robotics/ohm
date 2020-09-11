@@ -304,7 +304,7 @@ inline __device__ bool calculateHitWithCovariance(CovarianceVoxel *cov_voxel, fl
 /// > Jari P. Saarinen, Henrik Andreasson, Todor Stoyanov and Achim J. Lilienthal
 ///
 /// This improves the probably adjustment for a voxel using the voxel covaraince (if present). This only takes effect
-/// when there have been samples collected for the voxel and `point_count &gt 0`. The standard occupancy adjustment
+/// when there have been samples collected for the voxel and `point_count &gt; 0`. The standard occupancy adjustment
 /// is used whenever the `point_count &lt; sample_threshold`, with @p miss_value added to @p voxel_value or
 /// @p voxel_value set to @p miss_value when @p voxel_value equals @p uninitialised_value .
 ///
@@ -317,13 +317,15 @@ inline __device__ bool calculateHitWithCovariance(CovarianceVoxel *cov_voxel, fl
 /// @param uninitialised_value The @p voxel_value for an uncertain voxel - one which has yet to be observed.
 /// @param miss_value The @p voxel_value adjustment to apply from a miss. This must be less than zero to decrease the
 /// occupancy probability. The NDT scaling factor is also derived from this value.
+/// @param adaptation_rate The adaptation rate for ellipsoid intersections. This value is given [0, 1], but it's
+/// usage sees it scaled [0, 0.5].
 /// @param sensor_noise The sensor range noise error (standard deviation). Must be greater than zero.
 /// @param sample_threshold The @p point_count required before using NDT logic, i.e., before the covariance value is
 /// usable.
 inline __device__ covvec3 calculateMissNdt(const CovarianceVoxel *cov_voxel, float *voxel_value, covvec3 sensor,
                                            covvec3 sample, covvec3 voxel_mean, unsigned point_count,
-                                           float uninitialised_value, float miss_value, float sensor_noise,
-                                           unsigned sample_threshold)
+                                           float uninitialised_value, float miss_value, float adaptation_rate,
+                                           float sensor_noise, unsigned sample_threshold)
 {
   if (*voxel_value == uninitialised_value)
   {
@@ -411,8 +413,7 @@ inline __device__ covvec3 calculateMissNdt(const CovarianceVoxel *cov_voxel, flo
   const covreal sensor_noise_variance = sensor_noise * sensor_noise;
   const covreal p_x_ml_given_sample = exp(-0.5 * covlength2(voxel_maximum_likelihood - sample) / sensor_noise_variance);
 
-  // Set the scaling factor by converting the miss value to a probability.
-  const covreal scaling_factor = 1.0f - (1.0 / (1.0 + exp(miss_value)));
+  const covreal scaling_factor = 0.5 * adaptation_rate;
   // Verified: json line 267
   const covreal probability_update = 0.5 - scaling_factor * p_x_ml_given_voxel * (1.0 - p_x_ml_given_sample);
 
