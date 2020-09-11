@@ -183,7 +183,7 @@ void NdtMap::debugDraw() const
   {
     occupancy.setKey(*iter);
     const auto voxel = *iter;
-    if (isOccupied(occupancy.data()))
+    if (isOccupied(occupancy))
     {
       cov.setKey(occupancy);
 
@@ -196,7 +196,7 @@ void NdtMap::debugDraw() const
 
       mean.setKey(occupancy);
 
-      const glm::dvec3 voxel_mean = position(mean);
+      const glm::dvec3 voxel_mean = positionUnsafe(mean);
 
       tes::Sphere ellipsoid(next_id, glm::value_ptr(voxel_mean));
       ellipsoid.setRotation(tes::Quaterniond(rot.x, rot.y, rot.z, rot.w));

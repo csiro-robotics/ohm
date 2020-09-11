@@ -279,8 +279,9 @@ void ohm::integrateNdtMiss(NdtMap &map, const Key &key, const glm::dvec3 &sensor
 #ifdef TES_ENABLE
   if (map.trace())
   {
-    TES_BOX_W(g_3es, TES_COLOUR(OrangeRed), TES_PTR_ID(cov.dataPtr()), glm::value_ptr(voxel.centreGlobal()),
-              glm::value_ptr(glm::dvec3(occupancy_map->resolution())));
+    const glm::dvec3 voxel_centre = occupancy_map.voxelCentreGlobal(key);
+    TES_BOX_W(g_3es, TES_COLOUR(OrangeRed), TES_PTR_ID(cov.dataPtr()), glm::value_ptr(voxel_centre),
+              glm::value_ptr(glm::dvec3(occupancy_map.resolution())));
     TES_SERVER_UPDATE(g_3es, 0.0f);
 
     bool drew_surfel = false;
@@ -300,10 +301,9 @@ void ohm::integrateNdtMiss(NdtMap &map, const Key &key, const glm::dvec3 &sensor
     TES_SPHERE_W(g_3es, TES_COLOUR(PowderBlue), TES_PTR_ID(&voxel_maximum_likelihood),
                  glm::value_ptr(voxel_maximum_likelihood), 0.1f);
 
-    glm::dvec3 pos = voxel.centreGlobal();
     char text[64];
-    sprintf(text, "P %.3f", ohm::valueToProbability(voxel_value - initial_value));
-    TES_TEXT2D_WORLD(g_3es, TES_COLOUR(White), text, glm::value_ptr(pos));
+    sprintf(text, "P %.3f", ohm::valueToProbability(*voxel_value - initial_value));
+    TES_TEXT2D_WORLD(g_3es, TES_COLOUR(White), text, glm::value_ptr(voxel_centre));
 
     TES_SERVER_UPDATE(g_3es, 0.0f);
     TES_BOX_END(g_3es, TES_PTR_ID(cov.dataPtr()));
