@@ -62,7 +62,9 @@ namespace ohm
     int occupancy_layer_ = -1;   ///< Cached occupancy layer index.
     int mean_layer_ = -1;        ///< Cached voxel mean layer index.
     int covariance_layer_ = -1;  ///< Cached voxel mean layer index.
-    bool valid_ = false;         ///< Has layer validation passed?
+    /// Cached occupancy layer voxel dimensions. Voxel mean and covariance layers must exactly match.
+    glm::u8vec3 occupancy_dim_{ 0, 0, 0 };
+    bool valid_ = false;  ///< Has layer validation passed?
   };
 
 }  // namespace ohm

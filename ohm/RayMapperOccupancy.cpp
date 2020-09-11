@@ -9,6 +9,7 @@
 #include "MapLayout.h"
 #include "Voxel.h"
 #include "VoxelMean.h"
+#include "VoxelBuffer.h"
 #include "VoxelOccupancy.h"
 
 #include <ohmutil/LineWalk.h>
@@ -20,8 +21,13 @@ RayMapperOccupancy::RayMapperOccupancy(OccupancyMap *map)
   , occupancy_layer_(map_->layout().occupancyLayer())
   , mean_layer_(map_->layout().meanLayer())
 {
+  // Use Voxel to validate the layers.
+  // In processing we use VoxelBuffer instead of Voxel objects. While Voxel mapes for a neader API, using VoxelBuffer
+  // makes for less overhead and yields better performance.
   Voxel<const float> occupancy(map_, occupancy_layer_);
   Voxel<const VoxelMean> mean(map_, mean_layer_);
+
+  occupancy_dim_ = occupancy.isLayerValid() ? occupancy.layerDim() : occupancy_dim_;
 
   // Validate we only have an occupancy layer or we also have a mean layer and the layer dimesions match.
   valid_ = occupancy.isLayerValid() && !mean.isLayerValid() ||
@@ -35,10 +41,17 @@ RayMapperOccupancy::~RayMapperOccupancy() = default;
 size_t RayMapperOccupancy::integrateRays(const glm::dvec3 *rays, size_t element_count, unsigned ray_update_flags)
 {
   KeyList keys;
+  MapChunk *last_chunk = nullptr;
+  MapChunk *last_mean_chunk = nullptr;
+  VoxelBuffer<VoxelBlock> occupancy_buffer;
+  VoxelBuffer<VoxelBlock> mean_buffer;
   bool stop_adjustments = false;
 
   const RayFilterFunction ray_filter = map_->rayFilter();
   const bool use_filter = bool(ray_filter);
+  const auto occupancy_layer = occupancy_layer_;
+  const auto mean_layer = mean_layer_;
+  const auto occupancy_dim = occupancy_dim_;
   const auto occupancy_threshold_value = map_->occupancyThresholdValue();
   const auto map_origin = map_->origin();
   const auto miss_value = map_->missValue();
@@ -51,8 +64,6 @@ size_t RayMapperOccupancy::integrateRays(const glm::dvec3 *rays, size_t element_
   // Touch the map to flag changes.
   const auto touch_stamp = map_->touch();
 
-  // Voxel structures used when updating a miss. Occupancy only.
-  Voxel<float> occupancy(map_, occupancy_layer_);
   const auto visit_func = [&](const Key &key)  //
   {                                            //
     // The update logic here is a little unclear as it tries to avoid outright branches.
@@ -72,19 +83,31 @@ size_t RayMapperOccupancy::integrateRays(const glm::dvec3 *rays, size_t element_
     // 3. Calculate new value
     // 4. Apply saturation logic: only min saturation relevant
     //    -
-    occupancy.setKey(key);
-    float *occupancy_value = occupancy.dataPtr();
+    MapChunk *chunk =
+      (last_chunk && key.regionKey() == last_chunk->region.coord) ? last_chunk : map_->region(key.regionKey(), true);
+    if (chunk == last_chunk)
+    {
+    }
+    else
+    {
+      occupancy_buffer = VoxelBuffer<VoxelBlock>(chunk->voxel_blocks[occupancy_layer]);
+    }
+    last_chunk = chunk;
+    const unsigned voxel_index = ::voxelIndex(key, occupancy_dim);
+    float *occupancy_value = reinterpret_cast<float *>(occupancy_buffer.voxelMemory()) + voxel_index;
     const float initial_value = *occupancy_value;
     const bool is_occupied =
       (initial_value != unorbservedOccupancyValue() && initial_value > occupancy_threshold_value);
     occupancyAdjustMiss(occupancy_value, initial_value, miss_value, unorbservedOccupancyValue(), voxel_min,
                         saturation_min, saturation_max, stop_adjustments);
+    chunk->updateFirstValid(voxel_index);
 
     stop_adjustments = stop_adjustments || ((ray_update_flags & kRfStopOnFirstOccupied) && is_occupied);
+    chunk->dirty_stamp = touch_stamp;
+    // Update the touched_stamps with relaxed memory ordering. The important thing is to have an update,
+    // not so much the sequencing. We really don't want to synchronise here.
+    chunk->touched_stamps[occupancy_layer].store(touch_stamp, std::memory_order_relaxed);
   };
-
-  // Additional voxel structures used when updating a hit. Add Voxel mean.
-  Voxel<VoxelMean> mean(map_, mean_layer_);
 
   glm::dvec3 start, end;
   unsigned filter_flags;
@@ -123,21 +146,44 @@ size_t RayMapperOccupancy::integrateRays(const glm::dvec3 *rays, size_t element_
       // Like the miss logic, we have similar obfuscation here to avoid branching. It's a little simpler though,
       // because we do have a branch above, which will filter some of the conditions catered for in miss integration.
       const ohm::Key key = map_->voxelKey(end);
-      setVoxelKey(key, occupancy, mean);
+      MapChunk *chunk =
+        (last_chunk && key.regionKey() == last_chunk->region.coord) ? last_chunk : map_->region(key.regionKey(), true);
+      if (chunk == last_chunk)
+      {
+      }
+      else
+      {
+        occupancy_buffer = VoxelBuffer<VoxelBlock>(chunk->voxel_blocks[occupancy_layer]);
+      }
+      last_chunk = chunk;
+      const unsigned voxel_index = ::voxelIndex(key, occupancy_dim);
 
-      float *occupancy_value = occupancy.dataPtr();
+      float *occupancy_value = reinterpret_cast<float *>(occupancy_buffer.voxelMemory()) + voxel_index;
       const float initial_value = *occupancy_value;
       occupancyAdjustHit(occupancy_value, initial_value, hit_value, unorbservedOccupancyValue(), voxel_max,
                          saturation_min, saturation_max, stop_adjustments);
 
       // update voxel mean if present.
-      if (mean.isValid())
+      if (mean_layer >= 0)
       {
-        VoxelMean *voxel_mean = mean.dataPtr();
+        if (chunk != last_mean_chunk)
+        {
+          mean_buffer = VoxelBuffer<VoxelBlock>(chunk->voxel_blocks[mean_layer]);
+        }
+        last_mean_chunk = chunk;
+        VoxelMean *voxel_mean = reinterpret_cast<VoxelMean *>(mean_buffer.voxelMemory()) + voxel_index;
         voxel_mean->coord =
           subVoxelUpdate(voxel_mean->coord, voxel_mean->count, end - map_->voxelCentreGlobal(key), resolution);
         ++voxel_mean->count;
+        chunk->touched_stamps[mean_layer].store(touch_stamp, std::memory_order_relaxed);
       }
+
+      chunk->updateFirstValid(voxel_index);
+
+      chunk->dirty_stamp = touch_stamp;
+      // Update the touched_stamps with relaxed memory ordering. The important thing is to have an update,
+      // not so much the sequencing. We really don't want to synchronise here.
+      chunk->touched_stamps[occupancy_layer].store(touch_stamp, std::memory_order_relaxed);
     }
   }
 
