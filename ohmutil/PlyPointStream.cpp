@@ -249,61 +249,48 @@ bool PlyPointStream::setPropertyT(const std::string &name, T value)
 }
 
 
-// No default implementation. Require specialisation in all cases.
-template <typename T>
-void PlyPointStream::setValue(Value *dst, T value) = delete;
-
-
-template <>
 void PlyPointStream::setValue(Value *dst, int8_t value)
 {
   dst->i8 = value;
 }
 
 
-template <>
 void PlyPointStream::setValue(Value *dst, uint8_t value)
 {
   dst->u8 = value;
 }
 
 
-template <>
 void PlyPointStream::setValue(Value *dst, int16_t value)
 {
   dst->i16 = value;
 }
 
 
-template <>
 void PlyPointStream::setValue(Value *dst, uint16_t value)
 {
   dst->u16 = value;
 }
 
 
-template <>
 void PlyPointStream::setValue(Value *dst, int32_t value)
 {
   dst->i32 = value;
 }
 
 
-template <>
 void PlyPointStream::setValue(Value *dst, uint32_t value)
 {
   dst->u32 = value;
 }
 
 
-template <>
 void PlyPointStream::setValue(Value *dst, float value)
 {
   dst->f32 = value;
 }
 
 
-template <>
 void PlyPointStream::setValue(Value *dst, double value)
 {
   dst->f64 = value;
@@ -328,7 +315,6 @@ void PlyPointStream::writeHeader()
   // the padding comment.
   out << "element vertex " << std::flush;
   point_count_pos_ = out.tellp();
-  auto digits = std::numeric_limits<decltype(point_count_)>::digits10;
   std::string spaces(std::numeric_limits<decltype(point_count_)>::digits10, ' ');
   out << "0\n" << spaces << point_count_comment << "\n" << std::flush;
   const auto post_count_pos = out.tellp();

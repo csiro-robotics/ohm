@@ -102,7 +102,7 @@ Key MapChunk::keyForIndex(size_t voxel_index, const glm::ivec3 &region_voxel_dim
 }
 
 
-void MapChunk::updateLayout(const MapLayout *new_layout, const glm::uvec3 &region_dim,
+void MapChunk::updateLayout(const MapLayout *new_layout,
                             const std::vector<std::pair<const MapLayer *, const MapLayer *>> &preserve_layer_mapping)
 {
   // Allocate voxel pointer array.

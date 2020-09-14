@@ -187,7 +187,7 @@ bool filterCloud(const Options &opt, const ohm::OccupancyMap &map, ProgressMonit
     {
       std::cout << "Filtering with NDT information" << std::endl;
     }
-    filter = [&](double timestamp, const glm::dvec3 &point, const ohm::Key &key) -> bool {
+    filter = [&](double /* timestamp */, const glm::dvec3 &point, const ohm::Key &key) -> bool {
       ohm::setVoxelKey(key, voxel_occ, voxel_mean, voxel_cov);
       if (ohm::isOccupied(voxel_occ))
       {
@@ -210,7 +210,7 @@ bool filterCloud(const Options &opt, const ohm::OccupancyMap &map, ProgressMonit
     {
       std::cout << "Filtering using occupancy only" << std::endl;
     }
-    filter = [&](double timestamp, const glm::dvec3 &point, const ohm::Key &key) -> bool {
+    filter = [&](double /* timestamp */, const glm::dvec3 & /* point */, const ohm::Key &key) -> bool {
       voxel_occ.setKey(key);
       return ohm::isOccupied(voxel_occ);
     };

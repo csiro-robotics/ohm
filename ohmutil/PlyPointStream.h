@@ -157,11 +157,25 @@ namespace ohm
     /// @return True if the property exists and is of the correct type.
     template <typename T>
     bool setPropertyT(const std::string &name, T value);
+
     /// Internal helper for setting the a property value after validation.
     /// @param dst The value to write to.
     /// @param value Value to write.
-    template <typename T>
-    void setValue(Value *dst, T value);
+    void setValue(Value *dst, int8_t value);
+    /// @overload
+    void setValue(Value *dst, uint8_t value);
+    /// @overload
+    void setValue(Value *dst, int16_t value);
+    /// @overload
+    void setValue(Value *dst, uint16_t value);
+    /// @overload
+    void setValue(Value *dst, int32_t value);
+    /// @overload
+    void setValue(Value *dst, uint32_t value);
+    /// @overload
+    void setValue(Value *dst, float value);
+    /// @overload
+    void setValue(Value *dst, double value);
 
     /// Write the ply header with a placeholder point count of 0.
     void writeHeader();

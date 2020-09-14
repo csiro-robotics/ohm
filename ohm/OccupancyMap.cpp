@@ -550,7 +550,7 @@ void OccupancyMap::updateLayout(const MapLayout &new_layout, bool preserve_map)
     // Walk the chunks preserving which layers we can.
     for (auto &chunk : imp_->chunks)
     {
-      chunk.second->updateLayout(&new_layout, imp_->region_voxel_dimensions, layer_mapping);
+      chunk.second->updateLayout(&new_layout, layer_mapping);
     }
   }
   else
@@ -968,7 +968,6 @@ OccupancyMap *OccupancyMap::clone(const glm::dvec3 &min_ext, const glm::dvec3 &m
 
       for (unsigned i = 0; i < imp_->layout.layerCount(); ++i)
       {
-        const MapLayer &layer = src_chunk->layout().layer(i);
         dst_chunk->touched_stamps[i] = static_cast<uint64_t>(src_chunk->touched_stamps[i]);
         if (src_chunk->voxel_blocks[i])
         {
