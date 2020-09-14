@@ -42,7 +42,7 @@ namespace
     std::string map_file;
     std::string cloud_in;
     std::string cloud_out;
-    double expected_value_threshold = 0;
+    double expected_value_tolerance = -1;
     bool occupancy_only = false;
     bool quiet = false;
   };
@@ -109,6 +109,10 @@ int parseOptions(Options *opt, int argc, char *argv[])
       ("cloud-in", "The input cloud file.", cxxopts::value(opt->cloud_in))
       ("cloud-out", "The output cloud file (ply).", cxxopts::value(opt->cloud_out))
       ("occupancy-only", "Force using only occupancy information, even if NDT is present.", optVal(opt->occupancy_only))
+      ("tolerance", "Additional tolerance above the expected value. A zero value enabled the direct comparison of each "
+                    "point against it's voxel's covariance while a positive value expands the tolerance beyond the "
+                    "expected value. A negative value disables this check.",
+        cxxopts::value(opt->expected_value_tolerance))
       ("quiet", "Limited log output.", optVal(opt->quiet))
       ;
     // clang-format on
@@ -190,7 +194,11 @@ bool filterCloud(const Options &opt, const ohm::OccupancyMap &map, ProgressMonit
         const glm::dvec3 mean = ohm::positionUnsafe(voxel_mean);
         const ohm::CovarianceVoxel *cov_data = voxel_cov.dataPtr();
         cov_sqrt = ohm::covarianceSqrtMatrix(cov_data);
-        return filterPointByCovariance(point, mean, cov_sqrt, opt.expected_value_threshold);
+        if (opt.expected_value_tolerance >= 0)
+        {
+          return filterPointByCovariance(point, mean, cov_sqrt, opt.expected_value_tolerance);
+        }
+        return true;
       }
 
       return false;
