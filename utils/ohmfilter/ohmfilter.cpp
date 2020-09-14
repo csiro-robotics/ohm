@@ -10,7 +10,7 @@
 #include <ohm/OccupancyMap.h>
 #include <ohm/VoxelData.h>
 
-#include <ohmutil/PlyMesh.h>
+#include <ohmutil/PlyPointStream.h>
 #include <ohmutil/ProgressMonitor.h>
 
 #include <slamio/SlamCloudLoader.h>
@@ -44,6 +44,7 @@ namespace
     std::string cloud_out;
     double expected_value_threshold = 0;
     bool occupancy_only = false;
+    bool quiet = false;
   };
 
   class LoadMapProgress : public ohm::SerialiseProgress
@@ -107,7 +108,8 @@ int parseOptions(Options *opt, int argc, char *argv[])
       ("map", "The input map file (ohm).", cxxopts::value(opt->map_file))
       ("cloud-in", "The input cloud file.", cxxopts::value(opt->cloud_in))
       ("cloud-out", "The output cloud file (ply).", cxxopts::value(opt->cloud_out))
-      ("occupancy-only", "Force using only occupancy information, even if NDT is presnet.", optVal(opt->occupancy_only))
+      ("occupancy-only", "Force using only occupancy information, even if NDT is present.", optVal(opt->occupancy_only))
+      ("quiet", "Limited log output.", optVal(opt->quiet))
       ;
     // clang-format on
 
@@ -177,7 +179,10 @@ bool filterCloud(const Options &opt, const ohm::OccupancyMap &map, ProgressMonit
   glm::dmat3 cov_sqrt{};
   if (!opt.occupancy_only && voxel_cov.isLayerValid() && voxel_mean.isLayerValid())
   {
-    std::cout << "Filtering with NDT information" << std::endl;
+    if (!opt.quiet)
+    {
+      std::cout << "Filtering with NDT information" << std::endl;
+    }
     filter = [&](double timestamp, const glm::dvec3 &point, const ohm::Key &key) -> bool {
       ohm::setVoxelKey(key, voxel_occ, voxel_mean, voxel_cov);
       if (ohm::isOccupied(voxel_occ))
@@ -193,14 +198,33 @@ bool filterCloud(const Options &opt, const ohm::OccupancyMap &map, ProgressMonit
   }
   else
   {
-    std::cout << "Filtering using occupancy only" << std::endl;
+    if (!opt.quiet)
+    {
+      std::cout << "Filtering using occupancy only" << std::endl;
+    }
     filter = [&](double timestamp, const glm::dvec3 &point, const ohm::Key &key) -> bool {
       voxel_occ.setKey(key);
       return ohm::isOccupied(voxel_occ);
     };
   }
 
-  ohm::PlyMesh ply;
+  std::ofstream out(opt.cloud_out.c_str(), std::ios::binary);
+  using Property = ohm::PlyPointStream::Property;
+  using Type = ohm::PlyPointStream::Type;
+  ohm::PlyPointStream ply({ Property{ "x", Type::kFloat64 }, Property{ "y", Type::kFloat64 },
+                            Property{ "z", Type::kFloat64 }, Property{ "time", Type::kFloat64 } },
+                          out);
+
+  if (!ply.isOpen())
+  {
+    std::cerr << "Error: Unable to write to " << opt.cloud_out << std::endl;
+    return false;
+  }
+  if (!opt.quiet)
+  {
+    std::cout << "Exporting to " << opt.cloud_out << std::endl;
+  }
+
   glm::dvec3 point(0);
   double timestamp = 0;
   ohm::Key key;
@@ -210,7 +234,9 @@ bool filterCloud(const Options &opt, const ohm::OccupancyMap &map, ProgressMonit
     key = map.voxelKey(point);
     if (filter(timestamp, point, key))
     {
-      ply.addVertex(point);
+      ply.setPointPosition(point);
+      ply.setPointTimestamp(timestamp);
+      ply.writePoint();
       ++export_count;
     }
     prog->incrementProgress();
@@ -218,14 +244,20 @@ bool filterCloud(const Options &opt, const ohm::OccupancyMap &map, ProgressMonit
   }
   prog->endProgress();
   prog->pause();
-  std::cout << std::endl;
+  if (!opt.quiet)
+  {
+    std::cout << std::endl;
+  }
 
   cloud_loader.close();
+  ply.close();
+  out.close();
 
-  std::cout << "Removed: " << point_count - export_count << std::endl;
-  std::cout << "Exporting to " << opt.cloud_out << std::endl;
-  ply.save(opt.cloud_out.c_str(), true);
-  std::cout << "Exported: " << export_count << "/" << point_count << std::endl;
+  if (!opt.quiet)
+  {
+    std::cout << "Removed: " << point_count - export_count << std::endl;
+    std::cout << "Exported: " << export_count << "/" << point_count << std::endl;
+  }
 
   return true;
 }
@@ -246,12 +278,19 @@ int main(int argc, char *argv[])
   signal(SIGINT, onSignal);
   signal(SIGTERM, onSignal);
 
-  std::cout << "Loading map " << opt.map_file.c_str() << std::endl;
+  if (!opt.quiet)
+  {
+    std::cout << "Loading map " << opt.map_file.c_str() << std::endl;
+  }
   ProgressMonitor prog(10);
   LoadMapProgress load_progress(prog);
+  if (!opt.quiet)
+  {
+    prog.startThread(true);
+  }
 
-  prog.setDisplayFunction([](const ProgressMonitor::Progress &prog) {
-    // if (!opt.quiet)
+  prog.setDisplayFunction([&opt](const ProgressMonitor::Progress &prog) {
+    if (!opt.quiet)
     {
       std::ostringstream out;
       out.imbue(std::locale(""));
@@ -277,7 +316,10 @@ int main(int argc, char *argv[])
 
   prog.endProgress();
   prog.pause();
-  std::cout << std::endl;
+  if (!opt.quiet)
+  {
+    std::cout << std::endl;
+  }
 
   if (res == 0)
   {
@@ -290,7 +332,6 @@ int main(int argc, char *argv[])
   {
     std::cerr << "Error: Unable to read map '" << opt.map_file << "' : " << ohm::errorCodeString(res) << std::endl;
   }
-
 
   prog.joinThread();
 

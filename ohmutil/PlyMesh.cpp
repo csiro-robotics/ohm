@@ -390,7 +390,7 @@ bool PlyMesh::save(FileWrapper<T> &out, bool binary) const
   {
     out.printf("format ascii 1.0\n");
   }
-  out.printf("comment Exported by Voxmesh PlyMesh\n");
+  out.printf("comment Exported by ohmutil PlyMesh\n");
 
   for (const std::string &comment : comments_)
   {
