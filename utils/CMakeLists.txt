@@ -35,10 +35,6 @@ if(OHM_BUILD_HEIGHTMAPUTIL)
   add_subdirectory(ohmhm2img)
 endif(OHM_BUILD_HEIGHTMAPUTIL)
 
-if(CLOUD_IO_LIB STREQUAL "liblas")
-  add_subdirectory(ohmcloudfilter)
-endif(CLOUD_IO_LIB STREQUAL "liblas")
-
 if(OHM_WITH_OCTOMAP)
   add_subdirectory(octopop)
 endif(OHM_WITH_OCTOMAP)
