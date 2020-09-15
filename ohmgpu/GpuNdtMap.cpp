@@ -44,6 +44,8 @@ GPUTIL_CUDA_DECLARE_KERNEL(regionRayUpdateNdt);
 GPUTIL_CUDA_DECLARE_KERNEL(covarianceHit);
 #endif  // GPUTIL_TYPE == GPUTIL_CUDA
 
+// Running the NDT samples first will given better results in new areas, but currently comes with a significant
+// performance hit as we wait more on kernels
 #define REVERSE_KERNEL_ORDER 0
 
 namespace

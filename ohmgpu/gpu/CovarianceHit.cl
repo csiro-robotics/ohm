@@ -70,39 +70,35 @@ __kernel void covarianceHit(__global atomic_float *occupancy, __global ulonglong
   }
 
   // Get the voxel for this thread. Remember, line_keys contains sensor/sample voxel pairs. Sample is second.
-  GpuKey target_voxel;
+  GpuKey start_voxel;
   // BUG: Intel OpenCL 2.0 compiler does not effect an assignment of GpuKey. I've had to unrolled it in copyKey().
-  copyKey(&target_voxel, &line_keys[get_global_id(0) * 2 + 1]);
-  target_voxel.voxel[3] = 0;  // For now we can ignore clipped sample voxels. Will check during iteration below.
+  copyKey(&start_voxel, &line_keys[get_global_id(0) * 2 + 1]);
+  start_voxel.voxel[3] = 0;  // For now we can ignore clipped sample voxels. Will check during iteration below.
 
   // We assume a sorted set of input points, where sample points falling in the same voxel are grouped together.
   // We then only allow the first thread in each voxel group to do the update for that group.
   // We check this now.
-  GpuKey start_voxel;
+  GpuKey target_voxel;
   // Initialise with the target voxel index to ensure it has a value.
-  copyKey(&start_voxel, &target_voxel);
-  // Modify start_voxel to ensure it isn't the same value as target_voxel.
-  // We'll use target_voxel.voxel[3] to indicate a dummy key
-  start_voxel.voxel[3] = 1;
+  copyKey(&target_voxel, &start_voxel);
   // Now fetch the previous key if we can. Only can't for global thread 0.
   if (get_global_id(0) > 0)
   {
     // Note the -1 to get the previous sample voxel.
-    // copyKey(&start_voxel, &line_keys[get_global_id(0) * 2 - 1]);
-    copyKey(&start_voxel, &line_keys[(get_global_id(0) - 1) * 2 + 1]);
+    // copyKey(&target_voxel, &line_keys[get_global_id(0) * 2 - 1]);
+    copyKey(&target_voxel, &line_keys[(get_global_id(0) - 1) * 2 + 1]);
   }
+  target_voxel.voxel[3] = 0;  // Again - don't care about clipping yet.
 
-  if (equalKeys(&target_voxel, &start_voxel) && target_voxel.voxel[3] == start_voxel.voxel[3])
+  if (equalKeys(&target_voxel, &start_voxel) && get_global_id(0) > 0)
   {
     // This is not the first thread for this voxel grouping. Abort. The first thread in the group will do the update.
     // While this results in many idle threads, it maximise throughput while minimising iteration.
     return;
   }
-  // We know have consider start_key a real key.
-  start_voxel.voxel[3] = 0;
 
-  const uint region_local_index = target_voxel.voxel[0] + target_voxel.voxel[1] * region_dimensions.x +
-                                  target_voxel.voxel[2] * region_dimensions.x * region_dimensions.y;
+  const uint region_local_index = start_voxel.voxel[0] + start_voxel.voxel[1] * region_dimensions.x +
+                                  start_voxel.voxel[2] * region_dimensions.x * region_dimensions.y;
   uint occupancy_index, mean_index, cov_index;
 
   // Resolve the read/write indices for the target voxel. We need indices into occupancy, means and cov_voxels.
@@ -111,7 +107,7 @@ __kernel void covarianceHit(__global atomic_float *occupancy, __global ulonglong
   uint region_index;
 
   regionsInitCurrent(&dummy_region_key, &region_index);
-  if (!regionsResolveRegion(&target_voxel, &dummy_region_key, &region_index, occupancy_region_keys_global,
+  if (!regionsResolveRegion(&start_voxel, &dummy_region_key, &region_index, occupancy_region_keys_global,
                             region_count))
   {
     // Data not available in GPU memory.
@@ -143,8 +139,8 @@ __kernel void covarianceHit(__global atomic_float *occupancy, __global ulonglong
     copyKey(&target_voxel, &line_keys[i * 2 + 1]);
     if (equalKeys(&target_voxel, &start_voxel))
     {
-      // Ignore voxels with voxel[3] != 0. That indicates a clipped sample ray. The sample is not real and should not be
-      // include.
+      // Now we consider rays which have been clipped. These will have Ignore voxels with voxel[3] != 0.
+      // This indicates the end point is a trancated part of the ray and not a real sample.
       if (target_voxel.voxel[3] == 0)
       {
         // Still within the starting voxel.
