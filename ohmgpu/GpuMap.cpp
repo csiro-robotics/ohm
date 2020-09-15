@@ -49,12 +49,6 @@ GPUTIL_CUDA_DECLARE_KERNEL(regionRayUpdate);
 GPUTIL_CUDA_DECLARE_KERNEL(regionRayUpdateSubVox);
 #endif  // GPUTIL_TYPE == GPUTIL_CUDA
 
-#define DEBUG_RAY 0
-
-#if DEBUG_RAY
-#pragma optimize("", off)
-#endif  // DEBUG_RAY
-
 using namespace ohm;
 
 namespace
@@ -278,7 +272,7 @@ GpuMap::GpuMap(GpuMapDetail *detail, unsigned expected_element_count, size_t gpu
     imp_->region_key_buffers[i] =
       gputil::Buffer(gpu_cache.gpu(), sizeof(gputil::int3) * prealloc_region_count, gputil::kBfReadHost);
 
-  // Add structures for managing uploads of regino offsets to the cache buffer.
+    // Add structures for managing uploads of regino offsets to the cache buffer.
     imp_->voxel_upload_info[i].emplace_back(VoxelUploadInfo(kGcIdOccupancy, gpu_cache.gpu()));
     if (imp_->map->voxelMeanEnabled())
     {
@@ -508,7 +502,6 @@ void GpuMap::releaseGpuProgram()
 size_t GpuMap::integrateRays(const glm::dvec3 *rays, size_t element_count, unsigned region_update_flags,
                              const RayFilterFunction &filter)
 {
-  imp_->current_ray_ids.clear();
   if (!imp_->map)
   {
     return 0u;
@@ -577,10 +570,51 @@ size_t GpuMap::integrateRays(const glm::dvec3 *rays, size_t element_count, unsig
   Key line_start_key, line_end_key;
   GpuKey line_start_key_gpu{}, line_end_key_gpu{};
 
+  struct RayItem
+  {
+    glm::dvec3 origin;
+    glm::dvec3 sample;
+    Key origin_key;
+    Key sample_key;
+  };
+
+  std::vector<RayItem> sorted_rays(element_count / 2);
+
   for (unsigned i = 0; i < element_count; i += 2)
   {
-    ray_start_d = rays[i + 0];
-    ray_end_d = rays[i + 1];
+    RayItem &item = sorted_rays[i / 2];
+    item.origin = rays[i + 0];
+    item.sample = rays[i + 1];
+    item.origin_key = map.voxelKey(item.origin);
+    item.sample_key = map.voxelKey(item.sample);
+  }
+
+  std::sort(sorted_rays.begin(), sorted_rays.end(), [](const RayItem &a, const RayItem &b) -> bool {
+    const int64_t region_stride = 0xffffu;
+    const int64_t region_index_a = (int64_t)a.sample_key.regionKey().x +
+                                   (int64_t)region_stride * a.sample_key.regionKey().y +
+                                   region_stride * region_stride * (int64_t)a.sample_key.regionKey().z;
+    const int64_t region_index_b = (int64_t)b.sample_key.regionKey().x +
+                                   region_stride * (int64_t)b.sample_key.regionKey().y +
+                                   region_stride * region_stride * (int64_t)b.sample_key.regionKey().z;
+    const uint32_t local_stride = 0xffu;
+    const uint32_t local_index_a = (int32_t)a.sample_key.localKey().x +
+                                   local_stride * (int32_t)a.sample_key.localKey().y +
+                                   local_stride * local_stride * (int32_t)a.sample_key.localKey().z;
+    const uint32_t local_index_b = (int32_t)b.sample_key.localKey().x +
+                                   local_stride * (int32_t)b.sample_key.localKey().y +
+                                   local_stride * local_stride * (int32_t)b.sample_key.localKey().z;
+    return region_index_a < region_index_b || region_index_a == region_index_b && local_index_a < local_index_b;
+  });
+
+  // for (unsigned i = 0; i < element_count; i += 2)
+  // {
+  //   ray_start_d = rays[i + 0];
+  //   ray_end_d = rays[i + 1];
+  for (const RayItem &item : sorted_rays)
+  {
+    ray_start_d = item.origin;
+    ray_end_d = item.sample;
     filter_flags = 0;
 
     if (use_filter)
@@ -593,8 +627,8 @@ size_t GpuMap::integrateRays(const glm::dvec3 *rays, size_t element_count, unsig
     }
 
     // Upload if not preloaded.
-    line_start_key = map.voxelKey(ray_start_d);
-    line_end_key = map.voxelKey(ray_end_d);
+    line_start_key = item.origin_key;  // map.voxelKey(ray_start_d);
+    line_end_key = item.sample_key;    // map.voxelKey(ray_end_d);
 
     line_start_key_gpu.region[0] = line_start_key.regionKey()[0];
     line_start_key_gpu.region[1] = line_start_key.regionKey()[1];
@@ -628,8 +662,6 @@ size_t GpuMap::integrateRays(const glm::dvec3 *rays, size_t element_count, unsig
     ray[1].z = float(ray_end_d.z - end_voxel_centre.z);
     rays_pinned.write(ray, sizeof(ray), upload_count * sizeof(gputil::float3));
     upload_count += 2;
-
-    imp_->current_ray_ids.emplace_back(i / 2);
 
     // std::cout << i / 2 << ' ' << imp_->map->voxelKey(rays[i + 0]) << " -> " << imp_->map->voxelKey(rays[i + 1]) << "
     // "

@@ -14,7 +14,7 @@
 #include "Regions.cl"
 
 /// Value controlling how many sample each thread can buffer before forcing processing of the buffered data
-#define WORKING_RAY_COUNT 128
+#define WORKING_RAY_COUNT 1
 
 typedef struct WorkItem_t
 {
@@ -73,13 +73,33 @@ __kernel void covarianceHit(__global atomic_float *occupancy, __global ulonglong
   GpuKey target_voxel;
   // BUG: Intel OpenCL 2.0 compiler does not effect an assignment of GpuKey. I've had to unrolled it in copyKey().
   copyKey(&target_voxel, &line_keys[get_global_id(0) * 2 + 1]);
+  target_voxel.voxel[3] = 0;  // For now we can ignore clipped sample voxels. Will check during iteration below.
 
-  // We ignore this voxel if target_voxel.voxel[3] is set to 1. This indicates a clipped sample ray and the end voxel
-  // does not actually represent a real sample.
-  if (target_voxel.voxel[3] != 0)
+  // We assume a sorted set of input points, where sample points falling in the same voxel are grouped together.
+  // We then only allow the first thread in each voxel group to do the update for that group.
+  // We check this now.
+  GpuKey start_voxel;
+  // Initialise with the target voxel index to ensure it has a value.
+  copyKey(&start_voxel, &target_voxel);
+  // Modify start_voxel to ensure it isn't the same value as target_voxel.
+  // We'll use target_voxel.voxel[3] to indicate a dummy key
+  start_voxel.voxel[3] = 1;
+  // Now fetch the previous key if we can. Only can't for global thread 0.
+  if (get_global_id(0) > 0)
   {
+    // Note the -1 to get the previous sample voxel.
+    // copyKey(&start_voxel, &line_keys[get_global_id(0) * 2 - 1]);
+    copyKey(&start_voxel, &line_keys[(get_global_id(0) - 1) * 2 + 1]);
+  }
+
+  if (equalKeys(&target_voxel, &start_voxel) && target_voxel.voxel[3] == start_voxel.voxel[3])
+  {
+    // This is not the first thread for this voxel grouping. Abort. The first thread in the group will do the update.
+    // While this results in many idle threads, it maximise throughput while minimising iteration.
     return;
   }
+  // We know have consider start_key a real key.
+  start_voxel.voxel[3] = 0;
 
   const uint region_local_index = target_voxel.voxel[0] + target_voxel.voxel[1] * region_dimensions.x +
                                   target_voxel.voxel[2] * region_dimensions.x * region_dimensions.y;
@@ -102,11 +122,12 @@ __kernel void covarianceHit(__global atomic_float *occupancy, __global ulonglong
   mean_index = (uint)(region_local_index + means_region_mem_offsets_global[region_index] / sizeof(*means));
   cov_index = (uint)(region_local_index + cov_region_mem_offsets_global[region_index] / sizeof(*cov_voxels));
 
-  // Cache the occupancy value.
-  WorkItem work_item;
+  // Cache initial values.
+  WorkItem_t work_item;
   work_item.occupancy = occupancy[occupancy_index];
   work_item.mean = subVoxelToLocalCoord(means[mean_index].coord, voxel_resolution);
   work_item.sample_count = means[mean_index].count;
+
   // Manual copy of the NDT voxel: we had some issues with OpenCL assignment on structures.
   work_item.cov.trianglar_covariance[0] = cov_voxels[cov_index].trianglar_covariance[0];
   work_item.cov.trianglar_covariance[1] = cov_voxels[cov_index].trianglar_covariance[1];
@@ -115,64 +136,45 @@ __kernel void covarianceHit(__global atomic_float *occupancy, __global ulonglong
   work_item.cov.trianglar_covariance[4] = cov_voxels[cov_index].trianglar_covariance[4];
   work_item.cov.trianglar_covariance[5] = cov_voxels[cov_index].trianglar_covariance[5];
 
-  uint working_rays[WORKING_RAY_COUNT];
-  GpuKey end_key;
-  uint collected_count = 0;
-  bool is_first = true;
-  bool allowed_write = false;
-
-  // Now we iterate all the samples and collate items mathcing the target_voxel. There may be multiple samples in the
-  // same target voxel which different threads are referencing. That is multiple threads will calculate the same
-  // results. However, only the first thread (lowest global id) is allowed to write the result. This is somewhat
-  // inefficient, as multiple threads to the same work, but it avoids the contension issue and avoids sorting in CPU.
-  for (uint i = 0; i < line_count; ++i)
+  // Now update by iterating from the starting voxel until we change voxels or reach the end of the set.
+  uint added = 0;
+  for (uint i = get_global_id(0); i < line_count; ++i)
   {
-    copyKey(&end_key, &line_keys[i * 2 + 1]);
-    if (equalKeys(&target_voxel, &end_key))
+    copyKey(&target_voxel, &line_keys[i * 2 + 1]);
+    if (equalKeys(&target_voxel, &start_voxel))
     {
-      if (collected_count == WORKING_RAY_COUNT)
+      // Ignore voxels with voxel[3] != 0. That indicates a clipped sample ray. The sample is not real and should not be
+      // include.
+      if (target_voxel.voxel[3] == 0)
       {
-        if (allowed_write)
-        {
-          // We have collected too many items to process and must process them now. This is inefficient as we will have
-          // very few threads doing this work at the same time.
-          collateSample(&work_item, local_lines[i * 2], local_lines[i * 2 + 1], region_dimensions, voxel_resolution,
-                        sample_adjustment, occupied_threshold, sensor_noise, reinitialise_cov_threshold,
-                        reinitialise_cov_sample_count);
-        }
+        // Still within the starting voxel.
+        collateSample(&work_item, local_lines[i * 2], local_lines[i * 2 + 1], region_dimensions, voxel_resolution,
+                      sample_adjustment, occupied_threshold, sensor_noise, reinitialise_cov_threshold,
+                      reinitialise_cov_sample_count);
+        ++added;
       }
-      else
-      {
-        // Relevant voxel. Add to the working indices.
-        working_rays[collected_count++] = i;
-        // Allowed to write if this is the first item collected and the global id matches this one.
-        allowed_write = allowed_write || (is_first && i == get_global_id(0));
-        is_first = false;
-      }
+    }
+    else
+    {
+      // Change in voxel. Done collecting.
+      break;
     }
   }
 
-  // Process results.
-  if (allowed_write)
+  // Cap occupancy to max.
+  if (voxel_value_max > 0)
   {
-    for (uint i = 0; i < collected_count; ++i)
-    {
-      uint li = working_rays[i];
-      collateSample(&work_item, local_lines[li * 2], local_lines[li * 2 + 1], region_dimensions, voxel_resolution,
-                    sample_adjustment, occupied_threshold, sensor_noise, reinitialise_cov_threshold,
-                    reinitialise_cov_sample_count);
-    }
-
-    // Cap occupancy to max.
-    if (voxel_value_max > 0)
-    {
-      work_item.occupancy = min(work_item.occupancy, voxel_value_max);
-    }
-
-    // Write results. We expect no contension at this point so we write results directly. No atomic operations.
-    occupancy[occupancy_index] = work_item.occupancy;
-    means[mean_index].coord = subVoxelCoord(work_item.mean, voxel_resolution);
-    means[mean_index].count = work_item.sample_count;
-    cov_voxels[cov_index] = work_item.cov;
+    work_item.occupancy = min(work_item.occupancy, voxel_value_max);
   }
+
+  // if (get_global_id(0) == 0)
+  // {
+  //   printf("added: %u\n", added);
+  // }
+
+  // Write results. We expect no contension at this point so we write results directly. No atomic operations.
+  occupancy[occupancy_index] = work_item.occupancy;
+  means[mean_index].coord = subVoxelCoord(work_item.mean, voxel_resolution);
+  means[mean_index].count = work_item.sample_count;
+  cov_voxels[cov_index] = work_item.cov;
 }
