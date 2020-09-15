@@ -1,3 +1,4 @@
+# Note: This library is a means to an end and is not well maintained.
 
 include(GenerateExportHeader)
 
@@ -26,9 +27,18 @@ if(CLOUD_IO_LIB STREQUAL "liblas")
 endif(CLOUD_IO_LIB STREQUAL "liblas")
 
 if(CLOUD_IO_LIB STREQUAL "pdal")
-  list(APPEND SOURCES
-    SlamCloudLoader_pdal.cpp
-  )
+  # Need to check PDAL version. We have can use a streaming loader with PDAL 1.7+
+  message(STATUS "PDAL_VERSION: ${PDAL_VERSION}")
+  if(PDAL_VERSION VERSION_GREATER_EQUAL 1.7)
+    # 
+    list(APPEND SOURCES
+      SlamCloudLoader_pdal_stream.cpp
+    )
+  else(PDAL_VERSION VERSION_GREATER_EQUAL 1.7)
+    list(APPEND SOURCES
+      SlamCloudLoader_pdal.cpp
+    )
+  endif(PDAL_VERSION VERSION_GREATER_EQUAL 1.7)
 endif(CLOUD_IO_LIB STREQUAL "pdal")
 
 add_library(slamio ${SOURCES})
