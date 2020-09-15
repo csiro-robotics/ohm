@@ -66,7 +66,7 @@ namespace ndttests
       {
         // New voxel. Initialise.
         CovTestVoxel ref_voxel;
-        initialiseTestVoxel(&ref_voxel, ndt.sensorNoise());
+        initialiseTestVoxel(&ref_voxel, float(0.1 * ndt.map().resolution()));
         ref = reference_voxels.insert(std::make_pair(key, ref_voxel)).first;
       }
 
