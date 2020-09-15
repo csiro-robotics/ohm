@@ -42,6 +42,11 @@ if(CLOUD_IO_LIB STREQUAL "pdal")
 endif(CLOUD_IO_LIB STREQUAL "pdal")
 
 add_library(slamio ${SOURCES})
+# More things pointing to the need for a refactor here
+if(MSVC)
+  target_compile_definitions(slamio PUBLIC NOMINMAX _USE_MATH_DEFINES)
+endif(MSVC)
+
 clang_tidy_target(slamio)
 
 generate_export_header(slamio
