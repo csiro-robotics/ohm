@@ -7,24 +7,6 @@
 #define COVARIANCEVOXELCOMPUTE_H
 
 // Note: this header is included in GPU code.
-// Because of this "OhmConfig.h", <glm>, <cmath> cannot be included here and you may need to include the following
-// headers first:
-// #define GLM_ENABLE_EXPERIMENTAL
-// <glm/vec3.hpp>
-// <glm/mat3x3.hpp>
-// <glm/gtx/norm.hpp>
-
-// #if GPUTIL_DEVICE
-// #ifndef __device__
-// #define __device__
-// #endif  // __device__
-// #ifndef __host__
-// #define __host__
-// #endif  // __host__
-// #endif  // GPUTIL_DEVICE
-
-/// Allows additional debug information on @c covarianceEigenDecomposition()
-#define OHM_COV_DEBUG 0
 
 #if GPUTIL_DEVICE
 // Define GPU type aliases
