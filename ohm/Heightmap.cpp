@@ -41,12 +41,13 @@ using namespace ohm;
 
 namespace
 {
+  /// Helper structure for managing voxel data access from the source heightmap.
   struct SrcVoxel
   {
-    Voxel<const float> occupancy;
-    Voxel<const VoxelMean> mean;
-    Voxel<const CovarianceVoxel> covariance;
-    float occupancy_threshold;
+    Voxel<const float> occupancy;             ///< Occupancy value (required)
+    Voxel<const VoxelMean> mean;              ///< Voxel mean layer (optional)
+    Voxel<const CovarianceVoxel> covariance;  ///< Covariance layer used for surface normal estimation (optional)
+    float occupancy_threshold;                /// Occupancy threshold cached from the source map.
 
     SrcVoxel(const OccupancyMap &map, bool use_voxel_mean)
       : occupancy(&map, map.layout().occupancyLayer())
@@ -55,22 +56,20 @@ namespace
       , occupancy_threshold(map.occupancyThresholdValue())
     {}
 
+    /// Set the key, but only for the occupancy layer.
     inline void setKey(const Key &key) { occupancy.setKey(key); }
 
+    /// Sync the key from the occupancy layer to the other layers.
     inline void syncKey()
     {
-      if (mean.isLayerValid())
-      {
-        mean.setKey(occupancy.key(), occupancy.chunk());
-      }
-      if (covariance.isLayerValid())
-      {
-        covariance.setKey(occupancy.key(), occupancy.chunk());
-      }
+      // Chain the occupancy values which maximise data caching.
+      covariance.setKey(mean.setKey(occupancy));
     }
 
+    /// Query the target map.
     inline const OccupancyMap &map() const { return *occupancy.map(); }
 
+    /// Query the occupancy classification of the current voxel.
     inline OccupancyType occupancyType() const
     {
       const float value = occupancy.chunk() ? occupancy.data() : 0;
@@ -79,6 +78,7 @@ namespace
       return occupancy.chunk() ? type : kNull;
     }
 
+    /// Query the voxel position. Must call @c syncKey() first if using voxel mean.
     inline glm::dvec3 position() const
     {
       glm::dvec3 pos = occupancy.map()->voxelCentreGlobal(occupancy.key());
@@ -89,13 +89,18 @@ namespace
       return pos;
     }
 
+    /// Query the voxel centre for the current voxel.
     inline glm::dvec3 centre() const { return occupancy.map()->voxelCentreGlobal(occupancy.key()); }
   };
 
+  /// A utility for tracking the voxel being written in the heightmap.
   struct DstVoxel
   {
+    /// Occupancy voxel in the heightmap: writable
     Voxel<float> occupancy;
+    /// Heightmap extension data.
     Voxel<HeightmapVoxel> heightmap;
+    /// Voxel mean (if being used.)
     Voxel<VoxelMean> mean;
 
     DstVoxel(OccupancyMap &map, int heightmap_layer, bool use_mean)
@@ -104,23 +109,12 @@ namespace
       , mean(&map, use_mean ? map.layout().meanLayer() : -1)
     {}
 
-    inline void setKey(const Key &key)
-    {
-      occupancy.setKey(key);
-      heightmap.setKey(key, occupancy.chunk());
-      if (mean.isLayerValid())
-      {
-        mean.setKey(key, occupancy.chunk());
-      }
-    }
+    inline void setKey(const Key &key) { mean.setKey(heightmap.setKey(occupancy.setKey(key))); }
 
+    /// Get the target (height)map
     inline const OccupancyMap &map() const { return *occupancy.map(); }
 
-    // inline OccupancyType occupancyType() const
-    // {
-    //   return OccupancyType(occupancy.map()->occupancyType(occupancy.data()));
-    // }
-
+    /// Query the position from the heightmap.
     inline glm::dvec3 position() const
     {
       glm::dvec3 pos = occupancy.map()->voxelCentreGlobal(occupancy.key());
@@ -131,6 +125,7 @@ namespace
       return pos;
     }
 
+    /// Set the position in the heightmap
     inline void setPosition(const glm::dvec3 &pos)
     {
       if (mean.isValid())
