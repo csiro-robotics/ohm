@@ -39,7 +39,7 @@ void __device__ collateSample(WorkItem *work_item, float3 sensor, float3 sample,
   // The sample is currently relative to the voxel centre of the end voxel. This is the same reference frame we need
   // to calculate the quantised mean, so no change is required.
   if (calculateHitWithCovariance(&work_item->cov, &work_item->occupancy, sample, work_item->mean,
-                                 work_item->sample_count, sample_adjustment, INFINITY, 0.1f * voxel_resolution,
+                                 work_item->sample_count, sample_adjustment, INFINITY, voxel_resolution,
                                  reinitialise_cov_threshold, reinitialise_cov_sample_count))
   {
     // Covariance matrix has reset. Reset the point count to clear the mean value.

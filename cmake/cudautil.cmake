@@ -3,7 +3,7 @@
 #==============================================================================
 function(nvcc_setup PREFIX)
   find_package(CUDA)
-  set(${PREFIX}_CUDA_ARCHITECTURES "50;60" CACHE STRING "Specifies the list of CUDA compute architectures to compile for.")
+  set(${PREFIX}_CUDA_ARCHITECTURES "60;61;70;75" CACHE STRING "Specifies the list of CUDA compute architectures to compile for.")
   if (${PREFIX}_CUDA_ARCHITECTURES)
     foreach(ARCH ${${PREFIX}_CUDA_ARCHITECTURES})
       _nvcc_flags_append(CUDA_NVCC_FLAGS "-gencode arch=compute_${ARCH},code=sm_${ARCH}")
