@@ -75,8 +75,7 @@ namespace ndttests
       {
         // New voxel. Initialise.
         CovTestVoxel ref_voxel;
-        // Note: the second parameter matches the behaviour in ndt map convariance initialisation.
-        initialiseTestVoxel(&ref_voxel, float(0.1 * ndt.map().resolution()));
+        initialiseTestVoxel(&ref_voxel, float(ndt.map().resolution()));
         ref = reference_voxels.insert(std::make_pair(key, ref_voxel)).first;
       }
 
