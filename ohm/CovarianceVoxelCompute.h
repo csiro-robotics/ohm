@@ -84,7 +84,7 @@ typedef struct CovarianceVoxel_t
 
 /// @ingroup voxelcovariance
 /// Initialise the packed square root covariance matrix in @p cov
-/// The covariance value is initialised to an identity matrix, scaled by the @p covariance_initialisation .
+/// The covariance value is initialised to an identity matrix, scaled by the @p voxel_resolution .
 /// This is to ensure we do not start with a zero matrix, which causes all sorts of mathematical problems.
 /// @param[out] cov The @c CovarianceVoxel to initialse.
 /// @param voxel_resolution The voxel resolution, which is used to seed the covariance.
@@ -221,7 +221,7 @@ inline __device__ covvec3 solveTriangular(const CovarianceVoxel *cov, const covv
 /// @param hit_value The log probably value increase for occupancy on a hit. This must be greater than zero to increase
 /// the voxel occupancy probability.
 /// @param uninitialised_value The @p voxel_value for an uncertain voxel - one which has yet to be observed.
-/// @param covariance_initialisation An initialisation value for the covariance matrix diagonal. A value an order of
+/// @param voxel_resolution The voxel size along each cubic edge.
 /// magnitude smaller than the voxel resolution is recommended. Must be greater than zero.
 /// @param reinitialise_threshold @p voxel_value threshold below which the covariance and mean should reset.
 /// @param reinitialise_sample_count The @p point_count required to allow @c reinitialise_threshold to be triggered.
@@ -229,7 +229,7 @@ inline __device__ covvec3 solveTriangular(const CovarianceVoxel *cov, const covv
 ///     @p voxel_mean and @c point_count and restart accumulating those values.
 inline __device__ bool calculateHitWithCovariance(CovarianceVoxel *cov_voxel, float *voxel_value, covvec3 sample,
                                                   covvec3 voxel_mean, unsigned point_count, float hit_value,
-                                                  float uninitialised_value, float covariance_initialisation,
+                                                  float uninitialised_value, float voxel_resolution,
                                                   float reinitialise_threshold, unsigned reinitialise_sample_count)
 {
   const float initial_value = *voxel_value;
@@ -238,7 +238,7 @@ inline __device__ bool calculateHitWithCovariance(CovarianceVoxel *cov_voxel, fl
 
   if (point_count == 0 || initial_value < reinitialise_threshold && point_count >= reinitialise_sample_count)
   {
-    initialiseCovariance(cov_voxel, covariance_initialisation);
+    initialiseCovariance(cov_voxel, voxel_resolution);
     initialised_covariance = true;
     // Reinitialising co-variance. We need to ensure the point count is zero when we reset the covariance to
     // correctly calculate the covariance.

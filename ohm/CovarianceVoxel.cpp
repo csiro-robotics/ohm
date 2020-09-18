@@ -229,7 +229,7 @@ void ohm::integrateNdtHit(NdtMap &map, const Key &key, const glm::dvec3 &sample)
   float updated_value = *voxel_value;
   if (calculateHitWithCovariance(&cov.data(), &updated_value, sample, voxel_mean, mean.data().count,
                                  occupancy_map.hitValue(), unorbservedOccupancyValue(),
-                                 float(0.1 * occupancy_map.resolution()), map.reinitialiseCovarianceTheshold(),
+                                 float(occupancy_map.resolution()), map.reinitialiseCovarianceTheshold(),
                                  map.reinitialiseCovariancePointCount()))
   {
     // Covariance matrix has reset. Reset the point count to clear the mean value.
