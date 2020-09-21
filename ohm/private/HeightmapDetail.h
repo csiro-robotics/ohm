@@ -27,7 +27,7 @@ namespace ohm
     ///
     /// Within the heightmap the occupancy values are used independently of any of the threshold values.
     /// For each voxel the values have the following meanings:
-    /// - @c ohm::unorbservedOccupancyValue() => unobserved region (standard semantics)
+    /// - @c ohm::unobservedOccupancyValue() => unobserved region (standard semantics)
     /// - <tt>value < 0</tt> => virtual surface
     /// - <tt>value == 0</tt> => vacant due to local cache seeding
     /// - <tt>value > 0</tt> => real surface

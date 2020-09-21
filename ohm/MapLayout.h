@@ -54,7 +54,7 @@ namespace ohm
   ///
   ///   // Setup DL_Occupancy layer.
   ///   // Fetch the value we'll clear voxels with (default value).
-  ///   const float invalidMarkerValue = unorbservedOccupancyValue();
+  ///   const float invalidMarkerValue = unobservedOccupancyValue();
   ///   /// Write the invalidMarkerValue value into a size_t item which will be the clear value for the member.
   ///   memcpy(&clearValue, &invalidMarkerValue, std::min(sizeof(invalidMarkerValue), sizeof(clearValue)));
   ///   // Create the occupancy layer.

@@ -74,7 +74,7 @@ namespace
     {
       const float value = occupancy.chunk() ? occupancy.data() : 0;
       OccupancyType type = (value >= occupancy_threshold) ? kOccupied : kFree;
-      type = value != unorbservedOccupancyValue() ? type : kUnobserved;
+      type = value != unobservedOccupancyValue() ? type : kUnobserved;
       return occupancy.chunk() ? type : kNull;
     }
 
@@ -197,8 +197,8 @@ namespace
 
       // This line yields performance issues likely due to the stochastic memory access.
       // For a true performance gain we'd have to access chunks linearly.
-      const float occupancy = voxel.occupancy.chunk() ? voxel.occupancy.data() : unorbservedOccupancyValue();
-      const bool occupied = occupancy >= voxel.occupancy_threshold && occupancy != unorbservedOccupancyValue();
+      const float occupancy = voxel.occupancy.chunk() ? voxel.occupancy.data() : unobservedOccupancyValue();
+      const bool occupied = occupancy >= voxel.occupancy_threshold && occupancy != unobservedOccupancyValue();
       const bool free = occupancy < voxel.occupancy_threshold;
 
       if (occupied)
@@ -679,7 +679,7 @@ HeightmapVoxelType Heightmap::getHeightmapVoxelInfo(const Key &key, glm::dvec3 *
       const glm::dvec3 voxel_centre = imp_->heightmap->voxelCentreGlobal(key);
       *pos = mean_voxel.isLayerValid() ? positionSafe(mean_voxel) : voxel_centre;
       const float occupancy = heightmap_occupancy.data();
-      const bool is_uncertain = occupancy == ohm::unorbservedOccupancyValue();
+      const bool is_uncertain = occupancy == ohm::unobservedOccupancyValue();
       const float heightmap_voxel_value = (!is_uncertain) ? occupancy : -1.0f;
       if (!is_uncertain)
       {

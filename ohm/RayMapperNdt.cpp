@@ -144,9 +144,9 @@ size_t RayMapperNdt::integrateRays(const glm::dvec3 *rays, size_t element_count,
     const float initial_value = *occupancy_value;
     float adjusted_value = initial_value;
 
-    calculateMissNdt(cov, &adjusted_value, start, sample, mean, voxel_mean->count, unorbservedOccupancyValue(),
+    calculateMissNdt(cov, &adjusted_value, start, sample, mean, voxel_mean->count, unobservedOccupancyValue(),
                      miss_value, adaptation_rate, sensor_noise, ndt_sample_threshold);
-    occupancyAdjustDown(occupancy_value, initial_value, adjusted_value, unorbservedOccupancyValue(), voxel_min,
+    occupancyAdjustDown(occupancy_value, initial_value, adjusted_value, unobservedOccupancyValue(), voxel_min,
                         saturation_min, saturation_max, stop_adjustments);
     chunk->updateFirstValid(voxel_index);
 
@@ -205,9 +205,9 @@ size_t RayMapperNdt::integrateRays(const glm::dvec3 *rays, size_t element_count,
       float adjusted_value = initial_value;
 
       const bool reset_mean = calculateHitWithCovariance(
-        cov, &adjusted_value, sample, mean, voxel_mean->count, hit_value, unorbservedOccupancyValue(),
+        cov, &adjusted_value, sample, mean, voxel_mean->count, hit_value, unobservedOccupancyValue(),
         float(resolution), map_->reinitialiseCovarianceTheshold(), map_->reinitialiseCovariancePointCount());
-      occupancyAdjustUp(occupancy_value, initial_value, adjusted_value, unorbservedOccupancyValue(), voxel_max,
+      occupancyAdjustUp(occupancy_value, initial_value, adjusted_value, unobservedOccupancyValue(), voxel_max,
                         saturation_min, saturation_max, stop_adjustments);
 
       voxel_mean->count = (!reset_mean) ? voxel_mean->count : 0;

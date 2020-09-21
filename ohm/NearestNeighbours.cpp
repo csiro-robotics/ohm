@@ -35,7 +35,7 @@ namespace
                                       const glm::i16vec3 &region_key,
                                       ClosestResult &closest)  // NOLINT(google-runtime-references)
   {
-    static const float invalid_occupancy_value = unorbservedOccupancyValue();
+    static const float invalid_occupancy_value = unobservedOccupancyValue();
     const OccupancyMapDetail &map_data = *map.detail();
     const auto chunk_search = map_data.chunks.find(region_key);
     glm::vec3 query_origin, voxel_vector;
@@ -70,7 +70,7 @@ namespace
       occupancy = chunk->layout->layer(chunk->layout->occupancyLayer()).voxelsAs<float>(*chunk);
       // Setup the voxel test function to check the occupancy threshold and behaviour flags.
       voxel_occupied_func = [&query](const float voxel, const OccupancyMapDetail &map_data) -> bool {
-        if (voxel == unorbservedOccupancyValue())
+        if (voxel == unobservedOccupancyValue())
         {
           if (query.query_flags & ohm::kQfUnknownAsOccupied)
           {
@@ -79,7 +79,7 @@ namespace
           return false;
         }
         if (voxel >= map_data.occupancy_threshold_value ||
-            (query.query_flags & ohm::kQfUnknownAsOccupied) && voxel == unorbservedOccupancyValue())
+            (query.query_flags & ohm::kQfUnknownAsOccupied) && voxel == unobservedOccupancyValue())
         {
           return true;
         }
@@ -121,7 +121,7 @@ namespace
 
               ++added;
 #ifdef TES_ENABLE
-              if (occupancy && *occupancy != unorbservedOccupancyValue())
+              if (occupancy && *occupancy != unobservedOccupancyValue())
               {
                 includedOccupied.push_back(tes::V3Arg(glm::value_ptr(map.voxelCentreGlobal(voxel_key))));
               }
@@ -134,7 +134,7 @@ namespace
 #ifdef TES_ENABLE
             else
             {
-              if (occupancy && *occupancy != unorbservedOccupancyValue())
+              if (occupancy && *occupancy != unobservedOccupancyValue())
               {
                 excludedOccupied.push_back(tes::V3Arg(glm::value_ptr(map.voxelCentreGlobal(voxel_key))));
               }

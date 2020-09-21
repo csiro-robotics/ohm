@@ -228,7 +228,7 @@ void ohm::integrateNdtHit(NdtMap &map, const Key &key, const glm::dvec3 &sample)
   float *voxel_value = occupancy.dataPtr();
   float updated_value = *voxel_value;
   if (calculateHitWithCovariance(&cov.data(), &updated_value, sample, voxel_mean, mean.data().count,
-                                 occupancy_map.hitValue(), unorbservedOccupancyValue(),
+                                 occupancy_map.hitValue(), unobservedOccupancyValue(),
                                  float(occupancy_map.resolution()), map.reinitialiseCovarianceTheshold(),
                                  map.reinitialiseCovariancePointCount()))
   {
@@ -238,7 +238,7 @@ void ohm::integrateNdtHit(NdtMap &map, const Key &key, const glm::dvec3 &sample)
 
   // Ensure we update the occupancy within the configured map limits.
   occupancyAdjustUp(
-    voxel_value, *voxel_value, updated_value, unorbservedOccupancyValue(), occupancy_map.maxVoxelValue(),
+    voxel_value, *voxel_value, updated_value, unobservedOccupancyValue(), occupancy_map.maxVoxelValue(),
     occupancy_map.saturateAtMinValue() ? occupancy_map.minVoxelValue() : std::numeric_limits<float>::lowest(),
     occupancy_map.saturateAtMaxValue() ? occupancy_map.maxVoxelValue() : std::numeric_limits<float>::max(), false);
 
@@ -269,10 +269,10 @@ void ohm::integrateNdtMiss(NdtMap &map, const Key &key, const glm::dvec3 &sensor
   const glm::dvec3 voxel_maximum_likelihood =
 #endif  // TES_ENABLE
     calculateMissNdt(cov.dataPtr(), &updated_value, sensor, sample, voxel_mean, mean.data().count,
-                     unorbservedOccupancyValue(), occupancy_map.missValue(), map.adaptationRate(), map.sensorNoise(),
+                     unobservedOccupancyValue(), occupancy_map.missValue(), map.adaptationRate(), map.sensorNoise(),
                      map.ndtSampleThreshold());
   occupancyAdjustDown(
-    voxel_value, *voxel_value, updated_value, unorbservedOccupancyValue(), occupancy_map.minVoxelValue(),
+    voxel_value, *voxel_value, updated_value, unobservedOccupancyValue(), occupancy_map.minVoxelValue(),
     occupancy_map.saturateAtMinValue() ? occupancy_map.minVoxelValue() : std::numeric_limits<float>::lowest(),
     occupancy_map.saturateAtMaxValue() ? occupancy_map.maxVoxelValue() : std::numeric_limits<float>::max(), false);
 

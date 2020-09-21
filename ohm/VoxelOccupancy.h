@@ -33,7 +33,7 @@ namespace ohm
   /// @ingroup voxeloccupancy
   /// Value used to identify invalid or uninitialised voxel voxels.
   /// @return A numeric value considered invalid for a voxel value.
-  constexpr float unorbservedOccupancyValue() { return std::numeric_limits<float>::infinity(); }
+  constexpr float unobservedOccupancyValue() { return std::numeric_limits<float>::infinity(); }
 
 
   /// @ingroup voxeloccupancy
@@ -50,7 +50,7 @@ namespace ohm
     float *occupancy = &voxel.data();
     const float initial_value = *occupancy;
     const OccupancyMap &map = *voxel.map();
-    occupancyAdjustHit(occupancy, initial_value, map.hitValue(), unorbservedOccupancyValue(), map.maxVoxelValue(),
+    occupancyAdjustHit(occupancy, initial_value, map.hitValue(), unobservedOccupancyValue(), map.maxVoxelValue(),
                        map.saturateAtMinValue() ? map.minVoxelValue() : std::numeric_limits<float>::lowest(),
                        map.saturateAtMaxValue() ? map.maxVoxelValue() : std::numeric_limits<float>::max(), false);
   }
@@ -79,7 +79,7 @@ namespace ohm
     float *occupancy = &voxel.data();
     const float initial_value = *occupancy;
     const OccupancyMap &map = *voxel.map();
-    occupancyAdjustMiss(occupancy, initial_value, map.missValue(), unorbservedOccupancyValue(), map.minVoxelValue(),
+    occupancyAdjustMiss(occupancy, initial_value, map.missValue(), unobservedOccupancyValue(), map.minVoxelValue(),
                         map.saturateAtMinValue() ? map.minVoxelValue() : std::numeric_limits<float>::lowest(),
                         map.saturateAtMaxValue() ? map.maxVoxelValue() : std::numeric_limits<float>::max(), false);
   }
@@ -102,7 +102,7 @@ namespace ohm
   /// @return The @c OccupancyType for the @p value .
   inline OccupancyType occupancyType(float value, const OccupancyMap &map)
   {
-    if (value < unorbservedOccupancyValue())
+    if (value < unobservedOccupancyValue())
     {
       if (value < map.occupancyThresholdValue())
       {
@@ -136,7 +136,7 @@ namespace ohm
   /// @return True if occupied.
   inline bool isOccupied(float value, const OccupancyMap &map)
   {
-    return value != unorbservedOccupancyValue() && value >= map.occupancyThresholdValue();
+    return value != unobservedOccupancyValue() && value >= map.occupancyThresholdValue();
   }
 
   /// @internal
@@ -162,7 +162,7 @@ namespace ohm
   /// @return True if free.
   inline bool isFree(float value, const OccupancyMap &map)
   {
-    return value != unorbservedOccupancyValue() && value < map.occupancyThresholdValue();
+    return value != unobservedOccupancyValue() && value < map.occupancyThresholdValue();
   }
 
   /// @internal
@@ -189,10 +189,10 @@ namespace ohm
   inline bool isUnobserved(float value, const OccupancyMap &map)
   {
     (void)map;
-    return value == unorbservedOccupancyValue();
+    return value == unobservedOccupancyValue();
   }
   /// @overload
-  inline bool isUnobserved(float value) { return value == unorbservedOccupancyValue(); }
+  inline bool isUnobserved(float value) { return value == unobservedOccupancyValue(); }
 
   /// @internal
   template <typename T>
