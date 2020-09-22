@@ -231,7 +231,7 @@ namespace ohm
   ///}
   /// @endcode
   ///
-  /// @note The voxel must outlive the map. Generally this will be true when using @c Voxel objects within a limited
+  /// @note The map must outlive the voxel. Generally this will be true when using @c Voxel objects within a limited
   /// scope. However care must be taken when an @c OccupancyMap and a @c Voxel reference to that map exist in the same
   /// scope or when performing operations which can invlidate the @c MapLayout or clear the map. In these cases,
   /// all @c Voxel objects should be explicitly released via @c Voxel::release() .
