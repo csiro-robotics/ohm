@@ -224,4 +224,4 @@ namespace ohm
   inline bool isUnobservedOrNull(const Voxel<const float> &voxel) { return isUnobservedOrNullT(voxel); }
 }  // namespace ohm
 
-#endif  // VOXELMEAN_H
+#endif  // VOXELOCCUPANCY_H
