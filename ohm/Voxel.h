@@ -200,7 +200,7 @@ namespace ohm
   ///  // Create a voxel reference for accessing voxel occupancy.
   ///  ohm::Voxel<const float> occupancy(&map, map.layout().occupancyLayer());
   ///  // Create a voxel reference for accessing VoxelMean.
-  ///  ohm::Voxel<const ohm::VoxelMean> mean(&map, map.layout().occupancyLayer());
+  ///  ohm::Voxel<const ohm::VoxelMean> mean(&map, map.layout().meanLayer());
   ///
   ///  glm::dvec3 sample(0, 0, 0);
   ///  for (int i = 0; i < 12; ++i)  // iterate further than the original line
