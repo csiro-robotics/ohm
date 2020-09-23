@@ -172,8 +172,6 @@ namespace
                                   int step_limit, bool search_up, bool allow_virtual_surface, int *offset,
                                   bool *is_virtual)
   {
-    bool is_virtual_local = true;
-
     int vertical_range = voxel.map().rangeBetween(from_key, to_key)[up_axis_index] + 1;
     if (step_limit > 0)
     {
@@ -212,8 +210,6 @@ namespace
 
       best_virtual = (!occupied && !free && allow_virtual_surface && !search_up && last_free) ? last_key : best_virtual;
 
-      is_virtual_local = is_virtual_local && !occupied;
-
       last_unknown = !occupied && !free;
       last_free = free;
 
@@ -241,7 +237,7 @@ namespace
       }
     }
 
-    *is_virtual = is_virtual_local;
+    *is_virtual = !best_virtual.isNull();
 
     // We only get here if we haven't found an occupied voxel. Return the best virtual one.
     return best_virtual;
