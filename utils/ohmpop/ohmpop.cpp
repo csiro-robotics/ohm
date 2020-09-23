@@ -65,12 +65,12 @@ namespace
   {
     struct Ndt
     {
+      float prob_hit = 0.0;                       // re-initialised from a default map
+      float prob_miss = 0.0;                      // re-initialised from a default map
       float adaptation_rate = 0.0f;               // re-initialised from a default map
       float sensor_noise = 0.0f;                  // re-initialised from a default map
       float covariance_reset_probability = 0.0f;  // re-initialised from a default map
       // NDT map probabilities should be much narrower. The NDT process is more precise.
-      float prob_hit = 0.55f;
-      float prob_miss = 0.49f;
       unsigned covariance_reset_sample_count = 0;  // re-initialised from a default map
       bool enabled = false;
     };
@@ -87,8 +87,8 @@ namespace
     double time_limit = 0;
     double resolution = 0.1;
     double clip_near_range = 0.0;
-    float prob_hit = 0.9f;                   // re-initialised from a default map
-    float prob_miss = 0.45f;                 // re-initialised from a default map
+    float prob_hit = 0.0f;                   // re-initialised from a default map
+    float prob_miss = 0.0f;                  // re-initialised from a default map
     float prob_thresh = 0.5f;                // re-initialised from a default map
     glm::vec2 prob_range = glm::vec2(0, 0);  // re-initialised from a default map
     glm::vec3 cloud_colour = glm::vec3(0);
@@ -127,6 +127,9 @@ namespace
     prob_range[1] = defaults_map.maxVoxelValue();
 
     const ohm::NdtMap defaults_ndt(&defaults_map, true);
+    // Default probabilities may differ for NDT.
+    ndt.prob_hit = defaults_map.hitProbability();
+    ndt.prob_miss = defaults_map.missProbability();
     ndt.adaptation_rate = defaults_ndt.adaptationRate();
     ndt.sensor_noise = defaults_ndt.sensorNoise();
     ndt.covariance_reset_probability = ohm::valueToProbability(defaults_ndt.reinitialiseCovarianceTheshold());
