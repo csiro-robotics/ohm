@@ -33,7 +33,7 @@ namespace ohm
       : map(map)
     {}
 
-    /// Result a point @p pt to a voxel key.
+    /// Resolve a point @p pt to a voxel key.
     /// @param pt The point of interest.
     /// @return The key for @p pt
     inline ohm::Key voxelKey(const glm::dvec3 &pt) const { return map.voxelKey(pt); }

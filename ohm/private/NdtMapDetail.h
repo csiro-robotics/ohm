@@ -14,6 +14,7 @@ namespace ohm
 {
   class OccupancyMap;
 
+  /// Internal details assocaited with an @c NdtMap extension to an @c OccupancyMap .
   struct NdtMapDetail
   {
     /// The target occupancy map.

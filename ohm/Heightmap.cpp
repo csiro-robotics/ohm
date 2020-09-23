@@ -47,7 +47,7 @@ namespace
     Voxel<const float> occupancy;             ///< Occupancy value (required)
     Voxel<const VoxelMean> mean;              ///< Voxel mean layer (optional)
     Voxel<const CovarianceVoxel> covariance;  ///< Covariance layer used for surface normal estimation (optional)
-    float occupancy_threshold;                /// Occupancy threshold cached from the source map.
+    float occupancy_threshold;                ///< Occupancy threshold cached from the source map.
 
     SrcVoxel(const OccupancyMap &map, bool use_voxel_mean)
       : occupancy(&map, map.layout().occupancyLayer())
@@ -172,7 +172,6 @@ namespace
                                   int step_limit, bool search_up, bool allow_virtual_surface, int *offset,
                                   bool *is_virtual)
   {
-    // *is_virtual = true;
     bool is_virtual_local = true;
 
     int vertical_range = voxel.map().rangeBetween(from_key, to_key)[up_axis_index] + 1;
@@ -203,6 +202,7 @@ namespace
 
       if (occupied)
       {
+        *is_virtual = false;
         return current_key;
       }
 
