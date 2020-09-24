@@ -172,13 +172,20 @@ namespace
                                   int step_limit, bool search_up, bool allow_virtual_surface, int *offset,
                                   bool *is_virtual)
   {
+    // Calculate the vertical range we will be searching.
     int vertical_range = voxel.map().rangeBetween(from_key, to_key)[up_axis_index] + 1;
-    if (step_limit > 0)
+    // Set the step direction according to the search direction.
+    const int step = (search_up) ? 1 : -1;
+    // Adjsut tie sign of the search range by search direction.
+    // This will be negative if the range ordering does not match search_up. That is, if from_key > to_key, then
+    // the vertical range will be negative. If search_up is then true, we will not negate vertical_range and keep
+    // a negative range. This will result in processing nothing.
+    vertical_range = (search_up) ? vertical_range : -vertical_range;
+    // Limit the vertical_range to the step_limit
+    if (step_limit > 0 && vertical_range > 0)
     {
       vertical_range = std::min(vertical_range, step_limit);
     }
-    const int step = (vertical_range >= 0) ? 1 : -1;
-    vertical_range = (vertical_range >= 0) ? vertical_range : -vertical_range;
 
     Key best_virtual(nullptr);
     bool last_unknown = true;
@@ -188,34 +195,61 @@ namespace
     Key current_key = from_key;
     for (int i = 0; i < vertical_range; ++i)
     {
-      // We bias the offset to prefer searching down by one voxel.
+      // We bias the offset up one voxel for upward searches. The expecation is that the downward search starts
+      // at the seed voxel, while the upward search starts one above that without overlap.
       *offset = i + !!search_up;
       voxel.setKey(current_key);
 
       // This line yields performance issues likely due to the stochastic memory access.
       // For a true performance gain we'd have to access chunks linearly.
+      // Read the occupancy value for the voxel.
       const float occupancy = voxel.occupancy.chunk() ? voxel.occupancy.data() : unobservedOccupancyValue();
+      // Categories the voxel.
       const bool occupied = occupancy >= voxel.occupancy_threshold && occupancy != unobservedOccupancyValue();
       const bool free = occupancy < voxel.occupancy_threshold;
 
       if (occupied)
       {
+        // Voxel is occupied. We've found our candidate.
         *is_virtual = false;
         return current_key;
       }
 
-      best_virtual = (free && allow_virtual_surface && last_unknown && search_up && best_virtual.isNull()) ?
+      // No occupied voxel. Update the best (virtual) voxel.
+      // We either keep the current best_virtual, or we select the current_voxel as a new best candidate.
+      // We split this work into two. The first check is for the upward search where always select the first viable
+      // virtual surface voxel and will not overwrite it. The conditions for the upward search are:
+      // - virtual surface is allowed
+      // - searching up
+      // - the current voxel is free
+      // - the previous voxel was unknown
+      // - we do not already have a virtual voxel
+      best_virtual = (allow_virtual_surface && search_up && free && last_unknown && best_virtual.isNull()) ?
                        current_key :
                        best_virtual;
 
-      best_virtual = (!occupied && !free && allow_virtual_surface && !search_up && last_free) ? last_key : best_virtual;
+      // This is the case for searching down. In this case we are always looking for the lowest virtual voxel.
+      // We progressively select the last voxel as the new virtual voxel provided it was considered free and the current
+      // voxel is unknown (not free and not occupied). We only need to check free as we will have exited on an occupied
+      // voxel. The conditions here are:
+      // - virtual surface is allowed
+      // - searching down (!search_up)
+      // - the last voxel was free
+      // - the current voxel is unknown - we only need check !free at this point
+      // Otherwise we keep the current candidate
+      best_virtual = (allow_virtual_surface && !search_up && last_free && !free) ? last_key : best_virtual;
 
+      // Cache values for the next iteration.
       last_unknown = !occupied && !free;
       last_free = free;
+      last_key = current_key;
 
+      // Calculate the next voxel.
       int next_step = step;
       if (!voxel.occupancy.chunk())
       {
+        // The current voxel is an empty chunk implying all unknow voxels. We will skip to the last voxel in this
+        // chunk chunk. We don't skip the whole chunk to allow the virtual voxel calculation to take effect.
         next_step = (step > 0) ? voxel.occupancy.layerDim()[up_axis_index] - current_key.localKey()[up_axis_index] :
                                  -(1 + current_key.localKey()[up_axis_index]);
         i += std::abs(next_step) - 1;
@@ -316,7 +350,8 @@ namespace
     glm::dvec3 column_voxel_pos(0);
     double height = 0;
     bool have_candidate = false;
-    bool have_transitioned_from_unknown = false;
+    bool have_transitioned_from_unobserved = false;
+    OccupancyType last_voxel_type = ohm::kUnobserved;
 
     // Select walking direction based on the up axis being aligned with the primary axis or not.
 
@@ -330,7 +365,7 @@ namespace
       const OccupancyType voxel_type = sourceVoxelHeight(&sub_voxel_pos, &height, voxel, imp.up);
 
       if (voxel_type == ohm::kOccupied ||
-          imp.generate_virtual_surface && !have_transitioned_from_unknown && voxel_type == ohm::kFree)
+          imp.generate_virtual_surface && !have_transitioned_from_unobserved && voxel_type == ohm::kFree)
       {
         if (have_candidate)
         {
@@ -360,10 +395,9 @@ namespace
         }
       }
 
-      if (voxel_type != ohm::kUnobserved)
-      {
-        have_transitioned_from_unknown = true;
-      }
+      have_transitioned_from_unobserved = (voxel_type != ohm::kUnobserved && voxel_type != ohm::kNull) &&
+                                          (last_voxel_type == ohm::kUnobserved || last_voxel_type == ohm::kNull);
+      last_voxel_type = voxel_type;
     }
 
     // Did we find a valid candidate?
