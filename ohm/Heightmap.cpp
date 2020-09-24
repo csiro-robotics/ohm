@@ -173,16 +173,13 @@ namespace
                                   bool *is_virtual)
   {
     // Calculate the vertical range we will be searching.
+    // Note: the vertical_range sign may not be what you expect. It will match search_up (true === +, false === -)
+    // when the up axis is +X, +Y, or +Z. It will not match when the up axis is -X, -Y, or -Z.
     int vertical_range = voxel.map().rangeBetween(from_key, to_key)[up_axis_index] + 1;
-    // Set the step direction according to the search direction.
-    const int step = (search_up) ? 1 : -1;
-    // Adjsut tie sign of the search range by search direction.
-    // This will be negative if the range ordering does not match search_up. That is, if from_key > to_key, then
-    // the vertical range will be negative. If search_up is then true, we will not negate vertical_range and keep
-    // a negative range. This will result in processing nothing.
-    vertical_range = (search_up) ? vertical_range : -vertical_range;
-    // Limit the vertical_range to the step_limit
-    if (step_limit > 0 && vertical_range > 0)
+    // Step direction is based on the vertical_range sign.
+    const int step = (vertical_range >= 0) ? 1 : -1;
+    vertical_range = (vertical_range >= 0) ? vertical_range : -vertical_range;
+    if (step_limit > 0)
     {
       vertical_range = std::min(vertical_range, step_limit);
     }
@@ -287,6 +284,12 @@ namespace
     int offset_above = -1;
     bool virtual_below = false;
     bool virtual_above = false;
+
+    if (seed_key.regionKey().y == 0 && seed_key.regionKey().z == 0 && seed_key.localKey().y == 3 &&
+        seed_key.localKey().z == 3)
+    {
+      int stopme = 1;
+    }
 
     const int up_axis_index = (int(up_axis) >= 0) ? int(up_axis) : -int(up_axis) - 1;
     const Key &search_down_to = (int(up_axis) >= 0) ? min_key : max_key;
