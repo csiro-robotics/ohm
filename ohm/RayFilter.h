@@ -35,8 +35,8 @@ namespace ohm
   /// A ray is culled (thereby omitted from the map) when this function returns false. When returning true, the ray
   /// @c start and @c end points may be left as is, or may be modified first. When modifying the points, it is critical
   /// to adjust the @c filter_flags appropriately. Set @c kRffClippedStart when @c start is modified and set
-  /// @c kRffClippedEnd when end is modified *and* no longer falls in the sample voxel (or at should not be treated as
-  /// a sample).
+  /// @c kRffClippedEnd when end is modified *and* no longer falls in the sample voxel (or if it should not be treated
+  /// as a sample).
   ///
   /// @param start A pointer to the sample ray start coordinate. May be modified.
   /// @param end A pointer to the sample ray end coordinate. May be modified.

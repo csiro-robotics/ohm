@@ -15,7 +15,7 @@ struct SpinLockImp;
 ///
 /// Best used with @c std::unique_lock as an exception and scope safe guard.
 ///
-/// @note This class is deprecated. It isonly about as fast as GCC's actualy mutex. Use tbb::spin_mutex for a spin lock.
+/// @note This class is deprecated. It is only about as fast as GCC's actual mutex. Use tbb::spin_mutex for a spin lock.
 class ohmutil_API SpinLock
 {
 public:

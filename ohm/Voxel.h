@@ -76,7 +76,7 @@ namespace ohm
 
   /// The @c Voxel interface provides a semi optimal abstraction and book keeping for accessing voxel data.
   ///
-  /// The @c Voxel interface deal directly with the @c MapLayer abstraction of the @c OccupancyMap , providing access
+  /// The @c Voxel interface deals directly with the @c MapLayer abstraction of the @c OccupancyMap , providing access
   /// to the data within a single @p MapLayer . The template type is used to resolve the data within the layer as
   /// the template type, supporting mutable and const access (see below). The template type is validated against
   /// the data in the proposed layer index by checking the size of @c T against the size of the data stored in the
@@ -84,14 +84,15 @@ namespace ohm
   ///
   /// A mutable @c Voxel is one where the template type @c T is non-const, while a const @c Voxel has a const template
   /// type @c T . Only a mutable @c Voxel can create new @c MapChunks within the @c OccupancyMap . This occurs
-  /// immediately on setting a key, generally via @c setKey() . Additional book keeping is managed by the a mutable @c
-  /// Voxel to ensuring correct update to @c OccupancyMap::stamp() (via @c OccupancyMap::touch() ) as well as updating
-  /// appropriate @c MapChunk stamps. The @c MapChunk::first_valid_index is also udpated for the occupancy layer.
+  /// immediately on setting a key, generally via @c setKey() . Additional book keeping is managed by the mutable
+  /// @c Voxel to ensure correct update of @c OccupancyMap::stamp() (via @c OccupancyMap::touch() ) as well as
+  /// updating appropriate @c MapChunk stamps. The @c MapChunk::first_valid_index is also udpated for the occupancy
+  /// layer.
   ///
   /// A @c Voxel is initialised to reference a specific @c MapLayer within a specific @c OccupancyMap . At this point
   /// the @c Voxel should pass @c isValidLayer() to ensure that the map is valid, the layer reference is valid and
   /// that the size of @c T matches the @c MayLayer voxel size. Specific voxels can then be referenced via @c setKey()
-  /// to idnetify which voxel to reference. This resolved the @c MapChunk , creating the chunk in a mutable @c Voxel
+  /// to identify which voxel to reference. This resolves the @c MapChunk , creating the chunk in a mutable @c Voxel
   /// if required. A const @c Voxel will never create a new @c MapChunk and may have a valid @c Key , with a null
   /// @c MapChunk .
   ///
@@ -112,9 +113,9 @@ namespace ohm
   /// There are various ways to set a @c Voxel to reference a specific voxel using @c setKey() or some constructors.
   /// The @c setKey() function supports various overloads. The first accepts a @c Key which references a voxel. This
   /// key is immediately used to resolve the @c MapChunk then the specific voxel @c data() on request. Setting to a key
-  /// in the same @c MapChunk as the current maintains the current @c MapChunk pointer. @c setKey() also accepts a @c
-  /// Key with a @c MapChunk for cases where the caller already has a reference to the correct @c MapChunk . This chunk
-  /// pointer is assumed to be correct and is not validated.
+  /// in the same @c MapChunk as the current maintains the current @c MapChunk pointer. @c setKey() also accepts a
+  /// @c Key with a @c MapChunk for cases where the caller already has a reference to the correct @c MapChunk . This
+  /// chunk pointer is assumed to be correct and is not validated.
   ///
   /// The key may also be set from another @c Voxel even one for a different layer. This copies the @c Key and
   /// @c MapChunk from the other @c Voxel saving on a looking into the map to resolve the chunk. This call is validated
@@ -127,7 +128,7 @@ namespace ohm
   ///
   /// A similar set of parameterisation of the @c Voxel constructors also exist.
   ///
-  /// For convinience the free function @c setVoxelKey() may be used to initialise a number of @c Voxel references,
+  /// For convenience the free function @c setVoxelKey() may be used to initialise a number of @c Voxel references,
   /// presumably to different layers, from a single key reference. This is a variadic template function accepting
   /// at least two arguments. The first is the key reference object - a @c Key , iterator or valid @c Voxel reference -
   /// followed by any number of @c Voxel objects. Take care to ensure that the first argument is always a valid key
@@ -135,7 +136,7 @@ namespace ohm
   ///
   /// For optimal memory access a @c MapChunk should be accessed as linearly as possible. This is mostly only applicable
   /// to reading only access. For write access some gains are to be made by referencing voxels in a spatially coherent
-  /// fashion, ones which are likely to fall in the same @c MapChunk . This helps keep @c Voxel overheads are kept to a
+  /// fashion, ones which are likely to fall in the same @c MapChunk . This helps keep @c Voxel overheads to a
   /// minimum, but direct access to and linear traversal of voxel data may be more optimal with manual book keeping
   /// to manage the various stamps and @c MapChunk::first_valid_index .
   ///
@@ -164,7 +165,7 @@ namespace ohm
   ///    // Below we look at several methods for setting the keys for the Voxel objects. Note that they have equivalent
   ///    // results and only one need be used. The process of setting the Key instantiates the MapChunk in map.
   ///
-  ///    // 1. Set each voxel invidually. This has some slight additional overhead as each Voxel resolved the chunk.
+  ///    // 1. Set each voxel individually. This has some slight additional overhead as each Voxel resolved the chunk.
   ///    occupancy.setKey(key);
   ///    mean.setKey(key);
   ///
@@ -186,7 +187,7 @@ namespace ohm
   ///    // mean count will be 2.
   ///    // i. Safe version, with mean.isValid() may be false.
   ///    ohm::updatePositionSafe(mean, sample);  // in VoxelMean.h
-  ///    // ii. Unchecked version, where mean.isValid() is assumed to be true. We check expliclty because we have not
+  ///    // ii. Unchecked version, where mean.isValid() is assumed to be true. We check explicitly because we have not
   ///    // checked mean.isLayerValid() above.
   ///    if (mean.isValid())
   ///    {
@@ -233,7 +234,7 @@ namespace ohm
   ///
   /// @note The map must outlive the voxel. Generally this will be true when using @c Voxel objects within a limited
   /// scope. However care must be taken when an @c OccupancyMap and a @c Voxel reference to that map exist in the same
-  /// scope or when performing operations which can invlidate the @c MapLayout or clear the map. In these cases,
+  /// scope or when performing operations which can invalidate the @c MapLayout or clear the map. In these cases,
   /// all @c Voxel objects should be explicitly released via @c Voxel::release() .
   ///
   /// @tparam T The data type expected to be contained in the @c MapLayer to operate on. Checked for size match with
@@ -345,7 +346,7 @@ namespace ohm
     /// Query the cached @c MapLayer::dimensions() .
     /// @return The map layer voxel dimensions.
     inline glm::u8vec3 layerDim() const { return layer_dim_; }
-    /// Query the status @c Flag values for the voxel. These are generally book kepping flags.
+    /// Query the status @c Flag values for the voxel. These are generally book keeping flags.
     /// @return The current status flags.
     inline unsigned flags() const { return flags_; }
     /// Query the status @c Error flag values for the voxel.
@@ -404,13 +405,13 @@ namespace ohm
     /// @c data() function.
     /// @return The voxel data of type @c T for the currently referenced voxel as a pointer.
     inline T *dataPtr() { return &data(); }
-    /// Query the voxel data as a pointer type. This has the same side requirements const @c data() function.
+    /// Query the voxel data as a pointer type. This has the same side requirements as the const @c data() function.
     /// @return The voxel data of type @c T for the currently referenced voxel as a pointer.
     inline const T *dataPtr() const { return &data(); }
 
     /// Attempt to step the voxel reference to the next voxel in the current @c MapChunk .
     ///
-    /// This first validate @c isValidReference() before attempting to modifying the @c key() . On success, the
+    /// This first validates @c isValidReference() before attempting to modify the @c key() . On success, the
     /// key will reference the next @c voxelIndex() in the @c MapChunk .
     ///
     /// @return True on success.
@@ -432,7 +433,7 @@ namespace ohm
     Voxel &operator=(Voxel<T> &&other);
 
   protected:
-    /// Internal key set function. Performes book keepoing for @c Flag::IsOccupancyLayer and @c Flag::TouchedVoxel .
+    /// Internal key set function. Performs book keeping for @c Flag::IsOccupancyLayer and @c Flag::TouchedVoxel .
     /// @param key The key value to set.
     inline void setKeyInternal(const Key &key)
     {
@@ -440,7 +441,7 @@ namespace ohm
       key_ = key;
     }
 
-    /// Internal chunk set function. Performes book keepoing for @c Flag::TouchedChunk .
+    /// Internal chunk set function. Performs book keeping for @c Flag::TouchedChunk .
     /// @param key The key value to set.
     inline void setChunk(MapChunkPtr chunk)
     {
@@ -450,7 +451,7 @@ namespace ohm
 
     /// Validate the @c layerIndex() . May invalidate the layer index and set @c Error flag values.
     void validateLayer();
-    /// Perfork book keeping for the currently reference voxel. Handles @c Flag::IsOccupancyLayer and
+    /// Perform book keeping for the currently referenced voxel. Handles @c Flag::IsOccupancyLayer and
     /// @c Flag::TouchedVoxel . This only needs to do work when @c Flag::IsOccupancyLayer is true by updating
     /// @c MapChunk::first_valid_index the @c Flag::TouchedVoxel has been set. @c Flag::TouchedVoxel is cleared.
     ///
@@ -533,7 +534,7 @@ namespace ohm
     setVoxelKey2(key, voxel, args...);
   }
 
-  /// Set the key value for multiple @c Voxel from a may iterator.
+  /// Set the key value for multiple @c Voxel from a map iterator.
   /// @param iter The occupancy map iterator to set from.
   /// @param voxel The first @c Voxel to set the key for. Must be a mutable voxel.
   /// @param args Additional @c Voxel references.
@@ -543,7 +544,7 @@ namespace ohm
     setVoxelKey2(iter, voxel, args...);
   }
 
-  /// Set the key value for multiple @c Voxel from a may iterator.
+  /// Set the key value for multiple @c Voxel from a map iterator.
   /// @param iter The occupancy map iterator to set from.
   /// @param voxel The first @c Voxel to set the key for. Must be a const voxel.
   /// @param args Additional @c Voxel references.

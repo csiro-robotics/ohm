@@ -31,7 +31,7 @@ namespace ohm
 #include "VoxelOccupancyCompute.h"
 
   /// @ingroup voxeloccupancy
-  /// Value used to identify invalid or uninitialised voxel voxels.
+  /// Value used to identify invalid or uninitialised voxels.
   /// @return A numeric value considered invalid for a voxel value.
   constexpr float unobservedOccupancyValue() { return std::numeric_limits<float>::infinity(); }
 
@@ -67,7 +67,7 @@ namespace ohm
 
   /// @ingroup voxeloccupancy
   /// Integrate a miss into the referenced @p voxel .
-  /// This adjust the occupancy data - @c Voxel<float>::data() - decreating it by adding @c OccupancyMap::missValue() .
+  /// This adjusts the occupancy data - @c Voxel<float>::data() - decreasing it by adding @c OccupancyMap::missValue() .
   ///
   /// Note @c voxel is self contained so long as it is valid.
   ///
@@ -95,7 +95,7 @@ namespace ohm
   }
 
   /// @ingroup voxeloccupancy
-  /// Determine the @c OccupancyType for a of @p value
+  /// Determine the @c OccupancyType for an occupancy @p value
   ///
   /// @param value The value to categorise.
   /// @param map The map within which the value sits.
@@ -174,7 +174,7 @@ namespace ohm
 
   /// @ingroup voxeloccupancy
   /// Return @c true if @p voxel represents a free voxel.
-  /// @param value The occupancy voxel test. Must not be null.
+  /// @param value The occupancy voxel to test. Must not be null.
   /// @return True if free.
   inline bool isFree(const Voxel<float> &voxel) { return isFreeT(voxel); }
   /// @overload
@@ -203,7 +203,7 @@ namespace ohm
 
   /// @ingroup voxeloccupancy
   /// Return @c true if @p voxel represents an unobserved, but not null voxel.
-  /// @param value The occupancy voxel test. Must not be null.
+  /// @param value The occupancy voxel to test. Must not be null.
   /// @return True if unobserved.
   inline bool isUnobserved(const Voxel<float> &voxel) { return isUnobservedT(voxel); }
   /// @overload
@@ -218,7 +218,7 @@ namespace ohm
 
   /// @ingroup voxeloccupancy
   /// Return @c true if @p voxel represents an unobserved, but not null voxel.
-  /// @param value The occupancy voxel test. May be null.
+  /// @param value The occupancy voxel to test. May be null.
   /// @return True if unobserved or null.
   inline bool isUnobservedOrNull(const Voxel<float> &voxel) { return isUnobservedOrNullT(voxel); }
   inline bool isUnobservedOrNull(const Voxel<const float> &voxel) { return isUnobservedOrNullT(voxel); }

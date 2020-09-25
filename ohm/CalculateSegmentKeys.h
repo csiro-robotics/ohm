@@ -41,7 +41,7 @@ namespace ohm
     /// @param key The key to test
     /// @return True if @p key is a null entry
     inline bool isNull(const ohm::Key &key) const { return key.isNull(); }
-    /// Result a @p key to the corresponding voxel centre coordinate.
+    /// Resolve a @p key to the corresponding voxel centre coordinate.
     /// @param key The key of interest.
     /// @return The coordinate at the centre of the voxel which @p key reference.
     inline glm::dvec3 voxelCentre(const ohm::Key &key) const { return map.voxelCentreLocal(key); }
@@ -58,7 +58,7 @@ namespace ohm
     inline double voxelResolution(int /*axis*/) const { return map.resolution(); }
   };
 
-  /// This poulates a @c KeyList with the voxel @c Key values intersected by a line segment.
+  /// This populates a @c KeyList with the voxel @c Key values intersected by a line segment.
   ///
   /// This utility function leverages @c walkSegmentKeys() in order to calculate the set of voxel @c Key values
   /// intersected by the line segment @p start_point to @p end_point .

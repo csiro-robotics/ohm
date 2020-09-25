@@ -14,7 +14,7 @@ namespace ohm
 {
   class OccupancyMap;
 
-  /// Internal details assocaited with an @c NdtMap extension to an @c OccupancyMap .
+  /// Internal details associated with a @c NdtMap extension to an @c OccupancyMap .
   struct NdtMapDetail
   {
     /// The target occupancy map.
@@ -29,8 +29,8 @@ namespace ohm
     /// Low probability value threshold used to re-initialise covariance matrix and mean.
     /// Used with @c reinitialise_covariance_point_count in @c calculateHitWithCovariance()
     float reinitialise_covariance_theshold = probabilityToValue(0.2f);
-    /// Upper point count limit required to reinitialise the covariance matrix. Used with @c
-    /// reinitialise_covariance_theshold in @c calculateHitWithCovariance()
+    /// Upper point count limit required to reinitialise the covariance matrix. Used with
+    /// @c reinitialise_covariance_theshold in @c calculateHitWithCovariance()
     unsigned reinitialise_covariance_point_count = 100;
     /// True if @p map is a borrowed pointer, false to take ownership and delete it.
     bool borrowed_map = false;

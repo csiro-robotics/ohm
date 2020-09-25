@@ -41,7 +41,7 @@ namespace ohm
   class MapRegionCache;
   class OccupancyMap;
 
-  /// Internal details assocaited with an @c OccupancyMap .
+  /// Internal details associated with an @c OccupancyMap .
   struct ohm_API OccupancyMapDetail
   {
 #ifdef OHM_THREADS
@@ -62,9 +62,9 @@ namespace ohm
     /// The size of a voxel cube edge. All voxels are uniform cubes.
     double resolution = 0.0;
     /// Used to mark changes in the map. This is a monotonic value which is modified when the map is changed and is
-    /// compied into associated @c MapChunk objects. This can be used to detect the recency of changes.
+    /// copied into associated @c MapChunk objects. This can be used to detect the recency of changes.
     uint64_t stamp = 0;
-    /// The value threshold used to consider a voxel as occupied. Occupied voxels have a value equal to or graeter than
+    /// The value threshold used to consider a voxel as occupied. Occupied voxels have a value equal to or greater than
     /// this value, but not equal to @c ohm::unobservedOccupancyValue() (infinity).
     /// @see @c ohm::valueToProbability()
     float occupancy_threshold_value = 0.0f;
@@ -109,7 +109,7 @@ namespace ohm
 
     /// Default constructor.
     OccupancyMapDetail() = default;
-    /// Destructro ensures @c gpu_cache is destroyed.
+    /// Destructor ensures @c gpu_cache is destroyed.
     ~OccupancyMapDetail();
 
     /// Move an @c Key along a selected axis.

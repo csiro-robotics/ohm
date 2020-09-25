@@ -192,7 +192,7 @@ namespace
     Key current_key = from_key;
     for (int i = 0; i < vertical_range; ++i)
     {
-      // We bias the offset up one voxel for upward searches. The expecation is that the downward search starts
+      // We bias the offset up one voxel for upward searches. The expectation is that the downward search starts
       // at the seed voxel, while the upward search starts one above that without overlap.
       *offset = i + !!search_up;
       voxel.setKey(current_key);
@@ -201,7 +201,7 @@ namespace
       // For a true performance gain we'd have to access chunks linearly.
       // Read the occupancy value for the voxel.
       const float occupancy = voxel.occupancy.chunk() ? voxel.occupancy.data() : unobservedOccupancyValue();
-      // Categories the voxel.
+      // Categorise the voxel.
       const bool occupied = occupancy >= voxel.occupancy_threshold && occupancy != unobservedOccupancyValue();
       const bool free = occupancy < voxel.occupancy_threshold;
 
@@ -245,8 +245,8 @@ namespace
       int next_step = step;
       if (!voxel.occupancy.chunk())
       {
-        // The current voxel is an empty chunk implying all unknow voxels. We will skip to the last voxel in this
-        // chunk chunk. We don't skip the whole chunk to allow the virtual voxel calculation to take effect.
+        // The current voxel is an empty chunk implying all unknown voxels. We will skip to the last voxel in this
+        // chunk. We don't skip the whole chunk to allow the virtual voxel calculation to take effect.
         next_step = (step > 0) ? voxel.occupancy.layerDim()[up_axis_index] - current_key.localKey()[up_axis_index] :
                                  -(1 + current_key.localKey()[up_axis_index]);
         i += std::abs(next_step) - 1;
@@ -284,12 +284,6 @@ namespace
     int offset_above = -1;
     bool virtual_below = false;
     bool virtual_above = false;
-
-    if (seed_key.regionKey().y == 0 && seed_key.regionKey().z == 0 && seed_key.localKey().y == 3 &&
-        seed_key.localKey().z == 3)
-    {
-      int stopme = 1;
-    }
 
     const int up_axis_index = (int(up_axis) >= 0) ? int(up_axis) : -int(up_axis) - 1;
     const Key &search_down_to = (int(up_axis) >= 0) ? min_key : max_key;
@@ -812,8 +806,8 @@ bool Heightmap::buildHeightmapT(KeyWalker &walker, const glm::dvec3 &reference_p
   {
     // Find the nearest voxel to the current key which may be a ground candidate.
     // This is key closest to the walk_key which could be ground. This will be either an occupied voxel, or virtual
-    // ground
-    /// voxel. Virtual ground is where a free is supported by an uncertain or null voxel below it.
+    // ground voxel.
+    // Virtual ground is where a free is supported by an uncertain or null voxel below it.
     Key candidate_key = findNearestSupportingVoxel(src_voxel, walk_key, upAxis(), walker.min_ext_key,
                                                    walker.max_ext_key, voxel_ceiling, clearance_voxel_count_permissive,
                                                    imp_->generate_virtual_surface, imp_->promote_virtual_below);

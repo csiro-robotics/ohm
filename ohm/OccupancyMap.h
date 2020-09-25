@@ -36,10 +36,10 @@ namespace ohm
   /// A spatial container using a voxel representation of 3D space.
   ///
   /// The map is divided into rectangular regions of voxels. The map uses an initial spatial hash to identify a larger
-  /// @c MapRegion which contains a contiguous array of voxels. This used rather than an octree to support:
+  /// @c MapRegion which contains a contiguous array of voxels. This is used rather than an octree to support:
   /// - Fast region allocation/de-allocation
   /// - Constant lookup
-  /// - Region dropping regions
+  /// - Dropping regions
   /// - Eventually, out of core serialisation.
   ///
   /// The size of the regions is determined by the @c regionVoxelDimensions argument given on construction. Larger
@@ -48,7 +48,7 @@ namespace ohm
   ///
   /// The contents of an @c OccupancyMap are determined by the @c MapLayout with voxel data split into separate layers.
   /// An @c OccupancyMap is always expected to support a occupancy layer of @c float values. A map may optionally
-  /// support additional, standard layers and user defines layers. The standard layers are:
+  /// support additional, standard layers and user defined layers. The standard layers are:
   ///
   /// Layer Name    | Type          | Purpose
   /// ------------- | ------------- | --------------
@@ -82,8 +82,9 @@ namespace ohm
   /// The map is typically updated by collecting point samples with corresponding sensor origin coordinates via a
   /// @c RayMapper class such as @c RayMapperOccupancy . More manual updates may also be made by passing each
   /// origin/sample pair to @c calculateSegmentKeys() . This identifies the voxels intersected by the line segment
-  /// connecting the two points. These voxels, excluding the voxel containing the same, should be updated in the map by
-  /// calling @c integrateMiss() reinforcing such voxels as free. For sample voxels, @c integrateHit() should be called.
+  /// connecting the two points. These voxels, excluding the voxel containing the sample, should be updated in the map
+  /// by calling @c integrateMiss() reinforcing such voxels as free. For sample voxels, @c integrateHit() should be
+  /// called.
   ///
   /// There are two forms of addressing for the @c OccupancyMap - region and local - encapsulated by the @c Key class.
   /// The region key is a coarse indexer which identifies a @c MapRegion and its accociated memory in @c MapChunk .
@@ -161,7 +162,7 @@ namespace ohm
     public:
       /// Constructor of an invalid iterator.
       iterator() = default;
-      /// Iterator into @p map starting at @p key. Map must remain unchanged during iteration.
+      /// Iterator into @p map starting at @p key . Map must remain unchanged during iteration.
       /// @param map The map to iterate in.
       /// @param key The key to start iterating at.
       inline iterator(OccupancyMap *map, const Key &key)
@@ -448,7 +449,7 @@ namespace ohm
     /// @return The number of removed regions.
     unsigned cullRegionsOutside(const glm::dvec3 &min_extents, const glm::dvec3 &max_extents);
 
-    /// Touch the @c MapRegion which contains @p point.
+    /// Touch the @c MapRegion which contains @p point .
     /// @param point A spatial point from which to resolve a containing region. There may be border case issues.
     /// @param timestamp The timestamp to update the region touch time to.
     /// @param allow_create Create the region (all uncertain) if it doesn't exist?
@@ -458,7 +459,7 @@ namespace ohm
       touchRegionTimestamp(voxelKey(point), timestamp, allow_create);
     }
 
-    /// Touch the @c MapRegion which contains @p voxelKey.
+    /// Touch the @c MapRegion which contains @p voxel_key .
     /// @param voxel_key A voxel key from which to resolve a containing region.
     /// @param timestamp The timestamp to update the region touch time to.
     /// @param allow_create Create the region (all uncertain) if it doesn't exist?
@@ -741,7 +742,7 @@ namespace ohm
                                 bool include_end_point = true) const;
 
     /// Set the range filter applied to all rays to be integrated into the map. @c RayMapper implementations must
-    /// repsect this filter in @c RayMapper::integrateRays() .
+    /// respect this filter in @c RayMapper::integrateRays() .
     /// @param ray_filter The range filter to install and filter rays with. Accepts an empty, which clears the filter.
     void setRayFilter(const RayFilterFunction &ray_filter);
 
@@ -816,7 +817,7 @@ namespace ohm
     /// @return The most up to date stamp value for the dirty regions.
     uint64_t calculateDirtyExtents(uint64_t from_stamp, glm::i16vec3 *min_ext, glm::i16vec3 *max_ext) const;
 
-    /// Experimental: calculation the dirty region extents for the clearance layer.
+    /// Experimental: calculate the dirty region extents for the clearance layer.
     /// @param min_ext The region key which identifies the minimum extents of the dirty regions.
     /// @param max_ext The region key which identifies the maximum extents of the dirty regions.
     /// @param region_padding Number of regions to pad the returned extents.
