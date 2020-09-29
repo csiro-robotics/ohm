@@ -156,9 +156,8 @@ namespace ohm
     MapRegion region = MapRegion{};
     /// Describes the layers and voxel layout of the chunk (from the map as a whole).
     const MapLayout *layout = nullptr;
+    /// Index of the first voxel with valid data: occupied or free, but not unobserved.
     unsigned first_valid_index = ~0u;
-    // /// Index of the first voxel with valid data: occupied or free, but not uncertain.s
-    // glm::u8vec3 first_valid_index = glm::u8vec3(255, 255, 255);
     /// Last timestamp the occupancy layer of this chunk was modified.
     double touched_time = 0;
 
