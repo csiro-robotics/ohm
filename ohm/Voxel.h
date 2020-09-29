@@ -148,7 +148,7 @@ namespace ohm
   ///  // Create a voxel reference for accessing voxel occupancy.
   ///  ohm::Voxel<float> occupancy(&map, map.layout().occupancyLayer());
   ///  // Create a voxel reference for accessing VoxelMean.
-  ///  ohm::Voxel<ohm::VoxelMean> mean(&map, map.layout().occupancyLayer());
+  ///  ohm::Voxel<ohm::VoxelMean> mean(&map, map.layout().meanLayer());
   ///
   ///  // Ensure the occupancy layer is ok.
   ///  if (!occupancy.isLayerValid())
