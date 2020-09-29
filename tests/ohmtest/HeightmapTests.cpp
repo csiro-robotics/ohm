@@ -437,8 +437,6 @@ namespace
     ohm::OccupancyMap map(1.0, glm::u8vec3(8, 8, 2));
     // Offset the map so that 0, 0, 0 is at the centre of a voxel.
     map.setOrigin(glm::dvec3(-0.5 * map.resolution()));
-    ohm::Key k = map.voxelKey(glm::dvec3{ 0 });
-    glm::dvec3 p = map.voxelCentreGlobal(k);
     // Set ranges based on map resolution
     const double selected_voxel_range = 5.0 * map.resolution();
     const double other_voxel_range = selected_voxel_range + 2.0 * map.resolution();
