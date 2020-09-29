@@ -1,5 +1,11 @@
+// Copyright (c) 2020
+// Commonwealth Scientific and Industrial Research Organisation (CSIRO)
+// ABN 41 687 119 230
 //
-// author Kazys Stepanas
+// Author: Kazys Stepanas
+//
+// This is the program file for populating an Octomap occupancy map using SLAM data.
+// The main entry point is near the bottom of the file with additional option parsing and support functions above that.
 //
 #include "OctoPopConfig.h"
 
@@ -30,10 +36,13 @@
 
 namespace
 {
+  /// The clock used to report process timing.
   using Clock = std::chrono::high_resolution_clock;
 
+  /// Quit level/flag. Initial quit will just stop populating, but still save out. Multiple increments will quit saving.
   int quit = 0;
 
+  /// Control-C capture.
   void onSignal(int arg)
   {
     if (arg == SIGINT || arg == SIGTERM)
@@ -42,9 +51,7 @@ namespace
     }
   }
 
-
-  // Min/max P: 0.1192 0.971
-  // Min/max V: -2.00003 3.51103
+  /// Parsed command line options.
   struct Options
   {
     std::string cloud_file;
@@ -67,6 +74,7 @@ namespace
     bool collapse = false;
     bool quiet = false;
 
+    /// A helper to print configured options to (multiple) output stream.
     void print(std::ostream **out) const;
   };
 
@@ -127,12 +135,15 @@ namespace
     }
   }
 
+  /// Map saving control flags.
   enum SaveFlags : unsigned
   {
-    kSaveMap = (1 << 0),
-    kSaveCloud = (1 << 1)
+    kSaveMap = (1 << 0),   ///< Save the occupancy map
+    kSaveCloud = (1 << 1)  ///< Save a point cloud from the occupancy map
   };
 
+  /// Save the Octomap to file and optional to point cloud. The map file is set as `base_name + ".bt"` and the point
+  /// cloud as `base_name + ".ply"`
   void saveMap(const Options &opt, octomap::OcTree *map, const std::string &base_name, unsigned save_flags = kSaveMap)
   {
     if (quit >= 2)
@@ -154,13 +165,14 @@ namespace
 
     if (save_flags & kSaveCloud)
     {
-      // Save a cloud representation.
+      // Save a cloud representation. Need to walk the tree leaves.
       std::cout << "Converting to point cloud." << std::endl;
       ohm::PlyMesh ply;
       glm::vec3 v;
       std::uint64_t point_count = 0;
       const auto map_end_iter = map->end_leafs();
 
+      // float to byte colour channel conversion.
       const auto colour_channel_f = [](float cf) -> uint8_t  //
       {
         cf = 255.0f * std::max(cf, 0.0f);
@@ -201,6 +213,7 @@ namespace
 }  // namespace
 
 
+/// Main look used to populate and serialise an Octomap.
 int populateMap(const Options &opt)
 {
   ohm::ScopedTimeDisplay time_display("Execution time");
@@ -505,6 +518,7 @@ int parseOptions(Options *opt, int argc, char *argv[])
   return 0;
 }
 
+/// entry point
 int main(int argc, char *argv[])
 {
   Options opt;

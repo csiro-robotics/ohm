@@ -40,7 +40,7 @@ namespace ohmgen
         for (; key.isBoundedX(min_key, max_key); map.moveKeyAlongAxis(key, 0, step))
         {
           voxel.setKey(key);
-          initial_value = unorbservedOccupancyValue();
+          initial_value = unobservedOccupancyValue();
           if (expect_value && initial_value != *expect_value)
           {
             throw std::logic_error("Voxel should start uncertain.");
@@ -55,7 +55,7 @@ namespace ohmgen
   void fillMapWithEmptySpace(ohm::OccupancyMap &map, int x1, int y1, int z1, int x2, int y2, int z2,
                              bool expect_empty_map)
   {
-    const float expect_initial_value = unorbservedOccupancyValue();
+    const float expect_initial_value = unobservedOccupancyValue();
     const float *expect_value_ptr = (expect_empty_map) ? &expect_initial_value : nullptr;
 
     Key min_key, max_key;

@@ -33,7 +33,7 @@ namespace ohm
       : map(map)
     {}
 
-    /// Result a point @p pt to a voxel key.
+    /// Resolve a point @p pt to a voxel key.
     /// @param pt The point of interest.
     /// @return The key for @p pt
     inline ohm::Key voxelKey(const glm::dvec3 &pt) const { return map.voxelKey(pt); }
@@ -41,7 +41,7 @@ namespace ohm
     /// @param key The key to test
     /// @return True if @p key is a null entry
     inline bool isNull(const ohm::Key &key) const { return key.isNull(); }
-    /// Result a @p key to the corresponding voxel centre coordinate.
+    /// Resolve a @p key to the corresponding voxel centre coordinate.
     /// @param key The key of interest.
     /// @return The coordinate at the centre of the voxel which @p key reference.
     inline glm::dvec3 voxelCentre(const ohm::Key &key) const { return map.voxelCentreLocal(key); }
@@ -58,13 +58,13 @@ namespace ohm
     inline double voxelResolution(int /*axis*/) const { return map.resolution(); }
   };
 
-  /// This poulates a @c KeyList with the voxel @c Key values intersected by a line segment.
+  /// This populates a @c KeyList with the voxel @c Key values intersected by a line segment.
   ///
   /// This utility function leverages @c walkSegmentKeys() in order to calculate the set of voxel @c Key values
   /// intersected by the line segment @p start_point to @p end_point .
   ///
   /// @param[out] keys Populates with the keys intersected by the specified line segment.
-  /// @param map The occupancy map to calculate key segments for. Current content will be replaced.
+  /// @param map The occupancy map to calculate key segments for.
   /// @param start_point The coordinate of the line segment start or sensor position. Global map frame.
   /// @param end_point The coordinate of the line segment end or sample position. Global map frame.
   /// @param include_end_point True to include the voxel containing the @p end_point , false to ommit this voxel,

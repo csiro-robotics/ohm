@@ -187,8 +187,8 @@ bool SlamCloudLoader::open(const char *sample_file_path, const char *trajectory_
       // sscanf is far faster than using stream operators.
       glm::dquat orientation;
       if (sscanf_s(imp_->traj_line.c_str(), "%lg %lg %lg %lg %lg %lg %lg %lg", &point.timestamp, &point.origin.x,
-                   &point.origin.y, &point.origin.z, &orientation.x, &orientation.y, &orientation.z,
-                   &orientation.w) != 8)
+                   &point.origin.y, &point.origin.z, &orientation.w, &orientation.x, &orientation.y,
+                   &orientation.z) != 8)
       {
         return false;
       }
