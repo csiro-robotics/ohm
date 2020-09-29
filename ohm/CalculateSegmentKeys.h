@@ -64,7 +64,7 @@ namespace ohm
   /// intersected by the line segment @p start_point to @p end_point .
   ///
   /// @param[out] keys Populates with the keys intersected by the specified line segment.
-  /// @param map The occupancy map to calculate key segments for. Current content will be replaced.
+  /// @param map The occupancy map to calculate key segments for.
   /// @param start_point The coordinate of the line segment start or sensor position. Global map frame.
   /// @param end_point The coordinate of the line segment end or sample position. Global map frame.
   /// @param include_end_point True to include the voxel containing the @p end_point , false to ommit this voxel,
