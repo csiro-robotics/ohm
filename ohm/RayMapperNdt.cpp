@@ -89,7 +89,7 @@ size_t RayMapperNdt::integrateRays(const glm::dvec3 *rays, size_t element_count,
   const bool use_filter = bool(ray_filter);
   const auto occupancy_layer = occupancy_layer_;
   const auto occupancy_dim = occupancy_dim_;
-  // const auto occupancy_threshold_value = occupancy_map.occupancyThresholdValue();
+  const auto occupancy_threshold_value = occupancy_map.occupancyThresholdValue();
   const auto map_origin = occupancy_map.origin();
   const auto miss_value = occupancy_map.missValue();
   const auto hit_value = occupancy_map.hitValue();
@@ -136,7 +136,7 @@ size_t RayMapperNdt::integrateRays(const glm::dvec3 *rays, size_t element_count,
                         occupancy_map.region(key.regionKey(), true);
     last_chunk = chunk;
     const unsigned voxel_index = ::voxelIndex(key, occupancy_dim);
-    float *occupancy_value = reinterpret_cast<float *>(chunk->voxel_maps[occupancy_layer]) + +voxel_index;
+    float *occupancy_value = reinterpret_cast<float *>(chunk->voxel_maps[occupancy_layer]) + voxel_index;
     const CovarianceVoxel *cov = reinterpret_cast<CovarianceVoxel *>(chunk->voxel_maps[covariance_layer]) + voxel_index;
     const VoxelMean *voxel_mean = reinterpret_cast<VoxelMean *>(chunk->voxel_maps[mean_layer]) + voxel_index;
     const glm::dvec3 mean =
@@ -144,13 +144,14 @@ size_t RayMapperNdt::integrateRays(const glm::dvec3 *rays, size_t element_count,
     const float initial_value = *occupancy_value;
     float adjusted_value = initial_value;
 
+    const bool is_occupied = (initial_value != unobservedOccupancyValue() && initial_value > occupancy_threshold_value);
     calculateMissNdt(cov, &adjusted_value, start, sample, mean, voxel_mean->count, unobservedOccupancyValue(),
                      miss_value, adaptation_rate, sensor_noise, ndt_sample_threshold);
     occupancyAdjustDown(occupancy_value, initial_value, adjusted_value, unobservedOccupancyValue(), voxel_min,
                         saturation_min, saturation_max, stop_adjustments);
     chunk->updateFirstValid(voxel_index);
 
-    // stop_adjustments = stop_adjustments || ((ray_update_flags & kRfStopOnFirstOccupied) && is_occupied);
+    stop_adjustments = stop_adjustments || ((ray_update_flags & kRfStopOnFirstOccupied) && is_occupied);
     chunk->dirty_stamp = touch_stamp;
     // Update the touched_stamps with relaxed memory ordering. The important thing is to have an update,
     // not so much the sequencing. We really don't want to synchronise here.
