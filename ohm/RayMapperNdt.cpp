@@ -174,10 +174,7 @@ size_t RayMapperNdt::integrateRays(const glm::dvec3 *rays, size_t element_count,
       MapChunk *chunk = (last_chunk && key.regionKey() == last_chunk->region.coord) ?
                           last_chunk :
                           occupancy_map.region(key.regionKey(), true);
-      if (chunk == last_chunk)
-      {
-      }
-      else
+      if (chunk != last_chunk)
       {
         occupancy_buffer = VoxelBuffer<VoxelBlock>(chunk->voxel_blocks[occupancy_layer]);
         mean_buffer = VoxelBuffer<VoxelBlock>(chunk->voxel_blocks[mean_layer]);
