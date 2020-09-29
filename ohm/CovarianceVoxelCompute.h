@@ -204,7 +204,6 @@ inline __device__ covvec3 solveTriangular(const CovarianceVoxel *cov, const covv
 /// increase the voxel occupancy probability.
 /// @param uninitialised_value The @p voxel_value for an uncertain voxel - one which has yet to be observed.
 /// @param voxel_resolution The voxel size along each cubic edge.
-/// magnitude smaller than the voxel resolution is recommended. Must be greater than zero.
 /// @param reinitialise_threshold @p voxel_value threshold below which the covariance and mean should reset.
 /// @param reinitialise_sample_count The @p point_count required to allow @c reinitialise_threshold to be triggered.
 /// @return True if the covariance value is re-initialised. This should be used as a signal to diregard the current
