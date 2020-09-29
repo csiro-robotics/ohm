@@ -33,6 +33,8 @@
 
 namespace
 {
+  using Clock = std::chrono::high_resolution_clock;
+
   int quit = 0;
 
   void onSignal(int arg)
@@ -82,13 +84,13 @@ int parseOptions(Options *opt, int argc, char *argv[])
   try
   {
     opt_parse.add_options()("help", "Show help.")("i", "The input map file (ohm).", cxxopts::value(opt->map_file))  //
-      ("o", "The output heightmap file (ohm).", cxxopts::value(opt->heightmap_file))                               //
-      ("base", "Base height: heightmap values are stored relative to this height.", optVal(opt->base_height))      //
-      ("clearance", "The required height clearance for a heightmap surface voxel.", optVal(opt->clearance))        //
+      ("o", "The output heightmap file (ohm).", cxxopts::value(opt->heightmap_file))                                //
+      ("base", "Base height: heightmap values are stored relative to this height.", optVal(opt->base_height))       //
+      ("clearance", "The required height clearance for a heightmap surface voxel.", optVal(opt->clearance))         //
       ("floor", "Heightmap excludes voxels below this (positive) value below the --base height. Positive to enable.",
        optVal(opt->floor))  //
       ("ceiling", "Heightmap excludes voxels above this (positive) value above the --base height. Positive to enable.",
-       optVal(opt->ceiling))                                                                    //
+       optVal(opt->ceiling))                                                                         //
       ("no-voxel-mean", "Ignore voxel mean positioning if available?.", optVal(opt->no_voxel_mean))  //
       ;
 
@@ -126,6 +128,7 @@ int parseOptions(Options *opt, int argc, char *argv[])
 
 int main(int argc, char *argv[])
 {
+  const auto start_time = Clock::now();
   Options opt;
 
   std::cout.imbue(std::locale(""));
@@ -174,7 +177,12 @@ int main(int argc, char *argv[])
     return res;
   }
 
+  std::cout << "Loaded in " << (Clock::now() - start_time) << std::endl;
+
+
   std::cout << "Generating heightmap" << std::endl;
+
+  const auto heightmap_start_time = Clock::now();
 
   ohm::Heightmap heightmap(map.resolution(), opt.clearance, opt.axis_id);
   heightmap.setUseFloodFill(true);  // For better surface following.
@@ -183,6 +191,10 @@ int main(int argc, char *argv[])
   heightmap.setIgnoreVoxelMean(opt.no_voxel_mean);
 
   heightmap.buildHeightmap(opt.base_height * heightmap.upAxisNormal());
+
+  const auto heightmap_end_time = Clock::now();
+
+  std::cout << "Heightmap generated in " << (heightmap_end_time - heightmap_start_time) << std::endl;
 
   std::cout << "Saving " << opt.heightmap_file << std::endl;
   ohm::save(opt.heightmap_file.c_str(), heightmap.heightmap(), nullptr);

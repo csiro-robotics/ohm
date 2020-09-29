@@ -10,12 +10,12 @@
 #include <ohm/Heightmap.h>
 #include <ohm/HeightmapMesh.h>
 #include <ohm/HeightmapVoxel.h>
-#include <ohm/MapCache.h>
 #include <ohm/MapLayer.h>
 #include <ohm/MapLayout.h>
 #include <ohm/MapSerialise.h>
 #include <ohm/OccupancyMap.h>
 #include <ohm/TriangleNeighbours.h>
+#include <ohm/VoxelData.h>
 #include <ohm/VoxelLayout.h>
 
 #include <ohmtools/OhmCloud.h>
@@ -23,6 +23,8 @@
 #include <ohmutil/OhmUtil.h>
 #include <ohmutil/PlyMesh.h>
 #include <ohmutil/Profile.h>
+
+#include <sstream>
 
 using namespace ohm;
 
@@ -65,7 +67,7 @@ namespace
                              -1.0 * map.voxelCentreGlobal(map.voxelKey(glm::dvec3(boundary_distance)))[axis_index];
     double top_of_wall_height =
       (int(axis) >= 0) ? map.voxelCentreGlobal(map.voxelKey(glm::dvec3(boundary_distance)))[axis_index] :
-                    -1.0 * map.voxelCentreGlobal(map.voxelKey(glm::dvec3(-boundary_distance)))[axis_index];
+                         -1.0 * map.voxelCentreGlobal(map.voxelKey(glm::dvec3(-boundary_distance)))[axis_index];
 
     std::string filename;
     if (!prefix.empty())
@@ -83,13 +85,17 @@ namespace
       // Save the 2.5d heightmap.
       PlyMesh heightmapCloud;
       glm::dvec3 coord;
+      Voxel<const float> occupancy(&heightmap->heightmap(), heightmap->heightmap().layout().occupancyLayer());
+      Voxel<const HeightmapVoxel> heigthmap_voxel(&heightmap->heightmap(), heightmap->heightmapVoxelLayer());
       for (auto iter = heightmap->heightmap().begin(); iter != heightmap->heightmap().end(); ++iter)
       {
-        if (iter->isOccupied())
+        occupancy.setKey(*iter);
+        if (isOccupied(occupancy))
         {
-          const HeightmapVoxel *voxel = iter->layerContent<const HeightmapVoxel *>(heightmap->heightmapVoxelLayer());
+          heigthmap_voxel.setKey(occupancy);
+          const HeightmapVoxel *voxel = heigthmap_voxel.dataPtr();
           // Get the coordinate of the voxel.
-          coord = heightmap->heightmap().voxelCentreGlobal(iter.key());
+          coord = heightmap->heightmap().voxelCentreGlobal(*iter);
           coord += double(voxel->height) * Heightmap::upAxisNormal(axis);
           // Add to the cloud.
           heightmapCloud.addVertex(coord);
@@ -102,8 +108,7 @@ namespace
 
     // Helper function to work out if we are at the top of the box or not.
     // Basically, at the limits of the box extents, we should report the top of the wall.
-    const auto is_top_of_wall = [](const Key &key, const Key &min_key, const Key &max_key,
-                                   int *test_axes) {
+    const auto is_top_of_wall = [](const Key &key, const Key &min_key, const Key &max_key, int *test_axes) {
       if (key.axisMatches(test_axes[0], min_key) || key.axisMatches(test_axes[0], max_key) ||
           key.axisMatches(test_axes[1], min_key) || key.axisMatches(test_axes[1], max_key))
       {
@@ -113,7 +118,6 @@ namespace
       return false;
     };
 
-    MapCache cache;
     Key key = min_key;
 
     // Tricky stuff to resolve indexing the plane axes.
@@ -141,13 +145,14 @@ namespace
     // Walk the plane.
     key.setRegionAxis(axis_indices[2], 0);
     key.setLocalAxis(axis_indices[2], 0);
+    Voxel<const HeightmapVoxel> voxel(&heightmap->heightmap(), heightmap->heightmapVoxelLayer());
     for (; key.isBounded(axis_indices[1], min_key, max_key); heightmap->heightmap().stepKey(key, axis_indices[1], 1))
     {
       for (key.setAxisFrom(axis_indices[0], min_key); key.isBounded(axis_indices[0], min_key, max_key);
            heightmap->heightmap().stepKey(key, axis_indices[0], 1))
       {
         // Get the plane voxel and validate.
-        VoxelConst voxel = heightmap->heightmap().voxel(key, false, &cache);
+        voxel.setKey(key);
 
         double expected_height = ground_height;
         bool wall = false;
@@ -164,8 +169,7 @@ namespace
 
         ASSERT_TRUE(voxel.isValid());
 
-        const HeightmapVoxel *voxel_content =
-          voxel.layerContent<const HeightmapVoxel *>(heightmap->heightmapVoxelLayer());
+        const HeightmapVoxel *voxel_content = voxel.dataPtr();
         ASSERT_NE(voxel_content, nullptr) << (wall ? "top" : "floor");
         // Need the equality to handle when both values are inf.
         if (voxel_content->height + base_height != expected_height)
@@ -361,6 +365,249 @@ TEST(Heightmap, Mesh)
 
       EXPECT_EQ(v0, nv0) << "vertex mismatch between triangles: " << t << "," << nt;
       EXPECT_EQ(v1, nv1) << "vertex mismatch between triangles: " << t << "," << nt;
+    }
+  }
+}
+
+
+namespace
+{
+  enum class SurfaceType
+  {
+    kVoid,
+    kVirtual,
+    kReal
+  };
+
+  const char *kSurfaceName[] = { "void", "virtual", "real" };
+
+  enum class HeightmapSelect
+  {
+    kNull,  // Should only be used to indicate the expected result is not to choise a voxel.
+    kBelow,
+    kAbove
+  };
+
+  enum class SurfaceMode
+  {
+    kNone,
+    kVirtual,
+    kPromoteVirtual
+  };
+
+  const char *kModeName[] = { "no-virtual", "virtual", "promoted-virtual" };
+
+  struct HeightmapSelectTest
+  {
+    SurfaceType type_below;
+    SurfaceType type_above;
+    HeightmapSelect closer;
+
+    void fillContext(std::ostream &o) const
+    {
+      const char *mark_below = (closer == HeightmapSelect::kBelow) ? "*" : " ";
+      const char *mark_above = (closer != HeightmapSelect::kBelow) ? "*" : " ";
+      o << " below" << mark_below << "<" << kSurfaceName[(int)type_below] << ">";
+      o << " above" << mark_above << "<" << kSurfaceName[(int)type_above] << ">";
+    }
+  };
+
+  struct HeightmapTestResult
+  {
+    HeightmapVoxelType surface;
+    HeightmapSelect select;
+  };
+
+  void addVirtualHeightmapVoxel(ohm::OccupancyMap *map, double range)
+  {
+    const glm::dvec3 pos = glm::dvec3(0, 0, range);
+    ohm::integrateMiss(*map, map->voxelKey(pos));
+  }
+
+  void addRealHeightmapVoxel(ohm::OccupancyMap *map, double range)
+  {
+    const glm::dvec3 pos = glm::dvec3(0, 0, range);
+    ohm::integrateHit(*map, pos);
+  }
+
+  void testSurface(SurfaceMode surface_mode, const HeightmapSelectTest &test_data, const HeightmapTestResult &expected,
+                   const std::string &context)
+  {
+    // Build a constrained region map. Ensures we have to step over void regions.
+    ohm::OccupancyMap map(1.0, glm::u8vec3(8, 8, 2));
+    // Offset the map so that 0, 0, 0 is at the centre of a voxel.
+    map.setOrigin(glm::dvec3(-0.5 * map.resolution()));
+    // Set ranges based on map resolution
+    const double selected_voxel_range = 5.0 * map.resolution();
+    const double other_voxel_range = selected_voxel_range + 2.0 * map.resolution();
+
+    // Set ranges for above/below based on select
+    const double range_below = (test_data.closer == HeightmapSelect::kBelow) ? selected_voxel_range : other_voxel_range;
+    const double range_above = (test_data.closer != HeightmapSelect::kBelow) ? selected_voxel_range : other_voxel_range;
+    const double expected_height = (expected.select == HeightmapSelect::kBelow) ? -range_below : range_above;
+
+    // Add the voxels
+    // Add below
+    if (test_data.type_below == SurfaceType::kVirtual)
+    {
+      addVirtualHeightmapVoxel(&map, -range_below);
+    }
+    else if (test_data.type_below == SurfaceType::kReal)
+    {
+      addRealHeightmapVoxel(&map, -range_below);
+    }
+    // Add above.
+    if (test_data.type_above == SurfaceType::kVirtual)
+    {
+      addVirtualHeightmapVoxel(&map, range_above);
+    }
+    else if (test_data.type_above == SurfaceType::kReal)
+    {
+      addRealHeightmapVoxel(&map, range_above);
+    }
+
+    // Now generate the heightmap.
+    ohm::Heightmap heightmap(map.resolution(), 0.0);  // Ignore clearance
+    heightmap.setOccupancyMap(&map);
+    // Match map origins.
+    heightmap.heightmap().setOrigin(map.origin());
+    // Setup virtul surface support.
+    heightmap.setGenerateVirtualSurface(surface_mode != SurfaceMode::kNone);
+    heightmap.setPromoteVirtualBelow(surface_mode == SurfaceMode::kPromoteVirtual);
+    // Create a AABB which limits the search space to right near the origin column.
+    ohm::Aabb clip;
+    clip.setMaxExtents(glm::dvec3(0.5 * map.resolution(), 0.5 * map.resolution(), 2 * other_voxel_range));
+    clip.setMinExtents(-clip.maxExtents());
+    // Build
+    heightmap.buildHeightmap(glm::dvec3(0), clip);
+
+    // Validate the selected voxel.
+    ohm::Key hm_key = heightmap.heightmap().voxelKey(glm::dvec3(0));
+    // ensure zero layer.
+    hm_key.setRegionAxis(2, 0);
+    hm_key.setLocalAxis(2, 0);
+
+    // Validate the height of the voxel.
+    glm::dvec3 pos{};
+    ohm::HeightmapVoxel info{};
+    HeightmapVoxelType voxel_type = heightmap.getHeightmapVoxelInfo(hm_key, &pos, &info);
+    EXPECT_EQ((int)voxel_type, (int)expected.surface) << context;
+    if (expected.surface != HeightmapVoxelType::kVacant && expected.surface != HeightmapVoxelType::kUnknown)
+    {
+      EXPECT_EQ(pos.z, expected_height) << context;
+    }
+  }
+}  // namespace
+
+TEST(Heightmap, SurfaceSelection)
+{
+  // Test virtual surface generation.
+  // We have the following voxel combinations to test:
+  // - Real below, real above, below closer
+  // - Real below, real above, above closer
+  // - Real below, virtual above, below closer
+  // - Real below, virtual above, above closer
+  // - Virtual below, real above, below closer
+  // - Virtual below, real above, above closer
+  // - Virtual below, virtual above, below closer
+  // - Virtual below, virtual above, above closer
+  // - Real below, void above
+  // - Void below, real above
+  // - Virtual below, void above
+  // - Void below, virtual above
+  // - Void below, void above
+  //
+  // We run all test configurations in three surface modes: i. no virtual surfaces, ii.allow virtual surfaces preferring
+  // real, iii. promote virtual surfaces below over real above.
+
+  const HeightmapSelectTest surface_tests[] =  //
+    {                                          // No virtual surface
+      HeightmapSelectTest{ SurfaceType::kReal, SurfaceType::kReal, HeightmapSelect::kBelow },
+      HeightmapSelectTest{ SurfaceType::kReal, SurfaceType::kReal, HeightmapSelect::kAbove },
+      HeightmapSelectTest{ SurfaceType::kReal, SurfaceType::kVirtual, HeightmapSelect::kBelow },
+      HeightmapSelectTest{ SurfaceType::kReal, SurfaceType::kVirtual, HeightmapSelect::kAbove },
+      HeightmapSelectTest{ SurfaceType::kVirtual, SurfaceType::kReal, HeightmapSelect::kBelow },
+      HeightmapSelectTest{ SurfaceType::kVirtual, SurfaceType::kReal, HeightmapSelect::kAbove },
+      HeightmapSelectTest{ SurfaceType::kVirtual, SurfaceType::kVirtual, HeightmapSelect::kBelow },
+      HeightmapSelectTest{ SurfaceType::kVirtual, SurfaceType::kVirtual, HeightmapSelect::kAbove },
+      HeightmapSelectTest{ SurfaceType::kReal, SurfaceType::kVoid, HeightmapSelect::kAbove },
+      HeightmapSelectTest{ SurfaceType::kVoid, SurfaceType::kReal, HeightmapSelect::kBelow },
+      HeightmapSelectTest{ SurfaceType::kVirtual, SurfaceType::kVoid, HeightmapSelect::kAbove },
+      HeightmapSelectTest{ SurfaceType::kVoid, SurfaceType::kVirtual, HeightmapSelect::kBelow },
+      HeightmapSelectTest{ SurfaceType::kVoid, SurfaceType::kVoid, HeightmapSelect::kAbove }
+    };
+  const size_t test_count = sizeof(surface_tests) / sizeof(surface_tests[0]);
+
+  // Build expected results for the 3 different modes.
+  const HeightmapTestResult test_results[3][test_count] =  //
+    {                                                      // No virtual surfaces.
+      {
+        //
+        HeightmapTestResult{ HeightmapVoxelType::kSurface, HeightmapSelect::kBelow },
+        HeightmapTestResult{ HeightmapVoxelType::kSurface, HeightmapSelect::kBelow },
+        HeightmapTestResult{ HeightmapVoxelType::kSurface, HeightmapSelect::kBelow },
+        HeightmapTestResult{ HeightmapVoxelType::kSurface, HeightmapSelect::kBelow },
+        HeightmapTestResult{ HeightmapVoxelType::kSurface, HeightmapSelect::kAbove },
+        HeightmapTestResult{ HeightmapVoxelType::kSurface, HeightmapSelect::kAbove },
+        HeightmapTestResult{ HeightmapVoxelType::kUnknown, HeightmapSelect::kNull },
+        HeightmapTestResult{ HeightmapVoxelType::kUnknown, HeightmapSelect::kNull },
+        HeightmapTestResult{ HeightmapVoxelType::kSurface, HeightmapSelect::kBelow },
+        HeightmapTestResult{ HeightmapVoxelType::kSurface, HeightmapSelect::kAbove },
+        HeightmapTestResult{ HeightmapVoxelType::kUnknown, HeightmapSelect::kNull },
+        HeightmapTestResult{ HeightmapVoxelType::kUnknown, HeightmapSelect::kNull },
+        HeightmapTestResult{ HeightmapVoxelType::kUnknown, HeightmapSelect::kBelow },
+      },
+      // Allow virtual surfaces.
+      {
+        //
+        HeightmapTestResult{ HeightmapVoxelType::kSurface, HeightmapSelect::kBelow },
+        HeightmapTestResult{ HeightmapVoxelType::kSurface, HeightmapSelect::kBelow },
+        HeightmapTestResult{ HeightmapVoxelType::kSurface, HeightmapSelect::kBelow },
+        HeightmapTestResult{ HeightmapVoxelType::kSurface, HeightmapSelect::kBelow },
+        HeightmapTestResult{ HeightmapVoxelType::kSurface, HeightmapSelect::kAbove },
+        HeightmapTestResult{ HeightmapVoxelType::kSurface, HeightmapSelect::kAbove },
+        HeightmapTestResult{ HeightmapVoxelType::kVirtualSurface, HeightmapSelect::kBelow },
+        HeightmapTestResult{ HeightmapVoxelType::kVirtualSurface, HeightmapSelect::kBelow },
+        HeightmapTestResult{ HeightmapVoxelType::kSurface, HeightmapSelect::kBelow },
+        HeightmapTestResult{ HeightmapVoxelType::kSurface, HeightmapSelect::kAbove },
+        HeightmapTestResult{ HeightmapVoxelType::kVirtualSurface, HeightmapSelect::kBelow },
+        HeightmapTestResult{ HeightmapVoxelType::kVirtualSurface, HeightmapSelect::kAbove },
+        HeightmapTestResult{ HeightmapVoxelType::kUnknown, HeightmapSelect::kBelow },
+      },
+      // Promote virtual surfaces.
+      {
+        //
+        HeightmapTestResult{ HeightmapVoxelType::kSurface, HeightmapSelect::kBelow },
+        HeightmapTestResult{ HeightmapVoxelType::kSurface, HeightmapSelect::kBelow },
+        HeightmapTestResult{ HeightmapVoxelType::kSurface, HeightmapSelect::kBelow },
+        HeightmapTestResult{ HeightmapVoxelType::kSurface, HeightmapSelect::kBelow },
+        HeightmapTestResult{ HeightmapVoxelType::kVirtualSurface, HeightmapSelect::kBelow },
+        HeightmapTestResult{ HeightmapVoxelType::kVirtualSurface, HeightmapSelect::kBelow },
+        HeightmapTestResult{ HeightmapVoxelType::kVirtualSurface, HeightmapSelect::kBelow },
+        HeightmapTestResult{ HeightmapVoxelType::kVirtualSurface, HeightmapSelect::kBelow },
+        HeightmapTestResult{ HeightmapVoxelType::kSurface, HeightmapSelect::kBelow },
+        HeightmapTestResult{ HeightmapVoxelType::kSurface, HeightmapSelect::kAbove },
+        HeightmapTestResult{ HeightmapVoxelType::kVirtualSurface, HeightmapSelect::kBelow },
+        HeightmapTestResult{ HeightmapVoxelType::kVirtualSurface, HeightmapSelect::kAbove },
+        HeightmapTestResult{ HeightmapVoxelType::kUnknown, HeightmapSelect::kBelow },
+      }
+    };
+
+  const int debug_mode_start = 0;
+  const int debug_mode_last = 2;
+  const size_t debug_test_start = 0;
+  const size_t debug_test_last = test_count - 1;
+  for (int m = debug_mode_start; m < std::min(3, debug_mode_last + 1); ++m)
+  {
+    SurfaceMode mode = (SurfaceMode)m;
+    for (size_t t = debug_test_start; t < std::min(test_count, debug_test_last + 1); ++t)
+    {
+      // Build a context string for error reporting.
+      std::ostringstream str;
+      str << t << ": " << kModeName[m];
+      surface_tests[t].fillContext(str);
+      // Run test
+      testSurface(mode, surface_tests[t], test_results[m][t], str.str());
     }
   }
 }

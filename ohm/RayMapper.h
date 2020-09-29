@@ -2,8 +2,8 @@
 // Author: Kazys Stepanas
 // Copyright (c) CSIRO 2020
 //
-#ifndef RAYMAPPERBASE_H
-#define RAYMAPPERBASE_H
+#ifndef RAYMAPPER_H
+#define RAYMAPPER_H
 
 #include "OhmConfig.h"
 
@@ -27,6 +27,10 @@ namespace ohm
     /// Default, virtual destructor.
     virtual ~RayMapper();
 
+    /// Has the map been successfully validated?
+    /// @return True if validated and @c integrateRays() is safe to call.
+    virtual bool valid() const = 0;
+
     /// This function integrates the set of @p rays into the underlying map interface. The details of how this is
     /// achieved is entirely up to the dervied implementation. Some examples include probabilistic occupancy update
     /// only, probably with update with voxel mean, occupancy update with covariance using a normal distribution
@@ -39,6 +43,8 @@ namespace ohm
     /// The @p ray_update_flags are used to modify the behaviour as par @c RayFlag values. However, not all
     /// implementations will respect all flags.
     ///
+    /// Should only be called if @c validated() is true.
+    ///
     /// @param rays The array of start/end point pairs to integrate.
     /// @param element_count The number of @c glm::dvec3 elements in @p rays, which is twice the ray count.
     /// @param ray_update_flags @c RayFlag bitset used to modify the behaviour of this function.
@@ -48,4 +54,4 @@ namespace ohm
 }  // namespace ohm
 
 
-#endif  // RAYMAPPERBASE_H
+#endif  // RAYMAPPER_H

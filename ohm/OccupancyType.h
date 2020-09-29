@@ -15,8 +15,8 @@ namespace ohm
   {
     /// Invalid/null voxel.
     kNull = -2,
-    /// Uncertain: no data recorded or available for the voxel.
-    kUncertain = -1,
+    /// Unobserved: no data recorded or available for the voxel.
+    kUnobserved = -1,
     /// Know to be empty or free (traversable).
     kFree = 0,
     /// Occupied voxel.

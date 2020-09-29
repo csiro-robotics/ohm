@@ -17,7 +17,7 @@ function(nvcc_setup PREFIX)
   if(${PREFIX}_CUDA_DEBUG STREQUAL "full")
     _nvcc_flags_append(CUDA_NVCC_FLAGS "-g -G -O0")
   elseif(${PREFIX}_CUDA_DEBUG STREQUAL "lineinfo")
-    _nvcc_flags_append(CUDA_NVCC_FLAGS "-g -lineinfo")
+    _nvcc_flags_append(CUDA_NVCC_FLAGS "-g -G -lineinfo")
   endif(${PREFIX}_CUDA_DEBUG STREQUAL "full")
 
   # CUDA compiler doesn't seem to respect the CMAKE_POSITION_INDEPENDENT_CODE variable. Explicitly add it for

@@ -7,11 +7,13 @@
 #include "gpu_ext.h"
 
 #include "GpuKey.h"
-#include "CovarianceVoxel.h"
-#include "VoxelMean.h"
+#include "CovarianceVoxelCompute.h"
+#include "MapCoord.h"
+#include "VoxelMeanCompute.h"
 
 #include "Regions.cl"
 
+/// Value controlling how many samples each thread can buffer before forcing processing of the buffered data
 #define WORKING_RAY_COUNT 128
 
 typedef struct WorkItem_t

@@ -8,8 +8,9 @@
 #include <ohm/Aabb.h>
 #include <ohm/Key.h>
 #include <ohm/LineQuery.h>
-#include <ohm/MapCache.h>
 #include <ohm/OccupancyMap.h>
+#include <ohm/RayMapperOccupancy.h>
+#include <ohm/VoxelData.h>
 
 #include <ohmtools/OhmCloud.h>
 #include <ohmtools/OhmGen.h>
@@ -33,14 +34,22 @@ namespace maptests
   {
     OccupancyMap map(0.25);
     Key key(0, 0, 0, 0, 0, 0);
-    map.integrateHit(key);
 
-    VoxelConst voxel = map.voxel(key);
-    ASSERT_TRUE(voxel.isValid());
-    EXPECT_TRUE(voxel.isOccupied());
+    {
+      Voxel<float> voxel_write(&map, map.layout().occupancyLayer());
+      voxel_write.setKey(key);
+      ASSERT_TRUE(voxel_write.isValid());
+      integrateHit(voxel_write);
+    }
 
-    const float voxel_value = voxel.value();
-    EXPECT_EQ(voxel_value, map.hitValue());
+    {
+      Voxel<const float> voxel_read(&map, map.layout().occupancyLayer(), key);
+      ASSERT_TRUE(voxel_read.isValid());
+      EXPECT_TRUE(isOccupied(voxel_read));
+
+      const float voxel_value = voxel_read.data();
+      EXPECT_EQ(voxel_value, map.hitValue());
+    }
   }
 
 
@@ -48,14 +57,22 @@ namespace maptests
   {
     OccupancyMap map(0.25);
     Key key(0, 0, 0, 0, 0, 0);
-    map.integrateMiss(key);
 
-    VoxelConst voxel = map.voxel(key);
-    ASSERT_TRUE(voxel.isValid());
-    EXPECT_TRUE(voxel.isFree());
+    {
+      Voxel<float> voxel_write(&map, map.layout().occupancyLayer());
+      voxel_write.setKey(key);
+      ASSERT_TRUE(voxel_write.isValid());
+      integrateMiss(voxel_write);
+    }
 
-    const float voxel_value = voxel.value();
-    EXPECT_EQ(voxel_value, map.missValue());
+    {
+      Voxel<const float> voxel_read(&map, map.layout().occupancyLayer(), key);
+      ASSERT_TRUE(voxel_read.isValid());
+      EXPECT_TRUE(isFree(voxel_read));
+
+      const float voxel_value = voxel_read.data();
+      EXPECT_EQ(voxel_value, map.missValue());
+    }
   }
 
 
@@ -69,9 +86,6 @@ namespace maptests
 
     // Clone the map
     const std::unique_ptr<OccupancyMap> map_copy(map.clone());
-
-    // Compare results.
-    MapCache cache;
 
     // Compare maps.
     ohmtestutil::compareMaps(*map_copy, map, ohmtestutil::kCfCompareAll);
@@ -90,9 +104,6 @@ namespace maptests
 
     // Clone the map
     const std::unique_ptr<OccupancyMap> map_copy(map.clone(clone_min, clone_max));
-
-    // Compare results.
-    MapCache cache;
 
     // Compare maps.
     ohmtestutil::compareMaps(*map_copy, map, clone_min, clone_max, ohmtestutil::kCfCompareAll);
@@ -123,26 +134,30 @@ namespace maptests
       return clipBounded(start, end, filter_flags, clip_box);
     });
 
-    map.integrateRays(rays.data(), rays.size());
+    RayMapperOccupancy(&map).integrateRays(rays.data(), rays.size());
 
     // Validate the map contains no occupied points; only free and unknown.
     const glm::dvec3 voxel_half_extents(0.5 * map.resolution());
     bool touched = false;
-    for (auto iter = map.begin(); iter != map.end(); ++iter)
     {
-      Voxel &voxel = *iter;
-      touched = true;
-
-      if (voxel.isValid())
+      Voxel<const float> voxel(&map, map.layout().occupancyLayer());
+      for (auto iter = map.begin(); iter != map.end(); ++iter)
       {
-        if (!voxel.isUncertain())
-        {
-          EXPECT_LT(voxel.value(), map.occupancyThresholdValue());
-          EXPECT_FALSE(voxel.isOccupied());
+        voxel.setKey(iter);
+        touched = true;
 
-          // Voxel should also be with in the bounds of the Aabb. Check this.
-          const Aabb voxel_box(voxel.centreGlobal() - voxel_half_extents, voxel.centreGlobal() + voxel_half_extents);
-          EXPECT_TRUE(clip_box.overlaps(voxel_box)) << "Voxel box does not overlap extents";
+        if (voxel.isValid())
+        {
+          if (!isUnobserved(voxel))
+          {
+            EXPECT_LT(voxel.data(), map.occupancyThresholdValue());
+            EXPECT_FALSE(isOccupied(voxel));
+
+            // Voxel should also be with in the bounds of the Aabb. Check this.
+            const Aabb voxel_box(map.voxelCentreGlobal(*iter) - voxel_half_extents,
+                                 map.voxelCentreGlobal(*iter) + voxel_half_extents);
+            EXPECT_TRUE(clip_box.overlaps(voxel_box)) << "Voxel box does not overlap extents";
+          }
         }
       }
     }
@@ -165,37 +180,41 @@ namespace maptests
     rays.push_back(glm::dvec3(0, 0, 3));
     rays.push_back(glm::dvec3(0, 0, 0));
 
-    map.integrateRays(rays.data(), rays.size());
+    RayMapperOccupancy(&map).integrateRays(rays.data(), rays.size());
 
     // Validate the map contains no occupied points; only free and unknown.
     const Key target_key = map.voxelKey(glm::dvec3(0));
     touched = false;
-    for (auto iter = map.begin(); iter != map.end(); ++iter)
     {
-      Voxel &voxel = *iter;
-      touched = true;
-
-      if (voxel.isValid())
+      Voxel<const float> voxel(&map, map.layout().occupancyLayer());
+      for (auto iter = map.begin(); iter != map.end(); ++iter)
       {
-        if (voxel.key() != target_key)
-        {
-          if (!voxel.isUncertain())
-          {
-            EXPECT_LT(voxel.value(), map.occupancyThresholdValue());
-          }
-          EXPECT_FALSE(voxel.isOccupied());
-        }
-        else
-        {
-          EXPECT_GE(voxel.value(), map.occupancyThresholdValue());
-          EXPECT_TRUE(voxel.isOccupied());
-        }
+        voxel.setKey(iter);
+        touched = true;
 
-        // Touched voxels should also be with in the bounds of the Aabb. Check this.
-        if (!voxel.isUncertain())
+        if (voxel.isValid())
         {
-          const Aabb voxel_box(voxel.centreGlobal() - voxel_half_extents, voxel.centreGlobal() + voxel_half_extents);
-          EXPECT_TRUE(clip_box.overlaps(voxel_box)) << "Voxel box does not overlap extents";
+          if (voxel.key() != target_key)
+          {
+            if (!isUnobserved(voxel))
+            {
+              EXPECT_LT(voxel.data(), map.occupancyThresholdValue());
+            }
+            EXPECT_FALSE(isOccupied(voxel));
+          }
+          else
+          {
+            EXPECT_GE(voxel.data(), map.occupancyThresholdValue());
+            EXPECT_TRUE(isOccupied(voxel));
+          }
+
+          // Touched voxels should also be with in the bounds of the Aabb. Check this.
+          if (!isUnobserved(voxel))
+          {
+            const Aabb voxel_box(map.voxelCentreGlobal(*iter) - voxel_half_extents,
+                                 map.voxelCentreGlobal(*iter) + voxel_half_extents);
+            EXPECT_TRUE(clip_box.overlaps(voxel_box)) << "Voxel box does not overlap extents";
+          }
         }
       }
     }

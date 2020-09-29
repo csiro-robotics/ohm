@@ -11,6 +11,7 @@
 #include "Key.h"
 #include "MapRegion.h"
 
+#include <algorithm>
 #include <atomic>
 #include <vector>
 #include <utility>
@@ -44,6 +45,12 @@ namespace ohm
   inline unsigned voxelIndex(const Key &key, const glm::ivec3 &dim)
   {
     return key.localKey().x + key.localKey().y * dim.x + key.localKey().z * dim.x * dim.y;
+  }
+
+
+  inline glm::u8vec3 voxelLocalKey(unsigned index, const glm::ivec3 &dim)
+  {
+    return glm::u8vec3(index % dim.x, (index % (dim.x * dim.y)) / dim.x, index / (dim.x * dim.y));
   }
 
 
@@ -115,14 +122,42 @@ namespace ohm
   ///
   /// The clearance values are 1-1 with the occupancy, while the coarse clearance map is a downsampled version of the
   /// clearance map. Details of the available maps is stored in a @c MapLayout.
+  ///
+  /// @par Voxel access
+  /// Direct access to the voxel data in @c voxel_maps is by far the fastest option for inner loops (as opposed to the
+  /// @c Voxel interface). However, it is a much more manual process and requires more care and process. In general
+  /// update logic for writing voxel data should be as follows:
+  /// - Resolve the desired layer indices via @c MapLayout and cache these values.
+  /// - Validate @c MapLayer size vs the expected size.
+  /// - Cache the @c MapLayer::dimensions() for use with @c voxelIndex() calls (below)
+  /// - Ensure GPU memory is synched if required - @c GpuMap::syncVoxels()
+  /// - Touch the map and cache the value @c OccupancyMap::touch()
+  /// - Generate the key of interest
+  /// - Request the @c MapChunk using @c Key::regionKey() and @c OccupancyMap::region() - see note below
+  /// - Get the memory for the required layer(s) - @c MapChunk::voxel_maps[layer_index]
+  /// - Cast the voxel memory to the expected type - e.g., @c float for occupancy, @c VoxelMean for the voxel mean layer
+  /// - Resolve the @c Key::localKey() into a one dimensional index using @c voxelIndex()
+  /// - Read/write to the indexed voxel as required
+  /// - Update the @c MapChunk::dirty_stamp to the cached @c OccupancyMap::touch() value
+  /// - Update the @c MapChunk::touched_stamps for the affected layer(s) to the same touch value.
+  ///     - Recommend using @c std::atomic_uint64_t::.store() with @c std::memory_order_relaxed if permitted
+  ///
+  /// This logic avoids constantly querying and validating @c MapLayer details, while ensuring that the
+  /// @c OccupancyMap::stamp() , @c MapChunk::dirty_stamp and are @c MapChunk::touched_stamps are correctly managed.
+  ///
+  /// An additional optimisation can be made by avoiding calls to @c OccupancyMap::region() . Iterative and line walk
+  /// style updates of a map have a strong spatial coherency from one voxel to update to the next. In this case, the
+  /// @c MapChunk will often be the same as the previous one. In this case, an easy peformance gain comes by keeping
+  /// checking if the new @c Key::regionKey() is the same as the last one, and using the previous @c MapChunk when the
+  /// @c regionKey() is unchanged.
   struct MapChunk
   {
     /// Defines the spatial region covered by the chunk.
     MapRegion region = MapRegion{};
     /// Describes the layers and voxel layout of the chunk (from the map as a whole).
     const MapLayout *layout = nullptr;
-    /// Index of the first voxel with valid data: occupied or free, but not uncertain.s
-    glm::u8vec3 first_valid_index = glm::u8vec3(255, 255, 255);
+    /// Index of the first voxel with valid data: occupied or free, but not unobserved.
+    unsigned first_valid_index = ~0u;
     /// Last timestamp the occupancy layer of this chunk was modified.
     double touched_time = 0;
 
@@ -191,12 +226,18 @@ namespace ohm
     /// @param local_index The voxel index within this chunk. Equivalent to Key::localKey().
     /// @param region_voxel_dimensions The dimensions of each chunk/region along each axis.
     void updateFirstValid(const glm::u8vec3 &local_index, const glm::ivec3 &region_voxel_dimensions);
+    inline void updateFirstValid(unsigned index) { first_valid_index = std::min(index, first_valid_index); }
 
     /// Update the @c first_valid_index by brute force, searching for the first valid voxel.
     /// @param region_voxel_dimensions The dimensions of each chunk/region along each axis.
     /// @param search_from Start searching from this voxel index (must be a valid index).
     void searchAndUpdateFirstValid(const glm::ivec3 &region_voxel_dimensions,
                                    const glm::u8vec3 &search_from = glm::u8vec3(0, 0, 0));
+
+    inline glm::u8vec3 firstValidKey(const glm::ivec3 &region_voxel_dimensions) const
+    {
+      return voxelLocalKey(first_valid_index, region_voxel_dimensions);
+    }
 
     /// Recalculates what the @c first_valid_index should be (brute force) and validates against its current value.
     /// @return True when the @c first_valid_index value matches what it should be.
@@ -208,6 +249,35 @@ namespace ohm
     void extents(glm::dvec3 &min_ext, glm::dvec3 &max_ext,  // NOLINT(google-runtime-references)
                  const glm::dvec3 &region_spatial_dimensions) const;
   };
+
+
+  inline bool MapChunk::hasValidNodes() const
+  {
+    return first_valid_index != ~0u;
+    // return first_valid_index.x != 255 && first_valid_index.y != 255 && first_valid_index.z != 255;
+  }
+
+
+  inline void MapChunk::updateFirstValid(const glm::u8vec3 &local_index, const glm::ivec3 &region_voxel_dimensions)
+  {
+    first_valid_index = std::min(voxelIndex(local_index.x, local_index.y, local_index.z, region_voxel_dimensions.x,
+                                            region_voxel_dimensions.y, region_voxel_dimensions.z),
+                                 first_valid_index);
+    // const unsigned current_first =
+    //   voxelIndex(first_valid_index.x, first_valid_index.y, first_valid_index.z, region_voxel_dimensions.x,
+    //              region_voxel_dimensions.y, region_voxel_dimensions.z);
+    // const unsigned new_first = voxelIndex(local_index.x, local_index.y, local_index.z, region_voxel_dimensions.x,
+    //                                       region_voxel_dimensions.y, region_voxel_dimensions.z);
+    // first_valid_index = (new_first < current_first) ? local_index : first_valid_index;
+#ifdef OHM_VALIDATION
+    if (test_first < current_first)
+    {
+      validateFirstValid(regionVoxelDimensions);
+    }
+#endif  // OHM_VALIDATION
+  }
+
+
 }  // namespace ohm
 
 #endif  // OHM_MAPCHUNK_H

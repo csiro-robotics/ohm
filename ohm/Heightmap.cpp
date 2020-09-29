@@ -8,9 +8,9 @@
 #include "private/HeightmapDetail.h"
 
 #include "Aabb.h"
+#include "DefaultLayer.h"
 #include "HeightmapVoxel.h"
 #include "Key.h"
-#include "MapCache.h"
 #include "MapChunk.h"
 #include "MapCoord.h"
 #include "MapInfo.h"
@@ -20,7 +20,7 @@
 #include "OccupancyType.h"
 #include "PlaneFillWalker.h"
 #include "PlaneWalker.h"
-#include "Voxel.h"
+#include "VoxelData.h"
 
 #include <glm/mat3x3.hpp>
 #include <glm/vec3.hpp>
@@ -41,27 +41,126 @@ using namespace ohm;
 
 namespace
 {
-  inline float relativeVoxelHeight(double absolute_height, const VoxelConst &voxel, const glm::dvec3 &up)
+  /// Helper structure for managing voxel data access from the source heightmap.
+  struct SrcVoxel
   {
-    const float relative_height = float(absolute_height - glm::dot(voxel.centreGlobal(), up));
+    Voxel<const float> occupancy;             ///< Occupancy value (required)
+    Voxel<const VoxelMean> mean;              ///< Voxel mean layer (optional)
+    Voxel<const CovarianceVoxel> covariance;  ///< Covariance layer used for surface normal estimation (optional)
+    float occupancy_threshold;                ///< Occupancy threshold cached from the source map.
+
+    SrcVoxel(const OccupancyMap &map, bool use_voxel_mean)
+      : occupancy(&map, map.layout().occupancyLayer())
+      , mean(&map, use_voxel_mean ? map.layout().meanLayer() : -1)
+      , covariance(&map, map.layout().covarianceLayer())
+      , occupancy_threshold(map.occupancyThresholdValue())
+    {}
+
+    /// Set the key, but only for the occupancy layer.
+    inline void setKey(const Key &key) { occupancy.setKey(key); }
+
+    /// Sync the key from the occupancy layer to the other layers.
+    inline void syncKey()
+    {
+      // Chain the occupancy values which maximise data caching.
+      covariance.setKey(mean.setKey(occupancy));
+    }
+
+    /// Query the target map.
+    inline const OccupancyMap &map() const { return *occupancy.map(); }
+
+    /// Query the occupancy classification of the current voxel.
+    inline OccupancyType occupancyType() const
+    {
+      const float value = occupancy.chunk() ? occupancy.data() : 0;
+      OccupancyType type = (value >= occupancy_threshold) ? kOccupied : kFree;
+      type = value != unobservedOccupancyValue() ? type : kUnobserved;
+      return occupancy.chunk() ? type : kNull;
+    }
+
+    /// Query the voxel position. Must call @c syncKey() first if using voxel mean.
+    inline glm::dvec3 position() const
+    {
+      glm::dvec3 pos = occupancy.map()->voxelCentreGlobal(occupancy.key());
+      if (mean.isLayerValid())
+      {
+        pos += subVoxelToLocalCoord<glm::dvec3>(mean.data().coord, occupancy.map()->resolution());
+      }
+      return pos;
+    }
+
+    /// Query the voxel centre for the current voxel.
+    inline glm::dvec3 centre() const { return occupancy.map()->voxelCentreGlobal(occupancy.key()); }
+  };
+
+  /// A utility for tracking the voxel being written in the heightmap.
+  struct DstVoxel
+  {
+    /// Occupancy voxel in the heightmap: writable
+    Voxel<float> occupancy;
+    /// Heightmap extension data.
+    Voxel<HeightmapVoxel> heightmap;
+    /// Voxel mean (if being used.)
+    Voxel<VoxelMean> mean;
+
+    DstVoxel(OccupancyMap &map, int heightmap_layer, bool use_mean)
+      : occupancy(&map, map.layout().occupancyLayer())
+      , heightmap(&map, heightmap_layer)
+      , mean(&map, use_mean ? map.layout().meanLayer() : -1)
+    {}
+
+    inline void setKey(const Key &key) { mean.setKey(heightmap.setKey(occupancy.setKey(key))); }
+
+    /// Get the target (height)map
+    inline const OccupancyMap &map() const { return *occupancy.map(); }
+
+    /// Query the position from the heightmap.
+    inline glm::dvec3 position() const
+    {
+      glm::dvec3 pos = occupancy.map()->voxelCentreGlobal(occupancy.key());
+      if (mean.isLayerValid())
+      {
+        pos += subVoxelToLocalCoord<glm::dvec3>(mean.data().coord, occupancy.map()->resolution());
+      }
+      return pos;
+    }
+
+    /// Set the position in the heightmap
+    inline void setPosition(const glm::dvec3 &pos)
+    {
+      if (mean.isValid())
+      {
+        VoxelMean &voxel_mean = mean.data();
+        voxel_mean.coord = subVoxelCoord(pos - mean.map()->voxelCentreGlobal(mean.key()), mean.map()->resolution());
+        voxel_mean.count = 1;
+      }
+    }
+
+    inline glm::dvec3 centre() const { return occupancy.map()->voxelCentreGlobal(occupancy.key()); }
+  };
+
+  inline float relativeVoxelHeight(double absolute_height, const Key &key, const OccupancyMap &map,
+                                   const glm::dvec3 &up)
+  {
+    const float relative_height = float(absolute_height - glm::dot(map.voxelCentreGlobal(key), up));
     return relative_height;
   }
 
 
-  inline ohm::OccupancyType sourceVoxelHeight(glm::dvec3 *voxel_position, double *height, const OccupancyMap &map,
-                                              const VoxelConst &voxel, const Key &voxel_key, const glm::dvec3 &up,
-                                              bool force_voxel_centre)
+  inline OccupancyType sourceVoxelHeight(glm::dvec3 *voxel_position, double *height, SrcVoxel &voxel,
+                                         const glm::dvec3 &up)
   {
-    ohm::OccupancyType voxel_type = ohm::OccupancyType(map.occupancyType(voxel));
+    OccupancyType voxel_type = voxel.occupancyType();
     if (voxel_type == ohm::kOccupied)
     {
       // Determine the height offset for voxel.
-      *voxel_position = (force_voxel_centre) ? voxel.centreGlobal() : voxel.position();
+      voxel.syncKey();
+      *voxel_position = voxel.position();
     }
     else
     {
       // Return the voxel centre. Voxel may be invalid, so use the map interface on the key.
-      *voxel_position = map.voxelCentreGlobal(voxel_key);
+      *voxel_position = voxel.map().voxelCentreGlobal(voxel.occupancy.key());
     }
     *height = glm::dot(*voxel_position, up);
 
@@ -69,86 +168,97 @@ namespace
   }
 
 
-  Key findNearestSupportingVoxel2(const OccupancyMap &map, const Key &from_key, const Key &to_key, int up_axis_index,
+  Key findNearestSupportingVoxel2(SrcVoxel &voxel, const Key &from_key, const Key &to_key, int up_axis_index,
                                   int step_limit, bool search_up, bool allow_virtual_surface, int *offset,
                                   bool *is_virtual)
   {
-    *is_virtual = true;
-
-    int vertical_range = map.rangeBetween(from_key, to_key)[up_axis_index] + 1;
+    // Calculate the vertical range we will be searching.
+    // Note: the vertical_range sign may not be what you expect. It will match search_up (true === +, false === -)
+    // when the up axis is +X, +Y, or +Z. It will not match when the up axis is -X, -Y, or -Z.
+    int vertical_range = voxel.map().rangeBetween(from_key, to_key)[up_axis_index] + 1;
+    // Step direction is based on the vertical_range sign.
+    const int step = (vertical_range >= 0) ? 1 : -1;
+    vertical_range = (vertical_range >= 0) ? vertical_range : -vertical_range;
     if (step_limit > 0)
     {
       vertical_range = std::min(vertical_range, step_limit);
     }
-    const int step = (vertical_range >= 0) ? 1 : -1;
-    vertical_range = (vertical_range >= 0) ? vertical_range : -vertical_range;
 
-    MapCache map_cache;
     Key best_virtual(nullptr);
-    int last_voxel_type = kNull;
+    bool last_unknown = true;
+    bool last_free = true;
 
     Key last_key(nullptr);
     Key current_key = from_key;
     for (int i = 0; i < vertical_range; ++i)
     {
-      // We bias the offset to prefer searching down by one voxel.
+      // We bias the offset up one voxel for upward searches. The expectation is that the downward search starts
+      // at the seed voxel, while the upward search starts one above that without overlap.
       *offset = i + !!search_up;
-      const VoxelConst voxel = map.voxel(current_key, &map_cache);
+      voxel.setKey(current_key);
 
-      const int voxel_type = map.occupancyType(voxel);
-      switch (voxel_type)
+      // This line yields performance issues likely due to the stochastic memory access.
+      // For a true performance gain we'd have to access chunks linearly.
+      // Read the occupancy value for the voxel.
+      const float occupancy = voxel.occupancy.chunk() ? voxel.occupancy.data() : unobservedOccupancyValue();
+      // Categorise the voxel.
+      const bool occupied = occupancy >= voxel.occupancy_threshold && occupancy != unobservedOccupancyValue();
+      const bool free = occupancy < voxel.occupancy_threshold;
+
+      if (occupied)
       {
-      case kOccupied:
-        // First occupied. Terminate.
+        // Voxel is occupied. We've found our candidate.
         *is_virtual = false;
         return current_key;
-      case kFree:
-        // When searching up, we have a virtual surface when we transition from uncertain to free.
-        if (allow_virtual_surface && (last_voxel_type == kNull || last_voxel_type == kUncertain) && search_up &&
-            best_virtual.isNull())
-        {
-          best_virtual = current_key;
-        }
-        break;
-
-      default:
-        // Transition to uncertain. When searching down, we have a virtual surface if we transitioned from free.
-        if (allow_virtual_surface && !search_up && last_voxel_type == kFree)
-        {
-          best_virtual = last_key;
-        }
-
-        if (voxel_type == kNull)
-        {
-          // Null region. Skip the entire region on the next step.
-          Key next_key = current_key;
-          if (step > 0)
-          {
-            next_key.setLocalAxis(up_axis_index, map.regionVoxelDimensions()[up_axis_index] - 1);
-            const int delta = next_key.localKey()[up_axis_index] - current_key.localKey()[up_axis_index];
-            i += delta;
-            current_key = next_key;
-          }
-          else
-          {
-            next_key.setLocalAxis(up_axis_index, 0);
-            const int delta = current_key.localKey()[up_axis_index] - next_key.localKey()[up_axis_index];
-            i += delta;
-            current_key = next_key;
-          }
-        }
-        break;
       }
 
-      last_voxel_type = voxel_type;
+      // No occupied voxel. Update the best (virtual) voxel.
+      // We either keep the current best_virtual, or we select the current_voxel as a new best candidate.
+      // We split this work into two. The first check is for the upward search where always select the first viable
+      // virtual surface voxel and will not overwrite it. The conditions for the upward search are:
+      // - virtual surface is allowed
+      // - searching up
+      // - the current voxel is free
+      // - the previous voxel was unknown
+      // - we do not already have a virtual voxel
+      best_virtual = (allow_virtual_surface && search_up && free && last_unknown && best_virtual.isNull()) ?
+                       current_key :
+                       best_virtual;
+
+      // This is the case for searching down. In this case we are always looking for the lowest virtual voxel.
+      // We progressively select the last voxel as the new virtual voxel provided it was considered free and the current
+      // voxel is unknown (not free and not occupied). We only need to check free as we will have exited on an occupied
+      // voxel. The conditions here are:
+      // - virtual surface is allowed
+      // - searching down (!search_up)
+      // - the last voxel was free
+      // - the current voxel is unknown - we only need check !free at this point
+      // Otherwise we keep the current candidate
+      best_virtual = (allow_virtual_surface && !search_up && last_free && !free) ? last_key : best_virtual;
+
+      // Cache values for the next iteration.
+      last_unknown = !occupied && !free;
+      last_free = free;
       last_key = current_key;
 
-      map.moveKeyAlongAxis(current_key, up_axis_index, step);
+      // Calculate the next voxel.
+      int next_step = step;
+      if (!voxel.occupancy.chunk())
+      {
+        // The current voxel is an empty chunk implying all unknown voxels. We will skip to the last voxel in this
+        // chunk. We don't skip the whole chunk to allow the virtual voxel calculation to take effect.
+        next_step = (step > 0) ? voxel.occupancy.layerDim()[up_axis_index] - current_key.localKey()[up_axis_index] :
+                                 -(1 + current_key.localKey()[up_axis_index]);
+        i += std::abs(next_step) - 1;
+      }
+
+      // Single step in the current region.
+      voxel.map().moveKeyAlongAxis(current_key, up_axis_index, next_step);
     }
 
     if (best_virtual.isNull())
     {
-      if (!search_up && last_voxel_type == kFree)
+      if (allow_virtual_surface && !search_up && last_free)
       {
         best_virtual = last_key;
       }
@@ -158,14 +268,15 @@ namespace
       }
     }
 
+    *is_virtual = !best_virtual.isNull();
+
     // We only get here if we haven't found an occupied voxel. Return the best virtual one.
     return best_virtual;
   }
 
-  inline Key findNearestSupportingVoxel(const OccupancyMap &map, const Key &seed_key, UpAxis up_axis,
-                                        const Key &min_key, const Key &max_key, int voxel_ceiling,
-                                        int clearance_voxel_count_permissive, bool allow_virtual_surface,
-                                        bool promote_virtual_below)
+  inline Key findNearestSupportingVoxel(SrcVoxel &voxel, const Key &seed_key, UpAxis up_axis, const Key &min_key,
+                                        const Key &max_key, int voxel_ceiling, int clearance_voxel_count_permissive,
+                                        bool allow_virtual_surface, bool promote_virtual_below)
   {
     PROFILE(findNearestSupportingVoxel);
     Key above, below;
@@ -177,9 +288,9 @@ namespace
     const int up_axis_index = (int(up_axis) >= 0) ? int(up_axis) : -int(up_axis) - 1;
     const Key &search_down_to = (int(up_axis) >= 0) ? min_key : max_key;
     const Key &search_up_to = (int(up_axis) >= 0) ? max_key : min_key;
-    below = findNearestSupportingVoxel2(map, seed_key, search_down_to, up_axis_index, 0, false, allow_virtual_surface,
+    below = findNearestSupportingVoxel2(voxel, seed_key, search_down_to, up_axis_index, 0, false, allow_virtual_surface,
                                         &offset_below, &virtual_below);
-    above = findNearestSupportingVoxel2(map, seed_key, search_up_to, up_axis_index, voxel_ceiling, true,
+    above = findNearestSupportingVoxel2(voxel, seed_key, search_up_to, up_axis_index, voxel_ceiling, true,
                                         allow_virtual_surface, &offset_above, &virtual_above);
 
     const bool have_candidate_below = offset_below >= 0;
@@ -218,8 +329,8 @@ namespace
     return above;
   }
 
-  Key findGround(double *height_out, double *clearance_out, const OccupancyMap &map, const Key &seed_key,
-                 const Key &min_key, const Key &max_key, MapCache *cache, const HeightmapDetail &imp)
+  Key findGround(double *height_out, double *clearance_out, SrcVoxel &voxel, const Key &seed_key, const Key &min_key,
+                 const Key &max_key, const HeightmapDetail &imp)
   {
     PROFILE(findGround);
     // Start with the seed_key and look for ground. We only walk up from the seed key.
@@ -236,21 +347,22 @@ namespace
     glm::dvec3 column_voxel_pos(0);
     double height = 0;
     bool have_candidate = false;
-    bool have_transitioned_from_unknown = false;
+    bool have_transitioned_from_unobserved = false;
+    OccupancyType last_voxel_type = ohm::kUnobserved;
 
     // Select walking direction based on the up axis being aligned with the primary axis or not.
 
     Key ground_key = Key::kNull;
-    for (Key key = seed_key; key.isBounded(up_axis_index, min_key, max_key); map.stepKey(key, up_axis_index, step_dir))
+    for (Key key = seed_key; key.isBounded(up_axis_index, min_key, max_key);
+         voxel.map().stepKey(key, up_axis_index, step_dir))
     {
       // PROFILE(column);
-      const VoxelConst voxel = map.voxel(key, cache);
+      voxel.setKey(key);
 
-      const ohm::OccupancyType voxel_type =
-        sourceVoxelHeight(&sub_voxel_pos, &height, map, voxel, key, imp.up, imp.ignore_voxel_mean);
+      const OccupancyType voxel_type = sourceVoxelHeight(&sub_voxel_pos, &height, voxel, imp.up);
 
       if (voxel_type == ohm::kOccupied ||
-          imp.generate_virtual_surface && !have_transitioned_from_unknown && voxel_type == ohm::kFree)
+          imp.generate_virtual_surface && !have_transitioned_from_unobserved && voxel_type == ohm::kFree)
       {
         if (have_candidate)
         {
@@ -280,10 +392,9 @@ namespace
         }
       }
 
-      if (voxel_type != ohm::kUncertain)
-      {
-        have_transitioned_from_unknown = true;
-      }
+      have_transitioned_from_unobserved = (voxel_type != ohm::kUnobserved && voxel_type != ohm::kNull) &&
+                                          (last_voxel_type == ohm::kUnobserved || last_voxel_type == ohm::kNull);
+      last_voxel_type = voxel_type;
     }
 
     // Did we find a valid candidate?
@@ -581,40 +692,49 @@ bool Heightmap::buildHeightmap(const glm::dvec3 &reference_pos, const ohm::Aabb 
 }
 
 
-HeightmapVoxelType Heightmap::getHeightmapVoxelInfo(const VoxelConst &heightmap_voxel, glm::dvec3 *pos,
-                                                    HeightmapVoxel *voxel_info) const
+HeightmapVoxelType Heightmap::getHeightmapVoxelInfo(const Key &key, glm::dvec3 *pos, HeightmapVoxel *voxel_info) const
 {
-  if (heightmap_voxel.isNull())
+  if (!key.isNull())
   {
+    Voxel<const float> heightmap_occupancy(imp_->heightmap.get(), imp_->heightmap->layout().occupancyLayer(), key);
+
+    if (heightmap_occupancy.isValid())
+    {
+      Voxel<const HeightmapVoxel> heightmap_voxel(imp_->heightmap.get(), imp_->heightmap_layer, key);
+      Voxel<const VoxelMean> mean_voxel(imp_->heightmap.get(), imp_->heightmap->layout().meanLayer(), key);
+
+      const glm::dvec3 voxel_centre = imp_->heightmap->voxelCentreGlobal(key);
+      *pos = mean_voxel.isLayerValid() ? positionSafe(mean_voxel) : voxel_centre;
+      const float occupancy = heightmap_occupancy.data();
+      const bool is_uncertain = occupancy == ohm::unobservedOccupancyValue();
+      const float heightmap_voxel_value = (!is_uncertain) ? occupancy : -1.0f;
+      if (!is_uncertain)
+      {
+        // Get height info.
+        const HeightmapVoxel &heightmap_info = heightmap_voxel.data();
+        (*pos)[upAxisIndex()] = voxel_centre[upAxisIndex()] + heightmap_info.height;
+        if (voxel_info)
+        {
+          *voxel_info = heightmap_info;
+        }
+
+        if (heightmap_voxel_value == 0)
+        {
+          // kVacant
+          return HeightmapVoxelType::kVacant;
+        }
+
+        if (heightmap_voxel_value > 0)
+        {
+          return HeightmapVoxelType::kSurface;
+        }
+      }
+
+      return (!is_uncertain) ? HeightmapVoxelType::kVirtualSurface : HeightmapVoxelType::kUnknown;
+    }
     return HeightmapVoxelType::kUnknown;
   }
-
-  *pos = heightmap_voxel.position();
-  const bool is_uncertain = heightmap_voxel.isUncertainOrNull();
-  const float heightmap_voxel_value = (!is_uncertain) ? heightmap_voxel.value() : -1.0f;
-  if (!is_uncertain)
-  {
-    // Get height info.
-    const HeightmapVoxel *heightmap_info = heightmap_voxel.layerContent<const HeightmapVoxel *>(imp_->heightmap_layer);
-    (*pos)[upAxisIndex()] = heightmap_voxel.centreGlobal()[upAxisIndex()] + heightmap_info->height;
-    if (voxel_info)
-    {
-      *voxel_info = *heightmap_info;
-    }
-
-    if (heightmap_voxel_value == 0)
-    {
-      // kVacant
-      return HeightmapVoxelType::kVacant;
-    }
-
-    if (heightmap_voxel_value > 0)
-    {
-      return HeightmapVoxelType::kSurface;
-    }
-  }
-
-  return (!is_uncertain) ? HeightmapVoxelType::kVirtualSurface : HeightmapVoxelType::kUnknown;
+  return HeightmapVoxelType::kUnknown;
 }
 
 
@@ -657,8 +777,6 @@ bool Heightmap::buildHeightmapT(KeyWalker &walker, const glm::dvec3 &reference_p
 
   PROFILE(walk)
 
-  const int heightmap_layer = imp_->heightmap_layer;
-
   // Set the initial key.
   Key walk_key = src_map.voxelKey(reference_pos);
 
@@ -674,23 +792,24 @@ bool Heightmap::buildHeightmapT(KeyWalker &walker, const glm::dvec3 &reference_p
     return false;
   }
 
-  const int src_covariance_layer = src_map.layout().covarianceLayer();
-
   // Walk the 2D extraction region in a spiral around walk_key.
-  MapCache src_map_cache, heightmap_cache;
   const glm::dvec3 up_axis_normal = upAxisNormal();
   unsigned populated_count = 0;
   const int voxel_ceiling = ohm::pointToRegionCoord(imp_->ceiling, src_map.resolution());
   const int clearance_voxel_count_permissive =
     std::max(1, ohm::pointToRegionCoord(imp_->min_clearance, src_map.resolution()) - 1);
+
+  SrcVoxel src_voxel(src_map, use_voxel_mean);
+  DstVoxel hm_voxel(heightmap, imp_->heightmap_layer, use_voxel_mean);
+
   do
   {
     // Find the nearest voxel to the current key which may be a ground candidate.
     // This is key closest to the walk_key which could be ground. This will be either an occupied voxel, or virtual
-    // ground
-    /// voxel. Virtual ground is where a free is supported by an uncertain or null voxel below it.
-    Key candidate_key = findNearestSupportingVoxel(src_map, walk_key, upAxis(), walker.min_ext_key, walker.max_ext_key,
-                                                   voxel_ceiling, clearance_voxel_count_permissive,
+    // ground voxel.
+    // Virtual ground is where a free is supported by an uncertain or null voxel below it.
+    Key candidate_key = findNearestSupportingVoxel(src_voxel, walk_key, upAxis(), walker.min_ext_key,
+                                                   walker.max_ext_key, voxel_ceiling, clearance_voxel_count_permissive,
                                                    imp_->generate_virtual_surface, imp_->promote_virtual_below);
 
     // Walk up from the candidate to find the best heightmap voxel.
@@ -698,10 +817,9 @@ bool Heightmap::buildHeightmapT(KeyWalker &walker, const glm::dvec3 &reference_p
     double clearance = 0;
     // Walk the column of candidate_key to find the first occupied voxel with sufficent clearance. A virtual voxel
     // with sufficient clearance may be given if there is no valid occupied voxel.
-    const Key ground_key = (!candidate_key.isNull()) ?
-                             findGround(&height, &clearance, src_map, candidate_key, walker.min_ext_key,
-                                        walker.max_ext_key, &src_map_cache, *imp_) :
-                             walk_key;
+    const Key ground_key = (!candidate_key.isNull()) ? findGround(&height, &clearance, src_voxel, candidate_key,
+                                                                  walker.min_ext_key, walker.max_ext_key, *imp_) :
+                                                       walk_key;
 
     if (on_visit)
     {
@@ -709,13 +827,14 @@ bool Heightmap::buildHeightmapT(KeyWalker &walker, const glm::dvec3 &reference_p
     }
 
     // Write to the heightmap.
-    VoxelConst src_voxel = src_map.voxel(ground_key);
-    const ohm::OccupancyType voxel_type = ohm::OccupancyType(src_map.occupancyType(src_voxel));
+    src_voxel.setKey(ground_key);
+    src_voxel.syncKey();
+    const OccupancyType voxel_type = src_voxel.occupancyType();
 
     // We use the voxel centre for lookup in the local cache for better consistency. Otherwise lateral drift in
     // subvoxel positioning can result in looking up the wrong cell.
     glm::dvec3 src_voxel_centre =
-      (src_voxel.isValid()) ? src_voxel.centreGlobal() : src_map.voxelCentreGlobal(ground_key);
+      (src_voxel.occupancy.isValid()) ? src_voxel.centre() : src_voxel.map().voxelCentreGlobal(ground_key);
     // We only use voxel mean positioning for occupied voxels. The information is unreliable for free voxels.
     glm::dvec3 voxel_pos = (voxel_type == kOccupied) ? src_voxel.position() : src_voxel_centre;
 
@@ -724,7 +843,7 @@ bool Heightmap::buildHeightmapT(KeyWalker &walker, const glm::dvec3 &reference_p
       // Real or virtual surface.
       float surface_value = (voxel_type == kOccupied) ? kHeightmapSurfaceValue : kHeightmapVirtualSurfaceValue;
 
-      if (voxel_type != kUncertain && voxel_type != kNull)
+      if (voxel_type != kUnobserved && voxel_type != kNull)
       {
         // Cache the height then clear from the position.
         const double src_height = voxel_pos[upAxisIndex()];
@@ -733,35 +852,30 @@ bool Heightmap::buildHeightmapT(KeyWalker &walker, const glm::dvec3 &reference_p
         // Get the heightmap voxel to update.
         Key hm_key = heightmap.voxelKey(voxel_pos);
         project(&hm_key);
-        Voxel hm_voxel = heightmap.voxel(hm_key, true, &heightmap_cache);
-        hm_voxel.setValue(surface_value);
-        // Set voxel mean position as required.
-        if (use_voxel_mean)
-        {
-          hm_voxel.setPosition(voxel_pos);
-        }
+        // TODO: (KS) Using the Voxel interface here is highly suboptimal. This needs to be modified to access the
+        // MapChunk directly for efficiency.
+        hm_voxel.setKey(hm_key);
+        // We can do a direct occupancy value write with no checks for the heightmap. The value is explicit.
+        hm_voxel.occupancy.data() = surface_value;
+        // Set voxel mean position as required. Will be skipped if not enabled.
+        hm_voxel.setPosition(voxel_pos);
 
         // Write the height and clearance values.
-        HeightmapVoxel *voxel_content = hm_voxel.layerContent<HeightmapVoxel *>(heightmap_layer);
-        if (voxel_content)
-        {
-          voxel_content->height = relativeVoxelHeight(src_height, hm_voxel, imp_->up);
-          voxel_content->clearance = float(clearance);
-          voxel_content->normal_x = voxel_content->normal_y = voxel_content->normal_z = 0;
+        HeightmapVoxel &height_info = hm_voxel.heightmap.data();
+        height_info.height = relativeVoxelHeight(src_height, hm_key, heightmap, imp_->up);
+        height_info.clearance = float(clearance);
+        height_info.normal_x = height_info.normal_y = height_info.normal_z = 0;
 
-          if (src_voxel.isOccupied() && src_covariance_layer >= 0)
-          {
-            if (const CovarianceVoxel *cov = src_voxel.layerContent<const CovarianceVoxel *>(src_covariance_layer))
-            {
-              glm::dvec3 normal;
-              covarianceEstimatePrimaryNormal(cov, &normal);
-              const double flip = (glm::dot(normal, up_axis_normal) >= 0) ? 1.0 : -1.0;
-              normal *= flip;
-              voxel_content->normal_x = float(normal.x);
-              voxel_content->normal_y = float(normal.y);
-              voxel_content->normal_z = float(normal.z);
-            }
-          }
+        if (voxel_type == kOccupied && src_voxel.covariance.isValid())
+        {
+          const CovarianceVoxel &cov = src_voxel.covariance.data();
+          glm::dvec3 normal;
+          covarianceEstimatePrimaryNormal(&cov, &normal);
+          const double flip = (glm::dot(normal, up_axis_normal) >= 0) ? 1.0 : -1.0;
+          normal *= flip;
+          height_info.normal_x = float(normal.x);
+          height_info.normal_y = float(normal.y);
+          height_info.normal_z = float(normal.z);
         }
 
         ++populated_count;

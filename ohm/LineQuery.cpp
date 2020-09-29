@@ -6,7 +6,6 @@
 #include "LineQuery.h"
 
 #include "Key.h"
-#include "MapCache.h"
 #include "OccupancyMap.h"
 #include "QueryFlag.h"
 #include "private/LineQueryDetail.h"

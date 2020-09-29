@@ -6,9 +6,8 @@
 #include "VoxelAlgorithms.h"
 
 #include "Key.h"
-#include "MapCache.h"
 #include "OccupancyMap.h"
-#include "Voxel.h"
+#include "VoxelData.h"
 
 #include <limits>
 
@@ -21,13 +20,12 @@ namespace ohm
 
 
   float calculateNearestNeighbour(const Key &voxel_key, const OccupancyMap &map,
-                                  const glm::ivec3 &voxel_search_half_extents, bool unknown_as_occupied,
+                                  const glm::ivec3 &voxel_search_half_extents, bool unobserved_as_occupied,
                                   bool ignore_self, float search_range, const glm::vec3 &axis_scaling,
                                   bool report_unscaled_distance)
   {
     Key search_key;
-    VoxelConst test_voxel;
-    MapCache cache;
+    Voxel<const float> test_voxel(&map, map.layout().occupancyLayer());
     glm::vec3 voxel_centre, separation;
 
     float scaled_range_sqr, scaled_closest_range_sqr;
@@ -37,9 +35,10 @@ namespace ohm
 
     voxel_centre = map.voxelCentreLocal(voxel_key);
 
-    test_voxel = map.voxel(voxel_key, &cache);
+    test_voxel.setKey(voxel_key);
     // First try early out if the target voxel is occupied.
-    if (!ignore_self && (test_voxel.isOccupied() || unknown_as_occupied && test_voxel.isUncertainOrNull()))
+    if (!ignore_self &&
+        (test_voxel.isValid() && isOccupied(test_voxel) || unobserved_as_occupied && isUnobservedOrNull(test_voxel)))
     {
       return 0.0f;
     }
@@ -52,14 +51,15 @@ namespace ohm
         {
           search_key = voxel_key;
           map.moveKey(search_key, x, y, z);
-          test_voxel = map.voxel(search_key, &cache);
+          test_voxel.setKey(search_key);
 
           if (ignore_self && x == 0 && y == 0 && z == 0)
           {
             continue;
           }
 
-          if (test_voxel.isOccupied() || unknown_as_occupied && test_voxel.isUncertainOrNull())
+          if (test_voxel.isValid() && isOccupied(test_voxel) ||
+              unobserved_as_occupied && isUnobservedOrNull(test_voxel))
           {
             separation = glm::vec3(map.voxelCentreLocal(search_key)) - voxel_centre;
             range_sqr = glm::dot(separation, separation);

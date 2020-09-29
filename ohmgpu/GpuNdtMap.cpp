@@ -14,7 +14,6 @@
 #include "private/GpuProgramRef.h"
 
 #include <ohm/MapChunk.h>
-#include <ohm/MapCache.h>
 #include <ohm/OccupancyMap.h>
 #include <ohm/VoxelMean.h>
 
@@ -276,7 +275,7 @@ void GpuNdtMap::finaliseBatch(unsigned region_update_flags)
                        gputil::BufferArg<gputil::float3>(imp->ray_buffers[buf_idx]), ray_count, region_dim_gpu,
                        float(map->resolution), map->miss_value, map->hit_value, map->occupancy_threshold_value,
                        map->min_voxel_value, map->max_voxel_value, region_update_flags | modify_flags,
-                       imp->ndt_map.sensorNoise());
+                       imp->ndt_map.adaptationRate(), imp->ndt_map.sensorNoise());
 
     wait.clear();
     wait.add(miss_event);

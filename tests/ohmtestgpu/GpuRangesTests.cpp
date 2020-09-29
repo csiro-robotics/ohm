@@ -7,7 +7,6 @@
 
 #include <ohmgpu/ClearanceProcess.h>
 #include <ohmgpu/GpuMap.h>
-#include <ohm/MapCache.h>
 #include <ohm/MapChunk.h>
 #include <ohm/MapLayout.h>
 #include <ohm/MapProbability.h>
@@ -15,6 +14,7 @@
 #include <ohm/OccupancyMap.h>
 #include <ohm/OccupancyUtil.h>
 #include <ohm/QueryFlag.h>
+#include <ohm/VoxelData.h>
 
 #include <ohmtools/OhmCloud.h>
 #include <ohmtools/OhmGen.h>
@@ -44,23 +44,23 @@ namespace ranges
     // auto region_size = map.regionVoxelDimensions();
     // std::cout << "regionSize: " << regionSize << std::endl;
 
-    VoxelConst voxel = map.voxel(key);
-    if (voxel.isValid())
+    Voxel<const float> clearance(&map, map.layout().clearanceLayer(), key);
+    if (clearance.isValid())
     {
       do
       {
         uint8_t r = 255;
         uint8_t g = 128;
         uint8_t b = 0;
-        float range_value = voxel.clearance();
+        float range_value = clearance.data();
         if (range_value < 0)
         {
           range_value = search_radius;
         }
         r = uint8_t(255 * std::max(0.0f, (search_radius - range_value) / search_radius));
-        voxel_pos = map.voxelCentreGlobal(voxel.key());
+        voxel_pos = map.voxelCentreGlobal(clearance.key());
         ply.addVertex(voxel_pos, Colour(r, g, b));
-      } while (voxel.nextInRegion());
+      } while (clearance.nextInRegion());
     }
 
     ply.save(file_name, true);
@@ -69,10 +69,11 @@ namespace ranges
 
   void showVoxel(ohm::OccupancyMap &map, const ohm::Key &key, float expected_range = FLT_MAX)
   {
-    const VoxelConst voxel = map.voxel(key, false);
-    if (voxel.isValid())
+    Voxel<const float> occupancy(&map, map.layout().occupancyLayer(), key);
+    Voxel<const float> clearance(&map, map.layout().clearanceLayer(), key);
+    if (occupancy.isValid() && clearance.isValid())
     {
-      std::cout << voxel.key() << " " << voxel.value() << ": " << voxel.clearance() << '\n';
+      std::cout << occupancy.key() << " " << occupancy.data() << ": " << clearance.data() << '\n';
     }
     else
     {
@@ -81,10 +82,10 @@ namespace ranges
 
     if (expected_range != FLT_MAX)
     {
-      EXPECT_TRUE(voxel.isValid());
-      if (voxel.isValid())
+      EXPECT_TRUE(clearance.isValid());
+      if (clearance.isValid())
       {
-        EXPECT_NEAR(voxel.clearance(), expected_range, 1e-3f);
+        EXPECT_NEAR(clearance.data(), expected_range, 1e-3f);
       }
     }
   }
@@ -98,16 +99,17 @@ namespace ranges
     const float search_range = float(resolution) * float(region_size.x);
     OccupancyMap map(resolution, region_size);
 
-    MapCache cache;
-
     std::cout << "Populate map: " << std::flush;
     auto start_time = TimingClock::now();
 
     // Build a map in which we clear all voxels except the one at key (0, 0, 0 : 0, 0, 0).
     // We clear region (0, 0, 0) and make sure we don't query with the flag kQfUnknownAsOccupied.
     ohmgen::fillMapWithEmptySpace(map, 0, 0, 0, region_size.x, region_size.y, region_size.z);
-    auto occupied_voxel = map.voxel(Key(0, 0, 0, 0, 0, 0), true);
-    occupied_voxel.setValue(map.occupancyThresholdValue());
+    {
+      ohm::Voxel<float> occupied_voxel(&map, map.layout().occupancyLayer(), Key(0, 0, 0, 0, 0, 0));
+      ASSERT_TRUE(occupied_voxel.isValid());
+      occupied_voxel.data() = map.occupancyThresholdValue();
+    }
 
     auto end_time = TimingClock::now();
     std::cout << (end_time - start_time) << std::endl;
@@ -135,32 +137,32 @@ namespace ranges
     ohmtools::saveCloud("ranges-simple-cloud.ply", map);
 
     key = Key(0, 0, 0, 0, 0, 0);
-    VoxelConst voxel = map.voxel(key);
-    // const float *values = (const float *)map.layout().layer(1).voxels(*map.region(glm::i16vec3(0, 0, 0)));
-    ASSERT_TRUE(voxel.isValid());
+    Voxel<const float> clearance(&map, map.layout().clearanceLayer(), key);
+    ASSERT_TRUE(clearance.isValid());
     const unsigned max_failures = 20;
     unsigned failure_count = 0;
     do
     {
-      ASSERT_TRUE(voxel.isValid());
+      ASSERT_TRUE(clearance.isValid());
       const float epsilon = 1e-3f;
-      const float dist_to_region_origin = glm::length(glm::vec3(voxel.key().localKey()));
+      const float dist_to_region_origin = glm::length(glm::vec3(clearance.key().localKey()));
       const float expected_range =
         (dist_to_region_origin <= clearance_process.searchRadius()) ? dist_to_region_origin : -1.0f;
-      const float clearance = voxel.clearance();
-      if (std::abs(expected_range - clearance) > epsilon)
+      const float clearance_value = clearance.data();
+      if (std::abs(expected_range - clearance_value) > epsilon)
       {
-        std::cout << "Fail: " << voxel.key() << ' ' << voxel.value() << " to RO: " << dist_to_region_origin
-                  << " expect: " << expected_range << " actual: " << clearance << '\n';
+        std::cout << "Fail: " << clearance.key() << ' ' << clearance.data() << " to RO: " << dist_to_region_origin
+                  << " expect: " << expected_range << " actual: " << clearance_value << '\n';
         ++failure_count;
       }
-      EXPECT_NEAR(expected_range, clearance, epsilon);
-    } while (voxel.nextInRegion() && failure_count < max_failures);
+      EXPECT_NEAR(expected_range, clearance_value, epsilon);
+    } while (clearance.nextInRegion() && failure_count < max_failures);
 
     if (failure_count == max_failures)
     {
       FAIL() << "Too many failure";
     }
+    clearance.reset();
   }
 
 
@@ -178,16 +180,17 @@ namespace ranges
     const float search_range = float(resolution) * float(region_size.x);
     OccupancyMap map(resolution, region_size);
 
-    MapCache cache;
-
     std::cout << "Populate map: " << std::flush;
     auto start_time = TimingClock::now();
 
     // Build a map in which we clear all voxels except the one at key (0, 0, 0 : 0, 0, 0).
     // We clear region (0, 0, 0) and make sure we don't query with the flag kQfUnknownAsOccupied.
     ohmgen::fillMapWithEmptySpace(map, 0, 0, 0, region_size.x, region_size.y, region_size.z);
-    auto occupied_voxel = map.voxel(Key(0, 0, 0, 0, 0, 0), true);
-    occupied_voxel.setValue(map.occupancyThresholdValue());
+    {
+      ohm::Voxel<float> occupied_voxel(&map, map.layout().occupancyLayer(), Key(0, 0, 0, 0, 0, 0));
+      ASSERT_TRUE(occupied_voxel.isValid());
+      occupied_voxel.data() = map.occupancyThresholdValue();
+    }
 
     auto end_time = TimingClock::now();
     std::cout << (end_time - start_time) << std::endl;
@@ -226,27 +229,29 @@ namespace ranges
     ohmtools::saveCloud("ranges-serialise-cloud.ply", map);
 
     key = Key(0, 0, 0, 0, 0, 0);
-    VoxelConst voxel = map.voxel(key);
-    // const float *values = (const float *)map.layout().layer(1).voxels(*map.region(glm::i16vec3(0, 0, 0)));
-    ASSERT_TRUE(voxel.isValid());
+    Voxel<const float> clearance(&map, map.layout().clearanceLayer(), key);
+    ASSERT_TRUE(clearance.isValid());
     const unsigned max_failures = 20;
     unsigned failure_count = 0;
     do
     {
-      ASSERT_TRUE(voxel.isValid());
+      ASSERT_TRUE(clearance.isValid());
       const float epsilon = 1e-3f;
-      const float dist_to_region_origin = glm::length(glm::vec3(voxel.key().localKey()));
+      const float dist_to_region_origin = glm::length(glm::vec3(clearance.key().localKey()));
       const float expected_range =
         (dist_to_region_origin <= clearance_process->searchRadius()) ? dist_to_region_origin : -1.0f;
-      const float clearance = voxel.clearance();
-      if (std::abs(expected_range - clearance) > epsilon)
+      const float clearance_value = clearance.data();
+      if (std::abs(expected_range - clearance_value) > epsilon)
       {
-        std::cout << "Fail: " << voxel.key() << ' ' << voxel.value() << " to RO: " << dist_to_region_origin
-                  << " expect: " << expected_range << " actual: " << clearance << '\n';
+        std::cout << "Fail: " << clearance.key() << ' ' << clearance.data() << " to RO: " << dist_to_region_origin
+                  << " expect: " << expected_range << " actual: " << clearance_value << '\n';
         ++failure_count;
       }
-      EXPECT_NEAR(expected_range, clearance, epsilon);
-    } while (voxel.nextInRegion() && failure_count < max_failures);
+      EXPECT_NEAR(expected_range, clearance_value, epsilon);
+    } while (clearance.nextInRegion() && failure_count < max_failures);
+
+    // About to invalidate the map.
+    clearance.reset();
 
     EXPECT_LE(failure_count, max_failures) << "Too many failure";
 
@@ -284,26 +289,27 @@ namespace ranges
     ohmtools::saveCloud("ranges-serialise-cloud.ply", map);
 
     key = Key(0, 0, 0, 0, 0, 0);
-    voxel = map.voxel(key);
+    clearance = Voxel<const float>(&map, map.layout().clearanceLayer(), key);
     // const float *values = (const float *)map.layout().layer(1).voxels(*map.region(glm::i16vec3(0, 0, 0)));
-    ASSERT_TRUE(voxel.isValid());
+    ASSERT_TRUE(clearance.isValid());
     failure_count = 0;
     do
     {
-      ASSERT_TRUE(voxel.isValid());
+      ASSERT_TRUE(clearance.isValid());
       const float epsilon = 1e-3f;
-      const float dist_to_region_origin = glm::length(glm::vec3(voxel.key().localKey()));
+      const float dist_to_region_origin = glm::length(glm::vec3(clearance.key().localKey()));
       const float expected_range =
         (dist_to_region_origin <= clearance_process->searchRadius()) ? dist_to_region_origin : -1.0f;
-      const float clearance = voxel.clearance();
-      if (std::abs(expected_range - clearance) > epsilon)
+      const float clearance_value = clearance.data();
+      if (std::abs(expected_range - clearance_value) > epsilon)
       {
-        std::cout << "Fail: " << voxel.key() << ' ' << voxel.value() << " to RO: " << dist_to_region_origin
-                  << " expect: " << expected_range << " actual: " << clearance << '\n';
+        std::cout << "Fail: " << clearance.key() << ' ' << clearance.data() << " to RO: " << dist_to_region_origin
+                  << " expect: " << expected_range << " actual: " << clearance_value << '\n';
         ++failure_count;
       }
-      EXPECT_NEAR(expected_range, clearance, epsilon);
-    } while (voxel.nextInRegion() && failure_count < max_failures);
+      EXPECT_NEAR(expected_range, clearance_value, epsilon);
+    } while (clearance.nextInRegion() && failure_count < max_failures);
+    clearance.reset();
 
     EXPECT_LE(failure_count, max_failures) << "Too many failure";
 
@@ -344,7 +350,8 @@ namespace ranges
 
     // Iterate the outer edge of the region. Note that this loop will recheck various faces.
     // Iterate XY, YZ, ZX.
-    MapCache cache;
+    Voxel<const float> clearance(&map, map.layout().clearanceLayer());
+    ASSERT_TRUE(clearance.isLayerValid());
     for (int i = 0; i < 3; ++i)
     {
       const int primary_axis = i;
@@ -358,13 +365,13 @@ namespace ranges
           local_key[primary_axis] = a;
           local_key[second_axis] = b;
           local_key[third_axis] = 0;
-          auto voxel = map.voxel(Key(glm::i16vec3(0), local_key), false, &cache);
-          ASSERT_TRUE(voxel.isValid());
-          EXPECT_NEAR(voxel.clearance(), map.resolution(), 1e-2f);
+          clearance.setKey(Key(glm::i16vec3(0), local_key));
+          ASSERT_TRUE(clearance.isValid());
+          EXPECT_NEAR(clearance.data(), map.resolution(), 1e-2f);
           local_key[third_axis] = region_size[third_axis] - 1;
-          voxel = map.voxel(Key(glm::i16vec3(0), local_key), false, &cache);
-          ASSERT_TRUE(voxel.isValid());
-          EXPECT_NEAR(voxel.clearance(), map.resolution(), 1e-2f);
+          clearance.setKey(Key(glm::i16vec3(0), local_key));
+          ASSERT_TRUE(clearance.isValid());
+          EXPECT_NEAR(clearance.data(), map.resolution(), 1e-2f);
         }
       }
     }
@@ -410,8 +417,6 @@ namespace ranges
     const float search_range = float(resolution) * 8;
     OccupancyMap map(resolution, region_size);
 
-    MapCache cache;
-
     std::cout << "Populate map: " << std::flush;
     auto start_time = TimingClock::now();
 
@@ -430,11 +435,17 @@ namespace ranges
       glm::i16vec3(region_size.x, region_size.y, region_size.z),
     };
 
-    for (auto &&offset : origin_offset)
     {
-      Key key(0, 0, 0, 0, 0, 0);
-      map.moveKey(key, offset.x, offset.y, offset.z);
-      map.voxel(key, true).setValue(map.occupancyThresholdValue() + map.hitValue());
+      Voxel<float> occupancy(&map, map.layout().occupancyLayer());
+      ASSERT_TRUE(occupancy.isLayerValid());
+      for (auto &&offset : origin_offset)
+      {
+        Key key(0, 0, 0, 0, 0, 0);
+        map.moveKey(key, offset.x, offset.y, offset.z);
+        occupancy.setKey(key);
+        ASSERT_TRUE(occupancy.isValid());
+        occupancy.data() = map.occupancyThresholdValue() + map.hitValue();
+      }
     }
 
     auto end_time = TimingClock::now();
@@ -465,11 +476,15 @@ namespace ranges
                               Key(0, 0, 0, 0, region_size.y - 1, region_size.z - 1),
                               Key(0, 0, 0, region_size.x - 1, region_size.y - 1, region_size.z - 1) };
 
-    for (const auto &test_key : test_keys)
     {
-      auto voxel = map.voxel(test_key);
-      ASSERT_TRUE(voxel.isValid());
-      EXPECT_NEAR(voxel.clearance(), glm::length(glm::vec3(float(map.resolution()))), 1e-2f);
+      Voxel<const float> clearance(&map, map.layout().clearanceLayer());
+      ASSERT_TRUE(clearance.isLayerValid());
+      for (const auto &test_key : test_keys)
+      {
+        clearance.setKey(test_key);
+        ASSERT_TRUE(clearance.isValid());
+        EXPECT_NEAR(clearance.data(), glm::length(glm::vec3(float(map.resolution()))), 1e-2f);
+      }
     }
   }
 
@@ -493,21 +508,18 @@ namespace ranges
     // We will focus on the voxel at (0, 0, 0) and use weighting to make it report the closest obstacle as
     // 1, 2 and 3 respectively.
 
-    const Key origin_key = map.voxelKey(glm::dvec3(0, 0, 0));
-
-    map.integrateHit(glm::dvec3(2 * resolution, 0, 0));
-    map.integrateHit(glm::dvec3(0, 3 * resolution, 0));
-    map.integrateHit(glm::dvec3(0, 0, 4 * resolution));
+    integrateHit(map, map.voxelKey(glm::dvec3(2 * resolution, 0, 0)));
+    integrateHit(map, map.voxelKey(glm::dvec3(0, 3 * resolution, 0)));
+    integrateHit(map, map.voxelKey(glm::dvec3(0, 0, 4 * resolution)));
 
     const char *label = gpu ? "GPU" : "CPU";
     std::cout << "Evaluating " << label << std::endl;
     ohm::ProfileMarker mark(label, &profile);
 
     ClearanceProcess clearance_process(search_range, kQfGpuEvaluate * !!gpu);
-    VoxelConst voxel = map.voxel(origin_key);
 
-    const auto make_query = [&clearance_process, &map, &voxel, &profile](
-                              const char *context, const glm::vec3 &axis_scaling, float expected, bool report_scaling) {
+    const auto make_query = [&clearance_process, &map, &profile](const char *context, const glm::vec3 &axis_scaling,
+                                                                 float expected, bool report_scaling) {
       ohm::ProfileMarker mark("Query", &profile);
       unsigned flags = clearance_process.queryFlags();
       flags &= ~kQfReportUnscaledResults;
@@ -516,8 +528,11 @@ namespace ranges
       clearance_process.setAxisScaling(axis_scaling);
       clearance_process.reset();
       clearance_process.calculateForExtents(map, glm::dvec3(0), glm::dvec3(0));
-      const float clearance = voxel.clearance();
-      EXPECT_NEAR(expected, clearance, 1e-2f) << context;
+      const Key origin_key = map.voxelKey(glm::dvec3(0, 0, 0));
+      const Voxel<const float> clearance(&map, map.layout().clearanceLayer(), origin_key);
+      ASSERT_TRUE(clearance.isValid());
+      const float clearance_value = clearance.data();
+      EXPECT_NEAR(expected, clearance_value, 1e-2f) << context;
     };
 
     // Don't report scale results for the first tests.

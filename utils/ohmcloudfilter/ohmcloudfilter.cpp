@@ -4,7 +4,6 @@
 #include <glm/glm.hpp>
 
 #include <ohm/Key.h>
-#include <ohm/MapCache.h>
 #include <ohm/MapSerialise.h>
 #include <ohm/OccupancyMap.h>
 #include <ohm/OccupancyType.h>
@@ -184,7 +183,6 @@ size_t filterCloud(ProgressMonitor &prog, const ohm::OccupancyMap &map, const Op
     prog.beginProgress(ProgressMonitor::Info("Filtering", reader.GetHeader().GetPointRecordsCount()));
 
     ohm::VoxelConst voxel;
-    ohm::MapCache cache;
     glm::dvec3 pos;
     while (reader.ReadNextPoint())
     {

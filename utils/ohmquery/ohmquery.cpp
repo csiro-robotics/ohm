@@ -371,7 +371,9 @@ void saveRangesCloud(const ohm::OccupancyMap &map, const ohm::VoxelRanges &query
 
       if (clearValues && !voxel.isNull())
       {
-        voxel.makeMutable().setClearance(-1.0f);
+        auto mutable_voxel = voxel.makeMutable();
+        mutable_voxel.setClearance(-1.0f);
+        mutable_voxel.touchMap(map.layout().clearanceLayer());
       }
     }
   }

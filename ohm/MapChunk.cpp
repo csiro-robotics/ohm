@@ -6,9 +6,9 @@
 #include "MapChunk.h"
 
 #include "DefaultLayer.h"
-#include "Voxel.h"
 #include "MapLayer.h"
 #include "MapLayout.h"
+#include "VoxelOccupancy.h"
 #include "private/MapLayoutDetail.h"
 #include "private/OccupancyMapDetail.h"
 
@@ -97,9 +97,8 @@ Key MapChunk::keyForIndex(size_t voxel_index, const glm::ivec3 &region_voxel_dim
 
 
 void MapChunk::updateLayout(const MapLayout *new_layout, const glm::uvec3 &region_dim,
-                  const std::vector<std::pair<const MapLayer *, const MapLayer *>> &preserve_layer_mapping)
+                            const std::vector<std::pair<const MapLayer *, const MapLayer *>> &preserve_layer_mapping)
 {
-
   // Allocate voxel pointer array.
   uint8_t **new_voxel_maps = new uint8_t *[new_layout->layerCount()];
   std::atomic_uint64_t *new_touched_stamps = new std::atomic_uint64_t[new_layout->layerCount()];
@@ -154,64 +153,39 @@ void MapChunk::updateLayout(const MapLayout *new_layout, const glm::uvec3 &regio
 }
 
 
-bool MapChunk::hasValidNodes() const
-{
-  return first_valid_index.x != 255 && first_valid_index.y != 255 && first_valid_index.z != 255;
-}
-
-
-void MapChunk::updateFirstValid(const glm::u8vec3 &local_index, const glm::ivec3 &region_voxel_dimensions)
-{
-  const unsigned current_first =
-    voxelIndex(first_valid_index.x, first_valid_index.y, first_valid_index.z, region_voxel_dimensions.x,
-               region_voxel_dimensions.y, region_voxel_dimensions.z);
-  const unsigned test_first = voxelIndex(local_index.x, local_index.y, local_index.z, region_voxel_dimensions.x,
-                                         region_voxel_dimensions.y, region_voxel_dimensions.z);
-  if (test_first < current_first)
-  {
-    first_valid_index = local_index;
-#ifdef OHM_VALIDATION
-    validateFirstValid(regionVoxelDimensions);
-#endif  // OHM_VALIDATION
-  }
-}
-
-
 void MapChunk::searchAndUpdateFirstValid(const glm::ivec3 &region_voxel_dimensions, const glm::u8vec3 &search_from)
 {
-  size_t voxel_index;
-  first_valid_index = search_from;
+  unsigned voxel_index;
 
   size_t voxel_stride = layout->layer(layout->occupancyLayer()).voxelByteSize();
   const uint8_t *voxel_mem = voxel_maps[layout->occupancyLayer()];
 
-  for (int z = 0; z < region_voxel_dimensions.z; ++z)
+  for (int z = search_from.z; z < region_voxel_dimensions.z; ++z)
   {
-    for (int y = 0; y < region_voxel_dimensions.y; ++y)
+    for (int y = search_from.y; y < region_voxel_dimensions.y; ++y)
     {
-      for (int x = 0; x < region_voxel_dimensions.x; ++x)
+      for (int x = search_from.x; x < region_voxel_dimensions.x; ++x)
       {
         voxel_index =
-          size_t(x) + y * region_voxel_dimensions.x + z * region_voxel_dimensions.y * region_voxel_dimensions.x;
+          unsigned(x) + y * region_voxel_dimensions.x + z * region_voxel_dimensions.y * region_voxel_dimensions.x;
         const float occupancy = *reinterpret_cast<const float *>(voxel_mem + voxel_stride * voxel_index);
-        if (occupancy != voxel::invalidMarkerValue())
+        if (occupancy != unobservedOccupancyValue())
         {
-          first_valid_index.x = x;
-          first_valid_index.y = y;
-          first_valid_index.z = z;
+          first_valid_index = voxel_index;
           return;
         }
       }
     }
   }
 
-  // first_valid_index.x = first_valid_index.y = first_valid_index.z = 255u;
+  // Failed to find a valid item (at least from search_from). Mark as unknown.
+  first_valid_index = ~0u;
 }
 
 
 bool MapChunk::validateFirstValid(const glm::ivec3 &region_voxel_dimensions) const
 {
-  size_t voxel_index = 0;
+  unsigned voxel_index = 0;
 
   size_t voxel_stride = layout->layer(layout->occupancyLayer()).voxelByteSize();
   const uint8_t *voxel_mem = voxel_maps[layout->occupancyLayer()];
@@ -223,12 +197,12 @@ bool MapChunk::validateFirstValid(const glm::ivec3 &region_voxel_dimensions) con
       for (int x = 0; x < region_voxel_dimensions.x; ++x)
       {
         const float occupancy = *reinterpret_cast<const float *>(voxel_mem + voxel_stride * voxel_index);
-        if (occupancy != voxel::invalidMarkerValue())
+        if (occupancy != unobservedOccupancyValue())
         {
-          if (first_valid_index.x != x || first_valid_index.y != y || first_valid_index.z != z)
+          if (first_valid_index != voxel_index)
           {
-            fprintf(stderr, "First valid validation failure. Current: (%d %d %d) actual: (%d %d %d)\n",
-                    int(first_valid_index.x), int(first_valid_index.y), int(first_valid_index.z), x, y, z);
+            fprintf(stderr, "First valid validation failure. Current: (%d) actual: (%d)\n", int(first_valid_index),
+                    int(voxel_index));
             return false;
           }
           return true;
@@ -239,10 +213,10 @@ bool MapChunk::validateFirstValid(const glm::ivec3 &region_voxel_dimensions) con
   }
 
   // No valid voxels.
-  if (first_valid_index.x != 255u || first_valid_index.y != 255u || first_valid_index.z != 255u)
+  if (first_valid_index != ~0u)
   {
-    fprintf(stderr, "First valid validation failure. Current: (%d %d %d) actual: (%d %d %d) [no valid]\n",
-            int(first_valid_index.x), int(first_valid_index.y), int(first_valid_index.z), 255, 255, 255);
+    fprintf(stderr, "First valid validation failure. Current: (%d) actual: (%d)\n", int(first_valid_index),
+            int(voxel_index));
     return false;
   }
 

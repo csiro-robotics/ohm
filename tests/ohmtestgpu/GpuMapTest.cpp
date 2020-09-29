@@ -8,12 +8,12 @@
 #include <ohm/Aabb.h>
 #include <ohmgpu/GpuMap.h>
 #include <ohm/KeyList.h>
-#include <ohm/MapCache.h>
 #include <ohm/MapChunk.h>
 #include <ohm/MapProbability.h>
 #include <ohm/MapSerialise.h>
 #include <ohm/OccupancyMap.h>
 #include <ohm/OccupancyUtil.h>
+#include <ohm/VoxelData.h>
 
 #include <ohmtools/OhmCloud.h>
 #include <ohmutil/OhmUtil.h>
@@ -179,24 +179,34 @@ namespace gpumap
     unsigned logged_failures = 0;
     float expect, actual;
 
-    glm::dvec3 cpu_pos, gpu_pos;
+    glm::dvec3 ref_pos, test_pos;
 
     const auto should_report_failure = [&failures, &processed, &logged_failures, &allowed_failure_ratio]() {
       return float(failures) / float(processed) > allowed_failure_ratio && logged_failures < 100;
     };
 
+    ohm::Voxel<const float> ref_occupancy(&reference_map, reference_map.layout().occupancyLayer());
+    ohm::Voxel<const ohm::VoxelMean> ref_mean(&reference_map, reference_map.layout().meanLayer());
+    ohm::Voxel<const float> test_occupancy(&test_map, test_map.layout().occupancyLayer());
+    ohm::Voxel<const ohm::VoxelMean> test_mean(&test_map, test_map.layout().meanLayer());
+    ASSERT_TRUE(ref_occupancy.isLayerValid());
+    ASSERT_TRUE(test_occupancy.isLayerValid());
+    ASSERT_EQ(test_mean.isLayerValid(), ref_mean.isLayerValid());
     for (auto iter = reference_map.begin(); iter != reference_map.end(); ++iter)
     {
-      if (iter->isValid() && iter->value() != ohm::voxel::invalidMarkerValue())
+      ohm::setVoxelKey(iter, ref_occupancy, ref_mean);
+      if (!ohm::isUnobservedOrNull(ref_occupancy))
       {
         ++processed;
-        ohm::VoxelConst gpu_voxel = test_map.voxel(iter->key());
+        // Note: we must deference the iterator and use the key value only because the iterator is from a difference
+        // map.
+        ohm::setVoxelKey(*iter, test_occupancy, test_mean);
 
-        if (gpu_voxel.isValid())
+        if (test_occupancy.isValid())
         {
           bool ok = true;
-          expect = iter->value();
-          actual = gpu_voxel.value();
+          expect = ref_occupancy.data();
+          actual = test_occupancy.data();
 
           if (std::abs(expect - actual) >= reference_map.hitValue() * 0.5f)
           {
@@ -209,17 +219,26 @@ namespace gpumap
             }
           }
 
-          cpu_pos = iter->position();
-          gpu_pos = gpu_voxel.position();
+          ref_pos = ohm::positionSafe(ref_mean);
+          test_pos = ohm::positionSafe(test_mean);
 
-          if (glm::any(glm::greaterThan(glm::abs(cpu_pos - gpu_pos), glm::dvec3(1e-5))))
+          // Ensure we aren't just getting the default code path all the time.
+          if (ref_mean.isValid())
+          {
+            const glm::dvec3 pos = ohm::positionUnsafe(ref_mean);
+            EXPECT_NEAR(ref_pos.x, pos.x, 1e-4f);
+            EXPECT_NEAR(ref_pos.y, pos.y, 1e-4f);
+            EXPECT_NEAR(ref_pos.z, pos.z, 1e-4f);
+          }
+
+          if (glm::any(glm::greaterThan(glm::abs(ref_pos - test_pos), glm::dvec3(1e-5))))
           {
             ok = false;
             if (should_report_failure())
             {
-              EXPECT_NEAR(cpu_pos.x, gpu_pos.x, 1e-5);
-              EXPECT_NEAR(cpu_pos.y, gpu_pos.y, 1e-5);
-              EXPECT_NEAR(cpu_pos.z, gpu_pos.z, 1e-5);
+              EXPECT_NEAR(ref_pos.x, test_pos.x, 1e-5);
+              EXPECT_NEAR(ref_pos.y, test_pos.y, 1e-5);
+              EXPECT_NEAR(ref_pos.z, test_pos.z, 1e-5);
             }
           }
 
@@ -233,7 +252,8 @@ namespace gpumap
           ++failures;
           if (should_report_failure())
           {
-            EXPECT_TRUE(gpu_voxel.isValid());
+            // Revalidate the voxel for reporting purposes only. We know it's false here.
+            EXPECT_TRUE(test_occupancy.isValid());
             ++logged_failures;
           }
         }
@@ -424,7 +444,10 @@ namespace gpumap
 
     const auto compare_results = [region_size](OccupancyMap &cpu_map, OccupancyMap &gpu_map) {
       Key key(glm::i16vec3(0), 0, 0, 0);
-      VoxelConst cpu_voxel, gpu_voxel;
+      ohm::Voxel<const float> cpu_voxel(&cpu_map, cpu_map.layout().occupancyLayer());
+      ohm::Voxel<const float> gpu_voxel(&gpu_map, gpu_map.layout().occupancyLayer());
+      ASSERT_TRUE(cpu_voxel.isLayerValid());
+      ASSERT_TRUE(gpu_voxel.isLayerValid());
       // Walk the region pulling a voxel from both maps and comparing.
       for (int z = 0; z < region_size.z; ++z)
       {
@@ -435,15 +458,15 @@ namespace gpumap
           for (int x = 0; x < region_size.x; ++x)
           {
             key.setLocalAxis(0, x);
-            cpu_voxel = cpu_map.voxel(key);
-            gpu_voxel = gpu_map.voxel(key);
+            cpu_voxel.setKey(key);
+            gpu_voxel.setKey(key);
 
-            EXPECT_TRUE(cpu_voxel.isValid());
-            EXPECT_TRUE(gpu_voxel.isValid());
+            ASSERT_TRUE(cpu_voxel.isValid());
+            ASSERT_TRUE(gpu_voxel.isValid());
 
-            EXPECT_EQ(cpu_voxel.value(), gpu_voxel.value());
+            EXPECT_EQ(cpu_voxel.data(), gpu_voxel.data());
 
-            if (cpu_voxel.value() != gpu_voxel.value())
+            if (cpu_voxel.data() != gpu_voxel.data())
             {
               std::cout << "Voxel error: " << key << '\n';
             }
@@ -526,24 +549,28 @@ namespace gpumap
     // Validate the map contains no occupied points; only free and unknown.
     const glm::dvec3 voxel_half_extents(0.5 * gpu_map.resolution());
     bool touched = false;
+    ohm::Voxel<const float> voxel(&gpu_map, gpu_map.layout().occupancyLayer());
+    ASSERT_TRUE(voxel.isLayerValid());
     for (auto iter = gpu_map.begin(); iter != gpu_map.end(); ++iter)
     {
-      Voxel &voxel = *iter;
+      voxel.setKey(iter);
       touched = true;
 
       if (voxel.isValid())
       {
-        if (!voxel.isUncertain())
+        if (!ohm::isUnobserved(voxel))
         {
-          EXPECT_LT(voxel.value(), gpu_map.occupancyThresholdValue());
-          EXPECT_FALSE(voxel.isOccupied());
+          EXPECT_LT(voxel.data(), gpu_map.occupancyThresholdValue());
+          EXPECT_FALSE(ohm::isOccupied(voxel));
 
           // Voxel should also be with in the bounds of the Aabb. Check this.
-          const Aabb voxel_box(voxel.centreGlobal() - voxel_half_extents, voxel.centreGlobal() + voxel_half_extents);
+          const Aabb voxel_box(gpu_map.voxelCentreGlobal(voxel.key()) - voxel_half_extents,
+                               gpu_map.voxelCentreGlobal(voxel.key()) + voxel_half_extents);
           EXPECT_TRUE(clip_box.overlaps(voxel_box)) << "Voxel box does not overlap extents";
         }
       }
     }
+    voxel.reset();
 
     EXPECT_TRUE(touched);
 
@@ -567,35 +594,39 @@ namespace gpumap
     // Validate the map contains no occupied points; only free and unknown.
     const Key target_key = gpu_map.voxelKey(glm::dvec3(0));
     touched = false;
+    voxel = ohm::Voxel<const float>(&gpu_map, gpu_map.layout().occupancyLayer());
+    ASSERT_TRUE(voxel.isLayerValid());
     for (auto iter = gpu_map.begin(); iter != gpu_map.end(); ++iter)
     {
-      Voxel &voxel = *iter;
+      voxel.setKey(iter);
       touched = true;
 
       if (voxel.isValid())
       {
         if (voxel.key() != target_key)
         {
-          if (!voxel.isUncertain())
+          if (!ohm::isUnobserved(voxel))
           {
-            EXPECT_LT(voxel.value(), gpu_map.occupancyThresholdValue());
+            EXPECT_LT(voxel.data(), gpu_map.occupancyThresholdValue());
           }
-          EXPECT_FALSE(voxel.isOccupied());
+          EXPECT_FALSE(ohm::isOccupied(voxel));
         }
         else
         {
-          EXPECT_GE(voxel.value(), gpu_map.occupancyThresholdValue());
-          EXPECT_TRUE(voxel.isOccupied());
+          EXPECT_GE(voxel.data(), gpu_map.occupancyThresholdValue());
+          EXPECT_TRUE(ohm::isOccupied(voxel));
         }
 
         // Touched voxels should also be with in the bounds of the Aabb. Check this.
-        if (!voxel.isUncertain())
+        if (!ohm::isUnobserved(voxel))
         {
-          const Aabb voxel_box(voxel.centreGlobal() - voxel_half_extents, voxel.centreGlobal() + voxel_half_extents);
+          const Aabb voxel_box(gpu_map.voxelCentreGlobal(voxel.key()) - voxel_half_extents,
+                               gpu_map.voxelCentreGlobal(voxel.key()) + voxel_half_extents);
           EXPECT_TRUE(clip_box.overlaps(voxel_box)) << "Voxel box does not overlap extents";
         }
       }
     }
+    voxel.reset();
 
     EXPECT_TRUE(touched);
   }
@@ -670,14 +701,15 @@ namespace gpumap
     const unsigned batch_size = 32;
 
     // Rays which have been known to cause infinite loops.
-    std::vector<glm::dvec3> rays = //
-    { //
-      // Infinite loop walking regions before integrating into the map.
-      glm::dvec3{-2.699077907025583, -1.5999031032475868, 1.0755428728082643},
-      glm::dvec3{-2.6998157732186034, -1.6000298354709896, 1.0756803244026165}
-    };
+    std::vector<glm::dvec3> rays =  //
+      {                             //
+        // Infinite loop walking regions before integrating into the map.
+        glm::dvec3{ -2.699077907025583, -1.5999031032475868, 1.0755428728082643 },
+        glm::dvec3{ -2.6998157732186034, -1.6000298354709896, 1.0756803244026165 }
+      };
 
 
-    ASSERT_DURATION_LE(5, gpuMapTest(resolution, region_size, rays, compareCpuGpuMaps, "bad-rays", batch_size, 0, true));
+    ASSERT_DURATION_LE(5,
+                       gpuMapTest(resolution, region_size, rays, compareCpuGpuMaps, "bad-rays", batch_size, 0, true));
   }
 }  // namespace gpumap

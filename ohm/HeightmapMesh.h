@@ -21,8 +21,8 @@ namespace ohm
   class Aabb;
   class Heightmap;
   class HeightmapMeshDetail;
+  class Key;
   class PlyMesh;
-  class VoxelConst;
   struct TriangleNeighbours;
 
   /// A utility class for generating a triangle mesh from a @c Heightmap occupancy map.
@@ -53,8 +53,7 @@ namespace ohm
     /// @param voxel_position The voxel position. May be modified.
     /// @param clearance The voxel overhead clearance. May be modified.
     /// @return The @c HeightmapVoxelType after filtering or @p voxel_type if no modification is required.
-    using MeshVoxelModifier =
-      std::function<HeightmapVoxelType(const VoxelConst &, HeightmapVoxelType, glm::dvec3 *, float *)>;
+    using MeshVoxelModifier = std::function<HeightmapVoxelType(const Key &, HeightmapVoxelType, glm::dvec3 *, float *)>;
 
     /// Construct a heightmap mesh using the given vertex normal generation mode.
     /// @param normals_mode The initial vertex generation mode.

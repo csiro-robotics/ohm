@@ -45,6 +45,7 @@ set(SOURCES
   ClearingPattern.h
   CovarianceVoxel.cpp
   CovarianceVoxel.h
+  CovarianceVoxelCompute.h
   DataType.cpp
   DataType.h
   DefaultLayer.cpp
@@ -65,8 +66,6 @@ set(SOURCES
   LineKeysQuery.h
   LineQuery.cpp
   LineQuery.h
-  MapCache.cpp
-  MapCache.h
   MapChunk.cpp
   MapChunk.h
   MapCoord.h
@@ -91,7 +90,6 @@ set(SOURCES
   MapSerialise.h
   NdtMap.cpp
   NdtMap.h
-  NdtRayMapperInterface.h
   NearestNeighbours.cpp
   NearestNeighbours.h
   OccupancyMap.cpp
@@ -110,8 +108,10 @@ set(SOURCES
   RayFlag.h
   RayMapper.cpp
   RayMapper.h
-  RayMapperCpu.h
-  RayMapperInterface.h
+  RayMapperNdt.cpp
+  RayMapperNdt.h
+  RayMapperOccupancy.cpp
+  RayMapperOccupancy.h
   RayPattern.cpp
   RayPattern.h
   RayPatternConical.cpp
@@ -125,11 +125,13 @@ set(SOURCES
   UpAxis.h
   Voxel.cpp
   Voxel.h
+  VoxelData.h
   VoxelLayout.cpp
   VoxelLayout.h
   VoxelMean.h
-  VoxelUtil.cpp
-  VoxelUtil.h
+  VoxelMeanCompute.h
+  VoxelOccupancy.h
+  VoxelOccupancyCompute.h
 )
 
 if(TES_ENABLE)
@@ -142,6 +144,7 @@ set(PUBLIC_HEADERS
   CalculateSegmentKeys.h
   ClearingPattern.h
   CovarianceVoxel.h
+  CovarianceVoxelCompute.h
   DataType.h
   DefaultLayer.h
   Heightmap.h
@@ -153,7 +156,6 @@ set(PUBLIC_HEADERS
   KeyList.h
   LineKeysQuery.h
   LineQuery.h
-  MapCache.h
   MapChunkFlag.h
   MapChunk.h
   MapCoord.h
@@ -169,7 +171,6 @@ set(PUBLIC_HEADERS
   MapRegion.h
   MapSerialise.h
   NdtMap.h
-  NdtRayMapperInterface.h
   NearestNeighbours.h
   OccupancyMap.h
   OccupancyType.h
@@ -180,9 +181,9 @@ set(PUBLIC_HEADERS
   Query.h
   RayFilter.h
   RayFlag.h
-  RayMapperCpu.h
   RayMapper.h
-  RayMapperInterface.h
+  RayMapperNdt.h
+  RayMapperOccupancy.h
   RayPatternConical.h
   RayPattern.h
   Stream.h
@@ -191,9 +192,12 @@ set(PUBLIC_HEADERS
   TriangleNeighbours.h
   UpAxis.h
   Voxel.h
+  VoxelData.h
   VoxelLayout.h
   VoxelMean.h
-  VoxelUtil.h
+  VoxelMeanCompute.h
+  VoxelOccupancy.h
+  VoxelOccupancyCompute.h
   "${CMAKE_CURRENT_BINARY_DIR}/ohm/OhmConfig.h"
   "${CMAKE_CURRENT_BINARY_DIR}/ohm/OhmExport.h"
   )

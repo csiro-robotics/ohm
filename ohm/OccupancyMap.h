@@ -10,9 +10,9 @@
 
 #include "Key.h"
 #include "MapFlag.h"
+#include "MapProbability.h"
 #include "RayFilter.h"
 #include "RayFlag.h"
-#include "Voxel.h"
 
 #include <glm/glm.hpp>
 
@@ -27,7 +27,6 @@ namespace ohm
 {
   class Aabb;
   class KeyList;
-  class MapCache;
   struct MapChunk;
   class MapInfo;
   class MapLayout;
@@ -36,41 +35,62 @@ namespace ohm
 
   /// A spatial container using a voxel representation of 3D space.
   ///
-  /// The map is divided into rectangular regions of voxels. The map uses an initial spatial
-  /// hash to identify a larger @c MapRegion which contains a contiguous array of voxels.
-  /// This used rather than an octree to support:
+  /// The map is divided into rectangular regions of voxels. The map uses an initial spatial hash to identify a larger
+  /// @c MapRegion which contains a contiguous array of voxels. This is used rather than an octree to support:
   /// - Fast region allocation/de-allocation
   /// - Constant lookup
-  /// - Region dropping regions
+  /// - Dropping regions
   /// - Eventually, out of core serialisation.
   ///
-  /// The size of the regions is determined by the @c regionVoxelDimensions argument
-  /// given on construction. Larger regions consume more memory each, but are more suited
-  /// to GPU based operations. The default size of 32*32*32, or an equivalent volume is
-  /// recommended.
+  /// The size of the regions is determined by the @c regionVoxelDimensions argument given on construction. Larger
+  /// regions consume more memory each, but are more suited to GPU based operations. The default size of 32*32*32, or an
+  /// equivalent volume is recommended.
   ///
-  /// Voxels in the tree have two associated values: an occupancy value and a user value.
-  /// The occupancy value may be updated probabilistically, but this only serves in when
-  /// it is possible to mark free voxels in the tree as well as unoccupied voxels, or
-  /// voxel occupancy may decay over time.
+  /// The contents of an @c OccupancyMap are determined by the @c MapLayout with voxel data split into separate layers.
+  /// An @c OccupancyMap is always expected to support a occupancy layer of @c float values. A map may optionally
+  /// support additional, standard layers and user defined layers. The standard layers are:
   ///
-  /// Voxels are never accessed directly. Rather, various access methods return
-  /// an @c Voxel or @c VoxelCost wrapper objects. Voxels may have three
-  /// states as defined by @c OccupancyType [uncertain, free, occupied], accessible via
-  /// @c occupancyType(). The state is entirely dependent on a voxel's @c value()
-  /// with values greater than or equal to the @c occupancyThresholdValue()
-  /// being occupied, values less than the threshold are free. Uncertain voxels have a value
-  /// equal to @c voxel::invalidMarkerValue().
+  /// Layer Name    | Type          | Purpose
+  /// ------------- | ------------- | --------------
+  /// occupancy     | @c float      | Stores occupancy values
+  /// mean          | @c VoxelMean  | Quantised voxel mean coordinates and sample count
+  /// covariance    | @c CovarianceVoxel  | Tracks the covariance within the voxel for @c NdtMap
+  /// clearance     | @c float      | Distance to the nearest occupied voxel (experimental - see @c ClearanceProcess )
   ///
-  /// The map is typically updated by collecting point samples with corresponding sensor origin
-  /// coordinates. For each origin/sample pair, @c calculateSegmentKeys() is used to identify
-  /// the voxels intersected by the line segment connecting the two. These voxels, excluding
-  /// the voxel containing the same, should be updated in the map by calling @c integrateMiss()
-  /// reinforcing such voxels as free. For sample voxels, @c integrateHit() should be called.
+  /// Voxels may be accessed directly from @c MapChunk entries accessed via @c region() calls. This provides direct
+  /// access to the voxel layer memory and requires manual decoding of voxel layer content and indexing. Direct access
+  /// may yield the best performance, but requires advanced use code. The @c Voxel<T> template class may be used to
+  /// access voxel data via a convenient abstraction and provides some validation of the voxel content against the
+  /// requested data type.
   ///
-  /// Some methods, such as @c integrateHit() and @c integrateMiss() support a @c MapCache argument.
-  /// This may provide a small performance benefit when repeatedly accessing the same region. This
-  /// will tend to be the case when processing results from @c calculateSegmentKeys().
+  /// For example, the occupancy layer and the @c VoxelMean may be accessed with the following code:
+  ///
+  /// @code
+  /// ohm::OccupancyMap map(0.1, ohm::MapFlag::kVoxelMean);
+  ///
+  /// ohm::Voxel<float> occupancy(&map, map.layout().occupancyLayer());
+  /// ohm::Voxel<ohm::VoxelMean> mean(&map, map.layout().occupancyLayer());
+  ///
+  /// const glm::dvec3 sample{1, 2, 3};
+  /// occupancy.setKey(map.voxelKey(sample);
+  /// mean.setKey(occupancy.key());
+  ///
+  /// ohm::integrateHit(occupancy);
+  /// ohm::updatePosition(mean);
+  /// @endcode
+  ///
+  /// The map is typically updated by collecting point samples with corresponding sensor origin coordinates via a
+  /// @c RayMapper class such as @c RayMapperOccupancy . More manual updates may also be made by passing each
+  /// origin/sample pair to @c calculateSegmentKeys() . This identifies the voxels intersected by the line segment
+  /// connecting the two points. These voxels, excluding the voxel containing the sample, should be updated in the map
+  /// by calling @c integrateMiss() reinforcing such voxels as free. For sample voxels, @c integrateHit() should be
+  /// called.
+  ///
+  /// There are two forms of addressing for the @c OccupancyMap - region and local - encapsulated by the @c Key class.
+  /// The region key is a coarse indexer which identifies a @c MapRegion and its accociated memory in @c MapChunk .
+  /// The local key is a fine indexer which resolves to a specific voxel within a @c MapRegion . Region indexing is
+  /// limited by the size of an @c int16_t supporting a spatial range of
+  /// ~`2^15 * regionVoxelDimensions() * resolution()` while the local key is limited by @c regionVoxelDimensions() .
   class ohm_API OccupancyMap
   {
   public:
@@ -83,7 +103,7 @@ namespace ohm
       /// Base iterator into @p map starting at @p key. Map must remain unchanged during iteration.
       /// @param map The map to iterate in.
       /// @param key The key to start iterating at.
-      base_iterator(OccupancyMapDetail *map, const Key &key);
+      base_iterator(OccupancyMap *map, const Key &key);
       /// Copy constructor.
       /// @param other Object to shallow copy.
       base_iterator(const base_iterator &other);
@@ -93,6 +113,9 @@ namespace ohm
       /// Key for the current voxel.
       /// @return Current voxel key.
       inline const Key &key() const { return key_; }
+
+      const MapChunk *chunk() const;
+      inline const OccupancyMap *map() const { return map_; }
 
       /// Copy assignment.
       /// @param other Object to shallow copy.
@@ -112,17 +135,21 @@ namespace ohm
       /// @return True if the iterator may be safely dereferenced.
       bool isValid() const;
 
-      /// Access the voxel this iterator refers to. Iterator must be valid before calling.
-      /// @return An constant reference wrapper for the iterator's voxel.
-      VoxelConst voxel() const;
+      /// Dereference the iterator as a key.
+      /// @return The current voxel key.
+      inline const Key &operator*() const { return key_; }
+
+      /// Dereference the iterator as a key.
+      /// @return The current voxel key.
+      inline const Key *operator->() const { return &key_; }
 
     protected:
       /// Move to the next voxel. Iterator becomes invalid if already referencing the last voxel.
       /// Iterator is unchanged if already invalid.
       void walkNext();
 
-      OccupancyMapDetail *map_;  ///< The referenced map.
-      Key key_;                  ///< The current voxel key.
+      OccupancyMap *map_;  ///< The referenced map.
+      Key key_;            ///< The current voxel key.
       /// Memory used to track an iterator into a hidden container type.
       /// We use an anonymous, fixed size memory chunk and placement new to prevent exposing STL
       /// types as part of the ABI.
@@ -135,10 +162,10 @@ namespace ohm
     public:
       /// Constructor of an invalid iterator.
       iterator() = default;
-      /// Iterator into @p map starting at @p key. Map must remain unchanged during iteration.
+      /// Iterator into @p map starting at @p key . Map must remain unchanged during iteration.
       /// @param map The map to iterate in.
       /// @param key The key to start iterating at.
-      inline iterator(OccupancyMapDetail *map, const Key &key)
+      inline iterator(OccupancyMap *map, const Key &key)
         : base_iterator(map, key)
       {}
       /// Copy constructor.
@@ -149,6 +176,12 @@ namespace ohm
 
       /// Empty destructor.
       ~iterator() = default;
+
+      using base_iterator::chunk;
+      MapChunk *chunk();
+
+      using base_iterator::map;
+      inline OccupancyMap *map() { return map_; }
 
       /// Prefix increment for the iterator. Iterator becomes invalid when incrementing an iterator
       /// referencing the last voxel in the map. Safe to call on an invalid iterator (no change).
@@ -168,54 +201,6 @@ namespace ohm
         walkNext();
         return iter;
       }
-
-      /// Access the voxel this iterator refers to. Iterator must be valid before calling.
-      /// @return A non-constant reference wrapper for the iterator's voxel.
-      Voxel voxel();
-      using base_iterator::voxel;
-
-      /// Alias for @c voxel().
-      /// @return Same as @c voxel().
-      inline Voxel &operator*()
-      {
-        resolveVoxel();
-        return voxel_;
-      }
-
-      /// Alias for @c voxel().
-      /// @return Same as @c voxel().
-      inline const Voxel &operator*() const
-      {
-        resolveVoxel();
-        return voxel_;
-      }
-
-      /// Alias for @c voxel().
-      /// @return Same as @c voxel().
-      inline Voxel *operator->()
-      {
-        resolveVoxel();
-        return &voxel_;
-      }
-
-      /// Alias for @c voxel().
-      /// @return Same as @c voxel().
-      inline const Voxel *operator->() const
-      {
-        resolveVoxel();
-        return &voxel_;
-      }
-
-    private:
-      /// Resolve the @c base_iterator data into @c _voxel.
-      inline void resolveVoxel() const
-      {
-        voxel_ = const_cast<iterator *>(this)->voxel();  // NOLINT(cppcoreguidelines-pro-type-const-cast)
-      }
-
-      /// A cached @c Voxel version of the underlying @c base_iterator data, here to support
-      /// the @c * and @c -> operators.
-      mutable Voxel voxel_;
     };
 
     /// Constant (read only) iterator for an @c OccupancyMap.
@@ -227,7 +212,7 @@ namespace ohm
       /// Iterator into @p map starting at @p key. Map must remain unchanged during iteration.
       /// @param map The map to iterate in.
       /// @param key The key to start iterating at.
-      inline const_iterator(OccupancyMapDetail *map, const Key &key)
+      inline const_iterator(OccupancyMap *map, const Key &key)
         : base_iterator(map, key)
       {}
       /// Copy constructor.
@@ -253,35 +238,7 @@ namespace ohm
         walkNext();
         return iter;
       }
-
-      /// Alias for @c voxel().
-      /// @return Same as @c voxel().
-      inline const VoxelConst &operator*() const
-      {
-        resolveVoxel();
-        return voxel_;
-      }
-
-      /// Alias for @c voxel().
-      /// @return Same as @c voxel().
-      inline const VoxelConst *operator->() const
-      {
-        resolveVoxel();
-        return &voxel_;
-      }
-
-    private:
-      /// Resolve the @c base_iterator data into @c _voxel.
-      inline void resolveVoxel() const { voxel_ = voxel(); }
-
-      /// A cached @c VoxelConst version of the underlying @c base_iterator data, here to support
-      /// the @c * and @c -> operators.
-      mutable VoxelConst voxel_;
     };
-
-    /// @overload
-    OccupancyMap(double resolution = 1.0, const glm::u8vec3 &region_voxel_dimensions = glm::u8vec3(0, 0, 0),
-                 MapFlag flags = MapFlag::kNone);
 
     /// Construct an @c OccupancyMap at the given voxels resolution.
     ///
@@ -298,9 +255,13 @@ namespace ohm
     /// @param region_voxel_dimensions Sets the number of voxels in each map region.
     /// @param flags Map initialisation flags. See @c MapFlag .
     /// @param seed_layout The @p MapLayout to create the map with. The constructed map clones the @c seed_layout
-    ///   object.
+    ///   object. Omit to use the default layout.
     OccupancyMap(double resolution, const glm::u8vec3 &region_voxel_dimensions, MapFlag flags,
                  const MapLayout &seed_layout);
+
+    /// @overload
+    OccupancyMap(double resolution = 1.0, const glm::u8vec3 &region_voxel_dimensions = glm::u8vec3(0, 0, 0),
+                 MapFlag flags = MapFlag::kNone);
 
     /// @overload
     OccupancyMap(double resolution, MapFlag flags, const MapLayout &seed_layout);
@@ -324,28 +285,9 @@ namespace ohm
     /// Create an iterator representing the end of iteration. See standard iteration patterns.
     /// @return An invalid iterator for this map.
     iterator end();
-
     /// Create a read only iterator representing the end of iteration. See standard iteration patterns.
     /// @return An invalid iterator for this map.
     const_iterator end() const;
-
-    /// Access the voxel at @p key, optionally creating the voxel if it does not exist.
-    ///
-    /// The key for any spatial coordinate can be generated by @c voxelKey().
-    ///
-    /// @param key The key for the voxel to access.
-    /// @param allow_create True to create the voxel if it does not exist.
-    /// @param cache Optional cache used to expidite region search.
-    /// @return An @c Voxel wrapper object for the keyed voxel. The voxel is
-    ///   null if does not exist and creation is not allowed.
-    Voxel voxel(const Key &key, bool allow_create, MapCache *cache = nullptr);
-    /// @overload
-    VoxelConst voxel(const Key &key, MapCache *cache = nullptr) const;
-
-    /// Determine the @c OccupancyType of @p voxel
-    /// @param voxel The voxel to check. May be null.
-    /// @return The @c OccupancyType of @p voxel.
-    int occupancyType(const VoxelConst &voxel) const;
 
     /// Calculate the approximate memory usage of this map in bytes.
     /// @return The approximate memory usage (bytes).
@@ -361,7 +303,8 @@ namespace ohm
     uint64_t stamp() const;
 
     /// Touches the map, progressing the @c stamp() value.
-    void touch();
+    /// @return The @c stamp() value after the touch.
+    uint64_t touch();
 
     /// Query the spatial resolution of each @c MapRegion. This represents the spatial extents of each region.
     /// @return The spatial resolution of a @c MapRegion.
@@ -376,8 +319,25 @@ namespace ohm
     /// @return The number of voxels in each region.
     size_t regionVoxelVolume() const;
 
+    /// Calculate the minimum spatial coordinate for the region identified by @p region_key.
+    ///
+    /// The region need not be present in the map for this calculation.
+    /// @param region_key The region of interest.
+    /// @return The minimum spatial extent coordinate for the region.
     glm::dvec3 regionSpatialMin(const glm::i16vec3 &region_key) const;
+
+    /// Calculate the maximum spatial coordinate for the region identified by @p region_key.
+    ///
+    /// The region need not be present in the map for this calculation.
+    /// @param region_key The region of interest.
+    /// @return The maximum spatial extent coordinate for the region.
     glm::dvec3 regionSpatialMax(const glm::i16vec3 &region_key) const;
+
+    /// Calculate the spatial centre for the region identified by @p region_key.
+    ///
+    /// The region need not be present in the map for this calculation.
+    /// @param region_key The region of interest.
+    /// @return The coordiates of the spatial centre of the region.
     glm::dvec3 regionSpatialCentre(const glm::i16vec3 &region_key) const;
 
     /// Sets the map origin. All point references are converted to be relative to this origin.
@@ -429,7 +389,7 @@ namespace ohm
     MapLayout &layout();
 
     /// Adds the voxel layer required to track voxel mean position (@c VoxelMean). This invalidates any existing
-    /// @c Voxel or @c VoxelConst references.
+    /// @c Voxel or direct data references.
     ///
     /// Note note that changing the requires all map chunks have additional voxel layers allocated.
     ///
@@ -439,6 +399,7 @@ namespace ohm
     void addVoxelMeanLayer();
 
     /// Is voxel mean positioning enabled on this map?
+    /// @return True if the @c VoxelMean layer is enabled.
     bool voxelMeanEnabled() const;
 
     /// Update the memory layout to match that in this map's @c MapLayout. Must be called after updating
@@ -457,7 +418,8 @@ namespace ohm
     /// @param preserve_map Try to preserve the map content for equivalent layers?
     void updateLayout(const MapLayout &newLayout, bool preserve_map = true);
 
-    /// Query the number of regions in the map.
+    /// Query the number of regions in the map which have been touched.
+    /// @return The number of regions in the map.
     size_t regionCount() const;
 
     /// Expire @c MapRegion sections which have not been touched after @p timestamp.
@@ -465,7 +427,7 @@ namespace ohm
     ///
     /// This compares each @c MapRegion::touched_time against @p timestamp, removing regions
     /// with a @c touched_time before @p timestamp. The region touch time is updated via
-    /// @c Voxel::touch(), @c touchRegion() or @c touchRegionByKey().
+    /// @c Voxel::touch(), @c touchRegionTimestamp() or @c touchRegionTimestampByKey().
     ///
     /// @param timestamp The reference time.
     /// @return The number of removed regions.
@@ -487,24 +449,24 @@ namespace ohm
     /// @return The number of removed regions.
     unsigned cullRegionsOutside(const glm::dvec3 &min_extents, const glm::dvec3 &max_extents);
 
-    /// Touch the @c MapRegion which contains @p point.
+    /// Touch the @c MapRegion which contains @p point .
     /// @param point A spatial point from which to resolve a containing region. There may be border case issues.
     /// @param timestamp The timestamp to update the region touch time to.
     /// @param allow_create Create the region (all uncertain) if it doesn't exist?
-    /// @see @c touchRegionByKey()
-    inline void touchRegion(const glm::vec3 &point, double timestamp, bool allow_create = false)
+    /// @see @c touchRegionTimestampByKey()
+    inline void touchRegionTimestamp(const glm::vec3 &point, double timestamp, bool allow_create = false)
     {
-      touchRegion(voxelKey(point), timestamp, allow_create);
+      touchRegionTimestamp(voxelKey(point), timestamp, allow_create);
     }
 
-    /// Touch the @c MapRegion which contains @p voxelKey.
+    /// Touch the @c MapRegion which contains @p voxel_key .
     /// @param voxel_key A voxel key from which to resolve a containing region.
     /// @param timestamp The timestamp to update the region touch time to.
     /// @param allow_create Create the region (all uncertain) if it doesn't exist?
-    /// @see @c touchRegionByKey()
-    inline void touchRegion(const Key &voxel_key, double timestamp, bool allow_create = false)
+    /// @see @c touchRegionTimestampByKey()
+    inline void touchRegionTimestamp(const Key &voxel_key, double timestamp, bool allow_create = false)
     {
-      touchRegionByKey(voxel_key.regionKey(), timestamp, allow_create);
+      touchRegionTimestampByKey(voxel_key.regionKey(), timestamp, allow_create);
     }
 
     /// Touch the @c MapRegion identified by @p regionKey.
@@ -515,7 +477,7 @@ namespace ohm
     /// @param region_key The key for the region.
     /// @param timestamp The timestamp to update the region touch time to.
     /// @param allow_create Create the region (all uncertain) if it doesn't exist?
-    void touchRegionByKey(const glm::i16vec3 &region_key, double timestamp, bool allow_create = false);
+    void touchRegionTimestampByKey(const glm::i16vec3 &region_key, double timestamp, bool allow_create = false);
 
     /// Returns the centre of the region identified by @p regionKey.
     ///
@@ -617,81 +579,6 @@ namespace ohm
     /// @param probability The new occupancy threshold [0, 1].
     void setOccupancyThresholdProbability(float probability);
 
-    /// Adjust @p voxel by increasing its occupancy probability. The value of the voxel is adjusted by
-    /// adding @c hitValue(), which logically increases its occupancy probability by @c hitProbability().
-    /// @param voxel The voxel to increase the occupancy probabilty for. Must be a valid, non-null voxel.
-    void integrateHit(Voxel &voxel) const;  // NOLINT(google-runtime-references)
-
-    /// Adjust @p voxel by increasing its occupancy probability. Equivalent to @c integrateHit(Voxel&), but
-    /// introduces voxel mean positioning.
-    /// @param voxel The voxel to increase the occupancy probabilty for. Must be a valid, non-null voxel.
-    /// @param point The sample point to integrate. Must lie within @p voxel. Used to update voxel mean positioning.
-    void integrateHit(Voxel &voxel, const glm::dvec3 &point) const;  // NOLINT(google-runtime-references)
-
-    /// Integrate a hit into the map, creating the occupancy voxel as required.
-    ///
-    /// Supports voxel mean positioning.
-    /// @param point The global coordinate to integrate a hit at.
-    /// @param cache Optional cache used to expidite region search.
-    /// @return A reference to the voxel containing @p point after integrating the hit.
-    Voxel integrateHit(const glm::dvec3 &point, MapCache *cache = nullptr);
-
-    /// Integrate a hit into the map, creating the occupancy voxel as required.
-    ///
-    /// Does not support voxel mean positioning.
-    /// @param key The key identifying the voxel to update. May be generated from a coordinate using the
-    /// @c voxelKey() method.
-    /// @param cache Optional cache used to expidite region search.
-    /// @return A reference to the voxel containing @p point after integrating the hit.
-    Voxel integrateHit(const Key &key, MapCache *cache = nullptr);
-
-    /// Integrate a hit into the map, creating the occupancy voxel identified by @p key as required.
-    ///
-    /// This overload supports voxel mean positioning, if enabled. The @p key is used to identify the voxel regardless
-    /// of the @p position. The @p position is used only for voxel mean positioning.
-    ///
-    /// This is not recommended for use by external libraries and @c integrateHit(const glm::dvec3 &, MapCache *) should
-    /// be preferred.
-    ///
-    /// @param point The global coordinate to integrate a hit at.
-    /// @param cache Optional cache used to expidite region search.
-    /// @return A reference to the voxel containing @p point after integrating the hit.
-    Voxel integrateHit(const Key &key, const glm::dvec3 &point, MapCache *cache = nullptr);
-
-    /// Adjust @p voxel by decreasing its occupancy probability. The value of the voxel is adjusted by
-    /// adding @c missValue() which should be negative. This logically decreases its occupancy probability
-    /// by @c missProbability().
-    /// @param voxel The voxel to decrease the occupancy probabilty for. Must be a valid, non-null voxel.
-    void integrateMiss(Voxel &voxel) const;  // NOLINT(google-runtime-references)
-
-    /// Integrate a miss into the map, creating the occupancy voxel as required.
-    /// @param point The global coordinate to integrate a hit at.
-    /// @param cache Optional cache used to expidite region search.
-    /// @return A reference to the voxel containing @p point after integrating the hit.
-    Voxel integrateMiss(const glm::dvec3 &point, MapCache *cache = nullptr);
-
-    /// @overload
-    Voxel integrateMiss(const Key &key, MapCache *cache = nullptr);
-
-    /// Adjust the value of @p voxel by forcibly setting its occupancy probabilty to @c hitProbability().
-    /// @param voxel The voxel to increase the occupancy probabilty for. Must be a valid, non-null voxel.
-    inline void setHit(Voxel &voxel) const  // NOLINT(google-runtime-references)
-    {
-      if (voxel.isValid())
-      {
-        voxel.setValue(hitValue());
-      }
-    }
-    /// Adjust the value of @p voxel by forcibly setting its occupancy probabilty to @c missProbability().
-    /// @param voxel The voxel to increase the occupancy probabilty for. Must be a valid, non-null voxel.
-    inline void setMiss(Voxel &voxel) const  // NOLINT(google-runtime-references)
-    {
-      if (voxel.isValid())
-      {
-        voxel.setValue(missValue());
-      }
-    }
-
     /// The minimum value a voxel can have. Value adjustments are clamped to this minimum.
     /// @return The minimum voxel value.
     float minVoxelValue() const;
@@ -749,17 +636,6 @@ namespace ohm
     //-------------------------------------------------------
     // General map manipulation.
     //-------------------------------------------------------
-
-    /// Add a to to the map at @p key, settings its occupancy @p value.
-    /// This creates map regions as required. Should the voxel already exist, then the existing
-    /// voxel value is replaced by @p value.
-    ///
-    /// @param key Identifies the voxel to add (or replace).
-    /// @param value The value to assign the voxel.
-    /// @return A mutable reference to the voxel. This object may be short lived and should only be
-    ///   briefly retained.
-    /// @see voxelKey(), voxelKeyLocal()
-    Voxel addVoxel(const Key &key, float value);
 
     /// Retrieve the coordinates for the centre of the voxel identified by @p key local to the map origin.
     ///
@@ -865,9 +741,9 @@ namespace ohm
                                 const glm::dvec3 &start_point, const glm::dvec3 &end_point,
                                 bool include_end_point = true) const;
 
-    /// Set the range filter applied to all rays given to @c integrateRays().
-    /// @param ray_filter The range filter to install and apply to @c integrateRays().
-    ///   Accepts a null pointer, which clears the filter.
+    /// Set the range filter applied to all rays to be integrated into the map. @c RayMapper implementations must
+    /// respect this filter in @c RayMapper::integrateRays() .
+    /// @param ray_filter The range filter to install and filter rays with. Accepts an empty, which clears the filter.
     void setRayFilter(const RayFilterFunction &ray_filter);
 
     /// Get the range filter applied to all rays given to @c integrateRays().
@@ -934,7 +810,17 @@ namespace ohm
       uint64_t from_stamp, std::vector<std::pair<uint64_t, glm::i16vec3>> &regions  // NOLINT(google-runtime-references)
       ) const;
 
-    void calculateDirtyExtents(uint64_t *from_stamp, glm::i16vec3 *min_ext, glm::i16vec3 *max_ext) const;
+    /// Experimental: calculate the extents of regions which have been changed since @c from_stamp .
+    /// @param from_stamp The base stamp used to determine dirty regions.
+    /// @param min_ext The region key which identifies the minimum extents of the dirty regions.
+    /// @param max_ext The region key which identifies the maximum extents of the dirty regions.
+    /// @return The most up to date stamp value for the dirty regions.
+    uint64_t calculateDirtyExtents(uint64_t from_stamp, glm::i16vec3 *min_ext, glm::i16vec3 *max_ext) const;
+
+    /// Experimental: calculate the dirty region extents for the clearance layer.
+    /// @param min_ext The region key which identifies the minimum extents of the dirty regions.
+    /// @param max_ext The region key which identifies the maximum extents of the dirty regions.
+    /// @param region_padding Number of regions to pad the returned extents.
     void calculateDirtyClearanceExtents(glm::i16vec3 *min_ext, glm::i16vec3 *max_ext,
                                         unsigned region_padding = 0) const;
 
@@ -956,62 +842,6 @@ namespace ohm
 
     OccupancyMapDetail *imp_;
   };
-
-  inline void OccupancyMap::integrateHit(Voxel &voxel) const
-  {
-    if (voxel.isValid())
-    {
-      if (!voxel.isUncertain())
-      {
-        voxel.setValue(voxel.value() + hitValue());
-      }
-      else
-      {
-        voxel.setValue(hitValue());
-      }
-    }
-  }
-
-  inline Voxel OccupancyMap::integrateHit(const glm::dvec3 &point, MapCache *cache)
-  {
-    return integrateHit(voxelKey(point), point, cache);
-  }
-
-
-  inline Voxel OccupancyMap::integrateHit(const Key &key, MapCache *cache)
-  {
-    Voxel voxel = this->voxel(key, true, cache);
-    voxel.setValue(!voxel.isUncertain() ? voxel.value() + hitValue() : hitValue());
-    return voxel;
-  }
-
-  inline void OccupancyMap::integrateMiss(Voxel &voxel) const
-  {
-    if (voxel.isValid())
-    {
-      if (!voxel.isUncertain())
-      {
-        voxel.setValue(voxel.value() + missValue());
-      }
-      else
-      {
-        voxel.setValue(missValue());
-      }
-    }
-  }
-
-  inline Voxel OccupancyMap::integrateMiss(const glm::dvec3 &point, MapCache *cache)
-  {
-    Key key = voxelKey(point);
-    return integrateMiss(key, cache);
-  }
-
-  inline Voxel OccupancyMap::integrateMiss(const Key &key, MapCache *cache)
-  {
-    Voxel voxel = this->voxel(key, true, cache);
-    integrateMiss(voxel);
-    return voxel;
-  }
 
   inline void OccupancyMap::setMinVoxelProbability(float probability)
   {

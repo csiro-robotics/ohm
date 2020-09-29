@@ -9,12 +9,13 @@
 
 #include <ohm/Aabb.h>
 #include <ohm/KeyList.h>
-#include <ohm/MapCache.h>
 #include <ohm/MapChunk.h>
 #include <ohm/MapProbability.h>
 #include <ohm/MapSerialise.h>
 #include <ohm/OccupancyMap.h>
 #include <ohm/OccupancyUtil.h>
+#include <ohm/RayMapperOccupancy.h>
+#include <ohm/VoxelData.h>
 
 #include <ohmtools/OhmCloud.h>
 
@@ -104,7 +105,9 @@ namespace voxelmean
     // Test core voxel mean positioning
     OccupancyMap map(resolution, region_size, MapFlag::kVoxelMean);
 
-    Voxel voxel = map.voxel(map.voxelKey(glm::dvec3(0.5 * resolution)), true);
+    Voxel<ohm::VoxelMean> mean(&map, map.layout().meanLayer(), map.voxelKey(glm::dvec3(0.5 * resolution)));
+    ASSERT_TRUE(mean.isLayerValid());
+    ASSERT_TRUE(mean.isValid());
 
     static const glm::dvec3 positions[] =  //
       {
@@ -127,14 +130,15 @@ namespace voxelmean
     {
       VoxelMeanResult sub_vox;
 
-      voxel.setPosition(positions[i]);
+      setPositionSafe(mean, positions[i], 1);
 
       sub_vox.expected_position = positions[i];
-      sub_vox.reported_position = voxel.position();
-      sub_vox.voxel_centre = voxel.centreGlobal();
+      sub_vox.reported_position = positionSafe(mean);
+      sub_vox.voxel_centre = map.voxelCentreGlobal(mean.key());
 
       results.push_back(sub_vox);
     }
+    mean.reset();
 
     printVoxelPositionResults(results, true, map.resolution());
   }
@@ -150,15 +154,26 @@ namespace voxelmean
 
     // First integrate without voxel mean positioning
     glm::dvec3 sample_pos = glm::dvec3(1.1);
-    map.integrateHit(sample_pos);
-    Voxel voxel = map.voxel(map.voxelKey(sample_pos), true);
+    const Key key(map.voxelKey(sample_pos));
+    integrateHit(map, key);
 
-    glm::dvec3 voxel_centre = voxel.centreGlobal();
-    glm::dvec3 voxel_pos = voxel.position();
+    Voxel<const float> occupancy(&map, map.layout().occupancyLayer());
+    Voxel<ohm::VoxelMean> mean(&map, map.layout().meanLayer());
+    ASSERT_TRUE(occupancy.isLayerValid());
+    ASSERT_FALSE(mean.isLayerValid());
+
+    setVoxelKey(map.voxelKey(sample_pos), mean, occupancy);
+    ASSERT_TRUE(occupancy.isValid());
+    ASSERT_FALSE(mean.isValid());
+
+    glm::dvec3 voxel_centre = map.voxelCentreGlobal(occupancy.key());
+    glm::dvec3 voxel_pos = positionSafe(mean);
 
     EXPECT_EQ(voxel_centre.x, voxel_pos.x);
     EXPECT_EQ(voxel_centre.y, voxel_pos.y);
     EXPECT_EQ(voxel_centre.z, voxel_pos.z);
+    occupancy.reset();
+    mean.reset();
 
     // Now enable voxel mean positioning.
     // voxel becomes invalid.
@@ -167,14 +182,16 @@ namespace voxelmean
 
     map.addVoxelMeanLayer();
 
-    ASSERT_TRUE(voxel.isValid());
-    EXPECT_TRUE(voxel.isOccupied());
+    occupancy = Voxel<const float>(&map, map.layout().occupancyLayer(), key);
+    mean = Voxel<ohm::VoxelMean>(&map, map.layout().meanLayer(), key);
+    ASSERT_TRUE(occupancy.isValid());
+    ASSERT_TRUE(mean.isValid());
 
     // Set the voxel position.
-    voxel.setPosition(sample_pos);
+    setPositionSafe(mean, sample_pos);
 
     // Position should no longer match the voxel centre.
-    voxel_pos = voxel.position();
+    voxel_pos = positionSafe(mean);
     EXPECT_NE(voxel_centre.x, voxel_pos.x);
     EXPECT_NE(voxel_centre.y, voxel_pos.y);
     EXPECT_NE(voxel_centre.z, voxel_pos.z);
@@ -182,20 +199,26 @@ namespace voxelmean
     EXPECT_NEAR(voxel_pos.x, sample_pos.x, resolution / 1000.0);
     EXPECT_NEAR(voxel_pos.y, sample_pos.y, resolution / 1000.0);
     EXPECT_NEAR(voxel_pos.z, sample_pos.z, resolution / 1000.0);
+    occupancy.reset();
+    mean.reset();
 
     // Now remove voxel mean positioning.
     map.updateLayout(cached_layout);
-    voxel = map.voxel(map.voxelKey(sample_pos), true);
+    occupancy = Voxel<const float>(&map, map.layout().occupancyLayer(), key);
+    mean = Voxel<ohm::VoxelMean>(&map, map.layout().meanLayer(), key);
+    ASSERT_TRUE(occupancy.isValid());
+    ASSERT_FALSE(mean.isValid());
 
     // Expect occupancy to be unchanged.
-    ASSERT_TRUE(voxel.isValid());
-    EXPECT_TRUE(voxel.isOccupied());
+    EXPECT_TRUE(isOccupied(occupancy));
 
     // Expect the position to match the voxel centre.
-    voxel_pos = voxel.position();
+    voxel_pos = positionSafe(mean);
     EXPECT_EQ(voxel_centre.x, voxel_pos.x);
     EXPECT_EQ(voxel_centre.y, voxel_pos.y);
     EXPECT_EQ(voxel_centre.z, voxel_pos.z);
+    occupancy.reset();
+    mean.reset();
   }
 
   TEST(VoxelMean, Cpu)
@@ -216,24 +239,25 @@ namespace voxelmean
 
     // Test basic map populate using GPU and ensure it matches CPU (close enough).
     OccupancyMap map(resolution, region_size, MapFlag::kVoxelMean);
-
-    map.integrateRays(rays.data(), unsigned(rays.size()));
+    RayMapperOccupancy(&map).integrateRays(rays.data(), unsigned(rays.size()));
 
     std::vector<VoxelMeanResult> results;
+    Voxel<ohm::VoxelMean> voxel(&map, map.layout().meanLayer());
     for (size_t i = 1; i < rays.size(); i += 2)
     {
-      const VoxelConst voxel = map.voxel(map.voxelKey(rays[i]));
+      voxel.setKey(map.voxelKey(rays[i]));
       if (voxel.isValid())
       {
         VoxelMeanResult sub_vox;
 
         sub_vox.expected_position = rays[i];
-        sub_vox.reported_position = voxel.position();
-        sub_vox.voxel_centre = voxel.centreGlobal();
+        sub_vox.reported_position = positionSafe(voxel);
+        sub_vox.voxel_centre = map.voxelCentreGlobal(voxel.key());
 
         results.push_back(sub_vox);
       }
     }
+    voxel.reset();
 
     printVoxelPositionResults(results, false, map.resolution());
   }
