@@ -186,7 +186,7 @@ size_t RayMapperNdt::integrateRays(const glm::dvec3 *rays, size_t element_count,
       last_chunk = chunk;
       const unsigned voxel_index = ::voxelIndex(key, occupancy_dim);
       const glm::dvec3 voxel_centre = occupancy_map.voxelCentreGlobal(key);
-      float *occupancy_value = reinterpret_cast<float *>(occupancy_buffer.voxelMemory()) + +voxel_index;
+      float *occupancy_value = reinterpret_cast<float *>(occupancy_buffer.voxelMemory()) + voxel_index;
       CovarianceVoxel *cov = reinterpret_cast<CovarianceVoxel *>(cov_buffer.voxelMemory()) + voxel_index;
       VoxelMean *voxel_mean = reinterpret_cast<VoxelMean *>(mean_buffer.voxelMemory()) + voxel_index;
       const glm::dvec3 mean = subVoxelToLocalCoord<glm::dvec3>(voxel_mean->coord, resolution) + voxel_centre;
