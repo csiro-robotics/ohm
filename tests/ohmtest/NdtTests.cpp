@@ -35,6 +35,13 @@ using namespace ohmtestutil;
 
 namespace ndttests
 {
+  /// Default tolerance for checking NDT probability changes.
+  ///
+  /// We use random generators with fixed seeds to create our ray set for each run. This is deterministic for a given
+  /// platform, but not beteen platforms as the random generator code may differ. We set a tight, default tolerance,
+  /// but may tune larger values for specific cases.
+  const float default_ndt_tolerance = 0.001f;
+
   /// Helper for testing covariance update via @p NdtMap .
   ///
   /// We add each sample to the map as if the sensor were at the origin. The changes to the target voxels are
@@ -115,7 +122,7 @@ namespace ndttests
   /// all @p samples fall with in the same voxel.
   ///
   /// Once the sample voxel is populated, we trace all the @p test_rays through that voxel and compare the *change* in
-  /// probability against the @p expected_prob_approx .
+  /// probability against the @p expected_prob_and_tolerance .
   ///
   /// @param sensor The simulated sensor position for all the @p samples .
   /// @param samples The set of sample points to integrate into the map. These should all fall in the same voxel.
@@ -124,11 +131,11 @@ namespace ndttests
   /// @param map_origin Origin for the @p OccupancyMap
   /// @param test_rays Set of rays to test against the sample voxel. These are expected to all pass through, but not
   ///   end in the sample voxel. There are two elements per ray in this array making ray origin, end pairs.
-  /// @param expected_prob_approx Expected probability adjustments for each of the @p test_rays . This array has half
-  ///   the elements of @p test_rays .
+  /// @param expected_prob_and_tolerance Expected probability adjustments for each of the @p test_rays . This array has
+  ///   half the elements of @p test_rays .
   void testNdtMiss(const glm::dvec3 &sensor, const std::vector<glm::dvec3> samples, double voxel_resolution,
                    float sensor_noise, const glm::dvec3 &map_origin, const std::vector<glm::dvec3> &test_rays,
-                   const std::vector<float> &expected_prob_approx)
+                   const std::vector<std::pair<float, float>> &expected_prob_and_tolerance)
   {
     (void)sensor;  // Only used for 3es debugging.
     ohm::OccupancyMap map(voxel_resolution, ohm::MapFlag::kVoxelMean);
@@ -182,7 +189,9 @@ namespace ndttests
       // Convert to probability.
       float ray_probability = ohm::valueToProbability(value_adjustment);
       // Validate
-      EXPECT_NEAR(ray_probability, expected_prob_approx[i / 2], 0.001f);
+      // Note: there is some variance here across platforms as the random generators differ even though we use
+      // a fixed seed.
+      EXPECT_NEAR(ray_probability, expected_prob_and_tolerance[i / 2].first, expected_prob_and_tolerance[i / 2].second);
     }
     occupancy.reset();
   }
@@ -274,20 +283,20 @@ namespace ndttests
     }
 
     // Setup to trace a ray through the voxel, but not ending in the voxel.
-    std::vector<float> expected_prob_approx;
+    std::vector<std::pair<float, float>> expected_prob_and_tolerance;
     std::vector<glm::dvec3> rays;
     // Ray straight down through the voxel
     rays.emplace_back(sensor);
     rays.emplace_back(glm::dvec3(1, 1, -5));
-    expected_prob_approx.emplace_back(0.004f);
+    expected_prob_and_tolerance.emplace_back(0.004f, default_ndt_tolerance);
     // Reverse the ray above
     rays.emplace_back(rays[1]);
     rays.emplace_back(rays[0]);
-    expected_prob_approx.emplace_back(0.004f);
+    expected_prob_and_tolerance.emplace_back(0.004f, default_ndt_tolerance);
     // Ray parallel to the voxel ellipsoid - expected to miss.
     rays.emplace_back(glm::dvec3(-5, 1, 0.25));
     rays.emplace_back(glm::dvec3(5, 1, 0.25));
-    expected_prob_approx.emplace_back(0.5f);
+    expected_prob_and_tolerance.emplace_back(0.5f, default_ndt_tolerance);
     // Ray parallel to the voxel ellipsoid, but near the centre.
     // Note: we build a perfect plane above in the centre of the voxel. However, the quantisation of the mean
     // can offset the plane. Running exactly on the plane on which we generated the points will not result in the same
@@ -295,18 +304,18 @@ namespace ndttests
     // voxel mean quantisation or not.
     rays.emplace_back(glm::dvec3(1, 5, 1.01));
     rays.emplace_back(glm::dvec3(1, -5, 1.01));
-    expected_prob_approx.emplace_back(0.5f);
+    expected_prob_and_tolerance.emplace_back(0.5f, default_ndt_tolerance);
     // Ray running across the voxel, down towards the ellipsoid, but not crossing. This simulates rays running near
     // parallel a ground plane as it approaches the sample position.
     rays.emplace_back(glm::dvec3(-5, 1, 2));
     rays.emplace_back(glm::dvec3(5, 1, 1));
-    expected_prob_approx.emplace_back(0.5f);
+    expected_prob_and_tolerance.emplace_back(0.5f, default_ndt_tolerance);
     // Ray running across the voxel, and through the ellipsoid.
     rays.emplace_back(glm::dvec3(-5, 1, 2));
     rays.emplace_back(glm::dvec3(5, 1, 0.5));
-    expected_prob_approx.emplace_back(0.234f);
+    expected_prob_and_tolerance.emplace_back(0.23f, 0.02f);
 
-    testNdtMiss(sensor, samples, voxel_resolution, 0.05f, glm::dvec3(0), rays, expected_prob_approx);
+    testNdtMiss(sensor, samples, voxel_resolution, 0.05f, glm::dvec3(0), rays, expected_prob_and_tolerance);
   }
 
 
@@ -351,38 +360,38 @@ namespace ndttests
     }
 
     // Setup rays through the voxel, but not ending in the voxel.
-    std::vector<float> expected_prob_approx;
+    std::vector<std::pair<float, float>> expected_prob_and_tolerance;
     std::vector<glm::dvec3> rays;
     // Ray straight down through the voxel
     rays.emplace_back(sensor);
     rays.emplace_back(glm::dvec3(0, 0, -5));
-    expected_prob_approx.emplace_back(0.004f);
+    expected_prob_and_tolerance.emplace_back(0.004f, default_ndt_tolerance);
     // Reverse the ray above
     rays.emplace_back(rays[1]);
     rays.emplace_back(rays[0]);
-    expected_prob_approx.emplace_back(0.004f);
+    expected_prob_and_tolerance.emplace_back(0.004f, default_ndt_tolerance);
     // Ray running parallel to the cylinder near the edge. Should be a near hit.
     rays.emplace_back(glm::dvec3(cylinder_radius, cylinder_radius, 5));
     rays.emplace_back(glm::dvec3(cylinder_radius, cylinder_radius, -5));
-    expected_prob_approx.emplace_back(0.425f);
+    expected_prob_and_tolerance.emplace_back(0.425f, 0.01f);
     // Ray running parallel to the cylinder, but should miss.
     rays.emplace_back(glm::dvec3(1.5 * cylinder_radius, 1.5 * cylinder_radius, -5));
     rays.emplace_back(glm::dvec3(2.0 * cylinder_radius, 2.0 * cylinder_radius, 5));
-    expected_prob_approx.emplace_back(0.499f);
+    expected_prob_and_tolerance.emplace_back(0.499f, default_ndt_tolerance);
     // Ray across the middle of the cylinder.
     rays.emplace_back(glm::dvec3(2, -cylinder_radius, 0));
     rays.emplace_back(glm::dvec3(-2, -cylinder_radius, 0));
-    expected_prob_approx.emplace_back(0.312f);
+    expected_prob_and_tolerance.emplace_back(0.312f, 0.005f);
     // Ray across the end (top) of the cylinder.
     rays.emplace_back(glm::dvec3(2, -cylinder_radius, 0.85));
     rays.emplace_back(glm::dvec3(-2, -cylinder_radius, 0.85));
-    expected_prob_approx.emplace_back(0.436f);
+    expected_prob_and_tolerance.emplace_back(0.436f, 0.003f);
     // Ray across the voxel, missing the cylinder (top) of the cylinder.
     rays.emplace_back(glm::dvec3(2, 2.0 * cylinder_radius, 0.85));
     rays.emplace_back(glm::dvec3(-2, 2.0 * cylinder_radius, 0.85));
-    expected_prob_approx.emplace_back(0.497f);
+    expected_prob_and_tolerance.emplace_back(0.497f, default_ndt_tolerance);
     testNdtMiss(sensor, samples, voxel_resolution, sensor_noise, glm::dvec3(-0.5 * voxel_resolution), rays,
-                expected_prob_approx);
+                expected_prob_and_tolerance);
   }
 
 
@@ -407,24 +416,24 @@ namespace ndttests
     const glm::dvec3 sensor(0, 0, 5);
 
     // Setup rays through the voxel, but not ending in the voxel.
-    std::vector<float> expected_prob_approx;
+    std::vector<std::pair<float, float>> expected_prob_and_tolerance;
     std::vector<glm::dvec3> rays;
     // Ray straight down through the voxel
     rays.emplace_back(sensor);
     rays.emplace_back(glm::dvec3(0, 0, -5));
-    expected_prob_approx.emplace_back(0.004f);
+    expected_prob_and_tolerance.emplace_back(0.004f, default_ndt_tolerance);
     // Reverse the ray above
     rays.emplace_back(rays[1]);
     rays.emplace_back(rays[0]);
-    expected_prob_approx.emplace_back(0.004f);
+    expected_prob_and_tolerance.emplace_back(0.004f, default_ndt_tolerance);
     // Edge of the sphere..
     rays.emplace_back(glm::dvec3(radius, radius, 5));
     rays.emplace_back(glm::dvec3(radius, radius, -5));
-    expected_prob_approx.emplace_back(0.469f);
+    expected_prob_and_tolerance.emplace_back(0.469f, 0.006f);
     // Near the edge of the sphere, but should miss.
     rays.emplace_back(glm::dvec3(1.5 * radius, 1.5 * radius, -5));
     rays.emplace_back(glm::dvec3(2.0 * radius, 2.0 * radius, 5));
-    expected_prob_approx.emplace_back(0.5f);
+    expected_prob_and_tolerance.emplace_back(0.5f, default_ndt_tolerance);
     for (size_t i = 0; i < sample_count; ++i)
     {
       glm::dvec3 sample;
@@ -444,6 +453,6 @@ namespace ndttests
     }
 
     testNdtMiss(sensor, samples, voxel_resolution, sensor_noise, glm::dvec3(-0.5 * voxel_resolution), rays,
-                expected_prob_approx);
+                expected_prob_and_tolerance);
   }
 }  // namespace ndttests
