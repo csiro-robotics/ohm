@@ -85,10 +85,7 @@ size_t RayMapperOccupancy::integrateRays(const glm::dvec3 *rays, size_t element_
     //    -
     MapChunk *chunk =
       (last_chunk && key.regionKey() == last_chunk->region.coord) ? last_chunk : map_->region(key.regionKey(), true);
-    if (chunk == last_chunk)
-    {
-    }
-    else
+    if (chunk != last_chunk)
     {
       occupancy_buffer = VoxelBuffer<VoxelBlock>(chunk->voxel_blocks[occupancy_layer]);
     }
