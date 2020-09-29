@@ -258,7 +258,7 @@ namespace
 
     if (best_virtual.isNull())
     {
-      if (!search_up && last_free)
+      if (allow_virtual_surface && !search_up && last_free)
       {
         best_virtual = last_key;
       }
