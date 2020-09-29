@@ -60,7 +60,7 @@ size_t RayMapperOccupancy::integrateRays(const glm::dvec3 *rays, size_t element_
   const auto voxel_min = map_->minVoxelValue();
   const auto voxel_max = map_->maxVoxelValue();
   const auto saturation_min = map_->saturateAtMinValue() ? voxel_min : std::numeric_limits<float>::lowest();
-  const auto saturation_max = map_->saturateAtMinValue() ? voxel_max : std::numeric_limits<float>::max();
+  const auto saturation_max = map_->saturateAtMaxValue() ? voxel_max : std::numeric_limits<float>::max();
   // Touch the map to flag changes.
   const auto touch_stamp = map_->touch();
 

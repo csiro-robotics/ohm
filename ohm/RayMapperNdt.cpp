@@ -97,7 +97,7 @@ size_t RayMapperNdt::integrateRays(const glm::dvec3 *rays, size_t element_count,
   const auto voxel_min = occupancy_map.minVoxelValue();
   const auto voxel_max = occupancy_map.maxVoxelValue();
   const auto saturation_min = occupancy_map.saturateAtMinValue() ? voxel_min : std::numeric_limits<float>::lowest();
-  const auto saturation_max = occupancy_map.saturateAtMinValue() ? voxel_max : std::numeric_limits<float>::max();
+  const auto saturation_max = occupancy_map.saturateAtMaxValue() ? voxel_max : std::numeric_limits<float>::max();
   const auto adaptation_rate = map_->adaptationRate();
   const auto sensor_noise = map_->sensorNoise();
   const auto ndt_sample_threshold = map_->ndtSampleThreshold();
@@ -205,8 +205,8 @@ size_t RayMapperNdt::integrateRays(const glm::dvec3 *rays, size_t element_count,
       float adjusted_value = initial_value;
 
       const bool reset_mean = calculateHitWithCovariance(
-        cov, &adjusted_value, sample, mean, voxel_mean->count, hit_value, unobservedOccupancyValue(),
-        float(resolution), map_->reinitialiseCovarianceTheshold(), map_->reinitialiseCovariancePointCount());
+        cov, &adjusted_value, sample, mean, voxel_mean->count, hit_value, unobservedOccupancyValue(), float(resolution),
+        map_->reinitialiseCovarianceTheshold(), map_->reinitialiseCovariancePointCount());
       occupancyAdjustUp(occupancy_value, initial_value, adjusted_value, unobservedOccupancyValue(), voxel_max,
                         saturation_min, saturation_max, stop_adjustments);
 
