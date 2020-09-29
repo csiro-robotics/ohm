@@ -35,7 +35,7 @@ namespace
                                       const glm::i16vec3 &region_key,
                                       ClosestResult &closest)  // NOLINT(google-runtime-references)
   {
-    static const float invalid_occupancy_value = unobservedOccupancyValue();
+    const float invalid_occupancy_value = unobservedOccupancyValue();
     const OccupancyMapDetail &map_data = *map.detail();
     const auto chunk_search = map_data.chunks.find(region_key);
     glm::vec3 query_origin, voxel_vector;
