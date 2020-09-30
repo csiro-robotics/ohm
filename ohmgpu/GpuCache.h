@@ -21,7 +21,7 @@ namespace gputil
 namespace ohm
 {
   struct GpuCacheDetail;
-  struct GpuCacheParams;
+  struct GpuLayerCacheParams;
   class GpuLayerCache;
   class OccupancyMap;
 
@@ -60,13 +60,14 @@ namespace ohm
     static const size_t kGiB = 1024ull * 1024ull * 1024ull;
     /// The default byte size of each GPU layer if not specified.
     static const size_t kDefaultLayerMemSize = kGiB / 2;
+    /// Default total memory size to target.
+    static const size_t kDefaultTargetMemSize = 2 * kGiB;
 
     /// Instantiate the @c GpuCache for @p map.
     /// @param map The map to cache data for.
     /// @param default_gpu_mem_size The default size of allocated @c GpuLayerCache objects if not specified.
     GpuCache(OccupancyMap &map,  // NOLINT(google-runtime-references)
-             size_t default_gpu_mem_size = kDefaultLayerMemSize,
-             unsigned flags = 0);
+             size_t target_gpu_layer_size = kDefaultTargetMemSize, unsigned flags = 0);
 
     /// Destructor, cleaning up all owned @c GpuLayerCache objects.
     ~GpuCache() override;
@@ -89,7 +90,7 @@ namespace ohm
 
     /// Query the default byte size of each layer cache.
     /// @return The default size of for a layer cache in bytes.
-    size_t defaultGpuMemSize() const;
+    size_t targetGpuLayerSize() const;
 
     /// Returns the number of indexable layers. Some may be null.
     /// @return The number of indexable layers.
@@ -100,7 +101,7 @@ namespace ohm
     /// The @p id should always be in a relative low range as a @c vector is used to allocate and access
     /// cache pointers.
     ///
-    /// See @c GpuCacheParams for configuration details.
+    /// See @c GpuLayerCacheParams for configuration details.
     ///
     /// Fails when:
     /// - A layer cache with @p id already exists.
@@ -108,7 +109,7 @@ namespace ohm
     /// @param id The unique ID for the cache.
     /// @param params Cache configuration.
     /// @return A pointer to the new cache on success, null on failure.
-    GpuLayerCache *createCache(unsigned id, const GpuCacheParams &params);
+    GpuLayerCache *createCache(unsigned id, const GpuLayerCacheParams &params);
 
     /// Request or create a new @c GpuLayerCache.
     ///

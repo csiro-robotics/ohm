@@ -208,11 +208,11 @@ namespace
 
 GpuCache *ohm::gpumap::enableGpu(OccupancyMap &map)
 {
-  return enableGpu(map, GpuCache::kDefaultLayerMemSize, kGpuAllowMappedBuffers);
+  return enableGpu(map, GpuCache::kDefaultTargetMemSize, kGpuAllowMappedBuffers);
 }
 
 
-GpuCache *ohm::gpumap::enableGpu(OccupancyMap &map, size_t layer_gpu_mem_size, unsigned flags)
+GpuCache *ohm::gpumap::enableGpu(OccupancyMap &map, size_t target_gpu_mem_size, unsigned flags)
 {
   OccupancyMapDetail &map_imp = *map.detail();
   if (map_imp.gpu_cache)
@@ -220,12 +220,7 @@ GpuCache *ohm::gpumap::enableGpu(OccupancyMap &map, size_t layer_gpu_mem_size, u
     return static_cast<GpuCache *>(map_imp.gpu_cache);
   }
 
-  if (layer_gpu_mem_size == 0)
-  {
-    layer_gpu_mem_size = GpuCache::kDefaultLayerMemSize;
-  }
-
-  initialiseGpuCache(map, layer_gpu_mem_size, flags);
+  initialiseGpuCache(map, target_gpu_mem_size, flags);
   return static_cast<GpuCache *>(map_imp.gpu_cache);
 }
 
@@ -278,7 +273,7 @@ GpuMap::GpuMap(GpuMapDetail *detail, unsigned expected_element_count, size_t gpu
     imp_->region_key_buffers[i] =
       gputil::Buffer(gpu_cache.gpu(), sizeof(gputil::int3) * prealloc_region_count, gputil::kBfReadHost);
 
-  // Add structures for managing uploads of regino offsets to the cache buffer.
+    // Add structures for managing uploads of regino offsets to the cache buffer.
     imp_->voxel_upload_info[i].emplace_back(VoxelUploadInfo(kGcIdOccupancy, gpu_cache.gpu()));
     if (imp_->map->voxelMeanEnabled())
     {

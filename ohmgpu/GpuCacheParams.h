@@ -27,7 +27,7 @@ namespace ohm
   };
 
   /// Parameters used in creating a @c GpuCacheLayer in @c GpuCache::createCache().
-  struct ohmgpu_API GpuCacheParams
+  struct ohmgpu_API GpuLayerCacheParams
   {
     /// The size (bytes) of the GPU cache buffer. Use zero to choose the default size specified by the @c GpuCache.
     size_t gpu_mem_size = 0;
@@ -37,9 +37,9 @@ namespace ohm
     unsigned flags = kGcfDefaultFlags;
     GpuCachePostSyncHandler on_sync;
 
-    GpuCacheParams() = default;
-    GpuCacheParams(size_t mem_size, int layer, unsigned flags,
-                   const GpuCachePostSyncHandler &on_sync = GpuCachePostSyncHandler())
+    GpuLayerCacheParams() = default;
+    GpuLayerCacheParams(size_t mem_size, int layer, unsigned flags,
+                        const GpuCachePostSyncHandler &on_sync = GpuCachePostSyncHandler())
       : gpu_mem_size(mem_size)
       , map_layer(layer)
       , flags(flags)

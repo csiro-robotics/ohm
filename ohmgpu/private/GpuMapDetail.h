@@ -128,7 +128,7 @@ namespace ohm
   /// Ensure the GPU cache is initialised. Ok to call if already initialised.
   /// @param flags @c GpuFlag values.
   GpuCache *initialiseGpuCache(OccupancyMap &map,  // NOLINT(google-runtime-references)
-                               size_t layer_gpu_mem_size, unsigned flags);
+                               size_t target_gpu_mem_size, unsigned flags);
 
 
   /// (Re)initialise the given GPU @p gpu_cache to reflect the given @p map layout.

@@ -29,6 +29,7 @@ set(SOURCES
   GpuCache.h
   GpuCacheParams.h
   GpuCachePostSyncHandler.h
+  GpuCacheStats.h
   GpuKey.h
   GpuLayerCache.cpp
   GpuLayerCache.h
@@ -73,6 +74,7 @@ set(PUBLIC_HEADERS
   GpuCache.h
   GpuCacheParams.h
   GpuCachePostSyncHandler.h
+  GpuCacheStats.h
   GpuKey.h
   GpuLayerCache.h
   GpuMap.h
