@@ -148,7 +148,8 @@ void VoxelBlock::compressInto(std::vector<uint8_t> &compression_buffer)
 {
   std::unique_lock<Mutex> guard(access_guard_);
 
-  // Handle uninitialised buffer.
+  // Handle uninitialised buffer. We may not have initialised the buffer yet, but this call requires data to be
+  // compressed such as when used for serialisation to disk.
   if (voxel_bytes_.empty())
   {
     initUncompressed(voxel_bytes_, map_->layout.layer(layer_index_));
@@ -166,6 +167,7 @@ const VoxelBlock::Clock::time_point VoxelBlock::releaseAfter() const
 
 void VoxelBlock::updateLayerIndex(unsigned layer_index)
 {
+  std::unique_lock<Mutex> guard(access_guard_);
   layer_index_ = layer_index;
 }
 
@@ -348,7 +350,6 @@ bool VoxelBlock::uncompressUnguarded(std::vector<uint8_t> &expanded_buffer)
 
 void VoxelBlock::initUncompressed(std::vector<uint8_t> &expanded_buffer, const MapLayer &layer)
 {
-  // Potential optimisation issue: there was a sporradic crash here where teh
   expanded_buffer.resize(uncompressedByteSize());
   layer.clear(expanded_buffer.data(), map_->region_voxel_dimensions);
 }

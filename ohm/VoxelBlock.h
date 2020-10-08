@@ -49,6 +49,18 @@ namespace ohm
     friend VoxelBlockCompressionQueue;
 
   public:
+    /// Deleter object for correctly releasing a @c VoxelBlock
+    class ohm_API Deleter
+    {
+    public:
+      /// Deletion operator calling through to @c VoxelBlock::destroy()
+      /// @param block The object to destroy.
+      inline void operator()(VoxelBlock *block) { block->destroy(); }
+    };
+
+    /// Unique pointer definition for a @c VoxelBlock . Ensures correct custom deletion.
+    using Ptr = std::unique_ptr<VoxelBlock, Deleter>;
+
     /// The mutex used to protect threaded access.
     using Mutex = ohm::SpinMutex;
     /// The clock to use for tracking release time.
@@ -126,6 +138,8 @@ namespace ohm
     /// background thread releases it.
     void destroy();
 
+    inline static void destroy(VoxelBlock *block) { block->destroy(); }
+
     /// Size of a single voxel in the map.
     /// @return The size of a voxel in bytes.
     size_t perVoxelByteSize() const;
@@ -145,6 +159,9 @@ namespace ohm
     void release();
 
     /// Compress the voxel data into @p compression_buffer. Writes the current voxel bytes when already compressed.
+    ///
+    /// @note This may initialise the buffer if empty, so that this method can be used for serialisation of the map to
+    ///   disk.
     /// @param[in,out] compression_buffer Buffer to write compression data into. Resized to the compressed data size.
     void compressInto(std::vector<uint8_t> &compression_buffer);
 
@@ -197,13 +214,26 @@ namespace ohm
     /// @return True on success when there are no retained references.
     bool setCompressedBytes(const std::vector<uint8_t> &compressed_voxels);
 
+    /// Voxel data.
+    ///
+    /// This data can be in one of three states:
+    /// 1. Empty implying no changes have been made from the default initialised values.
+    /// 2. Uncompressed when not empty and `flags_ & kFUncompressed` set.
+    /// 3. Compressed when not emtpy and `flags_ & kFUncompressed` clear.
     std::vector<uint8_t> voxel_bytes_;
+    /// Data access mutex
     mutable Mutex access_guard_;
-    volatile unsigned reference_count_ = 0;
+    /// Number of oustandting @c retain() calls. Cannot be compressed while no zero.
+    std::atomic_uint32_t reference_count_ = 0;
+    /// Block status @c Flag values.
+    std::atomic_uint32_t flags_ = 0;
+    /// Timepoint after which the block may be compressed.
     Clock::time_point release_after_;
-    volatile unsigned flags_ = 0;
+    /// The owning occupancy map detail.
     const OccupancyMapDetail *map_ = nullptr;
+    /// The index into the @c MapLayout represented by this voxel data.
     unsigned layer_index_ = 0;
+    /// Byte size of this voxel block when uncompressed.
     size_t uncompressed_byte_size_ = 0;
   };
 

@@ -8,7 +8,6 @@
 #include "DefaultLayer.h"
 #include "MapLayer.h"
 #include "MapLayout.h"
-#include "VoxelBlock.h"
 #include "VoxelBuffer.h"
 #include "VoxelOccupancy.h"
 
@@ -26,12 +25,12 @@ MapChunk::MapChunk(const MapRegion &region, const OccupancyMapDetail &map)
   this->map = &map;
 
   const MapLayout &layout = this->layout();
-  voxel_blocks = new VoxelBlock *[layout.layerCount()];
-  touched_stamps = new std::atomic_uint64_t[layout.layerCount()];
+  voxel_blocks.resize(layout.layerCount());
+  touched_stamps = std::make_unique<std::atomic_uint64_t[]>(layout.layerCount());
   for (size_t i = 0; i < layout.layerCount(); ++i)
   {
     const MapLayer &layer = layout.layer(i);
-    voxel_blocks[i] = new VoxelBlock(&map, layer);
+    voxel_blocks[i].reset(new VoxelBlock(&map, layer));
     touched_stamps[i] = 0u;
   }
 }
@@ -48,25 +47,13 @@ MapChunk::MapChunk(MapChunk &&other) noexcept
   , first_valid_index(std::exchange(other.first_valid_index, ~0u))
   , touched_time(std::exchange(other.touched_time, 0))
   , dirty_stamp(std::exchange(other.dirty_stamp, 0))
-  , touched_stamps(std::exchange(other.touched_stamps, nullptr))
-  , voxel_blocks(std::exchange(other.voxel_blocks, nullptr))
+  , touched_stamps(std::move(other.touched_stamps))
+  , voxel_blocks(std::move(other.voxel_blocks))
   , flags(std::exchange(other.flags, 0))
 {}
 
 
-MapChunk::~MapChunk()
-{
-  if (map)
-  {
-    const MapLayout &layout = map->layout;
-    for (unsigned i = 0; i < layout.layerCount(); ++i)
-    {
-      voxel_blocks[i]->destroy();
-    }
-  }
-  delete[] voxel_blocks;
-  delete[] touched_stamps;
-}
+MapChunk::~MapChunk() = default;
 
 
 const MapLayout &MapChunk::layout() const
@@ -106,18 +93,13 @@ void MapChunk::updateLayout(const MapLayout *new_layout, const glm::uvec3 &regio
                             const std::vector<std::pair<const MapLayer *, const MapLayer *>> &preserve_layer_mapping)
 {
   // Allocate voxel pointer array.
-  VoxelBlock **new_voxel_blocks = new VoxelBlock *[new_layout->layerCount()];
-  std::atomic_uint64_t *new_touched_stamps = new std::atomic_uint64_t[new_layout->layerCount()];
-
-  // Initialise voxel maps to null so we can track what's missed by preserve_layer_mapping.
-  for (size_t i = 0; i < new_layout->layerCount(); ++i)
-  {
-    new_voxel_blocks[i] = nullptr;
-  }
+  std::vector<VoxelBlock::Ptr> new_voxel_blocks(new_layout->layerCount());
+  std::unique_ptr<std::atomic_uint64_t[]> new_touched_stamps =
+    std::make_unique<std::atomic_uint64_t[]>(new_layout->layerCount());
 
   for (const auto &mapping : preserve_layer_mapping)
   {
-    new_voxel_blocks[mapping.second->layerIndex()] = voxel_blocks[mapping.first->layerIndex()];
+    new_voxel_blocks[mapping.second->layerIndex()].swap(voxel_blocks[mapping.first->layerIndex()]);
     new_touched_stamps[mapping.second->layerIndex()] = touched_stamps[mapping.first->layerIndex()].load();
     // Memory ownership moved: nullify to prevent release.
     voxel_blocks[mapping.first->layerIndex()] = nullptr;
@@ -130,7 +112,7 @@ void MapChunk::updateLayout(const MapLayout *new_layout, const glm::uvec3 &regio
     if (!new_voxel_blocks[i])
     {
       // Initilised layer.
-      new_voxel_blocks[i] = new VoxelBlock(map, layer);
+      new_voxel_blocks[i].reset(new VoxelBlock(map, layer));
       new_touched_stamps[i] = 0u;
     }
     else
@@ -152,13 +134,9 @@ void MapChunk::updateLayout(const MapLayout *new_layout, const glm::uvec3 &regio
     }
   }
 
-  // Release pointer arrays.
-  delete[] voxel_blocks;
-  delete[] touched_stamps;
-
   // Update pointers
-  voxel_blocks = new_voxel_blocks;
-  touched_stamps = new_touched_stamps;
+  std::swap(voxel_blocks, new_voxel_blocks);
+  std::swap(touched_stamps, new_touched_stamps);
   // We do nothing to update the layout() to new_layout. This object is owned by the occupancy map which we assume is
   // about to change internally. It's address will remain unchanged.
 }
@@ -198,7 +176,7 @@ void MapChunk::searchAndUpdateFirstValid(const glm::ivec3 &region_voxel_dimensio
 bool MapChunk::validateFirstValid(const glm::ivec3 &region_voxel_dimensions) const
 {
   const MapLayout &layout = this->layout();
-  VoxelBuffer<const VoxelBlock> voxel_buffer(voxel_blocks[layout.occupancyLayer()]);
+  VoxelBuffer<const VoxelBlock> voxel_buffer(voxel_blocks[layout.occupancyLayer()].get());
   const size_t voxel_stride = layout.layer(layout.occupancyLayer()).voxelByteSize();
   const uint8_t *voxel_mem = voxel_buffer.voxelMemory();
 
