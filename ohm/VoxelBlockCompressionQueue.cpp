@@ -48,7 +48,7 @@ void VoxelBlockCompressionQueue::retain()
 void VoxelBlockCompressionQueue::release()
 {
   std::unique_lock<VoxelBlockCompressionQueueDetail::Mutex> guard(imp_->ref_lock);
-  unsigned ref = --imp_->reference_count;
+  int ref = --imp_->reference_count;
   if (ref == 0)
   {
     joinCurrentThread();

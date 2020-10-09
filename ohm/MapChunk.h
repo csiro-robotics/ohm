@@ -212,9 +212,8 @@ namespace ohm
     /// updated with the information from @p new_layout.
     ///
     /// @param new_layout The new memory layout for voxel chunks.
-    /// @param region_dim The dimensions of each region (voxels).
     /// @param preserve_layer_mapping Indicates which layers from @p layout are mapped to new layers in @p new_layout.
-    void updateLayout(const MapLayout *new_layout, const glm::uvec3 &region_dim,
+    void updateLayout(const MapLayout *new_layout,
                       const std::vector<std::pair<const MapLayer *, const MapLayer *>> &preserve_layer_mapping);
 
     /// Returns true if the chunk contains any valid voxels. A valid voxel is one who's value has

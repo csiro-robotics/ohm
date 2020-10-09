@@ -13,6 +13,7 @@
 #include <glm/fwd.hpp>
 #include <glm/vec3.hpp>
 
+#include <atomic>
 #include <chrono>
 #include <mutex>
 #include <vector>
@@ -224,9 +225,9 @@ namespace ohm
     /// Data access mutex
     mutable Mutex access_guard_;
     /// Number of oustandting @c retain() calls. Cannot be compressed while no zero.
-    std::atomic_uint32_t reference_count_ = 0;
+    std::atomic_uint32_t reference_count_{ 0 };
     /// Block status @c Flag values.
-    std::atomic_uint32_t flags_ = 0;
+    std::atomic_uint32_t flags_{ 0 };
     /// Timepoint after which the block may be compressed.
     Clock::time_point release_after_;
     /// The owning occupancy map detail.
