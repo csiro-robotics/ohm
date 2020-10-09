@@ -26,6 +26,7 @@ set(SOURCES
   private/SerialiseUtil.h
   private/VoxelAlgorithms.cpp
   private/VoxelAlgorithms.h
+  private/VoxelBlockCompressionQueueDetail.h
   private/VoxelLayoutDetail.h
   serialise/MapSerialiseV0.1.cpp
   serialise/MapSerialiseV0.1.h
@@ -88,6 +89,8 @@ set(SOURCES
   MapRegionCache.h
   MapSerialise.cpp
   MapSerialise.h
+  Mutex.cpp
+  Mutex.h
   NdtMap.cpp
   NdtMap.h
   NearestNeighbours.cpp
@@ -125,6 +128,12 @@ set(SOURCES
   UpAxis.h
   Voxel.cpp
   Voxel.h
+  VoxelBlock.cpp
+  VoxelBlock.h
+  VoxelBlockCompressionQueue.cpp
+  VoxelBlockCompressionQueue.h
+  VoxelBuffer.cpp
+  VoxelBuffer.h
   VoxelData.h
   VoxelLayout.cpp
   VoxelLayout.h
@@ -170,6 +179,7 @@ set(PUBLIC_HEADERS
   MapRegionCache.h
   MapRegion.h
   MapSerialise.h
+  Mutex.h
   NdtMap.h
   NearestNeighbours.h
   OccupancyMap.h
@@ -192,6 +202,9 @@ set(PUBLIC_HEADERS
   TriangleNeighbours.h
   UpAxis.h
   Voxel.h
+  VoxelBlock.h
+  VoxelBlockCompressionQueue.h
+  VoxelBuffer.h
   VoxelData.h
   VoxelLayout.h
   VoxelMean.h

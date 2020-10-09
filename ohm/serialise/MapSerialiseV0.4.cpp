@@ -15,6 +15,8 @@
 #include "MapLayer.h"
 #include "MapSerialise.h"
 #include "Stream.h"
+#include "VoxelBlock.h"
+#include "VoxelBuffer.h"
 
 namespace ohm
 {
@@ -51,11 +53,14 @@ namespace ohm
         for (size_t i = 0; i < layout.layerCount(); ++i)
         {
           const MapLayer &layer = layout.layer(i);
+          VoxelBuffer<VoxelBlock> voxel_buffer(chunk.voxel_blocks[i]);
+          // Get the layer memory.
+          uint8_t *layer_mem = voxel_buffer.voxelMemory();
 
           if (layer.flags() & MapLayer::kSkipSerialise)
           {
             // Not to be serialised. Clear instead.
-            layer.clear(layer.voxels(chunk), detail.region_voxel_dimensions);
+            layer.clear(layer_mem, detail.region_voxel_dimensions);
             continue;
           }
 
@@ -64,8 +69,6 @@ namespace ohm
 
           chunk.touched_stamps[i] = layer_touched_stamp;
 
-          // Get the layer memory.
-          uint8_t *layer_mem = layer.voxels(chunk);
           const size_t node_count = layer.volume(detail.region_voxel_dimensions);
           const size_t node_byte_count = layer.voxelByteSize() * node_count;
           if (node_byte_count != unsigned(node_byte_count))

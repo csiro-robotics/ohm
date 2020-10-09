@@ -16,6 +16,8 @@
 #include "OccupancyType.h"
 #include "RayMapperOccupancy.h"
 #include "VoxelOccupancy.h"
+#include "VoxelBlockCompressionQueue.h"
+#include "VoxelBuffer.h"
 
 #include "OccupancyUtil.h"
 
@@ -185,6 +187,8 @@ MapChunk *OccupancyMap::iterator::chunk()
 OccupancyMap::OccupancyMap(double resolution, const glm::u8vec3 &region_voxel_dimensions, MapFlag flags)
   : imp_(new OccupancyMapDetail)
 {
+  // Start the voxel map compression queue thread.
+  VoxelBlockCompressionQueue::instance().retain();
   imp_->resolution = resolution;
   imp_->region_voxel_dimensions.x =
     (region_voxel_dimensions.x > 0) ? region_voxel_dimensions.x : OHM_DEFAULT_CHUNK_DIM_X;
@@ -237,6 +241,8 @@ OccupancyMap::~OccupancyMap()
     clear();
     delete imp_;
   }
+  // Release the voxel map compression queue thread.
+  VoxelBlockCompressionQueue::instance().release();
 }
 
 OccupancyMap::iterator OccupancyMap::begin()
@@ -544,7 +550,7 @@ void OccupancyMap::updateLayout(const MapLayout &new_layout, bool preserve_map)
     // Walk the chunks preserving which layers we can.
     for (auto &chunk : imp_->chunks)
     {
-      chunk.second->updateLayout(&new_layout, imp_->region_voxel_dimensions, layer_mapping);
+      chunk.second->updateLayout(&new_layout, layer_mapping);
     }
   }
   else
@@ -962,12 +968,12 @@ OccupancyMap *OccupancyMap::clone(const glm::dvec3 &min_ext, const glm::dvec3 &m
 
       for (unsigned i = 0; i < imp_->layout.layerCount(); ++i)
       {
-        const MapLayer &layer = src_chunk->layout->layer(i);
         dst_chunk->touched_stamps[i] = static_cast<uint64_t>(src_chunk->touched_stamps[i]);
-        if (src_chunk->voxel_maps[i])
+        if (src_chunk->voxel_blocks[i])
         {
-          memcpy(dst_chunk->voxel_maps[i], src_chunk->voxel_maps[i],
-                 layer.layerByteSize(imp_->region_voxel_dimensions));
+          VoxelBuffer<const VoxelBlock> src_buffer(src_chunk->voxel_blocks[i]);
+          VoxelBuffer<VoxelBlock> dst_buffer(dst_chunk->voxel_blocks[i]);
+          memcpy(dst_buffer.voxelMemory(), src_buffer.voxelMemory(), dst_buffer.voxelMemorySize());
         }
       }
     }
@@ -1162,8 +1168,8 @@ Key OccupancyMap::firstIterationKey() const
 
 MapChunk *OccupancyMap::newChunk(const Key &for_key)
 {
-  MapChunk *chunk = new MapChunk(MapRegion(voxelCentreGlobal(for_key), imp_->origin, imp_->region_spatial_dimensions),
-                                 imp_->layout, imp_->region_voxel_dimensions);
+  MapChunk *chunk =
+    new MapChunk(MapRegion(voxelCentreGlobal(for_key), imp_->origin, imp_->region_spatial_dimensions), *imp_);
   return chunk;
 }
 

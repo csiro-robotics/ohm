@@ -13,6 +13,7 @@
 #include "ohm/MapInfo.h"
 #include "ohm/MapLayout.h"
 #include "ohm/MapRegion.h"
+#include "ohm/Mutex.h"
 #include "ohm/RayFilter.h"
 
 #include <ohmutil/VectorHash.h>
@@ -25,10 +26,6 @@
 #ifdef __GNUC__
 #pragma GCC diagnostic pop
 #endif  // __GNUC__
-
-#ifdef OHM_THREADS
-#include <tbb/spin_mutex.h>
-#endif  // OHM_THREADS
 
 #include <mutex>
 #include <unordered_map>
@@ -44,12 +41,8 @@ namespace ohm
   /// Internal details associated with an @c OccupancyMap .
   struct ohm_API OccupancyMapDetail
   {
-#ifdef OHM_THREADS
     /// Mutex type to use to protect map access.
-    using Mutex = tbb::spin_mutex;
-#else   // OHM_THREADS
-    using Mutex = std::mutex;
-#endif  // OHM_THREADS
+    using Mutex = ohm::Mutex;
 
     /// A global origin offset for data in the map. All data read from the map has this origin added.
     glm::dvec3 origin = glm::dvec3(0);

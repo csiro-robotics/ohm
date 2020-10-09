@@ -18,6 +18,7 @@
 #include "MapLayout.h"
 #include "NdtMap.h"
 #include "RayFilter.h"
+#include "VoxelBuffer.h"
 #include "VoxelData.h"
 
 #include <ohmutil/LineWalk.h>
@@ -30,48 +31,17 @@ RayMapperNdt::RayMapperNdt(NdtMap *map)
   , mean_layer_(map_->map().layout().meanLayer())
   , covariance_layer_(map_->map().layout().covarianceLayer())
 {
-  OccupancyMap &omap = map_->map();
-  occupancy_dim_ = omap.layout().layer(occupancy_layer_).dimensions(omap.regionVoxelDimensions());
-  valid_ = true;
-  // Validate the mean layer size.
-  if (mean_layer_ >= 0)
-  {
-    if (omap.layout().layer(mean_layer_).voxelByteSize() != sizeof(VoxelMean))
-    {
-      // Unexpected layer size.
-      valid_ = false;
-    }
-    else if (omap.layout().layer(mean_layer_).dimensions(omap.regionVoxelDimensions()) != occupancy_dim_)
-    {
-      // Unexpected layer dimensions.
-      valid_ = false;
-    }
-  }
-  else
-  {
-    // Missing layer
-    valid_ = false;
-  }
+  OccupancyMap *map_ptr = &map_->map();
 
-  // Validate the covariance layer size.
-  if (covariance_layer_ >= 0)
-  {
-    if (omap.layout().layer(covariance_layer_).voxelByteSize() != sizeof(CovarianceVoxel))
-    {
-      // Unexpected layer size.
-      valid_ = false;
-    }
-    else if (omap.layout().layer(covariance_layer_).dimensions(omap.regionVoxelDimensions()) != occupancy_dim_)
-    {
-      // Unexpected layer dimensions.
-      valid_ = false;
-    }
-  }
-  else
-  {
-    // Missing layer
-    valid_ = false;
-  }
+  Voxel<const float> occupancy(map_ptr, occupancy_layer_);
+  Voxel<const VoxelMean> mean(map_ptr, mean_layer_);
+  Voxel<const CovarianceVoxel> cov(map_ptr, covariance_layer_);
+
+  occupancy_dim_ = (occupancy.isLayerValid()) ? occupancy.layerDim() : occupancy_dim_;
+
+  // Validate we have occupancy, mean and covariance layers and their dimensions match.
+  valid_ = occupancy.isLayerValid() && mean.isLayerValid() && cov.isLayerValid() &&
+           occupancy.layerDim() == mean.layerDim() && occupancy.layerDim() == cov.layerDim();
 }
 
 
@@ -82,6 +52,9 @@ size_t RayMapperNdt::integrateRays(const glm::dvec3 *rays, size_t element_count,
 {
   KeyList keys;
   MapChunk *last_chunk = nullptr;
+  VoxelBuffer<VoxelBlock> occupancy_buffer;
+  VoxelBuffer<VoxelBlock> mean_buffer;
+  VoxelBuffer<VoxelBlock> cov_buffer;
   bool stop_adjustments = false;
 
   OccupancyMap &occupancy_map = map_->map();
@@ -98,8 +71,8 @@ size_t RayMapperNdt::integrateRays(const glm::dvec3 *rays, size_t element_count,
   const auto voxel_max = occupancy_map.maxVoxelValue();
   const auto saturation_min = occupancy_map.saturateAtMinValue() ? voxel_min : std::numeric_limits<float>::lowest();
   const auto saturation_max = occupancy_map.saturateAtMaxValue() ? voxel_max : std::numeric_limits<float>::max();
-  const auto adaptation_rate = map_->adaptationRate();
   const auto sensor_noise = map_->sensorNoise();
+  const auto ndt_adaptation_rate = map_->adaptationRate();
   const auto ndt_sample_threshold = map_->ndtSampleThreshold();
 
   // Mean and covariance layers must exists.
@@ -134,11 +107,17 @@ size_t RayMapperNdt::integrateRays(const glm::dvec3 *rays, size_t element_count,
     MapChunk *chunk = (last_chunk && key.regionKey() == last_chunk->region.coord) ?
                         last_chunk :
                         occupancy_map.region(key.regionKey(), true);
+    if (chunk != last_chunk)
+    {
+      occupancy_buffer = VoxelBuffer<VoxelBlock>(chunk->voxel_blocks[occupancy_layer]);
+      mean_buffer = VoxelBuffer<VoxelBlock>(chunk->voxel_blocks[mean_layer]);
+      cov_buffer = VoxelBuffer<VoxelBlock>(chunk->voxel_blocks[covariance_layer_]);
+    }
     last_chunk = chunk;
     const unsigned voxel_index = ::voxelIndex(key, occupancy_dim);
-    float *occupancy_value = reinterpret_cast<float *>(chunk->voxel_maps[occupancy_layer]) + voxel_index;
-    const CovarianceVoxel *cov = reinterpret_cast<CovarianceVoxel *>(chunk->voxel_maps[covariance_layer]) + voxel_index;
-    const VoxelMean *voxel_mean = reinterpret_cast<VoxelMean *>(chunk->voxel_maps[mean_layer]) + voxel_index;
+    float *occupancy_value = reinterpret_cast<float *>(occupancy_buffer.voxelMemory()) + voxel_index;
+    const CovarianceVoxel *cov = reinterpret_cast<const CovarianceVoxel *>(cov_buffer.voxelMemory()) + voxel_index;
+    const VoxelMean *voxel_mean = reinterpret_cast<const VoxelMean *>(mean_buffer.voxelMemory()) + voxel_index;
     const glm::dvec3 mean =
       subVoxelToLocalCoord<glm::dvec3>(voxel_mean->coord, resolution) + occupancy_map.voxelCentreGlobal(key);
     const float initial_value = *occupancy_value;
@@ -146,7 +125,7 @@ size_t RayMapperNdt::integrateRays(const glm::dvec3 *rays, size_t element_count,
 
     const bool is_occupied = (initial_value != unobservedOccupancyValue() && initial_value > occupancy_threshold_value);
     calculateMissNdt(cov, &adjusted_value, start, sample, mean, voxel_mean->count, unobservedOccupancyValue(),
-                     miss_value, adaptation_rate, sensor_noise, ndt_sample_threshold);
+                     miss_value, ndt_adaptation_rate, sensor_noise, ndt_sample_threshold);
     occupancyAdjustDown(occupancy_value, initial_value, adjusted_value, unobservedOccupancyValue(), voxel_min,
                         saturation_min, saturation_max, stop_adjustments);
     chunk->updateFirstValid(voxel_index);
@@ -195,12 +174,18 @@ size_t RayMapperNdt::integrateRays(const glm::dvec3 *rays, size_t element_count,
       MapChunk *chunk = (last_chunk && key.regionKey() == last_chunk->region.coord) ?
                           last_chunk :
                           occupancy_map.region(key.regionKey(), true);
+      if (chunk != last_chunk)
+      {
+        occupancy_buffer = VoxelBuffer<VoxelBlock>(chunk->voxel_blocks[occupancy_layer]);
+        mean_buffer = VoxelBuffer<VoxelBlock>(chunk->voxel_blocks[mean_layer]);
+        cov_buffer = VoxelBuffer<VoxelBlock>(chunk->voxel_blocks[covariance_layer_]);
+      }
       last_chunk = chunk;
       const unsigned voxel_index = ::voxelIndex(key, occupancy_dim);
       const glm::dvec3 voxel_centre = occupancy_map.voxelCentreGlobal(key);
-      float *occupancy_value = reinterpret_cast<float *>(chunk->voxel_maps[occupancy_layer]) + voxel_index;
-      CovarianceVoxel *cov = reinterpret_cast<CovarianceVoxel *>(chunk->voxel_maps[covariance_layer]) + voxel_index;
-      VoxelMean *voxel_mean = reinterpret_cast<VoxelMean *>(chunk->voxel_maps[mean_layer]) + voxel_index;
+      float *occupancy_value = reinterpret_cast<float *>(occupancy_buffer.voxelMemory()) + voxel_index;
+      CovarianceVoxel *cov = reinterpret_cast<CovarianceVoxel *>(cov_buffer.voxelMemory()) + voxel_index;
+      VoxelMean *voxel_mean = reinterpret_cast<VoxelMean *>(mean_buffer.voxelMemory()) + voxel_index;
       const glm::dvec3 mean = subVoxelToLocalCoord<glm::dvec3>(voxel_mean->coord, resolution) + voxel_centre;
       const float initial_value = *occupancy_value;
       float adjusted_value = initial_value;

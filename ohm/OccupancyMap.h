@@ -91,6 +91,15 @@ namespace ohm
   /// The local key is a fine indexer which resolves to a specific voxel within a @c MapRegion . Region indexing is
   /// limited by the size of an @c int16_t supporting a spatial range of
   /// ~`2^15 * regionVoxelDimensions() * resolution()` while the local key is limited by @c regionVoxelDimensions() .
+  ///
+  /// @par Compression
+  /// The dense memory architecture used by this class creates an inherent memory overhead. Regions are readily
+  /// sparsely populated, but the memory allocation for a region is fixed. @c MapFlag::kCompressed may be used alleviate
+  /// the memory usage. In this mode an @c OccupancyMap uses a background compression thread to compress voxel data. The
+  /// background compression thread compresses regions which have not been touched for some time.
+  ///
+  /// The background compression does impose a some CPU overhead and latency especially when iterating the map as a
+  /// whole to ensure voxel data are uncompressed when needed. The overhead is minimal when not using compression.
   class ohm_API OccupancyMap
   {
   public:
@@ -261,7 +270,7 @@ namespace ohm
 
     /// @overload
     OccupancyMap(double resolution = 1.0, const glm::u8vec3 &region_voxel_dimensions = glm::u8vec3(0, 0, 0),
-                 MapFlag flags = MapFlag::kNone);
+                 MapFlag flags = MapFlag::kDefault);
 
     /// @overload
     OccupancyMap(double resolution, MapFlag flags, const MapLayout &seed_layout);
@@ -808,7 +817,7 @@ namespace ohm
     /// @param regions The list to add to.
     unsigned collectDirtyRegions(
       uint64_t from_stamp, std::vector<std::pair<uint64_t, glm::i16vec3>> &regions  // NOLINT(google-runtime-references)
-      ) const;
+    ) const;
 
     /// Experimental: calculate the extents of regions which have been changed since @c from_stamp .
     /// @param from_stamp The base stamp used to determine dirty regions.

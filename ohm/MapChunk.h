@@ -10,6 +10,7 @@
 
 #include "Key.h"
 #include "MapRegion.h"
+#include "VoxelBlock.h"
 
 #include <algorithm>
 #include <atomic>
@@ -20,6 +21,7 @@ namespace ohm
 {
   class MapLayer;
   class MapLayout;
+  struct OccupancyMapDetail;
 
   /// Convert a 3D index into a @c MapChunk into a linear index into the chunk's voxels.
   /// @param x The index into the chunk along the X axis.
@@ -154,8 +156,8 @@ namespace ohm
   {
     /// Defines the spatial region covered by the chunk.
     MapRegion region = MapRegion{};
-    /// Describes the layers and voxel layout of the chunk (from the map as a whole).
-    const MapLayout *layout = nullptr;
+    /// Details of the map to which this chunk belongs.
+    const OccupancyMapDetail *map = nullptr;
     /// Index of the first voxel with valid data: occupied or free, but not unobserved.
     unsigned first_valid_index = ~0u;
     /// Last timestamp the occupancy layer of this chunk was modified.
@@ -167,21 +169,26 @@ namespace ohm
 
     /// A monotonic stamp value for each @c voxelMap, used to indicate when the layer was last updated.
     /// The map maintains the most up to date stamp: @c OccupancyMap::stamp().
-    std::atomic_uint64_t *touched_stamps = nullptr;
+    /// @note It is not possible to have a @c std::vector of atomic types. We use a unique pointer to an arrray
+    /// instead.
+    std::unique_ptr<std::atomic_uint64_t[]> touched_stamps;
 
-    /// Array of voxel maps. Semantics are defined in the owning @c OccupancyMap.
+    /// Array of voxel blocks. Layer semantics are defined in the owning @c OccupancyMap.
     /// Use @c layout to access specific maps.
-    uint8_t **voxel_maps = nullptr;
+    std::vector<VoxelBlock::Ptr> voxel_blocks;
 
     /// Chunk flags set from @c MapChunkFlag.
     unsigned flags = 0;
 
     MapChunk() = default;
-    MapChunk(const MapLayout &layout, const glm::uvec3 &region_dim);
-    MapChunk(const MapRegion &region, const MapLayout &layout, const glm::uvec3 &region_dim);
+    MapChunk(const OccupancyMapDetail &map);
+    MapChunk(const MapRegion &region, const OccupancyMapDetail &map);
     MapChunk(const MapChunk &other) = default;
     MapChunk(MapChunk &&other) noexcept;
     ~MapChunk();
+
+    /// Access details of the voxel layers and layouts for this map.
+    const MapLayout &layout() const;
 
     /// Given a @p voxelIndex into voxels, get the associated @c Key.
     /// @param voxel_index An index into voxels. Must be in range
@@ -205,9 +212,8 @@ namespace ohm
     /// updated with the information from @p new_layout.
     ///
     /// @param new_layout The new memory layout for voxel chunks.
-    /// @param region_dim The dimensions of each region (voxels).
     /// @param preserve_layer_mapping Indicates which layers from @p layout are mapped to new layers in @p new_layout.
-    void updateLayout(const MapLayout *new_layout, const glm::uvec3 &region_dim,
+    void updateLayout(const MapLayout *new_layout,
                       const std::vector<std::pair<const MapLayer *, const MapLayer *>> &preserve_layer_mapping);
 
     /// Returns true if the chunk contains any valid voxels. A valid voxel is one who's value has

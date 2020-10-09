@@ -184,6 +184,8 @@ namespace
       // util::makeMemoryDisplayString(mem_size_string, ohm::OccupancyMap::voxelMemoryPerRegion(region_voxel_dim));
       **out << "Map resolution: " << resolution << '\n';
       **out << "Voxel mean position: " << (map.voxelMeanEnabled() ? "on" : "off") << '\n';
+      **out << "Compressed: " << ((map.flags() & ohm::MapFlag::kCompressed) == ohm::MapFlag::kCompressed ? "on" : "off")
+            << '\n';
       glm::i16vec3 region_dim = region_voxel_dim;
       region_dim.x = (region_dim.x) ? region_dim.x : OHM_DEFAULT_CHUNK_DIM_X;
       region_dim.y = (region_dim.y) ? region_dim.y : OHM_DEFAULT_CHUNK_DIM_Y;
@@ -393,8 +395,9 @@ int populateMap(const Options &opt)
     return -2;
   }
 
-  ohm::MapFlag map_flags = ohm::MapFlag::kNone;
+  ohm::MapFlag map_flags = ohm::MapFlag::kDefault;
   map_flags |= (opt.voxel_mean) ? ohm::MapFlag::kVoxelMean : ohm::MapFlag::kNone;
+  map_flags &= (opt.uncompressed) ? ~ohm::MapFlag::kCompressed : ~ohm::MapFlag::kNone;
   ohm::OccupancyMap map(opt.resolution, opt.region_voxel_dim, map_flags);
 #ifdef OHMPOP_CPU
   std::unique_ptr<ohm::NdtMap> ndt_map;

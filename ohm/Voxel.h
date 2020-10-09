@@ -14,6 +14,7 @@
 #include "MapLayer.h"
 #include "MapLayout.h"
 #include "OccupancyMap.h"
+#include "VoxelBlock.h"
 
 #include <cinttypes>
 #include <type_traits>
@@ -272,11 +273,12 @@ namespace ohm
     {
       None = 0,                      ///< Nothing of note
       IsOccupancyLayer = (1u << 0),  ///< Marks that this @c Voxel points to the occupancy layer of @c OccupancyMap.
-      TouchedChunk = (1u << 1),      ///< Marks that the current @c MapChunk data has been accessed for mutation.
-      TouchedVoxel = (1u << 2),      ///< Marks that the current voxel data has been accessed for mutation.
+      CompressionLock = (1u << 1),   ///< Indiates the layer's @c VoxelBlock has been retained in @c chunk_.
+      TouchedChunk = (1u << 2),      ///< Marks that the current @c MapChunk data has been accessed for mutation.
+      TouchedVoxel = (1u << 3),      ///< Marks that the current voxel data has been accessed for mutation.
 
       /// Flag values which are not propagated in copy assigment.
-      NonPropagatingFlags = TouchedChunk | TouchedVoxel
+      NonPropagatingFlags = TouchedChunk | TouchedVoxel | CompressionLock
     };
 
     /// Empty constructor generating an invalid voxel with no map.
@@ -306,6 +308,14 @@ namespace ohm
     /// @param layer_index The @c MapLayer to access for the type @c T .
     /// @param key The key for the voxel to initialy reference. May be changed layer with @c setKey() .
     Voxel(MapTypePtr map, int layer_index, const Key &key);
+
+    /// Set the @c Voxel to reference the start of the voxel buffer within the @c MapChunk associated with the given
+    /// @p region_key . This is equivalent to using @c Key(region_key,0,0,0) .
+    /// @param map The map to access and mutate for non-const @c Voxel types.
+    /// @param layer_index The @c MapLayer to access for the type @c T .
+    /// @param region_key The region coordinate key for the chunk to reference.
+    Voxel(MapTypePtr map, int layer_index, const glm::i16vec3 &region_key);
+
     /// Create a @c Voxel reference from a @c OccupancyMap::iterator (mutable @c Voxel ) or a
     /// @c OccupancyMap::const_iterator (const @c Voxel ). This is similar to using the
     /// @c Voxel(MapTypePtr,layer_index,key) constructor, with the map, chunk and key always coming from the iterator.
@@ -388,7 +398,7 @@ namespace ohm
     inline T &data()
     {
       flags_ |= unsigned(Flag::TouchedChunk) | unsigned(Flag::TouchedVoxel);
-      return reinterpret_cast<T *>(chunk_->voxel_maps[layer_index_])[voxelIndex()];
+      return voxel_memory_[voxelIndex()];
     }
 
     /// Resolve a const reference to the @c T data for the current voxel reference. @c isValid() must be true before
@@ -396,10 +406,7 @@ namespace ohm
     ///
     /// This call resolves const reference for both const and mutable voxel references.
     /// @return The voxel data of type @c T for the currently referenced voxel.
-    inline const DataType &data() const
-    {
-      return reinterpret_cast<const DataType *>(chunk_->voxel_maps[layer_index_])[voxelIndex()];
-    }
+    inline const DataType &data() const { return voxel_memory_[voxelIndex()]; }
 
     /// Query the voxel data as a pointer type. This has the same side requirements and effects as calling the non-const
     /// @c data() function.
@@ -408,6 +415,11 @@ namespace ohm
     /// Query the voxel data as a pointer type. This has the same side requirements as the const @c data() function.
     /// @return The voxel data of type @c T for the currently referenced voxel as a pointer.
     inline const T *dataPtr() const { return &data(); }
+
+    /// Return a pointer to the start of the voxel memory for the current chunk.
+    /// @c isValid() must be true before calling.
+    /// @return A pointer to the voxel memory for the currently referenced chunk.
+    inline T *voxelMemory() { return voxel_memory_; }
 
     /// Attempt to step the voxel reference to the next voxel in the current @c MapChunk .
     ///
@@ -445,8 +457,21 @@ namespace ohm
     /// @param key The key value to set.
     inline void setChunk(MapChunkPtr chunk)
     {
-      updateChunkTouch();
-      chunk_ = chunk;
+      if (chunk_ != chunk)
+      {
+        updateChunkTouchAndCompression();
+        chunk_ = chunk;
+        if (chunk_ && layer_index_ != -1)
+        {
+          chunk_->voxel_blocks[layer_index_]->retain();
+          flags_ |= unsigned(Flag::CompressionLock);
+          voxel_memory_ = reinterpret_cast<T *>(chunk_->voxel_blocks[layer_index_]->voxelBytes());
+        }
+        else
+        {
+          voxel_memory_ = nullptr;
+        }
+      }
     }
 
     /// Validate the @c layerIndex() . May invalidate the layer index and set @c Error flag values.
@@ -462,17 +487,18 @@ namespace ohm
     /// layer. @c Flag::TouchedChunk is cleared.
     ///
     /// Safe to call when no book keeping needs to be done or the voxel reference is invalid.
-    void updateChunkTouch();
-    /// Full book keeping calling @c updateVoxelTouch() and @c updateChunkTouch() .
+    void updateChunkTouchAndCompression();
+    /// Full book keeping calling @c updateVoxelTouch() and @c updateChunkTouchAndCompression() .
     ///
     /// Safe to call when no book keeping needs to be done or the voxel reference is invalid.
     inline void updateTouch()
     {
       updateVoxelTouch();
-      updateChunkTouch();
+      updateChunkTouchAndCompression();
     }
 
   private:
+    T *voxel_memory_ = nullptr;         ///< A pointer to the start of voxel memory within the current chunk.
     MapTypePtr map_ = nullptr;          ///< @c OccupancyMap pointer
     MapChunkPtr chunk_ = nullptr;       ///< Current @c MapChunk pointer - may be null even with a valid key reference.
     Key key_ = Key::kNull;              ///< Current voxel @c Key reference.
@@ -558,17 +584,23 @@ namespace ohm
   template <typename T>
   Voxel<T>::Voxel(const Voxel<T> &other)
     : map_(other.map_)
-    , chunk_(other.chunk_)
+    , chunk_(nullptr)
     , key_(other.key_)
     , layer_index_(other.layer_index_)
     , layer_dim_(other.layer_dim_)
+    , flags_(other.flags_ & ~unsigned(Flag::NonPropagatingFlags))
     , error_flags_(other.error_flags_)
-  {}
+  {
+    // Do not set chunk or voxel_memory_ pointers directly. Use the method call to ensure flags are correctly
+    // maintained.
+    setChunk(other.chunk_);
+  }
 
 
   template <typename T>
   Voxel<T>::Voxel(Voxel<T> &&other)
-    : map_(std::exchange(other.map_, nullptr))
+    : voxel_memory_(std::exchange(other.voxel_memory_, nullptr))
+    , map_(std::exchange(other.map_, nullptr))
     , chunk_(std::exchange(other.chunk_, nullptr))
     , key_(std::exchange(other.key_, Key::kNull))
     , layer_index_(std::exchange(other.layer_index_, -1))
@@ -582,11 +614,16 @@ namespace ohm
   template <typename U>
   Voxel<T>::Voxel(const Voxel<U> &other, int layer_index)
     : map_(other.map())
-    , chunk_(other.chunk())
+    , chunk_(nullptr)
     , key_(other.key())
     , layer_index_(layer_index)
+    , flags_(other.flags() & ~unsigned(Flag::NonPropagatingFlags))
+    , error_flags_(other.errorFlags())
   {
     validateLayer();
+    // Do not set chunk or voxel_memory_ pointers directly. Use the method call to ensure flags are correctly
+    // maintained.
+    setChunk(other.chunk());
   }
 
 
@@ -608,6 +645,12 @@ namespace ohm
       setKey(key);
     }
   }
+
+
+  template <typename T>
+  Voxel<T>::Voxel(MapTypePtr map, int layer_index, const glm::i16vec3 &region_key)
+    : Voxel<T>(map, layer_index, Key(region_key, 0, 0, 0))
+  {}
 
 
   template <typename T>
@@ -696,6 +739,7 @@ namespace ohm
   template <typename T>
   void Voxel<T>::swap(Voxel &other)
   {
+    std::swap(voxel_memory_, other.voxel_memory_);
     std::swap(map_, other.map_);
     std::swap(chunk_, other.chunk_);
     std::swap(key_, other.key_);
@@ -710,13 +754,18 @@ namespace ohm
   Voxel<T> &Voxel<T>::operator=(const Voxel<T> &other)
   {
     updateTouch();
+    // Set chunk to null to run flush logic
+    setChunk(nullptr);
     map_ = other.map_;
     setKeyInternal(other.key_);
-    setChunk(other.chunk_);
     layer_index_ = other.layer_index_;
     layer_dim_ = other.layer_dim_;
     flags_ = other.flags_ & ~unsigned(Flag::NonPropagatingFlags);
     error_flags_ = other.error_flags_;
+    // Do not set chunk or voxel_memory_ pointers directly. Use the method call to ensure flags are correctly
+    // maintained.
+    voxel_memory_ = nullptr;  // About to be resolved in setChunk()
+    setChunk(other.chunk_);
     return *this;
   }
 
@@ -773,13 +822,20 @@ namespace ohm
 
 
   template <typename T>
-  void Voxel<T>::updateChunkTouch()
+  void Voxel<T>::updateChunkTouchAndCompression()
   {
-    if ((flags_ & unsigned(Flag::TouchedChunk)) && map_ && chunk_)
+    if (map_ && chunk_)
     {
-      detail::VoxelChunkAccess<T>::touch(map_, chunk_, layer_index_);
+      if (flags_ & unsigned(Flag::TouchedChunk))
+      {
+        detail::VoxelChunkAccess<T>::touch(map_, chunk_, layer_index_);
+      }
+      if (flags_ & unsigned(Flag::CompressionLock))
+      {
+        chunk_->voxel_blocks[layer_index_]->release();
+      }
     }
-    flags_ &= ~unsigned(Flag::TouchedChunk);
+    flags_ &= ~(unsigned(Flag::TouchedChunk) | unsigned(Flag::CompressionLock));
   }
 }  // namespace ohm
 

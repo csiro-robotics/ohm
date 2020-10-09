@@ -7,7 +7,9 @@
 #include "OccupancyMap.h"
 #include "MapLayer.h"
 #include "MapLayout.h"
+#include "Voxel.h"
 #include "VoxelMean.h"
+#include "VoxelBuffer.h"
 #include "VoxelOccupancy.h"
 
 #include <ohmutil/LineWalk.h>
@@ -19,22 +21,17 @@ RayMapperOccupancy::RayMapperOccupancy(OccupancyMap *map)
   , occupancy_layer_(map_->layout().occupancyLayer())
   , mean_layer_(map_->layout().meanLayer())
 {
-  occupancy_dim_ = map_->layout().layer(occupancy_layer_).dimensions(map_->regionVoxelDimensions());
-  // Validate the mean layer size.
-  if (mean_layer_ >= 0)
-  {
-    if (map_->layout().layer(mean_layer_).voxelByteSize() != sizeof(VoxelMean))
-    {
-      // Won't be using voxel mean. Wrong voxel size.
-      mean_layer_ = -1;
-    }
-    else if (map_->layout().layer(mean_layer_).dimensions(map_->regionVoxelDimensions()) != occupancy_dim_)
-    {
-      // Won't be using voxel mean. Layer dimensions don't match occupancy layer.
-      mean_layer_ = -1;
-    }
-  }
-  valid_ = true;
+  // Use Voxel to validate the layers.
+  // In processing we use VoxelBuffer instead of Voxel objects. While Voxel mapes for a neader API, using VoxelBuffer
+  // makes for less overhead and yields better performance.
+  Voxel<const float> occupancy(map_, occupancy_layer_);
+  Voxel<const VoxelMean> mean(map_, mean_layer_);
+
+  occupancy_dim_ = occupancy.isLayerValid() ? occupancy.layerDim() : occupancy_dim_;
+
+  // Validate we only have an occupancy layer or we also have a mean layer and the layer dimesions match.
+  valid_ = occupancy.isLayerValid() && !mean.isLayerValid() ||
+           occupancy.isLayerValid() && mean.isLayerValid() && occupancy.layerDim() == mean.layerDim();
 }
 
 
@@ -45,6 +42,9 @@ size_t RayMapperOccupancy::integrateRays(const glm::dvec3 *rays, size_t element_
 {
   KeyList keys;
   MapChunk *last_chunk = nullptr;
+  MapChunk *last_mean_chunk = nullptr;
+  VoxelBuffer<VoxelBlock> occupancy_buffer;
+  VoxelBuffer<VoxelBlock> mean_buffer;
   bool stop_adjustments = false;
 
   const RayFilterFunction ray_filter = map_->rayFilter();
@@ -85,9 +85,13 @@ size_t RayMapperOccupancy::integrateRays(const glm::dvec3 *rays, size_t element_
     //    -
     MapChunk *chunk =
       (last_chunk && key.regionKey() == last_chunk->region.coord) ? last_chunk : map_->region(key.regionKey(), true);
+    if (chunk != last_chunk)
+    {
+      occupancy_buffer = VoxelBuffer<VoxelBlock>(chunk->voxel_blocks[occupancy_layer]);
+    }
     last_chunk = chunk;
     const unsigned voxel_index = ::voxelIndex(key, occupancy_dim);
-    float *occupancy_value = reinterpret_cast<float *>(chunk->voxel_maps[occupancy_layer]) + voxel_index;
+    float *occupancy_value = reinterpret_cast<float *>(occupancy_buffer.voxelMemory()) + voxel_index;
     const float initial_value = *occupancy_value;
     const bool is_occupied = (initial_value != unobservedOccupancyValue() && initial_value > occupancy_threshold_value);
     occupancyAdjustMiss(occupancy_value, initial_value, miss_value, unobservedOccupancyValue(), voxel_min,
@@ -140,10 +144,14 @@ size_t RayMapperOccupancy::integrateRays(const glm::dvec3 *rays, size_t element_
       const ohm::Key key = map_->voxelKey(end);
       MapChunk *chunk =
         (last_chunk && key.regionKey() == last_chunk->region.coord) ? last_chunk : map_->region(key.regionKey(), true);
+      if (chunk != last_chunk)
+      {
+        occupancy_buffer = VoxelBuffer<VoxelBlock>(chunk->voxel_blocks[occupancy_layer]);
+      }
       last_chunk = chunk;
       const unsigned voxel_index = ::voxelIndex(key, occupancy_dim);
 
-      float *occupancy_value = reinterpret_cast<float *>(chunk->voxel_maps[occupancy_layer]) + voxel_index;
+      float *occupancy_value = reinterpret_cast<float *>(occupancy_buffer.voxelMemory()) + voxel_index;
       const float initial_value = *occupancy_value;
       occupancyAdjustHit(occupancy_value, initial_value, hit_value, unobservedOccupancyValue(), voxel_max,
                          saturation_min, saturation_max, stop_adjustments);
@@ -151,7 +159,12 @@ size_t RayMapperOccupancy::integrateRays(const glm::dvec3 *rays, size_t element_
       // update voxel mean if present.
       if (mean_layer >= 0)
       {
-        VoxelMean *voxel_mean = reinterpret_cast<VoxelMean *>(chunk->voxel_maps[mean_layer]) + voxel_index;
+        if (chunk != last_mean_chunk)
+        {
+          mean_buffer = VoxelBuffer<VoxelBlock>(chunk->voxel_blocks[mean_layer]);
+        }
+        last_mean_chunk = chunk;
+        VoxelMean *voxel_mean = reinterpret_cast<VoxelMean *>(mean_buffer.voxelMemory()) + voxel_index;
         voxel_mean->coord =
           subVoxelUpdate(voxel_mean->coord, voxel_mean->count, end - map_->voxelCentreGlobal(key), resolution);
         ++voxel_mean->count;

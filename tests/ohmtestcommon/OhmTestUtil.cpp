@@ -164,7 +164,7 @@ namespace ohmtestutil
           EXPECT_EQ(chunk->first_valid_index, ref_chunk->first_valid_index);
           EXPECT_EQ(chunk->touched_time, ref_chunk->touched_time);
           EXPECT_EQ(chunk->dirty_stamp, ref_chunk->dirty_stamp);
-          for (unsigned i = 0; i < chunk->layout->layerCount(); ++i)
+          for (unsigned i = 0; i < chunk->layout().layerCount(); ++i)
           {
             EXPECT_EQ(chunk->touched_stamps[i], ref_chunk->touched_stamps[i]);
           }

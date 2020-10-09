@@ -19,6 +19,8 @@
 #include <ohm/OccupancyMap.h>
 #include <ohm/OccupancyUtil.h>
 #include <ohm/QueryFlag.h>
+#include <ohm/VoxelBlock.h>
+#include <ohm/VoxelBuffer.h>
 #include <ohm/private/OccupancyMapDetail.h>
 
 #include <gputil/gpuPinnedBuffer.h>
@@ -50,7 +52,7 @@ namespace
 {
 #if defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
   GpuProgramRef program_ref("RoiRangeFill", GpuProgramRef::kSourceString,  // NOLINT
-                                   RoiRangeFillCode, RoiRangeFillCode_length);
+                            RoiRangeFillCode, RoiRangeFillCode_length);
 #else   // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
   GpuProgramRef program_ref("RoiRangeFill", GpuProgramRef::kSourceFile, "RoiRangeFill.cl", 0u);
 #endif  // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
@@ -323,9 +325,9 @@ void RoiRangeFill::finishRegion(const glm::i16vec3 &region_key, OccupancyMap &ma
   if (region)
   {
     gputil::PinnedBuffer clearance_buffer(query.gpuRegionClearanceBuffer(), gputil::kPinRead);
-    const MapLayer &clearance_layer = map.layout().layer(map.layout().clearanceLayer());
-    uint8_t *dst = clearance_layer.voxels(*region);
-    clearance_buffer.read(dst, clearance_layer.layerByteSize(map.regionVoxelDimensions()));
+    VoxelBuffer<VoxelBlock> voxels(region->voxel_blocks[map.layout().clearanceLayer()]);
+    uint8_t *dst = voxels.voxelMemory();
+    clearance_buffer.read(dst, voxels.voxelMemorySize());
   }
   PROFILE_END(download);
 }
@@ -379,15 +381,14 @@ int RoiRangeFill::invoke(const OccupancyMapDetail &map, RoiRangeFill &query, Gpu
   gputil::Dim3 global_size, local_size;
   seed_kernel_.calculateGrid(&global_size, &local_size, seed_grid);
 
-  err = seed_kernel_(global_size, local_size, seed_kernel_event, &queue,
-                     // Kernel arguments
-                     gputil::BufferArg<GpuKey>(gpu_corner_voxel_key_),
-                     gputil::BufferArg<float>(*clearance_layer_cache.buffer()),
-                     gputil::BufferArg<gputil::char4>(query.gpuWork(src_buffer_index)),
-                     gputil::BufferArg<gputil::int3>(query.gpuRegionKeys()),
-                     gputil::BufferArg<uint64_t>(query.gpuOccupancyRegionOffsets()), query.regionCount(),
-                     region_voxel_extents_gpu, region_voxel_extents_gpu, float(map.occupancy_threshold_value),
-                     kernel_algorithm_flags, zbatch);
+  err = seed_kernel_(
+    global_size, local_size, seed_kernel_event, &queue,
+    // Kernel arguments
+    gputil::BufferArg<GpuKey>(gpu_corner_voxel_key_), gputil::BufferArg<float>(*clearance_layer_cache.buffer()),
+    gputil::BufferArg<gputil::char4>(query.gpuWork(src_buffer_index)),
+    gputil::BufferArg<gputil::int3>(query.gpuRegionKeys()),
+    gputil::BufferArg<uint64_t>(query.gpuOccupancyRegionOffsets()), query.regionCount(), region_voxel_extents_gpu,
+    region_voxel_extents_gpu, float(map.occupancy_threshold_value), kernel_algorithm_flags, zbatch);
   if (err)
   {
     return err;

@@ -140,31 +140,6 @@ namespace ohm
     /// @param region_dim The dimensions of each region with no subsampling. Subsampling is resolved as needed.
     void clear(uint8_t *mem, const glm::u8vec3 &region_dim) const;
 
-    /// Get a pointer the the voxel data for this layer in @p chunk.
-    /// @param chunk The map chunk to get layer data for.
-    /// @return The data for this layer in @p chunk.
-    inline const uint8_t *voxels(const MapChunk &chunk) const { return chunk.voxel_maps[layerIndex()]; }
-
-    /// @overload
-    inline uint8_t *voxels(MapChunk &chunk) const  // NOLINT(google-runtime-references)
-    {
-      return chunk.voxel_maps[layerIndex()];
-    }
-
-    /// Get a pointer the the voxel data for this layer in @p chunk cast as type @c T.
-    ///
-    /// Validates that the size of @c T matches the @c voxelByteSize().
-    ///
-    /// @tparam T The type to cast to.
-    /// @param chunk The map chunk to get layer data for.
-    /// @return The data for this layer in @p chunk or null on a size mismatch.
-    template <typename T>
-    const T *voxelsAs(const MapChunk &chunk) const;
-
-    /// @overload
-    template <typename T>
-    T *voxelsAs(MapChunk &chunk) const;  // NOLINT(google-runtime-references)
-
     /// @internal
     /// Set the layer index. Used in layer reordering. Must be maintained correctly.
     /// @param index The new layer index.
@@ -177,28 +152,6 @@ namespace ohm
     uint16_t subsampling_ = 0;
     unsigned flags_ = 0;
   };
-
-
-  template <typename T>
-  inline const T *MapLayer::voxelsAs(const MapChunk &chunk) const
-  {
-    if (voxelByteSize() == sizeof(T))
-    {
-      return reinterpret_cast<const T *>(voxels(chunk));
-    }
-    return nullptr;
-  }
-
-
-  template <typename T>
-  inline T *MapLayer::voxelsAs(MapChunk &chunk) const
-  {
-    if (voxelByteSize() == sizeof(T))
-    {
-      return reinterpret_cast<T *>(voxels(chunk));
-    }
-    return nullptr;
-  }
 }  // namespace ohm
 
 #endif  // OHM_MAPLAYER_H

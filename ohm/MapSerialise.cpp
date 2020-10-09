@@ -11,6 +11,8 @@
 #include "MapLayout.h"
 #include "OccupancyMap.h"
 #include "Stream.h"
+#include "VoxelBlock.h"
+#include "VoxelBuffer.h"
 #include "VoxelLayout.h"
 
 #include "private/HeightmapDetail.h"
@@ -98,83 +100,71 @@ namespace ohm
 
     switch (value.type())
     {
-    case MapValue::kInt8:
-    {
+    case MapValue::kInt8: {
       int8_t val = value;
       stream.write(reinterpret_cast<char *>(&val), 1);
       break;
     }
-    case MapValue::kUInt8:
-    {
+    case MapValue::kUInt8: {
       uint8_t val = value;
       stream.write(reinterpret_cast<char *>(&val), 1);
       break;
     }
-    case MapValue::kInt16:
-    {
+    case MapValue::kInt16: {
       int16_t val = value;
       // if (endianSwap) { endian::endianSwap(&val); }
       stream.write(reinterpret_cast<char *>(&val), sizeof(val));
       break;
     }
-    case MapValue::kUInt16:
-    {
+    case MapValue::kUInt16: {
       uint16_t val = value;
       // if (endianSwap) { endian::endianSwap(&val); }
       stream.write(reinterpret_cast<char *>(&val), sizeof(val));
       break;
     }
-    case MapValue::kInt32:
-    {
+    case MapValue::kInt32: {
       int32_t val = value;
       // if (endianSwap) { endian::endianSwap(&val); }
       stream.write(reinterpret_cast<char *>(&val), sizeof(val));
       break;
     }
-    case MapValue::kUInt32:
-    {
+    case MapValue::kUInt32: {
       uint32_t val = value;
       // if (endianSwap) { endian::endianSwap(&val); }
       stream.write(reinterpret_cast<char *>(&val), sizeof(val));
       break;
     }
-    case MapValue::kInt64:
-    {
+    case MapValue::kInt64: {
       int64_t val = value;
       // if (endianSwap) { endian::endianSwap(&val); }
       stream.write(reinterpret_cast<char *>(&val), sizeof(val));
       break;
     }
-    case MapValue::kUInt64:
-    {
+    case MapValue::kUInt64: {
       uint64_t val = value;
       // if (endianSwap) { endian::endianSwap(&val); }
       stream.write(reinterpret_cast<char *>(&val), sizeof(val));
       break;
     }
-    case MapValue::kFloat32:
-    {
+    case MapValue::kFloat32: {
       float val = value;
       // if (endianSwap) { endian::endianSwap(&val); }
       stream.write(reinterpret_cast<char *>(&val), sizeof(val));
       break;
     }
-    case MapValue::kFloat64:
-    {
+    case MapValue::kFloat64: {
       double val = value;
       // if (endianSwap) { endian::endianSwap(&val); }
       stream.write(reinterpret_cast<char *>(&val), sizeof(val));
       break;
     }
-    case MapValue::kBoolean:
-    {
+    case MapValue::kBoolean: {
       bool bval = value;
       uint8_t val = (bval) ? 1 : 0;
       stream.write(reinterpret_cast<char *>(&val), 1);
       break;
     }
-    case MapValue::kString:
-    {
+    case MapValue::kString: {
       const char *str = value;
       len = strlen(str);
       if (len > 0xffffu)
@@ -355,7 +345,7 @@ namespace ohm
     ok = write<double>(stream, chunk.touched_time) && ok;
 
     // Save each map layer.
-    const MapLayout &layout = *chunk.layout;
+    const MapLayout &layout = chunk.layout();
     for (size_t i = 0; i < layout.layerCount(); ++i)
     {
       const MapLayer &layer = layout.layer(i);
@@ -370,7 +360,8 @@ namespace ohm
       ok = write<uint64_t>(stream, layer_touched_stamp) && ok;
 
       // Get the layer memory.
-      const uint8_t *layer_mem = layer.voxels(chunk);
+      VoxelBuffer<const VoxelBlock> voxel_buffer(chunk.voxel_blocks[layer.layerIndex()]);
+      const uint8_t *layer_mem = voxel_buffer.voxelMemory();
       const size_t node_count = layer.volume(detail.region_voxel_dimensions);
       const size_t node_byte_count = layer.voxelByteSize() * node_count;
       if (node_byte_count != unsigned(node_byte_count))
@@ -498,16 +489,17 @@ namespace ohm
       for (size_t i = 0; i < layout.layerCount(); ++i)
       {
         const MapLayer &layer = layout.layer(i);
+        VoxelBuffer<VoxelBlock> voxel_buffer(chunk.voxel_blocks[i]);
+        uint8_t *layer_mem = voxel_buffer.voxelMemory();
 
         if (layer.flags() & MapLayer::kSkipSerialise)
         {
           // Not to be serialised. Clear instead.
-          layer.clear(layer.voxels(chunk), detail.region_voxel_dimensions);
+          layer.clear(layer_mem, detail.region_voxel_dimensions);
           continue;
         }
 
         // Get the layer memory.
-        uint8_t *layer_mem = layer.voxels(chunk);
         const size_t node_count = layer.volume(detail.region_voxel_dimensions);
         const size_t node_byte_count = layer.voxelByteSize() * node_count;
         if (node_byte_count != unsigned(node_byte_count))
