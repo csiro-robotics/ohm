@@ -62,7 +62,7 @@ size_t RayMapperNdt::integrateRays(const glm::dvec3 *rays, size_t element_count,
   const bool use_filter = bool(ray_filter);
   const auto occupancy_layer = occupancy_layer_;
   const auto occupancy_dim = occupancy_dim_;
-  // const auto occupancy_threshold_value = occupancy_map.occupancyThresholdValue();
+  const auto occupancy_threshold_value = occupancy_map.occupancyThresholdValue();
   const auto map_origin = occupancy_map.origin();
   const auto miss_value = occupancy_map.missValue();
   const auto hit_value = occupancy_map.hitValue();
@@ -70,7 +70,7 @@ size_t RayMapperNdt::integrateRays(const glm::dvec3 *rays, size_t element_count,
   const auto voxel_min = occupancy_map.minVoxelValue();
   const auto voxel_max = occupancy_map.maxVoxelValue();
   const auto saturation_min = occupancy_map.saturateAtMinValue() ? voxel_min : std::numeric_limits<float>::lowest();
-  const auto saturation_max = occupancy_map.saturateAtMinValue() ? voxel_max : std::numeric_limits<float>::max();
+  const auto saturation_max = occupancy_map.saturateAtMaxValue() ? voxel_max : std::numeric_limits<float>::max();
   const auto sensor_noise = map_->sensorNoise();
   const auto ndt_adaptation_rate = map_->adaptationRate();
   const auto ndt_sample_threshold = map_->ndtSampleThreshold();
@@ -107,10 +107,7 @@ size_t RayMapperNdt::integrateRays(const glm::dvec3 *rays, size_t element_count,
     MapChunk *chunk = (last_chunk && key.regionKey() == last_chunk->region.coord) ?
                         last_chunk :
                         occupancy_map.region(key.regionKey(), true);
-    if (chunk == last_chunk)
-    {
-    }
-    else
+    if (chunk != last_chunk)
     {
       occupancy_buffer = VoxelBuffer<VoxelBlock>(chunk->voxel_blocks[occupancy_layer]);
       mean_buffer = VoxelBuffer<VoxelBlock>(chunk->voxel_blocks[mean_layer]);
@@ -118,7 +115,7 @@ size_t RayMapperNdt::integrateRays(const glm::dvec3 *rays, size_t element_count,
     }
     last_chunk = chunk;
     const unsigned voxel_index = ::voxelIndex(key, occupancy_dim);
-    float *occupancy_value = reinterpret_cast<float *>(occupancy_buffer.voxelMemory()) + +voxel_index;
+    float *occupancy_value = reinterpret_cast<float *>(occupancy_buffer.voxelMemory()) + voxel_index;
     const CovarianceVoxel *cov = reinterpret_cast<const CovarianceVoxel *>(cov_buffer.voxelMemory()) + voxel_index;
     const VoxelMean *voxel_mean = reinterpret_cast<const VoxelMean *>(mean_buffer.voxelMemory()) + voxel_index;
     const glm::dvec3 mean =
@@ -126,13 +123,14 @@ size_t RayMapperNdt::integrateRays(const glm::dvec3 *rays, size_t element_count,
     const float initial_value = *occupancy_value;
     float adjusted_value = initial_value;
 
-    calculateMissNdt(cov, &adjusted_value, start, sample, mean, voxel_mean->count, unorbservedOccupancyValue(),
+    const bool is_occupied = (initial_value != unobservedOccupancyValue() && initial_value > occupancy_threshold_value);
+    calculateMissNdt(cov, &adjusted_value, start, sample, mean, voxel_mean->count, unobservedOccupancyValue(),
                      miss_value, ndt_adaptation_rate, sensor_noise, ndt_sample_threshold);
-    occupancyAdjustDown(occupancy_value, initial_value, adjusted_value, unorbservedOccupancyValue(), voxel_min,
+    occupancyAdjustDown(occupancy_value, initial_value, adjusted_value, unobservedOccupancyValue(), voxel_min,
                         saturation_min, saturation_max, stop_adjustments);
     chunk->updateFirstValid(voxel_index);
 
-    // stop_adjustments = stop_adjustments || ((ray_update_flags & kRfStopOnFirstOccupied) && is_occupied);
+    stop_adjustments = stop_adjustments || ((ray_update_flags & kRfStopOnFirstOccupied) && is_occupied);
     chunk->dirty_stamp = touch_stamp;
     // Update the touched_stamps with relaxed memory ordering. The important thing is to have an update,
     // not so much the sequencing. We really don't want to synchronise here.
@@ -176,10 +174,7 @@ size_t RayMapperNdt::integrateRays(const glm::dvec3 *rays, size_t element_count,
       MapChunk *chunk = (last_chunk && key.regionKey() == last_chunk->region.coord) ?
                           last_chunk :
                           occupancy_map.region(key.regionKey(), true);
-      if (chunk == last_chunk)
-      {
-      }
-      else
+      if (chunk != last_chunk)
       {
         occupancy_buffer = VoxelBuffer<VoxelBlock>(chunk->voxel_blocks[occupancy_layer]);
         mean_buffer = VoxelBuffer<VoxelBlock>(chunk->voxel_blocks[mean_layer]);
@@ -188,7 +183,7 @@ size_t RayMapperNdt::integrateRays(const glm::dvec3 *rays, size_t element_count,
       last_chunk = chunk;
       const unsigned voxel_index = ::voxelIndex(key, occupancy_dim);
       const glm::dvec3 voxel_centre = occupancy_map.voxelCentreGlobal(key);
-      float *occupancy_value = reinterpret_cast<float *>(occupancy_buffer.voxelMemory()) + +voxel_index;
+      float *occupancy_value = reinterpret_cast<float *>(occupancy_buffer.voxelMemory()) + voxel_index;
       CovarianceVoxel *cov = reinterpret_cast<CovarianceVoxel *>(cov_buffer.voxelMemory()) + voxel_index;
       VoxelMean *voxel_mean = reinterpret_cast<VoxelMean *>(mean_buffer.voxelMemory()) + voxel_index;
       const glm::dvec3 mean = subVoxelToLocalCoord<glm::dvec3>(voxel_mean->coord, resolution) + voxel_centre;
@@ -196,9 +191,9 @@ size_t RayMapperNdt::integrateRays(const glm::dvec3 *rays, size_t element_count,
       float adjusted_value = initial_value;
 
       const bool reset_mean = calculateHitWithCovariance(
-        cov, &adjusted_value, sample, mean, voxel_mean->count, hit_value, unorbservedOccupancyValue(),
-        float(0.1 * resolution), map_->reinitialiseCovarianceTheshold(), map_->reinitialiseCovariancePointCount());
-      occupancyAdjustUp(occupancy_value, initial_value, adjusted_value, unorbservedOccupancyValue(), voxel_max,
+        cov, &adjusted_value, sample, mean, voxel_mean->count, hit_value, unobservedOccupancyValue(), float(resolution),
+        map_->reinitialiseCovarianceTheshold(), map_->reinitialiseCovariancePointCount());
+      occupancyAdjustUp(occupancy_value, initial_value, adjusted_value, unobservedOccupancyValue(), voxel_max,
                         saturation_min, saturation_max, stop_adjustments);
 
       voxel_mean->count = (!reset_mean) ? voxel_mean->count : 0;

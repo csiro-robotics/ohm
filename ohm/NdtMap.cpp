@@ -35,8 +35,6 @@ NdtMap::NdtMap(OccupancyMap *map, bool borrowed_map)
   imp_->borrowed_map = borrowed_map;
   enableNdt(map);
   updateMapInfo();
-  // Much lower hit prob for NDT is better.
-  map->setHitProbability(0.6f);
 }
 
 

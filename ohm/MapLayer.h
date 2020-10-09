@@ -98,7 +98,7 @@ namespace ohm
     /// @return The voxel dimensions for this layer based on @p regionDim.
     inline glm::u8vec3 dimensions(const glm::u8vec3 &region_dim) const
     {
-      const glm::u8vec3 dim = (subsampling_ == 0) ? region_dim : region_dim / uint8_t(1 + subsampling_);
+      const glm::u8vec3 dim = (subsampling_ == 0) ? region_dim : region_dim / uint8_t(1 << subsampling_);
       return glm::max(dim, glm::u8vec3(1));
     }
 

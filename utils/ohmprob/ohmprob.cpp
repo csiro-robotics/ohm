@@ -1,7 +1,10 @@
+// Copyright (c) 2020
+// Commonwealth Scientific and Industrial Research Organisation (CSIRO)
+// ABN 41 687 119 230
 //
-// author Kazys Stepanas
-//
-#include <glm/glm.hpp>
+// Author: Kazys Stepanas
+
+// A very simply utility which performs the probabilty-to-value or reverse conversion used in ohm.
 
 #include <ohm/MapProbability.h>
 
