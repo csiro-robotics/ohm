@@ -36,7 +36,7 @@ namespace ohm
   class NdtMap;
 
   /// @ingroup voxelcovariance
-  /// Perform an eigen decomposition on the covariance data in @p cov.
+  /// Perform an eigen decomposition on the covariance data in @p cov .
   ///
   /// This currently uses the QR algorithm. This is an iterative solution, which is not recommended. Therefore this
   /// function is not recommended for high performance code.
@@ -108,7 +108,7 @@ namespace ohm
 
   /// Integrate a miss result for a single voxel of @p map with NDT support.
   /// @param map The @c NdtMap to integrate the hit for.
-  /// @param key The key for the voxel to modify. This is a voxel along the line segment @p sensor to @p sample, but
+  /// @param key The key for the voxel to modify. This is a voxel along the line segment @p sensor to @p sample , but
   /// not the voxel containing @p sample .
   /// @param sensor The sensor location from which the @p sample was attained.
   /// @param sample The gobal sample coordinate.

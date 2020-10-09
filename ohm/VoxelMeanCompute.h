@@ -23,9 +23,9 @@
 using vec3 = glm::vec3;
 
 /// @ingroup voxelmean
-/// The data structure is used to hold the voxel mean mean coordinate. See @ref voxelmean for details on usage and the
-/// mean quantisation in @c coord .
-/// @todo Rename this and assodiated code as VoxelMean
+/// The data structure used to hold the voxel mean coordinate and sample count. See @ref voxelmean for details on usage
+/// and the mean quantisation in @c coord .
+/// @todo Rename this and associated code as VoxelMean
 struct VoxelMean
 {
   uint32_t coord;  ///< Quantised voxel mean coordinate.

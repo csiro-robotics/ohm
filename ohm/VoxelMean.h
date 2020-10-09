@@ -83,7 +83,7 @@ namespace ohm
     return glm::dvec3{ 0 };
   }
 
-  /// Query the position of @c voxel if if the @p voxel is invalid or the voxel layer is invalid.
+  /// Query the position of @c voxel if the @p voxel might be invalid or the voxel layer might be invalid.
   ///
   /// In order of availability, the retun value will be:
   /// - The @c VoxelMean position - @p voxel must be fully valid.
@@ -103,7 +103,7 @@ namespace ohm
   /// @param voxel The voxel to modify.
   /// @param pos The new mean position for @p voxel . Must be within the bounds of @p voxel .
   /// @param count Optional argument to explicitly set the number of samples gather to attain the position.
-  ///   This affects subsequence mean updates, with larger values reducing the influence of new positions.
+  ///   This affects subsequent mean updates, with larger values reducing the influence of new positions.
   ///   Use 0 to leave the current count value as is.
   inline void setPositionUnsafe(Voxel<VoxelMean> &voxel, const glm::dvec3 &pos, unsigned count = 0)
   {
@@ -113,11 +113,11 @@ namespace ohm
   }
 
   /// @ingroup voxelmean
-  /// A validated version fo @c setPositionUnsafe() ensuring @c voxel is valid before attepting to write.
+  /// A validated version of @c setPositionUnsafe() ensuring @c voxel is valid before attepting to write.
   /// @param voxel The voxel to modify. May be in invalid.
   /// @param pos The new mean position for @p voxel . Must be within the bounds of @p voxel .
-  /// @param count Optional argument to explicitly set the number of samples gather to attain the position.
-  ///   This affects subsequence mean updates, with larger values reducing the influence of new positions.
+  /// @param count Optional argument to explicitly set the number of samples gathered to attain the position.
+  ///   This affects subsequent mean updates, with larger values reducing the influence of new positions.
   ///   Use 0 to leave the current count value as is.
   inline void setPositionSafe(Voxel<VoxelMean> &voxel, const glm::dvec3 &pos, unsigned count = 0)
   {
@@ -143,7 +143,7 @@ namespace ohm
   }
 
   /// @ingroup voxelmean
-  /// A validated version fo @c updatePositionUnsafe() ensuring @c voxel is valid before attepting to write.
+  /// A validated version of @c updatePositionUnsafe() ensuring @c voxel is valid before attepting to write.
   /// @param voxel The voxel to modify. May be invalid.
   /// @param pos The new coordinate to incorporate into the mean.
   inline void updatePositionSafe(Voxel<VoxelMean> &voxel, const glm::dvec3 &pos)

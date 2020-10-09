@@ -271,7 +271,7 @@ int main(int argc, char *argv[])
       {
         ohm::setVoxelKey(iter, voxel, mean);
         const float value = voxel.data();
-        if (value != ohm::unorbservedOccupancyValue())
+        if (value != ohm::unobservedOccupancyValue())
         {
           min_occupancy = std::min(value, min_occupancy);
           max_occupancy = std::max(value, max_occupancy);

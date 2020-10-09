@@ -60,7 +60,7 @@ size_t RayMapperOccupancy::integrateRays(const glm::dvec3 *rays, size_t element_
   const auto voxel_min = map_->minVoxelValue();
   const auto voxel_max = map_->maxVoxelValue();
   const auto saturation_min = map_->saturateAtMinValue() ? voxel_min : std::numeric_limits<float>::lowest();
-  const auto saturation_max = map_->saturateAtMinValue() ? voxel_max : std::numeric_limits<float>::max();
+  const auto saturation_max = map_->saturateAtMaxValue() ? voxel_max : std::numeric_limits<float>::max();
   // Touch the map to flag changes.
   const auto touch_stamp = map_->touch();
 
@@ -85,10 +85,7 @@ size_t RayMapperOccupancy::integrateRays(const glm::dvec3 *rays, size_t element_
     //    -
     MapChunk *chunk =
       (last_chunk && key.regionKey() == last_chunk->region.coord) ? last_chunk : map_->region(key.regionKey(), true);
-    if (chunk == last_chunk)
-    {
-    }
-    else
+    if (chunk != last_chunk)
     {
       occupancy_buffer = VoxelBuffer<VoxelBlock>(chunk->voxel_blocks[occupancy_layer]);
     }
@@ -96,9 +93,8 @@ size_t RayMapperOccupancy::integrateRays(const glm::dvec3 *rays, size_t element_
     const unsigned voxel_index = ::voxelIndex(key, occupancy_dim);
     float *occupancy_value = reinterpret_cast<float *>(occupancy_buffer.voxelMemory()) + voxel_index;
     const float initial_value = *occupancy_value;
-    const bool is_occupied =
-      (initial_value != unorbservedOccupancyValue() && initial_value > occupancy_threshold_value);
-    occupancyAdjustMiss(occupancy_value, initial_value, miss_value, unorbservedOccupancyValue(), voxel_min,
+    const bool is_occupied = (initial_value != unobservedOccupancyValue() && initial_value > occupancy_threshold_value);
+    occupancyAdjustMiss(occupancy_value, initial_value, miss_value, unobservedOccupancyValue(), voxel_min,
                         saturation_min, saturation_max, stop_adjustments);
     chunk->updateFirstValid(voxel_index);
 
@@ -148,10 +144,7 @@ size_t RayMapperOccupancy::integrateRays(const glm::dvec3 *rays, size_t element_
       const ohm::Key key = map_->voxelKey(end);
       MapChunk *chunk =
         (last_chunk && key.regionKey() == last_chunk->region.coord) ? last_chunk : map_->region(key.regionKey(), true);
-      if (chunk == last_chunk)
-      {
-      }
-      else
+      if (chunk != last_chunk)
       {
         occupancy_buffer = VoxelBuffer<VoxelBlock>(chunk->voxel_blocks[occupancy_layer]);
       }
@@ -160,7 +153,7 @@ size_t RayMapperOccupancy::integrateRays(const glm::dvec3 *rays, size_t element_
 
       float *occupancy_value = reinterpret_cast<float *>(occupancy_buffer.voxelMemory()) + voxel_index;
       const float initial_value = *occupancy_value;
-      occupancyAdjustHit(occupancy_value, initial_value, hit_value, unorbservedOccupancyValue(), voxel_max,
+      occupancyAdjustHit(occupancy_value, initial_value, hit_value, unobservedOccupancyValue(), voxel_max,
                          saturation_min, saturation_max, stop_adjustments);
 
       // update voxel mean if present.

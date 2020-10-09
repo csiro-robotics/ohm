@@ -15,9 +15,9 @@
 
 namespace ohmtestutil
 {
-  void initialiseTestVoxel(CovTestVoxel *ref_voxel, float covariance_initialisation)
+  void initialiseTestVoxel(CovTestVoxel *ref_voxel, float voxel_resolution)
   {
-    initialiseCovariance(ref_voxel, covariance_initialisation);
+    initialiseCovariance(ref_voxel, voxel_resolution);
     ref_voxel->mean[0] = ref_voxel->mean[1] = ref_voxel->mean[2] = 0;
     ref_voxel->point_count = 0;
   }

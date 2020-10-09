@@ -23,7 +23,7 @@ inline __device__ float calculateOccupancyAdjustment(const GpuKey *voxelKey, boo
 
   float3 voxel_mean = subVoxelToLocalCoord(mean_data->coord, voxel_resolution);
   // voxel_mean is currently relative to the voxel centre of the voxelKey voxel. We need to change it to be in the same
-  // reference frame as the incoming rays, which is relative to the endKey voxel. For this we need to caculate the
+  // reference frame as the incoming rays, which is relative to the endKey voxel. For this we need to calculate the
   // additional displacement from the centre of endKey to the centre of voxelKey and add this displacement.
 
   // Calculate the number of voxel steps from endKey to the voxelKey

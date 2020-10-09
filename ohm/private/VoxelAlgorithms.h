@@ -15,10 +15,10 @@ namespace ohm
   class Key;
   class OccupancyMap;
 
-  /// A utility function for calculating the @c voxelSearchHalfExtents parameter for @c calcualteNearestNeighbour.
+  /// A utility function for calculating the @c voxel_search_half_extents parameter for @c calculateNearestNeighbour.
   /// @param map The map being searched.
   /// @param search_radius The search radius of interest.
-  /// @return The calculated @c voxelSearchHalfExtents argument.
+  /// @return The calculated @c voxel_search_half_extents argument.
   glm::ivec3 ohm_API calculateVoxelSearchHalfExtents(const OccupancyMap &map, float search_radius);
 
   /// Search for the nearest occupied neighbour of @p voxel and return the range.
@@ -30,9 +30,9 @@ namespace ohm
   /// @param ignore_self Only consider neighbours. Ignore the voxel itself if it is occupied.
   /// @param search_range Radius to search and report.
   /// @param axis_scaling Scaling applied along each axis to distort the search space.
-  /// @param report_unscaled_distance Set to true in order to report the result without applying @c axisScaling.
+  /// @param report_unscaled_distance Set to true in order to report the result without applying @c axis_scaling.
   ///     The same voxel is selected regardless of this value.
-  /// @return -1 if there are no occupied voxels within the @p voxelSearchHalfExtents range, or the range of
+  /// @return -1 if there are no occupied voxels within the @p voxel_search_half_extents range, or the range of
   ///   the nearest obstacle. Zero when @p voxel itself is occupied.
   float ohm_API calculateNearestNeighbour(const Key &voxel_key, const OccupancyMap &map,
                                           const glm::ivec3 &voxel_search_half_extents, bool unknown_as_occupied,

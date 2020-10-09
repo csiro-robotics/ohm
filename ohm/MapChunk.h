@@ -10,6 +10,7 @@
 
 #include "Key.h"
 #include "MapRegion.h"
+#include "VoxelBlock.h"
 
 #include <algorithm>
 #include <atomic>
@@ -20,7 +21,6 @@ namespace ohm
 {
   class MapLayer;
   class MapLayout;
-  class VoxelBlock;
   struct OccupancyMapDetail;
 
   /// Convert a 3D index into a @c MapChunk into a linear index into the chunk's voxels.
@@ -169,11 +169,13 @@ namespace ohm
 
     /// A monotonic stamp value for each @c voxelMap, used to indicate when the layer was last updated.
     /// The map maintains the most up to date stamp: @c OccupancyMap::stamp().
-    std::atomic_uint64_t *touched_stamps = nullptr;
+    /// @note It is not possible to have a @c std::vector of atomic types. We use a unique pointer to an arrray
+    /// instead.
+    std::unique_ptr<std::atomic_uint64_t[]> touched_stamps;
 
     /// Array of voxel blocks. Layer semantics are defined in the owning @c OccupancyMap.
     /// Use @c layout to access specific maps.
-    VoxelBlock **voxel_blocks = nullptr;
+    std::vector<VoxelBlock::Ptr> voxel_blocks;
 
     /// Chunk flags set from @c MapChunkFlag.
     unsigned flags = 0;

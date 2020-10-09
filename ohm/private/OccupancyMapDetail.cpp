@@ -103,7 +103,7 @@ void OccupancyMapDetail::setDefaultLayout(bool enable_voxel_mean)
   VoxelLayout voxel;
   size_t clear_value;
 
-  const float invalid_marker_value = unorbservedOccupancyValue();
+  const float invalid_marker_value = unobservedOccupancyValue();
 
   clear_value = 0;
   memcpy(&clear_value, &invalid_marker_value, sizeof(invalid_marker_value));

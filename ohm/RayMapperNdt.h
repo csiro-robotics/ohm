@@ -17,7 +17,7 @@ namespace ohm
   class NdtMap;
 
   /// A @c RayMapper implementation built around updating a map in CPU. This mapper supports occupancy population
-  /// using a normal distributions transform methodology. The given map must support the following layers;
+  /// using a normal distributions transform methodology. The given map must support the following layers:
   /// @c MayLayout::occupancyLayer() - float occupancy values - , @c MapLayout::meanLayer() - @c VoxelMean - and
   /// @c MapLayout::covarianceLayer() - @c CovarianceVoxel .
   ///
@@ -39,7 +39,7 @@ namespace ohm
     /// Destructor
     ~RayMapperNdt();
 
-    /// Has the map been successfully valid?
+    /// Has the map been successfully validated?
     /// @return True if valid and @c integrateRays() is safe to call.
     inline bool valid() const { return valid_; }
 
@@ -61,7 +61,7 @@ namespace ohm
     NdtMap *map_;                ///< Target map.
     int occupancy_layer_ = -1;   ///< Cached occupancy layer index.
     int mean_layer_ = -1;        ///< Cached voxel mean layer index.
-    int covariance_layer_ = -1;  ///< Cached voxel mean layer index.
+    int covariance_layer_ = -1;  ///< Cached covariance layer index.
     /// Cached occupancy layer voxel dimensions. Voxel mean and covariance layers must exactly match.
     glm::u8vec3 occupancy_dim_{ 0, 0, 0 };
     bool valid_ = false;  ///< Has layer validation passed?

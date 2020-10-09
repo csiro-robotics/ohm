@@ -4,20 +4,15 @@
 #include "SlamCloudLoader.h"
 
 #ifdef _MSC_VER
-// Disable PDAL warnings:
-// - 4996: strerror not secure
-// - 4250: inheritance via dominance.
-#pragma warning(disable : 4996 4250)
+// std::equal with parameters that may be unsafe warning under Visual Studio.
+#pragma warning(disable : 4996)
 #endif  // _MSC_VER
 
 #include <ohmutil/SafeIO.h>
 
-#include <atomic>
 #include <chrono>
-#include <condition_variable>
 #include <fstream>
 #include <functional>
-#include <mutex>
 #include <string>
 #include <thread>
 #include <vector>
@@ -28,8 +23,6 @@
 #include <pdal/PointView.hpp>
 #include <pdal/Reader.hpp>
 #include <pdal/StageFactory.hpp>
-#include <pdal/io/BpfReader.hpp>
-#include <pdal/io/LasReader.hpp>
 
 // This is a hacky port of the libLAS version. The text trajectory reader could be ported to a PDAL reader.
 
@@ -47,220 +40,37 @@ namespace
   };
 
   using Clock = std::chrono::high_resolution_clock;
-
-  class PointStream : public pdal::StreamPointTable
-  {
-  public:
-    PointStream(size_t buffer_capacity)
-      : pdal::StreamPointTable(_layout, buffer_capacity)
-    {
-      // Register for the data we are interested in
-      _buffers[0].reserve(buffer_capacity);
-      _buffers[1].reserve(buffer_capacity);
-      // Start with flipping allowed.
-      _flip_wait.notify_one();
-    }
-
-    /// Called when execute() is started.  Typically used to set buffer size
-    /// when all dimensions are known.
-    void finalize() override
-    {
-      if (!_layout.finalized())
-      {
-        // Validate the dimensions.
-        bool have_required_dimensions = true;
-        if (!_layout.hasDim(pdal::Dimension::Id::X) || !_layout.hasDim(pdal::Dimension::Id::Y) ||
-            !_layout.hasDim(pdal::Dimension::Id::Z))
-        {
-          have_required_dimensions = false;
-        }
-
-        // Resolve time dimension.
-        auto dim = pdal::Dimension::Id::Unknown;
-        // First try resolve by name.
-        const std::string time_dim_names[] = { "time", "timestamp" };
-        for (const auto &time_name : time_dim_names)
-        {
-          dim = _layout.findDim(time_name);
-          if (dim != pdal::Dimension::Id::Unknown)
-          {
-            break;
-          }
-        }
-
-        if (dim == pdal::Dimension::Id::Unknown)
-        {
-          // Not found by name. Try resolve by Dimension ID
-          // Not found by name.
-          const pdal::Dimension::Id time_ids[] = { pdal::Dimension::Id::GpsTime, pdal::Dimension::Id::InternalTime,
-                                                   pdal::Dimension::Id::OffsetTime };
-          for (const auto &time_dim : time_ids)
-          {
-            if (_layout.hasDim(time_dim))
-            {
-              dim = time_dim;
-              break;
-            }
-          }
-        }
-
-        if (dim != pdal::Dimension::Id::Unknown)
-        {
-          // Resolved time field.
-          _time_dimension = dim;
-        }
-        else
-        {
-          have_required_dimensions = false;
-        }
-
-        _valid_dimensions = have_required_dimensions;
-
-        _layout.finalize();
-        pdal::StreamPointTable::finalize();
-      }
-    }
-
-    bool nextPoint(glm::dvec4 *point)
-    {
-      std::unique_lock<std::mutex> guard(_buffer_mutex);
-      const int read_buffer = 1 - _write_index;
-      const unsigned read_index = _next_read;
-      bool have_read = false;
-      if (_next_read < _buffers[read_buffer].size())
-      {
-        *point = _buffers[read_buffer][read_index];
-        ++_next_read;
-        have_read = true;
-      }
-      guard.unlock();
-      _flip_wait.notify_one();
-      return have_read;
-    }
-
-    inline bool isValid() const { return _valid_dimensions; }
-
-    /// True once we have data available for reading.
-    inline bool haveData() const { return _have_data; }
-
-    /// True once loading has been completed (@c markLoadComplete() called) and the read index is at the end of the
-    /// read buffer.
-    inline bool done()
-    {
-      if (_loading_complete)
-      {
-        std::unique_lock<std::mutex> guard(_buffer_mutex);
-        return _next_read >= _buffers[1 - _write_index].size();
-      }
-      return false;
-    }
-
-    /// Mark for abort. No more data points are stored.
-    inline void abort()
-    {
-      _abort = true;
-      _flip_wait.notify_all();
-    }
-
-    /// Mark loading as done: only to be called from the loading thread.
-    inline void markLoadComplete() { _loading_complete = true; }
-
-  protected:
-    // Not supported
-    char *getPoint(pdal::PointId /* idx */) override { return nullptr; }
-
-    void setFieldInternal(pdal::Dimension::Id dim, pdal::PointId idx, const void *val) override
-    {
-      if (!_abort)
-      {
-        auto &buffer = _buffers[_write_index];
-        while (buffer.size() <= idx)
-        {
-          buffer.emplace_back();
-        }
-
-        auto &point = buffer[idx];
-
-        switch (dim)
-        {
-        case pdal::Dimension::Id::X:
-          point.x = *static_cast<const double *>(val);
-          break;
-        case pdal::Dimension::Id::Y:
-          point.y = *static_cast<const double *>(val);
-          break;
-        case pdal::Dimension::Id::Z:
-          point.z = *static_cast<const double *>(val);
-          break;
-        default:
-          if (dim == _time_dimension)
-          {
-            point.w = *static_cast<const double *>(val);
-          }
-          break;
-        }
-      }
-    }
-
-    /// Called whenever the buffer capacity is filled before starting on the next block.
-    void reset() override
-    {
-      if (!_abort)
-      {
-        std::unique_lock<std::mutex> guard(_buffer_mutex);
-        const int read_buffer = 1 - _write_index;
-        _flip_wait.wait(guard, [this, read_buffer]() { return _abort || _next_read >= _buffers[read_buffer].size(); });
-        _write_index = read_buffer;
-        _buffers[read_buffer].clear();
-        _next_read = 0;
-        _have_data = true;
-      }
-    }
-
-  private:
-    // Double buffer to allow background thread streaming.
-    // Use w channel for timetstamp
-    std::vector<glm::dvec4> _buffers[2];
-    pdal::Dimension::Id _time_dimension{ pdal::Dimension::Id::GpsTime };
-    std::atomic_uint _next_read{ 0 };
-    std::atomic_int _write_index{ 0 };
-    pdal::PointLayout _layout;
-    std::mutex _buffer_mutex;
-    std::condition_variable _flip_wait;
-    std::atomic_bool _have_data{ false };
-    std::atomic_bool _loading_complete{ false };
-    std::atomic_bool _abort{ false };
-    std::atomic_bool _valid_dimensions{ false };
-  };
 }  // namespace
+
+using ReadTrajectoryFunc = std::function<bool(TrajectoryPoint &point)>;
 
 struct SlamCloudLoaderDetail
 {
   std::unique_ptr<pdal::StageFactory> pdal_factory = std::make_unique<pdal::StageFactory>();
-  std::shared_ptr<pdal::Streamable> sample_reader;
-  std::shared_ptr<pdal::Streamable> trajectory_reader;
+  std::shared_ptr<pdal::Stage> sample_reader = nullptr;
+  std::shared_ptr<pdal::Stage> trajectory_reader = nullptr;
 
-  std::unique_ptr<PointStream> sample_stream;
-  std::unique_ptr<PointStream> traj_stream;
+  std::unique_ptr<pdal::PointTable> sample_table = nullptr;
+  std::unique_ptr<pdal::PointTable> traj_table = nullptr;
 
-  std::thread sample_thread;
-  std::thread traj_thread;
+  pdal::Dimension::Id sample_time_field = pdal::Dimension::Id::Unknown;
+  pdal::Dimension::Id trajectory_time_field = pdal::Dimension::Id::Unknown;
 
-  pdal::point_count_t sample_count{ 0 };
-  pdal::point_count_t read_samples{ 0 };
+  pdal::PointViewPtr samples;
+  pdal::PointViewPtr trajectory;
+  uint64_t samples_view_index = 0;
+  uint64_t traj_view_index = 0;
 
   std::string sample_file_path;
   std::string trajectory_file_path;
-  std::function<bool(TrajectoryPoint &point)> read_trajectory_point;
+  ReadTrajectoryFunc read_trajectory_point;
   std::ifstream trajectory_file;
   std::string traj_line;
   glm::dvec3 trajectory_to_sensor_offset = glm::dvec3(0);
   TrajectoryPoint trajectory_buffer[2] = { TrajectoryPoint{}, TrajectoryPoint{} };
 
-  std::vector<SamplePoint> preload_points;
   SamplePoint next_sample = SamplePoint{};
-  pdal::point_count_t read_count = 0;
-  pdal::point_count_t preload_index = 0;
+  uint64_t next_sample_read_index = 0;
 
   Clock::time_point first_sample_read_time;
   double first_sample_timestamp = -1.0;
@@ -282,8 +92,8 @@ namespace
     return "";
   }
 
-  std::shared_ptr<pdal::Streamable> createReader(pdal::StageFactory &factory,  // NOLINT(google-runtime-references)
-                                                 const std::string &file_name)
+  std::shared_ptr<pdal::Stage> createReader(pdal::StageFactory &factory,  // NOLINT(google-runtime-references)
+                                            const std::string &file_name)
   {
     const std::string ext = getFileExtension(file_name);
     std::string reader_type;
@@ -301,48 +111,30 @@ namespace
     std::shared_ptr<pdal::Stage> reader(factory.createStage(reader_type),  //
                                         [&factory](pdal::Stage *stage) { factory.destroyStage(stage); });
 
-    if (!reader)
-    {
-      std::cerr << "PDAL reader for " << reader_type << " not available" << std::endl;
-      return nullptr;
-    }
-
-    if (!reader->pipelineStreamable())
-    {
-      std::cout << "PDAL reader for " << reader_type << " does not support streaming" << std::endl;
-      return nullptr;
-    }
-
-    auto streamable_reader = std::dynamic_pointer_cast<pdal::Streamable>(reader);
-
-    if (streamable_reader)
+    if (reader)
     {
       options.add("filename", file_name);
       reader->setOptions(options);
     }
 
-    return streamable_reader;
+    return reader;
   }
 
-
-  pdal::point_count_t pointCount(std::shared_ptr<pdal::Streamable> reader)
+  /// Ordered field IDs to try to use to resolve time.
+  pdal::Dimension::Id selectTimeField(const pdal::PointTable &points)
   {
-    // Doesn't seem to be a consistent way to read the point count. `Reader::count()` didn't work with las, but casting
-    // and calling `LasReader::getNumPoints()` does.
-#define TRY_PDAL_POINT_COUNT(T, func)                        \
-  if (T *r = dynamic_cast<T *>(reader.get()))                \
-  {                                                          \
-    const auto count = r->func();                            \
-    if (count < std::numeric_limits<decltype(count)>::max()) \
-    {                                                        \
-      return r->func();                                      \
-    }                                                        \
-  }
-    TRY_PDAL_POINT_COUNT(pdal::BpfReader, numPoints);
-    TRY_PDAL_POINT_COUNT(pdal::LasReader, getNumPoints);
-    TRY_PDAL_POINT_COUNT(pdal::Reader, count);
+    const pdal::Dimension::Id time_fields[] = { pdal::Dimension::Id::GpsTime, pdal::Dimension::Id::InternalTime,
+                                                pdal::Dimension::Id::OffsetTime };
 
-    return 0;
+    for (const auto field : time_fields)
+    {
+      if (points.layout()->hasDim(field))
+      {
+        return field;
+      }
+    }
+
+    return pdal::Dimension::Id::Unknown;
   }
 }  // namespace
 
@@ -355,6 +147,7 @@ SlamCloudLoader::SlamCloudLoader(bool real_time_mode)
 
 SlamCloudLoader::~SlamCloudLoader()
 {
+  // Must close first to have the correct cleanup order for PDAL
   close();
   delete imp_;
 }
@@ -415,23 +208,29 @@ bool SlamCloudLoader::open(const char *sample_file_path, const char *trajectory_
     }
   }
 
-  imp_->sample_stream = std::make_unique<PointStream>(10000);
-  imp_->sample_reader->prepare(*imp_->sample_stream);
-  imp_->sample_count = pointCount(imp_->sample_reader);
+  imp_->sample_table = std::make_unique<pdal::PointTable>();
+  imp_->sample_reader->prepare(*imp_->sample_table);
+  imp_->sample_time_field = selectTimeField(*imp_->sample_table);
 
-  imp_->sample_stream->finalize();
-  if (!imp_->sample_stream->isValid())
+  if (imp_->sample_time_field == pdal::Dimension::Id::Unknown)
   {
-    std::cerr << "Unable to resolve time field in " << imp_->sample_file_path << std::endl;
-    std::cerr << "Require point X, Y, Z and time fields" << std::endl;
+    close();
+    std::cerr << "Point cloud has not time data field" << std::endl;
+    return false;
+  }
+
+  pdal::PointViewSet point_sets = imp_->sample_reader->execute(*imp_->sample_table);
+  if (point_sets.empty())
+  {
     close();
     return false;
   }
 
-  bool using_trajectory = false;
+  imp_->samples = *point_sets.begin();
+
+  imp_->traj_view_index = 0u;
   if (text_trajectory)
   {
-    using_trajectory = true;
     imp_->read_trajectory_point = [this](TrajectoryPoint &point) -> bool {
       if (!std::getline(imp_->trajectory_file, imp_->traj_line))
       {
@@ -442,80 +241,67 @@ bool SlamCloudLoader::open(const char *sample_file_path, const char *trajectory_
       // sscanf is far faster than using stream operators.
       glm::dquat orientation;
       if (sscanf_s(imp_->traj_line.c_str(), "%lg %lg %lg %lg %lg %lg %lg %lg", &point.timestamp, &point.origin.x,
-                   &point.origin.y, &point.origin.z, &orientation.x, &orientation.y, &orientation.z,
-                   &orientation.w) != 8)
+                   &point.origin.y, &point.origin.z, &orientation.w, &orientation.x, &orientation.y,
+                   &orientation.z) != 8)
       {
         return false;
       }
 
+      ++imp_->traj_view_index;
       return true;
     };
   }
   else if (imp_->trajectory_reader)
   {
-    using_trajectory = true;
-    imp_->traj_stream = std::make_unique<PointStream>(5000);
-    imp_->trajectory_reader->prepare(*imp_->traj_stream);
+    imp_->traj_table = std::make_unique<pdal::PointTable>();
+    imp_->trajectory_reader->prepare(*imp_->traj_table);
 
-    imp_->traj_stream->finalize();
-    if (!imp_->traj_stream->isValid())
+    imp_->trajectory_time_field = selectTimeField(*imp_->sample_table);
+    if (imp_->trajectory_time_field == pdal::Dimension::Id::Unknown)
     {
-      std::cerr << "Unable to resolve required fields in " << imp_->trajectory_file_path << std::endl;
-      std::cerr << "Require point X, Y, Z and time fields" << std::endl;
+      std::cerr << "Unable to resolve trajectory time field" << std::endl;
       close();
       return false;
     }
+
+    point_sets = imp_->trajectory_reader->execute(*imp_->traj_table);
+    if (point_sets.empty())
+    {
+      close();
+      return false;
+    }
+
+    imp_->trajectory = *point_sets.begin();
+    imp_->traj_view_index = 0u;
 
     imp_->read_trajectory_point = [this](TrajectoryPoint &point) -> bool {
-      glm::dvec4 pt;
-      if (imp_->traj_stream->nextPoint(&pt))
+      if (imp_->traj_view_index >= imp_->trajectory->size())
       {
-        point.origin.x = pt.x;
-        point.origin.y = pt.y;
-        point.origin.z = pt.z;
-        point.timestamp = pt.w;
-        return true;
+        return false;
       }
 
-      return false;
+      point.origin.x = imp_->trajectory->getFieldAs<double>(pdal::Dimension::Id::X, imp_->traj_view_index);
+      point.origin.y = imp_->trajectory->getFieldAs<double>(pdal::Dimension::Id::Y, imp_->traj_view_index);
+      point.origin.z = imp_->trajectory->getFieldAs<double>(pdal::Dimension::Id::Z, imp_->traj_view_index);
+      point.timestamp = imp_->trajectory->getFieldAs<double>(imp_->trajectory_time_field, imp_->traj_view_index);
+      ++imp_->traj_view_index;
+      return true;
     };
-
-    imp_->traj_thread = std::thread([this]() {  //
-      imp_->trajectory_reader->execute(*imp_->traj_stream);
-      imp_->traj_stream->markLoadComplete();
-    });
   }
 
-  imp_->sample_thread = std::thread([this]() {  //
-    imp_->sample_reader->execute(*imp_->sample_stream);
-    imp_->sample_stream->markLoadComplete();
-  });
-
-  if (using_trajectory)
+  // Prime the trajectory buffer.
+  bool trajectory_primed = imp_->read_trajectory_point(imp_->trajectory_buffer[0]);
+  if (!trajectory_primed && text_trajectory)
   {
-    // Prime the trajectory buffer.
-    if (!text_trajectory && imp_->traj_stream)
-    {
-      // Wait for first trajectory data.
-      for (int i = 0; i < 10000 && !imp_->traj_stream->haveData(); ++i)
-      {
-        std::this_thread::sleep_for(std::chrono::milliseconds(1));
-      }
-    }
+    // Try a second time to read the first trajectory point from text file. First line may be headings.
+    trajectory_primed = imp_->read_trajectory_point(imp_->trajectory_buffer[0]);
+  }
+  trajectory_primed = trajectory_primed && imp_->read_trajectory_point(imp_->trajectory_buffer[1]);
 
-    bool trajectory_primed = imp_->read_trajectory_point(imp_->trajectory_buffer[0]);
-    if (!trajectory_primed && text_trajectory)
-    {
-      // Try a second time to read the first trajectory point from text file. First line may be headings.
-      trajectory_primed = imp_->read_trajectory_point(imp_->trajectory_buffer[0]);
-    }
-    trajectory_primed = trajectory_primed && imp_->read_trajectory_point(imp_->trajectory_buffer[1]);
-
-    if (!trajectory_primed)
-    {
-      close();
-      return false;
-    }
+  if (!trajectory_primed)
+  {
+    close();
+    return false;
   }
 
   return true;
@@ -524,47 +310,21 @@ bool SlamCloudLoader::open(const char *sample_file_path, const char *trajectory_
 
 void SlamCloudLoader::close()
 {
-  if (imp_->sample_stream)
-  {
-    imp_->sample_stream->abort();
-  }
-  if (imp_->traj_stream)
-  {
-    imp_->traj_stream->abort();
-  }
-
-  if (imp_->sample_reader)
-  {
-    if (imp_->sample_thread.joinable())
-    {
-      imp_->sample_thread.join();
-    }
-    imp_->sample_reader = nullptr;
-  }
-  if (imp_->trajectory_reader)
-  {
-    if (imp_->traj_thread.joinable())
-    {
-      imp_->traj_thread.join();
-    }
-    imp_->trajectory_reader = nullptr;
-  }
-
-  imp_->sample_stream.release();
-  imp_->traj_stream.release();
-
+  imp_->trajectory_reader.reset();
+  imp_->sample_reader.reset();
+  imp_->sample_table.reset();
+  imp_->traj_table.reset();
   imp_->sample_file_path.clear();
   imp_->trajectory_file_path.clear();
-  imp_->read_trajectory_point = std::function<bool(TrajectoryPoint &)>();
+  imp_->read_trajectory_point = ReadTrajectoryFunc();
   imp_->trajectory_file.close();
-  // imp_->next_sample_read_index = imp_->samples_view_index = imp_->traj_view_index = 0u;
-  imp_->read_count = imp_->sample_count = 0;
+  imp_->next_sample_read_index = imp_->samples_view_index = imp_->traj_view_index = 0u;
 }
 
 
 size_t SlamCloudLoader::numberOfPoints() const
 {
-  return imp_->sample_count;
+  return imp_->samples ? imp_->samples->size() : 0u;
 }
 
 
@@ -586,53 +346,34 @@ bool SlamCloudLoader::trajectoryFileIsOpen() const
 }
 
 
-void SlamCloudLoader::preload(size_t point_count)
+void SlamCloudLoader::preload(size_t /*point_count*/)
 {
-  if (!imp_->sample_stream)
-  {
-    return;
-  }
-
-  if (point_count && numberOfPoints())
-  {
-    point_count = std::min(point_count, numberOfPoints());
-  }
-
-  const bool load_all = point_count == 0 || numberOfPoints() && point_count >= numberOfPoints();
-
-  std::vector<SamplePoint> preload_data;
-  pdal::point_count_t initial_read_count = imp_->read_count;
-  preload_data.reserve(point_count);
-
-  bool ok = true;
-  SamplePoint sample;
-  while (!imp_->sample_stream->done() && (preload_data.size() < point_count || load_all))
-  {
-    ok = nextPoint(sample.sample, &sample.origin, &sample.timestamp);
-    preload_data.emplace_back(sample);
-  }
-
-  if (!ok)
-  {
-    // Not ok: remove the failed point.
-    preload_data.pop_back();
-  }
-
-  std::swap(imp_->preload_points, preload_data);
-  imp_->preload_index = 0;
-  imp_->read_count = initial_read_count;
+  // PDAL doesn't support streaming.
 }
 
 
 bool SlamCloudLoader::nextPoint(glm::dvec3 &sample, glm::dvec3 *origin, double *timestamp_out)
 {
-  if (loadPoint())
+  loadPoint();
+  if (imp_->next_sample_read_index < imp_->samples->size())
   {
-    ++imp_->read_count;
-    imp_->sample_count = std::max(imp_->sample_count, imp_->read_count);
-
+    ++imp_->next_sample_read_index;
     // Read next sample.
     const SamplePoint sample_point = imp_->next_sample;
+    // if (_imp->nextSampleReadIndex == _imp->samplesBuffer.size() || _imp->nextSampleReadIndex >= 1024)
+    //{
+    //  // Shrink the remaining points.
+    //  const size_t newSize = (_imp->nextSampleReadIndex < _imp->samplesBuffer.size()) ? _imp->samplesBuffer.size() -
+    //  _imp->nextSampleReadIndex : 0; if (_imp->nextSampleReadIndex < _imp->samplesBuffer.size())
+    //  {
+    //    memmove(_imp->samplesBuffer.data(),
+    //            _imp->samplesBuffer.data() + _imp->nextSampleReadIndex,
+    //            sizeof(*_imp->samplesBuffer.data()) * newSize
+    //            );
+    //  }
+    //  _imp->samplesBuffer.resize(newSize);
+    //  _imp->nextSampleReadIndex = 0;
+    //}
     sample = sample_point.sample;
     if (timestamp_out)
     {
@@ -666,45 +407,25 @@ bool SlamCloudLoader::nextPoint(glm::dvec3 &sample, glm::dvec3 *origin, double *
 
 bool SlamCloudLoader::loadPoint()
 {
-  if (imp_->preload_index < imp_->preload_points.size())
+  if (imp_->samples_view_index < imp_->samples->size())
   {
-    imp_->next_sample = imp_->preload_points[imp_->preload_index++];
-    return true;
-  }
-  else if (!imp_->preload_points.empty())
-  {
-    // Preload done. Release the memory for preload_points
-    imp_->preload_points = std::vector<SamplePoint>();
-    imp_->preload_index = 0;
-  }
+    SamplePoint sample{};
 
-  if (!imp_->sample_stream->done())
-  {
-    SamplePoint sample_data{};
+    sample.timestamp = imp_->samples->getFieldAs<double>(imp_->sample_time_field, imp_->samples_view_index);
+    sample.sample.x = imp_->samples->getFieldAs<double>(pdal::Dimension::Id::X, imp_->samples_view_index);
+    sample.sample.y = imp_->samples->getFieldAs<double>(pdal::Dimension::Id::Y, imp_->samples_view_index);
+    sample.sample.z = imp_->samples->getFieldAs<double>(pdal::Dimension::Id::Z, imp_->samples_view_index);
+    sample.origin = glm::dvec3(0);
 
-    glm::dvec4 sample{ 0 };
+    ++imp_->samples_view_index;
 
-    bool have_read = imp_->sample_stream->nextPoint(&sample);
-    while (!imp_->sample_stream->done() && !have_read)
+    sampleTrajectory(sample.origin, sample.sample, sample.timestamp);
+    imp_->next_sample = sample;
+
+    if (imp_->first_sample_timestamp < 0)
     {
-      std::this_thread::yield();
-      have_read = imp_->sample_stream->nextPoint(&sample);
-    }
-
-    if (have_read)
-    {
-      sample_data.sample = glm::dvec3(sample);
-      sample_data.timestamp = sample.w;
-      sample_data.origin = glm::dvec3(0);
-
-      sampleTrajectory(sample_data.origin, sample_data.sample, sample_data.timestamp);
-      imp_->next_sample = sample_data;
-
-      if (imp_->first_sample_timestamp < 0)
-      {
-        imp_->first_sample_timestamp = sample_data.timestamp;
-        imp_->first_sample_read_time = Clock::now();
-      }
+      imp_->first_sample_timestamp = sample.timestamp;
+      imp_->first_sample_read_time = Clock::now();
     }
     return true;
   }
@@ -734,11 +455,6 @@ bool SlamCloudLoader::sampleTrajectory(glm::dvec3 &position, const glm::dvec3 &s
       return true;
     }
   }
-  else
-  {
-    // Handle no trajectory file.
-    position = sample;
-  }
-
+  position = sample;
   return false;
 }
