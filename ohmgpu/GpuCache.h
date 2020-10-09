@@ -61,7 +61,7 @@ namespace ohm
     /// The default byte size of each GPU layer if not specified.
     static const size_t kDefaultLayerMemSize = kGiB / 2;
     /// Default total memory size to target.
-    static const size_t kDefaultTargetMemSize = 2 * kGiB;
+    static const size_t kDefaultTargetMemSize = 1 * kGiB;
 
     /// Instantiate the @c GpuCache for @p map.
     /// @param map The map to cache data for.
