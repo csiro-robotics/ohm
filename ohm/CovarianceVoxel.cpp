@@ -52,7 +52,7 @@ namespace
     // Both GLM and Eigen are column major. Direct mapping is fine.
     const auto cov_eigen = Eigen::Matrix3d::ConstMapType(glm::value_ptr(cov_mat), 3, 3);
 
-    Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> eigensolver(cov_eigen * cov_eigen.transpose());
+    Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> eigensolver(cov_eigen);
     Eigen::Vector3d evals = Eigen::Vector3d::Ones();
     Eigen::Matrix3d evecs = Eigen::Matrix3d::Identity();
 
@@ -85,8 +85,7 @@ namespace
   void covarianceEigenDecompositionGlm(const CovarianceVoxel *cov, glm::dmat3 *eigenvectors, glm::dvec3 *eigenvalues)
   {
     // This has been noted to be ~3x slower than the Eigen solver.
-    const glm::dmat3 cov_mat = covarianceMatrix(cov);
-    glm::dmat3 mat_p = cov_mat * glm::transpose(cov_mat);
+    glm::dmat3 map = covarianceMatrix(cov);
 
     *eigenvectors = glm::dmat3(1.0);  // Identity initialisation
 
@@ -114,7 +113,7 @@ namespace
       max_iterations = std::max(max_iterations, i + 1);
 #endif  // OHM_COV_DEBUG
 
-      glm::qr_decompose(mat_p, q, r);
+      glm::qr_decompose(map, q, r);
       // Progressively refine the eigenvectors.
       *eigenvectors = *eigenvectors * q;
       // Update eigenvalues and check for convergence
@@ -122,7 +121,7 @@ namespace
       eigenvalues_current[1] = r[1][1];
       eigenvalues_current[2] = r[2][2];
 
-      mat_p = r * q;
+      map = r * q;
 
       const glm::dvec3 eval_delta = glm::abs(eigenvalues_current - eigenvalues_last);
       if (glm::all(glm::lessThanEqual(eval_delta, delta_threshold)))
@@ -180,6 +179,7 @@ bool ohm::covarianceUnitSphereTransformation(const CovarianceVoxel *cov, glm::dq
 {
   glm::dmat3 eigenvectors;
   glm::dvec3 eigenvalues;
+
   covarianceEigenDecomposition(cov, &eigenvectors, &eigenvalues);
 
   const double det = glm::determinant(eigenvectors);
