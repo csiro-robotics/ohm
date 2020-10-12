@@ -58,9 +58,6 @@ namespace
     }
   }
 
-
-  // Min/max P: 0.1192 0.971
-  // Min/max V: -2.00003 3.51103
   struct Options
   {
     struct Ndt
@@ -93,6 +90,15 @@ namespace
     glm::vec2 prob_range = glm::vec2(0, 0);  // re-initialised from a default map
     glm::vec3 cloud_colour = glm::vec3(0);
     unsigned batch_size = 4096;
+    /// String value for the "--mode" argument. This sets the value of @c ray_mode_flags - see that member.
+    std::string mode = "normal";
+    /// @c ohm::RayFlag selection based on the "--mode" argument which is mapped into the @c mode member.
+    ///
+    /// Supported modes:
+    /// - "normal" (default) => @c ohm::kRfDefault
+    /// - "sample" (default) => @c ohm::kRfExcludeRay
+    /// - "erode" (default) => @c ohm::kRfExcludeSample
+    unsigned ray_mode_flags = ohm::kRfDefault;
     bool serialise = true;
     bool save_info = false;
     bool voxel_mean = false;
@@ -183,6 +189,7 @@ namespace
       // std::string mem_size_string;
       // util::makeMemoryDisplayString(mem_size_string, ohm::OccupancyMap::voxelMemoryPerRegion(region_voxel_dim));
       **out << "Map resolution: " << resolution << '\n';
+      **out << "Mapping mode: " << mode << '\n';
       **out << "Voxel mean position: " << (map.voxelMeanEnabled() ? "on" : "off") << '\n';
       **out << "Compressed: " << ((map.flags() & ohm::MapFlag::kCompressed) == ohm::MapFlag::kCompressed ? "on" : "off")
             << '\n';
@@ -646,7 +653,7 @@ int populateMap(const Options &opt)
 
     if (point_count % ray_batch_size == 0 || quit)
     {
-      ray_mapper->integrateRays(origin_sample_pairs.data(), unsigned(origin_sample_pairs.size()));
+      ray_mapper->integrateRays(origin_sample_pairs.data(), unsigned(origin_sample_pairs.size()), opt.ray_mode_flags);
       delta_motion = glm::length(origin_sample_pairs[0] - last_batch_origin);
       accumulated_motion += delta_motion;
       last_batch_origin = origin_sample_pairs[0];
@@ -697,7 +704,7 @@ int populateMap(const Options &opt)
   // Make sure we have no more rays.
   if (!origin_sample_pairs.empty())
   {
-    ray_mapper->integrateRays(origin_sample_pairs.data(), unsigned(origin_sample_pairs.size()));
+    ray_mapper->integrateRays(origin_sample_pairs.data(), unsigned(origin_sample_pairs.size()), opt.ray_mode_flags);
     delta_motion = glm::length(origin_sample_pairs[0] - last_batch_origin);
     accumulated_motion += delta_motion;
     sample_timestamps.clear();
@@ -835,6 +842,9 @@ int parseOptions(Options *opt, int argc, char *argv[])
       ("ndt-adaptation-rate", "NDT adpatation rate [0, 1]. Controls how fast rays remove NDT voxels. Has a strong effect than miss_value when using NDT.",
         optVal(opt->ndt.adaptation_rate))
       ("ndt-sensor-noise", "Range sensor noise used for Ndt mapping. Must be > 0.", optVal(opt->ndt.sensor_noise))
+      ("mode", "Controls the mapping mode [ normal, sample, erode ]. The 'normal' mode is the default, with the full ray "
+               "being integrated into the map. 'sample' mode only adds samples to increase occcupancy, while 'erode' "
+               "only erodes free space by skipping the sample voxels.", optVal(opt->mode))
       ;
 
     // clang-format on
@@ -877,6 +887,25 @@ int parseOptions(Options *opt, int argc, char *argv[])
     if (opt->cloud_file.empty())
     {
       std::cerr << "Missing input cloud" << std::endl;
+      return -1;
+    }
+
+    // Derive ray_mode_flags from mode
+    if (opt->mode == "normal")
+    {
+      opt->ray_mode_flags = ohm::kRfDefault;
+    }
+    else if (opt->mode == "samples")
+    {
+      opt->ray_mode_flags = ohm::kRfExcludeRay;
+    }
+    else if (opt->mode == "erode")
+    {
+      opt->ray_mode_flags = ohm::kRfExcludeSample;
+    }
+    else
+    {
+      std::cerr << "Unknown mode argument: " << opt->mode << std::endl;
       return -1;
     }
 
