@@ -78,6 +78,10 @@ GpuNdtMap::GpuNdtMap(OccupancyMap *map, bool borrowed_map, unsigned expected_ele
 
   // Cache the correct GPU program.
   cacheGpuProgram(true, true);
+
+
+  // Rays should be grouped by sample voxel for performance reasons. The GPU update assumes this grouping.
+  setGroupedRays(true);
 }
 
 

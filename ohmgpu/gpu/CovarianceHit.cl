@@ -104,8 +104,7 @@ __kernel void covarianceHit(__global atomic_float *occupancy, __global ulonglong
   uint region_index;
 
   regionsInitCurrent(&dummy_region_key, &region_index);
-  if (!regionsResolveRegion(&start_voxel, &dummy_region_key, &region_index, occupancy_region_keys_global,
-                            region_count))
+  if (!regionsResolveRegion(&start_voxel, &dummy_region_key, &region_index, occupancy_region_keys_global, region_count))
   {
     // Data not available in GPU memory.
     return;
@@ -116,7 +115,7 @@ __kernel void covarianceHit(__global atomic_float *occupancy, __global ulonglong
   cov_index = (uint)(region_local_index + cov_region_mem_offsets_global[region_index] / sizeof(*cov_voxels));
 
   // Cache initial values.
-  WorkItem_t work_item;
+  WorkItem work_item;
   work_item.occupancy = occupancy[occupancy_index];
   work_item.mean = subVoxelToLocalCoord(means[mean_index].coord, voxel_resolution);
   work_item.sample_count = means[mean_index].count;

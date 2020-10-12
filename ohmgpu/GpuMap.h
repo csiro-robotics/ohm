@@ -205,6 +205,15 @@ namespace ohm
     /// @param value New miss value.
     void setMissValue(float value);
 
+    /// Query if rays are being grouped by sample before upload to GPU.
+    ///
+    /// This is only set for algorithms which require grouping of rays such as the NDT update used by @c GpuNdtMap .
+    /// It is not a user configurable property because of its algorithmic dependency. Rays are grouped by pre sorting
+    /// in CPU before GPU upload. This means that ray batches are reordered before upload.
+    ///
+    /// @return True if rays are groupd by sample voxel before upload to GPU.
+    bool groupedRays() const;
+
     /// Integrate the given @p rays into the map. The @p rays form a list of origin/sample pairs for which
     /// we generally consider the sample voxel as a hit when (increasing occupancy) and all other voxels as misses
     /// (free space). The sample may be treated as a miss when @p endPointsAsOccupied is false.
@@ -252,6 +261,14 @@ namespace ohm
     GpuCache *gpuCache() const;
 
   protected:
+    /// Set the status of @c sortedRays() .
+    ///
+    /// This should only be set for algorithms which require ray grouping. For example, @c GpuNdtMap sorts rays for
+    /// performance reasons.
+    ///
+    /// @param group The grouping status to set.
+    void setGroupedRays(bool group);
+
     /// Cache the correct GPU program to cater for @c with_voxel_mean. Releases the existing program first when
     /// @p force is true or @p with_voxel_mean does not match the cached program.
     /// @param with_voxel_mean True to cache the program which supports voxel mean positioning (@ref voxelmean).

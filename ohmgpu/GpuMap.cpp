@@ -383,6 +383,12 @@ void GpuMap::setMissValue(float value)
 }
 
 
+bool GpuMap::groupedRays() const
+{
+  return imp_->group_rays;
+}
+
+
 size_t GpuMap::integrateRays(const glm::dvec3 *rays, size_t element_count, unsigned region_update_flags)
 {
   return integrateRays(rays, element_count, region_update_flags, effectiveRayFilter());
@@ -449,6 +455,12 @@ void GpuMap::applyClearingPattern(const glm::dvec3 &apex, const glm::dvec3 &cone
 GpuCache *GpuMap::gpuCache() const
 {
   return static_cast<GpuCache *>(imp_->map->detail()->gpu_cache);
+}
+
+
+void GpuMap::setGroupedRays(bool group)
+{
+  imp_->group_rays = group;
 }
 
 
@@ -551,8 +563,6 @@ size_t GpuMap::integrateRays(const glm::dvec3 *rays, size_t element_count, unsig
     }
   };
 
-  const bool use_filter = bool(filter);
-
   // Reserve GPU memory for the rays.
   imp_->key_buffers[buf_idx].resize(sizeof(GpuKey) * element_count);
   imp_->ray_buffers[buf_idx].resize(sizeof(gputil::float3) * element_count);
@@ -563,88 +573,36 @@ size_t GpuMap::integrateRays(const glm::dvec3 *rays, size_t element_count, unsig
   // Build region set and upload rays.
   imp_->regions.clear();
 
-  glm::dvec3 ray_start_d, ray_end_d, end_voxel_centre;
-  gputil::float3 ray[2];
+  gputil::float3 ray_gpu[2];
   unsigned upload_count = 0u;
-  unsigned filter_flags;
-  Key line_start_key, line_end_key;
   GpuKey line_start_key_gpu{}, line_end_key_gpu{};
 
-  struct RayItem
+  const bool use_filter = bool(filter);
+
+  // We have two loops we could run:
+  // 1. processing rays as is
+  // 2. grouping rays by sample voxel
+  //
+  // In either case we use the same code to actually upload
+  // We set add_ray_upload to contain the "loop body" for both cases.
+  const auto upload_ray = [&](const RayItem &ray)  //
   {
-    glm::dvec3 origin;
-    glm::dvec3 sample;
-    Key origin_key;
-    Key sample_key;
-  };
-
-  std::vector<RayItem> sorted_rays(element_count / 2);
-
-  for (unsigned i = 0; i < element_count; i += 2)
-  {
-    RayItem &item = sorted_rays[i / 2];
-    item.origin = rays[i + 0];
-    item.sample = rays[i + 1];
-    item.origin_key = map.voxelKey(item.origin);
-    item.sample_key = map.voxelKey(item.sample);
-  }
-
-  std::sort(sorted_rays.begin(), sorted_rays.end(), [](const RayItem &a, const RayItem &b) -> bool {
-    const int64_t region_stride = 0xffffu;
-    const int64_t region_index_a = (int64_t)a.sample_key.regionKey().x +
-                                   (int64_t)region_stride * a.sample_key.regionKey().y +
-                                   region_stride * region_stride * (int64_t)a.sample_key.regionKey().z;
-    const int64_t region_index_b = (int64_t)b.sample_key.regionKey().x +
-                                   region_stride * (int64_t)b.sample_key.regionKey().y +
-                                   region_stride * region_stride * (int64_t)b.sample_key.regionKey().z;
-    const uint32_t local_stride = 0xffu;
-    const uint32_t local_index_a = (int32_t)a.sample_key.localKey().x +
-                                   local_stride * (int32_t)a.sample_key.localKey().y +
-                                   local_stride * local_stride * (int32_t)a.sample_key.localKey().z;
-    const uint32_t local_index_b = (int32_t)b.sample_key.localKey().x +
-                                   local_stride * (int32_t)b.sample_key.localKey().y +
-                                   local_stride * local_stride * (int32_t)b.sample_key.localKey().z;
-    return region_index_a < region_index_b || region_index_a == region_index_b && local_index_a < local_index_b;
-  });
-
-  // for (unsigned i = 0; i < element_count; i += 2)
-  // {
-  //   ray_start_d = rays[i + 0];
-  //   ray_end_d = rays[i + 1];
-  for (const RayItem &item : sorted_rays)
-  {
-    ray_start_d = item.origin;
-    ray_end_d = item.sample;
-    filter_flags = 0;
-
-    if (use_filter)
-    {
-      if (!filter(&ray_start_d, &ray_end_d, &filter_flags))
-      {
-        // Bad ray.
-        continue;
-      }
-    }
-
     // Upload if not preloaded.
-    line_start_key = item.origin_key;  // map.voxelKey(ray_start_d);
-    line_end_key = item.sample_key;    // map.voxelKey(ray_end_d);
-
-    line_start_key_gpu.region[0] = line_start_key.regionKey()[0];
-    line_start_key_gpu.region[1] = line_start_key.regionKey()[1];
-    line_start_key_gpu.region[2] = line_start_key.regionKey()[2];
-    line_start_key_gpu.voxel[0] = line_start_key.localKey()[0];
-    line_start_key_gpu.voxel[1] = line_start_key.localKey()[1];
-    line_start_key_gpu.voxel[2] = line_start_key.localKey()[2];
+    line_start_key_gpu.region[0] = ray.origin_key.regionKey()[0];
+    line_start_key_gpu.region[1] = ray.origin_key.regionKey()[1];
+    line_start_key_gpu.region[2] = ray.origin_key.regionKey()[2];
+    line_start_key_gpu.voxel[0] = ray.origin_key.localKey()[0];
+    line_start_key_gpu.voxel[1] = ray.origin_key.localKey()[1];
+    line_start_key_gpu.voxel[2] = ray.origin_key.localKey()[2];
     line_start_key_gpu.voxel[3] = 0;
 
-    line_end_key_gpu.region[0] = line_end_key.regionKey()[0];
-    line_end_key_gpu.region[1] = line_end_key.regionKey()[1];
-    line_end_key_gpu.region[2] = line_end_key.regionKey()[2];
-    line_end_key_gpu.voxel[0] = line_end_key.localKey()[0];
-    line_end_key_gpu.voxel[1] = line_end_key.localKey()[1];
-    line_end_key_gpu.voxel[2] = line_end_key.localKey()[2];
-    line_end_key_gpu.voxel[3] = (filter_flags & kRffClippedEnd) ? 1 : 0;
+    line_end_key_gpu.region[0] = ray.sample_key.regionKey()[0];
+    line_end_key_gpu.region[1] = ray.sample_key.regionKey()[1];
+    line_end_key_gpu.region[2] = ray.sample_key.regionKey()[2];
+    line_end_key_gpu.voxel[0] = ray.sample_key.localKey()[0];
+    line_end_key_gpu.voxel[1] = ray.sample_key.localKey()[1];
+    line_end_key_gpu.voxel[2] = ray.sample_key.localKey()[2];
+    line_end_key_gpu.voxel[3] = (ray.filter_flags & kRffClippedEnd) ? 1 : 0;
 
     keys_pinned.write(&line_start_key_gpu, sizeof(line_start_key_gpu), (upload_count + 0) * sizeof(GpuKey));
     keys_pinned.write(&line_end_key_gpu, sizeof(line_end_key_gpu), (upload_count + 1) * sizeof(GpuKey));
@@ -653,21 +611,105 @@ size_t GpuMap::integrateRays(const glm::dvec3 *rays, size_t element_count, unsig
     // We change the ray coordinates to be relative to the end voxel centre. This assist later in voxel mean
     // calculations which are all relative to that voxel centre. Normally in CPU we have to make this adjustment
     // every time. We can avoid the adjustment via this logic.
-    end_voxel_centre = map.voxelCentreGlobal(line_end_key);
-    ray[0].x = float(ray_start_d.x - end_voxel_centre.x);
-    ray[0].y = float(ray_start_d.y - end_voxel_centre.y);
-    ray[0].z = float(ray_start_d.z - end_voxel_centre.z);
-    ray[1].x = float(ray_end_d.x - end_voxel_centre.x);
-    ray[1].y = float(ray_end_d.y - end_voxel_centre.y);
-    ray[1].z = float(ray_end_d.z - end_voxel_centre.z);
-    rays_pinned.write(ray, sizeof(ray), upload_count * sizeof(gputil::float3));
+    const glm::dvec3 end_voxel_centre = map.voxelCentreGlobal(ray.sample_key);
+    ray_gpu[0].x = float(ray.origin.x - end_voxel_centre.x);
+    ray_gpu[0].y = float(ray.origin.y - end_voxel_centre.y);
+    ray_gpu[0].z = float(ray.origin.z - end_voxel_centre.z);
+    ray_gpu[1].x = float(ray.sample.x - end_voxel_centre.x);
+    ray_gpu[1].y = float(ray.sample.y - end_voxel_centre.y);
+    ray_gpu[1].z = float(ray.sample.z - end_voxel_centre.z);
+    rays_pinned.write(ray_gpu, sizeof(ray_gpu), upload_count * sizeof(gputil::float3));
     upload_count += 2;
 
     // std::cout << i / 2 << ' ' << imp_->map->voxelKey(rays[i + 0]) << " -> " << imp_->map->voxelKey(rays[i + 1]) << "
     // "
     //          << ray_start << ':' << ray_end << "  <=>  " << rays[i + 0] << " -> " << rays[i + 1] << std::endl;
     // std::cout << "dirs: " << (ray_end - ray_start) << " vs " << (ray_end_d - ray_start_d) << std::endl;
-    walkRegions(*imp_->map, ray_start_d, ray_end_d, region_func);
+    walkRegions(*imp_->map, ray.origin, ray.sample, region_func);
+  };
+
+  RayItem ray{};
+  if (!imp_->group_rays)
+  {
+    // Not grouping rays. Simple upload as is. For each ray, call upload_ray .
+    for (unsigned i = 0; i < element_count; i += 2)
+    {
+      ray.origin = rays[i + 0];
+      ray.sample = rays[i + 1];
+      ray.filter_flags = 0;
+
+      if (use_filter)
+      {
+        if (!filter(&ray.origin, &ray.sample, &ray.filter_flags))
+        {
+          // Bad ray.
+          continue;
+        }
+      }
+
+      ray.origin_key = map.voxelKey(ray.origin);
+      ray.sample_key = map.voxelKey(ray.sample);
+      upload_ray(ray);
+    }
+  }
+  else
+  {
+    // Grouped ray upload. We must first sort rays by sample voxel.
+    // Despite the extra CPU work, this has proven faster for NDT update in GpuNdtMap because the GPU can do much less
+    // work.
+
+    // Reserve memory for the current ray set.
+    imp_->grouped_rays.clear();
+    imp_->grouped_rays.reserve(element_count / 2);
+
+    // Populate the sorting structure.
+    for (unsigned i = 0; i < element_count; i += 2)
+    {
+      ray.origin = rays[i + 0];
+      ray.sample = rays[i + 1];
+      ray.filter_flags = 0;
+
+      if (use_filter)
+      {
+        if (!filter(&ray.origin, &ray.sample, &ray.filter_flags))
+        {
+          // Bad ray.
+          continue;
+        }
+      }
+
+      ray.origin_key = map.voxelKey(ray.origin);
+      ray.sample_key = map.voxelKey(ray.sample);
+      imp_->grouped_rays.emplace_back(ray);
+    }
+
+    /// Sort the rays. Order does not matter asside from ensuring the rays are grouped by sample voxel.
+    std::sort(imp_->grouped_rays.begin(), imp_->grouped_rays.end(),
+              [](const RayItem &a, const RayItem &b) -> bool  //
+              {
+                const int64_t region_stride = 0xffffu;
+                const int64_t region_index_a = (int64_t)a.sample_key.regionKey().x +
+                                               (int64_t)region_stride * a.sample_key.regionKey().y +
+                                               region_stride * region_stride * (int64_t)a.sample_key.regionKey().z;
+                const int64_t region_index_b = (int64_t)b.sample_key.regionKey().x +
+                                               region_stride * (int64_t)b.sample_key.regionKey().y +
+                                               region_stride * region_stride * (int64_t)b.sample_key.regionKey().z;
+                const uint32_t local_stride = 0xffu;
+                const uint32_t local_index_a = (int32_t)a.sample_key.localKey().x +
+                                               local_stride * (int32_t)a.sample_key.localKey().y +
+                                               local_stride * local_stride * (int32_t)a.sample_key.localKey().z;
+                const uint32_t local_index_b = (int32_t)b.sample_key.localKey().x +
+                                               local_stride * (int32_t)b.sample_key.localKey().y +
+                                               local_stride * local_stride * (int32_t)b.sample_key.localKey().z;
+                return region_index_a < region_index_b ||
+                       region_index_a == region_index_b && local_index_a < local_index_b;
+              });
+
+    // Upload to GPU.
+    for (const RayItem &ray : imp_->grouped_rays)
+    {
+      upload_ray(ray);
+    }
   }
 
   // Asynchronous unpin. Kernels will wait on the associated event.

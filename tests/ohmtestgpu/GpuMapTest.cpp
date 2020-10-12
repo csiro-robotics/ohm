@@ -591,7 +591,7 @@ namespace gpumap
     gpu_wrap.integrateRays(rays.data(), unsigned(rays.size()));
     gpu_wrap.syncVoxels();
 
-    // Validate the map contains no occupied points; only free and unknown.
+    // Validate the map contains an occupied point at the origin voxel.
     const Key target_key = gpu_map.voxelKey(glm::dvec3(0));
     touched = false;
     voxel = ohm::Voxel<const float>(&gpu_map, gpu_map.layout().occupancyLayer());
