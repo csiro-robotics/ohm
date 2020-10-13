@@ -5,8 +5,8 @@
 // Author: Kazys Stepanas
 #include "GpuLayerCache.h"
 
-#include "GpuCacheParams.h"
 #include "GpuCacheStats.h"
+#include "GpuLayerCacheParams.h"
 
 #include <ohm/MapChunk.h>
 #include <ohm/MapLayer.h>

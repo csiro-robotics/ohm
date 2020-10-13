@@ -6,7 +6,7 @@
 #include "GpuMapDetail.h"
 
 #include "GpuCache.h"
-#include "GpuCacheParams.h"
+#include "GpuLayerCacheParams.h"
 #include "GpuMap.h"
 #include "GpuTransformSamples.h"
 
@@ -101,7 +101,7 @@ void ohm::reinitialiseGpuCache(GpuCache *gpu_cache, OccupancyMap &map, unsigned 
     for (auto &layer_weight : layer_mem_weight)
     {
       // Logic is: layer_mem = target mem * (layer_weight / total_weight)
-      layer_weight.second = layer_weight.second * gpu_cache->targetGpuLayerSize() / total_mem_weight;
+      layer_weight.second = layer_weight.second * gpu_cache->targetGpuAllocSize() / total_mem_weight;
     }
 
     if (occupancy_layer >= 0)

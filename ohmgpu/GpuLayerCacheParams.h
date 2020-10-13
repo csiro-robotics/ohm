@@ -3,8 +3,8 @@
 // ABN 41 687 119 230
 //
 // Author: Kazys Stepanas
-#ifndef GPUCACHEPARAMS_H
-#define GPUCACHEPARAMS_H
+#ifndef GPULAYERCACHEPARAMS_H
+#define GPULAYERCACHEPARAMS_H
 
 #include "OhmGpuConfig.h"
 
@@ -13,7 +13,7 @@
 namespace ohm
 {
   /// Flags used to create a @c GpuLayerCache.
-  enum GpuCacheFlag
+  enum GpuLayerCacheFlag
   {
     /// Will read voxel data from host to GPU memory.
     kGcfRead = (1 << 0),
@@ -48,4 +48,4 @@ namespace ohm
   };
 }  // namespace ohm
 
-#endif  // GPUCACHEPARAMS_H
+#endif  // GPULAYERCACHEPARAMS_H

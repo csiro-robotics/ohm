@@ -5,8 +5,8 @@
 // Author: Kazys Stepanas
 #include "GpuCache.h"
 
-#include "GpuCacheParams.h"
 #include "GpuLayerCache.h"
+#include "GpuLayerCacheParams.h"
 
 #include "OhmGpu.h"
 
@@ -27,19 +27,19 @@ namespace ohm
     gputil::Device gpu;
     gputil::Queue gpu_queue;
     OccupancyMap *map = nullptr;
-    size_t target_gpu_layer_size = 0;
+    size_t target_gpu_alloc_size = 0;
     unsigned flags = 0;
   };
 }  // namespace ohm
 
 
-GpuCache::GpuCache(OccupancyMap &map, size_t target_gpu_layer_size, unsigned flags)
+GpuCache::GpuCache(OccupancyMap &map, size_t target_gpu_alloc_size, unsigned flags)
   : imp_(new GpuCacheDetail)
 {
   imp_->gpu = ohm::gpuDevice();
   imp_->gpu_queue = imp_->gpu.defaultQueue();
   imp_->map = &map;
-  imp_->target_gpu_layer_size = target_gpu_layer_size;
+  imp_->target_gpu_alloc_size = target_gpu_alloc_size;
   imp_->flags = flags;
 }
 
@@ -95,9 +95,9 @@ void GpuCache::remove(const glm::i16vec3 &region_key)
 }
 
 
-size_t GpuCache::targetGpuLayerSize() const
+size_t GpuCache::targetGpuAllocSize() const
 {
-  return imp_->target_gpu_layer_size;
+  return imp_->target_gpu_alloc_size;
 }
 
 
