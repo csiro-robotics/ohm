@@ -93,7 +93,7 @@ namespace ohm
   inline glm::dmat3 covarianceMatrix(const CovarianceVoxel *cov)
   {
     const glm::dmat3 cov_sqrt_mat = covarianceSqrtMatrix(cov);
-    return cov_sqrt_mat * glm::inverse(cov_sqrt_mat);
+    return cov_sqrt_mat * glm::transpose(cov_sqrt_mat);
   }
 
 #if OHM_COV_DEBUG
