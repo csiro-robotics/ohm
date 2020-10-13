@@ -48,10 +48,65 @@ void __device__ collateSample(WorkItem *work_item, float3 sensor, float3 sample,
   ++work_item->sample_count;
 }
 
-// Things to document:
-// - Invocation is one thread per sample (subject to change)
-// - Each thread will handle one sample voxel
-//  - Contension avoided by having only the first thread targetting a particular voxel allowed to write resutls.
+/// This kernel integrates the ray sample points only into the map and is executed one thread per sample.
+///
+/// This kernel works with the @c REGION_UPDATE_KERNEL compiled in NDT mode. That kernel adjusts only free space
+/// skipping the sample voxels. This kernel is invoked afterwards in order to calculate the sample adjustments. This
+/// is because the sample adjustment is unable to use atomic CAS semantics when updating the covariance. The six values
+/// of the reduced covariance matrix - see @c CovarianceVoxel - cannot be updated atomically.
+///
+/// This performes the covariance update on @c CovarianceVoxel for each affected sample voxel. The kernel requires that
+/// the @c line_keys and corresponding @c local_lines are grouped (or sorted) such that all samples affecting a
+/// particular sample voxel appear in a contiguous range in the array - referred below as a "sample block".
+///
+/// We run one GPU thread per sample entry in @c line_keys and @c local_lines . Each thread starts by checking if it is
+/// the first thread in a sample block. Only the first thread in the sample block continues execution with all other
+/// threads returning. The remaining threads iterate over their sample block and perform the relevant updates to
+/// @c CovarianceVoxel and @c VoxelMean before writing the value back to main memory.
+///
+/// While this results in many inactive threads, it has proven more efficient than the following other attempted
+/// techniques:
+/// - Performing NDT sample update on GPU resulted in too much memory synchronisation overhead between CPU/GPU
+/// - Unordered GPU update with each thread iterating the entire sample range looking for relevant samples - only first
+///   thread did the writing
+///
+/// @note Memory layout for voxel data - @p occupancy , @p means and @p cov_voxels - is the same as for the
+/// @c REGION_UPDATE_KERNEL .
+///
+/// @param occupancy The GPU cached voxel occupancy block.
+/// @param occupancy_region_mem_offsets_global Array of voxel region memory offsets into @p occupancy . Each element
+///     corresponds to a key in occupancy_region_keys_global. The offsets are in bytes.
+/// @param means The GPU cached @c VoxelMean data block.
+/// @param means_region_mem_offsets_global Array of voxel region memory offsets into @p means . Each element
+///     corresponds to a key in occupancy_region_keys_global. The offsets are in bytes.
+/// @param cov_voxels The GPU cached @c CovarianceVoxel data block.
+/// @param cov_region_mem_offsets_global Array of voxel region memory offsets into @p cov_voxels . Each element
+///     corresponds to a key in occupancy_region_keys_global. The offsets are in bytes.
+/// @param occupancy_region_keys_global Array of voxel region keys identifying regions available in GPU. There are
+///     @c region_count elements in this array.
+/// @param region_count Number of regions uploaded in GPU and addressable in @p occupancy_region_keys_global .
+/// @param line_keys Array of origin/sample pairs converted into @c GpuKey references to integrate into the map.
+///     Must be ordered such that all samples of the same value appear in a contiguous block.
+/// @param local_lines Array array of origin/sample pairs which generated the @c line_keys. These are converted from the
+///     original, double precision, map frame coordinates into a set of local frames. Each start/end point pair is
+///     relative to the centre of the voxel containing the end point. This is to reduce floating point error in
+///     double to single precision conversion and assist in voxel mean calculations which are in the same frame.
+///     The original coordinates are not recoverable in this code.
+/// @param line_count number of lines in @p line_keys and @p local_lines. These come in pairs, so the number of elements
+///     in those arrays is double this value.
+/// @param region_dimensions Specifies the size of any one region in voxels.
+/// @param voxel_resolution Specifies the size of a voxel cube.
+/// @param sample_adjustment Specifiest the value adjustment applied to voxels containing the sample point (line end
+///     point). Should be > 0 to re-enforce as occupied.
+/// @param occupied_threashold Voxel @p occupancy value at which point the voxel is considered occupied. Must be >= 0 .
+///     Normally 0.
+/// @param voxel_value_max Maximum clamping value for voxel adjustments.
+/// @param sensor_noise Expected range sensor noise value in the same units as the line values (generally metres).
+///     Used as part of the NDT model. Must be > 0
+/// @param reinitialise_cov_threshold The occupancy theshold value at which the covariance matrix may be reinitialised.
+///     See @c calculateHitWithCovariance()
+/// @param reinitialise_cov_sample_count The point count required to allow @p reinitialise_cov_threshold to be
+///     triggered. See @c calculateHitWithCovariance()
 __kernel void covarianceHit(__global atomic_float *occupancy, __global ulonglong *occupancy_region_mem_offsets_global,
                             __global VoxelMean *means, __global ulonglong *means_region_mem_offsets_global,
                             __global CovarianceVoxel *cov_voxels, __global ulonglong *cov_region_mem_offsets_global,
