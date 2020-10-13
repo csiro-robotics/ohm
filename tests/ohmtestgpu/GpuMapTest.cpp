@@ -6,6 +6,7 @@
 #include <gtest/gtest.h>
 
 #include <ohm/Aabb.h>
+#include <ohmgpu/GpuCache.h>
 #include <ohmgpu/GpuMap.h>
 #include <ohm/KeyList.h>
 #include <ohm/MapChunk.h>
@@ -363,6 +364,7 @@ namespace gpumap
     const double resolution = 0.25;
     const unsigned ray_count = 1024 * 8;
     const unsigned batch_size = 1024 * 2;  // Must be even
+    const size_t target_gpu_cache_size = GpuCache::kMiB * 200;
     const glm::u8vec3 region_size(32);
     // Make some rays.
     std::mt19937 rand_engine;
@@ -377,9 +379,9 @@ namespace gpumap
 
     // Two simultaneous, maps with the same scope.
     OccupancyMap map1(resolution, region_size);
-    GpuMap gpu_map1(&map1, true);  // Borrow pointer.
+    GpuMap gpu_map1(&map1, true, batch_size, target_gpu_cache_size);  // Borrow pointer.
     OccupancyMap map2(resolution, region_size);
-    GpuMap gpu_map2(&map2, true);  // Borrow pointer.
+    GpuMap gpu_map2(&map2, true, batch_size, target_gpu_cache_size);  // Borrow pointer.
 
     // Third map with transient GpuMap wrapper.
     OccupancyMap map3(resolution, region_size);
@@ -393,14 +395,14 @@ namespace gpumap
       gpu_map1.integrateRays(rays.data() + i, current_batch_size);
       gpu_map2.integrateRays(rays.data() + i, current_batch_size);
 
-      GpuMap gpu_map3(&map3, true);  // Borrow pointer.
+      GpuMap gpu_map3(&map3, true, batch_size, target_gpu_cache_size);  // Borrow pointer.
       gpu_map3.integrateRays(rays.data() + i, current_batch_size);
       gpu_map3.syncVoxels();
 
       // Forth, transient map.
       OccupancyMap map4(resolution, region_size);
       // std::cout << "\n" << map4.origin() << std::endl;
-      GpuMap gpu_map4(&map4, true);  // Borrow pointer.
+      GpuMap gpu_map4(&map4, true, batch_size, target_gpu_cache_size);  // Borrow pointer.
       gpu_map4.integrateRays(rays.data() + i, current_batch_size);
       gpu_map4.syncVoxels();
     }
