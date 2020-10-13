@@ -375,7 +375,7 @@ int populateMap(const Options &opt)
     map.insertRay(octomap::point3d{ float(origin.x), float(origin.y), float(origin.z) },
                   octomap::point3d{ float(sample.x), float(sample.y), float(sample.z) }, -1.0, !opt.non_lazy_eval);
     prog.incrementProgress();
-    // elapsed_ms = uint64_t((last_timestamp - timebase) * 1e3);
+    elapsed_ms = uint64_t((last_timestamp - timebase) * 1e3);
 
     if (opt.point_limit && point_count >= opt.point_limit ||
         opt.time_limit > 0 && last_timestamp - timebase >= opt.time_limit || quit)

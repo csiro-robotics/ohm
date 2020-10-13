@@ -23,6 +23,7 @@ elseif(OHM_UTILS_GPU_API_DEFAULT EQUAL "CUDA")
 endif()
 
 add_subdirectory(ohm2ply)
+add_subdirectory(ohmfilter)
 add_subdirectory(ohmheightmap)
 add_subdirectory(ohminfo)
 add_subdirectory(ohmpop)
@@ -33,10 +34,6 @@ add_subdirectory(ohmsubmap)
 if(OHM_BUILD_HEIGHTMAPUTIL)
   add_subdirectory(ohmhm2img)
 endif(OHM_BUILD_HEIGHTMAPUTIL)
-
-if(CLOUD_IO_LIB STREQUAL "liblas")
-  add_subdirectory(ohmcloudfilter)
-endif(CLOUD_IO_LIB STREQUAL "liblas")
 
 if(OHM_WITH_OCTOMAP)
   add_subdirectory(octopop)

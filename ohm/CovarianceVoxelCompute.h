@@ -56,11 +56,11 @@ inline covvec3 covnormalize(const covvec3 &v)
 typedef struct CovarianceVoxel_t
 {
   /// Trianglar square root covariance matrix. Represents a covariance matrix via the triangular
-  /// square root matrix, P = C * C^T.
+  /// square root matrix, P = S * S^T.
   /// | cov[0]  |      .  |      .  |
   /// | cov[1]  | cov[2]  |      .  |
   /// | cov[3]  | cov[4]  | cov[5]  |
-  float trianglar_covariance[6];
+  float trianglar_covariance[6];  // cov_sqrt (S)
 } CovarianceVoxel;
 
 

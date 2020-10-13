@@ -66,28 +66,35 @@ namespace ohm
 
   /// @ingroup voxelcovariance
   /// Unpack @c cov.trianglar_covariance into a 3x3 covariance matrix.
-  inline glm::dmat3 covarianceMatrix(const CovarianceVoxel *cov)
+  inline glm::dmat3 covarianceSqrtMatrix(const CovarianceVoxel *cov)
   {
-    glm::dmat3 cov_mat;
+    glm::dmat3 cov_sqrt_mat;
 
-    glm::dvec3 *col = &cov_mat[0];
+    glm::dvec3 *col = &cov_sqrt_mat[0];
     (*col)[0] = cov->trianglar_covariance[0];
     (*col)[1] = cov->trianglar_covariance[1];
     (*col)[2] = cov->trianglar_covariance[3];
 
-    col = &cov_mat[1];
+    col = &cov_sqrt_mat[1];
     (*col)[0] = 0;
     (*col)[1] = cov->trianglar_covariance[2];
     (*col)[2] = cov->trianglar_covariance[4];
 
-    col = &cov_mat[2];
+    col = &cov_sqrt_mat[2];
     (*col)[0] = 0;
     (*col)[1] = 0;
     (*col)[2] = cov->trianglar_covariance[5];
 
-    return cov_mat;
+    return cov_sqrt_mat;
   }
 
+  /// @ingroup voxelcovariance
+  /// Unpack @c cov.trianglar_covariance into a 3x3 covariance matrix.
+  inline glm::dmat3 covarianceMatrix(const CovarianceVoxel *cov)
+  {
+    const glm::dmat3 cov_sqrt_mat = covarianceSqrtMatrix(cov);
+    return cov_sqrt_mat * glm::transpose(cov_sqrt_mat);
+  }
 
 #if OHM_COV_DEBUG
   void covDebugStats();

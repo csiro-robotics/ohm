@@ -12,6 +12,8 @@ set(SOURCES
   OhmUtil.h
   PlyMesh.cpp
   PlyMesh.h
+  PlyPointStream.cpp
+  PlyPointStream.h
   PointsDoubleBuffer.h
   PointsDoubleBuffer.inl
   PointsRingBuffer.h
@@ -54,6 +56,7 @@ set(PUBLIC_HEADERS
   Options.h
   p2p.h
   PlyMesh.h
+  PlyPointStream.h
   PointsDoubleBuffer.h
   PointsDoubleBuffer.inl
   PointsRingBuffer.h
