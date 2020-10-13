@@ -18,6 +18,7 @@
 
 namespace ohm
 {
+  struct GpuCacheStats;
   struct GpuCacheEntry;
   struct GpuLayerCacheDetail;
   struct MapChunk;
@@ -28,8 +29,8 @@ namespace ohm
   ///
   /// The cache may be used to ensure voxels from a @c MapChunk::voxel_maps associated with a @c MapLayer are uploaded
   /// to GPU and optionally downloaded back to gpu. A layer cache should only be created via @c GpuCache with the
-  /// appropriate @c GpuCacheParams and @c GpuCacheFlag selection. Once created a cache is bound to transfer voxel data
-  /// to/from a specific @c MapLayer only.
+  /// appropriate @c GpuLayerCacheParams and @c GpuLayerCacheFlag selection. Once created a cache is bound to transfer
+  /// voxel data to/from a specific @c MapLayer only.
   ///
   /// The GPU memory is allocated as a single, large memory buffer. Voxel data are uploaded to available regions within
   /// this buffer when calling @p upload(). The return value identified the byte offset into the buffer where data for
@@ -88,7 +89,7 @@ namespace ohm
     /// @param map The map to which the cache belongs.
     /// @param layer_index Identifies @c MapLayer from which to cache voxel data.
     /// @param target_gpu_mem_size The maximum allowed buffer size (bytes).
-    /// @param flags Creation flags: see @c GpuCacheFlag. @c GCFRead is currently mandatory.
+    /// @param flags Creation flags: see @c GpuLayerCacheFlag . @c GCFRead is currently mandatory.
     /// @param on_sync Defines a function to invoke after a @c MapChunk is synched to main memory (CPU).
     GpuLayerCache(const gputil::Device &gpu, const gputil::Queue &gpu_queue,
                   OccupancyMap &map,  // NOLINT(google-runtime-references)
@@ -290,7 +291,12 @@ namespace ohm
     void reallocate(const OccupancyMap &map);
 
     /// Drop all cache entries. Call @c syncToMainMemory() first if data should be synched first.
+    /// Resets @c GpuCacheStats - see @c queryStats() .
     void clear();
+
+    /// Query cache hit/miss counts. The stats are reset on @c clear() .
+    /// @param[out] stats Populated to the current cache stats.
+    void queryStats(GpuCacheStats *stats);
 
   private:
     /// Internal cache resolution/allocation function. The @p upload flag controls whether the call
@@ -319,26 +325,6 @@ namespace ohm
 
     GpuLayerCacheDetail *imp_;
   };
-
-
-  // class GpuLayerCacheWriteLock
-  // {
-  // public:
-  //   inline GpuLayerCacheWriteLock(GpuLayerCache &cache) : _cache(&cache) {}
-  //   inline ~GpuLayerCacheWriteLock() { unlock(); }
-
-  //   inline void unlock()
-  //   {
-  //     if (_cache)
-  //     {
-  //       // _cache->setWriteLock(false);
-  //       _cache = nullptr;
-  //     }
-  //   }
-
-  // private:
-  //   GpuLayerCache *_cache;
-  // };
 }  // namespace ohm
 
 #endif  // OHMGPU_GPULAYERCACHE_H

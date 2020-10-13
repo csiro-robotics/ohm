@@ -56,10 +56,10 @@ namespace ohm
     /// Ignored if the @p map already is GPU enabled.
     ///
     /// @param map The map to enable GPU usage on.
-    /// @param layer_gpu_mem_size GPU memory buffer size per map layer.
+    /// @param target_gpu_mem_size Target GPU memory usage. This is split amounst the active, default layers.
     /// @param gpu_flags @c GpuFlag values controlling initialisation.
     /// @return The @c GpuCache for the map. Null if GPU code is not enabled.
-    GpuCache *ohmgpu_API enableGpu(OccupancyMap &map, size_t layer_gpu_mem_size,  // NOLINT(google-runtime-references)
+    GpuCache *ohmgpu_API enableGpu(OccupancyMap &map, size_t target_gpu_mem_size,  // NOLINT(google-runtime-references)
                                    unsigned gpu_flags = kGpuAllowMappedBuffers);
 
     // /// Reports the status of setting up the associated GPU program for populating the map.

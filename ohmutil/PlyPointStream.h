@@ -189,7 +189,6 @@ namespace ohm
     std::vector<Property> properties_;
     std::vector<Value> values_;
     uint64_t point_count_ = 0;
-    unsigned point_count_max_padding_ = 0;
     std::ostream::pos_type point_count_pos_ = -1;
   };
 }  // namespace ohm

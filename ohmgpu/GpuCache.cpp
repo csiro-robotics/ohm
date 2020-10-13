@@ -5,8 +5,8 @@
 // Author: Kazys Stepanas
 #include "GpuCache.h"
 
-#include "GpuCacheParams.h"
 #include "GpuLayerCache.h"
+#include "GpuLayerCacheParams.h"
 
 #include "OhmGpu.h"
 
@@ -27,19 +27,19 @@ namespace ohm
     gputil::Device gpu;
     gputil::Queue gpu_queue;
     OccupancyMap *map = nullptr;
-    size_t default_gpu_mem_size = 0;
+    size_t target_gpu_alloc_size = 0;
     unsigned flags = 0;
   };
 }  // namespace ohm
 
 
-GpuCache::GpuCache(OccupancyMap &map, size_t default_gpu_mem_size, unsigned flags)
+GpuCache::GpuCache(OccupancyMap &map, size_t target_gpu_alloc_size, unsigned flags)
   : imp_(new GpuCacheDetail)
 {
   imp_->gpu = ohm::gpuDevice();
   imp_->gpu_queue = imp_->gpu.defaultQueue();
   imp_->map = &map;
-  imp_->default_gpu_mem_size = default_gpu_mem_size;
+  imp_->target_gpu_alloc_size = target_gpu_alloc_size;
   imp_->flags = flags;
 }
 
@@ -95,9 +95,9 @@ void GpuCache::remove(const glm::i16vec3 &region_key)
 }
 
 
-size_t GpuCache::defaultGpuMemSize() const
+size_t GpuCache::targetGpuAllocSize() const
 {
-  return imp_->default_gpu_mem_size;
+  return imp_->target_gpu_alloc_size;
 }
 
 
@@ -107,7 +107,7 @@ unsigned GpuCache::layerCount() const
 }
 
 
-GpuLayerCache *GpuCache::createCache(unsigned id, const GpuCacheParams &params)
+GpuLayerCache *GpuCache::createCache(unsigned id, const GpuLayerCacheParams &params)
 {
   while (id >= imp_->layer_caches.size())
   {
@@ -120,7 +120,7 @@ GpuLayerCache *GpuCache::createCache(unsigned id, const GpuCacheParams &params)
     return nullptr;
   }
 
-  const size_t layer_mem_size = (params.gpu_mem_size) ? params.gpu_mem_size : imp_->default_gpu_mem_size;
+  const size_t layer_mem_size = (params.gpu_mem_size) ? params.gpu_mem_size : kDefaultLayerMemSize;
   GpuLayerCache *new_cache = new GpuLayerCache(imp_->gpu, imp_->gpu_queue, *imp_->map, params.map_layer, layer_mem_size,
                                                params.flags, params.on_sync);
   imp_->layer_caches[id] = std::unique_ptr<GpuLayerCache>(new_cache);

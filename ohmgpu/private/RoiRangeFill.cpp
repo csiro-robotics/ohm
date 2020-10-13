@@ -107,7 +107,7 @@ bool RoiRangeFill::calculateForRegion(OccupancyMap &map, const glm::i16vec3 &reg
   const unsigned voxel_padding = unsigned(std::ceil(search_radius_ / map.resolution()));
 
   // Ensure cache is initialised.
-  GpuCache *gpu_cache = initialiseGpuCache(map, GpuCache::kDefaultLayerMemSize, gpumap::kGpuAllowMappedBuffers);
+  GpuCache *gpu_cache = initialiseGpuCache(map, GpuCache::kDefaultTargetMemSize, gpumap::kGpuAllowMappedBuffers);
   GpuLayerCache *occupancy_cache = gpu_cache->layerCache(kGcIdOccupancy);
   GpuLayerCache *clearance_cache = gpu_cache->layerCache(kGcIdClearance);
 

@@ -5,7 +5,8 @@
 // Author: Kazys Stepanas
 #include "GpuLayerCache.h"
 
-#include "GpuCacheParams.h"
+#include "GpuCacheStats.h"
+#include "GpuLayerCacheParams.h"
 
 #include <ohm/MapChunk.h>
 #include <ohm/MapLayer.h>
@@ -65,6 +66,9 @@ namespace ohm
   struct GpuLayerCacheDetail
   {
     using CacheMap = ska::bytell_hash_map<glm::i16vec3, GpuCacheEntry, Vector3Hash<glm::i16vec3>>;
+
+    /// Cache hit/miss stats.
+    GpuCacheStats stats;
 
     // Not part of the public API. We can put whatever we want here.
     std::unique_ptr<gputil::Buffer> buffer;
@@ -347,8 +351,13 @@ void GpuLayerCache::clear()
     entry.second.sync_event.wait();
   }
   imp_->cache.clear();
+  imp_->stats.hits = imp_->stats.misses = imp_->stats.full;
 }
 
+void GpuLayerCache::queryStats(GpuCacheStats *stats)
+{
+  *stats = imp_->stats;
+}
 
 GpuCacheEntry *GpuLayerCache::resolveCacheEntry(OccupancyMap &map, const glm::i16vec3 &region_key, MapChunk *&chunk,
                                                 gputil::Event *event, CacheStatus *status, unsigned batch_marker,
@@ -358,6 +367,7 @@ GpuCacheEntry *GpuLayerCache::resolveCacheEntry(OccupancyMap &map, const glm::i1
   GpuCacheEntry *entry = findCacheEntry(region_key);
   if (entry)
   {
+    ++imp_->stats.hits;
     // Already uploaded.
     chunk = entry->chunk;
     // Needs update?
@@ -424,6 +434,8 @@ GpuCacheEntry *GpuLayerCache::resolveCacheEntry(OccupancyMap &map, const glm::i1
     return entry;
   }
 
+  ++imp_->stats.misses;
+
   // Not in the cache yet.
   // Ensure the map chunk exists in the map if kAllowRegionCreate is set.
   // Otherwise chunk may be null.
@@ -450,6 +462,7 @@ GpuCacheEntry *GpuLayerCache::resolveCacheEntry(OccupancyMap &map, const glm::i1
   }
   else
   {
+    ++imp_->stats.full;
     // Cache is full. Look for the oldest entry to sync back to main memory.
     auto oldest_entry = imp_->cache.begin();
     for (auto iter = imp_->cache.begin(); iter != imp_->cache.end(); ++iter)
@@ -524,7 +537,7 @@ void GpuLayerCache::allocateBuffers(const OccupancyMap &map, const MapLayer &lay
 {
   // Query the available device memory.
   auto mem_limit = imp_->gpu.deviceMemory();
-  // Limit to using 1/2 of the device memory.
+  // Limit to using 1/2 of the device memory. This is a bit of a left over from when there was only one layer to cache.
   mem_limit = (mem_limit * 1) / 2;
   target_gpu_mem_size = (target_gpu_mem_size <= mem_limit) ? target_gpu_mem_size : mem_limit;
 

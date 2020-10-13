@@ -21,7 +21,7 @@ namespace gputil
 namespace ohm
 {
   struct GpuCacheDetail;
-  struct GpuCacheParams;
+  struct GpuLayerCacheParams;
   class GpuLayerCache;
   class OccupancyMap;
 
@@ -60,13 +60,15 @@ namespace ohm
     static const size_t kGiB = 1024ull * 1024ull * 1024ull;
     /// The default byte size of each GPU layer if not specified.
     static const size_t kDefaultLayerMemSize = kGiB / 2;
+    /// Default total memory size to target.
+    static const size_t kDefaultTargetMemSize = 1 * kGiB;
 
     /// Instantiate the @c GpuCache for @p map.
     /// @param map The map to cache data for.
-    /// @param default_gpu_mem_size The default size of allocated @c GpuLayerCache objects if not specified.
+    /// @param target_gpu_alloc_size The GPU memory target size, distributed across all allocated @c GpuLayerCache
+    /// objects (bytes). See @c targetGpuAllocSize() .
     GpuCache(OccupancyMap &map,  // NOLINT(google-runtime-references)
-             size_t default_gpu_mem_size = kDefaultLayerMemSize,
-             unsigned flags = 0);
+             size_t target_gpu_alloc_size = kDefaultTargetMemSize, unsigned flags = 0);
 
     /// Destructor, cleaning up all owned @c GpuLayerCache objects.
     ~GpuCache() override;
@@ -87,9 +89,15 @@ namespace ohm
     /// @param region_key The region to flush from the cache.
     void remove(const glm::i16vec3 &region_key) override;
 
-    /// Query the default byte size of each layer cache.
+    /// Query the target GPU memory allocation byte size. This is the target allocation accross all @c GpuLayerCache
+    /// objects and is distributed amongst these objects. The distribution is weighted so that layers requiring more
+    /// voxel data are given more of the allocation.
+    ///
+    /// @note Specifying an allocation size too small to cover all regions expected to be accessed in a single GPU
+    /// batch update will result in undefined behaviour.
+    ///
     /// @return The default size of for a layer cache in bytes.
-    size_t defaultGpuMemSize() const;
+    size_t targetGpuAllocSize() const;
 
     /// Returns the number of indexable layers. Some may be null.
     /// @return The number of indexable layers.
@@ -100,7 +108,7 @@ namespace ohm
     /// The @p id should always be in a relative low range as a @c vector is used to allocate and access
     /// cache pointers.
     ///
-    /// See @c GpuCacheParams for configuration details.
+    /// See @c GpuLayerCacheParams for configuration details.
     ///
     /// Fails when:
     /// - A layer cache with @p id already exists.
@@ -108,7 +116,7 @@ namespace ohm
     /// @param id The unique ID for the cache.
     /// @param params Cache configuration.
     /// @return A pointer to the new cache on success, null on failure.
-    GpuLayerCache *createCache(unsigned id, const GpuCacheParams &params);
+    GpuLayerCache *createCache(unsigned id, const GpuLayerCacheParams &params);
 
     /// Request or create a new @c GpuLayerCache.
     ///

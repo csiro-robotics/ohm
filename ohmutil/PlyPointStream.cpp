@@ -8,7 +8,8 @@
 #include <glm/vec3.hpp>
 
 #include <limits>
-#include <sstream>
+#include <iomanip>
+#include <iostream>
 #include <stdexcept>
 
 using namespace ohm;
@@ -48,6 +49,46 @@ namespace
     } bint = { 0x01020304 };
 
     return bint.c[0] == 1;
+  }
+
+
+  /// Helper for use with writing a PLY element count to an @c ostream .
+  ///
+  /// Usage:
+  /// ```cpp
+  /// std::cout << "element vertex " << ElementCount(point_count) << '\n';
+  /// ```
+  ///
+  /// This will prefix the output value with '0' to maximum width of the @c ElementCount::value . This can be used
+  /// to write a place holder value at the start of the stream, then to return and write the correct value.
+  class ElementCount
+  {
+  public:
+    /// Constructor
+    /// @param count The value for the element count.
+    ElementCount(uint64_t count = 0)
+      : value(count)
+    {}
+
+    uint64_t value = 0;  ///< The element count value to write.
+  };
+
+
+  /// Streaming operator for an @c ElementCount .
+  ///
+  /// This writes the @c ElementCount::value padded with leading zeros and can be used to support writing a placeholder
+  /// value, then later returning the stream to write the corrected value.
+  /// @param out The output stream to write.
+  /// @param count The @c ElementCount to write.
+  /// @return @c out
+  std::ostream &operator<<(std::ostream &out, const ElementCount &count)
+  {
+    auto restore_fill = out.fill();
+    auto restore_width = out.width();
+    out << std::setfill('0') << std::setw(std::numeric_limits<decltype(count.value)>::digits10) << count.value;
+    out.fill(restore_fill);
+    out.width(restore_width);
+    return out;
   }
 }  // namespace
 
@@ -315,10 +356,8 @@ void PlyPointStream::writeHeader()
   // the padding comment.
   out << "element vertex " << std::flush;
   point_count_pos_ = out.tellp();
-  std::string spaces(std::numeric_limits<decltype(point_count_)>::digits10, ' ');
-  out << "0\n" << spaces << point_count_comment << "\n" << std::flush;
   const auto post_count_pos = out.tellp();
-  point_count_max_padding_ = unsigned(post_count_pos - point_count_pos_);
+  out << ElementCount() << '\n';
   // Write property details.
   for (const auto &property : properties_)
   {
@@ -336,31 +375,11 @@ bool PlyPointStream::finalisePointCount()
     auto cur_pos = out_->tellp();
     out_->flush();
     out_->seekp(point_count_pos_);
-    if (out_->tellp() == point_count_pos_)
+    if (out_->tellp() != point_count_pos_)
     {
-      // We have sufficient space in the file for the point count. We will write it immediately followed by a newline
-      // then fill out the rest of the available space with a comment.
-      (*out_) << point_count_ << '\n' << std::flush;
-      const auto post_count_pos = out_->tellp();
-      // Work out how much space has been taken up by the count.
-      const unsigned point_count_delta = unsigned(post_count_pos - point_count_pos_);
-      if (point_count_delta < point_count_max_padding_)
-      {
-        // Consume the rest of the padding with the padding comment.
-        const unsigned padding_required = point_count_max_padding_ - point_count_delta;
-        std::string pad_comment = point_count_comment;
-        // Resize to suit.
-        pad_comment.resize(padding_required, ' ');
-        // End with a newline.
-        pad_comment.back() = '\n';
-        // Write.
-        *out_ << pad_comment;
-      }
-      else
-      {
-        return false;
-      }
+      return false;
     }
+    *out_ << ElementCount(point_count_) << '\n';
     // Seek back to where we were before finalising the point count.
     out_->seekp(cur_pos);
     return true;

@@ -27,11 +27,12 @@ set(SOURCES
   ClearanceProcess.h
   GpuCache.cpp
   GpuCache.h
-  GpuCacheParams.h
   GpuCachePostSyncHandler.h
+  GpuCacheStats.h
   GpuKey.h
   GpuLayerCache.cpp
   GpuLayerCache.h
+  GpuLayerCacheParams.h
   GpuMap.cpp
   GpuMap.h
   GpuNdtMap.cpp
@@ -71,8 +72,9 @@ set(GPU_HEADERS
 set(PUBLIC_HEADERS
   ClearanceProcess.h
   GpuCache.h
-  GpuCacheParams.h
+  GpuLayerCacheParams.h
   GpuCachePostSyncHandler.h
+  GpuCacheStats.h
   GpuKey.h
   GpuLayerCache.h
   GpuMap.h

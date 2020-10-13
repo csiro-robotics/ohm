@@ -41,6 +41,7 @@ namespace
   {
     std::string map_file;
     std::string cloud_in;
+    std::string traj_in;
     std::string cloud_out;
     double expected_value_tolerance = -1;
     bool occupancy_only = false;
@@ -107,6 +108,7 @@ int parseOptions(Options *opt, int argc, char *argv[])
       ("help", "Show help.")
       ("map", "The input map file (ohm).", cxxopts::value(opt->map_file))
       ("cloud-in", "The input cloud file.", cxxopts::value(opt->cloud_in))
+      ("traj", "Optional trajectory file input.", cxxopts::value(opt->traj_in))
       ("cloud-out", "The output cloud file (ply).", cxxopts::value(opt->cloud_out))
       ("occupancy-only", "Force using only occupancy information, even if NDT is present.", optVal(opt->occupancy_only))
       ("tolerance", "Additional tolerance above the expected value. A zero value enabled the direct comparison of each "
@@ -158,7 +160,7 @@ bool filterCloud(const Options &opt, const ohm::OccupancyMap &map, ProgressMonit
   // Use the SlamCloudLoader with no trajectory specified to load the cloud - it's just convenient.
   SlamCloudLoader cloud_loader;
 
-  if (!cloud_loader.open(opt.cloud_in.c_str(), ""))
+  if (!cloud_loader.open(opt.cloud_in.c_str(), opt.traj_in.c_str()))
   {
     std::cerr << "Error: Unable to load cloud file " << opt.cloud_in << std::endl;
     return false;
@@ -233,16 +235,21 @@ bool filterCloud(const Options &opt, const ohm::OccupancyMap &map, ProgressMonit
     std::cout << "Exporting to " << opt.cloud_out << std::endl;
   }
 
-  glm::dvec3 point(0);
+  glm::dvec3 point(0), origin(0);
   double timestamp = 0;
   ohm::Key key;
   std::uint64_t point_count = 0, export_count = 0;
-  while (cloud_loader.nextPoint(point, nullptr, &timestamp))
+  const bool with_trajectory = !opt.traj_in.empty();
+  while (cloud_loader.nextPoint(point, &origin, &timestamp))
   {
     key = map.voxelKey(point);
     if (filter(timestamp, point, key))
     {
       ply.setPointPosition(point);
+      if (with_trajectory)
+      {
+        ply.setPointNormal(point - origin);
+      }
       ply.setPointTimestamp(timestamp);
       ply.writePoint();
       ++export_count;

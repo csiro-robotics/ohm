@@ -85,7 +85,7 @@ namespace
   void covarianceEigenDecompositionGlm(const CovarianceVoxel *cov, glm::dmat3 *eigenvectors, glm::dvec3 *eigenvalues)
   {
     // This has been noted to be ~3x slower than the Eigen solver.
-    glm::dmat3 map = covarianceMatrix(cov);
+    const glm::dmat3 mat = covarianceMatrix(cov);
 
     *eigenvectors = glm::dmat3(1.0);  // Identity initialisation
 
@@ -113,7 +113,7 @@ namespace
       max_iterations = std::max(max_iterations, i + 1);
 #endif  // OHM_COV_DEBUG
 
-      glm::qr_decompose(map, q, r);
+      glm::qr_decompose(mat, q, r);
       // Progressively refine the eigenvectors.
       *eigenvectors = *eigenvectors * q;
       // Update eigenvalues and check for convergence
@@ -121,7 +121,7 @@ namespace
       eigenvalues_current[1] = r[1][1];
       eigenvalues_current[2] = r[2][2];
 
-      map = r * q;
+      mat = r * q;
 
       const glm::dvec3 eval_delta = glm::abs(eigenvalues_current - eigenvalues_last);
       if (glm::all(glm::lessThanEqual(eval_delta, delta_threshold)))
