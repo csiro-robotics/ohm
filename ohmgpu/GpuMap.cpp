@@ -682,20 +682,30 @@ size_t GpuMap::integrateRays(const glm::dvec3 *rays, size_t element_count, unsig
     std::sort(imp_->grouped_rays.begin(), imp_->grouped_rays.end(),
               [](const RayItem &a, const RayItem &b) -> bool  //
               {
-                const int64_t region_stride = 0xffffu;
+                // For the comparison, we merge the region key values into a single 64-bit value
+                // and the same for the local index. Then we compare the resulting values.
+                // The final ordering is irrelevant in terms of which is "less". The goal is to group
+                // items with the same sample key.
+
+                // Multiplier/shift value to move a region key axis such that each axis is in its own bit set.
+                const int64_t region_stride = 0x10000u;
+                // Shift and mask together the region key axes
                 const int64_t region_index_a = (int64_t)a.sample_key.regionKey().x +
                                                (int64_t)region_stride * a.sample_key.regionKey().y +
                                                region_stride * region_stride * (int64_t)a.sample_key.regionKey().z;
                 const int64_t region_index_b = (int64_t)b.sample_key.regionKey().x +
                                                region_stride * (int64_t)b.sample_key.regionKey().y +
                                                region_stride * region_stride * (int64_t)b.sample_key.regionKey().z;
-                const uint32_t local_stride = 0xffu;
-                const uint32_t local_index_a = (int32_t)a.sample_key.localKey().x +
-                                               local_stride * (int32_t)a.sample_key.localKey().y +
-                                               local_stride * local_stride * (int32_t)a.sample_key.localKey().z;
-                const uint32_t local_index_b = (int32_t)b.sample_key.localKey().x +
-                                               local_stride * (int32_t)b.sample_key.localKey().y +
-                                               local_stride * local_stride * (int32_t)b.sample_key.localKey().z;
+                // Multiplier/shift value to move a local key axis such that each axis is in its own bit set.
+                const uint32_t local_stride = 0x100u;
+                // Shift and mask together the local key axes
+                const uint32_t local_index_a = uint32_t(a.sample_key.localKey().x) +
+                                               local_stride * uint32_t(a.sample_key.localKey().y) +
+                                               local_stride * local_stride * uint32_t(a.sample_key.localKey().z);
+                const uint32_t local_index_b = uint32_t(b.sample_key.localKey().x) +
+                                               local_stride * uint32_t(b.sample_key.localKey().y) +
+                                               local_stride * local_stride * uint32_t(b.sample_key.localKey().z);
+                // Compare the results.
                 return region_index_a < region_index_b ||
                        region_index_a == region_index_b && local_index_a < local_index_b;
               });
