@@ -185,22 +185,21 @@ namespace
     if (opt.image_mode == kTraversability && info.type == ohm::HeightmapImage::kImageNormals)
     {
       static_assert(sizeof(glm::vec3) == sizeof(float) * 3, "glm::vec3 mismatch");
-      const glm::vec3 *pseudo_normals = reinterpret_cast<const glm::vec3 *>(raw);
       export_pixels.resize(size_t(info.image_width) * size_t(info.image_height));
 
       const uint8_t c_unknown = 127u;
       const uint8_t c_blocked = 0u;
       const uint8_t c_free = 255u;
-      glm::vec3 normal;
+      glm::vec3 normal{};
       const glm::vec3 flat(0, 0, 1);
       float dot;
       const float free_threshold = float(std::cos(M_PI * opt.traverse_angle / 180.0));
 
       for (size_t i = 0; i < size_t(info.image_width) * size_t(info.image_height); ++i)
       {
-        if (glm::dot(pseudo_normals[i], pseudo_normals[i]) > 0.5f * 0.5f)
+        memcpy(&normal, &raw[i * sizeof(normal)], sizeof(normal));
+        if (glm::dot(normal, normal) > 0.5f * 0.5f)
         {
-          normal = pseudo_normals[i];
           normal = 2.0f * normal - glm::vec3(1.0f);
           normal = glm::normalize(normal);
           dot = glm::dot(normal, flat);

@@ -72,7 +72,11 @@ namespace
     /// Query the occupancy classification of the current voxel.
     inline OccupancyType occupancyType() const
     {
-      const float value = occupancy.chunk() ? occupancy.data() : 0;
+      float value = 0;
+      if (occupancy.chunk())
+      {
+        occupancy.read(&value);
+      }
       OccupancyType type = (value >= occupancy_threshold) ? kOccupied : kFree;
       type = value != unobservedOccupancyValue() ? type : kUnobserved;
       return occupancy.chunk() ? type : kNull;
@@ -84,7 +88,9 @@ namespace
       glm::dvec3 pos = occupancy.map()->voxelCentreGlobal(occupancy.key());
       if (mean.isLayerValid())
       {
-        pos += subVoxelToLocalCoord<glm::dvec3>(mean.data().coord, occupancy.map()->resolution());
+        VoxelMean mean_info;
+        mean.read(&mean_info);
+        pos += subVoxelToLocalCoord<glm::dvec3>(mean_info.coord, occupancy.map()->resolution());
       }
       return pos;
     }
@@ -120,7 +126,9 @@ namespace
       glm::dvec3 pos = occupancy.map()->voxelCentreGlobal(occupancy.key());
       if (mean.isLayerValid())
       {
-        pos += subVoxelToLocalCoord<glm::dvec3>(mean.data().coord, occupancy.map()->resolution());
+        VoxelMean mean_info;
+        mean.read(&mean_info);
+        pos += subVoxelToLocalCoord<glm::dvec3>(mean_info.coord, occupancy.map()->resolution());
       }
       return pos;
     }
@@ -130,9 +138,11 @@ namespace
     {
       if (mean.isValid())
       {
-        VoxelMean &voxel_mean = mean.data();
+        VoxelMean voxel_mean;
+        mean.read(&voxel_mean);
         voxel_mean.coord = subVoxelCoord(pos - mean.map()->voxelCentreGlobal(mean.key()), mean.map()->resolution());
         voxel_mean.count = 1;
+        mean.write(voxel_mean);
       }
     }
 
@@ -200,7 +210,11 @@ namespace
       // This line yields performance issues likely due to the stochastic memory access.
       // For a true performance gain we'd have to access chunks linearly.
       // Read the occupancy value for the voxel.
-      const float occupancy = voxel.occupancy.chunk() ? voxel.occupancy.data() : unobservedOccupancyValue();
+      float occupancy = unobservedOccupancyValue();
+      if (voxel.occupancy.chunk())
+      {
+        voxel.occupancy.read(&occupancy);
+      }
       // Categorise the voxel.
       const bool occupied = occupancy >= voxel.occupancy_threshold && occupancy != unobservedOccupancyValue();
       const bool free = occupancy < voxel.occupancy_threshold;
@@ -705,13 +719,15 @@ HeightmapVoxelType Heightmap::getHeightmapVoxelInfo(const Key &key, glm::dvec3 *
 
       const glm::dvec3 voxel_centre = imp_->heightmap->voxelCentreGlobal(key);
       *pos = mean_voxel.isLayerValid() ? positionSafe(mean_voxel) : voxel_centre;
-      const float occupancy = heightmap_occupancy.data();
+      float occupancy;
+      heightmap_occupancy.read(&occupancy);
       const bool is_uncertain = occupancy == ohm::unobservedOccupancyValue();
       const float heightmap_voxel_value = (!is_uncertain) ? occupancy : -1.0f;
       if (!is_uncertain)
       {
         // Get height info.
-        const HeightmapVoxel &heightmap_info = heightmap_voxel.data();
+        HeightmapVoxel heightmap_info;
+        heightmap_voxel.read(&heightmap_info);
         (*pos)[upAxisIndex()] = voxel_centre[upAxisIndex()] + heightmap_info.height;
         if (voxel_info)
         {
@@ -856,19 +872,21 @@ bool Heightmap::buildHeightmapT(KeyWalker &walker, const glm::dvec3 &reference_p
         // MapChunk directly for efficiency.
         hm_voxel.setKey(hm_key);
         // We can do a direct occupancy value write with no checks for the heightmap. The value is explicit.
-        hm_voxel.occupancy.data() = surface_value;
+        hm_voxel.occupancy.write(surface_value);
         // Set voxel mean position as required. Will be skipped if not enabled.
         hm_voxel.setPosition(voxel_pos);
 
         // Write the height and clearance values.
-        HeightmapVoxel &height_info = hm_voxel.heightmap.data();
+        HeightmapVoxel height_info;
+        hm_voxel.heightmap.read(&height_info);
         height_info.height = relativeVoxelHeight(src_height, hm_key, heightmap, imp_->up);
         height_info.clearance = float(clearance);
         height_info.normal_x = height_info.normal_y = height_info.normal_z = 0;
 
         if (voxel_type == kOccupied && src_voxel.covariance.isValid())
         {
-          const CovarianceVoxel &cov = src_voxel.covariance.data();
+          CovarianceVoxel cov;
+          src_voxel.covariance.read(&cov);
           glm::dvec3 normal;
           covarianceEstimatePrimaryNormal(&cov, &normal);
           const double flip = (glm::dot(normal, up_axis_normal) >= 0) ? 1.0 : -1.0;
@@ -877,6 +895,7 @@ bool Heightmap::buildHeightmapT(KeyWalker &walker, const glm::dvec3 &reference_p
           height_info.normal_y = float(normal.y);
           height_info.normal_z = float(normal.z);
         }
+        hm_voxel.heightmap.write(height_info);
 
         ++populated_count;
       }

@@ -126,8 +126,10 @@ inline __device__ double packedDot(const covreal A[9], const int j, const int k)
 /// @p sample_to_mean . Items marked '.' are not represented in the martix and are treated as zero.
 /// Note that the extracted values also have a co-efficient applied based on the @p point_count .
 ///
-/// @param matrix The matrix to unpack to. This is an array of 9 elements.
+/// @param cov Covariance details of the voxel in question.
+/// @param point_count Number of samples which have been used to generate the @c cov and voxel mean.
 /// @param sample_to_mean The difference between the new sample point and the voxel mean.
+/// @param[out] matrix The matrix to unpack to. This is an array of 9 elements.
 inline __device__ void unpackCovariance(const CovarianceVoxel *cov, unsigned point_count, const covvec3 sample_to_mean,
                                         covreal *matrix)
 {
@@ -154,6 +156,8 @@ inline __device__ void unpackCovariance(const CovarianceVoxel *cov, unsigned poi
 /// 1 2 z
 /// 3 4 5
 /// @endcode
+/// @param cov Covariance details of the voxel in question.
+/// @param y The vector to solve for.
 inline __device__ covvec3 solveTriangular(const CovarianceVoxel *cov, const covvec3 y)
 {
   // Note: if we generate the voxel with point on a perfect plane, say (0, 0, 1, 0), then do this operation,

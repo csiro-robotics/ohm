@@ -125,8 +125,10 @@ inline __device__ __host__ vec3 subVoxelToLocalCoord(unsigned pattern, coord_rea
 /// Update the @c VoxelMean for a voxel adding @c voxel_local_coord to the coordinate. The @c voxel_local_coord
 /// coordiate is sample coordinate to add relative to the voxel centre.
 ///
-/// @param voxel The @c VoxelMean structure to update.
-/// @param resolution The length of each voxel cube edge.
+/// @param coord The subvoxel coordinate to update
+/// @param point_count The number of samples currently contributing to @p coord .
+/// @param voxel_local_coord The coordinate to add to the mean local to the voxel centre.
+/// @param resolution The voxel resolution (size long edges).
 SUB_VOX_FUNC_PREFACE
 inline __device__ __host__ unsigned subVoxelUpdate(unsigned coord, unsigned point_count, vec3 voxel_local_coord,
                                                    coord_real resolution)

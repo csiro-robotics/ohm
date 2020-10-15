@@ -180,11 +180,22 @@ namespace ohm
     /// Chunk flags set from @c MapChunkFlag.
     unsigned flags = 0;
 
+    /// Create an empty @c MapChunk object.
     MapChunk() = default;
+    /// Create a @c MapChunk for the given @p map .
+    /// @param map Implementation details of the owning map object.
     MapChunk(const OccupancyMapDetail &map);
+    /// Create a @c MapChunk for the given @p region within @p map .
+    /// @param region Region details for the chunk.
+    /// @param map Implementation details of the owning map object.
     MapChunk(const MapRegion &region, const OccupancyMapDetail &map);
+    /// Copy constructor (deep copy).
+    /// @param other Object to copy.
     MapChunk(const MapChunk &other) = default;
+    /// Move constructor.
+    /// @param other Object to move.
     MapChunk(MapChunk &&other) noexcept;
+    /// Destructor - releases all this chunk's memory.
     ~MapChunk();
 
     /// Access details of the voxel layers and layouts for this map.
@@ -232,6 +243,9 @@ namespace ohm
     /// @param local_index The voxel index within this chunk. Equivalent to Key::localKey().
     /// @param region_voxel_dimensions The dimensions of each chunk/region along each axis.
     void updateFirstValid(const glm::u8vec3 &local_index, const glm::ivec3 &region_voxel_dimensions);
+
+    /// Update the @c first_valid_index to be the minimum of the current value and the given @p index .
+    /// @param index Index of the new first valid candidate.
     inline void updateFirstValid(unsigned index) { first_valid_index = std::min(index, first_valid_index); }
 
     /// Update the @c first_valid_index by brute force, searching for the first valid voxel.
@@ -240,20 +254,34 @@ namespace ohm
     void searchAndUpdateFirstValid(const glm::ivec3 &region_voxel_dimensions,
                                    const glm::u8vec3 &search_from = glm::u8vec3(0, 0, 0));
 
+    /// Request the @c Key::localKey() value for the first valid voxel in this this region.
+    /// @param region_voxel_dimensions Specifies the voxel dimensions of (this) chunk.
+    /// @return The @c Key::localKey() value indexing the first (potential) valid voxel in this region.
     inline glm::u8vec3 firstValidKey(const glm::ivec3 &region_voxel_dimensions) const
     {
       return voxelLocalKey(first_valid_index, region_voxel_dimensions);
     }
 
+    /// Request the @c Key::localKey() value for the first valid voxel in this this region.
+    /// This overload is marginally less efficient than the overload. This efficiency is only really valid in tight
+    /// loops.
+    /// @return The @c Key::localKey() value indexing the first (potential) valid voxel in this region.
+    glm::u8vec3 firstValidKey() const;
+
     /// Recalculates what the @c first_valid_index should be (brute force) and validates against its current value.
     /// @return True when the @c first_valid_index value matches what it should be.
-    bool validateFirstValid(const glm::ivec3 &region_voxel_dimensions) const;
+    bool validateFirstValid() const;
 
-    bool overlapsExtents(const glm::dvec3 &min_ext, const glm::dvec3 &max_ext,
-                         const glm::dvec3 &region_spatial_dimensions) const;
+    /// Query if this @c MapChunk overlaps the axis aligned bounding box.
+    /// @param min_ext The lower extents of the AABB.
+    /// @param max_ext The upper extents of the AABB.
+    /// @return True if the chunk overlaps or touches the given AABB.
+    bool overlapsExtents(const glm::dvec3 &min_ext, const glm::dvec3 &max_ext) const;
 
-    void extents(glm::dvec3 &min_ext, glm::dvec3 &max_ext,  // NOLINT(google-runtime-references)
-                 const glm::dvec3 &region_spatial_dimensions) const;
+    /// Query the spacial extents of this @c MapChunk as a min/max axis aligned bounding box.
+    /// @param[out] min_ext Set to the lower extents of the AABB.
+    /// @param[out] max_ext Set to the upper extents of the AABB.
+    void extents(glm::dvec3 &min_ext, glm::dvec3 &max_ext) const;
   };
 
 

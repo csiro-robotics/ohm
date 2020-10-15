@@ -75,13 +75,35 @@ namespace ohm
     /// @return The wrapped object pointer.
     VoxelBlock *voxelBlock() const { return voxel_block_; }
 
+    /// Read the content for a voxel in the buffer. Must only be called if @c isValid() , @c voxel_index is in range
+    /// and @c T is the contained data type, exactly matching the voxel data size.
+    /// @param voxel_index The index of the voxel to read data for. Must be in range.
+    /// @param[out] value The voxel content is written to this address.
+    /// @tparam T The data type to read. Must exactly match the voxel size and content for the referenced voxel layer.
+    template <typename T>
+    void readVoxel(unsigned voxel_index, T *value)
+    {
+      memcpy(value, voxelMemory() + sizeof(T) * voxel_index, sizeof(T));
+    }
+
+    /// Write the content for a voxel in the buffer. Must only be called if @c isValid() , @c voxel_index is in range
+    /// and @c T is the contained data type, exactly matching the voxel data size.
+    /// @param voxel_index The index of the voxel to read data for. Must be in range.
+    /// @param value The voxel content to write at @p voxel_index .
+    /// @tparam T The data type to read. Must exactly match the voxel size and content for the referenced voxel layer.
+    template <typename T>
+    void writeVoxel(unsigned voxel_index, const T &value)
+    {
+      memcpy(voxelMemory() + sizeof(T) * voxel_index, &value, sizeof(T));
+    }
+
     /// Explicitly release the buffer. Further usage is invalid and @c isValid() will return `false`.
     void release();
 
   protected:
-    VoxelPtr voxel_memory_{ nullptr };
-    size_t voxel_memory_size_{ 0 };
-    ohm::VoxelBlock *voxel_block_{ nullptr };
+    VoxelPtr voxel_memory_{ nullptr };         ///< Pointer to the uncompressed voxel memory.
+    size_t voxel_memory_size_{ 0 };            ///< Number of bytes referenced by the @c voxel_memory_ .
+    ohm::VoxelBlock *voxel_block_{ nullptr };  ///< The @c VoxelBlock object owning the voxel memory.
   };
 
   extern ohm_API template class ohm_API VoxelBuffer<VoxelBlock>;

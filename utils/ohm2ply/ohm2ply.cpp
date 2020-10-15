@@ -421,13 +421,18 @@ int exportPointCloud(const Options &opt, ProgressMonitor &prog, LoadMapProgress 
     }
     else if (opt.mode == kExportClearance)
     {
-      if (clearance.isValid() && clearance.data() >= 0 && clearance.data() < opt.colour_scale)
+      if (clearance.isValid())
       {
-        const float range_value = clearance.data();
-        uint8_t c = uint8_t(255 * std::max(0.0f, (opt.colour_scale - range_value) / opt.colour_scale));
-        v = map.voxelCentreGlobal(*iter);
-        ply.addVertex(v, ohm::Colour(c, 128, 0));
-        ++point_count;
+        float clearance_value;
+        clearance.read(&clearance_value);
+        if (clearance_value >= 0 && clearance_value < opt.colour_scale)
+        {
+          const float range_value = clearance_value;
+          uint8_t c = uint8_t(255 * std::max(0.0f, (opt.colour_scale - range_value) / opt.colour_scale));
+          v = map.voxelCentreGlobal(*iter);
+          ply.addVertex(v, ohm::Colour(c, 128, 0));
+          ++point_count;
+        }
       }
     }
     else if (opt.mode == kExportHeightmap)
@@ -437,7 +442,8 @@ int exportPointCloud(const Options &opt, ProgressMonitor &prog, LoadMapProgress 
         height.setKey(occupancy);
         if (height.isValid())
         {
-          const ohm::HeightmapVoxel &voxel_height = height.data();
+          ohm::HeightmapVoxel voxel_height;
+          height.read(&voxel_height);
           uint8_t c = uint8_t(255 * std::max(0.0f, (opt.colour_scale - voxel_height.clearance) / opt.colour_scale));
           if (voxel_height.clearance <= 0)
           {
@@ -607,7 +613,8 @@ int exportCovariance(const Options &opt, ProgressMonitor &prog, LoadMapProgress 
     }
 
     const glm::dvec3 pos = ohm::positionSafe(mean);
-    const ohm::CovarianceVoxel &cov = covariance.data();
+    ohm::CovarianceVoxel cov;
+    covariance.read(&cov);
 
     // Add an ellipsoid to the PLY
     glm::dquat rot;
@@ -663,7 +670,7 @@ int main(int argc, char *argv[])
       out.imbue(std::locale(""));
       out << '\r';
 
-      if (prog.info.info && prog.info.info[0])
+      if (!prog.info.info.empty())
       {
         out << prog.info.info << " : ";
       }

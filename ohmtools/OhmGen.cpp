@@ -45,7 +45,7 @@ namespace ohmgen
           {
             throw std::logic_error("Voxel should start uncertain.");
           }
-          voxel.data() = fill_value;
+          voxel.write(fill_value);
         }
       }
     }
@@ -88,7 +88,7 @@ namespace ohmgen
         map.moveKeyAlongAxis(key, a1, val1);
         map.moveKeyAlongAxis(key, a2, a2val);
         voxel.setKey(key);
-        voxel.data() = map.occupancyThresholdValue();
+        voxel.write(map.occupancyThresholdValue());
       }
     }
   }
@@ -160,7 +160,7 @@ namespace ohmgen
         coord = map.voxelCentreGlobal(key);
         coord.z = min_ext.z + double(coord.y) * tan_theta;
         voxel.setKey(map.voxelKey(coord));
-        voxel.data() = map.occupancyThresholdValue();
+        voxel.write(map.occupancyThresholdValue());
       }
     }
   }

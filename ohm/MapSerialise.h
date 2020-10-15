@@ -57,44 +57,69 @@ namespace ohm
     kSeUnsupportedVersion
   };
 
-  /// Structure holding information about a loaded map version number.
+  /// Structure holding information about a loaded map version number specified as `<major>.<minor>.<patch>`.
   struct MapVersion
   {
-    uint32_t major = 0;
-    uint16_t minor = 0;
-    uint16_t patch = 0;
+    uint32_t major = 0;  ///< The major version number.
+    uint16_t minor = 0;  ///< The minor version number.
+    uint16_t patch = 0;  ///< The patch version number.
 
+    /// Default constructor - generates a zero version number.
     inline MapVersion() = default;
+    /// Construct with the given version number.
+    /// @param major The major version number.
+    /// @param minor The minor version number.
+    /// @param patch The patch version number.
     inline MapVersion(uint32_t major, uint16_t minor = 0, uint16_t patch = 0)
       : major(major)
       , minor(minor)
       , patch(patch)
     {}
 
+    /// Copy by value assignment.
+    /// @param other Object to copy.
     inline MapVersion &operator=(const MapVersion &other) = default;
 
+    /// Equalty operator comparing two version for exact match.
+    /// @param other Version to compare against.
+    /// @return True if the version numbers exactly match.
     inline bool operator==(const MapVersion &other) const
     {
       return major == other.major && minor == other.minor && patch == other.patch;
     }
 
+    /// Negated equality operator comparing two version.
+    /// @param other Version to compare against.
+    /// @return True if the version numbers do not exactly match.
     inline bool operator!=(const MapVersion &other) const { return !operator==(other); }
 
+    /// Inequality operator comparing two versions.
+    /// @param other Version to compare against.
+    /// @return True if this version number is less than @p other .
     inline bool operator<(const MapVersion &other) const
     {
       return major < other.major && minor < other.minor && patch < other.patch;
     }
 
+    /// Inequality operator comparing two versions.
+    /// @param other Version to compare against.
+    /// @return True if this version number is less than or equal to @p other .
     inline bool operator<=(const MapVersion &other) const
     {
       return major <= other.major && minor <= other.minor && patch <= other.patch;
     }
 
+    /// Inequality operator comparing two versions.
+    /// @param other Version to compare against.
+    /// @return True if this version number is greater than @p other .
     inline bool operator>(const MapVersion &other) const
     {
       return major > other.major && minor > other.minor && patch > other.patch;
     }
 
+    /// Inequality operator comparing two versions.
+    /// @param other Version to compare against.
+    /// @return True if this version number is greater than or equal to @p other .
     inline bool operator>=(const MapVersion &other) const
     {
       return major >= other.major && minor >= other.minor && patch >= other.patch;

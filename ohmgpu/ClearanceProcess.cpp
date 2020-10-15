@@ -80,7 +80,7 @@ namespace
             range = calculateNearestNeighbour(
               voxel_key, map, voxel_search_half_extents, (query.query_flags & kQfUnknownAsOccupied) != 0, false,
               query.search_radius, query.axis_scaling, (query.query_flags & kQfReportUnscaledResults) != 0);
-            voxel.data() = range;
+            voxel.write(range);
           }
         }
       }
@@ -125,11 +125,11 @@ namespace
           {
             if (isOccupied(occupancy) || ((query.query_flags & kQfUnknownAsOccupied) != 0 && isUnobserved(occupancy)))
             {
-              clearance.data() = 0.0f;
+              clearance.write(0.0f);
             }
             else
             {
-              clearance.data() = -1.0f;
+              clearance.write(-1.0f);
             }
           }
         }
@@ -174,7 +174,7 @@ namespace
           voxel_clearance.setKey(voxel_key);
           // if (!voxel.isNull())
           {
-            voxel_range = voxel_clearance.data();
+            voxel_clearance.read(&voxel_range);
             for (int nz = -1; nz <= 1; ++nz)
             {
               for (int ny = -1; ny <= 1; ++ny)
@@ -190,14 +190,18 @@ namespace
                     // Get neighbour value.
                     if (!neighbour.isNull())
                     {
-                      float neighbour_range = (neighbour.isNull()) ? neighbour.data() : -1.0f;
+                      float neighbour_range = -1.0f;
+                      if (!neighbour.isNull())
+                      {
+                        neighbour.read(&neighbour_range);
+                      }
                       if (neighbour_range >= 0)
                       {
                         // Adjust by range to neighbour.
                         neighbour_range += glm::length(glm::vec3(nx, ny, nz));
                         if (neighbour_range < voxel_range)
                         {
-                          voxel_clearance.data() = neighbour_range;
+                          voxel_clearance.write(neighbour_range);
                         }
                       }
                     }

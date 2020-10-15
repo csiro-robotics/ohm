@@ -206,8 +206,8 @@ namespace gpumap
         if (test_occupancy.isValid())
         {
           bool ok = true;
-          expect = ref_occupancy.data();
-          actual = test_occupancy.data();
+          ref_occupancy.read(&expect);
+          test_occupancy.read(&actual);
 
           if (std::abs(expect - actual) >= reference_map.hitValue() * 0.5f)
           {
@@ -466,9 +466,13 @@ namespace gpumap
             ASSERT_TRUE(cpu_voxel.isValid());
             ASSERT_TRUE(gpu_voxel.isValid());
 
-            EXPECT_EQ(cpu_voxel.data(), gpu_voxel.data());
+            float cpu_occupancy, gpu_occupancy;
+            cpu_voxel.read(&cpu_occupancy);
+            gpu_voxel.read(&gpu_occupancy);
 
-            if (cpu_voxel.data() != gpu_voxel.data())
+            EXPECT_EQ(cpu_occupancy, gpu_occupancy);
+
+            if (cpu_occupancy != gpu_occupancy)
             {
               std::cout << "Voxel error: " << key << '\n';
             }
@@ -560,9 +564,11 @@ namespace gpumap
 
       if (voxel.isValid())
       {
-        if (!ohm::isUnobserved(voxel))
+        float occupancy;
+        voxel.read(&occupancy);
+        if (!ohm::isUnobserved(occupancy))
         {
-          EXPECT_LT(voxel.data(), gpu_map.occupancyThresholdValue());
+          EXPECT_LT(occupancy, gpu_map.occupancyThresholdValue());
           EXPECT_FALSE(ohm::isOccupied(voxel));
 
           // Voxel should also be with in the bounds of the Aabb. Check this.
@@ -605,17 +611,19 @@ namespace gpumap
 
       if (voxel.isValid())
       {
+        float occupancy;
+        voxel.read(&occupancy);
         if (voxel.key() != target_key)
         {
           if (!ohm::isUnobserved(voxel))
           {
-            EXPECT_LT(voxel.data(), gpu_map.occupancyThresholdValue());
+            EXPECT_LT(occupancy, gpu_map.occupancyThresholdValue());
           }
           EXPECT_FALSE(ohm::isOccupied(voxel));
         }
         else
         {
-          EXPECT_GE(voxel.data(), gpu_map.occupancyThresholdValue());
+          EXPECT_GE(occupancy, gpu_map.occupancyThresholdValue());
           EXPECT_TRUE(ohm::isOccupied(voxel));
         }
 

@@ -215,66 +215,83 @@ void ohm::covDebugStats()
 void ohm::integrateNdtHit(NdtMap &map, const Key &key, const glm::dvec3 &sample)
 {
   OccupancyMap &occupancy_map = map.map();
-  Voxel<float> occupancy(&occupancy_map, occupancy_map.layout().occupancyLayer(), key);
-  Voxel<VoxelMean> mean(occupancy, occupancy_map.layout().meanLayer());
-  Voxel<CovarianceVoxel> cov(occupancy, occupancy_map.layout().covarianceLayer());
+  Voxel<float> occupancy_voxel(&occupancy_map, occupancy_map.layout().occupancyLayer(), key);
+  Voxel<VoxelMean> mean_voxel(occupancy_voxel, occupancy_map.layout().meanLayer());
+  Voxel<CovarianceVoxel> cov_voxel(occupancy_voxel, occupancy_map.layout().covarianceLayer());
+  const glm::dvec3 voxel_centre = occupancy_map.voxelCentreGlobal(key);
 
-  assert(occupancy.isValid());
-  assert(mean.isValid());
-  assert(cov.isValid());
+  assert(occupancy_voxel.isValid());
+  assert(mean_voxel.isValid());
+  assert(cov_voxel.isValid());
 
-  glm::dvec3 voxel_mean = positionUnsafe(mean);
+  CovarianceVoxel cov;
+  VoxelMean mean;
+  float occupancy;
 
-  float *voxel_value = occupancy.dataPtr();
-  float updated_value = *voxel_value;
-  if (calculateHitWithCovariance(&cov.data(), &updated_value, sample, voxel_mean, mean.data().count,
-                                 occupancy_map.hitValue(), unobservedOccupancyValue(),
-                                 float(occupancy_map.resolution()), map.reinitialiseCovarianceTheshold(),
-                                 map.reinitialiseCovariancePointCount()))
+  occupancy_voxel.read(&occupancy);
+  mean_voxel.read(&mean);
+  cov_voxel.read(&cov);
+
+  float updated_value = occupancy;
+  const glm::dvec3 voxel_pos = position(mean, voxel_centre, occupancy_map.resolution());
+  if (calculateHitWithCovariance(&cov, &updated_value, sample, voxel_pos, mean.count, occupancy_map.hitValue(),
+                                 unobservedOccupancyValue(), float(occupancy_map.resolution()),
+                                 map.reinitialiseCovarianceTheshold(), map.reinitialiseCovariancePointCount()))
   {
     // Covariance matrix has reset. Reset the point count to clear the mean value.
-    mean.data().count = 0;
+    mean.count = 0;
   }
 
   // Ensure we update the occupancy within the configured map limits.
   occupancyAdjustUp(
-    voxel_value, *voxel_value, updated_value, unobservedOccupancyValue(), occupancy_map.maxVoxelValue(),
+    &occupancy, occupancy, updated_value, unobservedOccupancyValue(), occupancy_map.maxVoxelValue(),
     occupancy_map.saturateAtMinValue() ? occupancy_map.minVoxelValue() : std::numeric_limits<float>::lowest(),
     occupancy_map.saturateAtMaxValue() ? occupancy_map.maxVoxelValue() : std::numeric_limits<float>::max(), false);
+  occupancy_voxel.write(occupancy);
 
   // Update the voxel mean.
-  updatePositionUnsafe(mean, sample);
+  updatePosition(&mean, sample, voxel_centre, occupancy_map.resolution());
+  mean_voxel.write(mean);
+  cov_voxel.write(cov);
 }
 
 
 void ohm::integrateNdtMiss(NdtMap &map, const Key &key, const glm::dvec3 &sensor, const glm::dvec3 &sample)
 {
   OccupancyMap &occupancy_map = map.map();
-  Voxel<float> occupancy(&occupancy_map, occupancy_map.layout().occupancyLayer(), key);
-  Voxel<const VoxelMean> mean(occupancy, occupancy_map.layout().meanLayer());
-  Voxel<const CovarianceVoxel> cov(occupancy, occupancy_map.layout().covarianceLayer());
+  Voxel<float> occupancy_voxel(&occupancy_map, occupancy_map.layout().occupancyLayer(), key);
+  Voxel<const VoxelMean> mean_voxel(occupancy_voxel, occupancy_map.layout().meanLayer());
+  Voxel<const CovarianceVoxel> cov_voxel(occupancy_voxel, occupancy_map.layout().covarianceLayer());
+  const glm::dvec3 voxel_centre = occupancy_map.voxelCentreGlobal(key);
 
-  assert(occupancy.isValid());
-  assert(mean.isValid());
-  assert(cov.isValid());
+  assert(occupancy_voxel.isValid());
+  assert(mean_voxel.isValid());
+  assert(cov_voxel.isValid());
 
-  float *voxel_value = occupancy.dataPtr();
-  float updated_value = *voxel_value;
+  CovarianceVoxel cov;
+  VoxelMean mean;
+  float occupancy;
+
+  occupancy_voxel.read(&occupancy);
+  mean_voxel.read(&mean);
+  cov_voxel.read(&cov);
+
+  float updated_value = occupancy;
 #ifdef TES_ENABLE
-  const float initial_value = *voxel_value;
+  const float initial_value = occupancy;
 #endif  // TES_ENABLE
-  const glm::dvec3 voxel_mean = positionUnsafe(mean);
+  const glm::dvec3 voxel_mean = position(mean, voxel_centre, occupancy_map.resolution());
 
 #ifdef TES_ENABLE
   const glm::dvec3 voxel_maximum_likelihood =
 #endif  // TES_ENABLE
-    calculateMissNdt(cov.dataPtr(), &updated_value, sensor, sample, voxel_mean, mean.data().count,
-                     unobservedOccupancyValue(), occupancy_map.missValue(), map.adaptationRate(), map.sensorNoise(),
-                     map.ndtSampleThreshold());
+    calculateMissNdt(&cov, &updated_value, sensor, sample, voxel_mean, mean.count, unobservedOccupancyValue(),
+                     occupancy_map.missValue(), map.adaptationRate(), map.sensorNoise(), map.ndtSampleThreshold());
   occupancyAdjustDown(
-    voxel_value, *voxel_value, updated_value, unobservedOccupancyValue(), occupancy_map.minVoxelValue(),
+    &occupancy, occupancy, updated_value, unobservedOccupancyValue(), occupancy_map.minVoxelValue(),
     occupancy_map.saturateAtMinValue() ? occupancy_map.minVoxelValue() : std::numeric_limits<float>::lowest(),
     occupancy_map.saturateAtMaxValue() ? occupancy_map.maxVoxelValue() : std::numeric_limits<float>::max(), false);
+  occupancy_voxel.write(occupancy);
 
 #ifdef TES_ENABLE
   if (map.trace())
@@ -302,7 +319,7 @@ void ohm::integrateNdtMiss(NdtMap &map, const Key &key, const glm::dvec3 &sensor
                  glm::value_ptr(voxel_maximum_likelihood), 0.1f);
 
     char text[64];
-    sprintf(text, "P %.3f", ohm::valueToProbability(*voxel_value - initial_value));
+    sprintf(text, "P %.3f", ohm::valueToProbability(occupancy - initial_value));
     TES_TEXT2D_WORLD(g_3es, TES_COLOUR(White), text, glm::value_ptr(voxel_centre));
 
     TES_SERVER_UPDATE(g_3es, 0.0f);

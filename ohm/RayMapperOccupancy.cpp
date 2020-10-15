@@ -91,11 +91,13 @@ size_t RayMapperOccupancy::integrateRays(const glm::dvec3 *rays, size_t element_
     }
     last_chunk = chunk;
     const unsigned voxel_index = ::voxelIndex(key, occupancy_dim);
-    float *occupancy_value = reinterpret_cast<float *>(occupancy_buffer.voxelMemory()) + voxel_index;
-    const float initial_value = *occupancy_value;
+    float occupancy_value;
+    occupancy_buffer.readVoxel(voxel_index, &occupancy_value);
+    const float initial_value = occupancy_value;
     const bool is_occupied = (initial_value != unobservedOccupancyValue() && initial_value > occupancy_threshold_value);
-    occupancyAdjustMiss(occupancy_value, initial_value, miss_value, unobservedOccupancyValue(), voxel_min,
+    occupancyAdjustMiss(&occupancy_value, initial_value, miss_value, unobservedOccupancyValue(), voxel_min,
                         saturation_min, saturation_max, stop_adjustments);
+    occupancy_buffer.writeVoxel(voxel_index, occupancy_value);
     chunk->updateFirstValid(voxel_index);
 
     stop_adjustments = stop_adjustments || ((ray_update_flags & kRfStopOnFirstOccupied) && is_occupied);
@@ -151,9 +153,10 @@ size_t RayMapperOccupancy::integrateRays(const glm::dvec3 *rays, size_t element_
       last_chunk = chunk;
       const unsigned voxel_index = ::voxelIndex(key, occupancy_dim);
 
-      float *occupancy_value = reinterpret_cast<float *>(occupancy_buffer.voxelMemory()) + voxel_index;
-      const float initial_value = *occupancy_value;
-      occupancyAdjustHit(occupancy_value, initial_value, hit_value, unobservedOccupancyValue(), voxel_max,
+      float occupancy_value;
+      occupancy_buffer.readVoxel(voxel_index, &occupancy_value);
+      const float initial_value = occupancy_value;
+      occupancyAdjustHit(&occupancy_value, initial_value, hit_value, unobservedOccupancyValue(), voxel_max,
                          saturation_min, saturation_max, stop_adjustments);
 
       // update voxel mean if present.
@@ -164,13 +167,15 @@ size_t RayMapperOccupancy::integrateRays(const glm::dvec3 *rays, size_t element_
           mean_buffer = VoxelBuffer<VoxelBlock>(chunk->voxel_blocks[mean_layer]);
         }
         last_mean_chunk = chunk;
-        VoxelMean *voxel_mean = reinterpret_cast<VoxelMean *>(mean_buffer.voxelMemory()) + voxel_index;
-        voxel_mean->coord =
-          subVoxelUpdate(voxel_mean->coord, voxel_mean->count, end - map_->voxelCentreGlobal(key), resolution);
-        ++voxel_mean->count;
+        VoxelMean voxel_mean;
+        mean_buffer.readVoxel(voxel_index, &voxel_mean);
+        voxel_mean.coord =
+          subVoxelUpdate(voxel_mean.coord, voxel_mean.count, end - map_->voxelCentreGlobal(key), resolution);
+        ++voxel_mean.count;
+        mean_buffer.writeVoxel(voxel_index, voxel_mean);
         chunk->touched_stamps[mean_layer].store(touch_stamp, std::memory_order_relaxed);
       }
-
+      occupancy_buffer.writeVoxel(voxel_index, occupancy_value);
       chunk->updateFirstValid(voxel_index);
 
       chunk->dirty_stamp = touch_stamp;

@@ -94,8 +94,10 @@ namespace ndttests
       ASSERT_TRUE(mean.isValid());
       ASSERT_TRUE(covariance.isValid());
       // Lookup the target voxel.
-      const ohm::VoxelMean &voxel_mean = mean.data();
-      const ohm::CovarianceVoxel &cov_voxel = covariance.data();
+      ohm::VoxelMean voxel_mean;
+      ohm::CovarianceVoxel cov_voxel;
+      mean.read(&voxel_mean);
+      covariance.read(&cov_voxel);
       EXPECT_TRUE(validate(ohm::positionSafe(mean), voxel_mean.count, cov_voxel, ref.second));
     }
   }
@@ -134,7 +136,8 @@ namespace ndttests
     // In between we reset the probability value of the target voxel.
     ohm::Voxel<float> target_voxel_cpu(&map_cpu, map_cpu.layout().occupancyLayer(), target_key);
     ASSERT_TRUE(target_voxel_cpu.isValid());
-    const float initial_value = target_voxel_cpu.data();
+    float initial_value;
+    target_voxel_cpu.read(&initial_value);
 
     for (size_t i = 0; i < test_rays.size(); i += 2)
     {
@@ -151,14 +154,16 @@ namespace ndttests
       // Read the voxel value from GPU update.
       ohm::Voxel<float> target_voxel_gpu(&ndt_gpu.map(), ndt_gpu.map().layout().occupancyLayer(), target_key);
       ASSERT_TRUE(target_voxel_gpu.isValid());
-      float ndt_cpu_value = target_voxel_cpu.data();
-      float ndt_gpu_value = target_voxel_gpu.data();
+      float ndt_cpu_value;
+      target_voxel_cpu.read(&ndt_cpu_value);
+      float ndt_gpu_value;
+      target_voxel_gpu.read(&ndt_gpu_value);
 
       EXPECT_NEAR(ndt_gpu_value, ndt_cpu_value, 1e-4f);
 
       // Restore both voxel values.
-      target_voxel_cpu.data() = initial_value;
-      target_voxel_gpu.data() = initial_value;
+      target_voxel_cpu.write(initial_value);
+      target_voxel_gpu.write(initial_value);
     }
   }
 

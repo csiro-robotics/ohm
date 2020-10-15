@@ -194,8 +194,9 @@ bool filterCloud(const Options &opt, const ohm::OccupancyMap &map, ProgressMonit
       if (ohm::isOccupied(voxel_occ))
       {
         const glm::dvec3 mean = ohm::positionUnsafe(voxel_mean);
-        const ohm::CovarianceVoxel *cov_data = voxel_cov.dataPtr();
-        cov_sqrt = ohm::covarianceSqrtMatrix(cov_data);
+        ohm::CovarianceVoxel cov_data;
+        voxel_cov.read(&cov_data);
+        cov_sqrt = ohm::covarianceSqrtMatrix(&cov_data);
         if (opt.expected_value_tolerance >= 0)
         {
           return filterPointByCovariance(point, mean, cov_sqrt, opt.expected_value_tolerance);
@@ -311,7 +312,7 @@ int main(int argc, char *argv[])
       out.imbue(std::locale(""));
       out << '\r';
 
-      if (prog.info.info && prog.info.info[0])
+      if (!prog.info.info.empty())
       {
         out << prog.info.info << " : ";
       }

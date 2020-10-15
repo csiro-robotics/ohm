@@ -76,8 +76,10 @@ namespace ndttests
 
       ASSERT_TRUE(mean.isValid());
       ASSERT_TRUE(covariance.isValid());
-      const ohm::CovarianceVoxel &cov_voxel = covariance.data();
-      const ohm::VoxelMean &voxel_mean = mean.data();
+      ohm::CovarianceVoxel cov_voxel;
+      ohm::VoxelMean voxel_mean;
+      covariance.read(&cov_voxel);
+      mean.read(&voxel_mean);
 
       // Update the reference voxel as well.
       auto ref = reference_voxels.find(key);
@@ -106,8 +108,10 @@ namespace ndttests
       setVoxelKey(ref.first, mean, covariance);
       ASSERT_TRUE(mean.isValid());
       ASSERT_TRUE(covariance.isValid());
-      const ohm::CovarianceVoxel &cov_voxel = covariance.data();
-      const ohm::VoxelMean &voxel_mean = mean.data();
+      ohm::CovarianceVoxel cov_voxel;
+      ohm::VoxelMean voxel_mean;
+      covariance.read(&cov_voxel);
+      mean.read(&voxel_mean);
       EXPECT_TRUE(validate(positionSafe(mean), voxel_mean.count, cov_voxel, ref.second));
     }
 
@@ -170,7 +174,8 @@ namespace ndttests
     // Fetch the target_voxel in which we expect all samples to fall.
     Voxel<float> occupancy(&map, map.layout().occupancyLayer(), target_key);
     ASSERT_TRUE(occupancy.isValid());
-    const float initial_value = occupancy.data();
+    float initial_value;
+    occupancy.read(&initial_value);
     ndt.setTrace(true);  // For 3es debugging
 
     // Now trace all the test_rays through the target_voxel. For each we will restore the initial voxel value, so
@@ -178,14 +183,16 @@ namespace ndttests
     // against the expected result.
     for (size_t i = 0; i < test_rays.size(); i += 2)
     {
-      occupancy.data() = initial_value;
+      occupancy.write(initial_value);
       TES_LINE(ohm::g_3es, TES_COLOUR(Cornsilk), glm::value_ptr(test_rays[i]), glm::value_ptr(test_rays[i + 1]),
                TES_PTR_ID(&sensor));
       TES_SERVER_UPDATE(ohm::g_3es, 0.0f);
       ohm::integrateNdtMiss(ndt, target_key, test_rays[i], test_rays[i + 1]);
       TES_LINES_END(ohm::g_3es, TES_PTR_ID(&sensor));
       // Calculate the value adjustment.
-      float value_adjustment = occupancy.data() - initial_value;
+      float adjusted_value;
+      occupancy.read(&adjusted_value);
+      float value_adjustment = adjusted_value - initial_value;
       // Convert to probability.
       float ray_probability = ohm::valueToProbability(value_adjustment);
       // Validate

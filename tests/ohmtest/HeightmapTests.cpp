@@ -93,10 +93,11 @@ namespace
         if (isOccupied(occupancy))
         {
           heigthmap_voxel.setKey(occupancy);
-          const HeightmapVoxel *voxel = heigthmap_voxel.dataPtr();
+          HeightmapVoxel voxel;
+          heigthmap_voxel.read(&voxel);
           // Get the coordinate of the voxel.
           coord = heightmap->heightmap().voxelCentreGlobal(*iter);
-          coord += double(voxel->height) * Heightmap::upAxisNormal(axis);
+          coord += double(voxel.height) * Heightmap::upAxisNormal(axis);
           // Add to the cloud.
           heightmapCloud.addVertex(coord);
         }
@@ -167,14 +168,15 @@ namespace
           expected_height *= -1.0;
         }
 
-        ASSERT_TRUE(voxel.isValid());
+        ASSERT_TRUE(voxel.isValid()) << (wall ? "top" : "floor");
+        ;
 
-        const HeightmapVoxel *voxel_content = voxel.dataPtr();
-        ASSERT_NE(voxel_content, nullptr) << (wall ? "top" : "floor");
+        HeightmapVoxel voxel_content;
+        voxel.read(&voxel_content);
         // Need the equality to handle when both values are inf.
-        if (voxel_content->height + base_height != expected_height)
+        if (voxel_content.height + base_height != expected_height)
         {
-          ASSERT_NEAR(voxel_content->height + base_height, expected_height, 1e-9) << (wall ? "top" : "floor");
+          ASSERT_NEAR(voxel_content.height + base_height, expected_height, 1e-9) << (wall ? "top" : "floor");
         }
       }
     }

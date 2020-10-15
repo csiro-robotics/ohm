@@ -72,9 +72,14 @@ namespace ohm
     bool onExecuteAsync() override;
     void onReset(bool hard_reset) override;
 
+    /// Access internal details.
+    /// @return Internal details.
     NearestNeighboursDetail *imp();
+    /// Access internal details.
+    /// @return Internal details.
     const NearestNeighboursDetail *imp() const;
-    unsigned query_flags_;
+
+    unsigned query_flags_;  ///< @c QueryFlag values.
   };
 }  // namespace ohm
 
