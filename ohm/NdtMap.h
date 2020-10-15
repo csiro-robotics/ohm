@@ -80,7 +80,7 @@ namespace ohm
     ///
     /// This maps to the @c reinitialise_threshold parameter of @c calculateHitWithCovariance() . See that function for
     /// details.
-    /// @param theshold The probability theshold value. Must be < 0 or behaviour is undefined.
+    /// @param threshold The probability theshold value. Must be < 0 or behaviour is undefined.
     void setReinitialiseCovarianceTheshold(float threshold);
 
     /// Get the occupancy theshold value at which the covariance matrix may be reinitialised.

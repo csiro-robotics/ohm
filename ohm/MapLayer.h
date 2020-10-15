@@ -140,7 +140,6 @@ namespace ohm
     /// @param region_dim The dimensions of each region with no subsampling. Subsampling is resolved as needed.
     void clear(uint8_t *mem, const glm::u8vec3 &region_dim) const;
 
-    /// @internal
     /// Set the layer index. Used in layer reordering. Must be maintained correctly.
     /// @param index The new layer index.
     inline void setLayerIndex(unsigned index) { layer_index_ = index; }

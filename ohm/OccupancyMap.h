@@ -123,7 +123,12 @@ namespace ohm
       /// @return Current voxel key.
       inline const Key &key() const { return key_; }
 
+      /// Access the @c MapChunk the iterator is currently referencing.
+      /// @return The current @c MapChunk .
       const MapChunk *chunk() const;
+
+      /// Access the @c OccupancyMap the iterator is currently referencing.
+      /// @return The current @c OccupancyMap .
       inline const OccupancyMap *map() const { return map_; }
 
       /// Copy assignment.
@@ -187,9 +192,11 @@ namespace ohm
       ~iterator() = default;
 
       using base_iterator::chunk;
+      /// @overload
       MapChunk *chunk();
 
       using base_iterator::map;
+      /// @overload
       inline OccupancyMap *map() { return map_; }
 
       /// Prefix increment for the iterator. Iterator becomes invalid when incrementing an iterator
@@ -403,8 +410,6 @@ namespace ohm
     /// Note note that changing the requires all map chunks have additional voxel layers allocated.
     ///
     /// Does nothing if already present.
-    ///
-    /// @param enable True to enable voxel mean positioning.
     void addVoxelMeanLayer();
 
     /// Is voxel mean positioning enabled on this map?
@@ -727,8 +732,8 @@ namespace ohm
     }
 
     /// Calculate the number of voxels along each axis between two keys. Semantically, <tt>b - a</tt>.
-    /// @param a The first key.
-    /// @param b The second key.
+    /// @param from The first key.
+    /// @param to The second key.
     /// @return The voxel offset from @p a to @p b along each axis.
     glm::ivec3 rangeBetween(const Key &from, const Key &to) const;
 
@@ -790,17 +795,19 @@ namespace ohm
     //-------------------------------------------------------
     // Internal
     //-------------------------------------------------------
-    /// @internal
+
+    /// Internal occupancy map detail access.
+    /// @return Internal map details.
     inline OccupancyMapDetail *detail() { return imp_; }
-    /// @internal
+    /// Internal occupancy map detail access.
+    /// @return Internal map details.
     inline const OccupancyMapDetail *detail() const { return imp_; }
 
     /// Enumerate the regions within this map.
     /// @param[out] chunks The enumerated chunks are added to this container.
     void enumerateRegions(std::vector<const MapChunk *> &chunks) const;  // NOLINT(google-runtime-references)
 
-    /// @internal
-    /// Fetch a region, potentially creating it.
+    /// Fetch a region, potentially creating it. For internal use.
     /// @param region_key The key of the region to fetch.
     /// @param allow_create Create the region if it doesn't exist?
     /// @return A pointer to the requested region. Null if it doesn't exist and @p allowCreate is @c false.

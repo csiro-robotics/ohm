@@ -38,7 +38,7 @@ namespace ohm
       /// @return The 32-bit hash value.
       size_t operator()(const Key &key) const;
     };
-    friend Hash;
+    friend Hash;  ///< Friend specifier for @c Hash .
 
     /// Construct a garbage key.
     Key();

@@ -13,7 +13,6 @@
 
 namespace clu
 {
-  /// @internal
   template <typename T>
   struct KernelArgHandler
   {
@@ -23,7 +22,6 @@ namespace clu
     }
   };
 
-  /// @internal
   /// Explicitly handle @c cl_mem type. Changing to the C++ <tt>cl2.hpp</tt> API changed how @c cl::Kernel handled
   /// pointer arguments. In practice it expects all buffer arguments to be of C++ @c cl::Buffer, @c cl::Image,
   /// @c cl::Pipe, etc types. Any pointer invokes @c clSetKernelArgSVMPointer() instead of @c clSetKernelArg() which
@@ -40,7 +38,6 @@ namespace clu
   };
 
 
-  /// @internal
   template <typename T>
   cl_int setKernelArgs2(cl::Kernel &kernel, int &arg_index,  // NOLINT(google-runtime-references)
                         const T &arg)
@@ -52,7 +49,6 @@ namespace clu
   }
 
 
-  /// @internal
   template <typename T, typename... ARGS>
   cl_int setKernelArgs2(cl::Kernel &kernel, int &arg_index,  // NOLINT(google-runtime-references)
                         const T &arg, ARGS... args)

@@ -38,20 +38,28 @@ namespace gputil
   class gputilAPI Queue
   {
   public:
+    /// Queue construction flags.
     enum QueueFlag
     {
-      kProfile = (1 << 0)
+      kProfile = (1 << 0)  ///< Enable profiling of the queue object.
     };
 
     /// Empty constructor.
     Queue();
+    /// Copy constructor - references the same queue as @p other .
+    /// @param other The queue to copy.
     Queue(const Queue &other);
+    /// Move constructor.
+    /// @param other The object to move.
     Queue(Queue &&other) noexcept;
+    /// Construct from the underlying SDK queue implemntation.
     Queue(void *platform_queue);
 
+    /// Destructor - release a reference to the unerlying queue object.
     ~Queue();
 
     /// Is this a valid @c Queue object?
+    /// @return True if valid.
     bool isValid() const;
 
     /// Insert a barrier which ensures all operations before the barrier complete before executing
@@ -60,6 +68,7 @@ namespace gputil
 
     /// Insert an event into the queue which marks the end of currently queued operations.
     /// This event may be used to block on completion of all currently queued operations.
+    /// @return An event marking the current queue location.
     Event mark();
 
     /// Ensure that all queued commands have been submitted to the devices. A return does
@@ -69,12 +78,20 @@ namespace gputil
     /// Wait for all outstanding operations in the queue to complete.
     void finish();
 
+    /// Add a callback to the queue. The callback is invoked on CPU when queue execution reaches the current location
+    /// in the queue. Note this callback may be called from a thread other than the main thread.
+    /// @param callback The function to invoke.
     void queueCallback(const std::function<void(void)> &callback);
 
     /// Internal data access for private code.
+    /// @return Internal queue details.
     QueueDetail *internal() const;
 
+    /// Copy assignment.
+    /// @param other The object to copy.
     Queue &operator=(const Queue &other);
+    /// Move assignment.
+    /// @param other The object to move.
     Queue &operator=(Queue &&other) noexcept;
 
   private:

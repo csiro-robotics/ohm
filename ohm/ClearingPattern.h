@@ -43,7 +43,7 @@ namespace ohm
     ~ClearingPattern();
 
     /// Retrieve the actual pattern.
-    /// @param The @c RayPattern.
+    /// @return The @c RayPattern.
     const RayPattern *pattern() const;
 
     /// Query ownership of @p pattern().
@@ -67,6 +67,10 @@ namespace ohm
     template <typename MAP>
     void apply(MAP *map, const glm::dmat4 &pattern_transform, float probability_scaling = 1.0);
 
+    /// Query the last ray set used in @c apply . This is the pattern transformed to match the position and rotation
+    /// last supplied to @c apply() . Contains start/end pairs.
+    /// @param[out] element_count Set to the number of elements in the returned value. The number of rays is half this.
+    /// @return A pointer to the ray set.
     const glm::dvec3 *lastRaySet(size_t *element_count) const;
 
   private:

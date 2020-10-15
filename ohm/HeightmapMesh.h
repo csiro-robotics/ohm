@@ -76,6 +76,7 @@ namespace ohm
     /// - The heightmap occupancy map does not contain the required voxel layers.
     ///
     /// @param heightmap The heightmap to generate a mesh for.
+    /// @param voxel_modifier Optional modifier function applied to each voxel before moving ito the mesh.
     /// @return True on success.
     bool buildMesh(const Heightmap &heightmap, const MeshVoxelModifier &voxel_modifier = MeshVoxelModifier());
 

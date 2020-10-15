@@ -13,6 +13,7 @@ namespace ohm
   /// Data type enumeration, particularly for @c VoxelLayout data.
   struct DataType
   {
+    /// Enumeration of the supported data types.
     enum Type
     {
       kUnknown,

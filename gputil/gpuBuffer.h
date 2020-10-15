@@ -453,7 +453,8 @@ namespace gputil
     // void *pin(PinMode mode);
     // void unpin(void *ptr, Queue *queue = nullptr, Event *block_on = nullptr, Event *completion = nullptr);
 
-    /// @internal
+    /// Get the internal buffer representation.
+    /// @return The internal buffer detail.
     inline BufferDetail *detail() const { return imp_; }
 
   private:

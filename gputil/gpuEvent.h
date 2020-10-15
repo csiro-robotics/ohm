@@ -23,10 +23,16 @@ namespace gputil
   class gputilAPI Event
   {
   public:
+    /// Construct a null/invalid event.
     Event();
+    /// Copy constructor. Refers to the same GPU API event as @p other .
+    /// @param other Even to copy.
     Event(const Event &other);
+    /// Move constructor.
+    /// @param other Even to move.
     Event(Event &&other) noexcept;
 
+    /// Destructor - releases GPU API event.
     ~Event();
 
     /// Is this a valid event?
@@ -53,10 +59,20 @@ namespace gputil
     /// @overload
     static void wait(const Event **events, size_t event_count);
 
+    /// Copy assignment. Refers to the same GPU API event as @p other .
+    /// @param other Even to copy.
+    /// @return `*this`
     Event &operator=(const Event &other);
+    /// Move assignment.
+    /// @param other Even to move.
+    /// @return `*this`
     Event &operator=(Event &&other) noexcept;
 
+    /// Get the internal event representation - constructed if null.
+    /// @return The internal event detail.
     EventDetail *detail();
+    /// Get the internal event representation.
+    /// @return The internal event detail - may be null.
     EventDetail *detail() const;
 
   private:

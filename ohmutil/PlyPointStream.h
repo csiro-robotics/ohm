@@ -54,23 +54,23 @@ namespace ohm
     /// Defines the available ply property types.
     enum class ohmutil_API Type : unsigned
     {
-      kNull,
-      kInt8,
-      kUInt8,
-      kInt16,
-      kUInt16,
-      kInt32,
-      kUInt32,
-      kFloat32,
-      kFloat64
+      kNull,     ///< No type set
+      kInt8,     ///< Signed byte
+      kUInt8,    ///< Unsigned byte
+      kInt16,    ///< `int16_t`
+      kUInt16,   ///< `uint16_t`
+      kInt32,    ///< `int32_t`
+      kUInt32,   ///< `uint32_t`
+      kFloat32,  ///< `float`
+      kFloat64   ///< `double`
     };
 
     /// Represents a point property in the ply file. At the very least, "x", "y", "z" properties of type @c kFloat64
     /// are expected.
     struct ohmutil_API Property
     {
-      std::string name;
-      Type type;
+      std::string name;  ///< Name of the property.
+      Type type;         ///< Data type for the property
     };
 
     /// Create a stream with the given properties. @c open() to be called later.

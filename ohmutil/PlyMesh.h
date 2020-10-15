@@ -23,8 +23,8 @@ namespace ohm
   class ohmutil_API PlyMesh
   {
   public:
-    static const uint32_t kDefaultColour = 0xffffffff;
-    using VertexType = glm::vec3;
+    static const uint32_t kDefaultColour = 0xffffffff;  ///< Default colour (white)
+    using VertexType = glm::vec3;                       ///< Vertex typedef.
 
     /// Constructor.
     PlyMesh();
