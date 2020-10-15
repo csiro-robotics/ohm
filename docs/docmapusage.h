@@ -194,6 +194,83 @@ namespace ohm
   voxel. See that class for more details. The @c NdtMap should always be populated (in CPU) using the
   @c RayMapperNdt.
 
+  # Iterating a map
+
+  Once a map has been populated, it is possible to iterate the voxels in the map using either a using range based for
+  loop over the map or using a @c OccupancyMap::iterator . In either case, this will iterate the @ref MapChunk "chunks"
+  in the map in an undefined order and iterate each voxel within the chunk. Iteration of voxels within a chunk starts
+  from the chunk's @c MapChunk::firstValidKey() which is maintained as the first voxel in the chunk memory which has
+  been touched.
+
+  Iterating with a range based for loop or deferencing the @c OccupancyMap::iterator provides yields a @c Key for the
+  current voxel. The data associated with the voxel must be resolved using the @c Voxel template class. The
+  @c OccupancyMap::iterator has additional, non-standard iterator functions which provide access to the target
+  @c MapChunk and @c OccupancyMap . Below is an example of iterating a map.
+
+  @code{.cpp}
+  // A structure detailing some map statistics
+  struct MapStats
+  {
+    // Smallest point count for an occupied voxel.
+    unsigned min_point_count{0};
+    // Largest point count for an occupied voxel.
+    unsigned max_point_count{0};
+    // Total number of samples contributing to the map.
+    uint_64 total_samle_count{0};
+    // Average point count for an occupied voxel.
+    unsinged average_point_count{0};
+    // Number of occupied voxels.
+    unsigned occupied_voxel_count{0};
+    // Number of free voxels.
+    unsigned free_voxel_count{0};
+  };
+
+  MapStats collectMapStats(const ohm::OccupancyMap &map)
+  {
+    MapStats stats;
+
+    // Setup voxel data.
+    ohm::Voxel<const float> occupancy(&map, map.layout().occupancyLayer());
+    ohm::Voxel<ohm::VoxelMean> mean(&map, map.layout().meanLayer());
+
+    ohm::VoxelMean mean_value;
+
+    for (auto iter = map.begin(); iter != map.end(); ++iter)
+    {
+      // Set the key for all voxel data accessors in one call.
+      // Note: passing the iterator to setVoxelKey() instead of the key is more efficient as the MapChunk can be copied
+      // from the iterator. A range based for loop will miss this minor efficiency gain.
+      ohm::setVoxelKey(iter, occupancy, mean);
+      if (occupancy.isValid()) // Should always be true - we are only iterating known voxels.
+      {
+        if (ohm::isOccupied(occupancy))
+        {
+          // Increment occupied voxels.
+          ++stats.occupied_voxel_count;
+          mean.read(&mean_value);
+
+          stats.total_samle_count += mean_value.count;
+          stats.min_point_count =
+            (stats.occupied_voxel_count > 0) ? std::min(stats.min_point_count, mean_value.count) : mean_value.count;
+          stats.max_point_count = std::max(stats.min_point_count, mean_value.count);
+        }
+        else if (ohm::isFree(voxel))
+        {
+          ++stats.free_voxel_count;
+        }
+      }
+    }
+
+    // Finalise average.
+    if (stats.occupied_voxel_count)
+    {
+      stats.average_point_count = unsigned(stats.total_sample_count / stats.occupied_voxel_count);
+    }
+
+    return stats;
+  }
+  @endcode
+
   # GPU map
 
   GPU support is implemented in the `ohmgpucuda` and `ohmgpuocl` libraries, using CUDA and OpenCL respectively. While
@@ -201,9 +278,8 @@ namespace ohm
   API backed by the associated GPU SDK. The SDK selection is forced at compile time and cannot be switched at runtime.
 
   The ohm GPU API introduces the @c GpuMap class, which is a both a wrapper for an @c OccupancyMap and
-  the
-  @c RayMapper implementation which should be used to update the map. The code below shows how to use the @c GpuMap to
-  populate an @c OccupancyMap .
+  the @c RayMapper implementation which should be used to update the map. The code below shows how to use the @c GpuMap
+  to populate an @c OccupancyMap .
 
   @code{.cpp}
   void populateGpuMap(DataProvider &provider)
@@ -229,7 +305,8 @@ namespace ohm
 
   The @c GpuMap relies on a @c GpuCache which keeps a copy of relevant @c MapChunk data in GPU memory. This cache
   keeps recently accessed chunks in GPU memory and will move data back to CPU memory once the cache is full and new
-  chunks need to be modified.
+  chunks need to be modified. Changes in CPU will mark the a chunk as dirty and the @c GpuCache will upload the updated
+  data from CPU, however there is no resolution mechanism for merging simultaneous changes on CPU and GPU.
 
   For optimal performance the number of rays given to each @ref GpuMap::integrateRays() "integrateRays()" call may
   need to be tuned to the current platform. Batch sizes of 2048 or 4096 are recommended. Small batch sizes will be
