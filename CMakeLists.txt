@@ -287,6 +287,8 @@ if(OHM_BUILD_DOXYGEN)
     list(APPEND DOXYGEN_DIRS clu)
   endif(OHM_GPU EQUAL OHM_GPU_OPENCL)
 
+  list(APPEND DOXYGEN_DIRS docs)
+
   if(DOXYGEN_FOUND)
     # Create a target to build the documentation.
     # Here we also setup various documentation variables passed through to the doxyfile configuration.
