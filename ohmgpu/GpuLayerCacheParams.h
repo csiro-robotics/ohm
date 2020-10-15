@@ -3,8 +3,8 @@
 // ABN 41 687 119 230
 //
 // Author: Kazys Stepanas
-#ifndef GPUCACHEPARAMS_H
-#define GPUCACHEPARAMS_H
+#ifndef GPULAYERCACHEPARAMS_H
+#define GPULAYERCACHEPARAMS_H
 
 #include "OhmGpuConfig.h"
 
@@ -13,7 +13,7 @@
 namespace ohm
 {
   /// Flags used to create a @c GpuLayerCache.
-  enum GpuCacheFlag
+  enum GpuLayerCacheFlag
   {
     /// Will read voxel data from host to GPU memory.
     kGcfRead = (1 << 0),
@@ -27,7 +27,7 @@ namespace ohm
   };
 
   /// Parameters used in creating a @c GpuCacheLayer in @c GpuCache::createCache().
-  struct ohmgpu_API GpuCacheParams
+  struct ohmgpu_API GpuLayerCacheParams
   {
     /// The size (bytes) of the GPU cache buffer. Use zero to choose the default size specified by the @c GpuCache.
     size_t gpu_mem_size = 0;
@@ -37,9 +37,9 @@ namespace ohm
     unsigned flags = kGcfDefaultFlags;
     GpuCachePostSyncHandler on_sync;
 
-    GpuCacheParams() = default;
-    GpuCacheParams(size_t mem_size, int layer, unsigned flags,
-                   const GpuCachePostSyncHandler &on_sync = GpuCachePostSyncHandler())
+    GpuLayerCacheParams() = default;
+    GpuLayerCacheParams(size_t mem_size, int layer, unsigned flags,
+                        const GpuCachePostSyncHandler &on_sync = GpuCachePostSyncHandler())
       : gpu_mem_size(mem_size)
       , map_layer(layer)
       , flags(flags)
@@ -48,4 +48,4 @@ namespace ohm
   };
 }  // namespace ohm
 
-#endif  // GPUCACHEPARAMS_H
+#endif  // GPULAYERCACHEPARAMS_H

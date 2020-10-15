@@ -202,11 +202,11 @@ namespace
 
 GpuCache *ohm::gpumap::enableGpu(OccupancyMap &map)
 {
-  return enableGpu(map, GpuCache::kDefaultLayerMemSize, kGpuAllowMappedBuffers);
+  return enableGpu(map, GpuCache::kDefaultTargetMemSize, kGpuAllowMappedBuffers);
 }
 
 
-GpuCache *ohm::gpumap::enableGpu(OccupancyMap &map, size_t layer_gpu_mem_size, unsigned flags)
+GpuCache *ohm::gpumap::enableGpu(OccupancyMap &map, size_t target_gpu_mem_size, unsigned flags)
 {
   OccupancyMapDetail &map_imp = *map.detail();
   if (map_imp.gpu_cache)
@@ -214,12 +214,7 @@ GpuCache *ohm::gpumap::enableGpu(OccupancyMap &map, size_t layer_gpu_mem_size, u
     return static_cast<GpuCache *>(map_imp.gpu_cache);
   }
 
-  if (layer_gpu_mem_size == 0)
-  {
-    layer_gpu_mem_size = GpuCache::kDefaultLayerMemSize;
-  }
-
-  initialiseGpuCache(map, layer_gpu_mem_size, flags);
+  initialiseGpuCache(map, target_gpu_mem_size, flags);
   return static_cast<GpuCache *>(map_imp.gpu_cache);
 }
 
