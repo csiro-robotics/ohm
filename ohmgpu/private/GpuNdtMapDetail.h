@@ -20,11 +20,12 @@ namespace ohm
     gputil::Kernel cov_hit_kernel;
     NdtMap ndt_map;
 
+
     GpuNdtMapDetail(OccupancyMap *map, bool borrowed_map)
       : GpuMapDetail(map, borrowed_map)
-      , ndt_map(map, true) // Ensures correct initialisation for NDT operations.
+      , ndt_map(map, true)  // Ensures correct initialisation for NDT operations.
     {}
   };
-}
+}  // namespace ohm
 
-#endif // GPUNDTMAPDETAIL_H
+#endif  // GPUNDTMAPDETAIL_H

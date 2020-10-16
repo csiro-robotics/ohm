@@ -217,7 +217,7 @@ inline __device__ bool calculateHitWithCovariance(CovarianceVoxel *cov_voxel, fl
   const bool was_uncertain = initial_value == uninitialised_value;
   bool initialised_covariance = false;
 
-  if (point_count == 0 || initial_value < reinitialise_threshold && point_count >= reinitialise_sample_count)
+  if (point_count == 0 || (initial_value < reinitialise_threshold && point_count >= reinitialise_sample_count))
   {
     initialiseCovariance(cov_voxel, voxel_resolution);
     initialised_covariance = true;

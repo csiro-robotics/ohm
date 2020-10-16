@@ -179,6 +179,7 @@ bool ohm::covarianceUnitSphereTransformation(const CovarianceVoxel *cov, glm::dq
 {
   glm::dmat3 eigenvectors;
   glm::dvec3 eigenvalues;
+
   covarianceEigenDecomposition(cov, &eigenvectors, &eigenvalues);
 
   const double det = glm::determinant(eigenvectors);

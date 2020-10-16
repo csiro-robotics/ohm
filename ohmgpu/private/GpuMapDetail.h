@@ -10,6 +10,7 @@
 
 #include "GpuCache.h"
 
+#include <ohm/Key.h>
 #include <ohm/RayFilter.h>
 
 #include <glm/glm.hpp>
@@ -65,6 +66,21 @@ namespace ohm
     {}
   };
 
+  /// Structure used for sorting algorithm to group rays before upload.
+  struct RayItem
+  {
+    /// Origin of the ray. Unless clipped, this is the sensor location.
+    glm::dvec3 origin;
+    /// End point of the sample ray. Unless clipped, this is the location of the sample detection.
+    glm::dvec3 sample;
+    /// Map @c Key corresponding to @p origin .
+    Key origin_key;
+    /// Map @c Key corresponding to @p sample .
+    Key sample_key;
+    /// @c RayFilterFlag values corresponding to any modification which have been made to @p origin and @p sample .
+    unsigned filter_flags;
+  };
+
   struct GpuMapDetail
   {
     using RegionSet = ska::bytell_hash_set<glm::i16vec3, Vector3Hash<glm::i16vec3>>;
@@ -87,17 +103,11 @@ namespace ohm
 
     // Item 0 is always the occupancy layer.
     std::vector<VoxelUploadInfo> voxel_upload_info[kBuffersCount];
+    /// Vector used to group/sort rays when @c group_rays is `true`.
+    std::vector<RayItem> grouped_rays;
 
     GpuProgramRef *program_ref = nullptr;
     gputil::Kernel update_kernel;
-
-    /// Identifies the rays uploaded on the current @c GpuMap::integrateRays() call. Each element is an identifier to a
-    /// ray in the current @c rays argument of  @c GpuMap::integrateRays() where the index to the sensor position is
-    /// calculated as `current_ray_ids[i] * 2` and the sample position as `current_ray_ids[i] * 2 + 1`.
-    ///
-    /// This array is only valid for the duraction of the current @c GpuMap::integrateRays() call for derivations
-    /// such as the @c GpuNdtMap to use.
-    std::vector<unsigned> current_ray_ids;
 
     RayFilterFunction ray_filter;
     bool custom_ray_filter = false;
@@ -112,6 +122,8 @@ namespace ohm
 
     /// Used as @c GpuLayerCache::upload() @c batchMarker argument.
     unsigned batch_marker = 1;  // Will cycle odd numbers to avoid zero.
+    /// Should rays be grouped (sorted) before GPU upload. Should only be set for some algorthims, like NDT (required).
+    bool group_rays = false;
     bool borrowed_map = false;
     bool gpu_ok = false;
     bool cached_sub_voxel_program = false;
