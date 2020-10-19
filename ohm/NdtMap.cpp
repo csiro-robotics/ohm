@@ -187,7 +187,9 @@ void NdtMap::debugDraw() const
 
       glm::dquat rot;
       glm::dvec3 scale;
-      if (!covarianceUnitSphereTransformation(cov.dataPtr(), &rot, &scale))
+      CovarianceVoxel cv;
+      cov.read(&cv);
+      if (!covarianceUnitSphereTransformation(&cv, &rot, &scale))
       {
         continue;
       }
@@ -196,7 +198,7 @@ void NdtMap::debugDraw() const
 
       const glm::dvec3 voxel_mean = positionUnsafe(mean);
 
-      tes::Sphere ellipsoid(next_id, glm::value_ptr(voxel_mean));
+      tes::Sphere ellipsoid(next_id, tes::Spherical(tes::Vector3d(glm::value_ptr(voxel_mean))));
       ellipsoid.setRotation(tes::Quaterniond(rot.x, rot.y, rot.z, rot.w));
       ellipsoid.setScale(2.0 * tes::Vector3d(scale.x, scale.y, scale.z));
       ellipsoid.setColour(c);

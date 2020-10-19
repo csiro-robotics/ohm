@@ -93,10 +93,10 @@ namespace
       };
     }
 
-    TES_STMT(std::vector<tes::Vector3f> includedOccupied);
-    TES_STMT(std::vector<tes::Vector3f> excludedOccupied);
-    TES_STMT(std::vector<tes::Vector3f> includedUncertain);
-    TES_STMT(std::vector<tes::Vector3f> excludedUncertain);
+    TES_STMT(std::vector<tes::Vector3d> includedOccupied);
+    TES_STMT(std::vector<tes::Vector3d> excludedOccupied);
+    TES_STMT(std::vector<tes::Vector3d> includedUncertain);
+    TES_STMT(std::vector<tes::Vector3d> excludedUncertain);
     // TES_BOX_W(g_3es, TES_COLOUR(LightSeaGreen), 0u,
     //           glm::value_ptr(region_centre), glm::value_ptr(map.regionSpatialResolution()));
 
@@ -131,11 +131,11 @@ namespace
 #ifdef TES_ENABLE
               if (occupancy != unobservedOccupancyValue())
               {
-                includedOccupied.push_back(tes::V3Arg(glm::value_ptr(map.voxelCentreGlobal(voxel_key))));
+                includedOccupied.push_back(tes::Vector3d(glm::value_ptr(map.voxelCentreGlobal(voxel_key))));
               }
               else
               {
-                includedUncertain.push_back(tes::V3Arg(glm::value_ptr(map.voxelCentreGlobal(voxel_key))));
+                includedUncertain.push_back(tes::Vector3d(glm::value_ptr(map.voxelCentreGlobal(voxel_key))));
               }
 #endif  // TES_ENABLE
             }
@@ -144,11 +144,11 @@ namespace
             {
               if (occupancy != unobservedOccupancyValue())
               {
-                excludedOccupied.push_back(tes::V3Arg(glm::value_ptr(map.voxelCentreGlobal(voxel_key))));
+                excludedOccupied.push_back(tes::Vector3d(glm::value_ptr(map.voxelCentreGlobal(voxel_key))));
               }
               else
               {
-                excludedUncertain.push_back(tes::V3Arg(glm::value_ptr(map.voxelCentreGlobal(voxel_key))));
+                excludedUncertain.push_back(tes::Vector3d(glm::value_ptr(map.voxelCentreGlobal(voxel_key))));
               }
             }
 #endif  // TES_ENABLE
@@ -164,26 +164,22 @@ namespace
     // Visualise points.
     if (!excludedUncertain.empty())
     {
-      TES_POINTS(g_3es, TES_COLOUR(Salmon), &excludedUncertain.data()->x, (unsigned)excludedUncertain.size(),
-                 sizeof(tes::Vector3f));
+      TES_POINTS(g_3es, TES_COLOUR(Salmon), tes::Id(), tes::DataBuffer(excludedUncertain));
     }
 
     if (!includedUncertain.empty())
     {
-      TES_POINTS(g_3es, TES_COLOUR(PowderBlue), &includedUncertain.data()->x, (unsigned)includedUncertain.size(),
-                 sizeof(tes::Vector3f));
+      TES_POINTS(g_3es, TES_COLOUR(PowderBlue), tes::Id(), tes::DataBuffer(includedUncertain));
     }
 
     if (!excludedOccupied.empty())
     {
-      TES_POINTS(g_3es, TES_COLOUR(Orange), &excludedOccupied.data()->x, (unsigned)excludedOccupied.size(),
-                 sizeof(tes::Vector3f));
+      TES_POINTS(g_3es, TES_COLOUR(Orange), tes::Id(), tes::DataBuffer(excludedOccupied));
     }
 
     if (!includedOccupied.empty())
     {
-      TES_POINTS(g_3es, TES_COLOUR(LightSkyBlue), &includedOccupied.data()->x, (unsigned)includedOccupied.size(),
-                 sizeof(tes::Vector3f));
+      TES_POINTS(g_3es, TES_COLOUR(LightSkyBlue), tes::Id(), tes::DataBuffer(includedOccupied));
     }
 #endif  //  TES_ENABLE
 
@@ -266,11 +262,12 @@ bool NearestNeighbours::onExecute()
 
   // Create debug visualisation objects. We use the map address to persist objects.
   // Search sphere.
-  TES_SPHERE_W(g_3es, TES_COLOUR_A(GreenYellow, 128), uint32_t((size_t)d->map), glm::value_ptr(d->near_point),
-               d->search_radius);
+  TES_SPHERE_W(g_3es, TES_COLOUR_A(GreenYellow, 128), tes::Id(d->map),
+               tes::Spherical(tes::Vector3d(glm::value_ptr(d->near_point)), double(d->search_radius)));
   // Search bounds.
-  TES_BOX_W(g_3es, TES_COLOUR(FireBrick), uint32_t((size_t)d->map), glm::value_ptr(0.5 * min_extents + max_extents),
-            glm::value_ptr(max_extents - min_extents));
+  TES_BOX_W(g_3es, TES_COLOUR(FireBrick), tes::Id(d->map),
+            tes::Transform(tes::Vector3d(glm::value_ptr(0.5 * min_extents + max_extents)),
+                           tes::Vector3d(glm::value_ptr(max_extents - min_extents))));
 
   ohm::occupancyQueryRegions(*d->map, *d, closest, min_extents, max_extents, &regionNearestNeighboursCpu);
 
