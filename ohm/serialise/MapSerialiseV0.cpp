@@ -109,7 +109,7 @@ namespace ohm
         VoxelBuffer<VoxelBlock> occupancy_buffer(chunk.voxel_blocks[occupancy_layer->layerIndex()]);
         VoxelBuffer<VoxelBlock> clearance_buffer(chunk.voxel_blocks[clearance_layer->layerIndex()]);
 
-        for (size_t i = 0; i < node_data.size() / 2; ++i)
+        for (unsigned i = 0; i < unsigned(node_data.size() / 2); ++i)
         {
           occupancy_buffer.writeVoxel(i, node_data[(i << 1) + 0]);
           clearance_buffer.writeVoxel(i, node_data[(i << 1) + 1]);
