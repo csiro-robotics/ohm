@@ -50,28 +50,53 @@ namespace ohm
         chunk->dirty_stamp = map->touch();
         chunk->touched_stamps[layer_index].store(chunk->dirty_stamp, std::memory_order_relaxed);
       }
+
+      /// Write the @p value to the voxel at @p voxel_index within @p voxel_memory .
+      /// @param voxel_memory Start of the voxel memory.
+      /// @param voxel_index Index of the voxel within @p voxel_memory - strided by @c T .
+      /// @param value The value to write.
+      /// @param flags_change Flags to set in @p flags .
+      /// @param flags Flags to modify by setting @p flags_change .
+      static void writeVoxel(uint8_t *voxel_memory, unsigned voxel_index, const T &value, unsigned flags_change,
+                             uint16_t *flags)
+      {
+        memcpy(voxel_memory + sizeof(T) * voxel_index, &value, sizeof(T));
+        *flags |= flags_change;
+      }
     };
 
     /// Internal helper to manage const chunks. Supports fetching existing chunks, but no modification.
     template <typename T>
     struct VoxelChunkAccess<const T>
     {
-      /// @internal
+      /// Query the @c MapChunk pointer for @p key.
+      /// @param map The Occupancy map of interest
+      /// @param key The key to get a chunk for.
+      /// @return The @c MapChunk for key, or null if the chunk does not exist.
       static const MapChunk *chunk(const OccupancyMap *map, const Key &key) { return map->region(key.regionKey()); }
-      /// @internal
+
+      /// Noop.
+      /// @param chunk Ignored.
+      /// @param voxel_index Ignored.
       static void touch(const MapChunk *chunk, unsigned voxel_index)
       {
         (void)chunk;
         (void)voxel_index;
       }
 
-      /// @internal
+      /// Noop.
+      /// @param map Ignored.
+      /// @param chunk Ignored.
+      /// @param layer_index Ignored.
       static void touch(const OccupancyMap *map, const MapChunk *chunk, int layer_index)
       {
         (void)map;
         (void)chunk;
         (void)layer_index;
       }
+
+      static void writeVoxel(uint8_t voxel_memory, unsigned voxel_index, const T &value, unsigned flags_change,
+                             uint16_t *flags) = delete;
     };
   }  // namespace detail
 
@@ -257,6 +282,8 @@ namespace ohm
     using MapTypePtr = typename std::conditional<std::is_const<T>::value, const OccupancyMap *, OccupancyMap *>::type;
     /// Const or non-const @c MapChunk pointer based on @c T constness
     using MapChunkPtr = typename std::conditional<std::is_const<T>::value, const MapChunk *, MapChunk *>::type;
+    /// Voxel data pointer - always a @c uint8_t type with @c const added if @c T is @c const .
+    using VoxelDataPtr = typename std::conditional<std::is_const<T>::value, const uint8_t *, uint8_t *>::type;
 
     /// Error flag values indicating why initialisation may have failed.
     enum class Error : uint16_t
@@ -389,37 +416,36 @@ namespace ohm
     /// @return The linear voxel index resolved from the key.
     inline unsigned voxelIndex() const { return ohm::voxelIndex(key_, layer_dim_); }
 
-    /// Resolve a reference to the @c T data for the current voxel reference. @c isValid() must be true before calling.
+    /// Read the current voxel data value.
     ///
-    /// This is a const reference for a const voxel and a mutable reference for a mutable voxel. This call may be used
-    /// to modify the voxel data on a mutable voxel. Simply making this call for a mutable voxel will mark the voxel and
-    /// chunk as touched, even if the value is not changed.
-    /// @return The voxel data of type @c T for the currently referenced voxel.
-    inline T &data()
+    /// This reads the data for the current @c voxelIndex() into @p value . This call does no error checking and
+    /// assumes that all pointers and index values have been validated.
+    ///
+    /// @param[out] value Pointer where to write the voxel data of type @c T for the currently referenced voxel.
+    /// @return The read value - i.e., `*value`.
+    inline const DataType &read(DataType *value) const
     {
-      flags_ |= unsigned(Flag::TouchedChunk) | unsigned(Flag::TouchedVoxel);
-      return voxel_memory_[voxelIndex()];
+      memcpy(value, voxel_memory_ + sizeof(T) * voxelIndex(), sizeof(T));
+      return *value;
     }
 
-    /// Resolve a const reference to the @c T data for the current voxel reference. @c isValid() must be true before
-    /// calling.
+    /// Write the current voxel data @p value .
     ///
-    /// This call resolves const reference for both const and mutable voxel references.
-    /// @return The voxel data of type @c T for the currently referenced voxel.
-    inline const DataType &data() const { return voxel_memory_[voxelIndex()]; }
-
-    /// Query the voxel data as a pointer type. This has the same side requirements and effects as calling the non-const
-    /// @c data() function.
-    /// @return The voxel data of type @c T for the currently referenced voxel as a pointer.
-    inline T *dataPtr() { return &data(); }
-    /// Query the voxel data as a pointer type. This has the same side requirements as the const @c data() function.
-    /// @return The voxel data of type @c T for the currently referenced voxel as a pointer.
-    inline const T *dataPtr() const { return &data(); }
+    /// This writes @p value to the current @c voxelIndex() location. This call does no error checking and
+    /// assumes that all pointers and index values have been validated. This can only be called if @c T is a non const
+    /// type.
+    ///
+    /// @param[in] value Value to write for the current voxel.
+    inline void write(const DataType &value)
+    {
+      detail::VoxelChunkAccess<T>::writeVoxel(voxel_memory_, voxelIndex(), value,
+                                              unsigned(Flag::TouchedChunk) | unsigned(Flag::TouchedVoxel), &flags_);
+    }
 
     /// Return a pointer to the start of the voxel memory for the current chunk.
     /// @c isValid() must be true before calling.
     /// @return A pointer to the voxel memory for the currently referenced chunk.
-    inline T *voxelMemory() { return voxel_memory_; }
+    inline VoxelDataPtr voxelMemory() { return voxel_memory_; }
 
     /// Attempt to step the voxel reference to the next voxel in the current @c MapChunk .
     ///
@@ -454,7 +480,7 @@ namespace ohm
     }
 
     /// Internal chunk set function. Performs book keeping for @c Flag::TouchedChunk .
-    /// @param key The key value to set.
+    /// @param chunk The chunk to set the voxel to reference.
     inline void setChunk(MapChunkPtr chunk)
     {
       if (chunk_ != chunk)
@@ -465,7 +491,7 @@ namespace ohm
         {
           chunk_->voxel_blocks[layer_index_]->retain();
           flags_ |= unsigned(Flag::CompressionLock);
-          voxel_memory_ = reinterpret_cast<T *>(chunk_->voxel_blocks[layer_index_]->voxelBytes());
+          voxel_memory_ = chunk_->voxel_blocks[layer_index_]->voxelBytes();
         }
         else
         {
@@ -498,7 +524,7 @@ namespace ohm
     }
 
   private:
-    T *voxel_memory_ = nullptr;         ///< A pointer to the start of voxel memory within the current chunk.
+    VoxelDataPtr voxel_memory_ = nullptr;  ///< A pointer to the start of voxel memory within the current chunk.
     MapTypePtr map_ = nullptr;          ///< @c OccupancyMap pointer
     MapChunkPtr chunk_ = nullptr;       ///< Current @c MapChunk pointer - may be null even with a valid key reference.
     Key key_ = Key::kNull;              ///< Current voxel @c Key reference.

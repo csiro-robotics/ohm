@@ -139,6 +139,9 @@ namespace ohm
     /// background thread releases it.
     void destroy();
 
+    /// Static overload to destroy the @p block for use with @c std::unique_ptr . Calls through to the instance overload
+    /// of @c VoxelBlock::destroy() .
+    /// @param block The object to destroy.
     inline static void destroy(VoxelBlock *block) { block->destroy(); }
 
     /// Size of a single voxel in the map.
@@ -170,18 +173,16 @@ namespace ohm
     /// @return The time after which the block may be compressed.
     const Clock::time_point releaseAfter() const;
 
-    /// @internal
-    /// Direct access to the voxel bytes. Should be retained first.
+    /// Direct access to the voxel bytes. Should be retained first. For internal use.
     /// @return Voxel bytes.
     uint8_t *voxelBytes();
 
-    /// @internal
-    /// Direct access to the voxel bytes. Should be retained first.
+    /// Direct access to the voxel bytes. Should be retained first. For internal use.
     /// @return Voxel bytes.
     const uint8_t *voxelBytes() const;
 
-    /// @internal
-    /// Internal function for updating the layer index value when remapping layouts.
+    /// Internal function for updating the layer index value when remapping layouts. For internal use.
+    /// @param layer_index The new layer index.
     void updateLayerIndex(unsigned layer_index);
 
   private:

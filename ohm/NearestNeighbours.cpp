@@ -43,7 +43,7 @@ namespace
     glm::vec3 query_origin, voxel_vector;
     Key voxel_key(nullptr);
     const MapChunk *chunk = nullptr;
-    const float *occupancy = nullptr;
+    const uint8_t *occupancy_mem = nullptr;
     float range_squared = 0;
     unsigned added = 0;
     VoxelBuffer<VoxelBlock> voxel_buffer;
@@ -63,7 +63,7 @@ namespace
 
       // ... and we have to treat unknown space as occupied.
       chunk = nullptr;
-      occupancy = &invalid_occupancy_value;
+      occupancy_mem = reinterpret_cast<const uint8_t *>(&invalid_occupancy_value);
       // Setup voxel occupancy test function to pass all voxels in this region.
       voxel_occupied_func = [](const float, const OccupancyMapDetail &) -> bool { return true; };
     }
@@ -73,7 +73,7 @@ namespace
       // FIXME: (KS) This is a bit of a mix of legacy direct voxel access and newer VoxelBlock access. Makes things a
       // bit unclear.
       voxel_buffer = VoxelBuffer<VoxelBlock>(chunk->voxel_blocks[chunk->layout().occupancyLayer()]);
-      occupancy = reinterpret_cast<float *>(voxel_buffer.voxelMemory());
+      occupancy_mem = voxel_buffer.voxelMemory();
       // Setup the voxel test function to check the occupancy threshold and behaviour flags.
       voxel_occupied_func = [&query](const float voxel, const OccupancyMapDetail &map_data) -> bool {
         if (voxel == unobservedOccupancyValue())
@@ -100,13 +100,15 @@ namespace
     // TES_BOX_W(g_3es, TES_COLOUR(LightSeaGreen), 0u,
     //           glm::value_ptr(region_centre), glm::value_ptr(map.regionSpatialResolution()));
 
+    float occupancy;
     for (int z = 0; z < map_data.region_voxel_dimensions.z; ++z)
     {
       for (int y = 0; y < map_data.region_voxel_dimensions.y; ++y)
       {
         for (int x = 0; x < map_data.region_voxel_dimensions.x; ++x)
         {
-          if (voxel_occupied_func(*occupancy, map_data))
+          memcpy(&occupancy, occupancy_mem, sizeof(float));
+          if (voxel_occupied_func(occupancy, map_data))
           {
             // Occupied voxel, or invalid voxel to be treated as occupied.
             // Calculate range to centre.
@@ -127,7 +129,7 @@ namespace
 
               ++added;
 #ifdef TES_ENABLE
-              if (occupancy && *occupancy != unobservedOccupancyValue())
+              if (occupancy != unobservedOccupancyValue())
               {
                 includedOccupied.push_back(tes::V3Arg(glm::value_ptr(map.voxelCentreGlobal(voxel_key))));
               }
@@ -140,7 +142,7 @@ namespace
 #ifdef TES_ENABLE
             else
             {
-              if (occupancy && *occupancy != unobservedOccupancyValue())
+              if (occupancy != unobservedOccupancyValue())
               {
                 excludedOccupied.push_back(tes::V3Arg(glm::value_ptr(map.voxelCentreGlobal(voxel_key))));
               }
@@ -152,8 +154,8 @@ namespace
 #endif  // TES_ENABLE
           }
 
-          // Next voxel. Will be null for uncertain regions.
-          occupancy = (occupancy) ? occupancy + 1 : occupancy;
+          // Next voxel. Leave pointer as is (pointing to invalid_occupancy_value) if the chunk is invalid.
+          occupancy_mem += (chunk != nullptr) ? sizeof(occupancy) : 0;
         }
       }
     }

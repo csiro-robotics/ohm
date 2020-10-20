@@ -87,41 +87,12 @@ namespace ohm
     /// @return The number of members.
     size_t memberCount() const;
 
-    /// Get a pointer to a voxel member as a specific data type @c D.
-    ///
-    /// Validates that the size of @c D matches the @c memberSize().
-    ///
-    /// @tparam D The target data type.
-    /// @param member_index The index of the member to query. Must be in range [0, @c memberCount()).
-    /// @param mem The address of the voxel data.
-    /// @return A pointer to the member of @p mem cast as @c D.
-    template <typename D>
-    inline const D *memberData(size_t member_index, const void *mem) const
-    {
-      if (sizeof(D) == memberSize(member_index))
-      {
-        return reinterpret_cast<const D *>(memberPtr(member_index, mem));
-      }
-      return nullptr;
-    }
-
-    /// @overload
-    template <typename D>
-    inline D *memberData(size_t member_index, void *mem) const
-    {
-      if (sizeof(D) == memberSize(member_index))
-      {
-        return reinterpret_cast<D *>(memberPtr(member_index, mem));
-      }
-      return nullptr;
-    }
-
     /// Internal data access.
     /// @return Internal details.
     inline T *detail() const { return detail_; }
 
   protected:
-    T *detail_;
+    T *detail_;  ///< Internal implementation detail.
   };
 
   /// Template instantiation.

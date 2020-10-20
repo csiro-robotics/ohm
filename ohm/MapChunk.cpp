@@ -150,6 +150,7 @@ void MapChunk::searchAndUpdateFirstValid(const glm::ivec3 &region_voxel_dimensio
   const uint8_t *voxel_mem = voxel_buffer.voxelMemory();
 
   unsigned voxel_index;
+  float occupancy;
   for (int z = search_from.z; z < region_voxel_dimensions.z; ++z)
   {
     for (int y = search_from.y; y < region_voxel_dimensions.y; ++y)
@@ -158,7 +159,7 @@ void MapChunk::searchAndUpdateFirstValid(const glm::ivec3 &region_voxel_dimensio
       {
         voxel_index =
           unsigned(x) + y * region_voxel_dimensions.x + z * region_voxel_dimensions.y * region_voxel_dimensions.x;
-        const float occupancy = *reinterpret_cast<const float *>(voxel_mem + voxel_stride * voxel_index);
+        memcpy(&occupancy, voxel_mem + voxel_stride * voxel_index, sizeof(occupancy));
         if (occupancy != unobservedOccupancyValue())
         {
           first_valid_index = voxel_index;
@@ -173,7 +174,13 @@ void MapChunk::searchAndUpdateFirstValid(const glm::ivec3 &region_voxel_dimensio
 }
 
 
-bool MapChunk::validateFirstValid(const glm::ivec3 &region_voxel_dimensions) const
+glm::u8vec3 MapChunk::firstValidKey() const
+{
+  return firstValidKey(map->region_voxel_dimensions);
+}
+
+
+bool MapChunk::validateFirstValid() const
 {
   const MapLayout &layout = this->layout();
   VoxelBuffer<const VoxelBlock> voxel_buffer(voxel_blocks[layout.occupancyLayer()].get());
@@ -181,14 +188,14 @@ bool MapChunk::validateFirstValid(const glm::ivec3 &region_voxel_dimensions) con
   const uint8_t *voxel_mem = voxel_buffer.voxelMemory();
 
   unsigned voxel_index = 0;
-
-  for (int z = 0; z < region_voxel_dimensions.z; ++z)
+  float occupancy;
+  for (int z = 0; z < map->region_voxel_dimensions.z; ++z)
   {
-    for (int y = 0; y < region_voxel_dimensions.y; ++y)
+    for (int y = 0; y < map->region_voxel_dimensions.y; ++y)
     {
-      for (int x = 0; x < region_voxel_dimensions.x; ++x)
+      for (int x = 0; x < map->region_voxel_dimensions.x; ++x)
       {
-        const float occupancy = *reinterpret_cast<const float *>(voxel_mem + voxel_stride * voxel_index);
+        memcpy(&occupancy, voxel_mem + voxel_stride * voxel_index, sizeof(occupancy));
         if (occupancy != unobservedOccupancyValue())
         {
           if (first_valid_index != voxel_index)
@@ -216,11 +223,10 @@ bool MapChunk::validateFirstValid(const glm::ivec3 &region_voxel_dimensions) con
 }
 
 
-bool MapChunk::overlapsExtents(const glm::dvec3 &min_ext, const glm::dvec3 &max_ext,
-                               const glm::dvec3 &region_spatial_dimensions) const
+bool MapChunk::overlapsExtents(const glm::dvec3 &min_ext, const glm::dvec3 &max_ext) const
 {
   glm::dvec3 region_min, region_max;
-  extents(region_min, region_max, region_spatial_dimensions);
+  extents(region_min, region_max);
 
   const bool min_fail = glm::any(glm::greaterThan(region_min, max_ext));
   const bool max_fail = glm::any(glm::greaterThan(min_ext, region_max));
@@ -228,9 +234,9 @@ bool MapChunk::overlapsExtents(const glm::dvec3 &min_ext, const glm::dvec3 &max_
   return !min_fail && !max_fail;
 }
 
-void MapChunk::extents(glm::dvec3 &min_ext, glm::dvec3 &max_ext, const glm::dvec3 &region_spatial_dimensions) const
+void MapChunk::extents(glm::dvec3 &min_ext, glm::dvec3 &max_ext) const
 {
   min_ext = max_ext = region.centre;
-  min_ext -= 0.5 * region_spatial_dimensions;
-  max_ext += 0.5 * region_spatial_dimensions;
+  min_ext -= 0.5 * map->region_spatial_dimensions;
+  max_ext += 0.5 * map->region_spatial_dimensions;
 }

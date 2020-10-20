@@ -156,7 +156,7 @@ namespace ohm
 
     /// Force voxel centres even when voxel mean positions are present?
     /// @return True to ignore voxel mean positioning.
-    /// @seealso @ref voxelmean
+    /// @see @ref voxelmean
     bool ignoreVoxelMean() const;
 
     /// Set the generation of a heightmap floor around the transition from unknown to free voxels?
@@ -171,7 +171,7 @@ namespace ohm
     ///
     /// @see @c setGenerateVirtualSurface()
     ///
-    /// @retrun True if this option is enabled.
+    /// @return True if this option is enabled.
     bool generateVirtualSurface() const;
 
     /// Set whether virtual surface candidates below the reference position are preferred to real above.
@@ -202,7 +202,7 @@ namespace ohm
 
     /// The layer number which contains @c HeightmapVoxel structures.
     /// @return The heightmap layer index or -1 on error (not present).
-    /// @seealso @ref voxelmean
+    /// @see @ref voxelmean
     int heightmapVoxelLayer() const;
 
     /// The layer number which contains @c HeightmapVoxel structures during heightmap construction.
@@ -233,7 +233,7 @@ namespace ohm
     const glm::dvec3 &surfaceAxisB() const;
 
     /// Static resolution of @c Axis to a normal.
-    /// @param id The @c Axis ID.
+    /// @param axis_id The @c Axis ID.
     static const glm::dvec3 &upAxisNormal(UpAxis axis_id);
 
     /// Get a unit vector which lies along the surface of the heightmap, perpendicular to @c surfaceAxisB() and
@@ -267,9 +267,9 @@ namespace ohm
     ///            does not map to a valid voxel in the @p heightmap() of this object a @c HeightmapVoxel::Unknown
     ///            value will be returned.
     /// @param[out] pos The retrieved position of @p heightmap_voxel . Only valid when this function returns something
-    ///                 other than @c HeightmapVoxel::Unknown .
-    /// @param[out] clearance The available height clearance above @p heightmap_voxel . Only valid when this function
-    ///                       returns something other than @c HeightmapVoxel::Unknown .
+    ///             other than @c HeightmapVoxel::Unknown .
+    /// @param[out] voxel_info Clearance and height details of the voxel associated with @p key. Only valid when this
+    ///             function returns something other than @c HeightmapVoxel::Unknown .
     /// @return The type of the voxel in question. May return @c HeightmapVoxel::Unknown if @p key is invalid.
     HeightmapVoxelType getHeightmapVoxelInfo(const Key &key, glm::dvec3 *pos,
                                              HeightmapVoxel *voxel_info = nullptr) const;
@@ -277,9 +277,12 @@ namespace ohm
     //-------------------------------------------------------
     // Internal
     //-------------------------------------------------------
-    /// @internal
+
+    /// Internal heightmap detail access.
+    /// @return Internal heightmap details.
     inline HeightmapDetail *detail() { return imp_.get(); }
-    /// @internal
+    /// Internal heightmap detail access.
+    /// @return Internal heightmap details.
     inline const HeightmapDetail *detail() const { return imp_.get(); }
 
     /// Update @c info to reflect the details of how the heightmap is generated. See class comments.
@@ -287,12 +290,11 @@ namespace ohm
     void updateMapInfo(MapInfo &info) const;  // NOLINT(google-runtime-references)
 
     /// Ensure that @p key is referencing a voxel within the heightmap plane.
-    /// @param key[in,out] The key to project. May be modified by this call. Must not be null.
+    /// @param[in,out] key The key to project. May be modified by this call. Must not be null.
     /// @return A reference to @p key.
     Key &project(Key *key);
 
   private:
-    /// @internal
     /// Internal implementation of heightmap construction. Supports the different key walking techniques available.
     /// @param walker The key walker used to iterate the source map and heightmap overlap.
     /// @param reference_pos Reference position around which to generate the heightmap

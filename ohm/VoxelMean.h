@@ -43,11 +43,11 @@ namespace ohm
 {
 #include "VoxelMeanCompute.h"
 
-  /// @internal
   template <typename V>
   inline glm::dvec3 positionUnsafeT(const Voxel<V> &voxel)
   {
-    const VoxelMean &mean_info = voxel.data();
+    VoxelMean mean_info;
+    voxel.read(&mean_info);
     glm::dvec3 mean = voxel.map()->voxelCentreGlobal(voxel.key());
     mean += subVoxelToLocalCoord<glm::dvec3>(mean_info.coord, voxel.map()->resolution());
     return mean;
@@ -56,7 +56,7 @@ namespace ohm
   /// @ingroup voxelmean
   /// Calculate the mean position within the given @p voxel .
   ///
-  /// @c Voxel<VoxelMean>::isValid() must be true before calling.
+  ///`Voxel<VoxelMean>::isValid()` must be true before calling.
   /// @param voxel The voxel to query the mean coordinate for.
   inline glm::dvec3 positionUnsafe(const Voxel<VoxelMean> &voxel) { return positionUnsafeT(voxel); }
 
@@ -67,7 +67,6 @@ namespace ohm
   /// @param voxel The voxel to query the mean coordinate for.
   inline glm::dvec3 positionUnsafe(const Voxel<const VoxelMean> &voxel) { return positionUnsafeT(voxel); }
 
-  /// @internal
   template <typename V>
   inline glm::dvec3 positionSafeT(const Voxel<V> &voxel)
   {
@@ -81,6 +80,12 @@ namespace ohm
       return voxel.map()->voxelCentreGlobal(voxel.key());
     }
     return glm::dvec3{ 0 };
+  }
+
+  inline glm::dvec3 position(const VoxelMean &mean_info, const glm::dvec3 &voxel_centre, double voxel_resolution)
+  {
+    const glm::dvec3 mean = voxel_centre + subVoxelToLocalCoord<glm::dvec3>(mean_info.coord, voxel_resolution);
+    return mean;
   }
 
   /// Query the position of @c voxel if the @p voxel might be invalid or the voxel layer might be invalid.
@@ -107,9 +112,11 @@ namespace ohm
   ///   Use 0 to leave the current count value as is.
   inline void setPositionUnsafe(Voxel<VoxelMean> &voxel, const glm::dvec3 &pos, unsigned count = 0)
   {
-    VoxelMean &mean_info = voxel.data();
+    VoxelMean mean_info;
+    voxel.read(&mean_info);
     mean_info.coord = subVoxelCoord(pos - voxel.map()->voxelCentreGlobal(voxel.key()), voxel.map()->resolution());
     mean_info.count = (count) ? count : mean_info.count;
+    voxel.write(mean_info);
   }
 
   /// @ingroup voxelmean
@@ -132,14 +139,30 @@ namespace ohm
   ///
   /// `Voxel<const VoxelMean>::isValid()` must be true before calling.
   ///
+  /// @param mean_info Details of the voxel mean.
+  /// @param pos The new coordinate to incorporate into the mean.
+  /// @param voxel_centre Centre of the referenced voxel.
+  /// @param voxel_resolution Voxel resolution (size along each edge).
+  inline void updatePosition(VoxelMean *mean_info, const glm::dvec3 &pos, const glm::dvec3 &voxel_centre,
+                             double voxel_resolution)
+  {
+    mean_info->coord = subVoxelUpdate(mean_info->coord, mean_info->count, pos - voxel_centre, voxel_resolution);
+    mean_info->count = std::min(mean_info->count, std::numeric_limits<unsigned>::max() - 1u) + 1;
+  }
+
+  /// @ingroup voxelmean
+  /// Update the mean position for a voxel, adjusting the mean with the new coordinate @p pos .
+  ///
+  /// `Voxel<const VoxelMean>::isValid()` must be true before calling.
+  ///
   /// @param voxel The voxel to modify.
   /// @param pos The new coordinate to incorporate into the mean.
   inline void updatePositionUnsafe(Voxel<VoxelMean> &voxel, const glm::dvec3 &pos)
   {
-    VoxelMean &mean_info = voxel.data();
-    mean_info.coord = subVoxelUpdate(mean_info.coord, mean_info.count,
-                                     pos - voxel.map()->voxelCentreGlobal(voxel.key()), voxel.map()->resolution());
-    mean_info.count = std::min(mean_info.count, std::numeric_limits<unsigned>::max() - 1u) + 1;
+    VoxelMean mean_info;
+    voxel.read(&mean_info);
+    updatePosition(&mean_info, pos, voxel.map()->voxelCentreGlobal(voxel.key()), voxel.map()->resolution());
+    voxel.write(mean_info);
   }
 
   /// @ingroup voxelmean

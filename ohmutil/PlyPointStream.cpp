@@ -16,8 +16,6 @@ using namespace ohm;
 
 namespace
 {
-  const char *point_count_comment = "comment pad count";
-
   template <typename T>
   struct PlyTypeOf
   {
@@ -356,7 +354,6 @@ void PlyPointStream::writeHeader()
   // the padding comment.
   out << "element vertex " << std::flush;
   point_count_pos_ = out.tellp();
-  const auto post_count_pos = out.tellp();
   out << ElementCount() << '\n';
   // Write property details.
   for (const auto &property : properties_)

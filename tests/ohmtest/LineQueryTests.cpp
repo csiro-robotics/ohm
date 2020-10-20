@@ -44,7 +44,9 @@ namespace linequerytests
       {
         integrateHit(voxel);
       }
-      EXPECT_TRUE(voxel.data() >= 0);
+      float occupancy;
+      voxel.read(&occupancy);
+      EXPECT_TRUE(occupancy >= 0);
     }
   }
 

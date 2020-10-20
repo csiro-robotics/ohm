@@ -138,7 +138,7 @@ bool LineQueryGpu::onExecute()
 
       if (clearance.isValid())
       {
-        range = clearance.data();
+        clearance.read(&range);
         // Range will be -1 from ClearanceProcess for unobstructed voxels (to the search radius).
         // Override the result with d->default_range, which defaults to -1 as well.
         if (range < 0)

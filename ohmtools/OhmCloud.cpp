@@ -126,7 +126,8 @@ namespace ohmtools
         const bool export_match = !occupancy.isNull() && occupancyType(occupancy) >= export_type;
         if (export_match)
         {
-          float range_value = clearance.data();
+          float range_value;
+          clearance.read(&range_value);
           if (range_value < 0)
           {
             range_value = colour_range;

@@ -18,7 +18,6 @@ ProgressMonitor::ProgressMonitor(unsigned update_frequency)
   , paused_(false)
   , displayed_(false)
   , update_frequency_(update_frequency)
-  , thread_(nullptr)
 {
   clearDisplayFunction();
 }
@@ -34,7 +33,6 @@ ProgressMonitor::ProgressMonitor(const DisplayFunction &display_func, unsigned u
 
 ProgressMonitor::~ProgressMonitor()
 {
-  quit();
   joinThread();
 }
 
@@ -53,7 +51,7 @@ void ProgressMonitor::startThread(bool paused)
   }
 
   paused_.store(paused);
-  thread_ = new std::thread(std::bind(&ProgressMonitor::entry, this));
+  thread_ = std::make_unique<std::thread>(std::thread(std::bind(&ProgressMonitor::entry, this)));
 }
 
 
@@ -63,8 +61,7 @@ void ProgressMonitor::joinThread()
   if (thread_)
   {
     thread_->join();
-    delete thread_;
-    thread_ = nullptr;
+    thread_.reset(nullptr);
   }
 }
 
@@ -111,7 +108,7 @@ void ProgressMonitor::updateProgress(uint64_t progress)
 
 void ProgressMonitor::beginProgress(unsigned pass, const Info &info, bool unpause)
 {
-  info_ = (info.info) ? info.info : "";
+  info_ = info.info;
   progress_ = 0;
   pass_ = pass;
   total_progress_ = info.total;
@@ -131,7 +128,7 @@ void ProgressMonitor::endProgress()
   if (progress_ != 0u && display_func_)
   {
     Progress prog;
-    prog.info.info = info_.c_str();
+    prog.info.info = info_;
     prog.info.total_passes = total_passes_;
     prog.info.total = total_progress_;
     prog.pass = pass_;

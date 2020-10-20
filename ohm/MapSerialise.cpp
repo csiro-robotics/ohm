@@ -419,7 +419,7 @@ namespace ohm
       uint8_t buffer[sizeof(double)];
       memcpy(buffer, &version.marker, sizeof(version.marker));
       memcpy(buffer + sizeof(version.marker), &version.version.major, sizeof(version.version.major));
-      map.origin.x = *reinterpret_cast<double *>(buffer);
+      memcpy(&map.origin.x, buffer, sizeof(map.origin.x));
 
       version.marker = 0;
       version.version = { 0, 0, 0 };

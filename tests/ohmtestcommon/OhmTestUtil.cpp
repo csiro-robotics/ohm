@@ -146,7 +146,7 @@ namespace ohmtestutil
       {
         const MapChunk *chunk = map.region(ref_chunk->region.coord);
 
-        if (full_extents || ref_chunk->overlapsExtents(min_ext, max_ext, map.regionSpatialResolution()))
+        if (full_extents || ref_chunk->overlapsExtents(min_ext, max_ext))
         {
           EXPECT_TRUE(chunk != nullptr);
         }
@@ -195,7 +195,7 @@ namespace ohmtestutil
 
         ASSERT_TRUE(map_occupancy.isValid());
 
-        if (full_extents || map_occupancy.chunk()->overlapsExtents(min_ext, max_ext, map.regionSpatialResolution()))
+        if (full_extents || map_occupancy.chunk()->overlapsExtents(min_ext, max_ext))
         {
           ASSERT_TRUE(ref_occupancy.isValid());
         }
@@ -208,7 +208,8 @@ namespace ohmtestutil
         ASSERT_EQ(ref_clearance.key(), map_occupancy.key());
         if (compare_flags & kCfOccupancy)
         {
-          ASSERT_EQ(ref_occupancy.data(), map_occupancy.data());
+          float ref_value, map_value;
+          ASSERT_EQ(ref_occupancy.read(&ref_value), map_occupancy.read(&map_value));
         }
 
         if (compare_flags & kCfClearance)
@@ -216,8 +217,11 @@ namespace ohmtestutil
           if (map_clearance.isValid())
           {
             ASSERT_TRUE(ref_clearance.isValid());
-            ASSERT_EQ(ref_clearance.data(), map_clearance.data());
-            have_valid_clerance = have_valid_clerance || ref_clearance.data() >= 0;
+            float ref_clearance_value, map_clearance_value;
+            ref_clearance.read(&ref_clearance_value);
+            map_clearance.read(&map_clearance_value);
+            ASSERT_EQ(ref_clearance_value, map_clearance_value);
+            have_valid_clerance = have_valid_clerance || ref_clearance_value >= 0;
           }
         }
       }

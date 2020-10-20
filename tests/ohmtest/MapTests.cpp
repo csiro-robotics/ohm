@@ -47,7 +47,8 @@ namespace maptests
       ASSERT_TRUE(voxel_read.isValid());
       EXPECT_TRUE(isOccupied(voxel_read));
 
-      const float voxel_value = voxel_read.data();
+      float voxel_value;
+      voxel_read.read(&voxel_value);
       EXPECT_EQ(voxel_value, map.hitValue());
     }
   }
@@ -70,7 +71,8 @@ namespace maptests
       ASSERT_TRUE(voxel_read.isValid());
       EXPECT_TRUE(isFree(voxel_read));
 
-      const float voxel_value = voxel_read.data();
+      float voxel_value;
+      voxel_read.read(&voxel_value);
       EXPECT_EQ(voxel_value, map.missValue());
     }
   }
@@ -148,9 +150,11 @@ namespace maptests
 
         if (voxel.isValid())
         {
-          if (!isUnobserved(voxel))
+          float voxel_occupancy;
+          voxel.read(&voxel_occupancy);
+          if (!isUnobserved(voxel_occupancy))
           {
-            EXPECT_LT(voxel.data(), map.occupancyThresholdValue());
+            EXPECT_LT(voxel_occupancy, map.occupancyThresholdValue());
             EXPECT_FALSE(isOccupied(voxel));
 
             // Voxel should also be with in the bounds of the Aabb. Check this.
@@ -184,6 +188,7 @@ namespace maptests
 
     // Validate the map contains no occupied points; only free and unknown.
     const Key target_key = map.voxelKey(glm::dvec3(0));
+    float voxel_occupancy;
     touched = false;
     {
       Voxel<const float> voxel(&map, map.layout().occupancyLayer());
@@ -194,17 +199,18 @@ namespace maptests
 
         if (voxel.isValid())
         {
+          voxel.read(&voxel_occupancy);
           if (voxel.key() != target_key)
           {
             if (!isUnobserved(voxel))
             {
-              EXPECT_LT(voxel.data(), map.occupancyThresholdValue());
+              EXPECT_LT(voxel_occupancy, map.occupancyThresholdValue());
             }
             EXPECT_FALSE(isOccupied(voxel));
           }
           else
           {
-            EXPECT_GE(voxel.data(), map.occupancyThresholdValue());
+            EXPECT_GE(voxel_occupancy, map.occupancyThresholdValue());
             EXPECT_TRUE(isOccupied(voxel));
           }
 

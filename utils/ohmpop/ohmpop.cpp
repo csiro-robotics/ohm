@@ -445,7 +445,7 @@ int populateMap(const Options &opt)
       out.imbue(std::locale(""));
       out << '\r';
 
-      if (prog.info.info && prog.info.info[0])
+      if (!prog.info.info.empty())
       {
         out << prog.info.info << " : ";
       }

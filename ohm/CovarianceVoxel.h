@@ -42,6 +42,8 @@ namespace ohm
   /// function is not recommended for high performance code.
   ///
   /// @param cov The covariance voxel to operate on.
+  /// @param[out] eigenvectors Set to the eigen vectors extracted from @p cov .
+  /// @param[out] eigenvalues Set to the eigen values extracted from @p cov .
   void ohm_API covarianceEigenDecomposition(const CovarianceVoxel *cov, glm::dmat3 *eigenvectors,
                                             glm::dvec3 *eigenvalues);
 
@@ -50,7 +52,7 @@ namespace ohm
   /// This may be ambiguous.
   /// @param cov The covariance data for the voxel.
   /// @param normal The normal value is written here.
-  /// @param peferred_axis Optionally specify which axis to prefer when the covariance is ambiguous. E.g., for voxels
+  /// @param preferred_axis Optionally specify which axis to prefer when the covariance is ambiguous. E.g., for voxels
   /// with insufficient data.
   void ohm_API covarianceEstimatePrimaryNormal(const CovarianceVoxel *cov, glm::dvec3 *normal, int preferred_axis = 0);
 

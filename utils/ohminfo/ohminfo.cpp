@@ -270,7 +270,8 @@ int main(int argc, char *argv[])
       for (auto iter = map.begin(); iter != map.end(); ++iter)
       {
         ohm::setVoxelKey(iter, voxel, mean);
-        const float value = voxel.data();
+        float value;
+        voxel.read(&value);
         if (value != ohm::unobservedOccupancyValue())
         {
           min_occupancy = std::min(value, min_occupancy);
@@ -281,7 +282,8 @@ int main(int argc, char *argv[])
 
           if (mean.isLayerValid() && value >= map.occupancyThresholdValue())
           {
-            const ohm::VoxelMean &mean_info = mean.data();
+            ohm::VoxelMean mean_info;
+            mean.read(&mean_info);
             max_point_count = std::max<unsigned>(mean_info.count, max_point_count);
             total_point_count += mean_info.count;
           }

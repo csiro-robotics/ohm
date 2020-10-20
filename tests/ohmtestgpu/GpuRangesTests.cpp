@@ -52,7 +52,8 @@ namespace ranges
         uint8_t r = 255;
         uint8_t g = 128;
         uint8_t b = 0;
-        float range_value = clearance.data();
+        float range_value;
+        clearance.read(&range_value);
         if (range_value < 0)
         {
           range_value = search_radius;
@@ -71,9 +72,19 @@ namespace ranges
   {
     Voxel<const float> occupancy(&map, map.layout().occupancyLayer(), key);
     Voxel<const float> clearance(&map, map.layout().clearanceLayer(), key);
+    float occupancy_value = 0, clearance_value = 0;
+    if (occupancy.isValid())
+    {
+      occupancy.read(&occupancy_value);
+    }
+    if (occupancy.isValid())
+    {
+      clearance.read(&clearance_value);
+    }
+
     if (occupancy.isValid() && clearance.isValid())
     {
-      std::cout << occupancy.key() << " " << occupancy.data() << ": " << clearance.data() << '\n';
+      std::cout << occupancy.key() << " " << occupancy_value << ": " << clearance_value << '\n';
     }
     else
     {
@@ -85,7 +96,7 @@ namespace ranges
       EXPECT_TRUE(clearance.isValid());
       if (clearance.isValid())
       {
-        EXPECT_NEAR(clearance.data(), expected_range, 1e-3f);
+        EXPECT_NEAR(clearance_value, expected_range, 1e-3f);
       }
     }
   }
@@ -108,7 +119,7 @@ namespace ranges
     {
       ohm::Voxel<float> occupied_voxel(&map, map.layout().occupancyLayer(), Key(0, 0, 0, 0, 0, 0));
       ASSERT_TRUE(occupied_voxel.isValid());
-      occupied_voxel.data() = map.occupancyThresholdValue();
+      occupied_voxel.write(map.occupancyThresholdValue());
     }
 
     auto end_time = TimingClock::now();
@@ -148,11 +159,12 @@ namespace ranges
       const float dist_to_region_origin = glm::length(glm::vec3(clearance.key().localKey()));
       const float expected_range =
         (dist_to_region_origin <= clearance_process.searchRadius()) ? dist_to_region_origin : -1.0f;
-      const float clearance_value = clearance.data();
+      float clearance_value;
+      clearance.read(&clearance_value);
       if (std::abs(expected_range - clearance_value) > epsilon)
       {
-        std::cout << "Fail: " << clearance.key() << ' ' << clearance.data() << " to RO: " << dist_to_region_origin
-                  << " expect: " << expected_range << " actual: " << clearance_value << '\n';
+        std::cout << "Fail: " << clearance.key() << " to RO: " << dist_to_region_origin << " expect: " << expected_range
+                  << " actual: " << clearance_value << '\n';
         ++failure_count;
       }
       EXPECT_NEAR(expected_range, clearance_value, epsilon);
@@ -189,7 +201,7 @@ namespace ranges
     {
       ohm::Voxel<float> occupied_voxel(&map, map.layout().occupancyLayer(), Key(0, 0, 0, 0, 0, 0));
       ASSERT_TRUE(occupied_voxel.isValid());
-      occupied_voxel.data() = map.occupancyThresholdValue();
+      occupied_voxel.write(map.occupancyThresholdValue());
     }
 
     auto end_time = TimingClock::now();
@@ -240,11 +252,12 @@ namespace ranges
       const float dist_to_region_origin = glm::length(glm::vec3(clearance.key().localKey()));
       const float expected_range =
         (dist_to_region_origin <= clearance_process->searchRadius()) ? dist_to_region_origin : -1.0f;
-      const float clearance_value = clearance.data();
+      float clearance_value;
+      clearance.read(&clearance_value);
       if (std::abs(expected_range - clearance_value) > epsilon)
       {
-        std::cout << "Fail: " << clearance.key() << ' ' << clearance.data() << " to RO: " << dist_to_region_origin
-                  << " expect: " << expected_range << " actual: " << clearance_value << '\n';
+        std::cout << "Fail: " << clearance.key() << " to RO: " << dist_to_region_origin << " expect: " << expected_range
+                  << " actual: " << clearance_value << '\n';
         ++failure_count;
       }
       EXPECT_NEAR(expected_range, clearance_value, epsilon);
@@ -300,11 +313,12 @@ namespace ranges
       const float dist_to_region_origin = glm::length(glm::vec3(clearance.key().localKey()));
       const float expected_range =
         (dist_to_region_origin <= clearance_process->searchRadius()) ? dist_to_region_origin : -1.0f;
-      const float clearance_value = clearance.data();
+      float clearance_value;
+      clearance.read(&clearance_value);
       if (std::abs(expected_range - clearance_value) > epsilon)
       {
-        std::cout << "Fail: " << clearance.key() << ' ' << clearance.data() << " to RO: " << dist_to_region_origin
-                  << " expect: " << expected_range << " actual: " << clearance_value << '\n';
+        std::cout << "Fail: " << clearance.key() << " to RO: " << dist_to_region_origin << " expect: " << expected_range
+                  << " actual: " << clearance_value << '\n';
         ++failure_count;
       }
       EXPECT_NEAR(expected_range, clearance_value, epsilon);
@@ -366,12 +380,14 @@ namespace ranges
           local_key[second_axis] = b;
           local_key[third_axis] = 0;
           clearance.setKey(Key(glm::i16vec3(0), local_key));
+          float clearance_value;
+          clearance.read(&clearance_value);
           ASSERT_TRUE(clearance.isValid());
-          EXPECT_NEAR(clearance.data(), map.resolution(), 1e-2f);
+          EXPECT_NEAR(clearance_value, map.resolution(), 1e-2f);
           local_key[third_axis] = region_size[third_axis] - 1;
           clearance.setKey(Key(glm::i16vec3(0), local_key));
           ASSERT_TRUE(clearance.isValid());
-          EXPECT_NEAR(clearance.data(), map.resolution(), 1e-2f);
+          EXPECT_NEAR(clearance_value, map.resolution(), 1e-2f);
         }
       }
     }
@@ -444,7 +460,7 @@ namespace ranges
         map.moveKey(key, offset.x, offset.y, offset.z);
         occupancy.setKey(key);
         ASSERT_TRUE(occupancy.isValid());
-        occupancy.data() = map.occupancyThresholdValue() + map.hitValue();
+        occupancy.write(map.occupancyThresholdValue() + map.hitValue());
       }
     }
 
@@ -482,8 +498,10 @@ namespace ranges
       for (const auto &test_key : test_keys)
       {
         clearance.setKey(test_key);
+        float clearance_value;
+        clearance.read(&clearance_value);
         ASSERT_TRUE(clearance.isValid());
-        EXPECT_NEAR(clearance.data(), glm::length(glm::vec3(float(map.resolution()))), 1e-2f);
+        EXPECT_NEAR(clearance_value, glm::length(glm::vec3(float(map.resolution()))), 1e-2f);
       }
     }
   }
@@ -531,7 +549,8 @@ namespace ranges
       const Key origin_key = map.voxelKey(glm::dvec3(0, 0, 0));
       const Voxel<const float> clearance(&map, map.layout().clearanceLayer(), origin_key);
       ASSERT_TRUE(clearance.isValid());
-      const float clearance_value = clearance.data();
+      float clearance_value;
+      clearance.read(&clearance_value);
       EXPECT_NEAR(expected, clearance_value, 1e-2f) << context;
     };
 

@@ -47,12 +47,14 @@ namespace ohm
   /// @param voxel The voxel to update.
   inline void integrateHit(Voxel<float> &voxel)
   {
-    float *occupancy = &voxel.data();
-    const float initial_value = *occupancy;
+    float occupancy;
+    voxel.read(&occupancy);
+    const float initial_value = occupancy;
     const OccupancyMap &map = *voxel.map();
-    occupancyAdjustHit(occupancy, initial_value, map.hitValue(), unobservedOccupancyValue(), map.maxVoxelValue(),
+    occupancyAdjustHit(&occupancy, initial_value, map.hitValue(), unobservedOccupancyValue(), map.maxVoxelValue(),
                        map.saturateAtMinValue() ? map.minVoxelValue() : std::numeric_limits<float>::lowest(),
                        map.saturateAtMaxValue() ? map.maxVoxelValue() : std::numeric_limits<float>::max(), false);
+    voxel.write(occupancy);
   }
 
   /// A convenience function for integrating a single hit into @p map . Note this is a sub-optimal way of updating
@@ -76,12 +78,14 @@ namespace ohm
   /// @param voxel The voxel to update.
   inline void integrateMiss(Voxel<float> &voxel)
   {
-    float *occupancy = &voxel.data();
-    const float initial_value = *occupancy;
+    float occupancy;
+    voxel.read(&occupancy);
+    const float initial_value = occupancy;
     const OccupancyMap &map = *voxel.map();
-    occupancyAdjustMiss(occupancy, initial_value, map.missValue(), unobservedOccupancyValue(), map.minVoxelValue(),
+    occupancyAdjustMiss(&occupancy, initial_value, map.missValue(), unobservedOccupancyValue(), map.minVoxelValue(),
                         map.saturateAtMinValue() ? map.minVoxelValue() : std::numeric_limits<float>::lowest(),
                         map.saturateAtMaxValue() ? map.maxVoxelValue() : std::numeric_limits<float>::max(), false);
+    voxel.write(occupancy);
   }
 
   /// A convenience function for integrating a single miss into @p map . Note this is a sub-optimal way of updating
@@ -115,11 +119,16 @@ namespace ohm
     return kUnobserved;
   }
 
-  /// @internal
   template <typename T>
   inline OccupancyType occupancyTypeT(const Voxel<T> &voxel)
   {
-    return voxel.isValid() ? occupancyType(voxel.data(), *voxel.map()) : kNull;
+    if (voxel.isValid())
+    {
+      float occupancy;
+      voxel.read(&occupancy);
+      return occupancyType(occupancy, *voxel.map());
+    }
+    return kNull;
   }
 
   /// Query the @c OccupancyType for @p voxel , which may be null/invalid.
@@ -139,16 +148,17 @@ namespace ohm
     return value != unobservedOccupancyValue() && value >= map.occupancyThresholdValue();
   }
 
-  /// @internal
   template <typename T>
   inline bool isOccupiedT(const Voxel<T> &voxel)
   {
-    return isOccupied(voxel.data(), *voxel.map());
+    float occupancy;
+    voxel.read(&occupancy);
+    return isOccupied(occupancy, *voxel.map());
   }
 
   /// @ingroup voxeloccupancy
   /// Return @c true if @p voxel represents an occupied voxel.
-  /// @param value The occupancy voxel test. Must not be null.
+  /// @param voxel The occupancy voxel test. Must not be null.
   /// @return True if occupied.
   inline bool isOccupied(const Voxel<float> &voxel) { return isOccupiedT(voxel); }
   /// @overload
@@ -165,16 +175,17 @@ namespace ohm
     return value != unobservedOccupancyValue() && value < map.occupancyThresholdValue();
   }
 
-  /// @internal
   template <typename T>
   inline bool isFreeT(const Voxel<T> &voxel)
   {
-    return isFree(voxel.data(), *voxel.map());
+    float occupancy;
+    voxel.read(&occupancy);
+    return isFree(occupancy, *voxel.map());
   }
 
   /// @ingroup voxeloccupancy
   /// Return @c true if @p voxel represents a free voxel.
-  /// @param value The occupancy voxel to test. Must not be null.
+  /// @param voxel The occupancy voxel to test. Must not be null.
   /// @return True if free.
   inline bool isFree(const Voxel<float> &voxel) { return isFreeT(voxel); }
   /// @overload
@@ -194,22 +205,22 @@ namespace ohm
   /// @overload
   inline bool isUnobserved(float value) { return value == unobservedOccupancyValue(); }
 
-  /// @internal
   template <typename T>
   inline bool isUnobservedT(const Voxel<T> &voxel)
   {
-    return isUnobserved(voxel.data(), *voxel.map());
+    float occupancy;
+    voxel.read(&occupancy);
+    return isUnobserved(occupancy, *voxel.map());
   }
 
   /// @ingroup voxeloccupancy
   /// Return @c true if @p voxel represents an unobserved, but not null voxel.
-  /// @param value The occupancy voxel to test. Must not be null.
+  /// @param voxel The occupancy voxel to test. Must not be null.
   /// @return True if unobserved.
   inline bool isUnobserved(const Voxel<float> &voxel) { return isUnobservedT(voxel); }
   /// @overload
   inline bool isUnobserved(const Voxel<const float> &voxel) { return isUnobservedT(voxel); }
 
-  /// @internal
   template <typename T>
   inline bool isUnobservedOrNullT(const Voxel<T> &voxel)
   {
@@ -218,9 +229,10 @@ namespace ohm
 
   /// @ingroup voxeloccupancy
   /// Return @c true if @p voxel represents an unobserved, but not null voxel.
-  /// @param value The occupancy voxel to test. May be null.
+  /// @param voxel The occupancy voxel to test. May be null.
   /// @return True if unobserved or null.
   inline bool isUnobservedOrNull(const Voxel<float> &voxel) { return isUnobservedOrNullT(voxel); }
+  /// @overload
   inline bool isUnobservedOrNull(const Voxel<const float> &voxel) { return isUnobservedOrNullT(voxel); }
 }  // namespace ohm
 
