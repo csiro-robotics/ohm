@@ -397,38 +397,84 @@ namespace ohm
   }
 
 
-  bool drawEllipsoids(const tes::Id &id, const tes::Colour &colour, const RayMapperTrace::VoxelSet &voxels)
+  /// Draw an NDT visualisation for the given "sector key".
+  ///
+  /// This sends ellipsoids for the occupied voxels in the sector. See @p RayMapperTrace::SectorSet .
+  void drawNdt(const glm::i16vec4 &sector_key, const OccupancyMap &map)
   {
     std::vector<tes::Sphere> ellipsoids;
     std::vector<tes::Shape *> ellipsoid_ptrs;
 
-    for (const auto &voxel_info : voxels)
+    const glm::i16vec3 region_key(sector_key);
+    const MapChunk *chunk = map.region(region_key);
+
+    if (chunk)
     {
-      if (voxel_info.second.type == kOccupied)
+      // Extract occupied voxels in the region
+      Voxel<const float> occ_voxel(&map, map.layout().occupancyLayer());
+      Voxel<const VoxelMean> mean_voxel(&map, map.layout().meanLayer());
+      Voxel<const CovarianceVoxel> cov_voxel(&map, map.layout().covarianceLayer());
+
+      const auto dim = map.regionVoxelDimensions();
+      const unsigned index_limit = dim.x * dim.y * dim.z;
+      const tes::Id shape_id = tes::Id(chunk, kTcNdt) + sector_key.w;  // Each sector has a unique key
+
+      // Work out the sector indexing range.
+      glm::ivec3 start_index(0);
+      glm::ivec3 end_index(0);
+
+      for (int i = 0; i < 3; ++i)
       {
-        ellipsoids.emplace_back(tes::Sphere(
-          id,
-          tes::Transform(tes::Vector3d(glm::value_ptr(voxel_info.second.ellipse_pos)),
-                         tes::Quaterniond(voxel_info.second.ellipse_rotation.x, voxel_info.second.ellipse_rotation.y,
-                                          voxel_info.second.ellipse_rotation.x, voxel_info.second.ellipse_rotation.w),
-                         tes::Vector3d(glm::value_ptr(voxel_info.second.ellipse_scale)))));
-        ellipsoids.back().setColour(colour);
+        start_index[i] = !!(sector_key.w & (1 << i));
+        end_index[i] = (start_index[i]) ? map.regionVoxelDimensions()[i] : map.regionVoxelDimensions()[i] / 2;
+        start_index[i] = (start_index[i]) ? map.regionVoxelDimensions()[i] / 2 : 0;
+      }
+
+      for (int z = start_index.z; z < end_index.z; ++z)
+      {
+        for (int y = start_index.y; y < end_index.y; ++y)
+        {
+          for (int x = start_index.x; x < end_index.x; ++x)
+          {
+            const Key key(region_key, x, y, z);
+            setVoxelKey(key, occ_voxel, mean_voxel, cov_voxel);
+            if (isOccupied(occ_voxel))
+            {
+              const CovarianceVoxel cov_info = cov_voxel.data();
+              glm::dquat rotation;
+              glm::dvec3 scale;
+              const glm::dvec3 pos = positionUnsafe(mean_voxel);
+              if (covarianceUnitSphereTransformation(&cov_info, &rotation, &scale))
+              {
+                // Use single precision for smaller data size
+                ellipsoids.emplace_back(
+                  tes::Sphere(shape_id, tes::Transform(tes::Vector3f(glm::value_ptr(pos)),
+                                                       tes::Quaternionf((float)rotation.x, (float)rotation.y,
+                                                                        (float)rotation.z, (float)rotation.w),
+                                                       tes::Vector3f(glm::value_ptr(scale)))));
+                ellipsoids.back().setColour(tes::Colour::Colours[tes::Colour::MediumSeaGreen]);
+              }
+            }
+          }
+        }
+      }
+
+      if (!ellipsoids.empty())
+      {
+        for (tes::Sphere &shape : ellipsoids)
+        {
+          ellipsoid_ptrs.emplace_back(&shape);
+        }
+
+        // Create the multi-shape to replace the existing one for the region.
+        g_3es->create(tes::MultiShape(ellipsoid_ptrs.data(), ellipsoid_ptrs.size()).setReplace(true));
+      }
+      else
+      {
+        // Destroy any existing representation for this region.
+        g_3es->destroy(tes::Sphere(shape_id));
       }
     }
-
-    for (tes::Sphere &shape : ellipsoids)
-    {
-      ellipsoid_ptrs.emplace_back(&shape);
-    }
-
-    // Draw a multi-shape
-    if (!ellipsoid_ptrs.empty())
-    {
-      g_3es->create(tes::MultiShape(ellipsoid_ptrs.data(), ellipsoid_ptrs.size()).setReplace(true));
-      return true;
-    }
-
-    return false;
   }
 }  // namespace ohm
 
@@ -462,6 +508,9 @@ RayMapperTrace::RayMapperTrace(OccupancyMap *map, RayMapper *true_mapper)
     g_3es->referenceResource(imp_.get());
     // Create the mesh object representation.
     g_3es->create(tes::MeshSet(imp_.get(), tes::Id(this, kTcVoxels)));
+
+    // We need to run an update to ensure the mesh is created before we start trying to update it.
+    TES_SERVER_UPDATE(g_3es, 0.0f);
   }
 #endif  // TES_ENABLE
 }
@@ -490,24 +539,12 @@ size_t RayMapperTrace::integrateRays(const glm::dvec3 *rays, size_t element_coun
 {
 #ifdef TES_ENABLE
   // Walk all the rays and cache the state of the (predicted) touched voxels.
-  VoxelSet initial_state, updated_state;
-  bool have_ellispoids = false;
+  VoxelMap initial_state, updated_state;
+  SectorSet sector_set;
 
   if (g_3es && element_count)
   {
-    cacheState(rays, element_count, &initial_state);
-
-    // Draw the rays
-    g_3es->create(tes::MeshShape(tes::DtLines, tes::Id(this, kTcRays),
-                                 tes::DataBuffer(&rays->x, element_count, 3, sizeof(*rays) / sizeof(rays->x)))
-                    .setColour(tes::Colour::Colours[tes::Colour::Yellow]));
-
-    // Draw NDT state (ellipsoids).
-    have_ellispoids =
-      drawEllipsoids(tes::Id(this, kTcNdt), tes::Colour::Colours[tes::Colour::DarkSeaGreen], initial_state);
-
-    g_3es->updateTransfers(0);
-    g_3es->updateFrame(0.0f);
+    cacheState(rays, element_count, &initial_state, &sector_set);
   }
 #endif  // TES_ENABLE
 
@@ -521,6 +558,11 @@ size_t RayMapperTrace::integrateRays(const glm::dvec3 *rays, size_t element_coun
     {
       map_->detail()->gpu_cache->flush();
     }
+
+    // Draw the rays
+    g_3es->create(tes::MeshShape(tes::DtLines, tes::Id(0u, kTcRays),
+                                 tes::DataBuffer(&rays->x, element_count, 3, sizeof(*rays) / sizeof(rays->x)))
+                    .setColour(tes::Colour::Colours[tes::Colour::Yellow]));
 
     cacheState(rays, element_count, &updated_state);
 
@@ -566,18 +608,13 @@ size_t RayMapperTrace::integrateRays(const glm::dvec3 *rays, size_t element_coun
     // Update the mesh changes
     imp_->update(newly_occupied, newly_freed, touched_occupied);
 
-    // Draw updated NDT state (ellipsoids).
-    have_ellispoids =
-      drawEllipsoids(tes::Id(this, kTcNdt), tes::Colour::Colours[tes::Colour::MediumSeaGreen], updated_state) ||
-      have_ellispoids;
-
-    g_3es->updateTransfers(0);
-    g_3es->updateFrame(0.0f);
-
-    g_3es->destroy(tes::MeshShape(tes::DtLines, tes::Id(this, kTcRays)));  // Destroy rays
-    if (have_ellispoids)
+    // Update NDT representation.
+    if (!sector_set.empty() && map_->layout().covarianceLayer())
     {
-      g_3es->destroy(tes::Sphere(tes::Id(this, kTcNdt)));  // Destroy ellispoids
+      for (const auto &sector_key : sector_set)
+      {
+        drawNdt(sector_key, *map_);
+      }
     }
 
     // Do full update (with connection management)
@@ -589,7 +626,23 @@ size_t RayMapperTrace::integrateRays(const glm::dvec3 *rays, size_t element_coun
 }
 
 
-void RayMapperTrace::cacheState(const glm::dvec3 *rays, size_t element_count, VoxelSet *voxels)
+glm::i16vec4 RayMapperTrace::sectorKey(const Key &key) const
+{
+  // We divide the MapChunk into 8 sectors, like a voxel. We need to convert the local key into a sector index
+  glm::ivec3 local = key.localKey();
+  // Each axis is converted to 0 or 1
+  local[0] = !!(local[0] >= (map_->regionVoxelDimensions()[0] / 2));
+  local[1] = !!(local[1] >= (map_->regionVoxelDimensions()[1] / 2));
+  local[2] = !!(local[2] >= (map_->regionVoxelDimensions()[2] / 2));
+
+  // Linearise the new key as the w value for the return key.
+  glm::i16vec4 sector_key(key.regionKey(), local.x + local.y * 2 + local.z * 4);
+
+  return sector_key;
+}
+
+
+void RayMapperTrace::cacheState(const glm::dvec3 *rays, size_t element_count, VoxelMap *voxels, SectorSet *sectors)
 {
   KeyList keys;
 
@@ -606,6 +659,11 @@ void RayMapperTrace::cacheState(const glm::dvec3 *rays, size_t element_count, Vo
     // Walk the ray keys
     for (const auto &key : keys)
     {
+      if (sectors)
+      {
+        sectors->insert(sectorKey(key));
+      }
+
       if (voxels->find(key) == voxels->end())
       {
         // not already in the set.
