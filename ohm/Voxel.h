@@ -416,6 +416,16 @@ namespace ohm
     /// @return The linear voxel index resolved from the key.
     inline unsigned voxelIndex() const { return ohm::voxelIndex(key_, layer_dim_); }
 
+    /// Access the data for the current voxel. This is a convenience wrapper for the @c read() function which returns
+    /// the template data type. Only call if @c isValid() is true.
+    /// @return The data for the current voxel.
+    DataType data() const
+    {
+      DataType d;
+      read(&d);
+      return d;
+    }
+
     /// Read the current voxel data value.
     ///
     /// This reads the data for the current @c voxelIndex() into @p value . This call does no error checking and
