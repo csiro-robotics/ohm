@@ -26,6 +26,7 @@ The following 3rd-party libraries are required to build ohm:
 - [ZLib](https://www.zlib.net/) for serialisation compression.
 - [CMake](https://cmake.org/) for project set up
 - [OpenGL Mathematics (GLM)](https://glm.g-truc.net/) for 3D data types.
+- [Googletest](https://github.com/google/googletest) for unit tests
 
 Additional, the following 3rd-party libraries may optionally be used:
 
@@ -33,8 +34,6 @@ Library                                             | Feature Usage
 --------------------------------------------------- | -----------------------------------------------------------------
 [Google Test](https://github.com/google/googletest) | Unit tests
 [PDAL](https://pdal.io/)                            | Load point various point cloud formats for ohmpop.
-[libLAS](https://liblas.org/)                       | Alternative point cloud loading from LAS for ohmpop.
-[LASZip](https://laszip.org/)                       | To support compressed LAS (LAZ) files with libLAS.
 [Boost](https://www.boost.org/)                     | required if using libLAS
 [Intel Threading Building Blocks](https://www.threadingbuildingblocks.org/) | Multi-threaded CPU operations.
 [3rd Eye Scene](https://github.com/data61/3rdEyeScene)  | For debug visualisation of map generation.
@@ -42,17 +41,22 @@ Library                                             | Feature Usage
 [GLEW](http://glew.sourceforge.net/)                | For HeightmapImage in ohmheightmaputil
 [GLFW](https://www.glfw.org/)                       | For HeightmapImage in ohmheightmaputil
 [libpng](http://www.libpng.org/)                    | To convert heightmap to image using utils/ohmhm2img
+[Eigen3](http://eigen.tuxfamily.org/index.php)      | Used in small amounts in some tests and as a faster option for some geometry operations
+[libLAS](https://liblas.org/)                       | Alternative point cloud loading from LAS for ohmpop.
+[LASZip](https://laszip.org/)                       | To support compressed LAS (LAZ) files with libLAS.
 
-While efforts are made to ensure certain components remain optional, certain configurations may be incompatible.
+While efforts are made to ensure components remain optional, certain configurations may be incompatible.
 
 #### Ubuntu apt Packages
 On Ubuntu, the required packages may be installed using the following command:
-```
-sudo apt-get install cmake zlib1g-dev libglm-dev libpdal-dev libtbb-dev doxygen googletest
+
+```bash
+sudo apt install cmake zlib1g-dev libglm-dev googletest
 ```
 
 Google test must also be built as the package is source only:
-```
+
+```bash
 cd /usr/src/gtest/build-aux
 sudo cmake ..
 sudo make
@@ -63,9 +67,16 @@ Setup of OpenCL requires mode detailed [instructions (link)](./OpenCL.md).
 
 For CUDA setup instructions, visit [NVIDIA CUDA Zone](https://developer.nvidia.com/cuda-zone).
 
-Optional packages for heightmap generation and image conversion:
+Additional, recommended packages can be installed using:
+
+```bash
+sudo apt install libtbb-dev libpdal-dev doxygen
 ```
-sudo apt-get install libglew-dev libglfw3-dev libpng-dev
+
+Optional packages for heightmap generation and image conversion:
+
+```bash
+sudo apt install libglew-dev libglfw3-dev libpng-dev libeigen3-dev
 ```
 
 ### Build Instructions
