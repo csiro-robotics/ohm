@@ -14,6 +14,7 @@
 #include <ohm/OccupancyUtil.h>
 #include <ohm/RayMapperNdt.h>
 #include <ohm/RayMapperOccupancy.h>
+#include <ohm/RayMapperTrace.h>
 #include <ohm/Trace.h>
 #include <ohm/VoxelData.h>
 
@@ -76,6 +77,9 @@ namespace
     std::string trajectory_file;
     std::string output_base_name;
     std::string prior_map;
+#ifdef TES_ENABLE
+    std::string trace;
+#endif  // TES_ENABLE
     glm::dvec3 sensor_offset = glm::dvec3(0.0);
     glm::u8vec3 region_voxel_dim = glm::u8vec3(0);  // re-initialised from a default map
     uint64_t point_limit = 0;
@@ -237,6 +241,13 @@ namespace
       }
 #endif  // OHMPOP_CPU
 
+#ifdef TES_ENABLE
+      if (!trace.empty())
+      {
+        **out << "3es trace file: " << trace << '\n';
+      }
+#endif  // TES_ENABLE
+
       **out << std::flush;
 
       ++out;
@@ -381,6 +392,17 @@ namespace
       }
     }
   }
+
+  std::string getFileExtension(const std::string &file)
+  {
+    const size_t last_dot = file.find_last_of('.');
+    if (last_dot != std::string::npos)
+    {
+      return file.substr(last_dot + 1);
+    }
+
+    return "";
+  }
 }  // namespace
 
 
@@ -475,6 +497,10 @@ int populateMap(const Options &opt)
     }
   }
 
+#ifdef TES_ENABLE
+  std::unique_ptr<ohm::RayMapperTrace> trace_mapper;
+#endif  // TES_ENABLE
+
   ohm::RayMapper *ray_mapper = nullptr;
 #ifdef OHMPOP_CPU
   std::unique_ptr<ohm::RayMapperNdt> ndt_ray_mapper;
@@ -492,6 +518,15 @@ int populateMap(const Options &opt)
 #else   // OHMPOP_CPU
   ray_mapper = gpu_map.get();
 #endif  // OHMPOP_CPU
+
+#ifdef TES_ENABLE
+  if (!opt.trace.empty())
+  {
+    trace_mapper = std::make_unique<ohm::RayMapperTrace>(&map, ray_mapper);
+    ray_mapper = trace_mapper.get();
+  }
+#endif  // TES_ENABLE
+
   ohm::Mapper mapper(&map);
   std::vector<double> sample_timestamps;
   std::vector<glm::dvec3> origin_sample_pairs;
@@ -824,6 +859,9 @@ int parseOptions(Options *opt, int argc, char *argv[])
       ("trajectory", "The trajectory (text) file to load.", cxxopts::value(opt->trajectory_file))
       ("prior", "Prior map file to load and continue to populate.", cxxopts::value(opt->prior_map))
       ("cloud-colour", "Colour for points in the saved cloud (if saving).", optVal(opt->cloud_colour))
+#ifdef TES_ENABLE
+      ("trace", "Enable debug tracing to the given file name to generate a 3es file. High performance impact.", cxxopts::value(opt->trace))
+#endif // TES_ENABLE
       ;
 
     opt_parse.add_options("Map")
@@ -938,6 +976,16 @@ int parseOptions(Options *opt, int argc, char *argv[])
         opt->prob_miss = opt->ndt.prob_miss;
       }
     }
+
+#ifdef TES_ENABLE
+    if (!opt->trace.empty())
+    {
+      if (getFileExtension(opt->trace) != "3es")
+      {
+        opt->trace += ".3es";
+      }
+    }
+#endif  // TES_ENABLE
   }
   catch (const cxxopts::OptionException &e)
   {
@@ -962,12 +1010,13 @@ int main(int argc, char *argv[])
   }
 
   // Initialise TES
-#ifdef OHMPOP_CPU
-  const char *trace_name = "ohmpopcpu.3es";
-#else   // OHMPOP_CPU
-  const char *trace_name = "ohmpopgpu.3es";
-#endif  // OHMPOP_CPU
-  ohm::Trace trace(trace_name);
+#ifdef TES_ENABLE
+  std::unique_ptr<ohm::Trace> trace;
+  if (!opt.trace.empty())
+  {
+    trace = std::make_unique<ohm::Trace>(opt.trace.c_str());
+  }
+#endif  //  TES_ENABLE
 
   signal(SIGINT, onSignal);
   signal(SIGTERM, onSignal);
