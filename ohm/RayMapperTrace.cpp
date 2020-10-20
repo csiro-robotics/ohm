@@ -329,7 +329,6 @@ namespace ohm
     // Send bulk messages for new vertices.
     if (old_vertex_count != new_vertex_count)
     {
-      const uint16_t transferLimit = 5001;
       // Send colour and position update.
       uint32_t offset = uint32_t(old_vertex_count);
       data_buffer = tes::DataBuffer(imp_->vertices);

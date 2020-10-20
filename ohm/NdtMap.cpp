@@ -180,7 +180,6 @@ void NdtMap::debugDraw() const
   for (auto iter = imp_->map->begin(); iter != imp_->map->end(); ++iter)
   {
     occupancy.setKey(*iter);
-    const auto voxel = *iter;
     if (isOccupied(occupancy))
     {
       cov.setKey(occupancy);
