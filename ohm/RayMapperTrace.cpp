@@ -106,7 +106,7 @@ namespace ohm
     : imp_(std::make_unique<OccupancyMeshDetail>())
   {
     imp_->map = map;
-    imp_->id = tes::Id(map).id();
+    imp_->id = tes::Id(this).id();
   }
 
   OccupancyMesh::~OccupancyMesh() = default;
