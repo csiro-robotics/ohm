@@ -56,14 +56,14 @@ namespace ohm
   /// @ingroup voxelmean
   /// Calculate the mean position within the given @p voxel .
   ///
-  ///`Voxel<VoxelMean>::isValid()` must be true before calling.
+  /// <tt>Voxel<VoxelMean>::isValid()</tt> must be true before calling.
   /// @param voxel The voxel to query the mean coordinate for.
   inline glm::dvec3 positionUnsafe(const Voxel<VoxelMean> &voxel) { return positionUnsafeT(voxel); }
 
   /// @ingroup voxelmean
   /// Calculate the mean position within the given @p voxel .
   ///
-  /// `Voxel<const VoxelMean>::isValid()` must be true before calling.
+  /// <tt>Voxel<const VoxelMean>::isValid()</tt> must be true before calling.
   /// @param voxel The voxel to query the mean coordinate for.
   inline glm::dvec3 positionUnsafe(const Voxel<const VoxelMean> &voxel) { return positionUnsafeT(voxel); }
 
@@ -103,7 +103,7 @@ namespace ohm
   /// @ingroup voxelmean
   /// Explicitly set the mean position for @p voxel .
   ///
-  /// `Voxel<const VoxelMean>::isValid()` must be true before calling.
+  /// <tt>Voxel<const VoxelMean>::isValid()</tt> must be true before calling.
   ///
   /// @param voxel The voxel to modify.
   /// @param pos The new mean position for @p voxel . Must be within the bounds of @p voxel .
@@ -137,7 +137,7 @@ namespace ohm
   /// @ingroup voxelmean
   /// Update the mean position for a voxel, adjusting the mean with the new coordinate @p pos .
   ///
-  /// `Voxel<const VoxelMean>::isValid()` must be true before calling.
+  /// <tt>Voxel<const VoxelMean>::isValid()</tt> must be true before calling.
   ///
   /// @param mean_info Details of the voxel mean.
   /// @param pos The new coordinate to incorporate into the mean.
@@ -153,7 +153,7 @@ namespace ohm
   /// @ingroup voxelmean
   /// Update the mean position for a voxel, adjusting the mean with the new coordinate @p pos .
   ///
-  /// `Voxel<const VoxelMean>::isValid()` must be true before calling.
+  /// <tt>Voxel<const VoxelMean>::isValid()</tt> must be true before calling.
   ///
   /// @param voxel The voxel to modify.
   /// @param pos The new coordinate to incorporate into the mean.

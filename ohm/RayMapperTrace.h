@@ -41,10 +41,10 @@ namespace ohm
     /// Utility structure tracking the status of a voxel including (optional) ellipsoid shape.
     struct VoxelState
     {
-      glm::dquat ellipse_rotation{ 1, 0, 0, 0 };
-      glm::dvec3 ellipse_pos{ 0 };
-      glm::dvec3 ellipse_scale{ 1 };
-      OccupancyType type{ kNull };
+      glm::dquat ellipse_rotation{ 1, 0, 0, 0 };  ///< Rotation applied to a scaled sphere to generate the ellipse.
+      glm::dvec3 ellipse_pos{ 0 };                ///< Global position of the voxel ellipse.
+      glm::dvec3 ellipse_scale{ 1 };              ///< Ellipse scaling.
+      OccupancyType type{ kNull };                ///< Voxel type.
     };
 
     /// Hash for a @c glm::i16vec4

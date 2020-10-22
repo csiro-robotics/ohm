@@ -7,6 +7,9 @@
 
 #include <vector>
 
+// Deprecated - don't document
+#ifndef DOXYGEN_SHOULD_SKIP_THIS
+
 namespace ohm
 {
   /// A thread safe point cloud data buffer.
@@ -72,5 +75,7 @@ namespace ohm
 }  // namespace ohm
 
 #include "PointsDoubleBuffer.inl"
+
+#endif  // DOXYGEN_SHOULD_SKIP_THIS
 
 #endif  // OHMUTIL_POINTSDOUBLEBUFFER_H

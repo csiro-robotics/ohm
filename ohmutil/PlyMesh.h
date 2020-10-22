@@ -40,46 +40,104 @@ namespace ohm
     /// @param colours Optional colours for the vertices. Enables colour export if specified.
     /// @return The index of the first vertex in @p verts after adding.
     unsigned addVertices(const glm::vec3 *verts, unsigned count, const Colour *colours = nullptr);
+    /// Add a single vertex to the mesh
+    /// @param vert The vertex to add
+    /// @return The index of the added vertex.
     inline unsigned addVertex(const glm::vec3 &vert) { return addVertices(&vert, 1, nullptr); }
+    /// Add a single coloured vertex to the mesh
+    /// @param vert The vertex to add
+    /// @param colour Colour value for the vertex.
+    /// @return The index of the added vertex.
     inline unsigned addVertex(const glm::vec3 &vert, const Colour &colour) { return addVertices(&vert, 1, &colour); }
 
+    /// @overload
     unsigned addVertices(const glm::dvec3 *verts, unsigned count, const Colour *colours = nullptr);
+    /// @overload
     inline unsigned addVertex(const glm::dvec3 &vert) { return addVertices(&vert, 1, nullptr); }
+    /// @overload
     inline unsigned addVertex(const glm::dvec3 &vert, const Colour &colour) { return addVertices(&vert, 1, &colour); }
 
+    /// Set the normal for a vertex in the mesh.
+    /// @param vertex_index Index of the vertex to add a normal for. Must be in range.
+    /// @param normal The vertex normal value.
     void setNormal(unsigned vertex_index, const glm::vec3 &normal);
+    /// @overload
     void setNormal(unsigned vertex_index, const glm::dvec3 &normal);
 
+    /// Add edge data to the ply mesh
+    /// @param edge_indices Vertex index pairs for the set of edges to add. Expects `edge_count * 2` elements.
+    /// Vertex indices must be in range.
+    /// @param edge_count Number of edges being added.
+    /// @param colours Colour values for the added edges. Expects @p edge_count items or null to not add edge colours.
     void addEdges(const unsigned *edge_indices, unsigned edge_count, const Colour *colours = nullptr);
+    /// @overload
     inline void addEdge(unsigned v0, unsigned v1)
     {
       const unsigned vi[2] = { v0, v1 };
       return addEdges(vi, 1, nullptr);
     }
+    /// Add a single edge to the mesh
+    /// @param v0 Index of the first vertex in the edge.
+    /// @param v1 Index of the second vertex in the edge.
+    /// @param colour Colour value for the edge.
     inline void addEdge(unsigned v0, unsigned v1, const Colour &colour)
     {
       const unsigned vi[2] = { v0, v1 };
       return addEdges(vi, 1, &colour);
     }
+    /// Add two vertices to the mesh and connect them as a coloured edge
+    /// @param v0 First vertex in the edge.
+    /// @param v1 Second vertex in the edge
+    /// @param colour Colour value for the edge.
     void addEdge(const glm::vec3 &v0, const glm::vec3 &v1, const Colour &colour);
+    /// @overload
     void addEdge(const glm::dvec3 &v0, const glm::dvec3 &v1, const Colour &colour);
 
+    /// Add indexed triangles to the mesh
+    /// @param triangle_indices Triangle index triples for the triangles to add. Expects `triangle_count * 3` elements.
+    /// Vertex indices must be in range.
+    /// @param triangle_count Number of triangles being added.
+    /// @param colours Colour values for the added triangles. Expects @p triangle_count items or null to not add edge
+    /// colours.
     void addTriangles(const unsigned *triangle_indices, unsigned triangle_count, const Colour *colours = nullptr);
+    /// @overload
     inline void addTriangle(unsigned v0, unsigned v1, unsigned v2)
     {
       const unsigned vi[3] = { v0, v1, v2 };
       return addTriangles(vi, 1, nullptr);
     }
+    /// Add a single triangle to the mesh
+    /// @param v0 Index of the first vertex in the triangle.
+    /// @param v1 Index of the second vertex in the triangle.
+    /// @param v2 Index of the third vertex in the triangle.
+    /// @param colour Colour value for the triangle.
     inline void addTriangle(unsigned v0, unsigned v1, unsigned v2, const Colour &colour)
     {
       const unsigned vi[3] = { v0, v1, v2 };
       return addTriangles(vi, 1, &colour);
     }
+    /// Add three vertices to the mesh and connect them as a coloured triangle
+    /// @param v0 First vertex in the triangle.
+    /// @param v1 Second vertex in the triangle.
+    /// @param v2 Third vertex in the triangle.
+    /// @param colour Colour value for triangle.
     void addTriangle(const glm::vec3 &v0, const glm::vec3 &v1, const glm::vec3 &v2, const Colour &colour);
+    /// @overload
     void addTriangle(const glm::dvec3 &v0, const glm::dvec3 &v1, const glm::dvec3 &v2, const Colour &colour);
 
+    /// Add an indexed polygon to the mesh.
+    /// @param indices Vertex indices for the polygon. The expected number of elements at this address is determined by
+    /// the value of @p order . Vertex indices must be in range.
+    /// @param order The number of vertices in the polygon, therefore the number of elements at @p indices .
+    /// @param colour Colour value for the polygon.
     void addPolygon(const unsigned *indices, unsigned order, const Colour &colour);
+    /// Add a polygon to the mesh adding new vertices for the polygon at the same time.
+    /// @param verts Vertex positions for the polygon. The expected number of elements at this address is determined by
+    /// the value of @p order .
+    /// @param order The number of vertices in the polygon, therefore the number of elements at @p indices .
+    /// @param colour Colour value for the polygon.
     void addPolygon(const glm::vec3 *verts, unsigned order, const Colour &colour);
+    /// @overload
     void addPolygon(const glm::dvec3 *verts, unsigned order, const Colour &colour);
 
     /// Add a triangle with support for vertex mapping.
@@ -96,9 +154,17 @@ namespace ohm
     /// @param vert_ids An array of three vertex Ids for @p verts.
     /// @param colour An optional colour for the face. Single item only, for the face not the vertices.
     void addMappedTriangle(const glm::vec3 *verts, const unsigned *vert_ids, const Colour *colour = nullptr);
+    /// @overload
     void addMappedTriangle(const glm::dvec3 *verts, const unsigned *vert_ids, const Colour *colour = nullptr);
 
+    /// Similar to @c addMappedTriangle() supporting arbitrary order polygons.
+    /// @param verts An array of vertex positions. The expected number of elements at this address is determined by
+    /// the value of @p order .
+    /// @param vert_ids An array of vertex Ids for @p verts.
+    /// @param order The number of vertices in the polygon, therefore the number of elements at @p indices .
+    /// @param colour An optional colour for the face. Single item only, for the face not the vertices.
     void addMappedPolygon(const glm::vec3 *verts, const unsigned *vert_ids, unsigned order, const Colour *colour);
+    /// @overload
     void addMappedPolygon(const glm::dvec3 *verts, const unsigned *vert_ids, unsigned order, const Colour *colour);
 
     /// Add an edge with support for vertex mapping.
@@ -108,32 +174,66 @@ namespace ohm
     /// @param vert_ids An array of two vertex Ids for @p verts.
     /// @param colour An optional colour for the edge. Single item only, for the edge not the vertices.
     void addMappedEdge(const glm::vec3 *verts, const unsigned *vert_ids, const Colour *colour = nullptr);
+    /// @overload
     inline void addMappedEdge(const glm::vec3 *verts, const unsigned *vert_ids, const Colour &colour)
     {
       return addMappedEdge(verts, vert_ids, &colour);
     }
+    /// @overload
     void addMappedEdge(const glm::dvec3 *verts, const unsigned *vert_ids, const Colour *colour = nullptr);
+    /// @overload
     inline void addMappedEdge(const glm::dvec3 *verts, const unsigned *vert_ids, const Colour &colour)
     {
       return addMappedEdge(verts, vert_ids, &colour);
     }
 
+    /// Add a comment to the PLY file. Comment will be written on calling @c save() .
+    /// @param comment The comment string.
     void addComment(const char *comment);
+    /// Get a previously added comment string.
+    /// @param index Index of the comment string. Must be in range `[0, commentCount())`
+    /// @return The requested comment string.
     const char *getComment(unsigned index) const;
+    /// Query the number of comment strings which have been added using @c addComment() .
+    /// @return The number of added comment strings.
     unsigned commentCount() const;
+    /// Remove all added comments.
     void clearComments();
 
+    /// Save the PLY mesh to the given @p out_path .
+    /// @param out_path File path specifying where to save. String should include the `.ply` extension.
+    /// @param binary Save in binary PLY format? False for ASCII.
+    /// @return True on succcess.
     bool save(const char *out_path, bool binary) const;
+    /// Save the PLY mesh using a @c FILE object.
+    /// @param outfile @c FILE object to save to.
+    /// @param binary Save in binary PLY format? False for ASCII.
+    /// @return True on succcess.
     bool save(FILE *outfile, bool binary) const;
+    /// Save the PLY mesh to the given @c stream .
+    /// @param stream The output stream to save to.
+    /// @param binary Save in binary PLY format? False for ASCII.
+    /// @return True on succcess.
     bool save(std::ostream &stream, bool binary) const;
 
+    /// API adaptor for either @c std::ostream or @c FILE .
+    ///
+    /// Specialisations are internal. Declaration is here to support the declarations below.
     template <typename T>
     class FileWrapper
     {
     public:
+      /// Check if the file open?
+      /// @return True if open.
       inline bool isOpen() const { return false; }
-      inline void printf(const char * /*format*/, ...) {}
-      inline void write(const void * /*ptr*/, size_t /*element_size*/, size_t /*element_count*/) {}
+      /// Write text to the file using @c printf() style formatting.
+      /// @param format @c printf format string
+      inline void printf(const char *format, ...) {}
+      /// Write binary data to the file.
+      /// @param ptr Pointer to the data to write.
+      /// @param element_size Size of a single item at @p ptr
+      /// @param element_count Number of elements at @p ptr to write.
+      inline void write(const void *ptr, size_t element_size, size_t element_count) {}
     };
 
   private:

@@ -67,6 +67,7 @@ namespace ohm
     /// @param map The map to cache data for.
     /// @param target_gpu_alloc_size The GPU memory target size, distributed across all allocated @c GpuLayerCache
     /// objects (bytes). See @c targetGpuAllocSize() .
+    /// @param flags The @c GpuFlag values to initialise the cache with.
     GpuCache(OccupancyMap &map,  // NOLINT(google-runtime-references)
              size_t target_gpu_alloc_size = kDefaultTargetMemSize, unsigned flags = 0);
 

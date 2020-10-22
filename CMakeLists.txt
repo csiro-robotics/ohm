@@ -213,7 +213,9 @@ add_subdirectory(gputil)
 add_subdirectory(ohmutil)
 add_subdirectory(slamio)
 add_subdirectory(ohm)
-add_subdirectory(ohmgpu)
+if(OHM_BUILD_CUDA OR OHM_BUILD_OPENCL)
+  add_subdirectory(ohmgpu)
+endif(OHM_BUILD_CUDA OR OHM_BUILD_OPENCL)
 
 if(OHM_BUILD_HEIGHTMAPUTIL)
   # Experimental
@@ -281,13 +283,17 @@ if(OHM_BUILD_DOXYGEN)
     ohm/cl
     ohm/gpu
     ohm/private
+    ohmgpu/private
   )
 
-  if(OHM_GPU EQUAL OHM_GPU_OPENCL)
-    list(APPEND DOXYGEN_DIRS clu)
-  endif(OHM_GPU EQUAL OHM_GPU_OPENCL)
+  if(OHM_BUILD_CUDA OR OHM_BUILD_OPENCL)
+    list(APPEND DOXYGEN_DIRS ohmgpu)
+  endif(OHM_BUILD_CUDA OR OHM_BUILD_OPENCL)
+  if(OHM_BUILD_OPENCL)
+      list(APPEND DOXYGEN_DIRS clu)
+  endif(OHM_BUILD_OPENCL)
 
-  list(APPEND DOXYGEN_DIRS docs)
+   list(APPEND DOXYGEN_DIRS docs)
 
   if(DOXYGEN_FOUND)
     # Create a target to build the documentation.

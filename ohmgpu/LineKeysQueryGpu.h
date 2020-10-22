@@ -64,7 +64,11 @@ namespace ohm
     void onReset(bool hard_reset) override;
     bool onWaitAsync(unsigned timeout_ms) override;
 
+    /// Internal pimpl data access.
+    /// @return Pimpl data pointer.
     LineKeysQueryDetailGpu *imp();
+    /// Internal pimpl data access.
+    /// @return Pimpl data pointer.
     const LineKeysQueryDetailGpu *imp() const;
   };
 }  // namespace ohm

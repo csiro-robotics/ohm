@@ -51,6 +51,12 @@ namespace ohm
   class GpuNdtMap : public GpuMap
   {
   public:
+    /// Create a @c GpuNdtMap around the given @p map representation.
+    /// @param map The map object to operate on.
+    /// @param map The map to wrap.
+    /// @param borrowed_map True to borrow the map, @c false for this object to take ownership.
+    /// @param expected_element_count The expected point count for calls to @c integrateRays(). Used as a hint.
+    /// @param gpu_mem_size Optionally specify the target GPU cache memory to allocate.
     GpuNdtMap(OccupancyMap *map, bool borrowed_map = true, unsigned expected_element_count = 2048,
               size_t gpu_mem_size = 0u);
 
@@ -80,14 +86,13 @@ namespace ohm
     /// Helper to access the internal pimpl cast to the correct type.
     const GpuNdtMapDetail *detail() const;
 
-    /// @override
     /// Cache the NDT kernel as well.
+    /// @param with_voxel_mean True to cache the program which supports voxel mean positioning (@ref voxelmean).
+    /// @param force Force release and program caching even if already correct. Must be used on initialisation.
     void cacheGpuProgram(bool with_voxel_mean, bool force) override;
 
-    /// @override
     void finaliseBatch(unsigned region_update_flags) override;
 
-    /// @override
     void releaseGpuProgram() override;
   };
 }  // namespace ohm
