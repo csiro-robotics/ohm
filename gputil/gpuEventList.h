@@ -74,7 +74,7 @@ namespace gputil
     /// @param events The events to add.
     void add(std::initializer_list<Event> events);
     /// Add multiple items to the list.
-    /// @param events The evnts to add.
+    /// @param events The events to add.
     void add(std::initializer_list<const Event *> events);
 
     /// Clear the event list, releasing all event references.
