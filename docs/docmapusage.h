@@ -72,7 +72,7 @@ namespace ohm
   }
   @endcode
 
-  Data can then be queried about invidisual voxels using a combination of @ref Key "voxel keys" and @c Voxel objects.
+  Data can then be queried about individual voxels using a combination of @ref Key "voxel keys" and @c Voxel objects.
   The code below queries whether the voxel containing a given spatial position is occupied.
 
   @code{.cpp}
