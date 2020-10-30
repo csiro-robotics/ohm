@@ -57,7 +57,7 @@ namespace gputil
     /// An alias of @c count() .
     /// @return The number of events in the list.
     inline size_t size() const { return count_; }
-    /// Query the capacity of the event list. Capacity will be extened as required. The minimum capacirty is
+    /// Query the capacity of the event list. Capacity will be extended as required. The minimum capacity is
     /// @c kShortCount .
     /// @return The available capacity.
     inline size_t capacity() const { return (!extended_) ? kShortCount : capacity_; }
