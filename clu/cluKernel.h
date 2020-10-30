@@ -242,7 +242,7 @@ namespace clu
       , work_group_size(work_group_size)
     {}
 
-    /// Create a kernel grid speficiation with implied zero offset.
+    /// Create a kernel grid specification with implied zero offset.
     /// @param global_size The global thread size.
     /// @param work_group_size The workgroup thread size.
     inline KernelGrid(const KernelSize &global_size, const KernelSize &work_group_size)
