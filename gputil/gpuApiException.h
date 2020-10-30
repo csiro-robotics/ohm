@@ -17,7 +17,7 @@ namespace gputil
   class gputilAPI ApiException : public Exception
   {
   public:
-    /// Constructn an API exception.
+    /// Construct an API exception.
     /// @param error_code The underlying SDK error code - e.g., a @c cudaError_t .
     /// @param msg Optional test for the api error. When null, the @c errorCodeString() for @p error_code is used.
     /// @param filename Optional file the exception is thrown from.
