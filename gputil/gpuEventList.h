@@ -71,7 +71,7 @@ namespace gputil
     inline void push_back(const Event &event) { add(event); }  // NOLINT
 
     /// Add multiple items to the list.
-    /// @param events The evnts to add.
+    /// @param events The events to add.
     void add(std::initializer_list<Event> events);
     /// Add multiple items to the list.
     /// @param events The evnts to add.
