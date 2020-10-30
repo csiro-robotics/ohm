@@ -114,7 +114,7 @@ namespace ohm
 
   The example above introduces the several concepts including the @ref MapLayout "map layout". The example
   demonstrates how to validate and access the data for a particular @ref MapLayer "voxel layer", in this case the
-  occupancy layer. Note that there are convinience functions for this available in the @ref voxeloccupancy section.
+  occupancy layer. Note that there are convenience functions for this available in the @ref voxeloccupancy section.
 
   ## The MapLayout
 
