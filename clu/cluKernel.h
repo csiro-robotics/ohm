@@ -200,7 +200,7 @@ namespace clu
     }
 
     /// @c kD1 or @c kDNull assignment operator. Assigning a non zero value sets the size specification to a @c k1D
-    /// specification of @p size . Setting a zero value makes this a @c kDNull speification.
+    /// specification of @p size . Setting a zero value makes this a @c kDNull specification.
     /// @param size The size value to assign.
     /// @return `*this`
     inline KernelSize &operator=(size_t size)
