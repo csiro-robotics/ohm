@@ -305,7 +305,7 @@ namespace ohm
 
   The @c GpuMap relies on a @c GpuCache which keeps a copy of relevant @c MapChunk data in GPU memory. This cache
   keeps recently accessed chunks in GPU memory and will move data back to CPU memory once the cache is full and new
-  chunks need to be modified. Changes in CPU will mark the a chunk as dirty and the @c GpuCache will upload the updated
+  chunks need to be modified. Changes in CPU will mark the chunk as dirty and the @c GpuCache will upload the updated
   data from CPU, however there is no resolution mechanism for merging simultaneous changes on CPU and GPU.
 
   For optimal performance the number of rays given to each @ref GpuMap::integrateRays() "integrateRays()" call may
