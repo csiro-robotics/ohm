@@ -20,7 +20,7 @@ namespace ohm
     /// Results vector, identifying the offsets for each ray into @c intersected_voxels where the results for that ray
     /// begin.
     std::vector<size_t> result_indices;
-    /// Results vector, indentifying the number of voxels for each ray in @c intersected_voxels.
+    /// Results vector, identifying the number of voxels for each ray in @c intersected_voxels.
     std::vector<size_t> result_counts;
   };
 }  // namespace ohm
