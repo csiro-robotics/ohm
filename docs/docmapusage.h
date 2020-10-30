@@ -202,7 +202,7 @@ namespace ohm
   from the chunk's @c MapChunk::firstValidKey() which is maintained as the first voxel in the chunk memory which has
   been touched.
 
-  Iterating with a range based for loop or deferencing the @c OccupancyMap::iterator provides yields a @c Key for the
+  Iterating with a range based for loop or deferencing the @c OccupancyMap::iterator yields a @c Key for the
   current voxel. The data associated with the voxel must be resolved using the @c Voxel template class. The
   @c OccupancyMap::iterator has additional, non-standard iterator functions which provide access to the target
   @c MapChunk and @c OccupancyMap . Below is an example of iterating a map.
