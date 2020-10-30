@@ -20,6 +20,7 @@ namespace ohm
   class OccupancyMap;
   class MapInfo;
 
+  /// Pimpl data for @c Heightmap .
   struct ohm_API HeightmapDetail
   {
     OccupancyMap *occupancy_map = nullptr;

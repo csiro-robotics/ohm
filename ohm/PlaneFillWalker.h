@@ -48,24 +48,46 @@ namespace ohm
       Higher    ///< Revisit if the key is higher along the up axis.
     };
 
-    const OccupancyMap &map;
-    const Key &min_ext_key, &max_ext_key;
-    const glm::ivec3 key_range;
+    const OccupancyMap &map;     ///< Map to walk voxels in.
+    const Key &min_ext_key;      ///< The starting voxel key (inclusive).
+    const Key &max_ext_key;      ///< The last voxel key (inclusive).
+    const glm::ivec3 key_range;  ///< The range between @c min_ext_key and @c max_ext_key .
+    /// Mapping of the indices to walk, supporting various heightmap up axes. Element 2 is always the up axis, where
+    /// elements 0 and 1 are the horizontal axes.
     int axis_indices[3] = { 0, 0, 0 };
-    const bool auto_add_neighbours = false;
-    std::queue<Key> open_list;
+    const bool auto_add_neighbours = false;  ///< Automatically voxels heighbours to touched voxels?
+    std::queue<Key> open_list;               ///< Remaining voxels to (re)process.
     /// Identifies which bounded keys have been visited. A negative value indices no visit, a zero or positive value
     /// indicates the offset from the min_ext_key at which the node was visited
     std::vector<int> visit_list;
 
+    /// Constructor.
+    /// @param map The map to walk voxels in.
+    /// @param min_ext_key The starting voxel key (inclusive).
+    /// @param max_ext_key The last voxel key (inclusive).
+    /// @param up_axis Specifies the up axis for the map.
+    /// @param auto_add_neighbours True to automatically add horizontal neighbours to the open list when visiting
+    /// voxels.
     PlaneFillWalker(const OccupancyMap &map, const Key &min_ext_key, const Key &max_ext_key, UpAxis up_axis,
                     bool auto_add_neighbours = true);
 
+    /// Initialse @p key To the first voxel to walk.
+    /// @param[out] key Set to the first key to be walked.
+    /// @return True if the key is valid, false if there is nothing to walk.
     bool begin(Key &key);  // NOLINT(google-runtime-references)
 
+    /// Walk the next key in the sequence.
+    /// @param[in,out] key Modifies to be the next key to be walked.
+    /// @return True if the key is valid, false if walking is complete.
     bool walkNext(Key &key);  // NOLINT(google-runtime-references)
 
+    /// Add neigbhours of @p key to the open list.
+    /// @param key The key of interest.
+    /// @param revisit_behaviour How to deal with voxels which have already been visited.
     void addNeighbours(const Key &key, Revisit revisit_behaviour = Revisit::None);
+
+    /// Marks the given key as visited.
+    /// @param key The key to visit.
     void touch(const Key &key);
 
   private:

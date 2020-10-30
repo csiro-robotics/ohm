@@ -688,8 +688,10 @@ bool HeightmapImage::renderHeightMesh(ImageType image_type, const Aabb &spatial_
   glm::vec3 min_ext_vertices = glm::vec3(0.0f);
   glm::vec3 max_ext_vertices = glm::vec3(spatial_extents.maxExtents() - spatial_extents.minExtents());
 
-  TES_TRIANGLES(g_3es, TES_COLOUR(White), glm::value_ptr(*imp_->vertices.data()), unsigned(imp_->vertices.size()),
-                sizeof(*imp_->vertices.data()), indices, unsigned(index_count));
+  TES_TRIANGLES(g_3es, TES_COLOUR(White), tes::Id(),
+                tes::DataBuffer(glm::value_ptr(*imp_->vertices.data()), imp_->vertices.size(), 3,
+                                sizeof(glm::vec3) / sizeof(float)),
+                tes::DataBuffer(indices, index_count));
   TES_SERVER_UPDATE(g_3es, 0.0f);
   TES_SERVER_UPDATE(g_3es, 0.0f);
 

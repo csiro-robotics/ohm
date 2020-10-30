@@ -27,16 +27,31 @@ namespace ohm
   class ohm_API PlaneWalker
   {
   public:
-    const OccupancyMap &map;
-    const Key &min_ext_key, &max_ext_key;
-    const Key plane_key;
+    const OccupancyMap &map;  ///< Map to walk voxels in.
+    const Key &min_ext_key;   ///< The starting voxel key (inclusive).
+    const Key &max_ext_key;   ///< The last voxel key (inclusive).
+    const Key plane_key;      ///< Reference key seeding the plane to walk.
+    /// Mapping of the indices to walk, supporting various heightmap up axes. Element 2 is always the up axis, where
+    /// elements 0 and 1 are the horizontal axes.
     int axis_indices[3] = { 0, 0, 0 };
 
+    /// Constructor.
+    /// @param map The map to walk voxels in.
+    /// @param min_ext_key The starting voxel key (inclusive).
+    /// @param max_ext_key The last voxel key (inclusive).
+    /// @param up_axis Specifies the up axis for the map.
+    /// @param plane_key_ptr Optional key specification for the @c plane_key .
     PlaneWalker(const OccupancyMap &map, const Key &min_ext_key, const Key &max_ext_key, UpAxis up_axis,
                 const Key *plane_key_ptr = nullptr);
 
+    /// Initialse @p key To the first voxel to walk.
+    /// @param[out] key Set to the first key to be walked.
+    /// @return True if the key is valid, false if there is nothing to walk.
     bool begin(Key &key) const;  // NOLINT(google-runtime-references)
 
+    /// Walk the next key in the sequence.
+    /// @param[in,out] key Modifies to be the next key to be walked.
+    /// @return True if the key is valid, false if walking is complete.
     bool walkNext(Key &key) const;  // NOLINT(google-runtime-references)
   };
 }  // namespace ohm

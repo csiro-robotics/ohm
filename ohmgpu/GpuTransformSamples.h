@@ -30,7 +30,11 @@ namespace ohm
   class ohmgpu_API GpuTransformSamples
   {
   public:
+    /// Create a GPU transform operation.
+    /// @param gpu The GPU device context to operate in.
     GpuTransformSamples(gputil::Device &gpu);  // NOLINT(google-runtime-references)
+    /// Move constructor
+    /// @param other Object to move.
     GpuTransformSamples(GpuTransformSamples &&other) noexcept;
 
     ~GpuTransformSamples();

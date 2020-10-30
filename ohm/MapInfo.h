@@ -105,7 +105,7 @@ namespace ohm
     MapValue(const char *name, bool val);
     /// Create a @c kString value.
     /// @param name The value key.
-    /// @param val The value to assign.
+    /// @param string The value to assign.
     MapValue(const char *name, const char *string);
 
     /// Destructor.
@@ -233,7 +233,7 @@ namespace ohm
     /// @return A reference to this object.
     MapValue &operator=(bool val);
     /// Value assignment. This changes the @c Type as required.
-    /// @param val Value to assign.
+    /// @param string Value to assign.
     /// @return A reference to this object.
     MapValue &operator=(const char *string);
 

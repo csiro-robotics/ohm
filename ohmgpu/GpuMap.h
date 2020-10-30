@@ -119,6 +119,10 @@ namespace ohm
   class ohmgpu_API GpuMap : public RayMapper
   {
   protected:
+    /// Constructor for derived classes to call.
+    /// @param detail The pimpl data struture for the map. Must not be null. May be a derivation of @c GpuMapDetail .
+    /// @param expected_element_count The expected point count for calls to @c integrateRays(). Used as a hint.
+    /// @param gpu_mem_size Optionally specify the target GPU cache memory to allocate.
     GpuMap(GpuMapDetail *detail, unsigned expected_element_count = 2048, size_t gpu_mem_size = 0u);
 
   public:
@@ -292,6 +296,11 @@ namespace ohm
     /// @param buffer_index Identifies the batch to wait on.
     void waitOnPreviousOperation(int buffer_index);
 
+    /// Enequeue upload of voxel data for the regions specified in @c GpuMapDetail::voxel_upload_info .
+    ///
+    /// May trigger a limited number of attempts to  @c finaliseBatch() if @c enqueueRegion() fails.
+    /// @param buffer_index Index of active data buffers from @c GpuMapDetail to used.
+    /// @param region_update_flags Flags controlling ray integration behaviour. See @c RayFlag.
     virtual void enqueueRegions(int buffer_index, unsigned region_update_flags);
 
     /// Enqueue a region for update.
@@ -306,15 +315,14 @@ namespace ohm
     /// @p regionsBuffer and @p offsetsBuffer to fill alternative GPU buffers for the next batch.
     ///
     /// @param region_key The key for the region of interest.
+    /// @param buffer_index Index of active data buffers from @c GpuMapDetail to used.
     virtual bool enqueueRegion(const glm::i16vec3 &region_key, int buffer_index);
 
     /// Finalise the current ray/region batch and start executing GPU kernel.
-    /// @param[in,out] regions_buffer GPU buffer containing uploaded region keys. Will be unpinned.
-    /// @param[in,out] offsets_buffer GPU buffer containing memory offsets for regions. Will be unpinned.
     /// @param region_update_flags Flags controlling ray integration behaviour. See @c RayFlag.
     virtual void finaliseBatch(unsigned region_update_flags);
 
-    GpuMapDetail *imp_;
+    GpuMapDetail *imp_;  ///< Internal pimpl data.
   };
 }  // namespace ohm
 

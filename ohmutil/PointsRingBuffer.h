@@ -9,6 +9,9 @@
 
 #include <vector>
 
+// Deprecated - don't document
+#ifndef DOXYGEN_SHOULD_SKIP_THIS
+
 namespace ohm
 {
   /// A thread safe point cloud data buffer.
@@ -80,5 +83,7 @@ namespace ohm
 }  // namespace ohm
 
 #include "PointsRingBuffer.inl"
+
+#endif  // DOXYGEN_SHOULD_SKIP_THIS
 
 #endif  // OHMUTIL_POINTSRINGBUFFER_H

@@ -17,11 +17,23 @@ namespace gputil
   class gputilAPI ApiException : public Exception
   {
   public:
+    /// Construct an API exception.
+    /// @param error_code The underlying SDK error code - e.g., a @c cudaError_t .
+    /// @param msg Optional test for the api error. When null, the @c errorCodeString() for @p error_code is used.
+    /// @param filename Optional file the exception is thrown from.
+    /// @param line_number Optional line number where the exception is thrown.
     ApiException(int error_code, const char *msg = nullptr, const char *filename = nullptr, int line_number = 0);
+    /// Move constructor.
+    /// @param other Object to move.
     ApiException(ApiException &&other) noexcept;
 
+    /// A helper function which converts the @p error_code into a string message.
+    /// @param error_code The GPU API error code to retrieve a message for - e.g., a @c cudaError_t .
+    /// @return A string which identifies the @p error_code . Some codes may be unknown.
     static const char *errorCodeString(int error_code);
 
+    /// Query the error code value for the exception.
+    /// @return The underlying SDK error code - e.g., a @c cudaError_t .
     inline int errorCode() const { return error_code_; }
 
   private:

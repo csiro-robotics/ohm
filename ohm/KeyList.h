@@ -191,7 +191,7 @@ namespace ohm
     /// Check if the key list is empty, containing no elements.
     /// @return True if the key list is empty.
     inline bool empty() const { return count_ == 0; }
-    /// An alias for @c emtpy().
+    /// An alias for @c empty().
     /// @return True if the key list is empty.
     inline bool isEmpty() const { return count_ == 0; }
 

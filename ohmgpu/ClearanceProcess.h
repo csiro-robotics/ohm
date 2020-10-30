@@ -86,7 +86,11 @@ namespace ohm
     /// @param range The new search radius.
     void setSearchRadius(float range);
 
+    /// The @c QueryFlag values applied to the process.
+    /// @return The value values.
     unsigned queryFlags() const;
+    /// Set the @c QueryFlag values for the process.
+    /// @param flags The flag values to set.
     void setQueryFlags(unsigned flags);
 
     /// Get the axis weightings applied when determining the nearest obstructing voxel.
@@ -161,7 +165,11 @@ namespace ohm
     bool updateRegion(OccupancyMap &map,  // NOLINT(google-runtime-references)
                       const glm::i16vec3 &region_key, bool force);
 
+    /// Interal data access
+    /// @return The internal data members.
     ClearanceProcessDetail *imp();
+    /// Interal data access
+    /// @return The internal data members.
     const ClearanceProcessDetail *imp() const;
 
   private:

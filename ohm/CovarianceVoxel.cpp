@@ -297,38 +297,40 @@ void ohm::integrateNdtMiss(NdtMap &map, const Key &key, const glm::dvec3 &sensor
   if (map.trace())
   {
     const glm::dvec3 voxel_centre = occupancy_map.voxelCentreGlobal(key);
-    TES_BOX_W(g_3es, TES_COLOUR(OrangeRed), TES_PTR_ID(cov.dataPtr()), glm::value_ptr(voxel_centre),
-              glm::value_ptr(glm::dvec3(occupancy_map.resolution())));
+    TES_BOX_W(g_3es, TES_COLOUR(OrangeRed), tes::Id(cov_voxel.voxelMemory()),
+              tes::Transform(glm::value_ptr(voxel_centre), glm::value_ptr(glm::dvec3(occupancy_map.resolution()))));
     TES_SERVER_UPDATE(g_3es, 0.0f);
 
     bool drew_surfel = false;
     glm::dquat rot;
     glm::dvec3 scale;
-    if (covarianceUnitSphereTransformation(cov.dataPtr(), &rot, &scale))
+    if (covarianceUnitSphereTransformation(&cov, &rot, &scale))
     {
-      TES_SPHERE(g_3es, TES_COLOUR(SeaGreen), TES_PTR_ID(cov.dataPtr()), glm::value_ptr(voxel_mean),
-                 glm::value_ptr(scale), tes::Quaterniond(rot.x, rot.y, rot.z, rot.w));
+      TES_SPHERE(g_3es, TES_COLOUR(SeaGreen), tes::Id(cov_voxel.voxelMemory()),
+                 tes::Transform(tes::Vector3d(glm::value_ptr(voxel_mean)), tes::Quaterniond(rot.x, rot.y, rot.z, rot.w),
+                                tes::Vector3d(glm::value_ptr(scale))));
       drew_surfel = true;
     }
 
     // Trace the voxel mean, maximum likelihood point and the ellipsoid.
     // Mean
-    TES_SPHERE(g_3es, TES_COLOUR(OrangeRed), TES_PTR_ID(&voxel_mean), glm::value_ptr(voxel_mean), 0.05f);
+    TES_SPHERE(g_3es, TES_COLOUR(OrangeRed), tes::Id(&voxel_mean), tes::Spherical(glm::value_ptr(voxel_mean), 0.05f));
     // Maximum likelihood
-    TES_SPHERE_W(g_3es, TES_COLOUR(PowderBlue), TES_PTR_ID(&voxel_maximum_likelihood),
-                 glm::value_ptr(voxel_maximum_likelihood), 0.1f);
+    TES_SPHERE_W(g_3es, TES_COLOUR(PowderBlue), tes::Id(&voxel_maximum_likelihood),
+                 tes::Spherical(glm::value_ptr(voxel_maximum_likelihood), 0.1f));
 
     char text[64];
     sprintf(text, "P %.3f", ohm::valueToProbability(occupancy - initial_value));
-    TES_TEXT2D_WORLD(g_3es, TES_COLOUR(White), text, glm::value_ptr(voxel_centre));
+    TES_TEXT2D_WORLD(g_3es, TES_COLOUR(White), text, tes::Id(),
+                     tes::Spherical(tes::Vector3d(glm::value_ptr(voxel_centre))));
 
     TES_SERVER_UPDATE(g_3es, 0.0f);
-    TES_BOX_END(g_3es, TES_PTR_ID(cov.dataPtr()));
-    TES_SPHERE_END(g_3es, TES_PTR_ID(&voxel_mean));
-    TES_SPHERE_END(g_3es, TES_PTR_ID(&voxel_maximum_likelihood));
+    TES_BOX_END(g_3es, tes::Id(cov_voxel.voxelMemory()));
+    TES_SPHERE_END(g_3es, tes::Id(&voxel_mean));
+    TES_SPHERE_END(g_3es, tes::Id(&voxel_maximum_likelihood));
     if (drew_surfel)
     {
-      TES_SPHERE_END(g_3es, TES_PTR_ID(cov.dataPtr()));
+      TES_SPHERE_END(g_3es, tes::Id(cov_voxel.voxelMemory()));
     }
   }
 #endif  // TES_ENABLE

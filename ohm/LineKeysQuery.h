@@ -100,7 +100,11 @@ namespace ohm
     bool onExecuteAsync() override;
     void onReset(bool hard_reset) override;
 
+    /// Access internal details.
+    /// @return Internal details.
     LineKeysQueryDetail *imp();
+    /// Access internal details.
+    /// @return Internal details.
     const LineKeysQueryDetail *imp() const;
   };
 }  // namespace ohm

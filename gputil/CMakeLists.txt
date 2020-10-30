@@ -18,7 +18,6 @@ set(GPUTIL_TYPE_CUDA 2)
 
 set(PUBLIC_HEADERS
   gpu_ext.h
-  gpuAccessException.h
   gpuApiException.h
   gpuBuffer.h
   gpuConfig.in.h
@@ -39,7 +38,6 @@ set(PUBLIC_HEADERS
 )
 
 set(SOURCES
-  gpuAccessException.cpp
   gpuApiException.cpp
   gpuConfig.in.h
   gpuEventList.cpp

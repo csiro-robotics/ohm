@@ -156,7 +156,7 @@ namespace ndttests
     // voxel and test rays to pass through this voxel. While this assumption is not enforced by the integrateHit() calls
     // below, but we do cache the corresponding voxel key in target_key.
     ohm::Key target_key;
-    TES_STMT(std::vector<glm::vec3> lines);
+    TES_STMT(std::vector<tes::Vector3d> lines);
     for (size_t i = 0; i < samples.size(); ++i)
     {
       const glm::dvec3 &sample = samples[i];
@@ -164,11 +164,11 @@ namespace ndttests
       ohm::Key key = map.voxelKey(sample);
       target_key = key;
       ohm::integrateNdtHit(ndt, key, sample);
-      TES_LINE(ohm::g_3es, TES_COLOUR(Yellow), glm::value_ptr(sensor), glm::value_ptr(sample));
-      TES_STMT(lines.emplace_back(glm::vec3(sensor)));
-      TES_STMT(lines.emplace_back(glm::vec3(sample)));
+      TES_LINE(ohm::g_3es, TES_COLOUR(Yellow), tes::Id(), glm::value_ptr(sensor), glm::value_ptr(sample));
+      TES_STMT(lines.emplace_back(tes::Vector3d(glm::value_ptr(sensor))));
+      TES_STMT(lines.emplace_back(tes::Vector3d(glm::value_ptr(sample))));
     }
-    TES_LINES(ohm::g_3es, TES_COLOUR(Yellow), glm::value_ptr(*lines.data()), lines.size(), sizeof(*lines.data()));
+    TES_LINES(ohm::g_3es, TES_COLOUR(Yellow), tes::Id(), tes::DataBuffer(lines));
     TES_SERVER_UPDATE(ohm::g_3es, 0.0f);
 
     // Fetch the target_voxel in which we expect all samples to fall.
@@ -184,11 +184,11 @@ namespace ndttests
     for (size_t i = 0; i < test_rays.size(); i += 2)
     {
       occupancy.write(initial_value);
-      TES_LINE(ohm::g_3es, TES_COLOUR(Cornsilk), glm::value_ptr(test_rays[i]), glm::value_ptr(test_rays[i + 1]),
-               TES_PTR_ID(&sensor));
+      TES_LINE(ohm::g_3es, TES_COLOUR(Cornsilk), tes::Id(&sensor), glm::value_ptr(test_rays[i]),
+               glm::value_ptr(test_rays[i + 1]));
       TES_SERVER_UPDATE(ohm::g_3es, 0.0f);
       ohm::integrateNdtMiss(ndt, target_key, test_rays[i], test_rays[i + 1]);
-      TES_LINES_END(ohm::g_3es, TES_PTR_ID(&sensor));
+      TES_LINES_END(ohm::g_3es, tes::Id(&sensor));
       // Calculate the value adjustment.
       float adjusted_value;
       occupancy.read(&adjusted_value);

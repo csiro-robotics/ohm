@@ -160,13 +160,20 @@ namespace gputil
   class gputilAPI Kernel
   {
   public:
+    /// Construct an empty kernel.
     Kernel();
+    /// Move constructor
+    /// @param other The object to move.
     Kernel(Kernel &&other) noexcept;
 
+    /// Destuctor - ensures @c release() is called.
     ~Kernel();
 
+    /// Query if the kernel has been correctly setup.
+    /// @return True if the kernel has been setup with error and can be invoked.
     bool isValid() const;
 
+    /// Release the GPU kernel.
     void release();
 
     /// Add local memory calculation.
@@ -206,26 +213,67 @@ namespace gputil
     /// @param total_work_items The total volume of items to process.
     void calculateGrid(gputil::Dim3 *global_size, gputil::Dim3 *local_size, const gputil::Dim3 &total_work_items);
 
+    /// Queue an invocation of the kernel with the given global and local sizes and the specified queue - arguments
+    /// follow.
+    /// @param global_size The global dimensions of the of GPU thread pool to run the the kernel with.
+    /// @param local_size The local thread division of the @p global_size .
+    /// @param queue The GPU queue to invoke the kernel on. May be null to used the default queue
+    /// @param args Arguments to pass to the kernel.
+    /// @return Zero on success or an SDK error code on falure - e.g., @c cudaSuccess .
     template <typename... ARGS>
     int operator()(const Dim3 &global_size, const Dim3 &local_size, Queue *queue, ARGS... args);
 
+    /// Queue an invocation of the kernel with the given global and local sizes and the specified queue - arguments
+    /// follow. The @p completion_event is set to mark the completion of the invocation and can be used for
+    /// synchronisation. For example waiting on @p completion_event on CPU blocks the CPU until the kernel completes.
+    /// @param global_size The global dimensions of the of GPU thread pool to run the the kernel with.
+    /// @param local_size The local thread division of the @p global_size .
+    /// @param completion_event Event object modified to mark the completion of the kernel execution.
+    /// @param queue The GPU queue to invoke the kernel on. May be null to used the default queue
+    /// @param args Arguments to pass to the kernel.
+    /// @return Zero on success or an SDK error code on falure - e.g., @c cudaSuccess .
     template <typename... ARGS>
     int operator()(const Dim3 &global_size, const Dim3 &local_size,
                    Event &completion_event,  // NOLINT(google-runtime-references)
                    Queue *queue, ARGS... args);
 
+    /// Queue an invocation of the kernel to start after all @p event_list items complete.
+    /// @param global_size The global dimensions of the of GPU thread pool to run the the kernel with.
+    /// @param local_size The local thread division of the @p global_size .
+    /// @param event_list Events which must complete before kernel execution can start.
+    /// @param queue The GPU queue to invoke the kernel on. May be null to used the default queue
+    /// @param args Arguments to pass to the kernel.
+    /// @return Zero on success or an SDK error code on falure - e.g., @c cudaSuccess .
     template <typename... ARGS>
     int operator()(const Dim3 &global_size, const Dim3 &local_size, const EventList &event_list, Queue *queue,
                    ARGS... args);
 
+
+    /// Queue an invocation of the kernel to start after all @p event_list items complete. The @p completion_event is
+    /// set to mark the completion of the invocation and can be used for synchronisation. For example waiting on @p
+    /// completion_event on CPU blocks the CPU until the kernel completes.
+    /// @param global_size The global dimensions of the of GPU thread pool to run the the kernel with.
+    /// @param local_size The local thread division of the @p global_size .
+    /// @param event_list Events which must complete before kernel execution can start.
+    /// @param completion_event Event object modified to mark the completion of the kernel execution.
+    /// @param queue The GPU queue to invoke the kernel on. May be null to used the default queue
+    /// @param args Arguments to pass to the kernel.
+    /// @return Zero on success or an SDK error code on falure - e.g., @c cudaSuccess .
     template <typename... ARGS>
     int operator()(const Dim3 &global_size, const Dim3 &local_size, const EventList &event_list,
                    Event &completion_event, Queue *queue, ARGS... args);  // NOLINT(google-runtime-references)
 
+    /// Internal kernel representation.
+    /// @return The internal representation.
     KernelDetail *detail() const { return imp_; }
 
+    /// Query the @c Device which the kernel has been associated with and on which the kernel will run when invoked.
+    /// @return The kernel's @c Device .
     Device device();
 
+    /// Move assignment.
+    /// @param other The object to move.
+    /// @return `*this`
     Kernel &operator=(Kernel &&other) noexcept;
 
   private:

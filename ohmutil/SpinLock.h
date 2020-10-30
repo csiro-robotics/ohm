@@ -39,6 +39,10 @@ private:
   SpinLockImp *imp_;  ///< Implementation detail.
 };
 
+#ifndef DOXYGEN_SHOULD_SKIP_THIS
+
+/// Scope lock for @c SpinLock .
+/// Deprecated.
 class ScopedSpinLock
 {
 public:
@@ -81,5 +85,6 @@ private:
   bool have_lock_;
 };
 
+#endif  // DOXYGEN_SHOULD_SKIP_THIS
 
 #endif  // OHMUTIL_SPINLOCK_H

@@ -115,6 +115,8 @@ set(SOURCES
   RayMapperNdt.h
   RayMapperOccupancy.cpp
   RayMapperOccupancy.h
+  RayMapperTrace.cpp
+  RayMapperTrace.h
   RayPattern.cpp
   RayPattern.h
   RayPatternConical.cpp
@@ -194,6 +196,7 @@ set(PUBLIC_HEADERS
   RayMapper.h
   RayMapperNdt.h
   RayMapperOccupancy.h
+  RayMapperTrace.h
   RayPatternConical.h
   RayPattern.h
   Stream.h

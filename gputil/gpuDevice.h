@@ -179,7 +179,8 @@ namespace gputil
     /// @return *this
     Device &operator=(Device &&other) noexcept;
 
-    /// @internal
+    /// Get the internal device representation.
+    /// @return The internal device detail.
     DeviceDetail *detail() const { return imp_; }
 
   private:

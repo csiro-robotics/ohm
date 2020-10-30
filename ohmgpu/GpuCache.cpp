@@ -60,7 +60,10 @@ void GpuCache::flush()
 {
   for (auto &&layer : imp_->layer_caches)
   {
-    layer->syncToMainMemory();
+    if (layer)
+    {
+      layer->syncToMainMemory();
+    }
   }
 }
 

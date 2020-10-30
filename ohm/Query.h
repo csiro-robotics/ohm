@@ -142,7 +142,10 @@ namespace ohm
     /// @return True on successfully starting an asynchronous query.
     virtual bool onExecuteAsync() = 0;
 
-    // TODO(KS): make pure virtual
+    /// Wait for an asynchronous query to complete.
+    /// @param timeout_ms Maximum time to wait (milliseconds) - zero to wait indefinitely.
+    /// @return True if the query completed before the timeout.
+    /// @todo (KS): make pure virtual
     virtual bool onWaitAsync(unsigned timeout_ms);
 
     /// Called from @c reset(bool hardReset) to complete or terminate any
@@ -151,7 +154,7 @@ namespace ohm
     virtual void onReset(bool hard_reset) = 0;
 
   protected:
-    QueryDetail *imp_;
+    QueryDetail *imp_;  ///< Internal implementation details.
   };
 }  // namespace ohm
 

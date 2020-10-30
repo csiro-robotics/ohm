@@ -33,11 +33,19 @@ namespace ohm
     size_t gpu_mem_size = 0;
     /// The @c MapLayer index the cache pulls data from.
     int map_layer = 0;
-    /// Cache creation flags.
+    /// @c GpuLayerCacheFlag cache creation flags.
     unsigned flags = kGcfDefaultFlags;
+    /// Callback invoked on synchronising memory back to CPU.
+    /// The calling thread may not be the main thread, so the function must be threadsafe.
     GpuCachePostSyncHandler on_sync;
 
+    /// Default constructor.
     GpuLayerCacheParams() = default;
+    /// Construct with the given member values.
+    /// @param mem_size Target GPU cache size.
+    /// @param layer The @c MapLayer index which the GPU layer cache synchronised with.
+    /// @param flags @c GpuLayerCacheFlag cache creation flags.
+    /// @param on_sync Callback to invoke on synchronising back to CPU.
     GpuLayerCacheParams(size_t mem_size, int layer, unsigned flags,
                         const GpuCachePostSyncHandler &on_sync = GpuCachePostSyncHandler())
       : gpu_mem_size(mem_size)

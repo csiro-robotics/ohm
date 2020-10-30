@@ -5,7 +5,7 @@
 // Author: Kazys Stepanas
 #include "gpuQueue.h"
 
-#include "gpuAccessException.h"
+#include "gpuApiException.h"
 
 #include "cl/gpuEventDetail.h"
 #include "cl/gpuQueueDetail.h"

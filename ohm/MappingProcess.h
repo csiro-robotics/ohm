@@ -25,20 +25,32 @@ namespace ohm
 
   /// Base class for processes to be added to the @p Mapper for processing during map update.
   ///
+  /// @note This class and all derivations are experimental.
+  ///
   /// @todo Features to consider:
   /// - Update period and scheduling
   /// - Update only on dirty?
   class ohm_API MappingProcess
   {
   public:
+    /// Construtor.
     MappingProcess();
+    /// Virtual destrutor.
     virtual ~MappingProcess();
 
+    /// Request a pause or unpause the process.
+    /// @param pause True to pause, false to unpause.
     inline void pause(bool pause = true) { paused_ = pause; }
+    /// Query if the process is currently paused.
+    /// @return True if paused.
     inline bool paused() const { return paused_; }
 
+    /// Request a reset of the process. Must drop and reinitialise all data.
     virtual void reset() = 0;
 
+    /// Called to update the process on the given map and limited processing time.
+    /// @param map The map to target.
+    /// @param time_slice Time processing limit for the update (seconds).
     virtual int update(OccupancyMap &map, double time_slice) = 0;  // NOLINT(google-runtime-references)
 
   private:

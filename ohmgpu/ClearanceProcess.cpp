@@ -569,8 +569,9 @@ bool ClearanceProcess::updateRegion(OccupancyMap &map, const glm::i16vec3 &regio
   }
 
   // Debug highlight the region.
-  TES_BOX_W(g_3es, TES_COLOUR(FireBrick), uint32_t((size_t)&map), glm::value_ptr(map.regionSpatialCentre(region_key)),
-            glm::value_ptr(map.regionSpatialResolution()));
+  TES_BOX_W(g_3es, TES_COLOUR(FireBrick), tes::Id(&map),
+            tes::Transform(tes::Vector3d(glm::value_ptr(map.regionSpatialCentre(region_key))),
+                           tes::Vector3d(glm::value_ptr(map.regionSpatialResolution()))));
 
   if ((d->query_flags & kQfGpuEvaluate))
   {
