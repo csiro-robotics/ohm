@@ -12,7 +12,7 @@
 
 namespace ohm
 {
-  /// A connical @c RayPattern construction
+  /// A conical @c RayPattern construction
   class RayPatternConical : public RayPattern
   {
   public:
