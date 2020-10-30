@@ -37,13 +37,13 @@ int HeightmapDetail::surfaceIndexA(UpAxis up_axis_id)
 {
   static const int indices[] =  //
     {
-      0, // -Z
-      0, // -Y
-      1, // -X
-      1, // X
-      0, // Y
-      0, // Z
-      0, // Dummy
+      0,  // -Z
+      0,  // -Y
+      1,  // -X
+      1,  // X
+      0,  // Y
+      0,  // Z
+      0,  // Dummy
     };
 
   int lookup_index = int(up_axis_id) + 3;
@@ -85,13 +85,13 @@ int HeightmapDetail::surfaceIndexB(UpAxis up_axis_id)
 {
   static const int indices[] =  //
     {
-      1, // -Z
-      2, // -Y
-      2, // -X
-      2, // X
-      2, // Y
-      1, // Z
-      1, // Dummy
+      1,  // -Z
+      2,  // -Y
+      2,  // -X
+      2,  // X
+      2,  // Y
+      1,  // Z
+      1,  // Dummy
     };
 
   int lookup_index = int(up_axis_id) + 3;

@@ -4,12 +4,12 @@
 //
 #include "RayMapperOccupancy.h"
 
-#include "OccupancyMap.h"
 #include "MapLayer.h"
 #include "MapLayout.h"
+#include "OccupancyMap.h"
 #include "Voxel.h"
-#include "VoxelMean.h"
 #include "VoxelBuffer.h"
+#include "VoxelMean.h"
 #include "VoxelOccupancy.h"
 
 #include <ohmutil/LineWalk.h>

@@ -20,40 +20,40 @@ using namespace ohm;
 
 namespace
 {
-  void filterLayers(MapLayoutDetail &imp,  // NOLINT(google-runtime-references)
-                    const std::vector<unsigned> &preserve_layers)
+void filterLayers(MapLayoutDetail &imp,  // NOLINT(google-runtime-references)
+                  const std::vector<unsigned> &preserve_layers)
+{
+  if (imp.layers.empty())
   {
-    if (imp.layers.empty())
+    return;
+  }
+
+  unsigned effective_index = 0;
+  for (unsigned i = 0; i < unsigned(imp.layers.size()); ++effective_index)
+  {
+    MapLayer *layer = imp.layers[i];
+    bool preserve = false;
+    for (unsigned preserve_index : preserve_layers)
     {
-      return;
+      if (preserve_index == effective_index)
+      {
+        preserve = true;
+        break;
+      }
     }
 
-    unsigned effective_index = 0;
-    for (unsigned i = 0; i < unsigned(imp.layers.size()); ++effective_index)
+    if (!preserve)
     {
-      MapLayer *layer = imp.layers[i];
-      bool preserve = false;
-      for (unsigned preserve_index : preserve_layers)
-      {
-        if (preserve_index == effective_index)
-        {
-          preserve = true;
-          break;
-        }
-      }
-
-      if (!preserve)
-      {
-        delete layer;
-        imp.layers.erase(imp.layers.begin() + i);
-      }
-      else
-      {
-        layer->setLayerIndex(i);
-        ++i;
-      }
+      delete layer;
+      imp.layers.erase(imp.layers.begin() + i);
+    }
+    else
+    {
+      layer->setLayerIndex(i);
+      ++i;
     }
   }
+}
 }  // namespace
 
 

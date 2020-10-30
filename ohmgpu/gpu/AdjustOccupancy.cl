@@ -6,13 +6,14 @@
 #ifndef ADJUSTOCCUPANCY_CL
 #define ADJUSTOCCUPANCY_CL
 
-inline __device__ float calculateOccupancyAdjustment(const GpuKey *voxelKey, bool isEndVoxel,
-                                                     const GpuKey *startKey, const GpuKey *endKey,
-                                                     float voxel_resolution, LineWalkData *line_data)
+inline __device__ float calculateOccupancyAdjustment(const GpuKey *voxelKey, bool isEndVoxel, const GpuKey *startKey,
+                                                     const GpuKey *endKey, float voxel_resolution,
+                                                     LineWalkData *line_data)
 {
   const float adjustment = (!isEndVoxel || line_data->region_update_flags & kRfEndPointAsFree) ?
-            line_data->ray_adjustment : line_data->sample_adjustment;
+                             line_data->ray_adjustment :
+                             line_data->sample_adjustment;
   return adjustment;
 }
 
-#endif // ADJUSTNDT_CL
+#endif  // ADJUSTNDT_CL

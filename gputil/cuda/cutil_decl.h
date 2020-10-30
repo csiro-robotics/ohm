@@ -17,8 +17,8 @@
 
 namespace gputil
 {
-  using SharedMemCalculation = std::function<size_t(size_t)>;
-  using OptimalGroupSizeCalculation = std::function<int(size_t *, const SharedMemCalculation &)>;
+using SharedMemCalculation = std::function<size_t(size_t)>;
+using OptimalGroupSizeCalculation = std::function<int(size_t *, const SharedMemCalculation &)>;
 }  // namespace gputil
 
 #define _GPUTIL_DECLARE_KERNEL(kernel_name) const void *kernel_name##Ptr()

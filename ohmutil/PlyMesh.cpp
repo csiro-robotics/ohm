@@ -24,16 +24,16 @@ using namespace ohm;
 
 namespace
 {
-  constexpr bool isBigEndian()
+constexpr bool isBigEndian()
+{
+  const union
   {
-    const union
-    {
-      uint32_t i;
-      char c[4];
-    } check_int = { 0x01020304 };
+    uint32_t i;
+    char c[4];
+  } check_int = { 0x01020304 };
 
-    return check_int.c[0] == 1;
-  }
+  return check_int.c[0] == 1;
+}
 }  // namespace
 
 // File wrapper specialisations.

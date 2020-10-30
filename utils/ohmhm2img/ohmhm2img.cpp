@@ -32,249 +32,249 @@
 
 namespace
 {
-  int quit = 0;
+int quit = 0;
 
-  void onSignal(int arg)
+void onSignal(int arg)
+{
+  if (arg == SIGINT || arg == SIGTERM)
   {
-    if (arg == SIGINT || arg == SIGTERM)
+    ++quit;
+  }
+}
+
+enum ExportMode
+{
+  kNormals16 = ohm::HeightmapImage::kImageNormals,
+  kNormals8 = ohm::HeightmapImage::kImageNormals888,
+  kHeights = ohm::HeightmapImage::kImageHeights,
+  kTraversability
+};
+
+enum ExportImageType
+{
+  kExportError = -1,
+  kExportRGB8,
+  kExportRGB16,
+  kExportGrey8,
+  kExportGrey16
+};
+
+struct Options
+{
+  std::string map_file;
+  std::string image_file;
+  ExportMode image_mode = kNormals16;
+  ohm::HeightmapMesh::NormalsMode normals_mode = ohm::HeightmapMesh::kNormalsAverage;
+  double traverse_angle = 45.0;
+
+  ohm::HeightmapImage::ImageType imageType() const
+  {
+    switch (image_mode)
     {
-      ++quit;
+    case kNormals16:
+      return ohm::HeightmapImage::kImageNormals;
+    case kNormals8:
+      return ohm::HeightmapImage::kImageNormals888;
+    case kHeights:
+      return ohm::HeightmapImage::kImageHeights;
+    case kTraversability:
+      return ohm::HeightmapImage::kImageNormals;
+    default:
+      break;
     }
+
+    return ohm::HeightmapImage::kImageNormals;
+  }
+};
+
+
+class LoadMapProgress : public ohm::SerialiseProgress
+{
+public:
+  LoadMapProgress(ProgressMonitor &monitor)  // NOLINT(google-runtime-references)
+    : monitor_(monitor)
+  {}
+
+  bool quit() const override { return ::quit > 1; }
+
+  void setTargetProgress(unsigned target) override { monitor_.beginProgress(ProgressMonitor::Info(target)); }
+  void incrementProgress(unsigned inc) override { monitor_.incrementProgressBy(inc); }
+
+private:
+  ProgressMonitor &monitor_;
+};
+
+ExportImageType convertImage(std::vector<uint8_t> &export_pixels,  // NOLINT(google-runtime-references)
+                             const uint8_t *raw, const ohm::HeightmapImage::BitmapInfo &info, const Options &opt)
+{
+  if (info.type == ohm::HeightmapImage::kImageVertexColours888)
+  {
+    export_pixels.resize(size_t(info.image_width) * size_t(info.image_height) * 3u);
+    memcpy(export_pixels.data(), raw, export_pixels.size());
+    return kExportRGB8;
   }
 
-  enum ExportMode
+  if (opt.image_mode == kNormals16 && info.type == ohm::HeightmapImage::kImageNormals)
   {
-    kNormals16 = ohm::HeightmapImage::kImageNormals,
-    kNormals8 = ohm::HeightmapImage::kImageNormals888,
-    kHeights = ohm::HeightmapImage::kImageHeights,
-    kTraversability
-  };
+    // Need to convert float colour to u16
+    export_pixels.clear();
+    export_pixels.reserve(info.image_width * info.image_height * 3 * sizeof(uint16_t));
 
-  enum ExportImageType
-  {
-    kExportError = -1,
-    kExportRGB8,
-    kExportRGB16,
-    kExportGrey8,
-    kExportGrey16
-  };
+    float red, green, blue;
+    uint16_t red16, green16, blue16;
 
-  struct Options
-  {
-    std::string map_file;
-    std::string image_file;
-    ExportMode image_mode = kNormals16;
-    ohm::HeightmapMesh::NormalsMode normals_mode = ohm::HeightmapMesh::kNormalsAverage;
-    double traverse_angle = 45.0;
+    const auto convert_colour = [](float c) -> uint16_t { return uint16_t(c * float(0xffffu)); };
 
-    ohm::HeightmapImage::ImageType imageType() const
-    {
-      switch (image_mode)
+    const auto push_channel = [](std::vector<uint8_t> &out, uint16_t c) {
+      const size_t insert_index = out.size();
+      // Push the stride in bytes.
+      for (size_t i = 0; i < sizeof(uint16_t); ++i)
       {
-      case kNormals16:
-        return ohm::HeightmapImage::kImageNormals;
-      case kNormals8:
-        return ohm::HeightmapImage::kImageNormals888;
-      case kHeights:
-        return ohm::HeightmapImage::kImageHeights;
-      case kTraversability:
-        return ohm::HeightmapImage::kImageNormals;
-      default:
-        break;
+        out.push_back(0);
       }
 
-      return ohm::HeightmapImage::kImageNormals;
-    }
-  };
+      *reinterpret_cast<uint16_t *>(&out[insert_index]) = c;
+    };
 
-
-  class LoadMapProgress : public ohm::SerialiseProgress
-  {
-  public:
-    LoadMapProgress(ProgressMonitor &monitor)  // NOLINT(google-runtime-references)
-      : monitor_(monitor)
-    {}
-
-    bool quit() const override { return ::quit > 1; }
-
-    void setTargetProgress(unsigned target) override { monitor_.beginProgress(ProgressMonitor::Info(target)); }
-    void incrementProgress(unsigned inc) override { monitor_.incrementProgressBy(inc); }
-
-  private:
-    ProgressMonitor &monitor_;
-  };
-
-  ExportImageType convertImage(std::vector<uint8_t> &export_pixels,  // NOLINT(google-runtime-references)
-                               const uint8_t *raw, const ohm::HeightmapImage::BitmapInfo &info, const Options &opt)
-  {
-    if (info.type == ohm::HeightmapImage::kImageVertexColours888)
+    for (size_t i = 0; i < size_t(info.image_width) * size_t(info.image_height) * size_t(info.bpp);
+         i += 3 * sizeof(float))
     {
-      export_pixels.resize(size_t(info.image_width) * size_t(info.image_height) * 3u);
-      memcpy(export_pixels.data(), raw, export_pixels.size());
-      return kExportRGB8;
-    }
+      red = *reinterpret_cast<const float *>(raw + i);
+      green = *reinterpret_cast<const float *>(raw + i + sizeof(float));
+      blue = *reinterpret_cast<const float *>(raw + i + 2 * sizeof(float));
 
-    if (opt.image_mode == kNormals16 && info.type == ohm::HeightmapImage::kImageNormals)
-    {
-      // Need to convert float colour to u16
-      export_pixels.clear();
-      export_pixels.reserve(info.image_width * info.image_height * 3 * sizeof(uint16_t));
+      red16 = convert_colour(red);
+      green16 = convert_colour(green);
+      blue16 = convert_colour(blue);
 
-      float red, green, blue;
-      uint16_t red16, green16, blue16;
-
-      const auto convert_colour = [](float c) -> uint16_t { return uint16_t(c * float(0xffffu)); };
-
-      const auto push_channel = [](std::vector<uint8_t> &out, uint16_t c) {
-        const size_t insert_index = out.size();
-        // Push the stride in bytes.
-        for (size_t i = 0; i < sizeof(uint16_t); ++i)
-        {
-          out.push_back(0);
-        }
-
-        *reinterpret_cast<uint16_t *>(&out[insert_index]) = c;
-      };
-
-      for (size_t i = 0; i < size_t(info.image_width) * size_t(info.image_height) * size_t(info.bpp);
-           i += 3 * sizeof(float))
+      // No data: black
+      if (red * red + green * green + blue * blue < 0.5f)
       {
-        red = *reinterpret_cast<const float *>(raw + i);
-        green = *reinterpret_cast<const float *>(raw + i + sizeof(float));
-        blue = *reinterpret_cast<const float *>(raw + i + 2 * sizeof(float));
-
-        red16 = convert_colour(red);
-        green16 = convert_colour(green);
-        blue16 = convert_colour(blue);
-
-        // No data: black
-        if (red * red + green * green + blue * blue < 0.5f)
-        {
-          red16 = green16 = blue16 = 0;
-        }
-
-        push_channel(export_pixels, red16);
-        push_channel(export_pixels, green16);
-        push_channel(export_pixels, blue16);
+        red16 = green16 = blue16 = 0;
       }
 
-      return kExportRGB16;
+      push_channel(export_pixels, red16);
+      push_channel(export_pixels, green16);
+      push_channel(export_pixels, blue16);
     }
 
-    if (opt.image_mode == kNormals8 && info.type == ohm::HeightmapImage::kImageNormals888)
+    return kExportRGB16;
+  }
+
+  if (opt.image_mode == kNormals8 && info.type == ohm::HeightmapImage::kImageNormals888)
+  {
+    export_pixels.resize(size_t(info.image_width) * size_t(info.image_height) * 3u);
+    memcpy(export_pixels.data(), raw, export_pixels.size());
+    return kExportRGB8;
+  }
+
+  if (opt.image_mode == kHeights && info.bpp == sizeof(float))
+  {
+    export_pixels.resize(info.image_width * info.image_height * sizeof(uint16_t));
+    const float *depth_pixels = reinterpret_cast<const float *>(raw);
+    uint16_t *depth_out = reinterpret_cast<uint16_t *>(export_pixels.data());
+
+    for (size_t i = 0; i < size_t(info.image_width) * size_t(info.image_height); ++i)
     {
-      export_pixels.resize(size_t(info.image_width) * size_t(info.image_height) * 3u);
-      memcpy(export_pixels.data(), raw, export_pixels.size());
-      return kExportRGB8;
+      depth_out[i] = uint16_t(1.0f - depth_pixels[i] * float(0xffffu));
     }
 
-    if (opt.image_mode == kHeights && info.bpp == sizeof(float))
-    {
-      export_pixels.resize(info.image_width * info.image_height * sizeof(uint16_t));
-      const float *depth_pixels = reinterpret_cast<const float *>(raw);
-      uint16_t *depth_out = reinterpret_cast<uint16_t *>(export_pixels.data());
+    return kExportGrey16;
+  }
 
-      for (size_t i = 0; i < size_t(info.image_width) * size_t(info.image_height); ++i)
+  if (opt.image_mode == kTraversability && info.type == ohm::HeightmapImage::kImageNormals)
+  {
+    static_assert(sizeof(glm::vec3) == sizeof(float) * 3, "glm::vec3 mismatch");
+    export_pixels.resize(size_t(info.image_width) * size_t(info.image_height));
+
+    const uint8_t c_unknown = 127u;
+    const uint8_t c_blocked = 0u;
+    const uint8_t c_free = 255u;
+    glm::vec3 normal{};
+    const glm::vec3 flat(0, 0, 1);
+    float dot;
+    const float free_threshold = float(std::cos(M_PI * opt.traverse_angle / 180.0));
+
+    for (size_t i = 0; i < size_t(info.image_width) * size_t(info.image_height); ++i)
+    {
+      memcpy(&normal, &raw[i * sizeof(normal)], sizeof(normal));
+      if (glm::dot(normal, normal) > 0.5f * 0.5f)
       {
-        depth_out[i] = uint16_t(1.0f - depth_pixels[i] * float(0xffffu));
-      }
-
-      return kExportGrey16;
-    }
-
-    if (opt.image_mode == kTraversability && info.type == ohm::HeightmapImage::kImageNormals)
-    {
-      static_assert(sizeof(glm::vec3) == sizeof(float) * 3, "glm::vec3 mismatch");
-      export_pixels.resize(size_t(info.image_width) * size_t(info.image_height));
-
-      const uint8_t c_unknown = 127u;
-      const uint8_t c_blocked = 0u;
-      const uint8_t c_free = 255u;
-      glm::vec3 normal{};
-      const glm::vec3 flat(0, 0, 1);
-      float dot;
-      const float free_threshold = float(std::cos(M_PI * opt.traverse_angle / 180.0));
-
-      for (size_t i = 0; i < size_t(info.image_width) * size_t(info.image_height); ++i)
-      {
-        memcpy(&normal, &raw[i * sizeof(normal)], sizeof(normal));
-        if (glm::dot(normal, normal) > 0.5f * 0.5f)
+        normal = 2.0f * normal - glm::vec3(1.0f);
+        normal = glm::normalize(normal);
+        dot = glm::dot(normal, flat);
+        if (dot >= free_threshold)
         {
-          normal = 2.0f * normal - glm::vec3(1.0f);
-          normal = glm::normalize(normal);
-          dot = glm::dot(normal, flat);
-          if (dot >= free_threshold)
-          {
-            export_pixels[i] = c_free;
-          }
-          else
-          {
-            export_pixels[i] = c_blocked;
-          }
+          export_pixels[i] = c_free;
         }
         else
         {
-          // No data.
-          export_pixels[i] = c_unknown;
+          export_pixels[i] = c_blocked;
         }
       }
-
-      return kExportGrey8;
+      else
+      {
+        // No data.
+        export_pixels[i] = c_unknown;
+      }
     }
 
-    return kExportError;
+    return kExportGrey8;
   }
 
+  return kExportError;
+}
 
-  bool savePng(const char *filename, const std::vector<uint8_t> &raw, ExportImageType type, unsigned w, unsigned h)
+
+bool savePng(const char *filename, const std::vector<uint8_t> &raw, ExportImageType type, unsigned w, unsigned h)
+{
+  png_image image;
+
+  // Initialize the 'png_image' structure.
+  memset(&image, 0, sizeof(image));
+  image.version = PNG_IMAGE_VERSION;
+  image.width = int(w);
+  image.height = int(h);
+  image.flags = 0;
+  image.colormap_entries = 0;
+
+  int row_stride = w;
+  switch (type)
   {
-    png_image image;
-
-    // Initialize the 'png_image' structure.
-    memset(&image, 0, sizeof(image));
-    image.version = PNG_IMAGE_VERSION;
-    image.width = int(w);
-    image.height = int(h);
-    image.flags = 0;
-    image.colormap_entries = 0;
-
-    int row_stride = w;
-    switch (type)
-    {
-    case kExportRGB8:
-      image.format = PNG_FORMAT_RGB;
-      row_stride = -int(w * 3);
-      break;
-    case kExportRGB16:
-      image.format = PNG_FORMAT_RGB | PNG_IMAGE_FLAG_16BIT_sRGB;
-      row_stride = -int(w * 3);
-      break;
-    case kExportGrey8:
-      image.format = PNG_FORMAT_GRAY;
-      row_stride = -int(w);
-      break;
-    case kExportGrey16:
-      image.format = PNG_FORMAT_LINEAR_Y;
-      row_stride = -int(w);
-      break;
-    default:
-      image.format = PNG_FORMAT_GRAY;
-      row_stride = -int(w);
-      break;
-    }
-
-    // Negative row stride to flip the image.
-    if (png_image_write_to_file(&image, filename, false,  // convert_to_8bit,
-                                raw.data(),
-                                row_stride,  // row_stride
-                                nullptr      // colormap
-                                ))
-    {
-      return true;
-    }
-
-    return false;
+  case kExportRGB8:
+    image.format = PNG_FORMAT_RGB;
+    row_stride = -int(w * 3);
+    break;
+  case kExportRGB16:
+    image.format = PNG_FORMAT_RGB | PNG_IMAGE_FLAG_16BIT_sRGB;
+    row_stride = -int(w * 3);
+    break;
+  case kExportGrey8:
+    image.format = PNG_FORMAT_GRAY;
+    row_stride = -int(w);
+    break;
+  case kExportGrey16:
+    image.format = PNG_FORMAT_LINEAR_Y;
+    row_stride = -int(w);
+    break;
+  default:
+    image.format = PNG_FORMAT_GRAY;
+    row_stride = -int(w);
+    break;
   }
+
+  // Negative row stride to flip the image.
+  if (png_image_write_to_file(&image, filename, false,  // convert_to_8bit,
+                              raw.data(),
+                              row_stride,  // row_stride
+                              nullptr      // colormap
+                              ))
+  {
+    return true;
+  }
+
+  return false;
+}
 }  // namespace
 
 
@@ -368,7 +368,7 @@ int parseOptions(Options *opt, int argc, char *argv[])
 
   try
   {
-    opt_parse.add_options()("help", "Show help.")                                        //
+    opt_parse.add_options()("help", "Show help.")                                       //
       ("i", "The input heightmap file (ohm).", cxxopts::value(opt->map_file))           //
       ("o", "The output heightmap image file (png).", cxxopts::value(opt->image_file))  //
       ("m,mode",

@@ -12,10 +12,10 @@
 
 namespace gputil
 {
-  struct EventDetail
-  {
-    cl_event event;
-  };
+struct EventDetail
+{
+  cl_event event;
+};
 }  // namespace gputil
 
 #endif  // GPUEVENTDETAIL_H

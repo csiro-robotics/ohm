@@ -19,82 +19,82 @@ using namespace ohm;
 
 namespace std
 {
-  template <>
-  struct hash<ohm::MapValue>
+template <>
+struct hash<ohm::MapValue>
+{
+  size_t operator()(const ohm::MapValue &value) const
   {
-    size_t operator()(const ohm::MapValue &value) const
-    {
-      return std::hash<std::string>()(*static_cast<const std::string *>(value.namePtr()));
-    }
-  };
+    return std::hash<std::string>()(*static_cast<const std::string *>(value.namePtr()));
+  }
+};
 }  // namespace std
 
 namespace ohm
 {
-  struct TreeSearchPredicate
-  {
-    bool operator()(const MapValue &left, const MapValue &right) const { return left.namesEqual(right); }
-  };
+struct TreeSearchPredicate
+{
+  bool operator()(const MapValue &left, const MapValue &right) const { return left.namesEqual(right); }
+};
 
 
-  struct MapInfoDetail
-  {
-    std::unordered_set<MapValue, std::hash<MapValue>, TreeSearchPredicate> dictionary;
-  };
+struct MapInfoDetail
+{
+  std::unordered_set<MapValue, std::hash<MapValue>, TreeSearchPredicate> dictionary;
+};
 }  // namespace ohm
 
 namespace
 {
-  template <typename T>
-  class StringConvert
+template <typename T>
+class StringConvert
+{
+public:
+  static T convert(const char *str)
   {
-  public:
-    static T convert(const char *str)
+    if (!str)
     {
-      if (!str)
-      {
-        return T(0);
-      }
-
-      std::istringstream s(str);
-      T val = T(0);
-      s >> val;
-      return val;
+      return T(0);
     }
-  };
+
+    std::istringstream s(str);
+    T val = T(0);
+    s >> val;
+    return val;
+  }
+};
 
 
-  template <>
-  class StringConvert<const char *>
+template <>
+class StringConvert<const char *>
+{
+public:
+  static const char *convert(const char *str) { return str; }
+};
+
+
+template <>
+class StringConvert<bool>
+{
+public:
+  static bool convert(const char *str)
   {
-  public:
-    static const char *convert(const char *str) { return str; }
-  };
-
-
-  template <>
-  class StringConvert<bool>
-  {
-  public:
-    static bool convert(const char *str)
+    if (!str)
     {
-      if (!str)
-      {
-        return false;
-      }
-
-      if (_stricmp("true", str) == 0 || _stricmp("yes", str) == 0 || _stricmp("on", str) == 0)
-      {
-        return true;
-      }
-      if (_stricmp("false", str) == 0 || _stricmp("no", str) == 0 || _stricmp("off", str) == 0)
-      {
-        return true;
-      }
-
-      return StringConvert<float>::convert(str) != 0;
+      return false;
     }
-  };
+
+    if (_stricmp("true", str) == 0 || _stricmp("yes", str) == 0 || _stricmp("on", str) == 0)
+    {
+      return true;
+    }
+    if (_stricmp("false", str) == 0 || _stricmp("no", str) == 0 || _stricmp("off", str) == 0)
+    {
+      return true;
+    }
+
+    return StringConvert<float>::convert(str) != 0;
+  }
+};
 }  // namespace
 
 MapValue::MapValue()  // NOLINT(cppcoreguidelines-pro-type-member-init)

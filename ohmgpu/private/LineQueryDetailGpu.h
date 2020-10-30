@@ -14,12 +14,12 @@
 
 namespace ohm
 {
-  class ClearanceProcess;
+class ClearanceProcess;
 
-  struct LineQueryDetailGpu : LineQueryDetail
-  {
-    ClearanceProcess *clearance_calculator = nullptr;
-  };
+struct LineQueryDetailGpu : LineQueryDetail
+{
+  ClearanceProcess *clearance_calculator = nullptr;
+};
 }  // namespace ohm
 
 #endif  // OHMGPU_LINEQUERYDETAILGPU_H

@@ -14,45 +14,45 @@
 
 namespace gputil
 {
-  class MemRegion
+class MemRegion
+{
+public:
+  size_t offset;
+  size_t byte_count;
+
+  inline bool operator<(const MemRegion &other) const
   {
-  public:
-    size_t offset;
-    size_t byte_count;
-
-    inline bool operator<(const MemRegion &other) const
-    {
-      return offset < other.offset || offset == other.offset && byte_count < other.byte_count;
-    }
+    return offset < other.offset || offset == other.offset && byte_count < other.byte_count;
+  }
 
 
-    inline bool overlaps(const MemRegion &other) const
-    {
-      const size_t start_a = offset;
-      const size_t end_a = offset + byte_count;
-      const size_t start_b = other.offset;
-      const size_t end_b = other.offset + other.byte_count - 1;
+  inline bool overlaps(const MemRegion &other) const
+  {
+    const size_t start_a = offset;
+    const size_t end_a = offset + byte_count;
+    const size_t start_b = other.offset;
+    const size_t end_b = other.offset + other.byte_count - 1;
 
-      // Overlap if any end point falls within the other region.
-      // Only test non-zero regions.
-      return byte_count && other.byte_count && (start_a <= start_b && start_b <= end_a) ||
-             (start_b <= start_a && start_a <= end_b) || (start_a <= end_b && end_b <= end_a) ||
-             (start_b <= end_a && end_a <= end_b);
-    }
+    // Overlap if any end point falls within the other region.
+    // Only test non-zero regions.
+    return byte_count && other.byte_count && (start_a <= start_b && start_b <= end_a) ||
+           (start_b <= start_a && start_a <= end_b) || (start_a <= end_b && end_b <= end_a) ||
+           (start_b <= end_a && end_a <= end_b);
+  }
 
-    inline MemRegion &merge(const MemRegion &other)
-    {
-      const size_t end_a = offset + byte_count;
-      const size_t end_b = other.offset + other.byte_count;
-      offset = std::min(offset, other.offset);
-      byte_count = std::max(end_a, end_b) - offset;
-      return *this;
-    }
+  inline MemRegion &merge(const MemRegion &other)
+  {
+    const size_t end_a = offset + byte_count;
+    const size_t end_b = other.offset + other.byte_count;
+    offset = std::min(offset, other.offset);
+    byte_count = std::max(end_a, end_b) - offset;
+    return *this;
+  }
 
-    /// Sorts and merged the list @p regions. The merged regions are reduced to zero size, but left in the list.
-    /// @param regions The list to sort and merge.
-    static void mergeRegionList(std::vector<MemRegion> &regions);  // NOLINT(google-runtime-references)
-  };
+  /// Sorts and merged the list @p regions. The merged regions are reduced to zero size, but left in the list.
+  /// @param regions The list to sort and merge.
+  static void mergeRegionList(std::vector<MemRegion> &regions);  // NOLINT(google-runtime-references)
+};
 }  // namespace gputil
 
 #endif  // MEM_REGION_H

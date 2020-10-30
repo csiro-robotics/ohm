@@ -68,7 +68,7 @@ void KeyList::resize(size_t count)
 }
 
 
-void KeyList::push_back(const Key &key) // NOLINT
+void KeyList::push_back(const Key &key)  // NOLINT
 {
   if (count_ == capacity_)
   {

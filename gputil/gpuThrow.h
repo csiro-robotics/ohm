@@ -45,10 +45,10 @@
 
 namespace gputil
 {
-  class Exception;
+class Exception;
 
-  void gputilAPI log(const Exception &e);
-  void gputilAPI log(const Exception &e, const char *file, int line);
+void gputilAPI log(const Exception &e);
+void gputilAPI log(const Exception &e, const char *file, int line);
 }  // namespace gputil
 
 #endif  // GPUTHROW_H

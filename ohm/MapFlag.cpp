@@ -9,44 +9,45 @@
 
 namespace
 {
-  const char *map_flag_names[] = //
-    { //
-      "VoxelMean",
-    };
+const char *map_flag_names[] =  //
+  {
+    //
+    "VoxelMean",
+  };
 
-  const unsigned kMapFlagsCount = unsigned(sizeof(map_flag_names) / sizeof(map_flag_names[0]));
-} // namespace
+const unsigned kMapFlagsCount = unsigned(sizeof(map_flag_names) / sizeof(map_flag_names[0]));
+}  // namespace
 
 namespace ohm
 {
-  const char *mapFlagToString(MapFlag flag)
+const char *mapFlagToString(MapFlag flag)
+{
+  unsigned bit = 1;
+  for (unsigned i = 0; i < kMapFlagsCount; ++i, bit <<= 1)
   {
-    unsigned bit = 1;
-    for (unsigned i = 0; i < kMapFlagsCount; ++i, bit <<= 1)
+    if (unsigned(flag) & bit)
     {
-      if (unsigned(flag) & bit)
-      {
-        return map_flag_names[i];
-      }
+      return map_flag_names[i];
     }
-
-    return "None";
   }
 
+  return "None";
+}
 
-  MapFlag mapFlagFromString(const char *str)
+
+MapFlag mapFlagFromString(const char *str)
+{
+  std::string name(str);
+  unsigned bit = 1;
+  for (unsigned i = 0; i < kMapFlagsCount; ++i, bit <<= 1)
   {
-    std::string name(str);
-    unsigned bit = 1;
-    for (unsigned i = 0; i < kMapFlagsCount; ++i, bit <<= 1)
+    if (name.compare(map_flag_names[i]) == 0)
     {
-      if (name.compare(map_flag_names[i]) == 0)
-      {
-        return MapFlag(bit);
-      }
+      return MapFlag(bit);
     }
-
-    return MapFlag::kNone;
   }
 
-} // namespace ohm
+  return MapFlag::kNone;
+}
+
+}  // namespace ohm

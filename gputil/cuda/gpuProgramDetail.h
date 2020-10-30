@@ -14,11 +14,11 @@
 
 namespace gputil
 {
-  struct ProgramDetail
-  {
-    Device device;
-    std::string program_name;
-  };
+struct ProgramDetail
+{
+  Device device;
+  std::string program_name;
+};
 }  // namespace gputil
 
 #endif  // GPUPROGRAMDETAIL_H

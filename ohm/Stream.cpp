@@ -16,106 +16,109 @@
 namespace ohm
 {
 #ifdef OHM_ZIP
-  struct Compression
-  {
-    z_stream stream;
-    Byte *buffer;
-    unsigned buffer_size;
-    bool initialised;
+struct Compression
+{
+  z_stream stream;
+  Byte *buffer;
+  unsigned buffer_size;
+  bool initialised;
 
-    Compression(unsigned buffer_size = 16 * 1024u);
-    ~Compression();
+  Compression(unsigned buffer_size = 16 * 1024u);
+  ~Compression();
 
-    int initDeflate();
-    int doneDeflate();
+  int initDeflate();
+  int doneDeflate();
 
-    int initInflate();
-    int doneInflate();
-  };
+  int initInflate();
+  int doneInflate();
+};
 
 
-  Compression::Compression(unsigned buffer_size) // NOLINT
-    : buffer(nullptr)
-    , buffer_size(buffer_size)
-    , initialised(false)
+Compression::Compression(unsigned buffer_size)  // NOLINT
+  : buffer(nullptr)
+  , buffer_size(buffer_size)
+  , initialised(false)
+{
+  memset(&stream, 0u, sizeof(stream));
+  buffer = new Byte[buffer_size];
+}
+
+
+Compression::~Compression()
+{
+  delete[] buffer;
+}
+
+
+int Compression::initDeflate()
+{
+  if (!initialised)
   {
     memset(&stream, 0u, sizeof(stream));
-    buffer = new Byte[buffer_size];
+    initialised = true;
+    return deflateInit(&stream, Z_DEFAULT_COMPRESSION);
   }
+  return Z_OK;
+}
 
 
-  Compression::~Compression() { delete[] buffer; }
-
-
-  int Compression::initDeflate()
+int Compression::doneDeflate()
+{
+  if (initialised)
   {
-    if (!initialised)
-    {
-      memset(&stream, 0u, sizeof(stream));
-      initialised = true;
-      return deflateInit(&stream, Z_DEFAULT_COMPRESSION);
-    }
-    return Z_OK;
+    initialised = false;
+    return deflateEnd(&stream);
   }
+  return Z_OK;
+}
 
 
-  int Compression::doneDeflate()
+int Compression::initInflate()
+{
+  if (!initialised)
   {
-    if (initialised)
-    {
-      initialised = false;
-      return deflateEnd(&stream);
-    }
-    return Z_OK;
+    memset(&stream, 0u, sizeof(stream));
+    initialised = true;
+    return inflateInit(&stream);
   }
+  return Z_OK;
+}
 
 
-  int Compression::initInflate()
+int Compression::doneInflate()
+{
+  if (initialised)
   {
-    if (!initialised)
-    {
-      memset(&stream, 0u, sizeof(stream));
-      initialised = true;
-      return inflateInit(&stream);
-    }
-    return Z_OK;
+    initialised = false;
+    return inflateEnd(&stream);
   }
-
-
-  int Compression::doneInflate()
-  {
-    if (initialised)
-    {
-      initialised = false;
-      return inflateEnd(&stream);
-    }
-    return Z_OK;
-  }
+  return Z_OK;
+}
 
 #endif  // OHM_ZIP
 
-  struct StreamPrivate
-  {
-    std::string file_path;
-    unsigned flags = 0;
-  };
+struct StreamPrivate
+{
+  std::string file_path;
+  unsigned flags = 0;
+};
 
-  struct InputStreamPrivate : StreamPrivate
-  {
-    std::ifstream in;
+struct InputStreamPrivate : StreamPrivate
+{
+  std::ifstream in;
 #ifdef OHM_ZIP
-    Compression compress;
+  Compression compress;
 #endif  // OHM_ZIP
-  };
+};
 
-  struct OutputStreamPrivate : StreamPrivate
-  {
-    std::ofstream out;
+struct OutputStreamPrivate : StreamPrivate
+{
+  std::ofstream out;
 #ifdef OHM_ZIP
-    Compression compress;
-    bool needs_flush = false;
+  Compression compress;
+  bool needs_flush = false;
 #endif  // OHM_ZIP
-  };
+};
 }  // namespace ohm
 
 using namespace ohm;

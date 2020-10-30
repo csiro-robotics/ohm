@@ -16,21 +16,21 @@
 
 namespace gputil
 {
-  struct QueueDetail : public Ref<cudaStream_t>
-  {
-    inline QueueDetail(cudaStream_t obj, unsigned initial_ref_count, const ReleaseFunc &release)
-      : Ref<cudaStream_t>(obj, initial_ref_count, release)
-    {}
+struct QueueDetail : public Ref<cudaStream_t>
+{
+  inline QueueDetail(cudaStream_t obj, unsigned initial_ref_count, const ReleaseFunc &release)
+    : Ref<cudaStream_t>(obj, initial_ref_count, release)
+  {}
 
-    inline QueueDetail(Ref &&other)
-      : Ref<cudaStream_t>(std::move(other))
-    {}
+  inline QueueDetail(Ref &&other)
+    : Ref<cudaStream_t>(std::move(other))
+  {}
 
-    inline QueueDetail(const Ref &other) = delete;
+  inline QueueDetail(const Ref &other) = delete;
 
-  protected:
-    inline ~QueueDetail() = default;
-  };
+protected:
+  inline ~QueueDetail() = default;
+};
 }  // namespace gputil
 
 #endif  // GPUQUEUEDETAIL_H

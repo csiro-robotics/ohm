@@ -21,15 +21,15 @@ RayPatternConical::RayPatternConical(const glm::dvec3 &cone_axis, double cone_an
                                      double angular_resolution, double min_range)
 {
   TES_STMT(const double cone_radius = range * std::tan(cone_angle));
-  TES_CONE_T(g_3es, TES_COLOUR_A(YellowGreen, 128), tes::Id(this),
+  TES_CONE_T(g_tes, TES_COLOUR_A(YellowGreen, 128), tes::Id(this),
              tes::Directional(tes::Vector3d(0.0), tes::Vector3d(glm::value_ptr(cone_axis)), cone_radius, range));
-  TES_CONE_W(g_3es, TES_COLOUR_A(YellowGreen, 128), tes::Id(this) + 100,
+  TES_CONE_W(g_tes, TES_COLOUR_A(YellowGreen, 128), tes::Id(this) + 100,
              tes::Directional(tes::Vector3d(0.0), tes::Vector3d(glm::value_ptr(cone_axis)), cone_radius, range));
 
   // First ensure the cone axis is normalised.
   const glm::dvec3 &cone_normal = glm::normalize(cone_axis);
 
-  TES_ARROW(g_3es, TES_COLOUR(Yellow), tes::Id(this),
+  TES_ARROW(g_tes, TES_COLOUR(Yellow), tes::Id(this),
             tes::Directional(tes::Vector3d(0.0), tes::Vector3d(glm::value_ptr(cone_normal))));
 
   // Add the cone axis.
@@ -40,10 +40,10 @@ RayPatternConical::RayPatternConical(const glm::dvec3 &cone_axis, double cone_an
   // To generate, we simply sizzle the cone normal components.
   const glm::dvec3 deflection_base(cone_normal.z, cone_normal.x, cone_normal.y);
 
-  TES_ARROW(g_3es, TES_COLOUR(Green), tes::Id(this) + 1,
+  TES_ARROW(g_tes, TES_COLOUR(Green), tes::Id(this) + 1,
             tes::Directional(tes::Vector3d(0.0), tes::Vector3d(glm::value_ptr(deflection_base))));
 
-  TES_SERVER_UPDATE(g_3es, 0.0f);
+  TES_SERVER_UPDATE(g_tes, 0.0f);
 
   // Now walk inscribe the circle which makes the base.
   // NOLINTNEXTLINE(clang-analyzer-security.FloatLoopCounter)
@@ -54,7 +54,7 @@ RayPatternConical::RayPatternConical(const glm::dvec3 &cone_axis, double cone_an
     // Define the deflection vector which we'll use to deflect the cone axis.
     const glm::dvec3 deflection_axis = deflection_rotation * deflection_base;
 
-    TES_ARROW(g_3es, TES_COLOUR(Cyan), tes::Id(),
+    TES_ARROW(g_tes, TES_COLOUR(Cyan), tes::Id(),
               tes::Directional(tes::Vector3d(0.0), tes::Vector3d(glm::value_ptr(deflection_axis))));
 
     // Now create deflected rates starting at angular_resolution up to the cone angle.
@@ -67,10 +67,10 @@ RayPatternConical::RayPatternConical(const glm::dvec3 &cone_axis, double cone_an
       const glm::dvec3 ray_dir = rotation * cone_normal;
       addRay(ray_dir * min_range, ray_dir * range);
 
-      TES_LINE(g_3es, TES_COLOUR(PowderBlue), tes::Id(), tes::Vector3d(0.0), tes::Vector3d(glm::value_ptr(ray_dir)));
+      TES_LINE(g_tes, TES_COLOUR(PowderBlue), tes::Id(), tes::Vector3d(0.0), tes::Vector3d(glm::value_ptr(ray_dir)));
     }
 
-    TES_SERVER_UPDATE(g_3es, 0.0f);
+    TES_SERVER_UPDATE(g_tes, 0.0f);
   }
 
 #ifdef TES_ENABLE
@@ -84,14 +84,14 @@ RayPatternConical::RayPatternConical(const glm::dvec3 &cone_axis, double cone_an
   }
   TES_IF(!debug_points.empty())
   {
-    TES_LINES(g_3es, TES_COLOUR(SteelBlue), glm::value_ptr(debug_points.front()), debug_points.size(),
+    TES_LINES(g_tes, TES_COLOUR(SteelBlue), glm::value_ptr(debug_points.front()), debug_points.size(),
               sizeof(debug_points.front()));
   }
 #endif  // TES_ENABLE
 
-  TES_SERVER_UPDATE(g_3es, 0.0f);
-  TES_ARROW_END(g_3es, tes::Id(this));
-  TES_ARROW_END(g_3es, tes::Id(this) + 1);
-  TES_CONE_END(g_3es, tes::Id(this));
-  TES_CONE_END(g_3es, tes::Id(this) + 100);
+  TES_SERVER_UPDATE(g_tes, 0.0f);
+  TES_ARROW_END(g_tes, tes::Id(this));
+  TES_ARROW_END(g_tes, tes::Id(this) + 1);
+  TES_CONE_END(g_tes, tes::Id(this));
+  TES_CONE_END(g_tes, tes::Id(this) + 100);
 }

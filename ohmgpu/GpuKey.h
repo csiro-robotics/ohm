@@ -30,19 +30,19 @@
 namespace ohm
 {
 #endif  // !GPUTIL_DEVICE
-  /// @c ohm::Key representation in GPU.
-  ///
-  /// This structure must exactly match the memory alignment of ohm::Key.
-  typedef struct GpuKey_t
-  {
-    /// Region key.
-    short region[3];  // NOLINT
-    /// Voxel key.
-    /// Element 3 is used to identify clipped ray keys. That is, voxel[3] = 1 for a "sample voxel" indicates we have
-    /// actually clipped the sample ray and, while the voxel is the last relevant voxel in the ray, it is not the
-    /// sample voxel.
-    unsigned char voxel[4];
-  } GpuKey;
+/// @c ohm::Key representation in GPU.
+///
+/// This structure must exactly match the memory alignment of ohm::Key.
+typedef struct GpuKey_t
+{
+  /// Region key.
+  short region[3];  // NOLINT
+  /// Voxel key.
+  /// Element 3 is used to identify clipped ray keys. That is, voxel[3] = 1 for a "sample voxel" indicates we have
+  /// actually clipped the sample ray and, while the voxel is the last relevant voxel in the ray, it is not the
+  /// sample voxel.
+  unsigned char voxel[4];
+} GpuKey;
 #if !GPUTIL_DEVICE
 }  // namespace ohm
 #endif  // !GPUTIL_DEVICE

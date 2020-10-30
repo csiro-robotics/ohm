@@ -15,9 +15,9 @@
 #include "MapRegionCache.h"
 #include "OccupancyType.h"
 #include "RayMapperOccupancy.h"
-#include "VoxelOccupancy.h"
 #include "VoxelBlockCompressionQueue.h"
 #include "VoxelBuffer.h"
+#include "VoxelOccupancy.h"
 
 #include "OccupancyUtil.h"
 
@@ -39,59 +39,65 @@ using namespace ohm;
 
 namespace
 {
-  inline Key firstKeyForChunk(const OccupancyMapDetail &map, const MapChunk &chunk)
-  {
+inline Key firstKeyForChunk(const OccupancyMapDetail &map, const MapChunk &chunk)
+{
 #ifdef OHM_VALIDATION
-    chunk.validateFirstValid(map.region_voxel_dimensions);
+  chunk.validateFirstValid(map.region_voxel_dimensions);
 #endif  // OHM_VALIDATION
 
-    // We use std::min() to ensure the first_valid_index is in range and we at least check
-    // the last voxel. This primarily deals with iterating a chunk with contains no
-    // valid voxels.
-    const glm::u8vec3 first_valid_key = chunk.firstValidKey(map.region_voxel_dimensions);
-    return Key(chunk.region.coord, std::min(first_valid_key.x, uint8_t(map.region_voxel_dimensions.x - 1)),
-               std::min(first_valid_key.y, uint8_t(map.region_voxel_dimensions.y - 1)),
-               std::min(first_valid_key.z, uint8_t(map.region_voxel_dimensions.z - 1)));
-    // if (voxelIndex(key, map.region_voxel_dimensions) >= map.region_voxel_dimensions.x * map.region_voxel_dimensions.y
-    // * map.region_voxel_dimensions.z)
-    // {
-    //   // First valid index is out of range. This implies it has not been set correctly.
-    //   // Modify the key to address voxel [0, 0, 0].
-    //   key.setLocalKey(glm::u8vec3(0, 0, 0));
-    // }
-    // return key;
-  }
+  // We use std::min() to ensure the first_valid_index is in range and we at least check
+  // the last voxel. This primarily deals with iterating a chunk with contains no
+  // valid voxels.
+  const glm::u8vec3 first_valid_key = chunk.firstValidKey(map.region_voxel_dimensions);
+  return Key(chunk.region.coord, std::min(first_valid_key.x, uint8_t(map.region_voxel_dimensions.x - 1)),
+             std::min(first_valid_key.y, uint8_t(map.region_voxel_dimensions.y - 1)),
+             std::min(first_valid_key.z, uint8_t(map.region_voxel_dimensions.z - 1)));
+  // if (voxelIndex(key, map.region_voxel_dimensions) >= map.region_voxel_dimensions.x * map.region_voxel_dimensions.y
+  // * map.region_voxel_dimensions.z)
+  // {
+  //   // First valid index is out of range. This implies it has not been set correctly.
+  //   // Modify the key to address voxel [0, 0, 0].
+  //   key.setLocalKey(glm::u8vec3(0, 0, 0));
+  // }
+  // return key;
+}
 
-  bool nextChunk(OccupancyMapDetail &map, ChunkMap::iterator &chunk_iter,  // NOLINT(google-runtime-references)
-                 Key &key)                                                 // NOLINT(google-runtime-references)
+bool nextChunk(OccupancyMapDetail &map, ChunkMap::iterator &chunk_iter,  // NOLINT(google-runtime-references)
+               Key &key)                                                 // NOLINT(google-runtime-references)
+{
+  ++chunk_iter;
+  if (chunk_iter != map.chunks.end())
   {
-    ++chunk_iter;
-    if (chunk_iter != map.chunks.end())
-    {
-      const MapChunk *chunk = chunk_iter->second;
-      key = firstKeyForChunk(map, *chunk);
-      return true;
-    }
-
-    return false;
+    const MapChunk *chunk = chunk_iter->second;
+    key = firstKeyForChunk(map, *chunk);
+    return true;
   }
 
-  ChunkMap::iterator &initChunkIter(uint8_t *mem)  // NOLINT(readability-non-const-parameter)
-  {
-    // Placement new.
-    return *(new (mem) ChunkMap::iterator());
-  }
+  return false;
+}
 
-  // NOLINTNEXTLINE(readability-non-const-parameter)
-  ChunkMap::iterator &chunkIter(uint8_t *mem) { return *reinterpret_cast<ChunkMap::iterator *>(mem); }
+ChunkMap::iterator &initChunkIter(uint8_t *mem)  // NOLINT(readability-non-const-parameter)
+{
+  // Placement new.
+  return *(new (mem) ChunkMap::iterator());
+}
 
-  const ChunkMap::iterator &chunkIter(const uint8_t *mem) { return *reinterpret_cast<const ChunkMap::iterator *>(mem); }
+// NOLINTNEXTLINE(readability-non-const-parameter)
+ChunkMap::iterator &chunkIter(uint8_t *mem)
+{
+  return *reinterpret_cast<ChunkMap::iterator *>(mem);
+}
 
-  void releaseChunkIter(uint8_t *mem)
-  {
-    using Iterator = ChunkMap::iterator;
-    chunkIter(mem).~Iterator();
-  }
+const ChunkMap::iterator &chunkIter(const uint8_t *mem)
+{
+  return *reinterpret_cast<const ChunkMap::iterator *>(mem);
+}
+
+void releaseChunkIter(uint8_t *mem)
+{
+  using Iterator = ChunkMap::iterator;
+  chunkIter(mem).~Iterator();
+}
 }  // namespace
 
 OccupancyMap::base_iterator::base_iterator()  // NOLINT

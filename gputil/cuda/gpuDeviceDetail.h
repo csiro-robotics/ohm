@@ -17,16 +17,16 @@
 
 namespace gputil
 {
-  struct DeviceDetail
-  {
-    int device;
-    std::string name;
-    DeviceInfo info;
+struct DeviceDetail
+{
+  int device;
+  std::string name;
+  DeviceInfo info;
 
-    inline DeviceDetail()
-      : device(-1)
-    {}
-  };
+  inline DeviceDetail()
+    : device(-1)
+  {}
+};
 }  // namespace gputil
 
 #endif  // GPUDEVICEDETAIL_H

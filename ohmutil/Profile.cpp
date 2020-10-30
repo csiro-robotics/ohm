@@ -25,149 +25,148 @@ using namespace ohm;
 
 namespace ohm
 {
-  struct ProfileRecord
+struct ProfileRecord
+{
+  const char *name;
+  const char *parent_name;
+  ProfileClock::duration total_time;
+  ProfileClock::duration recent;
+  ProfileClock::duration max_time;
+  unsigned marker_count;
+};
+
+struct ProfileScope  // NOLINT(cppcoreguidelines-pro-type-member-init)
+{
+  const char *name;
+  ProfileClock::time_point start_time;
+  ProfileRecord *record;
+
+  inline ProfileScope() = default;  // NOLINT(cppcoreguidelines-pro-type-member-init)
+  inline ProfileScope(const char *name)
+    : name(name)
+    , start_time(ProfileClock::now())
+    , record(nullptr)
+  {}
+
+  inline ProfileScope(const char *name, const ProfileClock::time_point &start_time)
+    : name(name)
+    , start_time(start_time)
+    , record(nullptr)
+  {}
+
+  inline ProfileScope(const char *name, ProfileClock::time_point &&start_time)
+    : name(name)
+    , start_time(start_time)
+    , record(nullptr)
+  {}
+
+  inline ProfileScope(const ProfileScope &other) = default;
+
+  inline ProfileScope(ProfileScope &&other) noexcept
+    : name(other.name)
+    , start_time(other.start_time)
+    , record(other.record)
+  {}
+};
+
+struct ThreadRecords
+{
+  ska::bytell_hash_map<std::string, ProfileRecord *> records;
+  std::vector<ProfileScope> marker_stack;
+
+  ~ThreadRecords()
   {
-    const char *name;
-    const char *parent_name;
-    ProfileClock::duration total_time;
-    ProfileClock::duration recent;
-    ProfileClock::duration max_time;
-    unsigned marker_count;
-  };
-
-  struct ProfileScope  // NOLINT(cppcoreguidelines-pro-type-member-init)
-  {
-    const char *name;
-    ProfileClock::time_point start_time;
-    ProfileRecord *record;
-
-    inline ProfileScope() = default;  // NOLINT(cppcoreguidelines-pro-type-member-init)
-    inline ProfileScope(const char *name)
-      : name(name)
-      , start_time(ProfileClock::now())
-      , record(nullptr)
-    {}
-
-    inline ProfileScope(const char *name, const ProfileClock::time_point &start_time)
-      : name(name)
-      , start_time(start_time)
-      , record(nullptr)
-    {}
-
-    inline ProfileScope(const char *name, ProfileClock::time_point &&start_time)
-      : name(name)
-      , start_time(start_time)
-      , record(nullptr)
-    {}
-
-    inline ProfileScope(const ProfileScope &other) = default;
-
-    inline ProfileScope(ProfileScope &&other) noexcept
-      : name(other.name)
-      , start_time(other.start_time)
-      , record(other.record)
-    {}
-  };
-
-  struct ThreadRecords
-  {
-    ska::bytell_hash_map<std::string, ProfileRecord *> records;
-    std::vector<ProfileScope> marker_stack;
-
-    ~ThreadRecords()
+    for (auto &&iter : records)
     {
-      for (auto &&iter : records)
-      {
-        delete iter.second;
-      }
+      delete iter.second;
     }
-  };
+  }
+};
 
 #ifdef OHM_THREADS
-  void compareThreadIds(std::thread::id stdId, tbb::internal::tbb_thread_v3::id tbbId)
+void compareThreadIds(std::thread::id stdId, tbb::internal::tbb_thread_v3::id tbbId)
+{
+  static bool once = true;
+  if (once && *(unsigned *)&stdId != *(unsigned *)&tbbId)
   {
-    static bool once = true;
-    if (once && *(unsigned *)&stdId != *(unsigned *)&tbbId)
-    {
-      once = false;
-    }
+    once = false;
   }
+}
 #endif  // OHM_THREADS
 
-  struct ProfileDetail
+struct ProfileDetail
+{
+  std::mutex mutex;
+  std::vector<std::pair<std::thread::id, ThreadRecords>> thread_records;
+  std::atomic_bool reported;
+  std::atomic_bool suppress_report;
+
+  inline ProfileDetail()
+    : reported(true)
+    , suppress_report(false)
+  {}
+
+
+  inline ThreadRecords &getCurrentThreadRecords()
   {
-    std::mutex mutex;
-    std::vector<std::pair<std::thread::id, ThreadRecords>> thread_records;
-    std::atomic_bool reported;
-    std::atomic_bool suppress_report;
-
-    inline ProfileDetail()
-      : reported(true)
-      , suppress_report(false)
-    {}
-
-
-    inline ThreadRecords &getCurrentThreadRecords()
-    {
-      std::unique_lock<std::mutex> guard(mutex);
+    std::unique_lock<std::mutex> guard(mutex);
 #ifdef OHM_THREADS
-      // compareThreadIds(std::this_thread::get_id(), tbb::this_tbb_thread::get_id());
+    // compareThreadIds(std::this_thread::get_id(), tbb::this_tbb_thread::get_id());
 #endif  // OHM_THREADS
-      for (auto &search : thread_records)
-      {
-        if (search.first == std::this_thread::get_id())
-        {
-          return search.second;
-        }
-      }
-
-      thread_records.emplace_back(std::make_pair(std::this_thread::get_id(), ThreadRecords()));
-      return thread_records.back().second;
-    }
-  };
-
-
-  void showReport(std::ostream &o, const ProfileRecord &record, const ThreadRecords &thread_records, int level = 0)
-  {
-    std::string indent(level * 2, ' ');
-    std::string count_str;
-    const auto average_time =
-      (record.marker_count) ? record.total_time / record.marker_count : ProfileClock::duration(0);
-    delimetedInteger(count_str, record.marker_count);
-    o << indent << record.name << " cur: " << record.recent << " avg: " << average_time << " max: " << record.max_time
-      << " total: " << record.total_time << " / " << count_str << " calls\n";
-
-    // Recurse on children.
-    for (auto &&entry : thread_records.records)
+    for (auto &search : thread_records)
     {
-      if (entry.second->parent_name && strcmp(record.name, entry.second->parent_name) == 0 &&
-          strcmp(record.name, entry.second->name) != 0)
+      if (search.first == std::this_thread::get_id())
       {
-        if (strcmp(record.name, entry.second->name) != 0)
-        {
-          showReport(o, *entry.second, thread_records, level + 1);
-        }
-        else
-        {
-          o << indent << "*** self reference error ***\n";
-        }
+        return search.second;
+      }
+    }
+
+    thread_records.emplace_back(std::make_pair(std::this_thread::get_id(), ThreadRecords()));
+    return thread_records.back().second;
+  }
+};
+
+
+void showReport(std::ostream &o, const ProfileRecord &record, const ThreadRecords &thread_records, int level = 0)
+{
+  std::string indent(level * 2, ' ');
+  std::string count_str;
+  const auto average_time = (record.marker_count) ? record.total_time / record.marker_count : ProfileClock::duration(0);
+  delimetedInteger(count_str, record.marker_count);
+  o << indent << record.name << " cur: " << record.recent << " avg: " << average_time << " max: " << record.max_time
+    << " total: " << record.total_time << " / " << count_str << " calls\n";
+
+  // Recurse on children.
+  for (auto &&entry : thread_records.records)
+  {
+    if (entry.second->parent_name && strcmp(record.name, entry.second->parent_name) == 0 &&
+        strcmp(record.name, entry.second->name) != 0)
+    {
+      if (strcmp(record.name, entry.second->name) != 0)
+      {
+        showReport(o, *entry.second, thread_records, level + 1);
+      }
+      else
+      {
+        o << indent << "*** self reference error ***\n";
       }
     }
   }
+}
 
 
-  void showReport(std::ostream &o, const std::thread::id &thread_id, const ThreadRecords &records)
+void showReport(std::ostream &o, const std::thread::id &thread_id, const ThreadRecords &records)
+{
+  o << "thread " << thread_id << '\n';
+  for (auto &&record : records.records)
   {
-    o << "thread " << thread_id << '\n';
-    for (auto &&record : records.records)
+    if (record.second->parent_name == nullptr)
     {
-      if (record.second->parent_name == nullptr)
-      {
-        // Only display root items, but do so by traversing the children.
-        showReport(o, *record.second, records, 1);
-      }
+      // Only display root items, but do so by traversing the children.
+      showReport(o, *record.second, records, 1);
     }
   }
+}
 }  // namespace ohm
 
 

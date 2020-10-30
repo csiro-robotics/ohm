@@ -35,203 +35,203 @@
 
 namespace
 {
-  struct TrajectoryPoint
-  {
-    double timestamp;
-    glm::dvec3 origin;
-  };
+struct TrajectoryPoint
+{
+  double timestamp;
+  glm::dvec3 origin;
+};
 
-  struct SamplePoint : TrajectoryPoint
-  {
-    glm::dvec3 sample;
-  };
+struct SamplePoint : TrajectoryPoint
+{
+  glm::dvec3 sample;
+};
 
-  using Clock = std::chrono::high_resolution_clock;
+using Clock = std::chrono::high_resolution_clock;
 
-  class PointStream : public pdal::StreamPointTable
+class PointStream : public pdal::StreamPointTable
+{
+public:
+  PointStream(size_t buffer_capacity)
+    : pdal::StreamPointTable(_layout, buffer_capacity)
   {
-  public:
-    PointStream(size_t buffer_capacity)
-      : pdal::StreamPointTable(_layout, buffer_capacity)
+    // Register for the data we are interested in
+    _buffers[0].reserve(buffer_capacity);
+    _buffers[1].reserve(buffer_capacity);
+    // Start with flipping allowed.
+    _flip_wait.notify_one();
+  }
+
+  /// Called when execute() is started.  Typically used to set buffer size
+  /// when all dimensions are known.
+  void finalize() override
+  {
+    if (!_layout.finalized())
     {
-      // Register for the data we are interested in
-      _buffers[0].reserve(buffer_capacity);
-      _buffers[1].reserve(buffer_capacity);
-      // Start with flipping allowed.
-      _flip_wait.notify_one();
-    }
-
-    /// Called when execute() is started.  Typically used to set buffer size
-    /// when all dimensions are known.
-    void finalize() override
-    {
-      if (!_layout.finalized())
+      // Validate the dimensions.
+      bool have_required_dimensions = true;
+      if (!_layout.hasDim(pdal::Dimension::Id::X) || !_layout.hasDim(pdal::Dimension::Id::Y) ||
+          !_layout.hasDim(pdal::Dimension::Id::Z))
       {
-        // Validate the dimensions.
-        bool have_required_dimensions = true;
-        if (!_layout.hasDim(pdal::Dimension::Id::X) || !_layout.hasDim(pdal::Dimension::Id::Y) ||
-            !_layout.hasDim(pdal::Dimension::Id::Z))
-        {
-          have_required_dimensions = false;
-        }
+        have_required_dimensions = false;
+      }
 
-        // Resolve time dimension.
-        auto dim = pdal::Dimension::Id::Unknown;
-        // First try resolve by name.
-        const std::string time_dim_names[] = { "time", "timestamp" };
-        for (const auto &time_name : time_dim_names)
+      // Resolve time dimension.
+      auto dim = pdal::Dimension::Id::Unknown;
+      // First try resolve by name.
+      const std::string time_dim_names[] = { "time", "timestamp" };
+      for (const auto &time_name : time_dim_names)
+      {
+        dim = _layout.findDim(time_name);
+        if (dim != pdal::Dimension::Id::Unknown)
         {
-          dim = _layout.findDim(time_name);
-          if (dim != pdal::Dimension::Id::Unknown)
+          break;
+        }
+      }
+
+      if (dim == pdal::Dimension::Id::Unknown)
+      {
+        // Not found by name. Try resolve by Dimension ID
+        // Not found by name.
+        const pdal::Dimension::Id time_ids[] = { pdal::Dimension::Id::GpsTime, pdal::Dimension::Id::InternalTime,
+                                                 pdal::Dimension::Id::OffsetTime };
+        for (const auto &time_dim : time_ids)
+        {
+          if (_layout.hasDim(time_dim))
           {
+            dim = time_dim;
             break;
           }
         }
+      }
 
-        if (dim == pdal::Dimension::Id::Unknown)
+      if (dim != pdal::Dimension::Id::Unknown)
+      {
+        // Resolved time field.
+        _time_dimension = dim;
+      }
+      else
+      {
+        have_required_dimensions = false;
+      }
+
+      _valid_dimensions = have_required_dimensions;
+
+      _layout.finalize();
+      pdal::StreamPointTable::finalize();
+    }
+  }
+
+  bool nextPoint(glm::dvec4 *point)
+  {
+    std::unique_lock<std::mutex> guard(_buffer_mutex);
+    const int read_buffer = 1 - _write_index;
+    const unsigned read_index = _next_read;
+    bool have_read = false;
+    if (_next_read < _buffers[read_buffer].size())
+    {
+      *point = _buffers[read_buffer][read_index];
+      ++_next_read;
+      have_read = true;
+    }
+    guard.unlock();
+    _flip_wait.notify_one();
+    return have_read;
+  }
+
+  inline bool isValid() const { return _valid_dimensions; }
+
+  /// True once we have data available for reading.
+  inline bool haveData() const { return _have_data; }
+
+  /// True once loading has been completed (@c markLoadComplete() called) and the read index is at the end of the
+  /// read buffer.
+  inline bool done()
+  {
+    if (_loading_complete)
+    {
+      std::unique_lock<std::mutex> guard(_buffer_mutex);
+      return _next_read >= _buffers[1 - _write_index].size();
+    }
+    return false;
+  }
+
+  /// Mark for abort. No more data points are stored.
+  inline void abort()
+  {
+    _abort = true;
+    _flip_wait.notify_all();
+  }
+
+  /// Mark loading as done: only to be called from the loading thread.
+  inline void markLoadComplete() { _loading_complete = true; }
+
+protected:
+  // Not supported
+  char *getPoint(pdal::PointId /* idx */) override { return nullptr; }
+
+  void setFieldInternal(pdal::Dimension::Id dim, pdal::PointId idx, const void *val) override
+  {
+    if (!_abort)
+    {
+      auto &buffer = _buffers[_write_index];
+      while (buffer.size() <= idx)
+      {
+        buffer.emplace_back();
+      }
+
+      auto &point = buffer[idx];
+
+      switch (dim)
+      {
+      case pdal::Dimension::Id::X:
+        point.x = *static_cast<const double *>(val);
+        break;
+      case pdal::Dimension::Id::Y:
+        point.y = *static_cast<const double *>(val);
+        break;
+      case pdal::Dimension::Id::Z:
+        point.z = *static_cast<const double *>(val);
+        break;
+      default:
+        if (dim == _time_dimension)
         {
-          // Not found by name. Try resolve by Dimension ID
-          // Not found by name.
-          const pdal::Dimension::Id time_ids[] = { pdal::Dimension::Id::GpsTime, pdal::Dimension::Id::InternalTime,
-                                                   pdal::Dimension::Id::OffsetTime };
-          for (const auto &time_dim : time_ids)
-          {
-            if (_layout.hasDim(time_dim))
-            {
-              dim = time_dim;
-              break;
-            }
-          }
+          point.w = *static_cast<const double *>(val);
         }
-
-        if (dim != pdal::Dimension::Id::Unknown)
-        {
-          // Resolved time field.
-          _time_dimension = dim;
-        }
-        else
-        {
-          have_required_dimensions = false;
-        }
-
-        _valid_dimensions = have_required_dimensions;
-
-        _layout.finalize();
-        pdal::StreamPointTable::finalize();
+        break;
       }
     }
+  }
 
-    bool nextPoint(glm::dvec4 *point)
+  /// Called whenever the buffer capacity is filled before starting on the next block.
+  void reset() override
+  {
+    if (!_abort)
     {
       std::unique_lock<std::mutex> guard(_buffer_mutex);
       const int read_buffer = 1 - _write_index;
-      const unsigned read_index = _next_read;
-      bool have_read = false;
-      if (_next_read < _buffers[read_buffer].size())
-      {
-        *point = _buffers[read_buffer][read_index];
-        ++_next_read;
-        have_read = true;
-      }
-      guard.unlock();
-      _flip_wait.notify_one();
-      return have_read;
+      _flip_wait.wait(guard, [this, read_buffer]() { return _abort || _next_read >= _buffers[read_buffer].size(); });
+      _write_index = read_buffer;
+      _buffers[read_buffer].clear();
+      _next_read = 0;
+      _have_data = true;
     }
+  }
 
-    inline bool isValid() const { return _valid_dimensions; }
-
-    /// True once we have data available for reading.
-    inline bool haveData() const { return _have_data; }
-
-    /// True once loading has been completed (@c markLoadComplete() called) and the read index is at the end of the
-    /// read buffer.
-    inline bool done()
-    {
-      if (_loading_complete)
-      {
-        std::unique_lock<std::mutex> guard(_buffer_mutex);
-        return _next_read >= _buffers[1 - _write_index].size();
-      }
-      return false;
-    }
-
-    /// Mark for abort. No more data points are stored.
-    inline void abort()
-    {
-      _abort = true;
-      _flip_wait.notify_all();
-    }
-
-    /// Mark loading as done: only to be called from the loading thread.
-    inline void markLoadComplete() { _loading_complete = true; }
-
-  protected:
-    // Not supported
-    char *getPoint(pdal::PointId /* idx */) override { return nullptr; }
-
-    void setFieldInternal(pdal::Dimension::Id dim, pdal::PointId idx, const void *val) override
-    {
-      if (!_abort)
-      {
-        auto &buffer = _buffers[_write_index];
-        while (buffer.size() <= idx)
-        {
-          buffer.emplace_back();
-        }
-
-        auto &point = buffer[idx];
-
-        switch (dim)
-        {
-        case pdal::Dimension::Id::X:
-          point.x = *static_cast<const double *>(val);
-          break;
-        case pdal::Dimension::Id::Y:
-          point.y = *static_cast<const double *>(val);
-          break;
-        case pdal::Dimension::Id::Z:
-          point.z = *static_cast<const double *>(val);
-          break;
-        default:
-          if (dim == _time_dimension)
-          {
-            point.w = *static_cast<const double *>(val);
-          }
-          break;
-        }
-      }
-    }
-
-    /// Called whenever the buffer capacity is filled before starting on the next block.
-    void reset() override
-    {
-      if (!_abort)
-      {
-        std::unique_lock<std::mutex> guard(_buffer_mutex);
-        const int read_buffer = 1 - _write_index;
-        _flip_wait.wait(guard, [this, read_buffer]() { return _abort || _next_read >= _buffers[read_buffer].size(); });
-        _write_index = read_buffer;
-        _buffers[read_buffer].clear();
-        _next_read = 0;
-        _have_data = true;
-      }
-    }
-
-  private:
-    // Double buffer to allow background thread streaming.
-    // Use w channel for timetstamp
-    std::vector<glm::dvec4> _buffers[2];
-    pdal::Dimension::Id _time_dimension{ pdal::Dimension::Id::GpsTime };
-    std::atomic_uint _next_read{ 0 };
-    std::atomic_int _write_index{ 0 };
-    pdal::PointLayout _layout;
-    std::mutex _buffer_mutex;
-    std::condition_variable _flip_wait;
-    std::atomic_bool _have_data{ false };
-    std::atomic_bool _loading_complete{ false };
-    std::atomic_bool _abort{ false };
-    std::atomic_bool _valid_dimensions{ false };
-  };
+private:
+  // Double buffer to allow background thread streaming.
+  // Use w channel for timetstamp
+  std::vector<glm::dvec4> _buffers[2];
+  pdal::Dimension::Id _time_dimension{ pdal::Dimension::Id::GpsTime };
+  std::atomic_uint _next_read{ 0 };
+  std::atomic_int _write_index{ 0 };
+  pdal::PointLayout _layout;
+  std::mutex _buffer_mutex;
+  std::condition_variable _flip_wait;
+  std::atomic_bool _have_data{ false };
+  std::atomic_bool _loading_complete{ false };
+  std::atomic_bool _abort{ false };
+  std::atomic_bool _valid_dimensions{ false };
+};
 }  // namespace
 
 struct SlamCloudLoaderDetail
@@ -271,64 +271,64 @@ struct SlamCloudLoaderDetail
 
 namespace
 {
-  std::string getFileExtension(const std::string &file)
+std::string getFileExtension(const std::string &file)
+{
+  const size_t last_dot = file.find_last_of('.');
+  if (last_dot != std::string::npos)
   {
-    const size_t last_dot = file.find_last_of('.');
-    if (last_dot != std::string::npos)
-    {
-      return file.substr(last_dot + 1);
-    }
-
-    return "";
+    return file.substr(last_dot + 1);
   }
 
-  std::shared_ptr<pdal::Streamable> createReader(pdal::StageFactory &factory,  // NOLINT(google-runtime-references)
-                                                 const std::string &file_name)
+  return "";
+}
+
+std::shared_ptr<pdal::Streamable> createReader(pdal::StageFactory &factory,  // NOLINT(google-runtime-references)
+                                               const std::string &file_name)
+{
+  const std::string ext = getFileExtension(file_name);
+  std::string reader_type;
+  pdal::Options options;
+
+  reader_type = ext;
+
+  if (ext.compare("laz") == 0)
   {
-    const std::string ext = getFileExtension(file_name);
-    std::string reader_type;
-    pdal::Options options;
-
-    reader_type = ext;
-
-    if (ext.compare("laz") == 0)
-    {
-      reader_type = "las";
-      options.add("compression", "EITHER");
-    }
-
-    reader_type = "readers." + reader_type;
-    std::shared_ptr<pdal::Stage> reader(factory.createStage(reader_type),  //
-                                        [&factory](pdal::Stage *stage) { factory.destroyStage(stage); });
-
-    if (!reader)
-    {
-      std::cerr << "PDAL reader for " << reader_type << " not available" << std::endl;
-      return nullptr;
-    }
-
-    if (!reader->pipelineStreamable())
-    {
-      std::cout << "PDAL reader for " << reader_type << " does not support streaming" << std::endl;
-      return nullptr;
-    }
-
-    auto streamable_reader = std::dynamic_pointer_cast<pdal::Streamable>(reader);
-
-    if (streamable_reader)
-    {
-      options.add("filename", file_name);
-      reader->setOptions(options);
-    }
-
-    return streamable_reader;
+    reader_type = "las";
+    options.add("compression", "EITHER");
   }
 
+  reader_type = "readers." + reader_type;
+  std::shared_ptr<pdal::Stage> reader(factory.createStage(reader_type),  //
+                                      [&factory](pdal::Stage *stage) { factory.destroyStage(stage); });
 
-  pdal::point_count_t pointCount(std::shared_ptr<pdal::Streamable> reader)
+  if (!reader)
   {
-    // Doesn't seem to be a consistent way to read the point count. `Reader::count()` didn't work with las, but casting
-    // and calling `LasReader::getNumPoints()` does.
+    std::cerr << "PDAL reader for " << reader_type << " not available" << std::endl;
+    return nullptr;
+  }
+
+  if (!reader->pipelineStreamable())
+  {
+    std::cout << "PDAL reader for " << reader_type << " does not support streaming" << std::endl;
+    return nullptr;
+  }
+
+  auto streamable_reader = std::dynamic_pointer_cast<pdal::Streamable>(reader);
+
+  if (streamable_reader)
+  {
+    options.add("filename", file_name);
+    reader->setOptions(options);
+  }
+
+  return streamable_reader;
+}
+
+
+pdal::point_count_t pointCount(std::shared_ptr<pdal::Streamable> reader)
+{
+  // Doesn't seem to be a consistent way to read the point count. `Reader::count()` didn't work with las, but casting
+  // and calling `LasReader::getNumPoints()` does.
 #define TRY_PDAL_POINT_COUNT(T, func)                        \
   if (T *r = dynamic_cast<T *>(reader.get()))                \
   {                                                          \
@@ -338,12 +338,12 @@ namespace
       return r->func();                                      \
     }                                                        \
   }
-    TRY_PDAL_POINT_COUNT(pdal::BpfReader, numPoints);
-    TRY_PDAL_POINT_COUNT(pdal::LasReader, getNumPoints);
-    TRY_PDAL_POINT_COUNT(pdal::Reader, count);
+  TRY_PDAL_POINT_COUNT(pdal::BpfReader, numPoints);
+  TRY_PDAL_POINT_COUNT(pdal::LasReader, getNumPoints);
+  TRY_PDAL_POINT_COUNT(pdal::Reader, count);
 
-    return 0;
-  }
+  return 0;
+}
 }  // namespace
 
 SlamCloudLoader::SlamCloudLoader(bool real_time_mode)

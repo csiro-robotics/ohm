@@ -18,15 +18,15 @@ using Clock = std::chrono::high_resolution_clock;
 
 namespace ohm
 {
-  struct ScopedTimeDisplayDetail
-  {
-    Clock::time_point start_time;
-    Clock::time_point end_time;
-    ScopedTimeDisplay::CustomLogger logger;
-    std::string msg_prefix;
-    std::ostream *out = nullptr;
-    bool enabled = true;
-  };
+struct ScopedTimeDisplayDetail
+{
+  Clock::time_point start_time;
+  Clock::time_point end_time;
+  ScopedTimeDisplay::CustomLogger logger;
+  std::string msg_prefix;
+  std::ostream *out = nullptr;
+  bool enabled = true;
+};
 }  // namespace ohm
 
 ScopedTimeDisplay::ScopedTimeDisplay(const char *msg_prefix)

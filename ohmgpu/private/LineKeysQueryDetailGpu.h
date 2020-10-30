@@ -23,20 +23,20 @@
 
 namespace ohm
 {
-  struct LineKeysQueryDetailGpu : public LineKeysQueryDetail
-  {
-    gputil::Kernel line_keys_kernel;
-    gputil::Device gpu;
+struct LineKeysQueryDetailGpu : public LineKeysQueryDetail
+{
+  gputil::Kernel line_keys_kernel;
+  gputil::Device gpu;
 
-    gputil::Queue queue;
+  gputil::Queue queue;
 
-    gputil::Buffer lines_out;
-    gputil::Buffer line_points;
-    unsigned max_keys_per_line = 0;
-    std::atomic_bool inflight{ false };
+  gputil::Buffer lines_out;
+  gputil::Buffer line_points;
+  unsigned max_keys_per_line = 0;
+  std::atomic_bool inflight{ false };
 
-    bool gpu_ok = false;
-  };
+  bool gpu_ok = false;
+};
 }  // namespace ohm
 
 #endif  // OHMGPU_LINEKEYSQUERYDETAILGPU_H_

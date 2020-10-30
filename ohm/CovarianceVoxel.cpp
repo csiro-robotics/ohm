@@ -6,9 +6,9 @@
 #include "OhmConfig.h"
 
 // #define GLM_ENABLE_EXPERIMENTAL
-#include <glm/vec3.hpp>
-#include <glm/mat3x3.hpp>
 #include <glm/gtx/norm.hpp>
+#include <glm/mat3x3.hpp>
+#include <glm/vec3.hpp>
 
 // Must come after glm includes due to usage on GPU.
 #include "CovarianceVoxel.h"
@@ -37,108 +37,108 @@ using namespace ohm;
 #if OHM_COV_DEBUG
 namespace
 {
-  unsigned max_iterations = 0;
-  double max_error = 0;
+unsigned max_iterations = 0;
+double max_error = 0;
 }  // namespace
 #endif  // OHM_COV_DEBUG
 
 namespace
 {
 #ifdef OHM_WITH_EIGEN
-  void covarianceEigenDecompositionEigen(const CovarianceVoxel *cov, glm::dmat3 *eigenvectors, glm::dvec3 *eigenvalues)
+void covarianceEigenDecompositionEigen(const CovarianceVoxel *cov, glm::dmat3 *eigenvectors, glm::dvec3 *eigenvalues)
+{
+  // This has been noted to be ~3x faster than the GLM iterative version.
+  const glm::dmat3 cov_mat = covarianceMatrix(cov);
+  // Both GLM and Eigen are column major. Direct mapping is fine.
+  const auto cov_eigen = Eigen::Matrix3d::ConstMapType(glm::value_ptr(cov_mat), 3, 3);
+
+  Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> eigensolver(cov_eigen);
+  Eigen::Vector3d evals = Eigen::Vector3d::Ones();
+  Eigen::Matrix3d evecs = Eigen::Matrix3d::Identity();
+
+  if (eigensolver.info() == Eigen::Success)
   {
-    // This has been noted to be ~3x faster than the GLM iterative version.
-    const glm::dmat3 cov_mat = covarianceMatrix(cov);
-    // Both GLM and Eigen are column major. Direct mapping is fine.
-    const auto cov_eigen = Eigen::Matrix3d::ConstMapType(glm::value_ptr(cov_mat), 3, 3);
+    evals = eigensolver.eigenvalues();
+    evecs = eigensolver.eigenvectors();
+  }
+  const double det = evecs.determinant();
+  if (det < 0.0)
+  {
+    evecs.col(0) = -evecs.col(0);  // must be valid rotation matrix (determinant=+1)
+  }
+  else if (det == 0.0)
+  {
+    evecs = Eigen::Matrix3d::Identity();
+  }
 
-    Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> eigensolver(cov_eigen);
-    Eigen::Vector3d evals = Eigen::Vector3d::Ones();
-    Eigen::Matrix3d evecs = Eigen::Matrix3d::Identity();
+  *eigenvalues = glm::dvec3(evals[0], evals[1], evals[2]);
 
-    if (eigensolver.info() == Eigen::Success)
+  for (int r = 0; r < 3; ++r)
+  {
+    for (int c = 0; c < 3; ++c)
     {
-      evals = eigensolver.eigenvalues();
-      evecs = eigensolver.eigenvectors();
-    }
-    const double det = evecs.determinant();
-    if (det < 0.0)
-    {
-      evecs.col(0) = -evecs.col(0);  // must be valid rotation matrix (determinant=+1)
-    }
-    else if (det == 0.0)
-    {
-      evecs = Eigen::Matrix3d::Identity();
-    }
-
-    *eigenvalues = glm::dvec3(evals[0], evals[1], evals[2]);
-
-    for (int r = 0; r < 3; ++r)
-    {
-      for (int c = 0; c < 3; ++c)
-      {
-        (*eigenvectors)[c][r] = evecs(r, c);
-      }
+      (*eigenvectors)[c][r] = evecs(r, c);
     }
   }
+}
 #else  // OHM_WITH_EIGEN
-  void covarianceEigenDecompositionGlm(const CovarianceVoxel *cov, glm::dmat3 *eigenvectors, glm::dvec3 *eigenvalues)
+void covarianceEigenDecompositionGlm(const CovarianceVoxel *cov, glm::dmat3 *eigenvectors, glm::dvec3 *eigenvalues)
+{
+  // This has been noted to be ~3x slower than the Eigen solver.
+  const glm::dmat3 mat = covarianceMatrix(cov);
+
+  *eigenvectors = glm::dmat3(1.0);  // Identity initialisation
+
+  // Use QR decomposition to implement the QR algorithm.
+  // For this algorithm, we iterate as follows:
+  //
+  // P = cov * cov^T  // cov by cov transpose
+  // for i = 1 to N
+  //   Q, R = qr_decomposition(P)
+  //   P = R * Q
+  // end
+  //
+  // The eigenvalues converge in the diagonal of R.
+  // Meanwhile the eigenvectors are found by the product all the Q matrices
+  //
+  // We set a hard iteration limit, but we also check for convergence with last iteration and may early out.
+  const unsigned iteration_limit = 20;
+  glm::dmat3 q, r;
+  glm::dvec3 eigenvalues_last, eigenvalues_current(0);
+  const glm::dvec3 delta_threshold(1e-9);
+  for (unsigned i = 0; i < iteration_limit; ++i)
   {
-    // This has been noted to be ~3x slower than the Eigen solver.
-    const glm::dmat3 mat = covarianceMatrix(cov);
-
-    *eigenvectors = glm::dmat3(1.0);  // Identity initialisation
-
-    // Use QR decomposition to implement the QR algorithm.
-    // For this algorithm, we iterate as follows:
-    //
-    // P = cov * cov^T  // cov by cov transpose
-    // for i = 1 to N
-    //   Q, R = qr_decomposition(P)
-    //   P = R * Q
-    // end
-    //
-    // The eigenvalues converge in the diagonal of R.
-    // Meanwhile the eigenvectors are found by the product all the Q matrices
-    //
-    // We set a hard iteration limit, but we also check for convergence with last iteration and may early out.
-    const unsigned iteration_limit = 20;
-    glm::dmat3 q, r;
-    glm::dvec3 eigenvalues_last, eigenvalues_current(0);
-    const glm::dvec3 delta_threshold(1e-9);
-    for (unsigned i = 0; i < iteration_limit; ++i)
-    {
-      eigenvalues_last = eigenvalues_current;
+    eigenvalues_last = eigenvalues_current;
 #if OHM_COV_DEBUG
-      max_iterations = std::max(max_iterations, i + 1);
+    max_iterations = std::max(max_iterations, i + 1);
 #endif  // OHM_COV_DEBUG
 
-      glm::qr_decompose(mat, q, r);
-      // Progressively refine the eigenvectors.
-      *eigenvectors = *eigenvectors * q;
-      // Update eigenvalues and check for convergence
-      eigenvalues_current[0] = r[0][0];
-      eigenvalues_current[1] = r[1][1];
-      eigenvalues_current[2] = r[2][2];
+    glm::qr_decompose(mat, q, r);
+    // Progressively refine the eigenvectors.
+    *eigenvectors = *eigenvectors * q;
+    // Update eigenvalues and check for convergence
+    eigenvalues_current[0] = r[0][0];
+    eigenvalues_current[1] = r[1][1];
+    eigenvalues_current[2] = r[2][2];
 
-      mat = r * q;
+    mat = r * q;
 
-      const glm::dvec3 eval_delta = glm::abs(eigenvalues_current - eigenvalues_last);
-      if (glm::all(glm::lessThanEqual(eval_delta, delta_threshold)))
-      {
-        break;
-      }
-    }
-
-#if OHM_COV_DEBUG
     const glm::dvec3 eval_delta = glm::abs(eigenvalues_current - eigenvalues_last);
-    max_error = std::max(eval_delta.x, max_error);
-    max_error = std::max(eval_delta.y, max_error);
-    max_error = std::max(eval_delta.z, max_error);
+    if (glm::all(glm::lessThanEqual(eval_delta, delta_threshold)))
+    {
+      break;
+    }
+  }
+
+#if OHM_COV_DEBUG
+  const glm::dvec3 eval_delta = glm::abs(eigenvalues_current - eigenvalues_last);
+  max_error = std::max(eval_delta.x, max_error);
+  max_error = std::max(eval_delta.y, max_error);
+  max_error = std::max(eval_delta.z, max_error);
 #endif  // OHM_COV_DEBUG
 
-    *eigenvalues = eigenvalues_current;
-  }
+  *eigenvalues = eigenvalues_current;
+}
 #endif  // OHM_WITH_EIGEN
 }  // namespace
 
@@ -297,16 +297,16 @@ void ohm::integrateNdtMiss(NdtMap &map, const Key &key, const glm::dvec3 &sensor
   if (map.trace())
   {
     const glm::dvec3 voxel_centre = occupancy_map.voxelCentreGlobal(key);
-    TES_BOX_W(g_3es, TES_COLOUR(OrangeRed), tes::Id(cov_voxel.voxelMemory()),
+    TES_BOX_W(g_tes, TES_COLOUR(OrangeRed), tes::Id(cov_voxel.voxelMemory()),
               tes::Transform(glm::value_ptr(voxel_centre), glm::value_ptr(glm::dvec3(occupancy_map.resolution()))));
-    TES_SERVER_UPDATE(g_3es, 0.0f);
+    TES_SERVER_UPDATE(g_tes, 0.0f);
 
     bool drew_surfel = false;
     glm::dquat rot;
     glm::dvec3 scale;
     if (covarianceUnitSphereTransformation(&cov, &rot, &scale))
     {
-      TES_SPHERE(g_3es, TES_COLOUR(SeaGreen), tes::Id(cov_voxel.voxelMemory()),
+      TES_SPHERE(g_tes, TES_COLOUR(SeaGreen), tes::Id(cov_voxel.voxelMemory()),
                  tes::Transform(tes::Vector3d(glm::value_ptr(voxel_mean)), tes::Quaterniond(rot.x, rot.y, rot.z, rot.w),
                                 tes::Vector3d(glm::value_ptr(scale))));
       drew_surfel = true;
@@ -314,23 +314,23 @@ void ohm::integrateNdtMiss(NdtMap &map, const Key &key, const glm::dvec3 &sensor
 
     // Trace the voxel mean, maximum likelihood point and the ellipsoid.
     // Mean
-    TES_SPHERE(g_3es, TES_COLOUR(OrangeRed), tes::Id(&voxel_mean), tes::Spherical(glm::value_ptr(voxel_mean), 0.05f));
+    TES_SPHERE(g_tes, TES_COLOUR(OrangeRed), tes::Id(&voxel_mean), tes::Spherical(glm::value_ptr(voxel_mean), 0.05f));
     // Maximum likelihood
-    TES_SPHERE_W(g_3es, TES_COLOUR(PowderBlue), tes::Id(&voxel_maximum_likelihood),
+    TES_SPHERE_W(g_tes, TES_COLOUR(PowderBlue), tes::Id(&voxel_maximum_likelihood),
                  tes::Spherical(glm::value_ptr(voxel_maximum_likelihood), 0.1f));
 
     char text[64];
     sprintf(text, "P %.3f", ohm::valueToProbability(occupancy - initial_value));
-    TES_TEXT2D_WORLD(g_3es, TES_COLOUR(White), text, tes::Id(),
+    TES_TEXT2D_WORLD(g_tes, TES_COLOUR(White), text, tes::Id(),
                      tes::Spherical(tes::Vector3d(glm::value_ptr(voxel_centre))));
 
-    TES_SERVER_UPDATE(g_3es, 0.0f);
-    TES_BOX_END(g_3es, tes::Id(cov_voxel.voxelMemory()));
-    TES_SPHERE_END(g_3es, tes::Id(&voxel_mean));
-    TES_SPHERE_END(g_3es, tes::Id(&voxel_maximum_likelihood));
+    TES_SERVER_UPDATE(g_tes, 0.0f);
+    TES_BOX_END(g_tes, tes::Id(cov_voxel.voxelMemory()));
+    TES_SPHERE_END(g_tes, tes::Id(&voxel_mean));
+    TES_SPHERE_END(g_tes, tes::Id(&voxel_maximum_likelihood));
     if (drew_surfel)
     {
-      TES_SPHERE_END(g_3es, tes::Id(cov_voxel.voxelMemory()));
+      TES_SPHERE_END(g_tes, tes::Id(cov_voxel.voxelMemory()));
     }
   }
 #endif  // TES_ENABLE

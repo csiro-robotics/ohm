@@ -16,19 +16,19 @@
 
 namespace gputil
 {
-  struct DeviceDetail
-  {
-    cl::Context context;
-    cl::Device device;
-    // TODO(KS): this needs to be separated out into a queue object.
-    // We may preserve this member as the default queue.
-    cl::CommandQueue queue;
-    DeviceInfo info;
-    std::string description;
-    std::string search_paths;
-    std::string extensions;  ///< OpenCL supported extension string.
-    unsigned debug = 0;
-  };
+struct DeviceDetail
+{
+  cl::Context context;
+  cl::Device device;
+  // TODO(KS): this needs to be separated out into a queue object.
+  // We may preserve this member as the default queue.
+  cl::CommandQueue queue;
+  DeviceInfo info;
+  std::string description;
+  std::string search_paths;
+  std::string extensions;  ///< OpenCL supported extension string.
+  unsigned debug = 0;
+};
 }  // namespace gputil
 
 #endif  // GPUDEVICEDETAIL_H

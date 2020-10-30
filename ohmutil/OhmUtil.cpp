@@ -7,5 +7,5 @@
 
 namespace
 {
-  int dummy_symbol = 0;
+int dummy_symbol = 0;
 }

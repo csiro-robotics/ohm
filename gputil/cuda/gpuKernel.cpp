@@ -26,109 +26,107 @@ using namespace gputil;
 
 namespace gputil
 {
-  namespace cuda
+namespace cuda
+{
+int preInvokeKernel(const Device &device)
+{
+  // Select device.
+  cudaError_t err = cudaSuccess;
+  err = cudaSetDevice(device.detail()->device);
+  GPUAPICHECK(err, cudaSuccess, err);
+  // cudaDeviceProp info;
+  // memset(&info, 0, sizeof(info));
+  // err = cudaGetDeviceProperties(&info, device.detail()->device);
+  // GPUAPICHECK(err, cudaSuccess, err);
+  return err;
+}
+
+
+size_t calcSharedMemSize(const KernelDetail &imp, size_t block_threads)
+{
+  // To calculate the total size, sum the desired sizes with 8 byte alignment in between. This may be larger than
+  // required.
+  size_t shared_mem_size = 0u;
+  const size_t alignment = 8u;
+  size_t alignment_remainder;
+  for (auto &&local_mem_func : imp.local_mem_args)
   {
-    int preInvokeKernel(const Device &device)
+    shared_mem_size += local_mem_func(block_threads);
+    // Align to 8 bytes.
+    alignment_remainder = shared_mem_size % alignment;
+    shared_mem_size += !!(alignment_remainder) * (alignment - alignment_remainder);
+  }
+  return shared_mem_size;
+}
+
+
+int invokeKernel(const KernelDetail &imp, const Dim3 &global_size, const Dim3 &local_size, const EventList *event_list,
+                 Event *completion_event, Queue *queue, void **args, size_t /*arg_count*/)
+{
+  cudaError_t err = cudaSuccess;
+
+  // TODO(KS): Enable once kernel definition arguments are counted.
+  // if (arg_count != imp.arg_count)
+  // {
+  //   err = cudaErrorLaunchFailure;
+  //   const char *msg = (arg_count > imp.arg_count) ? "too many arguments" : "too few arguments";
+  //   GPUTHROW(ApiException(err, msg), err);
+  //   return err;
+  // }
+
+  // Resolve shared memory size
+  const size_t shared_mem_size = calcSharedMemSize(imp, local_size.volume());
+
+  // Resolve cuda stream.
+  cudaStream_t cuda_stream = (queue) ? queue->internal()->obj() : nullptr;
+
+  // Make the stream wait on the event list.
+  if (event_list)
+  {
+    const Event *event = event_list->events();
+    for (size_t i = 0; i < event_list->count(); ++i, ++event)
     {
-      // Select device.
-      cudaError_t err = cudaSuccess;
-      err = cudaSetDevice(device.detail()->device);
-      GPUAPICHECK(err, cudaSuccess, err);
-      // cudaDeviceProp info;
-      // memset(&info, 0, sizeof(info));
-      // err = cudaGetDeviceProperties(&info, device.detail()->device);
-      // GPUAPICHECK(err, cudaSuccess, err);
-      return err;
-    }
-
-
-    size_t calcSharedMemSize(const KernelDetail &imp, size_t block_threads)
-    {
-      // To calculate the total size, sum the desired sizes with 8 byte alignment in between. This may be larger than
-      // required.
-      size_t shared_mem_size = 0u;
-      const size_t alignment = 8u;
-      size_t alignment_remainder;
-      for (auto &&local_mem_func : imp.local_mem_args)
+      if (event && event->detail() && event->detail()->obj())
       {
-        shared_mem_size += local_mem_func(block_threads);
-        // Align to 8 bytes.
-        alignment_remainder = shared_mem_size % alignment;
-        shared_mem_size += !!(alignment_remainder) * (alignment - alignment_remainder);
-      }
-      return shared_mem_size;
-    }
-
-
-    int invokeKernel(const KernelDetail &imp, const Dim3 &global_size, const Dim3 &local_size,
-                     const EventList *event_list, Event *completion_event, Queue *queue, void **args,
-                     size_t /*arg_count*/)
-    {
-      cudaError_t err = cudaSuccess;
-
-      // TODO(KS): Enable once kernel definition arguments are counted.
-      // if (arg_count != imp.arg_count)
-      // {
-      //   err = cudaErrorLaunchFailure;
-      //   const char *msg = (arg_count > imp.arg_count) ? "too many arguments" : "too few arguments";
-      //   GPUTHROW(ApiException(err, msg), err);
-      //   return err;
-      // }
-
-      // Resolve shared memory size
-      const size_t shared_mem_size = calcSharedMemSize(imp, local_size.volume());
-
-      // Resolve cuda stream.
-      cudaStream_t cuda_stream = (queue) ? queue->internal()->obj() : nullptr;
-
-      // Make the stream wait on the event list.
-      if (event_list)
-      {
-        const Event *event = event_list->events();
-        for (size_t i = 0; i < event_list->count(); ++i, ++event)
-        {
-          if (event && event->detail() && event->detail()->obj())
-          {
-            cudaEvent_t cuda_event = event->detail()->obj();
-            const unsigned flags = 0u;  // Must be zero at the time of implementation.
-            err = cudaStreamWaitEvent(cuda_stream, cuda_event, flags);
-            GPUAPICHECK(err, cudaSuccess, err);
-          }
-        }
-      }
-
-      // int n = 0;
-      // std::vector<void *> dummy_args(5);
-      // for (int i = 0; i < 5; ++i)
-      // {
-      //   dummy_args[i] = nullptr;
-      // }
-      // dummy_args[3] = &n;
-
-      // args = dummy_args.data();
-
-      // Launch kernel.
-      dim3 grid_dim;
-      grid_dim.x = (local_size.x) ? unsigned((global_size.x + local_size.x - 1) / local_size.x) : 1u;
-      grid_dim.y = (local_size.y) ? unsigned((global_size.y + local_size.y - 1) / local_size.y) : 1u;
-      grid_dim.z = (local_size.z) ? unsigned((global_size.z + local_size.z - 1) / local_size.z) : 1u;
-      err = cudaLaunchKernel(imp.cuda_kernel_function,
-                             grid_dim,
-                             dim3(unsigned(local_size.x), unsigned(local_size.y), unsigned(local_size.z)), args,
-                             shared_mem_size, cuda_stream);
-      GPUAPICHECK(err, cudaSuccess, err);
-
-      // Hook up completion event.
-      if (completion_event)
-      {
-        // Create new event.
-        completion_event->release();
-        err = cudaEventRecord(completion_event->detail()->obj(), cuda_stream);
+        cudaEvent_t cuda_event = event->detail()->obj();
+        const unsigned flags = 0u;  // Must be zero at the time of implementation.
+        err = cudaStreamWaitEvent(cuda_stream, cuda_event, flags);
         GPUAPICHECK(err, cudaSuccess, err);
       }
-      return err;
     }
-  }  // namespace cuda
+  }
+
+  // int n = 0;
+  // std::vector<void *> dummy_args(5);
+  // for (int i = 0; i < 5; ++i)
+  // {
+  //   dummy_args[i] = nullptr;
+  // }
+  // dummy_args[3] = &n;
+
+  // args = dummy_args.data();
+
+  // Launch kernel.
+  dim3 grid_dim;
+  grid_dim.x = (local_size.x) ? unsigned((global_size.x + local_size.x - 1) / local_size.x) : 1u;
+  grid_dim.y = (local_size.y) ? unsigned((global_size.y + local_size.y - 1) / local_size.y) : 1u;
+  grid_dim.z = (local_size.z) ? unsigned((global_size.z + local_size.z - 1) / local_size.z) : 1u;
+  err = cudaLaunchKernel(imp.cuda_kernel_function, grid_dim,
+                         dim3(unsigned(local_size.x), unsigned(local_size.y), unsigned(local_size.z)), args,
+                         shared_mem_size, cuda_stream);
+  GPUAPICHECK(err, cudaSuccess, err);
+
+  // Hook up completion event.
+  if (completion_event)
+  {
+    // Create new event.
+    completion_event->release();
+    err = cudaEventRecord(completion_event->detail()->obj(), cuda_stream);
+    GPUAPICHECK(err, cudaSuccess, err);
+  }
+  return err;
+}
+}  // namespace cuda
 }  // namespace gputil
 
 Kernel::Kernel()
@@ -270,14 +268,14 @@ Kernel &Kernel::operator=(Kernel &&other) noexcept
 
 namespace gputil
 {
-  Kernel cudaKernel(Program &program, const void *kernel_function_ptr,
-                    const gputil::OptimalGroupSizeCalculation &group_calc)
-  {
-    Kernel kernel;
-    kernel.detail()->cuda_kernel_function = kernel_function_ptr;
-    kernel.detail()->optimal_group_size_calc = group_calc;
-    kernel.detail()->program = program;
-    // TODO(KS): count arguments
-    return kernel;
-  }
+Kernel cudaKernel(Program &program, const void *kernel_function_ptr,
+                  const gputil::OptimalGroupSizeCalculation &group_calc)
+{
+  Kernel kernel;
+  kernel.detail()->cuda_kernel_function = kernel_function_ptr;
+  kernel.detail()->optimal_group_size_calc = group_calc;
+  kernel.detail()->program = program;
+  // TODO(KS): count arguments
+  return kernel;
+}
 }  // namespace gputil

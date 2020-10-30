@@ -21,15 +21,15 @@ using namespace ohm;
 
 namespace ohm
 {
-  struct GpuCacheDetail
-  {
-    std::vector<std::unique_ptr<GpuLayerCache>> layer_caches;
-    gputil::Device gpu;
-    gputil::Queue gpu_queue;
-    OccupancyMap *map = nullptr;
-    size_t target_gpu_alloc_size = 0;
-    unsigned flags = 0;
-  };
+struct GpuCacheDetail
+{
+  std::vector<std::unique_ptr<GpuLayerCache>> layer_caches;
+  gputil::Device gpu;
+  gputil::Queue gpu_queue;
+  OccupancyMap *map = nullptr;
+  size_t target_gpu_alloc_size = 0;
+  unsigned flags = 0;
+};
 }  // namespace ohm
 
 

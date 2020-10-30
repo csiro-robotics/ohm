@@ -4,9 +4,9 @@
 //
 // Author: Kazys Stepanas
 
-#include "gpu_ext.h"
-#include "MapCoord.h"
 #include "GpuKey.h"
+#include "MapCoord.h"
+#include "gpu_ext.h"
 
 #define WALK_LINE_VOXELS lineKeysWalkLine
 #define VISIT_LINE_VOXEL lineKeysVisitVoxel

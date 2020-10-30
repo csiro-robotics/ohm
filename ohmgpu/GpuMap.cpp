@@ -54,149 +54,149 @@ using namespace ohm;
 namespace
 {
 #if defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
-  GpuProgramRef program_ref_sub_vox("RegionUpdate", GpuProgramRef::kSourceString, RegionUpdateCode,  // NOLINT
-                                    RegionUpdateCode_length, { "-DVOXEL_MEAN" });
+GpuProgramRef program_ref_sub_vox("RegionUpdate", GpuProgramRef::kSourceString, RegionUpdateCode,  // NOLINT
+                                  RegionUpdateCode_length, { "-DVOXEL_MEAN" });
 #else   // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
-  GpuProgramRef program_ref_sub_vox("RegionUpdate", GpuProgramRef::kSourceFile, "RegionUpdate.cl", 0u,
-                                    { "-DVOXEL_MEAN" });
+GpuProgramRef program_ref_sub_vox("RegionUpdate", GpuProgramRef::kSourceFile, "RegionUpdate.cl", 0u,
+                                  { "-DVOXEL_MEAN" });
 #endif  // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
 
 #if defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
-  GpuProgramRef program_ref_no_sub("RegionUpdate", GpuProgramRef::kSourceString, RegionUpdateCode,  // NOLINT
-                                   RegionUpdateCode_length);
+GpuProgramRef program_ref_no_sub("RegionUpdate", GpuProgramRef::kSourceString, RegionUpdateCode,  // NOLINT
+                                 RegionUpdateCode_length);
 #else   // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
-  GpuProgramRef program_ref_no_sub("RegionUpdate", GpuProgramRef::kSourceFile, "RegionUpdate.cl", 0u);
+GpuProgramRef program_ref_no_sub("RegionUpdate", GpuProgramRef::kSourceFile, "RegionUpdate.cl", 0u);
 #endif  // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
 
-  using RegionWalkFunction = std::function<void(const glm::i16vec3 &, const glm::dvec3 &, const glm::dvec3 &)>;
+using RegionWalkFunction = std::function<void(const glm::i16vec3 &, const glm::dvec3 &, const glm::dvec3 &)>;
 
-  void walkRegions(const OccupancyMap &map, const glm::dvec3 &start_point, const glm::dvec3 &end_point,
-                   const RegionWalkFunction &func)
+void walkRegions(const OccupancyMap &map, const glm::dvec3 &start_point, const glm::dvec3 &end_point,
+                 const RegionWalkFunction &func)
+{
+  // see "A Faster Voxel Traversal Algorithm for Ray
+  // Tracing" by Amanatides & Woo
+  const glm::i16vec3 start_point_key = map.regionKey(start_point);
+  const glm::i16vec3 end_point_key = map.regionKey(end_point);
+  const glm::dvec3 start_point_local = glm::vec3(start_point - map.origin());
+  const glm::dvec3 end_point_local = glm::vec3(end_point - map.origin());
+
+  glm::dvec3 direction = glm::vec3(end_point - start_point);
+  double length = glm::dot(direction, direction);
+
+  // Very small segments which straddle a voxel boundary can be problematic. We want to avoid
+  // a sqrt on a very small number, but be robust enough to handle the situation.
+  // To that end, we skip normalising the direction for directions below a tenth of the voxel.
+  // Then we will exit either with start/end voxels being the same, or we will step from start
+  // to end in one go.
+  const bool valid_length = (length >= 0.1 * map.resolution() * 0.1 * map.resolution());
+  if (valid_length)
   {
-    // see "A Faster Voxel Traversal Algorithm for Ray
-    // Tracing" by Amanatides & Woo
-    const glm::i16vec3 start_point_key = map.regionKey(start_point);
-    const glm::i16vec3 end_point_key = map.regionKey(end_point);
-    const glm::dvec3 start_point_local = glm::vec3(start_point - map.origin());
-    const glm::dvec3 end_point_local = glm::vec3(end_point - map.origin());
+    length = std::sqrt(length);
+    direction *= 1.0 / length;
+  }
 
-    glm::dvec3 direction = glm::vec3(end_point - start_point);
-    double length = glm::dot(direction, direction);
+  if (start_point_key == end_point_key)  // || !valid_length)
+  {
+    func(start_point_key, start_point, end_point);
+    return;
+  }
 
-    // Very small segments which straddle a voxel boundary can be problematic. We want to avoid
-    // a sqrt on a very small number, but be robust enough to handle the situation.
-    // To that end, we skip normalising the direction for directions below a tenth of the voxel.
-    // Then we will exit either with start/end voxels being the same, or we will step from start
-    // to end in one go.
-    const bool valid_length = (length >= 0.1 * map.resolution() * 0.1 * map.resolution());
-    if (valid_length)
+  if (!valid_length)
+  {
+    // Start/end points are in different, but adjacent voxels. Prevent issues with the loop by
+    // early out.
+    func(start_point_key, start_point, end_point);
+    func(end_point_key, start_point, end_point);
+    return;
+  }
+
+  int step[3] = { 0 };
+  glm::dvec3 region;
+  double time_max[3];
+  double time_delta[3];
+  double time_limit[3];
+  double next_region_border;
+  double direction_axis_inv;
+  const glm::dvec3 region_resolution = map.regionSpatialResolution();
+  glm::i16vec3 current_key = start_point_key;
+
+  region = map.regionCentreLocal(current_key);
+
+  // Compute step direction, increments and maximums along
+  // each axis.
+  for (unsigned i = 0; i < 3; ++i)
+  {
+    if (direction[i] != 0)
     {
-      length = std::sqrt(length);
-      direction *= 1.0 / length;
+      direction_axis_inv = 1.0 / direction[i];
+      step[i] = (direction[i] > 0) ? 1 : -1;
+      // Time delta is the ray time between voxel
+      // boundaries calculated for each axis.
+      time_delta[i] = region_resolution[i] * std::abs(direction_axis_inv);
+      // Calculate the distance from the origin to the
+      // nearest voxel edge for this axis.
+      next_region_border = region[i] + step[i] * 0.5f * region_resolution[i];
+      time_max[i] = (next_region_border - start_point_local[i]) * direction_axis_inv;
+      time_limit[i] =
+        std::abs((end_point_local[i] - start_point_local[i]) * direction_axis_inv);  // +0.5f *
+                                                                                     // regionResolution[i];
     }
-
-    if (start_point_key == end_point_key)  // || !valid_length)
+    else
     {
-      func(start_point_key, start_point, end_point);
-      return;
+      time_max[i] = time_delta[i] = std::numeric_limits<double>::max();
+      time_limit[i] = 0;
     }
+  }
 
-    if (!valid_length)
-    {
-      // Start/end points are in different, but adjacent voxels. Prevent issues with the loop by
-      // early out.
-      func(start_point_key, start_point, end_point);
-      func(end_point_key, start_point, end_point);
-      return;
-    }
-
-    int step[3] = { 0 };
-    glm::dvec3 region;
-    double time_max[3];
-    double time_delta[3];
-    double time_limit[3];
-    double next_region_border;
-    double direction_axis_inv;
-    const glm::dvec3 region_resolution = map.regionSpatialResolution();
-    glm::i16vec3 current_key = start_point_key;
-
-    region = map.regionCentreLocal(current_key);
-
-    // Compute step direction, increments and maximums along
-    // each axis.
-    for (unsigned i = 0; i < 3; ++i)
-    {
-      if (direction[i] != 0)
-      {
-        direction_axis_inv = 1.0 / direction[i];
-        step[i] = (direction[i] > 0) ? 1 : -1;
-        // Time delta is the ray time between voxel
-        // boundaries calculated for each axis.
-        time_delta[i] = region_resolution[i] * std::abs(direction_axis_inv);
-        // Calculate the distance from the origin to the
-        // nearest voxel edge for this axis.
-        next_region_border = region[i] + step[i] * 0.5f * region_resolution[i];
-        time_max[i] = (next_region_border - start_point_local[i]) * direction_axis_inv;
-        time_limit[i] =
-          std::abs((end_point_local[i] - start_point_local[i]) * direction_axis_inv);  // +0.5f *
-                                                                                       // regionResolution[i];
-      }
-      else
-      {
-        time_max[i] = time_delta[i] = std::numeric_limits<double>::max();
-        time_limit[i] = 0;
-      }
-    }
-
-    bool limit_reached = false;
-    int axis;
-    while (!limit_reached && current_key != end_point_key)
-    {
-      func(current_key, start_point, end_point);
-
-      if (time_max[0] < time_max[2])
-      {
-        axis = (time_max[0] < time_max[1]) ? 0 : 1;
-      }
-      else
-      {
-        axis = (time_max[1] < time_max[2]) ? 1 : 2;
-      }
-
-      limit_reached = std::abs(time_max[axis]) > time_limit[axis];
-      current_key[axis] += step[axis];
-      time_max[axis] += time_delta[axis];
-    }
-
-    // Touch the last region.
+  bool limit_reached = false;
+  int axis;
+  while (!limit_reached && current_key != end_point_key)
+  {
     func(current_key, start_point, end_point);
+
+    if (time_max[0] < time_max[2])
+    {
+      axis = (time_max[0] < time_max[1]) ? 0 : 1;
+    }
+    else
+    {
+      axis = (time_max[1] < time_max[2]) ? 1 : 2;
+    }
+
+    limit_reached = std::abs(time_max[axis]) > time_limit[axis];
+    current_key[axis] += step[axis];
+    time_max[axis] += time_delta[axis];
   }
 
-  inline bool goodRay(const glm::dvec3 &start, const glm::dvec3 &end, double max_range = 500.0)
+  // Touch the last region.
+  func(current_key, start_point, end_point);
+}
+
+inline bool goodRay(const glm::dvec3 &start, const glm::dvec3 &end, double max_range = 500.0)
+{
+  bool is_good = true;
+  if (glm::any(glm::isnan(start)))
   {
-    bool is_good = true;
-    if (glm::any(glm::isnan(start)))
-    {
-      // std::cerr << "NAN start point" << std::endl;
-      is_good = false;
-    }
-    if (glm::any(glm::isnan(end)))
-    {
-      // std::cerr << "NAN end point" << std::endl;
-      is_good = false;
-    }
-
-    const glm::dvec3 ray = end - start;
-    if (max_range > 0 && glm::dot(ray, ray) > max_range * max_range)
-    {
-      // std::cerr << "Ray too long: (" <<
-      // glm::distance(start, end) << "): " << start << " ->
-      // " << end << std::endl;
-      is_good = false;
-    }
-
-    return is_good;
+    // std::cerr << "NAN start point" << std::endl;
+    is_good = false;
   }
+  if (glm::any(glm::isnan(end)))
+  {
+    // std::cerr << "NAN end point" << std::endl;
+    is_good = false;
+  }
+
+  const glm::dvec3 ray = end - start;
+  if (max_range > 0 && glm::dot(ray, ray) > max_range * max_range)
+  {
+    // std::cerr << "Ray too long: (" <<
+    // glm::distance(start, end) << "): " << start << " ->
+    // " << end << std::endl;
+    is_good = false;
+  }
+
+  return is_good;
+}
 }  // namespace
 
 

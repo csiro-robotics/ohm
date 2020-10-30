@@ -19,39 +19,39 @@
 
 namespace ohm
 {
-  class OccupancyMap;
-  struct MapChunk;
+class OccupancyMap;
+struct MapChunk;
 
-  struct ClearanceProcessDetail
+struct ClearanceProcessDetail
+{
+  unsigned query_flags = 0;
+  glm::vec3 axis_scaling = glm::vec3(1);
+  glm::i16vec3 min_dirty_region = glm::i16vec3(1);
+  glm::i16vec3 max_dirty_region = glm::i16vec3(0);
+  glm::i16vec3 current_dirty_cursor = glm::i16vec3(0);
+  /// Last value of the @c OccupancyMap::stamp(). Used to see if the cache needs to be cleared.
+  uint64_t map_stamp = 0;
+  float search_radius = 0;
+
+  std::unique_ptr<RoiRangeFill> gpu_query;
+
+  inline bool haveWork() const
   {
-    unsigned query_flags = 0;
-    glm::vec3 axis_scaling = glm::vec3(1);
-    glm::i16vec3 min_dirty_region = glm::i16vec3(1);
-    glm::i16vec3 max_dirty_region = glm::i16vec3(0);
-    glm::i16vec3 current_dirty_cursor = glm::i16vec3(0);
-    /// Last value of the @c OccupancyMap::stamp(). Used to see if the cache needs to be cleared.
-    uint64_t map_stamp = 0;
-    float search_radius = 0;
+    return glm::all(glm::lessThanEqual(min_dirty_region, max_dirty_region)) &&
+           glm::all(glm::lessThanEqual(current_dirty_cursor, max_dirty_region));
+  }
 
-    std::unique_ptr<RoiRangeFill> gpu_query;
+  inline void resetWorking()
+  {
+    min_dirty_region = glm::i16vec3(1);
+    max_dirty_region = current_dirty_cursor = glm::i16vec3(0);
+    map_stamp = 0;
+  }
 
-    inline bool haveWork() const
-    {
-      return glm::all(glm::lessThanEqual(min_dirty_region, max_dirty_region)) &&
-             glm::all(glm::lessThanEqual(current_dirty_cursor, max_dirty_region));
-    }
+  void stepCursor(const glm::i16vec3 &step = glm::i16vec3(1));
 
-    inline void resetWorking()
-    {
-      min_dirty_region = glm::i16vec3(1);
-      max_dirty_region = current_dirty_cursor = glm::i16vec3(0);
-      map_stamp = 0;
-    }
-
-    void stepCursor(const glm::i16vec3 &step = glm::i16vec3(1));
-
-    void getWork(OccupancyMap &map);  // NOLINT(google-runtime-references)
-  };
+  void getWork(OccupancyMap &map);  // NOLINT(google-runtime-references)
+};
 }  // namespace ohm
 
 #endif  // OHMGPU_CLEARANCEPROCESSEDETAIL_H

@@ -19,128 +19,128 @@ using namespace gputil;
 
 namespace
 {
-  void finaliseDetail(DeviceDetail &detail, const DeviceInfo *info)  // NOLINT(google-runtime-references)
+void finaliseDetail(DeviceDetail &detail, const DeviceInfo *info)  // NOLINT(google-runtime-references)
+{
+  if (info)
   {
-    if (info)
-    {
-      detail.info = *info;
-    }
-    else
-    {
-      detail.device.getInfo(CL_DEVICE_NAME, &detail.info.name);
-      // cl::Platform platform = detail.device.pla
-      detail.device.getInfo(CL_DEVICE_NAME, &detail.info.platform);
+    detail.info = *info;
+  }
+  else
+  {
+    detail.device.getInfo(CL_DEVICE_NAME, &detail.info.name);
+    // cl::Platform platform = detail.device.pla
+    detail.device.getInfo(CL_DEVICE_NAME, &detail.info.platform);
 
-      std::string ver_string;
-      detail.device.getInfo(CL_DEVICE_VERSION, &ver_string);
+    std::string ver_string;
+    detail.device.getInfo(CL_DEVICE_VERSION, &ver_string);
+
+    // Parse the version string.
+    cl_uint ver_major, ver_minor;
+    clu::parseVersion(ver_string.c_str(), &ver_major, &ver_minor);
+    detail.info.version.major = ver_major;
+    detail.info.version.minor = ver_minor;
+
+    cl_platform_id platform_id;
+    detail.device.getInfo(CL_DEVICE_PLATFORM, &platform_id);
+
+    cl_device_type device_type;
+    detail.device.getInfo(CL_DEVICE_TYPE, &device_type);
+
+    detail.info.type = kDeviceNull;
+    if (device_type & CL_DEVICE_TYPE_GPU)
+    {
+      detail.info.type = kDeviceGpu;
+    }
+    else if (device_type & CL_DEVICE_TYPE_CPU)
+    {
+      detail.info.type = kDeviceCpu;
+    }
+    else if (device_type & CL_DEVICE_TYPE_ACCELERATOR)
+    {
+      detail.info.type = kDeviceOther;
+    }
+
+    size_t required_len = 0;
+    clGetPlatformInfo(platform_id, CL_PLATFORM_NAME, 0, nullptr, &required_len);
+    if (required_len)
+    {
+      std::vector<char> info_buffer(required_len + 1);
+      info_buffer[0] = '\0';
+      clGetPlatformInfo(platform_id, CL_PLATFORM_NAME, required_len + 1, info_buffer.data(), nullptr);
+      detail.info.platform = std::string(info_buffer.data());
+    }
+
+    detail.device.getInfo(CL_DEVICE_EXTENSIONS, &detail.extensions);
+
+    std::ostringstream str;
+    clu::printDeviceInfo(str, detail.device, "");
+    detail.description = str.str();
+  }
+}
+
+
+unsigned enumerateDevices(std::vector<cl::Device> &cl_devices,    // NOLINT(google-runtime-references)
+                          std::vector<DeviceInfo> &device_infos)  // NOLINT(google-runtime-references)
+{
+  std::vector<cl::Platform> platforms;
+  std::vector<cl::Device> devices;
+  std::string ver_string;
+  cl::Platform::get(&platforms);
+  unsigned added = 0;
+
+  // FIXME(Kazys): set the minimum version by the version of the SDK we've compiled against.
+  // API minimum version is 1.2.
+  const auto platform_version_constraint = clu::platformVersionMin(1, 2);
+
+  for (cl::Platform &platform : platforms)
+  {
+    DeviceInfo info;
+    platform.getInfo(CL_PLATFORM_NAME, &info.platform);
+
+    if (!platform_version_constraint(platform))
+    {
+      continue;
+    }
+
+    devices.clear();
+    platform.getDevices(CL_DEVICE_TYPE_ALL, &devices);
+
+    for (cl::Device &device : devices)
+    {
+      device.getInfo(CL_DEVICE_NAME, &info.name);
+      device.getInfo(CL_DEVICE_VERSION, &ver_string);
 
       // Parse the version string.
       cl_uint ver_major, ver_minor;
       clu::parseVersion(ver_string.c_str(), &ver_major, &ver_minor);
-      detail.info.version.major = ver_major;
-      detail.info.version.minor = ver_minor;
-
-      cl_platform_id platform_id;
-      detail.device.getInfo(CL_DEVICE_PLATFORM, &platform_id);
+      info.version.major = ver_major;
+      info.version.minor = ver_minor;
 
       cl_device_type device_type;
-      detail.device.getInfo(CL_DEVICE_TYPE, &device_type);
+      device.getInfo(CL_DEVICE_TYPE, &device_type);
 
-      detail.info.type = kDeviceNull;
+      info.type = kDeviceNull;
       if (device_type & CL_DEVICE_TYPE_GPU)
       {
-        detail.info.type = kDeviceGpu;
+        info.type = kDeviceGpu;
       }
       else if (device_type & CL_DEVICE_TYPE_CPU)
       {
-        detail.info.type = kDeviceCpu;
+        info.type = kDeviceCpu;
       }
       else if (device_type & CL_DEVICE_TYPE_ACCELERATOR)
       {
-        detail.info.type = kDeviceOther;
+        info.type = kDeviceOther;
       }
 
-      size_t required_len = 0;
-      clGetPlatformInfo(platform_id, CL_PLATFORM_NAME, 0, nullptr, &required_len);
-      if (required_len)
-      {
-        std::vector<char> info_buffer(required_len + 1);
-        info_buffer[0] = '\0';
-        clGetPlatformInfo(platform_id, CL_PLATFORM_NAME, required_len + 1, info_buffer.data(), nullptr);
-        detail.info.platform = std::string(info_buffer.data());
-      }
-
-      detail.device.getInfo(CL_DEVICE_EXTENSIONS, &detail.extensions);
-
-      std::ostringstream str;
-      clu::printDeviceInfo(str, detail.device, "");
-      detail.description = str.str();
+      cl_devices.push_back(device);
+      device_infos.push_back(info);
+      ++added;
     }
   }
 
-
-  unsigned enumerateDevices(std::vector<cl::Device> &cl_devices,    // NOLINT(google-runtime-references)
-                            std::vector<DeviceInfo> &device_infos)  // NOLINT(google-runtime-references)
-  {
-    std::vector<cl::Platform> platforms;
-    std::vector<cl::Device> devices;
-    std::string ver_string;
-    cl::Platform::get(&platforms);
-    unsigned added = 0;
-
-    // FIXME(Kazys): set the minimum version by the version of the SDK we've compiled against.
-    // API minimum version is 1.2.
-    const auto platform_version_constraint = clu::platformVersionMin(1, 2);
-
-    for (cl::Platform &platform : platforms)
-    {
-      DeviceInfo info;
-      platform.getInfo(CL_PLATFORM_NAME, &info.platform);
-
-      if (!platform_version_constraint(platform))
-      {
-        continue;
-      }
-
-      devices.clear();
-      platform.getDevices(CL_DEVICE_TYPE_ALL, &devices);
-
-      for (cl::Device &device : devices)
-      {
-        device.getInfo(CL_DEVICE_NAME, &info.name);
-        device.getInfo(CL_DEVICE_VERSION, &ver_string);
-
-        // Parse the version string.
-        cl_uint ver_major, ver_minor;
-        clu::parseVersion(ver_string.c_str(), &ver_major, &ver_minor);
-        info.version.major = ver_major;
-        info.version.minor = ver_minor;
-
-        cl_device_type device_type;
-        device.getInfo(CL_DEVICE_TYPE, &device_type);
-
-        info.type = kDeviceNull;
-        if (device_type & CL_DEVICE_TYPE_GPU)
-        {
-          info.type = kDeviceGpu;
-        }
-        else if (device_type & CL_DEVICE_TYPE_CPU)
-        {
-          info.type = kDeviceCpu;
-        }
-        else if (device_type & CL_DEVICE_TYPE_ACCELERATOR)
-        {
-          info.type = kDeviceOther;
-        }
-
-        cl_devices.push_back(device);
-        device_infos.push_back(info);
-        ++added;
-      }
-    }
-
-    return added;
-  }
+  return added;
+}
 }  // namespace
 
 Device::Device(bool default_device)

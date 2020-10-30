@@ -23,18 +23,18 @@
 
 namespace
 {
-  struct TrajectoryPoint
-  {
-    double timestamp;
-    glm::dvec3 origin;
-  };
+struct TrajectoryPoint
+{
+  double timestamp;
+  glm::dvec3 origin;
+};
 
-  struct SamplePoint : TrajectoryPoint
-  {
-    glm::dvec3 sample;
-  };
+struct SamplePoint : TrajectoryPoint
+{
+  glm::dvec3 sample;
+};
 
-  typedef std::chrono::high_resolution_clock Clock;
+typedef std::chrono::high_resolution_clock Clock;
 }  // namespace
 
 struct SlamCloudLoaderDetail
@@ -87,33 +87,33 @@ struct SlamCloudLoaderDetail
 
 namespace
 {
-  std::string getFileExtension(const std::string &file)
+std::string getFileExtension(const std::string &file)
+{
+  const size_t last_dot = file.find_last_of(".");
+  if (last_dot != std::string::npos)
   {
-    const size_t last_dot = file.find_last_of(".");
-    if (last_dot != std::string::npos)
-    {
-      return file.substr(last_dot + 1);
-    }
-
-    return "";
+    return file.substr(last_dot + 1);
   }
 
-  bool openLasFile(std::ifstream &in, const std::string &file_name)
-  {
-    const std::string ext = getFileExtension(file_name);
-    if (ext.compare("laz") == 0 || ext.compare("las") == 0)
-    {
-      return liblas::Open(in, file_name);
-    }
+  return "";
+}
 
-    // Extension omitted.
-    // Try for a LAZ file (compressed), then a LAS file.
-    if (liblas::Open(in, file_name + ".laz"))
-    {
-      return true;
-    }
-    return liblas::Open(in, file_name + ".las");
+bool openLasFile(std::ifstream &in, const std::string &file_name)
+{
+  const std::string ext = getFileExtension(file_name);
+  if (ext.compare("laz") == 0 || ext.compare("las") == 0)
+  {
+    return liblas::Open(in, file_name);
   }
+
+  // Extension omitted.
+  // Try for a LAZ file (compressed), then a LAS file.
+  if (liblas::Open(in, file_name + ".laz"))
+  {
+    return true;
+  }
+  return liblas::Open(in, file_name + ".las");
+}
 }  // namespace
 
 SlamCloudLoader::SlamCloudLoader(bool real_time_mode)

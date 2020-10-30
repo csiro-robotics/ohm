@@ -19,18 +19,18 @@ using namespace gputil;
 
 namespace
 {
-  void addDirty(std::vector<MemRegion> &dirty_list, const MemRegion &region)  // NOLINT(google-runtime-references)
+void addDirty(std::vector<MemRegion> &dirty_list, const MemRegion &region)  // NOLINT(google-runtime-references)
+{
+  // Merge into the last region if possible. Better for contiguous writes.
+  if (!dirty_list.empty() && dirty_list.back().overlaps(region))
   {
-    // Merge into the last region if possible. Better for contiguous writes.
-    if (!dirty_list.empty() && dirty_list.back().overlaps(region))
-    {
-      dirty_list.back().merge(region);
-    }
-    else
-    {
-      dirty_list.push_back(region);
-    }
+    dirty_list.back().merge(region);
   }
+  else
+  {
+    dirty_list.push_back(region);
+  }
+}
 }  // namespace
 
 PinnedBuffer::PinnedBuffer()

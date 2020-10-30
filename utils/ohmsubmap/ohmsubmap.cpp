@@ -22,31 +22,31 @@
 
 namespace
 {
-  int quit = 0;
+int quit = 0;
 
-  void onSignal(int arg)
+void onSignal(int arg)
+{
+  if (arg == SIGINT || arg == SIGTERM)
   {
-    if (arg == SIGINT || arg == SIGTERM)
-    {
-      ++quit;
-    }
+    ++quit;
   }
+}
 
-  struct V3Arg
-  {
-    double x = 0;
-    double y = 0;
-    double z = 0;
-  };
+struct V3Arg
+{
+  double x = 0;
+  double y = 0;
+  double z = 0;
+};
 
-  struct Options
-  {
-    std::string map_in;
-    std::string map_out;
-    ohm::Aabb box = ohm::Aabb(0);
-    glm::dvec3 centre = glm::dvec3(0);
-    glm::dvec3 extents = glm::dvec3(0);
-  };
+struct Options
+{
+  std::string map_in;
+  std::string map_out;
+  ohm::Aabb box = ohm::Aabb(0);
+  glm::dvec3 centre = glm::dvec3(0);
+  glm::dvec3 extents = glm::dvec3(0);
+};
 }  // namespace
 
 inline std::istream &operator>>(std::istream &in, ohm::Aabb &box)

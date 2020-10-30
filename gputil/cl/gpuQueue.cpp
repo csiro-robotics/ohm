@@ -15,23 +15,23 @@ using namespace gputil;
 
 namespace
 {
-  struct CallbackWrapper
-  {
-    std::function<void(void)> callback;
+struct CallbackWrapper
+{
+  std::function<void(void)> callback;
 
-    inline CallbackWrapper(const std::function<void(void)> &callback)
-      : callback(callback)
-    {}
-  };
+  inline CallbackWrapper(const std::function<void(void)> &callback)
+    : callback(callback)
+  {}
+};
 
-  // inline cl_command_queue q(void *p) { return static_cast<cl_command_queue>(p); }
+// inline cl_command_queue q(void *p) { return static_cast<cl_command_queue>(p); }
 
-  void eventCallback(cl_event /*event*/, cl_int /*status*/, void *user_data)
-  {
-    CallbackWrapper *wrapper = static_cast<CallbackWrapper *>(user_data);
-    wrapper->callback();
-    delete wrapper;
-  }
+void eventCallback(cl_event /*event*/, cl_int /*status*/, void *user_data)
+{
+  CallbackWrapper *wrapper = static_cast<CallbackWrapper *>(user_data);
+  wrapper->callback();
+  delete wrapper;
+}
 }  // namespace
 
 Queue::Queue()

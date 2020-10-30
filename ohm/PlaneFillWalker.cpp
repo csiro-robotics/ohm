@@ -127,22 +127,22 @@ void PlaneFillWalker::addNeighbours(const Key &key, Revisit revisit_behaviour)
         const int n_visit_height = visitHeight(n_key);
         switch (revisit_behaviour)
         {
-          case Revisit::All:
-            add_to_open = true;
-            break;
+        case Revisit::All:
+          add_to_open = true;
+          break;
 
-          case Revisit::Higher:
-            add_to_open = visit_list[idx] < 0 || n_visit_height > visit_list[idx];
-            break;
+        case Revisit::Higher:
+          add_to_open = visit_list[idx] < 0 || n_visit_height > visit_list[idx];
+          break;
 
-          case Revisit::Lower:
-            add_to_open = visit_list[idx] < 0 || n_visit_height < visit_list[idx];
-            break;
+        case Revisit::Lower:
+          add_to_open = visit_list[idx] < 0 || n_visit_height < visit_list[idx];
+          break;
 
-          case Revisit::None:
-          default:
-            add_to_open = visit_list[idx] < 0;
-            break;
+        case Revisit::None:
+        default:
+          add_to_open = visit_list[idx] < 0;
+          break;
         }
 
         if (add_to_open)

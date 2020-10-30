@@ -6,8 +6,8 @@
 
 #include "gpu_ext.h"
 
-#include "GpuKey.h"
 #include "CovarianceVoxelCompute.h"
+#include "GpuKey.h"
 #include "MapCoord.h"
 #include "VoxelMeanCompute.h"
 

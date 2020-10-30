@@ -38,7 +38,6 @@ bool ClearingPattern::hasPatternOwnership() const
 
 const glm::dvec3 *ClearingPattern::lastRaySet(size_t *element_count) const
 {
-
   *element_count = imp_->ray_set.size();
   return imp_->ray_set.data();
 }

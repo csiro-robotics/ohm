@@ -17,76 +17,76 @@ using namespace gputil;
 
 namespace
 {
-  void prepareDebugBuildArgs(const gputil::Device &gpu, const BuildArgs &build_args, std::ostream &debug_opt,
-                             std::ostream &build_opt,
-                             std::string &source_file_opt)  // NOLINT(google-runtime-references)
+void prepareDebugBuildArgs(const gputil::Device &gpu, const BuildArgs &build_args, std::ostream &debug_opt,
+                           std::ostream &build_opt,
+                           std::string &source_file_opt)  // NOLINT(google-runtime-references)
+{
+  // Compile and initialise.
+  source_file_opt = std::string();
+
+  std::string platform_name;
+  cl_platform_id platform_id;
+
+  gputil::DeviceDetail &ocl = *gpu.detail();
+  ocl.device.getInfo(CL_DEVICE_PLATFORM, &platform_id);
+  cl::Platform platform(platform_id);
+  platform.getInfo(CL_PLATFORM_VENDOR, &platform_name);
+  std::transform(platform_name.begin(), platform_name.end(), platform_name.begin(), ::tolower);
+
+  int debug_level = std::max<int>(gpu.debugGpu(), build_args.debug_level);
+
+  // FIXME: work out how to resolve additional debug arguments, such as the source file argument
+  // for Intel, but not the beignet drivers.
+  // For Intel platforms, add debug compilation and source file option as we may debug
+  // using the Intel SDK.
+  if (platform_name.find("intel") != std::string::npos)
   {
-    // Compile and initialise.
-    source_file_opt = std::string();
-
-    std::string platform_name;
-    cl_platform_id platform_id;
-
-    gputil::DeviceDetail &ocl = *gpu.detail();
-    ocl.device.getInfo(CL_DEVICE_PLATFORM, &platform_id);
-    cl::Platform platform(platform_id);
-    platform.getInfo(CL_PLATFORM_VENDOR, &platform_name);
-    std::transform(platform_name.begin(), platform_name.end(), platform_name.begin(), ::tolower);
-
-    int debug_level = std::max<int>(gpu.debugGpu(), build_args.debug_level);
-
-    // FIXME: work out how to resolve additional debug arguments, such as the source file argument
-    // for Intel, but not the beignet drivers.
-    // For Intel platforms, add debug compilation and source file option as we may debug
-    // using the Intel SDK.
-    if (platform_name.find("intel") != std::string::npos)
-    {
 #ifdef WIN32
-      source_file_opt = "-s";
+    source_file_opt = "-s";
 #endif  // WIN32
-      switch (gpu.debugGpu())
-      {
-      case 2:
-        debug_opt << "-cl-opt-disable ";
-        // Don't break. Cascade to enable the next option.
-        /* fall through */
-      case 1:
+    switch (gpu.debugGpu())
+    {
+    case 2:
+      debug_opt << "-cl-opt-disable ";
+      // Don't break. Cascade to enable the next option.
+      /* fall through */
+    case 1:
 #ifdef WIN32
-        debug_opt << "-g ";
+      debug_opt << "-g ";
 #endif  // WIN32
-        break;
+      break;
 
-      default:
-        break;
-      }
-    }
-
-    if (debug_level)
-    {
-      debug_opt << "-D DEBUG";
-    }
-
-    bool first_arg = true;
-    if (build_args.version_major > 0 && build_args.version_minor >= 0)
-    {
-      build_opt << "-cl-std=CL";
-      build_opt << build_args.version_major << "." << build_args.version_minor;
-      first_arg = false;
-    }
-
-    if (build_args.args)
-    {
-      for (auto &&arg : *build_args.args)
-      {
-        if (!first_arg)
-        {
-          build_opt << ' ';
-        }
-        build_opt << arg;
-        first_arg = false;
-      }
+    default:
+      break;
     }
   }
+
+  if (debug_level)
+  {
+    debug_opt << "-D DEBUG";
+  }
+
+  bool first_arg = true;
+  if (build_args.version_major > 0 && build_args.version_minor >= 0)
+  {
+    build_opt << "-cl-std=CL";
+    build_opt << build_args.version_major << "." << build_args.version_minor;
+    first_arg = false;
+  }
+
+  if (build_args.args)
+  {
+    for (auto &&arg : *build_args.args)
+    {
+      if (!first_arg)
+      {
+        build_opt << ' ';
+      }
+      build_opt << arg;
+      first_arg = false;
+    }
+  }
+}
 }  // namespace
 
 

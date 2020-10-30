@@ -17,15 +17,15 @@ using namespace gputil;
 
 namespace gputil
 {
-  void destroyEvent(cudaEvent_t event)
+void destroyEvent(cudaEvent_t event)
+{
+  if (event)
   {
-    if (event)
-    {
-      cudaError_t err = cudaEventDestroy(event);
-      event = nullptr;
-      GPUAPICHECK2(err, cudaSuccess);
-    }
+    cudaError_t err = cudaEventDestroy(event);
+    event = nullptr;
+    GPUAPICHECK2(err, cudaSuccess);
   }
+}
 }  // namespace gputil
 
 Event::Event()

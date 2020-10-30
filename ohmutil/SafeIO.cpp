@@ -9,7 +9,7 @@
 
 #if !defined(_MSC_VER)
 
-int fopen_s(FILE **file, const char *name, const char *mode) // NOLINT
+int fopen_s(FILE **file, const char *name, const char *mode)  // NOLINT
 {
   *file = fopen(name, mode);
   if (*file)
@@ -23,7 +23,7 @@ int fopen_s(FILE **file, const char *name, const char *mode) // NOLINT
 
 namespace
 {
-  int avoid_no_symbols_link_warning = 0;
+int avoid_no_symbols_link_warning = 0;
 }
 
 #endif  // !defined(_MSC_VER)

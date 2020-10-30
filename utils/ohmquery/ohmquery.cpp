@@ -41,91 +41,91 @@
 
 namespace
 {
-  using TimingClock = std::chrono::high_resolution_clock;
+using TimingClock = std::chrono::high_resolution_clock;
 
-  int quit = 0;
+int quit = 0;
 
-  void onSignal(int arg)
+void onSignal(int arg)
+{
+  if (arg == SIGINT || arg == SIGTERM)
   {
-    if (arg == SIGINT || arg == SIGTERM)
-    {
-      ++quit;
-    }
+    ++quit;
   }
-  struct Options
+}
+struct Options
+{
+  struct Neighbours
   {
-    struct Neighbours
-    {
-      glm::dvec3 point = glm::dvec3(0);
-      float radius = -1;
-    };
-
-    struct Line
-    {
-      glm::dvec3 start = glm::dvec3(0);
-      glm::dvec3 end = glm::dvec3(0);
-      float radius = -1;
-    };
-
-    struct Ranges
-    {
-      glm::dvec3 min = glm::dvec3(0);
-      glm::dvec3 max = glm::dvec3(0);
-      float radius = -1;
-    };
-
-    std::string map_file;
-    std::string output_base;
-    Neighbours neighbours;
-    Ranges ranges;
-    Line line;
-    int repeat = 0;
-    bool unknown_as_occupied = true;
-    bool use_gpu = false;
-    bool gpu_compare = false;
-    bool hard_reset_on_repeat = false;
-    bool quiet = false;
-
-    inline bool haveQuery() const { return neighbours.radius > 0 || line.radius > 0 || ranges.radius > 0; }
-
-    void print() const;
+    glm::dvec3 point = glm::dvec3(0);
+    float radius = -1;
   };
 
-
-  void Options::print() const
+  struct Line
   {
-    std::cout << "Map: " << map_file << std::endl;
-    std::cout << "Output: " << output_base << std::endl;
-    if (neighbours.radius >= 0)
-    {
-      std::cout << "Nearest neighbours: " << neighbours.point << " R: " << neighbours.radius << std::endl;
-    }
-    if (line.radius >= 0)
-    {
-      std::cout << "Line " << line.start << "->" << line.end << " R: " << line.radius << std::endl;
-    }
-    if (ranges.radius >= 0)
-    {
-      std::cout << "Ranges: " << ranges.min << "->" << ranges.max << " R: " << ranges.radius << std::endl;
-    }
-  }
-
-
-  class LoadMapProgress : public ohm::SerialiseProgress
-  {
-  public:
-    LoadMapProgress(ProgressMonitor &monitor)  // NOLINT(google-runtime-references)
-      : monitor_(monitor)
-    {}
-
-    bool quit() const override { return ::quit > 1; }
-
-    void setTargetProgress(unsigned target) override { monitor_.beginProgress(ProgressMonitor::Info(target)); }
-    void incrementProgress(unsigned inc) override { monitor_.incrementProgressBy(inc); }
-
-  private:
-    ProgressMonitor &monitor_;
+    glm::dvec3 start = glm::dvec3(0);
+    glm::dvec3 end = glm::dvec3(0);
+    float radius = -1;
   };
+
+  struct Ranges
+  {
+    glm::dvec3 min = glm::dvec3(0);
+    glm::dvec3 max = glm::dvec3(0);
+    float radius = -1;
+  };
+
+  std::string map_file;
+  std::string output_base;
+  Neighbours neighbours;
+  Ranges ranges;
+  Line line;
+  int repeat = 0;
+  bool unknown_as_occupied = true;
+  bool use_gpu = false;
+  bool gpu_compare = false;
+  bool hard_reset_on_repeat = false;
+  bool quiet = false;
+
+  inline bool haveQuery() const { return neighbours.radius > 0 || line.radius > 0 || ranges.radius > 0; }
+
+  void print() const;
+};
+
+
+void Options::print() const
+{
+  std::cout << "Map: " << map_file << std::endl;
+  std::cout << "Output: " << output_base << std::endl;
+  if (neighbours.radius >= 0)
+  {
+    std::cout << "Nearest neighbours: " << neighbours.point << " R: " << neighbours.radius << std::endl;
+  }
+  if (line.radius >= 0)
+  {
+    std::cout << "Line " << line.start << "->" << line.end << " R: " << line.radius << std::endl;
+  }
+  if (ranges.radius >= 0)
+  {
+    std::cout << "Ranges: " << ranges.min << "->" << ranges.max << " R: " << ranges.radius << std::endl;
+  }
+}
+
+
+class LoadMapProgress : public ohm::SerialiseProgress
+{
+public:
+  LoadMapProgress(ProgressMonitor &monitor)  // NOLINT(google-runtime-references)
+    : monitor_(monitor)
+  {}
+
+  bool quit() const override { return ::quit > 1; }
+
+  void setTargetProgress(unsigned target) override { monitor_.beginProgress(ProgressMonitor::Info(target)); }
+  void incrementProgress(unsigned inc) override { monitor_.incrementProgressBy(inc); }
+
+private:
+  ProgressMonitor &monitor_;
+};
 }  // namespace
 
 
@@ -270,21 +270,21 @@ int parseOptions(Options *opt, int argc, char *argv[])
 
 void initialiseDebugCategories(const Options &/*opt*/)
 {
-  // TES_CATEGORY(ohm::g_3es, "Map", Category::kMap, 0, true);
-  // TES_CATEGORY(ohm::g_3es, "Populate", Category::kPopulate, 0, true);
+  // TES_CATEGORY(ohm::g_tes, "Map", Category::kMap, 0, true);
+  // TES_CATEGORY(ohm::g_tes, "Populate", Category::kPopulate, 0, true);
   // TES_IF(opt.rays & Rays_Lines)
   // {
-  //   TES_CATEGORY(ohm::g_3es, "Rays", Category::kRays, Category::kPopulate, (opt.rays & Rays_Lines) != 0);
+  //   TES_CATEGORY(ohm::g_tes, "Rays", Category::kRays, Category::kPopulate, (opt.rays & Rays_Lines) != 0);
   // }
   // TES_IF(opt.rays & Rays_Voxels)
   // {
-  //   TES_CATEGORY(ohm::g_3es, "Free", Category::kFreeCells, Category::kPopulate, (opt.rays & Rays_Lines) == 0);
+  //   TES_CATEGORY(ohm::g_tes, "Free", Category::kFreeCells, Category::kPopulate, (opt.rays & Rays_Lines) == 0);
   // }
   // TES_IF(opt.samples)
   // {
-  //   TES_CATEGORY(ohm::g_3es, "Occupied", Category::kOccupiedCells, Category::kPopulate, true);
+  //   TES_CATEGORY(ohm::g_tes, "Occupied", Category::kOccupiedCells, Category::kPopulate, true);
   // }
-  // TES_CATEGORY(ohm::g_3es, "Info", Category::kInfo, 0, true);
+  // TES_CATEGORY(ohm::g_tes, "Info", Category::kInfo, 0, true);
 }
 
 void saveQueryCloud(const ohm::OccupancyMap &map, const ohm::Query &query, const Options &opt,
@@ -832,7 +832,7 @@ int main(int argc, char *argv[])
   ohm::trace::init("ohmquery.3es");
 
 #ifdef TES_ENABLE
-  std::cout << "Starting with " << ohm::g_3es->connectionCount() << " connection(s)." << std::endl;
+  std::cout << "Starting with " << ohm::g_tes->connectionCount() << " connection(s)." << std::endl;
 #endif // TES_ENABLE
 
   initialiseDebugCategories(opt);

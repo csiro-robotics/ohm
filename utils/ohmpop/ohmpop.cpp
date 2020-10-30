@@ -47,362 +47,362 @@
 
 namespace
 {
-  using Clock = std::chrono::high_resolution_clock;
+using Clock = std::chrono::high_resolution_clock;
 
-  int quit = 0;
+int quit = 0;
 
-  void onSignal(int arg)
+void onSignal(int arg)
+{
+  if (arg == SIGINT || arg == SIGTERM)
   {
-    if (arg == SIGINT || arg == SIGTERM)
-    {
-      ++quit;
-    }
+    ++quit;
   }
+}
 
-  struct Options
+struct Options
+{
+  struct Ndt
   {
-    struct Ndt
-    {
-      float prob_hit = 0.0;                       // re-initialised from a default map
-      float prob_miss = 0.0;                      // re-initialised from a default map
-      float adaptation_rate = 0.0f;               // re-initialised from a default map
-      float sensor_noise = 0.0f;                  // re-initialised from a default map
-      float covariance_reset_probability = 0.0f;  // re-initialised from a default map
-      // NDT map probabilities should be much narrower. The NDT process is more precise.
-      unsigned covariance_reset_sample_count = 0;  // re-initialised from a default map
-      bool enabled = false;
-    };
-
-    std::string cloud_file;
-    std::string trajectory_file;
-    std::string output_base_name;
-    std::string prior_map;
-#ifdef TES_ENABLE
-    std::string trace;
-#endif  // TES_ENABLE
-    glm::dvec3 sensor_offset = glm::dvec3(0.0);
-    glm::u8vec3 region_voxel_dim = glm::u8vec3(0);  // re-initialised from a default map
-    uint64_t point_limit = 0;
-    int64_t preload_count = 0;
-    double start_time = 0;
-    double time_limit = 0;
-    double resolution = 0.1;
-    double clip_near_range = 0.0;
-    float prob_hit = 0.0f;                   // re-initialised from a default map
-    float prob_miss = 0.0f;                  // re-initialised from a default map
-    float prob_thresh = 0.5f;                // re-initialised from a default map
-    glm::vec2 prob_range = glm::vec2(0, 0);  // re-initialised from a default map
-    glm::vec3 cloud_colour = glm::vec3(0);
-    unsigned batch_size = 4096;
-    /// String value for the "--mode" argument. This sets the value of @c ray_mode_flags - see that member.
-    std::string mode = "normal";
-    /// @c ohm::RayFlag selection based on the "--mode" argument which is mapped into the @c mode member.
-    ///
-    /// Supported modes:
-    /// - "normal" (default) => @c ohm::kRfDefault
-    /// - "sample" (default) => @c ohm::kRfExcludeRay
-    /// - "erode" (default) => @c ohm::kRfExcludeSample
-    unsigned ray_mode_flags = ohm::kRfDefault;
-    bool serialise = true;
-    bool save_info = false;
-    bool voxel_mean = false;
-    bool uncompressed = false;
-#ifndef OHMPOP_CPU
-    double mapping_interval = 0.2;
-    double progressive_mapping_slice = 0.0;
-    float clearance = 0.0f;
-    bool post_population_mapping = true;
-    bool clearance_unknown_as_occupied = false;
-#endif  // OHMPOP_CPU
-    bool quiet = false;
-
-    Ndt ndt;
-
-    Options();
-
-    void print(std::ostream **out, const ohm::OccupancyMap &map) const;
+    float prob_hit = 0.0;                       // re-initialised from a default map
+    float prob_miss = 0.0;                      // re-initialised from a default map
+    float adaptation_rate = 0.0f;               // re-initialised from a default map
+    float sensor_noise = 0.0f;                  // re-initialised from a default map
+    float covariance_reset_probability = 0.0f;  // re-initialised from a default map
+    // NDT map probabilities should be much narrower. The NDT process is more precise.
+    unsigned covariance_reset_sample_count = 0;  // re-initialised from a default map
+    bool enabled = false;
   };
 
+  std::string cloud_file;
+  std::string trajectory_file;
+  std::string output_base_name;
+  std::string prior_map;
+#ifdef TES_ENABLE
+  std::string trace;
+#endif  // TES_ENABLE
+  glm::dvec3 sensor_offset = glm::dvec3(0.0);
+  glm::u8vec3 region_voxel_dim = glm::u8vec3(0);  // re-initialised from a default map
+  uint64_t point_limit = 0;
+  int64_t preload_count = 0;
+  double start_time = 0;
+  double time_limit = 0;
+  double resolution = 0.1;
+  double clip_near_range = 0.0;
+  float prob_hit = 0.0f;                   // re-initialised from a default map
+  float prob_miss = 0.0f;                  // re-initialised from a default map
+  float prob_thresh = 0.5f;                // re-initialised from a default map
+  glm::vec2 prob_range = glm::vec2(0, 0);  // re-initialised from a default map
+  glm::vec3 cloud_colour = glm::vec3(0);
+  unsigned batch_size = 4096;
+  /// String value for the "--mode" argument. This sets the value of @c ray_mode_flags - see that member.
+  std::string mode = "normal";
+  /// @c ohm::RayFlag selection based on the "--mode" argument which is mapped into the @c mode member.
+  ///
+  /// Supported modes:
+  /// - "normal" (default) => @c ohm::kRfDefault
+  /// - "sample" (default) => @c ohm::kRfExcludeRay
+  /// - "erode" (default) => @c ohm::kRfExcludeSample
+  unsigned ray_mode_flags = ohm::kRfDefault;
+  bool serialise = true;
+  bool save_info = false;
+  bool voxel_mean = false;
+  bool uncompressed = false;
+#ifndef OHMPOP_CPU
+  double mapping_interval = 0.2;
+  double progressive_mapping_slice = 0.0;
+  float clearance = 0.0f;
+  bool post_population_mapping = true;
+  bool clearance_unknown_as_occupied = false;
+#endif  // OHMPOP_CPU
+  bool quiet = false;
 
-  Options::Options()
+  Ndt ndt;
+
+  Options();
+
+  void print(std::ostream **out, const ohm::OccupancyMap &map) const;
+};
+
+
+Options::Options()
+{
+  // Initialise defaults from map configurations.
+  ohm::OccupancyMap defaults_map;
+
+  region_voxel_dim = defaults_map.regionVoxelDimensions();
+  prob_hit = defaults_map.hitProbability();
+  prob_miss = defaults_map.missProbability();
+  prob_thresh = defaults_map.occupancyThresholdProbability();
+  prob_range[0] = defaults_map.minVoxelValue();
+  prob_range[1] = defaults_map.maxVoxelValue();
+
+  const ohm::NdtMap defaults_ndt(&defaults_map, true);
+  // Default probabilities may differ for NDT.
+  ndt.prob_hit = defaults_map.hitProbability();
+  ndt.prob_miss = defaults_map.missProbability();
+  ndt.adaptation_rate = defaults_ndt.adaptationRate();
+  ndt.sensor_noise = defaults_ndt.sensorNoise();
+  ndt.covariance_reset_probability = ohm::valueToProbability(defaults_ndt.reinitialiseCovarianceTheshold());
+  ndt.covariance_reset_sample_count = defaults_ndt.reinitialiseCovariancePointCount();
+  ndt.adaptation_rate = defaults_ndt.adaptationRate();
+}
+
+
+void Options::print(std::ostream **out, const ohm::OccupancyMap &map) const
+{
+  while (*out)
   {
-    // Initialise defaults from map configurations.
-    ohm::OccupancyMap defaults_map;
-
-    region_voxel_dim = defaults_map.regionVoxelDimensions();
-    prob_hit = defaults_map.hitProbability();
-    prob_miss = defaults_map.missProbability();
-    prob_thresh = defaults_map.occupancyThresholdProbability();
-    prob_range[0] = defaults_map.minVoxelValue();
-    prob_range[1] = defaults_map.maxVoxelValue();
-
-    const ohm::NdtMap defaults_ndt(&defaults_map, true);
-    // Default probabilities may differ for NDT.
-    ndt.prob_hit = defaults_map.hitProbability();
-    ndt.prob_miss = defaults_map.missProbability();
-    ndt.adaptation_rate = defaults_ndt.adaptationRate();
-    ndt.sensor_noise = defaults_ndt.sensorNoise();
-    ndt.covariance_reset_probability = ohm::valueToProbability(defaults_ndt.reinitialiseCovarianceTheshold());
-    ndt.covariance_reset_sample_count = defaults_ndt.reinitialiseCovariancePointCount();
-    ndt.adaptation_rate = defaults_ndt.adaptationRate();
-  }
-
-
-  void Options::print(std::ostream **out, const ohm::OccupancyMap &map) const
-  {
-    while (*out)
+    **out << "Cloud: " << cloud_file;
+    if (!trajectory_file.empty())
     {
-      **out << "Cloud: " << cloud_file;
-      if (!trajectory_file.empty())
+      **out << " + " << trajectory_file << '\n';
+    }
+    else
+    {
+      **out << " (no trajectory)\n";
+    }
+    if (preload_count)
+    {
+      **out << "Preload: ";
+      if (preload_count < 0)
       {
-        **out << " + " << trajectory_file << '\n';
+        **out << "all";
       }
       else
       {
-        **out << " (no trajectory)\n";
+        **out << preload_count;
       }
-      if (preload_count)
+      **out << '\n';
+    }
+
+    if (point_limit)
+    {
+      **out << "Maximum point: " << point_limit << '\n';
+    }
+
+    if (start_time > 0)
+    {
+      **out << "Process from timestamp: " << start_time << '\n';
+    }
+
+    if (time_limit > 0)
+    {
+      **out << "Process to timestamp: " << time_limit << '\n';
+    }
+
+    // std::string mem_size_string;
+    // util::makeMemoryDisplayString(mem_size_string, ohm::OccupancyMap::voxelMemoryPerRegion(region_voxel_dim));
+    **out << "Map resolution: " << resolution << '\n';
+    **out << "Mapping mode: " << mode << '\n';
+    **out << "Voxel mean position: " << (map.voxelMeanEnabled() ? "on" : "off") << '\n';
+    **out << "Compressed: " << ((map.flags() & ohm::MapFlag::kCompressed) == ohm::MapFlag::kCompressed ? "on" : "off")
+          << '\n';
+    glm::i16vec3 region_dim = region_voxel_dim;
+    region_dim.x = (region_dim.x) ? region_dim.x : OHM_DEFAULT_CHUNK_DIM_X;
+    region_dim.y = (region_dim.y) ? region_dim.y : OHM_DEFAULT_CHUNK_DIM_Y;
+    region_dim.z = (region_dim.z) ? region_dim.z : OHM_DEFAULT_CHUNK_DIM_Z;
+    **out << "Map region dimensions: " << region_dim << '\n';
+    // **out << "Map region memory: " << mem_size_string << '\n';
+    **out << "Hit probability: " << prob_hit << " (" << map.hitValue() << ")\n";
+    **out << "Miss probability: " << prob_miss << " (" << map.missValue() << ")\n";
+    **out << "Probability range: [" << map.minVoxelProbability() << ' ' << map.maxVoxelProbability() << "]\n";
+    **out << "Value range      : [" << map.minVoxelValue() << ' ' << map.maxVoxelValue() << "]\n";
+    if (ndt.enabled)
+    {
+      **out << "NDT map enabled:" << '\n';
+      **out << "NDT adaptation rate: " << ndt.adaptation_rate << '\n';
+      **out << "NDT sensor noise: " << ndt.sensor_noise << '\n';
+      **out << "NDT covariance reset probability: " << ndt.covariance_reset_probability << '\n';
+      **out << "NDT covariance reset sample cout: " << ndt.covariance_reset_sample_count << '\n';
+    }
+#ifndef OHMPOP_CPU
+    **out << "Ray batch size: " << batch_size << '\n';
+    **out << "Clearance mapping: ";
+    if (clearance > 0)
+    {
+      **out << clearance << "m range\n";
+      **out << "Unknown as occupied: " << (clearance_unknown_as_occupied ? "on" : "off") << '\n';
+    }
+    else
+    {
+      **out << "disabled\n";
+    }
+
+    **out << "Mapping mode: ";
+    if (progressive_mapping_slice > 0)
+    {
+      **out << "progressive time slice " << progressive_mapping_slice << "s\n";
+      **out << "Mapping interval: " << mapping_interval << "s\n";
+      **out << "Post population mapping: " << (post_population_mapping ? "on" : "off") << '\n';
+    }
+    else
+    {
+      **out << "post" << '\n';
+    }
+#endif  // OHMPOP_CPU
+
+#ifdef TES_ENABLE
+    if (!trace.empty())
+    {
+      **out << "3es trace file: " << trace << '\n';
+    }
+#endif  // TES_ENABLE
+
+    **out << std::flush;
+
+    ++out;
+  }
+}
+
+class SerialiseMapProgress : public ohm::SerialiseProgress
+{
+public:
+  SerialiseMapProgress(ProgressMonitor &monitor)  // NOLINT(google-runtime-references)
+    : monitor_(monitor)
+  {}
+
+  bool quit() const override { return ::quit > 1; }
+
+  void setTargetProgress(unsigned target) override { monitor_.beginProgress(ProgressMonitor::Info(target)); }
+  void incrementProgress(unsigned inc) override { monitor_.incrementProgressBy(inc); }
+
+private:
+  ProgressMonitor &monitor_;
+};
+
+
+enum SaveFlags : unsigned
+{
+  kSaveMap = (1 << 0),
+  kSaveCloud = (1 << 1),
+  // SaveClearanceCloud = (1 << 2),
+};
+
+void saveMap(const Options &opt, const ohm::OccupancyMap &map, const std::string &base_name, ProgressMonitor *prog,
+             unsigned save_flags = kSaveMap)
+{
+  std::unique_ptr<SerialiseMapProgress> save_progress(prog ? new SerialiseMapProgress(*prog) : nullptr);
+
+  if (quit >= 2)
+  {
+    return;
+  }
+
+  if (save_flags & kSaveMap)
+  {
+    std::string output_file = base_name + ".ohm";
+    std::cout << "Saving map to " << output_file.c_str() << std::endl;
+
+    if (prog)
+    {
+      prog->unpause();
+    }
+
+    int err = ohm::save(output_file.c_str(), map, save_progress.get());
+
+    if (prog)
+    {
+      prog->endProgress();
+      if (!opt.quiet)
       {
-        **out << "Preload: ";
-        if (preload_count < 0)
+        std::cout << std::endl;
+      }
+    }
+
+    if (err)
+    {
+      std::cerr << "Failed to save map: " << err << std::endl;
+    }
+  }
+
+  if (save_flags & kSaveCloud)
+  {
+    // Save a cloud representation.
+    std::cout << "Converting to point cloud." << std::endl;
+    ohm::PlyMesh ply;
+    glm::vec3 v;
+    const auto map_end_iter = map.end();
+    const size_t region_count = map.regionCount();
+    glm::i16vec3 last_region = map.begin().key().regionKey();
+    uint64_t point_count = 0;
+
+    if (prog)
+    {
+      prog->beginProgress(ProgressMonitor::Info(region_count));
+    }
+
+    const auto colour_channel_f = [](float cf) -> uint8_t  //
+    {
+      cf = 255.0f * std::max(cf, 0.0f);
+      unsigned cu = unsigned(cf);
+      return uint8_t(std::min(cu, 255u));
+    };
+    bool use_colour = opt.cloud_colour.r > 0 || opt.cloud_colour.g > 0 || opt.cloud_colour.b > 0;
+    const ohm::Colour c(colour_channel_f(opt.cloud_colour.r), colour_channel_f(opt.cloud_colour.g),
+                        colour_channel_f(opt.cloud_colour.b));
+
+    ohm::Voxel<const float> voxel(&map, map.layout().occupancyLayer());
+    ohm::Voxel<const ohm::VoxelMean> mean(&map, map.layout().meanLayer());
+    for (auto iter = map.begin(); iter != map_end_iter && quit < 2; ++iter)
+    {
+      ohm::setVoxelKey(iter, voxel, mean);
+      if (last_region != iter->regionKey())
+      {
+        if (prog)
         {
-          **out << "all";
+          prog->incrementProgress();
+        }
+        last_region = iter->regionKey();
+      }
+      if (ohm::isOccupied(voxel))
+      {
+        v = ohm::positionSafe(mean);
+        if (use_colour)
+        {
+          ply.addVertex(v, c);
         }
         else
         {
-          **out << preload_count;
+          ply.addVertex(v);
         }
-        **out << '\n';
+        ++point_count;
       }
+    }
 
-      if (point_limit)
+    if (prog)
+    {
+      prog->endProgress();
+      prog->pause();
+      if (!opt.quiet)
       {
-        **out << "Maximum point: " << point_limit << '\n';
+        std::cout << "\nExported " << point_count << " point(s)" << std::endl;
       }
+    }
 
-      if (start_time > 0)
+    if (quit < 2)
+    {
+      std::string output_file = base_name + ".ply";
+      // Ensure we don't overwrite the input data file.
+      if (output_file == opt.cloud_file)
       {
-        **out << "Process from timestamp: " << start_time << '\n';
+        output_file = base_name + "-points.ply";
       }
-
-      if (time_limit > 0)
-      {
-        **out << "Process to timestamp: " << time_limit << '\n';
-      }
-
-      // std::string mem_size_string;
-      // util::makeMemoryDisplayString(mem_size_string, ohm::OccupancyMap::voxelMemoryPerRegion(region_voxel_dim));
-      **out << "Map resolution: " << resolution << '\n';
-      **out << "Mapping mode: " << mode << '\n';
-      **out << "Voxel mean position: " << (map.voxelMeanEnabled() ? "on" : "off") << '\n';
-      **out << "Compressed: " << ((map.flags() & ohm::MapFlag::kCompressed) == ohm::MapFlag::kCompressed ? "on" : "off")
-            << '\n';
-      glm::i16vec3 region_dim = region_voxel_dim;
-      region_dim.x = (region_dim.x) ? region_dim.x : OHM_DEFAULT_CHUNK_DIM_X;
-      region_dim.y = (region_dim.y) ? region_dim.y : OHM_DEFAULT_CHUNK_DIM_Y;
-      region_dim.z = (region_dim.z) ? region_dim.z : OHM_DEFAULT_CHUNK_DIM_Z;
-      **out << "Map region dimensions: " << region_dim << '\n';
-      // **out << "Map region memory: " << mem_size_string << '\n';
-      **out << "Hit probability: " << prob_hit << " (" << map.hitValue() << ")\n";
-      **out << "Miss probability: " << prob_miss << " (" << map.missValue() << ")\n";
-      **out << "Probability range: [" << map.minVoxelProbability() << ' ' << map.maxVoxelProbability() << "]\n";
-      **out << "Value range      : [" << map.minVoxelValue() << ' ' << map.maxVoxelValue() << "]\n";
-      if (ndt.enabled)
-      {
-        **out << "NDT map enabled:" << '\n';
-        **out << "NDT adaptation rate: " << ndt.adaptation_rate << '\n';
-        **out << "NDT sensor noise: " << ndt.sensor_noise << '\n';
-        **out << "NDT covariance reset probability: " << ndt.covariance_reset_probability << '\n';
-        **out << "NDT covariance reset sample cout: " << ndt.covariance_reset_sample_count << '\n';
-      }
-#ifndef OHMPOP_CPU
-      **out << "Ray batch size: " << batch_size << '\n';
-      **out << "Clearance mapping: ";
-      if (clearance > 0)
-      {
-        **out << clearance << "m range\n";
-        **out << "Unknown as occupied: " << (clearance_unknown_as_occupied ? "on" : "off") << '\n';
-      }
-      else
-      {
-        **out << "disabled\n";
-      }
-
-      **out << "Mapping mode: ";
-      if (progressive_mapping_slice > 0)
-      {
-        **out << "progressive time slice " << progressive_mapping_slice << "s\n";
-        **out << "Mapping interval: " << mapping_interval << "s\n";
-        **out << "Post population mapping: " << (post_population_mapping ? "on" : "off") << '\n';
-      }
-      else
-      {
-        **out << "post" << '\n';
-      }
-#endif  // OHMPOP_CPU
-
-#ifdef TES_ENABLE
-      if (!trace.empty())
-      {
-        **out << "3es trace file: " << trace << '\n';
-      }
-#endif  // TES_ENABLE
-
-      **out << std::flush;
-
-      ++out;
+      std::cout << "Saving point cloud to " << output_file.c_str() << std::endl;
+      ply.save(output_file.c_str(), true);
     }
   }
+}
 
-  class SerialiseMapProgress : public ohm::SerialiseProgress
+std::string getFileExtension(const std::string &file)
+{
+  const size_t last_dot = file.find_last_of('.');
+  if (last_dot != std::string::npos)
   {
-  public:
-    SerialiseMapProgress(ProgressMonitor &monitor)  // NOLINT(google-runtime-references)
-      : monitor_(monitor)
-    {}
-
-    bool quit() const override { return ::quit > 1; }
-
-    void setTargetProgress(unsigned target) override { monitor_.beginProgress(ProgressMonitor::Info(target)); }
-    void incrementProgress(unsigned inc) override { monitor_.incrementProgressBy(inc); }
-
-  private:
-    ProgressMonitor &monitor_;
-  };
-
-
-  enum SaveFlags : unsigned
-  {
-    kSaveMap = (1 << 0),
-    kSaveCloud = (1 << 1),
-    // SaveClearanceCloud = (1 << 2),
-  };
-
-  void saveMap(const Options &opt, const ohm::OccupancyMap &map, const std::string &base_name, ProgressMonitor *prog,
-               unsigned save_flags = kSaveMap)
-  {
-    std::unique_ptr<SerialiseMapProgress> save_progress(prog ? new SerialiseMapProgress(*prog) : nullptr);
-
-    if (quit >= 2)
-    {
-      return;
-    }
-
-    if (save_flags & kSaveMap)
-    {
-      std::string output_file = base_name + ".ohm";
-      std::cout << "Saving map to " << output_file.c_str() << std::endl;
-
-      if (prog)
-      {
-        prog->unpause();
-      }
-
-      int err = ohm::save(output_file.c_str(), map, save_progress.get());
-
-      if (prog)
-      {
-        prog->endProgress();
-        if (!opt.quiet)
-        {
-          std::cout << std::endl;
-        }
-      }
-
-      if (err)
-      {
-        std::cerr << "Failed to save map: " << err << std::endl;
-      }
-    }
-
-    if (save_flags & kSaveCloud)
-    {
-      // Save a cloud representation.
-      std::cout << "Converting to point cloud." << std::endl;
-      ohm::PlyMesh ply;
-      glm::vec3 v;
-      const auto map_end_iter = map.end();
-      const size_t region_count = map.regionCount();
-      glm::i16vec3 last_region = map.begin().key().regionKey();
-      uint64_t point_count = 0;
-
-      if (prog)
-      {
-        prog->beginProgress(ProgressMonitor::Info(region_count));
-      }
-
-      const auto colour_channel_f = [](float cf) -> uint8_t  //
-      {
-        cf = 255.0f * std::max(cf, 0.0f);
-        unsigned cu = unsigned(cf);
-        return uint8_t(std::min(cu, 255u));
-      };
-      bool use_colour = opt.cloud_colour.r > 0 || opt.cloud_colour.g > 0 || opt.cloud_colour.b > 0;
-      const ohm::Colour c(colour_channel_f(opt.cloud_colour.r), colour_channel_f(opt.cloud_colour.g),
-                          colour_channel_f(opt.cloud_colour.b));
-
-      ohm::Voxel<const float> voxel(&map, map.layout().occupancyLayer());
-      ohm::Voxel<const ohm::VoxelMean> mean(&map, map.layout().meanLayer());
-      for (auto iter = map.begin(); iter != map_end_iter && quit < 2; ++iter)
-      {
-        ohm::setVoxelKey(iter, voxel, mean);
-        if (last_region != iter->regionKey())
-        {
-          if (prog)
-          {
-            prog->incrementProgress();
-          }
-          last_region = iter->regionKey();
-        }
-        if (ohm::isOccupied(voxel))
-        {
-          v = ohm::positionSafe(mean);
-          if (use_colour)
-          {
-            ply.addVertex(v, c);
-          }
-          else
-          {
-            ply.addVertex(v);
-          }
-          ++point_count;
-        }
-      }
-
-      if (prog)
-      {
-        prog->endProgress();
-        prog->pause();
-        if (!opt.quiet)
-        {
-          std::cout << "\nExported " << point_count << " point(s)" << std::endl;
-        }
-      }
-
-      if (quit < 2)
-      {
-        std::string output_file = base_name + ".ply";
-        // Ensure we don't overwrite the input data file.
-        if (output_file == opt.cloud_file)
-        {
-          output_file = base_name + "-points.ply";
-        }
-        std::cout << "Saving point cloud to " << output_file.c_str() << std::endl;
-        ply.save(output_file.c_str(), true);
-      }
-    }
+    return file.substr(last_dot + 1);
   }
 
-  std::string getFileExtension(const std::string &file)
-  {
-    const size_t last_dot = file.find_last_of('.');
-    if (last_dot != std::string::npos)
-    {
-      return file.substr(last_dot + 1);
-    }
-
-    return "";
-  }
+  return "";
+}
 }  // namespace
 
 

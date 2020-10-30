@@ -158,23 +158,23 @@ Kernel &Kernel::operator=(Kernel &&other) noexcept
 
 namespace gputil
 {
-  Kernel openCLKernel(Program &program, const char *kernel_name)
+Kernel openCLKernel(Program &program, const char *kernel_name)
+{
+  Kernel kernel;
+
+  cl_int err = 0;
+  if (!program.isValid())
   {
-    Kernel kernel;
-
-    cl_int err = 0;
-    if (!program.isValid())
-    {
-      err = CL_INVALID_PROGRAM;
-      GPUTHROW(ApiException(err), Kernel());
-    }
-
-    err = kernel.detail()->kernel.setEntry(program.detail()->program, kernel_name);
-    if (err)
-    {
-      GPUTHROW(ApiException(err), Kernel());
-    }
-    kernel.detail()->program = program;
-    return kernel;
+    err = CL_INVALID_PROGRAM;
+    GPUTHROW(ApiException(err), Kernel());
   }
+
+  err = kernel.detail()->kernel.setEntry(program.detail()->program, kernel_name);
+  if (err)
+  {
+    GPUTHROW(ApiException(err), Kernel());
+  }
+  kernel.detail()->program = program;
+  return kernel;
+}
 }  // namespace gputil

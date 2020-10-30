@@ -28,188 +28,188 @@
 #include <csignal>
 #include <cstddef>
 #include <fstream>
-#include <iostream>
 #include <iomanip>
+#include <iostream>
 #include <locale>
 #include <sstream>
 #include <thread>
 
 namespace
 {
-  /// The clock used to report process timing.
-  using Clock = std::chrono::high_resolution_clock;
+/// The clock used to report process timing.
+using Clock = std::chrono::high_resolution_clock;
 
-  /// Quit level/flag. Initial quit will just stop populating, but still save out. Multiple increments will quit saving.
-  int quit = 0;
+/// Quit level/flag. Initial quit will just stop populating, but still save out. Multiple increments will quit saving.
+int quit = 0;
 
-  /// Control-C capture.
-  void onSignal(int arg)
+/// Control-C capture.
+void onSignal(int arg)
+{
+  if (arg == SIGINT || arg == SIGTERM)
   {
-    if (arg == SIGINT || arg == SIGTERM)
-    {
-      ++quit;
-    }
+    ++quit;
   }
+}
 
-  /// Parsed command line options.
-  struct Options
+/// Parsed command line options.
+struct Options
+{
+  std::string cloud_file;
+  std::string trajectory_file;
+  std::string output_base_name;
+  glm::dvec3 sensor_offset = glm::dvec3(0.0);
+  uint64_t point_limit = 0;
+  int64_t preload_count = 0;
+  double start_time = 0;
+  double time_limit = 0;
+  double resolution = 0.25;
+  float prob_hit = 0.9f;
+  float prob_miss = 0.49f;
+  float prob_thresh = 0.5f;
+  glm::vec2 prob_range = glm::vec2(0, 0);
+  glm::vec3 cloud_colour = glm::vec3(0);
+  bool serialise = true;
+  bool save_info = false;
+  bool non_lazy_eval = false;
+  bool collapse = false;
+  bool quiet = false;
+
+  /// A helper to print configured options to (multiple) output stream.
+  void print(std::ostream **out) const;
+};
+
+
+void Options::print(std::ostream **out) const
+{
+  while (*out)
   {
-    std::string cloud_file;
-    std::string trajectory_file;
-    std::string output_base_name;
-    glm::dvec3 sensor_offset = glm::dvec3(0.0);
-    uint64_t point_limit = 0;
-    int64_t preload_count = 0;
-    double start_time = 0;
-    double time_limit = 0;
-    double resolution = 0.25;
-    float prob_hit = 0.9f;
-    float prob_miss = 0.49f;
-    float prob_thresh = 0.5f;
-    glm::vec2 prob_range = glm::vec2(0, 0);
-    glm::vec3 cloud_colour = glm::vec3(0);
-    bool serialise = true;
-    bool save_info = false;
-    bool non_lazy_eval = false;
-    bool collapse = false;
-    bool quiet = false;
-
-    /// A helper to print configured options to (multiple) output stream.
-    void print(std::ostream **out) const;
-  };
-
-
-  void Options::print(std::ostream **out) const
-  {
-    while (*out)
+    **out << "Cloud: " << cloud_file;
+    if (!trajectory_file.empty())
     {
-      **out << "Cloud: " << cloud_file;
-      if (!trajectory_file.empty())
+      **out << " + " << trajectory_file << '\n';
+    }
+    else
+    {
+      **out << " (no trajectory)\n";
+    }
+    if (preload_count)
+    {
+      **out << "Preload: ";
+      if (preload_count < 0)
       {
-        **out << " + " << trajectory_file << '\n';
+        **out << "all";
       }
       else
       {
-        **out << " (no trajectory)\n";
+        **out << preload_count;
       }
-      if (preload_count)
+      **out << '\n';
+    }
+
+    **out << "lazy eval: " << ((!non_lazy_eval) ? "true" : "false") << '\n';
+    **out << "collapse (post): " << ((collapse) ? "true" : "false") << '\n';
+
+    if (point_limit)
+    {
+      **out << "Maximum point: " << point_limit << '\n';
+    }
+
+    if (start_time > 0)
+    {
+      **out << "Process from timestamp: " << start_time << '\n';
+    }
+
+    if (time_limit > 0)
+    {
+      **out << "Process to timestamp: " << time_limit << '\n';
+    }
+
+    // std::string mem_size_string;
+    // util::makeMemoryDisplayString(mem_size_string, ohm::OccupancyMap::voxelMemoryPerRegion(region_voxel_dim));
+    **out << "Map resolution: " << resolution << '\n';
+    // **out << "Map region memory: " << mem_size_string << '\n';
+    **out << "Hit probability: " << prob_hit << '\n';
+    **out << "Miss probability: " << prob_miss << '\n';
+    **out << std::flush;
+    ++out;
+  }
+}
+
+/// Map saving control flags.
+enum SaveFlags : unsigned
+{
+  kSaveMap = (1 << 0),   ///< Save the occupancy map
+  kSaveCloud = (1 << 1)  ///< Save a point cloud from the occupancy map
+};
+
+/// Save the Octomap to file and optional to point cloud. The map file is set as `base_name + ".bt"` and the point
+/// cloud as `base_name + ".ply"`
+void saveMap(const Options &opt, octomap::OcTree *map, const std::string &base_name, unsigned save_flags = kSaveMap)
+{
+  if (quit >= 2)
+  {
+    return;
+  }
+
+  if (save_flags & kSaveMap)
+  {
+    std::string output_file = base_name + ".bt";
+    std::cout << "Saving map to " << output_file.c_str() << std::endl;
+
+    bool ok = map->writeBinary(output_file);
+    if (!ok)
+    {
+      std::cerr << "Failed to save map" << std::endl;
+    }
+  }
+
+  if (save_flags & kSaveCloud)
+  {
+    // Save a cloud representation. Need to walk the tree leaves.
+    std::cout << "Converting to point cloud." << std::endl;
+    ohm::PlyMesh ply;
+    glm::vec3 v;
+    std::uint64_t point_count = 0;
+    const auto map_end_iter = map->end_leafs();
+
+    // float to byte colour channel conversion.
+    const auto colour_channel_f = [](float cf) -> uint8_t  //
+    {
+      cf = 255.0f * std::max(cf, 0.0f);
+      unsigned cu = unsigned(cf);
+      return uint8_t(std::min(cu, 255u));
+    };
+    const bool use_colour = opt.cloud_colour.r > 0 || opt.cloud_colour.g > 0 || opt.cloud_colour.b > 0;
+    const ohm::Colour c(colour_channel_f(opt.cloud_colour.r), colour_channel_f(opt.cloud_colour.g),
+                        colour_channel_f(opt.cloud_colour.b));
+
+    for (auto iter = map->begin_leafs(); iter != map_end_iter && quit < 2; ++iter)
+    {
+      const auto occupancy = iter->getLogOdds();
+      if (occupancy >= map->getOccupancyThresLog())
       {
-        **out << "Preload: ";
-        if (preload_count < 0)
+        const auto coord = iter.getCoordinate();
+        const auto v = glm::vec3(coord.x(), coord.y(), coord.z());
+        if (use_colour)
         {
-          **out << "all";
+          ply.addVertex(v, c);
         }
         else
         {
-          **out << preload_count;
+          ply.addVertex(v);
         }
-        **out << '\n';
+        ++point_count;
       }
+    }
 
-      **out << "lazy eval: " << ((!non_lazy_eval) ? "true" : "false") << '\n';
-      **out << "collapse (post): " << ((collapse) ? "true" : "false") << '\n';
-
-      if (point_limit)
-      {
-        **out << "Maximum point: " << point_limit << '\n';
-      }
-
-      if (start_time > 0)
-      {
-        **out << "Process from timestamp: " << start_time << '\n';
-      }
-
-      if (time_limit > 0)
-      {
-        **out << "Process to timestamp: " << time_limit << '\n';
-      }
-
-      // std::string mem_size_string;
-      // util::makeMemoryDisplayString(mem_size_string, ohm::OccupancyMap::voxelMemoryPerRegion(region_voxel_dim));
-      **out << "Map resolution: " << resolution << '\n';
-      // **out << "Map region memory: " << mem_size_string << '\n';
-      **out << "Hit probability: " << prob_hit << '\n';
-      **out << "Miss probability: " << prob_miss << '\n';
-      **out << std::flush;
-      ++out;
+    if (quit < 2)
+    {
+      std::string output_file = base_name + ".ply";
+      std::cout << "Saving point cloud to " << output_file.c_str() << std::endl;
+      ply.save(output_file.c_str(), true);
     }
   }
-
-  /// Map saving control flags.
-  enum SaveFlags : unsigned
-  {
-    kSaveMap = (1 << 0),   ///< Save the occupancy map
-    kSaveCloud = (1 << 1)  ///< Save a point cloud from the occupancy map
-  };
-
-  /// Save the Octomap to file and optional to point cloud. The map file is set as `base_name + ".bt"` and the point
-  /// cloud as `base_name + ".ply"`
-  void saveMap(const Options &opt, octomap::OcTree *map, const std::string &base_name, unsigned save_flags = kSaveMap)
-  {
-    if (quit >= 2)
-    {
-      return;
-    }
-
-    if (save_flags & kSaveMap)
-    {
-      std::string output_file = base_name + ".bt";
-      std::cout << "Saving map to " << output_file.c_str() << std::endl;
-
-      bool ok = map->writeBinary(output_file);
-      if (!ok)
-      {
-        std::cerr << "Failed to save map" << std::endl;
-      }
-    }
-
-    if (save_flags & kSaveCloud)
-    {
-      // Save a cloud representation. Need to walk the tree leaves.
-      std::cout << "Converting to point cloud." << std::endl;
-      ohm::PlyMesh ply;
-      glm::vec3 v;
-      std::uint64_t point_count = 0;
-      const auto map_end_iter = map->end_leafs();
-
-      // float to byte colour channel conversion.
-      const auto colour_channel_f = [](float cf) -> uint8_t  //
-      {
-        cf = 255.0f * std::max(cf, 0.0f);
-        unsigned cu = unsigned(cf);
-        return uint8_t(std::min(cu, 255u));
-      };
-      const bool use_colour = opt.cloud_colour.r > 0 || opt.cloud_colour.g > 0 || opt.cloud_colour.b > 0;
-      const ohm::Colour c(colour_channel_f(opt.cloud_colour.r), colour_channel_f(opt.cloud_colour.g),
-                          colour_channel_f(opt.cloud_colour.b));
-
-      for (auto iter = map->begin_leafs(); iter != map_end_iter && quit < 2; ++iter)
-      {
-        const auto occupancy = iter->getLogOdds();
-        if (occupancy >= map->getOccupancyThresLog())
-        {
-          const auto coord = iter.getCoordinate();
-          const auto v = glm::vec3(coord.x(), coord.y(), coord.z());
-          if (use_colour)
-          {
-            ply.addVertex(v, c);
-          }
-          else
-          {
-            ply.addVertex(v);
-          }
-          ++point_count;
-        }
-      }
-
-      if (quit < 2)
-      {
-        std::string output_file = base_name + ".ply";
-        std::cout << "Saving point cloud to " << output_file.c_str() << std::endl;
-        ply.save(output_file.c_str(), true);
-      }
-    }
-  }
+}
 }  // namespace
 
 

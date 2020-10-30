@@ -33,8 +33,8 @@
 #include <ohm/CovarianceVoxel.h>
 
 #if defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
-#include "RegionUpdateResource.h"
 #include "CovarianceHitResource.h"
+#include "RegionUpdateResource.h"
 #endif  // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
 
 using namespace ohm;
@@ -54,18 +54,18 @@ GPUTIL_CUDA_DECLARE_KERNEL(covarianceHit);
 namespace
 {
 #if defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
-  GpuProgramRef program_ref_ndt_miss("RegionUpdate", GpuProgramRef::kSourceString, RegionUpdateCode,  // NOLINT
-                                     RegionUpdateCode_length, { "-DVOXEL_MEAN", "-DNDT" });
+GpuProgramRef program_ref_ndt_miss("RegionUpdate", GpuProgramRef::kSourceString, RegionUpdateCode,  // NOLINT
+                                   RegionUpdateCode_length, { "-DVOXEL_MEAN", "-DNDT" });
 #else   // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
-  GpuProgramRef program_ref_ndt_miss("RegionUpdate", GpuProgramRef::kSourceFile, "RegionUpdate.cl", 0u,
-                                     { "-DVOXEL_MEAN", "-DNDT" });
+GpuProgramRef program_ref_ndt_miss("RegionUpdate", GpuProgramRef::kSourceFile, "RegionUpdate.cl", 0u,
+                                   { "-DVOXEL_MEAN", "-DNDT" });
 #endif  // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
 #if defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
-  GpuProgramRef program_ref_cov_hit("CovarianceHit", GpuProgramRef::kSourceString, CovarianceHitCode,  // NOLINT
-                                    CovarianceHitCode_length, { "-DVOXEL_MEAN", "-DNDT" });
+GpuProgramRef program_ref_cov_hit("CovarianceHit", GpuProgramRef::kSourceString, CovarianceHitCode,  // NOLINT
+                                  CovarianceHitCode_length, { "-DVOXEL_MEAN", "-DNDT" });
 #else   // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
-  GpuProgramRef program_ref_cov_hit("CovarianceHit", GpuProgramRef::kSourceFile, "CovarianceHit.cl", 0u,
-                                    { "-DVOXEL_MEAN", "-DNDT" });
+GpuProgramRef program_ref_cov_hit("CovarianceHit", GpuProgramRef::kSourceFile, "CovarianceHit.cl", 0u,
+                                  { "-DVOXEL_MEAN", "-DNDT" });
 #endif  // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
 }  // namespace
 

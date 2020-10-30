@@ -8,15 +8,15 @@
 #include "private/NdtMapDetail.h"
 
 #include "DefaultLayer.h"
-#include "OccupancyMap.h"
 #include "MapInfo.h"
 #include "MapLayer.h"
 #include "MapLayout.h"
 #include "MapProbability.h"
+#include "OccupancyMap.h"
 #include "VoxelData.h"
 
-#include <glm/vec4.hpp>
 #include <glm/gtc/type_ptr.hpp>
+#include <glm/vec4.hpp>
 
 #include <3esservermacros.h>
 #ifdef TES_ENABLE
@@ -149,7 +149,7 @@ bool NdtMap::trace() const
 void NdtMap::debugDraw() const
 {
 #ifdef TES_ENABLE
-  if (!g_3es || g_3es->connectionCount() == 0)
+  if (!g_tes || g_tes->connectionCount() == 0)
   {
     return;
   }
@@ -167,7 +167,7 @@ void NdtMap::debugDraw() const
         shape_ptrs.emplace_back(&ellipsoids[i]);
       }
 
-      g_3es->create(tes::MultiShape(shape_ptrs.data(), shape_ptrs.size()));
+      g_tes->create(tes::MultiShape(shape_ptrs.data(), shape_ptrs.size()));
       ellipsoids.clear();
     }
   };
@@ -213,7 +213,7 @@ void NdtMap::debugDraw() const
 
   send();
 
-  TES_SERVER_UPDATE(ohm::g_3es, 0.0f);
+  TES_SERVER_UPDATE(ohm::g_tes, 0.0f);
 #endif  // TES_ENABLE
 }
 

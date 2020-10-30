@@ -9,10 +9,10 @@ using namespace ohm;
 
 namespace ohm
 {
-  struct MapRegionCacheDetail
-  {
-    // empty
-  };
+struct MapRegionCacheDetail
+{
+  // empty
+};
 }  // namespace ohm
 
 MapRegionCache::MapRegionCache() = default;

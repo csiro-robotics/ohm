@@ -23,10 +23,10 @@ using namespace ohm;
 
 namespace
 {
-  void onOccupancyLayerChunkSync(MapChunk *chunk, const glm::u8vec3 &region_dimensions)
-  {
-    chunk->searchAndUpdateFirstValid(region_dimensions);
-  }
+void onOccupancyLayerChunkSync(MapChunk *chunk, const glm::u8vec3 &region_dimensions)
+{
+  chunk->searchAndUpdateFirstValid(region_dimensions);
+}
 }  // namespace
 
 GpuMapDetail::~GpuMapDetail()

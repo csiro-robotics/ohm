@@ -33,36 +33,36 @@ using namespace ohm;
 
 namespace ohm
 {
-  class HeightmapMeshDetail
-  {
-  public:
-    std::vector<glm::dvec3> vertices;
-    std::vector<glm::vec3> vertex_normals;
-    std::vector<glm::vec3> tri_normals;
-    std::vector<unsigned> triangles;
-    std::vector<TriangleNeighbours> triangle_neighbours;
-    std::vector<TriangleEdge> edges;
-    std::vector<double> coords_2d;
-    HeightmapMesh::NormalsMode normals_mode = HeightmapMesh::kNormalsAverage;
-    /// Loose mesh extents enclosing the generating 2D voxels. The extents are tight along the height axis.
-    Aabb loose_mesh_extents = Aabb(0.0);
-    /// Tight mesh extents exactly enclosing the mesh vertices.
-    Aabb tight_mesh_extents = Aabb(0.0);
-    double resolution = 0.0;
+class HeightmapMeshDetail
+{
+public:
+  std::vector<glm::dvec3> vertices;
+  std::vector<glm::vec3> vertex_normals;
+  std::vector<glm::vec3> tri_normals;
+  std::vector<unsigned> triangles;
+  std::vector<TriangleNeighbours> triangle_neighbours;
+  std::vector<TriangleEdge> edges;
+  std::vector<double> coords_2d;
+  HeightmapMesh::NormalsMode normals_mode = HeightmapMesh::kNormalsAverage;
+  /// Loose mesh extents enclosing the generating 2D voxels. The extents are tight along the height axis.
+  Aabb loose_mesh_extents = Aabb(0.0);
+  /// Tight mesh extents exactly enclosing the mesh vertices.
+  Aabb tight_mesh_extents = Aabb(0.0);
+  double resolution = 0.0;
 
-    void clear()
-    {
-      vertices.clear();
-      vertex_normals.clear();
-      tri_normals.clear();
-      triangles.clear();
-      triangle_neighbours.clear();
-      edges.clear();
-      coords_2d.clear();
-      loose_mesh_extents = tight_mesh_extents = Aabb(0.0);
-      resolution = 0.0;
-    }
-  };
+  void clear()
+  {
+    vertices.clear();
+    vertex_normals.clear();
+    tri_normals.clear();
+    triangles.clear();
+    triangle_neighbours.clear();
+    edges.clear();
+    coords_2d.clear();
+    loose_mesh_extents = tight_mesh_extents = Aabb(0.0);
+    resolution = 0.0;
+  }
+};
 }  // namespace ohm
 
 

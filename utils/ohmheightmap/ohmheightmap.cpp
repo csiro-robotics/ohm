@@ -33,46 +33,46 @@
 
 namespace
 {
-  using Clock = std::chrono::high_resolution_clock;
+using Clock = std::chrono::high_resolution_clock;
 
-  int quit = 0;
+int quit = 0;
 
-  void onSignal(int arg)
+void onSignal(int arg)
+{
+  if (arg == SIGINT || arg == SIGTERM)
   {
-    if (arg == SIGINT || arg == SIGTERM)
-    {
-      ++quit;
-    }
+    ++quit;
   }
+}
 
-  struct Options
-  {
-    std::string map_file;
-    std::string heightmap_file;
-    ohm::UpAxis axis_id = ohm::UpAxis::kZ;
-    double base_height = 0;
-    double clearance = 2.0;
-    double floor = 0;
-    double ceiling = 0;
-    bool no_voxel_mean = false;
-  };
+struct Options
+{
+  std::string map_file;
+  std::string heightmap_file;
+  ohm::UpAxis axis_id = ohm::UpAxis::kZ;
+  double base_height = 0;
+  double clearance = 2.0;
+  double floor = 0;
+  double ceiling = 0;
+  bool no_voxel_mean = false;
+};
 
 
-  class LoadMapProgress : public ohm::SerialiseProgress
-  {
-  public:
-    LoadMapProgress(ProgressMonitor &monitor)  // NOLINT(google-runtime-references)
-      : monitor_(monitor)
-    {}
+class LoadMapProgress : public ohm::SerialiseProgress
+{
+public:
+  LoadMapProgress(ProgressMonitor &monitor)  // NOLINT(google-runtime-references)
+    : monitor_(monitor)
+  {}
 
-    bool quit() const override { return ::quit > 1; }
+  bool quit() const override { return ::quit > 1; }
 
-    void setTargetProgress(unsigned target) override { monitor_.beginProgress(ProgressMonitor::Info(target)); }
-    void incrementProgress(unsigned inc) override { monitor_.incrementProgressBy(inc); }
+  void setTargetProgress(unsigned target) override { monitor_.beginProgress(ProgressMonitor::Info(target)); }
+  void incrementProgress(unsigned inc) override { monitor_.incrementProgressBy(inc); }
 
-  private:
-    ProgressMonitor &monitor_;
-  };
+private:
+  ProgressMonitor &monitor_;
+};
 }  // namespace
 
 

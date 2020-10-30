@@ -17,31 +17,31 @@ using namespace gputil;
 
 namespace gputil
 {
-  void destroyStream(cudaStream_t &stream)  // NOLINT(google-runtime-references)
+void destroyStream(cudaStream_t &stream)  // NOLINT(google-runtime-references)
+{
+  if (stream)
   {
-    if (stream)
-    {
-      cudaError_t err = cudaStreamDestroy(stream);
-      stream = nullptr;
-      GPUAPICHECK2(err, cudaSuccess);
-    }
+    cudaError_t err = cudaStreamDestroy(stream);
+    stream = nullptr;
+    GPUAPICHECK2(err, cudaSuccess);
   }
+}
 
-  struct CallbackWrapper
-  {
-    std::function<void(void)> callback;
+struct CallbackWrapper
+{
+  std::function<void(void)> callback;
 
-    inline CallbackWrapper(const std::function<void(void)> &callback)
-      : callback(callback)
-    {}
-  };
+  inline CallbackWrapper(const std::function<void(void)> &callback)
+    : callback(callback)
+  {}
+};
 
-  void streamCallback(cudaStream_t /*event*/, cudaError_t /*status*/, void *user_data)
-  {
-    CallbackWrapper *wrapper = static_cast<CallbackWrapper *>(user_data);
-    wrapper->callback();
-    delete wrapper;
-  }
+void streamCallback(cudaStream_t /*event*/, cudaError_t /*status*/, void *user_data)
+{
+  CallbackWrapper *wrapper = static_cast<CallbackWrapper *>(user_data);
+  wrapper->callback();
+  delete wrapper;
+}
 }  // namespace gputil
 
 

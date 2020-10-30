@@ -15,36 +15,36 @@
 
 namespace gputil
 {
-  struct BufferDetail;
-  class Device;
-  class Event;
-  class Queue;
+struct BufferDetail;
+class Device;
+class Event;
+class Queue;
 
-  /// Flags used to control @c Buffer creation.
-  enum BufferFlag
-  {
-    /// Buffer memory can be read on the device.
-    kBfRead = (1 << 0),
-    /// Buffer memory can be written on the device.
-    kBfWrite = (1 << 1),
-    /// Buffer is in host accessible memory on the device.
-    /// Required for buffer pinning.
-    kBfHostAccess = (1 << 2),
+/// Flags used to control @c Buffer creation.
+enum BufferFlag
+{
+  /// Buffer memory can be read on the device.
+  kBfRead = (1 << 0),
+  /// Buffer memory can be written on the device.
+  kBfWrite = (1 << 1),
+  /// Buffer is in host accessible memory on the device.
+  /// Required for buffer pinning.
+  kBfHostAccess = (1 << 2),
 
-    /// Alias for combining read/write flags.
-    kBfReadWrite = kBfRead | kBfWrite,
+  /// Alias for combining read/write flags.
+  kBfReadWrite = kBfRead | kBfWrite,
 
-    /// Alias for host accessible read.
-    kBfReadHost = kBfRead | kBfHostAccess,
+  /// Alias for host accessible read.
+  kBfReadHost = kBfRead | kBfHostAccess,
 
-    /// Alias for host accessible write.
-    kBfWriteHost = kBfWrite | kBfHostAccess,
+  /// Alias for host accessible write.
+  kBfWriteHost = kBfWrite | kBfHostAccess,
 
-    /// Alias for host accessible read/write.
-    kBfReadWriteHost = kBfRead | kBfWrite | kBfHostAccess
-  };
+  /// Alias for host accessible read/write.
+  kBfReadWriteHost = kBfRead | kBfWrite | kBfHostAccess
+};
 
-  // clang-format off
+// clang-format off
   /// @class Buffer
   /// Represents a GPU based buffer. Implementation depends on the
   /// GPU SDK.

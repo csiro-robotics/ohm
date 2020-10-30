@@ -19,14 +19,14 @@ using namespace ohm;
 
 namespace
 {
-  unsigned minimum_buffer_size = 1024u;
-  int zlib_compression_level = Z_BEST_SPEED;
-  int zlib_gzip_flag = 0;  // Use 16 to enable GZip.
-  const int kWindowBits = 14;
-  const int kZLibMemLevel = 8;
-  const int kCompressionStrategy = Z_DEFAULT_STRATEGY;
+unsigned minimum_buffer_size = 1024u;
+int zlib_compression_level = Z_BEST_SPEED;
+int zlib_gzip_flag = 0;  // Use 16 to enable GZip.
+const int kWindowBits = 14;
+const int kZLibMemLevel = 8;
+const int kCompressionStrategy = Z_DEFAULT_STRATEGY;
 
-  const auto kReleaseDelay = std::chrono::milliseconds(500);
+const auto kReleaseDelay = std::chrono::milliseconds(500);
 }  // namespace
 
 

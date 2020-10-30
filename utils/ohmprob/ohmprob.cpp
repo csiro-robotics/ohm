@@ -16,13 +16,13 @@
 
 namespace
 {
-  using real = double;
+using real = double;
 
-  struct Options
-  {
-    real value{ 0 };
-    bool reverse{ false };
-  };
+struct Options
+{
+  real value{ 0 };
+  bool reverse{ false };
+};
 }  // namespace
 
 int parseOptions(Options *opt, int argc, char *argv[])

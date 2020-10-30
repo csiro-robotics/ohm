@@ -36,26 +36,26 @@ using namespace ohm;
 namespace
 {
 #if defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
-  GpuProgramRef program_ref("TransformSamples", GpuProgramRef::kSourceString, TransformSamplesCode,// NOLINT
-                            TransformSamplesCode_length);
+GpuProgramRef program_ref("TransformSamples", GpuProgramRef::kSourceString, TransformSamplesCode,  // NOLINT
+                          TransformSamplesCode_length);
 #else   // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
-  GpuProgramRef program_ref("TransformSamples", GpuProgramRef::kSourceFile, "TransformSamples.cl");
+GpuProgramRef program_ref("TransformSamples", GpuProgramRef::kSourceFile, "TransformSamples.cl");
 #endif  // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
 
-  inline bool goodSample(const glm::dvec3 &sample, double max_range)
+inline bool goodSample(const glm::dvec3 &sample, double max_range)
+{
+  if (glm::any(glm::isnan(sample)))
   {
-    if (glm::any(glm::isnan(sample)))
-    {
-      return false;
-    }
-
-    if (glm::dot(sample, sample) > max_range)
-    {
-      return false;
-    }
-
-    return true;
+    return false;
   }
+
+  if (glm::dot(sample, sample) > max_range)
+  {
+    return false;
+  }
+
+  return true;
+}
 }  // namespace
 
 

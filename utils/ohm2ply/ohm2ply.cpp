@@ -21,10 +21,10 @@
 
 // CovarianceVoxel.h must be included later due to GPU suppport for this file.
 #define GLM_ENABLE_EXPERIMENTAL
-#include <glm/vec3.hpp>
-#include <glm/mat3x3.hpp>
 #include <glm/gtx/norm.hpp>
 #include <glm/gtx/transform.hpp>
+#include <glm/mat3x3.hpp>
+#include <glm/vec3.hpp>
 
 #include <ohm/CovarianceVoxel.h>
 
@@ -41,134 +41,134 @@
 
 namespace
 {
-  int quit = 0;
+int quit = 0;
 
-  void onSignal(int arg)
+void onSignal(int arg)
+{
+  if (arg == SIGINT || arg == SIGTERM)
   {
-    if (arg == SIGINT || arg == SIGTERM)
-    {
-      ++quit;
-    }
+    ++quit;
+  }
+}
+
+enum ExportMode
+{
+  kExportOccupancy,
+  kExportOccupancyCentre,
+  kExportClearance,
+  kExportHeightmap,
+  kExportHeightmapMesh,
+  kExportCovariance
+};
+
+struct Options
+{
+  std::string map_file;
+  std::string ply_file;
+  // expire regions older than this
+  double expiry_time = 0;
+  float cull_distance = 0;
+  float occupancy_threshold = -1.0f;
+  float colour_scale = 3.0f;
+  ExportMode mode = kExportOccupancy;
+  std::string heightmap_axis = "z";
+};
+
+template <typename NUMERIC>
+bool optionValue(const char *arg, int argc, char *argv[], NUMERIC &value)
+{
+  std::string str_value;
+  if (optionValue(arg, argc, argv, str_value))
+  {
+    std::istringstream instr(str_value);
+    instr >> value;
+    return !instr.fail();
   }
 
-  enum ExportMode
-  {
-    kExportOccupancy,
-    kExportOccupancyCentre,
-    kExportClearance,
-    kExportHeightmap,
-    kExportHeightmapMesh,
-    kExportCovariance
+  return false;
+}
+
+class LoadMapProgress : public ohm::SerialiseProgress
+{
+public:
+  LoadMapProgress(ProgressMonitor &monitor)  // NOLINT(google-runtime-references)
+    : monitor_(monitor)
+  {}
+
+  bool quit() const override { return ::quit > 1; }
+
+  void setTargetProgress(unsigned target) override { monitor_.beginProgress(ProgressMonitor::Info(target)); }
+  void incrementProgress(unsigned inc) override { monitor_.incrementProgressBy(inc); }
+
+private:
+  ProgressMonitor &monitor_;
+};
+
+
+/// Build a sphere approximation with an icosahedron.
+/// @todo Make one subdivision for better spheres.
+void makeUnitSphere(std::vector<glm::dvec3> &vertices, std::vector<unsigned> &indices)
+{
+  // We start with two hexagonal rings to approximate the sphere.
+  // All subdivision occurs on a unit radius sphere, at the origin. We translate and
+  // scale the vertices at the end.
+  vertices.clear();
+  indices.clear();
+
+  static const double ringControlAngle = 25.0 / 180.0 * M_PI;
+  static const double ringHeight = std::sin(ringControlAngle);
+  static const double ringRadius = std::cos(ringControlAngle);
+  static const double hexAngle = 2.0 * M_PI / 6.0;
+  static const double ring2OffsetAngle = 0.5 * hexAngle;
+  static const glm::dvec3 initialVertices[] = {
+    glm::dvec3(0, 0, 1),
+
+    // Upper hexagon.
+    glm::dvec3(ringRadius, 0, ringHeight),
+    glm::dvec3(ringRadius * std::cos(hexAngle), ringRadius * std::sin(hexAngle), ringHeight),
+    glm::dvec3(ringRadius * std::cos(2 * hexAngle), ringRadius * std::sin(2 * hexAngle), ringHeight),
+    glm::dvec3(ringRadius * std::cos(3 * hexAngle), ringRadius * std::sin(3 * hexAngle), ringHeight),
+    glm::dvec3(ringRadius * std::cos(4 * hexAngle), ringRadius * std::sin(4 * hexAngle), ringHeight),
+    glm::dvec3(ringRadius * std::cos(5 * hexAngle), ringRadius * std::sin(5 * hexAngle), ringHeight),
+
+    // Lower hexagon.
+    glm::dvec3(ringRadius * std::cos(ring2OffsetAngle), ringRadius * std::sin(ring2OffsetAngle), -ringHeight),
+    glm::dvec3(ringRadius * std::cos(ring2OffsetAngle + hexAngle), ringRadius * std::sin(ring2OffsetAngle + hexAngle),
+               -ringHeight),
+    glm::dvec3(ringRadius * std::cos(ring2OffsetAngle + 2 * hexAngle),
+               ringRadius * std::sin(ring2OffsetAngle + 2 * hexAngle), -ringHeight),
+    glm::dvec3(ringRadius * std::cos(ring2OffsetAngle + 3 * hexAngle),
+               ringRadius * std::sin(ring2OffsetAngle + 3 * hexAngle), -ringHeight),
+    glm::dvec3(ringRadius * std::cos(ring2OffsetAngle + 4 * hexAngle),
+               ringRadius * std::sin(ring2OffsetAngle + 4 * hexAngle), -ringHeight),
+    glm::dvec3(ringRadius * std::cos(ring2OffsetAngle + 5 * hexAngle),
+               ringRadius * std::sin(ring2OffsetAngle + 5 * hexAngle), -ringHeight),
+
+    glm::dvec3(0, 0, -1),
   };
+  const unsigned initialVertexCount = sizeof(initialVertices) / sizeof(initialVertices[0]);
 
-  struct Options
+  const unsigned initialIndices[] = { 0, 1,  2, 0, 2,  3, 0, 3,  4,  0,  4,  5,  0,  5,  6,  0,  6,  1,
+
+                                      1, 7,  2, 2, 8,  3, 3, 9,  4,  4,  10, 5,  5,  11, 6,  6,  12, 1,
+
+                                      7, 8,  2, 8, 9,  3, 9, 10, 4,  10, 11, 5,  11, 12, 6,  12, 7,  1,
+
+                                      7, 13, 8, 8, 13, 9, 9, 13, 10, 10, 13, 11, 11, 13, 12, 12, 13, 7 };
+  const unsigned initialIndexCount = sizeof(initialIndices) / sizeof(initialIndices[0]);
+
+  for (unsigned i = 0; i < initialVertexCount; ++i)
   {
-    std::string map_file;
-    std::string ply_file;
-    // expire regions older than this
-    double expiry_time = 0;
-    float cull_distance = 0;
-    float occupancy_threshold = -1.0f;
-    float colour_scale = 3.0f;
-    ExportMode mode = kExportOccupancy;
-    std::string heightmap_axis = "z";
-  };
-
-  template <typename NUMERIC>
-  bool optionValue(const char *arg, int argc, char *argv[], NUMERIC &value)
-  {
-    std::string str_value;
-    if (optionValue(arg, argc, argv, str_value))
-    {
-      std::istringstream instr(str_value);
-      instr >> value;
-      return !instr.fail();
-    }
-
-    return false;
+    vertices.push_back(initialVertices[i]);
   }
 
-  class LoadMapProgress : public ohm::SerialiseProgress
+  for (unsigned i = 0; i < initialIndexCount; i += 3)
   {
-  public:
-    LoadMapProgress(ProgressMonitor &monitor)  // NOLINT(google-runtime-references)
-      : monitor_(monitor)
-    {}
-
-    bool quit() const override { return ::quit > 1; }
-
-    void setTargetProgress(unsigned target) override { monitor_.beginProgress(ProgressMonitor::Info(target)); }
-    void incrementProgress(unsigned inc) override { monitor_.incrementProgressBy(inc); }
-
-  private:
-    ProgressMonitor &monitor_;
-  };
-
-
-  /// Build a sphere approximation with an icosahedron.
-  /// @todo Make one subdivision for better spheres.
-  void makeUnitSphere(std::vector<glm::dvec3> &vertices, std::vector<unsigned> &indices)
-  {
-    // We start with two hexagonal rings to approximate the sphere.
-    // All subdivision occurs on a unit radius sphere, at the origin. We translate and
-    // scale the vertices at the end.
-    vertices.clear();
-    indices.clear();
-
-    static const double ringControlAngle = 25.0 / 180.0 * M_PI;
-    static const double ringHeight = std::sin(ringControlAngle);
-    static const double ringRadius = std::cos(ringControlAngle);
-    static const double hexAngle = 2.0 * M_PI / 6.0;
-    static const double ring2OffsetAngle = 0.5 * hexAngle;
-    static const glm::dvec3 initialVertices[] = {
-      glm::dvec3(0, 0, 1),
-
-      // Upper hexagon.
-      glm::dvec3(ringRadius, 0, ringHeight),
-      glm::dvec3(ringRadius * std::cos(hexAngle), ringRadius * std::sin(hexAngle), ringHeight),
-      glm::dvec3(ringRadius * std::cos(2 * hexAngle), ringRadius * std::sin(2 * hexAngle), ringHeight),
-      glm::dvec3(ringRadius * std::cos(3 * hexAngle), ringRadius * std::sin(3 * hexAngle), ringHeight),
-      glm::dvec3(ringRadius * std::cos(4 * hexAngle), ringRadius * std::sin(4 * hexAngle), ringHeight),
-      glm::dvec3(ringRadius * std::cos(5 * hexAngle), ringRadius * std::sin(5 * hexAngle), ringHeight),
-
-      // Lower hexagon.
-      glm::dvec3(ringRadius * std::cos(ring2OffsetAngle), ringRadius * std::sin(ring2OffsetAngle), -ringHeight),
-      glm::dvec3(ringRadius * std::cos(ring2OffsetAngle + hexAngle), ringRadius * std::sin(ring2OffsetAngle + hexAngle),
-                 -ringHeight),
-      glm::dvec3(ringRadius * std::cos(ring2OffsetAngle + 2 * hexAngle),
-                 ringRadius * std::sin(ring2OffsetAngle + 2 * hexAngle), -ringHeight),
-      glm::dvec3(ringRadius * std::cos(ring2OffsetAngle + 3 * hexAngle),
-                 ringRadius * std::sin(ring2OffsetAngle + 3 * hexAngle), -ringHeight),
-      glm::dvec3(ringRadius * std::cos(ring2OffsetAngle + 4 * hexAngle),
-                 ringRadius * std::sin(ring2OffsetAngle + 4 * hexAngle), -ringHeight),
-      glm::dvec3(ringRadius * std::cos(ring2OffsetAngle + 5 * hexAngle),
-                 ringRadius * std::sin(ring2OffsetAngle + 5 * hexAngle), -ringHeight),
-
-      glm::dvec3(0, 0, -1),
-    };
-    const unsigned initialVertexCount = sizeof(initialVertices) / sizeof(initialVertices[0]);
-
-    const unsigned initialIndices[] = { 0, 1,  2, 0, 2,  3, 0, 3,  4,  0,  4,  5,  0,  5,  6,  0,  6,  1,
-
-                                        1, 7,  2, 2, 8,  3, 3, 9,  4,  4,  10, 5,  5,  11, 6,  6,  12, 1,
-
-                                        7, 8,  2, 8, 9,  3, 9, 10, 4,  10, 11, 5,  11, 12, 6,  12, 7,  1,
-
-                                        7, 13, 8, 8, 13, 9, 9, 13, 10, 10, 13, 11, 11, 13, 12, 12, 13, 7 };
-    const unsigned initialIndexCount = sizeof(initialIndices) / sizeof(initialIndices[0]);
-
-    for (unsigned i = 0; i < initialVertexCount; ++i)
-    {
-      vertices.push_back(initialVertices[i]);
-    }
-
-    for (unsigned i = 0; i < initialIndexCount; i += 3)
-    {
-      indices.push_back(initialIndices[i + 0]);
-      indices.push_back(initialIndices[i + 1]);
-      indices.push_back(initialIndices[i + 2]);
-    }
+    indices.push_back(initialIndices[i + 0]);
+    indices.push_back(initialIndices[i + 1]);
+    indices.push_back(initialIndices[i + 2]);
   }
+}
 }  // namespace
 
 
@@ -330,8 +330,7 @@ int exportPointCloud(const Options &opt, ProgressMonitor &prog, LoadMapProgress 
       return -1;
     }
     break;
-  case kExportHeightmap:
-  {
+  case kExportHeightmap: {
     const ohm::MapLayer *layer = map.layout().layer(ohm::HeightmapVoxel::kHeightmapLayer);
     if (!layer)
     {

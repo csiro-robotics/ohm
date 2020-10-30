@@ -5,18 +5,18 @@
 #include "RayMapperNdt.h"
 
 #define GLM_ENABLE_EXPERIMENTAL
-#include <glm/vec3.hpp>
-#include <glm/mat3x3.hpp>
 #include <glm/gtx/norm.hpp>
+#include <glm/mat3x3.hpp>
+#include <glm/vec3.hpp>
 
 #include "CovarianceVoxel.h"
 
 #include "CalculateSegmentKeys.h"
 #include "KeyList.h"
-#include "OccupancyMap.h"
 #include "MapLayer.h"
 #include "MapLayout.h"
 #include "NdtMap.h"
+#include "OccupancyMap.h"
 #include "RayFilter.h"
 #include "VoxelBuffer.h"
 #include "VoxelData.h"

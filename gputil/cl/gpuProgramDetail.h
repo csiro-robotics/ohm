@@ -16,12 +16,12 @@
 
 namespace gputil
 {
-  struct ProgramDetail
-  {
-    cl::Program program;
-    Device device;
-    std::string program_name;
-  };
+struct ProgramDetail
+{
+  cl::Program program;
+  Device device;
+  std::string program_name;
+};
 }  // namespace gputil
 
 #endif  // GPUPROGRAMDETAIL_H

@@ -22,43 +22,43 @@ using namespace gputil;
 
 namespace
 {
-  void initDeviceInfo(DeviceInfo &gputil_info, const cudaDeviceProp &cuda_info)  // NOLINT(google-runtime-references)
+void initDeviceInfo(DeviceInfo &gputil_info, const cudaDeviceProp &cuda_info)  // NOLINT(google-runtime-references)
+{
+  gputil_info.name = cuda_info.name;
+  gputil_info.platform = "CUDA";  // cuda_info.name;
+  gputil_info.version.major = cuda_info.major;
+  gputil_info.version.minor = cuda_info.minor;
+  gputil_info.version.patch = 0;
+  gputil_info.type = kDeviceGpu;
+}
+
+bool selectDevice(DeviceDetail *detail, int device_id = -1)
+{
+  cudaError_t err = cudaSuccess;
+
+  if (device_id < 0)
   {
-    gputil_info.name = cuda_info.name;
-    gputil_info.platform = "CUDA";  // cuda_info.name;
-    gputil_info.version.major = cuda_info.major;
-    gputil_info.version.minor = cuda_info.minor;
-    gputil_info.version.patch = 0;
-    gputil_info.type = kDeviceGpu;
+    // Select default device.
+    err = cudaGetDevice(&device_id);
   }
 
-  bool selectDevice(DeviceDetail *detail, int device_id = -1)
+  if (err == cudaSuccess)
   {
-    cudaError_t err = cudaSuccess;
-
-    if (device_id < 0)
+    cudaDeviceProp cuda_info{};
+    memset(&cuda_info, 0, sizeof(cuda_info));
+    if (cudaGetDeviceProperties(&cuda_info, device_id) == cudaSuccess)
     {
-      // Select default device.
-      err = cudaGetDevice(&device_id);
+      detail->device = device_id;
+      initDeviceInfo(detail->info, cuda_info);
+      return true;
     }
-
-    if (err == cudaSuccess)
-    {
-      cudaDeviceProp cuda_info{};
-      memset(&cuda_info, 0, sizeof(cuda_info));
-      if (cudaGetDeviceProperties(&cuda_info, device_id) == cudaSuccess)
-      {
-        detail->device = device_id;
-        initDeviceInfo(detail->info, cuda_info);
-        return true;
-      }
-    }
-
-    detail->device = -1;
-    detail->info = DeviceInfo();
-
-    return false;
   }
+
+  detail->device = -1;
+  detail->info = DeviceInfo();
+
+  return false;
+}
 }  // namespace
 
 Device::Device(bool default_device)

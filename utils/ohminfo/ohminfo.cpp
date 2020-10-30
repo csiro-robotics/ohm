@@ -10,8 +10,8 @@
 #include <ohm/MapSerialise.h>
 #include <ohm/OccupancyMap.h>
 #include <ohm/OccupancyUtil.h>
-#include <ohm/VoxelLayout.h>
 #include <ohm/VoxelData.h>
+#include <ohm/VoxelLayout.h>
 
 #include <ohmutil/OhmUtil.h>
 #include <ohmutil/Options.h>
@@ -30,22 +30,22 @@
 
 namespace
 {
-  int quit = 0;
+int quit = 0;
 
-  void onSignal(int arg)
+void onSignal(int arg)
+{
+  if (arg == SIGINT || arg == SIGTERM)
   {
-    if (arg == SIGINT || arg == SIGTERM)
-    {
-      ++quit;
-    }
+    ++quit;
   }
+}
 
-  struct Options
-  {
-    std::string map_file;
-    bool calculate_extents = false;
-    bool detail = false;
-  };
+struct Options
+{
+  std::string map_file;
+  bool calculate_extents = false;
+  bool detail = false;
+};
 }  // namespace
 
 
