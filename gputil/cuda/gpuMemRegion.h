@@ -51,7 +51,7 @@ public:
 
   /// Sorts and merged the list @p regions. The merged regions are reduced to zero size, but left in the list.
   /// @param regions The list to sort and merge.
-  static void mergeRegionList(std::vector<MemRegion> &regions);  // NOLINT(google-runtime-references)
+  static void mergeRegionList(std::vector<MemRegion> &regions);
 };
 }  // namespace gputil
 

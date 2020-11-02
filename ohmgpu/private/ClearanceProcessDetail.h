@@ -50,7 +50,7 @@ struct ClearanceProcessDetail
 
   void stepCursor(const glm::i16vec3 &step = glm::i16vec3(1));
 
-  void getWork(OccupancyMap &map);  // NOLINT(google-runtime-references)
+  void getWork(OccupancyMap &map);
 };
 }  // namespace ohm
 

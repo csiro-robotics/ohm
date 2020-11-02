@@ -70,9 +70,8 @@ inline size_t bestAllocationSize(const cl::Context &context, size_t requested_al
 /// @return True if the @p buffer has been allocated for the first time or reallocated.
 /// False if the buffer has been left as is. Errors are reported via @p error.
 template <typename T>
-bool ensureBufferSize(cl::Buffer &buffer, cl_mem_flags flags,  // NOLINT(google-runtime-references)
-                      const cl::Context &context, size_t element_count, cl_int *error = nullptr,
-                      cl_uint byte_size_alignment = 0)
+bool ensureBufferSize(cl::Buffer &buffer, cl_mem_flags flags, const cl::Context &context, size_t element_count,
+                      cl_int *error = nullptr, cl_uint byte_size_alignment = 0)
 {
   if (buffer())
   {
@@ -97,7 +96,7 @@ bool ensureBufferSize(cl::Buffer &buffer, cl_mem_flags flags,  // NOLINT(google-
   }
 
   // Allocate the new buffer.
-  cl_int clerr;
+  cl_int clerr = 0;
   const size_t allocation_size = bestAllocationSize(context, sizeof(T) * element_count, byte_size_alignment);
   buffer = cl::Buffer(context, flags, allocation_size, nullptr, &clerr);
   //    std::cout << "Allocate " << allocationSize << std::endl;
@@ -130,16 +129,14 @@ bool ensureBufferSize(cl::Buffer &buffer, cl_mem_flags flags,  // NOLINT(google-
 /// @tparam GPUT The GPU buffer type to upload to.
 /// @tparam CPUT The CPU buffer type to upload to.
 template <typename GPUT, typename CPUT>
-bool upload(cl::CommandQueue &queue, cl::Context &context,  // NOLINT(google-runtime-references)
-            cl::Buffer &gpu_buffer,                         // NOLINT(google-runtime-references)
-            const CPUT *cpu_buffer, size_t element_count, bool allow_write, const char *reference,
-            std::ostream &log = std::cerr)
+bool upload(cl::CommandQueue &queue, cl::Context &context, cl::Buffer &gpu_buffer, const CPUT *cpu_buffer,
+            size_t element_count, bool allow_write, const char *reference, std::ostream &log = std::cerr)
 {
-  static_assert(sizeof(GPUT) >= sizeof(GPUT), "GPU type smaller than CPU type.");
+  static_assert(sizeof(GPUT) >= sizeof(CPUT), "GPU type smaller than CPU type.");
   const CPUT *cpu = cpu_buffer;
 
   cl_int clerr = 0;
-  const cl_mem_flags mem_flags = (allow_write) ? CL_MEM_READ_ONLY : CL_MEM_READ_WRITE;
+  const cl_mem_flags mem_flags = (allow_write) ? CL_MEM_READ_ONLY : CL_MEM_READ_WRITE;  // NOLINT(hicpp-signed-bitwise)
   clu::ensureBufferSize<GPUT>(gpu_buffer, mem_flags, context, element_count, &clerr);
   if (!clu::checkError(log, clerr, reference))
   {
@@ -147,6 +144,7 @@ bool upload(cl::CommandQueue &queue, cl::Context &context,  // NOLINT(google-run
   }
 
   // Map target buffer.
+  // NOLINTNEXTLINE(hicpp-signed-bitwise)
   GPUT *gpu_mem = static_cast<GPUT *>(clEnqueueMapBuffer(queue(), gpu_buffer(), CL_TRUE, CL_MAP_WRITE, 0,
                                                          sizeof(GPUT) * element_count, 0, nullptr, nullptr, &clerr));
 
@@ -188,16 +186,17 @@ bool upload(cl::CommandQueue &queue, cl::Context &context,  // NOLINT(google-run
 /// @tparam GPUT The GPU buffer type to upload to.
 /// @tparam CPUT The CPU buffer type to upload to.
 template <typename GPUT, typename CPUT>
-bool download(cl::CommandQueue &queue, CPUT *cpu_buffer, cl::Buffer &gpu_buffer,  // NOLINT(google-runtime-references)
-              size_t element_count, const char *reference, std::ostream &log = std::cerr)
+bool download(cl::CommandQueue &queue, CPUT *cpu_buffer, cl::Buffer &gpu_buffer, size_t element_count,
+              const char *reference, std::ostream &log = std::cerr)
 {
-  static_assert(sizeof(GPUT) >= sizeof(GPUT), "GPU type smaller than CPU type.");
+  static_assert(sizeof(GPUT) >= sizeof(CPUT), "GPU type smaller than CPU type.");
   CPUT *cpu = cpu_buffer;
 
   cl_int clerr = 0;
   // Map target buffer.
-  GPUT *gpu_mem = static_cast<GPUT *>(clEnqueueMapBuffer(queue(), gpu_buffer(), CL_TRUE, CL_MAP_READ, 0,
-                                                         sizeof(GPUT) * element_count, 0, nullptr, nullptr, &clerr));
+  GPUT *gpu_mem =
+    static_cast<GPUT *>(clEnqueueMapBuffer(queue(), gpu_buffer(), CL_TRUE, CL_MAP_READ,  // NOLINT(hicpp-signed-bitwise)
+                                           0, sizeof(GPUT) * element_count, 0, nullptr, nullptr, &clerr));
 
   if (!clu::checkError(log, clerr, reference))
   {

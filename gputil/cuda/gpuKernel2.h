@@ -37,7 +37,7 @@ inline size_t countArgs()
 }
 
 template <typename ARG, typename... ARGS>
-inline size_t countArgs(const ARG &, ARGS... args)
+inline size_t countArgs(const ARG &, ARGS... args)  // NOLINT(readability-named-parameter)
 {
   return 1u + countArgs(args...);
 }
@@ -45,7 +45,9 @@ inline size_t countArgs(const ARG &, ARGS... args)
 template <typename ARG>
 inline void *collateArgPtr(ARG *arg)
 {
-  return const_cast<void *>(reinterpret_cast<const void *>(arg));  // NOLINT(cppcoreguidelines-pro-type-const-cast)
+  // Necessary evils
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-type-const-cast, cppcoreguidelines-pro-type-reinterpret-cast)
+  return const_cast<void *>(reinterpret_cast<const void *>(arg));
 }
 
 template <typename T>
@@ -90,6 +92,7 @@ int Kernel::operator()(const Dim3 &global_size, const Dim3 &local_size, Queue *q
 
   // Collate arguments into void **
   size_t arg_count = cuda::countArgs(args...);
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
   void **collated_args = (arg_count) ? reinterpret_cast<void **>(alloca(arg_count * sizeof(void *))) : nullptr;
   // Capture args by pointer as we will be packing that address into collated_args and it must stay valid.
   cuda::collateArgs(0, collated_args, &args...);
@@ -114,6 +117,7 @@ int Kernel::operator()(const Dim3 &global_size, const Dim3 &local_size, Event &c
 
   // Collate arguments into void **
   size_t arg_count = cuda::countArgs(args...);
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
   void **collated_args = (arg_count) ? reinterpret_cast<void **>(alloca(arg_count * sizeof(void *))) : nullptr;
   // Capture args by pointer as we will be packing that address into collated_args and it must stay valid.
   cuda::collateArgs(0, collated_args, &args...);
@@ -139,6 +143,7 @@ int Kernel::operator()(const Dim3 &global_size, const Dim3 &local_size, const Ev
 
   // Collate arguments into void **
   size_t arg_count = cuda::countArgs(args...);
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
   void **collated_args = (arg_count) ? reinterpret_cast<void **>(alloca(arg_count * sizeof(void *))) : nullptr;
   // Capture args by pointer as we will be packing that address into collated_args and it must stay valid.
   cuda::collateArgs(0, collated_args, &args...);
@@ -163,6 +168,7 @@ int Kernel::operator()(const Dim3 &global_size, const Dim3 &local_size, const Ev
 
   // Collate arguments into void **
   size_t arg_count = cuda::countArgs(args...);
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
   void **collated_args = (arg_count) ? reinterpret_cast<void **>(alloca(arg_count * sizeof(void *))) : nullptr;
   // Capture args by pointer as we will be packing that address into collated_args and it must stay valid.
   cuda::collateArgs(0, collated_args, &args...);
@@ -174,8 +180,8 @@ int Kernel::operator()(const Dim3 &global_size, const Dim3 &local_size, const Ev
 }
 
 
-Kernel cudaKernel(Program &program,  // NOLINT(google-runtime-references)
-                  const void *kernel_function_ptr, const gputil::OptimalGroupSizeCalculation &group_calc);
+Kernel cudaKernel(Program &program, const void *kernel_function_ptr,
+                  const gputil::OptimalGroupSizeCalculation &group_calc);
 }  // namespace gputil
 
 #endif  // GPUKERNEL2_H

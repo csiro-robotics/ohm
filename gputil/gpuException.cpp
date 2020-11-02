@@ -6,71 +6,59 @@
 
 #include "gpuException.h"
 #include <cstdio>
-#include <sstream>
-
-using namespace gputil;
-
 #include <cstring>
+#include <sstream>
+#include <string>
 
+namespace gputil
+{
 #ifdef WIN32
 #define strncpy(dst, msg, len) strncpy_s(dst, len + 1, msg, len)
 #endif  // WIN32
 
-Exception::Exception(const char *msg, const char *filename, int line_number)
-  : message_(nullptr)
+Exception::Exception(const std::string &msg, const std::string &filename, int line_number)
 {
   setMessage(msg, filename, line_number);
 }
 
 
 Exception::Exception(Exception &&other) noexcept
-  : message_(other.message_)
-{
-  other.message_ = nullptr;
-}
+  : message_(std::move(other.message_))
+{}
 
 
-Exception::~Exception()
-{
-  delete[] message_;
-}
+Exception::~Exception() = default;
 
 
 const char *Exception::what() const noexcept
 {
-  return message_ ? message_ : "";
+  return message_.c_str();
 }
 
 
-void Exception::setMessage(const char *message, const char *filename, int line_number)
+void Exception::setMessage(const std::string &message, const std::string &filename, int line_number)
 {
   std::string str;
-  if (message || filename)
+  if (!message.empty() || !filename.empty())
   {
     std::ostringstream sstr;
-    if (filename)
+    if (!filename.empty())
     {
       sstr << filename;
+
       if (line_number > 0)
       {
         sstr << '(' << line_number << "):";
       }
       sstr << ' ';
     }
-    if (message)
+    if (!message.empty())
     {
       sstr << message;
     }
     str = sstr.str();
   }
 
-  delete[] message_;
-  message_ = nullptr;
-  if (str.length())
-  {
-    size_t msglen = str.length();
-    message_ = new char[msglen + 1];
-    strncpy(message_, str.c_str(), msglen);
-    message_[msglen] = '\0';
-  }
+  message_ = std::move(str);
 }
+}  // namespace gputil

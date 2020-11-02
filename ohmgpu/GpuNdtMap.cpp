@@ -54,18 +54,18 @@ GPUTIL_CUDA_DECLARE_KERNEL(covarianceHit);
 namespace
 {
 #if defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
-GpuProgramRef program_ref_ndt_miss("RegionUpdate", GpuProgramRef::kSourceString, RegionUpdateCode,  // NOLINT
-                                   RegionUpdateCode_length, { "-DVOXEL_MEAN", "-DNDT" });
+GpuProgramRef g_program_ref_ndt_miss("RegionUpdate", GpuProgramRef::kSourceString, RegionUpdateCode,  // NOLINT
+                                     RegionUpdateCode_length, { "-DVOXEL_MEAN", "-DNDT" });
 #else   // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
-GpuProgramRef program_ref_ndt_miss("RegionUpdate", GpuProgramRef::kSourceFile, "RegionUpdate.cl", 0u,
-                                   { "-DVOXEL_MEAN", "-DNDT" });
+GpuProgramRef g_program_ref_ndt_miss("RegionUpdate", GpuProgramRef::kSourceFile, "RegionUpdate.cl", 0u,
+                                     { "-DVOXEL_MEAN", "-DNDT" });
 #endif  // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
 #if defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
-GpuProgramRef program_ref_cov_hit("CovarianceHit", GpuProgramRef::kSourceString, CovarianceHitCode,  // NOLINT
-                                  CovarianceHitCode_length, { "-DVOXEL_MEAN", "-DNDT" });
+GpuProgramRef g_program_ref_cov_hit("CovarianceHit", GpuProgramRef::kSourceString, CovarianceHitCode,  // NOLINT
+                                    CovarianceHitCode_length, { "-DVOXEL_MEAN", "-DNDT" });
 #else   // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
-GpuProgramRef program_ref_cov_hit("CovarianceHit", GpuProgramRef::kSourceFile, "CovarianceHit.cl", 0u,
-                                  { "-DVOXEL_MEAN", "-DNDT" });
+GpuProgramRef g_program_ref_cov_hit("CovarianceHit", GpuProgramRef::kSourceFile, "CovarianceHit.cl", 0u,
+                                    { "-DVOXEL_MEAN", "-DNDT" });
 #endif  // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
 }  // namespace
 
@@ -137,7 +137,7 @@ const GpuNdtMapDetail *GpuNdtMap::detail() const
 
 void GpuNdtMap::cacheGpuProgram(bool /*with_voxel_mean*/, bool force)
 {
-  if (imp_->program_ref)
+  if (imp_->g_program_ref)
   {
     if (!force)
     {
@@ -151,11 +151,11 @@ void GpuNdtMap::cacheGpuProgram(bool /*with_voxel_mean*/, bool force)
   GpuNdtMapDetail *imp = detail();
   imp->gpu_ok = true;
   imp->cached_sub_voxel_program = true;
-  imp->program_ref = &program_ref_ndt_miss;
+  imp->g_program_ref = &g_program_ref_ndt_miss;
 
-  if (imp->program_ref->addReference(gpu_cache.gpu()))
+  if (imp->g_program_ref->addReference(gpu_cache.gpu()))
   {
-    imp->update_kernel = GPUTIL_MAKE_KERNEL(imp->program_ref->program(), regionRayUpdateNdt);
+    imp->update_kernel = GPUTIL_MAKE_KERNEL(imp->g_program_ref->program(), regionRayUpdateNdt);
     imp->update_kernel.calculateOptimalWorkGroupSize();
     imp->gpu_ok = imp->update_kernel.isValid();
   }
@@ -166,7 +166,7 @@ void GpuNdtMap::cacheGpuProgram(bool /*with_voxel_mean*/, bool force)
 
   if (imp->gpu_ok)
   {
-    imp->cov_hit_program_ref = &program_ref_cov_hit;
+    imp->cov_hit_program_ref = &g_program_ref_cov_hit;
 
     if (imp->cov_hit_program_ref->addReference(gpu_cache.gpu()))
     {

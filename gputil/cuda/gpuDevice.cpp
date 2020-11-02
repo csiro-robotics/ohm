@@ -18,11 +18,11 @@
 #include <cstring>
 #include <sstream>
 
-using namespace gputil;
-
+namespace gputil
+{
 namespace
 {
-void initDeviceInfo(DeviceInfo &gputil_info, const cudaDeviceProp &cuda_info)  // NOLINT(google-runtime-references)
+void initDeviceInfo(DeviceInfo &gputil_info, const cudaDeviceProp &cuda_info)
 {
   gputil_info.name = cuda_info.name;
   gputil_info.platform = "CUDA";  // cuda_info.name;
@@ -379,3 +379,4 @@ Device &Device::operator=(Device &&other) noexcept
   other.imp_ = nullptr;
   return *this;
 }
+}  // namespace gputil

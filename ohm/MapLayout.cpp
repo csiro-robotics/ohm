@@ -20,8 +20,7 @@ using namespace ohm;
 
 namespace
 {
-void filterLayers(MapLayoutDetail &imp,  // NOLINT(google-runtime-references)
-                  const std::vector<unsigned> &preserve_layers)
+void filterLayers(MapLayoutDetail &imp, const std::vector<unsigned> &preserve_layers)
 {
   if (imp.layers.empty())
   {
@@ -120,23 +119,23 @@ MapLayoutMatch MapLayout::checkEquivalent(const MapLayout &other) const
 {
   if (this == &other)
   {
-    return MapLayoutMatch::Exact;
+    return MapLayoutMatch::kExact;
   }
 
   // Check the obvious first: number of layers and layer sizes.
   if (layerCount() != other.layerCount())
   {
-    return MapLayoutMatch::Different;
+    return MapLayoutMatch::kDifferent;
   }
 
-  MapLayoutMatch match = MapLayoutMatch::Exact;
+  MapLayoutMatch match = MapLayoutMatch::kExact;
   for (size_t i = 0; i < layerCount(); ++i)
   {
     const MapLayoutMatch layer_match = layer(i).checkEquivalent(other.layer(i));
     match = std::min(match, layer_match);
-    if (match == MapLayoutMatch::Different)
+    if (match == MapLayoutMatch::kDifferent)
     {
-      return MapLayoutMatch::Different;
+      return MapLayoutMatch::kDifferent;
     }
   }
 

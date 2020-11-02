@@ -65,28 +65,28 @@ MapLayoutMatch MapLayer::checkEquivalent(const MapLayer &other) const
 {
   if (this == &other)
   {
-    return MapLayoutMatch::Exact;
+    return MapLayoutMatch::kExact;
   }
 
   // Check the obvious first: number of layers and layer sizes.
   if (subsampling_ != other.subsampling_ || flags_ != other.flags_)
   {
-    return MapLayoutMatch::Different;
+    return MapLayoutMatch::kDifferent;
   }
 
   if (voxel_layout_->next_offset != other.voxel_layout_->next_offset ||
       voxel_layout_->voxel_byte_size != other.voxel_layout_->voxel_byte_size ||
       voxel_layout_->members.size() != other.voxel_layout_->members.size())
   {
-    return MapLayoutMatch::Different;
+    return MapLayoutMatch::kDifferent;
   }
 
-  MapLayoutMatch match = MapLayoutMatch::Exact;
+  MapLayoutMatch match = MapLayoutMatch::kExact;
 
   if (name_ != other.name_)
   {
     // No name match. At best the layers are equivalent.
-    match = MapLayoutMatch::Equivalent;
+    match = MapLayoutMatch::kEquivalent;
   }
 
   for (size_t i = 0; i < voxel_layout_->members.size(); ++i)
@@ -95,12 +95,12 @@ MapLayoutMatch MapLayer::checkEquivalent(const MapLayer &other) const
     const VoxelMember &b = other.voxel_layout_->members[i];
     if (a.clear_value != b.clear_value || a.type != b.type || a.offset != b.offset)
     {
-      return MapLayoutMatch::Different;
+      return MapLayoutMatch::kDifferent;
     }
 
     if (strncmp(a.name, b.name, sizeof(a.name)) != 0)
     {
-      match = MapLayoutMatch::Equivalent;
+      match = MapLayoutMatch::kEquivalent;
     }
   }
 

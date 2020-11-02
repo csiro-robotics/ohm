@@ -13,11 +13,11 @@ namespace ohm
 enum class MapLayoutMatch : int
 {
   /// Layers are different and do not match.
-  Different = 0,
+  kDifferent = 0,
   /// The layout matches, but some of the layer and voxel member names may differ.
-  Equivalent,
+  kEquivalent,
   /// The layer match exactly.
-  Exact
+  kExact
 };
 }  // namespace ohm
 

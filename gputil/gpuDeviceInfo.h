@@ -41,8 +41,7 @@ struct DeviceInfo
   /// @return True if @c this exactly matches @p other .
   inline bool operator==(const DeviceInfo &other) const
   {
-    return version == other.version && type == other.type && name.compare(other.name) == 0 &&
-           platform.compare(other.platform) == 0;
+    return version == other.version && type == other.type && name == other.name && platform == other.platform;
   }
 };
 }  // namespace gputil

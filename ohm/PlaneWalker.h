@@ -47,12 +47,12 @@ public:
   /// Initialse @p key To the first voxel to walk.
   /// @param[out] key Set to the first key to be walked.
   /// @return True if the key is valid, false if there is nothing to walk.
-  bool begin(Key &key) const;  // NOLINT(google-runtime-references)
+  bool begin(Key &key) const;
 
   /// Walk the next key in the sequence.
   /// @param[in,out] key Modifies to be the next key to be walked.
   /// @return True if the key is valid, false if walking is complete.
-  bool walkNext(Key &key) const;  // NOLINT(google-runtime-references)
+  bool walkNext(Key &key) const;
 };
 }  // namespace ohm
 

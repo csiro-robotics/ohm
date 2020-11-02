@@ -33,7 +33,7 @@ namespace ohm
 /// @c ohm::Key representation in GPU.
 ///
 /// This structure must exactly match the memory alignment of ohm::Key.
-typedef struct GpuKey_t
+typedef struct GpuKey_t  // NOLINT(readability-identifier-naming)
 {
   /// Region key.
   short region[3];  // NOLINT

@@ -114,6 +114,7 @@ inline uint32_t hashBits(uint32_t a, uint32_t b, uint32_t c, uint32_t d, uint32_
 /// @param z A vector coordinate.
 inline uint32_t hash(int32_t x, int32_t y, int32_t z)
 {
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
   return hashBits(*reinterpret_cast<const uint32_t *>(&x), *reinterpret_cast<const uint32_t *>(&y),
                   *reinterpret_cast<const uint32_t *>(&z));  // NOLINT
 }
@@ -125,6 +126,7 @@ inline uint32_t hash(int32_t x, int32_t y, int32_t z)
 /// @param z A vector coordinate.
 inline uint32_t hash(float x, float y, float z)
 {
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
   return hashBits(*reinterpret_cast<const uint32_t *>(&x), *reinterpret_cast<const uint32_t *>(&y),
                   *reinterpret_cast<const uint32_t *>(&z));  // NOLINT
 }
@@ -137,6 +139,7 @@ inline uint32_t hash(float x, float y, float z)
 /// @param w A vector coordinate.
 inline uint32_t hash(float x, float y, float z, float w)
 {
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
   return hashBits(*reinterpret_cast<const uint32_t *>(&x), *reinterpret_cast<const uint32_t *>(&y),
                   *reinterpret_cast<const uint32_t *>(&z), *reinterpret_cast<const uint32_t *>(&w));  // NOLINT
 }

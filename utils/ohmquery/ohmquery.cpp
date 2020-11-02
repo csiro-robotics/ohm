@@ -43,13 +43,13 @@ namespace
 {
 using TimingClock = std::chrono::high_resolution_clock;
 
-int quit = 0;
+int g_quit = 0;
 
 void onSignal(int arg)
 {
   if (arg == SIGINT || arg == SIGTERM)
   {
-    ++quit;
+    ++g_quit;
   }
 }
 struct Options
@@ -114,11 +114,11 @@ void Options::print() const
 class LoadMapProgress : public ohm::SerialiseProgress
 {
 public:
-  LoadMapProgress(ProgressMonitor &monitor)  // NOLINT(google-runtime-references)
+  LoadMapProgress(ProgressMonitor &monitor)
     : monitor_(monitor)
   {}
 
-  bool quit() const override { return ::quit > 1; }
+  bool quit() const override { return ::g_quit > 1; }
 
   void setTargetProgress(unsigned target) override { monitor_.beginProgress(ProgressMonitor::Info(target)); }
   void incrementProgress(unsigned inc) override { monitor_.incrementProgressBy(inc); }
@@ -339,7 +339,7 @@ void saveRangesCloud(const ohm::OccupancyMap &map, const ohm::VoxelRanges &query
   maxRegion = map.regionKey(query.maxExtents());
 
   const float colourScale = query.searchRadius();
-  for (auto iter = map.begin(); iter != mapEndIter && quit < 2; ++iter)
+  for (auto iter = map.begin(); iter != mapEndIter && g_quit < 2; ++iter)
   {
     const ohm::VoxelConst voxel = *iter;
     if (lastRegion != iter.key().regionKey())
@@ -411,7 +411,7 @@ void showTiming(const char *info, const TimingClock::time_point &start_time, con
 }
 
 
-bool compareCpuGpuQuery(const char *query_name, ohm::Query &query,  // NOLINT(google-runtime-references)
+bool compareCpuGpuQuery(const char *query_name, ohm::Query &query,  
                         const float epsilon = 1e-5f)
 {
   std::string timing_info_str;
@@ -521,8 +521,7 @@ bool compareCpuGpuQuery(const char *query_name, ohm::Query &query,  // NOLINT(go
 }
 
 
-void executeQuery(const char *query_name, const Options &opt, ohm::Query &query,  // NOLINT(google-runtime-references)
-                  const float range_epsilon = 1e-5f)
+void executeQuery(const char *query_name, const Options &opt, ohm::Query &query, const float range_epsilon = 1e-5f)
 {
   if (!opt.gpu_compare)
   {

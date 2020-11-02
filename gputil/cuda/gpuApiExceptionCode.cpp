@@ -8,9 +8,10 @@
 
 #include <cuda_runtime.h>
 
-using namespace gputil;
-
+namespace gputil
+{
 const char *ApiException::errorCodeString(int error_code)
 {
   return cudaGetErrorString(static_cast<cudaError_t>(error_code));
 }
+}  // namespace gputil

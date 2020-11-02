@@ -10,24 +10,34 @@
 
 #include "cluConstraint.h"
 
+#include <array>
+#include <iostream>
+#include <memory>
+
 namespace
 {
-cl::Context s_primary_context;
-cl::Device s_primary_device;
-std::mutex s_lock;
+struct PrimaryContex
+{
+  cl::Context context;
+  cl::Device device;
+};
 
+// Note: clang-tidy warns of potentially uncaught excepsions when the cl objects are static. Use a struct pointer to
+// avoid the issue.
+std::unique_ptr<PrimaryContex> g_context;
+std::mutex g_lock;
 
 struct InfoItem
 {
   int id;
-  const char *label;
+  std::string label;
 };
 
 
-void split(const std::string &str, char delim, std::vector<std::string> &tokens)  // NOLINT(google-runtime-references)
+void split(const std::string &str, char delim, std::vector<std::string> &tokens)
 {
   size_t prev = 0;
-  size_t pos;
+  size_t pos = 0;
   do
   {
     pos = str.find(delim, prev);
@@ -194,7 +204,7 @@ unsigned listDevices(std::vector<cl::Device> &devices, const cl::Context &contex
     return 0;
   }
 
-  cl_device_id *device_ids = static_cast<cl_device_id *>(alloca(sizeof(cl_device_id) * device_count));
+  auto *device_ids = static_cast<cl_device_id *>(alloca(sizeof(cl_device_id) * device_count));
   clerr = clGetContextInfo(context(), CL_CONTEXT_DEVICES, sizeof(cl_device_id) * device_count, device_ids, nullptr);
   if (clerr != CL_SUCCESS)
   {
@@ -225,7 +235,7 @@ cl_device_id getFirstDevice(const cl::Context &context, cl_int *err)
     return nullptr;
   }
 
-  cl_device_id *device_ids = static_cast<cl_device_id *>(alloca(sizeof(cl_device_id) * device_count));
+  auto *device_ids = static_cast<cl_device_id *>(alloca(sizeof(cl_device_id) * device_count));
   clerr = clGetContextInfo(context(), CL_CONTEXT_DEVICES, sizeof(cl_device_id) * device_count, device_ids, nullptr);
   if (err)
   {
@@ -295,8 +305,8 @@ cl::Context createContext(cl::Device *device_out, cl_device_type type, const Pla
     if (!devices.empty())
     {
       // Select a single device.
-      cl_context_properties cprops[] = { CL_CONTEXT_PLATFORM, cl_context_properties((platform)()), 0 };
-      cl::Context context = cl::Context(devices[0], cprops);
+      std::array<cl_context_properties, 3> cprops = { CL_CONTEXT_PLATFORM, cl_context_properties((platform)()), 0 };
+      cl::Context context = cl::Context(devices[0], cprops.data());
 
       if (context())
       {
@@ -320,18 +330,26 @@ bool setPrimaryContext(const cl::Context &context, const cl::Device &device)
     return false;
   }
 
-  std::unique_lock<std::mutex> guard(s_lock);
-  s_primary_context = context;
-  s_primary_device = device;
+  std::unique_lock<std::mutex> guard(g_lock);
+  if (!g_context)
+  {
+    g_context = std::make_unique<PrimaryContex>();
+  }
+  g_context->context = context;
+  g_context->device = device;
   return true;
 }
 
 
 void clearPrimaryContext()
 {
-  std::unique_lock<std::mutex> guard(s_lock);
-  s_primary_context = cl::Context();
-  s_primary_device = cl::Device();
+  std::unique_lock<std::mutex> guard(g_lock);
+  if (g_context)
+  {
+    g_context = std::make_unique<PrimaryContex>();
+    g_context->context = cl::Context();
+    g_context->device = cl::Device();
+  }
 }
 
 
@@ -356,19 +374,27 @@ bool initPrimaryContext(cl_device_type type, const std::vector<PlatformConstrain
 
 bool getPrimaryContext(cl::Context &context, cl::Device &device)
 {
-  std::unique_lock<std::mutex> guard(s_lock);
-  context = s_primary_context;
-  device = s_primary_device;
+  std::unique_lock<std::mutex> guard(g_lock);
+  if (g_context)
+  {
+    context = g_context->context;
+    device = g_context->device;
+  }
+  else
+  {
+    context = cl::Context();
+    device = cl::Device();
+  }
+
   return context() != nullptr;
 }
 
 
-ArgParse argValue(std::string &val, const std::string &arg,      // NOLINT(google-runtime-references)
-                  std::list<std::string>::const_iterator &iter,  // NOLINT(google-runtime-references)
+ArgParse argValue(std::string &val, const std::string &arg, std::list<std::string>::const_iterator &iter,
                   const std::list<std::string>::const_iterator &end)
 {
   std::string::size_type eqpos = arg.find('=');
-  std::list<std::string>::const_iterator next = iter;
+  auto next = iter;
 
   ++next;
   // Check for form
@@ -416,13 +442,15 @@ void constraintsFromArgs(const std::list<std::string> &args, cl_device_type &typ
                          std::vector<PlatformConstraint> &platform_constraints,
                          std::vector<DeviceConstraint> &device_constraints, const char *arg_prefix)
 {
-  std::string arg, val;
+  std::string arg;
+  std::string val;
   std::string prefix = (arg_prefix) ? std::string("--") + std::string(arg_prefix) : "--";
   std::vector<std::string> tokens;
   ArgParse parse_result = kApOk;
 
   if (!type)
   {
+    // NOLINTNEXTLINE(hicpp-signed-bitwise)
     type = CL_DEVICE_TYPE_GPU | CL_DEVICE_TYPE_ACCELERATOR;
   }
 
@@ -442,21 +470,21 @@ void constraintsFromArgs(const std::list<std::string> &args, cl_device_type &typ
           type = 0;
           for (const std::string &type_str : tokens)
           {
-            if (type_str.compare("any") == 0)
+            if (type_str == "any")
             {
-              type |= CL_DEVICE_TYPE_ALL;
+              type |= CL_DEVICE_TYPE_ALL;  // NOLINT(hicpp-signed-bitwise)
             }
-            else if (type_str.compare("accel") == 0)
+            else if (type_str == "accel")
             {
-              type |= CL_DEVICE_TYPE_ACCELERATOR;
+              type |= CL_DEVICE_TYPE_ACCELERATOR;  // NOLINT(hicpp-signed-bitwise)
             }
-            else if (type_str.compare("cpu") == 0)
+            else if (type_str == "cpu")
             {
-              type |= CL_DEVICE_TYPE_CPU;
+              type |= CL_DEVICE_TYPE_CPU;  // NOLINT(hicpp-signed-bitwise)
             }
-            else if (type_str.compare("gpu") == 0)
+            else if (type_str == "gpu")
             {
-              type |= CL_DEVICE_TYPE_GPU;
+              type |= CL_DEVICE_TYPE_GPU;  // NOLINT(hicpp-signed-bitwise)
             }
             else
             {
@@ -470,7 +498,8 @@ void constraintsFromArgs(const std::list<std::string> &args, cl_device_type &typ
         parse_result = argValue(val, arg, iter, args.end());
         if (parse_result == kApOk)
         {
-          int major = 0, minor = 0;
+          int major = 0;
+          int minor = 0;
           // Expecting: major[.minor]
           tokens.clear();
           split(val, '.', tokens);
@@ -541,13 +570,13 @@ void constraintsFromArgs(const std::list<std::string> &args, cl_device_type &typ
         switch (parse_result)
         {
         case kApParseFailure:
-          fprintf(stderr, "Failed parsing argument '%s' value '%s'\n", arg.c_str(), val.c_str());
+          std::cerr << "Failed parsing argument '" << arg << "' value '" << val << "'" << std::endl;
           break;
         case kApMissingValue:
-          fprintf(stderr, "Argument '%s' missing value\n", arg.c_str());
+          std::cerr << "Argument '" << arg << "' missing value" << std::endl;
           break;
         default:
-          fprintf(stderr, "Error processing argument '%s'\n", arg.c_str());
+          std::cerr << "Error processing argument '" << arg << "'" << std::endl;
           break;
         }
       }
@@ -574,10 +603,11 @@ bool parseVersion(const char *version_string, cl_uint *version_major, cl_uint *v
 
   bool have_major = false;
   bool have_minor = false;
+  const cl_uint base_shift = 10u;
   while (version_string[index] && isdigit(version_string[index]))
   {
     have_major = true;
-    high_version *= 10;
+    high_version *= base_shift;
     high_version += version_string[index] - '0';
     ++index;
   }
@@ -591,7 +621,7 @@ bool parseVersion(const char *version_string, cl_uint *version_major, cl_uint *v
   while (version_string[index] && isdigit(version_string[index]))
   {
     have_minor = true;
-    low_version *= 10;
+    low_version *= base_shift;
     low_version += version_string[index] - '0';
     ++index;
   }
@@ -733,23 +763,30 @@ const char *errorCodeString(cl_int error)
 
 void printPlatformInfo(std::ostream &out, const cl::Platform &platform, const char *prefix, const char *endl)
 {
-  static InfoItem items[] = {
-    { CL_PLATFORM_NAME, "Name" }, { CL_PLATFORM_VERSION, "Version" }, { CL_PLATFORM_VENDOR, "Vendor" },
-    //{ CL_PLATFORM_PROFILE, "Profile" },
-    //{ CL_PLATFORM_EXTENSIONS, "Extensions" },
-  };
-  std::string info_str, info_str2;
+  // NOLINTNEXTLINE(cppcoreguidelines-avoid-c-arrays)
+  static const std::array<InfoItem, 3> items =  //
+    {
+      InfoItem{ CL_PLATFORM_NAME, "Name" },        //
+      InfoItem{ CL_PLATFORM_VERSION, "Version" },  //
+      InfoItem{ CL_PLATFORM_VENDOR, "Vendor" }     //
+      //{ CL_PLATFORM_PROFILE, "Profile" },
+      //{ CL_PLATFORM_EXTENSIONS, "Extensions" },
+    };
+  std::string info_str;
+  std::string info_str2;
   if (platform())
   {
-    for (unsigned i = 0; i < sizeof(items) / sizeof(items[0]); ++i)
+    bool first = true;
+    for (const InfoItem &item : items)
     {
-      platform.getInfo(cl_platform_info(items[i].id), &info_str);
-      if (i > 0)
+      platform.getInfo(cl_platform_info(item.id), &info_str);
+      if (!first)
       {
         out << endl;
       }
       // Use c_str() otherwise we get extra '\0' characters.
-      out << prefix << items[i].label << ": " << info_str.c_str();
+      out << prefix << item.label << ": " << info_str;
+      first = false;
     }
   }
 }
@@ -757,23 +794,27 @@ void printPlatformInfo(std::ostream &out, const cl::Platform &platform, const ch
 
 void printDeviceInfo(std::ostream &out, const cl::Device &device, const char *prefix, const char *endl)
 {
-  static InfoItem items[] = {
-    { CL_DEVICE_NAME, "Name" }, { CL_DEVICE_VERSION, "Version" },
-    //{ CL_PLATFORM_PROFILE, "Profile" },
-    //{ CL_PLATFORM_EXTENSIONS, "Extensions" },
-  };
+  static const std::array<InfoItem, 2> items =  //
+    {
+      InfoItem{ CL_DEVICE_NAME, "Name" },       //
+      InfoItem{ CL_DEVICE_VERSION, "Version" }  //
+      //{ CL_PLATFORM_PROFILE, "Profile" },
+      //{ CL_PLATFORM_EXTENSIONS, "Extensions" },
+    };
   std::string info_str;
   if (device())
   {
-    for (unsigned i = 0; i < sizeof(items) / sizeof(items[0]); ++i)
+    bool first = true;
+    for (const InfoItem &item : items)
     {
-      device.getInfo(cl_device_info(items[i].id), &info_str);
-      if (i > 0)
+      device.getInfo(cl_device_info(item.id), &info_str);
+      if (!first)
       {
         out << endl;
       }
       // Use c_str() otherwise we get extra '\0' characters.
-      out << prefix << items[i].label << ": " << info_str.c_str();
+      out << prefix << item.label << ": " << info_str;
+      first = false;
     }
   }
 }

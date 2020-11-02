@@ -92,8 +92,7 @@ std::string getFileExtension(const std::string &file)
   return "";
 }
 
-std::shared_ptr<pdal::Stage> createReader(pdal::StageFactory &factory,  // NOLINT(google-runtime-references)
-                                          const std::string &file_name)
+std::shared_ptr<pdal::Stage> createReader(pdal::StageFactory &factory, const std::string &file_name)
 {
   const std::string ext = getFileExtension(file_name);
   std::string reader_type;

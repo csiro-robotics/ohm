@@ -193,11 +193,11 @@ int ohm_API save(const char *filename, const OccupancyMap &map, SerialiseProgres
 /// @param progress Optional progress tracking object.
 /// @param[out] version_out When present, set to the version number of the loaded map format.
 /// @return @c SE_OK on success, or a non zero @c SerialisationError on failure.
-int ohm_API load(const char *filename, OccupancyMap &map,  // NOLINT(google-runtime-references)
-                 SerialiseProgress *progress = nullptr, MapVersion *version_out = nullptr);
+int ohm_API load(const char *filename, OccupancyMap &map, SerialiseProgress *progress = nullptr,
+                 MapVersion *version_out = nullptr);
 
-int ohm_API load(const char *filename, Heightmap &heightmap,  // NOLINT(google-runtime-references)
-                 SerialiseProgress *progress = nullptr, MapVersion *version_out = nullptr);
+int ohm_API load(const char *filename, Heightmap &heightmap, SerialiseProgress *progress = nullptr,
+                 MapVersion *version_out = nullptr);
 
 /// Loads the header and layers of a map file without loading the chunks for voxel data.
 ///
@@ -211,8 +211,8 @@ int ohm_API load(const char *filename, Heightmap &heightmap,  // NOLINT(google-r
 /// @param[out] version_out When present, set to the version number of the loaded map format.
 /// @param[out] region_count When present, set to the number of regions in the map. Regions are not loaded.
 /// @return @c SE_OK on success, or a non zero @c SerialisationError on failure.
-int ohm_API loadHeader(const char *filename, OccupancyMap &map,  // NOLINT(google-runtime-references)
-                       MapVersion *version_out = nullptr, size_t *region_count = nullptr);
+int ohm_API loadHeader(const char *filename, OccupancyMap &map, MapVersion *version_out = nullptr,
+                       size_t *region_count = nullptr);
 }  // namespace ohm
 
 #endif  // OHM_MAPSERIALISATION_H

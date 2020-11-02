@@ -7,15 +7,13 @@
 
 #include "gputil/cuda/gpuProgramDetail.h"
 
-using namespace gputil;
-
-Program::Program()
-  : imp_(nullptr)
-{}
+namespace gputil
+{
+Program::Program() = default;
 
 
 Program::Program(Device &device, const char *program_name)
-  : imp_(new ProgramDetail)
+  : imp_(std::make_unique<ProgramDetail>())
 {
   imp_->device = device;
   imp_->program_name = program_name;
@@ -23,16 +21,17 @@ Program::Program(Device &device, const char *program_name)
 
 
 Program::Program(Program &&other) noexcept
-  : imp_(other.imp_)
+  : imp_(std::move(other.imp_))
+{}
+
+
+Program::Program(const Program &other)
 {
-  other.imp_ = nullptr;
+  *this = other;
 }
 
 
-Program::~Program()
-{
-  delete imp_;
-}
+Program::~Program() = default;
 
 
 bool Program::isValid() const
@@ -50,11 +49,15 @@ Device Program::device()
   return (imp_) ? imp_->device : Device();
 }
 
+// Lint(KS): API implementation compatibility requirement. Cannot make static
+// NOLINTNEXTLINE(readability-convert-member-functions-to-static)
 int Program::buildFromFile(const char * /*file_name*/, const BuildArgs & /*build_args*/)
 {
   return 0;
 }
 
+// Lint(KS): API implementation compatibility requirement. Cannot make static
+// NOLINTNEXTLINE(readability-convert-member-functions-to-static)
 int Program::buildFromSource(const char * /*source*/, size_t /*source_length*/, const BuildArgs & /*build_args*/)
 {
   return 0;
@@ -62,27 +65,28 @@ int Program::buildFromSource(const char * /*source*/, size_t /*source_length*/, 
 
 Program &Program::operator=(const Program &other)
 {
-  if (other.imp_)
+  if (this != &other)
   {
-    if (!imp_)
+    if (other.imp_)
     {
-      imp_ = new ProgramDetail;
+      if (!imp_)
+      {
+        imp_ = std::make_unique<ProgramDetail>();
+      }
+      imp_->device = other.imp_->device;
+      imp_->program_name = other.imp_->program_name;
     }
-    imp_->device = other.imp_->device;
-    imp_->program_name = other.imp_->program_name;
-  }
-  else
-  {
-    delete imp_;
-    imp_ = nullptr;
+    else
+    {
+      imp_.reset();
+    }
   }
   return *this;
 }
 
 Program &Program::operator=(Program &&other) noexcept
 {
-  delete imp_;
-  imp_ = other.imp_;
-  other.imp_ = nullptr;
+  imp_ = std::move(other.imp_);
   return *this;
 }
+}  // namespace gputil

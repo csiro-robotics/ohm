@@ -22,8 +22,6 @@
 #include <algorithm>
 #include <cstring>
 
-using namespace gputil;
-
 namespace gputil
 {
 namespace cuda
@@ -48,7 +46,7 @@ size_t calcSharedMemSize(const KernelDetail &imp, size_t block_threads)
   // required.
   size_t shared_mem_size = 0u;
   const size_t alignment = 8u;
-  size_t alignment_remainder;
+  size_t alignment_remainder = 0;
   for (auto &&local_mem_func : imp.local_mem_args)
   {
     shared_mem_size += local_mem_func(block_threads);
@@ -127,7 +125,6 @@ int invokeKernel(const KernelDetail &imp, const Dim3 &global_size, const Dim3 &l
   return err;
 }
 }  // namespace cuda
-}  // namespace gputil
 
 Kernel::Kernel()
   : imp_(new KernelDetail)
@@ -167,6 +164,7 @@ void Kernel::addLocal(const std::function<size_t(size_t)> &local_calc)
 
 size_t Kernel::calculateOptimalWorkGroupSize()
 {
+  const size_t default_workgroup_size = 8;
   if (!imp_->maximum_potential_workgroup_size)
   {
     int err = cuda::preInvokeKernel(device());
@@ -178,7 +176,7 @@ size_t Kernel::calculateOptimalWorkGroupSize()
     err = imp_->optimal_group_size_calc(&imp_->maximum_potential_workgroup_size, calc_shared_mem_size);
     if (!imp_->maximum_potential_workgroup_size)
     {
-      imp_->maximum_potential_workgroup_size = 8;
+      imp_->maximum_potential_workgroup_size = default_workgroup_size;
     }
     GPUAPICHECK(err, cudaSuccess, 0);
   }
@@ -211,15 +209,17 @@ void Kernel::calculateGrid(gputil::Dim3 *global_size, gputil::Dim3 *local_size, 
   GPUAPICHECK2(err, cudaSuccess);
 
   // Try to setup the workgroup as a cubic spatial division.
-  unsigned target_dimension_value = unsigned(std::floor(std::pow(float(target_group_size), 1.0f / 3.0f)));
+  const float cube_root = 1.0f / 3.0f;
+  auto target_dimension_value = unsigned(std::floor(std::pow(float(target_group_size), cube_root)));
   if (target_dimension_value < 1)
   {
     target_dimension_value = 1;
   }
 
   // Set the target dimensions to the minimum of the target and the max work group size.
+  const float sqr_root = 1.0f / 2.0f;
   local_size->z = std::min<size_t>(cuda_info.maxThreadsDim[2], target_dimension_value);
-  target_dimension_value = unsigned(std::floor(std::pow(float(target_group_size / local_size->z), 1.0f / 2.0f)));
+  target_dimension_value = unsigned(std::floor(std::pow(float(target_group_size / local_size->z), sqr_root)));
   local_size->y = std::min<size_t>(cuda_info.maxThreadsDim[1], target_dimension_value);
   target_dimension_value = unsigned(std::max<size_t>(target_group_size / (local_size->y * local_size->z), 1));
   local_size->x = std::min<size_t>(cuda_info.maxThreadsDim[0], target_dimension_value);
@@ -266,8 +266,6 @@ Kernel &Kernel::operator=(Kernel &&other) noexcept
 }
 
 
-namespace gputil
-{
 Kernel cudaKernel(Program &program, const void *kernel_function_ptr,
                   const gputil::OptimalGroupSizeCalculation &group_calc)
 {

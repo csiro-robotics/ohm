@@ -77,7 +77,7 @@ public:
 
   tes::Resource *clone() const override;
 
-  int transfer(tes::PacketWriter &packet, unsigned byteLimit, tes::TransferProgress &progress) const override;
+  int transfer(tes::PacketWriter &packet, unsigned byte_limit, tes::TransferProgress &progress) const override;
 
   /// Updates noted changes to the debug view.
   /// @param newly_occupied Keys of voxels which have become occupied from free or uncertain since the last update.
@@ -181,7 +181,7 @@ tes::Resource *OccupancyMesh::clone() const
   return copy;
 }
 
-int OccupancyMesh::transfer(tes::PacketWriter &packet, unsigned byteLimit, tes::TransferProgress &progress) const
+int OccupancyMesh::transfer(tes::PacketWriter &packet, unsigned byte_limit, tes::TransferProgress &progress) const
 {
   // Build the voxel set if required.
   if (imp_->voxel_index_map.empty())
@@ -204,7 +204,7 @@ int OccupancyMesh::transfer(tes::PacketWriter &packet, unsigned byteLimit, tes::
     }
   }
 
-  return tes::MeshResource::transfer(packet, byteLimit, progress);
+  return tes::MeshResource::transfer(packet, byte_limit, progress);
 }
 
 void OccupancyMesh::update(const KeySet &newly_occupied, const KeySet &newly_free, const KeySet &touched_occupied)

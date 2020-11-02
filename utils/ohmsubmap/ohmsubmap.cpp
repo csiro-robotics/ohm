@@ -22,13 +22,13 @@
 
 namespace
 {
-int quit = 0;
+int g_quit = 0;
 
 void onSignal(int arg)
 {
   if (arg == SIGINT || arg == SIGTERM)
   {
-    ++quit;
+    ++g_quit;
   }
 }
 

@@ -49,10 +49,8 @@ using namespace ohm;
 
 namespace
 {
-void regionClearanceProcessCpuBlock(OccupancyMap &map,              // NOLINT(google-runtime-references)
-                                    ClearanceProcessDetail &query,  // NOLINT(google-runtime-references)
-                                    const glm::ivec3 &block_start, const glm::ivec3 &block_end,
-                                    const glm::i16vec3 &region_key, MapChunk *chunk,
+void regionClearanceProcessCpuBlock(OccupancyMap &map, ClearanceProcessDetail &query, const glm::ivec3 &block_start,
+                                    const glm::ivec3 &block_end, const glm::i16vec3 &region_key, MapChunk *chunk,
                                     const glm::ivec3 &voxel_search_half_extents)
 {
   Key voxel_key(nullptr);
@@ -88,10 +86,8 @@ void regionClearanceProcessCpuBlock(OccupancyMap &map,              // NOLINT(go
 }
 
 
-void regionSeedFloodFillCpuBlock(OccupancyMap &map,              // NOLINT(google-runtime-references)
-                                 ClearanceProcessDetail &query,  // NOLINT(google-runtime-references)
-                                 const glm::ivec3 &block_start, const glm::ivec3 &block_end,
-                                 const glm::i16vec3 &region_key, MapChunk *chunk,
+void regionSeedFloodFillCpuBlock(OccupancyMap &map, ClearanceProcessDetail &query, const glm::ivec3 &block_start,
+                                 const glm::ivec3 &block_end, const glm::i16vec3 &region_key, MapChunk *chunk,
                                  const glm::ivec3 & /*voxel_search_half_extents*/)
 {
   Key voxel_key(nullptr);
@@ -138,10 +134,8 @@ void regionSeedFloodFillCpuBlock(OccupancyMap &map,              // NOLINT(googl
 }
 
 
-void regionFloodFillStepCpuBlock(OccupancyMap &map,                   // NOLINT(google-runtime-references)
-                                 ClearanceProcessDetail & /*query*/,  // NOLINT(google-runtime-references)
-                                 const glm::ivec3 &block_start, const glm::ivec3 &block_end,
-                                 const glm::i16vec3 &region_key, MapChunk *chunk,
+void regionFloodFillStepCpuBlock(OccupancyMap &map, ClearanceProcessDetail & /*query*/, const glm::ivec3 &block_start,
+                                 const glm::ivec3 &block_end, const glm::i16vec3 &region_key, MapChunk *chunk,
                                  const glm::ivec3 & /*voxel_search_half_extents*/)
 {
   Key voxel_key(nullptr);
@@ -218,9 +212,7 @@ void regionFloodFillStepCpuBlock(OccupancyMap &map,                   // NOLINT(
 }
 
 
-unsigned regionClearanceProcessCpu(OccupancyMap &map,              // NOLINT(google-runtime-references)
-                                   ClearanceProcessDetail &query,  // NOLINT(google-runtime-references)
-                                   const glm::i16vec3 &region_key)
+unsigned regionClearanceProcessCpu(OccupancyMap &map, ClearanceProcessDetail &query, const glm::i16vec3 &region_key)
 {
   OccupancyMapDetail &map_data = *map.detail();
   const auto chunk_search = map_data.chunks.find(region_key);
@@ -256,10 +248,8 @@ unsigned regionClearanceProcessCpu(OccupancyMap &map,              // NOLINT(goo
   return unsigned(map.regionVoxelVolume());
 }
 
-unsigned regionSeedFloodFillCpu(OccupancyMap &map,              // NOLINT(google-runtime-references)
-                                ClearanceProcessDetail &query,  // NOLINT(google-runtime-references)
-                                const glm::i16vec3 &region_key, const glm::ivec3 & /*voxel_extents*/,
-                                const glm::ivec3 &calc_extents)
+unsigned regionSeedFloodFillCpu(OccupancyMap &map, ClearanceProcessDetail &query, const glm::i16vec3 &region_key,
+                                const glm::ivec3 & /*voxel_extents*/, const glm::ivec3 &calc_extents)
 {
   OccupancyMapDetail &map_data = *map.detail();
   const auto chunk_search = map_data.chunks.find(region_key);
@@ -295,10 +285,8 @@ unsigned regionSeedFloodFillCpu(OccupancyMap &map,              // NOLINT(google
   return calc_extents.x * calc_extents.y * calc_extents.z;
 }
 
-unsigned regionFloodFillStepCpu(OccupancyMap &map,              // NOLINT(google-runtime-references)
-                                ClearanceProcessDetail &query,  // NOLINT(google-runtime-references)
-                                const glm::i16vec3 &region_key, const glm::ivec3 & /*voxel_extents*/,
-                                const glm::ivec3 &calc_extents)
+unsigned regionFloodFillStepCpu(OccupancyMap &map, ClearanceProcessDetail &query, const glm::i16vec3 &region_key,
+                                const glm::ivec3 & /*voxel_extents*/, const glm::ivec3 &calc_extents)
 {
   OccupancyMapDetail &map_data = *map.detail();
   const auto chunk_search = map_data.chunks.find(region_key);

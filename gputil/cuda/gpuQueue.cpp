@@ -13,11 +13,9 @@
 
 #include <cuda_runtime.h>
 
-using namespace gputil;
-
 namespace gputil
 {
-void destroyStream(cudaStream_t &stream)  // NOLINT(google-runtime-references)
+void destroyStream(cudaStream_t &stream)
 {
   if (stream)
   {
@@ -31,34 +29,29 @@ struct CallbackWrapper
 {
   std::function<void(void)> callback;
 
-  inline CallbackWrapper(const std::function<void(void)> &callback)
-    : callback(callback)
+  explicit inline CallbackWrapper(std::function<void(void)> callback)
+    : callback(std::move(callback))
   {}
 };
 
 void streamCallback(cudaStream_t /*event*/, cudaError_t /*status*/, void *user_data)
 {
-  CallbackWrapper *wrapper = static_cast<CallbackWrapper *>(user_data);
+  auto *wrapper = static_cast<CallbackWrapper *>(user_data);
   wrapper->callback();
-  delete wrapper;
+  // Lint(KS): No RAII option available for this
+  delete wrapper;  // NOLINT(cppcoreguidelines-owning-memory)
 }
-}  // namespace gputil
 
 
-Queue::Queue()
-  : queue_(nullptr)
-{}
+Queue::Queue() = default;
 
 
 Queue::Queue(Queue &&other) noexcept
-  : queue_(other.queue_)
-{
-  other.queue_ = nullptr;
-}
+  : queue_(std::exchange(other.queue_, nullptr))
+{}
 
 
 Queue::Queue(const Queue &other)
-  : queue_(nullptr)
 {
   queue_ = other.queue_;
   if (queue_)
@@ -86,7 +79,7 @@ Queue::~Queue()
 
 bool Queue::isValid() const
 {
-  return false;
+  return queue_ != nullptr;
 }
 
 
@@ -99,7 +92,7 @@ void Queue::insertBarrier()
 Event Queue::mark()
 {
   Event event;
-  cudaError_t err;
+  cudaError_t err = cudaSuccess;
   err = cudaEventRecord(event.detail()->obj(), queue_->obj());
   GPUAPICHECK(err, cudaSuccess, Event());
   return event;
@@ -124,13 +117,15 @@ void Queue::queueCallback(const std::function<void(void)> &callback)
   CallbackWrapper *wrapper = nullptr;
 
   cudaError_t err = cudaSuccess;
-  wrapper = new CallbackWrapper(callback);
+  // Lint(KS): No nice RAII alternative for this
+  wrapper = new CallbackWrapper(callback);  // NOLINT(cppcoreguidelines-owning-memory)
 
   err = cudaStreamAddCallback(queue_->obj(), streamCallback, wrapper, 0);
 
   if (err)
   {
-    delete wrapper;
+    // Lint(KS): No nice RAII alternative for this
+    delete wrapper;  // NOLINT(cppcoreguidelines-owning-memory)
     GPUTHROW2(ApiException(err));
   }
 }
@@ -144,15 +139,18 @@ QueueDetail *Queue::internal() const
 
 Queue &Queue::operator=(const Queue &other)
 {
-  if (queue_)
+  if (this != &other)
   {
-    queue_->release();
-    queue_ = nullptr;
-  }
-  if (other.queue_)
-  {
-    queue_ = other.queue_;
-    queue_->reference();
+    if (queue_)
+    {
+      queue_->release();
+      queue_ = nullptr;
+    }
+    if (other.queue_)
+    {
+      queue_ = other.queue_;
+      queue_->reference();
+    }
   }
   return *this;
 }
@@ -169,3 +167,4 @@ Queue &Queue::operator=(Queue &&other) noexcept
   other.queue_ = nullptr;
   return *this;
 }
+}  // namespace gputil

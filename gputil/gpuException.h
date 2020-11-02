@@ -11,18 +11,20 @@
 #include "gpuThrow.h"
 
 #include <exception>
+#include <string>
 
 namespace gputil
 {
 /// Base class for exceptions thrown from this library.
-class gputilAPI Exception : public std::exception
+class gputilAPI Exception : public std::exception  // NOLINT(cppcoreguidelines-special-member-functions)
 {
 public:
   /// Construct an exception.
   /// @param msg Optional exception message.
   /// @param filename Optional filename where the exception was thrown.
   /// @param line_number Optional line number where the exception was thrown.
-  Exception(const char *msg = nullptr, const char *filename = nullptr, int line_number = 0);
+  Exception(const std::string &msg = std::string(),  // NOLINT(google-explicit-constructor)
+            const std::string &filename = std::string(), int line_number = 0);
   /// Move constructor.
   /// @param other The object to move.
   Exception(Exception &&other) noexcept;
@@ -42,10 +44,10 @@ protected:
   /// @param message The base exception message.
   /// @param filename Optional filename where the exception was thrown.
   /// @param line_number Optional line number where the exception was thrown.
-  void setMessage(const char *message, const char *filename = nullptr, int line_number = 0);
+  void setMessage(const std::string &message, const std::string &filename = std::string(), int line_number = 0);
 
 private:
-  char *message_;
+  std::string message_;
 };
 }  // namespace gputil
 

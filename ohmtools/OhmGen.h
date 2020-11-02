@@ -29,8 +29,8 @@ namespace ohmgen
 /// @param y2 The upper extents Y coordinate in @em voxels, excluded.
 /// @param z2 The upper extents Z coordinate in @em voxels, excluded.
 /// @param expect_empty_map Do we expect the map to begin empty?
-void ohmtools_API fillMapWithEmptySpace(ohm::OccupancyMap &map,  // NOLINT(google-runtime-references)
-                                        int x1, int y1, int z1, int x2, int y2, int z2, bool expect_empty_map = true);
+void ohmtools_API fillMapWithEmptySpace(ohm::OccupancyMap &map, int x1, int y1, int z1, int x2, int y2, int z2,
+                                        bool expect_empty_map = true);
 
 /// Fill @p map as if we had a sensor in the middle of a box.
 ///
@@ -42,8 +42,8 @@ void ohmtools_API fillMapWithEmptySpace(ohm::OccupancyMap &map,  // NOLINT(googl
 /// @param max_ext The maximum extents for the box. Defines the lower wall corner.
 /// @param voxel_step Specifies the voxel step to make along the walls. This allows wholes
 ///   to be created in the wall sampling.
-void ohmtools_API boxRoom(ohm::OccupancyMap &map,  // NOLINT(google-runtime-references)
-                          const glm::dvec3 &min_ext, const glm::dvec3 &max_ext, int voxel_step = 1);
+void ohmtools_API boxRoom(ohm::OccupancyMap &map, const glm::dvec3 &min_ext, const glm::dvec3 &max_ext,
+                          int voxel_step = 1);
 
 /// Generate a map containing a slope within the given extents. The slope is built in X/Y with Z adjusted to the
 /// desired slope. The Z value to @p max_ext is ignored, when the Z value of @p min_ext seeds the initial height.
@@ -52,8 +52,8 @@ void ohmtools_API boxRoom(ohm::OccupancyMap &map,  // NOLINT(google-runtime-refe
 /// @param min_ext Defines the minimum of the slope extents.
 /// @param max_ext Defines the maximum of the slope extents.
 /// @param voxel_step Specifies the voxel step to make along the slope plane.
-void ohmtools_API slope(ohm::OccupancyMap &map,  // NOLINT(google-runtime-references)
-                        double angle_deg, const glm::dvec3 &min_ext, const glm::dvec3 &max_ext, int voxel_step = 1);
+void ohmtools_API slope(ohm::OccupancyMap &map, double angle_deg, const glm::dvec3 &min_ext, const glm::dvec3 &max_ext,
+                        int voxel_step = 1);
 }  // namespace ohmgen
 
 #endif  // OHMTOOLS_OHMGEN_H

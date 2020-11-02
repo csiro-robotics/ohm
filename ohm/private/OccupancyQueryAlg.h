@@ -30,8 +30,8 @@ namespace ohm
 {
 template <typename QUERY>
 unsigned occupancyQueryRegions(
-  OccupancyMap &map, QUERY &query, ClosestResult &closest,  // NOLINT(google-runtime-references)
-  const glm::dvec3 &query_min_extents, const glm::dvec3 &query_max_extents,
+  OccupancyMap &map, QUERY &query, ClosestResult &closest, const glm::dvec3 &query_min_extents,
+  const glm::dvec3 &query_max_extents,
   const std::function<unsigned(OccupancyMap &, QUERY &, const glm::i16vec3 &, ClosestResult &)> &region_query_func)
 {
   glm::i16vec3 min_region_key;
@@ -62,8 +62,7 @@ unsigned occupancyQueryRegions(
 }
 
 template <typename QUERY>
-inline unsigned occupancyQueryRegions(OccupancyMap &map, QUERY &query,  // NOLINT(google-runtime-references)
-                                      ClosestResult &closest,           // NOLINT(google-runtime-references)
+inline unsigned occupancyQueryRegions(OccupancyMap &map, QUERY &query, ClosestResult &closest,
                                       const glm::dvec3 &query_min_extents, const glm::dvec3 &query_max_extents,
                                       unsigned (*region_query_func)(OccupancyMap &, QUERY &, const glm::i16vec3 &,
                                                                     ClosestResult &))
@@ -75,8 +74,8 @@ inline unsigned occupancyQueryRegions(OccupancyMap &map, QUERY &query,  // NOLIN
 
 template <typename QUERY>
 unsigned occupancyQueryRegionsParallel(
-  OccupancyMap &map, QUERY &query, ClosestResult &closest,  // NOLINT(google-runtime-references)
-  const glm::dvec3 &query_min_extents, const glm::dvec3 &query_max_extents,
+  OccupancyMap &map, QUERY &query, ClosestResult &closest, const glm::dvec3 &query_min_extents,
+  const glm::dvec3 &query_max_extents,
   const std::function<unsigned(OccupancyMap &, QUERY &, const glm::i16vec3 &, ClosestResult &)> &region_query_func)
 {
 #ifdef OHM_THREADS
@@ -115,8 +114,7 @@ unsigned occupancyQueryRegionsParallel(
 }
 
 template <typename QUERY>
-inline unsigned occupancyQueryRegionsParallel(OccupancyMap &map, QUERY &query,
-                                              ClosestResult &closest,  // NOLINT(google-runtime-references)
+inline unsigned occupancyQueryRegionsParallel(OccupancyMap &map, QUERY &query, ClosestResult &closest,
                                               const glm::dvec3 &query_min_extents, const glm::dvec3 &query_max_extents,
                                               unsigned (*region_query_func)(OccupancyMap &, QUERY &,
                                                                             const glm::i16vec3 &, ClosestResult &))

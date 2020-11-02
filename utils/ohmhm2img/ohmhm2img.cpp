@@ -32,13 +32,13 @@
 
 namespace
 {
-int quit = 0;
+int g_quit = 0;
 
 void onSignal(int arg)
 {
   if (arg == SIGINT || arg == SIGTERM)
   {
-    ++quit;
+    ++g_quit;
   }
 }
 
@@ -91,11 +91,11 @@ struct Options
 class LoadMapProgress : public ohm::SerialiseProgress
 {
 public:
-  LoadMapProgress(ProgressMonitor &monitor)  // NOLINT(google-runtime-references)
+  LoadMapProgress(ProgressMonitor &monitor)
     : monitor_(monitor)
   {}
 
-  bool quit() const override { return ::quit > 1; }
+  bool quit() const override { return ::g_quit > 1; }
 
   void setTargetProgress(unsigned target) override { monitor_.beginProgress(ProgressMonitor::Info(target)); }
   void incrementProgress(unsigned inc) override { monitor_.incrementProgressBy(inc); }
@@ -104,8 +104,8 @@ private:
   ProgressMonitor &monitor_;
 };
 
-ExportImageType convertImage(std::vector<uint8_t> &export_pixels,  // NOLINT(google-runtime-references)
-                             const uint8_t *raw, const ohm::HeightmapImage::BitmapInfo &info, const Options &opt)
+ExportImageType convertImage(std::vector<uint8_t> &export_pixels, const uint8_t *raw,
+                             const ohm::HeightmapImage::BitmapInfo &info, const Options &opt)
 {
   if (info.type == ohm::HeightmapImage::kImageVertexColours888)
   {
@@ -133,14 +133,18 @@ ExportImageType convertImage(std::vector<uint8_t> &export_pixels,  // NOLINT(goo
         out.push_back(0);
       }
 
+      // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
       *reinterpret_cast<uint16_t *>(&out[insert_index]) = c;
     };
 
     for (size_t i = 0; i < size_t(info.image_width) * size_t(info.image_height) * size_t(info.bpp);
          i += 3 * sizeof(float))
     {
+      // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
       red = *reinterpret_cast<const float *>(raw + i);
+      // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
       green = *reinterpret_cast<const float *>(raw + i + sizeof(float));
+      // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
       blue = *reinterpret_cast<const float *>(raw + i + 2 * sizeof(float));
 
       red16 = convert_colour(red);
@@ -171,7 +175,9 @@ ExportImageType convertImage(std::vector<uint8_t> &export_pixels,  // NOLINT(goo
   if (opt.image_mode == kHeights && info.bpp == sizeof(float))
   {
     export_pixels.resize(info.image_width * info.image_height * sizeof(uint16_t));
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
     const float *depth_pixels = reinterpret_cast<const float *>(raw);
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
     uint16_t *depth_out = reinterpret_cast<uint16_t *>(export_pixels.data());
 
     for (size_t i = 0; i < size_t(info.image_width) * size_t(info.image_height); ++i)
@@ -438,8 +444,7 @@ std::string generateYamlName(const std::string &image_file)
 }
 
 
-bool saveMetaData(const std::string yaml_file, const Options &opt,
-                  ohm::Heightmap &heightmap,  // NOLINT(google-runtime-references)
+bool saveMetaData(const std::string yaml_file, const Options &opt, ohm::Heightmap &heightmap,
                   const ohm::HeightmapImage::BitmapInfo &info, ExportImageType image_format)
 {
   std::ofstream out(yaml_file.c_str());

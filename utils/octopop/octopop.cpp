@@ -40,14 +40,14 @@ namespace
 using Clock = std::chrono::high_resolution_clock;
 
 /// Quit level/flag. Initial quit will just stop populating, but still save out. Multiple increments will quit saving.
-int quit = 0;
+int g_quit = 0;
 
 /// Control-C capture.
 void onSignal(int arg)
 {
   if (arg == SIGINT || arg == SIGTERM)
   {
-    ++quit;
+    ++g_quit;
   }
 }
 
@@ -146,7 +146,7 @@ enum SaveFlags : unsigned
 /// cloud as `base_name + ".ply"`
 void saveMap(const Options &opt, octomap::OcTree *map, const std::string &base_name, unsigned save_flags = kSaveMap)
 {
-  if (quit >= 2)
+  if (g_quit >= 2)
   {
     return;
   }
@@ -183,7 +183,7 @@ void saveMap(const Options &opt, octomap::OcTree *map, const std::string &base_n
     const ohm::Colour c(colour_channel_f(opt.cloud_colour.r), colour_channel_f(opt.cloud_colour.g),
                         colour_channel_f(opt.cloud_colour.b));
 
-    for (auto iter = map->begin_leafs(); iter != map_end_iter && quit < 2; ++iter)
+    for (auto iter = map->begin_leafs(); iter != map_end_iter && g_quit < 2; ++iter)
     {
       const auto occupancy = iter->getLogOdds();
       if (occupancy >= map->getOccupancyThresLog())
@@ -202,7 +202,7 @@ void saveMap(const Options &opt, octomap::OcTree *map, const std::string &base_n
       }
     }
 
-    if (quit < 2)
+    if (g_quit < 2)
     {
       std::string output_file = base_name + ".ply";
       std::cout << "Saving point cloud to " << output_file.c_str() << std::endl;
@@ -263,7 +263,6 @@ int populateMap(const Options &opt)
     }
   });
 
-  octomap::KeyRay rayKeys;
   octomap::OcTree map(opt.resolution);
   octomap::OcTreeKey key;
   glm::dvec3 origin, sample;
@@ -378,7 +377,7 @@ int populateMap(const Options &opt)
     elapsed_ms = uint64_t((last_timestamp - timebase) * 1e3);
 
     if (opt.point_limit && point_count >= opt.point_limit ||
-        opt.time_limit > 0 && last_timestamp - timebase >= opt.time_limit || quit)
+        opt.time_limit > 0 && last_timestamp - timebase >= opt.time_limit || g_quit)
     {
       break;
     }

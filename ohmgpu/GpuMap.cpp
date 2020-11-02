@@ -54,18 +54,18 @@ using namespace ohm;
 namespace
 {
 #if defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
-GpuProgramRef program_ref_sub_vox("RegionUpdate", GpuProgramRef::kSourceString, RegionUpdateCode,  // NOLINT
-                                  RegionUpdateCode_length, { "-DVOXEL_MEAN" });
+GpuProgramRef g_program_ref_sub_vox("RegionUpdate", GpuProgramRef::kSourceString, RegionUpdateCode,  // NOLINT
+                                    RegionUpdateCode_length, { "-DVOXEL_MEAN" });
 #else   // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
-GpuProgramRef program_ref_sub_vox("RegionUpdate", GpuProgramRef::kSourceFile, "RegionUpdate.cl", 0u,
-                                  { "-DVOXEL_MEAN" });
+GpuProgramRef g_program_ref_sub_vox("RegionUpdate", GpuProgramRef::kSourceFile, "RegionUpdate.cl", 0u,
+                                    { "-DVOXEL_MEAN" });
 #endif  // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
 
 #if defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
-GpuProgramRef program_ref_no_sub("RegionUpdate", GpuProgramRef::kSourceString, RegionUpdateCode,  // NOLINT
-                                 RegionUpdateCode_length);
+GpuProgramRef g_program_ref_no_sub("RegionUpdate", GpuProgramRef::kSourceString, RegionUpdateCode,  // NOLINT
+                                   RegionUpdateCode_length);
 #else   // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
-GpuProgramRef program_ref_no_sub("RegionUpdate", GpuProgramRef::kSourceFile, "RegionUpdate.cl", 0u);
+GpuProgramRef g_program_ref_no_sub("RegionUpdate", GpuProgramRef::kSourceFile, "RegionUpdate.cl", 0u);
 #endif  // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
 
 using RegionWalkFunction = std::function<void(const glm::i16vec3 &, const glm::dvec3 &, const glm::dvec3 &)>;
@@ -461,7 +461,7 @@ void GpuMap::setGroupedRays(bool group)
 
 void GpuMap::cacheGpuProgram(bool with_voxel_mean, bool force)
 {
-  if (imp_->program_ref)
+  if (imp_->g_program_ref)
   {
     if (!force && with_voxel_mean == imp_->cached_sub_voxel_program)
     {
@@ -474,12 +474,12 @@ void GpuMap::cacheGpuProgram(bool with_voxel_mean, bool force)
   GpuCache &gpu_cache = *gpuCache();
   imp_->gpu_ok = true;
   imp_->cached_sub_voxel_program = with_voxel_mean;
-  imp_->program_ref = (with_voxel_mean) ? &program_ref_sub_vox : &program_ref_no_sub;
+  imp_->g_program_ref = (with_voxel_mean) ? &g_program_ref_sub_vox : &g_program_ref_no_sub;
 
-  if (imp_->program_ref->addReference(gpu_cache.gpu()))
+  if (imp_->g_program_ref->addReference(gpu_cache.gpu()))
   {
-    imp_->update_kernel = (!with_voxel_mean) ? GPUTIL_MAKE_KERNEL(imp_->program_ref->program(), regionRayUpdate) :
-                                               GPUTIL_MAKE_KERNEL(imp_->program_ref->program(), regionRayUpdateSubVox);
+    imp_->update_kernel = (!with_voxel_mean) ? GPUTIL_MAKE_KERNEL(imp_->g_program_ref->program(), regionRayUpdate) :
+                                               GPUTIL_MAKE_KERNEL(imp_->g_program_ref->program(), regionRayUpdateSubVox);
     imp_->update_kernel.calculateOptimalWorkGroupSize();
 
     imp_->gpu_ok = imp_->update_kernel.isValid();
@@ -498,10 +498,10 @@ void GpuMap::releaseGpuProgram()
     imp_->update_kernel = gputil::Kernel();
   }
 
-  if (imp_ && imp_->program_ref)
+  if (imp_ && imp_->g_program_ref)
   {
-    imp_->program_ref->releaseReference();
-    imp_->program_ref = nullptr;
+    imp_->g_program_ref->releaseReference();
+    imp_->g_program_ref = nullptr;
   }
 }
 

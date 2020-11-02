@@ -51,10 +51,10 @@ using namespace ohm;
 namespace
 {
 #if defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
-GpuProgramRef program_ref("RoiRangeFill", GpuProgramRef::kSourceString,  // NOLINT
-                          RoiRangeFillCode, RoiRangeFillCode_length);
+GpuProgramRef g_program_ref("RoiRangeFill", GpuProgramRef::kSourceString,  // NOLINT
+                            RoiRangeFillCode, RoiRangeFillCode_length);
 #else   // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
-GpuProgramRef program_ref("RoiRangeFill", GpuProgramRef::kSourceFile, "RoiRangeFill.cl", 0u);
+GpuProgramRef g_program_ref("RoiRangeFill", GpuProgramRef::kSourceFile, "RoiRangeFill.cl", 0u);
 #endif  // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
 }  // namespace
 
@@ -255,7 +255,7 @@ void RoiRangeFill::cacheGpuProgram(bool force)
 
   releaseGpuProgram();
 
-  program_ref_ = &program_ref;
+  program_ref_ = &g_program_ref;
   if (program_ref_->addReference(gpu_))
   {
     seed_kernel_ = GPUTIL_MAKE_KERNEL(program_ref_->program(), seedRegionVoxels);

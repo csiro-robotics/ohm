@@ -62,8 +62,7 @@ inline Key firstKeyForChunk(const OccupancyMapDetail &map, const MapChunk &chunk
   // return key;
 }
 
-bool nextChunk(OccupancyMapDetail &map, ChunkMap::iterator &chunk_iter,  // NOLINT(google-runtime-references)
-               Key &key)                                                 // NOLINT(google-runtime-references)
+bool nextChunk(OccupancyMapDetail &map, ChunkMap::iterator &chunk_iter, Key &key)
 {
   ++chunk_iter;
   if (chunk_iter != map.chunks.end())
@@ -510,7 +509,7 @@ void OccupancyMap::updateLayout(const MapLayout &new_layout, bool preserve_map)
   // There's no work to do otherwise.
 
   const MapLayoutMatch match = imp_->layout.checkEquivalent(new_layout);
-  if (match == MapLayoutMatch::Exact)
+  if (match == MapLayoutMatch::kExact)
   {
     // Already matches the current layout. Nothing to do.
     return;
@@ -518,7 +517,7 @@ void OccupancyMap::updateLayout(const MapLayout &new_layout, bool preserve_map)
 
   // Check for partial match. In this case we just have to update to the new layout values and don't need to adjust
   // the chunks.
-  if (match == MapLayoutMatch::Equivalent)
+  if (match == MapLayoutMatch::kEquivalent)
   {
     imp_->layout = new_layout;
     return;
@@ -545,7 +544,7 @@ void OccupancyMap::updateLayout(const MapLayout &new_layout, bool preserve_map)
       if (const MapLayer *layer = imp_->layout.layer(new_layer.name()))
       {
         // Found a layer with matching name. Check for equivalent layout.
-        if (layer->checkEquivalent(new_layer) != MapLayoutMatch::Different)
+        if (layer->checkEquivalent(new_layer) != MapLayoutMatch::kDifferent)
         {
           // Layers are equivalent. Add a mapping.
           layer_mapping.emplace_back(std::make_pair(layer, &new_layer));
@@ -899,10 +898,7 @@ size_t OccupancyMap::calculateSegmentKeys(KeyList &keys, const glm::dvec3 &start
     inline Key voxelKey(const glm::dvec3 &pt) const { return map.voxelKey(pt); }
     inline bool isNull(const Key &key) const { return key.isNull(); }
     inline glm::dvec3 voxelCentre(const Key &key) const { return map.voxelCentreLocal(key); }
-    inline void stepKey(Key &key, int axis, int dir) const  // NOLINT(google-runtime-references)
-    {
-      map.stepKey(key, axis, dir);
-    }
+    inline void stepKey(Key &key, int axis, int dir) const { map.stepKey(key, axis, dir); }
     inline double voxelResolution(int /*axis*/) const { return map.resolution(); }
   };
   const glm::dvec3 start_point_local = glm::dvec3(start_point - origin());

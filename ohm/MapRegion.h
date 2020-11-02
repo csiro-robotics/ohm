@@ -70,9 +70,8 @@ struct ohm_API MapRegion
   /// @param voxel_resolution The length of a voxel cube edge.
   /// @return True if the @p point lies within this region and @p key has been set to reference
   ///   the containing voxel. Otherwise @p key is a @c OccupancyMap::null key.
-  bool voxelKey(Key &key, const glm::dvec3 &point,  // NOLINT(google-runtime-references)
-                const glm::dvec3 &map_origin, const glm::dvec3 &region_dimensions, const glm::ivec3 &voxel_counts,
-                double voxel_resolution) const;
+  bool voxelKey(Key &key, const glm::dvec3 &point, const glm::dvec3 &map_origin, const glm::dvec3 &region_dimensions,
+                const glm::ivec3 &voxel_counts, double voxel_resolution) const;
 };
 }  // namespace ohm
 

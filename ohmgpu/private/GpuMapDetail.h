@@ -106,7 +106,7 @@ struct GpuMapDetail
   /// Vector used to group/sort rays when @c group_rays is `true`.
   std::vector<RayItem> grouped_rays;
 
-  GpuProgramRef *program_ref = nullptr;
+  GpuProgramRef *g_program_ref = nullptr;
   gputil::Kernel update_kernel;
 
   RayFilterFunction ray_filter;
@@ -139,14 +139,12 @@ struct GpuMapDetail
 
 /// Ensure the GPU cache is initialised. Ok to call if already initialised.
 /// @param flags @c GpuFlag values.
-GpuCache *initialiseGpuCache(OccupancyMap &map,  // NOLINT(google-runtime-references)
-                             size_t target_gpu_mem_size, unsigned flags);
+GpuCache *initialiseGpuCache(OccupancyMap &map, size_t target_gpu_mem_size, unsigned flags);
 
 
 /// (Re)initialise the given GPU @p gpu_cache to reflect the given @p map layout.
 /// @param flags @c GpuFlag values.
-void reinitialiseGpuCache(GpuCache *gpu_cache, OccupancyMap &map,  // NOLINT(google-runtime-references)
-                          unsigned flags);
+void reinitialiseGpuCache(GpuCache *gpu_cache, OccupancyMap &map, unsigned flags);
 }  // namespace ohm
 
 #endif  // OHMGPU_GPUMAPDETAIL_H

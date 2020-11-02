@@ -35,17 +35,17 @@ class OccupancyMap;
 /// the plane to be adjusted during walking as in heightmap terrain following.
 ///
 /// Nodes may be revisited according to the @c Revist behaviour passed to @c addNeighbours() . With
-/// @c auto_add_neighbours this is always @c Revisit::None.
+/// @c auto_add_neighbours this is always @c Revisit::kNone.
 class ohm_API PlaneFillWalker
 {
 public:
   /// Revisit behaviour for @c addNeighbours()
   enum class Revisit : int
   {
-    None = 0,  ///< No revisiting allowed.
-    All,       ///< Always revsit, adding neighbours again. Only the most recently added key is ever returned though.
-    Lower,     ///< Revisit if the key appears lower along the up axis.
-    Higher     ///< Revisit if the key is higher along the up axis.
+    kNone = 0,  ///< No revisiting allowed.
+    kAll,       ///< Always revsit, adding neighbours again. Only the most recently added key is ever returned though.
+    kLower,     ///< Revisit if the key appears lower along the up axis.
+    kHigher     ///< Revisit if the key is higher along the up axis.
   };
 
   const OccupancyMap &map;     ///< Map to walk voxels in.
@@ -74,17 +74,17 @@ public:
   /// Initialse @p key To the first voxel to walk.
   /// @param[out] key Set to the first key to be walked.
   /// @return True if the key is valid, false if there is nothing to walk.
-  bool begin(Key &key);  // NOLINT(google-runtime-references)
+  bool begin(Key &key);
 
   /// Walk the next key in the sequence.
   /// @param[in,out] key Modifies to be the next key to be walked.
   /// @return True if the key is valid, false if walking is complete.
-  bool walkNext(Key &key);  // NOLINT(google-runtime-references)
+  bool walkNext(Key &key);
 
   /// Add neigbhours of @p key to the open list.
   /// @param key The key of interest.
   /// @param revisit_behaviour How to deal with voxels which have already been visited.
-  void addNeighbours(const Key &key, Revisit revisit_behaviour = Revisit::None);
+  void addNeighbours(const Key &key, Revisit revisit_behaviour = Revisit::kNone);
 
   /// Marks the given key as visited.
   /// @param key The key to visit.

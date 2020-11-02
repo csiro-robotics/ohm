@@ -7,7 +7,7 @@
 
 #include <3esservermacros.h>
 
-void ohm::trace::init(const char *file_stream)
+void ohm::trace::init(const std::string &file_stream)
 {
   (void)file_stream;
   // Initialise TES
@@ -20,7 +20,7 @@ void ohm::trace::init(const char *file_stream)
   // Start the server and wait for the connection monitor to start.
   TES_SERVER_START(ohm::g_tes, tes::ConnectionMonitor::Asynchronous);
 
-  TES_IF(file_stream && file_stream[0]) { TES_LOCAL_FILE_STREAM(ohm::g_tes, file_stream); }
+  TES_IF(!file_stream.empty()) { TES_LOCAL_FILE_STREAM(ohm::g_tes, file_stream.c_str()); }
   TES_SERVER_START_WAIT(ohm::g_tes, 1000);
 }
 

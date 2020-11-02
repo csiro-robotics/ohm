@@ -72,8 +72,7 @@ public:
   /// @param end_point The global coordinate marking the end of the line segment.
   /// @param search_radius Defines the "width" of the line. See @c searchRadius().
   /// @param query_flags Flags controlling the query behaviour. See @c QueryFlag and @c LineQuery::Flag.
-  LineQuery(OccupancyMap &map,  // NOLINT(google-runtime-references)
-            const glm::dvec3 &start_point, const glm::dvec3 &end_point, float search_radius,
+  LineQuery(OccupancyMap &map, const glm::dvec3 &start_point, const glm::dvec3 &end_point, float search_radius,
             unsigned query_flags = kDefaultFlags);
 
   /// Destructor.

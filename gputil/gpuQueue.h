@@ -39,9 +39,9 @@ class gputilAPI Queue
 {
 public:
   /// Queue construction flags.
-  enum QueueFlag
+  enum QueueFlag : unsigned
   {
-    kProfile = (1 << 0)  ///< Enable profiling of the queue object.
+    kProfile = (1u << 0u)  ///< Enable profiling of the queue object.
   };
 
   /// Empty constructor.
@@ -53,7 +53,7 @@ public:
   /// @param other The object to move.
   Queue(Queue &&other) noexcept;
   /// Construct from the underlying SDK queue implemntation.
-  Queue(void *platform_queue);
+  explicit Queue(void *platform_queue);
 
   /// Destructor - release a reference to the unerlying queue object.
   ~Queue();
@@ -95,7 +95,8 @@ public:
   Queue &operator=(Queue &&other) noexcept;
 
 private:
-  QueueDetail *queue_;
+  // Cannot use unique pointer due to CUDA implementation details.
+  QueueDetail *queue_ = nullptr;
 };
 }  // namespace gputil
 

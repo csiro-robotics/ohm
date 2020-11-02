@@ -34,7 +34,7 @@ public:
   /// Try pin @p buffer in the given @p mode.
   /// @param buffer Buffer to pin.
   /// @param mode The mode to pin in.
-  PinnedBuffer(Buffer &buffer, PinMode mode);  // NOLINT(google-runtime-references)
+  PinnedBuffer(Buffer &buffer, PinMode mode);
 
   /// RValue constructor.
   /// @param other Temporary object to copy from.
@@ -129,7 +129,7 @@ public:
   }
 
   /// An overload of @c readElements() using the template sizes to determine the sizes.
-  /// @tparam BUFFER_TYPE The data type stored in the GPU buffer. Only required when its size differs from that of
+  /// @tparam BufferType The data type stored in the GPU buffer. Only required when its size differs from that of
   ///   @p T
   /// @tparam T The data type to read into.
   /// @param dst The buffer to write into. Must be sized to suit.
@@ -138,10 +138,10 @@ public:
   ///     reading.
   /// @return The number of elements read. May be less than @c element_count if this buffer is not
   ///     large enough to hold @c element_count.
-  template <typename BUFFER_TYPE, typename T>
+  template <typename BufferType, typename T>
   inline size_t readElements(T *dst, size_t element_count, size_t offset_elements = 0)
   {
-    return readElements(dst, sizeof(T), element_count, offset_elements, sizeof(BUFFER_TYPE));
+    return readElements(dst, sizeof(T), element_count, offset_elements, sizeof(BufferType));
   }
 
   /// Write an array of data elements to the buffer.
@@ -178,7 +178,7 @@ public:
   }
 
   /// An overload of @c writeElements() using the template sizes to determine the sizes.
-  /// @tparam BUFFER_TYPE The data type stored in the GPU buffer. Only required when its size differs from that of
+  /// @tparam BufferType The data type stored in the GPU buffer. Only required when its size differs from that of
   ///   @p T
   /// @tparam T The data type to read into and assumed to exactly match that stored in the GPU buffer.
   /// @param src The buffer to read from into. Must be sized to suit.
@@ -187,10 +187,10 @@ public:
   ///     before writing.
   /// @return The number of elements written. May be less than @c element_count if this buffer is not
   ///     large enough to hold @c element_count.
-  template <typename BUFFER_TYPE, typename T>
+  template <typename BufferType, typename T>
   inline size_t writeElements(const T *src, size_t element_count, size_t offset_elements = 0)
   {
-    return writeElements(src, sizeof(T), element_count, offset_elements, sizeof(BUFFER_TYPE));
+    return writeElements(src, sizeof(T), element_count, offset_elements, sizeof(BufferType));
   }
 
   /// RValue assignment operator.
@@ -199,9 +199,9 @@ public:
   PinnedBuffer &operator=(const PinnedBuffer &other) = delete;
 
 private:
-  Buffer *buffer_;
-  void *pinned_;
-  PinMode mode_;
+  Buffer *buffer_ = nullptr;
+  void *pinned_ = nullptr;
+  PinMode mode_ = kPinNone;
 };
 }  // namespace gputil
 

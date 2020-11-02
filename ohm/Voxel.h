@@ -145,7 +145,7 @@ struct VoxelChunkAccess<const T>
 ///
 /// The key may also be set from another @c Voxel even one for a different layer. This copies the @c Key and
 /// @c MapChunk from the other @c Voxel saving on a looking into the map to resolve the chunk. This call is validated
-/// only to ensure that the @c OccupancyMap pointers match, setting @c Error::MapMismatch on failure.
+/// only to ensure that the @c OccupancyMap pointers match, setting @c Error::kMapMismatch on failure.
 ///
 /// Finally a voxel reference may be set from an @c OccupancyMap::iterator for a mutable voxel or an
 /// @c OccupancyMap::const_iterator for a const voxel. This call also assumes the @c MapChunk in the iterator is valid
@@ -288,24 +288,24 @@ public:
   /// Error flag values indicating why initialisation may have failed.
   enum class Error : uint16_t
   {
-    None = 0,                      ///< No error
-    NullMap = (1 << 0),            ///< @c OccupancyMap is null
-    InvalidLayerIndex = (1 << 1),  ///< The given layer index is invalid.
-    VoxelSizeMismatch = (1 << 2),  ///< The @c MapLayer voxel size does not match the size of @c T
-    MapMismatch = (1 << 3)         ///< When two @c Voxel object maps do not match such as in @c setKey() chaining.
+    kNone = 0,                      ///< No error
+    kNullMap = (1 << 0),            ///< @c OccupancyMap is null
+    kInvalidLayerIndex = (1 << 1),  ///< The given layer index is invalid.
+    kVoxelSizeMismatch = (1 << 2),  ///< The @c MapLayer voxel size does not match the size of @c T
+    kMapMismatch = (1 << 3)         ///< When two @c Voxel object maps do not match such as in @c setKey() chaining.
   };
 
   /// Book keeping flags.
   enum class Flag : uint16_t
   {
-    None = 0,                      ///< Nothing of note
-    IsOccupancyLayer = (1u << 0),  ///< Marks that this @c Voxel points to the occupancy layer of @c OccupancyMap.
-    CompressionLock = (1u << 1),   ///< Indiates the layer's @c VoxelBlock has been retained in @c chunk_.
-    TouchedChunk = (1u << 2),      ///< Marks that the current @c MapChunk data has been accessed for mutation.
-    TouchedVoxel = (1u << 3),      ///< Marks that the current voxel data has been accessed for mutation.
+    kNone = 0,                      ///< Nothing of note
+    kIsOccupancyLayer = (1u << 0),  ///< Marks that this @c Voxel points to the occupancy layer of @c OccupancyMap.
+    kCompressionLock = (1u << 1),   ///< Indiates the layer's @c VoxelBlock has been retained in @c chunk_.
+    kTouchedChunk = (1u << 2),      ///< Marks that the current @c MapChunk data has been accessed for mutation.
+    kTouchedVoxel = (1u << 3),      ///< Marks that the current voxel data has been accessed for mutation.
 
     /// Flag values which are not propagated in copy assigment.
-    NonPropagatingFlags = TouchedChunk | TouchedVoxel | CompressionLock
+    kNonPropagatingFlags = kTouchedChunk | kTouchedVoxel | kCompressionLock
   };
 
   /// Empty constructor generating an invalid voxel with no map.
@@ -402,7 +402,7 @@ public:
   template <typename U>
   /// Set the voxel key from another @c Voxel reference. This copies the @c MapChunk from @p other .
   ///
-  /// Will set the @c Error::MapMismatch flag if the map pointers do not match between @c this and @p other.
+  /// Will set the @c Error::kMapMismatch flag if the map pointers do not match between @c this and @p other.
   /// @param other The voxel to initialise from.
   /// @return `*this`
   Voxel<T> &setKey(const Voxel<U> &other);
@@ -449,7 +449,7 @@ public:
   inline void write(const DataType &value)
   {
     detail::VoxelChunkAccess<T>::writeVoxel(voxel_memory_, voxelIndex(), value,
-                                            unsigned(Flag::TouchedChunk) | unsigned(Flag::TouchedVoxel), &flags_);
+                                            unsigned(Flag::kTouchedChunk) | unsigned(Flag::kTouchedVoxel), &flags_);
   }
 
   /// Return a pointer to the start of the voxel memory for the current chunk.
@@ -471,7 +471,7 @@ public:
 
   /// Assignment operator. Performs book keeping before assignment.
   ///
-  /// Note that some @c Flag values will not be copied by the assignment. See @c Flag::NonPropagatingFlags .
+  /// Note that some @c Flag values will not be copied by the assignment. See @c Flag::kNonPropagatingFlags .
   /// @param other The voxel reference to assign from.
   /// @return `*this`
   Voxel &operator=(const Voxel<T> &other);
@@ -481,7 +481,7 @@ public:
   Voxel &operator=(Voxel<T> &&other);
 
 protected:
-  /// Internal key set function. Performs book keeping for @c Flag::IsOccupancyLayer and @c Flag::TouchedVoxel .
+  /// Internal key set function. Performs book keeping for @c Flag::kIsOccupancyLayer and @c Flag::kTouchedVoxel .
   /// @param key The key value to set.
   inline void setKeyInternal(const Key &key)
   {
@@ -489,7 +489,7 @@ protected:
     key_ = key;
   }
 
-  /// Internal chunk set function. Performs book keeping for @c Flag::TouchedChunk .
+  /// Internal chunk set function. Performs book keeping for @c Flag::kTouchedChunk .
   /// @param chunk The chunk to set the voxel to reference.
   inline void setChunk(MapChunkPtr chunk)
   {
@@ -500,7 +500,7 @@ protected:
       if (chunk_ && layer_index_ != -1)
       {
         chunk_->voxel_blocks[layer_index_]->retain();
-        flags_ |= unsigned(Flag::CompressionLock);
+        flags_ |= unsigned(Flag::kCompressionLock);
         voxel_memory_ = chunk_->voxel_blocks[layer_index_]->voxelBytes();
       }
       else
@@ -512,15 +512,15 @@ protected:
 
   /// Validate the @c layerIndex() . May invalidate the layer index and set @c Error flag values.
   void validateLayer();
-  /// Perform book keeping for the currently referenced voxel. Handles @c Flag::IsOccupancyLayer and
-  /// @c Flag::TouchedVoxel . This only needs to do work when @c Flag::IsOccupancyLayer is true by updating
-  /// @c MapChunk::first_valid_index the @c Flag::TouchedVoxel has been set. @c Flag::TouchedVoxel is cleared.
+  /// Perform book keeping for the currently referenced voxel. Handles @c Flag::kIsOccupancyLayer and
+  /// @c Flag::kTouchedVoxel . This only needs to do work when @c Flag::kIsOccupancyLayer is true by updating
+  /// @c MapChunk::first_valid_index the @c Flag::kTouchedVoxel has been set. @c Flag::kTouchedVoxel is cleared.
   ///
   /// Safe to call when no book keeping needs to be done or the voxel reference is invalid.
   void updateVoxelTouch();
-  /// Perform book keeping for the current chunk. Handles @c Flag::TouchedChunk by ensuring @c OccupancyMap::touch()
+  /// Perform book keeping for the current chunk. Handles @c Flag::kTouchedChunk by ensuring @c OccupancyMap::touch()
   /// is called then updating the @c MapChunk::dirty_stamp and the @c MapChunk::touched_stamps for the referenced
-  /// layer. @c Flag::TouchedChunk is cleared.
+  /// layer. @c Flag::kTouchedChunk is cleared.
   ///
   /// Safe to call when no book keeping needs to be done or the voxel reference is invalid.
   void updateChunkTouchAndCompression();
@@ -624,7 +624,7 @@ Voxel<T>::Voxel(const Voxel<T> &other)
   , key_(other.key_)
   , layer_index_(other.layer_index_)
   , layer_dim_(other.layer_dim_)
-  , flags_(other.flags_ & ~unsigned(Flag::NonPropagatingFlags))
+  , flags_(other.flags_ & ~unsigned(Flag::kNonPropagatingFlags))
   , error_flags_(other.error_flags_)
 {
   // Do not set chunk or voxel_memory_ pointers directly. Use the method call to ensure flags are correctly
@@ -653,7 +653,7 @@ Voxel<T>::Voxel(const Voxel<U> &other, int layer_index)
   , chunk_(nullptr)
   , key_(other.key())
   , layer_index_(layer_index)
-  , flags_(other.flags() & ~unsigned(Flag::NonPropagatingFlags))
+  , flags_(other.flags() & ~unsigned(Flag::kNonPropagatingFlags))
   , error_flags_(other.errorFlags())
 {
   validateLayer();
@@ -734,7 +734,7 @@ Voxel<T> &Voxel<T>::setKey(const Voxel<U> &other)
 {
   setKeyInternal(other.key());
   setChunk(other.chunk());
-  error_flags_ |= !(map_ == other.map()) * unsigned(Error::MapMismatch);
+  error_flags_ |= !(map_ == other.map()) * unsigned(Error::kMapMismatch);
   return *this;
 }
 
@@ -796,7 +796,7 @@ Voxel<T> &Voxel<T>::operator=(const Voxel<T> &other)
   setKeyInternal(other.key_);
   layer_index_ = other.layer_index_;
   layer_dim_ = other.layer_dim_;
-  flags_ = other.flags_ & ~unsigned(Flag::NonPropagatingFlags);
+  flags_ = other.flags_ & ~unsigned(Flag::kNonPropagatingFlags);
   error_flags_ = other.error_flags_;
   // Do not set chunk or voxel_memory_ pointers directly. Use the method call to ensure flags are correctly
   // maintained.
@@ -823,25 +823,25 @@ void Voxel<T>::validateLayer()
     const MapLayer *layer = map_ ? map_->layout().layerPtr(layer_index_) : nullptr;
     if (!map_)
     {
-      error_flags_ |= unsigned(Error::NullMap);
+      error_flags_ |= unsigned(Error::kNullMap);
     }
     else if (!layer)
     {
       // Invalid layer.
-      error_flags_ |= unsigned(Error::InvalidLayerIndex);
+      error_flags_ |= unsigned(Error::kInvalidLayerIndex);
     }
     else if (layer->voxelByteSize() != sizeof(T))
     {
       // Incorrect layer size.
-      error_flags_ |= unsigned(Error::VoxelSizeMismatch);
+      error_flags_ |= unsigned(Error::kVoxelSizeMismatch);
     }
     else
     {
       layer_dim_ = layer->dimensions(map_->regionVoxelDimensions());
     }
 
-    flags_ &= ~unsigned(Flag::IsOccupancyLayer);
-    flags_ |= (layer && map_ && layer_index_ == map_->layout().occupancyLayer()) * unsigned(Flag::IsOccupancyLayer);
+    flags_ &= ~unsigned(Flag::kIsOccupancyLayer);
+    flags_ |= (layer && map_ && layer_index_ == map_->layout().occupancyLayer()) * unsigned(Flag::kIsOccupancyLayer);
   }
 }
 
@@ -849,11 +849,11 @@ void Voxel<T>::validateLayer()
 template <typename T>
 void Voxel<T>::updateVoxelTouch()
 {
-  if ((flags_ & unsigned(Flag::IsOccupancyLayer) | unsigned(Flag::TouchedVoxel)) && chunk_)
+  if ((flags_ & unsigned(Flag::kIsOccupancyLayer) | unsigned(Flag::kTouchedVoxel)) && chunk_)
   {
     detail::VoxelChunkAccess<T>::touch(chunk_, voxelIndex());
   }
-  flags_ &= ~unsigned(Flag::TouchedVoxel);
+  flags_ &= ~unsigned(Flag::kTouchedVoxel);
 }
 
 
@@ -862,16 +862,16 @@ void Voxel<T>::updateChunkTouchAndCompression()
 {
   if (map_ && chunk_)
   {
-    if (flags_ & unsigned(Flag::TouchedChunk))
+    if (flags_ & unsigned(Flag::kTouchedChunk))
     {
       detail::VoxelChunkAccess<T>::touch(map_, chunk_, layer_index_);
     }
-    if (flags_ & unsigned(Flag::CompressionLock))
+    if (flags_ & unsigned(Flag::kCompressionLock))
     {
       chunk_->voxel_blocks[layer_index_]->release();
     }
   }
-  flags_ &= ~(unsigned(Flag::TouchedChunk) | unsigned(Flag::CompressionLock));
+  flags_ &= ~(unsigned(Flag::kTouchedChunk) | unsigned(Flag::kCompressionLock));
 }
 }  // namespace ohm
 

@@ -9,6 +9,7 @@
 #include "OhmConfig.h"
 
 #include <cinttypes>
+#include <memory>
 
 namespace ohm
 {
@@ -108,86 +109,14 @@ public:
   /// @param string The value to assign.
   MapValue(const char *name, const char *string);
 
-  /// Destructor.
-  ~MapValue();
-
-  /// Clear the value and release the key name, making @c isValid() false and @c name() empty.
-  void clear();
-
-  /// Clear just the value, leaving the name unchanged. @c isValid() becomes false.
-  void clearValue();
-
-  /// Is the @c MapValue valid. This checks only the type. The entry may have a (dangling) name.
-  /// @return True if the value is of a valid type.
-  inline bool isValid() const { return type_ != kTypeNone; }
-
-  /// Retrieve the value name/key.
-  /// @return The value name.
-  const char *name() const;
-
-  /// Set the value name/key, replacing the existing name. Does not change the results of @c isValid().
-  /// @param name The name to set.
-  void setName(const char *name);
-
-  /// Provide access to the internal name pointer. For internal use.
-  /// @return The name key pointer.
-  inline const void *namePtr() const { return name_; }
-
-  /// Get the @c MapValue type.
-  /// @return The value @c Type.
-  inline Type type() const { return type_; }
-
-  /// Compare the name of @p other against this @c name().
-  /// @param other The @c MapValue to compare the name of.
-  /// @return True if the names match or are othe empty/null or any combination of empty/null.
-  bool namesEqual(const MapValue &other) const;
-
-  /// Cast conversion. See casting notes in class description.
-  /// @return The value as a signed byte.
-  operator int8_t() const;
-  /// Cast conversion. See casting notes in class description.
-  /// @return The value as an unsigned byte.
-  operator uint8_t() const;
-  /// Cast conversion. See casting notes in class description.
-  /// @return The value as a signed 16-bit integer.
-  operator int16_t() const;
-  /// Cast conversion. See casting notes in class description.
-  /// @return The value as an unsigned 16-bit integer.
-  operator uint16_t() const;
-  /// Cast conversion. See casting notes in class description.
-  /// @return The value as a signed 32-bit integer.
-  operator int32_t() const;
-  /// Cast conversion. See casting notes in class description.
-  /// @return The value as an unsigned 32-bit integer.
-  operator uint32_t() const;
-  /// Cast conversion. See casting notes in class description.
-  /// @return The value as a signed 64-bit integer.
-  operator int64_t() const;
-  /// Cast conversion. See casting notes in class description.
-  /// @return The value as an unsigned 64-bit integer.
-  operator uint64_t() const;
-  /// Cast conversion. See casting notes in class description.
-  /// @return The value as a single precision float.
-  operator float() const;
-  /// Cast conversion. See casting notes in class description.
-  /// @return The value as a double precision float.
-  operator double() const;
-  /// Cast conversion. See casting notes in class description.
-  /// @return The value as a boolean value.
-  operator bool() const;
-  /// Cast conversion. See casting notes in class description.
-  /// @return The value as a string.
-  operator const char *() const;
-
-  /// Return a @c MapValue with type @c kString containing a string representation of
-  /// this item's value.
-  /// @return A string conversion of this @c MapValue.
-  MapValue toStringValue() const;
-
   /// Copy assignment.
   /// @param other Value to assign.
   /// @return A reference to this object.
   MapValue &operator=(const MapValue &other);
+  /// Move assignment.
+  /// @param other Object to move.
+  /// @return A reference to this object.
+  MapValue &operator=(MapValue &&other) noexcept;
   /// Value assignment. This changes the @c Type as required.
   /// @param val Value to assign.
   /// @return A reference to this object.
@@ -237,6 +166,82 @@ public:
   /// @return A reference to this object.
   MapValue &operator=(const char *string);
 
+  /// Destructor.
+  ~MapValue();
+
+  /// Clear the value and release the key name, making @c isValid() false and @c name() empty.
+  void clear();
+
+  /// Clear just the value, leaving the name unchanged. @c isValid() becomes false.
+  void clearValue();
+
+  /// Is the @c MapValue valid. This checks only the type. The entry may have a (dangling) name.
+  /// @return True if the value is of a valid type.
+  inline bool isValid() const { return type_ != kTypeNone; }
+
+  /// Retrieve the value name/key.
+  /// @return The value name.
+  const char *name() const;
+
+  /// Set the value name/key, replacing the existing name. Does not change the results of @c isValid().
+  /// @param name The name to set.
+  void setName(const char *name);
+
+  /// Provide access to the internal name pointer. For internal use.
+  /// @return The name key pointer.
+  inline const void *namePtr() const { return name_; }
+
+  /// Get the @c MapValue type.
+  /// @return The value @c Type.
+  inline Type type() const { return type_; }
+
+  /// Compare the name of @p other against this @c name().
+  /// @param other The @c MapValue to compare the name of.
+  /// @return True if the names match or are othe empty/null or any combination of empty/null.
+  bool namesEqual(const MapValue &other) const;
+
+  /// Cast conversion. See casting notes in class description.
+  /// @return The value as a signed byte.
+  explicit operator int8_t() const;
+  /// Cast conversion. See casting notes in class description.
+  /// @return The value as an unsigned byte.
+  explicit operator uint8_t() const;
+  /// Cast conversion. See casting notes in class description.
+  /// @return The value as a signed 16-bit integer.
+  explicit operator int16_t() const;
+  /// Cast conversion. See casting notes in class description.
+  /// @return The value as an unsigned 16-bit integer.
+  explicit operator uint16_t() const;
+  /// Cast conversion. See casting notes in class description.
+  /// @return The value as a signed 32-bit integer.
+  explicit operator int32_t() const;
+  /// Cast conversion. See casting notes in class description.
+  /// @return The value as an unsigned 32-bit integer.
+  explicit operator uint32_t() const;
+  /// Cast conversion. See casting notes in class description.
+  /// @return The value as a signed 64-bit integer.
+  explicit operator int64_t() const;
+  /// Cast conversion. See casting notes in class description.
+  /// @return The value as an unsigned 64-bit integer.
+  explicit operator uint64_t() const;
+  /// Cast conversion. See casting notes in class description.
+  /// @return The value as a single precision float.
+  explicit operator float() const;
+  /// Cast conversion. See casting notes in class description.
+  /// @return The value as a double precision float.
+  explicit operator double() const;
+  /// Cast conversion. See casting notes in class description.
+  /// @return The value as a boolean value.
+  explicit operator bool() const;
+  /// Cast conversion. See casting notes in class description.
+  /// @return The value as a string.
+  explicit operator const char *() const;
+
+  /// Return a @c MapValue with type @c kString containing a string representation of
+  /// this item's value.
+  /// @return A string conversion of this @c MapValue.
+  MapValue toStringValue() const;
+
   /// Equality comparison. Equality requires:
   /// - Same @c Type (including @c kTypeNone).
   /// - Same or empty/null names.
@@ -267,7 +272,7 @@ private:
   template <typename T>
   T value() const;
 
-  void *name_;  ///< Name member. Internal type is hidden to prevent exposure in the header.
+  void *name_ = nullptr;  ///< Name member. Internal type is hidden to prevent exposure in the header.
   union
   {
     int8_t i8;
@@ -282,8 +287,8 @@ private:
     double f64;
     bool b;
     char *str;
-  } value_;    ///< Value member.
-  Type type_;  ///< Type member.
+  } value_{};              ///< Value member.
+  Type type_ = kTypeNone;  ///< Type member.
 };
 
 
@@ -307,6 +312,9 @@ public:
   /// R-value reference constructor, taking ownership of data in @c other and invalidating @c other.
   /// @param other Data to take ownership of.
   MapInfo(MapInfo &&other) noexcept;
+
+  MapInfo &operator=(const MapInfo &other);
+  MapInfo &operator=(MapInfo &&other) noexcept;
 
   /// Destructor.
   ~MapInfo();
@@ -340,7 +348,7 @@ public:
   unsigned extract(MapValue *values, unsigned max_count, unsigned offset = 0) const;
 
 private:
-  MapInfoDetail *imp_;  ///< Data implementation.
+  std::unique_ptr<MapInfoDetail> imp_;  ///< Data implementation.
 };
 }  // namespace ohm
 

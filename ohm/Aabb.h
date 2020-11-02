@@ -29,7 +29,7 @@ public:
   /// Typically, use this constructor to ensure an initialised, but unpopulated box calling @c Aabb(0.0).
   ///
   /// @param seed The seed value for all channels.
-  Aabb(double seed);
+  explicit Aabb(double seed);
 
   /// Copy constructor.
   /// @param other Value to copy.
@@ -38,6 +38,8 @@ public:
   /// @param min_ext Minimum extents. Must be <= @p max_ext.
   /// @param max_ext Maximum extents.
   Aabb(const glm::dvec3 &min_ext, const glm::dvec3 &max_ext);
+
+  inline ~Aabb() = default;
 
   /// Initialise from @p centre and @p half_extents.
   ///
@@ -89,11 +91,17 @@ public:
 
   /// Query the box centre.
   /// @return The box centre.
-  inline glm::dvec3 centre() const { return 0.5 * (corners_[0] + corners_[1]); }
+  inline glm::dvec3 centre() const
+  {
+    return 0.5 * (corners_[0] + corners_[1]);  // NOLINT(readability-magic-numbers)
+  }
 
   /// Query the box half extents.
   /// @return The box half extents (half the diagonal).
-  inline glm::dvec3 halfExtents() const { return 0.5 * (corners_[1] - corners_[0]); }
+  inline glm::dvec3 halfExtents() const
+  {
+    return 0.5 * (corners_[1] - corners_[0]);  // NOLINT(readability-magic-numbers)
+  }
 
   /// Query the full box extents.
   /// @return The full extents (the diagonal).
@@ -155,10 +163,10 @@ public:
   bool isValid() const;
 
   /// Flags for clipping results.
-  enum ClipResult
+  enum ClipResult : unsigned
   {
-    kClippedStart = (1 << 0),
-    kClippedEnd = (1 << 1)
+    kClippedStart = (1u << 0u),
+    kClippedEnd = (1u << 1u)
   };
 
   /// Clip the line from @p start to @p end such that both points lie in or on the box.
@@ -167,8 +175,7 @@ public:
   /// @param[out] clip_flags Clipping flags indicating how the line has been clipped. See : @c ClipResult.
   /// @return True when the line segment intersects the box and has been clipped. Essentially, false when @p start
   ///     and @p end are unmodified.
-  bool clipLine(glm::dvec3 &start, glm::dvec3 &end,  // NOLINT(google-runtime-references)
-                unsigned *clip_flags = nullptr) const;
+  bool clipLine(glm::dvec3 &start, glm::dvec3 &end, unsigned *clip_flags = nullptr) const;
 
   /// Test for precise quality between this and @p other.
   /// @param other The box to test against.
@@ -210,6 +217,7 @@ private:
   static double calcTimeVal(double limit, double origin, double direction);
   static bool calcIntervalOverlap(const glm::dvec2 &a, const glm::dvec2 &b, glm::dvec2 *overlap);
 
+  // NOLINTNEXTLINE(cppcoreguidelines-avoid-c-arrays, modernize-avoid-c-arrays)
   glm::dvec3 corners_[2];  // = { glm::dvec3(0), glm::dvec3(0) };
 };
 
@@ -245,6 +253,7 @@ inline Aabb Aabb::fromCentreHalfExtents(const glm::dvec3 &centre, const glm::dve
 
 inline Aabb Aabb::fromCentreFullExtents(const glm::dvec3 &centre, const glm::dvec3 &full_extents)
 {
+  // NOLINTNEXTLINE(readability-magic-numbers)
   return Aabb(centre - 0.5 * full_extents, centre + 0.5 * full_extents);
 }
 
@@ -252,9 +261,9 @@ inline Aabb Aabb::fromCentreFullExtents(const glm::dvec3 &centre, const glm::dve
 inline glm::dvec3 Aabb::corner(int corner_index) const
 {
   glm::dvec3 c;
-  c[0] = (corner_index & 1) == 0 ? corners_[0][0] : corners_[1][0];
-  c[1] = (corner_index & 2) == 0 ? corners_[0][1] : corners_[1][1];
-  c[2] = (corner_index & 4) == 0 ? corners_[0][2] : corners_[1][2];
+  c[0] = (corner_index & 1) == 0 ? corners_[0][0] : corners_[1][0];  // NOLINT(hicpp-signed-bitwise)
+  c[1] = (corner_index & 2) == 0 ? corners_[0][1] : corners_[1][1];  // NOLINT(hicpp-signed-bitwise)
+  c[2] = (corner_index & 4) == 0 ? corners_[0][2] : corners_[1][2];  // NOLINT(hicpp-signed-bitwise)
   return c;
 }
 
@@ -311,16 +320,22 @@ inline bool Aabb::clipLine(glm::dvec3 &start, glm::dvec3 &end, unsigned *clip_fl
   const glm::ivec3 sign(!!(inv_dir.x < 0), !!(inv_dir.y < 0), !!(inv_dir.z < 0));
 
   // TODO(KS): remove branching.
-  glm::dvec2 tx, ty, tz;
+  glm::dvec2 tx;
+  glm::dvec2 ty;
+  glm::dvec2 tz;
 
   if (clip_flags)
   {
     *clip_flags = 0;
   }
 
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-constant-array-index)
   tx[0] = calcTimeVal(corners_[sign[0]].x, origin.x, inv_dir.x);
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-constant-array-index)
   tx[1] = calcTimeVal(corners_[1 - sign[0]].x, origin.x, inv_dir.x);
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-constant-array-index)
   ty[0] = calcTimeVal(corners_[sign[1]].y, origin.y, inv_dir.y);
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-constant-array-index)
   ty[1] = calcTimeVal(corners_[1 - sign[1]].y, origin.y, inv_dir.y);
 
   glm::dvec2 time_best;
@@ -330,7 +345,9 @@ inline bool Aabb::clipLine(glm::dvec3 &start, glm::dvec3 &end, unsigned *clip_fl
     return false;
   }
 
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-constant-array-index)
   tz[0] = calcTimeVal(corners_[sign[2]].z, origin.z, inv_dir.z);
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-constant-array-index)
   tz[1] = calcTimeVal(corners_[1 - sign[2]].z, origin.z, inv_dir.z);
 
   if (!calcIntervalOverlap(time_best, tz, &time_best))
@@ -385,7 +402,8 @@ inline bool Aabb::operator!=(const Aabb &other) const
 }
 
 
-inline Aabb &Aabb::operator=(const Aabb &other)
+// Lint(KS): self assignment is fine
+inline Aabb &Aabb::operator=(const Aabb &other)  // NOLINT(bugprone-unhandled-self-assignment)
 {
   corners_[0] = other.corners_[0];
   corners_[1] = other.corners_[1];

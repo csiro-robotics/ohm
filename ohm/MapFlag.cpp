@@ -9,13 +9,13 @@
 
 namespace
 {
-const char *map_flag_names[] =  //
+const char *const kMapFlagNames[] =  //
   {
     //
     "VoxelMean",
   };
 
-const unsigned kMapFlagsCount = unsigned(sizeof(map_flag_names) / sizeof(map_flag_names[0]));
+const unsigned kMapFlagsCount = unsigned(sizeof(kMapFlagNames) / sizeof(kMapFlagNames[0]));
 }  // namespace
 
 namespace ohm
@@ -27,7 +27,7 @@ const char *mapFlagToString(MapFlag flag)
   {
     if (unsigned(flag) & bit)
     {
-      return map_flag_names[i];
+      return kMapFlagNames[i];
     }
   }
 
@@ -41,7 +41,7 @@ MapFlag mapFlagFromString(const char *str)
   unsigned bit = 1;
   for (unsigned i = 0; i < kMapFlagsCount; ++i, bit <<= 1)
   {
-    if (name.compare(map_flag_names[i]) == 0)
+    if (name.compare(kMapFlagNames[i]) == 0)
     {
       return MapFlag(bit);
     }

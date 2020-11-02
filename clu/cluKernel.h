@@ -8,6 +8,7 @@
 
 #include "clu.h"
 
+#include <array>
 #include <functional>
 #include <iostream>
 
@@ -23,10 +24,7 @@ struct KernelArgHandler
   /// @param kernel The OpenCL kernel to set an argument for.
   /// @param arg_index Index of the argument to set.
   /// @param arg The argument value.
-  static cl_int set(cl::Kernel &kernel, int arg_index, const T &arg)  // NOLINT(google-runtime-references)
-  {
-    return kernel.setArg(arg_index, arg);
-  }
+  static cl_int set(cl::Kernel &kernel, int arg_index, const T &arg) { return kernel.setArg(arg_index, arg); }
 };
 
 /// Explicitly handle @c cl_mem type. Changing to the C++ <tt>cl2.hpp</tt> API changed how @c cl::Kernel handled
@@ -41,17 +39,19 @@ struct KernelArgHandler<cl_mem>
   /// @param kernel The OpenCL kernel to set an argument for.
   /// @param arg_index Index of the argument to set.
   /// @param arg The argument value.
-  static cl_int set(cl::Kernel &kernel,  // NOLINT(google-runtime-references)
+  static cl_int set(cl::Kernel &kernel,
+
                     int arg_index, cl_mem arg)
   {
+    // Disable lint warning - we do mean to take the size of a pointer.
+    // NOLINTNEXTLINE(bugprone-sizeof-expression)
     return ::clSetKernelArg(kernel(), arg_index, sizeof(arg), &arg);
   }
 };
 
 
 template <typename T>
-cl_int setKernelArgs2(cl::Kernel &kernel, int &arg_index,  // NOLINT(google-runtime-references)
-                      const T &arg)
+cl_int setKernelArgs2(cl::Kernel &kernel, int &arg_index, const T &arg)
 {
   const cl_int clerr = KernelArgHandler<T>::set(kernel, arg_index, arg);
   ++arg_index;
@@ -61,8 +61,7 @@ cl_int setKernelArgs2(cl::Kernel &kernel, int &arg_index,  // NOLINT(google-runt
 
 
 template <typename T, typename... ARGS>
-cl_int setKernelArgs2(cl::Kernel &kernel, int &arg_index,  // NOLINT(google-runtime-references)
-                      const T &arg, ARGS... args)
+cl_int setKernelArgs2(cl::Kernel &kernel, int &arg_index, const T &arg, ARGS... args)
 {
   const cl_int clerr = KernelArgHandler<T>::set(kernel, arg_index, arg);
   ++arg_index;
@@ -87,8 +86,7 @@ cl_int setKernelArgs2(cl::Kernel &kernel, int &arg_index,  // NOLINT(google-runt
 /// @param args The arguments to pass. Captured by const reference.
 /// @return @c CL_SUCCESS on success or the first failure error code on failure.
 template <typename... ARGS>
-cl_int setKernelArgs(cl::Kernel &kernel,  // NOLINT(google-runtime-references)
-                     ARGS... args)
+cl_int setKernelArgs(cl::Kernel &kernel, ARGS... args)
 {
   int arg_index = 0;
   return setKernelArgs2(kernel, arg_index, args...);
@@ -112,7 +110,7 @@ public:
 
   /// Instantiate a 1D kernel size.
   /// @param a Size of the first dimension.
-  inline KernelSize(size_t a)
+  inline KernelSize(size_t a)  // NOLINT(google-explicit-constructor)
   {
     sizes_[0] = a;
     sizes_[1] = sizes_[2] = 0;
@@ -143,6 +141,8 @@ public:
   /// @param other Object to copy.
   inline KernelSize(const KernelSize &other) { *this = other; }
 
+  inline ~KernelSize() = default;
+
   /// Query the dimensionality of the size specification.
   ///
   /// The dimensionality is determined by the first zero value in the size specification. A zero size in the first
@@ -156,20 +156,32 @@ public:
   /// Query the size of the selected dimension.
   /// @param dim The dimension to query in the range `[0, 2]`.
   /// @return The size of the queried dimension.
-  inline size_t size(int dim = 0) const { return sizes_[dim]; }
+  inline size_t size(int dim = 0) const
+  {
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-constant-array-index)
+    return sizes_[dim];
+  }
 
   /// Query the size of the indexed dimension.
   /// @param dim The dimension to query in the range `[0, 2]`.
   /// @return The size of the queried dimension.
-  inline size_t operator[](int dim) const { return sizes_[dim]; }
+  inline size_t operator[](int dim) const
+  {
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-constant-array-index)
+    return sizes_[dim];
+  }
   /// Get a reference to the size of the indexed dimension.
   /// @param dim The dimension to query in the range `[0, 2]`.
   /// @return The size of the queried dimension.
-  inline size_t &operator[](int dim) { return sizes_[dim]; }
+  inline size_t &operator[](int dim)
+  {
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-constant-array-index)
+    return sizes_[dim];
+  }
 
   /// Convert the @c KernelSize for use in kernel invocation.
   /// @return A pointer to the size array.
-  inline const size_t *arg() const { return sizes_; }
+  inline const size_t *arg() const { return sizes_.data(); }
 
   /// Query if the size specification is null.
   /// @return True if the dimensionality is @c kDNull .
@@ -191,8 +203,9 @@ public:
   /// Assignment operator.
   /// @param other Object to assign
   /// @return `*this`
-  inline KernelSize &operator=(const KernelSize &other)
+  inline KernelSize &operator=(const KernelSize &other)  // NOLINT(bugprone-unhandled-self-assignment)
   {
+    // Note: self assignment will be fine.
     sizes_[0] = other.sizes_[0];
     sizes_[1] = other.sizes_[1];
     sizes_[2] = other.sizes_[2];
@@ -211,7 +224,7 @@ public:
   }
 
 private:
-  size_t sizes_[3] = { 0, 0, 0 };
+  std::array<size_t, 3> sizes_ = { 0, 0, 0 };
 };
 
 
@@ -260,14 +273,9 @@ struct KernelGrid
   /// @return True if the specification is valid.
   inline bool isValid() const
   {
-    if (global_size.isValid() && work_group_size.isValid() &&
-        global_size.dimensions() == work_group_size.dimensions() &&
-        (global_size.dimensions() == global_offset.dimensions() || global_offset.isNull()))
-    {
-      return true;
-    }
-
-    return false;
+    return global_size.isValid() && work_group_size.isValid() &&
+           global_size.dimensions() == work_group_size.dimensions() &&
+           (global_size.dimensions() == global_offset.dimensions() || global_offset.isNull());
   }
 };
 
@@ -287,7 +295,7 @@ struct EventList
 
   /// Create an event list with only a completion event.
   /// @param completion_event Event object to use to mark queue completion for the requested operation.
-  inline EventList(cl::Event *completion_event)
+  explicit inline EventList(cl::Event *completion_event)
     : completion(completion_event)
   {}
 
@@ -337,11 +345,10 @@ public:
   /// @param program Compiled program object to find the kernel entry point in.
   /// @param entry_point Kernel function name to resolve in @p program .
   /// @param log Optional error logging stream.
-  Kernel(cl::Program &program,  // NOLINT(google-runtime-references)
-         const char *entry_point, std::ostream *log = nullptr);
+  Kernel(cl::Program &program, const char *entry_point, std::ostream *log = nullptr);
   /// Constructor to wrap an existing OpenCL C++ API kernel object.
   /// @param cl_kernel The kernel object to wrap.
-  Kernel(cl::Kernel &cl_kernel);  // NOLINT(google-runtime-references)
+  explicit Kernel(cl::Kernel &cl_kernel);
 
   /// Is this a valid kernel?
   bool isValid() const;
@@ -351,8 +358,7 @@ public:
   /// @param entry_point The kernel entry point/function name.
   /// @param log Optional error logging stream.
   /// @return @c CL_SUCCESS on success, an OpenCL error code otherwise.
-  cl_int setEntry(cl::Program &program,  // NOLINT(google-runtime-references)
-                  const char *entry_point, std::ostream *log = nullptr);
+  cl_int setEntry(cl::Program &program, const char *entry_point, std::ostream *log = nullptr);
 
   /// Set local memory arguments ordering. See class notes.
   /// @param first True to have local memory arguments before other arguments.
@@ -417,8 +423,7 @@ public:
   /// @param args Arguments to pass to the kernel.
   /// @return @c CL_SUCCESS on success, or an error code on failure.
   template <typename... ARGS>
-  cl_int operator()(cl::CommandQueue &queue,  // NOLINT(google-runtime-references)
-                    const KernelGrid &grid, const EventList &events, ARGS... args)
+  cl_int operator()(cl::CommandQueue &queue, const KernelGrid &grid, const EventList &events, ARGS... args)
   {
     cl_int clerr = preInvoke(args...);
     if (clerr != CL_SUCCESS)
@@ -460,12 +465,11 @@ private:
   /// @return @c CL_SUCCESS on success, an OpenCL error code on failure.
   cl_int setLocalMemArgs(int arg_count);
 
-  cl_int invoke(cl::CommandQueue &queue,  // NOLINT(google-runtime-references)
-                const KernelGrid &grid, const EventList &events);
+  cl_int invoke(cl::CommandQueue &queue, const KernelGrid &grid, const EventList &events);
 
   cl::Kernel kernel_;
   size_t optimal_work_group_size_ = 0;
-  LocalMemArgSizeFunc local_mem_args_[kMaxLocalMemArgs];
+  std::array<LocalMemArgSizeFunc, kMaxLocalMemArgs> local_mem_args_;
   int local_mem_arg_count_ = 0;
   bool local_mem_first_ = false;
 };

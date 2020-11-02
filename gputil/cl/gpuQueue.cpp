@@ -9,18 +9,19 @@
 
 #include "cl/gpuEventDetail.h"
 #include "cl/gpuQueueDetail.h"
-#include "gpuApiException.h"
 
-using namespace gputil;
+#include <clu/clu.h>
 
+namespace gputil
+{
 namespace
 {
 struct CallbackWrapper
 {
   std::function<void(void)> callback;
 
-  inline CallbackWrapper(const std::function<void(void)> &callback)
-    : callback(callback)
+  explicit inline CallbackWrapper(std::function<void(void)> callback)
+    : callback(std::move(callback))
   {}
 };
 
@@ -28,22 +29,19 @@ struct CallbackWrapper
 
 void eventCallback(cl_event /*event*/, cl_int /*status*/, void *user_data)
 {
-  CallbackWrapper *wrapper = static_cast<CallbackWrapper *>(user_data);
+  auto *wrapper = static_cast<CallbackWrapper *>(user_data);
   wrapper->callback();
-  delete wrapper;
+  // Lint(KS): No RAII option available for this
+  delete wrapper;  // NOLINT(cppcoreguidelines-owning-memory)
 }
 }  // namespace
 
-Queue::Queue()
-  : queue_(nullptr)
-{}
+Queue::Queue() = default;
 
 
 Queue::Queue(Queue &&other) noexcept
-  : queue_(other.queue_)
-{
-  other.queue_ = nullptr;
-}
+  : queue_(std::exchange(other.queue_, nullptr))
+{}
 
 
 Queue::Queue(const Queue &other)
@@ -58,15 +56,14 @@ Queue::Queue(void *platform_queue)
 {
   // Note: This code path takes ownership of an existing reference on the
   // given cl_command_queue object. It does not retain an additional reference.
-  cl_command_queue queue = static_cast<cl_command_queue>(platform_queue);
+  // Lint: linting suggest using `auto` for the type below, but cl_command_queue is a pointer typedef so it would
+  // need to be auto *. I find this misleading becuase cl_command_queue is not a pointer type.
+  cl_command_queue queue = static_cast<cl_command_queue>(platform_queue);  // NOLINT(modernize-use-auto)
   queue_->queue = queue;
 }
 
 
-Queue::~Queue()
-{
-  delete queue_;
-}
+Queue::~Queue() = default;
 
 
 bool Queue::isValid() const
@@ -104,16 +101,18 @@ void Queue::finish()
 void Queue::queueCallback(const std::function<void(void)> &callback)
 {
   CallbackWrapper *wrapper = nullptr;
-  cl_event barrier_event;
+  cl_event barrier_event{};
   cl_int clerr = 0;
 
   clerr = clEnqueueBarrierWithWaitList(queue_->queue(), 0, nullptr, &barrier_event);
   GPUAPICHECK2(clerr, CL_SUCCESS);
-  wrapper = new CallbackWrapper(callback);
+  // Lint(KS): No nice RAII alternative for this
+  wrapper = new CallbackWrapper(callback);  // NOLINT(cppcoreguidelines-owning-memory)
   clerr = clSetEventCallback(barrier_event, CL_COMPLETE, &eventCallback, wrapper);
   if (clerr)
   {
-    delete wrapper;
+    // Lint(KS): No nice RAII alternative for this
+    delete wrapper;  // NOLINT(cppcoreguidelines-owning-memory)
     GPUTHROW2(ApiException(clerr));
   }
   clerr = clReleaseEvent(barrier_event);
@@ -129,19 +128,21 @@ QueueDetail *Queue::internal() const
 
 Queue &Queue::operator=(const Queue &other)
 {
-  if (!queue_)
+  if (this != &other)
   {
-    queue_ = new QueueDetail;
+    if (!queue_)
+    {
+      queue_ = new QueueDetail;
+    }
+    queue_->queue = other.queue_->queue;
   }
-  queue_->queue = other.queue_->queue;
   return *this;
 }
 
 
 Queue &Queue::operator=(Queue &&other) noexcept
 {
-  delete queue_;
-  queue_ = other.queue_;
-  other.queue_ = nullptr;
+  queue_ = std::move(other.queue_);
   return *this;
 }
+}  // namespace gputil

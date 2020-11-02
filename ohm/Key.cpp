@@ -16,8 +16,10 @@ const Key Key::kNull(glm::ivec3(INVALID_VALUE), 0, 0, 0);  // NOLINT
 size_t Key::Hash::operator()(const Key &key) const
 {
   glm::u32vec3 hash;
+  // NOLINTNEXTLINE(readability-magic-numbers)
   hash.x = key.region_key_.x | key.region_key_.z << 16;
   hash.y = key.region_key_.y;
+  // NOLINTNEXTLINE(readability-magic-numbers)
   hash.z = key.local_[0] | key.local_[1] << 8 | key.local_[2] << 16;
   return vhash::hashBits(hash.x, hash.y, hash.z);
 }

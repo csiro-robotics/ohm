@@ -21,8 +21,6 @@
 #include <cinttypes>
 #include <iostream>
 
-using namespace gputil;
-
 namespace gputil
 {
 inline cudaStream_t selectStream(Queue *queue)
@@ -139,7 +137,7 @@ void unpin(BufferDetail &imp, void *pinned_ptr, PinMode mode, Queue *queue, Even
     return;
   }
 
-  cudaError_t err;
+  cudaError_t err = cudaSuccess;
   if (expected_pin_flags & kPinnedForWrite)
   {
     // Process the dirty list, copying regions back to the device.
@@ -191,7 +189,7 @@ void unpin(BufferDetail &imp, void *pinned_ptr, PinMode mode, Queue *queue, Even
 /// @return @c true when the synchronous, blocking code path was taken, @c false for asynchronous copy.
 bool bufferSet(void *mem, int value, size_t count, Queue *queue, Event *block_on, Event *completion)
 {
-  cudaError_t err;
+  cudaError_t err = cudaSuccess;
   if (queue)
   {
     cudaStream_t stream = queue->internal()->obj();
@@ -233,7 +231,7 @@ bool bufferSet(void *mem, int value, size_t count, Queue *queue, Event *block_on
 
 cudaError_t bufferAlloc(BufferDetail *buf, size_t alloc_size)
 {
-  cudaError_t err;
+  cudaError_t err = cudaSuccess;
 
   err = cudaMalloc(&buf->device_mem, alloc_size);
 
@@ -299,7 +297,6 @@ size_t resizeBuffer(BufferDetail *imp, size_t new_size, bool force)
 
   return imp->alloc_size;
 }
-}  // namespace gputil
 
 Buffer::Buffer()
   : imp_(new BufferDetail)
@@ -409,7 +406,7 @@ void Buffer::fill(const void *pattern, size_t pattern_size, Queue *queue, Event 
     else
     {
       size_t wrote = 0;
-      uint8_t *dst_mem = static_cast<uint8_t *>(imp_->device_mem);
+      auto *dst_mem = static_cast<uint8_t *>(imp_->device_mem);
       while (wrote + pattern_size < imp_->alloc_size)
       {
         bufferCopy(dst_mem + wrote, pattern, pattern_size, cudaMemcpyHostToDevice, queue, block_on, nullptr);
@@ -485,6 +482,7 @@ size_t Buffer::read(void *dst, size_t read_byte_count, size_t src_offset, Queue 
       copy_bytes = imp_->alloc_size - src_offset;
     }
 
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
     bufferCopy(dst, reinterpret_cast<const uint8_t *>(imp_->device_mem) + src_offset, copy_bytes,
                cudaMemcpyDeviceToHost, queue, block_on, completion);
   }
@@ -509,6 +507,7 @@ size_t Buffer::write(const void *src, size_t write_byte_count, size_t dst_offset
       copy_bytes = imp_->alloc_size - dst_offset;
     }
 
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
     bufferCopy(reinterpret_cast<uint8_t *>(imp_->device_mem) + dst_offset, src, copy_bytes, cudaMemcpyHostToDevice,
                queue, block_on, completion);
   }
@@ -524,8 +523,10 @@ size_t Buffer::readElements(void *dst, size_t element_size, size_t element_count
     return read(dst, element_size * element_count, offset_elements * element_size, queue, block_on, completion);
   }
 
-  const uint8_t *src = reinterpret_cast<const uint8_t *>(imp_->device_mem);
-  uint8_t *dst2 = reinterpret_cast<uint8_t *>(dst);
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+  const auto *src = reinterpret_cast<const uint8_t *>(imp_->device_mem);
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+  auto *dst2 = reinterpret_cast<uint8_t *>(dst);
   size_t copy_size = std::min(element_size, buffer_element_size);
   size_t src_offset = 0;
 
@@ -552,8 +553,10 @@ size_t Buffer::writeElements(const void *src, size_t element_size, size_t elemen
     return write(src, element_size * element_count, offset_elements * element_size, queue, block_on, completion);
   }
 
-  uint8_t *dst = reinterpret_cast<uint8_t *>(imp_->device_mem);
-  const uint8_t *src2 = reinterpret_cast<const uint8_t *>(src);
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+  auto *dst = reinterpret_cast<uint8_t *>(imp_->device_mem);
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+  const auto *src2 = reinterpret_cast<const uint8_t *>(src);
   size_t copy_size = std::min(element_size, buffer_element_size);
   size_t dst_offset = 0;
 
@@ -584,8 +587,6 @@ void *Buffer::address() const
 }
 
 
-namespace gputil
-{
 size_t copyBuffer(Buffer &dst, const Buffer &src, Queue *queue, Event *block_on, Event *completion)
 {
   return copyBuffer(dst, 0, src, 0, src.size(), queue, block_on, completion);

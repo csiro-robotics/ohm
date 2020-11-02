@@ -91,9 +91,8 @@ public:
   /// @param target_gpu_mem_size The maximum allowed buffer size (bytes).
   /// @param flags Creation flags: see @c GpuLayerCacheFlag . @c GCFRead is currently mandatory.
   /// @param on_sync Defines a function to invoke after a @c MapChunk is synched to main memory (CPU).
-  GpuLayerCache(const gputil::Device &gpu, const gputil::Queue &gpu_queue,
-                OccupancyMap &map,  // NOLINT(google-runtime-references)
-                unsigned layer_index, size_t target_gpu_mem_size, unsigned flags,
+  GpuLayerCache(const gputil::Device &gpu, const gputil::Queue &gpu_queue, OccupancyMap &map, unsigned layer_index,
+                size_t target_gpu_mem_size, unsigned flags,
                 GpuCachePostSyncHandler on_sync = GpuCachePostSyncHandler());
 
   /// Release the GPU cache. Does not synchronise to host memory.
@@ -145,9 +144,8 @@ public:
   /// @param flags a combination of @c CacheFlag flag values.
   /// @return The byte offset into @c buffer() where the region is being uploaded. ~0u on
   ///     failure to upload as determined by the use of the @p batchMarker.
-  size_t allocate(OccupancyMap &map,                                 // NOLINT(google-runtime-references)
-                  const glm::i16vec3 &region_key, MapChunk *&chunk,  // NOLINT(google-runtime-references)
-                  gputil::Event *event, CacheStatus *status = nullptr, unsigned batch_marker = 0, unsigned flags = 0u);
+  size_t allocate(OccupancyMap &map, const glm::i16vec3 &region_key, MapChunk *&chunk, gputil::Event *event,
+                  CacheStatus *status = nullptr, unsigned batch_marker = 0, unsigned flags = 0u);
 
   /// Queue upload of voxel data from the @c MapChunk identified by @c regionKey to GPU.
   /// Uploads voxel data for the @c MapChunk voxel layer given by @c layerIndex().
@@ -179,9 +177,8 @@ public:
   /// @param flags a combination of @c CacheFlag flag values.
   /// @return The byte offset into @c buffer() where the region is being uploaded. ~0u on
   ///     failure to upload as determined by the use of the @p batchMarker.
-  size_t upload(OccupancyMap &map,                                 // NOLINT(google-runtime-references)
-                const glm::i16vec3 &region_key, MapChunk *&chunk,  // NOLINT(google-runtime-references)
-                gputil::Event *event, CacheStatus *status = nullptr, unsigned batch_marker = 0, unsigned flags = 0u);
+  size_t upload(OccupancyMap &map, const glm::i16vec3 &region_key, MapChunk *&chunk, gputil::Event *event,
+                CacheStatus *status = nullptr, unsigned batch_marker = 0, unsigned flags = 0u);
 
   /// Lookup the cache to see if the chunk identified by @p regionKey is present in the cache.
   ///
@@ -197,8 +194,8 @@ public:
   /// @param[out] current_event Set to the most recent GPU data manipulation event associated with this chunk.
   ///   May be null.
   /// @return True if the region is cached, false otherwise.
-  bool lookup(OccupancyMap &map,  // NOLINT(google-runtime-references)
-              const glm::i16vec3 &region_key, size_t *offset, gputil::Event *current_event = nullptr);
+  bool lookup(OccupancyMap &map, const glm::i16vec3 &region_key, size_t *offset,
+              gputil::Event *current_event = nullptr);
 
   /// Access the GPU memory buffer to which regions are uploaded. Required as an argument to GPU kernels.
   /// @return The cache's region GPU buffer.
@@ -214,12 +211,12 @@ public:
   ///
   /// @param chunk The map chunk to update the most recent event for.
   /// @param event The most recent event to associate with @p chunk.
-  void updateEvent(MapChunk &chunk, gputil::Event &event);  // NOLINT(google-runtime-references)
+  void updateEvent(MapChunk &chunk, gputil::Event &event);
 
   /// Update the event for all cached regions marked with @p batchMarker (see @c upload()).
   /// @param batch_marker The maker to match against.
   /// @param event The most recent event to associate.
-  void updateEvents(unsigned batch_marker, gputil::Event &event);  // NOLINT(google-runtime-references)
+  void updateEvents(unsigned batch_marker, gputil::Event &event);
 
   /// Remove data associated with @p region_key from the cache.
   /// This will block until outstanding operations relating to @p chunk complete, but will not explicitly sync data
@@ -300,9 +297,7 @@ public:
 private:
   /// Internal cache resolution/allocation function. The @p upload flag controls whether the call
   /// just makes space for the chunk, or if it uploads data s well.
-  GpuCacheEntry *resolveCacheEntry(OccupancyMap &map,  // NOLINT(google-runtime-references)
-                                   const glm::i16vec3 &region_key,
-                                   MapChunk *&chunk,  // NOLINT(google-runtime-references)
+  GpuCacheEntry *resolveCacheEntry(OccupancyMap &map, const glm::i16vec3 &region_key, MapChunk *&chunk,
                                    gputil::Event *event, CacheStatus *status, unsigned batch_marker, unsigned flags,
                                    bool upload);
 
@@ -314,7 +309,7 @@ private:
   /// When @p wait_on_sync is false, the caller must resolve calling the @c GpuCachePostSyncHandler.
   /// @param entry The cache entry.
   /// @param wait_on_sync Wait for sync to finish?
-  void syncToMainMemory(GpuCacheEntry &entry, bool wait_on_sync);  // NOLINT(google-runtime-references)
+  void syncToMainMemory(GpuCacheEntry &entry, bool wait_on_sync);
 
   GpuCacheEntry *findCacheEntry(const glm::i16vec3 &region_key);
   const GpuCacheEntry *findCacheEntry(const glm::i16vec3 &region_key) const;

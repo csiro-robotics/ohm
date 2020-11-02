@@ -73,6 +73,7 @@ int loadMapInfo(InputStream &in, MapInfo &info)  //, const bool endianSwap)
 int loadItem(InputStream &in, MapValue &value)  //, const bool endianSwap)
 {
   uint16_t len16;
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
   in.read(reinterpret_cast<char *>(&len16), sizeof(len16));
   // if (endianSwap)
   // {
@@ -89,24 +90,28 @@ int loadItem(InputStream &in, MapValue &value)  //, const bool endianSwap)
   delete[] str;
 
   uint8_t type;
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
   in.read(reinterpret_cast<char *>(&type), 1);
 
   switch (type)
   {
   case MapValue::kInt8: {
     int8_t val;
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
     in.read(reinterpret_cast<char *>(&val), 1);
     value = val;
     break;
   }
   case MapValue::kUInt8: {
     uint8_t val;
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
     in.read(reinterpret_cast<char *>(&val), 1);
     value = val;
     break;
   }
   case MapValue::kInt16: {
     int16_t val;
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
     in.read(reinterpret_cast<char *>(&val), sizeof(val));
     // if (endianSwap) { endian::endianSwap(&val); }
     value = val;
@@ -114,6 +119,7 @@ int loadItem(InputStream &in, MapValue &value)  //, const bool endianSwap)
   }
   case MapValue::kUInt16: {
     uint16_t val;
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
     in.read(reinterpret_cast<char *>(&val), sizeof(val));
     // if (endianSwap) { endian::endianSwap(&val); }
     value = val;
@@ -121,6 +127,7 @@ int loadItem(InputStream &in, MapValue &value)  //, const bool endianSwap)
   }
   case MapValue::kInt32: {
     int32_t val;
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
     in.read(reinterpret_cast<char *>(&val), sizeof(val));
     // if (endianSwap) { endian::endianSwap(&val); }
     value = val;
@@ -128,6 +135,7 @@ int loadItem(InputStream &in, MapValue &value)  //, const bool endianSwap)
   }
   case MapValue::kUInt32: {
     uint32_t val;
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
     in.read(reinterpret_cast<char *>(&val), sizeof(val));
     // if (endianSwap) { endian::endianSwap(&val); }
     value = val;
@@ -135,6 +143,7 @@ int loadItem(InputStream &in, MapValue &value)  //, const bool endianSwap)
   }
   case MapValue::kInt64: {
     int64_t val;
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
     in.read(reinterpret_cast<char *>(&val), sizeof(val));
     // if (endianSwap) { endian::endianSwap(&val); }
     value = val;
@@ -142,6 +151,7 @@ int loadItem(InputStream &in, MapValue &value)  //, const bool endianSwap)
   }
   case MapValue::kUInt64: {
     uint64_t val;
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
     in.read(reinterpret_cast<char *>(&val), sizeof(val));
     // if (endianSwap) { endian::endianSwap(&val); }
     value = val;
@@ -149,6 +159,7 @@ int loadItem(InputStream &in, MapValue &value)  //, const bool endianSwap)
   }
   case MapValue::kFloat32: {
     float val;
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
     in.read(reinterpret_cast<char *>(&val), sizeof(val));
     // if (endianSwap) { endian::endianSwap(&val); }
     value = val;
@@ -156,6 +167,7 @@ int loadItem(InputStream &in, MapValue &value)  //, const bool endianSwap)
   }
   case MapValue::kFloat64: {
     double val;
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
     in.read(reinterpret_cast<char *>(&val), sizeof(val));
     // if (endianSwap) { endian::endianSwap(&val); }
     value = val;
@@ -163,6 +175,7 @@ int loadItem(InputStream &in, MapValue &value)  //, const bool endianSwap)
   }
   case MapValue::kBoolean: {
     uint8_t val;
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
     in.read(reinterpret_cast<char *>(&val), 1);
     if (val)
     {
@@ -175,6 +188,7 @@ int loadItem(InputStream &in, MapValue &value)  //, const bool endianSwap)
     break;
   }
   case MapValue::kString: {
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
     in.read(reinterpret_cast<char *>(&len16), sizeof(len16));
     // if (endianSwap)
     // {

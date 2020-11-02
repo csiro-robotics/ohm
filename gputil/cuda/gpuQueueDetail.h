@@ -22,7 +22,7 @@ struct QueueDetail : public Ref<cudaStream_t>
     : Ref<cudaStream_t>(obj, initial_ref_count, release)
   {}
 
-  inline QueueDetail(Ref &&other)
+  explicit inline QueueDetail(Ref &&other)
     : Ref<cudaStream_t>(std::move(other))
   {}
 

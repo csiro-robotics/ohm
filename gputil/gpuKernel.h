@@ -38,7 +38,7 @@ struct gputilAPI Dim3
   /// @param x The x item count.
   /// @param y The y item count.
   /// @param z The z item count.
-  Dim3(size_t x, size_t y = 1, size_t z = 1)
+  Dim3(size_t x, size_t y = 1u, size_t z = 1u)  // NOLINT(google-explicit-constructor)
     : x(x)
     , y(y)
     , z(z)
@@ -114,14 +114,14 @@ struct gputilAPI BufferArg
 
   /// Constructor.
   /// @param buffer The buffer to wrap.
-  inline BufferArg(Buffer &buffer)  // NOLINT(google-runtime-references)
+  explicit inline BufferArg(Buffer &buffer)
     : buffer(&buffer)
   {}
 
   /// Alternative constructor supporting a null buffer argument. Passing NULL ensures the kernel argument on device
   /// is also null.
   /// @param buffer A pointer to the buffer to wrap or null for a null argument on device.
-  inline BufferArg(Buffer *buffer = nullptr)
+  explicit inline BufferArg(Buffer *buffer = nullptr)
     : buffer(buffer)
   {}
 
@@ -165,6 +165,10 @@ public:
   /// Move constructor
   /// @param other The object to move.
   Kernel(Kernel &&other) noexcept;
+
+  Kernel(const Kernel &other) = delete;
+
+  Kernel &operator=(const Kernel &other) = delete;
 
   /// Destuctor - ensures @c release() is called.
   ~Kernel();
@@ -233,9 +237,7 @@ public:
   /// @param args Arguments to pass to the kernel.
   /// @return Zero on success or an SDK error code on falure - e.g., @c cudaSuccess .
   template <typename... ARGS>
-  int operator()(const Dim3 &global_size, const Dim3 &local_size,
-                 Event &completion_event,  // NOLINT(google-runtime-references)
-                 Queue *queue, ARGS... args);
+  int operator()(const Dim3 &global_size, const Dim3 &local_size, Event &completion_event, Queue *queue, ARGS... args);
 
   /// Queue an invocation of the kernel to start after all @p event_list items complete.
   /// @param global_size The global dimensions of the of GPU thread pool to run the the kernel with.
@@ -261,7 +263,7 @@ public:
   /// @return Zero on success or an SDK error code on falure - e.g., @c cudaSuccess .
   template <typename... ARGS>
   int operator()(const Dim3 &global_size, const Dim3 &local_size, const EventList &event_list, Event &completion_event,
-                 Queue *queue, ARGS... args);  // NOLINT(google-runtime-references)
+                 Queue *queue, ARGS... args);
 
   /// Internal kernel representation.
   /// @return The internal representation.

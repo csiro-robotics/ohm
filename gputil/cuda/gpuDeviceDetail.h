@@ -19,13 +19,9 @@ namespace gputil
 {
 struct DeviceDetail
 {
-  int device;
+  int device = -1;
   std::string name;
   DeviceInfo info;
-
-  inline DeviceDetail()
-    : device(-1)
-  {}
 };
 }  // namespace gputil
 

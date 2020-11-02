@@ -78,7 +78,7 @@ struct ohm_API HeightmapDetail
   static const glm::dvec3 &surfaceNormalB(UpAxis axis_id);
 
   void fromMapInfo(const MapInfo &info);
-  void toMapInfo(MapInfo &info) const;  // NOLINT(google-runtime-references)
+  void toMapInfo(MapInfo &info) const;
 };
 
 

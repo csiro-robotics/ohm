@@ -52,25 +52,25 @@ class PointStream : public pdal::StreamPointTable
 {
 public:
   PointStream(size_t buffer_capacity)
-    : pdal::StreamPointTable(_layout, buffer_capacity)
+    : pdal::StreamPointTable(layout_, buffer_capacity)
   {
     // Register for the data we are interested in
-    _buffers[0].reserve(buffer_capacity);
-    _buffers[1].reserve(buffer_capacity);
+    buffers_[0].reserve(buffer_capacity);
+    buffers_[1].reserve(buffer_capacity);
     // Start with flipping allowed.
-    _flip_wait.notify_one();
+    flip_wait_.notify_one();
   }
 
   /// Called when execute() is started.  Typically used to set buffer size
   /// when all dimensions are known.
   void finalize() override
   {
-    if (!_layout.finalized())
+    if (!layout_.finalized())
     {
       // Validate the dimensions.
       bool have_required_dimensions = true;
-      if (!_layout.hasDim(pdal::Dimension::Id::X) || !_layout.hasDim(pdal::Dimension::Id::Y) ||
-          !_layout.hasDim(pdal::Dimension::Id::Z))
+      if (!layout_.hasDim(pdal::Dimension::Id::X) || !layout_.hasDim(pdal::Dimension::Id::Y) ||
+          !layout_.hasDim(pdal::Dimension::Id::Z))
       {
         have_required_dimensions = false;
       }
@@ -81,7 +81,7 @@ public:
       const std::string time_dim_names[] = { "time", "timestamp" };
       for (const auto &time_name : time_dim_names)
       {
-        dim = _layout.findDim(time_name);
+        dim = layout_.findDim(time_name);
         if (dim != pdal::Dimension::Id::Unknown)
         {
           break;
@@ -96,7 +96,7 @@ public:
                                                  pdal::Dimension::Id::OffsetTime };
         for (const auto &time_dim : time_ids)
         {
-          if (_layout.hasDim(time_dim))
+          if (layout_.hasDim(time_dim))
           {
             dim = time_dim;
             break;
@@ -107,50 +107,50 @@ public:
       if (dim != pdal::Dimension::Id::Unknown)
       {
         // Resolved time field.
-        _time_dimension = dim;
+        time_dimension_ = dim;
       }
       else
       {
         have_required_dimensions = false;
       }
 
-      _valid_dimensions = have_required_dimensions;
+      valid_dimensions_ = have_required_dimensions;
 
-      _layout.finalize();
+      layout_.finalize();
       pdal::StreamPointTable::finalize();
     }
   }
 
   bool nextPoint(glm::dvec4 *point)
   {
-    std::unique_lock<std::mutex> guard(_buffer_mutex);
-    const int read_buffer = 1 - _write_index;
-    const unsigned read_index = _next_read;
+    std::unique_lock<std::mutex> guard(buffer_mutex_);
+    const int read_buffer = 1 - write_index_;
+    const unsigned read_index = next_read_;
     bool have_read = false;
-    if (_next_read < _buffers[read_buffer].size())
+    if (next_read_ < buffers_[read_buffer].size())
     {
-      *point = _buffers[read_buffer][read_index];
-      ++_next_read;
+      *point = buffers_[read_buffer][read_index];
+      ++next_read_;
       have_read = true;
     }
     guard.unlock();
-    _flip_wait.notify_one();
+    flip_wait_.notify_one();
     return have_read;
   }
 
-  inline bool isValid() const { return _valid_dimensions; }
+  inline bool isValid() const { return valid_dimensions_; }
 
   /// True once we have data available for reading.
-  inline bool haveData() const { return _have_data; }
+  inline bool haveData() const { return have_data_; }
 
   /// True once loading has been completed (@c markLoadComplete() called) and the read index is at the end of the
   /// read buffer.
   inline bool done()
   {
-    if (_loading_complete)
+    if (loading_complete_)
     {
-      std::unique_lock<std::mutex> guard(_buffer_mutex);
-      return _next_read >= _buffers[1 - _write_index].size();
+      std::unique_lock<std::mutex> guard(buffer_mutex_);
+      return next_read_ >= buffers_[1 - write_index_].size();
     }
     return false;
   }
@@ -158,12 +158,12 @@ public:
   /// Mark for abort. No more data points are stored.
   inline void abort()
   {
-    _abort = true;
-    _flip_wait.notify_all();
+    abort_ = true;
+    flip_wait_.notify_all();
   }
 
   /// Mark loading as done: only to be called from the loading thread.
-  inline void markLoadComplete() { _loading_complete = true; }
+  inline void markLoadComplete() { loading_complete_ = true; }
 
 protected:
   // Not supported
@@ -171,9 +171,9 @@ protected:
 
   void setFieldInternal(pdal::Dimension::Id dim, pdal::PointId idx, const void *val) override
   {
-    if (!_abort)
+    if (!abort_)
     {
-      auto &buffer = _buffers[_write_index];
+      auto &buffer = buffers_[write_index_];
       while (buffer.size() <= idx)
       {
         buffer.emplace_back();
@@ -193,7 +193,7 @@ protected:
         point.z = *static_cast<const double *>(val);
         break;
       default:
-        if (dim == _time_dimension)
+        if (dim == time_dimension_)
         {
           point.w = *static_cast<const double *>(val);
         }
@@ -205,32 +205,32 @@ protected:
   /// Called whenever the buffer capacity is filled before starting on the next block.
   void reset() override
   {
-    if (!_abort)
+    if (!abort_)
     {
-      std::unique_lock<std::mutex> guard(_buffer_mutex);
-      const int read_buffer = 1 - _write_index;
-      _flip_wait.wait(guard, [this, read_buffer]() { return _abort || _next_read >= _buffers[read_buffer].size(); });
-      _write_index = read_buffer;
-      _buffers[read_buffer].clear();
-      _next_read = 0;
-      _have_data = true;
+      std::unique_lock<std::mutex> guard(buffer_mutex_);
+      const int read_buffer = 1 - write_index_;
+      flip_wait_.wait(guard, [this, read_buffer]() { return abort_ || next_read_ >= buffers_[read_buffer].size(); });
+      write_index_ = read_buffer;
+      buffers_[read_buffer].clear();
+      next_read_ = 0;
+      have_data_ = true;
     }
   }
 
 private:
   // Double buffer to allow background thread streaming.
   // Use w channel for timetstamp
-  std::vector<glm::dvec4> _buffers[2];
-  pdal::Dimension::Id _time_dimension{ pdal::Dimension::Id::GpsTime };
-  std::atomic_uint _next_read{ 0 };
-  std::atomic_int _write_index{ 0 };
-  pdal::PointLayout _layout;
-  std::mutex _buffer_mutex;
-  std::condition_variable _flip_wait;
-  std::atomic_bool _have_data{ false };
-  std::atomic_bool _loading_complete{ false };
-  std::atomic_bool _abort{ false };
-  std::atomic_bool _valid_dimensions{ false };
+  std::vector<glm::dvec4> buffers_[2];
+  pdal::Dimension::Id time_dimension_{ pdal::Dimension::Id::GpsTime };
+  std::atomic_uint next_read_{ 0 };
+  std::atomic_int write_index_{ 0 };
+  pdal::PointLayout layout_;
+  std::mutex buffer_mutex_;
+  std::condition_variable flip_wait_;
+  std::atomic_bool have_data_{ false };
+  std::atomic_bool loading_complete_{ false };
+  std::atomic_bool abort_{ false };
+  std::atomic_bool valid_dimensions_{ false };
 };
 }  // namespace
 
@@ -282,8 +282,7 @@ std::string getFileExtension(const std::string &file)
   return "";
 }
 
-std::shared_ptr<pdal::Streamable> createReader(pdal::StageFactory &factory,  // NOLINT(google-runtime-references)
-                                               const std::string &file_name)
+std::shared_ptr<pdal::Streamable> createReader(pdal::StageFactory &factory, const std::string &file_name)
 {
   const std::string ext = getFileExtension(file_name);
   std::string reader_type;

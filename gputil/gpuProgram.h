@@ -8,6 +8,7 @@
 
 #include "gpuConfig.h"
 
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -47,10 +48,13 @@ public:
   /// Create a program to run on @p device and refered to as @c program_name .
   /// @param device The @c Device to bind the program to.
   /// @param program_name The reference name for the program.
-  Program(Device &device, const char *program_name);  // NOLINT(google-runtime-references)
+  Program(Device &device, const char *program_name);
   /// Move constructor.
   /// @param other The object to move.
   Program(Program &&other) noexcept;
+  /// Copy constructor.
+  /// @param other The object to copy.
+  Program(const Program &other);
 
   /// Destuctor - releases the GPU program.
   ~Program();
@@ -81,10 +85,10 @@ public:
 
   /// Internal program details.
   /// @return Internal details.
-  inline ProgramDetail *detail() { return imp_; }
+  inline ProgramDetail *detail() { return imp_.get(); }
   /// Internal program details.
   /// @return Internal details.
-  inline const ProgramDetail *detail() const { return imp_; }
+  inline const ProgramDetail *detail() const { return imp_.get(); }
 
   /// Copy assignment. Increments the program reference count.
   /// @param other The program to copy.
@@ -96,7 +100,7 @@ public:
   Program &operator=(Program &&other) noexcept;
 
 private:
-  ProgramDetail *imp_;
+  std::unique_ptr<ProgramDetail> imp_;
 };
 }  // namespace gputil
 

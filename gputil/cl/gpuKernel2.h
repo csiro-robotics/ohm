@@ -31,9 +31,10 @@ namespace clu
 template <>
 struct KernelArgHandler<gputil::Buffer>
 {
-  static cl_int set(cl::Kernel &kernel, int arg_index,  // NOLINT(google-runtime-references)
-                    const gputil::Buffer &arg)
+  static cl_int set(cl::Kernel &kernel, int arg_index, const gputil::Buffer &arg)
   {
+    // Lint: explicitly need size of pointer.
+    // NOLINTNEXTLINE(bugprone-sizeof-expression)
     return ::clSetKernelArg(kernel(), arg_index, sizeof(arg.detail()->buffer()), &arg.detail()->buffer());
   }
 };
@@ -42,15 +43,18 @@ struct KernelArgHandler<gputil::Buffer>
 template <typename T>
 struct KernelArgHandler<gputil::BufferArg<T>>
 {
-  static cl_int set(cl::Kernel &kernel, int arg_index,  // NOLINT(google-runtime-references)
-                    const gputil::BufferArg<T> &arg)
+  static cl_int set(cl::Kernel &kernel, int arg_index, const gputil::BufferArg<T> &arg)
   {
     if (arg.buffer)
     {
       cl::Buffer &buffer = arg.buffer->detail()->buffer;
+      // Lint: explicitly need size of pointer.
+      // NOLINTNEXTLINE(bugprone-sizeof-expression)
       return ::clSetKernelArg(kernel(), arg_index, sizeof(buffer()), &buffer());
     }
     cl_mem null_mem = nullptr;
+    // Lint: explicitly need size of pointer.
+    // NOLINTNEXTLINE(bugprone-sizeof-expression)
     return ::clSetKernelArg(kernel(), arg_index, sizeof(null_mem), null_mem);
   }
 };
@@ -117,6 +121,9 @@ int Kernel::operator()(const Dim3 &global_size, const Dim3 &local_size, const Ev
   // TODO(KS): RAIA for this while avoiding a head allocation.
   for (unsigned i = 0; i < events_clu.event_count; ++i)
   {
+    // Lint: the explicit desctructor call doesn't read well when we need to explicitly idnetify the namespace and
+    // class. Just diable lint warning - very local.
+    // NOLINTNEXTLINE(google-build-using-namespace)
     using namespace cl;
     // Call destructor in stack allocation.
     events_clu.wait_on_events[i].~Event();
@@ -155,7 +162,9 @@ int Kernel::operator()(const Dim3 &global_size, const Dim3 &local_size, const Ev
   // TODO(KS): RAIA for this while avoiding a head allocation.
   for (unsigned i = 0; i < events_clu.event_count; ++i)
   {
-    using namespace cl;
+    // Lint: the explicit desctructor call doesn't read well when we need to explicitly idnetify the namespace and
+    // class. Just diable lint warning - very local.
+    using namespace cl;  // NOLINT(google-build-using-namespace)
     // Call destructor in stack allocation.
     events_clu.wait_on_events[i].~Event();
   }
@@ -168,7 +177,7 @@ int Kernel::operator()(const Dim3 &global_size, const Dim3 &local_size, const Ev
 
 
 class Program;
-Kernel openCLKernel(Program &program, const char *kernel_name);  // NOLINT(google-runtime-references)
+Kernel openCLKernel(Program &program, const char *kernel_name);
 }  // namespace gputil
 
 #endif  // GPUKERNEL2_H

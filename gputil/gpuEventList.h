@@ -10,6 +10,7 @@
 
 #include "gpuEvent.h"
 
+#include <array>
 #include <initializer_list>
 
 namespace gputil
@@ -44,12 +45,15 @@ public:
   /// @param events The list of events to add.
   EventList(std::initializer_list<const Event *> events);
 
+  EventList(const EventList &other) = delete;
+  EventList &operator=(const EventList &other) = delete;
+
   /// Destructor - releases any reference counts for events in the list.
   ~EventList();
 
   /// Request a pointer to the event array. There are @c count() elements.
   /// @return The event array.
-  const Event *events() const { return (!extended_) ? events_ : extended_; }
+  const Event *events() const { return (!extended_) ? events_.data() : extended_; }
 
   /// Query the number of events in the list.
   /// @return The number of events in the list.
@@ -86,13 +90,13 @@ public:
 
 private:
   /// Event short list. Only valid when _count <= ShortCount
-  Event events_[kShortCount];
+  std::array<Event, kShortCount> events_;
   /// Number of events in the list.
-  size_t count_;
+  size_t count_ = 0;
   /// Capacity of _extended. Only used when _extended is valid.
-  size_t capacity_;
+  size_t capacity_ = 0;
   /// Extended list. Allocated when the number of events is ShortCount or greater.
-  Event *extended_;
+  Event *extended_ = nullptr;
 };
 }  // namespace gputil
 

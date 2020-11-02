@@ -16,7 +16,7 @@
 
 namespace
 {
-using real = double;
+using real = double;  // NOLINT(readability-identifier-naming)
 
 struct Options
 {

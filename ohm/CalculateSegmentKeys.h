@@ -49,10 +49,7 @@ struct ohm_API WalkKeyAdaptor
   /// @param key The key to modify.
   /// @param axis The axis to modifier where 0, 1, 2 map to X, Y, Z respectively.
   /// @param dir The direction to step: must be 1 or -1
-  inline void stepKey(ohm::Key &key, int axis, int dir) const  // NOLINT(google-runtime-references)
-  {
-    map.stepKey(key, axis, dir);
-  }
+  inline void stepKey(ohm::Key &key, int axis, int dir) const { map.stepKey(key, axis, dir); }
   /// Query the voxel resolution.
   /// @return The voxel resolution.
   inline double voxelResolution(int /*axis*/) const { return map.resolution(); }

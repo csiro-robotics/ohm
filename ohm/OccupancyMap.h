@@ -428,9 +428,9 @@ public:
   ///
   /// In both cases the GPU cache is invalidated.
   ///
-  /// @param newLayout The map layout to update to.
+  /// @param new_layout The map layout to update to.
   /// @param preserve_map Try to preserve the map content for equivalent layers?
-  void updateLayout(const MapLayout &newLayout, bool preserve_map = true);
+  void updateLayout(const MapLayout &new_layout, bool preserve_map = true);
 
   /// Query the number of regions in the map which have been touched.
   /// @return The number of regions in the map.
@@ -694,7 +694,7 @@ public:
   /// @param key The key to move.
   /// @param axis The axis to move along: [0, 1, 2] mapping to X, Y, Z respectively.
   /// @param step Defines the step direction and magnitude along the selected @p axis.
-  void moveKeyAlongAxis(Key &key, int axis, int step) const;  // NOLINT(google-runtime-references)
+  void moveKeyAlongAxis(Key &key, int axis, int step) const;
 
   /// Step the @p key along the @p axis in the given @p dir.
   ///
@@ -703,7 +703,7 @@ public:
   /// @param key The key to modify.
   /// @param axis The axis to modify. Must be [0, 2] mapping to XYZ respectively, or behaviour is undefined.
   /// @param dir Direction to step. Must be 1 or -1 or behaviour is undefined.
-  void stepKey(Key &key, int axis, int dir) const;  // NOLINT(google-runtime-references)
+  void stepKey(Key &key, int axis, int dir) const;
 
   /// Move an @c Key by a given offset.
   ///
@@ -722,11 +722,11 @@ public:
   /// @param x The voxel offset to apply to @p key on the X axis.
   /// @param y The voxel offset to apply to @p key on the Y axis.
   /// @param z The voxel offset to apply to @p key on the X axis.
-  void moveKey(Key &key, int x, int y, int z) const;  // NOLINT(google-runtime-references)
+  void moveKey(Key &key, int x, int y, int z) const;
 
   /// @overload
-  template <typename VEC_TYPE>
-  inline void moveKey(Key &key, const VEC_TYPE &v) const  // NOLINT(google-runtime-references)
+  template <typename VecType>
+  inline void moveKey(Key &key, const VecType &v) const
   {
     moveKey(key, v.x, v.y, v.z);
   }
@@ -751,8 +751,7 @@ public:
   /// @param include_end_point @c true to incldue the voxel containing @p endPoint, @c false to exclude this
   ///   voxel from @p keys.
   /// @return The number of voxels added to @p keys.
-  size_t calculateSegmentKeys(KeyList &keys,  // NOLINT(google-runtime-references)
-                              const glm::dvec3 &start_point, const glm::dvec3 &end_point,
+  size_t calculateSegmentKeys(KeyList &keys, const glm::dvec3 &start_point, const glm::dvec3 &end_point,
                               bool include_end_point = true) const;
 
   /// Set the range filter applied to all rays to be integrated into the map. @c RayMapper implementations must
@@ -805,7 +804,7 @@ public:
 
   /// Enumerate the regions within this map.
   /// @param[out] chunks The enumerated chunks are added to this container.
-  void enumerateRegions(std::vector<const MapChunk *> &chunks) const;  // NOLINT(google-runtime-references)
+  void enumerateRegions(std::vector<const MapChunk *> &chunks) const;
 
   /// Fetch a region, potentially creating it. For internal use.
   /// @param region_key The key of the region to fetch.
@@ -822,9 +821,7 @@ public:
   ///
   /// @param from_stamp The map stamp value from which to fetch regions.
   /// @param regions The list to add to.
-  unsigned collectDirtyRegions(
-    uint64_t from_stamp, std::vector<std::pair<uint64_t, glm::i16vec3>> &regions  // NOLINT(google-runtime-references)
-  ) const;
+  unsigned collectDirtyRegions(uint64_t from_stamp, std::vector<std::pair<uint64_t, glm::i16vec3>> &regions) const;
 
   /// Experimental: calculate the extents of regions which have been changed since @c from_stamp .
   /// @param from_stamp The base stamp used to determine dirty regions.

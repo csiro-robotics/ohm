@@ -51,7 +51,7 @@ public:
   /// Called to update the process on the given map and limited processing time.
   /// @param map The map to target.
   /// @param time_slice Time processing limit for the update (seconds).
-  virtual int update(OccupancyMap &map, double time_slice) = 0;  // NOLINT(google-runtime-references)
+  virtual int update(OccupancyMap &map, double time_slice) = 0;
 
 private:
   bool paused_;

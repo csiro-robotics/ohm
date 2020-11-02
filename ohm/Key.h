@@ -40,12 +40,17 @@ public:
   };
   friend Hash;  ///< Friend specifier for @c Hash .
 
-  /// Construct a garbage key.
-  Key();
+  /// Construct a garbage key. Does not initialise member variables for performance reasons.
+  inline Key() = default;  // NOLINT(cppcoreguidelines-pro-type-member-init)
+
+  /// Copy constructor
+  /// @param other Key to copy.
+  Key(const Key &other);
+
   /// Construct a @c null key, but only if passed a @c nullptr. Passing a non-null pointer
   /// has undefined results.
   /// @param ptr Must be @c nullptr for defined results.
-  Key(void *ptr);
+  explicit Key(void *ptr);
 
   /// Construct a key for a region.
   /// @param rx The x coordinate for the region key.
@@ -67,6 +72,8 @@ public:
   /// @param region_key Initialises the region key part of the key.
   /// @param local_key Initialises the local key part of the key.
   Key(const glm::i16vec3 &region_key, const glm::u8vec3 &local_key);
+
+  ~Key() = default;
 
   /// Calculates the hash value of the @c regionKey(), used to lookup a @c MapChunk.
   /// @return The hash of the @c regionKey() part.
@@ -211,9 +218,6 @@ private:
   glm::u8vec3 local_;
 };
 
-inline Key::Key() = default;  // NOLINT
-
-
 inline Key::Key(int16_t rx, int16_t ry, int16_t rz, uint8_t x, uint8_t y, uint8_t z)
   : Key(glm::i16vec3(rx, ry, rz), glm::u8vec3(x, y, z))
 {}
@@ -227,6 +231,15 @@ inline Key::Key(const glm::i16vec3 &region_key, uint8_t x, uint8_t y, uint8_t z)
 inline Key::Key(const glm::i16vec3 &region_key, const glm::u8vec3 &local_key)
   : region_key_(region_key)
   , local_(local_key)
+{}
+
+
+// clang-tidy reports cppcoreguidelines-pro-type-member-init that the members are not initialised.
+// However, the unrolled the constructor raises modernize-use-equals-default.
+// Using the unrolled version and suppressing the warning.
+inline Key::Key(const Key &other)  // NOLINT(modernize-use-equals-default)
+  : region_key_(other.region_key_)
+  , local_(other.local_)
 {}
 
 
@@ -319,14 +332,16 @@ inline bool Key::operator!=(const Key &other) const
 inline bool Key::operator<(const Key &other) const
 {
   // Linearise the region index.
-  uint64_t region_a, region_b;
-  region_a = uint64_t(int(region_key_.x) + 0xffff) | (uint64_t(int(region_key_.y) + 0xffff) << 16) |
-             (uint64_t(int(region_key_.z) + 0xffff) << 32);
-  region_b = uint64_t(int(other.region_key_.x) + 0xffff) | (uint64_t(int(other.region_key_.y) + 0xffff) << 16) |
-             (uint64_t(int(other.region_key_.z) + 0xffff) << 32);
-  uint32_t local_a, local_b;
-  local_a = uint32_t(local_.x) | (uint32_t(local_.y) << 8) | (uint32_t(local_.z) << 16);
-  local_b = uint32_t(other.local_.x) | (uint32_t(other.local_.y) << 8) | (uint32_t(other.local_.z) << 16);
+  uint64_t region_a = uint64_t(int(region_key_.x) + 0xffff) |                // NOLINT(readability-magic-numbers)
+                      (uint64_t(int(region_key_.y) + 0xffff) << 16) |        // NOLINT(readability-magic-numbers)
+                      (uint64_t(int(region_key_.z) + 0xffff) << 32);         // NOLINT(readability-magic-numbers)
+  uint64_t region_b = uint64_t(int(other.region_key_.x) + 0xffff) |          // NOLINT(readability-magic-numbers)
+                      (uint64_t(int(other.region_key_.y) + 0xffff) << 16) |  // NOLINT(readability-magic-numbers)
+                      (uint64_t(int(other.region_key_.z) + 0xffff) << 32);   // NOLINT(readability-magic-numbers)
+  // NOLINTNEXTLINE(readability-magic-numbers)
+  uint32_t local_a = uint32_t(local_.x) | (uint32_t(local_.y) << 8) | (uint32_t(local_.z) << 16);
+  // NOLINTNEXTLINE(readability-magic-numbers)
+  uint32_t local_b = uint32_t(other.local_.x) | (uint32_t(other.local_.y) << 8) | (uint32_t(other.local_.z) << 16);
   return region_a < region_b || region_a == region_b && local_a < local_b;
 }
 }  // namespace ohm

@@ -425,10 +425,10 @@ void onVisitPlaneFill(PlaneFillWalker &walker, const HeightmapDetail &imp, const
                       const Key &ground_key)
 {
   // Add neighbours for walking.
-  PlaneFillWalker::Revisit revisit_behaviour = PlaneFillWalker::Revisit::None;
+  PlaneFillWalker::Revisit revisit_behaviour = PlaneFillWalker::Revisit::kNone;
   if (!candidate_key.isNull())
   {
-    revisit_behaviour = int(imp.up_axis_id) >= 0 ? PlaneFillWalker::Revisit::Lower : PlaneFillWalker::Revisit::Higher;
+    revisit_behaviour = int(imp.up_axis_id) >= 0 ? PlaneFillWalker::Revisit::kLower : PlaneFillWalker::Revisit::kHigher;
   }
   walker.addNeighbours(ground_key, revisit_behaviour);
 }
@@ -683,24 +683,24 @@ bool Heightmap::buildHeightmap(const glm::dvec3 &reference_pos, const ohm::Aabb 
   const Key min_ext_key = src_map.voxelKey(src_region.minExtents());
   const Key max_ext_key = src_map.voxelKey(src_region.maxExtents());
 
-  unsigned processedCount = 0;
+  unsigned processed_count = 0;
   if (!imp_->use_flood_fill)
   {
     const Key planar_key = src_map.voxelKey(reference_pos);
     PlaneWalker walker(src_map, min_ext_key, max_ext_key, imp_->up_axis_id, &planar_key);
-    processedCount = buildHeightmapT(walker, reference_pos);
+    processed_count = buildHeightmapT(walker, reference_pos);
   }
   else
   {
     PlaneFillWalker walker(src_map, min_ext_key, max_ext_key, imp_->up_axis_id, false);
-    processedCount = buildHeightmapT(walker, reference_pos, &onVisitPlaneFill);
+    processed_count = buildHeightmapT(walker, reference_pos, &onVisitPlaneFill);
   }
 
 #if PROFILING
   ohm::Profile::instance().report();
 #endif  // PROFILING
 
-  return processedCount;
+  return processed_count;
 }
 
 

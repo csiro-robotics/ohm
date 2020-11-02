@@ -24,7 +24,7 @@ using namespace ohm;
 
 namespace
 {
-constexpr bool isBigEndian()
+inline bool isBigEndian()
 {
   const union
   {
@@ -109,7 +109,7 @@ public:
   }
 
 private:
-  const unsigned kBufferSize = 1024u;  // Far to big for usage here.
+  static const unsigned kBufferSize = 1024u;  // Far to big for usage here.
   std::ostream *stream_;
   char *buffer_;
 };

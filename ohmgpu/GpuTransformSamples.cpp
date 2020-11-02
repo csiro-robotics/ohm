@@ -36,10 +36,10 @@ using namespace ohm;
 namespace
 {
 #if defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
-GpuProgramRef program_ref("TransformSamples", GpuProgramRef::kSourceString, TransformSamplesCode,  // NOLINT
-                          TransformSamplesCode_length);
+GpuProgramRef g_program_ref("TransformSamples", GpuProgramRef::kSourceString, TransformSamplesCode,  // NOLINT
+                            TransformSamplesCode_length);
 #else   // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
-GpuProgramRef program_ref("TransformSamples", GpuProgramRef::kSourceFile, "TransformSamples.cl");
+GpuProgramRef g_program_ref("TransformSamples", GpuProgramRef::kSourceFile, "TransformSamples.cl");
 #endif  // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
 
 inline bool goodSample(const glm::dvec3 &sample, double max_range)
@@ -66,9 +66,9 @@ GpuTransformSamples::GpuTransformSamples(gputil::Device &gpu)
   imp_->transform_positions_buffer = gputil::Buffer(gpu, sizeof(gputil::float3) * 8, gputil::kBfReadHost);
   imp_->transform_rotations_buffer = gputil::Buffer(gpu, sizeof(gputil::float4) * 8, gputil::kBfReadHost);
   imp_->transform_times_buffer = gputil::Buffer(gpu, sizeof(float) * 8, gputil::kBfReadHost);
-  if (program_ref.addReference(gpu))
+  if (g_program_ref.addReference(gpu))
   {
-    imp_->kernel = GPUTIL_MAKE_KERNEL(program_ref.program(), transformTimestampedPoints);
+    imp_->kernel = GPUTIL_MAKE_KERNEL(g_program_ref.program(), transformTimestampedPoints);
     imp_->kernel.calculateOptimalWorkGroupSize();
   }
 }
@@ -86,7 +86,7 @@ GpuTransformSamples::~GpuTransformSamples()
   if (imp_ && imp_->kernel.isValid())
   {
     imp_->kernel = gputil::Kernel();
-    program_ref.releaseReference();
+    g_program_ref.releaseReference();
   }
   delete imp_;
 }

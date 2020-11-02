@@ -382,6 +382,7 @@ unsigned OutputStream::write(const void *buffer, unsigned max_bytes)
 
       if (imp.compress.stream.avail_out == 0)
       {
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
         imp.out.write(reinterpret_cast<char *>(imp.compress.buffer), imp.compress.buffer_size);
         imp.compress.stream.avail_out = imp.compress.buffer_size;
         imp.compress.stream.next_out = imp.compress.buffer;
@@ -429,6 +430,7 @@ void OutputStream::flush()
       unsigned have = imp.compress.buffer_size - imp.compress.stream.avail_out;
       if (have)
       {
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
         imp.out.write(reinterpret_cast<char *>(imp.compress.buffer), have);
       }
 

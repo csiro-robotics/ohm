@@ -43,7 +43,7 @@ PlaneWalker::PlaneWalker(const OccupancyMap &map, const Key &min_ext_key, const 
 }
 
 
-bool PlaneWalker::begin(Key &key) const  // NOLINT(google-runtime-references)
+bool PlaneWalker::begin(Key &key) const
 {
   key = min_ext_key;
   // Flatten the key onto the plane.
@@ -53,7 +53,7 @@ bool PlaneWalker::begin(Key &key) const  // NOLINT(google-runtime-references)
 }
 
 
-bool PlaneWalker::walkNext(Key &key) const  // NOLINT(google-runtime-references)
+bool PlaneWalker::walkNext(Key &key) const
 {
   map.stepKey(key, axis_indices[0], 1);
   if (!key.isBounded(axis_indices[0], min_ext_key, max_ext_key))

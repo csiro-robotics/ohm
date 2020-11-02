@@ -8,6 +8,8 @@
 
 #include "OhmConfig.h"
 
+#include <string>
+
 namespace ohm
 {
 namespace trace
@@ -19,7 +21,7 @@ namespace trace
 /// @todo Allow the server reference frame to be specified: default is right handled, XYZ = rigth, forward, up.
 ///
 /// @param file_stream When set, opens a file stream to record trace to this file.
-void ohm_API init(const char *file_stream = nullptr);
+void ohm_API init(const std::string &file_stream = std::string());
 
 /// Finalise the trace system.
 void ohm_API done();
@@ -31,9 +33,15 @@ class ohm_API Trace
 {
 public:
   /// Constructor: calls through to @c trace::init()
-  inline Trace(const char *file_stream) { trace::init(file_stream); }
+  inline Trace(const std::string &file_stream)  // NOLINT(google-explicit-constructor)
+  {
+    trace::init(file_stream);
+  }
   /// Destructor: calls through to @c trace::done()
   inline ~Trace() { trace::done(); }
+
+  Trace(const Trace &) = delete;
+  Trace &operator=(const Trace &) = delete;
 };
 }  // namespace ohm
 

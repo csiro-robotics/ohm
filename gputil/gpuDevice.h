@@ -34,23 +34,23 @@ public:
   };
 
   /// Accelerator type. The available types are driven by the OpenCL API.
-  enum Type
+  enum Type : unsigned
   {
     /// CPU acceleration device.
-    kCpu = (1 << 0),
+    kCpu = (1u << 0u),
     /// GPU device (preferred)
-    kGpu = (1 << 1),
+    kGpu = (1u << 1u),
     /// Non-GPU accelerator device.
-    kAccelerator = (1 << 2)
+    kAccelerator = (1u << 2u)
   };
 
   /// Construct to access default device or as an invalid device.
   /// @param default_device True to construct access the default device.
-  Device(bool default_device = false);
+  explicit Device(bool default_device = false);
 
   /// Create a device from the selected @c DeviceInfo.
   /// @param device_info Info structure about the desired device.
-  Device(const DeviceInfo &device_info);
+  explicit Device(const DeviceInfo &device_info);
 
   /// Construct using @c select().
   /// @param argc Number of values in @c argv.
@@ -76,7 +76,7 @@ public:
   ~Device();
 
   /// Enumerate all devices attached to the current host.
-  static unsigned enumerateDevices(std::vector<DeviceInfo> &devices);  // NOLINT(google-runtime-references)
+  static unsigned enumerateDevices(std::vector<DeviceInfo> &devices);
 
   /// Display name for the device.
   const char *name() const;
@@ -181,10 +181,10 @@ public:
 
   /// Get the internal device representation.
   /// @return The internal device detail.
-  DeviceDetail *detail() const { return imp_; }
+  DeviceDetail *detail() const { return imp_.get(); }
 
 private:
-  DeviceDetail *imp_;
+  std::unique_ptr<DeviceDetail> imp_;
 };
 }  // namespace gputil
 

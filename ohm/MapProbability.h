@@ -16,7 +16,7 @@ namespace ohm
 /// Calculate a probability from its log value.
 /// @param value The log probability value.
 /// @return A real probability value [0, 1].
-template <typename real>
+template <typename real>  // NOLINT(readability-identifier-naming)
 inline real valueToProbability(real value)
 {
   // Ensure -infinity yields a zero probability.
@@ -29,7 +29,7 @@ inline real valueToProbability(real value)
 /// Convert a probability to a storable value. Inverse of @p valueToProbability().
 /// @param probability The probability to convert
 /// @return The value associated with @p probability."ohmconfig.h"
-template <typename real>
+template <typename real>  // NOLINT(readability-identifier-naming)
 inline real probabilityToValue(real probability)
 {
   return std::log(probability / (real{ 1 } - probability));

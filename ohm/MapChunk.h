@@ -64,7 +64,7 @@ inline glm::u8vec3 voxelLocalKey(unsigned index, const glm::ivec3 &dim)
 /// @param local_key The local_key to adjust.
 /// @param dim The region voxel dimensions.
 /// @return False if the key is out of range or at the limit of the region.
-inline bool nextLocalKey(glm::u8vec3 &local_key, const glm::ivec3 &dim)  // NOLINT(google-runtime-references)
+inline bool nextLocalKey(glm::u8vec3 &local_key, const glm::ivec3 &dim)
 {
   if (local_key.x + 1 < dim.x)
   {
@@ -96,7 +96,7 @@ inline bool nextLocalKey(glm::u8vec3 &local_key, const glm::ivec3 &dim)  // NOLI
 /// @param key The key to adjust the local coordinates of.
 /// @param dim The region voxel dimensions.
 /// @return False if the key is out of range or at the limit of the region.
-inline bool nextLocalKey(Key &key, const glm::ivec3 &dim)  // NOLINT(google-runtime-references)
+inline bool nextLocalKey(Key &key, const glm::ivec3 &dim)
 {
   glm::u8vec3 local_key = key.localKey();
   if (nextLocalKey(local_key, dim))

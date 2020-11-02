@@ -47,7 +47,7 @@ PlaneFillWalker::PlaneFillWalker(const OccupancyMap &map, const Key &min_ext_key
 }
 
 
-bool PlaneFillWalker::begin(Key &key)  // NOLINT(google-runtime-references)
+bool PlaneFillWalker::begin(Key &key)
 {
   while (!open_list.empty())
   {
@@ -79,7 +79,7 @@ bool PlaneFillWalker::begin(Key &key)  // NOLINT(google-runtime-references)
 }
 
 
-bool PlaneFillWalker::walkNext(Key &key)  // NOLINT(google-runtime-references)
+bool PlaneFillWalker::walkNext(Key &key)
 {
   // Pop the open list.
   while (!open_list.empty())
@@ -127,19 +127,19 @@ void PlaneFillWalker::addNeighbours(const Key &key, Revisit revisit_behaviour)
         const int n_visit_height = visitHeight(n_key);
         switch (revisit_behaviour)
         {
-        case Revisit::All:
+        case Revisit::kAll:
           add_to_open = true;
           break;
 
-        case Revisit::Higher:
+        case Revisit::kHigher:
           add_to_open = visit_list[idx] < 0 || n_visit_height > visit_list[idx];
           break;
 
-        case Revisit::Lower:
+        case Revisit::kLower:
           add_to_open = visit_list[idx] < 0 || n_visit_height < visit_list[idx];
           break;
 
-        case Revisit::None:
+        case Revisit::kNone:
         default:
           add_to_open = visit_list[idx] < 0;
           break;

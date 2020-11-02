@@ -13,19 +13,18 @@
 #include <algorithm>
 #include <sstream>
 
-using namespace gputil;
-
+namespace gputil
+{
 namespace
 {
 void prepareDebugBuildArgs(const gputil::Device &gpu, const BuildArgs &build_args, std::ostream &debug_opt,
-                           std::ostream &build_opt,
-                           std::string &source_file_opt)  // NOLINT(google-runtime-references)
+                           std::ostream &build_opt, std::string &source_file_opt)
 {
   // Compile and initialise.
   source_file_opt = std::string();
 
   std::string platform_name;
-  cl_platform_id platform_id;
+  cl_platform_id platform_id{};
 
   gputil::DeviceDetail &ocl = *gpu.detail();
   ocl.device.getInfo(CL_DEVICE_PLATFORM, &platform_id);
@@ -50,7 +49,7 @@ void prepareDebugBuildArgs(const gputil::Device &gpu, const BuildArgs &build_arg
       debug_opt << "-cl-opt-disable ";
       // Don't break. Cascade to enable the next option.
       /* fall through */
-    case 1:
+    case 1:  // NOLINT(bugprone-branch-clone)
 #ifdef WIN32
       debug_opt << "-g ";
 #endif  // WIN32
@@ -90,13 +89,11 @@ void prepareDebugBuildArgs(const gputil::Device &gpu, const BuildArgs &build_arg
 }  // namespace
 
 
-Program::Program()
-  : imp_(nullptr)
-{}
+Program::Program() = default;
 
 
 Program::Program(Device &device, const char *program_name)
-  : imp_(new ProgramDetail)
+  : imp_(std::make_unique<ProgramDetail>())
 {
   imp_->device = device;
   imp_->program_name = program_name;
@@ -104,16 +101,21 @@ Program::Program(Device &device, const char *program_name)
 
 
 Program::Program(Program &&other) noexcept
-  : imp_(other.imp_)
+  : imp_(std::move(other.imp_))
+{}
+
+
+Program::Program(const Program &other)
 {
-  other.imp_ = nullptr;
+  if (other.imp_)
+  {
+    imp_ = std::make_unique<ProgramDetail>();
+    *imp_ = *other.imp_;
+  }
 }
 
 
-Program::~Program()
-{
-  delete imp_;
-}
+Program::~Program() = default;
 
 
 bool Program::isValid() const
@@ -141,7 +143,8 @@ Device Program::device()
 
 int Program::buildFromFile(const char *file_name, const BuildArgs &build_args)
 {
-  std::ostringstream debug_opt, build_opt;
+  std::ostringstream debug_opt;
+  std::ostringstream build_opt;
   std::string source_file_opt;
   cl::Context &ocl_context = imp_->device.detail()->context;
   prepareDebugBuildArgs(imp_->device, build_args, debug_opt, build_opt, source_file_opt);
@@ -163,7 +166,8 @@ int Program::buildFromFile(const char *file_name, const BuildArgs &build_args)
 
 int Program::buildFromSource(const char *source, size_t source_length, const BuildArgs &build_args)
 {
-  std::ostringstream debug_opt, build_opt;
+  std::ostringstream debug_opt;
+  std::ostringstream build_opt;
   std::string source_file_opt;
   cl::Context &ocl_context = imp_->device.detail()->context;
   prepareDebugBuildArgs(imp_->device, build_args, debug_opt, build_opt, source_file_opt);
@@ -184,18 +188,20 @@ int Program::buildFromSource(const char *source, size_t source_length, const Bui
 
 Program &Program::operator=(const Program &other)
 {
-  if (other.imp_)
+  if (this != &other)
   {
-    if (!imp_)
+    if (other.imp_)
     {
-      imp_ = new ProgramDetail;
+      if (!imp_)
+      {
+        imp_ = std::make_unique<ProgramDetail>();
+      }
+      *imp_ = *other.imp_;
     }
-    *imp_ = *other.imp_;
-  }
-  else
-  {
-    delete imp_;
-    imp_ = nullptr;
+    else
+    {
+      imp_.reset();
+    }
   }
   return *this;
 }
@@ -203,8 +209,7 @@ Program &Program::operator=(const Program &other)
 
 Program &Program::operator=(Program &&other) noexcept
 {
-  delete imp_;
-  imp_ = other.imp_;
-  other.imp_ = nullptr;
+  imp_ = std::move(other.imp_);
   return *this;
 }
+}  // namespace gputil

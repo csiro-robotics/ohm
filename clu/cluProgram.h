@@ -34,8 +34,7 @@ void printBuildLogs(std::ostream &out, const cl::Program &program, const cl::Con
 /// @param devices Populated with the devices from @p context.
 /// @param program The program to list devices for.
 /// @return The number of items in @p devices.
-unsigned listDevices(std::vector<cl::Device> &devices,  // NOLINT(google-runtime-references)
-                     const cl::Program &program);
+unsigned listDevices(std::vector<cl::Device> &devices, const cl::Program &program);
 
 /// Calculate the maximum work group size a @p kernel.
 ///
@@ -144,14 +143,12 @@ char *findProgramPath(char *file_name, size_t buffer_length, const char *search_
 ///     Source file path is not passed if this is null. Warning: no spaces are inserted
 ///     between the argument and the source file name. The caller must do so if required.
 /// @param search_paths Additional search paths for the @p source_file_name. Use comma as a path separator.
-cl_int buildProgramFromFile(cl::Program &program, cl::Context &ocl,  // NOLINT(google-runtime-references)
-                            std::string &source_file_name,           // NOLINT(google-runtime-references)
-                            std::ostream &log, const char *args = nullptr, const char *debug_option = nullptr,
+cl_int buildProgramFromFile(cl::Program &program, cl::Context &ocl, std::string &source_file_name, std::ostream &log,
+                            const char *args = nullptr, const char *debug_option = nullptr,
                             const char *source_file_opt = nullptr, const char *search_paths = nullptr);
 
-cl_int buildProgramFromString(cl::Program &program, cl::Context &ocl,  // NOLINT(google-runtime-references)
-                              const char *source_code, size_t source_length, std::ostream &log,
-                              const char *reference_name, const char *build_args = nullptr,
+cl_int buildProgramFromString(cl::Program &program, cl::Context &ocl, const char *source_code, size_t source_length,
+                              std::ostream &log, const char *reference_name, const char *build_args = nullptr,
                               const char *debug_option = nullptr);
 }  // namespace clu
 

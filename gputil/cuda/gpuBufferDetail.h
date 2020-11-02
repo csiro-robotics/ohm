@@ -17,8 +17,8 @@ namespace gputil
 {
 enum PinStatus : unsigned
 {
-  kPinnedForRead = (1 << 0),
-  kPinnedForWrite = (1 << 1)
+  kPinnedForRead = (1u << 0u),
+  kPinnedForWrite = (1u << 1u)
 };
 
 struct BufferDetail
@@ -36,9 +36,8 @@ struct BufferDetail
 
 bool bufferCopy(void *dst, const void *src, size_t byte_count, cudaMemcpyKind kind, Queue *queue, Event *block_on,
                 Event *completion);
-uint8_t *pin(BufferDetail &buf, PinMode mode);  // NOLINT(google-runtime-references)
-void unpin(BufferDetail &imp,                   // NOLINT(google-runtime-references)
-           void *pinned_ptr, PinMode mode, Queue *queue, Event *block_on, Event *completion);
+uint8_t *pin(BufferDetail &buf, PinMode mode);
+void unpin(BufferDetail &imp, void *pinned_ptr, PinMode mode, Queue *queue, Event *block_on, Event *completion);
 }  // namespace gputil
 
 #endif  // GPUBUFFERDETAIL_H

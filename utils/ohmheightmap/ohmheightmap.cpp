@@ -35,13 +35,13 @@ namespace
 {
 using Clock = std::chrono::high_resolution_clock;
 
-int quit = 0;
+int g_quit = 0;
 
 void onSignal(int arg)
 {
   if (arg == SIGINT || arg == SIGTERM)
   {
-    ++quit;
+    ++g_quit;
   }
 }
 
@@ -61,11 +61,11 @@ struct Options
 class LoadMapProgress : public ohm::SerialiseProgress
 {
 public:
-  LoadMapProgress(ProgressMonitor &monitor)  // NOLINT(google-runtime-references)
+  LoadMapProgress(ProgressMonitor &monitor)
     : monitor_(monitor)
   {}
 
-  bool quit() const override { return ::quit > 1; }
+  bool quit() const override { return ::g_quit > 1; }
 
   void setTargetProgress(unsigned target) override { monitor_.beginProgress(ProgressMonitor::Info(target)); }
   void incrementProgress(unsigned inc) override { monitor_.incrementProgressBy(inc); }

@@ -73,7 +73,8 @@ PlatformConstraint platformVersionMin(unsigned major, unsigned minor)
 
 DeviceConstraint deviceVersionMin(unsigned major, unsigned minor)
 {
-  DeviceConstraint constraint = [major, minor](const cl::Platform &, const cl::Device &device) -> bool {
+  DeviceConstraint constraint = [major, minor](const cl::Platform &platform, const cl::Device &device) -> bool {
+    (void)platform;  // unused
     ::size_t size = 0;
     clGetDeviceInfo(device(), CL_DEVICE_VERSION, 0, nullptr, &size);
     cl::string version_info;
@@ -101,7 +102,9 @@ DeviceConstraint deviceNameLike(const char *name, bool ignore_case)
     std::transform(like_name.begin(), like_name.end(), like_name.begin(), ::tolower);
   }
 
-  DeviceConstraint constraint = [like_name, ignore_case](const cl::Platform &, const cl::Device &device) -> bool {
+  DeviceConstraint constraint = [like_name, ignore_case](const cl::Platform &platform,
+                                                         const cl::Device &device) -> bool {
+    (void)platform;  // unused
     std::string device_name;
     device.getInfo(CL_DEVICE_NAME, &device_name);
     if (ignore_case)

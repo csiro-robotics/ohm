@@ -30,13 +30,13 @@
 
 namespace
 {
-int quit = 0;
+int g_quit = 0;
 
 void onSignal(int arg)
 {
   if (arg == SIGINT || arg == SIGTERM)
   {
-    ++quit;
+    ++g_quit;
   }
 }
 
@@ -267,7 +267,7 @@ int main(int argc, char *argv[])
     ohm::Voxel<const ohm::VoxelMean> mean(&map, map.layout().meanLayer());
     if (voxel.isLayerValid())
     {
-      for (auto iter = map.begin(); iter != map.end(); ++iter)
+      for (auto iter = map.begin(); iter != map.end() && !g_quit; ++iter)
       {
         ohm::setVoxelKey(iter, voxel, mean);
         float value;

@@ -46,70 +46,70 @@ enum AttachmentFormat
 };
 
 // Fragment shader colour by input.
-const char *normals_fragment_shader = "#version 330 core\n"
-                                      "in vec3 v_normal;\n"
-                                      "in vec3 v_colour;\n"
-                                      "in float v_depth;\n"
-                                      "// Ouput data\n"
-                                      "out vec3 colour;\n"
-                                      "void main()\n"
-                                      "{\n"
-                                      // "  colour = vec3(v_depth, v_depth, v_depth);\n"
-                                      "  colour = 0.5 * (v_normal + vec3(1, 1, 1));\n"
-                                      "}";
-const char *colours_fragment_shader = "#version 330 core\n"
-                                      "in vec3 v_normal;\n"
-                                      "in vec3 v_colour;\n"
-                                      "in float v_depth;\n"
-                                      "// Ouput data\n"
-                                      "out vec3 colour;\n"
-                                      "void main()\n"
-                                      "{\n"
-                                      "  colour = v_colour;\n"
-                                      "}";
+const char *const kNormalsFragmentShader = "#version 330 core\n"
+                                           "in vec3 v_normal;\n"
+                                           "in vec3 v_colour;\n"
+                                           "in float v_depth;\n"
+                                           "// Ouput data\n"
+                                           "out vec3 colour;\n"
+                                           "void main()\n"
+                                           "{\n"
+                                           // "  colour = vec3(v_depth, v_depth, v_depth);\n"
+                                           "  colour = 0.5 * (v_normal + vec3(1, 1, 1));\n"
+                                           "}";
+const char *const kColoursFragmentShader = "#version 330 core\n"
+                                           "in vec3 v_normal;\n"
+                                           "in vec3 v_colour;\n"
+                                           "in float v_depth;\n"
+                                           "// Ouput data\n"
+                                           "out vec3 colour;\n"
+                                           "void main()\n"
+                                           "{\n"
+                                           "  colour = v_colour;\n"
+                                           "}";
 
 // Vertex shader.
-const char *vertex_shader = "#version 330 core\n"
-                            "// Input vertex data, different for all executions of this shader.\n"
-                            "layout(location = 0) in vec3 vertexPosition_modelspace;\n"
-                            "layout(location = 1) in vec3 vertexNormal_modelspace;\n"
-                            "layout(location = 2) in vec3 vertexColour;\n"
-                            "uniform mat4 MVP;\n"
-                            "uniform mat4 V;\n"
-                            "uniform mat4 M;\n"
-                            "out vec3 v_normal;\n"
-                            "out vec3 v_colour;\n"
-                            "out float v_depth;\n"
-                            "void main()\n"
-                            "{\n"
-                            "  gl_Position = gl_Position =  MVP * vec4(vertexPosition_modelspace,1);\n"
-                            "  v_normal =  (V * M * vec4(vertexNormal_modelspace,0)).xyz;\n"
-                            // "  v_normal =  vertexNormal_modelspace;\n"
-                            "  v_colour = vertexColour;\n"
-                            "  v_depth = 1.0 - (1.0 + gl_Position.z/gl_Position.w) / 2.0;\n"
-                            "}\n";
+const char *const kVertexShader = "#version 330 core\n"
+                                  "// Input vertex data, different for all executions of this shader.\n"
+                                  "layout(location = 0) in vec3 vertexPosition_modelspace;\n"
+                                  "layout(location = 1) in vec3 vertexNormal_modelspace;\n"
+                                  "layout(location = 2) in vec3 vertexColour;\n"
+                                  "uniform mat4 MVP;\n"
+                                  "uniform mat4 V;\n"
+                                  "uniform mat4 M;\n"
+                                  "out vec3 v_normal;\n"
+                                  "out vec3 v_colour;\n"
+                                  "out float v_depth;\n"
+                                  "void main()\n"
+                                  "{\n"
+                                  "  gl_Position = gl_Position =  MVP * vec4(vertexPosition_modelspace,1);\n"
+                                  "  v_normal =  (V * M * vec4(vertexNormal_modelspace,0)).xyz;\n"
+                                  // "  v_normal =  vertexNormal_modelspace;\n"
+                                  "  v_colour = vertexColour;\n"
+                                  "  v_depth = 1.0 - (1.0 + gl_Position.z/gl_Position.w) / 2.0;\n"
+                                  "}\n";
 
-const char *quad_fragment_shader = "#version 330 core\n"
-                                   "// Ouput data\n"
-                                   "layout(location = 0) out vec4 color;\n"
-                                   "uniform sampler2D render_texture;\n"
-                                   "in vec2 UV;\n"
-                                   "void main()\n"
-                                   "{\n"
-                                   "  color = texture(render_texture, UV);\n"
-                                   "}";
+const char *const kQuadFragmentShader = "#version 330 core\n"
+                                        "// Ouput data\n"
+                                        "layout(location = 0) out vec4 color;\n"
+                                        "uniform sampler2D render_texture;\n"
+                                        "in vec2 UV;\n"
+                                        "void main()\n"
+                                        "{\n"
+                                        "  color = texture(render_texture, UV);\n"
+                                        "}";
 
 // Full screen quad vertex shader.
-const char *quad_vertex_shader = "#version 330 core\n"
-                                 "// Input vertex data, different for all executions of this shader.\n"
-                                 "layout(location = 0) in vec3 vertexPosition_modelspace;\n"
-                                 "// Output data ; will be interpolated for each fragment.\n"
-                                 "out vec2 UV;\n"
-                                 "void main()\n"
-                                 "{\n"
-                                 "    gl_Position = vec4(vertexPosition_modelspace, 1);\n"
-                                 "    UV = (vertexPosition_modelspace.xy + vec2(1, 1)) / 2.0;\n"
-                                 "}\n";
+const char *const kQuadVertexShader = "#version 330 core\n"
+                                      "// Input vertex data, different for all executions of this shader.\n"
+                                      "layout(location = 0) in vec3 vertexPosition_modelspace;\n"
+                                      "// Output data ; will be interpolated for each fragment.\n"
+                                      "out vec2 UV;\n"
+                                      "void main()\n"
+                                      "{\n"
+                                      "    gl_Position = vec4(vertexPosition_modelspace, 1);\n"
+                                      "    UV = (vertexPosition_modelspace.xy + vec2(1, 1)) / 2.0;\n"
+                                      "}\n";
 
 // The fullscreen quad's FBO
 const GLfloat kQuadVertexBufferData[] =  //
@@ -271,29 +271,29 @@ public:
 
 namespace
 {
-std::mutex shared_init_guard;
-volatile unsigned shared_ref_count = 0;
+std::mutex g_shared_init_guard;
+volatile unsigned g_shared_ref_count = 0;
 
 void sharedInit()
 {
-  std::unique_lock<std::mutex> guard(shared_init_guard);
+  std::unique_lock<std::mutex> guard(g_shared_init_guard);
 
-  if (shared_ref_count == 0)
+  if (g_shared_ref_count == 0)
   {
     glfwInit();
   }
 
-  ++shared_ref_count;
+  ++g_shared_ref_count;
 }
 
 void sharedRelease()
 {
-  std::unique_lock<std::mutex> guard(shared_init_guard);
+  std::unique_lock<std::mutex> guard(g_shared_init_guard);
 
-  if (shared_ref_count)
+  if (g_shared_ref_count)
   {
-    --shared_ref_count;
-    if (shared_ref_count == 0)
+    --g_shared_ref_count;
+    if (g_shared_ref_count == 0)
     {
       glfwTerminate();
     }
@@ -436,8 +436,8 @@ bool HeightmapImageDetail::RenderData::init()
   // Cull triangles which normal is not towards the camera
   glEnable(GL_CULL_FACE);
 
-  mesh_normals_program_id = loadShaders("mesh_normals_shader", vertex_shader, normals_fragment_shader);
-  mesh_colours_program_id = loadShaders("mesh_colours_shader", vertex_shader, colours_fragment_shader);
+  mesh_normals_program_id = loadShaders("mesh_normals_shader", kVertexShader, kNormalsFragmentShader);
+  mesh_colours_program_id = loadShaders("mesh_colours_shader", kVertexShader, kColoursFragmentShader);
 
   // Set the list of draw buffers.
   GLenum quad_draw_buffers[1] = { GL_COLOR_ATTACHMENT0 };
@@ -448,7 +448,7 @@ bool HeightmapImageDetail::RenderData::init()
   glBufferData(GL_ARRAY_BUFFER, sizeof(kQuadVertexBufferData), kQuadVertexBufferData, GL_STATIC_DRAW);
 
   // Create and compile our GLSL program from the shaders
-  quad_program_id = loadShaders("fbo", quad_vertex_shader, quad_fragment_shader);
+  quad_program_id = loadShaders("fbo", kQuadVertexShader, kQuadFragmentShader);
   fbo_tex_id = glGetUniformLocation(quad_program_id, "render_texture");
 
   return true;
@@ -626,10 +626,10 @@ bool HeightmapImage::generateBitmap(const HeightmapMesh &mesh, UpAxis up_axis)
 }
 
 
-template <typename NORMAL_VEC3, typename COLOUR_VEC>
+template <typename NormalVec3, typename ColourVec>
 bool HeightmapImage::renderHeightMesh(ImageType image_type, const Aabb &spatial_extents, double voxel_resolution,
                                       const glm::dvec3 *vertices, size_t vertex_count, const unsigned *indices,
-                                      size_t index_count, const NORMAL_VEC3 *vertex_normals, const COLOUR_VEC *colours,
+                                      size_t index_count, const NormalVec3 *vertex_normals, const ColourVec *colours,
                                       UpAxis up_axis)
 {
   PROFILE(HeightmapImage_renderHeightMesh);
@@ -652,7 +652,7 @@ bool HeightmapImage::renderHeightMesh(ImageType image_type, const Aabb &spatial_
   imp_->vertex_normals.reserve(vertex_count);
   if (vertex_normals)
   {
-    const NORMAL_VEC3 *end_normal = vertex_normals + vertex_count;
+    const NormalVec3 *end_normal = vertex_normals + vertex_count;
     for (auto n = vertex_normals; n < end_normal; ++n)
     {
       imp_->vertex_normals.push_back(glm::vec3(*n));
@@ -670,10 +670,10 @@ bool HeightmapImage::renderHeightMesh(ImageType image_type, const Aabb &spatial_
   imp_->vertex_colours.reserve(vertex_count);
   if (colours)
   {
-    const COLOUR_VEC *end_colour = colours + vertex_count;
+    const ColourVec *end_colour = colours + vertex_count;
     for (auto c = colours; c < end_colour; ++c)
     {
-      imp_->vertex_colours.push_back(ColourConverter<COLOUR_VEC>::vec3(*c));
+      imp_->vertex_colours.push_back(ColourConverter<ColourVec>::vec3(*c));
     }
   }
   else

@@ -62,7 +62,7 @@ public:
 
   inline gputil::Program &program() { return program_; }
 
-  bool addReference(gputil::Device &gpu);  // NOLINT(google-runtime-references)
+  bool addReference(gputil::Device &gpu);
   void releaseReference();
 
   bool isValid();

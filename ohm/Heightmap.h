@@ -286,7 +286,7 @@ public:
 
   /// Update @c info to reflect the details of how the heightmap is generated. See class comments.
   /// @param info The info object to update.
-  void updateMapInfo(MapInfo &info) const;  // NOLINT(google-runtime-references)
+  void updateMapInfo(MapInfo &info) const;
 
   /// Ensure that @p key is referencing a voxel within the heightmap plane.
   /// @param[in,out] key The key to project. May be modified by this call. Must not be null.

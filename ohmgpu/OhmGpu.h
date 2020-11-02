@@ -93,7 +93,7 @@ const char ohmgpu_API *gpuBuildStdArg();
 /// Used to set "-cl-std=x.x" in OpenCL compilation. Validated required extended features.
 ///
 /// @return An argument string which should be included when building GPU code.
-void ohmgpu_API setGpuBuildVersion(gputil::BuildArgs &build_args);  // NOLINT(google-runtime-references)
+void ohmgpu_API setGpuBuildVersion(gputil::BuildArgs &build_args);
 }  // namespace ohm
 
 #endif  // OHMGPU_H

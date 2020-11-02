@@ -24,7 +24,7 @@ struct EventDetail : public Ref<cudaEvent_t>
     : Ref<cudaEvent_t>(obj, initial_ref_count, release)
   {}
 
-  inline EventDetail(Ref &&other) noexcept
+  explicit inline EventDetail(Ref &&other) noexcept
     : Ref<cudaEvent_t>(std::move(other))
   {}
 

@@ -32,10 +32,8 @@ using namespace ohm;
 
 namespace
 {
-unsigned regionNearestNeighboursCpu(OccupancyMap &map,               // NOLINT(google-runtime-references)
-                                    NearestNeighboursDetail &query,  // NOLINT(google-runtime-references)
-                                    const glm::i16vec3 &region_key,
-                                    ClosestResult &closest)  // NOLINT(google-runtime-references)
+unsigned regionNearestNeighboursCpu(OccupancyMap &map, NearestNeighboursDetail &query, const glm::i16vec3 &region_key,
+                                    ClosestResult &closest)
 {
   const float invalid_occupancy_value = unobservedOccupancyValue();
   const OccupancyMapDetail &map_data = *map.detail();
@@ -63,6 +61,7 @@ unsigned regionNearestNeighboursCpu(OccupancyMap &map,               // NOLINT(g
 
     // ... and we have to treat unknown space as occupied.
     chunk = nullptr;
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
     occupancy_mem = reinterpret_cast<const uint8_t *>(&invalid_occupancy_value);
     // Setup voxel occupancy test function to pass all voxels in this region.
     voxel_occupied_func = [](const float, const OccupancyMapDetail &) -> bool { return true; };

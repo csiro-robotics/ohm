@@ -7,6 +7,7 @@
 
 #include "clu.h"
 
+#include <array>
 #include <fstream>
 #include <ostream>
 #include <sstream>
@@ -22,13 +23,19 @@
 #include <mach-o/dyld.h>
 #endif  // __APPLE__
 
+namespace
+{
+const size_t max_path = 2048u;
+}  // namespace
+
 namespace clu
 {
 void printBuildLog(std::ostream &out, const cl::Program &program, const cl::Device &device, int filter_status)
 {
   size_t log_size = 0;
-  std::string log, device_name;
-  cl_build_status status;
+  std::string log;
+  std::string device_name;
+  cl_build_status status{};
 
   if (filter_status <= 0)
   {
@@ -55,9 +62,10 @@ void printBuildLog(std::ostream &out, const cl::Program &program, const cl::Devi
 void printBuildLogs(std::ostream &out, const cl::Program &program, const cl::Context &context, int filter_status)
 {
   size_t log_size = 0;
-  std::string log, device_name;
+  std::string log;
+  std::string device_name;
   std::vector<cl::Device> devices;
-  cl_build_status status;
+  cl_build_status status{};
 
   listDevices(devices, context);
 
@@ -85,8 +93,7 @@ void printBuildLogs(std::ostream &out, const cl::Program &program, const cl::Con
   }
 }
 
-unsigned listDevices(std::vector<cl::Device> &devices,  // NOLINT(google-runtime-references)
-                     const cl::Program &program)
+unsigned listDevices(std::vector<cl::Device> &devices, const cl::Program &program)
 {
   cl_uint device_count = 0;
   devices.clear();
@@ -97,7 +104,7 @@ unsigned listDevices(std::vector<cl::Device> &devices,  // NOLINT(google-runtime
     return 0;
   }
 
-  cl_device_id *device_ids = static_cast<cl_device_id *>(alloca(sizeof(cl_device_id) * device_count));
+  auto *device_ids = static_cast<cl_device_id *>(alloca(sizeof(cl_device_id) * device_count));
   clerr = clGetProgramInfo(program(), CL_PROGRAM_DEVICES, sizeof(cl_device_id) * device_count, device_ids, nullptr);
   if (clerr != CL_SUCCESS)
   {
@@ -115,9 +122,8 @@ unsigned listDevices(std::vector<cl::Device> &devices,  // NOLINT(google-runtime
 
 size_t maxWorkgroupSize(const cl::Kernel &kernel, const LocalMemCalcFunc &local_mem_func, cl_int *err)
 {
-  cl_int clerr;
   cl_program program = nullptr;
-  clerr = clGetKernelInfo(kernel(), CL_KERNEL_PROGRAM, sizeof(cl_program), &program, nullptr);
+  cl_int clerr = clGetKernelInfo(kernel(), CL_KERNEL_PROGRAM, sizeof(cl_program), &program, nullptr);
 
   if (clerr != CL_SUCCESS)
   {
@@ -136,7 +142,7 @@ size_t maxWorkgroupSize(const cl::Kernel &kernel, const LocalMemCalcFunc &local_
     return 0;
   }
 
-  cl_device_id *device_ids = static_cast<cl_device_id *>(alloca(sizeof(cl_device_id) * device_count));
+  auto *device_ids = static_cast<cl_device_id *>(alloca(sizeof(cl_device_id) * device_count));
   clerr = clGetProgramInfo(program, CL_PROGRAM_DEVICES, sizeof(cl_device_id) * device_count, device_ids, nullptr);
   if (clerr != CL_SUCCESS)
   {
@@ -185,7 +191,7 @@ size_t maxWorkgroupSize(const cl::Kernel &kernel, const LocalMemCalcFunc &local_
     if (local_mem_func)
     {
       const size_t upper_limit = max_items;
-      size_t last_limit;
+      size_t last_limit = 0;
       size_t local_mem_used = 0;
       cl_ulong kernel_local_memory = 0;
       cl_ulong kernel_private_memory = 0;
@@ -246,11 +252,11 @@ size_t maxWorkgroupSize(const cl::Kernel &kernel, const LocalMemCalcFunc &local_
       int loops = 0;
 
       // Prime the loop.
-      max_items = max_items << 1;
+      max_items = max_items << 1u;
       do
       {
         last_limit = max_items;
-        max_items = max_items >> 1;
+        max_items = max_items >> 1u;
         local_mem_used = local_mem_func(max_items);
       } while (local_mem_used > available_local_memory && loops++ < loop_limit);
 
@@ -265,7 +271,7 @@ size_t maxWorkgroupSize(const cl::Kernel &kernel, const LocalMemCalcFunc &local_
         // We have a viable value. Now try increase it to increase occupancy.
         loops = 0;
         size_t test_items = max_items;
-        size_t diff;
+        size_t diff = 0;
         do
         {
           diff = last_limit - test_items;
@@ -336,23 +342,23 @@ bool executablePath(char *buffer, size_t buffer_size)
 
 size_t applicationDirectory(char *buffer, size_t buffer_size)
 {
-  char path[1024u];
-  size_t path_length = sizeof(path) / sizeof(char);
-  if (executablePath(path, path_length))
+  std::array<char, max_path> path{};
+  size_t path_length = path.size();
+  if (executablePath(path.data(), path_length))
   {
-    path[path_length - 1] = '\0';
-    upDir(path);
+    path[path_length - 1] = '\0';  // NOLINT(cppcoreguidelines-pro-bounds-constant-array-index)
+    upDir(path.data());
 
-    path_length = std::char_traits<char>::length(path);
+    path_length = std::char_traits<char>::length(path.data());
     if (buffer && buffer_size)
     {
       if (buffer_size <= path_length)
       {
         // Truncate
-        path[buffer_size - 1] = '\0';
+        path[buffer_size - 1] = '\0';  // NOLINT(cppcoreguidelines-pro-bounds-constant-array-index)
       }
 
-      std::char_traits<char>::copy(buffer, path, path_length + 1);
+      std::char_traits<char>::copy(buffer, path.data(), path_length + 1);
     }
 
     return path_length;
@@ -385,16 +391,14 @@ int pathSeparator()
 #endif  // WIN32
 }
 
-
 char *findProgramPath(char *file_name, size_t buffer_length, const char *search_paths)
 {
   // Resolve the current working directory first.
-  // Size determined by Windows MAX_PATH_LEN
-  const size_t cwd_max = 260;
-  char cwd[cwd_max];
-  currentWorkingDirectory(cwd, cwd_max);
+  std::array<char, max_path> cwd{};
+  currentWorkingDirectory(cwd.data(), cwd.size());
+  cwd[cwd.size() - 1] = '\0';
   std::ostringstream str;
-  str << cwd << char(pathSeparator()) << file_name;
+  str << cwd.data() << char(pathSeparator()) << file_name;
 
   std::ifstream infile;
   infile.open(str.str());
@@ -411,9 +415,9 @@ char *findProgramPath(char *file_name, size_t buffer_length, const char *search_
   }
 
   // Try the application directory.
-  applicationDirectory(cwd, cwd_max);
+  applicationDirectory(cwd.data(), cwd.size());
   str.str(std::string());
-  str << cwd << char(pathSeparator()) << file_name;
+  str << cwd.data() << char(pathSeparator()) << file_name;
   infile.open(str.str());
   if (infile.is_open())
   {
@@ -433,30 +437,30 @@ char *findProgramPath(char *file_name, size_t buffer_length, const char *search_
   {
     const char *path = search_paths;
     const char *ch = path;
-    size_t path_len;
+    size_t path_len = 0;
     do
     {
       if (*ch == ',' || *ch == '\0')
       {
         path_len = size_t(ch - path);
-        if (path_len >= cwd_max)
+        if (path_len >= cwd.size())
         {
-          path_len = cwd_max - 1;
+          path_len = cwd.size() - 1;
         }
 
         if (path_len)
         {
 #ifdef _MSC_VER
-          strncpy_s(cwd, path, path_len);
+          strncpy_s(cwd.data(), path, path_len);
 #else   // _MSC_VER
-          strncpy(cwd, path, path_len);
+          strncpy(cwd.data(), path, path_len);
 #endif  // _MSC_VER
 
-          cwd[path_len] = '\0';
+          cwd[path_len] = '\0';  // NOLINT(cppcoreguidelines-pro-bounds-constant-array-index)
           // Try the path.
           str.str(std::string());
-          str << cwd;
-          if (cwd[path_len - 1] != pathSeparator())
+          str << cwd.data();
+          if (cwd[path_len - 1] != pathSeparator())  // NOLINT(cppcoreguidelines-pro-bounds-constant-array-index)
           {
             str << char(pathSeparator());
           }
@@ -495,12 +499,10 @@ char *findProgramPath(char *file_name, size_t buffer_length, const char *search_
 char *findProgramDir(char *file_name, size_t buffer_length, const char *search_paths)
 {
   // Resolve the current working directory first.
-  // Size determined by Windows MAX_PATH_LEN
-  const size_t cwd_max = 260;
-  char cwd[cwd_max];
-  currentWorkingDirectory(cwd, cwd_max);
+  std::array<char, max_path> cwd{};
+  currentWorkingDirectory(cwd.data(), cwd.size());
   std::ostringstream str;
-  str << cwd << char(pathSeparator()) << file_name;
+  str << cwd.data() << char(pathSeparator()) << file_name;
   // std::cout << "First try: " << str.str() << std::endl;
 
   std::ifstream infile;
@@ -510,17 +512,17 @@ char *findProgramDir(char *file_name, size_t buffer_length, const char *search_p
     infile.close();
     // File is in current working directory.
 #ifdef _MSC_VER
-    strcpy_s(file_name, buffer_length, cwd);
+    strcpy_s(file_name, buffer_length, cwd.data());
 #else   // _MSC_VER
-    strncpy(file_name, cwd, buffer_length);
+    strncpy(file_name, cwd.data(), buffer_length);
 #endif  // _MSC_VER
     return file_name;
   }
 
   // Try the application directory.
-  applicationDirectory(cwd, cwd_max);
+  applicationDirectory(cwd.data(), cwd.size());
   str.str(std::string());
-  str << cwd << char(pathSeparator()) << file_name;
+  str << cwd.data() << char(pathSeparator()) << file_name;
   // std::cout << "try: " << str.str() << std::endl;
   infile.open(str.str());
   if (infile.is_open())
@@ -528,9 +530,9 @@ char *findProgramDir(char *file_name, size_t buffer_length, const char *search_p
     infile.close();
     // File is in application directory.
 #ifdef _MSC_VER
-    strncpy_s(file_name, buffer_length, cwd, buffer_length);
+    strncpy_s(file_name, buffer_length, cwd.data(), buffer_length);
 #else   // _MSC_VER
-    strncpy(file_name, cwd, buffer_length);
+    strncpy(file_name, cwd.data(), buffer_length);
 #endif  // _MSC_VER
     file_name[buffer_length - 1] = '\0';
     return file_name;
@@ -541,30 +543,30 @@ char *findProgramDir(char *file_name, size_t buffer_length, const char *search_p
   {
     const char *path = search_paths;
     const char *ch = path;
-    size_t path_len;
+    size_t path_len = 0;
     do
     {
       if (*ch == ',' || *ch == '\0')
       {
         path_len = size_t(ch - path);
-        if (path_len >= cwd_max)
+        if (path_len >= cwd.size())
         {
-          path_len = cwd_max - 1;
+          path_len = cwd.size() - 1;
         }
 
         if (path_len)
         {
 #ifdef _MSC_VER
-          strncpy_s(cwd, path, path_len);
+          strncpy_s(cwd.data(), path, path_len);
 #else   // _MSC_VER
-          strncpy(cwd, path, path_len);
+          strncpy(cwd.data(), path, path_len);
 #endif  // _MSC_VER
 
-          cwd[path_len] = '\0';
+          cwd[path_len] = '\0';  // NOLINT(cppcoreguidelines-pro-bounds-constant-array-index)
           // Try the path.
           str.str(std::string());
-          str << cwd;
-          if (cwd[path_len - 1] != pathSeparator())
+          str << cwd.data();
+          if (cwd[path_len - 1] != pathSeparator())  // NOLINT(cppcoreguidelines-pro-bounds-constant-array-index)
           {
             str << char(pathSeparator());
           }
@@ -576,9 +578,9 @@ char *findProgramDir(char *file_name, size_t buffer_length, const char *search_p
             infile.close();
             // File is on a search path.
 #ifdef _MSC_VER
-            strncpy_s(file_name, buffer_length, cwd, buffer_length);
+            strncpy_s(file_name, buffer_length, cwd.data(), buffer_length);
 #else   // _MSC_VER
-            strncpy(file_name, cwd, buffer_length);
+            strncpy(file_name, cwd.data(), buffer_length);
 #endif  // _MSC_VER
             file_name[buffer_length - 1] = '\0';
             return file_name;
@@ -611,22 +613,21 @@ cl_int buildProgramFromFile(cl::Program &program, cl::Context &ocl, std::string 
   }
 
   // Compile and initialise.
-  const size_t max_path = 260;
-  char source_dir[max_path];  // MAX_PATH length.
+  std::array<char, max_path> source_dir{};  // MAX_PATH length.
   std::ostringstream source_file;
 #ifdef _MSC_VER
-  strcpy_s(source_dir, source_file_name.c_str());
+  strcpy_s(source_dir.data(), source_file_name.c_str());
 #else   // !_MSC_VER
-  strncpy(source_dir, source_file_name.c_str(), max_path);
+  strncpy(source_dir.data(), source_file_name.c_str(), max_path);
 #endif  // _MSC_VER
-  if (!clu::findProgramDir(source_dir, sizeof(source_dir), search_paths))
+  if (!clu::findProgramDir(source_dir.data(), source_dir.size(), search_paths))
   {
     // Not found.
     log << "Failed to find CL source file: " << source_file_name << std::endl;
     return 1;
   }
-  // log << "Found in " << source_dir << std::endl;
-  source_file << source_dir << char(pathSeparator()) << source_file_name;
+  // log << "Found in " << source_dir.data() << std::endl;
+  source_file << source_dir.data() << char(pathSeparator()) << source_file_name;
   // log << "load from " << sourceFile.str() << std::endl;
   std::ifstream file(source_file.str());
   if (!file.is_open())
@@ -640,7 +641,7 @@ cl_int buildProgramFromFile(cl::Program &program, cl::Context &ocl, std::string 
   // Setup additional build options such as include dirs.
   std::ostringstream build_opt;
 
-  build_opt << "-I " << source_dir;
+  build_opt << "-I " << source_dir.data();
 
   if (debug_option && debug_option[0])
   {

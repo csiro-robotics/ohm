@@ -70,7 +70,7 @@ const MapVersion kCurrentVersion = { 0, 4, 0 };
 
 // Note: version 0.3.x is not supported.
 
-int saveItem(OutputStream &stream, const MapValue &value)  // NOLINT(google-runtime-references)
+int saveItem(OutputStream &stream, const MapValue &value)
 {
   //{
   //  MapValue strValue = value.toStringValue();
@@ -88,6 +88,7 @@ int saveItem(OutputStream &stream, const MapValue &value)  // NOLINT(google-runt
   // {
   //   endian::endianSwap(&len16);
   // }
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
   stream.write(reinterpret_cast<char *>(&len16), sizeof(len16));
 
   if (len)
@@ -96,71 +97,83 @@ int saveItem(OutputStream &stream, const MapValue &value)  // NOLINT(google-runt
   }
 
   uint8_t type = value.type();
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
   stream.write(reinterpret_cast<char *>(&type), 1);
 
   switch (value.type())
   {
   case MapValue::kInt8: {
     int8_t val = value;
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
     stream.write(reinterpret_cast<char *>(&val), 1);
     break;
   }
   case MapValue::kUInt8: {
     uint8_t val = value;
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
     stream.write(reinterpret_cast<char *>(&val), 1);
     break;
   }
   case MapValue::kInt16: {
     int16_t val = value;
     // if (endianSwap) { endian::endianSwap(&val); }
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
     stream.write(reinterpret_cast<char *>(&val), sizeof(val));
     break;
   }
   case MapValue::kUInt16: {
     uint16_t val = value;
     // if (endianSwap) { endian::endianSwap(&val); }
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
     stream.write(reinterpret_cast<char *>(&val), sizeof(val));
     break;
   }
   case MapValue::kInt32: {
     int32_t val = value;
     // if (endianSwap) { endian::endianSwap(&val); }
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
     stream.write(reinterpret_cast<char *>(&val), sizeof(val));
     break;
   }
   case MapValue::kUInt32: {
     uint32_t val = value;
     // if (endianSwap) { endian::endianSwap(&val); }
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
     stream.write(reinterpret_cast<char *>(&val), sizeof(val));
     break;
   }
   case MapValue::kInt64: {
     int64_t val = value;
     // if (endianSwap) { endian::endianSwap(&val); }
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
     stream.write(reinterpret_cast<char *>(&val), sizeof(val));
     break;
   }
   case MapValue::kUInt64: {
     uint64_t val = value;
     // if (endianSwap) { endian::endianSwap(&val); }
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
     stream.write(reinterpret_cast<char *>(&val), sizeof(val));
     break;
   }
   case MapValue::kFloat32: {
     float val = value;
     // if (endianSwap) { endian::endianSwap(&val); }
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
     stream.write(reinterpret_cast<char *>(&val), sizeof(val));
     break;
   }
   case MapValue::kFloat64: {
     double val = value;
     // if (endianSwap) { endian::endianSwap(&val); }
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
     stream.write(reinterpret_cast<char *>(&val), sizeof(val));
     break;
   }
   case MapValue::kBoolean: {
     bool bval = value;
     uint8_t val = (bval) ? 1 : 0;
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
     stream.write(reinterpret_cast<char *>(&val), 1);
     break;
   }
@@ -177,6 +190,7 @@ int saveItem(OutputStream &stream, const MapValue &value)  // NOLINT(google-runt
     // {
     //   endian::endianSwap(&len16);
     // }
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
     stream.write(reinterpret_cast<char *>(&len16), sizeof(len16));
 
     if (unsigned(len))
@@ -194,7 +208,7 @@ int saveItem(OutputStream &stream, const MapValue &value)  // NOLINT(google-runt
 }
 
 
-int saveMapInfo(OutputStream &stream, const MapInfo &map_info)  // NOLINT(google-runtime-references)
+int saveMapInfo(OutputStream &stream, const MapInfo &map_info)
 {
   uint32_t item_count = map_info.extract(nullptr, 0);
 
@@ -234,7 +248,7 @@ int saveMapInfo(OutputStream &stream, const MapInfo &map_info)  // NOLINT(google
 }
 
 
-int saveHeader(OutputStream &stream, const OccupancyMapDetail &map)  // NOLINT(google-runtime-references)
+int saveHeader(OutputStream &stream, const OccupancyMapDetail &map)
 {
   bool ok = true;
   // Header marker + version
@@ -273,7 +287,7 @@ int saveHeader(OutputStream &stream, const OccupancyMapDetail &map)  // NOLINT(g
 }
 
 
-int saveLayout(OutputStream &stream, const OccupancyMapDetail &map)  // NOLINT(google-runtime-references)
+int saveLayout(OutputStream &stream, const OccupancyMapDetail &map)
 {
   // Save details about the map layers.
   const MapLayout &layout = map.layout;
@@ -330,8 +344,7 @@ int saveLayout(OutputStream &stream, const OccupancyMapDetail &map)  // NOLINT(g
 }
 
 
-int saveChunk(OutputStream &stream,  // NOLINT(google-runtime-references)
-              const MapChunk &chunk, const OccupancyMapDetail &detail)
+int saveChunk(OutputStream &stream, const MapChunk &chunk, const OccupancyMapDetail &detail)
 {
   bool ok = true;
 
@@ -376,8 +389,7 @@ int saveChunk(OutputStream &stream,  // NOLINT(google-runtime-references)
 }
 
 
-int loadHeader(InputStream &stream, HeaderVersion &version,    // NOLINT(google-runtime-references)
-               OccupancyMapDetail &map, size_t &region_count)  // NOLINT(google-runtime-references)
+int loadHeader(InputStream &stream, HeaderVersion &version, OccupancyMapDetail &map, size_t &region_count)
 {
   bool ok = true;
 
@@ -469,8 +481,7 @@ int loadHeader(InputStream &stream, HeaderVersion &version,    // NOLINT(google-
 
 
 // Current version of chunk loading.
-int loadChunk(InputStream &stream, MapChunk &chunk,  // NOLINT(google-runtime-references)
-              const OccupancyMapDetail &detail)
+int loadChunk(InputStream &stream, MapChunk &chunk, const OccupancyMapDetail &detail)
 {
   bool ok = true;
 

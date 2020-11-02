@@ -110,7 +110,7 @@ struct ohm_API OccupancyMapDetail
   /// @param key The key to adjust.
   /// @param axis Axis ID to move along [0, 2].
   /// @param step How far to move/step.
-  void moveKeyAlongAxis(Key &key, int axis, int step) const;  // NOLINT(google-runtime-references)
+  void moveKeyAlongAxis(Key &key, int axis, int step) const;
 
   /// Setup the default @c MapLayout: occupancy layer and clearance layer.
   /// @param enable_voxel_mean Enable voxel mean positioning?

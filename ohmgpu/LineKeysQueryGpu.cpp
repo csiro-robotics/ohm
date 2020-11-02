@@ -40,12 +40,12 @@ using namespace ohm;
 namespace
 {
 #if defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
-GpuProgramRef program_ref("LineKeys", GpuProgramRef::kSourceString, LineKeysCode, LineKeysCode_length);  // NOLINT
+GpuProgramRef g_program_ref("LineKeys", GpuProgramRef::kSourceString, LineKeysCode, LineKeysCode_length);  // NOLINT
 #else   // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
-GpuProgramRef program_ref("LineKeys", GpuProgramRef::kSourceFile, "LineKeys.cl");
+GpuProgramRef g_program_ref("LineKeys", GpuProgramRef::kSourceFile, "LineKeys.cl");
 #endif  // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
 
-bool readGpuResults(LineKeysQueryDetailGpu &query);  // NOLINT(google-runtime-references)
+bool readGpuResults(LineKeysQueryDetailGpu &query);
 
 unsigned nextPow2(unsigned v)
 {
@@ -63,7 +63,7 @@ unsigned nextPow2(unsigned v)
 // TODO(KS): Verify alignment.
 const size_t kGpuKeySize = sizeof(GpuKey);
 
-bool initialiseGpu(LineKeysQueryDetailGpu &query)  // NOLINT(google-runtime-references)
+bool initialiseGpu(LineKeysQueryDetailGpu &query)
 {
   if (query.gpu_ok)
   {
@@ -78,12 +78,12 @@ bool initialiseGpu(LineKeysQueryDetailGpu &query)  // NOLINT(google-runtime-refe
   //#endif // OHM_PROFILE
   query.queue = query.gpu.createQueue(queue_flags);
 
-  if (!program_ref.addReference(query.gpu))
+  if (!g_program_ref.addReference(query.gpu))
   {
     return false;
   }
 
-  query.line_keys_kernel = GPUTIL_MAKE_KERNEL(program_ref.program(), calculateLines);
+  query.line_keys_kernel = GPUTIL_MAKE_KERNEL(g_program_ref.program(), calculateLines);
   query.line_keys_kernel.calculateOptimalWorkGroupSize();
 
   if (!query.line_keys_kernel.isValid())
@@ -100,7 +100,7 @@ bool initialiseGpu(LineKeysQueryDetailGpu &query)  // NOLINT(google-runtime-refe
 }
 
 
-bool lineKeysQueryGpu(LineKeysQueryDetailGpu &query, bool /*async*/)  // NOLINT(google-runtime-references)
+bool lineKeysQueryGpu(LineKeysQueryDetailGpu &query, bool /*async*/)
 {
   // std::cout << "Prime kernel\n" << std::flush;
   // Size the buffers.
@@ -253,7 +253,7 @@ LineKeysQueryGpu::~LineKeysQueryGpu()
     if (d->line_keys_kernel.isValid())
     {
       d->line_keys_kernel = gputil::Kernel();
-      program_ref.releaseReference();
+      g_program_ref.releaseReference();
     }
   }
   delete d;

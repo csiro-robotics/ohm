@@ -41,13 +41,13 @@
 
 namespace
 {
-int quit = 0;
+int g_quit = 0;
 
 void onSignal(int arg)
 {
   if (arg == SIGINT || arg == SIGTERM)
   {
-    ++quit;
+    ++g_quit;
   }
 }
 
@@ -91,11 +91,11 @@ bool optionValue(const char *arg, int argc, char *argv[], NUMERIC &value)
 class LoadMapProgress : public ohm::SerialiseProgress
 {
 public:
-  LoadMapProgress(ProgressMonitor &monitor)  // NOLINT(google-runtime-references)
+  LoadMapProgress(ProgressMonitor &monitor)
     : monitor_(monitor)
   {}
 
-  bool quit() const override { return ::quit > 1; }
+  bool quit() const override { return ::g_quit > 1; }
 
   void setTargetProgress(unsigned target) override { monitor_.beginProgress(ProgressMonitor::Info(target)); }
   void incrementProgress(unsigned inc) override { monitor_.incrementProgressBy(inc); }
@@ -115,58 +115,59 @@ void makeUnitSphere(std::vector<glm::dvec3> &vertices, std::vector<unsigned> &in
   vertices.clear();
   indices.clear();
 
-  static const double ringControlAngle = 25.0 / 180.0 * M_PI;
-  static const double ringHeight = std::sin(ringControlAngle);
-  static const double ringRadius = std::cos(ringControlAngle);
-  static const double hexAngle = 2.0 * M_PI / 6.0;
-  static const double ring2OffsetAngle = 0.5 * hexAngle;
-  static const glm::dvec3 initialVertices[] = {
-    glm::dvec3(0, 0, 1),
+  const double ring_control_angle = 25.0 / 180.0 * M_PI;
+  const double ring_height = std::sin(ring_control_angle);
+  const double ring_radius = std::cos(ring_control_angle);
+  const double hex_angle = 2.0 * M_PI / 6.0;
+  const double ring2_offset_angle = 0.5 * hex_angle;
+  const glm::dvec3 initial_vertices[] =  //
+    {
+      glm::dvec3(0, 0, 1),
 
-    // Upper hexagon.
-    glm::dvec3(ringRadius, 0, ringHeight),
-    glm::dvec3(ringRadius * std::cos(hexAngle), ringRadius * std::sin(hexAngle), ringHeight),
-    glm::dvec3(ringRadius * std::cos(2 * hexAngle), ringRadius * std::sin(2 * hexAngle), ringHeight),
-    glm::dvec3(ringRadius * std::cos(3 * hexAngle), ringRadius * std::sin(3 * hexAngle), ringHeight),
-    glm::dvec3(ringRadius * std::cos(4 * hexAngle), ringRadius * std::sin(4 * hexAngle), ringHeight),
-    glm::dvec3(ringRadius * std::cos(5 * hexAngle), ringRadius * std::sin(5 * hexAngle), ringHeight),
+      // Upper hexagon.
+      glm::dvec3(ring_radius, 0, ring_height),
+      glm::dvec3(ring_radius * std::cos(hex_angle), ring_radius * std::sin(hex_angle), ring_height),
+      glm::dvec3(ring_radius * std::cos(2 * hex_angle), ring_radius * std::sin(2 * hex_angle), ring_height),
+      glm::dvec3(ring_radius * std::cos(3 * hex_angle), ring_radius * std::sin(3 * hex_angle), ring_height),
+      glm::dvec3(ring_radius * std::cos(4 * hex_angle), ring_radius * std::sin(4 * hex_angle), ring_height),
+      glm::dvec3(ring_radius * std::cos(5 * hex_angle), ring_radius * std::sin(5 * hex_angle), ring_height),
 
-    // Lower hexagon.
-    glm::dvec3(ringRadius * std::cos(ring2OffsetAngle), ringRadius * std::sin(ring2OffsetAngle), -ringHeight),
-    glm::dvec3(ringRadius * std::cos(ring2OffsetAngle + hexAngle), ringRadius * std::sin(ring2OffsetAngle + hexAngle),
-               -ringHeight),
-    glm::dvec3(ringRadius * std::cos(ring2OffsetAngle + 2 * hexAngle),
-               ringRadius * std::sin(ring2OffsetAngle + 2 * hexAngle), -ringHeight),
-    glm::dvec3(ringRadius * std::cos(ring2OffsetAngle + 3 * hexAngle),
-               ringRadius * std::sin(ring2OffsetAngle + 3 * hexAngle), -ringHeight),
-    glm::dvec3(ringRadius * std::cos(ring2OffsetAngle + 4 * hexAngle),
-               ringRadius * std::sin(ring2OffsetAngle + 4 * hexAngle), -ringHeight),
-    glm::dvec3(ringRadius * std::cos(ring2OffsetAngle + 5 * hexAngle),
-               ringRadius * std::sin(ring2OffsetAngle + 5 * hexAngle), -ringHeight),
+      // Lower hexagon.
+      glm::dvec3(ring_radius * std::cos(ring2_offset_angle), ring_radius * std::sin(ring2_offset_angle), -ring_height),
+      glm::dvec3(ring_radius * std::cos(ring2_offset_angle + hex_angle),
+                 ring_radius * std::sin(ring2_offset_angle + hex_angle), -ring_height),
+      glm::dvec3(ring_radius * std::cos(ring2_offset_angle + 2 * hex_angle),
+                 ring_radius * std::sin(ring2_offset_angle + 2 * hex_angle), -ring_height),
+      glm::dvec3(ring_radius * std::cos(ring2_offset_angle + 3 * hex_angle),
+                 ring_radius * std::sin(ring2_offset_angle + 3 * hex_angle), -ring_height),
+      glm::dvec3(ring_radius * std::cos(ring2_offset_angle + 4 * hex_angle),
+                 ring_radius * std::sin(ring2_offset_angle + 4 * hex_angle), -ring_height),
+      glm::dvec3(ring_radius * std::cos(ring2_offset_angle + 5 * hex_angle),
+                 ring_radius * std::sin(ring2_offset_angle + 5 * hex_angle), -ring_height),
 
-    glm::dvec3(0, 0, -1),
-  };
-  const unsigned initialVertexCount = sizeof(initialVertices) / sizeof(initialVertices[0]);
+      glm::dvec3(0, 0, -1),
+    };
+  const unsigned initial_vertex_count = sizeof(initial_vertices) / sizeof(initial_vertices[0]);
 
-  const unsigned initialIndices[] = { 0, 1,  2, 0, 2,  3, 0, 3,  4,  0,  4,  5,  0,  5,  6,  0,  6,  1,
+  const unsigned initial_indices[] = { 0, 1,  2, 0, 2,  3, 0, 3,  4,  0,  4,  5,  0,  5,  6,  0,  6,  1,
 
-                                      1, 7,  2, 2, 8,  3, 3, 9,  4,  4,  10, 5,  5,  11, 6,  6,  12, 1,
+                                       1, 7,  2, 2, 8,  3, 3, 9,  4,  4,  10, 5,  5,  11, 6,  6,  12, 1,
 
-                                      7, 8,  2, 8, 9,  3, 9, 10, 4,  10, 11, 5,  11, 12, 6,  12, 7,  1,
+                                       7, 8,  2, 8, 9,  3, 9, 10, 4,  10, 11, 5,  11, 12, 6,  12, 7,  1,
 
-                                      7, 13, 8, 8, 13, 9, 9, 13, 10, 10, 13, 11, 11, 13, 12, 12, 13, 7 };
-  const unsigned initialIndexCount = sizeof(initialIndices) / sizeof(initialIndices[0]);
+                                       7, 13, 8, 8, 13, 9, 9, 13, 10, 10, 13, 11, 11, 13, 12, 12, 13, 7 };
+  const unsigned initial_index_count = sizeof(initial_indices) / sizeof(initial_indices[0]);
 
-  for (unsigned i = 0; i < initialVertexCount; ++i)
+  for (unsigned i = 0; i < initial_vertex_count; ++i)
   {
-    vertices.push_back(initialVertices[i]);
+    vertices.push_back(initial_vertices[i]);
   }
 
-  for (unsigned i = 0; i < initialIndexCount; i += 3)
+  for (unsigned i = 0; i < initial_index_count; i += 3)
   {
-    indices.push_back(initialIndices[i + 0]);
-    indices.push_back(initialIndices[i + 1]);
-    indices.push_back(initialIndices[i + 2]);
+    indices.push_back(initial_indices[i + 0]);
+    indices.push_back(initial_indices[i + 1]);
+    indices.push_back(initial_indices[i + 2]);
   }
 }
 }  // namespace
@@ -401,7 +402,7 @@ int exportPointCloud(const Options &opt, ProgressMonitor &prog, LoadMapProgress 
   ohm::Voxel<const float> clearance(&map, map.layout().clearanceLayer());
   ohm::Voxel<const ohm::VoxelMean> mean(&map, map.layout().meanLayer());
   ohm::Voxel<const ohm::HeightmapVoxel> height(&map, map.layout().layerIndex(ohm::HeightmapVoxel::kHeightmapLayer));
-  for (auto iter = map.begin(); iter != map.end() && !quit; ++iter)
+  for (auto iter = map.begin(); iter != map.end() && !g_quit; ++iter)
   {
     clearance.setKey(mean.setKey(occupancy.setKey(iter)));
     if (last_region != iter->regionKey())
@@ -466,7 +467,7 @@ int exportPointCloud(const Options &opt, ProgressMonitor &prog, LoadMapProgress 
 
   std::cout << "\nExporting " << point_count << " points" << std::endl;
 
-  if (!quit)
+  if (!g_quit)
   {
     if (!ply.save(opt.ply_file.c_str(), true))
     {
@@ -498,7 +499,7 @@ int exportHeightmapMesh(const Options &opt, ProgressMonitor &prog, LoadMapProgre
   mesh.buildMesh(heightmap);
   mesh.extractPlyMesh(ply);
 
-  if (!quit)
+  if (!g_quit)
   {
     if (!ply.save(opt.ply_file.c_str(), true))
     {
@@ -597,7 +598,7 @@ int exportCovariance(const Options &opt, ProgressMonitor &prog, LoadMapProgress 
 
   prog.beginProgress(ProgressMonitor::Info(region_count));
 
-  for (auto iter = map.begin(); iter != map.end() && !quit; ++iter)
+  for (auto iter = map.begin(); iter != map.end() && !g_quit; ++iter)
   {
     ohm::setVoxelKey(*iter, occupancy, mean, covariance);
     if (last_region != iter->regionKey())
@@ -631,7 +632,7 @@ int exportCovariance(const Options &opt, ProgressMonitor &prog, LoadMapProgress 
   ohm::covDebugStats();
 #endif  // OHM_COV_DEBUG
 
-  if (!quit)
+  if (!g_quit)
   {
     if (!ply.save(opt.ply_file.c_str(), true))
     {

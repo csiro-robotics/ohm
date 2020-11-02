@@ -76,7 +76,8 @@ public:
   EventDetail *detail() const;
 
 private:
-  EventDetail *imp_;
+  // Not a unique pointer due to internal management requirements.
+  EventDetail *imp_ = nullptr;
 };
 }  // namespace gputil
 

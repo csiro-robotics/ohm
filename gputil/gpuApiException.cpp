@@ -8,8 +8,8 @@
 #include <sstream>
 #include <utility>
 
-using namespace gputil;
-
+namespace gputil
+{
 #define DEFAULT_MSG "Attempting write access to read only memory."
 
 ApiException::ApiException(int error_code, const char *msg, const char *filename, int line_number)
@@ -32,3 +32,4 @@ ApiException::ApiException(ApiException &&other) noexcept
   : Exception(std::move(other))
   , error_code_(other.error_code_)
 {}
+}  // namespace gputil

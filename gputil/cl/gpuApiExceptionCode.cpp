@@ -7,9 +7,10 @@
 
 #include <clu/clu.h>
 
-using namespace gputil;
-
+namespace gputil
+{
 const char *ApiException::errorCodeString(int error_code)
 {
   return clu::errorCodeString(error_code);
 }
+}  // namespace gputil

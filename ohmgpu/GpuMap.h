@@ -49,7 +49,7 @@ enum GpuFlag
 ///
 /// @param map The map to enable GPU usage on.
 /// @return The @c GpuCache for the map. Null if GPU code is not enabled.
-GpuCache *ohmgpu_API enableGpu(OccupancyMap &map);  // NOLINT(google-runtime-references)
+GpuCache *ohmgpu_API enableGpu(OccupancyMap &map);
 
 /// Enable GPU usage for the given @p map.
 ///
@@ -59,7 +59,7 @@ GpuCache *ohmgpu_API enableGpu(OccupancyMap &map);  // NOLINT(google-runtime-ref
 /// @param target_gpu_mem_size Target GPU memory usage. This is split amounst the active, default layers.
 /// @param gpu_flags @c GpuFlag values controlling initialisation.
 /// @return The @c GpuCache for the map. Null if GPU code is not enabled.
-GpuCache *ohmgpu_API enableGpu(OccupancyMap &map, size_t target_gpu_mem_size,  // NOLINT(google-runtime-references)
+GpuCache *ohmgpu_API enableGpu(OccupancyMap &map, size_t target_gpu_mem_size,
                                unsigned gpu_flags = kGpuAllowMappedBuffers);
 
 // /// Reports the status of setting up the associated GPU program for populating the map.
@@ -76,18 +76,18 @@ GpuCache *ohmgpu_API enableGpu(OccupancyMap &map, size_t target_gpu_mem_size,  /
 ///
 /// Does nothing if the map has no GPU cache or GPU code is disabled.
 /// @param map The map to sync GPU memory for.
-void ohmgpu_API sync(OccupancyMap &map);  // NOLINT(google-runtime-references)
+void ohmgpu_API sync(OccupancyMap &map);
 
 /// Sync a specific GPU memory layer to main memory.
 ///
 /// Does nothing if the map has no GPU cache or GPU code is disabled.
 /// @param map The map to sync GPU memory for.
 /// @param layer_index The index of the layer to sync.
-void ohmgpu_API sync(OccupancyMap &map, unsigned layer_index);  // NOLINT(google-runtime-references)
+void ohmgpu_API sync(OccupancyMap &map, unsigned layer_index);
 
 /// Retrieves the GPU cache used by @p map if GPU usage has been enabled for @p map.
 /// @return The GPU cache for @p map.
-GpuCache *ohmgpu_API gpuCache(OccupancyMap &map);  // NOLINT(google-runtime-references)
+GpuCache *ohmgpu_API gpuCache(OccupancyMap &map);
 }  // namespace gpumap
 
 /// A wrapper for an @c OccupancyMap that uses GPU to update and manage the wrapped map.

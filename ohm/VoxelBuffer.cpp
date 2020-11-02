@@ -79,6 +79,9 @@ void VoxelBuffer<VoxelBlock>::release()
   }
 }
 
+namespace ohm
+{
 // Instantiate VoxelBufferT for const and non-const buffers.
 template class VoxelBuffer<VoxelBlock>;
 template class VoxelBuffer<const VoxelBlock>;
+}  // namespace ohm

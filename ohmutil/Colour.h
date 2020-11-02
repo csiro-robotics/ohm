@@ -26,8 +26,7 @@ namespace colour
 /// @param h The colour hue channel [0, 360].
 /// @param s The colour saturation channel.
 /// @param v The colour value channel.
-void ohmutil_API hsvToRgb(float &r, float &g, float &b,  // NOLINT(google-runtime-references)
-                          float h, float s, float v);
+void ohmutil_API hsvToRgb(float &r, float &g, float &b, float h, float s, float v);
 
 /// Converts from HSV to RGB colour.
 ///
@@ -40,8 +39,7 @@ void ohmutil_API hsvToRgb(float &r, float &g, float &b,  // NOLINT(google-runtim
 /// @param h The colour hue channel [0, 360].
 /// @param s The colour saturation channel.
 /// @param v The colour value channel.
-void ohmutil_API hsvToRgb(uint8_t &r, uint8_t &g, uint8_t &b,  // NOLINT(google-runtime-references)
-                          float h, float s, float v);
+void ohmutil_API hsvToRgb(uint8_t &r, uint8_t &g, uint8_t &b, float h, float s, float v);
 
 /// Converts from RGB to HSV colour.
 ///
@@ -54,8 +52,7 @@ void ohmutil_API hsvToRgb(uint8_t &r, uint8_t &g, uint8_t &b,  // NOLINT(google-
 /// @param r The red colour channel.
 /// @param g The green colour channel.
 /// @param b The blue colour channel.
-void rgbToHsv(float &h, float &s, float &v,  // NOLINT(google-runtime-references)
-              float r, float g, float b);
+void rgbToHsv(float &h, float &s, float &v, float r, float g, float b);
 
 /// Converts from RGB to HSV colour.
 ///
@@ -65,8 +62,7 @@ void rgbToHsv(float &h, float &s, float &v,  // NOLINT(google-runtime-references
 /// @param r The red colour channel.
 /// @param g The green colour channel.
 /// @param b The blue colour channel.
-void rgbToHsv(float &h, float &s, float &v,  // NOLINT(google-runtime-references)
-              uint8_t r, uint8_t g, uint8_t b);
+void rgbToHsv(float &h, float &s, float &v, uint8_t r, uint8_t g, uint8_t b);
 }  // namespace colour
 
 /// Defines an RGB or RGBA colour value. Each colour channel is represented by an unsigned byte.

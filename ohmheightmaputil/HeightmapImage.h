@@ -155,10 +155,10 @@ public:
   bool generateBitmap(const HeightmapMesh &mesh, UpAxis up_axis = UpAxis::kZ);
 
 private:
-  template <typename NORMAL_VEC3, typename COLOUR_VEC>
+  template <typename NormalVec3, typename ColourVec>
   bool renderHeightMesh(ImageType type, const Aabb &spatial_extents, double voxel_resolution,
                         const glm::dvec3 *vertices, size_t vertex_count, const unsigned *indices, size_t index_count,
-                        const NORMAL_VEC3 *vertex_normals, const COLOUR_VEC *colours, UpAxis up_axis);
+                        const NormalVec3 *vertex_normals, const ColourVec *colours, UpAxis up_axis);
 
   std::unique_ptr<HeightmapImageDetail> imp_;
 };

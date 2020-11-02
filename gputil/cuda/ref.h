@@ -19,7 +19,7 @@ class Ref
 public:
   using ReleaseFunc = std::function<void(T &)>;
 
-  Ref(T obj, unsigned initial_ref_count, const ReleaseFunc &release);
+  Ref(T obj, unsigned initial_ref_count, ReleaseFunc release);
   Ref(Ref &&other) noexcept;
   Ref(const Ref &other) = delete;
 
@@ -33,10 +33,10 @@ public:
   void set(T obj, unsigned ref_count);
 
   inline T obj() { return obj_; }
-  inline const T obj() const { return obj_; }
+  inline const T obj() const { return obj_; }  // NOLINT(readability-const-return-type)
 
   inline T operator()() { return obj_; }
-  inline const T operator()() const { return obj_; }
+  inline const T operator()() const { return obj_; }  // NOLINT(readability-const-return-type)
 
   inline unsigned referenceCount() const { return reference_count_; }
 
@@ -51,10 +51,10 @@ private:
 };
 
 template <typename T>
-inline Ref<T>::Ref(T obj, unsigned initial_ref_count, const ReleaseFunc &release)
+inline Ref<T>::Ref(T obj, unsigned initial_ref_count, ReleaseFunc release)
   : obj_(obj)
   , reference_count_(initial_ref_count)
-  , release_func_(release)
+  , release_func_(std::move(release))
 {}
 
 

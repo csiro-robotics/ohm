@@ -46,7 +46,7 @@ private:
 class ScopedSpinLock
 {
 public:
-  inline ScopedSpinLock(SpinLock &lock)  // NOLINT(google-runtime-references)
+  inline ScopedSpinLock(SpinLock &lock)
     : lock_(lock)
     , have_lock_(true)
   {

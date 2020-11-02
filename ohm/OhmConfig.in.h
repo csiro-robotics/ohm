@@ -44,8 +44,8 @@
 #ifdef TES_ENABLE
 namespace tes
 {
-  class Server;
-}
+class Server;
+}  // namespace tes
 namespace ohm
 {
 /// Debug visualisation server pointer. Must be set by the executable to enable its use in this library.

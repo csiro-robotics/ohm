@@ -21,12 +21,12 @@ using namespace ohm;
 
 namespace
 {
-gputil::Device gpu_device;
-std::mutex gpu_mutex;
-std::string gpu_build_std_arg;
-unsigned gpu_std_major = 0;
-unsigned gpu_std_minor = 0;
-bool gpu_initialised = false;
+gputil::Device g_gpu_device;
+std::mutex g_gpu_mutex;
+std::string g_gpu_build_std_arg;
+unsigned g_gpu_std_major = 0;
+unsigned g_gpu_std_minor = 0;
+bool g_gpu_initialised = false;
 }  // namespace
 
 
@@ -34,7 +34,7 @@ namespace ohm
 {
 bool configureGpuFromArgsInternal(int argc, const char **argv, bool show_device)
 {
-  if (!gpu_initialised)
+  if (!g_gpu_initialised)
   {
     struct PreferredDevice
     {
@@ -53,13 +53,13 @@ bool configureGpuFromArgsInternal(int argc, const char **argv, bool show_device)
     };
     static const size_t preferred_device_count = sizeof(preferred_device) / sizeof(preferred_device[0]);
 
-    for (size_t i = 0; !gpu_initialised && i < preferred_device_count; ++i)
+    for (size_t i = 0; !g_gpu_initialised && i < preferred_device_count; ++i)
     {
-      if (gpu_device.select(argc, argv, preferred_device[i].device_name, preferred_device[i].type_flags))
+      if (g_gpu_device.select(argc, argv, preferred_device[i].device_name, preferred_device[i].type_flags))
       {
         if (show_device)
         {
-          std::cout << gpu_device.description() << std::endl;
+          std::cout << g_gpu_device.description() << std::endl;
         }
 
 #if OHM_GPU == OHM_GPU_OPENCL
@@ -76,8 +76,8 @@ bool configureGpuFromArgsInternal(int argc, const char **argv, bool show_device)
             cl_uint ver_major, ver_minor;
             std::string cl_ver = argv[i] + cl_arg_len + 1;
             found_cl_ver = clu::parseVersion(cl_ver.c_str(), &ver_major, &ver_minor);
-            gpu_std_major = ver_major;
-            gpu_std_minor = ver_minor;
+            g_gpu_std_major = ver_major;
+            g_gpu_std_minor = ver_minor;
           }
         }
 
@@ -87,26 +87,26 @@ bool configureGpuFromArgsInternal(int argc, const char **argv, bool show_device)
           {
             // Requesting the maximum available version.
             // Query the device.
-            gpu_std_major = gpu_device.info().version.major;
-            gpu_std_minor = gpu_device.info().version.minor;
+            g_gpu_std_major = g_gpu_device.info().version.major;
+            g_gpu_std_minor = g_gpu_device.info().version.minor;
           }
           else
           {
             cl_uint ver_major, ver_minor;
             clu::parseVersion(OHM_OPENCL_STD, &ver_major, &ver_minor);
-            gpu_std_major = ver_major;
-            gpu_std_minor = ver_minor;
+            g_gpu_std_major = ver_major;
+            g_gpu_std_minor = ver_minor;
           }
         }
 
         // Validate OpenCL extensions for 2.x are available.
         std::ostringstream str;
-        str << "-cl-std=CL" << gpu_std_major << "." << gpu_std_minor;
-        gpu_build_std_arg = str.str();
+        str << "-cl-std=CL" << g_gpu_std_major << "." << g_gpu_std_minor;
+        g_gpu_build_std_arg = str.str();
         // Validate extensions.
 
         bool extensions_supported = true;
-        if (gpu_std_major >= 2)
+        if (g_gpu_std_major >= 2)
         {
           // Tokenise required OpenCL feature list
           const char *feature_str = OHM_OPENCL_2_FEATURES;
@@ -122,7 +122,7 @@ bool configureGpuFromArgsInternal(int argc, const char **argv, bool show_device)
             if (*begin != '\0')
             {
               std::string feature(begin, feature_str);
-              if (!gpu_device.supportsFeature(feature.c_str()))
+              if (!g_gpu_device.supportsFeature(feature.c_str()))
               {
                 std::cerr << "Missing OpenCL 2+ feature: " << feature << std::endl;
                 extensions_supported = false;
@@ -134,24 +134,24 @@ bool configureGpuFromArgsInternal(int argc, const char **argv, bool show_device)
         if (!extensions_supported)
         {
           std::cerr << "Fallback to OpenCL 1.2" << std::endl;
-          gpu_build_std_arg = "-cl-std=CL1.2";
-          gpu_std_major = 1;
-          gpu_std_minor = 2;
+          g_gpu_build_std_arg = "-cl-std=CL1.2";
+          g_gpu_std_major = 1;
+          g_gpu_std_minor = 2;
         }
 #endif  // OHM_GPU == OHM_GPU_OPENCL
 
 
-        gpu_initialised = true;
+        g_gpu_initialised = true;
       }
     }
   }
 
-  if (!gpu_initialised && show_device)
+  if (!g_gpu_initialised && show_device)
   {
     std::cerr << "OHM GPU device selection failed" << std::endl;
   }
 
-  return gpu_initialised;
+  return g_gpu_initialised;
 }
 
 
@@ -195,7 +195,7 @@ int configureGpuInternal(unsigned accel, const char *device_name, bool show_devi
 int configureGpuFromArgs(int argc, const char **argv, bool show_device)
 {
   int err = 0;
-  std::unique_lock<std::mutex> lock(gpu_mutex);
+  std::unique_lock<std::mutex> lock(g_gpu_mutex);
   if (!configureGpuFromArgsInternal(argc, argv, show_device))
   {
     err = 1;
@@ -207,7 +207,7 @@ int configureGpuFromArgs(int argc, const char **argv, bool show_device)
 int configureGpu(unsigned accel, const char *device_name, bool show_device)
 {
   int err = 0;
-  std::unique_lock<std::mutex> lock(gpu_mutex);
+  std::unique_lock<std::mutex> lock(g_gpu_mutex);
   if (!configureGpuInternal(accel, device_name, show_device))
   {
     err = 1;
@@ -218,12 +218,12 @@ int configureGpu(unsigned accel, const char *device_name, bool show_device)
 
 gputil::Device &gpuDevice()
 {
-  std::unique_lock<std::mutex> lock(gpu_mutex);
-  if (!gpu_initialised)
+  std::unique_lock<std::mutex> lock(g_gpu_mutex);
+  if (!g_gpu_initialised)
   {
     configureGpuInternal(kGpuAccel, nullptr, true);
   }
-  return gpu_device;
+  return g_gpu_device;
 }
 
 
@@ -272,14 +272,14 @@ unsigned gpuArgsInfo(const char **args_info, int *arg_type, unsigned max_pairs)
 
 const char *gpuBuildStdArg()
 {
-  return gpu_build_std_arg.c_str();
+  return g_gpu_build_std_arg.c_str();
 }
 
 
 void setGpuBuildVersion(gputil::BuildArgs &build_args)
 {
   // Resolve the requested from the configuration define.
-  build_args.version_major = gpu_std_major;
-  build_args.version_minor = gpu_std_minor;
+  build_args.version_major = g_gpu_std_major;
+  build_args.version_minor = g_gpu_std_minor;
 }
 }  // namespace ohm

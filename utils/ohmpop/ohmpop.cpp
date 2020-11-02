@@ -49,13 +49,13 @@ namespace
 {
 using Clock = std::chrono::high_resolution_clock;
 
-int quit = 0;
+int g_quit = 0;
 
 void onSignal(int arg)
 {
   if (arg == SIGINT || arg == SIGTERM)
   {
-    ++quit;
+    ++g_quit;
   }
 }
 
@@ -257,11 +257,11 @@ void Options::print(std::ostream **out, const ohm::OccupancyMap &map) const
 class SerialiseMapProgress : public ohm::SerialiseProgress
 {
 public:
-  SerialiseMapProgress(ProgressMonitor &monitor)  // NOLINT(google-runtime-references)
+  SerialiseMapProgress(ProgressMonitor &monitor)
     : monitor_(monitor)
   {}
 
-  bool quit() const override { return ::quit > 1; }
+  bool quit() const override { return ::g_quit > 1; }
 
   void setTargetProgress(unsigned target) override { monitor_.beginProgress(ProgressMonitor::Info(target)); }
   void incrementProgress(unsigned inc) override { monitor_.incrementProgressBy(inc); }
@@ -283,7 +283,7 @@ void saveMap(const Options &opt, const ohm::OccupancyMap &map, const std::string
 {
   std::unique_ptr<SerialiseMapProgress> save_progress(prog ? new SerialiseMapProgress(*prog) : nullptr);
 
-  if (quit >= 2)
+  if (g_quit >= 2)
   {
     return;
   }
@@ -343,7 +343,7 @@ void saveMap(const Options &opt, const ohm::OccupancyMap &map, const std::string
 
     ohm::Voxel<const float> voxel(&map, map.layout().occupancyLayer());
     ohm::Voxel<const ohm::VoxelMean> mean(&map, map.layout().meanLayer());
-    for (auto iter = map.begin(); iter != map_end_iter && quit < 2; ++iter)
+    for (auto iter = map.begin(); iter != map_end_iter && g_quit < 2; ++iter)
     {
       ohm::setVoxelKey(iter, voxel, mean);
       if (last_region != iter->regionKey())
@@ -379,7 +379,7 @@ void saveMap(const Options &opt, const ohm::OccupancyMap &map, const std::string
       }
     }
 
-    if (quit < 2)
+    if (g_quit < 2)
     {
       std::string output_file = base_name + ".ply";
       // Ensure we don't overwrite the input data file.
@@ -504,7 +504,7 @@ int populateMap(const Options &opt)
   ohm::RayMapper *ray_mapper = nullptr;
 #ifdef OHMPOP_CPU
   std::unique_ptr<ohm::RayMapperNdt> ndt_ray_mapper;
-  ohm::RayMapperOccupancy ray_mapper_(&map);
+  ohm::RayMapperOccupancy ray_mapper2(&map);
   if (opt.ndt.enabled)
   {
     std::cout << "Building NDT map" << std::endl;
@@ -513,7 +513,7 @@ int populateMap(const Options &opt)
   }
   else
   {
-    ray_mapper = &ray_mapper_;
+    ray_mapper = &ray_mapper2;
   }
 #else   // OHMPOP_CPU
   ray_mapper = gpu_map.get();
@@ -686,7 +686,7 @@ int populateMap(const Options &opt)
       first_timestamp = timestamp;
     }
 
-    if (point_count % ray_batch_size == 0 || quit)
+    if (point_count % ray_batch_size == 0 || g_quit)
     {
       ray_mapper->integrateRays(origin_sample_pairs.data(), unsigned(origin_sample_pairs.size()), opt.ray_mode_flags);
       delta_motion = glm::length(origin_sample_pairs[0] - last_batch_origin);
@@ -729,7 +729,7 @@ int populateMap(const Options &opt)
 #endif  // OHMPOP_CPU
 
       if (opt.point_limit && point_count >= opt.point_limit ||
-          opt.time_limit > 0 && last_timestamp - timebase >= opt.time_limit || quit)
+          opt.time_limit > 0 && last_timestamp - timebase >= opt.time_limit || g_quit)
       {
         break;
       }
@@ -762,12 +762,12 @@ int populateMap(const Options &opt)
 
 #ifndef OHMPOP_CPU
   const auto mapper_start = Clock::now();
-  if (opt.post_population_mapping && !quit)
+  if (opt.post_population_mapping && !g_quit)
   {
     std::cout << "Finalising" << std::endl;
     mapper.update(0.0);
   }
-  // mapper.join(!quit && opt.postPopulationMapping);
+  // mapper.join(!g_quit && opt.postPopulationMapping);
   end_time = Clock::now();
 #endif  // OHMPOP_CPU
 
