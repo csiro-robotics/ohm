@@ -23,6 +23,10 @@
 #
 # As a special case the CLANG_TIDY_LEVEL may be set to 'all'. This causes clang-tidy targets to be created for all
 # available 'clang-tidy-<level>.yaml files.
+#
+# Note: we do not use CMAKE_CXX_CLANG_TIDY for several reasons. Clang-tidy adds significant compilation time and as
+# such should only be selectively enabled. Conversely, this setup supports different clang profiles and selective
+# compilation with clang-tidy.
 
 if(CLANG_TIDY_CMAKE_INCLUDED)
   return()
@@ -30,38 +34,62 @@ endif(CLANG_TIDY_CMAKE_INCLUDED)
 
 set(CLANG_TIDY_CMAKE_INCLUDED YES)
 
-# Look for clang-tidy
+set(CLANG_TIDY_OK TRUE)
+# We required python 3 to run clang-tidy
+set(CLANG_TIDY_PYTHON)
+if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.12)
+  # CMake 3.12 introduced find_package(Python3) distict from finding python 2
+  # Older versions cannot support both python2 and 3.
+  find_package(Python3 REQUIRED QUIET)
+  set(CLANG_TIDY_PYTHON "${Python3_EXECUTABLE}" CACHE PATH "Python3 executable for use with clang-tidy")
+else(CMAKE_VERSION VERSION_GREATER_EQUAL 3.12)
+  find_package(PythonInterp REQUIRED QUIET)
+  set(CLANG_TIDY_PYTHON "${PYTHON_EXECUTABLE}" CACHE PATH "Python executable for use with clang-tidy")
+endif(CMAKE_VERSION VERSION_GREATER_EQUAL 3.12)
+if(NOT CLANG_TIDY_PYTHON)
+  message("python interpreter not found")
+  set(CLANG_TIDY_OK FALSE)
+endif(NOT CLANG_TIDY_PYTHON)
+# Warn once that Visual Studio is not compatible with Clang-Tidy support
+set(CLANG_TIDY_VS_WARN_ONCE ON CACHE INTERNAL "" FORCE)
 set(CLANG_TIDY_NAMES "clang-tidy")
-set(CLANG_TIDY_START_VERSION 10)
-set(CLANG_TIDY_END_VERSION 5)
-set(CLANG_TIDY_SEARCH_VERSION ${CLANG_TIDY_START_VERSION})
-while(CLANG_TIDY_SEARCH_VERSION GREATER_EQUAL ${CLANG_TIDY_END_VERSION})
-  list(APPEND CLANG_TIDY_NAMES "clang-tidy-${CLANG_TIDY_SEARCH_VERSION}")
-  list(APPEND CLANG_TIDY_NAMES "clang-tidy-${CLANG_TIDY_SEARCH_VERSION}.0")
-  math(EXPR CLANG_TIDY_SEARCH_VERSION "${CLANG_TIDY_SEARCH_VERSION} - 1")
-endwhile(CLANG_TIDY_SEARCH_VERSION GREATER_EQUAL ${CLANG_TIDY_END_VERSION})
+# run-clang-tidy is a script which ships with clang-tidy and supports multi-threaded invocation of clang-tidy
+set(RUN_CLANG_TIDY_NAMES "run-clang-tidy")
+foreach(CLANG_TIDY_VER_NUM RANGE 12 6 -1)
+  list(APPEND CLANG_TIDY_NAMES "clang-tidy-${CLANG_TIDY_VER_NUM}")
+  list(APPEND CLANG_TIDY_NAMES "clang-tidy-${CLANG_TIDY_VER_NUM}.0")
+  list(APPEND RUN_CLANG_TIDY_NAMES "run-clang-tidy-${CLANG_TIDY_VER_NUM}")
+  list(APPEND RUN_CLANG_TIDY_NAMES "run-clang-tidy-${CLANG_TIDY_VER_NUM}.0")
+endforeach(CLANG_TIDY_VER_NUM)
 
-find_program(CLANG_TIDY_EXE NAMES ${CLANG_TIDY_NAMES}
-            DOC "Path to clang-tidy executable")
+# Look for clang-tidy
+find_program(CLANG_TIDY_EXE NAMES ${CLANG_TIDY_NAMES} DOC "Path to clang-tidy executable")
+find_program(RUN_CLANG_TIDY_EXE NAMES ${RUN_CLANG_TIDY_NAMES} DOC "Path to run-clang-tidy executable")
 
 if(NOT CLANG_TIDY_EXE)
-  message(STATUS "clang-tidy not found: clang-tidy directives will be ignored")
+  message("clang-tidy executable not found")
+  set(CLANG_TIDY_OK FALSE)
+endif(NOT CLANG_TIDY_EXE)
+if(NOT CLANG_TIDY_OK)
+  message("clang-tidy support components not found: clang-tidy directives will be ignored")
   function(clang_tidy_target)
   endfunction(clang_tidy_target)
   function(clang_tidy_global)
   endfunction(clang_tidy_global)
   return()
-endif(NOT CLANG_TIDY_EXE)
+endif(NOT CLANG_TIDY_OK)
 
 #-------------------------------------------------------------------------------
 # Enable generation of compile_commands.json for Makefiles and Ninja.
 #-------------------------------------------------------------------------------
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+function(clang_tidy_target)
+endfunction(clang_tidy_target)
+function(clang_tidy_global)
+endfunction(clang_tidy_global)
 include(CMakeParseArguments)
 
-# find_package(Python3 COMPONENTS Interpreter)
-find_package(PythonInterp REQUIRED)
 
 # Set the path where clang tidy config files are found
 set(CLANG_TIDY_CONFIG_PATH "${CMAKE_CURRENT_LIST_DIR}/tidy")
@@ -137,13 +165,21 @@ function(__ctt_setup_target TARGET WORKING_DIRECTORY)
   endif(CTT_FIX)
 
   set(CTT_TARGET_NAME ${TARGET}-clang-tidy-${CTT_CONFIG_LEVEL}${CTT_SUFFIX})
+  set(ADD_CLANG_TIDY_ARGS)
+  if(RUN_CLANG_TIDY_EXE)
+    set(ADD_CLANG_TIDY_ARGS "-runner-py=${RUN_CLANG_TIDY_EXE}")
+  endif(RUN_CLANG_TIDY_EXE)
   add_custom_target(${CTT_TARGET_NAME}
     WORKING_DIRECTORY "${CMAKE_CURRENT_LIST_DIR}"
     COMMAND
-      "${PYTHON_EXECUTABLE}" "${CLANG_TIDY_CONFIG_PATH}/wrap-clang-tidy.py"
+      "${CLANG_TIDY_PYTHON}" "${CLANG_TIDY_CONFIG_PATH}/wrap-clang-tidy.py"
       "-clang-tidy-binary=${CLANG_TIDY_EXE}"
+      "-relative-to=${CMAKE_SOURCE_DIR}"
+      ${ADD_CLANG_TIDY_ARGS}
       ${CONFIG_ARG} ${CTT_BUILD_PATH} ${CTT_UNPARSED_ARGUMENTS} ${CTT_FIX}
   )
+  # message ("${CLANG_TIDY_PYTHON} ${CLANG_TIDY_CONFIG_PATH}/wrap-clang-tidy.py ${CLANG_TIDY_EXE} ${CONFIG_ARG} ${CTT_BUILD_PATH} ${CTT_UNPARSED_ARGUMENTS} ${CTT_FIX}")
+  # message(FATAL_ERROR stop)
   set_target_properties(${CTT_TARGET_NAME} PROPERTIES FOLDER clang-tidy)
 
   # Experiment: add a target per source file in order to allow multi-thread compilation across the board.
@@ -164,7 +200,7 @@ function(__ctt_setup_target TARGET WORKING_DIRECTORY)
   #   add_custom_target(${SOURCE_TARGET_NAME}
   #     WORKING_DIRECTORY "${WORKING_DIRECTORY}"
   #     COMMAND
-  #       "${PYTHON_EXECUTABLE}" "${CLANG_TIDY_CONFIG_PATH}/wrap-clang-tidy.py"
+  #       "${CLANG_TIDY_PYTHON}" "${CLANG_TIDY_CONFIG_PATH}/wrap-clang-tidy.py"
   #       "-clang-tidy-binary=${CLANG_TIDY_EXE}"
   #       ${CONFIG_ARG} ${CTT_BUILD_PATH} "${SOURCE_FILE}" ${CTT_FIX}
   #   )
@@ -213,23 +249,13 @@ endfunction(__ctt_setup_target TARGET WORKING_DIRECTORY)
 # Finally, this mode of operation also considered the C++ standard using the CXX_STANDARD target property.
 function(clang_tidy_target TARGET)
   if(CMAKE_GENERATOR MATCHES "Visual Studio")
+    if(CLANG_TIDY_VS_WARN_ONCE)
+      set(CLANG_TIDY_VS_WARN_ONCE OFF CACHE INTERNAL "" FORCE)
+      message(STATUS "Clang tidy setup is not compatible with full Visual Studio. Recommend using Visual Studio Code with Ninja build.")
+    endif(CLANG_TIDY_VS_WARN_ONCE)
     return()
   endif(CMAKE_GENERATOR MATCHES "Visual Studio")
-# CXX_CLANG_TIDY doesn't work with -config="multi line string"
-  # if(NOT CMAKE_VERSION VERSION_LESS 3.6)
-  #   # From CMake 3.6+, Ninja and Makefiles have in-built clang-tidy support.
-  #   # We assume support if compile_commands.json has been generated.
-  #   if(EXISTS "${CMAKE_BINARY_DIR}/compile_commands.json")
-  #     set_target_properties(${TARGET} PROPERTIES
-  #       CXX_CLANG_TIDY "${CLANG_TIDY_EXE};-p;${CMAKE_BINARY_DIR};-config=${CLANG_CONFIG}"
-  #     )
-  #     return()
-  #   endif(EXISTS "${CMAKE_BINARY_DIR}/compile_commands.json")
-  # endif(NOT CMAKE_VERSION VERSION_LESS 3.6)
 
-  # if(NOT EXISTS "${CMAKE_BINARY_DIR}/compile_commands.json")
-  #   message(SEND_ERROR "No compile_commands.json in ${CMAKE_BINARY_DIR}")
-  # endif(NOT EXISTS "${CMAKE_BINARY_DIR}/compile_commands.json")
 
   # Configure as a post build step
   if(NOT TARGET ${TARGET})
