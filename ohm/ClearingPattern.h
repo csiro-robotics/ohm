@@ -88,7 +88,8 @@ namespace ohm
     const glm::dvec3 *ray_set = buildRaySet(&ray_element_count, position, rotation);
     const float initial_miss_value = map->missValue();
     map->setMissValue(initial_miss_value * probability_scaling);
-    map->integrateRays(ray_set, unsigned(ray_element_count), kRfEndPointAsFree | kRfStopOnFirstOccupied | kRfClearOnly);
+    map->integrateRays(ray_set, unsigned(ray_element_count), nullptr,
+                       kRfEndPointAsFree | kRfStopOnFirstOccupied | kRfClearOnly);
     map->setMissValue(initial_miss_value);
   }
 
@@ -100,7 +101,8 @@ namespace ohm
     const glm::dvec3 *ray_set = buildRaySet(&ray_element_count, pattern_transform);
     const float initial_miss_value = map->missValue();
     map->setMissValue(initial_miss_value * probability_scaling);
-    map->integrateRays(ray_set, unsigned(ray_element_count), kRfEndPointAsFree | kRfStopOnFirstOccupied | kRfClearOnly);
+    map->integrateRays(ray_set, unsigned(ray_element_count), nullptr,
+                       kRfEndPointAsFree | kRfStopOnFirstOccupied | kRfClearOnly);
     map->setMissValue(initial_miss_value);
   }
 }  // namespace ohm

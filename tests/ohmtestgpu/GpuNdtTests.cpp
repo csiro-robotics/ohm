@@ -47,13 +47,14 @@ namespace ndttests
     std::unordered_map<ohm::Key, CovTestVoxel, ohm::KeyHash> reference_voxels;
 
     ohm::OccupancyMap map(resolution, ohm::MapFlag::kVoxelMean);
-    ohm::GpuNdtMap ndt(&map, true);
+    ohm::GpuNdtMap ndt(&map, false, true);
 
     // Simulate a sensor at the origin. Not used.
     const glm::dvec3 sensor(0.0);
 
     // Queue in rays.
     std::vector<glm::dvec3> rays(samples.size() * 2);
+    std::vector<float> intensities(samples.size(), 0.0f);
     for (size_t i = 0; i < samples.size(); ++i)
     {
       rays[i * 2 + 0] = sensor;
@@ -74,7 +75,7 @@ namespace ndttests
       updateHit(&ref->second, samples[i]);
     }
 
-    ndt.integrateRays(rays.data(), rays.size(), ohm::kRfExcludeRay);
+    ndt.integrateRays(rays.data(), rays.size(), intensities.data(), ohm::kRfExcludeRay);
     ndt.syncVoxels();
 
     // Validate
@@ -107,7 +108,7 @@ namespace ndttests
   {
     (void)sensor;
     ohm::OccupancyMap map_cpu(voxel_resolution, ohm::MapFlag::kVoxelMean);
-    ohm::NdtMap ndt_cpu(&map_cpu, true);
+    ohm::NdtMap ndt_cpu(&map_cpu, false, true);
 
     map_cpu.setOrigin(map_origin);
     map_cpu.setMissProbability(0.45f);
@@ -121,11 +122,11 @@ namespace ndttests
 
       ohm::Key key = map_cpu.voxelKey(sample);
       target_key = key;
-      ohm::integrateNdtHit(ndt_cpu, key, sample);
+      ohm::integrateNdtHit(ndt_cpu, key, sensor, sample);
     }
 
     // Clone the map for use in GPU.
-    ohm::GpuNdtMap ndt_gpu(map_cpu.clone(), false);
+    ohm::GpuNdtMap ndt_gpu(map_cpu.clone(), false, false);
     // Copy parameterisation.
     ndt_gpu.setSensorNoise(ndt_cpu.sensorNoise());
 

@@ -28,6 +28,8 @@ namespace ohm
     const char *meanLayerName() { return "mean"; }
     const char *covarianceLayerName() { return "covariance"; }
     const char *clearanceLayerName() { return "clearance"; }
+    const char *intensityLayerName() { return "intensity"; }
+    const char *hitMissCountLayerName() { return "hit_miss_count"; }
   }  // namespace default_layer
 
 
@@ -108,4 +110,52 @@ namespace ohm
 
     return layer;
   }
+
+  MapLayer *addIntensity(MapLayout &layout)
+  {
+    if (const MapLayer *layer = layout.layer(default_layer::intensityLayerName()))
+    {
+      // Already present.
+      // Oddities below as we can only retrieve const layers by name.
+      return layout.layerPtr(layer->layerIndex());
+    }
+
+    MapLayer *layer = layout.addLayer(default_layer::intensityLayerName());
+    VoxelLayout voxel = layer->voxelLayout();
+    // Add members to represent mean and covariance of points in voxel
+    voxel.addMember("mean", DataType::kFloat, 0);
+    voxel.addMember("cov", DataType::kFloat, 0);
+
+    if (layer->voxelByteSize() != sizeof(IntensityMeanCov))
+    {
+      throw std::runtime_error("Intensity layer size mismatch");
+    }
+
+    return layer;
+  }
+
+  MapLayer *addHitMissCount(MapLayout &layout)
+  {
+    if (const MapLayer *layer = layout.layer(default_layer::hitMissCountLayerName()))
+    {
+      // Already present.
+      // Oddities below as we can only retrieve const layers by name.
+      return layout.layerPtr(layer->layerIndex());
+    }
+
+    MapLayer *layer = layout.addLayer(default_layer::hitMissCountLayerName());
+    VoxelLayout voxel = layer->voxelLayout();
+    // Add members to represent hit and miss count in voxel, according to NDT-TM
+    voxel.addMember("hit_count", DataType::kUInt32, 0);
+    voxel.addMember("miss_count", DataType::kUInt32, 0);
+
+    if (layer->voxelByteSize() != sizeof(HitMissCount))
+    {
+      throw std::runtime_error("HitMissCount layer size mismatch");
+    }
+
+    return layer;
+  }
+
+
 }  // namespace ohm

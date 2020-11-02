@@ -23,7 +23,7 @@ namespace ohm
 
     GpuNdtMapDetail(OccupancyMap *map, bool borrowed_map)
       : GpuMapDetail(map, borrowed_map)
-      , ndt_map(map, true)  // Ensures correct initialisation for NDT operations.
+      , ndt_map(map, false, true)  // Ensures correct initialisation for NDT operations.
     {}
   };
 }  // namespace ohm

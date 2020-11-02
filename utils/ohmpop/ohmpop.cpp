@@ -71,6 +71,7 @@ namespace
       // NDT map probabilities should be much narrower. The NDT process is more precise.
       unsigned covariance_reset_sample_count = 0;  // re-initialised from a default map
       bool enabled = false;
+      bool ndt_tm = false;
     };
 
     std::string cloud_file;
@@ -136,13 +137,13 @@ namespace
     prob_range[0] = defaults_map.minVoxelValue();
     prob_range[1] = defaults_map.maxVoxelValue();
 
-    const ohm::NdtMap defaults_ndt(&defaults_map, true);
+    const ohm::NdtMap defaults_ndt(&defaults_map, false, true);
     // Default probabilities may differ for NDT.
     ndt.prob_hit = defaults_map.hitProbability();
     ndt.prob_miss = defaults_map.missProbability();
     ndt.adaptation_rate = defaults_ndt.adaptationRate();
     ndt.sensor_noise = defaults_ndt.sensorNoise();
-    ndt.covariance_reset_probability = ohm::valueToProbability(defaults_ndt.reinitialiseCovarianceTheshold());
+    ndt.covariance_reset_probability = ohm::valueToProbability(defaults_ndt.reinitialiseCovarianceThreshold());
     ndt.covariance_reset_sample_count = defaults_ndt.reinitialiseCovariancePointCount();
     ndt.adaptation_rate = defaults_ndt.adaptationRate();
   }
@@ -214,6 +215,7 @@ namespace
         **out << "NDT sensor noise: " << ndt.sensor_noise << '\n';
         **out << "NDT covariance reset probability: " << ndt.covariance_reset_probability << '\n';
         **out << "NDT covariance reset sample cout: " << ndt.covariance_reset_sample_count << '\n';
+        **out << "NDT-TM: " << (ndt.ndt_tm ? "true" : "false") << '\n';
       }
 #ifndef OHMPOP_CPU
       **out << "Ray batch size: " << batch_size << '\n';
@@ -432,11 +434,12 @@ int populateMap(const Options &opt)
   std::unique_ptr<ohm::NdtMap> ndt_map;
   if (opt.ndt.enabled)
   {
-    ndt_map = std::make_unique<ohm::NdtMap>(&map, true);
+    ndt_map = std::make_unique<ohm::NdtMap>(&map, opt.ndt.ndt_tm, true);
   }
 #else   // OHMPOP_CPU
-  std::unique_ptr<ohm::GpuMap> gpu_map((!opt.ndt.enabled) ? new ohm::GpuMap(&map, true, opt.batch_size) :
-                                                            new ohm::GpuNdtMap(&map, true, opt.batch_size));
+  std::unique_ptr<ohm::GpuMap> gpu_map((!opt.ndt.enabled) ?
+                                         new ohm::GpuMap(&map, true, opt.batch_size) :
+                                         new ohm::GpuNdtMap(&map, opt.ndt.ndt_tm, true, opt.batch_size));
   ohm::NdtMap *ndt_map = &static_cast<ohm::GpuNdtMap *>(gpu_map.get())->ndtMap();
 #endif  // OHMPOP_CPU
 
@@ -449,7 +452,7 @@ int populateMap(const Options &opt)
   {
     ndt_map->setAdaptationRate(opt.ndt.adaptation_rate);
     ndt_map->setSensorNoise(opt.ndt.sensor_noise);
-    ndt_map->setReinitialiseCovarianceTheshold(ohm::probabilityToValue(opt.ndt.covariance_reset_probability));
+    ndt_map->setReinitialiseCovarianceThreshold(ohm::probabilityToValue(opt.ndt.covariance_reset_probability));
     ndt_map->setReinitialiseCovariancePointCount(opt.ndt.covariance_reset_sample_count);
   }
 
@@ -508,7 +511,7 @@ int populateMap(const Options &opt)
   if (opt.ndt.enabled)
   {
     std::cout << "Building NDT map" << std::endl;
-    ndt_ray_mapper = std::make_unique<ohm::RayMapperNdt>(ndt_map.get());
+    ndt_ray_mapper = std::make_unique<ohm::RayMapperNdt>(ndt_map.get(), opt.ndt.ndt_tm);
     ray_mapper = ndt_ray_mapper.get();
   }
   else
@@ -531,6 +534,8 @@ int populateMap(const Options &opt)
   std::vector<double> sample_timestamps;
   std::vector<glm::dvec3> origin_sample_pairs;
   glm::dvec3 origin, sample, last_batch_origin(0);
+  float intensity;
+  std::vector<float> intensities;
   // glm::vec3 voxel, ext(opt.resolution);
   double timestamp;
   uint64_t point_count = 0;
@@ -658,7 +663,7 @@ int populateMap(const Options &opt)
   origin = glm::vec3(0, 0, 0);
   while ((point_count < opt.point_limit || opt.point_limit == 0) &&
          (last_timestamp - timebase < opt.time_limit || opt.time_limit == 0) &&
-         loader.nextPoint(sample, &origin, &timestamp))
+         loader.nextPoint(sample, intensity, &origin, &timestamp))
   {
     if (timebase < 0)
     {
@@ -674,6 +679,7 @@ int populateMap(const Options &opt)
     sample_timestamps.push_back(timestamp);
     origin_sample_pairs.push_back(origin);
     origin_sample_pairs.push_back(sample);
+    intensities.push_back(intensity);
 
     if (last_timestamp < 0)
     {
@@ -688,7 +694,8 @@ int populateMap(const Options &opt)
 
     if (point_count % ray_batch_size == 0 || quit)
     {
-      ray_mapper->integrateRays(origin_sample_pairs.data(), unsigned(origin_sample_pairs.size()), opt.ray_mode_flags);
+      ray_mapper->integrateRays(origin_sample_pairs.data(), unsigned(origin_sample_pairs.size()), intensities.data(),
+                                opt.ray_mode_flags);
       delta_motion = glm::length(origin_sample_pairs[0] - last_batch_origin);
       accumulated_motion += delta_motion;
       last_batch_origin = origin_sample_pairs[0];
@@ -699,8 +706,13 @@ int populateMap(const Options &opt)
         std::cerr << "\nWarning: Precisely zero motion in batch\n" << std::flush;
         warned_no_motion = true;
       }
+
+      const auto minmax = std::minmax_element(intensities.cbegin(), intensities.cend());
+      std::cout << "Batch min/max intensity: " << *(minmax.first) << "," << *(minmax.second) << "   ";
+
       sample_timestamps.clear();
       origin_sample_pairs.clear();
+      intensities.clear();
 
       prog.incrementProgressBy(ray_batch_size);
       last_timestamp = timestamp;
@@ -739,11 +751,13 @@ int populateMap(const Options &opt)
   // Make sure we have no more rays.
   if (!origin_sample_pairs.empty())
   {
-    ray_mapper->integrateRays(origin_sample_pairs.data(), unsigned(origin_sample_pairs.size()), opt.ray_mode_flags);
+    ray_mapper->integrateRays(origin_sample_pairs.data(), unsigned(origin_sample_pairs.size()), intensities.data(),
+                              opt.ray_mode_flags);
     delta_motion = glm::length(origin_sample_pairs[0] - last_batch_origin);
     accumulated_motion += delta_motion;
     sample_timestamps.clear();
     origin_sample_pairs.clear();
+    intensities.clear();
   }
   end_time = Clock::now();
 
@@ -874,12 +888,13 @@ int parseOptions(Options *opt, int argc, char *argv[])
       ("uncompressed", "Maintain uncompressed map. By default, may regions may be compressed when no longer needed.", optVal(opt->uncompressed))
       ("voxel-mean", "Enable voxel mean coordinates?", optVal(opt->voxel_mean))
       ("threshold", "Sets the occupancy threshold assigned when exporting the map to a cloud.", optVal(opt->prob_thresh)->implicit_value(optStr(opt->prob_thresh)))
-      ("ndt", "Use normal distibution transform map generation.", optVal(opt->ndt.enabled))
+      ("ndt", "Use normal distibution transform occupancy map generation.", optVal(opt->ndt.enabled))
       ("ndt-cov-point-threshold", "Minimum number of samples requires in order to allow the covariance to reset at --ndt-cov-prob-threshold..", optVal(opt->ndt.covariance_reset_sample_count))
       ("ndt-cov-prob-threshold", "Low probability threshold at which the covariance can be reset as samples accumulate once more. See also --ndt-cov-point-threshold.", optVal(opt->ndt.covariance_reset_probability))
       ("ndt-adaptation-rate", "NDT adpatation rate [0, 1]. Controls how fast rays remove NDT voxels. Has a strong effect than miss_value when using NDT.",
         optVal(opt->ndt.adaptation_rate))
       ("ndt-sensor-noise", "Range sensor noise used for Ndt mapping. Must be > 0.", optVal(opt->ndt.sensor_noise))
+      ("ndt-tm", "Use normal distibution transform traversability map generation.", optVal(opt->ndt.ndt_tm))
       ("mode", "Controls the mapping mode [ normal, sample, erode ]. The 'normal' mode is the default, with the full ray "
                "being integrated into the map. 'sample' mode only adds samples to increase occcupancy, while 'erode' "
                "only erodes free space by skipping the sample voxels.", optVal(opt->mode))

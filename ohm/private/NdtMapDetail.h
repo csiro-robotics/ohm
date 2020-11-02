@@ -28,10 +28,12 @@ namespace ohm
     float adaptation_rate = 0.7f;
     /// Low probability value threshold used to re-initialise covariance matrix and mean.
     /// Used with @c reinitialise_covariance_point_count in @c calculateHitWithCovariance()
-    float reinitialise_covariance_theshold = probabilityToValue(0.2f);
+    float reinitialise_covariance_threshold = probabilityToValue(0.2f);
     /// Upper point count limit required to reinitialise the covariance matrix. Used with
-    /// @c reinitialise_covariance_theshold in @c calculateHitWithCovariance()
+    /// @c reinitialise_covariance_threshold in @c calculateHitWithCovariance()
     unsigned reinitialise_covariance_point_count = 100;
+    /// Covariance of intensity (for NDT-TM) for initialisation upon receipt of first hit.
+    float initial_intensity_covariance = 1.0f;
     /// True if @p map is a borrowed pointer, false to take ownership and delete it.
     bool borrowed_map = false;
     /// Debug tracing enabled? Requires 3es

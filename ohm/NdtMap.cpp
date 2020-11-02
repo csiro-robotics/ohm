@@ -18,6 +18,8 @@
 #include <glm/vec4.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
+#include <iostream>
+
 #include <3esservermacros.h>
 #ifdef TES_ENABLE
 #include <3esserver.h>
@@ -28,12 +30,12 @@
 
 using namespace ohm;
 
-NdtMap::NdtMap(OccupancyMap *map, bool borrowed_map)
+NdtMap::NdtMap(OccupancyMap *map, bool ndt_tm, bool borrowed_map)
   : imp_(new NdtMapDetail)
 {
   imp_->map = map;
   imp_->borrowed_map = borrowed_map;
-  enableNdt(map);
+  enableNdt(map, ndt_tm);
   updateMapInfo();
 }
 
@@ -108,16 +110,16 @@ unsigned NdtMap::ndtSampleThreshold()
 }
 
 
-void NdtMap::setReinitialiseCovarianceTheshold(float threshold)
+void NdtMap::setReinitialiseCovarianceThreshold(float threshold)
 {
-  imp_->reinitialise_covariance_theshold = threshold;
+  imp_->reinitialise_covariance_threshold = threshold;
   updateMapInfo();
 }
 
 
-float NdtMap::reinitialiseCovarianceTheshold() const
+float NdtMap::reinitialiseCovarianceThreshold() const
 {
-  return imp_->reinitialise_covariance_theshold;
+  return imp_->reinitialise_covariance_threshold;
 }
 
 
@@ -134,6 +136,19 @@ unsigned NdtMap::reinitialiseCovariancePointCount() const
 }
 
 
+void NdtMap::setInitialIntensityCovariance(float initial_intensity_covariance)
+{
+  imp_->initial_intensity_covariance = initial_intensity_covariance;
+  updateMapInfo();
+}
+
+
+float NdtMap::initialIntensityCovariance() const
+{
+  return imp_->initial_intensity_covariance;
+}
+
+
 void NdtMap::setTrace(bool trace)
 {
   imp_->trace = trace;
@@ -146,6 +161,9 @@ bool NdtMap::trace() const
 }
 
 
+
+//#define TES_ENABLE
+
 void NdtMap::debugDraw() const
 {
 #ifdef TES_ENABLE
@@ -156,6 +174,8 @@ void NdtMap::debugDraw() const
 
   std::vector<tes::Sphere> ellipsoids;
   std::vector<tes::Shape *> shape_ptrs;
+  static float min_intensity = 0.0f, max_intensity = 127.0f;
+  static uint32_t min_hit = 1 << 31, max_hit = 0, min_miss = 1 << 31, max_miss = 0;
 
   const auto send = [&ellipsoids, &shape_ptrs]()  //
   {
@@ -173,40 +193,106 @@ void NdtMap::debugDraw() const
   };
 
   uint32_t next_id = static_cast<uint32_t>((size_t)this);
-  const tes::Colour c = tes::Colour::Colours[tes::Colour::SeaGreen];
-  Voxel<const float> occupancy(imp_->map, imp_->map->layout().occupancyLayer());
-  Voxel<const CovarianceVoxel> cov(imp_->map, imp_->map->layout().covarianceLayer());
-  Voxel<const VoxelMean> mean(imp_->map, imp_->map->layout().meanLayer());
-  for (auto iter = imp_->map->begin(); iter != imp_->map->end(); ++iter)
+  if (imp_->map->layout().intensityLayer() >= 0 && imp_->map->layout().hitMissCountLayer() >= 0)
   {
-    occupancy.setKey(*iter);
-    if (isOccupied(occupancy))
+    // NDT-TM
+    Voxel<const float> occupancy(imp_->map, imp_->map->layout().occupancyLayer());
+    Voxel<const CovarianceVoxel> cov(imp_->map, imp_->map->layout().covarianceLayer());
+    Voxel<const VoxelMean> mean(imp_->map, imp_->map->layout().meanLayer());
+    Voxel<const IntensityMeanCov> intensity_voxel(imp_->map, imp_->map->layout().intensityLayer());
+    Voxel<const HitMissCount> hit_miss_voxel(imp_->map, imp_->map->layout().hitMissCountLayer());
+    for (auto iter = imp_->map->begin(); iter != imp_->map->end(); ++iter)
     {
-      cov.setKey(occupancy);
-
-      glm::dquat rot;
-      glm::dvec3 scale;
-      CovarianceVoxel cv;
-      cov.read(&cv);
-      if (!covarianceUnitSphereTransformation(&cv, &rot, &scale))
+      occupancy.setKey(*iter);
+      if (isOccupied(occupancy))
       {
-        continue;
+        cov.setKey(occupancy);
+
+        glm::dquat rot;
+        glm::dvec3 scale;
+        CovarianceVoxel cv;
+        cov.read(&cv);
+        if (!covarianceUnitSphereTransformation(&cv, &rot, &scale))
+        {
+          continue;
+        }
+
+        mean.setKey(occupancy);
+        intensity_voxel.setKey(occupancy);
+        hit_miss_voxel.setKey(occupancy);
+
+        const glm::dvec3 voxel_mean = positionUnsafe(mean);
+
+        IntensityMeanCov intensity_mean_cov;
+        intensity_voxel.read(&intensity_mean_cov);
+        min_intensity = std::fmin(min_intensity, intensity_mean_cov.intensity_mean);
+        max_intensity = std::fmax(max_intensity, intensity_mean_cov.intensity_mean);
+        const float scaled_intensity = M_PI * (-1.0f + 1.5f * (intensity_mean_cov.intensity_mean - min_intensity) /
+                                                         std::fmax(1.0f, max_intensity - min_intensity));
+        const float sin_sc = std::sin(scaled_intensity), cos_sc = std::cos(scaled_intensity);
+        HitMissCount hit_miss_count;
+        hit_miss_voxel.read(&hit_miss_count);
+        min_hit = std::min(min_hit, hit_miss_count.hit_count);
+        max_hit = std::max(max_hit, hit_miss_count.hit_count);
+        min_miss = std::min(min_miss, hit_miss_count.miss_count);
+        max_miss = std::max(max_miss, hit_miss_count.miss_count);
+
+        tes::Sphere ellipsoid(next_id, tes::Spherical(tes::Vector3d(glm::value_ptr(voxel_mean))));
+        ellipsoid.setRotation(tes::Quaterniond(rot.x, rot.y, rot.z, rot.w));
+        ellipsoid.setScale(2.0 * tes::Vector3d(scale.x, scale.y, scale.z));
+        ellipsoid.setTransparent(true);
+        ellipsoid.setColour(
+          tes::Colour(0.5f * (1.0f + sin_sc), 0.5f * (1.0f + cos_sc), 0.5f * (1.0f - sin_sc),
+                      0.1 + 0.9f * float(hit_miss_count.hit_count) /
+                              std::fmax(1.0f, float(hit_miss_count.hit_count + hit_miss_count.miss_count))));
+        ellipsoids.emplace_back(ellipsoid);
+
+        if (ellipsoids.size() >= tes::MultiShape::ShapeCountLimit)
+        {
+          send();
+          ++next_id;
+        }
       }
-
-      mean.setKey(occupancy);
-
-      const glm::dvec3 voxel_mean = positionUnsafe(mean);
-
-      tes::Sphere ellipsoid(next_id, tes::Spherical(tes::Vector3d(glm::value_ptr(voxel_mean))));
-      ellipsoid.setRotation(tes::Quaterniond(rot.x, rot.y, rot.z, rot.w));
-      ellipsoid.setScale(2.0 * tes::Vector3d(scale.x, scale.y, scale.z));
-      ellipsoid.setColour(c);
-      ellipsoids.emplace_back(ellipsoid);
-
-      if (ellipsoids.size() >= tes::MultiShape::ShapeCountLimit)
+    }
+  }
+  else
+  {
+    // NDT-OM
+    const tes::Colour c = tes::Colour::Colours[tes::Colour::SeaGreen];
+    Voxel<const float> occupancy(imp_->map, imp_->map->layout().occupancyLayer());
+    Voxel<const CovarianceVoxel> cov(imp_->map, imp_->map->layout().covarianceLayer());
+    Voxel<const VoxelMean> mean(imp_->map, imp_->map->layout().meanLayer());
+    for (auto iter = imp_->map->begin(); iter != imp_->map->end(); ++iter)
+    {
+      occupancy.setKey(*iter);
+      if (isOccupied(occupancy))
       {
-        send();
-        ++next_id;
+        cov.setKey(occupancy);
+
+        glm::dquat rot;
+        glm::dvec3 scale;
+        CovarianceVoxel cv;
+        cov.read(&cv);
+        if (!covarianceUnitSphereTransformation(&cv, &rot, &scale))
+        {
+          continue;
+        }
+
+        mean.setKey(occupancy);
+
+        const glm::dvec3 voxel_mean = positionUnsafe(mean);
+
+        tes::Sphere ellipsoid(next_id, tes::Spherical(tes::Vector3d(glm::value_ptr(voxel_mean))));
+        ellipsoid.setRotation(tes::Quaterniond(rot.x, rot.y, rot.z, rot.w));
+        ellipsoid.setScale(2.0 * tes::Vector3d(scale.x, scale.y, scale.z));
+        ellipsoid.setColour(c);
+        ellipsoids.emplace_back(ellipsoid);
+
+        if (ellipsoids.size() >= tes::MultiShape::ShapeCountLimit)
+        {
+          send();
+          ++next_id;
+        }
       }
     }
   }
@@ -228,14 +314,14 @@ void NdtMap::updateMapInfo()
   info.set(MapValue("Ndt adaptation rate", imp_->adaptation_rate));
   info.set(MapValue("Ndt sensor noise", imp_->sensor_noise));
   info.set(MapValue("Ndt sample threshold", imp_->sample_threshold));
-  info.set(MapValue("Ndt reinitialisation threshold", imp_->reinitialise_covariance_theshold));
+  info.set(MapValue("Ndt reinitialisation threshold", imp_->reinitialise_covariance_threshold));
   info.set(MapValue("Ndt reinitialisation threshold (probability)",
-                    valueToProbability(imp_->reinitialise_covariance_theshold)));
+                    valueToProbability(imp_->reinitialise_covariance_threshold)));
   info.set(MapValue("Ndt reinitialisation point count", imp_->reinitialise_covariance_point_count));
 }
 
 
-int NdtMap::enableNdt(OccupancyMap *map)
+int NdtMap::enableNdt(OccupancyMap *map, bool ndt_tm)
 {
   // Prepare layout for update.
   MapLayout new_layout = map->layout();
@@ -243,6 +329,12 @@ int NdtMap::enableNdt(OccupancyMap *map)
   addVoxelMean(new_layout);
   // Cache the layer index.
   int layer_index = addCovariance(new_layout)->layerIndex();
+
+  if (ndt_tm)
+  {
+    addIntensity(new_layout);
+    addHitMissCount(new_layout);
+  }
 
   // Update the map.
   map->updateLayout(new_layout);

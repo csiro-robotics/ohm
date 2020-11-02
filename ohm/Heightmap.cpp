@@ -310,7 +310,7 @@ namespace
     const bool have_candidate_below = offset_below >= 0;
     const bool have_candidate_above = offset_above >= 0;
 
-    // Ignore the fact that the voxel below is virtual when prefer_virtual_below is set.
+    // Ignore the fact that the voxel below is virtual when promote_virtual_below is set.
     virtual_below = have_candidate_below && virtual_below && !promote_virtual_below;
 
     // Prefer non-virtual over virtual. Prefer the closer result.

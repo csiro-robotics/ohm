@@ -105,16 +105,21 @@ namespace ohm
   /// Integrate a hit result for a single voxel of @p map with NDT support.
   /// @param map The @c NdtMap to integrate the hit for.
   /// @param key The key for the voxel to modify. This is the voxel containing @p sample
-  /// @param sample The gobal sample coordinate.
-  void ohm_API integrateNdtHit(NdtMap &map, const Key &key, const glm::dvec3 &sample);
+  /// @param sensor The sensor location from which the @p sample was attained.
+  /// @param sample The global sample coordinate.
+  /// @param sample_intensity The intensity value of the lidar sample.
+  void ohm_API integrateNdtHit(NdtMap &map, const Key &key, const glm::dvec3 &sensor, const glm::dvec3 &sample,
+                               bool ndt_tm = false, float sample_intensity = 0.0f);
 
   /// Integrate a miss result for a single voxel of @p map with NDT support.
   /// @param map The @c NdtMap to integrate the hit for.
   /// @param key The key for the voxel to modify. This is a voxel along the line segment @p sensor to @p sample , but
   /// not the voxel containing @p sample .
   /// @param sensor The sensor location from which the @p sample was attained.
-  /// @param sample The gobal sample coordinate.
-  void ohm_API integrateNdtMiss(NdtMap &map, const Key &key, const glm::dvec3 &sensor, const glm::dvec3 &sample);
+  /// @param sample The global sample coordinate.
+  void ohm_API integrateNdtMiss(NdtMap &map, const Key &key, const glm::dvec3 &sensor, const glm::dvec3 &sample,
+                                bool ndt_tm = false);
+
 }  // namespace ohm
 
 #endif  // COVARIANCEVOXEL_H

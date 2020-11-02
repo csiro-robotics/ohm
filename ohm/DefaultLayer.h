@@ -24,6 +24,12 @@ namespace ohm
     /// Name of the voxel clearance layer.
     /// @return "clearance"
     const char *ohm_API clearanceLayerName();
+    /// Name of the voxel intensity layer.
+    /// @return "intensity"
+    const char *ohm_API intensityLayerName();
+    /// Name of the voxel hit miss count layer.
+    /// @return "hit_miss_count"
+    const char *ohm_API hitMissCountLayerName();
   }  // namespace default_layer
 
   class MapLayout;
@@ -51,11 +57,31 @@ namespace ohm
 
   /// Add the voxel clearance layer to @p layout.
   ///
-  /// Similar to @c addVoxelMean() , this function adds voxl clearance using the @c clearanceLayerName() .
+  /// Similar to @c addVoxelMean() , this function adds voxel clearance using the @c clearanceLayerName() .
   ///
   /// @param layout The @p MapLayout to modify.
   /// @return The map layer added or the pre-existing layer named according to @c clearanceLayerName() .
   MapLayer *ohm_API addClearance(MapLayout &layout);
+
+  /// Add the voxel intensity (mean and covariance) layer to @p layout.
+  ///
+  /// Similar to @c addVoxelMean(), this function adds voxel intensity (mean and covariance) using the @c
+  /// clearanceLayerName() .
+  ///
+  /// @param layout The @p MapLayout to modify.
+  /// @return The map layer added or the pre-existing layer named according to @c intensityLayerName() .
+  MapLayer *addIntensity(MapLayout &layout);
+
+  /// Add the voxel hit and miss counts layer to @p layout.
+  ///
+  /// Similar to @c addVoxelMean(), this function adds voxel hit count and miss count using the @c
+  /// hitMissCountLayerName() . The hit count is slightly different to the count in the voxel mean, as it follows the 
+  /// NDT-TM conventions of when to count hits.
+  ///
+  /// @param layout The @p MapLayout to modify.
+  /// @return The map layer added or the pre-existing layer named according to @c clearanceLayerName() .
+  MapLayer *addHitMissCount(MapLayout &layout);
+
 }  // namespace ohm
 
 #endif  // OHMDEFAULTLAYER_H

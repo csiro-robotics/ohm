@@ -384,9 +384,10 @@ bool GpuMap::groupedRays() const
 }
 
 
-size_t GpuMap::integrateRays(const glm::dvec3 *rays, size_t element_count, unsigned region_update_flags)
+size_t GpuMap::integrateRays(const glm::dvec3 *rays, size_t element_count, const float *intensities,
+                             unsigned region_update_flags)
 {
-  return integrateRays(rays, element_count, region_update_flags, effectiveRayFilter());
+  return integrateRays(rays, element_count, intensities, region_update_flags, effectiveRayFilter());
 }
 
 
@@ -398,7 +399,7 @@ void GpuMap::applyClearingPattern(const glm::dvec3 *rays, size_t element_count)
     return goodRayFilter(start, end, filter_flags, 1e4);
   };
   const unsigned flags = kRfEndPointAsFree | kRfStopOnFirstOccupied | kRfClearOnly;
-  integrateRays(rays, element_count, flags, clearing_ray_filter);
+  integrateRays(rays, element_count, nullptr, flags, clearing_ray_filter);
 }
 
 
@@ -506,8 +507,8 @@ void GpuMap::releaseGpuProgram()
 }
 
 
-size_t GpuMap::integrateRays(const glm::dvec3 *rays, size_t element_count, unsigned region_update_flags,
-                             const RayFilterFunction &filter)
+size_t GpuMap::integrateRays(const glm::dvec3 *rays, size_t element_count, const float * /*intensities*/,
+                             unsigned region_update_flags, const RayFilterFunction &filter)
 {
   if (!imp_->map)
   {

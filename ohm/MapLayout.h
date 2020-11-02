@@ -139,6 +139,14 @@ namespace ohm
     /// @return The clearance layer index or -1 if not present.
     int clearanceLayer() const;
 
+    /// Cached index to the "intensity" layer.
+    /// @return The intensity layer index or -1 if not present.
+    int intensityLayer() const;
+
+    /// Cached index to the "hit_miss_count" layer.
+    /// @return The hit miss count layer index or -1 if not present.
+    int hitMissCountLayer() const;
+
     /// Check if this @c MapLayout is equivalent to @p other.
     ///
     /// The layouts are may be equivalent if they share the same number of layers, the voxel patterns are the same

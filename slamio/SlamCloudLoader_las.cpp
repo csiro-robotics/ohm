@@ -32,6 +32,7 @@ namespace
   struct SamplePoint : TrajectoryPoint
   {
     glm::dvec3 sample;
+    float intensity;
   };
 
   typedef std::chrono::high_resolution_clock Clock;
@@ -293,7 +294,7 @@ void SlamCloudLoader::preload(size_t point_count)
 
   bool ok = true;
   SamplePoint sample;
-  while (nextPoint(sample.sample, &sample.origin, &sample.timestamp) && (preload_data.size() < point_count || load_all))
+  while (nextPoint(sample.sample, sample.intensity, &sample.origin, &sample.timestamp) && (preload_data.size() < point_count || load_all))
   {
     preload_data.emplace_back(sample);
   }
@@ -304,7 +305,7 @@ void SlamCloudLoader::preload(size_t point_count)
 }
 
 
-bool SlamCloudLoader::nextPoint(glm::dvec3 &sample, glm::dvec3 *origin, double *timestamp_out)
+bool SlamCloudLoader::nextPoint(glm::dvec3 &sample, float &intensity, glm::dvec3 *origin, double *timestamp_out)
 {
   if (loadPoint())
   {
@@ -313,6 +314,7 @@ bool SlamCloudLoader::nextPoint(glm::dvec3 &sample, glm::dvec3 *origin, double *
     // Read next sample.
     const SamplePoint sample_point = imp_->next_sample;
     sample = sample_point.sample;
+    intensity = sample_point.intensity;
     if (timestamp_out)
     {
       *timestamp_out = sample_point.timestamp;
@@ -363,6 +365,7 @@ bool SlamCloudLoader::loadPoint()
     SamplePoint sample;
     sample.timestamp = p.GetTime();
     sample.sample = glm::dvec3(p.GetX(), p.GetY(), p.GetZ());
+    sample.intensity = float(p.GetIntensity());
     sample.origin = glm::dvec3(0);
     sampleTrajectory(sample.origin, sample.sample, sample.timestamp);
     imp_->next_sample = sample;

@@ -37,6 +37,7 @@ namespace
   struct SamplePoint : TrajectoryPoint
   {
     glm::dvec3 sample;
+    float intensity;
   };
 
   using Clock = std::chrono::high_resolution_clock;
@@ -354,6 +355,13 @@ void SlamCloudLoader::preload(size_t /*point_count*/)
 
 bool SlamCloudLoader::nextPoint(glm::dvec3 &sample, glm::dvec3 *origin, double *timestamp_out)
 {
+  float intensity;
+  return nextPoint(sample, intensity, origin, timestamp_out);
+}
+
+
+bool SlamCloudLoader::nextPoint(glm::dvec3 &sample, float &intensity, glm::dvec3 *origin, double *timestamp_out)
+{
   loadPoint();
   if (imp_->next_sample_read_index < imp_->samples->size())
   {
@@ -375,6 +383,7 @@ bool SlamCloudLoader::nextPoint(glm::dvec3 &sample, glm::dvec3 *origin, double *
     //  _imp->nextSampleReadIndex = 0;
     //}
     sample = sample_point.sample;
+    intensity = sample_point.intensity;
     if (timestamp_out)
     {
       *timestamp_out = sample_point.timestamp;
@@ -415,6 +424,7 @@ bool SlamCloudLoader::loadPoint()
     sample.sample.x = imp_->samples->getFieldAs<double>(pdal::Dimension::Id::X, imp_->samples_view_index);
     sample.sample.y = imp_->samples->getFieldAs<double>(pdal::Dimension::Id::Y, imp_->samples_view_index);
     sample.sample.z = imp_->samples->getFieldAs<double>(pdal::Dimension::Id::Z, imp_->samples_view_index);
+    sample.intensity = imp_->samples->getFieldAs<float>(pdal::Dimension::Id::Intensity, imp_->samples_view_index);
     sample.origin = glm::dvec3(0);
 
     ++imp_->samples_view_index;

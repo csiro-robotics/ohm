@@ -38,7 +38,8 @@ RayMapperOccupancy::RayMapperOccupancy(OccupancyMap *map)
 RayMapperOccupancy::~RayMapperOccupancy() = default;
 
 
-size_t RayMapperOccupancy::integrateRays(const glm::dvec3 *rays, size_t element_count, unsigned ray_update_flags)
+size_t RayMapperOccupancy::integrateRays(const glm::dvec3 *rays, size_t element_count, const float * /*intensities*/,
+                                         unsigned ray_update_flags)
 {
   KeyList keys;
   MapChunk *last_chunk = nullptr;

@@ -232,10 +232,11 @@ namespace ohm
     ///
     /// @param rays Array of origin/sample point pairs.
     /// @param element_count The number of points in @p rays. The ray count is half this value.
+    /// @param intensities Optional--for each ray, intensity of the return (element_count/2 elements).
     /// @param region_update_flags Flags controlling ray integration behaviour. See @c RayFlag.
     /// @return The number of rays integrated. Zero indicates a failure when @p pointCount is not zero.
     ///   In this case either the GPU is unavailable, or all @p rays are invalid.
-    size_t integrateRays(const glm::dvec3 *rays, size_t element_count,
+    size_t integrateRays(const glm::dvec3 *rays, size_t element_count, const float *intensities = nullptr,
                          unsigned region_update_flags = kRfDefault) override;
 
     /// Integrate a ray clearing pattern into the map. A clearing is integrated as a set of rays using the @c RayFlag
@@ -285,12 +286,13 @@ namespace ohm
     /// Implementation for various ways we can integrate rays into the map. See @c integrateRays() for general detail.
     /// @param rays Array of origin/sample point pairs. Expect either @c glm::dvec3 (preferred) or @c glm::vec3.
     /// @param element_count The number of points in @p rays. The ray count is half this value.
+    /// @param intensities Optional--for each ray, intensity of the return (element_count/2 elements).
     /// @param region_update_flags Flags controlling ray integration behaviour. See @c RayFlag.
     /// @param filter Filter function apply to each ray before passing to GPU. May be empty.
     /// @return The number of rays integrated. Zero indicates a failure when @p pointCount is not zero.
     ///   In this case either the GPU is unavailable, or all @p rays are invalid.
-    size_t integrateRays(const glm::dvec3 *rays, size_t element_count, unsigned region_update_flags,
-                         const RayFilterFunction &filter);
+    size_t integrateRays(const glm::dvec3 *rays, size_t element_count, const float *intensities,
+                         unsigned region_update_flags, const RayFilterFunction &filter);
 
     /// Wait for previous ray batch, as indicated by @p buffer_index, to complete.
     /// @param buffer_index Identifies the batch to wait on.

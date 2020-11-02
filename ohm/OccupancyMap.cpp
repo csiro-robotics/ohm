@@ -922,12 +922,13 @@ void OccupancyMap::clearRayFilter()
   imp_->ray_filter = RayFilterFunction();
 }
 
-void OccupancyMap::integrateRays(const glm::dvec3 *rays, size_t element_count, unsigned ray_update_flags)
+void OccupancyMap::integrateRays(const glm::dvec3 *rays, size_t element_count, const float *intensities,
+                                 unsigned ray_update_flags)
 {
   // This function has been updated to leverage the new RayMapper interface and remove code duplication. It is
   // maintained for legacy reasons.
   // TODO: (KS) remove this function and require the use of a RayMapper.
-  RayMapperOccupancy(this).integrateRays(rays, element_count, ray_update_flags);
+  RayMapperOccupancy(this).integrateRays(rays, element_count, intensities, ray_update_flags);
 }
 
 OccupancyMap *OccupancyMap::clone() const

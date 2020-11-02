@@ -42,8 +42,10 @@ namespace ohm
     /// ownership of the @c OccupancyMap .
     ///
     /// @param map The occupancy map to apply NDT updates to.
+    /// @param ndt_tm True if map should be NDT Traversability Map, which additionally includes intensity mean and 
+    /// covariance, and hit/miss count.
     /// @param borrowed_map True if @p map is a borrowed pointer. False if the NDT map takes ownership of the memory.
-    NdtMap(OccupancyMap *map, bool borrowed_map = true);
+    NdtMap(OccupancyMap *map, bool ndt_tm, bool borrowed_map);
 
     /// Destructor: destroys the @c map() if @c borrowedMap() is false.
     ~NdtMap();
@@ -76,27 +78,35 @@ namespace ohm
     /// Get the number of samples required in a voxel before using the NDT algorithm for @c integateMiss() adjustments.
     unsigned ndtSampleThreshold();
 
-    /// Set the occupancy theshold value at which the covariance matrix may be reinitialised.
+    /// Set the occupancy threshold value at which the covariance matrix may be reinitialised.
     ///
     /// This maps to the @c reinitialise_threshold parameter of @c calculateHitWithCovariance() . See that function for
     /// details.
-    /// @param threshold The probability theshold value. Must be < 0 or behaviour is undefined.
-    void setReinitialiseCovarianceTheshold(float threshold);
+    /// @param threshold The probability threshold value. Must be < 0 or behaviour is undefined.
+    void setReinitialiseCovarianceThreshold(float threshold);
 
-    /// Get the occupancy theshold value at which the covariance matrix may be reinitialised.
-    /// @return The reset probability theshold value.
-    float reinitialiseCovarianceTheshold() const;
+    /// Get the occupancy threshold value at which the covariance matrix may be reinitialised.
+    /// @return The reset probability threshold value.
+    float reinitialiseCovarianceThreshold() const;
 
-    /// Set the occupancy theshold value at which the covariance matrix may be reinitialised.
+    /// Set the occupancy threshold value at which the covariance matrix may be reinitialised.
     ///
     /// This maps to the @c reinitialise_sample_count parameter of @c calculateHitWithCovariance() . See that function
     /// for details.
     /// @param count The requires point count.
     void setReinitialiseCovariancePointCount(unsigned count);
 
-    /// Get the occupancy theshold value at which the covariance matrix may be reinitialised.
+    /// Get the occupancy threshold value at which the covariance matrix may be reinitialised.
     /// @return The reset point count treshold.
     unsigned reinitialiseCovariancePointCount() const;
+
+    /// Set the initial covariance of intensity.
+    ///
+    /// @param initial_intensity_covariance The covariance of intensity for a voxel, for initialisation on receipt of 
+    /// first point. Must be greater than zero. Note that it is covariance, not standard deviation.
+    void setInitialIntensityCovariance(float initial_intensity_covariance);
+    /// Read the intensity covariance upon initialisation.
+    float initialIntensityCovariance() const;
 
     /// Enable details tracing via 3rd Eye Scene.
     /// @param trace True to enable tracing.
@@ -114,8 +124,10 @@ namespace ohm
     /// Enable NDT for the given @p map. This enables voxel mean positioning and adds a voxel layer to store the
     /// voxel covariance matrix approximation.
     /// @param map The occupancy map to enable NDT for.
+    /// @param ndt_tm True if map should be NDT Traversability Map, which additionally includes intensity mean and
+    /// covariance, and hit/miss count.
     /// @return The voxel layer index for the covariance matrix.
-    static int enableNdt(OccupancyMap *map);
+    static int enableNdt(OccupancyMap *map, bool ndt_tm);
 
     NdtMapDetail *imp_;
   };

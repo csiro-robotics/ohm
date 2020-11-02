@@ -60,6 +60,11 @@ public:
   bool nextPoint(glm::dvec3 &sample,  // NOLINT(google-runtime-references)
                  glm::dvec3 *origin = nullptr, double *timestamp = nullptr);
 
+  /// Get the next point, intensity, sensor position and timestamp.
+  bool nextPoint(glm::dvec3 &sample, float &intensity, // NOLINT(google-runtime-references)
+                 glm::dvec3 *origin = nullptr, double *timestamp = nullptr);
+
+
 private:
   bool loadPoint();
 

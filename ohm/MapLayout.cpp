@@ -116,6 +116,18 @@ int MapLayout::clearanceLayer() const
 }
 
 
+int MapLayout::intensityLayer() const
+{
+  return imp_->intensity_layer;
+}
+
+
+int MapLayout::hitMissCountLayer() const
+{
+  return imp_->hit_miss_count_layer;
+}
+
+
 MapLayoutMatch MapLayout::checkEquivalent(const MapLayout &other) const
 {
   if (this == &other)
@@ -208,6 +220,14 @@ void MapLayout::cacheLayerIndex(const MapLayer *layer)
     {
       imp_->clearance_layer = layer->layerIndex();
     }
+    else if (imp_->intensity_layer == -1 && name_str.compare(default_layer::intensityLayerName()) == 0)
+    {
+      imp_->intensity_layer = layer->layerIndex();
+    }
+    else if (imp_->hit_miss_count_layer == -1 && name_str.compare(default_layer::hitMissCountLayerName()) == 0)
+    {
+      imp_->hit_miss_count_layer = layer->layerIndex();
+    }
   }
 }
 
@@ -218,6 +238,8 @@ void MapLayout::cacheLayerIndices()
   imp_->mean_layer = -1;
   imp_->covariance_layer = -1;
   imp_->clearance_layer = -1;
+  imp_->intensity_layer = -1;
+  imp_->hit_miss_count_layer = -1;
   for (MapLayer *layer : imp_->layers)
   {
     cacheLayerIndex(layer);

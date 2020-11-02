@@ -775,8 +775,10 @@ namespace ohm
     ///
     /// @param rays Array of origin/sample point pairs.
     /// @param element_count The number of points in @p rays. The ray count is half this value.
+    /// @param intensities Optional--for each ray, intensity of the return (element_count/2 elements).
     /// @param ray_update_flags Flags controlling ray integration behaviour. See @c RayFlag.
-    void integrateRays(const glm::dvec3 *rays, size_t element_count, unsigned ray_update_flags = kRfDefault);
+    void integrateRays(const glm::dvec3 *rays, size_t element_count, const float *intensities = nullptr,
+                       unsigned ray_update_flags = kRfDefault);
 
     /// Clone the entire map.
     /// @return A deep clone of this map. Caller takes ownership.

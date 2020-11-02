@@ -212,7 +212,8 @@ void ohm::covDebugStats()
 }
 #endif  // OHM_COV_DEBUG
 
-void ohm::integrateNdtHit(NdtMap &map, const Key &key, const glm::dvec3 &sample)
+void ohm::integrateNdtHit(NdtMap &map, const Key &key, const glm::dvec3 &sensor, const glm::dvec3 &sample, bool ndt_tm,
+                          const float sample_intensity)
 {
   OccupancyMap &occupancy_map = map.map();
   Voxel<float> occupancy_voxel(&occupancy_map, occupancy_map.layout().occupancyLayer(), key);
@@ -224,19 +225,45 @@ void ohm::integrateNdtHit(NdtMap &map, const Key &key, const glm::dvec3 &sample)
   assert(mean_voxel.isValid());
   assert(cov_voxel.isValid());
 
+  // NDT-OM
   CovarianceVoxel cov;
   VoxelMean mean;
   float occupancy;
-
   occupancy_voxel.read(&occupancy);
   mean_voxel.read(&mean);
   cov_voxel.read(&cov);
 
   float updated_value = occupancy;
   const glm::dvec3 voxel_pos = position(mean, voxel_centre, occupancy_map.resolution());
+
+  // NDT-TM
+  if (ndt_tm)
+  {
+    Voxel<IntensityMeanCov> intensity_voxel(&occupancy_map, occupancy_map.layout().intensityLayer(), key);
+    Voxel<HitMissCount> hit_miss_count_voxel(&occupancy_map, occupancy_map.layout().hitMissCountLayer(), key);
+    IntensityMeanCov intensity;
+    HitMissCount hit_miss_count;
+    intensity_voxel.read(&intensity);
+    hit_miss_count_voxel.read(&hit_miss_count);
+
+    const bool reinitialise_permeability_with_covariance = true; // TODO: make a parameter of map
+    calculateHitMissUpdateOnHit(&cov, updated_value, &hit_miss_count, sensor, sample, voxel_pos, mean.count,
+                                unobservedOccupancyValue(), reinitialise_permeability_with_covariance,
+                                map.adaptationRate(), map.sensorNoise(), map.reinitialiseCovarianceThreshold(),
+                                map.reinitialiseCovariancePointCount(), map.ndtSampleThreshold());
+
+    hit_miss_count_voxel.write(hit_miss_count);
+
+    calculateIntensityUpdateOnHit(&intensity, updated_value, sample_intensity,
+                                  map.initialIntensityCovariance(), mean.count, map.reinitialiseCovarianceThreshold(),
+                                  map.reinitialiseCovariancePointCount());
+
+    intensity_voxel.write(intensity);
+  }
+
   if (calculateHitWithCovariance(&cov, &updated_value, sample, voxel_pos, mean.count, occupancy_map.hitValue(),
                                  unobservedOccupancyValue(), float(occupancy_map.resolution()),
-                                 map.reinitialiseCovarianceTheshold(), map.reinitialiseCovariancePointCount()))
+                                 map.reinitialiseCovarianceThreshold(), map.reinitialiseCovariancePointCount()))
   {
     // Covariance matrix has reset. Reset the point count to clear the mean value.
     mean.count = 0;
@@ -256,7 +283,7 @@ void ohm::integrateNdtHit(NdtMap &map, const Key &key, const glm::dvec3 &sample)
 }
 
 
-void ohm::integrateNdtMiss(NdtMap &map, const Key &key, const glm::dvec3 &sensor, const glm::dvec3 &sample)
+void ohm::integrateNdtMiss(NdtMap &map, const Key &key, const glm::dvec3 &sensor, const glm::dvec3 &sample, bool ndt_tm)
 {
   OccupancyMap &occupancy_map = map.map();
   Voxel<float> occupancy_voxel(&occupancy_map, occupancy_map.layout().occupancyLayer(), key);
@@ -268,10 +295,10 @@ void ohm::integrateNdtMiss(NdtMap &map, const Key &key, const glm::dvec3 &sensor
   assert(mean_voxel.isValid());
   assert(cov_voxel.isValid());
 
+  // NDT-OM
   CovarianceVoxel cov;
   VoxelMean mean;
   float occupancy;
-
   occupancy_voxel.read(&occupancy);
   mean_voxel.read(&mean);
   cov_voxel.read(&cov);
@@ -279,14 +306,36 @@ void ohm::integrateNdtMiss(NdtMap &map, const Key &key, const glm::dvec3 &sensor
   float updated_value = occupancy;
 #ifdef TES_ENABLE
   const float initial_value = occupancy;
+  glm::dvec3 voxel_maximum_likelihood;
 #endif  // TES_ENABLE
   const glm::dvec3 voxel_mean = position(mean, voxel_centre, occupancy_map.resolution());
 
+  if (ndt_tm)
+  {
+    Voxel<HitMissCount> hit_miss_count_voxel(&occupancy_map, occupancy_map.layout().hitMissCountLayer(), key);
+    HitMissCount hit_miss_count;
+    hit_miss_count_voxel.read(&hit_miss_count);
+
 #ifdef TES_ENABLE
-  const glm::dvec3 voxel_maximum_likelihood =
+    voxel_maximum_likelihood =
 #endif  // TES_ENABLE
-    calculateMissNdt(&cov, &updated_value, sensor, sample, voxel_mean, mean.count, unobservedOccupancyValue(),
-                     occupancy_map.missValue(), map.adaptationRate(), map.sensorNoise(), map.ndtSampleThreshold());
+      calculateMissNdt(&cov, &updated_value, &hit_miss_count, sensor, sample, voxel_mean, mean.count,
+                       unobservedOccupancyValue(), occupancy_map.missValue(), map.adaptationRate(), map.sensorNoise(),
+                       map.ndtSampleThreshold());
+
+    hit_miss_count_voxel.write(hit_miss_count);
+  }
+  else
+  {
+    HitMissCount hit_miss_count{ 0, 0 };
+#ifdef TES_ENABLE
+    voxel_maximum_likelihood =
+#endif  // TES_ENABLE
+      calculateMissNdt(&cov, &updated_value, &hit_miss_count, sensor, sample, voxel_mean, mean.count,
+                       unobservedOccupancyValue(), occupancy_map.missValue(), map.adaptationRate(), map.sensorNoise(),
+                       map.ndtSampleThreshold());
+  }
+
   occupancyAdjustDown(
     &occupancy, occupancy, updated_value, unobservedOccupancyValue(), occupancy_map.minVoxelValue(),
     occupancy_map.saturateAtMinValue() ? occupancy_map.minVoxelValue() : std::numeric_limits<float>::lowest(),

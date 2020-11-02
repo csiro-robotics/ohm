@@ -15,6 +15,8 @@
 
 #include "private/OccupancyMapDetail.h"
 
+#define TES_ENABLE
+
 #ifdef TES_ENABLE
 #include <3esmeshmessages.h>
 #include <3esservermacros.h>
@@ -415,8 +417,8 @@ namespace ohm
       Voxel<const VoxelMean> mean_voxel(&map, map.layout().meanLayer());
       Voxel<const CovarianceVoxel> cov_voxel(&map, map.layout().covarianceLayer());
 
-      const auto dim = map.regionVoxelDimensions();
-      const unsigned index_limit = dim.x * dim.y * dim.z;
+      //const auto dim = map.regionVoxelDimensions();
+      //const unsigned index_limit = dim.x * dim.y * dim.z;
       const tes::Id shape_id = tes::Id(chunk, kTcNdt) + sector_key.w;  // Each sector has a unique key
 
       // Work out the sector indexing range.
@@ -476,6 +478,104 @@ namespace ohm
       }
     }
   }
+
+  /// Draw an NDT-TM visualisation for the given "sector key".
+  ///
+  /// This sends ellipsoids for the occupied voxels in the sector. See @p RayMapperTrace::SectorSet .
+  void drawNdtTm(const glm::i16vec4 &sector_key, const OccupancyMap &map)
+  {
+    std::vector<tes::Sphere> ellipsoids;
+    std::vector<tes::Shape *> ellipsoid_ptrs;
+    static float min_intensity = std::numeric_limits<float>::infinity(),
+                 max_intensity = -std::numeric_limits<float>::infinity();
+
+    const glm::i16vec3 region_key(sector_key);
+    const MapChunk *chunk = map.region(region_key);
+
+    if (chunk)
+    {
+      // Extract occupied voxels in the region
+      Voxel<const float> occ_voxel(&map, map.layout().occupancyLayer());
+      Voxel<const VoxelMean> mean_voxel(&map, map.layout().meanLayer());
+      Voxel<const CovarianceVoxel> cov_voxel(&map, map.layout().covarianceLayer());
+      Voxel<const IntensityMeanCov> intensity_voxel(&map, map.layout().intensityLayer());
+      Voxel<const HitMissCount> hit_miss_voxel(&map, map.layout().hitMissCountLayer());
+
+      //const auto dim = map.regionVoxelDimensions();
+      //const unsigned index_limit = dim.x * dim.y * dim.z;
+      const tes::Id shape_id = tes::Id(chunk, kTcNdt) + sector_key.w;  // Each sector has a unique key
+
+      // Work out the sector indexing range.
+      glm::ivec3 start_index(0);
+      glm::ivec3 end_index(0);
+
+      for (int i = 0; i < 3; ++i)
+      {
+        start_index[i] = !!(sector_key.w & (1 << i));
+        end_index[i] = (start_index[i]) ? map.regionVoxelDimensions()[i] : map.regionVoxelDimensions()[i] / 2;
+        start_index[i] = (start_index[i]) ? map.regionVoxelDimensions()[i] / 2 : 0;
+      }
+
+      for (int z = start_index.z; z < end_index.z; ++z)
+      {
+        for (int y = start_index.y; y < end_index.y; ++y)
+        {
+          for (int x = start_index.x; x < end_index.x; ++x)
+          {
+            const Key key(region_key, x, y, z);
+            setVoxelKey(key, occ_voxel, mean_voxel, cov_voxel, intensity_voxel, hit_miss_voxel);
+            if (isOccupied(occ_voxel))
+            {
+              const CovarianceVoxel cov_info = cov_voxel.data();
+              glm::dquat rotation;
+              glm::dvec3 scale;
+              const glm::dvec3 pos = positionUnsafe(mean_voxel);
+              const IntensityMeanCov intensity_mean_cov = intensity_voxel.data();
+              min_intensity = std::fmin(min_intensity, intensity_mean_cov.intensity_mean);
+              max_intensity = std::fmax(max_intensity, intensity_mean_cov.intensity_mean);
+              const float scaled_intensity =
+                M_PI * (-1.0f + 1.5f * (intensity_mean_cov.intensity_mean - min_intensity) /
+                                  std::fmax(1.0f, max_intensity - min_intensity));
+              const float sin_sc = std::sin(scaled_intensity), cos_sc = std::cos(scaled_intensity);
+              const HitMissCount hit_miss_count = hit_miss_voxel.data();
+
+              if (covarianceUnitSphereTransformation(&cov_info, &rotation, &scale))
+              {
+                // Use single precision for smaller data size
+                ellipsoids.emplace_back(
+                  tes::Sphere(shape_id, tes::Transform(tes::Vector3f(glm::value_ptr(pos)),
+                                                       tes::Quaternionf((float)rotation.x, (float)rotation.y,
+                                                                        (float)rotation.z, (float)rotation.w),
+                                                       tes::Vector3f(glm::value_ptr(scale)))));
+                const float alpha = 0.9f * float(hit_miss_count.hit_count) /
+                                    std::fmax(1.0f, float(hit_miss_count.hit_count + hit_miss_count.miss_count));
+                ellipsoids.back().setColour(tes::Colour(0.1f + alpha * 0.5f * (1.0f + sin_sc),
+                                                0.1f + alpha * 0.5f * (1.0f + cos_sc),
+                                                0.1f + alpha * 0.5f * (1.0f - sin_sc), 1.0f));
+              }
+            }
+          }
+        }
+      }
+
+      if (!ellipsoids.empty())
+      {
+        for (tes::Sphere &shape : ellipsoids)
+        {
+          ellipsoid_ptrs.emplace_back(&shape);
+        }
+
+        // Create the multi-shape to replace the existing one for the region.
+        g_3es->create(tes::MultiShape(ellipsoid_ptrs.data(), ellipsoid_ptrs.size()).setReplace(true));
+      }
+      else
+      {
+        // Destroy any existing representation for this region.
+        g_3es->destroy(tes::Sphere(shape_id));
+      }
+    }
+  }
+
 }  // namespace ohm
 
 #else   // TES_ENABLE
@@ -535,7 +635,8 @@ bool RayMapperTrace::valid() const
   return true_mapper_ != nullptr && true_mapper_->valid();
 }
 
-size_t RayMapperTrace::integrateRays(const glm::dvec3 *rays, size_t element_count, unsigned ray_update_flags)
+size_t RayMapperTrace::integrateRays(const glm::dvec3 *rays, size_t element_count, const float *intensities,
+                                     unsigned ray_update_flags)
 {
 #ifdef TES_ENABLE
   // Walk all the rays and cache the state of the (predicted) touched voxels.
@@ -548,7 +649,7 @@ size_t RayMapperTrace::integrateRays(const glm::dvec3 *rays, size_t element_coun
   }
 #endif  // TES_ENABLE
 
-  const size_t result = true_mapper_->integrateRays(rays, element_count, ray_update_flags);
+  const size_t result = true_mapper_->integrateRays(rays, element_count, intensities, ray_update_flags);
 
 #ifdef TES_ENABLE
   if (g_3es && element_count)
@@ -613,7 +714,14 @@ size_t RayMapperTrace::integrateRays(const glm::dvec3 *rays, size_t element_coun
     {
       for (const auto &sector_key : sector_set)
       {
-        drawNdt(sector_key, *map_);
+        if (map_->layout().intensityLayer() >= 0 && map_->layout().hitMissCountLayer() >= 0)
+        {
+          drawNdtTm(sector_key, *map_);
+        }
+        else
+        {
+          drawNdt(sector_key, *map_);
+        }
       }
     }
 

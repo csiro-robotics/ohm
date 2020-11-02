@@ -34,7 +34,7 @@ namespace ohm
     /// Constructor, wrapping the interface around the given @p map .
     ///
     /// @param map The target map. Must outlive this class.
-    RayMapperNdt(NdtMap *map);
+    RayMapperNdt(NdtMap *map, bool ndt_tm = false);
 
     /// Destructor
     ~RayMapperNdt();
@@ -54,17 +54,22 @@ namespace ohm
     ///
     /// @param rays The array of start/end point pairs to integrate.
     /// @param element_count The number of @c glm::dvec3 elements in @p rays, which is twice the ray count.
+    /// @param intensities Optional--for each ray, intensity of the return (element_count/2 elements).
     /// @param ray_update_flags Not supported.
-    size_t integrateRays(const glm::dvec3 *rays, size_t element_count, unsigned ray_update_flags = kRfDefault) override;
+    size_t integrateRays(const glm::dvec3 *rays, size_t element_count, const float *intensities = nullptr,
+                         unsigned ray_update_flags = kRfDefault) override;
 
   protected:
     NdtMap *map_;                ///< Target map.
     int occupancy_layer_ = -1;   ///< Cached occupancy layer index.
     int mean_layer_ = -1;        ///< Cached voxel mean layer index.
     int covariance_layer_ = -1;  ///< Cached covariance layer index.
+    int intensity_layer_ = -1;   ///< Cached intensity layer index.
+    int hit_miss_count_layer_ = -1;  ///< Cached hit miss count layer index.
     /// Cached occupancy layer voxel dimensions. Voxel mean and covariance layers must exactly match.
     glm::u8vec3 occupancy_dim_{ 0, 0, 0 };
     bool valid_ = false;  ///< Has layer validation passed?
+    const bool ndt_tm_; ///< Does map implement ndt-tm?
   };
 
 }  // namespace ohm
