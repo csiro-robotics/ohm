@@ -12,6 +12,7 @@
 #include "gpuDeviceInfo.h"
 #include "gpuQueue.h"
 
+#include <memory>
 #include <vector>
 
 namespace gputil

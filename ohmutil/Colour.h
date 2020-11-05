@@ -8,7 +8,9 @@
 
 #include "OhmUtilExport.h"
 
+#include <array>
 #include <cinttypes>
+#include <limits>
 
 namespace ohm
 {
@@ -68,7 +70,7 @@ void rgbToHsv(float &h, float &s, float &v, uint8_t r, uint8_t g, uint8_t b);
 /// Defines an RGB or RGBA colour value. Each colour channel is represented by an unsigned byte.
 struct ohmutil_API Colour
 {
-  /// The colour channels as indexed in @c rgb or @c rgba.
+  /// The colour channels as indexed in @c rgba.
   enum
   {
     kR = 0,
@@ -77,7 +79,7 @@ struct ohmutil_API Colour
     kA = 3
   };
   /// Colour shift values used in conversion to/from 32-bit integer.
-  enum
+  enum : unsigned
   {
     kAShift = 24,
     kRShift = 16,
@@ -85,12 +87,10 @@ struct ohmutil_API Colour
     kBShift = 0
   };
 
+  static constexpr float kMaxByteF = 255.0f;
 
-  union
-  {
-    uint8_t rgb[3];   ///< The rgb colour definition.
-    uint8_t rgba[4];  ///< The rgba colour definition.
-  };
+  /// The rgba colour definition.
+  std::array<uint8_t, 4> rgba;
 
   /// Empty constructor: the colour channels are uninitialised.
   inline Colour() = default;
@@ -100,12 +100,13 @@ struct ohmutil_API Colour
   /// @param g The green colour channel.
   /// @param b The blue colour channel.
   /// @param a The alpha colour channel. Defaults to opaque.
-  inline Colour(uint8_t r, uint8_t g, uint8_t b,
-                uint8_t a = 255) noexcept  // NOLINT(cppcoreguidelines-pro-type-member-init)
+  inline Colour(
+    uint8_t r, uint8_t g, uint8_t b,
+    uint8_t a = std::numeric_limits<uint8_t>::max()) noexcept  // NOLINT(cppcoreguidelines-pro-type-member-init)
   {
-    rgb[kR] = r;
-    rgb[kG] = g;
-    rgb[kB] = b;
+    rgba[kR] = r;
+    rgba[kG] = g;
+    rgba[kB] = b;
     rgba[kA] = a;
   }
 
@@ -120,10 +121,11 @@ struct ohmutil_API Colour
   /// @param c The integer colour value.
   inline Colour(uint32_t c) noexcept  // NOLINT
   {
-    rgba[kA] = uint8_t((c >> kAShift) & 0xFFu);
-    rgb[kR] = uint8_t((c >> kRShift) & 0xFFu);
-    rgb[kG] = uint8_t((c >> kGShift) & 0xFFu);
-    rgb[kB] = uint8_t((c >> kBShift) & 0xFFu);
+    const unsigned byte_mask = 0xffu;
+    rgba[kA] = uint8_t((c >> kAShift) & byte_mask);
+    rgba[kR] = uint8_t((c >> kRShift) & byte_mask);
+    rgba[kG] = uint8_t((c >> kGShift) & byte_mask);
+    rgba[kB] = uint8_t((c >> kBShift) & byte_mask);
   }
 
   /// Convert to a 32-bit integer colour value.
@@ -131,13 +133,13 @@ struct ohmutil_API Colour
   /// Colour channels are extracted according to the values of
   /// @c AShift, @c RShift, @c GShift and @c BShift.
   /// @return The integer colour representation.
-  inline operator uint32_t() const noexcept
+  inline explicit operator uint32_t() const noexcept
   {
     uint32_t c = 0;
-    c |= (rgba[kA]) << kAShift;
-    c |= (rgb[kR]) << kRShift;
-    c |= (rgb[kG]) << kGShift;
-    c |= (rgb[kB]) << kBShift;
+    c |= unsigned(rgba[kA]) << kAShift;
+    c |= unsigned(rgba[kR]) << kRShift;
+    c |= unsigned(rgba[kG]) << kGShift;
+    c |= unsigned(rgba[kB]) << kBShift;
     return c;
   }
 
@@ -146,12 +148,26 @@ struct ohmutil_API Colour
   /// @return This.
   inline Colour &operator=(const Colour &c) noexcept
   {
-    rgb[kR] = c.rgb[kR];
-    rgb[kG] = c.rgb[kG];
-    rgb[kB] = c.rgb[kB];
+    rgba[kR] = c.rgba[kR];
+    rgba[kG] = c.rgba[kG];
+    rgba[kB] = c.rgba[kB];
     rgba[kA] = c.rgba[kA];
     return *this;
   }
+
+  /// Equality check operator.
+  /// @param other The object to compare against.
+  /// @return True if the colours are equal.
+  inline bool operator==(const Colour &other) const
+  {
+    return rgba[kR] == other.rgba[kR] && rgba[kG] == other.rgba[kG] && rgba[kB] == other.rgba[kB] &&
+           rgba[kA] == other.rgba[kA];
+  }
+
+  /// Inequality check operator.
+  /// @param other The object to compare against.
+  /// @return True if the colours are equal.
+  inline bool operator!=(const Colour &other) const { return !operator==(other); }
 
   /// Access the alpha channel value.
   /// @return The alpha channel.
@@ -159,15 +175,15 @@ struct ohmutil_API Colour
 
   /// Access the red channel value.
   /// @return The red channel.
-  inline uint8_t &r() { return rgb[kR]; }
+  inline uint8_t &r() { return rgba[kR]; }
 
   /// Access the green channel value.
   /// @return The green channel.
-  inline uint8_t &g() { return rgb[kG]; }
+  inline uint8_t &g() { return rgba[kG]; }
 
   /// Access the 3 channel value.
   /// @return The blue channel.
-  inline uint8_t &b() { return rgb[kB]; }
+  inline uint8_t &b() { return rgba[kB]; }
 
   /// Access the alpha channel value.
   /// @return The alpha channel.
@@ -175,31 +191,31 @@ struct ohmutil_API Colour
 
   /// Access the red channel value.
   /// @return The red channel.
-  inline const uint8_t &r() const { return rgb[kR]; }
+  inline const uint8_t &r() const { return rgba[kR]; }
 
   /// Access the green channel value.
   /// @return The green channel.
-  inline const uint8_t &g() const { return rgb[kG]; }
+  inline const uint8_t &g() const { return rgba[kG]; }
 
   /// Access the blue channel value.
   /// @return The blue channel.
-  inline const uint8_t &b() const { return rgb[kB]; }
+  inline const uint8_t &b() const { return rgba[kB]; }
 
   /// Access red channel as a float.
   /// @return Red channel as a float.
-  inline float rf() const { return float(r()) / 255.0f; }
+  inline float rf() const { return float(r()) / kMaxByteF; }
 
   /// Access green channel as a float.
   /// @return Green channel as a float.
-  inline float gf() const { return float(g()) / 255.0f; }
+  inline float gf() const { return float(g()) / kMaxByteF; }
 
   /// Access blue channel as a float.
   /// @return Blue channel as a float.
-  inline float bf() const { return float(b()) / 255.0f; }
+  inline float bf() const { return float(b()) / kMaxByteF; }
 
   /// Access alpha channel as a float.
   /// @return Alpha channel as a float.
-  inline float af() const { return float(a()) / 255.0f; }
+  inline float af() const { return float(a()) / kMaxByteF; }
 
   /// An enumeration of predefined colours (web colours).
   enum Names
@@ -370,7 +386,7 @@ struct ohmutil_API Colour
   };
 
   /// Predefined colours (web colours).
-  static const Colour kColours[kPredefinedCount];
+  static const std::array<Colour, kPredefinedCount> kColours;
 };
 }  // namespace ohm
 

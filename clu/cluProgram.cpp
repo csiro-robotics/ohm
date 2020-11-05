@@ -25,7 +25,7 @@
 
 namespace
 {
-const size_t max_path = 2048u;
+const size_t kMaxPath = 2048u;
 }  // namespace
 
 namespace clu
@@ -342,7 +342,7 @@ bool executablePath(char *buffer, size_t buffer_size)
 
 size_t applicationDirectory(char *buffer, size_t buffer_size)
 {
-  std::array<char, max_path> path{};
+  std::array<char, kMaxPath> path{};
   size_t path_length = path.size();
   if (executablePath(path.data(), path_length))
   {
@@ -394,7 +394,7 @@ int pathSeparator()
 char *findProgramPath(char *file_name, size_t buffer_length, const char *search_paths)
 {
   // Resolve the current working directory first.
-  std::array<char, max_path> cwd{};
+  std::array<char, kMaxPath> cwd{};
   currentWorkingDirectory(cwd.data(), cwd.size());
   cwd[cwd.size() - 1] = '\0';
   std::ostringstream str;
@@ -499,7 +499,7 @@ char *findProgramPath(char *file_name, size_t buffer_length, const char *search_
 char *findProgramDir(char *file_name, size_t buffer_length, const char *search_paths)
 {
   // Resolve the current working directory first.
-  std::array<char, max_path> cwd{};
+  std::array<char, kMaxPath> cwd{};
   currentWorkingDirectory(cwd.data(), cwd.size());
   std::ostringstream str;
   str << cwd.data() << char(pathSeparator()) << file_name;
@@ -613,12 +613,12 @@ cl_int buildProgramFromFile(cl::Program &program, cl::Context &ocl, std::string 
   }
 
   // Compile and initialise.
-  std::array<char, max_path> source_dir{};  // MAX_PATH length.
+  std::array<char, kMaxPath> source_dir{};  // MAX_PATH length.
   std::ostringstream source_file;
 #ifdef _MSC_VER
   strcpy_s(source_dir.data(), source_file_name.c_str());
 #else   // !_MSC_VER
-  strncpy(source_dir.data(), source_file_name.c_str(), max_path);
+  strncpy(source_dir.data(), source_file_name.c_str(), kMaxPath);
 #endif  // _MSC_VER
   if (!clu::findProgramDir(source_dir.data(), source_dir.size(), search_paths))
   {

@@ -8,6 +8,7 @@
 
 #include <functional>
 #include <iosfwd>
+#include <memory>
 
 namespace ohm
 {
@@ -50,7 +51,7 @@ public:
 
   /// Create time display with the given message prefix.
   /// @param msg_prefix Output message prefix.
-  ScopedTimeDisplay(const char *msg_prefix);
+  explicit ScopedTimeDisplay(const char *msg_prefix);
   /// Create time display with the given message prefix, logging to the given output stream.
   /// @param msg_prefix Output message prefix.
   /// @param out Output stream to log to. Must remain valid until after logging.
@@ -80,7 +81,7 @@ public:
   void finish();
 
 private:
-  ScopedTimeDisplayDetail *imp_;
+  std::unique_ptr<ohm::ScopedTimeDisplayDetail> imp_;
 };
 }  // namespace ohm
 

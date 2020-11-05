@@ -103,82 +103,82 @@ int saveItem(OutputStream &stream, const MapValue &value)
   switch (value.type())
   {
   case MapValue::kInt8: {
-    int8_t val = value;
+    int8_t val = static_cast<int8_t>(value);
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
     stream.write(reinterpret_cast<char *>(&val), 1);
     break;
   }
   case MapValue::kUInt8: {
-    uint8_t val = value;
+    uint8_t val = static_cast<uint8_t>(value);
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
     stream.write(reinterpret_cast<char *>(&val), 1);
     break;
   }
   case MapValue::kInt16: {
-    int16_t val = value;
+    int16_t val = static_cast<int16_t>(value);
     // if (endianSwap) { endian::endianSwap(&val); }
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
     stream.write(reinterpret_cast<char *>(&val), sizeof(val));
     break;
   }
   case MapValue::kUInt16: {
-    uint16_t val = value;
+    uint16_t val = static_cast<uint16_t>(value);
     // if (endianSwap) { endian::endianSwap(&val); }
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
     stream.write(reinterpret_cast<char *>(&val), sizeof(val));
     break;
   }
   case MapValue::kInt32: {
-    int32_t val = value;
+    int32_t val = static_cast<int32_t>(value);
     // if (endianSwap) { endian::endianSwap(&val); }
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
     stream.write(reinterpret_cast<char *>(&val), sizeof(val));
     break;
   }
   case MapValue::kUInt32: {
-    uint32_t val = value;
+    uint32_t val = static_cast<uint32_t>(value);
     // if (endianSwap) { endian::endianSwap(&val); }
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
     stream.write(reinterpret_cast<char *>(&val), sizeof(val));
     break;
   }
   case MapValue::kInt64: {
-    int64_t val = value;
+    int64_t val = static_cast<int64_t>(value);
     // if (endianSwap) { endian::endianSwap(&val); }
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
     stream.write(reinterpret_cast<char *>(&val), sizeof(val));
     break;
   }
   case MapValue::kUInt64: {
-    uint64_t val = value;
+    uint64_t val = static_cast<uint64_t>(value);
     // if (endianSwap) { endian::endianSwap(&val); }
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
     stream.write(reinterpret_cast<char *>(&val), sizeof(val));
     break;
   }
   case MapValue::kFloat32: {
-    float val = value;
+    float val = static_cast<float>(value);
     // if (endianSwap) { endian::endianSwap(&val); }
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
     stream.write(reinterpret_cast<char *>(&val), sizeof(val));
     break;
   }
   case MapValue::kFloat64: {
-    double val = value;
+    double val = static_cast<double>(value);
     // if (endianSwap) { endian::endianSwap(&val); }
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
     stream.write(reinterpret_cast<char *>(&val), sizeof(val));
     break;
   }
   case MapValue::kBoolean: {
-    bool bval = value;
+    bool bval = static_cast<bool>(value);
     uint8_t val = (bval) ? 1 : 0;
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
     stream.write(reinterpret_cast<char *>(&val), 1);
     break;
   }
   case MapValue::kString: {
-    const char *str = value;
+    const char *str = static_cast<const char *>(value);
     len = strlen(str);
     if (len > 0xffffu)
     {

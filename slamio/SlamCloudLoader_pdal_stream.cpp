@@ -12,6 +12,7 @@
 
 #include <ohmutil/SafeIO.h>
 
+#include <array>
 #include <atomic>
 #include <chrono>
 #include <condition_variable>
@@ -35,6 +36,8 @@
 
 namespace
 {
+const size_t kCloudStreamBufferSize = 10000u;
+const size_t kTrajectoryStreamBufferSize = 10000u;
 struct TrajectoryPoint
 {
   double timestamp;
@@ -51,7 +54,7 @@ using Clock = std::chrono::high_resolution_clock;
 class PointStream : public pdal::StreamPointTable
 {
 public:
-  PointStream(size_t buffer_capacity)
+  explicit PointStream(size_t buffer_capacity)
     : pdal::StreamPointTable(layout_, buffer_capacity)
   {
     // Register for the data we are interested in
@@ -78,7 +81,7 @@ public:
       // Resolve time dimension.
       auto dim = pdal::Dimension::Id::Unknown;
       // First try resolve by name.
-      const std::string time_dim_names[] = { "time", "timestamp" };
+      const std::array<const std::string, 2> time_dim_names = { "time", "timestamp" };
       for (const auto &time_name : time_dim_names)
       {
         dim = layout_.findDim(time_name);
@@ -92,8 +95,9 @@ public:
       {
         // Not found by name. Try resolve by Dimension ID
         // Not found by name.
-        const pdal::Dimension::Id time_ids[] = { pdal::Dimension::Id::GpsTime, pdal::Dimension::Id::InternalTime,
-                                                 pdal::Dimension::Id::OffsetTime };
+        const std::array<pdal::Dimension::Id, 3> time_ids = { pdal::Dimension::Id::GpsTime,
+                                                              pdal::Dimension::Id::InternalTime,
+                                                              pdal::Dimension::Id::OffsetTime };
         for (const auto &time_dim : time_ids)
         {
           if (layout_.hasDim(time_dim))
@@ -220,7 +224,7 @@ protected:
 private:
   // Double buffer to allow background thread streaming.
   // Use w channel for timetstamp
-  std::vector<glm::dvec4> buffers_[2];
+  std::array<std::vector<glm::dvec4>, 2> buffers_;
   pdal::Dimension::Id time_dimension_{ pdal::Dimension::Id::GpsTime };
   std::atomic_uint next_read_{ 0 };
   std::atomic_int write_index_{ 0 };
@@ -255,7 +259,7 @@ struct SlamCloudLoaderDetail
   std::ifstream trajectory_file;
   std::string traj_line;
   glm::dvec3 trajectory_to_sensor_offset = glm::dvec3(0);
-  TrajectoryPoint trajectory_buffer[2] = { TrajectoryPoint{}, TrajectoryPoint{} };
+  std::array<TrajectoryPoint, 2> trajectory_buffer = { TrajectoryPoint{}, TrajectoryPoint{} };
 
   std::vector<SamplePoint> preload_points;
   SamplePoint next_sample = SamplePoint{};
@@ -290,7 +294,7 @@ std::shared_ptr<pdal::Streamable> createReader(pdal::StageFactory &factory, cons
 
   reader_type = ext;
 
-  if (ext.compare("laz") == 0)
+  if (ext == "laz")
   {
     reader_type = "las";
     options.add("compression", "EITHER");
@@ -323,25 +327,44 @@ std::shared_ptr<pdal::Streamable> createReader(pdal::StageFactory &factory, cons
   return streamable_reader;
 }
 
+template <typename T, typename Func>
+bool tryPdalPointCount(std::shared_ptr<pdal::Streamable> reader, Func func, pdal::point_count_t &point_count)
+{
+  if (T *r = dynamic_cast<T *>(reader.get()))
+  {
+    const auto count = (r->*func)();
+    if (count < std::numeric_limits<decltype(count)>::max())
+    {
+      point_count = count;
+      return true;
+    }
+  }
+  return false;
+}
+
 
 pdal::point_count_t pointCount(std::shared_ptr<pdal::Streamable> reader)
 {
   // Doesn't seem to be a consistent way to read the point count. `Reader::count()` didn't work with las, but casting
   // and calling `LasReader::getNumPoints()` does.
-#define TRY_PDAL_POINT_COUNT(T, func)                        \
-  if (T *r = dynamic_cast<T *>(reader.get()))                \
-  {                                                          \
-    const auto count = r->func();                            \
-    if (count < std::numeric_limits<decltype(count)>::max()) \
-    {                                                        \
-      return r->func();                                      \
-    }                                                        \
-  }
-  TRY_PDAL_POINT_COUNT(pdal::BpfReader, numPoints);
-  TRY_PDAL_POINT_COUNT(pdal::LasReader, getNumPoints);
-  TRY_PDAL_POINT_COUNT(pdal::Reader, count);
 
-  return 0;
+  pdal::point_count_t point_count = 0;
+  if (tryPdalPointCount<pdal::BpfReader>(reader, &pdal::BpfReader::numPoints, point_count))
+  {
+    return point_count;
+  }
+
+  if (tryPdalPointCount<pdal::LasReader>(reader, &pdal::LasReader::getNumPoints, point_count))
+  {
+    return point_count;
+  }
+
+  if (tryPdalPointCount<pdal::Reader>(reader, &pdal::Reader::count, point_count))
+  {
+    return point_count;
+  }
+
+  return point_count;
 }
 }  // namespace
 
@@ -391,7 +414,7 @@ bool SlamCloudLoader::open(const char *sample_file_path, const char *trajectory_
   if (trajectory_file_path && trajectory_file_path[0])
   {
     const std::string traj_ext = getFileExtension(trajectory_file_path);
-    if (traj_ext.compare("txt") == 0)
+    if (traj_ext == "txt")
     {
       // Text based trajectory.
       imp_->trajectory_file.open(trajectory_file_path, std::ios::binary);
@@ -414,7 +437,7 @@ bool SlamCloudLoader::open(const char *sample_file_path, const char *trajectory_
     }
   }
 
-  imp_->sample_stream = std::make_unique<PointStream>(10000);
+  imp_->sample_stream = std::make_unique<PointStream>(kCloudStreamBufferSize);
   imp_->sample_reader->prepare(*imp_->sample_stream);
   imp_->sample_count = pointCount(imp_->sample_reader);
 
@@ -440,20 +463,17 @@ bool SlamCloudLoader::open(const char *sample_file_path, const char *trajectory_
 
       // sscanf is far faster than using stream operators.
       glm::dquat orientation;
-      if (sscanf_s(imp_->traj_line.c_str(), "%lg %lg %lg %lg %lg %lg %lg %lg", &point.timestamp, &point.origin.x,
-                   &point.origin.y, &point.origin.z, &orientation.w, &orientation.x, &orientation.y,
-                   &orientation.z) != 8)
-      {
-        return false;
-      }
-
-      return true;
+      const int read_item_count = 8;
+      // NOLINTNEXTLINE(cert-err34-c)
+      return sscanf_s(imp_->traj_line.c_str(), "%lg %lg %lg %lg %lg %lg %lg %lg", &point.timestamp, &point.origin.x,
+                      &point.origin.y, &point.origin.z, &orientation.w, &orientation.x, &orientation.y,
+                      &orientation.z) != read_item_count;
     };
   }
   else if (imp_->trajectory_reader)
   {
     using_trajectory = true;
-    imp_->traj_stream = std::make_unique<PointStream>(5000);
+    imp_->traj_stream = std::make_unique<PointStream>(kTrajectoryStreamBufferSize);
     imp_->trajectory_reader->prepare(*imp_->traj_stream);
 
     imp_->traj_stream->finalize();
@@ -496,7 +516,8 @@ bool SlamCloudLoader::open(const char *sample_file_path, const char *trajectory_
     if (!text_trajectory && imp_->traj_stream)
     {
       // Wait for first trajectory data.
-      for (int i = 0; i < 10000 && !imp_->traj_stream->haveData(); ++i)
+      const int wait_loop_limit = 10000;
+      for (int i = 0; i < wait_loop_limit && !imp_->traj_stream->haveData(); ++i)
       {
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
       }
@@ -549,8 +570,8 @@ void SlamCloudLoader::close()
     imp_->trajectory_reader = nullptr;
   }
 
-  imp_->sample_stream.release();
-  imp_->traj_stream.release();
+  imp_->sample_stream.reset();
+  imp_->traj_stream.reset();
 
   imp_->sample_file_path.clear();
   imp_->trajectory_file_path.clear();
@@ -670,7 +691,7 @@ bool SlamCloudLoader::loadPoint()
     imp_->next_sample = imp_->preload_points[imp_->preload_index++];
     return true;
   }
-  else if (!imp_->preload_points.empty())
+  if (!imp_->preload_points.empty())
   {
     // Preload done. Release the memory for preload_points
     imp_->preload_points = std::vector<SamplePoint>();

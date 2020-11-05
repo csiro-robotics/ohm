@@ -10,6 +10,7 @@
 
 #include <chrono>
 #include <iosfwd>
+#include <memory>
 
 namespace ohm
 {
@@ -97,8 +98,7 @@ public:
   bool reportSupressed() const;
 
 private:
-  ProfileDetail *imp_;
-  static Profile s_instance;
+  std::unique_ptr<ProfileDetail> imp_;
 };
 }  // namespace ohm
 

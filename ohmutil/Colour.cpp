@@ -6,7 +6,14 @@
 #include "Colour.h"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
+
+namespace
+{
+const float kSectorSizeDegrees = 60.0f;
+const float kCircleDegrees = 360.0f;
+}  // namespace
 
 namespace ohm
 {
@@ -18,19 +25,19 @@ void colour::hsvToRgb(float &r, float &g, float &b, float h, float s, float v)
   //  r = g = b = v;
   //  return;
   //}
-  const float h_sector = h / 60.0f;  // sector 0 to 5
+  const float h_sector = h / kSectorSizeDegrees;  // sector 0 to 5
   const int sector_index = int(std::min<float>(std::max<float>(0.0f, std::floor(h_sector)), 5.0f));
-  const float f = h_sector - sector_index;
+  const float f = h_sector - float(sector_index);
   const float p = v * (1 - s);
   const float q = v * (1 - s * f);
   const float t = v * (1 - s * (1 - f));
 
-  static const int v_index[] = { 0, 1, 1, 2, 2, 0 };
-  static const int p_index[] = { 2, 2, 0, 0, 1, 1 };
-  static const int q_index[] = { 3, 0, 3, 1, 3, 2 };
-  static const int t_index[] = { 1, 3, 2, 3, 0, 3 };
+  static const std::array<int, 6> v_index = { 0, 1, 1, 2, 2, 0 };
+  static const std::array<int, 6> p_index = { 2, 2, 0, 0, 1, 1 };
+  static const std::array<int, 6> q_index = { 3, 0, 3, 1, 3, 2 };
+  static const std::array<int, 6> t_index = { 1, 3, 2, 3, 0, 3 };
 
-  float rgb[4] = { 0 };
+  std::array<float, 4> rgb = { 0 };
   rgb[v_index[sector_index]] = v;
   rgb[p_index[sector_index]] = p;
   rgb[q_index[sector_index]] = q;
@@ -45,11 +52,13 @@ void colour::hsvToRgb(float &r, float &g, float &b, float h, float s, float v)
 
 void colour::hsvToRgb(uint8_t &r, uint8_t &g, uint8_t &b, float h, float s, float v)
 {
-  float rf, gf, bf;
+  float rf;
+  float gf;
+  float bf;
   hsvToRgb(rf, gf, bf, h, s, v);
-  r = uint8_t(rf * 255.0f);
-  g = uint8_t(gf * 255.0f);
-  b = uint8_t(bf * 255.0f);
+  r = uint8_t(rf * Colour::kMaxByteF);
+  g = uint8_t(gf * Colour::kMaxByteF);
+  b = uint8_t(bf * Colour::kMaxByteF);
 }
 
 
@@ -71,7 +80,7 @@ void colour::rgbToHsv(float &h, float &s, float &v, float r, float g, float b)
 
   h =
     (yellow_to_magenta * ((g - b) / delta) + cyan_to_yellow * ((g - b) / delta) + magenta_to_cyan * ((g - b) / delta)) *
-    60.0f;
+    kSectorSizeDegrees;
 #else   // #
   if (!c_max)
   {
@@ -99,10 +108,10 @@ void colour::rgbToHsv(float &h, float &s, float &v, float r, float g, float b)
     h = 4 + (r - g) / delta;
   }
 
-  h *= 60.0f;
+  h *= kSectorSizeDegrees;
 #endif  // #
 
-  h = (h < 360.0f) ? h + 360.0f : h;
+  h = (h < kCircleDegrees) ? h + kCircleDegrees : h;
 }
 
 
@@ -112,7 +121,9 @@ void colour::rgbToHsv(float &h, float &s, float &v, uint8_t r, uint8_t g, uint8_
 }
 
 
-const Colour Colour::kColours[kPredefinedCount] =  //
+// Lint(KS): small static allocation should be fine.
+// NOLINTNEXTLINE(cert-err58-cpp)
+const std::array<Colour, Colour::kPredefinedCount> Colour::kColours =  //
   {
     Colour(220, 220, 220),  //
     Colour(211, 211, 211),  //

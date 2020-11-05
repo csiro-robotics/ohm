@@ -26,7 +26,7 @@ class slamio_API SlamCloudLoader
 public:
   /// Create a SLAM cloud loader.
   /// @param real_time_mode True to throttle point loading to simulate real time data acquisition.
-  SlamCloudLoader(bool real_time_mode = false);
+  explicit SlamCloudLoader(bool real_time_mode = false);
   ~SlamCloudLoader();
 
   /// Set the fixed offset between the trajectory point to the sensor frame. This is added to all trajectory points.

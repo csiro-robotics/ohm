@@ -10,7 +10,9 @@
 
 #include <glm/glm.hpp>
 
+#include <array>
 #include <cstddef>
+#include <memory>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -73,8 +75,8 @@ public:
   /// @overload
   inline void addEdge(unsigned v0, unsigned v1)
   {
-    const unsigned vi[2] = { v0, v1 };
-    return addEdges(vi, 1, nullptr);
+    const std::array<unsigned, 2> vi = { v0, v1 };
+    return addEdges(vi.data(), 1, nullptr);
   }
   /// Add a single edge to the mesh
   /// @param v0 Index of the first vertex in the edge.
@@ -82,8 +84,8 @@ public:
   /// @param colour Colour value for the edge.
   inline void addEdge(unsigned v0, unsigned v1, const Colour &colour)
   {
-    const unsigned vi[2] = { v0, v1 };
-    return addEdges(vi, 1, &colour);
+    const std::array<unsigned, 2> vi = { v0, v1 };
+    return addEdges(vi.data(), 1, &colour);
   }
   /// Add two vertices to the mesh and connect them as a coloured edge
   /// @param v0 First vertex in the edge.
@@ -103,8 +105,8 @@ public:
   /// @overload
   inline void addTriangle(unsigned v0, unsigned v1, unsigned v2)
   {
-    const unsigned vi[3] = { v0, v1, v2 };
-    return addTriangles(vi, 1, nullptr);
+    const std::array<unsigned, 3> vi = { v0, v1, v2 };
+    return addTriangles(vi.data(), 1, nullptr);
   }
   /// Add a single triangle to the mesh
   /// @param v0 Index of the first vertex in the triangle.
@@ -113,8 +115,8 @@ public:
   /// @param colour Colour value for the triangle.
   inline void addTriangle(unsigned v0, unsigned v1, unsigned v2, const Colour &colour)
   {
-    const unsigned vi[3] = { v0, v1, v2 };
-    return addTriangles(vi, 1, &colour);
+    const std::array<unsigned, 3> vi = { v0, v1, v2 };
+    return addTriangles(vi.data(), 1, &colour);
   }
   /// Add three vertices to the mesh and connect them as a coloured triangle
   /// @param v0 First vertex in the triangle.
@@ -228,12 +230,12 @@ public:
     inline bool isOpen() const { return false; }
     /// Write text to the file using @c printf() style formatting.
     /// @param format @c printf format string
-    inline void printf(const char *format, ...) {}
+    inline void printf(const char *format, ...) = delete;
     /// Write binary data to the file.
     /// @param ptr Pointer to the data to write.
     /// @param element_size Size of a single item at @p ptr
     /// @param element_count Number of elements at @p ptr to write.
-    inline void write(const void *ptr, size_t element_size, size_t element_count) {}
+    inline void write(const void *ptr, size_t element_size, size_t element_count) = delete;
   };
 
 private:
@@ -270,13 +272,13 @@ private:
 
   struct Edge  // NOLINT(cppcoreguidelines-pro-type-member-init)
   {
-    uint32_t v[2];
+    std::array<uint32_t, 2> v;
     Colour colour;
   };
 
   struct Tri  // NOLINT(cppcoreguidelines-pro-type-member-init)
   {
-    uint32_t v[3];
+    std::array<uint32_t, 3> v;
     Colour colour;
   };
 
@@ -294,11 +296,11 @@ private:
   std::vector<Poly> polygons_;
   std::vector<uint32_t> polygon_indices_;  ///< Stores polygon indices.
   std::vector<std::string> comments_;      ///< List of comments to add to the file.
-  bool vertex_colours_;
-  bool edge_colours_;
-  bool face_colours_;
+  bool vertex_colours_ = false;
+  bool edge_colours_ = false;
+  bool face_colours_ = false;
 
-  std::unordered_map<unsigned, unsigned> *index_mapper_;
+  std::unique_ptr<std::unordered_map<unsigned, unsigned>> index_mapper_;
 };
 
 }  // namespace ohm

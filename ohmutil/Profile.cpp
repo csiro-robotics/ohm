@@ -21,8 +21,6 @@
 #include <tbb/tbb_thread.h>
 #endif  // OHM_THREADS
 
-using namespace ohm;
-
 namespace ohm
 {
 struct ProfileRecord
@@ -42,7 +40,7 @@ struct ProfileScope  // NOLINT(cppcoreguidelines-pro-type-member-init)
   ProfileRecord *record;
 
   inline ProfileScope() = default;  // NOLINT(cppcoreguidelines-pro-type-member-init)
-  inline ProfileScope(const char *name)
+  inline explicit ProfileScope(const char *name)
     : name(name)
     , start_time(ProfileClock::now())
     , record(nullptr)
@@ -167,26 +165,22 @@ void showReport(std::ostream &o, const std::thread::id &thread_id, const ThreadR
     }
   }
 }
-}  // namespace ohm
-
-
-Profile Profile::s_instance;
 
 
 Profile::Profile()
-  : imp_(new ProfileDetail)
+  : imp_(std::make_unique<ProfileDetail>())
 {}
 
 
 Profile::~Profile()
 {
   report();
-  delete imp_;
 }
 
 
 Profile &Profile::instance()
 {
+  static Profile s_instance;
   return s_instance;
 }
 
@@ -285,3 +279,4 @@ bool Profile::reportSupressed() const
 {
   return imp_->suppress_report;
 }
+}  // namespace ohm

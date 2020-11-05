@@ -62,7 +62,8 @@ public:
     kInt32,    ///< `int32_t`
     kUInt32,   ///< `uint32_t`
     kFloat32,  ///< `float`
-    kFloat64   ///< `double`
+    kFloat64,  ///< `double`
+    kCount
   };
 
   /// Represents a point property in the ply file. At the very least, "x", "y", "z" properties of type @c kFloat64
@@ -75,7 +76,7 @@ public:
 
   /// Create a stream with the given properties. @c open() to be called later.
   /// @param properties The point properties to write. Cannot be changed after construction.
-  PlyPointStream(const std::vector<Property> &properties);
+  explicit PlyPointStream(const std::vector<Property> &properties);
   /// Create a stream with the given properties writing to the given stream. The header is written immediately.
   /// @param properties The point properties to write. Cannot be changed after construction.
   /// @param out The output stream to write to. Must be seekable. Must outlive this object.
@@ -161,21 +162,21 @@ private:
   /// Internal helper for setting the a property value after validation.
   /// @param dst The value to write to.
   /// @param value Value to write.
-  void setValue(Value *dst, int8_t value);
+  static void setValue(Value *dst, int8_t value);
   /// @overload
-  void setValue(Value *dst, uint8_t value);
+  static void setValue(Value *dst, uint8_t value);
   /// @overload
-  void setValue(Value *dst, int16_t value);
+  static void setValue(Value *dst, int16_t value);
   /// @overload
-  void setValue(Value *dst, uint16_t value);
+  static void setValue(Value *dst, uint16_t value);
   /// @overload
-  void setValue(Value *dst, int32_t value);
+  static void setValue(Value *dst, int32_t value);
   /// @overload
-  void setValue(Value *dst, uint32_t value);
+  static void setValue(Value *dst, uint32_t value);
   /// @overload
-  void setValue(Value *dst, float value);
+  static void setValue(Value *dst, float value);
   /// @overload
-  void setValue(Value *dst, double value);
+  static void setValue(Value *dst, double value);
 
   /// Write the ply header with a placeholder point count of 0.
   void writeHeader();

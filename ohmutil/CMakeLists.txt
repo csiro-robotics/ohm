@@ -8,16 +8,12 @@ set(SOURCES
   Colour.cpp
   Colour.h
   p2p.h
-  # OhmUtil.cpp
+  OhmUtil.cpp
   OhmUtil.h
   PlyMesh.cpp
   PlyMesh.h
   PlyPointStream.cpp
   PlyPointStream.h
-  PointsDoubleBuffer.h
-  PointsDoubleBuffer.inl
-  PointsRingBuffer.h
-  PointsRingBuffer.inl
   ProgressMonitor.cpp
   ProgressMonitor.h
   GlmStream.h
@@ -31,8 +27,6 @@ set(SOURCES
   SafeIO.h
   ScopedTimeDisplay.cpp
   ScopedTimeDisplay.h
-  SpinLock.cpp
-  SpinLock.h
   VectorHash.h
 )
 
@@ -57,8 +51,6 @@ set(PUBLIC_HEADERS
   p2p.h
   PlyMesh.h
   PlyPointStream.h
-  PointsDoubleBuffer.h
-  PointsDoubleBuffer.inl
   PointsRingBuffer.h
   PointsRingBuffer.inl
   Profile.h
@@ -66,7 +58,6 @@ set(PUBLIC_HEADERS
   ProgressMonitor.h
   SafeIO.h
   ScopedTimeDisplay.h
-  SpinLock.h
   VectorHash.h
   "${CMAKE_CURRENT_BINARY_DIR}/ohmutil/OhmUtilExport.h"
 )

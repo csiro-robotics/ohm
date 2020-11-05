@@ -8,6 +8,7 @@
 
 #include "OhmUtilExport.h"
 
+#include <array>
 #include <chrono>
 #include <cstdint>
 #include <iomanip>
@@ -18,6 +19,8 @@ namespace ohm
 {
 namespace util
 {
+const size_t kThousand = 1000u;
+const size_t kKibiSize = 1024u;
 /// Log a @c std::chrono::clock::duration to an output stream.
 ///
 /// The resulting string displays in the smallest possible unit to show three three
@@ -46,7 +49,7 @@ inline void logDuration(std::ostream &out, const D &duration)
   D abs_duration = (!negative) ? duration : duration * -1;
   auto s = std::chrono::duration_cast<std::chrono::seconds>(abs_duration).count();
   auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(abs_duration).count();
-  ms = ms % 1000;
+  ms = ms % kThousand;
 
   if (s)
   {
@@ -55,7 +58,7 @@ inline void logDuration(std::ostream &out, const D &duration)
   else
   {
     auto us = std::chrono::duration_cast<std::chrono::microseconds>(abs_duration).count();
-    us = us % 1000;
+    us = us % kThousand;
 
     if (ms)
     {
@@ -64,7 +67,7 @@ inline void logDuration(std::ostream &out, const D &duration)
     else
     {
       auto ns = std::chrono::duration_cast<std::chrono::nanoseconds>(abs_duration).count();
-      ns = ns % 1000;
+      ns = ns % kThousand;
 
       if (us)
       {
@@ -100,7 +103,7 @@ inline void timeString(std::string &time_str, const D &duration)
 /// @param bytes The byte value to convert.
 inline void makeMemoryDisplayString(std::string &str, uint64_t bytes)
 {
-  const char *unit_suffix[] =  //
+  const std::array<const char *const, 7> unit_suffix =  //
     {
       "B",    //
       "KiB",  //
@@ -113,27 +116,27 @@ inline void makeMemoryDisplayString(std::string &str, uint64_t bytes)
 
   unsigned unit_index = 0;
   uint64_t prev_bytes = 0;
-  char decimal_places[3] = { 0, 0, 0 };
+  std::array<char, 3> decimal_places = { 0, 0, 0 };
   bool need_fractional = false;
-  while (bytes > 1024u && unit_index < sizeof(unit_suffix) / sizeof(unit_suffix[0]))
+  while (bytes > kKibiSize && unit_index < unit_suffix.size())
   {
     prev_bytes = bytes;
-    bytes /= 1024u;
+    bytes /= kKibiSize;
     ++unit_index;
   }
 
   if (unit_index)
   {
     // Use prevBytes for fractional display, but only to 3 decimal places.
-    prev_bytes = prev_bytes % 1024u;
+    prev_bytes = prev_bytes % kKibiSize;
     // Convert to fixed point thousands.
-    prev_bytes *= 1024;
-    prev_bytes /= 1000;
+    prev_bytes *= kKibiSize;
+    prev_bytes /= kKibiSize;
     for (int i = 0; i < 3 && prev_bytes; ++i)
     {
       need_fractional = true;
-      decimal_places[2 - i] = char(prev_bytes % 10);
-      prev_bytes = (prev_bytes) ? prev_bytes / 10 : prev_bytes;
+      decimal_places[2 - i] = char(prev_bytes % 10);             // NOLINT(readability-magic-numbers)
+      prev_bytes = (prev_bytes) ? prev_bytes / 10 : prev_bytes;  // NOLINT(readability-magic-numbers)
     }
   }
 
@@ -157,8 +160,8 @@ inline void makeMemoryDisplayString(std::string &str, uint64_t bytes)
 template <typename N>
 void delimetedInteger(std::string &str, const N &integer, char delimiter = ',')
 {
-  N thousands = integer % 1000;
-  N remainder = integer / 1000;
+  N thousands = integer % ohm::util::kThousand;
+  N remainder = integer / ohm::util::kThousand;
 
   str.clear();
   while (remainder > 0 || thousands > 0)
@@ -170,8 +173,8 @@ void delimetedInteger(std::string &str, const N &integer, char delimiter = ',')
     }
     os << thousands << str;
     str = os.str();
-    thousands = remainder % 1000;
-    remainder = remainder / 1000;
+    thousands = remainder % ohm::util::kThousand;
+    remainder = remainder / ohm::util::kThousand;
   }
 }
 }  // namespace ohm

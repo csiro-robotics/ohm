@@ -28,7 +28,7 @@ public:
   ///
   /// @param name Name of the scope to profile.
   /// @param activate Only start profiling if this is true. Useful for conditional profiling.
-  ProfileMarker(const char *name, bool activate = true);
+  explicit ProfileMarker(const char *name, bool activate = true);
   /// Create a marker with the given name targetting the given @p profile.
   ///
   /// @par String Assumption

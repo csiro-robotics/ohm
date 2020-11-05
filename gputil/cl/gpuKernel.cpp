@@ -101,17 +101,19 @@ void Kernel::calculateGrid(gputil::Dim3 *global_size, gputil::Dim3 *local_size, 
   max_work_size[1] = std::min<size_t>(max_work_size[1], total_work_items.y);
   max_work_size[2] = std::min<size_t>(max_work_size[2], total_work_items.z);
 
-  const float cube_root = 1.0f / 3.0f;
-  auto target_dimension_value = unsigned(std::floor(std::pow(float(target_group_size), cube_root)));
+  const double cube_root = 1.0f / 3.0f;
+  auto target_dimension_value = unsigned(std::floor(std::pow(double(target_group_size), cube_root)));
   if (target_dimension_value < 1)
   {
     target_dimension_value = 1;
   }
 
   // Set the target dimensions to the minimum of the target and the max work group size.
-  const float sqr_root = 1.0f / 2.0f;
+  const double sqr_root = 1.0f / 2.0f;
   local_size->z = std::min<size_t>(max_work_size[2], target_dimension_value);
-  target_dimension_value = unsigned(std::floor(std::pow(float(target_group_size / local_size->z), sqr_root)));
+  // Lint(KS): division should be OK to convert to double for square root, then to int.
+  // NOLINTNEXTLINE(bugprone-integer-division)
+  target_dimension_value = unsigned(std::floor(std::pow(double(target_group_size / local_size->z), sqr_root)));
   local_size->y = std::min<size_t>(max_work_size[1], target_dimension_value);
   target_dimension_value = unsigned(std::max<size_t>(target_group_size / (local_size->y * local_size->z), 1));
   local_size->x = std::min<size_t>(max_work_size[0], target_dimension_value);

@@ -37,6 +37,8 @@ namespace ohm
 /// };
 /// @endcode
 ///
+/// Based on J. Amanatides and A. Woo, "A fast voxel traversal algorithm for raytracing," 1987.
+///
 /// @param walk_func The callable object to invoke for each traversed voxel key.
 /// @param start_point The start of the line in 3D space.
 /// @param end_point The end of the line in 3D space.
