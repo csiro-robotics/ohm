@@ -16,6 +16,7 @@
 
 #include <glm/glm.hpp>
 
+#include <array>
 #include <functional>
 #include <vector>
 
@@ -162,12 +163,12 @@ public:
     /// Iterator is unchanged if already invalid.
     void walkNext();
 
-    OccupancyMap *map_;  ///< The referenced map.
+    OccupancyMap *map_ = nullptr;  ///< The referenced map.
     Key key_;            ///< The current voxel key.
     /// Memory used to track an iterator into a hidden container type.
     /// We use an anonymous, fixed size memory chunk and placement new to prevent exposing STL
     /// types as part of the ABI.
-    uint8_t chunk_mem_[32];
+    std::array<uint8_t, 32> chunk_mem_;  // NOLINT(readability-magic-numbers)
   };
 
   /// Non-constant iterator into an @c OccupancyMap.
@@ -184,9 +185,7 @@ public:
     {}
     /// Copy constructor.
     /// @param other Object to shallow copy.
-    inline iterator(const iterator &other)
-      : base_iterator(other)
-    {}
+    inline iterator(const iterator &other) = default;
 
     /// Empty destructor.
     ~iterator() = default;
@@ -211,7 +210,7 @@ public:
     /// Postfix increment for the iterator. Iterator becomes invalid when incrementing an iterator
     /// referencing the last voxel in the map. Safe to call on an invalid iterator (no change).
     /// @return @c This iterator before the increment.
-    inline const iterator operator++(int)
+    inline iterator operator++(int)
     {
       iterator iter(*this);
       walkNext();
@@ -233,7 +232,10 @@ public:
     {}
     /// Copy constructor.
     /// @param other Object to shallow copy.
-    inline const_iterator(const base_iterator &other)
+    inline const_iterator(const const_iterator &other) = default;
+    /// Copy constructor.
+    /// @param other Object to shallow copy.
+    inline const_iterator(const iterator &other)  // NOLINT(google-explicit-constructor) want implict conversion here
       : base_iterator(other)
     {}
 
@@ -248,7 +250,7 @@ public:
     /// Postfix increment for the iterator. Iterator becomes invalid when incrementing an iterator
     /// referencing the last voxel in the map. Safe to call on an invalid iterator (no change).
     /// @return @c This iterator before the increment.
-    inline const const_iterator operator++(int)
+    inline const_iterator operator++(int)
     {
       const_iterator iter(*this);
       walkNext();
@@ -276,8 +278,8 @@ public:
                const MapLayout &seed_layout);
 
   /// @overload
-  OccupancyMap(double resolution = 1.0, const glm::u8vec3 &region_voxel_dimensions = glm::u8vec3(0, 0, 0),
-               MapFlag flags = MapFlag::kDefault);
+  explicit OccupancyMap(double resolution = 1.0, const glm::u8vec3 &region_voxel_dimensions = glm::u8vec3(0, 0, 0),
+                        MapFlag flags = MapFlag::kDefault);
 
   /// @overload
   OccupancyMap(double resolution, MapFlag flags, const MapLayout &seed_layout);

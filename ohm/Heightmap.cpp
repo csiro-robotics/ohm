@@ -37,8 +37,10 @@
 #define PROFILING 0
 #include <ohmutil/Profile.h>
 
-using namespace ohm;
+#include <cassert>
 
+namespace ohm
+{
 namespace
 {
 /// Helper structure for managing voxel data access from the source heightmap.
@@ -72,8 +74,12 @@ struct SrcVoxel
   /// Query the occupancy classification of the current voxel.
   inline OccupancyType occupancyType() const
   {
-    float value = 0;
-    if (occupancy.chunk())
+    float value = unobservedOccupancyValue();
+#ifdef __clang_analyzer__
+    if (occupancy.voxelMemory())
+#else   // __clang_analyzer__
+    if (occupancy.isValid())
+#endif  // __clang_analyzer__
     {
       occupancy.read(&value);
     }
@@ -86,7 +92,11 @@ struct SrcVoxel
   inline glm::dvec3 position() const
   {
     glm::dvec3 pos = occupancy.map()->voxelCentreGlobal(occupancy.key());
-    if (mean.isLayerValid())
+#ifdef __clang_analyzer__
+    if (mean.voxelMemory())
+#else   // __clang_analyzer__
+    if (mean.isValid())
+#endif  // __clang_analyzer__
     {
       VoxelMean mean_info;
       mean.read(&mean_info);
@@ -291,7 +301,8 @@ inline Key findNearestSupportingVoxel(SrcVoxel &voxel, const Key &seed_key, UpAx
                                       bool allow_virtual_surface, bool promote_virtual_below)
 {
   PROFILE(findNearestSupportingVoxel);
-  Key above, below;
+  Key above;
+  Key below;
   int offset_below = -1;
   int offset_above = -1;
   bool virtual_below = false;
@@ -435,7 +446,7 @@ void onVisitPlaneFill(PlaneFillWalker &walker, const HeightmapDetail &imp, const
 }  // namespace
 
 Heightmap::Heightmap()
-  : Heightmap(0.2, 2.0, UpAxis::kZ)
+  : Heightmap(0.2, 2.0, UpAxis::kZ)  // NOLINT(readability-magic-numbers)
 {}
 
 
@@ -721,7 +732,8 @@ HeightmapVoxelType Heightmap::getHeightmapVoxelInfo(const Key &key, glm::dvec3 *
       heightmap_occupancy.read(&occupancy);
       const bool is_uncertain = occupancy == ohm::unobservedOccupancyValue();
       const float heightmap_voxel_value = (!is_uncertain) ? occupancy : -1.0f;
-      if (!is_uncertain)
+      // isValid() is somewhat redundant, but it silences a clang-tidy check.
+      if (!is_uncertain && heightmap_voxel.isValid())
       {
         // Get height info.
         HeightmapVoxel heightmap_info;
@@ -758,7 +770,7 @@ void Heightmap::updateMapInfo(MapInfo &info) const
 }
 
 
-Key &Heightmap::project(Key *key)
+Key &Heightmap::project(Key *key) const
 {
   key->setRegionAxis(upAxisIndex(), 0);
   key->setLocalAxis(upAxisIndex(), 0);
@@ -866,10 +878,11 @@ bool Heightmap::buildHeightmapT(KeyWalker &walker, const glm::dvec3 &reference_p
         // Get the heightmap voxel to update.
         Key hm_key = heightmap.voxelKey(voxel_pos);
         project(&hm_key);
-        // TODO: (KS) Using the Voxel interface here is highly suboptimal. This needs to be modified to access the
+        // TODO(KS): Using the Voxel interface here is highly suboptimal. This needs to be modified to access the
         // MapChunk directly for efficiency.
         hm_voxel.setKey(hm_key);
         // We can do a direct occupancy value write with no checks for the heightmap. The value is explicit.
+        assert(hm_voxel.occupancy.isValid() && hm_voxel.occupancy.voxelMemory());
         hm_voxel.occupancy.write(surface_value);
         // Set voxel mean position as required. Will be skipped if not enabled.
         hm_voxel.setPosition(voxel_pos);
@@ -902,3 +915,4 @@ bool Heightmap::buildHeightmapT(KeyWalker &walker, const glm::dvec3 &reference_p
 
   return populated_count != 0;
 }
+}  // namespace ohm

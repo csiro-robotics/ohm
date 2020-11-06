@@ -85,7 +85,7 @@ inline glm::dmat3 covarianceSqrtMatrix(const CovarianceVoxel *cov)
   col = &cov_sqrt_mat[2];
   (*col)[0] = 0;
   (*col)[1] = 0;
-  (*col)[2] = cov->trianglar_covariance[5];
+  (*col)[2] = cov->trianglar_covariance[5];  // NOLINT(readability-magic-numbers)
 
   return cov_sqrt_mat;
 }

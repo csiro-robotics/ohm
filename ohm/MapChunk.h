@@ -171,7 +171,7 @@ struct MapChunk
   /// The map maintains the most up to date stamp: @c OccupancyMap::stamp().
   /// @note It is not possible to have a @c std::vector of atomic types. We use a unique pointer to an arrray
   /// instead.
-  std::unique_ptr<std::atomic_uint64_t[]> touched_stamps;
+  std::unique_ptr<std::atomic_uint64_t[]> touched_stamps;  // NOLINT(modernize-avoid-c-arrays)
 
   /// Array of voxel blocks. Layer semantics are defined in the owning @c OccupancyMap.
   /// Use @c layout to access specific maps.
@@ -184,14 +184,14 @@ struct MapChunk
   MapChunk() = default;
   /// Create a @c MapChunk for the given @p map .
   /// @param map Implementation details of the owning map object.
-  MapChunk(const OccupancyMapDetail &map);
+  explicit MapChunk(const OccupancyMapDetail &map);
   /// Create a @c MapChunk for the given @p region within @p map .
   /// @param region Region details for the chunk.
   /// @param map Implementation details of the owning map object.
   MapChunk(const MapRegion &region, const OccupancyMapDetail &map);
   /// Copy constructor (deep copy).
   /// @param other Object to copy.
-  MapChunk(const MapChunk &other) = default;
+  MapChunk(const MapChunk &other) = delete;
   /// Move constructor.
   /// @param other Object to move.
   MapChunk(MapChunk &&other) noexcept;

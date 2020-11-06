@@ -13,6 +13,7 @@
 
 #include <glm/vec3.hpp>
 
+#include <array>
 #include <cinttypes>
 #include <queue>
 
@@ -54,7 +55,7 @@ public:
   const glm::ivec3 key_range;  ///< The range between @c min_ext_key and @c max_ext_key .
   /// Mapping of the indices to walk, supporting various heightmap up axes. Element 2 is always the up axis, where
   /// elements 0 and 1 are the horizontal axes.
-  int axis_indices[3] = { 0, 0, 0 };
+  std::array<int, 3> axis_indices = { 0, 0, 0 };
   const bool auto_add_neighbours = false;  ///< Automatically voxels heighbours to touched voxels?
   std::queue<Key> open_list;               ///< Remaining voxels to (re)process.
   /// Identifies which bounded keys have been visited. A negative value indices no visit, a zero or positive value

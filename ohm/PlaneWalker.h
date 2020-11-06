@@ -11,6 +11,7 @@
 #include "ohm/Key.h"
 #include "ohm/UpAxis.h"
 
+#include <array>
 
 namespace ohm
 {
@@ -33,7 +34,7 @@ public:
   const Key plane_key;      ///< Reference key seeding the plane to walk.
   /// Mapping of the indices to walk, supporting various heightmap up axes. Element 2 is always the up axis, where
   /// elements 0 and 1 are the horizontal axes.
-  int axis_indices[3] = { 0, 0, 0 };
+  std::array<int, 3> axis_indices = { 0, 0, 0 };
 
   /// Constructor.
   /// @param map The map to walk voxels in.

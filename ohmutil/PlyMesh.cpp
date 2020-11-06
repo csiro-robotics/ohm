@@ -80,6 +80,8 @@ template <>
 class PlyMesh::FileWrapper<std::ostream>
 {
 public:
+  const unsigned kBufferSize = 1024u;  // Far to big for usage here.
+
   inline explicit FileWrapper(std::ostream &stream)
     : stream_(&stream)
   {
@@ -109,7 +111,6 @@ public:
   }
 
 private:
-  static const unsigned kBufferSize = 1024u;  // Far to big for usage here.
   std::ostream *stream_;
   char *buffer_;
 };

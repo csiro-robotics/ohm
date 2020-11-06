@@ -28,8 +28,8 @@
 #include <functional>
 #include <iostream>
 
-using namespace ohm;
-
+namespace ohm
+{
 namespace
 {
 unsigned regionNearestNeighboursCpu(OccupancyMap &map, NearestNeighboursDetail &query, const glm::i16vec3 &region_key,
@@ -38,7 +38,8 @@ unsigned regionNearestNeighboursCpu(OccupancyMap &map, NearestNeighboursDetail &
   const float invalid_occupancy_value = unobservedOccupancyValue();
   const OccupancyMapDetail &map_data = *map.detail();
   const auto chunk_search = map_data.chunks.find(region_key);
-  glm::vec3 query_origin, voxel_vector;
+  glm::vec3 query_origin;
+  glm::vec3 voxel_vector;
   Key voxel_key(nullptr);
   const MapChunk *chunk = nullptr;
   const uint8_t *occupancy_mem = nullptr;
@@ -64,7 +65,7 @@ unsigned regionNearestNeighboursCpu(OccupancyMap &map, NearestNeighboursDetail &
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
     occupancy_mem = reinterpret_cast<const uint8_t *>(&invalid_occupancy_value);
     // Setup voxel occupancy test function to pass all voxels in this region.
-    voxel_occupied_func = [](const float, const OccupancyMapDetail &) -> bool { return true; };
+    voxel_occupied_func = [](const float /*voxel*/, const OccupancyMapDetail & /*map_data*/) -> bool { return true; };
   }
   else
   {
@@ -77,18 +78,10 @@ unsigned regionNearestNeighboursCpu(OccupancyMap &map, NearestNeighboursDetail &
     voxel_occupied_func = [&query](const float voxel, const OccupancyMapDetail &map_data) -> bool {
       if (voxel == unobservedOccupancyValue())
       {
-        if (query.query_flags & ohm::kQfUnknownAsOccupied)
-        {
-          return true;
-        }
-        return false;
+        return query.query_flags & ohm::kQfUnknownAsOccupied;
       }
-      if (voxel >= map_data.occupancy_threshold_value ||
-          (query.query_flags & ohm::kQfUnknownAsOccupied) && voxel == unobservedOccupancyValue())
-      {
-        return true;
-      }
-      return false;
+      return (voxel >= map_data.occupancy_threshold_value ||
+              (query.query_flags & ohm::kQfUnknownAsOccupied) && voxel == unobservedOccupancyValue());
     };
   }
 
@@ -130,11 +123,11 @@ unsigned regionNearestNeighboursCpu(OccupancyMap &map, NearestNeighboursDetail &
 #ifdef TES_ENABLE
             if (occupancy != unobservedOccupancyValue())
             {
-              includedOccupied.push_back(tes::Vector3d(glm::value_ptr(map.voxelCentreGlobal(voxel_key))));
+              includedOccupied.emplace_back(tes::Vector3d(glm::value_ptr(map.voxelCentreGlobal(voxel_key))));
             }
             else
             {
-              includedUncertain.push_back(tes::Vector3d(glm::value_ptr(map.voxelCentreGlobal(voxel_key))));
+              includedUncertain.emplace_back(tes::Vector3d(glm::value_ptr(map.voxelCentreGlobal(voxel_key))));
             }
 #endif  // TES_ENABLE
           }
@@ -143,11 +136,11 @@ unsigned regionNearestNeighboursCpu(OccupancyMap &map, NearestNeighboursDetail &
           {
             if (occupancy != unobservedOccupancyValue())
             {
-              excludedOccupied.push_back(tes::Vector3d(glm::value_ptr(map.voxelCentreGlobal(voxel_key))));
+              excludedOccupied.emplace_back(tes::Vector3d(glm::value_ptr(map.voxelCentreGlobal(voxel_key))));
             }
             else
             {
-              excludedUncertain.push_back(tes::Vector3d(glm::value_ptr(map.voxelCentreGlobal(voxel_key))));
+              excludedUncertain.emplace_back(tes::Vector3d(glm::value_ptr(map.voxelCentreGlobal(voxel_key))));
             }
           }
 #endif  // TES_ENABLE
@@ -191,7 +184,6 @@ unsigned regionNearestNeighboursCpu(OccupancyMap &map, NearestNeighboursDetail &
 
 NearestNeighbours::NearestNeighbours(NearestNeighboursDetail *detail)
   : Query(detail)
-  , query_flags_(0)
 {
   // Can't initalise GPU until onSetMap() (need a valid map).
 }
@@ -314,3 +306,4 @@ const NearestNeighboursDetail *NearestNeighbours::imp() const
 {
   return static_cast<const NearestNeighboursDetail *>(imp_);
 }
+}  // namespace ohm

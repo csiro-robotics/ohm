@@ -19,11 +19,11 @@ namespace ohm
 struct Compression
 {
   z_stream stream;
-  Byte *buffer;
-  unsigned buffer_size;
-  bool initialised;
+  Byte *buffer = nullptr;
+  unsigned buffer_size = 0;
+  bool initialised = false;
 
-  Compression(unsigned buffer_size = 16 * 1024u);
+  explicit Compression(unsigned buffer_size = 16 * 1024u);
   ~Compression();
 
   int initDeflate();
@@ -35,9 +35,7 @@ struct Compression
 
 
 Compression::Compression(unsigned buffer_size)  // NOLINT
-  : buffer(nullptr)
-  , buffer_size(buffer_size)
-  , initialised(false)
+  : buffer_size(buffer_size)
 {
   memset(&stream, 0u, sizeof(stream));
   buffer = new Byte[buffer_size];
@@ -119,9 +117,6 @@ struct OutputStreamPrivate : StreamPrivate
   bool needs_flush = false;
 #endif  // OHM_ZIP
 };
-}  // namespace ohm
-
-using namespace ohm;
 
 
 const char *Stream::filePath() const
@@ -262,7 +257,7 @@ unsigned InputStream::readRaw(void *buffer, unsigned max_bytes)
   const std::ifstream::pos_type initial_pos = in.tellg();
   in.read(static_cast<char *>(buffer), max_bytes);
   const std::ifstream::pos_type end_pos = in.tellg();
-  unsigned read = unsigned(end_pos - initial_pos);
+  auto read = unsigned(end_pos - initial_pos);
   return read;
 }
 
@@ -499,3 +494,4 @@ const OutputStreamPrivate *OutputStream::imp() const
 {
   return static_cast<const OutputStreamPrivate *>(imp_);
 }
+}  // namespace ohm

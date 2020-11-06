@@ -79,7 +79,8 @@ int loadLayout(InputStream &stream, OccupancyMapDetail &map)
   MapLayout &layout = map.layout;
   bool ok = true;
   uint32_t layer_count = 0;
-  std::vector<char> layer_name, member_name;
+  std::vector<char> layer_name;
+  std::vector<char> member_name;
   uint32_t len;
   uint32_t layer_flags;
   uint16_t subsampling;
@@ -127,8 +128,9 @@ int loadLayout(InputStream &stream, OccupancyMapDetail &map)
       member_name[len] = '\0';
 
       // Read member type, offset and clear value.
-      uint16_t type = 0, offset;
-      uint64_t clear_value;
+      uint16_t type = 0;
+      uint16_t offset = 0;
+      uint64_t clear_value = 0;
       ok = read<uint16_t>(stream, type) && ok;
       ok = read<uint16_t>(stream, offset) && ok;
       ok = read<uint64_t>(stream, clear_value) && ok;

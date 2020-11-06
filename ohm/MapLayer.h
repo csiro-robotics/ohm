@@ -32,14 +32,14 @@ public:
   enum Flag
   {
     /// Layer data is not serialised to disk.
-    kSkipSerialise = (1 << 0)
+    kSkipSerialise = (1u << 0u)
   };
 
   /// Construct a new layer.
   /// @param name The layer name.
   /// @param layer_index The layer index in @p MapLayout.
   /// @param subsampling Voxel downsampling factor.
-  MapLayer(const char *name, unsigned layer_index = 0, unsigned subsampling = 0);
+  explicit MapLayer(const char *name, unsigned layer_index = 0, unsigned subsampling = 0);
 
   /// Destructor.
   ~MapLayer();
@@ -98,7 +98,7 @@ public:
   /// @return The voxel dimensions for this layer based on @p regionDim.
   inline glm::u8vec3 dimensions(const glm::u8vec3 &region_dim) const
   {
-    const glm::u8vec3 dim = (subsampling_ == 0) ? region_dim : region_dim / uint8_t(1 << subsampling_);
+    const glm::u8vec3 dim = (subsampling_ == 0) ? region_dim : region_dim / uint8_t(1u << subsampling_);
     return glm::max(dim, glm::u8vec3(1));
   }
 
@@ -132,7 +132,7 @@ public:
 
   /// Release memory previously allocated by @c allocate().
   /// @param voxels Memory previously allocated by @c allocate().
-  void release(const uint8_t *voxels) const;
+  static void release(const uint8_t *voxels);
 
   /// Clear the given layer memory to the default value.
   /// The default values are set by the @c VoxelLayout details.

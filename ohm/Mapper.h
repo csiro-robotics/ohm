@@ -8,6 +8,8 @@
 
 #include "OhmConfig.h"
 
+#include <memory>
+
 namespace ohm
 {
 class OccupancyMap;
@@ -44,7 +46,7 @@ public:
 
   /// Instantiate a mapper optionally providing the target @p map on construction.
   /// If @p map is null here then @c setMap() must be called before @c update().
-  Mapper(OccupancyMap *map = nullptr);
+  explicit Mapper(OccupancyMap *map = nullptr);
 
   /// Destructor deleting all the registered @c MappingProcesses.
   ~Mapper();
@@ -106,12 +108,12 @@ public:
 
   /// Internal data access.
   /// @return Internal data.
-  inline MapperDetail *detail() { return imp_; }
+  inline MapperDetail *detail() { return imp_.get(); }
   /// @overload
-  inline const MapperDetail *detail() const { return imp_; }
+  inline const MapperDetail *detail() const { return imp_.get(); }
 
 private:
-  MapperDetail *imp_;
+  std::unique_ptr<MapperDetail> imp_;
 };
 }  // namespace ohm
 

@@ -291,7 +291,7 @@ public:
   /// Ensure that @p key is referencing a voxel within the heightmap plane.
   /// @param[in,out] key The key to project. May be modified by this call. Must not be null.
   /// @return A reference to @p key.
-  Key &project(Key *key);
+  Key &project(Key *key) const;
 
 private:
   /// Internal implementation of heightmap construction. Supports the different key walking techniques available.

@@ -20,10 +20,10 @@ struct StreamPrivate;
 
 
 /// Flags for use with @c InputStream and @c OutputStream.
-enum StreamFlag
+enum StreamFlag : unsigned
 {
   /// Compression is enabled.
-  kSfCompress = (1 << 0),
+  kSfCompress = (1u << 0u),
 };
 
 
@@ -95,7 +95,7 @@ protected:
 
   /// Constructor.
   /// @param imp The implementation pointer, set to @c imp_. Derivations must clean it up.
-  Stream(StreamPrivate *imp);
+  explicit Stream(StreamPrivate *imp);
   /// Empty virtual destructor.
   virtual ~Stream();
 
@@ -126,7 +126,7 @@ public:
   ///
   /// @param file_path Optionally specifies the file to open.
   /// @param flags The @c StreamFlag set to open with.
-  InputStream(const char *file_path = nullptr, unsigned flags = 0u);
+  explicit InputStream(const char *file_path = nullptr, unsigned flags = 0u);
 
   /// Destructor. Flushes and closes the file.
   ~InputStream() override;
@@ -210,7 +210,7 @@ public:
   ///
   /// @param file_path Optionally specifies the file to open.
   /// @param flags The @c StreamFlag set to open with.
-  OutputStream(const char *file_path = nullptr, unsigned flags = 0u);
+  explicit OutputStream(const char *file_path = nullptr, unsigned flags = 0u);
 
   /// Destructor. Flushes and closes the file.
   ~OutputStream() override;

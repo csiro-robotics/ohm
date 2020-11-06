@@ -26,7 +26,7 @@ glm::ivec3 ohm_API calculateVoxelSearchHalfExtents(const OccupancyMap &map, floa
 /// @param map The map to which @p voxel belongs.
 /// @param voxel_search_half_extents Defines how far along each axis to search neighbours for in both + and -
 /// directions.
-/// @param unknown_as_occupied Treat unknown/unexplored voxels as occupied?
+/// @param unobserved_as_occupied Treat unknown/unexplored voxels as occupied?
 /// @param ignore_self Only consider neighbours. Ignore the voxel itself if it is occupied.
 /// @param search_range Radius to search and report.
 /// @param axis_scaling Scaling applied along each axis to distort the search space.
@@ -35,7 +35,7 @@ glm::ivec3 ohm_API calculateVoxelSearchHalfExtents(const OccupancyMap &map, floa
 /// @return -1 if there are no occupied voxels within the @p voxel_search_half_extents range, or the range of
 ///   the nearest obstacle. Zero when @p voxel itself is occupied.
 float ohm_API calculateNearestNeighbour(const Key &voxel_key, const OccupancyMap &map,
-                                        const glm::ivec3 &voxel_search_half_extents, bool unknown_as_occupied,
+                                        const glm::ivec3 &voxel_search_half_extents, bool unobserved_as_occupied,
                                         bool ignore_self, float search_range = 0,
                                         const glm::vec3 &axis_scaling = glm::vec3(1.0f, 1.0f, 1.0f),
                                         bool report_unscaled_distance = false);

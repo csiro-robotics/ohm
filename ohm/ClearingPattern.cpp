@@ -9,8 +9,8 @@
 #include "OccupancyMap.h"
 #include "RayPattern.h"
 
-using namespace ohm;
-
+namespace ohm
+{
 ClearingPattern::ClearingPattern(const RayPattern *pattern, bool take_ownership)
   : imp_(new ClearingPatternDetail)
 {
@@ -58,3 +58,4 @@ const glm::dvec3 *ClearingPattern::buildRaySet(size_t *element_count, const glm:
   *element_count = imp_->ray_set.size();
   return imp_->ray_set.data();
 }
+}  // namespace ohm

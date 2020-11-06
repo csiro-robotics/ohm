@@ -68,14 +68,14 @@ public:
   using Clock = std::chrono::steady_clock;
 
   /// Flags marking the @c VoxelBlock status.
-  enum Flag
+  enum Flag : unsigned
   {
     /// Memory buffer currently holds uncompressed voxel data.
-    kFUncompressed = (1 << 0),
+    kFUncompressed = (1u << 0u),
     /// Block is queued for compression.
-    kFCompressionQueued = (1 << 1),
+    kFCompressionQueued = (1u << 1u),
     /// Block is to be deleted. Only set when the block should be deleted but is currently on the compression thread.
-    kFMarkedForDeath = (1 << 2)
+    kFMarkedForDeath = (1u << 2u)
   };
 
   /// Compression level options
@@ -171,7 +171,7 @@ public:
 
   /// Query the time after which the background thread may compress the @c VoxelBlock.
   /// @return The time after which the block may be compressed.
-  const Clock::time_point releaseAfter() const;
+  Clock::time_point releaseAfter() const;
 
   /// Direct access to the voxel bytes. Should be retained first. For internal use.
   /// @return Voxel bytes.

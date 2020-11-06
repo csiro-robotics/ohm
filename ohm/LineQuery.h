@@ -61,7 +61,7 @@ protected:
   /// more specialised forms.
   /// @param detail pimple style data structure. When null, a @c LineQueryDetail is allocated by
   /// this method.
-  LineQuery(LineQueryDetail *detail);
+  explicit LineQuery(LineQueryDetail *detail);
 
 public:
   LineQuery();

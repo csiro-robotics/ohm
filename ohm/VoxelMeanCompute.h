@@ -69,8 +69,8 @@ inline __device__ __host__ unsigned subVoxelCoord(Vec3 voxel_local_coord, coord_
 {
   // We divide the voxel into a voxel_local_coord, 3D grid, then assign 1 bit per cell.
   const unsigned bits_per_axis = 10;
-  const unsigned mean_positions = (1 << bits_per_axis) - 1;
-  const unsigned used_bit = (1u << 31);
+  const int mean_positions = (1 << bits_per_axis) - 1;  // NOLINT(hicpp-signed-bitwise)
+  const unsigned used_bit = (1u << 31u);
   const coord_real mean_resolution = resolution / (coord_real)mean_positions;  // NOLINT
   const coord_real offset = (coord_real)0.5 * resolution;                      // NOLINT
 
@@ -78,9 +78,9 @@ inline __device__ __host__ unsigned subVoxelCoord(Vec3 voxel_local_coord, coord_
   int pos_y = pointToRegionCoord(voxel_local_coord.y + offset, mean_resolution);
   int pos_z = pointToRegionCoord(voxel_local_coord.z + offset, mean_resolution);
 
-  pos_x = (pos_x >= 0 ? (pos_x < (1 << bits_per_axis) ? pos_x : mean_positions) : 0);
-  pos_y = (pos_y >= 0 ? (pos_y < (1 << bits_per_axis) ? pos_y : mean_positions) : 0);
-  pos_z = (pos_z >= 0 ? (pos_z < (1 << bits_per_axis) ? pos_z : mean_positions) : 0);
+  pos_x = (pos_x >= 0 ? (pos_x < (1 << bits_per_axis) ? pos_x : mean_positions) : 0);  // NOLINT(hicpp-signed-bitwise)
+  pos_y = (pos_y >= 0 ? (pos_y < (1 << bits_per_axis) ? pos_y : mean_positions) : 0);  // NOLINT(hicpp-signed-bitwise)
+  pos_z = (pos_z >= 0 ? (pos_z < (1 << bits_per_axis) ? pos_z : mean_positions) : 0);  // NOLINT(hicpp-signed-bitwise)
 
   unsigned pattern = 0;
   pattern |= (unsigned)pos_x;                           // NOLINT
@@ -101,8 +101,8 @@ SUB_VOX_FUNC_PREFACE
 inline __device__ __host__ Vec3 subVoxelToLocalCoord(unsigned pattern, coord_real resolution)
 {
   const unsigned bits_per_axis = 10;
-  const unsigned mean_positions = (1 << bits_per_axis) - 1;
-  const unsigned used_bit = (1u << 31);
+  const int mean_positions = (1 << bits_per_axis) - 1;  // NOLINT(hicpp-signed-bitwise)
+  const unsigned used_bit = (1u << 31u);
   const coord_real mean_resolution = resolution / (coord_real)mean_positions;  // NOLINT
   const coord_real offset = (coord_real)0.5 * resolution;                      // NOLINT
 
@@ -141,6 +141,8 @@ inline __device__ __host__ unsigned subVoxelUpdate(unsigned coord, unsigned poin
 #endif  //  GPUTIL_DEVICE
     ;
 
+  // Lint(KS): have to use C style casting as this code is used on OpenCL as well.
+  // NOLINTNEXTLINE(google-readability-casting)
   const coord_real one_on_count_plus_one = (coord_real)1 / (coord_real)(point_count + 1);
   mean.x += (voxel_local_coord.x - mean.x) * one_on_count_plus_one;
   mean.y += (voxel_local_coord.y - mean.y) * one_on_count_plus_one;

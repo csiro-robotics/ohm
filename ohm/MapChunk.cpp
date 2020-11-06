@@ -17,8 +17,8 @@
 #include <cassert>
 #include <cstdio>
 
-using namespace ohm;
-
+namespace ohm
+{
 MapChunk::MapChunk(const MapRegion &region, const OccupancyMapDetail &map)
 {
   this->region = region;
@@ -26,7 +26,7 @@ MapChunk::MapChunk(const MapRegion &region, const OccupancyMapDetail &map)
 
   const MapLayout &layout = this->layout();
   voxel_blocks.resize(layout.layerCount());
-  touched_stamps = std::make_unique<std::atomic_uint64_t[]>(layout.layerCount());
+  touched_stamps = std::make_unique<std::atomic_uint64_t[]>(layout.layerCount());  // NOLINT(modernize-avoid-c-arrays)
   for (size_t i = 0; i < layout.layerCount(); ++i)
   {
     const MapLayer &layer = layout.layer(i);
@@ -94,8 +94,8 @@ void MapChunk::updateLayout(const MapLayout *new_layout,
 {
   // Allocate voxel pointer array.
   std::vector<VoxelBlock::Ptr> new_voxel_blocks(new_layout->layerCount());
-  std::unique_ptr<std::atomic_uint64_t[]> new_touched_stamps =
-    std::make_unique<std::atomic_uint64_t[]>(new_layout->layerCount());
+  std::unique_ptr<std::atomic_uint64_t[]> new_touched_stamps =           // NOLINT(modernize-avoid-c-arrays)
+    std::make_unique<std::atomic_uint64_t[]>(new_layout->layerCount());  // NOLINT(modernize-avoid-c-arrays)
 
   for (const auto &mapping : preserve_layer_mapping)
   {
@@ -225,7 +225,8 @@ bool MapChunk::validateFirstValid() const
 
 bool MapChunk::overlapsExtents(const glm::dvec3 &min_ext, const glm::dvec3 &max_ext) const
 {
-  glm::dvec3 region_min, region_max;
+  glm::dvec3 region_min;
+  glm::dvec3 region_max;
   extents(region_min, region_max);
 
   const bool min_fail = glm::any(glm::greaterThan(region_min, max_ext));
@@ -240,3 +241,4 @@ void MapChunk::extents(glm::dvec3 &min_ext, glm::dvec3 &max_ext) const
   min_ext -= 0.5 * map->region_spatial_dimensions;
   max_ext += 0.5 * map->region_spatial_dimensions;
 }
+}  // namespace ohm

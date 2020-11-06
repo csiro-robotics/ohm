@@ -15,8 +15,8 @@
 #undef TES_ENABLE
 #endif  // defined(TES_ENABLE) && !DEBUG_VISUALISE
 
-using namespace ohm;
-
+namespace ohm
+{
 RayPatternConical::RayPatternConical(const glm::dvec3 &cone_axis, double cone_angle, double range,
                                      double angular_resolution, double min_range)
 {
@@ -58,7 +58,8 @@ RayPatternConical::RayPatternConical(const glm::dvec3 &cone_axis, double cone_an
               tes::Directional(tes::Vector3d(0.0), tes::Vector3d(glm::value_ptr(deflection_axis))));
 
     // Now create deflected rates starting at angular_resolution up to the cone angle.
-    // NOLINTNEXTLINE(clang-analyzer-security.FloatLoopCounter)
+    // Lint(KS): use of float for loop checks out. Precision isn't an issue here.
+    // NOLINTNEXTLINE(clang-analyzer-security.FloatLoopCounter, readability-magic-numbers)
     for (double deflection_angle = angular_resolution; deflection_angle <= 0.5 * cone_angle;
          deflection_angle += angular_resolution)
     {
@@ -95,3 +96,4 @@ RayPatternConical::RayPatternConical(const glm::dvec3 &cone_axis, double cone_an
   TES_CONE_END(g_tes, tes::Id(this));
   TES_CONE_END(g_tes, tes::Id(this) + 100);
 }
+}  // namespace ohm

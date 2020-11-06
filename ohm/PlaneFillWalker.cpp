@@ -10,8 +10,8 @@
 
 #include <algorithm>
 
-using namespace ohm;
-
+namespace ohm
+{
 PlaneFillWalker::PlaneFillWalker(const OccupancyMap &map, const Key &min_ext_key, const Key &max_ext_key,
                                  UpAxis up_axis, bool auto_add_neighbours)
   : map(map)
@@ -55,7 +55,7 @@ bool PlaneFillWalker::begin(Key &key)
   }
   visit_list.clear();
 
-  visit_list.resize(key_range[axis_indices[0]] * key_range[axis_indices[1]]);
+  visit_list.resize(size_t(key_range[axis_indices[0]]) * size_t(key_range[axis_indices[1]]));
 
   if (visit_list.empty())
   {
@@ -189,3 +189,4 @@ int PlaneFillWalker::visitHeight(const Key &key) const
 {
   return map.rangeBetween(min_ext_key, key)[axis_indices[2]];
 }
+}  // namespace ohm

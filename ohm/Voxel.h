@@ -288,24 +288,24 @@ public:
   /// Error flag values indicating why initialisation may have failed.
   enum class Error : uint16_t
   {
-    kNone = 0,                      ///< No error
-    kNullMap = (1 << 0),            ///< @c OccupancyMap is null
-    kInvalidLayerIndex = (1 << 1),  ///< The given layer index is invalid.
-    kVoxelSizeMismatch = (1 << 2),  ///< The @c MapLayer voxel size does not match the size of @c T
-    kMapMismatch = (1 << 3)         ///< When two @c Voxel object maps do not match such as in @c setKey() chaining.
+    kNone = 0,                        ///< No error
+    kNullMap = (1u << 0u),            ///< @c OccupancyMap is null
+    kInvalidLayerIndex = (1u << 1u),  ///< The given layer index is invalid.
+    kVoxelSizeMismatch = (1u << 2u),  ///< The @c MapLayer voxel size does not match the size of @c T
+    kMapMismatch = (1u << 3u)         ///< When two @c Voxel object maps do not match such as in @c setKey() chaining.
   };
 
   /// Book keeping flags.
   enum class Flag : uint16_t
   {
-    kNone = 0,                      ///< Nothing of note
-    kIsOccupancyLayer = (1u << 0),  ///< Marks that this @c Voxel points to the occupancy layer of @c OccupancyMap.
-    kCompressionLock = (1u << 1),   ///< Indiates the layer's @c VoxelBlock has been retained in @c chunk_.
-    kTouchedChunk = (1u << 2),      ///< Marks that the current @c MapChunk data has been accessed for mutation.
-    kTouchedVoxel = (1u << 3),      ///< Marks that the current voxel data has been accessed for mutation.
+    kNone = 0,                       ///< Nothing of note
+    kIsOccupancyLayer = (1u << 0u),  ///< Marks that this @c Voxel points to the occupancy layer of @c OccupancyMap.
+    kCompressionLock = (1u << 1u),   ///< Indiates the layer's @c VoxelBlock has been retained in @c chunk_.
+    kTouchedChunk = (1u << 2u),      ///< Marks that the current @c MapChunk data has been accessed for mutation.
+    kTouchedVoxel = (1u << 3u),      ///< Marks that the current voxel data has been accessed for mutation.
 
     /// Flag values which are not propagated in copy assigment.
-    kNonPropagatingFlags = kTouchedChunk | kTouchedVoxel | kCompressionLock
+    kNonPropagatingFlags = kTouchedChunk | kTouchedVoxel | kCompressionLock  // NOLINT(hicpp-signed-bitwise)
   };
 
   /// Empty constructor generating an invalid voxel with no map.
@@ -315,7 +315,7 @@ public:
   Voxel(const Voxel<T> &other);
   /// RValue constructor - same type.
   /// @param other The voxel to copy.
-  Voxel(Voxel<T> &&other);
+  Voxel(Voxel<T> &&other) noexcept;
   /// Copy constructor from a different type. Copies the map, chunk and key, but references a different layer/type.
   /// @param other The base voxel to copy.
   /// @param layer_index The @c MapLayer to access for the type @c T .
@@ -357,10 +357,10 @@ public:
   inline bool isLayerValid() const { return map_ && layer_index_ >= 0 && error_flags_ == 0; }
   /// Check if the voxel reference is valid for @c data() calls.
   /// @return True if @c isLayerValid() and the @c chunk() and @c key() values are  non-null.
-  inline bool isValid() const { return isLayerValid() && chunk_ && key_ != Key::kNull; }
+  inline bool isValid() const { return isLayerValid() && chunk_ && key_ != Key::kNull && voxel_memory_ != nullptr; }
   /// Check if the voxel reference is invalid.
   /// @return The logical negation of @c isValid()
-  inline bool isNull() const { return isLayerValid() && (!chunk_ || key_ == Key::kNull); }
+  inline bool isNull() const { return isLayerValid() && (!chunk_ || key_ == Key::kNull || voxel_memory_ == nullptr); }
   /// Check if the @c Voxel is a valid voxel reference. This does not check the @c chunk() .
   /// @return True if @c isValidLayer() and the key is non-null.
   inline bool isValidReference() const { return isLayerValid() && key_ != Key::kNull; }
@@ -455,7 +455,7 @@ public:
   /// Return a pointer to the start of the voxel memory for the current chunk.
   /// @c isValid() must be true before calling.
   /// @return A pointer to the voxel memory for the currently referenced chunk.
-  inline VoxelDataPtr voxelMemory() { return voxel_memory_; }
+  inline VoxelDataPtr voxelMemory() const { return voxel_memory_; }
 
   /// Attempt to step the voxel reference to the next voxel in the current @c MapChunk .
   ///
@@ -478,7 +478,7 @@ public:
   /// Move assignent operator.
   /// @param other The rvalue reference to move data from.
   /// @return `*this`
-  Voxel &operator=(Voxel<T> &&other);
+  Voxel &operator=(Voxel<T> &&other) noexcept;
 
 protected:
   /// Internal key set function. Performs book keeping for @c Flag::kIsOccupancyLayer and @c Flag::kTouchedVoxel .
@@ -634,7 +634,7 @@ Voxel<T>::Voxel(const Voxel<T> &other)
 
 
 template <typename T>
-Voxel<T>::Voxel(Voxel<T> &&other)
+Voxel<T>::Voxel(Voxel<T> &&other) noexcept
   : voxel_memory_(std::exchange(other.voxel_memory_, nullptr))
   , map_(std::exchange(other.map_, nullptr))
   , chunk_(std::exchange(other.chunk_, nullptr))
@@ -807,7 +807,7 @@ Voxel<T> &Voxel<T>::operator=(const Voxel<T> &other)
 
 
 template <typename T>
-Voxel<T> &Voxel<T>::operator=(Voxel<T> &&other)
+Voxel<T> &Voxel<T>::operator=(Voxel<T> &&other) noexcept
 {
   Voxel<T> copy(std::move(other));
   swap(copy);

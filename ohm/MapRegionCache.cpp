@@ -5,16 +5,15 @@
 // Author: Kazys Stepanas
 #include "MapRegionCache.h"
 
-using namespace ohm;
-
 namespace ohm
 {
 struct MapRegionCacheDetail
 {
   // empty
 };
-}  // namespace ohm
 
 MapRegionCache::MapRegionCache() = default;
 
 MapRegionCache::~MapRegionCache() = default;
+
+}  // namespace ohm

@@ -7,8 +7,8 @@
 
 #include "ohm/OccupancyMap.h"
 
-using namespace ohm;
-
+namespace ohm
+{
 PlaneWalker::PlaneWalker(const OccupancyMap &map, const Key &min_ext_key, const Key &max_ext_key, UpAxis up_axis,
                          const Key *plane_key_ptr)
   : map(map)
@@ -71,3 +71,4 @@ bool PlaneWalker::walkNext(Key &key) const
 
   return true;
 }
+}  // namespace ohm

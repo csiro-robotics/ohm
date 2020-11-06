@@ -12,10 +12,10 @@
 #include <algorithm>
 #include <chrono>
 
-using namespace ohm;
-
+namespace ohm
+{
 Mapper::Mapper(OccupancyMap *map)
-  : imp_(new MapperDetail)
+  : imp_(std::make_unique<MapperDetail>())
 {
   setMap(map);
 }
@@ -29,7 +29,6 @@ Mapper::~Mapper()
     {
       delete process;
     }
-    delete imp_;
   }
 }
 
@@ -145,3 +144,4 @@ const MappingProcess *Mapper::process(unsigned index) const
 {
   return imp_->processes[index];
 }
+}  // namespace ohm

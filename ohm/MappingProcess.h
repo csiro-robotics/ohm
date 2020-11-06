@@ -54,7 +54,7 @@ public:
   virtual int update(OccupancyMap &map, double time_slice) = 0;
 
 private:
-  bool paused_;
+  bool paused_ = false;
 };
 }  // namespace ohm
 

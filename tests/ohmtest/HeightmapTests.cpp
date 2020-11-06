@@ -169,7 +169,6 @@ void heightmapBoxTest(const std::string &prefix, UpAxis axis, std::shared_ptr<He
       }
 
       ASSERT_TRUE(voxel.isValid()) << (wall ? "top" : "floor");
-      ;
 
       HeightmapVoxel voxel_content;
       voxel.read(&voxel_content);

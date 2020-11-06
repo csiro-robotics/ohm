@@ -43,7 +43,7 @@ public:
   ///
   /// @param map The occupancy map to apply NDT updates to.
   /// @param borrowed_map True if @p map is a borrowed pointer. False if the NDT map takes ownership of the memory.
-  NdtMap(OccupancyMap *map, bool borrowed_map = true);
+  explicit NdtMap(OccupancyMap *map, bool borrowed_map = true);
 
   /// Destructor: destroys the @c map() if @c borrowedMap() is false.
   ~NdtMap();

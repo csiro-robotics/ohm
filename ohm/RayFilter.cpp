@@ -46,8 +46,9 @@ bool clipBounded(glm::dvec3 *start, glm::dvec3 *end, unsigned *filter_flags, con
   }
 
 
-  *filter_flags |= !!(line_clip_flags & Aabb::kClippedStart) * kRffClippedStart;
-  *filter_flags |= !!(line_clip_flags & Aabb::kClippedEnd) * kRffClippedEnd;
+  // Lint(KS): everything is unsigned.
+  *filter_flags |= !!(line_clip_flags & Aabb::kClippedStart) * kRffClippedStart;  // NOLINT(hicpp-signed-bitwise)
+  *filter_flags |= !!(line_clip_flags & Aabb::kClippedEnd) * kRffClippedEnd;      // NOLINT(hicpp-signed-bitwise)
 
   return true;
 }
@@ -56,7 +57,8 @@ bool clipBounded(glm::dvec3 *start, glm::dvec3 *end, unsigned *filter_flags, con
 bool clipNear(glm::dvec3 * /*start*/, glm::dvec3 *end, unsigned *filter_flags, const ohm::Aabb &clip_box)
 {
   const bool clipped = clip_box.contains(*end);
-  *filter_flags |= !!(clipped)*kRffClippedEnd;
+  // Lint(KS): everything is unsigned.
+  *filter_flags |= !!(clipped)*kRffClippedEnd;  // NOLINT(hicpp-signed-bitwise)
   return true;
 }
 }  // namespace ohm

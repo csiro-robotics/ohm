@@ -30,12 +30,12 @@ class VoxelLayoutT
 public:
   /// Create a new layout structure around the given data.
   /// @param detail The @c VoxelLayoutDetail.
-  VoxelLayoutT(T *detail);
+  explicit VoxelLayoutT(T *detail);
 
   /// Copy constructor supporting casting from non-const to const @c VoxelLayoutDetail.
   /// @param detail The @c VoxelLayoutDetail.
   template <typename U>
-  inline VoxelLayoutT(U *detail = nullptr)
+  inline explicit VoxelLayoutT(U *detail = nullptr)
     : detail_(detail)
   {}
 
@@ -109,7 +109,7 @@ public:
 
   /// Constructor wrapping @p detail.
   /// @param detail Underlying voxel data structure.
-  VoxelLayout(VoxelLayoutDetail *detail);
+  explicit VoxelLayout(VoxelLayoutDetail *detail);
 
   /// Copy constructor (shallow).
   /// @param other Object to shallow copy.
@@ -164,7 +164,7 @@ public:
 
   /// Constructor wrapping @p detail.
   /// @param detail Underlying voxel data structure.
-  VoxelLayoutConst(const VoxelLayoutDetail *detail);
+  explicit VoxelLayoutConst(const VoxelLayoutDetail *detail);
 
   /// Copy constructor (shallow).
   /// @param other Object to shallow copy.
@@ -172,7 +172,7 @@ public:
 
   /// Copy constructor from writable object (shallow).
   /// @param other Object to shallow copy.
-  VoxelLayoutConst(const VoxelLayout &other);
+  explicit VoxelLayoutConst(const VoxelLayout &other);
 
   /// Assignment operator.
   /// @param other Object to shallow copy.

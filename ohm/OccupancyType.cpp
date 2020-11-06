@@ -5,11 +5,13 @@
 // Author: Kazys Stepanas
 #include "OccupancyType.h"
 
+#include <array>
+
 namespace ohm
 {
 const char *occupancyTypeToString(int occupancy_type)
 {
-  const char *type_names[] =  //
+  static const std::array<const char *, 4> type_names =  //
     {
       "null",       //
       "uncertain",  //
@@ -18,7 +20,7 @@ const char *occupancyTypeToString(int occupancy_type)
     };
 
   const int index = occupancy_type - ohm::kNull;
-  if (index >= 0 && unsigned(index) < sizeof(type_names) / sizeof(type_names[0]))
+  if (index >= 0 && unsigned(index) < type_names.size())
   {
     return type_names[index];
   }

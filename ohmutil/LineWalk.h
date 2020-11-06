@@ -8,6 +8,7 @@
 
 #include <glm/glm.hpp>
 
+#include <array>
 #include <cassert>
 
 namespace ohm
@@ -48,7 +49,8 @@ namespace ohm
 /// @return The number of voxels traversed. This includes @p endPoint when @p includeEndPoint is true.
 template <typename KEY, typename KEYFUNCS, typename WALKFUNC>
 size_t walkSegmentKeys(const WALKFUNC &walk_func, const glm::dvec3 &start_point, const glm::dvec3 &end_point,
-                       bool include_end_point, const KEYFUNCS &funcs, double length_epsilon = 1e-6)
+                       bool include_end_point, const KEYFUNCS &funcs,
+                       double length_epsilon = 1e-6)  // NOLINT(readability-magic-numbers)
 {
   // see "A Faster Voxel Traversal Algorithm for Ray Tracing" by Amanatides & Woo
   KEY start_point_key = funcs.voxelKey(start_point);
@@ -96,11 +98,11 @@ size_t walkSegmentKeys(const WALKFUNC &walk_func, const glm::dvec3 &start_point,
     return 1;
   }
 
-  int step[3] = { 0 };
+  std::array<int, 3> step = { 0, 0, 0 };
   glm::dvec3 voxel;
-  double time_max[3];
-  double time_delta[3];
-  double time_limit[3];
+  std::array<double, 3> time_max;
+  std::array<double, 3> time_delta;
+  std::array<double, 3> time_limit;
   double next_voxel_border;
   double direction_axis_inv;
   size_t added = 0;
@@ -125,7 +127,7 @@ size_t walkSegmentKeys(const WALKFUNC &walk_func, const glm::dvec3 &start_point,
       // Time delta is the ray time between voxel boundaries calculated for each axis.
       time_delta[i] = funcs.voxelResolution(i) * std::abs(direction_axis_inv);
       // Calculate the distance from the origin to the nearest voxel edge for this axis.
-      next_voxel_border = voxel[i] + step[i] * 0.5 * funcs.voxelResolution(i);
+      next_voxel_border = voxel[i] + step[i] * 0.5 * funcs.voxelResolution(i);  // NOLINT(readability-magic-numbers)
       time_max[i] = (next_voxel_border - start_point[i]) * direction_axis_inv;
       time_limit[i] =
         std::abs((end_point[i] - start_point[i]) * direction_axis_inv);  // +0.5f * funcs.voxelResolution(i);

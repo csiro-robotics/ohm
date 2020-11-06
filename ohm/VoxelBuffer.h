@@ -29,18 +29,18 @@ public:
   using VoxelPtr = typename std::conditional<std::is_const<VoxelBlock>::value, const uint8_t *, uint8_t *>::type;
 
   /// Default constructor : creates an invalid buffer reference object.
-  inline VoxelBuffer() {}
+  inline VoxelBuffer() = default;
   /// Constructor wrapping data from the given @c block . Immediately calls @c ohm::VoxelBuffer::retain() .
   /// @param block A pointer to the block to retain. Must not be null.
-  VoxelBuffer(ohm::VoxelBlock *block);
+  explicit VoxelBuffer(ohm::VoxelBlock *block);
   /// Overloaded constructor handling a @c std::unique_ptr wrapper around a @c ohm::VoxelBlock .
   /// @param block A unique pointer to the block to retain. Must not be null.
-  inline VoxelBuffer(const ohm::VoxelBlock::Ptr &block)
+  inline explicit VoxelBuffer(const ohm::VoxelBlock::Ptr &block)
     : VoxelBuffer(block.get())
   {}
   /// RValue constructor.
   /// @param other The object to construct from.
-  VoxelBuffer(VoxelBuffer<VoxelBlock> &&other);
+  VoxelBuffer(VoxelBuffer<VoxelBlock> &&other) noexcept;
   /// Copy constructor constructor.
   /// @param other The object to construct from.
   VoxelBuffer(const VoxelBuffer<VoxelBlock> &other);
@@ -51,7 +51,7 @@ public:
   /// RValue assignment operator.
   /// @param other The object to assign from.
   /// @return `*this`
-  VoxelBuffer<VoxelBlock> &operator=(VoxelBuffer<VoxelBlock> &&other);
+  VoxelBuffer<VoxelBlock> &operator=(VoxelBuffer<VoxelBlock> &&other) noexcept;
 
   /// Copy assignment operator.
   /// @param other The object to assign from

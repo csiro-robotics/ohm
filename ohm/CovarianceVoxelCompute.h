@@ -53,14 +53,14 @@ inline CovVec3 covnormalize(const CovVec3 &v)
 
 /// @ingroup voxelcovariance
 /// Defines the covariance voxel structure. This is a modified covariance matrix packed to reduce memory storage.
-typedef struct CovarianceVoxel_t  // NOLINT(readability-identifier-naming)
+typedef struct CovarianceVoxel_t  // NOLINT(readability-identifier-naming, modernize-use-using)
 {
   /// Trianglar square root covariance matrix. Represents a covariance matrix via the triangular
   /// square root matrix, P = S * S^T.
   /// | cov[0]  |      .  |      .  |
   /// | cov[1]  | cov[2]  |      .  |
   /// | cov[3]  | cov[4]  | cov[5]  |
-  float trianglar_covariance[6];  // cov_sqrt (S)
+  float trianglar_covariance[6];  // NOLINT(readability-magic-numbers, modernize-avoid-c-arrays)
 } CovarianceVoxel;
 
 
@@ -74,6 +74,7 @@ inline __device__ void initialiseCovariance(CovarianceVoxel *cov, float voxel_re
 {
   const float covariance_scale_factor = 0.1f;
   // Initialise the square root covariance matrix to a scaled identity matrix.
+  // NOLINTNEXTLINE(readability-magic-numbers)
   cov->trianglar_covariance[0] = cov->trianglar_covariance[2] = cov->trianglar_covariance[5] =
     covariance_scale_factor * voxel_resolution;
   cov->trianglar_covariance[1] = cov->trianglar_covariance[3] = cov->trianglar_covariance[4] = 0;
@@ -86,14 +87,14 @@ inline __device__ void initialiseCovariance(CovarianceVoxel *cov, float voxel_re
 /// z 2 4
 /// z z 5
 /// 6 7 8
-inline __device__ double packedDot(const CovReal A[9],  // NOLINT(readability-identifier-naming)
+inline __device__ double packedDot(const CovReal A[9],  // NOLINT
                                    const int j, const int k)
 {
-  const int col_first_el[] = { 0, 1, 3 };
+  const int col_first_el[] = { 0, 1, 3 };  // NOLINT(modernize-avoid-c-arrays)
   const int indj = col_first_el[j];
   const int indk = col_first_el[k];
   const int m = (j <= k) ? j : k;
-  CovReal d = A[6 + k] * A[6 + j];
+  CovReal d = A[6 + k] * A[6 + j];  // // NOLINT(readability-magic-numbers)
   for (int i = 0; i <= m; ++i)
   {
     d += A[indj + i] * A[indk + i];
@@ -134,18 +135,21 @@ inline __device__ double packedDot(const CovReal A[9],  // NOLINT(readability-id
 inline __device__ void unpackCovariance(const CovarianceVoxel *cov, unsigned point_count, const CovVec3 sample_to_mean,
                                         CovReal *matrix)
 {
+  // NOLINTNEXTLINE(google-readability-casting)
   const CovReal one_on_num_pt_plus_one = (CovReal)1 / (point_count + (CovReal)1);
+  // NOLINTNEXTLINE(google-readability-casting)
   const CovReal sc_1 = point_count ? sqrt(point_count * one_on_num_pt_plus_one) : (CovReal)1;
+  // NOLINTNEXTLINE(google-readability-casting)
   const CovReal sc_2 = one_on_num_pt_plus_one * sqrt((CovReal)point_count);
 
-  for (int i = 0; i < 6; ++i)
+  for (int i = 0; i < 6; ++i)  // NOLINT(readability-magic-numbers)
   {
     matrix[i] = sc_1 * cov->trianglar_covariance[i];
   }
 
-  matrix[0 + 6] = sc_2 * sample_to_mean.x;
-  matrix[1 + 6] = sc_2 * sample_to_mean.y;
-  matrix[2 + 6] = sc_2 * sample_to_mean.z;
+  matrix[0 + 6] = sc_2 * sample_to_mean.x;  // NOLINT(readability-magic-numbers)
+  matrix[1 + 6] = sc_2 * sample_to_mean.y;  // NOLINT(readability-magic-numbers)
+  matrix[2 + 6] = sc_2 * sample_to_mean.z;  // NOLINT(readability-magic-numbers)
 }
 
 /// @ingroup voxelcovariance
@@ -248,28 +252,29 @@ inline __device__ bool calculateHitWithCovariance(CovarianceVoxel *cov_voxel, fl
 
   // sample_to_mean should be zero when we (re)initialise the covariance.
   // We use sample - sample rather than a hard zero due to API differences between CPU and GPU code.
-  const CovVec3 sample_to_mean = (!initialised_covariance) ? sample - voxel_mean : sample - sample;
-  CovReal unpacked_covariance[9];
+  const CovVec3 sample_to_mean = (!initialised_covariance) ? sample - voxel_mean : CovVec3{ 0, 0, 0 };
+  CovReal unpacked_covariance[9];  // NOLINT(readability-magic-numbers, modernize-avoid-c-arrays)
   unpackCovariance(cov_voxel, point_count, sample_to_mean, unpacked_covariance);
 
   // Update covariance.
   for (int k = 0; k < 3; ++k)
   {
+    // NOLINTNEXTLINE(hicpp-signed-bitwise)
     const int ind1 = (k * (k + 3)) >> 1;  // packed index of (k,k) term
     const int indk = ind1 - k;            // packed index of (1,k)
     const CovReal ak = sqrt(packedDot(unpacked_covariance, k, k));
-    cov_voxel->trianglar_covariance[ind1] = (float)ak;
+    cov_voxel->trianglar_covariance[ind1] = (float)ak;  // NOLINT(google-readability-casting)
     if (ak > 0)
     {
-      const CovReal aki = (CovReal)1 / ak;
+      const CovReal aki = (CovReal)1 / ak;  // NOLINT(google-readability-casting)
       for (int j = k + 1; j < 3; ++j)
       {
-        const int indj = (j * (j + 1)) >> 1;
+        const int indj = (j * (j + 1)) >> 1;  // NOLINT(hicpp-signed-bitwise)
         const int indkj = indj + k;
         CovReal c = packedDot(unpacked_covariance, j, k) * aki;
-        cov_voxel->trianglar_covariance[indkj] = (float)c;
+        cov_voxel->trianglar_covariance[indkj] = (float)c;  // NOLINT(google-readability-casting)
         c *= aki;
-        unpacked_covariance[j + 6] -= c * unpacked_covariance[k + 6];
+        unpacked_covariance[j + 6] -= c * unpacked_covariance[k + 6];  // NOLINT(readability-magic-numbers)
         for (int l = 0; l <= k; ++l)
         {
           unpacked_covariance[indj + l] -= c * unpacked_covariance[indk + l];
@@ -408,7 +413,8 @@ inline __device__ CovVec3 calculateMissNdt(const CovarianceVoxel *cov_voxel, flo
   if (probability_update == probability_update)
   {
     // Convert the probability to a log value.
-    *voxel_value += (float)log(probability_update / ((CovReal)1 - probability_update));
+    *voxel_value +=
+      (float)log(probability_update / ((CovReal)1 - probability_update));  // NOLINT(google-readability-casting)
   }
 
   return voxel_maximum_likelihood;

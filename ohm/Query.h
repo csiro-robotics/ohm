@@ -36,7 +36,7 @@ protected:
   /// Constructor. The @p detail is stored in @p imp_, allowing derived classes to a allocate
   /// derived detail structure. When null, the base implementation is allocated by this constructor.
   /// @param detail The @c Query data detail structure.
-  Query(QueryDetail *detail = nullptr);
+  explicit Query(QueryDetail *detail = nullptr);
 
 public:
   /// Virtual destructor.
@@ -153,7 +153,6 @@ protected:
   /// @param hard_reset True for a hard reset, false for a soft reset.
   virtual void onReset(bool hard_reset) = 0;
 
-protected:
   QueryDetail *imp_;  ///< Internal implementation details.
 };
 }  // namespace ohm

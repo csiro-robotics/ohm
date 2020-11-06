@@ -5,17 +5,15 @@
 // Author: Kazys Stepanas
 #include "MapFlag.h"
 
+#include <array>
 #include <string>
 
 namespace
 {
-const char *const kMapFlagNames[] =  //
+const std::array<const char *, 1> kMapFlagNames =  //
   {
-    //
     "VoxelMean",
   };
-
-const unsigned kMapFlagsCount = unsigned(sizeof(kMapFlagNames) / sizeof(kMapFlagNames[0]));
 }  // namespace
 
 namespace ohm
@@ -23,7 +21,7 @@ namespace ohm
 const char *mapFlagToString(MapFlag flag)
 {
   unsigned bit = 1;
-  for (unsigned i = 0; i < kMapFlagsCount; ++i, bit <<= 1)
+  for (unsigned i = 0; i < kMapFlagNames.size(); ++i, bit <<= 1u)
   {
     if (unsigned(flag) & bit)
     {
@@ -39,9 +37,9 @@ MapFlag mapFlagFromString(const char *str)
 {
   std::string name(str);
   unsigned bit = 1;
-  for (unsigned i = 0; i < kMapFlagsCount; ++i, bit <<= 1)
+  for (unsigned i = 0; i < kMapFlagNames.size(); ++i, bit <<= 1u)
   {
-    if (name.compare(kMapFlagNames[i]) == 0)
+    if (name == kMapFlagNames[i])
     {
       return MapFlag(bit);
     }

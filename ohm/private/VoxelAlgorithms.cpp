@@ -26,10 +26,13 @@ float calculateNearestNeighbour(const Key &voxel_key, const OccupancyMap &map,
 {
   Key search_key;
   Voxel<const float> test_voxel(&map, map.layout().occupancyLayer());
-  glm::vec3 voxel_centre, separation;
+  glm::vec3 voxel_centre;
+  glm::vec3 separation;
 
-  float scaled_range_sqr, scaled_closest_range_sqr;
-  float range_sqr, closest_range_sqr;
+  float scaled_range_sqr;
+  float scaled_closest_range_sqr;
+  float range_sqr;
+  float closest_range_sqr;
 
   scaled_closest_range_sqr = closest_range_sqr = std::numeric_limits<float>::infinity();
 

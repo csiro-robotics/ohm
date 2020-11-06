@@ -10,8 +10,9 @@
 
 #include <ohmutil/LineWalk.h>
 
-using namespace ohm;
-
+namespace ohm
+{
 RayMapper::RayMapper() = default;
 
 RayMapper::~RayMapper() = default;
+}  // namespace ohm

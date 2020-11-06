@@ -31,10 +31,10 @@ public:
   /// Constructor, wrapping the interface around the given @p map .
   ///
   /// @param map The target map. Must outlive this class.
-  RayMapperOccupancy(OccupancyMap *map);
+  explicit RayMapperOccupancy(OccupancyMap *map);
 
   /// Destructor
-  ~RayMapperOccupancy();
+  ~RayMapperOccupancy() override;
 
   /// Has the map been successfully validated?
   /// @return True if valid and @c integrateRays() is safe to call.
@@ -54,7 +54,9 @@ public:
   /// @param element_count The number of @c glm::dvec3 elements in @p rays , which is twice the ray count.
   /// @param ray_update_flags @c RayFlag bitset used to modify the behaviour of this function. All flags are
   /// implemented.
-  size_t integrateRays(const glm::dvec3 *rays, size_t element_count, unsigned ray_update_flags = kRfDefault) override;
+  size_t integrateRays(const glm::dvec3 *rays, size_t element_count, unsigned ray_update_flags) override;
+
+  using RayMapper::integrateRays;
 
 protected:
   OccupancyMap *map_ = nullptr;           ///< Target map.

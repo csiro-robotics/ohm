@@ -26,7 +26,7 @@ class ohm_API RayPattern
 protected:
   /// Constructor for sub-classes to derive the detail.
   /// @param detail Custom implementation or null to use the default..
-  RayPattern(ohm::RayPatternDetail *detail);
+  explicit RayPattern(ohm::RayPatternDetail *detail);
 
 public:
   /// Create an empty ray pattern.

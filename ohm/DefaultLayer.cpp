@@ -54,7 +54,6 @@ MapLayer *addVoxelMean(MapLayout &layout)
 
   // Add the mean layer.
   MapLayer *layer = layout.addLayer(default_layer::meanLayerName());
-  layer_index = layer->layerIndex();
 
   const size_t clear_value = 0u;
   layer->voxelLayout().addMember("coord", DataType::kUInt32, clear_value);

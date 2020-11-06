@@ -23,8 +23,8 @@
 
 #include <ohmutil/LineWalk.h>
 
-using namespace ohm;
-
+namespace ohm
+{
 RayMapperNdt::RayMapperNdt(NdtMap *map)
   : map_(map)
   , occupancy_layer_(map_->map().layout().occupancyLayer())
@@ -82,7 +82,8 @@ size_t RayMapperNdt::integrateRays(const glm::dvec3 *rays, size_t element_count,
   // Touch the map to flag changes.
   const auto touch_stamp = occupancy_map.touch();
 
-  glm::dvec3 start, sample;
+  glm::dvec3 start;
+  glm::dvec3 sample;
 
   const auto visit_func = [&](const Key &key)  //
   {
@@ -114,7 +115,7 @@ size_t RayMapperNdt::integrateRays(const glm::dvec3 *rays, size_t element_count,
       cov_buffer = VoxelBuffer<VoxelBlock>(chunk->voxel_blocks[covariance_layer_]);
     }
     last_chunk = chunk;
-    const unsigned voxel_index = ::voxelIndex(key, occupancy_dim);
+    const unsigned voxel_index = ohm::voxelIndex(key, occupancy_dim);
     float occupancy_value;
     CovarianceVoxel cov;
     VoxelMean voxel_mean;
@@ -132,6 +133,8 @@ size_t RayMapperNdt::integrateRays(const glm::dvec3 *rays, size_t element_count,
     occupancyAdjustDown(&occupancy_value, initial_value, adjusted_value, unobservedOccupancyValue(), voxel_min,
                         saturation_min, saturation_max, stop_adjustments);
     occupancy_buffer.writeVoxel(voxel_index, occupancy_value);
+    // Lint(KS): The analyser takes some branches which are not possible in practice.
+    // NOLINTNEXTLINE(clang-analyzer-core.CallAndMessage)
     chunk->updateFirstValid(voxel_index);
 
     stop_adjustments = stop_adjustments || ((ray_update_flags & kRfStopOnFirstOccupied) && is_occupied);
@@ -185,7 +188,7 @@ size_t RayMapperNdt::integrateRays(const glm::dvec3 *rays, size_t element_count,
         cov_buffer = VoxelBuffer<VoxelBlock>(chunk->voxel_blocks[covariance_layer_]);
       }
       last_chunk = chunk;
-      const unsigned voxel_index = ::voxelIndex(key, occupancy_dim);
+      const unsigned voxel_index = ohm::voxelIndex(key, occupancy_dim);
       const glm::dvec3 voxel_centre = occupancy_map.voxelCentreGlobal(key);
       float occupancy_value;
       CovarianceVoxel cov;
@@ -211,6 +214,8 @@ size_t RayMapperNdt::integrateRays(const glm::dvec3 *rays, size_t element_count,
       cov_buffer.writeVoxel(voxel_index, cov);
       mean_buffer.writeVoxel(voxel_index, voxel_mean);
 
+      // Lint(KS): The analyser takes some branches which are not possible in practice.
+      // NOLINTNEXTLINE(clang-analyzer-core.CallAndMessage)
       chunk->updateFirstValid(voxel_index);
 
       chunk->dirty_stamp = touch_stamp;
@@ -224,3 +229,4 @@ size_t RayMapperNdt::integrateRays(const glm::dvec3 *rays, size_t element_count,
 
   return element_count / 2;
 }
+}  // namespace ohm

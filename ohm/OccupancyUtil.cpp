@@ -9,5 +9,5 @@
 namespace ohm
 {
 tes::Server *g_tes = nullptr;
-}
+}  // namespace ohm
 #endif  // TES_ENABLE

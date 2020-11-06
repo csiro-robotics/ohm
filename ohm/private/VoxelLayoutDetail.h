@@ -8,13 +8,15 @@
 
 #include "OhmConfig.h"
 
+#include <array>
 #include <vector>
 
 namespace ohm
 {
 struct ohm_API VoxelMember
 {
-  char name[52];
+  /// Voxel member name field. Sized to set the overall structure size to 64 bytes.
+  std::array<char, 52> name;  // NOLINT(readability-magic-numbers)
   uint64_t clear_value;
   uint16_t type;
   uint16_t offset;

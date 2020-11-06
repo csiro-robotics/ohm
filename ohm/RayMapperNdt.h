@@ -34,14 +34,14 @@ public:
   /// Constructor, wrapping the interface around the given @p map .
   ///
   /// @param map The target map. Must outlive this class.
-  RayMapperNdt(NdtMap *map);
+  explicit RayMapperNdt(NdtMap *map);
 
   /// Destructor
-  ~RayMapperNdt();
+  ~RayMapperNdt() override;
 
   /// Has the map been successfully validated?
   /// @return True if valid and @c integrateRays() is safe to call.
-  inline bool valid() const { return valid_; }
+  inline bool valid() const override { return valid_; }
 
   /// Performs the ray integration.
   ///
@@ -55,7 +55,9 @@ public:
   /// @param rays The array of start/end point pairs to integrate.
   /// @param element_count The number of @c glm::dvec3 elements in @p rays, which is twice the ray count.
   /// @param ray_update_flags Not supported.
-  size_t integrateRays(const glm::dvec3 *rays, size_t element_count, unsigned ray_update_flags = kRfDefault) override;
+  size_t integrateRays(const glm::dvec3 *rays, size_t element_count, unsigned ray_update_flags) override;
+
+  using RayMapper::integrateRays;
 
 protected:
   NdtMap *map_;                ///< Target map.

@@ -29,7 +29,7 @@ struct ohm_API WalkKeyAdaptor
 
   /// Create an adaptor for @p map .
   /// @param map The map to adapt
-  inline WalkKeyAdaptor(const ohm::OccupancyMap &map)
+  inline explicit WalkKeyAdaptor(const ohm::OccupancyMap &map)
     : map(map)
   {}
 
@@ -40,7 +40,7 @@ struct ohm_API WalkKeyAdaptor
   /// Check if @p key is null.
   /// @param key The key to test
   /// @return True if @p key is a null entry
-  inline bool isNull(const ohm::Key &key) const { return key.isNull(); }
+  static inline bool isNull(const ohm::Key &key) { return key.isNull(); }
   /// Resolve a @p key to the corresponding voxel centre coordinate.
   /// @param key The key of interest.
   /// @return The coordinate at the centre of the voxel which @p key reference.

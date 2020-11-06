@@ -40,7 +40,7 @@ protected:
   /// more specialised forms.
   /// @param detail pimple style data structure. When null, a @c NearestNeighboursDetail is allocated by
   /// this method.
-  NearestNeighbours(NearestNeighboursDetail *detail = nullptr);
+  explicit NearestNeighbours(NearestNeighboursDetail *detail = nullptr);
 
 public:
   /// Construct a new query using the given parameters.
@@ -78,7 +78,7 @@ protected:
   /// @return Internal details.
   const NearestNeighboursDetail *imp() const;
 
-  unsigned query_flags_;  ///< @c QueryFlag values.
+  unsigned query_flags_ = 0;  ///< @c QueryFlag values.
 };
 }  // namespace ohm
 

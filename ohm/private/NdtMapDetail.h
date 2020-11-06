@@ -20,15 +20,15 @@ struct NdtMapDetail
   /// The target occupancy map.
   OccupancyMap *map = nullptr;
   /// Range sensor noise estimate
-  float sensor_noise = 0.05f;
+  float sensor_noise = 0.05f;  // NOLINT(readability-magic-numbers)
   /// Number of samples required before using NDT logic in a miss integration.
   unsigned sample_threshold = 3;
   /// Rate at which ray intersections with NDT ellipsoids errode voxels. Range [0, 1] with 1 yielding stronger
   /// effects.
-  float adaptation_rate = 0.7f;
+  float adaptation_rate = 0.7f;  // NOLINT(readability-magic-numbers)
   /// Low probability value threshold used to re-initialise covariance matrix and mean.
   /// Used with @c reinitialise_covariance_point_count in @c calculateHitWithCovariance()
-  float reinitialise_covariance_theshold = probabilityToValue(0.2f);
+  float reinitialise_covariance_theshold = probabilityToValue(0.2f);  // NOLINT(readability-magic-numbers)
   /// Upper point count limit required to reinitialise the covariance matrix. Used with
   /// @c reinitialise_covariance_theshold in @c calculateHitWithCovariance()
   unsigned reinitialise_covariance_point_count = 100;

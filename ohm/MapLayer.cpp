@@ -17,9 +17,8 @@
 #include <algorithm>
 #include <cstring>
 
-using namespace ohm;
-
-
+namespace ohm
+{
 MapLayer::MapLayer(const char *name, unsigned layer_index, unsigned subsampling)
 {
   name_ = name;
@@ -44,7 +43,7 @@ void MapLayer::copyVoxelLayout(const MapLayer &other)
   VoxelLayout voxels = voxelLayout();
   for (auto &&src_member : other.voxel_layout_->members)
   {
-    voxels.addMember(src_member.name, DataType::Type(src_member.type), src_member.clear_value);
+    voxels.addMember(src_member.name.data(), DataType::Type(src_member.type), src_member.clear_value);
   }
 }
 
@@ -98,7 +97,7 @@ MapLayoutMatch MapLayer::checkEquivalent(const MapLayer &other) const
       return MapLayoutMatch::kDifferent;
     }
 
-    if (strncmp(a.name, b.name, sizeof(a.name)) != 0)
+    if (strncmp(a.name.data(), b.name.data(), a.name.size()) != 0)
     {
       match = MapLayoutMatch::kEquivalent;
     }
@@ -126,7 +125,7 @@ uint8_t *MapLayer::allocate(const glm::u8vec3 &region_dim) const
 }
 
 
-void MapLayer::release(const uint8_t *voxels) const
+void MapLayer::release(const uint8_t *voxels)
 {
   delete[] voxels;
 }
@@ -135,7 +134,7 @@ void MapLayer::release(const uint8_t *voxels) const
 void MapLayer::clear(uint8_t *mem, const glm::u8vec3 &region_dim) const
 {
   // Build a clear pattern.
-  uint8_t *pattern = static_cast<uint8_t *>(alloca(voxel_layout_->voxel_byte_size));
+  auto *pattern = static_cast<uint8_t *>(alloca(voxel_layout_->voxel_byte_size));
   uint8_t *dst = pattern;
   for (size_t i = 0; i < voxel_layout_->members.size(); ++i)
   {
@@ -163,3 +162,4 @@ void MapLayer::clear(uint8_t *mem, const glm::u8vec3 &region_dim) const
     dst += voxel_layout_->voxel_byte_size;
   }
 }
+}  // namespace ohm

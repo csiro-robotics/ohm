@@ -9,6 +9,8 @@
 
 #include "Key.h"
 
+#include <vector>
+
 namespace ohm
 {
 /// A container class encapsulating a set of @c Key objects.
@@ -26,7 +28,7 @@ public:
     inline iterator(const iterator &other) = default;
     /// Internal constructor used to iterator the given set of keys.
     /// @param key The first key in the set.
-    inline iterator(Key *key)
+    inline explicit iterator(std::vector<Key>::iterator key)
       : key_(key)
     {}
 
@@ -38,7 +40,7 @@ public:
     /// Dereference the @c iterator into an @c Key.
     /// Iterator must be valid to use or behaviour is undefined.
     /// @return A reference to the current @c Key.
-    inline Key *operator->() const { return key_; }
+    inline Key *operator->() const { return &*key_; }
 
     /// Increment to the next key (prefix).
     /// @return A reference to @c this.
@@ -49,7 +51,7 @@ public:
     }
     /// Increment to the next key (postfix).
     /// @return A reference to @c this.
-    inline const iterator operator++(int)
+    inline iterator operator++(int)
     {
       iterator i(key_);
       ++key_;
@@ -65,12 +67,16 @@ public:
     }
     /// Decrement to the previous key (postfix).
     /// @return A reference to @c this.
-    inline const iterator operator--(int)
+    inline iterator operator--(int)
     {
       iterator i(key_);
       --key_;
       return i;
     }
+
+    /// Internal iterator access.
+    /// @return The underlying iterator.
+    inline const std::vector<Key>::iterator &internalIterator() const { return key_; }
 
     /// Compare this iterator to @p other for equality.
     /// @return True when both iterators reference the same key.
@@ -80,7 +86,7 @@ public:
     inline bool operator!=(const iterator &other) { return key_ != other.key_; }
 
   private:
-    Key *key_;
+    std::vector<Key>::iterator key_;
   };
 
   /// Iterator referencing an @c KeyList referencing a @c const @c Key.
@@ -94,12 +100,10 @@ public:
     inline const_iterator(const const_iterator &other) = default;
     /// Copy constuctor from a non-const @c iterator.
     /// @param other Iterator to copy.
-    inline const_iterator(const iterator &other)
-      : key_(&*other)
-    {}
+    inline explicit const_iterator(const iterator &other) { key_ = other.internalIterator(); }
     /// Internal constructor used to iterator the given set of keys.
     /// @param key The first key in the set.
-    inline const_iterator(const Key *key)
+    inline explicit const_iterator(std::vector<Key>::const_iterator key)
       : key_(key)
     {}
 
@@ -110,7 +114,7 @@ public:
     /// Dereference the @c const_iterator into a @c const @c Key.
     /// Iterator must be valid to use or behaviour is undefined.
     /// @return A reference to the current @c Key.
-    inline const Key *operator->() const { return key_; }
+    inline const Key *operator->() const { return &*key_; }
 
     /// Increment to the next key (prefix).
     /// @return A reference to @c this.
@@ -121,7 +125,7 @@ public:
     }
     /// Increment to the next key (postfix).
     /// @return A reference to @c this.
-    inline const const_iterator operator++(int)
+    inline const_iterator operator++(int)
     {
       const_iterator i(key_);
       ++key_;
@@ -137,7 +141,7 @@ public:
     }
     /// Decrement to the previous key (postfix).
     /// @return A reference to @c this.
-    inline const const_iterator operator--(int)
+    inline const_iterator operator--(int)
     {
       const_iterator i(key_);
       --key_;
@@ -152,27 +156,27 @@ public:
     inline bool operator!=(const const_iterator &other) { return key_ != other.key_; }
 
   private:
-    const Key *key_;
+    std::vector<Key>::const_iterator key_;
   };
 
   /// Create a key list supporting sized to the given @p initialCount.
   /// @param initial_count The initial size for the key list (see @c resize()).
-  KeyList(size_t initial_count = 0);
+  explicit KeyList(size_t initial_count = 0);
   /// Destructor.
   ~KeyList();
 
   /// Create an @c interator to the first element in the key list.
   /// @return An iterator to the first key in the list.
-  inline iterator begin() { return iterator(keys_); }
+  inline iterator begin() { return iterator(keys_.begin()); }
   /// Create an @c const_interator to the first element in the key list.
   /// @return An iterator to the first key in the list.
-  inline const_iterator begin() const { return const_iterator(keys_); }
+  inline const_iterator begin() const { return const_iterator(keys_.begin()); }
   /// Create the end @c iterator, marking the end of iteration. The iterator is not valid for deferencing.
   /// @return An end style iterator.
-  inline iterator end() { return iterator(keys_ + count_); }
+  inline iterator end() { return iterator(keys_.end()); }
   /// Create the end @c const_iterator, marking the end of iteration. The iterator is not valid for deferencing.
   /// @return An end style iterator.
-  inline const_iterator end() const { return const_iterator(keys_ + count_); }
+  inline const_iterator end() const { return const_iterator(keys_.end()); }
 
   /// Reserve space to contain @p capacity keys in the set.
   /// @param capacity The desired capcacity.
@@ -186,30 +190,30 @@ public:
 
   /// Clear the key list to contain zero elements.
   /// This does not free resources.
-  inline void clear() { count_ = 0; }
+  inline void clear() { keys_.clear(); }
 
   /// Check if the key list is empty, containing no elements.
   /// @return True if the key list is empty.
-  inline bool empty() const { return count_ == 0; }
+  inline bool empty() const { return keys_.empty(); }
   /// An alias for @c empty().
   /// @return True if the key list is empty.
-  inline bool isEmpty() const { return count_ == 0; }
+  inline bool isEmpty() const { return keys_.empty(); }
 
   /// Query the capacity of the key list.
   /// @return The maximum number of keys the list can currently hold without re-allocation.
-  inline size_t capacity() const { return capacity_; }
+  inline size_t capacity() const { return keys_.capacity(); }
   /// Query the number of items currently in the list.
   /// @return The number of keys available in the list.
-  inline size_t size() const { return count_; }
+  inline size_t size() const { return keys_.size(); }
   /// Query the number of items currently in the list.
   /// @return The number of keys available in the list.
-  inline size_t count() const { return count_; }
+  inline size_t count() const { return keys_.size(); }
 
   /// Direct access to the underlying key list array. Use with care.
   /// @return A pointer to the memory used to store the keys.
-  inline Key *data() { return keys_; }
+  inline Key *data() { return keys_.data(); }
   /// @overload
-  inline const Key *data() const { return keys_; }
+  inline const Key *data() const { return keys_.data(); }
 
   /// Request the key at index @p i (unsafe). The request is not bounds checked and the user
   /// is responsible for ensuring <tt>i < count()</tt>.
@@ -229,7 +233,7 @@ public:
   /// Add a key to the end of the list.
   /// The list will grow if required, reallocating the underlying memory.
   /// @param key The key to add.
-  void push_back(const Key &key);  // NOLINT
+  void emplace_back(const Key &key);  // NOLINT
 
   /// Add a key to the end of the list and return a reference to the new key.
   /// The list will grow if required, reallocating the underlying memory.
@@ -242,12 +246,10 @@ public:
   /// Add a key to the end of the list.
   /// The list will grow if required, reallocating the underlying memory.
   /// @param key The key to add.
-  inline void add(const Key &key) { return push_back(key); }
+  inline void add(const Key &key) { return emplace_back(key); }
 
 private:
-  Key *keys_;
-  size_t capacity_;
-  size_t count_;
+  std::vector<Key> keys_;
 };
 }  // namespace ohm
 

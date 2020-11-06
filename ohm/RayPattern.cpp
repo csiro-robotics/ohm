@@ -9,8 +9,8 @@
 
 #include <glm/ext.hpp>
 
-using namespace ohm;
-
+namespace ohm
+{
 RayPattern::RayPattern(ohm::RayPatternDetail *detail)
   : imp_(detail)
 {}
@@ -82,3 +82,4 @@ size_t RayPattern::buildRays(std::vector<glm::dvec3> *rays, const glm::dmat4 &pa
 
   return rays->size();
 }
+}  // namespace ohm

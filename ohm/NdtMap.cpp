@@ -26,8 +26,8 @@
 
 #include <cassert>
 
-using namespace ohm;
-
+namespace ohm
+{
 NdtMap::NdtMap(OccupancyMap *map, bool borrowed_map)
   : imp_(new NdtMapDetail)
 {
@@ -162,9 +162,9 @@ void NdtMap::debugDraw() const
     if (!ellipsoids.empty())
     {
       shape_ptrs.clear();
-      for (size_t i = 0; i < ellipsoids.size(); ++i)
+      for (auto &ellipsoid : ellipsoids)
       {
-        shape_ptrs.emplace_back(&ellipsoids[i]);
+        shape_ptrs.emplace_back(&ellipsoid);
       }
 
       g_tes->create(tes::MultiShape(shape_ptrs.data(), shape_ptrs.size()));
@@ -172,7 +172,7 @@ void NdtMap::debugDraw() const
     }
   };
 
-  uint32_t next_id = static_cast<uint32_t>((size_t)this);
+  auto next_id = static_cast<uint32_t>(size_t(this));
   const tes::Colour c = tes::Colour::Colours[tes::Colour::SeaGreen];
   Voxel<const float> occupancy(imp_->map, imp_->map->layout().occupancyLayer());
   Voxel<const CovarianceVoxel> cov(imp_->map, imp_->map->layout().covarianceLayer());
@@ -187,6 +187,11 @@ void NdtMap::debugDraw() const
       glm::dquat rot;
       glm::dvec3 scale;
       CovarianceVoxel cv;
+      if (!cov.isValid())
+      {
+        // Should be impossible, but helps clang-tidy.
+        continue;
+      }
       cov.read(&cv);
       if (!covarianceUnitSphereTransformation(&cv, &rot, &scale))
       {
@@ -242,10 +247,11 @@ int NdtMap::enableNdt(OccupancyMap *map)
 
   addVoxelMean(new_layout);
   // Cache the layer index.
-  int layer_index = addCovariance(new_layout)->layerIndex();
+  int layer_index = int(addCovariance(new_layout)->layerIndex());
 
   // Update the map.
   map->updateLayout(new_layout);
 
   return layer_index;
 }
+}  // namespace ohm

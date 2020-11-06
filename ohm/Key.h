@@ -332,16 +332,16 @@ inline bool Key::operator!=(const Key &other) const
 inline bool Key::operator<(const Key &other) const
 {
   // Linearise the region index.
-  uint64_t region_a = uint64_t(int(region_key_.x) + 0xffff) |                // NOLINT(readability-magic-numbers)
-                      (uint64_t(int(region_key_.y) + 0xffff) << 16) |        // NOLINT(readability-magic-numbers)
-                      (uint64_t(int(region_key_.z) + 0xffff) << 32);         // NOLINT(readability-magic-numbers)
-  uint64_t region_b = uint64_t(int(other.region_key_.x) + 0xffff) |          // NOLINT(readability-magic-numbers)
-                      (uint64_t(int(other.region_key_.y) + 0xffff) << 16) |  // NOLINT(readability-magic-numbers)
-                      (uint64_t(int(other.region_key_.z) + 0xffff) << 32);   // NOLINT(readability-magic-numbers)
+  uint64_t region_a = uint64_t(unsigned(region_key_.x) + 0xffffu) |                 // NOLINT(readability-magic-numbers)
+                      (uint64_t(unsigned(region_key_.y) + 0xffffu) << 16u) |        // NOLINT(readability-magic-numbers)
+                      (uint64_t(unsigned(region_key_.z) + 0xffffu) << 32u);         // NOLINT(readability-magic-numbers)
+  uint64_t region_b = uint64_t(unsigned(other.region_key_.x) + 0xffffu) |           // NOLINT(readability-magic-numbers)
+                      (uint64_t(unsigned(other.region_key_.y) + 0xffffu) << 16u) |  // NOLINT(readability-magic-numbers)
+                      (uint64_t(unsigned(other.region_key_.z) + 0xffffu) << 32u);   // NOLINT(readability-magic-numbers)
   // NOLINTNEXTLINE(readability-magic-numbers)
-  uint32_t local_a = uint32_t(local_.x) | (uint32_t(local_.y) << 8) | (uint32_t(local_.z) << 16);
+  uint32_t local_a = uint32_t(local_.x) | (uint32_t(local_.y) << 8u) | (uint32_t(local_.z) << 16u);
   // NOLINTNEXTLINE(readability-magic-numbers)
-  uint32_t local_b = uint32_t(other.local_.x) | (uint32_t(other.local_.y) << 8) | (uint32_t(other.local_.z) << 16);
+  uint32_t local_b = uint32_t(other.local_.x) | (uint32_t(other.local_.y) << 8u) | (uint32_t(other.local_.z) << 16u);
   return region_a < region_b || region_a == region_b && local_a < local_b;
 }
 }  // namespace ohm

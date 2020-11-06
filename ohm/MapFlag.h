@@ -18,9 +18,9 @@ enum class MapFlag : unsigned
   /// No special features.
   kNone = 0u,
   /// Enable voxel mean position tracking.
-  kVoxelMean = (1u << 0),
+  kVoxelMean = (1u << 0u),
   /// Maintain compressed voxels in memory. Compression is performed off thread.
-  kCompressed = (1u << 1),
+  kCompressed = (1u << 1u),
 
   /// Default map creation flags.
   kDefault = kCompressed

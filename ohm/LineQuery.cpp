@@ -28,8 +28,8 @@
 #include <iostream>
 #include <limits>
 
-using namespace ohm;
-
+namespace ohm
+{
 namespace
 {
 void calculateNearestNeighboursRange(LineQueryDetail &query, size_t start_index, size_t end_index,
@@ -240,3 +240,4 @@ const LineQueryDetail *LineQuery::imp() const
 {
   return static_cast<const LineQueryDetail *>(imp_);
 }
+}  // namespace ohm

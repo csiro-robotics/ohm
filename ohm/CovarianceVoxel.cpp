@@ -32,8 +32,10 @@
 #include <shapes/3esshapes.h>
 #endif  // TES_ENABLE
 
-using namespace ohm;
+#include <array>
 
+namespace ohm
+{
 #if OHM_COV_DEBUG
 namespace
 {
@@ -142,7 +144,7 @@ void covarianceEigenDecompositionGlm(const CovarianceVoxel *cov, glm::dmat3 *eig
 #endif  // OHM_WITH_EIGEN
 }  // namespace
 
-void ohm::covarianceEigenDecomposition(const CovarianceVoxel *cov, glm::dmat3 *eigenvectors, glm::dvec3 *eigenvalues)
+void covarianceEigenDecomposition(const CovarianceVoxel *cov, glm::dmat3 *eigenvectors, glm::dvec3 *eigenvalues)
 {
 #ifdef OHM_WITH_EIGEN
   covarianceEigenDecompositionEigen(cov, eigenvectors, eigenvalues);
@@ -152,7 +154,7 @@ void ohm::covarianceEigenDecomposition(const CovarianceVoxel *cov, glm::dmat3 *e
 }
 
 
-void ohm::covarianceEstimatePrimaryNormal(const CovarianceVoxel *cov, glm::dvec3 *normal, int preferred_axis)
+void covarianceEstimatePrimaryNormal(const CovarianceVoxel *cov, glm::dvec3 *normal, int preferred_axis)
 {
   glm::dmat3 eigenvectors;
   glm::dvec3 eigenvalues;
@@ -175,7 +177,7 @@ void ohm::covarianceEstimatePrimaryNormal(const CovarianceVoxel *cov, glm::dvec3
 }
 
 
-bool ohm::covarianceUnitSphereTransformation(const CovarianceVoxel *cov, glm::dquat *rotation, glm::dvec3 *scale)
+bool covarianceUnitSphereTransformation(const CovarianceVoxel *cov, glm::dquat *rotation, glm::dvec3 *scale)
 {
   glm::dmat3 eigenvectors;
   glm::dvec3 eigenvalues;
@@ -196,7 +198,8 @@ bool ohm::covarianceUnitSphereTransformation(const CovarianceVoxel *cov, glm::dq
   for (int i = 0; i < 3; ++i)
   {
     const double eval = std::abs(eigenvalues[i]);  // abs just in case.
-    (*scale)[i] = (eval > 1e-9) ? std::sqrt(eval) : eval;
+    const double epsilon = 1e-9;
+    (*scale)[i] = (eval > epsilon) ? std::sqrt(eval) : eval;
   }
 
   return true;
@@ -205,14 +208,14 @@ bool ohm::covarianceUnitSphereTransformation(const CovarianceVoxel *cov, glm::dq
 
 #if OHM_COV_DEBUG
 #include <iostream>
-void ohm::covDebugStats()
+void covDebugStats()
 {
   std::cout << "QR algorithm max iterations: " << max_iterations << std::endl;
   std::cout << "QR algorithm max error: " << max_error << std::endl;
 }
 #endif  // OHM_COV_DEBUG
 
-void ohm::integrateNdtHit(NdtMap &map, const Key &key, const glm::dvec3 &sample)
+void integrateNdtHit(NdtMap &map, const Key &key, const glm::dvec3 &sample)
 {
   OccupancyMap &occupancy_map = map.map();
   Voxel<float> occupancy_voxel(&occupancy_map, occupancy_map.layout().occupancyLayer(), key);
@@ -223,6 +226,14 @@ void ohm::integrateNdtHit(NdtMap &map, const Key &key, const glm::dvec3 &sample)
   assert(occupancy_voxel.isValid());
   assert(mean_voxel.isValid());
   assert(cov_voxel.isValid());
+
+  // Keep clang analysis happy
+#ifdef __clang_analyzer__
+  if (!occupancy_voxel.voxelMemory() || !mean_voxel.voxelMemory() || !cov_voxel.voxelMemory())
+  {
+    return;
+  }
+#endif  // __clang_analyzer__
 
   CovarianceVoxel cov;
   VoxelMean mean;
@@ -256,7 +267,7 @@ void ohm::integrateNdtHit(NdtMap &map, const Key &key, const glm::dvec3 &sample)
 }
 
 
-void ohm::integrateNdtMiss(NdtMap &map, const Key &key, const glm::dvec3 &sensor, const glm::dvec3 &sample)
+void integrateNdtMiss(NdtMap &map, const Key &key, const glm::dvec3 &sensor, const glm::dvec3 &sample)
 {
   OccupancyMap &occupancy_map = map.map();
   Voxel<float> occupancy_voxel(&occupancy_map, occupancy_map.layout().occupancyLayer(), key);
@@ -267,6 +278,14 @@ void ohm::integrateNdtMiss(NdtMap &map, const Key &key, const glm::dvec3 &sensor
   assert(occupancy_voxel.isValid());
   assert(mean_voxel.isValid());
   assert(cov_voxel.isValid());
+
+  // Keep clang analysis happy
+#ifdef __clang_analyzer__
+  if (!occupancy_voxel.voxelMemory() || !mean_voxel.voxelMemory() || !cov_voxel.voxelMemory())
+  {
+    return;
+  }
+#endif  // __clang_analyzer__
 
   CovarianceVoxel cov;
   VoxelMean mean;
@@ -314,14 +333,18 @@ void ohm::integrateNdtMiss(NdtMap &map, const Key &key, const glm::dvec3 &sensor
 
     // Trace the voxel mean, maximum likelihood point and the ellipsoid.
     // Mean
-    TES_SPHERE(g_tes, TES_COLOUR(OrangeRed), tes::Id(&voxel_mean), tes::Spherical(glm::value_ptr(voxel_mean), 0.05f));
+    const float mean_pos_radius = 0.05f;
+    const float likely_pos_radius = 0.1f;
+    TES_SPHERE(g_tes, TES_COLOUR(OrangeRed), tes::Id(&voxel_mean),
+               tes::Spherical(glm::value_ptr(voxel_mean), mean_pos_radius));
     // Maximum likelihood
     TES_SPHERE_W(g_tes, TES_COLOUR(PowderBlue), tes::Id(&voxel_maximum_likelihood),
-                 tes::Spherical(glm::value_ptr(voxel_maximum_likelihood), 0.1f));
+                 tes::Spherical(glm::value_ptr(voxel_maximum_likelihood), likely_pos_radius));
 
-    char text[64];
-    sprintf(text, "P %.3f", ohm::valueToProbability(occupancy - initial_value));
-    TES_TEXT2D_WORLD(g_tes, TES_COLOUR(White), text, tes::Id(),
+    std::array<char, 64> text;  // NOLINT(readability-magic-numbers)
+    text[0] = '\0';
+    sprintf(text.data(), "P %.3f", valueToProbability(occupancy - initial_value));
+    TES_TEXT2D_WORLD(g_tes, TES_COLOUR(White), text.data(), tes::Id(),
                      tes::Spherical(tes::Vector3d(glm::value_ptr(voxel_centre))));
 
     TES_SERVER_UPDATE(g_tes, 0.0f);
@@ -335,3 +358,4 @@ void ohm::integrateNdtMiss(NdtMap &map, const Key &key, const glm::dvec3 &sensor
   }
 #endif  // TES_ENABLE
 }
+}  // namespace ohm

@@ -48,8 +48,13 @@ public:
   /// @param rays The array of start/end point pairs to integrate.
   /// @param element_count The number of @c glm::dvec3 elements in @p rays, which is twice the ray count.
   /// @param ray_update_flags @c RayFlag bitset used to modify the behaviour of this function.
-  virtual size_t integrateRays(const glm::dvec3 *rays, size_t element_count,
-                               unsigned ray_update_flags = kRfDefault) = 0;
+  virtual size_t integrateRays(const glm::dvec3 *rays, size_t element_count, unsigned ray_update_flags) = 0;
+
+  /// @overload
+  inline size_t integrateRays(const glm::dvec3 *rays, size_t element_count)
+  {
+    return integrateRays(rays, element_count, kRfDefault);
+  }
 };
 }  // namespace ohm
 

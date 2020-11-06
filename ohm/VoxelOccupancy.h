@@ -28,6 +28,12 @@
 
 namespace ohm
 {
+/// Define fmin for use in `VoxelOccpuancyCompute.h` functions. @c fmin() is overloaded in GPU for float and double,
+/// but the global C symbol is double only. We alias @c std::fmin() , which is overloaded, so we can call just @c fmin()
+/// in both CPU and GPU code.
+using std::fmax;
+using std::fmin;
+/// Define fmax for use in `VoxelOccpuancyCompute.h` as per @c fmin()
 #include "VoxelOccupancyCompute.h"
 
 /// @ingroup voxeloccupancy
@@ -171,12 +177,12 @@ inline bool isOccupiedT(const Voxel<T> &voxel)
 /// @return True if occupied.
 inline bool isOccupied(const Voxel<float> &voxel)
 {
-  return isOccupiedT(voxel);
+  return voxel.isValid() && isOccupiedT(voxel);
 }
 /// @overload
 inline bool isOccupied(const Voxel<const float> &voxel)
 {
-  return isOccupiedT(voxel);
+  return voxel.isValid() && isOccupiedT(voxel);
 }
 
 
@@ -204,12 +210,12 @@ inline bool isFreeT(const Voxel<T> &voxel)
 /// @return True if free.
 inline bool isFree(const Voxel<float> &voxel)
 {
-  return isFreeT(voxel);
+  return voxel.isValid() && isFreeT(voxel);
 }
 /// @overload
 inline bool isFree(const Voxel<const float> &voxel)
 {
-  return isFreeT(voxel);
+  return voxel.isValid() && isFreeT(voxel);
 }
 
 
@@ -245,6 +251,7 @@ inline bool isUnobserved(const Voxel<float> &voxel)
 {
   return isUnobservedT(voxel);
 }
+
 /// @overload
 inline bool isUnobserved(const Voxel<const float> &voxel)
 {
@@ -254,7 +261,10 @@ inline bool isUnobserved(const Voxel<const float> &voxel)
 template <typename T>
 inline bool isUnobservedOrNullT(const Voxel<T> &voxel)
 {
-  return voxel.isNull() || isUnobserved(voxel);
+  // Note: the call to voxel.isValid() is effectively redundant as it's the negated check of voxel.isNull()
+  // but it does silence a clang-tidy warning. Perhaps this will help with branch prediction as well because the explict
+  // check is clearer?
+  return voxel.isNull() || (voxel.isValid() && isUnobservedT(voxel));
 }
 
 /// @ingroup voxeloccupancy

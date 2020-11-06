@@ -8,6 +8,7 @@
 
 #include "OhmConfig.h"
 
+#include <array>
 #include <cstdint>
 
 namespace ohm
@@ -23,11 +24,11 @@ struct ohm_API TriangleNeighbours
   /// ~0u for each open edge (-1).
   ///
   /// Ordered by the shared edge as {v[0], v[1]}, {v[1], v[2]}, {v[2], v[0]}.
-  unsigned neighbours[3];
+  std::array<unsigned, 3> neighbours;
   /// Identifies the shared edge indices in each neighbour triangle. For example, @c neighbour_edge_indices[0]
   /// contains edge information for neighbour[0]. The value of [0, 2] indicates which vertex pairing in neighbour[0]
   /// identifies the shared edge. -1 is used for empty edges.
-  int8_t neighbour_edge_indices[3];
+  std::array<int8_t, 3> neighbour_edge_indices;
 };
 }  // namespace ohm
 

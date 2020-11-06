@@ -79,7 +79,7 @@ namespace vhash
 inline uint32_t hashBits(uint32_t a, uint32_t b = VHASH_MAGIC, uint32_t c = 0)
 {
   c += VHASH_MAGIC;
-  VHASH_JENKINS_MIX(a, b, c);
+  VHASH_JENKINS_MIX(a, b, c);  // NOLINT(hicpp-signed-bitwise)
   return c;
 }
 
@@ -94,11 +94,11 @@ inline uint32_t hashBits(uint32_t a, uint32_t b = VHASH_MAGIC, uint32_t c = 0)
 inline uint32_t hashBits(uint32_t a, uint32_t b, uint32_t c, uint32_t d, uint32_t e = 0, uint32_t f = 0)
 {
   c += VHASH_MAGIC;
-  VHASH_JENKINS_MIX(a, b, c);
+  VHASH_JENKINS_MIX(a, b, c);  // NOLINT(hicpp-signed-bitwise)
   a += d;
   b += e;
   c += f;
-  VHASH_JENKINS_MIX(a, b, c);
+  VHASH_JENKINS_MIX(a, b, c);  // NOLINT(hicpp-signed-bitwise)
   return c;
 }
 

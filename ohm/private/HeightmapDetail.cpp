@@ -7,11 +7,13 @@
 
 #include "MapInfo.h"
 
-using namespace ohm;
+#include <array>
 
+namespace ohm
+{
 const glm::dvec3 &HeightmapDetail::upAxisNormal(UpAxis axis_id)
 {
-  static const glm::dvec3 axes[] =  //
+  static const std::array<glm::dvec3, 7> axes =  //
     {
       glm::dvec3(0, 0, -1),  // -Z
       glm::dvec3(0, -1, 0),  // -Y
@@ -23,10 +25,10 @@ const glm::dvec3 &HeightmapDetail::upAxisNormal(UpAxis axis_id)
     };
 
   int lookup_index = int(axis_id) + 3;
-  if (lookup_index < 0 || lookup_index >= int(sizeof(axes) - sizeof(axes[0])))
+  if (lookup_index < 0 || lookup_index >= int(axes.size()))
   {
     // Reference the dummy index.
-    lookup_index = int(sizeof(axes) / sizeof(axes[0]) - 1);
+    lookup_index = axes.size() - 1;
   };
 
   return axes[lookup_index];
@@ -35,7 +37,7 @@ const glm::dvec3 &HeightmapDetail::upAxisNormal(UpAxis axis_id)
 
 int HeightmapDetail::surfaceIndexA(UpAxis up_axis_id)
 {
-  static const int indices[] =  //
+  static const std::array<int, 7> indices =  //
     {
       0,  // -Z
       0,  // -Y
@@ -47,10 +49,10 @@ int HeightmapDetail::surfaceIndexA(UpAxis up_axis_id)
     };
 
   int lookup_index = int(up_axis_id) + 3;
-  if (lookup_index < 0 || lookup_index >= int(sizeof(indices) - sizeof(indices[0])))
+  if (lookup_index < 0 || lookup_index >= int(indices.size()))
   {
     // Reference the dummy index.
-    lookup_index = int(sizeof(indices) / sizeof(indices[0]) - 1);
+    lookup_index = indices.size() - 1;
   };
 
   return indices[lookup_index];
@@ -59,7 +61,7 @@ int HeightmapDetail::surfaceIndexA(UpAxis up_axis_id)
 
 const glm::dvec3 &HeightmapDetail::surfaceNormalA(UpAxis axis_id)
 {
-  static const glm::dvec3 axes[] =  //
+  static const std::array<glm::dvec3, 7> axes =  //
     {
       glm::dvec3(1, 0, 0),   // -Z
       glm::dvec3(1, 0, 0),   // -Y
@@ -71,10 +73,10 @@ const glm::dvec3 &HeightmapDetail::surfaceNormalA(UpAxis axis_id)
     };
 
   int lookup_index = int(axis_id) + 3;
-  if (lookup_index < 0 || lookup_index >= int(sizeof(axes) - sizeof(axes[0])))
+  if (lookup_index < 0 || lookup_index >= int(axes.size()))
   {
     // Reference the dummy index.
-    lookup_index = int(sizeof(axes) / sizeof(axes[0]) - 1);
+    lookup_index = axes.size() - 1;
   };
 
   return axes[lookup_index];
@@ -83,7 +85,7 @@ const glm::dvec3 &HeightmapDetail::surfaceNormalA(UpAxis axis_id)
 
 int HeightmapDetail::surfaceIndexB(UpAxis up_axis_id)
 {
-  static const int indices[] =  //
+  static const std::array<int, 7> indices =  //
     {
       1,  // -Z
       2,  // -Y
@@ -95,10 +97,10 @@ int HeightmapDetail::surfaceIndexB(UpAxis up_axis_id)
     };
 
   int lookup_index = int(up_axis_id) + 3;
-  if (lookup_index < 0 || lookup_index >= int(sizeof(indices) - sizeof(indices[0])))
+  if (lookup_index < 0 || lookup_index >= int(indices.size()))
   {
     // Reference the dummy index.
-    lookup_index = int(sizeof(indices) / sizeof(indices[0]) - 1);
+    lookup_index = indices.size() - 1;
   };
 
   return indices[lookup_index];
@@ -107,7 +109,7 @@ int HeightmapDetail::surfaceIndexB(UpAxis up_axis_id)
 
 const glm::dvec3 &HeightmapDetail::surfaceNormalB(UpAxis axis_id)
 {
-  static const glm::dvec3 axes[] =  //
+  static const std::array<glm::dvec3, 7> axes =  //
     {
       glm::dvec3(0, -1, 0),  // -Z
       glm::dvec3(0, 0, 1),   // -Y
@@ -119,10 +121,10 @@ const glm::dvec3 &HeightmapDetail::surfaceNormalB(UpAxis axis_id)
     };
 
   int lookup_index = int(axis_id) + 3;
-  if (lookup_index < 0 || lookup_index >= int(sizeof(axes) - sizeof(axes[0])))
+  if (lookup_index < 0 || lookup_index >= int(axes.size()))
   {
     // Reference the dummy index.
-    lookup_index = int(sizeof(axes) / sizeof(axes[0]) - 1);
+    lookup_index = axes.size() - 1;
   };
 
   return axes[lookup_index];
@@ -152,3 +154,4 @@ void HeightmapDetail::toMapInfo(MapInfo &info) const
   info.set(MapValue("heightmap-negative-obstacle-radius", negative_obstacle_radius));
   info.set(MapValue("heightmap-virtual-surface", generate_virtual_surface));
 }
+}  // namespace ohm

@@ -26,6 +26,7 @@
 
 #include <glm/glm.hpp>
 
+#include <array>
 #include <cstdio>
 #include <cstring>
 #include <functional>
@@ -78,12 +79,12 @@ int saveItem(OutputStream &stream, const MapValue &value)
   //}
   const char *name = value.name();
   size_t len = strlen(name);
-  if (len > 0xffffu)
+  if (len > std::numeric_limits<uint16_t>::max())
   {
     return kSeDataItemTooLarge;
   }
 
-  uint16_t len16 = uint16_t(len);
+  auto len16 = uint16_t(len);
   // if (endianSwap)
   // {
   //   endian::endianSwap(&len16);
@@ -103,68 +104,68 @@ int saveItem(OutputStream &stream, const MapValue &value)
   switch (value.type())
   {
   case MapValue::kInt8: {
-    int8_t val = static_cast<int8_t>(value);
+    auto val = static_cast<int8_t>(value);
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
     stream.write(reinterpret_cast<char *>(&val), 1);
     break;
   }
   case MapValue::kUInt8: {
-    uint8_t val = static_cast<uint8_t>(value);
+    auto val = static_cast<uint8_t>(value);
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
     stream.write(reinterpret_cast<char *>(&val), 1);
     break;
   }
   case MapValue::kInt16: {
-    int16_t val = static_cast<int16_t>(value);
+    auto val = static_cast<int16_t>(value);
     // if (endianSwap) { endian::endianSwap(&val); }
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
     stream.write(reinterpret_cast<char *>(&val), sizeof(val));
     break;
   }
   case MapValue::kUInt16: {
-    uint16_t val = static_cast<uint16_t>(value);
+    auto val = static_cast<uint16_t>(value);
     // if (endianSwap) { endian::endianSwap(&val); }
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
     stream.write(reinterpret_cast<char *>(&val), sizeof(val));
     break;
   }
   case MapValue::kInt32: {
-    int32_t val = static_cast<int32_t>(value);
+    auto val = static_cast<int32_t>(value);
     // if (endianSwap) { endian::endianSwap(&val); }
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
     stream.write(reinterpret_cast<char *>(&val), sizeof(val));
     break;
   }
   case MapValue::kUInt32: {
-    uint32_t val = static_cast<uint32_t>(value);
+    auto val = static_cast<uint32_t>(value);
     // if (endianSwap) { endian::endianSwap(&val); }
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
     stream.write(reinterpret_cast<char *>(&val), sizeof(val));
     break;
   }
   case MapValue::kInt64: {
-    int64_t val = static_cast<int64_t>(value);
+    auto val = static_cast<int64_t>(value);
     // if (endianSwap) { endian::endianSwap(&val); }
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
     stream.write(reinterpret_cast<char *>(&val), sizeof(val));
     break;
   }
   case MapValue::kUInt64: {
-    uint64_t val = static_cast<uint64_t>(value);
+    auto val = static_cast<uint64_t>(value);
     // if (endianSwap) { endian::endianSwap(&val); }
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
     stream.write(reinterpret_cast<char *>(&val), sizeof(val));
     break;
   }
   case MapValue::kFloat32: {
-    float val = static_cast<float>(value);
+    auto val = static_cast<float>(value);
     // if (endianSwap) { endian::endianSwap(&val); }
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
     stream.write(reinterpret_cast<char *>(&val), sizeof(val));
     break;
   }
   case MapValue::kFloat64: {
-    double val = static_cast<double>(value);
+    auto val = static_cast<double>(value);
     // if (endianSwap) { endian::endianSwap(&val); }
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
     stream.write(reinterpret_cast<char *>(&val), sizeof(val));
@@ -180,7 +181,7 @@ int saveItem(OutputStream &stream, const MapValue &value)
   case MapValue::kString: {
     const char *str = static_cast<const char *>(value);
     len = strlen(str);
-    if (len > 0xffffu)
+    if (len > std::numeric_limits<uint16_t>::max())
     {
       return kSeDataItemTooLarge;
     }
@@ -291,7 +292,7 @@ int saveLayout(OutputStream &stream, const OccupancyMapDetail &map)
 {
   // Save details about the map layers.
   const MapLayout &layout = map.layout;
-  const uint32_t layer_count = uint32_t(layout.layerCount());
+  const auto layer_count = uint32_t(layout.layerCount());
   bool ok = true;
 
   ok = write<int32_t>(stream, layer_count) && ok;
@@ -300,7 +301,7 @@ int saveLayout(OutputStream &stream, const OccupancyMapDetail &map)
   {
     const MapLayer &layer = layout.layer(i);
     // Write the layer name.
-    uint32_t val32 = uint32_t(strlen(layer.name()));
+    auto val32 = uint32_t(strlen(layer.name()));
     ok = write<uint32_t>(stream, val32) && ok;
     ok = stream.write(layer.name(), val32) == val32 && ok;
 
@@ -428,10 +429,12 @@ int loadHeader(InputStream &stream, HeaderVersion &version, OccupancyMapDetail &
   else
   {
     // No marker. Assume version zero and migrate to map.origin.x
-    uint8_t buffer[sizeof(double)];
-    memcpy(buffer, &version.marker, sizeof(version.marker));
-    memcpy(buffer + sizeof(version.marker), &version.version.major, sizeof(version.version.major));
-    memcpy(&map.origin.x, buffer, sizeof(map.origin.x));
+    std::array<uint8_t, sizeof(double)> buffer;
+    static_assert(sizeof(buffer) >= sizeof(version.marker) + sizeof(version.version.major),
+                  "Read ahead buffer too small.");
+    memcpy(buffer.data(), &version.marker, sizeof(version.marker));
+    memcpy(buffer.data() + sizeof(version.marker), &version.version.major, sizeof(version.version.major));
+    memcpy(&map.origin.x, buffer.data(), sizeof(map.origin.x));
 
     version.marker = 0;
     version.version = { 0, 0, 0 };
@@ -529,8 +532,8 @@ int loadChunk(InputStream &stream, MapChunk &chunk, const OccupancyMapDetail &de
 
 const char *ohm::errorCodeString(int err)
 {
-  static const char *names[] =  //
-    {                           //
+  const std::array<const char *, 12> names =  //
+    {                                         //
       "ok",
       "file create failure",
       "file open failure",
@@ -545,7 +548,7 @@ const char *ohm::errorCodeString(int err)
       "unsupported version"
     };
 
-  if (err < 0 || unsigned(err) > sizeof(names) / sizeof(names[0]))
+  if (err < 0 || unsigned(err) > names.size())
   {
     return "<unknown>";
   }

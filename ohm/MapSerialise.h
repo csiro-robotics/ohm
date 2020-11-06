@@ -70,10 +70,15 @@ struct MapVersion
   /// @param major The major version number.
   /// @param minor The minor version number.
   /// @param patch The patch version number.
-  inline MapVersion(uint32_t major, uint16_t minor = 0, uint16_t patch = 0)
+  inline MapVersion(uint32_t major, uint16_t minor, uint16_t patch = 0) noexcept
     : major(major)
     , minor(minor)
     , patch(patch)
+  {}
+
+  /// @overload
+  inline explicit MapVersion(uint32_t major) noexcept
+    : MapVersion(major, 0, 0)
   {}
 
   /// Copy by value assignment.

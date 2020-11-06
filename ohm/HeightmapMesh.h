@@ -57,7 +57,7 @@ public:
 
   /// Construct a heightmap mesh using the given vertex normal generation mode.
   /// @param normals_mode The initial vertex generation mode.
-  HeightmapMesh(NormalsMode normals_mode = kNormalsAverage);
+  explicit HeightmapMesh(NormalsMode normals_mode = kNormalsAverage);
 
   /// Destructor.
   ~HeightmapMesh();

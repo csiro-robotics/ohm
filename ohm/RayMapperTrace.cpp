@@ -58,8 +58,8 @@ struct OccupancyMeshDetail
 class OccupancyMesh : public tes::MeshResource
 {
 public:
-  OccupancyMesh(OccupancyMap *map);
-  ~OccupancyMesh();
+  explicit OccupancyMesh(OccupancyMap *map);
+  ~OccupancyMesh() override;
 
   uint32_t id() const override;
   tes::Transform transform() const override;
@@ -94,12 +94,16 @@ private:
 uint32_t voxelColour(const Voxel<const float> &occupancy_voxel)
 {
   float occupancy;
-  occupancy_voxel.read(&occupancy);
-  occupancy = valueToProbability(occupancy);
-  const float intensity = float((occupancy - occupancy_voxel.map()->occupancyThresholdProbability()) /
-                                (1.0 - occupancy_voxel.map()->occupancyThresholdProbability()));
-  const int c = int(255 * intensity);
-  return tes::Colour(c, c, c).c;
+  if (occupancy_voxel.isValid())
+  {
+    occupancy_voxel.read(&occupancy);
+    occupancy = valueToProbability(occupancy);
+    const auto intensity = float((occupancy - occupancy_voxel.map()->occupancyThresholdProbability()) /
+                                 (1.0 - occupancy_voxel.map()->occupancyThresholdProbability()));
+    const int c = int(255 * intensity);
+    return tes::Colour(c, c, c).c;
+  }
+  return tes::Colour(0, 0, 0).c;
 }
 
 OccupancyMesh::OccupancyMesh(OccupancyMap *map)
@@ -123,7 +127,7 @@ tes::Transform OccupancyMesh::transform() const
 
 uint32_t OccupancyMesh::tint() const
 {
-  return 0xFFFFFFFFu;
+  return tes::Colour::Colours[tes::Colour::White].c;
 }
 
 uint8_t OccupancyMesh::drawType(int stream) const
@@ -176,7 +180,7 @@ tes::DataBuffer OccupancyMesh::colours(int stream) const
 
 tes::Resource *OccupancyMesh::clone() const
 {
-  OccupancyMesh *copy = new OccupancyMesh(imp_->map);
+  auto *copy = new OccupancyMesh(imp_->map);
   *copy->imp_ = *imp_;
   return copy;
 }
@@ -189,16 +193,17 @@ int OccupancyMesh::transfer(tes::PacketWriter &packet, unsigned byte_limit, tes:
     imp_->vertices.clear();
     imp_->colours.clear();
     Voxel<const float> occupancy_voxel(imp_->map, imp_->map->layout().occupancyLayer());
-    for (auto iter = imp_->map->begin(); iter != imp_->map->end(); ++iter)
+    const OccupancyMap &map = *imp_->map;
+    for (auto iter = map.begin(); iter != map.end(); ++iter)
     {
       occupancy_voxel.setKey(iter);
       if (isOccupied(occupancy_voxel))
       {
         // Add voxel.
         imp_->voxel_index_map.insert(std::make_pair(*iter, uint32_t(imp_->vertices.size())));
-        imp_->vertices.push_back(tes::Vector3d(glm::value_ptr(imp_->map->voxelCentreGlobal(*iter))));
+        imp_->vertices.emplace_back(glm::value_ptr(map.voxelCentreGlobal(*iter)));
         // Normals represent voxel half extents.
-        imp_->normals.push_back(tes::Vector3d(0.5 * imp_->map->resolution()));
+        imp_->normals.emplace_back(0.5 * map.resolution());
         imp_->colours.push_back(voxelColour(occupancy_voxel));
       }
     }
@@ -270,12 +275,12 @@ void OccupancyMesh::update(const KeySet &newly_occupied, const KeySet &newly_fre
 
   // Send messages for individually changed voxels.
   // Start a mesh redefinition message.
-  std::vector<uint8_t> buffer(0xffffu);
-  tes::PacketWriter packet(buffer.data(), (uint16_t)buffer.size());
-  tes::MeshRedefineMessage msg;
-  tes::MeshComponentMessage cmpmsg;
-  tes::MeshFinaliseMessage finalmsg;
-  tes::ObjectAttributesd attributes;
+  std::vector<uint8_t> buffer(0xffffu);  // NOLINT(readability-magic-numbers)
+  tes::PacketWriter packet(buffer.data(), static_cast<uint16_t>(buffer.size()));
+  tes::MeshRedefineMessage msg{};
+  tes::MeshComponentMessage cmpmsg{};
+  tes::MeshFinaliseMessage finalmsg{};
+  tes::ObjectAttributesd attributes{};
   tes::DataBuffer data_buffer;
 
   // Work out how many vertices we'll have after all modifications are done.
@@ -289,7 +294,7 @@ void OccupancyMesh::update(const KeySet &newly_occupied, const KeySet &newly_fre
   }
 
   msg.meshId = imp_->id;
-  msg.vertexCount = (uint32_t)new_vertex_count;
+  msg.vertexCount = uint32_t(new_vertex_count);
   msg.indexCount = 0;
   msg.drawType = drawType(0);
   attributes.identity();
@@ -326,20 +331,20 @@ void OccupancyMesh::update(const KeySet &newly_occupied, const KeySet &newly_fre
   // Continue iteration from where we left off.
   for (; occupied_iter != newly_occupied.end(); ++occupied_iter, ++processed_occupied_count)
   {
-    const uint32_t vertex_index = uint32_t(imp_->vertices.size());
+    const auto vertex_index = uint32_t(imp_->vertices.size());
     const Key key = *occupied_iter;
     imp_->voxel_index_map.insert(std::make_pair(key, vertex_index));
-    imp_->vertices.push_back(tes::Vector3d(glm::value_ptr(imp_->map->voxelCentreGlobal(key))));
+    imp_->vertices.emplace_back(glm::value_ptr(imp_->map->voxelCentreGlobal(key)));
     // Normals represent voxel half extents.
-    imp_->normals.push_back(tes::Vector3d(0.5 * imp_->map->resolution()));
-    imp_->colours.push_back(0xffffffffu);
+    imp_->normals.emplace_back(0.5 * imp_->map->resolution());
+    imp_->colours.emplace_back(tes::Colour::Colours[tes::Colour::White].c);
   }
 
   // Send bulk messages for new vertices.
   if (old_vertex_count != new_vertex_count)
   {
     // Send colour and position update.
-    uint32_t offset = uint32_t(old_vertex_count);
+    auto offset = uint32_t(old_vertex_count);
     data_buffer = tes::DataBuffer(imp_->vertices);
 
     while (offset < new_vertex_count)
@@ -377,7 +382,7 @@ void OccupancyMesh::update(const KeySet &newly_occupied, const KeySet &newly_fre
   // Update colours for touched occupied
   if (!touched_occupied.empty())
   {
-    for (auto key : touched_occupied)
+    for (const auto &key : touched_occupied)
     {
       occupancy_voxel.setKey(key);
       auto index_search = imp_->voxel_index_map.find(key);
@@ -433,7 +438,7 @@ void drawNdt(const glm::i16vec4 &sector_key, const OccupancyMap &map)
 
     for (int i = 0; i < 3; ++i)
     {
-      start_index[i] = !!(sector_key.w & (1 << i));
+      start_index[i] = !!(sector_key.w & (1 << i));  // NOLINT(hicpp-signed-bitwise)
       end_index[i] = (start_index[i]) ? dim[i] : dim[i] / 2;
       start_index[i] = (start_index[i]) ? dim[i] / 2 : 0;
     }
@@ -457,8 +462,8 @@ void drawNdt(const glm::i16vec4 &sector_key, const OccupancyMap &map)
               // Use single precision for smaller data size
               ellipsoids.emplace_back(
                 tes::Sphere(shape_id, tes::Transform(tes::Vector3f(glm::value_ptr(pos)),
-                                                     tes::Quaternionf((float)rotation.x, (float)rotation.y,
-                                                                      (float)rotation.z, (float)rotation.w),
+                                                     tes::Quaternionf(float(rotation.x), float(rotation.y),
+                                                                      float(rotation.z), float(rotation.w)),
                                                      tes::Vector3f(glm::value_ptr(scale)))));
               ellipsoids.back().setColour(tes::Colour::Colours[tes::Colour::MediumSeaGreen]);
             }
@@ -497,8 +502,8 @@ public:
 }  // namespace ohm
 #endif  // TES_ENABLE
 
-using namespace ohm;
-
+namespace ohm
+{
 RayMapperTrace::RayMapperTrace(OccupancyMap *map, RayMapper *true_mapper)
   : map_(map)
   , true_mapper_(true_mapper)
@@ -547,7 +552,8 @@ size_t RayMapperTrace::integrateRays(const glm::dvec3 *rays, size_t element_coun
 {
 #ifdef TES_ENABLE
   // Walk all the rays and cache the state of the (predicted) touched voxels.
-  VoxelMap initial_state, updated_state;
+  VoxelMap initial_state;
+  VoxelMap updated_state;
   SectorSet sector_set;
 
   if (g_tes && element_count)
@@ -575,7 +581,9 @@ size_t RayMapperTrace::integrateRays(const glm::dvec3 *rays, size_t element_coun
     cacheState(rays, element_count, &updated_state);
 
     // Determine changes.
-    KeySet newly_occupied, newly_freed, touched_occupied;
+    KeySet newly_occupied;
+    KeySet newly_freed;
+    KeySet touched_occupied;
 
     for (const auto &voxel_info : updated_state)
     {
@@ -694,3 +702,4 @@ void RayMapperTrace::cacheState(const glm::dvec3 *rays, size_t element_count, Vo
     }
   }
 }
+}  // namespace ohm

@@ -111,8 +111,9 @@ int loadChunk(InputStream &stream, MapChunk &chunk, const OccupancyMapDetail &de
 
     for (unsigned i = 0; i < unsigned(node_data.size() / 2); ++i)
     {
-      occupancy_buffer.writeVoxel(i, node_data[(i << 1) + 0]);
-      clearance_buffer.writeVoxel(i, node_data[(i << 1) + 1]);
+      // Unnecessary casting for clang-tidy
+      occupancy_buffer.writeVoxel(i, node_data[unsigned((i << 1u) + 0u)]);
+      clearance_buffer.writeVoxel(i, node_data[unsigned((i << 1u) + 1u)]);
     }
   }
 

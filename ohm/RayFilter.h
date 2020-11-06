@@ -21,11 +21,11 @@ class Aabb;
 enum RayFilterFlag
 {
   /// Ray is invalid: should be skipped.
-  kRffInvalid = (1 << 0),
+  kRffInvalid = (1u << 0u),
   /// Sample ray start point has been clipped (and moved).
-  kRffClippedStart = (1 << 1),
+  kRffClippedStart = (1u << 1u),
   /// Sample ray end point has been clipped (and moved). Prevents the end point from being treated as a hit result.
-  kRffClippedEnd = (1 << 2),
+  kRffClippedEnd = (1u << 2u),
 };
 
 /// Function prototype used in ray filtering for @c OccupancyMap::integrateRays().

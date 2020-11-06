@@ -213,7 +213,7 @@ void GpuNdtMap::finaliseBatch(unsigned region_update_flags)
     wait.add(imp->voxel_upload_info[buf_idx][i].voxel_upload_event);
   }
 
-  unsigned modify_flags = (!(region_update_flags & kRfEndPointAsFree)) ? kRfExcludeSample : 0;
+  unsigned modify_flags = (!(region_update_flags & kRfEndPointAsFree)) ? kRfExcludeSample : 0u;
 
 #if REVERSE_KERNEL_ORDER
   gputil::Event hit_event;
