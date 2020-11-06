@@ -17,10 +17,10 @@ class Device;
 namespace ohm
 {
 /// GPU/accelerator selection types.
-enum AccelType
+enum AccelType : unsigned
 {
-  kGpuAccel = (1 << 0),
-  kCpuAccel = (1 << 1),
+  kGpuAccel = (1u << 0u),
+  kCpuAccel = (1u << 1u),
   kAnyAccel = kGpuAccel | kCpuAccel
 };
 

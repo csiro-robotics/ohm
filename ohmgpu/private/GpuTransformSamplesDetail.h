@@ -10,6 +10,8 @@
 #include <gputil/gpuEvent.h>
 #include <gputil/gpuKernel.h>
 
+#include <array>
+
 namespace ohm
 {
 struct GpuTransformSamplesDetail
@@ -19,7 +21,7 @@ struct GpuTransformSamplesDetail
   gputil::Buffer transform_positions_buffer;
   gputil::Buffer transform_rotations_buffer;
   gputil::Buffer transform_times_buffer;
-  gputil::Event upload_events[kUploadEventCount];
+  std::array<gputil::Event, kUploadEventCount> upload_events;
   gputil::Device gpu;
   gputil::Kernel kernel;
 };

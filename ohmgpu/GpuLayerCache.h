@@ -66,15 +66,15 @@ public:
   };
 
   /// Flags for caching methods affecting @c upload() and @c allocate()
-  enum CacheFlag
+  enum CacheFlag : unsigned
   {
     /// Allow creation of the region chunk in the map if it does not exist?
-    kAllowRegionCreate = (1 << 0),
+    kAllowRegionCreate = (1u << 0u),
     /// Download of results is not required for this region.
     /// Note changes in this flag value on may force the cache to stall.
-    kSkipDownload = (1 << 1),
+    kSkipDownload = (1u << 1u),
     /// Force upload even if already cached.
-    kForceUpload = (1 << 2),
+    kForceUpload = (1u << 2u),
   };
 
   /// Create a new layer cache.

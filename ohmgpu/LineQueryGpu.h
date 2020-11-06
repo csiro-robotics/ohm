@@ -60,7 +60,7 @@ protected:
   /// more specialised forms.
   /// @param detail pimple style data structure. When null, a @c LineQueryDetail is allocated by
   /// this method.
-  LineQueryGpu(LineQueryDetailGpu *detail);
+  explicit LineQueryGpu(LineQueryDetailGpu *detail);
 
 public:
   LineQueryGpu();

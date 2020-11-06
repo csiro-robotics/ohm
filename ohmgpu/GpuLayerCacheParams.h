@@ -10,17 +10,19 @@
 
 #include "GpuCachePostSyncHandler.h"
 
+#include <algorithm>
+
 namespace ohm
 {
 /// Flags used to create a @c GpuLayerCache.
-enum GpuLayerCacheFlag
+enum GpuLayerCacheFlag : unsigned
 {
   /// Will read voxel data from host to GPU memory.
-  kGcfRead = (1 << 0),
+  kGcfRead = (1u << 0u),
   /// Will write voxel data from GPU to host memory.
-  kGcfWrite = (1 << 1),
+  kGcfWrite = (1u << 1u),
   /// Using buffers mappable to host memory? Can result in faster data transfer.
-  kGcfMappable = (1 << 2),
+  kGcfMappable = (1u << 2u),
 
   /// Default creation flags.
   kGcfDefaultFlags = kGcfRead | kGcfMappable
@@ -47,11 +49,11 @@ struct ohmgpu_API GpuLayerCacheParams
   /// @param flags @c GpuLayerCacheFlag cache creation flags.
   /// @param on_sync Callback to invoke on synchronising back to CPU.
   GpuLayerCacheParams(size_t mem_size, int layer, unsigned flags,
-                      const GpuCachePostSyncHandler &on_sync = GpuCachePostSyncHandler())
+                      GpuCachePostSyncHandler on_sync = GpuCachePostSyncHandler())
     : gpu_mem_size(mem_size)
     , map_layer(layer)
     , flags(flags)
-    , on_sync(on_sync)
+    , on_sync(std::move(on_sync))
   {}
 };
 }  // namespace ohm

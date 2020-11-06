@@ -34,12 +34,12 @@ struct VoxelUploadInfo;
 namespace gpumap
 {
 /// Flags for GPU initialisation.
-enum GpuFlag
+enum GpuFlag : unsigned
 {
   /// Allow host (mappable) buffers. Used if device/host memory is unified.
-  kGpuAllowMappedBuffers = (1 << 0),
+  kGpuAllowMappedBuffers = (1u << 0u),
   /// Force mappable buffers.
-  kGpuForceMappedBuffers = (1 << 1),
+  kGpuForceMappedBuffers = (1u << 1u),
 };
 
 /// Enable GPU usage for the given @p map. This creates a GPU cache for the @p map using the
@@ -123,7 +123,8 @@ protected:
   /// @param detail The pimpl data struture for the map. Must not be null. May be a derivation of @c GpuMapDetail .
   /// @param expected_element_count The expected point count for calls to @c integrateRays(). Used as a hint.
   /// @param gpu_mem_size Optionally specify the target GPU cache memory to allocate.
-  GpuMap(GpuMapDetail *detail, unsigned expected_element_count = 2048, size_t gpu_mem_size = 0u);
+  explicit GpuMap(GpuMapDetail *detail, unsigned expected_element_count = 2048,  // NOLINT(readability-magic-numbers)
+                  size_t gpu_mem_size = 0u);
 
 public:
   /// Construct @c GpuMap support capabilities around @p map. The @p map pointer may be borrowed or owned.
@@ -135,11 +136,13 @@ public:
   /// @param borrowed_map True to borrow the map, @c false for this object to take ownership.
   /// @param expected_element_count The expected point count for calls to @c integrateRays(). Used as a hint.
   /// @param gpu_mem_size Optionally specify the target GPU cache memory to allocate.
-  GpuMap(OccupancyMap *map, bool borrowed_map = true, unsigned expected_element_count = 2048, size_t gpu_mem_size = 0u);
+  explicit GpuMap(OccupancyMap *map, bool borrowed_map = true,
+                  unsigned expected_element_count = 2048,  // NOLINT(readability-magic-numbers)
+                  size_t gpu_mem_size = 0u);
 
   /// Destructor. Will wait on outstanding GPU operations first and destroy the @c map() if not using a
   /// @c borrowedPointer().
-  ~GpuMap();
+  ~GpuMap() override;
 
   /// Reports the status of setting up the associated GPU program for populating the map.
   ///
@@ -234,8 +237,9 @@ public:
   /// @param region_update_flags Flags controlling ray integration behaviour. See @c RayFlag.
   /// @return The number of rays integrated. Zero indicates a failure when @p pointCount is not zero.
   ///   In this case either the GPU is unavailable, or all @p rays are invalid.
-  size_t integrateRays(const glm::dvec3 *rays, size_t element_count,
-                       unsigned region_update_flags = kRfDefault) override;
+  size_t integrateRays(const glm::dvec3 *rays, size_t element_count, unsigned region_update_flags) override;
+
+  using RayMapper::integrateRays;
 
   /// Integrate a ray clearing pattern into the map. A clearing is integrated as a set of rays using the @c RayFlag
   /// set: @c kRfStopOnFirstOccupied, @c kRfClearOnly. This has the effect of reducing the probability of the first

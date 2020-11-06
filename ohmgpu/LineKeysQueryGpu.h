@@ -43,17 +43,17 @@ protected:
   /// more specialised forms.
   /// @param detail pimple style data structure. When null, a @c LineKeysQueryDetail is allocated by
   /// this method.
-  LineKeysQueryGpu(LineKeysQueryDetailGpu *detail);
+  explicit LineKeysQueryGpu(LineKeysQueryDetailGpu *detail);
 
 public:
   /// Construct a new query using the given parameters.
   /// @param map The map to operate on. Only the voxel resolution and region sizes are used.
   /// @param query_flags Flags controlling the query behaviour. See @c QueryFlag and @c LineKeysQuery::Flag.
-  LineKeysQueryGpu(ohm::OccupancyMap &map, unsigned query_flags = 0u);
+  explicit LineKeysQueryGpu(ohm::OccupancyMap &map, unsigned query_flags = 0u);
 
   /// Construct a new query using the given parameters.
   /// @param query_flags Flags controlling the query behaviour. See @c QueryFlag and @c LineKeysQuery::Flag.
-  LineKeysQueryGpu(unsigned query_flags = 0);
+  explicit LineKeysQueryGpu(unsigned query_flags = 0);
 
   /// Destructor.
   ~LineKeysQueryGpu() override;

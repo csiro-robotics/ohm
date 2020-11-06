@@ -81,7 +81,7 @@ public:
     Aabb image_extents = Aabb(0.0);
   };
 
-  HeightmapImage(ImageType type = kImageNormals, unsigned pixels_per_voxel = 1);
+  explicit HeightmapImage(ImageType type = kImageNormals, unsigned pixels_per_voxel = 1);
   ~HeightmapImage();
 
   ImageType desiredImageType();

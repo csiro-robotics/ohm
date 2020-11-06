@@ -43,10 +43,10 @@
 #include <iostream>
 #include <memory>
 
-using namespace ohm;
-
 #define VALIDATE_VALUES_UNCHANGED 0
 
+namespace ohm
+{
 namespace
 {
 void regionClearanceProcessCpuBlock(OccupancyMap &map, ClearanceProcessDetail &query, const glm::ivec3 &block_start,
@@ -73,6 +73,7 @@ void regionClearanceProcessCpuBlock(OccupancyMap &map, ClearanceProcessDetail &q
       {
         voxel_key.setLocalAxis(0, x);
         voxel.setKey(voxel_key, chunk);
+        assert(voxel.isValid() && voxel.voxelMemory());
         // if (!voxel.isNull()) // Don't think this is possible any more.
         {
           range = calculateNearestNeighbour(voxel_key, map, voxel_search_half_extents,
@@ -117,7 +118,9 @@ void regionSeedFloodFillCpuBlock(OccupancyMap &map, ClearanceProcessDetail &quer
         voxel_key.setLocalAxis(0, x);
         occupancy.setKey(voxel_key, chunk);
         clearance.setKey(voxel_key, chunk);
-        // if (!voxel.isNull())
+        assert(occupancy.isValid() && occupancy.voxelMemory());
+        assert(clearance.isValid() && clearance.voxelMemory());
+        // if (!clearance.isNull())
         {
           if (isOccupied(occupancy) || ((query.query_flags & kQfUnknownAsOccupied) != 0 && isUnobserved(occupancy)))
           {
@@ -166,7 +169,8 @@ void regionFloodFillStepCpuBlock(OccupancyMap &map, ClearanceProcessDetail & /*q
       {
         voxel_key.setLocalAxis(0, x);
         voxel_clearance.setKey(voxel_key);
-        // if (!voxel.isNull())
+        assert(voxel_clearance.isValid() && voxel_clearance.voxelMemory());
+        // if (!voxel_clearance.isNull())
         {
           voxel_clearance.read(&voxel_range);
           for (int nz = -1; nz <= 1; ++nz)
@@ -633,3 +637,4 @@ const ClearanceProcessDetail *ClearanceProcess::imp() const
 {
   return static_cast<const ClearanceProcessDetail *>(imp_);
 }
+}  // namespace ohm

@@ -31,14 +31,16 @@
 GPUTIL_CUDA_DECLARE_KERNEL(transformTimestampedPoints);
 #endif  // GPUTIL_TYPE == GPUTIL_CUDA
 
-using namespace ohm;
-
+namespace ohm
+{
 namespace
 {
 #if defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
+// NOLINTNEXTLINE(cert-err58-cpp)
 GpuProgramRef g_program_ref("TransformSamples", GpuProgramRef::kSourceString, TransformSamplesCode,  // NOLINT
                             TransformSamplesCode_length);
 #else   // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
+// NOLINTNEXTLINE(cert-err58-cpp)
 GpuProgramRef g_program_ref("TransformSamples", GpuProgramRef::kSourceFile, "TransformSamples.cl");
 #endif  // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
 
@@ -104,7 +106,7 @@ unsigned GpuTransformSamples::transform(const double *transform_times, const glm
   }
 
   // Wait on outstanding operations to complete.
-  gputil::Event::wait(imp_->upload_events, GpuTransformSamplesDetail::kUploadEventCount);
+  gputil::Event::wait(imp_->upload_events.data(), GpuTransformSamplesDetail::kUploadEventCount);
 
   // Reserve GPU memory for the rays. We reserve space for the provides samples paired with transformed origin point.
   // This results in an interleaved spacing with:
@@ -120,11 +122,12 @@ unsigned GpuTransformSamples::transform(const double *transform_times, const glm
   // To address lack of double precision support, we'll make the times relative to the first transform timestamp.
   output_buffer.resize(sizeof(gputil::float3) * 2 * point_count);
   gputil::PinnedBuffer ray_buffer(output_buffer, gputil::kPinWrite);
-  glm::vec3 sample_time, sample;
+  glm::vec3 sample_time;
+  glm::vec3 sample;
 
   unsigned upload_count = 0u;
   const double base_time = transform_times[0];
-  const float max_time = float(transform_times[transform_count - 1] - base_time);
+  const auto max_time = float(transform_times[transform_count - 1] - base_time);
   for (unsigned i = 0; i < point_count; ++i)
   {
     sample_time = glm::vec3(float(sample_times[i] - base_time));
@@ -182,7 +185,7 @@ unsigned GpuTransformSamples::transform(const double *transform_times, const glm
 
   gputil::Dim3 global_size((sample_count + batch_size - 1) / batch_size);
   gputil::Dim3 local_size(std::min(imp_->kernel.optimalWorkGroupSize(), global_size.x));
-  gputil::EventList wait(imp_->upload_events, GpuTransformSamplesDetail::kUploadEventCount);
+  gputil::EventList wait(imp_->upload_events.data(), GpuTransformSamplesDetail::kUploadEventCount);
   imp_->kernel(global_size, local_size, wait, completion_event, &gpu_queue,
                gputil::BufferArg<gputil::float3 *>(output_buffer), sample_count,
                gputil::BufferArg<float *>(imp_->transform_times_buffer),
@@ -193,3 +196,4 @@ unsigned GpuTransformSamples::transform(const double *transform_times, const glm
 
   return upload_count;
 }
+}  // namespace ohm

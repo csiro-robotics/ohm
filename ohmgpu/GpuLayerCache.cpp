@@ -29,10 +29,9 @@
 #pragma GCC diagnostic pop
 #endif  // __GNUC__
 
+#include <algorithm>
 #include <cassert>
 #include <memory>
-
-using namespace ohm;
 
 namespace ohm
 {
@@ -98,7 +97,6 @@ struct GpuLayerCacheDetail
     cache.clear();
   }
 };
-}  // namespace ohm
 
 GpuLayerCache::GpuLayerCache(const gputil::Device &gpu, const gputil::Queue &gpu_queue, OccupancyMap &map,
                              unsigned layer_index, size_t target_gpu_mem_size, unsigned flags,
@@ -111,7 +109,7 @@ GpuLayerCache::GpuLayerCache(const gputil::Device &gpu, const gputil::Queue &gpu
   imp_->gpu_queue = gpu_queue;
   imp_->layer_index = layer_index;
   imp_->flags = flags;
-  imp_->on_sync = on_sync;
+  imp_->on_sync = std::move(on_sync);
 
   allocateBuffers(map, map.layout().layer(layer_index), target_gpu_mem_size);
 }
@@ -625,23 +623,25 @@ inline ENTRY *findCacheEntry(T &cache, const glm::i16vec3 &region_key)
 
 GpuCacheEntry *GpuLayerCache::findCacheEntry(const glm::i16vec3 &region_key)
 {
-  return ::findCacheEntry<GpuCacheEntry>(imp_->cache, region_key);
+  return ohm::findCacheEntry<GpuCacheEntry>(imp_->cache, region_key);
 }
 
 
 const GpuCacheEntry *GpuLayerCache::findCacheEntry(const glm::i16vec3 &region_key) const
 {
-  return ::findCacheEntry<const GpuCacheEntry>(imp_->cache, region_key);
+  return ohm::findCacheEntry<const GpuCacheEntry>(imp_->cache, region_key);
 }
 
 
 GpuCacheEntry *GpuLayerCache::findCacheEntry(const MapChunk &chunk)
 {
-  return ::findCacheEntry<GpuCacheEntry>(imp_->cache, chunk.region.coord);
+  return ohm::findCacheEntry<GpuCacheEntry>(imp_->cache, chunk.region.coord);
 }
 
 
 const GpuCacheEntry *GpuLayerCache::findCacheEntry(const MapChunk &chunk) const
 {
-  return ::findCacheEntry<const GpuCacheEntry>(imp_->cache, chunk.region.coord);
+  return ohm::findCacheEntry<const GpuCacheEntry>(imp_->cache, chunk.region.coord);
 }
+
+}  // namespace ohm

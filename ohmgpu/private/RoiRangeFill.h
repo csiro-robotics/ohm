@@ -14,6 +14,8 @@
 #include <gputil/gpuDevice.h>
 #include <gputil/gpuKernel.h>
 
+#include <array>
+
 namespace ohm
 {
 class OccupancyMap;
@@ -26,7 +28,7 @@ class GpuProgramRef;
 class RoiRangeFill
 {
 public:
-  RoiRangeFill(gputil::Device &gpu);
+  explicit RoiRangeFill(gputil::Device &gpu);
   ~RoiRangeFill();
 
   gputil::Buffer &gpuCornerVoxelKey() { return gpu_corner_voxel_key_; }
@@ -82,7 +84,7 @@ private:
   /// Buffer holding the clearance values for the region we are working on.
   gputil::Buffer gpu_region_clearance_buffer_;
   /// Buffer of int4 used to propagate obstacles.
-  gputil::Buffer gpu_work_[2];
+  std::array<gputil::Buffer, 2> gpu_work_;
   gputil::Device gpu_;
   gputil::Kernel seed_kernel_;
   gputil::Kernel seed_outer_kernel_;

@@ -68,7 +68,7 @@ public:
   /// @param target_gpu_alloc_size The GPU memory target size, distributed across all allocated @c GpuLayerCache
   /// objects (bytes). See @c targetGpuAllocSize() .
   /// @param flags The @c GpuFlag values to initialise the cache with.
-  GpuCache(OccupancyMap &map, size_t target_gpu_alloc_size = kDefaultTargetMemSize, unsigned flags = 0);
+  explicit GpuCache(OccupancyMap &map, size_t target_gpu_alloc_size = kDefaultTargetMemSize, unsigned flags = 0);
 
   /// Destructor, cleaning up all owned @c GpuLayerCache objects.
   ~GpuCache() override;

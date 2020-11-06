@@ -31,6 +31,7 @@
 #pragma GCC diagnostic pop
 #endif  // __GNUC__
 
+#include <array>
 #include <vector>
 
 namespace ohm
@@ -60,7 +61,8 @@ struct VoxelUploadInfo
 
   inline VoxelUploadInfo() = default;
 
-  inline VoxelUploadInfo(int gpu_layer_id, const gputil::Device &gpu, unsigned prealloc_elements = 1024u)
+  inline VoxelUploadInfo(int gpu_layer_id, const gputil::Device &gpu,
+                         unsigned prealloc_elements = 1024u)  // NOLINT(readability-magic-numbers)
     : offsets_buffer(gpu, sizeof(uint64_t) * prealloc_elements, gputil::kBfReadHost)
     , gpu_layer_id(gpu_layer_id)
   {}
@@ -89,20 +91,20 @@ struct GpuMapDetail
   OccupancyMap *map;
   // Ray/key buffer upload event pairs.
   /// Events for key_buffers
-  gputil::Event key_upload_events[kBuffersCount];
+  std::array<gputil::Event, kBuffersCount> key_upload_events;
   /// Buffers for start/end voxel keys for each ray pair: GpuKey
-  gputil::Buffer key_buffers[kBuffersCount];
+  std::array<gputil::Buffer, kBuffersCount> key_buffers;
   /// Events for ray_buffers
-  gputil::Event ray_upload_events[kBuffersCount];
+  std::array<gputil::Event, kBuffersCount> ray_upload_events;
   /// Buffers of rays to process float3 pairs. Coordinates are local to the centre of the start voxel for each pair.
-  gputil::Buffer ray_buffers[kBuffersCount];
+  std::array<gputil::Buffer, kBuffersCount> ray_buffers;
 
-  gputil::Event region_key_upload_events[kBuffersCount];
-  gputil::Buffer region_key_buffers[kBuffersCount];
-  gputil::Event region_update_events[kBuffersCount];
+  std::array<gputil::Event, kBuffersCount> region_key_upload_events;
+  std::array<gputil::Buffer, kBuffersCount> region_key_buffers;
+  std::array<gputil::Event, kBuffersCount> region_update_events;
 
   // Item 0 is always the occupancy layer.
-  std::vector<VoxelUploadInfo> voxel_upload_info[kBuffersCount];
+  std::array<std::vector<VoxelUploadInfo>, kBuffersCount> voxel_upload_info;
   /// Vector used to group/sort rays when @c group_rays is `true`.
   std::vector<RayItem> grouped_rays;
 
@@ -112,9 +114,9 @@ struct GpuMapDetail
   RayFilterFunction ray_filter;
   bool custom_ray_filter = false;
 
-  unsigned ray_counts[kBuffersCount] = { 0, 0 };
+  std::array<unsigned, kBuffersCount> ray_counts = { 0, 0 };
   unsigned transform_count = 0;
-  unsigned region_counts[kBuffersCount] = { 0, 0 };
+  std::array<unsigned, kBuffersCount> region_counts = { 0, 0 };
 
   int next_buffers_index = 0;
   /// Set of processing regions.

@@ -49,22 +49,26 @@ GPUTIL_CUDA_DECLARE_KERNEL(regionRayUpdate);
 GPUTIL_CUDA_DECLARE_KERNEL(regionRayUpdateSubVox);
 #endif  // GPUTIL_TYPE == GPUTIL_CUDA
 
-using namespace ohm;
-
+namespace ohm
+{
 namespace
 {
 #if defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
+// NOLINTNEXTLINE(cert-err58-cpp)
 GpuProgramRef g_program_ref_sub_vox("RegionUpdate", GpuProgramRef::kSourceString, RegionUpdateCode,  // NOLINT
                                     RegionUpdateCode_length, { "-DVOXEL_MEAN" });
 #else   // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
+// NOLINTNEXTLINE(cert-err58-cpp)
 GpuProgramRef g_program_ref_sub_vox("RegionUpdate", GpuProgramRef::kSourceFile, "RegionUpdate.cl", 0u,
                                     { "-DVOXEL_MEAN" });
 #endif  // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
 
 #if defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
+// NOLINTNEXTLINE(cert-err58-cpp)
 GpuProgramRef g_program_ref_no_sub("RegionUpdate", GpuProgramRef::kSourceString, RegionUpdateCode,  // NOLINT
                                    RegionUpdateCode_length);
 #else   // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
+// NOLINTNEXTLINE(cert-err58-cpp)
 GpuProgramRef g_program_ref_no_sub("RegionUpdate", GpuProgramRef::kSourceFile, "RegionUpdate.cl", 0u);
 #endif  // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
 
@@ -478,8 +482,9 @@ void GpuMap::cacheGpuProgram(bool with_voxel_mean, bool force)
 
   if (imp_->g_program_ref->addReference(gpu_cache.gpu()))
   {
-    imp_->update_kernel = (!with_voxel_mean) ? GPUTIL_MAKE_KERNEL(imp_->g_program_ref->program(), regionRayUpdate) :
-                                               GPUTIL_MAKE_KERNEL(imp_->g_program_ref->program(), regionRayUpdateSubVox);
+    imp_->update_kernel = (!with_voxel_mean) ?
+                            GPUTIL_MAKE_KERNEL(imp_->g_program_ref->program(), regionRayUpdate) :
+                            GPUTIL_MAKE_KERNEL(imp_->g_program_ref->program(), regionRayUpdateSubVox);
     imp_->update_kernel.calculateOptimalWorkGroupSize();
 
     imp_->gpu_ok = imp_->update_kernel.isValid();
@@ -965,3 +970,4 @@ void GpuMap::finaliseBatch(unsigned region_update_flags)
   }
   imp_->next_buffers_index = 1 - imp_->next_buffers_index;
 }
+}  // namespace ohm

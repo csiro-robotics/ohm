@@ -46,14 +46,16 @@ GPUTIL_CUDA_DECLARE_KERNEL(propagateObstacles);
 GPUTIL_CUDA_DECLARE_KERNEL(migrateResults);
 #endif  // GPUTIL_TYPE == GPUTIL_CUDA
 
-using namespace ohm;
-
+namespace ohm
+{
 namespace
 {
 #if defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
+// NOLINTNEXTLINE(cert-err58-cpp)
 GpuProgramRef g_program_ref("RoiRangeFill", GpuProgramRef::kSourceString,  // NOLINT
                             RoiRangeFillCode, RoiRangeFillCode_length);
 #else   // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
+// NOLINTNEXTLINE(cert-err58-cpp)
 GpuProgramRef g_program_ref("RoiRangeFill", GpuProgramRef::kSourceFile, "RoiRangeFill.cl", 0u);
 #endif  // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
 }  // namespace
@@ -64,7 +66,9 @@ RoiRangeFill::RoiRangeFill(gputil::Device &gpu)
 
   // Initialise buffer to dummy size. We'll resize as required.
   gpu_corner_voxel_key_ = gputil::Buffer(gpu, sizeof(GpuKey), gputil::kBfReadHost);
+  // NOLINTNEXTLINE(readability-magic-numbers)
   gpu_region_keys_ = gputil::Buffer(gpu, 32 * sizeof(gputil::int3), gputil::kBfReadHost);
+  // NOLINTNEXTLINE(readability-magic-numbers)
   gpu_occupancy_region_offsets_ = gputil::Buffer(gpu, 32 * sizeof(uint64_t), gputil::kBfReadHost);
   // Place holder allocation:
   gpu_region_clearance_buffer_ = gputil::Buffer(gpu, 4, gputil::kBfReadHost);
@@ -104,7 +108,7 @@ bool RoiRangeFill::calculateForRegion(OccupancyMap &map, const glm::i16vec3 &reg
 
   // Calculate the voxel extents of the query. This size depends on the size of a single region plus the padding
   // required to ensure we reach the search range.
-  const unsigned voxel_padding = unsigned(std::ceil(search_radius_ / map.resolution()));
+  const auto voxel_padding = unsigned(std::ceil(search_radius_ / map.resolution()));
 
   // Ensure cache is initialised.
   GpuCache *gpu_cache = initialiseGpuCache(map, GpuCache::kDefaultTargetMemSize, gpumap::kGpuAllowMappedBuffers);
@@ -364,12 +368,13 @@ int RoiRangeFill::invoke(const OccupancyMapDetail &map, RoiRangeFill &query, Gpu
   // Ultimately, I need to remove the use of the C++ OpenCL wrapper if I'm using gputil.
   gputil::Event::wait(upload_events.data(), upload_events.size());
 
-  gputil::Event seed_kernel_event, seed_outer_kernel_event;
+  gputil::Event seed_kernel_event;
+  gputil::Event seed_outer_kernel_event;
 
   unsigned kernel_algorithm_flags = 0;
   if (query.queryFlags() & kQfUnknownAsOccupied)
   {
-    kernel_algorithm_flags |= 1;
+    kernel_algorithm_flags |= 1U;
   }
 
   int src_buffer_index = 0;
@@ -378,7 +383,8 @@ int RoiRangeFill::invoke(const OccupancyMapDetail &map, RoiRangeFill &query, Gpu
   const gputil::Dim3 seed_grid(size_t(region_voxel_extents_gpu.x), size_t(region_voxel_extents_gpu.y),
                                size_t((region_voxel_extents_gpu.z + zbatch - 1) / zbatch));
 
-  gputil::Dim3 global_size, local_size;
+  gputil::Dim3 global_size;
+  gputil::Dim3 local_size;
   seed_kernel_.calculateGrid(&global_size, &local_size, seed_grid);
 
   err = seed_kernel_(
@@ -399,7 +405,7 @@ int RoiRangeFill::invoke(const OccupancyMapDetail &map, RoiRangeFill &query, Gpu
   const size_t padding_volume = volumeOf(input_data_extents) - volumeOf(map.region_voxel_dimensions);
 
   global_size = gputil::Dim3((padding_volume + seed_outer_batch - 1) / seed_outer_batch);
-  local_size = gputil::Dim3(256);
+  local_size = gputil::Dim3(256);  // NOLINT(readability-magic-numbers)
 
   err = seed_outer_kernel_(
     global_size, local_size, gputil::EventList({ seed_kernel_event }), seed_outer_kernel_event, &queue,
@@ -495,3 +501,4 @@ int RoiRangeFill::invoke(const OccupancyMapDetail &map, RoiRangeFill &query, Gpu
 
   return err;
 }
+}  // namespace ohm

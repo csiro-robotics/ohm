@@ -37,8 +37,6 @@
 #include "RegionUpdateResource.h"
 #endif  // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
 
-using namespace ohm;
-
 #if GPUTIL_TYPE == GPUTIL_CUDA
 GPUTIL_CUDA_DECLARE_KERNEL(regionRayUpdateNdt);
 GPUTIL_CUDA_DECLARE_KERNEL(covarianceHit);
@@ -51,19 +49,25 @@ GPUTIL_CUDA_DECLARE_KERNEL(covarianceHit);
 /// performance hit as we wait more on kernels
 #define REVERSE_KERNEL_ORDER 0
 
+namespace ohm
+{
 namespace
 {
 #if defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
+// NOLINTNEXTLINE(cert-err58-cpp)
 GpuProgramRef g_program_ref_ndt_miss("RegionUpdate", GpuProgramRef::kSourceString, RegionUpdateCode,  // NOLINT
                                      RegionUpdateCode_length, { "-DVOXEL_MEAN", "-DNDT" });
 #else   // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
+// NOLINTNEXTLINE(cert-err58-cpp)
 GpuProgramRef g_program_ref_ndt_miss("RegionUpdate", GpuProgramRef::kSourceFile, "RegionUpdate.cl", 0u,
                                      { "-DVOXEL_MEAN", "-DNDT" });
 #endif  // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
 #if defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
+// NOLINTNEXTLINE(cert-err58-cpp)
 GpuProgramRef g_program_ref_cov_hit("CovarianceHit", GpuProgramRef::kSourceString, CovarianceHitCode,  // NOLINT
                                     CovarianceHitCode_length, { "-DVOXEL_MEAN", "-DNDT" });
 #else   // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
+// NOLINTNEXTLINE(cert-err58-cpp)
 GpuProgramRef g_program_ref_cov_hit("CovarianceHit", GpuProgramRef::kSourceFile, "CovarianceHit.cl", 0u,
                                     { "-DVOXEL_MEAN", "-DNDT" });
 #endif  // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
@@ -207,10 +211,10 @@ void GpuNdtMap::finaliseBatch(unsigned region_update_flags)
     { imp->key_upload_events[buf_idx], imp->ray_upload_events[buf_idx], imp->region_key_upload_events[buf_idx] });
 
   // Add wait for region voxel offsets
-  for (size_t i = 0; i < imp->voxel_upload_info[buf_idx].size(); ++i)
+  for (auto &upload_info : imp->voxel_upload_info[buf_idx])
   {
-    wait.add(imp->voxel_upload_info[buf_idx][i].offset_upload_event);
-    wait.add(imp->voxel_upload_info[buf_idx][i].voxel_upload_event);
+    wait.add(upload_info.offset_upload_event);
+    wait.add(upload_info.voxel_upload_event);
   }
 
   unsigned modify_flags = (!(region_update_flags & kRfEndPointAsFree)) ? kRfExcludeSample : 0u;
@@ -350,3 +354,4 @@ void GpuNdtMap::releaseGpuProgram()
     imp->cov_hit_program_ref = nullptr;
   }
 }
+}  // namespace ohm

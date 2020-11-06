@@ -35,13 +35,15 @@
 GPUTIL_CUDA_DECLARE_KERNEL(calculateLines);
 #endif  // GPUTIL_TYPE == GPUTIL_CUDA
 
-using namespace ohm;
-
+namespace ohm
+{
 namespace
 {
 #if defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
+// NOLINTNEXTLINE(cert-err58-cpp)
 GpuProgramRef g_program_ref("LineKeys", GpuProgramRef::kSourceString, LineKeysCode, LineKeysCode_length);  // NOLINT
 #else   // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
+// NOLINTNEXTLINE(cert-err58-cpp)
 GpuProgramRef g_program_ref("LineKeys", GpuProgramRef::kSourceFile, "LineKeys.cl");
 #endif  // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
 
@@ -51,11 +53,11 @@ unsigned nextPow2(unsigned v)
 {
   // compute the next highest power of 2 of 32-bit v
   v--;
-  v |= v >> 1;
-  v |= v >> 2;
-  v |= v >> 4;
-  v |= v >> 8;
-  v |= v >> 16;
+  v |= v >> 1u;
+  v |= v >> 2u;
+  v |= v >> 4u;
+  v |= v >> 8u;
+  v |= v >> 16u;  // NOLINT(readability-magic-numbers)
   v++;
   return v;
 }
@@ -240,14 +242,14 @@ LineKeysQueryGpu::LineKeysQueryGpu(unsigned query_flags)
   : LineKeysQuery(new LineKeysQueryDetailGpu)
 {
   setQueryFlags(query_flags);
-  LineKeysQueryDetailGpu *d = static_cast<LineKeysQueryDetailGpu *>(imp_);
+  auto *d = static_cast<LineKeysQueryDetailGpu *>(imp_);
   initialiseGpu(*d);
 }
 
 
 LineKeysQueryGpu::~LineKeysQueryGpu()
 {
-  LineKeysQueryDetailGpu *d = static_cast<LineKeysQueryDetailGpu *>(imp_);
+  auto *d = static_cast<LineKeysQueryDetailGpu *>(imp_);
   if (d && d->gpu_ok)
   {
     if (d->line_keys_kernel.isValid())
@@ -263,7 +265,7 @@ LineKeysQueryGpu::~LineKeysQueryGpu()
 
 bool LineKeysQueryGpu::onExecute()
 {
-  LineKeysQueryDetailGpu *d = static_cast<LineKeysQueryDetailGpu *>(imp_);
+  auto *d = static_cast<LineKeysQueryDetailGpu *>(imp_);
 
   if (!(d->query_flags & kQfGpuEvaluate))
   {
@@ -313,7 +315,7 @@ bool LineKeysQueryGpu::onExecute()
 
 bool LineKeysQueryGpu::onExecuteAsync()
 {
-  LineKeysQueryDetailGpu *d = static_cast<LineKeysQueryDetailGpu *>(imp_);
+  auto *d = static_cast<LineKeysQueryDetailGpu *>(imp_);
 
   if ((d->query_flags & kQfGpuEvaluate))
   {
@@ -344,7 +346,7 @@ bool LineKeysQueryGpu::onExecuteAsync()
 
 void LineKeysQueryGpu::onReset(bool /*hard_reset*/)
 {
-  LineKeysQueryDetailGpu *d = static_cast<LineKeysQueryDetailGpu *>(imp_);
+  auto *d = static_cast<LineKeysQueryDetailGpu *>(imp_);
   d->result_indices.clear();
   d->result_counts.clear();
 }
@@ -352,7 +354,7 @@ void LineKeysQueryGpu::onReset(bool /*hard_reset*/)
 
 bool LineKeysQueryGpu::onWaitAsync(unsigned timeout_ms)
 {
-  LineKeysQueryDetailGpu *d = static_cast<LineKeysQueryDetailGpu *>(imp_);
+  auto *d = static_cast<LineKeysQueryDetailGpu *>(imp_);
   const auto sleep_interval = std::chrono::milliseconds(0);
   const auto start_time = std::chrono::system_clock::now();
   auto timeout = std::chrono::milliseconds(timeout_ms);
@@ -382,3 +384,4 @@ const LineKeysQueryDetailGpu *LineKeysQueryGpu::imp() const
 {
   return static_cast<const LineKeysQueryDetailGpu *>(imp_);
 }
+}  // namespace ohm

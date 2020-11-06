@@ -58,10 +58,10 @@ class ohmgpu_API ClearanceProcess : public MappingProcess
 {
 public:
   /// Extended query flags for @c ClearanceProcess.
-  enum QueryFlag
+  enum QueryFlag : unsigned
   {
     /// Instantiate regions which are in unknown space.
-    kQfInstantiateUnknown = (kQfSpecialised << 0),
+    kQfInstantiateUnknown = (kQfSpecialised << 0u),
   };
 
   /// Empty constructor.

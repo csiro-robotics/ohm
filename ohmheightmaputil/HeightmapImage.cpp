@@ -30,7 +30,7 @@
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/normal.hpp>
 
-using namespace ohm;
+#include <array>
 
 namespace
 {
@@ -112,7 +112,7 @@ const char *const kQuadVertexShader = "#version 330 core\n"
                                       "}\n";
 
 // The fullscreen quad's FBO
-const GLfloat kQuadVertexBufferData[] =  //
+const std::array<GLfloat, 3 * 6> kQuadVertexBufferData =  //
   {
     -1.0f, -1.0f, 0.0f,  //
     1.0f,  -1.0f, 0.0f,  //
@@ -128,8 +128,8 @@ GLuint loadShaders(const char * /*name*/, const char *vertex_shader_code, const 
   struct OnExit
   {
     std::function<void()> on_exit;
-    OnExit(const std::function<void()> &on_exit)
-      : on_exit(on_exit)
+    explicit OnExit(std::function<void()> on_exit)
+      : on_exit(std::move(on_exit))
     {}
     ~OnExit() { on_exit(); }
   };
@@ -263,14 +263,10 @@ template <>
 class ColourConverter<ohm::Colour>
 {
 public:
-  static glm::vec3 vec3(const Colour &c) { return glm::vec3(c.rf(), c.gf(), c.bf()); }
-  static glm::vec4 vec4(const Colour &c) { return glm::vec4(vec3(c), 1.0f); }
+  static glm::vec3 vec3(const ohm::Colour &c) { return glm::vec3(c.rf(), c.gf(), c.bf()); }
+  static glm::vec4 vec4(const ohm::Colour &c) { return glm::vec4(vec3(c), 1.0f); }
 };
-}  // namespace
 
-
-namespace
-{
 std::mutex g_shared_init_guard;
 volatile unsigned g_shared_ref_count = 0;
 
@@ -308,36 +304,35 @@ void textureBufferInfo(GLint texture_id)
     const char *name;
   };
 
-  static const TexParam params[] =  //
-    {                               //
-      { GL_TEXTURE_WIDTH, "width" },
-      { GL_TEXTURE_HEIGHT, "height" },
-      { GL_TEXTURE_DEPTH, "depth" },
-      { GL_TEXTURE_INTERNAL_FORMAT, "format-internal" },
-      { GL_TEXTURE_RED_TYPE, "red-type" },
-      { GL_TEXTURE_GREEN_TYPE, "green-type" },
-      { GL_TEXTURE_BLUE_TYPE, "blue-type" },
-      { GL_TEXTURE_ALPHA_TYPE, "alpha-type" },
-      { GL_TEXTURE_DEPTH_TYPE, "depth-type" },
-      { GL_TEXTURE_RED_SIZE, "red-size" },
-      { GL_TEXTURE_GREEN_SIZE, "green-size" },
-      { GL_TEXTURE_BLUE_SIZE, "blue-size" },
-      { GL_TEXTURE_ALPHA_SIZE, "alpha-size" },
-      { GL_TEXTURE_DEPTH_SIZE, "depth-size" },
-      { GL_TEXTURE_COMPRESSED, "compressed" },
-      { GL_TEXTURE_COMPRESSED_IMAGE_SIZE, "compressed-size" },
-      { GL_TEXTURE_BUFFER_OFFSET, "buffer-offset" },
-      { GL_TEXTURE_BUFFER_SIZE, "buffer-size" }
+  static const std::array<TexParam, 18> params =  //
+    {                                             //
+      TexParam{ GL_TEXTURE_WIDTH, "width" },
+      TexParam{ GL_TEXTURE_HEIGHT, "height" },
+      TexParam{ GL_TEXTURE_DEPTH, "depth" },
+      TexParam{ GL_TEXTURE_INTERNAL_FORMAT, "format-internal" },
+      TexParam{ GL_TEXTURE_RED_TYPE, "red-type" },
+      TexParam{ GL_TEXTURE_GREEN_TYPE, "green-type" },
+      TexParam{ GL_TEXTURE_BLUE_TYPE, "blue-type" },
+      TexParam{ GL_TEXTURE_ALPHA_TYPE, "alpha-type" },
+      TexParam{ GL_TEXTURE_DEPTH_TYPE, "depth-type" },
+      TexParam{ GL_TEXTURE_RED_SIZE, "red-size" },
+      TexParam{ GL_TEXTURE_GREEN_SIZE, "green-size" },
+      TexParam{ GL_TEXTURE_BLUE_SIZE, "blue-size" },
+      TexParam{ GL_TEXTURE_ALPHA_SIZE, "alpha-size" },
+      TexParam{ GL_TEXTURE_DEPTH_SIZE, "depth-size" },
+      TexParam{ GL_TEXTURE_COMPRESSED, "compressed" },
+      TexParam{ GL_TEXTURE_COMPRESSED_IMAGE_SIZE, "compressed-size" },
+      TexParam{ GL_TEXTURE_BUFFER_OFFSET, "buffer-offset" },
+      TexParam{ GL_TEXTURE_BUFFER_SIZE, "buffer-size" }
     };
-  static const size_t param_count = sizeof(params) / sizeof(params[0]);
 
   glBindTexture(GL_TEXTURE_2D, texture_id);
   int param_value = 0;
   printf("texture-info:\n");
-  for (size_t i = 0; i < param_count; ++i)
+  for (const auto &param : params)
   {
-    glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, params[i].id, &param_value);
-    printf("  %s: %d\n", params[i].name, param_value);
+    glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, param.id, &param_value);
+    printf("  %s: %d\n", param.name, param_value);
   }
   glBindTexture(GL_TEXTURE_2D, 0);
 }
@@ -375,7 +370,7 @@ struct HeightmapImageDetail
     GLuint mesh_colours_program_id = 0;
     GLuint quad_program_id = 0;
     GLuint quad_vertex_buffer = 0;
-    GLuint fbo_tex_id = 0xffffffffu;
+    GLuint fbo_tex_id = 0xffffffffu;  // NOLINT(readability-magic-numbers)
     // Debug visualisation flag.
     bool show_window = false;
     bool block_on_show_window = false;
@@ -406,7 +401,7 @@ bool HeightmapImageDetail::RenderData::init()
   glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
   glfwWindowHint(GLFW_VISIBLE, show_window ? GLFW_TRUE : GLFW_FALSE);
 
-  window = glfwCreateWindow(64, 64, "ohm", nullptr, nullptr);
+  window = glfwCreateWindow(64, 64, "ohm", nullptr, nullptr);  // NOLINT(readability-magic-numbers)
 
   if (!window)
   {
@@ -440,12 +435,12 @@ bool HeightmapImageDetail::RenderData::init()
   mesh_colours_program_id = loadShaders("mesh_colours_shader", kVertexShader, kColoursFragmentShader);
 
   // Set the list of draw buffers.
-  GLenum quad_draw_buffers[1] = { GL_COLOR_ATTACHMENT0 };
-  glDrawBuffers(1, quad_draw_buffers);  // "1" is the size of quad_draw_buffers
+  std::array<GLenum, 1> quad_draw_buffers = { GL_COLOR_ATTACHMENT0 };
+  glDrawBuffers(quad_draw_buffers.size(), quad_draw_buffers.data());
 
   glGenBuffers(1, &quad_vertex_buffer);
   glBindBuffer(GL_ARRAY_BUFFER, quad_vertex_buffer);
-  glBufferData(GL_ARRAY_BUFFER, sizeof(kQuadVertexBufferData), kQuadVertexBufferData, GL_STATIC_DRAW);
+  glBufferData(GL_ARRAY_BUFFER, sizeof(kQuadVertexBufferData), kQuadVertexBufferData.data(), GL_STATIC_DRAW);
 
   // Create and compile our GLSL program from the shaders
   quad_program_id = loadShaders("fbo", kQuadVertexShader, kQuadFragmentShader);
@@ -480,7 +475,7 @@ void HeightmapImageDetail::RenderData::clear()
     glDeleteBuffers(1, &quad_vertex_buffer);
   }
 
-  fbo_tex_id = 0xffffffffu;
+  fbo_tex_id = 0xffffffffu;  // NOLINT(readability-magic-numbers)
 
   if (window)
   {
@@ -490,7 +485,6 @@ void HeightmapImageDetail::RenderData::clear()
     sharedRelease();
   }
 }
-}  // namespace ohm
 
 
 HeightmapImage::HeightmapImage(ImageType type, unsigned pixels_per_voxel)
@@ -643,7 +637,7 @@ bool HeightmapImage::renderHeightMesh(ImageType image_type, const Aabb &spatial_
   const glm::dvec3 *end_vertex = vertices + vertex_count;
   imp_->vertices.clear();
   imp_->vertices.reserve(vertex_count);
-  for (auto v = vertices; v < end_vertex; ++v)
+  for (const auto *v = vertices; v < end_vertex; ++v)
   {
     imp_->vertices.emplace_back(glm::vec3(*v - spatial_extents.minExtents()));
   }
@@ -653,7 +647,7 @@ bool HeightmapImage::renderHeightMesh(ImageType image_type, const Aabb &spatial_
   if (vertex_normals)
   {
     const NormalVec3 *end_normal = vertex_normals + vertex_count;
-    for (auto n = vertex_normals; n < end_normal; ++n)
+    for (const auto *n = vertex_normals; n < end_normal; ++n)
     {
       imp_->vertex_normals.push_back(glm::vec3(*n));
     }
@@ -671,7 +665,7 @@ bool HeightmapImage::renderHeightMesh(ImageType image_type, const Aabb &spatial_
   if (colours)
   {
     const ColourVec *end_colour = colours + vertex_count;
-    for (auto c = colours; c < end_colour; ++c)
+    for (const auto *c = colours; c < end_colour; ++c)
     {
       imp_->vertex_colours.push_back(ColourConverter<ColourVec>::vec3(*c));
     }
@@ -701,7 +695,7 @@ bool HeightmapImage::renderHeightMesh(ImageType image_type, const Aabb &spatial_
 
   // Resolve horizontal and vertical axes.
   // Set axes[0] and axes[1] to index the horizontal axes (across the heightmap) and axes[2] to th vertical.
-  int axes[3];
+  std::array<int, 3> axes;
   switch (up_axis)
   {
   case UpAxis::kNegZ:
@@ -758,7 +752,7 @@ bool HeightmapImage::renderHeightMesh(ImageType image_type, const Aabb &spatial_
   // Rendering setup.
   //----------------------------------------------------------------------------
 
-  glfwSetWindowSize(imp_->render_data.window, render_width, render_height);
+  glfwSetWindowSize(imp_->render_data.window, int(render_width), int(render_height));
   glfwMakeContextCurrent(imp_->render_data.window);
   glViewport(0, 0, render_width, render_height);
 
@@ -928,7 +922,7 @@ bool HeightmapImage::renderHeightMesh(ImageType image_type, const Aabb &spatial_
   glViewport(0, 0, render_width, render_height);
 
   // Clear the screen
-  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);  // NOLINT(hicpp-signed-bitwise)
 
   //-------------------------------------------
   // Render heightmap to FBO
@@ -986,8 +980,8 @@ bool HeightmapImage::renderHeightMesh(ImageType image_type, const Aabb &spatial_
   if (imp_->render_data.show_window)
   {
     // Set the list of draw buffers.
-    GLenum quad_draw_buffers[1] = { GL_COLOR_ATTACHMENT0 };
-    glDrawBuffers(1, quad_draw_buffers);  // "1" is the size of quad_draw_buffers
+    std::array<GLenum, 1> quad_draw_buffers = { GL_COLOR_ATTACHMENT0 };
+    glDrawBuffers(quad_draw_buffers.size(), quad_draw_buffers.data());
 
     do
     {
@@ -997,7 +991,7 @@ bool HeightmapImage::renderHeightMesh(ImageType image_type, const Aabb &spatial_
       glViewport(0, 0, render_width, render_height);
 
       // Clear the screen
-      glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+      glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);  // NOLINT(hicpp-signed-bitwise)
 
       // Use our shader
       glUseProgram(imp_->render_data.quad_program_id);
@@ -1116,3 +1110,5 @@ bool HeightmapImage::renderHeightMesh(ImageType image_type, const Aabb &spatial_
 
   return true;
 }
+}  // namespace ohm
+#include <utility>

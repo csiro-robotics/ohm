@@ -13,15 +13,15 @@
 
 #include <gputil/gpuProgram.h>
 
+#include <array>
+#include <cassert>
 #include <iostream>
 #include <mutex>
 #include <sstream>
 
-using namespace ohm;
-
 namespace
 {
-gputil::Device g_gpu_device;
+gputil::Device g_gpu_device;  // NOLINT(cert-err58-cpp)
 std::mutex g_gpu_mutex;
 std::string g_gpu_build_std_arg;
 unsigned g_gpu_std_major = 0;
@@ -41,7 +41,13 @@ bool configureGpuFromArgsInternal(int argc, const char **argv, bool show_device)
       const char *device_name;
       unsigned type_flags = gputil::Device::kGpu;
     };
-    static const PreferredDevice preferred_device[] =  //
+
+#if GPUTIL_TYPE == GPUTIL_OPENCL
+    static const size_t preferred_device_count = 4;
+#else                                                                                    // GPUTIL_TYPE == GPUTIL_OPENCL
+    static const size_t preferred_device_count = 3;
+#endif                                                                                   // GPUTIL_TYPE == GPUTIL_OPENCL
+    static const std::array<PreferredDevice, preferred_device_count> preferred_device =  //
     {
 //
 #if GPUTIL_TYPE == GPUTIL_OPENCL
@@ -51,7 +57,6 @@ bool configureGpuFromArgsInternal(int argc, const char **argv, bool show_device)
       PreferredDevice{ nullptr, gputil::Device::kAccelerator },  //
       PreferredDevice{ nullptr, 0 },                             //
     };
-    static const size_t preferred_device_count = sizeof(preferred_device) / sizeof(preferred_device[0]);
 
     for (size_t i = 0; !g_gpu_initialised && i < preferred_device_count; ++i)
     {
@@ -73,7 +78,8 @@ bool configureGpuFromArgsInternal(int argc, const char **argv, bool show_device)
           {
             // Found --clver.
             // Read the version string.
-            cl_uint ver_major, ver_minor;
+            cl_uint ver_major;
+            cl_uint ver_minor;
             std::string cl_ver = argv[i] + cl_arg_len + 1;
             found_cl_ver = clu::parseVersion(cl_ver.c_str(), &ver_major, &ver_minor);
             g_gpu_std_major = ver_major;
@@ -92,7 +98,8 @@ bool configureGpuFromArgsInternal(int argc, const char **argv, bool show_device)
           }
           else
           {
-            cl_uint ver_major, ver_minor;
+            cl_uint ver_major;
+            cl_uint ver_minor;
             clu::parseVersion(OHM_OPENCL_STD, &ver_major, &ver_minor);
             g_gpu_std_major = ver_major;
             g_gpu_std_minor = ver_minor;
@@ -158,7 +165,8 @@ bool configureGpuFromArgsInternal(int argc, const char **argv, bool show_device)
 int configureGpuInternal(unsigned accel, const char *device_name, bool show_device)
 {
   int argc = 0;
-  const char *argv[2] = { nullptr };
+  // Lint(KS): unusual usage. Best to leave as is.
+  const char *argv[2] = { nullptr };  // NOLINT(modernize-avoid-c-arrays)
 
   std::string accel_str = "--accel=";
   if (accel == kGpuAccel)
@@ -187,6 +195,7 @@ int configureGpuInternal(unsigned accel, const char *device_name, bool show_devi
     argv[argc] = device_str.c_str();
     ++argc;
   }
+  assert(size_t(argc) <= sizeof(argv) / sizeof(argv[0]));
 
   return configureGpuFromArgsInternal(argc, static_cast<const char **>(argv), show_device);
 }
@@ -237,7 +246,8 @@ unsigned gpuArgsInfo(const char **args_info, int *arg_type, unsigned max_pairs)
       int type;
     };
 #if OHM_GPU == OHM_GPU_OPENCL
-    const ArgInfo arg_pairs[] =
+    // Lint(KS): can change once std::make_array() is viable.
+    const ArgInfo arg_pairs[] = // NOLINT(modernize-avoid-c-arrays)
     {
       { "accel", "Select the OpenCL accelerator type [any,cpu,gpu] (gpu).", 1 },
       { "clver", "Sets the OpenCL runtime version. Selected device must support target OpenCL version. Format via the regex /[1-9][0-9]*(.[1-9][0-9]*)?/.", 1 },
@@ -248,7 +258,7 @@ unsigned gpuArgsInfo(const char **args_info, int *arg_type, unsigned max_pairs)
     };
     const unsigned arg_pair_count = sizeof(arg_pairs) / sizeof(arg_pairs[0]);
 #else  // OHM_GPU == OHM_GPU_OPENCL
-    const ArgInfo arg_pairs[1] = { "", "", 0 };
+    const std::array<ArgInfo, 1> arg_pairs = { ArgInfo{ "", "", 0 } };
     unsigned arg_pair_count = 0;
 #endif // OHM_GPU == OHM_GPU_OPENCL
         // clang-format on
@@ -257,8 +267,8 @@ unsigned gpuArgsInfo(const char **args_info, int *arg_type, unsigned max_pairs)
   {
     for (unsigned i = 0; i < arg_pair_count && i < max_pairs; ++i)
     {
-      args_info[(i << 1) + 0] = arg_pairs[i].name;
-      args_info[(i << 1) + 1] = arg_pairs[i].desc;
+      args_info[(i << 1u) + 0] = arg_pairs[i].name;
+      args_info[(i << 1u) + 1] = arg_pairs[i].desc;
       if (arg_type)
       {
         arg_type[i] = arg_pairs[i].type;
@@ -279,7 +289,7 @@ const char *gpuBuildStdArg()
 void setGpuBuildVersion(gputil::BuildArgs &build_args)
 {
   // Resolve the requested from the configuration define.
-  build_args.version_major = g_gpu_std_major;
-  build_args.version_minor = g_gpu_std_minor;
+  build_args.version_major = int(g_gpu_std_major);
+  build_args.version_minor = int(g_gpu_std_minor);
 }
 }  // namespace ohm
