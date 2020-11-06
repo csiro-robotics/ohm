@@ -3,7 +3,7 @@
 // ABN 41 687 119 230
 //
 // Author: Kazys Stepanas
-#include "gpu_ext.h"
+#include "gpu_ext.h"  // Must be first
 
 // Explicitly include MapCoord.h first.
 #include "MapCoord.h"

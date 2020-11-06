@@ -252,7 +252,7 @@ inline __device__ bool calculateHitWithCovariance(CovarianceVoxel *cov_voxel, fl
 
   // sample_to_mean should be zero when we (re)initialise the covariance.
   // We use sample - sample rather than a hard zero due to API differences between CPU and GPU code.
-  const CovVec3 sample_to_mean = (!initialised_covariance) ? sample - voxel_mean : CovVec3{ 0, 0, 0 };
+  const CovVec3 sample_to_mean = (!initialised_covariance) ? sample - voxel_mean : (CovVec3){ 0, 0, 0 };
   CovReal unpacked_covariance[9];  // NOLINT(readability-magic-numbers, modernize-avoid-c-arrays)
   unpackCovariance(cov_voxel, point_count, sample_to_mean, unpacked_covariance);
 

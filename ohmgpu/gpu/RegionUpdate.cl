@@ -35,7 +35,7 @@
 //------------------------------------------------------------------------------
 // Includes
 //------------------------------------------------------------------------------
-#include "gpu_ext.h"
+#include "gpu_ext.h"  // Must be first
 
 #include "MapCoord.h"
 #if defined(VOXEL_MEAN) || defined(NDT)

@@ -4,7 +4,7 @@
 //
 // Author: Kazys Stepanas
 
-#include "gpu_ext.h"
+#include "gpu_ext.h"  // Must be first
 
 #include "CovarianceVoxelCompute.h"
 #include "GpuKey.h"

@@ -4,7 +4,7 @@
 //
 // Author: Kazys Stepanas
 
-#include "gpu_ext.h"
+#include "gpu_ext.h"  // Must be first
 
 __device__ float4 slerp(float4 from, float4 to, float interpolation_factor);
 __device__ float4 quaternion_rotate_quaterion(float4 a, float4 b);
