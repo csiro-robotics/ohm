@@ -451,7 +451,7 @@ char *findProgramPath(char *file_name, size_t buffer_length, const char *search_
         if (path_len)
         {
 #ifdef _MSC_VER
-          strncpy_s(cwd.data(), path, path_len);
+          strncpy_s(cwd.data(), cwd.size(), path, path_len);
 #else   // _MSC_VER
           strncpy(cwd.data(), path, path_len);
 #endif  // _MSC_VER
@@ -557,7 +557,7 @@ char *findProgramDir(char *file_name, size_t buffer_length, const char *search_p
         if (path_len)
         {
 #ifdef _MSC_VER
-          strncpy_s(cwd.data(), path, path_len);
+          strncpy_s(cwd.data(), cwd.size(), path, path_len);
 #else   // _MSC_VER
           strncpy(cwd.data(), path, path_len);
 #endif  // _MSC_VER
@@ -616,7 +616,7 @@ cl_int buildProgramFromFile(cl::Program &program, cl::Context &ocl, std::string 
   std::array<char, kMaxPath> source_dir{};  // MAX_PATH length.
   std::ostringstream source_file;
 #ifdef _MSC_VER
-  strcpy_s(source_dir.data(), source_file_name.c_str());
+  strcpy_s(source_dir.data(), source_dir.size(), source_file_name.c_str());
 #else   // !_MSC_VER
   strncpy(source_dir.data(), source_file_name.c_str(), kMaxPath);
 #endif  // _MSC_VER

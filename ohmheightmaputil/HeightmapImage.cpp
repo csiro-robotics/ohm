@@ -436,7 +436,7 @@ bool HeightmapImageDetail::RenderData::init()
 
   // Set the list of draw buffers.
   std::array<GLenum, 1> quad_draw_buffers = { GL_COLOR_ATTACHMENT0 };
-  glDrawBuffers(quad_draw_buffers.size(), quad_draw_buffers.data());
+  glDrawBuffers(GLsizei(quad_draw_buffers.size()), quad_draw_buffers.data());
 
   glGenBuffers(1, &quad_vertex_buffer);
   glBindBuffer(GL_ARRAY_BUFFER, quad_vertex_buffer);
@@ -981,7 +981,7 @@ bool HeightmapImage::renderHeightMesh(ImageType image_type, const Aabb &spatial_
   {
     // Set the list of draw buffers.
     std::array<GLenum, 1> quad_draw_buffers = { GL_COLOR_ATTACHMENT0 };
-    glDrawBuffers(quad_draw_buffers.size(), quad_draw_buffers.data());
+    glDrawBuffers(GLsizei(quad_draw_buffers.size()), quad_draw_buffers.data());
 
     do
     {

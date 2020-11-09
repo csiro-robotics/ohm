@@ -7,6 +7,7 @@
 
 #include <glm/vec3.hpp>
 
+#include <array>
 #include <iomanip>
 #include <iostream>
 #include <limits>

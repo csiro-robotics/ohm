@@ -51,8 +51,6 @@ set(PUBLIC_HEADERS
   p2p.h
   PlyMesh.h
   PlyPointStream.h
-  PointsRingBuffer.h
-  PointsRingBuffer.inl
   Profile.h
   ProfileMarker.h
   ProgressMonitor.h
