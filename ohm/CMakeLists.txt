@@ -116,6 +116,8 @@ set(SOURCES
   RayPattern.h
   RayPatternConical.cpp
   RayPatternConical.h
+  Snapshot.cpp
+  Snapshot.h
   Stream.cpp
   Stream.h
   Trace.cpp
@@ -185,6 +187,7 @@ set(PUBLIC_HEADERS
   RayMapperInterface.h
   RayPatternConical.h
   RayPattern.h
+  Snapshot.h
   Stream.h
   Trace.h
   TriangleEdge.h
