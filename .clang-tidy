@@ -16,7 +16,6 @@ Checks: >
   cppcoreguildelines-*,
   -cppcoreguidelines-macro-usage,
   -cppcoreguidelines-pro-bounds-pointer-arithmatic,
-  -cppcoreguidelines-pro-type-union-access,
   google-*,
   -google-runtime-references,
   llvm-include-order,
@@ -164,5 +163,5 @@ CheckOptions:
   - key: readability-magic-numbers.IgnorePowersOf2IntegerValues
     value: true
   - key: readability-magic-numbers.IgnoredFloatingPointValues
-    value: 0.25;0.5;0.75;1.0;2.0;3.0;10.0;100.0;-1.0;-2.0;-3.0;
+    value: 0.25;0.5;0.75;1.0;2.0;3.0;10.0;100.0;1000.0;0.1;0.001;0.0001;;-1.0;-2.0;-3.0;
 ...
