@@ -86,6 +86,9 @@ def setup_args():
         '-p', help='clang-tidy build path (path to compile_commands.json). Extracted and passed as the -p argument to' +
                    ' clang-tidy.', required=False)
     parser.add_argument(
+        '-j', help='Number of parallel jobs to run. Only supported when using the -runner-py script. Ignored ' +
+        'otherwise.', required=False)
+    parser.add_argument(
         '-relative-to', help='Modify clang-tidy message paths to be relative to this directory. Intended for CI' +
         ' builds to report portable paths.', required=False)
     return parser
@@ -191,6 +194,22 @@ if __name__ == '__main__':
         if args[0].clang_apply_replacements_binary:
             tidy_args.append('-clang-apply-replacements-binary=' +
                              escape_path(args[0].clang_apply_replacements_binary))
+        if args[0].j:
+            tidy_args.append('-j')
+            tidy_args.append(args[0].j)
+        else:
+            # We explicitly specify the number of jobs to run. The parallel run script fully loads the CPUs when running
+            # parallel, so we limit it to keep any UI and OS tasks responsive.
+            try:
+                import psutil
+                job_threads = psutil.cpu_count() - 2
+                if job_threads < 2:
+                    job_threads = 2
+                tidy_args.append('-j')
+                tidy_args.append(str(job_threads))
+            except ImportError:
+                pass
+
     else:
         tidy_args.append(escape_path(args[0].clang_tidy_binary))
 
@@ -211,6 +230,14 @@ if __name__ == '__main__':
         # Read the config file to use.
         with open(args[0].config_file) as config_file:
             config = config_file.read()
+            # # Replace line endings with the character sequence '\' 'n' (2 characters) in a way which deals with
+            # # any line ending setup.
+            # # Replace microsoft line endings
+            # config = config.replace('\r\n', '\\n')
+            # # Replace MacOS line endings
+            # config = config.replace('\r', '\\n')
+            # # Replace Unix line endings
+            # config = config.replace('\n', '\\n')
         tidy_args.append('-config={}'.format(config))
         # Build the filter for goal "Fix redundant output from `run-clang-tidy`"
         config_lines = config.splitlines() if using_runner else config_lines
