@@ -2,7 +2,7 @@
 """This script wraps up running clang tidy to acheive the goals listed below.
 
 1. Support specifying a yaml configuration file on the command line (-config-file)
-2. Optionally run the `run-clang-tidy` python wrapped, which supports job threads
+2. Optionally run the `run-clang-tidy` python wrapper, which supports job threads
 3. Filter redundant output from `run-clang-tidy`
 4. Mutate paths to deal with several path reporting issues, which come from how compile_commands.json is configured
 5. Optionally report project relative paths.
@@ -33,7 +33,7 @@ An interesting quirk was discovered in path reporting when using ninja to genera
 add relative include paths to the json file. This chains on to highlight an undefined behaviour bug in clang-tidy.
 Essentially, depending on which checks actually report issues or not, the output can inlcude a mix of absolute and
 relative paths - relative to the compile_commands.json file. Specifically, `google-readability-casting` would report
-relative paths, unless `readability-identifier-naming` also had issues to report (this is he only known case).
+relative paths, unless `readability-identifier-naming` also had issues to report (this is the only known case).
 
 TODO(KS): insert bug report reference
 
@@ -120,11 +120,11 @@ class ProcessMessagePump:
     Usage:
     - Create a subprocess with both stdout and stderr set to subprocess.PIPE
     - Create a ProcessMessagePump around the process
-    - Call ProessPiper.run() with an appropriate logging function.
+    - Call ProcessMessagePump.pump() with an appropriate logging function.
     """
 
     def __init__(self, process):
-        """Create a priper around process"""
+        """Create a piper around process"""
         self.process = process
         self.log_queue = Queue()
         self.pipes_running = 0

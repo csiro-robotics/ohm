@@ -6,19 +6,20 @@
 
 # Add clang-tidy support at a per target level.
 #
-# This script allows clang-tidy support to be added to individual targets which can then be build collectively.
+# This script allows clang-tidy support to be added to individual targets which can then be built collectively.
 # Additionally, this supports having multiple clang-tidy configurations to be selected and used dynamically.
 #
 # Available configurations are in clang-tidy yaml format (see 'clang-tidy -dump-config') using the file naming
-# 'clang-tidy-<level>.yaml' where <level> is a meaningful work idnetifying the level of checing. These files are searched
-# for in the 'tidy/' subdirectory directory alongside this script; specifically '${CMAKE_CURRENT_LIST_DIR}/tidy'.
+# 'clang-tidy-<level>.yaml' where <level> is a meaningful work identifying the level of checing. These files are
+# searched for in the 'tidy/' subdirectory directory alongside this script; specifically
+# '${CMAKE_CURRENT_LIST_DIR}/tidy'.
 #
 # The configuration to actually use is selected by the CMake cache variable: CLANG_TIDY_LEVEL. This appears as a drop
 # down list in visual CMake configuration tools such as ccmake and cmake-gui.
 #
 # Targets must be explicitly added for clang-tidy linting using the CMake function 'clang_tidy_target(<target>)'. This
 # creates a target name '<target>-clang-tidy-<level>' where <level> matches the CLANG_TIDY_LEVEL. A target may also
-# be create which build all registered clang-tidy targets by invoking 'clang_tidy_global()'. This creates a target
+# be create which builds all registered clang-tidy targets by invoking 'clang_tidy_global()'. This creates a target
 # named 'clang-tidy-<level>' which processes all the registered targets.
 #
 # As a special case the CLANG_TIDY_LEVEL may be set to 'all'. This causes clang-tidy targets to be created for all
