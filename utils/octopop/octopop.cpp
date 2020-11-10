@@ -22,6 +22,7 @@
 #include <octomap/octomap.h>
 
 #include <algorithm>
+#include <array>
 #include <atomic>
 #include <chrono>
 #include <cinttypes>
@@ -63,8 +64,8 @@ struct Options
   double start_time = 0;
   double time_limit = 0;
   double resolution = 0.25;
-  float prob_hit = 0.9f;
-  float prob_miss = 0.49f;
+  float prob_hit = 0.9f;    // NOLINT(readability-magic-numbers)
+  float prob_miss = 0.49f;  // NOLINT(readability-magic-numbers)
   float prob_thresh = 0.5f;
   glm::vec2 prob_range = glm::vec2(0, 0);
   glm::vec3 cloud_colour = glm::vec3(0);
@@ -138,8 +139,8 @@ void Options::print(std::ostream **out) const
 /// Map saving control flags.
 enum SaveFlags : unsigned
 {
-  kSaveMap = (1 << 0),   ///< Save the occupancy map
-  kSaveCloud = (1 << 1)  ///< Save a point cloud from the occupancy map
+  kSaveMap = (1u << 0u),   ///< Save the occupancy map
+  kSaveCloud = (1u << 1u)  ///< Save a point cloud from the occupancy map
 };
 
 /// Save the Octomap to file and optional to point cloud. The map file is set as `base_name + ".bt"` and the point
@@ -168,16 +169,15 @@ void saveMap(const Options &opt, octomap::OcTree *map, const std::string &base_n
     // Save a cloud representation. Need to walk the tree leaves.
     std::cout << "Converting to point cloud." << std::endl;
     ohm::PlyMesh ply;
-    glm::vec3 v;
     std::uint64_t point_count = 0;
     const auto map_end_iter = map->end_leafs();
 
     // float to byte colour channel conversion.
     const auto colour_channel_f = [](float cf) -> uint8_t  //
     {
-      cf = 255.0f * std::max(cf, 0.0f);
-      unsigned cu = unsigned(cf);
-      return uint8_t(std::min(cu, 255u));
+      cf = float(std::numeric_limits<uint8_t>::max()) * std::max(cf, 0.0f);
+      auto cu = unsigned(cf);
+      return uint8_t(std::min<decltype(cu)>(cu, std::numeric_limits<uint8_t>::max()));
     };
     const bool use_colour = opt.cloud_colour.r > 0 || opt.cloud_colour.g > 0 || opt.cloud_colour.b > 0;
     const ohm::Colour c(colour_channel_f(opt.cloud_colour.r), colour_channel_f(opt.cloud_colour.g),
@@ -240,7 +240,7 @@ int populateMap(const Options &opt)
     {
       const uint64_t elapsed_ms_local = elapsed_ms;
       const uint64_t sec = elapsed_ms_local / 1000u;
-      const unsigned ms = unsigned(elapsed_ms_local - sec * 1000);
+      const auto ms = unsigned(elapsed_ms_local - sec * 1000);
 
       std::ostringstream out;
       out.imbue(std::locale(""));
@@ -253,10 +253,11 @@ int populateMap(const Options &opt)
 
       out << sec << '.' << std::setfill('0') << std::setw(3) << ms << "s : ";
 
-      out << std::setfill(' ') << std::setw(12) << prog.progress;
+      const auto fill_width = std::numeric_limits<decltype(prog.progress)>::digits10;
+      out << std::setfill(' ') << std::setw(fill_width) << prog.progress;
       if (prog.info.total)
       {
-        out << " / " << std::setfill(' ') << std::setw(12) << prog.info.total;
+        out << " / " << std::setfill(' ') << std::setw(fill_width) << prog.info.total;
       }
       out << "    ";
       std::cout << out.str() << std::flush;
@@ -265,7 +266,8 @@ int populateMap(const Options &opt)
 
   octomap::OcTree map(opt.resolution);
   octomap::OcTreeKey key;
-  glm::dvec3 origin, sample;
+  glm::dvec3 origin;
+  glm::dvec3 sample;
   // glm::vec3 voxel, ext(opt.resolution);
   double timestamp;
   uint64_t point_count = 0;
@@ -274,8 +276,10 @@ int populateMap(const Options &opt)
   double first_timestamp = -1;
   double last_timestamp = -1;
   double first_batch_timestamp = -1;
-  Clock::time_point start_time, end_time;
-  Clock::time_point collapse_start_time, collapse_end_time;
+  Clock::time_point start_time;
+  Clock::time_point end_time;
+  Clock::time_point collapse_start_time;
+  Clock::time_point collapse_end_time;
 
   map.setProbHit(opt.prob_hit);
   map.setOccupancyThres(opt.prob_thresh);
@@ -289,7 +293,7 @@ int populateMap(const Options &opt)
     map.setClampingThresMax(opt.prob_range[1]);
   }
 
-  std::ostream *streams[] = { &std::cout, nullptr, nullptr };
+  std::array<std::ostream *, 3> streams = { &std::cout, nullptr, nullptr };
   std::ofstream info_stream;
   if (opt.save_info)
   {
@@ -299,7 +303,7 @@ int populateMap(const Options &opt)
     info_stream.open(output_file.c_str());
   }
 
-  opt.print(streams);
+  opt.print(streams.data());
 
   if (opt.preload_count)
   {
@@ -412,26 +416,28 @@ int populateMap(const Options &opt)
 
   end_time = Clock::now();
 
-  std::ostream **out = streams;
-  while (*out)
+  for (auto *out : streams)
   {
+    if (!out)
+    {
+      continue;
+    }
     const double time_range = last_timestamp - first_timestamp;
     const double processing_time_sec =
       std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count() * 1e-3;
 
-    **out << "Point count: " << point_count << '\n';
-    **out << "Data time: " << time_range << '\n';
-    **out << "Total processing time: " << end_time - start_time << '\n';
+    *out << "Point count: " << point_count << '\n';
+    *out << "Data time: " << time_range << '\n';
+    *out << "Total processing time: " << end_time - start_time << '\n';
     if (opt.collapse)
     {
-      **out << "Collapse time: " << collapse_end_time - collapse_start_time << '\n';
+      *out << "Collapse time: " << collapse_end_time - collapse_start_time << '\n';
     }
-    **out << "Efficiency: " << ((processing_time_sec > 0 && time_range > 0) ? time_range / processing_time_sec : 0.0)
-          << '\n';
-    **out << "Points/sec: " << unsigned((processing_time_sec > 0) ? point_count / processing_time_sec : 0.0) << '\n';
-    // **out << "Memory (approx): " << map.calculateApproximateMemory() / (1024.0 * 1024.0) << " MiB\n";
-    **out << std::flush;
-    ++out;
+    *out << "Efficiency: " << ((processing_time_sec > 0 && time_range > 0) ? time_range / processing_time_sec : 0.0)
+         << '\n';
+    *out << "Points/sec: " << unsigned((processing_time_sec > 0) ? point_count / processing_time_sec : 0.0) << '\n';
+    // *out << "Memory (approx): " << map.calculateApproximateMemory() / (1024.0 * 1024.0) << " MiB\n";
+    *out << std::flush;
   }
 
   if (opt.serialise)
@@ -445,7 +451,7 @@ int populateMap(const Options &opt)
 }
 
 
-int parseOptions(Options *opt, int argc, char *argv[])
+int parseOptions(Options *opt, int argc, char *argv[])  // NOLINT(modernize-avoid-c-arrays)
 {
   cxxopts::Options opt_parse(argv[0],
                              "Generate an occupancy map from a LAS/LAZ based point cloud and accompanying "

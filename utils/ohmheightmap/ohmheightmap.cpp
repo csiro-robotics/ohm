@@ -61,7 +61,7 @@ struct Options
 class LoadMapProgress : public ohm::SerialiseProgress
 {
 public:
-  LoadMapProgress(ProgressMonitor &monitor)
+  explicit LoadMapProgress(ProgressMonitor &monitor)
     : monitor_(monitor)
   {}
 
@@ -76,7 +76,7 @@ private:
 }  // namespace
 
 
-int parseOptions(Options *opt, int argc, char *argv[])
+int parseOptions(Options *opt, int argc, char *argv[])  // NOLINT(modernize-avoid-c-arrays)
 {
   cxxopts::Options opt_parse(argv[0], "\nCreate a heightmap from an occupancy map.\n");
   opt_parse.positional_help("<map.ohm> <heightmap.ohm>");

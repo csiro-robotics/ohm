@@ -34,6 +34,7 @@
 
 #include <glm/ext.hpp>
 
+#include <array>
 #include <cassert>
 #include <cmath>
 #include <functional>
@@ -71,6 +72,8 @@ GpuProgramRef g_program_ref_no_sub("RegionUpdate", GpuProgramRef::kSourceString,
 // NOLINTNEXTLINE(cert-err58-cpp)
 GpuProgramRef g_program_ref_no_sub("RegionUpdate", GpuProgramRef::kSourceFile, "RegionUpdate.cl", 0u);
 #endif  // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
+
+const double kDefaultMaxRayRange = 1000.0;
 
 using RegionWalkFunction = std::function<void(const glm::i16vec3 &, const glm::dvec3 &, const glm::dvec3 &)>;
 
@@ -114,11 +117,11 @@ void walkRegions(const OccupancyMap &map, const glm::dvec3 &start_point, const g
     return;
   }
 
-  int step[3] = { 0 };
+  std::array<int, 3> step = { 0, 0, 0 };
   glm::dvec3 region;
-  double time_max[3];
-  double time_delta[3];
-  double time_limit[3];
+  std::array<double, 3> time_max;
+  std::array<double, 3> time_delta;
+  std::array<double, 3> time_limit;
   double next_region_border;
   double direction_axis_inv;
   const glm::dvec3 region_resolution = map.regionSpatialResolution();
@@ -139,7 +142,7 @@ void walkRegions(const OccupancyMap &map, const glm::dvec3 &start_point, const g
       time_delta[i] = region_resolution[i] * std::abs(direction_axis_inv);
       // Calculate the distance from the origin to the
       // nearest voxel edge for this axis.
-      next_region_border = region[i] + step[i] * 0.5f * region_resolution[i];
+      next_region_border = region[i] + double(step[i]) * 0.5 * region_resolution[i];
       time_max[i] = (next_region_border - start_point_local[i]) * direction_axis_inv;
       time_limit[i] =
         std::abs((end_point_local[i] - start_point_local[i]) * direction_axis_inv);  // +0.5f *
@@ -176,7 +179,7 @@ void walkRegions(const OccupancyMap &map, const glm::dvec3 &start_point, const g
   func(current_key, start_point, end_point);
 }
 
-inline bool goodRay(const glm::dvec3 &start, const glm::dvec3 &end, double max_range = 500.0)
+inline bool goodRay(const glm::dvec3 &start, const glm::dvec3 &end, double max_range = kDefaultMaxRayRange)
 {
   bool is_good = true;
   if (glm::any(glm::isnan(start)))
@@ -290,7 +293,7 @@ GpuMap::GpuMap(OccupancyMap *map, bool borrowed_map, unsigned expected_element_c
 
 GpuMap::~GpuMap()
 {
-  releaseGpuProgram();
+  GpuMap::releaseGpuProgram();
   delete imp_;
 }
 
@@ -323,7 +326,7 @@ void GpuMap::syncVoxels()
 {
   if (imp_->map)
   {
-    // TODO: (KS) split the logic for starting synching and waiting on completion.
+    // TODO(KS): split the logic for starting synching and waiting on completion.
     // This will allow us to kick synching off all layers in parallel and should reduce the overall latency.
     gpumap::sync(*imp_->map, kGcIdOccupancy);
     gpumap::sync(*imp_->map, kGcIdVoxelMean);
@@ -399,7 +402,7 @@ void GpuMap::applyClearingPattern(const glm::dvec3 *rays, size_t element_count)
   // Only apply the good ray filter.
   const auto clearing_ray_filter = [](glm::dvec3 *start, glm::dvec3 *end, unsigned *filter_flags)  //
   {                                                                                                //
-    return goodRayFilter(start, end, filter_flags, 1e4);
+    return goodRayFilter(start, end, filter_flags, kDefaultMaxRayRange);
   };
   const unsigned flags = kRfEndPointAsFree | kRfStopOnFirstOccupied | kRfClearOnly;
   integrateRays(rays, element_count, flags, clearing_ray_filter);
@@ -573,9 +576,10 @@ size_t GpuMap::integrateRays(const glm::dvec3 *rays, size_t element_count, unsig
   // Build region set and upload rays.
   imp_->regions.clear();
 
-  gputil::float3 ray_gpu[2];
+  std::array<gputil::float3, 2> ray_gpu;
   unsigned upload_count = 0u;
-  GpuKey line_start_key_gpu{}, line_end_key_gpu{};
+  GpuKey line_start_key_gpu{};
+  GpuKey line_end_key_gpu{};
 
   const bool use_filter = bool(filter);
 
@@ -618,7 +622,7 @@ size_t GpuMap::integrateRays(const glm::dvec3 *rays, size_t element_count, unsig
     ray_gpu[1].x = float(ray.sample.x - end_voxel_centre.x);
     ray_gpu[1].y = float(ray.sample.y - end_voxel_centre.y);
     ray_gpu[1].z = float(ray.sample.z - end_voxel_centre.z);
-    rays_pinned.write(ray_gpu, sizeof(ray_gpu), upload_count * sizeof(gputil::float3));
+    rays_pinned.write(ray_gpu.data(), sizeof(ray_gpu), upload_count * sizeof(gputil::float3));
     upload_count += 2;
 
     // std::cout << i / 2 << ' ' << imp_->map->voxelKey(rays[i + 0]) << " -> " << imp_->map->voxelKey(rays[i + 1]) << "
@@ -684,36 +688,36 @@ size_t GpuMap::integrateRays(const glm::dvec3 *rays, size_t element_count, unsig
     }
 
     /// Sort the rays. Order does not matter asside from ensuring the rays are grouped by sample voxel.
-    std::sort(imp_->grouped_rays.begin(), imp_->grouped_rays.end(),
-              [](const RayItem &a, const RayItem &b) -> bool  //
-              {
-                // For the comparison, we merge the region key values into a single 64-bit value
-                // and the same for the local index. Then we compare the resulting values.
-                // The final ordering is irrelevant in terms of which is "less". The goal is to group
-                // items with the same sample key.
+    std::sort(
+      imp_->grouped_rays.begin(), imp_->grouped_rays.end(),
+      [](const RayItem &a, const RayItem &b) -> bool  //
+      {
+        // For the comparison, we merge the region key values into a single 64-bit value
+        // and the same for the local index. Then we compare the resulting values.
+        // The final ordering is irrelevant in terms of which is "less". The goal is to group
+        // items with the same sample key.
 
-                // Multiplier/shift value to move a region key axis such that each axis is in its own bit set.
-                const int64_t region_stride = 0x10000u;
-                // Shift and mask together the region key axes
-                const int64_t region_index_a = (int64_t)a.sample_key.regionKey().x +
-                                               (int64_t)region_stride * a.sample_key.regionKey().y +
-                                               region_stride * region_stride * (int64_t)a.sample_key.regionKey().z;
-                const int64_t region_index_b = (int64_t)b.sample_key.regionKey().x +
-                                               region_stride * (int64_t)b.sample_key.regionKey().y +
-                                               region_stride * region_stride * (int64_t)b.sample_key.regionKey().z;
-                // Multiplier/shift value to move a local key axis such that each axis is in its own bit set.
-                const uint32_t local_stride = 0x100u;
-                // Shift and mask together the local key axes
-                const uint32_t local_index_a = uint32_t(a.sample_key.localKey().x) +
-                                               local_stride * uint32_t(a.sample_key.localKey().y) +
-                                               local_stride * local_stride * uint32_t(a.sample_key.localKey().z);
-                const uint32_t local_index_b = uint32_t(b.sample_key.localKey().x) +
-                                               local_stride * uint32_t(b.sample_key.localKey().y) +
-                                               local_stride * local_stride * uint32_t(b.sample_key.localKey().z);
-                // Compare the results.
-                return region_index_a < region_index_b ||
-                       region_index_a == region_index_b && local_index_a < local_index_b;
-              });
+        // Multiplier/shift value to move a region key axis such that each axis is in its own bit set.
+        const int64_t region_stride = 0x10000u;
+        // Shift and mask together the region key axes
+        const int64_t region_index_a = static_cast<int64_t>(a.sample_key.regionKey().x) +
+                                       static_cast<int64_t>(region_stride * a.sample_key.regionKey().y) +
+                                       region_stride * region_stride * static_cast<int64_t>(a.sample_key.regionKey().z);
+        const int64_t region_index_b = static_cast<int64_t>(b.sample_key.regionKey().x) +
+                                       region_stride * static_cast<int64_t>(b.sample_key.regionKey().y) +
+                                       region_stride * region_stride * static_cast<int64_t>(b.sample_key.regionKey().z);
+        // Multiplier/shift value to move a local key axis such that each axis is in its own bit set.
+        const uint32_t local_stride = 0x100u;
+        // Shift and mask together the local key axes
+        const uint32_t local_index_a = uint32_t(a.sample_key.localKey().x) +
+                                       local_stride * uint32_t(a.sample_key.localKey().y) +
+                                       local_stride * local_stride * uint32_t(a.sample_key.localKey().z);
+        const uint32_t local_index_b = uint32_t(b.sample_key.localKey().x) +
+                                       local_stride * uint32_t(b.sample_key.localKey().y) +
+                                       local_stride * local_stride * uint32_t(b.sample_key.localKey().z);
+        // Compare the results.
+        return region_index_a < region_index_b || region_index_a == region_index_b && local_index_a < local_index_b;
+      });
 
     // Upload to GPU.
     for (const RayItem &ray : imp_->grouped_rays)
@@ -796,7 +800,8 @@ void GpuMap::enqueueRegions(int buffer_index, unsigned region_update_flags)
         ++imp_->region_counts[buffer_index];
         break;
       }
-      else if (tries + 1 < try_limit)
+
+      if (tries + 1 < try_limit)
       {
         // Enqueue region failed. Flush pending operations and before trying again.
         const int previous_buf_idx = buffer_index;
@@ -837,7 +842,7 @@ void GpuMap::enqueueRegions(int buffer_index, unsigned region_update_flags)
       }
       else
       {
-        // TODO: throw with more information.
+        // TODO(KS): throw with more information.
         std::cout << "Failed to enqueue region data" << std::endl;
       }
     }
@@ -865,8 +870,8 @@ bool GpuMap::enqueueRegion(const glm::i16vec3 &region_key, int buffer_index)
   for (VoxelUploadInfo &voxel_info : imp_->voxel_upload_info[buffer_index])
   {
     GpuLayerCache &layer_cache = *gpu_cache.layerCache(voxel_info.gpu_layer_id);
-    uint64_t mem_offset = uint64_t(layer_cache.upload(*imp_->map, region_key, chunk, &voxel_info.voxel_upload_event,
-                                                      &status, imp_->batch_marker, GpuLayerCache::kAllowRegionCreate));
+    auto mem_offset = uint64_t(layer_cache.upload(*imp_->map, region_key, chunk, &voxel_info.voxel_upload_event,
+                                                  &status, imp_->batch_marker, GpuLayerCache::kAllowRegionCreate));
 
     if (status == GpuLayerCache::kCacheFull)
     {

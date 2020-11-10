@@ -92,6 +92,12 @@ GpuNdtMap::GpuNdtMap(OccupancyMap *map, bool borrowed_map, unsigned expected_ele
 }
 
 
+GpuNdtMap::~GpuNdtMap()
+{
+  GpuNdtMap::releaseGpuProgram();
+}
+
+
 void GpuNdtMap::setSensorNoise(float noise_range)
 {
   GpuNdtMapDetail *imp = detail();

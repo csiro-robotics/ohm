@@ -25,7 +25,7 @@ struct Options
 };
 }  // namespace
 
-int parseOptions(Options *opt, int argc, char *argv[])
+int parseOptions(Options *opt, int argc, char *argv[])  // NOLINT(modernize-avoid-c-arrays)
 {
   cxxopts::Options opt_parse(argv[0], "Make a probability to value conversion or the --reverse .");
   opt_parse.positional_help("<value>");

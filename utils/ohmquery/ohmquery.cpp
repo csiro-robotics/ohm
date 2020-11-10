@@ -114,7 +114,7 @@ void Options::print() const
 class LoadMapProgress : public ohm::SerialiseProgress
 {
 public:
-  LoadMapProgress(ProgressMonitor &monitor)
+  explicit LoadMapProgress(ProgressMonitor &monitor)
     : monitor_(monitor)
   {}
 
@@ -149,8 +149,8 @@ inline std::ostream &operator<<(std::ostream &out, const Options::Neighbours &n)
 
 inline std::istream &operator>>(std::istream &in, Options::Line &l)
 {
-  double v[7];
-  parseVector(in, v, 7);
+  std::array<double, 7> v;
+  parseVector(in, v.data(), v.size());
   l.start[0] = v[0];
   l.start[1] = v[1];
   l.start[2] = v[2];
@@ -170,8 +170,8 @@ inline std::ostream &operator<<(std::ostream &out, const Options::Line &l)
 
 inline std::istream &operator>>(std::istream &in, Options::Ranges &r)
 {
-  double v[7];
-  parseVector(in, v, 7);
+  std::array<double, 7> v;
+  parseVector(in, v.data(), v.size());
   r.min[0] = v[0];
   r.min[1] = v[1];
   r.min[2] = v[2];
@@ -193,7 +193,7 @@ inline std::ostream &operator<<(std::ostream &out, const Options::Ranges &r)
 // Must come after streaming operators for custom command line arguments are defined.
 #include <ohmutil/Options.h>
 
-int parseOptions(Options *opt, int argc, char *argv[])
+int parseOptions(Options *opt, int argc, char *argv[])  // NOLINT(modernize-avoid-c-arrays)
 {
   cxxopts::Options opt_parse(argv[0],
                              "\nLoads an occupancy map file and runs a single query on the map, exporting the\n"
@@ -299,14 +299,14 @@ void saveQueryCloud(const ohm::OccupancyMap &map, const ohm::Query &query, const
   for (size_t i = 0; i < result_count; ++i)
   {
     const ohm::Key &key = keys[i];
-    uint8_t c = 255;
+    uint8_t c = std::numeric_limits<uint8_t>::max();
     if (colour_range > 0 && ranges)
     {
       const float range_value = ranges[i];
-      c = uint8_t(255 * std::max(0.0f, (colour_range - range_value) / colour_range));
+      c = uint8_t(std::numeric_limits<uint8_t>::max() * std::max(0.0f, (colour_range - range_value) / colour_range));
     }
     voxel_pos = map.voxelCentreGlobal(key);
-    ply.addVertex(voxel_pos, ohm::Colour(c, 128, 0));
+    ply.addVertex(voxel_pos, ohm::Colour(c, std::numeric_limits<uint8_t>::max() / 2, 0));
   }
 
   std::string str = opt.output_base;
@@ -358,7 +358,8 @@ void saveRangesCloud(const ohm::OccupancyMap &map, const ohm::VoxelRanges &query
         const float rangeValue = voxel.clearance();
         if (rangeValue >= 0)
         {
-          uint8_t c = (uint8_t)(255 * std::max(0.0f, (colourScale - rangeValue) / colourScale));
+          auto c =
+            uint8_t(std::numeric_limits<uint8_t>::max() * std::max(0.0f, (colourScale - rangeValue) / colourScale));
           v = map.voxelCentreLocal(voxel.key());
           ply.addVertex(v, Colour(c, 128, 0));
           if (pointsOut)
@@ -415,7 +416,8 @@ bool compareCpuGpuQuery(const char *query_name, ohm::Query &query,
                         const float epsilon = 1e-5f)
 {
   std::string timing_info_str;
-  TimingClock::time_point query_start, query_end;
+  TimingClock::time_point query_start;
+  TimingClock::time_point query_end;
 
   // CPU execution.
   query.setQueryFlags(query.queryFlags() & ~ohm::kQfGpu);

@@ -49,7 +49,7 @@ struct Options
 }  // namespace
 
 
-int parseOptions(Options *opt, int argc, char *argv[])
+int parseOptions(Options *opt, int argc, char *argv[])  // NOLINT(modernize-avoid-c-arrays)
 {
   cxxopts::Options opt_parse(argv[0], "\nProvide information about the contents of an occupancy map file.\n");
   opt_parse.positional_help("<map.ohm>");
@@ -171,7 +171,7 @@ int main(int argc, char *argv[])
   if (map.flags() != ohm::MapFlag::kNone)
   {
     unsigned bit = 1;
-    for (unsigned i = 0; i < sizeof(ohm::MapFlag) * 8; ++i, bit <<= 1)
+    for (unsigned i = 0; i < sizeof(ohm::MapFlag) * 8; ++i, bit <<= 1u)
     {
       if (unsigned(map.flags()) & bit)
       {
@@ -196,7 +196,8 @@ int main(int argc, char *argv[])
 
   const ohm::MapLayout &layout = map.layout();
   std::string indent;
-  std::string vox_size_str, region_size_str;
+  std::string vox_size_str;
+  std::string region_size_str;
   std::cout << "Layers: " << layout.layerCount() << std::endl;
 
   for (size_t i = 0; i < layout.layerCount(); ++i)
@@ -243,8 +244,10 @@ int main(int argc, char *argv[])
 
   if (opt.calculate_extents)
   {
-    glm::dvec3 min_ext(0.0), max_ext(0.0);
-    ohm::Key min_key(ohm::Key::kNull), max_key(ohm::Key::kNull);
+    glm::dvec3 min_ext(0.0);
+    glm::dvec3 max_ext(0.0);
+    ohm::Key min_key(ohm::Key::kNull);
+    ohm::Key max_key(ohm::Key::kNull);
     map.calculateExtents(&min_ext, &max_ext, &min_key, &max_key);
 
     std::cout << std::endl;

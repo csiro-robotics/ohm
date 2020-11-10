@@ -65,7 +65,7 @@ struct Options
   std::string image_file;
   ExportMode image_mode = kNormals16;
   ohm::HeightmapMesh::NormalsMode normals_mode = ohm::HeightmapMesh::kNormalsAverage;
-  double traverse_angle = 45.0;
+  double traverse_angle = 45.0;  // NOLINT(readability-magic-numbers)
 
   ohm::HeightmapImage::ImageType imageType() const
   {
@@ -91,7 +91,7 @@ struct Options
 class LoadMapProgress : public ohm::SerialiseProgress
 {
 public:
-  LoadMapProgress(ProgressMonitor &monitor)
+  explicit LoadMapProgress(ProgressMonitor &monitor)
     : monitor_(monitor)
   {}
 
@@ -120,10 +120,16 @@ ExportImageType convertImage(std::vector<uint8_t> &export_pixels, const uint8_t 
     export_pixels.clear();
     export_pixels.reserve(info.image_width * info.image_height * 3 * sizeof(uint16_t));
 
-    float red, green, blue;
-    uint16_t red16, green16, blue16;
+    float red;
+    float green;
+    float blue;
+    uint16_t red16;
+    uint16_t green16;
+    uint16_t blue16;
 
-    const auto convert_colour = [](float c) -> uint16_t { return uint16_t(c * float(0xffffu)); };
+    const auto convert_colour = [](float c) -> uint16_t {
+      return uint16_t(c * float(std::numeric_limits<uint16_t>::max()));
+    };
 
     const auto push_channel = [](std::vector<uint8_t> &out, uint16_t c) {
       const size_t insert_index = out.size();
@@ -176,13 +182,13 @@ ExportImageType convertImage(std::vector<uint8_t> &export_pixels, const uint8_t 
   {
     export_pixels.resize(info.image_width * info.image_height * sizeof(uint16_t));
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
-    const float *depth_pixels = reinterpret_cast<const float *>(raw);
+    const auto *depth_pixels = reinterpret_cast<const float *>(raw);
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
-    uint16_t *depth_out = reinterpret_cast<uint16_t *>(export_pixels.data());
+    auto *depth_out = reinterpret_cast<uint16_t *>(export_pixels.data());
 
     for (size_t i = 0; i < size_t(info.image_width) * size_t(info.image_height); ++i)
     {
-      depth_out[i] = uint16_t(1.0f - depth_pixels[i] * float(0xffffu));
+      depth_out[i] = uint16_t(1.0f - depth_pixels[i] * float(std::numeric_limits<uint16_t>::max()));
     }
 
     return kExportGrey16;
@@ -199,7 +205,7 @@ ExportImageType convertImage(std::vector<uint8_t> &export_pixels, const uint8_t 
     glm::vec3 normal{};
     const glm::vec3 flat(0, 0, 1);
     float dot;
-    const float free_threshold = float(std::cos(M_PI * opt.traverse_angle / 180.0));
+    const auto free_threshold = float(std::cos(M_PI * opt.traverse_angle / 180.0));
 
     for (size_t i = 0; i < size_t(info.image_width) * size_t(info.image_height); ++i)
     {
@@ -244,7 +250,7 @@ bool savePng(const char *filename, const std::vector<uint8_t> &raw, ExportImageT
   image.flags = 0;
   image.colormap_entries = 0;
 
-  int row_stride = w;
+  int row_stride = int(w);
   switch (type)
   {
   case kExportRGB8:
@@ -252,7 +258,7 @@ bool savePng(const char *filename, const std::vector<uint8_t> &raw, ExportImageT
     row_stride = -int(w * 3);
     break;
   case kExportRGB16:
-    image.format = PNG_FORMAT_RGB | PNG_IMAGE_FLAG_16BIT_sRGB;
+    image.format = PNG_FORMAT_RGB | PNG_IMAGE_FLAG_16BIT_sRGB;  // NOLINT(hicpp-signed-bitwise)
     row_stride = -int(w * 3);
     break;
   case kExportGrey8:
@@ -270,16 +276,11 @@ bool savePng(const char *filename, const std::vector<uint8_t> &raw, ExportImageT
   }
 
   // Negative row stride to flip the image.
-  if (png_image_write_to_file(&image, filename, false,  // convert_to_8bit,
-                              raw.data(),
-                              row_stride,  // row_stride
-                              nullptr      // colormap
-                              ))
-  {
-    return true;
-  }
-
-  return false;
+  return png_image_write_to_file(&image, filename, false,  // convert_to_8bit,
+                                 raw.data(),
+                                 row_stride,  // row_stride
+                                 nullptr      // colormap
+  );
 }
 }  // namespace
 
@@ -289,19 +290,19 @@ std::istream &operator>>(std::istream &in, ExportMode &mode)
 {
   std::string mode_str;
   in >> mode_str;
-  if (mode_str.compare("norm8") == 0)
+  if (mode_str == "norm8")
   {
     mode = kNormals8;
   }
-  else if (mode_str.compare("norm16") == 0)
+  else if (mode_str == "norm16")
   {
     mode = kNormals16;
   }
-  else if (mode_str.compare("height") == 0)
+  else if (mode_str == "height")
   {
     mode = kHeights;
   }
-  else if (mode_str.compare("traverse") == 0)
+  else if (mode_str == "traverse")
   {
     mode = kTraversability;
   }
@@ -336,11 +337,11 @@ std::istream &operator>>(std::istream &in, ohm::HeightmapMesh::NormalsMode &mode
 {
   std::string mode_str;
   in >> mode_str;
-  if (mode_str.compare("average") == 0 || mode_str.compare("avg") == 0)
+  if (mode_str == "average" || mode_str == "avg")
   {
     mode = ohm::HeightmapMesh::kNormalsAverage;
   }
-  else if (mode_str.compare("worst") == 0)
+  else if (mode_str == "worst")
   {
     mode = ohm::HeightmapMesh::kNormalsWorst;
   }
@@ -367,7 +368,7 @@ std::ostream &operator<<(std::ostream &out, const ohm::HeightmapMesh::NormalsMod
 // Must be after argument streaming operators.
 #include <ohmutil/Options.h>
 
-int parseOptions(Options *opt, int argc, char *argv[])
+int parseOptions(Options *opt, int argc, char *argv[])  // NOLINT(modernize-avoid-c-arrays)
 {
   cxxopts::Options opt_parse(argv[0], "\nCreate a heightmap from an occupancy map.\n");
   opt_parse.positional_help("<heightmap.ohm> <image.png>");
@@ -444,7 +445,7 @@ std::string generateYamlName(const std::string &image_file)
 }
 
 
-bool saveMetaData(const std::string yaml_file, const Options &opt, ohm::Heightmap &heightmap,
+bool saveMetaData(const std::string &yaml_file, const Options &opt, ohm::Heightmap &heightmap,
                   const ohm::HeightmapImage::BitmapInfo &info, ExportImageType image_format)
 {
   std::ofstream out(yaml_file.c_str());
@@ -455,9 +456,9 @@ bool saveMetaData(const std::string yaml_file, const Options &opt, ohm::Heightma
   }
 
   // Set high precision output.
-  out << std::setprecision(20);
+  out << std::setprecision(std::numeric_limits<double>::max_digits10);
 
-  int white_colour = 255;
+  int white_colour = std::numeric_limits<uint8_t>::max();
   const int black_colour = 0;
 
   // Path to the heightmap image.
@@ -471,19 +472,19 @@ bool saveMetaData(const std::string yaml_file, const Options &opt, ohm::Heightma
     out << "error";
     break;
   case kExportRGB8:
-    white_colour = 255;
+    white_colour = std::numeric_limits<uint8_t>::max();
     out << "RGB8";
     break;
   case kExportRGB16:
-    white_colour = (1 << 16) - 1;
+    white_colour = std::numeric_limits<uint16_t>::max();
     out << "RGB16";
     break;
   case kExportGrey8:
-    white_colour = 255;
+    white_colour = std::numeric_limits<uint8_t>::max();
     out << "mono8";
     break;
   case kExportGrey16:
-    white_colour = (1 << 16) - 1;
+    white_colour = std::numeric_limits<uint16_t>::max();
     out << "mono16";
     break;
   default:

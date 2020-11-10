@@ -13,8 +13,7 @@
 #include <ohmutil/PlyMesh.h>
 
 #include <algorithm>
-
-using namespace ohm;
+#include <limits>
 
 namespace ohmtools
 {
@@ -26,8 +25,8 @@ void saveCloud(const char *file_name, const ohm::OccupancyMap &map, const Progre
   size_t processed_region_count = 0;
   glm::i16vec3 last_region = map.begin().key().regionKey();
 
-  Voxel<const float> occupancy(&map, map.layout().occupancyLayer());
-  Voxel<const VoxelMean> mean(&map, map.layout().meanLayer());
+  ohm::Voxel<const float> occupancy(&map, map.layout().occupancyLayer());
+  ohm::Voxel<const ohm::VoxelMean> mean(&map, map.layout().meanLayer());
 
   for (auto iter = map.begin(); iter != map.end(); ++iter)
   {
@@ -64,7 +63,7 @@ void saveQueryCloud(const char *file_name, const ohm::OccupancyMap &map, const o
   for (size_t i = 0; i < result_count; ++i)
   {
     const ohm::Key &key = keys[i];
-    uint8_t c = 255;
+    uint8_t c = std::numeric_limits<uint8_t>::max();
     if (colour_range > 0 && ranges)
     {
       float range_value = ranges[i];
@@ -72,10 +71,10 @@ void saveQueryCloud(const char *file_name, const ohm::OccupancyMap &map, const o
       {
         range_value = colour_range;
       }
-      c = uint8_t(255 * std::max(0.0f, (colour_range - range_value) / colour_range));
+      c = uint8_t(std::numeric_limits<uint8_t>::max() * std::max(0.0f, (colour_range - range_value) / colour_range));
     }
     voxel_pos = map.voxelCentreGlobal(key);
-    ply.addVertex(voxel_pos, Colour(c, 128, 0));
+    ply.addVertex(voxel_pos, ohm::Colour(c, std::numeric_limits<uint8_t>::max() / 2, 0));
     if (prog)
     {
       prog(i + 1, result_count);
@@ -100,8 +99,14 @@ size_t saveClearanceCloud(const char *file_name, const ohm::OccupancyMap &map, c
   glm::i16vec3 min_region = map.regionKey(min_extents);
   glm::i16vec3 max_region = map.regionKey(max_extents);
 
-  Voxel<const float> occupancy(&map, map.layout().occupancyLayer());
-  Voxel<const float> clearance(&map, map.layout().clearanceLayer());
+  ohm::Voxel<const float> occupancy(&map, map.layout().occupancyLayer());
+  ohm::Voxel<const float> clearance(&map, map.layout().clearanceLayer());
+
+  if (!clearance.isLayerValid())
+  {
+    // No clearance layer.
+    return 0;
+  }
 
   const float colour_scale = colour_range;
   const auto map_end_iter = map.end();
@@ -127,6 +132,7 @@ size_t saveClearanceCloud(const char *file_name, const ohm::OccupancyMap &map, c
       if (export_match)
       {
         float range_value;
+        assert(clearance.isValid());  // More for clang-tidy. We've already checked the layer validity.
         clearance.read(&range_value);
         if (range_value < 0)
         {
@@ -134,9 +140,10 @@ size_t saveClearanceCloud(const char *file_name, const ohm::OccupancyMap &map, c
         }
         if (range_value >= 0)
         {
-          uint8_t c = uint8_t(255 * std::max(0.0f, (colour_scale - range_value) / colour_scale));
+          uint8_t c =
+            uint8_t(std::numeric_limits<uint8_t>::max() * std::max(0.0f, (colour_scale - range_value) / colour_scale));
           v = map.voxelCentreLocal(*iter);
-          ply.addVertex(v, Colour(c, 128, 0));
+          ply.addVertex(v, ohm::Colour(c, std::numeric_limits<uint8_t>::max() / 2, 0));
           ++point_count;
         }
       }

@@ -34,6 +34,7 @@
 #include <ohmutil/Options.h>
 
 #include <algorithm>
+#include <array>
 #include <atomic>
 #include <chrono>
 #include <cinttypes>
@@ -93,7 +94,7 @@ struct Options
   float prob_thresh = 0.5f;                // re-initialised from a default map
   glm::vec2 prob_range = glm::vec2(0, 0);  // re-initialised from a default map
   glm::vec3 cloud_colour = glm::vec3(0);
-  unsigned batch_size = 4096;
+  unsigned batch_size = 4096;  // NOLINT(readability-magic-numbers)
   /// String value for the "--mode" argument. This sets the value of @c ray_mode_flags - see that member.
   std::string mode = "normal";
   /// @c ohm::RayFlag selection based on the "--mode" argument which is mapped into the @c mode member.
@@ -108,7 +109,7 @@ struct Options
   bool voxel_mean = false;
   bool uncompressed = false;
 #ifndef OHMPOP_CPU
-  double mapping_interval = 0.2;
+  double mapping_interval = 0.2;  // NOLINT(readability-magic-numbers)
   double progressive_mapping_slice = 0.0;
   float clearance = 0.0f;
   bool post_population_mapping = true;
@@ -257,7 +258,7 @@ void Options::print(std::ostream **out, const ohm::OccupancyMap &map) const
 class SerialiseMapProgress : public ohm::SerialiseProgress
 {
 public:
-  SerialiseMapProgress(ProgressMonitor &monitor)
+  explicit SerialiseMapProgress(ProgressMonitor &monitor)
     : monitor_(monitor)
   {}
 
@@ -273,9 +274,9 @@ private:
 
 enum SaveFlags : unsigned
 {
-  kSaveMap = (1 << 0),
-  kSaveCloud = (1 << 1),
-  // SaveClearanceCloud = (1 << 2),
+  kSaveMap = (1u << 0u),
+  kSaveCloud = (1u << 1u),
+  // SaveClearanceCloud = (u1 << 2u),
 };
 
 void saveMap(const Options &opt, const ohm::OccupancyMap &map, const std::string &base_name, ProgressMonitor *prog,
@@ -333,9 +334,9 @@ void saveMap(const Options &opt, const ohm::OccupancyMap &map, const std::string
 
     const auto colour_channel_f = [](float cf) -> uint8_t  //
     {
-      cf = 255.0f * std::max(cf, 0.0f);
-      unsigned cu = unsigned(cf);
-      return uint8_t(std::min(cu, 255u));
+      cf = float(std::numeric_limits<uint8_t>::max()) * std::max(cf, 0.0f);
+      auto cu = unsigned(cf);
+      return uint8_t(std::min<unsigned>(cu, std::numeric_limits<uint8_t>::max()));
     };
     bool use_colour = opt.cloud_colour.r > 0 || opt.cloud_colour.g > 0 || opt.cloud_colour.b > 0;
     const ohm::Colour c(colour_channel_f(opt.cloud_colour.r), colour_channel_f(opt.cloud_colour.g),
@@ -461,7 +462,7 @@ int populateMap(const Options &opt)
     {
       const uint64_t elapsed_ms_local = elapsed_ms;
       const uint64_t sec = elapsed_ms_local / 1000u;
-      const unsigned ms = unsigned(elapsed_ms_local - sec * 1000);
+      const auto ms = unsigned(elapsed_ms_local - sec * 1000);
 
       std::ostringstream out;
       out.imbue(std::locale(""));
@@ -474,10 +475,11 @@ int populateMap(const Options &opt)
 
       out << sec << '.' << std::setfill('0') << std::setw(3) << ms << "s : ";
 
-      out << std::setfill(' ') << std::setw(12) << prog.progress;
+      const auto fill_width = std::numeric_limits<decltype(prog.progress)>::digits10;
+      out << std::setfill(' ') << std::setw(fill_width) << prog.progress;
       if (prog.info.total)
       {
-        out << " / " << std::setfill(' ') << std::setw(12) << prog.info.total;
+        out << " / " << std::setfill(' ') << std::setw(fill_width) << prog.info.total;
       }
       out << "    ";
       std::cout << out.str() << std::flush;
@@ -530,7 +532,9 @@ int populateMap(const Options &opt)
   ohm::Mapper mapper(&map);
   std::vector<double> sample_timestamps;
   std::vector<glm::dvec3> origin_sample_pairs;
-  glm::dvec3 origin, sample, last_batch_origin(0);
+  glm::dvec3 origin;
+  glm::dvec3 sample;
+  glm::dvec3 last_batch_origin(0);
   // glm::vec3 voxel, ext(opt.resolution);
   double timestamp;
   uint64_t point_count = 0;
@@ -545,7 +549,8 @@ int populateMap(const Options &opt)
 #ifndef OHMPOP_CPU
   double next_mapper_update = opt.mapping_interval;
 #endif  // OHMPOP_CPU
-  Clock::time_point start_time, end_time;
+  Clock::time_point start_time;
+  Clock::time_point end_time;
 
 #ifndef OHMPOP_CPU
   if (!gpu_map->gpuOk())
@@ -604,7 +609,7 @@ int populateMap(const Options &opt)
   }
 #endif  // OHMPOP_CPU
 
-  std::ostream *streams[] = { &std::cout, nullptr, nullptr };
+  std::array<std::ostream *, 3> streams = { &std::cout, nullptr, nullptr };
   std::ofstream info_stream;
   if (opt.save_info)
   {
@@ -614,7 +619,7 @@ int populateMap(const Options &opt)
     info_stream.open(output_file.c_str());
   }
 
-  opt.print(streams, map);
+  opt.print(streams.data(), map);
 
   if (opt.preload_count)
   {
@@ -755,7 +760,8 @@ int populateMap(const Options &opt)
     std::cout << std::endl;
   }
 
-  if (accumulated_motion < 1e-6)
+  const double motion_epsilon = 1e-6;
+  if (accumulated_motion < motion_epsilon)
   {
     std::cerr << "Warning: very low accumulated motion: " << accumulated_motion << std::endl;
   }
@@ -780,26 +786,25 @@ int populateMap(const Options &opt)
   gpu_map->syncVoxels();
 #endif  // OHMPOP_CPU
 
-  std::ostream **out = streams;
-  while (*out)
+  for (auto *out : streams)
   {
     const double time_range = last_timestamp - first_timestamp;
     const double processing_time_sec =
       std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count() * 1e-3;
 
-    **out << "Point count: " << point_count << '\n';
-    **out << "Data time: " << time_range << '\n';
+    *out << "Point count: " << point_count << '\n';
+    *out << "Data time: " << time_range << '\n';
 #ifndef OHMPOP_CPU
-    **out << "Population completed in " << mapper_start - start_time << std::endl;
-    **out << "Post mapper completed in " << end_time - mapper_start << std::endl;
+    *out << "Population completed in " << mapper_start - start_time << std::endl;
+    *out << "Post mapper completed in " << end_time - mapper_start << std::endl;
 #endif  // OHMPOP_CPU
-    **out << "Total processing time: " << end_time - start_time << '\n';
-    **out << "Efficiency: " << ((processing_time_sec > 0 && time_range > 0) ? time_range / processing_time_sec : 0.0)
-          << '\n';
-    **out << "Points/sec: " << unsigned((processing_time_sec > 0) ? point_count / processing_time_sec : 0.0) << '\n';
-    **out << "Memory (approx): " << map.calculateApproximateMemory() / (1024.0 * 1024.0) << " MiB\n";
-    **out << std::flush;
-    ++out;
+    *out << "Total processing time: " << end_time - start_time << '\n';
+    *out << "Efficiency: " << ((processing_time_sec > 0 && time_range > 0) ? time_range / processing_time_sec : 0.0)
+         << '\n';
+    *out << "Points/sec: " << unsigned((processing_time_sec > 0) ? point_count / processing_time_sec : 0.0) << '\n';
+    const double mibibytes = 1024 * 1024;
+    *out << "Memory (approx): " << map.calculateApproximateMemory() / (mibibytes) << " MiB\n";
+    *out << std::flush;
   }
 
   if (opt.serialise)
@@ -822,7 +827,7 @@ int populateMap(const Options &opt)
 }
 
 
-int parseOptions(Options *opt, int argc, char *argv[])
+int parseOptions(Options *opt, int argc, char *argv[])  // NOLINT(modernize-avoid-c-arrays)
 {
   cxxopts::Options opt_parse(argv[0],
                              "Generate an occupancy map from a LAS/LAZ based point cloud and accompanying "
@@ -904,7 +909,7 @@ int parseOptions(Options *opt, int argc, char *argv[])
       auto adder = opt_parse.add_options("GPU");
       for (size_t i = 0; i < gpu_options_types.size(); ++i)
       {
-        adder(gpu_options[(i << 1) + 0], gpu_options[(i << 1) + 1],
+        adder(gpu_options[(i << 1u) + 0], gpu_options[(i << 1u) + 1],
               gpu_options_types[i] == 0 ? ::cxxopts::value<bool>() : ::cxxopts::value<std::string>());
       }
     }

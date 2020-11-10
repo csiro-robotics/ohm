@@ -61,6 +61,9 @@ public:
                      unsigned expected_element_count = 2048,  // NOLINT(readability-magic-numbers)
                      size_t gpu_mem_size = 0u);
 
+  /// Destructor
+  ~GpuNdtMap() override;
+
   /// Set the range sensor noise estimate. For example, the range noise for a lidar sensor.
   ///
   /// @param noise_range The sensor noise range. Must be greater than zero.

@@ -51,7 +51,7 @@ struct Options
 class LoadMapProgress : public ohm::SerialiseProgress
 {
 public:
-  LoadMapProgress(ProgressMonitor &monitor)
+  explicit LoadMapProgress(ProgressMonitor &monitor)
     : monitor_(monitor)
   {}
 
@@ -94,7 +94,7 @@ bool filterPointByCovariance(const glm::dvec3 &point, const glm::dvec3 &mean, co
 // Must be after argument streaming operators.
 #include <ohmutil/Options.h>
 
-int parseOptions(Options *opt, int argc, char *argv[])
+int parseOptions(Options *opt, int argc, char *argv[])  // NOLINT(modernize-avoid-c-arrays)
 {
   cxxopts::Options opt_parse(argv[0], "Convert an occupancy map to a point cloud. Defaults to generate a positional "
                                       "point cloud, but can generate a clearance cloud as well.");
@@ -236,10 +236,12 @@ bool filterCloud(const Options &opt, const ohm::OccupancyMap &map, ProgressMonit
     std::cout << "Exporting to " << opt.cloud_out << std::endl;
   }
 
-  glm::dvec3 point(0), origin(0);
+  glm::dvec3 point(0);
+  glm::dvec3 origin(0);
   double timestamp = 0;
   ohm::Key key;
-  std::uint64_t point_count = 0, export_count = 0;
+  std::uint64_t point_count = 0;
+  std::uint64_t export_count = 0;
   const bool with_trajectory = !opt.traj_in.empty();
   while (cloud_loader.nextPoint(point, &origin, &timestamp))
   {
@@ -317,10 +319,11 @@ int main(int argc, char *argv[])
         out << prog.info.info << " : ";
       }
 
-      out << std::setfill(' ') << std::setw(12) << prog.progress;
+      const auto fill_width = std::numeric_limits<decltype(prog.progress)>::digits10;
+      out << std::setfill(' ') << std::setw(fill_width) << prog.progress;
       if (prog.info.total)
       {
-        out << " / " << std::setfill(' ') << std::setw(12) << prog.info.total;
+        out << " / " << std::setfill(' ') << std::setw(fill_width) << prog.info.total;
       }
       out << "    ";
       std::cout << out.str() << std::flush;
