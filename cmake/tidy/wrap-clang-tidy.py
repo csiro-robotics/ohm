@@ -107,7 +107,7 @@ def resolve_build_path(args):
 
 def escape_path(path):
     # Need to escape back slashes in args for Windows.
-    if platform.system() == "Windows":
+    if platform.system() == 'Windows':
         return path.replace('\\', '\\\\')
     return path
 
@@ -168,7 +168,7 @@ class ProcessMessagePump:
             self.pipes_running -= 1
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     # ---------------------------------------------------------------------------
     # Parse arguments.
     arg_parse = setup_args()
@@ -182,7 +182,7 @@ if __name__ == "__main__":
     # Handle using run-clang-tidy or clang-tidy directly
     if args[0].runner_py:
         using_runner = True
-        if platform.system() == "Windows":
+        if platform.system() == 'Windows':
             # The runner will be an executable on platforms *other* than Windows. For Windows, run via python.
             tidy_args.append(sys.executable)
         tidy_args.append(args[0].runner_py)
