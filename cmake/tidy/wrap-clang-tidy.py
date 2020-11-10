@@ -139,7 +139,7 @@ class ProcessMessagePump:
         threading.Thread(target=ProcessMessagePump._pump, args=[
                          self, self.process.stderr]).start()
         self.pipes_running += 2
-        while self.pipes_running > 0:
+        while self.pipes_running > 0 or not self.log_queue.empty():
             pipe_source, line = self.log_queue.get()
             if pipe_source is None or line is None:
                 continue
@@ -230,7 +230,7 @@ if __name__ == '__main__':
     # 1: line number if column also present
     # 2: column number if 1/2 present, otherwise line number
     # 3: the rest (message)
-    error_msg_re = re.compile(r'^(.*):(\d+):(\d+):(.*)')
+    error_msg_re = re.compile(r'^(.*?):(.*)')
 
     def fix_path(line):
         """Fix certain aspects of paths.
@@ -253,9 +253,7 @@ if __name__ == '__main__':
             path = os.path.abspath(path)
             if args[0].relative_to:
                 path = os.path.relpath(path, args[0].relative_to)
-            parts = [path]
-            parts.extend(match.groups()[1:])
-            return '{0}:{1}:{2}:{3}\n'.format(*parts)
+            return '{0}:{1}'.format(path, match.groups()[1])
         return line
 
     def read_output(process, pipe, line):
