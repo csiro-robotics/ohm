@@ -361,8 +361,15 @@ function(__ctt_add_clang_tidy_global CONFIG_NAME CONFIG_LEVEL)
     return()
   endif(NOT CLANG_TIDY_TARGETS_${CONFIG_LEVEL})
 
-  add_custom_target(clang-tidy-${CONFIG_LEVEL})
-  add_dependencies(clang-tidy-${CONFIG_NAME} ${CLANG_TIDY_TARGETS_${CONFIG_LEVEL}})
+  set(TARGET_NAME clang-tidy)
+  set(DEPENDENCY_SUFFIX)
+  if(NOT CONFIG_LEVEL STREQUAL "file")
+    set(TARGET_NAME "${TARGET_NAME}-${CONFIG_LEVEL}")
+    set(DEPENDENCY_SUFFIX "-${CONFIG_NAME}")
+  endif(NOT CONFIG_LEVEL STREQUAL "file")
+
+  add_custom_target(${TARGET_NAME})
+  add_dependencies(clang-tidy${DEPENDENCY_SUFFIX} ${CLANG_TIDY_TARGETS_${CONFIG_LEVEL}})
 endfunction(__ctt_add_clang_tidy_global)
 
 # Setup a single target which makes all the other clang-tidy targets.
