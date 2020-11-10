@@ -85,6 +85,10 @@ endif(NOT CLANG_TIDY_OK)
 #-------------------------------------------------------------------------------
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+option(CLANG_TIDY_FORCE_ASSERTS
+  "Force visibility of assert() statements to clang-tidy? This undefine NDEBUG and can suppress false positives, but may also have side effects."
+  ON)
+
 function(clang_tidy_target)
 endfunction(clang_tidy_target)
 function(clang_tidy_global)
@@ -170,10 +174,17 @@ function(__ctt_setup_target TARGET WORKING_DIRECTORY)
     set(CTT_TARGET_NAME ${CTT_TARGET_NAME}-${CTT_CONFIG_LEVEL})
   endif(NOT CTT_CONFIG_LEVEL STREQUAL "file")
   set(CTT_TARGET_NAME ${CTT_TARGET_NAME}${CTT_SUFFIX})
+
   set(ADD_CLANG_TIDY_ARGS)
+
   if(RUN_CLANG_TIDY_EXE)
-    set(ADD_CLANG_TIDY_ARGS "-runner-py=${RUN_CLANG_TIDY_EXE}")
+    list(APPEND ADD_CLANG_TIDY_ARGS "-runner-py=${RUN_CLANG_TIDY_EXE}")
   endif(RUN_CLANG_TIDY_EXE)
+
+  if(CLANG_TIDY_FORCE_ASSERTS)
+    list(APPEND ADD_CLANG_TIDY_ARGS "-extra-arg=-UNDEBUG")
+  endif(CLANG_TIDY_FORCE_ASSERTS)
+
   add_custom_target(${CTT_TARGET_NAME}
     WORKING_DIRECTORY "${CMAKE_CURRENT_LIST_DIR}"
     COMMAND
