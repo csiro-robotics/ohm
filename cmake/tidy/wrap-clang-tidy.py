@@ -142,7 +142,6 @@ class ProcessMessagePump:
         while self.pipes_running > 0:
             pipe_source, line = self.log_queue.get()
             if pipe_source is None or line is None:
-                self.pipes_running -= 1
                 continue
             log(self.process, pipe_source, line)
 
