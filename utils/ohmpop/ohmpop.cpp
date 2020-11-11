@@ -788,6 +788,10 @@ int populateMap(const Options &opt)
 
   for (auto *out : streams)
   {
+    if (!out)
+    {
+      continue;
+    }
     const double time_range = last_timestamp - first_timestamp;
     const double processing_time_sec =
       std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count() * 1e-3;
