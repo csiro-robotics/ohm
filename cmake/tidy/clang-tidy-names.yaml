@@ -1,56 +1,14 @@
-# Run clang tidy general analysis, excluding variable naming checks.
+# Run clang tidy variable naming checks only.
 ---
 Checks: >
-  clang-diagnostic-*,
-  clang-analyzer-*,
-  boost-use-to-string,
-  bugprone-*,
-  cert-dcl58-cpp,
-  cert-env33-c,
-  cert-err34-c,
-  cert-err52-cpp,
-  cert-err58-cpp,
-  cert-mem57-cpp,
-  cert-oop57-cpp,
-  cert-oop58-cpp,
-  cppcoreguildelines-*,
-  -cppcoreguidelines-macro-usage,
-  -cppcoreguidelines-pro-bounds-pointer-arithmatic,
-  google-*,
-  -google-runtime-references,
-  llvm-include-order,
-  llvm-namespace-comment,
-  misc-*,
-  -misc-no-recursion,
-  -misc-non-private-member-variables-in-classes,
-  -misc-unused-parameters,
-  modernize-*,
-  -modernize-use-trailing-return-type,
-  performance-*,
-  readability-*,
-  -readability-implicit-bool-conversion,
-  -readability-uppercase-literal-suffix,
-  hicpp-signed-bitwise
+  -*,
+  readability-identifier-naming
 WarningsAsErrors: ''
 HeaderFilterRegex: '.*'
 AnalyzeTemporaryDtors: false
 FormatStyle:     none
 User: csiro
 CheckOptions:
-  - key: bugprone-argument-comment.StrictMode
-    value: '1'
-  - key: bugprone-misplaced-widening-cast.CheckImplicitCasts
-    value: '1'
-  - key: performance-move-constructor-init.IncludeStyle
-    value: 'llvm'
-  - key: cppcoreguidelines-special-member-functions.AllowSoleDefaultDtor
-    value: '1'
-  - key: cppcoreguidelines-special-member-functions.AllowMissingMoveFunctions
-    value: '1'
-  - key: google-runtime-int.TypeSuffix
-    value: '_t'
-  - key: modernize-use-default-member-init.UseAssignment
-    value: '1'
   # ---------------------------------------------------------------------------
   # Classes and structs
   # Class names
@@ -156,12 +114,4 @@ CheckOptions:
   # Local variable
   - key:  readability-identifier-naming.LocalVariableCase
     value: lower_case
-
-  # Magic number ignore list
-  - key: readability-magic-numbers.IgnoredIntegerValues
-    value: 0;1;2;3;4;5;6;7;8;9;10;100;1000
-  - key: readability-magic-numbers.IgnorePowersOf2IntegerValues
-    value: true
-  - key: readability-magic-numbers.IgnoredFloatingPointValues
-    value: 0.25;0.5;0.75;1.0;2.0;3.0;10.0;100.0;1000.0;0.1;0.001;0.0001;;-1.0;-2.0;-3.0;
 ...

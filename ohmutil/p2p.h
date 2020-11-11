@@ -24,12 +24,14 @@ inline glm::vec3 p2p(const tes::Vector3f &p)
 inline const tes::Vector3f *p2pArray(const glm::vec3 *points)
 {
   static_assert(sizeof(tes::Vector3f) == sizeof(glm::vec3), "tes::Vector3f size does not match glm::vec3 size.");
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
   return reinterpret_cast<const tes::Vector3f *>(points);
 }
 
 inline const glm::vec3 *p2pArray(const tes::Vector3f *points)
 {
   static_assert(sizeof(tes::Vector3f) == sizeof(glm::vec3), "tes::Vector3f size does not match glm::vec3 size.");
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
   return reinterpret_cast<const glm::vec3 *>(points);
 }
 

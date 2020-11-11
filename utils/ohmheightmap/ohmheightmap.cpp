@@ -33,50 +33,50 @@
 
 namespace
 {
-  using Clock = std::chrono::high_resolution_clock;
+using Clock = std::chrono::high_resolution_clock;
 
-  int quit = 0;
+int g_quit = 0;
 
-  void onSignal(int arg)
+void onSignal(int arg)
+{
+  if (arg == SIGINT || arg == SIGTERM)
   {
-    if (arg == SIGINT || arg == SIGTERM)
-    {
-      ++quit;
-    }
+    ++g_quit;
   }
+}
 
-  struct Options
-  {
-    std::string map_file;
-    std::string heightmap_file;
-    ohm::UpAxis axis_id = ohm::UpAxis::kZ;
-    double base_height = 0;
-    double clearance = 2.0;
-    double floor = 0;
-    double ceiling = 0;
-    bool no_voxel_mean = false;
-  };
+struct Options
+{
+  std::string map_file;
+  std::string heightmap_file;
+  ohm::UpAxis axis_id = ohm::UpAxis::kZ;
+  double base_height = 0;
+  double clearance = 2.0;
+  double floor = 0;
+  double ceiling = 0;
+  bool no_voxel_mean = false;
+};
 
 
-  class LoadMapProgress : public ohm::SerialiseProgress
-  {
-  public:
-    LoadMapProgress(ProgressMonitor &monitor)  // NOLINT(google-runtime-references)
-      : monitor_(monitor)
-    {}
+class LoadMapProgress : public ohm::SerialiseProgress
+{
+public:
+  explicit LoadMapProgress(ProgressMonitor &monitor)
+    : monitor_(monitor)
+  {}
 
-    bool quit() const override { return ::quit > 1; }
+  bool quit() const override { return ::g_quit > 1; }
 
-    void setTargetProgress(unsigned target) override { monitor_.beginProgress(ProgressMonitor::Info(target)); }
-    void incrementProgress(unsigned inc) override { monitor_.incrementProgressBy(inc); }
+  void setTargetProgress(unsigned target) override { monitor_.beginProgress(ProgressMonitor::Info(target)); }
+  void incrementProgress(unsigned inc) override { monitor_.incrementProgressBy(inc); }
 
-  private:
-    ProgressMonitor &monitor_;
-  };
+private:
+  ProgressMonitor &monitor_;
+};
 }  // namespace
 
 
-int parseOptions(Options *opt, int argc, char *argv[])
+int parseOptions(Options *opt, int argc, char *argv[])  // NOLINT(modernize-avoid-c-arrays)
 {
   cxxopts::Options opt_parse(argv[0], "\nCreate a heightmap from an occupancy map.\n");
   opt_parse.positional_help("<map.ohm> <heightmap.ohm>");

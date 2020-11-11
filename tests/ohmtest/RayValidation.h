@@ -10,11 +10,11 @@
 
 namespace ohm
 {
-  namespace ray
-  {
-    extern const size_t conical_ray_image_size;
-    extern const uint8_t conical_ray_image[];
-  }
-}
+namespace ray
+{
+extern const size_t conical_ray_image_size;
+extern const uint8_t conical_ray_image[];
+}  // namespace ray
+}  // namespace ohm
 
-#endif // RAYVALIDATION_H
+#endif  // RAYVALIDATION_H

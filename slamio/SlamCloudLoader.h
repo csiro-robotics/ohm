@@ -26,7 +26,7 @@ class slamio_API SlamCloudLoader
 public:
   /// Create a SLAM cloud loader.
   /// @param real_time_mode True to throttle point loading to simulate real time data acquisition.
-  SlamCloudLoader(bool real_time_mode = false);
+  explicit SlamCloudLoader(bool real_time_mode = false);
   ~SlamCloudLoader();
 
   /// Set the fixed offset between the trajectory point to the sensor frame. This is added to all trajectory points.
@@ -57,8 +57,7 @@ public:
   void preload(size_t point_count = 0);
 
   /// Get the next point, sensor position and timestamp.
-  bool nextPoint(glm::dvec3 &sample,  // NOLINT(google-runtime-references)
-                 glm::dvec3 *origin = nullptr, double *timestamp = nullptr);
+  bool nextPoint(glm::dvec3 &sample, glm::dvec3 *origin = nullptr, double *timestamp = nullptr);
 
 private:
   bool loadPoint();
@@ -71,8 +70,7 @@ private:
   /// @param[out] position Set to the trajectory position on success.
   /// @param timestamp The desired sample time.
   /// @return True on success, false when @p timestamp is out of range.
-  bool sampleTrajectory(glm::dvec3 &position,  // NOLINT(google-runtime-references)
-                        const glm::dvec3 &sample, double timestamp);
+  bool sampleTrajectory(glm::dvec3 &position, const glm::dvec3 &sample, double timestamp);
 
   SlamCloudLoaderDetail *imp_;
 };

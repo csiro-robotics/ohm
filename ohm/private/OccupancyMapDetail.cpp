@@ -16,8 +16,8 @@
 #include <algorithm>
 #include <cstring>
 
-using namespace ohm;
-
+namespace ohm
+{
 OccupancyMapDetail::~OccupancyMapDetail()
 {
   delete gpu_cache;
@@ -141,3 +141,4 @@ void OccupancyMapDetail::copyFrom(const OccupancyMapDetail &other)
   layout = MapLayout(other.layout);
   flags = other.flags;
 }
+}  // namespace ohm

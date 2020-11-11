@@ -39,7 +39,7 @@ ProgressMonitor::~ProgressMonitor()
 
 void ProgressMonitor::clearDisplayFunction()
 {
-  display_func_ = std::bind(&dummyDisplay, std::placeholders::_1);
+  display_func_ = [](const Progress & /*progress*/) {};
 }
 
 
@@ -51,7 +51,7 @@ void ProgressMonitor::startThread(bool paused)
   }
 
   paused_.store(paused);
-  thread_ = std::make_unique<std::thread>(std::thread(std::bind(&ProgressMonitor::entry, this)));
+  thread_ = std::make_unique<std::thread>(std::thread([this]() { this->entry(); }));
 }
 
 
@@ -156,7 +156,7 @@ void ProgressMonitor::entry()
       {
         displayed_ = true;
         Progress prog;
-        prog.info.info = info_.c_str();
+        prog.info.info = info_;
         prog.info.total_passes = total_passes_;
         prog.info.total = total_progress_;
         prog.pass = pass;
@@ -171,10 +171,4 @@ void ProgressMonitor::entry()
   }
 
   // std::cout << std::endl;
-}
-
-
-void ProgressMonitor::dummyDisplay(const Progress &)
-{
-  // NOP
 }

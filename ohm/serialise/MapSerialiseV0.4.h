@@ -12,23 +12,22 @@
 
 namespace ohm
 {
-  class InputStream;
-  struct MapChunk;
-  struct MapVersion;
-  struct OccupancyMapDetail;
-  class SerialiseProgress;
+class InputStream;
+struct MapChunk;
+struct MapVersion;
+struct OccupancyMapDetail;
+class SerialiseProgress;
 
-  namespace v0_4
-  {
-    int load(InputStream &stream, OccupancyMapDetail &detail,  // NOLINT(google-runtime-references)
-             SerialiseProgress *progress, const MapVersion &version, size_t region_count);
+namespace v0_4
+{
+int load(InputStream &stream, OccupancyMapDetail &detail, SerialiseProgress *progress, const MapVersion &version,
+         size_t region_count);
 
-    int load(InputStream &stream, OccupancyMapDetail &detail,  // NOLINT(google-runtime-references)
-             SerialiseProgress *progress, const MapVersion &version, size_t region_count, const ChunkFunc &load_chunk);
+int load(InputStream &stream, OccupancyMapDetail &detail, SerialiseProgress *progress, const MapVersion &version,
+         size_t region_count, const ChunkFunc &load_chunk);
 
-    int loadChunk(InputStream &stream, MapChunk &chunk,  // NOLINT(google-runtime-references)
-                  const OccupancyMapDetail &detail);
-  }  // namespace v0_4
+int loadChunk(InputStream &stream, MapChunk &chunk, const OccupancyMapDetail &detail);
+}  // namespace v0_4
 }  // namespace ohm
 
 #endif  // MAPSERIALISEV0_3_H

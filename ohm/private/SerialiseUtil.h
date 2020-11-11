@@ -12,50 +12,50 @@
 
 namespace ohm
 {
-  /// Explicitly typed stream writing, uncompressed.
-  template <typename T, typename S>
-  inline bool writeUncompressed(OutputStream &stream, const S &val)  // NOLINT(google-runtime-references)
+/// Explicitly typed stream writing, uncompressed.
+template <typename T, typename S>
+inline bool writeUncompressed(OutputStream &stream, const S &val)
+{
+  const T val2 = static_cast<T>(val);
+  return stream.writeUncompressed(&val2, unsigned(sizeof(val2))) == sizeof(val2);
+}
+
+
+/// Explicitly typed stream writing.
+template <typename T, typename S>
+inline bool write(OutputStream &stream, const S &val)
+{
+  const T val2 = static_cast<T>(val);
+  return stream.write(&val2, unsigned(sizeof(val2))) == sizeof(val2);
+}
+
+
+/// Explicitly typed stream reading, uncompressed.
+template <typename T, typename S>
+inline bool readRaw(InputStream &stream, S &val)
+{
+  T val2{ 0 };
+  if (stream.readRaw(&val2, unsigned(sizeof(val2))) != sizeof(val2))
   {
-    const T val2 = static_cast<T>(val);
-    return stream.writeUncompressed(&val2, unsigned(sizeof(val2))) == sizeof(val2);
+    return false;
   }
+  val = static_cast<S>(val2);
+  return true;
+}
 
 
-  /// Explicitly typed stream writing.
-  template <typename T, typename S>
-  inline bool write(OutputStream &stream, const S &val)  // NOLINT(google-runtime-references)
+/// Explicitly typed stream reading.
+template <typename T, typename S>
+inline bool read(InputStream &stream, S &val)
+{
+  T val2{ 0 };
+  if (stream.read(&val2, unsigned(sizeof(val2))) != sizeof(val2))
   {
-    const T val2 = static_cast<T>(val);
-    return stream.write(&val2, unsigned(sizeof(val2))) == sizeof(val2);
+    return false;
   }
-
-
-  /// Explicitly typed stream reading, uncompressed.
-  template <typename T, typename S>
-  inline bool readRaw(InputStream &stream, S &val)  // NOLINT(google-runtime-references)
-  {
-    T val2{ 0 };
-    if (stream.readRaw(&val2, unsigned(sizeof(val2))) != sizeof(val2))
-    {
-      return false;
-    }
-    val = static_cast<S>(val2);
-    return true;
-  }
-
-
-  /// Explicitly typed stream reading.
-  template <typename T, typename S>
-  inline bool read(InputStream &stream, S &val)  // NOLINT(google-runtime-references)
-  {
-    T val2{ 0 };
-    if (stream.read(&val2, unsigned(sizeof(val2))) != sizeof(val2))
-    {
-      return false;
-    }
-    val = static_cast<S>(val2);
-    return true;
-  }
+  val = static_cast<S>(val2);
+  return true;
+}
 }  // namespace ohm
 
 #endif  // SERIALISEUTIL_H

@@ -12,13 +12,13 @@
 
 namespace ohm
 {
-  /// Running stats on a @c GpuLayerCache .
-  struct ohmgpu_API GpuCacheStats
-  {
-    uint32_t hits = 0;    ///< Number of cache hits
-    uint32_t misses = 0;  ///< Number of cache misses.
-    uint32_t full = 0;    ///< Number of misses where the cache was full and something had to be dropped.
-  };
+/// Running stats on a @c GpuLayerCache .
+struct ohmgpu_API GpuCacheStats
+{
+  uint32_t hits = 0;    ///< Number of cache hits
+  uint32_t misses = 0;  ///< Number of cache misses.
+  uint32_t full = 0;    ///< Number of misses where the cache was full and something had to be dropped.
+};
 }  // namespace ohm
 
 #endif  // OHMGPU_GPUCACHESTATS_H

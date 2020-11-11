@@ -43,166 +43,163 @@
 #include <iostream>
 #include <memory>
 
-using namespace ohm;
-
 #define VALIDATE_VALUES_UNCHANGED 0
 
+namespace ohm
+{
 namespace
 {
-  void regionClearanceProcessCpuBlock(OccupancyMap &map,              // NOLINT(google-runtime-references)
-                                      ClearanceProcessDetail &query,  // NOLINT(google-runtime-references)
-                                      const glm::ivec3 &block_start, const glm::ivec3 &block_end,
-                                      const glm::i16vec3 &region_key, MapChunk *chunk,
-                                      const glm::ivec3 &voxel_search_half_extents)
+void regionClearanceProcessCpuBlock(OccupancyMap &map, ClearanceProcessDetail &query, const glm::ivec3 &block_start,
+                                    const glm::ivec3 &block_end, const glm::i16vec3 &region_key, MapChunk *chunk,
+                                    const glm::ivec3 &voxel_search_half_extents)
+{
+  Key voxel_key(nullptr);
+  Voxel<float> voxel(&map, map.layout().clearanceLayer());
+  float range;
+
+  if (!voxel.isLayerValid())
   {
-    Key voxel_key(nullptr);
-    Voxel<float> voxel(&map, map.layout().clearanceLayer());
-    float range;
+    return;
+  }
 
-    if (!voxel.isLayerValid())
+  voxel_key.setRegionKey(region_key);
+  for (int z = block_start.z; z < block_end.z; ++z)
+  {
+    voxel_key.setLocalAxis(2, z);
+    for (int y = block_start.y; y < block_end.y; ++y)
     {
-      return;
-    }
-
-    voxel_key.setRegionKey(region_key);
-    for (int z = block_start.z; z < block_end.z; ++z)
-    {
-      voxel_key.setLocalAxis(2, z);
-      for (int y = block_start.y; y < block_end.y; ++y)
+      voxel_key.setLocalAxis(1, y);
+      for (int x = block_start.x; x < block_end.x; ++x)
       {
-        voxel_key.setLocalAxis(1, y);
-        for (int x = block_start.x; x < block_end.x; ++x)
+        voxel_key.setLocalAxis(0, x);
+        voxel.setKey(voxel_key, chunk);
+        assert(voxel.isValid() && voxel.voxelMemory());
+        // if (!voxel.isNull()) // Don't think this is possible any more.
         {
-          voxel_key.setLocalAxis(0, x);
-          voxel.setKey(voxel_key, chunk);
-          // if (!voxel.isNull()) // Don't think this is possible any more.
+          range = calculateNearestNeighbour(voxel_key, map, voxel_search_half_extents,
+                                            (query.query_flags & kQfUnknownAsOccupied) != 0, false, query.search_radius,
+                                            query.axis_scaling, (query.query_flags & kQfReportUnscaledResults) != 0);
+          voxel.write(range);
+        }
+      }
+    }
+  }
+}
+
+
+void regionSeedFloodFillCpuBlock(OccupancyMap &map, ClearanceProcessDetail &query, const glm::ivec3 &block_start,
+                                 const glm::ivec3 &block_end, const glm::i16vec3 &region_key, MapChunk *chunk,
+                                 const glm::ivec3 & /*voxel_search_half_extents*/)
+{
+  Key voxel_key(nullptr);
+
+  if (!chunk)
+  {
+    return;
+  }
+
+  Voxel<float> occupancy(&map, map.layout().occupancyLayer());
+  Voxel<float> clearance(&map, map.layout().clearanceLayer());
+
+  if (!occupancy.isLayerValid() && !clearance.isLayerValid())
+  {
+    return;
+  }
+
+  voxel_key.setRegionKey(region_key);
+  for (int z = block_start.z; z < block_end.z; ++z)
+  {
+    voxel_key.setLocalAxis(2, z);
+    for (int y = block_start.y; y < block_end.y; ++y)
+    {
+      voxel_key.setLocalAxis(1, y);
+      for (int x = block_start.x; x < block_end.x; ++x)
+      {
+        voxel_key.setLocalAxis(0, x);
+        occupancy.setKey(voxel_key, chunk);
+        clearance.setKey(voxel_key, chunk);
+        assert(occupancy.isValid() && occupancy.voxelMemory());
+        assert(clearance.isValid() && clearance.voxelMemory());
+        // if (!clearance.isNull())
+        {
+          if (isOccupied(occupancy) || ((query.query_flags & kQfUnknownAsOccupied) != 0 && isUnobserved(occupancy)))
           {
-            range = calculateNearestNeighbour(
-              voxel_key, map, voxel_search_half_extents, (query.query_flags & kQfUnknownAsOccupied) != 0, false,
-              query.search_radius, query.axis_scaling, (query.query_flags & kQfReportUnscaledResults) != 0);
-            voxel.write(range);
+            clearance.write(0.0f);
+          }
+          else
+          {
+            clearance.write(-1.0f);
           }
         }
       }
     }
   }
+}
 
 
-  void regionSeedFloodFillCpuBlock(OccupancyMap &map,              // NOLINT(google-runtime-references)
-                                   ClearanceProcessDetail &query,  // NOLINT(google-runtime-references)
-                                   const glm::ivec3 &block_start, const glm::ivec3 &block_end,
-                                   const glm::i16vec3 &region_key, MapChunk *chunk,
-                                   const glm::ivec3 & /*voxel_search_half_extents*/)
+void regionFloodFillStepCpuBlock(OccupancyMap &map, ClearanceProcessDetail & /*query*/, const glm::ivec3 &block_start,
+                                 const glm::ivec3 &block_end, const glm::i16vec3 &region_key, MapChunk *chunk,
+                                 const glm::ivec3 & /*voxel_search_half_extents*/)
+{
+  Key voxel_key(nullptr);
+  Key neighbour_key(nullptr);
+  float voxel_range;
+
+  if (!chunk)
   {
-    Key voxel_key(nullptr);
-
-    if (!chunk)
-    {
-      return;
-    }
-
-    Voxel<float> occupancy(&map, map.layout().occupancyLayer());
-    Voxel<float> clearance(&map, map.layout().clearanceLayer());
-
-    if (!occupancy.isLayerValid() && !clearance.isLayerValid())
-    {
-      return;
-    }
-
-    voxel_key.setRegionKey(region_key);
-    for (int z = block_start.z; z < block_end.z; ++z)
-    {
-      voxel_key.setLocalAxis(2, z);
-      for (int y = block_start.y; y < block_end.y; ++y)
-      {
-        voxel_key.setLocalAxis(1, y);
-        for (int x = block_start.x; x < block_end.x; ++x)
-        {
-          voxel_key.setLocalAxis(0, x);
-          occupancy.setKey(voxel_key, chunk);
-          clearance.setKey(voxel_key, chunk);
-          // if (!voxel.isNull())
-          {
-            if (isOccupied(occupancy) || ((query.query_flags & kQfUnknownAsOccupied) != 0 && isUnobserved(occupancy)))
-            {
-              clearance.write(0.0f);
-            }
-            else
-            {
-              clearance.write(-1.0f);
-            }
-          }
-        }
-      }
-    }
+    return;
   }
 
+  Voxel<float> voxel_clearance(&map, map.layout().clearanceLayer());
+  Voxel<const float> neighbour(&map, map.layout().clearanceLayer());
 
-  void regionFloodFillStepCpuBlock(OccupancyMap &map,                   // NOLINT(google-runtime-references)
-                                   ClearanceProcessDetail & /*query*/,  // NOLINT(google-runtime-references)
-                                   const glm::ivec3 &block_start, const glm::ivec3 &block_end,
-                                   const glm::i16vec3 &region_key, MapChunk *chunk,
-                                   const glm::ivec3 & /*voxel_search_half_extents*/)
+  if (!voxel_clearance.isLayerValid() || !neighbour.isLayerValid())
   {
-    Key voxel_key(nullptr);
-    Key neighbour_key(nullptr);
-    float voxel_range;
+    return;
+  }
 
-    if (!chunk)
+  voxel_key.setRegionKey(region_key);
+  for (int z = block_start.z; z < block_end.z; ++z)
+  {
+    voxel_key.setLocalAxis(2, z);
+    for (int y = block_start.y; y < block_end.y; ++y)
     {
-      return;
-    }
-
-    Voxel<float> voxel_clearance(&map, map.layout().clearanceLayer());
-    Voxel<const float> neighbour(&map, map.layout().clearanceLayer());
-
-    if (!voxel_clearance.isLayerValid() || !neighbour.isLayerValid())
-    {
-      return;
-    }
-
-    voxel_key.setRegionKey(region_key);
-    for (int z = block_start.z; z < block_end.z; ++z)
-    {
-      voxel_key.setLocalAxis(2, z);
-      for (int y = block_start.y; y < block_end.y; ++y)
+      voxel_key.setLocalAxis(1, y);
+      for (int x = block_start.x; x < block_end.x; ++x)
       {
-        voxel_key.setLocalAxis(1, y);
-        for (int x = block_start.x; x < block_end.x; ++x)
+        voxel_key.setLocalAxis(0, x);
+        voxel_clearance.setKey(voxel_key);
+        assert(voxel_clearance.isValid() && voxel_clearance.voxelMemory());
+        // if (!voxel_clearance.isNull())
         {
-          voxel_key.setLocalAxis(0, x);
-          voxel_clearance.setKey(voxel_key);
-          // if (!voxel.isNull())
+          voxel_clearance.read(&voxel_range);
+          for (int nz = -1; nz <= 1; ++nz)
           {
-            voxel_clearance.read(&voxel_range);
-            for (int nz = -1; nz <= 1; ++nz)
+            for (int ny = -1; ny <= 1; ++ny)
             {
-              for (int ny = -1; ny <= 1; ++ny)
+              for (int nx = -1; nx <= 1; ++nx)
               {
-                for (int nx = -1; nx <= 1; ++nx)
+                if (nx || ny || nz)
                 {
-                  if (nx || ny || nz)
+                  // This is wrong. It will propagate changed from this iteration. Not what we want.
+                  neighbour_key = voxel_key;
+                  map.moveKey(neighbour_key, nx, ny, nz);
+                  neighbour.setKey(neighbour_key);
+                  // Get neighbour value.
+                  if (!neighbour.isNull())
                   {
-                    // This is wrong. It will propagate changed from this iteration. Not what we want.
-                    neighbour_key = voxel_key;
-                    map.moveKey(neighbour_key, nx, ny, nz);
-                    neighbour.setKey(neighbour_key);
-                    // Get neighbour value.
+                    float neighbour_range = -1.0f;
                     if (!neighbour.isNull())
                     {
-                      float neighbour_range = -1.0f;
-                      if (!neighbour.isNull())
+                      neighbour.read(&neighbour_range);
+                    }
+                    if (neighbour_range >= 0)
+                    {
+                      // Adjust by range to neighbour.
+                      neighbour_range += glm::length(glm::vec3(nx, ny, nz));
+                      if (neighbour_range < voxel_range)
                       {
-                        neighbour.read(&neighbour_range);
-                      }
-                      if (neighbour_range >= 0)
-                      {
-                        // Adjust by range to neighbour.
-                        neighbour_range += glm::length(glm::vec3(nx, ny, nz));
-                        if (neighbour_range < voxel_range)
-                        {
-                          voxel_clearance.write(neighbour_range);
-                        }
+                        voxel_clearance.write(neighbour_range);
                       }
                     }
                   }
@@ -213,126 +210,121 @@ namespace
         }
       }
     }
-
-    chunk->touched_stamps[map.layout().clearanceLayer()] = chunk->dirty_stamp = map.touch();
   }
 
+  chunk->touched_stamps[map.layout().clearanceLayer()] = chunk->dirty_stamp = map.touch();
+}
 
-  unsigned regionClearanceProcessCpu(OccupancyMap &map,              // NOLINT(google-runtime-references)
-                                     ClearanceProcessDetail &query,  // NOLINT(google-runtime-references)
-                                     const glm::i16vec3 &region_key)
+
+unsigned regionClearanceProcessCpu(OccupancyMap &map, ClearanceProcessDetail &query, const glm::i16vec3 &region_key)
+{
+  OccupancyMapDetail &map_data = *map.detail();
+  const auto chunk_search = map_data.chunks.find(region_key);
+  glm::ivec3 voxel_search_half_extents;
+
+  if (chunk_search == map_data.chunks.end())
   {
-    OccupancyMapDetail &map_data = *map.detail();
-    const auto chunk_search = map_data.chunks.find(region_key);
-    glm::ivec3 voxel_search_half_extents;
+    // The entire region is unknown space. Nothing to do as we can't write to anything.
+    return 0;
+  }
 
-    if (chunk_search == map_data.chunks.end())
-    {
-      // The entire region is unknown space. Nothing to do as we can't write to anything.
-      return 0;
-    }
-
-    voxel_search_half_extents = ohm::calculateVoxelSearchHalfExtents(map, query.search_radius);
-    MapChunk *chunk = chunk_search->second;
+  voxel_search_half_extents = ohm::calculateVoxelSearchHalfExtents(map, query.search_radius);
+  MapChunk *chunk = chunk_search->second;
 
 #ifdef OHM_THREADS
-    const auto parallel_query_func = [&query, &map, region_key, chunk,
-                                      voxel_search_half_extents](const tbb::blocked_range3d<int> &range) {
-      regionClearanceProcessCpuBlock(map, query,
-                                     glm::ivec3(range.cols().begin(), range.rows().begin(), range.pages().begin()),
-                                     glm::ivec3(range.cols().end(), range.rows().end(), range.pages().end()),
-                                     region_key, chunk, voxel_search_half_extents);
-    };
-    tbb::parallel_for(
-      tbb::blocked_range3d<int>(0, map_data.region_voxel_dimensions.z, 0, map_data.region_voxel_dimensions.y, 0,
-                                map_data.region_voxel_dimensions.x),
-      parallel_query_func);
+  const auto parallel_query_func = [&query, &map, region_key, chunk,
+                                    voxel_search_half_extents](const tbb::blocked_range3d<int> &range) {
+    regionClearanceProcessCpuBlock(map, query,
+                                   glm::ivec3(range.cols().begin(), range.rows().begin(), range.pages().begin()),
+                                   glm::ivec3(range.cols().end(), range.rows().end(), range.pages().end()), region_key,
+                                   chunk, voxel_search_half_extents);
+  };
+  tbb::parallel_for(
+    tbb::blocked_range3d<int>(0, map_data.region_voxel_dimensions.z, 0, map_data.region_voxel_dimensions.y, 0,
+                              map_data.region_voxel_dimensions.x),
+    parallel_query_func);
 
 #else   // OHM_THREADS
-    regionClearanceProcessCpuBlock(map, query, glm::ivec3(0, 0, 0), map_data.region_voxel_dimensions, region_key, chunk,
-                                   voxel_search_half_extents);
+  regionClearanceProcessCpuBlock(map, query, glm::ivec3(0, 0, 0), map_data.region_voxel_dimensions, region_key, chunk,
+                                 voxel_search_half_extents);
 #endif  // OHM_THREADS
 
-    return unsigned(map.regionVoxelVolume());
+  return unsigned(map.regionVoxelVolume());
+}
+
+unsigned regionSeedFloodFillCpu(OccupancyMap &map, ClearanceProcessDetail &query, const glm::i16vec3 &region_key,
+                                const glm::ivec3 & /*voxel_extents*/, const glm::ivec3 &calc_extents)
+{
+  OccupancyMapDetail &map_data = *map.detail();
+  const auto chunk_search = map_data.chunks.find(region_key);
+  glm::ivec3 voxel_search_half_extents;
+
+  if (chunk_search == map_data.chunks.end())
+  {
+    // The entire region is unknown space. Nothing to do as we can't write to anything.
+    return 0;
   }
 
-  unsigned regionSeedFloodFillCpu(OccupancyMap &map,              // NOLINT(google-runtime-references)
-                                  ClearanceProcessDetail &query,  // NOLINT(google-runtime-references)
-                                  const glm::i16vec3 &region_key, const glm::ivec3 & /*voxel_extents*/,
-                                  const glm::ivec3 &calc_extents)
-  {
-    OccupancyMapDetail &map_data = *map.detail();
-    const auto chunk_search = map_data.chunks.find(region_key);
-    glm::ivec3 voxel_search_half_extents;
-
-    if (chunk_search == map_data.chunks.end())
-    {
-      // The entire region is unknown space. Nothing to do as we can't write to anything.
-      return 0;
-    }
-
-    voxel_search_half_extents = ohm::calculateVoxelSearchHalfExtents(map, query.search_radius);
-    MapChunk *chunk = chunk_search->second;
+  voxel_search_half_extents = ohm::calculateVoxelSearchHalfExtents(map, query.search_radius);
+  MapChunk *chunk = chunk_search->second;
 
 #ifdef OHM_THREADS
-    const auto parallel_query_func = [&query, &map, region_key, chunk,
-                                      voxel_search_half_extents](const tbb::blocked_range3d<int> &range) {
-      regionSeedFloodFillCpuBlock(map, query,
-                                  glm::ivec3(range.cols().begin(), range.rows().begin(), range.pages().begin()),
-                                  glm::ivec3(range.cols().end(), range.rows().end(), range.pages().end()), region_key,
-                                  chunk, voxel_search_half_extents);
-    };
-    tbb::parallel_for(
-      tbb::blocked_range3d<int>(0, map_data.region_voxel_dimensions.z, 0, map_data.region_voxel_dimensions.y, 0,
-                                map_data.region_voxel_dimensions.x),
-      parallel_query_func);
+  const auto parallel_query_func = [&query, &map, region_key, chunk,
+                                    voxel_search_half_extents](const tbb::blocked_range3d<int> &range) {
+    regionSeedFloodFillCpuBlock(map, query,
+                                glm::ivec3(range.cols().begin(), range.rows().begin(), range.pages().begin()),
+                                glm::ivec3(range.cols().end(), range.rows().end(), range.pages().end()), region_key,
+                                chunk, voxel_search_half_extents);
+  };
+  tbb::parallel_for(
+    tbb::blocked_range3d<int>(0, map_data.region_voxel_dimensions.z, 0, map_data.region_voxel_dimensions.y, 0,
+                              map_data.region_voxel_dimensions.x),
+    parallel_query_func);
 
 #else   // OHM_THREADS
-    regionSeedFloodFillCpuBlock(map, query, glm::ivec3(0, 0, 0), map_data.region_voxel_dimensions, region_key, chunk,
-                                voxel_search_half_extents);
+  regionSeedFloodFillCpuBlock(map, query, glm::ivec3(0, 0, 0), map_data.region_voxel_dimensions, region_key, chunk,
+                              voxel_search_half_extents);
 #endif  // OHM_THREADS
 
-    return calc_extents.x * calc_extents.y * calc_extents.z;
+  return calc_extents.x * calc_extents.y * calc_extents.z;
+}
+
+unsigned regionFloodFillStepCpu(OccupancyMap &map, ClearanceProcessDetail &query, const glm::i16vec3 &region_key,
+                                const glm::ivec3 & /*voxel_extents*/, const glm::ivec3 &calc_extents)
+{
+  OccupancyMapDetail &map_data = *map.detail();
+  const auto chunk_search = map_data.chunks.find(region_key);
+  glm::ivec3 voxel_search_half_extents;
+
+  if (chunk_search == map_data.chunks.end())
+  {
+    // The entire region is unknown space. Nothing to do as we can't write to anything.
+    return 0;
   }
 
-  unsigned regionFloodFillStepCpu(OccupancyMap &map,              // NOLINT(google-runtime-references)
-                                  ClearanceProcessDetail &query,  // NOLINT(google-runtime-references)
-                                  const glm::i16vec3 &region_key, const glm::ivec3 & /*voxel_extents*/,
-                                  const glm::ivec3 &calc_extents)
-  {
-    OccupancyMapDetail &map_data = *map.detail();
-    const auto chunk_search = map_data.chunks.find(region_key);
-    glm::ivec3 voxel_search_half_extents;
-
-    if (chunk_search == map_data.chunks.end())
-    {
-      // The entire region is unknown space. Nothing to do as we can't write to anything.
-      return 0;
-    }
-
-    voxel_search_half_extents = ohm::calculateVoxelSearchHalfExtents(map, query.search_radius);
-    MapChunk *chunk = chunk_search->second;
+  voxel_search_half_extents = ohm::calculateVoxelSearchHalfExtents(map, query.search_radius);
+  MapChunk *chunk = chunk_search->second;
 
 #ifdef OHM_THREADS
-    const auto parallel_query_func = [&query, &map, region_key, chunk,
-                                      voxel_search_half_extents](const tbb::blocked_range3d<int> &range) {
-      regionFloodFillStepCpuBlock(map, query,
-                                  glm::ivec3(range.cols().begin(), range.rows().begin(), range.pages().begin()),
-                                  glm::ivec3(range.cols().end(), range.rows().end(), range.pages().end()), region_key,
-                                  chunk, voxel_search_half_extents);
-    };
-    tbb::parallel_for(
-      tbb::blocked_range3d<int>(0, map_data.region_voxel_dimensions.z, 0, map_data.region_voxel_dimensions.y, 0,
-                                map_data.region_voxel_dimensions.x),
-      parallel_query_func);
+  const auto parallel_query_func = [&query, &map, region_key, chunk,
+                                    voxel_search_half_extents](const tbb::blocked_range3d<int> &range) {
+    regionFloodFillStepCpuBlock(map, query,
+                                glm::ivec3(range.cols().begin(), range.rows().begin(), range.pages().begin()),
+                                glm::ivec3(range.cols().end(), range.rows().end(), range.pages().end()), region_key,
+                                chunk, voxel_search_half_extents);
+  };
+  tbb::parallel_for(
+    tbb::blocked_range3d<int>(0, map_data.region_voxel_dimensions.z, 0, map_data.region_voxel_dimensions.y, 0,
+                              map_data.region_voxel_dimensions.x),
+    parallel_query_func);
 
 #else   // OHM_THREADS
-    regionFloodFillStepCpuBlock(map, query, glm::ivec3(0, 0, 0), map_data.region_voxel_dimensions, region_key, chunk,
-                                voxel_search_half_extents);
+  regionFloodFillStepCpuBlock(map, query, glm::ivec3(0, 0, 0), map_data.region_voxel_dimensions, region_key, chunk,
+                              voxel_search_half_extents);
 #endif  // OHM_THREADS
 
-    return calc_extents.x * calc_extents.y * calc_extents.z;
-  }
+  return calc_extents.x * calc_extents.y * calc_extents.z;
+}
 }  // namespace
 
 
@@ -569,7 +561,7 @@ bool ClearanceProcess::updateRegion(OccupancyMap &map, const glm::i16vec3 &regio
   }
 
   // Debug highlight the region.
-  TES_BOX_W(g_3es, TES_COLOUR(FireBrick), tes::Id(&map),
+  TES_BOX_W(g_tes, TES_COLOUR(FireBrick), tes::Id(&map),
             tes::Transform(tes::Vector3d(glm::value_ptr(map.regionSpatialCentre(region_key))),
                            tes::Vector3d(glm::value_ptr(map.regionSpatialResolution()))));
 
@@ -624,10 +616,10 @@ bool ClearanceProcess::updateRegion(OccupancyMap &map, const glm::i16vec3 &regio
 #endif  // #
   }
 
-  TES_SERVER_UPDATE(g_3es, 0.0f);
+  TES_SERVER_UPDATE(g_tes, 0.0f);
   // Delete debug objects.
-  // TES_SPHERE_END(g_3es, uint32_t((size_t)&map));
-  TES_BOX_END(g_3es, uint32_t((size_t)&map));
+  // TES_SPHERE_END(g_tes, uint32_t((size_t)&map));
+  TES_BOX_END(g_tes, uint32_t((size_t)&map));
 
   // Regions are up to date *now*.
   region->touched_stamps[clearance_layer_index] = target_update_stamp;
@@ -645,3 +637,4 @@ const ClearanceProcessDetail *ClearanceProcess::imp() const
 {
   return static_cast<const ClearanceProcessDetail *>(imp_);
 }
+}  // namespace ohm

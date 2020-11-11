@@ -5,8 +5,8 @@
 // Author: Kazys Stepanas
 #include "VoxelBuffer.h"
 
-using namespace ohm;
-
+namespace ohm
+{
 template <typename VoxelBlock>
 VoxelBuffer<VoxelBlock>::VoxelBuffer(ohm::VoxelBlock *block)
   : voxel_block_(block)
@@ -20,7 +20,7 @@ VoxelBuffer<VoxelBlock>::VoxelBuffer(ohm::VoxelBlock *block)
 }
 
 template <typename VoxelBlock>
-VoxelBuffer<VoxelBlock>::VoxelBuffer(VoxelBuffer<VoxelBlock> &&other)
+VoxelBuffer<VoxelBlock>::VoxelBuffer(VoxelBuffer<VoxelBlock> &&other) noexcept
   : voxel_memory_(std::exchange(other.voxel_memory_, nullptr))
   , voxel_memory_size_(std::exchange(other.voxel_memory_size_, 0))
   , voxel_block_(std::exchange(other.voxel_block_, nullptr))
@@ -45,7 +45,7 @@ VoxelBuffer<VoxelBlock>::~VoxelBuffer()
 }
 
 template <typename VoxelBlock>
-VoxelBuffer<VoxelBlock> &VoxelBuffer<VoxelBlock>::operator=(VoxelBuffer<VoxelBlock> &&other)
+VoxelBuffer<VoxelBlock> &VoxelBuffer<VoxelBlock>::operator=(VoxelBuffer<VoxelBlock> &&other) noexcept
 {
   std::swap(voxel_block_, other.voxel_block_);
   std::swap(voxel_memory_size_, other.voxel_memory_size_);
@@ -56,13 +56,16 @@ VoxelBuffer<VoxelBlock> &VoxelBuffer<VoxelBlock>::operator=(VoxelBuffer<VoxelBlo
 template <typename VoxelBlock>
 VoxelBuffer<VoxelBlock> &VoxelBuffer<VoxelBlock>::operator=(const VoxelBuffer<VoxelBlock> &other)
 {
-  release();
-  voxel_block_ = other.voxel_block_;
-  if (voxel_block_)
+  if (this != &other)
   {
-    voxel_block_->retain();
-    voxel_memory_size_ = voxel_block_->uncompressedByteSize();
-    voxel_memory_ = voxel_block_->voxelBytes();
+    release();
+    voxel_block_ = other.voxel_block_;
+    if (voxel_block_)
+    {
+      voxel_block_->retain();
+      voxel_memory_size_ = voxel_block_->uncompressedByteSize();
+      voxel_memory_ = voxel_block_->voxelBytes();
+    }
   }
   return *this;
 }
@@ -82,3 +85,4 @@ void VoxelBuffer<VoxelBlock>::release()
 // Instantiate VoxelBufferT for const and non-const buffers.
 template class VoxelBuffer<VoxelBlock>;
 template class VoxelBuffer<const VoxelBlock>;
+}  // namespace ohm

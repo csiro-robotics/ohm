@@ -5,8 +5,8 @@
 // Author: Kazys Stepanas
 #include "gpuMemRegion.h"
 
-using namespace gputil;
-
+namespace gputil
+{
 void MemRegion::mergeRegionList(std::vector<MemRegion> &regions)
 {
   if (regions.empty())
@@ -39,3 +39,4 @@ void MemRegion::mergeRegionList(std::vector<MemRegion> &regions)
     }
   }
 }
+}  // namespace gputil

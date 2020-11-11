@@ -12,11 +12,11 @@
 
 namespace ohm
 {
-  struct ohm_API NearestNeighboursDetail : QueryDetail
-  {
-    glm::dvec3 near_point = glm::dvec3(0);
-    float search_radius = 0;
-  };
+struct ohm_API NearestNeighboursDetail : QueryDetail
+{
+  glm::dvec3 near_point = glm::dvec3(0);
+  float search_radius = 0;
+};
 }  // namespace ohm
 
 #endif  // OHM_NEARESTNEIGHBOURSDETAIL_H

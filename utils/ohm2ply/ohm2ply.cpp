@@ -21,14 +21,15 @@
 
 // CovarianceVoxel.h must be included later due to GPU suppport for this file.
 #define GLM_ENABLE_EXPERIMENTAL
-#include <glm/vec3.hpp>
-#include <glm/mat3x3.hpp>
 #include <glm/gtx/norm.hpp>
 #include <glm/gtx/transform.hpp>
+#include <glm/mat3x3.hpp>
+#include <glm/vec3.hpp>
 
 #include <ohm/CovarianceVoxel.h>
 
 #include <algorithm>
+#include <array>
 #include <chrono>
 #include <csignal>
 #include <cstddef>
@@ -41,134 +42,128 @@
 
 namespace
 {
-  int quit = 0;
+int g_quit = 0;
 
-  void onSignal(int arg)
+void onSignal(int arg)
+{
+  if (arg == SIGINT || arg == SIGTERM)
   {
-    if (arg == SIGINT || arg == SIGTERM)
-    {
-      ++quit;
-    }
+    ++g_quit;
+  }
+}
+
+enum ExportMode
+{
+  kExportOccupancy,
+  kExportOccupancyCentre,
+  kExportClearance,
+  kExportHeightmap,
+  kExportHeightmapMesh,
+  kExportCovariance
+};
+
+struct Options
+{
+  std::string map_file;
+  std::string ply_file;
+  // expire regions older than this
+  double expiry_time = 0;
+  float cull_distance = 0;
+  float occupancy_threshold = -1.0f;
+  float colour_scale = 3.0f;
+  ExportMode mode = kExportOccupancy;
+  std::string heightmap_axis = "z";
+};
+
+template <typename NUMERIC>
+bool optionValue(const char *arg, int argc, char *argv[], NUMERIC &value)  // NOLINT(modernize-avoid-c-arrays)
+{
+  std::string str_value;
+  if (optionValue(arg, argc, argv, str_value))
+  {
+    std::istringstream instr(str_value);
+    instr >> value;
+    return !instr.fail();
   }
 
-  enum ExportMode
-  {
-    kExportOccupancy,
-    kExportOccupancyCentre,
-    kExportClearance,
-    kExportHeightmap,
-    kExportHeightmapMesh,
-    kExportCovariance
-  };
+  return false;
+}
 
-  struct Options
-  {
-    std::string map_file;
-    std::string ply_file;
-    // expire regions older than this
-    double expiry_time = 0;
-    float cull_distance = 0;
-    float occupancy_threshold = -1.0f;
-    float colour_scale = 3.0f;
-    ExportMode mode = kExportOccupancy;
-    std::string heightmap_axis = "z";
-  };
+class LoadMapProgress : public ohm::SerialiseProgress
+{
+public:
+  explicit LoadMapProgress(ProgressMonitor &monitor)
+    : monitor_(monitor)
+  {}
 
-  template <typename NUMERIC>
-  bool optionValue(const char *arg, int argc, char *argv[], NUMERIC &value)
-  {
-    std::string str_value;
-    if (optionValue(arg, argc, argv, str_value))
+  bool quit() const override { return ::g_quit > 1; }
+
+  void setTargetProgress(unsigned target) override { monitor_.beginProgress(ProgressMonitor::Info(target)); }
+  void incrementProgress(unsigned inc) override { monitor_.incrementProgressBy(inc); }
+
+private:
+  ProgressMonitor &monitor_;
+};
+
+
+/// Build a sphere approximation with an icosahedron.
+/// @todo Make one subdivision for better spheres.
+void makeUnitSphere(std::vector<glm::dvec3> &vertices, std::vector<unsigned> &indices)
+{
+  // We start with two hexagonal rings to approximate the sphere.
+  // All subdivision occurs on a unit radius sphere, at the origin. We translate and
+  // scale the vertices at the end.
+  vertices.clear();
+  indices.clear();
+
+  const double ring_control_angle = 25.0 / 180.0 * M_PI;
+  const double ring_height = std::sin(ring_control_angle);
+  const double ring_radius = std::cos(ring_control_angle);
+  const double hex_angle = 2.0 * M_PI / 6.0;
+  const double ring2_offset_angle = 0.5 * hex_angle;
+  const std::array<glm::dvec3, 14> initial_vertices =  // NOLINT(readability-magic-numbers)
     {
-      std::istringstream instr(str_value);
-      instr >> value;
-      return !instr.fail();
-    }
-
-    return false;
-  }
-
-  class LoadMapProgress : public ohm::SerialiseProgress
-  {
-  public:
-    LoadMapProgress(ProgressMonitor &monitor)  // NOLINT(google-runtime-references)
-      : monitor_(monitor)
-    {}
-
-    bool quit() const override { return ::quit > 1; }
-
-    void setTargetProgress(unsigned target) override { monitor_.beginProgress(ProgressMonitor::Info(target)); }
-    void incrementProgress(unsigned inc) override { monitor_.incrementProgressBy(inc); }
-
-  private:
-    ProgressMonitor &monitor_;
-  };
-
-
-  /// Build a sphere approximation with an icosahedron.
-  /// @todo Make one subdivision for better spheres.
-  void makeUnitSphere(std::vector<glm::dvec3> &vertices, std::vector<unsigned> &indices)
-  {
-    // We start with two hexagonal rings to approximate the sphere.
-    // All subdivision occurs on a unit radius sphere, at the origin. We translate and
-    // scale the vertices at the end.
-    vertices.clear();
-    indices.clear();
-
-    static const double ringControlAngle = 25.0 / 180.0 * M_PI;
-    static const double ringHeight = std::sin(ringControlAngle);
-    static const double ringRadius = std::cos(ringControlAngle);
-    static const double hexAngle = 2.0 * M_PI / 6.0;
-    static const double ring2OffsetAngle = 0.5 * hexAngle;
-    static const glm::dvec3 initialVertices[] = {
       glm::dvec3(0, 0, 1),
 
       // Upper hexagon.
-      glm::dvec3(ringRadius, 0, ringHeight),
-      glm::dvec3(ringRadius * std::cos(hexAngle), ringRadius * std::sin(hexAngle), ringHeight),
-      glm::dvec3(ringRadius * std::cos(2 * hexAngle), ringRadius * std::sin(2 * hexAngle), ringHeight),
-      glm::dvec3(ringRadius * std::cos(3 * hexAngle), ringRadius * std::sin(3 * hexAngle), ringHeight),
-      glm::dvec3(ringRadius * std::cos(4 * hexAngle), ringRadius * std::sin(4 * hexAngle), ringHeight),
-      glm::dvec3(ringRadius * std::cos(5 * hexAngle), ringRadius * std::sin(5 * hexAngle), ringHeight),
+      glm::dvec3(ring_radius, 0, ring_height),
+      glm::dvec3(ring_radius * std::cos(hex_angle), ring_radius * std::sin(hex_angle), ring_height),
+      glm::dvec3(ring_radius * std::cos(2 * hex_angle), ring_radius * std::sin(2 * hex_angle), ring_height),
+      glm::dvec3(ring_radius * std::cos(3 * hex_angle), ring_radius * std::sin(3 * hex_angle), ring_height),
+      glm::dvec3(ring_radius * std::cos(4 * hex_angle), ring_radius * std::sin(4 * hex_angle), ring_height),
+      glm::dvec3(ring_radius * std::cos(5 * hex_angle), ring_radius * std::sin(5 * hex_angle), ring_height),
 
       // Lower hexagon.
-      glm::dvec3(ringRadius * std::cos(ring2OffsetAngle), ringRadius * std::sin(ring2OffsetAngle), -ringHeight),
-      glm::dvec3(ringRadius * std::cos(ring2OffsetAngle + hexAngle), ringRadius * std::sin(ring2OffsetAngle + hexAngle),
-                 -ringHeight),
-      glm::dvec3(ringRadius * std::cos(ring2OffsetAngle + 2 * hexAngle),
-                 ringRadius * std::sin(ring2OffsetAngle + 2 * hexAngle), -ringHeight),
-      glm::dvec3(ringRadius * std::cos(ring2OffsetAngle + 3 * hexAngle),
-                 ringRadius * std::sin(ring2OffsetAngle + 3 * hexAngle), -ringHeight),
-      glm::dvec3(ringRadius * std::cos(ring2OffsetAngle + 4 * hexAngle),
-                 ringRadius * std::sin(ring2OffsetAngle + 4 * hexAngle), -ringHeight),
-      glm::dvec3(ringRadius * std::cos(ring2OffsetAngle + 5 * hexAngle),
-                 ringRadius * std::sin(ring2OffsetAngle + 5 * hexAngle), -ringHeight),
+      glm::dvec3(ring_radius * std::cos(ring2_offset_angle), ring_radius * std::sin(ring2_offset_angle), -ring_height),
+      glm::dvec3(ring_radius * std::cos(ring2_offset_angle + hex_angle),
+                 ring_radius * std::sin(ring2_offset_angle + hex_angle), -ring_height),
+      glm::dvec3(ring_radius * std::cos(ring2_offset_angle + 2 * hex_angle),
+                 ring_radius * std::sin(ring2_offset_angle + 2 * hex_angle), -ring_height),
+      glm::dvec3(ring_radius * std::cos(ring2_offset_angle + 3 * hex_angle),
+                 ring_radius * std::sin(ring2_offset_angle + 3 * hex_angle), -ring_height),
+      glm::dvec3(ring_radius * std::cos(ring2_offset_angle + 4 * hex_angle),
+                 ring_radius * std::sin(ring2_offset_angle + 4 * hex_angle), -ring_height),
+      glm::dvec3(ring_radius * std::cos(ring2_offset_angle + 5 * hex_angle),
+                 ring_radius * std::sin(ring2_offset_angle + 5 * hex_angle), -ring_height),
 
       glm::dvec3(0, 0, -1),
     };
-    const unsigned initialVertexCount = sizeof(initialVertices) / sizeof(initialVertices[0]);
 
-    const unsigned initialIndices[] = { 0, 1,  2, 0, 2,  3, 0, 3,  4,  0,  4,  5,  0,  5,  6,  0,  6,  1,
+  const std::array<unsigned, 72> initial_indices =  // NOLINT(readability-magic-numbers)
+    { 0,  1,  2, 0,  2,  3, 0, 3,  4, 0, 4,  5, 0, 5,  6,  0,  6,  1,  1,  7,  2,  2,  8,  3,
+      3,  9,  4, 4,  10, 5, 5, 11, 6, 6, 12, 1, 7, 8,  2,  8,  9,  3,  9,  10, 4,  10, 11, 5,
+      11, 12, 6, 12, 7,  1, 7, 13, 8, 8, 13, 9, 9, 13, 10, 10, 13, 11, 11, 13, 12, 12, 13, 7 };
 
-                                        1, 7,  2, 2, 8,  3, 3, 9,  4,  4,  10, 5,  5,  11, 6,  6,  12, 1,
-
-                                        7, 8,  2, 8, 9,  3, 9, 10, 4,  10, 11, 5,  11, 12, 6,  12, 7,  1,
-
-                                        7, 13, 8, 8, 13, 9, 9, 13, 10, 10, 13, 11, 11, 13, 12, 12, 13, 7 };
-    const unsigned initialIndexCount = sizeof(initialIndices) / sizeof(initialIndices[0]);
-
-    for (unsigned i = 0; i < initialVertexCount; ++i)
-    {
-      vertices.push_back(initialVertices[i]);
-    }
-
-    for (unsigned i = 0; i < initialIndexCount; i += 3)
-    {
-      indices.push_back(initialIndices[i + 0]);
-      indices.push_back(initialIndices[i + 1]);
-      indices.push_back(initialIndices[i + 2]);
-    }
+  for (const auto vertex : initial_vertices)
+  {
+    vertices.emplace_back(vertex);
   }
+
+  for (auto index : initial_indices)
+  {
+    indices.emplace_back(index);
+  }
+}
 }  // namespace
 
 
@@ -177,27 +172,27 @@ std::istream &operator>>(std::istream &in, ExportMode &mode)
 {
   std::string mode_str;
   in >> mode_str;
-  if (mode_str.compare("occupancy") == 0)
+  if (mode_str == "occupancy")
   {
     mode = kExportOccupancy;
   }
-  else if (mode_str.compare("occupancy-centre") == 0)
+  else if (mode_str == "occupancy-centre")
   {
     mode = kExportOccupancyCentre;
   }
-  else if (mode_str.compare("clearance") == 0)
+  else if (mode_str == "clearance")
   {
     mode = kExportClearance;
   }
-  else if (mode_str.compare("heightmap") == 0)
+  else if (mode_str == "heightmap")
   {
     mode = kExportHeightmap;
   }
-  else if (mode_str.compare("heightmap-mesh") == 0)
+  else if (mode_str == "heightmap-mesh")
   {
     mode = kExportHeightmapMesh;
   }
-  else if (mode_str.compare("covariance") == 0)
+  else if (mode_str == "covariance")
   {
     mode = kExportCovariance;
   }
@@ -238,7 +233,7 @@ std::ostream &operator<<(std::ostream &out, const ExportMode mode)
 // Must be after argument streaming operators.
 #include <ohmutil/Options.h>
 
-int parseOptions(Options *opt, int argc, char *argv[])
+int parseOptions(Options *opt, int argc, char *argv[])  // NOLINT(modernize-avoid-c-arrays)
 {
   cxxopts::Options opt_parse(argv[0], "Convert an occupancy map to a point cloud. Defaults to generate a positional "
                                       "point cloud, but can generate a clearance cloud as well.");
@@ -330,8 +325,7 @@ int exportPointCloud(const Options &opt, ProgressMonitor &prog, LoadMapProgress 
       return -1;
     }
     break;
-  case kExportHeightmap:
-  {
+  case kExportHeightmap: {
     const ohm::MapLayer *layer = map.layout().layer(ohm::HeightmapVoxel::kHeightmapLayer);
     if (!layer)
     {
@@ -353,15 +347,15 @@ int exportPointCloud(const Options &opt, ProgressMonitor &prog, LoadMapProgress 
   }
 
   int heightmap_axis = -1;
-  if (opt.heightmap_axis.compare("x") == 0)
+  if (opt.heightmap_axis == "x")
   {
     heightmap_axis = 0;
   }
-  else if (opt.heightmap_axis.compare("y") == 0)
+  else if (opt.heightmap_axis == "y")
   {
     heightmap_axis = 1;
   }
-  else if (opt.heightmap_axis.compare("z") == 0)
+  else if (opt.heightmap_axis == "z")
   {
     heightmap_axis = 2;
   }
@@ -402,7 +396,7 @@ int exportPointCloud(const Options &opt, ProgressMonitor &prog, LoadMapProgress 
   ohm::Voxel<const float> clearance(&map, map.layout().clearanceLayer());
   ohm::Voxel<const ohm::VoxelMean> mean(&map, map.layout().meanLayer());
   ohm::Voxel<const ohm::HeightmapVoxel> height(&map, map.layout().layerIndex(ohm::HeightmapVoxel::kHeightmapLayer));
-  for (auto iter = map.begin(); iter != map.end() && !quit; ++iter)
+  for (auto iter = map.begin(); iter != map.end() && !g_quit; ++iter)
   {
     clearance.setKey(mean.setKey(occupancy.setKey(iter)));
     if (last_region != iter->regionKey())
@@ -428,9 +422,10 @@ int exportPointCloud(const Options &opt, ProgressMonitor &prog, LoadMapProgress 
         if (clearance_value >= 0 && clearance_value < opt.colour_scale)
         {
           const float range_value = clearance_value;
-          uint8_t c = uint8_t(255 * std::max(0.0f, (opt.colour_scale - range_value) / opt.colour_scale));
+          auto c = uint8_t(std::numeric_limits<uint8_t>::max() *
+                           std::max(0.0f, (opt.colour_scale - range_value) / opt.colour_scale));
           v = map.voxelCentreGlobal(*iter);
-          ply.addVertex(v, ohm::Colour(c, 128, 0));
+          ply.addVertex(v, ohm::Colour(c, std::numeric_limits<uint8_t>::max() / 2, 0));
           ++point_count;
         }
       }
@@ -444,7 +439,8 @@ int exportPointCloud(const Options &opt, ProgressMonitor &prog, LoadMapProgress 
         {
           ohm::HeightmapVoxel voxel_height;
           height.read(&voxel_height);
-          uint8_t c = uint8_t(255 * std::max(0.0f, (opt.colour_scale - voxel_height.clearance) / opt.colour_scale));
+          auto c = uint8_t(std::numeric_limits<uint8_t>::max() *
+                           std::max(0.0f, (opt.colour_scale - voxel_height.clearance) / opt.colour_scale));
           if (voxel_height.clearance <= 0)
           {
             // Max clearance. No red.
@@ -454,7 +450,7 @@ int exportPointCloud(const Options &opt, ProgressMonitor &prog, LoadMapProgress 
           glm::dvec3 up(0);
           up[heightmap_axis] = 1;
           v = map.voxelCentreGlobal(*iter) + up * double(voxel_height.height);
-          ply.addVertex(v, ohm::Colour(c, 128, 0));
+          ply.addVertex(v, ohm::Colour(c, std::numeric_limits<uint8_t>::max() / 2, 0));
           ++point_count;
         }
       }
@@ -467,7 +463,7 @@ int exportPointCloud(const Options &opt, ProgressMonitor &prog, LoadMapProgress 
 
   std::cout << "\nExporting " << point_count << " points" << std::endl;
 
-  if (!quit)
+  if (!g_quit)
   {
     if (!ply.save(opt.ply_file.c_str(), true))
     {
@@ -499,7 +495,7 @@ int exportHeightmapMesh(const Options &opt, ProgressMonitor &prog, LoadMapProgre
   mesh.buildMesh(heightmap);
   mesh.extractPlyMesh(ply);
 
-  if (!quit)
+  if (!g_quit)
   {
     if (!ply.save(opt.ply_file.c_str(), true))
     {
@@ -598,7 +594,7 @@ int exportCovariance(const Options &opt, ProgressMonitor &prog, LoadMapProgress 
 
   prog.beginProgress(ProgressMonitor::Info(region_count));
 
-  for (auto iter = map.begin(); iter != map.end() && !quit; ++iter)
+  for (auto iter = map.begin(); iter != map.end() && !g_quit; ++iter)
   {
     ohm::setVoxelKey(*iter, occupancy, mean, covariance);
     if (last_region != iter->regionKey())
@@ -632,7 +628,7 @@ int exportCovariance(const Options &opt, ProgressMonitor &prog, LoadMapProgress 
   ohm::covDebugStats();
 #endif  // OHM_COV_DEBUG
 
-  if (!quit)
+  if (!g_quit)
   {
     if (!ply.save(opt.ply_file.c_str(), true))
     {
@@ -675,10 +671,11 @@ int main(int argc, char *argv[])
         out << prog.info.info << " : ";
       }
 
-      out << std::setfill(' ') << std::setw(12) << prog.progress;
+      const auto fill_width = std::numeric_limits<decltype(prog.progress)>::digits10;
+      out << std::setfill(' ') << std::setw(fill_width) << prog.progress;
       if (prog.info.total)
       {
-        out << " / " << std::setfill(' ') << std::setw(12) << prog.info.total;
+        out << " / " << std::setfill(' ') << std::setw(fill_width) << prog.info.total;
       }
       out << "    ";
       std::cout << out.str() << std::flush;

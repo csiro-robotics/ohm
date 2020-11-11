@@ -9,7 +9,13 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
+#include <array>
 #include <iostream>
+
+namespace ohm
+{
+const int kMaxVectorElements = 32;
+}  // namespace ohm
 
 template <typename T>
 inline void parseVector(std::istream &in, T *v, int elements)
@@ -49,12 +55,12 @@ inline void parseVector(std::istream &in, T *v, int elements)
 
 inline void parseVector(std::istream &in, char *v, int elements)
 {
-  int vv[32];
-  if (elements > 32)
+  std::array<int, ohm::kMaxVectorElements> vv;
+  if (elements > int(vv.size()))
   {
     in.setstate(std::ios::badbit);
   }
-  parseVector(in, vv, elements);
+  parseVector(in, vv.data(), elements);
   for (int i = 0; i < elements; ++i)
   {
     v[i] = char(vv[i]);
@@ -64,12 +70,12 @@ inline void parseVector(std::istream &in, char *v, int elements)
 
 inline void parseVector(std::istream &in, unsigned char *v, int elements)
 {
-  int vv[32];
-  if (elements > 32)
+  std::array<int, ohm::kMaxVectorElements> vv;
+  if (elements > int(vv.size()))
   {
     in.setstate(std::ios::badbit);
   }
-  parseVector(in, vv, elements);
+  parseVector(in, vv.data(), elements);
   for (int i = 0; i < elements; ++i)
   {
     v[i] = char(vv[i]);

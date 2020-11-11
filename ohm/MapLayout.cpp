@@ -16,44 +16,43 @@
 #include <list>
 #include <string>
 
-using namespace ohm;
-
+namespace ohm
+{
 namespace
 {
-  void filterLayers(MapLayoutDetail &imp,  // NOLINT(google-runtime-references)
-                    const std::vector<unsigned> &preserve_layers)
+void filterLayers(MapLayoutDetail &imp, const std::vector<unsigned> &preserve_layers)
+{
+  if (imp.layers.empty())
   {
-    if (imp.layers.empty())
+    return;
+  }
+
+  unsigned effective_index = 0;
+  for (unsigned i = 0; i < unsigned(imp.layers.size()); ++effective_index)
+  {
+    MapLayer *layer = imp.layers[i];
+    bool preserve = false;
+    for (unsigned preserve_index : preserve_layers)
     {
-      return;
+      if (preserve_index == effective_index)
+      {
+        preserve = true;
+        break;
+      }
     }
 
-    unsigned effective_index = 0;
-    for (unsigned i = 0; i < unsigned(imp.layers.size()); ++effective_index)
+    if (!preserve)
     {
-      MapLayer *layer = imp.layers[i];
-      bool preserve = false;
-      for (unsigned preserve_index : preserve_layers)
-      {
-        if (preserve_index == effective_index)
-        {
-          preserve = true;
-          break;
-        }
-      }
-
-      if (!preserve)
-      {
-        delete layer;
-        imp.layers.erase(imp.layers.begin() + i);
-      }
-      else
-      {
-        layer->setLayerIndex(i);
-        ++i;
-      }
+      delete layer;
+      imp.layers.erase(imp.layers.begin() + i);
+    }
+    else
+    {
+      layer->setLayerIndex(i);
+      ++i;
     }
   }
+}
 }  // namespace
 
 
@@ -120,23 +119,23 @@ MapLayoutMatch MapLayout::checkEquivalent(const MapLayout &other) const
 {
   if (this == &other)
   {
-    return MapLayoutMatch::Exact;
+    return MapLayoutMatch::kExact;
   }
 
   // Check the obvious first: number of layers and layer sizes.
   if (layerCount() != other.layerCount())
   {
-    return MapLayoutMatch::Different;
+    return MapLayoutMatch::kDifferent;
   }
 
-  MapLayoutMatch match = MapLayoutMatch::Exact;
+  MapLayoutMatch match = MapLayoutMatch::kExact;
   for (size_t i = 0; i < layerCount(); ++i)
   {
     const MapLayoutMatch layer_match = layer(i).checkEquivalent(other.layer(i));
     match = std::min(match, layer_match);
-    if (match == MapLayoutMatch::Different)
+    if (match == MapLayoutMatch::kDifferent)
     {
-      return MapLayoutMatch::Different;
+      return MapLayoutMatch::kDifferent;
     }
   }
 
@@ -162,7 +161,7 @@ void MapLayout::filterLayers(const std::initializer_list<const char *> &preserve
     }
   }
 
-  ::filterLayers(*imp_, preserve_indices);
+  ohm::filterLayers(*imp_, preserve_indices);
   // Rebind the layer index caches.
   cacheLayerIndices();
 }
@@ -170,7 +169,7 @@ void MapLayout::filterLayers(const std::initializer_list<const char *> &preserve
 
 void MapLayout::filterLayers(const std::initializer_list<unsigned> &preserve_layers)
 {
-  ::filterLayers(*imp_, preserve_layers);
+  ohm::filterLayers(*imp_, preserve_layers);
   // Rebind the layer index caches.
   cacheLayerIndices();
 }
@@ -178,7 +177,7 @@ void MapLayout::filterLayers(const std::initializer_list<unsigned> &preserve_lay
 
 MapLayer *MapLayout::addLayer(const char *name, uint16_t subsampling)
 {
-  MapLayer *new_layer = new MapLayer(name, static_cast<uint16_t>(imp_->layers.size()), subsampling);
+  auto *new_layer = new MapLayer(name, static_cast<uint16_t>(imp_->layers.size()), subsampling);
   imp_->layers.push_back(new_layer);
 
   cacheLayerIndex(new_layer);
@@ -192,21 +191,21 @@ void MapLayout::cacheLayerIndex(const MapLayer *layer)
   {
     std::string name_str(layer->name());
     // This form of caching layer indices is not scalable. Do no more.
-    if (imp_->occupancy_layer == -1 && name_str.compare(default_layer::occupancyLayerName()) == 0)
+    if (imp_->occupancy_layer == -1 && name_str == default_layer::occupancyLayerName())
     {
-      imp_->occupancy_layer = layer->layerIndex();
+      imp_->occupancy_layer = int(layer->layerIndex());
     }
-    else if (imp_->mean_layer == -1 && name_str.compare(default_layer::meanLayerName()) == 0)
+    else if (imp_->mean_layer == -1 && name_str == default_layer::meanLayerName())
     {
-      imp_->mean_layer = layer->layerIndex();
+      imp_->mean_layer = int(layer->layerIndex());
     }
-    else if (imp_->covariance_layer == -1 && name_str.compare(default_layer::covarianceLayerName()) == 0)
+    else if (imp_->covariance_layer == -1 && name_str == default_layer::covarianceLayerName())
     {
-      imp_->covariance_layer = layer->layerIndex();
+      imp_->covariance_layer = int(layer->layerIndex());
     }
-    else if (imp_->clearance_layer == -1 && name_str.compare(default_layer::clearanceLayerName()) == 0)
+    else if (imp_->clearance_layer == -1 && name_str == default_layer::clearanceLayerName())
     {
-      imp_->clearance_layer = layer->layerIndex();
+      imp_->clearance_layer = int(layer->layerIndex());
     }
   }
 }
@@ -230,7 +229,7 @@ const MapLayer *MapLayout::layer(const char *layer_name) const
   const std::string name(layer_name);
   for (const MapLayer *layer : imp_->layers)
   {
-    if (layer && name.compare(layer->name()) == 0)
+    if (layer && name == layer->name())
     {
       return layer;
     }
@@ -263,9 +262,9 @@ int MapLayout::layerIndex(const char *layer_name) const
   const std::string name(layer_name);
   for (const MapLayer *layer : imp_->layers)
   {
-    if (layer && name.compare(layer->name()) == 0)
+    if (layer && name == layer->name())
     {
-      return layer->layerIndex();
+      return int(layer->layerIndex());
     }
   }
 
@@ -290,14 +289,18 @@ MapLayout &MapLayout::operator=(MapLayout &&other) noexcept
 
 MapLayout &MapLayout::operator=(const MapLayout &other)
 {
-  clear();
-  if (other.imp_)
+  if (this != &other)
   {
-    for (auto &&layer : other.imp_->layers)
+    clear();
+    if (other.imp_)
     {
-      MapLayer *new_layer = addLayer(layer->name(), layer->subsampling());
-      new_layer->copyVoxelLayout(*layer);
+      for (auto &&layer : other.imp_->layers)
+      {
+        MapLayer *new_layer = addLayer(layer->name(), layer->subsampling());
+        new_layer->copyVoxelLayout(*layer);
+      }
     }
   }
   return *this;
 }
+}  // namespace ohm

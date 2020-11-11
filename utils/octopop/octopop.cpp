@@ -22,194 +22,194 @@
 #include <octomap/octomap.h>
 
 #include <algorithm>
+#include <array>
 #include <atomic>
 #include <chrono>
 #include <cinttypes>
 #include <csignal>
 #include <cstddef>
 #include <fstream>
-#include <iostream>
 #include <iomanip>
+#include <iostream>
 #include <locale>
 #include <sstream>
 #include <thread>
 
 namespace
 {
-  /// The clock used to report process timing.
-  using Clock = std::chrono::high_resolution_clock;
+/// The clock used to report process timing.
+using Clock = std::chrono::high_resolution_clock;
 
-  /// Quit level/flag. Initial quit will just stop populating, but still save out. Multiple increments will quit saving.
-  int quit = 0;
+/// Quit level/flag. Initial quit will just stop populating, but still save out. Multiple increments will quit saving.
+int g_quit = 0;
 
-  /// Control-C capture.
-  void onSignal(int arg)
+/// Control-C capture.
+void onSignal(int arg)
+{
+  if (arg == SIGINT || arg == SIGTERM)
   {
-    if (arg == SIGINT || arg == SIGTERM)
-    {
-      ++quit;
-    }
+    ++g_quit;
   }
+}
 
-  /// Parsed command line options.
-  struct Options
+/// Parsed command line options.
+struct Options
+{
+  std::string cloud_file;
+  std::string trajectory_file;
+  std::string output_base_name;
+  glm::dvec3 sensor_offset = glm::dvec3(0.0);
+  uint64_t point_limit = 0;
+  int64_t preload_count = 0;
+  double start_time = 0;
+  double time_limit = 0;
+  double resolution = 0.25;
+  float prob_hit = 0.9f;    // NOLINT(readability-magic-numbers)
+  float prob_miss = 0.49f;  // NOLINT(readability-magic-numbers)
+  float prob_thresh = 0.5f;
+  glm::vec2 prob_range = glm::vec2(0, 0);
+  glm::vec3 cloud_colour = glm::vec3(0);
+  bool serialise = true;
+  bool save_info = false;
+  bool non_lazy_eval = false;
+  bool collapse = false;
+  bool quiet = false;
+
+  /// A helper to print configured options to (multiple) output stream.
+  void print(std::ostream **out) const;
+};
+
+
+void Options::print(std::ostream **out) const
+{
+  while (*out)
   {
-    std::string cloud_file;
-    std::string trajectory_file;
-    std::string output_base_name;
-    glm::dvec3 sensor_offset = glm::dvec3(0.0);
-    uint64_t point_limit = 0;
-    int64_t preload_count = 0;
-    double start_time = 0;
-    double time_limit = 0;
-    double resolution = 0.25;
-    float prob_hit = 0.9f;
-    float prob_miss = 0.49f;
-    float prob_thresh = 0.5f;
-    glm::vec2 prob_range = glm::vec2(0, 0);
-    glm::vec3 cloud_colour = glm::vec3(0);
-    bool serialise = true;
-    bool save_info = false;
-    bool non_lazy_eval = false;
-    bool collapse = false;
-    bool quiet = false;
-
-    /// A helper to print configured options to (multiple) output stream.
-    void print(std::ostream **out) const;
-  };
-
-
-  void Options::print(std::ostream **out) const
-  {
-    while (*out)
+    **out << "Cloud: " << cloud_file;
+    if (!trajectory_file.empty())
     {
-      **out << "Cloud: " << cloud_file;
-      if (!trajectory_file.empty())
+      **out << " + " << trajectory_file << '\n';
+    }
+    else
+    {
+      **out << " (no trajectory)\n";
+    }
+    if (preload_count)
+    {
+      **out << "Preload: ";
+      if (preload_count < 0)
       {
-        **out << " + " << trajectory_file << '\n';
+        **out << "all";
       }
       else
       {
-        **out << " (no trajectory)\n";
+        **out << preload_count;
       }
-      if (preload_count)
+      **out << '\n';
+    }
+
+    **out << "lazy eval: " << ((!non_lazy_eval) ? "true" : "false") << '\n';
+    **out << "collapse (post): " << ((collapse) ? "true" : "false") << '\n';
+
+    if (point_limit)
+    {
+      **out << "Maximum point: " << point_limit << '\n';
+    }
+
+    if (start_time > 0)
+    {
+      **out << "Process from timestamp: " << start_time << '\n';
+    }
+
+    if (time_limit > 0)
+    {
+      **out << "Process to timestamp: " << time_limit << '\n';
+    }
+
+    // std::string mem_size_string;
+    // util::makeMemoryDisplayString(mem_size_string, ohm::OccupancyMap::voxelMemoryPerRegion(region_voxel_dim));
+    **out << "Map resolution: " << resolution << '\n';
+    // **out << "Map region memory: " << mem_size_string << '\n';
+    **out << "Hit probability: " << prob_hit << '\n';
+    **out << "Miss probability: " << prob_miss << '\n';
+    **out << std::flush;
+    ++out;
+  }
+}
+
+/// Map saving control flags.
+enum SaveFlags : unsigned
+{
+  kSaveMap = (1u << 0u),   ///< Save the occupancy map
+  kSaveCloud = (1u << 1u)  ///< Save a point cloud from the occupancy map
+};
+
+/// Save the Octomap to file and optional to point cloud. The map file is set as `base_name + ".bt"` and the point
+/// cloud as `base_name + ".ply"`
+void saveMap(const Options &opt, octomap::OcTree *map, const std::string &base_name, unsigned save_flags = kSaveMap)
+{
+  if (g_quit >= 2)
+  {
+    return;
+  }
+
+  if (save_flags & kSaveMap)
+  {
+    std::string output_file = base_name + ".bt";
+    std::cout << "Saving map to " << output_file.c_str() << std::endl;
+
+    bool ok = map->writeBinary(output_file);
+    if (!ok)
+    {
+      std::cerr << "Failed to save map" << std::endl;
+    }
+  }
+
+  if (save_flags & kSaveCloud)
+  {
+    // Save a cloud representation. Need to walk the tree leaves.
+    std::cout << "Converting to point cloud." << std::endl;
+    ohm::PlyMesh ply;
+    std::uint64_t point_count = 0;
+    const auto map_end_iter = map->end_leafs();
+
+    // float to byte colour channel conversion.
+    const auto colour_channel_f = [](float cf) -> uint8_t  //
+    {
+      cf = float(std::numeric_limits<uint8_t>::max()) * std::max(cf, 0.0f);
+      auto cu = unsigned(cf);
+      return uint8_t(std::min<decltype(cu)>(cu, std::numeric_limits<uint8_t>::max()));
+    };
+    const bool use_colour = opt.cloud_colour.r > 0 || opt.cloud_colour.g > 0 || opt.cloud_colour.b > 0;
+    const ohm::Colour c(colour_channel_f(opt.cloud_colour.r), colour_channel_f(opt.cloud_colour.g),
+                        colour_channel_f(opt.cloud_colour.b));
+
+    for (auto iter = map->begin_leafs(); iter != map_end_iter && g_quit < 2; ++iter)
+    {
+      const auto occupancy = iter->getLogOdds();
+      if (occupancy >= map->getOccupancyThresLog())
       {
-        **out << "Preload: ";
-        if (preload_count < 0)
+        const auto coord = iter.getCoordinate();
+        const auto v = glm::vec3(coord.x(), coord.y(), coord.z());
+        if (use_colour)
         {
-          **out << "all";
+          ply.addVertex(v, c);
         }
         else
         {
-          **out << preload_count;
+          ply.addVertex(v);
         }
-        **out << '\n';
+        ++point_count;
       }
+    }
 
-      **out << "lazy eval: " << ((!non_lazy_eval) ? "true" : "false") << '\n';
-      **out << "collapse (post): " << ((collapse) ? "true" : "false") << '\n';
-
-      if (point_limit)
-      {
-        **out << "Maximum point: " << point_limit << '\n';
-      }
-
-      if (start_time > 0)
-      {
-        **out << "Process from timestamp: " << start_time << '\n';
-      }
-
-      if (time_limit > 0)
-      {
-        **out << "Process to timestamp: " << time_limit << '\n';
-      }
-
-      // std::string mem_size_string;
-      // util::makeMemoryDisplayString(mem_size_string, ohm::OccupancyMap::voxelMemoryPerRegion(region_voxel_dim));
-      **out << "Map resolution: " << resolution << '\n';
-      // **out << "Map region memory: " << mem_size_string << '\n';
-      **out << "Hit probability: " << prob_hit << '\n';
-      **out << "Miss probability: " << prob_miss << '\n';
-      **out << std::flush;
-      ++out;
+    if (g_quit < 2)
+    {
+      std::string output_file = base_name + ".ply";
+      std::cout << "Saving point cloud to " << output_file.c_str() << std::endl;
+      ply.save(output_file.c_str(), true);
     }
   }
-
-  /// Map saving control flags.
-  enum SaveFlags : unsigned
-  {
-    kSaveMap = (1 << 0),   ///< Save the occupancy map
-    kSaveCloud = (1 << 1)  ///< Save a point cloud from the occupancy map
-  };
-
-  /// Save the Octomap to file and optional to point cloud. The map file is set as `base_name + ".bt"` and the point
-  /// cloud as `base_name + ".ply"`
-  void saveMap(const Options &opt, octomap::OcTree *map, const std::string &base_name, unsigned save_flags = kSaveMap)
-  {
-    if (quit >= 2)
-    {
-      return;
-    }
-
-    if (save_flags & kSaveMap)
-    {
-      std::string output_file = base_name + ".bt";
-      std::cout << "Saving map to " << output_file.c_str() << std::endl;
-
-      bool ok = map->writeBinary(output_file);
-      if (!ok)
-      {
-        std::cerr << "Failed to save map" << std::endl;
-      }
-    }
-
-    if (save_flags & kSaveCloud)
-    {
-      // Save a cloud representation. Need to walk the tree leaves.
-      std::cout << "Converting to point cloud." << std::endl;
-      ohm::PlyMesh ply;
-      glm::vec3 v;
-      std::uint64_t point_count = 0;
-      const auto map_end_iter = map->end_leafs();
-
-      // float to byte colour channel conversion.
-      const auto colour_channel_f = [](float cf) -> uint8_t  //
-      {
-        cf = 255.0f * std::max(cf, 0.0f);
-        unsigned cu = unsigned(cf);
-        return uint8_t(std::min(cu, 255u));
-      };
-      const bool use_colour = opt.cloud_colour.r > 0 || opt.cloud_colour.g > 0 || opt.cloud_colour.b > 0;
-      const ohm::Colour c(colour_channel_f(opt.cloud_colour.r), colour_channel_f(opt.cloud_colour.g),
-                          colour_channel_f(opt.cloud_colour.b));
-
-      for (auto iter = map->begin_leafs(); iter != map_end_iter && quit < 2; ++iter)
-      {
-        const auto occupancy = iter->getLogOdds();
-        if (occupancy >= map->getOccupancyThresLog())
-        {
-          const auto coord = iter.getCoordinate();
-          const auto v = glm::vec3(coord.x(), coord.y(), coord.z());
-          if (use_colour)
-          {
-            ply.addVertex(v, c);
-          }
-          else
-          {
-            ply.addVertex(v);
-          }
-          ++point_count;
-        }
-      }
-
-      if (quit < 2)
-      {
-        std::string output_file = base_name + ".ply";
-        std::cout << "Saving point cloud to " << output_file.c_str() << std::endl;
-        ply.save(output_file.c_str(), true);
-      }
-    }
-  }
+}
 }  // namespace
 
 
@@ -240,7 +240,7 @@ int populateMap(const Options &opt)
     {
       const uint64_t elapsed_ms_local = elapsed_ms;
       const uint64_t sec = elapsed_ms_local / 1000u;
-      const unsigned ms = unsigned(elapsed_ms_local - sec * 1000);
+      const auto ms = unsigned(elapsed_ms_local - sec * 1000);
 
       std::ostringstream out;
       out.imbue(std::locale(""));
@@ -253,20 +253,21 @@ int populateMap(const Options &opt)
 
       out << sec << '.' << std::setfill('0') << std::setw(3) << ms << "s : ";
 
-      out << std::setfill(' ') << std::setw(12) << prog.progress;
+      const auto fill_width = std::numeric_limits<decltype(prog.progress)>::digits10;
+      out << std::setfill(' ') << std::setw(fill_width) << prog.progress;
       if (prog.info.total)
       {
-        out << " / " << std::setfill(' ') << std::setw(12) << prog.info.total;
+        out << " / " << std::setfill(' ') << std::setw(fill_width) << prog.info.total;
       }
       out << "    ";
       std::cout << out.str() << std::flush;
     }
   });
 
-  octomap::KeyRay rayKeys;
   octomap::OcTree map(opt.resolution);
   octomap::OcTreeKey key;
-  glm::dvec3 origin, sample;
+  glm::dvec3 origin;
+  glm::dvec3 sample;
   // glm::vec3 voxel, ext(opt.resolution);
   double timestamp;
   uint64_t point_count = 0;
@@ -275,8 +276,10 @@ int populateMap(const Options &opt)
   double first_timestamp = -1;
   double last_timestamp = -1;
   double first_batch_timestamp = -1;
-  Clock::time_point start_time, end_time;
-  Clock::time_point collapse_start_time, collapse_end_time;
+  Clock::time_point start_time;
+  Clock::time_point end_time;
+  Clock::time_point collapse_start_time;
+  Clock::time_point collapse_end_time;
 
   map.setProbHit(opt.prob_hit);
   map.setOccupancyThres(opt.prob_thresh);
@@ -290,7 +293,7 @@ int populateMap(const Options &opt)
     map.setClampingThresMax(opt.prob_range[1]);
   }
 
-  std::ostream *streams[] = { &std::cout, nullptr, nullptr };
+  std::array<std::ostream *, 3> streams = { &std::cout, nullptr, nullptr };
   std::ofstream info_stream;
   if (opt.save_info)
   {
@@ -300,7 +303,7 @@ int populateMap(const Options &opt)
     info_stream.open(output_file.c_str());
   }
 
-  opt.print(streams);
+  opt.print(streams.data());
 
   if (opt.preload_count)
   {
@@ -378,7 +381,7 @@ int populateMap(const Options &opt)
     elapsed_ms = uint64_t((last_timestamp - timebase) * 1e3);
 
     if (opt.point_limit && point_count >= opt.point_limit ||
-        opt.time_limit > 0 && last_timestamp - timebase >= opt.time_limit || quit)
+        opt.time_limit > 0 && last_timestamp - timebase >= opt.time_limit || g_quit)
     {
       break;
     }
@@ -413,26 +416,28 @@ int populateMap(const Options &opt)
 
   end_time = Clock::now();
 
-  std::ostream **out = streams;
-  while (*out)
+  for (auto *out : streams)
   {
+    if (!out)
+    {
+      continue;
+    }
     const double time_range = last_timestamp - first_timestamp;
     const double processing_time_sec =
       std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count() * 1e-3;
 
-    **out << "Point count: " << point_count << '\n';
-    **out << "Data time: " << time_range << '\n';
-    **out << "Total processing time: " << end_time - start_time << '\n';
+    *out << "Point count: " << point_count << '\n';
+    *out << "Data time: " << time_range << '\n';
+    *out << "Total processing time: " << end_time - start_time << '\n';
     if (opt.collapse)
     {
-      **out << "Collapse time: " << collapse_end_time - collapse_start_time << '\n';
+      *out << "Collapse time: " << collapse_end_time - collapse_start_time << '\n';
     }
-    **out << "Efficiency: " << ((processing_time_sec > 0 && time_range > 0) ? time_range / processing_time_sec : 0.0)
-          << '\n';
-    **out << "Points/sec: " << unsigned((processing_time_sec > 0) ? point_count / processing_time_sec : 0.0) << '\n';
-    // **out << "Memory (approx): " << map.calculateApproximateMemory() / (1024.0 * 1024.0) << " MiB\n";
-    **out << std::flush;
-    ++out;
+    *out << "Efficiency: " << ((processing_time_sec > 0 && time_range > 0) ? time_range / processing_time_sec : 0.0)
+         << '\n';
+    *out << "Points/sec: " << unsigned((processing_time_sec > 0) ? point_count / processing_time_sec : 0.0) << '\n';
+    // *out << "Memory (approx): " << map.calculateApproximateMemory() / (1024.0 * 1024.0) << " MiB\n";
+    *out << std::flush;
   }
 
   if (opt.serialise)
@@ -446,7 +451,7 @@ int populateMap(const Options &opt)
 }
 
 
-int parseOptions(Options *opt, int argc, char *argv[])
+int parseOptions(Options *opt, int argc, char *argv[])  // NOLINT(modernize-avoid-c-arrays)
 {
   cxxopts::Options opt_parse(argv[0],
                              "Generate an occupancy map from a LAS/LAZ based point cloud and accompanying "

@@ -10,8 +10,8 @@
 
 #include <algorithm>
 
-using namespace ohm;
-
+namespace ohm
+{
 PlaneFillWalker::PlaneFillWalker(const OccupancyMap &map, const Key &min_ext_key, const Key &max_ext_key,
                                  UpAxis up_axis, bool auto_add_neighbours)
   : map(map)
@@ -47,7 +47,7 @@ PlaneFillWalker::PlaneFillWalker(const OccupancyMap &map, const Key &min_ext_key
 }
 
 
-bool PlaneFillWalker::begin(Key &key)  // NOLINT(google-runtime-references)
+bool PlaneFillWalker::begin(Key &key)
 {
   while (!open_list.empty())
   {
@@ -55,7 +55,7 @@ bool PlaneFillWalker::begin(Key &key)  // NOLINT(google-runtime-references)
   }
   visit_list.clear();
 
-  visit_list.resize(key_range[axis_indices[0]] * key_range[axis_indices[1]]);
+  visit_list.resize(size_t(key_range[axis_indices[0]]) * size_t(key_range[axis_indices[1]]));
 
   if (visit_list.empty())
   {
@@ -79,7 +79,7 @@ bool PlaneFillWalker::begin(Key &key)  // NOLINT(google-runtime-references)
 }
 
 
-bool PlaneFillWalker::walkNext(Key &key)  // NOLINT(google-runtime-references)
+bool PlaneFillWalker::walkNext(Key &key)
 {
   // Pop the open list.
   while (!open_list.empty())
@@ -127,22 +127,22 @@ void PlaneFillWalker::addNeighbours(const Key &key, Revisit revisit_behaviour)
         const int n_visit_height = visitHeight(n_key);
         switch (revisit_behaviour)
         {
-          case Revisit::All:
-            add_to_open = true;
-            break;
+        case Revisit::kAll:
+          add_to_open = true;
+          break;
 
-          case Revisit::Higher:
-            add_to_open = visit_list[idx] < 0 || n_visit_height > visit_list[idx];
-            break;
+        case Revisit::kHigher:
+          add_to_open = visit_list[idx] < 0 || n_visit_height > visit_list[idx];
+          break;
 
-          case Revisit::Lower:
-            add_to_open = visit_list[idx] < 0 || n_visit_height < visit_list[idx];
-            break;
+        case Revisit::kLower:
+          add_to_open = visit_list[idx] < 0 || n_visit_height < visit_list[idx];
+          break;
 
-          case Revisit::None:
-          default:
-            add_to_open = visit_list[idx] < 0;
-            break;
+        case Revisit::kNone:
+        default:
+          add_to_open = visit_list[idx] < 0;
+          break;
         }
 
         if (add_to_open)
@@ -189,3 +189,4 @@ int PlaneFillWalker::visitHeight(const Key &key) const
 {
   return map.rangeBetween(min_ext_key, key)[axis_indices[2]];
 }
+}  // namespace ohm

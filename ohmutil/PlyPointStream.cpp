@@ -7,19 +7,20 @@
 
 #include <glm/vec3.hpp>
 
-#include <limits>
+#include <array>
 #include <iomanip>
 #include <iostream>
+#include <limits>
 #include <stdexcept>
 
-using namespace ohm;
-
+namespace ohm
+{
 namespace
 {
-  template <typename T>
-  struct PlyTypeOf
-  {
-  };
+template <typename T>
+struct PlyTypeOf
+{
+};
 
 #define PLYTYPEOF(type_decl, enum_value)                 \
   template <>                                            \
@@ -28,66 +29,66 @@ namespace
     static const PlyPointStream::Type type = enum_value; \
   }
 
-  PLYTYPEOF(int8_t, PlyPointStream::Type::kInt8);
-  PLYTYPEOF(uint8_t, PlyPointStream::Type::kUInt8);
-  PLYTYPEOF(int16_t, PlyPointStream::Type::kInt16);
-  PLYTYPEOF(uint16_t, PlyPointStream::Type::kUInt16);
-  PLYTYPEOF(int32_t, PlyPointStream::Type::kInt32);
-  PLYTYPEOF(uint32_t, PlyPointStream::Type::kUInt32);
-  PLYTYPEOF(float, PlyPointStream::Type::kFloat32);
-  PLYTYPEOF(double, PlyPointStream::Type::kFloat64);
+PLYTYPEOF(int8_t, PlyPointStream::Type::kInt8);
+PLYTYPEOF(uint8_t, PlyPointStream::Type::kUInt8);
+PLYTYPEOF(int16_t, PlyPointStream::Type::kInt16);
+PLYTYPEOF(uint16_t, PlyPointStream::Type::kUInt16);
+PLYTYPEOF(int32_t, PlyPointStream::Type::kInt32);
+PLYTYPEOF(uint32_t, PlyPointStream::Type::kUInt32);
+PLYTYPEOF(float, PlyPointStream::Type::kFloat32);
+PLYTYPEOF(double, PlyPointStream::Type::kFloat64);
 
 
-  bool isBigEndian()
+bool isBigEndian()
+{
+  union
   {
-    union
-    {
-      uint32_t i;
-      char c[sizeof(uint32_t)];
-    } bint = { 0x01020304 };
+    uint32_t i;
+    char c[sizeof(uint32_t)];  // NOLINT(modernize-avoid-c-arrays)
+  } bint = { 0x01020304 };     // NOLINT(readability-magic-numbers)
 
-    return bint.c[0] == 1;
-  }
+  return bint.c[0] == 1;
+}
 
 
-  /// Helper for use with writing a PLY element count to an @c ostream .
-  ///
-  /// Usage:
-  /// ```cpp
-  /// std::cout << "element vertex " << ElementCount(point_count) << '\n';
-  /// ```
-  ///
-  /// This will prefix the output value with '0' to maximum width of the @c ElementCount::value . This can be used
-  /// to write a place holder value at the start of the stream, then to return and write the correct value.
-  class ElementCount
-  {
-  public:
-    /// Constructor
-    /// @param count The value for the element count.
-    ElementCount(uint64_t count = 0)
-      : value(count)
-    {}
+/// Helper for use with writing a PLY element count to an @c ostream .
+///
+/// Usage:
+/// ```cpp
+/// std::cout << "element vertex " << ElementCount(point_count) << '\n';
+/// ```
+///
+/// This will prefix the output value with '0' to maximum width of the @c ElementCount::value . This can be used
+/// to write a place holder value at the start of the stream, then to return and write the correct value.
+class ElementCount
+{
+public:
+  /// Constructor
+  /// @param count The value for the element count.
+  explicit ElementCount(uint64_t count = 0)
+    : value(count)
+  {}
 
-    uint64_t value = 0;  ///< The element count value to write.
-  };
+  uint64_t value = 0;  ///< The element count value to write.
+};
 
 
-  /// Streaming operator for an @c ElementCount .
-  ///
-  /// This writes the @c ElementCount::value padded with leading zeros and can be used to support writing a placeholder
-  /// value, then later returning the stream to write the corrected value.
-  /// @param out The output stream to write.
-  /// @param count The @c ElementCount to write.
-  /// @return @c out
-  std::ostream &operator<<(std::ostream &out, const ElementCount &count)
-  {
-    auto restore_fill = out.fill();
-    auto restore_width = out.width();
-    out << std::setfill('0') << std::setw(std::numeric_limits<decltype(count.value)>::digits10) << count.value;
-    out.fill(restore_fill);
-    out.width(restore_width);
-    return out;
-  }
+/// Streaming operator for an @c ElementCount .
+///
+/// This writes the @c ElementCount::value padded with leading zeros and can be used to support writing a placeholder
+/// value, then later returning the stream to write the corrected value.
+/// @param out The output stream to write.
+/// @param count The @c ElementCount to write.
+/// @return @c out
+std::ostream &operator<<(std::ostream &out, const ElementCount &count)
+{
+  auto restore_fill = out.fill();
+  auto restore_width = out.width();
+  out << std::setfill('0') << std::setw(std::numeric_limits<decltype(count.value)>::digits10) << count.value;
+  out.fill(restore_fill);
+  out.width(restore_width);
+  return out;
+}
 }  // namespace
 
 PlyPointStream::PlyPointStream(const std::vector<Property> &properties)
@@ -213,28 +214,28 @@ void PlyPointStream::writePoint()
     switch (properties_[i].type)
     {
     case Type::kInt8:
-      out_->write((const char *)&value.i8, sizeof(value.i8));
+      out_->write(reinterpret_cast<const char *>(&value.i8), sizeof(value.i8));
       break;
     case Type::kUInt8:
-      out_->write((const char *)&value.u8, sizeof(value.u8));
+      out_->write(reinterpret_cast<const char *>(&value.u8), sizeof(value.u8));
       break;
     case Type::kInt16:
-      out_->write((const char *)&value.i16, sizeof(value.i16));
+      out_->write(reinterpret_cast<const char *>(&value.i16), sizeof(value.i16));
       break;
     case Type::kUInt16:
-      out_->write((const char *)&value.u16, sizeof(value.u16));
+      out_->write(reinterpret_cast<const char *>(&value.u16), sizeof(value.u16));
       break;
     case Type::kInt32:
-      out_->write((const char *)&value.i32, sizeof(value.i32));
+      out_->write(reinterpret_cast<const char *>(&value.i32), sizeof(value.i32));
       break;
     case Type::kUInt32:
-      out_->write((const char *)&value.u32, sizeof(value.u32));
+      out_->write(reinterpret_cast<const char *>(&value.u32), sizeof(value.u32));
       break;
     case Type::kFloat32:
-      out_->write((const char *)&value.f32, sizeof(value.f32));
+      out_->write(reinterpret_cast<const char *>(&value.f32), sizeof(value.f32));
       break;
     case Type::kFloat64:
-      out_->write((const char *)&value.f64, sizeof(value.f64));
+      out_->write(reinterpret_cast<const char *>(&value.f64), sizeof(value.f64));
       break;
     default:
       throw std::runtime_error("Unexpected data type");
@@ -246,7 +247,9 @@ void PlyPointStream::writePoint()
 
 std::string PlyPointStream::typeName(Type type)
 {
-  static const std::string names[] =  //
+  // Lint(KS): tried using an enum value for the array size, but that didn't work.
+  // NOLINTNEXTLINE(readability-magic-numbers)
+  static std::array<const std::string, 9> names =  //
     {
       "null",    //
       "char",    //
@@ -259,7 +262,7 @@ std::string PlyPointStream::typeName(Type type)
       "double"   //
     };
 
-  if (unsigned(type) < sizeof(names) / sizeof(names[0]))
+  if (unsigned(type) < names.size())
   {
     return names[unsigned(type)];
   }
@@ -383,3 +386,4 @@ bool PlyPointStream::finalisePointCount()
   }
   return false;
 }
+}  // namespace ohm

@@ -19,14 +19,14 @@
 
 #include <map>
 
-using namespace ohm;
-
+namespace ohm
+{
 namespace
 {
-  void onOccupancyLayerChunkSync(MapChunk *chunk, const glm::u8vec3 &region_dimensions)
-  {
-    chunk->searchAndUpdateFirstValid(region_dimensions);
-  }
+void onOccupancyLayerChunkSync(MapChunk *chunk, const glm::u8vec3 &region_dimensions)
+{
+  chunk->searchAndUpdateFirstValid(region_dimensions);
+}
 }  // namespace
 
 GpuMapDetail::~GpuMapDetail()
@@ -37,10 +37,10 @@ GpuMapDetail::~GpuMapDetail()
   }
 }
 
-GpuCache *ohm::initialiseGpuCache(OccupancyMap &map, size_t target_gpu_mem_size, unsigned flags)
+GpuCache *initialiseGpuCache(OccupancyMap &map, size_t target_gpu_mem_size, unsigned flags)
 {
   OccupancyMapDetail *detail = map.detail();
-  GpuCache *gpu_cache = static_cast<GpuCache *>(detail->gpu_cache);
+  auto *gpu_cache = static_cast<GpuCache *>(detail->gpu_cache);
   if (!gpu_cache)
   {
     target_gpu_mem_size = (target_gpu_mem_size) ? target_gpu_mem_size : GpuCache::kDefaultTargetMemSize;
@@ -54,7 +54,7 @@ GpuCache *ohm::initialiseGpuCache(OccupancyMap &map, size_t target_gpu_mem_size,
 }
 
 
-void ohm::reinitialiseGpuCache(GpuCache *gpu_cache, OccupancyMap &map, unsigned flags)
+void reinitialiseGpuCache(GpuCache *gpu_cache, OccupancyMap &map, unsigned flags)
 {
   if (gpu_cache)
   {
@@ -101,7 +101,8 @@ void ohm::reinitialiseGpuCache(GpuCache *gpu_cache, OccupancyMap &map, unsigned 
     for (auto &layer_weight : layer_mem_weight)
     {
       // Logic is: layer_mem = target mem * (layer_weight / total_weight)
-      layer_weight.second = layer_weight.second * gpu_cache->targetGpuAllocSize() / total_mem_weight;
+      layer_weight.second =
+        (total_mem_weight) ? layer_weight.second * gpu_cache->targetGpuAllocSize() / total_mem_weight : 0;
     }
 
     if (occupancy_layer >= 0)
@@ -121,7 +122,7 @@ void ohm::reinitialiseGpuCache(GpuCache *gpu_cache, OccupancyMap &map, unsigned 
 
     if (covariance_layer >= 0)
     {
-      // TODO: (KS) add the write flag if we move to being able to process the samples on GPU too.
+      // TODO(KS): add the write flag if we move to being able to process the samples on GPU too.
       gpu_cache->createCache(kGcIdCovariance, GpuLayerCacheParams{ layer_mem_weight[covariance_layer], covariance_layer,
                                                                    kGcfRead | kGcfWrite | mappable_flag });
     }
@@ -136,3 +137,4 @@ void ohm::reinitialiseGpuCache(GpuCache *gpu_cache, OccupancyMap &map, unsigned 
     }
   }
 }
+}  // namespace ohm

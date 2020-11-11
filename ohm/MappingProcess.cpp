@@ -5,11 +5,9 @@
 // Author: Kazys Stepanas
 #include "MappingProcess.h"
 
-using namespace ohm;
-
-MappingProcess::MappingProcess()
-  : paused_(false)
-{}
-
+namespace ohm
+{
+MappingProcess::MappingProcess() = default;
 
 MappingProcess::~MappingProcess() = default;
+}  // namespace ohm

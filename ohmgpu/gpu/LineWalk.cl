@@ -65,6 +65,8 @@ inline __device__ int geti3(const int3 *v, int index);
 ///
 /// @c WALK_LINE_VOXELS() is invoked for each voxel traversed.
 ///
+/// Based on J. Amanatides and A. Woo, "A fast voxel traversal algorithm for raytracing," 1987.
+///
 /// @param startKey The key for the voxel containing @p startPoint.
 /// @param endKey The key for the voxel containing @p endPoint.
 /// @param startVoxelCentre Coordinate of the centre of the starting voxel, in the same frame as @c startPoint and @c
