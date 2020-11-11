@@ -467,7 +467,7 @@ bool SlamCloudLoader::open(const char *sample_file_path, const char *trajectory_
       // NOLINTNEXTLINE(cert-err34-c)
       return sscanf_s(imp_->traj_line.c_str(), "%lg %lg %lg %lg %lg %lg %lg %lg", &point.timestamp, &point.origin.x,
                       &point.origin.y, &point.origin.z, &orientation.w, &orientation.x, &orientation.y,
-                      &orientation.z) != read_item_count;
+                      &orientation.z) == read_item_count;
     };
   }
   else if (imp_->trajectory_reader)
