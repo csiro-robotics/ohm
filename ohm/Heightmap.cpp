@@ -369,9 +369,9 @@ Key findGround(double *height_out, double *clearance_out, SrcVoxel &voxel, const
   glm::dvec3 sub_voxel_pos(0);
   glm::dvec3 column_voxel_pos(0);
   double height = 0;
-  bool have_candidate = false;
-  bool have_transitioned_from_unobserved = false;
+  OccupancyType candidate_voxel_type = ohm::kNull;
   OccupancyType last_voxel_type = ohm::kUnobserved;
+  bool have_transitioned_from_unobserved = false;
 
   // Select walking direction based on the up axis being aligned with the primary axis or not.
 
@@ -384,10 +384,15 @@ Key findGround(double *height_out, double *clearance_out, SrcVoxel &voxel, const
 
     const OccupancyType voxel_type = sourceVoxelHeight(&sub_voxel_pos, &height, voxel, imp.up);
 
-    if (voxel_type == ohm::kOccupied ||
-        imp.generate_virtual_surface && !have_transitioned_from_unobserved && voxel_type == ohm::kFree)
+    // We check the clearance and consider a new candidate if we have encountered an occupied voxel, or
+    // we are considering virual surfaces. When considering virtual surfaces, we also check clearance where we
+    // have transitioned from unobserved to free and we do not already have a candidate voxel. In this way
+    // only occupied voxels can obstruct the clearance value and only the lowest virtual voxel will be considered as
+    // a surface.
+    if (voxel_type == ohm::kOccupied || imp.generate_virtual_surface && have_transitioned_from_unobserved &&
+                                          voxel_type == ohm::kFree && candidate_voxel_type == ohm::kNull)
     {
-      if (have_candidate)
+      if (candidate_voxel_type != ohm::kNull)
       {
         // Branch condition where we have a candidate ground_key, but have yet to check or record its clearance.
         // Clearance height is the height of the current voxel associated with key.
@@ -404,6 +409,7 @@ Key findGround(double *height_out, double *clearance_out, SrcVoxel &voxel, const
         column_voxel_pos = sub_voxel_pos;
         // Current voxel becomes our new ground candidate voxel.
         ground_key = key;
+        candidate_voxel_type = voxel_type;
       }
       else
       {
@@ -411,7 +417,7 @@ Key findGround(double *height_out, double *clearance_out, SrcVoxel &voxel, const
         ground_key = key;
         column_height = column_clearance_height = height;
         column_voxel_pos = sub_voxel_pos;
-        have_candidate = true;
+        candidate_voxel_type = voxel_type;
       }
     }
 
@@ -421,7 +427,7 @@ Key findGround(double *height_out, double *clearance_out, SrcVoxel &voxel, const
   }
 
   // Did we find a valid candidate?
-  if (have_candidate)
+  if (candidate_voxel_type != ohm::kNull)
   {
     *height_out = height;
     *clearance_out = column_clearance_height - column_height;
