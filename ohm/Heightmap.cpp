@@ -365,14 +365,13 @@ Key findGround(double *height_out, double *clearance_out, SrcVoxel &voxel, const
 
   // Walk the src column up.
   const int up_axis_index = imp.vertical_axis_index;
+  // Select walking direction based on the up axis being aligned with the primary axis or not.
   const int step_dir = (int(imp.up_axis_id) >= 0) ? 1 : -1;
   glm::dvec3 sub_voxel_pos(0);
   glm::dvec3 column_voxel_pos(0);
   double height = 0;
   OccupancyType candidate_voxel_type = ohm::kNull;
-  OccupancyType last_voxel_type = ohm::kUnobserved;
-
-  // Select walking direction based on the up axis being aligned with the primary axis or not.
+  OccupancyType last_voxel_type = ohm::kNull;
 
   Key ground_key = Key::kNull;
   for (Key key = seed_key; key.isBounded(up_axis_index, min_key, max_key);
@@ -384,7 +383,7 @@ Key findGround(double *height_out, double *clearance_out, SrcVoxel &voxel, const
     const OccupancyType voxel_type = sourceVoxelHeight(&sub_voxel_pos, &height, voxel, imp.up);
 
     // We check the clearance and consider a new candidate if we have encountered an occupied voxel, or
-    // we are considering virual surfaces. When considering virtual surfaces, we also check clearance where we
+    // we are considering virtual surfaces. When considering virtual surfaces, we also check clearance where we
     // have transitioned from unobserved to free and we do not already have a candidate voxel. In this way
     // only occupied voxels can obstruct the clearance value and only the lowest virtual voxel will be considered as
     // a surface.
