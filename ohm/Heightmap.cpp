@@ -388,8 +388,8 @@ Key findGround(double *height_out, double *clearance_out, SrcVoxel &voxel, const
     // have transitioned from unobserved to free and we do not already have a candidate voxel. In this way
     // only occupied voxels can obstruct the clearance value and only the lowest virtual voxel will be considered as
     // a surface.
-    const bool last_is_unobserverded = last_voxel_type == ohm::kUnobserved || last_voxel_type == ohm::kNull;
-    if (voxel_type == ohm::kOccupied || imp.generate_virtual_surface && last_is_unobserverded &&
+    const bool last_is_unobserved = last_voxel_type == ohm::kUnobserved || last_voxel_type == ohm::kNull;
+    if (voxel_type == ohm::kOccupied || imp.generate_virtual_surface && last_is_unobserved &&
                                           voxel_type == ohm::kFree && candidate_voxel_type == ohm::kNull)
     {
       if (candidate_voxel_type != ohm::kNull)
