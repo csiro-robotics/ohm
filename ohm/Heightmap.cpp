@@ -371,7 +371,6 @@ Key findGround(double *height_out, double *clearance_out, SrcVoxel &voxel, const
   double height = 0;
   OccupancyType candidate_voxel_type = ohm::kNull;
   OccupancyType last_voxel_type = ohm::kUnobserved;
-  bool have_transitioned_from_unobserved = false;
 
   // Select walking direction based on the up axis being aligned with the primary axis or not.
 
@@ -389,7 +388,8 @@ Key findGround(double *height_out, double *clearance_out, SrcVoxel &voxel, const
     // have transitioned from unobserved to free and we do not already have a candidate voxel. In this way
     // only occupied voxels can obstruct the clearance value and only the lowest virtual voxel will be considered as
     // a surface.
-    if (voxel_type == ohm::kOccupied || imp.generate_virtual_surface && have_transitioned_from_unobserved &&
+    const bool last_is_unobserverded = last_voxel_type == ohm::kUnobserved || last_voxel_type == ohm::kNull;
+    if (voxel_type == ohm::kOccupied || imp.generate_virtual_surface && last_is_unobserverded &&
                                           voxel_type == ohm::kFree && candidate_voxel_type == ohm::kNull)
     {
       if (candidate_voxel_type != ohm::kNull)
@@ -421,8 +421,6 @@ Key findGround(double *height_out, double *clearance_out, SrcVoxel &voxel, const
       }
     }
 
-    have_transitioned_from_unobserved = (voxel_type != ohm::kUnobserved && voxel_type != ohm::kNull) &&
-                                        (last_voxel_type == ohm::kUnobserved || last_voxel_type == ohm::kNull);
     last_voxel_type = voxel_type;
   }
 
