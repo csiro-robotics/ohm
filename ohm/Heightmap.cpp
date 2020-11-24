@@ -186,7 +186,32 @@ inline OccupancyType sourceVoxelHeight(glm::dvec3 *voxel_position, double *heigh
   return voxel_type;
 }
 
-
+/// A secondary operation for @c findNearestSupportingVoxel() which finds the first occupied or virtual voxel in the
+/// column of @p from_key. This function can search either up or down from @p from_key until a candidate is found, the
+/// @p step_limit number of voxels have been considered or ofter @c to_key has been considered - whichever condition is
+/// met first.
+///
+/// A valid candidate voxel is one which is occupied or a virtual surface voxel. See the virtual surfaces section of the
+/// @c Heightmap class documentation.
+///
+/// @param voxel Configured to allow access to various aspects of the source map voxels.
+/// @param from_key Voxel key identifying where to start the search from. Only voxels in the same column are considered
+///   up to @c to_key .
+/// @param to_key The final key to consider. This must be in the same column as @c from_key.
+/// @param up_axis_index Index of the up axis: 0=>x, 1=>y, 2=>z.
+/// @param step_limit Limits the number of voxels to be visited. Zero to visit all voxels in the range
+/// `[from_key, to_key]`
+/// @param search_up A flag used to indicate if we are searching up a column or not. The sign between @c from_key and
+/// cannot be used to infer this as this information is is defined by the heightmap primary axis, for which up may be
+/// alinged with an increasting, negative magnitude.
+/// @param allow_virtual_surface True to consider virtual surface voxels - free voxels "supported" by unobserved voxels
+///   representig the best possible surface estimate.
+/// @param[out] offset On success, set the number of voxels between @c from_key and the selected voxel. Undefined on
+/// failure.
+/// @param[out] is_virtual On success, set to true if the selected voxel is a virtual surface voxel. False when the
+/// selected voxel is an occupied voxel. Undefined on failure.
+/// @return The first voxel found which is either occupied or a virtual surface voxel when @c allow_virtual_surface is
+/// true. The result is a null key on failure to find such a voxel within the search limits.
 Key findNearestSupportingVoxel2(SrcVoxel &voxel, const Key &from_key, const Key &to_key, int up_axis_index,
                                 int step_limit, bool search_up, bool allow_virtual_surface, int *offset,
                                 bool *is_virtual)
@@ -296,6 +321,42 @@ Key findNearestSupportingVoxel2(SrcVoxel &voxel, const Key &from_key, const Key 
   return best_virtual;
 }
 
+/// Search the column containing @p seed_key in the source occupancy map for a potential supporting voxel.
+///
+/// A supporting voxel is one which is either occupied or a virtual surface voxel (if enabled). The source map details
+/// are contained in the @c SrcVoxel structure passed via @p voxel. That structure is configured to reference the
+/// relevant voxel layers. The actual voxels referenced by @c voxel will be modified by this function, starting at
+/// @c seed_key .
+///
+/// The search process searches above and below @c seed_key - with up defined by @c up_axis - for an occupied or
+/// virtual surface voxel. The final voxel selection is guided by several factors:
+///
+/// - Prefer occupied voxels over virtual surface voxels
+///   - Except where @c promote_virtual_below is true
+/// - Prefer below to above.
+////  - Except where the distance between the candidates below and above is less than @p
+///     clearance_voxel_count_permissive.
+/// - Limit the search expance to search up @c voxel_ceiling voxels (this is a voxel count value).
+/// - Limit the search down to the map extents.
+///
+/// The resulting key can be used to identify the voxel from which to start searching for an actual ground candidate
+/// with consideration given to clearance above.
+///
+/// The selected key is expected to be used as the seed for @c findGround().
+///
+/// @param voxel Configured to allow access to various aspects of the source map voxels.
+/// @param seed_key Voxel key identifying where to start the search from. Only voxels in the same column are considered.
+/// @param up_axis Identifies the up axis - XYZ - and direction.
+/// @param min_key Min extents limits. Searches are bounded by this value.
+/// @param max_key Max extents limits. Searches are bounded by this value.
+/// @param voxel_ceiling The number of voxels the function is allowed to consider above the @p seed_key.
+/// @param clearance_voxel_count_permissive The number of voxels required to pass the clearance value. Used to
+///   discriminate the voxel below when the candidate above is within this range, but non-virtual.
+/// @param allow_virtual_surface True to consider virtual surface voxels - free voxels "supported" by unobserved voxels
+///   representig the best possible surface estimate.
+/// @param promote_virtual_below Report virtual surface voxels below the @p seed_key which are virtual in preference to
+///   real voxels above.
+/// @return A new seed key from which to start searching for a valid ground voxel (@c findGround()).
 inline Key findNearestSupportingVoxel(SrcVoxel &voxel, const Key &seed_key, UpAxis up_axis, const Key &min_key,
                                       const Key &max_key, int voxel_ceiling, int clearance_voxel_count_permissive,
                                       bool allow_virtual_surface, bool promote_virtual_below)
@@ -352,6 +413,22 @@ inline Key findNearestSupportingVoxel(SrcVoxel &voxel, const Key &seed_key, UpAx
   return above;
 }
 
+/// Search for the best ground voxel for the column containing @p seed_key . The search begins at @p seed_key, normally
+/// generated by @c findNearestSupportingVoxel(). This function considers the configured
+/// @c HeightmapDetail::min_clearance from @p imp and may also consider virtual surface voxels if configured to do so.
+///
+/// @param[out] height_out Set to the height of the selected ground voxel. This will is based on the voxel mean position
+/// (if enabled) for occupied voxels where available, otherwise using the centre of the selected voxel. The value is
+/// undefined if the return value is a null key.
+/// @param[out] clearance_out Set to the available clearance above the selected voxel if available. A -1 value indicates
+/// the height cannot be calculated such as at the limit of the map extents or at the limit of the search extents.
+/// Undefined if the result is a null key.
+/// @param voxel Configured to allow access to various aspects of the source map voxels.
+/// @param seed_key Voxel key identifying where to start the search from. Only voxels in the same column are considered.
+/// @param min_key Min extents limits. Searches are bounded by this value.
+/// @param max_key Max extents limits. Searches are bounded by this value.
+/// @param imp Impelementation details of the heightmap object being operated on.
+/// @return The first viable ground candidate found from @c seed_key or a null key if no such voxel can be bound.
 Key findGround(double *height_out, double *clearance_out, SrcVoxel &voxel, const Key &seed_key, const Key &min_key,
                const Key &max_key, const HeightmapDetail &imp)
 {
