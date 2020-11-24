@@ -3,9 +3,4 @@
 // ABN 41 687 119 230
 //
 // Author: Kazys Stepanas
-#include "ohmutil.h"
-
-namespace
-{
-  int dummy_symbol = 0;
-}
+#include "OhmUtil.h"

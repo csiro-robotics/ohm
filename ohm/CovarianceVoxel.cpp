@@ -6,29 +6,88 @@
 #include "OhmConfig.h"
 
 // #define GLM_ENABLE_EXPERIMENTAL
-#include <glm/vec3.hpp>
-#include <glm/mat3x3.hpp>
 #include <glm/gtx/norm.hpp>
+#include <glm/mat3x3.hpp>
+#include <glm/vec3.hpp>
 
 // Must come after glm includes due to usage on GPU.
 #include "CovarianceVoxel.h"
 
+#include "NdtMap.h"
+#include "OccupancyMap.h"
+#include "Voxel.h"
+#include "VoxelMean.h"
+#include "VoxelOccupancy.h"
+
+#include <glm/gtc/type_ptr.hpp>
 #include <glm/gtx/matrix_factorisation.hpp>
 
-using namespace ohm;
+#ifdef OHM_WITH_EIGEN
+#include <Eigen/Dense>
+#endif  // OHM_WITH_EIGEN
 
+#include <3esservermacros.h>
+#ifdef TES_ENABLE
+#include <3esserver.h>
+#include <shapes/3esshapes.h>
+#endif  // TES_ENABLE
+
+#include <array>
+
+namespace ohm
+{
 #if OHM_COV_DEBUG
 namespace
 {
-  unsigned max_iterations = 0;
-  double max_error = 0;
+unsigned max_iterations = 0;
+double max_error = 0;
 }  // namespace
 #endif  // OHM_COV_DEBUG
 
-void ohm::covarianceEigenDecomposition(const CovarianceVoxel *cov, glm::dmat3 *eigenvectors, glm::dvec3 *eigenvalues)
+namespace
 {
+#ifdef OHM_WITH_EIGEN
+void covarianceEigenDecompositionEigen(const CovarianceVoxel *cov, glm::dmat3 *eigenvectors, glm::dvec3 *eigenvalues)
+{
+  // This has been noted to be ~3x faster than the GLM iterative version.
   const glm::dmat3 cov_mat = covarianceMatrix(cov);
-  glm::dmat3 mat_p = cov_mat * glm::transpose(cov_mat);
+  // Both GLM and Eigen are column major. Direct mapping is fine.
+  const auto cov_eigen = Eigen::Matrix3d::ConstMapType(glm::value_ptr(cov_mat), 3, 3);
+
+  Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> eigensolver(cov_eigen);
+  Eigen::Vector3d evals = Eigen::Vector3d::Ones();
+  Eigen::Matrix3d evecs = Eigen::Matrix3d::Identity();
+
+  if (eigensolver.info() == Eigen::Success)
+  {
+    evals = eigensolver.eigenvalues();
+    evecs = eigensolver.eigenvectors();
+  }
+  const double det = evecs.determinant();
+  if (det < 0.0)
+  {
+    evecs.col(0) = -evecs.col(0);  // must be valid rotation matrix (determinant=+1)
+  }
+  else if (det == 0.0)
+  {
+    evecs = Eigen::Matrix3d::Identity();
+  }
+
+  *eigenvalues = glm::dvec3(evals[0], evals[1], evals[2]);
+
+  for (int r = 0; r < 3; ++r)
+  {
+    for (int c = 0; c < 3; ++c)
+    {
+      (*eigenvectors)[c][r] = evecs(r, c);
+    }
+  }
+}
+#else  // OHM_WITH_EIGEN
+void covarianceEigenDecompositionGlm(const CovarianceVoxel *cov, glm::dmat3 *eigenvectors, glm::dvec3 *eigenvalues)
+{
+  // This has been noted to be ~3x slower than the Eigen solver.
+  const glm::dmat3 mat = covarianceMatrix(cov);
 
   *eigenvectors = glm::dmat3(1.0);  // Identity initialisation
 
@@ -56,7 +115,7 @@ void ohm::covarianceEigenDecomposition(const CovarianceVoxel *cov, glm::dmat3 *e
     max_iterations = std::max(max_iterations, i + 1);
 #endif  // OHM_COV_DEBUG
 
-    glm::qr_decompose(mat_p, q, r);
+    glm::qr_decompose(mat, q, r);
     // Progressively refine the eigenvectors.
     *eigenvectors = *eigenvectors * q;
     // Update eigenvalues and check for convergence
@@ -64,7 +123,7 @@ void ohm::covarianceEigenDecomposition(const CovarianceVoxel *cov, glm::dmat3 *e
     eigenvalues_current[1] = r[1][1];
     eigenvalues_current[2] = r[2][2];
 
-    mat_p = r * q;
+    mat = r * q;
 
     const glm::dvec3 eval_delta = glm::abs(eigenvalues_current - eigenvalues_last);
     if (glm::all(glm::lessThanEqual(eval_delta, delta_threshold)))
@@ -82,9 +141,20 @@ void ohm::covarianceEigenDecomposition(const CovarianceVoxel *cov, glm::dmat3 *e
 
   *eigenvalues = eigenvalues_current;
 }
+#endif  // OHM_WITH_EIGEN
+}  // namespace
+
+void covarianceEigenDecomposition(const CovarianceVoxel *cov, glm::dmat3 *eigenvectors, glm::dvec3 *eigenvalues)
+{
+#ifdef OHM_WITH_EIGEN
+  covarianceEigenDecompositionEigen(cov, eigenvectors, eigenvalues);
+#else   // OHM_WITH_EIGEN
+  covarianceEigenDecompositionGlm(cov, eigenvectors, eigenvalues);
+#endif  // OHM_WITH_EIGEN
+}
 
 
-void ohm::covarianceEstimatePrimaryNormal(const CovarianceVoxel *cov, glm::dvec3 *normal, int preferred_axis)
+void covarianceEstimatePrimaryNormal(const CovarianceVoxel *cov, glm::dvec3 *normal, int preferred_axis)
 {
   glm::dmat3 eigenvectors;
   glm::dvec3 eigenvalues;
@@ -100,14 +170,18 @@ void ohm::covarianceEstimatePrimaryNormal(const CovarianceVoxel *cov, glm::dvec3
     }
   }
 
-  *normal = glm::normalize(eigenvectors[smallest_eval_index]);
+  const double length2 = glm::length2(eigenvectors[smallest_eval_index]);
+  // const double confidence = 1.0 - length2;
+  *normal = (length2 > 0) ? eigenvectors[smallest_eval_index] / glm::sqrt(length2) : eigenvectors[smallest_eval_index];
+  // return confidence;
 }
 
 
-bool ohm::covarianceUnitSphereTransformation(const CovarianceVoxel *cov, glm::dquat *rotation, glm::dvec3 *scale)
+bool covarianceUnitSphereTransformation(const CovarianceVoxel *cov, glm::dquat *rotation, glm::dvec3 *scale)
 {
   glm::dmat3 eigenvectors;
   glm::dvec3 eigenvalues;
+
   covarianceEigenDecomposition(cov, &eigenvectors, &eigenvalues);
 
   const double det = glm::determinant(eigenvectors);
@@ -124,7 +198,8 @@ bool ohm::covarianceUnitSphereTransformation(const CovarianceVoxel *cov, glm::dq
   for (int i = 0; i < 3; ++i)
   {
     const double eval = std::abs(eigenvalues[i]);  // abs just in case.
-    (*scale)[i] = (eval > 1e-9) ? 2.0 * std::sqrt(eval) : eval;
+    const double epsilon = 1e-9;
+    (*scale)[i] = (eval > epsilon) ? std::sqrt(eval) : eval;
   }
 
   return true;
@@ -133,9 +208,154 @@ bool ohm::covarianceUnitSphereTransformation(const CovarianceVoxel *cov, glm::dq
 
 #if OHM_COV_DEBUG
 #include <iostream>
-void ohm::covDebugStats()
+void covDebugStats()
 {
   std::cout << "QR algorithm max iterations: " << max_iterations << std::endl;
   std::cout << "QR algorithm max error: " << max_error << std::endl;
 }
 #endif  // OHM_COV_DEBUG
+
+void integrateNdtHit(NdtMap &map, const Key &key, const glm::dvec3 &sample)
+{
+  OccupancyMap &occupancy_map = map.map();
+  Voxel<float> occupancy_voxel(&occupancy_map, occupancy_map.layout().occupancyLayer(), key);
+  Voxel<VoxelMean> mean_voxel(occupancy_voxel, occupancy_map.layout().meanLayer());
+  Voxel<CovarianceVoxel> cov_voxel(occupancy_voxel, occupancy_map.layout().covarianceLayer());
+  const glm::dvec3 voxel_centre = occupancy_map.voxelCentreGlobal(key);
+
+  assert(occupancy_voxel.isValid());
+  assert(mean_voxel.isValid());
+  assert(cov_voxel.isValid());
+
+  // Keep clang analysis happy
+#ifdef __clang_analyzer__
+  if (!occupancy_voxel.voxelMemory() || !mean_voxel.voxelMemory() || !cov_voxel.voxelMemory())
+  {
+    return;
+  }
+#endif  // __clang_analyzer__
+
+  CovarianceVoxel cov;
+  VoxelMean mean;
+  float occupancy;
+
+  occupancy_voxel.read(&occupancy);
+  mean_voxel.read(&mean);
+  cov_voxel.read(&cov);
+
+  float updated_value = occupancy;
+  const glm::dvec3 voxel_pos = position(mean, voxel_centre, occupancy_map.resolution());
+  if (calculateHitWithCovariance(&cov, &updated_value, sample, voxel_pos, mean.count, occupancy_map.hitValue(),
+                                 unobservedOccupancyValue(), float(occupancy_map.resolution()),
+                                 map.reinitialiseCovarianceTheshold(), map.reinitialiseCovariancePointCount()))
+  {
+    // Covariance matrix has reset. Reset the point count to clear the mean value.
+    mean.count = 0;
+  }
+
+  // Ensure we update the occupancy within the configured map limits.
+  occupancyAdjustUp(
+    &occupancy, occupancy, updated_value, unobservedOccupancyValue(), occupancy_map.maxVoxelValue(),
+    occupancy_map.saturateAtMinValue() ? occupancy_map.minVoxelValue() : std::numeric_limits<float>::lowest(),
+    occupancy_map.saturateAtMaxValue() ? occupancy_map.maxVoxelValue() : std::numeric_limits<float>::max(), false);
+  occupancy_voxel.write(occupancy);
+
+  // Update the voxel mean.
+  updatePosition(&mean, sample, voxel_centre, occupancy_map.resolution());
+  mean_voxel.write(mean);
+  cov_voxel.write(cov);
+}
+
+
+void integrateNdtMiss(NdtMap &map, const Key &key, const glm::dvec3 &sensor, const glm::dvec3 &sample)
+{
+  OccupancyMap &occupancy_map = map.map();
+  Voxel<float> occupancy_voxel(&occupancy_map, occupancy_map.layout().occupancyLayer(), key);
+  Voxel<const VoxelMean> mean_voxel(occupancy_voxel, occupancy_map.layout().meanLayer());
+  Voxel<const CovarianceVoxel> cov_voxel(occupancy_voxel, occupancy_map.layout().covarianceLayer());
+  const glm::dvec3 voxel_centre = occupancy_map.voxelCentreGlobal(key);
+
+  assert(occupancy_voxel.isValid());
+  assert(mean_voxel.isValid());
+  assert(cov_voxel.isValid());
+
+  // Keep clang analysis happy
+#ifdef __clang_analyzer__
+  if (!occupancy_voxel.voxelMemory() || !mean_voxel.voxelMemory() || !cov_voxel.voxelMemory())
+  {
+    return;
+  }
+#endif  // __clang_analyzer__
+
+  CovarianceVoxel cov;
+  VoxelMean mean;
+  float occupancy;
+
+  occupancy_voxel.read(&occupancy);
+  mean_voxel.read(&mean);
+  cov_voxel.read(&cov);
+
+  float updated_value = occupancy;
+#ifdef TES_ENABLE
+  const float initial_value = occupancy;
+#endif  // TES_ENABLE
+  const glm::dvec3 voxel_mean = position(mean, voxel_centre, occupancy_map.resolution());
+
+#ifdef TES_ENABLE
+  const glm::dvec3 voxel_maximum_likelihood =
+#endif  // TES_ENABLE
+    calculateMissNdt(&cov, &updated_value, sensor, sample, voxel_mean, mean.count, unobservedOccupancyValue(),
+                     occupancy_map.missValue(), map.adaptationRate(), map.sensorNoise(), map.ndtSampleThreshold());
+  occupancyAdjustDown(
+    &occupancy, occupancy, updated_value, unobservedOccupancyValue(), occupancy_map.minVoxelValue(),
+    occupancy_map.saturateAtMinValue() ? occupancy_map.minVoxelValue() : std::numeric_limits<float>::lowest(),
+    occupancy_map.saturateAtMaxValue() ? occupancy_map.maxVoxelValue() : std::numeric_limits<float>::max(), false);
+  occupancy_voxel.write(occupancy);
+
+#ifdef TES_ENABLE
+  if (map.trace())
+  {
+    const glm::dvec3 voxel_centre = occupancy_map.voxelCentreGlobal(key);
+    TES_BOX_W(g_tes, TES_COLOUR(OrangeRed), tes::Id(cov_voxel.voxelMemory()),
+              tes::Transform(glm::value_ptr(voxel_centre), glm::value_ptr(glm::dvec3(occupancy_map.resolution()))));
+    TES_SERVER_UPDATE(g_tes, 0.0f);
+
+    bool drew_surfel = false;
+    glm::dquat rot;
+    glm::dvec3 scale;
+    if (covarianceUnitSphereTransformation(&cov, &rot, &scale))
+    {
+      TES_SPHERE(g_tes, TES_COLOUR(SeaGreen), tes::Id(cov_voxel.voxelMemory()),
+                 tes::Transform(tes::Vector3d(glm::value_ptr(voxel_mean)), tes::Quaterniond(rot.x, rot.y, rot.z, rot.w),
+                                tes::Vector3d(glm::value_ptr(scale))));
+      drew_surfel = true;
+    }
+
+    // Trace the voxel mean, maximum likelihood point and the ellipsoid.
+    // Mean
+    const float mean_pos_radius = 0.05f;
+    const float likely_pos_radius = 0.1f;
+    TES_SPHERE(g_tes, TES_COLOUR(OrangeRed), tes::Id(&voxel_mean),
+               tes::Spherical(glm::value_ptr(voxel_mean), mean_pos_radius));
+    // Maximum likelihood
+    TES_SPHERE_W(g_tes, TES_COLOUR(PowderBlue), tes::Id(&voxel_maximum_likelihood),
+                 tes::Spherical(glm::value_ptr(voxel_maximum_likelihood), likely_pos_radius));
+
+    std::array<char, 64> text;  // NOLINT(readability-magic-numbers)
+    text[0] = '\0';
+    sprintf(text.data(), "P %.3f", valueToProbability(occupancy - initial_value));
+    TES_TEXT2D_WORLD(g_tes, TES_COLOUR(White), text.data(), tes::Id(),
+                     tes::Spherical(tes::Vector3d(glm::value_ptr(voxel_centre))));
+
+    TES_SERVER_UPDATE(g_tes, 0.0f);
+    TES_BOX_END(g_tes, tes::Id(cov_voxel.voxelMemory()));
+    TES_SPHERE_END(g_tes, tes::Id(&voxel_mean));
+    TES_SPHERE_END(g_tes, tes::Id(&voxel_maximum_likelihood));
+    if (drew_surfel)
+    {
+      TES_SPHERE_END(g_tes, tes::Id(cov_voxel.voxelMemory()));
+    }
+  }
+#endif  // TES_ENABLE
+}
+}  // namespace ohm

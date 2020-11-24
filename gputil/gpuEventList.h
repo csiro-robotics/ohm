@@ -10,54 +10,94 @@
 
 #include "gpuEvent.h"
 
+#include <array>
 #include <initializer_list>
 
 namespace gputil
 {
-  /// Represents a short term object identifying a set of @c Event objects. Generally used
-  /// to specify a set of events to wait on before a queued operation may begin. @c EventList
-  /// objects are intended to be short lived objects, normally used only as arguments functions
-  /// enqueuing gpu operations.
-  class gputilAPI EventList
-  {
-  public:
-    static const unsigned kShortCount = 8;
+/// Represents a short term object identifying a set of @c Event objects. Generally used to specify a set of events to
+/// wait on before a queued operation may begin. @c EventList objects are intended to be short lived objects, normally
+/// used only as arguments functions enqueuing gpu operations.
+///
+/// The event list maintains its own reference counting for the added events.
+class gputilAPI EventList
+{
+public:
+  /// Number of items the short list. No additional allocation is required until more events are aded.
+  static const unsigned kShortCount = 8;
 
-    EventList();
-    explicit EventList(const Event &event);
-    explicit EventList(const Event *event);
-    EventList(const Event *events, size_t event_count);
-    EventList(std::initializer_list<Event> events);
-    EventList(std::initializer_list<const Event *> events);
+  /// Construct an empty event list.
+  EventList();
+  /// Construct an event list containing just the given event.
+  /// @param event The event to add to the list.
+  explicit EventList(const Event &event);
+  /// Construct an evet list containing just the given event.
+  /// @param event The event to add to the list.
+  explicit EventList(const Event *event);
+  /// Construct an event list with multiple events.
+  /// @param events A pointer to the array of events to add.
+  /// @param event_count The number of elements to add from @p events .
+  EventList(const Event *events, size_t event_count);
+  /// Construct an event list with multiple events.
+  /// @param events The list of events to add.
+  EventList(std::initializer_list<Event> events);
+  /// Construct an event list with multiple events.
+  /// @param events The list of events to add.
+  EventList(std::initializer_list<const Event *> events);
 
-    ~EventList();
+  EventList(const EventList &other) = delete;
+  EventList &operator=(const EventList &other) = delete;
 
-    const Event *events() const { return (!extended_) ? events_ : extended_; }
+  /// Destructor - releases any reference counts for events in the list.
+  ~EventList();
 
-    inline size_t count() const { return count_; }
-    inline size_t size() const { return count_; }
-    inline size_t capacity() const { return (!extended_) ? kShortCount : capacity_; }
+  /// Request a pointer to the event array. There are @c count() elements.
+  /// @return The event array.
+  const Event *events() const { return (!extended_) ? events_.data() : extended_; }
 
-    void add(const Event &event);
-    inline void push_back(const Event &event) { add(event); }  // NOLINT
+  /// Query the number of events in the list.
+  /// @return The number of events in the list.
+  inline size_t count() const { return count_; }
+  /// An alias of @c count() .
+  /// @return The number of events in the list.
+  inline size_t size() const { return count_; }
+  /// Query the capacity of the event list. Capacity will be extended as required. The minimum capacity is
+  /// @c kShortCount .
+  /// @return The available capacity.
+  inline size_t capacity() const { return (!extended_) ? kShortCount : capacity_; }
 
-    void add(std::initializer_list<Event> events);
-    void add(std::initializer_list<const Event *> events);
+  /// Add an event to the list.
+  /// @param event The event to add.
+  void add(const Event &event);
 
-    void clear();
+  /// An alias for @c add() .
+  /// @param event The event to add.
+  inline void push_back(const Event &event) { add(event); }  // NOLINT
 
-    void reserve(size_t new_size);
+  /// Add multiple items to the list.
+  /// @param events The events to add.
+  void add(std::initializer_list<Event> events);
+  /// Add multiple items to the list.
+  /// @param events The events to add.
+  void add(std::initializer_list<const Event *> events);
 
-  private:
-    /// Event short list. Only valid when _count <= ShortCount
-    Event events_[kShortCount];
-    /// Number of events in the list.
-    size_t count_;
-    /// Capacity of _extended. Only used when _extended is valid.
-    size_t capacity_;
-    /// Extended list. Allocated when the number of events is ShortCount or greater.
-    Event *extended_;
-  };
+  /// Clear the event list, releasing all event references.
+  void clear();
+
+  /// Ensure the @c capacity() is at least @c new_size .
+  /// @param new_size The event capacity to allow for.
+  void reserve(size_t new_size);
+
+private:
+  /// Event short list. Only valid when _count <= ShortCount
+  std::array<Event, kShortCount> events_;
+  /// Number of events in the list.
+  size_t count_ = 0;
+  /// Capacity of _extended. Only used when _extended is valid.
+  size_t capacity_ = 0;
+  /// Extended list. Allocated when the number of events is ShortCount or greater.
+  Event *extended_ = nullptr;
+};
 }  // namespace gputil
 
 #endif  // GPUEVENTLIST_H

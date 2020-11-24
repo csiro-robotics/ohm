@@ -14,14 +14,14 @@
 
 namespace ohm
 {
-  class RayPattern;
+class RayPattern;
 
-  struct ClearingPatternDetail
-  {
-    std::vector<glm::dvec3> ray_set;
-    const RayPattern *pattern = nullptr;
-    bool has_pattern_ownership = false;
-  };
-} // namespace ohm
+struct ClearingPatternDetail
+{
+  std::vector<glm::dvec3> ray_set;
+  const RayPattern *pattern = nullptr;
+  bool has_pattern_ownership = false;
+};
+}  // namespace ohm
 
-#endif // CLEARINGPATTERNDETAIL_H
+#endif  // CLEARINGPATTERNDETAIL_H

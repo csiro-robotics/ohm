@@ -14,11 +14,11 @@
 
 namespace ohm
 {
-  struct RayPatternDetail
-  {
-    /// Ray start/end point pairs in sensor space.
-    std::vector<glm::dvec3> sample_pairs;
-  };
+struct RayPatternDetail
+{
+  /// Ray start/end point pairs in sensor space.
+  std::vector<glm::dvec3> sample_pairs;
+};
 }  // namespace ohm
 
 #endif  // RAYPATTERNDETAIL_H

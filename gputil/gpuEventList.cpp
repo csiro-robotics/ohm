@@ -7,13 +7,9 @@
 
 #include <algorithm>
 
-using namespace gputil;
-
-EventList::EventList()
-  : count_(0)
-  , capacity_(0)
-  , extended_(nullptr)
-{}
+namespace gputil
+{
+EventList::EventList() = default;
 
 
 EventList::EventList(const Event &event)
@@ -68,7 +64,7 @@ void EventList::add(const Event &event)
     reserve(std::max(capacity() * 2, capacity() + 1));
   }
 
-  Event *target_array = (extended_) ? extended_ : events_;
+  Event *target_array = (extended_) ? extended_ : events_.data();
   target_array[count_++] = event;
 }
 
@@ -81,7 +77,7 @@ void EventList::add(std::initializer_list<Event> events)
     reserve(std::max(capacity() * 2, capacity() + new_event_count));
   }
 
-  Event *target_array = (extended_) ? extended_ : events_;
+  Event *target_array = (extended_) ? extended_ : events_.data();
   for (const Event &e : events)
   {
     target_array[count_++] = e;
@@ -97,7 +93,7 @@ void EventList::add(std::initializer_list<const Event *> events)
     reserve(std::max(capacity() * 2, capacity() + new_event_count));
   }
 
-  Event *target_array = (extended_) ? extended_ : events_;
+  Event *target_array = (extended_) ? extended_ : events_.data();
   for (const Event *e : events)
   {
     target_array[count_++] = *e;
@@ -107,7 +103,7 @@ void EventList::add(std::initializer_list<const Event *> events)
 
 void EventList::clear()
 {
-  Event *target_array = (extended_) ? extended_ : events_;
+  Event *target_array = (extended_) ? extended_ : events_.data();
   for (size_t i = 0; i < count_; ++i)
   {
     target_array[i].release();
@@ -124,8 +120,9 @@ void EventList::reserve(size_t new_size)
     return;
   }
 
-  Event *new_array = new Event[new_size];
-  Event *old_array = (extended_) ? extended_ : events_;
+  // Lint(KS): only way I can think of to manage this setup.
+  auto *new_array = new Event[new_size];  // NOLINT(cppcoreguidelines-owning-memory)
+  Event *old_array = (extended_) ? extended_ : events_.data();
   for (size_t i = 0; i < count_; ++i)
   {
     new_array[i] = std::move(old_array[i]);
@@ -135,3 +132,4 @@ void EventList::reserve(size_t new_size)
   extended_ = new_array;
   capacity_ = new_size;
 }
+}  // namespace gputil

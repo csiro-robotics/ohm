@@ -11,9 +11,9 @@
 #include "private/LineQueryDetailGpu.h"
 
 #include <ohm/Key.h>
-#include <ohm/MapCache.h>
 #include <ohm/OccupancyMap.h>
 #include <ohm/QueryFlag.h>
+#include <ohm/VoxelData.h>
 #include <ohm/private/OccupancyMapDetail.h>
 #include <ohm/private/OccupancyQueryAlg.h>
 #include <ohm/private/VoxelAlgorithms.h>
@@ -35,9 +35,8 @@
 #include <iostream>
 #include <limits>
 
-using namespace ohm;
-
-
+namespace ohm
+{
 LineQueryGpu::LineQueryGpu(LineQueryDetailGpu *detail)
   : LineQuery(detail)
 {}
@@ -93,7 +92,8 @@ bool LineQueryGpu::onExecute()
   gpumap::enableGpu(*d->map);
 
   // GPU evaluation requested. Use the ClearanceProcess to do so.
-  glm::dvec3 min_ext, max_ext;
+  glm::dvec3 min_ext;
+  glm::dvec3 max_ext;
   for (int i = 0; i < 3; ++i)
   {
     min_ext[i] = std::min(d->start_point[i], d->end_point[i]);
@@ -123,7 +123,8 @@ bool LineQueryGpu::onExecute()
   // Populate results.
   d->intersected_voxels.resize(d->segment_keys.size());
   d->ranges.resize(d->segment_keys.size());
-  VoxelConst voxel;
+
+  Voxel<const float> clearance(d->map, d->map->layout().clearanceLayer());
 
   if (!d->segment_keys.empty())
   {
@@ -133,11 +134,11 @@ bool LineQueryGpu::onExecute()
     for (size_t i = 0; i < d->segment_keys.size(); ++i)
     {
       d->intersected_voxels[i] = d->segment_keys[i];
-      voxel = d->map->voxel(d->segment_keys[i]);
+      clearance.setKey(d->segment_keys[i]);
 
-      if (voxel.isValid())
+      if (clearance.isValid())
       {
-        range = voxel.clearance((d->query_flags & kQfUnknownAsOccupied) != 0);
+        clearance.read(&range);
         // Range will be -1 from ClearanceProcess for unobstructed voxels (to the search radius).
         // Override the result with d->default_range, which defaults to -1 as well.
         if (range < 0)
@@ -198,3 +199,4 @@ const LineQueryDetailGpu *LineQueryGpu::imp() const
 {
   return static_cast<const LineQueryDetailGpu *>(imp_);
 }
+}  // namespace ohm

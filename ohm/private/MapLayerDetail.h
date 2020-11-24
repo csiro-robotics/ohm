@@ -12,16 +12,16 @@
 
 namespace ohm
 {
-  struct VoxelLayoutDetail;
+struct VoxelLayoutDetail;
 
-  struct ohm_API MapLayerDetail
-  {
-    std::string name;
-    VoxelLayoutDetail *voxel_layout = nullptr;
-    uint16_t layer_index = 0;
-    uint16_t subsampling = 0;
-    unsigned flags = 0;
-  };
+struct ohm_API MapLayerDetail
+{
+  std::string name;
+  VoxelLayoutDetail *voxel_layout = nullptr;
+  uint16_t layer_index = 0;
+  uint16_t subsampling = 0;
+  unsigned flags = 0;
+};
 }  // namespace ohm
 
 #endif  // OHM_MAPLAYERDETAIL_H

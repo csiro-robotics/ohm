@@ -6,7 +6,6 @@
 #include "LineQuery.h"
 
 #include "Key.h"
-#include "MapCache.h"
 #include "OccupancyMap.h"
 #include "QueryFlag.h"
 #include "private/LineQueryDetail.h"
@@ -29,66 +28,63 @@
 #include <iostream>
 #include <limits>
 
-using namespace ohm;
-
+namespace ohm
+{
 namespace
 {
-  void calculateNearestNeighboursRange(LineQueryDetail &query,  // NOLINT(google-runtime-references)
-                                       size_t start_index, size_t end_index, const OccupancyMap &map,
-                                       const glm::ivec3 &voxel_search_half_extents)
-  {
-    float range;
+void calculateNearestNeighboursRange(LineQueryDetail &query, size_t start_index, size_t end_index,
+                                     const OccupancyMap &map, const glm::ivec3 &voxel_search_half_extents)
+{
+  float range;
 
-    for (size_t i = start_index; i < end_index; ++i)
-    {
-      const Key &key = query.segment_keys[i];
-      range =
-        calculateNearestNeighbour(key, map, voxel_search_half_extents, (query.query_flags & kQfUnknownAsOccupied) != 0,
-                                  false, query.search_radius, query.axis_scaling);
-      // if (range < 0)
-      // {
-      //   range = query.default_range;
-      // }
-      query.intersected_voxels[i] = key;
-      query.ranges[i] = range;
-    }
+  for (size_t i = start_index; i < end_index; ++i)
+  {
+    const Key &key = query.segment_keys[i];
+    range =
+      calculateNearestNeighbour(key, map, voxel_search_half_extents, (query.query_flags & kQfUnknownAsOccupied) != 0,
+                                false, query.search_radius, query.axis_scaling);
+    // if (range < 0)
+    // {
+    //   range = query.default_range;
+    // }
+    query.intersected_voxels[i] = key;
+    query.ranges[i] = range;
   }
+}
 
-  unsigned occupancyLineQueryCpu(const OccupancyMap &map, LineQueryDetail &query,  // NOLINT(google-runtime-references)
-                                 ClosestResult &closest)                           // NOLINT(google-runtime-references)
-  {
-    glm::ivec3 voxel_search_half_extents = calculateVoxelSearchHalfExtents(map, query.search_radius);
-    map.calculateSegmentKeys(query.segment_keys, query.start_point, query.end_point);
+unsigned occupancyLineQueryCpu(const OccupancyMap &map, LineQueryDetail &query, ClosestResult &closest)
+{
+  glm::ivec3 voxel_search_half_extents = calculateVoxelSearchHalfExtents(map, query.search_radius);
+  map.calculateSegmentKeys(query.segment_keys, query.start_point, query.end_point);
 
-    // Allocate results.
-    query.intersected_voxels.resize(query.segment_keys.size());
-    query.ranges.resize(query.segment_keys.size());
+  // Allocate results.
+  query.intersected_voxels.resize(query.segment_keys.size());
+  query.ranges.resize(query.segment_keys.size());
 
-    // Perform query.
+  // Perform query.
 #ifdef OHM_THREADS
-    const auto parallel_query_func = [&query, &map,
-                                      voxel_search_half_extents](const tbb::blocked_range<size_t> &range) {
-      calculateNearestNeighboursRange(query, range.begin(), range.end(), map, voxel_search_half_extents);
-    };
-    tbb::parallel_for(tbb::blocked_range<size_t>(0u, query.segment_keys.size()), parallel_query_func);
+  const auto parallel_query_func = [&query, &map, voxel_search_half_extents](const tbb::blocked_range<size_t> &range) {
+    calculateNearestNeighboursRange(query, range.begin(), range.end(), map, voxel_search_half_extents);
+  };
+  tbb::parallel_for(tbb::blocked_range<size_t>(0u, query.segment_keys.size()), parallel_query_func);
 
 #else   // OHM_THREADS
-    calculateNearestNeighboursRange(query, 0u, query.segment_keys.size(), map, voxel_search_half_extents);
+  calculateNearestNeighboursRange(query, 0u, query.segment_keys.size(), map, voxel_search_half_extents);
 #endif  // OHM_THREADS
 
-    // Find closest result.
-    for (size_t i = 0; i < query.ranges.size(); ++i)
+  // Find closest result.
+  for (size_t i = 0; i < query.ranges.size(); ++i)
+  {
+    float range = query.ranges[i];
+    if (range * range < closest.range)
     {
-      float range = query.ranges[i];
-      if (range * range < closest.range)
-      {
-        closest.range = range * range;
-        closest.index = i;
-      }
+      closest.range = range * range;
+      closest.index = i;
     }
-
-    return unsigned(query.segment_keys.size());
   }
+
+  return unsigned(query.segment_keys.size());
+}
 }  // namespace
 
 
@@ -244,3 +240,4 @@ const LineQueryDetail *LineQuery::imp() const
 {
   return static_cast<const LineQueryDetail *>(imp_);
 }
+}  // namespace ohm

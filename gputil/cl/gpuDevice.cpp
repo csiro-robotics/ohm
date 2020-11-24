@@ -15,136 +15,137 @@
 #include <sstream>
 #include <vector>
 
-using namespace gputil;
-
+namespace gputil
+{
 namespace
 {
-  void finaliseDetail(DeviceDetail &detail, const DeviceInfo *info)  // NOLINT(google-runtime-references)
+void finaliseDetail(DeviceDetail &detail, const DeviceInfo *info)
+{
+  if (info)
   {
-    if (info)
-    {
-      detail.info = *info;
-    }
-    else
-    {
-      detail.device.getInfo(CL_DEVICE_NAME, &detail.info.name);
-      // cl::Platform platform = detail.device.pla
-      detail.device.getInfo(CL_DEVICE_NAME, &detail.info.platform);
+    detail.info = *info;
+  }
+  else
+  {
+    detail.device.getInfo(CL_DEVICE_NAME, &detail.info.name);
+    // cl::Platform platform = detail.device.pla
+    detail.device.getInfo(CL_DEVICE_NAME, &detail.info.platform);
 
-      std::string ver_string;
-      detail.device.getInfo(CL_DEVICE_VERSION, &ver_string);
+    std::string ver_string;
+    detail.device.getInfo(CL_DEVICE_VERSION, &ver_string);
+
+    // Parse the version string.
+    cl_uint ver_major = 0;
+    cl_uint ver_minor = 0;
+    clu::parseVersion(ver_string.c_str(), &ver_major, &ver_minor);
+    detail.info.version.major = ver_major;
+    detail.info.version.minor = ver_minor;
+
+    cl_platform_id platform_id{};
+    detail.device.getInfo(CL_DEVICE_PLATFORM, &platform_id);
+
+    cl_device_type device_type{};
+    detail.device.getInfo(CL_DEVICE_TYPE, &device_type);
+
+    detail.info.type = kDeviceNull;
+    if (device_type & CL_DEVICE_TYPE_GPU)  // NOLINT(hicpp-signed-bitwise)
+    {
+      detail.info.type = kDeviceGpu;
+    }
+    else if (device_type & CL_DEVICE_TYPE_CPU)  // NOLINT(hicpp-signed-bitwise)
+    {
+      detail.info.type = kDeviceCpu;
+    }
+    else if (device_type & CL_DEVICE_TYPE_ACCELERATOR)  // NOLINT(hicpp-signed-bitwise)
+    {
+      detail.info.type = kDeviceOther;
+    }
+
+    size_t required_len = 0;
+    clGetPlatformInfo(platform_id, CL_PLATFORM_NAME, 0, nullptr, &required_len);
+    if (required_len)
+    {
+      std::vector<char> info_buffer(required_len + 1);
+      info_buffer[0] = '\0';
+      clGetPlatformInfo(platform_id, CL_PLATFORM_NAME, required_len + 1, info_buffer.data(), nullptr);
+      detail.info.platform = std::string(info_buffer.data());
+    }
+
+    detail.device.getInfo(CL_DEVICE_EXTENSIONS, &detail.extensions);
+
+    std::ostringstream str;
+    clu::printDeviceInfo(str, detail.device, "");
+    detail.description = str.str();
+  }
+}
+
+
+unsigned enumerateDevices(std::vector<cl::Device> &cl_devices, std::vector<DeviceInfo> &device_infos)
+{
+  std::vector<cl::Platform> platforms;
+  std::vector<cl::Device> devices;
+  std::string ver_string;
+  cl::Platform::get(&platforms);
+  unsigned added = 0;
+
+  // FIXME(Kazys): set the minimum version by the version of the SDK we've compiled against.
+  // API minimum version is 1.2.
+  const auto platform_version_constraint = clu::platformVersionMin(1, 2);
+
+  for (cl::Platform &platform : platforms)
+  {
+    DeviceInfo info;
+    platform.getInfo(CL_PLATFORM_NAME, &info.platform);
+
+    if (!platform_version_constraint(platform))
+    {
+      continue;
+    }
+
+    devices.clear();
+    platform.getDevices(CL_DEVICE_TYPE_ALL, &devices);
+
+    for (cl::Device &device : devices)
+    {
+      device.getInfo(CL_DEVICE_NAME, &info.name);
+      device.getInfo(CL_DEVICE_VERSION, &ver_string);
 
       // Parse the version string.
-      cl_uint ver_major, ver_minor;
+      cl_uint ver_major = 0;
+      cl_uint ver_minor = 0;
       clu::parseVersion(ver_string.c_str(), &ver_major, &ver_minor);
-      detail.info.version.major = ver_major;
-      detail.info.version.minor = ver_minor;
+      info.version.major = ver_major;
+      info.version.minor = ver_minor;
 
-      cl_platform_id platform_id;
-      detail.device.getInfo(CL_DEVICE_PLATFORM, &platform_id);
+      cl_device_type device_type{};
+      device.getInfo(CL_DEVICE_TYPE, &device_type);
 
-      cl_device_type device_type;
-      detail.device.getInfo(CL_DEVICE_TYPE, &device_type);
-
-      detail.info.type = kDeviceNull;
-      if (device_type & CL_DEVICE_TYPE_GPU)
+      info.type = kDeviceNull;
+      if (device_type & CL_DEVICE_TYPE_GPU)  // NOLINT(hicpp-signed-bitwise)
       {
-        detail.info.type = kDeviceGpu;
+        info.type = kDeviceGpu;
       }
-      else if (device_type & CL_DEVICE_TYPE_CPU)
+      else if (device_type & CL_DEVICE_TYPE_CPU)  // NOLINT(hicpp-signed-bitwise)
       {
-        detail.info.type = kDeviceCpu;
+        info.type = kDeviceCpu;
       }
-      else if (device_type & CL_DEVICE_TYPE_ACCELERATOR)
+      else if (device_type & CL_DEVICE_TYPE_ACCELERATOR)  // NOLINT(hicpp-signed-bitwise)
       {
-        detail.info.type = kDeviceOther;
+        info.type = kDeviceOther;
       }
 
-      size_t required_len = 0;
-      clGetPlatformInfo(platform_id, CL_PLATFORM_NAME, 0, nullptr, &required_len);
-      if (required_len)
-      {
-        std::vector<char> info_buffer(required_len + 1);
-        info_buffer[0] = '\0';
-        clGetPlatformInfo(platform_id, CL_PLATFORM_NAME, required_len + 1, info_buffer.data(), nullptr);
-        detail.info.platform = std::string(info_buffer.data());
-      }
-
-      detail.device.getInfo(CL_DEVICE_EXTENSIONS, &detail.extensions);
-
-      std::ostringstream str;
-      clu::printDeviceInfo(str, detail.device, "");
-      detail.description = str.str();
+      cl_devices.push_back(device);
+      device_infos.push_back(info);
+      ++added;
     }
   }
 
-
-  unsigned enumerateDevices(std::vector<cl::Device> &cl_devices,    // NOLINT(google-runtime-references)
-                            std::vector<DeviceInfo> &device_infos)  // NOLINT(google-runtime-references)
-  {
-    std::vector<cl::Platform> platforms;
-    std::vector<cl::Device> devices;
-    std::string ver_string;
-    cl::Platform::get(&platforms);
-    unsigned added = 0;
-
-    // FIXME(Kazys): set the minimum version by the version of the SDK we've compiled against.
-    // API minimum version is 1.2.
-    const auto platform_version_constraint = clu::platformVersionMin(1, 2);
-
-    for (cl::Platform &platform : platforms)
-    {
-      DeviceInfo info;
-      platform.getInfo(CL_PLATFORM_NAME, &info.platform);
-
-      if (!platform_version_constraint(platform))
-      {
-        continue;
-      }
-
-      devices.clear();
-      platform.getDevices(CL_DEVICE_TYPE_ALL, &devices);
-
-      for (cl::Device &device : devices)
-      {
-        device.getInfo(CL_DEVICE_NAME, &info.name);
-        device.getInfo(CL_DEVICE_VERSION, &ver_string);
-
-        // Parse the version string.
-        cl_uint ver_major, ver_minor;
-        clu::parseVersion(ver_string.c_str(), &ver_major, &ver_minor);
-        info.version.major = ver_major;
-        info.version.minor = ver_minor;
-
-        cl_device_type device_type;
-        device.getInfo(CL_DEVICE_TYPE, &device_type);
-
-        info.type = kDeviceNull;
-        if (device_type & CL_DEVICE_TYPE_GPU)
-        {
-          info.type = kDeviceGpu;
-        }
-        else if (device_type & CL_DEVICE_TYPE_CPU)
-        {
-          info.type = kDeviceCpu;
-        }
-        else if (device_type & CL_DEVICE_TYPE_ACCELERATOR)
-        {
-          info.type = kDeviceOther;
-        }
-
-        cl_devices.push_back(device);
-        device_infos.push_back(info);
-        ++added;
-      }
-    }
-
-    return added;
-  }
+  return added;
+}
 }  // namespace
 
 Device::Device(bool default_device)
-  : imp_(new DeviceDetail)
+  : imp_(std::make_unique<DeviceDetail>())
 {
   if (default_device)
   {
@@ -152,7 +153,8 @@ Device::Device(bool default_device)
     {
       // Needs initialisation.
       // Empty constraints.
-      const cl_device_type device_type = CL_DEVICE_TYPE_GPU | CL_DEVICE_TYPE_ACCELERATOR;
+      const cl_device_type device_type =
+        CL_DEVICE_TYPE_GPU | CL_DEVICE_TYPE_ACCELERATOR;  // NOLINT(hicpp-signed-bitwise)
       const std::vector<clu::PlatformConstraint> platform_constraints;
       const std::vector<clu::DeviceConstraint> device_constraints;
       clu::initPrimaryContext(device_type, platform_constraints, device_constraints);
@@ -174,43 +176,38 @@ Device::Device(bool default_device)
 
 
 Device::Device(const DeviceInfo &device_info)
-  : imp_(new DeviceDetail)
+  : imp_(std::make_unique<DeviceDetail>())
 {
   select(device_info);
 }
 
 
 Device::Device(int argc, const char **argv, const char *default_device, unsigned device_type_flags)
-  : imp_(new DeviceDetail)
+  : imp_(std::make_unique<DeviceDetail>())
 {
   select(argc, argv, default_device, device_type_flags);
 }
 
 
 Device::Device(const Device &other)
-  : imp_(new DeviceDetail)
+  : imp_(std::make_unique<DeviceDetail>())
 {
   *imp_ = *other.imp_;
 }
 
 
 Device::Device(Device &&other) noexcept
-  : imp_(other.imp_)
-{
-  other.imp_ = nullptr;
-}
+  : imp_(std::move(other.imp_))
+{}
 
 
-Device::~Device()
-{
-  delete imp_;
-}
+Device::~Device() = default;
 
 
 unsigned Device::enumerateDevices(std::vector<DeviceInfo> &enumerated_devices)
 {
   std::vector<cl::Device> devices;
-  return ::enumerateDevices(devices, enumerated_devices);
+  return gputil::enumerateDevices(devices, enumerated_devices);
 }
 
 
@@ -258,7 +255,7 @@ Queue Device::createQueue(unsigned flags) const
   cl_command_queue_properties queue_props = 0;
   if (flags & Queue::kProfile)
   {
-    queue_props |= CL_QUEUE_PROFILING_ENABLE;
+    queue_props |= CL_QUEUE_PROFILING_ENABLE;  // NOLINT(hicpp-signed-bitwise)
   }
   cl_command_queue queue = clCreateCommandQueue(imp_->context(), imp_->device(), queue_props, &clerr);
 #endif  // CL_HPP_TARGET_OPENCL_VERSION >= 200
@@ -279,15 +276,15 @@ bool Device::select(int argc, const char **argv, const char *default_device, uns
   {
     if (device_type_flags & kCpu)
     {
-      device_type |= CL_DEVICE_TYPE_CPU;
+      device_type |= CL_DEVICE_TYPE_CPU;  // NOLINT(hicpp-signed-bitwise)
     }
     if (device_type_flags & kGpu)
     {
-      device_type |= CL_DEVICE_TYPE_GPU;
+      device_type |= CL_DEVICE_TYPE_GPU;  // NOLINT(hicpp-signed-bitwise)
     }
     if (device_type_flags & kAccelerator)
     {
-      device_type |= CL_DEVICE_TYPE_ACCELERATOR;
+      device_type |= CL_DEVICE_TYPE_ACCELERATOR;  // NOLINT(hicpp-signed-bitwise)
     }
   }
 
@@ -361,7 +358,7 @@ bool Device::select(const DeviceInfo &device_info)
 {
   std::vector<cl::Device> devices;
   std::vector<DeviceInfo> infos;
-  ::enumerateDevices(devices, infos);
+  gputil::enumerateDevices(devices, infos);
 
   for (size_t i = 0; i < infos.size(); ++i)
   {
@@ -411,12 +408,7 @@ Device::DebugLevel Device::debugGpu() const
 
 bool Device::supportsFeature(const char *feature_id) const
 {
-  if (imp_->extensions.find(feature_id) != std::string::npos)
-  {
-    return true;
-  }
-
-  return false;
+  return imp_->extensions.find(feature_id) != std::string::npos;
 }
 
 
@@ -492,15 +484,17 @@ bool Device::unifiedMemory() const
 
 Device &Device::operator=(const Device &other)
 {
-  *imp_ = *other.imp_;
+  if (this != &other)
+  {
+    *imp_ = *other.imp_;
+  }
   return *this;
 }
 
 
 Device &Device::operator=(Device &&other) noexcept
 {
-  delete imp_;
-  imp_ = other.imp_;
-  other.imp_ = nullptr;
+  imp_ = std::move(other.imp_);
   return *this;
 }
+}  // namespace gputil

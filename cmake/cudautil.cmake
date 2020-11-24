@@ -3,7 +3,7 @@
 #==============================================================================
 function(nvcc_setup PREFIX)
   find_package(CUDA)
-  set(${PREFIX}_CUDA_ARCHITECTURES "50;60" CACHE STRING "Specifies the list of CUDA compute architectures to compile for.")
+  set(${PREFIX}_CUDA_ARCHITECTURES "60;61;70;75" CACHE STRING "Specifies the list of CUDA compute architectures to compile for.")
   if (${PREFIX}_CUDA_ARCHITECTURES)
     foreach(ARCH ${${PREFIX}_CUDA_ARCHITECTURES})
       _nvcc_flags_append(CUDA_NVCC_FLAGS "-gencode arch=compute_${ARCH},code=sm_${ARCH}")
@@ -17,7 +17,7 @@ function(nvcc_setup PREFIX)
   if(${PREFIX}_CUDA_DEBUG STREQUAL "full")
     _nvcc_flags_append(CUDA_NVCC_FLAGS "-g -G -O0")
   elseif(${PREFIX}_CUDA_DEBUG STREQUAL "lineinfo")
-    _nvcc_flags_append(CUDA_NVCC_FLAGS "-g -lineinfo")
+    _nvcc_flags_append(CUDA_NVCC_FLAGS "-g -G -lineinfo")
   endif(${PREFIX}_CUDA_DEBUG STREQUAL "full")
 
   # CUDA compiler doesn't seem to respect the CMAKE_POSITION_INDEPENDENT_CODE variable. Explicitly add it for

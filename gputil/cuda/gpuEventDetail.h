@@ -16,23 +16,23 @@
 
 namespace gputil
 {
-  void destroyEvent(cudaEvent_t event);
+void destroyEvent(cudaEvent_t event);
 
-  struct EventDetail : public Ref<cudaEvent_t>
-  {
-    inline EventDetail(cudaEvent_t obj, unsigned initial_ref_count, const ReleaseFunc &release)
-      : Ref<cudaEvent_t>(obj, initial_ref_count, release)
-    {}
+struct EventDetail : public Ref<cudaEvent_t>
+{
+  inline EventDetail(cudaEvent_t obj, unsigned initial_ref_count, const ReleaseFunc &release)
+    : Ref<cudaEvent_t>(obj, initial_ref_count, release)
+  {}
 
-    inline EventDetail(Ref &&other) noexcept
-      : Ref<cudaEvent_t>(std::move(other))
-    {}
+  explicit inline EventDetail(Ref &&other) noexcept
+    : Ref<cudaEvent_t>(std::move(other))
+  {}
 
-    inline EventDetail(const Ref &other) = delete;
+  inline EventDetail(const Ref &other) = delete;
 
-  protected:
-    inline ~EventDetail() = default;
-  };
+protected:
+  inline ~EventDetail() = default;
+};
 }  // namespace gputil
 
 #endif  // GPUEVENTDETAIL_H

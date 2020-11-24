@@ -7,7 +7,7 @@
 
 #include <3esservermacros.h>
 
-void ohm::trace::init(const char *file_stream)
+void ohm::trace::init(const std::string &file_stream)
 {
   (void)file_stream;
   // Initialise TES
@@ -15,21 +15,18 @@ void ohm::trace::init(const char *file_stream)
   // Initialise server info.
   TES_SERVER_INFO(info, tes::XYZ);
   // Create the server. Use tesServer declared globally above.
-  TES_SERVER_CREATE(ohm::g_3es, settings, &info);
+  TES_SERVER_CREATE(ohm::g_tes, settings, &info);
 
   // Start the server and wait for the connection monitor to start.
-  TES_SERVER_START(ohm::g_3es, tes::ConnectionMonitor::Asynchronous);
+  TES_SERVER_START(ohm::g_tes, tes::ConnectionMonitor::Asynchronous);
 
-  TES_IF (file_stream && file_stream[0])
-  {
-    TES_LOCAL_FILE_STREAM(ohm::g_3es, file_stream);
-  }
-  TES_SERVER_START_WAIT(ohm::g_3es, 1000);
+  TES_IF(!file_stream.empty()) { TES_LOCAL_FILE_STREAM(ohm::g_tes, file_stream.c_str()); }
+  TES_SERVER_START_WAIT(ohm::g_tes, 1000);
 }
 
 
 void ohm::trace::done()
 {
-  TES_SERVER_UPDATE(ohm::g_3es, 0.0f);
-  TES_SERVER_STOP(ohm::g_3es);
+  TES_SERVER_UPDATE(ohm::g_tes, 0.0f);
+  TES_SERVER_STOP(ohm::g_tes);
 }

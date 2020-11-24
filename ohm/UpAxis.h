@@ -10,24 +10,24 @@
 
 namespace ohm
 {
-  /// Up axis identification values. Used for @c Heightmap generation.
-  ///
-  /// Documentation for each ID identifies the up axis.
-  enum class UpAxis : int
-  {
-    /// (0, 0, -1)
-    kNegZ = -3,
-    /// (0, -1, 0)
-    kNegY = -2,
-    /// (-1, 0, 0)
-    kNegX = -1,
-    /// (1, 0, 0)
-    kX,
-    /// (0, 1, 0)
-    kY,
-    /// (0, 0, 1)
-    kZ,
-  };
+/// Up axis identification values. Used for @c Heightmap generation.
+///
+/// Documentation for each ID identifies the up axis.
+enum class UpAxis : int
+{
+  /// (0, 0, -1)
+  kNegZ = -3,
+  /// (0, -1, 0)
+  kNegY = -2,
+  /// (-1, 0, 0)
+  kNegX = -1,
+  /// (1, 0, 0)
+  kX,
+  /// (0, 1, 0)
+  kY,
+  /// (0, 0, 1)
+  kZ,
+};
 }  // namespace ohm
 
 #endif  // UPAXIS_H

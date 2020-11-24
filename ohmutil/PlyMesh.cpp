@@ -20,20 +20,20 @@
 #endif
 #endif  // ZU
 
-using namespace ohm;
-
+namespace ohm
+{
 namespace
 {
-  constexpr bool isBigEndian()
+inline bool isBigEndian()
+{
+  const union
   {
-    const union
-    {
-      uint32_t i;
-      char c[4];
-    } check_int = { 0x01020304 };
+    uint32_t i;
+    char c[4];  // NOLINT(modernize-avoid-c-arrays)
+  } check_int = { 0x01020304 };
 
-    return check_int.c[0] == 1;
-  }
+  return check_int.c[0] == 1;
+}
 }  // namespace
 
 // File wrapper specialisations.
@@ -80,7 +80,9 @@ template <>
 class PlyMesh::FileWrapper<std::ostream>
 {
 public:
-  inline FileWrapper(std::ostream &stream)
+  const unsigned kBufferSize = 1024u;  // Far to big for usage here.
+
+  inline explicit FileWrapper(std::ostream &stream)
     : stream_(&stream)
   {
     buffer_ = new char[kBufferSize];
@@ -109,31 +111,20 @@ public:
   }
 
 private:
-  const unsigned kBufferSize = 1024u;  // Far to big for usage here.
   std::ostream *stream_;
   char *buffer_;
 };
 
 
-PlyMesh::PlyMesh()
-  : vertex_colours_(false)
-  , edge_colours_(false)
-  , face_colours_(false)
-  , index_mapper_(nullptr)
-{}
+PlyMesh::PlyMesh() = default;
 
 
-PlyMesh::~PlyMesh()
-{
-  delete index_mapper_;
-  index_mapper_ = nullptr;
-}
+PlyMesh::~PlyMesh() = default;
 
 
 void PlyMesh::clear()
 {
-  delete index_mapper_;
-  index_mapper_ = nullptr;
+  index_mapper_.reset();
   vertices_.clear();
   edges_.clear();
   triangles_.clear();
@@ -177,7 +168,7 @@ void PlyMesh::addEdges(const unsigned *edge_indices, unsigned edge_count, const 
       e.v[0] = (*index_mapper_)[e.v[0]];
       e.v[1] = (*index_mapper_)[e.v[1]];
     }
-    e.colour = Colour(255, 255, 255);
+    e.colour = Colour::kColours[Colour::kWhite];
     if (colours)
     {
       edge_colours_ = true;
@@ -214,7 +205,7 @@ void PlyMesh::addTriangles(const unsigned *triangle_indices, unsigned triangle_c
       t.v[1] = (*index_mapper_)[t.v[1]];
       t.v[2] = (*index_mapper_)[t.v[2]];
     }
-    t.colour = Colour(255, 255, 255);
+    t.colour = Colour::kColours[Colour::kWhite];
     if (colours)
     {
       face_colours_ = true;
@@ -390,7 +381,7 @@ bool PlyMesh::save(FileWrapper<T> &out, bool binary) const
   {
     out.printf("format ascii 1.0\n");
   }
-  out.printf("comment Exported by Voxmesh PlyMesh\n");
+  out.printf("comment Exported by ohmutil PlyMesh\n");
 
   for (const std::string &comment : comments_)
   {
@@ -490,7 +481,7 @@ bool PlyMesh::save(FileWrapper<T> &out, bool binary) const
     {
       unsigned char vc = 3;
       out.write(&vc, sizeof(vc), 1u);
-      out.write(t.v, sizeof(t.v[0]), 3u);
+      out.write(t.v.data(), sizeof(t.v[0]), t.v.size());
       if (face_colours_)
       {
         out.write(&t.colour.r(), 1u, 1u);
@@ -545,7 +536,7 @@ bool PlyMesh::save(FileWrapper<T> &out, bool binary) const
   {
     if (binary)
     {
-      out.write(e.v, sizeof(e.v[0]), 2u);
+      out.write(e.v.data(), sizeof(e.v[0]), e.v.size());
       if (edge_colours_)
       {
         out.write(&e.colour.r(), 1u, 1u);
@@ -575,12 +566,12 @@ template bool PlyMesh::save(FileWrapper<std::ostream> &out, bool binary) const;
 template <typename VEC3>
 unsigned PlyMesh::addVerticesT(const VEC3 *verts, unsigned count, const Colour *colours)
 {
-  unsigned index = unsigned(vertices_.size());
+  auto index = unsigned(vertices_.size());
   for (unsigned i = 0; i < count; ++i)
   {
     Vertex v{};
     v.point = VertexType(verts[i]);
-    v.colour = Colour(255, 255, 255);
+    v.colour = Colour::kColours[Colour::kWhite];
     if (colours)
     {
       vertex_colours_ = true;
@@ -616,10 +607,9 @@ template void PlyMesh::setNormalT(unsigned vertex_index, const glm::dvec3 &norma
 template <typename VEC3>
 void PlyMesh::addEdgeT(const VEC3 &v0, const VEC3 &v1, const Colour &colour)
 {
-  unsigned i0, i1;
-  i0 = unsigned(vertices_.size());
+  const auto i0 = unsigned(vertices_.size());
   addVertices(&v0, 1);
-  i1 = unsigned(vertices_.size());
+  const auto i1 = unsigned(vertices_.size());
   addVertices(&v1, 1);
   addEdge(i0, i1, colour);
 }
@@ -630,12 +620,11 @@ template void PlyMesh::addEdgeT(const glm::dvec3 &v0, const glm::dvec3 &v1, cons
 template <typename VEC3>
 void PlyMesh::addTriangleT(const VEC3 &v0, const VEC3 &v1, const VEC3 &v2, const Colour &colour)
 {
-  unsigned i0, i1, i2;
-  i0 = unsigned(vertices_.size());
+  const auto i0 = unsigned(vertices_.size());
   addVertices(&v0, 1);
-  i1 = unsigned(vertices_.size());
+  const auto i1 = unsigned(vertices_.size());
   addVertices(&v1, 1);
-  i2 = unsigned(vertices_.size());
+  const auto i2 = unsigned(vertices_.size());
   addVertices(&v2, 1);
   addTriangle(i0, i1, i2, colour);
 }
@@ -660,7 +649,7 @@ void PlyMesh::addPolygonT(const VEC3 *verts, unsigned order, const Colour &colou
 
   // Use push_back() for indices, not resize() to allow vector
   // to increase in size in a more expansive way (reduce reallocation).
-  const unsigned index_offset = unsigned(vertices_.size());
+  const auto index_offset = unsigned(vertices_.size());
   addVertices(verts, order);
   for (unsigned i = 0; i < order; ++i)
   {
@@ -680,7 +669,7 @@ void PlyMesh::addMappedTriangleT(const VEC3 *verts, const unsigned *vert_ids, co
 {
   if (!index_mapper_)
   {
-    index_mapper_ = new std::unordered_map<unsigned, unsigned>;
+    index_mapper_ = std::make_unique<std::unordered_map<unsigned, unsigned>>();
   }
 
   Tri tri{};
@@ -710,7 +699,7 @@ void PlyMesh::addMappedPolygonT(const VEC3 *verts, const unsigned *vert_ids, uns
 {
   if (!index_mapper_)
   {
-    index_mapper_ = new std::unordered_map<unsigned, unsigned>;
+    index_mapper_ = std::make_unique<std::unordered_map<unsigned, unsigned>>();
   }
 
   Poly poly{};
@@ -744,7 +733,7 @@ void PlyMesh::addMappedEdgeT(const VEC3 *verts, const unsigned *vert_ids, const 
 {
   if (!index_mapper_)
   {
-    index_mapper_ = new std::unordered_map<unsigned, unsigned>;
+    index_mapper_ = std::make_unique<std::unordered_map<unsigned, unsigned>>();
   }
 
   Edge edge{};
@@ -768,3 +757,5 @@ void PlyMesh::addMappedEdgeT(const VEC3 *verts, const unsigned *vert_ids, const 
 
 template void PlyMesh::addMappedEdgeT(const glm::vec3 *verts, const unsigned *vert_ids, const Colour *colour);
 template void PlyMesh::addMappedEdgeT(const glm::dvec3 *verts, const unsigned *vert_ids, const Colour *colour);
+
+}  // namespace ohm

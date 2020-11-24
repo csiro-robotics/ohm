@@ -3,12 +3,14 @@
 //
 #include <glm/glm.hpp>
 
+#include <ohm/DefaultLayer.h>
 #include <ohm/MapInfo.h>
 #include <ohm/MapLayer.h>
 #include <ohm/MapLayout.h>
 #include <ohm/MapSerialise.h>
 #include <ohm/OccupancyMap.h>
 #include <ohm/OccupancyUtil.h>
+#include <ohm/VoxelData.h>
 #include <ohm/VoxelLayout.h>
 
 #include <ohmutil/OhmUtil.h>
@@ -28,25 +30,26 @@
 
 namespace
 {
-  int quit = 0;
+int g_quit = 0;
 
-  void onSignal(int arg)
+void onSignal(int arg)
+{
+  if (arg == SIGINT || arg == SIGTERM)
   {
-    if (arg == SIGINT || arg == SIGTERM)
-    {
-      ++quit;
-    }
+    ++g_quit;
   }
+}
 
-  struct Options
-  {
-    std::string map_file;
-    bool calculate_extents = false;
-  };
+struct Options
+{
+  std::string map_file;
+  bool calculate_extents = false;
+  bool detail = false;
+};
 }  // namespace
 
 
-int parseOptions(Options *opt, int argc, char *argv[])
+int parseOptions(Options *opt, int argc, char *argv[])  // NOLINT(modernize-avoid-c-arrays)
 {
   cxxopts::Options opt_parse(argv[0], "\nProvide information about the contents of an occupancy map file.\n");
   opt_parse.positional_help("<map.ohm>");
@@ -54,9 +57,11 @@ int parseOptions(Options *opt, int argc, char *argv[])
   try
   {
     opt_parse.add_options()("help", "Show help.")("i,map", "The input map file (ohm) to load.",
-                                                 cxxopts::value(opt->map_file))(
-      "extents", "Run in quiet mode. Suppresses progress messages.",
-      optVal(opt->calculate_extents)->implicit_value("true"));
+                                                  cxxopts::value(opt->map_file))(
+      "extents", "Report map extents? Requires region traversal",
+      optVal(opt->calculate_extents)->implicit_value("true"))(
+      "detail", "Traverse voxels for detailed information? min occupancy, max occupancy, max samples (if available)",
+      optVal(opt->detail)->implicit_value("true"));
 
     opt_parse.parse_positional({ "map" });
 
@@ -154,34 +159,19 @@ int main(int argc, char *argv[])
             << ")" << std::endl;
   std::cout << "Hit probability: " << map.hitProbability() << " (" << map.hitValue() << ")" << std::endl;
   std::cout << "Miss probability: " << map.missProbability() << " (" << map.missValue() << ")" << std::endl;
-  std::cout << "Saturation min/max: [";
-  {
-    if (map.saturateAtMinValue())
-    {
-      std::cout << map.minVoxelProbability();
-    }
-    else
-    {
-      std::cout << "off";
-    }
-    std::cout << ",";
-    if (map.saturateAtMaxValue())
-    {
-      std::cout << map.maxVoxelProbability();
-    }
-    else
-    {
-      std::cout << "off";
-    }
-  }
+  std::cout << "Probability min/max: [" << map.minVoxelProbability() << "," << map.maxVoxelProbability() << "]"
+            << std::endl;
+  std::cout << "Value min/max: [" << map.minVoxelValue() << "," << map.maxVoxelValue() << "]" << std::endl;
+  std::cout << "Saturation min/max: [" << (map.saturateAtMinValue() ? "on" : "off") << ","
+            << (map.saturateAtMaxValue() ? "on" : "off") << "]" << std::endl;
+  ;
 
-  std::cout << "]" << std::endl;
   std::cout << "Touched stamp: " << map.stamp() << std::endl;
   std::cout << "Flags: " << std::endl;
   if (map.flags() != ohm::MapFlag::kNone)
   {
     unsigned bit = 1;
-    for (unsigned i = 0; i < sizeof(ohm::MapFlag) * 8; ++i, bit <<= 1)
+    for (unsigned i = 0; i < sizeof(ohm::MapFlag) * 8; ++i, bit <<= 1u)
     {
       if (unsigned(map.flags()) & bit)
       {
@@ -206,7 +196,8 @@ int main(int argc, char *argv[])
 
   const ohm::MapLayout &layout = map.layout();
   std::string indent;
-  std::string vox_size_str, region_size_str;
+  std::string vox_size_str;
+  std::string region_size_str;
   std::cout << "Layers: " << layout.layerCount() << std::endl;
 
   for (size_t i = 0; i < layout.layerCount(); ++i)
@@ -239,7 +230,8 @@ int main(int argc, char *argv[])
     std::cout << std::setw(0) << std::dec;
   }
 
-  if (opt.calculate_extents)
+  // Load full map if required
+  if (opt.calculate_extents || opt.detail)
   {
     // Reload the map for full extents.
     res = ohm::load(opt.map_file.c_str(), map);
@@ -248,14 +240,76 @@ int main(int argc, char *argv[])
       std::cerr << "Failed to load map regions. Error code: " << res << std::endl;
       return res;
     }
+  }
 
-    glm::dvec3 min_ext(0.0), max_ext(0.0);
-    ohm::Key min_key(ohm::Key::kNull), max_key(ohm::Key::kNull);
+  if (opt.calculate_extents)
+  {
+    glm::dvec3 min_ext(0.0);
+    glm::dvec3 max_ext(0.0);
+    ohm::Key min_key(ohm::Key::kNull);
+    ohm::Key max_key(ohm::Key::kNull);
     map.calculateExtents(&min_ext, &max_ext, &min_key, &max_key);
 
     std::cout << std::endl;
     std::cout << "Spatial Extents: " << min_ext << " - " << max_ext << std::endl;
     std::cout << "Key Extents: " << min_key << " - " << max_key << std::endl;
+  }
+
+  if (opt.detail)
+  {
+    float min_occupancy = std::numeric_limits<float>::max();
+    float max_occupancy = -std::numeric_limits<float>::max();
+    uint64_t free_voxels = 0;
+    uint64_t occupied_voxels = 0;
+    uint64_t total_point_count = 0;
+    unsigned max_point_count = 0;
+
+    const int mean_layer = map.layout().meanLayer();
+
+    ohm::Voxel<const float> voxel(&map, map.layout().occupancyLayer());
+    ohm::Voxel<const ohm::VoxelMean> mean(&map, map.layout().meanLayer());
+    if (voxel.isLayerValid())
+    {
+      for (auto iter = map.begin(); iter != map.end() && !g_quit; ++iter)
+      {
+        ohm::setVoxelKey(iter, voxel, mean);
+        float value;
+        voxel.read(&value);
+        if (value != ohm::unobservedOccupancyValue())
+        {
+          min_occupancy = std::min(value, min_occupancy);
+          max_occupancy = std::max(value, max_occupancy);
+
+          free_voxels += (value < map.occupancyThresholdValue());
+          occupied_voxels += (value >= map.occupancyThresholdValue());
+
+          if (mean.isLayerValid() && value >= map.occupancyThresholdValue())
+          {
+            ohm::VoxelMean mean_info;
+            mean.read(&mean_info);
+            max_point_count = std::max<unsigned>(mean_info.count, max_point_count);
+            total_point_count += mean_info.count;
+          }
+        }
+      }
+
+      std::cout << "Probablility max: " << ohm::valueToProbability(max_occupancy) << " (" << max_occupancy << ")"
+                << std::endl;
+      std::cout << "Probablility min: " << ohm::valueToProbability(min_occupancy) << " (" << min_occupancy << ")"
+                << std::endl;
+      std::cout << "Free voxels: " << free_voxels << std::endl;
+      std::cout << "Occupied voxels: " << occupied_voxels << std::endl;
+
+      if (mean_layer >= 0)
+      {
+        std::cout << "Max voxel samples: " << max_point_count << std::endl;
+        std::cout << "Average voxel samples: " << total_point_count / occupied_voxels << std::endl;
+      }
+    }
+    else
+    {
+      std::cout << "No " << ohm::default_layer::occupancyLayerName() << " layer" << std::endl;
+    }
   }
 
   return res;

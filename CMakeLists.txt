@@ -81,9 +81,21 @@ macro(find_tbb)
   # Try find TBB config file.
   find_package(TBB QUIET CONFIG)
   if(TBB_FOUND)
+    set(OHM_TBB_CONFIG TRUE CACHE INTERNAL "Using TBB via config.cmake?" FORCE)
     message(STATUS "TBB found using TBBConfig.cmake")
-    set(TBB_LIBRARIES "${TBB_IMPORTED_TARGETS}")
+    if(NOT TBB_LIBRARIES)
+      if(TBB_IMPORTED_TARGETS)
+        set(TBB_LIBRARIES "${TBB_IMPORTED_TARGETS}")
+      elseif(TARGET tbb::tbb_static)
+        set(TBB_LIBRARIES tbb::tbb_static tbb::tbbmalloc_static)
+      elseif(TARGET tbb::tbb)
+        set(TBB_LIBRARIES tbb::tbb tbb::tbbmalloc)
+      else()
+        message(FATAL_ERROR "Could not resolve tbb libraries")
+      endif()
+    endif(NOT TBB_LIBRARIES)
   else(TBB_FOUND)
+    set(OHM_TBB_CONFIG FALSE CACHE INTERNAL "Using TBB via config.cmake?" FORCE)
     # No TBB config file. Try FindTBB.cmake
     find_package(TBB QUIET)
     if(TBB_FOUND)
@@ -114,6 +126,7 @@ option(OHM_BUILD_CUDA "Build ohm library and utlities for CUDA?" ${OHM_BUILD_CUD
 option(OHM_BUILD_OPENCL "Build ohm library and utlities for OpenCL?" ${OHM_BUILD_OPENCL_DEFAULT})
 option(OHM_BUILD_HEIGHTMAPUTIL "Build the heightmap to image conversion library and utility?" ON)
 option(OHM_LEAK_TRACK "Enable memory leak tracking?" OFF)
+option(OHM_WITH_OCTOMAP "Build comparative occupancy map generation using octomap?" OFF)
 
 # Setup default memory leak tracking suppressions and options (GCC/Clang AddressSanitizer).
 set(OHM_LEAK_SUPPRESS_OCL_INIT
@@ -169,6 +182,9 @@ find_package(LASZIP QUIET)
 set(OHM_CLOUD_IO_LIBRARY auto CACHE STRING "Select point cloud IO library to use:  auto (prefer pdal), liblas, pdal or none")
 set_property(CACHE OHM_CLOUD_IO_LIBRARY PROPERTY STRINGS auto liblas pdal none)
 
+find_package(Eigen3 QUIET)
+option(OHM_WITH_EIGEN "Use Eigen for more signficiant linear algebra algorithms (e.g., eigen decomposition)?" ${EIGEN3_FOUND})
+
 message(STATUS "Cloud IO Library: ${OHM_CLOUD_IO_LIBRARY}")
 
 # Select the cloud io library to use.
@@ -197,7 +213,9 @@ add_subdirectory(gputil)
 add_subdirectory(ohmutil)
 add_subdirectory(slamio)
 add_subdirectory(ohm)
-add_subdirectory(ohmgpu)
+if(OHM_BUILD_CUDA OR OHM_BUILD_OPENCL)
+  add_subdirectory(ohmgpu)
+endif(OHM_BUILD_CUDA OR OHM_BUILD_OPENCL)
 
 if(OHM_BUILD_HEIGHTMAPUTIL)
   # Experimental
@@ -265,11 +283,17 @@ if(OHM_BUILD_DOXYGEN)
     ohm/cl
     ohm/gpu
     ohm/private
+    ohmgpu/private
   )
 
-  if(OHM_GPU EQUAL OHM_GPU_OPENCL)
-    list(APPEND DOXYGEN_DIRS clu)
-  endif(OHM_GPU EQUAL OHM_GPU_OPENCL)
+  if(OHM_BUILD_CUDA OR OHM_BUILD_OPENCL)
+    list(APPEND DOXYGEN_DIRS ohmgpu)
+  endif(OHM_BUILD_CUDA OR OHM_BUILD_OPENCL)
+  if(OHM_BUILD_OPENCL)
+      list(APPEND DOXYGEN_DIRS clu)
+  endif(OHM_BUILD_OPENCL)
+
+   list(APPEND DOXYGEN_DIRS docs)
 
   if(DOXYGEN_FOUND)
     # Create a target to build the documentation.

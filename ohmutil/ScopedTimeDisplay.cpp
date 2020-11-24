@@ -12,25 +12,22 @@
 #include <sstream>
 #include <string>
 
-using namespace ohm;
-
-using Clock = std::chrono::high_resolution_clock;
-
 namespace ohm
 {
-  struct ScopedTimeDisplayDetail
-  {
-    Clock::time_point start_time;
-    Clock::time_point end_time;
-    ScopedTimeDisplay::CustomLogger logger;
-    std::string msg_prefix;
-    std::ostream *out = nullptr;
-    bool enabled = true;
-  };
-}  // namespace ohm
+using Clock = std::chrono::high_resolution_clock;
+
+struct ScopedTimeDisplayDetail
+{
+  Clock::time_point start_time;
+  Clock::time_point end_time;
+  ScopedTimeDisplay::CustomLogger logger;
+  std::string msg_prefix;
+  std::ostream *out = nullptr;
+  bool enabled = true;
+};
 
 ScopedTimeDisplay::ScopedTimeDisplay(const char *msg_prefix)
-  : imp_(new ScopedTimeDisplayDetail)
+  : imp_(std::make_unique<ScopedTimeDisplayDetail>())
 {
   imp_->msg_prefix = msg_prefix;
   imp_->out = &std::cout;
@@ -55,7 +52,6 @@ ScopedTimeDisplay::ScopedTimeDisplay(const char *msg_prefix, const CustomLogger 
 ScopedTimeDisplay::~ScopedTimeDisplay()
 {
   finish();
-  delete imp_;
 }
 
 const char *ScopedTimeDisplay::messagePrefix() const
@@ -110,3 +106,4 @@ void ScopedTimeDisplay::finish()
     }
   }
 }
+}  // namespace ohm

@@ -12,17 +12,22 @@
 
 namespace ohm
 {
-  /// Flags used to augment initialisation of an @c OccupancyMap.
-  enum class MapFlag : unsigned
-  {
-    /// No special features.
-    kNone = 0u,
-    /// Enable voxel mean position tracking.
-    kVoxelMean = (1u << 0),
-  };
+/// Flags used to augment initialisation of an @c OccupancyMap.
+enum class MapFlag : unsigned
+{
+  /// No special features.
+  kNone = 0u,
+  /// Enable voxel mean position tracking.
+  kVoxelMean = (1u << 0u),
+  /// Maintain compressed voxels in memory. Compression is performed off thread.
+  kCompressed = (1u << 1u),
 
-  const char *mapFlagToString(MapFlag flag);
-  MapFlag mapFlagFromString(const char *str);
+  /// Default map creation flags.
+  kDefault = kCompressed
+};
+
+const char *mapFlagToString(MapFlag flag);
+MapFlag mapFlagFromString(const char *str);
 }  // namespace ohm
 
 inline ohm::MapFlag operator|(ohm::MapFlag left, ohm::MapFlag right)

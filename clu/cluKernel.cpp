@@ -7,8 +7,8 @@
 
 #include "cluProgram.h"
 
-using namespace clu;
-
+namespace clu
+{
 KernelSize KernelGrid::adjustedGlobal() const
 {
   if (!isValid())
@@ -17,7 +17,7 @@ KernelSize KernelGrid::adjustedGlobal() const
   }
 
   KernelSize adjusted;
-  for (unsigned i = 0; i < global_size.dimensions(); ++i)
+  for (int i = 0; i < int(global_size.dimensions()); ++i)
   {
     adjusted[i] = work_group_size[i] * ((global_size[i] + work_group_size[i] - 1) / work_group_size[i]);
   }
@@ -65,7 +65,7 @@ cl_int Kernel::addLocal(const LocalMemArgSizeFunc &arg_func)
 {
   if (local_mem_arg_count_ < kMaxLocalMemArgs)
   {
-    local_mem_args_[local_mem_arg_count_++] = arg_func;
+    local_mem_args_[local_mem_arg_count_++] = arg_func;  // NOLINT(cppcoreguidelines-pro-bounds-constant-array-index)
 
     return local_mem_arg_count_;
   }
@@ -86,6 +86,8 @@ size_t Kernel::calculateOptimalWorkGroupSize()
       size_t mem_size = 0;
       for (int i = 0; i < local_mem_arg_count_; ++i)
       {
+        // Lint: already bounds checked.
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-constant-array-index)
         mem_size += local_mem_args_[i](work_group_size);
       }
 
@@ -110,8 +112,9 @@ cl_int Kernel::setLocalMemArgs(int arg_count)
 
   for (int i = 0; i < local_mem_arg_count_; ++i)
   {
-    if (local_mem_args_[i])
+    if (local_mem_args_[i])  // NOLINT(cppcoreguidelines-pro-bounds-constant-array-index)
     {
+      // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-constant-array-index)
       clerr = kernel_.setArg(arg_index++, cl::Local(local_mem_args_[i](optimal_work_group_size_)));
     }
     else
@@ -142,16 +145,16 @@ cl_int Kernel::invoke(cl::CommandQueue &queue, const KernelGrid &grid, const Eve
     }
   }
 
-  cl_event local_event;
+  cl_event local_event{};
 
   // Invoke the kernel.
-  cl_int clerr;
-  clerr = clEnqueueNDRangeKernel(queue(), kernel_(),
-                                 grid.global_size.dimensions(),                                      // Dimensions
-                                 !grid.global_offset.isNull() ? grid.global_offset.arg() : nullptr,  // Global offset
-                                 grid.adjustedGlobal().arg(),                                        // Global size
-                                 grid.work_group_size.arg(),                                         // Work group size
-                                 events.event_count, wait_on_events, events.completion ? &local_event : nullptr);
+  cl_int clerr =
+    clEnqueueNDRangeKernel(queue(), kernel_(),
+                           grid.global_size.dimensions(),                                      // Dimensions
+                           !grid.global_offset.isNull() ? grid.global_offset.arg() : nullptr,  // Global offset
+                           grid.adjustedGlobal().arg(),                                        // Global size
+                           grid.work_group_size.arg(),                                         // Work group size
+                           events.event_count, wait_on_events, events.completion ? &local_event : nullptr);
   if (clerr == CL_SUCCESS && events.completion)
   {
     *events.completion = local_event;
@@ -159,3 +162,4 @@ cl_int Kernel::invoke(cl::CommandQueue &queue, const KernelGrid &grid, const Eve
 
   return clerr;
 }
+}  // namespace clu

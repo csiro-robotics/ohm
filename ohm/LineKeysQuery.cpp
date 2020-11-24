@@ -18,22 +18,22 @@
 #include <cstring>
 #include <thread>
 
-using namespace ohm;
-
+namespace ohm
+{
 namespace
 {
-  unsigned nextPow2(unsigned v)
-  {
-    // compute the next highest power of 2 of 32-bit v
-    v--;
-    v |= v >> 1;
-    v |= v >> 2;
-    v |= v >> 4;
-    v |= v >> 8;
-    v |= v >> 16;
-    v++;
-    return v;
-  }
+unsigned nextPow2(unsigned v)
+{
+  // compute the next highest power of 2 of 32-bit v
+  v--;
+  v |= v >> 1u;
+  v |= v >> 2u;
+  v |= v >> 4u;
+  v |= v >> 8u;
+  v |= v >> 16u;  // NOLINT(readability-magic-numbers)
+  v++;
+  return v;
+}
 }  // namespace
 
 LineKeysQuery::LineKeysQuery(LineKeysQueryDetail *detail)
@@ -57,7 +57,7 @@ LineKeysQuery::LineKeysQuery(unsigned query_flags)
 
 LineKeysQuery::~LineKeysQuery()
 {
-  LineKeysQueryDetail *d = static_cast<LineKeysQueryDetail *>(imp_);
+  auto *d = static_cast<LineKeysQueryDetail *>(imp_);
   delete d;
   imp_ = nullptr;
 }
@@ -65,7 +65,7 @@ LineKeysQuery::~LineKeysQuery()
 
 void LineKeysQuery::setRays(const glm::dvec3 *rays, size_t point_count)
 {
-  LineKeysQueryDetail *d = static_cast<LineKeysQueryDetail *>(imp_);
+  auto *d = static_cast<LineKeysQueryDetail *>(imp_);
   d->rays.resize(point_count);
   memcpy(d->rays.data(), rays, sizeof(*rays) * point_count);
 }
@@ -73,35 +73,35 @@ void LineKeysQuery::setRays(const glm::dvec3 *rays, size_t point_count)
 
 const glm::dvec3 *LineKeysQuery::rays() const
 {
-  const LineKeysQueryDetail *d = static_cast<LineKeysQueryDetail *>(imp_);
+  const auto *d = static_cast<LineKeysQueryDetail *>(imp_);
   return d->rays.data();
 }
 
 
 size_t LineKeysQuery::rayPointCount() const
 {
-  const LineKeysQueryDetail *d = static_cast<LineKeysQueryDetail *>(imp_);
+  const auto *d = static_cast<LineKeysQueryDetail *>(imp_);
   return d->rays.size();
 }
 
 
 const size_t *LineKeysQuery::resultIndices() const
 {
-  LineKeysQueryDetail *d = static_cast<LineKeysQueryDetail *>(imp_);
+  auto *d = static_cast<LineKeysQueryDetail *>(imp_);
   return d->result_indices.data();
 }
 
 
 const size_t *LineKeysQuery::resultCounts() const
 {
-  LineKeysQueryDetail *d = static_cast<LineKeysQueryDetail *>(imp_);
+  auto *d = static_cast<LineKeysQueryDetail *>(imp_);
   return d->result_counts.data();
 }
 
 
 bool LineKeysQuery::onExecute()
 {
-  LineKeysQueryDetail *d = static_cast<LineKeysQueryDetail *>(imp_);
+  auto *d = static_cast<LineKeysQueryDetail *>(imp_);
 
   KeyList key_list;
   d->result_indices.resize(d->rays.size() / 2);
@@ -126,7 +126,7 @@ bool LineKeysQuery::onExecute()
 
 bool LineKeysQuery::onExecuteAsync()
 {
-  LineKeysQueryDetail *d = static_cast<LineKeysQueryDetail *>(imp_);
+  auto *d = static_cast<LineKeysQueryDetail *>(imp_);
 
   if ((d->query_flags & kQfGpuEvaluate))
   {
@@ -144,7 +144,7 @@ bool LineKeysQuery::onExecuteAsync()
 
 void LineKeysQuery::onReset(bool /*hard_reset*/)
 {
-  LineKeysQueryDetail *d = static_cast<LineKeysQueryDetail *>(imp_);
+  auto *d = static_cast<LineKeysQueryDetail *>(imp_);
   d->result_indices.clear();
   d->result_counts.clear();
 }
@@ -160,3 +160,4 @@ const LineKeysQueryDetail *LineKeysQuery::imp() const
 {
   return static_cast<const LineKeysQueryDetail *>(imp_);
 }
+}  // namespace ohm

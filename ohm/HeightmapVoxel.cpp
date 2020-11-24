@@ -5,7 +5,8 @@
 // Author: Kazys Stepanas
 #include "HeightmapVoxel.h"
 
-using namespace ohm;
-
-const char * const HeightmapVoxel::kHeightmapLayer = "heightmap";
-const char * const HeightmapVoxel::kHeightmapBuildLayer = "heightmap_build";
+namespace ohm
+{
+const char *const HeightmapVoxel::kHeightmapLayer = "heightmap";
+const char *const HeightmapVoxel::kHeightmapBuildLayer = "heightmap_build";
+}  // namespace ohm

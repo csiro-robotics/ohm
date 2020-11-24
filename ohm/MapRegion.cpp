@@ -13,8 +13,8 @@
 #include <cstdio>
 #endif  // OHM_VALIDATION
 
-using namespace ohm;
-
+namespace ohm
+{
 unsigned MapRegion::Hash::calculate(const MapRegion &key)
 {
   const glm::i32vec3 hash_coord(key.coord);
@@ -67,3 +67,4 @@ bool MapRegion::voxelKey(Key &key, const glm::dvec3 &point, const glm::dvec3 &ma
   // Out of range.
   return false;
 }
+}  // namespace ohm

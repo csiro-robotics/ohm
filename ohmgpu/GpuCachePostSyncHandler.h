@@ -14,9 +14,9 @@
 
 namespace ohm
 {
-  struct MapChunk;
+struct MapChunk;
 
-  using GpuCachePostSyncHandler = std::function<void(MapChunk *, const glm::u8vec3 &)>;
+using GpuCachePostSyncHandler = std::function<void(MapChunk *, const glm::u8vec3 &)>;
 }  // namespace ohm
 
 #endif  // GPUCACHEPOSTSYNCHANDLER_H

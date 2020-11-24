@@ -6,66 +6,59 @@
 #include "MapChunk.h"
 
 #include "DefaultLayer.h"
-#include "Voxel.h"
 #include "MapLayer.h"
 #include "MapLayout.h"
+#include "VoxelBuffer.h"
+#include "VoxelOccupancy.h"
+
 #include "private/MapLayoutDetail.h"
 #include "private/OccupancyMapDetail.h"
 
 #include <cassert>
 #include <cstdio>
 
-using namespace ohm;
-
-MapChunk::MapChunk(const MapRegion &region, const MapLayout &layout, const glm::uvec3 &region_dim)
+namespace ohm
+{
+MapChunk::MapChunk(const MapRegion &region, const OccupancyMapDetail &map)
 {
   this->region = region;
-  this->layout = &layout;
+  this->map = &map;
 
-  voxel_maps = new uint8_t *[layout.layerCount()];
-  touched_stamps = new std::atomic_uint64_t[layout.layerCount()];
+  const MapLayout &layout = this->layout();
+  voxel_blocks.resize(layout.layerCount());
+  touched_stamps = std::make_unique<std::atomic_uint64_t[]>(layout.layerCount());  // NOLINT(modernize-avoid-c-arrays)
   for (size_t i = 0; i < layout.layerCount(); ++i)
   {
     const MapLayer &layer = layout.layer(i);
-    voxel_maps[i] = layer.allocate(region_dim);
-    layer.clear(voxel_maps[i], region_dim);
+    voxel_blocks[i].reset(new VoxelBlock(&map, layer));
     touched_stamps[i] = 0u;
   }
 }
 
 
-MapChunk::MapChunk(const MapLayout &layout, const glm::uvec3 &region_dim)
-  : MapChunk(MapRegion(), layout, region_dim)
+MapChunk::MapChunk(const OccupancyMapDetail &map)
+  : MapChunk(MapRegion(), map)
 {}
 
 
 MapChunk::MapChunk(MapChunk &&other) noexcept
-  : region(other.region)
-  , layout(other.layout)
-  , first_valid_index(other.first_valid_index)
-  , touched_time(other.touched_time)
-  , dirty_stamp(other.dirty_stamp)
-  , touched_stamps(other.touched_stamps)
-  , voxel_maps(other.voxel_maps)
-  , flags(other.flags)
-{
-  other.layout = nullptr;
-  other.voxel_maps = nullptr;
-  other.touched_stamps = nullptr;
-}
+  : region(std::exchange(other.region, MapRegion()))
+  , map(std::exchange(other.map, nullptr))
+  , first_valid_index(std::exchange(other.first_valid_index, ~0u))
+  , touched_time(std::exchange(other.touched_time, 0))
+  , dirty_stamp(std::exchange(other.dirty_stamp, 0))
+  , touched_stamps(std::move(other.touched_stamps))
+  , voxel_blocks(std::move(other.voxel_blocks))
+  , flags(std::exchange(other.flags, 0))
+{}
 
 
-MapChunk::~MapChunk()
+MapChunk::~MapChunk() = default;
+
+
+const MapLayout &MapChunk::layout() const
 {
-  if (layout)
-  {
-    for (unsigned i = 0; i < layout->layerCount(); ++i)
-    {
-      layout->layer(i).release(voxel_maps[i]);
-    }
-  }
-  delete[] voxel_maps;
-  delete[] touched_stamps;
+  return map->layout;
 }
 
 
@@ -96,139 +89,119 @@ Key MapChunk::keyForIndex(size_t voxel_index, const glm::ivec3 &region_voxel_dim
 }
 
 
-void MapChunk::updateLayout(const MapLayout *new_layout, const glm::uvec3 &region_dim,
-                  const std::vector<std::pair<const MapLayer *, const MapLayer *>> &preserve_layer_mapping)
+void MapChunk::updateLayout(const MapLayout *new_layout,
+                            const std::vector<std::pair<const MapLayer *, const MapLayer *>> &preserve_layer_mapping)
 {
-
   // Allocate voxel pointer array.
-  uint8_t **new_voxel_maps = new uint8_t *[new_layout->layerCount()];
-  std::atomic_uint64_t *new_touched_stamps = new std::atomic_uint64_t[new_layout->layerCount()];
-
-  // Initialise voxel maps to null so we can track what's missed by preserve_layer_mapping.
-  for (size_t i = 0; i < new_layout->layerCount(); ++i)
-  {
-    new_voxel_maps[i] = nullptr;
-  }
+  std::vector<VoxelBlock::Ptr> new_voxel_blocks(new_layout->layerCount());
+  std::unique_ptr<std::atomic_uint64_t[]> new_touched_stamps =           // NOLINT(modernize-avoid-c-arrays)
+    std::make_unique<std::atomic_uint64_t[]>(new_layout->layerCount());  // NOLINT(modernize-avoid-c-arrays)
 
   for (const auto &mapping : preserve_layer_mapping)
   {
-    new_voxel_maps[mapping.second->layerIndex()] = voxel_maps[mapping.first->layerIndex()];
+    new_voxel_blocks[mapping.second->layerIndex()].swap(voxel_blocks[mapping.first->layerIndex()]);
     new_touched_stamps[mapping.second->layerIndex()] = touched_stamps[mapping.first->layerIndex()].load();
     // Memory ownership moved: nullify to prevent release.
-    voxel_maps[mapping.first->layerIndex()] = nullptr;
+    voxel_blocks[mapping.first->layerIndex()] = nullptr;
   }
 
   // Now initialise any new or unmapped layers and release those not preserved.
   for (size_t i = 0; i < new_layout->layerCount(); ++i)
   {
-    if (!new_voxel_maps[i])
+    const MapLayer &layer = new_layout->layer(i);
+    if (!new_voxel_blocks[i])
     {
       // Initilised layer.
-      const MapLayer &layer = new_layout->layer(i);
-      new_voxel_maps[i] = layer.allocate(region_dim);
-      layer.clear(new_voxel_maps[i], region_dim);
+      new_voxel_blocks[i].reset(new VoxelBlock(map, layer));
       new_touched_stamps[i] = 0u;
+    }
+    else
+    {
+      // Preserving layer. Ensure it's index is updated.
+      new_voxel_blocks[i]->updateLayerIndex(layer.layerIndex());
     }
   }
 
   // Release redundant layers.
-  for (size_t i = 0; i < layout->layerCount(); ++i)
+  const MapLayout &old_layout = layout();
+  for (size_t i = 0; i < old_layout.layerCount(); ++i)
   {
-    if (voxel_maps[i])
+    if (voxel_blocks[i])
     {
       // Unmigrated/redudant layer. Release.
-      layout->layer(i).release(voxel_maps[i]);
-      voxel_maps[i] = nullptr;
+      voxel_blocks[i]->destroy();
+      voxel_blocks[i] = nullptr;
     }
   }
 
-  // Release pointer arrays.
-  delete[] voxel_maps;
-  delete[] touched_stamps;
-
   // Update pointers
-  voxel_maps = new_voxel_maps;
-  touched_stamps = new_touched_stamps;
-  // We do not update the layout pointer to new_layout. This pointer is to the owning occupancy map's layout which we
-  // assume is about to change internally. It's address will remain unchanged.
-}
-
-
-bool MapChunk::hasValidNodes() const
-{
-  return first_valid_index.x != 255 && first_valid_index.y != 255 && first_valid_index.z != 255;
-}
-
-
-void MapChunk::updateFirstValid(const glm::u8vec3 &local_index, const glm::ivec3 &region_voxel_dimensions)
-{
-  const unsigned current_first =
-    voxelIndex(first_valid_index.x, first_valid_index.y, first_valid_index.z, region_voxel_dimensions.x,
-               region_voxel_dimensions.y, region_voxel_dimensions.z);
-  const unsigned test_first = voxelIndex(local_index.x, local_index.y, local_index.z, region_voxel_dimensions.x,
-                                         region_voxel_dimensions.y, region_voxel_dimensions.z);
-  if (test_first < current_first)
-  {
-    first_valid_index = local_index;
-#ifdef OHM_VALIDATION
-    validateFirstValid(regionVoxelDimensions);
-#endif  // OHM_VALIDATION
-  }
+  std::swap(voxel_blocks, new_voxel_blocks);
+  std::swap(touched_stamps, new_touched_stamps);
+  // We do nothing to update the layout() to new_layout. This object is owned by the occupancy map which we assume is
+  // about to change internally. It's address will remain unchanged.
 }
 
 
 void MapChunk::searchAndUpdateFirstValid(const glm::ivec3 &region_voxel_dimensions, const glm::u8vec3 &search_from)
 {
-  size_t voxel_index;
-  first_valid_index = search_from;
+  const MapLayout &layout = this->layout();
+  VoxelBuffer<const VoxelBlock> voxel_buffer(voxel_blocks[layout.occupancyLayer()]);
+  const size_t voxel_stride = layout.layer(layout.occupancyLayer()).voxelByteSize();
+  const uint8_t *voxel_mem = voxel_buffer.voxelMemory();
 
-  size_t voxel_stride = layout->layer(layout->occupancyLayer()).voxelByteSize();
-  const uint8_t *voxel_mem = voxel_maps[layout->occupancyLayer()];
-
-  for (int z = 0; z < region_voxel_dimensions.z; ++z)
+  unsigned voxel_index;
+  float occupancy;
+  for (int z = search_from.z; z < region_voxel_dimensions.z; ++z)
   {
-    for (int y = 0; y < region_voxel_dimensions.y; ++y)
+    for (int y = search_from.y; y < region_voxel_dimensions.y; ++y)
     {
-      for (int x = 0; x < region_voxel_dimensions.x; ++x)
+      for (int x = search_from.x; x < region_voxel_dimensions.x; ++x)
       {
         voxel_index =
-          size_t(x) + y * region_voxel_dimensions.x + z * region_voxel_dimensions.y * region_voxel_dimensions.x;
-        const float occupancy = *reinterpret_cast<const float *>(voxel_mem + voxel_stride * voxel_index);
-        if (occupancy != voxel::invalidMarkerValue())
+          unsigned(x) + y * region_voxel_dimensions.x + z * region_voxel_dimensions.y * region_voxel_dimensions.x;
+        memcpy(&occupancy, voxel_mem + voxel_stride * voxel_index, sizeof(occupancy));
+        if (occupancy != unobservedOccupancyValue())
         {
-          first_valid_index.x = x;
-          first_valid_index.y = y;
-          first_valid_index.z = z;
+          first_valid_index = voxel_index;
           return;
         }
       }
     }
   }
 
-  // first_valid_index.x = first_valid_index.y = first_valid_index.z = 255u;
+  // Failed to find a valid item (at least from search_from). Mark as unknown.
+  first_valid_index = ~0u;
 }
 
 
-bool MapChunk::validateFirstValid(const glm::ivec3 &region_voxel_dimensions) const
+glm::u8vec3 MapChunk::firstValidKey() const
 {
-  size_t voxel_index = 0;
+  return firstValidKey(map->region_voxel_dimensions);
+}
 
-  size_t voxel_stride = layout->layer(layout->occupancyLayer()).voxelByteSize();
-  const uint8_t *voxel_mem = voxel_maps[layout->occupancyLayer()];
 
-  for (int z = 0; z < region_voxel_dimensions.z; ++z)
+bool MapChunk::validateFirstValid() const
+{
+  const MapLayout &layout = this->layout();
+  VoxelBuffer<const VoxelBlock> voxel_buffer(voxel_blocks[layout.occupancyLayer()].get());
+  const size_t voxel_stride = layout.layer(layout.occupancyLayer()).voxelByteSize();
+  const uint8_t *voxel_mem = voxel_buffer.voxelMemory();
+
+  unsigned voxel_index = 0;
+  float occupancy;
+  for (int z = 0; z < map->region_voxel_dimensions.z; ++z)
   {
-    for (int y = 0; y < region_voxel_dimensions.y; ++y)
+    for (int y = 0; y < map->region_voxel_dimensions.y; ++y)
     {
-      for (int x = 0; x < region_voxel_dimensions.x; ++x)
+      for (int x = 0; x < map->region_voxel_dimensions.x; ++x)
       {
-        const float occupancy = *reinterpret_cast<const float *>(voxel_mem + voxel_stride * voxel_index);
-        if (occupancy != voxel::invalidMarkerValue())
+        memcpy(&occupancy, voxel_mem + voxel_stride * voxel_index, sizeof(occupancy));
+        if (occupancy != unobservedOccupancyValue())
         {
-          if (first_valid_index.x != x || first_valid_index.y != y || first_valid_index.z != z)
+          if (first_valid_index != voxel_index)
           {
-            fprintf(stderr, "First valid validation failure. Current: (%d %d %d) actual: (%d %d %d)\n",
-                    int(first_valid_index.x), int(first_valid_index.y), int(first_valid_index.z), x, y, z);
+            fprintf(stderr, "First valid validation failure. Current: (%d) actual: (%d)\n", int(first_valid_index),
+                    int(voxel_index));
             return false;
           }
           return true;
@@ -239,10 +212,10 @@ bool MapChunk::validateFirstValid(const glm::ivec3 &region_voxel_dimensions) con
   }
 
   // No valid voxels.
-  if (first_valid_index.x != 255u || first_valid_index.y != 255u || first_valid_index.z != 255u)
+  if (first_valid_index != ~0u)
   {
-    fprintf(stderr, "First valid validation failure. Current: (%d %d %d) actual: (%d %d %d) [no valid]\n",
-            int(first_valid_index.x), int(first_valid_index.y), int(first_valid_index.z), 255, 255, 255);
+    fprintf(stderr, "First valid validation failure. Current: (%d) actual: (%d)\n", int(first_valid_index),
+            int(voxel_index));
     return false;
   }
 
@@ -250,11 +223,11 @@ bool MapChunk::validateFirstValid(const glm::ivec3 &region_voxel_dimensions) con
 }
 
 
-bool MapChunk::overlapsExtents(const glm::dvec3 &min_ext, const glm::dvec3 &max_ext,
-                               const glm::dvec3 &region_spatial_dimensions) const
+bool MapChunk::overlapsExtents(const glm::dvec3 &min_ext, const glm::dvec3 &max_ext) const
 {
-  glm::dvec3 region_min, region_max;
-  extents(region_min, region_max, region_spatial_dimensions);
+  glm::dvec3 region_min;
+  glm::dvec3 region_max;
+  extents(region_min, region_max);
 
   const bool min_fail = glm::any(glm::greaterThan(region_min, max_ext));
   const bool max_fail = glm::any(glm::greaterThan(min_ext, region_max));
@@ -262,9 +235,10 @@ bool MapChunk::overlapsExtents(const glm::dvec3 &min_ext, const glm::dvec3 &max_
   return !min_fail && !max_fail;
 }
 
-void MapChunk::extents(glm::dvec3 &min_ext, glm::dvec3 &max_ext, const glm::dvec3 &region_spatial_dimensions) const
+void MapChunk::extents(glm::dvec3 &min_ext, glm::dvec3 &max_ext) const
 {
   min_ext = max_ext = region.centre;
-  min_ext -= 0.5 * region_spatial_dimensions;
-  max_ext += 0.5 * region_spatial_dimensions;
+  min_ext -= 0.5 * map->region_spatial_dimensions;
+  max_ext += 0.5 * map->region_spatial_dimensions;
 }
+}  // namespace ohm

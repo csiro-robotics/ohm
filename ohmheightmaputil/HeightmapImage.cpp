@@ -30,467 +30,461 @@
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/normal.hpp>
 
-using namespace ohm;
+#include <array>
 
 namespace
 {
-  /// Relevant texture formats.
-  enum AttachmentFormat
+/// Relevant texture formats.
+enum AttachmentFormat
+{
+  /// RGB 3 bytes per pixel, uint8_t per channel.
+  kAfRgb8,
+  /// RGB 12 bytes per pixel, float32 per channel.
+  kAfRgb32f,
+  /// Mono 4 bytes per pixel, float32 per channel.
+  kAfMono32f
+};
+
+// Fragment shader colour by input.
+const char *const kNormalsFragmentShader = "#version 330 core\n"
+                                           "in vec3 v_normal;\n"
+                                           "in vec3 v_colour;\n"
+                                           "in float v_depth;\n"
+                                           "// Ouput data\n"
+                                           "out vec3 colour;\n"
+                                           "void main()\n"
+                                           "{\n"
+                                           // "  colour = vec3(v_depth, v_depth, v_depth);\n"
+                                           "  colour = 0.5 * (v_normal + vec3(1, 1, 1));\n"
+                                           "}";
+const char *const kColoursFragmentShader = "#version 330 core\n"
+                                           "in vec3 v_normal;\n"
+                                           "in vec3 v_colour;\n"
+                                           "in float v_depth;\n"
+                                           "// Ouput data\n"
+                                           "out vec3 colour;\n"
+                                           "void main()\n"
+                                           "{\n"
+                                           "  colour = v_colour;\n"
+                                           "}";
+
+// Vertex shader.
+const char *const kVertexShader = "#version 330 core\n"
+                                  "// Input vertex data, different for all executions of this shader.\n"
+                                  "layout(location = 0) in vec3 vertexPosition_modelspace;\n"
+                                  "layout(location = 1) in vec3 vertexNormal_modelspace;\n"
+                                  "layout(location = 2) in vec3 vertexColour;\n"
+                                  "uniform mat4 MVP;\n"
+                                  "uniform mat4 V;\n"
+                                  "uniform mat4 M;\n"
+                                  "out vec3 v_normal;\n"
+                                  "out vec3 v_colour;\n"
+                                  "out float v_depth;\n"
+                                  "void main()\n"
+                                  "{\n"
+                                  "  gl_Position = gl_Position =  MVP * vec4(vertexPosition_modelspace,1);\n"
+                                  "  v_normal =  (V * M * vec4(vertexNormal_modelspace,0)).xyz;\n"
+                                  // "  v_normal =  vertexNormal_modelspace;\n"
+                                  "  v_colour = vertexColour;\n"
+                                  "  v_depth = 1.0 - (1.0 + gl_Position.z/gl_Position.w) / 2.0;\n"
+                                  "}\n";
+
+const char *const kQuadFragmentShader = "#version 330 core\n"
+                                        "// Ouput data\n"
+                                        "layout(location = 0) out vec4 color;\n"
+                                        "uniform sampler2D render_texture;\n"
+                                        "in vec2 UV;\n"
+                                        "void main()\n"
+                                        "{\n"
+                                        "  color = texture(render_texture, UV);\n"
+                                        "}";
+
+// Full screen quad vertex shader.
+const char *const kQuadVertexShader = "#version 330 core\n"
+                                      "// Input vertex data, different for all executions of this shader.\n"
+                                      "layout(location = 0) in vec3 vertexPosition_modelspace;\n"
+                                      "// Output data ; will be interpolated for each fragment.\n"
+                                      "out vec2 UV;\n"
+                                      "void main()\n"
+                                      "{\n"
+                                      "    gl_Position = vec4(vertexPosition_modelspace, 1);\n"
+                                      "    UV = (vertexPosition_modelspace.xy + vec2(1, 1)) / 2.0;\n"
+                                      "}\n";
+
+// The fullscreen quad's FBO
+const std::array<GLfloat, 3 * 6> kQuadVertexBufferData =  //
   {
-    /// RGB 3 bytes per pixel, uint8_t per channel.
-    kAfRgb8,
-    /// RGB 12 bytes per pixel, float32 per channel.
-    kAfRgb32f,
-    /// Mono 4 bytes per pixel, float32 per channel.
-    kAfMono32f
+    -1.0f, -1.0f, 0.0f,  //
+    1.0f,  -1.0f, 0.0f,  //
+    -1.0f, 1.0f,  0.0f,  //
+    -1.0f, 1.0f,  0.0f,  //
+    1.0f,  -1.0f, 0.0f,  //
+    1.0f,  1.0f,  0.0f,  //
   };
 
-  // Fragment shader colour by input.
-  const char *normals_fragment_shader = "#version 330 core\n"
-                                        "in vec3 v_normal;\n"
-                                        "in vec3 v_colour;\n"
-                                        "in float v_depth;\n"
-                                        "// Ouput data\n"
-                                        "out vec3 colour;\n"
-                                        "void main()\n"
-                                        "{\n"
-                                        // "  colour = vec3(v_depth, v_depth, v_depth);\n"
-                                        "  colour = 0.5 * (v_normal + vec3(1, 1, 1));\n"
-                                        "}";
-  const char *colours_fragment_shader = "#version 330 core\n"
-                                        "in vec3 v_normal;\n"
-                                        "in vec3 v_colour;\n"
-                                        "in float v_depth;\n"
-                                        "// Ouput data\n"
-                                        "out vec3 colour;\n"
-                                        "void main()\n"
-                                        "{\n"
-                                        "  colour = v_colour;\n"
-                                        "}";
-
-  // Vertex shader.
-  const char *vertex_shader = "#version 330 core\n"
-                              "// Input vertex data, different for all executions of this shader.\n"
-                              "layout(location = 0) in vec3 vertexPosition_modelspace;\n"
-                              "layout(location = 1) in vec3 vertexNormal_modelspace;\n"
-                              "layout(location = 2) in vec3 vertexColour;\n"
-                              "uniform mat4 MVP;\n"
-                              "uniform mat4 V;\n"
-                              "uniform mat4 M;\n"
-                              "out vec3 v_normal;\n"
-                              "out vec3 v_colour;\n"
-                              "out float v_depth;\n"
-                              "void main()\n"
-                              "{\n"
-                              "  gl_Position = gl_Position =  MVP * vec4(vertexPosition_modelspace,1);\n"
-                              "  v_normal =  (V * M * vec4(vertexNormal_modelspace,0)).xyz;\n"
-                              // "  v_normal =  vertexNormal_modelspace;\n"
-                              "  v_colour = vertexColour;\n"
-                              "  v_depth = 1.0 - (1.0 + gl_Position.z/gl_Position.w) / 2.0;\n"
-                              "}\n";
-
-  const char *quad_fragment_shader = "#version 330 core\n"
-                                     "// Ouput data\n"
-                                     "layout(location = 0) out vec4 color;\n"
-                                     "uniform sampler2D render_texture;\n"
-                                     "in vec2 UV;\n"
-                                     "void main()\n"
-                                     "{\n"
-                                     "  color = texture(render_texture, UV);\n"
-                                     "}";
-
-  // Full screen quad vertex shader.
-  const char *quad_vertex_shader = "#version 330 core\n"
-                                   "// Input vertex data, different for all executions of this shader.\n"
-                                   "layout(location = 0) in vec3 vertexPosition_modelspace;\n"
-                                   "// Output data ; will be interpolated for each fragment.\n"
-                                   "out vec2 UV;\n"
-                                   "void main()\n"
-                                   "{\n"
-                                   "    gl_Position = vec4(vertexPosition_modelspace, 1);\n"
-                                   "    UV = (vertexPosition_modelspace.xy + vec2(1, 1)) / 2.0;\n"
-                                   "}\n";
-
-  // The fullscreen quad's FBO
-  const GLfloat kQuadVertexBufferData[] =  //
-    {
-      -1.0f, -1.0f, 0.0f,  //
-      1.0f,  -1.0f, 0.0f,  //
-      -1.0f, 1.0f,  0.0f,  //
-      -1.0f, 1.0f,  0.0f,  //
-      1.0f,  -1.0f, 0.0f,  //
-      1.0f,  1.0f,  0.0f,  //
-    };
-
-  // Load vertex and fragment shader strings into a program.
-  GLuint loadShaders(const char * /*name*/, const char *vertex_shader_code, const char *fragment_shader_code)
+// Load vertex and fragment shader strings into a program.
+GLuint loadShaders(const char * /*name*/, const char *vertex_shader_code, const char *fragment_shader_code)
+{
+  struct OnExit
   {
-    struct OnExit
+    std::function<void()> on_exit;
+    explicit OnExit(std::function<void()> on_exit)
+      : on_exit(std::move(on_exit))
+    {}
+    ~OnExit() { on_exit(); }
+  };
+
+  // Create the shaders
+  GLuint vertex_shader_id = 0;
+  GLuint fragment_shader_id = 0;
+  GLuint program_id = 0;
+  GLint compile_success = GL_FALSE;
+
+  // Setup error cleanup handling.
+  OnExit on_exit(  //
+    [&]()          //
     {
-      std::function<void()> on_exit;
-      OnExit(const std::function<void()> &on_exit)
-        : on_exit(on_exit)
-      {}
-      ~OnExit() { on_exit(); }
-    };
-
-    // Create the shaders
-    GLuint vertex_shader_id = 0;
-    GLuint fragment_shader_id = 0;
-    GLuint program_id = 0;
-    GLint compile_success = GL_FALSE;
-
-    // Setup error cleanup handling.
-    OnExit on_exit(  //
-      [&]()          //
+      if (!compile_success)
       {
-        if (!compile_success)
+        if (program_id)
         {
-          if (program_id)
-          {
-            if (vertex_shader_id)
-            {
-              glDetachShader(program_id, vertex_shader_id);
-            }
-            if (fragment_shader_id)
-            {
-              glDetachShader(program_id, fragment_shader_id);
-            }
-            glDeleteProgram(program_id);
-          }
-
           if (vertex_shader_id)
           {
-            glDeleteShader(vertex_shader_id);
-            vertex_shader_id = 0;
+            glDetachShader(program_id, vertex_shader_id);
           }
-
           if (fragment_shader_id)
           {
-            glDeleteShader(fragment_shader_id);
-            fragment_shader_id = 0;
+            glDetachShader(program_id, fragment_shader_id);
           }
+          glDeleteProgram(program_id);
         }
-      });
 
-    int info_msg_length = 0;
+        if (vertex_shader_id)
+        {
+          glDeleteShader(vertex_shader_id);
+          vertex_shader_id = 0;
+        }
 
-    // Compile Vertex Shader
-    // printf("Compiling shader vertex : %s\n", name);
-    vertex_shader_id = glCreateShader(GL_VERTEX_SHADER);
-    glShaderSource(vertex_shader_id, 1, &vertex_shader_code, nullptr);
-    glCompileShader(vertex_shader_id);
-
-    // Check Vertex Shader
-    glGetShaderiv(vertex_shader_id, GL_COMPILE_STATUS, &compile_success);
-    glGetShaderiv(vertex_shader_id, GL_INFO_LOG_LENGTH, &info_msg_length);
-    if (info_msg_length > 0)
-    {
-      std::vector<char> error_msg(info_msg_length + 1);
-      glGetShaderInfoLog(vertex_shader_id, info_msg_length, nullptr, error_msg.data());
-      std::cerr << error_msg.data() << std::endl;
-    }
-
-    if (!compile_success)
-    {
-      return 0;
-    }
-
-    // Compile Fragment Shader
-    // printf("Compiling shader fragment: %s\n", name);
-    fragment_shader_id = glCreateShader(GL_FRAGMENT_SHADER);
-    glShaderSource(fragment_shader_id, 1, &fragment_shader_code, nullptr);
-    glCompileShader(fragment_shader_id);
-
-    // Check Fragment Shader
-    glGetShaderiv(fragment_shader_id, GL_COMPILE_STATUS, &compile_success);
-    glGetShaderiv(fragment_shader_id, GL_INFO_LOG_LENGTH, &info_msg_length);
-    if (info_msg_length > 0)
-    {
-      std::vector<char> error_msg(info_msg_length + 1);
-      glGetShaderInfoLog(fragment_shader_id, info_msg_length, nullptr, &error_msg[0]);
-      std::cerr << error_msg.data() << std::endl;
-    }
-
-    if (!compile_success)
-    {
-      return 0;
-    }
-
-    // Link the program
-    // printf("Linking program\n");
-    program_id = glCreateProgram();
-    glAttachShader(program_id, vertex_shader_id);
-    glAttachShader(program_id, fragment_shader_id);
-    glLinkProgram(program_id);
-
-    // Check the program
-    glGetProgramiv(program_id, GL_LINK_STATUS, &compile_success);
-    glGetProgramiv(program_id, GL_INFO_LOG_LENGTH, &info_msg_length);
-    if (info_msg_length > 0)
-    {
-      std::vector<char> error_msg(info_msg_length + 1);
-      glGetProgramInfoLog(program_id, info_msg_length, nullptr, &error_msg[0]);
-      std::cerr << error_msg.data() << std::endl;
-    }
-
-    if (!compile_success)
-    {
-      return 0;
-    }
-
-    glDetachShader(program_id, vertex_shader_id);
-    glDetachShader(program_id, fragment_shader_id);
-
-    glDeleteShader(vertex_shader_id);
-    vertex_shader_id = 0;
-    glDeleteShader(fragment_shader_id);
-    fragment_shader_id = 0;
-
-    return program_id;
-  }
-
-
-  template <typename T>
-  class ColourConverter
-  {
-  public:
-    static glm::vec3 vec3(const T &c) { return glm::vec3(c); }
-    static glm::vec4 vec4(const T &c) { return glm::vec4(c); }
-  };
-
-  template <>
-  class ColourConverter<ohm::Colour>
-  {
-  public:
-    static glm::vec3 vec3(const Colour &c) { return glm::vec3(c.rf(), c.gf(), c.bf()); }
-    static glm::vec4 vec4(const Colour &c) { return glm::vec4(vec3(c), 1.0f); }
-  };
-}  // namespace
-
-
-namespace
-{
-  std::mutex shared_init_guard;
-  volatile unsigned shared_ref_count = 0;
-
-  void sharedInit()
-  {
-    std::unique_lock<std::mutex> guard(shared_init_guard);
-
-    if (shared_ref_count == 0)
-    {
-      glfwInit();
-    }
-
-    ++shared_ref_count;
-  }
-
-  void sharedRelease()
-  {
-    std::unique_lock<std::mutex> guard(shared_init_guard);
-
-    if (shared_ref_count)
-    {
-      --shared_ref_count;
-      if (shared_ref_count == 0)
-      {
-        glfwTerminate();
+        if (fragment_shader_id)
+        {
+          glDeleteShader(fragment_shader_id);
+          fragment_shader_id = 0;
+        }
       }
-    }
+    });
+
+  int info_msg_length = 0;
+
+  // Compile Vertex Shader
+  // printf("Compiling shader vertex : %s\n", name);
+  vertex_shader_id = glCreateShader(GL_VERTEX_SHADER);
+  glShaderSource(vertex_shader_id, 1, &vertex_shader_code, nullptr);
+  glCompileShader(vertex_shader_id);
+
+  // Check Vertex Shader
+  glGetShaderiv(vertex_shader_id, GL_COMPILE_STATUS, &compile_success);
+  glGetShaderiv(vertex_shader_id, GL_INFO_LOG_LENGTH, &info_msg_length);
+  if (info_msg_length > 0)
+  {
+    std::vector<char> error_msg(info_msg_length + 1);
+    glGetShaderInfoLog(vertex_shader_id, info_msg_length, nullptr, error_msg.data());
+    std::cerr << error_msg.data() << std::endl;
   }
 
-  void textureBufferInfo(GLint texture_id)
+  if (!compile_success)
   {
-    struct TexParam
+    return 0;
+  }
+
+  // Compile Fragment Shader
+  // printf("Compiling shader fragment: %s\n", name);
+  fragment_shader_id = glCreateShader(GL_FRAGMENT_SHADER);
+  glShaderSource(fragment_shader_id, 1, &fragment_shader_code, nullptr);
+  glCompileShader(fragment_shader_id);
+
+  // Check Fragment Shader
+  glGetShaderiv(fragment_shader_id, GL_COMPILE_STATUS, &compile_success);
+  glGetShaderiv(fragment_shader_id, GL_INFO_LOG_LENGTH, &info_msg_length);
+  if (info_msg_length > 0)
+  {
+    std::vector<char> error_msg(info_msg_length + 1);
+    glGetShaderInfoLog(fragment_shader_id, info_msg_length, nullptr, &error_msg[0]);
+    std::cerr << error_msg.data() << std::endl;
+  }
+
+  if (!compile_success)
+  {
+    return 0;
+  }
+
+  // Link the program
+  // printf("Linking program\n");
+  program_id = glCreateProgram();
+  glAttachShader(program_id, vertex_shader_id);
+  glAttachShader(program_id, fragment_shader_id);
+  glLinkProgram(program_id);
+
+  // Check the program
+  glGetProgramiv(program_id, GL_LINK_STATUS, &compile_success);
+  glGetProgramiv(program_id, GL_INFO_LOG_LENGTH, &info_msg_length);
+  if (info_msg_length > 0)
+  {
+    std::vector<char> error_msg(info_msg_length + 1);
+    glGetProgramInfoLog(program_id, info_msg_length, nullptr, &error_msg[0]);
+    std::cerr << error_msg.data() << std::endl;
+  }
+
+  if (!compile_success)
+  {
+    return 0;
+  }
+
+  glDetachShader(program_id, vertex_shader_id);
+  glDetachShader(program_id, fragment_shader_id);
+
+  glDeleteShader(vertex_shader_id);
+  vertex_shader_id = 0;
+  glDeleteShader(fragment_shader_id);
+  fragment_shader_id = 0;
+
+  return program_id;
+}
+
+
+template <typename T>
+class ColourConverter
+{
+public:
+  static glm::vec3 vec3(const T &c) { return glm::vec3(c); }
+  static glm::vec4 vec4(const T &c) { return glm::vec4(c); }
+};
+
+template <>
+class ColourConverter<ohm::Colour>
+{
+public:
+  static glm::vec3 vec3(const ohm::Colour &c) { return glm::vec3(c.rf(), c.gf(), c.bf()); }
+  static glm::vec4 vec4(const ohm::Colour &c) { return glm::vec4(vec3(c), 1.0f); }
+};
+
+std::mutex g_shared_init_guard;
+volatile unsigned g_shared_ref_count = 0;
+
+void sharedInit()
+{
+  std::unique_lock<std::mutex> guard(g_shared_init_guard);
+
+  if (g_shared_ref_count == 0)
+  {
+    glfwInit();
+  }
+
+  ++g_shared_ref_count;
+}
+
+void sharedRelease()
+{
+  std::unique_lock<std::mutex> guard(g_shared_init_guard);
+
+  if (g_shared_ref_count)
+  {
+    --g_shared_ref_count;
+    if (g_shared_ref_count == 0)
     {
-      int id;
-      const char *name;
+      glfwTerminate();
+    }
+  }
+}
+
+void textureBufferInfo(GLint texture_id)
+{
+  struct TexParam
+  {
+    int id;
+    const char *name;
+  };
+
+  static const std::array<TexParam, 18> params =  //
+    {                                             //
+      TexParam{ GL_TEXTURE_WIDTH, "width" },
+      TexParam{ GL_TEXTURE_HEIGHT, "height" },
+      TexParam{ GL_TEXTURE_DEPTH, "depth" },
+      TexParam{ GL_TEXTURE_INTERNAL_FORMAT, "format-internal" },
+      TexParam{ GL_TEXTURE_RED_TYPE, "red-type" },
+      TexParam{ GL_TEXTURE_GREEN_TYPE, "green-type" },
+      TexParam{ GL_TEXTURE_BLUE_TYPE, "blue-type" },
+      TexParam{ GL_TEXTURE_ALPHA_TYPE, "alpha-type" },
+      TexParam{ GL_TEXTURE_DEPTH_TYPE, "depth-type" },
+      TexParam{ GL_TEXTURE_RED_SIZE, "red-size" },
+      TexParam{ GL_TEXTURE_GREEN_SIZE, "green-size" },
+      TexParam{ GL_TEXTURE_BLUE_SIZE, "blue-size" },
+      TexParam{ GL_TEXTURE_ALPHA_SIZE, "alpha-size" },
+      TexParam{ GL_TEXTURE_DEPTH_SIZE, "depth-size" },
+      TexParam{ GL_TEXTURE_COMPRESSED, "compressed" },
+      TexParam{ GL_TEXTURE_COMPRESSED_IMAGE_SIZE, "compressed-size" },
+      TexParam{ GL_TEXTURE_BUFFER_OFFSET, "buffer-offset" },
+      TexParam{ GL_TEXTURE_BUFFER_SIZE, "buffer-size" }
     };
 
-    static const TexParam params[] =  //
-      {                               //
-        { GL_TEXTURE_WIDTH, "width" },
-        { GL_TEXTURE_HEIGHT, "height" },
-        { GL_TEXTURE_DEPTH, "depth" },
-        { GL_TEXTURE_INTERNAL_FORMAT, "format-internal" },
-        { GL_TEXTURE_RED_TYPE, "red-type" },
-        { GL_TEXTURE_GREEN_TYPE, "green-type" },
-        { GL_TEXTURE_BLUE_TYPE, "blue-type" },
-        { GL_TEXTURE_ALPHA_TYPE, "alpha-type" },
-        { GL_TEXTURE_DEPTH_TYPE, "depth-type" },
-        { GL_TEXTURE_RED_SIZE, "red-size" },
-        { GL_TEXTURE_GREEN_SIZE, "green-size" },
-        { GL_TEXTURE_BLUE_SIZE, "blue-size" },
-        { GL_TEXTURE_ALPHA_SIZE, "alpha-size" },
-        { GL_TEXTURE_DEPTH_SIZE, "depth-size" },
-        { GL_TEXTURE_COMPRESSED, "compressed" },
-        { GL_TEXTURE_COMPRESSED_IMAGE_SIZE, "compressed-size" },
-        { GL_TEXTURE_BUFFER_OFFSET, "buffer-offset" },
-        { GL_TEXTURE_BUFFER_SIZE, "buffer-size" }
-      };
-    static const size_t param_count = sizeof(params) / sizeof(params[0]);
-
-    glBindTexture(GL_TEXTURE_2D, texture_id);
-    int param_value = 0;
-    printf("texture-info:\n");
-    for (size_t i = 0; i < param_count; ++i)
-    {
-      glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, params[i].id, &param_value);
-      printf("  %s: %d\n", params[i].name, param_value);
-    }
-    glBindTexture(GL_TEXTURE_2D, 0);
-  }
-
-  unsigned makeMultipleOf(unsigned value, unsigned of)
+  glBindTexture(GL_TEXTURE_2D, texture_id);
+  int param_value = 0;
+  printf("texture-info:\n");
+  for (const auto &param : params)
   {
-    const unsigned overflow = value % of;
-    if (overflow)
-    {
-      return value + of - overflow;
-    }
-    return value;
+    glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, param.id, &param_value);
+    printf("  %s: %d\n", param.name, param_value);
   }
+  glBindTexture(GL_TEXTURE_2D, 0);
+}
+
+unsigned makeMultipleOf(unsigned value, unsigned of)
+{
+  const unsigned overflow = value % of;
+  if (overflow)
+  {
+    return value + of - overflow;
+  }
+  return value;
+}
 }  // namespace
 
 namespace ohm
 {
-  struct HeightmapImageDetail
+struct HeightmapImageDetail
+{
+  std::vector<glm::vec3> vertices;
+  std::vector<glm::vec3> vertex_normals;
+  std::vector<glm::vec3> vertex_colours;
+
+  HeightmapImage::BitmapInfo image_info;
+  std::vector<uint8_t> image;
+
+  HeightmapImage::ImageType desired_type = HeightmapImage::kImageNormals;
+  HeightmapImage::ImageType generated_type = HeightmapImage::kImageNormals;
+  unsigned pixels_per_voxel = 1;
+
+  struct RenderData
   {
-    std::vector<glm::vec3> vertices;
-    std::vector<glm::vec3> vertex_normals;
-    std::vector<glm::vec3> vertex_colours;
+    GLFWwindow *window = nullptr;
+    GLuint mesh_normals_program_id = 0;
+    GLuint mesh_colours_program_id = 0;
+    GLuint quad_program_id = 0;
+    GLuint quad_vertex_buffer = 0;
+    GLuint fbo_tex_id = 0xffffffffu;  // NOLINT(readability-magic-numbers)
+    // Debug visualisation flag.
+    bool show_window = false;
+    bool block_on_show_window = false;
 
-    HeightmapImage::BitmapInfo image_info;
-    std::vector<uint8_t> image;
+    bool init();
 
-    HeightmapImage::ImageType desired_type = HeightmapImage::kImageNormals;
-    HeightmapImage::ImageType generated_type = HeightmapImage::kImageNormals;
-    unsigned pixels_per_voxel = 1;
+    ~RenderData() { clear(); }
 
-    struct RenderData
-    {
-      GLFWwindow *window = nullptr;
-      GLuint mesh_normals_program_id = 0;
-      GLuint mesh_colours_program_id = 0;
-      GLuint quad_program_id = 0;
-      GLuint quad_vertex_buffer = 0;
-      GLuint fbo_tex_id = 0xffffffffu;
-      // Debug visualisation flag.
-      bool show_window = false;
-      bool block_on_show_window = false;
-
-      bool init();
-
-      ~RenderData() { clear(); }
-
-      void clear();
-    } render_data;
-  };
+    void clear();
+  } render_data;
+};
 
 
-  bool HeightmapImageDetail::RenderData::init()
+bool HeightmapImageDetail::RenderData::init()
+{
+  PROFILE(HeightmapImageDetail_init);
+  if (window)
   {
-    PROFILE(HeightmapImageDetail_init);
-    if (window)
-    {
-      return true;
-    }
-
-    ::sharedInit();
-
-    glfwWindowHint(GLFW_SAMPLES, 4);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);  // To make MacOS happy; should not be needed
-    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-    glfwWindowHint(GLFW_VISIBLE, show_window ? GLFW_TRUE : GLFW_FALSE);
-
-    window = glfwCreateWindow(64, 64, "ohm", nullptr, nullptr);
-
-    if (!window)
-    {
-      sharedRelease();
-      return false;
-    }
-
-    glfwMakeContextCurrent(window);
-
-    // Initialize GLEW
-    glewExperimental = true;  // Needed for core profile
-    if (glewInit() != GLEW_OK)
-    {
-      std::cerr << "Failed to initialize GLEW" << std::endl;
-      clear();
-      return false;
-    }
-
-    // Black background
-    glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-
-    // // Enable depth test
-    glEnable(GL_DEPTH_TEST);
-    // Accept fragment if it closer to the camera than the former one
-    glDepthFunc(GL_LESS);
-
-    // Cull triangles which normal is not towards the camera
-    glEnable(GL_CULL_FACE);
-
-    mesh_normals_program_id = loadShaders("mesh_normals_shader", vertex_shader, normals_fragment_shader);
-    mesh_colours_program_id = loadShaders("mesh_colours_shader", vertex_shader, colours_fragment_shader);
-
-    // Set the list of draw buffers.
-    GLenum quad_draw_buffers[1] = { GL_COLOR_ATTACHMENT0 };
-    glDrawBuffers(1, quad_draw_buffers);  // "1" is the size of quad_draw_buffers
-
-    glGenBuffers(1, &quad_vertex_buffer);
-    glBindBuffer(GL_ARRAY_BUFFER, quad_vertex_buffer);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(kQuadVertexBufferData), kQuadVertexBufferData, GL_STATIC_DRAW);
-
-    // Create and compile our GLSL program from the shaders
-    quad_program_id = loadShaders("fbo", quad_vertex_shader, quad_fragment_shader);
-    fbo_tex_id = glGetUniformLocation(quad_program_id, "render_texture");
-
     return true;
   }
 
-  void HeightmapImageDetail::RenderData::clear()
+  ::sharedInit();
+
+  glfwWindowHint(GLFW_SAMPLES, 4);
+  glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+  glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+  glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);  // To make MacOS happy; should not be needed
+  glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+  glfwWindowHint(GLFW_VISIBLE, show_window ? GLFW_TRUE : GLFW_FALSE);
+
+  window = glfwCreateWindow(64, 64, "ohm", nullptr, nullptr);  // NOLINT(readability-magic-numbers)
+
+  if (!window)
   {
-    PROFILE(HeightmapImageDetail_clear);
-    if (mesh_normals_program_id)
-    {
-      glDeleteProgram(mesh_normals_program_id);
-      mesh_normals_program_id = 0;
-    }
-
-    if (mesh_colours_program_id)
-    {
-      glDeleteProgram(mesh_colours_program_id);
-      mesh_colours_program_id = 0;
-    }
-
-    if (quad_program_id)
-    {
-      glDeleteProgram(quad_program_id);
-      quad_program_id = 0;
-    }
-
-    if (quad_vertex_buffer)
-    {
-      glDeleteBuffers(1, &quad_vertex_buffer);
-    }
-
-    fbo_tex_id = 0xffffffffu;
-
-    if (window)
-    {
-      glfwDestroyWindow(window);
-      window = nullptr;
-
-      sharedRelease();
-    }
+    sharedRelease();
+    return false;
   }
-}  // namespace ohm
+
+  glfwMakeContextCurrent(window);
+
+  // Initialize GLEW
+  glewExperimental = true;  // Needed for core profile
+  if (glewInit() != GLEW_OK)
+  {
+    std::cerr << "Failed to initialize GLEW" << std::endl;
+    clear();
+    return false;
+  }
+
+  // Black background
+  glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+
+  // // Enable depth test
+  glEnable(GL_DEPTH_TEST);
+  // Accept fragment if it closer to the camera than the former one
+  glDepthFunc(GL_LESS);
+
+  // Cull triangles which normal is not towards the camera
+  glEnable(GL_CULL_FACE);
+
+  mesh_normals_program_id = loadShaders("mesh_normals_shader", kVertexShader, kNormalsFragmentShader);
+  mesh_colours_program_id = loadShaders("mesh_colours_shader", kVertexShader, kColoursFragmentShader);
+
+  // Set the list of draw buffers.
+  std::array<GLenum, 1> quad_draw_buffers = { GL_COLOR_ATTACHMENT0 };
+  glDrawBuffers(GLsizei(quad_draw_buffers.size()), quad_draw_buffers.data());
+
+  glGenBuffers(1, &quad_vertex_buffer);
+  glBindBuffer(GL_ARRAY_BUFFER, quad_vertex_buffer);
+  glBufferData(GL_ARRAY_BUFFER, sizeof(kQuadVertexBufferData), kQuadVertexBufferData.data(), GL_STATIC_DRAW);
+
+  // Create and compile our GLSL program from the shaders
+  quad_program_id = loadShaders("fbo", kQuadVertexShader, kQuadFragmentShader);
+  fbo_tex_id = glGetUniformLocation(quad_program_id, "render_texture");
+
+  return true;
+}
+
+void HeightmapImageDetail::RenderData::clear()
+{
+  PROFILE(HeightmapImageDetail_clear);
+  if (mesh_normals_program_id)
+  {
+    glDeleteProgram(mesh_normals_program_id);
+    mesh_normals_program_id = 0;
+  }
+
+  if (mesh_colours_program_id)
+  {
+    glDeleteProgram(mesh_colours_program_id);
+    mesh_colours_program_id = 0;
+  }
+
+  if (quad_program_id)
+  {
+    glDeleteProgram(quad_program_id);
+    quad_program_id = 0;
+  }
+
+  if (quad_vertex_buffer)
+  {
+    glDeleteBuffers(1, &quad_vertex_buffer);
+  }
+
+  fbo_tex_id = 0xffffffffu;  // NOLINT(readability-magic-numbers)
+
+  if (window)
+  {
+    glfwDestroyWindow(window);
+    window = nullptr;
+
+    sharedRelease();
+  }
+}
 
 
 HeightmapImage::HeightmapImage(ImageType type, unsigned pixels_per_voxel)
@@ -626,10 +620,10 @@ bool HeightmapImage::generateBitmap(const HeightmapMesh &mesh, UpAxis up_axis)
 }
 
 
-template <typename NORMAL_VEC3, typename COLOUR_VEC>
+template <typename NormalVec3, typename ColourVec>
 bool HeightmapImage::renderHeightMesh(ImageType image_type, const Aabb &spatial_extents, double voxel_resolution,
                                       const glm::dvec3 *vertices, size_t vertex_count, const unsigned *indices,
-                                      size_t index_count, const NORMAL_VEC3 *vertex_normals, const COLOUR_VEC *colours,
+                                      size_t index_count, const NormalVec3 *vertex_normals, const ColourVec *colours,
                                       UpAxis up_axis)
 {
   PROFILE(HeightmapImage_renderHeightMesh);
@@ -643,7 +637,7 @@ bool HeightmapImage::renderHeightMesh(ImageType image_type, const Aabb &spatial_
   const glm::dvec3 *end_vertex = vertices + vertex_count;
   imp_->vertices.clear();
   imp_->vertices.reserve(vertex_count);
-  for (auto v = vertices; v < end_vertex; ++v)
+  for (const auto *v = vertices; v < end_vertex; ++v)
   {
     imp_->vertices.emplace_back(glm::vec3(*v - spatial_extents.minExtents()));
   }
@@ -652,8 +646,8 @@ bool HeightmapImage::renderHeightMesh(ImageType image_type, const Aabb &spatial_
   imp_->vertex_normals.reserve(vertex_count);
   if (vertex_normals)
   {
-    const NORMAL_VEC3 *end_normal = vertex_normals + vertex_count;
-    for (auto n = vertex_normals; n < end_normal; ++n)
+    const NormalVec3 *end_normal = vertex_normals + vertex_count;
+    for (const auto *n = vertex_normals; n < end_normal; ++n)
     {
       imp_->vertex_normals.push_back(glm::vec3(*n));
     }
@@ -670,10 +664,10 @@ bool HeightmapImage::renderHeightMesh(ImageType image_type, const Aabb &spatial_
   imp_->vertex_colours.reserve(vertex_count);
   if (colours)
   {
-    const COLOUR_VEC *end_colour = colours + vertex_count;
-    for (auto c = colours; c < end_colour; ++c)
+    const ColourVec *end_colour = colours + vertex_count;
+    for (const auto *c = colours; c < end_colour; ++c)
     {
-      imp_->vertex_colours.push_back(ColourConverter<COLOUR_VEC>::vec3(*c));
+      imp_->vertex_colours.push_back(ColourConverter<ColourVec>::vec3(*c));
     }
   }
   else
@@ -688,10 +682,12 @@ bool HeightmapImage::renderHeightMesh(ImageType image_type, const Aabb &spatial_
   glm::vec3 min_ext_vertices = glm::vec3(0.0f);
   glm::vec3 max_ext_vertices = glm::vec3(spatial_extents.maxExtents() - spatial_extents.minExtents());
 
-  TES_TRIANGLES(g_3es, TES_COLOUR(White), glm::value_ptr(*imp_->vertices.data()), unsigned(imp_->vertices.size()),
-                sizeof(*imp_->vertices.data()), indices, unsigned(index_count));
-  TES_SERVER_UPDATE(g_3es, 0.0f);
-  TES_SERVER_UPDATE(g_3es, 0.0f);
+  TES_TRIANGLES(g_tes, TES_COLOUR(White), tes::Id(),
+                tes::DataBuffer(glm::value_ptr(*imp_->vertices.data()), imp_->vertices.size(), 3,
+                                sizeof(glm::vec3) / sizeof(float)),
+                tes::DataBuffer(indices, index_count));
+  TES_SERVER_UPDATE(g_tes, 0.0f);
+  TES_SERVER_UPDATE(g_tes, 0.0f);
 
   //----------------------------------------------------------------------------
   // Initialise GLFW
@@ -699,7 +695,7 @@ bool HeightmapImage::renderHeightMesh(ImageType image_type, const Aabb &spatial_
 
   // Resolve horizontal and vertical axes.
   // Set axes[0] and axes[1] to index the horizontal axes (across the heightmap) and axes[2] to th vertical.
-  int axes[3];
+  std::array<int, 3> axes;
   switch (up_axis)
   {
   case UpAxis::kNegZ:
@@ -756,7 +752,7 @@ bool HeightmapImage::renderHeightMesh(ImageType image_type, const Aabb &spatial_
   // Rendering setup.
   //----------------------------------------------------------------------------
 
-  glfwSetWindowSize(imp_->render_data.window, render_width, render_height);
+  glfwSetWindowSize(imp_->render_data.window, int(render_width), int(render_height));
   glfwMakeContextCurrent(imp_->render_data.window);
   glViewport(0, 0, render_width, render_height);
 
@@ -926,7 +922,7 @@ bool HeightmapImage::renderHeightMesh(ImageType image_type, const Aabb &spatial_
   glViewport(0, 0, render_width, render_height);
 
   // Clear the screen
-  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);  // NOLINT(hicpp-signed-bitwise)
 
   //-------------------------------------------
   // Render heightmap to FBO
@@ -984,8 +980,8 @@ bool HeightmapImage::renderHeightMesh(ImageType image_type, const Aabb &spatial_
   if (imp_->render_data.show_window)
   {
     // Set the list of draw buffers.
-    GLenum quad_draw_buffers[1] = { GL_COLOR_ATTACHMENT0 };
-    glDrawBuffers(1, quad_draw_buffers);  // "1" is the size of quad_draw_buffers
+    std::array<GLenum, 1> quad_draw_buffers = { GL_COLOR_ATTACHMENT0 };
+    glDrawBuffers(GLsizei(quad_draw_buffers.size()), quad_draw_buffers.data());
 
     do
     {
@@ -995,7 +991,7 @@ bool HeightmapImage::renderHeightMesh(ImageType image_type, const Aabb &spatial_
       glViewport(0, 0, render_width, render_height);
 
       // Clear the screen
-      glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+      glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);  // NOLINT(hicpp-signed-bitwise)
 
       // Use our shader
       glUseProgram(imp_->render_data.quad_program_id);
@@ -1114,3 +1110,5 @@ bool HeightmapImage::renderHeightMesh(ImageType image_type, const Aabb &spatial_
 
   return true;
 }
+}  // namespace ohm
+#include <utility>

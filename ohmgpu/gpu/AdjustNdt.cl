@@ -6,7 +6,7 @@
 #ifndef ADJUSTNDT_CL
 #define ADJUSTNDT_CL
 
-#include "CovarianceVoxel.h"
+#include "CovarianceVoxelCompute.h"
 
 inline __device__ float calculateOccupancyAdjustment(const GpuKey *voxelKey, bool isEndVoxel, const GpuKey *startKey,
                                                      const GpuKey *endKey, float voxel_resolution,
@@ -22,9 +22,9 @@ inline __device__ float calculateOccupancyAdjustment(const GpuKey *voxelKey, boo
   __global VoxelMean *mean_data = &line_data->means[vi];
 
   float3 voxel_mean = subVoxelToLocalCoord(mean_data->coord, voxel_resolution);
-  // voxel_mean is currently relative to the voxel centre of the voxelKey voxel. We need to change it to be in the same reference
-  // frame as the incoming rays, which is relative to the endKey voxel. For this we need to caculate the additional
-  // displacement from the centre of endKey to the centre of voxelKey and add this displacement.
+  // voxel_mean is currently relative to the voxel centre of the voxelKey voxel. We need to change it to be in the same
+  // reference frame as the incoming rays, which is relative to the endKey voxel. For this we need to calculate the
+  // additional displacement from the centre of endKey to the centre of voxelKey and add this displacement.
 
   // Calculate the number of voxel steps from endKey to the voxelKey
   const int3 voxel_diff = keyDiff(endKey, voxelKey, &line_data->region_dimensions);
@@ -45,9 +45,9 @@ inline __device__ float calculateOccupancyAdjustment(const GpuKey *voxelKey, boo
 
   float adjustment = 0;
   const int min_sample_threshold = 4;  // Should be passed in.
-  const float3 voxel_maximum_likelihood =
-    calculateMissNdt(&cov_voxel, &adjustment, line_data->sensor, line_data->sample, voxel_mean, mean_data->count,
-                     INFINITY, line_data->ray_adjustment, line_data->sensor_noise, min_sample_threshold);
+  const float3 voxel_maximum_likelihood = calculateMissNdt(
+    &cov_voxel, &adjustment, line_data->sensor, line_data->sample, voxel_mean, mean_data->count, INFINITY,
+    line_data->ray_adjustment, line_data->adaptation_rate, line_data->sensor_noise, min_sample_threshold);
 
   // NDT should do sample update in a separate process in order to update the covariance, so we should not get here.
   return (!isEndVoxel || line_data->region_update_flags & kRfEndPointAsFree) ? adjustment : 0;

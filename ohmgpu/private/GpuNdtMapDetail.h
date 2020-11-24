@@ -14,17 +14,18 @@
 
 namespace ohm
 {
-  struct GpuNdtMapDetail : public GpuMapDetail
-  {
-    GpuProgramRef *cov_hit_program_ref = nullptr;
-    gputil::Kernel cov_hit_kernel;
-    NdtMap ndt_map;
+struct GpuNdtMapDetail : public GpuMapDetail
+{
+  GpuProgramRef *cov_hit_program_ref = nullptr;
+  gputil::Kernel cov_hit_kernel;
+  NdtMap ndt_map;
 
-    GpuNdtMapDetail(OccupancyMap *map, bool borrowed_map)
-      : GpuMapDetail(map, borrowed_map)
-      , ndt_map(map, true) // Ensures correct initialisation for NDT operations.
-    {}
-  };
-}
 
-#endif // GPUNDTMAPDETAIL_H
+  GpuNdtMapDetail(OccupancyMap *map, bool borrowed_map)
+    : GpuMapDetail(map, borrowed_map)
+    , ndt_map(map, true)  // Ensures correct initialisation for NDT operations.
+  {}
+};
+}  // namespace ohm
+
+#endif  // GPUNDTMAPDETAIL_H

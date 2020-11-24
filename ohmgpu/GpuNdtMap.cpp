@@ -14,7 +14,6 @@
 #include "private/GpuProgramRef.h"
 
 #include <ohm/MapChunk.h>
-#include <ohm/MapCache.h>
 #include <ohm/OccupancyMap.h>
 #include <ohm/VoxelMean.h>
 
@@ -34,33 +33,42 @@
 #include <ohm/CovarianceVoxel.h>
 
 #if defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
-#include "RegionUpdateResource.h"
 #include "CovarianceHitResource.h"
+#include "RegionUpdateResource.h"
 #endif  // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
-
-using namespace ohm;
 
 #if GPUTIL_TYPE == GPUTIL_CUDA
 GPUTIL_CUDA_DECLARE_KERNEL(regionRayUpdateNdt);
 GPUTIL_CUDA_DECLARE_KERNEL(covarianceHit);
 #endif  // GPUTIL_TYPE == GPUTIL_CUDA
 
+/// Controls the GPU ordering of kernels to update free space and samples. When 0, the order is free space then samples.
+/// When 1, this order is reversed.
+///
+/// Running the NDT samples first will given better results in new areas, but currently comes with a significant
+/// performance hit as we wait more on kernels
 #define REVERSE_KERNEL_ORDER 0
 
+namespace ohm
+{
 namespace
 {
 #if defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
-  GpuProgramRef program_ref_ndt_miss("RegionUpdate", GpuProgramRef::kSourceString, RegionUpdateCode,  // NOLINT
+// NOLINTNEXTLINE(cert-err58-cpp)
+GpuProgramRef g_program_ref_ndt_miss("RegionUpdate", GpuProgramRef::kSourceString, RegionUpdateCode,  // NOLINT
                                      RegionUpdateCode_length, { "-DVOXEL_MEAN", "-DNDT" });
 #else   // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
-  GpuProgramRef program_ref_ndt_miss("RegionUpdate", GpuProgramRef::kSourceFile, "RegionUpdate.cl", 0u,
+// NOLINTNEXTLINE(cert-err58-cpp)
+GpuProgramRef g_program_ref_ndt_miss("RegionUpdate", GpuProgramRef::kSourceFile, "RegionUpdate.cl", 0u,
                                      { "-DVOXEL_MEAN", "-DNDT" });
 #endif  // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
 #if defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
-  GpuProgramRef program_ref_cov_hit("CovarianceHit", GpuProgramRef::kSourceString, CovarianceHitCode,  // NOLINT
+// NOLINTNEXTLINE(cert-err58-cpp)
+GpuProgramRef g_program_ref_cov_hit("CovarianceHit", GpuProgramRef::kSourceString, CovarianceHitCode,  // NOLINT
                                     CovarianceHitCode_length, { "-DVOXEL_MEAN", "-DNDT" });
 #else   // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
-  GpuProgramRef program_ref_cov_hit("CovarianceHit", GpuProgramRef::kSourceFile, "CovarianceHit.cl", 0u,
+// NOLINTNEXTLINE(cert-err58-cpp)
+GpuProgramRef g_program_ref_cov_hit("CovarianceHit", GpuProgramRef::kSourceFile, "CovarianceHit.cl", 0u,
                                     { "-DVOXEL_MEAN", "-DNDT" });
 #endif  // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
 }  // namespace
@@ -77,6 +85,16 @@ GpuNdtMap::GpuNdtMap(OccupancyMap *map, bool borrowed_map, unsigned expected_ele
 
   // Cache the correct GPU program.
   cacheGpuProgram(true, true);
+
+
+  // Rays should be grouped by sample voxel for performance reasons. The GPU update assumes this grouping.
+  setGroupedRays(true);
+}
+
+
+GpuNdtMap::~GpuNdtMap()
+{
+  GpuNdtMap::releaseGpuProgram();
 }
 
 
@@ -129,7 +147,7 @@ const GpuNdtMapDetail *GpuNdtMap::detail() const
 
 void GpuNdtMap::cacheGpuProgram(bool /*with_voxel_mean*/, bool force)
 {
-  if (imp_->program_ref)
+  if (imp_->g_program_ref)
   {
     if (!force)
     {
@@ -143,11 +161,11 @@ void GpuNdtMap::cacheGpuProgram(bool /*with_voxel_mean*/, bool force)
   GpuNdtMapDetail *imp = detail();
   imp->gpu_ok = true;
   imp->cached_sub_voxel_program = true;
-  imp->program_ref = &program_ref_ndt_miss;
+  imp->g_program_ref = &g_program_ref_ndt_miss;
 
-  if (imp->program_ref->addReference(gpu_cache.gpu()))
+  if (imp->g_program_ref->addReference(gpu_cache.gpu()))
   {
-    imp->update_kernel = GPUTIL_MAKE_KERNEL(imp->program_ref->program(), regionRayUpdateNdt);
+    imp->update_kernel = GPUTIL_MAKE_KERNEL(imp->g_program_ref->program(), regionRayUpdateNdt);
     imp->update_kernel.calculateOptimalWorkGroupSize();
     imp->gpu_ok = imp->update_kernel.isValid();
   }
@@ -158,7 +176,7 @@ void GpuNdtMap::cacheGpuProgram(bool /*with_voxel_mean*/, bool force)
 
   if (imp->gpu_ok)
   {
-    imp->cov_hit_program_ref = &program_ref_cov_hit;
+    imp->cov_hit_program_ref = &g_program_ref_cov_hit;
 
     if (imp->cov_hit_program_ref->addReference(gpu_cache.gpu()))
     {
@@ -199,13 +217,13 @@ void GpuNdtMap::finaliseBatch(unsigned region_update_flags)
     { imp->key_upload_events[buf_idx], imp->ray_upload_events[buf_idx], imp->region_key_upload_events[buf_idx] });
 
   // Add wait for region voxel offsets
-  for (size_t i = 0; i < imp->voxel_upload_info[buf_idx].size(); ++i)
+  for (auto &upload_info : imp->voxel_upload_info[buf_idx])
   {
-    wait.add(imp->voxel_upload_info[buf_idx][i].offset_upload_event);
-    wait.add(imp->voxel_upload_info[buf_idx][i].voxel_upload_event);
+    wait.add(upload_info.offset_upload_event);
+    wait.add(upload_info.voxel_upload_event);
   }
 
-  unsigned modify_flags = (!(region_update_flags & kRfEndPointAsFree)) ? kRfExcludeSample : 0;
+  unsigned modify_flags = (!(region_update_flags & kRfEndPointAsFree)) ? kRfExcludeSample : 0u;
 
 #if REVERSE_KERNEL_ORDER
   gputil::Event hit_event;
@@ -276,7 +294,7 @@ void GpuNdtMap::finaliseBatch(unsigned region_update_flags)
                        gputil::BufferArg<gputil::float3>(imp->ray_buffers[buf_idx]), ray_count, region_dim_gpu,
                        float(map->resolution), map->miss_value, map->hit_value, map->occupancy_threshold_value,
                        map->min_voxel_value, map->max_voxel_value, region_update_flags | modify_flags,
-                       imp->ndt_map.sensorNoise());
+                       imp->ndt_map.adaptationRate(), imp->ndt_map.sensorNoise());
 
     wait.clear();
     wait.add(miss_event);
@@ -342,3 +360,4 @@ void GpuNdtMap::releaseGpuProgram()
     imp->cov_hit_program_ref = nullptr;
   }
 }
+}  // namespace ohm

@@ -41,91 +41,91 @@
 
 namespace
 {
-  using TimingClock = std::chrono::high_resolution_clock;
+using TimingClock = std::chrono::high_resolution_clock;
 
-  int quit = 0;
+int g_quit = 0;
 
-  void onSignal(int arg)
+void onSignal(int arg)
+{
+  if (arg == SIGINT || arg == SIGTERM)
   {
-    if (arg == SIGINT || arg == SIGTERM)
-    {
-      ++quit;
-    }
+    ++g_quit;
   }
-  struct Options
+}
+struct Options
+{
+  struct Neighbours
   {
-    struct Neighbours
-    {
-      glm::dvec3 point = glm::dvec3(0);
-      float radius = -1;
-    };
-
-    struct Line
-    {
-      glm::dvec3 start = glm::dvec3(0);
-      glm::dvec3 end = glm::dvec3(0);
-      float radius = -1;
-    };
-
-    struct Ranges
-    {
-      glm::dvec3 min = glm::dvec3(0);
-      glm::dvec3 max = glm::dvec3(0);
-      float radius = -1;
-    };
-
-    std::string map_file;
-    std::string output_base;
-    Neighbours neighbours;
-    Ranges ranges;
-    Line line;
-    int repeat = 0;
-    bool unknown_as_occupied = true;
-    bool use_gpu = false;
-    bool gpu_compare = false;
-    bool hard_reset_on_repeat = false;
-    bool quiet = false;
-
-    inline bool haveQuery() const { return neighbours.radius > 0 || line.radius > 0 || ranges.radius > 0; }
-
-    void print() const;
+    glm::dvec3 point = glm::dvec3(0);
+    float radius = -1;
   };
 
-
-  void Options::print() const
+  struct Line
   {
-    std::cout << "Map: " << map_file << std::endl;
-    std::cout << "Output: " << output_base << std::endl;
-    if (neighbours.radius >= 0)
-    {
-      std::cout << "Nearest neighbours: " << neighbours.point << " R: " << neighbours.radius << std::endl;
-    }
-    if (line.radius >= 0)
-    {
-      std::cout << "Line " << line.start << "->" << line.end << " R: " << line.radius << std::endl;
-    }
-    if (ranges.radius >= 0)
-    {
-      std::cout << "Ranges: " << ranges.min << "->" << ranges.max << " R: " << ranges.radius << std::endl;
-    }
-  }
-
-
-  class LoadMapProgress : public ohm::SerialiseProgress
-  {
-  public:
-    LoadMapProgress(ProgressMonitor &monitor)  // NOLINT(google-runtime-references)
-      : monitor_(monitor)
-    {}
-
-    bool quit() const override { return ::quit > 1; }
-
-    void setTargetProgress(unsigned target) override { monitor_.beginProgress(ProgressMonitor::Info(target)); }
-    void incrementProgress(unsigned inc) override { monitor_.incrementProgressBy(inc); }
-
-  private:
-    ProgressMonitor &monitor_;
+    glm::dvec3 start = glm::dvec3(0);
+    glm::dvec3 end = glm::dvec3(0);
+    float radius = -1;
   };
+
+  struct Ranges
+  {
+    glm::dvec3 min = glm::dvec3(0);
+    glm::dvec3 max = glm::dvec3(0);
+    float radius = -1;
+  };
+
+  std::string map_file;
+  std::string output_base;
+  Neighbours neighbours;
+  Ranges ranges;
+  Line line;
+  int repeat = 0;
+  bool unknown_as_occupied = true;
+  bool use_gpu = false;
+  bool gpu_compare = false;
+  bool hard_reset_on_repeat = false;
+  bool quiet = false;
+
+  inline bool haveQuery() const { return neighbours.radius > 0 || line.radius > 0 || ranges.radius > 0; }
+
+  void print() const;
+};
+
+
+void Options::print() const
+{
+  std::cout << "Map: " << map_file << std::endl;
+  std::cout << "Output: " << output_base << std::endl;
+  if (neighbours.radius >= 0)
+  {
+    std::cout << "Nearest neighbours: " << neighbours.point << " R: " << neighbours.radius << std::endl;
+  }
+  if (line.radius >= 0)
+  {
+    std::cout << "Line " << line.start << "->" << line.end << " R: " << line.radius << std::endl;
+  }
+  if (ranges.radius >= 0)
+  {
+    std::cout << "Ranges: " << ranges.min << "->" << ranges.max << " R: " << ranges.radius << std::endl;
+  }
+}
+
+
+class LoadMapProgress : public ohm::SerialiseProgress
+{
+public:
+  explicit LoadMapProgress(ProgressMonitor &monitor)
+    : monitor_(monitor)
+  {}
+
+  bool quit() const override { return ::g_quit > 1; }
+
+  void setTargetProgress(unsigned target) override { monitor_.beginProgress(ProgressMonitor::Info(target)); }
+  void incrementProgress(unsigned inc) override { monitor_.incrementProgressBy(inc); }
+
+private:
+  ProgressMonitor &monitor_;
+};
 }  // namespace
 
 
@@ -149,8 +149,8 @@ inline std::ostream &operator<<(std::ostream &out, const Options::Neighbours &n)
 
 inline std::istream &operator>>(std::istream &in, Options::Line &l)
 {
-  double v[7];
-  parseVector(in, v, 7);
+  std::array<double, 7> v;
+  parseVector(in, v.data(), v.size());
   l.start[0] = v[0];
   l.start[1] = v[1];
   l.start[2] = v[2];
@@ -170,8 +170,8 @@ inline std::ostream &operator<<(std::ostream &out, const Options::Line &l)
 
 inline std::istream &operator>>(std::istream &in, Options::Ranges &r)
 {
-  double v[7];
-  parseVector(in, v, 7);
+  std::array<double, 7> v;
+  parseVector(in, v.data(), v.size());
   r.min[0] = v[0];
   r.min[1] = v[1];
   r.min[2] = v[2];
@@ -193,7 +193,7 @@ inline std::ostream &operator<<(std::ostream &out, const Options::Ranges &r)
 // Must come after streaming operators for custom command line arguments are defined.
 #include <ohmutil/Options.h>
 
-int parseOptions(Options *opt, int argc, char *argv[])
+int parseOptions(Options *opt, int argc, char *argv[])  // NOLINT(modernize-avoid-c-arrays)
 {
   cxxopts::Options opt_parse(argv[0],
                              "\nLoads an occupancy map file and runs a single query on the map, exporting the\n"
@@ -270,21 +270,21 @@ int parseOptions(Options *opt, int argc, char *argv[])
 
 void initialiseDebugCategories(const Options &/*opt*/)
 {
-  // TES_CATEGORY(ohm::g_3es, "Map", Category::kMap, 0, true);
-  // TES_CATEGORY(ohm::g_3es, "Populate", Category::kPopulate, 0, true);
+  // TES_CATEGORY(ohm::g_tes, "Map", Category::kMap, 0, true);
+  // TES_CATEGORY(ohm::g_tes, "Populate", Category::kPopulate, 0, true);
   // TES_IF(opt.rays & Rays_Lines)
   // {
-  //   TES_CATEGORY(ohm::g_3es, "Rays", Category::kRays, Category::kPopulate, (opt.rays & Rays_Lines) != 0);
+  //   TES_CATEGORY(ohm::g_tes, "Rays", Category::kRays, Category::kPopulate, (opt.rays & Rays_Lines) != 0);
   // }
   // TES_IF(opt.rays & Rays_Voxels)
   // {
-  //   TES_CATEGORY(ohm::g_3es, "Free", Category::kFreeCells, Category::kPopulate, (opt.rays & Rays_Lines) == 0);
+  //   TES_CATEGORY(ohm::g_tes, "Free", Category::kFreeCells, Category::kPopulate, (opt.rays & Rays_Lines) == 0);
   // }
   // TES_IF(opt.samples)
   // {
-  //   TES_CATEGORY(ohm::g_3es, "Occupied", Category::kOccupiedCells, Category::kPopulate, true);
+  //   TES_CATEGORY(ohm::g_tes, "Occupied", Category::kOccupiedCells, Category::kPopulate, true);
   // }
-  // TES_CATEGORY(ohm::g_3es, "Info", Category::kInfo, 0, true);
+  // TES_CATEGORY(ohm::g_tes, "Info", Category::kInfo, 0, true);
 }
 
 void saveQueryCloud(const ohm::OccupancyMap &map, const ohm::Query &query, const Options &opt,
@@ -299,14 +299,14 @@ void saveQueryCloud(const ohm::OccupancyMap &map, const ohm::Query &query, const
   for (size_t i = 0; i < result_count; ++i)
   {
     const ohm::Key &key = keys[i];
-    uint8_t c = 255;
+    uint8_t c = std::numeric_limits<uint8_t>::max();
     if (colour_range > 0 && ranges)
     {
       const float range_value = ranges[i];
-      c = uint8_t(255 * std::max(0.0f, (colour_range - range_value) / colour_range));
+      c = uint8_t(std::numeric_limits<uint8_t>::max() * std::max(0.0f, (colour_range - range_value) / colour_range));
     }
     voxel_pos = map.voxelCentreGlobal(key);
-    ply.addVertex(voxel_pos, ohm::Colour(c, 128, 0));
+    ply.addVertex(voxel_pos, ohm::Colour(c, std::numeric_limits<uint8_t>::max() / 2, 0));
   }
 
   std::string str = opt.output_base;
@@ -339,7 +339,7 @@ void saveRangesCloud(const ohm::OccupancyMap &map, const ohm::VoxelRanges &query
   maxRegion = map.regionKey(query.maxExtents());
 
   const float colourScale = query.searchRadius();
-  for (auto iter = map.begin(); iter != mapEndIter && quit < 2; ++iter)
+  for (auto iter = map.begin(); iter != mapEndIter && g_quit < 2; ++iter)
   {
     const ohm::VoxelConst voxel = *iter;
     if (lastRegion != iter.key().regionKey())
@@ -358,7 +358,8 @@ void saveRangesCloud(const ohm::OccupancyMap &map, const ohm::VoxelRanges &query
         const float rangeValue = voxel.clearance();
         if (rangeValue >= 0)
         {
-          uint8_t c = (uint8_t)(255 * std::max(0.0f, (colourScale - rangeValue) / colourScale));
+          auto c =
+            uint8_t(std::numeric_limits<uint8_t>::max() * std::max(0.0f, (colourScale - rangeValue) / colourScale));
           v = map.voxelCentreLocal(voxel.key());
           ply.addVertex(v, Colour(c, 128, 0));
           if (pointsOut)
@@ -371,7 +372,9 @@ void saveRangesCloud(const ohm::OccupancyMap &map, const ohm::VoxelRanges &query
 
       if (clearValues && !voxel.isNull())
       {
-        voxel.makeMutable().setClearance(-1.0f);
+        auto mutable_voxel = voxel.makeMutable();
+        mutable_voxel.setClearance(-1.0f);
+        mutable_voxel.touchMap(map.layout().clearanceLayer());
       }
     }
   }
@@ -409,11 +412,12 @@ void showTiming(const char *info, const TimingClock::time_point &start_time, con
 }
 
 
-bool compareCpuGpuQuery(const char *query_name, ohm::Query &query,  // NOLINT(google-runtime-references)
+bool compareCpuGpuQuery(const char *query_name, ohm::Query &query,  
                         const float epsilon = 1e-5f)
 {
   std::string timing_info_str;
-  TimingClock::time_point query_start, query_end;
+  TimingClock::time_point query_start;
+  TimingClock::time_point query_end;
 
   // CPU execution.
   query.setQueryFlags(query.queryFlags() & ~ohm::kQfGpu);
@@ -519,8 +523,7 @@ bool compareCpuGpuQuery(const char *query_name, ohm::Query &query,  // NOLINT(go
 }
 
 
-void executeQuery(const char *query_name, const Options &opt, ohm::Query &query,  // NOLINT(google-runtime-references)
-                  const float range_epsilon = 1e-5f)
+void executeQuery(const char *query_name, const Options &opt, ohm::Query &query, const float range_epsilon = 1e-5f)
 {
   if (!opt.gpu_compare)
   {
@@ -830,7 +833,7 @@ int main(int argc, char *argv[])
   ohm::trace::init("ohmquery.3es");
 
 #ifdef TES_ENABLE
-  std::cout << "Starting with " << ohm::g_3es->connectionCount() << " connection(s)." << std::endl;
+  std::cout << "Starting with " << ohm::g_tes->connectionCount() << " connection(s)." << std::endl;
 #endif // TES_ENABLE
 
   initialiseDebugCategories(opt);

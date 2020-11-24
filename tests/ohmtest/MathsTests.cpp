@@ -25,119 +25,119 @@ inline std::ostream &operator<<(std::ostream &out, const ohm::Aabb &aabb)
 
 namespace
 {
-  void testOverlap(const glm::ivec3 &axis_range, const Aabb &reference_box, const Aabb &initial_box, bool overlap_test)
+void testOverlap(const glm::ivec3 &axis_range, const Aabb &reference_box, const Aabb &initial_box, bool overlap_test)
+{
+  char sign_char[3];
+  int axis[3];
+  Aabb test_box;
+
+  const double move_scale = (overlap_test) ? 1.0 : 2.0;
+  glm::dvec3 move;
+
+  for (int k = 0; k < axis_range[2]; ++k)
   {
-    char sign_char[3];
-    int axis[3];
-    Aabb test_box;
+    move = glm::dvec3(0);
 
-    const double move_scale = (overlap_test) ? 1.0 : 2.0;
-    glm::dvec3 move;
-
-    for (int k = 0; k < axis_range[2]; ++k)
+    sign_char[2] = ' ';
+    axis[2] = -1;
+    if (axis_range[2] > 1)
     {
-      move = glm::dvec3(0);
-
-      sign_char[2] = ' ';
-      axis[2] = -1;
-      if (axis_range[2] > 1)
+      axis[2] = k % 3;
+      if (k < 3)
       {
-        axis[2] = k % 3;
-        if (k < 3)
+        move[axis[2]] = move_scale * reference_box.minExtents()[axis[2]];
+        sign_char[2] = '-';
+      }
+      else
+      {
+        move[axis[2]] = move_scale * reference_box.maxExtents()[axis[2]];
+        sign_char[2] = '+';
+      }
+    }
+
+    for (int j = 0; j < axis_range[1]; ++j)
+    {
+      sign_char[1] = ' ';
+      axis[1] = -1;
+      if (axis_range[1] > 1)
+      {
+        if (j == k)
         {
-          move[axis[2]] = move_scale * reference_box.minExtents()[axis[2]];
-          sign_char[2] = '-';
+          // Do not do duplicate parings.
+          continue;
+        }
+
+        axis[1] = j % 3;
+        if (j < 3)
+        {
+          move[axis[1]] = move_scale * reference_box.minExtents()[axis[1]];
+          sign_char[1] = '-';
         }
         else
         {
-          move[axis[2]] = move_scale * reference_box.maxExtents()[axis[2]];
-          sign_char[2] = '+';
+          move[axis[1]] = move_scale * reference_box.maxExtents()[axis[1]];
+          sign_char[1] = '+';
         }
       }
 
-      for (int j = 0; j < axis_range[1]; ++j)
+      for (int i = 0; i < axis_range[0]; ++i)
       {
-        sign_char[1] = ' ';
-        axis[1] = -1;
-        if (axis_range[1] > 1)
+        if (axis_range[2] && i == k || axis_range[1] && i == j)
         {
-          if (j == k)
-          {
-            // Do not do duplicate parings.
-            continue;
-          }
-
-          axis[1] = j % 3;
-          if (j < 3)
-          {
-            move[axis[1]] = move_scale * reference_box.minExtents()[axis[1]];
-            sign_char[1] = '-';
-          }
-          else
-          {
-            move[axis[1]] = move_scale * reference_box.maxExtents()[axis[1]];
-            sign_char[1] = '+';
-          }
+          // Don't pair the same axes.
+          continue;
         }
 
-        for (int i = 0; i < axis_range[0]; ++i)
+        axis[0] = i % 3;
+        if (i < 3)
         {
-          if (axis_range[2] && i == k || axis_range[1] && i == j)
-          {
-            // Don't pair the same axes.
-            continue;
-          }
+          move[axis[0]] = move_scale * reference_box.minExtents()[axis[0]];
+          sign_char[0] = '-';
+        }
+        else
+        {
+          move[axis[0]] = move_scale * reference_box.maxExtents()[axis[0]];
+          sign_char[0] = '+';
+        }
 
-          axis[0] = i % 3;
-          if (i < 3)
-          {
-            move[axis[0]] = move_scale * reference_box.minExtents()[axis[0]];
-            sign_char[0] = '-';
-          }
-          else
-          {
-            move[axis[0]] = move_scale * reference_box.maxExtents()[axis[0]];
-            sign_char[0] = '+';
-          }
+        test_box = initial_box + move;
 
-          test_box = initial_box + move;
+        std::ostringstream msg;
+        if (overlap_test)
+        {
+          msg << "overlap ";
+        }
+        else
+        {
+          msg << "exclude ";
+        }
 
-          std::ostringstream msg;
-          if (overlap_test)
-          {
-            msg << "overlap ";
-          }
-          else
-          {
-            msg << "exclude ";
-          }
-
-          msg << sign_char[0] << '[' << axis[0] << ']';
-          if (axis[1] >= 0)
-          {
-            msg << sign_char[1] << '[' << axis[1] << ']';
-          }
-          if (axis[2] >= 0)
-          {
-            msg << sign_char[2] << '[' << axis[2] << ']';
-          }
+        msg << sign_char[0] << '[' << axis[0] << ']';
+        if (axis[1] >= 0)
+        {
+          msg << sign_char[1] << '[' << axis[1] << ']';
+        }
+        if (axis[2] >= 0)
+        {
+          msg << sign_char[2] << '[' << axis[2] << ']';
+        }
 
 
-          if (overlap_test)
-          {
-            EXPECT_TRUE(reference_box.overlaps(test_box)) << msg.str();
-            EXPECT_TRUE(test_box.overlaps(reference_box)) << msg.str();
-          }
-          else
-          {
-            // Expect exclusion.
-            EXPECT_FALSE(reference_box.overlaps(test_box)) << msg.str();
-            EXPECT_FALSE(test_box.overlaps(reference_box)) << msg.str();
-          }
+        if (overlap_test)
+        {
+          EXPECT_TRUE(reference_box.overlaps(test_box)) << msg.str();
+          EXPECT_TRUE(test_box.overlaps(reference_box)) << msg.str();
+        }
+        else
+        {
+          // Expect exclusion.
+          EXPECT_FALSE(reference_box.overlaps(test_box)) << msg.str();
+          EXPECT_FALSE(test_box.overlaps(reference_box)) << msg.str();
         }
       }
     }
   }
+}
 }  // namespace
 
 

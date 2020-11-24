@@ -26,6 +26,7 @@ set(SOURCES
   private/SerialiseUtil.h
   private/VoxelAlgorithms.cpp
   private/VoxelAlgorithms.h
+  private/VoxelBlockCompressionQueueDetail.h
   private/VoxelLayoutDetail.h
   serialise/MapSerialiseV0.1.cpp
   serialise/MapSerialiseV0.1.h
@@ -45,6 +46,7 @@ set(SOURCES
   ClearingPattern.h
   CovarianceVoxel.cpp
   CovarianceVoxel.h
+  CovarianceVoxelCompute.h
   DataType.cpp
   DataType.h
   DefaultLayer.cpp
@@ -65,8 +67,6 @@ set(SOURCES
   LineKeysQuery.h
   LineQuery.cpp
   LineQuery.h
-  MapCache.cpp
-  MapCache.h
   MapChunk.cpp
   MapChunk.h
   MapCoord.h
@@ -89,9 +89,10 @@ set(SOURCES
   MapRegionCache.h
   MapSerialise.cpp
   MapSerialise.h
+  Mutex.cpp
+  Mutex.h
   NdtMap.cpp
   NdtMap.h
-  NdtRayMapperInterface.h
   NearestNeighbours.cpp
   NearestNeighbours.h
   OccupancyMap.cpp
@@ -110,8 +111,12 @@ set(SOURCES
   RayFlag.h
   RayMapper.cpp
   RayMapper.h
-  RayMapperCpu.h
-  RayMapperInterface.h
+  RayMapperNdt.cpp
+  RayMapperNdt.h
+  RayMapperOccupancy.cpp
+  RayMapperOccupancy.h
+  RayMapperTrace.cpp
+  RayMapperTrace.h
   RayPattern.cpp
   RayPattern.h
   RayPatternConical.cpp
@@ -127,11 +132,19 @@ set(SOURCES
   UpAxis.h
   Voxel.cpp
   Voxel.h
+  VoxelBlock.cpp
+  VoxelBlock.h
+  VoxelBlockCompressionQueue.cpp
+  VoxelBlockCompressionQueue.h
+  VoxelBuffer.cpp
+  VoxelBuffer.h
+  VoxelData.h
   VoxelLayout.cpp
   VoxelLayout.h
   VoxelMean.h
-  VoxelUtil.cpp
-  VoxelUtil.h
+  VoxelMeanCompute.h
+  VoxelOccupancy.h
+  VoxelOccupancyCompute.h
 )
 
 if(TES_ENABLE)
@@ -144,6 +157,7 @@ set(PUBLIC_HEADERS
   CalculateSegmentKeys.h
   ClearingPattern.h
   CovarianceVoxel.h
+  CovarianceVoxelCompute.h
   DataType.h
   DefaultLayer.h
   Heightmap.h
@@ -155,7 +169,6 @@ set(PUBLIC_HEADERS
   KeyList.h
   LineKeysQuery.h
   LineQuery.h
-  MapCache.h
   MapChunkFlag.h
   MapChunk.h
   MapCoord.h
@@ -170,8 +183,8 @@ set(PUBLIC_HEADERS
   MapRegionCache.h
   MapRegion.h
   MapSerialise.h
+  Mutex.h
   NdtMap.h
-  NdtRayMapperInterface.h
   NearestNeighbours.h
   OccupancyMap.h
   OccupancyType.h
@@ -182,9 +195,10 @@ set(PUBLIC_HEADERS
   Query.h
   RayFilter.h
   RayFlag.h
-  RayMapperCpu.h
   RayMapper.h
-  RayMapperInterface.h
+  RayMapperNdt.h
+  RayMapperOccupancy.h
+  RayMapperTrace.h
   RayPatternConical.h
   RayPattern.h
   Snapshot.h
@@ -194,9 +208,15 @@ set(PUBLIC_HEADERS
   TriangleNeighbours.h
   UpAxis.h
   Voxel.h
+  VoxelBlock.h
+  VoxelBlockCompressionQueue.h
+  VoxelBuffer.h
+  VoxelData.h
   VoxelLayout.h
   VoxelMean.h
-  VoxelUtil.h
+  VoxelMeanCompute.h
+  VoxelOccupancy.h
+  VoxelOccupancyCompute.h
   "${CMAKE_CURRENT_BINARY_DIR}/ohm/OhmConfig.h"
   "${CMAKE_CURRENT_BINARY_DIR}/ohm/OhmExport.h"
   )
@@ -217,7 +237,7 @@ target_include_directories(ohm
 )
 
 if(OHM_THREADS)
-  target_include_directories(ohm PRIVATE SYSTEM ${TBB_INCLUDE_DIRS})
+  target_include_directories(ohm SYSTEM PRIVATE ${TBB_INCLUDE_DIRS})
   target_link_libraries(ohm PUBLIC ${TBB_LIBRARIES})
 endif(OHM_THREADS)
 
@@ -227,10 +247,17 @@ target_include_directories(ohm SYSTEM
     $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/3rdparty>
 )
 
+if(OHM_WITH_EIGEN)
+  # Link Eigen as a private link target under the BUILD_INTERFACE. This allows Eigen definitions to be set,
+  # imports inlcude directories, but does not chain the dependency downstream, which is fine for static, or header only
+  # libraries (Eigen being header only).
+  target_link_libraries(ohm PRIVATE $<BUILD_INTERFACE:Eigen3::Eigen>)
+endif(OHM_WITH_EIGEN)
+
 if(OHM_TES_DEBUG)
   target_link_libraries(ohm PUBLIC 3es::3es-core)
 else(OHM_TES_DEBUG)
-  target_include_directories(ohm PRIVATE SYSTEM "${3ES_INCLUDE_DIRS}")
+  target_include_directories(ohm SYSTEM PRIVATE "${3ES_INCLUDE_DIRS}")
 endif(OHM_TES_DEBUG)
 
 generate_export_header(ohm
