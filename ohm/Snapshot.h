@@ -26,7 +26,7 @@ namespace ohm
   class VoxelConst;
   class SnapshotDetail;
   class MapChunk;
-  class MapCache;
+  class SnapshotSrcVoxel;
 
   /// Extract a simplified snapshot of a 3D occupancy map.
   ///
@@ -45,7 +45,7 @@ namespace ohm
     {
       kFree = 0,
       kOccupied = 1,
-      kUnknown = 2,
+      kUnobserved = 2,
       kNonLeaf = 3
     };
 
@@ -54,7 +54,7 @@ namespace ohm
     public:
       SnapshotNode();
       // Construct tree for given map chunk
-      SnapshotNode(const MapChunk &ch, const OccupancyMap &map, MapCache &map_cache);
+      SnapshotNode(const MapChunk &ch, SnapshotSrcVoxel &voxel, const OccupancyMap &map);
       // Construct tree from SnapshotRegion (recursively, starting from specified byte/bit, initialise to zero)
       SnapshotNode(const SnapshotRegion &region, size_t &byte_address, uint8_t &bit_address);
       // Note: copies state, does not copy children (required for vector reserve, should not be used otherwise)
@@ -84,7 +84,7 @@ namespace ohm
 
     private:
       /// Recursion for snapshot of part of region. Valid indices are min_ext.x .. max_ext.x-1, etc
-      SnapshotNode(const glm::i16vec3 &region_key, const OccupancyMap &map, MapCache &map_cache, glm::u8vec3 min_ext,
+      SnapshotNode(const glm::i16vec3 &region_key, SnapshotSrcVoxel &voxel, glm::u8vec3 min_ext,
                    glm::u8vec3 max_ext);
 
       // Recursion for populating SnapshotRegion with data beneath this node in tree

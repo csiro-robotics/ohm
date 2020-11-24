@@ -7,7 +7,6 @@
 
 #include "Aabb.h"
 #include "Key.h"
-#include "MapCache.h"
 #include "MapChunk.h"
 #include "MapCoord.h"
 #include "MapInfo.h"
@@ -16,6 +15,7 @@
 #include "OccupancyMap.h"
 #include "OccupancyType.h"
 #include "Voxel.h"
+#include "VoxelOccupancy.h"
 
 #include <glm/mat3x3.hpp>
 #include <glm/vec3.hpp>
@@ -39,10 +39,45 @@ namespace
   constexpr double probToLikelihood(double d) { return std::log(d / (1.0 - d)); }
   static constexpr double kFreeThreshold = probToLikelihood(0.45);
   static constexpr double kOccupiedThreshold = probToLikelihood(0.55);
+
 }  // namespace
 
 namespace ohm
 {
+struct SnapshotSrcVoxel
+{
+  Voxel<const float> occupancy;  ///< Occupancy value (required)
+  float occupancy_threshold;     ///< Occupancy threshold cached from the source map.
+
+  SnapshotSrcVoxel(const OccupancyMap &map)
+    : occupancy(&map, map.layout().occupancyLayer())
+    , occupancy_threshold(map.occupancyThresholdValue())
+  {}
+
+  /// Set the key, but only for the occupancy layer.
+  inline void setKey(const Key &key) { occupancy.setKey(key); }
+
+  /// Query the target map.
+  inline const OccupancyMap &map() const { return *occupancy.map(); }
+
+  /// Query the occupancy classification of the current voxel.
+  inline Snapshot::State state() const
+  {
+    float value = unobservedOccupancyValue();
+#ifdef __clang_analyzer__
+    if (occupancy.voxelMemory())
+#else   // __clang_analyzer__
+    if (occupancy.isValid())
+#endif  // __clang_analyzer__
+    {
+      occupancy.read(&value);
+    }
+    Snapshot::State state = (value >= occupancy_threshold) ? Snapshot::State::kOccupied : Snapshot::State::kFree;
+    state = value != unobservedOccupancyValue() ? state : Snapshot::State::kUnobserved;
+    return occupancy.chunk() ? state : Snapshot::State::kUnobserved;
+  }
+};
+
   struct SnapshotDetail
   {
     OccupancyMap *occupancy_map;
@@ -51,21 +86,20 @@ namespace ohm
 
 
 Snapshot::SnapshotNode::SnapshotNode()
-  : state_(Snapshot::State::kUnknown)
+  : state_(Snapshot::State::kUnobserved)
 {}
 
 
-Snapshot::SnapshotNode::SnapshotNode(const MapChunk &ch, const OccupancyMap &map, MapCache &map_cache)
+Snapshot::SnapshotNode::SnapshotNode(const MapChunk &ch, SnapshotSrcVoxel &voxel, const OccupancyMap &map)
   : SnapshotNode(
-      ch.region.coord, map, map_cache,
-      glm::u8vec3(0, 0, 0),
+      ch.region.coord, voxel, glm::u8vec3(0, 0, 0),
       glm::u8vec3(map.regionVoxelDimensions().x, map.regionVoxelDimensions().y, map.regionVoxelDimensions().z))
 {}
 
 
-Snapshot::SnapshotNode::SnapshotNode(const glm::i16vec3 &region_key, const OccupancyMap &map, MapCache &map_cache,
-                                     glm::u8vec3 min_ext, glm::u8vec3 max_ext)
-  : state_(Snapshot::State::kUnknown)
+Snapshot::SnapshotNode::SnapshotNode(const glm::i16vec3 &region_key, SnapshotSrcVoxel &voxel, glm::u8vec3 min_ext,
+                                     glm::u8vec3 max_ext)
+  : state_(Snapshot::State::kUnobserved)
 {
   // Can end up with empty blocks due to non-power of two or non-uniform chunk sizes
   if (min_ext.x >= max_ext.x || min_ext.y >= max_ext.y || min_ext.z >= max_ext.z)
@@ -77,11 +111,14 @@ Snapshot::SnapshotNode::SnapshotNode(const glm::i16vec3 &region_key, const Occup
     if (min_ext.x + 1 == max_ext.x && min_ext.y + 1 == max_ext.y && min_ext.z + 1 == max_ext.z)
     {
       // Leaf node
-      const VoxelConst voxel = map.voxel(Key(region_key, min_ext), &map_cache);
-      const double l_occ = voxel.isValid() ? voxel.occupancy() : 0.0;
-      state_ = l_occ > kOccupiedThreshold && l_occ != ohm::voxel::invalidMarkerValue() ?
-                 Snapshot::State::kOccupied :
-                 (l_occ < kFreeThreshold ? Snapshot::State::kFree : Snapshot::State::kUnknown);
+      voxel.setKey(Key(region_key, min_ext));
+      state_ = voxel.state();
+
+      // const VoxelConst voxel = map.voxel(Key(region_key, min_ext));
+      // const double l_occ = voxel.isValid() ? voxel.occupancy() : 0.0;
+      // state_ = l_occ > kOccupiedThreshold && l_occ != ohm::voxel::invalidMarkerValue() ?
+      //            Snapshot::State::kOccupied :
+      //            (l_occ < kFreeThreshold ? Snapshot::State::kFree : Snapshot::State::kUnobserved);
     }
     else
     {
@@ -102,7 +139,7 @@ Snapshot::SnapshotNode::SnapshotNode(const glm::i16vec3 &region_key, const Occup
             new_min_ext.z = z == 0 ? min_ext.z : (min_ext.z + max_ext.z) >> 1;
             new_max_ext.z = z == 0 ? (min_ext.z + max_ext.z) >> 1 : max_ext.z;
 
-            (*children_)[ch_index++] = SnapshotNode(region_key, map, map_cache, new_min_ext, new_max_ext);
+            (*children_)[ch_index++] = SnapshotNode(region_key, voxel, new_min_ext, new_max_ext);
             state_ = Snapshot::State::kNonLeaf;
           }
         }
@@ -151,7 +188,7 @@ std::tuple<uint16_t, uint16_t, uint16_t> Snapshot::SnapshotNode::simplify(float 
       return std::make_tuple(uint16_t(1), uint16_t(0), uint16_t(0));
     case Snapshot::State::kOccupied:
       return std::make_tuple(uint16_t(0), uint16_t(1), uint16_t(0));
-    case Snapshot::State::kUnknown:
+    case Snapshot::State::kUnobserved:
       return std::make_tuple(uint16_t(0), uint16_t(0), uint16_t(1));
     default:
       return std::make_tuple(uint16_t(0), uint16_t(0), uint16_t(0));
@@ -182,7 +219,7 @@ std::tuple<uint16_t, uint16_t, uint16_t> Snapshot::SnapshotNode::simplify(float 
   }
   else if (std::get<2>(res) == sum)
   {
-    state_ = Snapshot::State::kUnknown;
+    state_ = Snapshot::State::kUnobserved;
     delete children_.release();
   }
   else if (voxel_size < 1.0 && std::get<0>(res) > std::get<2>(res) && std::get<1>(res) == 0)
@@ -338,6 +375,7 @@ std::vector<SnapshotRegion> Snapshot::buildSnapshot(const ohm::Aabb &cull_to)
   PROFILE(buildSnapshot);
 
   const OccupancyMap &src_map = *imp_->occupancy_map;
+  SnapshotSrcVoxel src_voxel(src_map);
   ohm::Aabb src_region;
   src_map.calculateExtents(&src_region.minExtentsMutable(), &src_region.maxExtentsMutable());
 
@@ -353,17 +391,16 @@ std::vector<SnapshotRegion> Snapshot::buildSnapshot(const ohm::Aabb &cull_to)
 
   std::vector<const MapChunk *> chunks;
   src_map.enumerateRegions(chunks);
-  MapCache map_cache;
 
   for (const auto ch_ptr : chunks)
   {
     const MapChunk &ch = *ch_ptr;
-    if (!ch.overlapsExtents(src_region.minExtents(), src_region.maxExtents(), src_map.regionSpatialResolution()))
+    if (!ch.overlapsExtents(src_region.minExtents(), src_region.maxExtents()))
     {
       continue;
     }
 
-    SnapshotNode ss_node(ch, src_map, map_cache);
+    SnapshotNode ss_node(ch, src_voxel, src_map);
     ss_node.simplify(src_map.regionSpatialResolution().x);
     regions.push_back(ss_node.getRegion(0.0, ch.region.coord));
   }
