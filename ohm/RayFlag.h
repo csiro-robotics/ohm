@@ -13,7 +13,11 @@ namespace ohm
 {
 #endif  // !GPUTIL_DEVICE
 /// Flags affecting the behaviour of how rays are integrated into the map.
-enum RayFlag : unsigned
+enum RayFlag
+#if !GPUTIL_DEVICE
+  // Unsigned type specification not valid for NVidia OpenCL code.
+  : unsigned
+#endif  // !GPUTIL_DEVICE
 {
   /// Default behaviour.
   kRfDefault = 0,
