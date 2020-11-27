@@ -83,8 +83,7 @@ double populateMultiLevelMap(ohm::OccupancyMap &map)
   {
     // Because we will be walking up, the x offset has to start at the maximum value.
     // We walk X in lockstep with the height for a 45 degree slope, so we read the Z axis range.
-    // We also adjust the offset out by 1 to neatly meet the top of the slope, rather than intersecting just under it.
-    int x_offset = side_key_ranges[i].range()[2] - 1;
+    int x_offset = -(side_key_ranges[i].range()[2]);
     for (const Key &ref_key : side_key_ranges[i])
     {
       Key key = ref_key;

@@ -189,6 +189,17 @@ public:
     return r.x * r.y * r.z;
   }
 
+  /// Calculate a 1D index for the given @p key in this range.
+  /// Indexing runs along each X coordinate first, then Y then Z.
+  /// @param key The key to query the index of. Assumed to be in the range.
+  /// @return The 1D index of @p key in this range or zero if this range is invalid.
+  size_t indexOf(const Key &key) const;
+
+  /// Performs the reverse operation of @c indexOf(), yielding a key from a 1D offset into this range.
+  /// @param index The index of this range. Assumed to be in the range.
+  /// @return The key coresponding to @p index or a null key if this range is invalid.
+  Key fromIndex(size_t index) const;
+
   /// Walk the given @p key to the next key in this range. Note: this is not bounds checked along Z and will continue
   /// to iterate the XY region beyond the range in Z. This function is intended for internal use to support
   /// @c KeyRangeIterator.

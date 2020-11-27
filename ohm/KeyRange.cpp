@@ -62,7 +62,43 @@ glm::ivec3 KeyRange::range() const
   // The range defines a closed interval, so we have to add 1 in each dimension for the volume to ensure the maximal
   // extents are consdiered.
   const glm::ivec3 volume_correction = glm::ivec3(1);
-  return ohm::OccupancyMap::rangeBetween(max_key_, min_key_, region_dimensions_) + volume_correction;
+  return ohm::OccupancyMap::rangeBetween(min_key_, max_key_, region_dimensions_) + volume_correction;
+}
+
+
+size_t KeyRange::indexOf(const Key &key) const
+{
+  if (!isValid())
+  {
+    return 0;
+  }
+
+  const glm::ivec3 range = this->range();
+  const glm::ivec3 range_to_key = ohm::OccupancyMap::rangeBetween(min_key_, key, region_dimensions_);
+  return size_t(range_to_key.x) + size_t(range_to_key.y * range.x) + size_t(range_to_key.z * range.x * range.y);
+}
+
+
+Key KeyRange::fromIndex(size_t index) const
+{
+  if (!isValid())
+  {
+    return Key::kNull;
+  }
+
+  const glm::ivec3 range = this->range();
+  glm::ivec3 offset(0);
+  offset.z = index / (range.x * range.y);
+  offset.y = index % (range.x * range.y);
+  offset.x = offset.y % range.x;
+  offset.y /= range.x;
+
+  Key key = min_key_;
+  OccupancyMapDetail::moveKeyAlongAxis(key, 0, offset.x, region_dimensions_);
+  OccupancyMapDetail::moveKeyAlongAxis(key, 1, offset.y, region_dimensions_);
+  OccupancyMapDetail::moveKeyAlongAxis(key, 2, offset.z, region_dimensions_);
+
+  return key;
 }
 
 
