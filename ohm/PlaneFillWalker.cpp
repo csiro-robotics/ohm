@@ -110,8 +110,9 @@ bool PlaneFillWalker::walkNext(Key &key)
 }
 
 
-void PlaneFillWalker::addNeighbours(const Key &key, Revisit revisit_behaviour)
+size_t PlaneFillWalker::addNeighbours(const Key &key, std::array<Key, 8> &added_neighbours, Revisit revisit_behaviour)
 {
+  size_t added = 0;
   for (int row_delta = -1; row_delta <= 1; ++row_delta)
   {
     for (int col_delta = -1; col_delta <= 1; ++col_delta)
@@ -128,7 +129,7 @@ void PlaneFillWalker::addNeighbours(const Key &key, Revisit revisit_behaviour)
         switch (revisit_behaviour)
         {
         case Revisit::kAll:
-          add_to_open = true;
+          add_to_open = visit_list[idx] < 0 || n_visit_height != visit_list[idx];
           break;
 
         case Revisit::kHigher:
@@ -150,10 +151,14 @@ void PlaneFillWalker::addNeighbours(const Key &key, Revisit revisit_behaviour)
           // Neighbour in range and not touched. Add to open list.
           open_list.push(n_key);
           visit_list[idx] = n_visit_height;
+          added_neighbours[added] = n_key;
+          ++added;
         }
       }
     }
   }
+
+  return added;
 }
 
 

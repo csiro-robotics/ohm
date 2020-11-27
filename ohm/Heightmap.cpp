@@ -38,6 +38,8 @@
 #define PROFILING 0
 #include <ohmutil/Profile.h>
 
+#include <3esservermacros.h>
+
 #include <cassert>
 
 namespace ohm
@@ -158,6 +160,42 @@ struct DstVoxel
   }
 
   inline glm::dvec3 centre() const { return occupancy.map()->voxelCentreGlobal(occupancy.key()); }
+
+  inline void debugDraw(int level, int up_axis, double up_scale = 1.0)
+  {
+    (void)level;
+    (void)up_axis;
+    (void)up_scale;
+#ifdef TES_ENABLE
+    if (occupancy.isValid() && g_tes)
+    {
+      // Generate an ID for the voxel.
+      static uint32_t next_id = 1000;  // This will do for now. May have aliasing issues. Better to come from the key.
+      glm::dvec3 voxel_pos = occupancy.map()->voxelCentreGlobal(occupancy.key());
+      voxel_pos[up_axis] += up_scale * heightmap.data().height;
+      tes::Box voxel(tes::Id(next_id),
+                     tes::Transform(glm::value_ptr(voxel_pos), tes::Vector3d(occupancy.map()->resolution())));
+      voxel.setReplace(true);
+      // voxel.setTransparent(true);
+      voxel.setColour(tes::Colour::Colours[tes::Colour::Green]);
+      g_tes->create(voxel);
+
+      // Create a line for the clearance height.
+      const double clearance_height = heightmap.data().clearance;
+      glm::dvec3 clearance_dir(0);
+      clearance_dir[up_axis] = up_scale;
+
+      tes::Arrow clearance(tes::Id(next_id),
+                           tes::Directional(tes::Vector3d(glm::value_ptr(voxel_pos)),
+                                            tes::Vector3d(glm::value_ptr(clearance_dir)), 0.005, clearance_height));
+      clearance.setColour(tes::Colour::Colours[tes::Colour::Orange]);
+      clearance.setReplace(true);
+      g_tes->create(clearance);
+
+      next_id++;
+    }
+#endif  // TES_ENABLE
+  }
 };
 
 inline float relativeVoxelHeight(double absolute_height, const Key &key, const OccupancyMap &map, const glm::dvec3 &up)
@@ -516,13 +554,39 @@ Key findGround(double *height_out, double *clearance_out, SrcVoxel &voxel, const
 void onVisitPlaneFill(PlaneFillWalker &walker, const HeightmapDetail &imp, const Key &candidate_key,
                       const Key &ground_key)
 {
-  // Add neighbours for walking.
+// Add neighbours for walking.
+#if 1
   PlaneFillWalker::Revisit revisit_behaviour = PlaneFillWalker::Revisit::kNone;
   if (!candidate_key.isNull())
   {
-    revisit_behaviour = int(imp.up_axis_id) >= 0 ? PlaneFillWalker::Revisit::kLower : PlaneFillWalker::Revisit::kHigher;
+    // revisit_behaviour = int(imp.up_axis_id) >= 0 ? PlaneFillWalker::Revisit::kLower :
+    // PlaneFillWalker::Revisit::kHigher;
+    revisit_behaviour = PlaneFillWalker::Revisit::kHigher;
   }
-  walker.addNeighbours(ground_key, revisit_behaviour);
+#else   // #
+  // Testing revisit behaviour.
+  PlaneFillWalker::Revisit revisit_behaviour = PlaneFillWalker::Revisit::kNone;
+  if (!candidate_key.isNull())
+  {
+    revisit_behaviour = PlaneFillWalker::Revisit::kAll;
+  }
+#endif  // #
+  std::array<Key, 8> neighbours;
+  size_t added_count = walker.addNeighbours(ground_key, neighbours, revisit_behaviour);
+#ifdef TES_ENABLE
+  if (g_tes)
+  {
+    for (size_t i = 0; i < added_count; ++i)
+    {
+      const Key &nkey = neighbours[i];
+      const glm::dvec3 pos = imp.occupancy_map->voxelCentreGlobal(nkey);
+      tes::Box neighbour(
+        tes::Id(0), tes::Transform(tes::Vector3d(glm::value_ptr(pos)), tes::Vector3d(imp.heightmap->resolution())));
+      neighbour.setColour(tes::Colour::Colours[tes::Colour::CornflowerBlue]).setWireframe(true);
+      g_tes->create(neighbour);
+    }
+  }
+#endif  // neighbours
 }
 }  // namespace
 
@@ -886,8 +950,17 @@ bool Heightmap::buildHeightmapT(KeyWalker &walker, const glm::dvec3 &reference_p
   SrcVoxel src_voxel(src_map, use_voxel_mean);
   DstVoxel hm_voxel(heightmap, imp_->heightmap_layer, use_voxel_mean);
 
+  const glm::dvec3 debug_pos(2.05, 0.75, 0);
+  bool abort = false;
   do
   {
+    const glm::dvec3 ref_pos = src_map.voxelCentreGlobal(walk_key);
+    if (std::abs(ref_pos.x - debug_pos.x) < 0.5 * src_map.resolution() &&
+        std::abs(ref_pos.y - debug_pos.x) < 0.5 * src_map.resolution())
+    {
+      int stopme = 1;
+    }
+
     // Find the nearest voxel to the current key which may be a ground candidate.
     // This is key closest to the walk_key which could be ground. This will be either an occupied voxel, or virtual
     // ground voxel.
@@ -966,10 +1039,13 @@ bool Heightmap::buildHeightmapT(KeyWalker &walker, const glm::dvec3 &reference_p
         }
         hm_voxel.heightmap.write(height_info);
 
+        hm_voxel.debugDraw(imp_->debug_level, imp_->vertical_axis_index, int(imp_->up_axis_id) >= 0 ? 1.0 : -1.0);
+        TES_SERVER_UPDATE(g_tes, 0.0f);
+
         ++populated_count;
       }
     }
-  } while (walker.walkNext(walk_key));
+  } while (!abort && walker.walkNext(walk_key));
 
   return populated_count != 0;
 }

@@ -85,7 +85,13 @@ public:
   /// Add neigbhours of @p key to the open list.
   /// @param key The key of interest.
   /// @param revisit_behaviour How to deal with voxels which have already been visited.
-  void addNeighbours(const Key &key, Revisit revisit_behaviour = Revisit::kNone);
+  size_t addNeighbours(const Key &key, std::array<Key, 8> &added_neighbours,
+                       Revisit revisit_behaviour = Revisit::kNone);
+  size_t addNeighbours(const Key &key, Revisit revisit_behaviour = Revisit::kNone)
+  {
+    std::array<Key, 8> ignore;
+    return addNeighbours(key, ignore, revisit_behaviour);
+  }
 
   /// Marks the given key as visited.
   /// @param key The key to visit.
