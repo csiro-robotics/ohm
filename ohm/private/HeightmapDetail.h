@@ -23,6 +23,7 @@ class MapInfo;
 /// Pimpl data for @c Heightmap .
 struct ohm_API HeightmapDetail
 {
+  /// Source occupancy map pointer from which we are building a heightmap.
   OccupancyMap *occupancy_map = nullptr;
   /// Use a very thin occupancy map for the heightmap representation.
   ///
@@ -34,14 +35,10 @@ struct ohm_API HeightmapDetail
   /// - <tt>value > 0</tt> => real surface
   ///
   /// The case where @c value is zero indicates that there are no observations for the column and it has not been
-  /// able to be observed. This only comes from the @c heightmap_local_cache where the cache has been seeded at a
-  /// start position and the nearby voxels cannot be observed due to sensor blind spots. Once the sensor moves the
-  /// local cache will gradually be updated with real observations and this case will disappear.
+  /// able to be observed.
   std::unique_ptr<OccupancyMap> heightmap;
-  /// A cache of the previous heightmap surface around the reference position.
-  /// Used to maintain previous heightmap information around the reference pos and deal with sensor visibility issues
-  /// (lack thereof).
-  std::unique_ptr<OccupancyMap> heightmap_local_cache;
+  /// Similar to @c heightmap , this is an occupancy map into which we build a multilayer heightmap.
+  std::unique_ptr<OccupancyMap> multilayer_heightmap;
   /// The direct of up used in heightmap generation. Must be aligned to a specific access.
   glm::dvec3 up = glm::dvec3(0, 0, 1);
   /// Ignore all source voxels which lie higher than this above the reference position height.
@@ -58,6 +55,9 @@ struct ohm_API HeightmapDetail
   /// Identifies the up axis as aligned to XYZ, [0, 2] but ignores sign/direction.
   /// Same as up_axis_id if that value is >= 0.
   int vertical_axis_index = int(UpAxis::kZ);
+  /// Level of debugging information provided in generating the heightmap. Only has an effect if
+  /// @c OHM_TES_DEBUG is configured in CMake.
+  int debug_level = 0;
   /// Should heightmap generation ignore the presence of voxel mean positions, forcing voxel centres instead?
   bool ignore_voxel_mean = false;
   /// Allow the generation of a virtual heightmap floor around the transition from unknown to free voxels?

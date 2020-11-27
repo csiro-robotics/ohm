@@ -51,6 +51,7 @@ struct HeightmapVoxel;
 /// supporting surface is the closest occupied voxel to the current reference position also having sufficient
 /// clearance above it, @c minClearance() .
 ///
+/// @par Virtual surfaces
 /// The heightmap may also generate a 'virtual surface' from the interface between uncertain and free voxels when
 /// @c generateVirtualSurface() is set. A 'virtual surface' voxel is simply a free voxel with an uncertain voxel below
 /// it, but only in a column which does not have an occupied voxel within the search range. Virtual surface voxels
@@ -78,7 +79,7 @@ struct HeightmapVoxel;
 /// - <b>heightmap-axis-z</b> - The up axis Z value for a heightmap.
 /// - <b>heightmap-blur</b> - The blur value used to generate the heightamp.
 /// - <b>heightmap-clearance</b> - The clearance value used to generate the heightamp.
-class Heightmap
+class ohm_API Heightmap
 {
 public:
   /// Size of regions in the heightmap. This is a 2D voxel extent. The region height is always one voxel.

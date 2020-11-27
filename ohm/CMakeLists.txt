@@ -55,6 +55,8 @@ set(SOURCES
   Heightmap.h
   HeightmapMesh.cpp
   HeightmapMesh.h
+  HeightmapUtil.cpp
+  HeightmapUtil.h
   HeightmapVoxel.cpp
   HeightmapVoxel.h
   HeightmapVoxelType.h
@@ -63,6 +65,8 @@ set(SOURCES
   KeyHash.h
   KeyList.cpp
   KeyList.h
+  KeyRange.cpp
+  KeyRange.h
   LineKeysQuery.cpp
   LineKeysQuery.h
   LineQuery.cpp
@@ -160,11 +164,13 @@ set(PUBLIC_HEADERS
   DefaultLayer.h
   Heightmap.h
   HeightmapMesh.h
+  HeightmapUtil.h
   HeightmapVoxel.h
   HeightmapVoxelType.h
   Key.h
   KeyHash.h
   KeyList.h
+  KeyRange.h
   LineKeysQuery.h
   LineQuery.h
   MapChunkFlag.h

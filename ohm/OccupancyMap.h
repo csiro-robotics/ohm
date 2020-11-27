@@ -28,6 +28,7 @@ namespace ohm
 {
 class Aabb;
 class KeyList;
+class KeyRange;
 struct MapChunk;
 class MapInfo;
 class MapLayout;
@@ -164,7 +165,7 @@ public:
     void walkNext();
 
     OccupancyMap *map_ = nullptr;  ///< The referenced map.
-    Key key_;            ///< The current voxel key.
+    Key key_;                      ///< The current voxel key.
     /// Memory used to track an iterator into a hidden container type.
     /// We use an anonymous, fixed size memory chunk and placement new to prevent exposing STL
     /// types as part of the ABI.
@@ -370,12 +371,19 @@ public:
   /// Calculate the extents of the map based on existing regions containing known data.
   /// @param[out] min_ext Set to the minimum corner of the axis aligned extents. May be nullptr.
   /// @param[out] max_ext Set to the maximum corner of the axis aligned extents. May be nullptr.
+  /// @param[out] key_range The key range enclosing the key extents.
+  /// @return True if the map is non-empty and resulting extents are valid. False for an empty map in which case the
+  ///   out values are undefined.
+  bool calculateExtents(glm::dvec3 *min_ext, glm::dvec3 *max_ext, KeyRange *key_range = nullptr) const;
+
+  /// Calculate the extents of the map based on existing regions containing known data.
+  /// @param[out] min_ext Set to the minimum corner of the axis aligned extents. May be nullptr.
+  /// @param[out] max_ext Set to the maximum corner of the axis aligned extents. May be nullptr.
   /// @param[out] min_key Set to the voxel key of the minimum corner of the axis aligned extents. May be nullptr.
   /// @param[out] max_key Set to the voxel key of the maximum corner of the axis aligned extents. May be nullptr.
   /// @return True if the map is non-empty and resulting extents are valid. False for an empty map in which case the
   ///   out values are undefined.
-  bool calculateExtents(glm::dvec3 *min_ext, glm::dvec3 *max_ext,  //
-                        Key *min_key = nullptr, Key *max_key = nullptr) const;
+  bool calculateExtents(glm::dvec3 *min_ext, glm::dvec3 *max_ext, Key *min_key, Key *max_key = nullptr) const;
 
   /// Access to the map info structure for storing general meta data.
   ///
@@ -705,6 +713,9 @@ public:
   /// @param key The key to modify.
   /// @param axis The axis to modify. Must be [0, 2] mapping to XYZ respectively, or behaviour is undefined.
   /// @param dir Direction to step. Must be 1 or -1 or behaviour is undefined.
+  /// @param region_voxel_dimensions The number of voxels in each region given per axis. See @c regionVoxelDimensions().
+  static void stepKey(Key &key, int axis, int dir, const glm::ivec3 &region_voxel_dimensions);
+  /// @overload
   void stepKey(Key &key, int axis, int dir) const;
 
   /// Move an @c Key by a given offset.
@@ -738,6 +749,13 @@ public:
   /// @param to The second key.
   /// @return The voxel offset from @p a to @p b along each axis.
   glm::ivec3 rangeBetween(const Key &from, const Key &to) const;
+
+  /// A static overload which requires the region dimensions in voxels for a region.
+  /// @param from The first key.
+  /// @param to The second key.
+  /// @param region_voxel_dimensions The number of voxels in each region given per axis. See @c regionVoxelDimensions().
+  /// @return The voxel offset from @p a to @p b along each axis.
+  static glm::ivec3 rangeBetween(const Key &from, const Key &to, const glm::ivec3 &region_voxel_dimensions);
 
   /// Builds the list of voxel keys intersected by the line segment connecting @p startPoint and @p endPoint.
   ///

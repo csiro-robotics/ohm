@@ -9,6 +9,7 @@
 
 #include "Aabb.h"
 #include "DefaultLayer.h"
+#include "HeightmapUtil.h"
 #include "HeightmapVoxel.h"
 #include "Key.h"
 #include "MapChunk.h"
@@ -403,9 +404,9 @@ inline Key findNearestSupportingVoxel(SrcVoxel &voxel, const Key &seed_key, UpAx
 
   // When both above and below have valid candidates. We prefer the lower one if there is sufficient clearance from
   // it to the higher one (should be optimistic). Otherwise we prefer the one which has had less searching.
-  if (have_candidate_below &&
-      (!have_candidate_above || offset_below <= offset_above ||
-       have_candidate_below && have_candidate_above && offset_below + offset_above >= clearance_voxel_count_permissive))
+  if (have_candidate_below && (!have_candidate_above || offset_below <= offset_above ||
+                               have_candidate_below && have_candidate_above && !virtual_above &&
+                                 offset_below + offset_above >= clearance_voxel_count_permissive))
   {
     return below;
   }
@@ -551,35 +552,12 @@ Heightmap::Heightmap(double grid_resolution, double min_clearance, UpAxis up_axi
   glm::u8vec3 region_dim(region_size);
   region_dim[int(imp_->vertical_axis_index)] = 1;
   imp_->heightmap = std::make_unique<OccupancyMap>(grid_resolution, region_dim);
+  // The multilayer heightmap expects more entries. Default to having room for N layers per chunk.
+  region_dim[int(imp_->vertical_axis_index)] = 4;
+  imp_->multilayer_heightmap = std::make_unique<OccupancyMap>(grid_resolution, region_dim);
 
-  // Setup the heightmap voxel layout.
-  MapLayout &layout = imp_->heightmap->layout();
-
-  layout.filterLayers({ default_layer::occupancyLayerName(), default_layer::meanLayerName() });
-
-  MapLayer *layer;
-  VoxelLayout voxels;
-
-  const float max_clearance = std::numeric_limits<float>::max();
-  int max_clearance_int = 0;
-  static_assert(sizeof(max_clearance) == sizeof(max_clearance_int), "size mismatch");
-
-  memcpy(&max_clearance_int, &max_clearance, sizeof(max_clearance));
-
-  size_t clear_value = 0;
-  // Initialise the data structure to have both ranges at float max.
-  memset(&clear_value, max_clearance_int, sizeof(clear_value));
-  layer = layout.addLayer(HeightmapVoxel::kHeightmapLayer, 0);
-  imp_->heightmap_layer = static_cast<int>(layer->layerIndex());
-  voxels = layer->voxelLayout();
-  voxels.addMember("height", DataType::kFloat, 0);
-  voxels.addMember("clearance", DataType::kFloat, 0);
-  voxels.addMember("normal_x", DataType::kFloat, 0);
-  voxels.addMember("normal_y", DataType::kFloat, 0);
-  voxels.addMember("normal_z", DataType::kFloat, 0);
-  voxels.addMember("reserved", DataType::kFloat, 0);
-
-  updateMapInfo(imp_->heightmap->mapInfo());
+  imp_->heightmap_layer = heightmap::setupHeightmap(*imp_->heightmap, *imp_);
+  heightmap::setupHeightmap(*imp_->multilayer_heightmap, *imp_);
 }
 
 

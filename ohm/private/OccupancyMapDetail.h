@@ -110,7 +110,14 @@ struct ohm_API OccupancyMapDetail
   /// @param key The key to adjust.
   /// @param axis Axis ID to move along [0, 2].
   /// @param step How far to move/step.
-  void moveKeyAlongAxis(Key &key, int axis, int step) const;
+  /// @param region_voxel_dimensions Region dimensions in voxels, as per @c OccupancyMapDetail::region_voxel_dimensions
+  static void moveKeyAlongAxis(Key &key, int axis, int step, const glm::ivec3 &region_voxel_dimensions);
+
+  /// @overload
+  inline void moveKeyAlongAxis(Key &key, int axis, int step) const
+  {
+    moveKeyAlongAxis(key, axis, step, region_voxel_dimensions);
+  }
 
   /// Setup the default @c MapLayout: occupancy layer and clearance layer.
   /// @param enable_voxel_mean Enable voxel mean positioning?

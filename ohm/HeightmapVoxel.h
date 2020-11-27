@@ -10,6 +10,11 @@
 
 namespace ohm
 {
+enum class HmVoxelFlag : unsigned
+{
+  kAmbiguous = (1u << 0u)
+};
+
 /// A voxel within the heightmap.
 struct HeightmapVoxel
 {
@@ -32,8 +37,10 @@ struct HeightmapVoxel
   float normal_y;
   /// Local surface normal Z coordinate.
   float normal_z;
-  /// Padding to ensure expected alignment.
-  float reserved;
+  /// Informational flags : @c HmVoxelFlag.
+  uint8_t flags;
+  /// Reserved for padding
+  int8_t reserved[3];
 };
 }  // namespace ohm
 

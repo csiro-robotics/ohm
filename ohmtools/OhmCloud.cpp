@@ -5,6 +5,8 @@
 // Author: Kazys Stepanas
 #include "OhmCloud.h"
 
+#include <ohm/HeightmapUtil.h>
+#include <ohm/HeightmapVoxel.h>
 #include <ohm/OccupancyMap.h>
 #include <ohm/OccupancyType.h>
 #include <ohm/Query.h>
@@ -27,10 +29,28 @@ void saveCloud(const char *file_name, const ohm::OccupancyMap &map, const Progre
 
   ohm::Voxel<const float> occupancy(&map, map.layout().occupancyLayer());
   ohm::Voxel<const ohm::VoxelMean> mean(&map, map.layout().meanLayer());
+  ohm::Voxel<const ohm::HeightmapVoxel> heightmap_voxel(&map,
+                                                        map.layout().layerIndex(ohm::HeightmapVoxel::kHeightmapLayer));
+  // Resolve the heightmap axis from the mapInfo if relevant.
+  int heightmap_axis = 2;
+  float height_flip = 1.0f;  // Set to -1 if we need to negate the height value to get a coordinate out of it.
+  if (heightmap_voxel.isLayerValid())
+  {
+    ohm::UpAxis up_axis = ohm::heightmap::queryHeightmapAxis(map.mapInfo());
+    if (int(up_axis) >= 0)
+    {
+      heightmap_axis = int(up_axis);
+    }
+    else
+    {
+      heightmap_axis = 1 - int(up_axis);
+      height_flip = -1.0f;
+    }
+  }
 
   for (auto iter = map.begin(); iter != map.end(); ++iter)
   {
-    mean.setKey(occupancy.setKey(*iter));
+    ohm::setVoxelKey(iter, occupancy, mean, heightmap_voxel);
     if (last_region != iter.key().regionKey())
     {
       ++processed_region_count;
@@ -43,6 +63,10 @@ void saveCloud(const char *file_name, const ohm::OccupancyMap &map, const Progre
     if (isOccupied(occupancy))
     {
       v = positionSafe(mean) - map.origin();
+      if (heightmap_voxel.isValid())
+      {
+        v[heightmap_axis] += height_flip * heightmap_voxel.data().height;
+      }
       ply.addVertex(v);
     }
   }

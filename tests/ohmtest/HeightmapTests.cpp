@@ -10,10 +10,12 @@
 #include <ohm/Heightmap.h>
 #include <ohm/HeightmapMesh.h>
 #include <ohm/HeightmapVoxel.h>
+#include <ohm/KeyRange.h>
 #include <ohm/MapLayer.h>
 #include <ohm/MapLayout.h>
 #include <ohm/MapSerialise.h>
 #include <ohm/OccupancyMap.h>
+#include <ohm/Trace.h>
 #include <ohm/TriangleNeighbours.h>
 #include <ohm/VoxelData.h>
 #include <ohm/VoxelLayout.h>
@@ -31,6 +33,81 @@ using namespace ohm;
 namespace
 {
 const double kBoxHalfExtents = 2.5;
+
+/// Populate an occupancy map with multiple layers. The generated map is a flat square with smaller raised section
+/// connected to the lower surface by a ramp on two sides.
+/// @param map The map to populate (assumed empty)
+/// @return The height of the platform above the lower surface.
+double populateMultiLevelMap(ohm::OccupancyMap &map)
+{
+  const double map_half_extents = 5.0;
+  const double platform_half_extents = 2.0;
+  const double platform_height = 1.5;
+
+  ohm::Voxel<float> occupancy(&map, map.layout().occupancyLayer());
+  // ASSERT_TRUE(occupancy.isLayerValid());
+
+  // Build extents to traverse in keys. This will ensure we touch every voxel correctly.
+  ohm::KeyRange key_range(map.voxelKey(glm::dvec3(-map_half_extents, -map_half_extents, 0)),
+                          map.voxelKey(glm::dvec3(map_half_extents, map_half_extents, 0)), map);
+
+  // Create the floor.
+  for (const Key &key : key_range)
+  {
+    occupancy.setKey(key);
+    occupancy.write(map.hitValue());
+  }
+
+  key_range =
+    ohm::KeyRange(map.voxelKey(glm::dvec3(-platform_half_extents, -platform_half_extents, platform_height)),
+                  map.voxelKey(glm::dvec3(platform_half_extents, platform_half_extents, platform_height)), map);
+
+  // Create the raised platform.
+  for (const Key &key : key_range)
+  {
+    occupancy.setKey(key);
+    occupancy.write(map.hitValue());
+  }
+
+  // Create a vertical range to iterate from platform to floor. We'll walk out the X axis as well as we iterate.
+  const ohm::KeyRange side_key_ranges[2] = {
+    ohm::KeyRange(map.voxelKey(glm::dvec3(-platform_half_extents, -platform_half_extents, 0)),
+                  map.voxelKey(glm::dvec3(-platform_half_extents, -platform_half_extents, platform_height)), map),
+    ohm::KeyRange(map.voxelKey(glm::dvec3(platform_half_extents, -platform_half_extents, 0)),
+                  map.voxelKey(glm::dvec3(platform_half_extents, -platform_half_extents, platform_height)), map)
+  };
+
+  int y_range_voxel_count = int((2 * platform_half_extents) / map.resolution());
+  // Build a ramp either side. We do 2 iterations, one for each size.
+  for (int i = 0; i < 2; ++i)
+  {
+    // Because we will be walking up, the x offset has to start at the maximum value.
+    // We walk X in lockstep with the height for a 45 degree slope, so we read the Z axis range.
+    // We also adjust the offset out by 1 to neatly meet the top of the slope, rather than intersecting just under it.
+    int x_offset = side_key_ranges[i].range()[2] - 1;
+    for (const Key &ref_key : side_key_ranges[i])
+    {
+      Key key = ref_key;
+      // Second side used x_offset
+      map.moveKeyAlongAxis(key, 0, x_offset * (i == 0 ? 1 : -1));
+      // Create a second range to walk along the Y axis.
+      ohm::KeyRange y_key_range(key, key, map);
+      map.moveKeyAlongAxis(key, 1, y_range_voxel_count);
+      y_key_range.setMaxKey(key);
+
+      // Walk the Y axis line.
+      for (const Key &key : y_key_range)
+      {
+        occupancy.setKey(key);
+        occupancy.write(map.hitValue());
+      }
+      // Setup for next iteration.
+      ++x_offset;
+    }
+  }
+
+  return platform_height;
+}
 
 void heightmapBoxTest(const std::string &prefix, UpAxis axis, std::shared_ptr<Heightmap> *map_out = nullptr)
 {
@@ -611,4 +688,96 @@ TEST(Heightmap, SurfaceSelection)
       testSurface(mode, surface_tests[t], test_results[m][t], str.str());
     }
   }
+}
+
+TEST(Heightmap, Clearance)
+{
+  ohm::OccupancyMap map(0.1);
+  const double platform_height = populateMultiLevelMap(map);
+  ohm::save("clearance-map.ohm", map);
+  ohmtools::saveCloud("clearance-map.ply", map);
+
+  // Define a heightmap for which there is no clearance requirement. The map we just generated has a smooth, flat
+  // surface with a raised platform above like this (2D section):
+  ///       _____
+  //       /     \          backslashes in ascii
+  //      /       \         are fun
+  // ____/_________\____
+  //
+  // So the reference_map will consist of the lower surface voxels, but also indicate the clearance height for each
+  // of these to the surface above. We'll later use this to validate the clearance constrained heigthmap.
+  ohm::Heightmap reference_heightmap(map.resolution(), 0);
+  reference_heightmap.setOccupancyMap(&map);
+  reference_heightmap.buildHeightmap(glm::dvec3(0));
+
+  // Now add a clearance constraint.
+  const double clearance_constraint = 0.5 * platform_height;
+  ohm::Heightmap constrained_heightmap(map.resolution(), clearance_constraint);
+  constrained_heightmap.setOccupancyMap(&map);
+  constrained_heightmap.setUseFloodFill(true);
+  constrained_heightmap.buildHeightmap(glm::dvec3(0));
+
+  ohm::save("clearance-hm.ohm", constrained_heightmap.heightmap());
+  ohmtools::saveCloud("clearance-hm.ply", constrained_heightmap.heightmap());
+
+  // Now validate the clearance of each voxel in the constrained heigthmap and validate against the reported clearance
+  // from the reference map.
+  KeyRange validation_range;
+  constrained_heightmap.heightmap().calculateExtents(nullptr, nullptr, &validation_range);
+
+  ohm::Voxel<ohm::HeightmapVoxel> ref_voxel(&reference_heightmap.heightmap(),
+                                            reference_heightmap.heightmapVoxelLayer());
+  ohm::Voxel<ohm::HeightmapVoxel> constrained_voxel(&constrained_heightmap.heightmap(),
+                                                    constrained_heightmap.heightmapVoxelLayer());
+
+  ASSERT_TRUE(ref_voxel.isLayerValid());
+  ASSERT_TRUE(constrained_voxel.isLayerValid());
+
+  // Note: Key references in the two heightmaps should exactly match.
+  for (const auto &key : validation_range)
+  {
+    ref_voxel.setKey(key);
+    constrained_voxel.setKey(key);
+
+    ASSERT_TRUE(ref_voxel.isValid());
+    ASSERT_TRUE(constrained_voxel.isValid());
+
+    const HeightmapVoxel ref = ref_voxel.data();
+    const HeightmapVoxel test_value = constrained_voxel.data();
+
+    if (test_value.clearance > 0)
+    {
+      EXPECT_GE(test_value.clearance, clearance_constraint);
+    }
+
+    // Validate that we've chose the correct voxel.
+    if (ref.clearance >= clearance_constraint)
+    {
+      EXPECT_EQ(test_value.height, ref.height);
+    }
+  }
+}
+
+TEST(Heightmap, Layered)
+{
+  ohm::Trace trace("heightmap-layered.3es");
+  ohm::OccupancyMap map(0.1);
+  const double platform_height = populateMultiLevelMap(map);
+  ohm::save("layered-map.ohm", map);
+  ohmtools::saveCloud("layered-map.ply", map);
+
+  // Now add a clearance constraint.
+  const double clearance_constraint = 0.5 * platform_height;
+  ohm::Heightmap constrained_heightmap(map.resolution(), clearance_constraint);
+  constrained_heightmap.setOccupancyMap(&map);
+  constrained_heightmap.setUseFloodFill(true);
+  constrained_heightmap.buildHeightmap(glm::dvec3(0));
+
+  ohm::save("layered-hm.ohm", constrained_heightmap.heightmap());
+  ohmtools::saveCloud("layered-hm.ply", constrained_heightmap.heightmap());
+
+  // Now validate the clearance of each voxel in the constrained heigthmap and validate against the reported clearance
+  // from the reference map.
+  KeyRange validation_range;
+  constrained_heightmap.heightmap().calculateExtents(nullptr, nullptr, &validation_range);
 }
