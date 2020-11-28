@@ -11,6 +11,7 @@
 #include "Key.h"
 #include "MapFlag.h"
 #include "MapProbability.h"
+#include "OccupancyType.h"
 #include "RayFilter.h"
 #include "RayFlag.h"
 
@@ -778,6 +779,20 @@ public:
   /// @param element_count The number of points in @p rays. The ray count is half this value.
   /// @param ray_update_flags Flags controlling ray integration behaviour. See @c RayFlag.
   void integrateRays(const glm::dvec3 *rays, size_t element_count, unsigned ray_update_flags = kRfDefault);
+
+  /// Lookup the given @p rays in the map. The @p rays form a list of origin/sample pairs, where the sample represents
+  /// the maximum range to scan.
+  ///
+  /// @param rays Array of origin/sample point pairs.
+  /// @param element_count The number of points in @p rays. The ray count is half this value.
+  /// @param[out] newly_observed_volumes Array to be populated with previously unobserved volume observed in each ray.
+  /// Optional; pass in nullptr if not required. Length element_count/2.
+  /// @param[out] ranges Array to be populated with range traced for each ray. Will be length of origin sample/pair
+  /// unless an occupied voxel was encountered. Optional; pass in nullptr if not required. Length element_count/2.
+  /// @param[out] ranges Array to be populated with the state of the final voxel traced. Optional; pass in nullptr if
+  /// not required. Length element_count/2.
+  void lookupRays(const glm::dvec3 *rays, size_t element_count, float *newly_observed_volumes, float *ranges,
+                  OccupancyType *terminal_states);
 
   /// Clone the entire map.
   /// @return A deep clone of this map. Caller takes ownership.

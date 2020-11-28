@@ -85,7 +85,7 @@ size_t RayMapperNdt::integrateRays(const glm::dvec3 *rays, size_t element_count,
   glm::dvec3 start;
   glm::dvec3 sample;
 
-  const auto visit_func = [&](const Key &key)  //
+  const auto visit_func = [&](const Key &key, float /*enter_range*/, float /*exit_range*/)  //
   {
     //
     // The update logic here is a little unclear as it tries to avoid outright branches.

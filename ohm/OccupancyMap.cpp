@@ -13,7 +13,6 @@
 #include "MapLayer.h"
 #include "MapProbability.h"
 #include "MapRegionCache.h"
-#include "OccupancyType.h"
 #include "RayMapperOccupancy.h"
 #include "VoxelBlockCompressionQueue.h"
 #include "VoxelBuffer.h"
@@ -901,7 +900,7 @@ size_t OccupancyMap::calculateSegmentKeys(KeyList &keys, const glm::dvec3 &start
   const glm::dvec3 end_point_local = glm::dvec3(end_point - origin());
 
   keys.clear();
-  return ohm::walkSegmentKeys<Key>([&keys](const Key &key) { keys.add(key); }, start_point_local, end_point_local,
+  return ohm::walkSegmentKeys<Key>([&keys](const Key &key, float, float) { keys.add(key); }, start_point_local, end_point_local,
                                    include_end_point, KeyAdaptor(*this));
 }
 
@@ -927,6 +926,16 @@ void OccupancyMap::integrateRays(const glm::dvec3 *rays, size_t element_count, u
   // TODO(KS): remove this function and require the use of a RayMapper.
   RayMapperOccupancy(this).integrateRays(rays, element_count, ray_update_flags);
 }
+
+void OccupancyMap::lookupRays(const glm::dvec3 *rays, size_t element_count, float *newly_observed_volumes,
+                              float *ranges, OccupancyType *terminal_states)
+{
+  // This function has been updated to leverage the new RayMapper interface and remove code duplication. It is
+  // maintained for legacy reasons.
+  // TODO(KS): remove this function and require the use of a RayMapper.
+  RayMapperOccupancy(this).lookupRays(rays, element_count, newly_observed_volumes, ranges, terminal_states);
+}
+
 
 OccupancyMap *OccupancyMap::clone() const
 {
