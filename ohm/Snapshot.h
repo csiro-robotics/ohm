@@ -29,6 +29,10 @@ namespace ohm
   class SnapshotSrcVoxel;
   class SnapshotVoxelBlock;
 
+  constexpr float snapshotProbToLikelihood(float d)
+  {
+    return std::log(d / (1.0f - d));
+  }
 
   class Snapshot
   {
@@ -40,6 +44,9 @@ namespace ohm
       kUnobserved = 2,
       kNonLeaf = 3
     };
+
+    static constexpr float kFreeThreshold = snapshotProbToLikelihood(0.4);
+    static constexpr float kOccupiedThreshold = snapshotProbToLikelihood(0.6);
 
     /// Extract a simplified snapshot of a 3D occupancy map.
     ///

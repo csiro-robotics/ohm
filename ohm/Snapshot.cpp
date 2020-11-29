@@ -37,10 +37,6 @@ using namespace ohm;
 
 namespace
 {
-  constexpr float probToLikelihood(float d) { return std::log(d / (1.0f - d)); }
-  static constexpr float kFreeThreshold = probToLikelihood(0.4);
-  static constexpr float kOccupiedThreshold = probToLikelihood(0.6);
-
 }  // namespace
 
 namespace ohm
@@ -74,9 +70,10 @@ struct SnapshotSrcVoxel
     {
       occupancy.read(&value);
     }
-    Snapshot::State state = (value >= kOccupiedThreshold) ?
-                              Snapshot::State::kOccupied :
-                              ((value <= kFreeThreshold) ? Snapshot::State::kFree : Snapshot::State::kUnobserved);
+    Snapshot::State state =
+      (value >= Snapshot::kOccupiedThreshold) ?
+        Snapshot::State::kOccupied :
+        ((value <= Snapshot::kFreeThreshold) ? Snapshot::State::kFree : Snapshot::State::kUnobserved);
     state = value != unobservedOccupancyValue() ? state : Snapshot::State::kUnobserved;
     return occupancy.chunk() ? state : Snapshot::State::kUnobserved;
   }
@@ -101,9 +98,10 @@ struct SnapshotVoxelBlock
     float value;
     occupancy_buffer.readVoxel(voxel_index, &value);
 
-    Snapshot::State state = (value >= kOccupiedThreshold) ?
-                              Snapshot::State::kOccupied :
-                              ((value <= kFreeThreshold) ? Snapshot::State::kFree : Snapshot::State::kUnobserved);
+    Snapshot::State state =
+      (value >= Snapshot::kOccupiedThreshold) ?
+        Snapshot::State::kOccupied :
+        ((value <= Snapshot::kFreeThreshold) ? Snapshot::State::kFree : Snapshot::State::kUnobserved);
     return value != unobservedOccupancyValue() ? state : Snapshot::State::kUnobserved;
   }
 
@@ -114,13 +112,15 @@ struct SnapshotVoxelBlock
     float value;
     occupancy_buffer.readVoxel(voxel_index, &value);
 
-    Snapshot::State old_state = (value >= kOccupiedThreshold) ?
-                                  Snapshot::State::kOccupied :
-                                  ((value <= kFreeThreshold) ? Snapshot::State::kFree : Snapshot::State::kUnobserved);
+    Snapshot::State old_state =
+      (value >= Snapshot::kOccupiedThreshold) ?
+        Snapshot::State::kOccupied :
+        ((value <= Snapshot::kFreeThreshold) ? Snapshot::State::kFree : Snapshot::State::kUnobserved);
     old_state = value != unobservedOccupancyValue() ? state : Snapshot::State::kUnobserved;
 
-    value = (state == Snapshot::State::kOccupied) ? kOccupiedThreshold :
-                                                    ((state == Snapshot::State::kFree) ? kFreeThreshold : value);
+    value = (state == Snapshot::State::kOccupied) ?
+              Snapshot::kOccupiedThreshold :
+              ((state == Snapshot::State::kFree) ? Snapshot::kFreeThreshold : value);
     occupancy_buffer.writeVoxel(voxel_index, value);
     return (state == Snapshot::State::kOccupied) ?
              Snapshot::State::kOccupied :
