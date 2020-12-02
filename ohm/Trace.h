@@ -12,6 +12,21 @@
 
 namespace ohm
 {
+/// Debug visaulisation trace categories.
+enum TraceCategory : uint16_t
+{
+  kTcDefault,      ///< Default category (catchall)
+  kTcMap,          ///< Parent category for occupancy map generation.
+  kTcRays,         ///< Ray insertion
+  kTcVoxels,       ///< Voxel state
+  kTcNdt,          ///< NDT shapes
+  kTcHeightmap,    ///< Parent category for heightmap generation
+  kTcHmVoxel,      ///< Heightmap voxel
+  kTcHmClearance,  ///< Heightmap clearance
+  kTcHmVisit,      ///< Heightmap visit/open lists
+  kTcHmInfo,       ///< Heightmap info text
+};
+
 namespace trace
 {
 /// Initialise the trace system. This enables debug rendering connections via 3rd Eye Scene.

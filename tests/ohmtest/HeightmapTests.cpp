@@ -770,7 +770,7 @@ TEST(Heightmap, Layered)
   ohm::Heightmap constrained_heightmap(map.resolution(), clearance_constraint);
   constrained_heightmap.setOccupancyMap(&map);
   constrained_heightmap.setUseFloodFill(true);
-  constrained_heightmap.buildHeightmap(glm::dvec3(0));
+  constrained_heightmap.buildHeightmap(glm::dvec3(0, 0, platform_height));
 
   ohm::save("layered-hm.ohm", constrained_heightmap.heightmap());
   ohmtools::saveCloud("layered-hm.ply", constrained_heightmap.heightmap());

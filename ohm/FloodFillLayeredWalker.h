@@ -1,4 +1,4 @@
-// Copyright (c) 2019
+// Copyright (c) 2020
 // Commonwealth Scientific and Industrial Research Organisation (CSIRO)
 // ABN 41 687 119 230
 //
@@ -22,14 +22,19 @@ namespace ohm
 class Key;
 class OccupancyMap;
 
-/// Helper class for walking a plane in the heightmap given any up axis using a flood fill pattern.
+/// Helper class for walking heightmap generation in a floodfill pattern with the intention of generating a multi-layer
+/// heightmap.
+///
 /// Manages walking the correct axis based on the @c UpAxis.
 ///
 /// Usage:
 /// - Initialise
-/// - call @c begin().
-/// - do work
-/// - call @c walkNext() and loop if true.
+/// - call @c begin(key) to set the initial key
+/// - [[ @c visit(key) ]] - maybe necessary for the first key to get the candiate ground height correct.
+/// - Start work on key:
+///   - @c addNeighbours(key)
+///   - do work
+///   - call @c walkNext(key) and loop if true.
 ///
 /// The fill walker normally adds neighbours as it walks each voxel. However, the neighbours setting
 /// @p auto_add_neighbours to false on construction allows manual neighbour management. This Allows the height of
@@ -37,18 +42,9 @@ class OccupancyMap;
 ///
 /// Nodes may be revisited according to the @c Revist behaviour passed to @c addNeighbours() . With
 /// @c auto_add_neighbours this is always @c Revisit::kNone.
-class ohm_API PlaneFillWalker
+class ohm_API FloodFillLayerWalker
 {
 public:
-  /// Revisit behaviour for @c addNeighbours()
-  enum class Revisit : int
-  {
-    kNone = 0,  ///< No revisiting allowed.
-    kAll,       ///< Always revsit, adding neighbours again. Only the most recently added key is ever returned though.
-    kLower,     ///< Revisit if the key appears lower along the up axis.
-    kHigher     ///< Revisit if the key is higher along the up axis.
-  };
-
   /// Entry used to track node visiting in the @c visit_list. The pair loosly track a visiting height range. The first
   /// item is the minimum height at which a voxel has been visited, while the second is the maximum height at which it
   /// has been visited. Matching entries indicate a single visit, unless a negative value is present. A negative value
@@ -63,12 +59,6 @@ public:
     /// A psuedo linked next next pointer - represents the next index into the visit list using 1-based indexing. This
     /// makes zero a null value.
     unsigned next;
-
-    inline bool visited(List &visit_list) const { return min >= 0 || max >= 0; }
-    bool revisitAll(int visit_height, List &visit_list) const;
-    bool revisitHigher(int visit_height, List &visit_list) const;
-    bool revisitLower(int visit_height, List &visit_list) const;
-    inline bool revisitNone(int /*visit_height*/, List &visit_list) const { return !visited(visit_list); }
   };
 
   const OccupancyMap &map;     ///< Map to walk voxels in.
@@ -97,8 +87,8 @@ public:
   /// @param up_axis Specifies the up axis for the map.
   /// @param auto_add_neighbours True to automatically add horizontal neighbours to the open list when visiting
   /// voxels.
-  PlaneFillWalker(const OccupancyMap &map, const Key &min_ext_key, const Key &max_ext_key, UpAxis up_axis,
-                  bool auto_add_neighbours = true);
+  FloodFillLayerWalker(const OccupancyMap &map, const Key &min_ext_key, const Key &max_ext_key, UpAxis up_axis,
+                       bool auto_add_neighbours = true);
 
   /// Initialse @p key To the first voxel to walk.
   /// @param[out] key Set to the first key to be walked.
@@ -120,10 +110,6 @@ public:
     std::array<Key, 8> ignore;
     return addNeighbours(key, ignore, revisit_behaviour);
   }
-
-  /// Marks the given key as visited.
-  /// @param key The key to visit.
-  void touch(const Key &key);
 
 private:
   void visit(int grid_index, int visit_height);

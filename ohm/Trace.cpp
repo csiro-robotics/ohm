@@ -14,6 +14,7 @@ void ohm::trace::init(const std::string &file_stream)
   TES_SETTINGS(settings, tes::SF_Compress | tes::SF_Collate);
   // Initialise server info.
   TES_SERVER_INFO(info, tes::XYZ);
+  TES_STMT(info.defaultFrameTime = 1);
   // Create the server. Use tesServer declared globally above.
   TES_SERVER_CREATE(ohm::g_tes, settings, &info);
 
@@ -21,7 +22,17 @@ void ohm::trace::init(const std::string &file_stream)
   TES_SERVER_START(ohm::g_tes, tes::ConnectionMonitor::Asynchronous);
 
   TES_IF(!file_stream.empty()) { TES_LOCAL_FILE_STREAM(ohm::g_tes, file_stream.c_str()); }
-  TES_SERVER_START_WAIT(ohm::g_tes, 1000);
+  TES_SERVER_START_WAIT(g_tes, 1000);
+
+  TES_CATEGORY(g_tes, "Map", kTcMap, 0, true);
+  TES_CATEGORY(g_tes, "Rays", kTcRays, kTcMap, true);
+  TES_CATEGORY(g_tes, "Voxels", kTcVoxels, kTcMap, true);
+  TES_CATEGORY(g_tes, "Ndt", kTcNdt, kTcMap, true);
+  TES_CATEGORY(g_tes, "Heightmap", kTcHeightmap, 0, true);
+  TES_CATEGORY(g_tes, "Voxels", kTcHmVoxel, kTcHeightmap, true);
+  TES_CATEGORY(g_tes, "Clearance", kTcHmClearance, kTcHeightmap, true);
+  TES_CATEGORY(g_tes, "Visit", kTcHmVisit, kTcHeightmap, true);
+  TES_CATEGORY(g_tes, "Info", kTcHmInfo, kTcHeightmap, true);
 }
 
 

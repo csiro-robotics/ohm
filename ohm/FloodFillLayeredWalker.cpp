@@ -1,9 +1,9 @@
-// Copyright (c) 2019
+// Copyright (c) 2020
 // Commonwealth Scientific and Industrial Research Organisation (CSIRO)
 // ABN 41 687 119 230
 //
 // Author: Kazys Stepanas
-#include "PlaneFillWalker.h"
+#include "FloodFillLayeredWalker.h"
 
 #include "ohm/Key.h"
 #include "ohm/OccupancyMap.h"
@@ -12,8 +12,8 @@
 
 namespace ohm
 {
-PlaneFillWalker::PlaneFillWalker(const OccupancyMap &map, const Key &min_ext_key, const Key &max_ext_key,
-                                 UpAxis up_axis, bool auto_add_neighbours)
+FloodFillLayeredWalker::FloodFillLayeredWalker(const OccupancyMap &map, const Key &min_ext_key, const Key &max_ext_key,
+                                               UpAxis up_axis, bool auto_add_neighbours)
   : map(map)
   , min_ext_key(min_ext_key)
   , max_ext_key(max_ext_key)
@@ -47,29 +47,32 @@ PlaneFillWalker::PlaneFillWalker(const OccupancyMap &map, const Key &min_ext_key
 }
 
 
-bool PlaneFillWalker::begin(Key &key)
+bool FloodFillLayeredWalker::begin(Key &key)
 {
   while (!open_list.empty())
   {
     open_list.pop();
   }
+  visit_grid.clear();
   visit_list.clear();
 
-  visit_list.resize(size_t(key_range[axis_indices[0]]) * size_t(key_range[axis_indices[1]]));
+  visit_grid.resize(size_t(key_range[axis_indices[0]]) * size_t(key_range[axis_indices[1]]));
+  visit_list.reserve(visit_grid.size());
 
-  if (visit_list.empty())
+  if (visit_grid.empty())
   {
     // Key out of range.
     return false;
   }
 
-  // for (auto &touched : visit_list)
-  // {
-  //   touched = Visit(-1, -1);
-  // }
+  std::fill(visit_grid.begin(), visit_grid.end(), 0u);
 
   key.clampTo(min_ext_key, max_ext_key);
-  touch(key);
+
+  // Need to visit the key voxel.
+  const auto idx = touchIndex(key);
+  const int visit_height = visitHeight(key);
+  visit(idx, visit_height);
   if (auto_add_neighbours)
   {
     addNeighbours(key);
@@ -79,7 +82,7 @@ bool PlaneFillWalker::begin(Key &key)
 }
 
 
-bool PlaneFillWalker::walkNext(Key &key)
+bool FloodFillLayeredWalker::walkNext(Key &key)
 {
   // Pop the open list.
   while (!open_list.empty())
@@ -110,7 +113,8 @@ bool PlaneFillWalker::walkNext(Key &key)
 }
 
 
-size_t PlaneFillWalker::addNeighbours(const Key &key, std::array<Key, 8> &added_neighbours, Revisit revisit_behaviour)
+size_t FloodFillLayeredWalker::addNeighbours(const Key &key, std::array<Key, 8> &added_neighbours,
+                                             Revisit revisit_behaviour)
 {
   size_t added = 0;
   for (int row_delta = -1; row_delta <= 1; ++row_delta)
@@ -163,7 +167,7 @@ size_t PlaneFillWalker::addNeighbours(const Key &key, std::array<Key, 8> &added_
 }
 
 
-void PlaneFillWalker::touch(const Key &key)
+void FloodFillLayeredWalker::touch(const Key &key)
 {
   const auto idx = touchIndex(key);
   if (idx != ~0u)
@@ -173,7 +177,7 @@ void PlaneFillWalker::touch(const Key &key)
 }
 
 
-unsigned PlaneFillWalker::touchIndex(const Key &key)
+unsigned FloodFillLayeredWalker::touchIndex(const Key &key)
 {
   // Get the offset for the key.
   const auto offset_to_key = map.rangeBetween(min_ext_key, key);
@@ -191,13 +195,13 @@ unsigned PlaneFillWalker::touchIndex(const Key &key)
 }
 
 
-int PlaneFillWalker::visitHeight(const Key &key) const
+int FloodFillLayeredWalker::visitHeight(const Key &key) const
 {
   return map.rangeBetween(min_ext_key, key)[axis_indices[2]];
 }
 
 
-void PlaneFillWalker::visit(int grid_index, int visit_height)
+void FloodFillLayeredWalker::visit(int grid_index, int visit_height)
 {
   visit_list.emplace_back();
   Visit &new_visit = visit_list.back();
@@ -208,7 +212,7 @@ void PlaneFillWalker::visit(int grid_index, int visit_height)
 }
 
 
-bool PlaneFillWalker::revisitAll(int grid_index, int visit_height) const
+bool FloodFillLayeredWalker::revisitAll(int grid_index, int visit_height) const
 {
   unsigned next_index = visit_grid[grid_index];
   while (next_index)
@@ -226,7 +230,7 @@ bool PlaneFillWalker::revisitAll(int grid_index, int visit_height) const
   return true;
 }
 
-bool PlaneFillWalker::revisitHigher(int grid_index, int visit_height) const
+bool FloodFillLayeredWalker::revisitHigher(int grid_index, int visit_height) const
 {
   unsigned next_index = visit_grid[grid_index];
   while (next_index)
@@ -244,7 +248,7 @@ bool PlaneFillWalker::revisitHigher(int grid_index, int visit_height) const
   return true;
 }
 
-bool PlaneFillWalker::revisitLower(int grid_index, int visit_height) const
+bool FloodFillLayeredWalker::revisitLower(int grid_index, int visit_height) const
 {
   unsigned next_index = visit_grid[grid_index];
   while (next_index)

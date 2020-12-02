@@ -8,10 +8,12 @@
 #include "private/HeightmapDetail.h"
 
 #include "Aabb.h"
+#include "CovarianceVoxel.h"
 #include "DefaultLayer.h"
 #include "HeightmapUtil.h"
 #include "HeightmapVoxel.h"
 #include "Key.h"
+#include "KeyRange.h"
 #include "MapChunk.h"
 #include "MapCoord.h"
 #include "MapInfo.h"
@@ -21,6 +23,7 @@
 #include "OccupancyType.h"
 #include "PlaneFillWalker.h"
 #include "PlaneWalker.h"
+#include "Trace.h"
 #include "VoxelData.h"
 
 #include <glm/gtc/type_ptr.hpp>
@@ -29,7 +32,8 @@
 #include <glm/vec3.hpp>
 #include <glm/vec4.hpp>
 
-#include "CovarianceVoxel.h"
+// Include after GLM types for glm type streaming operators.
+#include "ohmutil/GlmStream.h"
 
 #include <algorithm>
 #include <cstring>
@@ -41,11 +45,40 @@
 #include <3esservermacros.h>
 
 #include <cassert>
+#include <sstream>
+#include <string>
 
 namespace ohm
 {
 namespace
 {
+#ifdef TES_ENABLE
+const uint32_t voxel_id_mask = 0x40000000u;
+const uint32_t neighbour_id_mask = 0x80000000u;
+#endif  // TES_ENABLE
+
+/// Flags for @c findNearestSupportingVoxel() calls
+enum SupportingVoxelFlag : unsigned
+{
+  /// Allow virtual surface candidate voxels to be reported as potential ground candidates.
+  ///
+  /// A virtual surface candidate is a free voxel supported by an unobserved voxel.
+  kVirtualSurfaces = (1u << 0u),
+  /// When an initial candidate voxel is found below and above, prefer the one below. Otherwise prefers the closer one.
+  ///
+  /// This flag is turned when in planar heightmap generation (@c PlaneWalker used). This flag is only on for the seed
+  /// voxel when using a flood fill (@c PlaneFillWalker) after which it is cleared. This allows the seed voxel to find
+  /// the best surface below the reference position, then the flood fill can continue in a mode where the most connnect
+  /// is prefered (closest).
+  kPreferBelow = (1u << 1u),
+  /// Flag used when finding a virtual surface candidate in the lower voxel and an occupied voxel above it. This mode
+  /// prefers the virtual voxel candidate. Virtual surfaces must be enabled.
+  kPromoteVirtualBelow = (1u << 2u),
+  /// Ignore virtual surface candidates above the seed voxel. This generates better heightmaps based on a fixed plane -
+  /// using @c PlaneWalker
+  kIgnoreVirtualAbove = (1u << 3u),
+};
+
 /// Helper structure for managing voxel data access from the source heightmap.
 struct SrcVoxel
 {
@@ -170,10 +203,13 @@ struct DstVoxel
     if (occupancy.isValid() && g_tes)
     {
       // Generate an ID for the voxel.
-      static uint32_t next_id = 1000;  // This will do for now. May have aliasing issues. Better to come from the key.
+      KeyRange heightmap_range;
+      occupancy.map()->calculateExtents(nullptr, nullptr, &heightmap_range);
+      uint32_t voxel_id = heightmap_range.indexOf(occupancy.key());
+      voxel_id |= voxel_id_mask;
       glm::dvec3 voxel_pos = occupancy.map()->voxelCentreGlobal(occupancy.key());
       voxel_pos[up_axis] += up_scale * heightmap.data().height;
-      tes::Box voxel(tes::Id(next_id),
+      tes::Box voxel(tes::Id(voxel_id, kTcHmVoxel),
                      tes::Transform(glm::value_ptr(voxel_pos), tes::Vector3d(occupancy.map()->resolution())));
       voxel.setReplace(true);
       // voxel.setTransparent(true);
@@ -185,14 +221,12 @@ struct DstVoxel
       glm::dvec3 clearance_dir(0);
       clearance_dir[up_axis] = up_scale;
 
-      tes::Arrow clearance(tes::Id(next_id),
+      tes::Arrow clearance(tes::Id(voxel_id, kTcHmClearance),
                            tes::Directional(tes::Vector3d(glm::value_ptr(voxel_pos)),
                                             tes::Vector3d(glm::value_ptr(clearance_dir)), 0.005, clearance_height));
-      clearance.setColour(tes::Colour::Colours[tes::Colour::Orange]);
+      clearance.setColour(tes::Colour::Colours[tes::Colour::Orange]).setWireframe(true);
       clearance.setReplace(true);
       g_tes->create(clearance);
-
-      next_id++;
     }
 #endif  // TES_ENABLE
   }
@@ -243,18 +277,19 @@ inline OccupancyType sourceVoxelHeight(glm::dvec3 *voxel_position, double *heigh
 /// @param search_up A flag used to indicate if we are searching up a column or not. The sign between @c from_key and
 /// cannot be used to infer this as this information is is defined by the heightmap primary axis, for which up may be
 /// alinged with an increasting, negative magnitude.
-/// @param allow_virtual_surface True to consider virtual surface voxels - free voxels "supported" by unobserved voxels
-///   representig the best possible surface estimate.
+/// @param flags Flags affecting reporting. Only @c SupportingVoxelFlag::kVirtualSurfaces is considered here. When
+///   set, consider virtual surface voxels - free voxels "supported" by unobserved voxels representig the best possible
+///   surface estimate.
 /// @param[out] offset On success, set the number of voxels between @c from_key and the selected voxel. Undefined on
 /// failure.
 /// @param[out] is_virtual On success, set to true if the selected voxel is a virtual surface voxel. False when the
 /// selected voxel is an occupied voxel. Undefined on failure.
-/// @return The first voxel found which is either occupied or a virtual surface voxel when @c allow_virtual_surface is
-/// true. The result is a null key on failure to find such a voxel within the search limits.
+/// @return The first voxel found which is either occupied or a virtual surface voxel when @c kVirtualSurfaces is
+///   set. The result is a null key on failure to find such a voxel within the search limits.
 Key findNearestSupportingVoxel2(SrcVoxel &voxel, const Key &from_key, const Key &to_key, int up_axis_index,
-                                int step_limit, bool search_up, bool allow_virtual_surface, int *offset,
-                                bool *is_virtual)
+                                int step_limit, bool search_up, unsigned flags, int *offset, bool *is_virtual)
 {
+  const bool allow_virtual_surface = (flags & kVirtualSurfaces) != 0;
   // Calculate the vertical range we will be searching.
   // Note: the vertical_range sign may not be what you expect. It will match search_up (true === +, false === -)
   // when the up axis is +X, +Y, or +Z. It will not match when the up axis is -X, -Y, or -Z.
@@ -391,14 +426,11 @@ Key findNearestSupportingVoxel2(SrcVoxel &voxel, const Key &from_key, const Key 
 /// @param voxel_ceiling The number of voxels the function is allowed to consider above the @p seed_key.
 /// @param clearance_voxel_count_permissive The number of voxels required to pass the clearance value. Used to
 ///   discriminate the voxel below when the candidate above is within this range, but non-virtual.
-/// @param allow_virtual_surface True to consider virtual surface voxels - free voxels "supported" by unobserved voxels
-///   representig the best possible surface estimate.
-/// @param promote_virtual_below Report virtual surface voxels below the @p seed_key which are virtual in preference to
-///   real voxels above.
+/// @param flags Control flags from @c SupportingVoxelFlag.
 /// @return A new seed key from which to start searching for a valid ground voxel (@c findGround()).
 inline Key findNearestSupportingVoxel(SrcVoxel &voxel, const Key &seed_key, UpAxis up_axis, const Key &min_key,
                                       const Key &max_key, int voxel_ceiling, int clearance_voxel_count_permissive,
-                                      bool allow_virtual_surface, bool promote_virtual_below)
+                                      unsigned flags)
 {
   PROFILE(findNearestSupportingVoxel);
   Key above;
@@ -411,16 +443,31 @@ inline Key findNearestSupportingVoxel(SrcVoxel &voxel, const Key &seed_key, UpAx
   const int up_axis_index = (int(up_axis) >= 0) ? int(up_axis) : -int(up_axis) - 1;
   const Key &search_down_to = (int(up_axis) >= 0) ? min_key : max_key;
   const Key &search_up_to = (int(up_axis) >= 0) ? max_key : min_key;
-  below = findNearestSupportingVoxel2(voxel, seed_key, search_down_to, up_axis_index, 0, false, allow_virtual_surface,
-                                      &offset_below, &virtual_below);
-  above = findNearestSupportingVoxel2(voxel, seed_key, search_up_to, up_axis_index, voxel_ceiling, true,
-                                      allow_virtual_surface, &offset_above, &virtual_above);
+  below = findNearestSupportingVoxel2(voxel, seed_key, search_down_to, up_axis_index, 0, false, flags, &offset_below,
+                                      &virtual_below);
+  above = findNearestSupportingVoxel2(voxel, seed_key, search_up_to, up_axis_index, voxel_ceiling, true, flags,
+                                      &offset_above, &virtual_above);
 
   const bool have_candidate_below = offset_below >= 0;
   const bool have_candidate_above = offset_above >= 0;
 
   // Ignore the fact that the voxel below is virtual when prefer_virtual_below is set.
+  const bool promote_virtual_below = (flags & kPromoteVirtualBelow) != 0;
   virtual_below = have_candidate_below && virtual_below && !promote_virtual_below;
+
+  if ((flags & kPreferBelow) == 0)
+  {
+    // Prefering the closer voxel.
+    if (have_candidate_below && have_candidate_above)
+    {
+      if (offset_below <= offset_above)
+      {
+        return below;
+      }
+
+      return above;
+    }
+  }
 
   // Prefer non-virtual over virtual. Prefer the closer result.
   if (have_candidate_below && virtual_above && !virtual_below)
@@ -433,11 +480,14 @@ inline Key findNearestSupportingVoxel(SrcVoxel &voxel, const Key &seed_key, UpAx
     return above;
   }
 
-  // We never allow virtual voxels above as this generates better heightmaps. Virtual surfaces are more interesting
-  // when approaching a slope down than any such information above.
-  if (have_candidate_below && virtual_above && virtual_below)
+  if (flags & kIgnoreVirtualAbove)
   {
-    return below;
+    // Inore virtual voxels above. This this generates better heightmaps from a fixed reference plane. Virtual surfaces
+    // are more interesting when approaching a slope down than any such information above.
+    if (have_candidate_below && virtual_above && virtual_below)
+    {
+      return below;
+    }
   }
 
   // When both above and below have valid candidates. We prefer the lower one if there is sufficient clearance from
@@ -551,11 +601,11 @@ Key findGround(double *height_out, double *clearance_out, SrcVoxel &voxel, const
 }
 
 
-void onVisitPlaneFill(PlaneFillWalker &walker, const HeightmapDetail &imp, const Key &candidate_key,
-                      const Key &ground_key)
+void onVisitPlaneFill(PlaneFillWalker &walker, const HeightmapDetail &imp, const Key &walk_key,
+                      const Key &candidate_key, const Key &ground_key)
 {
 // Add neighbours for walking.
-#if 1
+#if 0
   PlaneFillWalker::Revisit revisit_behaviour = PlaneFillWalker::Revisit::kNone;
   if (!candidate_key.isNull())
   {
@@ -576,15 +626,41 @@ void onVisitPlaneFill(PlaneFillWalker &walker, const HeightmapDetail &imp, const
 #ifdef TES_ENABLE
   if (g_tes)
   {
+    // Add the neighbours for debug visualisation
+    KeyRange source_map_range;
+    uint32_t voxel_id;
+    imp.occupancy_map->calculateExtents(nullptr, nullptr, &source_map_range);
     for (size_t i = 0; i < added_count; ++i)
     {
       const Key &nkey = neighbours[i];
+      voxel_id = source_map_range.indexOf(nkey);
+      voxel_id |= neighbour_id_mask;
       const glm::dvec3 pos = imp.occupancy_map->voxelCentreGlobal(nkey);
-      tes::Box neighbour(
-        tes::Id(0), tes::Transform(tes::Vector3d(glm::value_ptr(pos)), tes::Vector3d(imp.heightmap->resolution())));
+      tes::Box neighbour(tes::Id(voxel_id, kTcHmVisit), tes::Transform(tes::Vector3d(glm::value_ptr(pos)),
+                                                                       tes::Vector3d(imp.heightmap->resolution())));
       neighbour.setColour(tes::Colour::Colours[tes::Colour::CornflowerBlue]).setWireframe(true);
+      neighbour.setReplace(true);
       g_tes->create(neighbour);
     }
+
+    // Delete the previous candidate voxel visualisation.
+    voxel_id = source_map_range.indexOf(walk_key);
+    voxel_id |= neighbour_id_mask;
+    g_tes->destroy(tes::Box(tes::Id(voxel_id, kTcHmVisit)));
+
+    /// Visualise the candiate with a transient box (single frame)
+    const glm::dvec3 pos = imp.occupancy_map->voxelCentreGlobal(walk_key);
+    tes::Box neighbour(tes::Id(0, kTcHmVisit),
+                       tes::Transform(tes::Vector3d(glm::value_ptr(pos)), tes::Vector3d(imp.heightmap->resolution())));
+    neighbour.setColour(tes::Colour::Colours[tes::Colour::LightGoldenrodYellow]).setWireframe(true);
+    g_tes->create(neighbour);
+
+    std::ostringstream info;
+    info << "R" << walk_key.regionKey() << " L" << walk_key.localKey();
+    const std::string str = info.str();
+    tes::Text3D info_text(str.c_str(), tes::Id(0, kTcHmInfo), tes::Directional(tes::Vector3d(glm::value_ptr(pos))));
+    info_text.setScreenFacing(true).setColour(neighbour.colour());
+    g_tes->create(info_text);
   }
 #endif  // neighbours
 }
@@ -817,16 +893,24 @@ bool Heightmap::buildHeightmap(const glm::dvec3 &reference_pos, const ohm::Aabb 
   const Key max_ext_key = src_map.voxelKey(src_region.maxExtents());
 
   unsigned processed_count = 0;
+  unsigned supporting_voxel_flags =
+    !!imp_->generate_virtual_surface * kVirtualSurfaces | !!imp_->promote_virtual_below * kPromoteVirtualBelow;
   if (!imp_->use_flood_fill)
   {
+    // Pure planar walk must prefer below and does better ignoring virtual surfaces above the plane.
+    supporting_voxel_flags |= kPreferBelow | kIgnoreVirtualAbove;
     const Key planar_key = src_map.voxelKey(reference_pos);
     PlaneWalker walker(src_map, min_ext_key, max_ext_key, imp_->up_axis_id, &planar_key);
-    processed_count = buildHeightmapT(walker, reference_pos);
+    processed_count = buildHeightmapT(walker, reference_pos, supporting_voxel_flags, supporting_voxel_flags);
   }
   else
   {
+    // We should prefer voxels below for the first iteration, when seeding, after that we prefer the closest candidate
+    // supporting voxel to the seed voxel.
+    const unsigned initial_supporting_voxel_flags = supporting_voxel_flags | kPreferBelow;
     PlaneFillWalker walker(src_map, min_ext_key, max_ext_key, imp_->up_axis_id, false);
-    processed_count = buildHeightmapT(walker, reference_pos, &onVisitPlaneFill);
+    processed_count = buildHeightmapT(walker, reference_pos, initial_supporting_voxel_flags, supporting_voxel_flags,
+                                      WalkVisitFunc<PlaneFillWalker>(&onVisitPlaneFill));
   }
 
 #if PROFILING
@@ -901,8 +985,8 @@ Key &Heightmap::project(Key *key) const
 
 
 template <typename KeyWalker>
-bool Heightmap::buildHeightmapT(KeyWalker &walker, const glm::dvec3 &reference_pos,
-                                void (*on_visit)(KeyWalker &, const HeightmapDetail &, const Key &, const Key &))
+bool Heightmap::buildHeightmapT(KeyWalker &walker, const glm::dvec3 &reference_pos, unsigned initial_supporting_flags,
+                                unsigned iterating_supporting_flags, WalkVisitFunc<KeyWalker> on_visit)
 {
   // Brute force initial approach.
   const OccupancyMap &src_map = *imp_->occupancy_map;
@@ -951,6 +1035,8 @@ bool Heightmap::buildHeightmapT(KeyWalker &walker, const glm::dvec3 &reference_p
   DstVoxel hm_voxel(heightmap, imp_->heightmap_layer, use_voxel_mean);
 
   const glm::dvec3 debug_pos(2.05, 0.75, 0);
+  const Key debug_src_key(1, 0, 0, 11, 3, 23);
+  unsigned supporting_voxel_flags = initial_supporting_flags;
   bool abort = false;
   do
   {
@@ -961,13 +1047,18 @@ bool Heightmap::buildHeightmapT(KeyWalker &walker, const glm::dvec3 &reference_p
       int stopme = 1;
     }
 
+    if (walk_key == debug_src_key)
+    {
+      int stopme = 2;
+    }
+
     // Find the nearest voxel to the current key which may be a ground candidate.
     // This is key closest to the walk_key which could be ground. This will be either an occupied voxel, or virtual
     // ground voxel.
     // Virtual ground is where a free is supported by an uncertain or null voxel below it.
-    Key candidate_key = findNearestSupportingVoxel(src_voxel, walk_key, upAxis(), walker.min_ext_key,
-                                                   walker.max_ext_key, voxel_ceiling, clearance_voxel_count_permissive,
-                                                   imp_->generate_virtual_surface, imp_->promote_virtual_below);
+    Key candidate_key =
+      findNearestSupportingVoxel(src_voxel, walk_key, upAxis(), walker.min_ext_key, walker.max_ext_key, voxel_ceiling,
+                                 clearance_voxel_count_permissive, supporting_voxel_flags);
 
     // Walk up from the candidate to find the best heightmap voxel.
     double height = 0;
@@ -980,7 +1071,7 @@ bool Heightmap::buildHeightmapT(KeyWalker &walker, const glm::dvec3 &reference_p
 
     if (on_visit)
     {
-      (*on_visit)(walker, *imp_, candidate_key, ground_key);
+      on_visit(walker, *imp_, walk_key, candidate_key, ground_key);
     }
 
     // Write to the heightmap.
@@ -1040,11 +1131,12 @@ bool Heightmap::buildHeightmapT(KeyWalker &walker, const glm::dvec3 &reference_p
         hm_voxel.heightmap.write(height_info);
 
         hm_voxel.debugDraw(imp_->debug_level, imp_->vertical_axis_index, int(imp_->up_axis_id) >= 0 ? 1.0 : -1.0);
-        TES_SERVER_UPDATE(g_tes, 0.0f);
-
         ++populated_count;
       }
     }
+
+    TES_SERVER_UPDATE(g_tes, 0.0f);
+    supporting_voxel_flags = iterating_supporting_flags;
   } while (!abort && walker.walkNext(walk_key));
 
   return populated_count != 0;

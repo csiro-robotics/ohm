@@ -16,6 +16,7 @@
 
 #include <glm/fwd.hpp>
 
+#include <functional>
 #include <vector>
 
 namespace ohm
@@ -295,6 +296,10 @@ public:
   Key &project(Key *key) const;
 
 private:
+  template <typename KeyWalker>
+  using WalkVisitFunc =
+    std::function<void(KeyWalker &, const HeightmapDetail &, const Key &, const Key &, const Key &)>;
+
   /// Internal implementation of heightmap construction. Supports the different key walking techniques available.
   /// @param walker The key walker used to iterate the source map and heightmap overlap.
   /// @param reference_pos Reference position around which to generate the heightmap
@@ -302,11 +307,12 @@ private:
   ///   internal details, the candidate key first evaluated for the column search start, the ground key to be migrated
   ///   to the heightmap. Both keys reference the source map.
   template <typename KeyWalker>
-  bool buildHeightmapT(KeyWalker &walker, const glm::dvec3 &reference_pos,
-                       void (*on_visit)(KeyWalker &, const HeightmapDetail &, const Key &, const Key &) = nullptr);
+  bool buildHeightmapT(KeyWalker &walker, const glm::dvec3 &reference_pos, unsigned initial_supporting_flags,
+                       unsigned iterating_supporting_flags,
+                       WalkVisitFunc<KeyWalker> on_visit = WalkVisitFunc<KeyWalker>());
 
   std::unique_ptr<HeightmapDetail> imp_;
-};
+};  // namespace ohm
 }  // namespace ohm
 
 #endif  // HEIGHTMAP_H
