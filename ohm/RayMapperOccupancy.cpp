@@ -213,7 +213,7 @@ size_t RayMapperOccupancy::lookupRays(const glm::dvec3 *rays, size_t element_cou
   const auto occupancy_dim = occupancy_dim_;
   const auto occupancy_threshold_value = map_->occupancyThresholdValue();
   const auto map_origin = map_->origin();
-  const float ray_solid_angle = (float)(1 / 180 * M_PI * 1 / 180 * M_PI); // TODO: parameterise
+  const float ray_solid_angle = (float)(1.0 / 180.0 * M_PI * 1.0 / 180.0 * M_PI); // TODO: parameterise
   // Touch the map to flag changes.
 
   const auto visit_func = [&](const Key &key, float enter_range, float exit_range)  //
@@ -235,30 +235,31 @@ size_t RayMapperOccupancy::lookupRays(const glm::dvec3 *rays, size_t element_cou
     // 3. Calculate new value
     // 4. Apply saturation logic: only min saturation relevant
     //    -
+
+    // TODO: change map_->region(key.regionKey(), true) to false, handle null MapChunk
+    const unsigned voxel_index = ohm::voxelIndex(key, occupancy_dim);
+    float occupancy_value = unobservedOccupancyValue();
     MapChunk *chunk =
-      (last_chunk && key.regionKey() == last_chunk->region.coord) ? last_chunk : map_->region(key.regionKey(), true);
-    if (chunk != last_chunk)
+      (last_chunk && key.regionKey() == last_chunk->region.coord) ? last_chunk : map_->region(key.regionKey(), false);
+    if (chunk)
     {
-      occupancy_buffer = VoxelBuffer<VoxelBlock>(chunk->voxel_blocks[occupancy_layer]);
+      if (chunk != last_chunk)
+      {
+        occupancy_buffer = VoxelBuffer<VoxelBlock>(chunk->voxel_blocks[occupancy_layer]);
+      }
+      occupancy_buffer.readVoxel(voxel_index, &occupancy_value);
     }
     last_chunk = chunk;
-    const unsigned voxel_index = ohm::voxelIndex(key, occupancy_dim);
-    float occupancy_value;
-    occupancy_buffer.readVoxel(voxel_index, &occupancy_value);
     const bool is_unobserved = occupancy_value == unobservedOccupancyValue();
     const bool is_occupied = !is_unobserved && occupancy_value > occupancy_threshold_value;
     if (!stop_adjustments)
     {
-      newly_observed_volume += is_unobserved * ray_solid_angle *
-                               (exit_range * exit_range * exit_range - enter_range * enter_range * enter_range);
+      newly_observed_volume += is_unobserved ? (ray_solid_angle *
+                               (exit_range * exit_range * exit_range - enter_range * enter_range * enter_range)) : 0.0f;
       range = exit_range;
       terminal_state =
         is_unobserved ? OccupancyType::kUnobserved : (is_occupied ? OccupancyType::kOccupied : OccupancyType::kFree);
     }
-    // Lint(KS): The analyser takes some branches which are not possible in practice.
-    // NOLINTNEXTLINE(clang-analyzer-core.CallAndMessage)
-    chunk->updateFirstValid(voxel_index); // Question(JW): what does this do
-
     stop_adjustments = stop_adjustments || is_occupied;
   };
 

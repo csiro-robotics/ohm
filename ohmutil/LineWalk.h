@@ -96,7 +96,8 @@ size_t walkSegmentKeys(const WALKFUNC &walk_func, const glm::dvec3 &start_point,
     const glm::dvec3 voxel = funcs.voxelCentre(start_point_key);
     const double next_voxel_border =
       voxel[axis] + sign_direction * 0.5 * funcs.voxelResolution(axis);  // NOLINT(readability-magic-numbers)
-    const double first_voxel_length = std::abs(next_voxel_border - start_point[axis]);
+    const double first_voxel_length =
+      std::abs((next_voxel_border - start_point[axis]) / (end_point[axis] - start_point[axis])) * length;
     walk_func(start_point_key, 0.0, first_voxel_length);
     if (include_end_point)
     {
@@ -156,7 +157,7 @@ size_t walkSegmentKeys(const WALKFUNC &walk_func, const glm::dvec3 &start_point,
     limit_reached = std::abs(time_max[axis]) > time_limit[axis]; // Question(JW): why is this abs? Isn't time_max non-negative? Just for round-off?
     time_max[axis] += time_delta[axis];
     const double new_time_current = limit_reached ? time_limit[axis] : time_max[axis];
-    walk_func(current_key, time_current, time_max[axis]);
+    walk_func(current_key, time_current, new_time_current);
     time_current = new_time_current;
     ++added;
     funcs.stepKey(current_key, axis, step[axis]);
