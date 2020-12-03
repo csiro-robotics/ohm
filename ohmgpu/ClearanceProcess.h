@@ -20,6 +20,8 @@ class OccupancyMap;
 
 /// This query calculates the @c Voxel::clearance() for all voxels within the query extents.
 ///
+/// > This class is experimental. There are many issues associated with keeping the GPU cache in sync and suboptimal.
+///
 /// For each voxel in the query expanse, the range to the nearest obstructed voxel (see @c Query) is calculated and
 /// written back into the voxel's @c clearance value. The range of the calculation is limited by the
 /// @c searchRange() and is not exhaustive.
@@ -54,6 +56,10 @@ class OccupancyMap;
 /// - @c Query::ranges() contains no data.
 ///
 /// Results are instead available via @c VoxelConst::clearance() or  @c Voxel::clearance().
+///
+/// @bug This class is broken and does not reliably generate any useful results - at least when using the GPU flag.
+/// There are some unit tests for which it may work - notably those using the @c LineQueryGpu class, while usage with
+/// the @c Mapper class will fail to generate meaningful results - notably the GPU test `Mapper.Clearance` (disabled).
 class ohmgpu_API ClearanceProcess : public MappingProcess
 {
 public:

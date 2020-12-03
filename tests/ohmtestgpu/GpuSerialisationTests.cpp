@@ -30,11 +30,9 @@
 
 #include <gtest/gtest.h>
 
-using namespace ohm;
-
 namespace searialisationtests
 {
-class ProgressDisplay : public SerialiseProgress
+class ProgressDisplay : public ohm::SerialiseProgress
 {
 public:
   unsigned target() const { return target_; }
@@ -69,37 +67,46 @@ private:
 
 TEST(Serialisation, GpuClearance)
 {
-  const char *map_name = "test-map.ohm";
+  const std::string base_name = "gpu-clearance";
+  const std::string map_name = base_name + ".ohm";
+  const std::string cloud_name = base_name + "-cloud.ply";
+  const std::string clearance_name = base_name + "-clearance.ply";
   // Profile profile;
   int error_code = 0;
   const double boundary_distance = 2.5;
-  OccupancyMap save_map(0.25);
-  OccupancyMap load_map(1);  // Initialise at the wrong resolution. Will be fixed on load.
+  ohm::OccupancyMap save_map(0.25);
+  ohm::OccupancyMap load_map(1);  // Initialise at the wrong resolution. Will be fixed on load.
 
   // Build a cloud with real samples around a cubic boundary. Does not cover every voxel in the boundary.
   ohmgen::boxRoom(save_map, glm::dvec3(-boundary_distance), glm::dvec3(boundary_distance));
 
   // Calculate clearance values.
-  ClearanceProcess clearance(1.0f, kQfGpuEvaluate);
+  ohm::ClearanceProcess clearance(1.0f, ohm::kQfGpuEvaluate);
   clearance.update(save_map, 0);
 
   ProgressDisplay progress;
   std::cout << "Saving" << std::endl;
-  error_code = save(map_name, save_map, &progress);
+  error_code = ohm::save(map_name.c_str(), save_map, &progress);
   std::cout << std::endl;
   ASSERT_EQ(error_code, 0);
 
+  ohmtools::saveCloud(cloud_name.c_str(), save_map);
+  glm::dvec3 min_ext{};
+  glm::dvec3 max_ext{};
+  save_map.calculateExtents(&min_ext, &max_ext);
+  ohmtools::saveClearanceCloud(clearance_name.c_str(), save_map, min_ext, max_ext, boundary_distance);
+
   std::cout << "Validate header" << std::endl;
-  MapVersion version;
-  error_code = loadHeader(map_name, load_map, &version);
+  ohm::MapVersion version;
+  error_code = ohm::loadHeader(map_name.c_str(), load_map, &version);
   ASSERT_EQ(error_code, 0);
-  ASSERT_EQ(version.major, kCurrentVersion.major);
-  ASSERT_EQ(version.minor, kCurrentVersion.minor);
-  ASSERT_EQ(version.patch, kCurrentVersion.patch);
+  ASSERT_EQ(version.major, ohm::kCurrentVersion.major);
+  ASSERT_EQ(version.minor, ohm::kCurrentVersion.minor);
+  ASSERT_EQ(version.patch, ohm::kCurrentVersion.patch);
 
   progress.reset();
   std::cout << "Loading" << std::endl;
-  error_code = load(map_name, load_map, &progress);
+  error_code = ohm::load(map_name.c_str(), load_map, &progress);
   std::cout << std::endl;
   ASSERT_EQ(error_code, 0);
 
@@ -108,13 +115,13 @@ TEST(Serialisation, GpuClearance)
 
 
 // Legacy code used to generate the test map for Serialisation.Upgrade.
-void cubicRoomLegacy(OccupancyMap &map, float boundary_range, int voxel_step)
+void cubicRoomLegacy(ohm::OccupancyMap &map, float boundary_range, int voxel_step)
 {
   int extents = int(boundary_range / map.resolution());
 
   const auto build_walls = [&map, extents, voxel_step](int a0, int a1, int a2) {
     const double map_res = map.resolution();
-    KeyList ray;
+    ohm::KeyList ray;
     glm::dvec3 point;
     glm::dvec3 origin = map.origin();
     for (int i = -extents + 1; i <= extents; i += voxel_step)
