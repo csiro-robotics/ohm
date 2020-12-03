@@ -16,6 +16,7 @@ ClearingPattern::ClearingPattern(const RayPattern *pattern, bool take_ownership)
 {
   imp_->pattern = pattern;
   imp_->has_pattern_ownership = take_ownership;
+  imp_->ray_flags = kDefaultRayFlags;
 }
 
 ClearingPattern::~ClearingPattern()
@@ -34,6 +35,16 @@ const RayPattern *ClearingPattern::pattern() const
 bool ClearingPattern::hasPatternOwnership() const
 {
   return imp_->has_pattern_ownership;
+}
+
+unsigned ClearingPattern::rayFlags() const
+{
+  return imp_->ray_flags;
+}
+
+void ClearingPattern::setRayFlags(unsigned ray_flags)
+{
+  imp_->ray_flags = ray_flags;
 }
 
 const glm::dvec3 *ClearingPattern::lastRaySet(size_t *element_count) const

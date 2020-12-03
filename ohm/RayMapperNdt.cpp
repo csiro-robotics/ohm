@@ -62,7 +62,6 @@ size_t RayMapperNdt::integrateRays(const glm::dvec3 *rays, size_t element_count,
   const bool use_filter = bool(ray_filter);
   const auto occupancy_layer = occupancy_layer_;
   const auto occupancy_dim = occupancy_dim_;
-  const auto occupancy_threshold_value = occupancy_map.occupancyThresholdValue();
   const auto map_origin = occupancy_map.origin();
   const auto miss_value = occupancy_map.missValue();
   const auto hit_value = occupancy_map.hitValue();
@@ -94,13 +93,11 @@ size_t RayMapperNdt::integrateRays(const glm::dvec3 *rays, size_t element_count,
     //    - Make a direct, non-additive adjustment if one of the following conditions are met:
     //      - stop_adjustments is true
     //      - the voxel is uncertain
-    //      - (ray_update_flags & kRfClearOnly) and not is_occupied - we only want to adjust occupied voxels.
     //      - voxel is saturated
     //    - Otherwise add to present value.
     // 2. Select the value adjustment
     //    - current_value if one of the following conditions are met:
     //      - stop_adjustments is true (no longer making adjustments)
-    //      - (ray_update_flags & kRfClearOnly) and not is_occupied (only looking to affect occupied voxels)
     //    - miss_value otherwise
     // 3. Calculate new value
     // 4. Apply saturation logic: only min saturation relevant
@@ -127,7 +124,6 @@ size_t RayMapperNdt::integrateRays(const glm::dvec3 *rays, size_t element_count,
     const float initial_value = occupancy_value;
     float adjusted_value = initial_value;
 
-    const bool is_occupied = (initial_value != unobservedOccupancyValue() && initial_value > occupancy_threshold_value);
     calculateMissNdt(&cov, &adjusted_value, start, sample, mean, voxel_mean.count, unobservedOccupancyValue(),
                      miss_value, ndt_adaptation_rate, sensor_noise, ndt_sample_threshold);
     occupancyAdjustDown(&occupancy_value, initial_value, adjusted_value, unobservedOccupancyValue(), voxel_min,
@@ -137,7 +133,7 @@ size_t RayMapperNdt::integrateRays(const glm::dvec3 *rays, size_t element_count,
     // NOLINTNEXTLINE(clang-analyzer-core.CallAndMessage)
     chunk->updateFirstValid(voxel_index);
 
-    stop_adjustments = stop_adjustments || ((ray_update_flags & kRfStopOnFirstOccupied) && is_occupied);
+    stop_adjustments = stop_adjustments;
     chunk->dirty_stamp = touch_stamp;
     // Update the touched_stamps with relaxed memory ordering. The important thing is to have an update,
     // not so much the sequencing. We really don't want to synchronise here.

@@ -11,16 +11,17 @@
 #include <ohm/RayPatternConical.h>
 #include <ohm/VoxelData.h>
 
+#include <ohmtestcommon/RayPatternTestUtil.h>
+
 #include <3esservermacros.h>
 
+#include <array>
 #include <cstdio>
 #include <vector>
 
 #include <glm/ext.hpp>
 
 #include <gtest/gtest.h>
-#include "ohm/ClearingPattern.h"
-#include "ohm/OccupancyMap.h"
 
 #ifdef OHM_WITH_PNG
 #include <png.h>
@@ -212,5 +213,12 @@ TEST(RayPattern, Clearing)
     map.moveKey(key, 1, 0, 0);
   }
   voxel_read.reset();
+}
+
+TEST(RayPattern, Exclude)
+{
+  // First build a simple map with three voxels of interest along X: { unobserved, free, occupied, occupied }
+  ohm::OccupancyMap map(1.0);
+  ohmtestutil::RayPatternExcludeTest(map, map);
 }
 }  // namespace raypattern

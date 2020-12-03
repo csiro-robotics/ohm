@@ -241,28 +241,6 @@ public:
 
   using RayMapper::integrateRays;
 
-  /// Integrate a ray clearing pattern into the map. A clearing is integrated as a set of rays using the @c RayFlag
-  /// set: @c kRfStopOnFirstOccupied, @c kRfClearOnly. This has the effect of reducing the probability of the first
-  /// occupied voxel encountered, then stopping ray traversal.
-  ///
-  /// Clearing patterns are intended as a way to remove samples which would otherwise persist. This may occur when
-  /// lidar samples are added from a transient object, the object moves, but no new samples are attained behind the
-  /// transient samples. A clearing pattern will erode these. The erosion is countered by resampling where obstacles
-  /// persist.
-  ///
-  /// @param rays The set of clearing pattern rays to integrate into the map.
-  /// @param element_count Number of origin/end point pairs in @p rays. Must be even/
-  void applyClearingPattern(const glm::dvec3 *rays, size_t element_count);
-
-  /// An overload which builds a clearance pattern from a cone.
-  /// @param apex The apex of the cone.
-  /// @param cone_axis The central axis of the cone.
-  /// @param cone_angle The angle between @p cone_axis and the cone wall (radians).
-  /// @param range The length of each ray in the cone. Note this makes for a round bottom cone.
-  /// @param angular_resolution The angular resolution to build the cone to (radians).
-  void applyClearingPattern(const glm::dvec3 &apex, const glm::dvec3 &cone_axis, double cone_angle, double range,
-                            double angular_resolution = 0);
-
   /// Internal use: get the GPU cache used by this map.
   /// @return The GPU cache this map uses.
   GpuCache *gpuCache() const;
