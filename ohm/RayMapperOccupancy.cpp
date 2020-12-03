@@ -272,11 +272,27 @@ size_t RayMapperOccupancy::lookupRays(const glm::dvec3 *rays, size_t element_cou
     start = rays[i];
     end = rays[i + 1];
 
+    newly_observed_volume = 0.0f;
+    range = 0.0f;
+    terminal_state = OccupancyType::kNull;
+    
     if (use_filter)
     {
       if (!ray_filter(&start, &end, &filter_flags))
       {
         // Bad ray.
+        if (newly_observed_volumes)
+        {
+          newly_observed_volumes[i >> 1] = newly_observed_volume;
+        }
+        if (ranges)
+        {
+          ranges[i >> 1] = range;
+        }
+        if (terminal_states)
+        {
+          terminal_states[i >> 1] = terminal_state;
+        }
         continue;
       }
     }
@@ -286,9 +302,6 @@ size_t RayMapperOccupancy::lookupRays(const glm::dvec3 *rays, size_t element_cou
     const glm::dvec3 end_point_local = glm::dvec3(end - map_origin);
 
     stop_adjustments = false;
-    newly_observed_volume = 0.0f;
-    range = 0.0f;
-    terminal_state = OccupancyType::kNull;
     ohm::walkSegmentKeys<Key>(visit_func, start_point_local, end_point_local, true, WalkKeyAdaptor(*map_));
 
     if (newly_observed_volumes)
