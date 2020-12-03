@@ -57,9 +57,8 @@ class OccupancyMap;
 ///
 /// Results are instead available via @c VoxelConst::clearance() or  @c Voxel::clearance().
 ///
-/// @bug This class is broken and does not reliably generate any useful results - at least when using the GPU flag.
-/// There are some unit tests for which it may work - notably those using the @c LineQueryGpu class, while usage with
-/// the @c Mapper class will fail to generate meaningful results - notably the GPU test `Mapper.Clearance` (disabled).
+/// @note This class is experimental and poorly maintained. Using @c update() to make progressive updates is known
+/// to have non-deterministic results.
 class ohmgpu_API ClearanceProcess : public MappingProcess
 {
 public:
