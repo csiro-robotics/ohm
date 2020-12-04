@@ -9,6 +9,7 @@
 #include "OhmConfig.h"
 
 #include "Aabb.h"
+#include "HeightmapMode.h"
 #include "HeightmapVoxelType.h"
 #include "UpAxis.h"
 
@@ -194,13 +195,30 @@ public:
   /// @return True to prefer virtual voxels below the reference position.
   bool promoteVirtualBelow() const;
 
+  /// Sets the heightmap genertation mode. May be modified between calls to @c buildHeightmap()
+  /// @param mode The target mode.
+  void setMode(HeightmapMode mode);
+
+  /// Query the heightmap genertation mode. The default is @c kPlanar.
+  /// @return The current heightmap generation mode.
+  HeightmapMode mode() const;
+
   /// Set the heightmap generation to flood fill ( @c true ) or planar ( @c false ).
+  ///
+  /// @deprecated Use @c setMode(HeightmapMode::kSimpleFill).
+  ///
   /// @param flood_fill True to enable the flood fill technique.
-  void setUseFloodFill(bool flood_fill);
+  inline void setUseFloodFill(bool flood_fill)
+  {
+    setMode(flood_fill ? HeightmapMode::kSimpleFill : HeightmapMode::kPlanar);
+  }
 
   /// Is the flood fill generation technique in use ( @c true ) or planar technique ( @c false ).
+  ///
+  /// @deprecated Check @c mode() against @c HeightmapMode::kSimpleFill.
+  ///
   /// @return True when using flood fill.
-  bool useFloodFill() const;
+  inline bool useFloodFill() const { return mode() == HeightmapMode::kSimpleFill; }
 
   /// The layer number which contains @c HeightmapVoxel structures.
   /// @return The heightmap layer index or -1 on error (not present).
@@ -308,8 +326,7 @@ private:
   ///   to the heightmap. Both keys reference the source map.
   template <typename KeyWalker>
   bool buildHeightmapT(KeyWalker &walker, const glm::dvec3 &reference_pos, unsigned initial_supporting_flags,
-                       unsigned iterating_supporting_flags,
-                       WalkVisitFunc<KeyWalker> on_visit = WalkVisitFunc<KeyWalker>());
+                       unsigned iterating_supporting_flags);
 
   std::unique_ptr<HeightmapDetail> imp_;
 };  // namespace ohm

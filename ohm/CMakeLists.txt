@@ -55,6 +55,7 @@ set(SOURCES
   Heightmap.h
   HeightmapMesh.cpp
   HeightmapMesh.h
+  HeightmapMode.h
   HeightmapUtil.cpp
   HeightmapUtil.h
   HeightmapVoxel.cpp
@@ -103,6 +104,8 @@ set(SOURCES
   OccupancyMap.h
   OccupancyType.cpp
   OccupancyType.h
+  PlaneFillLayeredWalker.cpp
+  PlaneFillLayeredWalker.h
   PlaneFillWalker.cpp
   PlaneFillWalker.h
   PlaneWalker.cpp
@@ -164,6 +167,7 @@ set(PUBLIC_HEADERS
   DefaultLayer.h
   Heightmap.h
   HeightmapMesh.h
+  HeightmapMode.h
   HeightmapUtil.h
   HeightmapVoxel.h
   HeightmapVoxelType.h
@@ -193,6 +197,7 @@ set(PUBLIC_HEADERS
   OccupancyMap.h
   OccupancyType.h
   OccupancyUtil.h
+  PlaneFillLayeredWalker.h
   PlaneFillWalker.h
   PlaneWalker.h
   QueryFlag.h

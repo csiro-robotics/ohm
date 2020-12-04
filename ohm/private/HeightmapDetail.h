@@ -8,8 +8,9 @@
 
 #include "OhmConfig.h"
 
-#include <ohm/Aabb.h>
-#include <ohm/UpAxis.h>
+#include "ohm/Aabb.h"
+#include "ohm/HeightmapMode.h"
+#include "ohm/UpAxis.h"
 
 #include <glm/glm.hpp>
 
@@ -58,6 +59,8 @@ struct ohm_API HeightmapDetail
   /// Level of debugging information provided in generating the heightmap. Only has an effect if
   /// @c OHM_TES_DEBUG is configured in CMake.
   int debug_level = 0;
+  /// Specifies the heightmap generation mode.
+  HeightmapMode mode = HeightmapMode::kPlanar;
   /// Should heightmap generation ignore the presence of voxel mean positions, forcing voxel centres instead?
   bool ignore_voxel_mean = false;
   /// Allow the generation of a virtual heightmap floor around the transition from unknown to free voxels?
@@ -67,8 +70,6 @@ struct ohm_API HeightmapDetail
   /// Prefer a virtual surface below the reference position to a real surface above.
   /// @see @c Heightmap::setPromoteVirtualBelow()
   bool promote_virtual_below = false;
-  /// Use the flood fill technique? Slower, but better at following surfaces.
-  bool use_flood_fill = false;
 
   void updateAxis();
   static const glm::dvec3 &upAxisNormal(UpAxis axis_id);

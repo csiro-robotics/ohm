@@ -769,7 +769,7 @@ TEST(Heightmap, Layered)
   const double clearance_constraint = 0.5 * platform_height;
   ohm::Heightmap constrained_heightmap(map.resolution(), clearance_constraint);
   constrained_heightmap.setOccupancyMap(&map);
-  constrained_heightmap.setUseFloodFill(true);
+  constrained_heightmap.setMode(ohm::HeightmapMode::kLayeredFill);
   constrained_heightmap.buildHeightmap(glm::dvec3(0, 0, platform_height));
 
   ohm::save("layered-hm.ohm", constrained_heightmap.heightmap());

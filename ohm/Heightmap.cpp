@@ -21,6 +21,7 @@
 #include "MapLayout.h"
 #include "OccupancyMap.h"
 #include "OccupancyType.h"
+#include "PlaneFillLayeredWalker.h"
 #include "PlaneFillWalker.h"
 #include "PlaneWalker.h"
 #include "Trace.h"
@@ -601,28 +602,17 @@ Key findGround(double *height_out, double *clearance_out, SrcVoxel &voxel, const
 }
 
 
-void onVisitPlaneFill(PlaneFillWalker &walker, const HeightmapDetail &imp, const Key &walk_key,
-                      const Key &candidate_key, const Key &ground_key)
+template <typename Walker>
+void onVisitWalker(Walker &walker, const HeightmapDetail &imp, const Key &walk_key, const Key &candidate_key,
+                   const Key &ground_key)
 {
-// Add neighbours for walking.
-#if 0
-  PlaneFillWalker::Revisit revisit_behaviour = PlaneFillWalker::Revisit::kNone;
-  if (!candidate_key.isNull())
-  {
-    // revisit_behaviour = int(imp.up_axis_id) >= 0 ? PlaneFillWalker::Revisit::kLower :
-    // PlaneFillWalker::Revisit::kHigher;
-    revisit_behaviour = PlaneFillWalker::Revisit::kHigher;
-  }
-#else   // #
-  // Testing revisit behaviour.
-  PlaneFillWalker::Revisit revisit_behaviour = PlaneFillWalker::Revisit::kNone;
-  if (!candidate_key.isNull())
-  {
-    revisit_behaviour = PlaneFillWalker::Revisit::kAll;
-  }
-#endif  // #
+  (void)candidate_key;  // Unused
+  (void)imp;            // Unused without TES_ENABLE
+  (void)walk_key;       // Unused without TES_ENABLE
+  // Add neighbours for walking.
   std::array<Key, 8> neighbours;
-  size_t added_count = walker.addNeighbours(ground_key, neighbours, revisit_behaviour);
+  size_t added_count = walker.visit(ground_key, neighbours);
+  (void)added_count;  // Unused unless TES_ENABLE is defined.
 #ifdef TES_ENABLE
   if (g_tes)
   {
@@ -782,15 +772,15 @@ bool Heightmap::promoteVirtualBelow() const
 }
 
 
-void Heightmap::setUseFloodFill(bool flood_fill)
+void Heightmap::setMode(HeightmapMode mode)
 {
-  imp_->use_flood_fill = flood_fill;
+  imp_->mode = mode;
 }
 
 
-bool Heightmap::useFloodFill() const
+HeightmapMode Heightmap::mode() const
 {
-  return imp_->use_flood_fill;
+  return imp_->mode;
 }
 
 
@@ -895,22 +885,37 @@ bool Heightmap::buildHeightmap(const glm::dvec3 &reference_pos, const ohm::Aabb 
   unsigned processed_count = 0;
   unsigned supporting_voxel_flags =
     !!imp_->generate_virtual_surface * kVirtualSurfaces | !!imp_->promote_virtual_below * kPromoteVirtualBelow;
-  if (!imp_->use_flood_fill)
+  switch (imp_->mode)
+  {
+  case HeightmapMode::kPlanar:  //
   {
     // Pure planar walk must prefer below and does better ignoring virtual surfaces above the plane.
     supporting_voxel_flags |= kPreferBelow | kIgnoreVirtualAbove;
     const Key planar_key = src_map.voxelKey(reference_pos);
     PlaneWalker walker(src_map, min_ext_key, max_ext_key, imp_->up_axis_id, &planar_key);
     processed_count = buildHeightmapT(walker, reference_pos, supporting_voxel_flags, supporting_voxel_flags);
+    break;
   }
-  else
+  case HeightmapMode::kSimpleFill:  //
   {
     // We should prefer voxels below for the first iteration, when seeding, after that we prefer the closest candidate
     // supporting voxel to the seed voxel.
     const unsigned initial_supporting_voxel_flags = supporting_voxel_flags | kPreferBelow;
-    PlaneFillWalker walker(src_map, min_ext_key, max_ext_key, imp_->up_axis_id, false);
-    processed_count = buildHeightmapT(walker, reference_pos, initial_supporting_voxel_flags, supporting_voxel_flags,
-                                      WalkVisitFunc<PlaneFillWalker>(&onVisitPlaneFill));
+    PlaneFillWalker walker(src_map, min_ext_key, max_ext_key, imp_->up_axis_id);
+    processed_count = buildHeightmapT(walker, reference_pos, initial_supporting_voxel_flags, supporting_voxel_flags);
+    break;
+  }
+  case HeightmapMode::kLayeredFill:  //
+  {
+    // We should prefer voxels below for the first iteration, when seeding, after that we prefer the closest candidate
+    // supporting voxel to the seed voxel.
+    const unsigned initial_supporting_voxel_flags = supporting_voxel_flags | kPreferBelow;
+    PlaneFillLayeredWalker walker(src_map, min_ext_key, max_ext_key, imp_->up_axis_id);
+    processed_count = buildHeightmapT(walker, reference_pos, initial_supporting_voxel_flags, supporting_voxel_flags);
+    break;
+  }
+  default:
+    break;
   }
 
 #if PROFILING
@@ -986,7 +991,7 @@ Key &Heightmap::project(Key *key) const
 
 template <typename KeyWalker>
 bool Heightmap::buildHeightmapT(KeyWalker &walker, const glm::dvec3 &reference_pos, unsigned initial_supporting_flags,
-                                unsigned iterating_supporting_flags, WalkVisitFunc<KeyWalker> on_visit)
+                                unsigned iterating_supporting_flags)
 {
   // Brute force initial approach.
   const OccupancyMap &src_map = *imp_->occupancy_map;
@@ -1013,10 +1018,10 @@ bool Heightmap::buildHeightmapT(KeyWalker &walker, const glm::dvec3 &reference_p
   Key walk_key = src_map.voxelKey(reference_pos);
 
   // Bound the walk_key to the search bounds.
-  if (!walk_key.isBounded(walker.min_ext_key, walker.max_ext_key))
+  if (!walk_key.isBounded(walker.minKey(), walker.maxKey()))
   {
-    walk_key.clampToAxis(surfaceAxisIndexA(), walker.min_ext_key, walker.max_ext_key);
-    walk_key.clampToAxis(surfaceAxisIndexB(), walker.min_ext_key, walker.max_ext_key);
+    walk_key.clampToAxis(surfaceAxisIndexA(), walker.minKey(), walker.maxKey());
+    walk_key.clampToAxis(surfaceAxisIndexB(), walker.minKey(), walker.maxKey());
   }
 
   if (!walker.begin(walk_key))
@@ -1057,7 +1062,7 @@ bool Heightmap::buildHeightmapT(KeyWalker &walker, const glm::dvec3 &reference_p
     // ground voxel.
     // Virtual ground is where a free is supported by an uncertain or null voxel below it.
     Key candidate_key =
-      findNearestSupportingVoxel(src_voxel, walk_key, upAxis(), walker.min_ext_key, walker.max_ext_key, voxel_ceiling,
+      findNearestSupportingVoxel(src_voxel, walk_key, upAxis(), walker.minKey(), walker.maxKey(), voxel_ceiling,
                                  clearance_voxel_count_permissive, supporting_voxel_flags);
 
     // Walk up from the candidate to find the best heightmap voxel.
@@ -1066,13 +1071,10 @@ bool Heightmap::buildHeightmapT(KeyWalker &walker, const glm::dvec3 &reference_p
     // Walk the column of candidate_key to find the first occupied voxel with sufficent clearance. A virtual voxel
     // with sufficient clearance may be given if there is no valid occupied voxel.
     const Key ground_key = (!candidate_key.isNull()) ? findGround(&height, &clearance, src_voxel, candidate_key,
-                                                                  walker.min_ext_key, walker.max_ext_key, *imp_) :
+                                                                  walker.minKey(), walker.maxKey(), *imp_) :
                                                        walk_key;
 
-    if (on_visit)
-    {
-      on_visit(walker, *imp_, walk_key, candidate_key, ground_key);
-    }
+    onVisitWalker(walker, *imp_, walk_key, candidate_key, ground_key);
 
     // Write to the heightmap.
     src_voxel.setKey(ground_key);

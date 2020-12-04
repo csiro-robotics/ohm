@@ -66,5 +66,37 @@ UpAxis queryHeightmapAxis(const MapInfo &info)
 
   return UpAxis::kZ;
 }
+
+std::array<int, 3> ohm_API heightmapAxisIndices(UpAxis up_axis)
+{
+  std::array<int, 3> axis_indices;
+  switch (up_axis)
+  {
+  case UpAxis::kX:
+    /* fallthrough */
+  case UpAxis::kNegX:
+    axis_indices[0] = 1;
+    axis_indices[1] = 2;
+    axis_indices[2] = 0;
+    break;
+  case UpAxis::kY:
+    /* fallthrough */
+  case UpAxis::kNegY:
+    axis_indices[0] = 0;
+    axis_indices[1] = 2;
+    axis_indices[2] = 1;
+    break;
+  default:
+  case UpAxis::kZ:
+    /* fallthrough */
+  case UpAxis::kNegZ:
+    axis_indices[0] = 0;
+    axis_indices[1] = 1;
+    axis_indices[2] = 2;
+    break;
+  }
+
+  return axis_indices;
+}
 }  // namespace heightmap
 }  // namespace ohm
