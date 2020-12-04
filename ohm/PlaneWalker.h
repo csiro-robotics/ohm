@@ -34,7 +34,7 @@ public:
   const Key plane_key;      ///< The key which was used to seed the plane, setting the height.
   /// Mapping of the indices to walk, supporting various heightmap up axes. Element 2 is always the up axis, where
   /// elements 0 and 1 are the horizontal axes.
-  const std::array<int, 3> axis_indices = { 0, 0, 0 };
+  const std::array<int, 3> axis_indices;
 
   /// Constructor.
   /// @param map The map to walk voxels in.

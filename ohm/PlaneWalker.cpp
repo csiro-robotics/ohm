@@ -15,8 +15,8 @@ PlaneWalker::PlaneWalker(const OccupancyMap &map, const Key &min_ext_key, const 
   : map(map)
   , min_ext_key(min_ext_key)
   , max_ext_key(max_ext_key)
-  , axis_indices(ohm::heightmap::heightmapAxisIndices(up_axis))
   , plane_key(plane_key_ptr ? *plane_key_ptr : min_ext_key)
+  , axis_indices(ohm::heightmap::heightmapAxisIndices(up_axis))
 {}
 
 
