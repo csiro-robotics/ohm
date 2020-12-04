@@ -624,8 +624,9 @@ size_t copyBuffer(Buffer &dst, size_t dst_offset, const Buffer &src, size_t src_
   byte_count = std::min(byte_count, dst_detail->alloc_size - dst_offset);
   byte_count = std::min(byte_count, src_detail->alloc_size - src_offset);
 
-  bufferCopy(dst_detail->device_mem, src_detail->device_mem, byte_count, cudaMemcpyDeviceToDevice, queue, block_on,
-             completion);
+  void *dst_address = static_cast<uint8_t *>(dst_detail->device_mem) + dst_offset;
+  const void *src_address = static_cast<const uint8_t *>(src_detail->device_mem) + src_offset;
+  bufferCopy(dst_address, src_address, byte_count, cudaMemcpyDeviceToDevice, queue, block_on, completion);
 
   return byte_count;
 }

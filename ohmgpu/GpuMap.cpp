@@ -883,9 +883,6 @@ bool GpuMap::enqueueRegion(const glm::i16vec3 &region_key, int buffer_index)
     // std::endl;
     voxel_info.offsets_buffer_pinned.write(&mem_offset, sizeof(mem_offset),
                                            imp_->region_counts[buffer_index] * sizeof(mem_offset));
-
-    // Mark the region as dirty.
-    chunk->dirty_stamp = chunk->touched_stamps[layer_cache.layerIndex()] = imp_->map->stamp();
   }
 
   return true;
