@@ -20,8 +20,12 @@ enum class HeightmapMode
   /// @c kPlanar. Voxels may be revisited when a lower candidate voxel is found.
   kSimpleFill,
   /// Use a flood fill which supports layering. The fill attempts to expand on all available surfaces and can generate
-  /// a multi layer heightmap.
-  kLayeredFill
+  /// a multi layer heightmap. The resulting heightmap is 2.5D and each column can contain multiple entries. The height
+  /// values of entries in each column are unsorted with undefined height ordering.
+  kLayeredFill,
+  /// Same as @c kLayeredFill except that the resulting heightmap ensures each column of voxels in the generated
+  /// heightmap are in ascending height order.
+  kLayeredFillOrdered
 };
 }  // namespace ohm
 

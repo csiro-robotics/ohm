@@ -36,18 +36,21 @@
 // Include after GLM types for glm type streaming operators.
 #include "ohmutil/GlmStream.h"
 
-#include <algorithm>
-#include <cstring>
-#include <iostream>
-
 #define PROFILING 0
 #include <ohmutil/Profile.h>
 
 #include <3esservermacros.h>
 
+#include <algorithm>
 #include <cassert>
+#include <cstring>
+#include <iostream>
+#include <set>
 #include <sstream>
 #include <string>
+
+// Enable code to support breaking on a specific voxel.
+#define HM_DEBUG_VOXEL 0
 
 namespace ohm
 {
@@ -156,6 +159,8 @@ struct DstVoxel
   /// Voxel mean (if being used.)
   Voxel<VoxelMean> mean;
 
+  inline DstVoxel() = default;
+
   DstVoxel(OccupancyMap &map, int heightmap_layer, bool use_mean)
     : occupancy(&map, map.layout().occupancyLayer())
     , heightmap(&map, heightmap_layer)
@@ -173,8 +178,7 @@ struct DstVoxel
     glm::dvec3 pos = occupancy.map()->voxelCentreGlobal(occupancy.key());
     if (mean.isLayerValid())
     {
-      VoxelMean mean_info;
-      mean.read(&mean_info);
+      const VoxelMean mean_info = mean.data();
       pos += subVoxelToLocalCoord<glm::dvec3>(mean_info.coord, occupancy.map()->resolution());
     }
     return pos;
@@ -194,6 +198,33 @@ struct DstVoxel
   }
 
   inline glm::dvec3 centre() const { return occupancy.map()->voxelCentreGlobal(occupancy.key()); }
+
+  inline bool haveRecordedHeight(float height, int up_axis_index) const
+  {
+    // Check if the current heightmap voxel has already recorded a result at the given height. Only call for valid
+    // voxels from multi-layered heightmaps.
+
+    // Create a voxel for interation. Seed from this.
+    DstVoxel walker;
+    walker.occupancy = occupancy;
+    walker.heightmap = heightmap;
+    // Not interested in mean
+
+    Key key = occupancy.key();
+    while (walker.occupancy.isValid() && walker.occupancy.data() != ohm::unobservedOccupancyValue())
+    {
+      if (walker.heightmap.data().height == height)
+      {
+        return true;
+      }
+
+      // Next voxel in the column.
+      occupancy.map()->moveKeyAlongAxis(key, up_axis_index, 1);
+      walker.setKey(key);
+    }
+
+    return false;
+  }
 
   inline void debugDraw(int level, int up_axis, double up_scale = 1.0)
   {
@@ -233,9 +264,10 @@ struct DstVoxel
   }
 };
 
-inline float relativeVoxelHeight(double absolute_height, const Key &key, const OccupancyMap &map, const glm::dvec3 &up)
+inline float relativeVoxelHeight(double absolute_height, const Key &heightmap_key, const OccupancyMap &heightmap,
+                                 const glm::dvec3 &up)
 {
-  const float relative_height = float(absolute_height - glm::dot(map.voxelCentreGlobal(key), up));
+  const float relative_height = float(absolute_height - glm::dot(heightmap.voxelCentreGlobal(heightmap_key), up));
   return relative_height;
 }
 
@@ -640,19 +672,93 @@ void onVisitWalker(Walker &walker, const HeightmapDetail &imp, const Key &walk_k
 
     /// Visualise the candiate with a transient box (single frame)
     const glm::dvec3 pos = imp.occupancy_map->voxelCentreGlobal(walk_key);
-    tes::Box neighbour(tes::Id(0, kTcHmVisit),
+    tes::Box candidate(tes::Id(0, kTcHmVisit),
                        tes::Transform(tes::Vector3d(glm::value_ptr(pos)), tes::Vector3d(imp.heightmap->resolution())));
-    neighbour.setColour(tes::Colour::Colours[tes::Colour::LightGoldenrodYellow]).setWireframe(true);
-    g_tes->create(neighbour);
+    candidate.setColour(tes::Colour::Colours[tes::Colour::LightGoldenrodYellow]).setWireframe(true);
+    g_tes->create(candidate);
 
     std::ostringstream info;
     info << "R" << walk_key.regionKey() << " L" << walk_key.localKey();
     const std::string str = info.str();
     tes::Text3D info_text(str.c_str(), tes::Id(0, kTcHmInfo), tes::Directional(tes::Vector3d(glm::value_ptr(pos))));
-    info_text.setScreenFacing(true).setColour(neighbour.colour());
+    info_text.setScreenFacing(true).setColour(candidate.colour());
     g_tes->create(info_text);
   }
 #endif  // neighbours
+}
+
+
+/// A utility function which sorts voxels in a layered heightmap such that lower heights appear lower in the heightmap.
+///
+/// In a multi layered heightmap, there may be multiple surfaced heights at any 2D voxel coordinate. This function
+/// ensures that each 2D block is sorted such that the height value increases. The heightmap generates unsorted results.
+/// The @p target_keys identify which voxels need to be sorted. The keys are assumed to address the current bottom voxel
+/// of each column only.
+void sortHeightmapLayers(ohm::HeightmapDetail &detail, const std::set<ohm::Key> target_keys, const bool use_voxel_mean)
+{
+  if (!target_keys.empty())
+  {
+    // We have work to do.
+
+    /// Structure used to extract heightamp data for sorting. Contains all information possible from the heightmap.
+    struct SortingVoxel
+    {
+      HeightmapVoxel height_info;
+      float occpuancy;
+      VoxelMean mean;
+
+      /// Sorting operator.
+      inline bool operator<(const SortingVoxel &other) const { return height_info.height < other.height_info.height; }
+    };
+
+    ohm::OccupancyMap &heightmap = *detail.heightmap;
+    DstVoxel voxel(heightmap, detail.heightmap_layer, use_voxel_mean);
+    // Will only ever be small.
+    std::vector<SortingVoxel> sorting_list;
+
+    for (const auto &base_key : target_keys)
+    {
+      Key key = base_key;
+      voxel.setKey(key);
+      assert(voxel.occupancy.isValid() && voxel.heightmap.isValid() && (!use_voxel_mean || voxel.mean.isValid()));
+      sorting_list.clear();
+
+      while (voxel.occupancy.isValid() && voxel.occupancy.data() != ohm::unobservedOccupancyValue())
+      {
+        // Extract voxel data.
+        sorting_list.emplace_back();
+        SortingVoxel &sorting_info = sorting_list.back();
+
+        sorting_info.occpuancy = voxel.occupancy.data();
+        sorting_info.height_info = voxel.heightmap.data();
+        sorting_info.mean = use_voxel_mean ? voxel.mean.data() : VoxelMean{};
+
+        heightmap.moveKeyAlongAxis(key, detail.vertical_axis_index, 1);
+        voxel.setKey(key);
+      }
+
+      if (sorting_list.size() > 1)
+      {
+        // Sort the voxels
+        std::sort(sorting_list.begin(), sorting_list.end());
+
+        // Now write back the sorted results.
+        key = base_key;
+        for (const SortingVoxel &voxel_info : sorting_list)
+        {
+          voxel.setKey(key);
+          assert(voxel.occupancy.isValid() && voxel.heightmap.isValid() && (!use_voxel_mean || voxel.mean.isValid()));
+          voxel.occupancy.write(voxel_info.occpuancy);
+          voxel.heightmap.write(voxel_info.height_info);
+          if (use_voxel_mean)
+          {
+            voxel.mean.write(voxel_info.mean);
+          }
+          heightmap.moveKeyAlongAxis(key, detail.vertical_axis_index, 1);
+        }
+      }
+    }
+  }
 }
 }  // namespace
 
@@ -680,10 +786,11 @@ Heightmap::Heightmap(double grid_resolution, double min_clearance, UpAxis up_axi
 
   // Use an OccupancyMap to store grid cells. Each region is 1 voxel thick.
   glm::u8vec3 region_dim(region_size);
-  region_dim[int(imp_->vertical_axis_index)] = 1;
-  imp_->heightmap = std::make_unique<OccupancyMap>(grid_resolution, region_dim);
+  region_dim[imp_->vertical_axis_index] = 1;
+  // Note: Compression is disabled for the heightmap.
+  imp_->heightmap = std::make_unique<OccupancyMap>(grid_resolution, region_dim, MapFlag::kNone);
   // The multilayer heightmap expects more entries. Default to having room for N layers per chunk.
-  region_dim[int(imp_->vertical_axis_index)] = 4;
+  region_dim[imp_->vertical_axis_index] = 4;
   imp_->multilayer_heightmap = std::make_unique<OccupancyMap>(grid_resolution, region_dim);
 
   imp_->heightmap_layer = heightmap::setupHeightmap(*imp_->heightmap, *imp_);
@@ -792,7 +899,7 @@ UpAxis Heightmap::upAxis() const
 
 int Heightmap::upAxisIndex() const
 {
-  return int(imp_->vertical_axis_index);
+  return imp_->vertical_axis_index;
 }
 
 
@@ -906,6 +1013,8 @@ bool Heightmap::buildHeightmap(const glm::dvec3 &reference_pos, const ohm::Aabb 
     break;
   }
   case HeightmapMode::kLayeredFill:  //
+  // No break
+  case HeightmapMode::kLayeredFillOrdered:  //
   {
     // We should prefer voxels below for the first iteration, when seeding, after that we prefer the closest candidate
     // supporting voxel to the seed voxel.
@@ -937,7 +1046,11 @@ HeightmapVoxelType Heightmap::getHeightmapVoxelInfo(const Key &key, glm::dvec3 *
       Voxel<const HeightmapVoxel> heightmap_voxel(imp_->heightmap.get(), imp_->heightmap_layer, key);
       Voxel<const VoxelMean> mean_voxel(imp_->heightmap.get(), imp_->heightmap->layout().meanLayer(), key);
 
-      const glm::dvec3 voxel_centre = imp_->heightmap->voxelCentreGlobal(key);
+      Key height_key = key;
+      project(&height_key);
+
+      // Note: the base height must come from the key projected onto the heightmap base plane.
+      const glm::dvec3 voxel_centre = imp_->heightmap->voxelCentreGlobal(height_key);
       *pos = mean_voxel.isLayerValid() ? positionSafe(mean_voxel) : voxel_centre;
       float occupancy;
       heightmap_occupancy.read(&occupancy);
@@ -1039,12 +1152,19 @@ bool Heightmap::buildHeightmapT(KeyWalker &walker, const glm::dvec3 &reference_p
   SrcVoxel src_voxel(src_map, use_voxel_mean);
   DstVoxel hm_voxel(heightmap, imp_->heightmap_layer, use_voxel_mean);
 
+#if HM_DEBUG_VOXEL
   const glm::dvec3 debug_pos(2.05, 0.75, 0);
   const Key debug_src_key(1, 0, 0, 11, 3, 23);
+  const Key debug_dst_key(0, 0, 0, 28, 43, 0);
+#endif  // HM_DEBUG_VOXEL
   unsigned supporting_voxel_flags = initial_supporting_flags;
+  // Tracks voxels which have results at multiple layers for a heightmap support isMultiLayered()
+  std::set<ohm::Key> multi_layer_keys;
+  const bool ordered_layers = areLayersSorted();  // True to sort multi-layered configurations.
   bool abort = false;
   do
   {
+#if HM_DEBUG_VOXEL
     const glm::dvec3 ref_pos = src_map.voxelCentreGlobal(walk_key);
     if (std::abs(ref_pos.x - debug_pos.x) < 0.5 * src_map.resolution() &&
         std::abs(ref_pos.y - debug_pos.x) < 0.5 * src_map.resolution())
@@ -1056,6 +1176,7 @@ bool Heightmap::buildHeightmapT(KeyWalker &walker, const glm::dvec3 &reference_p
     {
       int stopme = 2;
     }
+#endif  // HM_DEBUG_VOXEL
 
     // Find the nearest voxel to the current key which may be a ground candidate.
     // This is key closest to the walk_key which could be ground. This will be either an occupied voxel, or virtual
@@ -1105,41 +1226,94 @@ bool Heightmap::buildHeightmapT(KeyWalker &walker, const glm::dvec3 &reference_p
         // TODO(KS): Using the Voxel interface here is highly suboptimal. This needs to be modified to access the
         // MapChunk directly for efficiency.
         hm_voxel.setKey(hm_key);
+
+#if HM_DEBUG_VOXEL
+        if (hm_key == debug_dst_key)
+        {
+          int stopme = 3;
+        }
+#endif  // HM_DEBUG_VOXEL
+
         // We can do a direct occupancy value write with no checks for the heightmap. The value is explicit.
         assert(hm_voxel.occupancy.isValid() && hm_voxel.occupancy.voxelMemory());
-        hm_voxel.occupancy.write(surface_value);
-        // Set voxel mean position as required. Will be skipped if not enabled.
-        hm_voxel.setPosition(voxel_pos);
 
-        // Write the height and clearance values.
-        HeightmapVoxel height_info;
-        hm_voxel.heightmap.read(&height_info);
-        height_info.height = relativeVoxelHeight(src_height, hm_key, heightmap, imp_->up);
-        height_info.clearance = float(clearance);
-        height_info.normal_x = height_info.normal_y = height_info.normal_z = 0;
+        // Note: we calculate the height value before any multi-layer adjustments.
+        // This ensures all heights are stored relative to the base voxel key in the column.
+        const float voxel_height = relativeVoxelHeight(src_height, hm_key, heightmap, imp_->up);
 
-        if (voxel_type == kOccupied && src_voxel.covariance.isValid())
+        bool should_add = true;
+        // For multi-layered heightmaps, we need to check occupancy and not overwrite existing results.
+        if (isMultiLayered())
         {
-          CovarianceVoxel cov;
-          src_voxel.covariance.read(&cov);
-          glm::dvec3 normal;
-          covarianceEstimatePrimaryNormal(&cov, &normal);
-          const double flip = (glm::dot(normal, up_axis_normal) >= 0) ? 1.0 : -1.0;
-          normal *= flip;
-          height_info.normal_x = float(normal.x);
-          height_info.normal_y = float(normal.y);
-          height_info.normal_z = float(normal.z);
-        }
-        hm_voxel.heightmap.write(height_info);
+          if (hm_voxel.occupancy.data() != ohm::unobservedOccupancyValue())
+          {
+            // It's possible to visit the same 2D voxel at different candidate heights, but generate the same result
+            // as a previous visitation. We check for this below.
+            if (hm_voxel.haveRecordedHeight(src_height, upAxisIndex()))
+            {
+              // It's a repeat. Don't add.
+              should_add = false;
+            }
 
-        hm_voxel.debugDraw(imp_->debug_level, imp_->vertical_axis_index, int(imp_->up_axis_id) >= 0 ? 1.0 : -1.0);
-        ++populated_count;
+            if (should_add)
+            {
+              if (ordered_layers)
+              {
+                multi_layer_keys.insert(hm_key);
+              }
+              do
+              {
+                // Walk to the next key up in the heightmap. We always move the key up as the height cells are
+                // independent.
+                heightmap.moveKeyAlongAxis(hm_key, upAxisIndex(), 1);
+                hm_voxel.setKey(hm_key);
+                assert(hm_voxel.occupancy.isValid() && hm_voxel.occupancy.voxelMemory());
+              } while (hm_voxel.occupancy.data() != ohm::unobservedOccupancyValue());
+            }
+          }
+        }
+
+        if (should_add)
+        {
+          hm_voxel.occupancy.write(surface_value);
+          // Set voxel mean position as required. Will be skipped if not enabled.
+          hm_voxel.setPosition(voxel_pos);
+
+          // Write the height and clearance values.
+          HeightmapVoxel height_info;
+          hm_voxel.heightmap.read(&height_info);
+          height_info.height = voxel_height;
+          height_info.clearance = float(clearance);
+          height_info.normal_x = height_info.normal_y = height_info.normal_z = 0;
+
+          if (voxel_type == kOccupied && src_voxel.covariance.isValid())
+          {
+            CovarianceVoxel cov;
+            src_voxel.covariance.read(&cov);
+            glm::dvec3 normal;
+            covarianceEstimatePrimaryNormal(&cov, &normal);
+            const double flip = (glm::dot(normal, up_axis_normal) >= 0) ? 1.0 : -1.0;
+            normal *= flip;
+            height_info.normal_x = float(normal.x);
+            height_info.normal_y = float(normal.y);
+            height_info.normal_z = float(normal.z);
+          }
+          hm_voxel.heightmap.write(height_info);
+
+          hm_voxel.debugDraw(imp_->debug_level, imp_->vertical_axis_index, int(imp_->up_axis_id) >= 0 ? 1.0 : -1.0);
+          ++populated_count;
+        }
       }
     }
 
     TES_SERVER_UPDATE(g_tes, 0.0f);
     supporting_voxel_flags = iterating_supporting_flags;
   } while (!abort && walker.walkNext(walk_key));
+
+  if (ordered_layers)
+  {
+    sortHeightmapLayers(*imp_, multi_layer_keys, use_voxel_mean);
+  }
 
   return populated_count != 0;
 }

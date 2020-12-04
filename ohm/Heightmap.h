@@ -203,6 +203,17 @@ public:
   /// @return The current heightmap generation mode.
   HeightmapMode mode() const;
 
+  /// Query if this object is set to generate a heightmap with multiple layers.
+  /// @return True when generating a multi-layered heightmap.
+  inline bool isMultiLayered() const
+  {
+    return mode() == HeightmapMode::kLayeredFill || mode() == HeightmapMode::kLayeredFillOrdered;
+  }
+
+  /// Query if the resulting multi-layered heightmap has each column ordered by height. Implies @c isMultiLayered().
+  /// @return True if the heightmap contains columns sorted in height order.
+  inline bool areLayersSorted() const { return mode() == HeightmapMode::kLayeredFillOrdered; }
+
   /// Set the heightmap generation to flood fill ( @c true ) or planar ( @c false ).
   ///
   /// @deprecated Use @c setMode(HeightmapMode::kSimpleFill).
