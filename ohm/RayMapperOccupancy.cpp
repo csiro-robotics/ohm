@@ -106,11 +106,10 @@ size_t RayMapperOccupancy::integrateRays(const glm::dvec3 *rays, size_t element_
     // and the kRfExclude<Type> values. Note that for kRfExcludeUnobserved we set the miss_adjustment such that it keeps
     // the observesed value, whereas in other cases we set to zero to make for no change. This is because unobserved
     // values have a value written, whereas other voxels have use addition to adjust the value.
-    miss_adjustment = (!initially_unobserved || !(ray_update_flags & kRfExcludeUnobserved)) ?
-                        miss_adjustment :
-                        unobservedOccupancyValue();
-    miss_adjustment = (!initially_free || !(ray_update_flags & kRfExcludeFree)) ? miss_adjustment : 0.0f;
-    miss_adjustment = (!initially_occupied || !(ray_update_flags & kRfExcludeOccupied)) ? miss_adjustment : 0.0f;
+    miss_adjustment = (initially_unobserved && (ray_update_flags & kRfExcludeUnobserved)) ? unobservedOccupancyValue() :
+                                                                                            miss_adjustment;
+    miss_adjustment = (initially_free && (ray_update_flags & kRfExcludeFree)) ? 0.0f : miss_adjustment;
+    miss_adjustment = (initially_occupied && (ray_update_flags & kRfExcludeOccupied)) ? 0.0f : miss_adjustment;
 
     occupancyAdjustMiss(&occupancy_value, initial_value, miss_adjustment, unobservedOccupancyValue(), voxel_min,
                         saturation_min, saturation_max, stop_adjustments);
@@ -157,8 +156,7 @@ size_t RayMapperOccupancy::integrateRays(const glm::dvec3 *rays, size_t element_
                                 WalkKeyAdaptor(*map_));
     }
 
-    if (!stop_adjustments && !include_sample_in_ray && !(ray_update_flags & kRfExcludeSample) &&
-        !(ray_update_flags & kRfExcludeSample))
+    if (!stop_adjustments && !include_sample_in_ray && !(ray_update_flags & kRfExcludeSample))
     {
       // Like the miss logic, we have similar obfuscation here to avoid branching. It's a little simpler though,
       // because we do have a branch above, which will filter some of the conditions catered for in miss integration.
@@ -181,11 +179,15 @@ size_t RayMapperOccupancy::integrateRays(const glm::dvec3 *rays, size_t element_
       const bool initially_occupied = !initially_unobserved && initial_value >= occupancy_threshold_value;
 
       // Calculate the adjustment to make based on the initial occupancy value, various exclusion flags and the
-      // configured value adjustment.
+      // configured value adjustment (see the equivalent section for the miss update). Note the adjustment for skipping
+      // an initially_unobserved voxel is not zero - it's unobservedOccupancyValue()/infinity to keep the state
+      // unchanged.
       float hit_adjustment = hit_value;
-      hit_adjustment = (!initially_unobserved || !(ray_update_flags & kRfExcludeUnobserved)) ? hit_adjustment : 0.0f;
-      hit_adjustment = (!initially_free || !(ray_update_flags & kRfExcludeFree)) ? hit_adjustment : 0.0f;
-      hit_adjustment = (!initially_occupied || !(ray_update_flags & kRfExcludeOccupied)) ? hit_adjustment : 0.0f;
+      hit_adjustment = (initially_unobserved && (ray_update_flags & kRfExcludeUnobserved)) ?
+                         unobservedOccupancyValue() :
+                         hit_adjustment;
+      hit_adjustment = (initially_free && (ray_update_flags & kRfExcludeFree)) ? 0.0f : hit_adjustment;
+      hit_adjustment = (initially_occupied && (ray_update_flags & kRfExcludeOccupied)) ? 0.0f : hit_adjustment;
 
       occupancyAdjustHit(&occupancy_value, initial_value, hit_adjustment, unobservedOccupancyValue(), voxel_max,
                          saturation_min, saturation_max, stop_adjustments);
