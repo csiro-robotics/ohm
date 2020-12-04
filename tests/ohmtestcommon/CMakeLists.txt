@@ -9,6 +9,7 @@ find_package(Eigen3 QUIET)
 set(SOURCES
   OhmTestUtil.cpp
   OhmTestUtil.h
+  RayPatternTestUtil.h
 )
 
 if(Eigen3_FOUND)

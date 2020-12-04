@@ -26,14 +26,24 @@ class OccupancyMap;
 ///
 /// The class is constructed with a @c RayPattern, optionally taking ownership of the pointer. The @c apply() method
 /// is called to generate transformed rays from the @p RayPattern and integrate them into the map as clearing rays.
-/// This means the rays are applied with the following flags: <tt>kRfEndPointAsFree | kRfStopOnFirstOccupied |
-/// kRfClearOnly</tt>.
-///
-/// This has the effect of having rays only degrade the first occupied voxel struck, then halt traversal. Intervening
+/// The rays are applied using the configure @c rayFlag() bit set, which defaults to @c kDefaultRayFlags. The flags
+/// are designed to effect rays which only degrade the first occupied voxel struck, then halt traversal. Intervening
 /// voxels are left unchanged.
+///
+/// Technically the @c rayFlags() can be modified to generate different behaviour even non-clearing behaviour.
+///
+/// @todo Rename this class to @c RayPattern and configure a selection of default flags including @c kClearingFlags
+/// for the current default behaviour.
 class ClearingPattern
 {
 public:
+  /// Default flags used for a clearing pattern. The flags are set to ensure rays only affect occupied voxels
+  /// (`kRfExcludeFree | kRfExcludeUnobserved`), reducing their occupancy and we stop on the first occupied voxel
+  /// (`kRfStopOnFirstOccupied`) and the voxel at the end of the ray is treated as a clear voxel rather than a sample
+  /// voxel (`kRfEndPointAsFree`).
+  static const unsigned kDefaultRayFlags =
+    kRfEndPointAsFree | kRfStopOnFirstOccupied | kRfExcludeFree | kRfExcludeUnobserved;
+
   /// Create a clearing pattern.
   /// @param pattern The ray pattern to use.
   /// @param take_ownership Should the @c ClearingPattern own the @p pattern and delete the pointer when done?
@@ -49,6 +59,17 @@ public:
   /// Query ownership of @p pattern().
   /// @return True if this class owns the @p pattern() memory.
   bool hasPatternOwnership() const;
+
+  /// Query the combination of @c RayFlag bits to be used when applying this pattern. Defaults to @c kDefaultRayFlags.
+  /// @return The configured @c RayFlag bit set.
+  unsigned rayFlags() const;
+
+  /// Set the combination of @c RayFlag bits to be used when applying this pattern. Note that patterns which deviate
+  /// from the @c kDefaultRayFlags can result in significantly different semantics which invalidate the name
+  /// "ClearingPattern" as it is used in this context. For example, clearing the flag @c kRfEndPointAsFree can have
+  /// the "ClearingPattern" generate occupied voxels. As such, this function should be used with care.
+  /// @param flags Modified @c RayFlag bit set to use when applying this pattern.
+  void setRayFlags(unsigned ray_flags);
 
   /// Apply the clearing @c pattern() to @p map. This supports both APIs for both @c OccupancyMap and the @p GpuMap
   /// extension.
@@ -88,7 +109,7 @@ void ClearingPattern::apply(MAP *map, const glm::dvec3 &position, const glm::dqu
   const glm::dvec3 *ray_set = buildRaySet(&ray_element_count, position, rotation);
   const float initial_miss_value = map->missValue();
   map->setMissValue(initial_miss_value * probability_scaling);
-  map->integrateRays(ray_set, unsigned(ray_element_count), kRfEndPointAsFree | kRfStopOnFirstOccupied | kRfClearOnly);
+  map->integrateRays(ray_set, unsigned(ray_element_count), rayFlags());
   map->setMissValue(initial_miss_value);
 }
 
@@ -100,7 +121,7 @@ void ClearingPattern::apply(MAP *map, const glm::dmat4 &pattern_transform, float
   const glm::dvec3 *ray_set = buildRaySet(&ray_element_count, pattern_transform);
   const float initial_miss_value = map->missValue();
   map->setMissValue(initial_miss_value * probability_scaling);
-  map->integrateRays(ray_set, unsigned(ray_element_count), kRfEndPointAsFree | kRfStopOnFirstOccupied | kRfClearOnly);
+  map->integrateRays(ray_set, unsigned(ray_element_count), rayFlags());
   map->setMissValue(initial_miss_value);
 }
 }  // namespace ohm

@@ -26,14 +26,17 @@ enum RayFlag
   /// Change behaviour such that traversal stops as soon as an occupied voxel is reached. Ray traversal terminates
   /// after adjusting the occupied voxel.
   kRfStopOnFirstOccupied = (1u << 1u),
-  /// Change behaviour such that only voxels which are occupied have their probability adjusted. Free and unknown
-  /// voxels are left unchanged.
-  kRfClearOnly = (1u << 2u),
   /// Do not process the sample voxel.
   kRfExcludeSample = (1u << 3u),
   /// Exclude the ray part, integrating only the sample. This flag is only recommended in debugging or validation.
   /// @c RayMapperBase code is not optimised for this flag.
   kRfExcludeRay = (1u << 4u),
+  /// Do not adjust the occupancy value of currently unobserved voxels.
+  kRfExcludeUnobserved = (1u << 5u),
+  /// Do not adjust the occupancy value of currently free voxels.
+  kRfExcludeFree = (1u << 6u),
+  /// Do not adjust the occupancy value of currently occupied voxels.
+  kRfExcludeOccupied = (1u << 7u),
 };
 #if !GPUTIL_DEVICE
 }  // namespace ohm
