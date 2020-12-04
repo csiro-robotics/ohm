@@ -818,7 +818,7 @@ void Voxel<T>::swap(Voxel &other)
 template <typename T>
 Voxel<T> &Voxel<T>::operator=(const Voxel<T> &other)
 {
-  if (other != this)
+  if (&other != this)
   {
     updateTouch(false);  // Note: this will set the chunk to null.
     map_ = other.map_;
