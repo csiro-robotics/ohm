@@ -26,10 +26,6 @@ enum RayFlag
   /// Change behaviour such that traversal stops as soon as an occupied voxel is reached. Ray traversal terminates
   /// after adjusting the occupied voxel.
   kRfStopOnFirstOccupied = (1u << 1u),
-  // /// Deprecated - use @c kRfExclude[Unobserved,Free,Occupied] flags
-  // /// Change behaviour such that only voxels which are
-  // /// occupied have their probability adjusted. Free and unknown voxels are left unchanged.
-  // kRfClearOnly = (1u << 2u),
   /// Do not process the sample voxel.
   kRfExcludeSample = (1u << 3u),
   /// Exclude the ray part, integrating only the sample. This flag is only recommended in debugging or validation.
