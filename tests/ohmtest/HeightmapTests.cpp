@@ -759,24 +759,77 @@ TEST(Heightmap, Clearance)
 
 TEST(Heightmap, Layered)
 {
-  ohm::Trace trace("heightmap-layered.3es");
+  // For this test we use the multi-layered map generation. For validation, we set the target clearance to zero which
+  // allows the heightmap to be a precise representation of the original map. We can then convert the heightmap back
+  // into a normal occupancy map and compare that against the input map. It should be identical.
+  ohm::Trace trace("heightmap-layered.3es");  // Setup debug trace for 3rd Eye Scene visualisation.
+  // Create the input map.
   ohm::OccupancyMap map(0.1);
   const double platform_height = populateMultiLevelMap(map);
   ohm::save("layered-map.ohm", map);
   ohmtools::saveCloud("layered-map.ply", map);
 
-  // Now add a clearance constraint.
-  const double clearance_constraint = 0.5 * platform_height;
-  ohm::Heightmap constrained_heightmap(map.resolution(), clearance_constraint);
-  constrained_heightmap.setOccupancyMap(&map);
-  constrained_heightmap.setMode(ohm::HeightmapMode::kLayeredFill);
-  constrained_heightmap.buildHeightmap(glm::dvec3(0, 0, platform_height));
+  // Disable any clearance constraint.
+  const double clearance_constraint = 0;
+  ohm::Heightmap layered_heightmap(map.resolution(), clearance_constraint);
+  layered_heightmap.setOccupancyMap(&map);
 
-  ohm::save("layered-hm.ohm", constrained_heightmap.heightmap());
-  ohmtools::saveCloud("layered-hm.ply", constrained_heightmap.heightmap());
+  // Build the layered heightmap.
+  layered_heightmap.setMode(ohm::HeightmapMode::kLayeredFillOrdered);
+  layered_heightmap.buildHeightmap(glm::dvec3(0, 0, platform_height));
 
-  // Now validate the clearance of each voxel in the constrained heigthmap and validate against the reported clearance
-  // from the reference map.
-  KeyRange validation_range;
-  constrained_heightmap.heightmap().calculateExtents(nullptr, nullptr, &validation_range);
+  ohm::save("layered-hm.ohm", layered_heightmap.heightmap());
+  ohmtools::saveCloud("layered-hm.ply", layered_heightmap.heightmap());
+
+  // Now convert the heightmap back into a normal occupancy map.
+  ohm::OccupancyMap test_map(map.resolution());
+  test_map.setOrigin(map.origin());
+
+  ohm::Voxel<float> new_occupancy(&test_map, test_map.layout().occupancyLayer());
+  ASSERT_TRUE(new_occupancy.isLayerValid());
+  unsigned test_voxel_count = 0;
+  for (auto iter = layered_heightmap.heightmap().begin(); iter != layered_heightmap.heightmap().end(); ++iter)
+  {
+    glm::dvec3 voxel_pos{};
+    auto hm_voxel_type = layered_heightmap.getHeightmapVoxelInfo(*iter, &voxel_pos);
+    if (hm_voxel_type == HeightmapVoxelType::kSurface)
+    {
+      // Get the voxel position from the heightmap.
+      new_occupancy.setKey(test_map.voxelKey(voxel_pos));
+      ASSERT_TRUE(new_occupancy.isValid());
+      ohm::integrateHit(new_occupancy);
+      ++test_voxel_count;
+    }
+  }
+
+  new_occupancy.reset();
+
+  // Ensure we've extracted something.
+  ASSERT_GT(test_voxel_count, 0);
+  ohm::save("layered-map-out.ohm", test_map);
+  ohmtools::saveCloud("layered-map-out.ply", test_map);
+
+  // Now validate the extracted test_map against the original map.
+  ohm::Voxel<const float> ref_occupancy(&map, map.layout().occupancyLayer());
+  ohm::Voxel<const float> test_occupancy(&test_map, test_map.layout().occupancyLayer());
+
+  unsigned ref_voxel_count = 0;
+  for (auto iter = map.begin(); iter != map.end(); ++iter)
+  {
+    ref_occupancy.setKey(iter);  // Set key from iterator for efficiency (chunk pointer already available)
+    ASSERT_TRUE(ref_occupancy.isValid());
+    test_occupancy.setKey(*iter);  // Set from Key as we are referencing a different map object.
+    ASSERT_TRUE(test_occupancy.isValid());
+    // Check that the occupancy types match. The actual occupancies may differ.
+    const auto ref_occupancy_type = ohm::occupancyType(ref_occupancy);
+    const auto test_occupancy_type = ohm::occupancyType(test_occupancy);
+    ASSERT_EQ(test_occupancy_type, ref_occupancy_type);
+    if (ref_occupancy_type == ohm::kOccupied)
+    {
+      ++ref_voxel_count;
+    }
+  }
+
+  ASSERT_GT(ref_voxel_count, 0);
+  ASSERT_EQ(test_voxel_count, ref_voxel_count);
 }
