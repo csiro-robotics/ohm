@@ -696,6 +696,7 @@ void onVisitWalker(Walker &walker, const HeightmapDetail &imp, const Key &walk_k
 /// of each column only.
 void sortHeightmapLayers(ohm::HeightmapDetail &detail, const std::set<ohm::Key> target_keys, const bool use_voxel_mean)
 {
+  PROFILE(sortHeightmapLayers);
   if (!target_keys.empty())
   {
     // We have work to do.
@@ -703,12 +704,13 @@ void sortHeightmapLayers(ohm::HeightmapDetail &detail, const std::set<ohm::Key> 
     /// Structure used to extract heightamp data for sorting. Contains all information possible from the heightmap.
     struct SortingVoxel
     {
+      double height;
       HeightmapVoxel height_info;
       float occpuancy;
       VoxelMean mean;
 
       /// Sorting operator.
-      inline bool operator<(const SortingVoxel &other) const { return height_info.height < other.height_info.height; }
+      inline bool operator<(const SortingVoxel &other) const { return height < other.height; }
     };
 
     ohm::OccupancyMap &heightmap = *detail.heightmap;
@@ -733,6 +735,11 @@ void sortHeightmapLayers(ohm::HeightmapDetail &detail, const std::set<ohm::Key> 
         sorting_info.height_info = voxel.heightmap.data();
         sorting_info.mean = use_voxel_mean ? voxel.mean.data() : VoxelMean{};
 
+        // The height value is stored as a relative to the centre of the voxel in which it resides. We need to convert
+        // this to an absolute height.
+        sorting_info.height =
+          glm::dot(detail.up, detail.heightmap->voxelCentreGlobal(key)) + double(sorting_info.height_info.height);
+
         heightmap.moveKeyAlongAxis(key, detail.vertical_axis_index, 1);
         voxel.setKey(key);
       }
@@ -744,10 +751,14 @@ void sortHeightmapLayers(ohm::HeightmapDetail &detail, const std::set<ohm::Key> 
 
         // Now write back the sorted results.
         key = base_key;
-        for (const SortingVoxel &voxel_info : sorting_list)
+        for (SortingVoxel voxel_info : sorting_list)
         {
           voxel.setKey(key);
           assert(voxel.occupancy.isValid() && voxel.heightmap.isValid() && (!use_voxel_mean || voxel.mean.isValid()));
+          // Now that we have a new voxel key, we need to convert the HeightmapVoxel heigth value to be relative to
+          // the new voxel centre.
+          voxel_info.height_info.height =
+            float(voxel_info.height - glm::dot(detail.up, detail.heightmap->voxelCentreGlobal(key)));
           voxel.occupancy.write(voxel_info.occpuancy);
           voxel.heightmap.write(voxel_info.height_info);
           if (use_voxel_mean)
@@ -1046,11 +1057,7 @@ HeightmapVoxelType Heightmap::getHeightmapVoxelInfo(const Key &key, glm::dvec3 *
       Voxel<const HeightmapVoxel> heightmap_voxel(imp_->heightmap.get(), imp_->heightmap_layer, key);
       Voxel<const VoxelMean> mean_voxel(imp_->heightmap.get(), imp_->heightmap->layout().meanLayer(), key);
 
-      Key height_key = key;
-      project(&height_key);
-
-      // Note: the base height must come from the key projected onto the heightmap base plane.
-      const glm::dvec3 voxel_centre = imp_->heightmap->voxelCentreGlobal(height_key);
+      const glm::dvec3 voxel_centre = imp_->heightmap->voxelCentreGlobal(key);
       *pos = mean_voxel.isLayerValid() ? positionSafe(mean_voxel) : voxel_centre;
       float occupancy;
       heightmap_occupancy.read(&occupancy);
@@ -1062,7 +1069,7 @@ HeightmapVoxelType Heightmap::getHeightmapVoxelInfo(const Key &key, glm::dvec3 *
         // Get height info.
         HeightmapVoxel heightmap_info;
         heightmap_voxel.read(&heightmap_info);
-        (*pos)[upAxisIndex()] = voxel_centre[upAxisIndex()] + heightmap_info.height;
+        *pos = voxel_centre + imp_->up * double(heightmap_info.height);
         if (voxel_info)
         {
           *voxel_info = heightmap_info;
@@ -1237,10 +1244,6 @@ bool Heightmap::buildHeightmapT(KeyWalker &walker, const glm::dvec3 &reference_p
         // We can do a direct occupancy value write with no checks for the heightmap. The value is explicit.
         assert(hm_voxel.occupancy.isValid() && hm_voxel.occupancy.voxelMemory());
 
-        // Note: we calculate the height value before any multi-layer adjustments.
-        // This ensures all heights are stored relative to the base voxel key in the column.
-        const float voxel_height = relativeVoxelHeight(src_height, hm_key, heightmap, imp_->up);
-
         bool should_add = true;
         // For multi-layered heightmaps, we need to check occupancy and not overwrite existing results.
         if (isMultiLayered())
@@ -1282,7 +1285,9 @@ bool Heightmap::buildHeightmapT(KeyWalker &walker, const glm::dvec3 &reference_p
           // Write the height and clearance values.
           HeightmapVoxel height_info;
           hm_voxel.heightmap.read(&height_info);
-          height_info.height = voxel_height;
+          // Calculate the relative voxel height now that we have a target voxel key which may consider multi-layering.
+          // Later sorting may change the HeightmapVoxel::height value as the voxel may be changed.
+          height_info.height = relativeVoxelHeight(src_height, hm_key, heightmap, imp_->up);
           height_info.clearance = float(clearance);
           height_info.normal_x = height_info.normal_y = height_info.normal_z = 0;
 
