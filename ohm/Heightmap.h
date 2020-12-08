@@ -275,10 +275,6 @@ public:
   /// upAxisNormal().
   static const glm::dvec3 &surfaceAxisB(UpAxis axis_id);
 
-  /// Seed and enable the local cache (see class documentation).
-  /// @param reference_pos The position around which to seed the local cache.
-  void seedLocalCache(const glm::dvec3 &reference_pos);
-
   /// Generate the heightmap around a reference position. This sets the @c base_height as in the overload, but also
   /// changes the behaviour to flood fill out from the reference position.
   ///
