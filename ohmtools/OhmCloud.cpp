@@ -5,6 +5,7 @@
 // Author: Kazys Stepanas
 #include "OhmCloud.h"
 
+#include <ohm/Heightmap.h>
 #include <ohm/HeightmapUtil.h>
 #include <ohm/HeightmapVoxel.h>
 #include <ohm/OccupancyMap.h>
@@ -12,42 +13,221 @@
 #include <ohm/Query.h>
 #include <ohm/VoxelData.h>
 
+#include <ohmutil/Colour.h>
 #include <ohmutil/PlyMesh.h>
+#include <ohmutil/PlyPointStream.h>
 
 #include <algorithm>
+#include <fstream>
 #include <limits>
 
 namespace ohmtools
 {
-void saveCloud(const char *file_name, const ohm::OccupancyMap &map, const ProgressCallback &prog)
+const ohm::Colour ColourByHeight::s_default_from(128, 255, 0);
+const ohm::Colour ColourByHeight::s_default_to(120, 0, 255);
+
+ColourByHeight::ColourByHeight(const ohm::OccupancyMap &map)
+  : ColourByHeight(map, s_default_from, s_default_to)
+{}
+
+
+ColourByHeight::ColourByHeight(const ohm::OccupancyMap &map, const ohm::Colour &from, const ohm::Colour &to)
+  : colours({ from, to })
 {
-  ohm::PlyMesh ply;
-  glm::vec3 v;
+  map.calculateExtents(nullptr, nullptr, &range_);
+}
+
+
+ColourByHeight::ColourByHeight(const ohm::KeyRange &extents)
+  : ColourByHeight(extents, s_default_from, s_default_to)
+{}
+
+
+ColourByHeight::ColourByHeight(const ohm::KeyRange &extents, const ohm::Colour &from, const ohm::Colour &to)
+  : colours({ from, to })
+  , range_(extents)
+{}
+
+
+ohm::Colour ColourByHeight::select(const ohm::Key &key) const
+{
+  const double vertical_range = std::max(1.0, double(range_.range()[up_axis_]));
+  const double offset = std::max(
+    0.0, std::min(double(ohm::OccupancyMap::rangeBetween(range_.minKey(), key, range_.regionDimensions())[up_axis_]),
+                  vertical_range));
+  const float factor = float(offset / vertical_range);
+  return ohm::Colour::lerp(colours[0], colours[1], factor);
+}
+
+
+ohm::Colour ColourByHeight::select(const ohm::Voxel<const float> &occupancy) const
+{
+  return select(occupancy.key());
+}
+
+
+ColourHeightmapType::ColourHeightmapType(const ohm::OccupancyMap &map)
+{
+  heightmap_layer_ = map.layout().layerIndex(ohm::HeightmapVoxel::kHeightmapLayer);
+}
+
+
+ohm::Colour ColourHeightmapType::select(const ohm::Voxel<const float> &occupancy) const
+{
+  if (heightmap_layer_ >= 0 && occupancy.isValid())
+  {
+    ohm::Voxel<const ohm::HeightmapVoxel> heightmap_voxel(occupancy.map(), heightmap_layer_);
+    heightmap_voxel.setKey(occupancy);
+    if (heightmap_voxel.isValid())
+    {
+      const float occ_value = occupancy.data();
+      if (occ_value == ohm::Heightmap::kHeightmapSurfaceValue)
+      {
+        return surface_colour;
+      }
+      else if (occ_value == ohm::Heightmap::kHeightmapVirtualSurfaceValue)
+      {
+        return virtual_colour;
+      }
+    }
+  }
+
+  return ohm::Colour(0, 0, 0, 255);
+}
+
+
+uint64_t saveCloud(const char *file_name, const ohm::OccupancyMap &map, const SaveCloudOptions &opt,
+                   const ProgressCallback &prog)
+{
+  std::ofstream out(file_name, std::ios::binary);
+
+  if (!out.is_open())
+  {
+    return 0;
+  }
+
+  std::vector<ohm::PlyPointStream::Property> ply_properties = {
+    ohm::PlyPointStream::Property{ "x", ohm::PlyPointStream::Type::kFloat64 },
+    ohm::PlyPointStream::Property{ "y", ohm::PlyPointStream::Type::kFloat64 },
+    ohm::PlyPointStream::Property{ "z", ohm::PlyPointStream::Type::kFloat64 }
+  };
+
+  if (opt.colour_select)
+  {
+    ply_properties.emplace_back(ohm::PlyPointStream::Property{ "r", ohm::PlyPointStream::Type::kUInt8 });
+    ply_properties.emplace_back(ohm::PlyPointStream::Property{ "g", ohm::PlyPointStream::Type::kUInt8 });
+    ply_properties.emplace_back(ohm::PlyPointStream::Property{ "b", ohm::PlyPointStream::Type::kUInt8 });
+  }
+
+  ohm::PlyPointStream ply(ply_properties);
+  ply.open(out);
+
+  glm::vec3 pos;
   const size_t region_count = map.regionCount();
   size_t processed_region_count = 0;
   glm::i16vec3 last_region = map.begin().key().regionKey();
 
   ohm::Voxel<const float> occupancy(&map, map.layout().occupancyLayer());
-  ohm::Voxel<const ohm::VoxelMean> mean(&map, map.layout().meanLayer());
-  ohm::Voxel<const ohm::HeightmapVoxel> heightmap_voxel(&map,
-                                                        map.layout().layerIndex(ohm::HeightmapVoxel::kHeightmapLayer));
-  // Resolve the heightmap axis from the mapInfo if relevant.
-  int heightmap_axis = 2;
-  float height_flip = 1.0f;  // Set to -1 if we need to negate the height value to get a coordinate out of it.
-  if (heightmap_voxel.isLayerValid())
+  auto mean = (opt.ignore_voxel_mean) ? ohm::Voxel<const ohm::VoxelMean>() :
+                                        ohm::Voxel<const ohm::VoxelMean>(&map, map.layout().meanLayer());
+
+  uint64_t point_count = 0;
+  for (auto iter = map.begin(); iter != map.end(); ++iter)
   {
-    ohm::UpAxis up_axis = ohm::heightmap::queryHeightmapAxis(map.mapInfo());
-    if (int(up_axis) >= 0)
+    ohm::setVoxelKey(iter, occupancy, mean);
+    // Progress update.
+    if (last_region != iter.key().regionKey())
     {
-      heightmap_axis = int(up_axis);
+      ++processed_region_count;
+      if (prog)
+      {
+        prog(processed_region_count, region_count);
+      }
+      last_region = iter.key().regionKey();
     }
-    else
+
+    if (isOccupied(occupancy))
     {
-      heightmap_axis = 1 - int(up_axis);
-      height_flip = -1.0f;
+      pos = positionSafe(mean);
+      ply.setPointPosition(pos);
+      if (opt.colour_select)
+      {
+        const ohm::Colour c = opt.colour_select(occupancy);
+        ply.setProperty("r", c.r());
+        ply.setProperty("g", c.g());
+        ply.setProperty("b", c.b());
+      }
+
+      ply.writePoint();
+      ++point_count;
     }
   }
 
+  ply.close();
+  out.close();
+
+  return point_count;
+}
+
+
+uint64_t saveHeightmapCloud(const char *file_name, const ohm::OccupancyMap &map, const SaveCloudOptions &opt,
+                            const ProgressCallback &prog)
+{
+  std::ofstream out(file_name, std::ios::binary);
+
+  if (!out.is_open())
+  {
+    return 0;
+  }
+
+  std::vector<ohm::PlyPointStream::Property> ply_properties = {
+    ohm::PlyPointStream::Property{ "x", ohm::PlyPointStream::Type::kFloat64 },
+    ohm::PlyPointStream::Property{ "y", ohm::PlyPointStream::Type::kFloat64 },
+    ohm::PlyPointStream::Property{ "z", ohm::PlyPointStream::Type::kFloat64 }
+  };
+
+  if (opt.colour_select)
+  {
+    ply_properties.emplace_back(ohm::PlyPointStream::Property{ "r", ohm::PlyPointStream::Type::kUInt8 });
+    ply_properties.emplace_back(ohm::PlyPointStream::Property{ "g", ohm::PlyPointStream::Type::kUInt8 });
+    ply_properties.emplace_back(ohm::PlyPointStream::Property{ "b", ohm::PlyPointStream::Type::kUInt8 });
+  }
+
+  ohm::PlyPointStream ply(ply_properties);
+  ply.open(out);
+
+  glm::vec3 pos;
+  const size_t region_count = map.regionCount();
+  size_t processed_region_count = 0;
+  glm::i16vec3 last_region = map.begin().key().regionKey();
+
+  ohm::Voxel<const float> occupancy(&map, map.layout().occupancyLayer());
+  auto mean = (opt.ignore_voxel_mean) ? ohm::Voxel<const ohm::VoxelMean>() :
+                                        ohm::Voxel<const ohm::VoxelMean>(&map, map.layout().meanLayer());
+  ohm::Voxel<const ohm::HeightmapVoxel> heightmap_voxel(&map,
+                                                        map.layout().layerIndex(ohm::HeightmapVoxel::kHeightmapLayer));
+
+  if (!heightmap_voxel.isLayerValid())
+  {
+    // Invalid format.
+    return 0;
+  }
+
+  // Resolve the heightmap axis from the mapInfo if relevant.
+  int heightmap_axis = 2;
+  float height_flip = 1.0f;  // Set to -1 if we need to negate the height value to get a coordinate out of it.
+  ohm::UpAxis up_axis = ohm::heightmap::queryHeightmapAxis(map.mapInfo());
+  if (int(up_axis) >= 0)
+  {
+    heightmap_axis = int(up_axis);
+  }
+  else
+  {
+    heightmap_axis = 1 - int(up_axis);
+    height_flip = -1.0f;
+  }
+
+  uint64_t point_count = 0;
   for (auto iter = map.begin(); iter != map.end(); ++iter)
   {
     ohm::setVoxelKey(iter, occupancy, mean, heightmap_voxel);
@@ -60,18 +240,33 @@ void saveCloud(const char *file_name, const ohm::OccupancyMap &map, const Progre
       }
       last_region = iter.key().regionKey();
     }
-    if (isOccupied(occupancy))
+    if (isOccupied(occupancy) || opt.export_free && isFree(occupancy))
     {
-      v = positionSafe(mean) - map.origin();
+      pos = positionSafe(mean);
       if (heightmap_voxel.isValid())
       {
-        v[heightmap_axis] += height_flip * heightmap_voxel.data().height;
+        pos[heightmap_axis] += height_flip * heightmap_voxel.data().height;
       }
-      ply.addVertex(v);
+
+      ply.setPointPosition(pos);
+
+      if (opt.colour_select)
+      {
+        const ohm::Colour c = opt.colour_select(occupancy);
+        ply.setProperty("r", c.r());
+        ply.setProperty("g", c.g());
+        ply.setProperty("b", c.b());
+      }
+
+      ply.writePoint();
+      ++point_count;
     }
   }
 
-  ply.save(file_name, true);
+  ply.close();
+  out.close();
+
+  return point_count;
 }
 
 

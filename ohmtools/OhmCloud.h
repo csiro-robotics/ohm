@@ -8,14 +8,22 @@
 
 #include "OhmToolsConfig.h"
 
+#include <ohm/KeyRange.h>
+
+#include <ohmutil/Colour.h>
+
 #include <glm/glm.hpp>
 
+#include <array>
 #include <functional>
 
 namespace ohm
 {
+class Key;
 class OccupancyMap;
 class Query;
+template <typename T>
+class Voxel;
 }  // namespace ohm
 
 namespace ohmtools
@@ -24,12 +32,83 @@ namespace ohmtools
 /// The arguments passed are the current progress and the target progress respectively.
 using ProgressCallback = std::function<void(size_t, size_t)>;
 
+/// Colour selection filter function. May be used to override colour assignment.
+using ColourSelect = std::function<ohm::Colour(const ohm::Voxel<const float> &)>;
+
+/// Options used to adjust how a cloud is saved from an occupancy map.
+struct SaveCloudOptions
+{
+  /// Overrides the default colour selection.
+  ColourSelect colour_select{};
+  /// Export free space voxels? Required to get virtual surfaces from heightmaps.
+  bool export_free = false;
+  /// Ingore voxel mean forcing voxel centres for positions?
+  bool ignore_voxel_mean = false;
+};
+
+//------------------------------------------------------------------------------
+// Colour selection helpers
+//------------------------------------------------------------------------------
+/// A helper for @c saveCloud() to colour a cloud by height.
+class ColourByHeight
+{
+public:
+  static const ohm::Colour s_default_from;
+  static const ohm::Colour s_default_to;
+
+  std::array<ohm::Colour, 2> colours;
+
+  explicit ColourByHeight(const ohm::OccupancyMap &map);
+  ColourByHeight(const ohm::OccupancyMap &map, const ohm::Colour &from, const ohm::Colour &to);
+  explicit ColourByHeight(const ohm::KeyRange &extents);
+  ColourByHeight(const ohm::KeyRange &extents, const ohm::Colour &from, const ohm::Colour &to);
+
+  ohm::Colour select(const ohm::Key &key) const;
+  ohm::Colour select(const ohm::Voxel<const float> &occupancy) const;
+
+private:
+  ohm::KeyRange range_;
+  int up_axis_ = 2;
+};
+
+/// Colour heightmap voxels by @c HeightmapVoxelType::kSurface or @c HeightmapVoxelType::kVirtualSurface type.
+class ColourHeightmapType
+{
+public:
+  ohm::Colour surface_colour{ 32, 255, 32 };
+  ohm::Colour virtual_colour{ 255, 128, 32 };
+
+  explicit ColourHeightmapType(const ohm::OccupancyMap &map);
+
+  ohm::Colour select(const ohm::Voxel<const float> &occupancy) const;
+
+private:
+  int heightmap_layer_ = -1;
+};
+
+//------------------------------------------------------------------------------
+// Cloud ply saving functions.
+//------------------------------------------------------------------------------
+
 /// Save @p map to a ply file, exporting only Occupied voxels.
 /// @param file_name File to save to. Please add the .ply extension.
 /// @param map The map to save.
+/// @param opt Additional export controls.
 /// @param prog Optional function called to report on progress.
-void ohmtools_API saveCloud(const char *file_name, const ohm::OccupancyMap &map,
-                            const ProgressCallback &prog = ProgressCallback());
+/// @return The number of points saved.
+uint64_t ohmtools_API saveCloud(const char *file_name, const ohm::OccupancyMap &map,
+                                const SaveCloudOptions &opt = SaveCloudOptions(),
+                                const ProgressCallback &prog = ProgressCallback());
+
+/// Save @p map assuming it is a heightmap (contains @c HeightmapVoxel data) to a ply cloud.
+/// @param file_name File to save to. Please add the .ply extension.
+/// @param map The map to save.
+/// @param opt Additional export controls.
+/// @param prog Optional function called to report on progress.
+/// @return The number of points saved.
+uint64_t ohmtools_API saveHeightmapCloud(const char *file_name, const ohm::OccupancyMap &heightmap,
+                                         const SaveCloudOptions &opt = SaveCloudOptions(),
+                                         const ProgressCallback &prog = ProgressCallback());
 
 /// Save the results of @p query on @p map to a ply file, exporting all intersected voxels.
 /// Voxels are coloured by the reported query range values where voxels at or beyond @p colourRange
