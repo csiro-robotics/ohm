@@ -137,13 +137,27 @@ public:
   /// Access the currently generated heightmap.
   OccupancyMap &heightmap() const;
 
-  /// Set the ceiling level. Points above this distance above the base height in the source map are ignored.
-  /// @param ceiling The new ceiling value. Positive to enable.
+  /// Set the search ceiling level. Searches are constrained to this ceiling height from the seed voxel. The effective
+  /// ceiling varies depending on the active @c mode() . For @c HeightmapMode::kPlanar, the imposes a fixed limit. For
+  /// all fill modes, the ceiling is relative to the current seed voxel. This means the absolute ceiling will run
+  /// parallel to a slope.
+  /// @param ceiling The new ceiling value in global map units. Positive to enable, but must be larger than half the
+  /// source map voxel resolution to have any effect.
   void setCeiling(double ceiling);
 
-  /// Get the ceiling level. Points above this distance above the base height in the source map are ignored.
-  /// @return The ceiling value.
+  /// Get the search ceiling level. See @c setCeiling().
+  /// @return The search ceiling value in global map units.
   double ceiling() const;
+
+  /// Set the search floor level. Searches are constrained to search down only to this floor height from the seed voxel.
+  /// The same effective constraints apply for the floor as do for @c setCeiling().
+  /// @param floor The new floor value in global map units. Positive to enable, but must be larger than half the source
+  /// map voxel resolution to have any effect.
+  void setFloor(double floor);
+
+  /// Get the search floor level. See @c setCeiling().
+  /// @return The search floor value in global map units.
+  double floor() const;
 
   /// Set the minimum clearance required above a voxel in order to consider it a heightmap voxel.
   /// @param clearance The new clearance value.

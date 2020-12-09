@@ -161,9 +161,9 @@ struct DstVoxel
 
   inline DstVoxel() = default;
 
-  DstVoxel(OccupancyMap &map, int heightmap_layer, bool use_mean)
+  DstVoxel(OccupancyMap &map, int heightmap_voxel_layer, bool use_mean)
     : occupancy(&map, map.layout().occupancyLayer())
-    , heightmap(&map, heightmap_layer)
+    , heightmap(&map, heightmap_voxel_layer)
     , mean(&map, use_mean ? map.layout().meanLayer() : -1)
   {}
 
@@ -342,8 +342,8 @@ Key findNearestSupportingVoxel2(SrcVoxel &voxel, const Key &from_key, const Key 
   }
 
   Key best_virtual(nullptr);
-  bool last_unknown = true;
-  bool last_free = true;
+  bool last_unknown = false;
+  bool last_free = false;
 
   Key last_key(nullptr);
   Key current_key = from_key;
@@ -394,7 +394,17 @@ Key findNearestSupportingVoxel2(SrcVoxel &voxel, const Key &from_key, const Key 
     // - the last voxel was free
     // - the current voxel is unknown - we only need check !free at this point
     // Otherwise we keep the current candidate
-    best_virtual = (allow_virtual_surface && !search_up && last_free && !free) ? last_key : best_virtual;
+    best_virtual = (allow_virtual_surface && !search_up && last_unknown && !free) ? last_key : best_virtual;
+
+#if RETURN_FIRST_VIRTUAL
+    // TEST CODE
+    // TODO(KS): This should be conditioned on being in a layered mode.
+    if (!best_virtual.isNull())
+    {
+      *is_virtual = true;
+      return best_virtual;
+    }
+#endif  // RETURN_FIRST_VIRTUAL
 
     // Cache values for the next iteration.
     last_unknown = !occupied && !free;
@@ -468,8 +478,8 @@ Key findNearestSupportingVoxel2(SrcVoxel &voxel, const Key &from_key, const Key 
 /// @param flags Control flags from @c SupportingVoxelFlag.
 /// @return A new seed key from which to start searching for a valid ground voxel (@c findGround()).
 inline Key findNearestSupportingVoxel(SrcVoxel &voxel, const Key &seed_key, UpAxis up_axis, const Key &min_key,
-                                      const Key &max_key, int voxel_ceiling, int clearance_voxel_count_permissive,
-                                      unsigned flags)
+                                      const Key &max_key, int voxel_floor_limit, int voxel_ceiling_limit,
+                                      int clearance_voxel_count_permissive, unsigned flags)
 {
   PROFILE(findNearestSupportingVoxel);
   Key above;
@@ -482,9 +492,10 @@ inline Key findNearestSupportingVoxel(SrcVoxel &voxel, const Key &seed_key, UpAx
   const int up_axis_index = (int(up_axis) >= 0) ? int(up_axis) : -int(up_axis) - 1;
   const Key &search_down_to = (int(up_axis) >= 0) ? min_key : max_key;
   const Key &search_up_to = (int(up_axis) >= 0) ? max_key : min_key;
-  below = findNearestSupportingVoxel2(voxel, seed_key, search_down_to, up_axis_index, 0, false, flags, &offset_below,
-                                      &virtual_below);
-  above = findNearestSupportingVoxel2(voxel, seed_key, search_up_to, up_axis_index, voxel_ceiling, true, flags,
+
+  below = findNearestSupportingVoxel2(voxel, seed_key, search_down_to, up_axis_index, voxel_floor_limit, false, flags,
+                                      &offset_below, &virtual_below);
+  above = findNearestSupportingVoxel2(voxel, seed_key, search_up_to, up_axis_index, voxel_ceiling_limit, true, flags,
                                       &offset_above, &virtual_above);
 
   const bool have_candidate_below = offset_below >= 0;
@@ -720,7 +731,7 @@ void sortHeightmapLayers(ohm::HeightmapDetail &detail, const std::set<ohm::Key> 
     };
 
     ohm::OccupancyMap &heightmap = *detail.heightmap;
-    DstVoxel voxel(heightmap, detail.heightmap_layer, use_voxel_mean);
+    DstVoxel voxel(heightmap, detail.heightmap_voxel_layer, use_voxel_mean);
     // Will only ever be small.
     std::vector<SortingVoxel> sorting_list;
 
@@ -810,7 +821,7 @@ Heightmap::Heightmap(double grid_resolution, double min_clearance, UpAxis up_axi
   region_dim[imp_->vertical_axis_index] = 4;
   imp_->multilayer_heightmap = std::make_unique<OccupancyMap>(grid_resolution, region_dim);
 
-  imp_->heightmap_layer = heightmap::setupHeightmap(*imp_->heightmap, *imp_);
+  imp_->heightmap_voxel_layer = heightmap::setupHeightmap(*imp_->heightmap, *imp_);
   heightmap::setupHeightmap(*imp_->multilayer_heightmap, *imp_);
 }
 
@@ -845,6 +856,18 @@ void Heightmap::setCeiling(double ceiling)
 double Heightmap::ceiling() const
 {
   return imp_->ceiling;
+}
+
+
+void Heightmap::setFloor(double floor)
+{
+  imp_->floor = floor;
+}
+
+
+double Heightmap::floor() const
+{
+  return imp_->floor;
 }
 
 
@@ -970,7 +993,7 @@ const glm::dvec3 &Heightmap::surfaceAxisB(UpAxis axis_id)
 
 int Heightmap::heightmapVoxelLayer() const
 {
-  return imp_->heightmap_layer;
+  return imp_->heightmap_voxel_layer;
 }
 
 
@@ -1060,7 +1083,7 @@ HeightmapVoxelType Heightmap::getHeightmapVoxelInfo(const Key &key, glm::dvec3 *
 
     if (heightmap_occupancy.isValid())
     {
-      Voxel<const HeightmapVoxel> heightmap_voxel(imp_->heightmap.get(), imp_->heightmap_layer, key);
+      Voxel<const HeightmapVoxel> heightmap_voxel(imp_->heightmap.get(), imp_->heightmap_voxel_layer, key);
       Voxel<const VoxelMean> mean_voxel(imp_->heightmap.get(), imp_->heightmap->layout().meanLayer(), key);
 
       const glm::dvec3 voxel_centre = imp_->heightmap->voxelCentreGlobal(key);
@@ -1158,17 +1181,19 @@ bool Heightmap::buildHeightmapT(KeyWalker &walker, const glm::dvec3 &reference_p
   // Walk the 2D extraction region in a spiral around walk_key.
   const glm::dvec3 up_axis_normal = upAxisNormal();
   unsigned populated_count = 0;
+  // Convert the search floor and ceiling values to voxel counts.
+  const int voxel_floor = ohm::pointToRegionCoord(imp_->floor, src_map.resolution());
   const int voxel_ceiling = ohm::pointToRegionCoord(imp_->ceiling, src_map.resolution());
   const int clearance_voxel_count_permissive =
     std::max(1, ohm::pointToRegionCoord(imp_->min_clearance, src_map.resolution()) - 1);
 
   SrcVoxel src_voxel(src_map, use_voxel_mean);
-  DstVoxel hm_voxel(heightmap, imp_->heightmap_layer, use_voxel_mean);
+  DstVoxel hm_voxel(heightmap, imp_->heightmap_voxel_layer, use_voxel_mean);
 
 #if HM_DEBUG_VOXEL
   const glm::dvec3 debug_pos(2.05, 0.75, 0);
   const Key debug_src_key(1, 0, 0, 11, 3, 23);
-  const Key debug_dst_key(0, 0, 0, 28, 43, 0);
+  const Key debug_dst_key(0, 0, 0, 29, 44, 0);
 #endif  // HM_DEBUG_VOXEL
   unsigned supporting_voxel_flags = initial_supporting_flags;
   // Tracks voxels which have results at multiple layers for a heightmap support isMultiLayered()
@@ -1196,8 +1221,8 @@ bool Heightmap::buildHeightmapT(KeyWalker &walker, const glm::dvec3 &reference_p
     // ground voxel.
     // Virtual ground is where a free is supported by an uncertain or null voxel below it.
     Key candidate_key =
-      findNearestSupportingVoxel(src_voxel, walk_key, upAxis(), walker.minKey(), walker.maxKey(), voxel_ceiling,
-                                 clearance_voxel_count_permissive, supporting_voxel_flags);
+      findNearestSupportingVoxel(src_voxel, walk_key, upAxis(), walker.minKey(), walker.maxKey(), voxel_floor,
+                                 voxel_ceiling, clearance_voxel_count_permissive, supporting_voxel_flags);
 
     // Walk up from the candidate to find the best heightmap voxel.
     double height = 0;

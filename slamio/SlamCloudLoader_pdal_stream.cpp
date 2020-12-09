@@ -54,8 +54,9 @@ using Clock = std::chrono::high_resolution_clock;
 class PointStream : public pdal::StreamPointTable
 {
 public:
-  explicit PointStream(size_t buffer_capacity)
+  explicit PointStream(size_t buffer_capacity, bool ignore_missing_timefield = false)
     : pdal::StreamPointTable(layout_, buffer_capacity)
+    , ignore_missing_timefield_(ignore_missing_timefield)
   {
     // Register for the data we are interested in
     buffers_[0].reserve(buffer_capacity);
@@ -112,10 +113,15 @@ public:
       {
         // Resolved time field.
         time_dimension_ = dim;
+        have_timefield_ = true;
       }
       else
       {
-        have_required_dimensions = false;
+        have_timefield_ = false;
+        if (!ignore_missing_timefield_)
+        {
+          have_required_dimensions = false;
+        }
       }
 
       valid_dimensions_ = have_required_dimensions;
@@ -180,7 +186,7 @@ protected:
       auto &buffer = buffers_[write_index_];
       while (buffer.size() <= idx)
       {
-        buffer.emplace_back();
+        buffer.emplace_back(glm::dvec4(0, 0, 0, 0));
       }
 
       auto &point = buffer[idx];
@@ -197,7 +203,7 @@ protected:
         point.z = *static_cast<const double *>(val);
         break;
       default:
-        if (dim == time_dimension_)
+        if (have_timefield_ && dim == time_dimension_)
         {
           point.w = *static_cast<const double *>(val);
         }
@@ -235,6 +241,8 @@ private:
   std::atomic_bool loading_complete_{ false };
   std::atomic_bool abort_{ false };
   std::atomic_bool valid_dimensions_{ false };
+  bool have_timefield_{ false };
+  bool ignore_missing_timefield_{ false };
 };
 }  // namespace
 
@@ -437,7 +445,8 @@ bool SlamCloudLoader::open(const char *sample_file_path, const char *trajectory_
     }
   }
 
-  imp_->sample_stream = std::make_unique<PointStream>(kCloudStreamBufferSize);
+  const bool allow_missing_time_field = trajectory_file_path == nullptr || !trajectory_file_path[0];
+  imp_->sample_stream = std::make_unique<PointStream>(kCloudStreamBufferSize, allow_missing_time_field);
   imp_->sample_reader->prepare(*imp_->sample_stream);
   imp_->sample_count = pointCount(imp_->sample_reader);
 

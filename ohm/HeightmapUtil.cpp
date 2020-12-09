@@ -46,10 +46,7 @@ int setupHeightmap(ohm::OccupancyMap &heightmap, HeightmapDetail &detail)
   voxels.addMember("normal_x", DataType::kFloat, 0);
   voxels.addMember("normal_y", DataType::kFloat, 0);
   voxels.addMember("normal_z", DataType::kFloat, 0);
-  voxels.addMember("flags", DataType::kUInt8, 0);
-  voxels.addMember("reserved0", DataType::kUInt8, 0);
-  voxels.addMember("reserved1", DataType::kUInt8, 0);
-  voxels.addMember("reserved2", DataType::kUInt8, 0);
+  voxels.addMember("reserved", DataType::kUInt32, 0);
 
   detail.toMapInfo(heightmap.mapInfo());
 

@@ -42,15 +42,18 @@ struct ohm_API HeightmapDetail
   std::unique_ptr<OccupancyMap> multilayer_heightmap;
   /// The direct of up used in heightmap generation. Must be aligned to a specific access.
   glm::dvec3 up = glm::dvec3(0, 0, 1);
-  /// Ignore all source voxels which lie higher than this above the reference position height.
-  /// Enable by setting a positive value.
+  /// Ignore all source voxels which lie higher than this above the seed voxel height.
+  /// Enable by setting a positive, non zero value.
   double ceiling = 0;
+  /// Ignore all source voxels which lie higher than this below the seed voxel height.
+  /// Enable by setting a positive, non zero value.
+  double floor = 0;
   /// Minimum clearance above a potential ground/surface voxel required to accept the voxel as a viable surface.
   double min_clearance = 1.0;
   /// Range at which to generate negative obstacle surfaces.
   double negative_obstacle_radius = 0;
   /// Voxel layer containing the @c HeightmapVoxel data in the @c heightmap.
-  int heightmap_layer = -1;
+  int heightmap_voxel_layer = -1;
   /// Identifies the up axis: @c UpAxis
   UpAxis up_axis_id = UpAxis::kZ;
   /// Identifies the up axis as aligned to XYZ, [0, 2] but ignores sign/direction.

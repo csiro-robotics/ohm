@@ -325,8 +325,9 @@ public:
 
   /// Get a value from the data store.
   /// @param name The key of the data to retrieve.
+  /// @param default_value The value to return if the key @p name is not found.
   /// @return The existing value or an empty/invalid @c MapValue when @p name is not matched.
-  MapValue get(const char *name) const;
+  MapValue get(const char *name, MapValue default_value = MapValue()) const;
 
   /// Remove the data entry associated with @p name, removing it from the tree.
   /// Does nothing if there is no such key.
