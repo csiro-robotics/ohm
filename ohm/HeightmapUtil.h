@@ -30,6 +30,11 @@ int ohm_API setupHeightmap(ohm::OccupancyMap &heightmap, HeightmapDetail &detail
 /// @return The configured heigthmap axis or @c UpAxis::kZ if nothing is configured.
 UpAxis ohm_API queryHeightmapAxis(const MapInfo &info);
 
+/// Query the configured heightmap clearance value.
+/// @param info The map info data to query.
+/// @return The configured clearance used to generate the heightmap. Zero if not present.
+double ohm_API queryHeightmapClearance(const MapInfo &info);
+
 /// Resolve an array of indices which may be used to reference XYZ axes from a given heightmap up axis.
 ///
 /// Each element in the returned array indexes one of the {X, Y, Z} axies as {0, 1, 2} respectively. The resulting

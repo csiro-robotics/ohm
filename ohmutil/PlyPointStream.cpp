@@ -106,9 +106,43 @@ PlyPointStream::PlyPointStream(const std::vector<Property> &properties, std::ost
 }
 
 
+PlyPointStream::PlyPointStream(PlyPointStream &&other)
+  : out_(std::exchange(other.out_, nullptr))
+  , properties_(std::move(other.properties_))
+  , values_(std::move(other.values_))
+  , point_count_(std::exchange(other.point_count_, 0))
+  , point_count_pos_(std::exchange(other.point_count_pos_, -1))
+{}
+
+
 PlyPointStream::~PlyPointStream()
 {
   close();
+}
+
+
+PlyPointStream &PlyPointStream::operator=(PlyPointStream &&other)
+{
+  out_ = std::exchange(other.out_, nullptr);
+  properties_ = std::move(other.properties_);
+  values_ = std::move(other.values_);
+  point_count_ = std::exchange(other.point_count_, 0);
+  point_count_pos_ = std::exchange(other.point_count_pos_, -1);
+  return *this;
+}
+
+
+bool PlyPointStream::setProperties(const std::vector<Property> &properties)
+{
+  if (isOpen())
+  {
+    return false;
+  }
+
+  properties_ = properties;
+  values_.resize(properties_.size());
+
+  return true;
 }
 
 

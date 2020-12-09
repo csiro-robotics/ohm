@@ -74,6 +74,8 @@ public:
     Type type;         ///< Data type for the property
   };
 
+  /// Default constructor. Needs @c setProperties() to be called before calling @c open().
+  PlyPointStream();
   /// Create a stream with the given properties. @c open() to be called later.
   /// @param properties The point properties to write. Cannot be changed after construction.
   explicit PlyPointStream(const std::vector<Property> &properties);
@@ -81,8 +83,23 @@ public:
   /// @param properties The point properties to write. Cannot be changed after construction.
   /// @param out The output stream to write to. Must be seekable. Must outlive this object.
   PlyPointStream(const std::vector<Property> &properties, std::ostream &out);
+  /// Move constructor
+  PlyPointStream(PlyPointStream &&other);
   /// Destructor. Ensures the point count is finalised.
   ~PlyPointStream();
+
+  /// Move assignment operator. Do not call while @c isOpen()
+  /// @param other The object to move.
+  /// @return `*this`
+  PlyPointStream &operator=(PlyPointStream &&other);
+
+  /// Set the properties. Fails if called after @c open() .
+  /// @param properties The properties list.
+  /// @return True on success.
+  bool setProperties(const std::vector<Property> &properties);
+  /// Query the list of properties to export.
+  /// @return The Ply properties list.
+  inline const std::vector<Property> &properties() const { return properties_; }
 
   /// Open ply writing with the given stream. Ensures any current stream is first closed.
   /// @param out The output stream to write to. Must be seekable. Must outlive this object.

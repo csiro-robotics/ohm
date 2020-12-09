@@ -442,12 +442,8 @@ int exportPointCloud(const Options &opt, ProgressMonitor &prog, LoadMapProgress 
   case kExportOccupancyCentre: {
     ohmtools::SaveCloudOptions save_opt;
     save_opt.ignore_voxel_mean = opt.mode == kExportOccupancyCentre;
-    if (opt.colour == kColourHeight)
-    {
-      save_opt.colour_select = [&colour_by_height](const ohm::Voxel<const float> &occupancy) {
-        return colour_by_height.select(occupancy);
-      };
-    }
+    // Default colour mode for saveCloud() is colour by height.
+    save_opt.allow_default_colour_selection = (opt.colour == kColourHeight);
     saveCloud(opt.ply_file.c_str(), map, save_opt, save_progress_callback);
     break;
   }

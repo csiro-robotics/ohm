@@ -67,6 +67,17 @@ UpAxis queryHeightmapAxis(const MapInfo &info)
   return UpAxis::kZ;
 }
 
+double queryHeightmapClearance(const MapInfo &info)
+{
+  const MapValue value = info.get("heightmap-clearance");
+  if (value.isValid())
+  {
+    return double(value);
+  }
+
+  return 0.0;
+}
+
 std::array<int, 3> ohm_API heightmapAxisIndices(UpAxis up_axis)
 {
   std::array<int, 3> axis_indices;

@@ -40,6 +40,10 @@ struct SaveCloudOptions
 {
   /// Overrides the default colour selection.
   ColourSelect colour_select{};
+  /// When true and @c colour_select is empty, uses the default colour selection strategy which best suites the
+  /// cloud type. For example, a general cloud may @c ColourByHeight while a heightmap is better suited to
+  /// @c ColourByHeightmapClearance .
+  bool allow_default_colour_selection = true;
   /// Export free space voxels? Required to get virtual surfaces from heightmaps.
   bool export_free = false;
   /// Ingore voxel mean forcing voxel centres for positions?
@@ -83,6 +87,27 @@ public:
   ohm::Colour select(const ohm::Voxel<const float> &occupancy) const;
 
 private:
+  int heightmap_layer_ = -1;
+};
+
+/// A helper for @c saveCloud() to colour a cloud by height.
+class ColourByHeightmapClearance
+{
+public:
+  static const ohm::Colour s_default_low;
+  static const ohm::Colour s_default_high;
+
+  std::array<ohm::Colour, 2> colours;
+
+  explicit ColourByHeightmapClearance(const ohm::OccupancyMap &map, double clearance_scale = 2.0);
+  ColourByHeightmapClearance(const ohm::OccupancyMap &map, const ohm::Colour &low, const ohm::Colour &high,
+                             double clearance_scale = 2.0);
+
+  ohm::Colour select(const ohm::Voxel<const float> &occupancy) const;
+
+private:
+  double min_clearance_ = 0;
+  double max_clearance_ = 0;
   int heightmap_layer_ = -1;
 };
 

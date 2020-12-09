@@ -21,6 +21,33 @@
 #include <fstream>
 #include <limits>
 
+namespace
+{
+ohm::PlyPointStream setupPlyStream(
+  bool enable_colour, const std::initializer_list<ohm::PlyPointStream::Property> &additional_properties = {})
+{
+  std::vector<ohm::PlyPointStream::Property> ply_properties = {
+    ohm::PlyPointStream::Property{ "x", ohm::PlyPointStream::Type::kFloat64 },
+    ohm::PlyPointStream::Property{ "y", ohm::PlyPointStream::Type::kFloat64 },
+    ohm::PlyPointStream::Property{ "z", ohm::PlyPointStream::Type::kFloat64 }
+  };
+
+  if (enable_colour)
+  {
+    ply_properties.emplace_back(ohm::PlyPointStream::Property{ "r", ohm::PlyPointStream::Type::kUInt8 });
+    ply_properties.emplace_back(ohm::PlyPointStream::Property{ "g", ohm::PlyPointStream::Type::kUInt8 });
+    ply_properties.emplace_back(ohm::PlyPointStream::Property{ "b", ohm::PlyPointStream::Type::kUInt8 });
+  }
+
+  for (const auto &additional_property : additional_properties)
+  {
+    ply_properties.emplace_back(additional_property);
+  }
+
+  return ohm::PlyPointStream(ply_properties);
+}
+}  // namespace
+
 namespace ohmtools
 {
 const ohm::Colour ColourByHeight::s_default_from(128, 255, 0);
@@ -96,6 +123,45 @@ ohm::Colour ColourHeightmapType::select(const ohm::Voxel<const float> &occupancy
 }
 
 
+const ohm::Colour ColourByHeightmapClearance::s_default_low(255, 128, 0);
+const ohm::Colour ColourByHeightmapClearance::s_default_high(255, 0, 0);
+
+ColourByHeightmapClearance::ColourByHeightmapClearance(const ohm::OccupancyMap &map, double clearance_scale)
+  : ColourByHeightmapClearance(map, s_default_low, s_default_high, clearance_scale)
+{}
+
+
+ColourByHeightmapClearance::ColourByHeightmapClearance(const ohm::OccupancyMap &map, const ohm::Colour &low,
+                                                       const ohm::Colour &high, double clearance_scale)
+{
+  colours[0] = low;
+  colours[1] = high;
+  min_clearance_ = ohm::heightmap::queryHeightmapClearance(map.mapInfo());
+  max_clearance_ = min_clearance_ * clearance_scale;
+  heightmap_layer_ = map.layout().layerIndex(ohm::HeightmapVoxel::kHeightmapLayer);
+}
+
+
+ohm::Colour ColourByHeightmapClearance::select(const ohm::Voxel<const float> &occupancy) const
+{
+  if (heightmap_layer_ >= 0 && occupancy.isValid())
+  {
+    ohm::Voxel<const ohm::HeightmapVoxel> heightmap_voxel(occupancy.map(), heightmap_layer_);
+    heightmap_voxel.setKey(occupancy);
+    if (heightmap_voxel.isValid())
+    {
+      const double clearance = heightmap_voxel.data().clearance;
+      const double lerp_range = (max_clearance_ - min_clearance_);
+      const double lerp_factor =
+        (lerp_range > std::numeric_limits<double>::epsilon()) ? (clearance - min_clearance_) / lerp_range : 1.0;
+      return ohm::Colour::lerp(colours[0], colours[1], lerp_factor);
+    }
+  }
+
+  return ohm::Colour(255, 255, 255, 255);
+}
+
+
 uint64_t saveCloud(const char *file_name, const ohm::OccupancyMap &map, const SaveCloudOptions &opt,
                    const ProgressCallback &prog)
 {
@@ -106,20 +172,19 @@ uint64_t saveCloud(const char *file_name, const ohm::OccupancyMap &map, const Sa
     return 0;
   }
 
-  std::vector<ohm::PlyPointStream::Property> ply_properties = {
-    ohm::PlyPointStream::Property{ "x", ohm::PlyPointStream::Type::kFloat64 },
-    ohm::PlyPointStream::Property{ "y", ohm::PlyPointStream::Type::kFloat64 },
-    ohm::PlyPointStream::Property{ "z", ohm::PlyPointStream::Type::kFloat64 }
-  };
-
-  if (opt.colour_select)
+  // Work out if we need colour.
+  auto colour_select = opt.colour_select;
+  std::unique_ptr<ColourByHeight> colour_by_height;
+  if (!colour_select && opt.allow_default_colour_selection)
   {
-    ply_properties.emplace_back(ohm::PlyPointStream::Property{ "r", ohm::PlyPointStream::Type::kUInt8 });
-    ply_properties.emplace_back(ohm::PlyPointStream::Property{ "g", ohm::PlyPointStream::Type::kUInt8 });
-    ply_properties.emplace_back(ohm::PlyPointStream::Property{ "b", ohm::PlyPointStream::Type::kUInt8 });
+    colour_by_height = std::make_unique<ColourByHeight>(map);
+    colour_select = [&colour_by_height](const ohm::Voxel<const float> &occupancy) {
+      return colour_by_height->select(occupancy);
+    };
   }
 
-  ohm::PlyPointStream ply(ply_properties);
+  // Setup the Ply stream.
+  ohm::PlyPointStream ply = setupPlyStream(static_cast<bool>(colour_select));
   ply.open(out);
 
   glm::vec3 pos;
@@ -150,9 +215,9 @@ uint64_t saveCloud(const char *file_name, const ohm::OccupancyMap &map, const Sa
     {
       pos = positionSafe(mean);
       ply.setPointPosition(pos);
-      if (opt.colour_select)
+      if (colour_select)
       {
-        const ohm::Colour c = opt.colour_select(occupancy);
+        const ohm::Colour c = colour_select(occupancy);
         ply.setProperty("r", c.r());
         ply.setProperty("g", c.g());
         ply.setProperty("b", c.b());
@@ -180,20 +245,17 @@ uint64_t saveHeightmapCloud(const char *file_name, const ohm::OccupancyMap &map,
     return 0;
   }
 
-  std::vector<ohm::PlyPointStream::Property> ply_properties = {
-    ohm::PlyPointStream::Property{ "x", ohm::PlyPointStream::Type::kFloat64 },
-    ohm::PlyPointStream::Property{ "y", ohm::PlyPointStream::Type::kFloat64 },
-    ohm::PlyPointStream::Property{ "z", ohm::PlyPointStream::Type::kFloat64 }
-  };
-
-  if (opt.colour_select)
+  auto colour_select = opt.colour_select;
+  std::unique_ptr<ColourByHeightmapClearance> colour_by_height;
+  if (!colour_select && opt.allow_default_colour_selection)
   {
-    ply_properties.emplace_back(ohm::PlyPointStream::Property{ "r", ohm::PlyPointStream::Type::kUInt8 });
-    ply_properties.emplace_back(ohm::PlyPointStream::Property{ "g", ohm::PlyPointStream::Type::kUInt8 });
-    ply_properties.emplace_back(ohm::PlyPointStream::Property{ "b", ohm::PlyPointStream::Type::kUInt8 });
+    colour_by_height = std::make_unique<ColourByHeightmapClearance>(map);
+    colour_select = [&colour_by_height](const ohm::Voxel<const float> &occupancy) {
+      return colour_by_height->select(occupancy);
+    };
   }
 
-  ohm::PlyPointStream ply(ply_properties);
+  ohm::PlyPointStream ply = setupPlyStream(static_cast<bool>(colour_select));
   ply.open(out);
 
   glm::vec3 pos;
@@ -250,9 +312,9 @@ uint64_t saveHeightmapCloud(const char *file_name, const ohm::OccupancyMap &map,
 
       ply.setPointPosition(pos);
 
-      if (opt.colour_select)
+      if (colour_select)
       {
-        const ohm::Colour c = opt.colour_select(occupancy);
+        const ohm::Colour c = colour_select(occupancy);
         ply.setProperty("r", c.r());
         ply.setProperty("g", c.g());
         ply.setProperty("b", c.b());
