@@ -199,21 +199,26 @@ struct DstVoxel
 
   inline glm::dvec3 centre() const { return occupancy.map()->voxelCentreGlobal(occupancy.key()); }
 
-  inline bool haveRecordedHeight(float height, int up_axis_index) const
+  inline bool haveRecordedHeight(double height, int up_axis_index, const glm::dvec3 &up) const
   {
     // Check if the current heightmap voxel has already recorded a result at the given height. Only call for valid
     // voxels from multi-layered heightmaps.
 
     // Create a voxel for interation. Seed from this.
+    const double epsilon = 1e-3 * occupancy.map()->resolution();
     DstVoxel walker;
     walker.occupancy = occupancy;
     walker.heightmap = heightmap;
     // Not interested in mean
 
     Key key = occupancy.key();
+    double voxel_height;
     while (walker.occupancy.isValid() && walker.occupancy.data() != ohm::unobservedOccupancyValue())
     {
-      if (walker.heightmap.data().height == height)
+      // Convert from voxel relative to absolute heigth. This can introduce floating point error.
+      voxel_height = walker.heightmap.data().height;
+      voxel_height += glm::dot(walker.occupancy.map()->voxelCentreGlobal(walker.occupancy.key()), up);
+      if (std::abs(voxel_height - height) < epsilon)
       {
         return true;
       }
@@ -267,7 +272,8 @@ struct DstVoxel
 inline float relativeVoxelHeight(double absolute_height, const Key &heightmap_key, const OccupancyMap &heightmap,
                                  const glm::dvec3 &up)
 {
-  const float relative_height = float(absolute_height - glm::dot(heightmap.voxelCentreGlobal(heightmap_key), up));
+  const glm::dvec3 voxel_centre = heightmap.voxelCentreGlobal(heightmap_key);
+  const float relative_height = float(absolute_height - glm::dot(voxel_centre, up));
   return relative_height;
 }
 
@@ -343,7 +349,7 @@ Key findNearestSupportingVoxel2(SrcVoxel &voxel, const Key &from_key, const Key 
   Key current_key = from_key;
   for (int i = 0; i < vertical_range; ++i)
   {
-    // We bias the offset up one voxel for upward searches. The expectation is that the downward search starts
+    // We bias the offset up one voxel for upward searches. The e`xpectation is that the downward search starts
     // at the seed voxel, while the upward search starts one above that without overlap.
     *offset = i + !!search_up;
     voxel.setKey(current_key);
@@ -380,9 +386,9 @@ Key findNearestSupportingVoxel2(SrcVoxel &voxel, const Key &from_key, const Key 
                                                                                                            best_virtual;
 
     // This is the case for searching down. In this case we are always looking for the lowest virtual voxel.
-    // We progressively select the last voxel as the new virtual voxel provided it was considered free and the current
-    // voxel is unknown (not free and not occupied). We only need to check free as we will have exited on an occupied
-    // voxel. The conditions here are:
+    // We progressively select the last voxel as the new virtual voxel provided the last voxel was considered free and
+    // the current voxel is unknown (not free and not occupied). We only need to check free as we will have exited on an
+    // occupied voxel. The conditions here are:
     // - virtual surface is allowed
     // - searching down (!search_up)
     // - the last voxel was free
@@ -1224,7 +1230,7 @@ bool Heightmap::buildHeightmapT(KeyWalker &walker, const glm::dvec3 &reference_p
       if (voxel_type != kUnobserved && voxel_type != kNull)
       {
         // Cache the height then clear from the position.
-        const double src_height = voxel_pos[upAxisIndex()];
+        const double src_height = glm::dot(imp_->up, voxel_pos);
         voxel_pos[upAxisIndex()] = 0;
 
         // Get the heightmap voxel to update.
@@ -1252,7 +1258,7 @@ bool Heightmap::buildHeightmapT(KeyWalker &walker, const glm::dvec3 &reference_p
           {
             // It's possible to visit the same 2D voxel at different candidate heights, but generate the same result
             // as a previous visitation. We check for this below.
-            if (hm_voxel.haveRecordedHeight(src_height, upAxisIndex()))
+            if (hm_voxel.haveRecordedHeight(src_height, upAxisIndex(), imp_->up))
             {
               // It's a repeat. Don't add.
               should_add = false;
@@ -1284,7 +1290,6 @@ bool Heightmap::buildHeightmapT(KeyWalker &walker, const glm::dvec3 &reference_p
 
           // Write the height and clearance values.
           HeightmapVoxel height_info;
-          hm_voxel.heightmap.read(&height_info);
           // Calculate the relative voxel height now that we have a target voxel key which may consider multi-layering.
           // Later sorting may change the HeightmapVoxel::height value as the voxel may be changed.
           height_info.height = relativeVoxelHeight(src_height, hm_key, heightmap, imp_->up);
