@@ -54,7 +54,7 @@ std::istream &operator>>(std::istream &in, ohm::HeightmapMode &mode)
   }
   else if (mode_str == "layered")
   {
-    mode = ohm::HeightmapMode::kLayeredFill;
+    mode = ohm::HeightmapMode::kLayeredFillOrdered;
   }
   else
   {
@@ -271,7 +271,7 @@ int main(int argc, char *argv[])
     return res;
   }
 
-  // Initialise TES
+  // Initialise 3ES
   ohm::Trace trace("ohmheightmap.3es");
 
   signal(SIGINT, onSignal);
@@ -317,6 +317,8 @@ int main(int argc, char *argv[])
   ohm::Heightmap heightmap(map.resolution(), opt.clearance, opt.axis_id);
   heightmap.setMode(opt.mode);
   heightmap.setOccupancyMap(&map);
+
+  heightmap.heightmap().setOrigin(map.origin());
 
   heightmap.setIgnoreVoxelMean(opt.no_voxel_mean);
   heightmap.setGenerateVirtualSurface(opt.virtual_surfaces);
