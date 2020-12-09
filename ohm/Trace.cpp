@@ -41,3 +41,13 @@ void ohm::trace::done()
   TES_SERVER_UPDATE(ohm::g_tes, 0.0f);
   TES_SERVER_STOP(ohm::g_tes);
 }
+
+
+bool ohm::trace::available()
+{
+#ifdef TES_ENABLE
+  return true;
+#else   // TES_ENABLE
+  return false;
+#endif  // TES_ENABLE
+}

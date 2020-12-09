@@ -185,6 +185,7 @@ struct Options
   double clearance = 2.0;
   bool virtual_surfaces = false;
   bool no_voxel_mean = false;
+  bool trace = false;
 };
 
 
@@ -223,6 +224,11 @@ int parseOptions(Options *opt, int argc, char *argv[])  // NOLINT(modernize-avoi
       ("virtual", "Allow virtual surfaces?", cxxopts::value(opt->virtual_surfaces))                  //
       ("no-voxel-mean", "Ignore voxel mean positioning if available?.", optVal(opt->no_voxel_mean))  //
       ;
+
+    if (ohm::trace::available())
+    {
+      opt_parse.add_options()("trace", "Enable debug trace using 3rd Eye Scene?", optVal(opt->no_voxel_mean));
+    }
 
     opt_parse.parse_positional({ "i", "o" });
 
@@ -272,7 +278,7 @@ int main(int argc, char *argv[])
   }
 
   // Initialise 3ES
-  ohm::Trace trace("ohmheightmap.3es");
+  ohm::Trace trace("ohmheightmap.3es", opt.trace);
 
   signal(SIGINT, onSignal);
   signal(SIGTERM, onSignal);
