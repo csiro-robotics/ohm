@@ -27,12 +27,79 @@
 #include <ohmutil/Profile.h>
 
 #include <sstream>
+#include <unordered_set>
+#include <utility>
 
 using namespace ohm;
 
 namespace
 {
 const double kBoxHalfExtents = 2.5;
+
+/// Test heightmap generation parameters.
+struct HeightmapParams
+{
+  /// Half extents of the ground surface.
+  double map_half_extents = 6.0;
+  /// Half extents of a platform to place above the surface.
+  double platform_half_extents = 2.0;
+  /// Height of the platform.
+  double platform_height = 1.5;
+  /// Generate some virtual surfaces in the test map?
+  bool generate_virtual_surfaces = false;
+  /// Do virtual surfaces occlude visibility of real surfaces below them? This simulates the way in which virtual
+  /// surfaces would be generated in real situations where they represent an optimistic best possible slope estimate
+  /// observed. Real voxels below our virtual surface voxels are removed as if they have not been observed.
+  /// Ignored if @c generate_virtual_surfaces is false.
+  bool virtual_surface_occlusion = true;
+};
+
+/// Populated with information about the heightmap generated in @c populateMultiLevelMap() to be used for validation.
+struct HeightmapGeneratedInfo
+{
+  /// Set of voxel keys for voxels which represent a potential surface.
+  std::unordered_set<ohm::Key, ohm::Key::Hash> surface;
+  /// Set of voxel keys for voxels which are potential virtual surfaces.
+  std::unordered_set<ohm::Key, ohm::Key::Hash> virtual_surface;
+
+  /// Default constructor.
+  HeightmapGeneratedInfo() = default;
+  /// Move constructor.
+  /// @param other Object to move.
+  HeightmapGeneratedInfo(HeightmapGeneratedInfo &&other)
+    : surface(std::move(other.surface))
+    , virtual_surface(std::move(other.virtual_surface))
+  {}
+};
+
+/// Try make the given occupancy voxel virtual. This is a helper function for @c populateMultiLevelMap().
+void tryMakeVirtual(ohm::Voxel<float> &occupancy, const HeightmapParams &params, HeightmapGeneratedInfo &info)
+{
+  // Note we don't forcibly set the miss value so as not to unnecessarily erode occupied voxels.
+  ohm::integrateMiss(occupancy);
+  if (ohm::isFree(occupancy))
+  {
+    // Potential virtual.
+    ohm::Key key = occupancy.key();
+    info.virtual_surface.insert(key);
+    // Occlude ptential surfacec below by changing them to unobserved.
+    if (params.virtual_surface_occlusion)
+    {
+      // Walk down to the base level eating voxels.
+      const ohm::OccupancyMap &map = *occupancy.map();
+      do
+      {
+        map.moveKeyAlongAxis(key, 2, -1);
+        occupancy.setKey(key);
+        if (ohm::isOccupied(occupancy))
+        {
+          occupancy.write(ohm::unobservedOccupancyValue());
+          info.surface.erase(key);
+        }
+      } while (map.voxelCentreGlobal(key)[2] > 0);
+    }
+  }
+}
 
 /// Populate an occupancy map with multiple layers. The generated map is a flat square with smaller raised section
 /// connected to the lower surface by a ramp on two sides.
@@ -41,48 +108,52 @@ const double kBoxHalfExtents = 2.5;
 /// another descending from the platform as a psuedo third ramp.
 ///
 /// @param map The map to populate (assumed empty)
-/// @param include_virtual_surfaces True to include virtual surfaces in the map.
+/// @param generate_virtual_surfaces True to include virtual surfaces in the map.
 /// @return The height of the platform above the lower surface.
-double populateMultiLevelMap(ohm::OccupancyMap &map, bool include_virtual_surfaces = false)
+HeightmapGeneratedInfo populateMultiLevelMap(ohm::OccupancyMap &map, const HeightmapParams &params)
 {
-  const double map_half_extents = 6.0;
-  const double platform_half_extents = 2.0;
-  const double platform_height = 1.5;
+  HeightmapGeneratedInfo info;
 
   ohm::Voxel<float> occupancy(&map, map.layout().occupancyLayer());
   // ASSERT_TRUE(occupancy.isLayerValid());
 
   // Build extents to traverse in keys. This will ensure we touch every voxel correctly.
-  ohm::KeyRange key_range(map.voxelKey(glm::dvec3(-map_half_extents, -map_half_extents, 0)),
-                          map.voxelKey(glm::dvec3(map_half_extents, map_half_extents, 0)), map);
+  ohm::KeyRange key_range(map.voxelKey(glm::dvec3(-params.map_half_extents, -params.map_half_extents, 0)),
+                          map.voxelKey(glm::dvec3(params.map_half_extents, params.map_half_extents, 0)), map);
 
   // Create the floor.
   for (const Key &key : key_range)
   {
     occupancy.setKey(key);
     occupancy.write(map.hitValue());
+    info.surface.insert(key);
   }
 
-  key_range =
-    ohm::KeyRange(map.voxelKey(glm::dvec3(-platform_half_extents, -platform_half_extents, platform_height)),
-                  map.voxelKey(glm::dvec3(platform_half_extents, platform_half_extents, platform_height)), map);
+  key_range = ohm::KeyRange(
+    map.voxelKey(glm::dvec3(-params.platform_half_extents, -params.platform_half_extents, params.platform_height)),
+    map.voxelKey(glm::dvec3(params.platform_half_extents, params.platform_half_extents, params.platform_height)), map);
 
   // Create the raised platform.
   for (const Key &key : key_range)
   {
     occupancy.setKey(key);
     occupancy.write(map.hitValue());
+    info.surface.insert(key);
   }
 
   // Create a vertical range to iterate from platform to floor. We'll walk out the X axis as well as we iterate.
   const ohm::KeyRange side_key_ranges[2] = {
-    ohm::KeyRange(map.voxelKey(glm::dvec3(-platform_half_extents, -platform_half_extents, 0)),
-                  map.voxelKey(glm::dvec3(-platform_half_extents, -platform_half_extents, platform_height)), map),
-    ohm::KeyRange(map.voxelKey(glm::dvec3(platform_half_extents, -platform_half_extents, 0)),
-                  map.voxelKey(glm::dvec3(platform_half_extents, -platform_half_extents, platform_height)), map)
+    ohm::KeyRange(
+      map.voxelKey(glm::dvec3(-params.platform_half_extents, -params.platform_half_extents, 0)),
+      map.voxelKey(glm::dvec3(-params.platform_half_extents, -params.platform_half_extents, params.platform_height)),
+      map),
+    ohm::KeyRange(
+      map.voxelKey(glm::dvec3(params.platform_half_extents, -params.platform_half_extents, 0)),
+      map.voxelKey(glm::dvec3(params.platform_half_extents, -params.platform_half_extents, params.platform_height)),
+      map)
   };
 
-  int y_range_voxel_count = int((2 * platform_half_extents) / map.resolution());
+  int y_range_voxel_count = int((2 * params.platform_half_extents) / map.resolution());
   // Build a ramp either side. We do 2 iterations, one for each size.
   for (int i = 0; i < 2; ++i)
   {
@@ -104,26 +175,28 @@ double populateMultiLevelMap(ohm::OccupancyMap &map, bool include_virtual_surfac
       {
         occupancy.setKey(key);
         occupancy.write(map.hitValue());
+        info.surface.insert(key);
       }
       // Setup for next iteration.
       ++x_offset;
     }
   }
 
-  if (include_virtual_surfaces)
+  if (params.generate_virtual_surfaces)
   {
     // Add two virtual surfaces.
     // 1. Create a third, virtual ramp from the platform where there is no real ramp.
     // 2. Hide a ramp at a shallower slope.
 
     // 1. Virtual ramp
-    const ohm::KeyRange virtual_ramp_range =
-      ohm::KeyRange(map.voxelKey(glm::dvec3(-platform_half_extents, -platform_half_extents, 0)),
-                    map.voxelKey(glm::dvec3(-platform_half_extents, -platform_half_extents, platform_height)), map);
+    const ohm::KeyRange virtual_ramp_range = ohm::KeyRange(
+      map.voxelKey(glm::dvec3(-params.platform_half_extents, -params.platform_half_extents, 0)),
+      map.voxelKey(glm::dvec3(-params.platform_half_extents, -params.platform_half_extents, params.platform_height)),
+      map);
 
     // This loop is the same as above, but swaps X and Y axes. Cut & paste is simpler for this unit test than trying to
     // generalise the code.
-    int x_range_voxel_count = int((2 * platform_half_extents) / map.resolution());
+    int x_range_voxel_count = int((2 * params.platform_half_extents) / map.resolution());
     // Build a ramp either side. We do 2 iterations, one for each size.
     // Because we will be walking up, the x offset has to start at the maximum value.
     // We walk X in lockstep with the height for a 45 degree slope, so we read the Z axis range.
@@ -142,16 +215,14 @@ double populateMultiLevelMap(ohm::OccupancyMap &map, bool include_virtual_surfac
       for (const Key &key2 : x_key_range)
       {
         occupancy.setKey(key2);
-        // Note we don't forcibly set the miss value so as not to erode the platform.
-        ohm::integrateMiss(occupancy);
-        // occupancy.write(map.hitValue());
+        tryMakeVirtual(occupancy, params, info);
       }
       // Setup for next iteration.
       ++y_offset;
     }
 
     // 2. Hide a ramp at a shallower slope.
-    y_range_voxel_count = int((2 * platform_half_extents) / map.resolution());
+    y_range_voxel_count = int((2 * params.platform_half_extents) / map.resolution());
     // Because we will be walking up, the x offset has to start at the maximum value.
     // We walk X in lockstep with the height for a 45 degree slope, so we read the Z axis range.
     int x_offset = -2 * (side_key_ranges[0].range()[2]);
@@ -173,9 +244,7 @@ double populateMultiLevelMap(ohm::OccupancyMap &map, bool include_virtual_surfac
         for (const Key &key2 : y_key_range)
         {
           occupancy.setKey(key2);
-          // Note we don't forcibly set the miss value so as not to erode the platform.
-          ohm::integrateMiss(occupancy);
-          // occupancy.write(map.hitValue());
+          tryMakeVirtual(occupancy, params, info);
         }
         // Setup for next iteration.
         ++x_offset;
@@ -183,7 +252,37 @@ double populateMultiLevelMap(ohm::OccupancyMap &map, bool include_virtual_surfac
     }
   }
 
-  return platform_height;
+  // Validate the virtual surface set: some of the collected voxels will be supported by an occupied voxel. That does
+  // not qualify as a virtual surface candidate.
+  for (auto iter = info.virtual_surface.begin(); iter != info.virtual_surface.end();)
+  {
+    Key key = *iter;
+    bool valid_virtual_surface = false;
+    occupancy.setKey(key);
+    if (ohm::isFree(occupancy))
+    {
+      // It's a valid free voxel. Now check that the voxel below is null or unobserved.
+      map.moveKeyAlongAxis(key, 2, -1);  // Move the key to the voxel below.
+      occupancy.setKey(key);             // Update the voxel reference to the new key.
+      if (ohm::isUnobservedOrNull(occupancy))
+      {
+        // It's a valid virtual surface.
+        valid_virtual_surface = true;
+      }
+    }
+
+    if (valid_virtual_surface)
+    {
+      ++iter;
+    }
+    else
+    {
+      // Not a valid virtual surface voxel - remove it.
+      iter = info.virtual_surface.erase(iter);
+    }
+  }
+
+  return info;
 }
 
 void heightmapBoxTest(const std::string &prefix, UpAxis axis, std::shared_ptr<Heightmap> *map_out = nullptr)
@@ -765,7 +864,8 @@ TEST(Heightmap, SurfaceSelection)
 TEST(Heightmap, Clearance)
 {
   ohm::OccupancyMap map(0.1);
-  const double platform_height = populateMultiLevelMap(map);
+  const HeightmapParams params;
+  populateMultiLevelMap(map, params);
   ohm::save("clearance-map.ohm", map);
   ohmtools::saveCloud("clearance-map.ply", map);
 
@@ -783,7 +883,7 @@ TEST(Heightmap, Clearance)
   reference_heightmap.buildHeightmap(glm::dvec3(0));
 
   // Now add a clearance constraint.
-  const double clearance_constraint = 0.5 * platform_height;
+  const double clearance_constraint = 0.5 * params.platform_height;
   ohm::Heightmap constrained_heightmap(map.resolution(), clearance_constraint);
   constrained_heightmap.setOccupancyMap(&map);
   constrained_heightmap.setUseFloodFill(true);
@@ -838,7 +938,8 @@ TEST(Heightmap, Layered)
   ohm::Trace trace("heightmap-layered.3es");  // Setup debug trace for 3rd Eye Scene visualisation.
   // Create the input map.
   ohm::OccupancyMap map(0.1);
-  const double platform_height = populateMultiLevelMap(map);
+  const HeightmapParams params;
+  populateMultiLevelMap(map, params);
   ohm::save("layered-map.ohm", map);
   ohmtools::saveCloud("layered-map.ply", map);
 
@@ -850,7 +951,7 @@ TEST(Heightmap, Layered)
 
   // Build the layered heightmap.
   layered_heightmap.setMode(ohm::HeightmapMode::kLayeredFillOrdered);
-  layered_heightmap.buildHeightmap(glm::dvec3(0, 0, platform_height));
+  layered_heightmap.buildHeightmap(glm::dvec3(0, 0, params.platform_height));
 
   ohm::save("layered-hm.ohm", layered_heightmap.heightmap());
   ohmtools::saveCloud("layered-hm.ply", layered_heightmap.heightmap());
@@ -883,7 +984,7 @@ TEST(Heightmap, Layered)
   ohm::save("layered-map-out.ohm", test_map);
   ohmtools::saveCloud("layered-map-out.ply", test_map);
 
-  // Now validate the extracted test_map against the original map.
+  // Now validate the extracted test_map against the original map. We should exactly reconstruct the original map.
   ohm::Voxel<const float> ref_occupancy(&map, map.layout().occupancyLayer());
   ohm::Voxel<const float> test_occupancy(&test_map, test_map.layout().occupancyLayer());
 
@@ -909,7 +1010,7 @@ TEST(Heightmap, Layered)
 }
 
 
-TEST(Heightmap, LayeredComplex)
+TEST(Heightmap, DISABLED_LayeredComplex)
 {
   // For this test we use the multi-layered map generation. For validation, we set the target clearance to zero which
   // allows the heightmap to be a precise representation of the original map. We can then convert the heightmap back
@@ -945,24 +1046,24 @@ TEST(Heightmap, VirtualSurface)
   // ohm::Trace trace("heightmap-virtual-surface.3es");  // Setup debug trace for 3rd Eye Scene visualisation.
   // Create the input map.
   ohm::OccupancyMap map(0.1);
-  // ohm::load("/mnt/marvin/data/ohm/hm/map2.ohm", map);
-  const double platform_height = populateMultiLevelMap(map, true);
+  HeightmapParams params;
+  // Ensure we select the virtual surfaces by removing other options below.
+  params.generate_virtual_surfaces = true;
+  HeightmapGeneratedInfo validation_info = populateMultiLevelMap(map, params);
   ohm::save("layered-virtual-surface.ohm", map);
   ohmtools::saveCloud("layered-virtual-surface.ply", map);
 
   // Disable any clearance constraint.
-  const double clearance_constraint = 1.0;
+  const double clearance_constraint = 0.0;
   ohm::Heightmap layered_heightmap(map.resolution(), clearance_constraint);
   layered_heightmap.setOccupancyMap(&map);
   layered_heightmap.heightmap().setOrigin(map.origin());
 
   // Build the layered heightmap.
   layered_heightmap.setMode(ohm::HeightmapMode::kLayeredFillOrdered);
-  // layered_heightmap.setMode(ohm::HeightmapMode::kLayeredFill);
-  // layered_heightmap.setMode(ohm::HeightmapMode::kSimpleFill);
   layered_heightmap.setGenerateVirtualSurface(true);
   layered_heightmap.setCeiling(1.0);
-  layered_heightmap.buildHeightmap(glm::dvec3(0, 0, 1.1 * platform_height));
+  layered_heightmap.buildHeightmap(glm::dvec3(0, 0, 1.1 * params.platform_height));
   // layered_heightmap.buildHeightmap(glm::dvec3(6.5, 3.1, 1.6));
 
   ohmtools::SaveCloudOptions save_opt;
@@ -974,57 +1075,42 @@ TEST(Heightmap, VirtualSurface)
   ohm::save("layered-virtual-surface-hm.ohm", layered_heightmap.heightmap());
   ohmtools::saveHeightmapCloud("layered-virtual-surface-hm.ply", layered_heightmap.heightmap(), save_opt);
 
-#if 0
-  // Now convert the heightmap back into a normal occupancy map.
-  ohm::OccupancyMap test_map(map.resolution());
-  test_map.setOrigin(map.origin());
-
-  ohm::Voxel<float> new_occupancy(&test_map, test_map.layout().occupancyLayer());
-  ASSERT_TRUE(new_occupancy.isLayerValid());
-  unsigned test_voxel_count = 0;
+  // Walk the heightmap extracting all the voxels. With a zero clearance constraint, we should have an exact
+  // representation of the original map with the addition of virtual surfaces.
+  ohm::Voxel<const float> src_occupancy(&map, map.layout().occupancyLayer());
+  glm::dvec3 hm_pos{};
   for (auto iter = layered_heightmap.heightmap().begin(); iter != layered_heightmap.heightmap().end(); ++iter)
   {
-    glm::dvec3 voxel_pos{};
-    auto hm_voxel_type = layered_heightmap.getHeightmapVoxelInfo(*iter, &voxel_pos);
-    if (hm_voxel_type == HeightmapVoxelType::kSurface)
+    const ohm::HeightmapVoxelType voxel_type = layered_heightmap.getHeightmapVoxelInfo(*iter, &hm_pos, nullptr);
+    switch (voxel_type)
     {
-      // Get the voxel position from the heightmap.
-      new_occupancy.setKey(test_map.voxelKey(voxel_pos));
-      ASSERT_TRUE(new_occupancy.isValid());
-      ohm::integrateHit(new_occupancy);
-      ++test_voxel_count;
+    case ohm::HeightmapVoxelType::kSurface:
+      // Validate that this corresponds to an occupied voxel in the source map.
+      src_occupancy.setKey(map.voxelKey(hm_pos));
+      ASSERT_EQ(ohm::occupancyType(src_occupancy), ohm::kOccupied);
+      // Remove this from the list of surface keys. Well validate we touched everything below.
+      // We must first convert the heightmap position into a key within the source map.
+      validation_info.surface.erase(map.voxelKey(hm_pos));
+      break;
+    case ohm::HeightmapVoxelType::kVirtualSurface:
+      // Validate that this corresponds to a free voxel in the source map.
+      src_occupancy.setKey(map.voxelKey(hm_pos));
+      ASSERT_EQ(ohm::occupancyType(src_occupancy), ohm::kFree);
+      // Remove this from the list of virtual surface keys. Well validate we touched everything below.
+      // We must first convert the heightmap position into a key within the source map.
+      validation_info.virtual_surface.erase(map.voxelKey(hm_pos));
+      break;
+    case ohm::HeightmapVoxelType::kVacant:
+      // Validate that this corresponds to an unobserved or null voxel in the source map.
+      ASSERT_TRUE(ohm::isUnobservedOrNull(src_occupancy));
+      break;
+    default:
+      // no op
+      break;
     }
   }
 
-  new_occupancy.reset();
-
-  // Ensure we've extracted something.
-  ASSERT_GT(test_voxel_count, 0);
-  ohm::save("layered-map-out.ohm", test_map);
-  ohmtools::saveCloud("layered-map-out.ply", test_map);
-
-  // Now validate the extracted test_map against the original map.
-  ohm::Voxel<const float> ref_occupancy(&map, map.layout().occupancyLayer());
-  ohm::Voxel<const float> test_occupancy(&test_map, test_map.layout().occupancyLayer());
-
-  unsigned ref_voxel_count = 0;
-  for (auto iter = map.begin(); iter != map.end(); ++iter)
-  {
-    ref_occupancy.setKey(iter);  // Set key from iterator for efficiency (chunk pointer already available)
-    ASSERT_TRUE(ref_occupancy.isValid());
-    test_occupancy.setKey(*iter);  // Set from Key as we are referencing a different map object.
-    ASSERT_TRUE(test_occupancy.isValid());
-    // Check that the occupancy types match. The actual occupancies may differ.
-    const auto ref_occupancy_type = ohm::occupancyType(ref_occupancy);
-    const auto test_occupancy_type = ohm::occupancyType(test_occupancy);
-    ASSERT_EQ(test_occupancy_type, ref_occupancy_type);
-    if (ref_occupancy_type == ohm::kOccupied)
-    {
-      ++ref_voxel_count;
-    }
-  }
-
-  ASSERT_GT(ref_voxel_count, 0);
-  ASSERT_EQ(test_voxel_count, ref_voxel_count);
-#endif  // #
+  // Ensure we have represented every relevant voxel in the original map.
+  EXPECT_TRUE(validation_info.surface.empty());
+  EXPECT_TRUE(validation_info.virtual_surface.empty());
 }
