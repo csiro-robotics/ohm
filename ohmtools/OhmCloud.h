@@ -75,6 +75,21 @@ private:
   int up_axis_ = 2;
 };
 
+/// Colour heightmap voxels by @c ohm::OccupancyType colouring occupied and free voxels.
+class ColourByType
+{
+public:
+  ohm::Colour occupied_colour{ 32, 255, 32 };
+  ohm::Colour free_colour{ 255, 128, 32 };
+
+  explicit ColourByType(const ohm::OccupancyMap &map);
+
+  ohm::Colour select(const ohm::Voxel<const float> &occupancy) const;
+
+private:
+  float occupancy_threshold_ = 0;
+};
+
 /// Colour heightmap voxels by @c HeightmapVoxelType::kSurface or @c HeightmapVoxelType::kVirtualSurface type.
 class ColourHeightmapType
 {

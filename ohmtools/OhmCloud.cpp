@@ -93,6 +93,26 @@ ohm::Colour ColourByHeight::select(const ohm::Voxel<const float> &occupancy) con
 }
 
 
+ColourByType::ColourByType(const ohm::OccupancyMap &map)
+  : occupancy_threshold_(map.occupancyThresholdValue())
+{}
+
+
+ohm::Colour ColourByType::select(const ohm::Voxel<const float> &occupancy) const
+{
+  if (occupancy.isValid())
+  {
+    if (occupancy.data() >= occupancy_threshold_)
+    {
+      return occupied_colour;
+    }
+    return free_colour;
+  }
+
+  return ohm::Colour(0, 0, 0, 255);
+}
+
+
 ColourHeightmapType::ColourHeightmapType(const ohm::OccupancyMap &map)
 {
   heightmap_layer_ = map.layout().layerIndex(ohm::HeightmapVoxel::kHeightmapLayer);

@@ -57,6 +57,7 @@ enum ExportMode
 {
   kExportOccupancy,
   kExportOccupancyCentre,
+  kExportObserved,
   kExportClearance,
   kExportHeightmap,
   kExportHeightmapMesh,
@@ -190,6 +191,10 @@ std::istream &operator>>(std::istream &in, ExportMode &mode)
   {
     mode = kExportOccupancyCentre;
   }
+  else if (mode_str == "observed")
+  {
+    mode = kExportObserved;
+  }
   else if (mode_str == "clearance")
   {
     mode = kExportClearance;
@@ -222,6 +227,9 @@ std::ostream &operator<<(std::ostream &out, const ExportMode mode)
     break;
   case kExportOccupancyCentre:
     out << "occupancy-centre";
+    break;
+  case kExportObserved:
+    out << "observed";
     break;
   case kExportClearance:
     out << "clearance";
@@ -371,6 +379,7 @@ int exportPointCloud(const Options &opt, ProgressMonitor &prog, LoadMapProgress 
   {
   case kExportOccupancy:
   case kExportOccupancyCentre:
+  case kExportObserved:
     if (map.layout().layer("occupancy") == nullptr)
     {
       std::cerr << "Missing 'occupancy' layer" << std::endl;
@@ -433,17 +442,26 @@ int exportPointCloud(const Options &opt, ProgressMonitor &prog, LoadMapProgress 
 
   const auto save_progress_callback = [&prog](size_t progress, size_t /*target*/) { prog.updateProgress(progress); };
   ohmtools::ColourByHeight colour_by_height(map);
-  ohmtools::ColourHeightmapType colour_by_type(map);
+  ohmtools::ColourByType colour_by_type(map);
+  ohmtools::ColourHeightmapType colour_by_heightmap_type(map);
 
   switch (opt.mode)
   {
   case kExportOccupancy:
     // fallthrough
-  case kExportOccupancyCentre: {
+  case kExportOccupancyCentre:
+  case kExportObserved: {
     ohmtools::SaveCloudOptions save_opt;
-    save_opt.ignore_voxel_mean = opt.mode == kExportOccupancyCentre;
+    save_opt.ignore_voxel_mean = opt.mode != kExportOccupancy;
+    save_opt.export_free = opt.mode == kExportObserved;
     // Default colour mode for saveCloud() is colour by height.
     save_opt.allow_default_colour_selection = (opt.colour == kColourHeight);
+    if (opt.colour == kColourType)
+    {
+      save_opt.colour_select = [&colour_by_type](const ohm::Voxel<const float> &occupancy) {
+        return colour_by_type.select(occupancy);
+      };
+    }
     saveCloud(opt.ply_file.c_str(), map, save_opt, save_progress_callback);
     break;
   }
@@ -453,8 +471,8 @@ int exportPointCloud(const Options &opt, ProgressMonitor &prog, LoadMapProgress 
     save_opt.export_free = true;
     if (opt.colour == kColourHeight)
     {
-      save_opt.colour_select = [&colour_by_height](const ohm::Voxel<const float> &occupancy) {
-        return colour_by_height.select(occupancy);
+      save_opt.colour_select = [&colour_by_heightmap_type](const ohm::Voxel<const float> &occupancy) {
+        return colour_by_heightmap_type.select(occupancy);
       };
     }
     else if (opt.colour == kColourType)
@@ -698,6 +716,7 @@ int main(int argc, char *argv[])
   {
   case kExportOccupancy:
   case kExportOccupancyCentre:
+  case kExportObserved:
   case kExportClearance:
   case kExportHeightmap:
     res = exportPointCloud(opt, prog, load_progress);
