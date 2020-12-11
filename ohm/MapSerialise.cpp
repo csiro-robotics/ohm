@@ -557,7 +557,7 @@ const char *ohm::errorCodeString(int err)
 }
 
 
-int ohm::save(const char *filename, const OccupancyMap &map, SerialiseProgress *progress)
+int ohm::save(const std::string &filename, const OccupancyMap &map, SerialiseProgress *progress)
 {
   OutputStream stream(filename, kSfCompress);
   const OccupancyMapDetail &detail = *map.detail();
@@ -614,7 +614,7 @@ int ohm::save(const char *filename, const OccupancyMap &map, SerialiseProgress *
 }
 
 
-int ohm::load(const char *filename, OccupancyMap &map, SerialiseProgress *progress, MapVersion *version_out)
+int ohm::load(const std::string &filename, OccupancyMap &map, SerialiseProgress *progress, MapVersion *version_out)
 {
   InputStream stream(filename, kSfCompress);
   OccupancyMapDetail &detail = *map.detail();
@@ -665,7 +665,7 @@ int ohm::load(const char *filename, OccupancyMap &map, SerialiseProgress *progre
 }
 
 
-int ohm::load(const char *filename, Heightmap &heightmap, SerialiseProgress *progress, MapVersion *version_out)
+int ohm::load(const std::string &filename, Heightmap &heightmap, SerialiseProgress *progress, MapVersion *version_out)
 {
   HeightmapDetail &detail = *heightmap.detail();
 
@@ -688,7 +688,7 @@ int ohm::load(const char *filename, Heightmap &heightmap, SerialiseProgress *pro
 }
 
 
-int ohm::loadHeader(const char *filename, OccupancyMap &map, MapVersion *version_out, size_t *region_count)
+int ohm::loadHeader(const std::string &filename, OccupancyMap &map, MapVersion *version_out, size_t *region_count)
 {
   InputStream stream(filename, kSfCompress);
   OccupancyMapDetail &detail = *map.detail();

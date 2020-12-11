@@ -10,6 +10,7 @@
 
 #include "Key.h"
 #include "KeyRange.h"
+#include "PlaneWalkVisitMode.h"
 #include "UpAxis.h"
 
 #include <glm/vec3.hpp>
@@ -61,6 +62,8 @@ public:
   /// Mapping of the indices to walk, supporting various heightmap up axes. Element 2 is always the up axis, where
   /// elements 0 and 1 are the horizontal axes.
   const std::array<int, 3> axis_indices;
+  /// Sign of the up axis [1, -1].
+  const int up_sign;
 
   /// Constructor.
   /// @param map The map to walk voxels in.
@@ -92,15 +95,22 @@ public:
   /// Call this function when visiting a voxel at the given @p key. The keys neighbouring @p key (on the walk plane)
   /// are added to the open list, provided they are not already on the open list. The added neighouring keys are
   /// filled in @p neighbours with the number of neighbours added given in the return value.
+  ///
+  /// Note: when @p mode is @c kAddUnvisitedNeighbours the neighbours in the layere *above* @c key are added. This
+  /// encourages traversal up slopes connected to the ground especially when there is no clearance constraint.
+  /// @p mode should be @c kAddUnvisitedColumnNeighbours when a valid ground candidate cound not be found in the column
+  /// of @p key. This mode will add neighbours on the same level as @p key, but only if the column itself has not been
+  /// visited. This encourages traversal of unobserved space.
+  ///
   /// @param key The key being visited. Must fall within the @c range.minKey() and @c range.maxKey() bounds.
   /// @param neighbours Populted with any neighbours of @p key added to the open list.
   /// @return The number of neighbours added.
-  size_t visit(const Key &key, std::array<Key, 8> &neighbours);
+  size_t visit(const Key &key, PlaneWalkVisitMode mode, std::array<Key, 8> &neighbours);
   /// @overload
-  inline size_t visit(const Key &key)
+  inline size_t visit(const Key &key, PlaneWalkVisitMode mode)
   {
     std::array<Key, 8> discard_neighbours;
-    return visit(key, discard_neighbours);
+    return visit(key, mode, discard_neighbours);
   }
 
 private:
@@ -114,7 +124,7 @@ private:
   /// Calculate the @c opened_grid_ index for the given @p key.
   unsigned gridIndexForKey(const Key &key);
   /// Query the Opened entry height for @p key.
-  int visitHeight(const Key &key) const;
+  int keyHeight(const Key &key) const;
 
   std::deque<Key> open_list_;  ///< Remaining voxels to (re)process.
   /// Identifies which bounded keys have been opened.

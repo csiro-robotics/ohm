@@ -182,7 +182,7 @@ ohm::Colour ColourByHeightmapClearance::select(const ohm::Voxel<const float> &oc
 }
 
 
-uint64_t saveCloud(const char *file_name, const ohm::OccupancyMap &map, const SaveCloudOptions &opt,
+uint64_t saveCloud(const std::string &file_name, const ohm::OccupancyMap &map, const SaveCloudOptions &opt,
                    const ProgressCallback &prog)
 {
   std::ofstream out(file_name, std::ios::binary);
@@ -255,7 +255,7 @@ uint64_t saveCloud(const char *file_name, const ohm::OccupancyMap &map, const Sa
 }
 
 
-uint64_t saveHeightmapCloud(const char *file_name, const ohm::OccupancyMap &map, const SaveCloudOptions &opt,
+uint64_t saveHeightmapCloud(const std::string &file_name, const ohm::OccupancyMap &map, const SaveCloudOptions &opt,
                             const ProgressCallback &prog)
 {
   std::ofstream out(file_name, std::ios::binary);
@@ -352,8 +352,8 @@ uint64_t saveHeightmapCloud(const char *file_name, const ohm::OccupancyMap &map,
 }
 
 
-void saveQueryCloud(const char *file_name, const ohm::OccupancyMap &map, const ohm::Query &query, float colour_range,
-                    const ProgressCallback &prog)
+void saveQueryCloud(const std::string &file_name, const ohm::OccupancyMap &map, const ohm::Query &query,
+                    float colour_range, const ProgressCallback &prog)
 {
   const size_t result_count = query.numberOfResults();
   const ohm::Key *keys = query.intersectedVoxels();
@@ -386,7 +386,7 @@ void saveQueryCloud(const char *file_name, const ohm::OccupancyMap &map, const o
 }
 
 
-size_t saveClearanceCloud(const char *file_name, const ohm::OccupancyMap &map, const glm::dvec3 &min_extents,
+size_t saveClearanceCloud(const std::string &file_name, const ohm::OccupancyMap &map, const glm::dvec3 &min_extents,
                           const glm::dvec3 &max_extents, float colour_range, int export_type,
                           const ProgressCallback &prog)
 {

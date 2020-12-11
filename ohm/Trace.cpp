@@ -30,6 +30,8 @@ void ohm::trace::init(const std::string &file_stream)
   TES_CATEGORY(g_tes, "Ndt", kTcNdt, kTcMap, true);
   TES_CATEGORY(g_tes, "Heightmap", kTcHeightmap, 0, true);
   TES_CATEGORY(g_tes, "Voxels", kTcHmVoxel, kTcHeightmap, true);
+  TES_CATEGORY(g_tes, "Surface", kTcHmSurface, kTcHmVoxel, true);
+  TES_CATEGORY(g_tes, "Virtual", kTcHmVirtualSurface, kTcHmVoxel, true);
   TES_CATEGORY(g_tes, "Clearance", kTcHmClearance, kTcHeightmap, true);
   TES_CATEGORY(g_tes, "Visit", kTcHmVisit, kTcHeightmap, true);
   TES_CATEGORY(g_tes, "Info", kTcHmInfo, kTcHeightmap, true);

@@ -245,25 +245,30 @@ struct DstVoxel
       uint32_t voxel_id = heightmap_range.indexOf(occupancy.key());
       voxel_id |= voxel_id_mask;
       glm::dvec3 voxel_pos = occupancy.map()->voxelCentreGlobal(occupancy.key());
+      const bool is_virtual = (occupancy.data() != Heightmap::kHeightmapSurfaceValue);
       voxel_pos[up_axis] += up_scale * heightmap.data().height;
-      tes::Box voxel(tes::Id(voxel_id, kTcHmVoxel),
+      tes::Box voxel(tes::Id(voxel_id, is_virtual ? kTcHmVirtualSurface : kTcHmSurface),
                      tes::Transform(glm::value_ptr(voxel_pos), tes::Vector3d(occupancy.map()->resolution())));
       voxel.setReplace(true);
       // voxel.setTransparent(true);
-      voxel.setColour(tes::Colour::Colours[tes::Colour::Green]);
+      // Colour surface green, virtual orange
+      voxel.setColour(tes::Colour::Colours[is_virtual ? tes::Colour::Orange : tes::Colour::Green]);
       g_tes->create(voxel);
 
       // Create a line for the clearance height.
       const double clearance_height = heightmap.data().clearance;
-      glm::dvec3 clearance_dir(0);
-      clearance_dir[up_axis] = up_scale;
+      if (clearance_height > 0)
+      {
+        glm::dvec3 clearance_dir(0);
+        clearance_dir[up_axis] = up_scale;
 
-      tes::Arrow clearance(tes::Id(voxel_id, kTcHmClearance),
-                           tes::Directional(tes::Vector3d(glm::value_ptr(voxel_pos)),
-                                            tes::Vector3d(glm::value_ptr(clearance_dir)), 0.005, clearance_height));
-      clearance.setColour(tes::Colour::Colours[tes::Colour::Orange]).setWireframe(true);
-      clearance.setReplace(true);
-      g_tes->create(clearance);
+        tes::Arrow clearance(tes::Id(voxel_id, kTcHmClearance),
+                             tes::Directional(tes::Vector3d(glm::value_ptr(voxel_pos)),
+                                              tes::Vector3d(glm::value_ptr(clearance_dir)), 0.005, clearance_height));
+        clearance.setColour(tes::Colour::Colours[tes::Colour::Yellow]);
+        clearance.setReplace(true);
+        g_tes->create(clearance);
+      }
     }
 #endif  // TES_ENABLE
   }
@@ -342,7 +347,7 @@ Key findNearestSupportingVoxel2(SrcVoxel &voxel, const Key &from_key, const Key 
   }
 
   Key best_virtual(nullptr);
-  bool last_unknown = false;
+  bool last_unobserved = false;
   bool last_free = false;
 
   Key last_key(nullptr);
@@ -365,6 +370,7 @@ Key findNearestSupportingVoxel2(SrcVoxel &voxel, const Key &from_key, const Key 
     // Categorise the voxel.
     const bool occupied = occupancy >= voxel.occupancy_threshold && occupancy != unobservedOccupancyValue();
     const bool free = occupancy < voxel.occupancy_threshold;
+    const bool unobserved = !occupied && !free;
 
     if (occupied)
     {
@@ -382,32 +388,27 @@ Key findNearestSupportingVoxel2(SrcVoxel &voxel, const Key &from_key, const Key 
     // - the current voxel is free
     // - the previous voxel was unknown
     // - we do not already have a virtual voxel
-    best_virtual = (allow_virtual_surface && search_up && free && last_unknown && best_virtual.isNull()) ? current_key :
-                                                                                                           best_virtual;
+    best_virtual =
+      (allow_virtual_surface && search_up && free && last_unobserved && best_virtual.isNull()) ? current_key : last_key;
 
-    // This is the case for searching down. In this case we are always looking for the lowest virtual voxel.
-    // We progressively select the last voxel as the new virtual voxel provided the last voxel was considered free and
-    // the current voxel is unknown (not free and not occupied). We only need to check free as we will have exited on an
-    // occupied voxel. The conditions here are:
+    // This is the case for searching down. In this case we are always looking for the lowest virtual voxel. More
+    // specifically, we are looking for the voxel *below* the virtual voxel. We need to return the unobserved voxel
+    // supporting the virtual surface voxel in order for later algorithms to detect it as a virtual voxel because a
+    // virtual voxel is characterised by the transition from unobserved to free, but the free voxel is the one of
+    // (later) interest.
+    ///
+    // We progressively select the current voxel as the new virtual voxel provided the last voxel was considered free
+    // and the current voxel is unknown (not free and not occupied). We only need to check free as we will have exited
+    // on an occupied voxel. The conditions here are:
     // - virtual surface is allowed
     // - searching down (!search_up)
     // - the last voxel was free
     // - the current voxel is unknown - we only need check !free at this point
     // Otherwise we keep the current candidate
-    best_virtual = (allow_virtual_surface && !search_up && last_unknown && !free) ? last_key : best_virtual;
-
-#if RETURN_FIRST_VIRTUAL
-    // TEST CODE
-    // TODO(KS): This should be conditioned on being in a layered mode.
-    if (!best_virtual.isNull())
-    {
-      *is_virtual = true;
-      return best_virtual;
-    }
-#endif  // RETURN_FIRST_VIRTUAL
+    best_virtual = (allow_virtual_surface && !search_up && unobserved && last_free) ? current_key : best_virtual;
 
     // Cache values for the next iteration.
-    last_unknown = !occupied && !free;
+    last_unobserved = unobserved;
     last_free = free;
     last_key = current_key;
 
@@ -428,14 +429,7 @@ Key findNearestSupportingVoxel2(SrcVoxel &voxel, const Key &from_key, const Key 
 
   if (best_virtual.isNull())
   {
-    if (allow_virtual_surface && !search_up && last_free)
-    {
-      best_virtual = last_key;
-    }
-    else
-    {
-      *offset = -1;
-    }
+    *offset = -1;
   }
 
   *is_virtual = !best_virtual.isNull();
@@ -660,7 +654,9 @@ void onVisitWalker(Walker &walker, const HeightmapDetail &imp, const Key &walk_k
   (void)walk_key;       // Unused without TES_ENABLE
   // Add neighbours for walking.
   std::array<Key, 8> neighbours;
-  size_t added_count = walker.visit(ground_key, neighbours);
+  const auto mode = (!candidate_key.isNull()) ? PlaneWalkVisitMode::kAddUnvisitedNeighbours :
+                                                PlaneWalkVisitMode::kAddUnvisitedColumnNeighbours;
+  size_t added_count = walker.visit(ground_key, mode, neighbours);
   (void)added_count;  // Unused unless TES_ENABLE is defined.
 #ifdef TES_ENABLE
   if (g_tes)
@@ -1192,7 +1188,7 @@ bool Heightmap::buildHeightmapT(KeyWalker &walker, const glm::dvec3 &reference_p
 
 #if HM_DEBUG_VOXEL
   const glm::dvec3 debug_pos(2.05, 0.75, 0);
-  const Key debug_src_key(1, 0, 0, 11, 3, 23);
+  const Key debug_src_key(-1, 1, 0, 26, 6, 31);
   const Key debug_dst_key(0, 0, 0, 29, 44, 0);
 #endif  // HM_DEBUG_VOXEL
   unsigned supporting_voxel_flags = initial_supporting_flags;

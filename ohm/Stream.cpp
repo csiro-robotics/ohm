@@ -119,9 +119,9 @@ struct OutputStreamPrivate : StreamPrivate
 };
 
 
-const char *Stream::filePath() const
+const std::string &Stream::filePath() const
 {
-  return imp_->file_path.c_str();
+  return imp_->file_path;
 }
 
 
@@ -131,7 +131,7 @@ unsigned Stream::flags() const
 }
 
 
-bool Stream::open(const char *file_path, unsigned flags)
+bool Stream::open(const std::string &file_path, unsigned flags)
 {
   close();
   return doOpen(file_path, flags);
@@ -171,10 +171,10 @@ Stream::Stream(StreamPrivate *imp)
 Stream::~Stream() = default;
 
 
-InputStream::InputStream(const char *file_path, unsigned flags)
+InputStream::InputStream(const std::string &file_path, unsigned flags)
   : Stream(new InputStreamPrivate)
 {
-  if (file_path && file_path[0])
+  if (!file_path.empty())
   {
     InputStream::doOpen(file_path, flags);
   }
@@ -272,9 +272,9 @@ void InputStream::flush()
 {}
 
 
-bool InputStream::doOpen(const char *file_path, unsigned flags)
+bool InputStream::doOpen(const std::string &file_path, unsigned flags)
 {
-  imp()->in.open(file_path, std::ios_base::binary);
+  imp()->in.open(file_path.c_str(), std::ios_base::binary);
   imp()->file_path = file_path;
 #ifndef OHM_ZIP
   flags &= ~SF_Compress;
@@ -328,10 +328,10 @@ const InputStreamPrivate *InputStream::imp() const
 }
 
 
-OutputStream::OutputStream(const char *file_path, unsigned flags)
+OutputStream::OutputStream(const std::string &file_path, unsigned flags)
   : Stream(new OutputStreamPrivate)
 {
-  if (file_path && file_path[0])
+  if (!file_path.empty())
   {
     OutputStream::doOpen(file_path, flags);
   }
@@ -440,9 +440,9 @@ void OutputStream::flush()
 }
 
 
-bool OutputStream::doOpen(const char *file_path, unsigned flags)
+bool OutputStream::doOpen(const std::string &file_path, unsigned flags)
 {
-  imp()->out.open(file_path, std::ios_base::binary);
+  imp()->out.open(file_path.c_str(), std::ios_base::binary);
   imp()->file_path = file_path;
 #ifndef OHM_ZIP
   flags &= ~SF_Compress;

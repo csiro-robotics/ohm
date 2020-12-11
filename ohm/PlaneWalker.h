@@ -8,8 +8,9 @@
 
 #include "OhmConfig.h"
 
-#include "ohm/Key.h"
-#include "ohm/UpAxis.h"
+#include "Key.h"
+#include "PlaneWalkVisitMode.h"
+#include "UpAxis.h"
 
 #include <array>
 
@@ -60,10 +61,13 @@ public:
 
   /// For API compatibility. Does nothing.
   /// @return 0
-  inline size_t visit(const Key & /*key*/) { return 0u; }
+  inline size_t visit(const Key & /*key*/, PlaneWalkVisitMode /*mode*/) { return 0u; }  // NOLINT
   /// For API compatibility. Does nothing.
   /// @return 0
-  inline size_t visit(const Key & /*key*/, std::array<Key, 8> & /*neighbours*/) { return 0u; }
+  inline size_t visit(const Key & /*key*/, PlaneWalkVisitMode /*mode*/, std::array<Key, 8> & /*neighbours*/)  // NOLINT
+  {
+    return 0u;
+  }
 };
 }  // namespace ohm
 

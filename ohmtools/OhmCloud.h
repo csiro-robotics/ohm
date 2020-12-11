@@ -16,6 +16,7 @@
 
 #include <array>
 #include <functional>
+#include <string>
 
 namespace ohm
 {
@@ -136,7 +137,7 @@ private:
 /// @param opt Additional export controls.
 /// @param prog Optional function called to report on progress.
 /// @return The number of points saved.
-uint64_t ohmtools_API saveCloud(const char *file_name, const ohm::OccupancyMap &map,
+uint64_t ohmtools_API saveCloud(const std::string &file_name, const ohm::OccupancyMap &map,
                                 const SaveCloudOptions &opt = SaveCloudOptions(),
                                 const ProgressCallback &prog = ProgressCallback());
 
@@ -146,7 +147,7 @@ uint64_t ohmtools_API saveCloud(const char *file_name, const ohm::OccupancyMap &
 /// @param opt Additional export controls.
 /// @param prog Optional function called to report on progress.
 /// @return The number of points saved.
-uint64_t ohmtools_API saveHeightmapCloud(const char *file_name, const ohm::OccupancyMap &heightmap,
+uint64_t ohmtools_API saveHeightmapCloud(const std::string &file_name, const ohm::OccupancyMap &heightmap,
                                          const SaveCloudOptions &opt = SaveCloudOptions(),
                                          const ProgressCallback &prog = ProgressCallback());
 
@@ -158,7 +159,7 @@ uint64_t ohmtools_API saveHeightmapCloud(const char *file_name, const ohm::Occup
 /// @param query The query to save results from.
 /// @param colour_range Affects voxel colouring as described above. Green at this range.
 /// @param prog Optional function called to report on progress.
-void ohmtools_API saveQueryCloud(const char *file_name, const ohm::OccupancyMap &map, const ohm::Query &query,
+void ohmtools_API saveQueryCloud(const std::string &file_name, const ohm::OccupancyMap &map, const ohm::Query &query,
                                  float colour_range = 0.0f, const ProgressCallback &prog = ProgressCallback());
 
 /// Save a point cloud representing the @c Voxel::clearance() values for voxels in @p map.
@@ -176,7 +177,7 @@ void ohmtools_API saveQueryCloud(const char *file_name, const ohm::OccupancyMap 
 /// @param colour_range Affects voxel colouring as described above. Green at this range.
 /// @param export_type Type of voxels to export. Voxels of this @c OccupancyType or greater are exported.
 /// @param prog Optional function called to report on progress.
-size_t ohmtools_API saveClearanceCloud(const char *file_name, const ohm::OccupancyMap &map,
+size_t ohmtools_API saveClearanceCloud(const std::string &file_name, const ohm::OccupancyMap &map,
                                        const glm::dvec3 &min_extents, const glm::dvec3 &max_extents,
                                        float colour_range = 0.0f, int export_type = 0,
                                        const ProgressCallback &prog = ProgressCallback());

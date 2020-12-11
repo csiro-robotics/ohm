@@ -9,6 +9,7 @@
 #include "OhmConfig.h"
 
 #include "Key.h"
+#include "PlaneWalkVisitMode.h"
 #include "UpAxis.h"
 
 #include <glm/vec3.hpp>
@@ -38,12 +39,12 @@ class OccupancyMap;
 /// @p auto_add_neighbours to false on construction allows manual neighbour management. This Allows the height of
 /// the plane to be adjusted during walking as in heightmap terrain following.
 ///
-/// Nodes may be revisited according to the @c Revist behaviour passed to @c addNeighbours() . With
+/// Nodes may be revisited according to the @c Revist behaviour passed to @c visit() . With
 /// @c auto_add_neighbours this is always @c Revisit::kNone.
 class ohm_API PlaneFillWalker
 {
 public:
-  /// Revisit behaviour for @c addNeighbours()
+  /// Revisit behaviour for @c visit()
   enum class Revisit : int
   {
     kNone = 0,  ///< No revisiting allowed.
@@ -107,23 +108,12 @@ public:
   /// @param key The key being visited. Must fall within the @c range.minKey() and @c range.maxKey() bounds.
   /// @param neighbours Populted with any neighbours of @p key added to the open list.
   /// @return The number of neighbours added.
-  size_t visit(const Key &key, std::array<Key, 8> &neighbours);
+  size_t visit(const Key &key, PlaneWalkVisitMode mode, std::array<Key, 8> &neighbours);
   /// @overload
-  inline size_t visit(const Key &key)
+  inline size_t visit(const Key &key, PlaneWalkVisitMode mode)
   {
     std::array<Key, 8> discard_neighbours;
-    return visit(key, discard_neighbours);
-  }
-
-  /// Add neigbhours of @p key to the open list.
-  /// @param key The key of interest.
-  /// @param revisit_behaviour How to deal with voxels which have already been visited.
-  size_t addNeighbours(const Key &key, std::array<Key, 8> &added_neighbours,
-                       Revisit revisit_behaviour = Revisit::kNone);
-  size_t addNeighbours(const Key &key, Revisit revisit_behaviour = Revisit::kNone)
-  {
-    std::array<Key, 8> ignore;
-    return addNeighbours(key, ignore, revisit_behaviour);
+    return visit(key, mode, discard_neighbours);
   }
 
   /// Marks the given key as visited.
@@ -133,7 +123,7 @@ public:
 private:
   unsigned gridIndex(const Key &key);
   /// Query the Visit entry height for @p key.
-  int visitHeight(const Key &key) const;
+  int keyHeight(const Key &key) const;
 
   std::deque<Key> open_list_;  ///< Remaining voxels to (re)process.
   /// A grid tracking the heights at which each planar item has been visited. The grid is sized for the 2D region from

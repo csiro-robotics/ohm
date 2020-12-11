@@ -110,6 +110,7 @@ set(SOURCES
   PlaneFillWalker.h
   PlaneWalker.cpp
   PlaneWalker.h
+  PlaneWalkVisitMode.h
   Query.cpp
   Query.h
   QueryFlag.h
@@ -200,6 +201,7 @@ set(PUBLIC_HEADERS
   PlaneFillLayeredWalker.h
   PlaneFillWalker.h
   PlaneWalker.h
+  PlaneWalkVisitMode.h
   QueryFlag.h
   Query.h
   RayFilter.h

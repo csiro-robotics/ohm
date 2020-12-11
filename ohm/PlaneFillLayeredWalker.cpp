@@ -19,6 +19,7 @@ PlaneFillLayeredWalker::PlaneFillLayeredWalker(const OccupancyMap &map, const Ke
   , range(KeyRange(min_ext_key, max_ext_key, map))
   , key_range(map.rangeBetween(min_ext_key, max_ext_key) + glm::ivec3(1, 1, 1))
   , axis_indices(ohm::heightmap::heightmapAxisIndices(up_axis))
+  , up_sign((int(up_axis) >= 0) ? 1 : -1)
 {}
 
 
@@ -63,28 +64,39 @@ bool PlaneFillLayeredWalker::walkNext(Key &key)
 }
 
 
-size_t PlaneFillLayeredWalker::visit(const Key &key, std::array<Key, 8> &added_neighbours)
+size_t PlaneFillLayeredWalker::visit(const Key &key, PlaneWalkVisitMode mode, std::array<Key, 8> &added_neighbours)
 {
   size_t added = 0;
-  for (int row_delta = -1; row_delta <= 1; ++row_delta)
+  if (mode != PlaneWalkVisitMode::kIgnoreNeighbours)
   {
-    for (int col_delta = -1; col_delta <= 1; ++col_delta)
+    Key start_key = key;
+    if (mode == PlaneWalkVisitMode::kAddUnvisitedNeighbours)
     {
-      Key n_key = key;
-      map.moveKeyAlongAxis(n_key, axis_indices[1], row_delta);
-      map.moveKeyAlongAxis(n_key, axis_indices[0], col_delta);
-
-      const auto idx = gridIndexForKey(n_key);
-      if (idx != ~0u)
+      // We add the neighbours offset up one voxel. This encourages surface following up slopes where things join.
+      // This will only really matter with a zero clearance.
+      map.moveKeyAlongAxis(start_key, axis_indices[2], up_sign);
+    }
+    for (int row_delta = -1; row_delta <= 1; ++row_delta)
+    {
+      for (int col_delta = -1; col_delta <= 1; ++col_delta)
       {
-        const int n_visit_height = visitHeight(n_key);
-        if (!hasOpened(idx, n_visit_height))
+        Key n_key = start_key;
+        map.moveKeyAlongAxis(n_key, axis_indices[1], row_delta);
+        map.moveKeyAlongAxis(n_key, axis_indices[0], col_delta);
+
+        const auto idx = gridIndexForKey(n_key);
+        if (idx != ~0u)
         {
-          // Neighbour in range and not touched. Add to open list.
-          open(idx, n_visit_height);
-          open_list_.push_back(n_key);
-          added_neighbours[added] = n_key;
-          ++added;
+          const int n_visit_height = keyHeight(n_key);
+          if (mode == PlaneWalkVisitMode::kAddUnvisitedNeighbours && !hasOpened(idx, n_visit_height) ||
+              mode == PlaneWalkVisitMode::kAddUnvisitedColumnNeighbours && !hasOpened(idx))
+          {
+            // Neighbour in range and not touched. Add to open list.
+            open(idx, n_visit_height);
+            open_list_.push_back(n_key);
+            added_neighbours[added] = n_key;
+            ++added;
+          }
         }
       }
     }
@@ -112,7 +124,7 @@ unsigned PlaneFillLayeredWalker::gridIndexForKey(const Key &key)
 }
 
 
-int PlaneFillLayeredWalker::visitHeight(const Key &key) const
+int PlaneFillLayeredWalker::keyHeight(const Key &key) const
 {
   return map.rangeBetween(range.minKey(), key)[axis_indices[2]];
 }

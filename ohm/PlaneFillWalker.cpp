@@ -52,7 +52,7 @@ bool PlaneFillWalker::walkNext(Key &key)
     {
       key.clampTo(min_ext_key, max_ext_key);
       const unsigned grid_index = gridIndex(key);
-      visit_grid_[grid_index].visit(visitHeight(key));
+      visit_grid_[grid_index].visit(keyHeight(key));
       return true;
     }
   }
@@ -61,50 +61,54 @@ bool PlaneFillWalker::walkNext(Key &key)
 }
 
 
-size_t PlaneFillWalker::visit(const Key &key, std::array<Key, 8> &added_neighbours)
+size_t PlaneFillWalker::visit(const Key &key, PlaneWalkVisitMode mode, std::array<Key, 8> &added_neighbours)
 {
   size_t added = 0;
-  unsigned grid_index = gridIndex(key);
-  if (grid_index != ~0u)
+
+  if (mode != PlaneWalkVisitMode::kIgnoreNeighbours)
   {
-    // Note: we do not update the visit height for key. This can result in recurring loops. We only want to track the
-    // best height at which a voxel was added to the open list.
-    for (int row_delta = -1; row_delta <= 1; ++row_delta)
+    unsigned grid_index = gridIndex(key);
+    if (grid_index != ~0u)
     {
-      for (int col_delta = -1; col_delta <= 1; ++col_delta)
+      // Note: we do not update the visit height for key. This can result in recurring loops. We only want to track the
+      // best height at which a voxel was added to the open list.
+      for (int row_delta = -1; row_delta <= 1; ++row_delta)
       {
-        Key n_key = key;
-        map.moveKeyAlongAxis(n_key, axis_indices[1], row_delta);
-        map.moveKeyAlongAxis(n_key, axis_indices[0], col_delta);
-
-        grid_index = gridIndex(n_key);
-        if (grid_index != ~0u)
+        for (int col_delta = -1; col_delta <= 1; ++col_delta)
         {
-          bool add_to_open = false;
-          const int n_visit_height = visitHeight(n_key);
-          switch (revisit_behaviour)
+          Key n_key = key;
+          map.moveKeyAlongAxis(n_key, axis_indices[1], row_delta);
+          map.moveKeyAlongAxis(n_key, axis_indices[0], col_delta);
+
+          grid_index = gridIndex(n_key);
+          if (grid_index != ~0u)
           {
-          case Revisit::kHigher:
-            add_to_open = visit_grid_[grid_index].revisitHigher(n_visit_height);
-            break;
+            bool add_to_open = false;
+            const int n_visit_height = keyHeight(n_key);
+            switch (revisit_behaviour)
+            {
+            case Revisit::kHigher:
+              add_to_open = visit_grid_[grid_index].revisitHigher(n_visit_height);
+              break;
 
-          case Revisit::kLower:
-            add_to_open = visit_grid_[grid_index].revisitLower(n_visit_height);
-            break;
+            case Revisit::kLower:
+              add_to_open = visit_grid_[grid_index].revisitLower(n_visit_height);
+              break;
 
-          case Revisit::kNone:
-          default:
-            add_to_open = visit_grid_[grid_index].revisitNone(n_visit_height);
-            break;
-          }
+            case Revisit::kNone:
+            default:
+              add_to_open = visit_grid_[grid_index].revisitNone(n_visit_height);
+              break;
+            }
 
-          if (add_to_open)
-          {
-            // Neighbour in range and not touched. Add to open list.
-            open_list_.push_back(n_key);
-            visit_grid_[grid_index].visit(n_visit_height);
-            added_neighbours[added] = n_key;
-            ++added;
+            if (add_to_open)
+            {
+              // Neighbour in range and not touched. Add to open list.
+              open_list_.push_back(n_key);
+              visit_grid_[grid_index].visit(n_visit_height);
+              added_neighbours[added] = n_key;
+              ++added;
+            }
           }
         }
       }
@@ -120,7 +124,7 @@ void PlaneFillWalker::touch(const Key &key)
   const auto idx = gridIndex(key);
   if (idx != ~0u)
   {
-    visit_grid_[idx].visit(visitHeight(key));
+    visit_grid_[idx].visit(keyHeight(key));
   }
 }
 
@@ -143,7 +147,7 @@ unsigned PlaneFillWalker::gridIndex(const Key &key)
 }
 
 
-int PlaneFillWalker::visitHeight(const Key &key) const
+int PlaneFillWalker::keyHeight(const Key &key) const
 {
   return map.rangeBetween(min_ext_key, key)[axis_indices[2]];
 }

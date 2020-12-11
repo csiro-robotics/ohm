@@ -183,6 +183,8 @@ struct Options
   ohm::HeightmapMode mode = ohm::HeightmapMode::kSimpleFill;
   glm::dvec3 seed_pos{ 0, 0, 0 };
   double clearance = 2.0;
+  double floor = -1;
+  double ceiling = -1;
   bool virtual_surfaces = false;
   bool no_voxel_mean = false;
   bool trace = false;
@@ -216,18 +218,26 @@ int parseOptions(Options *opt, int argc, char *argv[])  // NOLINT(modernize-avoi
   {
     opt_parse.add_options()("help", "Show help.")("i", "The input map file (ohm).", cxxopts::value(opt->map_file))  //
       ("o", "The output heightmap file (ohm).", cxxopts::value(opt->heightmap_file))                                //
-      ("clearance", "The required height clearance for a heightmap surface voxel.", optVal(opt->clearance))         //
-      ("mode", "Hieghtmap expansion mode (planar,fill,layered-unordered,layered).", optVal(opt->mode))              //
+      ("ceiling",
+       "Ceiling applied to ground voxel searches. Limits how far up to search. Non-negative to enable. Affected by "
+       "'--mode'.",
+       optVal(opt->ceiling))                                                                                 //
+      ("clearance", "The required height clearance for a heightmap surface voxel.", optVal(opt->clearance))  //
+      ("floor",
+       "Floor applied to ground voxel searches. Limits how far down to search. Non-negative to enable. Affected by "
+       "'--mode'.",
+       optVal(opt->floor))                                                                              //
+      ("mode", "Hieghtmap expansion mode (planar,fill,layered-unordered,layered).", optVal(opt->mode))  //
+      ("no-voxel-mean", "Ignore voxel mean positioning if available?.", optVal(opt->no_voxel_mean))     //
       ("seed", "Seed position from which to build the heightmap. Specified as a 3 component vector such as '0,0,1'.",
-       optVal(opt->seed_pos))                                                                        //
-      ("up", "Specifies the up axis {x,y,z,-x,-y,-z}.", optVal(opt->axis_id))                        //
-      ("virtual", "Allow virtual surfaces?", cxxopts::value(opt->virtual_surfaces))                  //
-      ("no-voxel-mean", "Ignore voxel mean positioning if available?.", optVal(opt->no_voxel_mean))  //
+       optVal(opt->seed_pos))                                                        //
+      ("up", "Specifies the up axis {x,y,z,-x,-y,-z}.", optVal(opt->axis_id))        //
+      ("virtual", "Allow virtual surfaces?", cxxopts::value(opt->virtual_surfaces))  //
       ;
 
     if (ohm::trace::available())
     {
-      opt_parse.add_options()("trace", "Enable debug trace using 3rd Eye Scene?", optVal(opt->no_voxel_mean));
+      opt_parse.add_options()("trace", "Enable debug trace using 3rd Eye Scene?", optVal(opt->trace));
     }
 
     opt_parse.parse_positional({ "i", "o" });
@@ -323,9 +333,10 @@ int main(int argc, char *argv[])
   ohm::Heightmap heightmap(map.resolution(), opt.clearance, opt.axis_id);
   heightmap.setMode(opt.mode);
   heightmap.setOccupancyMap(&map);
-
   heightmap.heightmap().setOrigin(map.origin());
 
+  heightmap.setCeiling(opt.ceiling >= 0 ? opt.ceiling : heightmap.ceiling());
+  heightmap.setFloor(opt.floor >= 0 ? opt.floor : heightmap.floor());
   heightmap.setIgnoreVoxelMean(opt.no_voxel_mean);
   heightmap.setGenerateVirtualSurface(opt.virtual_surfaces);
 
