@@ -67,6 +67,8 @@ struct HeightmapGeneratedInfo
 
   /// Default constructor.
   HeightmapGeneratedInfo() = default;
+  /// Copy constructor.
+  HeightmapGeneratedInfo(const HeightmapGeneratedInfo &other) = default;
   /// Move constructor.
   /// @param other Object to move.
   HeightmapGeneratedInfo(HeightmapGeneratedInfo &&other)
@@ -1123,23 +1125,31 @@ TEST(Heightmap, DISABLED_LayeredComplex)
 }
 
 
-TEST(Heightmap, VirtualSurface)
+void testHeightmapVirtualSurface(const std::string &name, const ohm::HeightmapMode heightmap_mode)
 {
   // For this test, we build the multilevel map, then add a virtual surface at an angle over one of the ramp slopes.
   // When we generate a map at the lower level, we should see no impact of the virtual surface.
   // When we generate at the higher level, we should see the virtual surface obscure parts of the ramp.
   // allows the heightmap to be a precise representation of the original map. We can then convert the heightmap back
   // into a normal occupancy map and compare that against the input map. It should be identical.
-  // ohm::Trace trace("heightmap-virtual-surface.3es");  // Setup debug trace for 3rd Eye Scene visualisation.
+  ohm::Trace trace("heightmap-virtual-surface-" + name + ".3es");  // Setup debug trace for 3rd Eye Scene visualisation.
   // Create the input map.
   ohm::OccupancyMap map(0.1);
   HeightmapParams params;
+  ohmtools::SaveCloudOptions save_opt;
   // Ensure we select the virtual surfaces by removing other options below.
   params.generate_virtual_surfaces = true;
-  HeightmapGeneratedInfo validation_info = populateMultiLevelMap(map, params);
-  ohm::save("layered-virtual-surface.ohm", map);
-  ohmtools::saveCloud("layered-virtual-surface.ply", map);
+  HeightmapGeneratedInfo heightmap_info = populateMultiLevelMap(map, params);
 
+  ohmtools::ColourByType colour_by_type(map);
+  save_opt.colour_select = [&colour_by_type](const ohm::Voxel<const float> &occupancy) {
+    return colour_by_type.select(occupancy);
+  };
+  save_opt.export_free = true;
+  ohm::save("virtual-surface" + name + ".ohm", map);
+  ohmtools::saveCloud("virtual-surface" + name + ".ply", map, save_opt);
+
+  HeightmapGeneratedInfo validation_info = heightmap_info;
   // Disable any clearance constraint.
   const double clearance_constraint = 0.0;
   ohm::Heightmap layered_heightmap(map.resolution(), clearance_constraint);
@@ -1147,19 +1157,18 @@ TEST(Heightmap, VirtualSurface)
   layered_heightmap.heightmap().setOrigin(map.origin());
 
   // Build the layered heightmap.
-  layered_heightmap.setMode(ohm::HeightmapMode::kLayeredFillOrdered);
+  layered_heightmap.setMode(heightmap_mode);
   layered_heightmap.setGenerateVirtualSurface(true);
   layered_heightmap.setCeiling(1.0);
   layered_heightmap.buildHeightmap(glm::dvec3(0, 0, 1.1 * params.platform_height));
 
-  ohmtools::SaveCloudOptions save_opt;
-  ohmtools::ColourHeightmapType colour_by_type(layered_heightmap.heightmap());
-  save_opt.colour_select = [&colour_by_type](const ohm::Voxel<const float> &occupancy) {
-    return colour_by_type.select(occupancy);
+  ohmtools::ColourHeightmapType colour_by_heightmap_type(layered_heightmap.heightmap());
+  save_opt.colour_select = [&colour_by_heightmap_type](const ohm::Voxel<const float> &occupancy) {
+    return colour_by_heightmap_type.select(occupancy);
   };
   save_opt.export_free = true;
-  ohm::save("layered-virtual-surface-hm.ohm", layered_heightmap.heightmap());
-  ohmtools::saveHeightmapCloud("layered-virtual-surface-hm.ply", layered_heightmap.heightmap(), save_opt);
+  ohm::save("virtual-surface" + name + "-hm.ohm", layered_heightmap.heightmap());
+  ohmtools::saveHeightmapCloud("virtual-surface" + name + "-hm.ply", layered_heightmap.heightmap(), save_opt);
 
   // Walk the heightmap extracting all the voxels. With a zero clearance constraint, we should have an exact
   // representation of the original map with the addition of virtual surfaces.
@@ -1202,6 +1211,24 @@ TEST(Heightmap, VirtualSurface)
 }
 
 
+TEST(Heightmap, VirtualSurfacePlanar)
+{
+  testHeightmapVirtualSurface("planar", ohm::HeightmapMode::kPlanar);
+}
+
+
+TEST(Heightmap, VirtualSurfaceFill)
+{
+  testHeightmapVirtualSurface("planar", ohm::HeightmapMode::kPlanar);
+}
+
+
+TEST(Heightmap, VirtualSurfaceSimpleLayered)
+{
+  testHeightmapVirtualSurface("simple-layered", ohm::HeightmapMode::kLayeredFill);
+}
+
+
 TEST(Heightmap, VirtualSurfaceLayered)
 {
   // For this test, we build the multilevel map, then add a virtual surface at an angle over one of the ramp slopes.
@@ -1231,7 +1258,7 @@ TEST(Heightmap, VirtualSurfaceLayered)
   layered_heightmap.setGenerateVirtualSurface(true);
   // Use tight ceiling/floor constraints to ensure we capture some virtual surfaces.
   layered_heightmap.setCeiling(1.5 * map.resolution());
-  layered_heightmap.setFloor(1.5 * map.resolution());
+  layered_heightmap.setFloor(2.0 * map.resolution());
   layered_heightmap.buildHeightmap(glm::dvec3(0, 0, 1.1 * params.platform_height));
 
   ohmtools::SaveCloudOptions save_opt;
