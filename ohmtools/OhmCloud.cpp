@@ -211,9 +211,9 @@ uint64_t saveCloud(const char *file_name, const ohm::OccupancyMap &map, const Sa
       last_region = iter.key().regionKey();
     }
 
-    if (isOccupied(occupancy))
+    if (isOccupied(occupancy) || opt.export_free && isFree(occupancy))
     {
-      pos = positionSafe(mean);
+      pos = (mean.isLayerValid()) ? positionSafe(mean) : map.voxelCentreGlobal(*iter);
       ply.setPointPosition(pos);
       if (colour_select)
       {
@@ -304,7 +304,7 @@ uint64_t saveHeightmapCloud(const char *file_name, const ohm::OccupancyMap &map,
     }
     if (isOccupied(occupancy) || opt.export_free && isFree(occupancy))
     {
-      pos = positionSafe(mean);
+      pos = (mean.isLayerValid()) ? positionSafe(mean) : map.voxelCentreGlobal(*iter);
       if (heightmap_voxel.isValid())
       {
         pos[heightmap_axis] += height_flip * heightmap_voxel.data().height;
