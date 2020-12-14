@@ -1080,17 +1080,17 @@ void heightmapLayeredTest(const std::string &name, LayeredTestStart start_locati
   ASSERT_EQ(test_voxel_count, ref_voxel_count);
 }
 
-TEST(Heightmap, Layered1)
+TEST(Heightmap, LayeredAbove)
 {
   // For this test we use the multi-layered map generation. For validation, we set the target clearance to zero which
   // allows the heightmap to be a precise representation of the original map. We can then convert the heightmap back
   // into a normal occupancy map and compare that against the input map. It should be identical.
-  heightmapLayeredTest("layered1", LayeredTestStart::kOnPlatform);
+  heightmapLayeredTest("layered-above", LayeredTestStart::kOnPlatform);
 }
 
-TEST(Heightmap, Layered2)
+TEST(Heightmap, LayeredBelow)
 {
-  heightmapLayeredTest("layered2", LayeredTestStart::kUnderPlatform);
+  heightmapLayeredTest("layered-below", LayeredTestStart::kUnderPlatform);
 }
 
 TEST(Heightmap, LayeredExternal)
@@ -1125,7 +1125,27 @@ TEST(Heightmap, DISABLED_LayeredComplex)
 }
 
 
-void testHeightmapVirtualSurface(const std::string &name, const ohm::HeightmapMode heightmap_mode)
+/// Parameters for @c testHeightmapVirtualSurface()
+///
+/// Note that we will not find all voxels from the original map. Quirks based on mode are listed below.
+///
+/// - @c ohm::HeightmapMode::kPlanar misses 2215 voxels below the platform and 41 seam voxels.
+/// - @c ohm::HeightmapMode::kSimpleFill also misses 2215, but these are the platform voxels and 41 seam voxels.
+/// - @c ohm::HeightmapMode::kLayeredFill[Ordered] misses 41 seam voxels. Seam removal deals with this.
+struct VirtualSurfaceTestParams
+{
+  /// Heightmap generation mode.
+  ohm::HeightmapMode mode = ohm::HeightmapMode::kPlanar;
+  /// Heightmap floor search distance.
+  double floor = 0.5;
+  /// Heightmap ceiling search distance. Large to prefer finding the lower surface below the platform.
+  double ceiling = 2.0;
+  /// Permitted number of surface voxels missed in the heightmap.
+  unsigned allowed_missed_surface_count = 0;
+};
+
+
+void testHeightmapVirtualSurface(const std::string &name, const VirtualSurfaceTestParams test_params)
 {
   // For this test, we build the multilevel map, then add a virtual surface at an angle over one of the ramp slopes.
   // When we generate a map at the lower level, we should see no impact of the virtual surface.
@@ -1146,8 +1166,8 @@ void testHeightmapVirtualSurface(const std::string &name, const ohm::HeightmapMo
     return colour_by_type.select(occupancy);
   };
   save_opt.export_free = true;
-  ohm::save("virtual-surface" + name + ".ohm", map);
-  ohmtools::saveCloud("virtual-surface" + name + ".ply", map, save_opt);
+  ohm::save("virtual-surface-" + name + ".ohm", map);
+  ohmtools::saveCloud("virtual-surface-" + name + ".ply", map, save_opt);
 
   HeightmapGeneratedInfo validation_info = heightmap_info;
   // Disable any clearance constraint.
@@ -1157,9 +1177,10 @@ void testHeightmapVirtualSurface(const std::string &name, const ohm::HeightmapMo
   layered_heightmap.heightmap().setOrigin(map.origin());
 
   // Build the layered heightmap.
-  layered_heightmap.setMode(heightmap_mode);
+  layered_heightmap.setMode(test_params.mode);
   layered_heightmap.setGenerateVirtualSurface(true);
-  layered_heightmap.setCeiling(1.0);
+  layered_heightmap.setCeiling(test_params.floor);
+  layered_heightmap.setCeiling(test_params.ceiling);
   layered_heightmap.buildHeightmap(glm::dvec3(0, 0, 1.1 * params.platform_height));
 
   ohmtools::ColourHeightmapType colour_by_heightmap_type(layered_heightmap.heightmap());
@@ -1167,8 +1188,8 @@ void testHeightmapVirtualSurface(const std::string &name, const ohm::HeightmapMo
     return colour_by_heightmap_type.select(occupancy);
   };
   save_opt.export_free = true;
-  ohm::save("virtual-surface" + name + "-hm.ohm", layered_heightmap.heightmap());
-  ohmtools::saveHeightmapCloud("virtual-surface" + name + "-hm.ply", layered_heightmap.heightmap(), save_opt);
+  ohm::save("virtual-surface-" + name + "-hm.ohm", layered_heightmap.heightmap());
+  ohmtools::saveHeightmapCloud("virtual-surface-" + name + "-hm.ply", layered_heightmap.heightmap(), save_opt);
 
   // Walk the heightmap extracting all the voxels. With a zero clearance constraint, we should have an exact
   // representation of the original map with the addition of virtual surfaces.
@@ -1205,27 +1226,55 @@ void testHeightmapVirtualSurface(const std::string &name, const ohm::HeightmapMo
     }
   }
 
+  // None of the modes find all voxels in a seam. remove those from the detection set.
+  for (auto iter = validation_info.surface.begin(); iter != validation_info.surface.end();)
+  {
+    // Check for seam voxel.
+    auto seam_iter = validation_info.seam.find(*iter);
+    if (seam_iter != validation_info.seam.end())
+    {
+      // Remove the seam voxel.
+      iter = validation_info.surface.erase(iter);
+    }
+    else
+    {
+      // No removal. Continue iteration.
+      ++iter;
+    }
+  }
+
   // Ensure we have represented every relevant voxel in the original map.
-  EXPECT_TRUE(validation_info.surface.empty());
-  EXPECT_TRUE(validation_info.virtual_surface.empty());
+  EXPECT_EQ(validation_info.surface.size(), test_params.allowed_missed_surface_count);
+  EXPECT_EQ(validation_info.virtual_surface.size(), 0);
 }
 
 
 TEST(Heightmap, VirtualSurfacePlanar)
 {
-  testHeightmapVirtualSurface("planar", ohm::HeightmapMode::kPlanar);
+  VirtualSurfaceTestParams params;
+  params.mode = ohm::HeightmapMode::kPlanar;
+  // Allow missing the voxels below the platform.
+  params.allowed_missed_surface_count = 2215;
+  testHeightmapVirtualSurface("planar", params);
 }
 
 
 TEST(Heightmap, VirtualSurfaceFill)
 {
-  testHeightmapVirtualSurface("planar", ohm::HeightmapMode::kPlanar);
+  VirtualSurfaceTestParams params;
+  params.mode = ohm::HeightmapMode::kSimpleFill;
+  // Allow missing the voxels of the platform.
+  params.allowed_missed_surface_count = 2215;
+  testHeightmapVirtualSurface("fill", params);
 }
 
 
 TEST(Heightmap, VirtualSurfaceSimpleLayered)
 {
-  testHeightmapVirtualSurface("simple-layered", ohm::HeightmapMode::kLayeredFill);
+  VirtualSurfaceTestParams params;
+  params.mode = ohm::HeightmapMode::kLayeredFill;
+  params.floor = params.ceiling = 0.5;
+  testHeightmapVirtualSurface("simple-layered", params);
 }
 
 
@@ -1257,8 +1306,8 @@ TEST(Heightmap, VirtualSurfaceLayered)
   layered_heightmap.setMode(ohm::HeightmapMode::kLayeredFillOrdered);
   layered_heightmap.setGenerateVirtualSurface(true);
   // Use tight ceiling/floor constraints to ensure we capture some virtual surfaces.
-  layered_heightmap.setCeiling(1.5 * map.resolution());
-  layered_heightmap.setFloor(2.0 * map.resolution());
+  layered_heightmap.setCeiling(3 * map.resolution());
+  layered_heightmap.setFloor(5 * map.resolution());
   layered_heightmap.buildHeightmap(glm::dvec3(0, 0, 1.1 * params.platform_height));
 
   ohmtools::SaveCloudOptions save_opt;

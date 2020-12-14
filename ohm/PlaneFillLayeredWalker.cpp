@@ -70,12 +70,6 @@ size_t PlaneFillLayeredWalker::visit(const Key &key, PlaneWalkVisitMode mode, st
   if (mode != PlaneWalkVisitMode::kIgnoreNeighbours)
   {
     Key start_key = key;
-    if (mode == PlaneWalkVisitMode::kAddUnvisitedNeighbours)
-    {
-      // We add the neighbours offset up one voxel. This encourages surface following up slopes where things join.
-      // This will only really matter with a zero clearance.
-      map.moveKeyAlongAxis(start_key, axis_indices[2], up_sign);
-    }
     for (int row_delta = -1; row_delta <= 1; ++row_delta)
     {
       for (int col_delta = -1; col_delta <= 1; ++col_delta)

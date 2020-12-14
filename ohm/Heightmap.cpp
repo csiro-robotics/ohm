@@ -352,11 +352,31 @@ Key findNearestSupportingVoxel2(SrcVoxel &voxel, const Key &from_key, const Key 
 
   Key last_key(nullptr);
   Key current_key = from_key;
+
+  if (search_up)
+  {
+    // In the case of searching up, we need to check the seed_key to see if it is unobserved, and therefore potentially
+    // of a virtual surface, but not count it as part of our traversal. This is in part because for a virtual surface
+    // we report the supporting unobserved voxel, not the free voxel, for the next phase to detect (final reporting is
+    // of the free voxel).
+    voxel.setKey(from_key);
+    last_unobserved = ohm::isUnobservedOrNull(voxel.occupancy);
+    last_key = from_key;
+
+    // Now move the key up one voxel for the next iteration.
+    voxel.map().moveKeyAlongAxis(current_key, up_axis_index, step);
+  }
+
+  // Note: there is an asymmetry to how we use vertical_range. We would tend to explore up one more voxel than down
+  // without expanding the vertical range down by 1.
+  if (!search_up)
+  {
+    ++vertical_range;
+  }
+
   for (int i = 0; i < vertical_range; ++i)
   {
-    // We bias the offset up one voxel for upward searches. The e`xpectation is that the downward search starts
-    // at the seed voxel, while the upward search starts one above that without overlap.
-    *offset = i + !!search_up;
+    *offset = i;
     voxel.setKey(current_key);
 
     // This line yields performance issues likely due to the stochastic memory access.
@@ -388,8 +408,9 @@ Key findNearestSupportingVoxel2(SrcVoxel &voxel, const Key &from_key, const Key 
     // - the current voxel is free
     // - the previous voxel was unknown
     // - we do not already have a virtual voxel
-    best_virtual =
-      (allow_virtual_surface && search_up && free && last_unobserved && best_virtual.isNull()) ? current_key : last_key;
+    best_virtual = (allow_virtual_surface && search_up && free && last_unobserved && best_virtual.isNull()) ?
+                     last_key :
+                     best_virtual;
 
     // This is the case for searching down. In this case we are always looking for the lowest virtual voxel. More
     // specifically, we are looking for the voxel *below* the virtual voxel. We need to return the unobserved voxel
@@ -499,12 +520,24 @@ inline Key findNearestSupportingVoxel(SrcVoxel &voxel, const Key &seed_key, UpAx
   const bool promote_virtual_below = (flags & kPromoteVirtualBelow) != 0;
   virtual_below = have_candidate_below && virtual_below && !promote_virtual_below;
 
-  if ((flags & kPreferBelow) == 0)
+  if (flags & kPreferBelow)
   {
     // Prefering the closer voxel.
     if (have_candidate_below && have_candidate_above)
     {
       if (offset_below <= offset_above)
+      {
+        return below;
+      }
+
+      return above;
+    }
+  }
+  else
+  {
+    if (have_candidate_below && have_candidate_above)
+    {
+      if (offset_below < offset_above)
       {
         return below;
       }
@@ -1188,7 +1221,7 @@ bool Heightmap::buildHeightmapT(KeyWalker &walker, const glm::dvec3 &reference_p
 
 #if HM_DEBUG_VOXEL
   const glm::dvec3 debug_pos(2.05, 0.75, 0);
-  const Key debug_src_key(-1, 1, 0, 26, 6, 31);
+  const Key debug_src_key(-1, -1, 0, 28, 13, 16);
   const Key debug_dst_key(0, 0, 0, 29, 44, 0);
 #endif  // HM_DEBUG_VOXEL
   unsigned supporting_voxel_flags = initial_supporting_flags;
