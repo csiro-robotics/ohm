@@ -179,6 +179,7 @@ struct Options
 {
   std::string map_file;
   std::string heightmap_file;
+  std::string trace;  // 3es trace file (if available)
   ohm::UpAxis axis_id = ohm::UpAxis::kZ;
   ohm::HeightmapMode mode = ohm::HeightmapMode::kSimpleFill;
   glm::dvec3 seed_pos{ 0, 0, 0 };
@@ -187,7 +188,6 @@ struct Options
   double ceiling = -1;
   bool virtual_surfaces = false;
   bool no_voxel_mean = false;
-  bool trace = false;
 };
 
 
@@ -237,7 +237,9 @@ int parseOptions(Options *opt, int argc, char *argv[])  // NOLINT(modernize-avoi
 
     if (ohm::trace::available())
     {
-      opt_parse.add_options()("trace", "Enable debug trace using 3rd Eye Scene?", optVal(opt->trace));
+      opt_parse.add_options()(
+        "trace", "Enable debug tracing to the given file name to generate a 3es file. High performance impact.",
+        cxxopts::value(opt->trace));
     }
 
     opt_parse.parse_positional({ "i", "o" });
@@ -288,7 +290,11 @@ int main(int argc, char *argv[])
   }
 
   // Initialise 3ES
-  ohm::Trace trace("ohmheightmap.3es", opt.trace);
+  std::unique_ptr<ohm::Trace> trace;
+  if (!opt.trace.empty())
+  {
+    trace = std::make_unique<ohm::Trace>(opt.trace.c_str());
+  }
 
   signal(SIGINT, onSignal);
   signal(SIGTERM, onSignal);
