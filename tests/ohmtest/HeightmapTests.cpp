@@ -1099,32 +1099,6 @@ TEST(Heightmap, LayeredExternal)
 }
 
 
-TEST(Heightmap, DISABLED_LayeredComplex)
-{
-  // For this test we use the multi-layered map generation. For validation, we set the target clearance to zero which
-  // allows the heightmap to be a precise representation of the original map. We can then convert the heightmap back
-  // into a normal occupancy map and compare that against the input map. It should be identical.
-  // ohm::Trace trace("heightmap-layered-complex.3es");  // Setup debug trace for 3rd Eye Scene visualisation.
-  // Create the input map.
-  ohm::OccupancyMap map(0.1);
-  // Load the test map data.
-  // FIXME(KS): resolve test data acquisition and data path(s).
-  const auto load_result = ohm::load("/mnt/marvin/data/ohm/tests/heightmap/heightmap-layered.ohm", map);
-  ASSERT_EQ(load_result, ohm::kSeOk);  // Ensure load success.
-  ohmtools::saveCloud("layered-complex-map.ply", map);
-
-  ohm::Heightmap layered_heightmap(map.resolution(), 1.0);
-  layered_heightmap.setOccupancyMap(&map);
-
-  // Build the layered heightmap.
-  layered_heightmap.setMode(ohm::HeightmapMode::kLayeredFillOrdered);
-  layered_heightmap.buildHeightmap(glm::dvec3(0, 0, 0));
-
-  ohm::save("layered-complex-map-hm.ohm", layered_heightmap.heightmap());
-  ohmtools::saveCloud("layered-complex-map-hm.ply", layered_heightmap.heightmap());
-}
-
-
 /// Parameters for @c testHeightmapVirtualSurface()
 ///
 /// Note that we will not find all voxels from the original map. Quirks based on mode are listed below.
