@@ -68,13 +68,12 @@ enum SupportingVoxelFlag : unsigned
   ///
   /// A virtual surface candidate is a free voxel supported by an unobserved voxel.
   kVirtualSurfaces = (1u << 0u),
-  /// When an initial candidate voxel is found below and above, prefer the one below. Otherwise prefers the closer one.
+  /// When selecting a candidate voxel from one above and one below and two candidates are found at the same range,
+  /// then bias the selection to the one above.
   ///
-  /// This flag is turned when in planar heightmap generation (@c PlaneWalker used). This flag is only on for the seed
-  /// voxel when using a flood fill (@c PlaneFillWalker) after which it is cleared. This allows the seed voxel to find
-  /// the best surface below the reference position, then the flood fill can continue in a mode where the most connnect
-  /// is prefered (closest).
-  kPreferBelow = (1u << 1u),
+  /// This flag is turned when selecting the first voxel in the heightmap, then subsequentyly is turned on for all but
+  /// the planar heightmap generation (@c PlaneWalker used). This helps guide fill expansions up sloped surfaces.
+  kBiasAbove = (1u << 1u),
   /// Flag used when finding a virtual surface candidate in the lower voxel and an occupied voxel above it. This mode
   /// prefers the virtual voxel candidate. Virtual surfaces must be enabled.
   kPromoteVirtualBelow = (1u << 2u),
@@ -365,6 +364,7 @@ Key findNearestSupportingVoxel2(SrcVoxel &voxel, const Key &from_key, const Key 
 
     // Now move the key up one voxel for the next iteration.
     voxel.map().moveKeyAlongAxis(current_key, up_axis_index, step);
+    *offset = -1;  // See offset increment comment in loop.
   }
 
   // Note: there is an asymmetry to how we use vertical_range. We would tend to explore up one more voxel than down
@@ -372,11 +372,31 @@ Key findNearestSupportingVoxel2(SrcVoxel &voxel, const Key &from_key, const Key 
   if (!search_up)
   {
     ++vertical_range;
+    *offset = 0;  // See offset increment comment in loop.
   }
 
   for (int i = 0; i < vertical_range; ++i)
   {
-    *offset = i;
+    // We want to bias the initial voxel selection to choose the upper voxel over the lower one (where they are both
+    // occupied) so that we can follow ramps up, rather than choosing the ground below. This is only relevent when the
+    // clearance is zero, but important.
+    //
+    // We achieve the initial bias by setting the offset when searching up to -1, so it becomes 0 on the first iteration
+    // noting that the first voxel it checks is the one above the seed voxel. Meanwhile the search down starts at zero
+    // so takes on a value of 1 on the first iteration.
+    //
+    // On subsequent iterations, we want the offset value to match regardless of searching up or down. The calling
+    // function may bias the voxel selection to the one below via an it's inequality statement (below <= above).
+    //
+    // So, on the second iteration we increment the search_up value by 2. In all other cases, the increment is 1.
+    //
+    // The resulting offset series is:
+    //
+    //              | init  | i=0 | 1 | 2 | 3 | 4 | 5 |
+    // ------------ | ----- | --- | - | - | - | - | - |
+    // Search up    | -1    | 0   | 2 | 3 | 4 | 5 | 6 |
+    // Search down  | 0     | 1   | 2 | 3 | 4 | 5 | 6 |
+    *offset += 1 + !!(search_up && i == 1);
     voxel.setKey(current_key);
 
     // This line yields performance issues likely due to the stochastic memory access.
@@ -520,21 +540,9 @@ inline Key findNearestSupportingVoxel(SrcVoxel &voxel, const Key &seed_key, UpAx
   const bool promote_virtual_below = (flags & kPromoteVirtualBelow) != 0;
   virtual_below = have_candidate_below && virtual_below && !promote_virtual_below;
 
-  if (flags & kPreferBelow)
+  if (flags & kBiasAbove)
   {
     // Prefering the closer voxel.
-    if (have_candidate_below && have_candidate_above)
-    {
-      if (offset_below <= offset_above)
-      {
-        return below;
-      }
-
-      return above;
-    }
-  }
-  else
-  {
     if (have_candidate_below && have_candidate_above)
     {
       if (offset_below < offset_above)
@@ -1066,7 +1074,7 @@ bool Heightmap::buildHeightmap(const glm::dvec3 &reference_pos, const ohm::Aabb 
   case HeightmapMode::kPlanar:  //
   {
     // Pure planar walk must prefer below and does better ignoring virtual surfaces above the plane.
-    supporting_voxel_flags |= kPreferBelow | kIgnoreVirtualAbove;
+    supporting_voxel_flags |= kIgnoreVirtualAbove;
     const Key planar_key = src_map.voxelKey(reference_pos);
     PlaneWalker walker(src_map, min_ext_key, max_ext_key, imp_->up_axis_id, &planar_key);
     processed_count = buildHeightmapT(walker, reference_pos, supporting_voxel_flags, supporting_voxel_flags);
@@ -1076,7 +1084,8 @@ bool Heightmap::buildHeightmap(const glm::dvec3 &reference_pos, const ohm::Aabb 
   {
     // We should prefer voxels below for the first iteration, when seeding, after that we prefer the closest candidate
     // supporting voxel to the seed voxel.
-    const unsigned initial_supporting_voxel_flags = supporting_voxel_flags | kPreferBelow;
+    const unsigned initial_supporting_voxel_flags = supporting_voxel_flags;
+    supporting_voxel_flags |= kBiasAbove;
     PlaneFillWalker walker(src_map, min_ext_key, max_ext_key, imp_->up_axis_id);
     processed_count = buildHeightmapT(walker, reference_pos, initial_supporting_voxel_flags, supporting_voxel_flags);
     break;
@@ -1087,7 +1096,8 @@ bool Heightmap::buildHeightmap(const glm::dvec3 &reference_pos, const ohm::Aabb 
   {
     // We should prefer voxels below for the first iteration, when seeding, after that we prefer the closest candidate
     // supporting voxel to the seed voxel.
-    const unsigned initial_supporting_voxel_flags = supporting_voxel_flags | kPreferBelow;
+    const unsigned initial_supporting_voxel_flags = supporting_voxel_flags;
+    supporting_voxel_flags |= kBiasAbove;
     PlaneFillLayeredWalker walker(src_map, min_ext_key, max_ext_key, imp_->up_axis_id);
     processed_count = buildHeightmapT(walker, reference_pos, initial_supporting_voxel_flags, supporting_voxel_flags);
     break;
