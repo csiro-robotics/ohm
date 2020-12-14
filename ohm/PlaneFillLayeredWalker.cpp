@@ -79,7 +79,7 @@ size_t PlaneFillLayeredWalker::visit(const Key &key, PlaneWalkVisitMode mode, st
         map.moveKeyAlongAxis(n_key, axis_indices[0], col_delta);
 
         const auto idx = gridIndexForKey(n_key);
-        if (idx != ~0u)
+        if (idx != ~0u && (row_delta != 0 || col_delta != 0))
         {
           const int n_visit_height = keyHeight(n_key);
           if (mode == PlaneWalkVisitMode::kAddUnvisitedNeighbours && !hasOpened(idx, n_visit_height) ||
@@ -88,6 +88,7 @@ size_t PlaneFillLayeredWalker::visit(const Key &key, PlaneWalkVisitMode mode, st
             // Neighbour in range and not touched. Add to open list.
             open(idx, n_visit_height);
             open_list_.push_back(n_key);
+            assert(added < added_neighbours.size());
             added_neighbours[added] = n_key;
             ++added;
           }

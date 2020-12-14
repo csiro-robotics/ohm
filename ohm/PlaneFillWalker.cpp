@@ -67,7 +67,7 @@ size_t PlaneFillWalker::visit(const Key &key, PlaneWalkVisitMode mode, std::arra
 
   if (mode != PlaneWalkVisitMode::kIgnoreNeighbours)
   {
-    unsigned grid_index = gridIndex(key);
+    const unsigned grid_index = gridIndex(key);
     if (grid_index != ~0u)
     {
       // Note: we do not update the visit height for key. This can result in recurring loops. We only want to track the
@@ -80,24 +80,25 @@ size_t PlaneFillWalker::visit(const Key &key, PlaneWalkVisitMode mode, std::arra
           map.moveKeyAlongAxis(n_key, axis_indices[1], row_delta);
           map.moveKeyAlongAxis(n_key, axis_indices[0], col_delta);
 
-          grid_index = gridIndex(n_key);
-          if (grid_index != ~0u)
+          const unsigned n_grid_index = gridIndex(n_key);
+          // Skip over the self reference.
+          if (n_grid_index != ~0u && n_grid_index != grid_index)
           {
             bool add_to_open = false;
             const int n_visit_height = keyHeight(n_key);
             switch (revisit_behaviour)
             {
             case Revisit::kHigher:
-              add_to_open = visit_grid_[grid_index].revisitHigher(n_visit_height);
+              add_to_open = visit_grid_[n_grid_index].revisitHigher(n_visit_height);
               break;
 
             case Revisit::kLower:
-              add_to_open = visit_grid_[grid_index].revisitLower(n_visit_height);
+              add_to_open = visit_grid_[n_grid_index].revisitLower(n_visit_height);
               break;
 
             case Revisit::kNone:
             default:
-              add_to_open = visit_grid_[grid_index].revisitNone(n_visit_height);
+              add_to_open = visit_grid_[n_grid_index].revisitNone(n_visit_height);
               break;
             }
 
@@ -105,7 +106,8 @@ size_t PlaneFillWalker::visit(const Key &key, PlaneWalkVisitMode mode, std::arra
             {
               // Neighbour in range and not touched. Add to open list.
               open_list_.push_back(n_key);
-              visit_grid_[grid_index].visit(n_visit_height);
+              visit_grid_[n_grid_index].visit(n_visit_height);
+              assert(added < added_neighbours.size());
               added_neighbours[added] = n_key;
               ++added;
             }
