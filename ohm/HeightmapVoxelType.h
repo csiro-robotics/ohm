@@ -23,6 +23,8 @@ enum class HeightmapVoxelType : uint8_t
   /// Represents a virtual surface voxel in the heightmap. Virtual surfaces are created at the interface between
   /// free and unknown voxels (free supported by unknown).
   kVirtualSurface,
+  /// A voxel which has been inferred as fatal. This occurs where virtual surfaces appear near the reference point.
+  kInferredFatal,
   /// An otherwise forcibly fatal cost voxel.
   kFatal
 };
