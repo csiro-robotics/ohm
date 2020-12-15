@@ -8,6 +8,8 @@
 
 #include <ohmgpu/GpuMap.h>
 
+#include <ohmtestcommon/RayPatternTestUtil.h>
+
 #include <3esservermacros.h>
 
 #include <cstdio>
@@ -80,5 +82,13 @@ TEST(RayPattern, Clearing)
     map.moveKey(key, 1, 0, 0);
   }
   voxel_read.reset();
+}
+
+TEST(RayPattern, Exclude)
+{
+  // First build a simple map with three voxels of interest along X: { unobserved, free, occupied, occupied }
+  ohm::OccupancyMap map(1.0);
+  ohm::GpuMap gpu_map(&map, true);
+  ohmtestutil::RayPatternExcludeTest(map, gpu_map, [&gpu_map]() { gpu_map.syncVoxels(); });
 }
 }  // namespace raypattern

@@ -48,7 +48,8 @@ public:
   /// This is updated in a single threaded fashion similar to @c RayMapperOccupancy with modified value updates as
   /// described in the class documentation.
   ///
-  /// This function does not support @c RayFlag values.
+  /// This function supports the following @c RayFlag values:
+  /// - kRfExcludeRay
   ///
   /// Should only be called if @c valid() is true.
   ///

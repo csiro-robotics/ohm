@@ -158,7 +158,8 @@ struct MapChunk
   MapRegion region = MapRegion{};
   /// Details of the map to which this chunk belongs.
   const OccupancyMapDetail *map = nullptr;
-  /// Index of the first voxel with valid data: occupied or free, but not unobserved.
+  /// Index of the first voxel with valid data: occupied or free, but not unobserved. May be used to skip irrelevant
+  /// voxels during map voxel iteration.
   unsigned first_valid_index = ~0u;
   /// Last timestamp the occupancy layer of this chunk was modified.
   double touched_time = 0;
@@ -237,7 +238,13 @@ struct MapChunk
   /// @return True if this chunk contains at least one voxel with a valid value.
   bool hasValidNodes() const;
 
-  /// Update the @c first_valid_index based on adding @p localIndex as a valid index.
+  /// Set the @c first_valid_index to the unknown/invalid value.
+  inline void invalidateFirstValidIndex() { first_valid_index = ~0u; }
+
+  /// Update the @c first_valid_index based on adding @p localIndex as a valid index. This should be called whenever
+  /// a voxel becomes observed with @c local_index set to index the modified voxel. This allows the chunk to keep track
+  /// of the first observed/valid voxel in its chunk and skip unobserved voxels during iteration.
+  ///
   /// This simply chooses whichever occurs first from @c first_valid_index and
   /// @p localIndex.
   /// @param local_index The voxel index within this chunk. Equivalent to Key::localKey().

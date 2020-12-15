@@ -205,14 +205,30 @@ __device__ bool VISIT_LINE_VOXEL(const GpuKey *voxelKey, bool isEndVoxel, const 
       // Calculate a new value for the voxel.
       old_value = new_value = gputilAtomicLoadF32(occupancy_ptr);
 
-      if (old_value < 0 && (line_data->region_update_flags & kRfClearOnly))
+      const bool initially_unobserved = old_value == INFINITY;
+      const bool initially_free = !initially_unobserved && old_value < line_data->occupied_threshold;
+      const bool initially_occupied = !initially_unobserved && old_value >= line_data->occupied_threshold;
+      was_occupied_voxel = initially_occupied;
+
+      // Check exclusion flags and skip this voxel if excluded.
+      // We skip by a 'break' statement which will break out of the compare and swap loop. Could return true.
+      // Check skipping unobserved.
+      if (initially_unobserved && (line_data->region_update_flags & kRfExcludeUnobserved))
       {
-        // kRfClearOnly flag set => only affect occupied voxels.
-        // This is not an occupied voxel: skip.
         break;
       }
 
-      was_occupied_voxel = line_data->occupied_threshold <= old_value && old_value < INFINITY;
+      // Check skipping free.
+      if (initially_free && (line_data->region_update_flags & kRfExcludeFree))
+      {
+        break;
+      }
+
+      // Check skipping occupied.
+      if (initially_occupied && (line_data->region_update_flags & kRfExcludeOccupied))
+      {
+        break;
+      }
 
       // Uninitialised voxels start at INFINITY.
       new_value = (new_value != INFINITY) ? new_value + adjustment : adjustment;
@@ -288,8 +304,10 @@ __device__ bool VISIT_LINE_VOXEL(const GpuKey *voxelKey, bool isEndVoxel, const 
 /// These modify the line traversal as follows:
 /// - kRfEndPointAsFree: use ray_adjustment for the last voxel rather than sample_adjustment.
 /// - kRfStopOnFirstOccupied: terminate line walking after touching the first occupied voxel found.
-/// - kRfClearOnly: only adjust the probability of occupied voxels.
 /// - kRfExcludeSample: ignore the voxel containing the sample (the last voxel).
+/// - kRfExcludeUnobserved: do not adjust voxels which are (initially) unobserved
+/// - kRfExcludeFree: do not adjust voxels which are (initially) free
+/// - kRfExcludeOccupied: do not adjust voxels which are (initially) occupied
 ///
 /// @param occupancy Pointer to the dense voxel occupancy maps the currently available regions. Offsets for a
 ///     specific region are available by looking up a region key in @p occupancy_region_keys_global and using the

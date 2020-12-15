@@ -20,6 +20,7 @@ struct ClearingPatternDetail
 {
   std::vector<glm::dvec3> ray_set;
   const RayPattern *pattern = nullptr;
+  unsigned ray_flags = 0u;  // Default value should be ClearingPattern::kDefaultFlags.
   bool has_pattern_ownership = false;
 };
 }  // namespace ohm

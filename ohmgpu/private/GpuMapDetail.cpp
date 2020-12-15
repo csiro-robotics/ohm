@@ -131,7 +131,8 @@ void reinitialiseGpuCache(GpuCache *gpu_cache, OccupancyMap &map, unsigned flags
     // is the information it reads.
     if (clearance_layer >= 0)
     {
-      // Use of occupancy_layer below is correct. See comment above.
+      // Use of occupancy_layer below is correct. See the comment on the kGcIdClearance delcaration and the brief note
+      // above.
       gpu_cache->createCache(kGcIdClearance, GpuLayerCacheParams{ layer_mem_weight[clearance_layer], occupancy_layer,
                                                                   kGcfRead | mappable_flag });
     }

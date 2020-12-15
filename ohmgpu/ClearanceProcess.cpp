@@ -430,20 +430,21 @@ int ClearanceProcess::update(OccupancyMap &map, double time_slice)
   // Add to previous results. There may be repeated regions.
   // FIXME: if a region is added, the so must its neighbours be due to the flooding effect of the update.
 
-  if (!d->haveWork())
-  {
-    d->getWork(map);
-    const auto cur_time = Clock::now();
-    elapsed_sec = std::chrono::duration_cast<std::chrono::duration<double>>(cur_time - start_time).count();
-  }
-
   // Drop existing cached occupancy values before continuing.
   GpuCache *gpu_cache = gpumap::gpuCache(map);
   if (gpu_cache)
   {
     GpuLayerCache *clearance_cache = gpu_cache->layerCache(kGcIdClearance);
+    // Technically there's not need to clear this. It never stores data we need back to CPU.
     clearance_cache->syncToMainMemory();
     clearance_cache->clear();
+  }
+
+  if (!d->haveWork())
+  {
+    d->getWork(map);
+    const auto cur_time = Clock::now();
+    elapsed_sec = std::chrono::duration_cast<std::chrono::duration<double>>(cur_time - start_time).count();
   }
 
   unsigned total_processed = 0;
@@ -488,6 +489,7 @@ void ohm::ClearanceProcess::calculateForExtents(OccupancyMap &map, const glm::dv
   if (gpu_cache)
   {
     GpuLayerCache *clearance_cache = gpu_cache->layerCache(kGcIdClearance);
+    // Technically there's not need to clear this. It never stores data we need back to CPU.
     clearance_cache->syncToMainMemory();
     clearance_cache->clear();
   }

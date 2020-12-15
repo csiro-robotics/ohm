@@ -258,6 +258,25 @@ struct VoxelChunkAccess<const T>
 ///}
 /// @endcode
 ///
+/// @par Lazy update
+/// A @c Voxel object keeps track of changes made to it's current chunk and voxel. However, it uses a lazy update for
+/// changing @c MapChunk members such as @c MapChunk::dirty_stamp, @c MapChunk::touched_stamps and
+/// @c MapChunk::first_valid_index. Retaining a @c Voxel object can lead to cirsumstances whereby these values are out
+/// of date and subsequent map operations do not consider the @c MapChunk modifier (incorrect stamp values), or being
+/// indexing the chunk at the wrong location (@c first_valid_index). This lazy update is particularly important to
+/// consider when using a @c GpuMap as the @c GpuMapCache only uploads data from CPU to GPU memory based on changes to
+/// the @c MapChunk::touched_stamp values.
+///
+/// A @c Voxel is considered committed when one of the following occurs:
+///
+/// - The @c Voxel is destructed
+/// - The @c Voxel is @c reset()
+/// - A call to @c commit() is made
+/// - The @c Voxel key changes (see below)
+///
+/// Changes to the @c Voxel key provide further subtle complications in that the @c MapChunk stamps will only be updated
+/// when the new key references a different @c MapChunk (or a null region).
+///
 /// @note The map must outlive the voxel. Generally this will be true when using @c Voxel objects within a limited
 /// scope. However care must be taken when an @c OccupancyMap and a @c Voxel reference to that map exist in the same
 /// scope or when performing operations which can invalidate the @c MapLayout or clear the map. In these cases,
@@ -350,7 +369,7 @@ public:
   Voxel(const MapIteratorType &iter, int layer_index);
 
   /// Destrutor, ensures book keeping operations are completed on the @c MapChunk .
-  inline ~Voxel() { updateTouch(); }
+  inline ~Voxel() { updateTouch(false); }
 
   /// Check if the map and layer references are valid and error flags are clear.
   /// @return True if the @c map() is not null, the @c layerIndex() is valid and @c errorFlags() are zero.
@@ -367,6 +386,11 @@ public:
 
   /// Nullify the @c Voxel . This clears the map, layer, chunk and key values. Book keeping is performed as required.
   inline void reset() { *this = Voxel<T>(); }
+
+  /// Commit any oustanding write operations. A @c Voxel object keeps track of changes made to it's current chunk and
+  /// voxel. However, it uses a lazy update for changing @c MapChunk members such as @c MapChunk::dirty_stamp,
+  /// @c MapChunk::touched_stamps and @c MapChunk::first_valid_index . This function ensures
+  inline void commit() { updateTouch(true); }
 
   /// Query the pointer to the @c OccupancyMap .
   /// @return The map pointer.
@@ -495,7 +519,7 @@ protected:
   {
     if (chunk_ != chunk)
     {
-      updateChunkTouchAndCompression();
+      updateChunkTouchAndCompression(false);
       chunk_ = chunk;
       if (chunk_ && layer_index_ != -1)
       {
@@ -523,14 +547,19 @@ protected:
   /// layer. @c Flag::kTouchedChunk is cleared.
   ///
   /// Safe to call when no book keeping needs to be done or the voxel reference is invalid.
-  void updateChunkTouchAndCompression();
+  ///
+  /// @param retain_chunk True to keep the chunk memory retained (uncompressed), false to release the chunk and set it
+  ///   to null. Should only be true for @c commit(), where the voxel reference is also retained.
+  void updateChunkTouchAndCompression(bool retain_chunk);
   /// Full book keeping calling @c updateVoxelTouch() and @c updateChunkTouchAndCompression() .
   ///
   /// Safe to call when no book keeping needs to be done or the voxel reference is invalid.
-  inline void updateTouch()
+  /// @param retain_chunk True to keep the chunk memory retained (uncompressed), false to release the chunk and set it
+  ///   to null. Should only be true for @c commit(), where the voxel reference is also retained.
+  inline void updateTouch(bool retain_chunk)
   {
     updateVoxelTouch();
-    updateChunkTouchAndCompression();
+    updateChunkTouchAndCompression(retain_chunk);
   }
 
 private:
@@ -789,19 +818,20 @@ void Voxel<T>::swap(Voxel &other)
 template <typename T>
 Voxel<T> &Voxel<T>::operator=(const Voxel<T> &other)
 {
-  updateTouch();
-  // Set chunk to null to run flush logic
-  setChunk(nullptr);
-  map_ = other.map_;
-  setKeyInternal(other.key_);
-  layer_index_ = other.layer_index_;
-  layer_dim_ = other.layer_dim_;
-  flags_ = other.flags_ & ~unsigned(Flag::kNonPropagatingFlags);
-  error_flags_ = other.error_flags_;
-  // Do not set chunk or voxel_memory_ pointers directly. Use the method call to ensure flags are correctly
-  // maintained.
-  voxel_memory_ = nullptr;  // About to be resolved in setChunk()
-  setChunk(other.chunk_);
+  if (&other != this)
+  {
+    updateTouch(false);  // Note: this will set the chunk to null.
+    map_ = other.map_;
+    setKeyInternal(other.key_);
+    layer_index_ = other.layer_index_;
+    layer_dim_ = other.layer_dim_;
+    flags_ = other.flags_ & ~unsigned(Flag::kNonPropagatingFlags);
+    error_flags_ = other.error_flags_;
+    // Do not set chunk or voxel_memory_ pointers directly. Use the method call to ensure flags are correctly
+    // maintained.
+    voxel_memory_ = nullptr;  // About to be resolved in setChunk()
+    setChunk(other.chunk_);
+  }
   return *this;
 }
 
@@ -858,7 +888,7 @@ void Voxel<T>::updateVoxelTouch()
 
 
 template <typename T>
-void Voxel<T>::updateChunkTouchAndCompression()
+void Voxel<T>::updateChunkTouchAndCompression(bool retain_chunk)
 {
   if (map_ && chunk_)
   {
@@ -866,12 +896,16 @@ void Voxel<T>::updateChunkTouchAndCompression()
     {
       detail::VoxelChunkAccess<T>::touch(map_, chunk_, layer_index_);
     }
-    if (flags_ & unsigned(Flag::kCompressionLock))
+    if (!retain_chunk && (flags_ & unsigned(Flag::kCompressionLock)))
     {
       chunk_->voxel_blocks[layer_index_]->release();
+      chunk_ = nullptr;
     }
   }
-  flags_ &= ~(unsigned(Flag::kTouchedChunk) | unsigned(Flag::kCompressionLock));
+  // Always clear Flag::kTouchedChunk however, we only clear Flag::kCompressionLock if we are not retaining the chunk.
+  unsigned clear_flags = unsigned(Flag::kTouchedChunk);
+  clear_flags |= !!retain_chunk * unsigned(Flag::kCompressionLock);
+  flags_ &= ~clear_flags;
 }
 }  // namespace ohm
 

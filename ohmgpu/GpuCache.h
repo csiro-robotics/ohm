@@ -31,6 +31,11 @@ enum GpuCacheId
   /// Cache used for populating the map occupancy values.
   kGcIdOccupancy,
   /// Cache of occupancy map values when calculating voxel clearance values. Does not write back to host.
+  ///
+  /// This cache uploads data from the voxel occupancy layer, but never downloads back to CPU. Instead, the
+  /// @c RoiRangeFill class maintaines results in it's own buffer and copies these results back to the CPU layer.
+  /// This means that the @c GpuLayerCache for the "clearance" voxel layer is always out of sync between CPU and GPU -
+  /// they are designed to store different data.
   kGcIdClearance,
   /// Cache used for sub voxel positioning.
   kGcIdVoxelMean,
