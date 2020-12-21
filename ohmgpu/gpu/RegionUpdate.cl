@@ -186,6 +186,7 @@ __device__ bool VISIT_LINE_VOXEL(const GpuKey *voxelKey, bool isEndVoxel, const 
     __global atomic_float *occupancy_ptr = &occupancy[vi];
 
     bool was_occupied_voxel = false;
+    bool voxel_excluded = false;
 
 #ifdef LIMIT_VOXEL_WRITE_ITERATIONS
     // Under high contension we can end up repeatedly failing to write the voxel value.
@@ -215,18 +216,21 @@ __device__ bool VISIT_LINE_VOXEL(const GpuKey *voxelKey, bool isEndVoxel, const 
       // Check skipping unobserved.
       if (initially_unobserved && (line_data->region_update_flags & kRfExcludeUnobserved))
       {
+        voxel_excluded = true;
         break;
       }
 
       // Check skipping free.
       if (initially_free && (line_data->region_update_flags & kRfExcludeFree))
       {
+        voxel_excluded = true;
         break;
       }
 
       // Check skipping occupied.
       if (initially_occupied && (line_data->region_update_flags & kRfExcludeOccupied))
       {
+        voxel_excluded = true;
         break;
       }
 
@@ -240,7 +244,7 @@ __device__ bool VISIT_LINE_VOXEL(const GpuKey *voxelKey, bool isEndVoxel, const 
     } while (new_value != old_value && !gputilAtomicCasF32(occupancy_ptr, old_value, new_value));
 
 #if defined(VOXEL_MEAN) || defined(NDT)
-    if (adjustment > 0)
+    if (!voxel_excluded && adjustment > 0)
     {
       ulonglong vi = vi_local + (line_data->means_offsets[line_data->current_region_index] / sizeof(*line_data->means));
       updateVoxelMeanPosition(&line_data->means[vi], line_data->sample, voxel_resolution);
