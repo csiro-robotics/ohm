@@ -487,7 +487,7 @@ Heightmap::Heightmap(double grid_resolution, double min_clearance, UpAxis up_axi
   int max_clearance_int = 0;
   static_assert(sizeof(max_clearance) == sizeof(max_clearance_int), "size mismatch");
 
-  memcpy(&max_clearance_int, &max_clearance, sizeof(max_clearance));
+  std::memcpy(&max_clearance_int, &max_clearance, sizeof(max_clearance));
 
   size_t clear_value = 0;
   // Initialise the data structure to have both ranges at float max.

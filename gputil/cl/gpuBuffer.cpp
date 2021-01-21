@@ -331,14 +331,14 @@ void Buffer::fillPartial(const void *pattern, size_t pattern_size, size_t fill_b
       size_t filled = 0u;
       for (; filled < fill_bytes; filled += pattern_size)
       {
-        memcpy(dst_mem + offset + filled, pattern, pattern_size);
+        std::memcpy(dst_mem + offset + filled, pattern, pattern_size);
       }
 
       if (filled < fill_bytes)
       {
         // Finish the last (partial pattern) write.
         const size_t last_write_size = fill_bytes - filled;
-        memcpy(dst_mem + offset + filled, pattern, last_write_size);
+        std::memcpy(dst_mem + offset + filled, pattern, last_write_size);
       }
 
       gputil::unpin(*imp_, dst_mem, queue);
@@ -392,7 +392,7 @@ size_t Buffer::read(void *dst, size_t read_byte_count, size_t src_offset, Queue 
 
     if (uint8_t *src_mem = gputil::pin(*imp_, kPinRead))
     {
-      memcpy(dst, src_mem + src_offset, copy_bytes);
+      std::memcpy(dst, src_mem + src_offset, copy_bytes);
       gputil::unpin(*imp_, src_mem, queue);
       return copy_bytes;
     }
@@ -447,7 +447,7 @@ size_t Buffer::write(const void *src, size_t byte_count, size_t dst_offset, Queu
   {
     if (uint8_t *dst_mem = gputil::pin(*imp_, kPinWrite))
     {
-      memcpy(dst_mem + dst_offset, src, copy_bytes);
+      std::memcpy(dst_mem + dst_offset, src, copy_bytes);
       gputil::unpin(*imp_, dst_mem, queue, block_on, completion);
     }
     return copy_bytes;
@@ -517,7 +517,7 @@ size_t Buffer::readElements(void *dst, size_t element_size, size_t element_count
         src_mem += byte_read_offset;
         for (size_t i = 0; i < copy_element_count; ++i)
         {
-          memcpy(dst_mem, src_mem, copy_size);
+          std::memcpy(dst_mem, src_mem, copy_size);
           dst_mem += element_size;
           src_mem += buffer_element_size;
         }
@@ -616,7 +616,7 @@ size_t Buffer::writeElements(const void *src, size_t element_size, size_t elemen
         dst_mem += byte_write_offset;
         for (size_t i = 0; i < copy_element_count; ++i)
         {
-          memcpy(dst_mem, src_mem, copy_size);
+          std::memcpy(dst_mem, src_mem, copy_size);
           // Clear any extra bytes.
           if (clear_byte_count)
           {

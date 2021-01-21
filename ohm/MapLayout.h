@@ -56,7 +56,7 @@ struct MapChunk;
 ///   // Fetch the value we'll clear voxels with (default value).
 ///   const float invalidMarkerValue = unobservedOccupancyValue();
 ///   /// Write the invalidMarkerValue value into a size_t item which will be the clear value for the member.
-///   memcpy(&clearValue, &invalidMarkerValue, std::min(sizeof(invalidMarkerValue), sizeof(clearValue)));
+///   std::memcpy(&clearValue, &invalidMarkerValue, std::min(sizeof(invalidMarkerValue), sizeof(clearValue)));
 ///   // Create the occupancy layer.
 ///   layer = layout.addLayer(default_layer::occupancyLayerName(), 0);
 ///   // Get it's VoxelLayout for modification.
@@ -66,7 +66,7 @@ struct MapChunk;
 ///
 ///   // Setup DL_Clearance
 ///   const float defaultClearance = -1.0f; // Default value is -1.
-///   memcpy(&clearValue, &defaultClearance, std::min(sizeof(defaultClearance), sizeof(clearValue)));
+///   std::memcpy(&clearValue, &defaultClearance, std::min(sizeof(defaultClearance), sizeof(clearValue)));
 ///   // Create the layer.
 ///   layer = layout.addLayer(default_layer::clearanceLayerName(), 0);
 ///   voxel = layer->voxelLayout();

@@ -155,14 +155,14 @@ bool upload(cl::CommandQueue &queue, cl::Context &context, cl::Buffer &gpu_buffe
 
   if (sizeof(CPUT) == sizeof(GPUT))
   {
-    memcpy(gpu_mem, cpu, sizeof(CPUT) * element_count);
+    std::memcpy(gpu_mem, cpu, sizeof(CPUT) * element_count);
   }
   else
   {
     GPUT *gpu = gpu_mem;
     for (size_t i = 0; i < element_count; ++i, ++gpu, ++cpu)
     {
-      memcpy(gpu, cpu, sizeof(CPUT));
+      std::memcpy(gpu, cpu, sizeof(CPUT));
     }
   }
 
@@ -205,14 +205,14 @@ bool download(cl::CommandQueue &queue, CPUT *cpu_buffer, cl::Buffer &gpu_buffer,
 
   if (sizeof(GPUT) == sizeof(CPUT))
   {
-    memcpy(cpu, gpu_mem, sizeof(CPUT) * element_count);
+    std::memcpy(cpu, gpu_mem, sizeof(CPUT) * element_count);
   }
   else
   {
     GPUT *gpu = gpu_mem;
     for (size_t i = 0; i < element_count; ++i, ++gpu, ++cpu)
     {
-      memcpy(cpu, gpu, sizeof(*cpu));
+      std::memcpy(cpu, gpu, sizeof(*cpu));
     }
   }
 

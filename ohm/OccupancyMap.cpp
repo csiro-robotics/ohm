@@ -972,7 +972,7 @@ OccupancyMap *OccupancyMap::clone(const glm::dvec3 &min_ext, const glm::dvec3 &m
         {
           VoxelBuffer<const VoxelBlock> src_buffer(src_chunk->voxel_blocks[i]);
           VoxelBuffer<VoxelBlock> dst_buffer(dst_chunk->voxel_blocks[i]);
-          memcpy(dst_buffer.voxelMemory(), src_buffer.voxelMemory(), dst_buffer.voxelMemorySize());
+          std::memcpy(dst_buffer.voxelMemory(), src_buffer.voxelMemory(), dst_buffer.voxelMemorySize());
         }
       }
     }

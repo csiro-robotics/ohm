@@ -110,7 +110,7 @@ ExportImageType convertImage(std::vector<uint8_t> &export_pixels, const uint8_t 
   if (info.type == ohm::HeightmapImage::kImageVertexColours888)
   {
     export_pixels.resize(size_t(info.image_width) * size_t(info.image_height) * 3u);
-    memcpy(export_pixels.data(), raw, export_pixels.size());
+    std::memcpy(export_pixels.data(), raw, export_pixels.size());
     return kExportRGB8;
   }
 
@@ -174,7 +174,7 @@ ExportImageType convertImage(std::vector<uint8_t> &export_pixels, const uint8_t 
   if (opt.image_mode == kNormals8 && info.type == ohm::HeightmapImage::kImageNormals888)
   {
     export_pixels.resize(size_t(info.image_width) * size_t(info.image_height) * 3u);
-    memcpy(export_pixels.data(), raw, export_pixels.size());
+    std::memcpy(export_pixels.data(), raw, export_pixels.size());
     return kExportRGB8;
   }
 
@@ -209,7 +209,7 @@ ExportImageType convertImage(std::vector<uint8_t> &export_pixels, const uint8_t 
 
     for (size_t i = 0; i < size_t(info.image_width) * size_t(info.image_height); ++i)
     {
-      memcpy(&normal, &raw[i * sizeof(normal)], sizeof(normal));
+      std::memcpy(&normal, &raw[i * sizeof(normal)], sizeof(normal));
       if (glm::dot(normal, normal) > 0.5f * 0.5f)
       {
         normal = 2.0f * normal - glm::vec3(1.0f);

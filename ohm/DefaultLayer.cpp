@@ -107,7 +107,7 @@ MapLayer *addClearance(MapLayout &layout)
 
   const float default_clearance = -1.0f;
   size_t clear_value = 0;
-  memcpy(&clear_value, &default_clearance, std::min(sizeof(default_clearance), sizeof(clear_value)));
+  std::memcpy(&clear_value, &default_clearance, std::min(sizeof(default_clearance), sizeof(clear_value)));
   MapLayer *layer = layout.addLayer(default_layer::clearanceLayerName(), 0);
   VoxelLayout voxel = layer->voxelLayout();
   voxel.addMember(default_layer::clearanceLayerName(), DataType::kFloat, clear_value);

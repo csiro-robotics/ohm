@@ -95,7 +95,7 @@ size_t PinnedBuffer::read(void *dst, size_t byte_count, size_t src_offset) const
       byte_count = std::min(byte_count, buffer_->size() - src_offset);
       src_mem += src_offset;
       // Pinned pointers are host accessible. Don't need to use the CUDA API.
-      memcpy(dst_mem, src_mem, byte_count);
+      std::memcpy(dst_mem, src_mem, byte_count);
       return byte_count;
     }
 
@@ -118,7 +118,7 @@ size_t PinnedBuffer::write(const void *src, size_t byte_count, size_t dst_offset
       byte_count = std::min(byte_count, buffer_->size() - dst_offset);
       dst_mem += dst_offset;
       // Pinned pointers are host accessible. Don't need to use the CUDA API.
-      memcpy(dst_mem, src_mem, byte_count);
+      std::memcpy(dst_mem, src_mem, byte_count);
       addDirty(buffer_->detail()->dirty_write, MemRegion{ dst_offset, byte_count });
 
       return byte_count;

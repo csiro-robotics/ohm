@@ -83,7 +83,7 @@ public:
   template <typename T>
   void readVoxel(unsigned voxel_index, T *value)
   {
-    memcpy(value, voxelMemory() + sizeof(T) * voxel_index, sizeof(T));
+    std::memcpy(value, voxelMemory() + sizeof(T) * voxel_index, sizeof(T));
   }
 
   /// Write the content for a voxel in the buffer. Must only be called if @c isValid() , @c voxel_index is in range
@@ -94,7 +94,7 @@ public:
   template <typename T>
   void writeVoxel(unsigned voxel_index, const T &value)
   {
-    memcpy(voxelMemory() + sizeof(T) * voxel_index, &value, sizeof(T));
+    std::memcpy(voxelMemory() + sizeof(T) * voxel_index, &value, sizeof(T));
   }
 
   /// Explicitly release the buffer. Further usage is invalid and @c isValid() will return `false`.

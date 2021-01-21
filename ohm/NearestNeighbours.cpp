@@ -99,7 +99,7 @@ unsigned regionNearestNeighboursCpu(OccupancyMap &map, NearestNeighboursDetail &
     {
       for (int x = 0; x < map_data.region_voxel_dimensions.x; ++x)
       {
-        memcpy(&occupancy, occupancy_mem, sizeof(float));
+        std::memcpy(&occupancy, occupancy_mem, sizeof(float));
         if (voxel_occupied_func(occupancy, map_data))
         {
           // Occupied voxel, or invalid voxel to be treated as occupied.

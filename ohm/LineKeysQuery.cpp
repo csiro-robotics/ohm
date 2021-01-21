@@ -67,7 +67,7 @@ void LineKeysQuery::setRays(const glm::dvec3 *rays, size_t point_count)
 {
   auto *d = static_cast<LineKeysQueryDetail *>(imp_);
   d->rays.resize(point_count);
-  memcpy(d->rays.data(), rays, sizeof(*rays) * point_count);
+  std::memcpy(d->rays.data(), rays, sizeof(*rays) * point_count);
 }
 
 
