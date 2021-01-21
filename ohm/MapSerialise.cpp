@@ -432,9 +432,9 @@ int loadHeader(InputStream &stream, HeaderVersion &version, OccupancyMapDetail &
     std::array<uint8_t, sizeof(double)> buffer;
     static_assert(sizeof(buffer) >= sizeof(version.marker) + sizeof(version.version.major),
                   "Read ahead buffer too small.");
-    memcpy(buffer.data(), &version.marker, sizeof(version.marker));
-    memcpy(buffer.data() + sizeof(version.marker), &version.version.major, sizeof(version.version.major));
-    memcpy(&map.origin.x, buffer.data(), sizeof(map.origin.x));
+    std::memcpy(buffer.data(), &version.marker, sizeof(version.marker));
+    std::memcpy(buffer.data() + sizeof(version.marker), &version.version.major, sizeof(version.version.major));
+    std::memcpy(&map.origin.x, buffer.data(), sizeof(map.origin.x));
 
     version.marker = 0;
     version.version = { 0, 0, 0 };

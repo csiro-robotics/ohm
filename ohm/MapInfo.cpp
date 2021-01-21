@@ -111,7 +111,7 @@ MapValue::MapValue(MapValue &&other) noexcept  // NOLINT(cppcoreguidelines-pro-t
   : name_(other.name_)
   , type_(other.type_)
 {
-  memcpy(&value_, &other.value_, sizeof(value_));
+  std::memcpy(&value_, &other.value_, sizeof(value_));
   other.type_ = kTypeNone;
   other.name_ = nullptr;
   memset(&other.value_, 0, sizeof(other.value_));
@@ -253,7 +253,7 @@ MapValue &MapValue::operator=(MapValue &&other) noexcept
   clear();
   name_ = other.name_;
   type_ = other.type_;
-  memcpy(&value_, &other.value_, sizeof(value_));
+  std::memcpy(&value_, &other.value_, sizeof(value_));
   other.type_ = kTypeNone;
   other.name_ = nullptr;
   memset(&other.value_, 0, sizeof(other.value_));

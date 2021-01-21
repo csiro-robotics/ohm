@@ -147,7 +147,7 @@ void MapLayer::clear(uint8_t *mem, const glm::u8vec3 &region_dim) const
     // Work out how may bytes to clear. Either the member size or the clear value size.
     const size_t clear_size = std::min(member_size, sizeof(member.clear_value));
     // Clear the bytes.
-    memcpy(dst, &member.clear_value, clear_size);
+    std::memcpy(dst, &member.clear_value, clear_size);
     // Move to the next address.
     dst += member_size;
   }
@@ -158,7 +158,7 @@ void MapLayer::clear(uint8_t *mem, const glm::u8vec3 &region_dim) const
   dst = mem;
   for (size_t i = 0; i < voxel_count; ++i)
   {
-    memcpy(dst, pattern, voxel_layout_->voxel_byte_size);
+    std::memcpy(dst, pattern, voxel_layout_->voxel_byte_size);
     dst += voxel_layout_->voxel_byte_size;
   }
 }

@@ -17,6 +17,7 @@
 #include "VoxelBlock.h"
 
 #include <cinttypes>
+#include <cstring>
 #include <type_traits>
 
 #include <glm/vec3.hpp>
@@ -60,7 +61,7 @@ struct VoxelChunkAccess
   static void writeVoxel(uint8_t *voxel_memory, unsigned voxel_index, const T &value, unsigned flags_change,
                          uint16_t *flags)
   {
-    memcpy(voxel_memory + sizeof(T) * voxel_index, &value, sizeof(T));
+    std::memcpy(voxel_memory + sizeof(T) * voxel_index, &value, sizeof(T));
     *flags |= flags_change;
   }
 };
@@ -435,7 +436,7 @@ public:
   /// @return The read value - i.e., `*value`.
   inline const DataType &read(DataType *value) const
   {
-    memcpy(value, voxel_memory_ + sizeof(T) * voxelIndex(), sizeof(T));
+    std::memcpy(value, voxel_memory_ + sizeof(T) * voxelIndex(), sizeof(T));
     return *value;
   }
 

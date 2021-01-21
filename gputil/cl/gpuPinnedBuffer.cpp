@@ -73,7 +73,7 @@ size_t PinnedBuffer::read(void *dst, size_t byte_count, size_t src_offset) const
 
       byte_count = std::min(byte_count, buffer_->size() - src_offset);
       src_mem += src_offset;
-      memcpy(dst_mem, src_mem, byte_count);
+      std::memcpy(dst_mem, src_mem, byte_count);
       return byte_count;
     }
 
@@ -95,7 +95,7 @@ size_t PinnedBuffer::write(const void *src, size_t byte_count, size_t dst_offset
 
       byte_count = std::min(byte_count, buffer_->size() - dst_offset);
       dst_mem += dst_offset;
-      memcpy(dst_mem, src_mem, byte_count);
+      std::memcpy(dst_mem, src_mem, byte_count);
       return byte_count;
     }
 
@@ -127,7 +127,7 @@ size_t PinnedBuffer::readElements(void *dst, size_t element_size, size_t element
     }
 
     const size_t byte_count = std::min(element_count * element_size, buffer_->size() - src_offset);
-    memcpy(dst_mem, src_mem + src_offset, byte_count);
+    std::memcpy(dst_mem, src_mem + src_offset, byte_count);
     return byte_count / element_count;
   }
 
@@ -138,7 +138,7 @@ size_t PinnedBuffer::readElements(void *dst, size_t element_size, size_t element
   size_t copy_count = 0;
   for (size_t i = 0; i < element_count && src_mem < src_end; ++i)
   {
-    memcpy(dst_mem, src_mem, element_copy_size);
+    std::memcpy(dst_mem, src_mem, element_copy_size);
     src_mem += buffer_element_size;
     dst_mem += element_size;
     ++copy_count;
@@ -168,7 +168,7 @@ size_t PinnedBuffer::writeElements(const void *src, size_t element_size, size_t 
     }
 
     const size_t byte_count = std::min(element_count * element_size, buffer_->size() - dst_offset);
-    memcpy(dst_mem + dst_offset, src_mem, byte_count);
+    std::memcpy(dst_mem + dst_offset, src_mem, byte_count);
     return byte_count / element_count;
   }
 
@@ -179,7 +179,7 @@ size_t PinnedBuffer::writeElements(const void *src, size_t element_size, size_t 
   size_t copy_count = 0;
   for (size_t i = 0; i < element_count && dst_mem < dst_end; ++i)
   {
-    memcpy(dst_mem, src_mem, element_copy_size);
+    std::memcpy(dst_mem, src_mem, element_copy_size);
     dst_mem += buffer_element_size;
     src_mem += element_size;
     ++copy_count;

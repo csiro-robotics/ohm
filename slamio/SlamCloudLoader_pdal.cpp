@@ -365,7 +365,7 @@ bool SlamCloudLoader::nextPoint(glm::dvec3 &sample, glm::dvec3 *origin, double *
     //  const size_t newSize = (_imp->nextSampleReadIndex < _imp->samplesBuffer.size()) ? _imp->samplesBuffer.size() -
     //  _imp->nextSampleReadIndex : 0; if (_imp->nextSampleReadIndex < _imp->samplesBuffer.size())
     //  {
-    //    memmove(_imp->samplesBuffer.data(),
+    //    std::memmove(_imp->samplesBuffer.data(),
     //            _imp->samplesBuffer.data() + _imp->nextSampleReadIndex,
     //            sizeof(*_imp->samplesBuffer.data()) * newSize
     //            );

@@ -106,7 +106,7 @@ void OccupancyMapDetail::setDefaultLayout(bool enable_voxel_mean)
   const float invalid_marker_value = unobservedOccupancyValue();
 
   clear_value = 0;
-  memcpy(&clear_value, &invalid_marker_value, sizeof(invalid_marker_value));
+  std::memcpy(&clear_value, &invalid_marker_value, sizeof(invalid_marker_value));
 
   layer = layout.addLayer(default_layer::occupancyLayerName(), 0);
   voxel = layer->voxelLayout();

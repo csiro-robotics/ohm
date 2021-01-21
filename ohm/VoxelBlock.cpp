@@ -268,7 +268,7 @@ bool VoxelBlock::compressUnguarded(std::vector<uint8_t> &compression_buffer)
     compression_buffer.resize(voxel_bytes_.size());
     if (!voxel_bytes_.empty())
     {
-      memcpy(compression_buffer.data(), voxel_bytes_.data(), sizeof(*voxel_bytes_.data()) * voxel_bytes_.size());
+      std::memcpy(compression_buffer.data(), voxel_bytes_.data(), sizeof(*voxel_bytes_.data()) * voxel_bytes_.size());
     }
   }
 
@@ -289,7 +289,7 @@ bool VoxelBlock::uncompressUnguarded(std::vector<uint8_t> &expanded_buffer)
     expanded_buffer.resize(voxel_bytes_.size());
     if (!voxel_bytes_.empty())
     {
-      memcpy(expanded_buffer.data(), voxel_bytes_.data(), sizeof(*voxel_bytes_.data()) * voxel_bytes_.size());
+      std::memcpy(expanded_buffer.data(), voxel_bytes_.data(), sizeof(*voxel_bytes_.data()) * voxel_bytes_.size());
     }
     return true;
   }
@@ -368,7 +368,7 @@ bool VoxelBlock::setCompressedBytes(const std::vector<uint8_t> &compressed_voxel
     voxel_bytes_.resize(compressed_voxels.size());
     if (!compressed_voxels.empty())
     {
-      memcpy(voxel_bytes_.data(), compressed_voxels.data(),
+      std::memcpy(voxel_bytes_.data(), compressed_voxels.data(),
              sizeof(*compressed_voxels.data()) * compressed_voxels.size());
     }
     voxel_bytes_.shrink_to_fit();
