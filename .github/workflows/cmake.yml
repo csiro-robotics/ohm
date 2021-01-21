@@ -17,9 +17,37 @@ jobs:
     steps:
     - uses: actions/checkout@v2
 
-    - name: Create Build Environment
-      # Some projects don't allow in-source building, so create a separate build directory
-      # We'll use this as our working directory for all subsequent commands
+    # Install packages to help with the build
+    - name: Install build helpers
+      run: sudo apt-get install doxygen ninja-build
+
+    # Install code prerequisites
+    - name: Install prerequisites
+      run: sudo apt-get install googletest libeigen3-dev libglm-dev libtbb-dev libpdal-dev zlib1g-dev
+
+    # Create build directory for google test
+    - name: Create GTest build dir
+      run: cmake -E make_directory ${{github.workspace}}/gtest-build
+
+    # Configure google test build
+    - name: Configure Google Test
+      shell: bash
+      working-directory: ${{github.workspace}}/gtest-build
+      run: cmake /usr/src/googletest -DCMAKE_BUILD_TYPE=Release -GNinja
+
+    # Build GTest
+    - name: Build Google Test
+      working-directory: ${{github.workspace}}/gtest-build
+      shell: bash
+      run: cmake --build . --config Release
+
+    # Install GTest
+    - name: Install Google Test
+      working-directory: ${{github.workspace}}/gtest-build
+      shell: bash
+      run: cmake --install . --config Release
+
+    - name: Create our artefacts directory
       run: cmake -E make_directory ${{github.workspace}}/build
 
     - name: Configure CMake
@@ -30,13 +58,24 @@ jobs:
       # Note the current convention is to use the -S and -B options here to specify source 
       # and build directories, but this is only available with CMake 3.13 and higher.  
       # The CMake binaries on the Github Actions machines are (as of this writing) 3.12
-      run: cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DOHM_UNIT_TESTS=ON
+      # 
+      # OHM configuration notes:
+      # - Enable doxygen documentation
+      # - Enable unit tests
+      # - Disable HEIGHTMAPUTIL - requires OpenGL (not tried in the action build container yet)
+      run: cmake $GITHUB_WORKSPACE -GNinja -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DOHM_BUILD_DOXYGEN=ON -DOHM_UNIT_TESTS=ON -DOHM_BUILD_HEIGHTMAPUTIL=OFF
 
-    - name: Build
+    - name: Build binaries
       working-directory: ${{github.workspace}}/build
       shell: bash
       # Execute the build.  You can specify a specific target with "--target <NAME>"
       run: cmake --build . --config $BUILD_TYPE
+
+    - name: Build documentation
+      working-directory: ${{github.workspace}}/build
+      shell: bash
+      # Execute the build.  You can specify a specific target with "--target <NAME>"
+      run: cmake --build . --config $BUILD_TYPE --target ohm-doc
 
     - name: Test
       working-directory: ${{github.workspace}}/build
