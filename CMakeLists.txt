@@ -165,6 +165,8 @@ if(OHM_BUILD_CUDA)
   nvcc_setup(OHM)
 endif(OHM_BUILD_CUDA)
 
+include(SetupGTest)
+
 # Configure use of 3rd-Eye-Scene visual debugging (use for development only)
 if(OHM_TES_DEBUG)
   find_package(3es)

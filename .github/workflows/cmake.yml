@@ -26,24 +26,29 @@ jobs:
       run: sudo apt-get install googletest libeigen3-dev libglm-dev libtbb-dev libpdal-dev zlib1g-dev
 
     # Create build directory for google test
-    - name: Create GTest build dir
-      run: cmake -E make_directory ${{github.workspace}}/gtest-build
+    - name: Create GTest build directory
+      run: cmake -E make_directory ${{github.workspace}}/build-gtest
+
+    # Create install build directory for google test
+    - name: Create an install directory
+      run: cmake -E make_directory ${{github.workspace}}/build-gtest/install
 
     # Configure google test build
+    # Note we configure an install path under our local build tree. Installing to the system paths didn't work (permissions?)
     - name: Configure Google Test
       shell: bash
-      working-directory: ${{github.workspace}}/gtest-build
-      run: cmake /usr/src/googletest -DCMAKE_BUILD_TYPE=Release -GNinja
+      working-directory: ${{github.workspace}}/build-gtest
+      run: cmake /usr/src/googletest -DCMAKE_BUILD_TYPE=Release -GNinja -DCMAKE_INSTALL_PREFIX=${{github.workspace}}/build-gtest/install
 
     # Build GTest
     - name: Build Google Test
-      working-directory: ${{github.workspace}}/gtest-build
+      working-directory: ${{github.workspace}}/build-gtest
       shell: bash
       run: cmake --build . --config Release
 
-    # Install GTest
+    # Install GTest.
     - name: Install Google Test
-      working-directory: ${{github.workspace}}/gtest-build
+      working-directory: ${{github.workspace}}/build-gtest
       shell: bash
       run: cmake --install . --config Release
 
@@ -63,7 +68,8 @@ jobs:
       # - Enable doxygen documentation
       # - Enable unit tests
       # - Disable HEIGHTMAPUTIL - requires OpenGL (not tried in the action build container yet)
-      run: cmake $GITHUB_WORKSPACE -GNinja -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DOHM_BUILD_DOXYGEN=ON -DOHM_UNIT_TESTS=ON -DOHM_BUILD_HEIGHTMAPUTIL=OFF
+      # - Set CMake to look under our install directory (to find googletest)
+      run: cmake $GITHUB_WORKSPACE -GNinja -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DOHM_BUILD_DOXYGEN=ON -DOHM_UNIT_TESTS=ON -DOHM_BUILD_HEIGHTMAPUTIL=OFF -DCMAKE_PREFIX_PATH=${{github.workspace}}/build-gtest/install
 
     - name: Build binaries
       working-directory: ${{github.workspace}}/build

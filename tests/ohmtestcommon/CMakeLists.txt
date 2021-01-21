@@ -35,7 +35,7 @@ target_include_directories(ohmtestcommon SYSTEM
     "${GLM_INCLUDE_DIR}"
 )
 
-target_link_libraries(ohmtestcommon PUBLIC ohmtools ohm ohmutil)
+target_link_libraries(ohmtestcommon PUBLIC ohmtools ohm ohmutil ${GTestGTest})
 
 add_dependencies(ohmtestcommon marshal_test_data)
 
