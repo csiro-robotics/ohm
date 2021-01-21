@@ -11,6 +11,7 @@
 #include "VoxelBlock.h"
 
 #include <cinttypes>
+#include <cstring>
 #include <memory>
 #include <type_traits>
 

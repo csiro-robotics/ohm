@@ -18,6 +18,7 @@
 
 #include "CovarianceVoxel.h"
 
+#include <cstring>
 #include <stdexcept>
 
 namespace ohm

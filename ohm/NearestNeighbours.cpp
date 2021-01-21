@@ -25,6 +25,7 @@
 #include <glm/gtc/type_ptr.hpp>
 
 #include <algorithm>
+#include <cstring>
 #include <functional>
 #include <iostream>
 
