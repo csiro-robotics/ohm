@@ -1,5 +1,10 @@
+if(NOT TARGET ohmheightmaputil)
+  message(STATUS "Skipping util ohmhm2img - heightmap utils unavailable")
+  return()
+endif(NOT TARGET ohmheightmaputil)
+
 find_package(GLM REQUIRED)
-find_package(PNG REQUIRED)
+find_package(PNG QUIET)
 
 set(SOURCES
   ohmhm2img.cpp

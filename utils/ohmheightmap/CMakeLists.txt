@@ -1,3 +1,8 @@
+if(NOT TARGET ohmheightmaputil)
+  message(STATUS "Skipping util ohmheightmap - heightmap utils unavailable")
+  return()
+endif(NOT TARGET ohmheightmaputil)
+
 find_package(GLM)
 find_package(ZLIB)
 
