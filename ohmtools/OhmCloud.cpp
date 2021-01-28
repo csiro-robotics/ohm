@@ -363,7 +363,8 @@ uint64_t saveHeightmapCloud(const std::string &file_name, const ohm::OccupancyMa
         pos = (mean.isLayerValid()) ? positionSafe(mean) : map.voxelCentreGlobal(*iter);
         if (heightmap_voxel.isValid())
         {
-          pos[heightmap_axis] += height_flip * heightmap_voxel.data().height;
+          pos[heightmap_axis] =
+            map.voxelCentreGlobal(*iter)[heightmap_axis] + height_flip * heightmap_voxel.data().height;
         }
 
         ply.setPointPosition(pos);
