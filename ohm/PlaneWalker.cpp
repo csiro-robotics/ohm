@@ -31,9 +31,8 @@ bool PlaneWalker::begin(Key &key) const
 }
 
 
-bool PlaneWalker::walkNext(Key &key, bool &is_first_column_visit) const
+bool PlaneWalker::walkNext(Key &key) const
 {
-  is_first_column_visit = true;
   map.stepKey(key, axis_indices[0], 1);
   if (!key.isBounded(axis_indices[0], min_ext_key, max_ext_key))
   {

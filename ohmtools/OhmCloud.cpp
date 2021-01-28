@@ -356,9 +356,12 @@ uint64_t saveHeightmapCloud(const std::string &file_name, const ohm::OccupancyMa
     }
 
     // Respect collapse option. When collapsing, we ignore voxels which are not in the base layer.
-    if (!opt.collapse || (iter.key().regionKey()[heightmap_axis] == 0 && iter.key().localKey()[heightmap_axis] == 0))
+    if (!opt.collapse || (heightmap_voxel.isValid() && heightmap_voxel.data().layer == ohm::kHvlBaseLayer))
     {
-      if (isOccupied(occupancy) && occupancy.data() != 0 || opt.export_free && isFree(occupancy))
+      // Note: an occupancy value of 0 will come up as occupied, but in a heightmap represents a vacant voxel which we
+      // want to skip unless exporting "free".
+      if (isOccupied(occupancy) && occupancy.data() != 0 ||
+          opt.export_free && (isFree(occupancy) || occupancy.data() == 0))
       {
         pos = (mean.isLayerValid()) ? positionSafe(mean) : map.voxelCentreGlobal(*iter);
         if (heightmap_voxel.isValid())

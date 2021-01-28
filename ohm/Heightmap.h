@@ -11,6 +11,7 @@
 #include "Aabb.h"
 #include "HeightmapMode.h"
 #include "HeightmapVoxelType.h"
+#include "KeyRange.h"
 #include "OccupancyType.h"
 #include "UpAxis.h"
 
@@ -232,16 +233,12 @@ public:
   /// @return True when generating a multi-layered heightmap.
   inline bool isMultiLayered() const
   {
-    return mode() == HeightmapMode::kLayeredFill || mode() == HeightmapMode::kLayeredFillOrdered ||
-           mode() == HeightmapMode::kLayeredFillOrdered;
+    return mode() == HeightmapMode::kLayeredFillUnordered || mode() == HeightmapMode::kLayeredFill;
   }
 
   /// Query if the resulting multi-layered heightmap has each column ordered by height. Implies @c isMultiLayered().
   /// @return True if the heightmap contains columns sorted in height order.
-  inline bool areLayersSorted() const
-  {
-    return mode() == HeightmapMode::kLayeredFillOrdered || mode() == HeightmapMode::kLayeredFillOrdered;
-  }
+  inline bool areLayersSorted() const { return mode() == HeightmapMode::kLayeredFill; }
 
   /// Set the heightmap generation to flood fill ( @c true ) or planar ( @c false ).
   ///
@@ -368,9 +365,13 @@ public:
   Key &project(Key *key) const;
 
 private:
-  template <typename KeyWalker>
-  using WalkVisitFunc =
-    std::function<void(KeyWalker &, const HeightmapDetail &, const Key &, const Key &, const Key &)>;
+  /// Build a key range which covers the source map extents in 2D, but limits the vertical range by the floor/ceiling
+  /// around @p reference_pos.
+  /// @param min_key The source map minimum extents key.
+  /// @param max_key The source map maximum extents key.
+  /// @param reference_pos The reference position to build the heightmap from. Only the vertical component is used.
+  /// @return The key range creating an extented planar slice through the source map.
+  KeyRange buildReferencePlaneSlice(Key min_key, Key max_key, const glm::dvec3 &reference_pos) const;
 
   /// Internal implementation of heightmap construction. Supports the different key walking techniques available.
   /// @param walker The key walker used to iterate the source map and heightmap overlap.
@@ -382,9 +383,24 @@ private:
   bool buildHeightmapT(KeyWalker &walker, const glm::dvec3 &reference_pos, unsigned initial_supporting_flags,
                        unsigned iterating_supporting_flags);
 
-  bool addSurfaceVoxel(heightmap::DstVoxel &hm_voxel, heightmap::SrcVoxel &src_voxel, OccupancyType voxel_type,
+  /// Helper function for adding a surface, or virtual surface voxel from @c buildHeightmapT().
+  ///
+  /// @param hm_voxel Desitnation voxel management structure - references the target heightmap @c OccupancyMap.
+  ///     This will be modified to match the heightmap voxel corresponding to @p src_voxel. It is passed as an argument
+  ///     for caching efficiency and could otherwise be omitted.
+  /// @param src_voxel Source voxel management structure - references the source @c OccupancyMap and identifies the
+  ///     voxel from the source map to be added to the heightmap. Must be valid.
+  /// @param voxel_type The @c OccupancyType associated with @c src_voxel.
+  /// @param clearance The available height clearance above @p src_voxel being added.
+  /// @param voxel_pos The position of @c src_voxel. Will sub-voxel positioning if available and allowed otherwise marks
+  ///     the voxel centre.
+  /// @param multi_layer_keys Set of heightmap map keys which identify columns containing more than one voxel. Will
+  ///     be added to if the @p hm_voxel already has voxel data and we are building a layered heightmap.
+  /// @param is_base_layer_candidate Should be true if the @c src_voxel falls within the allowed range for being
+  ///     included in the base layer. Should always be true for non-layered heightmaps.
+  bool addSurfaceVoxel(heightmap::DstVoxel &hm_voxel, const heightmap::SrcVoxel &src_voxel, OccupancyType voxel_type,
                        double clearance, glm::dvec3 voxel_pos, std::set<ohm::Key> &multi_layer_keys,
-                       bool is_layer_zero);
+                       bool is_base_layer_candidate);
 
   std::unique_ptr<HeightmapDetail> imp_;
 };  // namespace ohm

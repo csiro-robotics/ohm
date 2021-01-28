@@ -40,27 +40,9 @@ std::istream &operator>>(std::istream &in, ohm::HeightmapMode &mode)
 {
   std::string mode_str;
   in >> mode_str;
-  if (mode_str == "planar")
-  {
-    mode = ohm::HeightmapMode::kPlanar;
-  }
-  else if (mode_str == "fill")
-  {
-    mode = ohm::HeightmapMode::kSimpleFill;
-  }
-  else if (mode_str == "layered-unordered")
-  {
-    mode = ohm::HeightmapMode::kLayeredFill;
-  }
-  else if (mode_str == "layered")
-  {
-    mode = ohm::HeightmapMode::kLayeredFillOrdered;
-  }
-  else if (mode_str == "layered-base")
-  {
-    mode = ohm::HeightmapMode::kLayeredFillOrderedBase;
-  }
-  else
+  bool valid_mode = false;
+  mode = ohm::heightmapModeFromString(mode_str, &valid_mode);
+  if (!valid_mode)
   {
     badArgParse(mode_str);
   }
@@ -69,27 +51,9 @@ std::istream &operator>>(std::istream &in, ohm::HeightmapMode &mode)
 
 std::ostream &operator<<(std::ostream &out, const ohm::HeightmapMode mode)
 {
-  switch (mode)
-  {
-  case ohm::HeightmapMode::kPlanar:
-    out << "planar";
-    break;
-  case ohm::HeightmapMode::kSimpleFill:
-    out << "fill";
-    break;
-  case ohm::HeightmapMode::kLayeredFill:
-    out << "layered-unordered";
-    break;
-  case ohm::HeightmapMode::kLayeredFillOrdered:
-    out << "layered";
-    break;
-  case ohm::HeightmapMode::kLayeredFillOrderedBase:
-    out << "layered-base";
-    break;
-  default:
-    out << "<unknown>";
-    break;
-  }
+  std::string mode_str;
+  ohm::heightmapModeToString(mode);
+  out << mode_str;
   return out;
 }
 
@@ -223,6 +187,17 @@ int parseOptions(Options *opt, int argc, char *argv[])  // NOLINT(modernize-avoi
 
   try
   {
+    std::ostringstream mode_help;
+    mode_help << "Heightmap expansion mode (";
+    std::string append_str = "";
+    for (ohm::HeightmapMode mode = ohm::HeightmapMode::kFirst; mode <= ohm::HeightmapMode::kLast;
+         mode = ohm::HeightmapMode(int(mode) + 1))
+    {
+      mode_help << append_str << ohm::heightmapModeToString(mode);
+      append_str = ", ";
+    }
+    mode_help << ").";
+
     opt_parse.add_options()("help", "Show help.")("i", "The input map file (ohm).", cxxopts::value(opt->map_file))  //
       ("o", "The output heightmap file (ohm).", cxxopts::value(opt->heightmap_file))                                //
       ("ceiling",
@@ -233,9 +208,9 @@ int parseOptions(Options *opt, int argc, char *argv[])  // NOLINT(modernize-avoi
       ("floor",
        "Floor applied to ground voxel searches. Limits how far down to search. Non-negative to enable. Affected by "
        "'--mode'.",
-       optVal(opt->floor))                                                                              //
-      ("mode", "Hieghtmap expansion mode (planar,fill,layered-unordered,layered).", optVal(opt->mode))  //
-      ("no-voxel-mean", "Ignore voxel mean positioning if available?.", optVal(opt->no_voxel_mean))     //
+       optVal(opt->floor))                                                                           //
+      ("mode", mode_help.str(), optVal(opt->mode))                                                   //
+      ("no-voxel-mean", "Ignore voxel mean positioning if available?.", optVal(opt->no_voxel_mean))  //
       ("seed", "Seed position from which to build the heightmap. Specified as a 3 component vector such as '0,0,1'.",
        optVal(opt->seed_pos))                                                        //
       ("up", "Specifies the up axis {x,y,z,-x,-y,-z}.", optVal(opt->axis_id))        //

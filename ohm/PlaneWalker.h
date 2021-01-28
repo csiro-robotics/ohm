@@ -56,9 +56,8 @@ public:
 
   /// Walk the next key in the sequence.
   /// @param[in,out] key Modifies to be the next key to be walked.
-  /// @param[out] is_first_column_visit Set to true if this is the first visit to the column of @p key.
   /// @return True if the key is valid, false if walking is complete.
-  bool walkNext(Key &key, bool &is_first_column_visit) const;
+  bool walkNext(Key &key) const;
 
   /// For API compatibility. Does nothing.
   /// @return 0

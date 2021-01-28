@@ -55,6 +55,7 @@ set(SOURCES
   Heightmap.h
   HeightmapMesh.cpp
   HeightmapMesh.h
+  HeightmapMode.cpp
   HeightmapMode.h
   HeightmapUtil.cpp
   HeightmapUtil.h

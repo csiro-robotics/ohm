@@ -978,7 +978,7 @@ void heightmapLayeredTest(const std::string &name, LayeredTestStart start_locati
   layered_heightmap.heightmap().setOrigin(map.origin());
 
   // Build the layered heightmap.
-  layered_heightmap.setMode(ohm::HeightmapMode::kLayeredFillOrdered);
+  layered_heightmap.setMode(ohm::HeightmapMode::kLayeredFill);
 
   glm::dvec3 seed_pos(0);
   switch (start_location)
@@ -1106,7 +1106,7 @@ TEST(Heightmap, LayeredExternal)
 ///
 /// - @c ohm::HeightmapMode::kPlanar misses 2215 voxels below the platform and 41 seam voxels.
 /// - @c ohm::HeightmapMode::kSimpleFill also misses 2215, but these are the platform voxels and 41 seam voxels.
-/// - @c ohm::HeightmapMode::kLayeredFill[Ordered] misses 41 seam voxels. Seam removal deals with this.
+/// - @c ohm::HeightmapMode::kLayeredFill[Unordered] misses 41 seam voxels. Seam removal deals with this.
 struct VirtualSurfaceTestParams
 {
   /// Heightmap generation mode.
@@ -1247,7 +1247,7 @@ TEST(Heightmap, VirtualSurfaceFill)
 TEST(Heightmap, VirtualSurfaceSimpleLayered)
 {
   VirtualSurfaceTestParams params;
-  params.mode = ohm::HeightmapMode::kLayeredFill;
+  params.mode = ohm::HeightmapMode::kLayeredFillUnordered;
   params.floor = params.ceiling = 0.5;
   testHeightmapVirtualSurface("simple-layered", params);
 }
@@ -1278,7 +1278,7 @@ TEST(Heightmap, VirtualSurfaceLayered)
   layered_heightmap.heightmap().setOrigin(map.origin());
 
   // Build the layered heightmap.
-  layered_heightmap.setMode(ohm::HeightmapMode::kLayeredFillOrdered);
+  layered_heightmap.setMode(ohm::HeightmapMode::kLayeredFill);
   layered_heightmap.setGenerateVirtualSurface(true);
   // Use tight ceiling/floor constraints to ensure we capture some virtual surfaces.
   layered_heightmap.setCeiling(3 * map.resolution());

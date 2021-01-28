@@ -139,6 +139,7 @@ void HeightmapDetail::fromMapInfo(const MapInfo &info)
   floor = double(info.get("heightmap-floor"));
   negative_obstacle_radius = double(info.get("heightmap-negative-obstacle-radius"));
   generate_virtual_surface = bool(info.get("heightmap-virtual-surface"));
+  mode = HeightmapMode(int(info.get("heightmap-mode")));
   updateAxis();
 }
 
@@ -155,5 +156,8 @@ void HeightmapDetail::toMapInfo(MapInfo &info) const
   info.set(MapValue("heightmap-floor", floor));
   info.set(MapValue("heightmap-negative-obstacle-radius", negative_obstacle_radius));
   info.set(MapValue("heightmap-virtual-surface", generate_virtual_surface));
+  info.set(MapValue("heightmap-mode", int(mode)));
+  const std::string mode_name = heightmapModeToString(mode);
+  info.set(MapValue("heightmap-mode-name", mode_name.c_str()));
 }
 }  // namespace ohm

@@ -99,9 +99,8 @@ public:
 
   /// Walk the next key in the sequence.
   /// @param[in,out] key Modifies to be the next key to be walked.
-  /// @param[out] is_first_column_visit Set to true if this is the first visit to the column of @p key.
   /// @return True if the key is valid, false if walking is complete.
-  bool walkNext(Key &key, bool &is_first_column_visit);
+  bool walkNext(Key &key);
 
   /// Call this function when visiting a voxel at the given @p key. The keys neighbouring @p key (on the walk plane)
   /// are added to the open list, provided they are not already on the open list. The added neighouring keys are

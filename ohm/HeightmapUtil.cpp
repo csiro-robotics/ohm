@@ -49,7 +49,7 @@ int setupHeightmap(ohm::OccupancyMap &heightmap, HeightmapDetail &detail)
   voxels.addMember("normal_x", DataType::kFloat, 0);
   voxels.addMember("normal_y", DataType::kFloat, 0);
   voxels.addMember("normal_z", DataType::kFloat, 0);
-  voxels.addMember("type", DataType::kUInt8, 0);
+  voxels.addMember("layer", DataType::kUInt8, 0);
   int r = 0;
   while (voxels.voxelByteSize() < sizeof(HeightmapVoxel))
   {

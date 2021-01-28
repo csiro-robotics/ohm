@@ -8,8 +8,17 @@
 
 #include "OhmConfig.h"
 
+#include <cstdint>
+
 namespace ohm
 {
+/// Voxel layer values for @c HeightmapVoxel::type.
+enum HeightmapVoxelLayer : uint8_t
+{
+  kHvlBaseLayer = 0,  ///< Voxel belongs to the base layer or is a base layer candidate
+  kHvlExtended        ///< Voxel is outside the base layer bounds - only used for layered heightmaps.
+};
+
 /// A voxel within the heightmap.
 struct alignas(8) HeightmapVoxel
 {
@@ -32,8 +41,8 @@ struct alignas(8) HeightmapVoxel
   float normal_y;
   /// Local surface normal Z coordinate.
   float normal_z;
-  /// Type information. Currently restricted to 0 = base layer, 1 = extended layer.
-  uint8_t type;
+  /// Layer information. Currently restricted to values of @c HeightmapVoxelLayer.
+  uint8_t layer;
 };
 }  // namespace ohm
 

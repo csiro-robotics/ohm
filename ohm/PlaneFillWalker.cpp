@@ -40,7 +40,7 @@ bool PlaneFillWalker::begin(Key &key)
 }
 
 
-bool PlaneFillWalker::walkNext(Key &key, bool &is_first_column_visit)
+bool PlaneFillWalker::walkNext(Key &key)
 {
   // Pop the open list.
   while (!open_list_.empty())
@@ -52,7 +52,6 @@ bool PlaneFillWalker::walkNext(Key &key, bool &is_first_column_visit)
     {
       key.clampTo(min_ext_key, max_ext_key);
       const unsigned grid_index = gridIndex(key);
-      is_first_column_visit = !visit_grid_[grid_index].visited();
       visit_grid_[grid_index].visit(keyHeight(key));
       return true;
     }
