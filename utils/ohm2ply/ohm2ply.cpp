@@ -68,7 +68,13 @@ enum ColourMode
 {
   kColourNone,
   kColourHeight,
+  kColourLayer,
   kColourType
+};
+
+struct HeightmapOptions
+{
+  bool collapse = false;  ///< Collapse a layered heightmap into a 2.5D heightmap.
 };
 
 struct Options
@@ -82,6 +88,8 @@ struct Options
   float colour_scale = 3.0f;
   ExportMode mode = kExportOccupancy;
   ColourMode colour = kColourHeight;
+
+  HeightmapOptions heightmap;
 };
 
 template <typename NUMERIC>
@@ -260,6 +268,10 @@ std::istream &operator>>(std::istream &in, ColourMode &mode)
   {
     mode = kColourHeight;
   }
+  else if (mode_str == "layer")
+  {
+    mode = kColourLayer;
+  }
   else if (mode_str == "type")
   {
     mode = kColourType;
@@ -280,6 +292,9 @@ std::ostream &operator<<(std::ostream &out, const ColourMode mode)
     break;
   case kColourHeight:
     out << "height";
+    break;
+  case kColourLayer:
+    out << "layer";
     break;
   case kColourType:
     out << "type";
@@ -324,6 +339,10 @@ int parseOptions(Options *opt, int argc, char *argv[])  // NOLINT(modernize-avoi
       ("expire", "Expire regions with a timestamp before the specified time. These are not exported.", cxxopts::value(opt->expiry_time))
       ("threshold", "Override the map's occupancy threshold. Only occupied points are exported.", cxxopts::value(opt->occupancy_threshold)->default_value(optStr(opt->occupancy_threshold)))
       ;
+
+    opt_parse.add_options("Heightmap")
+      ("heightmap-2d", "Reduce to a 2.5D heightmap cloud regardless of input heightmap. This collapses a layered heightmap.", optVal(opt->heightmap.collapse))
+      ;
     // clang-format on
 
     opt_parse.parse_positional({ "map", "cloud" });
@@ -333,7 +352,7 @@ int parseOptions(Options *opt, int argc, char *argv[])  // NOLINT(modernize-avoi
     if (parsed.count("help") || parsed.arguments().empty())
     {
       // show usage.
-      std::cout << opt_parse.help({ "", "Map", "Mapping", "GPU" }) << std::endl;
+      std::cout << opt_parse.help({ "", "Heightmap" }) << std::endl;
       return 1;
     }
 
@@ -444,6 +463,7 @@ int exportPointCloud(const Options &opt, ProgressMonitor &prog, LoadMapProgress 
   ohmtools::ColourByHeight colour_by_height(map);
   ohmtools::ColourByType colour_by_type(map);
   ohmtools::ColourHeightmapType colour_by_heightmap_type(map);
+  ohmtools::ColourHeightmapLayer colour_by_heightmap_layer(map);
 
   switch (opt.mode)
   {
@@ -466,13 +486,20 @@ int exportPointCloud(const Options &opt, ProgressMonitor &prog, LoadMapProgress 
     break;
   }
   case kExportHeightmap: {
-    ohmtools::SaveCloudOptions save_opt;
+    ohmtools::SaveHeightmapCloudOptions save_opt;
     save_opt.ignore_voxel_mean = false;
     save_opt.export_free = true;
+    save_opt.collapse = opt.heightmap.collapse;
     if (opt.colour == kColourHeight)
     {
       save_opt.colour_select = [&colour_by_heightmap_type](const ohm::Voxel<const float> &occupancy) {
         return colour_by_heightmap_type.select(occupancy);
+      };
+    }
+    else if (opt.colour == kColourLayer)
+    {
+      save_opt.colour_select = [&colour_by_heightmap_layer](const ohm::Voxel<const float> &occupancy) {
+        return colour_by_heightmap_layer.select(occupancy);
       };
     }
     else if (opt.colour == kColourType)

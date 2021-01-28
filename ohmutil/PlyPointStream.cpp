@@ -106,7 +106,7 @@ PlyPointStream::PlyPointStream(const std::vector<Property> &properties, std::ost
 }
 
 
-PlyPointStream::PlyPointStream(PlyPointStream &&other)
+PlyPointStream::PlyPointStream(PlyPointStream &&other) noexcept
   : out_(std::exchange(other.out_, nullptr))
   , properties_(std::move(other.properties_))
   , values_(std::move(other.values_))
@@ -121,7 +121,7 @@ PlyPointStream::~PlyPointStream()
 }
 
 
-PlyPointStream &PlyPointStream::operator=(PlyPointStream &&other)
+PlyPointStream &PlyPointStream::operator=(PlyPointStream &&other) noexcept
 {
   out_ = std::exchange(other.out_, nullptr);
   properties_ = std::move(other.properties_);

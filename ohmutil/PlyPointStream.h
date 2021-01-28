@@ -84,14 +84,14 @@ public:
   /// @param out The output stream to write to. Must be seekable. Must outlive this object.
   PlyPointStream(const std::vector<Property> &properties, std::ostream &out);
   /// Move constructor
-  PlyPointStream(PlyPointStream &&other);
+  PlyPointStream(PlyPointStream &&other) noexcept;
   /// Destructor. Ensures the point count is finalised.
   ~PlyPointStream();
 
   /// Move assignment operator. Do not call while @c isOpen()
   /// @param other The object to move.
   /// @return `*this`
-  PlyPointStream &operator=(PlyPointStream &&other);
+  PlyPointStream &operator=(PlyPointStream &&other) noexcept;
 
   /// Set the properties. Fails if called after @c open() .
   /// @param properties The properties list.

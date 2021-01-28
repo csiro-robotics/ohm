@@ -11,6 +11,7 @@
 #include "Aabb.h"
 #include "HeightmapMode.h"
 #include "HeightmapVoxelType.h"
+#include "OccupancyType.h"
 #include "UpAxis.h"
 
 #include <memory>
@@ -18,6 +19,7 @@
 #include <glm/fwd.hpp>
 
 #include <functional>
+#include <set>
 #include <vector>
 
 namespace ohm
@@ -28,6 +30,12 @@ class OccupancyMap;
 class VoxelConst;
 struct HeightmapDetail;
 struct HeightmapVoxel;
+
+namespace heightmap
+{
+struct DstVoxel;
+struct SrcVoxel;
+}  // namespace heightmap
 
 /// A 2D voxel map variant which calculates a heightmap surface from another @c OccupancyMap .
 ///
@@ -91,7 +99,10 @@ public:
   /// Voxel value assigned to heightmap cells which represent a virtual surface extracted from the source map.
   /// Virtual surfaces may be formed by the interface between a free voxel supported by an uncertain/null voxel.
   static constexpr float kHeightmapVirtualSurfaceValue = -1.0f;
-  /// Voxel value assigned to heightmap cells which have no valid voxel in the entire column from the source map.
+  /// Voxel value assigned to heightmap cells which are deliverately vacant in the heigthmap. This may occur when
+  /// the corresponding voxels have no valid voxel in the entire column from the source map or when no ground voxel
+  /// can be found for a layered search. In a layered heightmap there may be a mix of vacant and surface voxels in a
+  /// single column in the heightmap.
   static constexpr float kHeightmapVacantValue = 0.0f;
 
   /// Construct a default initialised heightmap.
@@ -314,6 +325,24 @@ public:
   /// @return The type of the voxel in question. May return @c HeightmapVoxel::Unknown if @p key is invalid.
   HeightmapVoxelType getHeightmapVoxelInfo(const Key &key, glm::dvec3 *pos, HeightmapVoxel *voxel_info = nullptr) const;
 
+  /// Calculate the height of the voxel at @p key with matching local @p height value.
+  ///
+  /// This calculates the centre of the voxel at @p key then calculates `dot(up, centre) + height`.
+  ///
+  /// @param key The heightmap voxel key of interest. The up axis should always be (0, 0) for non-layered heightmaps.
+  /// @param height The local voxel height delta.
+  /// @return The global voxel height value.
+  double getVoxelHeight(const Key &key, double height) const;
+
+  /// Calculate the height of the voxel at @p key with matching @c HeightmapVoxel @p info.
+  ///
+  /// This calls through to @c getVoxelHeight(const Key &, double) using the value @p info.height .
+  ///
+  /// @param key The heightmap voxel key of interest. The up axis should always be (0, 0) for non-layered heightmaps.
+  /// @param info The voxel heightmap data.
+  /// @return The global voxel height value.
+  double getVoxelHeight(const Key &key, const HeightmapVoxel &info) const;
+
   //-------------------------------------------------------
   // Internal
   //-------------------------------------------------------
@@ -348,6 +377,12 @@ private:
   template <typename KeyWalker>
   bool buildHeightmapT(KeyWalker &walker, const glm::dvec3 &reference_pos, unsigned initial_supporting_flags,
                        unsigned iterating_supporting_flags);
+
+  bool addSurfaceVoxel(heightmap::DstVoxel &hm_voxel, heightmap::SrcVoxel &src_voxel, OccupancyType voxel_type,
+                       double clearance, glm::dvec3 voxel_pos, std::set<ohm::Key> &multi_layer_keys);
+
+  bool addVacantVoxel(heightmap::DstVoxel &hm_voxel, heightmap::SrcVoxel &src_voxel, OccupancyType voxel_type,
+                      glm::dvec3 voxel_pos, std::set<ohm::Key> &multi_layer_keys);
 
   std::unique_ptr<HeightmapDetail> imp_;
 };  // namespace ohm

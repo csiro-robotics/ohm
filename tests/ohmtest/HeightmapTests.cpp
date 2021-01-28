@@ -1009,7 +1009,8 @@ void heightmapLayeredTest(const std::string &name, LayeredTestStart start_locati
   };
   save_opt.export_free = true;
   ohm::save(name + "-hm.ohm", layered_heightmap.heightmap());
-  ohmtools::saveHeightmapCloud(name + "-hm.ply", layered_heightmap.heightmap(), save_opt);
+  ohmtools::saveHeightmapCloud(name + "-hm.ply", layered_heightmap.heightmap(),
+                               ohmtools::SaveHeightmapCloudOptions(save_opt));
 
   // Now convert the heightmap back into a normal occupancy map.
   ohm::OccupancyMap test_map(map.resolution());

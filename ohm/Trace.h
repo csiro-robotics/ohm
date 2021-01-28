@@ -22,8 +22,9 @@ enum TraceCategory : uint16_t
   kTcNdt,               ///< NDT shapes
   kTcHeightmap,         ///< Parent category for heightmap generation
   kTcHmVoxel,           ///< Heightmap voxel - parent to suface and virtual surface
-  kTcHmSurface,         ///< Heightmap surface voxel
   kTcHmVirtualSurface,  ///< Heightmap virtual surface voxel
+  kTcHmSurface,         ///< Heightmap surface voxel
+  kTcHmVacant,          ///< Heightmap vacant voxel
   kTcHmClearance,       ///< Heightmap clearance
   kTcHmVisit,           ///< Heightmap visit/open lists
   kTcHmInfo,            ///< Heightmap info text

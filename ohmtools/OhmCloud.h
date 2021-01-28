@@ -51,6 +51,26 @@ struct SaveCloudOptions
   bool ignore_voxel_mean = false;
 };
 
+/// Specialised options for saving heightmap clouds. Supports construction from a @c SaveCloudOptions setting default
+/// values for heightmap extended parameters.
+struct SaveHeightmapCloudOptions : SaveCloudOptions
+{
+  bool collapse = false;  ///< Collapse to a 2.5D heightmap, reducing layered heightmaps to 2D?
+
+  inline SaveHeightmapCloudOptions() = default;
+  inline SaveHeightmapCloudOptions(const SaveHeightmapCloudOptions &other) = default;
+  inline SaveHeightmapCloudOptions(const SaveCloudOptions &other)  // NOLINT(google-explicit-constructor)
+    : SaveCloudOptions(other)
+  {}
+
+  inline SaveHeightmapCloudOptions &operator=(const SaveHeightmapCloudOptions &other) = default;
+  inline SaveHeightmapCloudOptions &operator=(const SaveCloudOptions &other)
+  {
+    SaveCloudOptions::operator=(other);
+    return *this;
+  }
+};
+
 //------------------------------------------------------------------------------
 // Colour selection helpers
 //------------------------------------------------------------------------------
@@ -58,8 +78,8 @@ struct SaveCloudOptions
 class ColourByHeight
 {
 public:
-  static const ohm::Colour s_default_from;
-  static const ohm::Colour s_default_to;
+  static const ohm::Colour kDefaultFrom;
+  static const ohm::Colour kDefaultTo;
 
   std::array<ohm::Colour, 2> colours;
 
@@ -91,6 +111,18 @@ private:
   float occupancy_threshold_ = 0;
 };
 
+/// Colour heightmap voxels such that voxels in matching heightmap layers have the same colour.
+class ColourHeightmapLayer
+{
+public:
+  explicit ColourHeightmapLayer(const ohm::OccupancyMap &map);
+
+  ohm::Colour select(const ohm::Voxel<const float> &occupancy) const;
+
+private:
+  int heightmap_up_axis_ = 2;
+};
+
 /// Colour heightmap voxels by @c HeightmapVoxelType::kSurface or @c HeightmapVoxelType::kVirtualSurface type.
 class ColourHeightmapType
 {
@@ -110,8 +142,8 @@ private:
 class ColourByHeightmapClearance
 {
 public:
-  static const ohm::Colour s_default_low;
-  static const ohm::Colour s_default_high;
+  static const ohm::Colour kDefaultLow;
+  static const ohm::Colour kDefaultHigh;
 
   std::array<ohm::Colour, 2> colours;
 
@@ -148,7 +180,7 @@ uint64_t ohmtools_API saveCloud(const std::string &file_name, const ohm::Occupan
 /// @param prog Optional function called to report on progress.
 /// @return The number of points saved.
 uint64_t ohmtools_API saveHeightmapCloud(const std::string &file_name, const ohm::OccupancyMap &heightmap,
-                                         const SaveCloudOptions &opt = SaveCloudOptions(),
+                                         const SaveHeightmapCloudOptions &opt = SaveHeightmapCloudOptions(),
                                          const ProgressCallback &prog = ProgressCallback());
 
 /// Save the results of @p query on @p map to a ply file, exporting all intersected voxels.
