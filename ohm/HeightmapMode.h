@@ -25,7 +25,10 @@ enum class HeightmapMode
   kLayeredFill,
   /// Same as @c kLayeredFill except that the resulting heightmap ensures each column of voxels in the generated
   /// heightmap are in ascending height order.
-  kLayeredFillOrdered
+  kLayeredFillOrdered,
+  /// Similar to @c kLayeredFillOrdered except that the cell at the bottom of each column may be out of order and
+  /// mimics the results of @c kPlanar.
+  kLayeredFillOrderedBase
 };
 }  // namespace ohm
 

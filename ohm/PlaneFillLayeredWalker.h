@@ -89,8 +89,9 @@ public:
 
   /// Walk the next key in the sequence.
   /// @param[in,out] key Modifies to be the next key to be walked.
+  /// @param[out] is_first_column_visit Set to true if this is the first visit to the column of @p key.
   /// @return True if the key is valid, false if walking is complete.
-  bool walkNext(Key &key);
+  bool walkNext(Key &key, bool &is_first_column_visit);
 
   /// Call this function when visiting a voxel at the given @p key. The keys neighbouring @p key (on the walk plane)
   /// are added to the open list, provided they are not already on the open list. The added neighouring keys are
@@ -136,6 +137,8 @@ private:
   /// A cell is opened if it has a non-zero value. The visit height can be found by following the index into the
   /// @c opended_list_. Multiple visits can be followed by chaining indices using @c Opened::next.
   std::vector<int> opened_grid_;
+  /// Simple 2D marker grid indicating whether a column has been visited or not.
+  std::vector<uint8_t> visited_grid_;
 };
 }  // namespace ohm
 

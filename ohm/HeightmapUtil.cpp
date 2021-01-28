@@ -15,6 +15,9 @@
 
 #include "private/HeightmapDetail.h"
 
+#include <cassert>
+#include <sstream>
+
 namespace ohm
 {
 namespace heightmap
@@ -46,7 +49,16 @@ int setupHeightmap(ohm::OccupancyMap &heightmap, HeightmapDetail &detail)
   voxels.addMember("normal_x", DataType::kFloat, 0);
   voxels.addMember("normal_y", DataType::kFloat, 0);
   voxels.addMember("normal_z", DataType::kFloat, 0);
-  voxels.addMember("reserved", DataType::kUInt32, 0);
+  voxels.addMember("type", DataType::kUInt8, 0);
+  int r = 0;
+  while (voxels.voxelByteSize() < sizeof(HeightmapVoxel))
+  {
+    std::ostringstream name_stream;
+    name_stream << "reserved" << r++;
+    const auto name = name_stream.str();
+    voxels.addMember(name.c_str(), DataType::kUInt8, 0);
+  }
+  assert(voxels.voxelByteSize() == sizeof(HeightmapVoxel));
 
   detail.toMapInfo(heightmap.mapInfo());
 

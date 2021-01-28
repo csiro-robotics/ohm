@@ -232,12 +232,16 @@ public:
   /// @return True when generating a multi-layered heightmap.
   inline bool isMultiLayered() const
   {
-    return mode() == HeightmapMode::kLayeredFill || mode() == HeightmapMode::kLayeredFillOrdered;
+    return mode() == HeightmapMode::kLayeredFill || mode() == HeightmapMode::kLayeredFillOrdered ||
+           mode() == HeightmapMode::kLayeredFillOrdered;
   }
 
   /// Query if the resulting multi-layered heightmap has each column ordered by height. Implies @c isMultiLayered().
   /// @return True if the heightmap contains columns sorted in height order.
-  inline bool areLayersSorted() const { return mode() == HeightmapMode::kLayeredFillOrdered; }
+  inline bool areLayersSorted() const
+  {
+    return mode() == HeightmapMode::kLayeredFillOrdered || mode() == HeightmapMode::kLayeredFillOrdered;
+  }
 
   /// Set the heightmap generation to flood fill ( @c true ) or planar ( @c false ).
   ///
@@ -379,10 +383,8 @@ private:
                        unsigned iterating_supporting_flags);
 
   bool addSurfaceVoxel(heightmap::DstVoxel &hm_voxel, heightmap::SrcVoxel &src_voxel, OccupancyType voxel_type,
-                       double clearance, glm::dvec3 voxel_pos, std::set<ohm::Key> &multi_layer_keys);
-
-  bool addVacantVoxel(heightmap::DstVoxel &hm_voxel, heightmap::SrcVoxel &src_voxel, OccupancyType voxel_type,
-                      glm::dvec3 voxel_pos, std::set<ohm::Key> &multi_layer_keys);
+                       double clearance, glm::dvec3 voxel_pos, std::set<ohm::Key> &multi_layer_keys,
+                       bool is_layer_zero);
 
   std::unique_ptr<HeightmapDetail> imp_;
 };  // namespace ohm

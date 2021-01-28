@@ -715,6 +715,15 @@ Key findGround(double *height_out, double *clearance_out, SrcVoxel &voxel, const
 }
 
 
+/// Helper function for visiting a heightmap node. This expands into the neighbours as required and performs debug
+/// rendering.
+/// @param walker The class used to walk the heightmap region. Examples; @c PlaneWalker, @c PlanerFillWalker,
+///     @c PlanerFillLayeredWalker
+/// @param imp Heightmap implementation.
+/// @param walk_key The initial key extracted from the @c walker before calculating the candidate and/or ground keys.
+/// @param candidate_key The initial ground candidate key calculated from @p walk_key as the starting point to search
+///   for the @p ground_key. May be null.
+/// @param ground_key The selected ground key. May be null.
 template <typename Walker>
 void onVisitWalker(Walker &walker, const HeightmapDetail &imp, const Key &walk_key, const Key &candidate_key,
                    const Key &ground_key)
@@ -785,6 +794,7 @@ void sortHeightmapLayers(ohm::HeightmapDetail &detail, const std::set<ohm::Key> 
                          const double reference_height, const bool ensure_base_layer_in_range)
 {
   PROFILE(sortHeightmapLayers);
+
   if (!target_keys.empty())
   {
     // We have work to do.
@@ -792,10 +802,11 @@ void sortHeightmapLayers(ohm::HeightmapDetail &detail, const std::set<ohm::Key> 
     /// Structure used to extract heightamp data for sorting. Contains all information possible from the heightmap.
     struct SortingVoxel
     {
-      double height;
-      HeightmapVoxel height_info;
-      float occupancy;
-      VoxelMean mean;
+      double height = 0;
+      HeightmapVoxel height_info{};
+      float occupancy = 0;
+      VoxelMean mean{};
+      bool force_first = false;
 
       /// Sorting operator.
       inline bool operator<(const SortingVoxel &other) const { return height < other.height; }
@@ -810,9 +821,6 @@ void sortHeightmapLayers(ohm::HeightmapDetail &detail, const std::set<ohm::Key> 
     const double height_sign = (int(detail.up_axis_id) >= 0) ? 1.0 : -1.0;
     glm::dvec2 height_filter(reference_height - height_sign * detail.floor,
                              reference_height + height_sign * detail.ceiling);
-    // True if we've found a voxel with a height value within the height_filter range.
-    // If not, we'll have to add one with a kHeightmapVacantValue.
-    bool have_voxel_in_height_filter = false;
 
     // Swap height filter in case we have a negative up.
     if (height_filter[0] > height_filter[1])
@@ -821,9 +829,12 @@ void sortHeightmapLayers(ohm::HeightmapDetail &detail, const std::set<ohm::Key> 
       std::swap(height_filter[0], height_filter[1]);
     }
 
-    for (auto base_key : target_keys)
+    for (const auto &base_key : target_keys)
     {
       Key key = base_key;
+      // True if we've found a voxel with a height value within the height_filter range.
+      // If not, we'll have to add one with a kHeightmapVacantValue.
+      bool need_vacant_voxel = true;
       voxel.setKey(key);
       assert(voxel.occupancy.isValid() && voxel.heightmap.isValid() && (!use_voxel_mean || voxel.mean.isValid()));
       sorting_list.clear();
@@ -837,15 +848,13 @@ void sortHeightmapLayers(ohm::HeightmapDetail &detail, const std::set<ohm::Key> 
         sorting_info.occupancy = voxel.occupancy.data();
         sorting_info.height_info = voxel.heightmap.data();
         sorting_info.mean = use_voxel_mean ? voxel.mean.data() : VoxelMean{};
+        sorting_info.force_first = sorting_info.height_info.type == 0;
+        need_vacant_voxel = need_vacant_voxel && !sorting_info.force_first;
 
         // The height value is stored as a relative to the centre of the voxel in which it resides. We need to convert
         // this to an absolute height.
         sorting_info.height =
           heightmap::getVoxelHeight(heightmap, detail.up, key, double(sorting_info.height_info.height));
-
-        // Check the height against the height_filter and update have_voxel_in_height_filter.
-        have_voxel_in_height_filter = have_voxel_in_height_filter || (height_filter[0] <= sorting_info.height &&
-                                                                      sorting_info.height <= height_filter[1]);
 
         heightmap.moveKeyAlongAxis(key, detail.vertical_axis_index, 1);
         voxel.setKey(key);
@@ -853,24 +862,26 @@ void sortHeightmapLayers(ohm::HeightmapDetail &detail, const std::set<ohm::Key> 
 
       // Add a vacant voxel if we are forcing a base layer.
       bool have_only_vacant_voxel = false;  // True to force into the sort/rebuild block even with a single element.
-      if (ensure_base_layer_in_range && !have_voxel_in_height_filter)
+      // if (ensure_base_layer_in_range && !have_voxel_in_height_filter)
+      // if (sorting_list.empty())
+      if (need_vacant_voxel)
       {
+        // Flag that we (will) only have the vacant voxel added below.
+        have_only_vacant_voxel = sorting_list.empty();
+
         // Add a new item to sort an update into the map.
         sorting_list.emplace_back();
         SortingVoxel &sorting_info = sorting_list.back();
         sorting_info.height = reference_height;
-        sorting_info.height_info = HeightmapVoxel{};
         sorting_info.occupancy = Heightmap::kHeightmapVacantValue;
-        sorting_info.mean = VoxelMean{};
-
-        // Set
-        have_only_vacant_voxel = sorting_list.size() == 1;
+        sorting_info.force_first = true;
       }
 
       // Enter sort/rebuild block if we have a list to sort or we have just the vacant voxel we've artificially added.
-      if (sorting_list.size() > 1 && have_only_vacant_voxel)
+      if (sorting_list.size() > 1 || have_only_vacant_voxel)
       {
         // Sort the voxels
+        key = base_key;
         if (!have_only_vacant_voxel)
         {
           std::sort(sorting_list.begin(), sorting_list.end());
@@ -878,15 +889,16 @@ void sortHeightmapLayers(ohm::HeightmapDetail &detail, const std::set<ohm::Key> 
           if (ensure_base_layer_in_range)
           {
             // If we are ensuring that the base layer contains a 2.5D map consistent with a non-layered map, then we
-            // need need to adjust the base_key such that we place the first voxel in the height_filter at layer 0.
+            // need need to adjust the key such that we place the first voxel in the height_filter at layer 0.
             for (int i = 0; i < int(sorting_list.size()); ++i)
             {
-              if (height_filter[0] <= sorting_list[i].height && sorting_list[i].height <= height_filter[1])
+              // if (height_filter[0] <= sorting_list[i].height && sorting_list[i].height <= height_filter[1])
+              if (sorting_list[i].force_first)
               {
-                // This is the first voxel within the height range. Move the base_key down by i, the break.
+                // This is the first voxel within the height range. Move the key down by i, the break.
                 if (i)  // No need to move if i == 0
                 {
-                  heightmap.moveKeyAlongAxis(base_key, detail.vertical_axis_index, -i);
+                  heightmap.moveKeyAlongAxis(key, detail.vertical_axis_index, -i);
                 }
                 break;
               }
@@ -895,7 +907,6 @@ void sortHeightmapLayers(ohm::HeightmapDetail &detail, const std::set<ohm::Key> 
         }
 
         // Now write back the sorted results.
-        key = base_key;
         for (SortingVoxel voxel_info : sorting_list)
         {
           voxel.setKey(key);
@@ -915,117 +926,6 @@ void sortHeightmapLayers(ohm::HeightmapDetail &detail, const std::set<ohm::Key> 
       }
     }
   }
-}
-
-/// Fixup the base layer in a heightmap to generate a base layer consistent with a non-layered heightmap.
-///
-/// This process should only be called on a sorted layered heightmap and may insert voxels with a
-/// @c Heightmap::kHeightmapVacantValue value. These will be inserted to prevent discontinuities in regions where the
-/// steps are too great. The resulting layer attempts to mimic the results of @c HeightmapMode::kPlanar .
-void fixBaseLayer(ohm::Heightmap &hm, ohm::HeightmapDetail &detail, const glm::dvec3 &reference_pos)
-{
-  // 1. Setup planar walk.
-  // 2. Calculate height range.
-  // 3. Walk to each heightmap column, extracting the base voxel.
-  //  a. Walk up cells in column while below cell height base - floor.
-  //  b. If current cell height in range [base - floor, base + ceiling]
-  //    i. Shift column down until found cell is in layer 0
-  //  b. If current cell height greater than base + ceiling
-  //    i. Shift column down until found cell is in layer 1
-  //    ii. Shift cells below layer 1 down one more.
-  //    iii. Insert cell in layer 0 at base height with kHeightmapVacantValue.
-  //  c. If all cells below base - floor
-  //    i. Shift all cells down below layer 0
-  //    ii. Insert cell in layer 0 at base height with kHeightmapVacantValue.
-
-  // 1. Setup plane walk.
-  KeyRange key_range;
-  ohm::OccupancyMap &heightmap = *detail.heightmap;
-  heightmap.calculateExtents(nullptr, nullptr, &key_range);
-
-  // Flatten the key range onto the base heightmap plane.
-  Key key = key_range.minKey();
-  key.setRegionAxis(detail.vertical_axis_index, 0);
-  key.setLocalAxis(detail.vertical_axis_index, 0);
-  key_range.setMinKey(key);
-
-  key = key_range.maxKey();
-  key.setRegionAxis(detail.vertical_axis_index, 0);
-  key.setLocalAxis(detail.vertical_axis_index, 0);
-  key_range.setMaxKey(key);
-
-  PlaneWalker planar_walk(heightmap, key_range.minKey(), key_range.maxKey(), detail.up_axis_id);
-
-  // 2. Height range.
-  // Note we use detail.up[detail.vertical_axis_index] in place of a dot product to determine the sign of "up".
-  glm::dvec2 range_filter(
-    reference_pos[detail.vertical_axis_index] - detail.up[detail.vertical_axis_index] * detail.floor,
-    reference_pos[detail.vertical_axis_index] + detail.up[detail.vertical_axis_index] * detail.ceiling);
-
-  // Swap min/max of the range filter if required.
-  if (range_filter[0] > range_filter[1])
-  {
-    std::swap(range_filter[0], range_filter[1]);
-  }
-
-  // 3. Walk plane.
-  ohm::Key planar_key;
-  if (!planar_walk.begin(planar_key))
-  {
-    // Nothing to walk.
-    return;
-  }
-
-
-  Voxel<const float> voxel_occupancy(&heightmap, heightmap.layout().occupancyLayer());
-  Voxel<const HeightmapVoxel> voxel_height(&heightmap, detail.heightmap_voxel_layer);
-  glm::dvec3 voxel_pos{};
-  const int column_step_up = (int(detail.up_axis_id) >= 0) ? 1 : -1;
-
-  if (!voxel_occupancy.isLayerValid() || !voxel_height.isLayerValid())
-  {
-    // Shouldn't happen.
-    return;
-  }
-
-  do
-  {
-    // 3a. Walk column
-    Key column_key = planar_key;
-
-    ohm::setVoxelKey(column_key, voxel_occupancy, voxel_height);
-    int column_shift = 0;
-    bool insert_vacant = false;
-    while (!ohm::isUnobservedOrNull(voxel_occupancy))
-    {
-      // Extract voxel height.
-      const double height = getVoxelHeight(heightmap, detail.up, column_key, double(voxel_height.data().height));
-
-      if (range_filter[0] <= height && height <= range_filter[1])
-      {
-        // Found the voxel in range. We can simply break the loop. No insertion will be required.
-        insert_vacant = false;
-        break;
-      }
-      else if (height > range_filter[1])
-      {
-        // Current voxel greater than the current range marking the transition point. We will need to insert
-        // a voxel below this one.
-        insert_vacant = true;
-        break;
-      }
-
-      heightmap.moveKeyAlongAxis(column_key, detail.vertical_axis_index, column_step_up);
-      ohm::setVoxelKey(column_key, voxel_occupancy, voxel_height);
-    }
-
-    const auto voxel_type = hm.getHeightmapVoxelInfo(planar_key, &voxel_pos);
-    const double voxel_height = voxel_pos[detail.vertical_axis_index];
-    if (voxel_height < range_filter[0] || voxel_height > range_filter[1])
-    {
-      // 3b. Voxel is out of the required range. Need to add a fill voxel.
-    }
-  } while (planar_walk.walkNext(planar_key));
 }
 }  // namespace heightmap
 
@@ -1295,6 +1195,8 @@ bool Heightmap::buildHeightmap(const glm::dvec3 &reference_pos, const ohm::Aabb 
   case HeightmapMode::kLayeredFill:  //
   // No break
   case HeightmapMode::kLayeredFillOrdered:  //
+  // No break
+  case HeightmapMode::kLayeredFillOrderedBase:  //
   {
     // We should prefer voxels below for the first iteration, when seeding, after that we prefer the closest candidate
     // supporting voxel to the seed voxel.
@@ -1398,7 +1300,7 @@ bool Heightmap::buildHeightmapT(KeyWalker &walker, const glm::dvec3 &reference_p
   // Brute force initial approach.
   const OccupancyMap &src_map = *imp_->occupancy_map;
   OccupancyMap &heightmap = *imp_->heightmap;
-  const bool planar_base_layer = true;
+  const bool planar_base_layer = mode() == HeightmapMode::kLayeredFillOrderedBase;
 
   updateMapInfo(heightmap.mapInfo());
 
@@ -1443,6 +1345,33 @@ bool Heightmap::buildHeightmapT(KeyWalker &walker, const glm::dvec3 &reference_p
   heightmap::SrcVoxel src_voxel(src_map, use_voxel_mean);
   heightmap::DstVoxel hm_voxel(heightmap, imp_->heightmap_voxel_layer, use_voxel_mean);
 
+  // Calculate the key range which marks the vertical slice through the reference map which covers the vertical range
+  //  [reference_pos_height - floor, reference_pos_height + ceiling]
+  KeyRange reference_planar_slice(walker.minKey(), walker.maxKey(), src_map.regionVoxelDimensions());
+  const double height_sign = (int(imp_->up_axis_id) >= 0) ? 1.0 : -1.0;
+  glm::dvec2 planar_slice(reference_pos[imp_->vertical_axis_index] - height_sign * imp_->floor,
+                          reference_pos[imp_->vertical_axis_index] + height_sign * imp_->ceiling);
+  if (planar_slice[0] > planar_slice[1])
+  {
+    std::swap(planar_slice[0], planar_slice[1]);
+  }
+  {
+    // Adjust range min/max to match the planar_slice.
+    glm::dvec3 ref_pos = reference_pos;
+    ref_pos[imp_->vertical_axis_index] = planar_slice[0];
+    Key ref_key = src_map.voxelKey(ref_pos);
+    Key min_key = reference_planar_slice.minKey();
+    min_key.setAxisFrom(imp_->vertical_axis_index, ref_key);
+    reference_planar_slice.setMinKey(min_key);
+
+    ref_pos = reference_pos;
+    ref_pos[imp_->vertical_axis_index] = planar_slice[1];
+    ref_key = src_map.voxelKey(ref_pos);
+    Key max_key = reference_planar_slice.maxKey();
+    max_key.setAxisFrom(imp_->vertical_axis_index, ref_key);
+    reference_planar_slice.setMaxKey(max_key);
+  }
+
 #if HM_DEBUG_VOXEL
   const glm::dvec3 debug_pos(2.05, 0.75, 0);
   const Key debug_src_key(-1, -1, 0, 28, 13, 16);
@@ -1453,6 +1382,7 @@ bool Heightmap::buildHeightmapT(KeyWalker &walker, const glm::dvec3 &reference_p
   std::set<ohm::Key> multi_layer_keys;
   const bool ordered_layers = areLayersSorted();  // True to sort multi-layered configurations.
   bool abort = false;
+  bool is_first_column_visit = true;  // Starts true. First key is always a first visit to the column.
   do
   {
 #if HM_DEBUG_VOXEL
@@ -1468,6 +1398,8 @@ bool Heightmap::buildHeightmapT(KeyWalker &walker, const glm::dvec3 &reference_p
       int stopme = 2;
     }
 #endif  // HM_DEBUG_VOXEL
+    bool is_initial_key_in_planar_slice =
+      walk_key.isBounded(reference_planar_slice.minKey(), reference_planar_slice.maxKey());
 
     // Find the nearest voxel to the current key which may be a ground candidate.
     // This is key closest to the walk_key which could be ground. This will be either an occupied voxel, or virtual
@@ -1477,6 +1409,10 @@ bool Heightmap::buildHeightmapT(KeyWalker &walker, const glm::dvec3 &reference_p
                                                               walker.maxKey(), voxel_floor, voxel_ceiling,
                                                               clearance_voxel_count_permissive, supporting_voxel_flags);
 
+    is_initial_key_in_planar_slice =
+      is_initial_key_in_planar_slice ||
+      candidate_key.isBounded(reference_planar_slice.minKey(), reference_planar_slice.maxKey());
+
     // Walk up from the candidate to find the best heightmap voxel.
     double height = 0;
     double clearance = 0;
@@ -1485,6 +1421,10 @@ bool Heightmap::buildHeightmapT(KeyWalker &walker, const glm::dvec3 &reference_p
     const Key ground_key = (!candidate_key.isNull()) ? findGround(&height, &clearance, src_voxel, candidate_key,
                                                                   walker.minKey(), walker.maxKey(), *imp_) :
                                                        walk_key;
+
+    is_initial_key_in_planar_slice =
+      is_initial_key_in_planar_slice ||
+      ground_key.isBounded(reference_planar_slice.minKey(), reference_planar_slice.maxKey());
 
     heightmap::onVisitWalker(walker, *imp_, walk_key, candidate_key, ground_key);
 
@@ -1501,6 +1441,7 @@ bool Heightmap::buildHeightmapT(KeyWalker &walker, const glm::dvec3 &reference_p
     glm::dvec3 voxel_pos = (voxel_type == kOccupied) ? src_voxel.position() : src_voxel_centre;
 
     // Hack: for planar_base_layer testing
+    if (planar_base_layer)
     {
       Key hm_key = heightmap.voxelKey(voxel_pos);
       project(&hm_key);
@@ -1509,7 +1450,8 @@ bool Heightmap::buildHeightmapT(KeyWalker &walker, const glm::dvec3 &reference_p
 
     if (voxel_type == kOccupied || (voxel_type == kFree && imp_->generate_virtual_surface))
     {
-      if (addSurfaceVoxel(hm_voxel, src_voxel, voxel_type, clearance, voxel_pos, multi_layer_keys))
+      if (addSurfaceVoxel(hm_voxel, src_voxel, voxel_type, clearance, voxel_pos, multi_layer_keys,
+                          is_initial_key_in_planar_slice))
       {
         ++populated_count;
       }
@@ -1517,7 +1459,7 @@ bool Heightmap::buildHeightmapT(KeyWalker &walker, const glm::dvec3 &reference_p
 
     TES_SERVER_UPDATE(g_tes, 0.0f);
     supporting_voxel_flags = iterating_supporting_flags;
-  } while (!abort && walker.walkNext(walk_key));
+  } while (!abort && walker.walkNext(walk_key, is_first_column_visit));
 
   if (ordered_layers)
   {
@@ -1531,7 +1473,7 @@ bool Heightmap::buildHeightmapT(KeyWalker &walker, const glm::dvec3 &reference_p
 
 bool Heightmap::addSurfaceVoxel(heightmap::DstVoxel &hm_voxel, heightmap::SrcVoxel &src_voxel,
                                 const OccupancyType voxel_type, double clearance, glm::dvec3 voxel_pos,
-                                std::set<ohm::Key> &multi_layer_keys)
+                                std::set<ohm::Key> &multi_layer_keys, bool is_layer_zero)
 {
   if (voxel_type != kUnobserved && voxel_type != kNull)
   {
@@ -1606,6 +1548,7 @@ bool Heightmap::addSurfaceVoxel(heightmap::DstVoxel &hm_voxel, heightmap::SrcVox
       height_info.height = heightmap::relativeVoxelHeight(src_height, hm_key, heightmap, imp_->up);
       height_info.clearance = float(clearance);
       height_info.normal_x = height_info.normal_y = height_info.normal_z = 0;
+      height_info.type = (is_layer_zero) ? 0 : 1;
 
       if (voxel_type == kOccupied && src_voxel.covariance.isValid())
       {

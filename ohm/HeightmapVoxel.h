@@ -11,7 +11,7 @@
 namespace ohm
 {
 /// A voxel within the heightmap.
-struct HeightmapVoxel
+struct alignas(8) HeightmapVoxel
 {
   /// The name of the layer which stores these voxels.
   static const char *const kHeightmapLayer;
@@ -32,8 +32,8 @@ struct HeightmapVoxel
   float normal_y;
   /// Local surface normal Z coordinate.
   float normal_z;
-  /// Reserved for padding and alignment.
-  uint32_t reserved;
+  /// Type information. Currently restricted to 0 = base layer, 1 = extended layer.
+  uint8_t type;
 };
 }  // namespace ohm
 

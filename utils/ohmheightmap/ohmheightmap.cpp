@@ -56,6 +56,10 @@ std::istream &operator>>(std::istream &in, ohm::HeightmapMode &mode)
   {
     mode = ohm::HeightmapMode::kLayeredFillOrdered;
   }
+  else if (mode_str == "layered-base")
+  {
+    mode = ohm::HeightmapMode::kLayeredFillOrderedBase;
+  }
   else
   {
     badArgParse(mode_str);
@@ -78,6 +82,9 @@ std::ostream &operator<<(std::ostream &out, const ohm::HeightmapMode mode)
     break;
   case ohm::HeightmapMode::kLayeredFillOrdered:
     out << "layered";
+    break;
+  case ohm::HeightmapMode::kLayeredFillOrderedBase:
+    out << "layered-base";
     break;
   default:
     out << "<unknown>";

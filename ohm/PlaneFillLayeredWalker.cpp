@@ -28,20 +28,30 @@ bool PlaneFillLayeredWalker::begin(Key &key)
   // Clear existing data.
   open_list_.clear();
   opened_grid_.clear();
+  visited_grid_.clear();
   opended_list_.clear();
 
   if (range.isValid())
   {
     // Size the 2D grid (fixed size)
     opened_grid_.resize(size_t(key_range[axis_indices[0]]) * size_t(key_range[axis_indices[1]]));
+    visited_grid_.resize(size_t(key_range[axis_indices[0]]) * size_t(key_range[axis_indices[1]]));
     // Reserve the open_list_ with double the initial capacity of the grid.
     opended_list_.reserve(2 * opened_grid_.size());
 
     // Clear the grid.
     std::fill(opened_grid_.begin(), opened_grid_.end(), 0u);
+    std::fill(visited_grid_.begin(), visited_grid_.end(), 0u);
 
     // Ensure the key is in range.
     key.clampTo(range.minKey(), range.maxKey());
+
+    // Mark the column as visited.
+    const unsigned grid_index = gridIndexForKey(key);
+    if (grid_index < visited_grid_.size())
+    {
+      visited_grid_[grid_index] = 1u;
+    }
 
     return true;
   }
@@ -50,13 +60,27 @@ bool PlaneFillLayeredWalker::begin(Key &key)
 }
 
 
-bool PlaneFillLayeredWalker::walkNext(Key &key)
+bool PlaneFillLayeredWalker::walkNext(Key &key, bool &is_first_column_visit)
 {
   // Pop the open list.
   if (!open_list_.empty())
   {
     key = open_list_.front();
     open_list_.pop_front();
+
+    const unsigned grid_index = gridIndexForKey(key);
+    if (grid_index < visited_grid_.size())
+    {
+      // Check if this is the first visit to the column.
+      is_first_column_visit = (visited_grid_[grid_index] != 0);
+      // Mark the column as visited.
+      visited_grid_[grid_index] = 1u;
+    }
+    else
+    {
+      // Technically an error.
+      is_first_column_visit = false;
+    }
     return true;
   }
 
