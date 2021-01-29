@@ -471,7 +471,7 @@ bool OccupancyMap::calculateExtents(glm::dvec3 *min_ext, glm::dvec3 *max_ext, Ke
   }
   if (max_key)
   {
-    *max_key = range.minKey();
+    *max_key = range.maxKey();
   }
   return valid;
 }
