@@ -34,13 +34,6 @@ class OccupancyMap;
 ///   - do work on key, refining it to be the actual key of interest.
 ///   - call @c visit(key) - where @c key value may be a refinement of the original key. This will push it's neighbours.
 ///   - call @c walkNext(key) and loop if true.
-///
-/// The fill walker normally adds neighbours as it walks each voxel. However, the neighbours setting
-/// @p auto_add_neighbours to false on construction allows manual neighbour management. This Allows the height of
-/// the plane to be adjusted during walking as in heightmap terrain following.
-///
-/// Nodes may be revisited according to the @c Revist behaviour passed to @c visit() . With
-/// @c auto_add_neighbours this is always @c Revisit::kNone.
 class ohm_API PlaneFillWalker
 {
 public:
@@ -52,14 +45,13 @@ public:
     kHigher     ///< Revisit if the key is higher along the up axis.
   };
 
-  /// Entry used to track node visiting in the @c visit_list. The pair loosly track a visiting height range. The first
-  /// item is the minimum height at which a voxel has been visited, while the second is the maximum height at which it
-  /// has been visited. Matching entries indicate a single visit, unless a negative value is present. A negative value
-  /// indices no visit, a zero or positive value indicates the offset from the min_ext_key at which the node was
-  /// visited.
+  /// Entry used to track node visiting in the @c visit_list. This tracks the height at which the cell has been visited
+  /// with -1 indicating an unvisited cell. The height is calculated by @c keyHeight() and marks the vertical voxel
+  /// offset from the @c minKey().
   struct Visit
   {
-    /// Height at which the cell has been visited.
+    /// Height at which the cell has been visited. The height is an offset from the @c minKey() height. -1 denotes an
+    /// unvisited cell.
     int height = -1;
 
     inline void visit(int visit_height) { height = visit_height; }
@@ -84,7 +76,6 @@ public:
   /// @param min_ext_key The starting voxel key (inclusive).
   /// @param max_ext_key The last voxel key (inclusive).
   /// @param up_axis Specifies the up axis for the map.
-  /// @param auto_add_neighbours True to automatically add horizontal neighbours to the open list when visiting
   /// voxels.
   PlaneFillWalker(const OccupancyMap &map, const Key &min_ext_key, const Key &max_ext_key, UpAxis up_axis,
                   Revisit revisit_behaviour = Revisit::kLower);
@@ -103,10 +94,10 @@ public:
   bool walkNext(Key &key);
 
   /// Call this function when visiting a voxel at the given @p key. The keys neighbouring @p key (on the walk plane)
-  /// are added to the open list, provided they are not already on the open list. The added neighouring keys are
+  /// are added to the open list, provided they are not already on the open list. The added neighbouring keys are
   /// filled in @p neighbours with the number of neighbours added given in the return value.
   /// @param key The key being visited. Must fall within the @c range.minKey() and @c range.maxKey() bounds.
-  /// @param neighbours Populted with any neighbours of @p key added to the open list.
+  /// @param neighbours Populated with any neighbours of @p key added to the open list.
   /// @return The number of neighbours added.
   size_t visit(const Key &key, PlaneWalkVisitMode mode, std::array<Key, 8> &neighbours);
   /// @overload

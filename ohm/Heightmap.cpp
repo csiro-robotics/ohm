@@ -332,7 +332,7 @@ inline double getVoxelHeight(const OccupancyMap &heightmap, const glm::dvec3 &up
 
 /// A secondary operation for @c findNearestSupportingVoxel() which finds the first occupied or virtual voxel in the
 /// column of @p from_key. This function can search either up or down from @p from_key until a candidate is found, the
-/// @p step_limit number of voxels have been considered or ofter @c to_key has been considered - whichever condition is
+/// @p step_limit number of voxels have been considered or after @p to_key has been considered - whichever condition is
 /// met first.
 ///
 /// A valid candidate voxel is one which is occupied or a virtual surface voxel. See the virtual surfaces section of the
@@ -340,21 +340,21 @@ inline double getVoxelHeight(const OccupancyMap &heightmap, const glm::dvec3 &up
 ///
 /// @param voxel Configured to allow access to various aspects of the source map voxels.
 /// @param from_key Voxel key identifying where to start the search from. Only voxels in the same column are considered
-///   up to @c to_key .
-/// @param to_key The final key to consider. This must be in the same column as @c from_key.
+///   up to @p to_key .
+/// @param to_key The final key to consider. This must be in the same column as @p from_key.
 /// @param up_axis_index Index of the up axis: 0=>x, 1=>y, 2=>z.
 /// @param step_limit Limits the number of voxels to be visited. Zero to visit all voxels in the range
-/// `[from_key, to_key]`
-/// @param search_up A flag used to indicate if we are searching up a column or not. The sign between @c from_key and
-/// cannot be used to infer this as this information is is defined by the heightmap primary axis, for which up may be
-/// alinged with an increasting, negative magnitude.
+///   `[from_key, to_key]`
+/// @param search_up A flag used to indicate if we are searching up a column or not. The sign of the difference between
+///   @p from_key and @p to_key cannot be used to infer this as this information as it is defined by the heightmap
+///   primary axis, for which up may be alinged with an increasing, negative magnitude.
 /// @param flags Flags affecting reporting. Only @c SupportingVoxelFlag::kVirtualSurfaces is considered here. When
 ///   set, consider virtual surface voxels - free voxels "supported" by unobserved voxels representig the best possible
 ///   surface estimate.
-/// @param[out] offset On success, set the number of voxels between @c from_key and the selected voxel. Undefined on
-/// failure.
+/// @param[out] offset On success, set the number of voxels between @p from_key and the selected voxel. Undefined on
+///   failure.
 /// @param[out] is_virtual On success, set to true if the selected voxel is a virtual surface voxel. False when the
-/// selected voxel is an occupied voxel. Undefined on failure.
+///   selected voxel is an occupied voxel. Undefined on failure.
 /// @return The first voxel found which is either occupied or a virtual surface voxel when @c kVirtualSurfaces is
 ///   set. The result is a null key on failure to find such a voxel within the search limits.
 Key findNearestSupportingVoxel2(SrcVoxel &voxel, const Key &from_key, const Key &to_key, int up_axis_index,

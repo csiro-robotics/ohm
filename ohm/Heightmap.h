@@ -221,11 +221,11 @@ public:
   /// @return True to prefer virtual voxels below the reference position.
   bool promoteVirtualBelow() const;
 
-  /// Sets the heightmap genertation mode. May be modified between calls to @c buildHeightmap()
+  /// Sets the heightmap generation mode. May be modified between calls to @c buildHeightmap()
   /// @param mode The target mode.
   void setMode(HeightmapMode mode);
 
-  /// Query the heightmap genertation mode. The default is @c kPlanar.
+  /// Query the heightmap generation mode. The default is @c kPlanar.
   /// @return The current heightmap generation mode.
   HeightmapMode mode() const;
 

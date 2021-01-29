@@ -45,7 +45,7 @@ struct ohm_API HeightmapDetail
   /// Ignore all source voxels which lie higher than this above the seed voxel height.
   /// Enable by setting a positive, non zero value.
   double ceiling = 0;
-  /// Ignore all source voxels which lie higher than this below the seed voxel height.
+  /// Ignore all source voxels which lie a distance greater than this below the seed voxel height.
   /// Enable by setting a positive, non zero value.
   double floor = 0;
   /// Minimum clearance above a potential ground/surface voxel required to accept the voxel as a viable surface.

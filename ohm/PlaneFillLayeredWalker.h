@@ -40,11 +40,11 @@ class OccupancyMap;
 class ohm_API PlaneFillLayeredWalker
 {
 public:
-  /// Entry used to track node visiting in the @c opended_list_. The pair loosly track a visiting height range. The
-  /// first item is the minimum height at which a voxel has been visited, while the second is the maximum height at
-  /// which it has been visited. Matching entries indicate a single visit, unless a negative value is present. A
-  /// negative value indices no visit, a zero or positive value indicates the offset from the @c range.minKey() at which
-  /// the node was visited.
+  /// Entry used to track node visiting in the @c opened_list_. The @c height is the minimum height at which a voxel
+  /// has been visited as a vertical offset from the @c minKey(). A negative value indices no visit, a zero or positive
+  /// value indicates the offset from the @c minKey() at which the node was visited.
+  ///
+  /// The @c next value creates a linked list to manage multiple visitations to the same 2D cell location.
   struct Opened
   {
     using List = std::vector<Opened>;
@@ -93,7 +93,7 @@ public:
   bool walkNext(Key &key);
 
   /// Call this function when visiting a voxel at the given @p key. The keys neighbouring @p key (on the walk plane)
-  /// are added to the open list, provided they are not already on the open list. The added neighouring keys are
+  /// are added to the open list, provided they are not already on the open list. The added neighbouring keys are
   /// filled in @p neighbours with the number of neighbours added given in the return value.
   ///
   /// Note: when @p mode is @c kAddUnvisitedNeighbours the neighbours in the layere *above* @c key are added. This
@@ -103,7 +103,7 @@ public:
   /// visited. This encourages traversal of unobserved space.
   ///
   /// @param key The key being visited. Must fall within the @c range.minKey() and @c range.maxKey() bounds.
-  /// @param neighbours Populted with any neighbours of @p key added to the open list.
+  /// @param neighbours Populated with any neighbours of @p key added to the open list.
   /// @return The number of neighbours added.
   size_t visit(const Key &key, PlaneWalkVisitMode mode, std::array<Key, 8> &neighbours);
   /// @overload

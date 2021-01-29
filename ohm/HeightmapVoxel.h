@@ -20,6 +20,12 @@ enum HeightmapVoxelLayer : uint8_t
 };
 
 /// A voxel within the heightmap.
+///
+/// @note Use of @c alignas will need to be removed should this structure be needed in GPU code. OpenCL 1.2 supports
+/// `__attribute__ ((aligned (n)))` style alignment. A macro may be used to manage this.
+/// See https://www.khronos.org/registry/OpenCL/sdk/1.2/docs/man/xhtml/
+///
+/// CUDA compatibilty would also need to be assessed.
 struct alignas(8) HeightmapVoxel
 {
   /// The name of the layer which stores these voxels.

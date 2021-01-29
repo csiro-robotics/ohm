@@ -161,7 +161,7 @@ public:
   /// A range is invalid if:
   /// - @c minKey().isNull() is true
   /// - @c maxKey().isNull() is true
-  /// - The range defined by @c minKey() to @c maxKey() is not positive.
+  /// - The range defined by @c minKey() to @c maxKey() is zero or negative.
   ///
   /// @return True if this object defines a valid range.
   inline bool isValid() const
