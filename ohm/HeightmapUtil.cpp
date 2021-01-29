@@ -32,15 +32,6 @@ int setupHeightmap(ohm::OccupancyMap &heightmap, HeightmapDetail &detail)
   MapLayer *layer;
   VoxelLayout voxels;
 
-  const float max_clearance = std::numeric_limits<float>::max();
-  int max_clearance_int = 0;
-  static_assert(sizeof(max_clearance) == sizeof(max_clearance_int), "size mismatch");
-
-  memcpy(&max_clearance_int, &max_clearance, sizeof(max_clearance));
-
-  size_t clear_value = 0;
-  // Initialise the data structure to have both ranges at float max.
-  memset(&clear_value, max_clearance_int, sizeof(clear_value));
   layer = layout.addLayer(HeightmapVoxel::kHeightmapLayer, 0);
   int layer_index = static_cast<int>(layer->layerIndex());
   voxels = layer->voxelLayout();
