@@ -1107,14 +1107,21 @@ TEST(Heightmap, LayeredAbove)
   heightmapLayeredTest("layered-above", LayeredTestStart::kOnPlatform);
 }
 
+
 TEST(Heightmap, LayeredBelow)
+{
+  heightmapLayeredTest("layered-below", LayeredTestStart::kUnderPlatform);
+}
+
+
+TEST(Heightmap, LayeredBase)
 {
   // For this test, we also check the "base layer" functionality of the kLayeredFill mode. See below.
   std::unique_ptr<ohm::OccupancyMap> layered_heightmap;
-  heightmapLayeredTest("layered-below", LayeredTestStart::kUnderPlatform, ohm::HeightmapMode::kLayeredFill,
+  heightmapLayeredTest("layered-base", LayeredTestStart::kUnderPlatform, ohm::HeightmapMode::kLayeredFill,
                        &layered_heightmap);
   std::unique_ptr<ohm::OccupancyMap> planar_heightmap;
-  heightmapLayeredTest("layere-below-planar", LayeredTestStart::kUnderPlatform, ohm::HeightmapMode::kPlanar,
+  heightmapLayeredTest("layere-base-planar", LayeredTestStart::kUnderPlatform, ohm::HeightmapMode::kPlanar,
                        &planar_heightmap);
 
   // Validate the base layer functionality. We expect the base layer to exact match the kPlanar map. The
@@ -1169,7 +1176,7 @@ TEST(Heightmap, LayeredBelow)
     }
   }
 
-  failed_points.save("layered-below-failed.ply", true);
+  failed_points.save("layered-base-failed.ply", true);
 }
 
 TEST(Heightmap, LayeredExternal)
