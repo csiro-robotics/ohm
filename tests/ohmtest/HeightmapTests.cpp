@@ -961,7 +961,9 @@ enum class LayeredTestStart
   kOutside
 };
 
-void heightmapLayeredTest(const std::string &name, LayeredTestStart start_location)
+void heightmapLayeredTest(const std::string &name, LayeredTestStart start_location,
+                          ohm::HeightmapMode mode = ohm::HeightmapMode::kLayeredFill,
+                          std::unique_ptr<ohm::OccupancyMap> *heightmap_out = nullptr)
 {
   // For this test we use the multi-layered map generation. For validation, we set the target clearance to zero which
   // allows the heightmap to be a precise representation of the original map. We can then convert the heightmap back
@@ -974,14 +976,16 @@ void heightmapLayeredTest(const std::string &name, LayeredTestStart start_locati
   ohm::save(name + "-map.ohm", map);
   ohmtools::saveCloud(name + "-map.ply", map);
 
-  // Disable any clearance constraint.
-  const double clearance_constraint = 0;
+  // Disable any clearance constraint except for planar mode.
+  // The use of planar mode is only for base layer testing. We need a ~1+ voxel clearance in order to get a planar
+  // map which exactly matches the layered map base layer.
+  const double clearance_constraint = (mode != ohm::HeightmapMode::kPlanar) ? 0.0 : 1.1 * map.resolution();
   ohm::Heightmap layered_heightmap(map.resolution(), clearance_constraint);
   layered_heightmap.setOccupancyMap(&map);
   layered_heightmap.heightmap().setOrigin(map.origin());
 
   // Build the layered heightmap.
-  layered_heightmap.setMode(ohm::HeightmapMode::kLayeredFill);
+  layered_heightmap.setMode(mode);
 
   glm::dvec3 seed_pos(0);
   switch (start_location)
@@ -1015,6 +1019,11 @@ void heightmapLayeredTest(const std::string &name, LayeredTestStart start_locati
   ohmtools::saveHeightmapCloud(name + "-hm.ply", layered_heightmap.heightmap(),
                                ohmtools::SaveHeightmapCloudOptions(save_opt));
 
+  if (heightmap_out)
+  {
+    heightmap_out->reset(layered_heightmap.heightmap().clone());
+  }
+
   // Now convert the heightmap back into a normal occupancy map.
   ohm::OccupancyMap test_map(map.resolution());
   test_map.setOrigin(map.origin());
@@ -1046,6 +1055,12 @@ void heightmapLayeredTest(const std::string &name, LayeredTestStart start_locati
   }
 
   new_occupancy.reset();
+
+  if (mode == ohm::HeightmapMode::kPlanar)
+  {
+    // Do not validate the planar map. It's a special case for base layer validation.
+    return;
+  }
 
   // Ensure we've extracted something.
   ASSERT_GT(test_voxel_count, 0);
@@ -1094,7 +1109,67 @@ TEST(Heightmap, LayeredAbove)
 
 TEST(Heightmap, LayeredBelow)
 {
-  heightmapLayeredTest("layered-below", LayeredTestStart::kUnderPlatform);
+  // For this test, we also check the "base layer" functionality of the kLayeredFill mode. See below.
+  std::unique_ptr<ohm::OccupancyMap> layered_heightmap;
+  heightmapLayeredTest("layered-below", LayeredTestStart::kUnderPlatform, ohm::HeightmapMode::kLayeredFill,
+                       &layered_heightmap);
+  std::unique_ptr<ohm::OccupancyMap> planar_heightmap;
+  heightmapLayeredTest("layere-below-planar", LayeredTestStart::kUnderPlatform, ohm::HeightmapMode::kPlanar,
+                       &planar_heightmap);
+
+  // Validate the base layer functionality. We expect the base layer to exact match the kPlanar map. The
+  // heightmapLayeredTest() function has some special handling for the planar mode.
+
+  // Walk the layered heightmap. For each base layer voxel, check that the voxel in the planar map has the same
+  // coordinate (mostly interested in height).
+  ohm::Voxel<const float> layered_occupancy(layered_heightmap.get(), layered_heightmap->layout().occupancyLayer());
+  ohm::Voxel<const float> planar_occupancy(planar_heightmap.get(), layered_heightmap->layout().occupancyLayer());
+  ohm::Voxel<const ohm::HeightmapVoxel> layered_hm_voxel(
+    layered_heightmap.get(), layered_heightmap->layout().layerIndex(ohm::HeightmapVoxel::kHeightmapLayer));
+  ohm::Voxel<const ohm::HeightmapVoxel> planar_hm_voxel(
+    planar_heightmap.get(), planar_heightmap->layout().layerIndex(ohm::HeightmapVoxel::kHeightmapLayer));
+
+  ASSERT_TRUE(layered_occupancy.isLayerValid() && layered_hm_voxel.isLayerValid());
+  ASSERT_TRUE(planar_occupancy.isLayerValid() && planar_hm_voxel.isLayerValid());
+
+  const ohm::Key zero_key(0, 0, 0, 0, 0, 0);
+  ohm::PlyMesh failed_points;
+  for (auto iter = layered_heightmap->begin(); iter != layered_heightmap->end(); ++iter)
+  {
+    ohm::setVoxelKey(iter, layered_occupancy, layered_hm_voxel);
+    ASSERT_TRUE(layered_occupancy.isValid() && layered_hm_voxel.isValid());
+    if (ohm::isOccupied(layered_occupancy) && layered_hm_voxel.data().layer == kHvlBaseLayer)
+    {
+      // We have a base layer voxel. Validate.
+      // Planar map should use the same key values so long as the vertical offsets are zero.
+      ohm::Key planar_key = iter.key();
+      planar_key.setAxisFrom(2, zero_key);
+
+      ohm::setVoxelKey(planar_key, planar_occupancy, planar_hm_voxel);
+      ASSERT_TRUE(planar_occupancy.isValid());
+      ASSERT_TRUE(planar_hm_voxel.isValid());
+
+      // Calculate the positions.
+      glm::dvec3 layered_pos = layered_heightmap->voxelCentreGlobal(iter.key());
+      glm::dvec3 planar_pos = layered_heightmap->voxelCentreGlobal(planar_key);
+
+      // Add in height.
+      layered_pos[2] += layered_hm_voxel.data().height;
+      planar_pos[2] += planar_hm_voxel.data().height;
+
+      // Validate.
+      const glm::dvec3 delta = layered_pos - planar_pos;
+      EXPECT_NEAR(glm::dot(delta, delta), 0, 1e-3 * 1e-3);
+
+      if (glm::dot(delta, delta) >= 1e-3 * 1e-3)
+      {
+        failed_points.addVertex(layered_pos, ohm::Colour::kColours[ohm::Colour::kRed]);
+        failed_points.addVertex(planar_pos, ohm::Colour::kColours[ohm::Colour::kGreen]);
+      }
+    }
+  }
+
+  failed_points.save("layered-below-failed.ply", true);
 }
 
 TEST(Heightmap, LayeredExternal)
@@ -1317,10 +1392,7 @@ TEST(Heightmap, VirtualSurfaceLayered)
   //   case ohm::HeightmapVoxelType::kVirtualSurface:
   //     // Validate that this corresponds to a free voxel in the source map.
   //     src_occupancy.setKey(map.voxelKey(hm_pos));
-  //     ASSERT_EQ(ohm::occupancyType(src_occupancy), ohm::kFree);
-  //     // Remove this from the list of virtual surface keys. Well validate we touched everything below.
-  //     // We must first convert the heightmap position into a key within the source map.
-  //     validation_info.virtual_surface.erase(map.voxelKey(hm_pos));
+  //     ASSERT_EQ(ohm::occupancyType(src_occupancy),k.voxelKey(hm_pos));
   //     break;
   //   case ohm::HeightmapVoxelType::kVacant:
   //     // Validate that this corresponds to an unobserved or null voxel in the source map.
