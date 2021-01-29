@@ -266,7 +266,6 @@ size_t RayMapperOccupancy::lookupRays(const glm::dvec3 *rays, size_t element_cou
     // 4. Apply saturation logic: only min saturation relevant
     //    -
 
-    // TODO: change map_->region(key.regionKey(), true) to false, handle null MapChunk
     const unsigned voxel_index = ohm::voxelIndex(key, occupancy_dim);
     float occupancy_value = unobservedOccupancyValue();
     MapChunk *chunk =

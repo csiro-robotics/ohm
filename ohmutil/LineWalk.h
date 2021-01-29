@@ -11,8 +11,6 @@
 #include <array>
 #include <cassert>
 
-#include <iostream>
-
 namespace ohm
 {
 /// A templatised, voxel based line walking algorithm. Voxels are accurately traversed from @p startPoint to

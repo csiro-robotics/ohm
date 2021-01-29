@@ -289,9 +289,6 @@ struct MapChunk
   /// @param[out] min_ext Set to the lower extents of the AABB.
   /// @param[out] max_ext Set to the upper extents of the AABB.
   void extents(glm::dvec3 &min_ext, glm::dvec3 &max_ext) const;
-
-  /// Return the time stamp when this chunk was last updated.
-  uint64_t stamp() const { return dirty_stamp; }
 };
 
 
