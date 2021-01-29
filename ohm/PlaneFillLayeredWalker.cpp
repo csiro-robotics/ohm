@@ -28,14 +28,14 @@ bool PlaneFillLayeredWalker::begin(Key &key)
   // Clear existing data.
   open_list_.clear();
   opened_grid_.clear();
-  opended_list_.clear();
+  opened_list_.clear();
 
   if (range.isValid())
   {
     // Size the 2D grid (fixed size)
     opened_grid_.resize(size_t(key_range[axis_indices[0]]) * size_t(key_range[axis_indices[1]]));
     // Reserve the open_list_ with double the initial capacity of the grid.
-    opended_list_.reserve(2 * opened_grid_.size());
+    opened_list_.reserve(2 * opened_grid_.size());
 
     // Clear the grid.
     std::fill(opened_grid_.begin(), opened_grid_.end(), 0u);
@@ -127,13 +127,13 @@ int PlaneFillLayeredWalker::keyHeight(const Key &key) const
 
 void PlaneFillLayeredWalker::open(int grid_index, int visit_height)
 {
-  opended_list_.emplace_back();
-  Opened &new_open = opended_list_.back();
+  opened_list_.emplace_back();
+  Opened &new_open = opened_list_.back();
   new_open.height = visit_height;
   new_open.next = opened_grid_[grid_index];
-  // Note: it is correct to use the opended_list_.size() to find the index of the new item as we are using a 1-based
+  // Note: it is correct to use the opened_list_.size() to find the index of the new item as we are using a 1-based
   // index.
-  opened_grid_[grid_index] = unsigned(opended_list_.size());
+  opened_grid_[grid_index] = unsigned(opened_list_.size());
 }
 
 
@@ -142,10 +142,10 @@ bool PlaneFillLayeredWalker::hasOpened(int grid_index, int visit_height) const
   // Traverse the linked list of items for this grid index.
   // Get the item head.
   unsigned current = opened_grid_[grid_index];
-  // current is a 1-based index in to opended_list_. Zero is a terminating value.
+  // current is a 1-based index in to opened_list_. Zero is a terminating value.
   while (current > 0)
   {
-    const Opened &opened = opended_list_[current - 1];
+    const Opened &opened = opened_list_[current - 1];
     if (opened.height == visit_height)
     {
       return true;

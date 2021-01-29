@@ -128,13 +128,13 @@ private:
 
   std::deque<Key> open_list_;  ///< Remaining voxels to (re)process.
   /// Identifies which bounded keys have been opened.
-  Opened::List opended_list_;
-  /// A grid of 1-based indices into the @c opended_list_. The @c opened_grid_ is sized to match grid of keys defined by
+  Opened::List opened_list_;
+  /// A grid of 1-based indices into the @c opened_list_. The @c opened_grid_ is sized to match grid of keys defined by
   /// the 2D region from @c range.minKey() to @c range.maxKey(). The values are 1-based indices into the @c
-  /// opended_list_ with zero marking a null value.
+  /// opened_list_ with zero marking a null value.
   ///
   /// A cell is opened if it has a non-zero value. The visit height can be found by following the index into the
-  /// @c opended_list_. Multiple visits can be followed by chaining indices using @c Opened::next.
+  /// @c opened_list_. Multiple visits can be followed by chaining indices using @c Opened::next.
   std::vector<int> opened_grid_;
 };
 }  // namespace ohm
