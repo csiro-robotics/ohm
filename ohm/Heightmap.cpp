@@ -392,7 +392,6 @@ Key findNearestSupportingVoxel2(SrcVoxel &voxel, const Key &from_key, const Key 
 
     // Now move the key up one voxel for the next iteration.
     voxel.map().moveKeyAlongAxis(current_key, up_axis_index, step);
-    *offset = -1;  // See offset increment comment in loop.
   }
 
   // Note: there is an asymmetry to how we use vertical_range. We would tend to explore up one more voxel than down
@@ -400,31 +399,41 @@ Key findNearestSupportingVoxel2(SrcVoxel &voxel, const Key &from_key, const Key 
   if (!search_up)
   {
     ++vertical_range;
-    *offset = 0;  // See offset increment comment in loop.
   }
+
+  *offset = 0;
+
+  // Confusion over iteration counters.
+  // We logically have three iteration counters which all do similar things: i, offset and current_key. While similar
+  // they are all slightly different:
+  // - i is a very simple loop counter. Not much special here, except that we can make it jump towards the end of the
+  //  loop in order to skip null regions.
+  // - offset marks how far we've searched and is reported to the caller. It is biased such that on the first iteration
+  //  searching up has a lower offset value than searching down. After that they fall in sync.
+  // - current_key steps up/down following i, but needs separate management since keys have multiple indexing values per
+  //  axis : a region index and a local index.
 
   for (int i = 0; i < vertical_range; ++i)
   {
-    // We want to bias the initial voxel selection to choose the upper voxel over the lower one (where they are both
-    // occupied) so that we can follow ramps up, rather than choosing the ground below. This is only relevent when the
-    // clearance is zero, but important.
+    // We want to bias the initial voxel selection such that calling code will to choose the upper voxel over the lower
+    // one (where they are both occupied) so that we can follow ramps up, rather than choosing the ground below. This is
+    // only relevent when the clearance is zero, but is important.
     //
-    // We achieve the initial bias by setting the offset when searching up to -1, so it becomes 0 on the first iteration
-    // noting that the first voxel it checks is the one above the seed voxel. Meanwhile the search down starts at zero
-    // so takes on a value of 1 on the first iteration.
+    // In order to create the bias, we manage the offset value in a non-linear fasion where it may be either 0 or 1 on
+    // the first iteration - searching up or down respectively. On subsequent iterations it is linear with a value
+    // matching `i + 1`.
     //
-    // On subsequent iterations, we want the offset value to match regardless of searching up or down. The calling
-    // function may bias the voxel selection to the one below via an it's inequality statement (below <= above).
+    // Note when searching up, first voxel checked is the one above the seed voxel.
     //
-    // So, on the second iteration we increment the search_up value by 2. In all other cases, the increment is 1.
+    // The offset parameter is used to report this information for the caller.
     //
     // The resulting offset series is:
     //
-    //              | init  | i=0 | 1 | 2 | 3 | 4 | 5 |
-    // ------------ | ----- | --- | - | - | - | - | - |
-    // Search up    | -1    | 0   | 2 | 3 | 4 | 5 | 6 |
-    // Search down  | 0     | 1   | 2 | 3 | 4 | 5 | 6 |
-    *offset += 1 + !!(search_up && i == 1);
+    //              | i=0 | 1 | 2 | 3 | 4 | 5 |
+    // ------------ | --- | - | - | - | - | - |
+    // Search up    | 0   | 2 | 3 | 4 | 5 | 6 |
+    // Search down  | 1   | 2 | 3 | 4 | 5 | 6 |
+    *offset = (i > 0) ? i + 1 : !search_up;
     voxel.setKey(current_key);
 
     // This line yields performance issues likely due to the stochastic memory access.
