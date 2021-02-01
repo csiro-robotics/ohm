@@ -747,14 +747,14 @@ public:
   /// Calculate the number of voxels along each axis between two keys. Semantically, <tt>b - a</tt>.
   /// @param from The first key.
   /// @param to The second key.
-  /// @return The voxel offset from @p a to @p b along each axis.
+  /// @return The voxel offset from @p from to @p to along each axis.
   glm::ivec3 rangeBetween(const Key &from, const Key &to) const;
 
   /// A static overload which requires the region dimensions in voxels for a region.
   /// @param from The first key.
   /// @param to The second key.
   /// @param region_voxel_dimensions The number of voxels in each region given per axis. See @c regionVoxelDimensions().
-  /// @return The voxel offset from @p a to @p b along each axis.
+  /// @return The voxel offset from @p from to @p to along each axis.
   static glm::ivec3 rangeBetween(const Key &from, const Key &to, const glm::ivec3 &region_voxel_dimensions);
 
   /// Builds the list of voxel keys intersected by the line segment connecting @p startPoint and @p endPoint.

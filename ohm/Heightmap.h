@@ -100,7 +100,7 @@ public:
   /// Voxel value assigned to heightmap cells which represent a virtual surface extracted from the source map.
   /// Virtual surfaces may be formed by the interface between a free voxel supported by an uncertain/null voxel.
   static constexpr float kHeightmapVirtualSurfaceValue = -1.0f;
-  /// Voxel value assigned to heightmap cells which are deliverately vacant in the heigthmap. This may occur when
+  /// Voxel value assigned to heightmap cells which are deliberately vacant in the heightmap. This may occur when
   /// the corresponding voxels have no valid voxel in the entire column from the source map or when no ground voxel
   /// can be found for a layered search. In a layered heightmap there may be a mix of vacant and surface voxels in a
   /// single column in the heightmap.
@@ -150,24 +150,24 @@ public:
   OccupancyMap &heightmap() const;
 
   /// Set the search ceiling level. Searches are constrained to this ceiling height from the seed voxel. The effective
-  /// ceiling varies depending on the active @c mode() . For @c HeightmapMode::kPlanar, the imposes a fixed limit. For
+  /// ceiling varies depending on the active @c mode() . For @c HeightmapMode::kPlanar , the imposes a fixed limit. For
   /// all fill modes, the ceiling is relative to the current seed voxel. This means the absolute ceiling will run
   /// parallel to a slope.
   /// @param ceiling The new ceiling value in global map units. Positive to enable, but must be larger than half the
   /// source map voxel resolution to have any effect.
   void setCeiling(double ceiling);
 
-  /// Get the search ceiling level. See @c setCeiling().
+  /// Get the search ceiling level. See @c setCeiling() .
   /// @return The search ceiling value in global map units.
   double ceiling() const;
 
   /// Set the search floor level. Searches are constrained to search down only to this floor height from the seed voxel.
-  /// The same effective constraints apply for the floor as do for @c setCeiling().
+  /// The same effective constraints apply for the floor as do for @c setCeiling() .
   /// @param floor The new floor value in global map units. Positive to enable, but must be larger than half the source
   /// map voxel resolution to have any effect.
   void setFloor(double floor);
 
-  /// Get the search floor level. See @c setCeiling().
+  /// Get the search floor level. See @c setCeiling() .
   /// @return The search floor value in global map units.
   double floor() const;
 
@@ -225,7 +225,7 @@ public:
   /// @param mode The target mode.
   void setMode(HeightmapMode mode);
 
-  /// Query the heightmap generation mode. The default is @c kPlanar.
+  /// Query the heightmap generation mode. The default is @c kPlanar .
   /// @return The current heightmap generation mode.
   HeightmapMode mode() const;
 
@@ -236,13 +236,13 @@ public:
     return mode() == HeightmapMode::kLayeredFillUnordered || mode() == HeightmapMode::kLayeredFill;
   }
 
-  /// Query if the resulting multi-layered heightmap has each column ordered by height. Implies @c isMultiLayered().
+  /// Query if the resulting multi-layered heightmap has each column ordered by height. Implies @c isMultiLayered() .
   /// @return True if the heightmap contains columns sorted in height order.
   inline bool areLayersSorted() const { return mode() == HeightmapMode::kLayeredFill; }
 
   /// Set the heightmap generation to flood fill ( @c true ) or planar ( @c false ).
   ///
-  /// @deprecated Use @c setMode(HeightmapMode::kSimpleFill).
+  /// @deprecated Use @c setMode(HeightmapMode::kSimpleFill) .
   ///
   /// @param flood_fill True to enable the flood fill technique.
   inline void setUseFloodFill(bool flood_fill)
@@ -252,7 +252,7 @@ public:
 
   /// Is the flood fill generation technique in use ( @c true ) or planar technique ( @c false ).
   ///
-  /// @deprecated Check @c mode() against @c HeightmapMode::kSimpleFill.
+  /// @deprecated Check @c mode() against @c HeightmapMode::kSimpleFill .
   ///
   /// @return True when using flood fill.
   inline bool useFloodFill() const { return mode() == HeightmapMode::kSimpleFill; }
@@ -335,9 +335,9 @@ public:
   /// @return The global voxel height value.
   double getVoxelHeight(const Key &key, double height) const;
 
-  /// Calculate the height of the voxel at @p key with matching @c HeightmapVoxel @p info.
+  /// Calculate the height of the voxel at @p key with matching @c HeightmapVoxel @p info .
   ///
-  /// This calls through to @c getVoxelHeight(const Key &, double) using the value @p info.height .
+  /// This calls through to @c getVoxelHeight(key,height) using the value @p info.height .
   ///
   /// @param key The heightmap voxel key of interest. The up axis should always be (0, 0) for non-layered heightmaps.
   /// @param info The voxel heightmap data.
@@ -361,12 +361,12 @@ public:
 
   /// Ensure that @p key is referencing a voxel within the heightmap plane.
   /// @param[in,out] key The key to project. May be modified by this call. Must not be null.
-  /// @return A reference to @p key.
+  /// @return A reference to @p key .
   Key &project(Key *key) const;
 
 private:
   /// Build a key range which covers the source map extents in 2D, but limits the vertical range by the floor/ceiling
-  /// around @p reference_pos.
+  /// around @p reference_pos .
   /// @param min_key The source map minimum extents key.
   /// @param max_key The source map maximum extents key.
   /// @param reference_pos The reference position to build the heightmap from. Only the vertical component is used.
@@ -376,24 +376,24 @@ private:
   /// Internal implementation of heightmap construction. Supports the different key walking techniques available.
   /// @param walker The key walker used to iterate the source map and heightmap overlap.
   /// @param reference_pos Reference position around which to generate the heightmap
-  /// @param on_visit Optional callback invoked for each key visited. Parameters are: @p walker, this object's
+  /// @param on_visit Optional callback invoked for each key visited. Parameters are: @p walker , this object's
   ///   internal details, the candidate key first evaluated for the column search start, the ground key to be migrated
   ///   to the heightmap. Both keys reference the source map.
   template <typename KeyWalker>
   bool buildHeightmapT(KeyWalker &walker, const glm::dvec3 &reference_pos, unsigned initial_supporting_flags,
                        unsigned iterating_supporting_flags);
 
-  /// Helper function for adding a surface, or virtual surface voxel from @c buildHeightmapT().
+  /// Helper function for adding a surface, or virtual surface voxel from @c buildHeightmapT() .
   ///
-  /// @param hm_voxel Desitnation voxel management structure - references the target heightmap @c OccupancyMap.
-  ///     This will be modified to match the heightmap voxel corresponding to @p src_voxel. It is passed as an argument
+  /// @param hm_voxel Destination voxel management structure - references the target heightmap @c OccupancyMap .
+  ///     This will be modified to match the heightmap voxel corresponding to @p src_voxel . It is passed as an argument
   ///     for caching efficiency and could otherwise be omitted.
   /// @param src_voxel Source voxel management structure - references the source @c OccupancyMap and identifies the
   ///     voxel from the source map to be added to the heightmap. Must be valid.
-  /// @param voxel_type The @c OccupancyType associated with @c src_voxel.
+  /// @param voxel_type The @c OccupancyType associated with @c src_voxel .
   /// @param clearance The available height clearance above @p src_voxel being added.
-  /// @param voxel_pos The position of @c src_voxel. Will sub-voxel positioning if available and allowed otherwise marks
-  ///     the voxel centre.
+  /// @param voxel_pos The position of @c src_voxel . Will use sub-voxel positioning if available and allowed otherwise
+  ///     marks the voxel centre.
   /// @param multi_layer_keys Set of heightmap map keys which identify columns containing more than one voxel. Will
   ///     be added to if the @p hm_voxel already has voxel data and we are building a layered heightmap.
   /// @param is_base_layer_candidate Should be true if the @c src_voxel falls within the allowed range for being

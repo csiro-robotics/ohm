@@ -60,7 +60,7 @@ void KeyRange::expand(const Key &key)
 glm::ivec3 KeyRange::range() const
 {
   // The range defines a closed interval, so we have to add 1 in each dimension for the volume to ensure the maximal
-  // extents are consdiered.
+  // extents are considered.
   const glm::ivec3 volume_correction = glm::ivec3(1);
   return ohm::OccupancyMap::rangeBetween(min_key_, max_key_, region_dimensions_) + volume_correction;
 }

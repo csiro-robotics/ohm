@@ -10,7 +10,7 @@
 
 namespace ohm
 {
-/// Mode selection for handling neighbours in various @c PlaneWalker implementations used by @c Heightmap.
+/// Mode selection for handling neighbours in various @c PlaneWalker implementations used by @c Heightmap .
 /// Determines now neigbhours are handled when visiting a node.
 enum class PlaneWalkVisitMode
 {

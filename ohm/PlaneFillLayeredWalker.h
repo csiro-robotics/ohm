@@ -28,7 +28,7 @@ class OccupancyMap;
 /// Helper class for walking heightmap generation in a floodfill pattern with the intention of generating a multi-layer
 /// heightmap.
 ///
-/// Manages walking the correct axis based on the @c UpAxis.
+/// Manages walking the correct axis based on the @c UpAxis .
 ///
 /// Usage:
 /// - Initialise the walker and a key value to start iteration from.
@@ -40,8 +40,8 @@ class OccupancyMap;
 class ohm_API PlaneFillLayeredWalker
 {
 public:
-  /// Entry used to track node visiting in the @c opened_list_. The @c height is the minimum height at which a voxel
-  /// has been visited as a vertical offset from the @c minKey(). A negative value indices no visit, a zero or positive
+  /// Entry used to track node visiting in the @c opened_list_ . The @c height is the minimum height at which a voxel
+  /// has been visited as a vertical offset from the @c minKey() . A negative value indices no visit, a zero or positive
   /// value indicates the offset from the @c minKey() at which the node was visited.
   ///
   /// The @c next value creates a linked list to manage multiple visitations to the same 2D cell location.
@@ -75,15 +75,15 @@ public:
   inline const Key &minKey() const { return range.minKey(); }
   inline const Key &maxKey() const { return range.maxKey(); }
 
-  /// Begin walking keys starting from the given @p key.
+  /// Begin walking keys starting from the given @p key .
   ///
-  /// After calling @c begin(), it is expected that the key value will be processed and possibly modified along the
+  /// After calling @c begin() , it is expected that the key value will be processed and possibly modified along the
   /// up axis. For example in heightmap generation, the key may initially define the seed key for finding a valid
   /// surface. The surface itself may appear at a different height. It is the modified height key which should be passed
-  /// to @c visit() before calling @c walkNext(). In the case where no surface is found, the unmodified key may be
-  /// given to @c visit().
+  /// to @c visit() before calling @c walkNext() . In the case where no surface is found, the unmodified key may be
+  /// given to @c visit() .
   ///
-  /// @param[in,out] key The seed key for walking. The key will be clamped to @c range.
+  /// @param[in,out] key The seed key for walking. The key will be clamped to @c range .
   /// @return True if the range defines a valid region to walk.
   bool begin(Key &key);
 
@@ -96,10 +96,10 @@ public:
   /// are added to the open list, provided they are not already on the open list. The added neighbouring keys are
   /// filled in @p neighbours with the number of neighbours added given in the return value.
   ///
-  /// Note: when @p mode is @c kAddUnvisitedNeighbours the neighbours in the layere *above* @c key are added. This
+  /// Note: when @p mode is @c kAddUnvisitedNeighbours the neighbours in the layer *above* @c key are added. This
   /// encourages traversal up slopes connected to the ground especially when there is no clearance constraint.
   /// @p mode should be @c kAddUnvisitedColumnNeighbours when a valid ground candidate cound not be found in the column
-  /// of @p key. This mode will add neighbours on the same level as @p key, but only if the column itself has not been
+  /// of @p key . This mode will add neighbours on the same level as @p key , but only if the column itself has not been
   /// visited. This encourages traversal of unobserved space.
   ///
   /// @param key The key being visited. Must fall within the @c range.minKey() and @c range.maxKey() bounds.
@@ -114,16 +114,16 @@ public:
   }
 
 private:
-  /// Mark the item at @p grid_index in the @c opened_grid_ as being opened at the given @c visit_height.
+  /// Mark the item at @p grid_index in the @c opened_grid_ as being opened at the given @c visit_height .
   /// @param grid_index An index into @c opened_grid_
-  /// @param visit_height The neight at which to visit.
+  /// @param visit_height The height at which to visit.
   void open(int grid_index, int visit_height);
   bool hasOpened(int grid_index, int visit_height) const;
   inline bool hasOpened(int grid_index) const { return opened_grid_[grid_index] > 0; }
 
-  /// Calculate the @c opened_grid_ index for the given @p key.
+  /// Calculate the @c opened_grid_ index for the given @p key .
   unsigned gridIndexForKey(const Key &key);
-  /// Query the Opened entry height for @p key.
+  /// Query the Opened entry height for @p key .
   int keyHeight(const Key &key) const;
 
   std::deque<Key> open_list_;  ///< Remaining voxels to (re)process.

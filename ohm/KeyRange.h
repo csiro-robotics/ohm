@@ -20,7 +20,7 @@ class KeyRangeIterator;
 
 /// A utility class which represents a key range in a map. The range supports iteration and volume operations.
 ///
-/// Note that a @c KeyRange always behaves as a closed interval. That is, the range defines a rectantular prism from
+/// Note that a @c KeyRange always behaves as a closed interval. That is, the range defines a rectangular prism from
 /// the @c minKey() to the @c maxKey() including the maximal key. This is illustrated in 2D below.
 ///
 /// @code{.unparsed}
@@ -47,14 +47,14 @@ class ohm_API KeyRange
 public:
   using iterator = KeyRangeIterator;  // NOLINT(readability-identifier-naming)
 
-  /// Default constructor. The created range consists of null min/max keys is not valid.
+  /// Default constructor. The created range consists of null min/max keys and is not valid.
   KeyRange() = default;
 
   /// Create a range between the given keys. The resulting range is only valid if the given @p min_key and @p max_key
   /// values are correctly configured to define a zero or increasing range along each axis. Otherwise @c isValid() will
   /// be false.
-  /// @param min_key The minimul bounds for the range to define.
-  /// @param max_key The maximul bounds for the range to define.
+  /// @param min_key The minimal bounds for the range to define.
+  /// @param max_key The maximal bounds for the range to define.
   /// @param region_voxel_dim Defines the number of voxels in each region of the owning map.
   inline KeyRange(const Key &min_key, const Key &max_key, const glm::u8vec3 &region_voxel_dim)
     : min_key_(min_key)
@@ -64,11 +64,11 @@ public:
     updateEndKey();
   }
 
-  /// Create a range between the given keys for the specified map. The resulting range is only valid if the given @p
-  /// min_key and @p max_key values are correctly configured to define a zero or increasing range along each axis.
+  /// Create a range between the given keys for the specified map. The resulting range is only valid if the given
+  /// @p min_key and @p max_key values are correctly configured to define a zero or increasing range along each axis.
   /// Otherwise @c isValid() will be false.
-  /// @param min_key The minimul bounds for the range to define.
-  /// @param max_key The maximul bounds for the range to define.
+  /// @param min_key The minimal bounds for the range to define.
+  /// @param max_key The maximal bounds for the range to define.
   /// @param map Defines the map to which the range belongs. This sets the @c regionDimensions() but no reference or
   /// pointer to the map is retained.
   KeyRange(const Key &min_key, const Key &max_key, const ohm::OccupancyMap &map);
@@ -88,7 +88,7 @@ public:
   /// @return An iterator object referencing the @c minKey() .
   iterator begin() const;
 
-  /// Create an interation which references the voxel one step after the @c maxKey() .
+  /// Create an iterator which references the voxel one step after the @c maxKey() .
   ///
   /// @note Iteration of an invalid range - where @c isValid() is false - creates undefined behaviour.
   ///
@@ -119,16 +119,16 @@ public:
     updateEndKey();
   }
 
-  /// Expand the key range to include the given @p key.
+  /// Expand the key range to include the given @p key .
   ///
-  /// No change is made if @p key is null. For each of min/max keys which are null, they are set to match @p key.
+  /// No change is made if @p key is null. For each of min/max keys which are null, they are set to match @p key .
   ///
   /// @param key The key to include in the range.
   void expand(const Key &key);
 
   /// Expand the key range to include the given @p range.
   ///
-  /// No change is made by each null source key from @p range. For each of min/max keys in this range which are null,
+  /// No change is made by each null source key from @p range . For each of min/max keys in this range which are null,
   /// they are set to match the input range keys.
   ///
   /// @param range The other @c KeyRange to include in this one.
@@ -195,20 +195,20 @@ public:
   /// @return The 1D index of @p key in this range or zero if this range is invalid.
   size_t indexOf(const Key &key) const;
 
-  /// Performs the reverse operation of @c indexOf(), yielding a key from a 1D offset into this range.
+  /// Performs the reverse operation of @c indexOf() , yielding a key from a 1D offset into this range.
   /// @param index The index of this range. Assumed to be in the range.
   /// @return The key coresponding to @p index or a null key if this range is invalid.
   Key fromIndex(size_t index) const;
 
   /// Walk the given @p key to the next key in this range. Note: this is not bounds checked along Z and will continue
   /// to iterate the XY region beyond the range in Z. This function is intended for internal use to support
-  /// @c KeyRangeIterator.
+  /// @c KeyRangeIterator .
   /// @param[in,out] key The key to walk to the next voxel.
   inline void walkNext(Key &key) const { return walkNext(key, min_key_, max_key_, region_dimensions_); }
 
   /// Static utility function to walk the given @p key to the next key in this range. Note: this is not bounds checked
   /// along Z and will continue to iterate the XY region beyond the range in Z. This function is intended for internal
-  /// use to support @c KeyRangeIterator.
+  /// use to support @c KeyRangeIterator .
   /// @param[in,out] key The key to walk to the next voxel.
   /// @param min_key The minimal key of the range to walk.
   /// @param max_key The maximal (inclusive) key of the range to walk.
@@ -216,7 +216,7 @@ public:
   static void walkNext(Key &key, const Key &min_key, const Key &max_key, const glm::ivec3 &region_dimensions);
 
 private:
-  /// Update the value of @c end_key_. To be called whenever the min or max keys change.
+  /// Update the value of @c end_key_ . To be called whenever the min or max keys change.
   void updateEndKey();
 
   Key min_key_ = Key::kNull;       ///< The minimal/first key in the range.
@@ -225,14 +225,14 @@ private:
   glm::u8vec3 region_dimensions_;  ///< Defines the number of voxels in each region for the map to which this belongs.
 };
 
-/// Defines an object used to iterate a @c KeyRange. It is assumed that the range does not change during iteration.
+/// Defines an object used to iterate a @c KeyRange . It is assumed that the range does not change during iteration.
 class ohm_API KeyRangeIterator
 {
 public:
   /// Default constructor. The resulting iterator is not valid.
   inline KeyRangeIterator() = default;
 
-  /// Create an iterator object targetting the given @p range starting at @p initial_key.
+  /// Create an iterator object targeting the given @p range starting at @p initial_key .
   ///
   /// The @c initial_key is assumed to either be contained by the range, or to be the range object's @c endKey() value.
   ///
@@ -243,7 +243,7 @@ public:
     , range_(range)
   {}
 
-  /// Create an iterator object targetting the given @p range starting at the range object's @c minKey() value.
+  /// Create an iterator object targeting the given @p range starting at the range object's @c minKey() value.
   /// @param range The range to begin iterating.
   explicit inline KeyRangeIterator(const KeyRange &range)
     : KeyRangeIterator(range, range.minKey())
@@ -257,10 +257,10 @@ public:
   inline KeyRangeIterator &operator=(const KeyRangeIterator &other) = default;
 
   /// Equality operator.
-  /// @return True if the @c key() exactly matches @p other.key(). The associated ranges are not checked.
+  /// @return True if the @c key() exactly matches @p other.key() . The associated ranges are not checked.
   inline bool operator==(const KeyRangeIterator &other) const { return other.key() == key(); }
   /// Inequality operator.
-  /// @return True if the @c key() does not exactly matche @p other.key(). The associated ranges are not checked.
+  /// @return True if the @c key() does not exactly match @p other.key() . The associated ranges are not checked.
   inline bool operator!=(const KeyRangeIterator &other) const { return other.key() != key(); }
 
   /// Query the current key.
@@ -286,7 +286,7 @@ public:
 
   /// Postfix increment for the iterator. Iterator becomes invalid when incrementing an iterator
   /// referencing the last voxel in the map. Safe to call on an invalid iterator (no change).
-  /// @return @c This iterator before the increment.
+  /// @return This iterator before the increment.
   inline KeyRangeIterator operator++(int)
   {
     const auto iter = *this;

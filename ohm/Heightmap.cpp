@@ -201,7 +201,7 @@ struct DstVoxel
     // Check if the current heightmap voxel has already recorded a result at the given height. Only call for valid
     // voxels from multi-layered heightmaps.
 
-    // Create a voxel for interation. Seed from this.
+    // Create a voxel for iteration. Seed from this.
     const double epsilon = 1e-3 * occupancy.map()->resolution();
     DstVoxel walker;
     walker.occupancy = occupancy;
@@ -212,7 +212,7 @@ struct DstVoxel
     double voxel_height;
     while (walker.occupancy.isValid() && walker.occupancy.data() != ohm::unobservedOccupancyValue())
     {
-      // Convert from voxel relative to absolute heigth. This can introduce floating point error.
+      // Convert from voxel relative to absolute height. This can introduce floating point error.
       voxel_height = walker.heightmap.data().height;
       voxel_height += glm::dot(walker.occupancy.map()->voxelCentreGlobal(walker.occupancy.key()), up);
       if (std::abs(voxel_height - height) < epsilon)
@@ -331,7 +331,7 @@ inline double getVoxelHeight(const OccupancyMap &heightmap, const glm::dvec3 &up
 
 
 /// A secondary operation for @c findNearestSupportingVoxel() which finds the first occupied or virtual voxel in the
-/// column of @p from_key. This function can search either up or down from @p from_key until a candidate is found, the
+/// column of @p from_key . This function can search either up or down from @p from_key until a candidate is found, the
 /// @p step_limit number of voxels have been considered or after @p to_key has been considered - whichever condition is
 /// met first.
 ///
@@ -341,15 +341,15 @@ inline double getVoxelHeight(const OccupancyMap &heightmap, const glm::dvec3 &up
 /// @param voxel Configured to allow access to various aspects of the source map voxels.
 /// @param from_key Voxel key identifying where to start the search from. Only voxels in the same column are considered
 ///   up to @p to_key .
-/// @param to_key The final key to consider. This must be in the same column as @p from_key.
+/// @param to_key The final key to consider. This must be in the same column as @p from_key .
 /// @param up_axis_index Index of the up axis: 0=>x, 1=>y, 2=>z.
 /// @param step_limit Limits the number of voxels to be visited. Zero to visit all voxels in the range
 ///   `[from_key, to_key]`
 /// @param search_up A flag used to indicate if we are searching up a column or not. The sign of the difference between
-///   @p from_key and @p to_key cannot be used to infer this as this information as it is defined by the heightmap
+///   @p from_key and @p to_key cannot be used to infer this as it is defined by the heightmap
 ///   primary axis, for which up may be alinged with an increasing, negative magnitude.
 /// @param flags Flags affecting reporting. Only @c SupportingVoxelFlag::kVirtualSurfaces is considered here. When
-///   set, consider virtual surface voxels - free voxels "supported" by unobserved voxels representig the best possible
+///   set, consider virtual surface voxels - free voxels "supported" by unobserved voxels representing the best possible
 ///   surface estimate.
 /// @param[out] offset On success, set the number of voxels between @p from_key and the selected voxel. Undefined on
 ///   failure.
@@ -417,9 +417,9 @@ Key findNearestSupportingVoxel2(SrcVoxel &voxel, const Key &from_key, const Key 
   {
     // We want to bias the initial voxel selection such that calling code will to choose the upper voxel over the lower
     // one (where they are both occupied) so that we can follow ramps up, rather than choosing the ground below. This is
-    // only relevent when the clearance is zero, but is important.
+    // only relevant when the clearance is zero, but is important.
     //
-    // In order to create the bias, we manage the offset value in a non-linear fasion where it may be either 0 or 1 on
+    // In order to create the bias, we manage the offset value in a non-linear fashion where it may be either 0 or 1 on
     // the first iteration - searching up or down respectively. On subsequent iterations it is linear with a value
     // matching `i + 1`.
     //
@@ -429,10 +429,10 @@ Key findNearestSupportingVoxel2(SrcVoxel &voxel, const Key &from_key, const Key 
     //
     // The resulting offset series is:
     //
-    //              | i=0 | 1 | 2 | 3 | 4 | 5 |
-    // ------------ | --- | - | - | - | - | - |
-    // Search up    | 0   | 2 | 3 | 4 | 5 | 6 |
-    // Search down  | 1   | 2 | 3 | 4 | 5 | 6 |
+    //             | i=0 | 1 | 2 | 3 | 4 | 5 |
+    // ----------- | --- | - | - | - | - | - |
+    // Search up   |   0 | 2 | 3 | 4 | 5 | 6 |
+    // Search down |   1 | 2 | 3 | 4 | 5 | 6 |
     *offset = (i > 0) ? i + 1 : !search_up;
     voxel.setKey(current_key);
 
@@ -474,7 +474,7 @@ Key findNearestSupportingVoxel2(SrcVoxel &voxel, const Key &from_key, const Key 
     // supporting the virtual surface voxel in order for later algorithms to detect it as a virtual voxel because a
     // virtual voxel is characterised by the transition from unobserved to free, but the free voxel is the one of
     // (later) interest.
-    ///
+    //
     // We progressively select the current voxel as the new virtual voxel provided the last voxel was considered free
     // and the current voxel is unknown (not free and not occupied). We only need to check free as we will have exited
     // on an occupied voxel. The conditions here are:
@@ -519,7 +519,7 @@ Key findNearestSupportingVoxel2(SrcVoxel &voxel, const Key &from_key, const Key 
 /// Search the column containing @p seed_key in the source occupancy map for a potential supporting voxel.
 ///
 /// A supporting voxel is one which is either occupied or a virtual surface voxel (if enabled). The source map details
-/// are contained in the @c SrcVoxel structure passed via @p voxel. That structure is configured to reference the
+/// are contained in the @c SrcVoxel structure passed via @p voxel . That structure is configured to reference the
 /// relevant voxel layers. The actual voxels referenced by @c voxel will be modified by this function, starting at
 /// @c seed_key .
 ///
@@ -529,25 +529,25 @@ Key findNearestSupportingVoxel2(SrcVoxel &voxel, const Key &from_key, const Key 
 /// - Prefer occupied voxels over virtual surface voxels
 ///   - Except where @c promote_virtual_below is true
 /// - Prefer below to above.
-////  - Except where the distance between the candidates below and above is less than @p
-///     clearance_voxel_count_permissive.
-/// - Limit the search expance to search up @c voxel_ceiling voxels (this is a voxel count value).
+///   - Except where the distance between the candidates below and above is less than
+///     @p clearance_voxel_count_permissive .
+/// - Limit the search expansion to search up @c voxel_ceiling voxels (this is a voxel count value).
 /// - Limit the search down to the map extents.
 ///
 /// The resulting key can be used to identify the voxel from which to start searching for an actual ground candidate
 /// with consideration given to clearance above.
 ///
-/// The selected key is expected to be used as the seed for @c findGround().
+/// The selected key is expected to be used as the seed for @c findGround() .
 ///
 /// @param voxel Configured to allow access to various aspects of the source map voxels.
 /// @param seed_key Voxel key identifying where to start the search from. Only voxels in the same column are considered.
 /// @param up_axis Identifies the up axis - XYZ - and direction.
 /// @param min_key Min extents limits. Searches are bounded by this value.
 /// @param max_key Max extents limits. Searches are bounded by this value.
-/// @param voxel_ceiling The number of voxels the function is allowed to consider above the @p seed_key.
+/// @param voxel_ceiling The number of voxels the function is allowed to consider above the @p seed_key .
 /// @param clearance_voxel_count_permissive The number of voxels required to pass the clearance value. Used to
 ///   discriminate the voxel below when the candidate above is within this range, but non-virtual.
-/// @param flags Control flags from @c SupportingVoxelFlag.
+/// @param flags Control flags from @c SupportingVoxelFlag .
 /// @return A new seed key from which to start searching for a valid ground voxel (@c findGround()).
 inline Key findNearestSupportingVoxel(SrcVoxel &voxel, const Key &seed_key, UpAxis up_axis, const Key &min_key,
                                       const Key &max_key, int voxel_floor_limit, int voxel_ceiling_limit,
@@ -624,11 +624,11 @@ inline Key findNearestSupportingVoxel(SrcVoxel &voxel, const Key &seed_key, UpAx
   return above;
 }
 
-/// Search for the best ground voxel for the column containing @p seed_key . The search begins at @p seed_key, normally
-/// generated by @c findNearestSupportingVoxel(). This function considers the configured
+/// Search for the best ground voxel for the column containing @p seed_key . The search begins at @p seed_key , normally
+/// generated by @c findNearestSupportingVoxel() . This function considers the configured
 /// @c HeightmapDetail::min_clearance from @p imp and may also consider virtual surface voxels if configured to do so.
 ///
-/// @param[out] height_out Set to the height of the selected ground voxel. This will is based on the voxel mean position
+/// @param[out] height_out Set to the height of the selected ground voxel. This will be based on the voxel mean position
 /// (if enabled) for occupied voxels where available, otherwise using the centre of the selected voxel. The value is
 /// undefined if the return value is a null key.
 /// @param[out] clearance_out Set to the available clearance above the selected voxel if available. A -1 value indicates
@@ -638,7 +638,7 @@ inline Key findNearestSupportingVoxel(SrcVoxel &voxel, const Key &seed_key, UpAx
 /// @param seed_key Voxel key identifying where to start the search from. Only voxels in the same column are considered.
 /// @param min_key Min extents limits. Searches are bounded by this value.
 /// @param max_key Max extents limits. Searches are bounded by this value.
-/// @param imp Impelementation details of the heightmap object being operated on.
+/// @param imp Implementation details of the heightmap object being operated on.
 /// @return The first viable ground candidate found from @c seed_key or a null key if no such voxel can be bound.
 Key findGround(double *height_out, double *clearance_out, SrcVoxel &voxel, const Key &seed_key, const Key &min_key,
                const Key &max_key, const HeightmapDetail &imp)
@@ -725,12 +725,12 @@ Key findGround(double *height_out, double *clearance_out, SrcVoxel &voxel, const
 
 /// Helper function for visiting a heightmap node. This expands into the neighbours as required and performs debug
 /// rendering.
-/// @param walker The class used to walk the heightmap region. Examples; @c PlaneWalker, @c PlanerFillWalker,
+/// @param walker The class used to walk the heightmap region. Examples; @c PlaneWalker , @c PlanerFillWalker ,
 ///     @c PlanerFillLayeredWalker
 /// @param imp Heightmap implementation.
 /// @param walk_key The initial key extracted from the @c walker before calculating the candidate and/or ground keys.
 /// @param candidate_key The initial ground candidate key calculated from @p walk_key as the starting point to search
-///   for the @p ground_key. May be null.
+///   for the @p ground_key . May be null.
 /// @param ground_key The selected ground key. May be null.
 template <typename Walker>
 void onVisitWalker(Walker &walker, const HeightmapDetail &imp, const Key &walk_key, const Key &candidate_key,
@@ -806,7 +806,7 @@ void sortHeightmapLayers(ohm::HeightmapDetail &detail, const std::set<ohm::Key> 
   {
     // We have work to do.
 
-    /// Structure used to extract heightamp data for sorting. Contains all information possible from the heightmap.
+    /// Structure used to extract heightmap data for sorting. Contains all information possible from the heightmap.
     struct SortingVoxel
     {
       double height = 0;
