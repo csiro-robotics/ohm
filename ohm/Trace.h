@@ -12,6 +12,24 @@
 
 namespace ohm
 {
+/// Debug visaulisation trace categories.
+enum TraceCategory : uint16_t
+{
+  kTcDefault,           ///< Default category (catchall)
+  kTcMap,               ///< Parent category for occupancy map generation.
+  kTcRays,              ///< Ray insertion
+  kTcVoxels,            ///< Voxel state
+  kTcNdt,               ///< NDT shapes
+  kTcHeightmap,         ///< Parent category for heightmap generation
+  kTcHmVoxel,           ///< Heightmap voxel - parent to suface and virtual surface
+  kTcHmVirtualSurface,  ///< Heightmap virtual surface voxel
+  kTcHmSurface,         ///< Heightmap surface voxel
+  kTcHmVacant,          ///< Heightmap vacant voxel
+  kTcHmClearance,       ///< Heightmap clearance
+  kTcHmVisit,           ///< Heightmap visit/open lists
+  kTcHmInfo,            ///< Heightmap info text
+};
+
 namespace trace
 {
 /// Initialise the trace system. This enables debug rendering connections via 3rd Eye Scene.
@@ -25,6 +43,10 @@ void ohm_API init(const std::string &file_stream = std::string());
 
 /// Finalise the trace system.
 void ohm_API done();
+
+/// Query if debug tracing via 3rd Eye Scene is available.
+/// @return True if 3es tracing is available.
+bool ohm_API available();
 }  // namespace trace
 
 /// A utility class which calls @c trace::init() and @c trace::done() on construction and destruction respectively.
@@ -33,9 +55,12 @@ class ohm_API Trace
 {
 public:
   /// Constructor: calls through to @c trace::init()
-  inline Trace(const std::string &file_stream)  // NOLINT(google-explicit-constructor)
+  inline Trace(const std::string &file_stream, bool enable = true)  // NOLINT(google-explicit-constructor)
   {
-    trace::init(file_stream);
+    if (enable)
+    {
+      trace::init(file_stream);
+    }
   }
   /// Destructor: calls through to @c trace::done()
   inline ~Trace() { trace::done(); }

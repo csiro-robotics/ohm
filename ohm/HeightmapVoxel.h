@@ -8,10 +8,25 @@
 
 #include "OhmConfig.h"
 
+#include <cstdint>
+
 namespace ohm
 {
+/// Voxel layer values for @c HeightmapVoxel::type.
+enum HeightmapVoxelLayer : uint8_t
+{
+  kHvlBaseLayer = 0,  ///< Voxel belongs to the base layer or is a base layer candidate
+  kHvlExtended        ///< Voxel is outside the base layer bounds - only used for layered heightmaps.
+};
+
 /// A voxel within the heightmap.
-struct HeightmapVoxel
+///
+/// @note Use of @c alignas will need to be removed should this structure be needed in GPU code. OpenCL 1.2 supports
+/// `__attribute__ ((aligned (n)))` style alignment. A macro may be used to manage this.
+/// See https://www.khronos.org/registry/OpenCL/sdk/1.2/docs/man/xhtml/
+///
+/// CUDA compatibilty would also need to be assessed.
+struct alignas(8) HeightmapVoxel
 {
   /// The name of the layer which stores these voxels.
   static const char *const kHeightmapLayer;
@@ -32,8 +47,8 @@ struct HeightmapVoxel
   float normal_y;
   /// Local surface normal Z coordinate.
   float normal_z;
-  /// Padding to ensure expected alignment.
-  float reserved;
+  /// Layer information. Currently restricted to values of @c HeightmapVoxelLayer.
+  uint8_t layer;
 };
 }  // namespace ohm
 

@@ -217,6 +217,13 @@ struct ohmutil_API Colour
   /// @return Alpha channel as a float.
   inline float af() const { return float(a()) / kMaxByteF; }
 
+  /// Interpolate from one colour to another.
+  /// @param from Colour to start at.
+  /// @param to Colour to target at.
+  /// @param factor Interpolation factor: [0, 1] or behaviour is undefined.
+  /// @return A colour between the given colours.
+  static Colour lerp(const Colour &from, const Colour &to, float factor);
+
   /// An enumeration of predefined colours (web colours).
   enum Names
   {

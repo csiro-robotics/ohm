@@ -8,6 +8,7 @@
 #include "Aabb.h"
 #include "DefaultLayer.h"
 #include "KeyList.h"
+#include "KeyRange.h"
 #include "MapChunk.h"
 #include "MapCoord.h"
 #include "MapLayer.h"
@@ -376,7 +377,7 @@ const glm::dvec3 &OccupancyMap::origin() const
   return imp_->origin;
 }
 
-bool OccupancyMap::calculateExtents(glm::dvec3 *min_ext, glm::dvec3 *max_ext, Key *min_key, Key *max_key) const
+bool OccupancyMap::calculateExtents(glm::dvec3 *min_ext, glm::dvec3 *max_ext, KeyRange *key_range) const
 {
   glm::dvec3 region_min;
   glm::dvec3 region_max;
@@ -394,13 +395,10 @@ bool OccupancyMap::calculateExtents(glm::dvec3 *min_ext, glm::dvec3 *max_ext, Ke
       *max_ext = imp_->origin;
     }
 
-    if (min_key)
+    if (key_range)
     {
-      *min_key = Key::kNull;
-    }
-    if (max_key)
-    {
-      *max_key = Key::kNull;
+      // Set an invalid range.
+      *key_range = KeyRange();
     }
     return false;
   }
@@ -453,17 +451,29 @@ bool OccupancyMap::calculateExtents(glm::dvec3 *min_ext, glm::dvec3 *max_ext, Ke
     *max_ext = max_spatial;
   }
 
-  if (min_key)
+  if (key_range)
   {
-    *min_key = min_voxel;
-  }
-
-  if (max_key)
-  {
-    *max_key = max_voxel;
+    key_range->setRegionDimensions(imp_->region_voxel_dimensions);
+    key_range->setMinKey(min_voxel);
+    key_range->setMaxKey(max_voxel);
   }
 
   return have_extents;
+}
+
+bool OccupancyMap::calculateExtents(glm::dvec3 *min_ext, glm::dvec3 *max_ext, Key *min_key, Key *max_key) const
+{
+  KeyRange range;
+  bool valid = calculateExtents(min_ext, max_ext, &range);
+  if (min_key)
+  {
+    *min_key = range.minKey();
+  }
+  if (max_key)
+  {
+    *max_key = range.maxKey();
+  }
+  return valid;
 }
 
 MapInfo &OccupancyMap::mapInfo()
@@ -837,7 +847,7 @@ void OccupancyMap::moveKeyAlongAxis(Key &key, int axis, int step) const
   imp_->moveKeyAlongAxis(key, axis, step);
 }
 
-void OccupancyMap::stepKey(Key &key, int axis, int dir) const
+void OccupancyMap::stepKey(Key &key, int axis, int dir, const glm::ivec3 &region_voxel_dimensions)
 {
   int local_key = key.localKey()[axis] + dir;
   int region_key = key.regionKey()[axis];
@@ -845,9 +855,9 @@ void OccupancyMap::stepKey(Key &key, int axis, int dir) const
   if (local_key < 0)
   {
     --region_key;
-    local_key = imp_->region_voxel_dimensions[axis] - 1;
+    local_key = region_voxel_dimensions[axis] - 1;
   }
-  else if (local_key >= imp_->region_voxel_dimensions[axis])
+  else if (local_key >= region_voxel_dimensions[axis])
   {
     ++region_key;
     local_key = 0;
@@ -855,6 +865,11 @@ void OccupancyMap::stepKey(Key &key, int axis, int dir) const
 
   key.setLocalAxis(axis, uint8_t(local_key));
   key.setRegionAxis(axis, uint16_t(region_key));
+}
+
+void OccupancyMap::stepKey(Key &key, int axis, int dir) const
+{
+  stepKey(key, axis, dir, imp_->region_voxel_dimensions);
 }
 
 void OccupancyMap::moveKey(Key &key, int x, int y, int z) const
@@ -866,6 +881,11 @@ void OccupancyMap::moveKey(Key &key, int x, int y, int z) const
 
 glm::ivec3 OccupancyMap::rangeBetween(const Key &from, const Key &to) const
 {
+  return rangeBetween(from, to, imp_->region_voxel_dimensions);
+}
+
+glm::ivec3 OccupancyMap::rangeBetween(const Key &from, const Key &to, const glm::ivec3 &region_voxel_dimensions)
+{
   // First diff the regions.
   const glm::ivec3 region_diff = to.regionKey() - from.regionKey();
   glm::ivec3 voxel_diff;
@@ -873,8 +893,7 @@ glm::ivec3 OccupancyMap::rangeBetween(const Key &from, const Key &to) const
   // Voxel difference is the sum of the local difference plus the region step difference.
   for (int i = 0; i < 3; ++i)
   {
-    voxel_diff[i] =
-      int(to.localKey()[i]) - int(from.localKey()[i]) + region_diff[i] * int(imp_->region_voxel_dimensions[i]);
+    voxel_diff[i] = int(to.localKey()[i]) - int(from.localKey()[i]) + region_diff[i] * int(region_voxel_dimensions[i]);
   }
 
   return voxel_diff;

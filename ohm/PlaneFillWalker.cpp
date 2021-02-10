@@ -5,76 +5,37 @@
 // Author: Kazys Stepanas
 #include "PlaneFillWalker.h"
 
-#include "ohm/Key.h"
-#include "ohm/OccupancyMap.h"
+#include "HeightmapUtil.h"
+#include "OccupancyMap.h"
 
 #include <algorithm>
 
 namespace ohm
 {
 PlaneFillWalker::PlaneFillWalker(const OccupancyMap &map, const Key &min_ext_key, const Key &max_ext_key,
-                                 UpAxis up_axis, bool auto_add_neighbours)
+                                 UpAxis up_axis, Revisit revisit_behaviour)
   : map(map)
   , min_ext_key(min_ext_key)
   , max_ext_key(max_ext_key)
   , key_range(map.rangeBetween(min_ext_key, max_ext_key) + glm::ivec3(1, 1, 1))
-  , auto_add_neighbours(auto_add_neighbours)
-{
-  switch (up_axis)
-  {
-  case UpAxis::kX:
-    /* fallthrough */
-  case UpAxis::kNegX:
-    axis_indices[0] = 1;
-    axis_indices[1] = 2;
-    axis_indices[2] = 0;
-    break;
-  case UpAxis::kY:
-    /* fallthrough */
-  case UpAxis::kNegY:
-    axis_indices[0] = 0;
-    axis_indices[1] = 2;
-    axis_indices[2] = 1;
-    break;
-  case UpAxis::kZ:
-    /* fallthrough */
-  case UpAxis::kNegZ:
-    axis_indices[0] = 0;
-    axis_indices[1] = 1;
-    axis_indices[2] = 2;
-    break;
-  }
-}
+  , axis_indices(ohm::heightmap::heightmapAxisIndices(up_axis))
+  , revisit_behaviour(revisit_behaviour)
+{}
 
 
 bool PlaneFillWalker::begin(Key &key)
 {
-  while (!open_list.empty())
-  {
-    open_list.pop();
-  }
-  visit_list.clear();
+  open_list_.clear();
+  visit_grid_.clear();
+  visit_grid_.resize(size_t(key_range[axis_indices[0]]) * size_t(key_range[axis_indices[1]]));
 
-  visit_list.resize(size_t(key_range[axis_indices[0]]) * size_t(key_range[axis_indices[1]]));
-
-  if (visit_list.empty())
+  if (visit_grid_.empty())
   {
     // Key out of range.
     return false;
   }
 
-  for (auto &touched : visit_list)
-  {
-    touched = -1;
-  }
-
   key.clampTo(min_ext_key, max_ext_key);
-  touch(key);
-  if (auto_add_neighbours)
-  {
-    addNeighbours(key);
-  }
-
   return true;
 }
 
@@ -82,27 +43,17 @@ bool PlaneFillWalker::begin(Key &key)
 bool PlaneFillWalker::walkNext(Key &key)
 {
   // Pop the open list.
-  while (!open_list.empty())
+  while (!open_list_.empty())
   {
-    key = open_list.front();
-    open_list.pop();
+    key = open_list_.front();
+    open_list_.pop_front();
 
-    // Validate the key is still the best available and hasn't been superceded by a Revisit rule.
-    const unsigned touch_index = touchIndex(key);
-
-    if (touch_index != ~0u)
+    if (glm::all(glm::greaterThan(key_range, glm::ivec3(0))))
     {
-      // Check for multiple open pushes.
-      const int n_visit_height = visitHeight(key);
-      if (n_visit_height == visit_list[touch_index])
-      {
-        if (auto_add_neighbours)
-        {
-          addNeighbours(key);
-        }
-
-        return true;
-      }
+      key.clampTo(min_ext_key, max_ext_key);
+      const unsigned grid_index = gridIndex(key);
+      visit_grid_[grid_index].visit(keyHeight(key));
+      return true;
     }
   }
 
@@ -110,64 +61,77 @@ bool PlaneFillWalker::walkNext(Key &key)
 }
 
 
-void PlaneFillWalker::addNeighbours(const Key &key, Revisit revisit_behaviour)
+size_t PlaneFillWalker::visit(const Key &key, PlaneWalkVisitMode mode, std::array<Key, 8> &added_neighbours)
 {
-  for (int row_delta = -1; row_delta <= 1; ++row_delta)
+  size_t added = 0;
+
+  if (mode != PlaneWalkVisitMode::kIgnoreNeighbours)
   {
-    for (int col_delta = -1; col_delta <= 1; ++col_delta)
+    const unsigned grid_index = gridIndex(key);
+    if (grid_index != ~0u)
     {
-      Key n_key = key;
-      map.moveKeyAlongAxis(n_key, axis_indices[1], row_delta);
-      map.moveKeyAlongAxis(n_key, axis_indices[0], col_delta);
-
-      const auto idx = touchIndex(n_key);
-      if (idx != ~0u)
+      // Note: we do not update the visit height for key. This can result in recurring loops. We only want to track the
+      // best height at which a voxel was added to the open list.
+      for (int row_delta = -1; row_delta <= 1; ++row_delta)
       {
-        bool add_to_open = false;
-        const int n_visit_height = visitHeight(n_key);
-        switch (revisit_behaviour)
+        for (int col_delta = -1; col_delta <= 1; ++col_delta)
         {
-        case Revisit::kAll:
-          add_to_open = true;
-          break;
+          Key n_key = key;
+          map.moveKeyAlongAxis(n_key, axis_indices[1], row_delta);
+          map.moveKeyAlongAxis(n_key, axis_indices[0], col_delta);
 
-        case Revisit::kHigher:
-          add_to_open = visit_list[idx] < 0 || n_visit_height > visit_list[idx];
-          break;
+          const unsigned n_grid_index = gridIndex(n_key);
+          // Skip over the self reference.
+          if (n_grid_index != ~0u && n_grid_index != grid_index)
+          {
+            bool add_to_open = false;
+            const int n_visit_height = keyHeight(n_key);
+            switch (revisit_behaviour)
+            {
+            case Revisit::kHigher:
+              add_to_open = visit_grid_[n_grid_index].revisitHigher(n_visit_height);
+              break;
 
-        case Revisit::kLower:
-          add_to_open = visit_list[idx] < 0 || n_visit_height < visit_list[idx];
-          break;
+            case Revisit::kLower:
+              add_to_open = visit_grid_[n_grid_index].revisitLower(n_visit_height);
+              break;
 
-        case Revisit::kNone:
-        default:
-          add_to_open = visit_list[idx] < 0;
-          break;
-        }
+            case Revisit::kNone:
+            default:
+              add_to_open = visit_grid_[n_grid_index].revisitNone(n_visit_height);
+              break;
+            }
 
-        if (add_to_open)
-        {
-          // Neighbour in range and not touched. Add to open list.
-          open_list.push(n_key);
-          visit_list[idx] = n_visit_height;
+            if (add_to_open)
+            {
+              // Neighbour in range and not touched. Add to open list.
+              open_list_.push_back(n_key);
+              visit_grid_[n_grid_index].visit(n_visit_height);
+              assert(added < added_neighbours.size());
+              added_neighbours[added] = n_key;
+              ++added;
+            }
+          }
         }
       }
     }
   }
+
+  return added;
 }
 
 
 void PlaneFillWalker::touch(const Key &key)
 {
-  const auto idx = touchIndex(key);
+  const auto idx = gridIndex(key);
   if (idx != ~0u)
   {
-    visit_list[idx] = visitHeight(key);
+    visit_grid_[idx].visit(keyHeight(key));
   }
 }
 
 
-unsigned PlaneFillWalker::touchIndex(const Key &key)
+unsigned PlaneFillWalker::gridIndex(const Key &key)
 {
   // Get the offset for the key.
   const auto offset_to_key = map.rangeBetween(min_ext_key, key);
@@ -185,7 +149,7 @@ unsigned PlaneFillWalker::touchIndex(const Key &key)
 }
 
 
-int PlaneFillWalker::visitHeight(const Key &key) const
+int PlaneFillWalker::keyHeight(const Key &key) const
 {
   return map.rangeBetween(min_ext_key, key)[axis_indices[2]];
 }

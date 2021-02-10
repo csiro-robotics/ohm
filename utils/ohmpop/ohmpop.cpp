@@ -25,6 +25,8 @@
 #include <ohmgpu/OhmGpu.h>
 #endif  // OHMPOP_CPU
 
+#include <ohmtools/OhmCloud.h>
+
 #include <ohmutil/OhmUtil.h>
 #include <ohmutil/PlyMesh.h>
 #include <ohmutil/ProgressMonitor.h>
@@ -320,76 +322,37 @@ void saveMap(const Options &opt, const ohm::OccupancyMap &map, const std::string
   {
     // Save a cloud representation.
     std::cout << "Converting to point cloud." << std::endl;
-    ohm::PlyMesh ply;
-    glm::vec3 v;
-    const auto map_end_iter = map.end();
-    const size_t region_count = map.regionCount();
-    glm::i16vec3 last_region = map.begin().key().regionKey();
-    uint64_t point_count = 0;
+
+    ohmtools::ProgressCallback save_progress_callback;
+    ohmtools::ColourByHeight colour_by_height(map);
+    ohmtools::SaveCloudOptions save_opt;
+    save_opt.colour_select = [&colour_by_height](const ohm::Voxel<const float> &occupancy) {
+      return colour_by_height.select(occupancy);
+    };
 
     if (prog)
     {
-      prog->beginProgress(ProgressMonitor::Info(region_count));
+      prog->beginProgress(ProgressMonitor::Info(map.regionCount()));
+      save_progress_callback = [prog](size_t progress, size_t /*target*/) { prog->updateProgress(progress); };
     }
 
-    const auto colour_channel_f = [](float cf) -> uint8_t  //
+    std::string output_file = base_name + ".ply";
+    // Ensure we don't overwrite the input data file.
+    if (output_file == opt.cloud_file)
     {
-      cf = float(std::numeric_limits<uint8_t>::max()) * std::max(cf, 0.0f);
-      auto cu = unsigned(cf);
-      return uint8_t(std::min<unsigned>(cu, std::numeric_limits<uint8_t>::max()));
-    };
-    bool use_colour = opt.cloud_colour.r > 0 || opt.cloud_colour.g > 0 || opt.cloud_colour.b > 0;
-    const ohm::Colour c(colour_channel_f(opt.cloud_colour.r), colour_channel_f(opt.cloud_colour.g),
-                        colour_channel_f(opt.cloud_colour.b));
-
-    ohm::Voxel<const float> voxel(&map, map.layout().occupancyLayer());
-    ohm::Voxel<const ohm::VoxelMean> mean(&map, map.layout().meanLayer());
-    for (auto iter = map.begin(); iter != map_end_iter && g_quit < 2; ++iter)
-    {
-      ohm::setVoxelKey(iter, voxel, mean);
-      if (last_region != iter->regionKey())
-      {
-        if (prog)
-        {
-          prog->incrementProgress();
-        }
-        last_region = iter->regionKey();
-      }
-      if (ohm::isOccupied(voxel))
-      {
-        v = ohm::positionSafe(mean);
-        if (use_colour)
-        {
-          ply.addVertex(v, c);
-        }
-        else
-        {
-          ply.addVertex(v);
-        }
-        ++point_count;
-      }
+      output_file = base_name + "-points.ply";
     }
+    std::cout << "Saving point cloud to " << output_file.c_str() << std::endl;
+    uint64_t point_count = saveCloud(output_file.c_str(), map, save_opt, save_progress_callback);
 
     if (prog)
     {
       prog->endProgress();
       prog->pause();
-      if (!opt.quiet)
-      {
-        std::cout << "\nExported " << point_count << " point(s)" << std::endl;
-      }
     }
-
-    if (g_quit < 2)
+    if (!opt.quiet)
     {
-      std::string output_file = base_name + ".ply";
-      // Ensure we don't overwrite the input data file.
-      if (output_file == opt.cloud_file)
-      {
-        output_file = base_name + "-points.ply";
-      }
-      std::cout << "Saving point cloud to " << output_file.c_str() << std::endl;
-      ply.save(output_file.c_str(), true);
+      std::cout << "\nExported " << point_count << " point(s)" << std::endl;
     }
   }
 }
