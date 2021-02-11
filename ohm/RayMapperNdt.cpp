@@ -311,7 +311,5 @@ size_t RayMapperNdt::integrateRays(const glm::dvec3 *rays, size_t element_count,
     }
   }
 
-  std::cout << " raymapper voxel int min, max " << min_int << "," << max_int;
-
   return element_count / 2;
 }

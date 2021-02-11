@@ -80,6 +80,7 @@ namespace
     std::string prior_map;
 #ifdef TES_ENABLE
     std::string trace;
+    bool trace_final;
 #endif  // TES_ENABLE
     glm::dvec3 sensor_offset = glm::dvec3(0.0);
     glm::u8vec3 region_voxel_dim = glm::u8vec3(0);  // re-initialised from a default map
@@ -246,7 +247,7 @@ namespace
 #ifdef TES_ENABLE
       if (!trace.empty())
       {
-        **out << "3es trace file: " << trace << '\n';
+        **out << "3es trace file: " << trace << (trace_final ? "(final only)\n" : "\n");
       }
 #endif  // TES_ENABLE
 
@@ -523,7 +524,7 @@ int populateMap(const Options &opt)
 #endif  // OHMPOP_CPU
 
 #ifdef TES_ENABLE
-  if (!opt.trace.empty())
+  if (!opt.trace.empty() && !opt.trace_final)
   {
     trace_mapper = std::make_unique<ohm::RayMapperTrace>(&map, ray_mapper);
     ray_mapper = trace_mapper.get();
@@ -708,7 +709,7 @@ int populateMap(const Options &opt)
       }
 
       const auto minmax = std::minmax_element(intensities.cbegin(), intensities.cend());
-      std::cout << "Batch min/max intensity: " << *(minmax.first) << "," << *(minmax.second) << "   ";
+      std::cout << " batch min/max intensity: " << *(minmax.first) << "," << *(minmax.second) << "   ";
 
       sample_timestamps.clear();
       origin_sample_pairs.clear();
@@ -875,6 +876,7 @@ int parseOptions(Options *opt, int argc, char *argv[])
       ("cloud-colour", "Colour for points in the saved cloud (if saving).", optVal(opt->cloud_colour))
 #ifdef TES_ENABLE
       ("trace", "Enable debug tracing to the given file name to generate a 3es file. High performance impact.", cxxopts::value(opt->trace))
+      ("trace-final", "Only output final map in trace.", cxxopts::value(opt->trace_final))
 #endif // TES_ENABLE
       ;
 
