@@ -150,7 +150,7 @@ inline std::ostream &operator<<(std::ostream &out, const Options::Neighbours &n)
 inline std::istream &operator>>(std::istream &in, Options::Line &l)
 {
   std::array<double, 7> v;
-  parseVector(in, v.data(), v.size());
+  parseVector(in, v.data(), int(v.size()));
   l.start[0] = v[0];
   l.start[1] = v[1];
   l.start[2] = v[2];
@@ -171,7 +171,7 @@ inline std::ostream &operator<<(std::ostream &out, const Options::Line &l)
 inline std::istream &operator>>(std::istream &in, Options::Ranges &r)
 {
   std::array<double, 7> v;
-  parseVector(in, v.data(), v.size());
+  parseVector(in, v.data(), int(v.size()));
   r.min[0] = v[0];
   r.min[1] = v[1];
   r.min[2] = v[2];
@@ -412,7 +412,7 @@ void showTiming(const char *info, const TimingClock::time_point &start_time, con
 }
 
 
-bool compareCpuGpuQuery(const char *query_name, ohm::Query &query,  
+bool compareCpuGpuQuery(const char *query_name, ohm::Query &query,
                         const float epsilon = 1e-5f)
 {
   std::string timing_info_str;

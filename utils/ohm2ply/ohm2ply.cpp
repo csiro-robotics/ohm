@@ -453,7 +453,6 @@ int exportPointCloud(const Options &opt, ProgressMonitor &prog, LoadMapProgress 
   }
 
   std::cout << "Converting to PLY cloud" << std::endl;
-  glm::vec3 v;
   const size_t region_count = map.regionCount();
   // uint64_t point_count = 0;
 

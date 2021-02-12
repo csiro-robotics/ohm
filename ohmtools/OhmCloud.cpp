@@ -239,7 +239,7 @@ uint64_t saveCloud(const std::string &file_name, const ohm::OccupancyMap &map, c
   ohm::PlyPointStream ply = setupPlyStream(static_cast<bool>(colour_select));
   ply.open(out);
 
-  glm::vec3 pos;
+  glm::dvec3 pos;
   const size_t region_count = map.regionCount();
   size_t processed_region_count = 0;
   glm::i16vec3 last_region = map.begin().key().regionKey();
@@ -310,7 +310,7 @@ uint64_t saveHeightmapCloud(const std::string &file_name, const ohm::OccupancyMa
   ohm::PlyPointStream ply = setupPlyStream(static_cast<bool>(colour_select));
   ply.open(out);
 
-  glm::vec3 pos;
+  glm::dvec3 pos;
   const size_t region_count = map.regionCount();
   size_t processed_region_count = 0;
   glm::i16vec3 last_region = map.begin().key().regionKey();
@@ -367,7 +367,7 @@ uint64_t saveHeightmapCloud(const std::string &file_name, const ohm::OccupancyMa
         if (heightmap_voxel.isValid())
         {
           pos[heightmap_axis] =
-            map.voxelCentreGlobal(*iter)[heightmap_axis] + height_flip * heightmap_voxel.data().height;
+            map.voxelCentreGlobal(*iter)[heightmap_axis] + double(height_flip * heightmap_voxel.data().height);
         }
 
         ply.setPointPosition(pos);
