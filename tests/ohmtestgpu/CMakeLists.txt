@@ -41,8 +41,8 @@ function(_ohmtestgpu_setup GPU)
 
   target_include_directories(ohmtest${GPU} SYSTEM
     PRIVATE
+      "${GTEST_INCLUDE_DIRS}" # Must include downloaded GTest before potentially including system directories.
       "${GLM_INCLUDE_DIR}"
-      "${GTEST_INCLUDE_DIRS}"
   )
 
   target_link_libraries(ohmtest${GPU} PUBLIC ohmtestcommon ohmtools ohm${GPU} ohmutil ${GTEST_LIBRARIES} ${GTEST_MAIN_LIBRARIES})
