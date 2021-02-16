@@ -2,7 +2,6 @@
 cmake_minimum_required(VERSION 3.5)
 
 find_package(GLM)
-find_package(GTest)
 
 # Eigen required to support some tests - NDT in particular
 find_package(Eigen3 QUIET)
@@ -46,7 +45,7 @@ function(_ohmtestgpu_setup GPU)
       "${GTEST_INCLUDE_DIRS}"
   )
 
-  target_link_libraries(ohmtest${GPU} PUBLIC ohmtestcommon ohmtools ohm${GPU} ohmutil GTest::Main)
+  target_link_libraries(ohmtest${GPU} PUBLIC ohmtestcommon ohmtools ohm${GPU} ohmutil ${GTEST_LIBRARIES} ${GTEST_MAIN_LIBRARIES})
 
   if(OHM_TES_DEBUG)
     target_link_libraries(ohmtest${GPU} PUBLIC 3es::3es-core)

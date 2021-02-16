@@ -1,3 +1,6 @@
+# Build GTest
+include(OhmGTest)
+
 enable_testing()
 add_subdirectory(data)
 add_subdirectory(gputiltest)
