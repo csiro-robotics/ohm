@@ -1,6 +1,8 @@
 
 include(ExternalProject)
 
+find_package(Threads)
+
 # Setup download and build of Googletest
 ExternalProject_Add(
     googletest
