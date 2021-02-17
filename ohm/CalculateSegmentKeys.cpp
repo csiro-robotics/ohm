@@ -18,7 +18,7 @@ size_t calculateSegmentKeys(KeyList &keys, const OccupancyMap &map, const glm::d
   const glm::dvec3 end_point_local = glm::dvec3(end_point - map.origin());
 
   keys.clear();
-  return ohm::walkSegmentKeys<Key>([&keys](const Key &key, float, float) { keys.add(key); },
+  return ohm::walkSegmentKeys<Key>([&keys](const Key &key, double, double) { keys.add(key); },
                                    start_point_local, end_point_local, include_end_point, WalkKeyAdaptor(map));
 }
 }  // namespace ohm

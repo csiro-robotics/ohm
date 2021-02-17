@@ -64,7 +64,7 @@ size_t RayMapperOccupancy::integrateRays(const glm::dvec3 *rays, size_t element_
   // Touch the map to flag changes.
   const auto touch_stamp = map_->touch();
 
-  const auto visit_func = [&](const Key &key, float /*enter_range*/, float /*exit_range*/)  //
+  const auto visit_func = [&](const Key &key, double /*enter_range*/, double /*exit_range*/)  //
   {                                                                                 //
     // The update logic here is a little unclear as it tries to avoid outright branches.
     // The intended logic is described as follows:
@@ -246,7 +246,7 @@ size_t RayMapperOccupancy::lookupRays(const glm::dvec3 *rays, size_t element_cou
   const float ray_solid_angle = (float)(1.0 / 180.0 * M_PI * 1.0 / 180.0 * M_PI); // TODO: parameterise
   // Touch the map to flag changes.
 
-  const auto visit_func = [&](const Key &key, float enter_range, float exit_range)  //
+  const auto visit_func = [&](const Key &key, double enter_range, double exit_range)  //
   {                                                                                 //
     // The update logic here is a little unclear as it tries to avoid outright branches.
     // The intended logic is described as follows:
@@ -284,7 +284,7 @@ size_t RayMapperOccupancy::lookupRays(const glm::dvec3 *rays, size_t element_cou
     if (!stop_adjustments)
     {
       newly_observed_volume += is_unobserved ? (ray_solid_angle *
-                               (exit_range * exit_range * exit_range - enter_range * enter_range * enter_range)) : 0.0f;
+                               float(exit_range * exit_range * exit_range - enter_range * enter_range * enter_range)) : 0.0f;
       range = exit_range;
       terminal_state =
         is_unobserved ? OccupancyType::kUnobserved : (is_occupied ? OccupancyType::kOccupied : OccupancyType::kFree);
