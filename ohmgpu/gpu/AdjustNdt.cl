@@ -45,9 +45,10 @@ inline __device__ float calculateOccupancyAdjustment(const GpuKey *voxelKey, boo
 
   float adjustment = 0;
   const int min_sample_threshold = 4;  // Should be passed in.
-  HitMissCount hit_miss_count{0, 0};
+  HitMissCount hit_miss_count;
+  hit_miss_count.hit_count = hit_miss_count.miss_count = 0;
   const float3 voxel_maximum_likelihood = calculateMissNdt(
-    &cov_voxel, &adjustment, &hit_miss_count, line_data->sensor, line_data->sample, voxel_mean, mean_data->count, 
+    &cov_voxel, &adjustment, &hit_miss_count, line_data->sensor, line_data->sample, voxel_mean, mean_data->count,
     INFINITY, line_data->ray_adjustment, line_data->adaptation_rate, line_data->sensor_noise, min_sample_threshold);
 
   // NDT should do sample update in a separate process in order to update the covariance, so we should not get here.
