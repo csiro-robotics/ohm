@@ -422,7 +422,7 @@ void drawNdt(const glm::i16vec4 &sector_key, const OccupancyMap &map)
     Voxel<const VoxelMean> mean_voxel(&map, map.layout().meanLayer());
     Voxel<const CovarianceVoxel> cov_voxel(&map, map.layout().covarianceLayer());
 
-    //const auto dim = map.regionVoxelDimensions();
+    const auto dim = map.regionVoxelDimensions();
     //const unsigned index_limit = dim.x * dim.y * dim.z;
     const tes::Id shape_id = tes::Id(chunk, kTcNdt) + sector_key.w;  // Each sector has a unique key
 
@@ -571,12 +571,12 @@ void drawNdtTm(const glm::i16vec4 &sector_key, const OccupancyMap &map)
       }
 
       // Create the multi-shape to replace the existing one for the region.
-      g_3es->create(tes::MultiShape(ellipsoid_ptrs.data(), ellipsoid_ptrs.size()).setReplace(true));
+      g_tes->create(tes::MultiShape(ellipsoid_ptrs.data(), ellipsoid_ptrs.size()).setReplace(true));
     }
     else
     {
       // Destroy any existing representation for this region.
-      g_3es->destroy(tes::Sphere(shape_id));
+      g_tes->destroy(tes::Sphere(shape_id));
     }
   }
 }
