@@ -111,6 +111,15 @@ public:
   /// @param local The new @c localKey() to set.
   inline void setLocalKey(const glm::u8vec3 &local) { local_ = local; }
 
+  /// Check if this key and @p other have the same coordinate on the specified @p axis.
+  /// @param other Key to compare against.
+  /// @param axis The axis to compare. Must be in range [0, 2], mapping to XYZ respectively.
+  /// @return True if the keys have the same coordinate on the specified axis.
+  inline bool equalOnAxis(const Key &other, int axis) const
+  {
+    return other.region_key_[axis] == region_key_[axis] && other.local_[axis] == local_[axis];
+  }
+
   /// Test if this key lies within the extents of @p min_bounds and @p max_bounds along the X axis.
   ///
   /// The bounds parameters specify a closed bounding interval, meaning that a key is bounded if it equals

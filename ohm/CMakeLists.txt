@@ -55,6 +55,10 @@ set(SOURCES
   Heightmap.h
   HeightmapMesh.cpp
   HeightmapMesh.h
+  HeightmapMode.cpp
+  HeightmapMode.h
+  HeightmapUtil.cpp
+  HeightmapUtil.h
   HeightmapVoxel.cpp
   HeightmapVoxel.h
   HeightmapVoxelType.h
@@ -63,6 +67,8 @@ set(SOURCES
   KeyHash.h
   KeyList.cpp
   KeyList.h
+  KeyRange.cpp
+  KeyRange.h
   LineKeysQuery.cpp
   LineKeysQuery.h
   LineQuery.cpp
@@ -99,10 +105,13 @@ set(SOURCES
   OccupancyMap.h
   OccupancyType.cpp
   OccupancyType.h
+  PlaneFillLayeredWalker.cpp
+  PlaneFillLayeredWalker.h
   PlaneFillWalker.cpp
   PlaneFillWalker.h
   PlaneWalker.cpp
   PlaneWalker.h
+  PlaneWalkVisitMode.h
   Query.cpp
   Query.h
   QueryFlag.h
@@ -160,11 +169,14 @@ set(PUBLIC_HEADERS
   DefaultLayer.h
   Heightmap.h
   HeightmapMesh.h
+  HeightmapMode.h
+  HeightmapUtil.h
   HeightmapVoxel.h
   HeightmapVoxelType.h
   Key.h
   KeyHash.h
   KeyList.h
+  KeyRange.h
   LineKeysQuery.h
   LineQuery.h
   MapChunkFlag.h
@@ -187,8 +199,10 @@ set(PUBLIC_HEADERS
   OccupancyMap.h
   OccupancyType.h
   OccupancyUtil.h
+  PlaneFillLayeredWalker.h
   PlaneFillWalker.h
   PlaneWalker.h
+  PlaneWalkVisitMode.h
   QueryFlag.h
   Query.h
   RayFilter.h

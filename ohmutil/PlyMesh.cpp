@@ -301,20 +301,20 @@ void PlyMesh::addMappedEdge(const glm::dvec3 *verts, const unsigned *vert_ids, c
 }
 
 
-void PlyMesh::addComment(const char *comment)
+void PlyMesh::addComment(const std::string &comment)
 {
   comments_.emplace_back(comment);
 }
 
 
-const char *PlyMesh::getComment(unsigned index) const
+std::string PlyMesh::getComment(unsigned index) const
 {
   if (index >= comments_.size())
   {
-    return nullptr;
+    return std::string();
   }
 
-  return comments_[index].c_str();
+  return comments_[index];
 }
 
 
@@ -330,10 +330,10 @@ void PlyMesh::clearComments()
 }
 
 
-bool PlyMesh::save(const char *out_path, bool binary) const
+bool PlyMesh::save(const std::string &out_path, bool binary) const
 {
   FILE *cfile = nullptr;
-  if (fopen_s(&cfile, out_path, "wb"))
+  if (fopen_s(&cfile, out_path.c_str(), "wb"))
   {
     return false;
   }

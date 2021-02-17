@@ -10,6 +10,7 @@
 #include <glm/fwd.hpp>
 
 #include <cinttypes>
+#include <string>
 
 #ifdef major
 #undef major
@@ -183,7 +184,7 @@ const char *errorCodeString(int err);
 /// @param map The map to save.
 /// @param progress Optional progress tracking object.
 /// @return @c SE_OK on success, or a non zero @c SerialisationError on failure.
-int ohm_API save(const char *filename, const OccupancyMap &map, SerialiseProgress *progress = nullptr);
+int ohm_API save(const std::string &filename, const OccupancyMap &map, SerialiseProgress *progress = nullptr);
 
 /// Load @p map from @p filename.
 ///
@@ -198,10 +199,10 @@ int ohm_API save(const char *filename, const OccupancyMap &map, SerialiseProgres
 /// @param progress Optional progress tracking object.
 /// @param[out] version_out When present, set to the version number of the loaded map format.
 /// @return @c SE_OK on success, or a non zero @c SerialisationError on failure.
-int ohm_API load(const char *filename, OccupancyMap &map, SerialiseProgress *progress = nullptr,
+int ohm_API load(const std::string &filename, OccupancyMap &map, SerialiseProgress *progress = nullptr,
                  MapVersion *version_out = nullptr);
 
-int ohm_API load(const char *filename, Heightmap &heightmap, SerialiseProgress *progress = nullptr,
+int ohm_API load(const std::string &filename, Heightmap &heightmap, SerialiseProgress *progress = nullptr,
                  MapVersion *version_out = nullptr);
 
 /// Loads the header and layers of a map file without loading the chunks for voxel data.
@@ -216,7 +217,7 @@ int ohm_API load(const char *filename, Heightmap &heightmap, SerialiseProgress *
 /// @param[out] version_out When present, set to the version number of the loaded map format.
 /// @param[out] region_count When present, set to the number of regions in the map. Regions are not loaded.
 /// @return @c SE_OK on success, or a non zero @c SerialisationError on failure.
-int ohm_API loadHeader(const char *filename, OccupancyMap &map, MapVersion *version_out = nullptr,
+int ohm_API loadHeader(const std::string &filename, OccupancyMap &map, MapVersion *version_out = nullptr,
                        size_t *region_count = nullptr);
 }  // namespace ohm
 

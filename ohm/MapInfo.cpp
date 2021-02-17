@@ -743,7 +743,7 @@ void MapInfo::set(const MapValue &value)
 }
 
 
-MapValue MapInfo::get(const char *name) const
+MapValue MapInfo::get(const char *name, MapValue default_value) const
 {
   auto iter = imp_->dictionary.find(MapValue(name, int32_t(0)));
   if (iter != imp_->dictionary.end())
@@ -751,7 +751,7 @@ MapValue MapInfo::get(const char *name) const
     return *iter;
   }
 
-  return MapValue();
+  return default_value;
 }
 
 

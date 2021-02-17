@@ -191,11 +191,11 @@ public:
 
   /// Add a comment to the PLY file. Comment will be written on calling @c save() .
   /// @param comment The comment string.
-  void addComment(const char *comment);
+  void addComment(const std::string &comment);
   /// Get a previously added comment string.
   /// @param index Index of the comment string. Must be in range `[0, commentCount())`
   /// @return The requested comment string.
-  const char *getComment(unsigned index) const;
+  std::string getComment(unsigned index) const;
   /// Query the number of comment strings which have been added using @c addComment() .
   /// @return The number of added comment strings.
   unsigned commentCount() const;
@@ -206,7 +206,7 @@ public:
   /// @param out_path File path specifying where to save. String should include the `.ply` extension.
   /// @param binary Save in binary PLY format? False for ASCII.
   /// @return True on succcess.
-  bool save(const char *out_path, bool binary) const;
+  bool save(const std::string &out_path, bool binary) const;
   /// Save the PLY mesh using a @c FILE object.
   /// @param outfile @c FILE object to save to.
   /// @param binary Save in binary PLY format? False for ASCII.

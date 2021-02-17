@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <limits>
 
 namespace
 {
@@ -70,18 +71,6 @@ void colour::rgbToHsv(float &h, float &s, float &v, float r, float g, float b)
   const float delta = c_max - c_min;
 
 
-#if 1
-  v = c_max;
-  s = (c_max != 0) ? delta / c_max : 0;
-
-  const float yellow_to_magenta = (r == c_max && c_max != 0) ? 1.0f : 0.0f;
-  const float cyan_to_yellow = (g == c_max && c_max != 0) ? 1.0f : 0.0f;
-  const float magenta_to_cyan = (b == c_max && c_max != 0) ? 1.0f : 0.0f;
-
-  h =
-    (yellow_to_magenta * ((g - b) / delta) + cyan_to_yellow * ((g - b) / delta) + magenta_to_cyan * ((g - b) / delta)) *
-    kSectorSizeDegrees;
-#else   // #
   if (!c_max)
   {
     // Black. s = 0, v is undefined.
@@ -109,15 +98,62 @@ void colour::rgbToHsv(float &h, float &s, float &v, float r, float g, float b)
   }
 
   h *= kSectorSizeDegrees;
-#endif  // #
 
-  h = (h < kCircleDegrees) ? h + kCircleDegrees : h;
+  h = (h < 0) ? h + kCircleDegrees : h;
+  h = (h > kCircleDegrees) ? h - kCircleDegrees : h;
 }
 
 
 void colour::rgbToHsv(float &h, float &s, float &v, uint8_t r, uint8_t g, uint8_t b)
 {
-  rgbToHsv(h, s, v, float(r) * 1.0f, float(g) * 1.0f, float(b) * 1.0f);
+  rgbToHsv(h, s, v, float(r) / 255.0f, float(g) / 255.0f, float(b) / 255.0f);
+}
+
+
+Colour Colour::lerp(const Colour &from, const Colour &to, float factor)
+{
+  // Convert to hsv space for the lerp.
+  float from_h;
+  float from_s;
+  float from_v;
+  colour::rgbToHsv(from_h, from_s, from_v, from.r(), from.g(), from.b());
+
+  float to_h;
+  float to_s;
+  float to_v;
+  colour::rgbToHsv(to_h, to_s, to_v, to.r(), to.g(), to.b());
+
+  const float max_h = kCircleDegrees;
+  if (std::abs(to_h - from_h) > 0.5f * max_h)
+  {
+    if (to_h < from_h)
+    {
+      to_h += max_h;
+    }
+    else
+    {
+      from_h += max_h;
+    }
+  }
+
+  const float h = std::max(0.0f, std::min(from_h + (to_h - from_h) * factor, max_h));
+
+  // Lerp s and v the easy way.
+  const float s = std::max(0.0f, std::min(from_s + (to_s - from_s) * factor, 1.0f));
+  const float v = std::max(0.0f, std::min(from_v + (to_v - from_v) * factor, 1.0f));
+
+  Colour c{};
+  colour::hsvToRgb(c.rgba[0], c.rgba[1], c.rgba[2], h, s, v);
+
+  // Finally lerp alpha
+  const float from_a = from.af();
+  const float to_a = to.af();
+
+  const float alpha = std::max(0.0f, std::min(from_a + (to_a - from_a) * factor, 1.0f));
+
+  c.rgba[3] = static_cast<uint8_t>(alpha * std::numeric_limits<uint8_t>::max());
+
+  return c;
 }
 
 

@@ -11,6 +11,7 @@
 #include "MapLayout.h"
 #include "MapRegionCache.h"
 #include "OccupancyMap.h"
+#include "Trace.h"
 #include "VoxelData.h"
 
 #include "private/OccupancyMapDetail.h"
@@ -28,14 +29,6 @@ namespace ohm
 {
 using KeyToIndexMap = std::unordered_map<Key, uint32_t, Key::Hash>;
 using KeySet = std::unordered_set<Key, Key::Hash>;
-
-enum TraceCategory
-{
-  kTcRoot,
-  kTcRays,
-  kTcVoxels,
-  kTcNdt
-};
 
 struct OccupancyMeshDetail
 {
@@ -512,11 +505,6 @@ RayMapperTrace::RayMapperTrace(OccupancyMap *map, RayMapper *true_mapper)
 #ifdef TES_ENABLE
   if (g_tes)
   {
-    // Setup categories. Use macros for convenience.
-    TES_CATEGORY(g_tes, "Rays", kTcRays, 0, true);
-    TES_CATEGORY(g_tes, "Voxels", kTcVoxels, 0, true);
-    TES_CATEGORY(g_tes, "Ndt", kTcNdt, 0, true);
-
     // Instantiate the mesh resource.
     g_tes->referenceResource(imp_.get());
     // Create the mesh object representation.

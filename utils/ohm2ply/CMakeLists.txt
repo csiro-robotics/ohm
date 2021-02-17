@@ -19,7 +19,7 @@ target_include_directories(ohm2ply SYSTEM
     "${ZLIB_INCLUDE_DIRS}"
 )
 
-target_link_libraries(ohm2ply PUBLIC ohm ohmutil ${ZLIB_LIBRARIES})
+target_link_libraries(ohm2ply PUBLIC ohm ohmtools ohmutil ${ZLIB_LIBRARIES})
 
 clang_tidy_target(ohm2ply)
 

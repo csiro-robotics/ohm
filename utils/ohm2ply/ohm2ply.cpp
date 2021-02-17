@@ -16,6 +16,7 @@
 #include <ohm/OccupancyType.h>
 #include <ohm/VoxelData.h>
 
+#include <ohmtools/OhmCloud.h>
 #include <ohmutil/PlyMesh.h>
 #include <ohmutil/ProgressMonitor.h>
 
@@ -56,10 +57,24 @@ enum ExportMode
 {
   kExportOccupancy,
   kExportOccupancyCentre,
+  kExportObserved,
   kExportClearance,
   kExportHeightmap,
   kExportHeightmapMesh,
   kExportCovariance
+};
+
+enum ColourMode
+{
+  kColourNone,
+  kColourHeight,
+  kColourLayer,
+  kColourType
+};
+
+struct HeightmapOptions
+{
+  bool collapse = false;  ///< Collapse a layered heightmap into a 2.5D heightmap.
 };
 
 struct Options
@@ -72,7 +87,9 @@ struct Options
   float occupancy_threshold = -1.0f;
   float colour_scale = 3.0f;
   ExportMode mode = kExportOccupancy;
-  std::string heightmap_axis = "z";
+  ColourMode colour = kColourHeight;
+
+  HeightmapOptions heightmap;
 };
 
 template <typename NUMERIC>
@@ -168,6 +185,8 @@ void makeUnitSphere(std::vector<glm::dvec3> &vertices, std::vector<unsigned> &in
 
 
 // Custom option parsing. Must come before we include Options.h/cxxopt.hpp
+void badArg(const std::string &arg);
+
 std::istream &operator>>(std::istream &in, ExportMode &mode)
 {
   std::string mode_str;
@@ -179,6 +198,10 @@ std::istream &operator>>(std::istream &in, ExportMode &mode)
   else if (mode_str == "occupancy-centre")
   {
     mode = kExportOccupancyCentre;
+  }
+  else if (mode_str == "observed")
+  {
+    mode = kExportObserved;
   }
   else if (mode_str == "clearance")
   {
@@ -213,6 +236,9 @@ std::ostream &operator<<(std::ostream &out, const ExportMode mode)
   case kExportOccupancyCentre:
     out << "occupancy-centre";
     break;
+  case kExportObserved:
+    out << "observed";
+    break;
   case kExportClearance:
     out << "clearance";
     break;
@@ -230,8 +256,65 @@ std::ostream &operator<<(std::ostream &out, const ExportMode mode)
 }
 
 
+std::istream &operator>>(std::istream &in, ColourMode &mode)
+{
+  std::string mode_str;
+  in >> mode_str;
+  if (mode_str == "none")
+  {
+    mode = kColourNone;
+  }
+  else if (mode_str == "height")
+  {
+    mode = kColourHeight;
+  }
+  else if (mode_str == "layer")
+  {
+    mode = kColourLayer;
+  }
+  else if (mode_str == "type")
+  {
+    mode = kColourType;
+  }
+  else
+  {
+    badArg(mode_str);
+  }
+  return in;
+}
+
+std::ostream &operator<<(std::ostream &out, const ColourMode mode)
+{
+  switch (mode)
+  {
+  case kColourNone:
+    out << "none";
+    break;
+  case kColourHeight:
+    out << "height";
+    break;
+  case kColourLayer:
+    out << "layer";
+    break;
+  case kColourType:
+    out << "type";
+    break;
+  default:
+    out << "<unknown>";
+  }
+  return out;
+}
+
+
 // Must be after argument streaming operators.
 #include <ohmutil/Options.h>
+
+void badArg(const std::string &arg)
+{
+  // Must be declared before, but included after cxxopt.
+  throw cxxopts::invalid_option_format_error(arg);
+}
+
 
 int parseOptions(Options *opt, int argc, char *argv[])  // NOLINT(modernize-avoid-c-arrays)
 {
@@ -246,15 +329,19 @@ int parseOptions(Options *opt, int argc, char *argv[])  // NOLINT(modernize-avoi
     opt_parse.add_options()
       ("help", "Show help.")
       ("colour-scale", "Colour max scaling value for colouring a clearance or heightmap cloud. Max colour at this range..", cxxopts::value(opt->colour_scale))
+      ("colour", "Colour control for exported point clouds {none,height,type}.", optVal(opt->colour))
       ("cloud", "The output cloud file (ply).", cxxopts::value(opt->ply_file))
       ("cull", "Remove regions farther than the specified distance from the map origin.", cxxopts::value(opt->cull_distance)->default_value(optStr(opt->cull_distance)))
       ("map", "The input map file (ohm).", cxxopts::value(opt->map_file))
       ("mode", "Export mode [occupancy,occupancy-centre,clearance,heightmap,heightmap-mesh]: select which data to export from the "
                "map. occupancy and occupancy-centre differ only in that the latter forces positioning on voxel "
                "centres.", cxxopts::value(opt->mode)->default_value(optStr(opt->mode)))
-      ("heightmap-axis", "Axis for the heightmap vertical axis [x, y, z].", cxxopts::value(opt->heightmap_axis)->default_value(optStr(opt->heightmap_axis)))
       ("expire", "Expire regions with a timestamp before the specified time. These are not exported.", cxxopts::value(opt->expiry_time))
       ("threshold", "Override the map's occupancy threshold. Only occupied points are exported.", cxxopts::value(opt->occupancy_threshold)->default_value(optStr(opt->occupancy_threshold)))
+      ;
+
+    opt_parse.add_options("Heightmap")
+      ("heightmap-2d", "Reduce to a 2.5D heightmap cloud regardless of input heightmap. This collapses a layered heightmap.", optVal(opt->heightmap.collapse))
       ;
     // clang-format on
 
@@ -265,7 +352,7 @@ int parseOptions(Options *opt, int argc, char *argv[])  // NOLINT(modernize-avoi
     if (parsed.count("help") || parsed.arguments().empty())
     {
       // show usage.
-      std::cout << opt_parse.help({ "", "Map", "Mapping", "GPU" }) << std::endl;
+      std::cout << opt_parse.help({ "", "Heightmap" }) << std::endl;
       return 1;
     }
 
@@ -293,7 +380,6 @@ int parseOptions(Options *opt, int argc, char *argv[])  // NOLINT(modernize-avoi
 int exportPointCloud(const Options &opt, ProgressMonitor &prog, LoadMapProgress &load_progress)
 {
   ohm::OccupancyMap map(1.0f);
-  ohm::PlyMesh ply;
 
   prog.startThread();
   int res = ohm::load(opt.map_file.c_str(), map, &load_progress);
@@ -312,6 +398,7 @@ int exportPointCloud(const Options &opt, ProgressMonitor &prog, LoadMapProgress 
   {
   case kExportOccupancy:
   case kExportOccupancyCentre:
+  case kExportObserved:
     if (map.layout().layer("occupancy") == nullptr)
     {
       std::cerr << "Missing 'occupancy' layer" << std::endl;
@@ -346,25 +433,6 @@ int exportPointCloud(const Options &opt, ProgressMonitor &prog, LoadMapProgress 
     return -1;
   }
 
-  int heightmap_axis = -1;
-  if (opt.heightmap_axis == "x")
-  {
-    heightmap_axis = 0;
-  }
-  else if (opt.heightmap_axis == "y")
-  {
-    heightmap_axis = 1;
-  }
-  else if (opt.heightmap_axis == "z")
-  {
-    heightmap_axis = 2;
-  }
-  else
-  {
-    std::cerr << "Invalid heightmap axis: " << opt.heightmap_axis << std::endl;
-    return -1;
-  }
-
   if (opt.occupancy_threshold >= 0)
   {
     map.setOccupancyThresholdProbability(opt.occupancy_threshold);
@@ -387,89 +455,78 @@ int exportPointCloud(const Options &opt, ProgressMonitor &prog, LoadMapProgress 
   std::cout << "Converting to PLY cloud" << std::endl;
   glm::vec3 v;
   const size_t region_count = map.regionCount();
-  glm::i16vec3 last_region = map.begin().key().regionKey();
-  uint64_t point_count = 0;
+  // uint64_t point_count = 0;
 
   prog.beginProgress(ProgressMonitor::Info(region_count));
 
-  ohm::Voxel<const float> occupancy(&map, map.layout().occupancyLayer());
-  ohm::Voxel<const float> clearance(&map, map.layout().clearanceLayer());
-  ohm::Voxel<const ohm::VoxelMean> mean(&map, map.layout().meanLayer());
-  ohm::Voxel<const ohm::HeightmapVoxel> height(&map, map.layout().layerIndex(ohm::HeightmapVoxel::kHeightmapLayer));
-  for (auto iter = map.begin(); iter != map.end() && !g_quit; ++iter)
-  {
-    clearance.setKey(mean.setKey(occupancy.setKey(iter)));
-    if (last_region != iter->regionKey())
-    {
-      prog.incrementProgress();
-      last_region = iter->regionKey();
-    }
-    if (opt.mode == kExportOccupancy || opt.mode == kExportOccupancyCentre)
-    {
-      if (occupancyType(occupancy) == ohm::kOccupied)
-      {
-        v = (opt.mode == kExportOccupancy) ? ohm::positionSafe(mean) : map.voxelCentreGlobal(*iter);
-        ply.addVertex(v);
-        ++point_count;
-      }
-    }
-    else if (opt.mode == kExportClearance)
-    {
-      if (clearance.isValid())
-      {
-        float clearance_value;
-        clearance.read(&clearance_value);
-        if (clearance_value >= 0 && clearance_value < opt.colour_scale)
-        {
-          const float range_value = clearance_value;
-          auto c = uint8_t(std::numeric_limits<uint8_t>::max() *
-                           std::max(0.0f, (opt.colour_scale - range_value) / opt.colour_scale));
-          v = map.voxelCentreGlobal(*iter);
-          ply.addVertex(v, ohm::Colour(c, std::numeric_limits<uint8_t>::max() / 2, 0));
-          ++point_count;
-        }
-      }
-    }
-    else if (opt.mode == kExportHeightmap)
-    {
-      if (occupancy.isValid() && isOccupied(occupancy))
-      {
-        height.setKey(occupancy);
-        if (height.isValid())
-        {
-          ohm::HeightmapVoxel voxel_height;
-          height.read(&voxel_height);
-          auto c = uint8_t(std::numeric_limits<uint8_t>::max() *
-                           std::max(0.0f, (opt.colour_scale - voxel_height.clearance) / opt.colour_scale));
-          if (voxel_height.clearance <= 0)
-          {
-            // Max clearance. No red.
-            c = 0;
-          }
+  const auto save_progress_callback = [&prog](size_t progress, size_t /*target*/) { prog.updateProgress(progress); };
+  ohmtools::ColourByHeight colour_by_height(map);
+  ohmtools::ColourByType colour_by_type(map);
+  ohmtools::ColourHeightmapType colour_by_heightmap_type(map);
+  ohmtools::ColourHeightmapLayer colour_by_heightmap_layer(map);
 
-          glm::dvec3 up(0);
-          up[heightmap_axis] = 1;
-          v = map.voxelCentreGlobal(*iter) + up * double(voxel_height.height);
-          ply.addVertex(v, ohm::Colour(c, std::numeric_limits<uint8_t>::max() / 2, 0));
-          ++point_count;
-        }
-      }
+  switch (opt.mode)
+  {
+  case kExportOccupancy:
+    // fallthrough
+  case kExportOccupancyCentre:
+  case kExportObserved: {
+    ohmtools::SaveCloudOptions save_opt;
+    save_opt.ignore_voxel_mean = opt.mode != kExportOccupancy;
+    save_opt.export_free = opt.mode == kExportObserved;
+    // Default colour mode for saveCloud() is colour by height.
+    save_opt.allow_default_colour_selection = (opt.colour == kColourHeight);
+    if (opt.colour == kColourType)
+    {
+      save_opt.colour_select = [&colour_by_type](const ohm::Voxel<const float> &occupancy) {
+        return colour_by_type.select(occupancy);
+      };
     }
+    saveCloud(opt.ply_file.c_str(), map, save_opt, save_progress_callback);
+    break;
+  }
+  case kExportHeightmap: {
+    ohmtools::SaveHeightmapCloudOptions save_opt;
+    save_opt.ignore_voxel_mean = false;
+    save_opt.export_free = true;
+    save_opt.collapse = opt.heightmap.collapse;
+    if (opt.colour == kColourHeight)
+    {
+      save_opt.colour_select = [&colour_by_heightmap_type](const ohm::Voxel<const float> &occupancy) {
+        return colour_by_heightmap_type.select(occupancy);
+      };
+    }
+    else if (opt.colour == kColourLayer)
+    {
+      save_opt.colour_select = [&colour_by_heightmap_layer](const ohm::Voxel<const float> &occupancy) {
+        return colour_by_heightmap_layer.select(occupancy);
+      };
+    }
+    else if (opt.colour == kColourType)
+    {
+      save_opt.colour_select = [&colour_by_type](const ohm::Voxel<const float> &occupancy) {
+        return colour_by_type.select(occupancy);
+      };
+    }
+    ohmtools::saveHeightmapCloud(opt.ply_file.c_str(), map, save_opt, save_progress_callback);
+    break;
+  }
+  case kExportClearance: {
+    glm::dvec3 min_ext;
+    glm::dvec3 max_ext;
+    map.calculateExtents(&min_ext, &max_ext);
+    ohmtools::saveClearanceCloud(opt.ply_file.c_str(), map, min_ext, max_ext, opt.colour_scale, ohm::kFree,
+                                 save_progress_callback);
+    break;
+  }
+  default:
+    std::cout << "Invalid mode for point cloud: " << opt.mode << std::endl;
+    return -1;
   }
 
   prog.endProgress();
   prog.pause();
   prog.joinThread();
-
-  std::cout << "\nExporting " << point_count << " points" << std::endl;
-
-  if (!g_quit)
-  {
-    if (!ply.save(opt.ply_file.c_str(), true))
-    {
-      res = -1;
-    }
-  }
 
   return res;
 }
@@ -686,6 +743,7 @@ int main(int argc, char *argv[])
   {
   case kExportOccupancy:
   case kExportOccupancyCentre:
+  case kExportObserved:
   case kExportClearance:
   case kExportHeightmap:
     res = exportPointCloud(opt, prog, load_progress);

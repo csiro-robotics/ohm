@@ -9,6 +9,7 @@
 #include "OhmConfig.h"
 
 #include <cstddef>
+#include <string>
 
 #define OHM_ZIP 1
 
@@ -38,7 +39,7 @@ public:
 
   /// Returns the file path given when the stream was opened.
   /// @return The file path, or an empty string when not open.
-  const char *filePath() const;
+  const std::string &filePath() const;
 
   /// Returns the current @c StreamFlag settings.
   /// @return Current flags.
@@ -48,7 +49,7 @@ public:
   /// @param file_path The relative or absolute file path.
   /// @param flags @c StreamFlag values to open with.
   /// @return True on success.
-  bool open(const char *file_path, unsigned flags = 0u);
+  bool open(const std::string &file_path, unsigned flags = 0u);
 
   /// Closes the file if open. This forces a @c flush().
   void close();
@@ -80,7 +81,7 @@ protected:
   /// @param file_path The relative or absolute file path.
   /// @param flags @c StreamFlag values to open with.
   /// @return True on success.
-  virtual bool doOpen(const char *file_path, unsigned flags) = 0;
+  virtual bool doOpen(const std::string &file_path, unsigned flags) = 0;
 
   /// Called to close the file (after a @c flush()).
   virtual void doClose() = 0;
@@ -126,7 +127,7 @@ public:
   ///
   /// @param file_path Optionally specifies the file to open.
   /// @param flags The @c StreamFlag set to open with.
-  explicit InputStream(const char *file_path = nullptr, unsigned flags = 0u);
+  explicit InputStream(const std::string &file_path = std::string(), unsigned flags = 0u);
 
   /// Destructor. Flushes and closes the file.
   ~InputStream() override;
@@ -166,7 +167,7 @@ protected:
   /// @param file_path The relative or absolute file path.
   /// @param flags @c StreamFlag values to open with.
   /// @return True on success.
-  bool doOpen(const char *file_path, unsigned flags) override;
+  bool doOpen(const std::string &file_path, unsigned flags) override;
 
   /// Called to close the file (after a @c flush()).
   void doClose() override;
@@ -210,7 +211,7 @@ public:
   ///
   /// @param file_path Optionally specifies the file to open.
   /// @param flags The @c StreamFlag set to open with.
-  explicit OutputStream(const char *file_path = nullptr, unsigned flags = 0u);
+  explicit OutputStream(const std::string &file_path = std::string(), unsigned flags = 0u);
 
   /// Destructor. Flushes and closes the file.
   ~OutputStream() override;
@@ -238,7 +239,7 @@ private:
   /// @param file_path The relative or absolute file path.
   /// @param flags @c StreamFlag values to open with.
   /// @return True on success.
-  bool doOpen(const char *file_path, unsigned flags) override;
+  bool doOpen(const std::string &file_path, unsigned flags) override;
 
   /// Called to close the file (after a @c flush()).
   void doClose() override;

@@ -24,7 +24,7 @@ OccupancyMapDetail::~OccupancyMapDetail()
 }
 
 
-void OccupancyMapDetail::moveKeyAlongAxis(Key &key, int axis, int step) const
+void OccupancyMapDetail::moveKeyAlongAxis(Key &key, int axis, int step, const glm::ivec3 &region_voxel_dimensions)
 {
   const glm::ivec3 local_limits = region_voxel_dimensions;
 

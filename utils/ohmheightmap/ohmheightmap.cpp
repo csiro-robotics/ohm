@@ -1,6 +1,7 @@
 //
 // author Kazys Stepanas
 //
+// Utility for generating an ohm heightmap from an ohm occupancy map.
 #include <ohm/Heightmap.h>
 #include <ohm/HeightmapVoxel.h>
 #include <ohm/MapSerialise.h>
@@ -8,12 +9,11 @@
 #include <ohm/Trace.h>
 #include <ohm/Voxel.h>
 
+#include <ohmutil/GlmStream.h>
 #include <ohmutil/OhmUtil.h>
 #include <ohmutil/ProgressMonitor.h>
 #include <ohmutil/SafeIO.h>
 #include <ohmutil/ScopedTimeDisplay.h>
-
-#include <ohmutil/Options.h>
 
 #include <glm/glm.hpp>
 
@@ -30,6 +30,107 @@
 #include <unordered_set>
 
 #include <3esservermacros.h>
+
+/// Declare a function for throwing exceptions for bad arguments. The exception isn't included yet due to cxxoptions
+/// oddities.
+void badArgParse(const std::string &info);
+
+// Custom option parsing. Must come before we include Options.h/cxxopt.hpp
+std::istream &operator>>(std::istream &in, ohm::HeightmapMode &mode)
+{
+  std::string mode_str;
+  in >> mode_str;
+  bool valid_mode = false;
+  mode = ohm::heightmapModeFromString(mode_str, &valid_mode);
+  if (!valid_mode)
+  {
+    badArgParse(mode_str);
+  }
+  return in;
+}
+
+std::ostream &operator<<(std::ostream &out, const ohm::HeightmapMode mode)
+{
+  std::string mode_str;
+  ohm::heightmapModeToString(mode);
+  out << mode_str;
+  return out;
+}
+
+
+std::istream &operator>>(std::istream &in, ohm::UpAxis &up)
+{
+  std::string up_str;
+  in >> up_str;
+  if (up_str == "x")
+  {
+    up = ohm::UpAxis::kX;
+  }
+  else if (up_str == "y")
+  {
+    up = ohm::UpAxis::kY;
+  }
+  else if (up_str == "z")
+  {
+    up = ohm::UpAxis::kZ;
+  }
+  else if (up_str == "-x")
+  {
+    up = ohm::UpAxis::kNegX;
+  }
+  else if (up_str == "-y")
+  {
+    up = ohm::UpAxis::kNegY;
+  }
+  else if (up_str == "-z")
+  {
+    up = ohm::UpAxis::kNegZ;
+  }
+  else
+  {
+    badArgParse(up_str);
+  }
+  return in;
+}
+
+std::ostream &operator<<(std::ostream &out, const ohm::UpAxis up)
+{
+  switch (up)
+  {
+  case ohm::UpAxis::kX:
+    out << "x";
+    break;
+  case ohm::UpAxis::kY:
+    out << "y";
+    break;
+  case ohm::UpAxis::kZ:
+    out << "z";
+    break;
+  case ohm::UpAxis::kNegX:
+    out << "-x";
+    break;
+  case ohm::UpAxis::kNegY:
+    out << "-y";
+    break;
+  case ohm::UpAxis::kNegZ:
+    out << "-z";
+    break;
+  default:
+    out << "<unknown>";
+    break;
+  }
+  return out;
+}
+
+
+// Must be after argument streaming operators.
+#include <ohmutil/Options.h>
+
+void badArgParse(const std::string &info)
+{
+  throw cxxopts::invalid_option_format_error(info);
+}
+
 
 namespace
 {
@@ -49,11 +150,14 @@ struct Options
 {
   std::string map_file;
   std::string heightmap_file;
+  std::string trace;  // 3es trace file (if available)
   ohm::UpAxis axis_id = ohm::UpAxis::kZ;
-  double base_height = 0;
+  ohm::HeightmapMode mode = ohm::HeightmapMode::kSimpleFill;
+  glm::dvec3 seed_pos{ 0, 0, 0 };
   double clearance = 2.0;
-  double floor = 0;
-  double ceiling = 0;
+  double floor = -1;
+  double ceiling = -1;
+  bool virtual_surfaces = false;
   bool no_voxel_mean = false;
 };
 
@@ -83,16 +187,42 @@ int parseOptions(Options *opt, int argc, char *argv[])  // NOLINT(modernize-avoi
 
   try
   {
+    std::ostringstream mode_help;
+    mode_help << "Heightmap expansion mode (";
+    std::string append_str = "";
+    for (ohm::HeightmapMode mode = ohm::HeightmapMode::kFirst; mode <= ohm::HeightmapMode::kLast;
+         mode = ohm::HeightmapMode(int(mode) + 1))
+    {
+      mode_help << append_str << ohm::heightmapModeToString(mode);
+      append_str = ", ";
+    }
+    mode_help << ").";
+
     opt_parse.add_options()("help", "Show help.")("i", "The input map file (ohm).", cxxopts::value(opt->map_file))  //
       ("o", "The output heightmap file (ohm).", cxxopts::value(opt->heightmap_file))                                //
-      ("base", "Base height: heightmap values are stored relative to this height.", optVal(opt->base_height))       //
-      ("clearance", "The required height clearance for a heightmap surface voxel.", optVal(opt->clearance))         //
-      ("floor", "Heightmap excludes voxels below this (positive) value below the --base height. Positive to enable.",
-       optVal(opt->floor))  //
-      ("ceiling", "Heightmap excludes voxels above this (positive) value above the --base height. Positive to enable.",
-       optVal(opt->ceiling))                                                                         //
+      ("ceiling",
+       "Ceiling applied to ground voxel searches. Limits how far up to search. Non-negative to enable. Affected by "
+       "'--mode'.",
+       optVal(opt->ceiling))                                                                                 //
+      ("clearance", "The required height clearance for a heightmap surface voxel.", optVal(opt->clearance))  //
+      ("floor",
+       "Floor applied to ground voxel searches. Limits how far down to search. Non-negative to enable. Affected by "
+       "'--mode'.",
+       optVal(opt->floor))                                                                           //
+      ("mode", mode_help.str(), optVal(opt->mode))                                                   //
       ("no-voxel-mean", "Ignore voxel mean positioning if available?.", optVal(opt->no_voxel_mean))  //
+      ("seed", "Seed position from which to build the heightmap. Specified as a 3 component vector such as '0,0,1'.",
+       optVal(opt->seed_pos))                                                        //
+      ("up", "Specifies the up axis {x,y,z,-x,-y,-z}.", optVal(opt->axis_id))        //
+      ("virtual", "Allow virtual surfaces?", cxxopts::value(opt->virtual_surfaces))  //
       ;
+
+    if (ohm::trace::available())
+    {
+      opt_parse.add_options()(
+        "trace", "Enable debug tracing to the given file name to generate a 3es file. High performance impact.",
+        cxxopts::value(opt->trace));
+    }
 
     opt_parse.parse_positional({ "i", "o" });
 
@@ -141,8 +271,12 @@ int main(int argc, char *argv[])
     return res;
   }
 
-  // Initialise TES
-  ohm::Trace trace("ohmheightmap.3es");
+  // Initialise 3ES
+  std::unique_ptr<ohm::Trace> trace;
+  if (!opt.trace.empty())
+  {
+    trace = std::make_unique<ohm::Trace>(opt.trace.c_str());
+  }
 
   signal(SIGINT, onSignal);
   signal(SIGTERM, onSignal);
@@ -185,12 +319,16 @@ int main(int argc, char *argv[])
   const auto heightmap_start_time = Clock::now();
 
   ohm::Heightmap heightmap(map.resolution(), opt.clearance, opt.axis_id);
-  heightmap.setUseFloodFill(true);  // For better surface following.
+  heightmap.setMode(opt.mode);
   heightmap.setOccupancyMap(&map);
+  heightmap.heightmap().setOrigin(map.origin());
 
+  heightmap.setCeiling(opt.ceiling >= 0 ? opt.ceiling : heightmap.ceiling());
+  heightmap.setFloor(opt.floor >= 0 ? opt.floor : heightmap.floor());
   heightmap.setIgnoreVoxelMean(opt.no_voxel_mean);
+  heightmap.setGenerateVirtualSurface(opt.virtual_surfaces);
 
-  heightmap.buildHeightmap(opt.base_height * heightmap.upAxisNormal());
+  heightmap.buildHeightmap(opt.seed_pos);
 
   const auto heightmap_end_time = Clock::now();
 
