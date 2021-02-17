@@ -404,7 +404,7 @@ int populateMap(const Options &opt)
 #else   // OHMPOP_CPU
   std::unique_ptr<ohm::GpuMap> gpu_map((!opt.ndt.enabled) ?
                                          new ohm::GpuMap(&map, true, opt.batch_size) :
-                                         new ohm::GpuNdtMap(&map, opt.ndt.ndt_tm, true, opt.batch_size));
+                                         new ohm::GpuNdtMap(&map, true, opt.batch_size));
   ohm::NdtMap *ndt_map = &static_cast<ohm::GpuNdtMap *>(gpu_map.get())->ndtMap();
 #endif  // OHMPOP_CPU
 

@@ -47,7 +47,7 @@ void testNdtHits(const std::vector<glm::dvec3> &samples, double resolution)
   std::unordered_map<ohm::Key, CovTestVoxel, ohm::KeyHash> reference_voxels;
 
   ohm::OccupancyMap map(resolution, ohm::MapFlag::kVoxelMean);
-  ohm::GpuNdtMap ndt(&map, false, true);
+  ohm::GpuNdtMap ndt(&map, true);
 
   // Simulate a sensor at the origin. Not used.
   const glm::dvec3 sensor(0.0);
@@ -126,7 +126,7 @@ void testNdtMiss(const glm::dvec3 &sensor, const std::vector<glm::dvec3> samples
   }
 
   // Clone the map for use in GPU.
-  ohm::GpuNdtMap ndt_gpu(map_cpu.clone(), false, false);
+  ohm::GpuNdtMap ndt_gpu(map_cpu.clone(), false);
   // Copy parameterisation.
   ndt_gpu.setSensorNoise(ndt_cpu.sensorNoise());
 
