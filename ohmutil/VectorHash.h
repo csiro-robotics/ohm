@@ -72,35 +72,35 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 /// Specifically the code for the paper "Efficient Sparse Voxel Octrees"
 namespace vhash
 {
-  /// Generate a hash for 2 to 3 components.
-  /// @param a First component.
-  /// @param b Second component.
-  /// @param c Third component.
-  inline uint32_t hashBits(uint32_t a, uint32_t b = VHASH_MAGIC, uint32_t c = 0)
-  {
-    c += VHASH_MAGIC;
-    VHASH_JENKINS_MIX(a, b, c);
-    return c;
-  }
+/// Generate a hash for 2 to 3 components.
+/// @param a First component.
+/// @param b Second component.
+/// @param c Third component.
+inline uint32_t hashBits(uint32_t a, uint32_t b = VHASH_MAGIC, uint32_t c = 0)
+{
+  c += VHASH_MAGIC;
+  VHASH_JENKINS_MIX(a, b, c);  // NOLINT(hicpp-signed-bitwise)
+  return c;
+}
 
 
-  /// Generate a hash for 4 to 6 components.
-  /// @param a First component.
-  /// @param b Second component.
-  /// @param c Third component.
-  /// @param d Fourth component.
-  /// @param e Fifth component.
-  /// @param f Sixth component.
-  inline uint32_t hashBits(uint32_t a, uint32_t b, uint32_t c, uint32_t d, uint32_t e = 0, uint32_t f = 0)
-  {
-    c += VHASH_MAGIC;
-    VHASH_JENKINS_MIX(a, b, c);
-    a += d;
-    b += e;
-    c += f;
-    VHASH_JENKINS_MIX(a, b, c);
-    return c;
-  }
+/// Generate a hash for 4 to 6 components.
+/// @param a First component.
+/// @param b Second component.
+/// @param c Third component.
+/// @param d Fourth component.
+/// @param e Fifth component.
+/// @param f Sixth component.
+inline uint32_t hashBits(uint32_t a, uint32_t b, uint32_t c, uint32_t d, uint32_t e = 0, uint32_t f = 0)
+{
+  c += VHASH_MAGIC;
+  VHASH_JENKINS_MIX(a, b, c);  // NOLINT(hicpp-signed-bitwise)
+  a += d;
+  b += e;
+  c += f;
+  VHASH_JENKINS_MIX(a, b, c);  // NOLINT(hicpp-signed-bitwise)
+  return c;
+}
 
 
 #ifdef __GNUC__
@@ -108,38 +108,41 @@ namespace vhash
 #pragma GCC diagnostic ignored "-Wstrict-aliasing"
 #endif  // __GNUC__
 
-  /// Generate a hash code for a 3-component vertex.
-  /// @param x A vector coordinate.
-  /// @param y A vector coordinate.
-  /// @param z A vector coordinate.
-  inline uint32_t hash(int32_t x, int32_t y, int32_t z)
-  {
-    return hashBits(*reinterpret_cast<const uint32_t *>(&x), *reinterpret_cast<const uint32_t *>(&y),
-                    *reinterpret_cast<const uint32_t *>(&z));  // NOLINT
-  }
+/// Generate a hash code for a 3-component vertex.
+/// @param x A vector coordinate.
+/// @param y A vector coordinate.
+/// @param z A vector coordinate.
+inline uint32_t hash(int32_t x, int32_t y, int32_t z)
+{
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+  return hashBits(*reinterpret_cast<const uint32_t *>(&x), *reinterpret_cast<const uint32_t *>(&y),
+                  *reinterpret_cast<const uint32_t *>(&z));  // NOLINT
+}
 
 
-  /// Generate a hash code for a 3-component vertex.
-  /// @param x A vector coordinate.
-  /// @param y A vector coordinate.
-  /// @param z A vector coordinate.
-  inline uint32_t hash(float x, float y, float z)
-  {
-    return hashBits(*reinterpret_cast<const uint32_t *>(&x), *reinterpret_cast<const uint32_t *>(&y),
-                    *reinterpret_cast<const uint32_t *>(&z));  // NOLINT
-  }
+/// Generate a hash code for a 3-component vertex.
+/// @param x A vector coordinate.
+/// @param y A vector coordinate.
+/// @param z A vector coordinate.
+inline uint32_t hash(float x, float y, float z)
+{
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+  return hashBits(*reinterpret_cast<const uint32_t *>(&x), *reinterpret_cast<const uint32_t *>(&y),
+                  *reinterpret_cast<const uint32_t *>(&z));  // NOLINT
+}
 
 
-  /// Generate a hash code for a 4-component vertex.
-  /// @param x A vector coordinate.
-  /// @param y A vector coordinate.
-  /// @param z A vector coordinate.
-  /// @param w A vector coordinate.
-  inline uint32_t hash(float x, float y, float z, float w)
-  {
-    return hashBits(*reinterpret_cast<const uint32_t *>(&x), *reinterpret_cast<const uint32_t *>(&y),
-                    *reinterpret_cast<const uint32_t *>(&z), *reinterpret_cast<const uint32_t *>(&w));  // NOLINT
-  }
+/// Generate a hash code for a 4-component vertex.
+/// @param x A vector coordinate.
+/// @param y A vector coordinate.
+/// @param z A vector coordinate.
+/// @param w A vector coordinate.
+inline uint32_t hash(float x, float y, float z, float w)
+{
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+  return hashBits(*reinterpret_cast<const uint32_t *>(&x), *reinterpret_cast<const uint32_t *>(&y),
+                  *reinterpret_cast<const uint32_t *>(&z), *reinterpret_cast<const uint32_t *>(&w));  // NOLINT
+}
 
 #ifdef __GNUC__
 #pragma GCC diagnostic pop

@@ -10,18 +10,15 @@
 #include "gpuApiException.h"
 #include "gpuThrow.h"
 
-using namespace gputil;
-
-Event::Event()
-  : imp_(nullptr)  // created as needed
-{}
+namespace gputil
+{
+Event::Event() = default;
 
 Event::Event(const Event &other)
-  : imp_(nullptr)  // created as needed
 {
   if (other.imp_)
   {
-    imp_ = new EventDetail;
+    imp_ = new EventDetail;  // NOLINT(cppcoreguidelines-owning-memory)
     imp_->event = other.imp_->event;
     clRetainEvent(imp_->event);
   }
@@ -68,7 +65,7 @@ bool Event::isComplete() const
     return true;
   }
 
-  cl_int status;
+  cl_int status = 0;
   cl_int clerr = clGetEventInfo(imp_->event, CL_EVENT_COMMAND_EXECUTION_STATUS, sizeof(status), &status, nullptr);
 
   GPUAPICHECK(clerr, CL_SUCCESS, false);
@@ -91,7 +88,7 @@ void Event::wait(const Event *events, size_t event_count)
 {
   if (event_count)
   {
-    cl_event *events_ocl = static_cast<cl_event *>(alloca(sizeof(cl_event) * event_count));
+    auto *events_ocl = static_cast<cl_event *>(alloca(sizeof(cl_event) * event_count));
     cl_uint actual_count = 0;
     for (size_t i = 0; i < event_count; ++i)
     {
@@ -113,7 +110,7 @@ void Event::wait(const Event **events, size_t event_count)
 {
   if (event_count)
   {
-    cl_event *events_ocl = static_cast<cl_event *>(alloca(sizeof(cl_event) * event_count));
+    auto *events_ocl = static_cast<cl_event *>(alloca(sizeof(cl_event) * event_count));
     cl_uint actual_count = 0;
     for (size_t i = 0; i < event_count; ++i)
     {
@@ -133,14 +130,17 @@ void Event::wait(const Event **events, size_t event_count)
 
 Event &Event::operator=(const Event &other)
 {
-  release();
-  if (other.imp_)
+  if (this != &other)
   {
-    // Call detail() to ensure _imp is allocated.
-    detail()->event = other.imp_->event;
-    if (imp_->event)
+    release();
+    if (other.imp_)
     {
-      clRetainEvent(imp_->event);
+      // Call detail() to ensure _imp is allocated.
+      detail()->event = other.imp_->event;
+      if (imp_->event)
+      {
+        clRetainEvent(imp_->event);
+      }
     }
   }
 
@@ -166,7 +166,7 @@ EventDetail *Event::detail()
   // Detail requested. Allocate if required.
   if (!imp_)
   {
-    imp_ = new EventDetail;
+    imp_ = new EventDetail;  // NOLINT(cppcoreguidelines-owning-memory)
     imp_->event = nullptr;
   }
   return imp_;
@@ -177,3 +177,4 @@ EventDetail *Event::detail() const
 {
   return imp_;
 }
+}  // namespace gputil

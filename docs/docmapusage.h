@@ -72,7 +72,7 @@ namespace ohm
   }
   @endcode
 
-  Data can then be queried about invidisual voxels using a combination of @ref Key "voxel keys" and @c Voxel objects.
+  Data can then be queried about individual voxels using a combination of @ref Key "voxel keys" and @c Voxel objects.
   The code below queries whether the voxel containing a given spatial position is occupied.
 
   @code{.cpp}
@@ -114,7 +114,7 @@ namespace ohm
 
   The example above introduces the several concepts including the @ref MapLayout "map layout". The example
   demonstrates how to validate and access the data for a particular @ref MapLayer "voxel layer", in this case the
-  occupancy layer. Note that there are convinience functions for this available in the @ref voxeloccupancy section.
+  occupancy layer. Note that there are convenience functions for this available in the @ref voxeloccupancy section.
 
   ## The MapLayout
 
@@ -202,7 +202,7 @@ namespace ohm
   from the chunk's @c MapChunk::firstValidKey() which is maintained as the first voxel in the chunk memory which has
   been touched.
 
-  Iterating with a range based for loop or deferencing the @c OccupancyMap::iterator provides yields a @c Key for the
+  Iterating with a range based for loop or deferencing the @c OccupancyMap::iterator yields a @c Key for the
   current voxel. The data associated with the voxel must be resolved using the @c Voxel template class. The
   @c OccupancyMap::iterator has additional, non-standard iterator functions which provide access to the target
   @c MapChunk and @c OccupancyMap . Below is an example of iterating a map.
@@ -305,7 +305,7 @@ namespace ohm
 
   The @c GpuMap relies on a @c GpuCache which keeps a copy of relevant @c MapChunk data in GPU memory. This cache
   keeps recently accessed chunks in GPU memory and will move data back to CPU memory once the cache is full and new
-  chunks need to be modified. Changes in CPU will mark the a chunk as dirty and the @c GpuCache will upload the updated
+  chunks need to be modified. Changes in CPU will mark the chunk as dirty and the @c GpuCache will upload the updated
   data from CPU, however there is no resolution mechanism for merging simultaneous changes on CPU and GPU.
 
   For optimal performance the number of rays given to each @ref GpuMap::integrateRays() "integrateRays()" call may

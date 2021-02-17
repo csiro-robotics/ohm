@@ -13,32 +13,38 @@
 
 namespace gputil
 {
-  /// Raised due to an exception in the underlying GPU SDK.
-  class gputilAPI ApiException : public Exception
-  {
-  public:
-    /// Constructn an API exception.
-    /// @param error_code The underlying SDK error code - e.g., a @c cudaError_t .
-    /// @param msg Optional test for the api error. When null, the @c errorCodeString() for @p error_code is used.
-    /// @param filename Optional file the exception is thrown from.
-    /// @param line_number Optional line number where the exception is thrown.
-    ApiException(int error_code, const char *msg = nullptr, const char *filename = nullptr, int line_number = 0);
-    /// Move constructor.
-    /// @param other Object to move.
-    ApiException(ApiException &&other) noexcept;
+/// Raised due to an exception in the underlying GPU SDK.
+class gputilAPI ApiException : public Exception  // NOLINT(cppcoreguidelines-special-member-functions)
+{
+public:
+  /// Construct an API exception.
+  /// @param error_code The underlying SDK error code - e.g., a @c cudaError_t .
+  /// @param msg Optional test for the api error. When null, the @c errorCodeString() for @p error_code is used.
+  /// @param filename Optional file the exception is thrown from.
+  /// @param line_number Optional line number where the exception is thrown.
+  ApiException(int error_code, const char *msg, const char *filename = nullptr, int line_number = 0);
 
-    /// A helper function which converts the @p error_code into a string message.
-    /// @param error_code The GPU API error code to retrieve a message for - e.g., a @c cudaError_t .
-    /// @return A string which identifies the @p error_code . Some codes may be unknown.
-    static const char *errorCodeString(int error_code);
+  /// @overload
+  explicit inline ApiException(int error_code)
+    : ApiException(error_code, nullptr)
+  {}
 
-    /// Query the error code value for the exception.
-    /// @return The underlying SDK error code - e.g., a @c cudaError_t .
-    inline int errorCode() const { return error_code_; }
+  /// Move constructor.
+  /// @param other Object to move.
+  ApiException(ApiException &&other) noexcept;
 
-  private:
-    int error_code_;
-  };
+  /// A helper function which converts the @p error_code into a string message.
+  /// @param error_code The GPU API error code to retrieve a message for - e.g., a @c cudaError_t .
+  /// @return A string which identifies the @p error_code . Some codes may be unknown.
+  static const char *errorCodeString(int error_code);
+
+  /// Query the error code value for the exception.
+  /// @return The underlying SDK error code - e.g., a @c cudaError_t .
+  inline int errorCode() const { return error_code_; }
+
+private:
+  int error_code_;
+};
 }  // namespace gputil
 
 #endif  // GPUGPUAPICHECK_H

@@ -17,20 +17,17 @@
 #include <memory>
 #include <vector>
 
-using namespace ohm;
-
 namespace ohm
 {
-  struct GpuCacheDetail
-  {
-    std::vector<std::unique_ptr<GpuLayerCache>> layer_caches;
-    gputil::Device gpu;
-    gputil::Queue gpu_queue;
-    OccupancyMap *map = nullptr;
-    size_t target_gpu_alloc_size = 0;
-    unsigned flags = 0;
-  };
-}  // namespace ohm
+struct GpuCacheDetail
+{
+  std::vector<std::unique_ptr<GpuLayerCache>> layer_caches;
+  gputil::Device gpu;
+  gputil::Queue gpu_queue;
+  OccupancyMap *map = nullptr;
+  size_t target_gpu_alloc_size = 0;
+  unsigned flags = 0;
+};
 
 
 GpuCache::GpuCache(OccupancyMap &map, size_t target_gpu_alloc_size, unsigned flags)
@@ -124,11 +121,10 @@ GpuLayerCache *GpuCache::createCache(unsigned id, const GpuLayerCacheParams &par
   }
 
   const size_t layer_mem_size = (params.gpu_mem_size) ? params.gpu_mem_size : kDefaultLayerMemSize;
-  GpuLayerCache *new_cache = new GpuLayerCache(imp_->gpu, imp_->gpu_queue, *imp_->map, params.map_layer, layer_mem_size,
-                                               params.flags, params.on_sync);
-  imp_->layer_caches[id] = std::unique_ptr<GpuLayerCache>(new_cache);
+  imp_->layer_caches[id] = std::make_unique<GpuLayerCache>(imp_->gpu, imp_->gpu_queue, *imp_->map, params.map_layer,
+                                                           layer_mem_size, params.flags, params.on_sync);
 
-  return new_cache;
+  return imp_->layer_caches[id].get();
 }
 
 
@@ -165,3 +161,4 @@ const gputil::Queue &GpuCache::gpuQueue() const
 {
   return imp_->gpu_queue;
 }
+}  // namespace ohm

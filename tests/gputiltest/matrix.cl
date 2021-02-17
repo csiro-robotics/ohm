@@ -1,8 +1,7 @@
-#include "gpu_ext.h"
+#include "gpu_ext.h"  // Must be first
 
-__kernel void matrixMultiply(__global float *out, __global float *a, __global float *b, unsigned n
-  LOCAL_ARG(float *, work)
-)
+__kernel void matrixMultiply(__global float *out, __global float *a, __global float *b,
+                             unsigned n LOCAL_ARG(float *, work))
 {
   LOCAL_MEM_ENABLE();
   LOCAL_VAR(float *, work, LM_PER_THREAD(sizeof(float)));

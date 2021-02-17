@@ -1,0 +1,117 @@
+# Run clang tidy variable naming checks only.
+---
+Checks: >
+  -*,
+  readability-identifier-naming
+WarningsAsErrors: ''
+HeaderFilterRegex: '.*'
+AnalyzeTemporaryDtors: false
+FormatStyle:     none
+User: csiro
+CheckOptions:
+  # ---------------------------------------------------------------------------
+  # Classes and structs
+  # Class names
+  - key:  readability-identifier-naming.ClassCase
+    value: CamelCase
+  # Structs
+  - key:  readability-identifier-naming.StructCase
+    value: CamelCase
+  # static const class members
+  - key:  readability-identifier-naming.ClassConstantCase
+    value: CamelCase
+  - key:  readability-identifier-naming.ClassConstantPrefix
+    value: 'k'
+  # static class members (non-const)
+  - key:  readability-identifier-naming.ClassMemberCase
+    value: lower_case
+  # Class members which are const, but not static - omitted to control by access scope (public, private, etc)
+  # - key:  readability-identifier-naming.ConstantMemberCase
+  #   value: lower_case
+  # Class member functions - any access modifier (public, private, etc)
+  - key:  readability-identifier-naming.ClassMethodCase
+    value: camelBack
+  # Class member variable catchall
+  - key:  readability-identifier-naming.MemberCase
+    value: lower_case
+  # Private class member variables
+  - key:  readability-identifier-naming.PrivateMemberCase
+    value: lower_case
+  - key:  readability-identifier-naming.PrivateMemberSuffix
+    value: '_'
+  # Protected member variables
+  - key:  readability-identifier-naming.ProtectedMemberCase
+    value: lower_case
+  - key:  readability-identifier-naming.ProtectedMemberSuffix
+    value: '_'
+
+  # ---------------------------------------------------------------------------
+  # Enum declaration name case
+  - key:  readability-identifier-naming.EnumCase
+    value: CamelCase
+  # Enum value declarations (the stuff inside the enum)
+  - key:  readability-identifier-naming.EnumConstantCase
+    value: CamelCase
+  - key:  readability-identifier-naming.EnumConstantPrefix
+    value: 'k'
+
+  # ---------------------------------------------------------------------------
+  # Templates
+  - key:  readability-identifier-naming.TemplateParameterCase
+    value: CamelCase
+  # - key:  readability-identifier-naming.TemplateTemplateParameterCase
+  #   value: CamelCase
+  # - key:  readability-identifier-naming.TypeTemplateParameterCase
+  #   value: CamelCase
+  # - key:  readability-identifier-naming.ValueTemplateParameterCase
+  #   value: CamelCase
+
+
+  # ---------------------------------------------------------------------------
+  # General and global
+  # constexpr variable assignments
+  - key:  readability-identifier-naming.ConstexprVariableCase
+    value: CamelCase
+  - key:  readability-identifier-naming.ConstexprVariablePrefix
+    value: 'k'
+  # Namespaces
+  - key:  readability-identifier-naming.NamespaceCase
+    value: lower_case
+  # General function parameter names
+  - key:  readability-identifier-naming.ParameterCase
+    value: lower_case
+  # Union names
+  - key:  readability-identifier-naming.UnionCase
+    value: CamelCase
+  # General variable declarations
+  - key:  readability-identifier-naming.VariableCase
+    value: lower_case
+  # Typedef names
+  - key:  readability-identifier-naming.TypedefCase
+    value: CamelCase
+  # Names for type aliases: using Name = OtherThing;
+  # Includes aliases declared in classes.
+  - key:  readability-identifier-naming.TypeAliasCase
+    value: CamelCase
+  # Free function case
+  - key:  readability-identifier-naming.FunctionCase
+    value: camelBack
+  # Global/free constant variable case. Includes anynomous namespaces.
+  - key:  readability-identifier-naming.GlobalConstantCase
+    value: CamelCase
+  - key:  readability-identifier-naming.GlobalConstantPrefix
+    value: 'k'
+  # Variables in the global scope.
+  - key:  readability-identifier-naming.GlobalVariableCase
+    value: lower_case
+  - key:  readability-identifier-naming.GlobalVariablePrefix
+    value: 'g_'
+  # Constants declared within local function scopes. Same as normal variables.
+  - key:  readability-identifier-naming.LocalConstantCase
+    value: lower_case
+  - key:  readability-identifier-naming.LocalConstantPrefix
+    value: ''
+  # Local variable
+  - key:  readability-identifier-naming.LocalVariableCase
+    value: lower_case
+...

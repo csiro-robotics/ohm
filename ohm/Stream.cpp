@@ -16,114 +16,112 @@
 namespace ohm
 {
 #ifdef OHM_ZIP
-  struct Compression
-  {
-    z_stream stream;
-    Byte *buffer;
-    unsigned buffer_size;
-    bool initialised;
+struct Compression
+{
+  z_stream stream;
+  Byte *buffer = nullptr;
+  unsigned buffer_size = 0;
+  bool initialised = false;
 
-    Compression(unsigned buffer_size = 16 * 1024u);
-    ~Compression();
+  explicit Compression(unsigned buffer_size = 16 * 1024u);
+  ~Compression();
 
-    int initDeflate();
-    int doneDeflate();
+  int initDeflate();
+  int doneDeflate();
 
-    int initInflate();
-    int doneInflate();
-  };
+  int initInflate();
+  int doneInflate();
+};
 
 
-  Compression::Compression(unsigned buffer_size) // NOLINT
-    : buffer(nullptr)
-    , buffer_size(buffer_size)
-    , initialised(false)
+Compression::Compression(unsigned buffer_size)  // NOLINT
+  : buffer_size(buffer_size)
+{
+  memset(&stream, 0u, sizeof(stream));
+  buffer = new Byte[buffer_size];
+}
+
+
+Compression::~Compression()
+{
+  delete[] buffer;
+}
+
+
+int Compression::initDeflate()
+{
+  if (!initialised)
   {
     memset(&stream, 0u, sizeof(stream));
-    buffer = new Byte[buffer_size];
+    initialised = true;
+    return deflateInit(&stream, Z_DEFAULT_COMPRESSION);
   }
+  return Z_OK;
+}
 
 
-  Compression::~Compression() { delete[] buffer; }
-
-
-  int Compression::initDeflate()
-  {
-    if (!initialised)
-    {
-      memset(&stream, 0u, sizeof(stream));
-      initialised = true;
-      return deflateInit(&stream, Z_DEFAULT_COMPRESSION);
-    }
-    return Z_OK;
-  }
-
-
-  int Compression::doneDeflate()
-  {
-    if (initialised)
-    {
-      initialised = false;
-      return deflateEnd(&stream);
-    }
-    return Z_OK;
-  }
-
-
-  int Compression::initInflate()
-  {
-    if (!initialised)
-    {
-      memset(&stream, 0u, sizeof(stream));
-      initialised = true;
-      return inflateInit(&stream);
-    }
-    return Z_OK;
-  }
-
-
-  int Compression::doneInflate()
-  {
-    if (initialised)
-    {
-      initialised = false;
-      return inflateEnd(&stream);
-    }
-    return Z_OK;
-  }
-
-#endif  // OHM_ZIP
-
-  struct StreamPrivate
-  {
-    std::string file_path;
-    unsigned flags = 0;
-  };
-
-  struct InputStreamPrivate : StreamPrivate
-  {
-    std::ifstream in;
-#ifdef OHM_ZIP
-    Compression compress;
-#endif  // OHM_ZIP
-  };
-
-  struct OutputStreamPrivate : StreamPrivate
-  {
-    std::ofstream out;
-#ifdef OHM_ZIP
-    Compression compress;
-    bool needs_flush = false;
-#endif  // OHM_ZIP
-  };
-}  // namespace ohm
-
-using namespace ohm;
-
-
-const char *Stream::filePath() const
+int Compression::doneDeflate()
 {
-  return imp_->file_path.c_str();
+  if (initialised)
+  {
+    initialised = false;
+    return deflateEnd(&stream);
+  }
+  return Z_OK;
+}
+
+
+int Compression::initInflate()
+{
+  if (!initialised)
+  {
+    memset(&stream, 0u, sizeof(stream));
+    initialised = true;
+    return inflateInit(&stream);
+  }
+  return Z_OK;
+}
+
+
+int Compression::doneInflate()
+{
+  if (initialised)
+  {
+    initialised = false;
+    return inflateEnd(&stream);
+  }
+  return Z_OK;
+}
+
+#endif  // OHM_ZIP
+
+struct StreamPrivate
+{
+  std::string file_path;
+  unsigned flags = 0;
+};
+
+struct InputStreamPrivate : StreamPrivate
+{
+  std::ifstream in;
+#ifdef OHM_ZIP
+  Compression compress;
+#endif  // OHM_ZIP
+};
+
+struct OutputStreamPrivate : StreamPrivate
+{
+  std::ofstream out;
+#ifdef OHM_ZIP
+  Compression compress;
+  bool needs_flush = false;
+#endif  // OHM_ZIP
+};
+
+
+const std::string &Stream::filePath() const
+{
+  return imp_->file_path;
 }
 
 
@@ -133,7 +131,7 @@ unsigned Stream::flags() const
 }
 
 
-bool Stream::open(const char *file_path, unsigned flags)
+bool Stream::open(const std::string &file_path, unsigned flags)
 {
   close();
   return doOpen(file_path, flags);
@@ -173,10 +171,10 @@ Stream::Stream(StreamPrivate *imp)
 Stream::~Stream() = default;
 
 
-InputStream::InputStream(const char *file_path, unsigned flags)
+InputStream::InputStream(const std::string &file_path, unsigned flags)
   : Stream(new InputStreamPrivate)
 {
-  if (file_path && file_path[0])
+  if (!file_path.empty())
   {
     InputStream::doOpen(file_path, flags);
   }
@@ -259,7 +257,7 @@ unsigned InputStream::readRaw(void *buffer, unsigned max_bytes)
   const std::ifstream::pos_type initial_pos = in.tellg();
   in.read(static_cast<char *>(buffer), max_bytes);
   const std::ifstream::pos_type end_pos = in.tellg();
-  unsigned read = unsigned(end_pos - initial_pos);
+  auto read = unsigned(end_pos - initial_pos);
   return read;
 }
 
@@ -274,9 +272,9 @@ void InputStream::flush()
 {}
 
 
-bool InputStream::doOpen(const char *file_path, unsigned flags)
+bool InputStream::doOpen(const std::string &file_path, unsigned flags)
 {
-  imp()->in.open(file_path, std::ios_base::binary);
+  imp()->in.open(file_path.c_str(), std::ios_base::binary);
   imp()->file_path = file_path;
 #ifndef OHM_ZIP
   flags &= ~SF_Compress;
@@ -330,10 +328,10 @@ const InputStreamPrivate *InputStream::imp() const
 }
 
 
-OutputStream::OutputStream(const char *file_path, unsigned flags)
+OutputStream::OutputStream(const std::string &file_path, unsigned flags)
   : Stream(new OutputStreamPrivate)
 {
-  if (file_path && file_path[0])
+  if (!file_path.empty())
   {
     OutputStream::doOpen(file_path, flags);
   }
@@ -379,6 +377,7 @@ unsigned OutputStream::write(const void *buffer, unsigned max_bytes)
 
       if (imp.compress.stream.avail_out == 0)
       {
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
         imp.out.write(reinterpret_cast<char *>(imp.compress.buffer), imp.compress.buffer_size);
         imp.compress.stream.avail_out = imp.compress.buffer_size;
         imp.compress.stream.next_out = imp.compress.buffer;
@@ -426,6 +425,7 @@ void OutputStream::flush()
       unsigned have = imp.compress.buffer_size - imp.compress.stream.avail_out;
       if (have)
       {
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
         imp.out.write(reinterpret_cast<char *>(imp.compress.buffer), have);
       }
 
@@ -440,9 +440,9 @@ void OutputStream::flush()
 }
 
 
-bool OutputStream::doOpen(const char *file_path, unsigned flags)
+bool OutputStream::doOpen(const std::string &file_path, unsigned flags)
 {
-  imp()->out.open(file_path, std::ios_base::binary);
+  imp()->out.open(file_path.c_str(), std::ios_base::binary);
   imp()->file_path = file_path;
 #ifndef OHM_ZIP
   flags &= ~SF_Compress;
@@ -494,3 +494,4 @@ const OutputStreamPrivate *OutputStream::imp() const
 {
   return static_cast<const OutputStreamPrivate *>(imp_);
 }
+}  // namespace ohm

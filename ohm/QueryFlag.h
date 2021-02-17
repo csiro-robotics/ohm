@@ -10,8 +10,8 @@
 
 namespace ohm
 {
-  // Disable clang-format so it doesn't split the table in the comments below
-  // clang-format off
+// Disable clang-format so it doesn't split the table in the comments below
+// clang-format off
 
   /// Flags controlling the behaviour of queries.
   ///
@@ -29,35 +29,35 @@ namespace ohm
   /// @c QF_GpuEvaluate, @c QF_NoCache | GPU used to forcibly recalculate affected data even if not dirty. No cached values are used.
   ///
   /// Note that these two flags are essentially mutually exclusive and setting both may result in undefined behaviour.
-  enum QueryFlag
+  enum QueryFlag : unsigned
   {
-    // clang-format on
+  // clang-format on
 
-    /// Zero flag value for completeness. Treat unknown voxels as occupied. Otherwise they are considered free.
-    kQfZero = 0,
-    kQfUnknownAsOccupied = (1 << 0),
-    /// Only report a single result, choosing the closest result.
-    kQfNearestResult = (1 << 1),
-    /// Request GPU usage for a query.
-    kQfGpuEvaluate = (1 << 2),
+  /// Zero flag value for completeness. Treat unknown voxels as occupied. Otherwise they are considered free.
+  kQfZero = 0,
+  kQfUnknownAsOccupied = (1u << 0u),
+  /// Only report a single result, choosing the closest result.
+  kQfNearestResult = (1u << 1u),
+  /// Request GPU usage for a query.
+  kQfGpuEvaluate = (1u << 2u),
 
-    /// Do not allow use of cached values. Some queries support using cached data either in the query itself
-    /// or in the voxel layout. Setting this flag forces the re-evaluation of data regardless of whether or
-    /// not cached data may be up to date. When disabled, queries should recalculate only dirty regions.
-    kQfNoCache = (1 << 3),
+  /// Do not allow use of cached values. Some queries support using cached data either in the query itself
+  /// or in the voxel layout. Setting this flag forces the re-evaluation of data regardless of whether or
+  /// not cached data may be up to date. When disabled, queries should recalculate only dirty regions.
+  kQfNoCache = (1u << 3u),
 
-    /// Report ranges without applying scaling, but calculate with scaling. Used in range based queries.
-    kQfReportUnscaledResults = (1 << 4),
+  /// Report ranges without applying scaling, but calculate with scaling. Used in range based queries.
+  kQfReportUnscaledResults = (1u << 4u),
 
-    /// Represents the first specialised or non generic query flag. May be extended by specific queries.
-    kQfSpecialised = (1 << 16),
+  /// Represents the first specialised or non generic query flag. May be extended by specific queries.
+  kQfSpecialised = (1u << 16u),
 
-    // Legacy flag for backwards compatibility
-    kQfGpu = kQfGpuEvaluate,
+  // Legacy flag for backwards compatibility
+  kQfGpu = kQfGpuEvaluate,
 
-    /// The default query flags applied.
-    kQfDefaultFlags = kQfUnknownAsOccupied
-  };
+  /// The default query flags applied.
+  kQfDefaultFlags = kQfUnknownAsOccupied
+};
 }  // namespace ohm
 
 #endif  // OHMQUERYFLAG_H

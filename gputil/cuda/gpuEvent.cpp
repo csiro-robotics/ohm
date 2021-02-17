@@ -13,27 +13,21 @@
 #include <cuda.h>
 #include <cuda_runtime.h>
 
-using namespace gputil;
-
 namespace gputil
 {
-  void destroyEvent(cudaEvent_t event)
+void destroyEvent(cudaEvent_t event)
+{
+  if (event)
   {
-    if (event)
-    {
-      cudaError_t err = cudaEventDestroy(event);
-      event = nullptr;
-      GPUAPICHECK2(err, cudaSuccess);
-    }
+    cudaError_t err = cudaEventDestroy(event);
+    event = nullptr;
+    GPUAPICHECK2(err, cudaSuccess);
   }
-}  // namespace gputil
+}
 
-Event::Event()
-  : imp_(nullptr)  // created as needed
-{}
+Event::Event() = default;
 
 Event::Event(const Event &other)
-  : imp_(nullptr)  // created as needed
 {
   if (other.imp_)
   {
@@ -124,11 +118,14 @@ void Event::wait(const Event **events, size_t event_count)
 
 Event &Event::operator=(const Event &other)
 {
-  release();
-  if (other.imp_)
+  if (this != &other)
   {
-    imp_ = other.imp_;
-    imp_->reference();
+    release();
+    if (other.imp_)
+    {
+      imp_ = other.imp_;
+      imp_->reference();
+    }
   }
 
   return *this;
@@ -152,7 +149,7 @@ EventDetail *Event::detail()
     cudaEvent_t event = nullptr;
     cudaError_t err = cudaEventCreateWithFlags(&event, cudaEventBlockingSync);
     GPUAPICHECK(err, cudaSuccess, nullptr);
-    imp_ = new EventDetail(event, 1, &destroyEvent);
+    imp_ = new EventDetail(event, 1, &destroyEvent);  // NOLINT(cppcoreguidelines-owning-memory)
   }
   return imp_;
 }
@@ -162,3 +159,4 @@ EventDetail *Event::detail() const
 {
   return imp_;
 }
+}  // namespace gputil

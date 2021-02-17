@@ -44,13 +44,13 @@
 #ifdef TES_ENABLE
 namespace tes
 {
-  class Server;
-}
+class Server;
+}  // namespace tes
 namespace ohm
 {
-  /// Debug visualisation server pointer. Must be set by the executable to enable its use in this library.
-  /// That is, this is considered a borrowed pointer in this library.
-  extern tes::Server *g_3es;  // Symbol defined in occupancyutil.cpp.
+/// Debug visualisation server pointer. Must be set by the executable to enable its use in this library.
+/// That is, this is considered a borrowed pointer in this library.
+extern tes::Server *g_tes;  // Symbol defined in occupancyutil.cpp.
 }  // namespace ohm
 #endif  // TES_ENABLE
 

@@ -17,12 +17,12 @@
 
 namespace gputil
 {
-  struct KernelDetail
-  {
-    clu::Kernel kernel;
-    Program program;
-    std::vector<std::function<size_t(size_t)>> local_mem_args;
-  };
+struct KernelDetail
+{
+  clu::Kernel kernel;
+  Program program;
+  std::vector<std::function<size_t(size_t)>> local_mem_args;
+};
 }  // namespace gputil
 
 #endif  // GPUKERNELDETAIL_H

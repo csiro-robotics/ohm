@@ -12,15 +12,15 @@
 
 namespace ohm
 {
-  class MappingProcess;
-  class OccupancyMap;
+class MappingProcess;
+class OccupancyMap;
 
-  struct ohm_API MapperDetail
-  {
-    std::vector<MappingProcess *> processes;
-    OccupancyMap *map = nullptr;
-    unsigned next_process = 0;
-  };
+struct ohm_API MapperDetail
+{
+  std::vector<MappingProcess *> processes;
+  OccupancyMap *map = nullptr;
+  unsigned next_process = 0;
+};
 }  // namespace ohm
 
 #endif  // MAPPERDETAIL_H_

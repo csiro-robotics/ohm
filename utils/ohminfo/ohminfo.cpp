@@ -10,8 +10,8 @@
 #include <ohm/MapSerialise.h>
 #include <ohm/OccupancyMap.h>
 #include <ohm/OccupancyUtil.h>
-#include <ohm/VoxelLayout.h>
 #include <ohm/VoxelData.h>
+#include <ohm/VoxelLayout.h>
 
 #include <ohmutil/OhmUtil.h>
 #include <ohmutil/Options.h>
@@ -30,26 +30,26 @@
 
 namespace
 {
-  int quit = 0;
+int g_quit = 0;
 
-  void onSignal(int arg)
+void onSignal(int arg)
+{
+  if (arg == SIGINT || arg == SIGTERM)
   {
-    if (arg == SIGINT || arg == SIGTERM)
-    {
-      ++quit;
-    }
+    ++g_quit;
   }
+}
 
-  struct Options
-  {
-    std::string map_file;
-    bool calculate_extents = false;
-    bool detail = false;
-  };
+struct Options
+{
+  std::string map_file;
+  bool calculate_extents = false;
+  bool detail = false;
+};
 }  // namespace
 
 
-int parseOptions(Options *opt, int argc, char *argv[])
+int parseOptions(Options *opt, int argc, char *argv[])  // NOLINT(modernize-avoid-c-arrays)
 {
   cxxopts::Options opt_parse(argv[0], "\nProvide information about the contents of an occupancy map file.\n");
   opt_parse.positional_help("<map.ohm>");
@@ -171,7 +171,7 @@ int main(int argc, char *argv[])
   if (map.flags() != ohm::MapFlag::kNone)
   {
     unsigned bit = 1;
-    for (unsigned i = 0; i < sizeof(ohm::MapFlag) * 8; ++i, bit <<= 1)
+    for (unsigned i = 0; i < sizeof(ohm::MapFlag) * 8; ++i, bit <<= 1u)
     {
       if (unsigned(map.flags()) & bit)
       {
@@ -196,7 +196,8 @@ int main(int argc, char *argv[])
 
   const ohm::MapLayout &layout = map.layout();
   std::string indent;
-  std::string vox_size_str, region_size_str;
+  std::string vox_size_str;
+  std::string region_size_str;
   std::cout << "Layers: " << layout.layerCount() << std::endl;
 
   for (size_t i = 0; i < layout.layerCount(); ++i)
@@ -243,8 +244,10 @@ int main(int argc, char *argv[])
 
   if (opt.calculate_extents)
   {
-    glm::dvec3 min_ext(0.0), max_ext(0.0);
-    ohm::Key min_key(ohm::Key::kNull), max_key(ohm::Key::kNull);
+    glm::dvec3 min_ext(0.0);
+    glm::dvec3 max_ext(0.0);
+    ohm::Key min_key(ohm::Key::kNull);
+    ohm::Key max_key(ohm::Key::kNull);
     map.calculateExtents(&min_ext, &max_ext, &min_key, &max_key);
 
     std::cout << std::endl;
@@ -267,7 +270,7 @@ int main(int argc, char *argv[])
     ohm::Voxel<const ohm::VoxelMean> mean(&map, map.layout().meanLayer());
     if (voxel.isLayerValid())
     {
-      for (auto iter = map.begin(); iter != map.end(); ++iter)
+      for (auto iter = map.begin(); iter != map.end() && !g_quit; ++iter)
       {
         ohm::setVoxelKey(iter, voxel, mean);
         float value;

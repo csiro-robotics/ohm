@@ -59,8 +59,7 @@ inline __device__ bool regionsResolveRegion(const GpuKey *voxelKey, int3 *curren
                                             __global int3 *regionKeys, uint regionCount)
 {
   // Check if the current region is the same as the last. This will generally be the case.
-  if (voxelKey->region[0] == currentRegion->x &&
-      voxelKey->region[1] == currentRegion->y &&
+  if (voxelKey->region[0] == currentRegion->x && voxelKey->region[1] == currentRegion->y &&
       voxelKey->region[2] == currentRegion->z)
   {
     // Same region. No update required.
@@ -71,14 +70,13 @@ inline __device__ bool regionsResolveRegion(const GpuKey *voxelKey, int3 *curren
   // Need to search for the region.
   for (uint i = 0; i < regionCount; ++i)
   {
-    if (voxelKey->region[0] == regionKeys[i].x &&
-        voxelKey->region[1] == regionKeys[i].y &&
+    if (voxelKey->region[0] == regionKeys[i].x && voxelKey->region[1] == regionKeys[i].y &&
         voxelKey->region[2] == regionKeys[i].z)
     {
       // Found the region for voxelKey.
       *currentRegion = regionKeys[i];
       // Voxel offset is an index offset.
-      *regionIndex = i;// regionMemOffsets[i] / voxelSizeBytes;
+      *regionIndex = i;  // regionMemOffsets[i] / voxelSizeBytes;
       // printf("%u found: [ %i %i %i ] @ %u\n", get_global_id(0),
       //        regionKeys[i].x, regionKeys[i].y, regionKeys[i].z,
       //        i);
@@ -100,4 +98,3 @@ inline __device__ bool regionsResolveRegion(const GpuKey *voxelKey, int3 *curren
 // }
 
 #endif  // REGIONS_CL
-

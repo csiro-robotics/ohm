@@ -13,6 +13,7 @@
 #include <functional>
 #include <string>
 #include <thread>
+#include <utility>
 
 /// A utility class for monitoring the progress of a point cloud operations.
 ///
@@ -36,7 +37,7 @@ public:
     uint64_t total = 0;         ///< Total number of items to process in each pass. Zero => unknown.
 
     /// Default constructor.
-    Info() {}
+    Info() {}  // NOLINT(modernize-use-equals-default) Lint(KS): gcc failed to deduce the default code before use
 
     /// Copy constructor
     /// @param other Object to copy.
@@ -44,7 +45,7 @@ public:
 
     /// Constructor specifying the total number of items to process.
     /// @param total The number of items to process.
-    Info(uint64_t total)
+    explicit Info(uint64_t total)
       : total(total)
     {}
     /// Constructor specifying the number of passes to run and the total number of items to process.
@@ -57,16 +58,16 @@ public:
     /// Constructor specifying the label and total number of items to process.
     /// @param info Label for the current activity.
     /// @param total The number of items to process.
-    Info(const std::string &info, uint64_t total)
-      : info(info)
+    Info(std::string info, uint64_t total)
+      : info(std::move(info))
       , total(total)
     {}
     /// Constructor specifying the label, number of passes and total number of items to process.
     /// @param info Label for the current activity.
     /// @param passes The number of passes to run.
     /// @param total The number of items to process.
-    Info(const std::string &info, unsigned passes, uint64_t total)
-      : info(info)
+    Info(std::string info, unsigned passes, uint64_t total)
+      : info(std::move(info))
       , total_passes(passes)
       , total(total)
     {}
@@ -88,11 +89,11 @@ public:
 
   /// Constructor.
   /// @param update_frequency Number of calls to make to the @c displayFunction() every second.
-  ProgressMonitor(unsigned update_frequency = kDefaultUpdateFrequency);
+  explicit ProgressMonitor(unsigned update_frequency = kDefaultUpdateFrequency);
   /// Constructor.
   /// @param display_func Number of calls to make to the @p display_func every second.
   /// @param update_frequency Number of calls to make to the @c displayFunction() every second.
-  ProgressMonitor(const DisplayFunction &display_func, unsigned update_frequency = kDefaultUpdateFrequency);
+  explicit ProgressMonitor(const DisplayFunction &display_func, unsigned update_frequency = kDefaultUpdateFrequency);
   /// Destructor - stops and joins the thread.
   ~ProgressMonitor();
 
@@ -156,9 +157,6 @@ public:
 protected:
   /// Thread entry point.
   void entry();
-
-  /// Dummy/default display function.
-  static void dummyDisplay(const Progress &);
 
 private:
   std::string info_;

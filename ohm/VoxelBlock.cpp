@@ -15,26 +15,30 @@
 #include <algorithm>
 #include <cstring>
 
-using namespace ohm;
-
+namespace ohm
+{
 namespace
 {
-  unsigned minimum_buffer_size = 1024u;
-  int zlib_compression_level = Z_BEST_SPEED;
-  int zlib_gzip_flag = 0;  // Use 16 to enable GZip.
-  const int kWindowBits = 14;
-  const int kZLibMemLevel = 8;
-  const int kCompressionStrategy = Z_DEFAULT_STRATEGY;
+const unsigned kDefaultBufferSize = 1024u;
+unsigned g_minimum_buffer_size = kDefaultBufferSize;
+int g_zlib_compression_level = Z_BEST_SPEED;
+int g_zlib_gzip_flag = 0;  // Use 16 to enable GZip.
+const int kWindowBits = 14;
+const int kZLibMemLevel = 8;
+const int kCompressionStrategy = Z_DEFAULT_STRATEGY;
 
-  const auto kReleaseDelay = std::chrono::milliseconds(500);
+const int kGZipCompressionFlag = 16;
+const unsigned kReleaseDelayMs = 500;
+/// When reserving compressed buffer space, device the uncompressed size by this factor.
+const unsigned kBufferReservationQutient = 10;
 }  // namespace
 
 
 void VoxelBlock::getCompressionControls(CompressionControls *controls)
 {
-  controls->minimum_buffer_size = minimum_buffer_size;
+  controls->minimum_buffer_size = g_minimum_buffer_size;
 
-  switch (zlib_compression_level)
+  switch (g_zlib_compression_level)
   {
   default:
   case Z_DEFAULT_COMPRESSION:
@@ -48,7 +52,7 @@ void VoxelBlock::getCompressionControls(CompressionControls *controls)
     break;
   }
 
-  if (zlib_gzip_flag)
+  if (g_zlib_gzip_flag)
   {
     controls->compression_type = kCompressGZip;
   }
@@ -60,22 +64,22 @@ void VoxelBlock::getCompressionControls(CompressionControls *controls)
 
 void VoxelBlock::setCompressionControls(const CompressionControls &controls)
 {
-  minimum_buffer_size = (controls.minimum_buffer_size > 0) ? controls.minimum_buffer_size : minimum_buffer_size;
+  g_minimum_buffer_size = (controls.minimum_buffer_size > 0) ? controls.minimum_buffer_size : g_minimum_buffer_size;
   switch (controls.compression_level)
   {
   default:
   case kCompressFast:
-    zlib_compression_level = Z_BEST_SPEED;
+    g_zlib_compression_level = Z_BEST_SPEED;
     break;
   case kCompressBalanced:
-    zlib_compression_level = Z_DEFAULT_COMPRESSION;
+    g_zlib_compression_level = Z_DEFAULT_COMPRESSION;
     break;
   case kCompressMax:
-    zlib_compression_level = Z_BEST_COMPRESSION;
+    g_zlib_compression_level = Z_BEST_COMPRESSION;
     break;
   }
 
-  zlib_gzip_flag = (controls.compression_type == kCompressGZip) ? 16 : 0;
+  g_zlib_gzip_flag = (controls.compression_type == kCompressGZip) ? kGZipCompressionFlag : 0;
 }
 
 
@@ -94,8 +98,7 @@ VoxelBlock::VoxelBlock(const OccupancyMapDetail *map, const MapLayer &layer)
 }
 
 
-VoxelBlock::~VoxelBlock()
-{}
+VoxelBlock::~VoxelBlock() = default;
 
 
 void VoxelBlock::destroy()
@@ -159,7 +162,7 @@ void VoxelBlock::compressInto(std::vector<uint8_t> &compression_buffer)
   compressUnguarded(compression_buffer);
 }
 
-const VoxelBlock::Clock::time_point VoxelBlock::releaseAfter() const
+VoxelBlock::Clock::time_point VoxelBlock::releaseAfter() const
 {
   std::unique_lock<Mutex> guard(access_guard_);
   return release_after_;
@@ -179,7 +182,7 @@ bool VoxelBlock::needsCompression() const
 
 void VoxelBlock::queueCompression(std::unique_lock<Mutex> &guard)
 {
-  release_after_ = Clock::now() + kReleaseDelay;
+  release_after_ = Clock::now() + std::chrono::milliseconds(kReleaseDelayMs);
   if (!(flags_ & kFCompressionQueued))
   {
     // This flag will be cleared when processed for compression.
@@ -197,13 +200,15 @@ bool VoxelBlock::compressUnguarded(std::vector<uint8_t> &compression_buffer)
     int ret = Z_OK;
     z_stream stream;
     memset(&stream, 0u, sizeof(stream));
-    deflateInit2(&stream, zlib_compression_level, Z_DEFLATED, kWindowBits | zlib_gzip_flag, kZLibMemLevel,
+    // NOLINTNEXTLINE(hicpp-signed-bitwise)
+    deflateInit2(&stream, g_zlib_compression_level, Z_DEFLATED, kWindowBits | g_zlib_gzip_flag, kZLibMemLevel,
                  kCompressionStrategy);
 
-    stream.next_in = (Bytef *)voxel_bytes_.data();
+    stream.next_in = static_cast<Bytef *>(voxel_bytes_.data());
     stream.avail_in = unsigned(voxel_bytes_.size());
 
-    compression_buffer.reserve(std::max(voxel_bytes_.size() / 10, static_cast<size_t>(minimum_buffer_size)));
+    compression_buffer.reserve(
+      std::max(voxel_bytes_.size() / kBufferReservationQutient, static_cast<size_t>(g_minimum_buffer_size)));
     compression_buffer.resize(compression_buffer.capacity());
 
     stream.avail_out = unsigned(compression_buffer.size());
@@ -294,7 +299,7 @@ bool VoxelBlock::uncompressUnguarded(std::vector<uint8_t> &expanded_buffer)
   int ret = Z_OK;
   z_stream stream;
   memset(&stream, 0u, sizeof(stream));
-  inflateInit2(&stream, kWindowBits | zlib_gzip_flag);
+  inflateInit2(&stream, kWindowBits | g_zlib_gzip_flag);  // NOLINT(hicpp-signed-bitwise)
 
   stream.avail_in = unsigned(voxel_bytes_.size());
   stream.next_in = voxel_bytes_.data();
@@ -378,3 +383,4 @@ bool VoxelBlock::setCompressedBytes(const std::vector<uint8_t> &compressed_voxel
   }
   return false;
 }
+}  // namespace ohm

@@ -29,76 +29,76 @@
 #pragma GCC diagnostic pop
 #endif  // __GNUC__
 
+#include <algorithm>
 #include <cassert>
 #include <memory>
 
-using namespace ohm;
-
 namespace ohm
 {
-  /// Data required for a single cache entry.
-  struct GpuCacheEntry  // NOLINT
+/// Data required for a single cache entry.
+struct GpuCacheEntry  // NOLINT
+{
+  /// The cached chunk. May be null when the chunk does not exist in the map.
+  MapChunk *chunk = nullptr;
+  /// Region key for @c chunk.
+  glm::i16vec3 region_key = glm::i16vec3(0);
+  /// Offset into the GPU buffer at which this chunk's voxels have been uploaded (bytes).
+  size_t mem_offset = 0;
+  /// Event associated with the most recent operation on @c gpuMem.
+  /// This may be an upload, download or kernel execution using the buffer.
+  gputil::Event sync_event;
+  /// Stamp value used to assess the oldest cache entry.
+  uint64_t age_stamp = 0;
+  /// Retains uncompressed voxel memory while the chunk remains in the cache.
+  VoxelBuffer<VoxelBlock> voxel_buffer;
+  // FIXME: (KS) Would be nice to resolve how chunk stamping is managed to sync between GPU and CPU.
+  // Currently we must clear the GpuCache when updating on CPU.
+  /// Tracks the @c MapChunk::touched_stamps value for the voxel layer. We know the layer has been modified in CPU
+  /// this does not match and we must ignore the cached entry.
+  uint64_t chunk_touch_stamp = 0;
+  /// Most recent @c  batch_marker from @c upload().
+  unsigned batch_marker = 0;
+  /// Can/should download of this item be skipped?
+  bool skip_download = true;
+};
+
+struct GpuLayerCacheDetail
+{
+  using CacheMap = ska::bytell_hash_map<glm::i16vec3, GpuCacheEntry, Vector3Hash<glm::i16vec3>>;
+
+  /// Cache hit/miss stats.
+  GpuCacheStats stats;
+
+  // Not part of the public API. We can put whatever we want here.
+  std::unique_ptr<gputil::Buffer> buffer;
+  unsigned cache_size = 0;
+  unsigned batch_marker = 1;
+  CacheMap cache;
+  /// List of memory offsets available for re-use. Populated when we remove entries from the cache rather than
+  /// replacing them.
+  std::vector<size_t> mem_offset_free_list;
+  glm::u8vec3 region_size = glm::u8vec3(0);
+  uint64_t age_stamp = 0;
+  gputil::Queue gpu_queue;
+  gputil::Device gpu;
+  size_t chunk_mem_size = 0;
+  /// Initial target allocation size.
+  size_t target_gpu_mem_size = 0;
+  /// Map layer from which we read or write data
+  unsigned layer_index = 0;
+  unsigned flags = 0;
+  uint8_t *dummy_chunk = nullptr;
+  OccupancyMap *map = nullptr;
+  GpuCachePostSyncHandler on_sync;
+
+  ~GpuLayerCacheDetail()
   {
-    /// The cached chunk. May be null when the chunk does not exist in the map.
-    MapChunk *chunk = nullptr;
-    /// Region key for @c chunk.
-    glm::i16vec3 region_key = glm::i16vec3(0);
-    /// Offset into the GPU buffer at which this chunk's voxels have been uploaded (bytes).
-    size_t mem_offset = 0;
-    /// Event associated with the most recent operation on @c gpuMem.
-    /// This may be an upload, download or kernel execution using the buffer.
-    gputil::Event sync_event;
-    /// Stamp value used to assess the oldest cache entry.
-    uint64_t age_stamp = 0;
-    /// Retains uncompressed voxel memory while the chunk remains in the cache.
-    VoxelBuffer<VoxelBlock> voxel_buffer;
-    // FIXME: (KS) Would be nice to resolve how chunk stamping is managed to sync between GPU and CPU.
-    // Currently we must clear the GpuCache when updating on CPU.
-    // /// Tracks the @c MapChunk::touched_stamps value for the voxel layer. We know the layer has been modified in CPU
-    // /// this does not match and we must ignore the cached entry.
-    // uint64_t chunk_touch_stamp = 0;
-    /// Most recent @c  batch_marker from @c upload().
-    unsigned batch_marker = 0;
-    /// Can/should download of this item be skipped?
-    bool skip_download = true;
-  };
-
-  struct GpuLayerCacheDetail
-  {
-    using CacheMap = ska::bytell_hash_map<glm::i16vec3, GpuCacheEntry, Vector3Hash<glm::i16vec3>>;
-
-    /// Cache hit/miss stats.
-    GpuCacheStats stats;
-
-    // Not part of the public API. We can put whatever we want here.
-    std::unique_ptr<gputil::Buffer> buffer;
-    unsigned cache_size = 0;
-    unsigned batch_marker = 1;
-    CacheMap cache;
-    /// List of memory offsets available for re-use. Populated when we remove entries from the cache rather than
-    /// replacing them.
-    std::vector<size_t> mem_offset_free_list;
-    glm::u8vec3 region_size = glm::u8vec3(0);
-    uint64_t age_stamp = 0;
-    gputil::Queue gpu_queue;
-    gputil::Device gpu;
-    size_t chunk_mem_size = 0;
-    /// Initial target allocation size.
-    size_t target_gpu_mem_size = 0;
-    unsigned layer_index = 0;
-    unsigned flags = 0;
-    uint8_t *dummy_chunk = nullptr;
-    GpuCachePostSyncHandler on_sync;
-
-    ~GpuLayerCacheDetail()
-    {
-      delete[] dummy_chunk;
-      // We must clean up the cache explicitly. Otherwise it may be cleaned up after the _gpu device, in which case
-      // the events will no longer be valid.
-      cache.clear();
-    }
-  };
-}  // namespace ohm
+    delete[] dummy_chunk;
+    // We must clean up the cache explicitly. Otherwise it may be cleaned up after the _gpu device, in which case
+    // the events will no longer be valid.
+    cache.clear();
+  }
+};
 
 GpuLayerCache::GpuLayerCache(const gputil::Device &gpu, const gputil::Queue &gpu_queue, OccupancyMap &map,
                              unsigned layer_index, size_t target_gpu_mem_size, unsigned flags,
@@ -111,7 +111,8 @@ GpuLayerCache::GpuLayerCache(const gputil::Device &gpu, const gputil::Queue &gpu
   imp_->gpu_queue = gpu_queue;
   imp_->layer_index = layer_index;
   imp_->flags = flags;
-  imp_->on_sync = on_sync;
+  imp_->on_sync = std::move(on_sync);
+  imp_->map = &map;
 
   allocateBuffers(map, map.layout().layer(layer_index), target_gpu_mem_size);
 }
@@ -392,11 +393,13 @@ GpuCacheEntry *GpuLayerCache::resolveCacheEntry(OccupancyMap &map, const glm::i1
     }
 
     // FIXME: (KS) resolve detecting CPU changes. Currently must clear the cache.
-    // if (upload && !update_required && entry->chunk)
-    // {
-    //   // Check if the chunk has changed in CPU.
-    //   update_required = chunk->touched_stamps[imp_->layer_index] != entry->chunk_touch_stamp;
-    // }
+    if (upload && !update_required && chunk)
+    {
+      // Check if the chunk has changed in CPU.
+      update_required = chunk->touched_stamps[imp_->layer_index] > entry->chunk_touch_stamp;
+    }
+
+    entry->skip_download = entry->skip_download && ((flags & kSkipDownload) != 0);
 
     if (update_required)
     {
@@ -413,9 +416,18 @@ GpuCacheEntry *GpuLayerCache::resolveCacheEntry(OccupancyMap &map, const glm::i1
         (entry->voxel_buffer.isValid()) ? entry->voxel_buffer.voxelMemory() : imp_->dummy_chunk;
       imp_->buffer->write(voxel_mem, layer.layerByteSize(map.regionVoxelDimensions()), entry->mem_offset,
                           &imp_->gpu_queue, wait_for_ptr, &entry->sync_event);
+      if (!entry->skip_download)
+      {
+        // Keeping in sync between GPU and CPU has been an ongoing issue. It probably needs a stamping system which
+        // separates CPU and GPU changes, but we don't have that yet. As an interim solution to recognising GPU changes,
+        // we update the dirty stamp for a chunk on both upload and download.
+        chunk->touched_stamps[imp_->layer_index] = entry->chunk_touch_stamp = imp_->map->stamp();
+      }
+      else
+      {
+        entry->chunk_touch_stamp = chunk->touched_stamps[imp_->layer_index];
+      }
     }
-
-    entry->skip_download = entry->skip_download && ((flags & kSkipDownload) != 0);
 
     if (event)
     {
@@ -518,6 +530,22 @@ GpuCacheEntry *GpuLayerCache::resolveCacheEntry(OccupancyMap &map, const glm::i1
     const uint8_t *voxel_mem = (entry->voxel_buffer.isValid()) ? entry->voxel_buffer.voxelMemory() : imp_->dummy_chunk;
     imp_->buffer->write(voxel_mem, imp_->chunk_mem_size, entry->mem_offset, &imp_->gpu_queue, nullptr,
                         &entry->sync_event);
+    if (chunk)
+    {
+      if (!entry->skip_download)
+      {
+        // As above where we upload to update, we change the stamp for the chunk on both upload and download.
+        chunk->touched_stamps[imp_->layer_index] = entry->chunk_touch_stamp = imp_->map->stamp();
+      }
+      else
+      {
+        entry->chunk_touch_stamp = chunk->touched_stamps[imp_->layer_index];
+      }
+    }
+    else
+    {
+      entry->chunk_touch_stamp = imp_->map->stamp();
+    }
   }
 
   if (event)
@@ -584,6 +612,15 @@ void GpuLayerCache::syncToMainMemory(GpuCacheEntry &entry, bool wait_on_sync)
       uint8_t *voxel_mem = entry.voxel_buffer.voxelMemory();
       imp_->buffer->read(voxel_mem, imp_->chunk_mem_size, entry.mem_offset, &imp_->gpu_queue, &last_event,
                          &entry.sync_event);
+      // Update the dirty stamp for the region
+      entry.chunk->touched_stamps[imp_->layer_index] = entry.chunk_touch_stamp = entry.chunk->dirty_stamp =
+        imp_->map->touch();
+      // Also need to invalidate the MapChunk::first_valid_index as we don't know what it will be coming off the GPU.
+      // We only apply this change for the occupancy layer
+      if (imp_->layer_index == unsigned(imp_->map->layout().occupancyLayer()))
+      {
+        entry.chunk->invalidateFirstValidIndex();
+      }
     }
   }
 
@@ -607,41 +644,43 @@ void GpuLayerCache::syncToMainMemory(GpuCacheEntry &entry, bool wait_on_sync)
 
 namespace
 {
-  template <typename ENTRY, typename T>
-  inline ENTRY *findCacheEntry(T &cache, const glm::i16vec3 &region_key)
+template <typename ENTRY, typename T>
+inline ENTRY *findCacheEntry(T &cache, const glm::i16vec3 &region_key)
+{
+  auto search_iter = cache.find(region_key);
+
+  if (search_iter != cache.end())
   {
-    auto search_iter = cache.find(region_key);
-
-    if (search_iter != cache.end())
-    {
-      return &search_iter->second;
-    }
-
-    // Not in the GPU cache.
-    return nullptr;
+    return &search_iter->second;
   }
+
+  // Not in the GPU cache.
+  return nullptr;
+}
 }  // namespace
 
 
 GpuCacheEntry *GpuLayerCache::findCacheEntry(const glm::i16vec3 &region_key)
 {
-  return ::findCacheEntry<GpuCacheEntry>(imp_->cache, region_key);
+  return ohm::findCacheEntry<GpuCacheEntry>(imp_->cache, region_key);
 }
 
 
 const GpuCacheEntry *GpuLayerCache::findCacheEntry(const glm::i16vec3 &region_key) const
 {
-  return ::findCacheEntry<const GpuCacheEntry>(imp_->cache, region_key);
+  return ohm::findCacheEntry<const GpuCacheEntry>(imp_->cache, region_key);
 }
 
 
 GpuCacheEntry *GpuLayerCache::findCacheEntry(const MapChunk &chunk)
 {
-  return ::findCacheEntry<GpuCacheEntry>(imp_->cache, chunk.region.coord);
+  return ohm::findCacheEntry<GpuCacheEntry>(imp_->cache, chunk.region.coord);
 }
 
 
 const GpuCacheEntry *GpuLayerCache::findCacheEntry(const MapChunk &chunk) const
 {
-  return ::findCacheEntry<const GpuCacheEntry>(imp_->cache, chunk.region.coord);
+  return ohm::findCacheEntry<const GpuCacheEntry>(imp_->cache, chunk.region.coord);
 }
+
+}  // namespace ohm

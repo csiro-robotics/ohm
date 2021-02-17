@@ -49,7 +49,7 @@ function(_ohmpop_setup GPU_MODE)
       "${GLM_INCLUDE_DIR}"
   )
 
-  target_link_libraries(${TARGET_NAME} PUBLIC ${OHMLIB_NAME} slamio ohmutil)
+  target_link_libraries(${TARGET_NAME} PUBLIC ${OHMLIB_NAME} slamio ohmtools ohmutil)
 
   if(GPU_MODE STREQUAL "cpu")
     target_compile_definitions(${TARGET_NAME} PUBLIC "-DOHMPOP_CPU")

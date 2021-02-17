@@ -9,8 +9,8 @@
 
 #include "QueryFlag.h"
 
-using namespace ohm;
-
+namespace ohm
+{
 Query::Query(QueryDetail *detail)
   : imp_(detail)
 {
@@ -104,3 +104,4 @@ bool Query::onWaitAsync(unsigned /*timeout_ms*/)
 {
   return false;
 }
+}  // namespace ohm

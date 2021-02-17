@@ -10,20 +10,20 @@
 
 namespace ohm
 {
-  /// An enumeration of the types of @c Voxel states available.
-  enum OccupancyType
-  {
-    /// Invalid/null voxel.
-    kNull = -2,
-    /// Unobserved: no data recorded or available for the voxel.
-    kUnobserved = -1,
-    /// Know to be empty or free (traversable).
-    kFree = 0,
-    /// Occupied voxel.
-    kOccupied = 1
-  };
+/// An enumeration of the types of @c Voxel states available.
+enum OccupancyType
+{
+  /// Invalid/null voxel.
+  kNull = -2,
+  /// Unobserved: no data recorded or available for the voxel.
+  kUnobserved = -1,
+  /// Know to be empty or free (traversable).
+  kFree = 0,
+  /// Occupied voxel.
+  kOccupied = 1
+};
 
-  const char ohm_API *occupancyTypeToString(int occupancy_type);
+const char ohm_API *occupancyTypeToString(int occupancy_type);
 }  // namespace ohm
 
 #endif  // OCCUPANCYTYPE_H_

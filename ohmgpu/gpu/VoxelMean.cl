@@ -35,7 +35,7 @@ inline __device__ void updateVoxelMeanPosition(__global VoxelMean *voxel, float3
   // somewhat out.
   do
   {
-    //point_count = gputilAtomicLoadU32(&voxel->count);
+    // point_count = gputilAtomicLoadU32(&voxel->count);
     point_count = gputilAtomicLoadU32(&voxel->count);
     old_value = gputilAtomicLoadU32(&voxel->coord);
     new_value = subVoxelUpdate(old_value, point_count, sample_pos, voxel_resolution);
@@ -46,4 +46,4 @@ inline __device__ void updateVoxelMeanPosition(__global VoxelMean *voxel, float3
   gputilAtomicInc(&voxel->count);
 }
 
-#endif // VOXEL_MEAN_CL
+#endif  // VOXEL_MEAN_CL

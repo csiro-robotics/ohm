@@ -8,8 +8,8 @@
 
 #include <gputil/gpuKernel.h>
 
-using namespace ohm;
-
+namespace ohm
+{
 GpuProgramRef::GpuProgramRef(const char *name, SourceType source_type, const char *source_str, size_t source_str_length)
   : name_(name)
   , source_str_(source_str, source_str_length)
@@ -48,7 +48,8 @@ bool GpuProgramRef::addReference(gputil::Device &gpu)
 
     int err = 0;
     program_ = gputil::Program(gpu, name_.c_str());
-    if (source_type_ == kSourceFile)
+    // Lint(KS): macro may generate the same code, but depends on GPU API.
+    if (source_type_ == kSourceFile)  // NOLINT(bugprone-branch-clone)
     {
       err = GPUTIL_BUILD_FROM_FILE(program_, source_str_.c_str(), build_args);
     }
@@ -89,3 +90,4 @@ bool GpuProgramRef::isValid()
   std::unique_lock<std::mutex> guard(program_mutex_);
   return program_ref_ > 0;
 }
+}  // namespace ohm

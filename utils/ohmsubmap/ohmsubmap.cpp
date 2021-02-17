@@ -22,31 +22,31 @@
 
 namespace
 {
-  int quit = 0;
+int g_quit = 0;
 
-  void onSignal(int arg)
+void onSignal(int arg)
+{
+  if (arg == SIGINT || arg == SIGTERM)
   {
-    if (arg == SIGINT || arg == SIGTERM)
-    {
-      ++quit;
-    }
+    ++g_quit;
   }
+}
 
-  struct V3Arg
-  {
-    double x = 0;
-    double y = 0;
-    double z = 0;
-  };
+struct V3Arg
+{
+  double x = 0;
+  double y = 0;
+  double z = 0;
+};
 
-  struct Options
-  {
-    std::string map_in;
-    std::string map_out;
-    ohm::Aabb box = ohm::Aabb(0);
-    glm::dvec3 centre = glm::dvec3(0);
-    glm::dvec3 extents = glm::dvec3(0);
-  };
+struct Options
+{
+  std::string map_in;
+  std::string map_out;
+  ohm::Aabb box = ohm::Aabb(0);
+  glm::dvec3 centre = glm::dvec3(0);
+  glm::dvec3 extents = glm::dvec3(0);
+};
 }  // namespace
 
 inline std::istream &operator>>(std::istream &in, ohm::Aabb &box)
@@ -55,7 +55,8 @@ inline std::istream &operator>>(std::istream &in, ohm::Aabb &box)
   in >> box_str;
   std::istringstream in2(box_str);
   char comma;
-  glm::dvec3 min_ext, max_ext;
+  glm::dvec3 min_ext;
+  glm::dvec3 max_ext;
   in2 >> min_ext.x;
   in2 >> comma;
   in2 >> min_ext.y;
@@ -82,7 +83,7 @@ inline std::ostream &operator<<(std::ostream &out, const ohm::Aabb &box)
 #include <ohmutil/Options.h>
 
 
-int parseOptions(Options *opt, int argc, char *argv[])
+int parseOptions(Options *opt, int argc, char *argv[])  // NOLINT(modernize-avoid-c-arrays)
 {
   cxxopts::Options opt_parse(argv[0], "\nExtract a submap from an existing map.\n");
   opt_parse.positional_help("<map-in.ohm> <map-out.ohm>");
@@ -120,12 +121,13 @@ int parseOptions(Options *opt, int argc, char *argv[])
       return -1;
     }
 
-    if (glm::length(opt->box.diagonal()) < 1e-6)
+    const double epsilon = 1e-6;
+    if (glm::length(opt->box.diagonal()) < epsilon)
     {
       // No box. Try centre/extents setup.
       opt->box = ohm::Aabb::fromCentreHalfExtents(opt->centre, 0.5 * opt->extents);
 
-      if (glm::length(opt->box.diagonal()) < 1e-6)
+      if (glm::length(opt->box.diagonal()) < epsilon)
       {
         // Still bad.
         std::cerr << "Extents not specified or too small" << std::endl;

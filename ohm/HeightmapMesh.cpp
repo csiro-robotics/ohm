@@ -29,45 +29,42 @@
 
 #include <vector>
 
-using namespace ohm;
-
 namespace ohm
 {
-  class HeightmapMeshDetail
-  {
-  public:
-    std::vector<glm::dvec3> vertices;
-    std::vector<glm::vec3> vertex_normals;
-    std::vector<glm::vec3> tri_normals;
-    std::vector<unsigned> triangles;
-    std::vector<TriangleNeighbours> triangle_neighbours;
-    std::vector<TriangleEdge> edges;
-    std::vector<double> coords_2d;
-    HeightmapMesh::NormalsMode normals_mode = HeightmapMesh::kNormalsAverage;
-    /// Loose mesh extents enclosing the generating 2D voxels. The extents are tight along the height axis.
-    Aabb loose_mesh_extents = Aabb(0.0);
-    /// Tight mesh extents exactly enclosing the mesh vertices.
-    Aabb tight_mesh_extents = Aabb(0.0);
-    double resolution = 0.0;
+class HeightmapMeshDetail
+{
+public:
+  std::vector<glm::dvec3> vertices;
+  std::vector<glm::vec3> vertex_normals;
+  std::vector<glm::vec3> tri_normals;
+  std::vector<unsigned> triangles;
+  std::vector<TriangleNeighbours> triangle_neighbours;
+  std::vector<TriangleEdge> edges;
+  std::vector<double> coords_2d;
+  HeightmapMesh::NormalsMode normals_mode = HeightmapMesh::kNormalsAverage;
+  /// Loose mesh extents enclosing the generating 2D voxels. The extents are tight along the height axis.
+  Aabb loose_mesh_extents = Aabb(0.0);
+  /// Tight mesh extents exactly enclosing the mesh vertices.
+  Aabb tight_mesh_extents = Aabb(0.0);
+  double resolution = 0.0;
 
-    void clear()
-    {
-      vertices.clear();
-      vertex_normals.clear();
-      tri_normals.clear();
-      triangles.clear();
-      triangle_neighbours.clear();
-      edges.clear();
-      coords_2d.clear();
-      loose_mesh_extents = tight_mesh_extents = Aabb(0.0);
-      resolution = 0.0;
-    }
-  };
-}  // namespace ohm
+  void clear()
+  {
+    vertices.clear();
+    vertex_normals.clear();
+    tri_normals.clear();
+    triangles.clear();
+    triangle_neighbours.clear();
+    edges.clear();
+    coords_2d.clear();
+    loose_mesh_extents = tight_mesh_extents = Aabb(0.0);
+    resolution = 0.0;
+  }
+};
 
 
 HeightmapMesh::HeightmapMesh(NormalsMode normals_mode)
-  : imp_(new HeightmapMeshDetail)
+  : imp_(std::make_unique<HeightmapMeshDetail>())
 {
   imp_->normals_mode = normals_mode;
 }
@@ -97,7 +94,7 @@ bool HeightmapMesh::buildMesh(const Heightmap &heightmap, const MeshVoxelModifie
   // Walk heightmap voxels.
   const OccupancyMap &heightmap_occupancy = heightmap.heightmap();
   const MapLayer *heightmap_layer = heightmap_occupancy.layout().layer(HeightmapVoxel::kHeightmapLayer);
-  const int heightmap_layer_index = heightmap_layer->layerIndex();
+  const int heightmap_layer_index = int(heightmap_layer->layerIndex());
 
   if (heightmap_layer_index < 0)
   {
@@ -111,8 +108,10 @@ bool HeightmapMesh::buildMesh(const Heightmap &heightmap, const MeshVoxelModifie
   const glm::vec3 upf(up);
   const double heightmap_resolution = heightmap_occupancy.resolution();
   glm::dvec3 point;
-  glm::dvec3 min_map_ext, max_map_ext;
-  glm::dvec3 min_vert_ext, max_vert_ext;
+  glm::dvec3 min_map_ext;
+  glm::dvec3 max_map_ext;
+  glm::dvec3 min_vert_ext;
+  glm::dvec3 max_vert_ext;
   glm::dvec3 voxel_centre;
 
   min_map_ext = min_vert_ext = glm::dvec3(std::numeric_limits<double>::max());
@@ -199,9 +198,9 @@ bool HeightmapMesh::buildMesh(const Heightmap &heightmap, const MeshVoxelModifie
       imp_->triangle_neighbours.reserve(delaunay.triangles.size() / 3);
       imp_->edges.reserve(delaunay.triangles.size());
 
-      glm::dvec3 tri[3];
+      std::array<glm::dvec3, 3> tri;
       glm::vec3 normal;
-      unsigned indices[3];
+      std::array<unsigned, 3> indices;
       unsigned tri_count = 0;
       TriangleNeighbours neighbour_info{};
 
@@ -395,3 +394,4 @@ bool HeightmapMesh::extractPlyMesh(PlyMesh &mesh, bool offset_by_extents)
 
   return true;
 }
+}  // namespace ohm

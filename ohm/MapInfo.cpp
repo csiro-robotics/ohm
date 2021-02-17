@@ -15,99 +15,92 @@
 #define _stricmp strcasecmp
 #endif  // _MSC_VER
 
-using namespace ohm;
-
 namespace std
 {
-  template <>
-  struct hash<ohm::MapValue>
+template <>
+struct hash<ohm::MapValue>
+{
+  size_t operator()(const ohm::MapValue &value) const
   {
-    size_t operator()(const ohm::MapValue &value) const
-    {
-      return std::hash<std::string>()(*static_cast<const std::string *>(value.namePtr()));
-    }
-  };
+    return std::hash<std::string>()(*static_cast<const std::string *>(value.namePtr()));
+  }
+};
 }  // namespace std
 
 namespace ohm
 {
-  struct TreeSearchPredicate
-  {
-    bool operator()(const MapValue &left, const MapValue &right) const { return left.namesEqual(right); }
-  };
+struct TreeSearchPredicate
+{
+  bool operator()(const MapValue &left, const MapValue &right) const { return left.namesEqual(right); }
+};
 
 
-  struct MapInfoDetail
-  {
-    std::unordered_set<MapValue, std::hash<MapValue>, TreeSearchPredicate> dictionary;
-  };
-}  // namespace ohm
+struct MapInfoDetail
+{
+  std::unordered_set<MapValue, std::hash<MapValue>, TreeSearchPredicate> dictionary;
+};
 
 namespace
 {
-  template <typename T>
-  class StringConvert
+template <typename T>
+class StringConvert
+{
+public:
+  static T convert(const char *str)
   {
-  public:
-    static T convert(const char *str)
+    if (!str)
     {
-      if (!str)
-      {
-        return T(0);
-      }
-
-      std::istringstream s(str);
-      T val = T(0);
-      s >> val;
-      return val;
+      return T(0);
     }
-  };
+
+    std::istringstream s(str);
+    T val = T(0);
+    s >> val;
+    return val;
+  }
+};
 
 
-  template <>
-  class StringConvert<const char *>
+template <>
+class StringConvert<const char *>
+{
+public:
+  static const char *convert(const char *str) { return str; }
+};
+
+
+template <>
+class StringConvert<bool>
+{
+public:
+  static bool convert(const char *str)
   {
-  public:
-    static const char *convert(const char *str) { return str; }
-  };
-
-
-  template <>
-  class StringConvert<bool>
-  {
-  public:
-    static bool convert(const char *str)
+    if (!str)
     {
-      if (!str)
-      {
-        return false;
-      }
-
-      if (_stricmp("true", str) == 0 || _stricmp("yes", str) == 0 || _stricmp("on", str) == 0)
-      {
-        return true;
-      }
-      if (_stricmp("false", str) == 0 || _stricmp("no", str) == 0 || _stricmp("off", str) == 0)
-      {
-        return true;
-      }
-
-      return StringConvert<float>::convert(str) != 0;
+      return false;
     }
-  };
+
+    if (_stricmp("true", str) == 0 || _stricmp("yes", str) == 0 || _stricmp("on", str) == 0)
+    {
+      return true;
+    }
+    if (_stricmp("false", str) == 0 || _stricmp("no", str) == 0 || _stricmp("off", str) == 0)
+    {
+      return true;
+    }
+
+    return StringConvert<float>::convert(str) != 0;
+  }
+};
 }  // namespace
 
 MapValue::MapValue()  // NOLINT(cppcoreguidelines-pro-type-member-init)
-  : name_(nullptr)
-  , type_(kTypeNone)
 {
   memset(&value_, 0, sizeof(value_));
 }
 
 
 MapValue::MapValue(const MapValue &other)  // NOLINT(cppcoreguidelines-pro-type-member-init)
-  : name_(nullptr)
-  , type_(kTypeNone)
 {
   memset(&value_, 0, sizeof(value_));
   *this = other;
@@ -126,8 +119,6 @@ MapValue::MapValue(MapValue &&other) noexcept  // NOLINT(cppcoreguidelines-pro-t
 
 
 MapValue::MapValue(const char *name, int8_t val)  // NOLINT(cppcoreguidelines-pro-type-member-init)
-  : name_(nullptr)
-  , type_(kTypeNone)
 {
   memset(&value_, 0, sizeof(value_));
   setName(name);
@@ -136,8 +127,6 @@ MapValue::MapValue(const char *name, int8_t val)  // NOLINT(cppcoreguidelines-pr
 
 
 MapValue::MapValue(const char *name, uint8_t val)  // NOLINT(cppcoreguidelines-pro-type-member-init)
-  : name_(nullptr)
-  , type_(kTypeNone)
 {
   memset(&value_, 0, sizeof(value_));
   setName(name);
@@ -146,8 +135,6 @@ MapValue::MapValue(const char *name, uint8_t val)  // NOLINT(cppcoreguidelines-p
 
 
 MapValue::MapValue(const char *name, int16_t val)  // NOLINT(cppcoreguidelines-pro-type-member-init)
-  : name_(nullptr)
-  , type_(kTypeNone)
 {
   memset(&value_, 0, sizeof(value_));
   setName(name);
@@ -156,8 +143,6 @@ MapValue::MapValue(const char *name, int16_t val)  // NOLINT(cppcoreguidelines-p
 
 
 MapValue::MapValue(const char *name, uint16_t val)  // NOLINT(cppcoreguidelines-pro-type-member-init)
-  : name_(nullptr)
-  , type_(kTypeNone)
 {
   memset(&value_, 0, sizeof(value_));
   setName(name);
@@ -166,8 +151,6 @@ MapValue::MapValue(const char *name, uint16_t val)  // NOLINT(cppcoreguidelines-
 
 
 MapValue::MapValue(const char *name, int32_t val)  // NOLINT(cppcoreguidelines-pro-type-member-init)
-  : name_(nullptr)
-  , type_(kTypeNone)
 {
   memset(&value_, 0, sizeof(value_));
   setName(name);
@@ -176,8 +159,6 @@ MapValue::MapValue(const char *name, int32_t val)  // NOLINT(cppcoreguidelines-p
 
 
 MapValue::MapValue(const char *name, uint32_t val)  // NOLINT(cppcoreguidelines-pro-type-member-init)
-  : name_(nullptr)
-  , type_(kTypeNone)
 {
   memset(&value_, 0, sizeof(value_));
   setName(name);
@@ -186,8 +167,6 @@ MapValue::MapValue(const char *name, uint32_t val)  // NOLINT(cppcoreguidelines-
 
 
 MapValue::MapValue(const char *name, int64_t val)  // NOLINT(cppcoreguidelines-pro-type-member-init)
-  : name_(nullptr)
-  , type_(kTypeNone)
 {
   memset(&value_, 0, sizeof(value_));
   setName(name);
@@ -196,8 +175,6 @@ MapValue::MapValue(const char *name, int64_t val)  // NOLINT(cppcoreguidelines-p
 
 
 MapValue::MapValue(const char *name, uint64_t val)  // NOLINT(cppcoreguidelines-pro-type-member-init)
-  : name_(nullptr)
-  , type_(kTypeNone)
 {
   memset(&value_, 0, sizeof(value_));
   setName(name);
@@ -206,8 +183,6 @@ MapValue::MapValue(const char *name, uint64_t val)  // NOLINT(cppcoreguidelines-
 
 
 MapValue::MapValue(const char *name, float val)  // NOLINT(cppcoreguidelines-pro-type-member-init)
-  : name_(nullptr)
-  , type_(kTypeNone)
 {
   memset(&value_, 0, sizeof(value_));
   setName(name);
@@ -216,8 +191,6 @@ MapValue::MapValue(const char *name, float val)  // NOLINT(cppcoreguidelines-pro
 
 
 MapValue::MapValue(const char *name, double val)  // NOLINT(cppcoreguidelines-pro-type-member-init)
-  : name_(nullptr)
-  , type_(kTypeNone)
 {
   memset(&value_, 0, sizeof(value_));
   setName(name);
@@ -226,8 +199,6 @@ MapValue::MapValue(const char *name, double val)  // NOLINT(cppcoreguidelines-pr
 
 
 MapValue::MapValue(const char *name, bool val)  // NOLINT(cppcoreguidelines-pro-type-member-init)
-  : name_(nullptr)
-  , type_(kTypeNone)
 {
   memset(&value_, 0, sizeof(value_));
   setName(name);
@@ -236,12 +207,178 @@ MapValue::MapValue(const char *name, bool val)  // NOLINT(cppcoreguidelines-pro-
 
 
 MapValue::MapValue(const char *name, const char *string)  // NOLINT(cppcoreguidelines-pro-type-member-init)
-  : name_(nullptr)
-  , type_(kTypeNone)
 {
   memset(&value_, 0, sizeof(value_));
   setName(name);
   *this = string;
+}
+
+
+MapValue &MapValue::operator=(const MapValue &other)
+{
+  if (this != &other)
+  {
+    clearValue();
+    type_ = other.type_;
+    if (type_ != kString)
+    {
+      value_.u64 = other.value_.u64;
+    }
+    else
+    {
+      value_.str = nullptr;
+      size_t len = other.value_.str ? strlen(other.value_.str) : 0;
+      // Lint(KS): current API is not RAII compatible
+      value_.str = new char[len + 1];  // NOLINT(cppcoreguidelines-owning-memory)
+      value_.str[0] = '\0';
+      if (other.value_.str)
+      {
+#ifdef _MSC_VER
+        strncpy_s(value_.str, len + 1, other.value_.str, len);
+#else   // !_MSC_VER
+        strncpy(value_.str, other.value_.str, len);
+#endif  // _MSC_VER
+        value_.str[len] = '\0';
+      }
+    }
+    setName(other.name());
+  }
+
+  return *this;
+}
+
+
+MapValue &MapValue::operator=(MapValue &&other) noexcept
+{
+  clear();
+  name_ = other.name_;
+  type_ = other.type_;
+  memcpy(&value_, &other.value_, sizeof(value_));
+  other.type_ = kTypeNone;
+  other.name_ = nullptr;
+  memset(&other.value_, 0, sizeof(other.value_));
+  return *this;
+}
+
+
+MapValue &MapValue::operator=(int8_t val)
+{
+  clearValue();
+  type_ = kInt8;
+  value_.i8 = val;
+  return *this;
+}
+
+
+MapValue &MapValue::operator=(uint8_t val)
+{
+  clearValue();
+  type_ = kUInt8;
+  value_.u8 = val;
+  return *this;
+}
+
+
+MapValue &MapValue::operator=(int16_t val)
+{
+  clearValue();
+  type_ = kInt16;
+  value_.i16 = val;
+  return *this;
+}
+
+
+MapValue &MapValue::operator=(uint16_t val)
+{
+  clearValue();
+  type_ = kUInt16;
+  value_.u16 = val;
+  return *this;
+}
+
+
+MapValue &MapValue::operator=(int32_t val)
+{
+  clearValue();
+  type_ = kInt32;
+  value_.i32 = val;
+  return *this;
+}
+
+
+MapValue &MapValue::operator=(uint32_t val)
+{
+  clearValue();
+  type_ = kUInt32;
+  value_.u32 = val;
+  return *this;
+}
+
+
+MapValue &MapValue::operator=(int64_t val)
+{
+  clearValue();
+  type_ = kInt64;
+  value_.i64 = val;
+  return *this;
+}
+
+
+MapValue &MapValue::operator=(uint64_t val)
+{
+  clearValue();
+  type_ = kUInt64;
+  value_.u64 = val;
+  return *this;
+}
+
+
+MapValue &MapValue::operator=(float val)
+{
+  clearValue();
+  type_ = kFloat32;
+  value_.f32 = val;
+  return *this;
+}
+
+
+MapValue &MapValue::operator=(double val)
+{
+  clearValue();
+  type_ = kFloat64;
+  value_.f64 = val;
+  return *this;
+}
+
+
+MapValue &MapValue::operator=(bool val)
+{
+  clearValue();
+  type_ = kBoolean;
+  value_.b = val;
+  return *this;
+}
+
+
+MapValue &MapValue::operator=(const char *string)
+{
+  clearValue();
+  type_ = kString;
+  value_.str = nullptr;
+  size_t len = string ? strlen(string) : 0;
+  // Lint(KS): current API is not RAII compatible
+  value_.str = new char[len + 1];  // NOLINT(cppcoreguidelines-owning-memory)
+  value_.str[0] = '\0';
+  if (string)
+  {
+#ifdef _MSC_VER
+    strncpy_s(value_.str, len + 1, string, len);
+#else   // _MSC_VER
+    strncpy(value_.str, string, len);
+#endif  // _MSC_VER
+    value_.str[len] = '\0';
+  }
+  return *this;
 }
 
 
@@ -296,8 +433,8 @@ void MapValue::setName(const char *name)
 
 bool MapValue::namesEqual(const MapValue &other) const
 {
-  const std::string *a = static_cast<const std::string *>(name_);
-  const std::string *b = static_cast<const std::string *>(other.name_);
+  const auto *a = static_cast<const std::string *>(name_);
+  const auto *b = static_cast<const std::string *>(other.name_);
 
   if (!a && (!b || b->empty()) || !b && (!a || a->empty()))
   {
@@ -442,156 +579,6 @@ MapValue MapValue::toStringValue() const
 }
 
 
-MapValue &MapValue::operator=(const MapValue &other)
-{
-  clearValue();
-  type_ = other.type_;
-  if (type_ != kString)
-  {
-    value_.u64 = other.value_.u64;
-  }
-  else
-  {
-    value_.str = nullptr;
-    size_t len = other.value_.str ? strlen(other.value_.str) : 0;
-    value_.str = new char[len + 1];
-    value_.str[0] = '\0';
-    if (other.value_.str)
-    {
-#ifdef _MSC_VER
-      strncpy_s(value_.str, len + 1, other.value_.str, len);
-#else   // !_MSC_VER
-      strncpy(value_.str, other.value_.str, len);
-#endif  // _MSC_VER
-      value_.str[len] = '\0';
-    }
-  }
-  setName(other.name());
-
-  return *this;
-}
-
-
-MapValue &MapValue::operator=(int8_t val)
-{
-  clearValue();
-  type_ = kInt8;
-  value_.i8 = val;
-  return *this;
-}
-
-
-MapValue &MapValue::operator=(uint8_t val)
-{
-  clearValue();
-  type_ = kUInt8;
-  value_.u8 = val;
-  return *this;
-}
-
-
-MapValue &MapValue::operator=(int16_t val)
-{
-  clearValue();
-  type_ = kInt16;
-  value_.i16 = val;
-  return *this;
-}
-
-
-MapValue &MapValue::operator=(uint16_t val)
-{
-  clearValue();
-  type_ = kUInt16;
-  value_.u16 = val;
-  return *this;
-}
-
-
-MapValue &MapValue::operator=(int32_t val)
-{
-  clearValue();
-  type_ = kInt32;
-  value_.i32 = val;
-  return *this;
-}
-
-
-MapValue &MapValue::operator=(uint32_t val)
-{
-  clearValue();
-  type_ = kUInt32;
-  value_.u32 = val;
-  return *this;
-}
-
-
-MapValue &MapValue::operator=(int64_t val)
-{
-  clearValue();
-  type_ = kInt64;
-  value_.i64 = val;
-  return *this;
-}
-
-
-MapValue &MapValue::operator=(uint64_t val)
-{
-  clearValue();
-  type_ = kUInt64;
-  value_.u64 = val;
-  return *this;
-}
-
-
-MapValue &MapValue::operator=(float val)
-{
-  clearValue();
-  type_ = kFloat32;
-  value_.f32 = val;
-  return *this;
-}
-
-
-MapValue &MapValue::operator=(double val)
-{
-  clearValue();
-  type_ = kFloat64;
-  value_.f64 = val;
-  return *this;
-}
-
-
-MapValue &MapValue::operator=(bool val)
-{
-  clearValue();
-  type_ = kBoolean;
-  value_.b = val;
-  return *this;
-}
-
-
-MapValue &MapValue::operator=(const char *string)
-{
-  clearValue();
-  type_ = kString;
-  value_.str = nullptr;
-  size_t len = string ? strlen(string) : 0;
-  value_.str = new char[len + 1];
-  value_.str[0] = '\0';
-  if (string)
-  {
-#ifdef _MSC_VER
-    strncpy_s(value_.str, len + 1, string, len);
-#else   // _MSC_VER
-    strncpy(value_.str, string, len);
-#endif  // _MSC_VER
-    value_.str[len] = '\0';
-  }
-  return *this;
-}
-
-
 bool MapValue::operator==(const MapValue &other) const
 {
   if (type_ != other.type_)
@@ -599,8 +586,8 @@ bool MapValue::operator==(const MapValue &other) const
     return false;
   }
 
-  const std::string *n1 = static_cast<const std::string *>(name_);
-  const std::string *n2 = static_cast<const std::string *>(other.name_);
+  const auto *n1 = static_cast<const std::string *>(name_);
+  const auto *n2 = static_cast<const std::string *>(other.name_);
 
   if (!(n1 == nullptr && n2 == nullptr || n1 == nullptr && n2->empty() || n1 && n1->empty() && n2 == nullptr ||
         n1 == n2))
@@ -707,31 +694,42 @@ bool MapValue::sortCompare(const MapValue &a, const MapValue &b)
 
 
 MapInfo::MapInfo()
-  : imp_(new MapInfoDetail)
+  : imp_(std::make_unique<MapInfoDetail>())
 {}
 
 
 MapInfo::MapInfo(const MapInfo &other)
-  : imp_(new MapInfoDetail)
+  : imp_(std::make_unique<MapInfoDetail>())
 {
-  for (auto iter = other.imp_->dictionary.begin(); iter != other.imp_->dictionary.end(); ++iter)
+  for (const auto &item : other.imp_->dictionary)
   {
-    imp_->dictionary.insert(*iter);
+    imp_->dictionary.insert(item);
   }
 }
 
 
 MapInfo::MapInfo(MapInfo &&other) noexcept
-  : imp_(other.imp_)
+  : imp_(std::move(other.imp_))
+{}
+
+
+MapInfo &MapInfo::operator=(const MapInfo &other)
 {
-  other.imp_ = nullptr;
+  if (this != &other)
+  {
+    *imp_ = *other.imp_;
+  }
+  return *this;
 }
 
 
-MapInfo::~MapInfo()
+MapInfo &MapInfo::operator=(MapInfo &&other) noexcept
 {
-  delete imp_;
+  imp_ = std::move(other.imp_);
+  return *this;
 }
+
+MapInfo::~MapInfo() = default;
 
 
 void MapInfo::set(const MapValue &value)
@@ -745,7 +743,7 @@ void MapInfo::set(const MapValue &value)
 }
 
 
-MapValue MapInfo::get(const char *name) const
+MapValue MapInfo::get(const char *name, MapValue default_value) const
 {
   auto iter = imp_->dictionary.find(MapValue(name, int32_t(0)));
   if (iter != imp_->dictionary.end())
@@ -753,7 +751,7 @@ MapValue MapInfo::get(const char *name) const
     return *iter;
   }
 
-  return MapValue();
+  return default_value;
 }
 
 
@@ -800,3 +798,4 @@ unsigned MapInfo::extract(MapValue *values, unsigned max_count, unsigned offset)
 
   return extracted;
 }
+}  // namespace ohm

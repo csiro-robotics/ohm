@@ -25,76 +25,76 @@
 
 namespace
 {
-  int quit = 0;
+int g_quit = 0;
 
-  void onSignal(int arg)
+void onSignal(int arg)
+{
+  if (arg == SIGINT || arg == SIGTERM)
   {
-    if (arg == SIGINT || arg == SIGTERM)
-    {
-      ++quit;
-    }
+    ++g_quit;
   }
+}
 
-  using FilterFunction = std::function<bool(double, const glm::dvec3 &, const ohm::Key &)>;
+using FilterFunction = std::function<bool(double, const glm::dvec3 &, const ohm::Key &)>;
 
-  struct Options
-  {
-    std::string map_file;
-    std::string cloud_in;
-    std::string traj_in;
-    std::string cloud_out;
-    double expected_value_tolerance = -1;
-    bool occupancy_only = false;
-    bool quiet = false;
-  };
+struct Options
+{
+  std::string map_file;
+  std::string cloud_in;
+  std::string traj_in;
+  std::string cloud_out;
+  double expected_value_tolerance = -1;
+  bool occupancy_only = false;
+  bool quiet = false;
+};
 
-  class LoadMapProgress : public ohm::SerialiseProgress
-  {
-  public:
-    LoadMapProgress(ProgressMonitor &monitor)  // NOLINT(google-runtime-references)
-      : monitor_(monitor)
-    {}
+class LoadMapProgress : public ohm::SerialiseProgress
+{
+public:
+  explicit LoadMapProgress(ProgressMonitor &monitor)
+    : monitor_(monitor)
+  {}
 
-    bool quit() const override { return ::quit > 1; }
+  bool quit() const override { return ::g_quit > 1; }
 
-    void setTargetProgress(unsigned target) override { monitor_.beginProgress(ProgressMonitor::Info(target)); }
-    void incrementProgress(unsigned inc) override { monitor_.incrementProgressBy(inc); }
+  void setTargetProgress(unsigned target) override { monitor_.beginProgress(ProgressMonitor::Info(target)); }
+  void incrementProgress(unsigned inc) override { monitor_.incrementProgressBy(inc); }
 
-  private:
-    ProgressMonitor &monitor_;
-  };
+private:
+  ProgressMonitor &monitor_;
+};
 
-  bool filterPointByCovariance(const glm::dvec3 &point, const glm::dvec3 &mean, const glm::dmat3 &cov_sqrt,
-                               double threshold)
-  {
-    // Transient point assessement vs NDT:
-    // With:
-    //  P:covariance
-    //  S:covariance square root
-    //  a:test value
-    // a = (point - mean)^T P^{-1} (point - mean)
-    // where P=covariance
-    // expected value is dimensionality (3)
-    // so to pass, we need a < 3.
-    //
-    // Using CovarianceVoxel we have the square-root of P:
-    // P = S S^T
-    // so:
-    // v = S^{-1} (point - mean)
-    // a = v^T v
+bool filterPointByCovariance(const glm::dvec3 &point, const glm::dvec3 &mean, const glm::dmat3 &cov_sqrt,
+                             double threshold)
+{
+  // Transient point assessement vs NDT:
+  // With:
+  //  P:covariance
+  //  S:covariance square root
+  //  a:test value
+  // a = (point - mean)^T P^{-1} (point - mean)
+  // where P=covariance
+  // expected value is dimensionality (3)
+  // so to pass, we need a < 3.
+  //
+  // Using CovarianceVoxel we have the square-root of P:
+  // P = S S^T
+  // so:
+  // v = S^{-1} (point - mean)
+  // a = v^T v
 
-    const glm::dvec3 divergence_from_mean = point - mean;
-    const auto v = glm::inverse(cov_sqrt) * divergence_from_mean;
-    const double value = glm::dot(v, v);
-    const double expected_value = 3.0;  // In R3 => expected value is 3.
-    return std::abs(value) < expected_value + threshold;
-  }
+  const glm::dvec3 divergence_from_mean = point - mean;
+  const auto v = glm::inverse(cov_sqrt) * divergence_from_mean;
+  const double value = glm::dot(v, v);
+  const double expected_value = 3.0;  // In R3 => expected value is 3.
+  return std::abs(value) < expected_value + threshold;
+}
 }  // namespace
 
 // Must be after argument streaming operators.
 #include <ohmutil/Options.h>
 
-int parseOptions(Options *opt, int argc, char *argv[])
+int parseOptions(Options *opt, int argc, char *argv[])  // NOLINT(modernize-avoid-c-arrays)
 {
   cxxopts::Options opt_parse(argv[0], "Convert an occupancy map to a point cloud. Defaults to generate a positional "
                                       "point cloud, but can generate a clearance cloud as well.");
@@ -236,10 +236,12 @@ bool filterCloud(const Options &opt, const ohm::OccupancyMap &map, ProgressMonit
     std::cout << "Exporting to " << opt.cloud_out << std::endl;
   }
 
-  glm::dvec3 point(0), origin(0);
+  glm::dvec3 point(0);
+  glm::dvec3 origin(0);
   double timestamp = 0;
   ohm::Key key;
-  std::uint64_t point_count = 0, export_count = 0;
+  std::uint64_t point_count = 0;
+  std::uint64_t export_count = 0;
   const bool with_trajectory = !opt.traj_in.empty();
   while (cloud_loader.nextPoint(point, &origin, &timestamp))
   {
@@ -317,10 +319,11 @@ int main(int argc, char *argv[])
         out << prog.info.info << " : ";
       }
 
-      out << std::setfill(' ') << std::setw(12) << prog.progress;
+      const auto fill_width = std::numeric_limits<decltype(prog.progress)>::digits10;
+      out << std::setfill(' ') << std::setw(fill_width) << prog.progress;
       if (prog.info.total)
       {
-        out << " / " << std::setfill(' ') << std::setw(12) << prog.info.total;
+        out << " / " << std::setfill(' ') << std::setw(fill_width) << prog.info.total;
       }
       out << "    ";
       std::cout << out.str() << std::flush;

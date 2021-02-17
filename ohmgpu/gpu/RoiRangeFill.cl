@@ -3,7 +3,7 @@
 // ABN 41 687 119 230
 //
 // Author: Kazys Stepanas
-#include "gpu_ext.h"
+#include "gpu_ext.h"  // Must be first
 
 // Explicitly include MapCoord.h first.
 #include "MapCoord.h"
@@ -166,8 +166,7 @@ inline char4 __device__ voxelToObstruction(uint voxel);
 //-----------------------------------------------------------------------------
 bool __device__ isOccupied(const float occupancy, float threshold, unsigned flags)
 {
-  return (occupancy == INFINITY && (flags & kUnknownAsOccupied)) ||
-         (occupancy != INFINITY && occupancy >= threshold);
+  return (occupancy == INFINITY && (flags & kUnknownAsOccupied)) || (occupancy != INFINITY && occupancy >= threshold);
 }
 
 #ifndef ROI_RANGE_FILL_BASE_CL

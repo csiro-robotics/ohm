@@ -23,19 +23,19 @@
 
 namespace
 {
-  struct TrajectoryPoint
-  {
-    double timestamp;
-    glm::dvec3 origin;
-  };
+struct TrajectoryPoint
+{
+  double timestamp;
+  glm::dvec3 origin;
+};
 
-  struct SamplePoint : TrajectoryPoint
-  {
-    glm::dvec3 sample;
-    float intensity;
-  };
+struct SamplePoint : TrajectoryPoint
+{
+  glm::dvec3 sample;
+  float intensity;
+};
 
-  typedef std::chrono::high_resolution_clock Clock;
+typedef std::chrono::high_resolution_clock Clock;
 }  // namespace
 
 struct SlamCloudLoaderDetail
@@ -88,33 +88,33 @@ struct SlamCloudLoaderDetail
 
 namespace
 {
-  std::string getFileExtension(const std::string &file)
+std::string getFileExtension(const std::string &file)
+{
+  const size_t last_dot = file.find_last_of(".");
+  if (last_dot != std::string::npos)
   {
-    const size_t last_dot = file.find_last_of(".");
-    if (last_dot != std::string::npos)
-    {
-      return file.substr(last_dot + 1);
-    }
-
-    return "";
+    return file.substr(last_dot + 1);
   }
 
-  bool openLasFile(std::ifstream &in, const std::string &file_name)
-  {
-    const std::string ext = getFileExtension(file_name);
-    if (ext.compare("laz") == 0 || ext.compare("las") == 0)
-    {
-      return liblas::Open(in, file_name);
-    }
+  return "";
+}
 
-    // Extension omitted.
-    // Try for a LAZ file (compressed), then a LAS file.
-    if (liblas::Open(in, file_name + ".laz"))
-    {
-      return true;
-    }
-    return liblas::Open(in, file_name + ".las");
+bool openLasFile(std::ifstream &in, const std::string &file_name)
+{
+  const std::string ext = getFileExtension(file_name);
+  if (ext.compare("laz") == 0 || ext.compare("las") == 0)
+  {
+    return liblas::Open(in, file_name);
   }
+
+  // Extension omitted.
+  // Try for a LAZ file (compressed), then a LAS file.
+  if (liblas::Open(in, file_name + ".laz"))
+  {
+    return true;
+  }
+  return liblas::Open(in, file_name + ".las");
+}
 }  // namespace
 
 SlamCloudLoader::SlamCloudLoader(bool real_time_mode)
@@ -302,6 +302,13 @@ void SlamCloudLoader::preload(size_t point_count)
   std::swap(imp_->preload_points, preload_data);
   imp_->preload_index = 0;
   imp_->read_count = initial_read_count;
+}
+
+
+bool SlamCloudLoader::nextPoint(glm::dvec3 &sample, glm::dvec3 *origin, double *timestamp_out)
+{
+  float intensity;
+  return nextPoint(sample, intensity, origin, timestamp_out);
 }
 
 

@@ -2,7 +2,6 @@
 cmake_minimum_required(VERSION 3.5)
 
 find_package(GLM)
-find_package(GTest)
 find_package(PNG QUIET)
 
 # Eigen required to support some tests - NDT in particular
@@ -54,11 +53,11 @@ target_include_directories(ohmtest
 
 target_include_directories(ohmtest SYSTEM
   PRIVATE
+    "${GTEST_INCLUDE_DIRS}" # Must include downloaded GTest before potentially including system directories.
     "${GLM_INCLUDE_DIR}"
-    "${GTEST_INCLUDE_DIRS}"
 )
 
-target_link_libraries(ohmtest PUBLIC ohmtestcommon ohmtools ohm ohmutil GTest::Main)
+target_link_libraries(ohmtest PUBLIC ohmtestcommon ohmtools ohm ohmutil ${GTEST_LIBRARIES} ${GTEST_MAIN_LIBRARIES})
 if(PNG_FOUND)
   target_link_libraries(ohmtest PUBLIC PNG::PNG)
 endif(PNG_FOUND)

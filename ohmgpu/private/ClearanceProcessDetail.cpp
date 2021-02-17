@@ -9,8 +9,8 @@
 
 #include <algorithm>
 
-using namespace ohm;
-
+namespace ohm
+{
 void ClearanceProcessDetail::getWork(OccupancyMap &map)
 {
   map.calculateDirtyClearanceExtents(&min_dirty_region, &max_dirty_region, 1);
@@ -45,3 +45,4 @@ void ClearanceProcessDetail::stepCursor(const glm::i16vec3 &step)
     }
   }
 }
+}  // namespace ohm

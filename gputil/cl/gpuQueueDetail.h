@@ -12,10 +12,10 @@
 
 namespace gputil
 {
-  struct QueueDetail
-  {
-    cl::CommandQueue queue;
-  };
+struct QueueDetail
+{
+  cl::CommandQueue queue;
+};
 }  // namespace gputil
 
 #endif  // GPUQUEUEDETAIL_H

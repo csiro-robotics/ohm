@@ -16,16 +16,16 @@
 
 namespace
 {
-  using real = double;
+using real = double;  // NOLINT(readability-identifier-naming)
 
-  struct Options
-  {
-    real value{ 0 };
-    bool reverse{ false };
-  };
+struct Options
+{
+  real value{ 0 };
+  bool reverse{ false };
+};
 }  // namespace
 
-int parseOptions(Options *opt, int argc, char *argv[])
+int parseOptions(Options *opt, int argc, char *argv[])  // NOLINT(modernize-avoid-c-arrays)
 {
   cxxopts::Options opt_parse(argv[0], "Make a probability to value conversion or the --reverse .");
   opt_parse.positional_help("<value>");

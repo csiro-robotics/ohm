@@ -28,19 +28,19 @@
 
 namespace
 {
-  struct TrajectoryPoint
-  {
-    double timestamp;
-    glm::dvec3 origin;
-  };
+struct TrajectoryPoint
+{
+  double timestamp;
+  glm::dvec3 origin;
+};
 
-  struct SamplePoint : TrajectoryPoint
-  {
-    glm::dvec3 sample;
-    float intensity;
-  };
+struct SamplePoint : TrajectoryPoint
+{
+  glm::dvec3 sample;
+  float intensity;
+};
 
-  using Clock = std::chrono::high_resolution_clock;
+using Clock = std::chrono::high_resolution_clock;
 }  // namespace
 
 using ReadTrajectoryFunc = std::function<bool(TrajectoryPoint &point)>;
@@ -82,61 +82,60 @@ struct SlamCloudLoaderDetail
 
 namespace
 {
-  std::string getFileExtension(const std::string &file)
+std::string getFileExtension(const std::string &file)
+{
+  const size_t last_dot = file.find_last_of('.');
+  if (last_dot != std::string::npos)
   {
-    const size_t last_dot = file.find_last_of('.');
-    if (last_dot != std::string::npos)
-    {
-      return file.substr(last_dot + 1);
-    }
-
-    return "";
+    return file.substr(last_dot + 1);
   }
 
-  std::shared_ptr<pdal::Stage> createReader(pdal::StageFactory &factory,  // NOLINT(google-runtime-references)
-                                            const std::string &file_name)
+  return "";
+}
+
+std::shared_ptr<pdal::Stage> createReader(pdal::StageFactory &factory, const std::string &file_name)
+{
+  const std::string ext = getFileExtension(file_name);
+  std::string reader_type;
+  pdal::Options options;
+
+  reader_type = ext;
+
+  if (ext.compare("laz") == 0)
   {
-    const std::string ext = getFileExtension(file_name);
-    std::string reader_type;
-    pdal::Options options;
-
-    reader_type = ext;
-
-    if (ext.compare("laz") == 0)
-    {
-      reader_type = "las";
-      options.add("compression", "EITHER");
-    }
-
-    reader_type = "readers." + reader_type;
-    std::shared_ptr<pdal::Stage> reader(factory.createStage(reader_type),  //
-                                        [&factory](pdal::Stage *stage) { factory.destroyStage(stage); });
-
-    if (reader)
-    {
-      options.add("filename", file_name);
-      reader->setOptions(options);
-    }
-
-    return reader;
+    reader_type = "las";
+    options.add("compression", "EITHER");
   }
 
-  /// Ordered field IDs to try to use to resolve time.
-  pdal::Dimension::Id selectTimeField(const pdal::PointTable &points)
+  reader_type = "readers." + reader_type;
+  std::shared_ptr<pdal::Stage> reader(factory.createStage(reader_type),  //
+                                      [&factory](pdal::Stage *stage) { factory.destroyStage(stage); });
+
+  if (reader)
   {
-    const pdal::Dimension::Id time_fields[] = { pdal::Dimension::Id::GpsTime, pdal::Dimension::Id::InternalTime,
-                                                pdal::Dimension::Id::OffsetTime };
-
-    for (const auto field : time_fields)
-    {
-      if (points.layout()->hasDim(field))
-      {
-        return field;
-      }
-    }
-
-    return pdal::Dimension::Id::Unknown;
+    options.add("filename", file_name);
+    reader->setOptions(options);
   }
+
+  return reader;
+}
+
+/// Ordered field IDs to try to use to resolve time.
+pdal::Dimension::Id selectTimeField(const pdal::PointTable &points)
+{
+  const pdal::Dimension::Id time_fields[] = { pdal::Dimension::Id::GpsTime, pdal::Dimension::Id::InternalTime,
+                                              pdal::Dimension::Id::OffsetTime };
+
+  for (const auto field : time_fields)
+  {
+    if (points.layout()->hasDim(field))
+    {
+      return field;
+    }
+  }
+
+  return pdal::Dimension::Id::Unknown;
+}
 }  // namespace
 
 SlamCloudLoader::SlamCloudLoader(bool real_time_mode)

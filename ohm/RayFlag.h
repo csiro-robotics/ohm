@@ -12,27 +12,34 @@
 namespace ohm
 {
 #endif  // !GPUTIL_DEVICE
-  /// Flags affecting the behaviour of how rays are integrated into the map.
-  enum RayFlag
-  {
-    /// Default behaviour.
-    kRfDefault = 0,
-    /// Change behaviour such that the end point is considered another free voxel, rather than occupied.
-    kRfEndPointAsFree = (1 << 0),
-    /// Change behaviour such that traversal stops as soon as an occupied voxel is reached. Ray traversal terminates
-    /// after adjusting the occupied voxel.
-    kRfStopOnFirstOccupied = (1 << 1),
-    /// Change behaviour such that only voxels which are occupied have their probability adjusted. Free and unknown
-    /// voxels are left unchanged.
-    kRfClearOnly = (1 << 2),
-    /// Do not process the sample voxel.
-    kRfExcludeSample = (1 << 3),
-    /// Exclude the ray part, integrating only the sample. This flag is only recommended in debugging or validation.
-    /// @c RayMapperBase code is not optimised for this flag.
-    kRfExcludeRay = (1 << 4),
-  };
+/// Flags affecting the behaviour of how rays are integrated into the map.
+enum RayFlag
 #if !GPUTIL_DEVICE
-} // namespace ohm
+  // Unsigned type specification not valid for NVidia OpenCL code.
+  : unsigned
+#endif  // !GPUTIL_DEVICE
+{
+  /// Default behaviour.
+  kRfDefault = 0,
+  /// Change behaviour such that the end point is considered another free voxel, rather than occupied.
+  kRfEndPointAsFree = (1u << 0u),
+  /// Change behaviour such that traversal stops as soon as an occupied voxel is reached. Ray traversal terminates
+  /// after adjusting the occupied voxel.
+  kRfStopOnFirstOccupied = (1u << 1u),
+  /// Do not process the sample voxel.
+  kRfExcludeSample = (1u << 3u),
+  /// Exclude the ray part, integrating only the sample. This flag is only recommended in debugging or validation.
+  /// @c RayMapperBase code is not optimised for this flag.
+  kRfExcludeRay = (1u << 4u),
+  /// Do not adjust the occupancy value of currently unobserved voxels.
+  kRfExcludeUnobserved = (1u << 5u),
+  /// Do not adjust the occupancy value of currently free voxels.
+  kRfExcludeFree = (1u << 6u),
+  /// Do not adjust the occupancy value of currently occupied voxels.
+  kRfExcludeOccupied = (1u << 7u),
+};
+#if !GPUTIL_DEVICE
+}  // namespace ohm
 #endif  // !GPUTIL_DEVICE
 
-#endif // RAYFLAG_H
+#endif  // RAYFLAG_H

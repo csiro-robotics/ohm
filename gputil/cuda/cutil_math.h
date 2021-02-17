@@ -18,366 +18,366 @@ using ulonglong = unsigned long long int;
 //----------------------------------------------------------------------------------------------------------------------
 // Basic vector operations.
 //----------------------------------------------------------------------------------------------------------------------
-#define _VECTOR_UOPS(type)                                                                                           \
-  inline __host__ __device__ bool operator==(const type##2 & a, const type##2 & b)                                   \
-  {                                                                                                                  \
-    return a.x == b.x && a.y == b.y;                                                                                 \
-  }                                                                                                                  \
-                                                                                                                     \
-  inline __host__ __device__ bool operator!=(const type##2 & a, const type##2 & b) { return !operator==(a, b); }     \
-                                                                                                                     \
-  inline __host__ __device__ type##2 operator+(const type##2 & a, const type##2 & b)                                 \
-  {                                                                                                                  \
-    return make_##type##2(a.x + b.x, a.y + b.y);                                                                     \
-  }                                                                                                                  \
-                                                                                                                     \
-  template <typename S>                                                                                              \
-  inline __host__ __device__ type##2 operator+(const type##2 & a, const S &scalar)                                   \
-  {                                                                                                                  \
-    return make_##type##2(a.x + scalar, a.y + scalar);                                                               \
-  }                                                                                                                  \
-                                                                                                                     \
-  inline __host__ __device__ type##2 operator-(const type##2 & a, const type##2 & b)                                 \
-  {                                                                                                                  \
-    return make_##type##2(a.x - b.x, a.y - b.y);                                                                     \
-  }                                                                                                                  \
-                                                                                                                     \
-  template <typename S>                                                                                              \
-  inline __host__ __device__ type##2 operator-(const type##2 & a, const S &scalar)                                   \
-  {                                                                                                                  \
-    return make_##type##2(a.x - scalar, a.y - scalar);                                                               \
-  }                                                                                                                  \
-                                                                                                                     \
-  inline __host__ __device__ type##2 &operator+=(type##2 & a, const type##2 & b)                                     \
-  {                                                                                                                  \
-    a.x += b.x;                                                                                                      \
-    a.y += b.y;                                                                                                      \
-    return a;                                                                                                        \
-  }                                                                                                                  \
-                                                                                                                     \
-  template <typename S>                                                                                              \
-  inline __host__ __device__ type##2 &operator+=(type##2 & a, const S &scalar)                                       \
-  {                                                                                                                  \
-    a.x += scalar;                                                                                                   \
-    a.y += scalar;                                                                                                   \
-    return a;                                                                                                        \
-  }                                                                                                                  \
-                                                                                                                     \
-  inline __host__ __device__ type##2 &operator-=(type##2 & a, const type##2 & b)                                     \
-  {                                                                                                                  \
-    a.x -= b.x;                                                                                                      \
-    a.y -= b.y;                                                                                                      \
-    return a;                                                                                                        \
-  }                                                                                                                  \
-                                                                                                                     \
-  template <typename S>                                                                                              \
-  inline __host__ __device__ type##2 &operator-=(type##2 & a, const S &scalar)                                       \
-  {                                                                                                                  \
-    a.x -= scalar;                                                                                                   \
-    a.y -= scalar;                                                                                                   \
-    return a;                                                                                                        \
-  }                                                                                                                  \
-                                                                                                                     \
-  inline __host__ __device__ type##2 operator*(const type##2 & a, const type##2 & b)                                 \
-  {                                                                                                                  \
-    return make_##type##2(a.x * b.x, a.y * b.y);                                                                     \
-  }                                                                                                                  \
-                                                                                                                     \
-  inline __host__ __device__ type##2 &operator*=(type##2 & a, const type##2 & b)                                     \
-  {                                                                                                                  \
-    a.x *= b.x;                                                                                                      \
-    a.y *= b.y;                                                                                                      \
-    return a;                                                                                                        \
-  }                                                                                                                  \
-                                                                                                                     \
-  template <typename S>                                                                                              \
-  inline __host__ __device__ type##2 operator*(const type##2 & a, const S &scalar)                                   \
-  {                                                                                                                  \
-    return make_##type##2(a.x * scalar, a.y * scalar);                                                               \
-  }                                                                                                                  \
-                                                                                                                     \
-  template <typename S>                                                                                              \
-  inline __host__ __device__ type##2 operator*(const S &scalar, const type##2 & a)                                   \
-  {                                                                                                                  \
-    return make_##type##2(a.x * scalar, a.y * scalar);                                                               \
-  }                                                                                                                  \
-                                                                                                                     \
-  template <typename S>                                                                                              \
-  inline __host__ __device__ type##2 &operator*=(type##2 & a, const S &scalar)                                       \
-  {                                                                                                                  \
-    a.x *= scalar;                                                                                                   \
-    a.y *= scalar;                                                                                                   \
-    return a;                                                                                                        \
-  }                                                                                                                  \
-                                                                                                                     \
-  inline __host__ __device__ type##2 operator/(const type##2 & a, const type##2 & b)                                 \
-  {                                                                                                                  \
-    return make_##type##2(a.x / b.x, a.y / b.y);                                                                     \
-  }                                                                                                                  \
-                                                                                                                     \
-  inline __host__ __device__ type##2 &operator/=(type##2 & a, const type##2 & b)                                     \
-  {                                                                                                                  \
-    a.x /= b.x;                                                                                                      \
-    a.y /= b.y;                                                                                                      \
-    return a;                                                                                                        \
-  }                                                                                                                  \
-                                                                                                                     \
-  template <typename S>                                                                                              \
-  inline __host__ __device__ type##2 operator/(const type##2 & a, const S &scalar)                                   \
-  {                                                                                                                  \
-    return make_##type##2(a.x / scalar, a.y / scalar);                                                               \
-  }                                                                                                                  \
-                                                                                                                     \
-  template <typename S>                                                                                              \
-  inline __host__ __device__ type##2 &operator/=(type##2 & a, const S &scalar)                                       \
-  {                                                                                                                  \
-    a.x /= scalar;                                                                                                   \
-    a.y /= scalar;                                                                                                   \
-    return a;                                                                                                        \
-  }                                                                                                                  \
-                                                                                                                     \
-  inline __host__ __device__ bool operator==(const type##3 & a, const type##3 & b)                                   \
-  {                                                                                                                  \
-    return a.x == b.x && a.y == b.y && a.z == b.z;                                                                   \
-  }                                                                                                                  \
-                                                                                                                     \
-  inline __host__ __device__ bool operator!=(const type##3 & a, const type##3 & b) { return !operator==(a, b); }     \
-                                                                                                                     \
-  inline __host__ __device__ type##3 operator+(const type##3 & a, const type##3 & b)                                 \
-  {                                                                                                                  \
-    return make_##type##3(a.x + b.x, a.y + b.y, a.z + b.z);                                                          \
-  }                                                                                                                  \
-                                                                                                                     \
-  inline __host__ __device__ type##3 operator-(const type##3 & a, const type##3 & b)                                 \
-  {                                                                                                                  \
-    return make_##type##3(a.x - b.x, a.y - b.y, a.z - b.z);                                                          \
-  }                                                                                                                  \
-                                                                                                                     \
-  template <typename S>                                                                                              \
-  inline __host__ __device__ type##3 operator+(const type##3 & a, const S &scalar)                                   \
-  {                                                                                                                  \
-    return make_##type##3(a.x + scalar, a.y + scalar, a.z + scalar);                                                 \
-  }                                                                                                                  \
-                                                                                                                     \
-  template <typename S>                                                                                              \
-  inline __host__ __device__ type##3 operator-(const type##3 & a, const S &scalar)                                   \
-  {                                                                                                                  \
-    return make_##type##3(a.x - scalar, a.y - scalar, a.z - scalar);                                                 \
-  }                                                                                                                  \
-                                                                                                                     \
-  inline __host__ __device__ type##3 &operator+=(type##3 & a, const type##3 & b)                                     \
-  {                                                                                                                  \
-    a.x += b.x;                                                                                                      \
-    a.y += b.y;                                                                                                      \
-    a.z += b.z;                                                                                                      \
-    return a;                                                                                                        \
-  }                                                                                                                  \
-                                                                                                                     \
-  inline __host__ __device__ type##3 &operator-=(type##3 & a, const type##3 & b)                                     \
-  {                                                                                                                  \
-    a.x -= b.x;                                                                                                      \
-    a.y -= b.y;                                                                                                      \
-    a.z -= b.z;                                                                                                      \
-    return a;                                                                                                        \
-  }                                                                                                                  \
-                                                                                                                     \
-  template <typename S>                                                                                              \
-  inline __host__ __device__ type##3 &operator+=(type##3 & a, const S &scalar)                                       \
-  {                                                                                                                  \
-    a.x += scalar;                                                                                                   \
-    a.y += scalar;                                                                                                   \
-    a.z += scalar;                                                                                                   \
-    return a;                                                                                                        \
-  }                                                                                                                  \
-                                                                                                                     \
-  template <typename S>                                                                                              \
-  inline __host__ __device__ type##3 &operator-=(type##3 & a, const S &scalar)                                       \
-  {                                                                                                                  \
-    a.x -= scalar;                                                                                                   \
-    a.y -= scalar;                                                                                                   \
-    a.z -= scalar;                                                                                                   \
-    return a;                                                                                                        \
-  }                                                                                                                  \
-                                                                                                                     \
-  inline __host__ __device__ type##3 operator*(const type##3 & a, const type##3 & b)                                 \
-  {                                                                                                                  \
-    return make_##type##3(a.x * b.x, a.y * b.y, a.z * b.z);                                                          \
-  }                                                                                                                  \
-                                                                                                                     \
-  inline __host__ __device__ type##3 &operator*=(type##3 & a, const type##3 & b)                                     \
-  {                                                                                                                  \
-    a.x *= b.x;                                                                                                      \
-    a.y *= b.y;                                                                                                      \
-    a.z *= b.z;                                                                                                      \
-    return a;                                                                                                        \
-  }                                                                                                                  \
-                                                                                                                     \
-  template <typename S>                                                                                              \
-  inline __host__ __device__ type##3 operator*(const type##3 & a, const S &scalar)                                   \
-  {                                                                                                                  \
-    return make_##type##3(a.x * scalar, a.y * scalar, a.z * scalar);                                                 \
-  }                                                                                                                  \
-                                                                                                                     \
-  template <typename S>                                                                                              \
-  inline __host__ __device__ type##3 operator*(const S &scalar, const type##3 & a)                                   \
-  {                                                                                                                  \
-    return make_##type##3(a.x * scalar, a.y * scalar, a.z * scalar);                                                 \
-  }                                                                                                                  \
-                                                                                                                     \
-  template <typename S>                                                                                              \
-  inline __host__ __device__ type##3 &operator*=(type##3 & a, const S &scalar)                                       \
-  {                                                                                                                  \
-    a.x *= scalar;                                                                                                   \
-    a.y *= scalar;                                                                                                   \
-    a.z *= scalar;                                                                                                   \
-    return a;                                                                                                        \
-  }                                                                                                                  \
-                                                                                                                     \
-  inline __host__ __device__ type##3 operator/(const type##3 & a, const type##3 & b)                                 \
-  {                                                                                                                  \
-    return make_##type##3(a.x / b.x, a.y / b.y, a.z / b.z);                                                          \
-  }                                                                                                                  \
-                                                                                                                     \
-  inline __host__ __device__ type##3 &operator/=(type##3 & a, const type##3 & b)                                     \
-  {                                                                                                                  \
-    a.x /= b.x;                                                                                                      \
-    a.y /= b.y;                                                                                                      \
-    a.z /= b.z;                                                                                                      \
-    return a;                                                                                                        \
-  }                                                                                                                  \
-                                                                                                                     \
-  template <typename S>                                                                                              \
-  inline __host__ __device__ type##3 operator/(const type##3 & a, const S &scalar)                                   \
-  {                                                                                                                  \
-    return make_##type##3(a.x / scalar, a.y / scalar, a.z / scalar);                                                 \
-  }                                                                                                                  \
-                                                                                                                     \
-  template <typename S>                                                                                              \
-  inline __host__ __device__ type##3 &operator/=(type##3 & a, const S &scalar)                                       \
-  {                                                                                                                  \
-    a.x /= scalar;                                                                                                   \
-    a.y /= scalar;                                                                                                   \
-    a.z /= scalar;                                                                                                   \
-    return a;                                                                                                        \
-  }                                                                                                                  \
-                                                                                                                     \
-  inline __host__ __device__ bool operator==(const type##4 & a, const type##4 & b)                                   \
-  {                                                                                                                  \
-    return a.x == b.x && a.y == b.y && a.z == b.z && a.w == b.w;                                                     \
-  }                                                                                                                  \
-                                                                                                                     \
-  inline __host__ __device__ bool operator!=(const type##4 & a, const type##4 & b) { return !operator==(a, b); }     \
-                                                                                                                     \
-  inline __host__ __device__ type##4 operator+(const type##4 & a, const type##4 & b)                                 \
-  {                                                                                                                  \
-    return make_##type##4(a.x + b.x, a.y + b.y, a.z + b.z, a.w + b.w);                                               \
-  }                                                                                                                  \
-                                                                                                                     \
-  inline __host__ __device__ type##4 operator-(const type##4 & a, const type##4 & b)                                 \
-  {                                                                                                                  \
-    return make_##type##4(a.x - b.x, a.y - b.y, a.z - b.z, a.w - b.w);                                               \
-  }                                                                                                                  \
-                                                                                                                     \
-  template <typename S>                                                                                              \
-  inline __host__ __device__ type##4 operator+(const type##4 & a, const S &scalar)                                   \
-  {                                                                                                                  \
-    return make_##type##4(a.x + scalar, a.y + scalar, a.z + scalar, a.w + scalar);                                   \
-  }                                                                                                                  \
-                                                                                                                     \
-  template <typename S>                                                                                              \
-  inline __host__ __device__ type##4 operator-(const type##4 & a, const S &scalar)                                   \
-  {                                                                                                                  \
-    return make_##type##4(a.x - scalar, a.y - scalar, a.z - scalar, a.w - scalar);                                   \
-  }                                                                                                                  \
-                                                                                                                     \
-  inline __host__ __device__ type##4 &operator+=(type##4 & a, const type##4 & b)                                     \
-  {                                                                                                                  \
-    a.x += b.x;                                                                                                      \
-    a.y += b.y;                                                                                                      \
-    a.z += b.z;                                                                                                      \
-    a.w += b.w;                                                                                                      \
-    return a;                                                                                                        \
-  }                                                                                                                  \
-                                                                                                                     \
-  inline __host__ __device__ type##4 &operator-=(type##4 & a, const type##4 & b)                                     \
-  {                                                                                                                  \
-    a.x -= b.x;                                                                                                      \
-    a.y -= b.y;                                                                                                      \
-    a.z -= b.z;                                                                                                      \
-    a.w -= b.w;                                                                                                      \
-    return a;                                                                                                        \
-  }                                                                                                                  \
-                                                                                                                     \
-  inline __host__ __device__ type##4 operator*(const type##4 & a, const type##4 & b)                                 \
-  {                                                                                                                  \
-    return make_##type##4(a.x * b.x, a.y * b.y, a.z * b.z, a.w * b.w);                                               \
-  }                                                                                                                  \
-                                                                                                                     \
-  inline __host__ __device__ type##4 &operator*=(type##4 & a, const type##4 & b)                                     \
-  {                                                                                                                  \
-    a.x *= b.x;                                                                                                      \
-    a.y *= b.y;                                                                                                      \
-    a.z *= b.z;                                                                                                      \
-    a.w *= b.w;                                                                                                      \
-    return a;                                                                                                        \
-  }                                                                                                                  \
-                                                                                                                     \
-  template <typename S>                                                                                              \
-  inline __host__ __device__ type##4 operator*(const type##4 & a, const S &scalar)                                   \
-  {                                                                                                                  \
-    return make_##type##4(a.x * scalar, a.y * scalar, a.z * scalar, a.w * scalar);                                   \
-  }                                                                                                                  \
-                                                                                                                     \
-  template <typename S>                                                                                              \
-  inline __host__ __device__ type##4 operator*(const S &scalar, const type##4 & a)                                   \
-  {                                                                                                                  \
-    return make_##type##4(a.x * scalar, a.y * scalar, a.z * scalar, a.w * scalar);                                   \
-  }                                                                                                                  \
-                                                                                                                     \
-  template <typename S>                                                                                              \
-  inline __host__ __device__ type##4 &operator*=(type##4 & a, const S &scalar)                                       \
-  {                                                                                                                  \
-    a.x *= scalar;                                                                                                   \
-    a.y *= scalar;                                                                                                   \
-    a.z *= scalar;                                                                                                   \
-    a.w *= scalar;                                                                                                   \
-    return a;                                                                                                        \
-  }                                                                                                                  \
-                                                                                                                     \
-  inline __host__ __device__ type##4 operator/(const type##4 & a, const type##4 & b)                                 \
-  {                                                                                                                  \
-    return make_##type##4(a.x / b.x, a.y / b.y, a.z / b.z, a.w / b.w);                                               \
-  }                                                                                                                  \
-                                                                                                                     \
-  inline __host__ __device__ type##4 &operator/=(type##4 & a, const type##4 & b)                                     \
-  {                                                                                                                  \
-    a.x /= b.x;                                                                                                      \
-    a.y /= b.y;                                                                                                      \
-    a.z /= b.z;                                                                                                      \
-    a.w /= b.w;                                                                                                      \
-    return a;                                                                                                        \
-  }                                                                                                                  \
-                                                                                                                     \
-  template <typename S>                                                                                              \
-  inline __host__ __device__ type##4 operator/(const type##4 & a, const S &scalar)                                   \
-  {                                                                                                                  \
-    return make_##type##4(a.x / scalar, a.y / scalar, a.z / scalar, a.w / scalar);                                   \
-  }                                                                                                                  \
-                                                                                                                     \
-  template <typename S>                                                                                              \
-  inline __host__ __device__ type##4 &operator/=(type##4 & a, const S &scalar)                                       \
-  {                                                                                                                  \
-    a.x /= scalar;                                                                                                   \
-    a.y /= scalar;                                                                                                   \
-    a.z /= scalar;                                                                                                   \
-    a.w /= scalar;                                                                                                   \
-    return a;                                                                                                        \
+#define _VECTOR_UOPS(type)                                                                                       \
+  inline __host__ __device__ bool operator==(const type##2 & a, const type##2 & b)                               \
+  {                                                                                                              \
+    return a.x == b.x && a.y == b.y;                                                                             \
+  }                                                                                                              \
+                                                                                                                 \
+  inline __host__ __device__ bool operator!=(const type##2 & a, const type##2 & b) { return !operator==(a, b); } \
+                                                                                                                 \
+  inline __host__ __device__ type##2 operator+(const type##2 & a, const type##2 & b)                             \
+  {                                                                                                              \
+    return make_##type##2(a.x + b.x, a.y + b.y);                                                                 \
+  }                                                                                                              \
+                                                                                                                 \
+  template <typename S>                                                                                          \
+  inline __host__ __device__ type##2 operator+(const type##2 & a, const S &scalar)                               \
+  {                                                                                                              \
+    return make_##type##2(a.x + scalar, a.y + scalar);                                                           \
+  }                                                                                                              \
+                                                                                                                 \
+  inline __host__ __device__ type##2 operator-(const type##2 & a, const type##2 & b)                             \
+  {                                                                                                              \
+    return make_##type##2(a.x - b.x, a.y - b.y);                                                                 \
+  }                                                                                                              \
+                                                                                                                 \
+  template <typename S>                                                                                          \
+  inline __host__ __device__ type##2 operator-(const type##2 & a, const S &scalar)                               \
+  {                                                                                                              \
+    return make_##type##2(a.x - scalar, a.y - scalar);                                                           \
+  }                                                                                                              \
+                                                                                                                 \
+  inline __host__ __device__ type##2 &operator+=(type##2 & a, const type##2 & b)                                 \
+  {                                                                                                              \
+    a.x += b.x;                                                                                                  \
+    a.y += b.y;                                                                                                  \
+    return a;                                                                                                    \
+  }                                                                                                              \
+                                                                                                                 \
+  template <typename S>                                                                                          \
+  inline __host__ __device__ type##2 &operator+=(type##2 & a, const S &scalar)                                   \
+  {                                                                                                              \
+    a.x += scalar;                                                                                               \
+    a.y += scalar;                                                                                               \
+    return a;                                                                                                    \
+  }                                                                                                              \
+                                                                                                                 \
+  inline __host__ __device__ type##2 &operator-=(type##2 & a, const type##2 & b)                                 \
+  {                                                                                                              \
+    a.x -= b.x;                                                                                                  \
+    a.y -= b.y;                                                                                                  \
+    return a;                                                                                                    \
+  }                                                                                                              \
+                                                                                                                 \
+  template <typename S>                                                                                          \
+  inline __host__ __device__ type##2 &operator-=(type##2 & a, const S &scalar)                                   \
+  {                                                                                                              \
+    a.x -= scalar;                                                                                               \
+    a.y -= scalar;                                                                                               \
+    return a;                                                                                                    \
+  }                                                                                                              \
+                                                                                                                 \
+  inline __host__ __device__ type##2 operator*(const type##2 & a, const type##2 & b)                             \
+  {                                                                                                              \
+    return make_##type##2(a.x * b.x, a.y * b.y);                                                                 \
+  }                                                                                                              \
+                                                                                                                 \
+  inline __host__ __device__ type##2 &operator*=(type##2 & a, const type##2 & b)                                 \
+  {                                                                                                              \
+    a.x *= b.x;                                                                                                  \
+    a.y *= b.y;                                                                                                  \
+    return a;                                                                                                    \
+  }                                                                                                              \
+                                                                                                                 \
+  template <typename S>                                                                                          \
+  inline __host__ __device__ type##2 operator*(const type##2 & a, const S &scalar)                               \
+  {                                                                                                              \
+    return make_##type##2(a.x * scalar, a.y * scalar);                                                           \
+  }                                                                                                              \
+                                                                                                                 \
+  template <typename S>                                                                                          \
+  inline __host__ __device__ type##2 operator*(const S &scalar, const type##2 & a)                               \
+  {                                                                                                              \
+    return make_##type##2(a.x * scalar, a.y * scalar);                                                           \
+  }                                                                                                              \
+                                                                                                                 \
+  template <typename S>                                                                                          \
+  inline __host__ __device__ type##2 &operator*=(type##2 & a, const S &scalar)                                   \
+  {                                                                                                              \
+    a.x *= scalar;                                                                                               \
+    a.y *= scalar;                                                                                               \
+    return a;                                                                                                    \
+  }                                                                                                              \
+                                                                                                                 \
+  inline __host__ __device__ type##2 operator/(const type##2 & a, const type##2 & b)                             \
+  {                                                                                                              \
+    return make_##type##2(a.x / b.x, a.y / b.y);                                                                 \
+  }                                                                                                              \
+                                                                                                                 \
+  inline __host__ __device__ type##2 &operator/=(type##2 & a, const type##2 & b)                                 \
+  {                                                                                                              \
+    a.x /= b.x;                                                                                                  \
+    a.y /= b.y;                                                                                                  \
+    return a;                                                                                                    \
+  }                                                                                                              \
+                                                                                                                 \
+  template <typename S>                                                                                          \
+  inline __host__ __device__ type##2 operator/(const type##2 & a, const S &scalar)                               \
+  {                                                                                                              \
+    return make_##type##2(a.x / scalar, a.y / scalar);                                                           \
+  }                                                                                                              \
+                                                                                                                 \
+  template <typename S>                                                                                          \
+  inline __host__ __device__ type##2 &operator/=(type##2 & a, const S &scalar)                                   \
+  {                                                                                                              \
+    a.x /= scalar;                                                                                               \
+    a.y /= scalar;                                                                                               \
+    return a;                                                                                                    \
+  }                                                                                                              \
+                                                                                                                 \
+  inline __host__ __device__ bool operator==(const type##3 & a, const type##3 & b)                               \
+  {                                                                                                              \
+    return a.x == b.x && a.y == b.y && a.z == b.z;                                                               \
+  }                                                                                                              \
+                                                                                                                 \
+  inline __host__ __device__ bool operator!=(const type##3 & a, const type##3 & b) { return !operator==(a, b); } \
+                                                                                                                 \
+  inline __host__ __device__ type##3 operator+(const type##3 & a, const type##3 & b)                             \
+  {                                                                                                              \
+    return make_##type##3(a.x + b.x, a.y + b.y, a.z + b.z);                                                      \
+  }                                                                                                              \
+                                                                                                                 \
+  inline __host__ __device__ type##3 operator-(const type##3 & a, const type##3 & b)                             \
+  {                                                                                                              \
+    return make_##type##3(a.x - b.x, a.y - b.y, a.z - b.z);                                                      \
+  }                                                                                                              \
+                                                                                                                 \
+  template <typename S>                                                                                          \
+  inline __host__ __device__ type##3 operator+(const type##3 & a, const S &scalar)                               \
+  {                                                                                                              \
+    return make_##type##3(a.x + scalar, a.y + scalar, a.z + scalar);                                             \
+  }                                                                                                              \
+                                                                                                                 \
+  template <typename S>                                                                                          \
+  inline __host__ __device__ type##3 operator-(const type##3 & a, const S &scalar)                               \
+  {                                                                                                              \
+    return make_##type##3(a.x - scalar, a.y - scalar, a.z - scalar);                                             \
+  }                                                                                                              \
+                                                                                                                 \
+  inline __host__ __device__ type##3 &operator+=(type##3 & a, const type##3 & b)                                 \
+  {                                                                                                              \
+    a.x += b.x;                                                                                                  \
+    a.y += b.y;                                                                                                  \
+    a.z += b.z;                                                                                                  \
+    return a;                                                                                                    \
+  }                                                                                                              \
+                                                                                                                 \
+  inline __host__ __device__ type##3 &operator-=(type##3 & a, const type##3 & b)                                 \
+  {                                                                                                              \
+    a.x -= b.x;                                                                                                  \
+    a.y -= b.y;                                                                                                  \
+    a.z -= b.z;                                                                                                  \
+    return a;                                                                                                    \
+  }                                                                                                              \
+                                                                                                                 \
+  template <typename S>                                                                                          \
+  inline __host__ __device__ type##3 &operator+=(type##3 & a, const S &scalar)                                   \
+  {                                                                                                              \
+    a.x += scalar;                                                                                               \
+    a.y += scalar;                                                                                               \
+    a.z += scalar;                                                                                               \
+    return a;                                                                                                    \
+  }                                                                                                              \
+                                                                                                                 \
+  template <typename S>                                                                                          \
+  inline __host__ __device__ type##3 &operator-=(type##3 & a, const S &scalar)                                   \
+  {                                                                                                              \
+    a.x -= scalar;                                                                                               \
+    a.y -= scalar;                                                                                               \
+    a.z -= scalar;                                                                                               \
+    return a;                                                                                                    \
+  }                                                                                                              \
+                                                                                                                 \
+  inline __host__ __device__ type##3 operator*(const type##3 & a, const type##3 & b)                             \
+  {                                                                                                              \
+    return make_##type##3(a.x * b.x, a.y * b.y, a.z * b.z);                                                      \
+  }                                                                                                              \
+                                                                                                                 \
+  inline __host__ __device__ type##3 &operator*=(type##3 & a, const type##3 & b)                                 \
+  {                                                                                                              \
+    a.x *= b.x;                                                                                                  \
+    a.y *= b.y;                                                                                                  \
+    a.z *= b.z;                                                                                                  \
+    return a;                                                                                                    \
+  }                                                                                                              \
+                                                                                                                 \
+  template <typename S>                                                                                          \
+  inline __host__ __device__ type##3 operator*(const type##3 & a, const S &scalar)                               \
+  {                                                                                                              \
+    return make_##type##3(a.x * scalar, a.y * scalar, a.z * scalar);                                             \
+  }                                                                                                              \
+                                                                                                                 \
+  template <typename S>                                                                                          \
+  inline __host__ __device__ type##3 operator*(const S &scalar, const type##3 & a)                               \
+  {                                                                                                              \
+    return make_##type##3(a.x * scalar, a.y * scalar, a.z * scalar);                                             \
+  }                                                                                                              \
+                                                                                                                 \
+  template <typename S>                                                                                          \
+  inline __host__ __device__ type##3 &operator*=(type##3 & a, const S &scalar)                                   \
+  {                                                                                                              \
+    a.x *= scalar;                                                                                               \
+    a.y *= scalar;                                                                                               \
+    a.z *= scalar;                                                                                               \
+    return a;                                                                                                    \
+  }                                                                                                              \
+                                                                                                                 \
+  inline __host__ __device__ type##3 operator/(const type##3 & a, const type##3 & b)                             \
+  {                                                                                                              \
+    return make_##type##3(a.x / b.x, a.y / b.y, a.z / b.z);                                                      \
+  }                                                                                                              \
+                                                                                                                 \
+  inline __host__ __device__ type##3 &operator/=(type##3 & a, const type##3 & b)                                 \
+  {                                                                                                              \
+    a.x /= b.x;                                                                                                  \
+    a.y /= b.y;                                                                                                  \
+    a.z /= b.z;                                                                                                  \
+    return a;                                                                                                    \
+  }                                                                                                              \
+                                                                                                                 \
+  template <typename S>                                                                                          \
+  inline __host__ __device__ type##3 operator/(const type##3 & a, const S &scalar)                               \
+  {                                                                                                              \
+    return make_##type##3(a.x / scalar, a.y / scalar, a.z / scalar);                                             \
+  }                                                                                                              \
+                                                                                                                 \
+  template <typename S>                                                                                          \
+  inline __host__ __device__ type##3 &operator/=(type##3 & a, const S &scalar)                                   \
+  {                                                                                                              \
+    a.x /= scalar;                                                                                               \
+    a.y /= scalar;                                                                                               \
+    a.z /= scalar;                                                                                               \
+    return a;                                                                                                    \
+  }                                                                                                              \
+                                                                                                                 \
+  inline __host__ __device__ bool operator==(const type##4 & a, const type##4 & b)                               \
+  {                                                                                                              \
+    return a.x == b.x && a.y == b.y && a.z == b.z && a.w == b.w;                                                 \
+  }                                                                                                              \
+                                                                                                                 \
+  inline __host__ __device__ bool operator!=(const type##4 & a, const type##4 & b) { return !operator==(a, b); } \
+                                                                                                                 \
+  inline __host__ __device__ type##4 operator+(const type##4 & a, const type##4 & b)                             \
+  {                                                                                                              \
+    return make_##type##4(a.x + b.x, a.y + b.y, a.z + b.z, a.w + b.w);                                           \
+  }                                                                                                              \
+                                                                                                                 \
+  inline __host__ __device__ type##4 operator-(const type##4 & a, const type##4 & b)                             \
+  {                                                                                                              \
+    return make_##type##4(a.x - b.x, a.y - b.y, a.z - b.z, a.w - b.w);                                           \
+  }                                                                                                              \
+                                                                                                                 \
+  template <typename S>                                                                                          \
+  inline __host__ __device__ type##4 operator+(const type##4 & a, const S &scalar)                               \
+  {                                                                                                              \
+    return make_##type##4(a.x + scalar, a.y + scalar, a.z + scalar, a.w + scalar);                               \
+  }                                                                                                              \
+                                                                                                                 \
+  template <typename S>                                                                                          \
+  inline __host__ __device__ type##4 operator-(const type##4 & a, const S &scalar)                               \
+  {                                                                                                              \
+    return make_##type##4(a.x - scalar, a.y - scalar, a.z - scalar, a.w - scalar);                               \
+  }                                                                                                              \
+                                                                                                                 \
+  inline __host__ __device__ type##4 &operator+=(type##4 & a, const type##4 & b)                                 \
+  {                                                                                                              \
+    a.x += b.x;                                                                                                  \
+    a.y += b.y;                                                                                                  \
+    a.z += b.z;                                                                                                  \
+    a.w += b.w;                                                                                                  \
+    return a;                                                                                                    \
+  }                                                                                                              \
+                                                                                                                 \
+  inline __host__ __device__ type##4 &operator-=(type##4 & a, const type##4 & b)                                 \
+  {                                                                                                              \
+    a.x -= b.x;                                                                                                  \
+    a.y -= b.y;                                                                                                  \
+    a.z -= b.z;                                                                                                  \
+    a.w -= b.w;                                                                                                  \
+    return a;                                                                                                    \
+  }                                                                                                              \
+                                                                                                                 \
+  inline __host__ __device__ type##4 operator*(const type##4 & a, const type##4 & b)                             \
+  {                                                                                                              \
+    return make_##type##4(a.x * b.x, a.y * b.y, a.z * b.z, a.w * b.w);                                           \
+  }                                                                                                              \
+                                                                                                                 \
+  inline __host__ __device__ type##4 &operator*=(type##4 & a, const type##4 & b)                                 \
+  {                                                                                                              \
+    a.x *= b.x;                                                                                                  \
+    a.y *= b.y;                                                                                                  \
+    a.z *= b.z;                                                                                                  \
+    a.w *= b.w;                                                                                                  \
+    return a;                                                                                                    \
+  }                                                                                                              \
+                                                                                                                 \
+  template <typename S>                                                                                          \
+  inline __host__ __device__ type##4 operator*(const type##4 & a, const S &scalar)                               \
+  {                                                                                                              \
+    return make_##type##4(a.x * scalar, a.y * scalar, a.z * scalar, a.w * scalar);                               \
+  }                                                                                                              \
+                                                                                                                 \
+  template <typename S>                                                                                          \
+  inline __host__ __device__ type##4 operator*(const S &scalar, const type##4 & a)                               \
+  {                                                                                                              \
+    return make_##type##4(a.x * scalar, a.y * scalar, a.z * scalar, a.w * scalar);                               \
+  }                                                                                                              \
+                                                                                                                 \
+  template <typename S>                                                                                          \
+  inline __host__ __device__ type##4 &operator*=(type##4 & a, const S &scalar)                                   \
+  {                                                                                                              \
+    a.x *= scalar;                                                                                               \
+    a.y *= scalar;                                                                                               \
+    a.z *= scalar;                                                                                               \
+    a.w *= scalar;                                                                                               \
+    return a;                                                                                                    \
+  }                                                                                                              \
+                                                                                                                 \
+  inline __host__ __device__ type##4 operator/(const type##4 & a, const type##4 & b)                             \
+  {                                                                                                              \
+    return make_##type##4(a.x / b.x, a.y / b.y, a.z / b.z, a.w / b.w);                                           \
+  }                                                                                                              \
+                                                                                                                 \
+  inline __host__ __device__ type##4 &operator/=(type##4 & a, const type##4 & b)                                 \
+  {                                                                                                              \
+    a.x /= b.x;                                                                                                  \
+    a.y /= b.y;                                                                                                  \
+    a.z /= b.z;                                                                                                  \
+    a.w /= b.w;                                                                                                  \
+    return a;                                                                                                    \
+  }                                                                                                              \
+                                                                                                                 \
+  template <typename S>                                                                                          \
+  inline __host__ __device__ type##4 operator/(const type##4 & a, const S &scalar)                               \
+  {                                                                                                              \
+    return make_##type##4(a.x / scalar, a.y / scalar, a.z / scalar, a.w / scalar);                               \
+  }                                                                                                              \
+                                                                                                                 \
+  template <typename S>                                                                                          \
+  inline __host__ __device__ type##4 &operator/=(type##4 & a, const S &scalar)                                   \
+  {                                                                                                              \
+    a.x /= scalar;                                                                                               \
+    a.y /= scalar;                                                                                               \
+    a.z /= scalar;                                                                                               \
+    a.w /= scalar;                                                                                               \
+    return a;                                                                                                    \
   }
 
-#define _VECTOR_OPS(type) \
-  _VECTOR_UOPS(type) \
-  inline __host__ __device__ type##2 operator-(const type##2 & a) { return make_##type##2(-a.x, -a.y); }             \
-  inline __host__ __device__ type##3 operator-(const type##3 & a) { return make_##type##3(-a.x, -a.y, -a.z); }       \
+#define _VECTOR_OPS(type)                                                                                      \
+  _VECTOR_UOPS(type)                                                                                           \
+  inline __host__ __device__ type##2 operator-(const type##2 & a) { return make_##type##2(-a.x, -a.y); }       \
+  inline __host__ __device__ type##3 operator-(const type##3 & a) { return make_##type##3(-a.x, -a.y, -a.z); } \
   inline __host__ __device__ type##4 operator-(const type##4 & a) { return make_##type##4(-a.x, -a.y, -a.z, -a.w); }
 
 

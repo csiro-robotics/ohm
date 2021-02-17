@@ -19,8 +19,8 @@
 #define __host__
 #endif  // __host__
 
-#define SUB_VOX_FUNC_PREFACE template <typename vec3, typename coord_real>
-using vec3 = glm::vec3;
+#define SUB_VOX_FUNC_PREFACE template <typename Vec3, typename coord_real>
+using Vec3 = glm::vec3;
 
 /// @ingroup voxelmean
 /// The data structure used to hold the voxel mean coordinate and sample count. See @ref voxelmean for details on usage
@@ -39,9 +39,9 @@ struct VoxelMean
 typedef float coord_real;
 #endif  // !defined(COORD_REAL)
 
-#if !defined(vec3)
-typedef float3 vec3;
-#endif  // !defined(vec3)
+#if !defined(Vec3)
+typedef float3 Vec3;
+#endif  // !defined(Vec3)
 
 #define SUB_VOX_FUNC_PREFACE
 
@@ -65,12 +65,12 @@ typedef struct VoxelMean_t
 /// @param resolution The length of each voxel cube edge.
 /// @return The voxel mean pattern approximating @p voxel_local_coord.
 SUB_VOX_FUNC_PREFACE
-inline __device__ __host__ unsigned subVoxelCoord(vec3 voxel_local_coord, coord_real resolution)
+inline __device__ __host__ unsigned subVoxelCoord(Vec3 voxel_local_coord, coord_real resolution)
 {
   // We divide the voxel into a voxel_local_coord, 3D grid, then assign 1 bit per cell.
   const unsigned bits_per_axis = 10;
-  const unsigned mean_positions = (1 << bits_per_axis) - 1;
-  const unsigned used_bit = (1u << 31);
+  const int mean_positions = (1 << bits_per_axis) - 1;  // NOLINT(hicpp-signed-bitwise)
+  const unsigned used_bit = (1u << 31u);
   const coord_real mean_resolution = resolution / (coord_real)mean_positions;  // NOLINT
   const coord_real offset = (coord_real)0.5 * resolution;                      // NOLINT
 
@@ -78,9 +78,9 @@ inline __device__ __host__ unsigned subVoxelCoord(vec3 voxel_local_coord, coord_
   int pos_y = pointToRegionCoord(voxel_local_coord.y + offset, mean_resolution);
   int pos_z = pointToRegionCoord(voxel_local_coord.z + offset, mean_resolution);
 
-  pos_x = (pos_x >= 0 ? (pos_x < (1 << bits_per_axis) ? pos_x : mean_positions) : 0);
-  pos_y = (pos_y >= 0 ? (pos_y < (1 << bits_per_axis) ? pos_y : mean_positions) : 0);
-  pos_z = (pos_z >= 0 ? (pos_z < (1 << bits_per_axis) ? pos_z : mean_positions) : 0);
+  pos_x = (pos_x >= 0 ? (pos_x < (1 << bits_per_axis) ? pos_x : mean_positions) : 0);  // NOLINT(hicpp-signed-bitwise)
+  pos_y = (pos_y >= 0 ? (pos_y < (1 << bits_per_axis) ? pos_y : mean_positions) : 0);  // NOLINT(hicpp-signed-bitwise)
+  pos_z = (pos_z >= 0 ? (pos_z < (1 << bits_per_axis) ? pos_z : mean_positions) : 0);  // NOLINT(hicpp-signed-bitwise)
 
   unsigned pattern = 0;
   pattern |= (unsigned)pos_x;                           // NOLINT
@@ -98,15 +98,15 @@ inline __device__ __host__ unsigned subVoxelCoord(vec3 voxel_local_coord, coord_
 /// @return The unpacked coordinate, relative to the voxel centre, in the range [-0.5 * resolution, 0.5 resolution].
 ///   The result is (0, 0, 0) if @p pattern has yet to be used (bit-31 not set).
 SUB_VOX_FUNC_PREFACE
-inline __device__ __host__ vec3 subVoxelToLocalCoord(unsigned pattern, coord_real resolution)
+inline __device__ __host__ Vec3 subVoxelToLocalCoord(unsigned pattern, coord_real resolution)
 {
   const unsigned bits_per_axis = 10;
-  const unsigned mean_positions = (1 << bits_per_axis) - 1;
-  const unsigned used_bit = (1u << 31);
+  const int mean_positions = (1 << bits_per_axis) - 1;  // NOLINT(hicpp-signed-bitwise)
+  const unsigned used_bit = (1u << 31u);
   const coord_real mean_resolution = resolution / (coord_real)mean_positions;  // NOLINT
   const coord_real offset = (coord_real)0.5 * resolution;                      // NOLINT
 
-  vec3 coord;  // NOLINT
+  Vec3 coord;  // NOLINT
   // NOLINTNEXTLINE
   coord.x = (used_bit) ? regionCentreCoord((int)(pattern & mean_positions), mean_resolution) - offset : 0;
   coord.y = (used_bit) ?
@@ -130,17 +130,19 @@ inline __device__ __host__ vec3 subVoxelToLocalCoord(unsigned pattern, coord_rea
 /// @param voxel_local_coord The coordinate to add to the mean local to the voxel centre.
 /// @param resolution The voxel resolution (size long edges).
 SUB_VOX_FUNC_PREFACE
-inline __device__ __host__ unsigned subVoxelUpdate(unsigned coord, unsigned point_count, vec3 voxel_local_coord,
+inline __device__ __host__ unsigned subVoxelUpdate(unsigned coord, unsigned point_count, Vec3 voxel_local_coord,
                                                    coord_real resolution)
 {
-  vec3 mean =
+  Vec3 mean =
 #if !GPUTIL_DEVICE
-    subVoxelToLocalCoord<vec3>(coord, resolution)
+    subVoxelToLocalCoord<Vec3>(coord, resolution)
 #else   //  GPUTIL_DEVICE
     subVoxelToLocalCoord(coord, resolution)
 #endif  //  GPUTIL_DEVICE
     ;
 
+  // Lint(KS): have to use C style casting as this code is used on OpenCL as well.
+  // NOLINTNEXTLINE(google-readability-casting)
   const coord_real one_on_count_plus_one = (coord_real)1 / (coord_real)(point_count + 1);
   mean.x += (voxel_local_coord.x - mean.x) * one_on_count_plus_one;
   mean.y += (voxel_local_coord.y - mean.y) * one_on_count_plus_one;

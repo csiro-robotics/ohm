@@ -5,18 +5,18 @@
 #include "RayMapperNdt.h"
 
 #define GLM_ENABLE_EXPERIMENTAL
-#include <glm/vec3.hpp>
-#include <glm/mat3x3.hpp>
 #include <glm/gtx/norm.hpp>
+#include <glm/mat3x3.hpp>
+#include <glm/vec3.hpp>
 
 #include "CovarianceVoxel.h"
 
 #include "CalculateSegmentKeys.h"
 #include "KeyList.h"
-#include "OccupancyMap.h"
 #include "MapLayer.h"
 #include "MapLayout.h"
 #include "NdtMap.h"
+#include "OccupancyMap.h"
 #include "RayFilter.h"
 #include "VoxelBuffer.h"
 #include "VoxelData.h"
@@ -25,8 +25,8 @@
 
 #include <iostream>
 
-using namespace ohm;
-
+namespace ohm
+{
 RayMapperNdt::RayMapperNdt(NdtMap *map, bool ndt_tm)
   : map_(map)
   , occupancy_layer_(map_->map().layout().occupancyLayer())
@@ -80,7 +80,6 @@ size_t RayMapperNdt::integrateRays(const glm::dvec3 *rays, size_t element_count,
   const bool use_filter = bool(ray_filter);
   const auto occupancy_layer = occupancy_layer_;
   const auto occupancy_dim = occupancy_dim_;
-  const auto occupancy_threshold_value = occupancy_map.occupancyThresholdValue();
   const auto map_origin = occupancy_map.origin();
   const auto miss_value = occupancy_map.missValue();
   const auto hit_value = occupancy_map.hitValue();
@@ -104,7 +103,8 @@ size_t RayMapperNdt::integrateRays(const glm::dvec3 *rays, size_t element_count,
   // Touch the map to flag changes.
   const auto touch_stamp = occupancy_map.touch();
 
-  glm::dvec3 start, sample;
+  glm::dvec3 start;
+  glm::dvec3 sample;
   float intensity = 0.0f;
 
   const auto visit_func = [&](const Key &key)  //
@@ -116,13 +116,11 @@ size_t RayMapperNdt::integrateRays(const glm::dvec3 *rays, size_t element_count,
     //    - Make a direct, non-additive adjustment if one of the following conditions are met:
     //      - stop_adjustments is true
     //      - the voxel is uncertain
-    //      - (ray_update_flags & kRfClearOnly) and not is_occupied - we only want to adjust occupied voxels.
     //      - voxel is saturated
     //    - Otherwise add to present value.
     // 2. Select the value adjustment
     //    - current_value if one of the following conditions are met:
     //      - stop_adjustments is true (no longer making adjustments)
-    //      - (ray_update_flags & kRfClearOnly) and not is_occupied (only looking to affect occupied voxels)
     //    - miss_value otherwise
     // 3. Calculate new value
     // 4. Apply saturation logic: only min saturation relevant
@@ -142,7 +140,7 @@ size_t RayMapperNdt::integrateRays(const glm::dvec3 *rays, size_t element_count,
       }
     }
     last_chunk = chunk;
-    const unsigned voxel_index = ::voxelIndex(key, occupancy_dim);
+    const unsigned voxel_index = ohm::voxelIndex(key, occupancy_dim);
     float occupancy_value;
     CovarianceVoxel cov;
     VoxelMean voxel_mean;
@@ -153,8 +151,6 @@ size_t RayMapperNdt::integrateRays(const glm::dvec3 *rays, size_t element_count,
       subVoxelToLocalCoord<glm::dvec3>(voxel_mean.coord, resolution) + occupancy_map.voxelCentreGlobal(key);
     const float initial_value = occupancy_value;
     float adjusted_value = initial_value;
-
-    const bool is_occupied = (initial_value != unobservedOccupancyValue() && initial_value > occupancy_threshold_value);
 
     if (ndt_tm_)
     {
@@ -176,9 +172,11 @@ size_t RayMapperNdt::integrateRays(const glm::dvec3 *rays, size_t element_count,
     occupancyAdjustDown(&occupancy_value, initial_value, adjusted_value, unobservedOccupancyValue(), voxel_min,
                         saturation_min, saturation_max, stop_adjustments);
     occupancy_buffer.writeVoxel(voxel_index, occupancy_value);
+    // Lint(KS): The analyser takes some branches which are not possible in practice.
+    // NOLINTNEXTLINE(clang-analyzer-core.CallAndMessage)
     chunk->updateFirstValid(voxel_index);
 
-    stop_adjustments = stop_adjustments || ((ray_update_flags & kRfStopOnFirstOccupied) && is_occupied);
+    stop_adjustments = stop_adjustments;
     chunk->dirty_stamp = touch_stamp;
     // Update the touched_stamps with relaxed memory ordering. The important thing is to have an update,
     // not so much the sequencing. We really don't want to synchronise here.
@@ -243,7 +241,7 @@ size_t RayMapperNdt::integrateRays(const glm::dvec3 *rays, size_t element_count,
         }
       }
       last_chunk = chunk;
-      const unsigned voxel_index = ::voxelIndex(key, occupancy_dim);
+      const unsigned voxel_index = ohm::voxelIndex(key, occupancy_dim);
       const glm::dvec3 voxel_centre = occupancy_map.voxelCentreGlobal(key);
       float occupancy_value;
       CovarianceVoxel cov;
@@ -295,6 +293,8 @@ size_t RayMapperNdt::integrateRays(const glm::dvec3 *rays, size_t element_count,
         hit_miss_count_buffer.writeVoxel(voxel_index, hit_miss_count_voxel);
       }    
 
+      // Lint(KS): The analyser takes some branches which are not possible in practice.
+      // NOLINTNEXTLINE(clang-analyzer-core.CallAndMessage)
       chunk->updateFirstValid(voxel_index);
 
       chunk->dirty_stamp = touch_stamp;
@@ -313,3 +313,4 @@ size_t RayMapperNdt::integrateRays(const glm::dvec3 *rays, size_t element_count,
 
   return element_count / 2;
 }
+}  // namespace ohm

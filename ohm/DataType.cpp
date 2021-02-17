@@ -5,11 +5,13 @@
 // Author: Kazys Stepanas
 #include "DataType.h"
 
-using namespace ohm;
+#include <array>
 
+namespace ohm
+{
 const char *DataType::name(unsigned type)
 {
-  static const char *names[] =  //
+  static const std::array<const char *, 12> names =  //
     {
       "<unknown>",  //
       "int8_t",     //
@@ -22,12 +24,12 @@ const char *DataType::name(unsigned type)
       "uint64_t",   //
       "float",      //
       "double",     //
-      "struct",     //
+      "struct"      //
     };
 
   if (type < kUser)
   {
-    if (type < sizeof(names) / sizeof(names[0]))
+    if (type < names.size())
     {
       return names[type];
     }
@@ -41,7 +43,7 @@ const char *DataType::name(unsigned type)
 
 size_t DataType::size(unsigned type)
 {
-  static size_t sizes[] =  //
+  static const std::array<size_t, 12> sizes =  //
     {
       0u,  // unknown
       1u,  // int8
@@ -54,12 +56,12 @@ size_t DataType::size(unsigned type)
       8u,  // uint64
       4u,  // float
       8u,  // double
-      0u,  // struct
+      0u   // struct
     };
 
   if (type < kUser)
   {
-    if (type < sizeof(sizes) / sizeof(sizes[0]))
+    if (type < sizes.size())
     {
       return sizes[type];
     }
@@ -69,3 +71,4 @@ size_t DataType::size(unsigned type)
 
   return 0u;
 }
+}  // namespace ohm

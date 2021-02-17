@@ -35,9 +35,8 @@
 #include <iostream>
 #include <limits>
 
-using namespace ohm;
-
-
+namespace ohm
+{
 LineQueryGpu::LineQueryGpu(LineQueryDetailGpu *detail)
   : LineQuery(detail)
 {}
@@ -93,7 +92,8 @@ bool LineQueryGpu::onExecute()
   gpumap::enableGpu(*d->map);
 
   // GPU evaluation requested. Use the ClearanceProcess to do so.
-  glm::dvec3 min_ext, max_ext;
+  glm::dvec3 min_ext;
+  glm::dvec3 max_ext;
   for (int i = 0; i < 3; ++i)
   {
     min_ext[i] = std::min(d->start_point[i], d->end_point[i]);
@@ -199,3 +199,4 @@ const LineQueryDetailGpu *LineQueryGpu::imp() const
 {
   return static_cast<const LineQueryDetailGpu *>(imp_);
 }
+}  // namespace ohm

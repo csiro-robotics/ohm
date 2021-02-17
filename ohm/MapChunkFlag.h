@@ -10,11 +10,11 @@
 
 namespace ohm
 {
-  enum MapChunkFlag
-  {
-    MainMemDirty = (1 << 0),
-    GpuMemDirty = (1 << 1)
-  };
+enum MapChunkFlag
+{
+  MainMemDirty = (1 << 0),
+  GpuMemDirty = (1 << 1)
+};
 }
 
 #endif  // MAPCHUNKFLAG_H_

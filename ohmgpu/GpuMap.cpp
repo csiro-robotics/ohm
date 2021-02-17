@@ -34,6 +34,7 @@
 
 #include <glm/ext.hpp>
 
+#include <array>
 #include <cassert>
 #include <cmath>
 #include <functional>
@@ -49,154 +50,160 @@ GPUTIL_CUDA_DECLARE_KERNEL(regionRayUpdate);
 GPUTIL_CUDA_DECLARE_KERNEL(regionRayUpdateSubVox);
 #endif  // GPUTIL_TYPE == GPUTIL_CUDA
 
-using namespace ohm;
-
+namespace ohm
+{
 namespace
 {
 #if defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
-  GpuProgramRef program_ref_sub_vox("RegionUpdate", GpuProgramRef::kSourceString, RegionUpdateCode,  // NOLINT
+// NOLINTNEXTLINE(cert-err58-cpp)
+GpuProgramRef g_program_ref_sub_vox("RegionUpdate", GpuProgramRef::kSourceString, RegionUpdateCode,  // NOLINT
                                     RegionUpdateCode_length, { "-DVOXEL_MEAN" });
 #else   // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
-  GpuProgramRef program_ref_sub_vox("RegionUpdate", GpuProgramRef::kSourceFile, "RegionUpdate.cl", 0u,
+// NOLINTNEXTLINE(cert-err58-cpp)
+GpuProgramRef g_program_ref_sub_vox("RegionUpdate", GpuProgramRef::kSourceFile, "RegionUpdate.cl", 0u,
                                     { "-DVOXEL_MEAN" });
 #endif  // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
 
 #if defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
-  GpuProgramRef program_ref_no_sub("RegionUpdate", GpuProgramRef::kSourceString, RegionUpdateCode,  // NOLINT
+// NOLINTNEXTLINE(cert-err58-cpp)
+GpuProgramRef g_program_ref_no_sub("RegionUpdate", GpuProgramRef::kSourceString, RegionUpdateCode,  // NOLINT
                                    RegionUpdateCode_length);
 #else   // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
-  GpuProgramRef program_ref_no_sub("RegionUpdate", GpuProgramRef::kSourceFile, "RegionUpdate.cl", 0u);
+// NOLINTNEXTLINE(cert-err58-cpp)
+GpuProgramRef g_program_ref_no_sub("RegionUpdate", GpuProgramRef::kSourceFile, "RegionUpdate.cl", 0u);
 #endif  // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
 
-  using RegionWalkFunction = std::function<void(const glm::i16vec3 &, const glm::dvec3 &, const glm::dvec3 &)>;
+const double kDefaultMaxRayRange = 1000.0;
 
-  void walkRegions(const OccupancyMap &map, const glm::dvec3 &start_point, const glm::dvec3 &end_point,
-                   const RegionWalkFunction &func)
+using RegionWalkFunction = std::function<void(const glm::i16vec3 &, const glm::dvec3 &, const glm::dvec3 &)>;
+
+void walkRegions(const OccupancyMap &map, const glm::dvec3 &start_point, const glm::dvec3 &end_point,
+                 const RegionWalkFunction &func)
+{
+  // see "A Faster Voxel Traversal Algorithm for Ray
+  // Tracing" by Amanatides & Woo
+  const glm::i16vec3 start_point_key = map.regionKey(start_point);
+  const glm::i16vec3 end_point_key = map.regionKey(end_point);
+  const glm::dvec3 start_point_local = glm::vec3(start_point - map.origin());
+  const glm::dvec3 end_point_local = glm::vec3(end_point - map.origin());
+
+  glm::dvec3 direction = glm::vec3(end_point - start_point);
+  double length = glm::dot(direction, direction);
+
+  // Very small segments which straddle a voxel boundary can be problematic. We want to avoid
+  // a sqrt on a very small number, but be robust enough to handle the situation.
+  // To that end, we skip normalising the direction for directions below a tenth of the voxel.
+  // Then we will exit either with start/end voxels being the same, or we will step from start
+  // to end in one go.
+  const bool valid_length = (length >= 0.1 * map.resolution() * 0.1 * map.resolution());
+  if (valid_length)
   {
-    // see "A Faster Voxel Traversal Algorithm for Ray
-    // Tracing" by Amanatides & Woo
-    const glm::i16vec3 start_point_key = map.regionKey(start_point);
-    const glm::i16vec3 end_point_key = map.regionKey(end_point);
-    const glm::dvec3 start_point_local = glm::vec3(start_point - map.origin());
-    const glm::dvec3 end_point_local = glm::vec3(end_point - map.origin());
+    length = std::sqrt(length);
+    direction *= 1.0 / length;
+  }
 
-    glm::dvec3 direction = glm::vec3(end_point - start_point);
-    double length = glm::dot(direction, direction);
+  if (start_point_key == end_point_key)  // || !valid_length)
+  {
+    func(start_point_key, start_point, end_point);
+    return;
+  }
 
-    // Very small segments which straddle a voxel boundary can be problematic. We want to avoid
-    // a sqrt on a very small number, but be robust enough to handle the situation.
-    // To that end, we skip normalising the direction for directions below a tenth of the voxel.
-    // Then we will exit either with start/end voxels being the same, or we will step from start
-    // to end in one go.
-    const bool valid_length = (length >= 0.1 * map.resolution() * 0.1 * map.resolution());
-    if (valid_length)
+  if (!valid_length)
+  {
+    // Start/end points are in different, but adjacent voxels. Prevent issues with the loop by
+    // early out.
+    func(start_point_key, start_point, end_point);
+    func(end_point_key, start_point, end_point);
+    return;
+  }
+
+  std::array<int, 3> step = { 0, 0, 0 };
+  glm::dvec3 region;
+  std::array<double, 3> time_max;
+  std::array<double, 3> time_delta;
+  std::array<double, 3> time_limit;
+  double next_region_border;
+  double direction_axis_inv;
+  const glm::dvec3 region_resolution = map.regionSpatialResolution();
+  glm::i16vec3 current_key = start_point_key;
+
+  region = map.regionCentreLocal(current_key);
+
+  // Compute step direction, increments and maximums along
+  // each axis.
+  for (unsigned i = 0; i < 3; ++i)
+  {
+    if (direction[i] != 0)
     {
-      length = std::sqrt(length);
-      direction *= 1.0 / length;
+      direction_axis_inv = 1.0 / direction[i];
+      step[i] = (direction[i] > 0) ? 1 : -1;
+      // Time delta is the ray time between voxel
+      // boundaries calculated for each axis.
+      time_delta[i] = region_resolution[i] * std::abs(direction_axis_inv);
+      // Calculate the distance from the origin to the
+      // nearest voxel edge for this axis.
+      next_region_border = region[i] + double(step[i]) * 0.5 * region_resolution[i];
+      time_max[i] = (next_region_border - start_point_local[i]) * direction_axis_inv;
+      time_limit[i] =
+        std::abs((end_point_local[i] - start_point_local[i]) * direction_axis_inv);  // +0.5f *
+                                                                                     // regionResolution[i];
     }
-
-    if (start_point_key == end_point_key)  // || !valid_length)
+    else
     {
-      func(start_point_key, start_point, end_point);
-      return;
+      time_max[i] = time_delta[i] = std::numeric_limits<double>::max();
+      time_limit[i] = 0;
     }
+  }
 
-    if (!valid_length)
-    {
-      // Start/end points are in different, but adjacent voxels. Prevent issues with the loop by
-      // early out.
-      func(start_point_key, start_point, end_point);
-      func(end_point_key, start_point, end_point);
-      return;
-    }
-
-    int step[3] = { 0 };
-    glm::dvec3 region;
-    double time_max[3];
-    double time_delta[3];
-    double time_limit[3];
-    double next_region_border;
-    double direction_axis_inv;
-    const glm::dvec3 region_resolution = map.regionSpatialResolution();
-    glm::i16vec3 current_key = start_point_key;
-
-    region = map.regionCentreLocal(current_key);
-
-    // Compute step direction, increments and maximums along
-    // each axis.
-    for (unsigned i = 0; i < 3; ++i)
-    {
-      if (direction[i] != 0)
-      {
-        direction_axis_inv = 1.0 / direction[i];
-        step[i] = (direction[i] > 0) ? 1 : -1;
-        // Time delta is the ray time between voxel
-        // boundaries calculated for each axis.
-        time_delta[i] = region_resolution[i] * std::abs(direction_axis_inv);
-        // Calculate the distance from the origin to the
-        // nearest voxel edge for this axis.
-        next_region_border = region[i] + step[i] * 0.5f * region_resolution[i];
-        time_max[i] = (next_region_border - start_point_local[i]) * direction_axis_inv;
-        time_limit[i] =
-          std::abs((end_point_local[i] - start_point_local[i]) * direction_axis_inv);  // +0.5f *
-                                                                                       // regionResolution[i];
-      }
-      else
-      {
-        time_max[i] = time_delta[i] = std::numeric_limits<double>::max();
-        time_limit[i] = 0;
-      }
-    }
-
-    bool limit_reached = false;
-    int axis;
-    while (!limit_reached && current_key != end_point_key)
-    {
-      func(current_key, start_point, end_point);
-
-      if (time_max[0] < time_max[2])
-      {
-        axis = (time_max[0] < time_max[1]) ? 0 : 1;
-      }
-      else
-      {
-        axis = (time_max[1] < time_max[2]) ? 1 : 2;
-      }
-
-      limit_reached = std::abs(time_max[axis]) > time_limit[axis];
-      current_key[axis] += step[axis];
-      time_max[axis] += time_delta[axis];
-    }
-
-    // Touch the last region.
+  bool limit_reached = false;
+  int axis;
+  while (!limit_reached && current_key != end_point_key)
+  {
     func(current_key, start_point, end_point);
+
+    if (time_max[0] < time_max[2])
+    {
+      axis = (time_max[0] < time_max[1]) ? 0 : 1;
+    }
+    else
+    {
+      axis = (time_max[1] < time_max[2]) ? 1 : 2;
+    }
+
+    limit_reached = std::abs(time_max[axis]) > time_limit[axis];
+    current_key[axis] += step[axis];
+    time_max[axis] += time_delta[axis];
   }
 
-  inline bool goodRay(const glm::dvec3 &start, const glm::dvec3 &end, double max_range = 500.0)
+  // Touch the last region.
+  func(current_key, start_point, end_point);
+}
+
+inline bool goodRay(const glm::dvec3 &start, const glm::dvec3 &end, double max_range = kDefaultMaxRayRange)
+{
+  bool is_good = true;
+  if (glm::any(glm::isnan(start)))
   {
-    bool is_good = true;
-    if (glm::any(glm::isnan(start)))
-    {
-      // std::cerr << "NAN start point" << std::endl;
-      is_good = false;
-    }
-    if (glm::any(glm::isnan(end)))
-    {
-      // std::cerr << "NAN end point" << std::endl;
-      is_good = false;
-    }
-
-    const glm::dvec3 ray = end - start;
-    if (max_range > 0 && glm::dot(ray, ray) > max_range * max_range)
-    {
-      // std::cerr << "Ray too long: (" <<
-      // glm::distance(start, end) << "): " << start << " ->
-      // " << end << std::endl;
-      is_good = false;
-    }
-
-    return is_good;
+    // std::cerr << "NAN start point" << std::endl;
+    is_good = false;
   }
+  if (glm::any(glm::isnan(end)))
+  {
+    // std::cerr << "NAN end point" << std::endl;
+    is_good = false;
+  }
+
+  const glm::dvec3 ray = end - start;
+  if (max_range > 0 && glm::dot(ray, ray) > max_range * max_range)
+  {
+    // std::cerr << "Ray too long: (" <<
+    // glm::distance(start, end) << "): " << start << " ->
+    // " << end << std::endl;
+    is_good = false;
+  }
+
+  return is_good;
+}
 }  // namespace
 
 
@@ -286,7 +293,7 @@ GpuMap::GpuMap(OccupancyMap *map, bool borrowed_map, unsigned expected_element_c
 
 GpuMap::~GpuMap()
 {
-  releaseGpuProgram();
+  GpuMap::releaseGpuProgram();
   delete imp_;
 }
 
@@ -319,7 +326,7 @@ void GpuMap::syncVoxels()
 {
   if (imp_->map)
   {
-    // TODO: (KS) split the logic for starting synching and waiting on completion.
+    // TODO(KS): split the logic for starting synching and waiting on completion.
     // This will allow us to kick synching off all layers in parallel and should reduce the overall latency.
     gpumap::sync(*imp_->map, kGcIdOccupancy);
     gpumap::sync(*imp_->map, kGcIdVoxelMean);
@@ -391,63 +398,6 @@ size_t GpuMap::integrateRays(const glm::dvec3 *rays, size_t element_count, const
 }
 
 
-void GpuMap::applyClearingPattern(const glm::dvec3 *rays, size_t element_count)
-{
-  // Only apply the good ray filter.
-  const auto clearing_ray_filter = [](glm::dvec3 *start, glm::dvec3 *end, unsigned *filter_flags)  //
-  {                                                                                                //
-    return goodRayFilter(start, end, filter_flags, 1e4);
-  };
-  const unsigned flags = kRfEndPointAsFree | kRfStopOnFirstOccupied | kRfClearOnly;
-  integrateRays(rays, element_count, nullptr, flags, clearing_ray_filter);
-}
-
-
-void GpuMap::applyClearingPattern(const glm::dvec3 &apex, const glm::dvec3 &cone_axis, double cone_angle, double range,
-                                  double angular_resolution)
-{
-  // Build a set of rays to process from the cone definition.
-  if (angular_resolution <= 0)
-  {
-    // Set the default angular resolution.
-    angular_resolution = glm::radians(2.0);
-  }
-
-  // Ensure cone_axis is normalised.
-  const glm::dvec3 cone_normal = glm::normalize(cone_axis);
-
-  // First setup an axis perpendicular to the cone_axis in order to be able to walk the circle. For this we will
-  // just swizzle the cone_axis components.
-  const glm::dvec3 deflection_base = glm::dvec3(cone_normal.z, cone_normal.x, cone_normal.y);
-
-  // Build the ray set. Here we walk start with the deflection_base, and gradually rotate it around cone_axis at the
-  // requested angular_resolution. As we rotate around cone_axis, we create rays which are deviate from cone_axis
-  // by an ever increasing amount along deflection_base to the requested angular_resolution.
-  std::vector<glm::dvec3> rays;
-  // NOLINTNEXTLINE(clang-analyzer-security.FloatLoopCounter)
-  for (double circle_angle = 0; circle_angle < 2.0 * M_PI; circle_angle += angular_resolution)
-  {
-    // Rotate deflection_base around cone_axis by the circle_angle.
-    const glm::dquat circle_rotation = glm::angleAxis(circle_angle, cone_normal);
-    const glm::dvec3 deflection_axis = circle_rotation * deflection_base;
-
-    // Now deflect by deflection axis at an ever increasing angle.
-    // NOLINTNEXTLINE(clang-analyzer-security.FloatLoopCounter)
-    for (double deflection_angle = 0; deflection_angle <= cone_angle; deflection_angle += angular_resolution)
-    {
-      const glm::dquat deflection = glm::angleAxis(deflection_angle, deflection_axis);
-      const glm::dvec3 ray = deflection * cone_normal;
-      const glm::dvec3 end_point = apex + ray * range;
-      rays.push_back(apex);
-      rays.push_back(end_point);
-    }
-  }
-
-  // Now apply these rays.
-  applyClearingPattern(rays.data(), unsigned(rays.size()));
-}
-
-
 GpuCache *GpuMap::gpuCache() const
 {
   return static_cast<GpuCache *>(imp_->map->detail()->gpu_cache);
@@ -462,7 +412,7 @@ void GpuMap::setGroupedRays(bool group)
 
 void GpuMap::cacheGpuProgram(bool with_voxel_mean, bool force)
 {
-  if (imp_->program_ref)
+  if (imp_->g_program_ref)
   {
     if (!force && with_voxel_mean == imp_->cached_sub_voxel_program)
     {
@@ -475,12 +425,13 @@ void GpuMap::cacheGpuProgram(bool with_voxel_mean, bool force)
   GpuCache &gpu_cache = *gpuCache();
   imp_->gpu_ok = true;
   imp_->cached_sub_voxel_program = with_voxel_mean;
-  imp_->program_ref = (with_voxel_mean) ? &program_ref_sub_vox : &program_ref_no_sub;
+  imp_->g_program_ref = (with_voxel_mean) ? &g_program_ref_sub_vox : &g_program_ref_no_sub;
 
-  if (imp_->program_ref->addReference(gpu_cache.gpu()))
+  if (imp_->g_program_ref->addReference(gpu_cache.gpu()))
   {
-    imp_->update_kernel = (!with_voxel_mean) ? GPUTIL_MAKE_KERNEL(imp_->program_ref->program(), regionRayUpdate) :
-                                               GPUTIL_MAKE_KERNEL(imp_->program_ref->program(), regionRayUpdateSubVox);
+    imp_->update_kernel = (!with_voxel_mean) ?
+                            GPUTIL_MAKE_KERNEL(imp_->g_program_ref->program(), regionRayUpdate) :
+                            GPUTIL_MAKE_KERNEL(imp_->g_program_ref->program(), regionRayUpdateSubVox);
     imp_->update_kernel.calculateOptimalWorkGroupSize();
 
     imp_->gpu_ok = imp_->update_kernel.isValid();
@@ -499,10 +450,10 @@ void GpuMap::releaseGpuProgram()
     imp_->update_kernel = gputil::Kernel();
   }
 
-  if (imp_ && imp_->program_ref)
+  if (imp_ && imp_->g_program_ref)
   {
-    imp_->program_ref->releaseReference();
-    imp_->program_ref = nullptr;
+    imp_->g_program_ref->releaseReference();
+    imp_->g_program_ref = nullptr;
   }
 }
 
@@ -569,9 +520,10 @@ size_t GpuMap::integrateRays(const glm::dvec3 *rays, size_t element_count, const
   // Build region set and upload rays.
   imp_->regions.clear();
 
-  gputil::float3 ray_gpu[2];
+  std::array<gputil::float3, 2> ray_gpu;
   unsigned upload_count = 0u;
-  GpuKey line_start_key_gpu{}, line_end_key_gpu{};
+  GpuKey line_start_key_gpu{};
+  GpuKey line_end_key_gpu{};
 
   const bool use_filter = bool(filter);
 
@@ -614,7 +566,7 @@ size_t GpuMap::integrateRays(const glm::dvec3 *rays, size_t element_count, const
     ray_gpu[1].x = float(ray.sample.x - end_voxel_centre.x);
     ray_gpu[1].y = float(ray.sample.y - end_voxel_centre.y);
     ray_gpu[1].z = float(ray.sample.z - end_voxel_centre.z);
-    rays_pinned.write(ray_gpu, sizeof(ray_gpu), upload_count * sizeof(gputil::float3));
+    rays_pinned.write(ray_gpu.data(), sizeof(ray_gpu), upload_count * sizeof(gputil::float3));
     upload_count += 2;
 
     // std::cout << i / 2 << ' ' << imp_->map->voxelKey(rays[i + 0]) << " -> " << imp_->map->voxelKey(rays[i + 1]) << "
@@ -680,36 +632,36 @@ size_t GpuMap::integrateRays(const glm::dvec3 *rays, size_t element_count, const
     }
 
     /// Sort the rays. Order does not matter asside from ensuring the rays are grouped by sample voxel.
-    std::sort(imp_->grouped_rays.begin(), imp_->grouped_rays.end(),
-              [](const RayItem &a, const RayItem &b) -> bool  //
-              {
-                // For the comparison, we merge the region key values into a single 64-bit value
-                // and the same for the local index. Then we compare the resulting values.
-                // The final ordering is irrelevant in terms of which is "less". The goal is to group
-                // items with the same sample key.
+    std::sort(
+      imp_->grouped_rays.begin(), imp_->grouped_rays.end(),
+      [](const RayItem &a, const RayItem &b) -> bool  //
+      {
+        // For the comparison, we merge the region key values into a single 64-bit value
+        // and the same for the local index. Then we compare the resulting values.
+        // The final ordering is irrelevant in terms of which is "less". The goal is to group
+        // items with the same sample key.
 
-                // Multiplier/shift value to move a region key axis such that each axis is in its own bit set.
-                const int64_t region_stride = 0x10000u;
-                // Shift and mask together the region key axes
-                const int64_t region_index_a = (int64_t)a.sample_key.regionKey().x +
-                                               (int64_t)region_stride * a.sample_key.regionKey().y +
-                                               region_stride * region_stride * (int64_t)a.sample_key.regionKey().z;
-                const int64_t region_index_b = (int64_t)b.sample_key.regionKey().x +
-                                               region_stride * (int64_t)b.sample_key.regionKey().y +
-                                               region_stride * region_stride * (int64_t)b.sample_key.regionKey().z;
-                // Multiplier/shift value to move a local key axis such that each axis is in its own bit set.
-                const uint32_t local_stride = 0x100u;
-                // Shift and mask together the local key axes
-                const uint32_t local_index_a = uint32_t(a.sample_key.localKey().x) +
-                                               local_stride * uint32_t(a.sample_key.localKey().y) +
-                                               local_stride * local_stride * uint32_t(a.sample_key.localKey().z);
-                const uint32_t local_index_b = uint32_t(b.sample_key.localKey().x) +
-                                               local_stride * uint32_t(b.sample_key.localKey().y) +
-                                               local_stride * local_stride * uint32_t(b.sample_key.localKey().z);
-                // Compare the results.
-                return region_index_a < region_index_b ||
-                       region_index_a == region_index_b && local_index_a < local_index_b;
-              });
+        // Multiplier/shift value to move a region key axis such that each axis is in its own bit set.
+        const int64_t region_stride = 0x10000u;
+        // Shift and mask together the region key axes
+        const int64_t region_index_a = static_cast<int64_t>(a.sample_key.regionKey().x) +
+                                       static_cast<int64_t>(region_stride * a.sample_key.regionKey().y) +
+                                       region_stride * region_stride * static_cast<int64_t>(a.sample_key.regionKey().z);
+        const int64_t region_index_b = static_cast<int64_t>(b.sample_key.regionKey().x) +
+                                       region_stride * static_cast<int64_t>(b.sample_key.regionKey().y) +
+                                       region_stride * region_stride * static_cast<int64_t>(b.sample_key.regionKey().z);
+        // Multiplier/shift value to move a local key axis such that each axis is in its own bit set.
+        const uint32_t local_stride = 0x100u;
+        // Shift and mask together the local key axes
+        const uint32_t local_index_a = uint32_t(a.sample_key.localKey().x) +
+                                       local_stride * uint32_t(a.sample_key.localKey().y) +
+                                       local_stride * local_stride * uint32_t(a.sample_key.localKey().z);
+        const uint32_t local_index_b = uint32_t(b.sample_key.localKey().x) +
+                                       local_stride * uint32_t(b.sample_key.localKey().y) +
+                                       local_stride * local_stride * uint32_t(b.sample_key.localKey().z);
+        // Compare the results.
+        return region_index_a < region_index_b || region_index_a == region_index_b && local_index_a < local_index_b;
+      });
 
     // Upload to GPU.
     for (const RayItem &ray : imp_->grouped_rays)
@@ -792,7 +744,8 @@ void GpuMap::enqueueRegions(int buffer_index, unsigned region_update_flags)
         ++imp_->region_counts[buffer_index];
         break;
       }
-      else if (tries + 1 < try_limit)
+
+      if (tries + 1 < try_limit)
       {
         // Enqueue region failed. Flush pending operations and before trying again.
         const int previous_buf_idx = buffer_index;
@@ -833,7 +786,7 @@ void GpuMap::enqueueRegions(int buffer_index, unsigned region_update_flags)
       }
       else
       {
-        // TODO: throw with more information.
+        // TODO(KS): throw with more information.
         std::cout << "Failed to enqueue region data" << std::endl;
       }
     }
@@ -861,8 +814,8 @@ bool GpuMap::enqueueRegion(const glm::i16vec3 &region_key, int buffer_index)
   for (VoxelUploadInfo &voxel_info : imp_->voxel_upload_info[buffer_index])
   {
     GpuLayerCache &layer_cache = *gpu_cache.layerCache(voxel_info.gpu_layer_id);
-    uint64_t mem_offset = uint64_t(layer_cache.upload(*imp_->map, region_key, chunk, &voxel_info.voxel_upload_event,
-                                                      &status, imp_->batch_marker, GpuLayerCache::kAllowRegionCreate));
+    auto mem_offset = uint64_t(layer_cache.upload(*imp_->map, region_key, chunk, &voxel_info.voxel_upload_event,
+                                                  &status, imp_->batch_marker, GpuLayerCache::kAllowRegionCreate));
 
     if (status == GpuLayerCache::kCacheFull)
     {
@@ -874,9 +827,6 @@ bool GpuMap::enqueueRegion(const glm::i16vec3 &region_key, int buffer_index)
     // std::endl;
     voxel_info.offsets_buffer_pinned.write(&mem_offset, sizeof(mem_offset),
                                            imp_->region_counts[buffer_index] * sizeof(mem_offset));
-
-    // Mark the region as dirty.
-    chunk->dirty_stamp = chunk->touched_stamps[layer_cache.layerIndex()] = imp_->map->stamp();
   }
 
   return true;
@@ -966,3 +916,4 @@ void GpuMap::finaliseBatch(unsigned region_update_flags)
   }
   imp_->next_buffers_index = 1 - imp_->next_buffers_index;
 }
+}  // namespace ohm

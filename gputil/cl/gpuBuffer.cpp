@@ -22,168 +22,165 @@
 
 #define USE_PINNED 1
 
-using namespace gputil;
-
 namespace
 {
-  /// Helper function to select either the command queue from @p explicitQueue or the default command queue for @p
-  /// device.
-  /// @param device The device holding the default command queue.
-  /// @param explicit_queue The preferred command queue. May be null.
-  inline cl_command_queue selectQueue(Device &device, Queue *explicit_queue)  // NOLINT(google-runtime-references)
+/// Helper function to select either the command queue from @p explicitQueue or the default command queue for @p
+/// device.
+/// @param device The device holding the default command queue.
+/// @param explicit_queue The preferred command queue. May be null.
+inline cl_command_queue selectQueue(gputil::Device &device, gputil::Queue *explicit_queue)
+{
+  if (explicit_queue)
   {
-    if (explicit_queue)
-    {
-      return explicit_queue->internal()->queue();
-    }
-    return device.detail()->queue();
+    return explicit_queue->internal()->queue();
   }
+  return device.detail()->queue();
+}
 
 
-  size_t resizeBuffer(Buffer &buffer, BufferDetail &imp,  // NOLINT(google-runtime-references)
-                      size_t new_size, bool force)
+size_t resizeBuffer(gputil::Buffer &buffer, gputil::BufferDetail &imp, size_t new_size, bool force)
+{
+  const size_t initial_size = buffer.actualSize();
+  size_t best_size = clu::bestAllocationSize(imp.device.detail()->context, new_size);
+  if ((!force && initial_size >= best_size) || (force && initial_size == best_size))
   {
-    const size_t initial_size = buffer.actualSize();
-    size_t best_size = clu::bestAllocationSize(imp.device.detail()->context, new_size);
-    if ((!force && initial_size >= best_size) || (force && initial_size == best_size))
-    {
-      imp.requested_size = new_size;
-      return best_size;
-    }
-
-    // Needs resize.
-    imp.buffer = cl::Buffer();
-
-    cl_mem_flags cl_flags = 0;
-
-    if (imp.flags & kBfRead)
-    {
-      if (imp.flags & kBfWrite)
-      {
-        cl_flags = CL_MEM_READ_WRITE;
-      }
-      else
-      {
-        cl_flags = CL_MEM_READ_ONLY;
-      }
-    }
-    else if (imp.flags & kBfWrite)
-    {
-      cl_flags = CL_MEM_WRITE_ONLY;
-    }
-
-    if (imp.request_flags & kBfHostAccess)
-    {
-      cl_flags = CL_MEM_ALLOC_HOST_PTR;
-    }
-
-    cl_int clerr = 0;
-    clu::ensureBufferSize<uint8_t>(imp.buffer, cl_flags, imp.device.detail()->context, new_size, &clerr);
-    GPUAPICHECK(clerr, CL_SUCCESS, 0);
-
-    // Validate the CL_MEM_ALLOC_HOST_PTR flag worked.
-    cl_mem_flags actual_flags = 0;
-    clGetMemObjectInfo(imp.buffer(), CL_MEM_FLAGS, sizeof(actual_flags), &actual_flags, nullptr);
-
-    imp.flags = imp.request_flags;
-    if ((imp.request_flags & kBfHostAccess) && !(actual_flags & CL_MEM_ALLOC_HOST_PTR))
-    {
-      // Failed to allocate in host memory.
-      imp.flags &= ~kBfHostAccess;
-      // std::cout << "Failed host access " << std::endl;
-    }
-
     imp.requested_size = new_size;
-    const size_t actual_size = buffer.actualSize();
-
-    return actual_size;
+    return best_size;
   }
 
+  // Needs resize.
+  imp.buffer = cl::Buffer();
 
-  size_t actualSize(const BufferDetail &imp)
+  cl_mem_flags cl_flags = 0;
+
+  if (imp.flags & gputil::kBfRead)
   {
-    size_t buffer_size = 0;
-    if (imp.buffer())
+    if (imp.flags & gputil::kBfWrite)
     {
-      clGetMemObjectInfo(imp.buffer(), CL_MEM_SIZE, sizeof(buffer_size), &buffer_size, nullptr);
+      cl_flags = CL_MEM_READ_WRITE;  // NOLINT(hicpp-signed-bitwise)
     }
-    return buffer_size;
+    else
+    {
+      cl_flags = CL_MEM_READ_ONLY;  // NOLINT(hicpp-signed-bitwise)
+    }
   }
+  else if (imp.flags & gputil::kBfWrite)
+  {
+    cl_flags = CL_MEM_WRITE_ONLY;  // NOLINT(hicpp-signed-bitwise)
+  }
+
+  if (imp.request_flags & gputil::kBfHostAccess)
+  {
+    cl_flags = CL_MEM_ALLOC_HOST_PTR;  // NOLINT(hicpp-signed-bitwise)
+  }
+
+  cl_int clerr = 0;
+  clu::ensureBufferSize<uint8_t>(imp.buffer, cl_flags, imp.device.detail()->context, new_size, &clerr);
+  GPUAPICHECK(clerr, CL_SUCCESS, 0);
+
+  // Validate the CL_MEM_ALLOC_HOST_PTR flag worked.
+  cl_mem_flags actual_flags = 0;
+  clGetMemObjectInfo(imp.buffer(), CL_MEM_FLAGS, sizeof(actual_flags), &actual_flags, nullptr);
+
+  imp.flags = imp.request_flags;
+  // NOLINTNEXTLINE(hicpp-signed-bitwise)
+  if ((imp.request_flags & gputil::kBfHostAccess) && !(actual_flags & CL_MEM_ALLOC_HOST_PTR))
+  {
+    // Failed to allocate in host memory.
+    imp.flags &= ~gputil::kBfHostAccess;
+    // std::cout << "Failed host access " << std::endl;
+  }
+
+  imp.requested_size = new_size;
+  const size_t actual_size = buffer.actualSize();
+
+  return actual_size;
+}
+
+
+size_t actualSize(const gputil::BufferDetail &imp)
+{
+  size_t buffer_size = 0;
+  if (imp.buffer())
+  {
+    clGetMemObjectInfo(imp.buffer(), CL_MEM_SIZE, sizeof(buffer_size), &buffer_size, nullptr);
+  }
+  return buffer_size;
+}
 }  // namespace
 
 
 namespace gputil
 {
-  uint8_t *pin(BufferDetail &imp, PinMode mode)
+uint8_t *pin(BufferDetail &imp, PinMode mode)
+{
+  cl_command_queue queue_cl = selectQueue(imp.device, nullptr);
+  cl_map_flags map_flags = 0;
+
+  switch (mode)
   {
-    cl_command_queue queue_cl = selectQueue(imp.device, nullptr);
-    cl_map_flags map_flags = 0;
-
-    switch (mode)
-    {
-    default:
-    case kPinNone:
-      break;
-    case kPinRead:
-      map_flags = CL_MAP_READ;
-      break;
-    case kPinWrite:
-      map_flags = CL_MAP_WRITE;
-      break;
-    case kPinReadWrite:
-      map_flags = CL_MAP_READ | CL_MAP_WRITE;
-      break;
-    }
-
-    cl_int clerr = CL_SUCCESS;
-    uint8_t *pinned_ptr = static_cast<uint8_t *>(
-      clEnqueueMapBuffer(queue_cl, imp.buffer(), CL_TRUE, map_flags, 0, actualSize(imp), 0, nullptr, nullptr, &clerr));
-    //  &event, &clerr);
-    GPUAPICHECK(clerr, CL_SUCCESS, nullptr);
-
-    return pinned_ptr;
+  default:
+  case kPinNone:
+    break;
+  case kPinRead:
+    map_flags = CL_MAP_READ;  // NOLINT(hicpp-signed-bitwise)
+    break;
+  case kPinWrite:
+    map_flags = CL_MAP_WRITE;  // NOLINT(hicpp-signed-bitwise)
+    break;
+  case kPinReadWrite:
+    map_flags = CL_MAP_READ | CL_MAP_WRITE;  // NOLINT(hicpp-signed-bitwise)
+    break;
   }
 
+  cl_int clerr = CL_SUCCESS;
+  auto *pinned_ptr = static_cast<uint8_t *>(
+    clEnqueueMapBuffer(queue_cl, imp.buffer(), CL_TRUE, map_flags, 0, actualSize(imp), 0, nullptr, nullptr, &clerr));
+  //  &event, &clerr);
+  GPUAPICHECK(clerr, CL_SUCCESS, nullptr);
 
-  void unpin(BufferDetail &imp, void *pinned_ptr, Queue *explicit_queue, Event *block_on, Event *completion)
+  return pinned_ptr;
+}
+
+
+void unpin(BufferDetail &imp, void *pinned_ptr, Queue *explicit_queue, Event *block_on, Event *completion)
+{
+  if (completion)
   {
+    completion->release();
+  }
+
+  if (pinned_ptr)
+  {
+    cl_command_queue queue_cl = selectQueue(imp.device, explicit_queue);
+    cl_int clerr = CL_SUCCESS;
+
+    cl_event event{};
+    cl_event *event_ptr = (!explicit_queue || completion) ? &event : nullptr;
+    int block_on_count = (block_on && block_on->isValid()) ? 1 : 0;
+    cl_event block_on_ocl = (block_on_count) ? block_on->detail()->event : nullptr;
+
+    clerr = clEnqueueUnmapMemObject(queue_cl, imp.buffer(), pinned_ptr, block_on_count,
+                                    (block_on_count) ? &block_on_ocl : nullptr, event_ptr);
+
+    GPUAPICHECK2(clerr, CL_SUCCESS);
+
     if (completion)
     {
-      completion->release();
+      completion->detail()->event = event;
     }
-
-    if (pinned_ptr)
+    else if (event_ptr)
     {
-      cl_command_queue queue_cl = selectQueue(imp.device, explicit_queue);
-      cl_int clerr = CL_SUCCESS;
-
-      cl_event event;
-      cl_event *event_ptr = (!explicit_queue || completion) ? &event : nullptr;
-      int block_on_count = (block_on && block_on->isValid()) ? 1 : 0;
-      cl_event block_on_ocl = (block_on_count) ? block_on->detail()->event : nullptr;
-
-      clerr = clEnqueueUnmapMemObject(queue_cl, imp.buffer(), pinned_ptr, block_on_count,
-                                      (block_on_count) ? &block_on_ocl : nullptr, event_ptr);
-
+      // Wait for DMA to complete.
+      clerr = clWaitForEvents(1, event_ptr);
       GPUAPICHECK2(clerr, CL_SUCCESS);
-
-      if (completion)
+      if (clerr != CL_SUCCESS)
       {
-        completion->detail()->event = event;
-      }
-      else if (event_ptr)
-      {
-        // Wait for DMA to complete.
-        clerr = clWaitForEvents(1, event_ptr);
         GPUAPICHECK2(clerr, CL_SUCCESS);
-        if (clerr != CL_SUCCESS)
-        {
-          GPUAPICHECK2(clerr, CL_SUCCESS);
-        }
       }
     }
   }
-}  // namespace gputil
+}
 
 Buffer::Buffer()
   : imp_(new BufferDetail)
@@ -329,7 +326,7 @@ void Buffer::fillPartial(const void *pattern, size_t pattern_size, size_t fill_b
   if (imp_->flags & kBfHostAccess)
   {
     // Using pinned memory. Make multiple memcpy calls.
-    if (uint8_t *dst_mem = ::pin(*imp_, kPinWrite))
+    if (uint8_t *dst_mem = gputil::pin(*imp_, kPinWrite))
     {
       size_t filled = 0u;
       for (; filled < fill_bytes; filled += pattern_size)
@@ -344,7 +341,7 @@ void Buffer::fillPartial(const void *pattern, size_t pattern_size, size_t fill_b
         memcpy(dst_mem + offset + filled, pattern, last_write_size);
       }
 
-      ::unpin(*imp_, dst_mem, queue);
+      gputil::unpin(*imp_, dst_mem, queue);
     }
     return;
   }
@@ -381,7 +378,7 @@ size_t Buffer::read(void *dst, size_t read_byte_count, size_t src_offset, Queue 
     return 0;
   }
 
-  cl_int clerr;
+  cl_int clerr = CL_SUCCESS;
   const size_t copy_bytes = std::min(read_byte_count, this_buffer_size - src_offset);
 
 #if USE_PINNED
@@ -393,10 +390,10 @@ size_t Buffer::read(void *dst, size_t read_byte_count, size_t src_offset, Queue 
       block_on->wait();
     }
 
-    if (uint8_t *src_mem = ::pin(*imp_, kPinRead))
+    if (uint8_t *src_mem = gputil::pin(*imp_, kPinRead))
     {
       memcpy(dst, src_mem + src_offset, copy_bytes);
-      ::unpin(*imp_, src_mem, queue);
+      gputil::unpin(*imp_, src_mem, queue);
       return copy_bytes;
     }
   }
@@ -443,15 +440,15 @@ size_t Buffer::write(const void *src, size_t byte_count, size_t dst_offset, Queu
   }
 
   const size_t copy_bytes = std::min(byte_count, this_buffer_size - dst_offset);
-  cl_int clerr;
+  cl_int clerr = CL_SUCCESS;
 
 #ifdef USE_PINNED
   if (imp_->flags & kBfHostAccess)
   {
-    if (uint8_t *dst_mem = ::pin(*imp_, kPinWrite))
+    if (uint8_t *dst_mem = gputil::pin(*imp_, kPinWrite))
     {
       memcpy(dst_mem + dst_offset, src, copy_bytes);
-      ::unpin(*imp_, dst_mem, queue, block_on, completion);
+      gputil::unpin(*imp_, dst_mem, queue, block_on, completion);
     }
     return copy_bytes;
   }
@@ -501,7 +498,7 @@ size_t Buffer::readElements(void *dst, size_t element_size, size_t element_count
   // Element size mismatch. Use piecewise write.
   const size_t copy_size = std::min(element_size, buffer_element_size);
   const size_t copy_element_count = std::min(element_count, (size() - byte_read_offset) / buffer_element_size);
-  uint8_t *dst_mem = static_cast<uint8_t *>(dst);
+  auto *dst_mem = static_cast<uint8_t *>(dst);
 
   if (copy_element_count)
   {
@@ -514,7 +511,7 @@ size_t Buffer::readElements(void *dst, size_t element_size, size_t element_count
         block_on->wait();
       }
 
-      if (uint8_t *pinned_ptr = ::pin(*imp_, kPinRead))
+      if (uint8_t *pinned_ptr = gputil::pin(*imp_, kPinRead))
       {
         uint8_t *src_mem = pinned_ptr;
         src_mem += byte_read_offset;
@@ -525,7 +522,7 @@ size_t Buffer::readElements(void *dst, size_t element_size, size_t element_count
           src_mem += buffer_element_size;
         }
 
-        ::unpin(*imp_, pinned_ptr, queue);
+        gputil::unpin(*imp_, pinned_ptr, queue);
         return copy_element_count;
       }
     }
@@ -533,7 +530,7 @@ size_t Buffer::readElements(void *dst, size_t element_size, size_t element_count
 
     size_t buffer_offset = byte_read_offset;
     cl_int clerr = CL_SUCCESS;
-    cl_int clerr2;
+    cl_int clerr2 = CL_SUCCESS;
     cl_command_queue queue_cl = selectQueue(imp_->device, queue);
     const int block_on_count = (block_on && block_on->isValid()) ? 1 : 0;
     cl_event block_on_ocl = (block_on_count) ? block_on->detail()->event : nullptr;
@@ -600,7 +597,7 @@ size_t Buffer::writeElements(const void *src, size_t element_size, size_t elemen
   const size_t copy_element_count = std::min(element_count, (size() - byte_write_offset) / buffer_element_size);
   const size_t clear_byte_count = (buffer_element_size > element_size) ? buffer_element_size - element_size : 0u;
   // const_cast because OpenCL API does not support const.
-  const uint8_t *src_mem = static_cast<const uint8_t *>(src);
+  const auto *src_mem = static_cast<const uint8_t *>(src);
 
   if (copy_element_count)
   {
@@ -613,7 +610,7 @@ size_t Buffer::writeElements(const void *src, size_t element_size, size_t elemen
         block_on->wait();
       }
 
-      if (uint8_t *pinned_ptr = ::pin(*imp_, kPinWrite))
+      if (uint8_t *pinned_ptr = gputil::pin(*imp_, kPinWrite))
       {
         uint8_t *dst_mem = pinned_ptr;
         dst_mem += byte_write_offset;
@@ -629,7 +626,7 @@ size_t Buffer::writeElements(const void *src, size_t element_size, size_t elemen
           src_mem += element_size;
         }
 
-        ::unpin(*imp_, pinned_ptr, queue);
+        gputil::unpin(*imp_, pinned_ptr, queue);
         return copy_element_count;
       }
     }
@@ -637,7 +634,7 @@ size_t Buffer::writeElements(const void *src, size_t element_size, size_t elemen
 
     size_t buffer_offset = byte_write_offset;
     cl_int clerr = CL_SUCCESS;
-    cl_int clerr2;
+    cl_int clerr2 = CL_SUCCESS;
     cl_command_queue queue_cl = selectQueue(imp_->device, queue);
     const int block_on_count = (block_on && block_on->isValid()) ? 1 : 0;
     cl_event block_on_ocl = (block_on_count) ? block_on->detail()->event : nullptr;
@@ -691,67 +688,67 @@ void *Buffer::address() const
 }
 
 
-namespace gputil
+size_t copyBuffer(Buffer &dst, const Buffer &src, Queue *queue, Event *block_on, Event *completion)
 {
-  size_t copyBuffer(Buffer &dst, const Buffer &src, Queue *queue, Event *block_on, Event *completion)
+  return copyBuffer(dst, 0, src, 0, src.size(), queue, block_on, completion);
+}
+
+
+size_t copyBuffer(Buffer &dst, const Buffer &src, size_t byte_count, Queue *queue, Event *block_on, Event *completion)
+{
+  return copyBuffer(dst, 0, src, 0, byte_count, queue, block_on, completion);
+}
+
+
+size_t copyBuffer(Buffer &dst, size_t dst_offset, const Buffer &src, size_t src_offset, size_t byte_count, Queue *queue,
+                  Event *block_on, Event *completion)
+{
+  const size_t dst_size = dst.size();
+  const size_t src_size = src.size();
+
+  if (completion)
   {
-    return copyBuffer(dst, 0, src, 0, src.size(), queue, block_on, completion);
+    completion->release();
   }
 
-
-  size_t copyBuffer(Buffer &dst, const Buffer &src, size_t byte_count, Queue *queue, Event *block_on, Event *completion)
+  // Check offsets.
+  if (dst_size < dst_offset)
   {
-    return copyBuffer(dst, 0, src, 0, byte_count, queue, block_on, completion);
+    return 0;
   }
 
-
-  size_t copyBuffer(Buffer &dst, size_t dst_offset, const Buffer &src, size_t src_offset, size_t byte_count,
-                    Queue *queue, Event *block_on, Event *completion)
+  if (src_size < src_offset)
   {
-    const size_t dst_size = dst.size();
-    const size_t src_size = src.size();
-
-    if (completion)
-    {
-      completion->release();
-    }
-
-    // Check offsets.
-    if (dst_size < dst_offset)
-    {
-      return 0;
-    }
-
-    if (src_size < src_offset)
-    {
-      return 0;
-    }
-
-    // Check sizes after offset.
-    byte_count = std::min(byte_count, dst_size - dst_offset);
-    byte_count = std::min(byte_count, src_size - src_offset);
-
-    cl_mem src_mem_cl = src.arg<cl_mem>();
-    cl_mem dst_mem_cl = dst.arg<cl_mem>();
-
-    cl_int clerr;
-    cl_command_queue queue_cl = selectQueue(src.detail()->device, queue);
-    const int block_on_count = (block_on && block_on->isValid()) ? 1 : 0;
-    cl_event block_on_ocl = (block_on_count) ? block_on->detail()->event : nullptr;
-
-    clerr = clEnqueueCopyBuffer(queue_cl, src_mem_cl, dst_mem_cl, src_offset, dst_offset, byte_count, block_on_count,
-                                (block_on_count) ? &block_on_ocl : nullptr,
-                                (queue && completion) ? &completion->detail()->event : nullptr);
-
-    GPUAPICHECK(clerr, CL_SUCCESS, 0);
-
-    // Block if no explicit queue provided.
-    if (!queue)
-    {
-      clerr = clFinish(queue_cl);
-      GPUAPICHECK(clerr, CL_SUCCESS, 0u);
-    }
-
-    return byte_count;
+    return 0;
   }
+
+  // Check sizes after offset.
+  byte_count = std::min(byte_count, dst_size - dst_offset);
+  byte_count = std::min(byte_count, src_size - src_offset);
+
+  // Disable linting for auto on the following - it requires `auto *` because cl_mem is a pointer typedef, but this
+  // is somewhat misleading because cl_mem doesn't look like a pointer type.
+  cl_mem src_mem_cl = src.arg<cl_mem>();  // NOLINT(modernize-use-auto)
+  cl_mem dst_mem_cl = dst.arg<cl_mem>();  // NOLINT(modernize-use-auto)
+
+  cl_int clerr = CL_SUCCESS;
+  cl_command_queue queue_cl = selectQueue(src.detail()->device, queue);
+  const int block_on_count = (block_on && block_on->isValid()) ? 1 : 0;
+  cl_event block_on_ocl = (block_on_count) ? block_on->detail()->event : nullptr;
+
+  clerr = clEnqueueCopyBuffer(queue_cl, src_mem_cl, dst_mem_cl, src_offset, dst_offset, byte_count, block_on_count,
+                              (block_on_count) ? &block_on_ocl : nullptr,
+                              (queue && completion) ? &completion->detail()->event : nullptr);
+
+  GPUAPICHECK(clerr, CL_SUCCESS, 0);
+
+  // Block if no explicit queue provided.
+  if (!queue)
+  {
+    clerr = clFinish(queue_cl);
+    GPUAPICHECK(clerr, CL_SUCCESS, 0u);
+  }
+
+  return byte_count;
+}
 }  // namespace gputil

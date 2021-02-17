@@ -7,8 +7,8 @@
 
 #include "Profile.h"
 
-using namespace ohm;
-
+namespace ohm
+{
 ProfileMarker::ProfileMarker(const char *name, bool activate)
   : ProfileMarker(name, nullptr, activate)
 {}
@@ -49,3 +49,4 @@ void ProfileMarker::restart(bool activate)
     active_ = profile->push(name_);
   }
 }
+}  // namespace ohm

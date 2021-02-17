@@ -9,13 +9,14 @@
 #include "OccupancyMap.h"
 #include "RayPattern.h"
 
-using namespace ohm;
-
+namespace ohm
+{
 ClearingPattern::ClearingPattern(const RayPattern *pattern, bool take_ownership)
   : imp_(new ClearingPatternDetail)
 {
   imp_->pattern = pattern;
   imp_->has_pattern_ownership = take_ownership;
+  imp_->ray_flags = kDefaultRayFlags;
 }
 
 ClearingPattern::~ClearingPattern()
@@ -36,9 +37,18 @@ bool ClearingPattern::hasPatternOwnership() const
   return imp_->has_pattern_ownership;
 }
 
+unsigned ClearingPattern::rayFlags() const
+{
+  return imp_->ray_flags;
+}
+
+void ClearingPattern::setRayFlags(unsigned ray_flags)
+{
+  imp_->ray_flags = ray_flags;
+}
+
 const glm::dvec3 *ClearingPattern::lastRaySet(size_t *element_count) const
 {
-
   *element_count = imp_->ray_set.size();
   return imp_->ray_set.data();
 }
@@ -59,3 +69,4 @@ const glm::dvec3 *ClearingPattern::buildRaySet(size_t *element_count, const glm:
   *element_count = imp_->ray_set.size();
   return imp_->ray_set.data();
 }
+}  // namespace ohm

@@ -4,18 +4,18 @@
 //
 #include "RayMapperOccupancy.h"
 
-#include "OccupancyMap.h"
 #include "MapLayer.h"
 #include "MapLayout.h"
+#include "OccupancyMap.h"
 #include "Voxel.h"
-#include "VoxelMean.h"
 #include "VoxelBuffer.h"
+#include "VoxelMean.h"
 #include "VoxelOccupancy.h"
 
 #include <ohmutil/LineWalk.h>
 
-using namespace ohm;
-
+namespace ohm
+{
 RayMapperOccupancy::RayMapperOccupancy(OccupancyMap *map)
   : map_(map)
   , occupancy_layer_(map_->layout().occupancyLayer())
@@ -73,13 +73,13 @@ size_t RayMapperOccupancy::integrateRays(const glm::dvec3 *rays, size_t element_
     //    - Make a direct, non-additive adjustment if one of the following conditions are met:
     //      - stop_adjustments is true
     //      - the voxel is uncertain
-    //      - (ray_update_flags & kRfClearOnly) and not is_occupied - we only want to adjust occupied voxels.
+    //      - ray_update_flags and kRfExclude<Type> flags pass.
     //      - voxel is saturated
     //    - Otherwise add to present value.
     // 2. Select the value adjustment
     //    - current_value if one of the following conditions are met:
     //      - stop_adjustments is true (no longer making adjustments)
-    //      - (ray_update_flags & kRfClearOnly) and not is_occupied (only looking to affect occupied voxels)
+    //      - ray_update_flags and kRfExclude<Type> flags pass.
     //    - miss_value otherwise
     // 3. Calculate new value
     // 4. Apply saturation logic: only min saturation relevant
@@ -91,24 +91,43 @@ size_t RayMapperOccupancy::integrateRays(const glm::dvec3 *rays, size_t element_
       occupancy_buffer = VoxelBuffer<VoxelBlock>(chunk->voxel_blocks[occupancy_layer]);
     }
     last_chunk = chunk;
-    const unsigned voxel_index = ::voxelIndex(key, occupancy_dim);
+    const unsigned voxel_index = ohm::voxelIndex(key, occupancy_dim);
     float occupancy_value;
     occupancy_buffer.readVoxel(voxel_index, &occupancy_value);
     const float initial_value = occupancy_value;
-    const bool is_occupied = (initial_value != unobservedOccupancyValue() && initial_value > occupancy_threshold_value);
-    occupancyAdjustMiss(&occupancy_value, initial_value, miss_value, unobservedOccupancyValue(), voxel_min,
+
+    const bool initially_unobserved = initial_value == unobservedOccupancyValue();
+    const bool initially_free = !initially_unobserved && initial_value < occupancy_threshold_value;
+    const bool initially_occupied = !initially_unobserved && initial_value >= occupancy_threshold_value;
+
+    // Calculate the adjustment to make based on the initial occupancy value, various exclusion flags and the configured
+    // value adjustment.
+    float miss_adjustment = miss_value;
+    // The next series of statements are designed to modify the miss_adjustment according to the current voxel state
+    // and the kRfExclude<Type> values. Note that for kRfExcludeUnobserved we set the miss_adjustment such that it keeps
+    // the observesed value, whereas in other cases we set to zero to make for no change. This is because unobserved
+    // values have a value written, whereas other voxels have use addition to adjust the value.
+    miss_adjustment = (initially_unobserved && (ray_update_flags & kRfExcludeUnobserved)) ? unobservedOccupancyValue() :
+                                                                                            miss_adjustment;
+    miss_adjustment = (initially_free && (ray_update_flags & kRfExcludeFree)) ? 0.0f : miss_adjustment;
+    miss_adjustment = (initially_occupied && (ray_update_flags & kRfExcludeOccupied)) ? 0.0f : miss_adjustment;
+
+    occupancyAdjustMiss(&occupancy_value, initial_value, miss_adjustment, unobservedOccupancyValue(), voxel_min,
                         saturation_min, saturation_max, stop_adjustments);
     occupancy_buffer.writeVoxel(voxel_index, occupancy_value);
+    // Lint(KS): The analyser takes some branches which are not possible in practice.
+    // NOLINTNEXTLINE(clang-analyzer-core.CallAndMessage)
     chunk->updateFirstValid(voxel_index);
 
-    stop_adjustments = stop_adjustments || ((ray_update_flags & kRfStopOnFirstOccupied) && is_occupied);
+    stop_adjustments = stop_adjustments || ((ray_update_flags & kRfStopOnFirstOccupied) && initially_occupied);
     chunk->dirty_stamp = touch_stamp;
     // Update the touched_stamps with relaxed memory ordering. The important thing is to have an update,
     // not so much the sequencing. We really don't want to synchronise here.
     chunk->touched_stamps[occupancy_layer].store(touch_stamp, std::memory_order_relaxed);
   };
 
-  glm::dvec3 start, end;
+  glm::dvec3 start;
+  glm::dvec3 end;
   unsigned filter_flags;
   for (size_t i = 0; i < element_count; i += 2)
   {
@@ -125,8 +144,7 @@ size_t RayMapperOccupancy::integrateRays(const glm::dvec3 *rays, size_t element_
       }
     }
 
-    const bool include_sample_in_ray =
-      (filter_flags & kRffClippedEnd) || (ray_update_flags & kRfEndPointAsFree) || (ray_update_flags & kRfClearOnly);
+    const bool include_sample_in_ray = (filter_flags & kRffClippedEnd) || (ray_update_flags & kRfEndPointAsFree);
 
     if (!(ray_update_flags & kRfExcludeRay))
     {
@@ -139,8 +157,7 @@ size_t RayMapperOccupancy::integrateRays(const glm::dvec3 *rays, size_t element_
                                 WalkKeyAdaptor(*map_));
     }
 
-    if (!stop_adjustments && !include_sample_in_ray && !(ray_update_flags & (kRfClearOnly | kRfExcludeSample)) &&
-        !(ray_update_flags & kRfExcludeSample))
+    if (!stop_adjustments && !include_sample_in_ray && !(ray_update_flags & kRfExcludeSample))
     {
       // Like the miss logic, we have similar obfuscation here to avoid branching. It's a little simpler though,
       // because we do have a branch above, which will filter some of the conditions catered for in miss integration.
@@ -152,12 +169,28 @@ size_t RayMapperOccupancy::integrateRays(const glm::dvec3 *rays, size_t element_
         occupancy_buffer = VoxelBuffer<VoxelBlock>(chunk->voxel_blocks[occupancy_layer]);
       }
       last_chunk = chunk;
-      const unsigned voxel_index = ::voxelIndex(key, occupancy_dim);
+      const unsigned voxel_index = ohm::voxelIndex(key, occupancy_dim);
 
       float occupancy_value;
       occupancy_buffer.readVoxel(voxel_index, &occupancy_value);
       const float initial_value = occupancy_value;
-      occupancyAdjustHit(&occupancy_value, initial_value, hit_value, unobservedOccupancyValue(), voxel_max,
+
+      const bool initially_unobserved = initial_value == unobservedOccupancyValue();
+      const bool initially_free = !initially_unobserved && initial_value < occupancy_threshold_value;
+      const bool initially_occupied = !initially_unobserved && initial_value >= occupancy_threshold_value;
+
+      // Calculate the adjustment to make based on the initial occupancy value, various exclusion flags and the
+      // configured value adjustment (see the equivalent section for the miss update). Note the adjustment for skipping
+      // an initially_unobserved voxel is not zero - it's unobservedOccupancyValue()/infinity to keep the state
+      // unchanged.
+      float hit_adjustment = hit_value;
+      hit_adjustment = (initially_unobserved && (ray_update_flags & kRfExcludeUnobserved)) ?
+                         unobservedOccupancyValue() :
+                         hit_adjustment;
+      hit_adjustment = (initially_free && (ray_update_flags & kRfExcludeFree)) ? 0.0f : hit_adjustment;
+      hit_adjustment = (initially_occupied && (ray_update_flags & kRfExcludeOccupied)) ? 0.0f : hit_adjustment;
+
+      occupancyAdjustHit(&occupancy_value, initial_value, hit_adjustment, unobservedOccupancyValue(), voxel_max,
                          saturation_min, saturation_max, stop_adjustments);
 
       // update voxel mean if present.
@@ -174,9 +207,13 @@ size_t RayMapperOccupancy::integrateRays(const glm::dvec3 *rays, size_t element_
           subVoxelUpdate(voxel_mean.coord, voxel_mean.count, end - map_->voxelCentreGlobal(key), resolution);
         ++voxel_mean.count;
         mean_buffer.writeVoxel(voxel_index, voxel_mean);
+        // Lint(KS): The analyser takes some branches which are not possible in practice.
+        // NOLINTNEXTLINE(clang-analyzer-core.CallAndMessage)
         chunk->touched_stamps[mean_layer].store(touch_stamp, std::memory_order_relaxed);
       }
       occupancy_buffer.writeVoxel(voxel_index, occupancy_value);
+      // Lint(KS): The analyser takes some branches which are not possible in practice.
+      // NOLINTNEXTLINE(clang-analyzer-core.CallAndMessage)
       chunk->updateFirstValid(voxel_index);
 
       chunk->dirty_stamp = touch_stamp;
@@ -188,3 +225,4 @@ size_t RayMapperOccupancy::integrateRays(const glm::dvec3 *rays, size_t element_
 
   return element_count / 2;
 }
+}  // namespace ohm

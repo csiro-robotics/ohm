@@ -19,7 +19,7 @@ target_include_directories(ohmheightmap SYSTEM
     "${ZLIB_INCLUDE_DIRS}"
 )
 
-target_link_libraries(ohmheightmap PUBLIC ohm ohmutil ${ZLIB_LIBRARIES} ohmheightmaputil)
+target_link_libraries(ohmheightmap PUBLIC ohm ohmtools ohmutil ${ZLIB_LIBRARIES} ohmheightmaputil)
 
 if(OHM_TES_DEBUG)
   # target_link_libraries(ohmheightmap PUBLIC 3es::3es-core)

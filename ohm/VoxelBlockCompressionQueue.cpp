@@ -12,7 +12,9 @@
 #include <chrono>
 #include <cinttypes>
 
-using namespace ohm;
+namespace ohm
+{
+const int kSleepIntervalMs = 50;
 
 VoxelBlockCompressionQueue &VoxelBlockCompressionQueue::instance()
 {
@@ -95,7 +97,7 @@ void VoxelBlockCompressionQueue::run()
   std::vector<uint8_t> compression_buffer;
   while (!imp_->quit_flag)
   {
-    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    std::this_thread::sleep_for(std::chrono::milliseconds(kSleepIntervalMs));
 
     const auto time_now = VoxelBlock::Clock::now();
     VoxelBlock *voxels = nullptr;
@@ -130,3 +132,4 @@ void VoxelBlockCompressionQueue::run()
     }
   }
 }
+}  // namespace ohm

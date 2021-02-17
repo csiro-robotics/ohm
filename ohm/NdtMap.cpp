@@ -8,19 +8,17 @@
 #include "private/NdtMapDetail.h"
 
 #include "DefaultLayer.h"
-#include "OccupancyMap.h"
 #include "MapInfo.h"
 #include "MapLayer.h"
 #include "MapLayout.h"
 #include "MapProbability.h"
+#include "OccupancyMap.h"
 #include "VoxelData.h"
 
-#include <glm/vec4.hpp>
 #include <glm/gtc/type_ptr.hpp>
+#include <glm/vec4.hpp>
 
 #include <iostream>
-
-#define TES_ENABLE
 
 #include <3esservermacros.h>
 #ifdef TES_ENABLE
@@ -30,8 +28,8 @@
 
 #include <cassert>
 
-using namespace ohm;
-
+namespace ohm
+{
 NdtMap::NdtMap(OccupancyMap *map, bool ndt_tm, bool borrowed_map)
   : imp_(new NdtMapDetail)
 {
@@ -168,7 +166,7 @@ bool NdtMap::trace() const
 void NdtMap::debugDraw() const
 {
 #ifdef TES_ENABLE
-  if (!g_3es || g_3es->connectionCount() == 0)
+  if (!g_tes || g_tes->connectionCount() == 0)
   {
     return;
   }
@@ -182,17 +180,17 @@ void NdtMap::debugDraw() const
     if (!ellipsoids.empty())
     {
       shape_ptrs.clear();
-      for (size_t i = 0; i < ellipsoids.size(); ++i)
+      for (auto &ellipsoid : ellipsoids)
       {
-        shape_ptrs.emplace_back(&ellipsoids[i]);
+        shape_ptrs.emplace_back(&ellipsoid);
       }
 
-      g_3es->create(tes::MultiShape(shape_ptrs.data(), shape_ptrs.size()));
+      g_tes->create(tes::MultiShape(shape_ptrs.data(), shape_ptrs.size()));
       ellipsoids.clear();
     }
   };
 
-  uint32_t next_id = static_cast<uint32_t>((size_t)this);
+  auto next_id = static_cast<uint32_t>(size_t(this));
   if (imp_->map->layout().intensityLayer() >= 0 && imp_->map->layout().hitMissCountLayer() >= 0)
   {
     // NDT-TM
@@ -275,6 +273,11 @@ void NdtMap::debugDraw() const
         glm::dquat rot;
         glm::dvec3 scale;
         CovarianceVoxel cv;
+        if (!cov.isValid())
+        {
+          // Should be impossible, but helps clang-tidy.
+          continue;
+        }
         cov.read(&cv);
         if (!covarianceUnitSphereTransformation(&cv, &rot, &scale))
         {
@@ -302,7 +305,7 @@ void NdtMap::debugDraw() const
 
   send();
 
-  TES_SERVER_UPDATE(ohm::g_3es, 0.0f);
+  TES_SERVER_UPDATE(ohm::g_tes, 0.0f);
 #endif  // TES_ENABLE
 }
 
@@ -331,7 +334,7 @@ int NdtMap::enableNdt(OccupancyMap *map, bool ndt_tm)
 
   addVoxelMean(new_layout);
   // Cache the layer index.
-  int layer_index = addCovariance(new_layout)->layerIndex();
+  int layer_index = int(addCovariance(new_layout)->layerIndex());
 
   if (ndt_tm)
   {
@@ -344,3 +347,4 @@ int NdtMap::enableNdt(OccupancyMap *map, bool ndt_tm)
 
   return layer_index;
 }
+}  // namespace ohm

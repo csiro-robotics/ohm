@@ -18,92 +18,87 @@
 #include <cstring>
 #include <sstream>
 
-using namespace gputil;
-
+namespace gputil
+{
 namespace
 {
-  void initDeviceInfo(DeviceInfo &gputil_info, const cudaDeviceProp &cuda_info)  // NOLINT(google-runtime-references)
+void initDeviceInfo(DeviceInfo &gputil_info, const cudaDeviceProp &cuda_info)
+{
+  gputil_info.name = cuda_info.name;
+  gputil_info.platform = "CUDA";  // cuda_info.name;
+  gputil_info.version.major = cuda_info.major;
+  gputil_info.version.minor = cuda_info.minor;
+  gputil_info.version.patch = 0;
+  gputil_info.type = kDeviceGpu;
+}
+
+bool selectDevice(DeviceDetail &detail, int device_id = -1)
+{
+  cudaError_t err = cudaSuccess;
+
+  if (device_id < 0)
   {
-    gputil_info.name = cuda_info.name;
-    gputil_info.platform = "CUDA";  // cuda_info.name;
-    gputil_info.version.major = cuda_info.major;
-    gputil_info.version.minor = cuda_info.minor;
-    gputil_info.version.patch = 0;
-    gputil_info.type = kDeviceGpu;
+    // Select default device.
+    err = cudaGetDevice(&device_id);
   }
 
-  bool selectDevice(DeviceDetail *detail, int device_id = -1)
+  if (err == cudaSuccess)
   {
-    cudaError_t err = cudaSuccess;
-
-    if (device_id < 0)
+    cudaDeviceProp cuda_info{};
+    memset(&cuda_info, 0, sizeof(cuda_info));
+    if (cudaGetDeviceProperties(&cuda_info, device_id) == cudaSuccess)
     {
-      // Select default device.
-      err = cudaGetDevice(&device_id);
+      detail.device = device_id;
+      initDeviceInfo(detail.info, cuda_info);
+      return true;
     }
-
-    if (err == cudaSuccess)
-    {
-      cudaDeviceProp cuda_info{};
-      memset(&cuda_info, 0, sizeof(cuda_info));
-      if (cudaGetDeviceProperties(&cuda_info, device_id) == cudaSuccess)
-      {
-        detail->device = device_id;
-        initDeviceInfo(detail->info, cuda_info);
-        return true;
-      }
-    }
-
-    detail->device = -1;
-    detail->info = DeviceInfo();
-
-    return false;
   }
+
+  detail.device = -1;
+  detail.info = DeviceInfo();
+
+  return false;
+}
 }  // namespace
 
 Device::Device(bool default_device)
-  : imp_(new DeviceDetail)
+  : imp_(std::make_unique<DeviceDetail>())
 {
   imp_->device = -1;
   if (default_device)
   {
-    selectDevice(imp_);
+    selectDevice(*imp_);
   }
 }
 
 
 Device::Device(const DeviceInfo &device_info)
-  : imp_(new DeviceDetail)
+  : imp_(std::make_unique<DeviceDetail>())
 {
   select(device_info);
 }
 
 
 Device::Device(int argc, const char **argv, const char *default_device, unsigned device_type_flags)
-  : imp_(new DeviceDetail)
+  : imp_(std::make_unique<DeviceDetail>())
 {
   select(argc, argv, default_device, device_type_flags);
 }
 
 
 Device::Device(const Device &other)
-  : imp_(new DeviceDetail)
+  : imp_(std::make_unique<DeviceDetail>())
 {
   *imp_ = *other.imp_;
 }
 
 
 Device::Device(Device &&other) noexcept
-  : imp_(other.imp_)
-{
-  other.imp_ = nullptr;
-}
+  : imp_(std::move(other.imp_))
+{}
 
 
-Device::~Device()
-{
-  delete imp_;
-}
+Device::~Device() = default;
 
 
 unsigned Device::enumerateDevices(std::vector<DeviceInfo> &devices)
@@ -145,6 +140,8 @@ const DeviceInfo &Device::info() const
 }
 
 
+// Lint(KS): required for API compatibility
+// NOLINTNEXTLINE(readability-convert-member-functions-to-static)
 Queue Device::defaultQueue() const
 {
   return Queue(nullptr);
@@ -178,14 +175,17 @@ bool Device::select(int argc, const char **argv, const char *default_device, uns
   std::string name_constraint = default_device ? default_device : "";
   Version version_min;
 
+  const std::string device_arg = "--device";
+  const std::string clver_arg = "--clver";
   for (int i = 0; i < argc; ++i)
   {
-    if (strncmp("--device", argv[i], 8) == 0)
+    if (strncmp(device_arg.c_str(), argv[i], device_arg.size()) == 0)
     {
       // Read value from "--device="
-      if (argv[i][8])
+      if (argv[i][device_arg.size()] == '=')
       {
-        name_constraint = argv[i] + 9;
+        // Clip '='
+        name_constraint = argv[i] + device_arg.size() + 1;
         // Strip quotes
         if (!name_constraint.empty())
         {
@@ -203,13 +203,13 @@ bool Device::select(int argc, const char **argv, const char *default_device, uns
         }
       }
     }
-    else if (strncmp("--clver", argv[i], 7) == 0)
+    else if (strncmp(clver_arg.c_str(), argv[i], clver_arg.size()) == 0)
     {
       // Read version from "--clver="
-      if (argv[i][7])
+      if (argv[i][clver_arg.size()] == '=')
       {
         char dot;
-        std::string ver_str = argv[i] + 8;
+        std::string ver_str = argv[i] + clver_arg.size() + 1;
         std::istringstream in(ver_str);
         in >> version_min.major;
         in >> dot;
@@ -290,7 +290,7 @@ bool Device::select(const DeviceInfo &device_info)
       initDeviceInfo(gputil_info, cuda_info);
       if (gputil_info == device_info)
       {
-        return selectDevice(imp_, i);
+        return selectDevice(*imp_, i);
       }
     }
   }
@@ -299,18 +299,24 @@ bool Device::select(const DeviceInfo &device_info)
 }
 
 
-void Device::setDebugGpu(DebugLevel)
+// Lint(KS): required for API compatibility
+// NOLINTNEXTLINE(readability-convert-member-functions-to-static)
+void Device::setDebugGpu(DebugLevel /*level*/)
 {
   // Ignored for CUDA.
 }
 
 
+// Lint(KS): required for API compatibility
+// NOLINTNEXTLINE(readability-convert-member-functions-to-static)
 Device::DebugLevel Device::debugGpu() const
 {
   return kDlOff;
 }
 
 
+// Lint(KS): required for API compatibility
+// NOLINTNEXTLINE(readability-convert-member-functions-to-static)
 bool Device::supportsFeature(const char * /*feature_id*/) const
 {
   // TODO(KS): find CUDA feature checking or use compute capabilities.
@@ -318,12 +324,16 @@ bool Device::supportsFeature(const char * /*feature_id*/) const
 }
 
 
-void Device::addSearchPath(const char *)
+// Lint(KS): required for API compatibility
+// NOLINTNEXTLINE(readability-convert-member-functions-to-static)
+void Device::addSearchPath(const char * /*path*/)
 {
   // Ignored for CUDA.
 }
 
 
+// Lint(KS): required for API compatibility
+// NOLINTNEXTLINE(readability-convert-member-functions-to-static)
 const char *Device::searchPaths() const
 {
   return "";
@@ -367,15 +377,17 @@ bool Device::unifiedMemory() const
 
 Device &Device::operator=(const Device &other)
 {
-  *imp_ = *other.imp_;
+  if (this != &other)
+  {
+    *imp_ = *other.imp_;
+  }
   return *this;
 }
 
 
 Device &Device::operator=(Device &&other) noexcept
 {
-  delete imp_;
-  imp_ = other.imp_;
-  other.imp_ = nullptr;
+  imp_ = std::move(other.imp_);
   return *this;
 }
+}  // namespace gputil
