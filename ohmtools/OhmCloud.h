@@ -57,13 +57,22 @@ struct SaveHeightmapCloudOptions : SaveCloudOptions
 {
   bool collapse = false;  ///< Collapse to a 2.5D heightmap, reducing layered heightmaps to 2D?
 
+  /// Instantiate default options.
   inline SaveHeightmapCloudOptions() = default;
+  /// Copy constructor
+  /// @param other Object to copy.
   inline SaveHeightmapCloudOptions(const SaveHeightmapCloudOptions &other) = default;
+  /// Copy constructor copying the base @c SaveCloudOptions.
+  /// @param other Object to copy.
   inline SaveHeightmapCloudOptions(const SaveCloudOptions &other)  // NOLINT(google-explicit-constructor)
     : SaveCloudOptions(other)
   {}
 
+  /// Assignment operator.
+  /// @param other Object to copy.
   inline SaveHeightmapCloudOptions &operator=(const SaveHeightmapCloudOptions &other) = default;
+  /// Assignment operator copying the base @c SaveCloudOptions.
+  /// @param other Object to copy.
   inline SaveHeightmapCloudOptions &operator=(const SaveCloudOptions &other)
   {
     SaveCloudOptions::operator=(other);
@@ -78,17 +87,38 @@ struct SaveHeightmapCloudOptions : SaveCloudOptions
 class ColourByHeight
 {
 public:
+  /// Default colour for the mimimum height value
   static const ohm::Colour kDefaultFrom;
+  /// Default colour for the maximum height value
   static const ohm::Colour kDefaultTo;
 
+  /// Colours to interpolate from `[0]` and to `[1]` across the height range.
   std::array<ohm::Colour, 2> colours;
 
+  /// Create a height based colouriser for the given @p map.
+  /// @param map The map to colour by - extracts extents.
   explicit ColourByHeight(const ohm::OccupancyMap &map);
+  /// Create a height based colouriser for the given @p map using custom colours.
+  /// @param map The map to colour by - extracts extents.
+  /// @param from The lowest height colour.
+  /// @param to The highest height colour.
   ColourByHeight(const ohm::OccupancyMap &map, const ohm::Colour &from, const ohm::Colour &to);
+  /// Create a height based colouriser across the given @p extents.
+  /// @param extents Key range overwhich voxels are to be coloured.
   explicit ColourByHeight(const ohm::KeyRange &extents);
+  /// Create a height based colouriser across the given @p extents using custom colours.
+  /// @param extents Key range overwhich voxels are to be coloured.
+  /// @param from The lowest height colour.
+  /// @param to The highest height colour.
   ColourByHeight(const ohm::KeyRange &extents, const ohm::Colour &from, const ohm::Colour &to);
 
+  /// Select a colour for the given voxel @p key.
+  /// @param key The voxel to colour.
+  /// @return The colour for the voxel at @p key.
   ohm::Colour select(const ohm::Key &key) const;
+  /// Select a colour for the given voxel @p occupancy.
+  /// @param occupancy The voxel to colour.
+  /// @return The colour for the voxel at @p occupancy.
   ohm::Colour select(const ohm::Voxel<const float> &occupancy) const;
 
 private:
@@ -100,11 +130,18 @@ private:
 class ColourByType
 {
 public:
+  /// Colour for occupied voxels
   ohm::Colour occupied_colour{ 32, 255, 32 };
+  /// Colour for free occupied voxels (if enabled)
   ohm::Colour free_colour{ 255, 128, 32 };
 
+  /// Create a voxel type colouriser for @p map.
+  /// @param map The map to be colourised.
   explicit ColourByType(const ohm::OccupancyMap &map);
 
+  /// Select a colour for the given voxel @p occupancy.
+  /// @param occupancy The voxel to colour.
+  /// @return The colour for the voxel at @p occupancy.
   ohm::Colour select(const ohm::Voxel<const float> &occupancy) const;
 
 private:
@@ -115,8 +152,13 @@ private:
 class ColourHeightmapLayer
 {
 public:
+  /// Create a layer colouriser for @p map.
+  /// @param map The map to be colourised.
   explicit ColourHeightmapLayer(const ohm::OccupancyMap &map);
 
+  /// Select a colour for the given voxel @p occupancy.
+  /// @param occupancy The voxel to colour.
+  /// @return The colour for the voxel at @p occupancy.
   ohm::Colour select(const ohm::Voxel<const float> &occupancy) const;
 
 private:
@@ -127,11 +169,18 @@ private:
 class ColourHeightmapType
 {
 public:
+  /// Colour to use for surface voxels.
   ohm::Colour surface_colour{ 32, 255, 32 };
+  /// Colour to use for virtual surface voxels.
   ohm::Colour virtual_colour{ 255, 128, 32 };
 
+  /// Create a heightmap voxel type colouriser.
+  /// @param map The map to colour by - extracts extents.
   explicit ColourHeightmapType(const ohm::OccupancyMap &map);
 
+  /// Select a colour for the given voxel @p occupancy.
+  /// @param occupancy The voxel to colour.
+  /// @return The colour for the voxel at @p occupancy.
   ohm::Colour select(const ohm::Voxel<const float> &occupancy) const;
 
 private:
@@ -142,15 +191,29 @@ private:
 class ColourByHeightmapClearance
 {
 public:
+  /// Colour used when there is zero clearance.
   static const ohm::Colour kDefaultLow;
+  /// Colour used when the maximum clearance height is available.
   static const ohm::Colour kDefaultHigh;
 
+  /// Colours to interpolate from `[0]` and to `[1]` across the clearance range.
   std::array<ohm::Colour, 2> colours;
 
+  /// Create a clearance based colouriser for the given @p map.
+  /// @param map The map to colour by - extracts extents.
+  /// @param clearance_scale The maximum clearance height requested.
   explicit ColourByHeightmapClearance(const ohm::OccupancyMap &map, double clearance_scale = 2.0);
+  /// Create a clearance based colouriser for the given @p map with custom colours.
+  /// @param map The map to colour by - extracts extents.
+  /// @param low The colour to use at zero clearance.
+  /// @param high The colour to use at @p clearance_scale available clearance.
+  /// @param clearance_scale The maximum clearance height requested.
   ColourByHeightmapClearance(const ohm::OccupancyMap &map, const ohm::Colour &low, const ohm::Colour &high,
                              double clearance_scale = 2.0);
 
+  /// Select a colour for the given voxel @p occupancy.
+  /// @param occupancy The voxel to colour.
+  /// @return The colour for the voxel at @p occupancy.
   ohm::Colour select(const ohm::Voxel<const float> &occupancy) const;
 
 private:

@@ -63,7 +63,7 @@ public:
     kUInt32,   ///< `uint32_t`
     kFloat32,  ///< `float`
     kFloat64,  ///< `double`
-    kCount
+    kCount     ///< Number of supported types.
   };
 
   /// Represents a point property in the ply file. At the very least, "x", "y", "z" properties of type @c kFloat64

@@ -333,7 +333,7 @@ int parseOptions(Options *opt, int argc, char *argv[])  // NOLINT(modernize-avoi
       ("cloud", "The output cloud file (ply).", cxxopts::value(opt->ply_file))
       ("cull", "Remove regions farther than the specified distance from the map origin.", cxxopts::value(opt->cull_distance)->default_value(optStr(opt->cull_distance)))
       ("map", "The input map file (ohm).", cxxopts::value(opt->map_file))
-      ("mode", "Export mode [occupancy,occupancy-centre,clearance,heightmap,heightmap-mesh]: select which data to export from the "
+      ("mode", "Export mode [occupancy,occupancy-centre,clearance,covariance,heightmap,heightmap-mesh]: select which data to export from the "
                "map. occupancy and occupancy-centre differ only in that the latter forces positioning on voxel "
                "centres.", cxxopts::value(opt->mode)->default_value(optStr(opt->mode)))
       ("expire", "Expire regions with a timestamp before the specified time. These are not exported.", cxxopts::value(opt->expiry_time))

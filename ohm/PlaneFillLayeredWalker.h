@@ -47,11 +47,12 @@ public:
   /// The @c next value creates a linked list to manage multiple visitations to the same 2D cell location.
   struct Opened
   {
+    /// Open list type.
     using List = std::vector<Opened>;
 
     /// Height at which the cell has been visited.
     int height;
-    /// A psuedo linked next next pointer - represents the next index into the visit list using 1-based indexing. This
+    /// A pseudo linked next next pointer - represents the next index into the visit list using 1-based indexing. This
     /// makes zero a null value.
     unsigned next;
   };
@@ -72,7 +73,11 @@ public:
   /// @param up_axis Defines the up axis for the plane being visited.
   PlaneFillLayeredWalker(const OccupancyMap &map, const Key &min_ext_key, const Key &max_ext_key, UpAxis up_axis);
 
+  /// Query the minimum key value to fill to.
+  /// @return The mimimum key value.
   inline const Key &minKey() const { return range.minKey(); }
+  /// Query the maximum key value to fill to.
+  /// @return The maximum key value.
   inline const Key &maxKey() const { return range.maxKey(); }
 
   /// Begin walking keys starting from the given @p key .
@@ -103,6 +108,7 @@ public:
   /// visited. This encourages traversal of unobserved space.
   ///
   /// @param key The key being visited. Must fall within the @c range.minKey() and @c range.maxKey() bounds.
+  /// @param mode Affects how to expand neighbours when visiting the voxel at @p key.
   /// @param neighbours Populated with any neighbours of @p key added to the open list.
   /// @return The number of neighbours added.
   size_t visit(const Key &key, PlaneWalkVisitMode mode, std::array<Key, 8> &neighbours);
