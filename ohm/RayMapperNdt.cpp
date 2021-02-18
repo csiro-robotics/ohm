@@ -198,7 +198,7 @@ size_t RayMapperNdt::integrateRays(const glm::dvec3 *rays, size_t element_count,
 
       const bool reset_mean = calculateHitWithCovariance(
         &cov, &adjusted_value, sample, mean, voxel_mean.count, hit_value, unobservedOccupancyValue(), float(resolution),
-        map_->reinitialiseCovarianceTheshold(), map_->reinitialiseCovariancePointCount());
+        map_->reinitialiseCovarianceThreshold(), map_->reinitialiseCovariancePointCount());
       occupancyAdjustUp(&occupancy_value, initial_value, adjusted_value, unobservedOccupancyValue(), voxel_max,
                         saturation_min, saturation_max, stop_adjustments);
 

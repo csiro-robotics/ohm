@@ -78,7 +78,7 @@ public:
   /// @param other Range to copy.
   inline KeyRange(const KeyRange &other) = default;
 
-  /// Assignment opreator.
+  /// Assignment operator.
   /// @param other Range to copy.
   inline KeyRange &operator=(const KeyRange &other) = default;
 

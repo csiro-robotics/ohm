@@ -95,7 +95,7 @@ inline void timeString(std::string &time_str, const D &duration)
   time_str = out.str();
 }
 
-/// Convert a byte value to a memory usage display string converting to the largest apporpriate byte unit.
+/// Convert a byte value to a memory usage display string converting to the largest appropriate byte unit.
 /// For example, this displays 2048 bytes as 2KiB, rather than a byte value. String display supports up to exbibyte.
 ///
 /// Note: unlink harddrive manufacturers, this function uses base 1024 units not base 1000.

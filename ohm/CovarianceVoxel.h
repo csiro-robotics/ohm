@@ -48,7 +48,7 @@ void ohm_API covarianceEigenDecomposition(const CovarianceVoxel *cov, glm::dmat3
                                           glm::dvec3 *eigenvalues);
 
 /// @ingroup voxelcovariance
-/// Estimate a primary normal from the given covariance. This selects the eivenvector with the smallest eigenvalue.
+/// Estimate a primary normal from the given covariance. This selects the eigenvector with the smallest eigenvalue.
 /// This may be ambiguous.
 /// @param cov The covariance data for the voxel.
 /// @param normal The normal value is written here.

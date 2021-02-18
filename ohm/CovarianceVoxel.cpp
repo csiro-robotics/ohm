@@ -247,7 +247,7 @@ void integrateNdtHit(NdtMap &map, const Key &key, const glm::dvec3 &sample)
   const glm::dvec3 voxel_pos = position(mean, voxel_centre, occupancy_map.resolution());
   if (calculateHitWithCovariance(&cov, &updated_value, sample, voxel_pos, mean.count, occupancy_map.hitValue(),
                                  unobservedOccupancyValue(), float(occupancy_map.resolution()),
-                                 map.reinitialiseCovarianceTheshold(), map.reinitialiseCovariancePointCount()))
+                                 map.reinitialiseCovarianceThreshold(), map.reinitialiseCovariancePointCount()))
   {
     // Covariance matrix has reset. Reset the point count to clear the mean value.
     mean.count = 0;

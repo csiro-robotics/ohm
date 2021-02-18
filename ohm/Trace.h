@@ -12,7 +12,7 @@
 
 namespace ohm
 {
-/// Debug visaulisation trace categories.
+/// Debug visualisation trace categories.
 enum TraceCategory : uint16_t
 {
   kTcDefault,           ///< Default category (catchall)
@@ -36,7 +36,7 @@ namespace trace
 ///
 /// Requires `TES_ENABLE` cmake option to be on.
 ///
-/// @todo Allow the server reference frame to be specified: default is right handled, XYZ = rigth, forward, up.
+/// @todo Allow the server reference frame to be specified: default is right handled, XYZ = right, forward, up.
 ///
 /// @param file_stream When set, opens a file stream to record trace to this file.
 void ohm_API init(const std::string &file_stream = std::string());

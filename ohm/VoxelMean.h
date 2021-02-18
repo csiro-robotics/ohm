@@ -96,7 +96,7 @@ inline glm::dvec3 position(const VoxelMean &mean_info, const glm::dvec3 &voxel_c
 
 /// Query the position of @c voxel if the @p voxel might be invalid or the voxel layer might be invalid.
 ///
-/// In order of availability, the retun value will be:
+/// In order of availability, the return value will be:
 /// - The @c VoxelMean position - @p voxel must be fully valid.
 /// - The voxel centre of the @p voxel.key() - @p voxel map and key must be valid.
 /// - `(0, 0, 0)`

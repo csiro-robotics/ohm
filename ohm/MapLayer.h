@@ -92,7 +92,7 @@ public:
 
   /// Gives the per chunk voxel dimensions of this layer given @p regionDim defines the maximum voxel dimensions.
   ///
-  /// For each magnitude step of @c subsampling(), each element of @p regionDim is halved to a minium of 1.
+  /// For each magnitude step of @c subsampling(), each element of @p regionDim is halved to a minimum of 1.
   ///
   /// @param region_dim The dimensions of each chunk the owning @c OccupancyMap.
   /// @return The voxel dimensions for this layer based on @p regionDim.

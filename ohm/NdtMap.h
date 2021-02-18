@@ -23,8 +23,8 @@ struct NdtMapDetail;
 /// This covariance matrix describes an ellipsoid within the voxel which approximates the collection of samples used
 /// to populate that voxel. This is used to refine the probably adjustment of rays passing through the voxel.
 /// Conceptually, we adjust the probably according to the likelihood that the ray passing through the voxel intersects
-/// this ellipsoid. This improves standard occupancy map issues of errosion. This calculation can only be made where
-/// sufficient samples have been collected, as determined by @c ndtSampleThreshold() , otherwise a fxied probably
+/// this ellipsoid. This improves standard occupancy map issues of erosion. This calculation can only be made where
+/// sufficient samples have been collected, as determined by @c ndtSampleThreshold() , otherwise a fixed probably
 /// adjustment is made as set by the @c OccupancyMap::missProbability() . This probably is also used as the learning
 /// rate for the NDT model.
 ///
@@ -61,7 +61,7 @@ public:
   /// @param rate The adaptation rate to set [0, 1]
   void setAdaptationRate(float rate);
   /// Query the adaptation rate, which affects how quickly NDT logic removes intersected voxels.
-  /// @return The current adapatation rate.
+  /// @return The current adaptation rate.
   float adaptationRate() const;
 
   /// Set the range sensor noise estimate. For example, the range noise for a lidar sensor.
@@ -76,26 +76,26 @@ public:
   /// Get the number of samples required in a voxel before using the NDT algorithm for @c integateMiss() adjustments.
   unsigned ndtSampleThreshold();
 
-  /// Set the occupancy theshold value at which the covariance matrix may be reinitialised.
+  /// Set the occupancy threshold value at which the covariance matrix may be reinitialised.
   ///
   /// This maps to the @c reinitialise_threshold parameter of @c calculateHitWithCovariance() . See that function for
   /// details.
-  /// @param threshold The probability theshold value. Must be < 0 or behaviour is undefined.
-  void setReinitialiseCovarianceTheshold(float threshold);
+  /// @param threshold The probability threshold value. Must be < 0 or behaviour is undefined.
+  void setReinitialiseCovarianceThreshold(float threshold);
 
-  /// Get the occupancy theshold value at which the covariance matrix may be reinitialised.
-  /// @return The reset probability theshold value.
-  float reinitialiseCovarianceTheshold() const;
+  /// Get the occupancy threshold value at which the covariance matrix may be reinitialised.
+  /// @return The reset probability threshold value.
+  float reinitialiseCovarianceThreshold() const;
 
-  /// Set the occupancy theshold value at which the covariance matrix may be reinitialised.
+  /// Set the occupancy threshold value at which the covariance matrix may be reinitialised.
   ///
   /// This maps to the @c reinitialise_sample_count parameter of @c calculateHitWithCovariance() . See that function
   /// for details.
   /// @param count The requires point count.
   void setReinitialiseCovariancePointCount(unsigned count);
 
-  /// Get the occupancy theshold value at which the covariance matrix may be reinitialised.
-  /// @return The reset point count treshold.
+  /// Get the occupancy threshold value at which the covariance matrix may be reinitialised.
+  /// @return The reset point count threshold.
   unsigned reinitialiseCovariancePointCount() const;
 
   /// Enable details tracing via 3rd Eye Scene.

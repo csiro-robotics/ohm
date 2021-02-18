@@ -370,7 +370,7 @@ private:
   /// @param min_key The source map minimum extents key.
   /// @param max_key The source map maximum extents key.
   /// @param reference_pos The reference position to build the heightmap from. Only the vertical component is used.
-  /// @return The key range creating an extented planar slice through the source map.
+  /// @return The key range creating an extended planar slice through the source map.
   KeyRange buildReferencePlaneSlice(Key min_key, Key max_key, const glm::dvec3 &reference_pos) const;
 
   /// Internal implementation of heightmap construction. Supports the different key walking techniques available.

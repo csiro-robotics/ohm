@@ -39,11 +39,11 @@ struct GpuNdtMapDetail;
 /// This is not the most efficient process with redundant calculations made by multiple threads, however, it ensures
 /// that:
 ///
-/// 1. We avoid GPU contention on the covaraince
+/// 1. We avoid GPU contention on the covariance
 /// 2. We keep all the voxel data in GPU memory. Doing the work in CPU requires repeatedly synching GPU and CPU.
 /// 3. We do not need to do additional CPU work such as sorting the samples by sample voxel.
 ///
-/// The base @c GpuMap supports having two batches in flight. It supports a second batch being prepped while the
+/// The base @c GpuMap supports having two batches in flight. It supports a second batch being prepared while the
 /// first is allowed to continue. The NDT changes do not support this and there is a sync point before executing
 /// the NDT sample update.
 ///

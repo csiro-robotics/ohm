@@ -19,7 +19,7 @@ namespace ohm
 /// The @p walkFunc is simply a callable object which accepts a @p KEY argument. Keys are provided in order of
 /// traversal.
 ///
-/// The templatisation requires @p funcs to provide a set of key manipulation utily functions. Specifically,
+/// The templatisation requires @p funcs to provide a set of key manipulation utility functions. Specifically,
 /// the @p KEYFUNCS type must have the following signature:
 /// @code
 /// struct KeyFuncs

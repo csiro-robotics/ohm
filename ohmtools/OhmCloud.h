@@ -47,7 +47,7 @@ struct SaveCloudOptions
   bool allow_default_colour_selection = true;
   /// Export free space voxels? Required to get virtual surfaces from heightmaps.
   bool export_free = false;
-  /// Ingore voxel mean forcing voxel centres for positions?
+  /// Ignore voxel mean forcing voxel centres for positions?
   bool ignore_voxel_mean = false;
 };
 

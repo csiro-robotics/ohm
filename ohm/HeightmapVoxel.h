@@ -25,7 +25,7 @@ enum HeightmapVoxelLayer : uint8_t
 /// `__attribute__ ((aligned (n)))` style alignment. A macro may be used to manage this.
 /// See https://www.khronos.org/registry/OpenCL/sdk/1.2/docs/man/xhtml/
 ///
-/// CUDA compatibilty would also need to be assessed.
+/// CUDA compatibility would also need to be assessed.
 struct alignas(8) HeightmapVoxel
 {
   /// The name of the layer which stores these voxels.

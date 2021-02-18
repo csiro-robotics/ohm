@@ -145,7 +145,7 @@ Options::Options()
   ndt.prob_miss = defaults_map.missProbability();
   ndt.adaptation_rate = defaults_ndt.adaptationRate();
   ndt.sensor_noise = defaults_ndt.sensorNoise();
-  ndt.covariance_reset_probability = ohm::valueToProbability(defaults_ndt.reinitialiseCovarianceTheshold());
+  ndt.covariance_reset_probability = ohm::valueToProbability(defaults_ndt.reinitialiseCovarianceThreshold());
   ndt.covariance_reset_sample_count = defaults_ndt.reinitialiseCovariancePointCount();
   ndt.adaptation_rate = defaults_ndt.adaptationRate();
 }
@@ -413,7 +413,7 @@ int populateMap(const Options &opt)
   {
     ndt_map->setAdaptationRate(opt.ndt.adaptation_rate);
     ndt_map->setSensorNoise(opt.ndt.sensor_noise);
-    ndt_map->setReinitialiseCovarianceTheshold(ohm::probabilityToValue(opt.ndt.covariance_reset_probability));
+    ndt_map->setReinitialiseCovarianceThreshold(ohm::probabilityToValue(opt.ndt.covariance_reset_probability));
     ndt_map->setReinitialiseCovariancePointCount(opt.ndt.covariance_reset_sample_count);
   }
 

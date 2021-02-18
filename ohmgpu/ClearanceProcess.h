@@ -169,10 +169,10 @@ protected:
   /// @return True if work was done. False if nothing need be done.
   bool updateRegion(OccupancyMap &map, const glm::i16vec3 &region_key, bool force);
 
-  /// Interal data access
+  /// Internal data access
   /// @return The internal data members.
   ClearanceProcessDetail *imp();
-  /// Interal data access
+  /// Internal data access
   /// @return The internal data members.
   const ClearanceProcessDetail *imp() const;
 

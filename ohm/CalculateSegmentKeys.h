@@ -64,7 +64,7 @@ struct ohm_API WalkKeyAdaptor
 /// @param map The occupancy map to calculate key segments for.
 /// @param start_point The coordinate of the line segment start or sensor position. Global map frame.
 /// @param end_point The coordinate of the line segment end or sample position. Global map frame.
-/// @param include_end_point True to include the voxel containing the @p end_point , false to ommit this voxel,
+/// @param include_end_point True to include the voxel containing the @p end_point , false to omit this voxel,
 ///     even when the @p start_point is in the same voxel (this case would generate an empty list).
 size_t ohm_API calculateSegmentKeys(KeyList &keys, const OccupancyMap &map, const glm::dvec3 &start_point,
                                     const glm::dvec3 &end_point, bool include_end_point);
