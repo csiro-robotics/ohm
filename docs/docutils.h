@@ -32,7 +32,7 @@ trajectory file is used to identify the scanner position corresponding to each s
 Support inputs are as follows:
 
 - Point cloud:
-  - Supports LAS/LAZ when ohm is build against `libLAS` and `lasZIP`.
+  - Supports LAS/LAZ when ohm is built against `libLAS` and `lasZIP`.
   - Supports many point cloud formats when build against PDAL. Precise formats depend on the PDAL support.
 - Trajectory file
   - Supports a text file format (see below).
