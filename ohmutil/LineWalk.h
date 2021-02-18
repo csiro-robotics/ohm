@@ -19,13 +19,13 @@ namespace ohm
 /// The @p walkFunc is simply a callable object which accepts a @p KEY argument. Keys are provided in order of
 /// traversal.
 ///
-/// The templatisation requires @p funcs to provide a set of key manipulation utily functions. Specifically,
+/// The templatisation requires @p funcs to provide a set of key manipulation utility functions. Specifically,
 /// the @p KEYFUNCS type must have the following signature:
 /// @code
 /// struct KeyFuncs
 /// {
 ///   // Query the voxel resolution along a particular axis. Axis may be { 0, 1, 2 } corresponding to XYZ.
-///   double voxelResolutin(int axis) const;
+///   double voxelResolution(int axis) const;
 ///   // Convert from pt to it's voxel key. The result may be null/invalid
 ///   KEY voxelKey(const glm::dvec3 &pt) const;
 ///   // Check if key is a null or invalid key.
@@ -62,17 +62,16 @@ size_t walkSegmentKeys(const WALKFUNC &walk_func, const glm::dvec3 &start_point,
   }
 
   glm::dvec3 direction = glm::dvec3(end_point - start_point);
-  double length = glm::dot(direction, direction);
+  const double length = std::sqrt(glm::dot(direction, direction));
 
   // Very small segments which straddle a voxel boundary can be problematic. We want to avoid
-  // a sqrt on a very small number, but be robust enough to handle the situation.
+  // inverting a very small number, but be robust enough to handle the situation.
   // To that end, we skip normalising the direction for directions below a tenth of the voxel.
   // Then we will exit either with start/end voxels being the same, or we will step from start
   // to end in one go.
-  const bool valid_length = (length >= length_epsilon * length_epsilon);
+  const bool valid_length = length >= length_epsilon;
   if (valid_length)
   {
-    length = std::sqrt(length);
     direction *= 1.0 / length;
   }
 
@@ -80,7 +79,7 @@ size_t walkSegmentKeys(const WALKFUNC &walk_func, const glm::dvec3 &start_point,
   {
     if (include_end_point)
     {
-      walk_func(end_point_key);
+      walk_func(end_point_key, 0.0, length);
     }
     return 1;
   }
@@ -89,10 +88,18 @@ size_t walkSegmentKeys(const WALKFUNC &walk_func, const glm::dvec3 &start_point,
   {
     // Start/end points are in different, but adjacent voxels. Prevent issues with the loop by
     // early out.
-    walk_func(start_point_key);
+    const int axis =
+      start_point_key.axisMatches(0, end_point_key) ? (start_point_key.axisMatches(1, end_point_key) ? 2 : 1) : 0;
+    const double sign_direction = (direction[axis] > 0) ? 1 : -1;
+    const glm::dvec3 voxel = funcs.voxelCentre(start_point_key);
+    const double next_voxel_border =
+      voxel[axis] + sign_direction * 0.5 * funcs.voxelResolution(axis);  // NOLINT(readability-magic-numbers)
+    const double first_voxel_length =
+      std::abs((next_voxel_border - start_point[axis]) / (end_point[axis] - start_point[axis])) * length;
+    walk_func(start_point_key, 0.0, first_voxel_length);
     if (include_end_point)
     {
-      walk_func(end_point_key);
+      walk_func(end_point_key, first_voxel_length, length);
       return 2;
     }
     return 1;
@@ -107,6 +114,7 @@ size_t walkSegmentKeys(const WALKFUNC &walk_func, const glm::dvec3 &start_point,
   double direction_axis_inv;
   size_t added = 0;
   KEY current_key = start_point_key;
+  double time_current = 0.0;
 
   //  debugOut = true;
   voxel = funcs.voxelCentre(current_key);
@@ -130,7 +138,7 @@ size_t walkSegmentKeys(const WALKFUNC &walk_func, const glm::dvec3 &start_point,
       next_voxel_border = voxel[i] + step[i] * 0.5 * funcs.voxelResolution(i);  // NOLINT(readability-magic-numbers)
       time_max[i] = (next_voxel_border - start_point[i]) * direction_axis_inv;
       time_limit[i] =
-        std::abs((end_point[i] - start_point[i]) * direction_axis_inv);  // +0.5f * funcs.voxelResolution(i);
+        std::abs((end_point[i] - start_point[i]) * direction_axis_inv);  // +0.5f * funcs.voxelResolution(i); // Question(JW): isn't this just length
     }
     else
     {
@@ -143,17 +151,19 @@ size_t walkSegmentKeys(const WALKFUNC &walk_func, const glm::dvec3 &start_point,
   bool limit_reached = false;
   while (!limit_reached && current_key != end_point_key)
   {
-    walk_func(current_key);
-    ++added;
     axis = (time_max[0] < time_max[2]) ? ((time_max[0] < time_max[1]) ? 0 : 1) : ((time_max[1] < time_max[2]) ? 1 : 2);
-    limit_reached = std::abs(time_max[axis]) > time_limit[axis];
-    funcs.stepKey(current_key, axis, step[axis]);
+    limit_reached = std::abs(time_max[axis]) > time_limit[axis]; // Question(JW): why is this abs? Isn't time_max non-negative? Just for round-off?
+    const double new_time_current = limit_reached ? time_limit[axis] : time_max[axis];
+    walk_func(current_key, time_current, new_time_current);
     time_max[axis] += time_delta[axis];
+    time_current = new_time_current;
+    ++added;
+    funcs.stepKey(current_key, axis, step[axis]);
   }
 
   if (include_end_point)
   {
-    walk_func(end_point_key);
+    walk_func(end_point_key, time_current, length);
     ++added;
   }
 
