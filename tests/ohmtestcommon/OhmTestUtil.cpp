@@ -179,11 +179,12 @@ void compareMaps(const OccupancyMap &map, const OccupancyMap &reference_map, con
   // Voxels
   if (compare_flags & (kCfOccupancy | kCfClearance))
   {
-    bool have_valid_clerance = false;
+    bool have_valid_clearance = false;
     Voxel<const float> map_occupancy(&map, map.layout().occupancyLayer());
     Voxel<const float> map_clearance(&map, map.layout().clearanceLayer());
     Voxel<const float> ref_occupancy(&reference_map, reference_map.layout().occupancyLayer());
     Voxel<const float> ref_clearance(&reference_map, reference_map.layout().clearanceLayer());
+    const float clearance_tolerance = float(map.resolution() * 1e-2);
 
     ASSERT_EQ(map_occupancy.isLayerValid(), ref_occupancy.isLayerValid());
     if (compare_flags & kCfClearance)
@@ -223,15 +224,15 @@ void compareMaps(const OccupancyMap &map, const OccupancyMap &reference_map, con
           float ref_clearance_value, map_clearance_value;
           ref_clearance.read(&ref_clearance_value);
           map_clearance.read(&map_clearance_value);
-          ASSERT_EQ(ref_clearance_value, map_clearance_value);
-          have_valid_clerance = have_valid_clerance || ref_clearance_value >= 0;
+          ASSERT_NEAR(ref_clearance_value, map_clearance_value, clearance_tolerance);
+          have_valid_clearance = have_valid_clearance || ref_clearance_value >= 0;
         }
       }
     }
 
     if (compare_flags & kCfExpectClearance)
     {
-      EXPECT_TRUE(have_valid_clerance);
+      EXPECT_TRUE(have_valid_clearance);
     }
   }
 }
