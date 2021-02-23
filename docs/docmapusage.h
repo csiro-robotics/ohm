@@ -21,7 +21,7 @@ The `OccupancyMap` class is used to contain the occupancy map data. This class i
 regardless of how the map is generated or populated. For example, the `GpuMap` wraps an `OccupancyMap` to
 support populating the map in GPU, but the underlying map object is the same.
 
-The data within the map are stored in @ref MapChunk "chunks" which represent contigious blocks of voxel memory
+The data within the map are stored in @ref MapChunk "chunks" which represent contiguous blocks of voxel memory
 corresponding to fixed 3D regions of the map. Chunks are created as needed. This dense memory layout is what makes GPU
 update of the map possible. The additional overhead of using a dense memory layout is mitigated by using
 @ref VoxelBlockCompressionQueue "background compression" of voxel data when not in use.
