@@ -74,8 +74,9 @@ GpuProgramRef g_program_ref_cov_hit("CovarianceHit", GpuProgramRef::kSourceFile,
 }  // namespace
 
 
-GpuNdtMap::GpuNdtMap(OccupancyMap *map, bool borrowed_map, unsigned expected_element_count, size_t gpu_mem_size)
-  : GpuMap(new GpuNdtMapDetail(map, borrowed_map), expected_element_count, gpu_mem_size)
+GpuNdtMap::GpuNdtMap(OccupancyMap *map, bool borrowed_map, unsigned expected_element_count, size_t gpu_mem_size,
+                     NdtMode ndt_mode)
+  : GpuMap(new GpuNdtMapDetail(map, borrowed_map, ndt_mode), expected_element_count, gpu_mem_size)
 {
   // Ensure voxel mean and covariance layers are present.
   for (int i = 0; i < 2; ++i)

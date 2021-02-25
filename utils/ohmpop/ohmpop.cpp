@@ -33,8 +33,6 @@
 #include <ohmutil/SafeIO.h>
 #include <ohmutil/ScopedTimeDisplay.h>
 
-#include <ohmutil/Options.h>
-
 #include <algorithm>
 #include <array>
 #include <atomic>
@@ -47,6 +45,12 @@
 #include <locale>
 #include <sstream>
 #include <thread>
+
+std::istream &operator>>(std::istream &in, ohm::NdtMode &mode);
+std::ostream &operator<<(std::ostream &out, const ohm::NdtMode mode);
+
+// Must be after argument streaming operators.
+#include <ohmutil/Options.h>
 
 namespace
 {
@@ -73,8 +77,7 @@ struct Options
     float covariance_reset_probability = 0.0f;  // re-initialised from a default map
     // NDT map probabilities should be much narrower. The NDT process is more precise.
     unsigned covariance_reset_sample_count = 0;  // re-initialised from a default map
-    bool enabled = false;
-    bool ndt_tm = false;
+    ohm::NdtMode mode = ohm::NdtMode::kNone;
   };
 
   std::string cloud_file;
@@ -141,7 +144,7 @@ Options::Options()
   prob_range[0] = defaults_map.minVoxelValue();
   prob_range[1] = defaults_map.maxVoxelValue();
 
-  const ohm::NdtMap defaults_ndt(&defaults_map, false, true);
+  const ohm::NdtMap defaults_ndt(&defaults_map, true);
   // Default probabilities may differ for NDT.
   ndt.prob_hit = defaults_map.hitProbability();
   ndt.prob_miss = defaults_map.missProbability();
@@ -212,14 +215,14 @@ void Options::print(std::ostream **out, const ohm::OccupancyMap &map) const
     **out << "Miss probability: " << prob_miss << " (" << map.missValue() << ")\n";
     **out << "Probability range: [" << map.minVoxelProbability() << ' ' << map.maxVoxelProbability() << "]\n";
     **out << "Value range      : [" << map.minVoxelValue() << ' ' << map.maxVoxelValue() << "]\n";
-    if (ndt.enabled)
+    if (bool(ndt.mode))
     {
       **out << "NDT map enabled:" << '\n';
       **out << "NDT adaptation rate: " << ndt.adaptation_rate << '\n';
       **out << "NDT sensor noise: " << ndt.sensor_noise << '\n';
       **out << "NDT covariance reset probability: " << ndt.covariance_reset_probability << '\n';
       **out << "NDT covariance reset sample cout: " << ndt.covariance_reset_sample_count << '\n';
-      **out << "NDT-TM: " << (ndt.ndt_tm ? "true" : "false") << '\n';
+      **out << "NDT mode: " << ndt.mode << '\n';
     }
 #ifndef OHMPOP_CPU
     **out << "Ray batch size: " << batch_size << '\n';
@@ -372,6 +375,49 @@ std::string getFileExtension(const std::string &file)
 }
 }  // namespace
 
+std::istream &operator>>(std::istream &in, ohm::NdtMode &mode)
+{
+  // Note: we don't use ndtModeFromString() because we use abbreviations
+  std::string mode_str;
+  in >> mode_str;
+  if (mode_str == "off")
+  {
+    mode = ohm::NdtMode::kNone;
+  }
+  else if (mode_str == "om")
+  {
+    mode = ohm::NdtMode::kOccupancy;
+  }
+  else if (mode_str == "tm")
+  {
+    mode = ohm::NdtMode::kTraversability;
+  }
+  else
+  {
+    throw cxxopts::invalid_option_format_error(mode_str);
+  }
+  return in;
+}
+
+std::ostream &operator<<(std::ostream &out, const ohm::NdtMode mode)
+{
+  // Note: we don't use ndtModeToString() because we use abbreviations
+  switch (mode)
+  {
+  case ohm::NdtMode::kNone:
+    out << "none";
+    break;
+  case ohm::NdtMode::kOccupancy:
+    out << "om";
+    break;
+  case ohm::NdtMode::kTraversability:
+    out << "tm";
+    break;
+  default:
+    out << "<unknown>";
+  }
+  return out;
+}
 
 int populateMap(const Options &opt)
 {
@@ -397,14 +443,14 @@ int populateMap(const Options &opt)
   ohm::OccupancyMap map(opt.resolution, opt.region_voxel_dim, map_flags);
 #ifdef OHMPOP_CPU
   std::unique_ptr<ohm::NdtMap> ndt_map;
-  if (opt.ndt.enabled)
+  if (bool(opt.ndt.mode))
   {
-    ndt_map = std::make_unique<ohm::NdtMap>(&map, opt.ndt.ndt_tm, true);
+    ndt_map = std::make_unique<ohm::NdtMap>(&map, true, opt.ndt.mode);
   }
 #else   // OHMPOP_CPU
-  std::unique_ptr<ohm::GpuMap> gpu_map((!opt.ndt.enabled) ?
+  std::unique_ptr<ohm::GpuMap> gpu_map((opt.ndt.mode == ohm::NdtMode::kNone) ?
                                          new ohm::GpuMap(&map, true, opt.batch_size) :
-                                         new ohm::GpuNdtMap(&map, true, opt.batch_size));
+                                         new ohm::GpuNdtMap(&map, true, opt.batch_size, opt.ndt.mode));
   ohm::NdtMap *ndt_map = &static_cast<ohm::GpuNdtMap *>(gpu_map.get())->ndtMap();
 #endif  // OHMPOP_CPU
 
@@ -413,7 +459,7 @@ int populateMap(const Options &opt)
     map.addVoxelMeanLayer();
   }
 
-  if (opt.ndt.enabled)
+  if (bool(opt.ndt.mode))
   {
     ndt_map->setAdaptationRate(opt.ndt.adaptation_rate);
     ndt_map->setSensorNoise(opt.ndt.sensor_noise);
@@ -474,10 +520,10 @@ int populateMap(const Options &opt)
 #ifdef OHMPOP_CPU
   std::unique_ptr<ohm::RayMapperNdt> ndt_ray_mapper;
   ohm::RayMapperOccupancy ray_mapper2(&map);
-  if (opt.ndt.enabled)
+  if (int(opt.ndt.mode))
   {
     std::cout << "Building NDT map" << std::endl;
-    ndt_ray_mapper = std::make_unique<ohm::RayMapperNdt>(ndt_map.get(), opt.ndt.ndt_tm);
+    ndt_ray_mapper = std::make_unique<ohm::RayMapperNdt>(ndt_map.get());
     ray_mapper = ndt_ray_mapper.get();
   }
   else
@@ -676,8 +722,8 @@ int populateMap(const Options &opt)
         warned_no_motion = true;
       }
 
-      const auto minmax = std::minmax_element(intensities.cbegin(), intensities.cend());
-      std::cout << " batch min/max intensity: " << *(minmax.first) << "," << *(minmax.second) << "   ";
+      // const auto minmax = std::minmax_element(intensities.cbegin(), intensities.cend());
+      // std::cout << " batch min/max intensity: " << *(minmax.first) << "," << *(minmax.second) << "   ";
 
       sample_timestamps.clear();
       origin_sample_pairs.clear();
@@ -796,7 +842,7 @@ int populateMap(const Options &opt)
 
   prog.joinThread();
 
-  if (opt.ndt.enabled)
+  if (bool(opt.ndt.mode))
   {
 #ifdef OHMPOP_CPU
     ndt_map->debugDraw();
@@ -862,15 +908,14 @@ int parseOptions(Options *opt, int argc, char *argv[])  // NOLINT(modernize-avoi
       ("uncompressed", "Maintain uncompressed map. By default, may regions may be compressed when no longer needed.", optVal(opt->uncompressed))
       ("voxel-mean", "Enable voxel mean coordinates?", optVal(opt->voxel_mean))
       ("threshold", "Sets the occupancy threshold assigned when exporting the map to a cloud.", optVal(opt->prob_thresh)->implicit_value(optStr(opt->prob_thresh)))
-      ("ndt", "Use normal distibution transform occupancy map generation.", optVal(opt->ndt.enabled))
+      ("ndt", "Normal distribution transform (NDT) occupancy map generation mode {off,om,tm}. Mode om is the NDT occupancy mode, where tm adds traversability mapping data.", optVal(opt->ndt.mode)->implicit_value(optStr(ohm::NdtMode::kOccupancy)))
       ("ndt-cov-point-threshold", "Minimum number of samples requires in order to allow the covariance to reset at --ndt-cov-prob-threshold..", optVal(opt->ndt.covariance_reset_sample_count))
       ("ndt-cov-prob-threshold", "Low probability threshold at which the covariance can be reset as samples accumulate once more. See also --ndt-cov-point-threshold.", optVal(opt->ndt.covariance_reset_probability))
-      ("ndt-adaptation-rate", "NDT adpatation rate [0, 1]. Controls how fast rays remove NDT voxels. Has a strong effect than miss_value when using NDT.",
+      ("ndt-adaptation-rate", "NDT adaptation rate [0, 1]. Controls how fast rays remove NDT voxels. Has a strong effect than miss_value when using NDT.",
         optVal(opt->ndt.adaptation_rate))
       ("ndt-sensor-noise", "Range sensor noise used for Ndt mapping. Must be > 0.", optVal(opt->ndt.sensor_noise))
-      ("ndt-tm", "Use normal distibution transform traversability map generation.", optVal(opt->ndt.ndt_tm))
       ("mode", "Controls the mapping mode [ normal, sample, erode ]. The 'normal' mode is the default, with the full ray "
-               "being integrated into the map. 'sample' mode only adds samples to increase occcupancy, while 'erode' "
+               "being integrated into the map. 'sample' mode only adds samples to increase occupancy, while 'erode' "
                "only erodes free space by skipping the sample voxels.", optVal(opt->mode))
       ;
 
@@ -937,7 +982,7 @@ int parseOptions(Options *opt, int argc, char *argv[])  // NOLINT(modernize-avoi
     }
 
     // Set default ndt probability if using.
-    if (opt->ndt.enabled)
+    if (int(opt->ndt.mode))
     {
       bool prob_hit_given = false;
       bool prob_miss_given = false;

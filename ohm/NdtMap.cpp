@@ -30,12 +30,13 @@
 
 namespace ohm
 {
-NdtMap::NdtMap(OccupancyMap *map, bool ndt_tm, bool borrowed_map)
+NdtMap::NdtMap(OccupancyMap *map, bool borrowed_map, NdtMode mode)
   : imp_(new NdtMapDetail)
 {
   imp_->map = map;
   imp_->borrowed_map = borrowed_map;
-  enableNdt(map, ndt_tm);
+  imp_->mode = mode;
+  enableNdt(map, mode);
   updateMapInfo();
 }
 
@@ -62,6 +63,12 @@ OccupancyMap &NdtMap::map()
 const OccupancyMap &NdtMap::map() const
 {
   return *imp_->map;
+}
+
+
+NdtMode NdtMap::mode() const
+{
+  return imp_->mode;
 }
 
 
@@ -161,8 +168,6 @@ bool NdtMap::trace() const
 }
 
 
-
-
 void NdtMap::debugDraw() const
 {
 #ifdef TES_ENABLE
@@ -241,9 +246,9 @@ void NdtMap::debugDraw() const
                               std::fmax(1.0f, float(hit_miss_count.hit_count + hit_miss_count.miss_count))));
         ellipsoid.setTransparent(true);
 
-        //const float alpha = 0.9f * float(hit_miss_count.hit_count) /
+        // const float alpha = 0.9f * float(hit_miss_count.hit_count) /
         //                    std::fmax(1.0f, float(hit_miss_count.hit_count + hit_miss_count.miss_count));
-        //ellipsoid.setColour(tes::Colour(0.1f + alpha * 0.5f * (1.0f + sin_sc), 0.1f + alpha * 0.5f * (1.0f + cos_sc),
+        // ellipsoid.setColour(tes::Colour(0.1f + alpha * 0.5f * (1.0f + sin_sc), 0.1f + alpha * 0.5f * (1.0f + cos_sc),
         //                                0.1f + alpha * 0.5f * (1.0f - sin_sc), 1.0f));
 
         ellipsoids.emplace_back(ellipsoid);
@@ -317,6 +322,8 @@ void NdtMap::updateMapInfo()
     return;
   }
   MapInfo &info = imp_->map->mapInfo();
+  info.set(MapValue("Ndt mode", int(imp_->mode)));
+  info.set(MapValue("Ndt mode name", ndtModeToString(imp_->mode).c_str()));
   info.set(MapValue("Ndt adaptation rate", imp_->adaptation_rate));
   info.set(MapValue("Ndt sensor noise", imp_->sensor_noise));
   info.set(MapValue("Ndt sample threshold", imp_->sample_threshold));
@@ -327,7 +334,7 @@ void NdtMap::updateMapInfo()
 }
 
 
-int NdtMap::enableNdt(OccupancyMap *map, bool ndt_tm)
+int NdtMap::enableNdt(OccupancyMap *map, NdtMode ndt_mode)
 {
   // Prepare layout for update.
   MapLayout new_layout = map->layout();
@@ -336,7 +343,7 @@ int NdtMap::enableNdt(OccupancyMap *map, bool ndt_tm)
   // Cache the layer index.
   int layer_index = int(addCovariance(new_layout)->layerIndex());
 
-  if (ndt_tm)
+  if (ndt_mode == NdtMode::kTraversability)
   {
     addIntensity(new_layout);
     addHitMissCount(new_layout);

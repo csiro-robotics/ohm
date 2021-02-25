@@ -10,6 +10,8 @@
 
 #include "GpuMap.h"
 
+#include <ohm/NdtMode.h>
+
 namespace ohm
 {
 class NdtMap;
@@ -39,7 +41,7 @@ struct GpuNdtMapDetail;
 /// This is not the most efficient process with redundant calculations made by multiple threads, however, it ensures
 /// that:
 ///
-/// 1. We avoid GPU contention on the covaraince
+/// 1. We avoid GPU contention on the covariance
 /// 2. We keep all the voxel data in GPU memory. Doing the work in CPU requires repeatedly synching GPU and CPU.
 /// 3. We do not need to do additional CPU work such as sorting the samples by sample voxel.
 ///
@@ -52,14 +54,23 @@ class GpuNdtMap : public GpuMap
 {
 public:
   /// Create a @c GpuNdtMap around the given @p map representation.
-  /// @param map The map object to operate on.
   /// @param map The map to wrap.
   /// @param borrowed_map True to borrow the map, @c false for this object to take ownership.
   /// @param expected_element_count The expected point count for calls to @c integrateRays(). Used as a hint.
   /// @param gpu_mem_size Optionally specify the target GPU cache memory to allocate.
-  explicit GpuNdtMap(OccupancyMap *map, bool borrowed_map = true,
-                     unsigned expected_element_count = 2048,  // NOLINT(readability-magic-numbers)
-                     size_t gpu_mem_size = 0u);
+  /// @param ndt_mode Specified which NDT mode to use. Using @c kNone is invalid resulting in undefined behaviour.
+  explicit GpuNdtMap(OccupancyMap *map, bool borrowed_map = true, unsigned expected_element_count = 2048u,
+                     size_t gpu_mem_size = 0u, NdtMode ndt_mode = NdtMode::kOccupancy);
+
+  /// @overload
+  inline GpuNdtMap(OccupancyMap *map, bool borrowed_map, NdtMode mode)
+    : GpuNdtMap(map, borrowed_map, 2048u, 0u, mode)
+  {}
+
+  /// @overload
+  inline GpuNdtMap(OccupancyMap *map, bool borrowed_map, unsigned expected_element_count, NdtMode mode)
+    : GpuNdtMap(map, borrowed_map, expected_element_count, 0u, mode)
+  {}
 
   /// Destructor
   ~GpuNdtMap() override;

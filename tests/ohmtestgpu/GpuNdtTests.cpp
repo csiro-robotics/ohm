@@ -108,7 +108,7 @@ void testNdtMiss(const glm::dvec3 &sensor, const std::vector<glm::dvec3> samples
 {
   (void)sensor;
   ohm::OccupancyMap map_cpu(voxel_resolution, ohm::MapFlag::kVoxelMean);
-  ohm::NdtMap ndt_cpu(&map_cpu, false, true);
+  ohm::NdtMap ndt_cpu(&map_cpu, true);
 
   map_cpu.setOrigin(map_origin);
   map_cpu.setMissProbability(0.45f);

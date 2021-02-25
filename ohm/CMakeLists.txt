@@ -99,6 +99,8 @@ set(SOURCES
   Mutex.h
   NdtMap.cpp
   NdtMap.h
+  NdtMode.cpp
+  NdtMode.h
   NearestNeighbours.cpp
   NearestNeighbours.h
   OccupancyMap.cpp
@@ -195,6 +197,7 @@ set(PUBLIC_HEADERS
   MapSerialise.h
   Mutex.h
   NdtMap.h
+  NdtMode.h
   NearestNeighbours.h
   OccupancyMap.h
   OccupancyType.h
