@@ -63,13 +63,13 @@ typedef struct CovarianceVoxel_t  // NOLINT(readability-identifier-naming, moder
   float trianglar_covariance[6];  // NOLINT(readability-magic-numbers, modernize-avoid-c-arrays)
 } CovarianceVoxel;
 
-typedef struct IntensityMeanCov_t
+typedef struct IntensityMeanCov_t  // NOLINT(readability-identifier-naming, modernize-use-using)
 {
   float intensity_mean;
   float intensity_cov;
 } IntensityMeanCov;
 
-typedef struct HitMissCount_t
+typedef struct HitMissCount_t  // NOLINT(readability-identifier-naming, modernize-use-using)
 {
   uint32_t hit_count;
   uint32_t miss_count;
@@ -567,9 +567,8 @@ inline __device__ CovVec3 calculateMissNdt(const CovarianceVoxel *cov_voxel, flo
   // b = (l_0 - u)
 
   CovReal p_x_ml_given_voxel, p_x_ml_given_sample;
-  const CovVec3 voxel_maximum_likelihood =
-  calculateSampleLikelihoods(cov_voxel, sensor, sample, voxel_mean, sensor_noise, &p_x_ml_given_voxel,
-                             &p_x_ml_given_sample);
+  const CovVec3 voxel_maximum_likelihood = calculateSampleLikelihoods(
+    cov_voxel, sensor, sample, voxel_mean, sensor_noise, &p_x_ml_given_voxel, &p_x_ml_given_sample);
 
   const CovReal scaling_factor = 0.5 * adaptation_rate;
   // Verified: json line 267
