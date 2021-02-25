@@ -39,7 +39,7 @@ struct GpuNdtMapDetail;
 /// This is not the most efficient process with redundant calculations made by multiple threads, however, it ensures
 /// that:
 ///
-/// 1. We avoid GPU contention on the covaraince
+/// 1. We avoid GPU contention on the covariance
 /// 2. We keep all the voxel data in GPU memory. Doing the work in CPU requires repeatedly synching GPU and CPU.
 /// 3. We do not need to do additional CPU work such as sorting the samples by sample voxel.
 ///
