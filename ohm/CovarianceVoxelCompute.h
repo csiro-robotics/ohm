@@ -383,23 +383,21 @@ inline __device__ void calculateIntensityUpdateOnHit(IntensityMeanCov *intensity
                                                      unsigned point_count, float reinitialise_threshold,
                                                      unsigned reinitialise_sample_count)
 {
+  // Branchless for better GPU execution.
   const float initial_value = voxel_value;
-
-  if (point_count == 0 || (initial_value < reinitialise_threshold && point_count >= reinitialise_sample_count))
-  {
-    intensity->intensity_mean = intensity_sample;
-    intensity->intensity_cov = initial_intensity_covariance;
-  }
-  else
-  {
-    const float delta = intensity->intensity_mean - intensity_sample;
-    const float point_count_float = (float)point_count;
-    float inv_point_count_plus_one = 1.0f / (point_count_float + 1.0f);
-    intensity->intensity_mean =
-      inv_point_count_plus_one * (point_count_float * intensity->intensity_mean + intensity_sample);
-    intensity->intensity_cov = inv_point_count_plus_one * (point_count_float * intensity->intensity_cov +
-                                                           inv_point_count_plus_one * delta * delta);
-  }
+  const bool needs_reset =
+    point_count == 0 || (initial_value < reinitialise_threshold && point_count >= reinitialise_sample_count);
+  const float delta = intensity->intensity_mean - intensity_sample;
+  const float point_count_float = (float)point_count;  // NOLINT
+  float inv_point_count_plus_one = 1.0f / (point_count_float + 1.0f);
+  intensity->intensity_mean =
+    (!needs_reset) ?  //
+      inv_point_count_plus_one * (point_count_float * intensity->intensity_mean + intensity_sample) :
+      intensity_sample;
+  intensity->intensity_cov = (!needs_reset) ?  //
+                               inv_point_count_plus_one * (point_count_float * intensity->intensity_cov +
+                                                           inv_point_count_plus_one * delta * delta) :
+                               initial_intensity_covariance;
 }
 
 
@@ -444,31 +442,45 @@ inline __device__ void calculateHitMissUpdateOnHit(CovarianceVoxel *cov_voxel, f
                                                    float reinitialise_threshold, unsigned reinitialise_sample_count,
                                                    unsigned sample_threshold)
 {
-  if (voxel_value == uninitialised_value ||
-      (reinitialise_permeability_with_covariance &&
-       (point_count == 0 || (voxel_value < reinitialise_threshold && point_count >= reinitialise_sample_count))))
-  {
-    // Hypothesis was the voxel was unoccupied, now switching to possibility that it is occupied, with new mean and
-    // covariance. Reinitialise Bernoulli hypothesis for permeability at same time.
-    hit_miss_count->hit_count = 1;
-    hit_miss_count->miss_count = 0;
-  }
-  else if (point_count < sample_threshold)
-  {
-    // Too few points to know if point satisfies NDT-TM hit criterion, so update as a hit regardless of criterion
-    ++hit_miss_count->hit_count;
-  }
-  else
-  {
-    CovReal p_x_ml_given_voxel, p_x_ml_given_sample;
-    calculateSampleLikelihoods(cov_voxel, sensor, sample, voxel_mean, sensor_noise, &p_x_ml_given_voxel,
-                               &p_x_ml_given_sample);
-    const CovReal prod = p_x_ml_given_voxel * p_x_ml_given_sample;
+  // Branchless for better GPU execution
+  const bool needs_reset =
+    voxel_value == uninitialised_value ||
+    (reinitialise_permeability_with_covariance &&
+     (point_count == 0 || (voxel_value < reinitialise_threshold && point_count >= reinitialise_sample_count)));
 
-    const CovReal eta = 0.5 * adaptation_rate;
-    hit_miss_count->hit_count += prod >= eta ? 1 : 0;
-    hit_miss_count->miss_count += (prod < eta && p_x_ml_given_voxel >= eta) ? 1 : 0;
-  }
+  const unsigned initial_hit = (!needs_reset) ? hit_miss_count->hit_count : 0;
+  const unsigned initial_miss = (!needs_reset) ? hit_miss_count->miss_count : 0;
+
+  CovReal p_x_ml_given_voxel;
+  CovReal p_x_ml_given_sample;
+  calculateSampleLikelihoods(cov_voxel, sensor, sample, voxel_mean, sensor_noise, &p_x_ml_given_voxel,
+                             &p_x_ml_given_sample);
+  const CovReal prod = p_x_ml_given_voxel * p_x_ml_given_sample;
+  const CovReal eta = (CovReal)0.5 * adaptation_rate;  // NOLINT
+
+  // Logically we should yeild the following results:
+  // 1. needs_reset is true:
+  //    - initial_hit = 0
+  //    - initial_miss = 0
+  //    => hit_count = 0
+  //    => miss_count = 0
+  // 2. needs_reset is false and point_count < sample_threshold
+  //    - initial_hit = hit_miss_count->hit_count
+  //    - initial_miss = hit_miss_count->miss_count
+  //    - hit_count increment_condition is true
+  //    - miss_count increment_condition is false
+  //    -> ++hit_count
+  // 3. needs_reset is false and point_count >= sample_threshold
+  //    - initial_hit = hit_miss_count->hit_count
+  //    - initial_miss = hit_miss_count->miss_count
+  //    - hit_count increment_condition true if (prod >= eta)
+  //    - miss_count increment_condition true if (prod < eta && p_x_ml_given_voxel >= eta)
+  //    -> hit_count may increment
+  //    -> miss_count may increment
+
+  hit_miss_count->hit_count = initial_hit + (!needs_reset && (point_count < sample_threshold || prod >= eta));
+  hit_miss_count->miss_count =
+    initial_miss + (!needs_reset && point_count >= sample_threshold && prod < eta && p_x_ml_given_voxel >= eta);
 }
 
 
@@ -566,7 +578,8 @@ inline __device__ CovVec3 calculateMissNdt(const CovarianceVoxel *cov_voxel, flo
   // a = P[-1] l
   // b = (l_0 - u)
 
-  CovReal p_x_ml_given_voxel, p_x_ml_given_sample;
+  CovReal p_x_ml_given_voxel;
+  CovReal p_x_ml_given_sample;
   const CovVec3 voxel_maximum_likelihood = calculateSampleLikelihoods(
     cov_voxel, sensor, sample, voxel_mean, sensor_noise, &p_x_ml_given_voxel, &p_x_ml_given_sample);
 
