@@ -32,6 +32,7 @@
 #include <iostream>
 #include <locale>
 #include <sstream>
+#include <unordered_map>
 #include <vector>
 
 namespace
@@ -54,6 +55,7 @@ struct Options
   bool compare_layout = false;
   bool compare_voxels = false;
   bool stop_on_error = false;
+  bool tolerances = false;
 };
 }  // namespace
 
@@ -73,6 +75,7 @@ int parseOptions(Options *opt, int argc, char *argv[])  // NOLINT(modernize-avoi
       ("layers", "List of layers to limit comparison to. Affects layout and voxel comparison.", cxxopts::value(opt->layers))
       ("layout", "Compare map layouts and report differences?", optVal(opt->compare_layout))
       ("stop-on-error", "Stop on the first error?", optVal(opt->stop_on_error))
+      ("tolerances", "Allow some error tolerance?.", optVal(opt->tolerances))
       ("voxels", "Compare voxel content? Limited to the list of layers specified.", optVal(opt->compare_voxels))
       ;
     // clang-format on
@@ -107,6 +110,51 @@ int parseOptions(Options *opt, int argc, char *argv[])  // NOLINT(modernize-avoi
   }
 
   return 0;
+}
+
+using ToleranceMap = std::unordered_map<std::string, std::shared_ptr<ohm::MapLayer>>;
+
+void buildDefaultLayerTolerances(ToleranceMap &map)
+{
+  // TODO(KS): validate the default tolerances.
+  // Build a map of tolerances for the default layers.
+
+  // Occupancy layer
+  std::shared_ptr<ohm::MapLayer> layer = std::make_shared<ohm::MapLayer>(ohm::default_layer::occupancyLayerName());
+  ohm::compare::configureTolerance(*layer, "occupancy", 1e2f);
+  map.emplace(std::make_pair(std::string(layer->name()), layer));
+
+  // Cannot support a difference in the quantised mean value.
+  // // Mean layer
+  // layer = std::make_shared<ohm::MapLayer>(ohm::default_layer::meanLayerName());
+  // ohm::compare::configureTolerance(*layer, "count", uint32_t(1));
+  // map.emplace(std::make_pair(std::string(layer->name()), layer));
+
+  // Mean layer
+  layer = std::make_shared<ohm::MapLayer>(ohm::default_layer::covarianceLayerName());
+  // Cannot support a difference in the quantised mean value.
+  const float p_err = 1e-2f;
+  ohm::compare::configureTolerance(*layer, "P00", p_err);
+  ohm::compare::configureTolerance(*layer, "P01", p_err);
+  ohm::compare::configureTolerance(*layer, "P11", p_err);
+  ohm::compare::configureTolerance(*layer, "P02", p_err);
+  ohm::compare::configureTolerance(*layer, "P12", p_err);
+  ohm::compare::configureTolerance(*layer, "P22", p_err);
+  map.emplace(std::make_pair(std::string(layer->name()), layer));
+
+  layer = std::make_shared<ohm::MapLayer>(ohm::default_layer::clearanceLayerName());
+  ohm::compare::configureTolerance(*layer, "clearance", 1e-3f);
+  map.emplace(std::make_pair(std::string(layer->name()), layer));
+
+  layer = std::make_shared<ohm::MapLayer>(ohm::default_layer::intensityLayerName());
+  ohm::compare::configureTolerance(*layer, "mean", 1e-3f);
+  ohm::compare::configureTolerance(*layer, "cov", 1e-3f);
+  map.emplace(std::make_pair(std::string(layer->name()), layer));
+
+  layer = std::make_shared<ohm::MapLayer>(ohm::default_layer::intensityLayerName());
+  ohm::compare::configureTolerance(*layer, "mean", 1e-3f);
+  ohm::compare::configureTolerance(*layer, "cov", 1e-3f);
+  map.emplace(std::make_pair(std::string(layer->name()), layer));
 }
 
 // Extract the list of layers in map
@@ -280,9 +328,18 @@ int main(int argc, char *argv[])
   {
     std::cout << "Comparing voxels" << std::endl;
     bool voxels_ok = true;
+
+    ToleranceMap tolerances;
+    if (opt.tolerances)
+    {
+      buildDefaultLayerTolerances(tolerances);
+    }
     for (const auto &layer_name : input_layer_list)
     {
-      auto voxel_result = ohm::compare::compareVoxels(input_map, ref_map, layer_name, compare_flags, log);
+      std::shared_ptr<ohm::MapLayer> tolerance = tolerances[layer_name];
+
+      auto voxel_result =
+        ohm::compare::compareVoxels(input_map, ref_map, layer_name, tolerance.get(), compare_flags, log);
       voxels_ok = voxel_result.layout_match && voxel_result.voxels_failed == 0 && voxels_ok;
       std::cout << layer_name << ' ' << (voxel_result.layout_match && voxel_result.voxels_failed == 0 ? "ok" : "failed")
                 << std::endl;

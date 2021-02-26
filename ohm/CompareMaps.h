@@ -84,7 +84,32 @@ bool ohm_API compareLayoutLayer(const OccupancyMap &eval_map, const OccupancyMap
 /// Compare the voxel identified by @p key in two voxel buffers. The presumptions are that the same key is referencing
 /// equivalent voxels from two different maps.
 ///
-/// This checks the content member by member.
+/// This checks the content member by member. A tolerance in value differences is supported via the @p toleranace
+/// object. Whenever a member is matched for value comparison, we looking the @c tolerance for a member of the same
+/// name (and type). When found, the @c VoxelLayoutT<T>::memberClearValue() is read and used as the allowed absolute
+/// error difference between the eval map and the reference map.
+///
+/// For example, the following code configures an allowed deviation in occupancy value of:
+///
+/// @code
+/// // Instantiate the tolerance object.
+/// ohm::MapLayer occupancy_tolerance("occupancy");
+/// auto voxel_layout = occupancy_tolerance.voxelLayout();
+/// // Add an 'occupancy' member.
+/// float tolerance = 1e-2f;
+/// voxel_layout.addMember("occupancy", ohm::DataType::kFloat, *(uint64_t*)&tolerance);
+/// @endcode
+///
+/// A convenience function, @c configureTolerance(), is provided to assist in configuring tolerances.
+/// This changes the example above to:
+///
+/// @code
+/// // Instantiate the tolerance object.
+/// ohm::MapLayer occupancy_tolerance("occupancy");
+/// ohm::compare::configureTolerance(occupancy_tolerance, "occupancy", 1e-2f);
+/// @endcode
+///
+/// Hopefully this usage of @c MapLayer doesn't prove "too clever".
 ///
 /// @param key Identifies the voxel of interest. Must be valid in both buffers.
 /// @param eval_buffer The voxel buffer containing the data to evaluate. May be null, otherwise the @p key be a valid
@@ -94,10 +119,12 @@ bool ohm_API compareLayoutLayer(const OccupancyMap &eval_map, const OccupancyMap
 /// key into this buffer. A null buffer is a failure condition.
 /// @param ref_voxel_layout The voxel layer associated with the @p ref_buffer.
 /// @param log Logging function.
+/// @param tolerance A dummy @c MapLayer object which wraps the allowed tolerances for differences in voxel member
+/// values.
 /// @return False if any validation step fails.
 bool ohm_API compareVoxel(const Key &key, VoxelBuffer<const VoxelBlock> &eval_buffer,
                           VoxelLayoutConst &eval_voxel_layout, VoxelBuffer<const VoxelBlock> &ref_buffer,
-                          VoxelLayoutConst &ref_voxel_layout, Log log = emptyLog);
+                          VoxelLayoutConst &ref_voxel_layout, const MapLayer *tolerance = nullptr, Log log = emptyLog);
 
 /// Compare the layer content for all voxels in @p ref_map ensuring they exit in, and match in @c eval_map.
 ///
@@ -105,10 +132,40 @@ bool ohm_API compareVoxel(const Key &key, VoxelBuffer<const VoxelBlock> &eval_bu
 /// @param ref_map The reference map.
 /// @param flags See @c Flag values.
 /// @param layer_name The name fo the layer to compare voxel content.
+/// @param tolerance A dummy @c MapLayer object which wraps the allowed tolerances for differences in voxel member
+/// values. See @c compareVoxel().
 /// @param log Logging function.
 /// @return False if any validation step fails.
 VoxelsResult ohm_API compareVoxels(const OccupancyMap &eval_map, const OccupancyMap &ref_map,
-                                   const std::string &layer_name, unsigned flags = 0, Log log = emptyLog);
+                                   const std::string &layer_name, const MapLayer *tolerance = nullptr,
+                                   unsigned flags = 0, Log log = emptyLog);
+
+
+/// Configure a data tolerance value for @c member_name. The allowed absolute error tolerance is @p epsilon.
+///
+/// See @c compareVoxel() for intended usage.
+/// @param layer The tolerance object to configure.
+/// @param member_name The data member name to configure tolerance for.
+/// @param epsilon The allowed error limit (absolute value is used).
+void configureTolerance(ohm::MapLayer &layer, const char *member_name, int8_t epsilon);
+/// @overload
+void configureTolerance(ohm::MapLayer &layer, const char *member_name, uint8_t epsilon);
+/// @overload
+void configureTolerance(ohm::MapLayer &layer, const char *member_name, int16_t epsilon);
+/// @overload
+void configureTolerance(ohm::MapLayer &layer, const char *member_name, uint16_t epsilon);
+/// @overload
+void configureTolerance(ohm::MapLayer &layer, const char *member_name, int32_t epsilon);
+/// @overload
+void configureTolerance(ohm::MapLayer &layer, const char *member_name, uint32_t epsilon);
+/// @overload
+void configureTolerance(ohm::MapLayer &layer, const char *member_name, int64_t epsilon);
+/// @overload
+void configureTolerance(ohm::MapLayer &layer, const char *member_name, uint64_t epsilon);
+/// @overload
+void configureTolerance(ohm::MapLayer &layer, const char *member_name, float epsilon);
+/// @overload
+void configureTolerance(ohm::MapLayer &layer, const char *member_name, double epsilon);
 }  // namespace compare
 }  // namespace ohm
 

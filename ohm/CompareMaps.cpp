@@ -9,7 +9,9 @@
 #include "MapLayer.h"
 #include "MapLayout.h"
 #include "OccupancyMap.h"
+#include "VoxelBuffer.h"
 
+#include <algorithm>
 #include <memory>
 #include <sstream>
 #include <vector>
@@ -24,7 +26,6 @@ void buildLogMessage(std::ostream &out, T val)
   out << val;
 }
 
-#include "VoxelBuffer.h"
 template <typename T, typename... Args>
 void buildLogMessage(std::ostream &out, T val, const Args &... args)
 {
@@ -50,6 +51,24 @@ bool compareItem(const T &val, const T &ref, Log log, Severity severity, const A
   }
 
   return true;
+}
+
+template <typename T>
+bool compareDatum(const void *val_ptr, const void *ref_ptr, uint64_t tolerance)
+{
+  T val{};
+  T ref{};
+  T epsilon{};
+  memcpy(&val, val_ptr, sizeof(T));
+  memcpy(&ref, ref_ptr, sizeof(T));
+  memcpy(&epsilon, &tolerance, sizeof(T));
+
+  // We may have unsigned quantities, so ensure the we subtract from the larger
+  if (ref > val)
+  {
+    std::swap(ref, val);
+  }
+  return (val - ref) <= epsilon;
 }
 }  // namespace
 
@@ -123,7 +142,8 @@ bool compareLayoutLayer(const OccupancyMap &eval_map, const OccupancyMap &ref_ma
 
 
 bool compareVoxel(const Key &key, VoxelBuffer<const VoxelBlock> &eval_buffer, VoxelLayoutConst &eval_voxel_layout,
-                  VoxelBuffer<const VoxelBlock> &ref_buffer, VoxelLayoutConst &ref_voxel_layout, Log log)
+                  VoxelBuffer<const VoxelBlock> &ref_buffer, VoxelLayoutConst &ref_voxel_layout,
+                  const MapLayer *tolerance, Log log)
 {
   if (!eval_buffer.isValid())
   {
@@ -176,14 +196,80 @@ bool compareVoxel(const Key &key, VoxelBuffer<const VoxelBlock> &eval_buffer, Vo
     }
 
     // Check value.
-    const uint8_t *ref_mem = static_cast<const uint8_t *>(ref_voxel_layout.memberPtr(i, ref_buffer.voxelMemory()));
-    const uint8_t *eval_mem =
-      static_cast<const uint8_t *>(eval_voxel_layout.memberPtr(eval_member_index, eval_buffer.voxelMemory()));
+    int tolerance_index = (tolerance) ? tolerance->voxelLayout().indexOf(ref_name.c_str()) : -1;
 
     bool value_match = true;
-    for (size_t b = 0; b < ref_voxel_layout.memberSize(i); ++b)
+    if (tolerance_index != -1)
     {
-      value_match = value_match && ref_mem[b] == eval_mem[b];
+      // Comparison with tolerance.
+      switch (ref_voxel_layout.memberType(i))
+      {
+      case DataType::kInt8:
+        value_match = compareDatum<int8_t>(eval_voxel_layout.memberPtr(eval_member_index, eval_buffer.voxelMemory()),
+                                           ref_voxel_layout.memberPtr(i, ref_buffer.voxelMemory()),
+                                           tolerance->voxelLayout().memberClearValue(tolerance_index));
+        break;
+      case DataType::kUInt8:
+        value_match = compareDatum<uint8_t>(eval_voxel_layout.memberPtr(eval_member_index, eval_buffer.voxelMemory()),
+                                            ref_voxel_layout.memberPtr(i, ref_buffer.voxelMemory()),
+                                            tolerance->voxelLayout().memberClearValue(tolerance_index));
+        break;
+      case DataType::kInt16:
+        value_match = compareDatum<int16_t>(eval_voxel_layout.memberPtr(eval_member_index, eval_buffer.voxelMemory()),
+                                            ref_voxel_layout.memberPtr(i, ref_buffer.voxelMemory()),
+                                            tolerance->voxelLayout().memberClearValue(tolerance_index));
+        break;
+      case DataType::kUInt16:
+        value_match = compareDatum<uint16_t>(eval_voxel_layout.memberPtr(eval_member_index, eval_buffer.voxelMemory()),
+                                             ref_voxel_layout.memberPtr(i, ref_buffer.voxelMemory()),
+                                             tolerance->voxelLayout().memberClearValue(tolerance_index));
+        break;
+      case DataType::kInt32:
+        value_match = compareDatum<int32_t>(eval_voxel_layout.memberPtr(eval_member_index, eval_buffer.voxelMemory()),
+                                            ref_voxel_layout.memberPtr(i, ref_buffer.voxelMemory()),
+                                            tolerance->voxelLayout().memberClearValue(tolerance_index));
+        break;
+      case DataType::kUInt32:
+        value_match = compareDatum<uint32_t>(eval_voxel_layout.memberPtr(eval_member_index, eval_buffer.voxelMemory()),
+                                             ref_voxel_layout.memberPtr(i, ref_buffer.voxelMemory()),
+                                             tolerance->voxelLayout().memberClearValue(tolerance_index));
+        break;
+      case DataType::kInt64:
+        value_match = compareDatum<int64_t>(eval_voxel_layout.memberPtr(eval_member_index, eval_buffer.voxelMemory()),
+                                            ref_voxel_layout.memberPtr(i, ref_buffer.voxelMemory()),
+                                            tolerance->voxelLayout().memberClearValue(tolerance_index));
+        break;
+      case DataType::kUInt64:
+        value_match = compareDatum<uint64_t>(eval_voxel_layout.memberPtr(eval_member_index, eval_buffer.voxelMemory()),
+                                             ref_voxel_layout.memberPtr(i, ref_buffer.voxelMemory()),
+                                             tolerance->voxelLayout().memberClearValue(tolerance_index));
+        break;
+      case DataType::kFloat:
+        value_match = compareDatum<float>(eval_voxel_layout.memberPtr(eval_member_index, eval_buffer.voxelMemory()),
+                                          ref_voxel_layout.memberPtr(i, ref_buffer.voxelMemory()),
+                                          tolerance->voxelLayout().memberClearValue(tolerance_index));
+        break;
+      case DataType::kDouble:
+        value_match = compareDatum<double>(eval_voxel_layout.memberPtr(eval_member_index, eval_buffer.voxelMemory()),
+                                           ref_voxel_layout.memberPtr(i, ref_buffer.voxelMemory()),
+                                           tolerance->voxelLayout().memberClearValue(tolerance_index));
+        break;
+      default:
+        log(Severity::kError, "Unsupported data tolerance");
+        break;
+      }
+    }
+    else
+    {
+      // No tolerance. Raw byte comparison.
+      const uint8_t *ref_mem = static_cast<const uint8_t *>(ref_voxel_layout.memberPtr(i, ref_buffer.voxelMemory()));
+      const uint8_t *eval_mem =
+        static_cast<const uint8_t *>(eval_voxel_layout.memberPtr(eval_member_index, eval_buffer.voxelMemory()));
+
+      for (size_t b = 0; b < ref_voxel_layout.memberSize(i); ++b)
+      {
+        value_match = value_match && ref_mem[b] == eval_mem[b];
+      }
     }
 
     if (!value_match)
@@ -197,7 +283,7 @@ bool compareVoxel(const Key &key, VoxelBuffer<const VoxelBlock> &eval_buffer, Vo
 }
 
 VoxelsResult compareVoxels(const OccupancyMap &eval_map, const OccupancyMap &ref_map, const std::string &layer_name,
-                           unsigned flags, Log log)
+                           const MapLayer *tolerance, unsigned flags, Log log)
 {
   VoxelsResult result{};
 
@@ -235,7 +321,7 @@ VoxelsResult compareVoxels(const OccupancyMap &eval_map, const OccupancyMap &ref
                                    VoxelBuffer<const VoxelBlock>();
     }
 
-    if (compareVoxel(key, eval_buffer, eval_voxel_layout, ref_buffer, ref_voxel_layout, log))
+    if (compareVoxel(key, eval_buffer, eval_voxel_layout, ref_buffer, ref_voxel_layout, tolerance, log))
     {
       ++result.voxels_passed;
     }
@@ -248,5 +334,88 @@ VoxelsResult compareVoxels(const OccupancyMap &eval_map, const OccupancyMap &ref
   }
 
   return result;
+}
+
+
+void configureTolerance(ohm::MapLayer &layer, const char *member_name, DataType::Type data_type, uint64_t epsilon)
+{
+  auto voxel_layout = layer.voxelLayout();
+  voxel_layout.addMember(member_name, data_type, epsilon);
+}
+
+
+void configureTolerance(ohm::MapLayer &layer, const char *member_name, int8_t epsilon)
+{
+  const uint64_t e = std::abs(epsilon);
+  configureTolerance(layer, member_name, DataType::kInt8, e);
+}
+
+
+void configureTolerance(ohm::MapLayer &layer, const char *member_name, uint8_t epsilon)
+{
+  const uint64_t e = epsilon;
+  configureTolerance(layer, member_name, DataType::kUInt8, e);
+}
+
+
+void configureTolerance(ohm::MapLayer &layer, const char *member_name, int16_t epsilon)
+{
+  const uint64_t e = std::abs(epsilon);
+  configureTolerance(layer, member_name, DataType::kInt16, e);
+}
+
+
+void configureTolerance(ohm::MapLayer &layer, const char *member_name, uint16_t epsilon)
+{
+  const uint64_t e = epsilon;
+  configureTolerance(layer, member_name, DataType::kUInt16, e);
+}
+
+
+void configureTolerance(ohm::MapLayer &layer, const char *member_name, int32_t epsilon)
+{
+  const uint64_t e = std::abs(epsilon);
+  configureTolerance(layer, member_name, DataType::kInt32, e);
+}
+
+
+void configureTolerance(ohm::MapLayer &layer, const char *member_name, uint32_t epsilon)
+{
+  const uint64_t e = epsilon;
+  configureTolerance(layer, member_name, DataType::kUInt32, e);
+}
+
+
+void configureTolerance(ohm::MapLayer &layer, const char *member_name, int64_t epsilon)
+{
+  const uint64_t e = std::abs(epsilon);
+  configureTolerance(layer, member_name, DataType::kInt64, e);
+}
+
+
+void configureTolerance(ohm::MapLayer &layer, const char *member_name, uint64_t epsilon)
+{
+  const uint64_t e = epsilon;
+  configureTolerance(layer, member_name, DataType::kUInt64, e);
+}
+
+
+void configureTolerance(ohm::MapLayer &layer, const char *member_name, float epsilon)
+{
+  epsilon = std::abs(epsilon);
+  uint64_t e = 0;
+  static_assert(sizeof(epsilon) <= sizeof(e), "epsilon data type size too large");
+  memcpy(&e, &epsilon, sizeof(epsilon));
+  configureTolerance(layer, member_name, DataType::kFloat, e);
+}
+
+
+void configureTolerance(ohm::MapLayer &layer, const char *member_name, double epsilon)
+{
+  epsilon = std::abs(epsilon);
+  uint64_t e = 0;
+  static_assert(sizeof(epsilon) <= sizeof(e), "epsilon data type size too large");
+  memcpy(&e, &epsilon, sizeof(epsilon));
+  configureTolerance(layer, member_name, DataType::kDouble, e);
 }
 }  // namespace ohm::compare
