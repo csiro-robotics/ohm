@@ -68,7 +68,8 @@ bool compareDatum(const void *val_ptr, const void *ref_ptr, uint64_t tolerance)
   {
     std::swap(ref, val);
   }
-  return (val - ref) <= epsilon;
+  // We do an equality comparison as well as a diff because we may be comparing floating point inf.
+  return val == ref || (val - ref) <= epsilon;
 }
 }  // namespace
 
@@ -138,7 +139,53 @@ bool compareLayoutLayer(const OccupancyMap &eval_map, const OccupancyMap &ref_ma
   }
 
   return ok;
-}  // namespace ohm::compare
+}
+
+
+template <typename T>
+std::string memberValueErrorString(const void *val_ptr, const void *ref_ptr)
+{
+  T val{};
+  T ref{};
+  memcpy(&val, val_ptr, sizeof(T));
+  memcpy(&ref, ref_ptr, sizeof(T));
+
+  std::ostringstream str;
+  str << "have " << val << " expect " << ref;
+  return str.str();
+}
+
+
+std::string memberValueErrorString(DataType::Type data_type, const void *val_ptr, const void *ref_ptr)
+{
+  switch (data_type)
+  {
+  case DataType::kInt8:
+    return memberValueErrorString<int8_t>(val_ptr, ref_ptr);
+  case DataType::kUInt8:
+    return memberValueErrorString<uint8_t>(val_ptr, ref_ptr);
+  case DataType::kInt16:
+    return memberValueErrorString<int16_t>(val_ptr, ref_ptr);
+  case DataType::kUInt16:
+    return memberValueErrorString<uint16_t>(val_ptr, ref_ptr);
+  case DataType::kInt32:
+    return memberValueErrorString<int32_t>(val_ptr, ref_ptr);
+  case DataType::kUInt32:
+    return memberValueErrorString<uint32_t>(val_ptr, ref_ptr);
+  case DataType::kInt64:
+    return memberValueErrorString<int64_t>(val_ptr, ref_ptr);
+  case DataType::kUInt64:
+    return memberValueErrorString<uint64_t>(val_ptr, ref_ptr);
+  case DataType::kFloat:
+    return memberValueErrorString<float>(val_ptr, ref_ptr);
+  case DataType::kDouble:
+    return memberValueErrorString<double>(val_ptr, ref_ptr);
+  default:
+    break;
+  }
+
+  return "<value-error>";
+}
 
 
 bool compareVoxel(const Key &key, VoxelBuffer<const VoxelBlock> &eval_buffer, VoxelLayoutConst &eval_voxel_layout,
@@ -275,7 +322,10 @@ bool compareVoxel(const Key &key, VoxelBuffer<const VoxelBlock> &eval_buffer, Vo
     if (!value_match)
     {
       ok = false;
-      logMessage(log, Severity::kError, "Voxel ", key, " value mismatch on member ", ref_name);
+      std::string error_str = memberValueErrorString(
+        ref_voxel_layout.memberType(i), eval_voxel_layout.memberPtr(eval_member_index, eval_buffer.voxelMemory()),
+        ref_voxel_layout.memberPtr(i, ref_buffer.voxelMemory()));
+      logMessage(log, Severity::kError, "Voxel ", key, " value mismatch on member ", ref_name, ": ", error_str);
     }
   }
 

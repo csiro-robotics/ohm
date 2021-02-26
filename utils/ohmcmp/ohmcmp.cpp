@@ -37,16 +37,6 @@
 
 namespace
 {
-int g_quit = 0;
-
-void onSignal(int arg)
-{
-  if (arg == SIGINT || arg == SIGTERM)
-  {
-    ++g_quit;
-  }
-}
-
 struct Options
 {
   std::string input_map_file;
@@ -204,9 +194,6 @@ int main(int argc, char *argv[])
     return res;
   }
 
-  signal(SIGINT, onSignal);
-  signal(SIGTERM, onSignal);
-
   ohm::OccupancyMap input_map(1.0f);
   ohm::OccupancyMap ref_map(1.0f);
 
@@ -227,7 +214,7 @@ int main(int argc, char *argv[])
       std::cout << "Loading failed" << std::endl;
       return res;
     }
-    std::cout << "Loading reference map " << opt.input_map_file << std::endl;
+    std::cout << "Loading reference map " << opt.ref_map_file << std::endl;
     res = ohm::load(opt.ref_map_file, ref_map, nullptr, &ref_version);
     if (res != 0)
     {
@@ -248,7 +235,7 @@ int main(int argc, char *argv[])
       std::cout << "Loading failed" << std::endl;
       return res;
     }
-    std::cout << "Loading reference map header " << opt.input_map_file << std::endl;
+    std::cout << "Loading reference map header " << opt.ref_map_file << std::endl;
     res = ohm::loadHeader(opt.ref_map_file, ref_map, &ref_version, &ref_region_count);
     if (res != 0)
     {
@@ -341,8 +328,8 @@ int main(int argc, char *argv[])
       auto voxel_result =
         ohm::compare::compareVoxels(input_map, ref_map, layer_name, tolerance.get(), compare_flags, log);
       voxels_ok = voxel_result.layout_match && voxel_result.voxels_failed == 0 && voxels_ok;
-      std::cout << layer_name << ' ' << (voxel_result.layout_match && voxel_result.voxels_failed == 0 ? "ok" : "failed")
-                << std::endl;
+      std::cout << layer_name << " layout " << (voxel_result.layout_match ? "ok" : "failed") << " passed "
+                << voxel_result.voxels_passed << " failed " << voxel_result.voxels_failed << std::endl;
     }
     std::cout << "Voxels " << (voxels_ok ? "ok" : "failed") << std::endl;
     ok = ok && voxels_ok;
