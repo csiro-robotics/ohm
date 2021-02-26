@@ -44,6 +44,8 @@ set(SOURCES
   CalculateSegmentKeys.h
   ClearingPattern.cpp
   ClearingPattern.h
+  CompareMaps.cpp
+  CompareMaps.h
   CovarianceVoxel.cpp
   CovarianceVoxel.h
   CovarianceVoxelCompute.h
@@ -64,6 +66,7 @@ set(SOURCES
   HeightmapVoxelType.h
   Key.cpp
   Key.h
+  KeyStream.h
   KeyHash.h
   KeyList.cpp
   KeyList.h
@@ -165,6 +168,7 @@ set(PUBLIC_HEADERS
   Aabb.h
   CalculateSegmentKeys.h
   ClearingPattern.h
+  CompareMaps.h
   CovarianceVoxel.h
   CovarianceVoxelCompute.h
   DataType.h
@@ -176,6 +180,7 @@ set(PUBLIC_HEADERS
   HeightmapVoxel.h
   HeightmapVoxelType.h
   Key.h
+  KeyStream.h
   KeyHash.h
   KeyList.h
   KeyRange.h
