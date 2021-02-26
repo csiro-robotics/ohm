@@ -27,14 +27,14 @@
 
 namespace ohm
 {
-RayMapperNdt::RayMapperNdt(NdtMap *map, bool ndt_tm)
+RayMapperNdt::RayMapperNdt(NdtMap *map)
   : map_(map)
   , occupancy_layer_(map_->map().layout().occupancyLayer())
   , mean_layer_(map_->map().layout().meanLayer())
   , covariance_layer_(map_->map().layout().covarianceLayer())
   , intensity_layer_(map_->map().layout().intensityLayer())
   , hit_miss_count_layer_(map_->map().layout().hitMissCountLayer())
-  , ndt_tm_(ndt_tm)
+  , ndt_tm_(map->mode() == NdtMode::kTraversability)
 {
   OccupancyMap *map_ptr = &map_->map();
 
@@ -96,7 +96,7 @@ size_t RayMapperNdt::integrateRays(const glm::dvec3 *rays, size_t element_count,
   const auto mean_layer = mean_layer_;
   const auto covariance_layer = covariance_layer_;
 
-  // Compulsory if ndt_tm_
+  // Compulsory if using NdtMode::kTraversability
   const auto intensity_layer = intensity_layer_;
   const auto hit_miss_count_layer = hit_miss_count_layer_;
 
@@ -291,7 +291,7 @@ size_t RayMapperNdt::integrateRays(const glm::dvec3 *rays, size_t element_count,
       {
         intensity_buffer.writeVoxel(voxel_index, intensity_voxel);
         hit_miss_count_buffer.writeVoxel(voxel_index, hit_miss_count_voxel);
-      }    
+      }
 
       // Lint(KS): The analyser takes some branches which are not possible in practice.
       // NOLINTNEXTLINE(clang-analyzer-core.CallAndMessage)
