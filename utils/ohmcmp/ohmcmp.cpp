@@ -42,7 +42,7 @@ struct Options
   std::string input_map_file;
   std::string ref_map_file;
   std::vector<std::string> layers;
-  unsigned verbosity = 2;
+  unsigned verbosity = 1;
   bool compare_layout = false;
   bool compare_voxels = false;
   bool stop_on_error = false;
