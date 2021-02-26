@@ -42,6 +42,7 @@ struct Options
   std::string input_map_file;
   std::string ref_map_file;
   std::vector<std::string> layers;
+  unsigned verbosity = 2;
   bool compare_layout = false;
   bool compare_voxels = false;
   bool stop_on_error = false;
@@ -66,6 +67,7 @@ int parseOptions(Options *opt, int argc, char *argv[])  // NOLINT(modernize-avoi
       ("layout", "Compare map layouts and report differences?", optVal(opt->compare_layout))
       ("stop-on-error", "Stop on the first error?", optVal(opt->stop_on_error))
       ("tolerances", "Allow some error tolerance?.", optVal(opt->tolerances))
+      ("verbosity", "Verbosity level [0, 2].", optVal(opt->verbosity))
       ("voxels", "Compare voxel content? Limited to the list of layers specified.", optVal(opt->compare_voxels))
       ;
     // clang-format on
@@ -275,6 +277,12 @@ int main(int argc, char *argv[])
     *out << prefix << msg << std::endl;
   };
 
+  std::array<ohm::compare::Log, 3> logs;
+  for (size_t i = 0; i < logs.size(); ++i)
+  {
+    logs[i] = (opt.verbosity >= i) ? log : ohm::compare::emptyLog;
+  }
+
   if (input_layer_list != ref_layer_list)
   {
     std::ostringstream str;
@@ -303,7 +311,7 @@ int main(int argc, char *argv[])
     bool layers_ok = true;
     for (const auto &layer_name : input_layer_list)
     {
-      const bool layer_ok = ohm::compare::compareLayoutLayer(input_map, ref_map, layer_name, compare_flags, log);
+      const bool layer_ok = ohm::compare::compareLayoutLayer(input_map, ref_map, layer_name, compare_flags, logs[1]);
       layers_ok = layer_ok && layers_ok;
       std::cout << layer_name << ' ' << (layer_ok ? "ok" : "failed") << std::endl;
     }
@@ -326,7 +334,7 @@ int main(int argc, char *argv[])
       std::shared_ptr<ohm::MapLayer> tolerance = tolerances[layer_name];
 
       auto voxel_result =
-        ohm::compare::compareVoxels(input_map, ref_map, layer_name, tolerance.get(), compare_flags, log);
+        ohm::compare::compareVoxels(input_map, ref_map, layer_name, tolerance.get(), compare_flags, logs[2]);
       voxels_ok = voxel_result.layout_match && voxel_result.voxels_failed == 0 && voxels_ok;
       std::cout << layer_name << " layout " << (voxel_result.layout_match ? "ok" : "failed") << " passed "
                 << voxel_result.voxels_passed << " failed " << voxel_result.voxels_failed << std::endl;
