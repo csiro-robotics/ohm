@@ -453,10 +453,15 @@ inline __device__ void calculateHitMissUpdateOnHit(CovarianceVoxel *cov_voxel, f
 
   CovReal p_x_ml_given_voxel;
   CovReal p_x_ml_given_sample;
+  // FIXME(KS): This is calculated both here and in calculateMissNdt(). We need only calculate once and share the
+  // results
   calculateSampleLikelihoods(cov_voxel, sensor, sample, voxel_mean, sensor_noise, &p_x_ml_given_voxel,
                              &p_x_ml_given_sample);
   const CovReal prod = p_x_ml_given_voxel * p_x_ml_given_sample;
   const CovReal eta = (CovReal)0.5 * adaptation_rate;  // NOLINT
+
+  const bool inc_hit = needs_reset || point_count < sample_threshold || point_count >= sample_threshold && prod >= eta;
+  const bool inc_miss = !needs_reset && prod < eta && p_x_ml_given_voxel >= eta;
 
   // Logically we should yeild the following results:
   // 1. needs_reset is true:
@@ -478,9 +483,8 @@ inline __device__ void calculateHitMissUpdateOnHit(CovarianceVoxel *cov_voxel, f
   //    -> hit_count may increment
   //    -> miss_count may increment
 
-  hit_miss_count->hit_count = initial_hit + (!needs_reset && (point_count < sample_threshold || prod >= eta));
-  hit_miss_count->miss_count =
-    initial_miss + (!needs_reset && point_count >= sample_threshold && prod < eta && p_x_ml_given_voxel >= eta);
+  hit_miss_count->hit_count = initial_hit + (inc_hit ? 1 : 0);
+  hit_miss_count->miss_count = initial_miss + (inc_miss ? 1 : 0);
 }
 
 
