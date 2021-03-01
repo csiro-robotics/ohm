@@ -333,6 +333,8 @@ void GpuMap::syncVoxels()
     gpumap::sync(*imp_->map, kGcIdOccupancy);
     gpumap::sync(*imp_->map, kGcIdVoxelMean);
     gpumap::sync(*imp_->map, kGcIdCovariance);
+    gpumap::sync(*imp_->map, kGcIdIntensity);
+    gpumap::sync(*imp_->map, kGcIdHitMiss);
   }
 }
 
