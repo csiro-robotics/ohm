@@ -271,8 +271,8 @@ GpuMap::GpuMap(GpuMapDetail *detail, unsigned expected_element_count, size_t gpu
       gputil::Buffer(gpu_cache.gpu(), sizeof(GpuKey) * expected_element_count, gputil::kBfReadHost);
     imp_->ray_buffers[i] =
       gputil::Buffer(gpu_cache.gpu(), sizeof(gputil::float3) * expected_element_count, gputil::kBfReadHost);
-    // imp_->intensities_buffers[i] =
-    //   gputil::Buffer(gpu_cache.gpu(), sizeof(float) * expected_element_count, gputil::kBfReadHost);
+    imp_->intensities_buffers[i] =
+      gputil::Buffer(gpu_cache.gpu(), sizeof(float) * expected_element_count, gputil::kBfReadHost);
     imp_->region_key_buffers[i] =
       gputil::Buffer(gpu_cache.gpu(), sizeof(gputil::int3) * prealloc_region_count, gputil::kBfReadHost);
 
@@ -836,20 +836,23 @@ bool GpuMap::enqueueRegion(const glm::i16vec3 &region_key, int buffer_index)
 
   for (VoxelUploadInfo &voxel_info : imp_->voxel_upload_info[buffer_index])
   {
-    GpuLayerCache &layer_cache = *gpu_cache.layerCache(voxel_info.gpu_layer_id);
-    auto mem_offset = uint64_t(layer_cache.upload(*imp_->map, region_key, chunk, &voxel_info.voxel_upload_event,
-                                                  &status, imp_->batch_marker, GpuLayerCache::kAllowRegionCreate));
-
-    if (status == GpuLayerCache::kCacheFull)
+    GpuLayerCache *layer_cache = gpu_cache.layerCache(voxel_info.gpu_layer_id);
+    if (layer_cache)
     {
-      return false;
-    }
+      auto mem_offset = uint64_t(layer_cache->upload(*imp_->map, region_key, chunk, &voxel_info.voxel_upload_event,
+                                                     &status, imp_->batch_marker, GpuLayerCache::kAllowRegionCreate));
 
-    // std::cout << "region: [" << regionKey.x << ' ' <<
-    // regionKey.y << ' ' << regionKey.z << ']' <<
-    // std::endl;
-    voxel_info.offsets_buffer_pinned.write(&mem_offset, sizeof(mem_offset),
-                                           imp_->region_counts[buffer_index] * sizeof(mem_offset));
+      if (status == GpuLayerCache::kCacheFull)
+      {
+        return false;
+      }
+
+      // std::cout << "region: [" << regionKey.x << ' ' <<
+      // regionKey.y << ' ' << regionKey.z << ']' <<
+      // std::endl;
+      voxel_info.offsets_buffer_pinned.write(&mem_offset, sizeof(mem_offset),
+                                             imp_->region_counts[buffer_index] * sizeof(mem_offset));
+    }
   }
 
   return true;

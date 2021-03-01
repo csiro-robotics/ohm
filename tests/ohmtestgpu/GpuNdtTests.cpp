@@ -47,7 +47,7 @@ void testNdtHits(const std::vector<glm::dvec3> &samples, double resolution)
   std::unordered_map<ohm::Key, CovTestVoxel, ohm::KeyHash> reference_voxels;
 
   ohm::OccupancyMap map(resolution, ohm::MapFlag::kVoxelMean);
-  ohm::GpuNdtMap ndt(&map, true);
+  ohm::GpuNdtMap ndt(&map, true, ohm::NdtMode::kTraversability);
 
   // Simulate a sensor at the origin. Not used.
   const glm::dvec3 sensor(0.0);
