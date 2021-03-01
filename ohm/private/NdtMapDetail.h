@@ -9,6 +9,7 @@
 #include "OhmConfig.h"
 
 #include "MapProbability.h"
+#include "NdtMode.h"
 
 namespace ohm
 {
@@ -34,6 +35,8 @@ struct NdtMapDetail
   unsigned reinitialise_covariance_point_count = 100;
   /// Covariance of intensity (for NDT-TM) for initialisation upon receipt of first hit.
   float initial_intensity_covariance = 1.0f;
+  /// The NDT mapping mode. Must not be @c kNone in the @c NdtMap usage case.
+  NdtMode mode = NdtMode::kOccupancy;
   /// True if @p map is a borrowed pointer, false to take ownership and delete it.
   bool borrowed_map = false;
   /// Debug tracing enabled? Requires 3es

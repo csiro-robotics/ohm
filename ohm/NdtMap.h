@@ -7,6 +7,8 @@
 
 #include "OhmConfig.h"
 
+#include "NdtMode.h"
+
 #include <glm/fwd.hpp>
 
 namespace ohm
@@ -35,6 +37,16 @@ struct NdtMapDetail;
 class ohm_API NdtMap
 {
 public:
+  /// NDT mapping mode
+  enum class Mode
+  {
+    kNone,  ///< Ndt not in use. This value cannot be passed to the constructor - behaviour is undefined.
+    /// Ndt occupancy map mode. This uses the occupancy, mean and covariance layers.
+    kOccupancy,
+    /// Ndt traversability map. A super set of @c Mode::kOccupancy which adds intensity and covariance hit/miss count.
+    kTraversability  ///< Ndt traversability mode.
+  };
+
   /// Create an NDT map for the given @c OccupancyMap . The voxel layout is adjusted to include a layer for
   /// @c CovarianceVoxel data.
   ///
@@ -42,10 +54,9 @@ public:
   /// ownership of the @c OccupancyMap .
   ///
   /// @param map The occupancy map to apply NDT updates to.
-  /// @param ndt_tm True if map should be NDT Traversability Map, which additionally includes intensity mean and
-  /// covariance, and hit/miss count.
   /// @param borrowed_map True if @p map is a borrowed pointer. False if the NDT map takes ownership of the memory.
-  NdtMap(OccupancyMap *map, bool ndt_tm, bool borrowed_map);
+  /// @param mode The NDT mapping mode. Using @c NdtMode::kNone is invalid in the context and behaviour is undefined.
+  NdtMap(OccupancyMap *map, bool borrowed_map, NdtMode mode = NdtMode::kOccupancy);
 
   /// Destructor: destroys the @c map() if @c borrowedMap() is false.
   ~NdtMap();
@@ -55,6 +66,9 @@ public:
   /// Access the underlying occupancy map.
   const OccupancyMap &map() const;
 
+  /// Specified the NDT mode the map is to use.
+  NdtMode mode() const;
+
   /// True if @p map() is a borrowed pointer, false if the NDT map takes ownership.
   bool borrowedMap() const;
 
@@ -63,7 +77,7 @@ public:
   /// @param rate The adaptation rate to set [0, 1]
   void setAdaptationRate(float rate);
   /// Query the adaptation rate, which affects how quickly NDT logic removes intersected voxels.
-  /// @return The current adapatation rate.
+  /// @return The current adaptation rate.
   float adaptationRate() const;
 
   /// Set the range sensor noise estimate. For example, the range noise for a lidar sensor.
@@ -89,7 +103,7 @@ public:
   /// @return The reset probability threshold value.
   float reinitialiseCovarianceThreshold() const;
 
-    /// Set the occupancy threshold value at which the covariance matrix may be reinitialised.
+  /// Set the occupancy threshold value at which the covariance matrix may be reinitialised.
   ///
   /// This maps to the @c reinitialise_sample_count parameter of @c calculateHitWithCovariance() . See that function
   /// for details.
@@ -97,7 +111,7 @@ public:
   void setReinitialiseCovariancePointCount(unsigned count);
 
   /// Get the occupancy threshold value at which the covariance matrix may be reinitialised.
-  /// @return The reset point count treshold.
+  /// @return The reset point count threshold.
   unsigned reinitialiseCovariancePointCount() const;
 
   /// Set the initial covariance of intensity.
@@ -124,10 +138,9 @@ private:
   /// Enable NDT for the given @p map. This enables voxel mean positioning and adds a voxel layer to store the
   /// voxel covariance matrix approximation.
   /// @param map The occupancy map to enable NDT for.
-  /// @param ndt_tm True if map should be NDT Traversability Map, which additionally includes intensity mean and
-  /// covariance, and hit/miss count.
+  /// @param ndt_mode Specifies the NDT mapping mode. Must not be @c NdtMode::kNone.
   /// @return The voxel layer index for the covariance matrix.
-  static int enableNdt(OccupancyMap *map, bool ndt_tm);
+  static int enableNdt(OccupancyMap *map, NdtMode ndt_mode);
 
   NdtMapDetail *imp_;
 };

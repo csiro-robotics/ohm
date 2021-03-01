@@ -16,4 +16,4 @@ inline __device__ float calculateOccupancyAdjustment(const GpuKey *voxelKey, boo
   return adjustment;
 }
 
-#endif  // ADJUSTNDT_CL
+#endif  // ADJUSTOCCUPANCY_CL

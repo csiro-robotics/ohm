@@ -54,7 +54,7 @@ void testNdtHits(const std::vector<glm::dvec3> &samples, const std::vector<glm::
   std::unordered_map<ohm::Key, CovTestVoxel, ohm::KeyHash> reference_voxels;
 
   ohm::OccupancyMap map(resolution, ohm::MapFlag::kVoxelMean);
-  ohm::NdtMap ndt(&map, false, true);
+  ohm::NdtMap ndt(&map, true);
 
   // Simulate a sensor at the origin. Not used.
   const glm::dvec3 sensor(0.0);
@@ -144,7 +144,7 @@ void testNdtMiss(const glm::dvec3 &sensor, const std::vector<glm::dvec3> samples
 {
   (void)sensor;  // Only used for 3es debugging.
   ohm::OccupancyMap map(voxel_resolution, ohm::MapFlag::kVoxelMean);
-  ohm::NdtMap ndt(&map, false, true);
+  ohm::NdtMap ndt(&map, true);
 
   map.setOrigin(map_origin);
   // Set explicit probabilities

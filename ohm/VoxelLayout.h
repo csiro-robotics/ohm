@@ -46,6 +46,11 @@ public:
   /// @param other Object to move.
   VoxelLayoutT(VoxelLayoutT<T> &&other) noexcept;
 
+  /// Looking the index of a member by name.
+  /// @param name The name to lookup.
+  /// @return The index of the member matching @p name, or -1 on failure.
+  int indexOf(const char *name) const;
+
   /// Query the name of the member at @p memberIndex.
   /// @param member_index The index of the member to query.
   /// @return The member name or null if @p memberIndex is out of range.

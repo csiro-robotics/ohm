@@ -27,14 +27,14 @@
 
 namespace ohm
 {
-RayMapperNdt::RayMapperNdt(NdtMap *map, bool ndt_tm)
+RayMapperNdt::RayMapperNdt(NdtMap *map)
   : map_(map)
   , occupancy_layer_(map_->map().layout().occupancyLayer())
   , mean_layer_(map_->map().layout().meanLayer())
   , covariance_layer_(map_->map().layout().covarianceLayer())
   , intensity_layer_(map_->map().layout().intensityLayer())
   , hit_miss_count_layer_(map_->map().layout().hitMissCountLayer())
-  , ndt_tm_(ndt_tm)
+  , ndt_tm_(map->mode() == NdtMode::kTraversability)
 {
   OccupancyMap *map_ptr = &map_->map();
 
@@ -96,7 +96,7 @@ size_t RayMapperNdt::integrateRays(const glm::dvec3 *rays, size_t element_count,
   const auto mean_layer = mean_layer_;
   const auto covariance_layer = covariance_layer_;
 
-  // Compulsory if ndt_tm_
+  // Compulsory if using NdtMode::kTraversability
   const auto intensity_layer = intensity_layer_;
   const auto hit_miss_count_layer = hit_miss_count_layer_;
 
@@ -135,7 +135,8 @@ size_t RayMapperNdt::integrateRays(const glm::dvec3 *rays, size_t element_count,
       cov_buffer = VoxelBuffer<VoxelBlock>(chunk->voxel_blocks[covariance_layer]);
       if (ndt_tm_)
       {
-        intensity_buffer = VoxelBuffer<VoxelBlock>(chunk->voxel_blocks[intensity_layer]);
+        // Intensity not required for miss update, but we need it in sync for the update later.
+        intensity_buffer = VoxelBuffer<VoxelBlock>(chunk->voxel_blocks[intensity_layer_]);
         hit_miss_count_buffer = VoxelBuffer<VoxelBlock>(chunk->voxel_blocks[hit_miss_count_layer]);
       }
     }
@@ -152,21 +153,17 @@ size_t RayMapperNdt::integrateRays(const glm::dvec3 *rays, size_t element_count,
     const float initial_value = occupancy_value;
     float adjusted_value = initial_value;
 
+    bool is_miss = false;
+    calculateMissNdt(&cov, &adjusted_value, &is_miss, start, sample, mean, voxel_mean.count, unobservedOccupancyValue(),
+                     miss_value, ndt_adaptation_rate, sensor_noise, ndt_sample_threshold);
+
     if (ndt_tm_)
     {
+      // Note we don't need hit count in miss calculation.
       HitMissCount hit_miss_count_voxel;
       hit_miss_count_buffer.readVoxel(voxel_index, &hit_miss_count_voxel);
-      calculateMissNdt(&cov, &adjusted_value, &hit_miss_count_voxel, start, sample, mean, voxel_mean.count,
-                       unobservedOccupancyValue(), miss_value, ndt_adaptation_rate, sensor_noise, ndt_sample_threshold);
-      // TODO: handle contention--could change to single uint32 for miss count, use hit count in mean (modified with
-      // ndt-tm update rules). Currently suboptimal as we don't need hit count in miss calculation.
+      hit_miss_count_voxel.miss_count += (is_miss) ? 1u : 0u;
       hit_miss_count_buffer.writeVoxel(voxel_index, hit_miss_count_voxel);
-    }
-    else
-    {
-      HitMissCount hit_miss_count_voxel{ 0, 0 };
-      calculateMissNdt(&cov, &adjusted_value, &hit_miss_count_voxel, start, sample, mean, voxel_mean.count,
-                       unobservedOccupancyValue(), miss_value, ndt_adaptation_rate, sensor_noise, ndt_sample_threshold);
     }
 
     occupancyAdjustDown(&occupancy_value, initial_value, adjusted_value, unobservedOccupancyValue(), voxel_min,
@@ -291,7 +288,7 @@ size_t RayMapperNdt::integrateRays(const glm::dvec3 *rays, size_t element_count,
       {
         intensity_buffer.writeVoxel(voxel_index, intensity_voxel);
         hit_miss_count_buffer.writeVoxel(voxel_index, hit_miss_count_voxel);
-      }    
+      }
 
       // Lint(KS): The analyser takes some branches which are not possible in practice.
       // NOLINTNEXTLINE(clang-analyzer-core.CallAndMessage)

@@ -79,6 +79,8 @@ struct RayItem
   Key origin_key;
   /// Map @c Key corresponding to @p sample .
   Key sample_key;
+  /// Intensity value associated with the @p sample .
+  float intensity;
   /// @c RayFilterFlag values corresponding to any modification which have been made to @p origin and @p sample .
   unsigned filter_flags;
 };
@@ -98,6 +100,8 @@ struct GpuMapDetail
   std::array<gputil::Event, kBuffersCount> ray_upload_events;
   /// Buffers of rays to process float3 pairs. Coordinates are local to the centre of the start voxel for each pair.
   std::array<gputil::Buffer, kBuffersCount> ray_buffers;
+  /// Buffers to upload sample intensities - a single floating point value per sample.
+  std::array<gputil::Buffer, kBuffersCount> intensities_buffers;
 
   std::array<gputil::Event, kBuffersCount> region_key_upload_events;
   std::array<gputil::Buffer, kBuffersCount> region_key_buffers;

@@ -271,6 +271,8 @@ GpuMap::GpuMap(GpuMapDetail *detail, unsigned expected_element_count, size_t gpu
       gputil::Buffer(gpu_cache.gpu(), sizeof(GpuKey) * expected_element_count, gputil::kBfReadHost);
     imp_->ray_buffers[i] =
       gputil::Buffer(gpu_cache.gpu(), sizeof(gputil::float3) * expected_element_count, gputil::kBfReadHost);
+    imp_->intensities_buffers[i] =
+      gputil::Buffer(gpu_cache.gpu(), sizeof(float) * expected_element_count, gputil::kBfReadHost);
     imp_->region_key_buffers[i] =
       gputil::Buffer(gpu_cache.gpu(), sizeof(gputil::int3) * prealloc_region_count, gputil::kBfReadHost);
 
@@ -331,6 +333,8 @@ void GpuMap::syncVoxels()
     gpumap::sync(*imp_->map, kGcIdOccupancy);
     gpumap::sync(*imp_->map, kGcIdVoxelMean);
     gpumap::sync(*imp_->map, kGcIdCovariance);
+    gpumap::sync(*imp_->map, kGcIdIntensity);
+    gpumap::sync(*imp_->map, kGcIdHitMiss);
   }
 }
 
@@ -458,7 +462,7 @@ void GpuMap::releaseGpuProgram()
 }
 
 
-size_t GpuMap::integrateRays(const glm::dvec3 *rays, size_t element_count, const float * /*intensities*/,
+size_t GpuMap::integrateRays(const glm::dvec3 *rays, size_t element_count, const float *intensities,
                              unsigned region_update_flags, const RayFilterFunction &filter)
 {
   if (!imp_->map)
@@ -513,9 +517,15 @@ size_t GpuMap::integrateRays(const glm::dvec3 *rays, size_t element_count, const
   // Reserve GPU memory for the rays.
   imp_->key_buffers[buf_idx].resize(sizeof(GpuKey) * element_count);
   imp_->ray_buffers[buf_idx].resize(sizeof(gputil::float3) * element_count);
+  if (intensities)
+  {
+    imp_->intensities_buffers[buf_idx].resize(sizeof(float) * element_count);
+  }
 
   gputil::PinnedBuffer keys_pinned(imp_->key_buffers[buf_idx], gputil::kPinWrite);
   gputil::PinnedBuffer rays_pinned(imp_->ray_buffers[buf_idx], gputil::kPinWrite);
+  gputil::PinnedBuffer intensities_pinned =
+    intensities ? gputil::PinnedBuffer(imp_->intensities_buffers[buf_idx], gputil::kPinWrite) : gputil::PinnedBuffer();
 
   // Build region set and upload rays.
   imp_->regions.clear();
@@ -533,7 +543,8 @@ size_t GpuMap::integrateRays(const glm::dvec3 *rays, size_t element_count, const
   //
   // In either case we use the same code to actually upload
   // We set add_ray_upload to contain the "loop body" for both cases.
-  const auto upload_ray = [&](const RayItem &ray)  //
+  using RayUploadFunc = std::function<void(const RayItem &)>;
+  const RayUploadFunc upload_ray_core = [&](const RayItem &ray)  //
   {
     // Upload if not preloaded.
     line_start_key_gpu.region[0] = ray.origin_key.regionKey()[0];
@@ -575,6 +586,16 @@ size_t GpuMap::integrateRays(const glm::dvec3 *rays, size_t element_count, const
     // std::cout << "dirs: " << (ray_end - ray_start) << " vs " << (ray_end_d - ray_start_d) << std::endl;
     walkRegions(*imp_->map, ray.origin, ray.sample, region_func);
   };
+
+  const RayUploadFunc upload_ray_with_intensity = [&](const RayItem &ray)  //
+  {
+    // Note: upload_count tracks the number of float3 items uploaded, so it increments by 2 each step - sensor & sample.
+    // Intensities are matched one per sample, so we halve it's value here.
+    intensities_pinned.write(&ray.intensity, sizeof(ray.intensity), (upload_count / 2) * sizeof(ray.intensity));
+    upload_ray_core(ray);
+  };
+
+  const RayUploadFunc upload_ray = (intensities) ? upload_ray_with_intensity : upload_ray_core;
 
   RayItem ray{};
   if (!imp_->group_rays)
@@ -673,6 +694,10 @@ size_t GpuMap::integrateRays(const glm::dvec3 *rays, size_t element_count, const
   // Asynchronous unpin. Kernels will wait on the associated event.
   keys_pinned.unpin(&gpu_cache->gpuQueue(), nullptr, &imp_->key_upload_events[buf_idx]);
   rays_pinned.unpin(&gpu_cache->gpuQueue(), nullptr, &imp_->ray_upload_events[buf_idx]);
+  if (intensities)
+  {
+    intensities_pinned.unpin(&gpu_cache->gpuQueue(), nullptr, &imp_->ray_upload_events[buf_idx]);
+  }
 
   imp_->ray_counts[buf_idx] = unsigned(upload_count / 2);
 
@@ -813,20 +838,23 @@ bool GpuMap::enqueueRegion(const glm::i16vec3 &region_key, int buffer_index)
 
   for (VoxelUploadInfo &voxel_info : imp_->voxel_upload_info[buffer_index])
   {
-    GpuLayerCache &layer_cache = *gpu_cache.layerCache(voxel_info.gpu_layer_id);
-    auto mem_offset = uint64_t(layer_cache.upload(*imp_->map, region_key, chunk, &voxel_info.voxel_upload_event,
-                                                  &status, imp_->batch_marker, GpuLayerCache::kAllowRegionCreate));
-
-    if (status == GpuLayerCache::kCacheFull)
+    GpuLayerCache *layer_cache = gpu_cache.layerCache(voxel_info.gpu_layer_id);
+    if (layer_cache)
     {
-      return false;
-    }
+      auto mem_offset = uint64_t(layer_cache->upload(*imp_->map, region_key, chunk, &voxel_info.voxel_upload_event,
+                                                     &status, imp_->batch_marker, GpuLayerCache::kAllowRegionCreate));
 
-    // std::cout << "region: [" << regionKey.x << ' ' <<
-    // regionKey.y << ' ' << regionKey.z << ']' <<
-    // std::endl;
-    voxel_info.offsets_buffer_pinned.write(&mem_offset, sizeof(mem_offset),
-                                           imp_->region_counts[buffer_index] * sizeof(mem_offset));
+      if (status == GpuLayerCache::kCacheFull)
+      {
+        return false;
+      }
+
+      // std::cout << "region: [" << regionKey.x << ' ' <<
+      // regionKey.y << ' ' << regionKey.z << ']' <<
+      // std::endl;
+      voxel_info.offsets_buffer_pinned.write(&mem_offset, sizeof(mem_offset),
+                                             imp_->region_counts[buffer_index] * sizeof(mem_offset));
+    }
   }
 
   return true;

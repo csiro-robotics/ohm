@@ -11,6 +11,7 @@
 #include "private/GpuMapDetail.h"
 
 #include <ohm/NdtMap.h>
+#include <ohm/NdtMode.h>
 
 namespace ohm
 {
@@ -20,10 +21,9 @@ struct GpuNdtMapDetail : public GpuMapDetail
   gputil::Kernel cov_hit_kernel;
   NdtMap ndt_map;
 
-
-  GpuNdtMapDetail(OccupancyMap *map, bool borrowed_map)
+  GpuNdtMapDetail(OccupancyMap *map, bool borrowed_map, NdtMode mode)
     : GpuMapDetail(map, borrowed_map)
-    , ndt_map(map, false, true)  // Ensures correct initialisation for NDT operations.
+    , ndt_map(map, true, mode)  // Ensures correct initialisation for NDT operations.
   {}
 };
 }  // namespace ohm

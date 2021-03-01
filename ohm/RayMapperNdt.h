@@ -34,7 +34,7 @@ public:
   /// Constructor, wrapping the interface around the given @p map .
   ///
   /// @param map The target map. Must outlive this class.
-  RayMapperNdt(NdtMap *map, bool ndt_tm = false);
+  RayMapperNdt(NdtMap *map);
 
   /// Destructor
   ~RayMapperNdt() override;
@@ -63,16 +63,16 @@ public:
   using RayMapper::integrateRays;
 
 protected:
-  NdtMap *map_;                ///< Target map.
-  int occupancy_layer_ = -1;   ///< Cached occupancy layer index.
-  int mean_layer_ = -1;        ///< Cached voxel mean layer index.
-  int covariance_layer_ = -1;  ///< Cached covariance layer index.
-  int intensity_layer_ = -1;   ///< Cached intensity layer index.
+  NdtMap *map_;                    ///< Target map.
+  int occupancy_layer_ = -1;       ///< Cached occupancy layer index.
+  int mean_layer_ = -1;            ///< Cached voxel mean layer index.
+  int covariance_layer_ = -1;      ///< Cached covariance layer index.
+  int intensity_layer_ = -1;       ///< Cached intensity layer index.
   int hit_miss_count_layer_ = -1;  ///< Cached hit miss count layer index.
   /// Cached occupancy layer voxel dimensions. Voxel mean and covariance layers must exactly match.
   glm::u8vec3 occupancy_dim_{ 0, 0, 0 };
   bool valid_ = false;  ///< Has layer validation passed?
-  const bool ndt_tm_; ///< Does map implement ndt-tm?
+  const bool ndt_tm_;   ///< Does map implement ndt-tm?
 };
 
 }  // namespace ohm

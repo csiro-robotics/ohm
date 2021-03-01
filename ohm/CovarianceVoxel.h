@@ -48,7 +48,7 @@ void ohm_API covarianceEigenDecomposition(const CovarianceVoxel *cov, glm::dmat3
                                           glm::dvec3 *eigenvalues);
 
 /// @ingroup voxelcovariance
-/// Estimate a primary normal from the given covariance. This selects the eivenvector with the smallest eigenvalue.
+/// Estimate a primary normal from the given covariance. This selects the eigenvector with the smallest eigenvalue.
 /// This may be ambiguous.
 /// @param cov The covariance data for the voxel.
 /// @param normal The normal value is written here.
@@ -106,7 +106,7 @@ void covDebugStats();
 /// @param map The @c NdtMap to integrate the hit for.
 /// @param key The key for the voxel to modify. This is the voxel containing @p sample
 /// @param sensor The sensor location from which the @p sample was attained.
-/// @param sample The gobal sample coordinate.
+/// @param sample The global sample coordinate.
 /// @param sample_intensity The intensity value of the lidar sample.
 void ohm_API integrateNdtHit(NdtMap &map, const Key &key, const glm::dvec3 &sensor, const glm::dvec3 &sample,
                              bool ndt_tm = false, float sample_intensity = 0.0f);
@@ -116,7 +116,7 @@ void ohm_API integrateNdtHit(NdtMap &map, const Key &key, const glm::dvec3 &sens
 /// @param key The key for the voxel to modify. This is a voxel along the line segment @p sensor to @p sample , but
 /// not the voxel containing @p sample .
 /// @param sensor The sensor location from which the @p sample was attained.
-/// @param sample The gobal sample coordinate.
+/// @param sample The global sample coordinate.
 void ohm_API integrateNdtMiss(NdtMap &map, const Key &key, const glm::dvec3 &sensor, const glm::dvec3 &sample,
                               bool ndt_tm = false);
 }  // namespace ohm
