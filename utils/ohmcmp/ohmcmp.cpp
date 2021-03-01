@@ -182,6 +182,41 @@ void filterLayers(std::vector<std::string> *layers, const std::vector<std::strin
   }
 }
 
+struct OccupancyStats
+{
+  uint64_t occupied = 0;
+  uint64_t free = 0;
+};
+
+OccupancyStats calcuateOccupancyStats(const ohm::OccupancyMap &map, const std::string &context)
+{
+  OccupancyStats stats{};
+  ohm::Voxel<const float> occupancy_voxel(&map, map.layout().occupancyLayer());
+
+  if (occupancy_voxel.isLayerValid())
+  {
+    std::cout << "Counting " << context << " voxels" << std::endl;
+
+    for (auto iter = map.begin(); iter != map.end(); ++iter)
+    {
+      occupancy_voxel.setKey(iter);
+      switch (ohm::occupancyType(occupancy_voxel))
+      {
+      case ohm::kOccupied:
+        ++stats.occupied;
+        break;
+      case ohm::kFree:
+        ++stats.free;
+        break;
+      default:
+        break;
+      }
+    }
+  }
+
+  return stats;
+}
+
 int main(int argc, char *argv[])
 {
   Options opt;
@@ -307,7 +342,6 @@ int main(int argc, char *argv[])
 
   if (opt.compare_layout)
   {
-    std::cout << "Comparing layers" << std::endl;
     bool layers_ok = true;
     for (const auto &layer_name : input_layer_list)
     {
@@ -321,6 +355,14 @@ int main(int argc, char *argv[])
 
   if (opt.compare_voxels)
   {
+    const OccupancyStats input_stats = calcuateOccupancyStats(input_map, "input");
+    std::cout << "  occupied: " << input_stats.occupied << std::endl;
+    std::cout << "  free    : " << input_stats.free << std::endl;
+    const OccupancyStats ref_stats = calcuateOccupancyStats(ref_map, "ref");
+    std::cout << "  occupied: " << ref_stats.occupied << std::endl;
+    std::cout << "  free    : " << ref_stats.free << std::endl;
+    std::cout << "Comparing layers" << std::endl;
+
     std::cout << "Comparing voxels" << std::endl;
     bool voxels_ok = true;
 
