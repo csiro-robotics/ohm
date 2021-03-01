@@ -518,19 +518,22 @@ inline __device__ void calculateHitMissUpdateOnHit(CovarianceVoxel *cov_voxel, f
 /// @param sample_threshold The @p point_count required before using NDT logic, i.e., before the covariance value is
 /// usable.
 /// @return The point where the ray has the highest likelihood in the voxel Gaussian, x_ML
-inline __device__ CovVec3 calculateMissNdt(const CovarianceVoxel *cov_voxel, float *voxel_value,
-                                           HitMissCount *hit_miss_count, CovVec3 sensor, CovVec3 sample,
-                                           CovVec3 voxel_mean, unsigned point_count, float uninitialised_value,
-                                           float miss_value, float adaptation_rate, float sensor_noise,
-                                           unsigned sample_threshold)
+inline __device__ CovVec3 calculateMissNdt(const CovarianceVoxel *cov_voxel, float *voxel_value, bool *is_miss,
+                                           CovVec3 sensor, CovVec3 sample, CovVec3 voxel_mean, unsigned point_count,
+                                           float uninitialised_value, float miss_value, float adaptation_rate,
+                                           float sensor_noise, unsigned sample_threshold)
 {
   if (*voxel_value == uninitialised_value)
   {
     // First touch of the voxel. Apply the miss value as is.
     // Same behaviour as OccupancyMap.
     *voxel_value = miss_value;
-    hit_miss_count->hit_count = 0;
-    hit_miss_count->miss_count = 1;
+    // // TODO(KS): We can probably get away with just incrementing the miss count here. We assume that the voxel layer
+    // // is initialised to zero (this is true) and assume that the uninitialised value stays in sync (mostly true). The
+    // // latter assumption can be broken when a voxel is explicitly set to be uninitialised via non-standard update.
+    // hit_miss_count->hit_count = 0;
+    // hit_miss_count->miss_count = 1;
+    *is_miss = true;
     return voxel_mean;
   }
 
@@ -540,7 +543,8 @@ inline __device__ CovVec3 calculateMissNdt(const CovarianceVoxel *cov_voxel, flo
     // Re-enforcement of free voxel or too few points to resolve a Gaussian. Use standard value update.
     // Add miss value, same behaviour as OccupancyMap.
     *voxel_value += miss_value;
-    ++hit_miss_count->miss_count;
+    // ++hit_miss_count->miss_count;
+    *is_miss = true;
     return voxel_mean;
   }
 
@@ -593,7 +597,8 @@ inline __device__ CovVec3 calculateMissNdt(const CovarianceVoxel *cov_voxel, flo
   const CovReal probability_update = 0.5 - scaling_factor * prod;
 
   // NDT-TM update of miss count
-  hit_miss_count->miss_count += prod < scaling_factor ? 1 : 0;
+  // hit_miss_count->miss_count += prod < scaling_factor ? 1 : 0;
+  *is_miss = prod < scaling_factor;
 
   // Check for NaN
   // This should no longer be occurring.

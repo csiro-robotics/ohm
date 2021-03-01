@@ -12,9 +12,19 @@
 
 #include <ohm/NdtMode.h>
 
+#include <array>
+
+namespace gputil
+{
+struct Dim3;
+class Event;
+class EventList;
+}  // namespace gputil
+
 namespace ohm
 {
 class NdtMap;
+class GpuLayerCache;
 struct GpuNdtMapDetail;
 
 /// A GPU implementation of the @c NdtMap algorithm.
@@ -107,6 +117,12 @@ protected:
   void cacheGpuProgram(bool with_voxel_mean, bool force) override;
 
   void finaliseBatch(unsigned region_update_flags) override;
+
+  using TouchedCacheSet = std::array<GpuLayerCache *, 8>;
+  void invokeNdtOm(unsigned region_update_flags, int buf_idx, gputil::EventList &wait, const gputil::Dim3 &global_size,
+                   TouchedCacheSet &used_caches);
+  void invokeNdtTm(unsigned region_update_flags, int buf_idx, gputil::EventList &wait, const gputil::Dim3 &global_size,
+                   TouchedCacheSet &used_caches);
 
   void releaseGpuProgram() override;
 };

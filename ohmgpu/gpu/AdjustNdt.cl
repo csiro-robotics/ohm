@@ -6,6 +6,8 @@
 #ifndef ADJUSTNDT_CL
 #define ADJUSTNDT_CL
 
+#include "NdtModeDef.cl"
+
 #include "CovarianceVoxelCompute.h"
 
 inline __device__ float calculateOccupancyAdjustment(const GpuKey *voxelKey, bool isEndVoxel, const GpuKey *startKey,
@@ -45,11 +47,23 @@ inline __device__ float calculateOccupancyAdjustment(const GpuKey *voxelKey, boo
 
   float adjustment = 0;
   const int min_sample_threshold = 4;  // Should be passed in.
-  HitMissCount hit_miss_count;
-  hit_miss_count.hit_count = hit_miss_count.miss_count = 0;
+
+  bool is_miss;
   const float3 voxel_maximum_likelihood = calculateMissNdt(
-    &cov_voxel, &adjustment, &hit_miss_count, line_data->sensor, line_data->sample, voxel_mean, mean_data->count,
-    INFINITY, line_data->ray_adjustment, line_data->adaptation_rate, line_data->sensor_noise, min_sample_threshold);
+    &cov_voxel, &adjustment, &is_miss, line_data->sensor, line_data->sample, voxel_mean, mean_data->count, INFINITY,
+    line_data->ray_adjustment, line_data->adaptation_rate, line_data->sensor_noise, min_sample_threshold);
+
+#if NDT == NDT_TM
+  // We increment the miss if needed.
+  if (is_miss)
+  {
+    __global HitMissCount *hit_miss =
+      &line_data
+         ->hit_miss[(line_data->hit_miss_offsets[line_data->current_region_index] / sizeof(*line_data->hit_miss)) +
+                    vi_local];
+    gputilAtomicAdd(&hit_miss->miss_count, 1);
+  }
+#endif  // NDT == NDT_TM
 
   // NDT should do sample update in a separate process in order to update the covariance, so we should not get here.
   return (!isEndVoxel || line_data->region_update_flags & kRfEndPointAsFree) ? adjustment : 0;

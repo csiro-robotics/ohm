@@ -80,8 +80,11 @@ void reinitialiseGpuCache(GpuCache *gpu_cache, OccupancyMap &map, unsigned flags
     const int occupancy_layer = map.layout().occupancyLayer();
     const int mean_layer = map.layout().meanLayer();
     const int covariance_layer = map.layout().covarianceLayer();
+    const int intensity_layer = map.layout().intensityLayer();
+    const int hit_miss_layer = map.layout().hitMissCountLayer();
     const int clearance_layer = map.layout().clearanceLayer();
-    std::vector<int> known_layers = { occupancy_layer, mean_layer, covariance_layer, clearance_layer };
+    std::array<int, 6> known_layers = { occupancy_layer, mean_layer,     covariance_layer,
+                                        intensity_layer, hit_miss_layer, clearance_layer };
 
     // Calculate the relative layer memory sizes.
     std::map<int, size_t> layer_mem_weight;
@@ -125,6 +128,20 @@ void reinitialiseGpuCache(GpuCache *gpu_cache, OccupancyMap &map, unsigned flags
       // TODO(KS): add the write flag if we move to being able to process the samples on GPU too.
       gpu_cache->createCache(kGcIdCovariance, GpuLayerCacheParams{ layer_mem_weight[covariance_layer], covariance_layer,
                                                                    kGcfRead | kGcfWrite | mappable_flag });
+    }
+
+    // Intensity mean and covaraince.
+    if (intensity_layer >= 0)
+    {
+      gpu_cache->createCache(kGcIdIntensity, GpuLayerCacheParams{ layer_mem_weight[intensity_layer], intensity_layer,
+                                                                  kGcfRead | kGcfWrite | mappable_flag });
+    }
+
+    // Ndt-tm hit/miss count
+    if (hit_miss_layer >= 0)
+    {
+      gpu_cache->createCache(kGcIdHitMiss, GpuLayerCacheParams{ layer_mem_weight[hit_miss_layer], hit_miss_layer,
+                                                                kGcfRead | kGcfWrite | mappable_flag });
     }
 
     // Note: we create the clearance gpu cache if we have a clearance layer, but it caches the occupancy_layer as that

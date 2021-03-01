@@ -135,7 +135,7 @@ size_t RayMapperNdt::integrateRays(const glm::dvec3 *rays, size_t element_count,
       cov_buffer = VoxelBuffer<VoxelBlock>(chunk->voxel_blocks[covariance_layer]);
       if (ndt_tm_)
       {
-        intensity_buffer = VoxelBuffer<VoxelBlock>(chunk->voxel_blocks[intensity_layer]);
+        // Intensity not required for miss update. Needs a sample.
         hit_miss_count_buffer = VoxelBuffer<VoxelBlock>(chunk->voxel_blocks[hit_miss_count_layer]);
       }
     }
@@ -152,21 +152,17 @@ size_t RayMapperNdt::integrateRays(const glm::dvec3 *rays, size_t element_count,
     const float initial_value = occupancy_value;
     float adjusted_value = initial_value;
 
+    bool is_miss = false;
+    calculateMissNdt(&cov, &adjusted_value, &is_miss, start, sample, mean, voxel_mean.count, unobservedOccupancyValue(),
+                     miss_value, ndt_adaptation_rate, sensor_noise, ndt_sample_threshold);
+
     if (ndt_tm_)
     {
+      // Note we don't need hit count in miss calculation.
       HitMissCount hit_miss_count_voxel;
       hit_miss_count_buffer.readVoxel(voxel_index, &hit_miss_count_voxel);
-      calculateMissNdt(&cov, &adjusted_value, &hit_miss_count_voxel, start, sample, mean, voxel_mean.count,
-                       unobservedOccupancyValue(), miss_value, ndt_adaptation_rate, sensor_noise, ndt_sample_threshold);
-      // TODO: handle contention--could change to single uint32 for miss count, use hit count in mean (modified with
-      // ndt-tm update rules). Currently suboptimal as we don't need hit count in miss calculation.
+      hit_miss_count_voxel.miss_count += (is_miss) ? 1u : 0u;
       hit_miss_count_buffer.writeVoxel(voxel_index, hit_miss_count_voxel);
-    }
-    else
-    {
-      HitMissCount hit_miss_count_voxel{ 0, 0 };
-      calculateMissNdt(&cov, &adjusted_value, &hit_miss_count_voxel, start, sample, mean, voxel_mean.count,
-                       unobservedOccupancyValue(), miss_value, ndt_adaptation_rate, sensor_noise, ndt_sample_threshold);
     }
 
     occupancyAdjustDown(&occupancy_value, initial_value, adjusted_value, unobservedOccupancyValue(), voxel_min,

@@ -6,6 +6,8 @@
 
 #include "gpu_ext.h"  // Must be first
 
+#include "NdtModeDef.cl"
+
 #include "CovarianceVoxelCompute.h"
 #include "GpuKey.h"
 #include "MapCoord.h"
@@ -13,40 +15,17 @@
 
 #include "Regions.cl"
 
-typedef struct WorkItem_t
-{
-  CovarianceVoxel cov;
-  // Voxel mean relative to the voxel centre.
-  float3 mean;
-  uint sample_count;
-  float occupancy;
-} WorkItem;
+#include "CovarianceHitNdt_h.cl"
 
-void __device__ collateSample(WorkItem *work_item, float3 sensor, float3 sample, int3 region_dimensions,
-                              float voxel_resolution, float sample_adjustment, float occupied_threshold,
-                              float sensor_noise, float reinitialise_cov_threshold,
-                              unsigned reinitialise_cov_sample_count);
+#undef NDT_HIT_KERNEL
 
+#if NDT == NDT_OM
+#define NDT_HIT_KERNEL covarianceHitNdt
 
-void __device__ collateSample(WorkItem *work_item, float3 sensor, float3 sample, int3 region_dimensions,
-                              float voxel_resolution, float sample_adjustment, float occupied_threshold,
-                              float sensor_noise, float reinitialise_cov_threshold,
-                              unsigned reinitialise_cov_sample_count)
-{
-  // The sample is currently relative to the voxel centre of the end voxel. This is the same reference frame we need
-  // to calculate the quantised mean, so no change is required.
-  if (calculateHitWithCovariance(&work_item->cov, &work_item->occupancy, sample, work_item->mean,
-                                 work_item->sample_count, sample_adjustment, INFINITY, voxel_resolution,
-                                 reinitialise_cov_threshold, reinitialise_cov_sample_count))
-  {
-    // Covariance matrix has reset. Reset the point count to clear the mean value.
-    work_item->sample_count = 0;
-  }
+#elif NDT == NDT_TM
+#define NDT_HIT_KERNEL covarianceHitNdtTm
 
-  const float one_on_count_plus_one = 1.0f / (float)(work_item->sample_count + 1);
-  work_item->mean = (work_item->sample_count * work_item->mean + sample) * one_on_count_plus_one;
-  ++work_item->sample_count;
-}
+#endif  // NDT
 
 /// This kernel integrates the ray sample points only into the map and is executed one thread per sample.
 ///
@@ -107,14 +86,27 @@ void __device__ collateSample(WorkItem *work_item, float3 sensor, float3 sample,
 ///     See @c calculateHitWithCovariance()
 /// @param reinitialise_cov_sample_count The point count required to allow @p reinitialise_cov_threshold to be
 ///     triggered. See @c calculateHitWithCovariance()
-__kernel void covarianceHit(__global atomic_float *occupancy, __global ulonglong *occupancy_region_mem_offsets_global,
-                            __global VoxelMean *means, __global ulonglong *means_region_mem_offsets_global,
-                            __global CovarianceVoxel *cov_voxels, __global ulonglong *cov_region_mem_offsets_global,
-                            __global int3 *occupancy_region_keys_global, uint region_count, __global GpuKey *line_keys,
-                            __global float3 *local_lines, uint line_count, int3 region_dimensions,
-                            float voxel_resolution, float sample_adjustment, float occupied_threshold,
-                            float voxel_value_max, float sensor_noise, float reinitialise_cov_threshold,
-                            unsigned reinitialise_cov_sample_count)
+__kernel void NDT_HIT_KERNEL(__global atomic_float *occupancy, __global ulonglong *occupancy_region_mem_offsets_global,
+                             __global VoxelMean *means, __global ulonglong *means_region_mem_offsets_global,
+                             __global CovarianceVoxel *cov_voxels, __global ulonglong *cov_region_mem_offsets_global,
+#if NDT == NDT_TM
+                             __global IntensityMeanCov *intensity_voxels,
+                             __global ulonglong *intensity_region_mem_offsets_global,
+                             __global HitMissCount *hit_miss_voxels,
+                             __global ulonglong *hit_miss_region_mem_offsets_global,
+#endif  // NDT == NDT_TM
+                             __global int3 *occupancy_region_keys_global, uint region_count, __global GpuKey *line_keys,
+                             __global float3 *local_lines, uint line_count,
+#if NDT == NDT_TM
+                             __global float *intensities,
+#endif  // NDT == NDT_TM
+                             int3 region_dimensions, float voxel_resolution, float sample_adjustment,
+                             float occupied_threshold, float voxel_value_max,
+#if NDT == NDT_TM
+                             float initial_intensity_covariance, unsigned ndt_sample_threshold, float adaptation_rate,
+#endif  // NDT == NDT_TM
+                             float sensor_noise, float reinitialise_cov_threshold,
+                             unsigned reinitialise_cov_sample_count)
 {
   if (get_global_id(0) >= line_count)
   {
@@ -152,6 +144,9 @@ __kernel void covarianceHit(__global atomic_float *occupancy, __global ulonglong
   const uint region_local_index = start_voxel.voxel[0] + start_voxel.voxel[1] * region_dimensions.x +
                                   start_voxel.voxel[2] * region_dimensions.x * region_dimensions.y;
   uint occupancy_index, mean_index, cov_index;
+#if NDT == NDT_TM
+  uint intensity_index, hit_miss_index;
+#endif  // NDT == NDT_TM
 
   // Resolve the read/write indices for the target voxel. We need indices into occupancy, means and cov_voxels.
   // Dummy arguments for regionsResolveRegion(). We will only perform one lookup for each data type.
@@ -168,6 +163,12 @@ __kernel void covarianceHit(__global atomic_float *occupancy, __global ulonglong
   occupancy_index = (uint)(region_local_index + occupancy_region_mem_offsets_global[region_index] / sizeof(*occupancy));
   mean_index = (uint)(region_local_index + means_region_mem_offsets_global[region_index] / sizeof(*means));
   cov_index = (uint)(region_local_index + cov_region_mem_offsets_global[region_index] / sizeof(*cov_voxels));
+#if NDT == NDT_TM
+  intensity_index =
+    (uint)(region_local_index + intensity_region_mem_offsets_global[region_index] / sizeof(*intensity_voxels));
+  hit_miss_index =
+    (uint)(region_local_index + hit_miss_region_mem_offsets_global[region_index] / sizeof(*hit_miss_voxels));
+#endif  // NDT == NDT_TM
 
   // Cache initial values.
   WorkItem work_item;
@@ -183,6 +184,17 @@ __kernel void covarianceHit(__global atomic_float *occupancy, __global ulonglong
   work_item.cov.trianglar_covariance[4] = cov_voxels[cov_index].trianglar_covariance[4];
   work_item.cov.trianglar_covariance[5] = cov_voxels[cov_index].trianglar_covariance[5];
 
+#if NDT == NDT_TM
+  IntensityMeanCov intensity_cov;  // = intensity_voxels[intensity_index];
+  HitMissCount hit_miss_count;     // = hit_miss_voxels[hit_miss_index];
+
+  intensity_cov.intensity_mean = intensity_voxels[intensity_index].intensity_mean;
+  intensity_cov.intensity_cov = intensity_voxels[intensity_index].intensity_cov;
+
+  hit_miss_count.hit_count = hit_miss_voxels[hit_miss_index].hit_count;
+  hit_miss_count.miss_count = hit_miss_voxels[hit_miss_index].miss_count;
+#endif  // NDT == NDT_TM
+
   // Now update by iterating from the starting voxel until we change voxels or reach the end of the set.
   uint added = 0;
   for (uint i = get_global_id(0); i < line_count; ++i)
@@ -194,7 +206,18 @@ __kernel void covarianceHit(__global atomic_float *occupancy, __global ulonglong
       // This indicates the end point is a trancated part of the ray and not a real sample.
       if (target_voxel.voxel[3] == 0)
       {
-        // Still within the starting voxel.
+#if NDT == NDT_TM
+        const bool reinitialise_permeability_with_covariance = true;  // TODO: make a parameter of map
+        calculateHitMissUpdateOnHit(&work_item.cov, work_item.occupancy, &hit_miss_count, local_lines[i * 2],
+                                    local_lines[i * 2 + 1], work_item.mean, work_item.sample_count, INFINITY,
+                                    reinitialise_permeability_with_covariance, adaptation_rate, sensor_noise,
+                                    reinitialise_cov_threshold, reinitialise_cov_sample_count, ndt_sample_threshold);
+
+        calculateIntensityUpdateOnHit(&intensity_cov, work_item.occupancy, intensities[i], initial_intensity_covariance,
+                                      work_item.sample_count, reinitialise_cov_threshold,
+                                      reinitialise_cov_sample_count);
+#endif  // NDT == NDT_TM
+
         collateSample(&work_item, local_lines[i * 2], local_lines[i * 2 + 1], region_dimensions, voxel_resolution,
                       sample_adjustment, occupied_threshold, sensor_noise, reinitialise_cov_threshold,
                       reinitialise_cov_sample_count);
@@ -224,4 +247,8 @@ __kernel void covarianceHit(__global atomic_float *occupancy, __global ulonglong
   means[mean_index].coord = subVoxelCoord(work_item.mean, voxel_resolution);
   means[mean_index].count = work_item.sample_count;
   cov_voxels[cov_index] = work_item.cov;
+#if NDT == NDT_TM
+  intensity_voxels[intensity_index] = intensity_cov;
+  hit_miss_voxels[hit_miss_index] = hit_miss_count;
+#endif  // NDT == NDT_TM
 }

@@ -111,7 +111,7 @@ public:
   void setReinitialiseCovariancePointCount(unsigned count);
 
   /// Get the occupancy threshold value at which the covariance matrix may be reinitialised.
-  /// @return The reset point count treshold.
+  /// @return The reset point count threshold.
   unsigned reinitialiseCovariancePointCount() const;
 
   /// Set the initial covariance of intensity.
