@@ -135,7 +135,8 @@ size_t RayMapperNdt::integrateRays(const glm::dvec3 *rays, size_t element_count,
       cov_buffer = VoxelBuffer<VoxelBlock>(chunk->voxel_blocks[covariance_layer]);
       if (ndt_tm_)
       {
-        // Intensity not required for miss update. Needs a sample.
+        // Intensity not required for miss update, but we need it in sync for the update later.
+        intensity_buffer = VoxelBuffer<VoxelBlock>(chunk->voxel_blocks[intensity_layer_]);
         hit_miss_count_buffer = VoxelBuffer<VoxelBlock>(chunk->voxel_blocks[hit_miss_count_layer]);
       }
     }
