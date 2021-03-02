@@ -130,7 +130,7 @@ void showReport(std::ostream &o, const ProfileRecord &record, const ThreadRecord
   std::string indent(level * 2, ' ');
   std::string count_str;
   const auto average_time = (record.marker_count) ? record.total_time / record.marker_count : ProfileClock::duration(0);
-  delimetedInteger(count_str, record.marker_count);
+  util::delimetedInteger(count_str, record.marker_count);
   o << indent << record.name << " cur: " << record.recent << " avg: " << average_time << " max: " << record.max_time
     << " total: " << record.total_time << " / " << count_str << " calls\n";
 

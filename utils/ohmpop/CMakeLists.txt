@@ -53,6 +53,8 @@ function(_ohmpop_setup GPU_MODE)
 
   if(GPU_MODE STREQUAL "cpu")
     target_compile_definitions(${TARGET_NAME} PUBLIC "-DOHMPOP_CPU")
+  else()
+    target_compile_definitions(${TARGET_NAME} PUBLIC "-DOHMPOP_GPU")
   endif(GPU_MODE STREQUAL "cpu")
 
   install(TARGETS ${TARGET_NAME} DESTINATION bin)

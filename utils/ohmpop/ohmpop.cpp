@@ -18,12 +18,13 @@
 #include <ohm/Trace.h>
 #include <ohm/VoxelData.h>
 
-#ifndef OHMPOP_CPU
+#ifdef OHMPOP_GPU
 #include <ohmgpu/ClearanceProcess.h>
+#include <ohmgpu/GpuCache.h>
 #include <ohmgpu/GpuMap.h>
 #include <ohmgpu/GpuNdtMap.h>
 #include <ohmgpu/OhmGpu.h>
-#endif  // OHMPOP_CPU
+#endif  // OHMPOP_GPU
 
 #include <ohmtools/OhmCloud.h>
 
@@ -76,6 +77,17 @@ struct Options
     bool enabled = false;
   };
 
+#ifdef OHMPOP_GPU
+  /// GPU related options.
+  struct Gpu
+  {
+    /// GPU cache size in GiB
+    double gpu_cache_size_gb = double(ohm::GpuCache::kDefaultTargetMemSize) / double(ohm::GpuCache::kGiB);
+
+    inline size_t gpuCacheSizeBytes() const { return size_t(gpu_cache_size_gb * double(ohm::GpuCache::kGiB)); }
+  };
+#endif  // OHMPOP_GPU
+
   std::string cloud_file;
   std::string trajectory_file;
   std::string output_base_name;
@@ -110,13 +122,16 @@ struct Options
   bool save_info = false;
   bool voxel_mean = false;
   bool uncompressed = false;
-#ifndef OHMPOP_CPU
+#ifdef OHMPOP_GPU
+  // Mapping options are experimental and bound up in GPU operations, but not strictly speaking GPU only.
   double mapping_interval = 0.2;  // NOLINT(readability-magic-numbers)
   double progressive_mapping_slice = 0.0;
   float clearance = 0.0f;
   bool post_population_mapping = true;
   bool clearance_unknown_as_occupied = false;
-#endif  // OHMPOP_CPU
+
+  Gpu gpu;
+#endif  // OHMPOP_GPU
   bool quiet = false;
 
   Ndt ndt;
@@ -193,8 +208,6 @@ void Options::print(std::ostream **out, const ohm::OccupancyMap &map) const
       **out << "Process to timestamp: " << time_limit << '\n';
     }
 
-    // std::string mem_size_string;
-    // util::makeMemoryDisplayString(mem_size_string, ohm::OccupancyMap::voxelMemoryPerRegion(region_voxel_dim));
     **out << "Map resolution: " << resolution << '\n';
     **out << "Mapping mode: " << mode << '\n';
     **out << "Voxel mean position: " << (map.voxelMeanEnabled() ? "on" : "off") << '\n';
@@ -205,7 +218,7 @@ void Options::print(std::ostream **out, const ohm::OccupancyMap &map) const
     region_dim.y = (region_dim.y) ? region_dim.y : OHM_DEFAULT_CHUNK_DIM_Y;
     region_dim.z = (region_dim.z) ? region_dim.z : OHM_DEFAULT_CHUNK_DIM_Z;
     **out << "Map region dimensions: " << region_dim << '\n';
-    // **out << "Map region memory: " << mem_size_string << '\n';
+    // **out << "Map region memory: " << util::Bytes(ohm::OccupancyMap::voxelMemoryPerRegion(region_voxel_dim)) << '\n';
     **out << "Hit probability: " << prob_hit << " (" << map.hitValue() << ")\n";
     **out << "Miss probability: " << prob_miss << " (" << map.missValue() << ")\n";
     **out << "Probability range: [" << map.minVoxelProbability() << ' ' << map.maxVoxelProbability() << "]\n";
@@ -218,7 +231,8 @@ void Options::print(std::ostream **out, const ohm::OccupancyMap &map) const
       **out << "NDT covariance reset probability: " << ndt.covariance_reset_probability << '\n';
       **out << "NDT covariance reset sample cout: " << ndt.covariance_reset_sample_count << '\n';
     }
-#ifndef OHMPOP_CPU
+#ifdef OHMPOP_GPU
+    **out << "Gpu cache size: " << ohm::util::Bytes(gpu.gpuCacheSizeBytes()) << '\n';
     **out << "Ray batch size: " << batch_size << '\n';
     **out << "Clearance mapping: ";
     if (clearance > 0)
@@ -242,7 +256,7 @@ void Options::print(std::ostream **out, const ohm::OccupancyMap &map) const
     {
       **out << "post" << '\n';
     }
-#endif  // OHMPOP_CPU
+#endif  // OHMPOP_GPU
 
 #ifdef TES_ENABLE
     if (!trace.empty())
@@ -392,17 +406,19 @@ int populateMap(const Options &opt)
   map_flags |= (opt.voxel_mean) ? ohm::MapFlag::kVoxelMean : ohm::MapFlag::kNone;
   map_flags &= (opt.uncompressed) ? ~ohm::MapFlag::kCompressed : ~ohm::MapFlag::kNone;
   ohm::OccupancyMap map(opt.resolution, opt.region_voxel_dim, map_flags);
-#ifdef OHMPOP_CPU
+#ifdef OHMPOP_GPU
+  const size_t gpu_cache_size = opt.gpu.gpuCacheSizeBytes();
+  std::unique_ptr<ohm::GpuMap> gpu_map((!opt.ndt.enabled) ?
+                                         new ohm::GpuMap(&map, true, opt.batch_size, gpu_cache_size) :
+                                         new ohm::GpuNdtMap(&map, true, opt.batch_size, gpu_cache_size));
+  ohm::NdtMap *ndt_map = &static_cast<ohm::GpuNdtMap *>(gpu_map.get())->ndtMap();
+#else   // OHMPOP_GPU
   std::unique_ptr<ohm::NdtMap> ndt_map;
   if (opt.ndt.enabled)
   {
     ndt_map = std::make_unique<ohm::NdtMap>(&map, true);
   }
-#else   // OHMPOP_CPU
-  std::unique_ptr<ohm::GpuMap> gpu_map((!opt.ndt.enabled) ? new ohm::GpuMap(&map, true, opt.batch_size) :
-                                                            new ohm::GpuNdtMap(&map, true, opt.batch_size));
-  ohm::NdtMap *ndt_map = &static_cast<ohm::GpuNdtMap *>(gpu_map.get())->ndtMap();
-#endif  // OHMPOP_CPU
+#endif  // OHMPOP_GPU
 
   if (opt.voxel_mean)
   {
@@ -467,7 +483,9 @@ int populateMap(const Options &opt)
 #endif  // TES_ENABLE
 
   ohm::RayMapper *ray_mapper = nullptr;
-#ifdef OHMPOP_CPU
+#ifdef OHMPOP_GPU
+  ray_mapper = gpu_map.get();
+#else   // !OHMPOP_GPU
   std::unique_ptr<ohm::RayMapperNdt> ndt_ray_mapper;
   ohm::RayMapperOccupancy ray_mapper2(&map);
   if (opt.ndt.enabled)
@@ -480,9 +498,7 @@ int populateMap(const Options &opt)
   {
     ray_mapper = &ray_mapper2;
   }
-#else   // OHMPOP_CPU
-  ray_mapper = gpu_map.get();
-#endif  // OHMPOP_CPU
+#endif  // !OHMPOP_GPU
 
 #ifdef TES_ENABLE
   if (!opt.trace.empty())
@@ -509,19 +525,19 @@ int populateMap(const Options &opt)
   double accumulated_motion = 0;
   double delta_motion = 0;
   bool warned_no_motion = false;
-#ifndef OHMPOP_CPU
+#ifdef OHMPOP_GPU
   double next_mapper_update = opt.mapping_interval;
-#endif  // OHMPOP_CPU
+#endif  // OHMPOP_GPU
   Clock::time_point start_time;
   Clock::time_point end_time;
 
-#ifndef OHMPOP_CPU
+#ifdef OHMPOP_GPU
   if (!gpu_map->gpuOk())
   {
     std::cerr << "Failed to initialise GpuMap programs." << std::endl;
     return -3;
   }
-#endif  // OHMPOP_CPU
+#endif  // OHMPOP_GPU
 
   if (opt.clip_near_range > 0)
   {
@@ -560,7 +576,7 @@ int populateMap(const Options &opt)
   // map.setClampingThresMin(0.01);
   // printf("min: %g\n", map.getClampingThresMinLog());
 
-#ifndef OHMPOP_CPU
+#ifdef OHMPOP_GPU
   if (opt.clearance > 0)
   {
     unsigned clearance_flags = ohm::kQfGpuEvaluate;
@@ -570,7 +586,7 @@ int populateMap(const Options &opt)
     }
     mapper.addProcess(new ohm::ClearanceProcess(opt.clearance, clearance_flags));
   }
-#endif  // OHMPOP_CPU
+#endif  // OHMPOP_GPU
 
   std::array<std::ostream *, 3> streams = { &std::cout, nullptr, nullptr };
   std::ofstream info_stream;
@@ -675,7 +691,7 @@ int populateMap(const Options &opt)
       // Store into elapsedMs atomic.
       elapsed_ms = uint64_t((last_timestamp - timebase) * 1e3);
 
-#ifndef OHMPOP_CPU
+#ifdef OHMPOP_GPU
       const double elapsed_time = timestamp - last_timestamp;
       if (opt.progressive_mapping_slice > 0)
       {
@@ -694,7 +710,7 @@ int populateMap(const Options &opt)
           // std::cout << msg.str();
         }
       }
-#endif  // OHMPOP_CPU
+#endif  // OHMPOP_GPU
 
       if (opt.point_limit && point_count >= opt.point_limit ||
           opt.time_limit > 0 && last_timestamp - timebase >= opt.time_limit || g_quit)
@@ -729,7 +745,7 @@ int populateMap(const Options &opt)
     std::cerr << "Warning: very low accumulated motion: " << accumulated_motion << std::endl;
   }
 
-#ifndef OHMPOP_CPU
+#ifdef OHMPOP_GPU
   const auto mapper_start = Clock::now();
   if (opt.post_population_mapping && !g_quit)
   {
@@ -738,16 +754,16 @@ int populateMap(const Options &opt)
   }
   // mapper.join(!g_quit && opt.postPopulationMapping);
   end_time = Clock::now();
-#endif  // OHMPOP_CPU
+#endif  // OHMPOP_GPU
 
   // Sync the map.
   if (!opt.quiet)
   {
     std::cout << "syncing map" << std::endl;
   }
-#ifndef OHMPOP_CPU
+#ifdef OHMPOP_GPU
   gpu_map->syncVoxels();
-#endif  // OHMPOP_CPU
+#endif  // OHMPOP_GPU
 
   for (auto *out : streams)
   {
@@ -761,10 +777,10 @@ int populateMap(const Options &opt)
 
     *out << "Point count: " << point_count << '\n';
     *out << "Data time: " << time_range << '\n';
-#ifndef OHMPOP_CPU
+#ifdef OHMPOP_GPU
     *out << "Population completed in " << mapper_start - start_time << std::endl;
     *out << "Post mapper completed in " << end_time - mapper_start << std::endl;
-#endif  // OHMPOP_CPU
+#endif  // OHMPOP_GPU
     *out << "Total processing time: " << end_time - start_time << '\n';
     *out << "Efficiency: " << ((processing_time_sec > 0 && time_range > 0) ? time_range / processing_time_sec : 0.0)
          << '\n';
@@ -783,11 +799,11 @@ int populateMap(const Options &opt)
 
   if (opt.ndt.enabled)
   {
-#ifdef OHMPOP_CPU
-    ndt_map->debugDraw();
-#else   // OHMPOP_CPU
+#ifdef OHMPOP_GPU
     static_cast<ohm::GpuNdtMap *>(gpu_map.get())->debugDraw();
-#endif  //  OHMPOP_CPU
+#else   // OHMPOP_GPU
+    ndt_map->debugDraw();
+#endif  //  OHMPOP_GPU
   }
 
   return 0;
@@ -806,16 +822,16 @@ int parseOptions(Options *opt, int argc, char *argv[])  // NOLINT(modernize-avoi
 
   try
   {
-#ifndef OHMPOP_CPU
+#ifdef OHMPOP_GPU
     // Build GPU options set.
     std::vector<int> gpu_options_types(ohm::gpuArgsInfo(nullptr, nullptr, 0));
     std::vector<const char *> gpu_options(gpu_options_types.size() * 2);
     ohm::gpuArgsInfo(gpu_options.data(), gpu_options_types.data(), unsigned(gpu_options_types.size()));
-#endif  // OHMPOP_CPU
+#endif  // OHMPOP_GPU
 
     // clang-format off
     opt_parse.add_options()
-      ("batch-size", "The number of points to process in each batch. Controls debug display.", optVal(opt->batch_size))
+      ("batch-size", "The number of points to process in each batch. Controls debug display. In GPU mode, this controls the GPU grid size.", optVal(opt->batch_size))
       ("help", "Show help.")
       ("cloud", "The input cloud (las/laz) to load.", cxxopts::value(opt->cloud_file))
       ("output","Output base name", optVal(opt->output_base_name))
@@ -846,20 +862,20 @@ int parseOptions(Options *opt, int argc, char *argv[])  // NOLINT(modernize-avoi
       ("uncompressed", "Maintain uncompressed map. By default, may regions may be compressed when no longer needed.", optVal(opt->uncompressed))
       ("voxel-mean", "Enable voxel mean coordinates?", optVal(opt->voxel_mean))
       ("threshold", "Sets the occupancy threshold assigned when exporting the map to a cloud.", optVal(opt->prob_thresh)->implicit_value(optStr(opt->prob_thresh)))
-      ("ndt", "Use normal distibution transform map generation.", optVal(opt->ndt.enabled))
+      ("ndt", "Use normal distribution transform map generation.", optVal(opt->ndt.enabled))
       ("ndt-cov-point-threshold", "Minimum number of samples requires in order to allow the covariance to reset at --ndt-cov-prob-threshold..", optVal(opt->ndt.covariance_reset_sample_count))
       ("ndt-cov-prob-threshold", "Low probability threshold at which the covariance can be reset as samples accumulate once more. See also --ndt-cov-point-threshold.", optVal(opt->ndt.covariance_reset_probability))
-      ("ndt-adaptation-rate", "NDT adpatation rate [0, 1]. Controls how fast rays remove NDT voxels. Has a strong effect than miss_value when using NDT.",
+      ("ndt-adaptation-rate", "NDT adaptation rate [0, 1]. Controls how fast rays remove NDT voxels. Has a strong effect than miss_value when using NDT.",
         optVal(opt->ndt.adaptation_rate))
       ("ndt-sensor-noise", "Range sensor noise used for Ndt mapping. Must be > 0.", optVal(opt->ndt.sensor_noise))
       ("mode", "Controls the mapping mode [ normal, sample, erode ]. The 'normal' mode is the default, with the full ray "
-               "being integrated into the map. 'sample' mode only adds samples to increase occcupancy, while 'erode' "
+               "being integrated into the map. 'sample' mode only adds samples to increase occupancy, while 'erode' "
                "only erodes free space by skipping the sample voxels.", optVal(opt->mode))
       ;
 
     // clang-format on
 
-#ifndef OHMPOP_CPU
+#ifdef OHMPOP_GPU
     // clang-format off
     opt_parse.add_options("Mapping")
       ("clearance", "Calculate clearance values for the map using this as the maximum search range. Zero to disable.", optVal(opt->clearance))
@@ -871,16 +887,19 @@ int parseOptions(Options *opt, int argc, char *argv[])  // NOLINT(modernize-avoi
 
     // clang-format on
 
+    auto adder = opt_parse.add_options("GPU");
     if (!gpu_options.empty())
     {
-      auto adder = opt_parse.add_options("GPU");
       for (size_t i = 0; i < gpu_options_types.size(); ++i)
       {
         adder(gpu_options[(i << 1u) + 0], gpu_options[(i << 1u) + 1],
               gpu_options_types[i] == 0 ? ::cxxopts::value<bool>() : ::cxxopts::value<std::string>());
       }
     }
-#endif  // OHMPOP_CPU
+    adder("gpu-cache-size",
+          "Configured the GPU cache size used to cache regions for GPU update. Floating point value specified in GiB.",
+          optVal(opt->gpu.gpu_cache_size_gb));
+#endif  // OHMPOP_GPU
 
 
     opt_parse.parse_positional({ "cloud", "trajectory", "output" });
@@ -1007,9 +1026,9 @@ int main(int argc, char *argv[])
     }
   }
 
-#ifndef OHMPOP_CPU
+#ifdef OHMPOP_GPU
   res = ohm::configureGpuFromArgs(argc, argv);
-#endif  // OHMPOP_CPU
+#endif  // OHMPOP_GPU
   if (res)
   {
     return res;

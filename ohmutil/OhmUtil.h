@@ -15,9 +15,7 @@
 #include <sstream>
 #include <string>
 
-namespace ohm
-{
-namespace util
+namespace ohm::util
 {
 const size_t kThousand = 1000u;
 const size_t kKibiSize = 1024u;
@@ -95,70 +93,8 @@ inline void timeString(std::string &time_str, const D &duration)
   time_str = out.str();
 }
 
-/// Convert a byte value to a memory usage display string converting to the largest apporpriate byte unit.
-/// For example, this displays 2048 bytes as 2KiB, rather than a byte value. String display supports up to exbibyte.
-///
-/// Note: unlink harddrive manufacturers, this function uses base 1024 units not base 1000.
-/// @param[out] str The result is written here.
-/// @param bytes The byte value to convert.
-inline void makeMemoryDisplayString(std::string &str, uint64_t bytes)
-{
-  const std::array<const char *const, 7> unit_suffix =  //
-    {
-      "B",    //
-      "KiB",  //
-      "MiB",  //
-      "GiB",  //
-      "TiB",  //
-      "PiB",  //
-      "EiB"   //
-    };
-
-  unsigned unit_index = 0;
-  uint64_t prev_bytes = 0;
-  std::array<char, 3> decimal_places = { 0, 0, 0 };
-  bool need_fractional = false;
-  while (bytes > kKibiSize && unit_index < unit_suffix.size())
-  {
-    prev_bytes = bytes;
-    bytes /= kKibiSize;
-    ++unit_index;
-  }
-
-  if (unit_index)
-  {
-    // Use prevBytes for fractional display, but only to 3 decimal places.
-    prev_bytes = prev_bytes % kKibiSize;
-    // Convert to fixed point thousands.
-    prev_bytes *= kKibiSize;
-    prev_bytes /= kKibiSize;
-    for (int i = 0; i < 3 && prev_bytes; ++i)
-    {
-      need_fractional = true;
-      decimal_places[2 - i] = char(prev_bytes % 10);             // NOLINT(readability-magic-numbers)
-      prev_bytes = (prev_bytes) ? prev_bytes / 10 : prev_bytes;  // NOLINT(readability-magic-numbers)
-    }
-  }
-
-  std::ostringstream out;
-  out << bytes;
-  if (need_fractional)
-  {
-    out << '.';
-    for (int i = 0; i < 3 && decimal_places[i] > 0; ++i)
-    {
-      out << int(decimal_places[i]);
-    }
-  }
-  out << ' ' << unit_suffix[unit_index];
-  out.flush();
-  str = out.str();
-}
-}  // namespace util
-
-
 template <typename N>
-void delimetedInteger(std::string &str, const N &integer, char delimiter = ',')
+void delimitedInteger(std::string &str, const N &integer, char delimiter = ',')
 {
   N thousands = integer % ohm::util::kThousand;
   N remainder = integer / ohm::util::kThousand;
@@ -177,8 +113,147 @@ void delimetedInteger(std::string &str, const N &integer, char delimiter = ',')
     remainder = remainder / ohm::util::kThousand;
   }
 }
-}  // namespace ohm
 
+/// Defines the set of byte units starting from bytes, kibibytes, mibibytes, etc.
+enum class ByteMagnitude : int
+{
+  kByte,
+  kKiB,
+  kMiB,
+  kGiB,
+  kTiB,
+  kPiB,
+  kEiB,
+  kZiB,
+  kYiB
+};
+
+/// A helper structure for displaying byte values. Can be used as an io stream manipulator to write raw byte values into
+/// a text stream for display.
+class Bytes
+{
+public:
+  /// Byte scale conversion values from any @c ByteMagnitude to @c ByteMagnitude::kByte.
+  static const std::array<size_t, 9> ByteScale;
+
+  /// Display string suffixes for @c ByteMagnitude values.
+  static const std::array<const char *const, 9> MagnitudeSuffix;
+
+  /// Construct a byte value optionally specifying the byte magnitude.
+  /// @param byte_value The byte value to store.
+  /// @param magnitude The magnitude of the byte value.
+  explicit inline Bytes(size_t byte_value, ByteMagnitude magnitude = ByteMagnitude::kByte)
+    : value_(byte_value)
+    , magnitude_(magnitude)
+  {}
+
+  /// Copy constructor.
+  /// @param other Object to copy
+  inline Bytes(const Bytes &other) = default;
+  /// Assignment operator.
+  /// @param other Object to copy
+  /// @return @c *this
+  inline Bytes &operator=(const Bytes &other) = default;
+
+  /// Static conversion from any @c ByteMagnitude into @c ByteMagnitude::kByte.
+  /// @param value The byte value
+  /// @param magnitude The magnitude of @c value
+  /// @return The @c value expressed in bytes.
+  static size_t byteSize(size_t value, ByteMagnitude magnitude) { return value * ByteScale[int(magnitude)]; }
+
+  /// Convert this value into bytes regardless of stored @c ByteMagnitude.
+  /// @return The @c value() expressed in bytes.
+  inline size_t byteSize() const { return byteSize(value_, magnitude_); }
+
+  /// Query the current @c value().
+  /// @return The current byte value.
+  inline size_t value() const { return value_; }
+  /// Set a new @c value. The @c magnitude() is unaffected.
+  /// @param value The new value.
+  inline void setValue(size_t value) { value_ = value; }
+  /// Query the current stored magnitude.
+  /// @return The stored @c ByteMagnitude.
+  inline ByteMagnitude magnitude() const { return magnitude_; }
+  /// Set the @c magnitude. @c value() is unaffected.
+  /// @param magnitude The new @c ByteMagnitude to set.
+  inline void setMagnitude(ByteMagnitude magnitude) { magnitude_ = magnitude; }
+
+  /// Convert this byte value to a new magnitude. Precision may be lost.
+  /// @param magnitude The new magnitude to convert to.
+  /// @return A @c Byte object at the desired @c ByteMagnitude expressing this object's byte value (approx).
+  inline Bytes convertTo(ByteMagnitude magnitude) const
+  {
+    const size_t raw_byte_size = byteSize();
+    const size_t inverse_scale = ByteScale[int(magnitude)];
+    return Bytes(raw_byte_size / inverse_scale, magnitude);
+  }
+
+  /// Convert the byte value to the most compact string representation expressed to three decimal places and appropriate
+  /// @c MagnitudeSuffix.
+  /// @return A string representation of this object.
+  std::string toString() const;
+
+private:
+  size_t value_ = 0;
+  ByteMagnitude magnitude_ = ByteMagnitude::kByte;
+};
+
+}  // namespace ohm::util
+
+/// Convert a byte value to a memory usage display string converting to the largest appropriate byte unit.
+/// For example, this displays 2048 bytes as 2KiB, rather than a byte value. String display supports up to exbibyte.
+///
+/// Note: unlink harddrive manufacturers, this function uses base 1024 units not base 1000.
+/// @param[out] str The result is written here.
+/// @param bytes The byte value to convert.
+inline std::ostream &operator<<(std::ostream &out, const ohm::util::Bytes &bytes)
+{
+  unsigned magnitude_index = 0;
+  uint64_t prev_bytes = 0;
+  std::array<char, 3> decimal_places = { 0, 0, 0 };
+  bool need_fractional = false;
+  size_t bytes_value = bytes.byteSize();
+  while (bytes_value >= ohm::util::kKibiSize && magnitude_index < ohm::util::Bytes::MagnitudeSuffix.size())
+  {
+    prev_bytes = bytes_value;
+    bytes_value /= ohm::util::kKibiSize;
+    ++magnitude_index;
+  }
+
+  if (magnitude_index)
+  {
+    // Use prevBytes for fractional display, but only to 3 decimal places.
+    prev_bytes = prev_bytes % ohm::util::kKibiSize;
+    // Convert to fixed point thousands.
+    prev_bytes *= ohm::util::kKibiSize;
+    prev_bytes /= ohm::util::kKibiSize;
+    for (int i = 0; i < 3 && prev_bytes; ++i)
+    {
+      need_fractional = true;
+      decimal_places[2 - i] = char(prev_bytes % 10);             // NOLINT(readability-magic-numbers)
+      prev_bytes = (prev_bytes) ? prev_bytes / 10 : prev_bytes;  // NOLINT(readability-magic-numbers)
+    }
+  }
+
+  out << bytes_value;
+  if (need_fractional)
+  {
+    out << '.';
+    for (int i = 0; i < 3 && decimal_places[i] > 0; ++i)
+    {
+      out << int(decimal_places[i]);
+    }
+  }
+  out << ohm::util::Bytes::MagnitudeSuffix[magnitude_index];
+  return out;
+}
+
+inline std::string ohm::util::Bytes::toString() const
+{
+  std::ostringstream s;
+  s << *this;
+  return s.str();
+}
 
 template <typename T, typename R>
 inline std::ostream &operator<<(std::ostream &out, const std::chrono::duration<T, R> &d)
