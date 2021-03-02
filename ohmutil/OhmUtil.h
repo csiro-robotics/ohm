@@ -94,7 +94,7 @@ inline void timeString(std::string &time_str, const D &duration)
 }
 
 template <typename N>
-void delimetedInteger(std::string &str, const N &integer, char delimiter = ',')
+void delimitedInteger(std::string &str, const N &integer, char delimiter = ',')
 {
   N thousands = integer % ohm::util::kThousand;
   N remainder = integer / ohm::util::kThousand;
