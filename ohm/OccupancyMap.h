@@ -11,6 +11,7 @@
 #include "Key.h"
 #include "MapFlag.h"
 #include "MapProbability.h"
+#include "OccupancyType.h"
 #include "RayFilter.h"
 #include "RayFlag.h"
 

@@ -26,13 +26,13 @@ The following 3rd-party libraries are required to build ohm:
 - [ZLib](https://www.zlib.net/) for serialisation compression.
 - [CMake](https://cmake.org/) for project set up
 - [OpenGL Mathematics (GLM)](https://glm.g-truc.net/) for 3D data types.
-- [Googletest](https://github.com/google/googletest) for unit tests
+
+[Googletest](https://github.com/google/googletest) is also used when building unit tests, however, this is downloaded as part of the build.
 
 Additional, the following 3rd-party libraries may optionally be used:
 
 Library                                             | Feature Usage
 --------------------------------------------------- | -----------------------------------------------------------------
-[Google Test](https://github.com/google/googletest) | Unit tests
 [PDAL](https://pdal.io/)                            | Load point various point cloud formats for ohmpop.
 [Boost](https://www.boost.org/)                     | required if using libLAS
 [Intel Threading Building Blocks](https://www.threadingbuildingblocks.org/) | Multi-threaded CPU operations.
@@ -48,19 +48,11 @@ Library                                             | Feature Usage
 While efforts are made to ensure components remain optional, certain configurations may be incompatible.
 
 #### Ubuntu apt Packages
+
 On Ubuntu, the required packages may be installed using the following command:
 
 ```bash
 sudo apt install cmake zlib1g-dev libglm-dev googletest
-```
-
-Google test must also be built as the package is source only:
-
-```bash
-cd /usr/src/gtest/build-aux
-sudo cmake ..
-sudo make
-sudo cp *.a /usr/lib
 ```
 
 Setup of OpenCL requires mode detailed [instructions (link)](./OpenCL.md).
