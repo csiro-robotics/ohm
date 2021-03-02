@@ -1067,7 +1067,7 @@ void heightmapLayeredTest(const std::string &name, LayeredTestStart start_locati
   }
 
   // Ensure we've extracted something.
-  ASSERT_GT(test_voxel_count, 0);
+  ASSERT_GT(test_voxel_count, 0u  );
   ohm::save(name + "-map-out.ohm", test_map);
   ohmtools::saveCloud(name + "-map-out.ply", test_map);
 
@@ -1099,7 +1099,7 @@ void heightmapLayeredTest(const std::string &name, LayeredTestStart start_locati
     }
   }
 
-  ASSERT_GT(ref_voxel_count, 0);
+  ASSERT_GT(ref_voxel_count, 0u);
   ASSERT_EQ(test_voxel_count, ref_voxel_count);
 }
 
