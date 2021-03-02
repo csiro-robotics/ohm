@@ -65,8 +65,8 @@ size_t RayMapperOccupancy::integrateRays(const glm::dvec3 *rays, size_t element_
   // Touch the map to flag changes.
   const auto touch_stamp = map_->touch();
 
-  const auto visit_func = [&](const Key &key)  //
-  {                                            //
+  const auto visit_func = [&](const Key &key, double /*enter_range*/, double /*exit_range*/)  //
+  {                                                                                 //
     // The update logic here is a little unclear as it tries to avoid outright branches.
     // The intended logic is described as follows:
     // 1. Select direct write or additive adjustment.
@@ -225,4 +225,131 @@ size_t RayMapperOccupancy::integrateRays(const glm::dvec3 *rays, size_t element_
 
   return element_count / 2;
 }
+
+
+size_t RayMapperOccupancy::lookupRays(const glm::dvec3 *rays, size_t element_count, float *newly_observed_volumes,
+                                      float *ranges, OccupancyType *terminal_states)
+{
+  KeyList keys;
+  MapChunk *last_chunk = nullptr;
+  VoxelBuffer<VoxelBlock> occupancy_buffer;
+  bool stop_adjustments = false;
+  float newly_observed_volume;
+  float range;
+  OccupancyType terminal_state;
+
+  const RayFilterFunction ray_filter = map_->rayFilter();
+  const bool use_filter = bool(ray_filter);
+  const auto occupancy_layer = occupancy_layer_;
+  const auto occupancy_dim = occupancy_dim_;
+  const auto occupancy_threshold_value = map_->occupancyThresholdValue();
+  const auto map_origin = map_->origin();
+  const float ray_solid_angle = (float)(1.0 / 180.0 * M_PI * 1.0 / 180.0 * M_PI); // TODO: parameterise
+  // Touch the map to flag changes.
+
+  const auto visit_func = [&](const Key &key, double enter_range, double exit_range)  //
+  {                                                                                 //
+    // The update logic here is a little unclear as it tries to avoid outright branches.
+    // The intended logic is described as follows:
+    // 1. Select direct write or additive adjustment.
+    //    - Make a direct, non-additive adjustment if one of the following conditions are met:
+    //      - stop_adjustments is true
+    //      - the voxel is uncertain
+    //      - (ray_update_flags & kRfClearOnly) and not is_occupied - we only want to adjust occupied voxels.
+    //      - voxel is saturated
+    //    - Otherwise add to present value.
+    // 2. Select the value adjustment
+    //    - current_value if one of the following conditions are met:
+    //      - stop_adjustments is true (no longer making adjustments)
+    //      - (ray_update_flags & kRfClearOnly) and not is_occupied (only looking to affect occupied voxels)
+    //    - miss_value otherwise
+    // 3. Calculate new value
+    // 4. Apply saturation logic: only min saturation relevant
+    //    -
+
+    const unsigned voxel_index = ohm::voxelIndex(key, occupancy_dim);
+    float occupancy_value = unobservedOccupancyValue();
+    MapChunk *chunk =
+      (last_chunk && key.regionKey() == last_chunk->region.coord) ? last_chunk : map_->region(key.regionKey(), false);
+    if (chunk)
+    {
+      if (chunk != last_chunk)
+      {
+        occupancy_buffer = VoxelBuffer<VoxelBlock>(chunk->voxel_blocks[occupancy_layer]);
+      }
+      occupancy_buffer.readVoxel(voxel_index, &occupancy_value);
+    }
+    last_chunk = chunk;
+    const bool is_unobserved = occupancy_value == unobservedOccupancyValue();
+    const bool is_occupied = !is_unobserved && occupancy_value > occupancy_threshold_value;
+    if (!stop_adjustments)
+    {
+      newly_observed_volume += is_unobserved ? (ray_solid_angle *
+                               float(exit_range * exit_range * exit_range - enter_range * enter_range * enter_range)) : 0.0f;
+      range = exit_range;
+      terminal_state =
+        is_unobserved ? OccupancyType::kUnobserved : (is_occupied ? OccupancyType::kOccupied : OccupancyType::kFree);
+    }
+    stop_adjustments = stop_adjustments || is_occupied;
+  };
+
+  glm::dvec3 start;
+  glm::dvec3 end;
+  unsigned filter_flags;
+  for (size_t i = 0; i < element_count; i += 2)
+  {
+    filter_flags = 0;
+    start = rays[i];
+    end = rays[i + 1];
+
+    newly_observed_volume = 0.0f;
+    range = 0.0f;
+    terminal_state = OccupancyType::kNull;
+    
+    if (use_filter)
+    {
+      if (!ray_filter(&start, &end, &filter_flags))
+      {
+        // Bad ray.
+        if (newly_observed_volumes)
+        {
+          newly_observed_volumes[i >> 1] = newly_observed_volume;
+        }
+        if (ranges)
+        {
+          ranges[i >> 1] = range;
+        }
+        if (terminal_states)
+        {
+          terminal_states[i >> 1] = terminal_state;
+        }
+        continue;
+      }
+    }
+
+    // Calculate line key for the last voxel if the end point has been clipped
+    const glm::dvec3 start_point_local = glm::dvec3(start - map_origin);
+    const glm::dvec3 end_point_local = glm::dvec3(end - map_origin);
+
+    stop_adjustments = false;
+    ohm::walkSegmentKeys<Key>(visit_func, start_point_local, end_point_local, true, WalkKeyAdaptor(*map_));
+
+    if (newly_observed_volumes)
+    {
+      newly_observed_volumes[i >> 1] = newly_observed_volume;
+    }
+    if (ranges)
+    {
+      ranges[i >> 1] = range;
+    }
+    if (terminal_states)
+    {
+      terminal_states[i >> 1] = terminal_state;
+    }
+  }
+
+  return element_count / 2;
+}
+
+
 }  // namespace ohm

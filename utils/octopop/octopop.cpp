@@ -125,10 +125,7 @@ void Options::print(std::ostream **out) const
       **out << "Process to timestamp: " << time_limit << '\n';
     }
 
-    // std::string mem_size_string;
-    // util::makeMemoryDisplayString(mem_size_string, ohm::OccupancyMap::voxelMemoryPerRegion(region_voxel_dim));
     **out << "Map resolution: " << resolution << '\n';
-    // **out << "Map region memory: " << mem_size_string << '\n';
     **out << "Hit probability: " << prob_hit << '\n';
     **out << "Miss probability: " << prob_miss << '\n';
     **out << std::flush;

@@ -183,8 +183,7 @@ __device__ bool VISIT_LINE_VOXEL(const GpuKey *voxelKey, bool isEndVoxel, const 
   }
 
   // Adjust value by ray_adjustment unless this is the sample voxel.
-  const float adjustment =
-    calculateOccupancyAdjustment(voxelKey, isEndVoxel, startKey, endKey, voxel_resolution, line_data);
+  float adjustment = calculateOccupancyAdjustment(voxelKey, isEndVoxel, startKey, endKey, voxel_resolution, line_data);
 
   // This voxel lies in the region. We will make a value adjustment.
   // Work out which voxel to modify.
@@ -228,18 +227,21 @@ __device__ bool VISIT_LINE_VOXEL(const GpuKey *voxelKey, bool isEndVoxel, const 
       // Check skipping unobserved.
       if (initially_unobserved && (line_data->region_update_flags & kRfExcludeUnobserved))
       {
+        adjustment = 0;  // Flag null adjustment. Prevents mean update.
         break;
       }
 
       // Check skipping free.
       if (initially_free && (line_data->region_update_flags & kRfExcludeFree))
       {
+        adjustment = 0;  // Flag null adjustment. Prevents mean update.
         break;
       }
 
       // Check skipping occupied.
       if (initially_occupied && (line_data->region_update_flags & kRfExcludeOccupied))
       {
+        adjustment = 0;  // Flag null adjustment. Prevents mean update.
         break;
       }
 

@@ -88,7 +88,7 @@ Key KeyRange::fromIndex(size_t index) const
 
   const glm::ivec3 range = this->range();
   glm::ivec3 offset(0);
-  offset.z = index / (range.x * range.y);
+  offset.z = int(index / (range.x * range.y));
   offset.y = index % (range.x * range.y);
   offset.x = offset.y % range.x;
   offset.y /= range.x;
