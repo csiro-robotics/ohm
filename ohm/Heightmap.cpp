@@ -1498,13 +1498,15 @@ bool Heightmap::addSurfaceVoxel(heightmap::DstVoxel &hm_voxel, const heightmap::
       hm_voxel.setPosition(voxel_pos);
 
       // Write the height and clearance values.
-      HeightmapVoxel height_info;
+      HeightmapVoxel height_info{};
       // Calculate the relative voxel height now that we have a target voxel key which may consider multi-layering.
       // Later sorting may change the HeightmapVoxel::height value as the voxel may be changed.
       height_info.height = heightmap::relativeVoxelHeight(src_height, hm_key, heightmap, imp_->up);
       height_info.clearance = float(clearance);
       height_info.normal_x = height_info.normal_y = height_info.normal_z = 0;
       height_info.layer = (is_base_layer_candidate) ? kHvlBaseLayer : kHvlExtended;
+      height_info.contributing_samples =
+        uint16_t((src_voxel.mean.isValid()) ? std::min(src_voxel.mean.data().count, 0xffffu) : 0u);
 
       if (voxel_type == kOccupied && src_voxel.covariance.isValid())
       {

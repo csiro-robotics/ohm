@@ -49,6 +49,12 @@ struct alignas(8) HeightmapVoxel
   float normal_z;
   /// Layer information. Currently restricted to values of @c HeightmapVoxelLayer.
   uint8_t layer;
+  /// Alignment padding to add @c contributing_samples without changing the data structure.
+  uint8_t reserved;
+  /// The number of samples in the source voxel which contributed to this result - only available if @c VoxelMean
+  /// is available to accumulate the sample count. Note that this may be lower than the value in @c VoxelMean 
+  /// because it is of lower precision. In this case, the value is set to @c 0xffffu.
+  uint16_t contributing_samples;
 };
 }  // namespace ohm
 

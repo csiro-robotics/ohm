@@ -522,13 +522,15 @@ TEST(Heightmap, Layout)
 
   const auto validate_heightmap_voxel_layout = [](const VoxelLayoutConst &layout) {
     EXPECT_EQ(layout.voxelByteSize(), sizeof(HeightmapVoxel));
-    EXPECT_EQ(layout.memberCount(), 6);
+    EXPECT_EQ(layout.memberCount(), 8);
     EXPECT_STREQ(layout.memberName(0), "height");
     EXPECT_STREQ(layout.memberName(1), "clearance");
     EXPECT_STREQ(layout.memberName(2), "normal_x");
     EXPECT_STREQ(layout.memberName(3), "normal_y");
     EXPECT_STREQ(layout.memberName(4), "normal_z");
     EXPECT_STREQ(layout.memberName(5), "layer");
+    EXPECT_STREQ(layout.memberName(6), "reserved");
+    EXPECT_STREQ(layout.memberName(7), "contributing_samples");
     for (int i = 0; i < 5; ++i)
     {
       EXPECT_EQ(layout.memberOffset(i), i * sizeof(float));
@@ -536,6 +538,8 @@ TEST(Heightmap, Layout)
     }
     EXPECT_EQ(layout.memberOffset(5), 5 * sizeof(float));
     EXPECT_EQ(layout.memberSize(5), sizeof(uint8_t));
+    EXPECT_EQ(layout.memberSize(6), sizeof(uint8_t));
+    EXPECT_EQ(layout.memberSize(7), sizeof(uint16_t));
   };
 
   validate_heightmap_voxel_layout(heightmap_voxel);
@@ -1063,7 +1067,7 @@ void heightmapLayeredTest(const std::string &name, LayeredTestStart start_locati
   }
 
   // Ensure we've extracted something.
-  ASSERT_GT(test_voxel_count, 0);
+  ASSERT_GT(test_voxel_count, 0u  );
   ohm::save(name + "-map-out.ohm", test_map);
   ohmtools::saveCloud(name + "-map-out.ply", test_map);
 
@@ -1095,7 +1099,7 @@ void heightmapLayeredTest(const std::string &name, LayeredTestStart start_locati
     }
   }
 
-  ASSERT_GT(ref_voxel_count, 0);
+  ASSERT_GT(ref_voxel_count, 0u);
   ASSERT_EQ(test_voxel_count, ref_voxel_count);
 }
 

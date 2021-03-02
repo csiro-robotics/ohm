@@ -14,7 +14,6 @@
 #include "MapLayer.h"
 #include "MapProbability.h"
 #include "MapRegionCache.h"
-#include "OccupancyType.h"
 #include "RayMapperOccupancy.h"
 #include "VoxelBlockCompressionQueue.h"
 #include "VoxelBuffer.h"
@@ -920,7 +919,7 @@ size_t OccupancyMap::calculateSegmentKeys(KeyList &keys, const glm::dvec3 &start
   const glm::dvec3 end_point_local = glm::dvec3(end_point - origin());
 
   keys.clear();
-  return ohm::walkSegmentKeys<Key>([&keys](const Key &key) { keys.add(key); }, start_point_local, end_point_local,
+  return ohm::walkSegmentKeys<Key>([&keys](const Key &key, double, double) { keys.add(key); }, start_point_local, end_point_local,
                                    include_end_point, KeyAdaptor(*this));
 }
 

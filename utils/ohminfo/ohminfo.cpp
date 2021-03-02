@@ -143,9 +143,7 @@ int main(int argc, char *argv[])
   std::cout << "File format version: " << version.major << '.' << version.minor << '.' << version.patch << std::endl;
   std::cout << std::endl;
 
-  std::string mem_str;
-  ohm::util::makeMemoryDisplayString(mem_str, map.calculateApproximateMemory());
-  std::cout << "Estimated memory (CPU only): " << mem_str << std::endl;
+  std::cout << "Estimated memory (CPU only): " << ohm::util::Bytes(map.calculateApproximateMemory()) << std::endl;
 
   std::cout << "Voxel resolution: " << map.resolution() << std::endl;
   std::cout << "Map origin: " << map.origin() << std::endl;
@@ -213,11 +211,10 @@ int main(int argc, char *argv[])
     std::cout << indent << "voxels: " << layer.dimensions(map.regionVoxelDimensions()) << " : "
               << layer.volume(layer.dimensions(map.regionVoxelDimensions())) << std::endl;
 
-    ohm::util::makeMemoryDisplayString(vox_size_str, voxels.voxelByteSize());
-    std::cout << indent << "voxel byte size: " << vox_size_str << std::endl;
-    ohm::util::makeMemoryDisplayString(
-      region_size_str, voxels.voxelByteSize() * layer.volume(layer.dimensions(map.regionVoxelDimensions())));
-    std::cout << indent << "region byte size: " << region_size_str << std::endl;
+    std::cout << indent << "voxel byte size: " << ohm::util::Bytes(voxels.voxelByteSize()) << std::endl;
+    std::cout << indent << "region byte size: "
+              << ohm::util::Bytes(voxels.voxelByteSize() * layer.volume(layer.dimensions(map.regionVoxelDimensions())))
+              << std::endl;
 
     indent += "  ";
     std::cout << std::setw(4) << std::setfill('0');
