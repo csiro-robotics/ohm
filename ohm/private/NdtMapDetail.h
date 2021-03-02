@@ -28,9 +28,9 @@ struct NdtMapDetail
   float adaptation_rate = 0.7f;  // NOLINT(readability-magic-numbers)
   /// Low probability value threshold used to re-initialise covariance matrix and mean.
   /// Used with @c reinitialise_covariance_point_count in @c calculateHitWithCovariance()
-  float reinitialise_covariance_theshold = probabilityToValue(0.2f);  // NOLINT(readability-magic-numbers)
+  float reinitialise_covariance_threshold = probabilityToValue(0.2f);  // NOLINT(readability-magic-numbers)
   /// Upper point count limit required to reinitialise the covariance matrix. Used with
-  /// @c reinitialise_covariance_theshold in @c calculateHitWithCovariance()
+  /// @c reinitialise_covariance_threshold in @c calculateHitWithCovariance()
   unsigned reinitialise_covariance_point_count = 100;
   /// True if @p map is a borrowed pointer, false to take ownership and delete it.
   bool borrowed_map = false;

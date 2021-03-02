@@ -21,7 +21,7 @@ struct LineQueryDetail;
 /// A line segment intersection query for an @c OccupancyMap.
 ///
 /// A line segment query determines the range of voxels for which intersect a given line segment and for each such
-/// voxels, calculates the range to the nearest obstructed voxel. Obstructed voxles are defined as occupied voxels
+/// voxels, calculates the range to the nearest obstructed voxel. Obstructed voxels are defined as occupied voxels
 /// and optionally unknown voxels when the query flag @c QF_UnknownAsOccupied is set.
 ///
 /// The results are given in @c intersectedVoxels() and @c ranges(). The @c intersectedVoxels() identify the voxels

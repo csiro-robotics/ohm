@@ -56,7 +56,7 @@ GpuCache *ohmgpu_API enableGpu(OccupancyMap &map);
 /// Ignored if the @p map already is GPU enabled.
 ///
 /// @param map The map to enable GPU usage on.
-/// @param target_gpu_mem_size Target GPU memory usage. This is split amounst the active, default layers.
+/// @param target_gpu_mem_size Target GPU memory usage. This is split amongst the active, default layers.
 /// @param gpu_flags @c GpuFlag values controlling initialisation.
 /// @return The @c GpuCache for the map. Null if GPU code is not enabled.
 GpuCache *ohmgpu_API enableGpu(OccupancyMap &map, size_t target_gpu_mem_size,
@@ -217,7 +217,7 @@ public:
   /// It is not a user configurable property because of its algorithmic dependency. Rays are grouped by pre sorting
   /// in CPU before GPU upload. This means that ray batches are reordered before upload.
   ///
-  /// @return True if rays are groupd by sample voxel before upload to GPU.
+  /// @return True if rays are grouped by sample voxel before upload to GPU.
   bool groupedRays() const;
 
   /// Integrate the given @p rays into the map. The @p rays form a list of origin/sample pairs for which
@@ -277,7 +277,7 @@ protected:
   /// @param buffer_index Identifies the batch to wait on.
   void waitOnPreviousOperation(int buffer_index);
 
-  /// Enequeue upload of voxel data for the regions specified in @c GpuMapDetail::voxel_upload_info .
+  /// Enqueue upload of voxel data for the regions specified in @c GpuMapDetail::voxel_upload_info .
   ///
   /// May trigger a limited number of attempts to  @c finaliseBatch() if @c enqueueRegion() fails.
   /// @param buffer_index Index of active data buffers from @c GpuMapDetail to used.

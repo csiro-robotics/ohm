@@ -45,6 +45,7 @@ class KeyRangeIterator;
 class ohm_API KeyRange
 {
 public:
+  /// Iterator alias for C++ API compatibility.
   using iterator = KeyRangeIterator;  // NOLINT(readability-identifier-naming)
 
   /// Default constructor. The created range consists of null min/max keys and is not valid.
@@ -77,7 +78,7 @@ public:
   /// @param other Range to copy.
   inline KeyRange(const KeyRange &other) = default;
 
-  /// Assignment opreator.
+  /// Assignment operator.
   /// @param other Range to copy.
   inline KeyRange &operator=(const KeyRange &other) = default;
 

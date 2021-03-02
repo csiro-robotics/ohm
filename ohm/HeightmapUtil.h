@@ -37,7 +37,7 @@ double ohm_API queryHeightmapClearance(const MapInfo &info);
 
 /// Resolve an array of indices which may be used to reference XYZ axes from a given heightmap up axis.
 ///
-/// Each element in the returned array indexes one of the {X, Y, Z} axies as {0, 1, 2} respectively. The resulting
+/// Each element in the returned array indexes one of the {X, Y, Z} axes as {0, 1, 2} respectively. The resulting
 /// array is constructed such that the element at index 2 always matches the axis specified by @p up, while the other
 /// two elements - at indices {0, 1} - define the axes of the heightmap plane.
 ///

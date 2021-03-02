@@ -54,10 +54,24 @@ public:
     /// unvisited cell.
     int height = -1;
 
+    /// Mark the voxel as being visited at the specified height.
+    /// @param visit_height The the visiting height.
     inline void visit(int visit_height) { height = visit_height; }
+    /// Query if the voxel has been visited.
+    /// @return True if visited.
     inline bool visited() const { return height >= 0; }
+    /// Query whether we can revisit a voxel at the given height allowing revisiting if the new height is greater than
+    /// any previous visit height.
+    /// @param visit_height The new height we wish to visit at.
+    /// @return True if the voxel should be revisited.
     inline bool revisitHigher(int visit_height) const { return !visited() || visit_height > height; }
+    /// Query whether we can revisit a voxel at the given height allowing revisiting if the new height is less than
+    /// any previous visit height.
+    /// @param visit_height The new height we wish to visit at.
+    /// @return True if the voxel should be revisited.
     inline bool revisitLower(int visit_height) const { return !visited() || visit_height < height; }
+    /// For revisiting API compatibility - semantically equivalent to @c visited().
+    /// @return True if the voxel can be (re)visited.
     inline bool revisitNone(int /*visit_height*/) const { return !visited(); }
   };
 
@@ -76,14 +90,18 @@ public:
   /// @param min_ext_key The starting voxel key (inclusive).
   /// @param max_ext_key The last voxel key (inclusive).
   /// @param up_axis Specifies the up axis for the map.
-  /// voxels.
+  /// @param revisit_behaviour Controls what to do when visiting voxels in a column which has already been visited.
   PlaneFillWalker(const OccupancyMap &map, const Key &min_ext_key, const Key &max_ext_key, UpAxis up_axis,
                   Revisit revisit_behaviour = Revisit::kLower);
 
+  /// Query the minimum key value to walk from.
+  /// @return The mimimum key value.
   inline const Key &minKey() const { return min_ext_key; }
+  /// Query the maximum key value to walk to.
+  /// @return The maximum key value.
   inline const Key &maxKey() const { return max_ext_key; }
 
-  /// Initialse @p key To the first voxel to walk.
+  /// Initialise @p key To the first voxel to walk.
   /// @param[out] key Set to the first key to be walked.
   /// @return True if the key is valid, false if there is nothing to walk.
   bool begin(Key &key);
@@ -98,6 +116,7 @@ public:
   /// filled in @p neighbours with the number of neighbours added given in the return value.
   /// @param key The key being visited. Must fall within the @c range.minKey() and @c range.maxKey() bounds.
   /// @param neighbours Populated with any neighbours of @p key added to the open list.
+  /// @param mode Affects how to expand neighbours when visiting the voxel at @p key.
   /// @return The number of neighbours added.
   size_t visit(const Key &key, PlaneWalkVisitMode mode, std::array<Key, 8> &neighbours);
   /// @overload

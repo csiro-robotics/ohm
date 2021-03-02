@@ -103,7 +103,7 @@ void __device__ collateSample(WorkItem *work_item, float3 sensor, float3 sample,
 /// @param voxel_value_max Maximum clamping value for voxel adjustments.
 /// @param sensor_noise Expected range sensor noise value in the same units as the line values (generally metres).
 ///     Used as part of the NDT model. Must be > 0
-/// @param reinitialise_cov_threshold The occupancy theshold value at which the covariance matrix may be reinitialised.
+/// @param reinitialise_cov_threshold The occupancy threshold value at which the covariance matrix may be reinitialised.
 ///     See @c calculateHitWithCovariance()
 /// @param reinitialise_cov_sample_count The point count required to allow @p reinitialise_cov_threshold to be
 ///     triggered. See @c calculateHitWithCovariance()

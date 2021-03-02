@@ -108,16 +108,16 @@ unsigned NdtMap::ndtSampleThreshold()
 }
 
 
-void NdtMap::setReinitialiseCovarianceTheshold(float threshold)
+void NdtMap::setReinitialiseCovarianceThreshold(float threshold)
 {
-  imp_->reinitialise_covariance_theshold = threshold;
+  imp_->reinitialise_covariance_threshold = threshold;
   updateMapInfo();
 }
 
 
-float NdtMap::reinitialiseCovarianceTheshold() const
+float NdtMap::reinitialiseCovarianceThreshold() const
 {
-  return imp_->reinitialise_covariance_theshold;
+  return imp_->reinitialise_covariance_threshold;
 }
 
 
@@ -233,9 +233,9 @@ void NdtMap::updateMapInfo()
   info.set(MapValue("Ndt adaptation rate", imp_->adaptation_rate));
   info.set(MapValue("Ndt sensor noise", imp_->sensor_noise));
   info.set(MapValue("Ndt sample threshold", imp_->sample_threshold));
-  info.set(MapValue("Ndt reinitialisation threshold", imp_->reinitialise_covariance_theshold));
+  info.set(MapValue("Ndt reinitialisation threshold", imp_->reinitialise_covariance_threshold));
   info.set(MapValue("Ndt reinitialisation threshold (probability)",
-                    valueToProbability(imp_->reinitialise_covariance_theshold)));
+                    valueToProbability(imp_->reinitialise_covariance_threshold)));
   info.set(MapValue("Ndt reinitialisation point count", imp_->reinitialise_covariance_point_count));
 }
 

@@ -149,7 +149,7 @@ inline bool nextLocalKey(Key &key, const glm::ivec3 &dim)
 ///
 /// An additional optimisation can be made by avoiding calls to @c OccupancyMap::region() . Iterative and line walk
 /// style updates of a map have a strong spatial coherency from one voxel to update to the next. In this case, the
-/// @c MapChunk will often be the same as the previous one. In this case, an easy peformance gain comes by keeping
+/// @c MapChunk will often be the same as the previous one. In this case, an easy performance gain comes by keeping
 /// checking if the new @c Key::regionKey() is the same as the last one, and using the previous @c MapChunk when the
 /// @c regionKey() is unchanged.
 struct MapChunk

@@ -15,6 +15,7 @@ homogeneous voxels, arranged in contiguous memory blocks. This homogeneous voxel
 supports fast GPU based map population using OpenCL and CUDA.
 
 - @subpage docusage
+- @subpage docutils
 
 */
 

@@ -87,6 +87,7 @@ struct ohmutil_API Colour
     kBShift = 0
   };
 
+  /// Maximum value of a single unsigned byte expressed as a floating point number.
   static constexpr float kMaxByteF = 255.0f;
 
   /// The rgba colour definition.

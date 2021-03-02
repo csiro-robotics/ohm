@@ -22,7 +22,7 @@ RayMapperOccupancy::RayMapperOccupancy(OccupancyMap *map)
   , mean_layer_(map_->layout().meanLayer())
 {
   // Use Voxel to validate the layers.
-  // In processing we use VoxelBuffer instead of Voxel objects. While Voxel mapes for a neader API, using VoxelBuffer
+  // In processing we use VoxelBuffer instead of Voxel objects. While Voxel makes for a neater API, using VoxelBuffer
   // makes for less overhead and yields better performance.
   Voxel<const float> occupancy(map_, occupancy_layer_);
   Voxel<const VoxelMean> mean(map_, mean_layer_);

@@ -97,7 +97,7 @@ public:
   /// Destructor - stops and joins the thread.
   ~ProgressMonitor();
 
-  /// Set the display function to call on evey cycle. This is called from the background thread.
+  /// Set the display function to call on every cycle. This is called from the background thread.
   /// @param display_func Display function callback.
   void setDisplayFunction(const DisplayFunction &display_func);
   /// Clear the @c displayFunction() .

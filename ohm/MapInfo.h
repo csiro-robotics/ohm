@@ -313,7 +313,11 @@ public:
   /// @param other Data to take ownership of.
   MapInfo(MapInfo &&other) noexcept;
 
+  /// Copy constructor
+  /// @param other Object to copy.
   MapInfo &operator=(const MapInfo &other);
+  /// Assignment operator.
+  /// @param other Object to copy.
   MapInfo &operator=(MapInfo &&other) noexcept;
 
   /// Destructor.
