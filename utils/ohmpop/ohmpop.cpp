@@ -511,11 +511,8 @@ int populateMap(const Options &opt)
   ohm::Mapper mapper(&map);
   std::vector<double> sample_timestamps;
   std::vector<glm::dvec3> origin_sample_pairs;
-  glm::dvec3 origin;
-  glm::dvec3 sample;
+  SamplePoint sample;
   glm::dvec3 last_batch_origin(0);
-  // glm::vec3 voxel, ext(opt.resolution);
-  double timestamp;
   uint64_t point_count = 0;
   // Update map visualisation every N samples.
   const size_t ray_batch_size = opt.batch_size;
@@ -639,35 +636,33 @@ int populateMap(const Options &opt)
   // Population loop.
   //------------------------------------
   // mapper.start();
-  origin = glm::vec3(0, 0, 0);
   while ((point_count < opt.point_limit || opt.point_limit == 0) &&
-         (last_timestamp - timebase < opt.time_limit || opt.time_limit == 0) &&
-         loader.nextPoint(sample, &origin, &timestamp))
+         (last_timestamp - timebase < opt.time_limit || opt.time_limit == 0) && loader.nextPoint(sample))
   {
     if (timebase < 0)
     {
-      timebase = timestamp;
+      timebase = sample.timestamp;
     }
 
-    if (timestamp - timebase < opt.start_time)
+    if (sample.timestamp - timebase < opt.start_time)
     {
       continue;
     }
 
     ++point_count;
-    sample_timestamps.push_back(timestamp);
-    origin_sample_pairs.push_back(origin);
-    origin_sample_pairs.push_back(sample);
+    sample_timestamps.push_back(sample.timestamp);
+    origin_sample_pairs.push_back(sample.origin);
+    origin_sample_pairs.push_back(sample.sample);
 
     if (last_timestamp < 0)
     {
-      last_timestamp = timestamp;
+      last_timestamp = sample.timestamp;
       last_batch_origin = origin_sample_pairs[0];
     }
 
     if (first_timestamp < 0)
     {
-      first_timestamp = timestamp;
+      first_timestamp = sample.timestamp;
     }
 
     if (point_count % ray_batch_size == 0 || g_quit)
@@ -687,12 +682,12 @@ int populateMap(const Options &opt)
       origin_sample_pairs.clear();
 
       prog.incrementProgressBy(ray_batch_size);
-      last_timestamp = timestamp;
+      last_timestamp = sample.timestamp;
       // Store into elapsedMs atomic.
       elapsed_ms = uint64_t((last_timestamp - timebase) * 1e3);
 
 #ifdef OHMPOP_GPU
-      const double elapsed_time = timestamp - last_timestamp;
+      const double elapsed_time = sample.timestamp - last_timestamp;
       if (opt.progressive_mapping_slice > 0)
       {
         if (opt.mapping_interval >= 0)

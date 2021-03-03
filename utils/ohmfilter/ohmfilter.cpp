@@ -235,25 +235,22 @@ bool filterCloud(const Options &opt, const ohm::OccupancyMap &map, ProgressMonit
   {
     std::cout << "Exporting to " << opt.cloud_out << std::endl;
   }
-
-  glm::dvec3 point(0);
-  glm::dvec3 origin(0);
-  double timestamp = 0;
   ohm::Key key;
   std::uint64_t point_count = 0;
   std::uint64_t export_count = 0;
   const bool with_trajectory = !opt.traj_in.empty();
-  while (cloud_loader.nextPoint(point, &origin, &timestamp))
+  SamplePoint sample{};
+  while (cloud_loader.nextPoint(sample))
   {
-    key = map.voxelKey(point);
-    if (filter(timestamp, point, key))
+    key = map.voxelKey(sample.sample);
+    if (filter(sample.timestamp, sample.sample, key))
     {
-      ply.setPointPosition(point);
+      ply.setPointPosition(sample.sample);
       if (with_trajectory)
       {
-        ply.setPointNormal(point - origin);
+        ply.setPointNormal(sample.sample - sample.origin);
       }
-      ply.setPointTimestamp(timestamp);
+      ply.setPointTimestamp(sample.timestamp);
       ply.writePoint();
       ++export_count;
     }
