@@ -34,11 +34,6 @@ struct TrajectoryPoint
   glm::dvec3 origin;
 };
 
-struct SamplePoint : TrajectoryPoint
-{
-  glm::dvec3 sample;
-};
-
 using Clock = std::chrono::high_resolution_clock;
 }  // namespace
 
@@ -75,6 +70,10 @@ struct SlamCloudLoaderDetail
   Clock::time_point first_sample_read_time;
   double first_sample_timestamp = -1.0;
   bool real_time_mode = false;
+
+  bool has_timestamp = false;
+  bool has_intensity = false;
+  bool has_colour = false;
 
   inline SlamCloudLoaderDetail() { memset(&trajectory_buffer, 0, sizeof(trajectory_buffer)); }
 };
@@ -218,6 +217,14 @@ bool SlamCloudLoader::open(const char *sample_file_path, const char *trajectory_
     return false;
   }
 
+  imp_->has_timestamp = true;
+
+  imp_->has_intensity = imp_->sample_table->layout()->hasDim(pdal::Dimension::Id::Intensity);
+  imp_->has_colour = imp_->sample_table->layout()->hasDim(pdal::Dimension::Id::Red) &&
+                     imp_->sample_table->layout()->hasDim(pdal::Dimension::Id::Green) &&
+                     imp_->sample_table->layout()->hasDim(pdal::Dimension::Id::Blue);
+
+
   pdal::PointViewSet point_sets = imp_->sample_reader->execute(*imp_->sample_table);
   if (point_sets.empty())
   {
@@ -345,48 +352,49 @@ bool SlamCloudLoader::trajectoryFileIsOpen() const
 }
 
 
-void SlamCloudLoader::preload(size_t /*point_count*/)
+bool SlamCloudLoader::hasTimestamp() const
 {
-  // PDAL doesn't support streaming.
+  return imp_->has_timestamp;
 }
 
 
-bool SlamCloudLoader::nextPoint(glm::dvec3 &sample, glm::dvec3 *origin, double *timestamp_out)
+bool SlamCloudLoader::hasOrigin() const
+{
+  return trajectoryFileIsOpen();
+}
+
+
+bool SlamCloudLoader::hasIntensity() const
+{
+  return imp_->has_intensity;
+}
+
+
+bool SlamCloudLoader::hasColour() const
+{
+  return imp_->has_colour;
+}
+
+
+void SlamCloudLoader::preload(size_t /*point_count*/)
+{
+  // PDAL < 1.7 doesn't support streaming.
+}
+
+
+bool SlamCloudLoader::nextPoint(SamplePoint &sample)
 {
   loadPoint();
   if (imp_->next_sample_read_index < imp_->samples->size())
   {
     ++imp_->next_sample_read_index;
     // Read next sample.
-    const SamplePoint sample_point = imp_->next_sample;
-    // if (_imp->nextSampleReadIndex == _imp->samplesBuffer.size() || _imp->nextSampleReadIndex >= 1024)
-    //{
-    //  // Shrink the remaining points.
-    //  const size_t newSize = (_imp->nextSampleReadIndex < _imp->samplesBuffer.size()) ? _imp->samplesBuffer.size() -
-    //  _imp->nextSampleReadIndex : 0; if (_imp->nextSampleReadIndex < _imp->samplesBuffer.size())
-    //  {
-    //    memmove(_imp->samplesBuffer.data(),
-    //            _imp->samplesBuffer.data() + _imp->nextSampleReadIndex,
-    //            sizeof(*_imp->samplesBuffer.data()) * newSize
-    //            );
-    //  }
-    //  _imp->samplesBuffer.resize(newSize);
-    //  _imp->nextSampleReadIndex = 0;
-    //}
-    sample = sample_point.sample;
-    if (timestamp_out)
-    {
-      *timestamp_out = sample_point.timestamp;
-    }
-    if (origin)
-    {
-      *origin = sample_point.origin + imp_->trajectory_to_sensor_offset;
-    }
+    sample = imp_->next_sample;
 
     // If in real time mode, sleep until we should deliver this sample.
     if (imp_->real_time_mode && imp_->first_sample_timestamp >= 0)
     {
-      const double sample_relative_time = sample_point.timestamp - imp_->first_sample_timestamp;
+      const double sample_relative_time = sample.timestamp - imp_->first_sample_timestamp;
       if (sample_relative_time > 0)
       {
         auto uptime = Clock::now() - imp_->first_sample_read_time;
@@ -414,11 +422,26 @@ bool SlamCloudLoader::loadPoint()
     sample.sample.x = imp_->samples->getFieldAs<double>(pdal::Dimension::Id::X, imp_->samples_view_index);
     sample.sample.y = imp_->samples->getFieldAs<double>(pdal::Dimension::Id::Y, imp_->samples_view_index);
     sample.sample.z = imp_->samples->getFieldAs<double>(pdal::Dimension::Id::Z, imp_->samples_view_index);
+
+    if (imp_->has_colour)
+    {
+      sample.colour[0] = imp_->samples->getFieldAs<uint8_t>(pdal::Dimension::Id::Red, imp_->samples_view_index);
+      sample.colour[1] = imp_->samples->getFieldAs<uint8_t>(pdal::Dimension::Id::Green, imp_->samples_view_index);
+      sample.colour[2] = imp_->samples->getFieldAs<uint8_t>(pdal::Dimension::Id::Blue, imp_->samples_view_index);
+    }
+
+    if (imp_->has_intensity)
+    {
+      sample.intensity = imp_->samples->getFieldAs<float>(pdal::Dimension::Id::Intensity, imp_->samples_view_index);
+    }
+    // sample.returnNbr = imp_->samples->getFieldAs<uint8_t>(pdal::Dimension::Id::NumberOfReturns,
+    // imp_->samples_view_index);
     sample.origin = glm::dvec3(0);
 
     ++imp_->samples_view_index;
 
     sampleTrajectory(sample.origin, sample.sample, sample.timestamp);
+    sample.origin += imp_->trajectory_to_sensor_offset;
     imp_->next_sample = sample;
 
     if (imp_->first_sample_timestamp < 0)

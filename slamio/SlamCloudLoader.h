@@ -9,6 +9,16 @@
 
 struct SlamCloudLoaderDetail;
 
+struct slamio_API SamplePoint
+{
+  glm::dvec3 origin;
+  glm::dvec3 sample;
+  double timestamp;
+  glm::u8vec3 colour;  // RGB colour
+  float intensity;
+};
+
+
 /// A utility class for loading a point cloud with a trajectory.
 ///
 /// This class is a means to an end and is not well implemented or maintained. There are three implementations for this
@@ -52,12 +62,24 @@ public:
   /// Do we have a trajectory?
   bool trajectoryFileIsOpen() const;
 
+  /// True if the input data has a timestamp channel.
+  bool hasTimestamp() const;
+
+  /// True if the input data has origin points for the sensor samples.
+  bool hasOrigin() const;
+
+  /// True if the input data has an intensity channel.
+  bool hasIntensity() const;
+
+  /// True if the input data has colour channels.
+  bool hasColour() const;
+
   /// Attempt to preload the given number of points. Use zero to preload all. This does nothing with PDAL 1.6 as
   /// streaming is not supported in that version.
   void preload(size_t point_count = 0);
 
   /// Get the next point, sensor position and timestamp.
-  bool nextPoint(glm::dvec3 &sample, glm::dvec3 *origin = nullptr, double *timestamp = nullptr);
+  bool nextPoint(SamplePoint &sample);
 
 private:
   bool loadPoint();
