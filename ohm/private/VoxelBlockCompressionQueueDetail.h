@@ -21,10 +21,28 @@
 #include <deque>
 #include <mutex>
 #include <thread>
+#include <unordered_map>
 
 namespace ohm
 {
 class VoxelBlock;
+
+enum class CompressionCommandId
+{
+
+};
+
+struct CompressionCommand
+{
+  VoxelBlock *block;
+  CompressionCommandId command;
+};
+
+struct CompressionEntry
+{
+  VoxelBlock *voxels;
+  size_t allocation_size;
+};
 
 struct VoxelBlockCompressionQueueDetail
 {
@@ -36,10 +54,15 @@ struct VoxelBlockCompressionQueueDetail
   ohm::SpinMutex queue_lock;
   std::queue<VoxelBlock *> compression_queue;
 #endif  // OHM_THREADS
+  std::vector<CompressionEntry> blocks;
+  std::atomic_uint64_t high_water_mark{ 12ull * 1024ull * 1024ull * 1024ull };
+  std::atomic_uint64_t low_water_mark{ 8ull * 1024ull * 1024ull * 1024ull };
+  std::atomic_uint64_t estimated_allocated_size{ 0 };
   std::atomic_int reference_count{ 0 };
   std::atomic_bool quit_flag{ false };
   std::thread processing_thread;
   bool running{ false };
+  bool test_mode{ false };  ///< Set when instantiated for testing.
 };
 
 inline void push(VoxelBlockCompressionQueueDetail &detail, VoxelBlock *block)

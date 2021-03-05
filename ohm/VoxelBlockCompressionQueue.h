@@ -8,6 +8,8 @@
 
 #include "OhmConfig.h"
 
+#include <vector>
+
 namespace ohm
 {
 class VoxelBlock;
@@ -27,7 +29,11 @@ public:
   static VoxelBlockCompressionQueue &instance();
 
   /// Constructor.
-  VoxelBlockCompressionQueue();
+  ///
+  /// The @p test_mode must only be used for (unit) testing. This puts the queue into a synchronous mode and requires
+  /// explicit calls to @c __tick().
+  /// @param test_mode When true, creates a queue for testing.
+  explicit VoxelBlockCompressionQueue(bool test_mode = false);
   /// Destructor. Ensures thread is joined.
   ~VoxelBlockCompressionQueue();
 
@@ -38,9 +44,22 @@ public:
   /// The next @c retain() call after the last @c release() reference will start a new thread.
   void release();
 
+  uint64_t highWaterMark() const;
+  void setHighWaterMark(uint64_t mark);
+  uint64_t lowWaterMark() const;
+  void setLowWaterMark(uint64_t mark);
+  uint64_t estimatedAllocationSize() const;
+
   /// Push a @c VoxelBlock on the queue for compression.
   /// @param block The block to compress.
   void push(VoxelBlock *block);
+
+  /// True if this object has been created in test mode.
+  bool testMode() const;
+
+  /// Test mode use only: called to perform a compression cycle. Must only be called when in @c testMode().
+  /// @param compression_buffer Buffer used to compress into.
+  void __tick(std::vector<uint8_t> &compression_buffer);
 
 private:
   void joinCurrentThread();

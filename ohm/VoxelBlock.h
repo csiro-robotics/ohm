@@ -72,10 +72,14 @@ public:
   {
     /// Memory buffer currently holds uncompressed voxel data.
     kFUncompressed = (1u << 0u),
-    /// Block is queued for compression.
-    kFCompressionQueued = (1u << 1u),
+    /// Block is locked and ineligible for compression.
+    kFLocked = (1u << 1u),
+    // /// Block is queued for compression.
+    // kFCompressionQueued = (1u << 1u),
     /// Block is to be deleted. Only set when the block should be deleted but is currently on the compression thread.
-    kFMarkedForDeath = (1u << 2u)
+    kFMarkedForDeath = (1u << 2u),
+    /// Block is part of the compression system.
+    kFManagedForCompression = (1u << 3u)
   };
 
   /// Compression level options
@@ -162,16 +166,39 @@ public:
   /// @c voxelBuffer().
   void release();
 
+#if 0
+  // This function could be useful, but I'm not keen on maintaining it.
+
   /// Compress the voxel data into @p compression_buffer. Writes the current voxel bytes when already compressed.
   ///
   /// @note This may initialise the buffer if empty, so that this method can be used for serialisation of the map to
   ///   disk.
   /// @param[in,out] compression_buffer Buffer to write compression data into. Resized to the compressed data size.
   void compressInto(std::vector<uint8_t> &compression_buffer);
+#endif  // #
 
-  /// Query the time after which the background thread may compress the @c VoxelBlock.
-  /// @return The time after which the block may be compressed.
-  Clock::time_point releaseAfter() const;
+  /// Attempt to compress the @c VoxelBlock memory.
+  ///
+  /// This call can only succeed if the current reference count is zero (and the kFLocked flag is clear). The compressed
+  /// data size is returned on success.
+  ///
+  /// Threadsafe.
+  ///
+  /// @return The compressed data size on success, zero on failure.
+  size_t compress();
+
+  /// Attempt to compress the @c VoxelBlock memory. Uses the @p compression_buffer as temporary storage during
+  /// compression.
+  ///
+  /// This call can only succeed if the current reference count is zero (and the kFLocked flag is clear). The compressed
+  /// data size is returned on success.
+  ///
+  /// Threadsafe.
+  ///
+  /// @param compression_buffer Temporary buffer to use during compression. As a side effect of success, this will
+  ///     contain the compressed voxel data, but this behaviour is not guaranteed and may change.
+  /// @return The compressed data size on success, zero on failure.
+  size_t compressWithTemporaryBuffer(std::vector<uint8_t> &compression_buffer);
 
   /// Direct access to the voxel bytes. Should be retained first. For internal use.
   /// @return Voxel bytes.
@@ -186,12 +213,8 @@ public:
   void updateLayerIndex(unsigned layer_index);
 
 private:
-  /// Check if compression is required. Needs compression if compression is enabled and buffer is currently
-  /// uncompressed. Mutex is not locked.
-  bool needsCompression() const;
-
-  /// Queue compression of voxel data. Should only be called when @c needsCompression() is true.
-  void queueCompression(std::unique_lock<Mutex> &guard);
+  /// True if the map configuration supports compression of this voxel block.
+  bool supportsCompression() const;
 
   /// Perform the compression operation into @p compression_buffer without locking the mutex . This is called from
   /// @c compressInto() after locking the @c access_guard_ .
@@ -213,8 +236,8 @@ private:
   /// Swap the voxel bytes with the given compressed voxel bytes, but only if there are currently no retained
   /// references. This is for use byte the @c VoxelBlockCompressionQueue.
   /// @param compressed_voxels The compressed voxel data.
-  /// @return True on success when there are no retained references.
-  bool setCompressedBytes(const std::vector<uint8_t> &compressed_voxels);
+  /// @return The compressed byte size on success, zero on failure or inability to compress.
+  void setCompressedBytesUnguarded(const std::vector<uint8_t> &compressed_voxels);
 
   /// Voxel data.
   ///
@@ -237,6 +260,8 @@ private:
   unsigned layer_index_ = 0;
   /// Byte size of this voxel block when uncompressed.
   size_t uncompressed_byte_size_ = 0;
+  /// Byte size of this voxel block when uncompressed.
+  size_t compressed_byte_size_ = 0;
 };
 
 inline uint8_t *VoxelBlock::voxelBytes()
