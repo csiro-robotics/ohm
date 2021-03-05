@@ -132,11 +132,12 @@ void MapLayer::release(const uint8_t *voxels)
 
 void MapLayer::clear(uint8_t *mem, const glm::u8vec3 &region_dim) const
 {
+  const glm::u8vec3 layer_dim = dimensions(region_dim);
   // Build a clear pattern. We progressively copy more and more memory.
   // - first build a single voxel at mem
-  // - copy voxel pattern from mem to create region_dim.x elements at mem (rows)
-  // - copy first row into region_dim.y - 1 rows to create layers
-  // - copy first layer into region_dim.z - 1 layers
+  // - copy voxel pattern from mem to create layer_dim.x elements at mem (rows)
+  // - copy first row into layer_dim.y - 1 rows to create layers
+  // - copy first layer into layer_dim.z - 1 layers
   //
   // We also have a special case when the clear pattern is zero. In that case we use a single memset call.
   const size_t voxel_byte_size = voxel_layout_->voxel_byte_size;
@@ -164,28 +165,28 @@ void MapLayer::clear(uint8_t *mem, const glm::u8vec3 &region_dim) const
   if (zero_clear_pattern)
   {
     // Voxel clear pattern is all zero. Just use a memset.
-    memset(mem, 0, voxel_byte_size * region_dim.x * region_dim.y * region_dim.z);
+    memset(mem, 0, voxel_byte_size * layer_dim.x * layer_dim.y * layer_dim.z);
     return;
   }
 
-  // Fill out a single voxel column (region_dim.x)
-  for (int x = 1; x < region_dim.x; ++x, dst += voxel_byte_size)
+  // Fill out a single voxel column (layer_dim.x)
+  for (int x = 1; x < layer_dim.x; ++x, dst += voxel_byte_size)
   {
     memcpy(dst, mem, voxel_byte_size);
   }
 
-  // Now repeat the column into the rows (region_dim.y)
-  for (int y = 1; y < region_dim.y; ++y, dst += voxel_byte_size * region_dim.x)
+  // Now repeat the column into the rows (layer_dim.y)
+  for (int y = 1; y < layer_dim.y; ++y, dst += voxel_byte_size * layer_dim.x)
   {
-    memcpy(dst, mem, voxel_byte_size * region_dim.x);
+    memcpy(dst, mem, voxel_byte_size * layer_dim.x);
   }
 
   // Now copy each 2D layer.
-  for (int z = 1; z < region_dim.z; ++z, dst += voxel_byte_size * region_dim.x * region_dim.y)
+  for (int z = 1; z < layer_dim.z; ++z, dst += voxel_byte_size * layer_dim.x * layer_dim.y)
   {
-    memcpy(dst, mem, voxel_byte_size * region_dim.x * region_dim.y);
+    memcpy(dst, mem, voxel_byte_size * layer_dim.x * layer_dim.y);
   }
 
-  assert(dst == mem + volume(region_dim));
+  assert(dst == mem + volume(region_dim) * voxel_byte_size);
 }
 }  // namespace ohm
