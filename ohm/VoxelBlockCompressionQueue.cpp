@@ -180,7 +180,7 @@ void VoxelBlockCompressionQueue::__tick(std::vector<uint8_t> &compression_buffer
 
     auto iter = imp_->blocks.begin();
     // Free until we reach the low water mark.
-    while (iter != imp_->blocks.end() && memory_usage > low_water_mark)
+    while (iter != imp_->blocks.end() && memory_usage >= low_water_mark)
     {
       // Check if marked for death. The status may have changed since we updated the allocation size.
       if (!(iter->voxels->flags_ & VoxelBlock::kFMarkedForDeath))
