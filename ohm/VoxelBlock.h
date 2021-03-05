@@ -156,6 +156,9 @@ public:
   /// @return The uncompressed size of the voxel map in bytes.
   inline size_t uncompressedByteSize() const { return uncompressed_byte_size_; }
 
+  /// Query current flag values.
+  inline unsigned flags() const { return flags_; }
+
   /// Retain the uncompressed voxel memory until a corresponding @c release() call. Not recommended; use
   /// @c voxelBuffer().
   ///
