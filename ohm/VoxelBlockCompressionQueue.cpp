@@ -162,21 +162,13 @@ void VoxelBlockCompressionQueue::__tick(std::vector<uint8_t> &compression_buffer
   // Check if we are over the high water mark and release what we can.
   if (memory_usage >= high_water_mark)
   {
-    struct EntryCompare
-    {
-      inline bool operator()(const CompressionEntry &a, const CompressionEntry &b)
-      {
-        return a.allocation_size >= b.allocation_size;
-      }
-    };
     // Sort all blocks by allocation size.
     // TODO(KS): consider including the queued for compression flag so we push items to be compressed to the front
     // of the sort results.
     // TODO(KS): try using a partial sort.
-    std::sort(imp_->blocks.begin(), imp_->blocks.end(), EntryCompare{});
-    // std::sort(imp_->blocks.begin(), imp_->blocks.end(),
-    //           [](const CompressionEntry &a, const CompressionEntry &b) { a.allocation_size >= b.allocation_size;
-    //           });
+    std::sort(imp_->blocks.begin(), imp_->blocks.end(), [](const CompressionEntry &a, const CompressionEntry &b) {
+      return a.allocation_size >= b.allocation_size;
+    });
 
     auto iter = imp_->blocks.begin();
     // Free until we reach the low water mark.

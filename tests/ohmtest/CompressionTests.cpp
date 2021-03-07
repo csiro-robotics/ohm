@@ -7,6 +7,7 @@
 
 #include <gtest/gtest.h>
 
+#include <ohm/DefaultLayer.h>
 #include <ohm/MapLayer.h>
 #include <ohm/MapLayout.h>
 #include <ohm/OccupancyMap.h>
@@ -15,7 +16,14 @@
 
 #include <ohmutil/OhmUtil.h>
 
-TEST(Compression, Managed)
+#include <chrono>
+
+namespace
+{
+using Clock = std::chrono::high_resolution_clock;
+}
+
+TEST(Compression, Simple)
 {
   ohm::VoxelBlockCompressionQueue compressor(true);  // Instantiate in test mode
   // Create a map in order to use the layout. DO NOT SET kCompressed. That would start a new compression object.
@@ -118,4 +126,58 @@ TEST(Compression, Managed)
   // Ensure the blocks are releases.
   blocks.clear();
   compressor.__tick(compression_buffer);
+}
+
+
+TEST(Compression, HighLoad)
+{
+  ohm::VoxelBlockCompressionQueue compressor(true);  // Instantiate in test mode
+  ohm::MapLayout layout;
+  ohm::addCovariance(layout);
+  // Create a map in order to use the layout. DO NOT SET kCompressed. That would start a new compression object.
+  ohm::OccupancyMap map(1.0, ohm::MapFlag::kNone, layout);
+  // Ensure the covariance layer is present.
+  std::vector<ohm::VoxelBlock::Ptr> blocks;
+  std::vector<uint8_t> compression_buffer;
+
+  const size_t block_count = 100;
+  // Create a set of blocks which we can register with the compression object.
+  ASSERT_NE(map.layout().covarianceLayer(), -1);
+  const ohm::MapLayer &layer = map.layout().layer(map.layout().covarianceLayer());
+  const size_t layer_mem_size = layer.layerByteSize(map.regionVoxelDimensions());
+  size_t uncompressed_size = layer_mem_size * block_count;
+  for (size_t i = 0; i < block_count; ++i)
+  {
+    blocks.emplace_back();
+    blocks[i].reset(new ohm::VoxelBlock(map.detail(), layer));
+    compressor.push(blocks[i].get());
+  }
+  // Set the high water mark above the current allocation size.
+  compressor.setHighWaterMark((block_count + 1) * layer_mem_size);
+  auto start = Clock::now();
+  compressor.__tick(compression_buffer);
+  auto end = Clock::now();
+
+  std::cout << "Initial tick: " << (end - start) << std::endl;
+
+  // No compression should have occurred.
+  std::cout << "allocated: " << ohm::util::Bytes(compressor.estimatedAllocationSize()) << std::endl;
+  EXPECT_EQ(compressor.estimatedAllocationSize(), uncompressed_size);
+
+  // Set a zero tolerance low water mark and time the tick.
+  compressor.setHighWaterMark(0);
+  compressor.setLowWaterMark(0);
+  start = Clock::now();
+  compressor.__tick(compression_buffer);
+  end = Clock::now();
+  EXPECT_EQ(compressor.estimatedAllocationSize(), uncompressed_size);
+  std::cout << "Compression tick: " << (end - start) << std::endl;
+
+  // Ensure the blocks are releases.
+  blocks.clear();
+  start = Clock::now();
+  compressor.__tick(compression_buffer);
+  end = Clock::now();
+  EXPECT_EQ(compressor.estimatedAllocationSize(), 0);
+  std::cout << "Release tick: " << (end - start) << std::endl;
 }
