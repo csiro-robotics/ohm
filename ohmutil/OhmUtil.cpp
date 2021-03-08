@@ -5,7 +5,9 @@
 // Author: Kazys Stepanas
 #include "OhmUtil.h"
 
-namespace ohm::util
+namespace ohm
+{
+namespace util
 {
 const std::array<size_t, 9> Bytes::ByteScale =  //
   {
@@ -32,4 +34,5 @@ const std::array<const char *const, 9> Bytes::MagnitudeSuffix =  //
     "ZiB",  //
     "YiB",  //
   };
-}  // namespace ohm::util
+}  // namespace util
+}  // namespace ohm
