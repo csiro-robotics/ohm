@@ -140,7 +140,7 @@ TEST(Compression, HighLoad)
   std::vector<ohm::VoxelBlock::Ptr> blocks;
   std::vector<uint8_t> compression_buffer;
 
-  const size_t block_count = 100;
+  const size_t block_count = 5000;
   // Create a set of blocks which we can register with the compression object.
   ASSERT_NE(map.layout().covarianceLayer(), -1);
   const ohm::MapLayer &layer = map.layout().layer(map.layout().covarianceLayer());
@@ -170,7 +170,7 @@ TEST(Compression, HighLoad)
   start = Clock::now();
   compressor.__tick(compression_buffer);
   end = Clock::now();
-  EXPECT_EQ(compressor.estimatedAllocationSize(), uncompressed_size);
+  EXPECT_LT(compressor.estimatedAllocationSize(), uncompressed_size);
   std::cout << "Compression tick: " << (end - start) << std::endl;
 
   // Ensure the blocks are releases.

@@ -167,7 +167,7 @@ void VoxelBlockCompressionQueue::__tick(std::vector<uint8_t> &compression_buffer
     // of the sort results.
     // TODO(KS): try using a partial sort.
     std::sort(imp_->blocks.begin(), imp_->blocks.end(), [](const CompressionEntry &a, const CompressionEntry &b) {
-      return a.allocation_size >= b.allocation_size;
+      return a.allocation_size > b.allocation_size;
     });
 
     auto iter = imp_->blocks.begin();
