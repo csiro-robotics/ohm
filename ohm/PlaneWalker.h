@@ -46,10 +46,14 @@ public:
   PlaneWalker(const OccupancyMap &map, const Key &min_ext_key, const Key &max_ext_key, UpAxis up_axis,
               const Key *plane_key_ptr = nullptr);
 
+  /// Query the minimum key value to walk from.
+  /// @return The mimimum key value.
   inline const Key &minKey() const { return min_ext_key; }
+  /// Query the maximum key value to walk to.
+  /// @return The maximum key value.
   inline const Key &maxKey() const { return max_ext_key; }
 
-  /// Initialse @p key To the first voxel to walk.
+  /// Initialise @p key To the first voxel to walk.
   /// @param[out] key Set to the first key to be walked.
   /// @return True if the key is valid, false if there is nothing to walk.
   bool begin(Key &key) const;

@@ -179,7 +179,7 @@ public:
   inline const_iterator end() const { return const_iterator(keys_.end()); }
 
   /// Reserve space to contain @p capacity keys in the set.
-  /// @param capacity The desired capcacity.
+  /// @param capacity The desired capacity.
   void reserve(size_t capacity);
   /// Resize the key set to contain @p count keys.
   ///

@@ -205,17 +205,17 @@ public:
   /// Save the PLY mesh to the given @p out_path .
   /// @param out_path File path specifying where to save. String should include the `.ply` extension.
   /// @param binary Save in binary PLY format? False for ASCII.
-  /// @return True on succcess.
+  /// @return True on success.
   bool save(const std::string &out_path, bool binary) const;
   /// Save the PLY mesh using a @c FILE object.
   /// @param outfile @c FILE object to save to.
   /// @param binary Save in binary PLY format? False for ASCII.
-  /// @return True on succcess.
+  /// @return True on success.
   bool save(FILE *outfile, bool binary) const;
   /// Save the PLY mesh to the given @c stream .
   /// @param stream The output stream to save to.
   /// @param binary Save in binary PLY format? False for ASCII.
-  /// @return True on succcess.
+  /// @return True on success.
   bool save(std::ostream &stream, bool binary) const;
 
   /// API adaptor for either @c std::ostream or @c FILE .

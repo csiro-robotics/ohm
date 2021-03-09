@@ -139,7 +139,7 @@ private:
 #else  // PROFILING
 
 #define PROFILE(name)
-#define PROFIILE_IF(name)
+#define PROFILE_IF(name)
 #define PROFILE_END(name)
 #define PROFILE_RESTART(name)
 #define PROFILE_RESTART_IF(name)

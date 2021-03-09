@@ -22,7 +22,7 @@ RayMapperOccupancy::RayMapperOccupancy(OccupancyMap *map)
   , mean_layer_(map_->layout().meanLayer())
 {
   // Use Voxel to validate the layers.
-  // In processing we use VoxelBuffer instead of Voxel objects. While Voxel mapes for a neader API, using VoxelBuffer
+  // In processing we use VoxelBuffer instead of Voxel objects. While Voxel makes for a neater API, using VoxelBuffer
   // makes for less overhead and yields better performance.
   Voxel<const float> occupancy(map_, occupancy_layer_);
   Voxel<const VoxelMean> mean(map_, mean_layer_);
@@ -286,7 +286,7 @@ size_t RayMapperOccupancy::lookupRays(const glm::dvec3 *rays, size_t element_cou
     {
       newly_observed_volume += is_unobserved ? (ray_solid_angle *
                                float(exit_range * exit_range * exit_range - enter_range * enter_range * enter_range)) : 0.0f;
-      range = exit_range;
+      range = float(exit_range);
       terminal_state =
         is_unobserved ? OccupancyType::kUnobserved : (is_occupied ? OccupancyType::kOccupied : OccupancyType::kFree);
     }
@@ -305,7 +305,7 @@ size_t RayMapperOccupancy::lookupRays(const glm::dvec3 *rays, size_t element_cou
     newly_observed_volume = 0.0f;
     range = 0.0f;
     terminal_state = OccupancyType::kNull;
-    
+
     if (use_filter)
     {
       if (!ray_filter(&start, &end, &filter_flags))

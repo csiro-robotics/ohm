@@ -23,19 +23,13 @@
 
 namespace
 {
+using Clock = std::chrono::high_resolution_clock;
+
 struct TrajectoryPoint
 {
   double timestamp;
   glm::dvec3 origin;
 };
-
-struct SamplePoint : TrajectoryPoint
-{
-  glm::dvec3 sample;
-  float intensity;
-};
-
-typedef std::chrono::high_resolution_clock Clock;
 }  // namespace
 
 struct SlamCloudLoaderDetail
@@ -197,7 +191,7 @@ bool SlamCloudLoader::open(const char *sample_file_path, const char *trajectory_
       return true;
     };
   }
-  else if (!imp_->trajectory_file.empty())
+  else if (imp_->trajectory_file.is_open())
   {
     using_trajectory = true;
     imp_->trajectory_reader = new liblas::Reader(imp_->las_reader_factory->CreateWithStream(imp_->trajectory_file));
@@ -274,6 +268,32 @@ bool SlamCloudLoader::trajectoryFileIsOpen() const
 }
 
 
+bool SlamCloudLoader::hasTimestamp() const
+{
+  return true;
+}
+
+
+bool SlamCloudLoader::hasOrigin() const
+{
+  return trajectoryFileIsOpen();
+}
+
+
+bool SlamCloudLoader::hasIntensity() const
+{
+  // Not supported for las loader.
+  return false;
+}
+
+
+bool SlamCloudLoader::hasColour() const
+{
+  // Not supported for las loader.
+  return false;
+}
+
+
 void SlamCloudLoader::preload(size_t point_count)
 {
   if (!imp_->sample_reader)
@@ -292,9 +312,8 @@ void SlamCloudLoader::preload(size_t point_count)
   size_t initial_read_count = imp_->read_count;
   preload_data.reserve(point_count);
 
-  bool ok = true;
-  SamplePoint sample;
-  while (nextPoint(sample.sample, sample.intensity, &sample.origin, &sample.timestamp) && (preload_data.size() < point_count || load_all))
+  SamplePoint sample{};
+  while (nextPoint(sample) && (preload_data.size() < point_count || load_all))
   {
     preload_data.emplace_back(sample);
   }
@@ -305,36 +324,19 @@ void SlamCloudLoader::preload(size_t point_count)
 }
 
 
-bool SlamCloudLoader::nextPoint(glm::dvec3 &sample, glm::dvec3 *origin, double *timestamp_out)
-{
-  float intensity;
-  return nextPoint(sample, intensity, origin, timestamp_out);
-}
-
-
-bool SlamCloudLoader::nextPoint(glm::dvec3 &sample, float &intensity, glm::dvec3 *origin, double *timestamp_out)
+bool SlamCloudLoader::nextPoint(SamplePoint &sample)
 {
   if (loadPoint())
   {
     ++imp_->read_count;
 
     // Read next sample.
-    const SamplePoint sample_point = imp_->next_sample;
-    sample = sample_point.sample;
-    intensity = sample_point.intensity;
-    if (timestamp_out)
-    {
-      *timestamp_out = sample_point.timestamp;
-    }
-    if (origin)
-    {
-      *origin = sample_point.origin + imp_->trajectory_to_sensor_offset;
-    }
+    sample = imp_->next_sample;
 
     // If in real time mode, sleep until we should deliver this sample.
     if (imp_->real_time_mode && imp_->first_sample_timestamp >= 0)
     {
-      const double sample_relative_time = sample_point.timestamp - imp_->first_sample_timestamp;
+      const double sample_relative_time = sample.timestamp - imp_->first_sample_timestamp;
       if (sample_relative_time > 0)
       {
         auto uptime = Clock::now() - imp_->first_sample_read_time;
@@ -369,12 +371,19 @@ bool SlamCloudLoader::loadPoint()
   if (imp_->sample_reader && imp_->sample_reader->ReadNextPoint())
   {
     const liblas::Point &p = imp_->sample_reader->GetPoint();
-    SamplePoint sample;
+    SamplePoint sample{};
     sample.timestamp = p.GetTime();
     sample.sample = glm::dvec3(p.GetX(), p.GetY(), p.GetZ());
+    const auto colour = p.GetColor();
+    sample.colour[0] =
+      uint8_t(float(colour.GetRed()) / float(std::numeric_limits<liblas::Color::value_type>::max()) * 255.0f);
+    sample.colour[1] =
+      uint8_t(float(colour.GetGreen()) / float(std::numeric_limits<liblas::Color::value_type>::max()) * 255.0f);
+    sample.colour[2] =
+      uint8_t(float(colour.GetBlue()) / float(std::numeric_limits<liblas::Color::value_type>::max()) * 255.0f);
     sample.intensity = float(p.GetIntensity());
-    sample.origin = glm::dvec3(0);
     sampleTrajectory(sample.origin, sample.sample, sample.timestamp);
+    sample.origin += imp_->trajectory_to_sensor_offset;
     imp_->next_sample = sample;
 
     if (imp_->first_sample_timestamp < 0)

@@ -90,7 +90,7 @@ class RayFilter;
 /// called.
 ///
 /// There are two forms of addressing for the @c OccupancyMap - region and local - encapsulated by the @c Key class.
-/// The region key is a coarse indexer which identifies a @c MapRegion and its accociated memory in @c MapChunk .
+/// The region key is a coarse indexer which identifies a @c MapRegion and its associated memory in @c MapChunk .
 /// The local key is a fine indexer which resolves to a specific voxel within a @c MapRegion . Region indexing is
 /// limited by the size of an @c int16_t supporting a spatial range of
 /// ~`2^15 * regionVoxelDimensions() * resolution()` while the local key is limited by @c regionVoxelDimensions() .
@@ -237,7 +237,7 @@ public:
     inline const_iterator(const const_iterator &other) = default;
     /// Copy constructor.
     /// @param other Object to shallow copy.
-    inline const_iterator(const iterator &other)  // NOLINT(google-explicit-constructor) want implict conversion here
+    inline const_iterator(const iterator &other)  // NOLINT(google-explicit-constructor) want implicit conversion here
       : base_iterator(other)
     {}
 
@@ -357,7 +357,7 @@ public:
   ///
   /// The region need not be present in the map for this calculation.
   /// @param region_key The region of interest.
-  /// @return The coordiates of the spatial centre of the region.
+  /// @return The coordinates of the spatial centre of the region.
   glm::dvec3 regionSpatialCentre(const glm::i16vec3 &region_key) const;
 
   /// Sets the map origin. All point references are converted to be relative to this origin.

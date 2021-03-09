@@ -112,7 +112,7 @@ struct VoxelChunkAccess<const T>
 /// type @c T . Only a mutable @c Voxel can create new @c MapChunks within the @c OccupancyMap . This occurs
 /// immediately on setting a key, generally via @c setKey() . Additional book keeping is managed by the mutable
 /// @c Voxel to ensure correct update of @c OccupancyMap::stamp() (via @c OccupancyMap::touch() ) as well as
-/// updating appropriate @c MapChunk stamps. The @c MapChunk::first_valid_index is also udpated for the occupancy
+/// updating appropriate @c MapChunk stamps. The @c MapChunk::first_valid_index is also updated for the occupancy
 /// layer.
 ///
 /// A @c Voxel is initialised to reference a specific @c MapLayer within a specific @c OccupancyMap . At this point
@@ -132,7 +132,7 @@ struct VoxelChunkAccess<const T>
 /// `sizeof(T)!=voxelByteSize()` *  | false             | false                 | false       | `VoxelSizeMismatch`
 /// Initialised                     | true              | false                 | false       | 0
 /// Key set, chunk null (const only)| true              | true                  | false       | 0
-/// Key set, chunk resovled         | true              | true                  | true        | 0
+/// Key set, chunk resolved         | true              | true                  | true        | 0
 ///
 /// * see @c MapLayer::voxelByteSize()
 ///
@@ -152,7 +152,7 @@ struct VoxelChunkAccess<const T>
 /// and will save a looking into the map. Note that the iterator is assumed to be valid by the @c Voxel and is not
 /// validated. That is, a @c Voxel must not be initialised from an @c end() or otherwise invalid iterator.
 ///
-/// A similar set of parameterisation of the @c Voxel constructors also exist.
+/// A similar set of parametrisation of the @c Voxel constructors also exist.
 ///
 /// For convenience the free function @c setVoxelKey() may be used to initialise a number of @c Voxel references,
 /// presumably to different layers, from a single key reference. This is a variadic template function accepting
@@ -319,11 +319,11 @@ public:
   {
     kNone = 0,                       ///< Nothing of note
     kIsOccupancyLayer = (1u << 0u),  ///< Marks that this @c Voxel points to the occupancy layer of @c OccupancyMap.
-    kCompressionLock = (1u << 1u),   ///< Indiates the layer's @c VoxelBlock has been retained in @c chunk_.
+    kCompressionLock = (1u << 1u),   ///< Indicates the layer's @c VoxelBlock has been retained in @c chunk_.
     kTouchedChunk = (1u << 2u),      ///< Marks that the current @c MapChunk data has been accessed for mutation.
     kTouchedVoxel = (1u << 3u),      ///< Marks that the current voxel data has been accessed for mutation.
 
-    /// Flag values which are not propagated in copy assigment.
+    /// Flag values which are not propagated in copy assignment.
     kNonPropagatingFlags = kTouchedChunk | kTouchedVoxel | kCompressionLock  // NOLINT(hicpp-signed-bitwise)
   };
 
@@ -352,7 +352,7 @@ public:
   /// @c Voxel will still not be valid in the case where the @p key references a @c MapChunk which does not exist.
   /// @param map The map to access and mutate for non-const @c Voxel types.
   /// @param layer_index The @c MapLayer to access for the type @c T .
-  /// @param key The key for the voxel to initialy reference. May be changed layer with @c setKey() .
+  /// @param key The key for the voxel to initially reference. May be changed layer with @c setKey() .
   Voxel(MapTypePtr map, int layer_index, const Key &key);
 
   /// Set the @c Voxel to reference the start of the voxel buffer within the @c MapChunk associated with the given
@@ -368,7 +368,7 @@ public:
   /// This will never create a @c MapChunk as it is assumed to be valid in the iterator.
   Voxel(const MapIteratorType &iter, int layer_index);
 
-  /// Destrutor, ensures book keeping operations are completed on the @c MapChunk .
+  /// Destructor, ensures book keeping operations are completed on the @c MapChunk .
   inline ~Voxel() { updateTouch(false); }
 
   /// Check if the map and layer references are valid and error flags are clear.

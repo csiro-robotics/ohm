@@ -116,7 +116,7 @@ public:
   /// Wait for an asynchronous query to complete.
   ///
   /// @param timeout_ms Maximum amount of time to wait for completion (milliseconds).
-  /// @return True if on return there is no asychronous query running. This does not mean that there was
+  /// @return True if on return there is no asynchronous query running. This does not mean that there was
   ///   one running to begin with.
   bool wait(unsigned timeout_ms = ~0u);
 

@@ -68,7 +68,7 @@ public:
   /// from the @c kDefaultRayFlags can result in significantly different semantics which invalidate the name
   /// "ClearingPattern" as it is used in this context. For example, clearing the flag @c kRfEndPointAsFree can have
   /// the "ClearingPattern" generate occupied voxels. As such, this function should be used with care.
-  /// @param flags Modified @c RayFlag bit set to use when applying this pattern.
+  /// @param ray_flags Modified @c RayFlag bit set to use when applying this pattern.
   void setRayFlags(unsigned ray_flags);
 
   /// Apply the clearing @c pattern() to @p map. This supports both APIs for both @c OccupancyMap and the @p GpuMap

@@ -15,7 +15,9 @@
 #include <sstream>
 #include <string>
 
-namespace ohm::util
+namespace ohm
+{
+namespace util
 {
 const size_t kThousand = 1000u;
 const size_t kKibiSize = 1024u;
@@ -198,7 +200,8 @@ private:
   ByteMagnitude magnitude_ = ByteMagnitude::kByte;
 };
 
-}  // namespace ohm::util
+}  // namespace util
+}  // namespace ohm
 
 /// Convert a byte value to a memory usage display string converting to the largest appropriate byte unit.
 /// For example, this displays 2048 bytes as 2KiB, rather than a byte value. String display supports up to exbibyte.

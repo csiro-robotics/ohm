@@ -16,7 +16,9 @@
 #include <sstream>
 #include <vector>
 
-namespace ohm::compare
+namespace ohm
+{
+namespace compare
 {
 namespace
 {
@@ -27,14 +29,14 @@ void buildLogMessage(std::ostream &out, T val)
 }
 
 template <typename T, typename... Args>
-void buildLogMessage(std::ostream &out, T val, const Args &... args)
+void buildLogMessage(std::ostream &out, T val, const Args &...args)
 {
   out << val;
   buildLogMessage(out, args...);
 }
 
 template <typename... Args>
-void logMessage(Log log, Severity severity, const Args &... args)
+void logMessage(Log log, Severity severity, const Args &...args)
 {
   std::ostringstream msg;
   buildLogMessage(msg, args...);
@@ -42,7 +44,7 @@ void logMessage(Log log, Severity severity, const Args &... args)
 }
 
 template <typename T, typename... Args>
-bool compareItem(const T &val, const T &ref, Log log, Severity severity, const Args &... args)
+bool compareItem(const T &val, const T &ref, Log log, Severity severity, const Args &...args)
 {
   if (val != ref)
   {
@@ -468,4 +470,5 @@ void configureTolerance(ohm::MapLayer &layer, const char *member_name, double ep
   memcpy(&e, &epsilon, sizeof(epsilon));
   configureTolerance(layer, member_name, DataType::kDouble, e);
 }
-}  // namespace ohm::compare
+}  // namespace compare
+}  // namespace ohm

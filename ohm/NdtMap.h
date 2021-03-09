@@ -25,8 +25,8 @@ struct NdtMapDetail;
 /// This covariance matrix describes an ellipsoid within the voxel which approximates the collection of samples used
 /// to populate that voxel. This is used to refine the probably adjustment of rays passing through the voxel.
 /// Conceptually, we adjust the probably according to the likelihood that the ray passing through the voxel intersects
-/// this ellipsoid. This improves standard occupancy map issues of errosion. This calculation can only be made where
-/// sufficient samples have been collected, as determined by @c ndtSampleThreshold() , otherwise a fxied probably
+/// this ellipsoid. This improves standard occupancy map issues of erosion. This calculation can only be made where
+/// sufficient samples have been collected, as determined by @c ndtSampleThreshold() , otherwise a fixed probably
 /// adjustment is made as set by the @c OccupancyMap::missProbability() . This probably is also used as the learning
 /// rate for the NDT model.
 ///

@@ -13,8 +13,8 @@ namespace ohm
 class OccupancyMap;
 
 /// Return value for @c Mapper::update() and @c MappingProcess::update(). Values must be ordered
-/// such that more significant results come later. This supports a simple amalgomation of results
-/// in @c Mappper::update() by simply using the maximum value of the aggregate processes.
+/// such that more significant results come later. This supports a simple amalgamation of results
+/// in @c Mapper::update() by simply using the maximum value of the aggregate processes.
 enum MappingProcessResult
 {
   /// Everything up to date or nothing to do.
@@ -33,9 +33,9 @@ enum MappingProcessResult
 class ohm_API MappingProcess
 {
 public:
-  /// Construtor.
+  /// Constructor.
   MappingProcess();
-  /// Virtual destrutor.
+  /// Virtual destructor.
   virtual ~MappingProcess();
 
   /// Request a pause or unpause the process.

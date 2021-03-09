@@ -5,6 +5,8 @@
 // Author: Kazys Stepanas
 #include "NdtMode.h"
 
+#include <array>
+
 namespace ohm
 {
 const std::array<std::string, 3> &ndtModeNames()

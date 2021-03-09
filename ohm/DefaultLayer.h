@@ -57,7 +57,7 @@ MapLayer *ohm_API addCovariance(MapLayout &layout);
 
 /// Add the voxel clearance layer to @p layout.
 ///
-  /// Similar to @c addVoxelMean() , this function adds voxl clearance using the @c clearanceLayerName() .
+/// Similar to @c addVoxelMean() , this function adds voxel clearance using the @c clearanceLayerName() .
 ///
 /// @param layout The @p MapLayout to modify.
 /// @return The map layer added or the pre-existing layer named according to @c clearanceLayerName() .

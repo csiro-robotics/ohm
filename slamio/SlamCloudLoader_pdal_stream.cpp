@@ -44,12 +44,6 @@ struct TrajectoryPoint
   glm::dvec3 origin;
 };
 
-struct SamplePoint : TrajectoryPoint
-{
-  glm::dvec3 sample;
-  float intensity;
-};
-
 using Clock = std::chrono::high_resolution_clock;
 
 class PointStream : public pdal::StreamPointTable
@@ -74,10 +68,50 @@ public:
     {
       // Validate the dimensions.
       bool have_required_dimensions = true;
-      if (!layout_.hasDim(pdal::Dimension::Id::X) || !layout_.hasDim(pdal::Dimension::Id::Y) ||
-          !layout_.hasDim(pdal::Dimension::Id::Z))
+
+      for (int i = 0; i < 3; ++i)
       {
-        have_required_dimensions = false;
+        const auto *pos_dim = layout_.dimDetail(pdal::Dimension::Id(i + int(pdal::Dimension::Id::X)));
+        if (pos_dim)
+        {
+          position_channel_types_[i] = pos_dim->type();
+          have_required_dimensions =
+            have_required_dimensions && (position_channel_types_[i] == pdal::Dimension::Type::Double ||
+                                         position_channel_types_[i] == pdal::Dimension::Type::Float);
+        }
+        else
+        {
+          have_required_dimensions = false;
+        }
+      }
+
+      have_colour_ = true;
+
+      for (int i = 0; i < 3; ++i)
+      {
+        const auto *colour_dim = layout_.dimDetail(pdal::Dimension::Id(i + int(pdal::Dimension::Id::Red)));
+        if (colour_dim)
+        {
+          colour_channel_types_[i] = colour_dim->type();
+          have_colour_ = have_colour_ && (colour_channel_types_[i] == pdal::Dimension::Type::Unsigned8 ||
+                                          colour_channel_types_[i] == pdal::Dimension::Type::Unsigned16 ||
+                                          colour_channel_types_[i] == pdal::Dimension::Type::Unsigned32);
+        }
+        else
+        {
+          have_colour_ = false;
+        }
+      }
+
+      const auto *intensity_dim = layout_.dimDetail(pdal::Dimension::Id::Intensity);
+      if (intensity_dim)
+      {
+        intensity_channel_type_ = intensity_dim->type();
+        have_intensity_ = (intensity_channel_type_ == pdal::Dimension::Type::Unsigned8 ||
+                           intensity_channel_type_ == pdal::Dimension::Type::Unsigned16 ||
+                           intensity_channel_type_ == pdal::Dimension::Type::Unsigned32 ||
+                           intensity_channel_type_ == pdal::Dimension::Type::Double ||
+                           intensity_channel_type_ == pdal::Dimension::Type::Float);
       }
 
       // Resolve time dimension.
@@ -112,9 +146,8 @@ public:
 
       if (dim != pdal::Dimension::Id::Unknown)
       {
-        // Resolved time field.
-        time_dimension_ = dim;
         have_timefield_ = true;
+        time_channel_type_ = layout_.dimDetail(dim)->type();
       }
       else
       {
@@ -132,15 +165,16 @@ public:
     }
   }
 
-  bool nextPoint(glm::dvec4 *point)
+  bool nextPoint(SamplePoint *sample)
   {
     std::unique_lock<std::mutex> guard(buffer_mutex_);
     const int read_buffer = 1 - write_index_;
     const unsigned read_index = next_read_;
+    // Ensure colour pointer is valid, pointing to a stack variable if null.
     bool have_read = false;
     if (next_read_ < buffers_[read_buffer].size())
     {
-      *point = buffers_[read_buffer][read_index];
+      *sample = buffers_[read_buffer][read_index];
       ++next_read_;
       have_read = true;
     }
@@ -176,6 +210,10 @@ public:
   /// Mark loading as done: only to be called from the loading thread.
   inline void markLoadComplete() { loading_complete_ = true; }
 
+  inline bool hasTimestamp() const { return have_timefield_; }
+  inline bool hasColour() const { return have_colour_; }
+  inline bool hasIntensity() const { return have_intensity_; }
+
 protected:
   // Not supported
   char *getPoint(pdal::PointId /* idx */) override { return nullptr; }
@@ -184,29 +222,88 @@ protected:
   {
     if (!abort_)
     {
-      auto &buffer = buffers_[write_index_];
-      while (buffer.size() <= idx)
+      auto &point_buffer = buffers_[write_index_];
+      while (point_buffer.size() <= idx)
       {
-        buffer.emplace_back(glm::dvec4(0, 0, 0, 0));
+        point_buffer.emplace_back(SamplePoint{});
       }
 
-      auto &point = buffer[idx];
+      auto &sample = point_buffer[idx];
 
       switch (dim)
       {
       case pdal::Dimension::Id::X:
-        point.x = *static_cast<const double *>(val);
-        break;
       case pdal::Dimension::Id::Y:
-        point.y = *static_cast<const double *>(val);
-        break;
-      case pdal::Dimension::Id::Z:
-        point.z = *static_cast<const double *>(val);
+      case pdal::Dimension::Id::Z: {
+        const int pos_index = int(dim) - int(pdal::Dimension::Id::X);
+        if (position_channel_types_[pos_index] == pdal::Dimension::Type::Double)
+        {
+          sample.sample[pos_index] = *static_cast<const double *>(val);
+        }
+        else
+        {
+          sample.sample[pos_index] = double(*static_cast<const float *>(val));
+        }
+      }
+      break;
+      case pdal::Dimension::Id::Red:
+      case pdal::Dimension::Id::Green:
+      case pdal::Dimension::Id::Blue: {
+        const int colour_index = int(dim) - int(pdal::Dimension::Id::Red);
+        switch (colour_channel_types_[colour_index])
+        {
+        case pdal::Dimension::Type::Signed8:  // Ignore sign
+        case pdal::Dimension::Type::Unsigned8:
+          sample.colour[colour_index] = *static_cast<const uint8_t *>(val);
+          break;
+        case pdal::Dimension::Type::Signed16:  // Ignore sign
+        case pdal::Dimension::Type::Unsigned16:
+          sample.colour[colour_index] =
+            uint8_t(255.0 * double(*static_cast<const uint16_t *>(val)) / double(std::numeric_limits<uint16_t>::max()));
+          break;
+        case pdal::Dimension::Type::Signed32:  // Ignore sign
+        case pdal::Dimension::Type::Unsigned32:
+          sample.colour[colour_index] =
+            uint8_t(255.0 * double(*static_cast<const uint32_t *>(val)) / double(std::numeric_limits<uint32_t>::max()));
+          break;
+        default:
+          break;
+        }
+      }
+      break;
+      case pdal::Dimension::Id::Intensity:
+        switch (intensity_channel_type_)
+        {
+        case pdal::Dimension::Type::Unsigned8:
+          sample.intensity = float(*static_cast<const uint8_t *>(val));
+          break;
+        case pdal::Dimension::Type::Unsigned16:
+          sample.intensity = float(*static_cast<const uint16_t *>(val));
+          break;
+        case pdal::Dimension::Type::Unsigned32:
+          sample.intensity = float(*static_cast<const uint32_t *>(val));
+          break;
+        case pdal::Dimension::Type::Float:
+          sample.intensity = *static_cast<const float *>(val);
+          break;
+        case pdal::Dimension::Type::Double:
+          sample.intensity = float(*static_cast<const double *>(val));
+          break;
+        default:
+          break;
+        }
         break;
       default:
         if (have_timefield_ && dim == time_dimension_)
         {
-          point.w = *static_cast<const double *>(val);
+          if (time_channel_type_ == pdal::Dimension::Type::Double)
+          {
+            sample.timestamp = *static_cast<const double *>(val);
+          }
+          else
+          {
+            sample.timestamp = double(*static_cast<const float *>(val));
+          }
         }
         break;
       }
@@ -231,8 +328,13 @@ protected:
 private:
   // Double buffer to allow background thread streaming.
   // Use w channel for timetstamp
-  std::array<std::vector<glm::dvec4>, 2> buffers_;
+  std::array<std::vector<SamplePoint>, 2> buffers_;
+  std::array<pdal::Dimension::Type, 3> position_channel_types_{};
+  std::array<pdal::Dimension::Type, 3> colour_channel_types_{};
   pdal::Dimension::Id time_dimension_{ pdal::Dimension::Id::GpsTime };
+  pdal::Dimension::Type time_channel_type_{};
+  pdal::Dimension::Id intensity_dimension_{ pdal::Dimension::Id::GpsTime };
+  pdal::Dimension::Type intensity_channel_type_{};
   std::atomic_uint next_read_{ 0 };
   std::atomic_int write_index_{ 0 };
   pdal::PointLayout layout_;
@@ -243,6 +345,8 @@ private:
   std::atomic_bool abort_{ false };
   std::atomic_bool valid_dimensions_{ false };
   bool have_timefield_{ false };
+  bool have_intensity_{ false };
+  bool have_colour_{ false };
   bool ignore_missing_timefield_{ false };
 };
 }  // namespace
@@ -496,13 +600,11 @@ bool SlamCloudLoader::open(const char *sample_file_path, const char *trajectory_
     }
 
     imp_->read_trajectory_point = [this](TrajectoryPoint &point) -> bool {
-      glm::dvec4 pt;
-      if (imp_->traj_stream->nextPoint(&pt))
+      SamplePoint sample;
+      if (imp_->traj_stream->nextPoint(&sample))
       {
-        point.origin.x = pt.x;
-        point.origin.y = pt.y;
-        point.origin.z = pt.z;
-        point.timestamp = pt.w;
+        point.origin = sample.sample;
+        point.timestamp = sample.timestamp;
         return true;
       }
 
@@ -616,6 +718,31 @@ bool SlamCloudLoader::trajectoryFileIsOpen() const
 }
 
 
+bool SlamCloudLoader::hasTimestamp() const
+{
+  return imp_->sample_stream && imp_->sample_stream->hasTimestamp() &&
+         (!imp_->traj_stream || imp_->traj_stream->hasTimestamp());
+}
+
+
+bool SlamCloudLoader::hasOrigin() const
+{
+  return trajectoryFileIsOpen();
+}
+
+
+bool SlamCloudLoader::hasIntensity() const
+{
+  return imp_->sample_stream && imp_->sample_stream->hasIntensity();
+}
+
+
+bool SlamCloudLoader::hasColour() const
+{
+  return imp_->sample_stream && imp_->sample_stream->hasColour();
+}
+
+
 void SlamCloudLoader::preload(size_t point_count)
 {
   if (!imp_->sample_stream)
@@ -635,10 +762,10 @@ void SlamCloudLoader::preload(size_t point_count)
   preload_data.reserve(point_count);
 
   bool ok = true;
-  SamplePoint sample;
+  SamplePoint sample{};
   while (!imp_->sample_stream->done() && (preload_data.size() < point_count || load_all))
   {
-    ok = nextPoint(sample.sample, sample.intensity, &sample.origin, &sample.timestamp);
+    ok = nextPoint(sample);
     preload_data.emplace_back(sample);
   }
 
@@ -654,14 +781,7 @@ void SlamCloudLoader::preload(size_t point_count)
 }
 
 
-bool SlamCloudLoader::nextPoint(glm::dvec3 &sample, glm::dvec3 *origin, double *timestamp_out)
-{
-  float intensity;
-  return nextPoint(sample, intensity, origin, timestamp_out);
-}
-
-
-bool SlamCloudLoader::nextPoint(glm::dvec3 &sample, float &intensity, glm::dvec3 *origin, double *timestamp_out)
+bool SlamCloudLoader::nextPoint(SamplePoint &sample)
 {
   if (loadPoint())
   {
@@ -669,22 +789,12 @@ bool SlamCloudLoader::nextPoint(glm::dvec3 &sample, float &intensity, glm::dvec3
     imp_->sample_count = std::max(imp_->sample_count, imp_->read_count);
 
     // Read next sample.
-    const SamplePoint sample_point = imp_->next_sample;
-    sample = sample_point.sample;
-    intensity = sample_point.intensity;
-    if (timestamp_out)
-    {
-      *timestamp_out = sample_point.timestamp;
-    }
-    if (origin)
-    {
-      *origin = sample_point.origin + imp_->trajectory_to_sensor_offset;
-    }
+    sample = imp_->next_sample;
 
     // If in real time mode, sleep until we should deliver this sample.
     if (imp_->real_time_mode && imp_->first_sample_timestamp >= 0)
     {
-      const double sample_relative_time = sample_point.timestamp - imp_->first_sample_timestamp;
+      const double sample_relative_time = sample.timestamp - imp_->first_sample_timestamp;
       if (sample_relative_time > 0)
       {
         auto uptime = Clock::now() - imp_->first_sample_read_time;
@@ -719,24 +829,18 @@ bool SlamCloudLoader::loadPoint()
   if (!imp_->sample_stream->done())
   {
     SamplePoint sample_data{};
-    sample_data.intensity = 0.0f;
 
-    glm::dvec4 sample{ 0 };
-
-    bool have_read = imp_->sample_stream->nextPoint(&sample);
+    bool have_read = imp_->sample_stream->nextPoint(&sample_data);
     while (!imp_->sample_stream->done() && !have_read)
     {
       std::this_thread::yield();
-      have_read = imp_->sample_stream->nextPoint(&sample);
+      have_read = imp_->sample_stream->nextPoint(&sample_data);
     }
 
     if (have_read)
     {
-      sample_data.sample = glm::dvec3(sample);
-      sample_data.timestamp = sample.w;
-      sample_data.origin = glm::dvec3(0);
-
       sampleTrajectory(sample_data.origin, sample_data.sample, sample_data.timestamp);
+      sample_data.origin += imp_->trajectory_to_sensor_offset;
       imp_->next_sample = sample_data;
 
       if (imp_->first_sample_timestamp < 0)

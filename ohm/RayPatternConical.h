@@ -20,8 +20,8 @@ public:
   /// @param cone_axis The cone's primary axis/directory - expected to be a unit vector.
   /// @param cone_angle The angle between the cone's axis and the cone wall (radians).
   /// @param range Length of the rays in the cone. This makes the cone bottom spherical.
-  /// @param angular_resolution Appoximate angular separation between rays (radians).
-  /// @param min_range Constrols the near point of each line segment. Zero starts all rays at the apex, while
+  /// @param angular_resolution Approximate angular separation between rays (radians).
+  /// @param min_range Controls the near point of each line segment. Zero starts all rays at the apex, while
   /// increasing this value moves the starting points out. Must be less than @p range .
   RayPatternConical(const glm::dvec3 &cone_axis, double cone_angle, double range, double angular_resolution,
                     double min_range = 0);
