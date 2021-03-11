@@ -263,10 +263,7 @@ int populateMap(const Options &opt)
 
   octomap::OcTree map(opt.resolution);
   octomap::OcTreeKey key;
-  glm::dvec3 origin;
-  glm::dvec3 sample;
-  // glm::vec3 voxel, ext(opt.resolution);
-  double timestamp;
+  SamplePoint sample{};
   uint64_t point_count = 0;
   // Update map visualisation every N samples.
   double timebase = -1;
@@ -341,39 +338,38 @@ int populateMap(const Options &opt)
   // Population loop.
   //------------------------------------
   // mapper.start();
-  origin = glm::vec3(0, 0, 0);
   while ((point_count < opt.point_limit || opt.point_limit == 0) &&
-         (last_timestamp - timebase < opt.time_limit || opt.time_limit == 0) &&
-         loader.nextPoint(sample, &origin, &timestamp))
+         (last_timestamp - timebase < opt.time_limit || opt.time_limit == 0) && loader.nextPoint(sample))
   {
     if (timebase < 0)
     {
-      timebase = timestamp;
+      timebase = sample.timestamp;
     }
 
-    if (timestamp - timebase < opt.start_time)
+    if (sample.timestamp - timebase < opt.start_time)
     {
       continue;
     }
 
     if (last_timestamp < 0)
     {
-      last_timestamp = timestamp;
+      last_timestamp = sample.timestamp;
     }
 
     if (first_timestamp < 0)
     {
-      first_timestamp = timestamp;
+      first_timestamp = sample.timestamp;
     }
 
     ++point_count;
     if (first_batch_timestamp < 0)
     {
-      first_batch_timestamp = timestamp;
+      first_batch_timestamp = sample.timestamp;
     }
 
-    map.insertRay(octomap::point3d{ float(origin.x), float(origin.y), float(origin.z) },
-                  octomap::point3d{ float(sample.x), float(sample.y), float(sample.z) }, -1.0, !opt.non_lazy_eval);
+    map.insertRay(octomap::point3d{ float(sample.origin.x), float(sample.origin.y), float(sample.origin.z) },
+                  octomap::point3d{ float(sample.sample.x), float(sample.sample.y), float(sample.sample.z) }, -1.0,
+                  !opt.non_lazy_eval);
     prog.incrementProgress();
     elapsed_ms = uint64_t((last_timestamp - timebase) * 1e3);
 
