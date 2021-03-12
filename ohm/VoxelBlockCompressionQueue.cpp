@@ -160,7 +160,7 @@ void VoxelBlockCompressionQueue::__tick(std::vector<uint8_t> &compression_buffer
     }
   }
 
-  // Check if we are over the high water mark and release what we can.
+  // Check if we are over the high tide and release what we can.
   if (memory_usage >= high_tide)
   {
     // Sort all blocks by allocation size.
@@ -172,7 +172,7 @@ void VoxelBlockCompressionQueue::__tick(std::vector<uint8_t> &compression_buffer
     });
 
     auto iter = imp_->blocks.begin();
-    // Free until we reach the low water mark.
+    // Free until we reach the low tide.
     while (iter != imp_->blocks.end() && memory_usage >= low_tide)
     {
       // Check if marked for death. The status may have changed since we updated the allocation size.
