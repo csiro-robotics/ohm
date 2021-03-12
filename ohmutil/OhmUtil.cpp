@@ -80,13 +80,13 @@ bool parseBytes(std::istream &in, ohm::util::Bytes &bytes, bool read_suffix)
   }
   else
   {
-    std::transform(suffix.begin(), suffix.end(), suffix.begin(), std::tolower);
+    std::transform(suffix.begin(), suffix.end(), suffix.begin(), ::tolower);
     // Try match the suffix.
     bool parsed_suffix = false;
     for (size_t i = 0; i < Bytes::MagnitudeSuffix.size(); ++i)
     {
       std::string sfx = Bytes::MagnitudeSuffix[i];
-      std::transform(sfx.begin(), sfx.end(), sfx.begin(), std::tolower);
+      std::transform(sfx.begin(), sfx.end(), sfx.begin(), ::tolower);
       if (suffix == sfx)
       {
         byte_magnitude = ByteMagnitude(i);
