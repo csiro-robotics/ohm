@@ -64,7 +64,7 @@ struct VoxelBlockCompressionQueueDetail
   /// Processing thread.
   std::thread processing_thread;
   /// True if @c processing_thread is running.
-  bool running { false }
+  bool running{ false };
   /// Set when instantiated for testing.
   bool test_mode{ false };
 };
