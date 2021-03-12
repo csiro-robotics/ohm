@@ -44,10 +44,17 @@ public:
   /// The next @c retain() call after the last @c release() reference will start a new thread.
   void release();
 
-  uint64_t highWaterMark() const;
-  void setHighWaterMark(uint64_t mark);
-  uint64_t lowWaterMark() const;
-  void setLowWaterMark(uint64_t mark);
+  /// Memory threshold (bytes) at which the queue starts compressing voxel blocks.
+  uint64_t highTide() const;
+  /// Set the @c highTide().
+  /// @param tide The high tide (bytes) to start compressing once exceeded.
+  void setHighTide(uint64_t tide);
+  /// Memory level (bytes) to which the queue tries to compress down to once the high tide is exceeded.
+  uint64_t lowTide() const;
+  /// Set the @c lowTide().
+  /// @param tide The low tide (bytes) to stop compressing once below.
+  void setLowTide(uint64_t tide);
+  /// Query the number of bytes allocated to voxel blocks managed by this compressor (byte).
   uint64_t estimatedAllocationSize() const;
 
   /// Push a @c VoxelBlock on the queue for compression.

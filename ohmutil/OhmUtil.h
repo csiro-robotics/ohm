@@ -149,6 +149,11 @@ public:
     , magnitude_(magnitude)
   {}
 
+  /// Default constructor. Zero byte size.
+  inline Bytes()
+    : Bytes(0u)
+  {}
+
   /// Copy constructor.
   /// @param other Object to copy
   inline Bytes(const Bytes &other) = default;
@@ -200,6 +205,7 @@ private:
   ByteMagnitude magnitude_ = ByteMagnitude::kByte;
 };
 
+bool parseBytes(std::istream &in, ohm::util::Bytes &bytes, bool read_suffix = true);
 }  // namespace util
 }  // namespace ohm
 
@@ -249,6 +255,12 @@ inline std::ostream &operator<<(std::ostream &out, const ohm::util::Bytes &bytes
   }
   out << ohm::util::Bytes::MagnitudeSuffix[magnitude_index];
   return out;
+}
+
+inline std::istream &operator>>(std::istream &in, ohm::util::Bytes &bytes)
+{
+  ohm::util::parseBytes(in, bytes);
+  return in;
 }
 
 inline std::string ohm::util::Bytes::toString() const

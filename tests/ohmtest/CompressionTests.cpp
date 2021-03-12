@@ -43,7 +43,7 @@ TEST(Compression, Simple)
     compressor.push(blocks[i].get());
   }
   // Set the high water mark above the current allocation size.
-  compressor.setHighWaterMark((block_count + 1) * layer_mem_size);
+  compressor.setHighTide((block_count + 1) * layer_mem_size);
   compressor.__tick(compression_buffer);
 
   // No compression should have occurred.
@@ -55,8 +55,8 @@ TEST(Compression, Simple)
   {
     block->retain();
   }
-  compressor.setHighWaterMark(0);
-  compressor.setLowWaterMark(0);
+  compressor.setHighTide(0);
+  compressor.setLowTide(0);
   compressor.__tick(compression_buffer);
   EXPECT_EQ(compressor.estimatedAllocationSize(), uncompressed_size);
 
@@ -91,7 +91,7 @@ TEST(Compression, Simple)
   // Now leave the high water mark at zero, but raise the low water mark to keep everything allocated. We'll then lower
   // the low water mark and expect one block at a time to be released.
   // This may not scale with increased block_count as compressed size isn't zero.
-  compressor.setLowWaterMark(uncompressed_size + 1);
+  compressor.setLowTide(uncompressed_size + 1);
   for (auto &block : blocks)
   {
     block->release();
@@ -115,7 +115,7 @@ TEST(Compression, Simple)
   for (size_t i = block_count; i > 0; --i)
   {
     // Lower water mark.
-    compressor.setLowWaterMark(layer_mem_size * i);
+    compressor.setLowTide(layer_mem_size * i);
     compressor.__tick(compression_buffer);
     const size_t uncompressed_count = count_uncompressed_blocks(blocks);
     EXPECT_EQ(uncompressed_count, i - 1);
@@ -153,7 +153,7 @@ TEST(Compression, HighLoad)
     compressor.push(blocks[i].get());
   }
   // Set the high water mark above the current allocation size.
-  compressor.setHighWaterMark((block_count + 1) * layer_mem_size);
+  compressor.setHighTide((block_count + 1) * layer_mem_size);
   auto start = Clock::now();
   compressor.__tick(compression_buffer);
   auto end = Clock::now();
@@ -165,8 +165,8 @@ TEST(Compression, HighLoad)
   EXPECT_EQ(compressor.estimatedAllocationSize(), uncompressed_size);
 
   // Set a zero tolerance low water mark and time the tick.
-  compressor.setHighWaterMark(0);
-  compressor.setLowWaterMark(0);
+  compressor.setHighTide(0);
+  compressor.setLowTide(0);
   start = Clock::now();
   compressor.__tick(compression_buffer);
   end = Clock::now();

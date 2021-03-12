@@ -55,8 +55,8 @@ struct VoxelBlockCompressionQueueDetail
   std::queue<VoxelBlock *> compression_queue;
 #endif  // OHM_THREADS
   std::vector<CompressionEntry> blocks;
-  std::atomic_uint64_t high_water_mark{ 12ull * 1024ull * 1024ull * 1024ull };
-  std::atomic_uint64_t low_water_mark{ 6ull * 1024ull * 1024ull * 1024ull };
+  std::atomic_uint64_t high_tide{ 12ull * 1024ull * 1024ull * 1024ull };
+  std::atomic_uint64_t low_tide{ 6ull * 1024ull * 1024ull * 1024ull };
   std::atomic_uint64_t estimated_allocated_size{ 0 };
   std::atomic_int reference_count{ 0 };
   std::atomic_bool quit_flag{ false };

@@ -12,6 +12,7 @@
 #include <algorithm>
 #include <chrono>
 #include <cinttypes>
+#include <iostream>
 
 namespace ohm
 {
@@ -65,27 +66,27 @@ void VoxelBlockCompressionQueue::release()
 }
 
 
-uint64_t VoxelBlockCompressionQueue::highWaterMark() const
+uint64_t VoxelBlockCompressionQueue::highTide() const
 {
-  return imp_->high_water_mark;
+  return imp_->high_tide;
 }
 
 
-void VoxelBlockCompressionQueue::setHighWaterMark(uint64_t mark)
+void VoxelBlockCompressionQueue::setHighTide(uint64_t tide)
 {
-  imp_->high_water_mark = mark;
+  imp_->high_tide = tide;
 }
 
 
-uint64_t VoxelBlockCompressionQueue::lowWaterMark() const
+uint64_t VoxelBlockCompressionQueue::lowTide() const
 {
-  return imp_->low_water_mark;
+  return imp_->low_tide;
 }
 
 
-void VoxelBlockCompressionQueue::setLowWaterMark(uint64_t mark)
+void VoxelBlockCompressionQueue::setLowTide(uint64_t tide)
 {
-  imp_->low_water_mark = mark;
+  imp_->low_tide = tide;
 }
 
 
@@ -125,8 +126,8 @@ void VoxelBlockCompressionQueue::__tick(std::vector<uint8_t> &compression_buffer
 
   // Estimate the current memory usage and release items marked for death.
   uint64_t memory_usage = 0;
-  const uint64_t high_water_mark = imp_->high_water_mark;
-  const uint64_t low_water_mark = imp_->low_water_mark;
+  const uint64_t high_tide = imp_->high_tide;
+  const uint64_t low_tide = imp_->low_tide;
   for (auto iter = imp_->blocks.begin(); iter != imp_->blocks.end();)
   {
     CompressionEntry &entry = *iter;
@@ -160,7 +161,7 @@ void VoxelBlockCompressionQueue::__tick(std::vector<uint8_t> &compression_buffer
   }
 
   // Check if we are over the high water mark and release what we can.
-  if (memory_usage >= high_water_mark)
+  if (memory_usage >= high_tide)
   {
     // Sort all blocks by allocation size.
     // TODO(KS): consider including the queued for compression flag so we push items to be compressed to the front
@@ -172,7 +173,7 @@ void VoxelBlockCompressionQueue::__tick(std::vector<uint8_t> &compression_buffer
 
     auto iter = imp_->blocks.begin();
     // Free until we reach the low water mark.
-    while (iter != imp_->blocks.end() && memory_usage >= low_water_mark)
+    while (iter != imp_->blocks.end() && memory_usage >= low_tide)
     {
       // Check if marked for death. The status may have changed since we updated the allocation size.
       if (!(iter->voxels->flags_ & VoxelBlock::kFMarkedForDeath))
