@@ -171,7 +171,6 @@ public:
     const int read_buffer = 1 - write_index_;
     const unsigned read_index = next_read_;
     // Ensure colour pointer is valid, pointing to a stack variable if null.
-    glm::u8vec3 dummy_colour;
     bool have_read = false;
     if (next_read_ < buffers_[read_buffer].size())
     {
