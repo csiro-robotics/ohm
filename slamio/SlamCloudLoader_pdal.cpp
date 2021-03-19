@@ -104,6 +104,10 @@ std::shared_ptr<pdal::Stage> createReader(pdal::StageFactory &factory, const std
     reader_type = "las";
     options.add("compression", "EITHER");
   }
+  else if (ext == "xyz")
+  {
+    reader_type = "text";
+  }
 
   reader_type = "readers." + reader_type;
   std::shared_ptr<pdal::Stage> reader(factory.createStage(reader_type),  //
