@@ -16,6 +16,7 @@
 #include <ohm/RayMapperOccupancy.h>
 #include <ohm/RayMapperTrace.h>
 #include <ohm/Trace.h>
+#include <ohm/VoxelBlockCompressionQueue.h>
 #include <ohm/VoxelData.h>
 
 #ifdef OHMPOP_GPU
@@ -81,12 +82,19 @@ struct Options
     ohm::NdtMode mode = ohm::NdtMode::kNone;
   };
 
+  struct Compression
+  {
+    ohm::util::Bytes high_tide;
+    ohm::util::Bytes low_tide;
+  };
+
 #ifdef OHMPOP_GPU
   /// GPU related options.
   struct Gpu
   {
     /// GPU cache size in GiB
     double gpu_cache_size_gb = double(ohm::GpuCache::kDefaultTargetMemSize) / double(ohm::GpuCache::kGiB);
+    double ray_segment_length = 0;
 
     inline size_t gpuCacheSizeBytes() const { return size_t(gpu_cache_size_gb * double(ohm::GpuCache::kGiB)); }
   };
@@ -140,6 +148,8 @@ struct Options
   bool quiet = false;
 
   Ndt ndt;
+  /// Compression thread controls. Note: 'uncompressed' is a bool in the wrapping structure.
+  Compression compression;
 
   Options();
 
@@ -168,6 +178,10 @@ Options::Options()
   ndt.covariance_reset_probability = ohm::valueToProbability(defaults_ndt.reinitialiseCovarianceThreshold());
   ndt.covariance_reset_sample_count = defaults_ndt.reinitialiseCovariancePointCount();
   ndt.adaptation_rate = defaults_ndt.adaptationRate();
+
+  ohm::VoxelBlockCompressionQueue cq(true);  // Create in test mode.
+  compression.high_tide = ohm::util::Bytes(cq.highTide());
+  compression.low_tide = ohm::util::Bytes(cq.lowTide());
 }
 
 
@@ -218,6 +232,11 @@ void Options::print(std::ostream **out, const ohm::OccupancyMap &map) const
     **out << "Voxel mean position: " << (map.voxelMeanEnabled() ? "on" : "off") << '\n';
     **out << "Compressed: " << ((map.flags() & ohm::MapFlag::kCompressed) == ohm::MapFlag::kCompressed ? "on" : "off")
           << '\n';
+    if ((map.flags() & ohm::MapFlag::kCompressed) == ohm::MapFlag::kCompressed)
+    {
+      **out << "  High tide:" << compression.high_tide << '\n';
+      **out << "  Low tide:" << compression.low_tide << '\n';
+    }
     glm::i16vec3 region_dim = region_voxel_dim;
     region_dim.x = (region_dim.x) ? region_dim.x : OHM_DEFAULT_CHUNK_DIM_X;
     region_dim.y = (region_dim.y) ? region_dim.y : OHM_DEFAULT_CHUNK_DIM_Y;
@@ -239,6 +258,7 @@ void Options::print(std::ostream **out, const ohm::OccupancyMap &map) const
     }
 #ifdef OHMPOP_GPU
     **out << "Gpu cache size: " << ohm::util::Bytes(gpu.gpuCacheSizeBytes()) << '\n';
+    **out << "Gpu max ray segment: " << ohm::util::Bytes(gpu.ray_segment_length) << '\n';
     **out << "Ray batch size: " << batch_size << '\n';
     **out << "Clearance mapping: ";
     if (clearance > 0)
@@ -441,6 +461,10 @@ int populateMap(const Options &opt)
     time_display.disable();
   }
 
+  // Set compression marks.
+  ohm::VoxelBlockCompressionQueue::instance().setHighTide(opt.compression.high_tide.byteSize());
+  ohm::VoxelBlockCompressionQueue::instance().setLowTide(opt.compression.low_tide.byteSize());
+
   std::cout << "Loading points from " << opt.cloud_file << " with trajectory " << opt.trajectory_file << std::endl;
 
   SlamCloudLoader loader;
@@ -461,6 +485,7 @@ int populateMap(const Options &opt)
                                          new ohm::GpuMap(&map, true, opt.batch_size, gpu_cache_size) :
                                          new ohm::GpuNdtMap(&map, true, opt.batch_size, gpu_cache_size, opt.ndt.mode));
   ohm::NdtMap *ndt_map = &static_cast<ohm::GpuNdtMap *>(gpu_map.get())->ndtMap();
+  gpu_map->setRaySegmentLength(opt.gpu.ray_segment_length);
 #else   // OHMPOP_GPU
   std::unique_ptr<ohm::NdtMap> ndt_map;
   if (bool(opt.ndt.mode))
@@ -928,6 +953,11 @@ int parseOptions(Options *opt, int argc, char *argv[])  // NOLINT(modernize-avoi
                "only erodes free space by skipping the sample voxels.", optVal(opt->mode))
       ;
 
+    opt_parse.add_options("Compression")
+      ("high-tide", "Set the high memory tide which the background compression thread will try keep below.", optVal(opt->compression.high_tide))
+      ("low-tide", "Set the low memory tide to which the background compression thread will try reduce to once high-tide is exceeded.", optVal(opt->compression.low_tide))
+      ;
+
     // clang-format on
 
 #ifdef OHMPOP_GPU
@@ -951,9 +981,12 @@ int parseOptions(Options *opt, int argc, char *argv[])  // NOLINT(modernize-avoi
               gpu_options_types[i] == 0 ? ::cxxopts::value<bool>() : ::cxxopts::value<std::string>());
       }
     }
-    adder("gpu-cache-size",
-          "Configured the GPU cache size used to cache regions for GPU update. Floating point value specified in GiB.",
-          optVal(opt->gpu.gpu_cache_size_gb));
+
+    // clang-format off
+    adder
+      ("gpu-cache-size", "Configured the GPU cache size used to cache regions for GPU update. Floating point value specified in GiB.", optVal(opt->gpu.gpu_cache_size_gb))
+      ("gpu-ray-segment-length", "Configure the maximum allowed ray length for a single GPU thread to process. Longer rays are broken into multiple segments.", optVal(opt->gpu.ray_segment_length));
+    // clang-format on
 #endif  // OHMPOP_GPU
 
 
@@ -964,7 +997,7 @@ int parseOptions(Options *opt, int argc, char *argv[])  // NOLINT(modernize-avoi
     if (parsed.count("help") || parsed.arguments().empty())
     {
       // show usage.
-      std::cout << opt_parse.help({ "", "Map", "Mapping", "GPU" }) << std::endl;
+      std::cout << opt_parse.help({ "", "Map", "Mapping", "Compression", "GPU" }) << std::endl;
       return 1;
     }
 

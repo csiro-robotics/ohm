@@ -149,6 +149,11 @@ public:
     , magnitude_(magnitude)
   {}
 
+  /// Default constructor. Zero byte size.
+  inline Bytes()
+    : Bytes(0u)
+  {}
+
   /// Copy constructor.
   /// @param other Object to copy
   inline Bytes(const Bytes &other) = default;
@@ -200,6 +205,25 @@ private:
   ByteMagnitude magnitude_ = ByteMagnitude::kByte;
 };
 
+/// Parse a @c Byte value from @p in.
+///
+/// The expected format must be a number followed by a valid @c Bytes::MagnitudeSuffix : `<number>[B,KiB,GiB,...]`
+///
+/// The number specifies the byte value and the suffix identifies the magnitude.
+///
+/// The number must be zero or positive. It may also be a floating point value in which case it is converted into a the
+/// magnitude below. Such a non-integer value is not valid for the 'B' (bytes) suffix.
+///
+/// The suffix is case insensitive.
+///
+/// The suffix may be omitted when @p read_suffix is false, in which case the `<number>` must be an integer byte value.
+///
+/// On failure, the stream fail bit is set.
+///
+/// @param in The stream to read from.
+/// @param bytes The byte structure to parse into.
+/// @return True on success.
+bool parseBytes(std::istream &in, ohm::util::Bytes &bytes, bool read_suffix = true);
 }  // namespace util
 }  // namespace ohm
 
@@ -249,6 +273,12 @@ inline std::ostream &operator<<(std::ostream &out, const ohm::util::Bytes &bytes
   }
   out << ohm::util::Bytes::MagnitudeSuffix[magnitude_index];
   return out;
+}
+
+inline std::istream &operator>>(std::istream &in, ohm::util::Bytes &bytes)
+{
+  ohm::util::parseBytes(in, bytes);
+  return in;
 }
 
 inline std::string ohm::util::Bytes::toString() const
