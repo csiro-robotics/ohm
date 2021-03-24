@@ -925,7 +925,7 @@ int parseOptions(Options *opt, int argc, char *argv[])  // NOLINT(modernize-avoi
     // clang-format off
     adder
       ("gpu-cache-size", "Configured the GPU cache size used to cache regions for GPU update. Floating point value specified in GiB.", optVal(opt->gpu.gpu_cache_size_gb))
-      ("gpu-segment-length", "Configure the maximum allowed ray length for a single GPU thread to process. Longer rays are broken into multiple segments.", optVal(opt->gpu.ray_segment_length));
+      ("gpu-ray-segment-length", "Configure the maximum allowed ray length for a single GPU thread to process. Longer rays are broken into multiple segments.", optVal(opt->gpu.ray_segment_length));
     // clang-format on
 #endif  // OHMPOP_GPU
 
