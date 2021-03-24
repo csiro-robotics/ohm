@@ -122,6 +122,9 @@ struct GpuMapDetail
   /// Set of processing regions.
   RegionSet regions;
 
+  /// Long rays are broken into segments of this length or smaller (when value is > 0).
+  double ray_segment_length = 0;
+
   /// Used as @c GpuLayerCache::upload() @c batchMarker argument.
   unsigned batch_marker = 1;  // Will cycle odd numbers to avoid zero.
   /// Should rays be grouped (sorted) before GPU upload. Should only be set for some algorthims, like NDT (required).

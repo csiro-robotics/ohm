@@ -385,6 +385,18 @@ void GpuMap::setMissValue(float value)
 }
 
 
+double GpuMap::raySegmentLength() const
+{
+  return imp_->ray_segment_length;
+}
+
+
+void GpuMap::setRaySegmentLength(double length)
+{
+  imp_->ray_segment_length = length;
+}
+
+
 bool GpuMap::groupedRays() const
 {
   return imp_->group_rays;
@@ -509,12 +521,9 @@ size_t GpuMap::integrateRays(const glm::dvec3 *rays, size_t element_count, unsig
     }
   };
 
-  // Reserve GPU memory for the rays.
-  imp_->key_buffers[buf_idx].resize(sizeof(GpuKey) * element_count);
-  imp_->ray_buffers[buf_idx].resize(sizeof(gputil::float3) * element_count);
-
-  gputil::PinnedBuffer keys_pinned(imp_->key_buffers[buf_idx], gputil::kPinWrite);
-  gputil::PinnedBuffer rays_pinned(imp_->ray_buffers[buf_idx], gputil::kPinWrite);
+  // Declare pinned buffers for use in upload_ray delegate.
+  gputil::PinnedBuffer keys_pinned;
+  gputil::PinnedBuffer rays_pinned;
 
   // Build region set and upload rays.
   imp_->regions.clear();
@@ -575,62 +584,93 @@ size_t GpuMap::integrateRays(const glm::dvec3 *rays, size_t element_count, unsig
     walkRegions(*imp_->map, ray.origin, ray.sample, region_func);
   };
 
+  // Grouped ray upload. We must first sort rays by sample voxel.
   RayItem ray{};
-  if (!imp_->group_rays)
+  const double resolution = imp_->map->resolution();
+
+  // Reserve memory for the current ray set.
+  imp_->grouped_rays.clear();
+  imp_->grouped_rays.reserve(element_count / 2);
+
+  // Take the input rays and move it into imp_->grouped_rays. In this process we do two things:
+  // 1. Apply the ray filter (if any). This can change the origin and/or sample points.
+  // 2. Break up long rays into multiple grouped_rays entries
+  for (unsigned i = 0; i < element_count; i += 2)
   {
-    // Not grouping rays. Simple upload as is. For each ray, call upload_ray .
-    for (unsigned i = 0; i < element_count; i += 2)
+    ray.origin = rays[i + 0];
+    ray.sample = rays[i + 1];
+    ray.filter_flags = 0;
+
+    if (use_filter)
     {
-      ray.origin = rays[i + 0];
-      ray.sample = rays[i + 1];
-      ray.filter_flags = 0;
-
-      if (use_filter)
+      if (!filter(&ray.origin, &ray.sample, &ray.filter_flags))
       {
-        if (!filter(&ray.origin, &ray.sample, &ray.filter_flags))
-        {
-          // Bad ray.
-          continue;
-        }
+        // Bad ray.
+        continue;
       }
-
-      ray.origin_key = map.voxelKey(ray.origin);
-      ray.sample_key = map.voxelKey(ray.sample);
-      upload_ray(ray);
     }
+
+    if (imp_->ray_segment_length > resolution)
+    {
+      // ray_length starts as a squared value.
+      double ray_length = glm::length2(ray.sample - ray.origin);
+      // Ensure we maintain the kRffClippedEnd for the original filtered ray.
+      const unsigned last_part_clipped_end = ray.filter_flags & kRffClippedEnd;
+      if (ray_length >= imp_->ray_segment_length)
+      {
+        // We have a long ray. Break it up into even segments according to the ray_segment_length.
+        // Get a true length (not squared)
+        ray_length = std::sqrt(ray_length);
+        // Divide by the segment length to work out how many segments we need.
+        // Round up.
+        const int part_count = std::ceil(ray_length / imp_->ray_segment_length);
+        // Work out the part length.
+        const double part_length = ray_length / double(part_count);
+        const glm::dvec3 dir = (ray.sample - ray.origin) / ray_length;
+        // Cache the initial origin and sample points. We're about to make modifications.
+        const glm::dvec3 origin = ray.origin;
+        const glm::dvec3 sample = ray.sample;
+        // Change ray.sample to the ray.origin to make the loop logic consistent as we transition iterations.
+        ray.sample = ray.origin;
+        for (int i = 1; i < part_count; ++i)
+        {
+          // New origin is the previous 'sample'
+          ray.origin = ray.sample;
+          // Vector line equation.
+          ray.sample = origin + double(i) * part_length * dir;
+
+          ray.origin_key = map.voxelKey(ray.origin);
+          ray.sample_key = map.voxelKey(ray.sample);
+
+          // Mark the ray flags to ensure we don't update the sample voxel. It will appear in the next line segment
+          // again. We'll update it there.
+          ray.filter_flags |= kRffClippedEnd;
+
+          imp_->grouped_rays.emplace_back(ray);
+
+          // Mark the origin as having been moved for the next iteration. Not really used yet.
+          ray.filter_flags |= kRffClippedStart;
+        }
+
+        // We still need to add the last segment. This will not have kRffClippedStart unless the filter did this.
+        ray.filter_flags |= last_part_clipped_end;
+        ray.origin = ray.sample;
+        ray.sample = sample;
+      }
+    }
+
+    // This always adds either the full, unsegmented ray, or the last part for a segmented ray.
+    ray.origin_key = map.voxelKey(ray.origin);
+    ray.sample_key = map.voxelKey(ray.sample);
+
+    imp_->grouped_rays.emplace_back(ray);
   }
-  else
+
+  if (imp_->group_rays)
   {
-    // Grouped ray upload. We must first sort rays by sample voxel.
+    // Sort the rays. Order does not matter asside from ensuring the rays are grouped by sample voxel.
     // Despite the extra CPU work, this has proven faster for NDT update in GpuNdtMap because the GPU can do much less
     // work.
-
-    // Reserve memory for the current ray set.
-    imp_->grouped_rays.clear();
-    imp_->grouped_rays.reserve(element_count / 2);
-
-    // Populate the sorting structure.
-    for (unsigned i = 0; i < element_count; i += 2)
-    {
-      ray.origin = rays[i + 0];
-      ray.sample = rays[i + 1];
-      ray.filter_flags = 0;
-
-      if (use_filter)
-      {
-        if (!filter(&ray.origin, &ray.sample, &ray.filter_flags))
-        {
-          // Bad ray.
-          continue;
-        }
-      }
-
-      ray.origin_key = map.voxelKey(ray.origin);
-      ray.sample_key = map.voxelKey(ray.sample);
-      imp_->grouped_rays.emplace_back(ray);
-    }
-
-    /// Sort the rays. Order does not matter asside from ensuring the rays are grouped by sample voxel.
     std::sort(
       imp_->grouped_rays.begin(), imp_->grouped_rays.end(),
       [](const RayItem &a, const RayItem &b) -> bool  //
@@ -661,12 +701,20 @@ size_t GpuMap::integrateRays(const glm::dvec3 *rays, size_t element_count, unsig
         // Compare the results.
         return region_index_a < region_index_b || region_index_a == region_index_b && local_index_a < local_index_b;
       });
+  }
 
-    // Upload to GPU.
-    for (const RayItem &ray : imp_->grouped_rays)
-    {
-      upload_ray(ray);
-    }
+  // Reserve GPU memory for the rays.
+  imp_->key_buffers[buf_idx].resize(sizeof(GpuKey) * 2 * imp_->grouped_rays.size());
+  imp_->ray_buffers[buf_idx].resize(sizeof(gputil::float3) * 2 * imp_->grouped_rays.size());
+
+  // Declare pinned buffers for use in upload_ray delegate.
+  keys_pinned = gputil::PinnedBuffer(imp_->key_buffers[buf_idx], gputil::kPinWrite);
+  rays_pinned = gputil::PinnedBuffer(imp_->ray_buffers[buf_idx], gputil::kPinWrite);
+
+  // Upload to GPU.
+  for (const RayItem &ray : imp_->grouped_rays)
+  {
+    upload_ray(ray);
   }
 
   // Asynchronous unpin. Kernels will wait on the associated event.

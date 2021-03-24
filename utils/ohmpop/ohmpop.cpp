@@ -90,6 +90,7 @@ struct Options
   {
     /// GPU cache size in GiB
     double gpu_cache_size_gb = double(ohm::GpuCache::kDefaultTargetMemSize) / double(ohm::GpuCache::kGiB);
+    double ray_segment_length = 0;
 
     inline size_t gpuCacheSizeBytes() const { return size_t(gpu_cache_size_gb * double(ohm::GpuCache::kGiB)); }
   };
@@ -251,6 +252,7 @@ void Options::print(std::ostream **out, const ohm::OccupancyMap &map) const
     }
 #ifdef OHMPOP_GPU
     **out << "Gpu cache size: " << ohm::util::Bytes(gpu.gpuCacheSizeBytes()) << '\n';
+    **out << "Gpu max ray segment: " << ohm::util::Bytes(gpu.ray_segment_length) << '\n';
     **out << "Ray batch size: " << batch_size << '\n';
     **out << "Clearance mapping: ";
     if (clearance > 0)
@@ -434,6 +436,7 @@ int populateMap(const Options &opt)
                                          new ohm::GpuMap(&map, true, opt.batch_size, gpu_cache_size) :
                                          new ohm::GpuNdtMap(&map, true, opt.batch_size, gpu_cache_size));
   ohm::NdtMap *ndt_map = &static_cast<ohm::GpuNdtMap *>(gpu_map.get())->ndtMap();
+  gpu_map->setRaySegmentLength(opt.gpu.ray_segment_length);
 #else   // OHMPOP_GPU
   std::unique_ptr<ohm::NdtMap> ndt_map;
   if (opt.ndt.enabled)
@@ -918,9 +921,12 @@ int parseOptions(Options *opt, int argc, char *argv[])  // NOLINT(modernize-avoi
               gpu_options_types[i] == 0 ? ::cxxopts::value<bool>() : ::cxxopts::value<std::string>());
       }
     }
-    adder("gpu-cache-size",
-          "Configured the GPU cache size used to cache regions for GPU update. Floating point value specified in GiB.",
-          optVal(opt->gpu.gpu_cache_size_gb));
+
+    // clang-format off
+    adder
+      ("gpu-cache-size", "Configured the GPU cache size used to cache regions for GPU update. Floating point value specified in GiB.", optVal(opt->gpu.gpu_cache_size_gb))
+      ("gpu-segment-length", "Configure the maximum allowed ray length for a single GPU thread to process. Longer rays are broken into multiple segments.", optVal(opt->gpu.ray_segment_length));
+    // clang-format on
 #endif  // OHMPOP_GPU
 
 
