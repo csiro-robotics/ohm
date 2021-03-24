@@ -41,6 +41,9 @@
 #include <initializer_list>
 #include <iostream>
 
+/// Enable to verify ray sorting pushes unclipped samples to the begining of the list.
+#define OHM_GPU_VERIFY_SORT 0
+
 #if defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
 #include "RegionUpdateResource.h"
 #endif  // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
@@ -204,6 +207,33 @@ inline bool goodRay(const glm::dvec3 &start, const glm::dvec3 &end, double max_r
 
   return is_good;
 }
+
+#if OHM_GPU_VERIFY_SORT
+/// Verify that rays are sorted such that all unclipped samples come first.
+unsigned verifySort(const std::vector<RayItem> &rays)
+{
+  unsigned failure_count = 0;
+  bool allow_samples = true;
+  for (const auto &ray : rays)
+  {
+    if (!allow_samples && (ray.filter_flags & kRffClippedEnd) == 0)
+    {
+      ++failure_count;
+    }
+    if (ray.filter_flags & kRffClippedEnd)
+    {
+      allow_samples = false;
+    }
+  }
+
+  if (failure_count)
+  {
+    throw failure_count;
+  }
+
+  return failure_count;
+}
+#endif  // OHM_GPU_VERIFY_SORT
 }  // namespace
 
 
@@ -530,6 +560,7 @@ size_t GpuMap::integrateRays(const glm::dvec3 *rays, size_t element_count, unsig
 
   std::array<gputil::float3, 2> ray_gpu;
   unsigned upload_count = 0u;
+  unsigned unclipped_samples = 0u;
   GpuKey line_start_key_gpu{};
   GpuKey line_end_key_gpu{};
 
@@ -577,16 +608,16 @@ size_t GpuMap::integrateRays(const glm::dvec3 *rays, size_t element_count, unsig
     rays_pinned.write(ray_gpu.data(), sizeof(ray_gpu), upload_count * sizeof(gputil::float3));
     upload_count += 2;
 
-    // std::cout << i / 2 << ' ' << imp_->map->voxelKey(rays[i + 0]) << " -> " << imp_->map->voxelKey(rays[i + 1]) << "
+    // Increment unclipped_samples if this sample isn't clipped.
+    unclipped_samples += (ray.filter_flags & kRffClippedEnd) == 0;
+
+    // std::cout << i / 2 << ' ' << imp_->map->voxelKey(rays[i + 0]) << " -> " << imp_->map->voxelKey(rays[i + 1]) <<
+    // "
     // "
     //          << ray_start << ':' << ray_end << "  <=>  " << rays[i + 0] << " -> " << rays[i + 1] << std::endl;
     // std::cout << "dirs: " << (ray_end - ray_start) << " vs " << (ray_end_d - ray_start_d) << std::endl;
     walkRegions(*imp_->map, ray.origin, ray.sample, region_func);
   };
-
-  // Grouped ray upload. We must first sort rays by sample voxel.
-  RayItem ray{};
-  const double resolution = imp_->map->resolution();
 
   // Reserve memory for the current ray set.
   imp_->grouped_rays.clear();
@@ -595,6 +626,8 @@ size_t GpuMap::integrateRays(const glm::dvec3 *rays, size_t element_count, unsig
   // Take the input rays and move it into imp_->grouped_rays. In this process we do two things:
   // 1. Apply the ray filter (if any). This can change the origin and/or sample points.
   // 2. Break up long rays into multiple grouped_rays entries
+  const double resolution = imp_->map->resolution();
+  RayItem ray{};
   for (unsigned i = 0; i < element_count; i += 2)
   {
     ray.origin = rays[i + 0];
@@ -653,6 +686,7 @@ size_t GpuMap::integrateRays(const glm::dvec3 *rays, size_t element_count, unsig
         }
 
         // We still need to add the last segment. This will not have kRffClippedStart unless the filter did this.
+        ray.filter_flags &= ~kRffClippedEnd;
         ray.filter_flags |= last_part_clipped_end;
         ray.origin = ray.sample;
         ray.sample = sample;
@@ -680,6 +714,9 @@ size_t GpuMap::integrateRays(const glm::dvec3 *rays, size_t element_count, unsig
         // The final ordering is irrelevant in terms of which is "less". The goal is to group
         // items with the same sample key.
 
+        const int clipped_a = !!(a.filter_flags & kRffClippedEnd);
+        const int clipped_b = !!(b.filter_flags & kRffClippedEnd);
+
         // Multiplier/shift value to move a region key axis such that each axis is in its own bit set.
         const int64_t region_stride = 0x10000u;
         // Shift and mask together the region key axes
@@ -698,9 +735,16 @@ size_t GpuMap::integrateRays(const glm::dvec3 *rays, size_t element_count, unsig
         const uint32_t local_index_b = uint32_t(b.sample_key.localKey().x) +
                                        local_stride * uint32_t(b.sample_key.localKey().y) +
                                        local_stride * local_stride * uint32_t(b.sample_key.localKey().z);
-        // Compare the results.
-        return region_index_a < region_index_b || region_index_a == region_index_b && local_index_a < local_index_b;
+        // Compare the results. We sort such that:
+        // - Items with unclipped end points come first.
+        // - By region index next
+        // - Finally by local index.
+        return clipped_a < clipped_b || clipped_a == clipped_b && region_index_a < region_index_b ||
+               clipped_a == clipped_b && region_index_a == region_index_b && local_index_a < local_index_b;
       });
+#if OHM_GPU_VERIFY_SORT
+    verifySort(imp_->grouped_rays);
+#endif  // OHM_GPU_VERIFY_SORT
   }
 
   // Reserve GPU memory for the rays.
@@ -722,6 +766,7 @@ size_t GpuMap::integrateRays(const glm::dvec3 *rays, size_t element_count, unsig
   rays_pinned.unpin(&gpu_cache->gpuQueue(), nullptr, &imp_->ray_upload_events[buf_idx]);
 
   imp_->ray_counts[buf_idx] = unsigned(upload_count / 2);
+  imp_->unclipped_sample_counts[buf_idx] = unclipped_samples;
 
   if (upload_count == 0)
   {
@@ -758,11 +803,10 @@ void GpuMap::waitOnPreviousOperation(int buffer_index)
 
 void GpuMap::enqueueRegions(int buffer_index, unsigned region_update_flags)
 {
-  // For each region we need to enqueue the voxel data for that region. Within the GpuCache, each GpuLayerCache manages
-  // the voxel data for a voxel layer and uploads into a single buffer for that layer returning an offset into that
-  // buffer. For each (relevant) layer, we need to record the memory offset and upload corresponding event.
-  // These need to be later fed to the update kernel.
-  // Size the region buffers.
+  // For each region we need to enqueue the voxel data for that region. Within the GpuCache, each GpuLayerCache
+  // manages the voxel data for a voxel layer and uploads into a single buffer for that layer returning an offset into
+  // that buffer. For each (relevant) layer, we need to record the memory offset and upload corresponding event. These
+  // need to be later fed to the update kernel. Size the region buffers.
   imp_->region_key_buffers[buffer_index].elementsResize<gputil::int3>(imp_->regions.size());
 
   for (VoxelUploadInfo &upload_info : imp_->voxel_upload_info[buffer_index])
