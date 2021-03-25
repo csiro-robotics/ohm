@@ -118,7 +118,11 @@ struct GpuMapDetail
   RayFilterFunction ray_filter;
   bool custom_ray_filter = false;
 
+  /// Number of rays (origin/sample pairs) in the corresponding ray_buffers items.
   std::array<unsigned, kBuffersCount> ray_counts = { 0, 0 };
+  /// Number of rays (origin/sample pairs) in the corresponding ray_buffers items which contain unclipped end (sample)
+  /// points.
+  std::array<unsigned, kBuffersCount> unclipped_sample_counts = { 0, 0 };
   unsigned transform_count = 0;
   std::array<unsigned, kBuffersCount> region_counts = { 0, 0 };
 
