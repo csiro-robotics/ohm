@@ -1338,8 +1338,7 @@ bool Heightmap::buildHeightmapT(KeyWalker &walker, const glm::dvec3 &reference_p
 
 #if HM_DEBUG_VOXEL
   const glm::dvec3 debug_pos(2.05, 0.75, 0);
-  const Key debug_src_key(-1, -1, 0, 28, 13, 16);
-  const Key debug_dst_key(0, 0, 0, 29, 44, 0);
+  const Key debug_src_key(0, -1, 0, 27, 7, 21);
 #endif  // HM_DEBUG_VOXEL
   unsigned supporting_voxel_flags = initial_supporting_flags;
   // Tracks voxels which have results at multiple layers for a heightmap support isMultiLayered()
@@ -1396,17 +1395,23 @@ bool Heightmap::buildHeightmapT(KeyWalker &walker, const glm::dvec3 &reference_p
     // Write to the heightmap.
     src_voxel.setKey(ground_key);
     src_voxel.syncKey();
-    const OccupancyType voxel_type = src_voxel.occupancyType();
-
-    // We use the voxel centre for lookup in the local cache for better consistency. Otherwise lateral drift in
-    // subvoxel positioning can result in looking up the wrong cell.
-    glm::dvec3 src_voxel_centre =
-      (src_voxel.occupancy.isValid()) ? src_voxel.centre() : src_voxel.map().voxelCentreGlobal(ground_key);
-    // We only use voxel mean positioning for occupied voxels. The information is unreliable for free voxels.
-    glm::dvec3 voxel_pos = (voxel_type == kOccupied) ? src_voxel.position() : src_voxel_centre;
+    // There's a fairly subtle issue we can resolve here. Using say a planar walk, we can end up with a voxel where
+    // candidate_key is null so ground_key will be the same as walk_key. If that's of type kFree, then we can
+    // incorrectly generate very flat sections of virtual surface. Although this could be fixed above, by ensuring the
+    // ground_key is null, some other walk techniques can rely on it no being null. So, we apply a late fix and consider
+    // our vxoel to be kNull when candidate_key is null. This actually has a positive impact on layered generation too
+    // eliminating some undesirable "streamers" of virtual surface.
+    const OccupancyType voxel_type = (!candidate_key.isNull()) ? src_voxel.occupancyType() : OccupancyType::kNull;
 
     if (voxel_type == kOccupied || (voxel_type == kFree && imp_->generate_virtual_surface))
     {
+      // We use the voxel centre for lookup in the local cache for better consistency. Otherwise lateral drift in
+      // subvoxel positioning can result in looking up the wrong cell.
+      glm::dvec3 src_voxel_centre =
+        (src_voxel.occupancy.isValid()) ? src_voxel.centre() : src_voxel.map().voxelCentreGlobal(ground_key);
+      // We only use voxel mean positioning for occupied voxels. The information is unreliable for free voxels.
+      glm::dvec3 voxel_pos = (voxel_type == kOccupied) ? src_voxel.position() : src_voxel_centre;
+
       if (addSurfaceVoxel(hm_voxel, src_voxel, voxel_type, clearance, voxel_pos, multi_layer_keys,
                           is_initial_key_in_planar_slice))
       {
@@ -1448,13 +1453,6 @@ bool Heightmap::addSurfaceVoxel(heightmap::DstVoxel &hm_voxel, const heightmap::
     // TODO(KS): Using the Voxel interface here is highly suboptimal. This needs to be modified to access the
     // MapChunk directly for efficiency.
     hm_voxel.setKey(hm_key);
-
-#if HM_DEBUG_VOXEL
-    if (hm_key == debug_dst_key)
-    {
-      int stopme = 3;
-    }
-#endif  // HM_DEBUG_VOXEL
 
     // We can do a direct occupancy value write with no checks for the heightmap. The value is explicit.
     assert(hm_voxel.occupancy.isValid() && hm_voxel.occupancy.voxelMemory());
