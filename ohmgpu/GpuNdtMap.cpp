@@ -210,6 +210,8 @@ void GpuNdtMap::finaliseBatch(unsigned region_update_flags)
 
   const unsigned region_count = imp->region_counts[buf_idx];
   const unsigned ray_count = imp->ray_counts[buf_idx];
+  // Rays are sorted such that unclipped entries come first. We only need to consider these.
+  const unsigned sample_count = imp->unclipped_sample_counts[buf_idx];
   gputil::Dim3 global_size(ray_count);
   gputil::Dim3 local_size(std::min<size_t>(imp->update_kernel.optimalWorkGroupSize(), ray_count));
   // Wait for: upload of ray keys, upload of rays, upload of region key mapping.
@@ -228,13 +230,14 @@ void GpuNdtMap::finaliseBatch(unsigned region_update_flags)
 #if REVERSE_KERNEL_ORDER
   gputil::Event hit_event;
 
-  if (!(region_update_flags & (kRfExcludeSample | kRfEndPointAsFree)))
+  if (!(region_update_flags & (kRfExcludeSample | kRfEndPointAsFree)) && sample_count > 0)
   {
     // NDT can only have one CovarianceHit batch in flight because it does not support contension. Ensure previous one
     // has completed and it waits on the kernel above to finish too.
     waitOnPreviousOperation(1 - buf_idx);
 
-    local_size = gputil::Dim3(std::min<size_t>(imp->cov_hit_kernel.optimalWorkGroupSize(), ray_count));
+    global_size = gputil::Dim3(sample_count);
+    local_size = gputil::Dim3(std::min<size_t>(imp->cov_hit_kernel.optimalWorkGroupSize(), sample_count));
     imp->cov_hit_kernel(global_size, local_size, wait, hit_event, &gpu_cache.gpuQueue(),
                         // Kernel args begin:
                         gputil::BufferArg<float>(*occupancy_layer_cache.buffer()),
@@ -245,7 +248,7 @@ void GpuNdtMap::finaliseBatch(unsigned region_update_flags)
                         gputil::BufferArg<uint64_t>(imp->voxel_upload_info[buf_idx][2].offsets_buffer),
                         gputil::BufferArg<gputil::int3>(imp->region_key_buffers[buf_idx]), region_count,
                         gputil::BufferArg<GpuKey>(imp->key_buffers[buf_idx]),
-                        gputil::BufferArg<gputil::float3>(imp->ray_buffers[buf_idx]), ray_count, region_dim_gpu,
+                        gputil::BufferArg<gputil::float3>(imp->ray_buffers[buf_idx]), sample_count, region_dim_gpu,
                         float(map->resolution), map->hit_value, map->occupancy_threshold_value, map->max_voxel_value,
                         imp->ndt_map.sensorNoise(), imp->ndt_map.reinitialiseCovarianceThreshold(),
                         imp->ndt_map.reinitialiseCovariancePointCount());
@@ -256,6 +259,7 @@ void GpuNdtMap::finaliseBatch(unsigned region_update_flags)
 
   if (!(region_update_flags & kRfExcludeRay))
   {
+    global_size = gputil::Dim3(ray_count);
     local_size = gputil::Dim3(std::min<size_t>(imp->update_kernel.optimalWorkGroupSize(), ray_count));
     imp->update_kernel(global_size, local_size, wait, imp->region_update_events[buf_idx], &gpu_cache.gpuQueue(),
                        // Kernel args begin:
@@ -300,13 +304,14 @@ void GpuNdtMap::finaliseBatch(unsigned region_update_flags)
     wait.add(miss_event);
   }
 
-  if (!(region_update_flags & (kRfExcludeSample | kRfEndPointAsFree)))
+  if (!(region_update_flags & (kRfExcludeSample | kRfEndPointAsFree)) && sample_count > 0)
   {
     // NDT can only have one CovarianceHit batch in flight because it does not support contension. Ensure previous one
     // has completed and it waits on the kernel above to finish too.
     waitOnPreviousOperation(1 - buf_idx);
 
-    local_size = gputil::Dim3(std::min<size_t>(imp->cov_hit_kernel.optimalWorkGroupSize(), ray_count));
+    global_size = gputil::Dim3(sample_count);
+    local_size = gputil::Dim3(std::min<size_t>(imp->cov_hit_kernel.optimalWorkGroupSize(), sample_count));
     imp->cov_hit_kernel(global_size, local_size, wait, imp->region_update_events[buf_idx], &gpu_cache.gpuQueue(),
                         // Kernel args begin:
                         gputil::BufferArg<float>(*occupancy_layer_cache.buffer()),
@@ -317,7 +322,7 @@ void GpuNdtMap::finaliseBatch(unsigned region_update_flags)
                         gputil::BufferArg<uint64_t>(imp->voxel_upload_info[buf_idx][2].offsets_buffer),
                         gputil::BufferArg<gputil::int3>(imp->region_key_buffers[buf_idx]), region_count,
                         gputil::BufferArg<GpuKey>(imp->key_buffers[buf_idx]),
-                        gputil::BufferArg<gputil::float3>(imp->ray_buffers[buf_idx]), ray_count, region_dim_gpu,
+                        gputil::BufferArg<gputil::float3>(imp->ray_buffers[buf_idx]), sample_count, region_dim_gpu,
                         float(map->resolution), map->hit_value, map->occupancy_threshold_value, map->max_voxel_value,
                         imp->ndt_map.sensorNoise(), imp->ndt_map.reinitialiseCovarianceThreshold(),
                         imp->ndt_map.reinitialiseCovariancePointCount());

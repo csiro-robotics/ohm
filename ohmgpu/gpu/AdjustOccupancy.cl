@@ -6,14 +6,16 @@
 #ifndef ADJUSTOCCUPANCY_CL
 #define ADJUSTOCCUPANCY_CL
 
-inline __device__ float calculateOccupancyAdjustment(const GpuKey *voxelKey, bool isEndVoxel, const GpuKey *startKey,
-                                                     const GpuKey *endKey, float voxel_resolution,
-                                                     LineWalkData *line_data)
+inline __device__ float calculateOccupancyAdjustment(const GpuKey *voxelKey, bool isEndVoxel, bool isSampleVoxel,
+                                                     const GpuKey *startKey, const GpuKey *endKey,
+                                                     float voxel_resolution, LineWalkData *line_data)
 {
-  const float adjustment = (!isEndVoxel || line_data->region_update_flags & kRfEndPointAsFree) ?
+  // We need to handle broken ray segments. They will come through with isEndVoxel true, but isSampleVoxel false.
+  // We need to make a zero adjustment in that case.
+  const float adjustment = (!isSampleVoxel || line_data->region_update_flags & kRfEndPointAsFree) ?
                              line_data->ray_adjustment :
                              line_data->sample_adjustment;
-  return adjustment;
+  return (isEndVoxel && !isSampleVoxel) ? 0 : adjustment;
 }
 
-#endif  // ADJUSTNDT_CL
+#endif  // ADJUSTOCCUPANCY_CL

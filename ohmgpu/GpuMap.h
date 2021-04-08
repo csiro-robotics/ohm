@@ -211,6 +211,24 @@ public:
   /// @param value New miss value.
   void setMissValue(float value);
 
+  /// Get the ray segment length used to break up long rays. See @c setRaySegmentLength()
+  /// @return The ray length at which to break up rays.
+  double raySegmentLength() const;
+
+  /// Set the ray segment length used to break up long rays.
+  ///
+  /// Long rays in a GPU warp (CUDA terminology) can cause the warp to do very little work as a single long ray can
+  /// cause many additional iteractions when the rest of the warp has finished its work. To combat this, we can break
+  /// up long rays into multiple parts or segments. Setting @c setRaySegmentLength() to a value greater than the map
+  /// resolution enables this feature. Note, however, this should be a "reasonable value" for the given resolution
+  /// or the GPU will be overloaded doing very little work per thread with significant overheads.
+  ///
+  /// Each ray longer than the specified @p length is broken in to segments of approximately equal length. Essentially
+  /// the @c raySegmentLength() sets the upper bound for each segment, but each segment will have equal length.
+  ///
+  /// @param length The ray length at which to break up rays.
+  void setRaySegmentLength(double length);
+
   /// Query if rays are being grouped by sample before upload to GPU.
   ///
   /// This is only set for algorithms which require grouping of rays such as the NDT update used by @c GpuNdtMap .
