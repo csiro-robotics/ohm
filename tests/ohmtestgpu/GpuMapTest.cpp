@@ -10,11 +10,15 @@
 #include <ohm/MapChunk.h>
 #include <ohm/MapProbability.h>
 #include <ohm/MapSerialise.h>
+#include <ohm/NdtMap.h>
 #include <ohm/OccupancyMap.h>
 #include <ohm/OccupancyUtil.h>
+#include <ohm/RayMapperNdt.h>
+#include <ohm/RayMapperOccupancy.h>
 #include <ohm/VoxelData.h>
 #include <ohmgpu/GpuCache.h>
 #include <ohmgpu/GpuMap.h>
+#include <ohmgpu/GpuNdtMap.h>
 
 #include <ohmtools/OhmCloud.h>
 #include <ohmutil/OhmUtil.h>
@@ -50,20 +54,50 @@ typedef std::chrono::high_resolution_clock TimingClock;
 
 typedef std::function<void(OccupancyMap &, GpuMap &)> PostGpuMapTestFunc;
 
-void gpuMapTest(double resolution, const glm::u8vec3 &region_size, const std::vector<glm::dvec3> &rays,
-                const PostGpuMapTestFunc &post_populate, const char *save_prefix = nullptr, size_t batch_size = 0u,
-                size_t gpu_mem_size = 0u, bool voxel_means = false)
+struct GpuMapTestParams
+{
+  double resolution = 0.25;
+  double ray_segment_length = 0;
+  size_t batch_size = 0u;
+  size_t gpu_mem_size = 0u;
+  glm::u8vec3 region_size = glm::u8vec3(32);
+  bool voxel_means = false;
+  bool ndt = false;
+};
+
+void gpuMapTest(GpuMapTestParams params, const std::vector<glm::dvec3> &rays, const PostGpuMapTestFunc &post_populate,
+                const char *save_prefix = nullptr)
 {
   // Test basic map populate using GPU and ensure it matches CPU (close enough).
-  OccupancyMap cpu_map(resolution, region_size, voxel_means ? MapFlag::kVoxelMean : MapFlag::kNone);
-  OccupancyMap gpu_map(resolution, region_size, voxel_means ? MapFlag::kVoxelMean : MapFlag::kNone);
-  GpuMap gpu_wrap(&gpu_map, true, unsigned(batch_size * 2), gpu_mem_size);  // Borrow pointer.
+  OccupancyMap cpu_map(params.resolution, params.region_size,
+                       (params.voxel_means | params.ndt) ? MapFlag::kVoxelMean : MapFlag::kNone);
+  OccupancyMap gpu_map(params.resolution, params.region_size,
+                       (params.voxel_means | params.ndt) ? MapFlag::kVoxelMean : MapFlag::kNone);
+  std::unique_ptr<NdtMap> cpu_ndt_map;
+  std::unique_ptr<RayMapper> cpu_ray_mapper;
 
-  ASSERT_TRUE(gpu_wrap.gpuOk());
-
-  if (!batch_size)
+  // Setup CPU RayMapper
+  if (params.ndt)
   {
-    batch_size = rays.size() / 2;
+    cpu_ndt_map = std::make_unique<NdtMap>(&cpu_map, true);
+    cpu_ray_mapper = std::make_unique<RayMapperNdt>(cpu_ndt_map.get());
+  }
+  else
+  {
+    cpu_ray_mapper = std::make_unique<RayMapperOccupancy>(&cpu_map);
+  }
+
+  std::unique_ptr<GpuMap> gpu_wrap((!params.ndt) ?
+                                     new GpuMap(&gpu_map, true, params.batch_size, params.gpu_mem_size) :
+                                     new GpuNdtMap(&gpu_map, true, params.batch_size, params.gpu_mem_size));
+
+  gpu_wrap->setRaySegmentLength(params.ray_segment_length);
+
+  ASSERT_TRUE(gpu_wrap->gpuOk());
+
+  if (!params.batch_size)
+  {
+    params.batch_size = rays.size() / 2;
   }
 
   std::cout << "Integrating " << rays.size() / 2 << " rays into each map.\n";
@@ -111,16 +145,16 @@ void gpuMapTest(double resolution, const glm::u8vec3 &region_size, const std::ve
 
   std::cout << "GPU " << std::flush;
   const auto gpu_start = TimingClock::now();
-  for (size_t i = 0; i < rays.size(); i += batch_size * 2)
+  for (size_t i = 0; i < rays.size(); i += params.batch_size * 2)
   {
-    const unsigned point_count = unsigned(std::min(batch_size * 2, rays.size() - i));
-    gpu_wrap.integrateRays(rays.data() + i, point_count);
+    const unsigned point_count = unsigned(std::min(params.batch_size * 2, rays.size() - i));
+    gpu_wrap->integrateRays(rays.data() + i, point_count);
   }
   const auto gpu_queued = TimingClock::now();
   std::cout << gpu_queued - gpu_start << '\n';
 
   std::cout << "GPU sync: " << std::flush;
-  gpu_wrap.syncVoxels();
+  gpu_wrap->syncVoxels();
   const auto gpu_end = TimingClock::now();
   std::cout << (gpu_end - gpu_queued) << '\n';
   std::cout << "Per ray: " << (gpu_end - gpu_start) / (rays.size() / 2);
@@ -129,7 +163,7 @@ void gpuMapTest(double resolution, const glm::u8vec3 &region_size, const std::ve
 
   std::cout << "CPU " << std::flush;
   const auto cpu_start = TimingClock::now();
-  cpu_map.integrateRays(rays.data(), unsigned(rays.size()));
+  cpu_ray_mapper->integrateRays(rays.data(), unsigned(rays.size()));
   const auto cpu_end = TimingClock::now();
   const auto cpu_elapsed = cpu_end - cpu_start;
   std::cout << cpu_elapsed << ' ';
@@ -137,7 +171,7 @@ void gpuMapTest(double resolution, const glm::u8vec3 &region_size, const std::ve
 
   if (post_populate)
   {
-    post_populate(cpu_map, gpu_wrap);
+    post_populate(cpu_map, *gpu_wrap);
   }
 
   // std::cout << "Comparing" << std::endl;
@@ -164,6 +198,11 @@ void gpuMapTest(double resolution, const glm::u8vec3 &region_size, const std::ve
     const auto save_elapsed = save_end - save_start;
     std::cout << save_elapsed << std::endl;
   }
+
+  // Control release order.
+  cpu_ray_mapper.reset(nullptr);
+  cpu_ndt_map.reset(nullptr);
+  gpu_wrap.reset(nullptr);
 }
 
 void compareMaps(const OccupancyMap &reference_map, const OccupancyMap &test_map)
@@ -278,9 +317,8 @@ void compareCpuGpuMaps(const OccupancyMap &reference_map, const GpuMap &test_map
 
 TEST(GpuMap, PopulateTiny)
 {
-  const double resolution = 0.25;
-  const unsigned batch_size = 2;
-  const glm::u8vec3 region_size(32);
+  GpuMapTestParams params;
+  params.batch_size = 2;
 
   // Make a ray.
   std::vector<glm::dvec3> rays;
@@ -290,16 +328,16 @@ TEST(GpuMap, PopulateTiny)
   rays.emplace_back(glm::dvec3(-5.0));
   rays.emplace_back(glm::dvec3(0.3));
 
-  gpuMapTest(resolution, region_size, rays, compareCpuGpuMaps, "tiny", batch_size);
+  gpuMapTest(params, rays, compareCpuGpuMaps, "tiny");
 }
 
 TEST(GpuMap, PopulateSmall)
 {
   const double map_extents = 50.0;
-  const double resolution = 0.25;
   const unsigned ray_count = 64;
-  const unsigned batch_size = 32;
-  const glm::u8vec3 region_size(32);
+  GpuMapTestParams params;
+  params.batch_size = 32;
+
   // Make some rays.
   std::mt19937 rand_engine;
   std::uniform_real_distribution<double> rand(-map_extents, map_extents);
@@ -311,16 +349,17 @@ TEST(GpuMap, PopulateSmall)
     rays.emplace_back(glm::dvec3(rand(rand_engine), rand(rand_engine), rand(rand_engine)));
   }
 
-  gpuMapTest(resolution, region_size, rays, compareCpuGpuMaps, "small", batch_size);
+  gpuMapTest(params, rays, compareCpuGpuMaps, "small");
 }
 
 TEST(GpuMap, PopulateLarge)
 {
   const double map_extents = 25.0;
-  const double resolution = 0.25;
   const unsigned ray_count = 1024 * 128;
-  const unsigned batch_size = 1024 * 2;
-  const glm::u8vec3 region_size(32);
+
+  GpuMapTestParams params;
+  params.batch_size = 2 * 1024u;
+
   // Make some rays.
   std::mt19937 rand_engine;
   std::uniform_real_distribution<double> rand(-map_extents, map_extents);
@@ -332,16 +371,18 @@ TEST(GpuMap, PopulateLarge)
     rays.emplace_back(glm::dvec3(rand(rand_engine), rand(rand_engine), rand(rand_engine)));
   }
 
-  gpuMapTest(resolution, region_size, rays, compareCpuGpuMaps, "large", batch_size);
+  gpuMapTest(params, rays, compareCpuGpuMaps, "large");
 }
 
 TEST(GpuMap, PopulateSmallCache)
 {
   const double map_extents = 50.0;
-  const double resolution = 0.25;
   const unsigned ray_count = 1024 * 8;
-  const unsigned batch_size = 1024 * 2;
-  const glm::u8vec3 region_size(32);
+
+  GpuMapTestParams params;
+  params.batch_size = 1024 * 2;
+  params.gpu_mem_size = 256u * 1024u * 1024;
+
   // Make some rays.
   std::mt19937 rand_engine;
   std::uniform_real_distribution<double> rand(-map_extents, map_extents);
@@ -354,7 +395,7 @@ TEST(GpuMap, PopulateSmallCache)
   }
 
   // Small cache: 256MiB.
-  gpuMapTest(resolution, region_size, rays, PostGpuMapTestFunc(), "small-cache-", batch_size, 256u * 1024u * 1024);
+  gpuMapTest(params, rays, PostGpuMapTestFunc(), "small-cache-");
 }
 
 TEST(GpuMap, PopulateMultiple)
@@ -416,24 +457,93 @@ TEST(GpuMap, PopulateMultiple)
   compareMaps(map1, map3);
 }
 
+TEST(GpuMap, PopulateSegmented)
+{
+  // Populate a map with long rays being segmented into multiple, smaller parts.
+
+  // For this we'll use 100 rays, 100m long each at 25cm and set the segment length to 15m.
+  // We'll also populate a control map (no segmentation) for validation and performance comparison.
+
+  const double ray_length = 100.0;
+  const unsigned ray_count = 100;
+
+  GpuMapTestParams params;
+  params.ray_segment_length = 15.0;
+  params.batch_size = ray_count;
+  params.voxel_means = true;
+
+  std::vector<glm::dvec3> rays;
+  std::mt19937 re;
+  re.seed(5489ul);
+  std::uniform_real_distribution<double> rand(0, 1.0);
+
+  for (unsigned i = 0; i < ray_count; ++i)
+  {
+    // Start all rays at the origin.
+    rays.emplace_back(glm::dvec3(0.0));
+    glm::dvec3 sample(rand(re), rand(re), rand(re));  // Random ~unit vector.
+    sample = glm::normalize(sample) * ray_length;
+    rays.emplace_back(sample);
+  }
+
+  // Now run the segmented, and unsegmented tests the two gpu maps.
+  gpuMapTest(params, rays, compareCpuGpuMaps, "segmented");
+}
+
+TEST(GpuMap, PopulateSegmentedNdt)
+{
+  // Populate a map with long rays being segmented into multiple, smaller parts.
+
+  // For this we'll use 100 rays, 100m long each at 25cm and set the segment length to 15m.
+  // We'll also populate a control map (no segmentation) for validation and performance comparison.
+
+  const double ray_length = 100.0;
+  const unsigned ray_count = 100;
+
+  GpuMapTestParams params;
+  params.ray_segment_length = 15.0;
+  params.batch_size = ray_count;
+  params.ndt = true;
+
+  std::vector<glm::dvec3> rays;
+  std::mt19937 re;
+  re.seed(5489ul);
+  std::uniform_real_distribution<double> rand(0, 1.0);
+
+  for (unsigned i = 0; i < ray_count; ++i)
+  {
+    // Start all rays at the origin.
+    rays.emplace_back(glm::dvec3(0.0));
+    glm::dvec3 sample(rand(re), rand(re), rand(re));  // Random ~unit vector.
+    sample = glm::normalize(sample) * ray_length;
+    rays.emplace_back(sample);
+  }
+
+  // Now run the segmented, and unsegmented tests the two gpu maps.
+  gpuMapTest(params, rays, compareCpuGpuMaps, "segmented-ndt");
+}
+
 TEST(GpuMap, Compare)
 {
   const double resolution = 0.25;
-  const glm::u8vec3 region_size(16);
+
+  GpuMapTestParams params;
+  params.region_size = glm::u8vec3(16);
+
   std::vector<glm::dvec3> rays;
 
   // Create a map for generating voxel centres.
-  OccupancyMap grid_map(resolution, region_size);
+  OccupancyMap grid_map(resolution, params.region_size);
   Key key(glm::i16vec3(0), 0, 0, 0);
   glm::dvec3 v;
   // Create a set of rays which will densely populate a single region.
-  for (int z = 0; z < region_size.z; ++z)
+  for (int z = 0; z < params.region_size.z; ++z)
   {
     key.setLocalAxis(2, z);
-    for (int y = 0; y < region_size.y; ++y)
+    for (int y = 0; y < params.region_size.y; ++y)
     {
       key.setLocalAxis(1, y);
-      for (int x = 0; x < region_size.x; ++x)
+      for (int x = 0; x < params.region_size.x; ++x)
       {
         key.setLocalAxis(0, x);
         v = grid_map.voxelCentreGlobal(key);
@@ -444,20 +554,20 @@ TEST(GpuMap, Compare)
     }
   }
 
-  const auto compare_results = [region_size](OccupancyMap &cpu_map, OccupancyMap &gpu_map) {
+  const auto compare_results = [params](OccupancyMap &cpu_map, OccupancyMap &gpu_map) {
     Key key(glm::i16vec3(0), 0, 0, 0);
     ohm::Voxel<const float> cpu_voxel(&cpu_map, cpu_map.layout().occupancyLayer());
     ohm::Voxel<const float> gpu_voxel(&gpu_map, gpu_map.layout().occupancyLayer());
     ASSERT_TRUE(cpu_voxel.isLayerValid());
     ASSERT_TRUE(gpu_voxel.isLayerValid());
     // Walk the region pulling a voxel from both maps and comparing.
-    for (int z = 0; z < region_size.z; ++z)
+    for (int z = 0; z < params.region_size.z; ++z)
     {
       key.setLocalAxis(2, z);
-      for (int y = 0; y < region_size.y; ++y)
+      for (int y = 0; y < params.region_size.y; ++y)
       {
         key.setLocalAxis(1, y);
-        for (int x = 0; x < region_size.x; ++x)
+        for (int x = 0; x < params.region_size.x; ++x)
         {
           key.setLocalAxis(0, x);
           cpu_voxel.setKey(key);
@@ -481,7 +591,7 @@ TEST(GpuMap, Compare)
     }
   };
 
-  const auto compare_and_clear = [region_size, compare_results](OccupancyMap &cpu_map, GpuMap &gpu_map) {
+  const auto compare_and_clear = [params, compare_results](OccupancyMap &cpu_map, GpuMap &gpu_map) {
     compare_results(cpu_map, gpu_map.map());
 
     // Now we will try clear all the voxels from the bottom slice, except for those at max Y in the region.
@@ -492,10 +602,10 @@ TEST(GpuMap, Compare)
     // Build the clearing rays.
     std::vector<glm::dvec3> clear_rays;
     Key from_key(glm::i16vec3(0), 0, 0, 0);
-    Key to_key(glm::i16vec3(0), 0, region_size.y - 1, 0);
+    Key to_key(glm::i16vec3(0), 0, params.region_size.y - 1, 0);
     glm::dvec3 from, to;
 
-    for (int x = 0; x < region_size.x; ++x)
+    for (int x = 0; x < params.region_size.x; ++x)
     {
       from_key.setLocalAxis(0, x);
       to_key.setLocalAxis(0, x);
@@ -516,8 +626,8 @@ TEST(GpuMap, Compare)
     compare_results(cpu_map, gpu_map.map());
   };
 
-  // gpuMapTest(resolution, regionSize, rays, compareResults, "grid-");
-  gpuMapTest(resolution, region_size, rays, compare_and_clear, "grid-");
+  // gpuMapTest(params, rays, compareResults, "grid-");
+  gpuMapTest(params, rays, compare_and_clear, "grid-");
 }
 
 
@@ -685,10 +795,11 @@ TEST(GpuMap, VoxelMean)
 {
   // Populate with voxel means
   const double map_extents = 50.0;
-  const double resolution = 0.25;
   const unsigned ray_count = 64;
-  const unsigned batch_size = 32;
-  const glm::u8vec3 region_size(32);
+
+  GpuMapTestParams params;
+  params.batch_size = 32;
+  params.voxel_means = true;
 
   // Make some rays.
   std::mt19937 rand_engine;
@@ -701,14 +812,15 @@ TEST(GpuMap, VoxelMean)
     rays.emplace_back(glm::dvec3(rand(rand_engine), rand(rand_engine), rand(rand_engine)));
   }
 
-  gpuMapTest(resolution, region_size, rays, compareCpuGpuMaps, "voxelmean", batch_size, 0, true);
+  gpuMapTest(params, rays, compareCpuGpuMaps, "voxelmean");
 }
 
 TEST(GpuMap, CheckBadRays)
 {
-  const double resolution = 0.1;
-  const glm::u8vec3 region_size(32);
-  const unsigned batch_size = 32;
+  GpuMapTestParams params;
+  params.resolution = 0.1;
+  params.batch_size = 32;
+  params.voxel_means = true;
 
   // Rays which have been known to cause infinite loops.
   std::vector<glm::dvec3> rays =  //
@@ -719,6 +831,6 @@ TEST(GpuMap, CheckBadRays)
     };
 
 
-  ASSERT_DURATION_LE(5, gpuMapTest(resolution, region_size, rays, compareCpuGpuMaps, "bad-rays", batch_size, 0, true));
+  ASSERT_DURATION_LE(5, gpuMapTest(params, rays, compareCpuGpuMaps, "bad-rays"));
 }
 }  // namespace gpumap

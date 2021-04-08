@@ -119,10 +119,8 @@ protected:
   void finaliseBatch(unsigned region_update_flags) override;
 
   using TouchedCacheSet = std::array<GpuLayerCache *, 8>;
-  void invokeNdtOm(unsigned region_update_flags, int buf_idx, gputil::EventList &wait, const gputil::Dim3 &global_size,
-                   TouchedCacheSet &used_caches);
-  void invokeNdtTm(unsigned region_update_flags, int buf_idx, gputil::EventList &wait, const gputil::Dim3 &global_size,
-                   TouchedCacheSet &used_caches);
+  void invokeNdtOm(unsigned region_update_flags, int buf_idx, gputil::EventList &wait, TouchedCacheSet &used_caches);
+  void invokeNdtTm(unsigned region_update_flags, int buf_idx, gputil::EventList &wait, TouchedCacheSet &used_caches);
 
   void releaseGpuProgram() override;
 };

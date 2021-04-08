@@ -14,7 +14,6 @@
 
 #include <glm/glm.hpp>
 
-#include <algorithm>
 #include <cstring>
 
 namespace ohm
@@ -133,33 +132,61 @@ void MapLayer::release(const uint8_t *voxels)
 
 void MapLayer::clear(uint8_t *mem, const glm::u8vec3 &region_dim) const
 {
-  // Build a clear pattern.
-  auto *pattern = static_cast<uint8_t *>(alloca(voxel_layout_->voxel_byte_size));
-  uint8_t *dst = pattern;
+  const glm::u8vec3 layer_dim = dimensions(region_dim);
+  // Build a clear pattern. We progressively copy more and more memory.
+  // - first build a single voxel at mem
+  // - copy voxel pattern from mem to create layer_dim.x elements at mem (rows)
+  // - copy first row into layer_dim.y - 1 rows to create layers
+  // - copy first layer into layer_dim.z - 1 layers
+  //
+  // We also have a special case when the clear pattern is zero. In that case we use a single memset call.
+  const size_t voxel_byte_size = voxel_layout_->voxel_byte_size;
+
+  // Write one voxel into the destination location.
+  uint8_t *dst = mem;
+  bool zero_clear_pattern = true;
   for (size_t i = 0; i < voxel_layout_->members.size(); ++i)
   {
     // Grab the current member.
     VoxelMember &member = voxel_layout_->members[i];
     // Work out the member size by the difference in offets to the next member or the end of the voxel.
-    size_t member_size = ((i + 1 < voxel_layout_->members.size()) ? voxel_layout_->members[i + 1].offset :
-                                                                    voxel_layout_->voxel_byte_size) -
-                         member.offset;
+    size_t member_size =
+      ((i + 1 < voxel_layout_->members.size()) ? voxel_layout_->members[i + 1].offset : voxel_byte_size) -
+      member.offset;
     // Work out how may bytes to clear. Either the member size or the clear value size.
     const size_t clear_size = std::min(member_size, sizeof(member.clear_value));
+    zero_clear_pattern = zero_clear_pattern && member.clear_value == 0;
     // Clear the bytes.
     memcpy(dst, &member.clear_value, clear_size);
     // Move to the next address.
     dst += member_size;
   }
 
-  // We have built a clear pattern for the whole voxel. Now clear it.
-  // Using volume() we deal with subsampling.
-  const size_t voxel_count = volume(region_dim);
-  dst = mem;
-  for (size_t i = 0; i < voxel_count; ++i)
+  if (zero_clear_pattern)
   {
-    memcpy(dst, pattern, voxel_layout_->voxel_byte_size);
-    dst += voxel_layout_->voxel_byte_size;
+    // Voxel clear pattern is all zero. Just use a memset.
+    memset(mem, 0, voxel_byte_size * layer_dim.x * layer_dim.y * layer_dim.z);
+    return;
   }
+
+  // Fill out a single voxel column (layer_dim.x)
+  for (int x = 1; x < layer_dim.x; ++x, dst += voxel_byte_size)
+  {
+    memcpy(dst, mem, voxel_byte_size);
+  }
+
+  // Now repeat the column into the rows (layer_dim.y)
+  for (int y = 1; y < layer_dim.y; ++y, dst += voxel_byte_size * layer_dim.x)
+  {
+    memcpy(dst, mem, voxel_byte_size * layer_dim.x);
+  }
+
+  // Now copy each 2D layer.
+  for (int z = 1; z < layer_dim.z; ++z, dst += voxel_byte_size * layer_dim.x * layer_dim.y)
+  {
+    memcpy(dst, mem, voxel_byte_size * layer_dim.x * layer_dim.y);
+  }
+
+  assert(dst == mem + volume(region_dim) * voxel_byte_size);
 }
 }  // namespace ohm

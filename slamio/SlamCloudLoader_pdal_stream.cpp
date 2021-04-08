@@ -116,29 +116,28 @@ public:
 
       // Resolve time dimension.
       auto dim = pdal::Dimension::Id::Unknown;
-      // First try resolve by name.
-      const std::array<const std::string, 2> time_dim_names = { "time", "timestamp" };
-      for (const auto &time_name : time_dim_names)
+      // First try resolve by Dimension ID
+      const std::array<pdal::Dimension::Id, 3> time_ids = { pdal::Dimension::Id::GpsTime,
+                                                            pdal::Dimension::Id::InternalTime,
+                                                            pdal::Dimension::Id::OffsetTime };
+      for (const auto &time_dim : time_ids)
       {
-        dim = layout_.findDim(time_name);
-        if (dim != pdal::Dimension::Id::Unknown)
+        if (layout_.hasDim(time_dim))
         {
+          dim = time_dim;
           break;
         }
       }
 
+      // Not found. Try resolve by name.
       if (dim == pdal::Dimension::Id::Unknown)
       {
-        // Not found by name. Try resolve by Dimension ID
-        // Not found by name.
-        const std::array<pdal::Dimension::Id, 3> time_ids = { pdal::Dimension::Id::GpsTime,
-                                                              pdal::Dimension::Id::InternalTime,
-                                                              pdal::Dimension::Id::OffsetTime };
-        for (const auto &time_dim : time_ids)
+        const std::array<const std::string, 2> time_dim_names = { "time", "timestamp" };
+        for (const auto &time_name : time_dim_names)
         {
-          if (layout_.hasDim(time_dim))
+          dim = layout_.findDim(time_name);
+          if (dim != pdal::Dimension::Id::Unknown)
           {
-            dim = time_dim;
             break;
           }
         }
@@ -147,6 +146,7 @@ public:
       if (dim != pdal::Dimension::Id::Unknown)
       {
         have_timefield_ = true;
+        time_dimension_ = dim;
         time_channel_type_ = layout_.dimDetail(dim)->type();
       }
       else
@@ -411,6 +411,10 @@ std::shared_ptr<pdal::Streamable> createReader(pdal::StageFactory &factory, cons
   {
     reader_type = "las";
     options.add("compression", "EITHER");
+  }
+  else if (ext == "xyz")
+  {
+    reader_type = "text";
   }
 
   reader_type = "readers." + reader_type;

@@ -10,13 +10,16 @@
 
 #include "CovarianceVoxelCompute.h"
 
-inline __device__ float calculateOccupancyAdjustment(const GpuKey *voxelKey, bool isEndVoxel, const GpuKey *startKey,
-                                                     const GpuKey *endKey, float voxel_resolution,
-                                                     LineWalkData *line_data)
+inline __device__ float calculateOccupancyAdjustment(const GpuKey *voxelKey, bool isEndVoxel, bool isSampleVoxel,
+                                                     const GpuKey *startKey, const GpuKey *endKey,
+                                                     float voxel_resolution, LineWalkData *line_data)
 {
 #ifndef VOXEL_MEAN
 #error VOXEL_MEAN must be enabled for NDT update.
 #endif  // !VOXEL_MEAN
+
+  // Note: we always ignore voxels where isSampleVoxel or isEndVoxel is true. Samples are adjusted later while
+  // a non-sample isEndVoxel is a split ray.
 
   const ulonglong vi_local = voxelKey->voxel[0] + voxelKey->voxel[1] * line_data->region_dimensions.x +
                              voxelKey->voxel[2] * line_data->region_dimensions.x * line_data->region_dimensions.y;
@@ -66,7 +69,7 @@ inline __device__ float calculateOccupancyAdjustment(const GpuKey *voxelKey, boo
 #endif  // NDT == NDT_TM
 
   // NDT should do sample update in a separate process in order to update the covariance, so we should not get here.
-  return (!isEndVoxel || line_data->region_update_flags & kRfEndPointAsFree) ? adjustment : 0;
+  return (isEndVoxel || (isSampleVoxel && !(line_data->region_update_flags & kRfEndPointAsFree))) ? 0 : adjustment;
 }
 
 #endif  // ADJUSTNDT_CL
