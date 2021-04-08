@@ -146,6 +146,7 @@ public:
       if (dim != pdal::Dimension::Id::Unknown)
       {
         have_timefield_ = true;
+        time_dimension_ = dim;
         time_channel_type_ = layout_.dimDetail(dim)->type();
       }
       else

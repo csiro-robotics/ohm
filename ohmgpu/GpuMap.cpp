@@ -666,7 +666,7 @@ size_t GpuMap::integrateRays(const glm::dvec3 *rays, size_t element_count, const
       double ray_length = glm::length2(ray.sample - ray.origin);
       // Ensure we maintain the kRffClippedEnd for the original filtered ray.
       const unsigned last_part_clipped_end = ray.filter_flags & kRffClippedEnd;
-      if (ray_length >= imp_->ray_segment_length)
+      if (ray_length >= imp_->ray_segment_length * imp_->ray_segment_length)
       {
         // We have a long ray. Break it up into even segments according to the ray_segment_length.
         // Get a true length (not squared)
@@ -756,8 +756,8 @@ size_t GpuMap::integrateRays(const glm::dvec3 *rays, size_t element_count, const
         // - Items with unclipped end points come first.
         // - By region index next
         // - Finally by local index.
-        return clipped_a < clipped_b || clipped_a == clipped_b && region_index_a < region_index_b ||
-               clipped_a == clipped_b && region_index_a == region_index_b && local_index_a < local_index_b;
+        return clipped_a < clipped_b || (clipped_a == clipped_b && region_index_a < region_index_b) ||
+               (clipped_a == clipped_b && region_index_a == region_index_b && local_index_a < local_index_b);
       });
 #if OHM_GPU_VERIFY_SORT
     verifySort(imp_->grouped_rays);

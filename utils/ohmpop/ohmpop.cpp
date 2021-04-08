@@ -258,7 +258,7 @@ void Options::print(std::ostream **out, const ohm::OccupancyMap &map) const
     }
 #ifdef OHMPOP_GPU
     **out << "Gpu cache size: " << ohm::util::Bytes(gpu.gpuCacheSizeBytes()) << '\n';
-    **out << "Gpu max ray segment: " << ohm::util::Bytes(gpu.ray_segment_length) << '\n';
+    **out << "Gpu max ray segment: " << gpu.ray_segment_length << '\n';
     **out << "Ray batch size: " << batch_size << '\n';
     **out << "Clearance mapping: ";
     if (clearance > 0)
