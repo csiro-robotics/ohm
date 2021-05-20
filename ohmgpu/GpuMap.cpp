@@ -78,7 +78,112 @@ GpuProgramRef g_program_ref_no_sub("RegionUpdate", GpuProgramRef::kSourceFile, "
 
 const double kDefaultMaxRayRange = 1000.0;
 
-using RegionWalkFunction = std::function<void(const glm::i16vec3 &, const glm::dvec3 &, const glm::dvec3 &)>;
+inline bool goodRay(const glm::dvec3 &start, const glm::dvec3 &end, double max_range = kDefaultMaxRayRange)
+{
+  bool is_good = true;
+  if (glm::any(glm::isnan(start)))
+  {
+    // std::cerr << "NAN start point" << std::endl;
+    is_good = false;
+  }
+  if (glm::any(glm::isnan(end)))
+  {
+    // std::cerr << "NAN end point" << std::endl;
+    is_good = false;
+  }
+
+  const glm::dvec3 ray = end - start;
+  if (max_range > 0 && glm::dot(ray, ray) > max_range * max_range)
+  {
+    // std::cerr << "Ray too long: (" <<
+    // glm::distance(start, end) << "): " << start << " ->
+    // " << end << std::endl;
+    is_good = false;
+  }
+
+  return is_good;
+}
+
+#if OHM_GPU_VERIFY_SORT
+/// Verify that rays are sorted such that all unclipped samples come first.
+unsigned verifySort(const std::vector<RayItem> &rays)
+{
+  unsigned failure_count = 0;
+  bool allow_samples = true;
+  for (const auto &ray : rays)
+  {
+    if (!allow_samples && (ray.filter_flags & kRffClippedEnd) == 0)
+    {
+      ++failure_count;
+    }
+    if (ray.filter_flags & kRffClippedEnd)
+    {
+      allow_samples = false;
+    }
+  }
+
+  if (failure_count)
+  {
+    throw failure_count;
+  }
+
+  return failure_count;
+}
+#endif  // OHM_GPU_VERIFY_SORT
+}  // namespace
+
+namespace gpumap
+{
+GpuCache *enableGpu(OccupancyMap &map)
+{
+  return enableGpu(map, GpuCache::kDefaultTargetMemSize, kGpuAllowMappedBuffers);
+}
+
+
+GpuCache *enableGpu(OccupancyMap &map, size_t target_gpu_mem_size, unsigned flags)
+{
+  OccupancyMapDetail &map_imp = *map.detail();
+  if (map_imp.gpu_cache)
+  {
+    return static_cast<GpuCache *>(map_imp.gpu_cache);
+  }
+
+  initialiseGpuCache(map, target_gpu_mem_size, flags);
+  return static_cast<GpuCache *>(map_imp.gpu_cache);
+}
+
+
+void sync(OccupancyMap &map)
+{
+  if (GpuCache *cache = gpuCache(map))
+  {
+    for (unsigned i = 0; i < cache->layerCount(); ++i)
+    {
+      if (GpuLayerCache *layer = cache->layerCache(i))
+      {
+        layer->syncToMainMemory();
+      }
+    }
+  }
+}
+
+
+void sync(OccupancyMap &map, unsigned layer_index)
+{
+  if (GpuCache *cache = gpuCache(map))
+  {
+    if (GpuLayerCache *layer = cache->layerCache(layer_index))
+    {
+      layer->syncToMainMemory();
+    }
+  }
+}
+
+
+GpuCache *gpuCache(OccupancyMap &map)
+{
+  return static_cast<GpuCache *>(map.detail()->gpu_cache);
+}
 
 void walkRegions(const OccupancyMap &map, const glm::dvec3 &start_point, const glm::dvec3 &end_point,
                  const RegionWalkFunction &func)
@@ -181,113 +286,7 @@ void walkRegions(const OccupancyMap &map, const glm::dvec3 &start_point, const g
   // Touch the last region.
   func(current_key, start_point, end_point);
 }
-
-inline bool goodRay(const glm::dvec3 &start, const glm::dvec3 &end, double max_range = kDefaultMaxRayRange)
-{
-  bool is_good = true;
-  if (glm::any(glm::isnan(start)))
-  {
-    // std::cerr << "NAN start point" << std::endl;
-    is_good = false;
-  }
-  if (glm::any(glm::isnan(end)))
-  {
-    // std::cerr << "NAN end point" << std::endl;
-    is_good = false;
-  }
-
-  const glm::dvec3 ray = end - start;
-  if (max_range > 0 && glm::dot(ray, ray) > max_range * max_range)
-  {
-    // std::cerr << "Ray too long: (" <<
-    // glm::distance(start, end) << "): " << start << " ->
-    // " << end << std::endl;
-    is_good = false;
-  }
-
-  return is_good;
-}
-
-#if OHM_GPU_VERIFY_SORT
-/// Verify that rays are sorted such that all unclipped samples come first.
-unsigned verifySort(const std::vector<RayItem> &rays)
-{
-  unsigned failure_count = 0;
-  bool allow_samples = true;
-  for (const auto &ray : rays)
-  {
-    if (!allow_samples && (ray.filter_flags & kRffClippedEnd) == 0)
-    {
-      ++failure_count;
-    }
-    if (ray.filter_flags & kRffClippedEnd)
-    {
-      allow_samples = false;
-    }
-  }
-
-  if (failure_count)
-  {
-    throw failure_count;
-  }
-
-  return failure_count;
-}
-#endif  // OHM_GPU_VERIFY_SORT
-}  // namespace
-
-
-GpuCache *ohm::gpumap::enableGpu(OccupancyMap &map)
-{
-  return enableGpu(map, GpuCache::kDefaultTargetMemSize, kGpuAllowMappedBuffers);
-}
-
-
-GpuCache *ohm::gpumap::enableGpu(OccupancyMap &map, size_t target_gpu_mem_size, unsigned flags)
-{
-  OccupancyMapDetail &map_imp = *map.detail();
-  if (map_imp.gpu_cache)
-  {
-    return static_cast<GpuCache *>(map_imp.gpu_cache);
-  }
-
-  initialiseGpuCache(map, target_gpu_mem_size, flags);
-  return static_cast<GpuCache *>(map_imp.gpu_cache);
-}
-
-
-void ohm::gpumap::sync(OccupancyMap &map)
-{
-  if (GpuCache *cache = gpuCache(map))
-  {
-    for (unsigned i = 0; i < cache->layerCount(); ++i)
-    {
-      if (GpuLayerCache *layer = cache->layerCache(i))
-      {
-        layer->syncToMainMemory();
-      }
-    }
-  }
-}
-
-
-void ohm::gpumap::sync(OccupancyMap &map, unsigned layer_index)
-{
-  if (GpuCache *cache = gpuCache(map))
-  {
-    if (GpuLayerCache *layer = cache->layerCache(layer_index))
-    {
-      layer->syncToMainMemory();
-    }
-  }
-}
-
-
-GpuCache *ohm::gpumap::gpuCache(OccupancyMap &map)
-{
-  return static_cast<GpuCache *>(map.detail()->gpu_cache);
-}
-
+}  // namespace gpumap
 
 GpuMap::GpuMap(GpuMapDetail *detail, unsigned expected_element_count, size_t gpu_mem_size)
   : imp_(detail)
@@ -616,7 +615,7 @@ size_t GpuMap::integrateRays(const glm::dvec3 *rays, size_t element_count, unsig
     // "
     //          << ray_start << ':' << ray_end << "  <=>  " << rays[i + 0] << " -> " << rays[i + 1] << std::endl;
     // std::cout << "dirs: " << (ray_end - ray_start) << " vs " << (ray_end_d - ray_start_d) << std::endl;
-    walkRegions(*imp_->map, ray.origin, ray.sample, region_func);
+    gpumap::walkRegions(*imp_->map, ray.origin, ray.sample, region_func);
   };
 
   // Reserve memory for the current ray set.

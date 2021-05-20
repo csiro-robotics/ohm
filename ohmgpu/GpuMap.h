@@ -14,6 +14,8 @@
 
 #include <glm/glm.hpp>
 
+#include <functional>
+
 namespace gputil
 {
 class Event;
@@ -88,6 +90,11 @@ void ohmgpu_API sync(OccupancyMap &map, unsigned layer_index);
 /// Retrieves the GPU cache used by @p map if GPU usage has been enabled for @p map.
 /// @return The GPU cache for @p map.
 GpuCache *ohmgpu_API gpuCache(OccupancyMap &map);
+
+// --- Internal support items ---
+using RegionWalkFunction = std::function<void(const glm::i16vec3 &, const glm::dvec3 &, const glm::dvec3 &)>;
+void ohmgpu_API walkRegions(const OccupancyMap &map, const glm::dvec3 &start_point, const glm::dvec3 &end_point,
+                            const RegionWalkFunction &func);
 }  // namespace gpumap
 
 /// A wrapper for an @c OccupancyMap that uses GPU to update and manage the wrapped map.
