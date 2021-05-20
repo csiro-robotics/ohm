@@ -138,6 +138,8 @@ size_t RayMapperNdt::integrateRays(const glm::dvec3 *rays, size_t element_count,
     // Update the touched_stamps with relaxed memory ordering. The important thing is to have an update,
     // not so much the sequencing. We really don't want to synchronise here.
     chunk->touched_stamps[occupancy_layer].store(touch_stamp, std::memory_order_relaxed);
+
+    return true;
   };
 
   unsigned filter_flags;

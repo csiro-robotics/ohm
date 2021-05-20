@@ -58,7 +58,7 @@ struct GpuMapTestParams
 {
   double resolution = 0.25;
   double ray_segment_length = 0;
-  size_t batch_size = 0u;
+  unsigned batch_size = 0u;
   size_t gpu_mem_size = 0u;
   glm::u8vec3 region_size = glm::u8vec3(32);
   bool voxel_means = false;
@@ -97,7 +97,7 @@ void gpuMapTest(GpuMapTestParams params, const std::vector<glm::dvec3> &rays, co
 
   if (!params.batch_size)
   {
-    params.batch_size = rays.size() / 2;
+    params.batch_size = unsigned(rays.size() / 2);
   }
 
   std::cout << "Integrating " << rays.size() / 2 << " rays into each map.\n";
@@ -147,7 +147,7 @@ void gpuMapTest(GpuMapTestParams params, const std::vector<glm::dvec3> &rays, co
   const auto gpu_start = TimingClock::now();
   for (size_t i = 0; i < rays.size(); i += params.batch_size * 2)
   {
-    const unsigned point_count = unsigned(std::min(params.batch_size * 2, rays.size() - i));
+    const unsigned point_count = unsigned(std::min<size_t>(params.batch_size * 2, rays.size() - i));
     gpu_wrap->integrateRays(rays.data() + i, point_count);
   }
   const auto gpu_queued = TimingClock::now();

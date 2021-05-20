@@ -10,9 +10,19 @@
 
 #include <array>
 #include <cassert>
+#include <functional>
 
 namespace ohm
 {
+class Key;
+
+/// Function signature for the visit function called from @c walkSegmentKeys().
+/// @param key The key of the current voxel being visited.
+/// @param enter_range Range at which the voxel is entered. detail required
+/// @param exit_range Range at which the voxel is entered. detail required
+/// @return True to keep walking the voxels along the ray, false to abort walking the ray.
+using WalkSegmentFunc = std::function<bool(const Key &, double, double)>;
+
 /// A templatised, voxel based line walking algorithm. Voxels are accurately traversed from @p startPoint to
 /// @p endPoint, invoking @p walkFunc for each traversed voxel.
 ///
@@ -47,8 +57,8 @@ namespace ohm
 ///     @c endPoint, when it does not lie in the same voxel as @p startPoint.
 /// @param funcs Key helper functions object.
 /// @return The number of voxels traversed. This includes @p endPoint when @p includeEndPoint is true.
-template <typename KEY, typename KEYFUNCS, typename WALKFUNC>
-size_t walkSegmentKeys(const WALKFUNC &walk_func, const glm::dvec3 &start_point, const glm::dvec3 &end_point,
+template <typename KEY, typename KEYFUNCS>
+size_t walkSegmentKeys(WalkSegmentFunc walk_func, const glm::dvec3 &start_point, const glm::dvec3 &end_point,
                        bool include_end_point, const KEYFUNCS &funcs,
                        double length_epsilon = 1e-6)  // NOLINT(readability-magic-numbers)
 {
@@ -96,11 +106,13 @@ size_t walkSegmentKeys(const WALKFUNC &walk_func, const glm::dvec3 &start_point,
       voxel[axis] + sign_direction * 0.5 * funcs.voxelResolution(axis);  // NOLINT(readability-magic-numbers)
     const double first_voxel_length =
       std::abs((next_voxel_border - start_point[axis]) / (end_point[axis] - start_point[axis])) * length;
-    walk_func(start_point_key, 0.0, first_voxel_length);
-    if (include_end_point)
+    if (walk_func(start_point_key, 0.0, first_voxel_length))
     {
-      walk_func(end_point_key, first_voxel_length, length);
-      return 2;
+      if (include_end_point)
+      {
+        walk_func(end_point_key, first_voxel_length, length);
+        return 2;
+      }
     }
     return 1;
   }
@@ -138,7 +150,8 @@ size_t walkSegmentKeys(const WALKFUNC &walk_func, const glm::dvec3 &start_point,
       next_voxel_border = voxel[i] + step[i] * 0.5 * funcs.voxelResolution(i);  // NOLINT(readability-magic-numbers)
       time_max[i] = (next_voxel_border - start_point[i]) * direction_axis_inv;
       time_limit[i] =
-        std::abs((end_point[i] - start_point[i]) * direction_axis_inv);  // +0.5f * funcs.voxelResolution(i); // Question(JW): isn't this just length
+        std::abs((end_point[i] - start_point[i]) *
+                 direction_axis_inv);  // +0.5f * funcs.voxelResolution(i); // Question(JW): isn't this just length
     }
     else
     {
@@ -149,19 +162,22 @@ size_t walkSegmentKeys(const WALKFUNC &walk_func, const glm::dvec3 &start_point,
 
   int axis = 0;
   bool limit_reached = false;
-  while (!limit_reached && current_key != end_point_key)
+  bool user_exit = false;
+  while (!limit_reached && !user_exit && current_key != end_point_key)
   {
     axis = (time_max[0] < time_max[2]) ? ((time_max[0] < time_max[1]) ? 0 : 1) : ((time_max[1] < time_max[2]) ? 1 : 2);
-    limit_reached = std::abs(time_max[axis]) > time_limit[axis]; // Question(JW): why is this abs? Isn't time_max non-negative? Just for round-off?
+    limit_reached =
+      std::abs(time_max[axis]) >
+      time_limit[axis];  // Question(JW): why is this abs? Isn't time_max non-negative? Just for round-off?
     const double new_time_current = limit_reached ? time_limit[axis] : time_max[axis];
-    walk_func(current_key, time_current, new_time_current);
+    user_exit = !walk_func(current_key, time_current, new_time_current);
     time_max[axis] += time_delta[axis];
     time_current = new_time_current;
     ++added;
     funcs.stepKey(current_key, axis, step[axis]);
   }
 
-  if (include_end_point)
+  if (!user_exit && include_end_point)
   {
     walk_func(end_point_key, time_current, length);
     ++added;
@@ -178,8 +194,8 @@ size_t walkSegmentKeys(const WALKFUNC &walk_func, const glm::dvec3 &start_point,
 /// @param end_point The end of the line in 3D space.
 /// @param funcs Key helper functions object.
 /// @return The number of voxels traversed. This includes @p endPoint.
-template <typename KEY, typename KEYFUNCS, typename WALKFUNC>
-size_t walkSegmentKeys(const WALKFUNC &walk_func, const glm::dvec3 &start_point, const glm::dvec3 &end_point,
+template <typename KEY, typename KEYFUNCS>
+size_t walkSegmentKeys(WalkSegmentFunc walk_func, const glm::dvec3 &start_point, const glm::dvec3 &end_point,
                        const KEYFUNCS &funcs)
 {
   return walkSegmentKeys(walk_func, start_point, end_point, true, funcs);
@@ -191,8 +207,8 @@ size_t walkSegmentKeys(const WALKFUNC &walk_func, const glm::dvec3 &start_point,
 /// @param start_point The start of the line in 3D space.
 /// @param end_point The end of the line in 3D space.
 /// @return The number of voxels traversed. This includes @p endPoint.
-template <typename KEY, typename KEYFUNCS, typename WALKFUNC>
-size_t walkSegmentKeys(const WALKFUNC &walk_func, const glm::dvec3 &start_point, const glm::dvec3 &end_point)
+template <typename KEY, typename KEYFUNCS>
+size_t walkSegmentKeys(WalkSegmentFunc walk_func, const glm::dvec3 &start_point, const glm::dvec3 &end_point)
 {
   return walkSegmentKeys(walk_func, start_point, end_point, true, KEYFUNCS());
 }

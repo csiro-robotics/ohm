@@ -656,7 +656,7 @@ size_t GpuMap::integrateRays(const glm::dvec3 *rays, size_t element_count, unsig
         ray_length = std::sqrt(ray_length);
         // Divide by the segment length to work out how many segments we need.
         // Round up.
-        const int part_count = std::ceil(ray_length / imp_->ray_segment_length);
+        const int part_count = int(std::ceil(ray_length / imp_->ray_segment_length));
         // Work out the part length.
         const double part_length = ray_length / double(part_count);
         const glm::dvec3 dir = (ray.sample - ray.origin) / ray_length;
