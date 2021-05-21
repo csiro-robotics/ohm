@@ -291,27 +291,12 @@ void walkRegions(const OccupancyMap &map, const glm::dvec3 &start_point, const g
 GpuMap::GpuMap(GpuMapDetail *detail, unsigned expected_element_count, size_t gpu_mem_size)
   : imp_(detail)
 {
-  GpuCache &gpu_cache = *gpumap::enableGpu(*imp_->map, gpu_mem_size, gpumap::kGpuAllowMappedBuffers);
-
-  const unsigned prealloc_region_count = 1024u;
-  for (unsigned i = 0; i < GpuMapDetail::kBuffersCount; ++i)
-  {
-    imp_->key_buffers[i] =
-      gputil::Buffer(gpu_cache.gpu(), sizeof(GpuKey) * expected_element_count, gputil::kBfReadHost);
-    imp_->ray_buffers[i] =
-      gputil::Buffer(gpu_cache.gpu(), sizeof(gputil::float3) * expected_element_count, gputil::kBfReadHost);
-    imp_->region_key_buffers[i] =
-      gputil::Buffer(gpu_cache.gpu(), sizeof(gputil::int3) * prealloc_region_count, gputil::kBfReadHost);
-
-    // Add structures for managing uploads of regino offsets to the cache buffer.
-    imp_->voxel_upload_info[i].emplace_back(VoxelUploadInfo(kGcIdOccupancy, gpu_cache.gpu()));
-    if (imp_->map->voxelMeanEnabled())
-    {
-      imp_->voxel_upload_info[i].emplace_back(VoxelUploadInfo(kGcIdVoxelMean, gpu_cache.gpu()));
-    }
-  }
-
-  cacheGpuProgram(imp_->map->voxelMeanEnabled(), true);
+  // Map and borrowed_map already set. Temporarily cache and clear them so we don't unnecessarily release them.
+  auto *map = detail->map;
+  bool borrowed_map = detail->borrowed_map;
+  detail->map = nullptr;
+  detail->borrowed_map = false;
+  setMap(map, borrowed_map, expected_element_count, gpu_mem_size, true);
 }
 
 
@@ -353,14 +338,20 @@ bool GpuMap::borrowedMap() const
 
 void GpuMap::syncVoxels()
 {
+  const int sync_index = (imp_->next_buffers_index + (GpuMapDetail::kBuffersCount - 1) % GpuMapDetail::kBuffersCount);
   if (imp_->map)
   {
     // TODO(KS): split the logic for starting synching and waiting on completion.
     // This will allow us to kick synching off all layers in parallel and should reduce the overall latency.
-    gpumap::sync(*imp_->map, kGcIdOccupancy);
-    gpumap::sync(*imp_->map, kGcIdVoxelMean);
-    gpumap::sync(*imp_->map, kGcIdCovariance);
+    for (const auto &voxel_info : imp_->voxel_upload_info[sync_index])
+    {
+      if (voxel_info.sync_to_cpu)
+      {
+        gpumap::sync(*imp_->map, voxel_info.gpu_layer_id);
+      }
+    }
   }
+  onSyncVoxels(sync_index);
 }
 
 
@@ -444,6 +435,53 @@ GpuCache *GpuMap::gpuCache() const
 }
 
 
+void GpuMap::setMap(OccupancyMap *map, bool borrowed_map, unsigned expected_element_count, size_t gpu_mem_size,
+                    bool force_gpu_program_release)
+{
+  // Must ensure we aren't waiting on any GPU operations.
+  if (imp_->map)
+  {
+    syncVoxels();
+
+    // Delete the map if nt borrowed.
+    if (!imp_->borrowed_map)
+    {
+      delete imp_->map;
+    }
+  }
+
+  // Change the map
+  imp_->map = map;
+  imp_->borrowed_map = map && borrowed_map;
+
+  if (map)
+  {
+    // Note: some uses of the GpuMap allow a null map pointer, but this is something of an edge case.
+    GpuCache &gpu_cache = *gpumap::enableGpu(*imp_->map, gpu_mem_size, gpumap::kGpuAllowMappedBuffers);
+
+    const unsigned prealloc_region_count = 1024u;
+    for (unsigned i = 0; i < GpuMapDetail::kBuffersCount; ++i)
+    {
+      imp_->key_buffers[i] =
+        gputil::Buffer(gpu_cache.gpu(), sizeof(GpuKey) * expected_element_count, gputil::kBfReadHost);
+      imp_->ray_buffers[i] =
+        gputil::Buffer(gpu_cache.gpu(), sizeof(gputil::float3) * expected_element_count, gputil::kBfReadHost);
+      imp_->region_key_buffers[i] =
+        gputil::Buffer(gpu_cache.gpu(), sizeof(gputil::int3) * prealloc_region_count, gputil::kBfReadHost);
+
+      // Add structures for managing uploads of regino offsets to the cache buffer.
+      imp_->voxel_upload_info[i].emplace_back(VoxelUploadInfo(kGcIdOccupancy, gpu_cache.gpu()));
+      if (imp_->support_voxel_mean && imp_->map->voxelMeanEnabled())
+      {
+        imp_->voxel_upload_info[i].emplace_back(VoxelUploadInfo(kGcIdVoxelMean, gpu_cache.gpu()));
+      }
+    }
+
+    cacheGpuProgram(imp_->support_voxel_mean && imp_->map->voxelMeanEnabled(), force_gpu_program_release);
+  }
+}
+
+
 void GpuMap::setGroupedRays(bool group)
 {
   imp_->group_rays = group;
@@ -452,7 +490,7 @@ void GpuMap::setGroupedRays(bool group)
 
 void GpuMap::cacheGpuProgram(bool with_voxel_mean, bool force)
 {
-  if (imp_->g_program_ref)
+  if (imp_->program_ref)
   {
     if (!force && with_voxel_mean == imp_->cached_sub_voxel_program)
     {
@@ -465,13 +503,12 @@ void GpuMap::cacheGpuProgram(bool with_voxel_mean, bool force)
   GpuCache &gpu_cache = *gpuCache();
   imp_->gpu_ok = true;
   imp_->cached_sub_voxel_program = with_voxel_mean;
-  imp_->g_program_ref = (with_voxel_mean) ? &g_program_ref_sub_vox : &g_program_ref_no_sub;
+  imp_->program_ref = (with_voxel_mean) ? &g_program_ref_sub_vox : &g_program_ref_no_sub;
 
-  if (imp_->g_program_ref->addReference(gpu_cache.gpu()))
+  if (imp_->program_ref->addReference(gpu_cache.gpu()))
   {
-    imp_->update_kernel = (!with_voxel_mean) ?
-                            GPUTIL_MAKE_KERNEL(imp_->g_program_ref->program(), regionRayUpdate) :
-                            GPUTIL_MAKE_KERNEL(imp_->g_program_ref->program(), regionRayUpdateSubVox);
+    imp_->update_kernel = (!with_voxel_mean) ? GPUTIL_MAKE_KERNEL(imp_->program_ref->program(), regionRayUpdate) :
+                                               GPUTIL_MAKE_KERNEL(imp_->program_ref->program(), regionRayUpdateSubVox);
     imp_->update_kernel.calculateOptimalWorkGroupSize();
 
     imp_->gpu_ok = imp_->update_kernel.isValid();
@@ -490,10 +527,10 @@ void GpuMap::releaseGpuProgram()
     imp_->update_kernel = gputil::Kernel();
   }
 
-  if (imp_ && imp_->g_program_ref)
+  if (imp_ && imp_->program_ref)
   {
-    imp_->g_program_ref->releaseReference();
-    imp_->g_program_ref = nullptr;
+    imp_->program_ref->releaseReference();
+    imp_->program_ref = nullptr;
   }
 }
 
@@ -525,7 +562,7 @@ size_t GpuMap::integrateRays(const glm::dvec3 *rays, size_t element_count, unsig
   }
 
   // Ensure we are using the correct GPU program. Voxel mean support may have changed.
-  cacheGpuProgram(map.voxelMeanEnabled(), false);
+  cacheGpuProgram(imp_->support_voxel_mean && map.voxelMeanEnabled(), false);
 
   // Resolve the buffer index to use. We need to support cases where buffer is already one fo the imp_->ray_buffers.
   // Check this first.
@@ -933,7 +970,7 @@ void GpuMap::finaliseBatch(unsigned region_update_flags)
   GpuLayerCache &occupancy_layer_cache = *gpu_cache.layerCache(kGcIdOccupancy);
   GpuLayerCache *mean_layer_cache = nullptr;
 
-  if (imp_->map->voxelMeanEnabled())
+  if (imp_->support_voxel_mean && imp_->map->voxelMeanEnabled())
   {
     mean_layer_cache = gpu_cache.layerCache(kGcIdVoxelMean);
   }

@@ -5,6 +5,8 @@
 // Author: Kazys Stepanas
 #include "OhmGpuConfig.h"
 
+#include "GpuMap.h"
+
 #include <ohm/RaysQuery.h>
 
 namespace ohm
@@ -28,13 +30,10 @@ public:
   ~RaysQueryGpu() override;
 
 protected:
+  void onSetMap() override;
   bool onExecute() override;
   bool onExecuteAsync() override;
   void onReset(bool hard_reset) override;
-
-  void cacheGpuProgram();
-  void enqueueRegions();
-  void finaliseBatch();
   void sync();
 
   /// Internal pimpl data access.

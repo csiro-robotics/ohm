@@ -147,7 +147,7 @@ const GpuNdtMapDetail *GpuNdtMap::detail() const
 
 void GpuNdtMap::cacheGpuProgram(bool /*with_voxel_mean*/, bool force)
 {
-  if (imp_->g_program_ref)
+  if (imp_->program_ref)
   {
     if (!force)
     {
@@ -161,11 +161,11 @@ void GpuNdtMap::cacheGpuProgram(bool /*with_voxel_mean*/, bool force)
   GpuNdtMapDetail *imp = detail();
   imp->gpu_ok = true;
   imp->cached_sub_voxel_program = true;
-  imp->g_program_ref = &g_program_ref_ndt_miss;
+  imp->program_ref = &g_program_ref_ndt_miss;
 
-  if (imp->g_program_ref->addReference(gpu_cache.gpu()))
+  if (imp->program_ref->addReference(gpu_cache.gpu()))
   {
-    imp->update_kernel = GPUTIL_MAKE_KERNEL(imp->g_program_ref->program(), regionRayUpdateNdt);
+    imp->update_kernel = GPUTIL_MAKE_KERNEL(imp->program_ref->program(), regionRayUpdateNdt);
     imp->update_kernel.calculateOptimalWorkGroupSize();
     imp->gpu_ok = imp->update_kernel.isValid();
   }

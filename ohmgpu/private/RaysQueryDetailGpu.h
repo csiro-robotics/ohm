@@ -7,49 +7,66 @@
 
 #include "GpuMapDetail.h"
 
+#include <ohmgpu/GpuMap.h>
+#include <ohmgpu/gpu/RaysQueryResult.h>
+
 #include <ohm/private/RaysQueryDetail.h>
+
 
 namespace ohm
 {
-struct ohmgpu_API RaysQueryDetailGpu : public RaysQueryDetail
+struct RaysQueryMapWrapperDetail : public GpuMapDetail
 {
-  // Ray/key buffer upload event pairs.
-  /// Events for key_buffers
-  gputil::Event key_upload_event;
-  /// Buffers for start/end voxel keys for each ray pair: GpuKey
-  gputil::Buffer key_buffer;
-  /// Events for ray_buffers
-  gputil::Event ray_upload_event;
-  /// Buffers of rays to process float3 pairs. Coordinates are local to the centre of the start voxel for each pair.
-  gputil::Buffer ray_buffer;
+  gputil::Buffer results_gpu;
+  std::vector<RaysQueryResult> results_cpu;
+  bool needs_sync = false;
 
-  gputil::Event region_key_upload_event;
-  gputil::Buffer region_key_buffer;
-  gputil::Event query_event;
+  inline RaysQueryMapWrapperDetail()
+    : GpuMapDetail(nullptr, false)
+  {}
+};
 
-  VoxelUploadInfo occupancy_upload_info;
-  /// Vector used to group/sort rays when @c group_rays is `true`.
-  std::vector<RayItem> upload_rays;
+/// This is a creative use of the @c GpuMap where we use the standard @c GpuMap logic to marshal our rays, but
+/// override the GPU kernel invocation to perform the rays query instead.
+///
+/// Notes:
+/// - Only supports one inflight query.
+/// - Rays cannot be removed by filtering, only clipped.
+/// - Behaviour is undefined if the ray query does not fit in a single GPU batch.
+class RaysQueryMapWrapper final : public GpuMap
+{
+public:
+  /// Create a @c RaysQueryMapWrapper . Note we initialise with a null map and set the map pointer later.
+  RaysQueryMapWrapper();
 
-  // output buffers
-  gputil::Buffer ranges_buffer;
-  gputil::Buffer unobserved_volumes_buffer;
-  gputil::Buffer terminal_states_buffer;
-  gputil::Event ranges_event;
-  gputil::Event unobserved_volumes_event;
-  gputil::Event terminal_states_event;
+  /// Destructor
+  ~RaysQueryMapWrapper() final;
 
-  GpuProgramRef *g_program_ref = nullptr;
-  gputil::Kernel query_kernel;
+  void setMap(OccupancyMap *map);
 
-  /// Number of rays (origin/sample pairs) in the ray_buffer.
-  unsigned ray_counts = 0;
+  const std::vector<RaysQueryResult> &results() const;
 
-  /// Set of processing regions.
-  GpuMapDetail::RegionSet regions;
+  using RayMapper::integrateRays;
 
-  /// Used as @c GpuLayerCache::upload() @c batchMarker argument.
-  unsigned batch_marker = 1;  // Will cycle odd numbers to avoid zero.
-  bool cached_sub_voxel_program = false;
+protected:
+  size_t integrateRays(const glm::dvec3 *rays, size_t element_count, unsigned ray_update_flags) override;
+
+  void onSyncVoxels(int buffer_index) override;
+
+  /// Helper to access the internal pimpl cast to the correct type.
+  RaysQueryMapWrapperDetail *detail();
+  /// Helper to access the internal pimpl cast to the correct type.
+  const RaysQueryMapWrapperDetail *detail() const;
+
+  /// Load and cache the required GPU program. The @p with_voxel_mean value is irrelevant.
+  void cacheGpuProgram(bool with_voxel_mean, bool force) final;
+
+  /// Override the GPU kernenel invocation to perform the rays query.
+  void finaliseBatch(unsigned region_update_flags) final;
+};
+
+struct RaysQueryDetailGpu : public RaysQueryDetail
+{
+  std::unique_ptr<RaysQueryMapWrapper> gpu_interface;
 };
 }  // namespace ohm
