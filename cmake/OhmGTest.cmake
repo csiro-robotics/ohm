@@ -1,3 +1,12 @@
+option(OHM_SYSTEM_GTEST "Have ohm use a system available version of Googletest via find_package()?" Off)
+
+if(OHM_SYSTEM_GTEST)
+  find_package(GTest)
+  get_target_property(GTEST_INCLUDE_DIRS GTest::gtest INTERFACE_INCLUDE_DIRECTORIES)
+  set(GTEST_LIBRARIES GTest::gtest)
+  set(GTEST_MAIN_LIBRARIES GTest::gtest_main)
+  return()
+endif(OHM_SYSTEM_GTEST)
 
 include(ExternalProject)
 
@@ -6,7 +15,11 @@ find_package(Threads)
 # State setup
 get_property(_GENERATOR_IS_MULTI_CONFIG GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
 
-set(_GTEST_CONFIG_ARGS "-Dgtest_force_shared_crt=On")
+set(_GTEST_CONFIG_ARGS "-G" "${CMAKE_GENERATOR}" "-Dgtest_force_shared_crt=On")
+
+if(CMAKE_GENERATOR_PLATFORM)
+  list(APPEND _GTEST_CONFIG_ARGS "-A" "${CMAKE_GENERATOR_PLATFORM}")
+endif(CMAKE_GENERATOR_PLATFORM)
 
 if(NOT _GENERATOR_IS_MULTI_CONFIG)
   list(APPEND _GTEST_CONFIG_ARGS "-DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}")
