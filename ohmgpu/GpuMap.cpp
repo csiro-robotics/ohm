@@ -941,8 +941,11 @@ bool GpuMap::enqueueRegion(const glm::i16vec3 &region_key, int buffer_index)
   for (VoxelUploadInfo &voxel_info : imp_->voxel_upload_info[buffer_index])
   {
     GpuLayerCache &layer_cache = *gpu_cache.layerCache(voxel_info.gpu_layer_id);
+    unsigned cache_flags = 0;
+    cache_flags |= voxel_info.allow_region_creation * GpuLayerCache::kAllowRegionCreate;
+    cache_flags |= !voxel_info.sync_to_cpu * GpuLayerCache::kSkipDownload;
     auto mem_offset = uint64_t(layer_cache.upload(*imp_->map, region_key, chunk, &voxel_info.voxel_upload_event,
-                                                  &status, imp_->batch_marker, GpuLayerCache::kAllowRegionCreate));
+                                                  &status, imp_->batch_marker, cache_flags));
 
     if (status == GpuLayerCache::kCacheFull)
     {

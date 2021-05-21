@@ -17,6 +17,7 @@ namespace ohm
 {
 struct RaysQueryMapWrapperDetail : public GpuMapDetail
 {
+  gputil::Event results_event;
   gputil::Buffer results_gpu;
   std::vector<RaysQueryResult> results_cpu;
   float volume_coefficient = 1.0f;

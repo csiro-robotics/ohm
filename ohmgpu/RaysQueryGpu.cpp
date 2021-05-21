@@ -86,36 +86,35 @@ void RaysQueryGpu::onReset(bool hard_reset)
   RaysQuery::onReset(hard_reset);
   // Need to wait on the GPU program.
   sync();
-  if (hard_reset)
-  {
-    RaysQueryDetailGpu *d = imp();
-    d->gpu_interface->gpuCache()->flush();
-  }
 }
 
 void RaysQueryGpu::sync()
 {
   RaysQueryDetailGpu *d = imp();
-  d->gpu_interface->syncVoxels();
-
-  d->ranges.clear();
-  d->unobserved_volumes_out.clear();
-  d->terminal_states_out.clear();
-
-  const auto number_of_results = d->gpu_interface->results().size();
-
-  d->ranges.reserve(number_of_results);
-  d->unobserved_volumes_out.reserve(number_of_results);
-  d->terminal_states_out.reserve(number_of_results);
-
-  // Copy to split output buffers.
-  for (const auto &result : d->gpu_interface->results())
+  if (d->query_flags & kQfGpuEvaluate)
   {
-    d->ranges.emplace_back(result.range);
-    d->unobserved_volumes_out.emplace_back(result.unobserved_volume);
-    d->terminal_states_out.emplace_back(OccupancyType(result.voxel_type));
+    RaysQueryDetailGpu *d = imp();
+    d->gpu_interface->syncVoxels();
+
+    d->ranges.clear();
+    d->unobserved_volumes_out.clear();
+    d->terminal_states_out.clear();
+
+    const auto number_of_results = d->gpu_interface->results().size();
+
+    d->ranges.reserve(number_of_results);
+    d->unobserved_volumes_out.reserve(number_of_results);
+    d->terminal_states_out.reserve(number_of_results);
+
+    // Copy to split output buffers.
+    for (const auto &result : d->gpu_interface->results())
+    {
+      d->ranges.emplace_back(result.range);
+      d->unobserved_volumes_out.emplace_back(result.unobserved_volume);
+      d->terminal_states_out.emplace_back(OccupancyType(result.voxel_type));
+    }
+    d->number_of_results = number_of_results;
   }
-  d->number_of_results = number_of_results;
 }
 
 

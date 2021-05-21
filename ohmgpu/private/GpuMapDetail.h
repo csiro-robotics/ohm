@@ -57,7 +57,9 @@ struct VoxelUploadInfo
   /// Last voxel upload event vai the corresponding @c GpuLayerCache .
   gputil::Event voxel_upload_event;
   /// The @c GpuLayerCache in the @c GpuCache which this structure references.
-  int gpu_layer_id;
+  int gpu_layer_id = 0;
+  /// Allow the region to be instantiated in CPU before uploading? Otherwise the default memory block is created.
+  bool allow_region_creation = true;
   /// Sync this @c gpu_layer_id back to CPU on voxel sync?
   bool sync_to_cpu = true;
 

@@ -48,14 +48,6 @@ RaysQueryMapWrapper::RaysQueryMapWrapper()
 {
   RaysQueryMapWrapperDetail *imp = detail();
   imp->support_voxel_mean = false;
-  // Disable syncing voxels back to CPU. This is a read only operation.
-  for (size_t i = 0; i < imp->voxel_upload_info.size(); ++i)
-  {
-    for (auto &voxel_info : imp->voxel_upload_info[i])
-    {
-      voxel_info.sync_to_cpu = false;
-    }
-  }
 }
 
 
@@ -76,6 +68,16 @@ void RaysQueryMapWrapper::setMap(OccupancyMap *map)
       {
         imp->results_gpu =
           gputil::Buffer(gpu_cache->gpu(), sizeof(RaysQueryResult) * expected_query_count, gputil::kBfWriteHost);
+      }
+    }
+
+    // Disable instantiation of regions and syncing voxels back to CPU. This is a read only operation.
+    for (size_t i = 0; i < imp->voxel_upload_info.size(); ++i)
+    {
+      for (auto &voxel_info : imp->voxel_upload_info[i])
+      {
+        voxel_info.allow_region_creation = false;
+        voxel_info.sync_to_cpu = false;
       }
     }
   }
@@ -116,11 +118,7 @@ void RaysQueryMapWrapper::onSyncVoxels(int buffer_index)
   RaysQueryMapWrapperDetail *imp = detail();
   if (imp->needs_sync)
   {
-    // Download results buffers to CPU.
-    gputil::PinnedBuffer results(imp->results_gpu, gputil::kPinRead);
-    imp->results_cpu.resize(imp->grouped_rays.size());
-    results.readElements(imp->results_cpu.data(), imp->results_cpu.size());
-    results.unpin();
+    imp->results_event.wait();
   }
 }
 
@@ -206,8 +204,14 @@ void RaysQueryMapWrapper::finaliseBatch(unsigned region_update_flags)
                      gputil::BufferArg<RaysQueryResult>(imp->results_gpu));
   // gpu_cache.gpuQueue().flush();
 
+
   // Update most recent chunk GPU event.
   occupancy_layer_cache.updateEvents(imp->batch_marker, imp->region_update_events[buf_idx]);
+
+  // Enqueu reading the results.
+  imp->results_cpu.resize(ray_count);
+  imp->results_gpu.readElements(imp->results_cpu.data(), ray_count, 0, &gpu_cache.gpuQueue(),
+                                &imp->region_update_events[buf_idx], &imp->results_event);
 
   // std::cout << imp->region_counts[bufIdx] << "
   // regions\n" << std::flush;

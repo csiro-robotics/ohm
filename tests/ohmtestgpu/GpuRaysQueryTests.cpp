@@ -32,20 +32,20 @@ TEST(RaysQuery, Gpu)
   const double resolution = 0.2;
   std::vector<glm::dvec3> rays =  //
     {
-      glm::dvec3(0.0), glm::dvec3(base_scale, 0, 0),                      //
-      glm::dvec3(0.0), glm::dvec3(0, base_scale, 0),                      //
-      glm::dvec3(0.0), glm::dvec3(0, 0, base_scale),                      //
-      glm::dvec3(0.0), glm::dvec3(-base_scale, 0, 0),                     //
-      glm::dvec3(0.0), glm::dvec3(0, -base_scale, 0),                     //
-      glm::dvec3(0.0), glm::dvec3(0, 0, -base_scale),                     //
-      glm::dvec3(0.0), glm::dvec3(base_scale, base_scale, 0),             //
-      glm::dvec3(0.0), glm::dvec3(0, base_scale, base_scale),             //
-      glm::dvec3(0.0), glm::dvec3(base_scale, 0, base_scale),             //
-      glm::dvec3(0.0), glm::dvec3(-base_scale, -base_scale, 0),           //
-      glm::dvec3(0.0), glm::dvec3(0, -base_scale, -base_scale),           //
-      glm::dvec3(0.0), glm::dvec3(-base_scale, 0, -base_scale),           //
-      glm::dvec3(0.0), glm::dvec3(base_scale, base_scale, base_scale),    //
-      glm::dvec3(0.0), glm::dvec3(-base_scale, -base_scale, -base_scale)  //
+      glm::dvec3(0.0), glm::dvec3(base_scale, 0, 0),  //
+      // glm::dvec3(0.0), glm::dvec3(0, base_scale, 0),                      //
+      // glm::dvec3(0.0), glm::dvec3(0, 0, base_scale),                      //
+      // glm::dvec3(0.0), glm::dvec3(-base_scale, 0, 0),                     //
+      // glm::dvec3(0.0), glm::dvec3(0, -base_scale, 0),                     //
+      // glm::dvec3(0.0), glm::dvec3(0, 0, -base_scale),                     //
+      // glm::dvec3(0.0), glm::dvec3(base_scale, base_scale, 0),             //
+      // glm::dvec3(0.0), glm::dvec3(0, base_scale, base_scale),             //
+      // glm::dvec3(0.0), glm::dvec3(base_scale, 0, base_scale),             //
+      // glm::dvec3(0.0), glm::dvec3(-base_scale, -base_scale, 0),           //
+      // glm::dvec3(0.0), glm::dvec3(0, -base_scale, -base_scale),           //
+      // glm::dvec3(0.0), glm::dvec3(-base_scale, 0, -base_scale),           //
+      // glm::dvec3(0.0), glm::dvec3(base_scale, base_scale, base_scale),    //
+      // glm::dvec3(0.0), glm::dvec3(-base_scale, -base_scale, -base_scale)  //
     };
 
   // Build the map.
@@ -66,8 +66,12 @@ TEST(RaysQuery, Gpu)
     query_cpu.setMap(&map);
     query_gpu.setMap(&map);
 
-    // for (size_t iteration = 0; iteration < 3; ++iteration)
-    for (size_t iteration = 0; iteration < 1; ++iteration)
+    // Iterations:
+    // 0 : samples only in the map, no free space.
+    // 1 : samples and free space in the map.
+    // 2 : as 2, query_gpu running CPU code.
+    const size_t max_iterations = 3;
+    for (size_t iteration = 0; iteration < max_iterations; ++iteration)
     {
       if (iteration == 2)
       {
