@@ -338,7 +338,7 @@ bool GpuMap::borrowedMap() const
 
 void GpuMap::syncVoxels()
 {
-  const int sync_index = (imp_->next_buffers_index + (GpuMapDetail::kBuffersCount - 1) % GpuMapDetail::kBuffersCount);
+  const int sync_index = ((imp_->next_buffers_index + (GpuMapDetail::kBuffersCount - 1)) % GpuMapDetail::kBuffersCount);
   if (imp_->map)
   {
     // TODO(KS): split the logic for starting synching and waiting on completion.
@@ -431,7 +431,7 @@ size_t GpuMap::integrateRays(const glm::dvec3 *rays, size_t element_count, unsig
 
 GpuCache *GpuMap::gpuCache() const
 {
-  return static_cast<GpuCache *>(imp_->map->detail()->gpu_cache);
+  return (imp_->map) ? static_cast<GpuCache *>(imp_->map->detail()->gpu_cache) : nullptr;
 }
 
 
@@ -1041,6 +1041,7 @@ void GpuMap::finaliseBatch(unsigned region_update_flags)
   {
     mean_layer_cache->beginBatch(imp_->batch_marker);
   }
-  imp_->next_buffers_index = 1 - imp_->next_buffers_index;
+  imp_->next_buffers_index =
+    ((imp_->next_buffers_index + (GpuMapDetail::kBuffersCount - 1)) % GpuMapDetail::kBuffersCount);
 }
 }  // namespace ohm

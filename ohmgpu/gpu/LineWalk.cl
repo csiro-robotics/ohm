@@ -203,11 +203,11 @@ __device__ void WALK_LINE_VOXELS(const GpuKey *startKey, const GpuKey *endKey, c
   //   frame. This frame is irrelevant here so long as startPoint, endPoint and startVoxelCentre are in the same frame.
   {
     // Scoped to try reduce local variable load on local memory.
-    float3 direction;
+    float3 direction = *endPoint - *startPoint;
     // Check for degenerate rays: start/end in the same voxel.
-    if (fabs(dot(*endPoint - *startPoint, *endPoint - *startPoint)) > 1e-3f)
+    if (fabs(dot(direction, direction)) > 1e-3f)
     {
-      length = sqrt(fabs(dot(*endPoint - *startPoint, *endPoint - *startPoint)));
+      length = sqrt(dot(direction, direction));
       direction *= 1.0f / length;
     }
     else
@@ -217,6 +217,7 @@ __device__ void WALK_LINE_VOXELS(const GpuKey *startKey, const GpuKey *endKey, c
       if (direction.x || direction.y || direction.z)
       {
         direction = normalize(direction);
+        length = voxelResolution;  // Ensure a non-zero length.
       }
     }
 
@@ -272,15 +273,15 @@ __device__ void WALK_LINE_VOXELS(const GpuKey *startKey, const GpuKey *endKey, c
       break;
     }
 #endif  // LIMIT_LINE_WALK_ITERATIONS
-    const float newTimeCurrent = limitReached ? timeLimit[axis] : timeMax[axis];
-    continueTraversal =
-      VISIT_LINE_VOXEL(&currentKey, false, startKey, endKey, voxelResolution, timeCurrent, newTimeCurrent, userData);
     // Select the minimum timeMax as the next axis.
     axis = (timeMax[0] < timeMax[2]) ? ((timeMax[0] < timeMax[1]) ? 0 : 1) : ((timeMax[1] < timeMax[2]) ? 1 : 2);
+    const float nextTime = limitReached ? timeLimit[axis] : timeMax[axis];
+    continueTraversal =
+      VISIT_LINE_VOXEL(&currentKey, false, startKey, endKey, voxelResolution, timeCurrent, nextTime, userData);
     limitReached = fabs(timeMax[axis]) > timeLimit[axis];
     stepKeyAlongAxis(&currentKey, axis, step[axis], regionDim);
     timeMax[axis] += timeDelta[axis];
-    timeCurrent = newTimeCurrent;
+    timeCurrent = nextTime;
   }
 
   // if (limitReached)

@@ -5,25 +5,11 @@
 // Author: Kazys Stepanas
 #include "OhmTestConfig.h"
 
-#include <ohm/Key.h>
-#include <ohm/KeyList.h>
-#include <ohm/MapSerialise.h>
 #include <ohm/OccupancyMap.h>
 #include <ohm/OccupancyType.h>
-#include <ohm/OccupancyUtil.h>
 #include <ohm/RayMapperOccupancy.h>
 #include <ohm/RaysQuery.h>
-#include <ohm/VoxelData.h>
-
-#include <ohmtools/OhmCloud.h>
-#include <ohmtools/OhmGen.h>
-#include <ohmutil/OhmUtil.h>
-#include <ohmutil/Profile.h>
-
-#include <chrono>
-#include <iomanip>
-#include <iostream>
-#include <random>
+#include <ohm/VoxelOccupancy.h>
 
 #include <gtest/gtest.h>
 
@@ -62,7 +48,7 @@ TEST(RaysQuery, Cpu)
   // First add just the samples into the map, keeping the rest unobserved.
   for (size_t i = 1; i < rays.size(); i += 2)
   {
-    ohm::integrateHit(map, rays[i]);
+    ohm::integrateHit(map, map.voxelKey(rays[i]));
   }
 
   // Construct the the new RaysQuery object now so we can test the reset as well.

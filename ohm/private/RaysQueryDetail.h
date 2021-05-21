@@ -10,6 +10,8 @@
 
 #include "QueryDetail.h"
 
+#include <ohm/OccupancyType.h>
+
 #include <cmath>
 
 namespace ohm

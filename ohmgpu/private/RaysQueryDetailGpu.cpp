@@ -5,7 +5,21 @@
 // Author: Kazys Stepanas
 #include "RaysQueryDetailGpu.h"
 
+#include "private/GpuProgramRef.h"
+
+#include "GpuKey.h"
+#include "GpuLayerCache.h"
+
+#include <ohm/OccupancyMap.h>
+
+#include <ohm/private/OccupancyMapDetail.h>
+
+#include <gputil/gpuBuffer.h>
+#include <gputil/gpuEventList.h>
+#include <gputil/gpuKernel.h>
 #include <gputil/gpuPinnedBuffer.h>
+#include <gputil/gpuPlatform.h>
+#include <gputil/gpuProgram.h>
 
 #if defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
 #include "RaysQueryResource.h"
@@ -33,6 +47,7 @@ RaysQueryMapWrapper::RaysQueryMapWrapper()
   : GpuMap(new RaysQueryMapWrapperDetail)
 {
   RaysQueryMapWrapperDetail *imp = detail();
+  imp->support_voxel_mean = false;
   // Disable syncing voxels back to CPU. This is a read only operation.
   for (size_t i = 0; i < imp->voxel_upload_info.size(); ++i)
   {
@@ -52,16 +67,31 @@ void RaysQueryMapWrapper::setMap(OccupancyMap *map)
 {
   const unsigned expected_query_count = 2048u;
   GpuMap::setMap(map, true, expected_query_count, 0, false);
+  RaysQueryMapWrapperDetail *imp = detail();
   if (map)
   {
-    RaysQueryMapWrapperDetail *imp = detail();
-    if (!imp->results_gpu.isValid())
+    if (GpuCache *gpu_cache = gpuCache())
     {
-      imp->results_gpu =
-        gputil::Buffer(gpu_cache.gpu(), sizeof(RaysQueryResult) * expected_query_count, gputil::kBfWriteHost);
+      if (!imp->results_gpu.isValid())
+      {
+        imp->results_gpu =
+          gputil::Buffer(gpu_cache->gpu(), sizeof(RaysQueryResult) * expected_query_count, gputil::kBfWriteHost);
+      }
     }
-    imp->results_cpu.clear();
   }
+  imp->results_cpu.clear();
+}
+
+
+void RaysQueryMapWrapper::setVolumeCoefficient(float coefficient)
+{
+  detail()->volume_coefficient = coefficient;
+}
+
+
+float RaysQueryMapWrapper::volumeCoefficient() const
+{
+  return detail()->volume_coefficient;
 }
 
 
@@ -88,7 +118,7 @@ void RaysQueryMapWrapper::onSyncVoxels(int buffer_index)
   {
     // Download results buffers to CPU.
     gputil::PinnedBuffer results(imp->results_gpu, gputil::kPinRead);
-    imp->results_cpu.resize(grouped_rays.size());
+    imp->results_cpu.resize(imp->grouped_rays.size());
     results.readElements(imp->results_cpu.data(), imp->results_cpu.size());
     results.unpin();
   }
@@ -123,12 +153,11 @@ void RaysQueryMapWrapper::cacheGpuProgram(bool with_voxel_mean, bool force)
   GpuCache &gpu_cache = *gpuCache();
   imp_->gpu_ok = true;
   imp_->cached_sub_voxel_program = with_voxel_mean;
-  imp_->program_ref = g_program_ref;
+  imp_->program_ref = &g_program_ref;
 
   if (imp_->program_ref->addReference(gpu_cache.gpu()))
   {
-    imp_->update_kernel = (!with_voxel_mean) ? GPUTIL_MAKE_KERNEL(imp_->program_ref->program(), regionRayUpdate) :
-                                               GPUTIL_MAKE_KERNEL(imp_->program_ref->program(), regionRayUpdateSubVox);
+    imp_->update_kernel = GPUTIL_MAKE_KERNEL(imp_->program_ref->program(), raysQuery);
     imp_->update_kernel.calculateOptimalWorkGroupSize();
 
     imp_->gpu_ok = imp_->update_kernel.isValid();
@@ -173,8 +202,8 @@ void RaysQueryMapWrapper::finaliseBatch(unsigned region_update_flags)
                      gputil::BufferArg<gputil::int3>(imp->region_key_buffers[buf_idx]), region_count,
                      gputil::BufferArg<GpuKey>(imp->key_buffers[buf_idx]),
                      gputil::BufferArg<gputil::float3>(imp->ray_buffers[buf_idx]), ray_count, region_dim_gpu,
-                     float(map->resolution), map->miss_value, map->hit_value, map->occupancy_threshold_value,
-                     map->min_voxel_value, map->max_voxel_value, region_update_flags);
+                     float(map->resolution), map->occupancy_threshold_value, imp->volume_coefficient,
+                     gputil::BufferArg<RaysQueryResult>(imp->results_gpu));
   // gpu_cache.gpuQueue().flush();
 
   // Update most recent chunk GPU event.

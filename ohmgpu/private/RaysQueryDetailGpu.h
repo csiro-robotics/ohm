@@ -19,6 +19,7 @@ struct RaysQueryMapWrapperDetail : public GpuMapDetail
 {
   gputil::Buffer results_gpu;
   std::vector<RaysQueryResult> results_cpu;
+  float volume_coefficient = 1.0f;
   bool needs_sync = false;
 
   inline RaysQueryMapWrapperDetail()
@@ -43,6 +44,8 @@ public:
   ~RaysQueryMapWrapper() final;
 
   void setMap(OccupancyMap *map);
+  void setVolumeCoefficient(float coefficient);
+  float volumeCoefficient() const;
 
   const std::vector<RaysQueryResult> &results() const;
 

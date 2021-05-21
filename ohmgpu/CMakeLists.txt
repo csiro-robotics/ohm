@@ -21,6 +21,8 @@ set(SOURCES
   private/GpuTransformSamplesDetail.h
   private/LineKeysQueryDetailGpu.h
   private/LineQueryDetailGpu.h
+  private/RaysQueryDetailGpu.cpp
+  private/RaysQueryDetailGpu.h
   private/RoiRangeFill.cpp
   private/RoiRangeFill.h
   ClearanceProcess.cpp
