@@ -14,6 +14,11 @@ namespace ohm
 struct RaysQueryDetailGpu;
 
 /// A GPU implementation of the @c RaysQuery .
+///
+/// The GPU overheads mean that this will be slower than the CPU implementation for low counts. GPU begins to outperform
+/// CPU when querying rays on the order of 2000 or more with significant benefits starting at 5000-10000 rays with ray
+/// lengths approximately 100 times the voxel resolution. Doubling the ray length may require an order of magnitude
+/// more sample rays to maintain GPU timing benefits.
 class ohmgpu_API RaysQueryGpu : public RaysQuery
 {
 protected:

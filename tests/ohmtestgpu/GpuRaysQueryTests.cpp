@@ -11,6 +11,8 @@
 #include <ohm/RayMapperOccupancy.h>
 #include <ohm/VoxelOccupancy.h>
 
+#include <ohmutil/OhmUtil.h>
+
 #include <chrono>
 #include <iomanip>
 #include <iostream>
@@ -27,10 +29,10 @@ TEST(RaysQuery, Gpu)
 {
   // Note this is a comparative test to ensure GPU results match CPU. The algorithm validation occurs in
   // RaysQueryTests.cpp (the CPU equivalent test).
-  const double base_scale = 20.0;
+  const double base_scale = 10.0;
   const std::array<double, 3> query_scale = { 1.2, 1.2, 0.6 };
-  const double resolution = 0.2;
-  std::vector<glm::dvec3> rays =  //
+  const double resolution = 0.1;
+  const std::vector<glm::dvec3> rays =  //
     {
       glm::dvec3(0.0), glm::dvec3(base_scale, 0, 0),                      //
       glm::dvec3(0.0), glm::dvec3(0, base_scale, 0),                      //
@@ -117,6 +119,100 @@ TEST(RaysQuery, Gpu)
       {
         mapper.integrateRays(rays.data(), rays.size());
       }
+
+      // Hard reset to clear the rays
+      query_cpu.reset(true);
+      query_gpu.reset(true);
+    }
+  }
+}
+
+TEST(RaysQuery, CpuVsGpu)
+{
+  // Rays query timing test
+  // Note this is a comparative test to ensure GPU results match CPU. The algorithm validation occurs in
+  // RaysQueryTests.cpp (the CPU equivalent test).
+  const double base_scale = 10.0;
+  const double query_scale = 1.2;
+  const double resolution = 0.1;
+  const std ::vector<size_t> ray_counts = { 10, 100, 1000, 2000, 5000, 10000 };
+  using Clock = std::chrono::high_resolution_clock;
+
+  // Make some rays.
+  std::mt19937 rand_engine;
+  std::uniform_real_distribution<double> rand(-base_scale, base_scale);
+  std::vector<glm::dvec3> rays;
+  // Pure occupancy map.
+  ohm::OccupancyMap map(resolution, ohm::MapFlag::kNone);
+
+  {
+    // Scoped to ensure the query_gpu releases GPU resources before teh occupancy map - specifically the map's
+    // GpuCache.
+    ohm::RaysQuery query_cpu;
+    ohm::RaysQueryGpu query_gpu;
+    query_cpu.setMap(&map);
+    query_gpu.setMap(&map);
+    bool first_iteration = true;
+
+    for (const auto ray_count : ray_counts)
+    {
+      // Add the additional rays (random).
+      while (rays.size() < ray_count * 2)
+      {
+        rays.emplace_back(glm::dvec3(0.0));
+        rays.emplace_back(glm::dvec3(rand(rand_engine), rand(rand_engine), rand(rand_engine)));
+      }
+
+      // (Re)build the map with the new points.
+      map.clear();
+      ohm::GpuMap gpu_map(&map);
+
+      gpu_map.integrateRays(rays.data(), rays.size());
+      gpu_map.syncVoxels();
+
+      EXPECT_EQ(query_gpu.queryFlags() & ohm::kQfGpu, ohm::kQfGpu);
+
+      // Add scaled the rays for lookup.
+      for (size_t i = 0; i < rays.size(); i += 2)
+      {
+        query_cpu.addRay(rays[i], rays[i + 1] * query_scale);
+        query_gpu.addRay(rays[i], rays[i + 1] * query_scale);
+      }
+
+      if (first_iteration)
+      {
+        // Prime the GpuRays query to ensure the GPU program is loaded.
+        query_gpu.execute();
+      }
+
+      // Make the query.
+      const auto cpu_time_start = Clock::now();
+      query_cpu.execute();
+      const auto cpu_time_end = Clock::now();
+      const auto gpu_time_start = Clock::now();
+      query_gpu.execute();
+      const auto gpu_time_end = Clock::now();
+
+      // Compare results.
+      ASSERT_EQ(query_cpu.numberOfResults(), rays.size() / 2);
+      ASSERT_EQ(query_gpu.numberOfResults(), rays.size() / 2);
+      const float *ranges_cpu = query_cpu.ranges();
+      const float *unobserved_volumes_cpu = query_cpu.unobservedVolumes();
+      const ohm::OccupancyType *terminal_types_cpu = query_cpu.terminalOccupancyTypes();
+      const float *ranges_gpu = query_gpu.ranges();
+      const float *unobserved_volumes_gpu = query_gpu.unobservedVolumes();
+      const ohm::OccupancyType *terminal_types_gpu = query_gpu.terminalOccupancyTypes();
+      for (size_t i = 0; i < query_cpu.numberOfResults(); ++i)
+      {
+        EXPECT_NEAR(ranges_cpu[i], ranges_gpu[i], 1e-4f) << "[" << i << "]";
+        // We can get a fair amount of deviation in the volume due to floating point error on the GPU - it's single
+        // precision.
+        EXPECT_NEAR(unobserved_volumes_cpu[i], unobserved_volumes_gpu[i], 2.5 * resolution) << "[" << i << "]";
+        EXPECT_EQ(terminal_types_cpu[i], terminal_types_gpu[i]) << "[" << i << "]";
+      }
+
+      std::cout << "Rays: " << query_cpu.numberOfRays() << " cpu: " << (cpu_time_end - cpu_time_start)
+                << " gpu: " << (gpu_time_end - gpu_time_start) << std::endl;
 
       // Hard reset to clear the rays
       query_cpu.reset(true);

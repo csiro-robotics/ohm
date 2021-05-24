@@ -20,10 +20,10 @@ void buildMap(ohm::OccupancyMap &map, const std::vector<glm::dvec3> &rays)
 
 TEST(RaysQuery, Cpu)
 {
-  const double base_scale = 20.0;
+  const double base_scale = 10.0;
   const std::array<double, 3> query_scale = { 1.2, 1.2, 0.6 };
-  const double resolution = 0.2;
-  std::vector<glm::dvec3> rays =  //
+  const double resolution = 0.1;
+  const std::vector<glm::dvec3> rays =  //
     {
       glm::dvec3(0.0), glm::dvec3(base_scale, 0, 0),                      //
       glm::dvec3(0.0), glm::dvec3(0, base_scale, 0),                      //
