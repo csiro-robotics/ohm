@@ -60,8 +60,8 @@ struct VoxelUploadInfo
   int gpu_layer_id = 0;
   /// Allow the region to be instantiated in CPU before uploading? Otherwise the default memory block is created.
   bool allow_region_creation = true;
-  /// Sync this @c gpu_layer_id back to CPU on voxel sync?
-  bool sync_to_cpu = true;
+  /// Skip syncing this @c gpu_layer_id back to CPU on voxel sync?
+  bool skip_cpu_sync = false;
 
   inline VoxelUploadInfo() = default;
 

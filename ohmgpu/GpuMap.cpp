@@ -345,7 +345,7 @@ void GpuMap::syncVoxels()
     // This will allow us to kick synching off all layers in parallel and should reduce the overall latency.
     for (const auto &voxel_info : imp_->voxel_upload_info[sync_index])
     {
-      if (voxel_info.sync_to_cpu)
+      if (!voxel_info.skip_cpu_sync)
       {
         gpumap::sync(*imp_->map, voxel_info.gpu_layer_id);
       }
@@ -943,7 +943,7 @@ bool GpuMap::enqueueRegion(const glm::i16vec3 &region_key, int buffer_index)
     GpuLayerCache &layer_cache = *gpu_cache.layerCache(voxel_info.gpu_layer_id);
     unsigned cache_flags = 0;
     cache_flags |= voxel_info.allow_region_creation * GpuLayerCache::kAllowRegionCreate;
-    cache_flags |= !voxel_info.sync_to_cpu * GpuLayerCache::kSkipDownload;
+    cache_flags |= voxel_info.skip_cpu_sync * GpuLayerCache::kSkipDownload;
     auto mem_offset = uint64_t(layer_cache.upload(*imp_->map, region_key, chunk, &voxel_info.voxel_upload_event,
                                                   &status, imp_->batch_marker, cache_flags));
 

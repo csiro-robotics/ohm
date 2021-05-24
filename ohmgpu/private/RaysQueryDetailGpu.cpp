@@ -77,7 +77,7 @@ void RaysQueryMapWrapper::setMap(OccupancyMap *map)
       for (auto &voxel_info : imp->voxel_upload_info[i])
       {
         voxel_info.allow_region_creation = false;
-        voxel_info.sync_to_cpu = false;
+        voxel_info.skip_cpu_sync = true;
       }
     }
   }
