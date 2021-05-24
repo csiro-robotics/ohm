@@ -32,20 +32,20 @@ TEST(RaysQuery, Gpu)
   const double resolution = 0.2;
   std::vector<glm::dvec3> rays =  //
     {
-      glm::dvec3(0.0), glm::dvec3(base_scale, 0, 0),  //
-      // glm::dvec3(0.0), glm::dvec3(0, base_scale, 0),                      //
-      // glm::dvec3(0.0), glm::dvec3(0, 0, base_scale),                      //
-      // glm::dvec3(0.0), glm::dvec3(-base_scale, 0, 0),                     //
-      // glm::dvec3(0.0), glm::dvec3(0, -base_scale, 0),                     //
-      // glm::dvec3(0.0), glm::dvec3(0, 0, -base_scale),                     //
-      // glm::dvec3(0.0), glm::dvec3(base_scale, base_scale, 0),             //
-      // glm::dvec3(0.0), glm::dvec3(0, base_scale, base_scale),             //
-      // glm::dvec3(0.0), glm::dvec3(base_scale, 0, base_scale),             //
-      // glm::dvec3(0.0), glm::dvec3(-base_scale, -base_scale, 0),           //
-      // glm::dvec3(0.0), glm::dvec3(0, -base_scale, -base_scale),           //
-      // glm::dvec3(0.0), glm::dvec3(-base_scale, 0, -base_scale),           //
-      // glm::dvec3(0.0), glm::dvec3(base_scale, base_scale, base_scale),    //
-      // glm::dvec3(0.0), glm::dvec3(-base_scale, -base_scale, -base_scale)  //
+      glm::dvec3(0.0), glm::dvec3(base_scale, 0, 0),                      //
+      glm::dvec3(0.0), glm::dvec3(0, base_scale, 0),                      //
+      glm::dvec3(0.0), glm::dvec3(0, 0, base_scale),                      //
+      glm::dvec3(0.0), glm::dvec3(-base_scale, 0, 0),                     //
+      glm::dvec3(0.0), glm::dvec3(0, -base_scale, 0),                     //
+      glm::dvec3(0.0), glm::dvec3(0, 0, -base_scale),                     //
+      glm::dvec3(0.0), glm::dvec3(base_scale, base_scale, 0),             //
+      glm::dvec3(0.0), glm::dvec3(0, base_scale, base_scale),             //
+      glm::dvec3(0.0), glm::dvec3(base_scale, 0, base_scale),             //
+      glm::dvec3(0.0), glm::dvec3(-base_scale, -base_scale, 0),           //
+      glm::dvec3(0.0), glm::dvec3(0, -base_scale, -base_scale),           //
+      glm::dvec3(0.0), glm::dvec3(-base_scale, 0, -base_scale),           //
+      glm::dvec3(0.0), glm::dvec3(base_scale, base_scale, base_scale),    //
+      glm::dvec3(0.0), glm::dvec3(-base_scale, -base_scale, -base_scale)  //
     };
 
   // Build the map.
