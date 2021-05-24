@@ -96,7 +96,7 @@ const glm::dvec3 *RaysQuery::rays(size_t *count) const
 size_t RaysQuery::numberOfRays() const
 {
   const RaysQueryDetail *d = imp();
-  return d->rays_in.size();
+  return d->rays_in.size() / 2;
 }
 
 
