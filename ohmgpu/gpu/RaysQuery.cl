@@ -110,11 +110,10 @@ __device__ bool visitVoxelRayQuery(const GpuKey *voxelKey, bool isEndVoxel, cons
                            ((occupancy_value >= line_data->occupied_threshold) ? RQ_OccOccupied : RQ_OccFree);
 
   line_data->result.range = exit_range;
-  line_data->result.unobserved_volume +=
-    (voxel_type == RQ_OccUnobserved) ?
-      (line_data->volume_coefficient *
-       float(exit_range * exit_range * exit_range - entry_range * entry_range * entry_range)) :
-      0.0f;
+  line_data->result.unobserved_volume += (voxel_type == RQ_OccUnobserved) ?
+                                           (line_data->volume_coefficient * (exit_range * exit_range * exit_range -
+                                                                             entry_range * entry_range * entry_range)) :
+                                           0.0f;
   line_data->result.voxel_type = voxel_type;
 
   // Stop traveral if occupied.
