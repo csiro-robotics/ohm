@@ -908,7 +908,7 @@ void GpuMap::enqueueRegions(int buffer_index, unsigned region_update_flags)
             upload_info.offsets_buffer_pinned = gputil::PinnedBuffer(upload_info.offsets_buffer, gputil::kPinWrite);
           }
 
-          regions_buffer = gputil::PinnedBuffer(imp_->region_key_buffers[buffer_index], gputil::kPinRead);
+          regions_buffer = gputil::PinnedBuffer(imp_->region_key_buffers[buffer_index], gputil::kPinWrite);
         }
       }
       else
