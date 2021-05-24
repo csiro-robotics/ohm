@@ -485,7 +485,7 @@ size_t Buffer::readElements(void *dst, size_t element_size, size_t element_count
   if (!buffer_element_size || element_size == buffer_element_size)
   {
     // Matching element size. Use normal write.
-    return read(dst, element_size * element_count, element_size * offset_elements, queue);
+    return read(dst, element_size * element_count, element_size * offset_elements, queue, block_on, completion);
   }
 
   // Calculate the read offset based on the passed bufferElementSize.
