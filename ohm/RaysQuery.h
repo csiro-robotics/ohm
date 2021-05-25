@@ -42,8 +42,6 @@ struct RaysQueryDetail;
 /// This value is accumulated for each unobserved or null voxel.
 ///
 /// Note: on a hard reset, the set of rays is cleared, while a soft reset leaves the ray set unchanged.
-///
-/// @todo (KS) Get better documentation for the maths behind the @c unobservedVolumes() calculation.
 class ohm_API RaysQuery : public Query
 {
 public:
