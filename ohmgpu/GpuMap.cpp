@@ -186,7 +186,7 @@ GpuCache *gpuCache(OccupancyMap &map)
 }
 
 void walkRegions(const OccupancyMap &map, const glm::dvec3 &start_point, const glm::dvec3 &end_point,
-                 const RegionWalkFunction &func)
+                 const RegionWalkFunction &on_visit)
 {
   // see "A Faster Voxel Traversal Algorithm for Ray
   // Tracing" by Amanatides & Woo
@@ -212,7 +212,7 @@ void walkRegions(const OccupancyMap &map, const glm::dvec3 &start_point, const g
 
   if (start_point_key == end_point_key)  // || !valid_length)
   {
-    func(start_point_key, start_point, end_point);
+    on_visit(start_point_key, start_point, end_point);
     return;
   }
 
@@ -220,8 +220,8 @@ void walkRegions(const OccupancyMap &map, const glm::dvec3 &start_point, const g
   {
     // Start/end points are in different, but adjacent voxels. Prevent issues with the loop by
     // early out.
-    func(start_point_key, start_point, end_point);
-    func(end_point_key, start_point, end_point);
+    on_visit(start_point_key, start_point, end_point);
+    on_visit(end_point_key, start_point, end_point);
     return;
   }
 
@@ -267,7 +267,7 @@ void walkRegions(const OccupancyMap &map, const glm::dvec3 &start_point, const g
   int axis;
   while (!limit_reached && current_key != end_point_key)
   {
-    func(current_key, start_point, end_point);
+    on_visit(current_key, start_point, end_point);
 
     if (time_max[0] < time_max[2])
     {
@@ -284,7 +284,7 @@ void walkRegions(const OccupancyMap &map, const glm::dvec3 &start_point, const g
   }
 
   // Touch the last region.
-  func(current_key, start_point, end_point);
+  on_visit(current_key, start_point, end_point);
 }
 }  // namespace gpumap
 
