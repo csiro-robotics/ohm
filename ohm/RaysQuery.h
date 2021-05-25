@@ -32,11 +32,11 @@ struct RaysQueryDetail;
 ///
 /// The number of results @c numberOfResults() should match the @c numberOfRays() .
 ///
-/// The @c unobservedVolumes() values are accumulated for a single ray as;
-///
-/// @code{.unparsed}
-/// volumeCoefficient() * (exit_range * exit_range * exit_range - enter_range * enter_range * enter_range)
-/// @endcode
+/// The @c unobservedVolumes() traces along each ray and accrues the previously unobserved volume that would be observed
+/// (assuming no new obstacles are encountered). This is calculated by accruing `(exit_range^3 - enter_range^3)` for
+/// each previously unobserved voxel through which the ray passes prior to encountering an occupied voxel. This can be
+/// utilised to perform integration in spherical coordinates, where the angular weights and normalisation are applied
+/// externally for each ray. The calculation is optionally scaled by @c volumeCoefficient() , which defaults to one.
 ///
 /// Where @c enter_range and @c exit_range are the ranges at which the ray enters and leaves a voxel respectively.
 /// This value is accumulated for each unobserved or null voxel.

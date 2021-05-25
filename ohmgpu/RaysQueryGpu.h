@@ -19,6 +19,9 @@ struct RaysQueryDetailGpu;
 /// CPU when querying rays on the order of 2000 or more with significant benefits starting at 5000-10000 rays with ray
 /// lengths approximately 100 times the voxel resolution. Doubling the ray length may require an order of magnitude
 /// more sample rays to maintain GPU timing benefits.
+///
+/// The actual timing results will vary depending on GPU API, GPU architecture, voxel size, query ray lengths and map
+/// environment.
 class ohmgpu_API RaysQueryGpu : public RaysQuery
 {
 protected:
@@ -29,6 +32,7 @@ protected:
   explicit RaysQueryGpu(RaysQueryDetailGpu *detail);
 
 public:
+  /// Constructor. The map and rays must be set before using.
   RaysQueryGpu();
 
   /// Destructor.
