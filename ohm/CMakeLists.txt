@@ -216,6 +216,7 @@ set(PUBLIC_HEADERS
   RayMapperTrace.h
   RayPatternConical.h
   RayPattern.h
+  RaysQuery.h
   Stream.h
   Trace.h
   TriangleEdge.h
