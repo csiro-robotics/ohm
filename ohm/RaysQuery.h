@@ -69,11 +69,11 @@ public:
   /// Set the coefficient used in calculating the @c unobservedVolumes() .
   /// See class documentation for detail.
   /// @param coefficient The new coefficient.
-  void setVolumeCoefficient(float coefficient);
+  void setVolumeCoefficient(double coefficient);
   /// Get the coefficient used in calculating the @c unobservedVolumes() .
   /// See class documentation for detail.
   /// @return The set coefficient.
-  float volumeCoefficient() const;
+  double volumeCoefficient() const;
 
   /// Set the rays to intersect.
   /// @param rays Origin/end point pairs.
@@ -108,7 +108,7 @@ public:
   /// An approximation of the volume of previously unobserved space each ray traverses. The number of elements matches
   /// @c numberOfResults() .
   /// @return The unobserved volume traversed by the rays.
-  const float *unobservedVolumes() const;
+  const double *unobservedVolumes() const;
 
   /// The occupancy type of the voxels at which each ray terminates. This will be @c OccupancyType::kOccupied if an
   /// occupied voxel is encountered along the ray, otherwise it will be the type of the last voxel along the ray. The

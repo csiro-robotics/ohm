@@ -73,8 +73,8 @@ TEST(RaysQuery, Cpu)
 
     // Compare results.
     ASSERT_EQ(query.numberOfResults(), rays.size() / 2);
-    const float *ranges = query.ranges();
-    const float *unobserved_volumes = query.unobservedVolumes();
+    const double *ranges = query.ranges();
+    const double *unobserved_volumes = query.unobservedVolumes();
     const ohm::OccupancyType *terminal_types = query.terminalOccupancyTypes();
     for (size_t i = 0; i < query.numberOfResults(); ++i)
     {

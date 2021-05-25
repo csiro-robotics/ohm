@@ -99,11 +99,11 @@ TEST(RaysQuery, Gpu)
       // Compare results.
       ASSERT_EQ(query_cpu.numberOfResults(), rays.size() / 2);
       ASSERT_EQ(query_gpu.numberOfResults(), rays.size() / 2);
-      const float *ranges_cpu = query_cpu.ranges();
-      const float *unobserved_volumes_cpu = query_cpu.unobservedVolumes();
+      const double *ranges_cpu = query_cpu.ranges();
+      const double *unobserved_volumes_cpu = query_cpu.unobservedVolumes();
       const ohm::OccupancyType *terminal_types_cpu = query_cpu.terminalOccupancyTypes();
-      const float *ranges_gpu = query_gpu.ranges();
-      const float *unobserved_volumes_gpu = query_gpu.unobservedVolumes();
+      const double *ranges_gpu = query_gpu.ranges();
+      const double *unobserved_volumes_gpu = query_gpu.unobservedVolumes();
       const ohm::OccupancyType *terminal_types_gpu = query_gpu.terminalOccupancyTypes();
       for (size_t i = 0; i < query_cpu.numberOfResults(); ++i)
       {
@@ -196,11 +196,11 @@ TEST(RaysQuery, CpuVsGpu)
       // Compare results.
       ASSERT_EQ(query_cpu.numberOfResults(), rays.size() / 2);
       ASSERT_EQ(query_gpu.numberOfResults(), rays.size() / 2);
-      const float *ranges_cpu = query_cpu.ranges();
-      const float *unobserved_volumes_cpu = query_cpu.unobservedVolumes();
+      const double *ranges_cpu = query_cpu.ranges();
+      const double *unobserved_volumes_cpu = query_cpu.unobservedVolumes();
       const ohm::OccupancyType *terminal_types_cpu = query_cpu.terminalOccupancyTypes();
-      const float *ranges_gpu = query_gpu.ranges();
-      const float *unobserved_volumes_gpu = query_gpu.unobservedVolumes();
+      const double *ranges_gpu = query_gpu.ranges();
+      const double *unobserved_volumes_gpu = query_gpu.unobservedVolumes();
       const ohm::OccupancyType *terminal_types_gpu = query_gpu.terminalOccupancyTypes();
       for (size_t i = 0; i < query_cpu.numberOfResults(); ++i)
       {

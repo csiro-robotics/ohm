@@ -34,14 +34,14 @@ RaysQuery::RaysQuery()
 RaysQuery::~RaysQuery() = default;
 
 
-void RaysQuery::setVolumeCoefficient(float coefficient)
+void RaysQuery::setVolumeCoefficient(double coefficient)
 {
   RaysQueryDetail *d = imp();
   d->volume_coefficient = coefficient;
 }
 
 
-float RaysQuery::volumeCoefficient() const
+double RaysQuery::volumeCoefficient() const
 {
   const RaysQueryDetail *d = imp();
   return d->volume_coefficient;
@@ -113,7 +113,7 @@ bool RaysQuery::onExecute()
   MapChunk *last_chunk = nullptr;
   VoxelBuffer<const VoxelBlock> occupancy_buffer;
   bool stop_adjustments = false;
-  float unobserved_volume = 0;
+  double unobserved_volume = 0;
   float range = 0;
   OccupancyType terminal_state = OccupancyType::kNull;
   Key terminal_key(nullptr);
@@ -164,7 +164,7 @@ bool RaysQuery::onExecute()
     const bool is_occupied = !is_unobserved && occupancy_value > occupancy_threshold_value;
     unobserved_volume +=
       is_unobserved ?
-        (volume_coefficient * float(exit_range * exit_range * exit_range - enter_range * enter_range * enter_range)) :
+        (volume_coefficient * (exit_range * exit_range * exit_range - enter_range * enter_range * enter_range)) :
         0.0f;
     range = float(exit_range);
     terminal_state =
@@ -221,7 +221,7 @@ bool RaysQuery::onExecute()
 }
 
 
-const float *RaysQuery::unobservedVolumes() const
+const double *RaysQuery::unobservedVolumes() const
 {
   const RaysQueryDetail *d = imp();
   return d->unobserved_volumes_out.data();

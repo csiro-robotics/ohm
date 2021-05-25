@@ -20,9 +20,9 @@ struct ohm_API RaysQueryDetail : QueryDetail
 {
   /// Set of origin/end point pairs to lookup in the map.
   std::vector<glm::dvec3> rays_in;
-  std::vector<float> unobserved_volumes_out;
+  std::vector<double> unobserved_volumes_out;
   std::vector<OccupancyType> terminal_states_out;
-  float volume_coefficient = (float)(1.0 / 180.0 * M_PI * 1.0 / 180.0 * M_PI);
+  double volume_coefficient = 1.0f;
   int occupancy_layer = -1;              ///< Cached occupancy layer index.
   glm::u8vec3 occupancy_dim{ 0, 0, 0 };  ///< Cached occupancy layer voxel dimensions. Voxel mean must exactly match.
   bool valid_layers = false;             ///< Has layer validation passed?

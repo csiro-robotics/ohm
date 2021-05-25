@@ -65,7 +65,7 @@ const Key *Query::intersectedVoxels() const
 }
 
 
-const float *Query::ranges() const
+const double *Query::ranges() const
 {
   return (!imp_->ranges.empty()) ? imp_->ranges.data() : nullptr;
 }
