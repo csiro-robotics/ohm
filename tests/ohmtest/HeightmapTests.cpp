@@ -74,6 +74,7 @@ struct HeightmapGeneratedInfo
   HeightmapGeneratedInfo(HeightmapGeneratedInfo &&other)
     : surface(std::move(other.surface))
     , virtual_surface(std::move(other.virtual_surface))
+    , seam(std::move(other.seam))
   {}
 };
 
@@ -983,7 +984,7 @@ void heightmapLayeredTest(const std::string &name, LayeredTestStart start_locati
   // Disable any clearance constraint except for planar mode.
   // The use of planar mode is only for base layer testing. We need a ~1+ voxel clearance in order to get a planar
   // map which exactly matches the layered map base layer.
-  const double clearance_constraint = (mode != ohm::HeightmapMode::kPlanar) ? 0.0 : 1.1 * map.resolution();
+  const double clearance_constraint = (mode != ohm::HeightmapMode::kPlanar) ? -1.0 : 1.1 * map.resolution();
   ohm::Heightmap layered_heightmap(map.resolution(), clearance_constraint);
   layered_heightmap.setOccupancyMap(&map);
   layered_heightmap.heightmap().setOrigin(map.origin());
@@ -1067,7 +1068,7 @@ void heightmapLayeredTest(const std::string &name, LayeredTestStart start_locati
   }
 
   // Ensure we've extracted something.
-  ASSERT_GT(test_voxel_count, 0u  );
+  ASSERT_GT(test_voxel_count, 0u);
   ohm::save(name + "-map-out.ohm", test_map);
   ohmtools::saveCloud(name + "-map-out.ply", test_map);
 
