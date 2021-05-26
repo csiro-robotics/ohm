@@ -99,6 +99,9 @@ void showMapInfo(const ohm::MapInfo &info)
     std::vector<ohm::MapValue> items;
     items.resize(item_count);
     item_count = info.extract(items.data(), item_count);
+    std::sort(items.begin(), items.end(), [](const ohm::MapValue &a, const ohm::MapValue &b) {
+      return std::less<std::string>{}(a.name(), b.name());
+    });
 
     ohm::MapValue str_value;
     for (unsigned i = 0; i < item_count; ++i)
@@ -290,9 +293,9 @@ int main(int argc, char *argv[])
         }
       }
 
-      std::cout << "Probablility max: " << ohm::valueToProbability(max_occupancy) << " (" << max_occupancy << ")"
+      std::cout << "Probability max: " << ohm::valueToProbability(max_occupancy) << " (" << max_occupancy << ")"
                 << std::endl;
-      std::cout << "Probablility min: " << ohm::valueToProbability(min_occupancy) << " (" << min_occupancy << ")"
+      std::cout << "Probability min: " << ohm::valueToProbability(min_occupancy) << " (" << min_occupancy << ")"
                 << std::endl;
       std::cout << "Free voxels: " << free_voxels << std::endl;
       std::cout << "Occupied voxels: " << occupied_voxels << std::endl;
