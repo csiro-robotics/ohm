@@ -186,7 +186,9 @@ __device__ bool VISIT_LINE_VOXEL(const GpuKey *voxelKey, bool isEndVoxel, const 
     __global atomic_float *occupancy_ptr = &occupancy[vi];
 
     bool was_occupied_voxel = false;
+#if defined(VOXEL_MEAN) || defined(NDT)
     bool voxel_excluded = false;
+#endif  // defined(VOXEL_MEAN) || defined(NDT)
 
 #ifdef LIMIT_VOXEL_WRITE_ITERATIONS
     // Under high contension we can end up repeatedly failing to write the voxel value.
@@ -216,21 +218,27 @@ __device__ bool VISIT_LINE_VOXEL(const GpuKey *voxelKey, bool isEndVoxel, const 
       // Check skipping unobserved.
       if (initially_unobserved && (line_data->region_update_flags & kRfExcludeUnobserved))
       {
+#if defined(VOXEL_MEAN) || defined(NDT)
         voxel_excluded = true;
+#endif  // defined(VOXEL_MEAN) || defined(NDT)
         break;
       }
 
       // Check skipping free.
       if (initially_free && (line_data->region_update_flags & kRfExcludeFree))
       {
+#if defined(VOXEL_MEAN) || defined(NDT)
         voxel_excluded = true;
+#endif  // defined(VOXEL_MEAN) || defined(NDT)
         break;
       }
 
       // Check skipping occupied.
       if (initially_occupied && (line_data->region_update_flags & kRfExcludeOccupied))
       {
+#if defined(VOXEL_MEAN) || defined(NDT)
         voxel_excluded = true;
+#endif  // defined(VOXEL_MEAN) || defined(NDT)
         break;
       }
 
