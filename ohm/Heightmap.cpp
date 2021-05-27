@@ -1470,21 +1470,54 @@ bool Heightmap::addSurfaceVoxel(heightmap::DstVoxel &hm_voxel, const heightmap::
           // It's a repeat. Don't add.
           should_add = false;
         }
-
-        if (should_add)
+        else
         {
-          if (areLayersSorted())
-          {
-            multi_layer_keys.insert(hm_key);
-          }
+          // Store the base key to ensure we update multi_layer_keys if we are still adding this voxel.
+          const auto base_key = hm_key;
+
+          // We need to insert the voxel at the next available voxel in the target column. This results in unsorted
+          // insertion with layer sorting optionally occuring as a post process.
+          //
+          // During this walk up the column we also validate that a virtual surface voxel is not being added too close
+          // to another virtual surface voxel.
+          double nearest_voxel_below = 0;
+          double nearest_voxel_above = 0;
           do
           {
+            // Check the distance to the existing voxel.
+            const double current_voxel_height =
+              hm_voxel.heightmap.data().height + glm::dot(imp_->up, heightmap.voxelCentreGlobal(hm_key));
+            const double current_voxel_delta = current_voxel_height - src_height;
+            nearest_voxel_below =
+              (current_voxel_delta < 0 && (nearest_voxel_below <= 0 || -current_voxel_delta < nearest_voxel_below)) ?
+                -current_voxel_delta :
+                nearest_voxel_below;
+            nearest_voxel_above =
+              (current_voxel_delta > 0 && (nearest_voxel_above <= 0 || current_voxel_delta < nearest_voxel_above)) ?
+                current_voxel_delta :
+                nearest_voxel_above;
+
             // Walk to the next key up in the heightmap. We always move the key up as the height cells are
             // independent.
             heightmap.moveKeyAlongAxis(hm_key, upAxisIndex(), 1);
             hm_voxel.setKey(hm_key);
             assert(hm_voxel.occupancy.isValid() && hm_voxel.occupancy.voxelMemory());
           } while (hm_voxel.occupancy.data() != ohm::unobservedOccupancyValue());
+
+          // Prevent adding a virtual surface voxel which is too close to an existing voxel.
+          // We use the clearance height as the threshold.
+          if ((nearest_voxel_below > 0 && nearest_voxel_below <= imp_->min_clearance) ||
+              (nearest_voxel_above > 0 && nearest_voxel_above <= imp_->min_clearance))
+          {
+            should_add = false;
+          }
+
+          // We've now found where to insert and validated the insertion. Ensure we have base_key in multi_layer_keys
+          // if we are still adding.
+          if (should_add && areLayersSorted())
+          {
+            multi_layer_keys.insert(base_key);
+          }
         }
       }
     }
