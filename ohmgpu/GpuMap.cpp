@@ -338,7 +338,7 @@ bool GpuMap::borrowedMap() const
 
 void GpuMap::syncVoxels()
 {
-  const int sync_index = ((imp_->next_buffers_index + (GpuMapDetail::kBuffersCount - 1)) % GpuMapDetail::kBuffersCount);
+  const int sync_index = (imp_->next_buffers_index + 1) % GpuMapDetail::kBuffersCount;
   if (imp_->map)
   {
     // TODO(KS): split the logic for starting synching and waiting on completion.
@@ -1044,7 +1044,6 @@ void GpuMap::finaliseBatch(unsigned region_update_flags)
   {
     mean_layer_cache->beginBatch(imp_->batch_marker);
   }
-  imp_->next_buffers_index =
-    ((imp_->next_buffers_index + (GpuMapDetail::kBuffersCount - 1)) % GpuMapDetail::kBuffersCount);
+  imp_->next_buffers_index = (imp_->next_buffers_index + 1) % GpuMapDetail::kBuffersCount;
 }
 }  // namespace ohm
