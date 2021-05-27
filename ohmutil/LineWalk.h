@@ -149,9 +149,8 @@ size_t walkSegmentKeys(WalkSegmentFunc walk_func, const glm::dvec3 &start_point,
       // Calculate the distance from the origin to the nearest voxel edge for this axis.
       next_voxel_border = voxel[i] + step[i] * 0.5 * funcs.voxelResolution(i);  // NOLINT(readability-magic-numbers)
       time_max[i] = (next_voxel_border - start_point[i]) * direction_axis_inv;
-      time_limit[i] =
-        std::abs((end_point[i] - start_point[i]) *
-                 direction_axis_inv);  // +0.5f * funcs.voxelResolution(i); // Question(JW): isn't this just length
+      // Calculate the distance travelled for the current dimension.
+      time_limit[i] = std::abs((end_point[i] - start_point[i]) * direction_axis_inv);
     }
     else
     {
@@ -166,9 +165,9 @@ size_t walkSegmentKeys(WalkSegmentFunc walk_func, const glm::dvec3 &start_point,
   while (!limit_reached && !user_exit && current_key != end_point_key)
   {
     axis = (time_max[0] < time_max[2]) ? ((time_max[0] < time_max[1]) ? 0 : 1) : ((time_max[1] < time_max[2]) ? 1 : 2);
-    limit_reached =
-      std::abs(time_max[axis]) >
-      time_limit[axis];  // Question(JW): why is this abs? Isn't time_max non-negative? Just for round-off?
+    // Strictly speaking std::abs() is unnecessary here. However, from memory there were instances where it could be
+    // negative in practice (floating point error). Possibly in the zero case (positive and negative zeros).
+    limit_reached = std::abs(time_max[axis]) > time_limit[axis];
     const double new_time_current = limit_reached ? time_limit[axis] : time_max[axis];
     user_exit = !walk_func(current_key, time_current, new_time_current);
     time_max[axis] += time_delta[axis];
