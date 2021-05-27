@@ -239,7 +239,7 @@ struct DstVoxel
       // Generate an ID for the voxel.
       KeyRange heightmap_range;
       occupancy.map()->calculateExtents(nullptr, nullptr, &heightmap_range);
-      uint32_t voxel_id = heightmap_range.indexOf(occupancy.key());
+      uint32_t voxel_id = uint32_t(heightmap_range.indexOf(occupancy.key()));
       voxel_id |= voxel_id_mask;
       glm::dvec3 voxel_pos = occupancy.map()->voxelCentreGlobal(occupancy.key());
       voxel_pos[up_axis] += up_scale * heightmap.data().height;
@@ -755,7 +755,7 @@ void onVisitWalker(Walker &walker, const HeightmapDetail &imp, const Key &walk_k
     for (size_t i = 0; i < added_count; ++i)
     {
       const Key &nkey = neighbours[i];
-      voxel_id = source_map_range.indexOf(nkey);
+      voxel_id = uint32_t(source_map_range.indexOf(nkey));
       voxel_id |= neighbour_id_mask;
       const glm::dvec3 pos = imp.occupancy_map->voxelCentreGlobal(nkey);
       tes::Box neighbour(tes::Id(voxel_id, kTcHmVisit), tes::Transform(tes::Vector3d(glm::value_ptr(pos)),
@@ -766,7 +766,7 @@ void onVisitWalker(Walker &walker, const HeightmapDetail &imp, const Key &walk_k
     }
 
     // Delete the previous candidate voxel visualisation.
-    voxel_id = source_map_range.indexOf(walk_key);
+    voxel_id = uint32_t(source_map_range.indexOf(walk_key));
     voxel_id |= neighbour_id_mask;
     g_tes->destroy(tes::Box(tes::Id(voxel_id, kTcHmVisit)));
 
