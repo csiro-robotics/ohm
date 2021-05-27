@@ -64,18 +64,6 @@ struct HeightmapGeneratedInfo
   /// Set of voxel keys for voxels at which the platform joins the floor. This will generally be excluded from a layered
   /// heightmap.
   std::unordered_set<ohm::Key, ohm::Key::Hash> seam;
-
-  /// Default constructor.
-  HeightmapGeneratedInfo() = default;
-  /// Copy constructor.
-  HeightmapGeneratedInfo(const HeightmapGeneratedInfo &other) = default;
-  /// Move constructor.
-  /// @param other Object to move.
-  HeightmapGeneratedInfo(HeightmapGeneratedInfo &&other)
-    : surface(std::move(other.surface))
-    , virtual_surface(std::move(other.virtual_surface))
-    , seam(std::move(other.seam))
-  {}
 };
 
 /// Try make the given occupancy voxel virtual. This is a helper function for @c populateMultiLevelMap().
