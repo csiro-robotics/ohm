@@ -95,8 +95,8 @@ GpuCache *ohmgpu_API gpuCache(OccupancyMap &map);
 /// Callback for walkRegions().
 using RegionWalkFunction = std::function<void(const glm::i16vec3 &, const glm::dvec3 &, const glm::dvec3 &)>;
 
-/// Walk the regions touched by the line connecting @p start_point and @p end_point invoking @c on_visit for each touched
-/// region. This is similar @c walkSegmentKeys() in @c LinkWalk.h .
+/// Walk the regions touched by the line connecting @p start_point and @p end_point invoking @c on_visit for each
+/// touched region. This is similar @c walkSegmentKeys() in @c LineWalk.h .
 ///
 /// @param map The map to walk.
 /// @param start_point The line/ray origin.
