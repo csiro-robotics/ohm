@@ -59,6 +59,9 @@ struct ohm_API HeightmapDetail
   /// Identifies the up axis as aligned to XYZ, [0, 2] but ignores sign/direction.
   /// Same as up_axis_id if that value is >= 0.
   int vertical_axis_index = int(UpAxis::kZ);
+  /// Enables post process filtering for layered heightmaps, removing virtual surface voxels with fewer 6-connected
+  /// populated neighbours.
+  unsigned layered_virtual_surface_filter_threshold = 3;
   /// Level of debugging information provided in generating the heightmap. Only has an effect if
   /// @c OHM_TES_DEBUG is configured in CMake.
   int debug_level = 0;

@@ -240,6 +240,24 @@ public:
   /// @return True if the heightmap contains columns sorted in height order.
   inline bool areLayersSorted() const { return mode() == HeightmapMode::kLayeredFill; }
 
+  /// Set the number of occupied neighbours a virtual surface voxel needs to be kept in a @c HeightmapMode::kLayeredFill
+  /// map.
+  ///
+  /// When non-zero and using @c mode() @c HeightmapMode::kLayeredFill , this value enables filtering out of virtual
+  /// surface voxels which have fewer occupied neighours than this value. This can help reduce "virtual surface noise"
+  /// in maps which have sparse free space observations.
+  ///
+  /// This setting only works with @c mode() @c HeightmapMode::kLayeredFill .
+  ///
+  /// Neighbours are the 26 voxels sharing a face, edge or vertex with the voxel of interest.
+  ///
+  /// @param threshold Number of occupied neighbours required to keep a virtual surface voxel. Theoretical range is
+  /// [0, 26], with a pragmatic range of approximately [0, 8].
+  void setVirtualSurfaceFilterThreshold(unsigned threshold);
+
+  /// Query the virtual surface filtering threshold. See @c setVirtualSurfaceFilterThreshold() .
+  unsigned virtualSurfaceFilterThreshold() const;
+
   /// Set the heightmap generation to flood fill ( @c true ) or planar ( @c false ).
   ///
   /// @deprecated Use @c setMode(HeightmapMode::kSimpleFill) .
@@ -398,9 +416,11 @@ private:
   ///     be added to if the @p hm_voxel already has voxel data and we are building a layered heightmap.
   /// @param is_base_layer_candidate Should be true if the @c src_voxel falls within the allowed range for being
   ///     included in the base layer. Should always be true for non-layered heightmaps.
-  bool addSurfaceVoxel(heightmap::DstVoxel &hm_voxel, const heightmap::SrcVoxel &src_voxel, OccupancyType voxel_type,
-                       double clearance, glm::dvec3 voxel_pos, std::set<ohm::Key> &multi_layer_keys,
-                       bool is_base_layer_candidate);
+  /// @return The voxel type in the heightmap. One of @c kSurface, @c kVirtualSurface, @c kUnknown where the latter
+  /// indicates no voxel has not been added to the heightmap.
+  HeightmapVoxelType addSurfaceVoxel(heightmap::DstVoxel &hm_voxel, const heightmap::SrcVoxel &src_voxel,
+                                     OccupancyType voxel_type, double clearance, glm::dvec3 voxel_pos,
+                                     std::set<ohm::Key> &multi_layer_keys, bool is_base_layer_candidate);
 
   std::unique_ptr<HeightmapDetail> imp_;
 };  // namespace ohm
