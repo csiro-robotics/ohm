@@ -110,6 +110,17 @@ void colour::rgbToHsv(float &h, float &s, float &v, uint8_t r, uint8_t g, uint8_
 }
 
 
+Colour Colour::adjust(float factor) const
+{
+  float h, s, v;
+  Colour c;
+  ohm::colour::rgbToHsv(h, s, v, rf(), gf(), bf());
+  v = std::max(0.0f, std::min(v * factor, 1.0f));
+  c.rgba[kA] = this->rgba[kA];
+  ohm::colour::hsvToRgb(c.rgba[kR], c.rgba[kG], c.rgba[kB], h, s, v);
+  return c;
+}
+
 Colour Colour::lerp(const Colour &from, const Colour &to, float factor)
 {
   // Convert to hsv space for the lerp.
