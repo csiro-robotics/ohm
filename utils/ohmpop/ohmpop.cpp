@@ -1074,7 +1074,6 @@ int main(int argc, char *argv[])
     }
     opt.gpu.gpu_cache_size_gb = double(target_gpu_cache_size) / double(ohm::GpuCache::kGiB);
     std::cout << "Auto select GPU cache size: " << ohm::util::Bytes(opt.gpu.gpuCacheSizeBytes()) << std::endl;
-    return 0;
   }
 
   if (res)
