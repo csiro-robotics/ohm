@@ -25,6 +25,8 @@
 #include <ohmgpu/GpuMap.h>
 #include <ohmgpu/GpuNdtMap.h>
 #include <ohmgpu/OhmGpu.h>
+
+#include <gputil/gpuDevice.h>
 #endif  // OHMPOP_GPU
 
 #include <ohmtools/OhmCloud.h>
@@ -89,7 +91,7 @@ struct Options
   struct Gpu
   {
     /// GPU cache size in GiB
-    double gpu_cache_size_gb = double(ohm::GpuCache::kDefaultTargetMemSize) / double(ohm::GpuCache::kGiB);
+    double gpu_cache_size_gb = 0;
     double ray_segment_length = 0;
 
     inline size_t gpuCacheSizeBytes() const { return size_t(gpu_cache_size_gb * double(ohm::GpuCache::kGiB)); }
@@ -924,7 +926,7 @@ int parseOptions(Options *opt, int argc, char *argv[])  // NOLINT(modernize-avoi
 
     // clang-format off
     adder
-      ("gpu-cache-size", "Configured the GPU cache size used to cache regions for GPU update. Floating point value specified in GiB.", optVal(opt->gpu.gpu_cache_size_gb))
+      ("gpu-cache-size", "Configured the GPU cache size used to cache regions for GPU update. Floating point value specified in GiB. A zero value uses half the available GPU RAM, 1GiB or 3/4 of RAM in order of preference.", optVal(opt->gpu.gpu_cache_size_gb))
       ("gpu-ray-segment-length", "Configure the maximum allowed ray length for a single GPU thread to process. Longer rays are broken into multiple segments.", optVal(opt->gpu.ray_segment_length));
     // clang-format on
 #endif  // OHMPOP_GPU
@@ -1056,11 +1058,30 @@ int main(int argc, char *argv[])
 
 #ifdef OHMPOP_GPU
   res = ohm::configureGpuFromArgs(argc, argv);
-#endif  // OHMPOP_GPU
+
+  // Handle GPU cache auto sizing.
+  if (opt.gpu.gpu_cache_size_gb <= 0)
+  {
+    // Calculate the GPU cache size as half GPU RAM size or 1GiB - whichever is larger. 1 GiB is too large use
+    // 3/4 of the GPU RAM.
+    const uint64_t total_device_memory = ohm::gpuDevice().deviceMemory();
+    // Seed with 3/4 of device memory.
+    uint64_t target_gpu_cache_size = (total_device_memory * 3) / 4;
+    // If this is more than 1GiB, use either 1GiB or half device memory.
+    if (target_gpu_cache_size > ohm::GpuCache::kGiB)
+    {
+      target_gpu_cache_size = std::max<uint64_t>(total_device_memory / 2, ohm::GpuCache::kGiB);
+    }
+    opt.gpu.gpu_cache_size_gb = double(target_gpu_cache_size) / double(ohm::GpuCache::kGiB);
+    std::cout << "Auto select GPU cache size: " << ohm::util::Bytes(opt.gpu.gpuCacheSizeBytes()) << std::endl;
+    return 0;
+  }
+
   if (res)
   {
     return res;
   }
+#endif  // OHMPOP_GPU
 
   res = populateMap(opt);
 
