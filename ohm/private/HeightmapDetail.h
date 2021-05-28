@@ -50,8 +50,6 @@ struct ohm_API HeightmapDetail
   double floor = 0;
   /// Minimum clearance above a potential ground/surface voxel required to accept the voxel as a viable surface.
   double min_clearance = 1.0;
-  /// Range at which to generate negative obstacle surfaces.
-  double negative_obstacle_radius = 0;
   /// Voxel layer containing the @c HeightmapVoxel data in the @c heightmap.
   int heightmap_voxel_layer = -1;
   /// Identifies the up axis: @c UpAxis
