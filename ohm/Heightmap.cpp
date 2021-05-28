@@ -1481,6 +1481,8 @@ bool Heightmap::buildHeightmapT(KeyWalker &walker, const glm::dvec3 &reference_p
   unsigned supporting_voxel_flags = initial_supporting_flags;
   // Tracks voxels which have results at multiple layers for a heightmap support isMultiLayered()
   std::set<ohm::Key> multi_layer_keys;
+  // We use this map to collect data for virtual surface filtering step. It maps from source voxel keys to heightmap
+  // key and voxel type.
   std::unordered_map<ohm::Key, heightmap::HeightmapKeyType> src_to_heightmap_keys;
   const bool ordered_layers = areLayersSorted();  // True to sort multi-layered configurations.
   bool abort = false;
@@ -1556,8 +1558,12 @@ bool Heightmap::buildHeightmapT(KeyWalker &walker, const glm::dvec3 &reference_p
       if (hm_voxel_type != HeightmapVoxelType::kUnknown)
       {
         ++populated_count;
-        src_to_heightmap_keys.emplace(ground_key,
-                                      heightmap::HeightmapKeyType{ hm_voxel.occupancy.key(), hm_voxel_type });
+        // Populate src_to_heightmap_keys if we are using it.
+        if (ordered_layers && imp_->virtual_surface_filter_threshold > 0)
+        {
+          src_to_heightmap_keys.emplace(ground_key,
+                                        heightmap::HeightmapKeyType{ hm_voxel.occupancy.key(), hm_voxel_type });
+        }
       }
     }
 
@@ -1567,11 +1573,13 @@ bool Heightmap::buildHeightmapT(KeyWalker &walker, const glm::dvec3 &reference_p
 
   if (ordered_layers)
   {
+    // Mark virtual surface voxels for removal.
     if (imp_->virtual_surface_filter_threshold > 0)
     {
       heightmap::filterVirtualVoxels(*imp_, imp_->virtual_surface_filter_threshold, src_to_heightmap_keys);
     }
 
+    // Sort layers and remove filtered virtual surface voxels.
     heightmap::sortHeightmapLayers(*imp_, multi_layer_keys, use_voxel_mean);
   }
 
