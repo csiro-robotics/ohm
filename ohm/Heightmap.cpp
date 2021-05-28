@@ -1220,13 +1220,13 @@ const glm::dvec3 &Heightmap::surfaceAxisB(UpAxis axis_id)
 
 void Heightmap::setVirtualSurfaceFilterThreshold(unsigned threshold)
 {
-  imp_->layered_virtual_surface_filter_threshold = threshold;
+  imp_->virtual_surface_filter_threshold = threshold;
 }
 
 
 unsigned Heightmap::virtualSurfaceFilterThreshold() const
 {
-  return imp_->layered_virtual_surface_filter_threshold;
+  return imp_->virtual_surface_filter_threshold;
 }
 
 
@@ -1567,9 +1567,9 @@ bool Heightmap::buildHeightmapT(KeyWalker &walker, const glm::dvec3 &reference_p
 
   if (ordered_layers)
   {
-    if (imp_->layered_virtual_surface_filter_threshold > 0)
+    if (imp_->virtual_surface_filter_threshold > 0)
     {
-      heightmap::filterVirtualVoxels(*imp_, imp_->layered_virtual_surface_filter_threshold, src_to_heightmap_keys);
+      heightmap::filterVirtualVoxels(*imp_, imp_->virtual_surface_filter_threshold, src_to_heightmap_keys);
     }
 
     heightmap::sortHeightmapLayers(*imp_, multi_layer_keys, use_voxel_mean);

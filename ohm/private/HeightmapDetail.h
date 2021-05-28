@@ -59,7 +59,7 @@ struct ohm_API HeightmapDetail
   int vertical_axis_index = int(UpAxis::kZ);
   /// Enables post process filtering for layered heightmaps, removing virtual surface voxels with fewer 6-connected
   /// populated neighbours.
-  unsigned layered_virtual_surface_filter_threshold = 3;
+  unsigned virtual_surface_filter_threshold = 0;
   /// Level of debugging information provided in generating the heightmap. Only has an effect if
   /// @c OHM_TES_DEBUG is configured in CMake.
   int debug_level = 0;
