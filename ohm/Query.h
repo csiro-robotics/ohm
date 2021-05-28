@@ -83,7 +83,7 @@ public:
   /// to a voxel reported by @c intersectedVoxels().
   ///
   /// @return The array of distances to the line segment for each @c intersectedVoxel().
-  const float *ranges() const;
+  const double *ranges() const;
 
   /// Execute a synchronous query.
   ///

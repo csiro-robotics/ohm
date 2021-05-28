@@ -292,7 +292,7 @@ void saveQueryCloud(const ohm::OccupancyMap &map, const ohm::Query &query, const
 {
   const size_t result_count = query.numberOfResults();
   const ohm::Key *keys = query.intersectedVoxels();
-  const float *ranges = query.ranges();
+  const double *ranges = query.ranges();
   glm::dvec3 voxel_pos;
 
   ohm::PlyMesh ply;
@@ -302,8 +302,8 @@ void saveQueryCloud(const ohm::OccupancyMap &map, const ohm::Query &query, const
     uint8_t c = std::numeric_limits<uint8_t>::max();
     if (colour_range > 0 && ranges)
     {
-      const float range_value = ranges[i];
-      c = uint8_t(std::numeric_limits<uint8_t>::max() * std::max(0.0f, (colour_range - range_value) / colour_range));
+      const double range_value = ranges[i];
+      c = uint8_t(std::numeric_limits<uint8_t>::max() * std::max(0.0, (colour_range - range_value) / colour_range));
     }
     voxel_pos = map.voxelCentreGlobal(key);
     ply.addVertex(voxel_pos, ohm::Colour(c, std::numeric_limits<uint8_t>::max() / 2, 0));
@@ -427,7 +427,7 @@ bool compareCpuGpuQuery(const char *query_name, ohm::Query &query,
   query_end = TimingClock::now();
 
   std::vector<ohm::Key> keys;
-  std::vector<float> ranges;
+  std::vector<double> ranges;
 
   keys.resize(query.numberOfResults());
   ranges.resize(query.numberOfResults());
@@ -467,7 +467,7 @@ bool compareCpuGpuQuery(const char *query_name, ohm::Query &query,
 
   // Compare results.
   bool results_match = true;
-  float range_diff;
+  double range_diff;
   bool key_found;
 
   // Look for duplicate GPU results.

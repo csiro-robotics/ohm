@@ -84,7 +84,7 @@ size_t RayMapperNdt::integrateRays(const glm::dvec3 *rays, size_t element_count,
   glm::dvec3 start;
   glm::dvec3 sample;
 
-  const auto visit_func = [&](const Key &key, double /*enter_range*/, double /*exit_range*/)  //
+  const auto visit_func = [&](const Key &key, double /*enter_range*/, double /*exit_range*/) -> bool  //
   {
     //
     // The update logic here is a little unclear as it tries to avoid outright branches.
@@ -138,6 +138,8 @@ size_t RayMapperNdt::integrateRays(const glm::dvec3 *rays, size_t element_count,
     // Update the touched_stamps with relaxed memory ordering. The important thing is to have an update,
     // not so much the sequencing. We really don't want to synchronise here.
     chunk->touched_stamps[occupancy_layer].store(touch_stamp, std::memory_order_relaxed);
+
+    return true;
   };
 
   unsigned filter_flags;

@@ -26,7 +26,7 @@
 /// @return True to continue traversing the line, false to abort traversal.
 // __device__ bool VISIT_LINE_VOXEL(const GpuKey *voxelKey, bool isEndVoxel,
 //                                  const GpuKey *startKey, const GpuKey *endKey,
-//                                  float voxelResolution, void *userData);
+//                                  float voxelResolution, float entryRange, float exitRange, void *userData);
 //------------------------------------------------------------------------------
 #include "GpuKey.h"
 
@@ -183,7 +183,9 @@ __device__ void WALK_LINE_VOXELS(const GpuKey *startKey, const GpuKey *endKey, c
   float timeDelta[3];
   float timeLimit[3];
   int step[3] = { 0 };
+  float timeCurrent = 0.0f;
   bool continueTraversal = true;
+  float length = 0;
 
   // BUG: Intel OpenCL 2.0 compiler does not effect the commented assignment below. I've had to unrolled it in copyKey()
   // GpuKey currentKey = *startKey;
@@ -201,11 +203,12 @@ __device__ void WALK_LINE_VOXELS(const GpuKey *startKey, const GpuKey *endKey, c
   //   frame. This frame is irrelevant here so long as startPoint, endPoint and startVoxelCentre are in the same frame.
   {
     // Scoped to try reduce local variable load on local memory.
-    float3 direction;
+    float3 direction = *endPoint - *startPoint;
     // Check for degenerate rays: start/end in the same voxel.
-    if (fabs(dot(*endPoint - *startPoint, *endPoint - *startPoint)) > 1e-3f)
+    if (fabs(dot(direction, direction)) > 1e-3f)
     {
-      direction = normalize(*endPoint - *startPoint);
+      length = sqrt(dot(direction, direction));
+      direction *= 1.0f / length;
     }
     else
     {
@@ -214,6 +217,7 @@ __device__ void WALK_LINE_VOXELS(const GpuKey *startKey, const GpuKey *endKey, c
       if (direction.x || direction.y || direction.z)
       {
         direction = normalize(direction);
+        length = voxelResolution;  // Ensure a non-zero length.
       }
     }
 
@@ -269,12 +273,15 @@ __device__ void WALK_LINE_VOXELS(const GpuKey *startKey, const GpuKey *endKey, c
       break;
     }
 #endif  // LIMIT_LINE_WALK_ITERATIONS
-    continueTraversal = VISIT_LINE_VOXEL(&currentKey, false, startKey, endKey, voxelResolution, userData);
     // Select the minimum timeMax as the next axis.
     axis = (timeMax[0] < timeMax[2]) ? ((timeMax[0] < timeMax[1]) ? 0 : 1) : ((timeMax[1] < timeMax[2]) ? 1 : 2);
+    const float nextTime = limitReached ? timeLimit[axis] : timeMax[axis];
+    continueTraversal =
+      VISIT_LINE_VOXEL(&currentKey, false, startKey, endKey, voxelResolution, timeCurrent, nextTime, userData);
     limitReached = fabs(timeMax[axis]) > timeLimit[axis];
     stepKeyAlongAxis(&currentKey, axis, step[axis], regionDim);
     timeMax[axis] += timeDelta[axis];
+    timeCurrent = nextTime;
   }
 
   // if (limitReached)
@@ -295,6 +302,6 @@ __device__ void WALK_LINE_VOXELS(const GpuKey *startKey, const GpuKey *endKey, c
   // Walk end point.
   if (continueTraversal)
   {
-    VISIT_LINE_VOXEL(endKey, endKey->voxel[3] == 0, startKey, endKey, voxelResolution, userData);
+    VISIT_LINE_VOXEL(endKey, endKey->voxel[3] == 0, startKey, endKey, voxelResolution, timeCurrent, length, userData);
   }
 }

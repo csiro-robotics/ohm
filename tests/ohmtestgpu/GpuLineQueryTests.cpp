@@ -249,7 +249,7 @@ TEST(LineQuery, CpuVsGpuPerf)
   TimingClock::time_point start_time_cpu, end_time_cpu, start_time_gpu, end_time_gpu;
   LineQueryGpu query(map, glm::dvec3(0), glm::dvec3(0), 2.0f);
   std::vector<Key> cpu_keys;
-  std::vector<float> cpu_ranges;
+  std::vector<double> cpu_ranges;
 
   query.setStartPoint(glm::dvec3(-5, 0, 0));
   query.setEndPoint(glm::dvec3(5, 0, 0));

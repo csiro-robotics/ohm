@@ -11,10 +11,6 @@
 // and we need an extract function call when updating a voxel with sub voxel
 // positioning. To achive this, this code is intended to be includes into a
 // compiled twice with the following defines changed on each compilation:
-// - REGION_UPDATE_KERNEL : the kernel name for the entry point
-// - REGION_UPDATE_SUFFIX : suffix applied to distinguish potentially repeaded
-//  code and types.
-// - VOXEL_MEAN : defined if compiling for voxel means
 //------------------------------------------------------------------------------
 
 //------------------------------------------------------------------------------
@@ -28,48 +24,23 @@
 // Limit the number of cells we can traverse in the line traversal. This is a worst case limit.
 //#define LIMIT_LINE_WALK_ITERATIONS
 // Limit the number of times we try update a voxel value. Probably best to always have this enabled.
-#ifndef LIMIT_VOXEL_WRITE_ITERATIONS
-#define LIMIT_VOXEL_WRITE_ITERATIONS
-#endif  // LIMIT_VOXEL_WRITE_ITERATIONS
-
 //------------------------------------------------------------------------------
 // Includes
 //------------------------------------------------------------------------------
 #include "gpu_ext.h"  // Must be first
 
 #include "MapCoord.h"
-#if defined(VOXEL_MEAN) || defined(NDT)
-#include "VoxelMeanCompute.h"
-#endif  // VOXEL_MEAN || NDT
 #include "RayFlag.h"
-#ifdef NDT
-#include "CovarianceVoxelCompute.h"
-#endif  // NDT
-
+#include "RaysQueryResult.h"
 #include "Regions.cl"
 
 //------------------------------------------------------------------------------
 // Declarations
 //------------------------------------------------------------------------------
 
-#ifdef NDT
-#define REGION_UPDATE_KERNEL regionRayUpdateNdt
-#define VISIT_LINE_VOXEL visitVoxelRegionUpdateNdt
-#define WALK_LINE_VOXELS walkRegionLineNdt
+#define VISIT_LINE_VOXEL visitVoxelRayQuery
+#define WALK_LINE_VOXELS walkRayQuery
 
-#elif defined(VOXEL_MEAN)
-#define REGION_UPDATE_KERNEL regionRayUpdateSubVox
-#define VISIT_LINE_VOXEL visitVoxelRegionUpdateSubVox
-#define WALK_LINE_VOXELS walkRegionLineSubVox
-
-#else  // VOXEL_MEAN
-#define REGION_UPDATE_KERNEL regionRayUpdate
-#define VISIT_LINE_VOXEL visitVoxelRegionUpdate
-#define WALK_LINE_VOXELS walkRegionLine
-
-#endif
-
-#ifndef REGION_UPDATE_BASE_CL
 // User data for voxel visit callback.
 typedef struct LineWalkData_t
 {
@@ -77,203 +48,76 @@ typedef struct LineWalkData_t
   __global atomic_float *occupancy;
   // Array of offsets for each regionKey into occupancy. These are byte offsets.
   __global ulonglong *occupancy_offsets;
-#if defined(VOXEL_MEAN) || defined(NDT)
-  __global VoxelMean *means;
-  // Array of offsets for each regionKey into means. These are byte offsets.
-  __global ulonglong *means_offsets;
-#endif  // VOXEL_MEAN || NDT
-#ifdef NDT
-  __global CovarianceVoxel *cov_voxels;
-  // Array of offsets for each regionKey into cov_voxels. These are byte offsets.
-  __global ulonglong *cov_offsets;
-#endif  // NDT
   // Array of region keys for currently loaded regions.
   __global int3 *region_keys;
   // The region currently being traversed. Also used to reduce searching the region_keys and region_mem_offsets.
   int3 current_region;
   // Size of a region in voxels.
   int3 region_dimensions;
-  // MapMode/voxel value adjustment for keys along the line segment, but not the sample voxel.
-  float ray_adjustment;
-  // MapMode/voxel value adjustment for the sample voxel.
-  float sample_adjustment;
   /// Value threshold for occupied voxels.
   float occupied_threshold;
-  // MapMode/voxel minimum allowed value.
-  float voxel_value_min;
-  // MapMode/voxel maximum allowed value.
-  float voxel_value_max;
   // Number of regions in region_keys/region_mem_offsets.
   uint region_count;
   // Index of the @c current_region into region_keys and corresponding xxx_offsets arrays.
   uint current_region_index;
-  uint region_update_flags;
-  /// A reference sample position. This is in a frame local to the centre of the voxel containing this sample
-  /// coordinate.
-  float3 sample;
-#ifdef NDT
-  /// A reference sensor position. This is in a frame local to the centre of the voxel containing the sample coordinate.
-  float3 sensor;
-  // Affects how quickly NDT removes voxels: [0, 1].
-  float adaptation_rate;
-  // An estimate on the sensor range noise error.
-  float sensor_noise;
-#endif  // NDT
+  /// Coefficient for calulating the unobserved_volume.
+  float volume_coefficient;
+
+  RaysQueryResult result;
 } LineWalkData;
-#endif  // REGION_UPDATE_BASE_CL
-
-#if defined(VOXEL_MEAN) || defined(NDT)
-#include "VoxelMean.cl"
-#endif  // VOXEL_MEAN || NDT
-
-#ifdef NDT
-#include "AdjustNdt.cl"
-#else  // NDT
-#include "AdjustOccupancy.cl"
-#endif  // NDT
 
 // Implement the voxel traversal function. We update the value of the voxel using atomic instructions.
-__device__ bool VISIT_LINE_VOXEL(const GpuKey *voxelKey, bool isEndVoxel, const GpuKey *startKey, const GpuKey *endKey,
-                                 float voxel_resolution, float entryTime, float exitTime, void *userData)
+__device__ bool visitVoxelRayQuery(const GpuKey *voxelKey, bool isEndVoxel, const GpuKey *startKey,
+                                   const GpuKey *endKey, float voxel_resolution, float entry_range, float exit_range,
+                                   void *userData)
 {
-  float old_value, new_value;
-
   LineWalkData *line_data = (LineWalkData *)userData;
   __global atomic_float *occupancy = line_data->occupancy;
 
-  // Abort if this is the sample voxel and we are to exclude the sample. The sample voxel is detected when isEndVoxel
-  // is true and voxel[3] is zero. A value of 1 indicates a clipped ray and the end voxel does not contain the sample.
-  const bool is_sample_voxel = isEndVoxel && endKey->voxel[3] == 0;
-  if (is_sample_voxel && (line_data->region_update_flags & kRfExcludeSample))
-  {
-    return true;
-  }
-
-  if (!is_sample_voxel && (line_data->region_update_flags & kRfExcludeRay))
-  {
-    return true;
-  }
-
   // Resolve memory offset for the region of interest.
-  if (!regionsResolveRegion(voxelKey, &line_data->current_region, &line_data->current_region_index,
-                            line_data->region_keys, line_data->region_count))
+  bool have_voxel_memory = regionsResolveRegion(voxelKey, &line_data->current_region, &line_data->current_region_index,
+                                                line_data->region_keys, line_data->region_count);
+
+#ifdef REPORT_MISSING_REGIONS
+  if (!region_resolved)
   {
     // We can fail to resolve regions along the in the line. This can occurs for several reasons:
     // - Floating point error differences between CPU and GPU line walking means that the GPU may walk into the edge
     //   of a region not hit when walking the regions on CPU.
     // - Regions may not be uploaded due to extents limiting on CPU.
-#ifdef REPORT_MISSING_REGIONS
     printf("%u region missing: " KEY_F "\n  Voxels: " KEY_F "->" KEY_F "\n", get_global_id(0), KEY_A(*voxelKey),
            KEY_A(*startKey), KEY_A(*endKey));
-#endif
-    return true;
   }
-
-  // Adjust value by ray_adjustment unless this is the sample voxel.
-  const float adjustment =
-    calculateOccupancyAdjustment(voxelKey, isEndVoxel, is_sample_voxel, startKey, endKey, voxel_resolution, line_data);
+#endif  // REPORT_MISSING_REGIONS
 
   // This voxel lies in the region. We will make a value adjustment.
   // Work out which voxel to modify.
   const ulonglong vi_local = voxelKey->voxel[0] + voxelKey->voxel[1] * line_data->region_dimensions.x +
                              voxelKey->voxel[2] * line_data->region_dimensions.x * line_data->region_dimensions.y;
-  ulonglong vi =
+  const ulonglong vi =
     (line_data->occupancy_offsets[line_data->current_region_index] / sizeof(*line_data->occupancy)) + vi_local;
 
-  if (voxelKey->voxel[0] < line_data->region_dimensions.x && voxelKey->voxel[1] < line_data->region_dimensions.y &&
-      voxelKey->voxel[2] < line_data->region_dimensions.z)
-  {
-    __global atomic_float *occupancy_ptr = &occupancy[vi];
+  have_voxel_memory = have_voxel_memory && (voxelKey->voxel[0] < line_data->region_dimensions.x &&
+                                            voxelKey->voxel[1] < line_data->region_dimensions.y &&
+                                            voxelKey->voxel[2] < line_data->region_dimensions.z);
 
-    bool was_occupied_voxel = false;
-#if defined(VOXEL_MEAN) || defined(NDT)
-    bool voxel_excluded = false;
-#endif  // defined(VOXEL_MEAN) || defined(NDT)
+  __global atomic_float *occupancy_ptr = &occupancy[vi];
 
-#ifdef LIMIT_VOXEL_WRITE_ITERATIONS
-    // Under high contension we can end up repeatedly failing to write the voxel value.
-    // The primary concern is not deadlocking the GPU, so we put a hard limit on the numebr of
-    // attempts made.
-    const int iterationLimit = 20;
-    int iterations = 0;
-#endif
-    do
-    {
-#ifdef LIMIT_VOXEL_WRITE_ITERATIONS
-      if (iterations++ > iterationLimit)
-      {
-        break;
-      }
-#endif
-      // Calculate a new value for the voxel.
-      old_value = new_value = gputilAtomicLoadF32(occupancy_ptr);
+  // Lookup the voxel value.
+  const float occupancy_value = (have_voxel_memory) ? gputilAtomicLoadF32(occupancy_ptr) : INFINITY;
+  const int voxel_type = (occupancy_value == INFINITY) ?
+                           RQ_OccUnobserved :
+                           ((occupancy_value >= line_data->occupied_threshold) ? RQ_OccOccupied : RQ_OccFree);
 
-      const bool initially_unobserved = old_value == INFINITY;
-      const bool initially_free = !initially_unobserved && old_value < line_data->occupied_threshold;
-      const bool initially_occupied = !initially_unobserved && old_value >= line_data->occupied_threshold;
-      was_occupied_voxel = initially_occupied;
+  line_data->result.range = exit_range;
+  line_data->result.unobserved_volume += (voxel_type == RQ_OccUnobserved) ?
+                                           (line_data->volume_coefficient * (exit_range * exit_range * exit_range -
+                                                                             entry_range * entry_range * entry_range)) :
+                                           0.0f;
+  line_data->result.voxel_type = voxel_type;
 
-      // Check exclusion flags and skip this voxel if excluded.
-      // We skip by a 'break' statement which will break out of the compare and swap loop. Could return true.
-      // Check skipping unobserved.
-      if (initially_unobserved && (line_data->region_update_flags & kRfExcludeUnobserved))
-      {
-#if defined(VOXEL_MEAN) || defined(NDT)
-        voxel_excluded = true;
-#endif  // defined(VOXEL_MEAN) || defined(NDT)
-        break;
-      }
-
-      // Check skipping free.
-      if (initially_free && (line_data->region_update_flags & kRfExcludeFree))
-      {
-#if defined(VOXEL_MEAN) || defined(NDT)
-        voxel_excluded = true;
-#endif  // defined(VOXEL_MEAN) || defined(NDT)
-        break;
-      }
-
-      // Check skipping occupied.
-      if (initially_occupied && (line_data->region_update_flags & kRfExcludeOccupied))
-      {
-#if defined(VOXEL_MEAN) || defined(NDT)
-        voxel_excluded = true;
-#endif  // defined(VOXEL_MEAN) || defined(NDT)
-        break;
-      }
-
-      // Uninitialised voxels start at INFINITY.
-      new_value = (new_value != INFINITY) ? new_value + adjustment : adjustment;
-      // Clamp the value.
-      new_value = clamp(new_value, line_data->voxel_value_min, line_data->voxel_value_max);
-
-      // Now try write the value, looping if we fail to write the new value.
-      // mem_fence(CLK_GLOBAL_MEM_FENCE);
-    } while (new_value != old_value && !gputilAtomicCasF32(occupancy_ptr, old_value, new_value));
-
-#if defined(VOXEL_MEAN) || defined(NDT)
-    if (!voxel_excluded && adjustment > 0)
-    {
-      ulonglong vi = vi_local + (line_data->means_offsets[line_data->current_region_index] / sizeof(*line_data->means));
-      updateVoxelMeanPosition(&line_data->means[vi], line_data->sample, voxel_resolution);
-    }
-#endif  // VOXEL_MEAN || NDT
-
-    if (was_occupied_voxel && (line_data->region_update_flags & kRfStopOnFirstOccupied))
-    {
-      // Found first occupied voxel and request is to stop on the first occupied voxel. Abort traversal.
-      return false;
-    }
-  }
-  else
-  {
-    // printf("%u Out of bounds: %u " KEY_F "\n", get_global_id(0), vi, KEY_A(*voxelKey));
-    // Abort traversal
-    return false;
-  }
-
-  // Continue traversal
-  return true;
+  // Stop traveral if occupied.
+  return voxel_type != RQ_OccOccupied;
 }
 
 // Must be included after WALK_LINE_VOXELS and VISIT_LINE_VOXEL and the VISIT_LINE_VOXEL function is defined
@@ -345,25 +189,12 @@ __device__ bool VISIT_LINE_VOXEL(const GpuKey *voxelKey, bool isEndVoxel, const 
 /// @param voxel_value_min Minimum clamping value for voxel adjustments.
 /// @param voxel_value_max Maximum clamping value for voxel adjustments.
 /// @param region_update_flags Update control values as per @c RayFlag.
-__kernel void REGION_UPDATE_KERNEL(__global atomic_float *occupancy,
-                                   __global ulonglong *occupancy_region_mem_offsets_global,
-#if defined(VOXEL_MEAN) || defined(NDT)
-                                   __global VoxelMean *means, __global ulonglong *means_region_mem_offsets_global,
-#endif  // VOXEL_MEAN || NDT
-#ifdef NDT
-                                   __global CovarianceVoxel *cov_voxels,
-                                   __global ulonglong *cov_region_mem_offsets_global,
-#endif  // NDT
-                                   __global int3 *occupancy_region_keys_global, uint region_count,
-                                   __global GpuKey *line_keys, __global float3 *local_lines, uint line_count,
-                                   int3 region_dimensions, float voxel_resolution, float ray_adjustment,
-                                   float sample_adjustment, float occupied_threshold, float voxel_value_min,
-                                   float voxel_value_max, uint region_update_flags
-#ifdef NDT
-                                   ,
-                                   float adaptation_rate, float sensor_noise
-#endif  // NDT
-)
+__kernel void raysQuery(__global atomic_float *occupancy, __global ulonglong *occupancy_region_mem_offsets_global,
+                        __global int3 *occupancy_region_keys_global, uint region_count, __global GpuKey *line_keys,
+                        __global float3 *local_lines, uint line_count, int3 region_dimensions, float voxel_resolution,
+                        float occupied_threshold, float volume_coefficient,
+                        // Output buffers.
+                        __global RaysQueryResult *results)
 {
   // Only process valid lines.
   if (get_global_id(0) >= line_count)
@@ -374,25 +205,14 @@ __kernel void REGION_UPDATE_KERNEL(__global atomic_float *occupancy,
   LineWalkData line_data;
   line_data.occupancy = occupancy;
   line_data.occupancy_offsets = occupancy_region_mem_offsets_global;
-#if defined(VOXEL_MEAN) || defined(NDT)
-  line_data.means = means;
-  line_data.means_offsets = means_region_mem_offsets_global;
-#endif  // VOXEL_MEAN || NDT
-#ifdef NDT
-  line_data.cov_voxels = cov_voxels;
-  line_data.cov_offsets = cov_region_mem_offsets_global;
-  line_data.adaptation_rate = adaptation_rate;
-  line_data.sensor_noise = sensor_noise;
-#endif  // NDT
   line_data.region_keys = occupancy_region_keys_global;
   line_data.region_dimensions = region_dimensions;
-  line_data.ray_adjustment = ray_adjustment;
-  line_data.sample_adjustment = sample_adjustment;
   line_data.occupied_threshold = occupied_threshold;
-  line_data.voxel_value_min = voxel_value_min;
-  line_data.voxel_value_max = voxel_value_max;
   line_data.region_count = region_count;
-  line_data.region_update_flags = region_update_flags;
+  line_data.volume_coefficient = volume_coefficient;
+  line_data.result.range = 0;
+  line_data.result.unobserved_volume = 0;
+  line_data.result.voxel_type = RQ_OccNull;
 
   regionsInitCurrent(&line_data.current_region, &line_data.current_region_index);
 
@@ -404,11 +224,6 @@ __kernel void REGION_UPDATE_KERNEL(__global atomic_float *occupancy,
   const float3 lineStart = local_lines[get_global_id(0) * 2 + 0];
   const float3 lineEnd = local_lines[get_global_id(0) * 2 + 1];
 
-  line_data.sample = lineEnd;
-#ifdef NDT
-  line_data.sensor = lineStart;
-#endif  //  NDT
-
   // We need to calculate the start voxel centre in the right coordinate space. All coordinates are relative to the
   // end voxel centre.
   // 1. Calculate the voxel step from endKey to startKey.
@@ -418,13 +233,13 @@ __kernel void REGION_UPDATE_KERNEL(__global atomic_float *occupancy,
     make_float3(voxelDiff.x * voxel_resolution, voxelDiff.y * voxel_resolution, voxelDiff.z * voxel_resolution);
   WALK_LINE_VOXELS(&start_key, &end_key, &start_voxel_centre, &lineStart, &lineEnd, &region_dimensions,
                    voxel_resolution, &line_data);
+
+  results[get_global_id(0)] = line_data.result;
 }
 
-#undef REGION_UPDATE_KERNEL
 #undef VISIT_LINE_VOXEL
 #undef WALK_LINE_VOXELS
-#undef VOXEL_TYPE
 
-#ifndef REGION_UPDATE_BASE_CL
-#define REGION_UPDATE_BASE_CL
-#endif  // REGION_UPDATE_BASE_CL
+#ifndef RAY_QUERY_BASE_CL
+#define RAY_QUERY_BASE_CL
+#endif  // RAY_QUERY_BASE_CL

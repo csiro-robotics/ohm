@@ -919,8 +919,12 @@ size_t OccupancyMap::calculateSegmentKeys(KeyList &keys, const glm::dvec3 &start
   const glm::dvec3 end_point_local = glm::dvec3(end_point - origin());
 
   keys.clear();
-  return ohm::walkSegmentKeys<Key>([&keys](const Key &key, double, double) { keys.add(key); }, start_point_local, end_point_local,
-                                   include_end_point, KeyAdaptor(*this));
+  return ohm::walkSegmentKeys<Key>(
+    [&keys](const Key &key, double, double) {
+      keys.add(key);
+      return true;
+    },
+    start_point_local, end_point_local, include_end_point, KeyAdaptor(*this));
 }
 
 void OccupancyMap::setRayFilter(const RayFilterFunction &ray_filter)

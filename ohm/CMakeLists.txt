@@ -23,6 +23,7 @@ set(SOURCES
   private/OccupancyMapDetail.cpp
   private/OccupancyMapDetail.h
   private/QueryDetail.h
+  private/RaysQueryDetail.h
   private/SerialiseUtil.h
   private/VoxelAlgorithms.cpp
   private/VoxelAlgorithms.h
@@ -130,6 +131,8 @@ set(SOURCES
   RayPattern.h
   RayPatternConical.cpp
   RayPatternConical.h
+  RaysQuery.cpp
+  RaysQuery.h
   Stream.cpp
   Stream.h
   Trace.cpp
@@ -213,6 +216,7 @@ set(PUBLIC_HEADERS
   RayMapperTrace.h
   RayPatternConical.h
   RayPattern.h
+  RaysQuery.h
   Stream.h
   Trace.h
   TriangleEdge.h
