@@ -235,7 +235,7 @@ struct DstVoxel
   static uint32_t get3esVoxelId(const Key &heightmap_key, const OccupancyMap &heightmap, int up_axis_index)
   {
     // Generate an ID for the voxel.
-    // For this we take the extents fo teh occupancy map (in this case the heightmap) and assign an ID based on the
+    // For this we take the extents of the occupancy map (in this case the heightmap) and assign an ID based on the
     // voxel position in that range.
     KeyRange heightmap_range;
     heightmap.calculateExtents(nullptr, nullptr, &heightmap_range);
