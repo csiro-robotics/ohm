@@ -56,7 +56,6 @@ namespace ohm
 namespace heightmap
 {
 #ifdef TES_ENABLE
-const uint32_t voxel_id_mask = 0x40000000u;
 const uint32_t neighbour_id_mask = 0x80000000u;
 #endif  // TES_ENABLE
 
@@ -229,21 +228,43 @@ struct DstVoxel
     return false;
   }
 
-  inline void debugDraw(int level, int up_axis, double up_scale = 1.0)
+  /// Generate a debug voxel ID for a key in the @p heightmap for use with 3es.
+  /// @param heightmap_key The voxel key in the @p heightmap .
+  /// @param heightmap The heightmap object.
+  /// @param up_axis_index The index of the up axis {0, 1, 2} mapping to {X, Y, Z}.
+  static uint32_t get3esVoxelId(const Key &heightmap_key, const OccupancyMap &heightmap, int up_axis_index)
+  {
+    // Generate an ID for the voxel.
+    // For this we take the extents fo teh occupancy map (in this case the heightmap) and assign an ID based on the
+    // voxel position in that range.
+    KeyRange heightmap_range;
+    heightmap.calculateExtents(nullptr, nullptr, &heightmap_range);
+    // Note: the vertical extents of the heightmap can change for a layered map as we add layers. We cater for this
+    // here by ensuring the vertical extents of heightmap_range is padded out to allow for 32 layers. This effectively
+    // reserves 5 bits for vertical indexing, 1 bits masking open list voxels, leaving 26 for horizontal indexing. This
+    // supports a 2D region of approximately 8Kx8K voxels and should support maps which can reasonably be debugged using
+    // 3es. Larger maps create excessively large 3es data sets.
+    // Anything more really needs to use the a tes::MutableMesh object.
+    Key adjusted_vertical_key(0, 0, 0, 0, 0, 0);
+    heightmap.moveKeyAlongAxis(adjusted_vertical_key, up_axis_index, 32);
+    heightmap_range.expand(adjusted_vertical_key);
+    return uint32_t(heightmap_range.indexOf(heightmap_key));
+  }
+
+  /// @overload
+  uint32_t get3esVoxelId(int up_axis_index) { return get3esVoxelId(occupancy.key(), *occupancy.map(), up_axis_index); }
+
+  inline void debugDraw(int level, int up_axis_index, double up_scale = 1.0)
   {
     (void)level;
-    (void)up_axis;
+    (void)up_axis_index;
     (void)up_scale;
 #ifdef TES_ENABLE
     if (occupancy.isValid() && g_tes)
     {
-      // Generate an ID for the voxel.
-      KeyRange heightmap_range;
-      occupancy.map()->calculateExtents(nullptr, nullptr, &heightmap_range);
-      uint32_t voxel_id = uint32_t(heightmap_range.indexOf(occupancy.key()));
-      voxel_id |= voxel_id_mask;
+      uint32_t voxel_id = get3esVoxelId(up_axis_index);
       glm::dvec3 voxel_pos = occupancy.map()->voxelCentreGlobal(occupancy.key());
-      voxel_pos[up_axis] += up_scale * heightmap.data().height;
+      voxel_pos[up_axis_index] += up_scale * heightmap.data().height;
 
       tes::Id box_id(voxel_id, kTcHmSurface);
       tes::Colour box_colour = tes::Colour::Colours[tes::Colour::Green];
@@ -271,7 +292,7 @@ struct DstVoxel
       if (clearance_height > 0)
       {
         glm::dvec3 clearance_dir(0);
-        clearance_dir[up_axis] = up_scale;
+        clearance_dir[up_axis_index] = up_scale;
 
         tes::Arrow clearance(tes::Id(voxel_id, kTcHmClearance),
                              tes::Directional(tes::Vector3d(glm::value_ptr(voxel_pos)),
@@ -870,13 +891,15 @@ void filterVirtualVoxels(ohm::HeightmapDetail &detail, unsigned threshold,
         if (g_tes)
         {
           // Remove from debug visualisation.
-          KeyRange heightmap_range;
-          detail.occupancy_map->calculateExtents(nullptr, nullptr, &heightmap_range);
-          uint32_t voxel_id = uint32_t(heightmap_range.indexOf(src_key));
-          voxel_id |= voxel_id_mask;
+          uint32_t voxel_id = DstVoxel::get3esVoxelId(hm_key_type.key, *detail.heightmap, detail.vertical_axis_index);
           const tes::Id box_id(voxel_id, kTcHmVirtualSurface);
-          tes::Box voxel(box_id);  // Only the ID matters for destruction/removal.
-          g_tes->destroy(voxel);
+          g_tes->destroy(tes::Box(box_id));  // Only the ID matters for destruction/removal.
+          // Also remove any clearance ray.
+          if (hmv.clearance > 0)
+          {
+            const tes::Id arrow_id(voxel_id, kTcHmClearance);
+            g_tes->destroy(tes::Arrow(arrow_id));
+          }
           TES_SERVER_UPDATE(g_tes, 0.0f);
         }
 #endif  // TES_ENABLE
