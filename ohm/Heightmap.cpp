@@ -35,7 +35,7 @@
 // Include after GLM types for glm type streaming operators.
 #include "ohmutil/GlmStream.h"
 
-#define PROFILING 1
+#define PROFILING 0
 #include <ohmutil/Profile.h>
 
 #include <3esservermacros.h>
@@ -49,7 +49,7 @@
 #include <unordered_map>
 
 // Enable code to support breaking on a specific voxel.
-#define HM_DEBUG_VOXEL 1
+#define HM_DEBUG_VOXEL 0
 
 namespace ohm
 {
