@@ -244,7 +244,7 @@ struct DstVoxel
     // reserves 5 bits for vertical indexing, 1 bits masking open list voxels, leaving 26 for horizontal indexing. This
     // supports a 2D region of approximately 8Kx8K voxels and should support maps which can reasonably be debugged using
     // 3es. Larger maps create excessively large 3es data sets.
-    // Anything more really needs to use the a tes::MutableMesh object.
+    // Anything more really needs to use a tes::MutableMesh object.
     Key adjusted_vertical_key(0, 0, 0, 0, 0, 0);
     heightmap.moveKeyAlongAxis(adjusted_vertical_key, up_axis_index, 32);
     heightmap_range.expand(adjusted_vertical_key);
