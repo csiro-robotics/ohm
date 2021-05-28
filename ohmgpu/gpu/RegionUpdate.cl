@@ -256,7 +256,7 @@ __device__ bool VISIT_LINE_VOXEL(const GpuKey *voxelKey, bool isEndVoxel, const 
     } while (new_value != old_value && !gputilAtomicCasF32(occupancy_ptr, old_value, new_value));
 
 #if defined(VOXEL_MEAN) || NDT
-    if (adjustment != 0)
+    if (adjustment > 0)
     {
       ulonglong vi = vi_local + (line_data->means_offsets[line_data->current_region_index] / sizeof(*line_data->means));
       updateVoxelMeanPosition(&line_data->means[vi], line_data->sample, voxel_resolution);
