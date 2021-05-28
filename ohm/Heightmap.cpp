@@ -816,7 +816,7 @@ struct HeightmapKeyType
   HeightmapVoxelType type;
 };
 
-/// Filter a layered heightmap removing virtual voxels which have fewer occupied 6-connected neighbours than
+/// Filter a layered heightmap removing virtual voxels which have fewer occupied 26-connected neighbours than
 /// @p threshold . The call assumes that the check for layered heightmap mode has already been made.
 ///
 /// @param detail Target @c Heightmap private detail.
