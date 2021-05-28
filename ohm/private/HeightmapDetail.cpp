@@ -134,28 +134,35 @@ const glm::dvec3 &HeightmapDetail::surfaceNormalB(UpAxis axis_id)
 void HeightmapDetail::fromMapInfo(const MapInfo &info)
 {
   up_axis_id = UpAxis(int(info.get("heightmap-axis")));
-  min_clearance = double(info.get("heightmap-clearance"));
   ceiling = double(info.get("heightmap-ceiling"));
+  min_clearance = double(info.get("heightmap-clearance"));
   floor = double(info.get("heightmap-floor"));
+  ignore_voxel_mean = bool(info.get("heightmap-ignore-voxel-mean"));
   generate_virtual_surface = bool(info.get("heightmap-virtual-surface"));
   mode = HeightmapMode(int(info.get("heightmap-mode")));
+  generate_virtual_surface = bool(info.get("heightmap-virtual-surface"));
+  virtual_surface_filter_threshold = bool(info.get("heightmap-virtual-surface-filter-threshold"));
+  promote_virtual_below = bool(info.get("heightmap-virtual-surface-promote"));
   updateAxis();
 }
 
 
 void HeightmapDetail::toMapInfo(MapInfo &info) const
 {
+  const std::string mode_name = heightmapModeToString(mode);
   info.set(MapValue("heightmap", true));
-  info.set(MapValue("heightmap-axis", int(up_axis_id)));
   info.set(MapValue("heightmap-axis-x", up.x));
   info.set(MapValue("heightmap-axis-y", up.y));
   info.set(MapValue("heightmap-axis-z", up.z));
-  info.set(MapValue("heightmap-clearance", min_clearance));
+  info.set(MapValue("heightmap-axis", int(up_axis_id)));
   info.set(MapValue("heightmap-ceiling", ceiling));
+  info.set(MapValue("heightmap-clearance", min_clearance));
   info.set(MapValue("heightmap-floor", floor));
-  info.set(MapValue("heightmap-virtual-surface", generate_virtual_surface));
+  info.set(MapValue("heightmap-ignore-voxel-mean", ignore_voxel_mean));
   info.set(MapValue("heightmap-mode", int(mode)));
-  const std::string mode_name = heightmapModeToString(mode);
   info.set(MapValue("heightmap-mode-name", mode_name.c_str()));
+  info.set(MapValue("heightmap-virtual-surface", generate_virtual_surface));
+  info.set(MapValue("heightmap-virtual-surface-filter-threshold", int(virtual_surface_filter_threshold)));
+  info.set(MapValue("heightmap-virtual-surface-promote", promote_virtual_below));
 }
 }  // namespace ohm

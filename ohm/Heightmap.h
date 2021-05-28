@@ -83,13 +83,25 @@ struct SrcVoxel;
 /// @c getHeightmapVoxelPosition() .
 ///
 /// The @c OccupancyMap used to represent the heightmap has additional meta data stored in its @c MapInfo :
-/// - <b>heightmap</b> - Present and true if this is a heightmap.
-/// - <b>heightmap-axis</b> - The up axis ID for a heightmap.
-/// - <b>heightmap-axis-x</b> - The up axis X value for a heightmap.
-/// - <b>heightmap-axis-y</b> - The up axis Y value for a heightmap.
-/// - <b>heightmap-axis-z</b> - The up axis Z value for a heightmap.
-/// - <b>heightmap-blur</b> - The blur value used to generate the heightamp.
-/// - <b>heightmap-clearance</b> - The clearance value used to generate the heightamp.
+///
+/// | Meta data                   | Description                                                                       |
+/// | --------------------------- | --------------------------------------------------------------------------------  |
+/// | *heightmap*                 | Present and true if this is a heightmap.                                          |
+/// | *heightmap-axis*            | The up axis ID for a heightmap.                                                   |
+/// | *heightmap-axis-x*          | The up axis X value for a heightmap.                                              |
+/// | *heightmap-axis-y*          | The up axis Y value for a heightmap.                                              |
+/// | *heightmap-axis-z*          | The up axis Z value for a heightmap.                                              |
+/// | *heightmap-ceiling*         | The @c ceiling() value used in generating the heightmap.                          |
+/// | *heightmap-clearance*       | The @c clearance() value used to generate the heightamp.                          |
+/// | *heightmap-floor*           | The @c floor() value used in generating the heightmap.                            |
+/// | *heightmap-mode*            | The @c mode() value used in generating the heightmap.                             |
+/// | *heightmap-mode-name*       | An English translation of @c mode() .                                             |
+/// | *heightmap-virtual-surface* | True if @c generateVirtualSurface() is set.                                       |
+/// | *heightmap-virtual-surface-filter-threshold* | Value of @c virtualSurfaceFilterThreshold() .                    |
+/// | *heightmap-virtual-surface-promote* | True if @c promoteVirtualBelow() is set                                   |
+/// | *heightmap_seed_x*          | The X coordinate of the seed/reference position passed to @c buildHeightmap()     |
+/// | *heightmap_seed_y*          | The Y coordinate of the seed/reference position passed to @c buildHeightmap()     |
+/// | *heightmap_seed_z*          | The Z coordinate of the seed/reference position passed to @c buildHeightmap()     |
 class ohm_API Heightmap
 {
 public:
