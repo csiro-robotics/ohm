@@ -149,8 +149,11 @@ size_t walkSegmentKeys(WalkSegmentFunc walk_func, const glm::dvec3 &start_point,
       // Calculate the distance from the origin to the nearest voxel edge for this axis.
       next_voxel_border = voxel[i] + step[i] * 0.5 * funcs.voxelResolution(i);  // NOLINT(readability-magic-numbers)
       time_max[i] = (next_voxel_border - start_point[i]) * direction_axis_inv;
-      // Calculate the distance travelled for the current dimension.
-      time_limit[i] = std::abs((end_point[i] - start_point[i]) * direction_axis_inv);
+      // Set the distance limit
+      // original...
+      // time_limit[i] = std::abs((end_point[i] - start_point[i]) * direction_axis_inv);
+      // which is equivalent to...
+      time_limit[i] = length;
     }
     else
     {
