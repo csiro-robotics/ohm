@@ -680,7 +680,7 @@ size_t GpuMap::integrateRays(const glm::dvec3 *rays, size_t element_count, const
   {
     ray.origin = rays[i + 0];
     ray.sample = rays[i + 1];
-    ray.intensity = intensities ? intensities[i] : 0;
+    ray.intensity = intensities ? intensities[i >> 1] : 0;
     ray.filter_flags = 0;
 
     if (use_filter)
