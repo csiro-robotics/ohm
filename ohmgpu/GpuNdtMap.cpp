@@ -171,7 +171,7 @@ const GpuNdtMapDetail *GpuNdtMap::detail() const
 
 void GpuNdtMap::cacheGpuProgram(bool /*with_voxel_mean*/, bool force)
 {
-  if (imp_->g_program_ref)
+  if (imp_->program_ref)
   {
     if (!force)
     {
@@ -192,26 +192,26 @@ void GpuNdtMap::cacheGpuProgram(bool /*with_voxel_mean*/, bool force)
     imp_->gpu_ok = false;
     break;
   case NdtMode::kOccupancy:
-    imp->g_program_ref = &g_program_ref_ndt_miss;
+    imp->program_ref = &g_program_ref_ndt_miss;
     imp->cov_hit_program_ref = &g_program_ref_hit_ndt;
-    imp->gpu_ok = imp->g_program_ref->addReference(gpu_cache.gpu()) && imp_->gpu_ok;
+    imp->gpu_ok = imp->program_ref->addReference(gpu_cache.gpu()) && imp_->gpu_ok;
     imp->gpu_ok = imp->cov_hit_program_ref->addReference(gpu_cache.gpu()) && imp_->gpu_ok;
 
     if (imp_->gpu_ok)
     {
-      imp->update_kernel = GPUTIL_MAKE_KERNEL(imp->g_program_ref->program(), regionRayUpdateNdt);
+      imp->update_kernel = GPUTIL_MAKE_KERNEL(imp->program_ref->program(), regionRayUpdateNdt);
       imp->cov_hit_kernel = GPUTIL_MAKE_KERNEL(imp->cov_hit_program_ref->program(), covarianceHitNdt);
     }
     break;
   case NdtMode::kTraversability:
-    imp->g_program_ref = &g_program_ref_ndt_tm_miss;
+    imp->program_ref = &g_program_ref_ndt_tm_miss;
     imp->cov_hit_program_ref = &g_program_ref_hit_ndt_tm;
-    imp->gpu_ok = imp->g_program_ref->addReference(gpu_cache.gpu()) && imp_->gpu_ok;
+    imp->gpu_ok = imp->program_ref->addReference(gpu_cache.gpu()) && imp_->gpu_ok;
     imp->gpu_ok = imp->cov_hit_program_ref->addReference(gpu_cache.gpu()) && imp_->gpu_ok;
 
     if (imp_->gpu_ok)
     {
-      imp->update_kernel = GPUTIL_MAKE_KERNEL(imp->g_program_ref->program(), regionRayUpdateNdtTm);
+      imp->update_kernel = GPUTIL_MAKE_KERNEL(imp->program_ref->program(), regionRayUpdateNdtTm);
       imp->cov_hit_kernel = GPUTIL_MAKE_KERNEL(imp->cov_hit_program_ref->program(), covarianceHitNdtTm);
     }
     break;

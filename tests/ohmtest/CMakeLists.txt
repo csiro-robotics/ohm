@@ -23,6 +23,7 @@ set(SOURCES
   OhmTestConfig.in.h
   SerialisationTests.cpp
   VoxelMeanTests.cpp
+  RaysQueryTests.cpp
   RayPatternTests.cpp
   RayValidation.cpp
   RayValidation.h

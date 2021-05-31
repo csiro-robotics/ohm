@@ -61,14 +61,16 @@ public:
   /// Lookup the given @p rays in the map. The @p rays form a list of origin/sample pairs, where the sample represents
   /// the maximum range to scan.
   ///
+  /// @deprecated This functionality can now be found in @c RaysQuery .
+  ///
   /// @param rays Array of origin/sample point pairs.
   /// @param element_count The number of points in @p rays. The ray count is half this value.
   /// @param[out] newly_observed_volumes Array to be populated with previously unobserved volume observed in each ray.
   /// Optional; pass in nullptr if not required. Length element_count/2.
   /// @param[out] ranges Array to be populated with range traced for each ray. Will be length of origin sample/pair
   /// unless an occupied voxel was encountered. Optional; pass in nullptr if not required. Length element_count/2.
-  /// @param[out] ranges Array to be populated with the state of the final voxel traced. Optional; pass in nullptr if
-  /// not required. Length element_count/2.
+  /// @param[out] terminal_states Array to be populated with the state of the final voxel traced. Optional; pass in
+  /// nullptr if not required. Length element_count/2.
   size_t lookupRays(const glm::dvec3 *rays, size_t element_count, float *newly_observed_volumes, float *ranges,
                     OccupancyType *terminal_states);
 

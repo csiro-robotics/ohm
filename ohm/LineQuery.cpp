@@ -75,7 +75,7 @@ unsigned occupancyLineQueryCpu(const OccupancyMap &map, LineQueryDetail &query, 
   // Find closest result.
   for (size_t i = 0; i < query.ranges.size(); ++i)
   {
-    float range = query.ranges[i];
+    double range = query.ranges[i];
     if (range * range < closest.range)
     {
       closest.range = range * range;

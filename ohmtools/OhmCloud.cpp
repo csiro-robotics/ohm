@@ -398,7 +398,7 @@ void saveQueryCloud(const std::string &file_name, const ohm::OccupancyMap &map, 
 {
   const size_t result_count = query.numberOfResults();
   const ohm::Key *keys = query.intersectedVoxels();
-  const float *ranges = query.ranges();
+  const double *ranges = query.ranges();
   glm::dvec3 voxel_pos;
 
   ohm::PlyMesh ply;
@@ -408,12 +408,12 @@ void saveQueryCloud(const std::string &file_name, const ohm::OccupancyMap &map, 
     uint8_t c = std::numeric_limits<uint8_t>::max();
     if (colour_range > 0 && ranges)
     {
-      float range_value = ranges[i];
+      double range_value = ranges[i];
       if (range_value < 0)
       {
         range_value = colour_range;
       }
-      c = uint8_t(std::numeric_limits<uint8_t>::max() * std::max(0.0f, (colour_range - range_value) / colour_range));
+      c = uint8_t(std::numeric_limits<uint8_t>::max() * std::max(0.0, (colour_range - range_value) / colour_range));
     }
     voxel_pos = map.voxelCentreGlobal(key);
     ply.addVertex(voxel_pos, ohm::Colour(c, std::numeric_limits<uint8_t>::max() / 2, 0));

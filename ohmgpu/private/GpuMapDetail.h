@@ -57,7 +57,11 @@ struct VoxelUploadInfo
   /// Last voxel upload event vai the corresponding @c GpuLayerCache .
   gputil::Event voxel_upload_event;
   /// The @c GpuLayerCache in the @c GpuCache which this structure references.
-  int gpu_layer_id;
+  int gpu_layer_id = 0;
+  /// Allow the region to be instantiated in CPU before uploading? Otherwise the default memory block is created.
+  bool allow_region_creation = true;
+  /// Skip syncing this @c gpu_layer_id back to CPU on voxel sync?
+  bool skip_cpu_sync = false;
 
   inline VoxelUploadInfo() = default;
 
@@ -112,7 +116,7 @@ struct GpuMapDetail
   /// Vector used to group/sort rays when @c group_rays is `true`.
   std::vector<RayItem> grouped_rays;
 
-  GpuProgramRef *g_program_ref = nullptr;
+  GpuProgramRef *program_ref = nullptr;
   gputil::Kernel update_kernel;
 
   RayFilterFunction ray_filter;
@@ -140,6 +144,8 @@ struct GpuMapDetail
   bool borrowed_map = false;
   bool gpu_ok = false;
   bool cached_sub_voxel_program = false;
+  /// Support voxel mean GPU cache layer?
+  bool support_voxel_mean = true;
 
   GpuMapDetail(OccupancyMap *map, bool borrowed_map)
     : map(map)

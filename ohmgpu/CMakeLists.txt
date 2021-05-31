@@ -21,6 +21,8 @@ set(SOURCES
   private/GpuTransformSamplesDetail.h
   private/LineKeysQueryDetailGpu.h
   private/LineQueryDetailGpu.h
+  private/RaysQueryDetailGpu.cpp
+  private/RaysQueryDetailGpu.h
   private/RoiRangeFill.cpp
   private/RoiRangeFill.h
   ClearanceProcess.cpp
@@ -45,11 +47,14 @@ set(SOURCES
   LineQueryGpu.h
   OhmGpu.cpp
   OhmGpu.h
+  RaysQueryGpu.cpp
+  RaysQueryGpu.h
 )
 
 set(GPU_SOURCES
   gpu/CovarianceHitNdt.cl
   gpu/LineKeys.cl
+  gpu/RaysQuery.cl
   gpu/RegionUpdate.cl
   gpu/RoiRangeFill.cl
   gpu/TransformSamples.cl
@@ -63,6 +68,7 @@ set(GPU_HEADERS
   gpu/LineWalk.cl
   gpu/NdtModeDef.cl
   gpu/VoxelMean.cl
+  gpu/RaysQueryResult.h
   GpuKey.h
   # Need some headers from the OHM core project.
   ${OHM_SOURCE_DIR}/CovarianceVoxelCompute.h
@@ -85,6 +91,7 @@ set(PUBLIC_HEADERS
   LineKeysQueryGpu.h
   LineQueryGpu.h
   OhmGpu.h
+  RaysQueryGpu.h
   "${CMAKE_CURRENT_BINARY_DIR}/ohmgpu/OhmGpuConfig.h"
   "${CMAKE_CURRENT_BINARY_DIR}/ohmgpu/OhmGpuExport.h"
   )
@@ -186,6 +193,7 @@ if(OHM_BUILD_CUDA)
   list(APPEND GPU_SOURCES
     gpu/CovarianceHitNdt.cu
     gpu/LineKeys.cu
+    gpu/RaysQuery.cu
     gpu/RegionUpdate.cu
     gpu/RegionUpdateNdt.cu
     gpu/RegionUpdateNdtTm.cu

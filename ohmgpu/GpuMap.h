@@ -14,6 +14,8 @@
 
 #include <glm/glm.hpp>
 
+#include <functional>
+
 namespace gputil
 {
 class Event;
@@ -88,6 +90,20 @@ void ohmgpu_API sync(OccupancyMap &map, unsigned layer_index);
 /// Retrieves the GPU cache used by @p map if GPU usage has been enabled for @p map.
 /// @return The GPU cache for @p map.
 GpuCache *ohmgpu_API gpuCache(OccupancyMap &map);
+
+// --- Internal support items ---
+/// Callback for walkRegions().
+using RegionWalkFunction = std::function<void(const glm::i16vec3 &, const glm::dvec3 &, const glm::dvec3 &)>;
+
+/// Walk the regions touched by the line connecting @p start_point and @p end_point invoking @c on_visit for each
+/// touched region. This is similar @c walkSegmentKeys() in @c LineWalk.h .
+///
+/// @param map The map to walk.
+/// @param start_point The line/ray origin.
+/// @param end_point The line/ray end point.
+/// @param on_visit Function to call for each visited region.
+void ohmgpu_API walkRegions(const OccupancyMap &map, const glm::dvec3 &start_point, const glm::dvec3 &end_point,
+                            const RegionWalkFunction &on_visit);
 }  // namespace gpumap
 
 /// A wrapper for an @c OccupancyMap that uses GPU to update and manage the wrapped map.
@@ -266,6 +282,18 @@ public:
   GpuCache *gpuCache() const;
 
 protected:
+  /// Some derivation uses of the @c GpuMap allow initialisation with a null map, though this is an edge case.
+  ///
+  /// This function allows the map pointer to be set. It is expected that use cases where the map can change always have
+  /// @p borrowed_map @c true .
+  ///
+  /// No public API @c GpuMap implementation should support a null map.
+  void setMap(OccupancyMap *map, bool borrowed_map, unsigned expected_element_count, size_t gpu_mem_size,
+              bool force_gpu_program_release);
+
+  /// Called after @c syncVoxels() completes synching known data.
+  virtual inline void onSyncVoxels(int buffer_index) { (void)buffer_index; }
+
   /// Set the status of @c sortedRays() .
   ///
   /// This should only be set for algorithms which require ray grouping. For example, @c GpuNdtMap sorts rays for

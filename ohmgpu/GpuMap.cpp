@@ -78,110 +78,6 @@ GpuProgramRef g_program_ref_no_sub("RegionUpdate", GpuProgramRef::kSourceFile, "
 
 const double kDefaultMaxRayRange = 1000.0;
 
-using RegionWalkFunction = std::function<void(const glm::i16vec3 &, const glm::dvec3 &, const glm::dvec3 &)>;
-
-void walkRegions(const OccupancyMap &map, const glm::dvec3 &start_point, const glm::dvec3 &end_point,
-                 const RegionWalkFunction &func)
-{
-  // see "A Faster Voxel Traversal Algorithm for Ray
-  // Tracing" by Amanatides & Woo
-  const glm::i16vec3 start_point_key = map.regionKey(start_point);
-  const glm::i16vec3 end_point_key = map.regionKey(end_point);
-  const glm::dvec3 start_point_local = glm::vec3(start_point - map.origin());
-  const glm::dvec3 end_point_local = glm::vec3(end_point - map.origin());
-
-  glm::dvec3 direction = glm::vec3(end_point - start_point);
-  double length = glm::dot(direction, direction);
-
-  // Very small segments which straddle a voxel boundary can be problematic. We want to avoid
-  // a sqrt on a very small number, but be robust enough to handle the situation.
-  // To that end, we skip normalising the direction for directions below a tenth of the voxel.
-  // Then we will exit either with start/end voxels being the same, or we will step from start
-  // to end in one go.
-  const bool valid_length = (length >= 0.1 * map.resolution() * 0.1 * map.resolution());
-  if (valid_length)
-  {
-    length = std::sqrt(length);
-    direction *= 1.0 / length;
-  }
-
-  if (start_point_key == end_point_key)  // || !valid_length)
-  {
-    func(start_point_key, start_point, end_point);
-    return;
-  }
-
-  if (!valid_length)
-  {
-    // Start/end points are in different, but adjacent voxels. Prevent issues with the loop by
-    // early out.
-    func(start_point_key, start_point, end_point);
-    func(end_point_key, start_point, end_point);
-    return;
-  }
-
-  std::array<int, 3> step = { 0, 0, 0 };
-  glm::dvec3 region;
-  std::array<double, 3> time_max;
-  std::array<double, 3> time_delta;
-  std::array<double, 3> time_limit;
-  double next_region_border;
-  double direction_axis_inv;
-  const glm::dvec3 region_resolution = map.regionSpatialResolution();
-  glm::i16vec3 current_key = start_point_key;
-
-  region = map.regionCentreLocal(current_key);
-
-  // Compute step direction, increments and maximums along
-  // each axis.
-  for (unsigned i = 0; i < 3; ++i)
-  {
-    if (direction[i] != 0)
-    {
-      direction_axis_inv = 1.0 / direction[i];
-      step[i] = (direction[i] > 0) ? 1 : -1;
-      // Time delta is the ray time between voxel
-      // boundaries calculated for each axis.
-      time_delta[i] = region_resolution[i] * std::abs(direction_axis_inv);
-      // Calculate the distance from the origin to the
-      // nearest voxel edge for this axis.
-      next_region_border = region[i] + double(step[i]) * 0.5 * region_resolution[i];
-      time_max[i] = (next_region_border - start_point_local[i]) * direction_axis_inv;
-      time_limit[i] =
-        std::abs((end_point_local[i] - start_point_local[i]) * direction_axis_inv);  // +0.5f *
-                                                                                     // regionResolution[i];
-    }
-    else
-    {
-      time_max[i] = time_delta[i] = std::numeric_limits<double>::max();
-      time_limit[i] = 0;
-    }
-  }
-
-  bool limit_reached = false;
-  int axis;
-  while (!limit_reached && current_key != end_point_key)
-  {
-    func(current_key, start_point, end_point);
-
-    if (time_max[0] < time_max[2])
-    {
-      axis = (time_max[0] < time_max[1]) ? 0 : 1;
-    }
-    else
-    {
-      axis = (time_max[1] < time_max[2]) ? 1 : 2;
-    }
-
-    limit_reached = std::abs(time_max[axis]) > time_limit[axis];
-    current_key[axis] += step[axis];
-    time_max[axis] += time_delta[axis];
-  }
-
-  // Touch the last region.
-  func(current_key, start_point, end_point);
-}
-
 inline bool goodRay(const glm::dvec3 &start, const glm::dvec3 &end, double max_range = kDefaultMaxRayRange)
 {
   bool is_good = true;
@@ -236,14 +132,15 @@ unsigned verifySort(const std::vector<RayItem> &rays)
 #endif  // OHM_GPU_VERIFY_SORT
 }  // namespace
 
-
-GpuCache *ohm::gpumap::enableGpu(OccupancyMap &map)
+namespace gpumap
+{
+GpuCache *enableGpu(OccupancyMap &map)
 {
   return enableGpu(map, GpuCache::kDefaultTargetMemSize, kGpuAllowMappedBuffers);
 }
 
 
-GpuCache *ohm::gpumap::enableGpu(OccupancyMap &map, size_t target_gpu_mem_size, unsigned flags)
+GpuCache *enableGpu(OccupancyMap &map, size_t target_gpu_mem_size, unsigned flags)
 {
   OccupancyMapDetail &map_imp = *map.detail();
   if (map_imp.gpu_cache)
@@ -256,7 +153,7 @@ GpuCache *ohm::gpumap::enableGpu(OccupancyMap &map, size_t target_gpu_mem_size, 
 }
 
 
-void ohm::gpumap::sync(OccupancyMap &map)
+void sync(OccupancyMap &map)
 {
   if (GpuCache *cache = gpuCache(map))
   {
@@ -271,7 +168,7 @@ void ohm::gpumap::sync(OccupancyMap &map)
 }
 
 
-void ohm::gpumap::sync(OccupancyMap &map, unsigned layer_index)
+void sync(OccupancyMap &map, unsigned layer_index)
 {
   if (GpuCache *cache = gpuCache(map))
   {
@@ -283,38 +180,123 @@ void ohm::gpumap::sync(OccupancyMap &map, unsigned layer_index)
 }
 
 
-GpuCache *ohm::gpumap::gpuCache(OccupancyMap &map)
+GpuCache *gpuCache(OccupancyMap &map)
 {
   return static_cast<GpuCache *>(map.detail()->gpu_cache);
 }
 
+void walkRegions(const OccupancyMap &map, const glm::dvec3 &start_point, const glm::dvec3 &end_point,
+                 const RegionWalkFunction &on_visit)
+{
+  // see "A Faster Voxel Traversal Algorithm for Ray
+  // Tracing" by Amanatides & Woo
+  const glm::i16vec3 start_point_key = map.regionKey(start_point);
+  const glm::i16vec3 end_point_key = map.regionKey(end_point);
+  const glm::dvec3 start_point_local = glm::vec3(start_point - map.origin());
+  const glm::dvec3 end_point_local = glm::vec3(end_point - map.origin());
+
+  glm::dvec3 direction = glm::vec3(end_point - start_point);
+  double length = glm::dot(direction, direction);
+
+  // Very small segments which straddle a voxel boundary can be problematic. We want to avoid
+  // a sqrt on a very small number, but be robust enough to handle the situation.
+  // To that end, we skip normalising the direction for directions below a tenth of the voxel.
+  // Then we will exit either with start/end voxels being the same, or we will step from start
+  // to end in one go.
+  const bool valid_length = (length >= 0.1 * map.resolution() * 0.1 * map.resolution());
+  if (valid_length)
+  {
+    length = std::sqrt(length);
+    direction *= 1.0 / length;
+  }
+
+  if (start_point_key == end_point_key)  // || !valid_length)
+  {
+    on_visit(start_point_key, start_point, end_point);
+    return;
+  }
+
+  if (!valid_length)
+  {
+    // Start/end points are in different, but adjacent voxels. Prevent issues with the loop by
+    // early out.
+    on_visit(start_point_key, start_point, end_point);
+    on_visit(end_point_key, start_point, end_point);
+    return;
+  }
+
+  std::array<int, 3> step = { 0, 0, 0 };
+  glm::dvec3 region;
+  std::array<double, 3> time_max;
+  std::array<double, 3> time_delta;
+  std::array<double, 3> time_limit;
+  double next_region_border;
+  double direction_axis_inv;
+  const glm::dvec3 region_resolution = map.regionSpatialResolution();
+  glm::i16vec3 current_key = start_point_key;
+
+  region = map.regionCentreLocal(current_key);
+
+  // Compute step direction, increments and maximums along
+  // each axis.
+  for (unsigned i = 0; i < 3; ++i)
+  {
+    if (direction[i] != 0)
+    {
+      direction_axis_inv = 1.0 / direction[i];
+      step[i] = (direction[i] > 0) ? 1 : -1;
+      // Time delta is the ray time between voxel
+      // boundaries calculated for each axis.
+      time_delta[i] = region_resolution[i] * std::abs(direction_axis_inv);
+      // Calculate the distance from the origin to the
+      // nearest voxel edge for this axis.
+      next_region_border = region[i] + double(step[i]) * 0.5 * region_resolution[i];
+      time_max[i] = (next_region_border - start_point_local[i]) * direction_axis_inv;
+      time_limit[i] =
+        std::abs((end_point_local[i] - start_point_local[i]) * direction_axis_inv);  // +0.5f *
+                                                                                     // regionResolution[i];
+    }
+    else
+    {
+      time_max[i] = time_delta[i] = std::numeric_limits<double>::max();
+      time_limit[i] = 0;
+    }
+  }
+
+  bool limit_reached = false;
+  int axis;
+  while (!limit_reached && current_key != end_point_key)
+  {
+    on_visit(current_key, start_point, end_point);
+
+    if (time_max[0] < time_max[2])
+    {
+      axis = (time_max[0] < time_max[1]) ? 0 : 1;
+    }
+    else
+    {
+      axis = (time_max[1] < time_max[2]) ? 1 : 2;
+    }
+
+    limit_reached = std::abs(time_max[axis]) > time_limit[axis];
+    current_key[axis] += step[axis];
+    time_max[axis] += time_delta[axis];
+  }
+
+  // Touch the last region.
+  on_visit(current_key, start_point, end_point);
+}
+}  // namespace gpumap
 
 GpuMap::GpuMap(GpuMapDetail *detail, unsigned expected_element_count, size_t gpu_mem_size)
   : imp_(detail)
 {
-  GpuCache &gpu_cache = *gpumap::enableGpu(*imp_->map, gpu_mem_size, gpumap::kGpuAllowMappedBuffers);
-
-  const unsigned prealloc_region_count = 1024u;
-  for (unsigned i = 0; i < GpuMapDetail::kBuffersCount; ++i)
-  {
-    imp_->key_buffers[i] =
-      gputil::Buffer(gpu_cache.gpu(), sizeof(GpuKey) * expected_element_count, gputil::kBfReadHost);
-    imp_->ray_buffers[i] =
-      gputil::Buffer(gpu_cache.gpu(), sizeof(gputil::float3) * expected_element_count, gputil::kBfReadHost);
-    imp_->intensities_buffers[i] =
-      gputil::Buffer(gpu_cache.gpu(), sizeof(float) * expected_element_count, gputil::kBfReadHost);
-    imp_->region_key_buffers[i] =
-      gputil::Buffer(gpu_cache.gpu(), sizeof(gputil::int3) * prealloc_region_count, gputil::kBfReadHost);
-
-    // Add structures for managing uploads of regino offsets to the cache buffer.
-    imp_->voxel_upload_info[i].emplace_back(VoxelUploadInfo(kGcIdOccupancy, gpu_cache.gpu()));
-    if (imp_->map->voxelMeanEnabled())
-    {
-      imp_->voxel_upload_info[i].emplace_back(VoxelUploadInfo(kGcIdVoxelMean, gpu_cache.gpu()));
-    }
-  }
-
-  cacheGpuProgram(imp_->map->voxelMeanEnabled(), true);
+  // Map and borrowed_map already set. Temporarily cache and clear them so we don't unnecessarily release them.
+  auto *map = detail->map;
+  bool borrowed_map = detail->borrowed_map;
+  detail->map = nullptr;
+  detail->borrowed_map = false;
+  setMap(map, borrowed_map, expected_element_count, gpu_mem_size, true);
 }
 
 
@@ -356,16 +338,20 @@ bool GpuMap::borrowedMap() const
 
 void GpuMap::syncVoxels()
 {
+  const int sync_index = (imp_->next_buffers_index + 1) % GpuMapDetail::kBuffersCount;
   if (imp_->map)
   {
     // TODO(KS): split the logic for starting synching and waiting on completion.
     // This will allow us to kick synching off all layers in parallel and should reduce the overall latency.
-    gpumap::sync(*imp_->map, kGcIdOccupancy);
-    gpumap::sync(*imp_->map, kGcIdVoxelMean);
-    gpumap::sync(*imp_->map, kGcIdCovariance);
-    gpumap::sync(*imp_->map, kGcIdIntensity);
-    gpumap::sync(*imp_->map, kGcIdHitMiss);
+    for (const auto &voxel_info : imp_->voxel_upload_info[sync_index])
+    {
+      if (!voxel_info.skip_cpu_sync)
+      {
+        gpumap::sync(*imp_->map, voxel_info.gpu_layer_id);
+      }
+    }
   }
+  onSyncVoxels(sync_index);
 }
 
 
@@ -446,7 +432,54 @@ size_t GpuMap::integrateRays(const glm::dvec3 *rays, size_t element_count, const
 
 GpuCache *GpuMap::gpuCache() const
 {
-  return static_cast<GpuCache *>(imp_->map->detail()->gpu_cache);
+  return (imp_->map) ? static_cast<GpuCache *>(imp_->map->detail()->gpu_cache) : nullptr;
+}
+
+
+void GpuMap::setMap(OccupancyMap *map, bool borrowed_map, unsigned expected_element_count, size_t gpu_mem_size,
+                    bool force_gpu_program_release)
+{
+  // Must ensure we aren't waiting on any GPU operations.
+  if (imp_->map)
+  {
+    syncVoxels();
+
+    // Delete the map if nt borrowed.
+    if (!imp_->borrowed_map)
+    {
+      delete imp_->map;
+    }
+  }
+
+  // Change the map
+  imp_->map = map;
+  imp_->borrowed_map = map && borrowed_map;
+
+  if (map)
+  {
+    // Note: some uses of the GpuMap allow a null map pointer, but this is something of an edge case.
+    GpuCache &gpu_cache = *gpumap::enableGpu(*imp_->map, gpu_mem_size, gpumap::kGpuAllowMappedBuffers);
+
+    const unsigned prealloc_region_count = 1024u;
+    for (unsigned i = 0; i < GpuMapDetail::kBuffersCount; ++i)
+    {
+      imp_->key_buffers[i] =
+        gputil::Buffer(gpu_cache.gpu(), sizeof(GpuKey) * expected_element_count, gputil::kBfReadHost);
+      imp_->ray_buffers[i] =
+        gputil::Buffer(gpu_cache.gpu(), sizeof(gputil::float3) * expected_element_count, gputil::kBfReadHost);
+      imp_->region_key_buffers[i] =
+        gputil::Buffer(gpu_cache.gpu(), sizeof(gputil::int3) * prealloc_region_count, gputil::kBfReadHost);
+
+      // Add structures for managing uploads of regino offsets to the cache buffer.
+      imp_->voxel_upload_info[i].emplace_back(VoxelUploadInfo(kGcIdOccupancy, gpu_cache.gpu()));
+      if (imp_->support_voxel_mean && imp_->map->voxelMeanEnabled())
+      {
+        imp_->voxel_upload_info[i].emplace_back(VoxelUploadInfo(kGcIdVoxelMean, gpu_cache.gpu()));
+      }
+    }
+
+    cacheGpuProgram(imp_->support_voxel_mean && imp_->map->voxelMeanEnabled(), force_gpu_program_release);
+  }
 }
 
 
@@ -458,7 +491,7 @@ void GpuMap::setGroupedRays(bool group)
 
 void GpuMap::cacheGpuProgram(bool with_voxel_mean, bool force)
 {
-  if (imp_->g_program_ref)
+  if (imp_->program_ref)
   {
     if (!force && with_voxel_mean == imp_->cached_sub_voxel_program)
     {
@@ -471,13 +504,12 @@ void GpuMap::cacheGpuProgram(bool with_voxel_mean, bool force)
   GpuCache &gpu_cache = *gpuCache();
   imp_->gpu_ok = true;
   imp_->cached_sub_voxel_program = with_voxel_mean;
-  imp_->g_program_ref = (with_voxel_mean) ? &g_program_ref_sub_vox : &g_program_ref_no_sub;
+  imp_->program_ref = (with_voxel_mean) ? &g_program_ref_sub_vox : &g_program_ref_no_sub;
 
-  if (imp_->g_program_ref->addReference(gpu_cache.gpu()))
+  if (imp_->program_ref->addReference(gpu_cache.gpu()))
   {
-    imp_->update_kernel = (!with_voxel_mean) ?
-                            GPUTIL_MAKE_KERNEL(imp_->g_program_ref->program(), regionRayUpdate) :
-                            GPUTIL_MAKE_KERNEL(imp_->g_program_ref->program(), regionRayUpdateSubVox);
+    imp_->update_kernel = (!with_voxel_mean) ? GPUTIL_MAKE_KERNEL(imp_->program_ref->program(), regionRayUpdate) :
+                                               GPUTIL_MAKE_KERNEL(imp_->program_ref->program(), regionRayUpdateSubVox);
     imp_->update_kernel.calculateOptimalWorkGroupSize();
 
     imp_->gpu_ok = imp_->update_kernel.isValid();
@@ -496,10 +528,10 @@ void GpuMap::releaseGpuProgram()
     imp_->update_kernel = gputil::Kernel();
   }
 
-  if (imp_ && imp_->g_program_ref)
+  if (imp_ && imp_->program_ref)
   {
-    imp_->g_program_ref->releaseReference();
-    imp_->g_program_ref = nullptr;
+    imp_->program_ref->releaseReference();
+    imp_->program_ref = nullptr;
   }
 }
 
@@ -531,7 +563,7 @@ size_t GpuMap::integrateRays(const glm::dvec3 *rays, size_t element_count, const
   }
 
   // Ensure we are using the correct GPU program. Voxel mean support may have changed.
-  cacheGpuProgram(map.voxelMeanEnabled(), false);
+  cacheGpuProgram(imp_->support_voxel_mean && map.voxelMeanEnabled(), false);
 
   // Resolve the buffer index to use. We need to support cases where buffer is already one fo the imp_->ray_buffers.
   // Check this first.
@@ -623,7 +655,7 @@ size_t GpuMap::integrateRays(const glm::dvec3 *rays, size_t element_count, const
     // "
     //          << ray_start << ':' << ray_end << "  <=>  " << rays[i + 0] << " -> " << rays[i + 1] << std::endl;
     // std::cout << "dirs: " << (ray_end - ray_start) << " vs " << (ray_end_d - ray_start_d) << std::endl;
-    walkRegions(*imp_->map, ray.origin, ray.sample, region_func);
+    gpumap::walkRegions(*imp_->map, ray.origin, ray.sample, region_func);
   };
 
   const RayUploadFunc upload_ray_with_intensity = [&](const RayItem &ray)  //
@@ -673,7 +705,7 @@ size_t GpuMap::integrateRays(const glm::dvec3 *rays, size_t element_count, const
         ray_length = std::sqrt(ray_length);
         // Divide by the segment length to work out how many segments we need.
         // Round up.
-        const int part_count = std::ceil(ray_length / imp_->ray_segment_length);
+        const int part_count = int(std::ceil(ray_length / imp_->ray_segment_length));
         // Work out the part length.
         const double part_length = ray_length / double(part_count);
         const glm::dvec3 dir = (ray.sample - ray.origin) / ray_length;
@@ -898,7 +930,7 @@ void GpuMap::enqueueRegions(int buffer_index, unsigned region_update_flags)
             upload_info.offsets_buffer_pinned = gputil::PinnedBuffer(upload_info.offsets_buffer, gputil::kPinWrite);
           }
 
-          regions_buffer = gputil::PinnedBuffer(imp_->region_key_buffers[buffer_index], gputil::kPinRead);
+          regions_buffer = gputil::PinnedBuffer(imp_->region_key_buffers[buffer_index], gputil::kPinWrite);
         }
       }
       else
@@ -930,23 +962,23 @@ bool GpuMap::enqueueRegion(const glm::i16vec3 &region_key, int buffer_index)
 
   for (VoxelUploadInfo &voxel_info : imp_->voxel_upload_info[buffer_index])
   {
-    GpuLayerCache *layer_cache = gpu_cache.layerCache(voxel_info.gpu_layer_id);
-    if (layer_cache)
+    GpuLayerCache &layer_cache = *gpu_cache.layerCache(voxel_info.gpu_layer_id);
+    unsigned cache_flags = 0;
+    cache_flags |= voxel_info.allow_region_creation * GpuLayerCache::kAllowRegionCreate;
+    cache_flags |= voxel_info.skip_cpu_sync * GpuLayerCache::kSkipDownload;
+    auto mem_offset = uint64_t(layer_cache.upload(*imp_->map, region_key, chunk, &voxel_info.voxel_upload_event,
+                                                  &status, imp_->batch_marker, cache_flags));
+
+    if (status == GpuLayerCache::kCacheFull)
     {
-      auto mem_offset = uint64_t(layer_cache->upload(*imp_->map, region_key, chunk, &voxel_info.voxel_upload_event,
-                                                     &status, imp_->batch_marker, GpuLayerCache::kAllowRegionCreate));
-
-      if (status == GpuLayerCache::kCacheFull)
-      {
-        return false;
-      }
-
-      // std::cout << "region: [" << regionKey.x << ' ' <<
-      // regionKey.y << ' ' << regionKey.z << ']' <<
-      // std::endl;
-      voxel_info.offsets_buffer_pinned.write(&mem_offset, sizeof(mem_offset),
-                                             imp_->region_counts[buffer_index] * sizeof(mem_offset));
+      return false;
     }
+
+    // std::cout << "region: [" << regionKey.x << ' ' <<
+    // regionKey.y << ' ' << regionKey.z << ']' <<
+    // std::endl;
+    voxel_info.offsets_buffer_pinned.write(&mem_offset, sizeof(mem_offset),
+                                           imp_->region_counts[buffer_index] * sizeof(mem_offset));
   }
 
   return true;
@@ -963,7 +995,7 @@ void GpuMap::finaliseBatch(unsigned region_update_flags)
   GpuLayerCache &occupancy_layer_cache = *gpu_cache.layerCache(kGcIdOccupancy);
   GpuLayerCache *mean_layer_cache = nullptr;
 
-  if (imp_->map->voxelMeanEnabled())
+  if (imp_->support_voxel_mean && imp_->map->voxelMeanEnabled())
   {
     mean_layer_cache = gpu_cache.layerCache(kGcIdVoxelMean);
   }
@@ -1034,6 +1066,6 @@ void GpuMap::finaliseBatch(unsigned region_update_flags)
   {
     mean_layer_cache->beginBatch(imp_->batch_marker);
   }
-  imp_->next_buffers_index = 1 - imp_->next_buffers_index;
+  imp_->next_buffers_index = (imp_->next_buffers_index + 1) % GpuMapDetail::kBuffersCount;
 }
 }  // namespace ohm
