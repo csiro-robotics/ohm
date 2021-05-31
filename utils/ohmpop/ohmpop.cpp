@@ -1133,7 +1133,11 @@ int main(int argc, char *argv[])
       target_gpu_cache_size = std::max<uint64_t>(total_device_memory / 2, ohm::GpuCache::kGiB);
     }
     opt.gpu.gpu_cache_size_gb = double(target_gpu_cache_size) / double(ohm::GpuCache::kGiB);
-    std::cout << "Auto select GPU cache size: " << ohm::util::Bytes(opt.gpu.gpuCacheSizeBytes()) << std::endl;
+    // Cap the max auto allocation to 4GiB. Some embedded systems with unified RAM can try for very large cache size
+    // which exceeds the maximum allowed allocation size. While GpuLayerCache caps this, we limit the auto selected size
+    // to help avoid giving a false impression of having a very large amount of GPU memory allocated.
+    opt.gpu.gpu_cache_size_gb = std::min(opt.gpu.gpu_cache_size_gb, 4.0);
+    std::cout << "Auto select GPU cache upper bound: " << ohm::util::Bytes(opt.gpu.gpuCacheSizeBytes()) << std::endl;
   }
 
   if (res)
