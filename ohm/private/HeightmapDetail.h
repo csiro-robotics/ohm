@@ -57,7 +57,7 @@ struct ohm_API HeightmapDetail
   /// Identifies the up axis as aligned to XYZ, [0, 2] but ignores sign/direction.
   /// Same as up_axis_id if that value is >= 0.
   int vertical_axis_index = int(UpAxis::kZ);
-  /// Enables post process filtering for layered heightmaps, removing virtual surface voxels with fewer 6-connected
+  /// Enables post process filtering for layered heightmaps, removing virtual surface voxels with fewer 26-connected
   /// populated neighbours.
   unsigned virtual_surface_filter_threshold = 0;
   /// Level of debugging information provided in generating the heightmap. Only has an effect if
