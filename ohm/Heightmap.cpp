@@ -22,11 +22,7 @@
 #include "PlaneWalker.h"
 #include "Trace.h"
 
-#include <glm/gtc/type_ptr.hpp>
-#include <glm/gtx/norm.hpp>
-#include <glm/mat3x3.hpp>
 #include <glm/vec3.hpp>
-#include <glm/vec4.hpp>
 
 // Include after GLM types for glm type streaming operators.
 #include "ohmutil/GlmStream.h"

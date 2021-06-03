@@ -7,13 +7,17 @@
 
 #include "HeightmapDetail.h"
 
+#include <ohm/Heightmap.h>  // For TES_ENABLE
 #include <ohm/HeightmapVoxelType.h>
 #include <ohm/KeyRange.h>
+#include <ohm/Trace.h>  // For TES_ENABLE
 
 #define PROFILING 0
 #include <ohmutil/Profile.h>
 
 #include <3esservermacros.h>
+
+#include <glm/gtc/type_ptr.hpp>  // For TES_ENABLE
 
 namespace ohm
 {
