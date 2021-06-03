@@ -332,11 +332,16 @@ void filterVirtualVoxels(ohm::HeightmapDetail &detail, unsigned threshold,
 /// The @p target_keys identify which voxels need to be sorted. The keys are assumed to address the current bottom voxel
 /// of each column only.
 ///
+/// During sorting, the base layer is also resolved. Candidates have already been marked as voxels lying in a horizontal
+/// slice around the the heightmap seed position, extending up and down to the ceiling and floor heights respectively.
+/// During sorting, we finalise the base layer as either the lowest candidate (when @p seed_height is null) or the voxel
+/// closest to the @p seed_height .
+///
 /// @param detail Target @c Heightmap private detail.
 /// @param target_keys keys which contain multiple voxels.
 /// @param use_voxel_mean Does the map support voxel mean positioning?
-void sortHeightmapLayers(ohm::HeightmapDetail &detail, const std::set<ohm::Key> &target_keys,
-                         const bool use_voxel_mean);
+void sortHeightmapLayers(ohm::HeightmapDetail &detail, const std::set<ohm::Key> &target_keys, const bool use_voxel_mean,
+                         const double *seed_height = nullptr);
 
 }  // namespace heightmap
 }  // namespace ohm
