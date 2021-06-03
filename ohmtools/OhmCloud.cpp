@@ -160,13 +160,16 @@ ohm::Colour ColourHeightmapType::select(const ohm::Voxel<const float> &occupancy
     if (heightmap_voxel.isValid())
     {
       const float occ_value = occupancy.data();
+      const bool is_base_layer = heightmap_voxel.data().layer == ohm::kHvlBaseLayer;
+      const float colour_adjust = (is_base_layer) ? 1.0f : 0.4f;
       if (occ_value == ohm::Heightmap::kHeightmapSurfaceValue)
       {
-        return surface_colour;
+        // Darken if not the base layer.
+        return surface_colour.adjust(colour_adjust);
       }
       if (occ_value == ohm::Heightmap::kHeightmapVirtualSurfaceValue)
       {
-        return virtual_colour;
+        return virtual_colour.adjust(colour_adjust);
       }
     }
   }

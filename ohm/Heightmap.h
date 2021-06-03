@@ -83,13 +83,25 @@ struct SrcVoxel;
 /// @c getHeightmapVoxelPosition() .
 ///
 /// The @c OccupancyMap used to represent the heightmap has additional meta data stored in its @c MapInfo :
-/// - <b>heightmap</b> - Present and true if this is a heightmap.
-/// - <b>heightmap-axis</b> - The up axis ID for a heightmap.
-/// - <b>heightmap-axis-x</b> - The up axis X value for a heightmap.
-/// - <b>heightmap-axis-y</b> - The up axis Y value for a heightmap.
-/// - <b>heightmap-axis-z</b> - The up axis Z value for a heightmap.
-/// - <b>heightmap-blur</b> - The blur value used to generate the heightamp.
-/// - <b>heightmap-clearance</b> - The clearance value used to generate the heightamp.
+///
+/// | Meta data                   | Description                                                                       |
+/// | --------------------------- | --------------------------------------------------------------------------------  |
+/// | *heightmap*                 | Present and true if this is a heightmap.                                          |
+/// | *heightmap-axis*            | The up axis ID for a heightmap.                                                   |
+/// | *heightmap-axis-x*          | The up axis X value for a heightmap.                                              |
+/// | *heightmap-axis-y*          | The up axis Y value for a heightmap.                                              |
+/// | *heightmap-axis-z*          | The up axis Z value for a heightmap.                                              |
+/// | *heightmap-ceiling*         | The @c ceiling() value used in generating the heightmap.                          |
+/// | *heightmap-clearance*       | The @c clearance() value used to generate the heightamp.                          |
+/// | *heightmap-floor*           | The @c floor() value used in generating the heightmap.                            |
+/// | *heightmap-mode*            | The @c mode() value used in generating the heightmap.                             |
+/// | *heightmap-mode-name*       | An English translation of @c mode() .                                             |
+/// | *heightmap-virtual-surface* | True if @c generateVirtualSurface() is set.                                       |
+/// | *heightmap-virtual-surface-filter-threshold* | Value of @c virtualSurfaceFilterThreshold() .                    |
+/// | *heightmap-virtual-surface-promote* | True if @c promoteVirtualBelow() is set                                   |
+/// | *heightmap_seed_x*          | The X coordinate of the seed/reference position passed to @c buildHeightmap()     |
+/// | *heightmap_seed_y*          | The Y coordinate of the seed/reference position passed to @c buildHeightmap()     |
+/// | *heightmap_seed_z*          | The Z coordinate of the seed/reference position passed to @c buildHeightmap()     |
 class ohm_API Heightmap
 {
 public:
@@ -239,6 +251,24 @@ public:
   /// Query if the resulting multi-layered heightmap has each column ordered by height. Implies @c isMultiLayered() .
   /// @return True if the heightmap contains columns sorted in height order.
   inline bool areLayersSorted() const { return mode() == HeightmapMode::kLayeredFill; }
+
+  /// Set the number of occupied neighbours a virtual surface voxel needs to be kept in a @c HeightmapMode::kLayeredFill
+  /// map.
+  ///
+  /// When non-zero and using @c mode() @c HeightmapMode::kLayeredFill , this value enables filtering out of virtual
+  /// surface voxels which have fewer occupied neighours than this value. This can help reduce "virtual surface noise"
+  /// in maps which have sparse free space observations.
+  ///
+  /// This setting only works with @c mode() @c HeightmapMode::kLayeredFill .
+  ///
+  /// Neighbours are the 26 voxels sharing a face, edge or vertex with the voxel of interest.
+  ///
+  /// @param threshold Number of occupied neighbours required to keep a virtual surface voxel. Theoretical range is
+  /// [0, 26], with a pragmatic range of approximately [0, 8].
+  void setVirtualSurfaceFilterThreshold(unsigned threshold);
+
+  /// Query the virtual surface filtering threshold. See @c setVirtualSurfaceFilterThreshold() .
+  unsigned virtualSurfaceFilterThreshold() const;
 
   /// Set the heightmap generation to flood fill ( @c true ) or planar ( @c false ).
   ///
@@ -398,9 +428,11 @@ private:
   ///     be added to if the @p hm_voxel already has voxel data and we are building a layered heightmap.
   /// @param is_base_layer_candidate Should be true if the @c src_voxel falls within the allowed range for being
   ///     included in the base layer. Should always be true for non-layered heightmaps.
-  bool addSurfaceVoxel(heightmap::DstVoxel &hm_voxel, const heightmap::SrcVoxel &src_voxel, OccupancyType voxel_type,
-                       double clearance, glm::dvec3 voxel_pos, std::set<ohm::Key> &multi_layer_keys,
-                       bool is_base_layer_candidate);
+  /// @return The voxel type in the heightmap. One of @c kSurface, @c kVirtualSurface, @c kUnknown where the latter
+  /// indicates no voxel has not been added to the heightmap.
+  HeightmapVoxelType addSurfaceVoxel(heightmap::DstVoxel &hm_voxel, const heightmap::SrcVoxel &src_voxel,
+                                     OccupancyType voxel_type, double clearance, glm::dvec3 voxel_pos,
+                                     std::set<ohm::Key> &multi_layer_keys, bool is_base_layer_candidate);
 
   std::unique_ptr<HeightmapDetail> imp_;
 };  // namespace ohm

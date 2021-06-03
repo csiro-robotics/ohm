@@ -491,8 +491,8 @@ int exportPointCloud(const Options &opt, ProgressMonitor &prog, LoadMapProgress 
     save_opt.collapse = opt.heightmap.collapse;
     if (opt.colour == kColourHeight)
     {
-      save_opt.colour_select = [&colour_by_heightmap_type](const ohm::Voxel<const float> &occupancy) {
-        return colour_by_heightmap_type.select(occupancy);
+      save_opt.colour_select = [&colour_by_height](const ohm::Voxel<const float> &occupancy) {
+        return colour_by_height.select(occupancy);
       };
     }
     else if (opt.colour == kColourLayer)
@@ -503,8 +503,8 @@ int exportPointCloud(const Options &opt, ProgressMonitor &prog, LoadMapProgress 
     }
     else if (opt.colour == kColourType)
     {
-      save_opt.colour_select = [&colour_by_type](const ohm::Voxel<const float> &occupancy) {
-        return colour_by_type.select(occupancy);
+      save_opt.colour_select = [&colour_by_heightmap_type](const ohm::Voxel<const float> &occupancy) {
+        return colour_by_heightmap_type.select(occupancy);
       };
     }
     ohmtools::saveHeightmapCloud(opt.ply_file.c_str(), map, save_opt, save_progress_callback);
