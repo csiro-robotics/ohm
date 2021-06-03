@@ -16,7 +16,8 @@ namespace ohm
 enum HeightmapVoxelLayer : uint8_t
 {
   kHvlBaseLayer = 0,  ///< Voxel belongs to the base layer or is a base layer candidate
-  kHvlExtended        ///< Voxel is outside the base layer bounds - only used for layered heightmaps.
+  kHvlExtended,       ///< Voxel is outside the base layer bounds - only used for layered heightmaps.
+  kHvlInvalid         ///< Voxel has been determined to be invalid and should be removed.
 };
 
 /// A voxel within the heightmap.
@@ -52,7 +53,7 @@ struct alignas(8) HeightmapVoxel
   /// Alignment padding to add @c contributing_samples without changing the data structure.
   uint8_t reserved;
   /// The number of samples in the source voxel which contributed to this result - only available if @c VoxelMean
-  /// is available to accumulate the sample count. Note that this may be lower than the value in @c VoxelMean 
+  /// is available to accumulate the sample count. Note that this may be lower than the value in @c VoxelMean
   /// because it is of lower precision. In this case, the value is set to @c 0xffffu.
   uint16_t contributing_samples;
 };

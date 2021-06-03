@@ -157,6 +157,7 @@ struct Options
   double clearance = 2.0;
   double floor = -1;
   double ceiling = -1;
+  unsigned virtual_surface_filter_threshold = 0;
   bool virtual_surfaces = false;
   bool no_voxel_mean = false;
 };
@@ -215,6 +216,9 @@ int parseOptions(Options *opt, int argc, char *argv[])  // NOLINT(modernize-avoi
        optVal(opt->seed_pos))                                                        //
       ("up", "Specifies the up axis {x,y,z,-x,-y,-z}.", optVal(opt->axis_id))        //
       ("virtual", "Allow virtual surfaces?", cxxopts::value(opt->virtual_surfaces))  //
+      ("virtual-filter-threshold",
+       "Remove virtual surface voxels with fewer than this number of occupied neighbours. Layered modes only.",
+       optVal(opt->virtual_surface_filter_threshold))  //
       ;
 
     if (ohm::trace::available())
@@ -327,6 +331,7 @@ int main(int argc, char *argv[])
   heightmap.setFloor(opt.floor >= 0 ? opt.floor : heightmap.floor());
   heightmap.setIgnoreVoxelMean(opt.no_voxel_mean);
   heightmap.setGenerateVirtualSurface(opt.virtual_surfaces);
+  heightmap.setVirtualSurfaceFilterThreshold(opt.virtual_surface_filter_threshold);
 
   heightmap.buildHeightmap(opt.seed_pos);
 

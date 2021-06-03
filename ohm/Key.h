@@ -355,4 +355,13 @@ inline bool Key::operator<(const Key &other) const
 }
 }  // namespace ohm
 
+namespace std
+{
+/// @c std::hash overload for @c ohm::Key .
+template <>
+struct hash<ohm::Key> : public ohm::Key::Hash
+{
+};
+}  // namespace std
+
 #endif  // OHM_KEY_H

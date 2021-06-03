@@ -27,18 +27,18 @@ bool PlaneFillLayeredWalker::begin(Key &key)
 {
   // Clear existing data.
   open_list_.clear();
-  opened_grid_.clear();
-  opened_list_.clear();
+  touched_grid_.clear();
+  touched_list_.clear();
 
   if (range.isValid())
   {
     // Size the 2D grid (fixed size)
-    opened_grid_.resize(size_t(key_range[axis_indices[0]]) * size_t(key_range[axis_indices[1]]));
+    touched_grid_.resize(size_t(key_range[axis_indices[0]]) * size_t(key_range[axis_indices[1]]));
     // Reserve the open_list_ with double the initial capacity of the grid.
-    opened_list_.reserve(2 * opened_grid_.size());
+    touched_list_.reserve(2 * touched_grid_.size());
 
     // Clear the grid.
-    std::fill(opened_grid_.begin(), opened_grid_.end(), 0u);
+    std::fill(touched_grid_.begin(), touched_grid_.end(), 0u);
 
     // Ensure the key is in range.
     key.clampTo(range.minKey(), range.maxKey());
@@ -82,11 +82,11 @@ size_t PlaneFillLayeredWalker::visit(const Key &key, PlaneWalkVisitMode mode, st
         if (idx != ~0u && (row_delta != 0 || col_delta != 0))
         {
           const int n_visit_height = keyHeight(n_key);
-          if (mode == PlaneWalkVisitMode::kAddUnvisitedNeighbours && !hasOpened(idx, n_visit_height) ||
-              mode == PlaneWalkVisitMode::kAddUnvisitedColumnNeighbours && !hasOpened(idx))
+          if (mode == PlaneWalkVisitMode::kAddUnvisitedNeighbours && !hasTouched(idx, n_visit_height) ||
+              mode == PlaneWalkVisitMode::kAddUnvisitedColumnNeighbours && !hasTouched(idx))
           {
-            // Neighbour in range and not touched. Add to open list.
-            open(idx, n_visit_height);
+            // Neighbour in range and not touched. Add to touched and open lists.
+            touch(idx, n_visit_height);
             open_list_.push_back(n_key);
             assert(added < added_neighbours.size());
             added_neighbours[added] = n_key;
@@ -125,32 +125,32 @@ int PlaneFillLayeredWalker::keyHeight(const Key &key) const
 }
 
 
-void PlaneFillLayeredWalker::open(int grid_index, int visit_height)
+void PlaneFillLayeredWalker::touch(int grid_index, int visit_height)
 {
-  opened_list_.emplace_back();
-  Opened &new_open = opened_list_.back();
-  new_open.height = visit_height;
-  new_open.next = opened_grid_[grid_index];
-  // Note: it is correct to use the opened_list_.size() to find the index of the new item as we are using a 1-based
+  touched_list_.emplace_back();
+  Touched &new_touch = touched_list_.back();
+  new_touch.height = visit_height;
+  new_touch.next = touched_grid_[grid_index];
+  // Note: it is correct to use the touched_list_.size() to find the index of the new item as we are using a 1-based
   // index.
-  opened_grid_[grid_index] = unsigned(opened_list_.size());
+  touched_grid_[grid_index] = unsigned(touched_list_.size());
 }
 
 
-bool PlaneFillLayeredWalker::hasOpened(int grid_index, int visit_height) const
+bool PlaneFillLayeredWalker::hasTouched(int grid_index, int visit_height) const
 {
   // Traverse the linked list of items for this grid index.
   // Get the item head.
-  unsigned current = opened_grid_[grid_index];
-  // current is a 1-based index in to opened_list_. Zero is a terminating value.
+  unsigned current = touched_grid_[grid_index];
+  // current is a 1-based index in to touched_list_. Zero is a terminating value.
   while (current > 0)
   {
-    const Opened &opened = opened_list_[current - 1];
-    if (opened.height == visit_height)
+    const Touched &touched = touched_list_[current - 1];
+    if (touched.height == visit_height)
     {
       return true;
     }
-    current = opened.next;
+    current = touched.next;
   }
 
   return false;

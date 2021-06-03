@@ -218,6 +218,19 @@ struct ohmutil_API Colour
   /// @return Alpha channel as a float.
   inline float af() const { return float(a()) / kMaxByteF; }
 
+  /// Lighten or darken a colour by @p factor.
+  /// Works in HSV space, multiplying the V value by @p factor and clamping the result [0, 1].
+  /// @return The adjusted colour.
+  Colour adjust(float factor) const;
+
+  /// Lighten the colour by 1.5
+  /// @return A lighter colour.
+  inline Colour lighten() const { return adjust(1.5f); }
+
+  /// Darken the colour by 0.5
+  /// @return A darker colour.
+  inline Colour darken() const { return adjust(0.5f); }
+
   /// Interpolate from one colour to another.
   /// @param from Colour to start at.
   /// @param to Colour to target at.

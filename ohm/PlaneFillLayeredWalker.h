@@ -40,15 +40,15 @@ class OccupancyMap;
 class ohm_API PlaneFillLayeredWalker
 {
 public:
-  /// Entry used to track node visiting in the @c opened_list_ . The @c height is the minimum height at which a voxel
+  /// Entry used to track node visiting in the @c touched_list_ . The @c height is the minimum height at which a voxel
   /// has been visited as a vertical offset from the @c minKey() . A negative value indices no visit, a zero or positive
   /// value indicates the offset from the @c minKey() at which the node was visited.
   ///
   /// The @c next value creates a linked list to manage multiple visitations to the same 2D cell location.
-  struct Opened
+  struct Touched
   {
     /// Open list type.
-    using List = std::vector<Opened>;
+    using List = std::vector<Touched>;
 
     /// Height at which the cell has been visited.
     int height;
@@ -120,28 +120,30 @@ public:
   }
 
 private:
-  /// Mark the item at @p grid_index in the @c opened_grid_ as being opened at the given @c visit_height .
-  /// @param grid_index An index into @c opened_grid_
+  /// Mark the item at @p grid_index in the @c touched_grid_ as being touched at the given @c visit_height .
+  /// @param grid_index An index into @c touched_grid_
   /// @param visit_height The height at which to visit.
-  void open(int grid_index, int visit_height);
-  bool hasOpened(int grid_index, int visit_height) const;
-  inline bool hasOpened(int grid_index) const { return opened_grid_[grid_index] > 0; }
+  void touch(int grid_index, int visit_height);
+  bool hasTouched(int grid_index, int visit_height) const;
+  inline bool hasTouched(int grid_index) const { return touched_grid_[grid_index] > 0; }
 
-  /// Calculate the @c opened_grid_ index for the given @p key .
+  /// Calculate the @c touched_grid_ index for the given @p key .
   unsigned gridIndexForKey(const Key &key);
-  /// Query the Opened entry height for @p key .
+  /// Query the Touched entry height for @p key .
   int keyHeight(const Key &key) const;
 
-  std::deque<Key> open_list_;  ///< Remaining voxels to (re)process.
-  /// Identifies which bounded keys have been opened.
-  Opened::List opened_list_;
-  /// A grid of 1-based indices into the @c opened_list_. The @c opened_grid_ is sized to match grid of keys defined by
-  /// the 2D region from @c range.minKey() to @c range.maxKey(). The values are 1-based indices into the @c
-  /// opened_list_ with zero marking a null value.
+  /// Remaining voxels to (re)process. This dequeue is used to fetch the next voxel for processing.
+  std::deque<Key> open_list_;
+  /// Identifies which bounded keys have been touched. This is an unordered list of the heights at which voxels have
+  /// been touched extending the @c touched_grid_ up into a third dimension.
+  Touched::List touched_list_;
+  /// A grid of 1-based indices into the @c touched_list_. The @c touched_grid_ is sized to match grid of keys defined
+  /// by the 2D region from @c range.minKey() to @c range.maxKey(). The values are 1-based indices into the
+  /// @c touched_list_ with zero marking a null value.
   ///
-  /// A cell is opened if it has a non-zero value. The visit height can be found by following the index into the
-  /// @c opened_list_. Multiple visits can be followed by chaining indices using @c Opened::next.
-  std::vector<int> opened_grid_;
+  /// A cell is touched if it has a non-zero value. The visit height can be found by following the index into the
+  /// @c touched_list_. Multiple visits can be followed by chaining indices using @c Touched::next.
+  std::vector<int> touched_grid_;
 };
 }  // namespace ohm
 

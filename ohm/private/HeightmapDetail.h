@@ -50,8 +50,6 @@ struct ohm_API HeightmapDetail
   double floor = 0;
   /// Minimum clearance above a potential ground/surface voxel required to accept the voxel as a viable surface.
   double min_clearance = 1.0;
-  /// Range at which to generate negative obstacle surfaces.
-  double negative_obstacle_radius = 0;
   /// Voxel layer containing the @c HeightmapVoxel data in the @c heightmap.
   int heightmap_voxel_layer = -1;
   /// Identifies the up axis: @c UpAxis
@@ -59,6 +57,9 @@ struct ohm_API HeightmapDetail
   /// Identifies the up axis as aligned to XYZ, [0, 2] but ignores sign/direction.
   /// Same as up_axis_id if that value is >= 0.
   int vertical_axis_index = int(UpAxis::kZ);
+  /// Enables post process filtering for layered heightmaps, removing virtual surface voxels with fewer 26-connected
+  /// populated neighbours.
+  unsigned virtual_surface_filter_threshold = 0;
   /// Level of debugging information provided in generating the heightmap. Only has an effect if
   /// @c OHM_TES_DEBUG is configured in CMake.
   int debug_level = 0;
