@@ -15,6 +15,8 @@ set(SOURCES
   private/ClearingPatternDetail.h
   private/HeightmapDetail.cpp
   private/HeightmapDetail.h
+  private/HeightmapOperations.cpp
+  private/HeightmapOperations.h
   private/LineQueryDetail.h
   private/MapLayerDetail.h
   private/MapLayoutDetail.h
