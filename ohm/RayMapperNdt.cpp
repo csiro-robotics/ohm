@@ -210,13 +210,8 @@ size_t RayMapperNdt::integrateRays(const glm::dvec3 *rays, size_t element_count,
 
     if (!(ray_update_flags & kRfExcludeRay))
     {
-      // Calculate line key for the last voxel if the sample point has been clipped
-      const glm::dvec3 start_point_local = glm::dvec3(start - map_origin);
-      const glm::dvec3 end_point_local = glm::dvec3(sample - map_origin);
-
       stop_adjustments = false;
-      ohm::walkSegmentKeys<Key>(visit_func, start_point_local, end_point_local, include_sample_in_ray,
-                                WalkKeyAdaptor(occupancy_map));
+      ohm::walkSegmentKeys<Key>(visit_func, start, sample, include_sample_in_ray, WalkKeyAdaptor(occupancy_map));
     }
 
     if (!stop_adjustments && !include_sample_in_ray)
