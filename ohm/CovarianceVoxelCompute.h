@@ -63,12 +63,14 @@ typedef struct CovarianceVoxel_t  // NOLINT(readability-identifier-naming, moder
   float trianglar_covariance[6];  // NOLINT(readability-magic-numbers, modernize-avoid-c-arrays)
 } CovarianceVoxel;
 
+/// Data stucture tracking intensity information for a voxel. This is used for NDT-TM.
 typedef struct IntensityMeanCov_t  // NOLINT(readability-identifier-naming, modernize-use-using)
 {
   float intensity_mean;
   float intensity_cov;
 } IntensityMeanCov;
 
+/// Data structure tacking the number of hits and misses on a voxel.
 typedef struct HitMissCount_t  // NOLINT(readability-identifier-naming, modernize-use-using)
 {
   uint32_t hit_count;

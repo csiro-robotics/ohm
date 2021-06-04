@@ -423,7 +423,7 @@ void drawNdt(const glm::i16vec4 &sector_key, const OccupancyMap &map)
     Voxel<const CovarianceVoxel> cov_voxel(&map, map.layout().covarianceLayer());
 
     const auto dim = map.regionVoxelDimensions();
-    //const unsigned index_limit = dim.x * dim.y * dim.z;
+    // const unsigned index_limit = dim.x * dim.y * dim.z;
     const tes::Id shape_id = tes::Id(chunk, kTcNdt) + sector_key.w;  // Each sector has a unique key
 
     // Work out the sector indexing range.
@@ -506,8 +506,8 @@ void drawNdtTm(const glm::i16vec4 &sector_key, const OccupancyMap &map)
     Voxel<const IntensityMeanCov> intensity_voxel(&map, map.layout().intensityLayer());
     Voxel<const HitMissCount> hit_miss_voxel(&map, map.layout().hitMissCountLayer());
 
-    //const auto dim = map.regionVoxelDimensions();
-    //const unsigned index_limit = dim.x * dim.y * dim.z;
+    // const auto dim = map.regionVoxelDimensions();
+    // const unsigned index_limit = dim.x * dim.y * dim.z;
     const tes::Id shape_id = tes::Id(chunk, kTcNdt) + sector_key.w;  // Each sector has a unique key
 
     // Work out the sector indexing range.
@@ -539,8 +539,8 @@ void drawNdtTm(const glm::i16vec4 &sector_key, const OccupancyMap &map)
             min_intensity = std::fmin(min_intensity, intensity_mean_cov.intensity_mean);
             max_intensity = std::fmax(max_intensity, intensity_mean_cov.intensity_mean);
             const float scaled_intensity =
-              M_PI * (-1.0f + 1.5f * (intensity_mean_cov.intensity_mean - min_intensity) /
-                                std::fmax(1.0f, max_intensity - min_intensity));
+              float(M_PI) * (-1.0f + 1.5f * (intensity_mean_cov.intensity_mean - min_intensity) /
+                                       std::fmax(1.0f, max_intensity - min_intensity));
             const float sin_sc = std::sin(scaled_intensity), cos_sc = std::cos(scaled_intensity);
             const HitMissCount hit_miss_count = hit_miss_voxel.data();
 
@@ -555,8 +555,8 @@ void drawNdtTm(const glm::i16vec4 &sector_key, const OccupancyMap &map)
               const float alpha = 0.9f * float(hit_miss_count.hit_count) /
                                   std::fmax(1.0f, float(hit_miss_count.hit_count + hit_miss_count.miss_count));
               ellipsoids.back().setColour(tes::Colour(0.1f + alpha * 0.5f * (1.0f + sin_sc),
-                                              0.1f + alpha * 0.5f * (1.0f + cos_sc),
-                                              0.1f + alpha * 0.5f * (1.0f - sin_sc), 1.0f));
+                                                      0.1f + alpha * 0.5f * (1.0f + cos_sc),
+                                                      0.1f + alpha * 0.5f * (1.0f - sin_sc), 1.0f));
             }
           }
         }

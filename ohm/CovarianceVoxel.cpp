@@ -252,24 +252,28 @@ void integrateNdtHit(NdtMap &map, const Key &key, const glm::dvec3 &sensor, cons
   {
     Voxel<IntensityMeanCov> intensity_voxel(&occupancy_map, occupancy_map.layout().intensityLayer(), key);
     Voxel<HitMissCount> hit_miss_count_voxel(&occupancy_map, occupancy_map.layout().hitMissCountLayer(), key);
-    IntensityMeanCov intensity;
-    HitMissCount hit_miss_count;
-    intensity_voxel.read(&intensity);
-    hit_miss_count_voxel.read(&hit_miss_count);
 
-    const bool reinitialise_permeability_with_covariance = true;  // TODO: make a parameter of map
-    calculateHitMissUpdateOnHit(&cov, updated_value, &hit_miss_count, sensor, sample, voxel_pos, mean.count,
-                                unobservedOccupancyValue(), reinitialise_permeability_with_covariance,
-                                map.adaptationRate(), map.sensorNoise(), map.reinitialiseCovarianceThreshold(),
-                                map.reinitialiseCovariancePointCount(), map.ndtSampleThreshold());
+    if (intensity_voxel.isLayerValid() && hit_miss_count_voxel.isLayerValid())
+    {
+      IntensityMeanCov intensity;
+      HitMissCount hit_miss_count;
+      intensity_voxel.read(&intensity);
+      hit_miss_count_voxel.read(&hit_miss_count);
 
-    hit_miss_count_voxel.write(hit_miss_count);
+      const bool reinitialise_permeability_with_covariance = true;  // TODO: make a parameter of map
+      calculateHitMissUpdateOnHit(&cov, updated_value, &hit_miss_count, sensor, sample, voxel_pos, mean.count,
+                                  unobservedOccupancyValue(), reinitialise_permeability_with_covariance,
+                                  map.adaptationRate(), map.sensorNoise(), map.reinitialiseCovarianceThreshold(),
+                                  map.reinitialiseCovariancePointCount(), map.ndtSampleThreshold());
 
-    calculateIntensityUpdateOnHit(&intensity, updated_value, sample_intensity, map.initialIntensityCovariance(),
-                                  mean.count, map.reinitialiseCovarianceThreshold(),
-                                  map.reinitialiseCovariancePointCount());
+      hit_miss_count_voxel.write(hit_miss_count);
 
-    intensity_voxel.write(intensity);
+      calculateIntensityUpdateOnHit(&intensity, updated_value, sample_intensity, map.initialIntensityCovariance(),
+                                    mean.count, map.reinitialiseCovarianceThreshold(),
+                                    map.reinitialiseCovariancePointCount());
+
+      intensity_voxel.write(intensity);
+    }
   }
 
   if (calculateHitWithCovariance(&cov, &updated_value, sample, voxel_pos, mean.count, occupancy_map.hitValue(),
@@ -336,10 +340,13 @@ void integrateNdtMiss(NdtMap &map, const Key &key, const glm::dvec3 &sensor, con
   if (ndt_tm && confirm_miss)
   {
     Voxel<HitMissCount> hit_miss_count_voxel(&occupancy_map, occupancy_map.layout().hitMissCountLayer(), key);
-    HitMissCount hit_miss_count;
-    hit_miss_count_voxel.read(&hit_miss_count);
-    ++hit_miss_count.miss_count;
-    hit_miss_count_voxel.write(hit_miss_count);
+    if (hit_miss_count_voxel.isLayerValid())
+    {
+      HitMissCount hit_miss_count;
+      hit_miss_count_voxel.read(&hit_miss_count);
+      ++hit_miss_count.miss_count;
+      hit_miss_count_voxel.write(hit_miss_count);
+    }
   }
 
   occupancyAdjustDown(

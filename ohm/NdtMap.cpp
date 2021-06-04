@@ -231,8 +231,8 @@ void NdtMap::debugDraw() const
         min_intensity = std::fmin(min_intensity, intensity_mean_cov.intensity_mean);
         max_intensity = std::fmax(max_intensity, intensity_mean_cov.intensity_mean);
         const float scaled_intensity =
-          M_PI * (-0.75f + 1.5f * std::log(intensity_mean_cov.intensity_mean - min_intensity + 1.0) /
-                             std::fmax(1.0f, std::log(max_intensity - min_intensity + 1.0)));
+          float(M_PI) * (-0.75f + 1.5f * std::log(intensity_mean_cov.intensity_mean - min_intensity + 1.0f) /
+                                    std::fmax(1.0f, std::log(max_intensity - min_intensity + 1.0f)));
         const float sin_sc = std::sin(scaled_intensity), cos_sc = std::cos(scaled_intensity);
         HitMissCount hit_miss_count;
         hit_miss_voxel.read(&hit_miss_count);
@@ -242,8 +242,8 @@ void NdtMap::debugDraw() const
         ellipsoid.setScale(2.0 * tes::Vector3d(scale.x, scale.y, scale.z));
         ellipsoid.setColour(
           tes::Colour(0.5f * (1.0f + sin_sc), 0.5f * (1.0f + cos_sc), 0.5f * (1.0f - sin_sc),
-                      0.1 + 0.89f * float(hit_miss_count.hit_count) /
-                              std::fmax(1.0f, float(hit_miss_count.hit_count + hit_miss_count.miss_count))));
+                      0.1f + 0.89f * float(hit_miss_count.hit_count) /
+                               std::fmax(1.0f, float(hit_miss_count.hit_count + hit_miss_count.miss_count))));
         ellipsoid.setTransparent(true);
 
         // const float alpha = 0.9f * float(hit_miss_count.hit_count) /
