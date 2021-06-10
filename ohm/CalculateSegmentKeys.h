@@ -44,7 +44,7 @@ struct ohm_API WalkKeyAdaptor
   /// Resolve a @p key to the corresponding voxel centre coordinate.
   /// @param key The key of interest.
   /// @return The coordinate at the centre of the voxel which @p key reference.
-  inline glm::dvec3 voxelCentre(const ohm::Key &key) const { return map.voxelCentreLocal(key); }
+  inline glm::dvec3 voxelCentre(const ohm::Key &key) const { return map.voxelCentreGlobal(key); }
   /// Adjust the value of @p key by stepping it along @p axis
   /// @param key The key to modify.
   /// @param axis The axis to modifier where 0, 1, 2 map to X, Y, Z respectively.

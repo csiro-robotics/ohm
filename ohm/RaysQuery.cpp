@@ -202,12 +202,8 @@ bool RaysQuery::onExecute()
       continue;
     }
 
-    // Calculate line key for the last voxel if the end point has been clipped
-    const glm::dvec3 start_point_local = glm::dvec3(start - map_origin);
-    const glm::dvec3 end_point_local = glm::dvec3(end - map_origin);
-
     stop_adjustments = false;
-    ohm::walkSegmentKeys<Key>(visit_func, start_point_local, end_point_local, true, WalkKeyAdaptor(*map));
+    ohm::walkSegmentKeys<Key>(visit_func, start, end, true, WalkKeyAdaptor(*map));
 
     d->ranges.emplace_back(range);
     d->unobserved_volumes_out.emplace_back(unobserved_volume);
