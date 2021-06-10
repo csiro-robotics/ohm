@@ -273,7 +273,7 @@ public:
   /// @return The number of rays integrated. Zero indicates a failure when @p pointCount is not zero.
   ///   In this case either the GPU is unavailable, or all @p rays are invalid.
   size_t integrateRays(const glm::dvec3 *rays, size_t element_count, const float *intensities,
-                        unsigned region_update_flags) override;
+                       unsigned region_update_flags) override;
 
   using RayMapper::integrateRays;
 
@@ -305,8 +305,9 @@ protected:
   /// Cache the correct GPU program to cater for @c with_voxel_mean. Releases the existing program first when
   /// @p force is true or @p with_voxel_mean does not match the cached program.
   /// @param with_voxel_mean True to cache the program which supports voxel mean positioning (@ref voxelmean).
+  /// @param with_decay Include decay rate calculations? Requires "decayRate" layer.
   /// @param force Force release and program caching even if already correct. Must be used on initialisation.
-  virtual void cacheGpuProgram(bool with_voxel_mean, bool force);
+  virtual void cacheGpuProgram(bool with_voxel_mean, bool with_decay, bool force);
 
   /// Release the current GPU program.
   virtual void releaseGpuProgram();

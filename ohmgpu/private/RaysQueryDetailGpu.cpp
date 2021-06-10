@@ -136,9 +136,10 @@ const RaysQueryMapWrapperDetail *RaysQueryMapWrapper::detail() const
 }
 
 
-void RaysQueryMapWrapper::cacheGpuProgram(bool with_voxel_mean, bool force)
+void RaysQueryMapWrapper::cacheGpuProgram(bool with_voxel_mean, bool with_decay, bool force)
 {
   (void)with_voxel_mean;  // unused
+  (void)with_decay;       // unused
   if (imp_->program_ref)
   {
     if (!force)

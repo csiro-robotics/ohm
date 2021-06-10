@@ -66,6 +66,7 @@ protected:
   NdtMap *map_;                    ///< Target map.
   int occupancy_layer_ = -1;       ///< Cached occupancy layer index.
   int mean_layer_ = -1;            ///< Cached voxel mean layer index.
+  int decay_rate_layer_ = -1;      ///< The decay rate layer index.
   int covariance_layer_ = -1;      ///< Cached covariance layer index.
   int intensity_layer_ = -1;       ///< Cached intensity layer index.
   int hit_miss_count_layer_ = -1;  ///< Cached hit miss count layer index.

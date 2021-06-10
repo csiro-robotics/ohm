@@ -64,7 +64,7 @@ protected:
   const RaysQueryMapWrapperDetail *detail() const;
 
   /// Load and cache the required GPU program. The @p with_voxel_mean value is irrelevant.
-  void cacheGpuProgram(bool with_voxel_mean, bool force) final;
+  void cacheGpuProgram(bool with_voxel_mean, bool with_decay, bool force) final;
 
   /// Override the GPU kernenel invocation to perform the rays query.
   void finaliseBatch(unsigned region_update_flags) final;

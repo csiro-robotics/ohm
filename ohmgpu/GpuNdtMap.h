@@ -112,9 +112,11 @@ protected:
   const GpuNdtMapDetail *detail() const;
 
   /// Cache the NDT kernel as well.
-  /// @param with_voxel_mean True to cache the program which supports voxel mean positioning (@ref voxelmean).
+  /// @param with_voxel_mean True to cache the program which supports voxel mean positioning (@ref voxelmean). Redundant
+  ///   for NDT as it is already required.
+  /// @param with_decay_rate True to cache the program which supports the decay rate layer.
   /// @param force Force release and program caching even if already correct. Must be used on initialisation.
-  void cacheGpuProgram(bool with_voxel_mean, bool force) override;
+  void cacheGpuProgram(bool with_voxel_mean, bool with_decay_rate, bool force) override;
 
   void finaliseBatch(unsigned region_update_flags) override;
 

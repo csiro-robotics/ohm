@@ -26,18 +26,23 @@ RayMapperOccupancy::RayMapperOccupancy(OccupancyMap *map)
   : map_(map)
   , occupancy_layer_(map_->layout().occupancyLayer())
   , mean_layer_(map_->layout().meanLayer())
+  , decay_rate_layer_(map_->layout().decayRateLayer())
 {
   // Use Voxel to validate the layers.
   // In processing we use VoxelBuffer instead of Voxel objects. While Voxel makes for a neater API, using VoxelBuffer
   // makes for less overhead and yields better performance.
   Voxel<const float> occupancy(map_, occupancy_layer_);
   Voxel<const VoxelMean> mean(map_, mean_layer_);
+  Voxel<const float> decay(map_, decay_rate_layer_);
 
   occupancy_dim_ = occupancy.isLayerValid() ? occupancy.layerDim() : occupancy_dim_;
 
   // Validate we only have an occupancy layer or we also have a mean layer and the layer dimesions match.
   valid_ = occupancy.isLayerValid() && !mean.isLayerValid() ||
            occupancy.isLayerValid() && mean.isLayerValid() && occupancy.layerDim() == mean.layerDim();
+  // Validate the decay rate layer in a simliar fashion.
+  valid_ = occupancy.isLayerValid() && !decay.isLayerValid() ||
+           occupancy.isLayerValid() && decay.isLayerValid() && occupancy.layerDim() == decay.layerDim();
 }
 
 
@@ -52,15 +57,17 @@ size_t RayMapperOccupancy::integrateRays(const glm::dvec3 *rays, size_t element_
   MapChunk *last_mean_chunk = nullptr;
   VoxelBuffer<VoxelBlock> occupancy_buffer;
   VoxelBuffer<VoxelBlock> mean_buffer;
+  VoxelBuffer<VoxelBlock> decay_buffer;
+  double last_exit_range = 0;
   bool stop_adjustments = false;
 
   const RayFilterFunction ray_filter = map_->rayFilter();
   const bool use_filter = bool(ray_filter);
   const auto occupancy_layer = occupancy_layer_;
   const auto mean_layer = mean_layer_;
+  const auto decay_rate_layer = decay_rate_layer_;
   const auto occupancy_dim = occupancy_dim_;
   const auto occupancy_threshold_value = map_->occupancyThresholdValue();
-  const auto map_origin = map_->origin();
   const auto miss_value = map_->missValue();
   const auto hit_value = map_->hitValue();
   const auto resolution = map_->resolution();
@@ -71,8 +78,8 @@ size_t RayMapperOccupancy::integrateRays(const glm::dvec3 *rays, size_t element_
   // Touch the map to flag changes.
   const auto touch_stamp = map_->touch();
 
-  const auto visit_func = [&](const Key &key, double /*enter_range*/, double /*exit_range*/) -> bool  //
-  {                                                                                                   //
+  const auto visit_func = [&](const Key &key, double enter_range, double exit_range) -> bool  //
+  {                                                                                           //
     // The update logic here is a little unclear as it tries to avoid outright branches.
     // The intended logic is described as follows:
     // 1. Select direct write or additive adjustment.
@@ -95,6 +102,10 @@ size_t RayMapperOccupancy::integrateRays(const glm::dvec3 *rays, size_t element_
     if (chunk != last_chunk)
     {
       occupancy_buffer = VoxelBuffer<VoxelBlock>(chunk->voxel_blocks[occupancy_layer]);
+      if (decay_rate_layer >= 0)
+      {
+        decay_buffer = VoxelBuffer<VoxelBlock>(chunk->voxel_blocks[decay_rate_layer]);
+      }
     }
     last_chunk = chunk;
     const unsigned voxel_index = ohm::voxelIndex(key, occupancy_dim);
@@ -121,6 +132,16 @@ size_t RayMapperOccupancy::integrateRays(const glm::dvec3 *rays, size_t element_
     occupancyAdjustMiss(&occupancy_value, initial_value, miss_adjustment, unobservedOccupancyValue(), voxel_min,
                         saturation_min, saturation_max, stop_adjustments);
     occupancy_buffer.writeVoxel(voxel_index, occupancy_value);
+
+    // Accumulate decay rate
+    if (decay_rate_layer >= 0)
+    {
+      float decay;
+      decay_buffer.readVoxel(voxel_index, &decay);
+      decay += float(exit_range - enter_range);
+      decay_buffer.writeVoxel(voxel_index, decay);
+    }
+
     // Lint(KS): The analyser takes some branches which are not possible in practice.
     // NOLINTNEXTLINE(clang-analyzer-core.CallAndMessage)
     chunk->updateFirstValid(voxel_index);
@@ -130,6 +151,9 @@ size_t RayMapperOccupancy::integrateRays(const glm::dvec3 *rays, size_t element_
     // Update the touched_stamps with relaxed memory ordering. The important thing is to have an update,
     // not so much the sequencing. We really don't want to synchronise here.
     chunk->touched_stamps[occupancy_layer].store(touch_stamp, std::memory_order_relaxed);
+
+    // Store last exit range for final decay rate accumulation.
+    last_exit_range = exit_range;
 
     return true;
   };
@@ -170,6 +194,10 @@ size_t RayMapperOccupancy::integrateRays(const glm::dvec3 *rays, size_t element_
       if (chunk != last_chunk)
       {
         occupancy_buffer = VoxelBuffer<VoxelBlock>(chunk->voxel_blocks[occupancy_layer]);
+        if (decay_rate_layer >= 0)
+        {
+          decay_buffer = VoxelBuffer<VoxelBlock>(chunk->voxel_blocks[decay_rate_layer]);
+        }
       }
       last_chunk = chunk;
       const unsigned voxel_index = ohm::voxelIndex(key, occupancy_dim);
@@ -215,6 +243,16 @@ size_t RayMapperOccupancy::integrateRays(const glm::dvec3 *rays, size_t element_
         chunk->touched_stamps[mean_layer].store(touch_stamp, std::memory_order_relaxed);
       }
       occupancy_buffer.writeVoxel(voxel_index, occupancy_value);
+
+      // Accumulate decay rate
+      if (decay_rate_layer >= 0)
+      {
+        float decay;
+        decay_buffer.readVoxel(voxel_index, &decay);
+        decay += float(glm::length(end - start) - last_exit_range);
+        decay_buffer.writeVoxel(voxel_index, decay);
+      }
+
       // Lint(KS): The analyser takes some branches which are not possible in practice.
       // NOLINTNEXTLINE(clang-analyzer-core.CallAndMessage)
       chunk->updateFirstValid(voxel_index);

@@ -51,6 +51,8 @@
 #if GPUTIL_TYPE == GPUTIL_CUDA
 GPUTIL_CUDA_DECLARE_KERNEL(regionRayUpdate);
 GPUTIL_CUDA_DECLARE_KERNEL(regionRayUpdateSubVox);
+GPUTIL_CUDA_DECLARE_KERNEL(regionRayUpdateWithDecay);
+GPUTIL_CUDA_DECLARE_KERNEL(regionRayUpdateSubVoxWithDecay);
 #endif  // GPUTIL_TYPE == GPUTIL_CUDA
 
 namespace ohm
@@ -61,19 +63,32 @@ namespace
 // NOLINTNEXTLINE(cert-err58-cpp)
 GpuProgramRef g_program_ref_sub_vox("RegionUpdate", GpuProgramRef::kSourceString, RegionUpdateCode,  // NOLINT
                                     RegionUpdateCode_length, { "-DVOXEL_MEAN" });
+// NOLINTNEXTLINE(cert-err58-cpp)
+GpuProgramRef g_program_ref_sub_vox_with_decay("RegionUpdate", GpuProgramRef::kSourceString,
+                                               RegionUpdateCode,  // NOLINT
+                                               RegionUpdateCode_length, { "-DVOXEL_MEAN", "-DDECAY_RATE" });
 #else   // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
 // NOLINTNEXTLINE(cert-err58-cpp)
 GpuProgramRef g_program_ref_sub_vox("RegionUpdate", GpuProgramRef::kSourceFile, "RegionUpdate.cl", 0u,
                                     { "-DVOXEL_MEAN" });
+// NOLINTNEXTLINE(cert-err58-cpp)
+GpuProgramRef g_program_ref_sub_vox_with_decay("RegionUpdate", GpuProgramRef::kSourceFile, "RegionUpdate.cl", 0u,
+                                               { "-DVOXEL_MEAN", "-DDECAY_RATE" });
 #endif  // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
 
 #if defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
 // NOLINTNEXTLINE(cert-err58-cpp)
 GpuProgramRef g_program_ref_no_sub("RegionUpdate", GpuProgramRef::kSourceString, RegionUpdateCode,  // NOLINT
                                    RegionUpdateCode_length);
+// NOLINTNEXTLINE(cert-err58-cpp)
+GpuProgramRef g_program_ref_no_sub_with_decay("RegionUpdate", GpuProgramRef::kSourceString, RegionUpdateCode,  // NOLINT
+                                              RegionUpdateCode_length, { "-DDECAY_RATE" });
 #else   // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
 // NOLINTNEXTLINE(cert-err58-cpp)
 GpuProgramRef g_program_ref_no_sub("RegionUpdate", GpuProgramRef::kSourceFile, "RegionUpdate.cl", 0u);
+// NOLINTNEXTLINE(cert-err58-cpp)
+GpuProgramRef g_program_ref_no_sub_with_decay("RegionUpdate", GpuProgramRef::kSourceFile, "RegionUpdate.cl", 0u,
+                                              { "-DDECAY_RATE" });
 #endif  // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
 
 const double kDefaultMaxRayRange = 1000.0;
@@ -478,9 +493,14 @@ void GpuMap::setMap(OccupancyMap *map, bool borrowed_map, unsigned expected_elem
       {
         imp_->voxel_upload_info[i].emplace_back(VoxelUploadInfo(kGcIdVoxelMean, gpu_cache.gpu()));
       }
+      if (imp_->support_decay_rate && imp_->map->decayRateEnabled())
+      {
+        imp_->voxel_upload_info[i].emplace_back(VoxelUploadInfo(kGcIdDecayRate, gpu_cache.gpu()));
+      }
     }
 
-    cacheGpuProgram(imp_->support_voxel_mean && imp_->map->voxelMeanEnabled(), force_gpu_program_release);
+    cacheGpuProgram(imp_->support_voxel_mean && imp_->map->voxelMeanEnabled(),
+                    imp_->support_decay_rate && imp_->map->decayRateEnabled(), force_gpu_program_release);
   }
 }
 
@@ -491,7 +511,7 @@ void GpuMap::setGroupedRays(bool group)
 }
 
 
-void GpuMap::cacheGpuProgram(bool with_voxel_mean, bool force)
+void GpuMap::cacheGpuProgram(bool with_voxel_mean, bool with_decay, bool force)
 {
   if (imp_->program_ref)
   {
@@ -506,12 +526,29 @@ void GpuMap::cacheGpuProgram(bool with_voxel_mean, bool force)
   GpuCache &gpu_cache = *gpuCache();
   imp_->gpu_ok = true;
   imp_->cached_sub_voxel_program = with_voxel_mean;
-  imp_->program_ref = (with_voxel_mean) ? &g_program_ref_sub_vox : &g_program_ref_no_sub;
+  if (with_decay)
+  {
+    imp_->program_ref = (with_voxel_mean) ? &g_program_ref_sub_vox : &g_program_ref_no_sub;
+  }
+  else
+  {
+    imp_->program_ref = (with_voxel_mean) ? &g_program_ref_sub_vox_with_decay : &g_program_ref_no_sub_with_decay;
+  }
 
   if (imp_->program_ref->addReference(gpu_cache.gpu()))
   {
-    imp_->update_kernel = (!with_voxel_mean) ? GPUTIL_MAKE_KERNEL(imp_->program_ref->program(), regionRayUpdate) :
-                                               GPUTIL_MAKE_KERNEL(imp_->program_ref->program(), regionRayUpdateSubVox);
+    if (!with_decay)
+    {
+      imp_->update_kernel = (!with_voxel_mean) ?
+                              GPUTIL_MAKE_KERNEL(imp_->program_ref->program(), regionRayUpdate) :
+                              GPUTIL_MAKE_KERNEL(imp_->program_ref->program(), regionRayUpdateSubVox);
+    }
+    else
+    {
+      imp_->update_kernel = (!with_voxel_mean) ?
+                              GPUTIL_MAKE_KERNEL(imp_->program_ref->program(), regionRayUpdateWithDecay) :
+                              GPUTIL_MAKE_KERNEL(imp_->program_ref->program(), regionRayUpdateSubVoxWithDecay);
+    }
     imp_->update_kernel.calculateOptimalWorkGroupSize();
 
     imp_->gpu_ok = imp_->update_kernel.isValid();
@@ -565,7 +602,8 @@ size_t GpuMap::integrateRays(const glm::dvec3 *rays, size_t element_count, const
   }
 
   // Ensure we are using the correct GPU program. Voxel mean support may have changed.
-  cacheGpuProgram(imp_->support_voxel_mean && map.voxelMeanEnabled(), false);
+  cacheGpuProgram(imp_->support_voxel_mean && map.voxelMeanEnabled(),
+                  imp_->support_voxel_mean && map.decayRateEnabled(), false);
 
   // Resolve the buffer index to use. We need to support cases where buffer is already one fo the imp_->ray_buffers.
   // Check this first.
@@ -996,10 +1034,16 @@ void GpuMap::finaliseBatch(unsigned region_update_flags)
   GpuCache &gpu_cache = *this->gpuCache();
   GpuLayerCache &occupancy_layer_cache = *gpu_cache.layerCache(kGcIdOccupancy);
   GpuLayerCache *mean_layer_cache = nullptr;
+  GpuLayerCache *decay_rate_layer_cache = nullptr;
 
   if (imp_->support_voxel_mean && imp_->map->voxelMeanEnabled())
   {
     mean_layer_cache = gpu_cache.layerCache(kGcIdVoxelMean);
+  }
+
+  if (imp_->support_decay_rate && imp_->map->decayRateEnabled())
+  {
+    decay_rate_layer_cache = gpu_cache.layerCache(kGcIdDecayRate);
   }
 
   // Enqueue update kernel.
@@ -1008,54 +1052,105 @@ void GpuMap::finaliseBatch(unsigned region_update_flags)
 
   const unsigned region_count = imp_->region_counts[buf_idx];
   const unsigned ray_count = imp_->ray_counts[buf_idx];
+  int next_upload_buffer = 0;
   gputil::Dim3 global_size(ray_count);
   gputil::Dim3 local_size(std::min<size_t>(imp_->update_kernel.optimalWorkGroupSize(), ray_count));
   gputil::EventList wait({ imp_->key_upload_events[buf_idx], imp_->ray_upload_events[buf_idx],
                            imp_->region_key_upload_events[buf_idx],
-                           imp_->voxel_upload_info[buf_idx][0].offset_upload_event,
-                           imp_->voxel_upload_info[buf_idx][0].voxel_upload_event });
+                           imp_->voxel_upload_info[buf_idx][next_upload_buffer].offset_upload_event,
+                           imp_->voxel_upload_info[buf_idx][next_upload_buffer].voxel_upload_event });
+  ++next_upload_buffer;
 
   // Add voxel mean offset upload events.
   if (mean_layer_cache)
   {
-    wait.add(imp_->voxel_upload_info[buf_idx][1].offset_upload_event);
-    wait.add(imp_->voxel_upload_info[buf_idx][1].voxel_upload_event);
+    wait.add(imp_->voxel_upload_info[buf_idx][next_upload_buffer].offset_upload_event);
+    wait.add(imp_->voxel_upload_info[buf_idx][next_upload_buffer].voxel_upload_event);
+    ++next_upload_buffer;
+  }
+  if (decay_rate_layer_cache)
+  {
+    wait.add(imp_->voxel_upload_info[buf_idx][next_upload_buffer].offset_upload_event);
+    wait.add(imp_->voxel_upload_info[buf_idx][next_upload_buffer].voxel_upload_event);
+    ++next_upload_buffer;
   }
 
-  if (mean_layer_cache)
+  // Supporting voxel mean and decay rate are putting us at the limit of what we can support using this sort of
+  // conditional invocation.
+  if (decay_rate_layer_cache)
   {
-    imp_->update_kernel(global_size, local_size, wait, imp_->region_update_events[buf_idx], &gpu_cache.gpuQueue(),
-                        // Kernel args begin:
-                        gputil::BufferArg<float>(*occupancy_layer_cache.buffer()),
-                        gputil::BufferArg<uint64_t>(imp_->voxel_upload_info[buf_idx][0].offsets_buffer),
-                        gputil::BufferArg<VoxelMean>(*mean_layer_cache->buffer()),
-                        gputil::BufferArg<uint64_t>(imp_->voxel_upload_info[buf_idx][1].offsets_buffer),
-                        gputil::BufferArg<gputil::int3>(imp_->region_key_buffers[buf_idx]), region_count,
-                        gputil::BufferArg<GpuKey>(imp_->key_buffers[buf_idx]),
-                        gputil::BufferArg<gputil::float3>(imp_->ray_buffers[buf_idx]), ray_count, region_dim_gpu,
-                        float(map->resolution), map->miss_value, map->hit_value, map->occupancy_threshold_value,
-                        map->min_voxel_value, map->max_voxel_value, region_update_flags);
+    if (mean_layer_cache)
+    {
+      imp_->update_kernel(global_size, local_size, wait, imp_->region_update_events[buf_idx], &gpu_cache.gpuQueue(),
+                          // Kernel args begin:
+                          gputil::BufferArg<float>(*occupancy_layer_cache.buffer()),
+                          gputil::BufferArg<uint64_t>(imp_->voxel_upload_info[buf_idx][0].offsets_buffer),
+                          gputil::BufferArg<VoxelMean>(*mean_layer_cache->buffer()),
+                          gputil::BufferArg<uint64_t>(imp_->voxel_upload_info[buf_idx][1].offsets_buffer),
+                          gputil::BufferArg<float>(*decay_rate_layer_cache->buffer()),
+                          gputil::BufferArg<uint64_t>(imp_->voxel_upload_info[buf_idx][2].offsets_buffer),
+                          gputil::BufferArg<gputil::int3>(imp_->region_key_buffers[buf_idx]), region_count,
+                          gputil::BufferArg<GpuKey>(imp_->key_buffers[buf_idx]),
+                          gputil::BufferArg<gputil::float3>(imp_->ray_buffers[buf_idx]), ray_count, region_dim_gpu,
+                          float(map->resolution), map->miss_value, map->hit_value, map->occupancy_threshold_value,
+                          map->min_voxel_value, map->max_voxel_value, region_update_flags);
+    }
+    else
+    {
+      imp_->update_kernel(global_size, local_size, wait, imp_->region_update_events[buf_idx], &gpu_cache.gpuQueue(),
+                          // Kernel args begin:
+                          gputil::BufferArg<float>(*occupancy_layer_cache.buffer()),
+                          gputil::BufferArg<uint64_t>(imp_->voxel_upload_info[buf_idx][0].offsets_buffer),
+                          gputil::BufferArg<float>(*decay_rate_layer_cache->buffer()),
+                          gputil::BufferArg<uint64_t>(imp_->voxel_upload_info[buf_idx][1].offsets_buffer),
+                          gputil::BufferArg<gputil::int3>(imp_->region_key_buffers[buf_idx]), region_count,
+                          gputil::BufferArg<GpuKey>(imp_->key_buffers[buf_idx]),
+                          gputil::BufferArg<gputil::float3>(imp_->ray_buffers[buf_idx]), ray_count, region_dim_gpu,
+                          float(map->resolution), map->miss_value, map->hit_value, map->occupancy_threshold_value,
+                          map->min_voxel_value, map->max_voxel_value, region_update_flags);
+    }
   }
   else
   {
-    imp_->update_kernel(global_size, local_size, wait, imp_->region_update_events[buf_idx], &gpu_cache.gpuQueue(),
-                        // Kernel args begin:
-                        gputil::BufferArg<float>(*occupancy_layer_cache.buffer()),
-                        gputil::BufferArg<uint64_t>(imp_->voxel_upload_info[buf_idx][0].offsets_buffer),
-                        gputil::BufferArg<gputil::int3>(imp_->region_key_buffers[buf_idx]), region_count,
-                        gputil::BufferArg<GpuKey>(imp_->key_buffers[buf_idx]),
-                        gputil::BufferArg<gputil::float3>(imp_->ray_buffers[buf_idx]), ray_count, region_dim_gpu,
-                        float(map->resolution), map->miss_value, map->hit_value, map->occupancy_threshold_value,
-                        map->min_voxel_value, map->max_voxel_value, region_update_flags);
+    {
+      if (mean_layer_cache)
+      {
+        imp_->update_kernel(global_size, local_size, wait, imp_->region_update_events[buf_idx], &gpu_cache.gpuQueue(),
+                            // Kernel args begin:
+                            gputil::BufferArg<float>(*occupancy_layer_cache.buffer()),
+                            gputil::BufferArg<uint64_t>(imp_->voxel_upload_info[buf_idx][0].offsets_buffer),
+                            gputil::BufferArg<VoxelMean>(*mean_layer_cache->buffer()),
+                            gputil::BufferArg<uint64_t>(imp_->voxel_upload_info[buf_idx][1].offsets_buffer),
+                            gputil::BufferArg<gputil::int3>(imp_->region_key_buffers[buf_idx]), region_count,
+                            gputil::BufferArg<GpuKey>(imp_->key_buffers[buf_idx]),
+                            gputil::BufferArg<gputil::float3>(imp_->ray_buffers[buf_idx]), ray_count, region_dim_gpu,
+                            float(map->resolution), map->miss_value, map->hit_value, map->occupancy_threshold_value,
+                            map->min_voxel_value, map->max_voxel_value, region_update_flags);
+      }
+      else
+      {
+        imp_->update_kernel(global_size, local_size, wait, imp_->region_update_events[buf_idx], &gpu_cache.gpuQueue(),
+                            // Kernel args begin:
+                            gputil::BufferArg<float>(*occupancy_layer_cache.buffer()),
+                            gputil::BufferArg<uint64_t>(imp_->voxel_upload_info[buf_idx][0].offsets_buffer),
+                            gputil::BufferArg<gputil::int3>(imp_->region_key_buffers[buf_idx]), region_count,
+                            gputil::BufferArg<GpuKey>(imp_->key_buffers[buf_idx]),
+                            gputil::BufferArg<gputil::float3>(imp_->ray_buffers[buf_idx]), ray_count, region_dim_gpu,
+                            float(map->resolution), map->miss_value, map->hit_value, map->occupancy_threshold_value,
+                            map->min_voxel_value, map->max_voxel_value, region_update_flags);
+      }
+    }
   }
-
-  // gpu_cache.gpuQueue().flush();
 
   // Update most recent chunk GPU event.
   occupancy_layer_cache.updateEvents(imp_->batch_marker, imp_->region_update_events[buf_idx]);
   if (mean_layer_cache)
   {
     mean_layer_cache->updateEvents(imp_->batch_marker, imp_->region_update_events[buf_idx]);
+  }
+  if (decay_rate_layer_cache)
+  {
+    decay_rate_layer_cache->updateEvents(imp_->batch_marker, imp_->region_update_events[buf_idx]);
   }
 
   // std::cout << imp_->region_counts[bufIdx] << "
@@ -1067,6 +1162,10 @@ void GpuMap::finaliseBatch(unsigned region_update_flags)
   if (mean_layer_cache)
   {
     mean_layer_cache->beginBatch(imp_->batch_marker);
+  }
+  if (decay_rate_layer_cache)
+  {
+    decay_rate_layer_cache->beginBatch(imp_->batch_marker);
   }
   imp_->next_buffers_index = (imp_->next_buffers_index + 1) % GpuMapDetail::kBuffersCount;
 }

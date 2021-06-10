@@ -103,6 +103,13 @@ class RayFilter;
 ///
 /// The background compression does impose a some CPU overhead and latency especially when iterating the map as a
 /// whole to ensure voxel data are uncompressed when needed. The overhead is minimal when not using compression.
+///
+/// @todo Derive @c std::enable_shared_from_this<OccupancyMap> . Current occupancy map usage encourages stack allocation
+/// or @c std::unique_ptr usage of the map, but then ends up passing ray pointer and marks borrowed pointers to other
+/// objects - such as a @c GpuMap . This obfuscates ownership. The plan would be to use @c std::shared_ptr<OccupancyMap>
+/// in these borrowed pointer cases. The ideal is to continue to allow stack allocation of a map be ensuring the map
+/// lifetime exceeds any borrowed ownership. This needs testing and verfication, but the goal is to use smart pointers
+/// rather than raw pointers.
 class ohm_API OccupancyMap
 {
 public:
@@ -426,6 +433,18 @@ public:
   /// Is voxel mean positioning enabled on this map?
   /// @return True if the @c VoxelMean layer is enabled.
   bool voxelMeanEnabled() const;
+
+  /// Add the "decayRate" layer to this map. This adds @c default_layer::decayRateLayerName() containing one float
+  /// per voxel. This value accumulates the distance travelled through the voxels by all previously intersected rays.
+  ///
+  /// Note note that changing the requires all map chunks have additional voxel layers allocated.
+  ///
+  /// Does nothing if already present.
+  void addDecayRateLayer();
+
+  /// Is decay rate calculation enabled on this map?
+  /// @return True if the "decayRate" is enabled.
+  bool decayRateEnabled() const;
 
   /// Update the memory layout to match that in this map's @c MapLayout. Must be called after updating
   /// the @p layout() after construction.

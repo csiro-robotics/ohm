@@ -131,6 +131,11 @@ public:
   /// @return The voxel mean layer index or -1 if not present.
   int meanLayer() const;
 
+  /// Cache index to the "decayRate" layer. This layer holds a single @c float per voxel which tracks the accumulated
+  /// distance travelled of all rays though that voxel.
+  /// @return The voxel decay rate layer index or -1 if not present.
+  int decayRateLayer() const;
+
   /// Cached index to the "covariance" layer. This layer holds the @c CovarianceVoxel data.
   /// @return The voxel covariance layer index or -1 if not present.
   int covarianceLayer() const;

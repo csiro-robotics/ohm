@@ -19,13 +19,22 @@
 
 #undef NDT_HIT_KERNEL
 
+#ifndef DECAY_RATE
 #if NDT == NDT_OM
 #define NDT_HIT_KERNEL covarianceHitNdt
-
 #elif NDT == NDT_TM
 #define NDT_HIT_KERNEL covarianceHitNdtTm
-
 #endif  // NDT
+
+#else  // DECAY_RATE
+#if NDT == NDT_OM
+#define NDT_HIT_KERNEL covarianceHitNdtWithDecay
+#elif NDT == NDT_TM
+#define NDT_HIT_KERNEL covarianceHitNdtTmWithDecay
+#endif  // NDT
+#include "DecayRate.cl"
+#endif  // DECAY_RATE
+
 
 /// This kernel integrates the ray sample points only into the map and is executed one thread per sample.
 ///
@@ -86,27 +95,28 @@
 ///     See @c calculateHitWithCovariance()
 /// @param reinitialise_cov_sample_count The point count required to allow @p reinitialise_cov_threshold to be
 ///     triggered. See @c calculateHitWithCovariance()
-__kernel void NDT_HIT_KERNEL(__global atomic_float *occupancy, __global ulonglong *occupancy_region_mem_offsets_global,
-                             __global VoxelMean *means, __global ulonglong *means_region_mem_offsets_global,
-                             __global CovarianceVoxel *cov_voxels, __global ulonglong *cov_region_mem_offsets_global,
+__kernel void NDT_HIT_KERNEL(
+  __global atomic_float *occupancy, __global ulonglong *occupancy_region_mem_offsets_global, __global VoxelMean *means,
+  __global ulonglong *means_region_mem_offsets_global, __global CovarianceVoxel *cov_voxels,
+  __global ulonglong *cov_region_mem_offsets_global,
 #if NDT == NDT_TM
-                             __global IntensityMeanCov *intensity_voxels,
-                             __global ulonglong *intensity_region_mem_offsets_global,
-                             __global HitMissCount *hit_miss_voxels,
-                             __global ulonglong *hit_miss_region_mem_offsets_global,
+  __global IntensityMeanCov *intensity_voxels, __global ulonglong *intensity_region_mem_offsets_global,
+  __global HitMissCount *hit_miss_voxels, __global ulonglong *hit_miss_region_mem_offsets_global,
 #endif  // NDT == NDT_TM
-                             __global int3 *occupancy_region_keys_global, uint region_count, __global GpuKey *line_keys,
-                             __global float3 *local_lines, uint line_count,
+  __global int3 *occupancy_region_keys_global, uint region_count, __global GpuKey *line_keys,
+  __global float3 *local_lines, uint line_count,
 #if NDT == NDT_TM
-                             __global float *intensities,
+  __global float *intensities,
 #endif  // NDT == NDT_TM
-                             int3 region_dimensions, float voxel_resolution, float sample_adjustment,
-                             float occupied_threshold, float voxel_value_max,
+  int3 region_dimensions, float voxel_resolution, float sample_adjustment, float occupied_threshold,
+  float voxel_value_max,
 #if NDT == NDT_TM
-                             float initial_intensity_covariance, unsigned ndt_sample_threshold, float adaptation_rate,
+  float initial_intensity_covariance, unsigned ndt_sample_threshold, float adaptation_rate,
 #endif  // NDT == NDT_TM
-                             float sensor_noise, float reinitialise_cov_threshold,
-                             unsigned reinitialise_cov_sample_count)
+#ifdef DECAY_RATE
+  __global atomic_float *decay_rate_voxels, __global ulonglong *decay_rate_region_mem_offsets_global,
+#endif  // DECAY_RATE
+  float sensor_noise, float reinitialise_cov_threshold, unsigned reinitialise_cov_sample_count)
 {
   if (get_global_id(0) >= line_count)
   {
@@ -169,6 +179,11 @@ __kernel void NDT_HIT_KERNEL(__global atomic_float *occupancy, __global ulonglon
   hit_miss_index =
     (uint)(region_local_index + hit_miss_region_mem_offsets_global[region_index] / sizeof(*hit_miss_voxels));
 #endif  // NDT == NDT_TM
+#ifdef DECAY_RATE
+  uint decay_rate_index =
+    (uint)(region_local_index + decay_rate_region_mem_offsets_global[region_index] / sizeof(*decay_rate_voxels));
+  float decay_rate = decay_rate_voxels[decay_rate_index];
+#endif  // DECAY_RATE
 
   // Cache initial values.
   WorkItem work_item;
@@ -203,7 +218,7 @@ __kernel void NDT_HIT_KERNEL(__global atomic_float *occupancy, __global ulonglon
     if (equalKeys(&target_voxel, &start_voxel))
     {
       // Now we consider rays which have been clipped. These will have Ignore voxels with voxel[3] != 0.
-      // This indicates the end point is a trancated part of the ray and not a real sample.
+      // This indicates the end point is a truncated part of the ray and not a real sample.
       if (target_voxel.voxel[3] == 0)
       {
 #if NDT == NDT_TM
@@ -217,6 +232,9 @@ __kernel void NDT_HIT_KERNEL(__global atomic_float *occupancy, __global ulonglon
                                       work_item.sample_count, reinitialise_cov_threshold,
                                       reinitialise_cov_sample_count);
 #endif  // NDT == NDT_TM
+#ifdef DECAY_RATE
+        decay_rate += calculateDecayRate(local_lines[i * 2], local_lines[i * 2 + 1], voxel_resolution);
+#endif  // DECAY_RATE
 
         collateSample(&work_item, local_lines[i * 2], local_lines[i * 2 + 1], region_dimensions, voxel_resolution,
                       sample_adjustment, occupied_threshold, sensor_noise, reinitialise_cov_threshold,
@@ -251,4 +269,7 @@ __kernel void NDT_HIT_KERNEL(__global atomic_float *occupancy, __global ulonglon
   intensity_voxels[intensity_index] = intensity_cov;
   hit_miss_voxels[hit_miss_index] = hit_miss_count;
 #endif  // NDT == NDT_TM
+#ifdef DECAY_RATE
+  decay_rate_voxels[decay_rate_index] = decay_rate;
+#endif  // DECAY_RATE
 }

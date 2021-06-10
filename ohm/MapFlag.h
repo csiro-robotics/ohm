@@ -21,6 +21,9 @@ enum class MapFlag : unsigned
   kVoxelMean = (1u << 0u),
   /// Maintain compressed voxels in memory. Compression is performed off thread.
   kCompressed = (1u << 1u),
+  /// Maintain the decay rate in addition to the occupancy layer. See @c default_layer::decayRateLayerName() .
+  /// This implies @c kVoxelMean layer is also used in order to track the voxel sample count.
+  kDecayRate = (1u << 2u),
 
   /// Default map creation flags.
   kDefault = kCompressed

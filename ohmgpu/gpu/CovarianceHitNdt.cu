@@ -17,3 +17,17 @@ GPUTIL_CUDA_DEFINE_KERNEL(covarianceHitNdt);
 #include "CovarianceHitNdt.cl"
 
 GPUTIL_CUDA_DEFINE_KERNEL(covarianceHitNdtTm);
+
+#define DECAY_RATE
+#undef NDT
+#define NDT 1
+#include "CovarianceHitNdt.cl"
+
+GPUTIL_CUDA_DEFINE_KERNEL(covarianceHitNdtWithDecay);
+
+#define DECAY_RATE
+#undef NDT
+#define NDT 2
+#include "CovarianceHitNdt.cl"
+
+GPUTIL_CUDA_DEFINE_KERNEL(covarianceHitNdtTmWithDecay);

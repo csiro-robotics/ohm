@@ -220,7 +220,8 @@ OccupancyMap::OccupancyMap(double resolution, const glm::u8vec3 &region_voxel_di
   };
 
   imp_->flags = flags;
-  imp_->setDefaultLayout((flags & MapFlag::kVoxelMean) != MapFlag::kNone);
+  imp_->setDefaultLayout((flags & MapFlag::kVoxelMean) != MapFlag::kNone,
+                         (flags & MapFlag::kDecayRate) != MapFlag::kNone);
 }
 
 OccupancyMap::OccupancyMap(double resolution, const glm::u8vec3 &region_voxel_dimensions, MapFlag flags,
@@ -231,6 +232,10 @@ OccupancyMap::OccupancyMap(double resolution, const glm::u8vec3 &region_voxel_di
   if ((flags & MapFlag::kVoxelMean) != MapFlag::kNone)
   {
     addVoxelMeanLayer();
+  }
+  if ((flags & MapFlag::kDecayRate) != MapFlag::kNone)
+  {
+    addDecayRateLayer();
   }
 }
 
@@ -520,6 +525,26 @@ bool OccupancyMap::voxelMeanEnabled() const
 }
 
 
+void OccupancyMap::addDecayRateLayer()
+{
+  if (imp_->layout.decayRateLayer() >= 0)
+  {
+    // Already present.
+    return;
+  }
+
+  MapLayout layout = imp_->layout;
+  addDecayRate(layout);
+  updateLayout(layout);
+}
+
+
+bool OccupancyMap::decayRateEnabled() const
+{
+  return imp_->layout.decayRateLayer() >= 0;
+}
+
+
 void OccupancyMap::updateLayout(const MapLayout &new_layout, bool preserve_map)
 {
   // First check if there is a difference between the @c MapLayout and the actual layout.
@@ -795,6 +820,7 @@ glm::dvec3 OccupancyMap::voxelCentreGlobal(const Key &key) const
 Key OccupancyMap::voxelKey(const glm::dvec3 &point) const
 {
   Key key;
+  // const glm::dvec3 map_local_key = point - imp_->origin;
   MapRegion region(point, imp_->origin, imp_->region_spatial_dimensions);
   // VALIDATION code ensures the region we calculate to contain the point does.
   // Floating point error was causing issues where it nearly, but not quite would.

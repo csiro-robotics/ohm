@@ -54,6 +54,8 @@
 // Declarations
 //------------------------------------------------------------------------------
 
+// This is begging for a refactor.
+#ifndef DECAY_RATE
 #if NDT == NDT_OM
 #define REGION_UPDATE_KERNEL regionRayUpdateNdt
 #define VISIT_LINE_VOXEL     visitVoxelRegionUpdateNdt
@@ -75,6 +77,30 @@
 #define WALK_LINE_VOXELS     walkRegionLine
 
 #endif
+#else  //  DECAY_RATE
+#if NDT == NDT_OM
+#define REGION_UPDATE_KERNEL regionRayUpdateNdtWithDecay
+#define VISIT_LINE_VOXEL     visitVoxelRegionUpdateNdtWithDecay
+#define WALK_LINE_VOXELS     walkRegionLineNdtWithDecay
+
+#elif NDT == NDT_TM
+#define REGION_UPDATE_KERNEL regionRayUpdateNdtTmWithDecay
+#define VISIT_LINE_VOXEL     visitVoxelRegionUpdateNdtTmWithDecay
+#define WALK_LINE_VOXELS     walkRegionLineNdtTmWithDecay
+
+#elif defined(VOXEL_MEAN)
+#define REGION_UPDATE_KERNEL regionRayUpdateSubVoxWithDecay
+#define VISIT_LINE_VOXEL     visitVoxelRegionUpdateSubVoxWithDecay
+#define WALK_LINE_VOXELS     walkRegionLineSubVoxWithDecay
+
+#else  // VOXEL_MEAN
+#define REGION_UPDATE_KERNEL regionRayUpdateWithDecay
+#define VISIT_LINE_VOXEL     visitVoxelRegionUpdateWithDecay
+#define WALK_LINE_VOXELS     walkRegionLineWithDecay
+
+#endif
+#endif  // DECAY_RATE
+
 
 #ifndef REGION_UPDATE_BASE_CL
 // User data for voxel visit callback.
@@ -100,6 +126,12 @@ typedef struct LineWalkData_t
   // Array of offsets for each regionKey into hit_miss. These are byte offsets.
   __global ulonglong *hit_miss_offsets;
 #endif  // NDT == NDT_TM
+#ifdef DECAY_RATE
+  // Decay rate voxel memory
+  __global atomic_float *decay_rate;
+  // Array of offsets for each regionKey into decay_rate. These are byte offsets.
+  __global ulonglong *decay_rate_offsets;
+#endif  // DECAY_RATE
   // Array of region keys for currently loaded regions.
   __global int3 *region_keys;
   // The region currently being traversed. Also used to reduce searching the region_keys and region_mem_offsets.
@@ -263,6 +295,27 @@ __device__ bool VISIT_LINE_VOXEL(const GpuKey *voxelKey, bool isEndVoxel, const 
     }
 #endif  // defined(VOXEL_MEAN) || NDT
 
+    // Update decay rate. There is no floating based atomic arithmetic, so we must do the same CAS style update.
+#ifdef DECAY_RATE
+#ifdef LIMIT_VOXEL_WRITE_ITERATIONS
+    iterations = 0;
+#endif
+    // Work out which voxel to modify.
+    vi = (line_data->decay_rate_offsets[line_data->current_region_index] / sizeof(*line_data->decay_rate)) + vi_local;
+    __global atomic_float *decay_rate = &line_data->decay_rate[vi];
+    old_value = new_value = gputilAtomicLoadF32(decay_rate);
+    do
+    {
+#ifdef LIMIT_VOXEL_WRITE_ITERATIONS
+      if (iterations++ > iterationLimit)
+      {
+        break;
+      }
+#endif
+      new_value += exitTime - entryTime;
+    } while (new_value != old_value && !gputilAtomicCasF32(decay_rate, old_value, new_value));
+#endif  // DECAY_RATE
+
     if (was_occupied_voxel && (line_data->region_update_flags & kRfStopOnFirstOccupied))
     {
       // Found first occupied voxel and request is to stop on the first occupied voxel. Abort traversal.
@@ -360,6 +413,9 @@ __kernel void REGION_UPDATE_KERNEL(
 #if NDT == NDT_TM
   __global HitMissCount *hit_miss_voxels, __global ulonglong *hit_miss_region_mem_offsets_global,
 #endif  // NDT == NDT_TM
+#ifdef DECAY_RATE
+  __global atomic_float *decay_rate_voxels, __global ulonglong *decay_rate_region_mem_offsets_global,
+#endif  // DECAY_RATE
   __global int3 *occupancy_region_keys_global, uint region_count, __global GpuKey *line_keys,
   __global float3 *local_lines, uint line_count, int3 region_dimensions, float voxel_resolution, float ray_adjustment,
   float sample_adjustment, float occupied_threshold, float voxel_value_min, float voxel_value_max,
@@ -393,6 +449,10 @@ __kernel void REGION_UPDATE_KERNEL(
   line_data.hit_miss = hit_miss_voxels;
   line_data.hit_miss_offsets = hit_miss_region_mem_offsets_global;
 #endif  // NDT == NDT_TM
+#ifdef DECAY_RATE
+  line_data.decay_rate = decay_rate_voxels;
+  line_data.decay_rate_offsets = decay_rate_region_mem_offsets_global;
+#endif  // DECAY_RATE
   line_data.region_keys = occupancy_region_keys_global;
   line_data.region_dimensions = region_dimensions;
   line_data.ray_adjustment = ray_adjustment;

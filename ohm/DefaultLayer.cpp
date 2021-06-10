@@ -32,6 +32,10 @@ const char *meanLayerName()
 {
   return "mean";
 }
+const char *decayRateLayerName()
+{
+  return "decay";
+}
 const char *covarianceLayerName()
 {
   return "covariance";
@@ -70,6 +74,30 @@ MapLayer *addVoxelMean(MapLayout &layout)
   if (layer->voxelByteSize() != sizeof(VoxelMean))
   {
     throw std::runtime_error("VoxelMean layer size mismatch");
+  }
+
+  return layer;
+}
+
+
+MapLayer *addDecayRate(MapLayout &layout)
+{
+  int layer_index = layout.decayRateLayer();
+  if (layer_index != -1)
+  {
+    // Already present.
+    return layout.layerPtr(layer_index);
+  }
+
+  // Add the mean layer.
+  MapLayer *layer = layout.addLayer(default_layer::decayRateLayerName());
+
+  const size_t clear_value = 0u;
+  layer->voxelLayout().addMember("decay", DataType::kFloat, clear_value);
+
+  if (layer->voxelByteSize() != sizeof(float))
+  {
+    throw std::runtime_error("Decay rate layer size mismatch");
   }
 
   return layer;
