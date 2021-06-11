@@ -521,6 +521,7 @@ bool Heightmap::buildHeightmapT(KeyWalker &walker, const glm::dvec3 &reference_p
   // Brute force initial approach.
   const OccupancyMap &src_map = *imp_->occupancy_map;
   OccupancyMap &heightmap = *imp_->heightmap;
+  const double seed_height = glm::dot(imp_->up, reference_pos);
 
   updateMapInfo(heightmap.mapInfo());
 
@@ -675,7 +676,7 @@ bool Heightmap::buildHeightmapT(KeyWalker &walker, const glm::dvec3 &reference_p
     }
 
     // Sort layers and remove filtered virtual surface voxels.
-    heightmap::sortHeightmapLayers(*imp_, multi_layer_keys, use_voxel_mean);
+    heightmap::sortHeightmapLayers(*imp_, multi_layer_keys, use_voxel_mean, &seed_height);
   }
 
   return populated_count != 0;

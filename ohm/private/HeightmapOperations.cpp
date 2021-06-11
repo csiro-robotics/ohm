@@ -659,7 +659,8 @@ void filterVirtualVoxels(ohm::HeightmapDetail &detail, unsigned threshold,
 /// @param detail Target @c Heightmap private detail.
 /// @param target_keys keys which contain multiple voxels.
 /// @param use_voxel_mean Does the map support voxel mean positioning?
-void sortHeightmapLayers(ohm::HeightmapDetail &detail, const std::set<ohm::Key> &target_keys, const bool use_voxel_mean)
+void sortHeightmapLayers(ohm::HeightmapDetail &detail, const std::set<ohm::Key> &target_keys, const bool use_voxel_mean,
+                         const double *seed_height)
 {
   PROFILE(sortHeightmapLayers);
 
@@ -726,8 +727,10 @@ void sortHeightmapLayers(ohm::HeightmapDetail &detail, const std::set<ohm::Key> 
         key = base_key;
         std::sort(sorting_list.begin(), sorting_list.end());
 
-        bool have_base_layer = false;  // Track having located the first base layer.
+        Key base_layer_key(nullptr);  // Key identifying the base layer.
+        double base_layer_height = 0;
         // Now write back the sorted results.
+        // At the same time we finalise the base layer.
         for (SortingVoxel voxel_info : sorting_list)
         {
           voxel.setKey(key);
@@ -738,10 +741,23 @@ void sortHeightmapLayers(ohm::HeightmapDetail &detail, const std::set<ohm::Key> 
           voxel_info.height_info.height =
             float(voxel_info.height - glm::dot(detail.up, detail.heightmap->voxelCentreGlobal(key)));
 
-          // Only one item can be in the base layer. Ensure only the first is marked as the base layer item.
-          voxel_info.height_info.layer =
-            (!have_base_layer && voxel_info.base_layer_candidate) ? kHvlBaseLayer : kHvlExtended;
-          have_base_layer = have_base_layer || voxel_info.base_layer_candidate;
+          // Only one item can be in the base layer. Track the best candidate.
+          if (voxel_info.base_layer_candidate)
+          {
+            // Check if this is the best candidate.
+            if (base_layer_key.isNull() ||  // first candidate (lowest)
+                seed_height && std::abs(voxel_info.height_info.height - *seed_height) < base_layer_height)
+            {
+              // We have found either the first candidate, or the closest to the seed height.
+              base_layer_key = key;
+              // Note: base_layer_height is unused if seed_height is null.
+              base_layer_height =
+                (seed_height) ? std::abs(voxel_info.height_info.height - *seed_height) : voxel_info.height_info.height;
+            }
+          }
+
+          // We always write kHvlExtended here. The base layer is finalised after the loop.
+          voxel_info.height_info.layer = kHvlExtended;
 
           voxel.occupancy.write(voxel_info.occupancy);
           voxel.heightmap.write(voxel_info.height_info);
@@ -750,6 +766,15 @@ void sortHeightmapLayers(ohm::HeightmapDetail &detail, const std::set<ohm::Key> 
             voxel.mean.write(voxel_info.mean);
           }
           heightmap.moveKeyAlongAxis(key, detail.vertical_axis_index, 1);
+        }
+
+        // Finalise the base layer.
+        if (!base_layer_key.isNull())
+        {
+          voxel.setKey(base_layer_key);
+          auto height_info = voxel.heightmap.data();
+          height_info.layer = kHvlBaseLayer;
+          voxel.heightmap.write(height_info);
         }
       }
     }
