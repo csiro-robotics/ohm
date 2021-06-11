@@ -103,6 +103,9 @@ __kernel void NDT_HIT_KERNEL(
   __global IntensityMeanCov *intensity_voxels, __global ulonglong *intensity_region_mem_offsets_global,
   __global HitMissCount *hit_miss_voxels, __global ulonglong *hit_miss_region_mem_offsets_global,
 #endif  // NDT == NDT_TM
+#ifdef DECAY_RATE
+  __global atomic_float *decay_rate_voxels, __global ulonglong *decay_rate_region_mem_offsets_global,
+#endif  // DECAY_RATE
   __global int3 *occupancy_region_keys_global, uint region_count, __global GpuKey *line_keys,
   __global float3 *local_lines, uint line_count,
 #if NDT == NDT_TM
@@ -113,9 +116,6 @@ __kernel void NDT_HIT_KERNEL(
 #if NDT == NDT_TM
   float initial_intensity_covariance, unsigned ndt_sample_threshold, float adaptation_rate,
 #endif  // NDT == NDT_TM
-#ifdef DECAY_RATE
-  __global atomic_float *decay_rate_voxels, __global ulonglong *decay_rate_region_mem_offsets_global,
-#endif  // DECAY_RATE
   float sensor_noise, float reinitialise_cov_threshold, unsigned reinitialise_cov_sample_count)
 {
   if (get_global_id(0) >= line_count)

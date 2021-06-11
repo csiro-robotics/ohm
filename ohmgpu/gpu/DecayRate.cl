@@ -19,7 +19,7 @@ __device__ float calculateDecayRate(float3 start, float3 end, float voxel_resolu
 
 inline __device__ float calculateDecayRate(float3 start, float3 end, float voxel_resolution)
 {
-  // Define the planes which mark the edge of the voxel. The normals point into the voxel.
+  // Define the planes which mark the edge of the voxel. The normals out of the voxel.
   // The distance part of the plane equation is implied below as 0.5*voxel_resolution
   const float3 voxel_plane_normals[6] = { make_float3(-1, 0, 0), make_float3(1, 0, 0),  make_float3(0, -1, 0),
                                           make_float3(0, 1, 0),  make_float3(0, 0, -1), make_float3(0, 0, 1) };
@@ -32,7 +32,7 @@ inline __device__ float calculateDecayRate(float3 start, float3 end, float voxel
   for (int i = 0; i < 6; ++i)
   {
     float ray_dot = dot(voxel_plane_normals[i], dir);
-    float3 p = voxel_plane_normals[i] * 0.5f * voxel_resolution - start;
+    float3 p = voxel_plane_normals[i] * 0.5f * voxel_resolution - end;
     float plane_hit_time = (ray_dot > 1e-6f) ? dot(p, voxel_plane_normals[i]) : INFINITY;
     first_hit_time = min(first_hit_time, plane_hit_time);
   }

@@ -232,19 +232,19 @@ void GpuNdtMap::cacheGpuProgram(bool /*with_voxel_mean*/, bool with_decay_rate, 
     {
       if (with_decay_rate)
       {
-        imp->update_kernel = GPUTIL_MAKE_KERNEL(imp->program_ref->program(), regionRayUpdateNdt);
-        imp->cov_hit_kernel = GPUTIL_MAKE_KERNEL(imp->cov_hit_program_ref->program(), covarianceHitNdt);
+        imp->update_kernel = GPUTIL_MAKE_KERNEL(imp->program_ref->program(), regionRayUpdateNdtWithDecay);
+        imp->cov_hit_kernel = GPUTIL_MAKE_KERNEL(imp->cov_hit_program_ref->program(), covarianceHitNdtWithDecay);
       }
       else
       {
-        imp->update_kernel = GPUTIL_MAKE_KERNEL(imp->program_ref->program(), regionRayUpdateNdtWithDecay);
-        imp->cov_hit_kernel = GPUTIL_MAKE_KERNEL(imp->cov_hit_program_ref->program(), covarianceHitNdtWithDecay);
+        imp->update_kernel = GPUTIL_MAKE_KERNEL(imp->program_ref->program(), regionRayUpdateNdt);
+        imp->cov_hit_kernel = GPUTIL_MAKE_KERNEL(imp->cov_hit_program_ref->program(), covarianceHitNdt);
       }
     }
     break;
   case NdtMode::kTraversability:
     imp->program_ref = (with_decay_rate) ? &g_program_ref_ndt_tm_miss_with_decay : &g_program_ref_ndt_tm_miss;
-    imp->cov_hit_program_ref = (with_decay_rate) ? &g_program_ref_ndt_tm_miss_with_decay : &g_program_ref_ndt_tm_miss;
+    imp->cov_hit_program_ref = (with_decay_rate) ? &g_program_ref_hit_ndt_tm_with_decay : &g_program_ref_hit_ndt_tm;
     imp->gpu_ok = imp->program_ref->addReference(gpu_cache.gpu()) && imp_->gpu_ok;
     imp->gpu_ok = imp->cov_hit_program_ref->addReference(gpu_cache.gpu()) && imp_->gpu_ok;
 
@@ -252,13 +252,13 @@ void GpuNdtMap::cacheGpuProgram(bool /*with_voxel_mean*/, bool with_decay_rate, 
     {
       if (with_decay_rate)
       {
-        imp->update_kernel = GPUTIL_MAKE_KERNEL(imp->program_ref->program(), regionRayUpdateNdtTm);
-        imp->cov_hit_kernel = GPUTIL_MAKE_KERNEL(imp->cov_hit_program_ref->program(), covarianceHitNdtTm);
+        imp->update_kernel = GPUTIL_MAKE_KERNEL(imp->program_ref->program(), regionRayUpdateNdtTmWithDecay);
+        imp->cov_hit_kernel = GPUTIL_MAKE_KERNEL(imp->cov_hit_program_ref->program(), covarianceHitNdtTmWithDecay);
       }
       else
       {
-        imp->update_kernel = GPUTIL_MAKE_KERNEL(imp->program_ref->program(), regionRayUpdateNdtTmWithDecay);
-        imp->cov_hit_kernel = GPUTIL_MAKE_KERNEL(imp->cov_hit_program_ref->program(), covarianceHitNdtTmWithDecay);
+        imp->update_kernel = GPUTIL_MAKE_KERNEL(imp->program_ref->program(), regionRayUpdateNdtTm);
+        imp->cov_hit_kernel = GPUTIL_MAKE_KERNEL(imp->cov_hit_program_ref->program(), covarianceHitNdtTm);
       }
     }
     break;
@@ -514,8 +514,10 @@ void GpuNdtMap::invokeNdtOm(unsigned region_update_flags, int buf_idx, gputil::E
                           gputil::BufferArg<uint64_t>(imp->voxel_upload_info[buf_idx][1].offsets_buffer),
                           gputil::BufferArg<CovarianceVoxel>(*cov_voxel_layer_cache.buffer()),
                           gputil::BufferArg<uint64_t>(imp->voxel_upload_info[buf_idx][2].offsets_buffer),
-                          gputil::BufferArg<gputil::int3>(imp->region_key_buffers[buf_idx]), region_count,
-                          gputil::BufferArg<GpuKey>(imp->key_buffers[buf_idx]),
+                          gputil::BufferArg<float>(*decay_rate_layer_cache->buffer()),
+                          gputil::BufferArg<uint64_t>(imp->voxel_upload_info[buf_idx][3].offsets_buffer),
+                          gputil::BufferArg<gputil::int3>(imp->region_key_buffers[buf_idx]),
+                          static_cast<gputil::uint>(region_count), gputil::BufferArg<GpuKey>(imp->key_buffers[buf_idx]),
                           gputil::BufferArg<gputil::float3>(imp->ray_buffers[buf_idx]), sample_count, region_dim_gpu,
                           float(map->resolution), map->hit_value, map->occupancy_threshold_value, map->max_voxel_value,
                           imp->ndt_map.sensorNoise(), imp->ndt_map.reinitialiseCovarianceThreshold(),
@@ -531,8 +533,6 @@ void GpuNdtMap::invokeNdtOm(unsigned region_update_flags, int buf_idx, gputil::E
                           gputil::BufferArg<uint64_t>(imp->voxel_upload_info[buf_idx][1].offsets_buffer),
                           gputil::BufferArg<CovarianceVoxel>(*cov_voxel_layer_cache.buffer()),
                           gputil::BufferArg<uint64_t>(imp->voxel_upload_info[buf_idx][2].offsets_buffer),
-                          gputil::BufferArg<float>(*decay_rate_layer_cache->buffer()),
-                          gputil::BufferArg<uint64_t>(imp->voxel_upload_info[buf_idx][3].offsets_buffer),
                           gputil::BufferArg<gputil::int3>(imp->region_key_buffers[buf_idx]), region_count,
                           gputil::BufferArg<GpuKey>(imp->key_buffers[buf_idx]),
                           gputil::BufferArg<gputil::float3>(imp->ray_buffers[buf_idx]), sample_count, region_dim_gpu,

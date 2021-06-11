@@ -528,26 +528,26 @@ void GpuMap::cacheGpuProgram(bool with_voxel_mean, bool with_decay, bool force)
   imp_->cached_sub_voxel_program = with_voxel_mean;
   if (with_decay)
   {
-    imp_->program_ref = (with_voxel_mean) ? &g_program_ref_sub_vox : &g_program_ref_no_sub;
+    imp_->program_ref = (with_voxel_mean) ? &g_program_ref_sub_vox_with_decay : &g_program_ref_no_sub_with_decay;
   }
   else
   {
-    imp_->program_ref = (with_voxel_mean) ? &g_program_ref_sub_vox_with_decay : &g_program_ref_no_sub_with_decay;
+    imp_->program_ref = (with_voxel_mean) ? &g_program_ref_sub_vox : &g_program_ref_no_sub;
   }
 
   if (imp_->program_ref->addReference(gpu_cache.gpu()))
   {
-    if (!with_decay)
-    {
-      imp_->update_kernel = (!with_voxel_mean) ?
-                              GPUTIL_MAKE_KERNEL(imp_->program_ref->program(), regionRayUpdate) :
-                              GPUTIL_MAKE_KERNEL(imp_->program_ref->program(), regionRayUpdateSubVox);
-    }
-    else
+    if (with_decay)
     {
       imp_->update_kernel = (!with_voxel_mean) ?
                               GPUTIL_MAKE_KERNEL(imp_->program_ref->program(), regionRayUpdateWithDecay) :
                               GPUTIL_MAKE_KERNEL(imp_->program_ref->program(), regionRayUpdateSubVoxWithDecay);
+    }
+    else
+    {
+      imp_->update_kernel = (!with_voxel_mean) ?
+                              GPUTIL_MAKE_KERNEL(imp_->program_ref->program(), regionRayUpdate) :
+                              GPUTIL_MAKE_KERNEL(imp_->program_ref->program(), regionRayUpdateSubVox);
     }
     imp_->update_kernel.calculateOptimalWorkGroupSize();
 
