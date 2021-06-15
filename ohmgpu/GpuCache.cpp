@@ -19,6 +19,13 @@
 
 namespace ohm
 {
+// Support pre C++17 ODR
+constexpr size_t GpuCache::kMiB;
+constexpr size_t GpuCache::kGiB;
+constexpr size_t GpuCache::kDefaultLayerMemSize;
+constexpr size_t GpuCache::kDefaultTargetMemSize;
+
+
 struct GpuCacheDetail
 {
   std::vector<std::unique_ptr<GpuLayerCache>> layer_caches;

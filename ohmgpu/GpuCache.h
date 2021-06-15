@@ -60,13 +60,13 @@ class ohmgpu_API GpuCache : public MapRegionCache
 {
 public:
   /// Define for 1 MiB in bytes.
-  static const size_t kMiB = 1024ull * 1024ull;
+  static constexpr size_t kMiB = 1024ull * 1024ull;
   /// Define for 1 GiB in bytes.
-  static const size_t kGiB = 1024ull * 1024ull * 1024ull;
+  static constexpr size_t kGiB = 1024ull * 1024ull * 1024ull;
   /// The default byte size of each GPU layer if not specified.
-  static const size_t kDefaultLayerMemSize = kGiB / 2;
+  static constexpr size_t kDefaultLayerMemSize = kGiB / 2;
   /// Default total memory size to target.
-  static const size_t kDefaultTargetMemSize = 1 * kGiB;
+  static constexpr size_t kDefaultTargetMemSize = 1 * kGiB;
 
   /// Instantiate the @c GpuCache for @p map.
   /// @param map The map to cache data for.
