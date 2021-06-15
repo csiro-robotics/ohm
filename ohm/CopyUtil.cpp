@@ -44,9 +44,9 @@ CopyFilter copyFilterExtents(const glm::dvec3 &min_ext, const glm::dvec3 &max_ex
   };
 }
 
-CopyFilter copyFilterStamp(uint64_t at_or_after_stamp)
+CopyFilter copyFilterStamp(uint64_t after_stamp)
 {
-  return [at_or_after_stamp](const MapChunk &chunk) { return chunk.dirty_stamp >= at_or_after_stamp; };
+  return [after_stamp](const MapChunk &chunk) { return chunk.dirty_stamp > after_stamp; };
 }
 
 bool canCopy(const OccupancyMap &dst, const OccupancyMap &src)

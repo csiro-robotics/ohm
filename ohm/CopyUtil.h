@@ -27,11 +27,11 @@ using CopyFilter = std::function<bool(const MapChunk &chunk)>;
 /// @return The filtering function object.
 CopyFilter ohm_API copyFilterExtents(const glm::dvec3 &min_ext, const glm::dvec3 &max_ext);
 
-/// Create a copy filter function which passes any @c MapChunk with a @c MapChunk::dirty_stamp greater than or equal
-/// @p at_or_after_stamp .
-/// @param at_or_after_stamp The stamp value at/after which to pass chunks.
+/// Create a copy filter function which passes any @c MapChunk with a @c MapChunk::dirty_stamp greater than
+/// @p after_stamp .
+/// @param after_stamp The stamp value at/after which to pass chunks.
 /// @return The filtering function object.
-CopyFilter ohm_API copyFilterStamp(uint64_t at_or_after_stamp);
+CopyFilter ohm_API copyFilterStamp(uint64_t after_stamp);
 
 /// Returns a copy filter function which passes if both @c filter_a and @c filter_b pass.
 ///
