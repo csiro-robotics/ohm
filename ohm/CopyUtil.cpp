@@ -65,8 +65,9 @@ bool copyMap(OccupancyMap &dst, const OccupancyMap &src, CopyFilter copy_filter)
   OccupancyMapDetail &dst_detail = *dst.detail();
   const OccupancyMapDetail &src_detail = *src.detail();
 
-  // Lock required mutexes. TODO: convert to C++17 std::scoped_lock for beter deadlock avoidance.
-  std::unique_lock<decltype(dst_detail.mutex)> dst_guard(dst_detail.mutex);
+  // Lock required mutexes.
+  // We only lock the source map and assume we are the only writers to the dst map. The @c region() call will lock dst
+  // map mutex.
   std::unique_lock<decltype(src_detail.mutex)> src_guard(src_detail.mutex);
 
   // First resolve the overlapping layer set.

@@ -89,6 +89,8 @@ inline CopyFilter ohm_API copyFilterNegate(CopyFilter filter)
 ///   - have the same resolution
 ///   - have the same region size
 ///   - have the same origin
+/// - The @p dst map is not being modifies by another thread (not enforced).
+///
 /// @param src The map to copy from.
 /// @param dst The map to copy do.
 bool ohm_API canCopy(const OccupancyMap &dst, const OccupancyMap &src);

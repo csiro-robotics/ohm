@@ -78,40 +78,6 @@ TEST(Map, Miss)
 }
 
 
-TEST(Map, Clone)
-{
-  OccupancyMap map(0.25);
-
-  // Generate occupancy.
-  const double box_size = 5.0;
-  ohmgen::boxRoom(map, glm::dvec3(-box_size), glm::dvec3(box_size));
-
-  // Clone the map
-  const std::unique_ptr<OccupancyMap> map_copy(map.clone());
-
-  // Compare maps.
-  ohmtestutil::compareMaps(*map_copy, map, ohmtestutil::kCfCompareAll);
-}
-
-
-TEST(Map, CloneSubmap)
-{
-  const glm::dvec3 clone_min(0);
-  const glm::dvec3 clone_max(4.5);
-  OccupancyMap map(0.2);
-
-  // Generate occupancy.
-  const double box_size = 5.0;
-  ohmgen::boxRoom(map, glm::dvec3(-box_size), glm::dvec3(box_size));
-
-  // Clone the map
-  const std::unique_ptr<OccupancyMap> map_copy(map.clone(clone_min, clone_max));
-
-  // Compare maps.
-  ohmtestutil::compareMaps(*map_copy, map, clone_min, clone_max, ohmtestutil::kCfCompareAll);
-}
-
-
 TEST(Map, ClipBox)
 {
   // Test clipping of rays to an Aabb on insert.
