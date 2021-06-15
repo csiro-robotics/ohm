@@ -72,10 +72,25 @@ bool copyMap(OccupancyMap &dst, const OccupancyMap &src, CopyFilter copy_filter)
 
   // First resolve the overlapping layer set.
   std::vector<std::pair<unsigned, unsigned>> layer_overlap;
+  std::vector<MapRegionCache *> layer_caches;  // Cache pointers matching layer_overlap[n].first .
   if (src_detail.layout.calculateOverlappingLayerSet(layer_overlap, dst_detail.layout) == 0)
   {
     // No common layers to copy.
     return false;
+  }
+
+  // Find layer caches for each layer_overlap entry.
+  if (src_detail.gpu_cache)
+  {
+    for (const auto &overlap : layer_overlap)
+    {
+      layer_caches.emplace_back(src_detail.gpu_cache->findLayerCache(overlap.first));
+    }
+  }
+  else if (!layer_overlap.empty())
+  {
+    layer_caches.resize(layer_overlap.size());
+    std::fill(layer_caches.begin(), layer_caches.end(), nullptr);
   }
 
   for (const auto &src_iter : src_detail.chunks)
@@ -92,10 +107,11 @@ bool copyMap(OccupancyMap &dst, const OccupancyMap &src, CopyFilter copy_filter)
 
     // Included chunk.
     // First try copy via the GPU cache.
-    for (auto &&layer_pair : layer_overlap)
+    for (size_t i = 0; i < layer_overlap.size(); ++i)
     {
-      if (!src_detail.gpu_cache ||
-          !src_detail.gpu_cache->syncLayerTo(dst_chunk, layer_pair.second, src_chunk, layer_pair.first))
+      const auto &layer_pair = layer_overlap[i];
+      auto *layer_cache = (i < layer_caches.size()) ? layer_caches[i] : nullptr;
+      if (!layer_cache || !layer_cache->syncLayerTo(dst_chunk, layer_pair.second, src_chunk, layer_pair.first))
       {
         copyChunkLayerUnsafe(dst_chunk, layer_pair.second, src_chunk, layer_pair.first);
       }

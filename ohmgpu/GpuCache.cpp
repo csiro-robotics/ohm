@@ -131,6 +131,26 @@ bool GpuCache::syncLayerTo(MapChunk &dst_chunk, unsigned dst_layer, const MapChu
 }
 
 
+MapRegionCache *GpuCache::findLayerCache(unsigned layer)
+{
+  // Iterate the layers looking for the appropriate one. Note we accept the first one which matches the src_layer index.
+  // There are situations where this could be incorrect as two layer caches use the same source layer, however,
+  // this should be ok with how the layer indices are placed. See assumptions on @c GpuCacheId .
+  //
+  // Note (KS): this iteration isn't particularly efficient, but we should have small enough layers sets. A mapping of
+  // src_layer to cache may be useful later.
+  for (auto &&layer_cache : imp_->layer_caches)
+  {
+    if (layer_cache && layer_cache->layerIndex() == layer)
+    {
+      return layer_cache.get();
+    }
+  }
+
+  return nullptr;
+}
+
+
 size_t GpuCache::targetGpuAllocSize() const
 {
   return imp_->target_gpu_alloc_size;

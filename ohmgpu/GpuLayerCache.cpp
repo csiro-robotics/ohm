@@ -124,6 +124,18 @@ GpuLayerCache::~GpuLayerCache()
 }
 
 
+void GpuLayerCache::reinitialise()
+{
+  clear();
+}
+
+
+void GpuLayerCache::flush()
+{
+  syncToMainMemory();
+}
+
+
 unsigned GpuLayerCache::beginBatch()
 {
   imp_->batch_marker += 2;
@@ -241,6 +253,24 @@ void GpuLayerCache::remove(const glm::i16vec3 &region_key)
     imp_->mem_offset_free_list.push_back(entry.mem_offset);
     imp_->cache.erase(search_iter);
   }
+}
+
+
+bool GpuLayerCache::syncLayerTo(MapChunk &dst_chunk, unsigned dst_layer, const MapChunk &src_chunk, unsigned src_layer)
+{
+  if (src_layer == layerIndex())
+  {
+    VoxelBuffer<VoxelBlock> dst(dst_chunk.voxel_blocks[dst_layer]);
+    return syncToExternal(dst, src_chunk.region.coord) > 0;
+  }
+
+  return false;
+}
+
+
+MapRegionCache *GpuLayerCache::findLayerCache(unsigned layer)
+{
+  return (layerIndex() == layer) ? this : nullptr;
 }
 
 
@@ -449,12 +479,18 @@ GpuCacheEntry *GpuLayerCache::resolveCacheEntry(OccupancyMap &map, const glm::i1
         (entry->voxel_buffer.isValid()) ? entry->voxel_buffer.voxelMemory() : imp_->dummy_chunk;
       imp_->buffer->write(voxel_mem, layer.layerByteSize(map.regionVoxelDimensions()), entry->mem_offset,
                           &imp_->gpu_queue, wait_for_ptr, &entry->sync_event);
+    }
+    // We update the touched stamping even though the entry is already present and we may not need to upload anything.
+    // We make the assumption that the request for a upload caching is being made because we are about to modify it.
+    // Note we also check the skip_download flag in which case there's no need to update the touched_stamps entry.
+    if (upload && chunk)
+    {
       if (!entry->skip_download)
       {
         // Keeping in sync between GPU and CPU has been an ongoing issue. It probably needs a stamping system which
         // separates CPU and GPU changes, but we don't have that yet. As an interim solution to recognising GPU changes,
         // we update the dirty stamp for a chunk on both upload and download.
-        chunk->touched_stamps[imp_->layer_index] = entry->chunk_touch_stamp = imp_->map->stamp();
+        chunk->dirty_stamp = chunk->touched_stamps[imp_->layer_index] = entry->chunk_touch_stamp = imp_->map->stamp();
       }
       else
       {
@@ -568,7 +604,7 @@ GpuCacheEntry *GpuLayerCache::resolveCacheEntry(OccupancyMap &map, const glm::i1
       if (!entry->skip_download)
       {
         // As above where we upload to update, we change the stamp for the chunk on both upload and download.
-        chunk->touched_stamps[imp_->layer_index] = entry->chunk_touch_stamp = imp_->map->stamp();
+        chunk->dirty_stamp = chunk->touched_stamps[imp_->layer_index] = entry->chunk_touch_stamp = imp_->map->stamp();
       }
       else
       {
@@ -646,7 +682,7 @@ void GpuLayerCache::syncToMainMemory(GpuCacheEntry &entry, bool wait_on_sync)
       imp_->buffer->read(voxel_mem, imp_->chunk_mem_size, entry.mem_offset, &imp_->gpu_queue, &last_event,
                          &entry.sync_event);
       // Update the dirty stamp for the region
-      entry.chunk->touched_stamps[imp_->layer_index] = entry.chunk_touch_stamp = entry.chunk->dirty_stamp =
+      entry.chunk->dirty_stamp = entry.chunk->touched_stamps[imp_->layer_index] = entry.chunk_touch_stamp =
         imp_->map->touch();
       // Also need to invalidate the MapChunk::first_valid_index as we don't know what it will be coming off the GPU.
       // We only apply this change for the occupancy layer

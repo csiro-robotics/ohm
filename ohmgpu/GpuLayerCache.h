@@ -10,6 +10,8 @@
 
 #include "GpuCachePostSyncHandler.h"
 
+#include <ohm/MapRegionCache.h>
+
 #include <glm/glm.hpp>
 
 #include <gputil/gpuBuffer.h>
@@ -53,7 +55,7 @@ class VoxelBuffer;
 /// cache ensures no region with the same batch marker is removed from the cache. In this way all regions required for
 /// a GPU program may be locked in the cache. The @p upload() call may fail when using batch markers if the cache is
 /// not large enough.
-class ohmgpu_API GpuLayerCache
+class ohmgpu_API GpuLayerCache : public MapRegionCache
 {
 public:
   /// Status return values for @c upload().
@@ -100,6 +102,12 @@ public:
 
   /// Release the GPU cache. Does not synchronise to host memory.
   ~GpuLayerCache();
+
+  /// Equivalent to a @c clear() .
+  void reinitialise() override;
+
+  /// Equivalent to a @c syncToMainMemory() .
+  void flush() override;
 
   /// Generate a new batch marker for use with @c upload() @c batchMarker parameter.
   /// @return The next rolling batch marker.
@@ -225,7 +233,14 @@ public:
   /// This will block until outstanding operations relating to @p chunk complete, but will not explicitly sync data
   /// back to the host.
   /// @param region_key The key of the region to remove from the cache.
-  void remove(const glm::i16vec3 &region_key);
+  void remove(const glm::i16vec3 &region_key) override;
+
+  /// Implements the base class version. Succeeds only if @c src_chunk is in the cache and @c src_layer matches the
+  /// @c layerIndex() . Invokes @c syncToExternal() .
+  bool syncLayerTo(MapChunk &dst_chunk, unsigned dst_layer, const MapChunk &src_chunk, unsigned src_layer) override;
+
+  /// Return this if @p layer matches @c layerCache() , null otherwise.
+  MapRegionCache *findLayerCache(unsigned layer) override;
 
   /// Synchronise GPU memory for @p chunk back to main memory.
   ///
@@ -317,7 +332,7 @@ public:
 
   /// Drop all cache entries. Call @c syncToMainMemory() first if data should be synched first.
   /// Resets @c GpuCacheStats - see @c queryStats() .
-  void clear();
+  void clear() override;
 
   /// Query cache hit/miss counts. The stats are reset on @c clear() .
   /// @param[out] stats Populated to the current cache stats.

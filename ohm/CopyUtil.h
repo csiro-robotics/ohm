@@ -101,6 +101,12 @@ bool ohm_API canCopy(const OccupancyMap &dst, const OccupancyMap &src);
 /// There are some specific conditions which must be met in order for this to work:
 /// - @c canCopy() must pass.
 /// - The maps must have common map layers matched by name and voxel layout.
+///
+/// @note This is not currently threadsafe.
+///
+/// @param dst The map to copy into.
+/// @param src The map to copy from.
+/// @param copy_filter Optional @c MapChunk filter to apply restricting what is copied.
 bool ohm_API copyMap(OccupancyMap &dst, const OccupancyMap &src, CopyFilter copy_filter = {});
 }  // namespace ohm
 

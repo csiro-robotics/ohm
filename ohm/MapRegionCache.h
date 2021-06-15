@@ -24,9 +24,6 @@ struct MapChunk;
 class ohm_API MapRegionCache
 {
 public:
-  /// Filter function used with @c syncTo() .
-  using SyncFilter = std::function<bool(const glm::ivec3 &)>;
-
   /// Constructor.
   MapRegionCache();
   /// Virtual destructor.
@@ -69,6 +66,12 @@ public:
   /// @return True if the source chunk/layer pairing are cached by this object and have been copied to the destination
   ///   chunk/layer pairing.
   virtual bool syncLayerTo(MapChunk &dst_chunk, unsigned dst_layer, const MapChunk &src_chunk, unsigned src_layer) = 0;
+
+  /// Find the @c MapRegionCache which specifically targets the specified voxel @p layer . This supports nested caching
+  /// as used by the @c GpuLayerCache . May return itself. May return null there is no cache for @p layer .
+  /// @param layer The specific layer of interest.
+  /// @return The subcache for @p layer - possibly @c this - on success, null on failure.
+  virtual MapRegionCache *findLayerCache(unsigned layer) = 0;
 
 private:
   std::unique_ptr<MapRegionCacheDetail> imp_;
