@@ -288,6 +288,39 @@ void GpuLayerCache::syncToMainMemory()
 }
 
 
+size_t GpuLayerCache::syncToExternal(uint8_t *dst, size_t dst_size, const glm::i16vec3 &src_region_key)
+{
+  if (dst)
+  {
+    GpuCacheEntry *entry = findCacheEntry(src_region_key);
+    if (entry)
+    {
+      if (entry->chunk && entry->voxel_buffer.isValid() && entry->voxel_buffer.voxelMemorySize() >= dst_size &&
+          !entry->skip_download)
+      {
+        // Found a cached entry to sync.
+        // Read voxel data, waiting on the chunk event to ensure it's up to date.
+        // We use a synchronous copy to the destination location.
+        return imp_->buffer->read(dst, entry->voxel_buffer.voxelMemorySize(), entry->mem_offset, nullptr,
+                                  &entry->sync_event);
+      }
+    }
+  }
+
+  return 0;
+}
+
+
+size_t GpuLayerCache::syncToExternal(VoxelBuffer<VoxelBlock> &dst, const glm::i16vec3 &src_region_key)
+{
+  if (dst.isValid())
+  {
+    return syncToExternal(dst.voxelMemory(), dst.voxelMemorySize(), src_region_key);
+  }
+  return 0;
+}
+
+
 gputil::Device &GpuLayerCache::gpu()
 {
   return imp_->gpu;

@@ -96,7 +96,7 @@ struct ohm_API OccupancyMapDetail
   RayFilterFunction ray_filter;
 
   /// Meta information storage about the map.
-  /// The data stored are arbitratry key/value pairs. Generally it is expected that this may hold data about how
+  /// The data stored are arbitrary key/value pairs. Generally it is expected that this may hold data about how
   /// the map was generated or has been modified.
   MapInfo info;
 

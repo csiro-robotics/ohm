@@ -24,6 +24,9 @@ struct GpuLayerCacheDetail;
 struct MapChunk;
 class MapLayer;
 class OccupancyMap;
+class VoxelBlock;
+template <typename T>
+class VoxelBuffer;
 
 /// Defines a GPU memory cache of voxel data.
 ///
@@ -248,6 +251,32 @@ public:
 
   /// Synchronise all GPU chunk memory back to main memory. This may block while outstanding GPU operations complete.
   void syncToMainMemory();
+
+  /// Try sync the content of the cached entry at @p src_region_key to the address at @p dst .
+  ///
+  /// This function supports synching from GPU memory to an alternative location rather than back to the owning
+  /// @c VoxelBlock . This has no effect on the original map, however, the operation must block on the synchronisation
+  /// event for the appropriate cache entry. That is, the operation may block for oustanding GPU operations targetting
+  /// the cached entry.
+  ///
+  /// The operation may fail for the following reasons:
+  ///
+  /// - No entry for @p src_region_key is cached.
+  /// - The specified region is marked to skip downloading (GPU read only).
+  /// - @p dst is null
+  /// - The @p dst_size is too small to fit the requested data.
+  ///
+  /// Note: the @c VoxelBuffer overload is the recommended version of this function, supporting copying from one map to
+  /// another.
+  ///
+  /// @param dst The address to write to.
+  /// @param dst_size The number of bytes available at @p dst .
+  /// @param src_region_key The region key for the cache entry to sync from.
+  /// @return The number of bytes copied to @p dst on success, zero on failure.
+  size_t syncToExternal(uint8_t *dst, size_t dst_size, const glm::i16vec3 &src_region_key);
+
+  /// @overload
+  size_t syncToExternal(VoxelBuffer<VoxelBlock> &dst, const glm::i16vec3 &src_region_key);
 
   /// Access the GPU @c gputil::Device associated with GPU operations.
   /// @return The bound @c gputil::Device.
