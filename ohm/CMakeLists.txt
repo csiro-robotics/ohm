@@ -170,6 +170,7 @@ set(PUBLIC_HEADERS
   Aabb.h
   CalculateSegmentKeys.h
   ClearingPattern.h
+  CopyUtil.h
   CovarianceVoxel.h
   CovarianceVoxelCompute.h
   DataType.h
