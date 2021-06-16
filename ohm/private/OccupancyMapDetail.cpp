@@ -99,18 +99,7 @@ void OccupancyMapDetail::setDefaultLayout(bool enable_voxel_mean)
   // Setup the default layers
   layout.clear();
 
-  MapLayer *layer;
-  VoxelLayout voxel;
-  size_t clear_value;
-
-  const float invalid_marker_value = unobservedOccupancyValue();
-
-  clear_value = 0;
-  memcpy(&clear_value, &invalid_marker_value, sizeof(invalid_marker_value));
-
-  layer = layout.addLayer(default_layer::occupancyLayerName(), 0);
-  voxel = layer->voxelLayout();
-  voxel.addMember(default_layer::occupancyLayerName(), DataType::kFloat, clear_value);
+  addOccupancy(layout);
 
   if (enable_voxel_mean)
   {

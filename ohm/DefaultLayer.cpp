@@ -43,6 +43,27 @@ const char *clearanceLayerName()
 }  // namespace default_layer
 
 
+MapLayer *addOccupancy(MapLayout &layout)
+{
+  int layer_index = layout.occupancyLayer();
+  if (layer_index != -1)
+  {
+    // Already present.
+    return layout.layerPtr(layer_index);
+  }
+
+  MapLayer *layer = layout.addLayer(default_layer::occupancyLayerName(), 0);
+
+  const float invalid_marker_value = unobservedOccupancyValue();
+  size_t clear_value = 0;
+  memcpy(&clear_value, &invalid_marker_value, sizeof(invalid_marker_value));
+
+  layer->voxelLayout().addMember(default_layer::occupancyLayerName(), DataType::kFloat, clear_value);
+
+  return layer;
+}
+
+
 MapLayer *addVoxelMean(MapLayout &layout)
 {
   int layer_index = layout.meanLayer();
