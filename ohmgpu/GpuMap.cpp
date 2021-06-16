@@ -355,6 +355,24 @@ void GpuMap::syncVoxels()
 }
 
 
+void GpuMap::syncVoxels(const std::vector<int> &layer_indices)
+{
+  const int sync_index = (imp_->next_buffers_index + 1) % GpuMapDetail::kBuffersCount;
+  if (imp_->map)
+  {
+    for (const auto &voxel_info : imp_->voxel_upload_info[sync_index])
+    {
+      if (!voxel_info.skip_cpu_sync &&
+          std::find(layer_indices.begin(), layer_indices.end(), int(voxel_info.gpu_layer_id)) != layer_indices.end())
+      {
+        gpumap::sync(*imp_->map, voxel_info.gpu_layer_id);
+      }
+    }
+  }
+  onSyncVoxels(sync_index);
+}
+
+
 void GpuMap::setRayFilter(const RayFilterFunction &ray_filter)
 {
   imp_->ray_filter = ray_filter;
