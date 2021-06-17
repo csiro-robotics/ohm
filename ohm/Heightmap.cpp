@@ -151,13 +151,13 @@ Heightmap::Heightmap(double grid_resolution, double min_clearance, UpAxis up_axi
 Heightmap::~Heightmap() = default;
 
 
-void Heightmap::setOccupancyMap(OccupancyMap *map)
+void Heightmap::setOccupancyMap(const OccupancyMap *map)
 {
   imp_->occupancy_map = map;
 }
 
 
-OccupancyMap *Heightmap::occupancyMap() const
+const OccupancyMap *Heightmap::occupancyMap() const
 {
   return imp_->occupancy_map;
 }
