@@ -8,8 +8,6 @@
 
 #include "OhmConfig.h"
 
-#include <functional>
-
 #include <glm/fwd.hpp>
 
 namespace ohm

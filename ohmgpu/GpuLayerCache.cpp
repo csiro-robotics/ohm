@@ -270,6 +270,8 @@ bool GpuLayerCache::syncLayerTo(MapChunk &dst_chunk, unsigned dst_layer, const M
 
 MapRegionCache *GpuLayerCache::findLayerCache(unsigned layer)
 {
+  // This is part of making GpuLayerCache derive MapRegionCache. This type of MapRegionCache can have no children
+  // (vs GpuCache which contains GpuLayerCache objects), so we caonly only return this if we match the layer index.
   return (layerIndex() == layer) ? this : nullptr;
 }
 

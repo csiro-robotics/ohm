@@ -357,6 +357,7 @@ void GpuMap::syncVoxels()
 
 void GpuMap::syncVoxels(const std::vector<int> &layer_indices)
 {
+  // Sync layers specified in layer_indices. Supports map copy functions.
   const int sync_index = (imp_->next_buffers_index + 1) % GpuMapDetail::kBuffersCount;
   if (imp_->map)
   {

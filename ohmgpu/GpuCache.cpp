@@ -113,7 +113,9 @@ bool GpuCache::syncLayerTo(MapChunk &dst_chunk, unsigned dst_layer, const MapChu
   // this should be ok with how the layer indices are placed. See assumptions on @c GpuCacheId .
   //
   // Note (KS): this iteration isn't particularly efficient, but we should have small enough layers sets. A mapping of
-  // src_layer to cache may be useful later.
+  // src_layer to cache may be useful later. In practice this should be fine. The function was written for copyMap()
+  // but that implementation now avoids this inefficiency by using `findLayerCache()` first. This implementation remains
+  // for completeness.
   for (auto &&layer : imp_->layer_caches)
   {
     if (layer && layer->layerIndex() == src_layer)
