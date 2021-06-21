@@ -26,14 +26,18 @@ inline __device__ float calculateDecayRate(float3 start, float3 end, float voxel
 
   // Seed with the length of the line segment. Doing so handles the case where both points lie within the voxel as we
   // minimise this value in our plane checks.
-  float first_hit_time = length(end - start);
-  float3 dir = (end - start) / (first_hit_time > 0 ? first_hit_time : 1.0f);
+  float first_hit_time = length(start - end);
+  // We trace a ray out of the voxel from end/sample point to start/origin.
+  float3 dir = (start - end) / (first_hit_time > 0 ? first_hit_time : 1.0f);
 
   for (int i = 0; i < 6; ++i)
   {
-    float ray_dot = dot(voxel_plane_normals[i], dir);
-    float3 p = voxel_plane_normals[i] * 0.5f * voxel_resolution - end;
-    float plane_hit_time = (ray_dot > 1e-6f) ? dot(p, voxel_plane_normals[i]) : INFINITY;
+    const float ray_dot = dot(voxel_plane_normals[i], dir);
+    // Generate some point on the plane. It's the voxel centre plus the n*resolution/2 . We know the rays are passed to
+    // GPU such that the start and end points are relative to the end voxel centre, so it's (0, 0, 0)
+    // Modify p so that is the vector from end to some point on the plane.
+    const float3 p = voxel_plane_normals[i] * 0.5f * voxel_resolution - end;
+    const float plane_hit_time = (ray_dot > 1e-6f) ? dot(p, voxel_plane_normals[i]) / ray_dot : INFINITY;
     first_hit_time = min(first_hit_time, plane_hit_time);
   }
 
