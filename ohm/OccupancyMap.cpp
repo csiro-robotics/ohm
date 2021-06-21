@@ -221,7 +221,7 @@ OccupancyMap::OccupancyMap(double resolution, const glm::u8vec3 &region_voxel_di
 
   imp_->flags = flags;
   imp_->setDefaultLayout((flags & MapFlag::kVoxelMean) != MapFlag::kNone,
-                         (flags & MapFlag::kDecayRate) != MapFlag::kNone);
+                         (flags & MapFlag::kTraversal) != MapFlag::kNone);
 }
 
 OccupancyMap::OccupancyMap(double resolution, const glm::u8vec3 &region_voxel_dimensions, MapFlag flags,
@@ -233,9 +233,9 @@ OccupancyMap::OccupancyMap(double resolution, const glm::u8vec3 &region_voxel_di
   {
     addVoxelMeanLayer();
   }
-  if ((flags & MapFlag::kDecayRate) != MapFlag::kNone)
+  if ((flags & MapFlag::kTraversal) != MapFlag::kNone)
   {
-    addDecayRateLayer();
+    addTraversalLayer();
   }
 }
 
@@ -525,23 +525,23 @@ bool OccupancyMap::voxelMeanEnabled() const
 }
 
 
-void OccupancyMap::addDecayRateLayer()
+void OccupancyMap::addTraversalLayer()
 {
-  if (imp_->layout.decayRateLayer() >= 0)
+  if (imp_->layout.traversalLayer() >= 0)
   {
     // Already present.
     return;
   }
 
   MapLayout layout = imp_->layout;
-  addDecayRate(layout);
+  addTraversal(layout);
   updateLayout(layout);
 }
 
 
-bool OccupancyMap::decayRateEnabled() const
+bool OccupancyMap::traversalEnabled() const
 {
-  return imp_->layout.decayRateLayer() >= 0;
+  return imp_->layout.traversalLayer() >= 0;
 }
 
 

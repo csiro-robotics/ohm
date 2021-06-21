@@ -146,8 +146,8 @@ struct GpuMapDetail
   bool cached_sub_voxel_program = false;
   /// Support voxel mean GPU cache layer? This is enabled by default, but can be disabled in specific derivations.
   bool support_voxel_mean = true;
-  /// Support decay rate GPU cache layer? This is enabled by default, but can be disabled in specific derivations.
-  bool support_decay_rate = true;
+  /// Support traversal GPU cache layer? This is enabled by default, but can be disabled in specific derivations.
+  bool support_traversal = true;
 
   GpuMapDetail(OccupancyMap *map, bool borrowed_map)
     : map(map)

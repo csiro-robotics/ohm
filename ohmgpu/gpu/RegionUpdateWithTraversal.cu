@@ -7,9 +7,9 @@
 #include <gputil/cuda/cutil_importcl.h>
 #include <gputil/gpu_ext.h>
 
-#define DECAY_RATE
+#define TRAVERSAL
 
 // Build base without voxel means
 #include "RegionUpdate.cl"
 
-GPUTIL_CUDA_DEFINE_KERNEL(regionRayUpdateWithDecay);
+GPUTIL_CUDA_DEFINE_KERNEL(regionRayUpdateWithTraversal);

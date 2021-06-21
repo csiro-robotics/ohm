@@ -94,7 +94,7 @@ void OccupancyMapDetail::moveKeyAlongAxis(Key &key, int axis, int step, const gl
 }
 
 
-void OccupancyMapDetail::setDefaultLayout(bool enable_voxel_mean, bool enable_decay_rate)
+void OccupancyMapDetail::setDefaultLayout(bool enable_voxel_mean, bool enable_traversal)
 {
   // Setup the default layers
   layout.clear();
@@ -122,14 +122,14 @@ void OccupancyMapDetail::setDefaultLayout(bool enable_voxel_mean, bool enable_de
     flags &= ~MapFlag::kVoxelMean;
   }
 
-  if (enable_decay_rate)
+  if (enable_traversal)
   {
-    addDecayRate(layout);
-    flags |= MapFlag::kDecayRate;
+    addTraversal(layout);
+    flags |= MapFlag::kTraversal;
   }
   else
   {
-    flags &= ~MapFlag::kDecayRate;
+    flags &= ~MapFlag::kTraversal;
   }
 }
 

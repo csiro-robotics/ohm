@@ -15,7 +15,7 @@ class RayMapper;
 
 namespace ohmtestcommon
 {
-namespace decay
+namespace traversal
 {
 /// Test ray trace accumulation for rays traced into a target voxel.
 /// @param map The map object to trace into. The map should be empty/clear.
@@ -27,5 +27,5 @@ void testInto(ohm::OccupancyMap &map, ohm::RayMapper &mapper, std::function<void
 /// @param mapper The ray tracing algorithm.
 /// @param pre_validation Function to call before performing validation. For example, allows GPU to CPU sync.
 void testThrough(ohm::OccupancyMap &map, ohm::RayMapper &mapper, std::function<void()> pre_validation = {});
-}  // namespace decay
+}  // namespace traversal
 }  // namespace ohmtestcommon

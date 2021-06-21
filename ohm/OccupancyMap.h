@@ -434,17 +434,17 @@ public:
   /// @return True if the @c VoxelMean layer is enabled.
   bool voxelMeanEnabled() const;
 
-  /// Add the "decayRate" layer to this map. This adds @c default_layer::decayRateLayerName() containing one float
+  /// Add the "traversal" layer to this map. This adds @c default_layer::traversalLayerName() containing one float
   /// per voxel. This value accumulates the distance travelled through the voxels by all previously intersected rays.
   ///
   /// Note note that changing the requires all map chunks have additional voxel layers allocated.
   ///
-  /// Does nothing if already present.
-  void addDecayRateLayer();
+  /// Does nothing if the layer is already present.
+  void addTraversalLayer();
 
-  /// Is decay rate calculation enabled on this map?
-  /// @return True if the "decayRate" is enabled.
-  bool decayRateEnabled() const;
+  /// Is traversal calculation enabled on this map?
+  /// @return True if the "traversal" layer is enabled.
+  bool traversalEnabled() const;
 
   /// Update the memory layout to match that in this map's @c MapLayout. Must be called after updating
   /// the @p layout() after construction.

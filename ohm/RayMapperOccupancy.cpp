@@ -26,23 +26,23 @@ RayMapperOccupancy::RayMapperOccupancy(OccupancyMap *map)
   : map_(map)
   , occupancy_layer_(map_->layout().occupancyLayer())
   , mean_layer_(map_->layout().meanLayer())
-  , decay_rate_layer_(map_->layout().decayRateLayer())
+  , traversal_layer_(map_->layout().traversalLayer())
 {
   // Use Voxel to validate the layers.
   // In processing we use VoxelBuffer instead of Voxel objects. While Voxel makes for a neater API, using VoxelBuffer
   // makes for less overhead and yields better performance.
   Voxel<const float> occupancy(map_, occupancy_layer_);
   Voxel<const VoxelMean> mean(map_, mean_layer_);
-  Voxel<const float> decay(map_, decay_rate_layer_);
+  Voxel<const float> traversal(map_, traversal_layer_);
 
   occupancy_dim_ = occupancy.isLayerValid() ? occupancy.layerDim() : occupancy_dim_;
 
   // Validate we only have an occupancy layer or we also have a mean layer and the layer dimesions match.
   valid_ = occupancy.isLayerValid() && !mean.isLayerValid() ||
            occupancy.isLayerValid() && mean.isLayerValid() && occupancy.layerDim() == mean.layerDim();
-  // Validate the decay rate layer in a simliar fashion.
-  valid_ = occupancy.isLayerValid() && !decay.isLayerValid() ||
-           occupancy.isLayerValid() && decay.isLayerValid() && occupancy.layerDim() == decay.layerDim();
+  // Validate the traversal layer in a simliar fashion.
+  valid_ = occupancy.isLayerValid() && !traversal.isLayerValid() ||
+           occupancy.isLayerValid() && traversal.isLayerValid() && occupancy.layerDim() == traversal.layerDim();
 }
 
 
@@ -57,7 +57,7 @@ size_t RayMapperOccupancy::integrateRays(const glm::dvec3 *rays, size_t element_
   MapChunk *last_mean_chunk = nullptr;
   VoxelBuffer<VoxelBlock> occupancy_buffer;
   VoxelBuffer<VoxelBlock> mean_buffer;
-  VoxelBuffer<VoxelBlock> decay_buffer;
+  VoxelBuffer<VoxelBlock> traversal_buffer;
   double last_exit_range = 0;
   bool stop_adjustments = false;
 
@@ -65,7 +65,7 @@ size_t RayMapperOccupancy::integrateRays(const glm::dvec3 *rays, size_t element_
   const bool use_filter = bool(ray_filter);
   const auto occupancy_layer = occupancy_layer_;
   const auto mean_layer = mean_layer_;
-  const auto decay_rate_layer = decay_rate_layer_;
+  const auto traversal_layer = traversal_layer_;
   const auto occupancy_dim = occupancy_dim_;
   const auto occupancy_threshold_value = map_->occupancyThresholdValue();
   const auto miss_value = map_->missValue();
@@ -102,9 +102,9 @@ size_t RayMapperOccupancy::integrateRays(const glm::dvec3 *rays, size_t element_
     if (chunk != last_chunk)
     {
       occupancy_buffer = VoxelBuffer<VoxelBlock>(chunk->voxel_blocks[occupancy_layer]);
-      if (decay_rate_layer >= 0)
+      if (traversal_layer >= 0)
       {
-        decay_buffer = VoxelBuffer<VoxelBlock>(chunk->voxel_blocks[decay_rate_layer]);
+        traversal_buffer = VoxelBuffer<VoxelBlock>(chunk->voxel_blocks[traversal_layer]);
       }
     }
     last_chunk = chunk;
@@ -133,13 +133,13 @@ size_t RayMapperOccupancy::integrateRays(const glm::dvec3 *rays, size_t element_
                         saturation_min, saturation_max, stop_adjustments);
     occupancy_buffer.writeVoxel(voxel_index, occupancy_value);
 
-    // Accumulate decay rate
-    if (decay_rate_layer >= 0)
+    // Accumulate traversal
+    if (traversal_layer >= 0)
     {
-      float decay;
-      decay_buffer.readVoxel(voxel_index, &decay);
-      decay += float(exit_range - enter_range);
-      decay_buffer.writeVoxel(voxel_index, decay);
+      float traversal;
+      traversal_buffer.readVoxel(voxel_index, &traversal);
+      traversal += float(exit_range - enter_range);
+      traversal_buffer.writeVoxel(voxel_index, traversal);
     }
 
     // Lint(KS): The analyser takes some branches which are not possible in practice.
@@ -152,7 +152,7 @@ size_t RayMapperOccupancy::integrateRays(const glm::dvec3 *rays, size_t element_
     // not so much the sequencing. We really don't want to synchronise here.
     chunk->touched_stamps[occupancy_layer].store(touch_stamp, std::memory_order_relaxed);
 
-    // Store last exit range for final decay rate accumulation.
+    // Store last exit range for final traversal accumulation.
     last_exit_range = exit_range;
 
     return true;
@@ -194,9 +194,9 @@ size_t RayMapperOccupancy::integrateRays(const glm::dvec3 *rays, size_t element_
       if (chunk != last_chunk)
       {
         occupancy_buffer = VoxelBuffer<VoxelBlock>(chunk->voxel_blocks[occupancy_layer]);
-        if (decay_rate_layer >= 0)
+        if (traversal_layer >= 0)
         {
-          decay_buffer = VoxelBuffer<VoxelBlock>(chunk->voxel_blocks[decay_rate_layer]);
+          traversal_buffer = VoxelBuffer<VoxelBlock>(chunk->voxel_blocks[traversal_layer]);
         }
       }
       last_chunk = chunk;
@@ -244,13 +244,13 @@ size_t RayMapperOccupancy::integrateRays(const glm::dvec3 *rays, size_t element_
       }
       occupancy_buffer.writeVoxel(voxel_index, occupancy_value);
 
-      // Accumulate decay rate
-      if (decay_rate_layer >= 0)
+      // Accumulate traversal
+      if (traversal_layer >= 0)
       {
-        float decay;
-        decay_buffer.readVoxel(voxel_index, &decay);
-        decay += float(glm::length(end - start) - last_exit_range);
-        decay_buffer.writeVoxel(voxel_index, decay);
+        float traversal;
+        traversal_buffer.readVoxel(voxel_index, &traversal);
+        traversal += float(glm::length(end - start) - last_exit_range);
+        traversal_buffer.writeVoxel(voxel_index, traversal);
       }
 
       // Lint(KS): The analyser takes some branches which are not possible in practice.

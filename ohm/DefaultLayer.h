@@ -18,9 +18,9 @@ const char *ohm_API occupancyLayerName();
 /// Name of the @c VoxelMean layer containing mean voxel coordinates.
 /// @return "mean"
 const char *ohm_API meanLayerName();
-/// Name of the decay rate layer.
-/// @return "decay"
-const char *ohm_API decayRateLayerName();
+/// Name of the traversal layer.
+/// @return "traversal"
+const char *ohm_API traversalLayerName();
 /// Name of the @c CovarianceVoxel layer containing packed voxel covariances.
 /// @return "covariance"
 const char *ohm_API covarianceLayerName();
@@ -50,17 +50,17 @@ class MapLayer;
 /// @see @c voxelmean
 MapLayer *ohm_API addVoxelMean(MapLayout &layout);
 
-/// Add the decay rate layer to @p layout.
+/// Add the traversal layer to @p layout.
 ///
-/// This ensures @p layout has a layer with a name matching @p decayRateLayerName() setup to hold a single @c float per
-/// voxel. This tracks the accumulated distance all rays intersecting that voxel have travelled.
+/// This ensures @p layout has a layer with a name matching @p traversalLayerName() setup to hold a single @c float per
+/// voxel. The layer accumulates the total distance travelled all rays through each voxel.
 ///
-/// The function makes no changes if @p layout already has a layer named according to @c decayRateLayerName() , but no
+/// The function makes no changes if @p layout already has a layer named according to @c traversalLayerName() , but no
 /// validation is performed to ensure that the data contained in that layer matches the expected layout.
 ///
 /// @param layout The @p MapLayout to modify.
-/// @return The map layer added or the pre-existing layer named according to @c decayRateLayerName() .
-MapLayer *ohm_API addDecayRate(MapLayout &layout);
+/// @return The map layer added or the pre-existing layer named according to @c traversalLayerName() .
+MapLayer *ohm_API addTraversal(MapLayout &layout);
 
 /// Add the @c CovarianceVoxel layer to @p layout.
 ///

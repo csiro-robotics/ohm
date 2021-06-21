@@ -3,7 +3,7 @@
 // ABN 41 687 119 230
 //
 // Author: Kazys Stepanas
-#include "DecayRateTest.h"
+#include "TraversalTest.h"
 
 #include <gtest/gtest.h>
 
@@ -17,11 +17,11 @@
 
 namespace ohmtestcommon
 {
-namespace decay
+namespace traversal
 {
 void testInto(ohm::OccupancyMap &map, ohm::RayMapper &mapper, std::function<void()> pre_validation)
 {
-  ASSERT_GT(map.layout().decayRateLayer(), 0);
+  ASSERT_GT(map.layout().traversalLayer(), 0);
 
   // Offset the map so that we can cast rays through the origin without incurring floating point ambituity on the target
   // voxel.
@@ -66,11 +66,11 @@ void testInto(ohm::OccupancyMap &map, ohm::RayMapper &mapper, std::function<void
 
   ASSERT_EQ(rays.size(), expected_rate.size() * 2) << "Test data misalignment";
 
-  ohm::Voxel<const float> decay_rate_voxel(&map, map.layout().decayRateLayer());
-  ASSERT_TRUE(decay_rate_voxel.isLayerValid());
+  ohm::Voxel<const float> traversal_voxel(&map, map.layout().traversalLayer());
+  ASSERT_TRUE(traversal_voxel.isLayerValid());
 
   // Integrate and test one ray at a time.
-  float expected_decay_rate = 0;
+  float expected_traversal = 0;
   for (size_t i = 0; i < rays.size(); i += 2)
   {
     mapper.integrateRays(&rays[i], 2);
@@ -78,17 +78,17 @@ void testInto(ohm::OccupancyMap &map, ohm::RayMapper &mapper, std::function<void
     {
       pre_validation();
     }
-    expected_decay_rate += expected_rate[i / 2];
+    expected_traversal += expected_rate[i / 2];
     const auto key = map.voxelKey(glm::dvec3(0));
-    decay_rate_voxel.setKey(key);
-    ASSERT_TRUE(decay_rate_voxel.isValid());
-    EXPECT_NEAR(decay_rate_voxel.data(), expected_decay_rate, 1e-3f);
+    traversal_voxel.setKey(key);
+    ASSERT_TRUE(traversal_voxel.isValid());
+    EXPECT_NEAR(traversal_voxel.data(), expected_traversal, 1e-3f);
   }
 }
 
 void testThrough(ohm::OccupancyMap &map, ohm::RayMapper &mapper, std::function<void()> pre_validation)
 {
-  ASSERT_GT(map.layout().decayRateLayer(), 0);
+  ASSERT_GT(map.layout().traversalLayer(), 0);
 
   // Offset the map so that we can cast rays through the origin without incurring floating point ambituity on the target
   // voxel.
@@ -167,11 +167,11 @@ void testThrough(ohm::OccupancyMap &map, ohm::RayMapper &mapper, std::function<v
 
   ASSERT_EQ(rays.size(), expected_rate.size() * 2) << "Test data misalignment";
 
-  ohm::Voxel<const float> decay_rate_voxel(&map, map.layout().decayRateLayer());
-  ASSERT_TRUE(decay_rate_voxel.isLayerValid());
+  ohm::Voxel<const float> traversal_voxel(&map, map.layout().traversalLayer());
+  ASSERT_TRUE(traversal_voxel.isLayerValid());
 
   // Integrate and test one ray at a time.
-  float expected_decay_rate = 0;
+  float expected_traversal = 0;
   for (size_t i = 0; i < rays.size(); i += 2)
   {
     mapper.integrateRays(&rays[i], 2);
@@ -179,12 +179,12 @@ void testThrough(ohm::OccupancyMap &map, ohm::RayMapper &mapper, std::function<v
     {
       pre_validation();
     }
-    expected_decay_rate += expected_rate[i / 2];
+    expected_traversal += expected_rate[i / 2];
     const auto key = map.voxelKey(glm::dvec3(0));
-    decay_rate_voxel.setKey(key);
-    ASSERT_TRUE(decay_rate_voxel.isValid());
-    EXPECT_NEAR(decay_rate_voxel.data(), expected_decay_rate, 1e-3f);
+    traversal_voxel.setKey(key);
+    ASSERT_TRUE(traversal_voxel.isValid());
+    EXPECT_NEAR(traversal_voxel.data(), expected_traversal, 1e-3f);
   }
 }
-}  // namespace decay
+}  // namespace traversal
 }  // namespace ohmtestcommon

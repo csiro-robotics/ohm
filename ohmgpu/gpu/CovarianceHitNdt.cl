@@ -19,21 +19,21 @@
 
 #undef NDT_HIT_KERNEL
 
-#ifndef DECAY_RATE
+#ifndef TRAVERSAL
 #if NDT == NDT_OM
 #define NDT_HIT_KERNEL covarianceHitNdt
 #elif NDT == NDT_TM
 #define NDT_HIT_KERNEL covarianceHitNdtTm
 #endif  // NDT
 
-#else  // DECAY_RATE
+#else  // TRAVERSAL
 #if NDT == NDT_OM
-#define NDT_HIT_KERNEL covarianceHitNdtWithDecay
+#define NDT_HIT_KERNEL covarianceHitNdtWithTraversal
 #elif NDT == NDT_TM
-#define NDT_HIT_KERNEL covarianceHitNdtTmWithDecay
+#define NDT_HIT_KERNEL covarianceHitNdtTmWithTraversal
 #endif  // NDT
-#include "DecayRate.cl"
-#endif  // DECAY_RATE
+#include "Traversal.cl"
+#endif  // TRAVERSAL
 
 
 /// This kernel integrates the ray sample points only into the map and is executed one thread per sample.
@@ -103,9 +103,9 @@ __kernel void NDT_HIT_KERNEL(
   __global IntensityMeanCov *intensity_voxels, __global ulonglong *intensity_region_mem_offsets_global,
   __global HitMissCount *hit_miss_voxels, __global ulonglong *hit_miss_region_mem_offsets_global,
 #endif  // NDT == NDT_TM
-#ifdef DECAY_RATE
-  __global atomic_float *decay_rate_voxels, __global ulonglong *decay_rate_region_mem_offsets_global,
-#endif  // DECAY_RATE
+#ifdef TRAVERSAL
+  __global atomic_float *traversal_voxels, __global ulonglong *traversal_region_mem_offsets_global,
+#endif  // TRAVERSAL
   __global int3 *occupancy_region_keys_global, uint region_count, __global GpuKey *line_keys,
   __global float3 *local_lines, uint line_count,
 #if NDT == NDT_TM
@@ -179,11 +179,11 @@ __kernel void NDT_HIT_KERNEL(
   hit_miss_index =
     (uint)(region_local_index + hit_miss_region_mem_offsets_global[region_index] / sizeof(*hit_miss_voxels));
 #endif  // NDT == NDT_TM
-#ifdef DECAY_RATE
-  uint decay_rate_index =
-    (uint)(region_local_index + decay_rate_region_mem_offsets_global[region_index] / sizeof(*decay_rate_voxels));
-  float decay_rate = decay_rate_voxels[decay_rate_index];
-#endif  // DECAY_RATE
+#ifdef TRAVERSAL
+  uint traversal_index =
+    (uint)(region_local_index + traversal_region_mem_offsets_global[region_index] / sizeof(*traversal_voxels));
+  float traversal = traversal_voxels[traversal_index];
+#endif  // TRAVERSAL
 
   // Cache initial values.
   WorkItem work_item;
@@ -232,9 +232,9 @@ __kernel void NDT_HIT_KERNEL(
                                       work_item.sample_count, reinitialise_cov_threshold,
                                       reinitialise_cov_sample_count);
 #endif  // NDT == NDT_TM
-#ifdef DECAY_RATE
-        decay_rate += calculateDecayRate(local_lines[i * 2], local_lines[i * 2 + 1], voxel_resolution);
-#endif  // DECAY_RATE
+#ifdef TRAVERSAL
+        traversal += calculateTraversal(local_lines[i * 2], local_lines[i * 2 + 1], voxel_resolution);
+#endif  // TRAVERSAL
 
         collateSample(&work_item, local_lines[i * 2], local_lines[i * 2 + 1], region_dimensions, voxel_resolution,
                       sample_adjustment, occupied_threshold, sensor_noise, reinitialise_cov_threshold,
@@ -269,7 +269,7 @@ __kernel void NDT_HIT_KERNEL(
   intensity_voxels[intensity_index] = intensity_cov;
   hit_miss_voxels[hit_miss_index] = hit_miss_count;
 #endif  // NDT == NDT_TM
-#ifdef DECAY_RATE
-  decay_rate_voxels[decay_rate_index] = decay_rate;
-#endif  // DECAY_RATE
+#ifdef TRAVERSAL
+  traversal_voxels[traversal_index] = traversal;
+#endif  // TRAVERSAL
 }

@@ -18,16 +18,16 @@ GPUTIL_CUDA_DEFINE_KERNEL(covarianceHitNdt);
 
 GPUTIL_CUDA_DEFINE_KERNEL(covarianceHitNdtTm);
 
-#define DECAY_RATE
+#define TRAVERSAL
 #undef NDT
 #define NDT 1
 #include "CovarianceHitNdt.cl"
 
-GPUTIL_CUDA_DEFINE_KERNEL(covarianceHitNdtWithDecay);
+GPUTIL_CUDA_DEFINE_KERNEL(covarianceHitNdtWithTraversal);
 
-#define DECAY_RATE
+#define TRAVERSAL
 #undef NDT
 #define NDT 2
 #include "CovarianceHitNdt.cl"
 
-GPUTIL_CUDA_DEFINE_KERNEL(covarianceHitNdtTmWithDecay);
+GPUTIL_CUDA_DEFINE_KERNEL(covarianceHitNdtTmWithTraversal);

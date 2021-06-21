@@ -9,7 +9,7 @@
 
 // Build base with voxel means
 #define VOXEL_MEAN
-#define DECAY_RATE
+#define TRAVERSAL
 #include "RegionUpdate.cl"
 
-GPUTIL_CUDA_DEFINE_KERNEL(regionRayUpdateSubVoxWithDecay);
+GPUTIL_CUDA_DEFINE_KERNEL(regionRayUpdateSubVoxWithTraversal);

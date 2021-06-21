@@ -121,8 +121,8 @@ struct ohm_API OccupancyMapDetail
 
   /// Setup the default @c MapLayout: occupancy layer and clearance layer.
   /// @param enable_voxel_mean Enable voxel mean positioning?
-  /// @param enable_decay_rate Enable the decay rate later?
-  void setDefaultLayout(bool enable_voxel_mean = false, bool enable_decay_rate = false);
+  /// @param enable_traversal Enable the traversal later?
+  void setDefaultLayout(bool enable_voxel_mean = false, bool enable_traversal = false);
 
   /// Copy internal details from @p other. For cloning.
   /// @param other The map detail to copy from.

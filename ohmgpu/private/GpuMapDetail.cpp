@@ -83,9 +83,9 @@ void reinitialiseGpuCache(GpuCache *gpu_cache, OccupancyMap &map, unsigned flags
     const int intensity_layer = map.layout().intensityLayer();
     const int hit_miss_layer = map.layout().hitMissCountLayer();
     const int clearance_layer = map.layout().clearanceLayer();
-    const int decay_rate_layer = map.layout().decayRateLayer();
+    const int traversal_layer = map.layout().traversalLayer();
     std::array<int, 7> known_layers = { occupancy_layer, mean_layer,      covariance_layer, intensity_layer,
-                                        hit_miss_layer,  clearance_layer, decay_rate_layer };
+                                        hit_miss_layer,  clearance_layer, traversal_layer };
 
     // Calculate the relative layer memory sizes.
     std::map<int, size_t> layer_mem_weight;
@@ -155,9 +155,9 @@ void reinitialiseGpuCache(GpuCache *gpu_cache, OccupancyMap &map, unsigned flags
                                                                   kGcfRead | mappable_flag });
     }
 
-    if (decay_rate_layer >= 0)
+    if (traversal_layer >= 0)
     {
-      gpu_cache->createCache(kGcIdDecayRate, GpuLayerCacheParams{ layer_mem_weight[decay_rate_layer], decay_rate_layer,
+      gpu_cache->createCache(kGcIdTraversal, GpuLayerCacheParams{ layer_mem_weight[traversal_layer], traversal_layer,
                                                                   kGcfRead | kGcfWrite | mappable_flag });
     }
   }

@@ -136,6 +136,7 @@ struct Options
   bool serialise = true;
   bool save_info = false;
   bool voxel_mean = false;
+  bool traversal = false;
   bool uncompressed = false;
 #ifdef OHMPOP_GPU
   // Mapping options are experimental and bound up in GPU operations, but not strictly speaking GPU only.
@@ -499,6 +500,10 @@ int populateMap(const Options &opt)
   if (opt.voxel_mean)
   {
     map.addVoxelMeanLayer();
+  }
+  if (opt.traversal)
+  {
+    map.addTraversalLayer();
   }
 
   if (bool(opt.ndt.mode))
@@ -943,6 +948,7 @@ int parseOptions(Options *opt, int argc, char *argv[])  // NOLINT(modernize-avoi
       ("resolution", "The voxel resolution of the generated map.", optVal(opt->resolution))
       ("uncompressed", "Maintain uncompressed map. By default, may regions may be compressed when no longer needed.", optVal(opt->uncompressed))
       ("voxel-mean", "Enable voxel mean coordinates?", optVal(opt->voxel_mean))
+      ("traversal", "Enable traversal layer?", optVal(opt->traversal))
       ("threshold", "Sets the occupancy threshold assigned when exporting the map to a cloud.", optVal(opt->prob_thresh)->implicit_value(optStr(opt->prob_thresh)))
       ("ndt", "Normal distribution transform (NDT) occupancy map generation mode {off,om,tm}. Mode om is the NDT occupancy mode, where tm adds traversability mapping data.", optVal(opt->ndt.mode)->implicit_value(optStr(ohm::NdtMode::kOccupancy)))
       ("ndt-cov-point-threshold", "Minimum number of samples requires in order to allow the covariance to reset at --ndt-cov-prob-threshold..", optVal(opt->ndt.covariance_reset_sample_count))

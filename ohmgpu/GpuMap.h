@@ -305,9 +305,9 @@ protected:
   /// Cache the correct GPU program to cater for @c with_voxel_mean. Releases the existing program first when
   /// @p force is true or @p with_voxel_mean does not match the cached program.
   /// @param with_voxel_mean True to cache the program which supports voxel mean positioning (@ref voxelmean).
-  /// @param with_decay Include decay rate calculations? Requires "decayRate" layer.
+  /// @param with_traversal Include traversal calculations? Requires "traversal" layer.
   /// @param force Force release and program caching even if already correct. Must be used on initialisation.
-  virtual void cacheGpuProgram(bool with_voxel_mean, bool with_decay, bool force);
+  virtual void cacheGpuProgram(bool with_voxel_mean, bool with_traversal, bool force);
 
   /// Release the current GPU program.
   virtual void releaseGpuProgram();

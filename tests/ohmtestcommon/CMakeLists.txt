@@ -7,8 +7,8 @@ find_package(GLM)
 find_package(Eigen3 QUIET)
 
 set(SOURCES
-  DecayRateTest.cpp
-  DecayRateTest.h
+  TraversalTest.cpp
+  TraversalTest.h
   OhmTestUtil.cpp
   OhmTestUtil.h
   RayPatternTestUtil.h

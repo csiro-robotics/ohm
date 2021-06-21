@@ -103,9 +103,9 @@ int MapLayout::meanLayer() const
 }
 
 
-int MapLayout::decayRateLayer() const
+int MapLayout::traversalLayer() const
 {
-  return imp_->decay_rate_layer;
+  return imp_->traversal_layer;
 }
 
 
@@ -217,9 +217,9 @@ void MapLayout::cacheLayerIndex(const MapLayer *layer)
     {
       imp_->mean_layer = int(layer->layerIndex());
     }
-    else if (imp_->decay_rate_layer == -1 && name_str == default_layer::decayRateLayerName())
+    else if (imp_->traversal_layer == -1 && name_str == default_layer::traversalLayerName())
     {
-      imp_->decay_rate_layer = int(layer->layerIndex());
+      imp_->traversal_layer = int(layer->layerIndex());
     }
     else if (imp_->covariance_layer == -1 && name_str == default_layer::covarianceLayerName())
     {
@@ -245,7 +245,7 @@ void MapLayout::cacheLayerIndices()
 {
   imp_->occupancy_layer = -1;
   imp_->mean_layer = -1;
-  imp_->decay_rate_layer = -1;
+  imp_->traversal_layer = -1;
   imp_->covariance_layer = -1;
   imp_->clearance_layer = -1;
   imp_->intensity_layer = -1;

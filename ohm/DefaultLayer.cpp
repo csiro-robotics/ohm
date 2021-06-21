@@ -32,9 +32,9 @@ const char *meanLayerName()
 {
   return "mean";
 }
-const char *decayRateLayerName()
+const char *traversalLayerName()
 {
-  return "decay";
+  return "traversal";
 }
 const char *covarianceLayerName()
 {
@@ -80,9 +80,9 @@ MapLayer *addVoxelMean(MapLayout &layout)
 }
 
 
-MapLayer *addDecayRate(MapLayout &layout)
+MapLayer *addTraversal(MapLayout &layout)
 {
-  int layer_index = layout.decayRateLayer();
+  int layer_index = layout.traversalLayer();
   if (layer_index != -1)
   {
     // Already present.
@@ -90,14 +90,14 @@ MapLayer *addDecayRate(MapLayout &layout)
   }
 
   // Add the mean layer.
-  MapLayer *layer = layout.addLayer(default_layer::decayRateLayerName());
+  MapLayer *layer = layout.addLayer(default_layer::traversalLayerName());
 
   const size_t clear_value = 0u;
-  layer->voxelLayout().addMember("decay", DataType::kFloat, clear_value);
+  layer->voxelLayout().addMember("traversal", DataType::kFloat, clear_value);
 
   if (layer->voxelByteSize() != sizeof(float))
   {
-    throw std::runtime_error("Decay rate layer size mismatch");
+    throw std::runtime_error("Traversal ayer size mismatch");
   }
 
   return layer;

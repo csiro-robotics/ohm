@@ -3,10 +3,10 @@
 // ABN 41 687 119 230
 //
 // Author: Kazys Stepanas
-#ifndef DECAY_RATE_CL_H
-#define DECAY_RATE_CL_H
+#ifndef TRAVERSAL_CL_H
+#define TRAVERSAL_CL_H
 
-/// Calculates the decay rate for the line [start, end]. The reference frame of @p start and @p end is assumed to be
+/// Calculates the traversal for the line [start, end]. The reference frame of @p start and @p end is assumed to be
 /// relative to the centre of the voxel containing @p end (the sample point). This means we can calculate the distance
 /// traversed through this voxel by constructing six planes axis aligned around the origin at a distance of
 /// @p 0.5*voxel_resolution . We find the distance travelled by intersecting the ray from @p end to @p start with these
@@ -15,9 +15,9 @@
 /// @param start The ray start point. This lies outside the end voxel and it's position is relative to the end voxel
 ///   centre.
 /// @param end The ray end point. This lies in the end voxel and it's position is relative to the end voxel centre.
-__device__ float calculateDecayRate(float3 start, float3 end, float voxel_resolution);
+__device__ float calculateTraversal(float3 start, float3 end, float voxel_resolution);
 
-inline __device__ float calculateDecayRate(float3 start, float3 end, float voxel_resolution)
+inline __device__ float calculateTraversal(float3 start, float3 end, float voxel_resolution)
 {
   // Define the planes which mark the edge of the voxel. The normals out of the voxel.
   // The distance part of the plane equation is implied below as 0.5*voxel_resolution
@@ -44,4 +44,4 @@ inline __device__ float calculateDecayRate(float3 start, float3 end, float voxel
   return first_hit_time;
 }
 
-#endif  // DECAY_RATE_CL_H
+#endif  // TRAVERSAL_CL_H

@@ -31,7 +31,7 @@ RayMapperNdt::RayMapperNdt(NdtMap *map)
   : map_(map)
   , occupancy_layer_(map_->map().layout().occupancyLayer())
   , mean_layer_(map_->map().layout().meanLayer())
-  , decay_rate_layer_(map_->map().layout().decayRateLayer())
+  , traversal_layer_(map_->map().layout().traversalLayer())
   , covariance_layer_(map_->map().layout().covarianceLayer())
   , intensity_layer_(map_->map().layout().intensityLayer())
   , hit_miss_count_layer_(map_->map().layout().hitMissCountLayer())
@@ -42,16 +42,16 @@ RayMapperNdt::RayMapperNdt(NdtMap *map)
   Voxel<const float> occupancy(map_ptr, occupancy_layer_);
   Voxel<const VoxelMean> mean(map_ptr, mean_layer_);
   Voxel<const CovarianceVoxel> cov(map_ptr, covariance_layer_);
-  Voxel<const float> decay(map_ptr, decay_rate_layer_);
+  Voxel<const float> traversal(map_ptr, traversal_layer_);
 
   occupancy_dim_ = (occupancy.isLayerValid()) ? occupancy.layerDim() : occupancy_dim_;
 
   // Validate we have occupancy, mean and covariance layers and their dimensions match.
   valid_ = occupancy.isLayerValid() && mean.isLayerValid() && cov.isLayerValid() &&
            occupancy.layerDim() == mean.layerDim() && occupancy.layerDim() == cov.layerDim();
-  // Validate the decay rate layer in a simliar fashion.
-  valid_ = occupancy.isLayerValid() && !decay.isLayerValid() ||
-           occupancy.isLayerValid() && decay.isLayerValid() && occupancy.layerDim() == decay.layerDim();
+  // Validate the traversal layer in a simliar fashion.
+  valid_ = occupancy.isLayerValid() && !traversal.isLayerValid() ||
+           occupancy.isLayerValid() && traversal.isLayerValid() && occupancy.layerDim() == traversal.layerDim();
 
   if (ndt_tm_)
   {
@@ -76,7 +76,7 @@ size_t RayMapperNdt::integrateRays(const glm::dvec3 *rays, size_t element_count,
   VoxelBuffer<VoxelBlock> cov_buffer;
   VoxelBuffer<VoxelBlock> intensity_buffer;
   VoxelBuffer<VoxelBlock> hit_miss_count_buffer;
-  VoxelBuffer<VoxelBlock> decay_buffer;
+  VoxelBuffer<VoxelBlock> traversal_buffer;
   double last_exit_range = 0;
   bool stop_adjustments = false;
 
@@ -98,7 +98,7 @@ size_t RayMapperNdt::integrateRays(const glm::dvec3 *rays, size_t element_count,
 
   // Mean and covariance layers must exists.
   const auto mean_layer = mean_layer_;
-  const auto decay_rate_layer = decay_rate_layer_;
+  const auto traversal_layer = traversal_layer_;
   const auto covariance_layer = covariance_layer_;
 
   // Compulsory if using NdtMode::kTraversability
@@ -144,9 +144,9 @@ size_t RayMapperNdt::integrateRays(const glm::dvec3 *rays, size_t element_count,
         intensity_buffer = VoxelBuffer<VoxelBlock>(chunk->voxel_blocks[intensity_layer_]);
         hit_miss_count_buffer = VoxelBuffer<VoxelBlock>(chunk->voxel_blocks[hit_miss_count_layer]);
       }
-      if (decay_rate_layer >= 0)
+      if (traversal_layer >= 0)
       {
-        decay_buffer = VoxelBuffer<VoxelBlock>(chunk->voxel_blocks[decay_rate_layer]);
+        traversal_buffer = VoxelBuffer<VoxelBlock>(chunk->voxel_blocks[traversal_layer]);
       }
     }
     last_chunk = chunk;
@@ -179,13 +179,13 @@ size_t RayMapperNdt::integrateRays(const glm::dvec3 *rays, size_t element_count,
                         saturation_min, saturation_max, stop_adjustments);
     occupancy_buffer.writeVoxel(voxel_index, occupancy_value);
 
-    // Accumulate decay rate
-    if (decay_rate_layer >= 0)
+    // Accumulate traversal
+    if (traversal_layer >= 0)
     {
-      float decay;
-      decay_buffer.readVoxel(voxel_index, &decay);
-      decay += float(exit_range - enter_range);
-      decay_buffer.writeVoxel(voxel_index, decay);
+      float traversal;
+      traversal_buffer.readVoxel(voxel_index, &traversal);
+      traversal += float(exit_range - enter_range);
+      traversal_buffer.writeVoxel(voxel_index, traversal);
     }
 
     // Lint(KS): The analyser takes some branches which are not possible in practice.
@@ -202,7 +202,7 @@ size_t RayMapperNdt::integrateRays(const glm::dvec3 *rays, size_t element_count,
       chunk->touched_stamps[hit_miss_count_layer].store(touch_stamp, std::memory_order_relaxed);
     }
 
-    // Store last exit range for final decay rate accumulation.
+    // Store last exit range for final traversal accumulation.
     last_exit_range = exit_range;
 
     return true;
@@ -255,9 +255,9 @@ size_t RayMapperNdt::integrateRays(const glm::dvec3 *rays, size_t element_count,
           intensity_buffer = VoxelBuffer<VoxelBlock>(chunk->voxel_blocks[intensity_layer_]);
           hit_miss_count_buffer = VoxelBuffer<VoxelBlock>(chunk->voxel_blocks[hit_miss_count_layer_]);
         }
-        if (decay_rate_layer >= 0)
+        if (traversal_layer >= 0)
         {
-          decay_buffer = VoxelBuffer<VoxelBlock>(chunk->voxel_blocks[decay_rate_layer]);
+          traversal_buffer = VoxelBuffer<VoxelBlock>(chunk->voxel_blocks[traversal_layer]);
         }
       }
       last_chunk = chunk;
@@ -313,13 +313,13 @@ size_t RayMapperNdt::integrateRays(const glm::dvec3 *rays, size_t element_count,
         hit_miss_count_buffer.writeVoxel(voxel_index, hit_miss_count_voxel);
       }
 
-      // Accumulate decay rate
-      if (decay_rate_layer >= 0)
+      // Accumulate traversal
+      if (traversal_layer >= 0)
       {
-        float decay;
-        decay_buffer.readVoxel(voxel_index, &decay);
-        decay += float(glm::length(sample - start) - last_exit_range);
-        decay_buffer.writeVoxel(voxel_index, decay);
+        float traversal;
+        traversal_buffer.readVoxel(voxel_index, &traversal);
+        traversal += float(glm::length(sample - start) - last_exit_range);
+        traversal_buffer.writeVoxel(voxel_index, traversal);
       }
 
       // Lint(KS): The analyser takes some branches which are not possible in practice.

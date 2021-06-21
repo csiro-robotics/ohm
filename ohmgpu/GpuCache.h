@@ -45,8 +45,8 @@ enum GpuCacheId
   kGcIdIntensity,
   /// Cache used for @c HitMissCount
   kGcIdHitMiss,
-  /// Cache used for decay rate.
-  kGcIdDecayRate,
+  /// Cache used for traversal layer.
+  kGcIdTraversal,
 };
 
 /// Provides access to the @c GpuLayerCache objects used to cache host voxel data in GPU memory and manage

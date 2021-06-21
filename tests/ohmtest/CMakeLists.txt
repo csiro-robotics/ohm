@@ -14,7 +14,7 @@ configure_file(OhmTestConfig.in.h "${CMAKE_CURRENT_BINARY_DIR}/OhmTestConfig.h")
 
 set(SOURCES
   CompressionTests.cpp
-  DecayRatetests.cpp
+  TraversalTests.cpp
   HeightmapTests.cpp
   KeyTests.cpp
   LayoutTests.cpp

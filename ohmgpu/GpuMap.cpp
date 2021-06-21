@@ -51,8 +51,8 @@
 #if GPUTIL_TYPE == GPUTIL_CUDA
 GPUTIL_CUDA_DECLARE_KERNEL(regionRayUpdate);
 GPUTIL_CUDA_DECLARE_KERNEL(regionRayUpdateSubVox);
-GPUTIL_CUDA_DECLARE_KERNEL(regionRayUpdateWithDecay);
-GPUTIL_CUDA_DECLARE_KERNEL(regionRayUpdateSubVoxWithDecay);
+GPUTIL_CUDA_DECLARE_KERNEL(regionRayUpdateWithTraversal);
+GPUTIL_CUDA_DECLARE_KERNEL(regionRayUpdateSubVoxWithTraversal);
 #endif  // GPUTIL_TYPE == GPUTIL_CUDA
 
 namespace ohm
@@ -64,16 +64,16 @@ namespace
 GpuProgramRef g_program_ref_sub_vox("RegionUpdate", GpuProgramRef::kSourceString, RegionUpdateCode,  // NOLINT
                                     RegionUpdateCode_length, { "-DVOXEL_MEAN" });
 // NOLINTNEXTLINE(cert-err58-cpp)
-GpuProgramRef g_program_ref_sub_vox_with_decay("RegionUpdate", GpuProgramRef::kSourceString,
-                                               RegionUpdateCode,  // NOLINT
-                                               RegionUpdateCode_length, { "-DVOXEL_MEAN", "-DDECAY_RATE" });
+GpuProgramRef g_program_ref_sub_vox_with_traversal("RegionUpdate", GpuProgramRef::kSourceString,
+                                                   RegionUpdateCode,  // NOLINT
+                                                   RegionUpdateCode_length, { "-DVOXEL_MEAN", "-DTRAVERSAL" });
 #else   // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
 // NOLINTNEXTLINE(cert-err58-cpp)
 GpuProgramRef g_program_ref_sub_vox("RegionUpdate", GpuProgramRef::kSourceFile, "RegionUpdate.cl", 0u,
                                     { "-DVOXEL_MEAN" });
 // NOLINTNEXTLINE(cert-err58-cpp)
-GpuProgramRef g_program_ref_sub_vox_with_decay("RegionUpdate", GpuProgramRef::kSourceFile, "RegionUpdate.cl", 0u,
-                                               { "-DVOXEL_MEAN", "-DDECAY_RATE" });
+GpuProgramRef g_program_ref_sub_vox_with_traversal("RegionUpdate", GpuProgramRef::kSourceFile, "RegionUpdate.cl", 0u,
+                                                   { "-DVOXEL_MEAN", "-DTRAVERSAL" });
 #endif  // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
 
 #if defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
@@ -81,14 +81,15 @@ GpuProgramRef g_program_ref_sub_vox_with_decay("RegionUpdate", GpuProgramRef::kS
 GpuProgramRef g_program_ref_no_sub("RegionUpdate", GpuProgramRef::kSourceString, RegionUpdateCode,  // NOLINT
                                    RegionUpdateCode_length);
 // NOLINTNEXTLINE(cert-err58-cpp)
-GpuProgramRef g_program_ref_no_sub_with_decay("RegionUpdate", GpuProgramRef::kSourceString, RegionUpdateCode,  // NOLINT
-                                              RegionUpdateCode_length, { "-DDECAY_RATE" });
+GpuProgramRef g_program_ref_no_sub_with_traversal("RegionUpdate", GpuProgramRef::kSourceString,
+                                                  RegionUpdateCode,  // NOLINT
+                                                  RegionUpdateCode_length, { "-DTRAVERSAL" });
 #else   // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
 // NOLINTNEXTLINE(cert-err58-cpp)
 GpuProgramRef g_program_ref_no_sub("RegionUpdate", GpuProgramRef::kSourceFile, "RegionUpdate.cl", 0u);
 // NOLINTNEXTLINE(cert-err58-cpp)
-GpuProgramRef g_program_ref_no_sub_with_decay("RegionUpdate", GpuProgramRef::kSourceFile, "RegionUpdate.cl", 0u,
-                                              { "-DDECAY_RATE" });
+GpuProgramRef g_program_ref_no_sub_with_traversal("RegionUpdate", GpuProgramRef::kSourceFile, "RegionUpdate.cl", 0u,
+                                                  { "-DTRAVERSAL" });
 #endif  // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
 
 const double kDefaultMaxRayRange = 1000.0;
@@ -493,14 +494,14 @@ void GpuMap::setMap(OccupancyMap *map, bool borrowed_map, unsigned expected_elem
       {
         imp_->voxel_upload_info[i].emplace_back(VoxelUploadInfo(kGcIdVoxelMean, gpu_cache.gpu()));
       }
-      if (imp_->support_decay_rate && imp_->map->decayRateEnabled())
+      if (imp_->support_traversal && imp_->map->traversalEnabled())
       {
-        imp_->voxel_upload_info[i].emplace_back(VoxelUploadInfo(kGcIdDecayRate, gpu_cache.gpu()));
+        imp_->voxel_upload_info[i].emplace_back(VoxelUploadInfo(kGcIdTraversal, gpu_cache.gpu()));
       }
     }
 
     cacheGpuProgram(imp_->support_voxel_mean && imp_->map->voxelMeanEnabled(),
-                    imp_->support_decay_rate && imp_->map->decayRateEnabled(), force_gpu_program_release);
+                    imp_->support_traversal && imp_->map->traversalEnabled(), force_gpu_program_release);
   }
 }
 
@@ -511,7 +512,7 @@ void GpuMap::setGroupedRays(bool group)
 }
 
 
-void GpuMap::cacheGpuProgram(bool with_voxel_mean, bool with_decay, bool force)
+void GpuMap::cacheGpuProgram(bool with_voxel_mean, bool with_traversal, bool force)
 {
   if (imp_->program_ref)
   {
@@ -526,9 +527,10 @@ void GpuMap::cacheGpuProgram(bool with_voxel_mean, bool with_decay, bool force)
   GpuCache &gpu_cache = *gpuCache();
   imp_->gpu_ok = true;
   imp_->cached_sub_voxel_program = with_voxel_mean;
-  if (with_decay)
+  if (with_traversal)
   {
-    imp_->program_ref = (with_voxel_mean) ? &g_program_ref_sub_vox_with_decay : &g_program_ref_no_sub_with_decay;
+    imp_->program_ref =
+      (with_voxel_mean) ? &g_program_ref_sub_vox_with_traversal : &g_program_ref_no_sub_with_traversal;
   }
   else
   {
@@ -537,11 +539,11 @@ void GpuMap::cacheGpuProgram(bool with_voxel_mean, bool with_decay, bool force)
 
   if (imp_->program_ref->addReference(gpu_cache.gpu()))
   {
-    if (with_decay)
+    if (with_traversal)
     {
       imp_->update_kernel = (!with_voxel_mean) ?
-                              GPUTIL_MAKE_KERNEL(imp_->program_ref->program(), regionRayUpdateWithDecay) :
-                              GPUTIL_MAKE_KERNEL(imp_->program_ref->program(), regionRayUpdateSubVoxWithDecay);
+                              GPUTIL_MAKE_KERNEL(imp_->program_ref->program(), regionRayUpdateWithTraversal) :
+                              GPUTIL_MAKE_KERNEL(imp_->program_ref->program(), regionRayUpdateSubVoxWithTraversal);
     }
     else
     {
@@ -603,7 +605,7 @@ size_t GpuMap::integrateRays(const glm::dvec3 *rays, size_t element_count, const
 
   // Ensure we are using the correct GPU program. Voxel mean support may have changed.
   cacheGpuProgram(imp_->support_voxel_mean && map.voxelMeanEnabled(),
-                  imp_->support_voxel_mean && map.decayRateEnabled(), false);
+                  imp_->support_voxel_mean && map.traversalEnabled(), false);
 
   // Resolve the buffer index to use. We need to support cases where buffer is already one fo the imp_->ray_buffers.
   // Check this first.
@@ -1034,16 +1036,16 @@ void GpuMap::finaliseBatch(unsigned region_update_flags)
   GpuCache &gpu_cache = *this->gpuCache();
   GpuLayerCache &occupancy_layer_cache = *gpu_cache.layerCache(kGcIdOccupancy);
   GpuLayerCache *mean_layer_cache = nullptr;
-  GpuLayerCache *decay_rate_layer_cache = nullptr;
+  GpuLayerCache *traversal_layer_cache = nullptr;
 
   if (imp_->support_voxel_mean && imp_->map->voxelMeanEnabled())
   {
     mean_layer_cache = gpu_cache.layerCache(kGcIdVoxelMean);
   }
 
-  if (imp_->support_decay_rate && imp_->map->decayRateEnabled())
+  if (imp_->support_traversal && imp_->map->traversalEnabled())
   {
-    decay_rate_layer_cache = gpu_cache.layerCache(kGcIdDecayRate);
+    traversal_layer_cache = gpu_cache.layerCache(kGcIdTraversal);
   }
 
   // Enqueue update kernel.
@@ -1068,16 +1070,16 @@ void GpuMap::finaliseBatch(unsigned region_update_flags)
     wait.add(imp_->voxel_upload_info[buf_idx][next_upload_buffer].voxel_upload_event);
     ++next_upload_buffer;
   }
-  if (decay_rate_layer_cache)
+  if (traversal_layer_cache)
   {
     wait.add(imp_->voxel_upload_info[buf_idx][next_upload_buffer].offset_upload_event);
     wait.add(imp_->voxel_upload_info[buf_idx][next_upload_buffer].voxel_upload_event);
     ++next_upload_buffer;
   }
 
-  // Supporting voxel mean and decay rate are putting us at the limit of what we can support using this sort of
+  // Supporting voxel mean and traversal are putting us at the limit of what we can support using this sort of
   // conditional invocation.
-  if (decay_rate_layer_cache)
+  if (traversal_layer_cache)
   {
     if (mean_layer_cache)
     {
@@ -1087,7 +1089,7 @@ void GpuMap::finaliseBatch(unsigned region_update_flags)
                           gputil::BufferArg<uint64_t>(imp_->voxel_upload_info[buf_idx][0].offsets_buffer),
                           gputil::BufferArg<VoxelMean>(*mean_layer_cache->buffer()),
                           gputil::BufferArg<uint64_t>(imp_->voxel_upload_info[buf_idx][1].offsets_buffer),
-                          gputil::BufferArg<float>(*decay_rate_layer_cache->buffer()),
+                          gputil::BufferArg<float>(*traversal_layer_cache->buffer()),
                           gputil::BufferArg<uint64_t>(imp_->voxel_upload_info[buf_idx][2].offsets_buffer),
                           gputil::BufferArg<gputil::int3>(imp_->region_key_buffers[buf_idx]), region_count,
                           gputil::BufferArg<GpuKey>(imp_->key_buffers[buf_idx]),
@@ -1101,7 +1103,7 @@ void GpuMap::finaliseBatch(unsigned region_update_flags)
                           // Kernel args begin:
                           gputil::BufferArg<float>(*occupancy_layer_cache.buffer()),
                           gputil::BufferArg<uint64_t>(imp_->voxel_upload_info[buf_idx][0].offsets_buffer),
-                          gputil::BufferArg<float>(*decay_rate_layer_cache->buffer()),
+                          gputil::BufferArg<float>(*traversal_layer_cache->buffer()),
                           gputil::BufferArg<uint64_t>(imp_->voxel_upload_info[buf_idx][1].offsets_buffer),
                           gputil::BufferArg<gputil::int3>(imp_->region_key_buffers[buf_idx]), region_count,
                           gputil::BufferArg<GpuKey>(imp_->key_buffers[buf_idx]),
@@ -1148,9 +1150,9 @@ void GpuMap::finaliseBatch(unsigned region_update_flags)
   {
     mean_layer_cache->updateEvents(imp_->batch_marker, imp_->region_update_events[buf_idx]);
   }
-  if (decay_rate_layer_cache)
+  if (traversal_layer_cache)
   {
-    decay_rate_layer_cache->updateEvents(imp_->batch_marker, imp_->region_update_events[buf_idx]);
+    traversal_layer_cache->updateEvents(imp_->batch_marker, imp_->region_update_events[buf_idx]);
   }
 
   // std::cout << imp_->region_counts[bufIdx] << "
@@ -1163,9 +1165,9 @@ void GpuMap::finaliseBatch(unsigned region_update_flags)
   {
     mean_layer_cache->beginBatch(imp_->batch_marker);
   }
-  if (decay_rate_layer_cache)
+  if (traversal_layer_cache)
   {
-    decay_rate_layer_cache->beginBatch(imp_->batch_marker);
+    traversal_layer_cache->beginBatch(imp_->batch_marker);
   }
   imp_->next_buffers_index = (imp_->next_buffers_index + 1) % GpuMapDetail::kBuffersCount;
 }

@@ -9,8 +9,8 @@
 
 // Build base with voxel means and NDT
 #define VOXEL_MEAN
-#define DECAY_RATE
+#define TRAVERSAL
 #define NDT 1
 #include "RegionUpdate.cl"
 
-GPUTIL_CUDA_DEFINE_KERNEL(regionRayUpdateNdtWithDecay);
+GPUTIL_CUDA_DEFINE_KERNEL(regionRayUpdateNdtWithTraversal);

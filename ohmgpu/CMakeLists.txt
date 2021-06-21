@@ -65,7 +65,7 @@ set(GPU_HEADERS
   gpu/AdjustNdt.cl
   gpu/AdjustOccupancy.cl
   gpu/CovarianceHitNdt_h.cl
-  gpu/DecayRate.cl
+  gpu/Traversal.cl
   gpu/LineWalk.cl
   gpu/NdtModeDef.cl
   gpu/VoxelMean.cl
@@ -198,11 +198,11 @@ if(OHM_BUILD_CUDA)
     gpu/RegionUpdate.cu
     gpu/RegionUpdateNdt.cu
     gpu/RegionUpdateNdtTm.cu
-    gpu/RegionUpdateNdtWithDecay.cu
-    gpu/RegionUpdateNdtTmWithDecay.cu
-    gpu/RegionUpdateWithDecay.cu
+    gpu/RegionUpdateNdtWithTraversal.cu
+    gpu/RegionUpdateNdtTmWithTraversal.cu
+    gpu/RegionUpdateWithTraversal.cu
     gpu/RegionUpdateWithMean.cu
-    gpu/RegionUpdateWithMeanAndDecay.cu
+    gpu/RegionUpdateWithMeanAndTraversal.cu
     gpu/RoiRangeFill.cu
     gpu/TransformSamples.cu
   )
