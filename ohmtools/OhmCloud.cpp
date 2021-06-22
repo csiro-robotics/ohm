@@ -5,7 +5,7 @@
 // Author: Kazys Stepanas
 #include "OhmCloud.h"
 
-#include <ohm/DecayRate.h>
+#include <ohm/Density.h>
 #include <ohm/Heightmap.h>
 #include <ohm/HeightmapUtil.h>
 #include <ohm/HeightmapVoxel.h>
@@ -291,8 +291,8 @@ uint64_t saveCloud(const std::string &file_name, const ohm::OccupancyMap &map, c
 }
 
 
-uint64_t saveDecayCloud(const std::string &file_name, const ohm::OccupancyMap &map, const SaveDecayCloudOptions &opt,
-                        const ProgressCallback &prog)
+uint64_t saveDensityCloud(const std::string &file_name, const ohm::OccupancyMap &map,
+                          const SaveDensityCloudOptions &opt, const ProgressCallback &prog)
 {
   ohm::Voxel<const float> traversal(&map, map.layout().traversalLayer());
   ohm::Voxel<const ohm::VoxelMean> mean(&map, map.layout().meanLayer());
@@ -344,8 +344,8 @@ uint64_t saveDecayCloud(const std::string &file_name, const ohm::OccupancyMap &m
       last_region = iter.key().regionKey();
     }
 
-    const float decay_rate = decayRate(traversal, mean);
-    if (decay_rate != std::numeric_limits<float>::infinity() && decay_rate >= opt.decay_rate_threshold)
+    const float density = voxelDensity(traversal, mean);
+    if (density >= opt.density_threshold)
     {
       pos = (!opt.ignore_voxel_mean) ? positionSafe(mean) : map.voxelCentreGlobal(*iter);
       ply.setPointPosition(pos);

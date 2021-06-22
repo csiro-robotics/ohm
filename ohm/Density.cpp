@@ -3,7 +3,7 @@
 // ABN 41 687 119 230
 //
 // Author: Kazys Stepanas
-#include "DecayRate.h"
+#include "Density.h"
 
 #include "Key.h"
 #include "MapLayout.h"
@@ -13,7 +13,7 @@
 
 namespace ohm
 {
-float decayRate(const OccupancyMap &map, const Key &key)
+float voxelDensity(const OccupancyMap &map, const Key &key)
 {
   if (!key.isNull())
   {
@@ -22,7 +22,7 @@ float decayRate(const OccupancyMap &map, const Key &key)
     if (traversal_voxel.isLayerValid() && mean_voxel.isLayerValid())
     {
       setVoxelKey(key, traversal_voxel, mean_voxel);
-      return decayRate(traversal_voxel, mean_voxel);
+      return voxelDensity(traversal_voxel, mean_voxel);
     }
   }
   return 0.0f;
