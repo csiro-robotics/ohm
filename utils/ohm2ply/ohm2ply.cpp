@@ -57,6 +57,7 @@ enum ExportMode
 {
   kExportOccupancy,
   kExportOccupancyCentre,
+  kExportDecay,
   kExportObserved,
   kExportClearance,
   kExportHeightmap,
@@ -84,7 +85,7 @@ struct Options
   // expire regions older than this
   double expiry_time = 0;
   float cull_distance = 0;
-  float occupancy_threshold = -1.0f;
+  float threshold = -1.0f;
   float colour_scale = 3.0f;
   ExportMode mode = kExportOccupancy;
   ColourMode colour = kColourHeight;
@@ -199,6 +200,10 @@ std::istream &operator>>(std::istream &in, ExportMode &mode)
   {
     mode = kExportOccupancyCentre;
   }
+  else if (mode_str == "decay")
+  {
+    mode = kExportDecay;
+  }
   else if (mode_str == "observed")
   {
     mode = kExportObserved;
@@ -238,6 +243,9 @@ std::ostream &operator<<(std::ostream &out, const ExportMode mode)
     break;
   case kExportObserved:
     out << "observed";
+    break;
+  case kExportDecay:
+    out << "decay";
     break;
   case kExportClearance:
     out << "clearance";
@@ -333,11 +341,15 @@ int parseOptions(Options *opt, int argc, char *argv[])  // NOLINT(modernize-avoi
       ("cloud", "The output cloud file (ply).", cxxopts::value(opt->ply_file))
       ("cull", "Remove regions farther than the specified distance from the map origin.", cxxopts::value(opt->cull_distance)->default_value(optStr(opt->cull_distance)))
       ("map", "The input map file (ohm).", cxxopts::value(opt->map_file))
-      ("mode", "Export mode [occupancy,occupancy-centre,clearance,covariance,heightmap,heightmap-mesh]: select which data to export from the "
-               "map. occupancy and occupancy-centre differ only in that the latter forces positioning on voxel "
-               "centres.", cxxopts::value(opt->mode)->default_value(optStr(opt->mode)))
+      ("mode", "Export mode [occupancy,occupancy-centre,decay,clearance,covariance,heightmap,heightmap-mesh]: select "
+               "which data to export from the map. occupancy and occupancy-centre differ only in that the latter "
+               "forces positioning on voxel centres. decay uses the decay rate calculation and requires the map have "
+               "traversability and voxel mean info - also uses threshold as a decay threshold instead of occupancy",
+               cxxopts::value(opt->mode)->default_value(optStr(opt->mode)))
       ("expire", "Expire regions with a timestamp before the specified time. These are not exported.", cxxopts::value(opt->expiry_time))
-      ("threshold", "Override the map's occupancy threshold. Only occupied points are exported.", cxxopts::value(opt->occupancy_threshold)->default_value(optStr(opt->occupancy_threshold)))
+      ("threshold", "Override the map's occupancy threshold or set the decay threshold. Only points passing the "
+                    "threshold occupied points are exported.",
+                    cxxopts::value(opt->threshold)->default_value(optStr(opt->threshold)))
       ;
 
     opt_parse.add_options("Heightmap")
@@ -402,40 +414,59 @@ int exportPointCloud(const Options &opt, ProgressMonitor &prog, LoadMapProgress 
     if (map.layout().layer("occupancy") == nullptr)
     {
       std::cerr << "Missing 'occupancy' layer" << std::endl;
-      return -1;
+      res = -1;
     }
     break;
   case kExportClearance:
     if (map.layout().layer("clearance") == nullptr)
     {
       std::cerr << "Missing 'clearance' layer" << std::endl;
-      return -1;
+      res = -1;
     }
     break;
-  case kExportHeightmap: {
+  case kExportDecay:
+    if (map.layout().traversalLayer() == -1)
+    {
+      std::cout << "Missing 'traversal' layer" << std::endl;
+      res = -1;
+    }
+    if (map.layout().meanLayer() == -1)
+    {
+      std::cout << "Missing 'mean' layer" << std::endl;
+      res = -1;
+    }
+    break;
+  case kExportHeightmap:
+  {
     const ohm::MapLayer *layer = map.layout().layer(ohm::HeightmapVoxel::kHeightmapLayer);
     if (!layer)
     {
       std::cerr << "Missing '" << ohm::HeightmapVoxel::kHeightmapLayer << "' layer" << std::endl;
-      return -1;
+      res = -1;
     }
-    if (layer->voxelByteSize() < sizeof(ohm::HeightmapVoxel))
+    else if (layer->voxelByteSize() < sizeof(ohm::HeightmapVoxel))
     {
       std::cerr << "Layer '" << ohm::HeightmapVoxel::kHeightmapLayer << "' is not large enough. Expect "
                 << sizeof(ohm::HeightmapVoxel) << " actual " << layer->voxelByteSize() << std::endl;
-      return -1;
+      res = -1;
     }
 
     break;
   }
   default:
     std::cout << "Invalid mode for point cloud: " << opt.mode << std::endl;
-    return -1;
+    res = -1;
+    break;
   }
 
-  if (opt.occupancy_threshold >= 0)
+  if (res != 0)
   {
-    map.setOccupancyThresholdProbability(opt.occupancy_threshold);
+    return res;
+  }
+
+  if (opt.threshold >= 0 && opt.mode != kExportDecay)
+  {
+    map.setOccupancyThresholdProbability(opt.threshold);
   }
 
   if (opt.cull_distance > 0)
@@ -469,7 +500,8 @@ int exportPointCloud(const Options &opt, ProgressMonitor &prog, LoadMapProgress 
   case kExportOccupancy:
     // fallthrough
   case kExportOccupancyCentre:
-  case kExportObserved: {
+  case kExportObserved:
+  {
     ohmtools::SaveCloudOptions save_opt;
     save_opt.ignore_voxel_mean = opt.mode != kExportOccupancy;
     save_opt.export_free = opt.mode == kExportObserved;
@@ -484,7 +516,17 @@ int exportPointCloud(const Options &opt, ProgressMonitor &prog, LoadMapProgress 
     saveCloud(opt.ply_file.c_str(), map, save_opt, save_progress_callback);
     break;
   }
-  case kExportHeightmap: {
+  case kExportDecay:
+  {
+    ohmtools::SaveDecayCloudOptions save_opt;
+    save_opt.ignore_voxel_mean = false;
+    save_opt.allow_default_colour_selection = true;
+    save_opt.decay_rate_threshold = opt.threshold;
+    saveDecayCloud(opt.ply_file.c_str(), map, save_opt, save_progress_callback);
+    break;
+  }
+  case kExportHeightmap:
+  {
     ohmtools::SaveHeightmapCloudOptions save_opt;
     save_opt.ignore_voxel_mean = false;
     save_opt.export_free = true;
@@ -510,7 +552,8 @@ int exportPointCloud(const Options &opt, ProgressMonitor &prog, LoadMapProgress 
     ohmtools::saveHeightmapCloud(opt.ply_file.c_str(), map, save_opt, save_progress_callback);
     break;
   }
-  case kExportClearance: {
+  case kExportClearance:
+  {
     glm::dvec3 min_ext;
     glm::dvec3 max_ext;
     map.calculateExtents(&min_ext, &max_ext);
@@ -743,6 +786,7 @@ int main(int argc, char *argv[])
   case kExportOccupancy:
   case kExportOccupancyCentre:
   case kExportObserved:
+  case kExportDecay:
   case kExportClearance:
   case kExportHeightmap:
     res = exportPointCloud(opt, prog, load_progress);

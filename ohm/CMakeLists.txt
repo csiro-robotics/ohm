@@ -52,6 +52,8 @@ set(SOURCES
   CovarianceVoxelCompute.h
   DataType.cpp
   DataType.h
+  DecayRate.cpp
+  DecayRate.h
   DefaultLayer.cpp
   DefaultLayer.h
   Heightmap.cpp
@@ -175,6 +177,7 @@ set(PUBLIC_HEADERS
   CovarianceVoxel.h
   CovarianceVoxelCompute.h
   DataType.h
+  DecayRate.h
   DefaultLayer.h
   Heightmap.h
   HeightmapMesh.h

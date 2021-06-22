@@ -482,6 +482,17 @@ int populateMap(const Options &opt)
   map_flags |= (opt.voxel_mean) ? ohm::MapFlag::kVoxelMean : ohm::MapFlag::kNone;
   map_flags &= (opt.uncompressed) ? ~ohm::MapFlag::kCompressed : ~ohm::MapFlag::kNone;
   ohm::OccupancyMap map(opt.resolution, opt.region_voxel_dim, map_flags);
+
+  // Make sure we build layers before initialising any GPU map. Otherwise we can cache the wrong GPU programs.
+  if (opt.voxel_mean)
+  {
+    map.addVoxelMeanLayer();
+  }
+  if (opt.traversal)
+  {
+    map.addTraversalLayer();
+  }
+
 #ifdef OHMPOP_GPU
   const size_t gpu_cache_size = opt.gpu.gpuCacheSizeBytes();
   std::unique_ptr<ohm::GpuMap> gpu_map((opt.ndt.mode == ohm::NdtMode::kNone) ?
@@ -496,15 +507,6 @@ int populateMap(const Options &opt)
     ndt_map = std::make_unique<ohm::NdtMap>(&map, true, opt.ndt.mode);
   }
 #endif  // OHMPOP_GPU
-
-  if (opt.voxel_mean)
-  {
-    map.addVoxelMeanLayer();
-  }
-  if (opt.traversal)
-  {
-    map.addTraversalLayer();
-  }
 
   if (bool(opt.ndt.mode))
   {

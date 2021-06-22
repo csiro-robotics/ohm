@@ -5,6 +5,7 @@
 // Author: Kazys Stepanas
 #include "OhmCloud.h"
 
+#include <ohm/DecayRate.h>
 #include <ohm/Heightmap.h>
 #include <ohm/HeightmapUtil.h>
 #include <ohm/HeightmapVoxel.h>
@@ -273,6 +274,84 @@ uint64_t saveCloud(const std::string &file_name, const ohm::OccupancyMap &map, c
       if (colour_select)
       {
         const ohm::Colour c = colour_select(occupancy);
+        ply.setProperty(kPropertyRed, c.r());
+        ply.setProperty(kPropertyGreen, c.g());
+        ply.setProperty(kPropertyBlue, c.b());
+      }
+
+      ply.writePoint();
+      ++point_count;
+    }
+  }
+
+  ply.close();
+  out.close();
+
+  return point_count;
+}
+
+
+uint64_t saveDecayCloud(const std::string &file_name, const ohm::OccupancyMap &map, const SaveDecayCloudOptions &opt,
+                        const ProgressCallback &prog)
+{
+  ohm::Voxel<const float> traversal(&map, map.layout().traversalLayer());
+  ohm::Voxel<const ohm::VoxelMean> mean(&map, map.layout().meanLayer());
+
+  if (!traversal.isLayerValid() || !mean.isLayerValid())
+  {
+    return 0;
+  }
+
+  std::ofstream out(file_name, std::ios::binary);
+
+  if (!out.is_open())
+  {
+    return 0;
+  }
+
+  // Work out if we need colour.
+  auto colour_select = opt.colour_select;
+  std::unique_ptr<ColourByHeight> colour_by_height;
+  if (!colour_select && opt.allow_default_colour_selection)
+  {
+    colour_by_height = std::make_unique<ColourByHeight>(map);
+    colour_select = [&colour_by_height](const ohm::Voxel<const float> &traversal) {
+      return colour_by_height->select(traversal);
+    };
+  }
+
+  // Setup the Ply stream.
+  ohm::PlyPointStream ply = setupPlyStream(static_cast<bool>(colour_select));
+  ply.open(out);
+
+  glm::dvec3 pos;
+  const size_t region_count = map.regionCount();
+  size_t processed_region_count = 0;
+  glm::i16vec3 last_region = map.begin().key().regionKey();
+
+  uint64_t point_count = 0;
+  for (auto iter = map.begin(); iter != map.end(); ++iter)
+  {
+    ohm::setVoxelKey(iter, traversal, mean);
+    // Progress update.
+    if (last_region != iter.key().regionKey())
+    {
+      ++processed_region_count;
+      if (prog)
+      {
+        prog(processed_region_count, region_count);
+      }
+      last_region = iter.key().regionKey();
+    }
+
+    const float decay_rate = decayRate(traversal, mean);
+    if (decay_rate != std::numeric_limits<float>::infinity() && decay_rate >= opt.decay_rate_threshold)
+    {
+      pos = (!opt.ignore_voxel_mean) ? positionSafe(mean) : map.voxelCentreGlobal(*iter);
+      ply.setPointPosition(pos);
+      if (colour_select)
+      {
+        const ohm::Colour c = colour_select(traversal);
         ply.setProperty(kPropertyRed, c.r());
         ply.setProperty(kPropertyGreen, c.g());
         ply.setProperty(kPropertyBlue, c.b());

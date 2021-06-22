@@ -51,6 +51,13 @@ struct SaveCloudOptions
   bool ignore_voxel_mean = false;
 };
 
+/// Options for saving a decay rate cloud.
+struct SaveDecayCloudOptions : SaveCloudOptions
+{
+  /// Decay rate threshold to pass.
+  float decay_rate_threshold = 0;
+};
+
 /// Specialised options for saving heightmap clouds. Supports construction from a @c SaveCloudOptions setting default
 /// values for heightmap extended parameters.
 struct SaveHeightmapCloudOptions : SaveCloudOptions
@@ -235,6 +242,16 @@ private:
 uint64_t ohmtools_API saveCloud(const std::string &file_name, const ohm::OccupancyMap &map,
                                 const SaveCloudOptions &opt = SaveCloudOptions(),
                                 const ProgressCallback &prog = ProgressCallback());
+
+/// Save @p map to a ply file using the decay rate model.
+/// @param file_name File to save to. Please add the .ply extension.
+/// @param map The map to save.
+/// @param opt Additional export controls.
+/// @param prog Optional function called to report on progress.
+/// @return The number of points saved.
+uint64_t ohmtools_API saveDecayCloud(const std::string &file_name, const ohm::OccupancyMap &map,
+                                     const SaveDecayCloudOptions &opt = SaveDecayCloudOptions(),
+                                     const ProgressCallback &prog = ProgressCallback());
 
 /// Save @p map assuming it is a heightmap (contains @c HeightmapVoxel data) to a ply cloud.
 /// @param file_name File to save to. Please add the .ply extension.
