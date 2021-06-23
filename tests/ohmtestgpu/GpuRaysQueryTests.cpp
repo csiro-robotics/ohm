@@ -22,9 +22,6 @@
 
 namespace raysquerytests
 {
-void buildMap(ohm::OccupancyMap &map, const std::vector<glm::dvec3> &rays)
-{}
-
 TEST(RaysQuery, Gpu)
 {
   // Note this is a comparative test to ensure GPU results match CPU. The algorithm validation occurs in
