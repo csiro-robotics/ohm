@@ -495,6 +495,7 @@ int exportPointCloud(const Options &opt, ProgressMonitor &prog, LoadMapProgress 
   ohmtools::ColourHeightmapType colour_by_heightmap_type(map);
   ohmtools::ColourHeightmapLayer colour_by_heightmap_layer(map);
 
+  uint64_t export_count = 0;
   switch (opt.mode)
   {
   case kExportOccupancy:
@@ -513,7 +514,7 @@ int exportPointCloud(const Options &opt, ProgressMonitor &prog, LoadMapProgress 
         return colour_by_type.select(occupancy);
       };
     }
-    saveCloud(opt.ply_file.c_str(), map, save_opt, save_progress_callback);
+    export_count = saveCloud(opt.ply_file.c_str(), map, save_opt, save_progress_callback);
     break;
   }
   case kExportDensity:
@@ -522,7 +523,7 @@ int exportPointCloud(const Options &opt, ProgressMonitor &prog, LoadMapProgress 
     save_opt.ignore_voxel_mean = false;
     save_opt.allow_default_colour_selection = true;
     save_opt.density_threshold = opt.threshold;
-    saveDensityCloud(opt.ply_file.c_str(), map, save_opt, save_progress_callback);
+    export_count = saveDensityCloud(opt.ply_file.c_str(), map, save_opt, save_progress_callback);
     break;
   }
   case kExportHeightmap:
@@ -549,7 +550,7 @@ int exportPointCloud(const Options &opt, ProgressMonitor &prog, LoadMapProgress 
         return colour_by_heightmap_type.select(occupancy);
       };
     }
-    ohmtools::saveHeightmapCloud(opt.ply_file.c_str(), map, save_opt, save_progress_callback);
+    export_count = ohmtools::saveHeightmapCloud(opt.ply_file.c_str(), map, save_opt, save_progress_callback);
     break;
   }
   case kExportClearance:
@@ -557,8 +558,8 @@ int exportPointCloud(const Options &opt, ProgressMonitor &prog, LoadMapProgress 
     glm::dvec3 min_ext;
     glm::dvec3 max_ext;
     map.calculateExtents(&min_ext, &max_ext);
-    ohmtools::saveClearanceCloud(opt.ply_file.c_str(), map, min_ext, max_ext, opt.colour_scale, ohm::kFree,
-                                 save_progress_callback);
+    export_count = ohmtools::saveClearanceCloud(opt.ply_file.c_str(), map, min_ext, max_ext, opt.colour_scale,
+                                                ohm::kFree, save_progress_callback);
     break;
   }
   default:
@@ -568,7 +569,8 @@ int exportPointCloud(const Options &opt, ProgressMonitor &prog, LoadMapProgress 
 
   prog.endProgress();
   prog.pause();
-  prog.joinThread();
+
+  std::cout << "\nExported " << export_count << " point(s)" << std::endl;
 
   return res;
 }
@@ -799,8 +801,6 @@ int main(int argc, char *argv[])
     break;
   }
 
-  prog.endProgress();
-  prog.pause();
   prog.joinThread();
 
   return res;
