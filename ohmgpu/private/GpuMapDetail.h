@@ -137,6 +137,13 @@ struct GpuMapDetail
   /// Long rays are broken into segments of this length or smaller (when value is > 0).
   double ray_segment_length = 0;
 
+  /// Index into @c voxel_upload_info buffers at which we have the @c VoxelUploadInfo for the occupancy layer.
+  int occupancy_uidx = -1;
+  /// Index into @c voxel_upload_info buffers at which we have the @c VoxelUploadInfo for the mean layer.
+  int mean_uidx = -1;
+  /// Index into @c voxel_upload_info buffers at which we have the @c VoxelUploadInfo for the traversal layer.
+  int traversal_uidx = -1;
+
   /// Used as @c GpuLayerCache::upload() @c batchMarker argument.
   unsigned batch_marker = 1;  // Will cycle odd numbers to avoid zero.
   /// Should rays be grouped (sorted) before GPU upload. Should only be set for some algorthims, like NDT (required).

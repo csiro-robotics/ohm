@@ -48,13 +48,6 @@ GPUTIL_CUDA_DECLARE_KERNEL(covarianceHitNdtWithTraversal);
 GPUTIL_CUDA_DECLARE_KERNEL(covarianceHitNdtTmWithTraversal);
 #endif  // GPUTIL_TYPE == GPUTIL_CUDA
 
-/// Controls the GPU ordering of kernels to update free space and samples. When 0, the order is free space then samples.
-/// When 1, this order is reversed.
-///
-/// Running the NDT samples first will given better results in new areas, but currently comes with a significant
-/// performance hit as we wait more on kernels
-#define REVERSE_KERNEL_ORDER 0
-
 namespace ohm
 {
 namespace
@@ -129,15 +122,19 @@ GpuNdtMap::GpuNdtMap(OccupancyMap *map, bool borrowed_map, unsigned expected_ele
   : GpuMap(new GpuNdtMapDetail(map, borrowed_map, ndt_mode), expected_element_count, gpu_mem_size)
 {
   // Ensure voxel mean and covariance layers are present.
+
   for (int i = 0; i < 2; ++i)
   {
     if (ndt_mode != NdtMode::kNone)
     {
+      detail()->cov_uidx = int(imp_->voxel_upload_info[i].size());  // Set twice to the same value, but that's ok.
       imp_->voxel_upload_info[i].emplace_back(VoxelUploadInfo(kGcIdCovariance, gpuCache()->gpu()));
     }
     if (ndt_mode == NdtMode::kTraversability)
     {
+      detail()->intensity_uidx = int(imp_->voxel_upload_info[i].size());  // Set twice to the same value, but that's ok.
       imp_->voxel_upload_info[i].emplace_back(VoxelUploadInfo(kGcIdIntensity, gpuCache()->gpu()));
+      detail()->hit_miss_uidx = int(imp_->voxel_upload_info[i].size());  // Set twice to the same value, but that's ok.
       imp_->voxel_upload_info[i].emplace_back(VoxelUploadInfo(kGcIdHitMiss, gpuCache()->gpu()));
     }
   }
@@ -293,6 +290,7 @@ void GpuNdtMap::finaliseBatch(unsigned region_update_flags)
     wait.add(upload_info.voxel_upload_event);
   }
 
+  // We will track which caches we depend on to manage event waiting.
   TouchedCacheSet touched_caches = { nullptr };
 
   switch (imp->ndt_map.mode())
@@ -374,6 +372,11 @@ void GpuNdtMap::invokeNdtOm(unsigned region_update_flags, int buf_idx, gputil::E
   GpuLayerCache &cov_voxel_layer_cache = *gpu_cache.layerCache(kGcIdCovariance);
   GpuLayerCache *traversal_layer_cache = nullptr;
 
+  const int occ_uidx = detail()->occupancy_uidx;
+  const int mean_uidx = detail()->mean_uidx;
+  const int cov_uidx = detail()->cov_uidx;
+  const int traversal_uidx = detail()->traversal_uidx;
+
   if (imp_->support_traversal && imp_->map->traversalEnabled())
   {
     traversal_layer_cache = gpu_cache.layerCache(kGcIdTraversal);
@@ -400,61 +403,7 @@ void GpuNdtMap::invokeNdtOm(unsigned region_update_flags, int buf_idx, gputil::E
 
   unsigned modify_flags = (!(region_update_flags & kRfEndPointAsFree)) ? kRfExcludeSample : 0u;
 
-#if REVERSE_KERNEL_ORDER
-  // NOTE: This is experimental and has not been updated to support traversal.
-  // It's been found to be slower than the miss then hit order.
-  if (!(region_update_flags & (kRfExcludeSample | kRfEndPointAsFree)) && sample_count > 0)
-  {
-    // NDT can only have one CovarianceHitNdt batch in flight because it does not support contension. Ensure previous
-    // one has completed and it waits on the kernel above to finish too.
-    waitOnPreviousOperation(1 - buf_idx);
 
-    global_size = gputil::Dim3(sample_count);
-    local_size = gputil::Dim3(std::min<size_t>(imp->cov_hit_kernel.optimalWorkGroupSize(), sample_count));
-    imp->cov_hit_kernel(global_size, local_size, wait, imp->region_update_events[buf_idx], &gpu_cache.gpuQueue(),
-                        // Kernel args begin:
-                        gputil::BufferArg<float>(*occupancy_layer_cache.buffer()),
-                        gputil::BufferArg<uint64_t>(imp->voxel_upload_info[buf_idx][0].offsets_buffer),
-                        gputil::BufferArg<VoxelMean>(*mean_layer_cache.buffer()),
-                        gputil::BufferArg<uint64_t>(imp->voxel_upload_info[buf_idx][1].offsets_buffer),
-                        gputil::BufferArg<CovarianceVoxel>(*cov_voxel_layer_cache.buffer()),
-                        gputil::BufferArg<uint64_t>(imp->voxel_upload_info[buf_idx][2].offsets_buffer),
-                        gputil::BufferArg<gputil::int3>(imp->region_key_buffers[buf_idx]), region_count,
-                        gputil::BufferArg<GpuKey>(imp->key_buffers[buf_idx]),
-                        gputil::BufferArg<gputil::float3>(imp->ray_buffers[buf_idx]), sample_count, region_dim_gpu,
-                        float(map->resolution), map->hit_value, map->occupancy_threshold_value, map->max_voxel_value,
-                        imp->ndt_map.sensorNoise(), imp->ndt_map.reinitialiseCovarianceThreshold(),
-                        imp->ndt_map.reinitialiseCovariancePointCount());
-
-    wait.clear();
-    wait.add(first_kernel_event);
-  }
-
-  if (!(region_update_flags & kRfExcludeRay))
-  {
-    global_size = gputil::Dim3(ray_count);
-    local_size = gputil::Dim3(std::min<size_t>(imp->update_kernel.optimalWorkGroupSize(), ray_count));
-    imp->update_kernel(global_size, local_size, wait, first_kernel_event, &gpu_cache.gpuQueue(),
-                       // Kernel args begin:
-                       gputil::BufferArg<float>(*occupancy_layer_cache.buffer()),
-                       gputil::BufferArg<uint64_t>(imp->voxel_upload_info[buf_idx][0].offsets_buffer),
-                       gputil::BufferArg<VoxelMean>(*mean_layer_cache.buffer()),
-                       gputil::BufferArg<uint64_t>(imp->voxel_upload_info[buf_idx][1].offsets_buffer),
-                       gputil::BufferArg<CovarianceVoxel>(*cov_voxel_layer_cache.buffer()),
-                       gputil::BufferArg<uint64_t>(imp->voxel_upload_info[buf_idx][2].offsets_buffer),
-                       gputil::BufferArg<gputil::int3>(imp->region_key_buffers[buf_idx]), region_count,
-                       gputil::BufferArg<GpuKey>(imp->key_buffers[buf_idx]),
-                       gputil::BufferArg<gputil::float3>(imp->ray_buffers[buf_idx]), ray_count, region_dim_gpu,
-                       float(map->resolution), map->miss_value, map->hit_value, map->occupancy_threshold_value,
-                       map->min_voxel_value, map->max_voxel_value, region_update_flags | modify_flags,
-                       imp->ndt_map.adaptationRate(), imp->ndt_map.sensorNoise());
-  }
-  else
-  {
-    imp->region_update_events[buf_idx] = first_kernel_event;
-  }
-
-#else   // REVERSE_KERNEL_ORDER
   if (!(region_update_flags & kRfExcludeRay))
   {
     global_size = gputil::Dim3(ray_count);
@@ -464,13 +413,13 @@ void GpuNdtMap::invokeNdtOm(unsigned region_update_flags, int buf_idx, gputil::E
       imp->update_kernel(global_size, local_size, wait, first_kernel_event, &gpu_cache.gpuQueue(),
                          // Kernel args begin:
                          gputil::BufferArg<float>(*occupancy_layer_cache.buffer()),
-                         gputil::BufferArg<uint64_t>(imp->voxel_upload_info[buf_idx][0].offsets_buffer),
+                         gputil::BufferArg<uint64_t>(imp->voxel_upload_info[buf_idx][occ_uidx].offsets_buffer),
                          gputil::BufferArg<VoxelMean>(*mean_layer_cache.buffer()),
-                         gputil::BufferArg<uint64_t>(imp->voxel_upload_info[buf_idx][1].offsets_buffer),
+                         gputil::BufferArg<uint64_t>(imp->voxel_upload_info[buf_idx][mean_uidx].offsets_buffer),
                          gputil::BufferArg<CovarianceVoxel>(*cov_voxel_layer_cache.buffer()),
-                         gputil::BufferArg<uint64_t>(imp->voxel_upload_info[buf_idx][2].offsets_buffer),
+                         gputil::BufferArg<uint64_t>(imp->voxel_upload_info[buf_idx][cov_uidx].offsets_buffer),
                          gputil::BufferArg<float>(*traversal_layer_cache->buffer()),
-                         gputil::BufferArg<uint64_t>(imp->voxel_upload_info[buf_idx][3].offsets_buffer),
+                         gputil::BufferArg<uint64_t>(imp->voxel_upload_info[buf_idx][traversal_uidx].offsets_buffer),
                          gputil::BufferArg<gputil::int3>(imp->region_key_buffers[buf_idx]), region_count,
                          gputil::BufferArg<GpuKey>(imp->key_buffers[buf_idx]),
                          gputil::BufferArg<gputil::float3>(imp->ray_buffers[buf_idx]), ray_count, region_dim_gpu,
@@ -483,11 +432,11 @@ void GpuNdtMap::invokeNdtOm(unsigned region_update_flags, int buf_idx, gputil::E
       imp->update_kernel(global_size, local_size, wait, first_kernel_event, &gpu_cache.gpuQueue(),
                          // Kernel args begin:
                          gputil::BufferArg<float>(*occupancy_layer_cache.buffer()),
-                         gputil::BufferArg<uint64_t>(imp->voxel_upload_info[buf_idx][0].offsets_buffer),
+                         gputil::BufferArg<uint64_t>(imp->voxel_upload_info[buf_idx][occ_uidx].offsets_buffer),
                          gputil::BufferArg<VoxelMean>(*mean_layer_cache.buffer()),
-                         gputil::BufferArg<uint64_t>(imp->voxel_upload_info[buf_idx][1].offsets_buffer),
+                         gputil::BufferArg<uint64_t>(imp->voxel_upload_info[buf_idx][mean_uidx].offsets_buffer),
                          gputil::BufferArg<CovarianceVoxel>(*cov_voxel_layer_cache.buffer()),
-                         gputil::BufferArg<uint64_t>(imp->voxel_upload_info[buf_idx][2].offsets_buffer),
+                         gputil::BufferArg<uint64_t>(imp->voxel_upload_info[buf_idx][cov_uidx].offsets_buffer),
                          gputil::BufferArg<gputil::int3>(imp->region_key_buffers[buf_idx]), region_count,
                          gputil::BufferArg<GpuKey>(imp->key_buffers[buf_idx]),
                          gputil::BufferArg<gputil::float3>(imp->ray_buffers[buf_idx]), ray_count, region_dim_gpu,
@@ -513,13 +462,13 @@ void GpuNdtMap::invokeNdtOm(unsigned region_update_flags, int buf_idx, gputil::E
       imp->cov_hit_kernel(global_size, local_size, wait, imp->region_update_events[buf_idx], &gpu_cache.gpuQueue(),
                           // Kernel args begin:
                           gputil::BufferArg<float>(*occupancy_layer_cache.buffer()),
-                          gputil::BufferArg<uint64_t>(imp->voxel_upload_info[buf_idx][0].offsets_buffer),
+                          gputil::BufferArg<uint64_t>(imp->voxel_upload_info[buf_idx][occ_uidx].offsets_buffer),
                           gputil::BufferArg<VoxelMean>(*mean_layer_cache.buffer()),
-                          gputil::BufferArg<uint64_t>(imp->voxel_upload_info[buf_idx][1].offsets_buffer),
+                          gputil::BufferArg<uint64_t>(imp->voxel_upload_info[buf_idx][mean_uidx].offsets_buffer),
                           gputil::BufferArg<CovarianceVoxel>(*cov_voxel_layer_cache.buffer()),
-                          gputil::BufferArg<uint64_t>(imp->voxel_upload_info[buf_idx][2].offsets_buffer),
+                          gputil::BufferArg<uint64_t>(imp->voxel_upload_info[buf_idx][cov_uidx].offsets_buffer),
                           gputil::BufferArg<float>(*traversal_layer_cache->buffer()),
-                          gputil::BufferArg<uint64_t>(imp->voxel_upload_info[buf_idx][3].offsets_buffer),
+                          gputil::BufferArg<uint64_t>(imp->voxel_upload_info[buf_idx][traversal_uidx].offsets_buffer),
                           gputil::BufferArg<gputil::int3>(imp->region_key_buffers[buf_idx]),
                           static_cast<gputil::uint>(region_count), gputil::BufferArg<GpuKey>(imp->key_buffers[buf_idx]),
                           gputil::BufferArg<gputil::float3>(imp->ray_buffers[buf_idx]), sample_count, region_dim_gpu,
@@ -532,11 +481,11 @@ void GpuNdtMap::invokeNdtOm(unsigned region_update_flags, int buf_idx, gputil::E
       imp->cov_hit_kernel(global_size, local_size, wait, imp->region_update_events[buf_idx], &gpu_cache.gpuQueue(),
                           // Kernel args begin:
                           gputil::BufferArg<float>(*occupancy_layer_cache.buffer()),
-                          gputil::BufferArg<uint64_t>(imp->voxel_upload_info[buf_idx][0].offsets_buffer),
+                          gputil::BufferArg<uint64_t>(imp->voxel_upload_info[buf_idx][occ_uidx].offsets_buffer),
                           gputil::BufferArg<VoxelMean>(*mean_layer_cache.buffer()),
-                          gputil::BufferArg<uint64_t>(imp->voxel_upload_info[buf_idx][1].offsets_buffer),
+                          gputil::BufferArg<uint64_t>(imp->voxel_upload_info[buf_idx][mean_uidx].offsets_buffer),
                           gputil::BufferArg<CovarianceVoxel>(*cov_voxel_layer_cache.buffer()),
-                          gputil::BufferArg<uint64_t>(imp->voxel_upload_info[buf_idx][2].offsets_buffer),
+                          gputil::BufferArg<uint64_t>(imp->voxel_upload_info[buf_idx][cov_uidx].offsets_buffer),
                           gputil::BufferArg<gputil::int3>(imp->region_key_buffers[buf_idx]), region_count,
                           gputil::BufferArg<GpuKey>(imp->key_buffers[buf_idx]),
                           gputil::BufferArg<gputil::float3>(imp->ray_buffers[buf_idx]), sample_count, region_dim_gpu,
@@ -549,7 +498,6 @@ void GpuNdtMap::invokeNdtOm(unsigned region_update_flags, int buf_idx, gputil::E
   {
     imp->region_update_events[buf_idx] = first_kernel_event;
   }
-#endif  // REVERSE_KERNEL_ORDER
 }
 
 
@@ -568,6 +516,13 @@ void GpuNdtMap::invokeNdtTm(unsigned region_update_flags, int buf_idx, gputil::E
   GpuLayerCache &intensity_layer_cache = *gpu_cache.layerCache(kGcIdIntensity);
   GpuLayerCache &hit_miss_layer_cache = *gpu_cache.layerCache(kGcIdHitMiss);
   GpuLayerCache *traversal_layer_cache = nullptr;
+
+  const int occ_uidx = detail()->occupancy_uidx;
+  const int mean_uidx = detail()->mean_uidx;
+  const int cov_uidx = detail()->cov_uidx;
+  const int intense_uidx = detail()->intensity_uidx;
+  const int hit_miss_uidx = detail()->hit_miss_uidx;
+  const int traversal_uidx = detail()->traversal_uidx;
 
   if (imp_->support_traversal && imp_->map->traversalEnabled())
   {
@@ -597,69 +552,7 @@ void GpuNdtMap::invokeNdtTm(unsigned region_update_flags, int buf_idx, gputil::E
 
   unsigned modify_flags = (!(region_update_flags & kRfEndPointAsFree)) ? kRfExcludeSample : 0u;
 
-#if REVERSE_KERNEL_ORDER
-  // NOTE: This is experimental and has not been updated to support traversal.
-  // It's been found to be slower than the miss then hit order.
-  if (!(region_update_flags & (kRfExcludeSample | kRfEndPointAsFree)) && sample_count > 0)
-  {
-    // NDT can only have one CovarianceHitNdtTm batch in flight because it does not support contension. Ensure previous
-    // one has completed and it waits on the kernel above to finish too.
-    waitOnPreviousOperation(1 - buf_idx);
 
-    global_size = gputil::Dim3(sample_count);
-    local_size = gputil::Dim3(std::min<size_t>(imp->cov_hit_kernel.optimalWorkGroupSize(), sample_count));
-    imp->cov_hit_kernel(
-      global_size, local_size, wait, imp->region_update_events[buf_idx], &gpu_cache.gpuQueue(),
-      // Kernel args begin:
-      gputil::BufferArg<float>(*occupancy_layer_cache.buffer()),
-      gputil::BufferArg<uint64_t>(imp->voxel_upload_info[buf_idx][0].offsets_buffer),
-      gputil::BufferArg<VoxelMean>(*mean_layer_cache.buffer()),
-      gputil::BufferArg<uint64_t>(imp->voxel_upload_info[buf_idx][1].offsets_buffer),
-      gputil::BufferArg<CovarianceVoxel>(*cov_voxel_layer_cache.buffer()),
-      gputil::BufferArg<uint64_t>(imp->voxel_upload_info[buf_idx][2].offsets_buffer),
-      gputil::BufferArg<IntensityMeanCov>(*intensity_layer_cache.buffer()),
-      gputil::BufferArg<uint64_t>(imp->voxel_upload_info[buf_idx][3].offsets_buffer),
-      gputil::BufferArg<HitMissCount>(*hit_miss_layer_cache.buffer()),
-      gputil::BufferArg<uint64_t>(imp->voxel_upload_info[buf_idx][4].offsets_buffer),
-      gputil::BufferArg<gputil::int3>(imp->region_key_buffers[buf_idx]), region_count,
-      gputil::BufferArg<GpuKey>(imp->key_buffers[buf_idx]),
-      gputil::BufferArg<gputil::float3>(imp->ray_buffers[buf_idx]), sample_count,
-      gputil::BufferArg<float>(imp->intensities_buffers[buf_idx]), region_dim_gpu, float(map->resolution),
-      map->hit_value, map->occupancy_threshold_value, map->max_voxel_value, imp->ndt_map.initialIntensityCovariance(),
-      imp->ndt_map.ndtSampleThreshold(), imp->ndt_map.adaptationRate(), imp->ndt_map.sensorNoise(),
-      imp->ndt_map.reinitialiseCovarianceThreshold(), imp->ndt_map.reinitialiseCovariancePointCount());
-
-    wait.clear();
-    wait.add(first_kernel_event);
-  }
-
-  if (!(region_update_flags & kRfExcludeRay))
-  {
-    global_size = gputil::Dim3(ray_count);
-    local_size = gputil::Dim3(std::min<size_t>(imp->update_kernel.optimalWorkGroupSize(), ray_count));
-    imp->update_kernel(global_size, local_size, wait, first_kernel_event, &gpu_cache.gpuQueue(),
-                       // Kernel args begin:
-                       gputil::BufferArg<float>(*occupancy_layer_cache.buffer()),
-                       gputil::BufferArg<uint64_t>(imp->voxel_upload_info[buf_idx][0].offsets_buffer),
-                       gputil::BufferArg<VoxelMean>(*mean_layer_cache.buffer()),
-                       gputil::BufferArg<uint64_t>(imp->voxel_upload_info[buf_idx][1].offsets_buffer),
-                       gputil::BufferArg<CovarianceVoxel>(*cov_voxel_layer_cache.buffer()),
-                       gputil::BufferArg<uint64_t>(imp->voxel_upload_info[buf_idx][2].offsets_buffer),
-                       gputil::BufferArg<CovarianceVoxel>(*hit_miss_layer_cache.buffer()),
-                       gputil::BufferArg<uint64_t>(imp->voxel_upload_info[buf_idx][4].offsets_buffer),
-                       gputil::BufferArg<gputil::int3>(imp->region_key_buffers[buf_idx]), region_count,
-                       gputil::BufferArg<GpuKey>(imp->key_buffers[buf_idx]),
-                       gputil::BufferArg<gputil::float3>(imp->ray_buffers[buf_idx]), ray_count, region_dim_gpu,
-                       float(map->resolution), map->miss_value, map->hit_value, map->occupancy_threshold_value,
-                       map->min_voxel_value, map->max_voxel_value, region_update_flags | modify_flags,
-                       imp->ndt_map.adaptationRate(), imp->ndt_map.sensorNoise());
-  }
-  else
-  {
-    imp->region_update_events[buf_idx] = first_kernel_event;
-  }
-
-#else   // REVERSE_KERNEL_ORDER
   if (!(region_update_flags & kRfExcludeRay))
   {
     global_size = gputil::Dim3(ray_count);
@@ -669,15 +562,15 @@ void GpuNdtMap::invokeNdtTm(unsigned region_update_flags, int buf_idx, gputil::E
       imp->update_kernel(global_size, local_size, wait, first_kernel_event, &gpu_cache.gpuQueue(),
                          // Kernel args begin:
                          gputil::BufferArg<float>(*occupancy_layer_cache.buffer()),
-                         gputil::BufferArg<uint64_t>(imp->voxel_upload_info[buf_idx][0].offsets_buffer),
+                         gputil::BufferArg<uint64_t>(imp->voxel_upload_info[buf_idx][occ_uidx].offsets_buffer),
                          gputil::BufferArg<VoxelMean>(*mean_layer_cache.buffer()),
-                         gputil::BufferArg<uint64_t>(imp->voxel_upload_info[buf_idx][1].offsets_buffer),
+                         gputil::BufferArg<uint64_t>(imp->voxel_upload_info[buf_idx][mean_uidx].offsets_buffer),
                          gputil::BufferArg<CovarianceVoxel>(*cov_voxel_layer_cache.buffer()),
-                         gputil::BufferArg<uint64_t>(imp->voxel_upload_info[buf_idx][2].offsets_buffer),
+                         gputil::BufferArg<uint64_t>(imp->voxel_upload_info[buf_idx][cov_uidx].offsets_buffer),
                          gputil::BufferArg<CovarianceVoxel>(*hit_miss_layer_cache.buffer()),
-                         gputil::BufferArg<uint64_t>(imp->voxel_upload_info[buf_idx][4].offsets_buffer),
+                         gputil::BufferArg<uint64_t>(imp->voxel_upload_info[buf_idx][hit_miss_uidx].offsets_buffer),
                          gputil::BufferArg<float>(*traversal_layer_cache->buffer()),
-                         gputil::BufferArg<uint64_t>(imp->voxel_upload_info[buf_idx][5].offsets_buffer),
+                         gputil::BufferArg<uint64_t>(imp->voxel_upload_info[buf_idx][traversal_uidx].offsets_buffer),
                          gputil::BufferArg<gputil::int3>(imp->region_key_buffers[buf_idx]), region_count,
                          gputil::BufferArg<GpuKey>(imp->key_buffers[buf_idx]),
                          gputil::BufferArg<gputil::float3>(imp->ray_buffers[buf_idx]), ray_count, region_dim_gpu,
@@ -690,13 +583,13 @@ void GpuNdtMap::invokeNdtTm(unsigned region_update_flags, int buf_idx, gputil::E
       imp->update_kernel(global_size, local_size, wait, first_kernel_event, &gpu_cache.gpuQueue(),
                          // Kernel args begin:
                          gputil::BufferArg<float>(*occupancy_layer_cache.buffer()),
-                         gputil::BufferArg<uint64_t>(imp->voxel_upload_info[buf_idx][0].offsets_buffer),
+                         gputil::BufferArg<uint64_t>(imp->voxel_upload_info[buf_idx][occ_uidx].offsets_buffer),
                          gputil::BufferArg<VoxelMean>(*mean_layer_cache.buffer()),
-                         gputil::BufferArg<uint64_t>(imp->voxel_upload_info[buf_idx][1].offsets_buffer),
+                         gputil::BufferArg<uint64_t>(imp->voxel_upload_info[buf_idx][mean_uidx].offsets_buffer),
                          gputil::BufferArg<CovarianceVoxel>(*cov_voxel_layer_cache.buffer()),
-                         gputil::BufferArg<uint64_t>(imp->voxel_upload_info[buf_idx][2].offsets_buffer),
+                         gputil::BufferArg<uint64_t>(imp->voxel_upload_info[buf_idx][cov_uidx].offsets_buffer),
                          gputil::BufferArg<CovarianceVoxel>(*hit_miss_layer_cache.buffer()),
-                         gputil::BufferArg<uint64_t>(imp->voxel_upload_info[buf_idx][4].offsets_buffer),
+                         gputil::BufferArg<uint64_t>(imp->voxel_upload_info[buf_idx][hit_miss_uidx].offsets_buffer),
                          gputil::BufferArg<gputil::int3>(imp->region_key_buffers[buf_idx]), region_count,
                          gputil::BufferArg<GpuKey>(imp->key_buffers[buf_idx]),
                          gputil::BufferArg<gputil::float3>(imp->ray_buffers[buf_idx]), ray_count, region_dim_gpu,
@@ -722,17 +615,17 @@ void GpuNdtMap::invokeNdtTm(unsigned region_update_flags, int buf_idx, gputil::E
         global_size, local_size, wait, imp->region_update_events[buf_idx], &gpu_cache.gpuQueue(),
         // Kernel args begin:
         gputil::BufferArg<float>(*occupancy_layer_cache.buffer()),
-        gputil::BufferArg<uint64_t>(imp->voxel_upload_info[buf_idx][0].offsets_buffer),
+        gputil::BufferArg<uint64_t>(imp->voxel_upload_info[buf_idx][occ_uidx].offsets_buffer),
         gputil::BufferArg<VoxelMean>(*mean_layer_cache.buffer()),
-        gputil::BufferArg<uint64_t>(imp->voxel_upload_info[buf_idx][1].offsets_buffer),
+        gputil::BufferArg<uint64_t>(imp->voxel_upload_info[buf_idx][mean_uidx].offsets_buffer),
         gputil::BufferArg<CovarianceVoxel>(*cov_voxel_layer_cache.buffer()),
-        gputil::BufferArg<uint64_t>(imp->voxel_upload_info[buf_idx][2].offsets_buffer),
+        gputil::BufferArg<uint64_t>(imp->voxel_upload_info[buf_idx][cov_uidx].offsets_buffer),
         gputil::BufferArg<IntensityMeanCov>(*intensity_layer_cache.buffer()),
-        gputil::BufferArg<uint64_t>(imp->voxel_upload_info[buf_idx][3].offsets_buffer),
+        gputil::BufferArg<uint64_t>(imp->voxel_upload_info[buf_idx][intense_uidx].offsets_buffer),
         gputil::BufferArg<HitMissCount>(*hit_miss_layer_cache.buffer()),
-        gputil::BufferArg<uint64_t>(imp->voxel_upload_info[buf_idx][4].offsets_buffer),
+        gputil::BufferArg<uint64_t>(imp->voxel_upload_info[buf_idx][hit_miss_uidx].offsets_buffer),
         gputil::BufferArg<float>(*traversal_layer_cache->buffer()),
-        gputil::BufferArg<uint64_t>(imp->voxel_upload_info[buf_idx][5].offsets_buffer),
+        gputil::BufferArg<uint64_t>(imp->voxel_upload_info[buf_idx][traversal_uidx].offsets_buffer),
         gputil::BufferArg<gputil::int3>(imp->region_key_buffers[buf_idx]), region_count,
         gputil::BufferArg<GpuKey>(imp->key_buffers[buf_idx]),
         gputil::BufferArg<gputil::float3>(imp->ray_buffers[buf_idx]), sample_count,
@@ -747,15 +640,15 @@ void GpuNdtMap::invokeNdtTm(unsigned region_update_flags, int buf_idx, gputil::E
         global_size, local_size, wait, imp->region_update_events[buf_idx], &gpu_cache.gpuQueue(),
         // Kernel args begin:
         gputil::BufferArg<float>(*occupancy_layer_cache.buffer()),
-        gputil::BufferArg<uint64_t>(imp->voxel_upload_info[buf_idx][0].offsets_buffer),
+        gputil::BufferArg<uint64_t>(imp->voxel_upload_info[buf_idx][occ_uidx].offsets_buffer),
         gputil::BufferArg<VoxelMean>(*mean_layer_cache.buffer()),
-        gputil::BufferArg<uint64_t>(imp->voxel_upload_info[buf_idx][1].offsets_buffer),
+        gputil::BufferArg<uint64_t>(imp->voxel_upload_info[buf_idx][mean_uidx].offsets_buffer),
         gputil::BufferArg<CovarianceVoxel>(*cov_voxel_layer_cache.buffer()),
-        gputil::BufferArg<uint64_t>(imp->voxel_upload_info[buf_idx][2].offsets_buffer),
+        gputil::BufferArg<uint64_t>(imp->voxel_upload_info[buf_idx][cov_uidx].offsets_buffer),
         gputil::BufferArg<IntensityMeanCov>(*intensity_layer_cache.buffer()),
-        gputil::BufferArg<uint64_t>(imp->voxel_upload_info[buf_idx][3].offsets_buffer),
+        gputil::BufferArg<uint64_t>(imp->voxel_upload_info[buf_idx][intense_uidx].offsets_buffer),
         gputil::BufferArg<HitMissCount>(*hit_miss_layer_cache.buffer()),
-        gputil::BufferArg<uint64_t>(imp->voxel_upload_info[buf_idx][4].offsets_buffer),
+        gputil::BufferArg<uint64_t>(imp->voxel_upload_info[buf_idx][hit_miss_uidx].offsets_buffer),
         gputil::BufferArg<gputil::int3>(imp->region_key_buffers[buf_idx]), region_count,
         gputil::BufferArg<GpuKey>(imp->key_buffers[buf_idx]),
         gputil::BufferArg<gputil::float3>(imp->ray_buffers[buf_idx]), sample_count,
@@ -769,6 +662,5 @@ void GpuNdtMap::invokeNdtTm(unsigned region_update_flags, int buf_idx, gputil::E
   {
     imp->region_update_events[buf_idx] = first_kernel_event;
   }
-#endif  // REVERSE_KERNEL_ORDER
 }
 }  // namespace ohm

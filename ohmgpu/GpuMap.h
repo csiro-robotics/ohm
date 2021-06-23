@@ -353,6 +353,12 @@ protected:
   /// @param region_update_flags Flags controlling ray integration behaviour. See @c RayFlag.
   virtual void finaliseBatch(unsigned region_update_flags);
 
+  /// Helper to enable caching of a particular gpu cache item.
+  /// @param cache_id Cache ID. Expect a @c GpuCacheId member, but not type constrained to reduce include statements.
+  /// @param enable True to enable caching, false to disable caching.
+  /// @return The index at which the @c VoxelUploadInfo for the cache is stored. -1 when disbled.
+  int enableVoxelUpload(int cache_id, bool enable);
+
   GpuMapDetail *imp_;  ///< Internal pimpl data.
 };
 }  // namespace ohm
