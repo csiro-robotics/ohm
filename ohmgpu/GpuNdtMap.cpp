@@ -143,8 +143,7 @@ GpuNdtMap::GpuNdtMap(OccupancyMap *map, bool borrowed_map, unsigned expected_ele
   }
 
   // Cache the correct GPU program.
-  imp_->support_traversal = map && imp_->support_traversal && map->traversalEnabled();
-  cacheGpuProgram(true, imp_->support_traversal, true);
+  cacheGpuProgram(true, map && imp_->support_traversal && map->traversalEnabled(), true);
 
   // Rays should be grouped by sample voxel for performance reasons. The GPU update assumes this grouping.
   setGroupedRays(true);

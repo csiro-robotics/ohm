@@ -11,6 +11,7 @@
 #include "gpuEvent.h"
 
 #include <functional>
+#include <memory>
 
 namespace gputil
 {
@@ -71,6 +72,22 @@ public:
   /// @return An event marking the current queue location.
   Event mark();
 
+  /// Enable or disable synchronous execution mode. Normally providing a @c Queue object to various gputil API functions
+  /// implies asynchronous operation. Setting the @p synchronous flag will disable asynchronous operations, reverting
+  /// to synchronous usage of the underlying GPU API. This is intended for debugging API exceptions as in asynchronous
+  /// mode, reporting of API errors may be reported on later GPU API function calls rather than on the call which caused
+  /// the error.
+  ///
+  /// All memory operations memory operations become synchronous and kernel function invocations are checked for
+  /// completion before the @c Kernel::operator() invocation function returns.
+  ///
+  /// @param synchronous True to enable forcining synchronous API operations.
+  void setSynchronous(bool synchronous);
+
+  /// Check if the queue is in synchronous mode. See @c setSynchronous()
+  /// @return True if asynchronous GPU API function calls are disabled for this queue.
+  bool synchronous() const;
+
   /// Ensure that all queued commands have been submitted to the devices. A return does
   /// not mean that they have completed. For that, use @c finish().
   void flush();
@@ -96,7 +113,7 @@ public:
 
 private:
   // Cannot use unique pointer due to CUDA implementation details.
-  QueueDetail *queue_ = nullptr;
+  std::shared_ptr<QueueDetail> queue_;
 };
 }  // namespace gputil
 

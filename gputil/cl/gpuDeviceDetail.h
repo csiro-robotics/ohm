@@ -9,8 +9,8 @@
 
 #include "gpuConfig.h"
 
-// FIXME: not a good include statement.
-#include "../gpuDeviceInfo.h"
+#include "gputil/gpuDeviceInfo.h"
+#include "gputil/gpuQueue.h"
 
 #include <clu/clu.h>
 
@@ -20,9 +20,8 @@ struct DeviceDetail
 {
   cl::Context context;
   cl::Device device;
-  // TODO(KS): this needs to be separated out into a queue object.
-  // We may preserve this member as the default queue.
-  cl::CommandQueue queue;
+  /// The default queue object. We need a Queue object rather than just a cl::CommandQueue because we add data members.
+  Queue default_queue;
   DeviceInfo info;
   std::string description;
   std::string search_paths;

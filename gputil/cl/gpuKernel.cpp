@@ -44,6 +44,18 @@ bool Kernel::isValid() const
 }
 
 
+void Kernel::setErrorChecking(bool check)
+{
+  imp_->auto_error_checking = check;
+}
+
+
+bool Kernel::errorChecking() const
+{
+  return imp_->auto_error_checking;
+}
+
+
 void Kernel::release()
 {
   delete imp_;
@@ -157,6 +169,28 @@ Kernel &Kernel::operator=(Kernel &&other) noexcept
   imp_ = other.imp_;
   other.imp_ = nullptr;
   return *this;
+}
+
+
+bool Kernel::checkResult(int invocation_result, bool allow_exceptions)
+{
+  (void)allow_exceptions;  // Unused if GPU_EXCEPTIONS disabled
+  if (invocation_result != CL_SUCCESS)
+  {
+    auto exception = ApiException(invocation_result, "Kernel invocation error");
+#if GPU_EXCEPTIONS
+    if (allow_exceptions)
+    {
+      throw exception;
+    }
+    else
+#endif  // GPU_EXCEPTIONS
+    {
+      log(exception);
+      return false;
+    }
+  }
+  return true;
 }
 
 

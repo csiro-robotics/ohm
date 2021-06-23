@@ -36,7 +36,9 @@ void eventCallback(cl_event /*event*/, cl_int /*status*/, void *user_data)
 }
 }  // namespace
 
-Queue::Queue() = default;
+Queue::Queue()
+  : queue_(new QueueDetail())
+{}
 
 
 Queue::Queue(Queue &&other) noexcept
@@ -45,10 +47,8 @@ Queue::Queue(Queue &&other) noexcept
 
 
 Queue::Queue(const Queue &other)
-  : queue_(new QueueDetail)
-{
-  queue_->queue = other.queue_->queue;
-}
+  : queue_(other.queue_)
+{}
 
 
 Queue::Queue(void *platform_queue)
@@ -86,15 +86,29 @@ Event Queue::mark()
 }
 
 
+void Queue::setSynchronous(bool synchronous)
+{
+  queue_->force_synchronous = synchronous;
+}
+
+
+bool Queue::synchronous() const
+{
+  return queue_->force_synchronous;
+}
+
+
 void Queue::flush()
 {
-  clFlush(queue_->queue());
+  cl_int err = clFlush(queue_->queue());
+  GPUAPICHECK2(err, CL_SUCCESS);
 }
 
 
 void Queue::finish()
 {
-  clFinish(queue_->queue());
+  cl_int err = clFinish(queue_->queue());
+  GPUAPICHECK2(err, CL_SUCCESS);
 }
 
 
@@ -122,7 +136,7 @@ void Queue::queueCallback(const std::function<void(void)> &callback)
 
 QueueDetail *Queue::internal() const
 {
-  return queue_;
+  return queue_.get();
 }
 
 
@@ -130,11 +144,7 @@ Queue &Queue::operator=(const Queue &other)
 {
   if (this != &other)
   {
-    if (!queue_)
-    {
-      queue_ = new QueueDetail;
-    }
-    queue_->queue = other.queue_->queue;
+    queue_ = other.queue_;
   }
   return *this;
 }

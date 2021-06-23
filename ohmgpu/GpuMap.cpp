@@ -603,9 +603,14 @@ size_t GpuMap::integrateRays(const glm::dvec3 *rays, size_t element_count, const
     return 0u;
   }
 
+  if (glm::length2(rays[0] - glm::dvec3(-0.19624062134997244, 0.67741350134145961, 0.92654910028562598)) < 1e-12)
+  {
+    int stopme = 1;
+  }
+
   // Ensure we are using the correct GPU program. Voxel mean support may have changed.
-  cacheGpuProgram(imp_->support_voxel_mean && map.voxelMeanEnabled(),
-                  imp_->support_voxel_mean && map.traversalEnabled(), false);
+  cacheGpuProgram(imp_->support_voxel_mean && map.voxelMeanEnabled(), imp_->support_traversal && map.traversalEnabled(),
+                  false);
 
   // Resolve the buffer index to use. We need to support cases where buffer is already one fo the imp_->ray_buffers.
   // Check this first.
@@ -639,7 +644,7 @@ size_t GpuMap::integrateRays(const glm::dvec3 *rays, size_t element_count, const
   imp_->regions.clear();
 
   std::array<gputil::float3, 2> ray_gpu;
-  unsigned upload_count = 0u;
+  unsigned uploaded_ray_count = 0u;
   unsigned unclipped_samples = 0u;
   GpuKey line_start_key_gpu{};
   GpuKey line_end_key_gpu{};
@@ -672,8 +677,8 @@ size_t GpuMap::integrateRays(const glm::dvec3 *rays, size_t element_count, const
     line_end_key_gpu.voxel[2] = ray.sample_key.localKey()[2];
     line_end_key_gpu.voxel[3] = (ray.filter_flags & kRffClippedEnd) ? 1 : 0;
 
-    keys_pinned.write(&line_start_key_gpu, sizeof(line_start_key_gpu), (upload_count + 0) * sizeof(GpuKey));
-    keys_pinned.write(&line_end_key_gpu, sizeof(line_end_key_gpu), (upload_count + 1) * sizeof(GpuKey));
+    keys_pinned.write(&line_start_key_gpu, sizeof(line_start_key_gpu), (uploaded_ray_count * 2 + 0) * sizeof(GpuKey));
+    keys_pinned.write(&line_end_key_gpu, sizeof(line_end_key_gpu), (uploaded_ray_count * 2 + 1) * sizeof(GpuKey));
 
     // Localise the ray to single precision.
     // We change the ray coordinates to be relative to the end voxel centre. This assist later in voxel mean
@@ -686,8 +691,8 @@ size_t GpuMap::integrateRays(const glm::dvec3 *rays, size_t element_count, const
     ray_gpu[1].x = float(ray.sample.x - end_voxel_centre.x);
     ray_gpu[1].y = float(ray.sample.y - end_voxel_centre.y);
     ray_gpu[1].z = float(ray.sample.z - end_voxel_centre.z);
-    rays_pinned.write(ray_gpu.data(), sizeof(ray_gpu), upload_count * sizeof(gputil::float3));
-    upload_count += 2;
+    rays_pinned.write(ray_gpu.data(), sizeof(ray_gpu), uploaded_ray_count * sizeof(ray_gpu));
+    ++uploaded_ray_count;
 
     // Increment unclipped_samples if this sample isn't clipped.
     unclipped_samples += (ray.filter_flags & kRffClippedEnd) == 0;
@@ -704,7 +709,7 @@ size_t GpuMap::integrateRays(const glm::dvec3 *rays, size_t element_count, const
   {
     // Note: upload_count tracks the number of float3 items uploaded, so it increments by 2 each step - sensor & sample.
     // Intensities are matched one per sample, so we halve it's value here.
-    intensities_pinned.write(&ray.intensity, sizeof(ray.intensity), (upload_count / 2) * sizeof(ray.intensity));
+    intensities_pinned.write(&ray.intensity, sizeof(ray.intensity), uploaded_ray_count * sizeof(ray.intensity));
     upload_ray_core(ray);
   };
 
@@ -865,17 +870,17 @@ size_t GpuMap::integrateRays(const glm::dvec3 *rays, size_t element_count, const
     intensities_pinned.unpin(&gpu_cache->gpuQueue(), nullptr, &imp_->ray_upload_events[buf_idx]);
   }
 
-  imp_->ray_counts[buf_idx] = unsigned(upload_count / 2);
+  imp_->ray_counts[buf_idx] = uploaded_ray_count;
   imp_->unclipped_sample_counts[buf_idx] = unclipped_samples;
 
-  if (upload_count == 0)
+  if (uploaded_ray_count == 0)
   {
     return 0u;
   }
 
   enqueueRegions(buf_idx, region_update_flags);
 
-  return upload_count;
+  return uploaded_ray_count * 2;
 }
 
 
