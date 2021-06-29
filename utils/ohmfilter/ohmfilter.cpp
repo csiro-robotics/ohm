@@ -346,7 +346,8 @@ int main(int argc, char *argv[])
   }
   else
   {
-    std::cerr << "Error: Unable to read map '" << opt.map_file << "' : " << ohm::errorCodeString(res) << std::endl;
+    std::cerr << "Error: Unable to read map '" << opt.map_file << "' : " << ohm::serialiseErrorCodeString(res)
+              << std::endl;
   }
 
   prog.joinThread();

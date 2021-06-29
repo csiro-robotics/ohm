@@ -500,7 +500,7 @@ int populateMap(const Options &opt)
     if (load_err)
     {
       std::cerr << "Error(" << load_err << ") loading prior map " << opt.prior_map << " : "
-                << ohm::errorCodeString(load_err) << std::endl;
+                << ohm::serialiseErrorCodeString(load_err) << std::endl;
       return -3;
     }
   }
