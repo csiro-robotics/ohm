@@ -984,7 +984,7 @@ OccupancyMap *OccupancyMap::clone(const glm::dvec3 &min_ext, const glm::dvec3 &m
       MapChunk *dst_chunk = new_map->region(src_chunk->region.coord, true);
       dst_chunk->first_valid_index = src_chunk->first_valid_index;
       dst_chunk->touched_time = src_chunk->touched_time;
-      dst_chunk->dirty_stamp = src_chunk->dirty_stamp;
+      dst_chunk->dirty_stamp = src_chunk->dirty_stamp.load();
       dst_chunk->flags = src_chunk->flags;
 
       for (unsigned i = 0; i < imp_->layout.layerCount(); ++i)
@@ -1067,7 +1067,7 @@ unsigned OccupancyMap::collectDirtyRegions(uint64_t from_stamp,
       // Insertion sorted on the chunk's dirty stamp. Least recently touched (oldtest) first.
       // TODO(KS): test efficiency of the sorted insertion on a vector.
       // Scope should be small so I expect little impact.
-      auto item = std::make_pair(chunk_ref.second->dirty_stamp, chunk_ref.second->region.coord);
+      auto item = std::make_pair(chunk_ref.second->dirty_stamp.load(), chunk_ref.second->region.coord);
       for (auto iter = regions.begin(); iter != regions.end(); ++iter)
       {
         if (item.first < iter->first)

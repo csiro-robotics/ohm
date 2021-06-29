@@ -46,7 +46,7 @@ MapChunk::MapChunk(MapChunk &&other) noexcept
   , map(std::exchange(other.map, nullptr))
   , first_valid_index(std::exchange(other.first_valid_index, ~0u))
   , touched_time(std::exchange(other.touched_time, 0))
-  , dirty_stamp(std::exchange(other.dirty_stamp, 0))
+  , dirty_stamp(other.dirty_stamp.load())
   , touched_stamps(std::move(other.touched_stamps))
   , voxel_blocks(std::move(other.voxel_blocks))
   , flags(std::exchange(other.flags, 0))

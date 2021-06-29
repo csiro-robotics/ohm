@@ -10,6 +10,8 @@
 
 #include "GpuCachePostSyncHandler.h"
 
+#include <ohm/MapRegionCache.h>
+
 #include <glm/glm.hpp>
 
 #include <gputil/gpuBuffer.h>
@@ -24,6 +26,9 @@ struct GpuLayerCacheDetail;
 struct MapChunk;
 class MapLayer;
 class OccupancyMap;
+class VoxelBlock;
+template <typename T>
+class VoxelBuffer;
 
 /// Defines a GPU memory cache of voxel data.
 ///
@@ -50,7 +55,7 @@ class OccupancyMap;
 /// cache ensures no region with the same batch marker is removed from the cache. In this way all regions required for
 /// a GPU program may be locked in the cache. The @p upload() call may fail when using batch markers if the cache is
 /// not large enough.
-class ohmgpu_API GpuLayerCache
+class ohmgpu_API GpuLayerCache : public MapRegionCache
 {
 public:
   /// Status return values for @c upload().
@@ -97,6 +102,12 @@ public:
 
   /// Release the GPU cache. Does not synchronise to host memory.
   ~GpuLayerCache();
+
+  /// Equivalent to a @c clear() .
+  void reinitialise() override;
+
+  /// Equivalent to a @c syncToMainMemory() .
+  void flush() override;
 
   /// Generate a new batch marker for use with @c upload() @c batchMarker parameter.
   /// @return The next rolling batch marker.
@@ -222,7 +233,14 @@ public:
   /// This will block until outstanding operations relating to @p chunk complete, but will not explicitly sync data
   /// back to the host.
   /// @param region_key The key of the region to remove from the cache.
-  void remove(const glm::i16vec3 &region_key);
+  void remove(const glm::i16vec3 &region_key) override;
+
+  /// Implements the base class version. Succeeds only if @c src_chunk is in the cache and @c src_layer matches the
+  /// @c layerIndex() . Invokes @c syncToExternal() .
+  bool syncLayerTo(MapChunk &dst_chunk, unsigned dst_layer, const MapChunk &src_chunk, unsigned src_layer) override;
+
+  /// Return this if @p layer matches @c layerCache() , null otherwise.
+  MapRegionCache *findLayerCache(unsigned layer) override;
 
   /// Synchronise GPU memory for @p chunk back to main memory.
   ///
@@ -248,6 +266,32 @@ public:
 
   /// Synchronise all GPU chunk memory back to main memory. This may block while outstanding GPU operations complete.
   void syncToMainMemory();
+
+  /// Try sync the content of the cached entry at @p src_region_key to the address at @p dst .
+  ///
+  /// This function supports synching from GPU memory to an alternative location rather than back to the owning
+  /// @c VoxelBlock . This has no effect on the original map, however, the operation must block on the synchronisation
+  /// event for the appropriate cache entry. That is, the operation may block for oustanding GPU operations targetting
+  /// the cached entry.
+  ///
+  /// The operation may fail for the following reasons:
+  ///
+  /// - No entry for @p src_region_key is cached.
+  /// - The specified region is marked to skip downloading (GPU read only).
+  /// - @p dst is null
+  /// - The @p dst_size is too small to fit the requested data.
+  ///
+  /// Note: the @c VoxelBuffer overload is the recommended version of this function, supporting copying from one map to
+  /// another.
+  ///
+  /// @param dst The address to write to.
+  /// @param dst_size The number of bytes available at @p dst .
+  /// @param src_region_key The region key for the cache entry to sync from.
+  /// @return The number of bytes copied to @p dst on success, zero on failure.
+  size_t syncToExternal(uint8_t *dst, size_t dst_size, const glm::i16vec3 &src_region_key);
+
+  /// @overload
+  size_t syncToExternal(VoxelBuffer<VoxelBlock> &dst, const glm::i16vec3 &src_region_key);
 
   /// Access the GPU @c gputil::Device associated with GPU operations.
   /// @return The bound @c gputil::Device.
@@ -288,7 +332,7 @@ public:
 
   /// Drop all cache entries. Call @c syncToMainMemory() first if data should be synched first.
   /// Resets @c GpuCacheStats - see @c queryStats() .
-  void clear();
+  void clear() override;
 
   /// Query cache hit/miss counts. The stats are reset on @c clear() .
   /// @param[out] stats Populated to the current cache stats.

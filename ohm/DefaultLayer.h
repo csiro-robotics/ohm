@@ -29,6 +29,18 @@ const char *ohm_API clearanceLayerName();
 class MapLayout;
 class MapLayer;
 
+/// Add the occupancy layer to @p layout.
+///
+/// This ensures @p layout has a layer with a name matching @p occupancyLayerName() setup to hold @c float occupancy
+/// data.
+///
+/// The function makes no changes if @p layout already has a layer named according to @c occupancyLayerName() , but no
+/// validation is performed to ensure that the data contained in that layer matches @c float occupancy data .
+///
+/// @param layout The @p MapLayout to modify.
+/// @return The map layer added or the pre-existing layer named according to @c occupancyLayerName() .
+MapLayer *ohm_API addOccupancy(MapLayout &layout);
+
 /// Add the @c VoxelMean layer to @p layout.
 ///
 /// This ensures @p layout has a layer with a name matching @p meanLayerName() setup to hold @c VoxelMean data.

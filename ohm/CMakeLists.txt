@@ -43,6 +43,8 @@ set(SOURCES
   serialise/MapSerialiseV0.cpp
   serialise/MapSerialiseV0.h
   Aabb.h
+  CopyUtil.cpp
+  CopyUtil.h
   CalculateSegmentKeys.cpp
   CalculateSegmentKeys.h
   ClearingPattern.cpp
@@ -168,6 +170,7 @@ set(PUBLIC_HEADERS
   Aabb.h
   CalculateSegmentKeys.h
   ClearingPattern.h
+  CopyUtil.h
   CovarianceVoxel.h
   CovarianceVoxelCompute.h
   DataType.h

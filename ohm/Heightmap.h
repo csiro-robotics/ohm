@@ -153,10 +153,10 @@ public:
 
   /// Set the occupancy map on which to base the heightmap. The heightmap does not take ownership of the pointer so
   /// the @p map must persist until @c buildHeightmap() is called.
-  void setOccupancyMap(OccupancyMap *map);
+  void setOccupancyMap(const OccupancyMap *map);
 
   /// Access the current source occupancy map.
-  OccupancyMap *occupancyMap() const;
+  const OccupancyMap *occupancyMap() const;
 
   /// Access the currently generated heightmap.
   OccupancyMap &heightmap() const;

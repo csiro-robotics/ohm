@@ -26,6 +26,15 @@ class GpuLayerCache;
 class OccupancyMap;
 
 /// IDs for GPU caches.
+///
+/// Note: there are assumptions made about the ordering of these indices:
+///
+/// - IDs for read/write layers appear first. For example, @c kGcIdOccupancy which reads/writes occupancy appears
+///   before @c kGcIdClearance which only reads occupancy and writes clearance values.
+///
+/// Locations where these assumptions are most relevant:
+///
+/// - @c GpuCache::syncLayerTo()
 enum GpuCacheId
 {
   /// Cache used for populating the map occupancy values.
@@ -93,6 +102,19 @@ public:
   /// Remove a particular region from the cache.
   /// @param region_key The region to flush from the cache.
   void remove(const glm::i16vec3 &region_key) override;
+
+  /// Implement synching from this cache to another location.
+  ///
+  /// @param dst_chunk The chunk object to sync to.
+  /// @param dst_layer The index to sync to in @c MapChunk::voxel_blocks .
+  /// @param src_chunk The chunk to sync from.
+  /// @param src_layer The layer to sync from.
+  /// @return True if the source chunk/layer pairing are cached by this object and have been copied to the destination
+  ///   chunk/layer pairing.
+  bool syncLayerTo(MapChunk &dst_chunk, unsigned dst_layer, const MapChunk &src_chunk, unsigned src_layer) override;
+
+  /// Find the @c GpuLayerCache for @p layer .
+  MapRegionCache *findLayerCache(unsigned layer) override;
 
   /// Query the target GPU memory allocation byte size. This is the target allocation accross all @c GpuLayerCache
   /// objects and is distributed amongst these objects. The distribution is weighted so that layers requiring more

@@ -11,6 +11,8 @@
 #include "MapLayoutMatch.h"
 
 #include <initializer_list>
+#include <utility>
+#include <vector>
 
 namespace ohm
 {
@@ -149,6 +151,18 @@ public:
   /// @param other The other layout to compare against.
   /// @return The equivalence @c MapLayoutMatch
   MapLayoutMatch checkEquivalent(const MapLayout &other) const;
+
+  /// Calculate which layers from this object are also present in @p other . For any match we add an entry to @p overlap
+  /// which identifies this object's layer index and the @p other object's layer index.
+  ///
+  /// Layers are matched first by name, then using @c MapLayer::checkEquivalent() looking for an exact match.
+  ///
+  /// @param[out] overlap The overlap set. Note: it is the caller's responsibility to ensure this object is empty before
+  ///   calling this function.
+  /// @param other The map to determine the overlap with.
+  /// @return The number of layers matched between the @c MapLayout objects.
+  size_t calculateOverlappingLayerSet(std::vector<std::pair<unsigned, unsigned>> &overlap,
+                                      const MapLayout &other) const;
 
   /// Remove all layers except for the named layers. Removing interleaved layers may create gaps in the layer
   /// array. These gaps are removed with the array being repacked.

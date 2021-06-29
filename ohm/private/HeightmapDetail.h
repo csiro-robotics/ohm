@@ -25,7 +25,7 @@ class MapInfo;
 struct ohm_API HeightmapDetail
 {
   /// Source occupancy map pointer from which we are building a heightmap.
-  OccupancyMap *occupancy_map = nullptr;
+  const OccupancyMap *occupancy_map = nullptr;
   /// Use a very thin occupancy map for the heightmap representation.
   ///
   /// Within the heightmap the occupancy values are used independently of any of the threshold values.
