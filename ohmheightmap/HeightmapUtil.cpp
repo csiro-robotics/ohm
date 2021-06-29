@@ -81,7 +81,7 @@ double queryHeightmapClearance(const MapInfo &info)
   return 0.0;
 }
 
-std::array<int, 3> ohmheightmap_API heightmapAxisIndices(UpAxis up_axis)
+std::array<int, 3> heightmapAxisIndices(UpAxis up_axis)
 {
   std::array<int, 3> axis_indices;
   switch (up_axis)
