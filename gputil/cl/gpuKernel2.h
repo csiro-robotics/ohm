@@ -214,7 +214,7 @@ int Kernel::operator()(const Dim3 &global_size, const Dim3 &local_size, const Ev
 
 
 class Program;
-Kernel openCLKernel(Program &program, const char *kernel_name);
+Kernel gputilAPI openCLKernel(Program &program, const char *kernel_name);
 }  // namespace gputil
 
 #endif  // GPUKERNEL2_H

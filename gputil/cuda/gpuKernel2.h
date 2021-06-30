@@ -80,9 +80,10 @@ inline void collateArgs(unsigned index, void **collated_args, const ARG &arg, AR
   collateArgs(index + 1, collated_args, args...);
 }
 
-int preInvokeKernel(const Device &device);
-int invokeKernel(const KernelDetail &imp, const Dim3 &global_size, const Dim3 &local_size, const EventList *event_list,
-                 Event *completion_event, Queue *queue, void **args, size_t arg_count);
+int gputilAPI preInvokeKernel(const Device &device);
+int gputilAPI invokeKernel(const KernelDetail &imp, const Dim3 &global_size, const Dim3 &local_size,
+                           const EventList *event_list, Event *completion_event, Queue *queue, void **args,
+                           size_t arg_count);
 }  // namespace cuda
 
 template <typename... ARGS>
@@ -186,8 +187,8 @@ int Kernel::operator()(const Dim3 &global_size, const Dim3 &local_size, const Ev
 }
 
 
-Kernel cudaKernel(Program &program, const void *kernel_function_ptr,
-                  const gputil::OptimalGroupSizeCalculation &group_calc);
+Kernel gputilAPI cudaKernel(Program &program, const void *kernel_function_ptr,
+                            const gputil::OptimalGroupSizeCalculation &group_calc);
 }  // namespace gputil
 
 #endif  // GPUKERNEL2_H

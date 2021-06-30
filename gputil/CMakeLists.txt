@@ -1,3 +1,5 @@
+include(GenerateExportHeader)
+
 if(OHM_BUILD_OPENCL)
   find_package(OpenCL QUIET)
 endif(OHM_BUILD_OPENCL)
@@ -34,6 +36,7 @@ set(PUBLIC_HEADERS
   gpuQueue.h
   gpuThrow.h
   gpuVersion.h
+  "${CMAKE_CURRENT_BINARY_DIR}/gputil/gputilExport.h"
   "${CMAKE_CURRENT_BINARY_DIR}/gputil/gpuConfig.h"
 )
 
@@ -63,8 +66,19 @@ function(_gputil_setup_library TARGET_NAME GPUTIL_TYPE)
 
   # Select GPUTIL_TYPE
   target_compile_definitions(${TARGET_NAME} PUBLIC "-DGPUTIL_TYPE=${GPUTIL_TYPE}")
+  # Because of the way we compile our GPU library twice with different names, we must explicitly define the export
+  # macro.
+  target_compile_definitions(${TARGET_NAME} PRIVATE "-DGPUTIL_EXPORTS")
 
   # set_property(TARGET gputil PROPERTY DEBUG_POSTFIX "d")
+
+  generate_export_header(${TARGET_NAME}
+    EXPORT_MACRO_NAME gputilAPI
+    DEPRECATED_MACRO_NAME gputil_DEPRECATED
+    NO_EXPORT_MACRO_NAME gputil_NO_EXPORT
+    NO_DEPRECATED_MACRO_NAME gputil_NO_DEPRECATED
+    EXPORT_FILE_NAME gputil/gputilExport.h
+    STATIC_DEFINE GPUTIL_STATIC)
 
   install(TARGETS ${TARGET_NAME} EXPORT ${CMAKE_PROJECT_NAME}-config-targets
     LIBRARY DESTINATION lib
