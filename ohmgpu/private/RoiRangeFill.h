@@ -25,7 +25,7 @@ class GpuLayerCache;
 class GpuProgramRef;
 
 /// GPU algorithm to calculate per voxel clearance values (range to nearest obstruction).
-class RoiRangeFill
+class ohmgpu_API RoiRangeFill
 {
 public:
   explicit RoiRangeFill(gputil::Device &gpu);

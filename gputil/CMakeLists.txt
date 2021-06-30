@@ -67,8 +67,10 @@ function(_gputil_setup_library TARGET_NAME GPUTIL_TYPE)
   # Select GPUTIL_TYPE
   target_compile_definitions(${TARGET_NAME} PUBLIC "-DGPUTIL_TYPE=${GPUTIL_TYPE}")
   # Because of the way we compile our GPU library twice with different names, we must explicitly define the export
-  # macro.
-  target_compile_definitions(${TARGET_NAME} PRIVATE "-DGPUTIL_EXPORTS")
+  # macro. Curiously, there's a way to overide all the macros except the one used to control whether to export the
+  # symbols or not. This puts us in a position where it could either be ohmcuda_EXPORTS or ohmocl_EXPORTS depending
+  # on which targets are enabled. We build both the same way though, so define both symbols for all builds.
+  target_compile_definitions(${TARGET_NAME} PRIVATE "-Dgputilcuda_EXPORTS" "-Dgputilocl_EXPORTS")
 
   # set_property(TARGET gputil PROPERTY DEBUG_POSTFIX "d")
 

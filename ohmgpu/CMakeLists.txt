@@ -34,6 +34,7 @@ set(SOURCES
   GpuKey.h
   GpuLayerCache.cpp
   GpuLayerCache.h
+  GpuLayerCacheParams.cpp
   GpuLayerCacheParams.h
   GpuMap.cpp
   GpuMap.h
@@ -101,6 +102,11 @@ set(PUBLIC_HEADERS
 
 function(_ohmgpu_setup_target TARGET_NAME GPUTIL_LIBRARY OHM_GPU)
   target_compile_definitions(${TARGET_NAME} PUBLIC "-DOHM_GPU=${OHM_GPU}")
+  # Because of the way we compile our GPU library twice with different names, we must explicitly define the export
+  # macro. Curiously, there's a way to overide all the macros except the one used to control whether to export the
+  # symbols or not. This puts us in a position where it could either be ohmcuda_EXPORTS or ohmocl_EXPORTS depending
+  # on which targets are enabled. We build both the same way though, so define both symbols for all builds.
+  target_compile_definitions(${TARGET_NAME} PRIVATE "-Dohmcuda_EXPORTS" "-Dohmocl_EXPORTS")
   target_link_libraries(${TARGET_NAME} PUBLIC ohm ohmutil ${GPUTIL_LIBRARY})
 
   target_include_directories(${TARGET_NAME}
@@ -132,8 +138,11 @@ function(_ohmgpu_setup_target TARGET_NAME GPUTIL_LIBRARY OHM_GPU)
 
   generate_export_header(${TARGET_NAME}
     EXPORT_MACRO_NAME ohmgpu_API
+    DEPRECATED_MACRO_NAME ohmgpu_DEPRECATED
+    NO_EXPORT_MACRO_NAME ohmgpu_NO_EXPORT
     EXPORT_FILE_NAME ohmgpu/OhmGpuExport.h
-    STATIC_DEFINE OHM_STATIC)
+    NO_DEPRECATED_MACRO_NAME  ohmgpu_NO_DEPRECATED
+    STATIC_DEFINE OHMGPU_STATIC)
 
   install(TARGETS ${TARGET_NAME} EXPORT ${CMAKE_PROJECT_NAME}-config-targets
     LIBRARY DESTINATION lib
