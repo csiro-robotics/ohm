@@ -14,31 +14,31 @@ namespace default_layer
 {
 /// Name of the occupancy layer.
 /// @return "occupancy"
-const char *ohm_API occupancyLayerName();
+const char ohm_API *occupancyLayerName();
 /// Name of the @c VoxelMean layer containing mean voxel coordinates.
 /// @return "mean"
-const char *ohm_API meanLayerName();
+const char ohm_API *meanLayerName();
 /// Name of the traversal layer.
 /// @return "traversal"
 const char *ohm_API traversalLayerName();
 /// Name of the @c CovarianceVoxel layer containing packed voxel covariances.
 /// @return "covariance"
-const char *ohm_API covarianceLayerName();
+const char ohm_API *covarianceLayerName();
 /// Name of the voxel clearance layer.
 /// @return "clearance"
-const char *ohm_API clearanceLayerName();
+const char ohm_API *clearanceLayerName();
 /// Name of the voxel intensity layer.
 /// @return "intensity"
-const char *ohm_API intensityLayerName();
+const char ohm_API *intensityLayerName();
 /// Name of the voxel hit miss count layer.
 /// @return "hit_miss_count"
-const char *ohm_API hitMissCountLayerName();
+const char ohm_API *hitMissCountLayerName();
 /// Name of the voxel touch time layer.
 /// @return "touch_time"
-const char *ohm_API touchTimeLayerName();
+const char ohm_API *touchTimeLayerName();
 /// Name of the voxel incident layer.
 /// @return "incident_normal"
-const char *ohm_API incidentNormalLayerName();
+const char ohm_API *incidentNormalLayerName();
 }  // namespace default_layer
 
 class MapLayout;
@@ -54,7 +54,7 @@ class MapLayer;
 ///
 /// @param layout The @p MapLayout to modify.
 /// @return The map layer added or the pre-existing layer named according to @c occupancyLayerName() .
-MapLayer *ohm_API addOccupancy(MapLayout &layout);
+MapLayer ohm_API *addOccupancy(MapLayout &layout);
 
 /// Add the @c VoxelMean layer to @p layout.
 ///
@@ -66,7 +66,7 @@ MapLayer *ohm_API addOccupancy(MapLayout &layout);
 /// @param layout The @p MapLayout to modify.
 /// @return The map layer added or the pre-existing layer named according to @c meanLayerName() .
 /// @see @c voxelmean
-MapLayer *ohm_API addVoxelMean(MapLayout &layout);
+MapLayer ohm_API *addVoxelMean(MapLayout &layout);
 
 /// Add the traversal layer to @p layout.
 ///
@@ -78,7 +78,7 @@ MapLayer *ohm_API addVoxelMean(MapLayout &layout);
 ///
 /// @param layout The @p MapLayout to modify.
 /// @return The map layer added or the pre-existing layer named according to @c traversalLayerName() .
-MapLayer *ohm_API addTraversal(MapLayout &layout);
+MapLayer ohm_API *addTraversal(MapLayout &layout);
 
 /// Add the @c CovarianceVoxel layer to @p layout.
 ///
@@ -86,7 +86,7 @@ MapLayer *ohm_API addTraversal(MapLayout &layout);
 ///
 /// @param layout The @p MapLayout to modify.
 /// @return The map layer added or the pre-existing layer named according to @c covarianceLayerName() .
-MapLayer *ohm_API addCovariance(MapLayout &layout);
+MapLayer ohm_API *addCovariance(MapLayout &layout);
 
 /// Add the voxel clearance layer to @p layout.
 ///
@@ -94,7 +94,7 @@ MapLayer *ohm_API addCovariance(MapLayout &layout);
 ///
 /// @param layout The @p MapLayout to modify.
 /// @return The map layer added or the pre-existing layer named according to @c clearanceLayerName() .
-MapLayer *ohm_API addClearance(MapLayout &layout);
+MapLayer ohm_API *addClearance(MapLayout &layout);
 
 /// Add the voxel intensity (mean and covariance) layer to @p layout.
 ///
@@ -103,7 +103,7 @@ MapLayer *ohm_API addClearance(MapLayout &layout);
 ///
 /// @param layout The @p MapLayout to modify.
 /// @return The map layer added or the pre-existing layer named according to @c intensityLayerName() .
-MapLayer *ohm_API addIntensity(MapLayout &layout);
+MapLayer ohm_API *addIntensity(MapLayout &layout);
 
 /// Add the voxel hit and miss counts layer to @p layout.
 ///
@@ -113,7 +113,7 @@ MapLayer *ohm_API addIntensity(MapLayout &layout);
 ///
 /// @param layout The @p MapLayout to modify.
 /// @return The map layer added or the pre-existing layer named according to @c hitMissCountLayerName() .
-MapLayer *ohm_API addHitMissCount(MapLayout &layout);
+MapLayer ohm_API *addHitMissCount(MapLayout &layout);
 
 /// Add the voxel touch time layer to @p layout.
 ///
@@ -123,7 +123,7 @@ MapLayer *ohm_API addHitMissCount(MapLayout &layout);
 ///
 /// @param layout The @p MapLayout to modify.
 /// @return The map layer added or the pre-existing layer named according to @c touchTimeLayerName() .
-MapLayer *ohm_API addTouchTime(MapLayout &layout);
+MapLayer ohm_API *addTouchTime(MapLayout &layout);
 
 /// Add the voxel incident normal layer to @p layout.
 ///
@@ -136,7 +136,7 @@ MapLayer *ohm_API addTouchTime(MapLayout &layout);
 ///
 /// @param layout The @p MapLayout to modify.
 /// @return The map layer added or the pre-existing layer named according to @c incidentNormalLayerName() .
-MapLayer *ohm_API addIncidentNormal(MapLayout &layout);
+MapLayer ohm_API *addIncidentNormal(MapLayout &layout);
 }  // namespace ohm
 
 #endif  // OHMDEFAULTLAYER_H

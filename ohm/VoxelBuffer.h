@@ -106,8 +106,8 @@ protected:
   ohm::VoxelBlock *voxel_block_{ nullptr };  ///< The @c VoxelBlock object owning the voxel memory.
 };
 
-extern ohm_API template class ohm_API VoxelBuffer<VoxelBlock>;
-extern ohm_API template class ohm_API VoxelBuffer<const VoxelBlock>;
+extern template class VoxelBuffer<VoxelBlock>;
+extern template class VoxelBuffer<const VoxelBlock>;
 }  // namespace ohm
 
 #endif  // VOXELBUFFER_H

@@ -135,13 +135,13 @@ struct ohm_API MapVersion
 };
 
 /// Header marker bytes for a serialised occupancy map.
-extern const uint32_t kMapHeaderMarker;
+extern const uint32_t ohm_API kMapHeaderMarker;
 /// Minimum version number which can be loaded by this library.
-extern const MapVersion kSupportedVersionMin;
+extern const MapVersion ohm_API kSupportedVersionMin;
 /// Maximum version number which can be loaded by this library.
-extern const MapVersion kSupportedVersionMax;
+extern const MapVersion ohm_API kSupportedVersionMax;
 /// Current MapVersion version.
-extern const MapVersion kCurrentVersion;
+extern const MapVersion ohm_API kCurrentVersion;
 
 /// Progress observer interface for serialisation.
 ///
@@ -174,7 +174,7 @@ public:
 /// Translate @c err to an English error code string.
 /// @param err The error code. Out of range values are handled.
 /// @return The English error code string or "<unknown>".
-const char *ohm_API serialiseErrorCodeString(int err);
+const char ohm_API *serialiseErrorCodeString(int err);
 
 /// Register a new error code string for @c serialiseErrorCodeString() based on an extended error code value.
 /// @param err The error code to register.

@@ -39,7 +39,7 @@ class ohm_API RayMapperTrace : public RayMapper
 {
 public:
   /// Utility structure tracking the status of a voxel including (optional) ellipsoid shape.
-  struct VoxelState
+  struct ohm_API VoxelState
   {
     glm::dquat ellipse_rotation{ 1, 0, 0, 0 };  ///< Rotation applied to a scaled sphere to generate the ellipse.
     glm::dvec3 ellipse_pos{ 0 };                ///< Global position of the voxel ellipse.
@@ -48,7 +48,7 @@ public:
   };
 
   /// Hash for a @c glm::i16vec4
-  struct I16Vec4Hash
+  struct ohm_API I16Vec4Hash
   {
     /// Hash operator
     /// @param v Vector to hash

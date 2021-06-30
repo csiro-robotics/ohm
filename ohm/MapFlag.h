@@ -33,8 +33,8 @@ enum class MapFlag : unsigned
   kDefault = kCompressed
 };
 
-const char *mapFlagToString(MapFlag flag);
-MapFlag mapFlagFromString(const char *str);
+const char ohm_API *mapFlagToString(MapFlag flag);
+MapFlag ohm_API mapFlagFromString(const char *str);
 }  // namespace ohm
 
 inline ohm::MapFlag operator|(ohm::MapFlag left, ohm::MapFlag right)

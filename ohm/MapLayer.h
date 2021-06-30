@@ -25,7 +25,7 @@ struct VoxelLayoutDetail;
 /// Defines a layer in a @c MapLayout.
 ///
 /// See @c MapLayout for details.
-class MapLayer
+class ohm_API MapLayer
 {
 public:
   /// Configuration flags.

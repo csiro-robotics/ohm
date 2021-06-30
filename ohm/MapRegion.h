@@ -26,7 +26,7 @@ struct ohm_API MapRegion
   /// Hashing function converting a region key or region coordinates into a 32-bit hash value.
   ///
   /// Supports various data sources.
-  struct Hash
+  struct ohm_API Hash
   {
     /// Hash a @c MapRegion.
     /// @param key The region to hash.

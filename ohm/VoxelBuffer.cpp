@@ -82,7 +82,7 @@ void VoxelBuffer<VoxelBlock>::release()
   }
 }
 
-// Instantiate VoxelBufferT for const and non-const buffers.
-template class VoxelBuffer<VoxelBlock>;
-template class VoxelBuffer<const VoxelBlock>;
+// Export explicit template instantiations
+template class ohm_API VoxelBuffer<VoxelBlock>;
+template class ohm_API VoxelBuffer<const VoxelBlock>;
 }  // namespace ohm

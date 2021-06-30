@@ -123,11 +123,6 @@ void *VoxelLayoutT<T>::memberPtr(size_t member_index, void *mem) const
   return &bytes[memberOffset(member_index)];
 }
 
-
-template class VoxelLayoutT<VoxelLayoutDetail>;
-template class VoxelLayoutT<const VoxelLayoutDetail>;
-
-
 namespace
 {
 /// Determine the byte alignment for a type of size @p data_size to one of {1, 2, 4, 8}.
@@ -273,4 +268,9 @@ VoxelLayoutConst::VoxelLayoutConst(const VoxelLayoutConst &other) = default;
 VoxelLayoutConst::VoxelLayoutConst(const VoxelLayout &other)
   : VoxelLayoutT<const VoxelLayoutDetail>(other.detail())
 {}
+
+
+// Export explicit template instantiations
+template class ohm_API VoxelLayoutT<VoxelLayoutDetail>;
+template class ohm_API VoxelLayoutT<const VoxelLayoutDetail>;
 }  // namespace ohm

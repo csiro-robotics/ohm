@@ -60,5 +60,4 @@ extern tes::Server ohm_API *g_tes;  // Symbol defined in occupancyutil.cpp.
 #define GLM_ENABLE_EXPERIMENTAL
 
 // clang-format on
-
 #endif  // OHMCONFIG_H

@@ -152,7 +152,7 @@ inline bool nextLocalKey(Key &key, const glm::ivec3 &dim)
 /// @c MapChunk will often be the same as the previous one. In this case, an easy performance gain comes by keeping
 /// checking if the new @c Key::regionKey() is the same as the last one, and using the previous @c MapChunk when the
 /// @c regionKey() is unchanged.
-struct MapChunk
+struct ohm_API MapChunk
 {
   /// Defines the spatial region covered by the chunk.
   MapRegion region = MapRegion{};
