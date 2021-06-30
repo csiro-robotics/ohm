@@ -46,7 +46,7 @@ set(3P_HEADERS
   3rdparty/cl2.hpp
 )
 
-add_library(clu ${SOURCES} ${PUBLIC_HEADERS})
+add_library(clu STATIC ${SOURCES} ${PUBLIC_HEADERS})
 clang_tidy_target(clu)
 
 target_include_directories(clu
