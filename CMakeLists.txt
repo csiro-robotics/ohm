@@ -120,6 +120,7 @@ else(NOT DEFINED OHM_THREADS)
   set(TBB_THREADS_DEFAULT ${OHM_THREADS})
 endif(NOT DEFINED OHM_THREADS)
 
+option(OHM_BUILD_SHARED "Build shared ohm libraries?" ${BUILD_SHARED_LIBS})
 option(OHM_PROFILE "Enable timing information messages for some queries." Off)
 option(OHM_TES_DEBUG "Enable visual debuging code?" Off)
 option(OHM_THREADS "Enable CPU threading (using Thread Building Blocks)? Not advisable for onboard compilation." ${TBB_THREADS_DEFAULT})
@@ -130,6 +131,12 @@ option(OHM_BUILD_OPENCL "Build ohm library and utlities for OpenCL?" ${OHM_BUILD
 option(OHM_LEAK_TRACK "Enable memory leak tracking?" OFF)
 
 option(WITH_OCTOMAP "Build comparative occupancy map generation using octomap?" OFF)
+
+# Migrate ohm specific setting for building shared libraries to the CMake global option.
+set(BUILD_SHARED_LIBS ${OHM_BUILD_SHARED})
+if(BUILD_SHARED_LIBS)
+  message(STATUS "Building shared ohm libraries.")
+endif(BUILD_SHARED_LIBS)
 
 # Setup default memory leak tracking suppressions and options (GCC/Clang AddressSanitizer).
 set(OHM_LEAK_SUPPRESS_OCL_INIT
