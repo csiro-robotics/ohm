@@ -2,14 +2,16 @@
 // author Kazys Stepanas
 //
 
-#include <ohm/Heightmap.h>
-#include <ohm/HeightmapMesh.h>
-#include <ohm/HeightmapVoxel.h>
 #include <ohm/MapSerialise.h>
 #include <ohm/OccupancyMap.h>
 #include <ohm/Voxel.h>
 
-#include <ohmheightmaputil/HeightmapImage.h>
+#include <ohmheightmap/Heightmap.h>
+#include <ohmheightmap/HeightmapMesh.h>
+#include <ohmheightmap/HeightmapSerialise.h>
+#include <ohmheightmap/HeightmapVoxel.h>
+
+#include <ohmheightmapimage/HeightmapImage.h>
 
 #include <ohmutil/OhmUtil.h>
 #include <ohmutil/ProgressMonitor.h>
@@ -575,7 +577,7 @@ int main(int argc, char *argv[])
 
   if (res != 0)
   {
-    std::cerr << "Failed to load heightmap. Error(" << res << "): " << ohm::errorCodeString(res) << std::endl;
+    std::cerr << "Failed to load heightmap. Error(" << res << "): " << ohm::serialiseErrorCodeString(res) << std::endl;
     return res;
   }
 

@@ -46,7 +46,7 @@ int loadMapInfo(InputStream &in, MapInfo &info)  //, const bool endianSwap)
 
   if (!readRaw<uint32_t>(in, item_count))
   {
-    return kSeHeightmapInfoMismatch;
+    return kSeInfoError;
   }
 
   if (!item_count)

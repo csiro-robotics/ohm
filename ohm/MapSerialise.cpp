@@ -1,11 +1,11 @@
+// Copyright (c) 2017
+// Commonwealth Scientific and Industrial Research Organisation (CSIRO)
+// ABN 41 687 119 230
 //
 // Author: Kazys Stepanas
-// Copyright (c) CSIRO 2017
-//
 #include "MapSerialise.h"
 
 #include "DefaultLayer.h"
-#include "Heightmap.h"
 #include "MapChunk.h"
 #include "MapLayer.h"
 #include "MapLayout.h"
@@ -15,7 +15,6 @@
 #include "VoxelBuffer.h"
 #include "VoxelLayout.h"
 
-#include "private/HeightmapDetail.h"
 #include "private/OccupancyMapDetail.h"
 #include "private/SerialiseUtil.h"
 
@@ -30,6 +29,9 @@
 #include <cstdio>
 #include <cstring>
 #include <functional>
+#include <map>
+#include <mutex>
+#include <string>
 #include <type_traits>
 #include <vector>
 
@@ -38,6 +40,28 @@
 #if OM_ZIP
 #include <zlib.h>
 #endif  // OM_ZIP
+
+namespace
+{
+inline std::pair<int, std::string> makeErrorCode(ohm::SerialisationError code, const std::string &str)
+{
+  return std::make_pair(int(code), str);
+}
+
+std::mutex s_error_code_lock;
+std::map<int, std::string> s_error_codes = { makeErrorCode(ohm::kSeOk, "ok"),
+                                             makeErrorCode(ohm::kSeFileCreateFailure, "file create failure"),
+                                             makeErrorCode(ohm::kSeFileOpenFailure, "file open failure"),
+                                             makeErrorCode(ohm::kSeFileWriteFailure, "write failure"),
+                                             makeErrorCode(ohm::kSeFileReadFailure, "read failure"),
+                                             makeErrorCode(ohm::kSeValueOverflow, "value overflow"),
+                                             makeErrorCode(ohm::kSeMemberOffsetError, "member offset error"),
+                                             makeErrorCode(ohm::kSeInfoError, "info error"),
+                                             makeErrorCode(ohm::kSeDataItemTooLarge, "data item too large"),
+                                             makeErrorCode(ohm::kSeUnknownDataType, "unknown data type"),
+                                             makeErrorCode(ohm::kSeUnsupportedVersion, "unsupported version"),
+                                             makeErrorCode(ohm::kSeExtensionCode, "unknown extension error") };
+}  // namespace
 
 namespace ohm
 {
@@ -282,7 +306,7 @@ int saveHeader(OutputStream &stream, const OccupancyMapDetail &map)
   ok = writeUncompressed<uint64_t>(stream, map.stamp) && ok;
 
   // Add v0.3.2
-  ok = writeUncompressed<uint32_t>(stream, std::underlying_type_t<ohm::MapFlag>(map.flags)) && ok;
+  ok = writeUncompressed<uint32_t>(stream, std::underlying_type_t<MapFlag>(map.flags)) && ok;
 
   return (ok) ? 0 : kSeFileWriteFailure;
 }
@@ -466,8 +490,8 @@ int loadHeader(InputStream &stream, HeaderVersion &version, OccupancyMapDetail &
   if (version.version.major > 0 || version.version.minor > 3 || version.version.patch > 1)
   {
     uint32_t flags = 0;
-    ok = readRaw<std::underlying_type_t<ohm::MapFlag>>(stream, map.flags) && ok;
-    map.flags = static_cast<ohm::MapFlag>(flags);
+    ok = readRaw<std::underlying_type_t<MapFlag>>(stream, map.flags) && ok;
+    map.flags = static_cast<MapFlag>(flags);
   }
   else
   {
@@ -527,37 +551,28 @@ int loadChunk(InputStream &stream, MapChunk &chunk, const OccupancyMapDetail &de
 
   return (ok) ? 0 : kSeFileReadFailure;
 }
-}  // namespace ohm
 
 
-const char *ohm::errorCodeString(int err)
+const char *serialiseErrorCodeString(int err)
 {
-  const std::array<const char *, 12> names =  //
-    {                                         //
-      "ok",
-      "file create failure",
-      "file open failure",
-      "write failure",
-      "read failure",
-      "value overflow",
-      "member offset error",
-      "info error",
-      "heightmap info mismatch",
-      "data item too large",
-      "unknown data type",
-      "unsupported version"
-    };
-
-  if (err < 0 || unsigned(err) > names.size())
+  std::unique_lock<std::mutex> guard(s_error_code_lock);
+  const auto lookup = s_error_codes.find(err);
+  if (lookup != s_error_codes.end())
   {
-    return "<unknown>";
+    return lookup->second.c_str();
   }
-
-  return names[err];
+  return "<unknown>";
 }
 
 
-int ohm::save(const std::string &filename, const OccupancyMap &map, SerialiseProgress *progress)
+void registerSerialiseExtensionErrorCodeString(int err, const char *error_string)
+{
+  std::unique_lock<std::mutex> guard(s_error_code_lock);
+  s_error_codes.insert(std::make_pair(err, std::string(error_string)));
+}
+
+
+int save(const std::string &filename, const OccupancyMap &map, SerialiseProgress *progress)
 {
   OutputStream stream(filename, kSfCompress);
   const OccupancyMapDetail &detail = *map.detail();
@@ -614,7 +629,7 @@ int ohm::save(const std::string &filename, const OccupancyMap &map, SerialisePro
 }
 
 
-int ohm::load(const std::string &filename, OccupancyMap &map, SerialiseProgress *progress, MapVersion *version_out)
+int load(const std::string &filename, OccupancyMap &map, SerialiseProgress *progress, MapVersion *version_out)
 {
   InputStream stream(filename, kSfCompress);
   OccupancyMapDetail &detail = *map.detail();
@@ -643,21 +658,21 @@ int ohm::load(const std::string &filename, OccupancyMap &map, SerialiseProgress 
   err = kSeUnsupportedVersion;
   if (version.marker == 0 || version.version.major == 0 && version.version.minor == 0)
   {
-    err = ohm::v0::load(stream, detail, progress, version.version, region_count);
+    err = v0::load(stream, detail, progress, version.version, region_count);
   }
   else if (kSupportedVersionMin <= version.version && version.version <= kSupportedVersionMax)
   {
     if (version.version.major == 0 && version.version.minor == 1)
     {
-      err = ohm::v0_1::load(stream, detail, progress, version.version, region_count);
+      err = v0_1::load(stream, detail, progress, version.version, region_count);
     }
     else if (version.version.major == 0 && version.version.minor == 2)
     {
-      err = ohm::v0_2::load(stream, detail, progress, version.version, region_count);
+      err = v0_2::load(stream, detail, progress, version.version, region_count);
     }
     else if (version.version.major == 0 && version.version.minor == 4)
     {
-      err = ohm::v0_4::load(stream, detail, progress, version.version, region_count);
+      err = v0_4::load(stream, detail, progress, version.version, region_count);
     }
   }
 
@@ -665,30 +680,7 @@ int ohm::load(const std::string &filename, OccupancyMap &map, SerialiseProgress 
 }
 
 
-int ohm::load(const std::string &filename, Heightmap &heightmap, SerialiseProgress *progress, MapVersion *version_out)
-{
-  HeightmapDetail &detail = *heightmap.detail();
-
-  int err = load(filename, *detail.heightmap, progress, version_out);
-  if (err)
-  {
-    return err;
-  }
-
-  // TODO(KS): Set axis from map info.
-  const MapInfo &info = detail.heightmap->mapInfo();
-  if (!bool(info.get("heightmap")))
-  {
-    return kSeHeightmapInfoMismatch;
-  }
-
-  detail.fromMapInfo(info);
-
-  return err;
-}
-
-
-int ohm::loadHeader(const std::string &filename, OccupancyMap &map, MapVersion *version_out, size_t *region_count)
+int loadHeader(const std::string &filename, OccupancyMap &map, MapVersion *version_out, size_t *region_count)
 {
   InputStream stream(filename, kSfCompress);
   OccupancyMapDetail &detail = *map.detail();
@@ -753,3 +745,5 @@ int ohm::loadHeader(const std::string &filename, OccupancyMap &map, MapVersion *
 
   return err;
 }
+
+}  // namespace ohm

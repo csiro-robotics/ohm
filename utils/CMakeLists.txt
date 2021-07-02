@@ -31,9 +31,9 @@ add_subdirectory(ohmprob)
 add_subdirectory(ohmquery)
 add_subdirectory(ohmsubmap)
 
-if(OHM_BUILD_HEIGHTMAPUTIL)
+if(OHM_BUILD_HEIGHTMAP_IMAGE)
   add_subdirectory(ohmhm2img)
-endif(OHM_BUILD_HEIGHTMAPUTIL)
+endif(OHM_BUILD_HEIGHTMAP_IMAGE)
 
 if(OHM_WITH_OCTOMAP)
   add_subdirectory(octopop)

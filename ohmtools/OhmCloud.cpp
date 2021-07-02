@@ -5,15 +5,16 @@
 // Author: Kazys Stepanas
 #include "OhmCloud.h"
 
-#include <ohm/Heightmap.h>
-#include <ohm/HeightmapUtil.h>
-#include <ohm/HeightmapVoxel.h>
 #include <ohm/OccupancyMap.h>
 #include <ohm/OccupancyType.h>
 #include <ohm/Query.h>
 #include <ohm/VoxelData.h>
 
-#include <ohm/private/HeightmapDetail.h>
+#include <ohmheightmap/Heightmap.h>
+#include <ohmheightmap/HeightmapUtil.h>
+#include <ohmheightmap/HeightmapVoxel.h>
+
+#include <ohmheightmap/private/HeightmapDetail.h>
 
 #include <ohmutil/Colour.h>
 #include <ohmutil/PlyMesh.h>

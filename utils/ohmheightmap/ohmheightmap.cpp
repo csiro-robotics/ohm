@@ -2,12 +2,13 @@
 // author Kazys Stepanas
 //
 // Utility for generating an ohm heightmap from an ohm occupancy map.
-#include <ohm/Heightmap.h>
-#include <ohm/HeightmapVoxel.h>
 #include <ohm/MapSerialise.h>
 #include <ohm/OccupancyMap.h>
 #include <ohm/Trace.h>
 #include <ohm/Voxel.h>
+
+#include <ohmheightmap/Heightmap.h>
+#include <ohmheightmap/HeightmapVoxel.h>
 
 #include <ohmutil/GlmStream.h>
 #include <ohmutil/OhmUtil.h>
@@ -311,7 +312,7 @@ int main(int argc, char *argv[])
 
   if (res != 0)
   {
-    std::cerr << "Failed to load map. Error(" << res << "): " << ohm::errorCodeString(res) << std::endl;
+    std::cerr << "Failed to load map. Error(" << res << "): " << ohm::serialiseErrorCodeString(res) << std::endl;
     return res;
   }
 

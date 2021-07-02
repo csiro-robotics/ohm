@@ -9,13 +9,14 @@
 
 struct SlamCloudLoaderDetail;
 
+/// Sample point data item for @c SlamCloudLoader
 struct slamio_API SamplePoint
 {
-  glm::dvec3 origin;
-  glm::dvec3 sample;
-  double timestamp;
-  glm::u8vec3 colour;  // RGB colour
-  float intensity;
+  glm::dvec3 origin;   ///< Sensor position/sample origin. Zero if unavailable.
+  glm::dvec3 sample;   ///< Sample position
+  double timestamp;    ///< Sample timestamp
+  glm::u8vec3 colour;  ///< RGB colour. Back if unavailable.
+  float intensity;     ///< Sample intensity value. Zero if unavailable.
 };
 
 
