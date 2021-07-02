@@ -43,6 +43,8 @@ protected:
   bool onExecute() override;
   bool onExecuteAsync() override;
   void onReset(bool hard_reset) override;
+
+  /// Synchronise GPU results
   void sync();
 
   /// Internal pimpl data access.

@@ -45,6 +45,9 @@ set(OHM_PREFIX_PACKAGE share/${CMAKE_PROJECT_NAME}/cmake) # For catkin interoper
 # Prefix for include directories.
 set(OHM_PREFIX_INCLUDE include/ohm)
 
+# General, required library
+find_package(GLM REQUIRED)
+
 # Look for OpenCL and CUDA to setup GPU build options
 find_package(CUDA QUIET)
 # Ensure CUDA libraries are linked with the PUBLIC keyword to support dependency propagation.
@@ -124,7 +127,6 @@ option(OHM_UNIT_TESTS "Build ohm units tests?" On)
 option(OHM_VALIDATION "Enable various validation tests in the occupancy map code. Has some performance impact." Off)
 option(OHM_BUILD_CUDA "Build ohm library and utlities for CUDA?" ${OHM_BUILD_CUDA_DEFAULT})
 option(OHM_BUILD_OPENCL "Build ohm library and utlities for OpenCL?" ${OHM_BUILD_OPENCL_DEFAULT})
-option(OHM_BUILD_HEIGHTMAPUTIL "Build the heightmap to image conversion library and utility?" ON)
 option(OHM_LEAK_TRACK "Enable memory leak tracking?" OFF)
 option(OHM_WITH_OCTOMAP "Build comparative occupancy map generation using octomap?" OFF)
 
@@ -185,6 +187,16 @@ set_property(CACHE OHM_CLOUD_IO_LIBRARY PROPERTY STRINGS auto liblas pdal none)
 find_package(Eigen3 QUIET)
 option(OHM_WITH_EIGEN "Use Eigen for more signficiant linear algebra algorithms (e.g., eigen decomposition)?" ${EIGEN3_FOUND})
 
+# Heightmap image libraries (optional)
+find_package(OpenGL QUIET)
+find_package(GLEW QUIET)
+find_package(glfw3 QUIET)
+set(OHM_HM_IMG_LIBS_FOUND NO)
+if(OpenGL_FOUND AND GLEW_FOUND AND GLM_FOUND AND glfw3_FOUND)
+  set(OHM_HM_IMG_LIBS_FOUND YES)
+endif(OpenGL_FOUND AND GLEW_FOUND AND GLM_FOUND AND glfw3_FOUND)
+option(OHM_BUILD_HEIGHTMAP_IMAGE "Build ohmheightmapimage library to support heightmap to image conversion?" ${OHM_HM_IMG_LIBS_FOUND})
+
 message(STATUS "Cloud IO Library: ${OHM_CLOUD_IO_LIBRARY}")
 
 # Select the cloud io library to use.
@@ -216,11 +228,12 @@ add_subdirectory(ohm)
 if(OHM_BUILD_CUDA OR OHM_BUILD_OPENCL)
   add_subdirectory(ohmgpu)
 endif(OHM_BUILD_CUDA OR OHM_BUILD_OPENCL)
+add_subdirectory(ohmheightmap)
 
-if(OHM_BUILD_HEIGHTMAPUTIL)
+if(OHM_BUILD_HEIGHTMAP_IMAGE)
   # Experimental
-  add_subdirectory(ohmheightmaputil)
-endif(OHM_BUILD_HEIGHTMAPUTIL)
+  add_subdirectory(ohmheightmapimage)
+endif(OHM_BUILD_HEIGHTMAP_IMAGE)
 
 add_subdirectory(ohmtools)
 add_subdirectory(utils)

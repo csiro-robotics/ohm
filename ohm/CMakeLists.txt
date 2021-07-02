@@ -13,10 +13,6 @@ configure_file(OhmConfig.in.h "${CMAKE_CURRENT_BINARY_DIR}/ohm/OhmConfig.h")
 
 set(SOURCES
   private/ClearingPatternDetail.h
-  private/HeightmapDetail.cpp
-  private/HeightmapDetail.h
-  private/HeightmapOperations.cpp
-  private/HeightmapOperations.h
   private/LineQueryDetail.h
   private/MapLayerDetail.h
   private/MapLayoutDetail.h
@@ -56,17 +52,6 @@ set(SOURCES
   DataType.h
   DefaultLayer.cpp
   DefaultLayer.h
-  Heightmap.cpp
-  Heightmap.h
-  HeightmapMesh.cpp
-  HeightmapMesh.h
-  HeightmapMode.cpp
-  HeightmapMode.h
-  HeightmapUtil.cpp
-  HeightmapUtil.h
-  HeightmapVoxel.cpp
-  HeightmapVoxel.h
-  HeightmapVoxelType.h
   Key.cpp
   Key.h
   KeyHash.h
@@ -110,13 +95,6 @@ set(SOURCES
   OccupancyMap.h
   OccupancyType.cpp
   OccupancyType.h
-  PlaneFillLayeredWalker.cpp
-  PlaneFillLayeredWalker.h
-  PlaneFillWalker.cpp
-  PlaneFillWalker.h
-  PlaneWalker.cpp
-  PlaneWalker.h
-  PlaneWalkVisitMode.h
   Query.cpp
   Query.h
   QueryFlag.h
@@ -141,9 +119,6 @@ set(SOURCES
   Stream.h
   Trace.cpp
   Trace.h
-  TriangleEdge.h
-  TriangleNeighbours.h
-  UpAxis.h
   Voxel.cpp
   Voxel.h
   VoxelBlock.cpp
@@ -175,12 +150,6 @@ set(PUBLIC_HEADERS
   CovarianceVoxelCompute.h
   DataType.h
   DefaultLayer.h
-  Heightmap.h
-  HeightmapMesh.h
-  HeightmapMode.h
-  HeightmapUtil.h
-  HeightmapVoxel.h
-  HeightmapVoxelType.h
   Key.h
   KeyHash.h
   KeyList.h
@@ -207,10 +176,6 @@ set(PUBLIC_HEADERS
   OccupancyMap.h
   OccupancyType.h
   OccupancyUtil.h
-  PlaneFillLayeredWalker.h
-  PlaneFillWalker.h
-  PlaneWalker.h
-  PlaneWalkVisitMode.h
   QueryFlag.h
   Query.h
   RayFilter.h
@@ -224,9 +189,6 @@ set(PUBLIC_HEADERS
   RaysQuery.h
   Stream.h
   Trace.h
-  TriangleEdge.h
-  TriangleNeighbours.h
-  UpAxis.h
   Voxel.h
   VoxelBlock.h
   VoxelBlockCompressionQueue.h
@@ -244,7 +206,7 @@ set(PUBLIC_HEADERS
 add_library(ohm ${SOURCES})
 clang_tidy_target(ohm)
 
-target_link_libraries(ohm PUBLIC ${ZLIB_LIBRARIES} ohmutil ${GPUTIL_LIBRARY})
+target_link_libraries(ohm PUBLIC ${ZLIB_LIBRARIES} ohmutil)
 
 target_include_directories(ohm
   PUBLIC

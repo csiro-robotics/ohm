@@ -4,9 +4,6 @@
 #include <glm/glm.hpp>
 
 #include <ohm/DefaultLayer.h>
-#include <ohm/Heightmap.h>
-#include <ohm/HeightmapMesh.h>
-#include <ohm/HeightmapVoxel.h>
 #include <ohm/Key.h>
 #include <ohm/KeyList.h>
 #include <ohm/MapLayer.h>
@@ -15,6 +12,11 @@
 #include <ohm/OccupancyMap.h>
 #include <ohm/OccupancyType.h>
 #include <ohm/VoxelData.h>
+
+#include <ohmheightmap/Heightmap.h>
+#include <ohmheightmap/HeightmapMesh.h>
+#include <ohmheightmap/HeightmapSerialise.h>
+#include <ohmheightmap/HeightmapVoxel.h>
 
 #include <ohmtools/OhmCloud.h>
 #include <ohmutil/PlyMesh.h>
@@ -389,7 +391,7 @@ int exportPointCloud(const Options &opt, ProgressMonitor &prog, LoadMapProgress 
 
   if (res != 0)
   {
-    std::cerr << "Failed to load map. Error(" << res << "): " << ohm::errorCodeString(res) << std::endl;
+    std::cerr << "Failed to load map. Error(" << res << "): " << ohm::serialiseErrorCodeString(res) << std::endl;
     return res;
   }
 
@@ -543,7 +545,7 @@ int exportHeightmapMesh(const Options &opt, ProgressMonitor &prog, LoadMapProgre
 
   if (res != 0)
   {
-    std::cerr << "Failed to load heightmap. Error(" << res << "): " << ohm::errorCodeString(res) << std::endl;
+    std::cerr << "Failed to load heightmap. Error(" << res << "): " << ohm::serialiseErrorCodeString(res) << std::endl;
     return res;
   }
 
@@ -575,7 +577,7 @@ int exportCovariance(const Options &opt, ProgressMonitor &prog, LoadMapProgress 
 
   if (res != 0)
   {
-    std::cerr << "Failed to load map. Error(" << res << "): " << ohm::errorCodeString(res) << std::endl;
+    std::cerr << "Failed to load map. Error(" << res << "): " << ohm::serialiseErrorCodeString(res) << std::endl;
     return res;
   }
 
