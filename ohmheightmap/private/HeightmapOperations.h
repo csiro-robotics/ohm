@@ -211,7 +211,7 @@ struct BaseLayerCandidate
 
   /// Check if the recorded voxel has clearance above it. Undefined if @c isValid() is false.
   /// @return True if there is clearance above the voxel.
-  inline bool clearAbove() const { return voxel.clearance > 0; } // || (voxel.flags & kHvfObservedAbove) != 0; }
+  inline bool clearAbove() const { return voxel.clearance > 0 || (voxel.flags & kHvfObservedAbove) != 0; }
 
   /// Check if @p other is a better candidate than this candidate.
   /// @param other The other candidate to consider.

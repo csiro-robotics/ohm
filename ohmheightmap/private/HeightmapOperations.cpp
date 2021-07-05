@@ -460,7 +460,7 @@ bool findGround(GroundCandidate &ground, SrcVoxel &voxel, const Key &seed_key, c
     // Even if we have insufficient clearnace, we can flag that we've made an observation above the ground voxel
     // so long as we have encountered a non-null/non-unobserved voxel.
     // Note we will set this on the first valid ground candidate we encounter, but it will be immediately cleared.
-    observed_above = voxel_type != ohm::kNull && voxel_type != ohm::kUnobserved;
+    observed_above = observed_above || voxel_type != ohm::kNull && voxel_type != ohm::kUnobserved;
     if (voxel_type == ohm::kOccupied || imp.generate_virtual_surface && last_is_unobserved &&
                                           voxel_type == ohm::kFree && candidate_voxel_type == ohm::kNull)
     {
@@ -648,8 +648,6 @@ void sortHeightmapLayers(ohm::HeightmapDetail &detail, const std::set<ohm::Key> 
           sorting_info.height_info = hmv;
           sorting_info.mean = use_voxel_mean ? voxel.mean.data() : VoxelMean{};
           sorting_info.base_layer_candidate = (sorting_info.height_info.layer == kHvlBaseLayer);
-          // HACK: testing some new base layer conditions.
-          sorting_info.base_layer_candidate = hmv.clearance > 0;// || (hmv.flags & kHvfObservedAbove) != 0;
 
           // The height value is stored as a relative to the centre of the voxel in which it resides. We need to
           // convert this to an absolute height.
