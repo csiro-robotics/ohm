@@ -627,12 +627,6 @@ void finaliseLayeredHeightmap(ohm::HeightmapDetail &detail, const KeyRange &key_
     Key key = base_key; // We may modify key and restore to base_key later.
     voxel.setKey(key);
 
-    // if (!voxel.heightmap.isValid())
-    // {
-    //   // Out of range.
-    //   continue;
-    // }
-
     assert(voxel.occupancy.isValid() && voxel.heightmap.isValid() && (!use_voxel_mean || voxel.mean.isValid()));
 
     // Handle single key columns
