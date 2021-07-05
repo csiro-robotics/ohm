@@ -22,7 +22,7 @@ include("${CMAKE_CURRENT_LIST_DIR}/ohm-config-targets.cmake")
 
 set(OHM_BUILD_OPENCL @OHM_BUILD_OPENCL@)
 set(OHM_BUILD_CUDA @OHM_BUILD_CUDA@)
-set(OHM_BUILD_HEIGHTMAPUTIL @OHM_BUILD_HEIGHTMAPUTIL@)
+set(OHM_BUILD_HEIGHTMAP_IMAGE @OHM_BUILD_HEIGHTMAP_IMAGE@)
 
 function(register_target TARGET INCLUDES_VAR LIBRARIES_VAR)
   if(TARGET ${TARGET})
@@ -117,8 +117,8 @@ if(OHM_BUILD_OPENCL)
   endif(NOT DEFINED OHM_GPU_LIBRARY)
 endif(OHM_BUILD_OPENCL)
 
-# Packages required for ohmheightmaputil
-if(OHM_BUILD_HEIGHTMAPUTIL)
+# Packages required for ohmheightmapimage
+if(OHM_BUILD_HEIGHTMAP_IMAGE)
   find_package(OpenGL REQUIRED)
-  register_target(ohm::ohmheightmaputil OHM_INCLUDE_DIRS OHM_LIBRARIES)
-endif(OHM_BUILD_HEIGHTMAPUTIL)
+  register_target(ohm::ohmheightmapimage OHM_INCLUDE_DIRS OHM_LIBRARIES)
+endif(OHM_BUILD_HEIGHTMAP_IMAGE)
