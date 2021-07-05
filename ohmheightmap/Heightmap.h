@@ -36,6 +36,7 @@ struct HeightmapVoxel;
 namespace heightmap
 {
 struct DstVoxel;
+struct GroundCandidate;
 struct SrcVoxel;
 }  // namespace heightmap
 
@@ -432,8 +433,9 @@ private:
   /// @return The voxel type in the heightmap. One of @c kSurface, @c kVirtualSurface, @c kUnknown where the latter
   /// indicates no voxel has not been added to the heightmap.
   HeightmapVoxelType addSurfaceVoxel(heightmap::DstVoxel &hm_voxel, const heightmap::SrcVoxel &src_voxel,
-                                     OccupancyType voxel_type, double clearance, glm::dvec3 voxel_pos,
-                                     std::set<ohm::Key> &multi_layer_keys, bool is_base_layer_candidate);
+                                     OccupancyType voxel_type, const heightmap::GroundCandidate &ground,
+                                     glm::dvec3 voxel_pos, std::set<ohm::Key> &multi_layer_keys,
+                                     bool is_base_layer_candidate);
 
   std::unique_ptr<HeightmapDetail> imp_;
 };  // namespace ohm
