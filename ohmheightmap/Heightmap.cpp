@@ -566,6 +566,8 @@ bool Heightmap::buildHeightmapT(KeyWalker &walker, const glm::dvec3 &reference_p
 
   heightmap::SrcVoxel src_voxel(src_map, use_voxel_mean);
   heightmap::DstVoxel hm_voxel(heightmap, imp_->heightmap_voxel_layer, use_voxel_mean);
+  // Track generated extents. Seed with zero keys and correct dimensions.
+  KeyRange dst_range_2d(Key(0), Key(0), heightmap.regionVoxelDimensions());
 
 #if HM_DEBUG_VOXEL
   const glm::dvec3 debug_pos(2.05, 0.75, 0);
@@ -643,6 +645,17 @@ bool Heightmap::buildHeightmapT(KeyWalker &walker, const glm::dvec3 &reference_p
         addSurfaceVoxel(hm_voxel, src_voxel, voxel_type, ground, voxel_pos, multi_layer_keys, is_base_layer_candidate);
       if (hm_voxel_type != HeightmapVoxelType::kUnknown)
       {
+        if (populated_count > 0)
+        {
+          // Expand to hold additional sample.
+          dst_range_2d.expand(hm_voxel.heightmap.key());
+        }
+        else
+        {
+          // First sample. Set min and max extents.
+          dst_range_2d.setMinKey(hm_voxel.heightmap.key());
+          dst_range_2d.setMaxKey(hm_voxel.heightmap.key());
+        }
         ++populated_count;
         // Populate src_to_heightmap_keys if we are using it.
         if (ordered_layers && imp_->virtual_surface_filter_threshold > 0)
@@ -665,8 +678,18 @@ bool Heightmap::buildHeightmapT(KeyWalker &walker, const glm::dvec3 &reference_p
       heightmap::filterVirtualVoxels(*imp_, imp_->virtual_surface_filter_threshold, src_to_heightmap_keys);
     }
 
-    // Sort layers and remove filtered virtual surface voxels.
-    heightmap::sortHeightmapLayers(*imp_, multi_layer_keys, use_voxel_mean, &seed_height);
+    // Ensure finalised extents is 2D only. We may have stacked some of the layers.
+    Key key = dst_range_2d.minKey();
+    key.setRegionAxis(imp_->vertical_axis_index, 0);
+    key.setLocalAxis(imp_->vertical_axis_index, 0);
+    dst_range_2d.setMinKey(key);
+    key = dst_range_2d.maxKey();
+    key.setRegionAxis(imp_->vertical_axis_index, 0);
+    key.setLocalAxis(imp_->vertical_axis_index, 0);
+    dst_range_2d.setMaxKey(key);
+
+    // Finalise layers and remove filtered virtual surface voxels.
+    heightmap::finaliseLayeredHeightmap(*imp_, dst_range_2d, multi_layer_keys, use_voxel_mean, &seed_height);
   }
 
   return populated_count != 0;

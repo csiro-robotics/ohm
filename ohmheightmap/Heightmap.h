@@ -429,7 +429,7 @@ private:
   /// @param multi_layer_keys Set of heightmap map keys which identify columns containing more than one voxel. Will
   ///     be added to if the @p hm_voxel already has voxel data and we are building a layered heightmap.
   /// @param is_base_layer_candidate Should be true if the @c src_voxel falls within the allowed range for being
-  ///     included in the base layer. Should always be true for non-layered heightmaps.
+  ///     included in base surface layer. Should always be true for non-layered heightmaps.
   /// @return The voxel type in the heightmap. One of @c kSurface, @c kVirtualSurface, @c kUnknown where the latter
   /// indicates no voxel has not been added to the heightmap.
   HeightmapVoxelType addSurfaceVoxel(heightmap::DstVoxel &hm_voxel, const heightmap::SrcVoxel &src_voxel,

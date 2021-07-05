@@ -15,9 +15,16 @@ namespace ohm
 /// Voxel layer values for @c HeightmapVoxel::type.
 enum HeightmapVoxelLayer : uint8_t
 {
-  kHvlBaseLayer = 0,  ///< Voxel belongs to the base layer or is a base layer candidate
-  kHvlExtended,       ///< Voxel is outside the base layer bounds - only used for layered heightmaps.
-  kHvlInvalid         ///< Voxel has been determined to be invalid and should be removed.
+  /// A surface (candidate) voxel. For non-layered heightmaps, this is always used. For layered heightmaps this
+  /// value is used during construction to indicate there are observations above the voxel. A @c kLayeredFill heightmap
+  /// ensure at most one voxel per column is marked as @c kHvlBaseLayer with other voxels marked @c kHvlExtended .
+  kHvlBaseLayer = 0,
+  /// A layered heightmap voxel could be an extended surface layer. A @c kLayeredFill heightmap marks all bar one voxels
+  /// in a column with this value marking the other @c kHvlBaseLayer as a best guess preferred surface. Columns
+  /// will not have this value.
+  /// @c kHvlExtended if there are no observations above it.
+  kHvlExtended,
+  kHvlInvalid  ///< Voxel has been determined to be invalid and should be removed.
 };
 
 /// Flag values for @c HeightmapVoxel::flags

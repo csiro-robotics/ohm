@@ -598,123 +598,135 @@ void filterVirtualVoxels(ohm::HeightmapDetail &detail, unsigned threshold,
 }
 
 
-void sortHeightmapLayers(ohm::HeightmapDetail &detail, const std::set<ohm::Key> &target_keys, const bool use_voxel_mean,
-                         const double *seed_height)
+void finaliseLayeredHeightmap(ohm::HeightmapDetail &detail, const KeyRange &key_extents_2d,
+                              const std::set<ohm::Key> &multi_voxel_column_keys, const bool use_voxel_mean,
+                              const double *seed_height)
 {
-  PROFILE(sortHeightmapLayers);
+  PROFILE(finaliseLayeredHeightmap);
 
-  if (!target_keys.empty())
+  /// Structure used to extract heightmap data for sorting. Contains all information possible from the heightmap.
+  struct SortingVoxel
   {
-    // We have work to do.
+    double height = 0;
+    HeightmapVoxel height_info{};
+    float occupancy = 0;
+    VoxelMean mean{};
+    bool base_layer_candidate = false;
 
-    /// Structure used to extract heightmap data for sorting. Contains all information possible from the heightmap.
-    struct SortingVoxel
+    /// Sorting operator.
+    inline bool operator<(const SortingVoxel &other) const { return height < other.height; }
+  };
+
+  ohm::OccupancyMap &heightmap = *detail.heightmap;
+  DstVoxel voxel(heightmap, detail.heightmap_voxel_layer, use_voxel_mean);
+  // Will only ever be small.
+  std::vector<SortingVoxel> sorting_list;
+
+  for (const auto base_key : key_extents_2d)
+  {
+    Key key = base_key; // We may modify key and restore to base_key later.
+    voxel.setKey(key);
+
+    // if (!voxel.heightmap.isValid())
+    // {
+    //   // Out of range.
+    //   continue;
+    // }
+
+    assert(voxel.occupancy.isValid() && voxel.heightmap.isValid() && (!use_voxel_mean || voxel.mean.isValid()));
+
+    // Handle single key columns
+    if (multi_voxel_column_keys.find(key) == multi_voxel_column_keys.end())
     {
-      double height = 0;
-      HeightmapVoxel height_info{};
-      float occupancy = 0;
-      VoxelMean mean{};
-      bool base_layer_candidate = false;
+      // Single voxel column. Ensure the voxel is marked with kHvlBaseLayer
+      HeightmapVoxel hmv = voxel.heightmap.data();
+      hmv.layer = kHvlBaseLayer;
+      voxel.heightmap.write(hmv);
+      continue;
+    }
 
-      /// Sorting operator.
-      inline bool operator<(const SortingVoxel &other) const { return height < other.height; }
-    };
+    sorting_list.clear();
 
-    ohm::OccupancyMap &heightmap = *detail.heightmap;
-    DstVoxel voxel(heightmap, detail.heightmap_voxel_layer, use_voxel_mean);
-    // Will only ever be small.
-    std::vector<SortingVoxel> sorting_list;
-
-    for (const auto &base_key : target_keys)
+    while (voxel.occupancy.isValid() && voxel.occupancy.data() != ohm::unobservedOccupancyValue())
     {
-      Key key = base_key;
-      // True if we've found a voxel with a height value within the height_filter range.
-      // If not, we'll have to add one with a kHeightmapVacantValue.
-      voxel.setKey(key);
-      assert(voxel.occupancy.isValid() && voxel.heightmap.isValid() && (!use_voxel_mean || voxel.mean.isValid()));
-      sorting_list.clear();
-
-      while (voxel.occupancy.isValid() && voxel.occupancy.data() != ohm::unobservedOccupancyValue())
+      // Extract voxel data.
+      const HeightmapVoxel hmv = voxel.heightmap.data();
+      // Skip kHvlInvalid voxels, thereby removing them.
+      if (hmv.layer != kHvlInvalid)
       {
-        // Extract voxel data.
-        const HeightmapVoxel hmv = voxel.heightmap.data();
-        // Skip kHvlInvalid voxels, thereby removing them.
-        if (hmv.layer != kHvlInvalid)
-        {
-          sorting_list.emplace_back();
-          SortingVoxel &sorting_info = sorting_list.back();
+        sorting_list.emplace_back();
+        SortingVoxel &sorting_info = sorting_list.back();
 
-          sorting_info.occupancy = voxel.occupancy.data();
-          sorting_info.height_info = hmv;
-          sorting_info.mean = use_voxel_mean ? voxel.mean.data() : VoxelMean{};
-          sorting_info.base_layer_candidate = (sorting_info.height_info.layer == kHvlBaseLayer);
+        sorting_info.occupancy = voxel.occupancy.data();
+        sorting_info.height_info = hmv;
+        sorting_info.mean = use_voxel_mean ? voxel.mean.data() : VoxelMean{};
+        sorting_info.base_layer_candidate = (sorting_info.height_info.layer == kHvlBaseLayer);
 
-          // The height value is stored as a relative to the centre of the voxel in which it resides. We need to
-          // convert this to an absolute height.
-          sorting_info.height =
-            heightmap::getVoxelHeight(heightmap, detail.up, key, double(sorting_info.height_info.height));
-        }
-
-        heightmap.moveKeyAlongAxis(key, detail.vertical_axis_index, 1);
-        voxel.setKey(key);
+        // The height value is stored as a relative to the centre of the voxel in which it resides. We need to
+        // convert this to an absolute height.
+        sorting_info.height =
+          heightmap::getVoxelHeight(heightmap, detail.up, key, double(sorting_info.height_info.height));
       }
 
-      // Enter sort/rebuild block if we have a list to sort or we have just the vacant voxel we've artificially added.
-      if (sorting_list.size() > 1)
+      heightmap.moveKeyAlongAxis(key, detail.vertical_axis_index, 1);
+      voxel.setKey(key);
+    }
+
+    // Enter sort/rebuild block if we have a list to sort or we have just the vacant voxel we've artificially added.
+    if (sorting_list.size() > 1)
+    {
+      // Sort the voxels
+      key = base_key;
+      std::sort(sorting_list.begin(), sorting_list.end());
+
+      /// Current best base layer candidate.
+      BaseLayerCandidate best_base_candidate;
+      // Key base_layer_key(nullptr);  // Key identifying the base layer.
+      // double base_layer_height = 0;
+      // Now write back the sorted results.
+      // At the same time we finalise the base layer.
+      for (SortingVoxel voxel_info : sorting_list)
       {
-        // Sort the voxels
-        key = base_key;
-        std::sort(sorting_list.begin(), sorting_list.end());
+        voxel.setKey(key);
 
-        /// Current best base layer candidate.
-        BaseLayerCandidate best_base_candidate;
-        // Key base_layer_key(nullptr);  // Key identifying the base layer.
-        // double base_layer_height = 0;
-        // Now write back the sorted results.
-        // At the same time we finalise the base layer.
-        for (SortingVoxel voxel_info : sorting_list)
+        assert(voxel.occupancy.isValid() && voxel.heightmap.isValid() && (!use_voxel_mean || voxel.mean.isValid()));
+        // Now that we have a new voxel key, we need to convert the HeightmapVoxel heigth value to be relative to
+        // the new voxel centre.
+        voxel_info.height_info.height =
+          float(voxel_info.height - glm::dot(detail.up, detail.heightmap->voxelCentreGlobal(key)));
+
+        // Only one item can be in the base layer. Track the best candidate.
+        if (voxel_info.base_layer_candidate)
         {
-          voxel.setKey(key);
+          const BaseLayerCandidate current_base_candidate(key, voxel_info.height_info, voxel_info.height);
 
-          assert(voxel.occupancy.isValid() && voxel.heightmap.isValid() && (!use_voxel_mean || voxel.mean.isValid()));
-          // Now that we have a new voxel key, we need to convert the HeightmapVoxel heigth value to be relative to
-          // the new voxel centre.
-          voxel_info.height_info.height =
-            float(voxel_info.height - glm::dot(detail.up, detail.heightmap->voxelCentreGlobal(key)));
-
-          // Only one item can be in the base layer. Track the best candidate.
-          if (voxel_info.base_layer_candidate)
+          // Check if this is the best candidate.
+          if (best_base_candidate.isOtherCandidateBetter(current_base_candidate, seed_height))
           {
-            const BaseLayerCandidate current_base_candidate(key, voxel_info.height_info, voxel_info.height);
-
-            // Check if this is the best candidate.
-            if (best_base_candidate.isOtherCandidateBetter(current_base_candidate, seed_height))
-            {
-              // We have found either the first candidate, or a better candidate.
-              best_base_candidate = current_base_candidate;
-            }
+            // We have found either the first candidate, or a better candidate.
+            best_base_candidate = current_base_candidate;
           }
-
-          // We always write kHvlExtended here. The base layer is finalised after the loop.
-          voxel_info.height_info.layer = kHvlExtended;
-
-          voxel.occupancy.write(voxel_info.occupancy);
-          voxel.heightmap.write(voxel_info.height_info);
-          if (use_voxel_mean)
-          {
-            voxel.mean.write(voxel_info.mean);
-          }
-          heightmap.moveKeyAlongAxis(key, detail.vertical_axis_index, 1);
         }
 
-        // Finalise the base layer.
-        if (best_base_candidate.isValid())
+        // We always write kHvlExtended here. The primary surface layer is finalised after the loop.
+        voxel_info.height_info.layer = kHvlExtended;
+
+        voxel.occupancy.write(voxel_info.occupancy);
+        voxel.heightmap.write(voxel_info.height_info);
+        if (use_voxel_mean)
         {
-          voxel.setKey(best_base_candidate.key);
-          auto height_info = voxel.heightmap.data();
-          height_info.layer = kHvlBaseLayer;
-          voxel.heightmap.write(height_info);
+          voxel.mean.write(voxel_info.mean);
         }
+        heightmap.moveKeyAlongAxis(key, detail.vertical_axis_index, 1);
+      }
+
+      // Finalise the base layer.
+      if (best_base_candidate.isValid())
+      {
+        voxel.setKey(best_base_candidate.key);
+        auto height_info = voxel.heightmap.data();
+        height_info.layer = kHvlBaseLayer;
+        voxel.heightmap.write(height_info);
       }
     }
   }

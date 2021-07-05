@@ -375,12 +375,13 @@ struct HeightmapKeyType
 void filterVirtualVoxels(ohm::HeightmapDetail &detail, unsigned threshold,
                          const std::unordered_map<ohm::Key, HeightmapKeyType> &src_to_heightmap_keys);
 
-/// A utility function which sorts voxels in a layered heightmap such that lower heights appear lower in the heightmap.
+/// A utility function which finalised voxels in a layered heightmap, resolving the base layer and sorting voxels such
+/// that lower heights appear lower in the heightmap.
 ///
 /// In a multi layered heightmap, there may be multiple surfaced heights at any 2D voxel coordinate. This function
 /// ensures that each 2D block is sorted such that the height value increases. The heightmap generates unsorted results.
-/// The @p target_keys identify which voxels need to be sorted. The keys are assumed to address the current bottom voxel
-/// of each column only.
+/// The @p multi_voxel_column_keys identify which voxels need to be sorted. The keys are assumed to address the current
+/// bottom voxel of each column only.
 ///
 /// During sorting, the base layer is also resolved. Candidates have already been marked as voxels lying in a horizontal
 /// slice around the the heightmap seed position, extending up and down to the ceiling and floor heights respectively.
@@ -388,11 +389,13 @@ void filterVirtualVoxels(ohm::HeightmapDetail &detail, unsigned threshold,
 /// closest to the @p seed_height .
 ///
 /// @param detail Target @c Heightmap private detail.
-/// @param target_keys keys which contain multiple voxels.
+/// @param key_extents_2d 2D key extents of the generated heightmap. The height axis must have a range of 0 to be valid.
+/// @param multi_voxel_column_keys Keys of columns which contain multiple voxels.
 /// @param use_voxel_mean Does the map support voxel mean positioning?
 /// @param seed_height Optional height to constrain the base layer near.
-void sortHeightmapLayers(ohm::HeightmapDetail &detail, const std::set<ohm::Key> &target_keys, const bool use_voxel_mean,
-                         const double *seed_height = nullptr);
+void finaliseLayeredHeightmap(ohm::HeightmapDetail &detail, const KeyRange &key_extents_2d,
+                              const std::set<ohm::Key> &multi_voxel_column_keys, const bool use_voxel_mean,
+                              const double *seed_height = nullptr);
 }  // namespace heightmap
 }  // namespace ohm
 
