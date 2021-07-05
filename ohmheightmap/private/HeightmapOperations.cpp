@@ -153,7 +153,7 @@ bool BaseLayerCandidate::isOtherCandidateBetter(const BaseLayerCandidate &other,
     // Finally select by distance to seed height, but only if both voxels have the same clearAbove() resolution.
     if (clearAbove() == other.clearAbove() && seed_height)
     {
-      if (std::abs(other.height - *seed_height) < height - *seed_height)
+      if (std::abs(other.height - *seed_height) < std::abs(height - *seed_height))
       {
         return true;
       }
