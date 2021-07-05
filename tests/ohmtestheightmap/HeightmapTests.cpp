@@ -517,7 +517,7 @@ TEST(Heightmap, Layout)
     EXPECT_STREQ(layout.memberName(3), "normal_y");
     EXPECT_STREQ(layout.memberName(4), "normal_z");
     EXPECT_STREQ(layout.memberName(5), "layer");
-    EXPECT_STREQ(layout.memberName(6), "reserved");
+    EXPECT_STREQ(layout.memberName(6), "flags");
     EXPECT_STREQ(layout.memberName(7), "contributing_samples");
     for (int i = 0; i < 5; ++i)
     {
