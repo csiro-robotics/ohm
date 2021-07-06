@@ -622,9 +622,9 @@ void finaliseLayeredHeightmap(ohm::HeightmapDetail &detail, const KeyRange &key_
   // Will only ever be small.
   std::vector<SortingVoxel> sorting_list;
 
-  for (const auto base_key : key_extents_2d)
+  for (const auto &base_key : key_extents_2d)
   {
-    Key key = base_key; // We may modify key and restore to base_key later.
+    Key key = base_key;  // We may modify key and restore to base_key later.
     voxel.setKey(key);
 
     assert(voxel.occupancy.isValid() && voxel.heightmap.isValid() && (!use_voxel_mean || voxel.mean.isValid()));
@@ -675,10 +675,9 @@ void finaliseLayeredHeightmap(ohm::HeightmapDetail &detail, const KeyRange &key_
 
       /// Current best base layer candidate.
       BaseLayerCandidate best_base_candidate;
-      // Key base_layer_key(nullptr);  // Key identifying the base layer.
-      // double base_layer_height = 0;
       // Now write back the sorted results.
       // At the same time we finalise the base layer.
+      // Use non-const, non-reference SortingVoxel as we modify content before writing back to the OccupancyMap voxel.
       for (SortingVoxel voxel_info : sorting_list)
       {
         voxel.setKey(key);
