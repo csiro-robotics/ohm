@@ -765,16 +765,6 @@ void finaliseLayeredHeightmap(ohm::HeightmapDetail &detail, const KeyRange &key_
         voxel.setKey(best_base_candidate.key);
         best_base_candidate.voxel.layer = kHvlBaseLayer;
         voxel.heightmap.write(best_base_candidate.voxel);
-        {
-          heightmap.moveKeyAlongAxis(best_base_candidate.key, detail.vertical_axis_index, 1);
-          voxel.setKey(best_base_candidate.key);
-          if (voxel.heightmap.isValid())
-          {
-            auto height_info = voxel.heightmap.data();
-            height_info.layer = kHvlExtended;
-            voxel.heightmap.write(height_info);
-          }
-        }
       }
     }
   }
