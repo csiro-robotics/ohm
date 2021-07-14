@@ -335,6 +335,7 @@ int main(int argc, char *argv[])
   heightmap.setVirtualSurfaceFilterThreshold(opt.virtual_surface_filter_threshold);
 
   heightmap.buildHeightmap(opt.seed_pos);
+  heightmap.checkForBaseLayerDuplicates(std::cerr);
 
   const auto heightmap_end_time = Clock::now();
 

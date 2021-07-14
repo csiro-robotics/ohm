@@ -376,6 +376,10 @@ public:
   /// @return The global voxel height value.
   double getVoxelHeight(const Key &key, const HeightmapVoxel &info) const;
 
+  /// Debug function which logs any columns with multiple base layer voxels.
+  /// @param out Stream to log to.
+  void checkForBaseLayerDuplicates(std::ostream &out) const;
+
   //-------------------------------------------------------
   // Internal
   //-------------------------------------------------------

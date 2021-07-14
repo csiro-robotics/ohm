@@ -12,13 +12,14 @@
 #include "ohmheightmap/HeightmapVoxelType.h"
 #include "ohmheightmap/UpAxis.h"
 
-#include <ohm/Key.h>
+#include <ohm/KeyRange.h>
 #include <ohm/OccupancyMap.h>
 #include <ohm/OccupancyType.h>
 #include <ohm/VoxelData.h>
 
 #include <glm/vec3.hpp>
 
+#include <iosfwd>
 #include <set>
 #include <unordered_map>
 
@@ -31,6 +32,14 @@ namespace heightmap
 #ifdef TES_ENABLE
 extern const uint32_t kNeighbourIdMask;
 #endif  // TES_ENABLE
+
+/// Internal value used to mark virtual surface voxels for removal. Necessary to differ from
+/// @c ohm::unobservedOccupancyValue().
+/// @return Negative infinity.
+inline constexpr float kHeightmapVirtualSurfaceFilteredValue()
+{
+  return -std::numeric_limits<float>::infinity();
+}
 
 /// Flags for @c findNearestSupportingVoxel() calls
 enum SupportingVoxelFlag : unsigned
@@ -235,6 +244,32 @@ inline float relativeVoxelHeight(double absolute_height, const Key &heightmap_ke
   return relative_height;
 }
 
+/// Project @p key onto the heightmap plane. This zeros the vertical axis.
+/// @param[in,out] key The key to modify.
+/// @param vertical_axis_index Heightmap vertical axis index.
+/// @return A reference to @p key after being modified.
+inline Key &project(Key *key, int vertical_axis_index)
+{
+  key->setRegionAxis(vertical_axis_index, 0);
+  key->setLocalAxis(vertical_axis_index, 0);
+  return *key;
+}
+
+/// Project @p key_range onto the heightmap plane. This zeros the vertical axis.
+/// @param[in,out] key_range The key range to modify.
+/// @param vertical_axis_index Heightmap vertical axis index.
+/// @return A reference to @p key_range after being modified.
+inline KeyRange &project(KeyRange *key_range, int vertical_axis_index)
+{
+  Key key = key_range->minKey();
+  project(&key, vertical_axis_index);
+  key_range->setMinKey(key);
+  key = key_range->maxKey();
+  project(&key, vertical_axis_index);
+  key_range->setMaxKey(key);
+  return *key_range;
+}
+
 /// Calculate the absolute height of a voxel in a source occupancy map - before heightmap coversion. This essentially
 /// takes the 3D position of @p voxel and extracts the height along the @p up axis.
 /// @param[out] voxel_position The 3D position calculated for @p voxel . May include @c VoxelMean if available.
@@ -396,6 +431,12 @@ void filterVirtualVoxels(ohm::HeightmapDetail &detail, unsigned threshold,
 void finaliseLayeredHeightmap(ohm::HeightmapDetail &detail, const KeyRange &key_extents_2d,
                               const std::set<ohm::Key> &multi_voxel_column_keys, const bool use_voxel_mean,
                               const double *seed_height = nullptr);
+
+
+/// Debug function which logs any columns with multiple base layer voxels.
+/// @param out Stream to log to.
+/// @param detail Heightmap detail.
+void checkForBaseLayerDuplicates(std::ostream &out, const ohm::HeightmapDetail &detail);
 }  // namespace heightmap
 }  // namespace ohm
 
