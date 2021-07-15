@@ -42,8 +42,10 @@ int setupHeightmap(ohm::OccupancyMap &heightmap, HeightmapDetail &detail)
   voxels.addMember("normal_y", DataType::kFloat, 0);
   voxels.addMember("normal_z", DataType::kFloat, 0);
   voxels.addMember("layer", DataType::kUInt8, 0);
-  voxels.addMember("reserved", DataType::kUInt8, 0);
+  voxels.addMember("flags", DataType::kUInt8, 0);
   voxels.addMember("contributing_samples", DataType::kUInt16, 0);
+
+  // Apply any padding bytes as "reserved_N".
   int r = 0;
   while (voxels.voxelByteSize() < sizeof(HeightmapVoxel))
   {

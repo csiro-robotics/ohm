@@ -41,11 +41,6 @@ set(SOURCES
   UpAxis.h
 )
 
-if(TES_ENABLE)
-  # Only required to define the 3es server symbol.
-  list(APPEND SOURCES OccupancyUtil.cpp)
-endif(TES_ENABLE)
-
 set(PUBLIC_HEADERS
   Heightmap.h
   HeightmapMesh.h

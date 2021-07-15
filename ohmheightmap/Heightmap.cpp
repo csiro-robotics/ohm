@@ -473,6 +473,12 @@ double Heightmap::getVoxelHeight(const Key &key, const HeightmapVoxel &info) con
 }
 
 
+void Heightmap::checkForBaseLayerDuplicates(std::ostream &out) const
+{
+  heightmap::checkForBaseLayerDuplicates(out, *imp_);
+}
+
+
 void Heightmap::updateMapInfo(MapInfo &info) const
 {
   imp_->toMapInfo(info);
@@ -481,9 +487,7 @@ void Heightmap::updateMapInfo(MapInfo &info) const
 
 Key &Heightmap::project(Key *key) const
 {
-  key->setRegionAxis(upAxisIndex(), 0);
-  key->setLocalAxis(upAxisIndex(), 0);
-  return *key;
+  return heightmap::project(key, upAxisIndex());
 }
 
 
@@ -566,10 +570,8 @@ bool Heightmap::buildHeightmapT(KeyWalker &walker, const glm::dvec3 &reference_p
 
   heightmap::SrcVoxel src_voxel(src_map, use_voxel_mean);
   heightmap::DstVoxel hm_voxel(heightmap, imp_->heightmap_voxel_layer, use_voxel_mean);
-
-  // Calculate the key range which marks the vertical slice through the reference map which covers the vertical range
-  //  [reference_pos_height - floor, reference_pos_height + ceiling]
-  const KeyRange reference_planar_slice = buildReferencePlaneSlice(walker.minKey(), walker.maxKey(), reference_pos);
+  // Track generated extents. Seed with zero keys and correct dimensions.
+  KeyRange dst_range_2d(Key(0), Key(0), heightmap.regionVoxelDimensions());
 
 #if HM_DEBUG_VOXEL
   const glm::dvec3 debug_pos(2.05, 0.75, 0);
@@ -599,10 +601,6 @@ bool Heightmap::buildHeightmapT(KeyWalker &walker, const glm::dvec3 &reference_p
     }
 #endif  // HM_DEBUG_VOXEL
 
-    // Mark whether this voxel may be a base layer candidate. This is always true for non-layered heightmaps.
-    bool is_initial_key_in_planar_slice =
-      !isMultiLayered() || walk_key.isBounded(reference_planar_slice.minKey(), reference_planar_slice.maxKey());
-
     // Find the nearest voxel to the current key which may be a ground candidate.
     // This is key closest to the walk_key which could be ground. This will be either an occupied voxel, or virtual
     // ground voxel.
@@ -611,22 +609,19 @@ bool Heightmap::buildHeightmapT(KeyWalker &walker, const glm::dvec3 &reference_p
                                                               walker.maxKey(), voxel_floor, voxel_ceiling,
                                                               clearance_voxel_count_permissive, supporting_voxel_flags);
 
-    is_initial_key_in_planar_slice =
-      is_initial_key_in_planar_slice ||
-      candidate_key.isBounded(reference_planar_slice.minKey(), reference_planar_slice.maxKey());
-
-    // Walk up from the candidate to find the best heightmap voxel.
-    double height = 0;
-    double clearance = 0;
     // Walk the column of candidate_key to find the first occupied voxel with sufficent clearance. A virtual voxel
     // with sufficient clearance may be given if there is no valid occupied voxel.
-    const Key ground_key = (!candidate_key.isNull()) ? findGround(&height, &clearance, src_voxel, candidate_key,
-                                                                  walker.minKey(), walker.maxKey(), *imp_) :
-                                                       walk_key;
+    heightmap::GroundCandidate ground;
+    if (!candidate_key.isNull())
+    {
+      findGround(ground, src_voxel, candidate_key, walker.minKey(), walker.maxKey(), *imp_);
+    }
+    const Key ground_key = (ground.isValid()) ? ground.key : walk_key;
 
-    is_initial_key_in_planar_slice =
-      is_initial_key_in_planar_slice ||
-      ground_key.isBounded(reference_planar_slice.minKey(), reference_planar_slice.maxKey());
+    // Mark whether this voxel may be a base layer candidate. This is always true for non-layered heightmaps.
+    // For a layered map, we need a valid ground key with observations above.
+    const bool is_base_layer_candidate =
+      !isMultiLayered() || ground.isValid() && (ground.clearance > 0 || ground.observed_above);
 
     heightmap::onVisitWalker(walker, *imp_, walk_key, candidate_key, ground_key);
 
@@ -650,10 +645,21 @@ bool Heightmap::buildHeightmapT(KeyWalker &walker, const glm::dvec3 &reference_p
       // We only use voxel mean positioning for occupied voxels. The information is unreliable for free voxels.
       glm::dvec3 voxel_pos = (voxel_type == kOccupied) ? src_voxel.position() : src_voxel_centre;
 
-      HeightmapVoxelType hm_voxel_type = addSurfaceVoxel(hm_voxel, src_voxel, voxel_type, clearance, voxel_pos,
-                                                         multi_layer_keys, is_initial_key_in_planar_slice);
+      HeightmapVoxelType hm_voxel_type =
+        addSurfaceVoxel(hm_voxel, src_voxel, voxel_type, ground, voxel_pos, multi_layer_keys, is_base_layer_candidate);
       if (hm_voxel_type != HeightmapVoxelType::kUnknown)
       {
+        if (populated_count > 0)
+        {
+          // Expand to hold additional sample.
+          dst_range_2d.expand(hm_voxel.heightmap.key());
+        }
+        else
+        {
+          // First sample. Set min and max extents.
+          dst_range_2d.setMinKey(hm_voxel.heightmap.key());
+          dst_range_2d.setMaxKey(hm_voxel.heightmap.key());
+        }
         ++populated_count;
         // Populate src_to_heightmap_keys if we are using it.
         if (ordered_layers && imp_->virtual_surface_filter_threshold > 0)
@@ -676,8 +682,18 @@ bool Heightmap::buildHeightmapT(KeyWalker &walker, const glm::dvec3 &reference_p
       heightmap::filterVirtualVoxels(*imp_, imp_->virtual_surface_filter_threshold, src_to_heightmap_keys);
     }
 
-    // Sort layers and remove filtered virtual surface voxels.
-    heightmap::sortHeightmapLayers(*imp_, multi_layer_keys, use_voxel_mean, &seed_height);
+    // Ensure finalised extents is 2D only. We may have stacked some of the layers.
+    Key key = dst_range_2d.minKey();
+    key.setRegionAxis(imp_->vertical_axis_index, 0);
+    key.setLocalAxis(imp_->vertical_axis_index, 0);
+    dst_range_2d.setMinKey(key);
+    key = dst_range_2d.maxKey();
+    key.setRegionAxis(imp_->vertical_axis_index, 0);
+    key.setLocalAxis(imp_->vertical_axis_index, 0);
+    dst_range_2d.setMaxKey(key);
+
+    // Finalise layers and remove filtered virtual surface voxels.
+    heightmap::finaliseLayeredHeightmap(*imp_, dst_range_2d, multi_layer_keys, use_voxel_mean, &seed_height);
   }
 
   return populated_count != 0;
@@ -685,8 +701,9 @@ bool Heightmap::buildHeightmapT(KeyWalker &walker, const glm::dvec3 &reference_p
 
 
 HeightmapVoxelType Heightmap::addSurfaceVoxel(heightmap::DstVoxel &hm_voxel, const heightmap::SrcVoxel &src_voxel,
-                                              const OccupancyType voxel_type, double clearance, glm::dvec3 voxel_pos,
-                                              std::set<ohm::Key> &multi_layer_keys, bool is_base_layer_candidate)
+                                              const OccupancyType voxel_type, const heightmap::GroundCandidate &ground,
+                                              glm::dvec3 voxel_pos, std::set<ohm::Key> &multi_layer_keys,
+                                              bool is_base_layer_candidate)
 {
   if (voxel_type != kUnobserved && voxel_type != kNull)
   {
@@ -787,9 +804,11 @@ HeightmapVoxelType Heightmap::addSurfaceVoxel(heightmap::DstVoxel &hm_voxel, con
       // Calculate the relative voxel height now that we have a target voxel key which may consider multi-layering.
       // Later sorting may change the HeightmapVoxel::height value as the voxel may be changed.
       height_info.height = heightmap::relativeVoxelHeight(src_height, hm_key, heightmap, imp_->up);
-      height_info.clearance = float(clearance);
+      height_info.clearance = float(ground.clearance);
       height_info.normal_x = height_info.normal_y = height_info.normal_z = 0;
       height_info.layer = (is_base_layer_candidate) ? kHvlBaseLayer : kHvlExtended;
+      height_info.flags = 0;
+      height_info.flags |= (ground.observed_above) ? kHvfObservedAbove : 0;
       height_info.contributing_samples =
         uint16_t((src_voxel.mean.isValid()) ? std::min(src_voxel.mean.data().count, 0xffffu) : 0u);
 

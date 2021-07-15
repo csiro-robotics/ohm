@@ -36,6 +36,7 @@ struct HeightmapVoxel;
 namespace heightmap
 {
 struct DstVoxel;
+struct GroundCandidate;
 struct SrcVoxel;
 }  // namespace heightmap
 
@@ -375,6 +376,10 @@ public:
   /// @return The global voxel height value.
   double getVoxelHeight(const Key &key, const HeightmapVoxel &info) const;
 
+  /// Debug function which logs any columns with multiple base layer voxels.
+  /// @param out Stream to log to.
+  void checkForBaseLayerDuplicates(std::ostream &out) const;
+
   //-------------------------------------------------------
   // Internal
   //-------------------------------------------------------
@@ -428,12 +433,13 @@ private:
   /// @param multi_layer_keys Set of heightmap map keys which identify columns containing more than one voxel. Will
   ///     be added to if the @p hm_voxel already has voxel data and we are building a layered heightmap.
   /// @param is_base_layer_candidate Should be true if the @c src_voxel falls within the allowed range for being
-  ///     included in the base layer. Should always be true for non-layered heightmaps.
+  ///     included in base surface layer. Should always be true for non-layered heightmaps.
   /// @return The voxel type in the heightmap. One of @c kSurface, @c kVirtualSurface, @c kUnknown where the latter
   /// indicates no voxel has not been added to the heightmap.
   HeightmapVoxelType addSurfaceVoxel(heightmap::DstVoxel &hm_voxel, const heightmap::SrcVoxel &src_voxel,
-                                     OccupancyType voxel_type, double clearance, glm::dvec3 voxel_pos,
-                                     std::set<ohm::Key> &multi_layer_keys, bool is_base_layer_candidate);
+                                     OccupancyType voxel_type, const heightmap::GroundCandidate &ground,
+                                     glm::dvec3 voxel_pos, std::set<ohm::Key> &multi_layer_keys,
+                                     bool is_base_layer_candidate);
 
   std::unique_ptr<HeightmapDetail> imp_;
 };  // namespace ohm
