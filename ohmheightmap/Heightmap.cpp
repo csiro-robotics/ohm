@@ -473,6 +473,12 @@ double Heightmap::getVoxelHeight(const Key &key, const HeightmapVoxel &info) con
 }
 
 
+void Heightmap::checkForBaseLayerDuplicates(std::ostream &out) const
+{
+  heightmap::checkForBaseLayerDuplicates(out, *imp_);
+}
+
+
 void Heightmap::updateMapInfo(MapInfo &info) const
 {
   imp_->toMapInfo(info);
@@ -481,9 +487,7 @@ void Heightmap::updateMapInfo(MapInfo &info) const
 
 Key &Heightmap::project(Key *key) const
 {
-  key->setRegionAxis(upAxisIndex(), 0);
-  key->setLocalAxis(upAxisIndex(), 0);
-  return *key;
+  return heightmap::project(key, upAxisIndex());
 }
 
 

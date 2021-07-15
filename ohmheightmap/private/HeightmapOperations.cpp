@@ -10,7 +10,7 @@
 #include "ohmheightmap/Heightmap.h"  // For TES_ENABLE
 #include "ohmheightmap/HeightmapVoxelType.h"
 
-#include <ohm/KeyRange.h>
+#include <ohm/OccupancyUtil.h>
 #include <ohm/Trace.h>  // For TES_ENABLE
 
 #define PROFILING 0
@@ -573,8 +573,8 @@ void filterVirtualVoxels(ohm::HeightmapDetail &detail, unsigned threshold,
         auto hmv = heightmap_voxel.data();
         hmv.layer = kHvlInvalid;
         heightmap_voxel.write(hmv);
-        // Invalidate the voxel occupancy value.
-        occupancy_voxel.write(ohm::unobservedOccupancyValue());
+        // Write special occupancy value.
+        occupancy_voxel.write(kHeightmapVirtualSurfaceFilteredValue());
 
 #ifdef TES_ENABLE
         if (g_tes)
@@ -611,10 +611,16 @@ void finaliseLayeredHeightmap(ohm::HeightmapDetail &detail, const KeyRange &key_
     HeightmapVoxel height_info{};
     float occupancy = 0;
     VoxelMean mean{};
+    /// Value used to disambiguate the same height value. This only happens when marking voxels for removal.
+    /// Without this the sorting algorithm may yield undefined behaviour.
+    int order = 0;
     bool base_layer_candidate = false;
 
     /// Sorting operator.
-    inline bool operator<(const SortingVoxel &other) const { return height < other.height; }
+    inline bool operator<(const SortingVoxel &other) const
+    {
+      return height < other.height || height == other.height && order < other.order;
+    }
   };
 
   ohm::OccupancyMap &heightmap = *detail.heightmap;
@@ -632,34 +638,60 @@ void finaliseLayeredHeightmap(ohm::HeightmapDetail &detail, const KeyRange &key_
     // Handle single key columns
     if (multi_voxel_column_keys.find(key) == multi_voxel_column_keys.end())
     {
-      // Single voxel column. Ensure the voxel is marked with kHvlBaseLayer
+      // Single voxel column. Ensure the voxel is marked with kHvlBaseLayer or remove it if it is kHvlInvalid - filtered
+      /// for removal.
       HeightmapVoxel hmv = voxel.heightmap.data();
-      hmv.layer = kHvlBaseLayer;
-      voxel.heightmap.write(hmv);
+      switch (hmv.layer)
+      {
+      case kHvlBaseLayer:
+        // Already fine. Nothing to do.
+        break;
+      case kHvlInvalid:
+        // Invalid clear/remove the voxel.
+        voxel.heightmap.write(HeightmapVoxel{});
+        voxel.occupancy.write(ohm::unobservedOccupancyValue());
+        if (use_voxel_mean)
+        {
+          voxel.mean.write(VoxelMean{});
+        }
+        break;
+      default:
+        // Not removing, not marked as base layer. Mark it as base layer.
+        hmv.layer = kHvlBaseLayer;
+        voxel.heightmap.write(hmv);
+        break;
+      }
       continue;
     }
 
     sorting_list.clear();
 
+    int order = 0;
     while (voxel.occupancy.isValid() && voxel.occupancy.data() != ohm::unobservedOccupancyValue())
     {
       // Extract voxel data.
       const HeightmapVoxel hmv = voxel.heightmap.data();
-      // Skip kHvlInvalid voxels, thereby removing them.
+      sorting_list.emplace_back();
+      SortingVoxel &sorting_info = sorting_list.back();
+      sorting_info.order = order++;
+
+      sorting_info.occupancy = voxel.occupancy.data();
+      sorting_info.height_info = hmv;
+      sorting_info.mean = use_voxel_mean ? voxel.mean.data() : VoxelMean{};
+      sorting_info.base_layer_candidate = (sorting_info.height_info.layer == kHvlBaseLayer);
+
+      // Add kHvlInvalid voxels with an infinite height, pushing them to the end. We will not re-insert them when
+      // processing the sorted list. Instead we will clear a voxel every time we encounter an invalid voxel.
       if (hmv.layer != kHvlInvalid)
       {
-        sorting_list.emplace_back();
-        SortingVoxel &sorting_info = sorting_list.back();
-
-        sorting_info.occupancy = voxel.occupancy.data();
-        sorting_info.height_info = hmv;
-        sorting_info.mean = use_voxel_mean ? voxel.mean.data() : VoxelMean{};
-        sorting_info.base_layer_candidate = (sorting_info.height_info.layer == kHvlBaseLayer);
-
         // The height value is stored as a relative to the centre of the voxel in which it resides. We need to
         // convert this to an absolute height.
         sorting_info.height =
           heightmap::getVoxelHeight(heightmap, detail.up, key, double(sorting_info.height_info.height));
+      }
+      else
+      {
+        sorting_info.height = std::numeric_limits<decltype(sorting_info.height)>::infinity();
       }
 
       heightmap.moveKeyAlongAxis(key, detail.vertical_axis_index, 1);
@@ -682,33 +714,47 @@ void finaliseLayeredHeightmap(ohm::HeightmapDetail &detail, const KeyRange &key_
       {
         voxel.setKey(key);
 
-        assert(voxel.occupancy.isValid() && voxel.heightmap.isValid() && (!use_voxel_mean || voxel.mean.isValid()));
-        // Now that we have a new voxel key, we need to convert the HeightmapVoxel heigth value to be relative to
-        // the new voxel centre.
-        voxel_info.height_info.height =
-          float(voxel_info.height - glm::dot(detail.up, detail.heightmap->voxelCentreGlobal(key)));
-
-        // Only one item can be in the base layer. Track the best candidate.
-        if (voxel_info.base_layer_candidate)
+        // Handle valid/unfiltered voxels.
+        if (voxel_info.height_info.layer != kHvlInvalid)
         {
-          const BaseLayerCandidate current_base_candidate(key, voxel_info.height_info, voxel_info.height);
+          assert(voxel.occupancy.isValid() && voxel.heightmap.isValid() && (!use_voxel_mean || voxel.mean.isValid()));
+          // Now that we have a new voxel key, we need to convert the HeightmapVoxel heigth value to be relative to
+          // the new voxel centre.
+          voxel_info.height_info.height =
+            float(voxel_info.height - glm::dot(detail.up, detail.heightmap->voxelCentreGlobal(key)));
 
-          // Check if this is the best candidate.
-          if (best_base_candidate.isOtherCandidateBetter(current_base_candidate, seed_height))
+          // Only one item can be in the base layer. Track the best candidate.
+          if (voxel_info.base_layer_candidate)
           {
-            // We have found either the first candidate, or a better candidate.
-            best_base_candidate = current_base_candidate;
+            const BaseLayerCandidate current_base_candidate(key, voxel_info.height_info, voxel_info.height);
+
+            // Check if this is the best candidate.
+            if (best_base_candidate.isOtherCandidateBetter(current_base_candidate, seed_height))
+            {
+              // We have found either the first candidate, or a better candidate.
+              best_base_candidate = current_base_candidate;
+            }
+          }
+
+          // We always write kHvlExtended here. The primary surface layer is finalised after the loop.
+          voxel_info.height_info.layer = kHvlExtended;
+
+          voxel.occupancy.write(voxel_info.occupancy);
+          voxel.heightmap.write(voxel_info.height_info);
+          if (use_voxel_mean)
+          {
+            voxel.mean.write(voxel_info.mean);
           }
         }
-
-        // We always write kHvlExtended here. The primary surface layer is finalised after the loop.
-        voxel_info.height_info.layer = kHvlExtended;
-
-        voxel.occupancy.write(voxel_info.occupancy);
-        voxel.heightmap.write(voxel_info.height_info);
-        if (use_voxel_mean)
+        else
         {
-          voxel.mean.write(voxel_info.mean);
+          // Filtered voxel. Ensure we clear data from the heightmap.
+          voxel.occupancy.write(ohm::unobservedOccupancyValue());
+          voxel.heightmap.write(HeightmapVoxel{});
+          if (use_voxel_mean)
+          {
+            voxel.mean.write(VoxelMean{});
+          }
         }
         heightmap.moveKeyAlongAxis(key, detail.vertical_axis_index, 1);
       }
@@ -717,10 +763,57 @@ void finaliseLayeredHeightmap(ohm::HeightmapDetail &detail, const KeyRange &key_
       if (best_base_candidate.isValid())
       {
         voxel.setKey(best_base_candidate.key);
-        auto height_info = voxel.heightmap.data();
-        height_info.layer = kHvlBaseLayer;
-        voxel.heightmap.write(height_info);
+        best_base_candidate.voxel.layer = kHvlBaseLayer;
+        voxel.heightmap.write(best_base_candidate.voxel);
       }
+    }
+  }
+}
+
+
+void checkForBaseLayerDuplicates(std::ostream &out, const ohm::HeightmapDetail &detail)
+{
+  ohm::Voxel<const float> occupancy(detail.heightmap.get(), detail.heightmap->layout().occupancyLayer());
+  ohm::Voxel<const ohm::HeightmapVoxel> voxel(detail.heightmap.get(), detail.heightmap_voxel_layer);
+
+  if (!occupancy.isLayerValid() || !voxel.isLayerValid())
+  {
+    return;
+  }
+
+  KeyRange key_extents;
+  detail.heightmap->calculateExtents(nullptr, nullptr, &key_extents);
+  project(&key_extents, detail.vertical_axis_index);
+
+  for (const auto &base_key : key_extents)
+  {
+    Key key = base_key;
+    ohm::setVoxelKey(key, voxel, occupancy);
+
+    int base_count = 0;
+    float value = (occupancy.isValid()) ? occupancy.data() : ohm::unobservedOccupancyValue();
+
+    while (!voxel.isNull())
+    {
+      if (value != ohm::unobservedOccupancyValue())
+      {
+        // Extract voxel data.
+        const HeightmapVoxel hmv = voxel.data();
+
+        if (hmv.layer == kHvlBaseLayer)
+        {
+          ++base_count;
+        }
+      }
+
+      detail.heightmap->moveKeyAlongAxis(key, detail.vertical_axis_index, 1);
+      ohm::setVoxelKey(key, voxel, occupancy);
+      value = (occupancy.isValid()) ? occupancy.data() : ohm::unobservedOccupancyValue();
+    }
+
+    if (base_count > 1)
+    {
+      out << "Found multiple base layers at " << base_key << std::endl;
     }
   }
 }
