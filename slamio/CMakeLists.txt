@@ -2,44 +2,58 @@
 
 include(GenerateExportHeader)
 
-if(CLOUD_IO_LIB STREQUAL "none")
-  message("No point cloud library available. Skipping slamio")
-  return()
-endif(CLOUD_IO_LIB STREQUAL "none")
-
 find_package(GLM)
 
 set(SOURCES
+  miniply/miniply.cpp
+  miniply/miniply.h
+  DataChannel.h
+  PointCloudReader.cpp
+  PointCloudReader.h
+  PointCloudReaderMiniPly.cpp
+  PointCloudReaderMiniPly.h
+  PointCloudReaderPdal.cpp
+  PointCloudReaderPdal.h
+  PointCloudReaderTraj.cpp
+  PointCloudReaderTraj.h
+  Points.cpp
+  Points.h
+  SlamCloudLoader.cpp
   SlamCloudLoader.h
-)
-
-set(PUBLIC_HEADERS
-  SlamCloudLoader.h
+  SlamIO.cpp
+  SlamIO.h
+  "${CMAKE_CURRENT_BINARY_DIR}/slamio/SlamIOConfig.h"
   "${CMAKE_CURRENT_BINARY_DIR}/slamio/SlamIOExport.h"
 )
 
-# Need to add boost link directories because of LIBLAS.
-if(CLOUD_IO_LIB STREQUAL "liblas")
-  find_package(Boost COMPONENTS "thread")
-  list(APPEND SOURCES
-    SlamCloudLoader_las.cpp
-  )
-endif(CLOUD_IO_LIB STREQUAL "liblas")
-
-if(CLOUD_IO_LIB STREQUAL "pdal")
-  # Need to check PDAL version. We have can use a streaming loader with PDAL 1.7+
-  message(STATUS "PDAL_VERSION: ${PDAL_VERSION}")
+set(SLAMIO_HAVE_PDAL 0)
+if(PDAL_FOUND)
+  # list(APPEND SOURCES SlamCloudLoaderPdal.h)
+  # Need to check PDAL version. We only support streaming PDAL which requires version 1.7+
   if(PDAL_VERSION VERSION_GREATER_EQUAL 1.7)
-    # 
     list(APPEND SOURCES
-      SlamCloudLoader_pdal_stream.cpp
+      pdal/PointStream.cpp
+      pdal/PointStream.h
+      PointCloudReaderPdal.cpp
+      PointCloudReaderPdal.h
     )
+    set(SLAMIO_HAVE_PDAL 1)
   else(PDAL_VERSION VERSION_GREATER_EQUAL 1.7)
-    list(APPEND SOURCES
-      SlamCloudLoader_pdal.cpp
-    )
+    message("PDAL_VERSION 1.7+ required for PDAL support (streaming). Found: ${PDAL_VERSION}")
   endif(PDAL_VERSION VERSION_GREATER_EQUAL 1.7)
-endif(CLOUD_IO_LIB STREQUAL "pdal")
+endif(PDAL_FOUND)
+
+configure_file(SlamIOConfig.in.h "${CMAKE_CURRENT_BINARY_DIR}/slamio/SlamIOConfig.h")
+
+set(PUBLIC_HEADERS
+  DataChannel.h
+  PointCloudReader.h
+  Points.h
+  SlamCloudLoader.h
+  SlamIO.h
+  "${CMAKE_CURRENT_BINARY_DIR}/slamio/SlamIOConfig.h"
+  "${CMAKE_CURRENT_BINARY_DIR}/slamio/SlamIOExport.h"
+)
 
 add_library(slamio ${SOURCES})
 # More things pointing to the need for a refactor here

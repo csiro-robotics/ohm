@@ -71,6 +71,7 @@ struct Options
   glm::vec3 cloud_colour = glm::vec3(0);
   bool serialise = true;
   bool save_info = false;
+  bool point_cloud_only = false;  ///< Assume ray cloud if no trajectory is given, unless this is set.
   bool non_lazy_eval = false;
   bool collapse = false;
   bool quiet = false;
@@ -221,12 +222,31 @@ int populateMap(const Options &opt)
 
   std::cout << "Loading points from " << opt.cloud_file << " with trajectory " << opt.trajectory_file << std::endl;
 
-  SlamCloudLoader loader;
-  if (!loader.open(opt.cloud_file.c_str(), opt.trajectory_file.c_str()))
+  slamio::SlamCloudLoader loader;
+  if (!opt.trajectory_file.empty())
   {
-    fprintf(stderr, "Error loading cloud %s with trajectory %s \n", opt.cloud_file.c_str(),
-            opt.trajectory_file.c_str());
-    return -2;
+    if (!loader.openWithTrajectory(opt.cloud_file.c_str(), opt.trajectory_file.c_str()))
+    {
+      fprintf(stderr, "Error loading cloud %s with trajectory %s\n", opt.cloud_file.c_str(),
+              opt.trajectory_file.c_str());
+      return -2;
+    }
+  }
+  else if (!opt.point_cloud_only)
+  {
+    if (!loader.openRayCloud(opt.cloud_file.c_str()))
+    {
+      fprintf(stderr, "Error loading ray cloud %s\n", opt.cloud_file.c_str());
+      return -2;
+    }
+  }
+  else if (opt.point_cloud_only)
+  {
+    if (!loader.openPointCloud(opt.cloud_file.c_str()))
+    {
+      fprintf(stderr, "Error loading point cloud %s\n", opt.cloud_file.c_str());
+      return -2;
+    }
   }
 
   std::atomic<uint64_t> elapsed_ms(0);
@@ -263,7 +283,7 @@ int populateMap(const Options &opt)
 
   octomap::OcTree map(opt.resolution);
   octomap::OcTreeKey key;
-  SamplePoint sample{};
+  slamio::SamplePoint sample{};
   uint64_t point_count = 0;
   // Update map visualisation every N samples.
   double timebase = -1;
@@ -459,25 +479,26 @@ int parseOptions(Options *opt, int argc, char *argv[])  // NOLINT(modernize-avoi
     // clang-format off
     opt_parse.add_options()
       ("help", "Show help.")
-      ("i,cloud", "The input cloud (las/laz) to load.", cxxopts::value(opt->cloud_file))
-      ("o,output","Output base name", optVal(opt->output_base_name))
-      ("p,point-limit", "Limit the number of points loaded.", optVal(opt->point_limit))
+      ("cloud", "The input cloud (las/laz) to load.", cxxopts::value(opt->cloud_file))
+      ("output","Output base name", optVal(opt->output_base_name))
+      ("point-limit", "Limit the number of points loaded.", optVal(opt->point_limit))
+      ("points-only", "Assume the point cloud is providing points only. Otherwise a cloud file with no trajectory is considered a ray cloud.", optVal(opt->point_cloud_only))
       ("preload", "Preload this number of points before starting processing. Zero for all. May be used for separating processing and loading time.", optVal(opt->preload_count)->default_value("0"))
       ("q,quiet", "Run in quiet mode. Suppresses progress messages.", optVal(opt->quiet))
       ("sensor", "Offset from the trajectory to the sensor position. Helps correct trajectory to the sensor centre for better rays.", optVal(opt->sensor_offset))
-      ("s,start-time", "Only process points time stamped later than the specified time.", optVal(opt->start_time))
+      ("start-time", "Only process points time stamped later than the specified time.", optVal(opt->start_time))
       ("serialise", "Serialise the results? This option is intended for skipping saving during performance analysis.", optVal(opt->serialise))
       ("save-info", "Save timing information to text based on the output file name.", optVal(opt->save_info))
-      ("t,time-limit", "Limit the elapsed time in the LIDAR data to process (seconds). Measured relative to the first data sample.", optVal(opt->time_limit))
+      ("time-limit", "Limit the elapsed time in the LIDAR data to process (seconds). Measured relative to the first data sample.", optVal(opt->time_limit))
       ("trajectory", "The trajectory (text) file to load.", cxxopts::value(opt->trajectory_file))
       ("cloud-colour", "Colour for points in the saved cloud (if saving).", optVal(opt->cloud_colour))
       ;
 
     opt_parse.add_options("Map")
       ("clamp", "Set probability clamping to the given min/max.", optVal(opt->prob_range))
-      ("h,hit", "The occupancy probability due to a hit. Must be >= 0.5.", optVal(opt->prob_hit))
-      ("m,miss", "The occupancy probability due to a miss. Must be < 0.5.", optVal(opt->prob_miss))
-      ("r,resolution", "The voxel resolution of the generated map.", optVal(opt->resolution))
+      ("hit", "The occupancy probability due to a hit. Must be >= 0.5.", optVal(opt->prob_hit))
+      ("miss", "The occupancy probability due to a miss. Must be < 0.5.", optVal(opt->prob_miss))
+      ("resolution", "The voxel resolution of the generated map.", optVal(opt->resolution))
       ("threshold", "Sets the occupancy threshold assigned when exporting the map to a cloud.", optVal(opt->prob_thresh)->implicit_value(optStr(opt->prob_thresh)))
       ("non-lazy", "Use non-lazy node insertion. Map may collapse at every step.", optVal(opt->non_lazy_eval))
       ("collapse", "Collapse octree nodes where possible after map generation. Redundant '--non-lazy' is used.", optVal(opt->collapse))

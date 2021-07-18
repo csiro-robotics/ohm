@@ -183,6 +183,13 @@ find_package(LASZIP QUIET)
 
 set(OHM_CLOUD_IO_LIBRARY auto CACHE STRING "Select point cloud IO library to use:  auto (prefer pdal), liblas, pdal or none")
 set_property(CACHE OHM_CLOUD_IO_LIBRARY PROPERTY STRINGS auto liblas pdal none)
+set(WITH_PDAL_INIT OFF)
+if(PDAL_FOUND)
+  if(PDAL_VERSION VERSION_GREATER_EQUAL 1.7)
+    set(WITH_PDAL_INIT ON)
+  endif(PDAL_VERSION VERSION_GREATER_EQUAL 1.7)
+endif(PDAL_FOUND)
+option(WITH_PDAL "Build with PDAL support?" ${WITH_PDAL_INIT})
 
 find_package(Eigen3 QUIET)
 option(OHM_WITH_EIGEN "Use Eigen for more signficiant linear algebra algorithms (e.g., eigen decomposition)?" ${EIGEN3_FOUND})
@@ -239,7 +246,6 @@ add_subdirectory(ohmtools)
 add_subdirectory(utils)
 
 if(OHM_UNIT_TESTS)
-  enable_testing()
   add_subdirectory(tests)
 endif(OHM_UNIT_TESTS)
 
