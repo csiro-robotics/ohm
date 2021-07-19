@@ -66,6 +66,13 @@ enum ExportMode
   kExportCovariance
 };
 
+/// Voxel mode: export voxels as...
+enum VoxelMode
+{
+  kVoxelPoint,
+  kVoxelVoxel
+};
+
 enum ColourMode
 {
   kColourNone,
@@ -90,6 +97,7 @@ struct Options
   float colour_scale = 3.0f;
   ExportMode mode = kExportOccupancy;
   ColourMode colour = kColourHeight;
+  VoxelMode voxel_mode = kVoxelPoint;
 
   HeightmapOptions heightmap;
 };
@@ -221,10 +229,10 @@ std::istream &operator>>(std::istream &in, ExportMode &mode)
   {
     mode = kExportCovariance;
   }
-  // else
-  // {
-  //   throw cxxopts::invalid_option_format_error(modeStr);
-  // }
+  else
+  {
+    badArg(mode_str);
+  }
   return in;
 }
 
@@ -253,6 +261,44 @@ std::ostream &operator<<(std::ostream &out, const ExportMode mode)
   case kExportCovariance:
     out << "covariance";
     break;
+  default:
+    out << "<unknown>";
+  }
+  return out;
+}
+
+
+std::istream &operator>>(std::istream &in, VoxelMode &mode)
+{
+  std::string mode_str;
+  in >> mode_str;
+  if (mode_str == "point")
+  {
+    mode = kVoxelPoint;
+  }
+  else if (mode_str == "voxel")
+  {
+    mode = kVoxelVoxel;
+  }
+  else
+  {
+    badArg(mode_str);
+  }
+  return in;
+}
+
+std::ostream &operator<<(std::ostream &out, const VoxelMode mode)
+{
+  switch (mode)
+  {
+  case kVoxelPoint:
+    out << "point";
+    break;
+  case kVoxelVoxel:
+    out << "voxel";
+    break;
+  default:
+    out << "<unknown>";
   }
   return out;
 }
@@ -340,6 +386,7 @@ int parseOptions(Options *opt, int argc, char *argv[])  // NOLINT(modernize-avoi
                "centres.", cxxopts::value(opt->mode)->default_value(optStr(opt->mode)))
       ("expire", "Expire regions with a timestamp before the specified time. These are not exported.", cxxopts::value(opt->expiry_time))
       ("threshold", "Override the map's occupancy threshold. Only occupied points are exported.", cxxopts::value(opt->occupancy_threshold)->default_value(optStr(opt->occupancy_threshold)))
+      ("voxel-mode", "Voxel export mode [points,cubes]: select the ply representation for voxels.", cxxopts::value(opt->voxel_mode)->default_value(optStr(opt->voxel_mode)))
       ;
 
     opt_parse.add_options("Heightmap")
@@ -483,7 +530,14 @@ int exportPointCloud(const Options &opt, ProgressMonitor &prog, LoadMapProgress 
         return colour_by_type.select(occupancy);
       };
     }
-    saveCloud(opt.ply_file.c_str(), map, save_opt, save_progress_callback);
+    if (opt.voxel_mode == kVoxelVoxel)
+    {
+      saveVoxels(opt.ply_file.c_str(), map, save_opt, save_progress_callback);
+    }
+    else
+    {
+      saveCloud(opt.ply_file.c_str(), map, save_opt, save_progress_callback);
+    }
     break;
   }
   case kExportHeightmap: {
@@ -509,7 +563,14 @@ int exportPointCloud(const Options &opt, ProgressMonitor &prog, LoadMapProgress 
         return colour_by_heightmap_type.select(occupancy);
       };
     }
-    ohmtools::saveHeightmapCloud(opt.ply_file.c_str(), map, save_opt, save_progress_callback);
+    if (opt.voxel_mode == kVoxelVoxel)
+    {
+      ohmtools::saveHeightmapVoxels(opt.ply_file.c_str(), map, save_opt, save_progress_callback);
+    }
+    else
+    {
+      ohmtools::saveHeightmapCloud(opt.ply_file.c_str(), map, save_opt, save_progress_callback);
+    }
     break;
   }
   case kExportClearance: {
