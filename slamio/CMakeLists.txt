@@ -12,8 +12,6 @@ set(SOURCES
   PointCloudReader.h
   PointCloudReaderMiniPly.cpp
   PointCloudReaderMiniPly.h
-  PointCloudReaderPdal.cpp
-  PointCloudReaderPdal.h
   PointCloudReaderTraj.cpp
   PointCloudReaderTraj.h
   Points.cpp
@@ -27,7 +25,8 @@ set(SOURCES
 )
 
 set(SLAMIO_HAVE_PDAL 0)
-if(PDAL_FOUND)
+if(WITH_PDAL)
+  find_package(PDAL REQUIRED)
   # list(APPEND SOURCES SlamCloudLoaderPdal.h)
   # Need to check PDAL version. We only support streaming PDAL which requires version 1.7+
   if(PDAL_VERSION VERSION_GREATER_EQUAL 1.7)
@@ -39,9 +38,9 @@ if(PDAL_FOUND)
     )
     set(SLAMIO_HAVE_PDAL 1)
   else(PDAL_VERSION VERSION_GREATER_EQUAL 1.7)
-    message("PDAL_VERSION 1.7+ required for PDAL support (streaming). Found: ${PDAL_VERSION}")
+    message(SEND_ERROR "PDAL_VERSION 1.7+ required for PDAL support (streaming). Found: ${PDAL_VERSION}")
   endif(PDAL_VERSION VERSION_GREATER_EQUAL 1.7)
-endif(PDAL_FOUND)
+endif(WITH_PDAL)
 
 configure_file(SlamIOConfig.in.h "${CMAKE_CURRENT_BINARY_DIR}/slamio/SlamIOConfig.h")
 
