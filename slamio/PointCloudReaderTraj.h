@@ -21,6 +21,14 @@ class PLYReader;
 
 namespace slamio
 {
+/// Text file trajectory reader.
+///
+/// Text file format assumptions:
+/// - First like may or may not be a headings line. Ignored on failure to read as numeric values.
+/// - One data item per line.
+/// - Data line format is : `time x y z <additional_fields>`
+/// - Data in a line are space delimited
+/// - @c <additional_fields> are ignored
 class PointCloudReaderTraj : public PointCloudReader
 {
 public:

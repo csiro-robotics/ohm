@@ -21,6 +21,7 @@ class PLYReader;
 
 namespace slamio
 {
+/// A PLY point cloud loading using miniply.
 class PointCloudReaderMiniPly : public PointCloudReader
 {
 public:

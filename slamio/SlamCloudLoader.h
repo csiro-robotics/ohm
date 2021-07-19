@@ -32,6 +32,7 @@ struct SlamCloudLoaderDetail;
 class slamio_API SlamCloudLoader
 {
 public:
+  /// Logging function hook.
   using Log = std::function<void(const char *)>;
 
   /// Create a SLAM cloud loader.

@@ -21,6 +21,13 @@ namespace slamio
 {
 class PointStream;
 
+/// A point cloud loader which uses PDAL to load files. Requires PDAL 1.7 as it aims to support streaming via a
+/// background thread.
+///
+/// Supports reading all file types the installed PDAL library supports.
+///
+/// Note: streaming cannot be interrupted once started. This means that the program cannot exit until file loading
+/// has completed.
 class PointCloudReaderPdal : public PointCloudReader
 {
 public:
