@@ -10,6 +10,7 @@
 
 #include "Points.h"
 
+#include <functional>
 #include <memory>
 
 namespace slamio
@@ -31,9 +32,17 @@ struct SlamCloudLoaderDetail;
 class slamio_API SlamCloudLoader
 {
 public:
+  using Log = std::function<void(const char *)>;
+
   /// Create a SLAM cloud loader.
   /// @param real_time_mode True to throttle point loading to simulate real time data acquisition.
   explicit SlamCloudLoader(bool real_time_mode = false);
+
+  /// Set the error logging function.
+  /// @param error_log Error loging function. May be empty to clear.
+  void setErrorLog(Log error_log);
+  /// Get the error logging function.
+  Log errorLog() const;
 
   /// Destructor.
   ~SlamCloudLoader();

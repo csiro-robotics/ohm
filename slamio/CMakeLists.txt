@@ -81,26 +81,9 @@ target_include_directories(slamio SYSTEM
 
 target_link_libraries(slamio PUBLIC ohmutil)
 
-if(CLOUD_IO_LIB STREQUAL "pdal")
+if(WITH_PDAL)
   target_link_libraries(slamio PUBLIC ${PDAL_LIBRARIES})
-endif(CLOUD_IO_LIB STREQUAL "pdal")
-
-if(CLOUD_IO_LIB STREQUAL "liblas")
-  target_include_directories(slamio SYSTEM
-    PRIVATE "${LIBLAS_INCLUDE_DIR}"
-  )
-  # Not the best CMake use, but it avoids some Boost link issues.
-  link_directories("${Boost_LIBRARY_DIRS}")
-  target_link_libraries(slamio PUBLIC
-    ${LIBLAS_LIBRARIES}
-    ${Boost_LIBRARIES}
-  )
-
-  if(LASZIP_FOUND)
-    target_include_directories(slamio SYSTEM PRIVATE "${LASZIP_INCLUDE_DIR}")
-    target_link_libraries(slamio PUBLIC ${LASZIP_LIBRARIES})
-  endif(LASZIP_FOUND)
-endif(CLOUD_IO_LIB STREQUAL "liblas")
+endif(WITH_PDAL)
 
 install(TARGETS slamio EXPORT ${CMAKE_PROJECT_NAME}-config-targets
   LIBRARY DESTINATION lib

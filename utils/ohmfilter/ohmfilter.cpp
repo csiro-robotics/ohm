@@ -159,6 +159,7 @@ bool filterCloud(const Options &opt, const ohm::OccupancyMap &map, ProgressMonit
 {
   // Use the SlamCloudLoader with no trajectory specified to load the cloud - it's just convenient.
   slamio::SlamCloudLoader cloud_loader;
+  cloud_loader.setErrorLog([](const char *msg) { std::cerr << msg << std::flush; });
 
   if (!cloud_loader.openWithTrajectory(opt.cloud_in.c_str(), opt.traj_in.c_str()))
   {

@@ -19,13 +19,13 @@ using PointCloudReaderPtr = std::shared_ptr<PointCloudReader>;
 /// extension.
 /// @note This does not call @c PointCloudReader::open() .
 /// @param extension The file type extension. No leading `.` is required but may be provided.
-/// @return The appropriate reader or a @c nullptr on failure.
+/// @return The appropriate reader or a @c nullptr for an unsupported extension.
 PointCloudReaderPtr slamio_API createCloudReader(const char *extension);
 
 /// Create a @c PointCloudReader from the given @p filename . The appropriate reader is created based on the extension.
 /// @note This does not call @c PointCloudReader::open() .
 /// @param filename The point cloud file to read.
-/// @return The appropriate reader or a @c nullptr on failure.
+/// @return The appropriate reader or a @c nullptr for an unsupported extension.
 PointCloudReaderPtr slamio_API createCloudReaderFromFilename(const char *filename);
 }  // namespace slamio
 

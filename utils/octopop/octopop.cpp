@@ -223,6 +223,7 @@ int populateMap(const Options &opt)
   std::cout << "Loading points from " << opt.cloud_file << " with trajectory " << opt.trajectory_file << std::endl;
 
   slamio::SlamCloudLoader loader;
+  loader.setErrorLog([](const char *msg) { std::cerr << msg << std::flush; });
   if (!opt.trajectory_file.empty())
   {
     if (!loader.openWithTrajectory(opt.cloud_file.c_str(), opt.trajectory_file.c_str()))

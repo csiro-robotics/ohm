@@ -12,6 +12,7 @@
 #include <fstream>
 #include <functional>
 #include <iostream>
+#include <sstream>
 #include <string>
 #include <thread>
 #include <vector>
@@ -41,7 +42,44 @@ struct SlamCloudLoaderDetail
   bool real_time_mode = false;
 
   std::vector<SamplePoint> preload_samples;
+
+  SlamCloudLoader::Log error_log;
 };
+
+template <typename T>
+void error(std::ostream &out, const T &msg)
+{
+  out << msg << std::endl;
+}
+
+template <typename T, typename... Args>
+void error(std::ostream &out, const T &msg, Args... args)
+{
+  out << msg;
+  error(out, args...);
+}
+
+template <typename T>
+void error(SlamCloudLoader::Log log, const T &msg)
+{
+  if (log)
+  {
+    std::ostringstream out;
+    error(out, msg);
+    log(out.str().c_str());
+  }
+}
+
+template <typename T, typename... Args>
+void error(SlamCloudLoader::Log log, const T &msg, Args... args)
+{
+  if (log)
+  {
+    std::ostringstream out;
+    error(out, msg, args...);
+    log(out.str().c_str());
+  }
+}
 
 SlamCloudLoader::SlamCloudLoader(bool real_time_mode)
   : imp_(std::make_unique<SlamCloudLoaderDetail>())
@@ -49,6 +87,18 @@ SlamCloudLoader::SlamCloudLoader(bool real_time_mode)
 
 
 SlamCloudLoader::~SlamCloudLoader() = default;
+
+
+void SlamCloudLoader::setErrorLog(Log error_log)
+{
+  imp_->error_log = error_log;
+}
+
+
+SlamCloudLoader::Log SlamCloudLoader::errorLog() const
+{
+  return imp_->error_log;
+}
 
 
 void SlamCloudLoader::setSensorOffset(const glm::dvec3 &offset)
@@ -83,7 +133,13 @@ bool SlamCloudLoader::openRayCloud(const char *sample_file_path)
 
 void SlamCloudLoader::close()
 {
-  *imp_ = SlamCloudLoaderDetail{};
+  imp_->sample_reader = nullptr;
+  imp_->trajectory_reader = nullptr;
+  imp_->read_count = 0;
+  imp_->preload_index = 0;
+  imp_->first_sample_timestamp = -1.0;
+  imp_->ray_cloud = false;
+  imp_->preload_samples = std::vector<SamplePoint>();
 }
 
 
@@ -212,6 +268,7 @@ bool SlamCloudLoader::open(const char *sample_file_path, const char *trajectory_
 
       if (!imp_->trajectory_reader)
       {
+        error(imp_->error_log, "Unsupported extension for trajectory file ", trajectory_file_path);
         close();
         return false;
       }
@@ -220,6 +277,7 @@ bool SlamCloudLoader::open(const char *sample_file_path, const char *trajectory_
 
   if (!imp_->sample_reader)
   {
+    error(imp_->error_log, "Unsupported extension for point cloud file ", sample_file_path);
     close();
     return false;
   }
@@ -229,7 +287,7 @@ bool SlamCloudLoader::open(const char *sample_file_path, const char *trajectory_
   {
     if (!imp_->trajectory_reader->open(trajectory_file_path))
     {
-      std::cerr << "Failed to open trajectory file " << trajectory_file_path << std::endl;
+      error(imp_->error_log, "Failed to open trajectory file ", trajectory_file_path);
       close();
       return false;
     }
@@ -237,6 +295,7 @@ bool SlamCloudLoader::open(const char *sample_file_path, const char *trajectory_
     if (imp_->trajectory_reader->readChunk(imp_->trajectory_buffer, 2) != 2)
     {
       std::cerr << "Failed to read data from trajectory file " << trajectory_file_path << std::endl;
+      error(imp_->error_log, "Failed to read data from trajectory file ", trajectory_file_path);
       close();
       return false;
     }
@@ -244,7 +303,7 @@ bool SlamCloudLoader::open(const char *sample_file_path, const char *trajectory_
     const DataChannel required_trajectory_channels = DataChannel::Time | DataChannel::Position;
     if ((required_trajectory_channels & imp_->trajectory_reader->availableChannels()) != required_trajectory_channels)
     {
-      std::cerr << "Unable to load required data channels from trajectory" << std::endl;
+      error(imp_->error_log, "Unable to load required data channels from trajectory from file ", trajectory_file_path);
       close();
       return false;
     }
@@ -255,6 +314,7 @@ bool SlamCloudLoader::open(const char *sample_file_path, const char *trajectory_
 
   if (!imp_->sample_reader->open(sample_file_path))
   {
+    error(imp_->error_log, "Unable to open point cloud ", sample_file_path);
     close();
     return false;
   }
@@ -271,7 +331,7 @@ bool SlamCloudLoader::open(const char *sample_file_path, const char *trajectory_
   // Check for required channels.
   if ((required_channels & imp_->sample_reader->availableChannels()) != required_channels)
   {
-    std::cerr << "Unable to load required data channels from point cloud" << std::endl;
+    error(imp_->error_log, "Unable to load required data channels from point cloud ", sample_file_path);
     close();
     return false;
   }
