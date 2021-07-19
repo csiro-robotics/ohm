@@ -231,11 +231,13 @@ bool PointCloudReaderMiniPly::readNext(CloudPoint &point)
     ++samples_cursor_;
     ++read_count_;
 
-    // Release memory very 1M points. This is to try reduce the overhead as we read all data on start.
+#if 0
+    // Attempt to keep memory free. Pauses too much with large data sets.
+    // Release memory very 10M points. This is to try reduce the overhead as we read all data on start.
     // While miniply is very computationally efficient, the read constraint is memory inefficient with respect to the
     // API being created here.
     // TODO(KS): Investigate modifying miniply to support selective load (progressive probably won't work).
-    const uint64_t consume_at = 1000000;
+    const uint64_t consume_at = 100000000;
     if (samples_cursor_ >= consume_at)
     {
       samples_.consume(consume_at);
@@ -246,6 +248,7 @@ bool PointCloudReaderMiniPly::readNext(CloudPoint &point)
       // Reading done. Release remaining memory.
       samples_.release();
     }
+#endif  // 0
 
     return true;
   }
