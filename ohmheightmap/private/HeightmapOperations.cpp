@@ -556,7 +556,9 @@ void filterVirtualVoxels(ohm::HeightmapDetail &detail, unsigned threshold,
       for (const auto &n_offset : neighbour_offsets)
       {
         Key n_key = src_key;
-        heightmap.moveKey(n_key, n_offset);
+        // Remember, we are investigating neighbours in the source map, not the heightmap. We need to move keys in that
+        // source map.
+        detail.occupancy_map->moveKey(n_key, n_offset);
         if (src_to_heightmap_keys.find(n_key) != src_to_heightmap_keys.end())
         {
           ++n_count;
