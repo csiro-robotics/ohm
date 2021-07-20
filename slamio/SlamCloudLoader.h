@@ -19,16 +19,52 @@ struct SlamCloudLoaderDetail;
 
 /// A utility class for loading a point cloud with a trajectory.
 ///
-/// This class is a means to an end and is not well implemented or maintained. There are three implementations for this
-/// class, selected at build time based on available libraries:
-/// - using liblas supporting reading LAS files with LAZ support if laszip is also available.
-/// - using PDAL version 1.6 which supports PDAL available cloud formats without streaming
-/// - using PDAL version 1.7+ which adds streaming support
+/// This class provides support for loading point cloud based sample files and trajectories. Minimum supported formats
+/// are PLY point cloud loading (via miniply) and PLY or text file trajectory loading (see @c PointCloudReaderTraj ).
+/// Building with @c WITH_PDAL enables PDAL support for other point cloud data types, with PLY loading unchanged.
+/// PDAL version 1.7+ supports streaming loading.
 ///
-/// The loader combines an input point cloud with a trajectory file where the trajectory file identifies the sensor
-/// trajectory. This is used to match sample and sensor pairs. The trajectory file may be a point cloud with timestamps
-/// or a whitespace delimited text file in the form `time x y z rot_x rot_y rot_z rot_w`. The first line of the text
-/// file will be skipped on failure to parse under the assumption that it lists the column headings.
+/// The loader may be opened in one of three ways:
+/// -# @c openWithTrajectory() to load separate point cloud and trajectories.
+/// -# @c openPointCloud() to load data samples with no trajectory.
+/// -# @c openRayCloud() to open a self contained ray cloud.
+///
+/// Using @c openWithTrajetory() , the loader combines an input point cloud with a trajectory file where the trajectory
+/// file identifies the sensor trajectory. The timestamps in each file are used to used to match sample and sensor
+/// pairs, thus both files must contain correlated timestamps. The @c SamplePoint::origin values are reported as
+/// @c (0,0,0) when timestamps cannot be matched.
+///
+/// Using @c openPointCloud() opens a point cloud without trajectory. The @c SamplePoint::origin values are reported at
+/// the same location as the @c SamplePoint::sample positions.
+///
+/// Using @c openRayCloud() opens only a point cloud which must have per point normal channels available. The normals
+/// are treated as a non-normalised vector pointing from the sample point back to the sensor location at the time of
+/// sampling. That is, `SamplePoint::origin = SamplePoint::sample + normal`. See
+/// [RayCloudTools](https://github.com/csiro-robotics/raycloudtools) for more on ray clouds.
+///
+/// Typical usage:
+///
+/// @code
+/// void readSlamCloud(const char *sample_file, const char *trajectory_file, std::vector<slamio::SamplePoint> &samples)
+/// {
+///   slamio::SlamCloudLoader reader;
+///   // (optional) set error logging hook.
+///   reader.setErrorLog([](const char *msg) { std::cerr << msg << std::flush; });
+///   if (!reader.openWithTrajectory(sample_file, trajectory_file))
+///   {
+///     return;
+///   }
+///
+///   // Note: numberOfPoints() may be unavailable (zero).
+///   samples.reserve(reader.numberOfPoints());
+///
+///   slamio::SamplePoint sample{};
+///   while (reader.nextSample(sample))
+///   {
+///     samples.emplace_back(sample);
+///   }
+/// }
+/// @endcode
 class slamio_API SlamCloudLoader
 {
 public:
