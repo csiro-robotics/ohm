@@ -99,7 +99,7 @@ bool PointCloudReaderTraj::readNext(CloudPoint &point)
     if (!std::getline(file_in_, data_line_))
     {
       // End of file.
-      eof_ = true;fa
+      eof_ = true;
       return false;
     }
 
