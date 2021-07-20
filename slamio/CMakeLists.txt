@@ -1,5 +1,3 @@
-# Note: This library is a means to an end and is not well maintained.
-
 include(GenerateExportHeader)
 
 find_package(GLM)
