@@ -83,7 +83,9 @@ void error(SlamCloudLoader::Log log, const T &msg, Args... args)
 
 SlamCloudLoader::SlamCloudLoader(bool real_time_mode)
   : imp_(std::make_unique<SlamCloudLoaderDetail>())
-{}
+{
+  imp_->real_time_mode = real_time_mode;
+}
 
 
 SlamCloudLoader::~SlamCloudLoader() = default;

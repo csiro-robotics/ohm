@@ -99,16 +99,21 @@ bool PointCloudReaderTraj::readNext(CloudPoint &point)
     if (!std::getline(file_in_, data_line_))
     {
       // End of file.
-      eof_ = true;
+      eof_ = true;fa
       return false;
     }
 
     // sscanf is far faster than using stream operators.
+#ifdef _MSC_VER
     if (sscanf_s(data_line_.c_str(), "%lg %lg %lg %lg", &point.timestamp, &point.position.x, &point.position.y,
                  &point.position.z) == 4)
-    {
-      return true;
-    }
+#else // _MSC_VER
+    if (sscanf(data_line_.c_str(), "%lg %lg %lg %lg", &point.timestamp, &point.position.x, &point.position.y,
+               &point.position.z) == 4)
+#endif  // _MSC_VER
+{
+  return true;
+}
   }
 
   return false;

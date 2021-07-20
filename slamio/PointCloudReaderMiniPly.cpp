@@ -90,6 +90,8 @@ void fixColourRange(std::vector<glm::vec4> &colours, miniply::PLYReader &reader,
           case miniply::PLYPropertyType::UInt:
             c[i] /= float(std::numeric_limits<unsigned int>::max());
             break;
+          default:
+            break;
           }
         }
       }
@@ -359,7 +361,7 @@ void PointCloudReaderMiniPly::readSamples()
           {
             samples_.colours.resize(point_count_);
             reader_->extract_properties_with_stride(offsets, offset_count, miniply::PLYPropertyType::Float,
-                                                    samples_.colours.data(), sizeof(*samples_.colours.data()));
+                                                    samples_.colours.data() + write_offset, sizeof(*samples_.colours.data()));
             fixColourRange(samples_.colours, *reader_, alpha_field_name_);
           }
         }
