@@ -57,7 +57,7 @@ void PointStream::finalize()
         have_dim = false;
       }
     }
-    available_channels_ |= (have_dim) ? DataChannel::Normals : DataChannel::None;
+    available_channels_ |= (have_dim) ? DataChannel::Normal : DataChannel::None;
 
     have_dim = true;
     for (int i = 0; i < 3; ++i)
@@ -75,7 +75,19 @@ void PointStream::finalize()
         have_dim = false;
       }
     }
-    available_channels_ |= (have_dim) ? DataChannel::Colour : DataChannel::None;
+    available_channels_ |= (have_dim) ? DataChannel::ColourRgb : DataChannel::None;
+
+    const auto *alpha_dim = layout_.dimDetail(pdal::Dimension::Id::Alpha);
+    if (alpha_dim)
+    {
+      intensity_channel_type_ = alpha_dim->type();
+      if (intensity_channel_type_ == pdal::Dimension::Type::Unsigned8 ||
+          intensity_channel_type_ == pdal::Dimension::Type::Unsigned16 ||
+          intensity_channel_type_ == pdal::Dimension::Type::Unsigned32)
+      {
+        available_channels_ |= DataChannel::ColourAlpha;
+      }
+    }
 
     const auto *intensity_dim = layout_.dimDetail(pdal::Dimension::Id::Intensity);
     if (intensity_dim)

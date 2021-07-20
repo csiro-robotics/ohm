@@ -23,20 +23,23 @@ set(SOURCES
 )
 
 set(SLAMIO_HAVE_PDAL 0)
+set(SLAMIO_HAVE_PDAL_STREAMS 0)
 if(WITH_PDAL)
   find_package(PDAL REQUIRED)
-  # list(APPEND SOURCES SlamCloudLoaderPdal.h)
-  # Need to check PDAL version. We only support streaming PDAL which requires version 1.7+
+  set(SLAMIO_HAVE_PDAL 1)
+  list(APPEND SOURCES
+    PointCloudReaderPdal.cpp
+    PointCloudReaderPdal.h
+  )
+  # Need to check PDAL version. We streaming requires PDAL version 1.7+
   if(PDAL_VERSION VERSION_GREATER_EQUAL 1.7)
+    set(SLAMIO_HAVE_PDAL_STREAMS 1)
     list(APPEND SOURCES
       pdal/PointStream.cpp
       pdal/PointStream.h
       PointCloudReaderPdal.cpp
       PointCloudReaderPdal.h
     )
-    set(SLAMIO_HAVE_PDAL 1)
-  else(PDAL_VERSION VERSION_GREATER_EQUAL 1.7)
-    message(SEND_ERROR "PDAL_VERSION 1.7+ required for PDAL support (streaming). Found: ${PDAL_VERSION}")
   endif(PDAL_VERSION VERSION_GREATER_EQUAL 1.7)
 endif(WITH_PDAL)
 

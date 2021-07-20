@@ -48,10 +48,32 @@ public:
   bool readNext(CloudPoint &point) override;
   uint64_t readChunk(CloudPoint *point, uint64_t count) override;
 
+#if SLAMIO_HAVE_PDAL_STREAMS
+  using PdalReaderPtr = std::shared_ptr<pdal::Streamable>;
+#else   // SLAMIO_HAVE_PDAL_STREAMS
+  using PdalReaderPtr = std::shared_ptr<pdal::Stage>;
+#endif  // SLAMIO_HAVE_PDAL_STREAMS
+
 private:
+#if !SLAMIO_HAVE_PDAL_STREAMS
+  struct PointFields
+  {
+    pdal::Dimension::Id time = pdal::Dimension::Id::Unknown;
+    float rgb_scale = 1.0f;
+    float alpha_scale = 1.0f;
+  };
+#endif  // SLAMIO_HAVE_PDAL_STREAMS
+
   std::unique_ptr<pdal::StageFactory> pdal_factory_;
-  std::shared_ptr<pdal::Streamable> cloud_reader_;
+  PdalReaderPtr cloud_reader_;
+#if SLAMIO_HAVE_PDAL_STREAMS
   std::unique_ptr<PointStream> point_stream_;
+#else   // SLAMIO_HAVE_PDAL_STREAMS
+  std::unique_ptr<pdal::PointTable> point_table_;
+  pdal::PointViewPtr samples_view_;
+  uint64_t samples_view_index_ = 0;
+  PointFields fields_;
+#endif  // SLAMIO_HAVE_PDAL_STREAMS
   pdal::point_count_t point_count_ = 0;
   DataChannel available_channels_ = DataChannel::None;
   DataChannel desired_channels_ = DataChannel::None;

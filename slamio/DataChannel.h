@@ -26,7 +26,7 @@ enum class DataChannel : unsigned
   None,
   Time = (1 << 0),
   Position = (1 << 1),
-  Normals = (1 << 2),
+  Normal = (1 << 2),
   ColourRgb = (1 << 3),
   ColourAlpha = (1 << 4),
   Intensity = (1 << 5),

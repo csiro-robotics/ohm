@@ -60,8 +60,9 @@ public:
   inline void markLoadComplete() { loading_complete_ = true; }
 
   inline bool hasTimestamp() const { return (available_channels_ & DataChannel::Time) != DataChannel::None; }
-  inline bool hasNormals() const { return (available_channels_ & DataChannel::Normals) != DataChannel::None; }
-  inline bool hasColour() const { return (available_channels_ & DataChannel::Colour) != DataChannel::None; }
+  inline bool hasNormals() const { return (available_channels_ & DataChannel::Normal) != DataChannel::None; }
+  inline bool hasColourRgb() const { return (available_channels_ & DataChannel::ColourRgb) != DataChannel::None; }
+  inline bool hasColourAlpha() const { return (available_channels_ & DataChannel::ColourAlpha) != DataChannel::None; }
   inline bool hasIntensity() const { return (available_channels_ & DataChannel::Intensity) != DataChannel::None; }
 
 protected:

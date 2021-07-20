@@ -63,7 +63,7 @@ PointCloudReaderPtr createCloudReader(const char *extension_c)
   return reader;
 }
 
-PointCloudReaderPtr slamio_API createCloudReaderFromFilename(const char *filename)
+PointCloudReaderPtr createCloudReaderFromFilename(const char *filename)
 {
   const auto extension = getFileExtension(filename);
   return createCloudReader(extension.c_str());

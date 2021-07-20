@@ -172,7 +172,7 @@ bool PointCloudReaderMiniPly::open(const char *filename)
   }
   if (checkAllAvailable(*vertex_element, { "nx", "ny", "nz" }))
   {
-    available_channels_ |= DataChannel::Normals;
+    available_channels_ |= DataChannel::Normal;
   }
   if (checkAllAvailable(*vertex_element, { "r", "g", "b" }) ||
       checkAllAvailable(*vertex_element, { "red", "green", "blue" }))
@@ -308,7 +308,7 @@ void PointCloudReaderMiniPly::readSamples()
                                                     samples_.positions.data(), sizeof(*samples_.positions.data()));
           }
         }
-        if ((DataChannel::Normals | (available_channels_ & desired_channels_)) != DataChannel::None)
+        if ((DataChannel::Normal | (available_channels_ & desired_channels_)) != DataChannel::None)
         {
           // Read positions.
           if (reader_->find_normal(offsets))

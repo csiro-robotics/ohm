@@ -35,5 +35,6 @@
 // clang-format on
 
 #cmakedefine01 SLAMIO_HAVE_PDAL
+#cmakedefine01 SLAMIO_HAVE_PDAL_STREAMS
 
 #endif  // SLAMIO_SLAMIOCONFIG_H_

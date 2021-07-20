@@ -324,7 +324,7 @@ bool SlamCloudLoader::open(const char *sample_file_path, const char *trajectory_
     if (ray_cloud)
     {
       // Ray cloud expects normals.
-      required_channels |= DataChannel::Normals;
+      required_channels |= DataChannel::Normal;
     }
   }
 
