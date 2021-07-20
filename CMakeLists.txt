@@ -228,6 +228,7 @@ add_subdirectory(ohmtools)
 add_subdirectory(utils)
 
 if(OHM_UNIT_TESTS)
+  enable_testing()
   add_subdirectory(tests)
 endif(OHM_UNIT_TESTS)
 
