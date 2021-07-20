@@ -386,7 +386,7 @@ int parseOptions(Options *opt, int argc, char *argv[])  // NOLINT(modernize-avoi
                "centres.", cxxopts::value(opt->mode)->default_value(optStr(opt->mode)))
       ("expire", "Expire regions with a timestamp before the specified time. These are not exported.", cxxopts::value(opt->expiry_time))
       ("threshold", "Override the map's occupancy threshold. Only occupied points are exported.", cxxopts::value(opt->occupancy_threshold)->default_value(optStr(opt->occupancy_threshold)))
-      ("voxel-mode", "Voxel export mode [points,cubes]: select the ply representation for voxels.", cxxopts::value(opt->voxel_mode)->default_value(optStr(opt->voxel_mode)))
+      ("voxel-mode", "Voxel export mode [point,voxel]: select the ply representation for voxels.", cxxopts::value(opt->voxel_mode)->default_value(optStr(opt->voxel_mode)))
       ;
 
     opt_parse.add_options("Heightmap")
