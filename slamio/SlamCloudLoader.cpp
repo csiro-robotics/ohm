@@ -207,7 +207,7 @@ void SlamCloudLoader::preload(size_t point_count)
     point_count = std::min(point_count, numberOfPoints());
   }
 
-  const bool load_all = point_count == 0 || numberOfPoints() && point_count >= numberOfPoints();
+  const bool load_all = point_count == 0 || (numberOfPoints() && point_count >= numberOfPoints());
 
   std::vector<SamplePoint> preload_data;
   // Cache the read count. It will increment as we preload, but need it to remain unchanged on return.
