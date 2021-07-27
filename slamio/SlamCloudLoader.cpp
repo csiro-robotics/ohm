@@ -88,7 +88,10 @@ SlamCloudLoader::SlamCloudLoader(bool real_time_mode)
 }
 
 
-SlamCloudLoader::~SlamCloudLoader() = default;
+SlamCloudLoader::~SlamCloudLoader()
+{
+  close();
+}
 
 
 void SlamCloudLoader::setErrorLog(Log error_log)

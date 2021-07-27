@@ -9,7 +9,10 @@
 namespace slamio
 {
 PointCloudReaderTraj::PointCloudReaderTraj() = default;
-PointCloudReaderTraj::~PointCloudReaderTraj() = default;
+PointCloudReaderTraj::~PointCloudReaderTraj()
+{
+  close();
+}
 
 
 DataChannel PointCloudReaderTraj::availableChannels() const
@@ -111,9 +114,9 @@ bool PointCloudReaderTraj::readNext(CloudPoint &point)
     if (sscanf(data_line_.c_str(), "%lg %lg %lg %lg", &point.timestamp, &point.position.x, &point.position.y,
                &point.position.z) == 4)
 #endif  // _MSC_VER
-{
-  return true;
-}
+    {
+      return true;
+    }
   }
 
   return false;

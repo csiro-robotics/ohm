@@ -109,7 +109,10 @@ void fixColourRange(std::vector<glm::vec4> &colours, miniply::PLYReader &reader,
 namespace slamio
 {
 PointCloudReaderMiniPly::PointCloudReaderMiniPly() = default;
-PointCloudReaderMiniPly::~PointCloudReaderMiniPly() = default;
+PointCloudReaderMiniPly::~PointCloudReaderMiniPly()
+{
+ close();
+}
 
 DataChannel PointCloudReaderMiniPly::availableChannels() const
 {
@@ -291,7 +294,7 @@ void PointCloudReaderMiniPly::readSamples()
         uint32_t offsets[4] = {};
         if ((DataChannel::Time | (available_channels_ & desired_channels_)) != DataChannel::None)
         {
-          // Read positions.
+          // Read timestamps.
           offsets[0] = reader_->find_property(time_field_name_.c_str());
           if (offsets[0] != miniply::kInvalidIndex)
           {
@@ -312,7 +315,7 @@ void PointCloudReaderMiniPly::readSamples()
         }
         if ((DataChannel::Normal | (available_channels_ & desired_channels_)) != DataChannel::None)
         {
-          // Read positions.
+          // Read normals.
           if (reader_->find_normal(offsets))
           {
             samples_.normals.resize(point_count_);
@@ -322,7 +325,7 @@ void PointCloudReaderMiniPly::readSamples()
         }
         if ((DataChannel::Intensity | (available_channels_ & desired_channels_)) != DataChannel::None)
         {
-          // Read positions.
+          // Read intensities.
           offsets[0] = reader_->find_property("intensity");
           if (offsets[0] != miniply::kInvalidIndex)
           {
@@ -333,7 +336,7 @@ void PointCloudReaderMiniPly::readSamples()
         }
         if ((DataChannel::Colour | (available_channels_ & desired_channels_)) != DataChannel::None)
         {
-          // Read positions.
+          // Read colours.
           int offset_count = 0;
           size_t write_offset = 0;
 
@@ -349,10 +352,10 @@ void PointCloudReaderMiniPly::readSamples()
           if ((DataChannel::ColourAlpha | (available_channels_ & desired_channels_)) != DataChannel::None)
           {
             // Will read alpha
-            if (offset_count)
+            if (!offset_count)
             {
               // Only reading alpha.
-              write_offset = sizeof(glm::vec4) - sizeof(float);
+              write_offset = sizeof(float) * 3;
             }
             offsets[offset_count] = reader_->find_property(alpha_field_name_.c_str());
             ++offset_count;
@@ -361,7 +364,8 @@ void PointCloudReaderMiniPly::readSamples()
           {
             samples_.colours.resize(point_count_);
             reader_->extract_properties_with_stride(offsets, offset_count, miniply::PLYPropertyType::Float,
-                                                    samples_.colours.data() + write_offset, sizeof(*samples_.colours.data()));
+                                                    samples_.colours.data() + write_offset,
+                                                    sizeof(*samples_.colours.data()));
             fixColourRange(samples_.colours, *reader_, alpha_field_name_);
           }
         }

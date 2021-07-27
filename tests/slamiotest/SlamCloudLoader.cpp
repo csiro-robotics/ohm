@@ -32,7 +32,7 @@ glm::dvec4 generateTrajectoryPoint(double time)
   return pt;
 }
 
-void writeTimstampedPlyCloud(const std::string &path, const std::vector<glm::dvec4> &timestamped_points)
+void writeTimestampedPlyCloud(const std::string &path, const std::vector<glm::dvec4> &timestamped_points)
 {
   std::ofstream out(path.c_str(), std::ios::binary);
 
@@ -113,8 +113,8 @@ TEST(SlamIO, SlamRead)
   generateSlamCloud(&samples, &trajectory);
   const std::string sample_file = "slam-samples.ply";
   const std::string trajectory_file = "slam-trajectory.ply";
-  writeTimstampedPlyCloud(sample_file.c_str(), samples);
-  writeTimstampedPlyCloud(trajectory_file.c_str(), trajectory);
+  writeTimestampedPlyCloud(sample_file.c_str(), samples);
+  writeTimestampedPlyCloud(trajectory_file.c_str(), trajectory);
 
   slamio::SlamCloudLoader reader;
   reader.setErrorLog([](const char *msg) { std::cerr << msg << std::flush; });
@@ -144,7 +144,7 @@ TEST(SlamIO, CloudRead)
 
   generateSlamCloud(&samples, nullptr);
   const std::string sample_file = "cloud-read-samples.ply";
-  writeTimstampedPlyCloud(sample_file, samples);
+  writeTimestampedPlyCloud(sample_file, samples);
 
   auto reader = slamio::createCloudReaderFromFilename(sample_file.c_str());
   ASSERT_NE(reader, nullptr);
