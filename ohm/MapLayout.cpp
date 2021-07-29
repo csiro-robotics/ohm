@@ -161,6 +161,41 @@ MapLayoutMatch MapLayout::checkEquivalent(const MapLayout &other) const
 }
 
 
+size_t MapLayout::calculateOverlappingLayerSet(std::vector<std::pair<unsigned, unsigned>> &overlap,
+                                               const MapLayout &other) const
+{
+  size_t matched = 0;
+  // Special case self overlap.
+  if (this == &other)
+  {
+    for (const MapLayer *layer : imp_->layers)
+    {
+      assert(layer);
+      overlap.emplace_back(std::make_pair<unsigned, unsigned>(layer->layerIndex(), layer->layerIndex()));
+      ++matched;
+    }
+    return matched;
+  }
+
+  for (const MapLayer *layer : imp_->layers)
+  {
+    assert(layer);
+    const int other_layer_index = other.layerIndex(layer->name());
+    if (other_layer_index >= 0)
+    {
+      // Matched by name. Check layout equivalence.
+      const MapLayoutMatch layer_match = layer->checkEquivalent(other.layer(other_layer_index));
+      if (layer_match == MapLayoutMatch::kExact)
+      {
+        overlap.emplace_back(std::make_pair<unsigned, unsigned>(layer->layerIndex(), unsigned(other_layer_index)));
+        ++matched;
+      }
+    }
+  }
+  return matched;
+}
+
+
 void MapLayout::filterLayers(const std::initializer_list<const char *> &preserve_layers)
 {
   if (imp_->layers.empty())

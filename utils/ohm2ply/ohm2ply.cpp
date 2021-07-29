@@ -4,9 +4,6 @@
 #include <glm/glm.hpp>
 
 #include <ohm/DefaultLayer.h>
-#include <ohm/Heightmap.h>
-#include <ohm/HeightmapMesh.h>
-#include <ohm/HeightmapVoxel.h>
 #include <ohm/Key.h>
 #include <ohm/KeyList.h>
 #include <ohm/MapLayer.h>
@@ -15,6 +12,11 @@
 #include <ohm/OccupancyMap.h>
 #include <ohm/OccupancyType.h>
 #include <ohm/VoxelData.h>
+
+#include <ohmheightmap/Heightmap.h>
+#include <ohmheightmap/HeightmapMesh.h>
+#include <ohmheightmap/HeightmapSerialise.h>
+#include <ohmheightmap/HeightmapVoxel.h>
 
 #include <ohmtools/OhmCloud.h>
 #include <ohmutil/PlyMesh.h>
@@ -65,6 +67,13 @@ enum ExportMode
   kExportCovariance
 };
 
+/// Voxel mode: export voxels as...
+enum VoxelMode
+{
+  kVoxelPoint,
+  kVoxelVoxel
+};
+
 enum ColourMode
 {
   kColourNone,
@@ -89,6 +98,7 @@ struct Options
   float colour_scale = 3.0f;
   ExportMode mode = kExportOccupancy;
   ColourMode colour = kColourHeight;
+  VoxelMode voxel_mode = kVoxelPoint;
 
   HeightmapOptions heightmap;
 };
@@ -224,10 +234,10 @@ std::istream &operator>>(std::istream &in, ExportMode &mode)
   {
     mode = kExportCovariance;
   }
-  // else
-  // {
-  //   throw cxxopts::invalid_option_format_error(modeStr);
-  // }
+  else
+  {
+    badArg(mode_str);
+  }
   return in;
 }
 
@@ -259,6 +269,44 @@ std::ostream &operator<<(std::ostream &out, const ExportMode mode)
   case kExportCovariance:
     out << "covariance";
     break;
+  default:
+    out << "<unknown>";
+  }
+  return out;
+}
+
+
+std::istream &operator>>(std::istream &in, VoxelMode &mode)
+{
+  std::string mode_str;
+  in >> mode_str;
+  if (mode_str == "point")
+  {
+    mode = kVoxelPoint;
+  }
+  else if (mode_str == "voxel")
+  {
+    mode = kVoxelVoxel;
+  }
+  else
+  {
+    badArg(mode_str);
+  }
+  return in;
+}
+
+std::ostream &operator<<(std::ostream &out, const VoxelMode mode)
+{
+  switch (mode)
+  {
+  case kVoxelPoint:
+    out << "point";
+    break;
+  case kVoxelVoxel:
+    out << "voxel";
+    break;
+  default:
+    out << "<unknown>";
   }
   return out;
 }
@@ -350,6 +398,7 @@ int parseOptions(Options *opt, int argc, char *argv[])  // NOLINT(modernize-avoi
       ("threshold", "Override the map's occupancy threshold or set the density threshold. Only points passing the "
                     "threshold occupied points are exported.",
                     cxxopts::value(opt->threshold)->default_value(optStr(opt->threshold)))
+      ("voxel-mode", "Voxel export mode [point,voxel]: select the ply representation for voxels.", cxxopts::value(opt->voxel_mode)->default_value(optStr(opt->voxel_mode)))
       ;
 
     opt_parse.add_options("Heightmap")
@@ -401,7 +450,7 @@ int exportPointCloud(const Options &opt, ProgressMonitor &prog, LoadMapProgress 
 
   if (res != 0)
   {
-    std::cerr << "Failed to load map. Error(" << res << "): " << ohm::errorCodeString(res) << std::endl;
+    std::cerr << "Failed to load map. Error(" << res << "): " << ohm::serialiseErrorCodeString(res) << std::endl;
     return res;
   }
 
@@ -514,7 +563,14 @@ int exportPointCloud(const Options &opt, ProgressMonitor &prog, LoadMapProgress 
         return colour_by_type.select(occupancy);
       };
     }
-    export_count = saveCloud(opt.ply_file.c_str(), map, save_opt, save_progress_callback);
+    if (opt.voxel_mode == kVoxelVoxel)
+    {
+      export_count = saveVoxels(opt.ply_file.c_str(), map, save_opt, save_progress_callback);
+    }
+    else
+    {
+      export_count = saveCloud(opt.ply_file.c_str(), map, save_opt, save_progress_callback);
+    }
     break;
   }
   case kExportDensity:
@@ -550,7 +606,14 @@ int exportPointCloud(const Options &opt, ProgressMonitor &prog, LoadMapProgress 
         return colour_by_heightmap_type.select(occupancy);
       };
     }
-    export_count = ohmtools::saveHeightmapCloud(opt.ply_file.c_str(), map, save_opt, save_progress_callback);
+    if (opt.voxel_mode == kVoxelVoxel)
+    {
+      export_count = ohmtools::saveHeightmapVoxels(opt.ply_file.c_str(), map, save_opt, save_progress_callback);
+    }
+    else
+    {
+      export_count = ohmtools::saveHeightmapCloud(opt.ply_file.c_str(), map, save_opt, save_progress_callback);
+    }
     break;
   }
   case kExportClearance:
@@ -588,7 +651,7 @@ int exportHeightmapMesh(const Options &opt, ProgressMonitor &prog, LoadMapProgre
 
   if (res != 0)
   {
-    std::cerr << "Failed to load heightmap. Error(" << res << "): " << ohm::errorCodeString(res) << std::endl;
+    std::cerr << "Failed to load heightmap. Error(" << res << "): " << ohm::serialiseErrorCodeString(res) << std::endl;
     return res;
   }
 
@@ -620,7 +683,7 @@ int exportCovariance(const Options &opt, ProgressMonitor &prog, LoadMapProgress 
 
   if (res != 0)
   {
-    std::cerr << "Failed to load map. Error(" << res << "): " << ohm::errorCodeString(res) << std::endl;
+    std::cerr << "Failed to load map. Error(" << res << "): " << ohm::serialiseErrorCodeString(res) << std::endl;
     return res;
   }
 

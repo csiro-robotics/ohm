@@ -138,6 +138,7 @@ struct Options
   bool voxel_mean = false;
   bool traversal = false;
   bool uncompressed = false;
+  bool point_cloud_only = false;  ///< Assume ray cloud if no trajectory is given, unless this is set.
 #ifdef OHMPOP_GPU
   // Mapping options are experimental and bound up in GPU operations, but not strictly speaking GPU only.
   double mapping_interval = 0.2;  // NOLINT(readability-magic-numbers)
@@ -470,12 +471,32 @@ int populateMap(const Options &opt)
 
   std::cout << "Loading points from " << opt.cloud_file << " with trajectory " << opt.trajectory_file << std::endl;
 
-  SlamCloudLoader loader;
-  if (!loader.open(opt.cloud_file.c_str(), opt.trajectory_file.c_str()))
+  slamio::SlamCloudLoader loader;
+  loader.setErrorLog([](const char *msg) { std::cerr << msg << std::flush; });
+  if (!opt.trajectory_file.empty())
   {
-    fprintf(stderr, "Error loading cloud %s with trajectory %s \n", opt.cloud_file.c_str(),
-            opt.trajectory_file.c_str());
-    return -2;
+    if (!loader.openWithTrajectory(opt.cloud_file.c_str(), opt.trajectory_file.c_str()))
+    {
+      fprintf(stderr, "Error loading cloud %s with trajectory %s\n", opt.cloud_file.c_str(),
+              opt.trajectory_file.c_str());
+      return -2;
+    }
+  }
+  else if (!opt.point_cloud_only)
+  {
+    if (!loader.openRayCloud(opt.cloud_file.c_str()))
+    {
+      fprintf(stderr, "Error loading ray cloud %s\n", opt.cloud_file.c_str());
+      return -2;
+    }
+  }
+  else if (opt.point_cloud_only)
+  {
+    if (!loader.openPointCloud(opt.cloud_file.c_str()))
+    {
+      fprintf(stderr, "Error loading point cloud %s\n", opt.cloud_file.c_str());
+      return -2;
+    }
   }
 
   ohm::MapFlag map_flags = ohm::MapFlag::kDefault;
@@ -556,7 +577,7 @@ int populateMap(const Options &opt)
     if (load_err)
     {
       std::cerr << "Error(" << load_err << ") loading prior map " << opt.prior_map << " : "
-                << ohm::errorCodeString(load_err) << std::endl;
+                << ohm::serialiseErrorCodeString(load_err) << std::endl;
       return -3;
     }
   }
@@ -594,7 +615,7 @@ int populateMap(const Options &opt)
   ohm::Mapper mapper(&map);
   std::vector<double> sample_timestamps;
   std::vector<glm::dvec3> origin_sample_pairs;
-  SamplePoint sample;
+  slamio::SamplePoint sample;
   glm::dvec3 last_batch_origin(0);
   std::vector<float> intensities;
   uint64_t point_count = 0;
@@ -721,7 +742,7 @@ int populateMap(const Options &opt)
   //------------------------------------
   // mapper.start();
   while ((point_count < opt.point_limit || opt.point_limit == 0) &&
-         (last_timestamp - timebase < opt.time_limit || opt.time_limit == 0) && loader.nextPoint(sample))
+         (last_timestamp - timebase < opt.time_limit || opt.time_limit == 0) && loader.nextSample(sample))
   {
     if (timebase < 0)
     {
@@ -898,15 +919,25 @@ int populateMap(const Options &opt)
 }
 
 
+#if SLAMIO_HAVE_PDAL
+#define CLOUD_TYPE "PDAL supported point cloud"
+#else  // SLAMIO_HAVE_PDAL
+#define CLOUD_TYPE "PLY point cloud"
+#endif                                                  // SLAMIO_HAVE_PDAL
 int parseOptions(Options *opt, int argc, char *argv[])  // NOLINT(modernize-avoid-c-arrays)
 {
-  cxxopts::Options opt_parse(argv[0],
-                             "Generate an occupancy map from a LAS/LAZ based point cloud and accompanying "
-                             "trajectory file using GPU. The trajectory marks the scanner trajectory with timestamps "
-                             "loosely corresponding to cloud point timestamps. Trajectory points are "
-                             "interpolated for each cloud point based on corresponding times in the "
-                             "trajectory.");
-  opt_parse.positional_help("<cloud.laz> <_traj.txt> [output-base]");
+  cxxopts::Options opt_parse(argv[0], "Generate an occupancy map from a ray cloud or a point cloud with accompanying "
+                                      "trajectory file. The trajectory marks the scanner trajectory with timestamps "
+                                      "loosely corresponding to cloud point timestamps. Trajectory points are "
+                                      "interpolated for each cloud point based on corresponding times in the "
+                                      "trajectory. A ray cloud uses the normals channel to provide a vector from "
+                                      "point sample back to sensor location (see "
+                                      "https://github.com/csiro-robotics/raycloudtools).\n"
+                                      "\n"
+                                      "The sample file is a " CLOUD_TYPE " file, while the trajectory is either a text "
+                                      "trajectory containing [time x y z <additional>] items per line or is itself a "
+                                      "point cloud file.");
+  opt_parse.positional_help("<sample_file> [<trajectory_file>] [output-base]");
 
   try
   {
@@ -924,6 +955,7 @@ int parseOptions(Options *opt, int argc, char *argv[])  // NOLINT(modernize-avoi
       ("cloud", "The input cloud (las/laz) to load.", cxxopts::value(opt->cloud_file))
       ("output","Output base name", optVal(opt->output_base_name))
       ("point-limit", "Limit the number of points loaded.", optVal(opt->point_limit))
+      ("points-only", "Assume the point cloud is providing points only. Otherwise a cloud file with no trajectory is considered a ray cloud.", optVal(opt->point_cloud_only))
       ("preload", "Preload this number of points before starting processing. -1 for all. May be used for separating processing and loading time.",
         optVal(opt->preload_count)->default_value("0")->implicit_value("-1"))
       ("q,quiet", "Run in quiet mode. Suppresses progress messages.", optVal(opt->quiet))

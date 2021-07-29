@@ -87,7 +87,7 @@ void covarianceEigenDecompositionEigen(const CovarianceVoxel *cov, glm::dmat3 *e
 void covarianceEigenDecompositionGlm(const CovarianceVoxel *cov, glm::dmat3 *eigenvectors, glm::dvec3 *eigenvalues)
 {
   // This has been noted to be ~3x slower than the Eigen solver.
-  const glm::dmat3 mat = covarianceMatrix(cov);
+  glm::dmat3 mat = covarianceMatrix(cov);
 
   *eigenvectors = glm::dmat3(1.0);  // Identity initialisation
 

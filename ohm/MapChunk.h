@@ -164,9 +164,9 @@ struct MapChunk
   /// Last timestamp the occupancy layer of this chunk was modified.
   double touched_time = 0;
 
-  /// A monotonic stamp value occupancy layer, used to indicate when this layer or a neighbour was last updated.
+  /// A monotonic stamp value occupancy layer, used to indicate when this chunk was last updated.
   /// The map maintains the most up to date stamp: @c OccupancyMap::stamp().
-  uint64_t dirty_stamp = 0;
+  std::atomic_uint64_t dirty_stamp{ 0 };
 
   /// A monotonic stamp value for each @c voxelMap, used to indicate when the layer was last updated.
   /// The map maintains the most up to date stamp: @c OccupancyMap::stamp().

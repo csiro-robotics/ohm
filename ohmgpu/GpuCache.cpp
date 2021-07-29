@@ -12,6 +12,10 @@
 
 #include "private/GpuMapDetail.h"
 
+#include <ohm/MapChunk.h>
+#include <ohm/VoxelBlock.h>
+#include <ohm/VoxelBuffer.h>
+
 #include <gputil/gpuDevice.h>
 
 #include <memory>
@@ -99,6 +103,53 @@ void GpuCache::remove(const glm::i16vec3 &region_key)
       layer->remove(region_key);
     }
   }
+}
+
+
+bool GpuCache::syncLayerTo(MapChunk &dst_chunk, unsigned dst_layer, const MapChunk &src_chunk, unsigned src_layer)
+{
+  // Iterate the layers looking for the appropriate one. Note we accept the first one which matches the src_layer index.
+  // There are situations where this could be incorrect as two layer caches use the same source layer, however,
+  // this should be ok with how the layer indices are placed. See assumptions on @c GpuCacheId .
+  //
+  // Note (KS): this iteration isn't particularly efficient, but we should have small enough layers sets. A mapping of
+  // src_layer to cache may be useful later. In practice this should be fine. The function was written for copyMap()
+  // but that implementation now avoids this inefficiency by using `findLayerCache()` first. This implementation remains
+  // for completeness.
+  for (auto &&layer : imp_->layer_caches)
+  {
+    if (layer && layer->layerIndex() == src_layer)
+    {
+      VoxelBuffer<VoxelBlock> dst(dst_chunk.voxel_blocks[dst_layer]);
+      if (layer->syncToExternal(dst, src_chunk.region.coord))
+      {
+        return true;
+      }
+      break;
+    }
+  }
+
+  return false;
+}
+
+
+MapRegionCache *GpuCache::findLayerCache(unsigned layer)
+{
+  // Iterate the layers looking for the appropriate one. Note we accept the first one which matches the src_layer index.
+  // There are situations where this could be incorrect as two layer caches use the same source layer, however,
+  // this should be ok with how the layer indices are placed. See assumptions on @c GpuCacheId .
+  //
+  // Note (KS): this iteration isn't particularly efficient, but we should have small enough layers sets. A mapping of
+  // src_layer to cache may be useful later.
+  for (auto &&layer_cache : imp_->layer_caches)
+  {
+    if (layer_cache && layer_cache->layerIndex() == layer)
+    {
+      return layer_cache.get();
+    }
+  }
+
+  return nullptr;
 }
 
 

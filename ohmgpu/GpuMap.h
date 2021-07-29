@@ -15,6 +15,7 @@
 #include <glm/glm.hpp>
 
 #include <functional>
+#include <vector>
 
 namespace gputil
 {
@@ -183,9 +184,13 @@ public:
   /// If not borrowed, then the @c GpuMap will destroy the @c OccupancyMap on destruction.
   bool borrowedMap() const;
 
-  /// Sync the GPU memory use for the occupancy, voxel mean and NDT layers to main memory ensuring main memory is up
-  /// to date.
+  /// Sync the GPU memory back to main memory for all GPU cached layers.
   void syncVoxels();
+
+  /// Sync a subset of voxel layers from GPU to main memory. The @p layer_indices may be read from @c MapLayout .
+  /// Any out of range index is ignored. This allows @c MapLayout::namedLayer() functions to be used for layers which
+  /// are not present.
+  void syncVoxels(const std::vector<int> &layer_indices);
 
   /// Set the range filter applied to all rays given to @c integrateRays(). Setting a null filter ensures no
   /// filtering is performed. The default behaviour is to use the same filter as the @c OccupancyMap.

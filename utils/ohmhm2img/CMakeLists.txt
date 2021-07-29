@@ -19,7 +19,7 @@ target_include_directories(ohmhm2img SYSTEM
     "${ZLIB_INCLUDE_DIRS}"
 )
 
-target_link_libraries(ohmhm2img PUBLIC ohm ohmutil ${ZLIB_LIBRARIES} ohmheightmaputil PNG::PNG)
+target_link_libraries(ohmhm2img PUBLIC ohmheightmap ohmheightmapimage PNG::PNG)
 clang_tidy_target(ohmhm2img)
 
 source_group("source" REGULAR_EXPRESSION ".*$")

@@ -31,19 +31,16 @@ The following 3rd-party libraries are required to build ohm:
 
 Additional, the following 3rd-party libraries may optionally be used:
 
-Library                                             | Feature Usage
---------------------------------------------------- | -----------------------------------------------------------------
-[PDAL](https://pdal.io/)                            | Load point various point cloud formats for ohmpop.
-[Boost](https://www.boost.org/)                     | required if using libLAS
-[Intel Threading Building Blocks](https://www.threadingbuildingblocks.org/) | Multi-threaded CPU operations.
-[3rd Eye Scene](https://github.com/data61/3rdEyeScene)  | For debug visualisation of map generation.
-[Doxygen](http://www.doxygen.nl/)                   | For generation of API documentation.
-[GLEW](http://glew.sourceforge.net/)                | For HeightmapImage in ohmheightmaputil
-[GLFW](https://www.glfw.org/)                       | For HeightmapImage in ohmheightmaputil
-[libpng](http://www.libpng.org/)                    | To convert heightmap to image using utils/ohmhm2img
-[Eigen3](http://eigen.tuxfamily.org/index.php)      | Used in small amounts in some tests and as a faster option for some geometry operations
-[libLAS](https://liblas.org/)                       | Alternative point cloud loading from LAS for ohmpop.
-[LASZip](https://laszip.org/)                       | To support compressed LAS (LAZ) files with libLAS.
+| Library                                                                     | Feature Usage                                                                           |
+| --------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| [3rd Eye Scene](https://github.com/data61/3rdEyeScene)                      | For debug visualisation of map generation.                                              |
+| [Doxygen](http://www.doxygen.nl/)                                           | For generation of API documentation.                                                    |
+| [Eigen3](http://eigen.tuxfamily.org/index.php)                              | Used in small amounts in some tests and as a faster option for some geometry operations |
+| [Intel Threading Building Blocks](https://www.threadingbuildingblocks.org/) | Multi-threaded CPU operations.                                                          |
+| [GLEW](http://glew.sourceforge.net/)                                        | For HeightmapImage in ohmheightmaputil                                                  |
+| [GLFW](https://www.glfw.org/)                                               | For HeightmapImage in ohmheightmaputil                                                  |
+| [libpng](http://www.libpng.org/)                                            | To convert heightmap to image using utils/ohmhm2img                                     |
+| [PDAL](https://pdal.io/)                                                    | Load point various point cloud formats for ohmpop.                                      |
 
 While efforts are made to ensure components remain optional, certain configurations may be incompatible.
 

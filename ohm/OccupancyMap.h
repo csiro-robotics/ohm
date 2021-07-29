@@ -819,6 +819,10 @@ public:
   void integrateRays(const glm::dvec3 *rays, size_t element_count, const float *intensities = nullptr,
                      unsigned ray_update_flags = kRfDefault);
 
+  //-------------------------------------------------------
+  // Data copy/cloning
+  //-------------------------------------------------------
+
   /// Clone the entire map.
   /// @return A deep clone of this map. Caller takes ownership.
   OccupancyMap *clone() const;

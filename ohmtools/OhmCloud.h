@@ -253,6 +253,16 @@ uint64_t ohmtools_API saveDensityCloud(const std::string &file_name, const ohm::
                                        const SaveDensityCloudOptions &opt = SaveDensityCloudOptions(),
                                        const ProgressCallback &prog = ProgressCallback());
 
+/// Similar to @c saveCloud() exporting voxels as a series of cube meshes.
+/// @param file_name File to save to. Please add the .ply extension.
+/// @param map The map to save.
+/// @param opt Additional export controls.
+/// @param prog Optional function called to report on progress.
+/// @return The number of voxels saved.
+uint64_t ohmtools_API saveVoxels(const std::string &file_name, const ohm::OccupancyMap &map,
+                                 const SaveCloudOptions &opt = SaveCloudOptions(),
+                                 const ProgressCallback &prog = ProgressCallback());
+
 /// Save @p map assuming it is a heightmap (contains @c HeightmapVoxel data) to a ply cloud.
 /// @param file_name File to save to. Please add the .ply extension.
 /// @param map The map to save.
@@ -262,6 +272,16 @@ uint64_t ohmtools_API saveDensityCloud(const std::string &file_name, const ohm::
 uint64_t ohmtools_API saveHeightmapCloud(const std::string &file_name, const ohm::OccupancyMap &heightmap,
                                          const SaveHeightmapCloudOptions &opt = SaveHeightmapCloudOptions(),
                                          const ProgressCallback &prog = ProgressCallback());
+
+/// Similar to @c saveHeightmapCloud() exporting voxels as a series of cube meshes.
+/// @param file_name File to save to. Please add the .ply extension.
+/// @param map The map to save.
+/// @param opt Additional export controls.
+/// @param prog Optional function called to report on progress.
+/// @return The number of voxels saved.
+uint64_t ohmtools_API saveHeightmapVoxels(const std::string &file_name, const ohm::OccupancyMap &heightmap,
+                                          const SaveHeightmapCloudOptions &opt = SaveHeightmapCloudOptions(),
+                                          const ProgressCallback &prog = ProgressCallback());
 
 /// Save the results of @p query on @p map to a ply file, exporting all intersected voxels.
 /// Voxels are coloured by the reported query range values where voxels at or beyond @p colourRange

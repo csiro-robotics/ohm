@@ -45,6 +45,9 @@ set(OHM_PREFIX_PACKAGE share/${CMAKE_PROJECT_NAME}/cmake) # For catkin interoper
 # Prefix for include directories.
 set(OHM_PREFIX_INCLUDE include/ohm)
 
+# General, required library
+find_package(GLM REQUIRED)
+
 # Look for OpenCL and CUDA to setup GPU build options
 find_package(CUDA QUIET)
 # Ensure CUDA libraries are linked with the PUBLIC keyword to support dependency propagation.
@@ -124,9 +127,9 @@ option(OHM_UNIT_TESTS "Build ohm units tests?" On)
 option(OHM_VALIDATION "Enable various validation tests in the occupancy map code. Has some performance impact." Off)
 option(OHM_BUILD_CUDA "Build ohm library and utlities for CUDA?" ${OHM_BUILD_CUDA_DEFAULT})
 option(OHM_BUILD_OPENCL "Build ohm library and utlities for OpenCL?" ${OHM_BUILD_OPENCL_DEFAULT})
-option(OHM_BUILD_HEIGHTMAPUTIL "Build the heightmap to image conversion library and utility?" ON)
 option(OHM_LEAK_TRACK "Enable memory leak tracking?" OFF)
-option(OHM_WITH_OCTOMAP "Build comparative occupancy map generation using octomap?" OFF)
+
+option(WITH_OCTOMAP "Build comparative occupancy map generation using octomap?" OFF)
 
 # Setup default memory leak tracking suppressions and options (GCC/Clang AddressSanitizer).
 set(OHM_LEAK_SUPPRESS_OCL_INIT
@@ -179,31 +182,29 @@ find_package(PDAL QUIET)
 find_package(LIBLAS QUIET)
 find_package(LASZIP QUIET)
 
-set(OHM_CLOUD_IO_LIBRARY auto CACHE STRING "Select point cloud IO library to use:  auto (prefer pdal), liblas, pdal or none")
-set_property(CACHE OHM_CLOUD_IO_LIBRARY PROPERTY STRINGS auto liblas pdal none)
+set(WITH_PDAL_INIT OFF)
+if(PDAL_FOUND)
+  if(PDAL_VERSION VERSION_GREATER_EQUAL 1.7)
+    set(WITH_PDAL_INIT ON)
+  endif(PDAL_VERSION VERSION_GREATER_EQUAL 1.7)
+endif(PDAL_FOUND)
+option(WITH_PDAL "Build with PDAL support?" ${WITH_PDAL_INIT})
 
 find_package(Eigen3 QUIET)
-option(OHM_WITH_EIGEN "Use Eigen for more signficiant linear algebra algorithms (e.g., eigen decomposition)?" ${EIGEN3_FOUND})
+option(WITH_EIGEN "Use Eigen for more signficiant linear algebra algorithms (e.g., eigen decomposition)?" ${EIGEN3_FOUND})
+# Rename WITH_EIGEN for use in OhmConfig.h
+# We follow CMake paradigms here using WITH_XXX, but in code we prefix with OHM to avoid aliasing with other libraries.
+set(OHM_WITH_EIGEN ${WITH_EIGEN})
 
-message(STATUS "Cloud IO Library: ${OHM_CLOUD_IO_LIBRARY}")
-
-# Select the cloud io library to use.
-set(CLOUD_IO_LIB ${OHM_CLOUD_IO_LIBRARY})
-if(CLOUD_IO_LIB STREQUAL "auto")
-  if(PDAL_FOUND)
-    set(CLOUD_IO_LIB "pdal")
-  elseif(LIBLAS_FOUND)
-    set(CLOUD_IO_LIB "liblas")
-    # libLAS uses static boost libraries.
-    if(MSVC)
-      set(Boost_USE_STATIC_LIBS   ON)
-      set(Boost_USE_MULTITHREADED ON)
-    endif(MSVC)
-  else()
-    message(SEND_ERROR "Unable to local a point cloud IO library [pdal, liblas].")
-  endif()
-  message(STATUS "Cloud IO auto selected: ${CLOUD_IO_LIB}")
-endif(CLOUD_IO_LIB STREQUAL "auto")
+# Heightmap image libraries (optional)
+find_package(OpenGL QUIET)
+find_package(GLEW QUIET)
+find_package(glfw3 QUIET)
+set(OHM_HM_IMG_LIBS_FOUND NO)
+if(OpenGL_FOUND AND GLEW_FOUND AND GLM_FOUND AND glfw3_FOUND)
+  set(OHM_HM_IMG_LIBS_FOUND YES)
+endif(OpenGL_FOUND AND GLEW_FOUND AND GLM_FOUND AND glfw3_FOUND)
+option(OHM_BUILD_HEIGHTMAP_IMAGE "Build ohmheightmapimage library to support heightmap to image conversion?" ${OHM_HM_IMG_LIBS_FOUND})
 
 if(OHM_BUILD_OPENCL)
   add_subdirectory(clu)
@@ -216,11 +217,12 @@ add_subdirectory(ohm)
 if(OHM_BUILD_CUDA OR OHM_BUILD_OPENCL)
   add_subdirectory(ohmgpu)
 endif(OHM_BUILD_CUDA OR OHM_BUILD_OPENCL)
+add_subdirectory(ohmheightmap)
 
-if(OHM_BUILD_HEIGHTMAPUTIL)
+if(OHM_BUILD_HEIGHTMAP_IMAGE)
   # Experimental
-  add_subdirectory(ohmheightmaputil)
-endif(OHM_BUILD_HEIGHTMAPUTIL)
+  add_subdirectory(ohmheightmapimage)
+endif(OHM_BUILD_HEIGHTMAP_IMAGE)
 
 add_subdirectory(ohmtools)
 add_subdirectory(utils)

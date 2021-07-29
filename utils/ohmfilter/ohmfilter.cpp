@@ -158,9 +158,10 @@ int parseOptions(Options *opt, int argc, char *argv[])  // NOLINT(modernize-avoi
 bool filterCloud(const Options &opt, const ohm::OccupancyMap &map, ProgressMonitor *prog)
 {
   // Use the SlamCloudLoader with no trajectory specified to load the cloud - it's just convenient.
-  SlamCloudLoader cloud_loader;
+  slamio::SlamCloudLoader cloud_loader;
+  cloud_loader.setErrorLog([](const char *msg) { std::cerr << msg << std::flush; });
 
-  if (!cloud_loader.open(opt.cloud_in.c_str(), opt.traj_in.c_str()))
+  if (!cloud_loader.openWithTrajectory(opt.cloud_in.c_str(), opt.traj_in.c_str()))
   {
     std::cerr << "Error: Unable to load cloud file " << opt.cloud_in << std::endl;
     return false;
@@ -239,8 +240,8 @@ bool filterCloud(const Options &opt, const ohm::OccupancyMap &map, ProgressMonit
   std::uint64_t point_count = 0;
   std::uint64_t export_count = 0;
   const bool with_trajectory = !opt.traj_in.empty();
-  SamplePoint sample{};
-  while (cloud_loader.nextPoint(sample))
+  slamio::SamplePoint sample{};
+  while (cloud_loader.nextSample(sample))
   {
     key = map.voxelKey(sample.sample);
     if (filter(sample.timestamp, sample.sample, key))
@@ -346,7 +347,8 @@ int main(int argc, char *argv[])
   }
   else
   {
-    std::cerr << "Error: Unable to read map '" << opt.map_file << "' : " << ohm::errorCodeString(res) << std::endl;
+    std::cerr << "Error: Unable to read map '" << opt.map_file << "' : " << ohm::serialiseErrorCodeString(res)
+              << std::endl;
   }
 
   prog.joinThread();
