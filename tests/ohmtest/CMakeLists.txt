@@ -6,9 +6,6 @@ find_package(GLM)
 # Eigen required to support some tests - NDT in particular
 find_package(Eigen3 QUIET)
 
-if(PNG_FOUND)
-  set(OHM_WITH_PNG ON)
-endif(PNG_FOUND)
 configure_file(OhmTestConfig.in.h "${CMAKE_CURRENT_BINARY_DIR}/OhmTestConfig.h")
 
 set(SOURCES

@@ -86,12 +86,12 @@ target_include_directories(ohmheightmap SYSTEM
     $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/3rdparty>
 )
 
-if(OHM_WITH_EIGEN)
+if(WITH_EIGEN)
   # Link Eigen as a private link target under the BUILD_INTERFACE. This allows Eigen definitions to be set,
   # imports inlcude directories, but does not chain the dependency downstream, which is fine for static, or header only
   # libraries (Eigen being header only).
   target_link_libraries(ohmheightmap PRIVATE $<BUILD_INTERFACE:Eigen3::Eigen>)
-endif(OHM_WITH_EIGEN)
+endif(WITH_EIGEN)
 
 if(OHM_TES_DEBUG)
   target_link_libraries(ohmheightmap PUBLIC 3es::3es-core)
