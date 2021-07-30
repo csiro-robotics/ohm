@@ -55,13 +55,17 @@ inline void *collateArgPtr(ARG *arg)
 template <typename T>
 inline void *collateArgPtr(BufferArg<T> *arg)
 {
-  return arg->buffer->argPtr();
+  // Note(KS): this is a static variable in an inline function. The address may vary.
+  static T *null_arg = nullptr;
+  return arg->buffer ? arg->buffer->argPtr() : &null_arg;
 }
 
 template <typename T>
 inline void *collateArgPtr(const BufferArg<T> *arg)
 {
-  return arg->buffer->argPtr();
+  // Note(KS): this is a static variable in an inline function. The address may vary.
+  static T *null_arg = nullptr;
+  return arg->buffer ? arg->buffer->argPtr() : &null_arg;
 }
 
 inline void collateArgs(unsigned /*index*/, void ** /*collated_args*/)
