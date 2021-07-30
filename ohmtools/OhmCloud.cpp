@@ -408,7 +408,9 @@ uint64_t saveCloud(const std::string &file_name, const ohm::OccupancyMap &map, c
       {
         voxel.colour = colour_select(occupancy);
       }
+      return true;
     }
+    return false;
   };
 
   return ::saveAnyCloud(file_name, map, extract_voxel, with_flags, prog);
@@ -454,7 +456,9 @@ uint64_t saveDensityCloud(const std::string &file_name, const ohm::OccupancyMap 
       {
         voxel.colour = colour_select(traversal);
       }
+      return true;
     }
+    return false;
   };
 
   return ::saveAnyCloud(file_name, map, extract_voxel, with_flags, prog);
@@ -496,7 +500,9 @@ uint64_t ohmtools_API saveVoxels(const std::string &file_name, const ohm::Occupa
       {
         voxel.colour = colour_select(occupancy);
       }
+      return true;
     }
+    return false;
   };
 
   return ::saveAnyVoxels(file_name, map, extract_voxel, with_flags, prog);
@@ -542,7 +548,9 @@ uint64_t saveDensityVoxels(const std::string &file_name, const ohm::OccupancyMap
       {
         voxel.colour = colour_select(traversal);
       }
+      return true;
     }
+    return false;
   };
 
   return ::saveAnyVoxels(file_name, map, extract_voxel, with_flags, prog);
