@@ -67,7 +67,6 @@ set(GPU_HEADERS
   gpu/CovarianceHitNdt_h.cl
   gpu/Traversal.cl
   gpu/LineWalk.cl
-  gpu/NdtModeDef.cl
   gpu/VoxelMean.cl
   gpu/RaysQueryResult.h
   GpuKey.h
@@ -197,12 +196,6 @@ if(OHM_BUILD_CUDA)
     gpu/RaysQuery.cu
     gpu/RegionUpdate.cu
     gpu/RegionUpdateNdt.cu
-    gpu/RegionUpdateNdtTm.cu
-    gpu/RegionUpdateNdtWithTraversal.cu
-    gpu/RegionUpdateNdtTmWithTraversal.cu
-    gpu/RegionUpdateWithTraversal.cu
-    gpu/RegionUpdateWithMean.cu
-    gpu/RegionUpdateWithMeanAndTraversal.cu
     gpu/RoiRangeFill.cu
     gpu/TransformSamples.cu
   )

@@ -14,7 +14,6 @@
 // - REGION_UPDATE_KERNEL : the kernel name for the entry point
 // - REGION_UPDATE_SUFFIX : suffix applied to distinguish potentially repeaded
 //  code and types.
-// - VOXEL_MEAN : defined if compiling for voxel means
 //------------------------------------------------------------------------------
 
 //------------------------------------------------------------------------------
@@ -37,14 +36,11 @@
 //------------------------------------------------------------------------------
 #include "gpu_ext.h"  // Must be first
 
-#include "NdtModeDef.cl"
-
 #include "MapCoord.h"
-#if defined(VOXEL_MEAN) || NDT
-#include "VoxelMeanCompute.h"
-#endif  // defined(VOXEL_MEAN) || NDT
 #include "RayFlag.h"
-#if NDT
+#include "Traversal.cl"
+#include "VoxelMeanCompute.h"
+#ifdef NDT
 #include "CovarianceVoxelCompute.h"
 #endif  // NDT
 
@@ -55,51 +51,17 @@
 //------------------------------------------------------------------------------
 
 // This is begging for a refactor.
-#ifndef TRAVERSAL
-#if NDT == NDT_OM
+#ifdef NDT
 #define REGION_UPDATE_KERNEL regionRayUpdateNdt
 #define VISIT_LINE_VOXEL     visitVoxelRegionUpdateNdt
 #define WALK_LINE_VOXELS     walkRegionLineNdt
 
-#elif NDT == NDT_TM
-#define REGION_UPDATE_KERNEL regionRayUpdateNdtTm
-#define VISIT_LINE_VOXEL     visitVoxelRegionUpdateNdtTm
-#define WALK_LINE_VOXELS     walkRegionLineNdtTm
-
-#elif defined(VOXEL_MEAN)
-#define REGION_UPDATE_KERNEL regionRayUpdateSubVox
-#define VISIT_LINE_VOXEL     visitVoxelRegionUpdateSubVox
-#define WALK_LINE_VOXELS     walkRegionLineSubVox
-
-#else  // VOXEL_MEAN
+#else  // NDT
 #define REGION_UPDATE_KERNEL regionRayUpdate
 #define VISIT_LINE_VOXEL     visitVoxelRegionUpdate
 #define WALK_LINE_VOXELS     walkRegionLine
 
-#endif
-#else  //  TRAVERSAL
-#if NDT == NDT_OM
-#define REGION_UPDATE_KERNEL regionRayUpdateNdtWithTraversal
-#define VISIT_LINE_VOXEL     visitVoxelRegionUpdateNdtWithTraversal
-#define WALK_LINE_VOXELS     walkRegionLineNdtWithTraversal
-
-#elif NDT == NDT_TM
-#define REGION_UPDATE_KERNEL regionRayUpdateNdtTmWithTraversal
-#define VISIT_LINE_VOXEL     visitVoxelRegionUpdateNdtTmWithTraversal
-#define WALK_LINE_VOXELS     walkRegionLineNdtTmWithTraversal
-
-#elif defined(VOXEL_MEAN)
-#define REGION_UPDATE_KERNEL regionRayUpdateSubVoxWithTraversal
-#define VISIT_LINE_VOXEL     visitVoxelRegionUpdateSubVoxWithTraversal
-#define WALK_LINE_VOXELS     walkRegionLineSubVoxWithTraversal
-
-#else  // VOXEL_MEAN
-#define REGION_UPDATE_KERNEL regionRayUpdateWithTraversal
-#define VISIT_LINE_VOXEL     visitVoxelRegionUpdateWithTraversal
-#define WALK_LINE_VOXELS     walkRegionLineWithTraversal
-
-#endif
-#endif  // TRAVERSAL
+#endif  // NDT
 
 
 #ifndef REGION_UPDATE_BASE_CL
@@ -110,28 +72,22 @@ typedef struct LineWalkData_t
   __global atomic_float *occupancy;
   // Array of offsets for each regionKey into occupancy. These are byte offsets.
   __global ulonglong *occupancy_offsets;
-#if defined(VOXEL_MEAN) || NDT
   __global VoxelMean *means;
   // Array of offsets for each regionKey into means. These are byte offsets.
   __global ulonglong *means_offsets;
-#endif  // defined(VOXEL_MEAN) || NDT
-#if NDT
-  __global CovarianceVoxel *cov_voxels;
-  // Array of offsets for each regionKey into cov_voxels. These are byte offsets.
-  __global ulonglong *cov_offsets;
-#endif  // NDT
-#if NDT == NDT_TM
-  // Number of hit/miss counts used in the ndt-tm model
-  __global HitMissCount *hit_miss;
-  // Array of offsets for each regionKey into hit_miss. These are byte offsets.
-  __global ulonglong *hit_miss_offsets;
-#endif  // NDT == NDT_TM
-#ifdef TRAVERSAL
   // Traversal voxel memory
   __global atomic_float *traversal;
   // Array of offsets for each regionKey into traversal. These are byte offsets.
   __global ulonglong *traversal_offsets;
-#endif  // TRAVERSAL
+#ifdef NDT
+  __global CovarianceVoxel *cov_voxels;
+  // Array of offsets for each regionKey into cov_voxels. These are byte offsets.
+  __global ulonglong *cov_offsets;
+  // Number of hit/miss counts used in the ndt-tm model
+  __global HitMissCount *hit_miss;
+  // Array of offsets for each regionKey into hit_miss. These are byte offsets.
+  __global ulonglong *hit_miss_offsets;
+#endif  // NDT
   // Array of region keys for currently loaded regions.
   __global int3 *region_keys;
   // The region currently being traversed. Also used to reduce searching the region_keys and region_mem_offsets.
@@ -156,7 +112,7 @@ typedef struct LineWalkData_t
   /// A reference sample position. This is in a frame local to the centre of the voxel containing this sample
   /// coordinate.
   float3 sample;
-#if NDT
+#ifdef NDT
   /// A reference sensor position. This is in a frame local to the centre of the voxel containing the sample coordinate.
   float3 sensor;
   // Affects how quickly NDT removes voxels: [0, 1].
@@ -167,11 +123,9 @@ typedef struct LineWalkData_t
 } LineWalkData;
 #endif  // REGION_UPDATE_BASE_CL
 
-#if defined(VOXEL_MEAN) || NDT
 #include "VoxelMean.cl"
-#endif  // defined(VOXEL_MEAN) || NDT
 
-#if NDT
+#ifdef NDT
 #include "AdjustNdt.cl"
 #else  // NDT
 #include "AdjustOccupancy.cl"
@@ -287,34 +241,33 @@ __device__ bool VISIT_LINE_VOXEL(const GpuKey *voxelKey, bool isEndVoxel, const 
       // mem_fence(CLK_GLOBAL_MEM_FENCE);
     } while (new_value != old_value && !gputilAtomicCasF32(occupancy_ptr, old_value, new_value));
 
-#if defined(VOXEL_MEAN) || NDT
-    if (adjustment > 0)
+    if (line_data->means_offsets && adjustment > 0)
     {
       ulonglong vi = vi_local + (line_data->means_offsets[line_data->current_region_index] / sizeof(*line_data->means));
       updateVoxelMeanPosition(&line_data->means[vi], line_data->sample, voxel_resolution);
     }
-#endif  // defined(VOXEL_MEAN) || NDT
 
     // Update traversal. There is no floating based atomic arithmetic, so we must do the same CAS style update.
-#ifdef TRAVERSAL
-#ifdef LIMIT_VOXETRAVERSALL_WRITE_ITERATIONS
-    iterations = 0;
-#endif
-    // Work out which voxel to modify.
-    vi = (line_data->traversal_offsets[line_data->current_region_index] / sizeof(*line_data->traversal)) + vi_local;
-    __global atomic_float *traversal = &line_data->traversal[vi];
-    old_value = new_value = gputilAtomicLoadF32(traversal);
-    do
+    if (line_data->traversal_offsets)
     {
 #ifdef LIMIT_VOXEL_WRITE_ITERATIONS
-      if (iterations++ > iterationLimit)
-      {
-        break;
-      }
+      iterations = 0;
 #endif
-      new_value += exitTime - entryTime;
-    } while (new_value != old_value && !gputilAtomicCasF32(traversal, old_value, new_value));
-#endif  // TRAVERSAL
+      // Work out which voxel to modify.
+      vi = (line_data->traversal_offsets[line_data->current_region_index] / sizeof(*line_data->traversal)) + vi_local;
+      __global atomic_float *traversal = &line_data->traversal[vi];
+      old_value = new_value = gputilAtomicLoadF32(traversal);
+      do
+      {
+#ifdef LIMIT_VOXEL_WRITE_ITERATIONS
+        if (iterations++ > iterationLimit)
+        {
+          break;
+        }
+#endif
+        new_value += exitTime - entryTime;
+      } while (new_value != old_value && !gputilAtomicCasF32(traversal, old_value, new_value));
+    }
 
     if (was_occupied_voxel && (line_data->region_update_flags & kRfStopOnFirstOccupied))
     {
@@ -403,24 +356,18 @@ __device__ bool VISIT_LINE_VOXEL(const GpuKey *voxelKey, bool isEndVoxel, const 
 /// @param voxel_value_max Maximum clamping value for voxel adjustments.
 /// @param region_update_flags Update control values as per @c RayFlag.
 __kernel void REGION_UPDATE_KERNEL(
-  __global atomic_float *occupancy, __global ulonglong *occupancy_region_mem_offsets_global,
-#if defined(VOXEL_MEAN) || NDT
-  __global VoxelMean *means, __global ulonglong *means_region_mem_offsets_global,
-#endif  // defined(VOXEL_MEAN) || NDT
-#if NDT
+  __global atomic_float *occupancy, __global ulonglong *occupancy_region_mem_offsets_global, __global VoxelMean *means,
+  __global ulonglong *means_region_mem_offsets_global,
+#ifdef NDT
   __global CovarianceVoxel *cov_voxels, __global ulonglong *cov_region_mem_offsets_global,
-#endif  // NDT
-#if NDT == NDT_TM
   __global HitMissCount *hit_miss_voxels, __global ulonglong *hit_miss_region_mem_offsets_global,
-#endif  // NDT == NDT_TM
-#ifdef TRAVERSAL
+#endif  // NDT
   __global atomic_float *traversal_voxels, __global ulonglong *traversal_region_mem_offsets_global,
-#endif  // TRAVERSAL
   __global int3 *occupancy_region_keys_global, uint region_count, __global GpuKey *line_keys,
   __global float3 *local_lines, uint line_count, int3 region_dimensions, float voxel_resolution, float ray_adjustment,
   float sample_adjustment, float occupied_threshold, float voxel_value_min, float voxel_value_max,
   uint region_update_flags
-#if NDT
+#ifdef NDT
   ,
   float adaptation_rate, float sensor_noise
 #endif  // NDT
@@ -435,24 +382,18 @@ __kernel void REGION_UPDATE_KERNEL(
   LineWalkData line_data;
   line_data.occupancy = occupancy;
   line_data.occupancy_offsets = occupancy_region_mem_offsets_global;
-#if defined(VOXEL_MEAN) || NDT
   line_data.means = means;
   line_data.means_offsets = means_region_mem_offsets_global;
-#endif  // defined(VOXEL_MEAN) || NDT
-#if NDT
+#ifdef NDT
   line_data.cov_voxels = cov_voxels;
   line_data.cov_offsets = cov_region_mem_offsets_global;
   line_data.adaptation_rate = adaptation_rate;
   line_data.sensor_noise = sensor_noise;
-#endif  // NDT
-#if NDT == NDT_TM
   line_data.hit_miss = hit_miss_voxels;
   line_data.hit_miss_offsets = hit_miss_region_mem_offsets_global;
-#endif  // NDT == NDT_TM
-#ifdef TRAVERSAL
+#endif  // NDT
   line_data.traversal = traversal_voxels;
   line_data.traversal_offsets = traversal_region_mem_offsets_global;
-#endif  // TRAVERSAL
   line_data.region_keys = occupancy_region_keys_global;
   line_data.region_dimensions = region_dimensions;
   line_data.ray_adjustment = ray_adjustment;
@@ -474,7 +415,7 @@ __kernel void REGION_UPDATE_KERNEL(
   const float3 lineEnd = local_lines[get_global_id(0) * 2 + 1];
 
   line_data.sample = lineEnd;
-#if NDT
+#ifdef NDT
   line_data.sensor = lineStart;
 #endif  //  NDT
 

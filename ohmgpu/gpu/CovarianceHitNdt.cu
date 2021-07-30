@@ -7,27 +7,6 @@
 #include <gputil/cuda/cutil_importcl.h>
 #include <gputil/gpu_ext.h>
 
-#define NDT 1
 #include "CovarianceHitNdt.cl"
 
 GPUTIL_CUDA_DEFINE_KERNEL(covarianceHitNdt);
-
-#undef NDT
-#define NDT 2
-#include "CovarianceHitNdt.cl"
-
-GPUTIL_CUDA_DEFINE_KERNEL(covarianceHitNdtTm);
-
-#define TRAVERSAL
-#undef NDT
-#define NDT 1
-#include "CovarianceHitNdt.cl"
-
-GPUTIL_CUDA_DEFINE_KERNEL(covarianceHitNdtWithTraversal);
-
-#define TRAVERSAL
-#undef NDT
-#define NDT 2
-#include "CovarianceHitNdt.cl"
-
-GPUTIL_CUDA_DEFINE_KERNEL(covarianceHitNdtTmWithTraversal);

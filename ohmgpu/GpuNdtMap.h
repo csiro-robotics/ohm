@@ -122,7 +122,7 @@ protected:
 
   using TouchedCacheSet = std::array<GpuLayerCache *, 8>;
   void invokeNdtOm(unsigned region_update_flags, int buf_idx, gputil::EventList &wait, TouchedCacheSet &used_caches);
-  void invokeNdtTm(unsigned region_update_flags, int buf_idx, gputil::EventList &wait, TouchedCacheSet &used_caches);
+  void invokeNdt(unsigned region_update_flags, int buf_idx, gputil::EventList &wait, TouchedCacheSet &used_caches);
 
   void releaseGpuProgram() override;
 };

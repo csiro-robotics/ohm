@@ -6,18 +6,12 @@
 #ifndef ADJUSTNDT_CL
 #define ADJUSTNDT_CL
 
-#include "NdtModeDef.cl"
-
 #include "CovarianceVoxelCompute.h"
 
 inline __device__ float calculateOccupancyAdjustment(const GpuKey *voxelKey, bool isEndVoxel, bool isSampleVoxel,
                                                      const GpuKey *startKey, const GpuKey *endKey,
                                                      float voxel_resolution, LineWalkData *line_data)
 {
-#ifndef VOXEL_MEAN
-#error VOXEL_MEAN must be enabled for NDT update.
-#endif  // !VOXEL_MEAN
-
   // Note: we always ignore voxels where isSampleVoxel or isEndVoxel is true. Samples are adjusted later while
   // a non-sample isEndVoxel is a split ray.
 
@@ -56,9 +50,8 @@ inline __device__ float calculateOccupancyAdjustment(const GpuKey *voxelKey, boo
     &cov_voxel, &adjustment, &is_miss, line_data->sensor, line_data->sample, voxel_mean, mean_data->count, INFINITY,
     line_data->ray_adjustment, line_data->adaptation_rate, line_data->sensor_noise, min_sample_threshold);
 
-#if NDT == NDT_TM
   // We increment the miss if needed.
-  if (is_miss)
+  if (line_data->hit_miss && is_miss)
   {
     __global HitMissCount *hit_miss =
       &line_data
@@ -66,7 +59,6 @@ inline __device__ float calculateOccupancyAdjustment(const GpuKey *voxelKey, boo
                     vi_local];
     gputilAtomicAdd(&hit_miss->miss_count, 1);
   }
-#endif  // NDT == NDT_TM
 
   // NDT should do sample update in a separate process in order to update the covariance, so we should not get here.
   return (isEndVoxel || (isSampleVoxel && !(line_data->region_update_flags & kRfEndPointAsFree))) ? 0 : adjustment;
