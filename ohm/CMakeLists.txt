@@ -135,12 +135,16 @@ set(SOURCES
   VoxelBuffer.cpp
   VoxelBuffer.h
   VoxelData.h
+  VoxelIncident.h
+  VoxelIncidentCompute.h
   VoxelLayout.cpp
   VoxelLayout.h
   VoxelMean.h
   VoxelMeanCompute.h
   VoxelOccupancy.h
   VoxelOccupancyCompute.h
+  VoxelTouchTime.h
+  VoxelTouchTimeCompute.h
 )
 
 if(TES_ENABLE)
@@ -205,11 +209,14 @@ set(PUBLIC_HEADERS
   VoxelBlockCompressionQueue.h
   VoxelBuffer.h
   VoxelData.h
+  VoxelIncident.h
   VoxelLayout.h
   VoxelMean.h
   VoxelMeanCompute.h
   VoxelOccupancy.h
   VoxelOccupancyCompute.h
+  VoxelTouchTime.h
+  VoxelTouchTimeCompute.h
   "${CMAKE_CURRENT_BINARY_DIR}/ohm/OhmConfig.h"
   "${CMAKE_CURRENT_BINARY_DIR}/ohm/OhmExport.h"
   )

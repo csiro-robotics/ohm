@@ -53,7 +53,7 @@ public:
   using RayMapper::integrateRays;
 
 protected:
-  size_t integrateRays(const glm::dvec3 *rays, size_t element_count, const float *intensities,
+  size_t integrateRays(const glm::dvec3 *rays, size_t element_count, const float *intensities, const double *timestamps,
                        unsigned ray_update_flags) override;
 
   void onSyncVoxels(int buffer_index) override;

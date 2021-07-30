@@ -52,10 +52,13 @@ public:
   ///
   /// @param rays The array of start/end point pairs to integrate.
   /// @param element_count The number of @c glm::dvec3 elements in @p rays , which is twice the ray count.
-  /// @param intensities Optional--for each ray, intensity of the return (element_count/2 elements).
+  /// @param intensities An array of intensity values matching the @p rays items. There is one intensity value per ray
+  ///   so there are @c element_count/2 items. May be null to omit intensity values.
+  /// @param timestamps An array of timestap values matching the @p rays items. There is one timestap value per ray
+  ///   so there are @c element_count/2 items. May be null to omit timestap values.
   /// @param ray_update_flags @c RayFlag bitset used to modify the behaviour of this function. All flags are
   /// implemented.
-  size_t integrateRays(const glm::dvec3 *rays, size_t element_count, const float *intensities,
+  size_t integrateRays(const glm::dvec3 *rays, size_t element_count, const float *intensities, const double *timestamps,
                        unsigned ray_update_flags) override;
 
   /// Lookup the given @p rays in the map. The @p rays form a list of origin/sample pairs, where the sample represents
@@ -81,6 +84,8 @@ protected:
   int occupancy_layer_ = -1;              ///< Cached occupancy layer index.
   int mean_layer_ = -1;                   ///< Cached voxel mean layer index.
   int traversal_layer_ = -1;              ///< The traversal layer index.
+  int touch_time_layer = -1;              ///< Cache touch time layer index.
+  int incident_normal_layer = -1;         ///< Cache incident normal layer index.
   glm::u8vec3 occupancy_dim_{ 0, 0, 0 };  ///< Cached occupancy layer voxel dimensions. Voxel mean must exactly match.
   bool valid_ = false;                    ///< Has layer validation passed?
 };

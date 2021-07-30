@@ -104,12 +104,12 @@ const std::vector<RaysQueryResult> &RaysQueryMapWrapper::results() const
 
 
 size_t RaysQueryMapWrapper::integrateRays(const glm::dvec3 *rays, size_t element_count, const float *intensities,
-                                          unsigned ray_update_flags)
+                                          const double *timestamps, unsigned ray_update_flags)
 {
   RaysQueryMapWrapperDetail *imp = detail();
   imp->results_cpu.clear();
   imp->needs_sync = true;
-  return GpuMap::integrateRays(rays, element_count, intensities, ray_update_flags);
+  return GpuMap::integrateRays(rays, element_count, intensities, timestamps, ray_update_flags);
 }
 
 

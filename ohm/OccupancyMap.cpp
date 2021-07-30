@@ -220,8 +220,7 @@ OccupancyMap::OccupancyMap(double resolution, const glm::u8vec3 &region_voxel_di
   };
 
   imp_->flags = flags;
-  imp_->setDefaultLayout((flags & MapFlag::kVoxelMean) != MapFlag::kNone,
-                         (flags & MapFlag::kTraversal) != MapFlag::kNone);
+  imp_->setDefaultLayout(flags);
 }
 
 OccupancyMap::OccupancyMap(double resolution, const glm::u8vec3 &region_voxel_dimensions, MapFlag flags,
@@ -331,6 +330,21 @@ uint64_t OccupancyMap::stamp() const
 uint64_t OccupancyMap::touch()
 {
   return ++imp_->stamp;
+}
+
+double OccupancyMap::firstRayTime() const
+{
+  return imp_->first_ray_time;
+}
+
+void OccupancyMap::setFirstRayTime(double time)
+{
+  imp_->first_ray_time = time;
+}
+
+void OccupancyMap::updateFirstRayTime(double time)
+{
+  imp_->first_ray_time = (imp_->first_ray_time < 0) ? time : imp_->first_ray_time;
 }
 
 glm::dvec3 OccupancyMap::regionSpatialResolution() const
@@ -969,12 +983,12 @@ void OccupancyMap::clearRayFilter()
 }
 
 void OccupancyMap::integrateRays(const glm::dvec3 *rays, size_t element_count, const float *intensities,
-                                 unsigned ray_update_flags)
+                                 const double *timestamps, unsigned ray_update_flags)
 {
   // This function has been updated to leverage the new RayMapper interface and remove code duplication. It is
   // maintained for legacy reasons.
   // TODO(KS): remove this function and require the use of a RayMapper.
-  RayMapperOccupancy(this).integrateRays(rays, element_count, intensities, ray_update_flags);
+  RayMapperOccupancy(this).integrateRays(rays, element_count, intensities, timestamps, ray_update_flags);
 }
 
 OccupancyMap *OccupancyMap::clone() const

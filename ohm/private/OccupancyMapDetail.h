@@ -54,6 +54,9 @@ struct ohm_API OccupancyMapDetail
   glm::u8vec3 region_voxel_dimensions = glm::u8vec3(0);
   /// The size of a voxel cube edge. All voxels are uniform cubes.
   double resolution = 0.0;
+  /// The timestamp of the first ray added to the map. This is only value if >= 0 and should be set once only.
+  /// @note Timestamps may be unavailable.
+  double first_ray_time = -1;
   /// Used to mark changes in the map. This is a monotonic value which is modified when the map is changed and is
   /// copied into associated @c MapChunk objects. This can be used to detect the recency of changes.
   uint64_t stamp = 0;
@@ -120,9 +123,9 @@ struct ohm_API OccupancyMapDetail
   }
 
   /// Setup the default @c MapLayout: occupancy layer and clearance layer.
-  /// @param enable_voxel_mean Enable voxel mean positioning?
-  /// @param enable_traversal Enable the traversal later?
-  void setDefaultLayout(bool enable_voxel_mean = false, bool enable_traversal = false);
+  /// @param init_flags Flags identifying how to initialise the layers. Only considers flags relating to voxel layers.
+  ///   The @p flags member is updated accordingly.
+  void setDefaultLayout(MapFlag init_flags = MapFlag::kNone);
 
   /// Copy internal details from @p other. For cloning.
   /// @param other The map detail to copy from.

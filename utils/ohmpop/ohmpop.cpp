@@ -774,7 +774,7 @@ int populateMap(const Options &opt)
     if (point_count % ray_batch_size == 0 || g_quit)
     {
       ray_mapper->integrateRays(origin_sample_pairs.data(), unsigned(origin_sample_pairs.size()), intensities.data(),
-                                opt.ray_mode_flags);
+                                nullptr, opt.ray_mode_flags);
       delta_motion = glm::length(origin_sample_pairs[0] - last_batch_origin);
       accumulated_motion += delta_motion;
       last_batch_origin = origin_sample_pairs[0];
@@ -831,7 +831,7 @@ int populateMap(const Options &opt)
   if (!origin_sample_pairs.empty())
   {
     ray_mapper->integrateRays(origin_sample_pairs.data(), unsigned(origin_sample_pairs.size()), intensities.data(),
-                              opt.ray_mode_flags);
+                              nullptr, opt.ray_mode_flags);
     delta_motion = glm::length(origin_sample_pairs[0] - last_batch_origin);
     accumulated_motion += delta_motion;
     sample_timestamps.clear();

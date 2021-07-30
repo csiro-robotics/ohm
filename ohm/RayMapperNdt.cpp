@@ -20,6 +20,8 @@
 #include "RayFilter.h"
 #include "VoxelBuffer.h"
 #include "VoxelData.h"
+#include "VoxelIncident.h"
+#include "VoxelTouchTime.h"
 
 #include <ohmutil/LineWalk.h>
 
@@ -35,6 +37,8 @@ RayMapperNdt::RayMapperNdt(NdtMap *map)
   , covariance_layer_(map_->map().layout().covarianceLayer())
   , intensity_layer_(map_->map().layout().intensityLayer())
   , hit_miss_count_layer_(map_->map().layout().hitMissCountLayer())
+  , touch_time_layer(map_->map().layout().layerIndex(default_layer::touchTimeLayerName()))
+  , incident_normal_layer(map_->map().layout().layerIndex(default_layer::incidentNormalLayerName()))
   , ndt_tm_(map->mode() == NdtMode::kTraversability)
 {
   OccupancyMap *map_ptr = &map_->map();
@@ -43,6 +47,8 @@ RayMapperNdt::RayMapperNdt(NdtMap *map)
   Voxel<const VoxelMean> mean(map_ptr, mean_layer_);
   Voxel<const CovarianceVoxel> cov(map_ptr, covariance_layer_);
   Voxel<const float> traversal(map_ptr, traversal_layer_);
+  Voxel<const uint32_t> touch_time_layer(map_ptr, touch_time_layer);
+  Voxel<const uint32_t> incident_normal_layer(map_ptr, incident_normal_layer);
 
   occupancy_dim_ = (occupancy.isLayerValid()) ? occupancy.layerDim() : occupancy_dim_;
 
@@ -52,6 +58,16 @@ RayMapperNdt::RayMapperNdt(NdtMap *map)
   // Validate the traversal layer in a simliar fashion.
   valid_ = occupancy.isLayerValid() && !traversal.isLayerValid() ||
            occupancy.isLayerValid() && traversal.isLayerValid() && occupancy.layerDim() == traversal.layerDim();
+
+  if (touch_time_layer.isLayerValid())
+  {
+    valid_ = valid_ && occupancy.layerDim() == touch_time_layer.layerDim();
+  }
+
+  if (incident_normal_layer.isLayerValid())
+  {
+    valid_ = valid_ && occupancy.layerDim() == incident_normal_layer.layerDim();
+  }
 
   if (ndt_tm_)
   {
@@ -67,7 +83,7 @@ RayMapperNdt::~RayMapperNdt() = default;
 
 
 size_t RayMapperNdt::integrateRays(const glm::dvec3 *rays, size_t element_count, const float *intensities,
-                                   unsigned ray_update_flags)
+                                   const double *timestamps, unsigned ray_update_flags)
 {
   KeyList keys;
   MapChunk *last_chunk = nullptr;
@@ -77,6 +93,8 @@ size_t RayMapperNdt::integrateRays(const glm::dvec3 *rays, size_t element_count,
   VoxelBuffer<VoxelBlock> intensity_buffer;
   VoxelBuffer<VoxelBlock> hit_miss_count_buffer;
   VoxelBuffer<VoxelBlock> traversal_buffer;
+  VoxelBuffer<VoxelBlock> touch_time_buffer;
+  VoxelBuffer<VoxelBlock> incidents_buffer;
   double last_exit_range = 0;
   bool stop_adjustments = false;
 
@@ -111,6 +129,14 @@ size_t RayMapperNdt::integrateRays(const glm::dvec3 *rays, size_t element_count,
   glm::dvec3 start;
   glm::dvec3 sample;
   float intensity = 0.0f;
+  double time_base = 0;
+
+  if (timestamps)
+  {
+    // Update first ray time if not yet set.
+    occupancy_map.updateFirstRayTime(*timestamps);
+  }
+  time_base = occupancy_map.firstRayTime();
 
   const auto visit_func = [&](const Key &key, double enter_range, double exit_range) -> bool  //
   {
@@ -147,6 +173,16 @@ size_t RayMapperNdt::integrateRays(const glm::dvec3 *rays, size_t element_count,
       if (traversal_layer >= 0)
       {
         traversal_buffer = VoxelBuffer<VoxelBlock>(chunk->voxel_blocks[traversal_layer]);
+      }
+      if (touch_time_layer >= 0 && timestamps)
+      {
+        // Touch time not required for miss update, but we need it in sync for the update later.
+        touch_time_buffer = VoxelBuffer<VoxelBlock>(chunk->voxel_blocks[touch_time_layer]);
+      }
+      if (incident_normal_layer >= 0)
+      {
+        // Incidents not required for miss update, but we need it in sync for the update later.
+        incidents_buffer = VoxelBuffer<VoxelBlock>(chunk->voxel_blocks[incident_normal_layer]);
       }
     }
     last_chunk = chunk;
@@ -259,6 +295,14 @@ size_t RayMapperNdt::integrateRays(const glm::dvec3 *rays, size_t element_count,
         {
           traversal_buffer = VoxelBuffer<VoxelBlock>(chunk->voxel_blocks[traversal_layer]);
         }
+        if (touch_time_layer >= 0 && timestamps)
+        {
+          touch_time_buffer = VoxelBuffer<VoxelBlock>(chunk->voxel_blocks[touch_time_layer]);
+        }
+        if (incident_normal_layer >= 0)
+        {
+          incidents_buffer = VoxelBuffer<VoxelBlock>(chunk->voxel_blocks[incident_normal_layer]);
+        }
       }
       last_chunk = chunk;
       const unsigned voxel_index = ohm::voxelIndex(key, occupancy_dim);
@@ -320,6 +364,21 @@ size_t RayMapperNdt::integrateRays(const glm::dvec3 *rays, size_t element_count,
         traversal_buffer.readVoxel(voxel_index, &traversal);
         traversal += float(glm::length(sample - start) - last_exit_range);
         traversal_buffer.writeVoxel(voxel_index, traversal);
+      }
+
+      if (touch_time_layer >= 0 && timestamps)
+      {
+        const unsigned touch_time = encodeVoxelTouchTime(time_base, timestamps[i >> 1]);
+        touch_time_buffer.writeVoxel(voxel_index, touch_time);
+      }
+
+      if (incident_normal_layer >= 0)
+      {
+        unsigned packed_normal{};
+        incidents_buffer.readVoxel(voxel_index, &packed_normal);
+        // Point count has already been incremented so subtract one to get the right calculation.s
+        packed_normal = updateIncidentNormal(packed_normal, start - sample, voxel_mean.count - 1);
+        incidents_buffer.writeVoxel(voxel_index, packed_normal);
       }
 
       // Lint(KS): The analyser takes some branches which are not possible in practice.

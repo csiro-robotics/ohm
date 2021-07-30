@@ -432,9 +432,9 @@ bool GpuMap::groupedRays() const
 
 
 size_t GpuMap::integrateRays(const glm::dvec3 *rays, size_t element_count, const float *intensities,
-                             unsigned region_update_flags)
+                             const double *timestamps, unsigned region_update_flags)
 {
-  return integrateRays(rays, element_count, intensities, region_update_flags, effectiveRayFilter());
+  return integrateRays(rays, element_count, intensities, timestamps, region_update_flags, effectiveRayFilter());
 }
 
 
@@ -547,7 +547,7 @@ void GpuMap::releaseGpuProgram()
 
 
 size_t GpuMap::integrateRays(const glm::dvec3 *rays, size_t element_count, const float *intensities,
-                             unsigned region_update_flags, const RayFilterFunction &filter)
+                             const double *timestamps, unsigned region_update_flags, const RayFilterFunction &filter)
 {
   if (!imp_->map)
   {

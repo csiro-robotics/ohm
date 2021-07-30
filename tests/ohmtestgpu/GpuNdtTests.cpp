@@ -75,7 +75,7 @@ void testNdtHits(const std::vector<glm::dvec3> &samples, double resolution)
     updateHit(&ref->second, samples[i]);
   }
 
-  ndt.integrateRays(rays.data(), rays.size(), intensities.data(), ohm::kRfExcludeRay);
+  ndt.integrateRays(rays.data(), rays.size(), intensities.data(), nullptr, ohm::kRfExcludeRay);
   ndt.syncVoxels();
 
   // Validate

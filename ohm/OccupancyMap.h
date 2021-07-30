@@ -333,6 +333,21 @@ public:
   /// @return The @c stamp() value after the touch.
   uint64_t touch();
 
+  /// Query the timestmap for the first ray in this map. This time is used to as a timebase reference for rays with
+  /// timestamps allowing time values to be store relative to this time. This time is normally updated once they
+  /// left unchanged. Changing this value will invalidate the touch time layer.
+  /// @note Timestamps may be unavailable.
+  /// @return The first ray timestamp or a negative value if not set.
+  double firstRayTime() const;
+  /// Set the @c firstRayTime() regardless of the current value.
+  /// Not threadsafe.
+  /// @param time The first ray timestamp.
+  void setFirstRayTime(double time);
+  /// Update the @c firstRayTime() setting it only if it has yet to be set.
+  /// Not threadsafe.
+  /// @param time The first ray timestamp.
+  void updateFirstRayTime(double time);
+
   /// Query the spatial resolution of each @c MapRegion. This represents the spatial extents of each region.
   /// @return The spatial resolution of a @c MapRegion.
   glm::dvec3 regionSpatialResolution() const;
@@ -814,10 +829,13 @@ public:
   ///
   /// @param rays Array of origin/sample point pairs.
   /// @param element_count The number of points in @p rays. The ray count is half this value.
-  /// @param intensities Optional--for each ray, intensity of the return (element_count/2 elements).
+  /// @param intensities An array of intensity values matching the @p rays items. There is one intensity value per ray
+  ///   so there are @c element_count/2 items. May be null to omit intensity values.
+  /// @param timestamps An array of timestap values matching the @p rays items. There is one timestap value per ray
+  ///   so there are @c element_count/2 items. May be null to omit timestap values.
   /// @param ray_update_flags Flags controlling ray integration behaviour. See @c RayFlag.
   void integrateRays(const glm::dvec3 *rays, size_t element_count, const float *intensities = nullptr,
-                     unsigned ray_update_flags = kRfDefault);
+                     const double *timestamps = nullptr, unsigned ray_update_flags = kRfDefault);
 
   //-------------------------------------------------------
   // Data copy/cloning

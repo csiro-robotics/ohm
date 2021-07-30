@@ -24,6 +24,10 @@ enum class MapFlag : unsigned
   /// Maintain the traversal in addition to the occupancy layer. See @c default_layer::traversalLayerName() .
   /// The @c kVoxelMean layer should also be enabled to support traversal in order to track the voxel sample count.
   kTraversal = (1u << 2u),
+  /// Maintain a (32-bit) touch time stamp for each normal.
+  kTouchTime = (1u << 3u),
+  /// Maintain an incident normal for each sample voxel.
+  kIncidentNormal = (1u << 4u),
 
   /// Default map creation flags.
   kDefault = kCompressed

@@ -635,7 +635,7 @@ bool RayMapperTrace::valid() const
 }
 
 size_t RayMapperTrace::integrateRays(const glm::dvec3 *rays, size_t element_count, const float *intensities,
-                                     unsigned ray_update_flags)
+                                     const double *timestamps, unsigned ray_update_flags)
 {
 #ifdef TES_ENABLE
   // Walk all the rays and cache the state of the (predicted) touched voxels.
@@ -649,7 +649,7 @@ size_t RayMapperTrace::integrateRays(const glm::dvec3 *rays, size_t element_coun
   }
 #endif  // TES_ENABLE
 
-  const size_t result = true_mapper_->integrateRays(rays, element_count, intensities, ray_update_flags);
+  const size_t result = true_mapper_->integrateRays(rays, element_count, intensities, timestamps, ray_update_flags);
 
 #ifdef TES_ENABLE
   if (g_tes && element_count)

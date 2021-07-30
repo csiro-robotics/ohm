@@ -7,6 +7,7 @@
 
 #include "DefaultLayer.h"
 #include "MapChunk.h"
+#include "MapFlag.h"
 #include "MapLayer.h"
 #include "MapLayout.h"
 #include "OccupancyMap.h"
@@ -21,6 +22,7 @@
 #include "serialise/MapSerialiseV0.1.h"
 #include "serialise/MapSerialiseV0.2.h"
 #include "serialise/MapSerialiseV0.4.h"
+#include "serialise/MapSerialiseV0.5.h"
 #include "serialise/MapSerialiseV0.h"
 
 #include <glm/glm.hpp>
@@ -35,11 +37,7 @@
 #include <type_traits>
 #include <vector>
 
-#define OM_ZIP 1
-
-#if OM_ZIP
 #include <zlib.h>
-#endif  // OM_ZIP
 
 namespace
 {
@@ -90,8 +88,8 @@ const uint32_t kMapHeaderMarker = 0x44330011u;
 // - MMM is a three digit specification of the current minor version.
 // - PPP is a three digit specification of the current patch version.
 const MapVersion kSupportedVersionMin = { 0, 0, 0 };
-const MapVersion kSupportedVersionMax = { 0, 4, 0 };
-const MapVersion kCurrentVersion = { 0, 4, 0 };
+const MapVersion kSupportedVersionMax = { 0, 5, 0 };
+const MapVersion kCurrentVersion = { 0, 5, 0 };
 
 // Note: version 0.3.x is not supported.
 
@@ -127,82 +125,94 @@ int saveItem(OutputStream &stream, const MapValue &value)
 
   switch (value.type())
   {
-  case MapValue::kInt8: {
+  case MapValue::kInt8:
+  {
     auto val = static_cast<int8_t>(value);
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
     stream.write(reinterpret_cast<char *>(&val), 1);
     break;
   }
-  case MapValue::kUInt8: {
+  case MapValue::kUInt8:
+  {
     auto val = static_cast<uint8_t>(value);
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
     stream.write(reinterpret_cast<char *>(&val), 1);
     break;
   }
-  case MapValue::kInt16: {
+  case MapValue::kInt16:
+  {
     auto val = static_cast<int16_t>(value);
     // if (endianSwap) { endian::endianSwap(&val); }
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
     stream.write(reinterpret_cast<char *>(&val), sizeof(val));
     break;
   }
-  case MapValue::kUInt16: {
+  case MapValue::kUInt16:
+  {
     auto val = static_cast<uint16_t>(value);
     // if (endianSwap) { endian::endianSwap(&val); }
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
     stream.write(reinterpret_cast<char *>(&val), sizeof(val));
     break;
   }
-  case MapValue::kInt32: {
+  case MapValue::kInt32:
+  {
     auto val = static_cast<int32_t>(value);
     // if (endianSwap) { endian::endianSwap(&val); }
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
     stream.write(reinterpret_cast<char *>(&val), sizeof(val));
     break;
   }
-  case MapValue::kUInt32: {
+  case MapValue::kUInt32:
+  {
     auto val = static_cast<uint32_t>(value);
     // if (endianSwap) { endian::endianSwap(&val); }
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
     stream.write(reinterpret_cast<char *>(&val), sizeof(val));
     break;
   }
-  case MapValue::kInt64: {
+  case MapValue::kInt64:
+  {
     auto val = static_cast<int64_t>(value);
     // if (endianSwap) { endian::endianSwap(&val); }
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
     stream.write(reinterpret_cast<char *>(&val), sizeof(val));
     break;
   }
-  case MapValue::kUInt64: {
+  case MapValue::kUInt64:
+  {
     auto val = static_cast<uint64_t>(value);
     // if (endianSwap) { endian::endianSwap(&val); }
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
     stream.write(reinterpret_cast<char *>(&val), sizeof(val));
     break;
   }
-  case MapValue::kFloat32: {
+  case MapValue::kFloat32:
+  {
     auto val = static_cast<float>(value);
     // if (endianSwap) { endian::endianSwap(&val); }
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
     stream.write(reinterpret_cast<char *>(&val), sizeof(val));
     break;
   }
-  case MapValue::kFloat64: {
+  case MapValue::kFloat64:
+  {
     auto val = static_cast<double>(value);
     // if (endianSwap) { endian::endianSwap(&val); }
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
     stream.write(reinterpret_cast<char *>(&val), sizeof(val));
     break;
   }
-  case MapValue::kBoolean: {
+  case MapValue::kBoolean:
+  {
     bool bval = static_cast<bool>(value);
     uint8_t val = (bval) ? 1 : 0;
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
     stream.write(reinterpret_cast<char *>(&val), 1);
     break;
   }
-  case MapValue::kString: {
+  case MapValue::kString:
+  {
     const char *str = static_cast<const char *>(value);
     len = strlen(str);
     if (len > std::numeric_limits<uint16_t>::max())
@@ -300,6 +310,9 @@ int saveHeader(OutputStream &stream, const OccupancyMapDetail &map)
   ok = writeUncompressed<double>(stream, map.hit_value) && ok;
   ok = writeUncompressed<double>(stream, map.miss_value) && ok;
   ok = writeUncompressed<uint32_t>(stream, map.chunks.size()) && ok;
+
+  // Added v0.5.0
+  ok = writeUncompressed<double>(stream, map.first_ray_time) && ok;
 
   // Added v0.3.0
   // Saving the map stamp has become important to ensure MapChunk::touched_stamps are correctly maintained.
@@ -480,14 +493,21 @@ int loadHeader(InputStream &stream, HeaderVersion &version, OccupancyMapDetail &
   ok = readRaw<uint32_t>(stream, region_count) && ok;
   map.loaded_region_count = region_count;
 
-  if (version.version.major > 0 || version.version.major == 0 && version.version.minor > 2)
+  if (version.version.major > 0 || version.version.major == 0 && version.version.minor >= 5)
+  {
+    // Read the map first ray time stamp.
+    ok = readRaw<double>(stream, map.first_ray_time) && ok;
+  }
+
+  if (version.version.major > 0 || version.version.major == 0 && version.version.minor >= 3)
   {
     // Read the map stamp.
     ok = readRaw<uint64_t>(stream, map.stamp) && ok;
   }
 
   // v0.3.2 added serialisation of map flags
-  if (version.version.major > 0 || version.version.minor > 3 || version.version.patch > 1)
+  if (version.version.major > 0 || version.version.minor > 3 ||
+      version.version.minor == 3 && version.version.patch >= 2)
   {
     uint32_t flags = 0;
     ok = readRaw<std::underlying_type_t<MapFlag>>(stream, map.flags) && ok;
@@ -674,6 +694,10 @@ int load(const std::string &filename, OccupancyMap &map, SerialiseProgress *prog
     {
       err = v0_4::load(stream, detail, progress, version.version, region_count);
     }
+    else if (version.version.major == 0 && version.version.minor == 5)
+    {
+      err = v0_5::load(stream, detail, progress, version.version, region_count);
+    }
   }
 
   return err;
@@ -721,7 +745,7 @@ int loadHeader(const std::string &filename, OccupancyMap &map, MapVersion *versi
     if (version.version.major == 0 && version.version.minor == 0 && version.version.patch == 0)
     {
       // Version 0.0.0 had no layout.
-      detail.setDefaultLayout(false);
+      detail.setDefaultLayout(MapFlag::kNone);
     }
     else
     {
