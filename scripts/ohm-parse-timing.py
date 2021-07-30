@@ -81,6 +81,7 @@ if __name__ == '__main__':
         # print(data_file)
         pull_timing(data_file, table)
 
+    delimit = ','
     with open('timings.csv', 'w') as out:
         def write_result(out, name, data_line):
             if name in data_line:
@@ -88,16 +89,16 @@ if __name__ == '__main__':
             else:
                 out.write('')
 
-        out.write('Run Type\tocc\tmean\tndt\n')
+        out.write('Run Type' + delimit + 'occ' + delimit + 'mean' + delimit + 'ndt\n')
         keys = list(table.keys())
         keys.sort()
         for run_type in keys:
             run_data = table[run_type]
             out.write(run_type)
-            out.write('\t')
+            out.write(delimit)
             write_result(out, 'occ', run_data)
-            out.write('\t')
+            out.write(delimit)
             write_result(out, 'mean', run_data)
-            out.write('\t')
+            out.write(delimit)
             write_result(out, 'ndt', run_data)
             out.write('\n')
