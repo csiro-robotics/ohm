@@ -67,6 +67,7 @@ set(GPU_HEADERS
   gpu/CovarianceHitNdt_h.cl
   gpu/Traversal.cl
   gpu/LineWalk.cl
+  gpu/VoxelIncident.cl
   gpu/VoxelMean.cl
   gpu/RaysQueryResult.h
   GpuKey.h
@@ -74,7 +75,9 @@ set(GPU_HEADERS
   ${OHM_SOURCE_DIR}/CovarianceVoxelCompute.h
   ${OHM_SOURCE_DIR}/MapCoord.h
   ${OHM_SOURCE_DIR}/RayFlag.h
+  ${OHM_SOURCE_DIR}/VoxelIncidentCompute.h
   ${OHM_SOURCE_DIR}/VoxelMeanCompute.h
+  ${OHM_SOURCE_DIR}/VoxelTouchTimeCompute.h
 )
 
 set(PUBLIC_HEADERS

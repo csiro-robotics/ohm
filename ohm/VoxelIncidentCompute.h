@@ -10,9 +10,11 @@
 #if !GPUTIL_DEVICE
 using Vec3 = glm::vec3;
 #define OHM_NORMAL_STD std::
+#define OHM_DEVICE_HOST
 #else  // GPUTIL_DEVICE
 typedef float3 Vec3;
 #define OHM_NORMAL_STD
+#define OHM_DEVICE_HOST __device__ __host__
 #endif  // GPUTIL_DEVICE
 
 #define OHM_NORMAL_QUAT       16383.0f
@@ -21,7 +23,7 @@ typedef float3 Vec3;
 #define OHM_NORMAL_SHIFT_Y    0
 #define OHM_NORMAL_SIGN_BIT_Z 31
 
-inline Vec3 decodeNormal(unsigned packed_normal)
+inline Vec3 OHM_DEVICE_HOST decodeNormal(unsigned packed_normal)
 {
   Vec3 n;
 
@@ -36,7 +38,7 @@ inline Vec3 decodeNormal(unsigned packed_normal)
 ///
 /// We use 15-bits each to encode X and Y channels. We use the most significant bit (31) to encode the sign of Z.
 /// Bit 30 is unused.
-inline unsigned encodeNormal(Vec3 normal)
+inline unsigned OHM_DEVICE_HOST encodeNormal(Vec3 normal)
 {
   unsigned n = 0;
 
@@ -53,8 +55,10 @@ inline unsigned encodeNormal(Vec3 normal)
   return n;
 }
 
-inline unsigned updateIncidentNormal(unsigned packed_normal, Vec3 incident_ray, unsigned point_count)
+inline unsigned OHM_DEVICE_HOST updateIncidentNormal(unsigned packed_normal, Vec3 incident_ray, unsigned point_count)
 {
+  // Handle having a zero normal as an initialiastion pass regardless of point count.
+  point_count = (packed_normal && point_count) ? point_count : 0;
   const float one_on_count_plus_one = 1.0f / (float)(point_count + 1);
   // mean.x += (voxel_local_coord.x - mean.x) * one_on_count_plus_one;
   Vec3 normal = decodeNormal(packed_normal);
@@ -65,5 +69,7 @@ inline unsigned updateIncidentNormal(unsigned packed_normal, Vec3 incident_ray, 
   normal = normalize(normal);
   return encodeNormal(normal);
 }
+
+#undef OHM_DEVICE_HOST
 
 #endif  // OHM_VOXEL_INCIDENT_COMPUTE_H

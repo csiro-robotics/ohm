@@ -39,6 +39,7 @@
 #include "MapCoord.h"
 #include "RayFlag.h"
 #include "Traversal.cl"
+#include "VoxelIncident.cl"
 #include "VoxelMeanCompute.h"
 #ifdef NDT
 #include "CovarianceVoxelCompute.h"
@@ -79,6 +80,14 @@ typedef struct LineWalkData_t
   __global atomic_float *traversal;
   // Array of offsets for each regionKey into traversal. These are byte offsets.
   __global ulonglong *traversal_offsets;
+  // Touch time voxel memory
+  __global atomic_uint *touch_times;
+  // Array of offsets for each regionKey into touch_times. These are byte offsets.
+  __global ulonglong *touch_times_offsets;
+  // Incidents voxel memory
+  __global atomic_uint *incidents;
+  // Array of offsets for each regionKey into incidents. These are byte offsets.
+  __global ulonglong *incidents_offsets;
 #ifdef NDT
   __global CovarianceVoxel *cov_voxels;
   // Array of offsets for each regionKey into cov_voxels. These are byte offsets.
@@ -112,9 +121,11 @@ typedef struct LineWalkData_t
   /// A reference sample position. This is in a frame local to the centre of the voxel containing this sample
   /// coordinate.
   float3 sample;
-#ifdef NDT
   /// A reference sensor position. This is in a frame local to the centre of the voxel containing the sample coordinate.
   float3 sensor;
+  /// Encoded touch time value for this voxel.
+  uint touch_time;
+#ifdef NDT
   // Affects how quickly NDT removes voxels: [0, 1].
   float adaptation_rate;
   // An estimate on the sensor range noise error.
@@ -241,10 +252,29 @@ __device__ bool VISIT_LINE_VOXEL(const GpuKey *voxelKey, bool isEndVoxel, const 
       // mem_fence(CLK_GLOBAL_MEM_FENCE);
     } while (new_value != old_value && !gputilAtomicCasF32(occupancy_ptr, old_value, new_value));
 
-    if (line_data->means_offsets && adjustment > 0)
+    if (adjustment > 0)
     {
-      ulonglong vi = vi_local + (line_data->means_offsets[line_data->current_region_index] / sizeof(*line_data->means));
-      updateVoxelMeanPosition(&line_data->means[vi], line_data->sample, voxel_resolution);
+      uint sample_count = 0;
+      if (line_data->means_offsets)
+      {
+        ulonglong vi =
+          vi_local + (line_data->means_offsets[line_data->current_region_index] / sizeof(*line_data->means));
+        sample_count = updateVoxelMeanPosition(&line_data->means[vi], line_data->sample, voxel_resolution);
+      }
+
+      if (line_data->touch_times)
+      {
+        ulonglong vi = vi_local + (line_data->touch_times_offsets[line_data->current_region_index] /
+                                   sizeof(*line_data->touch_times));
+        gputilAtomicMax(&line_data->incidents[vi], line_data->touch_time);
+      }
+
+      if (line_data->incidents)
+      {
+        ulonglong vi =
+          vi_local + (line_data->incidents_offsets[line_data->current_region_index] / sizeof(*line_data->incidents));
+        updateVoxelIncident(&line_data->incidents[vi], line_data->sensor - line_data->sample, sample_count);
+      }
     }
 
     // Update traversal. There is no floating based atomic arithmetic, so we must do the same CAS style update.
@@ -356,17 +386,19 @@ __device__ bool VISIT_LINE_VOXEL(const GpuKey *voxelKey, bool isEndVoxel, const 
 /// @param voxel_value_max Maximum clamping value for voxel adjustments.
 /// @param region_update_flags Update control values as per @c RayFlag.
 __kernel void REGION_UPDATE_KERNEL(
-  __global atomic_float *occupancy, __global ulonglong *occupancy_region_mem_offsets_global, __global VoxelMean *means,
-  __global ulonglong *means_region_mem_offsets_global,
+  __global atomic_float *occupancy, __global ulonglong *occupancy_region_mem_offsets_global,  //
+  __global VoxelMean *means, __global ulonglong *means_region_mem_offsets_global,             //
 #ifdef NDT
-  __global CovarianceVoxel *cov_voxels, __global ulonglong *cov_region_mem_offsets_global,
-  __global HitMissCount *hit_miss_voxels, __global ulonglong *hit_miss_region_mem_offsets_global,
-#endif  // NDT
-  __global atomic_float *traversal_voxels, __global ulonglong *traversal_region_mem_offsets_global,
-  __global int3 *occupancy_region_keys_global, uint region_count, __global GpuKey *line_keys,
-  __global float3 *local_lines, uint line_count, int3 region_dimensions, float voxel_resolution, float ray_adjustment,
-  float sample_adjustment, float occupied_threshold, float voxel_value_min, float voxel_value_max,
-  uint region_update_flags
+  __global CovarianceVoxel *cov_voxels, __global ulonglong *cov_region_mem_offsets_global,         //
+  __global HitMissCount *hit_miss_voxels, __global ulonglong *hit_miss_region_mem_offsets_global,  //
+#endif
+  __global atomic_float *traversal_voxels, __global ulonglong *traversal_region_mem_offsets_global,       //
+  __global atomic_uint *touch_time_voxels, __global ulonglong *touch_times_region_mem_offsets_global,     //
+  __global atomic_uint *incident_voxels, __global ulonglong *incidents_region_mem_offsets_global,         //
+  __global int3 *occupancy_region_keys_global, uint region_count,                                         //
+  __global GpuKey *line_keys, __global float3 *local_lines, uint line_count, __global uint *touch_times,  //
+  int3 region_dimensions, float voxel_resolution, float ray_adjustment, float sample_adjustment,
+  float occupied_threshold, float voxel_value_min, float voxel_value_max, uint region_update_flags
 #ifdef NDT
   ,
   float adaptation_rate, float sensor_noise
@@ -394,6 +426,10 @@ __kernel void REGION_UPDATE_KERNEL(
 #endif  // NDT
   line_data.traversal = traversal_voxels;
   line_data.traversal_offsets = traversal_region_mem_offsets_global;
+  line_data.touch_times = touch_time_voxels;
+  line_data.touch_times_offsets = touch_times_region_mem_offsets_global;
+  line_data.incidents = incident_voxels;
+  line_data.incidents_offsets = incidents_region_mem_offsets_global;
   line_data.region_keys = occupancy_region_keys_global;
   line_data.region_dimensions = region_dimensions;
   line_data.ray_adjustment = ray_adjustment;
@@ -415,9 +451,8 @@ __kernel void REGION_UPDATE_KERNEL(
   const float3 lineEnd = local_lines[get_global_id(0) * 2 + 1];
 
   line_data.sample = lineEnd;
-#ifdef NDT
   line_data.sensor = lineStart;
-#endif  //  NDT
+  line_data.touch_time = (touch_times) ? touch_times[get_global_id(0)] : 0;
 
   // We need to calculate the start voxel centre in the right coordinate space. All coordinates are relative to the
   // end voxel centre.

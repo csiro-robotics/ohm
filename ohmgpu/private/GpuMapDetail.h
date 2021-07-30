@@ -85,6 +85,8 @@ struct RayItem
   Key sample_key;
   /// Intensity value associated with the @p sample .
   float intensity;
+  /// Quantised, relative timestamp.
+  unsigned timestamp;
   /// @c RayFilterFlag values corresponding to any modification which have been made to @p origin and @p sample .
   unsigned filter_flags;
 };
@@ -106,6 +108,8 @@ struct GpuMapDetail
   std::array<gputil::Buffer, kBuffersCount> ray_buffers;
   /// Buffers to upload sample intensities - a single floating point value per sample.
   std::array<gputil::Buffer, kBuffersCount> intensities_buffers;
+  /// Buffers to upload sample timestamps - a uint32 value per sample - quantised, relative time.
+  std::array<gputil::Buffer, kBuffersCount> timestamps_buffers;
 
   std::array<gputil::Event, kBuffersCount> region_key_upload_events;
   std::array<gputil::Buffer, kBuffersCount> region_key_buffers;
@@ -143,6 +147,10 @@ struct GpuMapDetail
   int mean_uidx = -1;
   /// Index into @c voxel_upload_info buffers at which we have the @c VoxelUploadInfo for the traversal layer.
   int traversal_uidx = -1;
+  /// Index into @c voxel_upload_info buffers at which we have the @c VoxelUploadInfo for the touch time layer.
+  int touch_time_uidx = -1;
+  /// Index into @c voxel_upload_info buffers at which we have the @c VoxelUploadInfo for the incident normal layer.
+  int incident_normal_uidx = -1;
 
   /// Used as @c GpuLayerCache::upload() @c batchMarker argument.
   unsigned batch_marker = 1;  // Will cycle odd numbers to avoid zero.

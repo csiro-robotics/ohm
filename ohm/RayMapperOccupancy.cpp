@@ -278,7 +278,6 @@ size_t RayMapperOccupancy::integrateRays(const glm::dvec3 *rays, size_t element_
 
       // update voxel mean if present.
       unsigned sample_count = 0;
-      bool have_sample_count = false;
       if (mean_layer >= 0)
       {
         if (chunk != last_mean_chunk)
@@ -291,7 +290,6 @@ size_t RayMapperOccupancy::integrateRays(const glm::dvec3 *rays, size_t element_
         voxel_mean.coord =
           subVoxelUpdate(voxel_mean.coord, voxel_mean.count, end - map_->voxelCentreGlobal(key), resolution);
         sample_count = voxel_mean.count;
-        have_sample_count = true;
         ++voxel_mean.count;
         mean_buffer.writeVoxel(voxel_index, voxel_mean);
         // Lint(KS): The analyser takes some branches which are not possible in practice.
@@ -319,10 +317,8 @@ size_t RayMapperOccupancy::integrateRays(const glm::dvec3 *rays, size_t element_
       {
         unsigned packed_normal{};
         incidents_buffer.readVoxel(voxel_index, &packed_normal);
-        // Use the sample count if it's valid, otherwise check if we have a normal already -> yes use 1, no use 0.
-        sample_count = (have_sample_count) ? sample_count : (packed_normal ? 1 : 0);
         // Point count has already been incremented so subtract one to get the right calculation.s
-        packed_normal = updateIncidentNormal(packed_normal, start - end , sample_count);
+        packed_normal = updateIncidentNormal(packed_normal, start - end, sample_count);
         incidents_buffer.writeVoxel(voxel_index, packed_normal);
       }
 

@@ -4,26 +4,27 @@
 //
 // Author: Kazys Stepanas
 
+#include "VoxelIncidentCompute.h"
+
 /// Update the voxel mean pattern at @p target_address by including the bit(s) from @p pattern_to_add.
 /// This is done using atomic operations.
 ///
 /// Each bit in the pattern indicates occupancy at a particular voxel mean location.
 /// @param voxel The @c VoxelMean to update.
-/// @param sample_pos The sample position local to the centre of the voxel in falls in.
-/// @param voxel_resolution Voxel size.
-__device__ uint updateVoxelMeanPosition(__global VoxelMean *voxel, float3 sample_pos, float voxel_resolution);
+/// @param incident_ray The incident ray from sensor to sample (un-normalised).
+/// @param sample_count How many samples in the voxel *before* adding the current one.
+__device__ void updateVoxelIncident(__global atomic_uint *voxel, float3 incident_ray, uint sample_count);
 
-#ifndef VOXEL_MEAN_CL
-#define VOXEL_MEAN_CL
+#ifndef VOXEL_INCIDENT_CL
+#define VOXEL_INCIDENT_CL
 
 //------------------------------------------------------------------------------
 // Functions
 //------------------------------------------------------------------------------
 
 // Psuedo header guard to prevent function implementation duplication.
-inline __device__ uint updateVoxelMeanPosition(__global VoxelMean *voxel, float3 sample_pos, float voxel_resolution)
+inline __device__ void updateVoxelIncident(__global atomic_uint *voxel, float3 incident_ray, uint sample_count)
 {
-  uint point_count;
   uint old_value;
   uint new_value;
 
@@ -35,15 +36,10 @@ inline __device__ uint updateVoxelMeanPosition(__global VoxelMean *voxel, float3
   // somewhat out.
   do
   {
-    // point_count = gputilAtomicLoadU32(&voxel->count);
-    point_count = gputilAtomicLoadU32(&voxel->count);
-    old_value = gputilAtomicLoadU32(&voxel->coord);
-    new_value = subVoxelUpdate(old_value, point_count, sample_pos, voxel_resolution);
+    old_value = gputilAtomicLoadU32(voxel);
+    new_value = updateIncidentNormal(old_value, incident_ray, sample_count);
     ++iteration_count;
-  } while (!gputilAtomicCasU32(&voxel->coord, old_value, new_value) && iteration_limit < iteration_count);
-
-  // Atomic increment for the point count.
-  return gputilAtomicInc(&voxel->count);
+  } while (!gputilAtomicCasU32(voxel, old_value, new_value) && iteration_limit < iteration_count);
 }
 
-#endif  // VOXEL_MEAN_CL
+#endif  // VOXEL_INCIDENT_CL

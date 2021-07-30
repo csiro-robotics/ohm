@@ -346,7 +346,8 @@ public:
   /// Update the @c firstRayTime() setting it only if it has yet to be set.
   /// Not threadsafe.
   /// @param time The first ray timestamp.
-  void updateFirstRayTime(double time);
+  /// @return The @c firstRayTime()
+  double updateFirstRayTime(double time);
 
   /// Query the spatial resolution of each @c MapRegion. This represents the spatial extents of each region.
   /// @return The spatial resolution of a @c MapRegion.
@@ -460,6 +461,12 @@ public:
   /// Is traversal calculation enabled on this map?
   /// @return True if the "traversal" layer is enabled.
   bool traversalEnabled() const;
+
+  void addTouchTimeLayer();
+  bool touchTimeEnabled() const;
+
+  void addIncidentNormalLayer();
+  bool incidentNormalEnabled() const;
 
   /// Update the memory layout to match that in this map's @c MapLayout. Must be called after updating
   /// the @p layout() after construction.

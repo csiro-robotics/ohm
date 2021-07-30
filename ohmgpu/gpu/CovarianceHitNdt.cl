@@ -15,6 +15,7 @@
 
 #include "CovarianceHitNdt_h.cl"
 #include "Traversal.cl"
+#include "VoxelIncident.cl"
 
 /// This kernel integrates the ray sample points only into the map and is executed one thread per sample.
 ///
@@ -76,16 +77,20 @@
 /// @param reinitialise_cov_sample_count The point count required to allow @p reinitialise_cov_threshold to be
 ///     triggered. See @c calculateHitWithCovariance()
 __kernel void covarianceHitNdt(
-  __global atomic_float *occupancy, __global ulonglong *occupancy_region_mem_offsets_global, __global VoxelMean *means,
-  __global ulonglong *means_region_mem_offsets_global, __global CovarianceVoxel *cov_voxels,
-  __global ulonglong *cov_region_mem_offsets_global, __global IntensityMeanCov *intensity_voxels,
-  __global ulonglong *intensity_region_mem_offsets_global, __global HitMissCount *hit_miss_voxels,
-  __global ulonglong *hit_miss_region_mem_offsets_global, __global atomic_float *traversal_voxels,
-  __global ulonglong *traversal_region_mem_offsets_global, __global int3 *occupancy_region_keys_global,
-  uint region_count, __global GpuKey *line_keys, __global float3 *local_lines, uint line_count,
-  __global float *intensities, int3 region_dimensions, float voxel_resolution, float sample_adjustment,
-  float occupied_threshold, float voxel_value_max, float initial_intensity_covariance, unsigned ndt_sample_threshold,
-  float adaptation_rate, float sensor_noise, float reinitialise_cov_threshold, unsigned reinitialise_cov_sample_count)
+  __global atomic_float *occupancy, __global ulonglong *occupancy_region_mem_offsets_global,             //
+  __global VoxelMean *means, __global ulonglong *means_region_mem_offsets_global,                        //
+  __global CovarianceVoxel *cov_voxels, __global ulonglong *cov_region_mem_offsets_global,               //
+  __global IntensityMeanCov *intensity_voxels, __global ulonglong *intensity_region_mem_offsets_global,  //
+  __global HitMissCount *hit_miss_voxels, __global ulonglong *hit_miss_region_mem_offsets_global,        //
+  __global atomic_float *traversal_voxels, __global ulonglong *traversal_region_mem_offsets_global,      //
+  __global atomic_uint *touch_time_voxels, __global ulonglong *touch_times_region_mem_offsets_global,    //
+  __global atomic_uint *incident_voxels, __global ulonglong *incidents_region_mem_offsets_global,        //
+  __global int3 *occupancy_region_keys_global, uint region_count,                                        //
+  __global GpuKey *line_keys, __global float3 *local_lines, uint line_count,                             //
+  __global uint *touch_times, __global float *intensities,                                               //
+  int3 region_dimensions, float voxel_resolution, float sample_adjustment, float occupied_threshold,
+  float voxel_value_max, float initial_intensity_covariance, unsigned ndt_sample_threshold, float adaptation_rate,
+  float sensor_noise, float reinitialise_cov_threshold, unsigned reinitialise_cov_sample_count)
 {
   if (get_global_id(0) >= line_count)
   {
@@ -153,6 +158,16 @@ __kernel void covarianceHitNdt(
       (uint)(region_local_index + traversal_region_mem_offsets_global[region_index] / sizeof(*traversal_voxels)) :
       0;
   float traversal = (traversal_voxels) ? traversal_voxels[traversal_index] : 0;
+  uint touch_time_index =
+    (touch_time_voxels) ?
+      (uint)(region_local_index + traversal_region_mem_offsets_global[region_index] / sizeof(*touch_time_voxels)) :
+      0;
+  uint touch_time = (touch_time_voxels) ? touch_time_voxels[touch_time_index] : 0;
+  uint incident_index =
+    (incident_voxels) ?
+      (uint)(region_local_index + traversal_region_mem_offsets_global[region_index] / sizeof(*incident_voxels)) :
+      0;
+  uint incident = (incident_voxels) ? incident_voxels[incident_index] : 0;
 
   // Cache initial values.
   WorkItem work_item;
@@ -211,6 +226,19 @@ __kernel void covarianceHitNdt(
         if (traversal_voxels)
         {
           traversal += calculateTraversal(local_lines[i * 2], local_lines[i * 2 + 1], voxel_resolution);
+        }
+
+        if (touch_times)
+        {
+          touch_time = max(touch_time, touch_times[i]);
+        }
+
+        if (incident_voxels)
+        {
+          // The sample count won't be increment for the current point yet. That's the behaviour we want for the
+          // progressive average.
+          incident =
+            updateIncidentNormal(incident, local_lines[i * 2] - local_lines[i * 2 + 1], work_item.sample_count);
         }
 
         collateSample(&work_item, local_lines[i * 2], local_lines[i * 2 + 1], region_dimensions, voxel_resolution,

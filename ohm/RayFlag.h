@@ -37,6 +37,11 @@ enum RayFlag
   kRfExcludeFree = (1u << 6u),
   /// Do not adjust the occupancy value of currently occupied voxels.
   kRfExcludeOccupied = (1u << 7u),
+
+  /// Internal use flag values start here (not to be set by user).
+  kRfInternal = (1u << 16u),
+  /// Marks that timestamps are available for GPU. This is an internal flag.
+  kRfInternalTimestamps = (kRfInternal << 0u)
 };
 #if !GPUTIL_DEVICE
 }  // namespace ohm

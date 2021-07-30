@@ -342,9 +342,10 @@ void OccupancyMap::setFirstRayTime(double time)
   imp_->first_ray_time = time;
 }
 
-void OccupancyMap::updateFirstRayTime(double time)
+double OccupancyMap::updateFirstRayTime(double time)
 {
   imp_->first_ray_time = (imp_->first_ray_time < 0) ? time : imp_->first_ray_time;
+  return imp_->first_ray_time;
 }
 
 glm::dvec3 OccupancyMap::regionSpatialResolution() const
@@ -556,6 +557,46 @@ void OccupancyMap::addTraversalLayer()
 bool OccupancyMap::traversalEnabled() const
 {
   return imp_->layout.traversalLayer() >= 0;
+}
+
+
+void OccupancyMap::addTouchTimeLayer()
+{
+  if (touchTimeEnabled())
+  {
+    // Already present.
+    return;
+  }
+
+  MapLayout layout = imp_->layout;
+  addTouchTime(layout);
+  updateLayout(layout);
+}
+
+
+bool OccupancyMap::touchTimeEnabled() const
+{
+  return imp_->layout.layerIndex(default_layer::touchTimeLayerName()) >= 0;
+}
+
+
+void OccupancyMap::addIncidentNormalLayer()
+{
+  if (touchTimeEnabled())
+  {
+    // Already present.
+    return;
+  }
+
+  MapLayout layout = imp_->layout;
+  addIncidentNormal(layout);
+  updateLayout(layout);
+}
+
+
+bool OccupancyMap::incidentNormalEnabled() const
+{
+  return imp_->layout.layerIndex(default_layer::incidentNormalLayerName()) >= 0;
 }
 
 

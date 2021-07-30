@@ -56,6 +56,10 @@ enum GpuCacheId
   kGcIdHitMiss,
   /// Cache used for traversal layer.
   kGcIdTraversal,
+  /// Cache used for touch time layer.
+  kGcIdTouchTime,
+  /// Cache used for incident normal layer.
+  kGcIdIncidentNormal,
 };
 
 /// Provides access to the @c GpuLayerCache objects used to cache host voxel data in GPU memory and manage
