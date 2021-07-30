@@ -11,6 +11,12 @@ __kernel void matrixMultiply(__global float *out, __global float *a, __global fl
     return;
   }
 
+  // Handled null for testing passing null arguments
+  if (!a || !b || !out)
+  {
+    return;
+  }
+
   for (unsigned i = 0; i < n; ++i)
   {
     work[get_local_id(0)] = a[i * n + get_local_id(0)] * b[get_local_id(0) * n + i];
