@@ -25,6 +25,7 @@ set(SOURCES
   RayValidation.cpp
   RayValidation.h
   TestMain.cpp
+  TouchTimeTests.cpp
   TraversalTests.cpp
   "${CMAKE_CURRENT_BINARY_DIR}/OhmTestConfig.h"
 )

@@ -14,22 +14,24 @@
 #include <ohm/RayMapperNdt.h>
 #include <ohm/RayMapperOccupancy.h>
 #include <ohm/Voxel.h>
-#include <ohm/VoxelIncident.h>
-#include <ohm/VoxelMean.h>
+#include <ohm/VoxelTouchTime.h>
 
 #include <glm/gtx/norm.hpp>
 #include <glm/vec3.hpp>
 
 #include <random>
 
-namespace incidents
+namespace touchtime
 {
-void testIncidentNormals(ohm::OccupancyMap &map, ohm::RayMapper &mapper)
+void testTouchTime(ohm::OccupancyMap &map, ohm::RayMapper &mapper)
 {
   const unsigned iterations = 10;
   const unsigned ray_count = 1000u;
+  const double time_base = 1000.0;
+  const double time_step = 0.5;
   const float epsilon = 1e-2f;
   std::vector<glm::dvec3> rays;
+  std::vector<double> timestamps;
   uint32_t seed = 1153297050u;
   std::default_random_engine rng(seed);
   std::uniform_real_distribution<double> uniform(-1.0, 1.0);
@@ -37,14 +39,13 @@ void testIncidentNormals(ohm::OccupancyMap &map, ohm::RayMapper &mapper)
   // Set the map origin to avoid (0, 0, 0) being on a voxel boundary.
   map.setOrigin(glm::dvec3(-0.5 * map.resolution()));
 
-  ASSERT_TRUE(map.incidentNormalEnabled());
-  ASSERT_TRUE(map.voxelMeanEnabled());
+  ASSERT_TRUE(map.touchTimeEnabled());
 
   rays.reserve(2 * ray_count);
   for (unsigned i = 0; i < iterations; ++i)
   {
-    unsigned expected_packed = 0;
     rays.clear();
+    timestamps.clear();
     for (unsigned r = 0; r < ray_count; ++r)
     {
       // Sample is at the origin. We'll build random rays around that.
@@ -59,49 +60,39 @@ void testIncidentNormals(ohm::OccupancyMap &map, ohm::RayMapper &mapper)
       rays.emplace_back(origin);
       rays.emplace_back(glm::dvec3(0));
 
-      // Do the same calculation made by the mapper, but without encoding.
-      expected_packed = ohm::updateIncidentNormal(expected_packed, origin, r);
+      timestamps.emplace_back(time_base + r * time_step);
     }
     // Now use the ray mapper
-    mapper.integrateRays(rays.data(), rays.size());
+    mapper.integrateRays(rays.data(), rays.size(), nullptr, timestamps.data(), ohm::kRfDefault);
 
     // Check the result.
-    ohm::Voxel<uint32_t> incident_voxel(&map, map.layout().layerIndex(ohm::default_layer::incidentNormalLayerName()));
-    ASSERT_TRUE(incident_voxel.isLayerValid());
-    incident_voxel.setKey(map.voxelKey(glm::dvec3(0)));
-    ASSERT_TRUE(incident_voxel.isValid());
+    ohm::Voxel<uint32_t> time_voxel(&map, map.layout().layerIndex(ohm::default_layer::touchTimeLayerName()));
+    ASSERT_TRUE(time_voxel.isLayerValid());
+    time_voxel.setKey(map.voxelKey(glm::dvec3(0)));
+    ASSERT_TRUE(time_voxel.isValid());
 
-    EXPECT_EQ(incident_voxel.data(), expected_packed);
+    const double extracted_time = ohm::decodeVoxelTouchTime(map.firstRayTime(), time_voxel.data());
+    EXPECT_EQ(extracted_time, timestamps.back());
 
-    // Clear the incident normal
-    incident_voxel.write(0);
-    EXPECT_EQ(incident_voxel.data(), 0);
-
-    // Also clear the voxel mean as we use the sample count from there.
-    ohm::Voxel<ohm::VoxelMean> mean_voxel(&map, map.layout().meanLayer());
-    ASSERT_TRUE(mean_voxel.isLayerValid());
-    mean_voxel.setKey(map.voxelKey(glm::dvec3(0)));
-    ASSERT_TRUE(mean_voxel.isValid());
-
-    mean_voxel.write(ohm::VoxelMean{});
-    EXPECT_EQ(mean_voxel.data().count, 0);
+    time_voxel.write(0u);
+    EXPECT_EQ(time_voxel.data(), 0);
   }
 }
 
-TEST(Incident, WithOccupancy)
+TEST(TouchTime, WithOccupancy)
 {
   // As Through, but using the NDT mapper. Need voxel mean to track the sample count.
-  ohm::OccupancyMap map(0.1f, ohm::MapFlag::kVoxelMean | ohm::MapFlag::kIncidentNormal);
+  ohm::OccupancyMap map(0.1f, ohm::MapFlag::kTouchTime);
   ohm::RayMapperOccupancy mapper(&map);
-  testIncidentNormals(map, mapper);
+  testTouchTime(map, mapper);
 }
 
-TEST(Incident, WithNdt)
+TEST(TouchTime, WithNdt)
 {
   // As Through, but using the NDT mapper. Need voxel mean to track the sample count.
-  ohm::OccupancyMap map(0.1f, ohm::MapFlag::kVoxelMean | ohm::MapFlag::kIncidentNormal);
+  ohm::OccupancyMap map(0.1f, ohm::MapFlag::kTouchTime);
   ohm::NdtMap ndt_map(&map, true);
   ohm::RayMapperNdt mapper(&ndt_map);
-  testIncidentNormals(map, mapper);
+  testTouchTime(map, mapper);
 }
-}  // namespace incidents
+}  // namespace touchtime
