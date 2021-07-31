@@ -90,7 +90,6 @@ void testIncidentNormals(ohm::OccupancyMap &map, ohm::RayMapper &mapper)
 
 TEST(Incident, WithOccupancy)
 {
-  // As Through, but using the NDT mapper. Need voxel mean to track the sample count.
   ohm::OccupancyMap map(0.1f, ohm::MapFlag::kVoxelMean | ohm::MapFlag::kIncidentNormal);
   ohm::RayMapperOccupancy mapper(&map);
   testIncidentNormals(map, mapper);
@@ -98,7 +97,6 @@ TEST(Incident, WithOccupancy)
 
 TEST(Incident, WithNdt)
 {
-  // As Through, but using the NDT mapper. Need voxel mean to track the sample count.
   ohm::OccupancyMap map(0.1f, ohm::MapFlag::kVoxelMean | ohm::MapFlag::kIncidentNormal);
   ohm::NdtMap ndt_map(&map, true);
   ohm::RayMapperNdt mapper(&ndt_map);

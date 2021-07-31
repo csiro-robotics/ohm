@@ -81,7 +81,6 @@ void testTouchTime(ohm::OccupancyMap &map, ohm::RayMapper &mapper)
 
 TEST(TouchTime, WithOccupancy)
 {
-  // As Through, but using the NDT mapper. Need voxel mean to track the sample count.
   ohm::OccupancyMap map(0.1f, ohm::MapFlag::kTouchTime);
   ohm::RayMapperOccupancy mapper(&map);
   testTouchTime(map, mapper);
@@ -89,7 +88,6 @@ TEST(TouchTime, WithOccupancy)
 
 TEST(TouchTime, WithNdt)
 {
-  // As Through, but using the NDT mapper. Need voxel mean to track the sample count.
   ohm::OccupancyMap map(0.1f, ohm::MapFlag::kTouchTime);
   ohm::NdtMap ndt_map(&map, true);
   ohm::RayMapperNdt mapper(&ndt_map);
