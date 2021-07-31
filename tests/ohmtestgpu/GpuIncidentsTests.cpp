@@ -25,7 +25,7 @@
 
 namespace incidents
 {
-void testIncidentNormals(ohm::OccupancyMap &map, ohm::GpuMap &mapper)
+void testIncidentNormals(ohm::OccupancyMap &map, ohm::GpuMap &mapper, bool single_ray_batches)
 {
   const unsigned iterations = 10;
   const unsigned ray_count = 1000u;
@@ -64,10 +64,17 @@ void testIncidentNormals(ohm::OccupancyMap &map, ohm::GpuMap &mapper)
       expected_packed = ohm::updateIncidentNormal(expected_packed, origin, r);
     }
     // Now use the ray mapper
-    // Need to add the rays one at a time because it's heavily affected by order (non deterministic)
-    for (unsigned r = 0; r < ray_count; ++r)
+    if (single_ray_batches)
     {
-      mapper.integrateRays(rays.data() + r * 2, 2);
+      // Need to add the rays one at a time because it's heavily affected by order (non deterministic)
+      for (unsigned r = 0; r < ray_count; ++r)
+      {
+        mapper.integrateRays(rays.data() + r * 2, 2);
+      }
+    }
+    else
+    {
+      mapper.integrateRays(rays.data(), ray_count * 2);
     }
     mapper.syncVoxels();
 
@@ -94,17 +101,19 @@ void testIncidentNormals(ohm::OccupancyMap &map, ohm::GpuMap &mapper)
   }
 }
 
-TEST(Incident, WithOccupancy)
+TEST(Incident, DISABLED_WithOccupancy)
 {
   ohm::OccupancyMap map(0.1f, ohm::MapFlag::kVoxelMean | ohm::MapFlag::kIncidentNormal);
   ohm::GpuMap mapper(&map, true);
-  testIncidentNormals(map, mapper);
+  // Must do one ray at a time because of non-determinism.
+  testIncidentNormals(map, mapper, true);
 }
 
-TEST(Incident, WithNdt)
+TEST(Incident, DISABLED_WithNdt)
 {
   ohm::OccupancyMap map(0.1f, ohm::MapFlag::kVoxelMean | ohm::MapFlag::kIncidentNormal);
   ohm::GpuNdtMap mapper(&map, true);
-  testIncidentNormals(map, mapper);
+  // NDT can batch rays because sample update is sequential.
+  testIncidentNormals(map, mapper, false);
 }
 }  // namespace incidents
