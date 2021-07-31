@@ -478,6 +478,8 @@ void GpuMap::setMap(OccupancyMap *map, bool borrowed_map, unsigned expected_elem
         gputil::Buffer(gpu_cache.gpu(), sizeof(gputil::float3) * expected_element_count, gputil::kBfReadHost);
       imp_->intensities_buffers[i] =
         gputil::Buffer(gpu_cache.gpu(), sizeof(float) * expected_element_count, gputil::kBfReadHost);
+      imp_->timestamps_buffers[i] =
+        gputil::Buffer(gpu_cache.gpu(), sizeof(uint32_t) * expected_element_count, gputil::kBfReadHost);
       imp_->region_key_buffers[i] =
         gputil::Buffer(gpu_cache.gpu(), sizeof(gputil::int3) * prealloc_region_count, gputil::kBfReadHost);
 
