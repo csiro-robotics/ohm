@@ -15,6 +15,7 @@
 #include <ohm/RayMapperOccupancy.h>
 #include <ohm/Voxel.h>
 #include <ohm/VoxelIncident.h>
+#include <ohm/VoxelMean.h>
 
 #include <glm/gtx/norm.hpp>
 #include <glm/vec3.hpp>
@@ -27,17 +28,21 @@ void testIncidentNormals(ohm::OccupancyMap &map, ohm::RayMapper &mapper)
 {
   const unsigned iterations = 10;
   const unsigned ray_count = 1000u;
+  const float epsilon = 1e-2f;
   std::vector<glm::dvec3> rays;
   uint32_t seed = 1153297050u;
   std::default_random_engine rng(seed);
   std::uniform_real_distribution<double> uniform(-1.0, 1.0);
+
+  // Set the map origin to avoid (0, 0, 0) being on a voxel boundary.
+  map.setOrigin(glm::dvec3(-0.5 * map.resolution()));
 
   ASSERT_TRUE(map.incidentNormalEnabled());
 
   rays.reserve(2 * ray_count);
   for (unsigned i = 0; i < iterations; ++i)
   {
-    glm::vec3 expected_incident(0);
+    unsigned expected_packed = 0;
     rays.clear();
     for (unsigned r = 0; r < ray_count; ++r)
     {
@@ -53,11 +58,8 @@ void testIncidentNormals(ohm::OccupancyMap &map, ohm::RayMapper &mapper)
       rays.emplace_back(origin);
       rays.emplace_back(glm::dvec3(0));
 
-      glm::vec3 incident(origin);
-      incident = glm::normalize(incident);
-
       // Do the same calculation made by the mapper, but without encoding.
-      expected_incident = ohm::updateIncidentNormalV3(incident, expected_incident, r);
+      expected_packed = ohm::updateIncidentNormal(expected_packed, origin, r);
     }
     // Now use the ray mapper
     mapper.integrateRays(rays.data(), rays.size());
@@ -67,28 +69,36 @@ void testIncidentNormals(ohm::OccupancyMap &map, ohm::RayMapper &mapper)
     ASSERT_TRUE(incident_voxel.isLayerValid());
     incident_voxel.setKey(map.voxelKey(glm::dvec3(0)));
     ASSERT_TRUE(incident_voxel.isValid());
-    const glm::vec3 extracted_incident = ohm::decodeNormal(incident_voxel.data());
-    // Subtract the two incident vectors and ensure we the result is near zero.
-    const glm::vec3 diff = expected_incident - extracted_incident;
-    const float e = 1e-3f;
-    EXPECT_NEAR(diff.x, 0.0f, e);
-    EXPECT_NEAR(diff.y, 0.0f, e);
-    EXPECT_NEAR(diff.z, 0.0f, e);
+
+    EXPECT_EQ(incident_voxel.data(), expected_packed);
+
+    // Clear the incident normal
+    incident_voxel.write(0);
+    EXPECT_EQ(incident_voxel.data(), 0);
+
+    // Also clear the voxel mean as we use the sample count from there.
+    ohm::Voxel<ohm::VoxelMean> mean_voxel(&map, map.layout().meanLayer());
+    ASSERT_TRUE(mean_voxel.isLayerValid());
+    mean_voxel.setKey(map.voxelKey(glm::dvec3(0)));
+    ASSERT_TRUE(mean_voxel.isValid());
+
+    mean_voxel.write(ohm::VoxelMean{});
+    EXPECT_EQ(mean_voxel.data().count, 0);
   }
 }
 
 TEST(Incident, WithOccupancy)
 {
-  // As Through, but using the NDT mapper.
-  ohm::OccupancyMap map(0.1f, ohm::MapFlag::kIncidentNormal);
+  // As Through, but using the NDT mapper. Need voxel mean to track the sample count.
+  ohm::OccupancyMap map(0.1f, ohm::MapFlag::kVoxelMean | ohm::MapFlag::kIncidentNormal);
   ohm::RayMapperOccupancy mapper(&map);
   testIncidentNormals(map, mapper);
 }
 
 TEST(Incident, WithNdt)
 {
-  // As Through, but using the NDT mapper.
-  ohm::OccupancyMap map(0.1f, ohm::MapFlag::kIncidentNormal);
+  // As Through, but using the NDT mapper. Need voxel mean to track the sample count.
+  ohm::OccupancyMap map(0.1f, ohm::MapFlag::kVoxelMean | ohm::MapFlag::kIncidentNormal);
   ohm::NdtMap ndt_map(&map, true);
   ohm::RayMapperNdt mapper(&ndt_map);
   testIncidentNormals(map, mapper);
