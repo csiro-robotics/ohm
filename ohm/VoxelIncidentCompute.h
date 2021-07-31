@@ -21,8 +21,8 @@ typedef float3 Vec3;
 #define OHM_NORMAL_MASK       0x3FFF
 #define OHM_NORMAL_SHIFT_X    0
 #define OHM_NORMAL_SHIFT_Y    15
-#define OHM_NORMAL_SET_BIT_Z  30
-#define OHM_NORMAL_SIGN_BIT_Z 31
+#define OHM_NORMAL_SET_BIT_Z  (1u << 30)
+#define OHM_NORMAL_SIGN_BIT_Z (1u << 31)
 
 inline Vec3 OHM_DEVICE_HOST decodeNormal(unsigned packed_normal)
 {
@@ -35,9 +35,11 @@ inline Vec3 OHM_DEVICE_HOST decodeNormal(unsigned packed_normal)
   n.y = OHM_NORMAL_STD max(-1.0f, OHM_NORMAL_STD min(n.y, 1.0f));
   n.z = OHM_NORMAL_STD max(-1.0f, OHM_NORMAL_STD min(1.0f - (n.x * n.x + n.y * n.y), 1.0f));
 
-  n.x = (packed_normal & (1u << OHM_NORMAL_SET_BIT_Z)) ? n.x : 0.0f;
-  n.y = (packed_normal & (1u << OHM_NORMAL_SET_BIT_Z)) ? n.y : 0.0f;
-  n.z = (packed_normal & (1u << OHM_NORMAL_SET_BIT_Z)) ? sqrt(n.z) : 0.0f;
+  n.x = (packed_normal & OHM_NORMAL_SET_BIT_Z) ? n.x : 0.0f;
+  n.y = (packed_normal & OHM_NORMAL_SET_BIT_Z) ? n.y : 0.0f;
+  n.z = (packed_normal & OHM_NORMAL_SET_BIT_Z) ? sqrt(n.z) : 0.0f;
+
+  n.z *= (packed_normal & OHM_NORMAL_SIGN_BIT_Z) ? -1.0f : 1.0f;
 
   return n;
 }
@@ -59,9 +61,12 @@ inline unsigned OHM_DEVICE_HOST encodeNormal(Vec3 normal)
   i = (unsigned)(normal.y * OHM_NORMAL_QUAT);
   n |= (i & OHM_NORMAL_MASK) << OHM_NORMAL_SHIFT_Y;
 
-  n |= (normal.z < 0) ? (1 << OHM_NORMAL_SIGN_BIT_Z) : 0;
+  // Clear the information bits.
+  n &= ~(OHM_NORMAL_SET_BIT_Z | OHM_NORMAL_SIGN_BIT_Z);
+  // Set the information bits.
+  n |= (normal.z < 0) ? OHM_NORMAL_SIGN_BIT_Z : 0;
   // mark as set if the input normal is non-zero.
-  n |= (normal.x || normal.y || normal.z) ? (1u << OHM_NORMAL_SET_BIT_Z) : 0;
+  n |= (normal.x || normal.y || normal.z) ? OHM_NORMAL_SET_BIT_Z : 0;
 
   return n;
 }
