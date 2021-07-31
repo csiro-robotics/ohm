@@ -377,27 +377,41 @@ void GpuNdtMap::invokeNdt(unsigned region_update_flags, int buf_idx, gputil::Eve
     imp->update_kernel(
       global_size, local_size, wait, first_kernel_event, &gpu_cache.gpuQueue(),
       // Kernel args begin:
+      // Occupancy voxels and offsets.
       gputil::BufferArg<float>(*occupancy_layer_cache.buffer()),
       gputil::BufferArg<uint64_t>(imp->voxel_upload_info[buf_idx][occ_uidx].offsets_buffer),
+      // Mean voxels and offsets.
       gputil::BufferArg<VoxelMean>(*mean_layer_cache.buffer()),
       gputil::BufferArg<uint64_t>(imp->voxel_upload_info[buf_idx][mean_uidx].offsets_buffer),
+      // Covariance voxels and offsets.
       gputil::BufferArg<CovarianceVoxel>(*cov_voxel_layer_cache.buffer()),
       gputil::BufferArg<uint64_t>(imp->voxel_upload_info[buf_idx][cov_uidx].offsets_buffer),
-      gputil::BufferArg<CovarianceVoxel>(hit_miss_layer_cache ? hit_miss_layer_cache->buffer() : nullptr),
+      // Hit/miss voxels and offsets.
+      gputil::BufferArg<HitMissCount>(hit_miss_layer_cache ? hit_miss_layer_cache->buffer() : nullptr),
       gputil::BufferArg<uint64_t>(
         hit_miss_layer_cache ? &imp->voxel_upload_info[buf_idx][hit_miss_uidx].offsets_buffer : nullptr),
+      // Traversal voxels and offsets.
       gputil::BufferArg<float>(traversal_layer_cache ? traversal_layer_cache->buffer() : nullptr),
       gputil::BufferArg<uint64_t>(
         traversal_layer_cache ? &imp->voxel_upload_info[buf_idx][traversal_uidx].offsets_buffer : nullptr),
+      // Touch times voxels and offsets.
       gputil::BufferArg<uint32_t>(nullptr), gputil::BufferArg<uint64_t>(nullptr),  // No touch times for miss update
+      // Incident normal voxels and offsets.
       gputil::BufferArg<uint32_t>(nullptr), gputil::BufferArg<uint64_t>(nullptr),  // No incidents for miss update
+                                                                                   // Region keys and region count
       gputil::BufferArg<gputil::int3>(imp->region_key_buffers[buf_idx]), region_count,
+      // Ray start/end keys
       gputil::BufferArg<GpuKey>(imp->key_buffers[buf_idx]),
-      gputil::BufferArg<gputil::float3>(imp->ray_buffers[buf_idx]), ray_count,  //
-      gputil::BufferArg<uint32_t>(nullptr),                                     // No touch times for miss update
-      region_dim_gpu, float(map->resolution), map->miss_value, map->hit_value, map->occupancy_threshold_value,
-      map->min_voxel_value, map->max_voxel_value, region_update_flags | modify_flags, imp->ndt_map.adaptationRate(),
-      imp->ndt_map.sensorNoise());
+      // Ray start end points, local to end voxel and ray count
+      gputil::BufferArg<gputil::float3>(imp->ray_buffers[buf_idx]), ray_count,
+      // Input touch times buffer
+      gputil::BufferArg<uint32_t>(nullptr),  // No touch times for miss update
+      // Region dimensions, map resolution, ray adjustment (miss), sample adjustment (hit)
+      region_dim_gpu, float(map->resolution), map->miss_value, map->hit_value,
+      // Occupied threshold, min occupancy, max occupancy.
+      map->occupancy_threshold_value, map->min_voxel_value, map->max_voxel_value,
+      // Update flags, NDT adaptation rate, NDT model sensor noise
+      region_update_flags | modify_flags, imp->ndt_map.adaptationRate(), imp->ndt_map.sensorNoise());
     wait.clear();
     wait.add(first_kernel_event);
   }
@@ -413,36 +427,53 @@ void GpuNdtMap::invokeNdt(unsigned region_update_flags, int buf_idx, gputil::Eve
     imp->cov_hit_kernel(
       global_size, local_size, wait, imp->region_update_events[buf_idx], &gpu_cache.gpuQueue(),
       // Kernel args begin:
+      // Occupancy voxels and offsets.
       gputil::BufferArg<float>(*occupancy_layer_cache.buffer()),
       gputil::BufferArg<uint64_t>(imp->voxel_upload_info[buf_idx][occ_uidx].offsets_buffer),
+      // Mean voxels and offsets.
       gputil::BufferArg<VoxelMean>(*mean_layer_cache.buffer()),
       gputil::BufferArg<uint64_t>(imp->voxel_upload_info[buf_idx][mean_uidx].offsets_buffer),
+      // Covariance voxels and offsets.
       gputil::BufferArg<CovarianceVoxel>(*cov_voxel_layer_cache.buffer()),
       gputil::BufferArg<uint64_t>(imp->voxel_upload_info[buf_idx][cov_uidx].offsets_buffer),
+      // Intensity voxels and offsets.
       gputil::BufferArg<IntensityMeanCov>(intensity_layer_cache ? intensity_layer_cache->buffer() : nullptr),
       gputil::BufferArg<uint64_t>(
         intensity_layer_cache ? &imp->voxel_upload_info[buf_idx][intense_uidx].offsets_buffer : nullptr),
+      // Hit/miss voxels and offsets.
       gputil::BufferArg<HitMissCount>(hit_miss_layer_cache ? hit_miss_layer_cache->buffer() : nullptr),
       gputil::BufferArg<uint64_t>(
         hit_miss_layer_cache ? &imp->voxel_upload_info[buf_idx][hit_miss_uidx].offsets_buffer : nullptr),
+      // Traversal voxels and offsets.
       gputil::BufferArg<float>(traversal_layer_cache ? traversal_layer_cache->buffer() : nullptr),
       gputil::BufferArg<uint64_t>(
         traversal_layer_cache ? &imp->voxel_upload_info[buf_idx][traversal_uidx].offsets_buffer : nullptr),
+      // Touch times voxels and offsets.
       gputil::BufferArg<uint32_t>(touch_times_layer_cache ? touch_times_layer_cache->buffer() : nullptr),
       gputil::BufferArg<uint64_t>(
         touch_times_layer_cache ? &imp_->voxel_upload_info[buf_idx][touch_time_uidx].offsets_buffer : nullptr),
+      // Incident normal voxels and offsets.
       gputil::BufferArg<uint32_t>(incidents_layer_cache ? incidents_layer_cache->buffer() : nullptr),
       gputil::BufferArg<uint64_t>(
         incidents_layer_cache ? &imp_->voxel_upload_info[buf_idx][incident_normal_uidx].offsets_buffer : nullptr),
+      // Region keys and region count
       gputil::BufferArg<gputil::int3>(imp->region_key_buffers[buf_idx]), region_count,
+      // Ray start/end keys
       gputil::BufferArg<GpuKey>(imp->key_buffers[buf_idx]),
+      // Ray start end points, local to end voxel and sample count
       gputil::BufferArg<gputil::float3>(imp->ray_buffers[buf_idx]), sample_count,
+      // Input touch times buffer
       gputil::BufferArg<uint32_t>((region_update_flags & kRfInternalTimestamps) ? &imp_->timestamps_buffers[buf_idx] :
                                                                                   nullptr),
-      gputil::BufferArg<float>(intensity_layer_cache ? &imp->intensities_buffers[buf_idx] : nullptr),  //
+      // Input intensities buffer
+      gputil::BufferArg<float>(intensity_layer_cache ? &imp->intensities_buffers[buf_idx] : nullptr),
+      // Region dimensions, map resolution, sample adjustment (hit), occupancy threshold, occupancy max value
       region_dim_gpu, float(map->resolution), map->hit_value, map->occupancy_threshold_value, map->max_voxel_value,
+      // Intensity covariance initialisation, NDT sample threshold, NDT adaptation rate
       imp->ndt_map.initialIntensityCovariance(), imp->ndt_map.ndtSampleThreshold(), imp->ndt_map.adaptationRate(),
+      // NDT model sensor noise, NDt reinitialisation covariance threshold
       imp->ndt_map.sensorNoise(), imp->ndt_map.reinitialiseCovarianceThreshold(),
+      // NDT reinitialisation sample count
       imp->ndt_map.reinitialiseCovariancePointCount());
   }
   else

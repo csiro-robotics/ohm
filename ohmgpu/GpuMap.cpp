@@ -1112,26 +1112,37 @@ void GpuMap::finaliseBatch(unsigned region_update_flags)
   imp_->update_kernel(
     global_size, local_size, wait, imp_->region_update_events[buf_idx], &gpu_cache.gpuQueue(),
     // Kernel args begin:
+    // Occupancy voxels and offsets.
     gputil::BufferArg<float>(*occupancy_layer_cache.buffer()),
     gputil::BufferArg<uint64_t>(imp_->voxel_upload_info[buf_idx][occ_uidx].offsets_buffer),
+    // Mean voxels and offsets.
     gputil::BufferArg<VoxelMean>(mean_layer_cache ? mean_layer_cache->buffer() : nullptr),
     gputil::BufferArg<uint64_t>(mean_layer_cache ? &imp_->voxel_upload_info[buf_idx][mean_uidx].offsets_buffer :
                                                    nullptr),
+    // Traversal voxels and offsets.
     gputil::BufferArg<float>(traversal_layer_cache ? traversal_layer_cache->buffer() : nullptr),
     gputil::BufferArg<uint64_t>(
       traversal_layer_cache ? &imp_->voxel_upload_info[buf_idx][traversal_uidx].offsets_buffer : nullptr),
+    // Touch times voxels and offsets.
     gputil::BufferArg<uint32_t>(touch_times_layer_cache ? touch_times_layer_cache->buffer() : nullptr),
     gputil::BufferArg<uint64_t>(
       touch_times_layer_cache ? &imp_->voxel_upload_info[buf_idx][touch_time_uidx].offsets_buffer : nullptr),
+    // Incident normal voxels and offsets.
     gputil::BufferArg<uint32_t>(incidents_layer_cache ? incidents_layer_cache->buffer() : nullptr),
     gputil::BufferArg<uint64_t>(
       incidents_layer_cache ? &imp_->voxel_upload_info[buf_idx][incident_normal_uidx].offsets_buffer : nullptr),
+    // Region keys and region count
     gputil::BufferArg<gputil::int3>(imp_->region_key_buffers[buf_idx]), region_count,
+    // Ray start/end keys
     gputil::BufferArg<GpuKey>(imp_->key_buffers[buf_idx]),
-    gputil::BufferArg<gputil::float3>(imp_->ray_buffers[buf_idx]), ray_count,  //
+    // Ray start end points, local to end voxel and ray count
+    gputil::BufferArg<gputil::float3>(imp_->ray_buffers[buf_idx]), ray_count,
+    // Input touch times buffer
     gputil::BufferArg<uint32_t>((region_update_flags & kRfInternalTimestamps) ? &imp_->timestamps_buffers[buf_idx] :
-                                                                                nullptr),  //
-    region_dim_gpu, region_dim_gpu, float(map->resolution), map->miss_value, map->hit_value,
+                                                                                nullptr),
+    // Region dimensions, map resolution, ray adjustment (miss), sample adjustment (hit)
+    region_dim_gpu, float(map->resolution), map->miss_value, map->hit_value,
+    // Occupied threshold, min occupancy, max occupancy, update flags.
     map->occupancy_threshold_value, map->min_voxel_value, map->max_voxel_value, region_update_flags);
 
   // Update most recent chunk GPU event.
