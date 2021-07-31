@@ -3,8 +3,6 @@
 // ABN 41 687 119 230
 //
 // Author: Kazys Stepanas
-#include "OhmTestConfig.h"
-
 #include <gtest/gtest.h>
 
 #include <ohm/DefaultLayer.h>
@@ -17,6 +15,9 @@
 #include <ohm/VoxelIncident.h>
 #include <ohm/VoxelMean.h>
 
+#include <ohmgpu/GpuMap.h>
+#include <ohmgpu/GpuNdtMap.h>
+
 #include <glm/gtx/norm.hpp>
 #include <glm/vec3.hpp>
 
@@ -24,7 +25,7 @@
 
 namespace incidents
 {
-void testIncidentNormals(ohm::OccupancyMap &map, ohm::RayMapper &mapper)
+void testIncidentNormals(ohm::OccupancyMap &map, ohm::GpuMap &mapper)
 {
   const unsigned iterations = 10;
   const unsigned ray_count = 1000u;
@@ -64,6 +65,7 @@ void testIncidentNormals(ohm::OccupancyMap &map, ohm::RayMapper &mapper)
     }
     // Now use the ray mapper
     mapper.integrateRays(rays.data(), rays.size());
+    mapper.syncVoxels();
 
     // Check the result.
     ohm::Voxel<uint32_t> incident_voxel(&map, map.layout().layerIndex(ohm::default_layer::incidentNormalLayerName()));
@@ -91,15 +93,14 @@ void testIncidentNormals(ohm::OccupancyMap &map, ohm::RayMapper &mapper)
 TEST(Incident, WithOccupancy)
 {
   ohm::OccupancyMap map(0.1f, ohm::MapFlag::kVoxelMean | ohm::MapFlag::kIncidentNormal);
-  ohm::RayMapperOccupancy mapper(&map);
+  ohm::GpuMap mapper(&map, true);
   testIncidentNormals(map, mapper);
 }
 
 TEST(Incident, WithNdt)
 {
   ohm::OccupancyMap map(0.1f, ohm::MapFlag::kVoxelMean | ohm::MapFlag::kIncidentNormal);
-  ohm::NdtMap ndt_map(&map, true);
-  ohm::RayMapperNdt mapper(&ndt_map);
+  ohm::GpuNdtMap mapper(&map, true);
   testIncidentNormals(map, mapper);
 }
 }  // namespace incidents
