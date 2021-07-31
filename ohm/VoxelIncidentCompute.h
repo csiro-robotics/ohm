@@ -20,53 +20,72 @@ typedef float3 Vec3;
 #define OHM_NORMAL_QUAT       16383.0f
 #define OHM_NORMAL_MASK       0x3FFF
 #define OHM_NORMAL_SHIFT_X    0
-#define OHM_NORMAL_SHIFT_Y    0
+#define OHM_NORMAL_SHIFT_Y    15
+#define OHM_NORMAL_SET_BIT_Z  30
 #define OHM_NORMAL_SIGN_BIT_Z 31
 
 inline Vec3 OHM_DEVICE_HOST decodeNormal(unsigned packed_normal)
 {
   Vec3 n;
 
-  n.x = ((packed_normal >> OHM_NORMAL_SHIFT_X) | OHM_NORMAL_MASK) / OHM_NORMAL_QUAT;
-  n.y = ((packed_normal >> OHM_NORMAL_SHIFT_Y) | OHM_NORMAL_MASK) / OHM_NORMAL_QUAT;
-  n.z = sqrt(1.0f - (n.x * n.x + n.y * n.y));
+  n.x = (2.0f * ((packed_normal >> OHM_NORMAL_SHIFT_X) & OHM_NORMAL_MASK) / OHM_NORMAL_QUAT) - 1.0f;
+  n.y = (2.0f * ((packed_normal >> OHM_NORMAL_SHIFT_Y) & OHM_NORMAL_MASK) / OHM_NORMAL_QUAT) - 1.0f;
 
-  return normalize(n);
+  n.x = OHM_NORMAL_STD max(-1.0f, OHM_NORMAL_STD min(n.x, 1.0f));
+  n.y = OHM_NORMAL_STD max(-1.0f, OHM_NORMAL_STD min(n.y, 1.0f));
+  n.z = OHM_NORMAL_STD max(-1.0f, OHM_NORMAL_STD min(1.0f - (n.x * n.x + n.y * n.y), 1.0f));
+
+  n.x = (packed_normal & (1u << OHM_NORMAL_SET_BIT_Z)) ? n.x : 0.0f;
+  n.y = (packed_normal & (1u << OHM_NORMAL_SET_BIT_Z)) ? n.y : 0.0f;
+  n.z = (packed_normal & (1u << OHM_NORMAL_SET_BIT_Z)) ? sqrt(n.z) : 0.0f;
+
+  return n;
 }
 
 /// Encode a normalised vector into a 32-bit floating point value.
 ///
 /// We use 15-bits each to encode X and Y channels. We use the most significant bit (31) to encode the sign of Z.
-/// Bit 30 is unused.
+/// Bit 30 is used to incidate if there is a valid normal stored.
 inline unsigned OHM_DEVICE_HOST encodeNormal(Vec3 normal)
 {
   unsigned n = 0;
 
-  normal.x = OHM_NORMAL_STD max(-1.0f, OHM_NORMAL_STD min(normal.x, 1.0f));
-  normal.y = OHM_NORMAL_STD max(-1.0f, OHM_NORMAL_STD min(normal.y, 1.0f));
-  normal.z = OHM_NORMAL_STD max(-1.0f, OHM_NORMAL_STD min(normal.z, 1.0f));
+  // Adjust normal range from [-1, 1] -> [0, 2] -> [0, 1]
+  normal.x = 0.5f * (OHM_NORMAL_STD max(-1.0f, OHM_NORMAL_STD min(normal.x, 1.0f)) + 1.0f);
+  normal.y = 0.5f * (OHM_NORMAL_STD max(-1.0f, OHM_NORMAL_STD min(normal.y, 1.0f)) + 1.0f);
 
-  short i = (short)(normal.x * OHM_NORMAL_QUAT);
-  n |= (i << OHM_NORMAL_SHIFT_X) & OHM_NORMAL_MASK;
-  i = (short)(normal.y * OHM_NORMAL_QUAT);
-  n |= (i << OHM_NORMAL_SHIFT_Y) & OHM_NORMAL_MASK;
+  unsigned i = (unsigned)(normal.x * OHM_NORMAL_QUAT);
+  n |= (i & OHM_NORMAL_MASK) << OHM_NORMAL_SHIFT_X;
+  i = (unsigned)(normal.y * OHM_NORMAL_QUAT);
+  n |= (i & OHM_NORMAL_MASK) << OHM_NORMAL_SHIFT_Y;
+
   n |= (normal.z < 0) ? (1 << OHM_NORMAL_SIGN_BIT_Z) : 0;
+  // mark as set if the input normal is non-zero.
+  n |= (normal.x || normal.y || normal.z) ? (1u << OHM_NORMAL_SET_BIT_Z) : 0;
 
   return n;
 }
 
-inline unsigned OHM_DEVICE_HOST updateIncidentNormal(unsigned packed_normal, Vec3 incident_ray, unsigned point_count)
+inline Vec3 OHM_DEVICE_HOST updateIncidentNormalV3(Vec3 normal, Vec3 incident_ray, unsigned point_count)
 {
   // Handle having a zero normal as an initialiastion pass regardless of point count.
-  point_count = (packed_normal && point_count) ? point_count : 0;
+  point_count = ((normal.x != 0 || normal.y != 0 || normal.z != 0) && point_count) ? point_count : 0;
   const float one_on_count_plus_one = 1.0f / (float)(point_count + 1);
-  // mean.x += (voxel_local_coord.x - mean.x) * one_on_count_plus_one;
-  Vec3 normal = decodeNormal(packed_normal);
-  incident_ray = normalize(incident_ray);
+  float normal_length_2 =
+    incident_ray.x * incident_ray.x + incident_ray.y * incident_ray.y + incident_ray.z * incident_ray.z;
+  incident_ray *= (normal_length_2 > 1e-6f) ? 1.0f / sqrt(normal_length_2) : 0.0f;
   normal.x += (incident_ray.x - normal.x) * one_on_count_plus_one;
   normal.y += (incident_ray.y - normal.y) * one_on_count_plus_one;
   normal.z += (incident_ray.z - normal.z) * one_on_count_plus_one;
-  normal = normalize(normal);
+  normal_length_2 = normal.x * normal.x + normal.y * normal.y + normal.z * normal.z;
+  normal *= (normal_length_2 > 1e-6f) ? 1.0f / sqrt(normal_length_2) : 0.0f;
+  return normal;
+}
+
+inline unsigned OHM_DEVICE_HOST updateIncidentNormal(unsigned packed_normal, Vec3 incident_ray, unsigned point_count)
+{
+  Vec3 normal = decodeNormal(packed_normal);
+  normal = updateIncidentNormalV3(normal, incident_ray, point_count);
   return encodeNormal(normal);
 }
 
