@@ -1056,14 +1056,14 @@ void GpuMap::finaliseBatch(unsigned region_update_flags)
     traversal_layer_cache = gpu_cache.layerCache(kGcIdTraversal);
   }
 
-  if (imp_->map->incidentNormalEnabled())
-  {
-    incidents_layer_cache = gpu_cache.layerCache(kGcIdTouchTime);
-  }
-
   if (imp_->map->touchTimeEnabled())
   {
-    touch_times_layer_cache = gpu_cache.layerCache(kGcIdIncidentNormal);
+    touch_times_layer_cache = gpu_cache.layerCache(kGcIdTouchTime);
+  }
+
+  if (imp_->map->incidentNormalEnabled())
+  {
+    incidents_layer_cache = gpu_cache.layerCache(kGcIdIncidentNormal);
   }
 
   // Enqueue update kernel.

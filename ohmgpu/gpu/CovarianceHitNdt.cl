@@ -160,12 +160,12 @@ __kernel void covarianceHitNdt(
   float traversal = (traversal_voxels) ? traversal_voxels[traversal_index] : 0;
   uint touch_time_index =
     (touch_time_voxels) ?
-      (uint)(region_local_index + traversal_region_mem_offsets_global[region_index] / sizeof(*touch_time_voxels)) :
+      (uint)(region_local_index + touch_times_region_mem_offsets_global[region_index] / sizeof(*touch_time_voxels)) :
       0;
   uint touch_time = (touch_time_voxels) ? touch_time_voxels[touch_time_index] : 0;
   uint incident_index =
     (incident_voxels) ?
-      (uint)(region_local_index + traversal_region_mem_offsets_global[region_index] / sizeof(*incident_voxels)) :
+      (uint)(region_local_index + incidents_region_mem_offsets_global[region_index] / sizeof(*incident_voxels)) :
       0;
   uint incident = (incident_voxels) ? incident_voxels[incident_index] : 0;
 
@@ -281,5 +281,13 @@ __kernel void covarianceHitNdt(
   if (traversal_voxels)
   {
     traversal_voxels[traversal_index] = traversal;
+  }
+  if (touch_time_voxels)
+  {
+    touch_time_voxels[touch_time_index] = touch_time;
+  }
+  if (incident_voxels)
+  {
+    incident_voxels[incident_index] = incident;
   }
 }

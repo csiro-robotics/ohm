@@ -266,7 +266,7 @@ __device__ bool VISIT_LINE_VOXEL(const GpuKey *voxelKey, bool isEndVoxel, const 
       {
         ulonglong vi = vi_local + (line_data->touch_times_offsets[line_data->current_region_index] /
                                    sizeof(*line_data->touch_times));
-        gputilAtomicMax(&line_data->incidents[vi], line_data->touch_time);
+        gputilAtomicMax(&line_data->touch_times[vi], line_data->touch_time);
       }
 
       if (line_data->incidents)
