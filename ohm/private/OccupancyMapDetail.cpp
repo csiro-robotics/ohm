@@ -123,7 +123,7 @@ void OccupancyMapDetail::setDefaultLayout(MapFlag init_flags)
 
   if ((init_flags & MapFlag::kTouchTime) != MapFlag::kNone)
   {
-    addTraversal(layout);
+    addTouchTime(layout);
     flags |= MapFlag::kTouchTime;
   }
   else
@@ -133,7 +133,7 @@ void OccupancyMapDetail::setDefaultLayout(MapFlag init_flags)
 
   if ((init_flags & MapFlag::kIncidentNormal) != MapFlag::kNone)
   {
-    addTraversal(layout);
+    addIncidentNormal(layout);
     flags |= MapFlag::kIncidentNormal;
   }
   else
