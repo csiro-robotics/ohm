@@ -84,7 +84,11 @@ void testIncidentNormals(ohm::OccupancyMap &map, ohm::GpuMap &mapper, bool singl
     incident_voxel.setKey(map.voxelKey(glm::dvec3(0)));
     ASSERT_TRUE(incident_voxel.isValid());
 
-    EXPECT_EQ(incident_voxel.data(), expected_packed);
+    // Convert the vectors for comparison - CPU works in double while GPU is float so we expect some error.
+    const glm::vec3 mapped_incident = ohm::decodeNormal(incident_voxel.data());
+    const glm::vec3 expected_incident = ohm::decodeNormal(expected_packed);
+    const glm::vec3 diff_incident = expected_incident - mapped_incident;
+    EXPECT_NEAR(glm::length(diff_incident), 0, 1e-2f);
 
     // Clear the incident normal
     incident_voxel.write(0);
@@ -101,7 +105,7 @@ void testIncidentNormals(ohm::OccupancyMap &map, ohm::GpuMap &mapper, bool singl
   }
 }
 
-TEST(Incident, DISABLED_WithOccupancy)
+TEST(Incident, WithOccupancy)
 {
   ohm::OccupancyMap map(0.1f, ohm::MapFlag::kVoxelMean | ohm::MapFlag::kIncidentNormal);
   ohm::GpuMap mapper(&map, true);
@@ -109,7 +113,7 @@ TEST(Incident, DISABLED_WithOccupancy)
   testIncidentNormals(map, mapper, true);
 }
 
-TEST(Incident, DISABLED_WithNdt)
+TEST(Incident, WithNdt)
 {
   ohm::OccupancyMap map(0.1f, ohm::MapFlag::kVoxelMean | ohm::MapFlag::kIncidentNormal);
   ohm::GpuNdtMap mapper(&map, true);
