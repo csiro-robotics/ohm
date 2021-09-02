@@ -100,8 +100,8 @@ inline __device__ void initialiseCovariance(CovarianceVoxel *cov, float voxel_re
 /// z 2 4
 /// z z 5
 /// 6 7 8
-inline __device__ double packedDot(const CovReal A[9],  // NOLINT
-                                   const int j, const int k)
+inline __device__ CovReal packedDot(const CovReal A[9],  // NOLINT
+                                    const int j, const int k)
 {
   const int col_first_el[] = { 0, 1, 3 };  // NOLINT(modernize-avoid-c-arrays)
   const int indj = col_first_el[j];
