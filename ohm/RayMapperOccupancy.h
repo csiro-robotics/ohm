@@ -84,8 +84,8 @@ protected:
   int occupancy_layer_ = -1;              ///< Cached occupancy layer index.
   int mean_layer_ = -1;                   ///< Cached voxel mean layer index.
   int traversal_layer_ = -1;              ///< The traversal layer index.
-  int touch_time_layer = -1;              ///< Cache touch time layer index.
-  int incident_normal_layer = -1;         ///< Cache incident normal layer index.
+  int touch_time_layer_ = -1;             ///< Cache touch time layer index.
+  int incident_normal_layer_ = -1;        ///< Cache incident normal layer index.
   glm::u8vec3 occupancy_dim_{ 0, 0, 0 };  ///< Cached occupancy layer voxel dimensions. Voxel mean must exactly match.
   bool valid_ = false;                    ///< Has layer validation passed?
 };

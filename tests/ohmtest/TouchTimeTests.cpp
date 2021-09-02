@@ -29,7 +29,6 @@ void testTouchTime(ohm::OccupancyMap &map, ohm::RayMapper &mapper)
   const unsigned ray_count = 1000u;
   const double time_base = 1000.0;
   const double time_step = 0.5;
-  const float epsilon = 1e-2f;
   std::vector<glm::dvec3> rays;
   std::vector<double> timestamps;
   uint32_t seed = 1153297050u;

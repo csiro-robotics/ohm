@@ -123,7 +123,6 @@ bool RaysQuery::onExecute()
   const auto occupancy_layer = d->occupancy_layer;
   const auto occupancy_dim = d->occupancy_dim;
   const auto occupancy_threshold_value = map->occupancyThresholdValue();
-  const auto map_origin = map->origin();
   const auto volume_coefficient = d->volume_coefficient;
 
   const auto visit_func = [&](const Key &key, double enter_range, double exit_range)  //

@@ -673,7 +673,7 @@ bool PLYElement::convert_list_to_fixed_size(uint32_t listPropIdx, uint32_t listS
       uint32_t propIdx = listPropIdx + 1 + i;
 
       PLYProperty &itemProp = properties[propIdx];
-      snprintf(nameBuf, sizeof(nameBuf), "%s_%u", oldListProp.name.c_str(), i);
+      snprintf(nameBuf, sizeof(nameBufSize), "%s_%u", oldListProp.name.c_str(), i);
       itemProp.name = nameBuf;
       itemProp.type = oldListProp.type;
       itemProp.countType = PLYPropertyType::None;

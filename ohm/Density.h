@@ -48,10 +48,6 @@ inline float ohm_API voxelDensity(const Voxel<const float> &traversal_voxel, con
     const float traversal = traversal_voxel.data();
     if (count > 0)
     {
-      if (traversal == 0)
-      {
-        int stopme = 1;
-      }
       return (traversal > 0) ? float(count) / traversal : std::numeric_limits<float>::infinity();
     }
   }

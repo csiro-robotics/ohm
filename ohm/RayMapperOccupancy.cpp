@@ -30,8 +30,8 @@ RayMapperOccupancy::RayMapperOccupancy(OccupancyMap *map)
   , occupancy_layer_(map_->layout().occupancyLayer())
   , mean_layer_(map_->layout().meanLayer())
   , traversal_layer_(map_->layout().traversalLayer())
-  , touch_time_layer(map_->layout().layerIndex(default_layer::touchTimeLayerName()))
-  , incident_normal_layer(map_->layout().layerIndex(default_layer::incidentNormalLayerName()))
+  , touch_time_layer_(map_->layout().layerIndex(default_layer::touchTimeLayerName()))
+  , incident_normal_layer_(map_->layout().layerIndex(default_layer::incidentNormalLayerName()))
 {
   // Use Voxel to validate the layers.
   // In processing we use VoxelBuffer instead of Voxel objects. While Voxel makes for a neater API, using VoxelBuffer
@@ -39,8 +39,8 @@ RayMapperOccupancy::RayMapperOccupancy(OccupancyMap *map)
   Voxel<const float> occupancy(map_, occupancy_layer_);
   Voxel<const VoxelMean> mean(map_, mean_layer_);
   Voxel<const float> traversal(map_, traversal_layer_);
-  Voxel<const uint32_t> touch_time_layer(map_, touch_time_layer);
-  Voxel<const uint32_t> incident_normal_layer(map_, incident_normal_layer);
+  Voxel<const uint32_t> touch_time_layer(map_, touch_time_layer_);
+  Voxel<const uint32_t> incident_normal_layer(map_, incident_normal_layer_);
 
   occupancy_dim_ = occupancy.isLayerValid() ? occupancy.layerDim() : occupancy_dim_;
 
@@ -131,15 +131,15 @@ size_t RayMapperOccupancy::integrateRays(const glm::dvec3 *rays, size_t element_
       {
         traversal_buffer = VoxelBuffer<VoxelBlock>(chunk->voxel_blocks[traversal_layer]);
       }
-      if (touch_time_layer >= 0 && timestamps)
+      if (touch_time_layer_ >= 0 && timestamps)
       {
         // Touch time not required for miss update, but we need it in sync for the update later.
-        touch_time_buffer = VoxelBuffer<VoxelBlock>(chunk->voxel_blocks[touch_time_layer]);
+        touch_time_buffer = VoxelBuffer<VoxelBlock>(chunk->voxel_blocks[touch_time_layer_]);
       }
-      if (incident_normal_layer >= 0)
+      if (incident_normal_layer_ >= 0)
       {
         // Incidents not required for miss update, but we need it in sync for the update later.
-        incidents_buffer = VoxelBuffer<VoxelBlock>(chunk->voxel_blocks[incident_normal_layer]);
+        incidents_buffer = VoxelBuffer<VoxelBlock>(chunk->voxel_blocks[incident_normal_layer_]);
       }
     }
     last_chunk = chunk;
@@ -242,13 +242,13 @@ size_t RayMapperOccupancy::integrateRays(const glm::dvec3 *rays, size_t element_
         {
           traversal_buffer = VoxelBuffer<VoxelBlock>(chunk->voxel_blocks[traversal_layer]);
         }
-        if (touch_time_layer >= 0 && timestamps)
+        if (touch_time_layer_ >= 0 && timestamps)
         {
-          touch_time_buffer = VoxelBuffer<VoxelBlock>(chunk->voxel_blocks[touch_time_layer]);
+          touch_time_buffer = VoxelBuffer<VoxelBlock>(chunk->voxel_blocks[touch_time_layer_]);
         }
-        if (incident_normal_layer >= 0)
+        if (incident_normal_layer_ >= 0)
         {
-          incidents_buffer = VoxelBuffer<VoxelBlock>(chunk->voxel_blocks[incident_normal_layer]);
+          incidents_buffer = VoxelBuffer<VoxelBlock>(chunk->voxel_blocks[incident_normal_layer_]);
         }
       }
       last_chunk = chunk;
@@ -307,13 +307,13 @@ size_t RayMapperOccupancy::integrateRays(const glm::dvec3 *rays, size_t element_
         traversal_buffer.writeVoxel(voxel_index, traversal);
       }
 
-      if (touch_time_layer >= 0 && timestamps)
+      if (touch_time_layer_ >= 0 && timestamps)
       {
         const unsigned touch_time = encodeVoxelTouchTime(time_base, timestamps[i >> 1]);
         touch_time_buffer.writeVoxel(voxel_index, touch_time);
       }
 
-      if (incident_normal_layer >= 0)
+      if (incident_normal_layer_ >= 0)
       {
         unsigned packed_normal{};
         incidents_buffer.readVoxel(voxel_index, &packed_normal);

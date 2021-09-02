@@ -150,7 +150,7 @@ const GpuNdtMapDetail *GpuNdtMap::detail() const
 }
 
 
-void GpuNdtMap::cacheGpuProgram(bool /*with_voxel_mean*/, bool with_traversal_rate, bool force)
+void GpuNdtMap::cacheGpuProgram(bool /*with_voxel_mean*/, bool /*with_traversal_rate*/, bool force)
 {
   if (imp_->program_ref)
   {

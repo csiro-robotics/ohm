@@ -29,7 +29,6 @@ void testIncidentNormals(ohm::OccupancyMap &map, ohm::GpuMap &mapper, bool singl
 {
   const unsigned iterations = 10;
   const unsigned ray_count = 1000u;
-  const float epsilon = 1e-2f;
   std::vector<glm::dvec3> rays;
   uint32_t seed = 1153297050u;
   std::default_random_engine rng(seed);

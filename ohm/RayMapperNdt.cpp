@@ -37,8 +37,8 @@ RayMapperNdt::RayMapperNdt(NdtMap *map)
   , covariance_layer_(map_->map().layout().covarianceLayer())
   , intensity_layer_(map_->map().layout().intensityLayer())
   , hit_miss_count_layer_(map_->map().layout().hitMissCountLayer())
-  , touch_time_layer(map_->map().layout().layerIndex(default_layer::touchTimeLayerName()))
-  , incident_normal_layer(map_->map().layout().layerIndex(default_layer::incidentNormalLayerName()))
+  , touch_time_layer_(map_->map().layout().layerIndex(default_layer::touchTimeLayerName()))
+  , incident_normal_layer_(map_->map().layout().layerIndex(default_layer::incidentNormalLayerName()))
   , ndt_tm_(map->mode() == NdtMode::kTraversability)
 {
   OccupancyMap *map_ptr = &map_->map();
@@ -47,8 +47,8 @@ RayMapperNdt::RayMapperNdt(NdtMap *map)
   Voxel<const VoxelMean> mean(map_ptr, mean_layer_);
   Voxel<const CovarianceVoxel> cov(map_ptr, covariance_layer_);
   Voxel<const float> traversal(map_ptr, traversal_layer_);
-  Voxel<const uint32_t> touch_time_layer(map_ptr, touch_time_layer);
-  Voxel<const uint32_t> incident_normal_layer(map_ptr, incident_normal_layer);
+  Voxel<const uint32_t> touch_time_layer(map_ptr, touch_time_layer_);
+  Voxel<const uint32_t> incident_normal_layer(map_ptr, incident_normal_layer_);
 
   occupancy_dim_ = (occupancy.isLayerValid()) ? occupancy.layerDim() : occupancy_dim_;
 
@@ -174,15 +174,15 @@ size_t RayMapperNdt::integrateRays(const glm::dvec3 *rays, size_t element_count,
       {
         traversal_buffer = VoxelBuffer<VoxelBlock>(chunk->voxel_blocks[traversal_layer]);
       }
-      if (touch_time_layer >= 0 && timestamps)
+      if (touch_time_layer_ >= 0 && timestamps)
       {
         // Touch time not required for miss update, but we need it in sync for the update later.
-        touch_time_buffer = VoxelBuffer<VoxelBlock>(chunk->voxel_blocks[touch_time_layer]);
+        touch_time_buffer = VoxelBuffer<VoxelBlock>(chunk->voxel_blocks[touch_time_layer_]);
       }
-      if (incident_normal_layer >= 0)
+      if (incident_normal_layer_ >= 0)
       {
         // Incidents not required for miss update, but we need it in sync for the update later.
-        incidents_buffer = VoxelBuffer<VoxelBlock>(chunk->voxel_blocks[incident_normal_layer]);
+        incidents_buffer = VoxelBuffer<VoxelBlock>(chunk->voxel_blocks[incident_normal_layer_]);
       }
     }
     last_chunk = chunk;
@@ -291,17 +291,17 @@ size_t RayMapperNdt::integrateRays(const glm::dvec3 *rays, size_t element_count,
           intensity_buffer = VoxelBuffer<VoxelBlock>(chunk->voxel_blocks[intensity_layer_]);
           hit_miss_count_buffer = VoxelBuffer<VoxelBlock>(chunk->voxel_blocks[hit_miss_count_layer_]);
         }
-        if (traversal_layer >= 0)
+        if (traversal_layer_ >= 0)
         {
           traversal_buffer = VoxelBuffer<VoxelBlock>(chunk->voxel_blocks[traversal_layer]);
         }
-        if (touch_time_layer >= 0 && timestamps)
+        if (touch_time_layer_ >= 0 && timestamps)
         {
-          touch_time_buffer = VoxelBuffer<VoxelBlock>(chunk->voxel_blocks[touch_time_layer]);
+          touch_time_buffer = VoxelBuffer<VoxelBlock>(chunk->voxel_blocks[touch_time_layer_]);
         }
-        if (incident_normal_layer >= 0)
+        if (incident_normal_layer_ >= 0)
         {
-          incidents_buffer = VoxelBuffer<VoxelBlock>(chunk->voxel_blocks[incident_normal_layer]);
+          incidents_buffer = VoxelBuffer<VoxelBlock>(chunk->voxel_blocks[incident_normal_layer_]);
         }
       }
       last_chunk = chunk;
@@ -366,13 +366,13 @@ size_t RayMapperNdt::integrateRays(const glm::dvec3 *rays, size_t element_count,
         traversal_buffer.writeVoxel(voxel_index, traversal);
       }
 
-      if (touch_time_layer >= 0 && timestamps)
+      if (touch_time_layer_ >= 0 && timestamps)
       {
         const unsigned touch_time = encodeVoxelTouchTime(time_base, timestamps[i >> 1]);
         touch_time_buffer.writeVoxel(voxel_index, touch_time);
       }
 
-      if (incident_normal_layer >= 0)
+      if (incident_normal_layer_ >= 0)
       {
         unsigned packed_normal{};
         incidents_buffer.readVoxel(voxel_index, &packed_normal);
