@@ -120,8 +120,15 @@ protected:
 
   void finaliseBatch(unsigned region_update_flags) override;
 
+  /// Typdef for tracking which @c GpuLayerCache objects have been touched.
   using TouchedCacheSet = std::array<GpuLayerCache *, 8>;
-  void invokeNdtOm(unsigned region_update_flags, int buf_idx, gputil::EventList &wait, TouchedCacheSet &used_caches);
+  /// Invoke the NDT kernels.
+  /// @param region_update_flags Flags controlling ray integration behaviour. See @c RayFlag.
+  /// @param buf_idx Which buffer set in @c GpuMapDetail to update [0, 1]
+  /// @param wait Set of GPU events to wait for before executing the first kernel. Expected to hold events related to
+  ///   buffer uploads.
+  /// @param used_caches Modified to hold pointers to the set of @c GpuLayerCache objects which have been used/touched
+  ///   by the kernel invocations. Expected to be null terminated or full.
   void invokeNdt(unsigned region_update_flags, int buf_idx, gputil::EventList &wait, TouchedCacheSet &used_caches);
 
   void releaseGpuProgram() override;

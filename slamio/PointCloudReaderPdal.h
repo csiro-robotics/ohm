@@ -49,8 +49,10 @@ public:
   uint64_t readChunk(CloudPoint *point, uint64_t count) override;
 
 #if SLAMIO_HAVE_PDAL_STREAMS
+  /// PDAL reader typedef
   using PdalReaderPtr = std::shared_ptr<pdal::Streamable>;
 #else   // SLAMIO_HAVE_PDAL_STREAMS
+  /// PDAL reader typedef
   using PdalReaderPtr = std::shared_ptr<pdal::Stage>;
 #endif  // SLAMIO_HAVE_PDAL_STREAMS
 

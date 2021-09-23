@@ -66,14 +66,18 @@ typedef struct CovarianceVoxel_t  // NOLINT(readability-identifier-naming, moder
 /// Data stucture tracking intensity information for a voxel. This is used for NDT-TM.
 typedef struct IntensityMeanCov_t  // NOLINT(readability-identifier-naming, modernize-use-using)
 {
+  /// Current intensity mean (approximate)
   float intensity_mean;
+  /// Current intensity covariance (approximate)
   float intensity_cov;
 } IntensityMeanCov;
 
 /// Data structure tacking the number of hits and misses on a voxel.
 typedef struct HitMissCount_t  // NOLINT(readability-identifier-naming, modernize-use-using)
 {
+  /// Number of hits recoreded
   uint32_t hit_count;
+  /// Number of misses recoreded
   uint32_t miss_count;
 } HitMissCount;
 
@@ -369,8 +373,7 @@ inline __device__ bool calculateHitWithCovariance(CovarianceVoxel *cov_voxel, fl
 /// Calculate the update to a voxel's intensity distribution using a new hit. This supports Normalised Distribution
 /// Transform-Traversability Map (NDT-TM) logic in @c calculateHitNdt() .
 ///
-/// @param[in,out] intensity_mean_voxel The mean intensity for the voxel being updated.
-/// @param[in,out] intensity_cov_voxel The covariance of intensity for the voxel being updated.
+/// @param[in,out] intensity The intensity mean and covariance for the voxel being updated.
 /// @param voxel_value The occupancy value for the voxel being updated.
 /// @param intensity_sample The intensity measurement of the sample that falls in this voxel.
 /// @param initial_intensity_covariance The covariance to utilise in voxel when initialising with a new sample.
@@ -421,8 +424,8 @@ inline __device__ void calculateIntensityUpdateOnHit(IntensityMeanCov *intensity
 ///
 /// @param[in,out] cov_voxel The packed covariance to update for the voxel being updated.
 /// @param voxel_value The occupancy value for the voxel being updated.
-/// @param[in,out] hit_count The number of hits in the current voxel.
-/// @param[in,out] miss_count The number of misses in the current voxel.
+/// @param[in,out] hit_miss_count Tracks the number of hits and misses in the current voxel.
+/// @param sensor The position of the sensor or ray origin from which the sample was measured.
 /// @param sample The sample which falls in this voxel.
 /// @param voxel_mean The current accumulated mean position within the voxel. Only valid if @p point_count is &gt; 0.
 /// @param point_count The number of samples which have been used to generate the @p voxel_mean and @p cov_voxel.
@@ -505,8 +508,7 @@ inline __device__ void calculateHitMissUpdateOnHit(CovarianceVoxel *cov_voxel, f
 ///
 /// @param cov_voxel The packed covariance for the voxel. Only used if the `point_count &gt; sample_threshold`.
 /// @param[in,out] voxel_value The current voxel log probably value.
-/// @param[in,out] hit_count The number of hits in the current voxel.
-/// @param[in,out] miss_count The number of misses in the current voxel.
+/// @param[out] is_miss Set to true if the ray misses the estimated voxel shape (or there is insufficient data yet).
 /// @param sensor The location of the sensor from where the sample was taken.
 /// @param sample The sample position.
 /// @param voxel_mean The current accumulated mean position within the voxel. Only valid if @p point_count is &gt; 0.

@@ -462,10 +462,19 @@ public:
   /// @return True if the "traversal" layer is enabled.
   bool traversalEnabled() const;
 
+  /// Add the "touch_time" layer to the map. See @c addTouchTime() . Does nothing if the layer is already present.
   void addTouchTimeLayer();
+
+  /// Check if the "touch_time" layer exists.
+  /// @return True if the "touch_time" layer is enabled.
   bool touchTimeEnabled() const;
 
+  /// Add the "incident_normal" layer to the map. See @c addIncidentNormal() . Does nothing if the layer is already
+  /// present.
   void addIncidentNormalLayer();
+
+  /// Check if the "incident_normal" layer exists.
+  /// @return True if the "incident_normal" layer is enabled.
   bool incidentNormalEnabled() const;
 
   /// Update the memory layout to match that in this map's @c MapLayout. Must be called after updating

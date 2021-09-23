@@ -323,7 +323,8 @@ protected:
   /// Implementation for various ways we can integrate rays into the map. See @c integrateRays() for general detail.
   /// @param rays Array of origin/sample point pairs. Expect either @c glm::dvec3 (preferred) or @c glm::vec3.
   /// @param element_count The number of points in @p rays. The ray count is half this value.
-  /// @param intensities Optional--for each ray, intensity of the return (element_count/2 elements).
+  /// @param intensities Optional - for each ray, intensity of the return (element_count/2 elements).
+  /// @param timestamps Optiona - the timestamp value for each ray (element_count/2 elements).
   /// @param region_update_flags Flags controlling ray integration behaviour. See @c RayFlag.
   /// @param filter Filter function apply to each ray before passing to GPU. May be empty.
   /// @return The number of rays integrated. Zero indicates a failure when @p pointCount is not zero.

@@ -18,11 +18,11 @@ namespace slamio
 /// Extracted point cloud sample.
 struct CloudPoint
 {
-  double timestamp;
-  glm::dvec3 position;
-  glm::dvec3 normal;
-  glm::vec4 colour;
-  float intensity;
+  double timestamp;     ///< Point timestamp (if available)
+  glm::dvec3 position;  ///< Sample position (if available)
+  glm::dvec3 normal;    ///< Sample normal value. May be a ray when loading rayclouds or with trajectory (if available)
+  glm::vec4 colour;     ///< Point colour (if available)
+  float intensity;      ///< Point intensity value (if available)
 };
 
 /// SLAM sample point. This is very similar to a point cloud sample, but has an @p origin point rather than a point
@@ -30,11 +30,11 @@ struct CloudPoint
 /// points rather than normals.
 struct SamplePoint
 {
-  double timestamp;
-  glm::dvec3 sample;
-  glm::dvec3 origin;
-  glm::vec4 colour;
-  float intensity;
+  double timestamp;   ///< Sample timestamp (if available)
+  glm::dvec3 sample;  ///< Sample position
+  glm::dvec3 origin;  ///< Point from which the same was generated (sensor position, if available)
+  glm::vec4 colour;   ///< Sample colour (if available)
+  float intensity;    ///< Sample intensity (if available)
 };
 
 inline void c2sPt(SamplePoint &sample, const CloudPoint &cloud)

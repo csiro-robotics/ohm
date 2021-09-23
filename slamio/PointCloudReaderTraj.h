@@ -28,7 +28,7 @@ namespace slamio
 /// - One data item per line.
 /// - Data line format is : `time x y z <additional_fields>`
 /// - Data in a line are space delimited
-/// - @c <additional_fields> are ignored
+/// - @c `<additional_fields>` are ignored
 class PointCloudReaderTraj : public PointCloudReader
 {
 public:

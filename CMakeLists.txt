@@ -280,12 +280,16 @@ if(OHM_BUILD_DOXYGEN)
   )
 
   set(DOXYGE_EXCLUDE_DIRS
+    clu/3rdparty
     gputil/cl
     gputil/cuda
     ohm/cl
     ohm/gpu
     ohm/private
     ohmgpu/private
+    ohmutil/3rdparty
+    slamio/miniply
+    slamio/pdal
   )
 
   if(OHM_BUILD_CUDA OR OHM_BUILD_OPENCL)
