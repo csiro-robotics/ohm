@@ -308,7 +308,7 @@ bool Device::select(int argc, const char **argv, const char *default_device, uns
   {
     imp_->context = cl::Context();
     imp_->device = cl::Device();
-    imp_->default_queue = createQueue();
+    imp_->default_queue = Queue();
   }
 
   if (isValid())
