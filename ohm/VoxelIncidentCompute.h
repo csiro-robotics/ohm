@@ -28,8 +28,8 @@ inline Vec3 OHM_DEVICE_HOST decodeNormal(unsigned packed_normal)
 {
   Vec3 n;
 
-  n.x = (2.0f * ((packed_normal >> OHM_NORMAL_SHIFT_X) & OHM_NORMAL_MASK) / OHM_NORMAL_QUAT) - 1.0f;
-  n.y = (2.0f * ((packed_normal >> OHM_NORMAL_SHIFT_Y) & OHM_NORMAL_MASK) / OHM_NORMAL_QUAT) - 1.0f;
+  n.x = (2.0f * (((packed_normal >> OHM_NORMAL_SHIFT_X) & OHM_NORMAL_MASK) / OHM_NORMAL_QUAT)) - 1.0f;
+  n.y = (2.0f * (((packed_normal >> OHM_NORMAL_SHIFT_Y) & OHM_NORMAL_MASK) / OHM_NORMAL_QUAT)) - 1.0f;
 
   n.x = OHM_NORMAL_STD max(-1.0f, OHM_NORMAL_STD min(n.x, 1.0f));
   n.y = OHM_NORMAL_STD max(-1.0f, OHM_NORMAL_STD min(n.y, 1.0f));

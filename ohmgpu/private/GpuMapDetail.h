@@ -9,6 +9,7 @@
 #include "OhmGpuConfig.h"
 
 #include "GpuCache.h"
+#include "RayItem.h"
 
 #include <ohm/Key.h>
 #include <ohm/RayFilter.h>
@@ -70,25 +71,6 @@ struct VoxelUploadInfo
     : offsets_buffer(gpu, sizeof(uint64_t) * prealloc_elements, gputil::kBfReadHost)
     , gpu_layer_id(gpu_layer_id)
   {}
-};
-
-/// Structure used for sorting algorithm to group rays before upload.
-struct RayItem
-{
-  /// Origin of the ray. Unless clipped, this is the sensor location.
-  glm::dvec3 origin;
-  /// End point of the sample ray. Unless clipped, this is the location of the sample detection.
-  glm::dvec3 sample;
-  /// Map @c Key corresponding to @p origin .
-  Key origin_key;
-  /// Map @c Key corresponding to @p sample .
-  Key sample_key;
-  /// Intensity value associated with the @p sample .
-  float intensity;
-  /// Quantised, relative timestamp.
-  unsigned timestamp;
-  /// @c RayFilterFlag values corresponding to any modification which have been made to @p origin and @p sample .
-  unsigned filter_flags;
 };
 
 struct GpuMapDetail

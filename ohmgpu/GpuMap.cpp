@@ -10,6 +10,7 @@
 #include "GpuLayerCache.h"
 #include "GpuTransformSamples.h"
 #include "OhmGpu.h"
+#include "RayItem.h"
 
 #include <ohm/Aabb.h>
 #include <ohm/DefaultLayer.h>
@@ -787,43 +788,7 @@ size_t GpuMap::integrateRays(const glm::dvec3 *rays, size_t element_count, const
     // Sort the rays. Order does not matter asside from ensuring the rays are grouped by sample voxel.
     // Despite the extra CPU work, this has proven faster for NDT update in GpuNdtMap because the GPU can do much less
     // work.
-    std::sort(
-      imp_->grouped_rays.begin(), imp_->grouped_rays.end(),
-      [](const RayItem &a, const RayItem &b) -> bool  //
-      {
-        // For the comparison, we merge the region key values into a single 64-bit value
-        // and the same for the local index. Then we compare the resulting values.
-        // The final ordering is irrelevant in terms of which is "less". The goal is to group
-        // items with the same sample key.
-
-        const int clipped_a = !!(a.filter_flags & kRffClippedEnd);
-        const int clipped_b = !!(b.filter_flags & kRffClippedEnd);
-
-        // Multiplier/shift value to move a region key axis such that each axis is in its own bit set.
-        const int64_t region_stride = 0x10000u;
-        // Shift and mask together the region key axes
-        const int64_t region_index_a = static_cast<int64_t>(a.sample_key.regionKey().x) +
-                                       static_cast<int64_t>(region_stride * a.sample_key.regionKey().y) +
-                                       region_stride * region_stride * static_cast<int64_t>(a.sample_key.regionKey().z);
-        const int64_t region_index_b = static_cast<int64_t>(b.sample_key.regionKey().x) +
-                                       region_stride * static_cast<int64_t>(b.sample_key.regionKey().y) +
-                                       region_stride * region_stride * static_cast<int64_t>(b.sample_key.regionKey().z);
-        // Multiplier/shift value to move a local key axis such that each axis is in its own bit set.
-        const uint32_t local_stride = 0x100u;
-        // Shift and mask together the local key axes
-        const uint32_t local_index_a = uint32_t(a.sample_key.localKey().x) +
-                                       local_stride * uint32_t(a.sample_key.localKey().y) +
-                                       local_stride * local_stride * uint32_t(a.sample_key.localKey().z);
-        const uint32_t local_index_b = uint32_t(b.sample_key.localKey().x) +
-                                       local_stride * uint32_t(b.sample_key.localKey().y) +
-                                       local_stride * local_stride * uint32_t(b.sample_key.localKey().z);
-        // Compare the results. We sort such that:
-        // - Items with unclipped end points come first.
-        // - By region index next
-        // - Finally by local index.
-        return clipped_a < clipped_b || (clipped_a == clipped_b && region_index_a < region_index_b) ||
-               (clipped_a == clipped_b && region_index_a == region_index_b && local_index_a < local_index_b);
-      });
+    std::sort(imp_->grouped_rays.begin(), imp_->grouped_rays.end());
 #if OHM_GPU_VERIFY_SORT
     verifySort(imp_->grouped_rays);
 #endif  // OHM_GPU_VERIFY_SORT

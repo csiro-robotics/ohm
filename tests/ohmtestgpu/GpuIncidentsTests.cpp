@@ -17,10 +17,12 @@
 
 #include <ohmgpu/GpuMap.h>
 #include <ohmgpu/GpuNdtMap.h>
+#include <ohmgpu/RayItem.h>
 
 #include <glm/gtx/norm.hpp>
 #include <glm/vec3.hpp>
 
+#include <algorithm>
 #include <random>
 
 namespace incidents
@@ -29,6 +31,7 @@ void testIncidentNormals(ohm::OccupancyMap &map, ohm::GpuMap &mapper, bool singl
 {
   const unsigned iterations = 10;
   const unsigned ray_count = 1000u;
+  std::vector<ohm::RayItem> ray_items;
   std::vector<glm::dvec3> rays;
   uint32_t seed = 1153297050u;
   std::default_random_engine rng(seed);
@@ -40,27 +43,45 @@ void testIncidentNormals(ohm::OccupancyMap &map, ohm::GpuMap &mapper, bool singl
   ASSERT_TRUE(map.incidentNormalEnabled());
   ASSERT_TRUE(map.voxelMeanEnabled());
 
+  ray_items.reserve(ray_count);
   rays.reserve(2 * ray_count);
   for (unsigned i = 0; i < iterations; ++i)
   {
     unsigned expected_packed = 0;
+    ray_items.clear();
     rays.clear();
+
+    // We build into RayItem entries to ensure we sort into the same order as the GPU will and can process in that
+    // order.
     for (unsigned r = 0; r < ray_count; ++r)
     {
       // Sample is at the origin. We'll build random rays around that.
-      glm::dvec3 origin;
+      ohm::RayItem item{};
+      item.sample = glm::dvec3(0.0);
       do
       {
-        origin = glm::dvec3(uniform(rng), uniform(rng), uniform(rng));
-      } while (glm::length2(origin) < 1e-6);  // Make sure it's not degenerate.
+        item.origin = glm::dvec3(uniform(rng), uniform(rng), uniform(rng));
+      } while (glm::length2(item.origin) < 1e-6);  // Make sure it's not degenerate.
       // Normalise the origin ray, then expand it out to be larger than a single voxel.
-      origin = glm::normalize(origin);
-      origin *= map.resolution() * 3;
-      rays.emplace_back(origin);
-      rays.emplace_back(glm::dvec3(0));
+      item.origin = glm::normalize(item.origin);
+      item.origin *= map.resolution() * 3;
+      item.origin_key = map.voxelKey(item.origin);
+      item.origin_key = map.voxelKey(item.origin);
+      item.sample_key = map.voxelKey(item.sample);
+      ray_items.push_back(item);
+    }
 
+    // Now sort the ray items.
+    std::sort(ray_items.begin(), ray_items.end());
+
+    // Migrate into rays to use mapper API and make the expected calculations.
+    for (unsigned r = 0; r < unsigned(ray_items.size()); ++r)
+    {
       // Do the same calculation made by the mapper, but without encoding.
-      expected_packed = ohm::updateIncidentNormal(expected_packed, origin, r);
+      const auto &item = ray_items[r];
+      rays.emplace_back(item.origin);
+      rays.emplace_back(item.sample);
+      expected_packed = ohm::updateIncidentNormal(expected_packed, glm::vec3(item.origin) - glm::vec3(item.sample), r);
     }
     // Now use the ray mapper
     if (single_ray_batches)
@@ -118,5 +139,6 @@ TEST(Incident, WithNdt)
   ohm::GpuNdtMap mapper(&map, true);
   // NDT can batch rays because sample update is sequential.
   testIncidentNormals(map, mapper, false);
+  // testIncidentNormals(map, mapper, true);
 }
 }  // namespace incidents
