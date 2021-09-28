@@ -24,6 +24,11 @@ typedef float3 Vec3;
 #define OHM_NORMAL_SET_BIT_Z  (1u << 30)
 #define OHM_NORMAL_SIGN_BIT_Z (1u << 31)
 
+/// Decode the 32-bit quantised incident normal into a floating point vector.
+///
+/// See @c encodeNormal()
+///
+/// @param packed_normal The packed and quantised normal value.
 inline Vec3 OHM_DEVICE_HOST decodeNormal(unsigned packed_normal)
 {
   Vec3 n;
@@ -47,7 +52,16 @@ inline Vec3 OHM_DEVICE_HOST decodeNormal(unsigned packed_normal)
 /// Encode a normalised vector into a 32-bit floating point value.
 ///
 /// We use 15-bits each to encode X and Y channels. We use the most significant bit (31) to encode the sign of Z.
-/// Bit 30 is used to incidate if there is a valid normal stored.
+/// Bit 30 is used to incidate if there is a valid normal stored. We recover the Z channel by extracting X and Y, then
+/// calculating Z such that the result is a normal vector. This yields the magnitude of Z and the Z-sign bit sets the
+/// sign.
+///
+/// | Bit range | Quantised range | float range | Description |
+/// | - | - | - | - |
+/// | 0-14 | [-8192, 8191] | [-1, 1] | Quantised X channel |
+/// | 15-29 | [-8192, 8191] | [-1, 1] | Quantised Y channel |
+/// | 30 | [0, 1] | [0, 1] | Validity bit. Set if we have encoded a normal |
+/// | 31 | [0, 1] | [0, 1] | Z sign bit |
 inline unsigned OHM_DEVICE_HOST encodeNormal(Vec3 normal)
 {
   unsigned n = 0;
