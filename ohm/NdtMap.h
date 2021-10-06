@@ -37,16 +37,6 @@ struct NdtMapDetail;
 class ohm_API NdtMap
 {
 public:
-  /// NDT mapping mode
-  enum class Mode
-  {
-    kNone,  ///< Ndt not in use. This value cannot be passed to the constructor - behaviour is undefined.
-    /// Ndt occupancy map mode. This uses the occupancy, mean and covariance layers.
-    kOccupancy,
-    /// Ndt traversability map. A super set of @c Mode::kOccupancy which adds intensity and covariance hit/miss count.
-    kTraversability  ///< Ndt traversability mode.
-  };
-
   /// Create an NDT map for the given @c OccupancyMap . The voxel layout is adjusted to include a layer for
   /// @c CovarianceVoxel data.
   ///

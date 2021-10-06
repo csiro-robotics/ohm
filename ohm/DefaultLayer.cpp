@@ -126,7 +126,7 @@ MapLayer *addTraversal(MapLayout &layout)
 
   if (layer->voxelByteSize() != sizeof(float))
   {
-    throw std::runtime_error("Traversal ayer size mismatch");
+    throw std::runtime_error("Traversal layer size mismatch");
   }
 
   return layer;

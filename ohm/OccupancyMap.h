@@ -104,12 +104,13 @@ class RayFilter;
 /// The background compression does impose a some CPU overhead and latency especially when iterating the map as a
 /// whole to ensure voxel data are uncompressed when needed. The overhead is minimal when not using compression.
 ///
-/// @todo Derive @c std::enable_shared_from_this<OccupancyMap> . Current occupancy map usage encourages stack allocation
-/// or @c std::unique_ptr usage of the map, but then ends up passing ray pointer and marks borrowed pointers to other
-/// objects - such as a @c GpuMap . This obfuscates ownership. The plan would be to use @c std::shared_ptr<OccupancyMap>
-/// in these borrowed pointer cases. The ideal is to continue to allow stack allocation of a map be ensuring the map
-/// lifetime exceeds any borrowed ownership. This needs testing and verfication, but the goal is to use smart pointers
-/// rather than raw pointers.
+/// @todo Consider ways to modify the ohm API to better support `std::shared_ptr<OccupancyMap>`. Current occupancy map
+/// usage encourages stack allocation or @c std::unique_ptr usage of the map, but then ends up passing ray pointer and
+/// marks borrowed pointers to other objects - such as a @c GpuMap . This obfuscates ownership. The plan would be to
+/// use @c std::shared_ptr<OccupancyMap> in these borrowed pointer cases. The ideal is to continue to allow stack
+/// allocation of a map be ensuring the map lifetime exceeds any borrowed ownership. This needs testing and
+/// verification, but the goal is to use smart pointers rather than raw pointers. At worst this may require
+/// deriving @c std::enable_shared_from_this<OccupancyMap>
 class ohm_API OccupancyMap
 {
 public:

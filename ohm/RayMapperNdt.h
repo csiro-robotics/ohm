@@ -34,7 +34,7 @@ public:
   /// Constructor, wrapping the interface around the given @p map .
   ///
   /// @param map The target map. Must outlive this class.
-  RayMapperNdt(NdtMap *map);
+  explicit RayMapperNdt(NdtMap *map);
 
   /// Destructor
   ~RayMapperNdt() override;

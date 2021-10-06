@@ -245,7 +245,8 @@ size_t RayMapperNdt::integrateRays(const glm::dvec3 *rays, size_t element_count,
   };
 
   unsigned filter_flags;
-  float min_int = 1e6f, max_int = 0.0f;
+  float min_int = std::numeric_limits<float>::max();
+  float max_int = 0.0f;
   for (size_t i = 0; i < element_count; i += 2)
   {
     filter_flags = 0;

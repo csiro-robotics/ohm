@@ -423,7 +423,6 @@ void drawNdt(const glm::i16vec4 &sector_key, const OccupancyMap &map)
     Voxel<const CovarianceVoxel> cov_voxel(&map, map.layout().covarianceLayer());
 
     const auto dim = map.regionVoxelDimensions();
-    // const unsigned index_limit = dim.x * dim.y * dim.z;
     const tes::Id shape_id = tes::Id(chunk, kTcNdt) + sector_key.w;  // Each sector has a unique key
 
     // Work out the sector indexing range.
@@ -506,8 +505,6 @@ void drawNdtTm(const glm::i16vec4 &sector_key, const OccupancyMap &map)
     Voxel<const IntensityMeanCov> intensity_voxel(&map, map.layout().intensityLayer());
     Voxel<const HitMissCount> hit_miss_voxel(&map, map.layout().hitMissCountLayer());
 
-    // const auto dim = map.regionVoxelDimensions();
-    // const unsigned index_limit = dim.x * dim.y * dim.z;
     const tes::Id shape_id = tes::Id(chunk, kTcNdt) + sector_key.w;  // Each sector has a unique key
 
     // Work out the sector indexing range.

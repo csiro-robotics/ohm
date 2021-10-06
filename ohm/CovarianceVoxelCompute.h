@@ -254,7 +254,6 @@ inline __device__ CovVec3 calculateSampleLikelihoods(const CovarianceVoxel *cov_
   *p_x_ml_given_voxel = exp(-0.5 * covlength2(solveTriangular(cov_voxel, voxel_maximum_likelihood - voxel_mean)));
 
   // (23)
-  // Verified: json: line 263
   const CovReal sensor_noise_variance = sensor_noise * sensor_noise;
   *p_x_ml_given_sample = exp(-0.5 * covlength2(voxel_maximum_likelihood - sample) / sensor_noise_variance);
 
@@ -466,13 +465,13 @@ inline __device__ void calculateHitMissUpdateOnHit(CovarianceVoxel *cov_voxel, f
   const CovReal eta = (CovReal)0.5 * adaptation_rate;  // NOLINT
 
   const bool inc_hit = needs_reset || point_count < sample_threshold || point_count >= sample_threshold && prod >= eta;
-  const bool inc_miss = !needs_reset && prod < eta && p_x_ml_given_voxel >= eta;
+  const bool inc_miss = !needs_reset && point_count >= sample_threshold && prod < eta && p_x_ml_given_voxel >= eta;
 
-  // Logically we should yeild the following results:
+  // Logically we should yield the following results:
   // 1. needs_reset is true:
   //    - initial_hit = 0
   //    - initial_miss = 0
-  //    => hit_count = 0
+  //    => hit_count = 1
   //    => miss_count = 0
   // 2. needs_reset is false and point_count < sample_threshold
   //    - initial_hit = hit_miss_count->hit_count
@@ -532,11 +531,6 @@ inline __device__ CovVec3 calculateMissNdt(const CovarianceVoxel *cov_voxel, flo
     // First touch of the voxel. Apply the miss value as is.
     // Same behaviour as OccupancyMap.
     *voxel_value = miss_value;
-    // // TODO(KS): We can probably get away with just incrementing the miss count here. We assume that the voxel layer
-    // // is initialised to zero (this is true) and assume that the uninitialised value stays in sync (mostly true). The
-    // // latter assumption can be broken when a voxel is explicitly set to be uninitialised via non-standard update.
-    // hit_miss_count->hit_count = 0;
-    // hit_miss_count->miss_count = 1;
     *is_miss = true;
     return voxel_mean;
   }
@@ -601,7 +595,6 @@ inline __device__ CovVec3 calculateMissNdt(const CovarianceVoxel *cov_voxel, flo
   const CovReal probability_update = 0.5 - scaling_factor * prod;
 
   // NDT-TM update of miss count
-  // hit_miss_count->miss_count += prod < scaling_factor ? 1 : 0;
   *is_miss = prod < scaling_factor;
 
   // Check for NaN
