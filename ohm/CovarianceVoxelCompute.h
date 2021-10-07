@@ -228,6 +228,7 @@ inline __device__ CovVec3 calculateSampleLikelihoods(const CovarianceVoxel *cov_
                                                      CovVec3 voxel_mean, float sensor_noise,
                                                      CovReal *p_x_ml_given_voxel, CovReal *p_x_ml_given_sample)
 {
+  // Bracketed numbers below reference equation numbers in the paper mentioned in the function comments.
   const CovVec3 sensor_to_sample = sample - sensor;
   const CovVec3 sensor_ray = covnormalize(sensor_to_sample);  // Verified
   const CovVec3 sensor_to_mean = sensor - voxel_mean;
@@ -246,7 +247,6 @@ inline __device__ CovVec3 calculateSampleLikelihoods(const CovarianceVoxel *cov_
   const CovVec3 voxel_maximum_likelihood = sensor_ray * t + sensor;  // Verified
 
   // (22)
-  // Unverified: json line 264
   // const CovReal p_x_ml_given_voxel = std::exp(
   //   -0.5 * covdot(voxel_maximum_likelihood - voxel_mean, covariance_inv * (voxel_maximum_likelihood -
   //   voxel_mean)));
@@ -526,6 +526,7 @@ inline __device__ CovVec3 calculateMissNdt(const CovarianceVoxel *cov_voxel, flo
                                            float uninitialised_value, float miss_value, float adaptation_rate,
                                            float sensor_noise, unsigned sample_threshold)
 {
+  // Bracketed numbers below reference equation numbers in the paper mentioned in the function comments.
   if (*voxel_value == uninitialised_value)
   {
     // First touch of the voxel. Apply the miss value as is.
@@ -590,7 +591,6 @@ inline __device__ CovVec3 calculateMissNdt(const CovarianceVoxel *cov_voxel, flo
     cov_voxel, sensor, sample, voxel_mean, sensor_noise, &p_x_ml_given_voxel, &p_x_ml_given_sample);
 
   const CovReal scaling_factor = 0.5 * adaptation_rate;
-  // Verified: json line 267
   const CovReal prod = p_x_ml_given_voxel * (1.0 - p_x_ml_given_sample);
   const CovReal probability_update = 0.5 - scaling_factor * prod;
 
