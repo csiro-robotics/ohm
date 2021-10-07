@@ -15,9 +15,6 @@
 
 namespace raysquerytests
 {
-void buildMap(ohm::OccupancyMap &map, const std::vector<glm::dvec3> &rays)
-{}
-
 TEST(RaysQuery, Cpu)
 {
   const double base_scale = 10.0;

@@ -10,6 +10,7 @@
 #include "GpuLayerCache.h"
 #include "GpuTransformSamples.h"
 #include "OhmGpu.h"
+#include "RayItem.h"
 
 #include <ohm/Aabb.h>
 #include <ohm/DefaultLayer.h>
@@ -19,6 +20,7 @@
 #include <ohm/OccupancyUtil.h>
 #include <ohm/RayFilter.h>
 #include <ohm/VoxelMean.h>
+#include <ohm/VoxelTouchTime.h>
 
 #include "private/GpuMapDetail.h"
 #include "private/GpuProgramRef.h"
@@ -50,7 +52,6 @@
 
 #if GPUTIL_TYPE == GPUTIL_CUDA
 GPUTIL_CUDA_DECLARE_KERNEL(regionRayUpdate);
-GPUTIL_CUDA_DECLARE_KERNEL(regionRayUpdateSubVox);
 #endif  // GPUTIL_TYPE == GPUTIL_CUDA
 
 namespace ohm
@@ -59,21 +60,11 @@ namespace
 {
 #if defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
 // NOLINTNEXTLINE(cert-err58-cpp)
-GpuProgramRef g_program_ref_sub_vox("RegionUpdate", GpuProgramRef::kSourceString, RegionUpdateCode,  // NOLINT
-                                    RegionUpdateCode_length, { "-DVOXEL_MEAN" });
+GpuProgramRef g_program_ref("RegionUpdate", GpuProgramRef::kSourceString, RegionUpdateCode,  // NOLINT
+                            RegionUpdateCode_length);
 #else   // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
 // NOLINTNEXTLINE(cert-err58-cpp)
-GpuProgramRef g_program_ref_sub_vox("RegionUpdate", GpuProgramRef::kSourceFile, "RegionUpdate.cl", 0u,
-                                    { "-DVOXEL_MEAN" });
-#endif  // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
-
-#if defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
-// NOLINTNEXTLINE(cert-err58-cpp)
-GpuProgramRef g_program_ref_no_sub("RegionUpdate", GpuProgramRef::kSourceString, RegionUpdateCode,  // NOLINT
-                                   RegionUpdateCode_length);
-#else   // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
-// NOLINTNEXTLINE(cert-err58-cpp)
-GpuProgramRef g_program_ref_no_sub("RegionUpdate", GpuProgramRef::kSourceFile, "RegionUpdate.cl", 0u);
+GpuProgramRef g_program_ref("RegionUpdate", GpuProgramRef::kSourceFile, "RegionUpdate.cl");  // NOLINT
 #endif  // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
 
 const double kDefaultMaxRayRange = 1000.0;
@@ -355,6 +346,25 @@ void GpuMap::syncVoxels()
 }
 
 
+void GpuMap::syncVoxels(const std::vector<int> &layer_indices)
+{
+  // Sync layers specified in layer_indices. Supports map copy functions.
+  const int sync_index = (imp_->next_buffers_index + 1) % GpuMapDetail::kBuffersCount;
+  if (imp_->map)
+  {
+    for (const auto &voxel_info : imp_->voxel_upload_info[sync_index])
+    {
+      if (!voxel_info.skip_cpu_sync &&
+          std::find(layer_indices.begin(), layer_indices.end(), int(voxel_info.gpu_layer_id)) != layer_indices.end())
+      {
+        gpumap::sync(*imp_->map, voxel_info.gpu_layer_id);
+      }
+    }
+  }
+  onSyncVoxels(sync_index);
+}
+
+
 void GpuMap::setRayFilter(const RayFilterFunction &ray_filter)
 {
   imp_->ray_filter = ray_filter;
@@ -423,9 +433,10 @@ bool GpuMap::groupedRays() const
 }
 
 
-size_t GpuMap::integrateRays(const glm::dvec3 *rays, size_t element_count, unsigned region_update_flags)
+size_t GpuMap::integrateRays(const glm::dvec3 *rays, size_t element_count, const float *intensities,
+                             const double *timestamps, unsigned region_update_flags)
 {
-  return integrateRays(rays, element_count, region_update_flags, effectiveRayFilter());
+  return integrateRays(rays, element_count, intensities, timestamps, region_update_flags, effectiveRayFilter());
 }
 
 
@@ -466,18 +477,20 @@ void GpuMap::setMap(OccupancyMap *map, bool borrowed_map, unsigned expected_elem
         gputil::Buffer(gpu_cache.gpu(), sizeof(GpuKey) * expected_element_count, gputil::kBfReadHost);
       imp_->ray_buffers[i] =
         gputil::Buffer(gpu_cache.gpu(), sizeof(gputil::float3) * expected_element_count, gputil::kBfReadHost);
+      imp_->intensities_buffers[i] =
+        gputil::Buffer(gpu_cache.gpu(), sizeof(float) * expected_element_count, gputil::kBfReadHost);
+      imp_->timestamps_buffers[i] =
+        gputil::Buffer(gpu_cache.gpu(), sizeof(uint32_t) * expected_element_count, gputil::kBfReadHost);
       imp_->region_key_buffers[i] =
         gputil::Buffer(gpu_cache.gpu(), sizeof(gputil::int3) * prealloc_region_count, gputil::kBfReadHost);
 
       // Add structures for managing uploads of regino offsets to the cache buffer.
+      imp_->occupancy_uidx = int(imp_->voxel_upload_info[i].size());  // Set twice to the same value, but that's ok.
       imp_->voxel_upload_info[i].emplace_back(VoxelUploadInfo(kGcIdOccupancy, gpu_cache.gpu()));
-      if (imp_->support_voxel_mean && imp_->map->voxelMeanEnabled())
-      {
-        imp_->voxel_upload_info[i].emplace_back(VoxelUploadInfo(kGcIdVoxelMean, gpu_cache.gpu()));
-      }
     }
 
-    cacheGpuProgram(imp_->support_voxel_mean && imp_->map->voxelMeanEnabled(), force_gpu_program_release);
+    cacheGpuProgram(imp_->support_voxel_mean && imp_->map->voxelMeanEnabled(),
+                    imp_->support_traversal && imp_->map->traversalEnabled(), force_gpu_program_release);
   }
 }
 
@@ -488,7 +501,7 @@ void GpuMap::setGroupedRays(bool group)
 }
 
 
-void GpuMap::cacheGpuProgram(bool with_voxel_mean, bool force)
+void GpuMap::cacheGpuProgram(bool with_voxel_mean, bool with_traversal, bool force)
 {
   if (imp_->program_ref)
   {
@@ -500,17 +513,21 @@ void GpuMap::cacheGpuProgram(bool with_voxel_mean, bool force)
 
   releaseGpuProgram();
 
+  // Ensure voxel mean VoxelUploadInfo is present, or removed
+  imp_->mean_uidx = enableVoxelUpload(int(kGcIdVoxelMean), with_voxel_mean);
+  imp_->traversal_uidx = enableVoxelUpload(int(kGcIdTraversal), with_traversal);
+  imp_->touch_time_uidx = enableVoxelUpload(int(kGcIdTouchTime), imp_->map->touchTimeEnabled());
+  imp_->incident_normal_uidx = enableVoxelUpload(int(kGcIdIncidentNormal), imp_->map->incidentNormalEnabled());
+
   GpuCache &gpu_cache = *gpuCache();
   imp_->gpu_ok = true;
   imp_->cached_sub_voxel_program = with_voxel_mean;
-  imp_->program_ref = (with_voxel_mean) ? &g_program_ref_sub_vox : &g_program_ref_no_sub;
+  imp_->program_ref = &g_program_ref;
 
   if (imp_->program_ref->addReference(gpu_cache.gpu()))
   {
-    imp_->update_kernel = (!with_voxel_mean) ? GPUTIL_MAKE_KERNEL(imp_->program_ref->program(), regionRayUpdate) :
-                                               GPUTIL_MAKE_KERNEL(imp_->program_ref->program(), regionRayUpdateSubVox);
+    imp_->update_kernel = GPUTIL_MAKE_KERNEL(imp_->program_ref->program(), regionRayUpdate);
     imp_->update_kernel.calculateOptimalWorkGroupSize();
-
     imp_->gpu_ok = imp_->update_kernel.isValid();
   }
   else
@@ -535,8 +552,8 @@ void GpuMap::releaseGpuProgram()
 }
 
 
-size_t GpuMap::integrateRays(const glm::dvec3 *rays, size_t element_count, unsigned region_update_flags,
-                             const RayFilterFunction &filter)
+size_t GpuMap::integrateRays(const glm::dvec3 *rays, size_t element_count, const float *intensities,
+                             const double *timestamps, unsigned region_update_flags, const RayFilterFunction &filter)
 {
   if (!imp_->map)
   {
@@ -562,7 +579,8 @@ size_t GpuMap::integrateRays(const glm::dvec3 *rays, size_t element_count, unsig
   }
 
   // Ensure we are using the correct GPU program. Voxel mean support may have changed.
-  cacheGpuProgram(imp_->support_voxel_mean && map.voxelMeanEnabled(), false);
+  cacheGpuProgram(imp_->support_voxel_mean && map.voxelMeanEnabled(), imp_->support_traversal && map.traversalEnabled(),
+                  false);
 
   // Resolve the buffer index to use. We need to support cases where buffer is already one fo the imp_->ray_buffers.
   // Check this first.
@@ -572,6 +590,13 @@ size_t GpuMap::integrateRays(const glm::dvec3 *rays, size_t element_count, unsig
 
   // Touch the map to update stamping.
   map.touch();
+
+  double timebase = 0;
+  if (timestamps)
+  {
+    timebase = map.updateFirstRayTime(*timestamps);
+    region_update_flags |= kRfInternalTimestamps;
+  }
 
   // Get the GPU cache.
   GpuLayerCache &layer_cache = *gpu_cache->layerCache(kGcIdOccupancy);
@@ -590,12 +615,14 @@ size_t GpuMap::integrateRays(const glm::dvec3 *rays, size_t element_count, unsig
   // Declare pinned buffers for use in upload_ray delegate.
   gputil::PinnedBuffer keys_pinned;
   gputil::PinnedBuffer rays_pinned;
+  gputil::PinnedBuffer intensities_pinned;
+  gputil::PinnedBuffer timestamps_pinned;
 
   // Build region set and upload rays.
   imp_->regions.clear();
 
   std::array<gputil::float3, 2> ray_gpu;
-  unsigned upload_count = 0u;
+  unsigned uploaded_ray_count = 0u;
   unsigned unclipped_samples = 0u;
   GpuKey line_start_key_gpu{};
   GpuKey line_end_key_gpu{};
@@ -608,7 +635,8 @@ size_t GpuMap::integrateRays(const glm::dvec3 *rays, size_t element_count, unsig
   //
   // In either case we use the same code to actually upload
   // We set add_ray_upload to contain the "loop body" for both cases.
-  const auto upload_ray = [&](const RayItem &ray)  //
+  using RayUploadFunc = std::function<void(const RayItem &)>;
+  const RayUploadFunc upload_ray_core = [&](const RayItem &ray)  //
   {
     // Upload if not preloaded.
     line_start_key_gpu.region[0] = ray.origin_key.regionKey()[0];
@@ -627,8 +655,8 @@ size_t GpuMap::integrateRays(const glm::dvec3 *rays, size_t element_count, unsig
     line_end_key_gpu.voxel[2] = ray.sample_key.localKey()[2];
     line_end_key_gpu.voxel[3] = (ray.filter_flags & kRffClippedEnd) ? 1 : 0;
 
-    keys_pinned.write(&line_start_key_gpu, sizeof(line_start_key_gpu), (upload_count + 0) * sizeof(GpuKey));
-    keys_pinned.write(&line_end_key_gpu, sizeof(line_end_key_gpu), (upload_count + 1) * sizeof(GpuKey));
+    keys_pinned.write(&line_start_key_gpu, sizeof(line_start_key_gpu), (uploaded_ray_count * 2 + 0) * sizeof(GpuKey));
+    keys_pinned.write(&line_end_key_gpu, sizeof(line_end_key_gpu), (uploaded_ray_count * 2 + 1) * sizeof(GpuKey));
 
     // Localise the ray to single precision.
     // We change the ray coordinates to be relative to the end voxel centre. This assist later in voxel mean
@@ -641,8 +669,8 @@ size_t GpuMap::integrateRays(const glm::dvec3 *rays, size_t element_count, unsig
     ray_gpu[1].x = float(ray.sample.x - end_voxel_centre.x);
     ray_gpu[1].y = float(ray.sample.y - end_voxel_centre.y);
     ray_gpu[1].z = float(ray.sample.z - end_voxel_centre.z);
-    rays_pinned.write(ray_gpu.data(), sizeof(ray_gpu), upload_count * sizeof(gputil::float3));
-    upload_count += 2;
+    rays_pinned.write(ray_gpu.data(), sizeof(ray_gpu), uploaded_ray_count * sizeof(ray_gpu));
+    ++uploaded_ray_count;
 
     // Increment unclipped_samples if this sample isn't clipped.
     unclipped_samples += (ray.filter_flags & kRffClippedEnd) == 0;
@@ -655,6 +683,23 @@ size_t GpuMap::integrateRays(const glm::dvec3 *rays, size_t element_count, unsig
     gpumap::walkRegions(*imp_->map, ray.origin, ray.sample, region_func);
   };
 
+  const RayUploadFunc upload_ray_with_intensity_or_timestamp = [&](const RayItem &ray)  //
+  {
+    // Note: upload_count tracks the number of float3 items uploaded, so it increments by 2 each step - sensor & sample.
+    // Intensities are matched one per sample, so we halve it's value here.
+    if (intensities)
+    {
+      intensities_pinned.write(&ray.intensity, sizeof(ray.intensity), uploaded_ray_count * sizeof(ray.intensity));
+    }
+    if (timestamps)
+    {
+      timestamps_pinned.write(&ray.timestamp, sizeof(ray.timestamp), uploaded_ray_count * sizeof(ray.timestamp));
+    }
+    upload_ray_core(ray);
+  };
+
+  const RayUploadFunc upload_ray =
+    (intensities || timestamps) ? upload_ray_with_intensity_or_timestamp : upload_ray_core;
   // Reserve memory for the current ray set.
   imp_->grouped_rays.clear();
   imp_->grouped_rays.reserve(element_count / 2);
@@ -668,6 +713,8 @@ size_t GpuMap::integrateRays(const glm::dvec3 *rays, size_t element_count, unsig
   {
     ray.origin = rays[i + 0];
     ray.sample = rays[i + 1];
+    ray.intensity = (intensities) ? intensities[i >> 1] : 0;
+    ray.timestamp = (timestamps) ? encodeVoxelTouchTime(timebase, timestamps[i >> 1]) : 0;
     ray.filter_flags = 0;
 
     if (use_filter)
@@ -741,43 +788,7 @@ size_t GpuMap::integrateRays(const glm::dvec3 *rays, size_t element_count, unsig
     // Sort the rays. Order does not matter asside from ensuring the rays are grouped by sample voxel.
     // Despite the extra CPU work, this has proven faster for NDT update in GpuNdtMap because the GPU can do much less
     // work.
-    std::sort(
-      imp_->grouped_rays.begin(), imp_->grouped_rays.end(),
-      [](const RayItem &a, const RayItem &b) -> bool  //
-      {
-        // For the comparison, we merge the region key values into a single 64-bit value
-        // and the same for the local index. Then we compare the resulting values.
-        // The final ordering is irrelevant in terms of which is "less". The goal is to group
-        // items with the same sample key.
-
-        const int clipped_a = !!(a.filter_flags & kRffClippedEnd);
-        const int clipped_b = !!(b.filter_flags & kRffClippedEnd);
-
-        // Multiplier/shift value to move a region key axis such that each axis is in its own bit set.
-        const int64_t region_stride = 0x10000u;
-        // Shift and mask together the region key axes
-        const int64_t region_index_a = static_cast<int64_t>(a.sample_key.regionKey().x) +
-                                       static_cast<int64_t>(region_stride * a.sample_key.regionKey().y) +
-                                       region_stride * region_stride * static_cast<int64_t>(a.sample_key.regionKey().z);
-        const int64_t region_index_b = static_cast<int64_t>(b.sample_key.regionKey().x) +
-                                       region_stride * static_cast<int64_t>(b.sample_key.regionKey().y) +
-                                       region_stride * region_stride * static_cast<int64_t>(b.sample_key.regionKey().z);
-        // Multiplier/shift value to move a local key axis such that each axis is in its own bit set.
-        const uint32_t local_stride = 0x100u;
-        // Shift and mask together the local key axes
-        const uint32_t local_index_a = uint32_t(a.sample_key.localKey().x) +
-                                       local_stride * uint32_t(a.sample_key.localKey().y) +
-                                       local_stride * local_stride * uint32_t(a.sample_key.localKey().z);
-        const uint32_t local_index_b = uint32_t(b.sample_key.localKey().x) +
-                                       local_stride * uint32_t(b.sample_key.localKey().y) +
-                                       local_stride * local_stride * uint32_t(b.sample_key.localKey().z);
-        // Compare the results. We sort such that:
-        // - Items with unclipped end points come first.
-        // - By region index next
-        // - Finally by local index.
-        return clipped_a < clipped_b || (clipped_a == clipped_b && region_index_a < region_index_b) ||
-               (clipped_a == clipped_b && region_index_a == region_index_b && local_index_a < local_index_b);
-      });
+    std::sort(imp_->grouped_rays.begin(), imp_->grouped_rays.end());
 #if OHM_GPU_VERIFY_SORT
     verifySort(imp_->grouped_rays);
 #endif  // OHM_GPU_VERIFY_SORT
@@ -790,6 +801,16 @@ size_t GpuMap::integrateRays(const glm::dvec3 *rays, size_t element_count, unsig
   // Declare pinned buffers for use in upload_ray delegate.
   keys_pinned = gputil::PinnedBuffer(imp_->key_buffers[buf_idx], gputil::kPinWrite);
   rays_pinned = gputil::PinnedBuffer(imp_->ray_buffers[buf_idx], gputil::kPinWrite);
+  if (intensities)
+  {
+    imp_->intensities_buffers[buf_idx].resize(sizeof(float) * imp_->grouped_rays.size());
+    intensities_pinned = gputil::PinnedBuffer(imp_->intensities_buffers[buf_idx], gputil::kPinWrite);
+  }
+  if (timestamps)
+  {
+    imp_->timestamps_buffers[buf_idx].resize(sizeof(uint32_t) * imp_->grouped_rays.size());
+    timestamps_pinned = gputil::PinnedBuffer(imp_->timestamps_buffers[buf_idx], gputil::kPinWrite);
+  }
 
   // Upload to GPU.
   for (const RayItem &ray : imp_->grouped_rays)
@@ -800,18 +821,26 @@ size_t GpuMap::integrateRays(const glm::dvec3 *rays, size_t element_count, unsig
   // Asynchronous unpin. Kernels will wait on the associated event.
   keys_pinned.unpin(&gpu_cache->gpuQueue(), nullptr, &imp_->key_upload_events[buf_idx]);
   rays_pinned.unpin(&gpu_cache->gpuQueue(), nullptr, &imp_->ray_upload_events[buf_idx]);
+  if (intensities)
+  {
+    intensities_pinned.unpin(&gpu_cache->gpuQueue(), nullptr, &imp_->ray_upload_events[buf_idx]);
+  }
+  if (timestamps)
+  {
+    timestamps_pinned.unpin(&gpu_cache->gpuQueue(), nullptr, &imp_->ray_upload_events[buf_idx]);
+  }
 
-  imp_->ray_counts[buf_idx] = unsigned(upload_count / 2);
+  imp_->ray_counts[buf_idx] = uploaded_ray_count;
   imp_->unclipped_sample_counts[buf_idx] = unclipped_samples;
 
-  if (upload_count == 0)
+  if (uploaded_ray_count == 0)
   {
     return 0u;
   }
 
   enqueueRegions(buf_idx, region_update_flags);
 
-  return upload_count;
+  return uploaded_ray_count * 2;
 }
 
 
@@ -842,7 +871,9 @@ void GpuMap::enqueueRegions(int buffer_index, unsigned region_update_flags)
   // For each region we need to enqueue the voxel data for that region. Within the GpuCache, each GpuLayerCache
   // manages the voxel data for a voxel layer and uploads into a single buffer for that layer returning an offset into
   // that buffer. For each (relevant) layer, we need to record the memory offset and upload corresponding event. These
-  // need to be later fed to the update kernel. Size the region buffers.
+  // need to be later fed to the update kernel.
+
+  // Size the region buffers.
   imp_->region_key_buffers[buffer_index].elementsResize<gputil::int3>(imp_->regions.size());
 
   for (VoxelUploadInfo &upload_info : imp_->voxel_upload_info[buffer_index])
@@ -972,10 +1003,34 @@ void GpuMap::finaliseBatch(unsigned region_update_flags)
   GpuCache &gpu_cache = *this->gpuCache();
   GpuLayerCache &occupancy_layer_cache = *gpu_cache.layerCache(kGcIdOccupancy);
   GpuLayerCache *mean_layer_cache = nullptr;
+  GpuLayerCache *traversal_layer_cache = nullptr;
+  GpuLayerCache *touch_times_layer_cache = nullptr;
+  GpuLayerCache *incidents_layer_cache = nullptr;
+
+  const int occ_uidx = imp_->occupancy_uidx;
+  const int mean_uidx = imp_->mean_uidx;
+  const int traversal_uidx = imp_->traversal_uidx;
+  const int touch_time_uidx = imp_->touch_time_uidx;
+  const int incident_normal_uidx = imp_->incident_normal_uidx;
 
   if (imp_->support_voxel_mean && imp_->map->voxelMeanEnabled())
   {
     mean_layer_cache = gpu_cache.layerCache(kGcIdVoxelMean);
+  }
+
+  if (imp_->support_traversal && imp_->map->traversalEnabled())
+  {
+    traversal_layer_cache = gpu_cache.layerCache(kGcIdTraversal);
+  }
+
+  if (imp_->map->touchTimeEnabled())
+  {
+    touch_times_layer_cache = gpu_cache.layerCache(kGcIdTouchTime);
+  }
+
+  if (imp_->map->incidentNormalEnabled())
+  {
+    incidents_layer_cache = gpu_cache.layerCache(kGcIdIncidentNormal);
   }
 
   // Enqueue update kernel.
@@ -984,54 +1039,88 @@ void GpuMap::finaliseBatch(unsigned region_update_flags)
 
   const unsigned region_count = imp_->region_counts[buf_idx];
   const unsigned ray_count = imp_->ray_counts[buf_idx];
+  int next_upload_buffer = 0;
   gputil::Dim3 global_size(ray_count);
   gputil::Dim3 local_size(std::min<size_t>(imp_->update_kernel.optimalWorkGroupSize(), ray_count));
   gputil::EventList wait({ imp_->key_upload_events[buf_idx], imp_->ray_upload_events[buf_idx],
                            imp_->region_key_upload_events[buf_idx],
-                           imp_->voxel_upload_info[buf_idx][0].offset_upload_event,
-                           imp_->voxel_upload_info[buf_idx][0].voxel_upload_event });
+                           imp_->voxel_upload_info[buf_idx][next_upload_buffer].offset_upload_event,
+                           imp_->voxel_upload_info[buf_idx][next_upload_buffer].voxel_upload_event });
+  ++next_upload_buffer;
 
   // Add voxel mean offset upload events.
   if (mean_layer_cache)
   {
-    wait.add(imp_->voxel_upload_info[buf_idx][1].offset_upload_event);
-    wait.add(imp_->voxel_upload_info[buf_idx][1].voxel_upload_event);
+    wait.add(imp_->voxel_upload_info[buf_idx][next_upload_buffer].offset_upload_event);
+    wait.add(imp_->voxel_upload_info[buf_idx][next_upload_buffer].voxel_upload_event);
+    ++next_upload_buffer;
+  }
+  if (traversal_layer_cache)
+  {
+    wait.add(imp_->voxel_upload_info[buf_idx][next_upload_buffer].offset_upload_event);
+    wait.add(imp_->voxel_upload_info[buf_idx][next_upload_buffer].voxel_upload_event);
+    ++next_upload_buffer;
+  }
+  if (touch_times_layer_cache)
+  {
+    wait.add(imp_->voxel_upload_info[buf_idx][next_upload_buffer].offset_upload_event);
+    wait.add(imp_->voxel_upload_info[buf_idx][next_upload_buffer].voxel_upload_event);
+    ++next_upload_buffer;
+  }
+  if (incidents_layer_cache)
+  {
+    wait.add(imp_->voxel_upload_info[buf_idx][next_upload_buffer].offset_upload_event);
+    wait.add(imp_->voxel_upload_info[buf_idx][next_upload_buffer].voxel_upload_event);
+    ++next_upload_buffer;
   }
 
-  if (mean_layer_cache)
-  {
-    imp_->update_kernel(global_size, local_size, wait, imp_->region_update_events[buf_idx], &gpu_cache.gpuQueue(),
-                        // Kernel args begin:
-                        gputil::BufferArg<float>(*occupancy_layer_cache.buffer()),
-                        gputil::BufferArg<uint64_t>(imp_->voxel_upload_info[buf_idx][0].offsets_buffer),
-                        gputil::BufferArg<VoxelMean>(*mean_layer_cache->buffer()),
-                        gputil::BufferArg<uint64_t>(imp_->voxel_upload_info[buf_idx][1].offsets_buffer),
-                        gputil::BufferArg<gputil::int3>(imp_->region_key_buffers[buf_idx]), region_count,
-                        gputil::BufferArg<GpuKey>(imp_->key_buffers[buf_idx]),
-                        gputil::BufferArg<gputil::float3>(imp_->ray_buffers[buf_idx]), ray_count, region_dim_gpu,
-                        float(map->resolution), map->miss_value, map->hit_value, map->occupancy_threshold_value,
-                        map->min_voxel_value, map->max_voxel_value, region_update_flags);
-  }
-  else
-  {
-    imp_->update_kernel(global_size, local_size, wait, imp_->region_update_events[buf_idx], &gpu_cache.gpuQueue(),
-                        // Kernel args begin:
-                        gputil::BufferArg<float>(*occupancy_layer_cache.buffer()),
-                        gputil::BufferArg<uint64_t>(imp_->voxel_upload_info[buf_idx][0].offsets_buffer),
-                        gputil::BufferArg<gputil::int3>(imp_->region_key_buffers[buf_idx]), region_count,
-                        gputil::BufferArg<GpuKey>(imp_->key_buffers[buf_idx]),
-                        gputil::BufferArg<gputil::float3>(imp_->ray_buffers[buf_idx]), ray_count, region_dim_gpu,
-                        float(map->resolution), map->miss_value, map->hit_value, map->occupancy_threshold_value,
-                        map->min_voxel_value, map->max_voxel_value, region_update_flags);
-  }
-
-  // gpu_cache.gpuQueue().flush();
+  // Supporting voxel mean and traversal are putting us at the limit of what we can support using this sort of
+  // conditional invocation.
+  imp_->update_kernel(
+    global_size, local_size, wait, imp_->region_update_events[buf_idx], &gpu_cache.gpuQueue(),
+    // Kernel args begin:
+    // Occupancy voxels and offsets.
+    gputil::BufferArg<float>(*occupancy_layer_cache.buffer()),
+    gputil::BufferArg<uint64_t>(imp_->voxel_upload_info[buf_idx][occ_uidx].offsets_buffer),
+    // Mean voxels and offsets.
+    gputil::BufferArg<VoxelMean>(mean_layer_cache ? mean_layer_cache->buffer() : nullptr),
+    gputil::BufferArg<uint64_t>(mean_layer_cache ? &imp_->voxel_upload_info[buf_idx][mean_uidx].offsets_buffer :
+                                                   nullptr),
+    // Traversal voxels and offsets.
+    gputil::BufferArg<float>(traversal_layer_cache ? traversal_layer_cache->buffer() : nullptr),
+    gputil::BufferArg<uint64_t>(
+      traversal_layer_cache ? &imp_->voxel_upload_info[buf_idx][traversal_uidx].offsets_buffer : nullptr),
+    // Touch times voxels and offsets.
+    gputil::BufferArg<uint32_t>(touch_times_layer_cache ? touch_times_layer_cache->buffer() : nullptr),
+    gputil::BufferArg<uint64_t>(
+      touch_times_layer_cache ? &imp_->voxel_upload_info[buf_idx][touch_time_uidx].offsets_buffer : nullptr),
+    // Incident normal voxels and offsets.
+    gputil::BufferArg<uint32_t>(incidents_layer_cache ? incidents_layer_cache->buffer() : nullptr),
+    gputil::BufferArg<uint64_t>(
+      incidents_layer_cache ? &imp_->voxel_upload_info[buf_idx][incident_normal_uidx].offsets_buffer : nullptr),
+    // Region keys and region count
+    gputil::BufferArg<gputil::int3>(imp_->region_key_buffers[buf_idx]), region_count,
+    // Ray start/end keys
+    gputil::BufferArg<GpuKey>(imp_->key_buffers[buf_idx]),
+    // Ray start end points, local to end voxel and ray count
+    gputil::BufferArg<gputil::float3>(imp_->ray_buffers[buf_idx]), ray_count,
+    // Input touch times buffer
+    gputil::BufferArg<uint32_t>((region_update_flags & kRfInternalTimestamps) ? &imp_->timestamps_buffers[buf_idx] :
+                                                                                nullptr),
+    // Region dimensions, map resolution, ray adjustment (miss), sample adjustment (hit)
+    region_dim_gpu, float(map->resolution), map->miss_value, map->hit_value,
+    // Occupied threshold, min occupancy, max occupancy, update flags.
+    map->occupancy_threshold_value, map->min_voxel_value, map->max_voxel_value, region_update_flags);
 
   // Update most recent chunk GPU event.
   occupancy_layer_cache.updateEvents(imp_->batch_marker, imp_->region_update_events[buf_idx]);
   if (mean_layer_cache)
   {
     mean_layer_cache->updateEvents(imp_->batch_marker, imp_->region_update_events[buf_idx]);
+  }
+  if (traversal_layer_cache)
+  {
+    traversal_layer_cache->updateEvents(imp_->batch_marker, imp_->region_update_events[buf_idx]);
   }
 
   // std::cout << imp_->region_counts[bufIdx] << "
@@ -1044,6 +1133,42 @@ void GpuMap::finaliseBatch(unsigned region_update_flags)
   {
     mean_layer_cache->beginBatch(imp_->batch_marker);
   }
+  if (traversal_layer_cache)
+  {
+    traversal_layer_cache->beginBatch(imp_->batch_marker);
+  }
   imp_->next_buffers_index = (imp_->next_buffers_index + 1) % GpuMapDetail::kBuffersCount;
+}
+
+
+int GpuMap::enableVoxelUpload(int cache_id, bool enable)
+{
+  GpuCache &gpu_cache = *gpuCache();
+  for (size_t i = 0; i < imp_->voxel_upload_info[0].size(); ++i)
+  {
+    if (imp_->voxel_upload_info[0][i].gpu_layer_id == cache_id)
+    {
+      if (enable)
+      {
+        // Request present and already is. Nothing to do.
+        return int(i);
+      }
+      // Request removal and found present. Remove.
+      imp_->voxel_upload_info[0].erase(imp_->voxel_upload_info[0].begin() + i);
+      imp_->voxel_upload_info[1].erase(imp_->voxel_upload_info[1].begin() + i);
+      return -1;
+    }
+  }
+
+  // Not found.
+  if (enable)
+  {
+    // Not found and requesting present. Add.
+    imp_->voxel_upload_info[0].emplace_back(VoxelUploadInfo(cache_id, gpu_cache.gpu()));
+    imp_->voxel_upload_info[1].emplace_back(VoxelUploadInfo(cache_id, gpu_cache.gpu()));
+    return int(imp_->voxel_upload_info[0].size() - 1);
+  }
+
+  return -1;
 }
 }  // namespace ohm

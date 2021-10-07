@@ -76,7 +76,7 @@ int invokeKernel(const KernelDetail &imp, const Dim3 &global_size, const Dim3 &l
   const size_t shared_mem_size = calcSharedMemSize(imp, local_size.volume());
 
   // Resolve cuda stream.
-  cudaStream_t cuda_stream = (queue) ? queue->internal()->obj() : nullptr;
+  cudaStream_t cuda_stream = (queue) ? queue->internal()->queue : nullptr;
 
   // Make the stream wait on the event list.
   if (event_list)
@@ -122,6 +122,18 @@ int invokeKernel(const KernelDetail &imp, const Dim3 &global_size, const Dim3 &l
     err = cudaEventRecord(completion_event->detail()->obj(), cuda_stream);
     GPUAPICHECK(err, cudaSuccess, err);
   }
+
+  if (imp.auto_error_checking)
+  {
+    GPUAPICHECK(err, cudaSuccess, err);
+  }
+
+  if (queue && queue->internal()->force_synchronous)
+  {
+    // Force kernel completion if in synchronous mode.
+    queue->finish();
+  }
+
   return err;
 }
 }  // namespace cuda
@@ -147,6 +159,18 @@ Kernel::~Kernel()
 bool Kernel::isValid() const
 {
   return imp_ && imp_->cuda_kernel_function;
+}
+
+
+void Kernel::setErrorChecking(bool check)
+{
+  imp_->auto_error_checking = check;
+}
+
+
+bool Kernel::errorChecking() const
+{
+  return imp_->auto_error_checking;
 }
 
 
@@ -265,6 +289,28 @@ Kernel &Kernel::operator=(Kernel &&other) noexcept
   imp_ = other.imp_;
   other.imp_ = nullptr;
   return *this;
+}
+
+
+bool Kernel::checkResult(int invocation_result, bool allow_exceptions)
+{
+  (void)allow_exceptions;  // Unused if GPU_EXCEPTIONS disabled
+  if (invocation_result != cudaSuccess)
+  {
+    auto exception = ApiException(invocation_result, "Kernel invocation error");
+#if GPU_EXCEPTIONS
+    if (allow_exceptions)
+    {
+      throw exception;
+    }
+    else
+#endif  // GPU_EXCEPTIONS
+    {
+      log(exception);
+      return false;
+    }
+  }
+  return true;
 }
 
 

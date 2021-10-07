@@ -55,19 +55,30 @@ public:
   ///
   /// @param rays The array of start/end point pairs to integrate.
   /// @param element_count The number of @c glm::dvec3 elements in @p rays, which is twice the ray count.
+  /// @param intensities An array of intensity values matching the @p rays items. There is one intensity value per ray
+  ///   so there are @c element_count/2 items. Required for the @c NdtMode::kTraversability model.
+  /// @param timestamps An array of timestap values matching the @p rays items. There is one timestap value per ray
+  ///   so there are @c element_count/2 items. May be null to omit timestap values.
   /// @param ray_update_flags Not supported.
-  size_t integrateRays(const glm::dvec3 *rays, size_t element_count, unsigned ray_update_flags) override;
+  size_t integrateRays(const glm::dvec3 *rays, size_t element_count, const float *intensities, const double *timestamps,
+                       unsigned ray_update_flags) override;
 
   using RayMapper::integrateRays;
 
 protected:
-  NdtMap *map_;                ///< Target map.
-  int occupancy_layer_ = -1;   ///< Cached occupancy layer index.
-  int mean_layer_ = -1;        ///< Cached voxel mean layer index.
-  int covariance_layer_ = -1;  ///< Cached covariance layer index.
+  NdtMap *map_;                     ///< Target map.
+  int occupancy_layer_ = -1;        ///< Cached occupancy layer index.
+  int mean_layer_ = -1;             ///< Cached voxel mean layer index.
+  int traversal_layer_ = -1;        ///< The traversal layer index.
+  int covariance_layer_ = -1;       ///< Cached covariance layer index.
+  int intensity_layer_ = -1;        ///< Cached intensity layer index.
+  int hit_miss_count_layer_ = -1;   ///< Cached hit miss count layer index.
+  int touch_time_layer_ = -1;       ///< Cache touch time layer index.
+  int incident_normal_layer_ = -1;  ///< Cache incident normal layer index.
   /// Cached occupancy layer voxel dimensions. Voxel mean and covariance layers must exactly match.
   glm::u8vec3 occupancy_dim_{ 0, 0, 0 };
   bool valid_ = false;  ///< Has layer validation passed?
+  const bool ndt_tm_;   ///< Does map implement ndt-tm?
 };
 
 }  // namespace ohm

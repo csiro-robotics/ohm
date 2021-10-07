@@ -11,6 +11,8 @@
 #include "MapLayoutMatch.h"
 
 #include <initializer_list>
+#include <utility>
+#include <vector>
 
 namespace ohm
 {
@@ -131,6 +133,11 @@ public:
   /// @return The voxel mean layer index or -1 if not present.
   int meanLayer() const;
 
+  /// Cache index to the "traversal" layer. This layer holds a single @c float per voxel which tracks the accumulated
+  /// distance travelled of all rays though that voxel.
+  /// @return The voxel traversal layer index or -1 if not present.
+  int traversalLayer() const;
+
   /// Cached index to the "covariance" layer. This layer holds the @c CovarianceVoxel data.
   /// @return The voxel covariance layer index or -1 if not present.
   int covarianceLayer() const;
@@ -138,6 +145,14 @@ public:
   /// Cached index to the "clearance" layer.
   /// @return The clearance layer index or -1 if not present.
   int clearanceLayer() const;
+
+  /// Cached index to the "intensity" layer.
+  /// @return The intensity layer index or -1 if not present.
+  int intensityLayer() const;
+
+  /// Cached index to the "hit_miss_count" layer.
+  /// @return The hit miss count layer index or -1 if not present.
+  int hitMissCountLayer() const;
 
   /// Check if this @c MapLayout is equivalent to @p other.
   ///
@@ -149,6 +164,18 @@ public:
   /// @param other The other layout to compare against.
   /// @return The equivalence @c MapLayoutMatch
   MapLayoutMatch checkEquivalent(const MapLayout &other) const;
+
+  /// Calculate which layers from this object are also present in @p other . For any match we add an entry to @p overlap
+  /// which identifies this object's layer index and the @p other object's layer index.
+  ///
+  /// Layers are matched first by name, then using @c MapLayer::checkEquivalent() looking for an exact match.
+  ///
+  /// @param[out] overlap The overlap set. Note: it is the caller's responsibility to ensure this object is empty before
+  ///   calling this function.
+  /// @param other The map to determine the overlap with.
+  /// @return The number of layers matched between the @c MapLayout objects.
+  size_t calculateOverlappingLayerSet(std::vector<std::pair<unsigned, unsigned>> &overlap,
+                                      const MapLayout &other) const;
 
   /// Remove all layers except for the named layers. Removing interleaved layers may create gaps in the layer
   /// array. These gaps are removed with the array being repacked.

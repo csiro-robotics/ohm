@@ -112,7 +112,6 @@ bool RaysQuery::onExecute()
   KeyList keys;
   MapChunk *last_chunk = nullptr;
   VoxelBuffer<const VoxelBlock> occupancy_buffer;
-  bool stop_adjustments = false;
   double unobserved_volume = 0;
   float range = 0;
   OccupancyType terminal_state = OccupancyType::kNull;
@@ -124,31 +123,14 @@ bool RaysQuery::onExecute()
   const auto occupancy_layer = d->occupancy_layer;
   const auto occupancy_dim = d->occupancy_dim;
   const auto occupancy_threshold_value = map->occupancyThresholdValue();
-  const auto map_origin = map->origin();
   const auto volume_coefficient = d->volume_coefficient;
 
   const auto visit_func = [&](const Key &key, double enter_range, double exit_range)  //
   {                                                                                   //
-    // The update logic here is a little unclear as it tries to avoid outright branches.
-    // The intended logic is described as follows:
-    // 1. Select direct write or additive adjustment.
-    //    - Make a direct, non-additive adjustment if one of the following conditions are met:
-    //      - stop_adjustments is true
-    //      - the voxel is uncertain
-    //      - (ray_update_flags & kRfClearOnly) and not is_occupied - we only want to adjust occupied voxels.
-    //      - voxel is saturated
-    //    - Otherwise add to present value.
-    // 2. Select the value adjustment
-    //    - current_value if one of the following conditions are met:
-    //      - stop_adjustments is true (no longer making adjustments)
-    //      - (ray_update_flags & kRfClearOnly) and not is_occupied (only looking to affect occupied voxels)
-    //    - miss_value otherwise
-    // 3. Calculate new value
-    // 4. Apply saturation logic: only min saturation relevant
-    //    -
-
+    // Work out the index of the voxel in it's region.
     const unsigned voxel_index = ohm::voxelIndex(key, occupancy_dim);
     float occupancy_value = unobservedOccupancyValue();
+    // Ensure the MapChunk pointer is up to date.
     MapChunk *chunk =
       (last_chunk && key.regionKey() == last_chunk->region.coord) ? last_chunk : map->region(key.regionKey(), false);
     if (chunk)
@@ -160,6 +142,7 @@ bool RaysQuery::onExecute()
       occupancy_buffer.readVoxel(voxel_index, &occupancy_value);
     }
     last_chunk = chunk;
+    // Check voxel occupancy status.
     const bool is_unobserved = occupancy_value == unobservedOccupancyValue();
     const bool is_occupied = !is_unobserved && occupancy_value > occupancy_threshold_value;
     unobserved_volume +=
@@ -167,6 +150,7 @@ bool RaysQuery::onExecute()
         (volume_coefficient * (exit_range * exit_range * exit_range - enter_range * enter_range * enter_range)) :
         0.0f;
     range = float(exit_range);
+    // Resolve the voxel state.
     terminal_state =
       is_unobserved ? OccupancyType::kUnobserved : (is_occupied ? OccupancyType::kOccupied : OccupancyType::kFree);
     terminal_key = key;
@@ -202,12 +186,7 @@ bool RaysQuery::onExecute()
       continue;
     }
 
-    // Calculate line key for the last voxel if the end point has been clipped
-    const glm::dvec3 start_point_local = glm::dvec3(start - map_origin);
-    const glm::dvec3 end_point_local = glm::dvec3(end - map_origin);
-
-    stop_adjustments = false;
-    ohm::walkSegmentKeys<Key>(visit_func, start_point_local, end_point_local, true, WalkKeyAdaptor(*map));
+    ohm::walkSegmentKeys<Key>(visit_func, start, end, true, WalkKeyAdaptor(*map));
 
     d->ranges.emplace_back(range);
     d->unobserved_volumes_out.emplace_back(unobserved_volume);

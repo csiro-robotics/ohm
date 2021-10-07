@@ -26,6 +26,15 @@ class GpuLayerCache;
 class OccupancyMap;
 
 /// IDs for GPU caches.
+///
+/// Note: there are assumptions made about the ordering of these indices:
+///
+/// - IDs for read/write layers appear first. For example, @c kGcIdOccupancy which reads/writes occupancy appears
+///   before @c kGcIdClearance which only reads occupancy and writes clearance values.
+///
+/// Locations where these assumptions are most relevant:
+///
+/// - @c GpuCache::syncLayerTo()
 enum GpuCacheId
 {
   /// Cache used for populating the map occupancy values.
@@ -41,6 +50,16 @@ enum GpuCacheId
   kGcIdVoxelMean,
   /// Cache used for @c CovarianceVoxel data.
   kGcIdCovariance,
+  /// Cache used for @c IntensityMeanCov
+  kGcIdIntensity,
+  /// Cache used for @c HitMissCount
+  kGcIdHitMiss,
+  /// Cache used for traversal layer.
+  kGcIdTraversal,
+  /// Cache used for touch time layer.
+  kGcIdTouchTime,
+  /// Cache used for incident normal layer.
+  kGcIdIncidentNormal,
 };
 
 /// Provides access to the @c GpuLayerCache objects used to cache host voxel data in GPU memory and manage
@@ -60,13 +79,13 @@ class ohmgpu_API GpuCache : public MapRegionCache
 {
 public:
   /// Define for 1 MiB in bytes.
-  static const size_t kMiB = 1024ull * 1024ull;
+  static constexpr size_t kMiB = 1024ull * 1024ull;
   /// Define for 1 GiB in bytes.
-  static const size_t kGiB = 1024ull * 1024ull * 1024ull;
+  static constexpr size_t kGiB = 1024ull * 1024ull * 1024ull;
   /// The default byte size of each GPU layer if not specified.
-  static const size_t kDefaultLayerMemSize = kGiB / 2;
+  static constexpr size_t kDefaultLayerMemSize = kGiB / 2;
   /// Default total memory size to target.
-  static const size_t kDefaultTargetMemSize = 1 * kGiB;
+  static constexpr size_t kDefaultTargetMemSize = 1 * kGiB;
 
   /// Instantiate the @c GpuCache for @p map.
   /// @param map The map to cache data for.
@@ -93,6 +112,19 @@ public:
   /// Remove a particular region from the cache.
   /// @param region_key The region to flush from the cache.
   void remove(const glm::i16vec3 &region_key) override;
+
+  /// Implement synching from this cache to another location.
+  ///
+  /// @param dst_chunk The chunk object to sync to.
+  /// @param dst_layer The index to sync to in @c MapChunk::voxel_blocks .
+  /// @param src_chunk The chunk to sync from.
+  /// @param src_layer The layer to sync from.
+  /// @return True if the source chunk/layer pairing are cached by this object and have been copied to the destination
+  ///   chunk/layer pairing.
+  bool syncLayerTo(MapChunk &dst_chunk, unsigned dst_layer, const MapChunk &src_chunk, unsigned src_layer) override;
+
+  /// Find the @c GpuLayerCache for @p layer .
+  MapRegionCache *findLayerCache(unsigned layer) override;
 
   /// Query the target GPU memory allocation byte size. This is the target allocation accross all @c GpuLayerCache
   /// objects and is distributed amongst these objects. The distribution is weighted so that layers requiring more

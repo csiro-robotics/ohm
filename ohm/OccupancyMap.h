@@ -103,6 +103,14 @@ class RayFilter;
 ///
 /// The background compression does impose a some CPU overhead and latency especially when iterating the map as a
 /// whole to ensure voxel data are uncompressed when needed. The overhead is minimal when not using compression.
+///
+/// @todo Consider ways to modify the ohm API to better support `std::shared_ptr<OccupancyMap>`. Current occupancy map
+/// usage encourages stack allocation or @c std::unique_ptr usage of the map, but then ends up passing ray pointer and
+/// marks borrowed pointers to other objects - such as a @c GpuMap . This obfuscates ownership. The plan would be to
+/// use @c std::shared_ptr<OccupancyMap> in these borrowed pointer cases. The ideal is to continue to allow stack
+/// allocation of a map be ensuring the map lifetime exceeds any borrowed ownership. This needs testing and
+/// verification, but the goal is to use smart pointers rather than raw pointers. At worst this may require
+/// deriving @c std::enable_shared_from_this<OccupancyMap>
 class ohm_API OccupancyMap
 {
 public:
@@ -326,6 +334,22 @@ public:
   /// @return The @c stamp() value after the touch.
   uint64_t touch();
 
+  /// Query the timestmap for the first ray in this map. This time is used to as a timebase reference for rays with
+  /// timestamps allowing time values to be store relative to this time. This time is normally updated once they
+  /// left unchanged. Changing this value will invalidate the touch time layer.
+  /// @note Timestamps may be unavailable.
+  /// @return The first ray timestamp or a negative value if not set.
+  double firstRayTime() const;
+  /// Set the @c firstRayTime() regardless of the current value.
+  /// Not threadsafe.
+  /// @param time The first ray timestamp.
+  void setFirstRayTime(double time);
+  /// Update the @c firstRayTime() setting it only if it has yet to be set.
+  /// Not threadsafe.
+  /// @param time The first ray timestamp.
+  /// @return The @c firstRayTime()
+  double updateFirstRayTime(double time);
+
   /// Query the spatial resolution of each @c MapRegion. This represents the spatial extents of each region.
   /// @return The spatial resolution of a @c MapRegion.
   glm::dvec3 regionSpatialResolution() const;
@@ -426,6 +450,33 @@ public:
   /// Is voxel mean positioning enabled on this map?
   /// @return True if the @c VoxelMean layer is enabled.
   bool voxelMeanEnabled() const;
+
+  /// Add the "traversal" layer to this map. This adds @c default_layer::traversalLayerName() containing one float
+  /// per voxel. This value accumulates the distance travelled through the voxels by all previously intersected rays.
+  ///
+  /// Note note that changing the requires all map chunks have additional voxel layers allocated.
+  ///
+  /// Does nothing if the layer is already present.
+  void addTraversalLayer();
+
+  /// Is traversal calculation enabled on this map?
+  /// @return True if the "traversal" layer is enabled.
+  bool traversalEnabled() const;
+
+  /// Add the "touch_time" layer to the map. See @c addTouchTime() . Does nothing if the layer is already present.
+  void addTouchTimeLayer();
+
+  /// Check if the "touch_time" layer exists.
+  /// @return True if the "touch_time" layer is enabled.
+  bool touchTimeEnabled() const;
+
+  /// Add the "incident_normal" layer to the map. See @c addIncidentNormal() . Does nothing if the layer is already
+  /// present.
+  void addIncidentNormalLayer();
+
+  /// Check if the "incident_normal" layer exists.
+  /// @return True if the "incident_normal" layer is enabled.
+  bool incidentNormalEnabled() const;
 
   /// Update the memory layout to match that in this map's @c MapLayout. Must be called after updating
   /// the @p layout() after construction.
@@ -795,8 +846,17 @@ public:
   ///
   /// @param rays Array of origin/sample point pairs.
   /// @param element_count The number of points in @p rays. The ray count is half this value.
+  /// @param intensities An array of intensity values matching the @p rays items. There is one intensity value per ray
+  ///   so there are @c element_count/2 items. May be null to omit intensity values.
+  /// @param timestamps An array of timestap values matching the @p rays items. There is one timestap value per ray
+  ///   so there are @c element_count/2 items. May be null to omit timestap values.
   /// @param ray_update_flags Flags controlling ray integration behaviour. See @c RayFlag.
-  void integrateRays(const glm::dvec3 *rays, size_t element_count, unsigned ray_update_flags = kRfDefault);
+  void integrateRays(const glm::dvec3 *rays, size_t element_count, const float *intensities = nullptr,
+                     const double *timestamps = nullptr, unsigned ray_update_flags = kRfDefault);
+
+  //-------------------------------------------------------
+  // Data copy/cloning
+  //-------------------------------------------------------
 
   /// Clone the entire map.
   /// @return A deep clone of this map. Caller takes ownership.

@@ -21,6 +21,13 @@ enum class MapFlag : unsigned
   kVoxelMean = (1u << 0u),
   /// Maintain compressed voxels in memory. Compression is performed off thread.
   kCompressed = (1u << 1u),
+  /// Maintain the traversal in addition to the occupancy layer. See @c default_layer::traversalLayerName() .
+  /// The @c kVoxelMean layer should also be enabled to support traversal in order to track the voxel sample count.
+  kTraversal = (1u << 2u),
+  /// Maintain a (32-bit) touch time stamp for each normal.
+  kTouchTime = (1u << 3u),
+  /// Maintain an incident normal for each sample voxel.
+  kIncidentNormal = (1u << 4u),
 
   /// Default map creation flags.
   kDefault = kCompressed

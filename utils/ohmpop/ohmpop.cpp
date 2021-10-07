@@ -37,8 +37,6 @@
 #include <ohmutil/SafeIO.h>
 #include <ohmutil/ScopedTimeDisplay.h>
 
-#include <ohmutil/Options.h>
-
 #include <algorithm>
 #include <array>
 #include <atomic>
@@ -51,6 +49,12 @@
 #include <locale>
 #include <sstream>
 #include <thread>
+
+std::istream &operator>>(std::istream &in, ohm::NdtMode &mode);
+std::ostream &operator<<(std::ostream &out, const ohm::NdtMode mode);
+
+// Must be after argument streaming operators.
+#include <ohmutil/Options.h>
 
 namespace
 {
@@ -77,7 +81,7 @@ struct Options
     float covariance_reset_probability = 0.0f;  // re-initialised from a default map
     // NDT map probabilities should be much narrower. The NDT process is more precise.
     unsigned covariance_reset_sample_count = 0;  // re-initialised from a default map
-    bool enabled = false;
+    ohm::NdtMode mode = ohm::NdtMode::kNone;
   };
 
   struct Compression
@@ -104,6 +108,7 @@ struct Options
   std::string prior_map;
 #ifdef TES_ENABLE
   std::string trace;
+  bool trace_final;
 #endif  // TES_ENABLE
   glm::dvec3 sensor_offset = glm::dvec3(0.0);
   glm::u8vec3 region_voxel_dim = glm::u8vec3(0);  // re-initialised from a default map
@@ -131,7 +136,9 @@ struct Options
   bool serialise = true;
   bool save_info = false;
   bool voxel_mean = false;
+  bool traversal = false;
   bool uncompressed = false;
+  bool point_cloud_only = false;  ///< Assume ray cloud if no trajectory is given, unless this is set.
 #ifdef OHMPOP_GPU
   // Mapping options are experimental and bound up in GPU operations, but not strictly speaking GPU only.
   double mapping_interval = 0.2;  // NOLINT(readability-magic-numbers)
@@ -244,13 +251,14 @@ void Options::print(std::ostream **out, const ohm::OccupancyMap &map) const
     **out << "Miss probability: " << prob_miss << " (" << map.missValue() << ")\n";
     **out << "Probability range: [" << map.minVoxelProbability() << ' ' << map.maxVoxelProbability() << "]\n";
     **out << "Value range      : [" << map.minVoxelValue() << ' ' << map.maxVoxelValue() << "]\n";
-    if (ndt.enabled)
+    if (bool(ndt.mode))
     {
       **out << "NDT map enabled:" << '\n';
       **out << "NDT adaptation rate: " << ndt.adaptation_rate << '\n';
       **out << "NDT sensor noise: " << ndt.sensor_noise << '\n';
       **out << "NDT covariance reset probability: " << ndt.covariance_reset_probability << '\n';
       **out << "NDT covariance reset sample cout: " << ndt.covariance_reset_sample_count << '\n';
+      **out << "NDT mode: " << ndt.mode << '\n';
     }
 #ifdef OHMPOP_GPU
     **out << "Gpu cache size: " << ohm::util::Bytes(gpu.gpuCacheSizeBytes()) << '\n';
@@ -283,7 +291,7 @@ void Options::print(std::ostream **out, const ohm::OccupancyMap &map) const
 #ifdef TES_ENABLE
     if (!trace.empty())
     {
-      **out << "3es trace file: " << trace << '\n';
+      **out << "3es trace file: " << trace << (trace_final ? "(final only)\n" : "\n");
     }
 #endif  // TES_ENABLE
 
@@ -405,6 +413,49 @@ std::string getFileExtension(const std::string &file)
 }
 }  // namespace
 
+std::istream &operator>>(std::istream &in, ohm::NdtMode &mode)
+{
+  // Note: we don't use ndtModeFromString() because we use abbreviations
+  std::string mode_str;
+  in >> mode_str;
+  if (mode_str == "off")
+  {
+    mode = ohm::NdtMode::kNone;
+  }
+  else if (mode_str == "om")
+  {
+    mode = ohm::NdtMode::kOccupancy;
+  }
+  else if (mode_str == "tm")
+  {
+    mode = ohm::NdtMode::kTraversability;
+  }
+  else
+  {
+    throw cxxopts::invalid_option_format_error(mode_str);
+  }
+  return in;
+}
+
+std::ostream &operator<<(std::ostream &out, const ohm::NdtMode mode)
+{
+  // Note: we don't use ndtModeToString() because we use abbreviations
+  switch (mode)
+  {
+  case ohm::NdtMode::kNone:
+    out << "none";
+    break;
+  case ohm::NdtMode::kOccupancy:
+    out << "om";
+    break;
+  case ohm::NdtMode::kTraversability:
+    out << "tm";
+    break;
+  default:
+    out << "<unknown>";
+  }
+  return out;
+}
 
 int populateMap(const Options &opt)
 {
@@ -420,39 +471,65 @@ int populateMap(const Options &opt)
 
   std::cout << "Loading points from " << opt.cloud_file << " with trajectory " << opt.trajectory_file << std::endl;
 
-  SlamCloudLoader loader;
-  if (!loader.open(opt.cloud_file.c_str(), opt.trajectory_file.c_str()))
+  slamio::SlamCloudLoader loader;
+  loader.setErrorLog([](const char *msg) { std::cerr << msg << std::flush; });
+  if (!opt.trajectory_file.empty())
   {
-    fprintf(stderr, "Error loading cloud %s with trajectory %s \n", opt.cloud_file.c_str(),
-            opt.trajectory_file.c_str());
-    return -2;
+    if (!loader.openWithTrajectory(opt.cloud_file.c_str(), opt.trajectory_file.c_str()))
+    {
+      fprintf(stderr, "Error loading cloud %s with trajectory %s\n", opt.cloud_file.c_str(),
+              opt.trajectory_file.c_str());
+      return -2;
+    }
+  }
+  else if (!opt.point_cloud_only)
+  {
+    if (!loader.openRayCloud(opt.cloud_file.c_str()))
+    {
+      fprintf(stderr, "Error loading ray cloud %s\n", opt.cloud_file.c_str());
+      return -2;
+    }
+  }
+  else if (opt.point_cloud_only)
+  {
+    if (!loader.openPointCloud(opt.cloud_file.c_str()))
+    {
+      fprintf(stderr, "Error loading point cloud %s\n", opt.cloud_file.c_str());
+      return -2;
+    }
   }
 
   ohm::MapFlag map_flags = ohm::MapFlag::kDefault;
   map_flags |= (opt.voxel_mean) ? ohm::MapFlag::kVoxelMean : ohm::MapFlag::kNone;
   map_flags &= (opt.uncompressed) ? ~ohm::MapFlag::kCompressed : ~ohm::MapFlag::kNone;
   ohm::OccupancyMap map(opt.resolution, opt.region_voxel_dim, map_flags);
-#ifdef OHMPOP_GPU
-  const size_t gpu_cache_size = opt.gpu.gpuCacheSizeBytes();
-  std::unique_ptr<ohm::GpuMap> gpu_map((!opt.ndt.enabled) ?
-                                         new ohm::GpuMap(&map, true, opt.batch_size, gpu_cache_size) :
-                                         new ohm::GpuNdtMap(&map, true, opt.batch_size, gpu_cache_size));
-  ohm::NdtMap *ndt_map = &static_cast<ohm::GpuNdtMap *>(gpu_map.get())->ndtMap();
-  gpu_map->setRaySegmentLength(opt.gpu.ray_segment_length);
-#else   // OHMPOP_GPU
-  std::unique_ptr<ohm::NdtMap> ndt_map;
-  if (opt.ndt.enabled)
-  {
-    ndt_map = std::make_unique<ohm::NdtMap>(&map, true);
-  }
-#endif  // OHMPOP_GPU
 
+  // Make sure we build layers before initialising any GPU map. Otherwise we can cache the wrong GPU programs.
   if (opt.voxel_mean)
   {
     map.addVoxelMeanLayer();
   }
+  if (opt.traversal)
+  {
+    map.addTraversalLayer();
+  }
 
-  if (opt.ndt.enabled)
+#ifdef OHMPOP_GPU
+  const size_t gpu_cache_size = opt.gpu.gpuCacheSizeBytes();
+  std::unique_ptr<ohm::GpuMap> gpu_map((opt.ndt.mode == ohm::NdtMode::kNone) ?
+                                         new ohm::GpuMap(&map, true, opt.batch_size, gpu_cache_size) :
+                                         new ohm::GpuNdtMap(&map, true, opt.batch_size, gpu_cache_size, opt.ndt.mode));
+  ohm::NdtMap *ndt_map = &static_cast<ohm::GpuNdtMap *>(gpu_map.get())->ndtMap();
+  gpu_map->setRaySegmentLength(opt.gpu.ray_segment_length);
+#else   // OHMPOP_GPU
+  std::unique_ptr<ohm::NdtMap> ndt_map;
+  if (bool(opt.ndt.mode))
+  {
+    ndt_map = std::make_unique<ohm::NdtMap>(&map, true, opt.ndt.mode);
+  }
+#endif  // OHMPOP_GPU
+
+  if (bool(opt.ndt.mode))
   {
     ndt_map->setAdaptationRate(opt.ndt.adaptation_rate);
     ndt_map->setSensorNoise(opt.ndt.sensor_noise);
@@ -500,7 +577,7 @@ int populateMap(const Options &opt)
     if (load_err)
     {
       std::cerr << "Error(" << load_err << ") loading prior map " << opt.prior_map << " : "
-                << ohm::errorCodeString(load_err) << std::endl;
+                << ohm::serialiseErrorCodeString(load_err) << std::endl;
       return -3;
     }
   }
@@ -515,7 +592,7 @@ int populateMap(const Options &opt)
 #else   // !OHMPOP_GPU
   std::unique_ptr<ohm::RayMapperNdt> ndt_ray_mapper;
   ohm::RayMapperOccupancy ray_mapper2(&map);
-  if (opt.ndt.enabled)
+  if (int(opt.ndt.mode))
   {
     std::cout << "Building NDT map" << std::endl;
     ndt_ray_mapper = std::make_unique<ohm::RayMapperNdt>(ndt_map.get());
@@ -528,7 +605,7 @@ int populateMap(const Options &opt)
 #endif  // !OHMPOP_GPU
 
 #ifdef TES_ENABLE
-  if (!opt.trace.empty())
+  if (!opt.trace.empty() && !opt.trace_final)
   {
     trace_mapper = std::make_unique<ohm::RayMapperTrace>(&map, ray_mapper);
     ray_mapper = trace_mapper.get();
@@ -538,8 +615,9 @@ int populateMap(const Options &opt)
   ohm::Mapper mapper(&map);
   std::vector<double> sample_timestamps;
   std::vector<glm::dvec3> origin_sample_pairs;
-  SamplePoint sample;
+  slamio::SamplePoint sample;
   glm::dvec3 last_batch_origin(0);
+  std::vector<float> intensities;
   uint64_t point_count = 0;
   // Update map visualisation every N samples.
   const size_t ray_batch_size = opt.batch_size;
@@ -664,7 +742,7 @@ int populateMap(const Options &opt)
   //------------------------------------
   // mapper.start();
   while ((point_count < opt.point_limit || opt.point_limit == 0) &&
-         (last_timestamp - timebase < opt.time_limit || opt.time_limit == 0) && loader.nextPoint(sample))
+         (last_timestamp - timebase < opt.time_limit || opt.time_limit == 0) && loader.nextSample(sample))
   {
     if (timebase < 0)
     {
@@ -680,6 +758,7 @@ int populateMap(const Options &opt)
     sample_timestamps.push_back(sample.timestamp);
     origin_sample_pairs.push_back(sample.origin);
     origin_sample_pairs.push_back(sample.sample);
+    intensities.push_back(sample.intensity);
 
     if (last_timestamp < 0)
     {
@@ -694,7 +773,8 @@ int populateMap(const Options &opt)
 
     if (point_count % ray_batch_size == 0 || g_quit)
     {
-      ray_mapper->integrateRays(origin_sample_pairs.data(), unsigned(origin_sample_pairs.size()), opt.ray_mode_flags);
+      ray_mapper->integrateRays(origin_sample_pairs.data(), unsigned(origin_sample_pairs.size()), intensities.data(),
+                                nullptr, opt.ray_mode_flags);
       delta_motion = glm::length(origin_sample_pairs[0] - last_batch_origin);
       accumulated_motion += delta_motion;
       last_batch_origin = origin_sample_pairs[0];
@@ -705,8 +785,13 @@ int populateMap(const Options &opt)
         std::cerr << "\nWarning: Precisely zero motion in batch\n" << std::flush;
         warned_no_motion = true;
       }
+
+      // const auto minmax = std::minmax_element(intensities.cbegin(), intensities.cend());
+      // std::cout << " batch min/max intensity: " << *(minmax.first) << "," << *(minmax.second) << "   ";
+
       sample_timestamps.clear();
       origin_sample_pairs.clear();
+      intensities.clear();
 
       prog.incrementProgressBy(ray_batch_size);
       last_timestamp = sample.timestamp;
@@ -745,11 +830,13 @@ int populateMap(const Options &opt)
   // Make sure we have no more rays.
   if (!origin_sample_pairs.empty())
   {
-    ray_mapper->integrateRays(origin_sample_pairs.data(), unsigned(origin_sample_pairs.size()), opt.ray_mode_flags);
+    ray_mapper->integrateRays(origin_sample_pairs.data(), unsigned(origin_sample_pairs.size()), intensities.data(),
+                              nullptr, opt.ray_mode_flags);
     delta_motion = glm::length(origin_sample_pairs[0] - last_batch_origin);
     accumulated_motion += delta_motion;
     sample_timestamps.clear();
     origin_sample_pairs.clear();
+    intensities.clear();
   }
   end_time = Clock::now();
 
@@ -819,7 +906,7 @@ int populateMap(const Options &opt)
 
   prog.joinThread();
 
-  if (opt.ndt.enabled)
+  if (bool(opt.ndt.mode))
   {
 #ifdef OHMPOP_GPU
     static_cast<ohm::GpuNdtMap *>(gpu_map.get())->debugDraw();
@@ -832,15 +919,25 @@ int populateMap(const Options &opt)
 }
 
 
+#if SLAMIO_HAVE_PDAL
+#define CLOUD_TYPE "PDAL supported point cloud"
+#else  // SLAMIO_HAVE_PDAL
+#define CLOUD_TYPE "PLY point cloud"
+#endif                                                  // SLAMIO_HAVE_PDAL
 int parseOptions(Options *opt, int argc, char *argv[])  // NOLINT(modernize-avoid-c-arrays)
 {
-  cxxopts::Options opt_parse(argv[0],
-                             "Generate an occupancy map from a LAS/LAZ based point cloud and accompanying "
-                             "trajectory file using GPU. The trajectory marks the scanner trajectory with timestamps "
-                             "loosely corresponding to cloud point timestamps. Trajectory points are "
-                             "interpolated for each cloud point based on corresponding times in the "
-                             "trajectory.");
-  opt_parse.positional_help("<cloud.laz> <_traj.txt> [output-base]");
+  cxxopts::Options opt_parse(argv[0], "Generate an occupancy map from a ray cloud or a point cloud with accompanying "
+                                      "trajectory file. The trajectory marks the scanner trajectory with timestamps "
+                                      "loosely corresponding to cloud point timestamps. Trajectory points are "
+                                      "interpolated for each cloud point based on corresponding times in the "
+                                      "trajectory. A ray cloud uses the normals channel to provide a vector from "
+                                      "point sample back to sensor location (see "
+                                      "https://github.com/csiro-robotics/raycloudtools).\n"
+                                      "\n"
+                                      "The sample file is a " CLOUD_TYPE " file, while the trajectory is either a text "
+                                      "trajectory containing [time x y z <additional>] items per line or is itself a "
+                                      "point cloud file.");
+  opt_parse.positional_help("<sample_file> [<trajectory_file>] [output-base]");
 
   try
   {
@@ -858,6 +955,7 @@ int parseOptions(Options *opt, int argc, char *argv[])  // NOLINT(modernize-avoi
       ("cloud", "The input cloud (las/laz) to load.", cxxopts::value(opt->cloud_file))
       ("output","Output base name", optVal(opt->output_base_name))
       ("point-limit", "Limit the number of points loaded.", optVal(opt->point_limit))
+      ("points-only", "Assume the point cloud is providing points only. Otherwise a cloud file with no trajectory is considered a ray cloud.", optVal(opt->point_cloud_only))
       ("preload", "Preload this number of points before starting processing. -1 for all. May be used for separating processing and loading time.",
         optVal(opt->preload_count)->default_value("0")->implicit_value("-1"))
       ("q,quiet", "Run in quiet mode. Suppresses progress messages.", optVal(opt->quiet))
@@ -871,6 +969,7 @@ int parseOptions(Options *opt, int argc, char *argv[])  // NOLINT(modernize-avoi
       ("cloud-colour", "Colour for points in the saved cloud (if saving).", optVal(opt->cloud_colour))
 #ifdef TES_ENABLE
       ("trace", "Enable debug tracing to the given file name to generate a 3es file. High performance impact.", cxxopts::value(opt->trace))
+      ("trace-final", "Only output final map in trace.", cxxopts::value(opt->trace_final))
 #endif // TES_ENABLE
       ;
 
@@ -883,8 +982,9 @@ int parseOptions(Options *opt, int argc, char *argv[])  // NOLINT(modernize-avoi
       ("resolution", "The voxel resolution of the generated map.", optVal(opt->resolution))
       ("uncompressed", "Maintain uncompressed map. By default, may regions may be compressed when no longer needed.", optVal(opt->uncompressed))
       ("voxel-mean", "Enable voxel mean coordinates?", optVal(opt->voxel_mean))
+      ("traversal", "Enable traversal layer?", optVal(opt->traversal))
       ("threshold", "Sets the occupancy threshold assigned when exporting the map to a cloud.", optVal(opt->prob_thresh)->implicit_value(optStr(opt->prob_thresh)))
-      ("ndt", "Use normal distribution transform map generation.", optVal(opt->ndt.enabled))
+      ("ndt", "Normal distribution transform (NDT) occupancy map generation mode {off,om,tm}. Mode om is the NDT occupancy mode, where tm adds traversability mapping data.", optVal(opt->ndt.mode)->implicit_value(optStr(ohm::NdtMode::kOccupancy)))
       ("ndt-cov-point-threshold", "Minimum number of samples requires in order to allow the covariance to reset at --ndt-cov-prob-threshold..", optVal(opt->ndt.covariance_reset_sample_count))
       ("ndt-cov-prob-threshold", "Low probability threshold at which the covariance can be reset as samples accumulate once more. See also --ndt-cov-point-threshold.", optVal(opt->ndt.covariance_reset_probability))
       ("ndt-adaptation-rate", "NDT adaptation rate [0, 1]. Controls how fast rays remove NDT voxels. Has a strong effect than miss_value when using NDT.",
@@ -969,7 +1069,7 @@ int parseOptions(Options *opt, int argc, char *argv[])  // NOLINT(modernize-avoi
     }
 
     // Set default ndt probability if using.
-    if (opt->ndt.enabled)
+    if (int(opt->ndt.mode))
     {
       bool prob_hit_given = false;
       bool prob_miss_given = false;
@@ -1073,7 +1173,11 @@ int main(int argc, char *argv[])
       target_gpu_cache_size = std::max<uint64_t>(total_device_memory / 2, ohm::GpuCache::kGiB);
     }
     opt.gpu.gpu_cache_size_gb = double(target_gpu_cache_size) / double(ohm::GpuCache::kGiB);
-    std::cout << "Auto select GPU cache size: " << ohm::util::Bytes(opt.gpu.gpuCacheSizeBytes()) << std::endl;
+    // Cap the max auto allocation to 4GiB. Some embedded systems with unified RAM can try for very large cache size
+    // which exceeds the maximum allowed allocation size. While GpuLayerCache caps this, we limit the auto selected size
+    // to help avoid giving a false impression of having a very large amount of GPU memory allocated.
+    opt.gpu.gpu_cache_size_gb = std::min(opt.gpu.gpu_cache_size_gb, 4.0);
+    std::cout << "Auto select GPU cache upper bound: " << ohm::util::Bytes(opt.gpu.gpuCacheSizeBytes()) << std::endl;
   }
 
   if (res)

@@ -5,14 +5,17 @@
 // Author: Kazys Stepanas
 #include "RayMapperOccupancy.h"
 
+#include "DefaultLayer.h"
 #include "MapChunk.h"
 #include "MapLayer.h"
 #include "MapLayout.h"
 #include "OccupancyMap.h"
 #include "Voxel.h"
 #include "VoxelBuffer.h"
+#include "VoxelIncident.h"
 #include "VoxelMean.h"
 #include "VoxelOccupancy.h"
+#include "VoxelTouchTime.h"
 
 // TODO (KS): RayMapperOccupancy::lookupRays() is deprecated. Use RaysQuery for less code maintenance, but it creates
 // a poor dependency.
@@ -26,40 +29,64 @@ RayMapperOccupancy::RayMapperOccupancy(OccupancyMap *map)
   : map_(map)
   , occupancy_layer_(map_->layout().occupancyLayer())
   , mean_layer_(map_->layout().meanLayer())
+  , traversal_layer_(map_->layout().traversalLayer())
+  , touch_time_layer_(map_->layout().layerIndex(default_layer::touchTimeLayerName()))
+  , incident_normal_layer_(map_->layout().layerIndex(default_layer::incidentNormalLayerName()))
 {
   // Use Voxel to validate the layers.
   // In processing we use VoxelBuffer instead of Voxel objects. While Voxel makes for a neater API, using VoxelBuffer
   // makes for less overhead and yields better performance.
   Voxel<const float> occupancy(map_, occupancy_layer_);
   Voxel<const VoxelMean> mean(map_, mean_layer_);
+  Voxel<const float> traversal(map_, traversal_layer_);
+  Voxel<const uint32_t> touch_time_layer(map_, touch_time_layer_);
+  Voxel<const uint32_t> incident_normal_layer(map_, incident_normal_layer_);
 
   occupancy_dim_ = occupancy.isLayerValid() ? occupancy.layerDim() : occupancy_dim_;
 
   // Validate we only have an occupancy layer or we also have a mean layer and the layer dimesions match.
   valid_ = occupancy.isLayerValid() && !mean.isLayerValid() ||
            occupancy.isLayerValid() && mean.isLayerValid() && occupancy.layerDim() == mean.layerDim();
+  // Validate the traversal layer in a simliar fashion.
+  valid_ = occupancy.isLayerValid() && !traversal.isLayerValid() ||
+           occupancy.isLayerValid() && traversal.isLayerValid() && occupancy.layerDim() == traversal.layerDim();
+
+  if (touch_time_layer.isLayerValid())
+  {
+    valid_ = valid_ && occupancy.layerDim() == touch_time_layer.layerDim();
+  }
+
+  if (incident_normal_layer.isLayerValid())
+  {
+    valid_ = valid_ && occupancy.layerDim() == incident_normal_layer.layerDim();
+  }
 }
 
 
 RayMapperOccupancy::~RayMapperOccupancy() = default;
 
 
-size_t RayMapperOccupancy::integrateRays(const glm::dvec3 *rays, size_t element_count, unsigned ray_update_flags)
+size_t RayMapperOccupancy::integrateRays(const glm::dvec3 *rays, size_t element_count, const float * /*intensities*/,
+                                         const double *timestamps, unsigned ray_update_flags)
 {
   KeyList keys;
   MapChunk *last_chunk = nullptr;
   MapChunk *last_mean_chunk = nullptr;
   VoxelBuffer<VoxelBlock> occupancy_buffer;
   VoxelBuffer<VoxelBlock> mean_buffer;
+  VoxelBuffer<VoxelBlock> traversal_buffer;
+  VoxelBuffer<VoxelBlock> touch_time_buffer;
+  VoxelBuffer<VoxelBlock> incidents_buffer;
+  double last_exit_range = 0;
   bool stop_adjustments = false;
 
   const RayFilterFunction ray_filter = map_->rayFilter();
   const bool use_filter = bool(ray_filter);
   const auto occupancy_layer = occupancy_layer_;
   const auto mean_layer = mean_layer_;
+  const auto traversal_layer = traversal_layer_;
   const auto occupancy_dim = occupancy_dim_;
   const auto occupancy_threshold_value = map_->occupancyThresholdValue();
-  const auto map_origin = map_->origin();
   const auto miss_value = map_->missValue();
   const auto hit_value = map_->hitValue();
   const auto resolution = map_->resolution();
@@ -70,8 +97,14 @@ size_t RayMapperOccupancy::integrateRays(const glm::dvec3 *rays, size_t element_
   // Touch the map to flag changes.
   const auto touch_stamp = map_->touch();
 
-  const auto visit_func = [&](const Key &key, double /*enter_range*/, double /*exit_range*/) -> bool  //
-  {                                                                                                   //
+  if (timestamps)
+  {
+    // Update first ray time if not yet set.
+    map_->updateFirstRayTime(*timestamps);
+  }
+
+  const auto visit_func = [&](const Key &key, double enter_range, double exit_range) -> bool  //
+  {                                                                                           //
     // The update logic here is a little unclear as it tries to avoid outright branches.
     // The intended logic is described as follows:
     // 1. Select direct write or additive adjustment.
@@ -94,6 +127,20 @@ size_t RayMapperOccupancy::integrateRays(const glm::dvec3 *rays, size_t element_
     if (chunk != last_chunk)
     {
       occupancy_buffer = VoxelBuffer<VoxelBlock>(chunk->voxel_blocks[occupancy_layer]);
+      if (traversal_layer >= 0)
+      {
+        traversal_buffer = VoxelBuffer<VoxelBlock>(chunk->voxel_blocks[traversal_layer]);
+      }
+      if (touch_time_layer_ >= 0 && timestamps)
+      {
+        // Touch time not required for miss update, but we need it in sync for the update later.
+        touch_time_buffer = VoxelBuffer<VoxelBlock>(chunk->voxel_blocks[touch_time_layer_]);
+      }
+      if (incident_normal_layer_ >= 0)
+      {
+        // Incidents not required for miss update, but we need it in sync for the update later.
+        incidents_buffer = VoxelBuffer<VoxelBlock>(chunk->voxel_blocks[incident_normal_layer_]);
+      }
     }
     last_chunk = chunk;
     const unsigned voxel_index = ohm::voxelIndex(key, occupancy_dim);
@@ -120,6 +167,16 @@ size_t RayMapperOccupancy::integrateRays(const glm::dvec3 *rays, size_t element_
     occupancyAdjustMiss(&occupancy_value, initial_value, miss_adjustment, unobservedOccupancyValue(), voxel_min,
                         saturation_min, saturation_max, stop_adjustments);
     occupancy_buffer.writeVoxel(voxel_index, occupancy_value);
+
+    // Accumulate traversal
+    if (traversal_layer >= 0)
+    {
+      float traversal;
+      traversal_buffer.readVoxel(voxel_index, &traversal);
+      traversal += float(exit_range - enter_range);
+      traversal_buffer.writeVoxel(voxel_index, traversal);
+    }
+
     // Lint(KS): The analyser takes some branches which are not possible in practice.
     // NOLINTNEXTLINE(clang-analyzer-core.CallAndMessage)
     chunk->updateFirstValid(voxel_index);
@@ -130,12 +187,24 @@ size_t RayMapperOccupancy::integrateRays(const glm::dvec3 *rays, size_t element_
     // not so much the sequencing. We really don't want to synchronise here.
     chunk->touched_stamps[occupancy_layer].store(touch_stamp, std::memory_order_relaxed);
 
+    // Store last exit range for final traversal accumulation.
+    last_exit_range = exit_range;
+
     return true;
   };
 
   glm::dvec3 start;
   glm::dvec3 end;
   unsigned filter_flags;
+  double time_base = 0;
+
+  if (timestamps)
+  {
+    // Update first ray time if not yet set.
+    map_->updateFirstRayTime(*timestamps);
+  }
+  time_base = map_->firstRayTime();
+
   for (size_t i = 0; i < element_count; i += 2)
   {
     filter_flags = 0;
@@ -155,13 +224,8 @@ size_t RayMapperOccupancy::integrateRays(const glm::dvec3 *rays, size_t element_
 
     if (!(ray_update_flags & kRfExcludeRay))
     {
-      // Calculate line key for the last voxel if the end point has been clipped
-      const glm::dvec3 start_point_local = glm::dvec3(start - map_origin);
-      const glm::dvec3 end_point_local = glm::dvec3(end - map_origin);
-
       stop_adjustments = false;
-      ohm::walkSegmentKeys<Key>(visit_func, start_point_local, end_point_local, include_sample_in_ray,
-                                WalkKeyAdaptor(*map_));
+      ohm::walkSegmentKeys<Key>(visit_func, start, end, include_sample_in_ray, WalkKeyAdaptor(*map_));
     }
 
     if (!stop_adjustments && !include_sample_in_ray && !(ray_update_flags & kRfExcludeSample))
@@ -174,6 +238,18 @@ size_t RayMapperOccupancy::integrateRays(const glm::dvec3 *rays, size_t element_
       if (chunk != last_chunk)
       {
         occupancy_buffer = VoxelBuffer<VoxelBlock>(chunk->voxel_blocks[occupancy_layer]);
+        if (traversal_layer >= 0)
+        {
+          traversal_buffer = VoxelBuffer<VoxelBlock>(chunk->voxel_blocks[traversal_layer]);
+        }
+        if (touch_time_layer_ >= 0 && timestamps)
+        {
+          touch_time_buffer = VoxelBuffer<VoxelBlock>(chunk->voxel_blocks[touch_time_layer_]);
+        }
+        if (incident_normal_layer_ >= 0)
+        {
+          incidents_buffer = VoxelBuffer<VoxelBlock>(chunk->voxel_blocks[incident_normal_layer_]);
+        }
       }
       last_chunk = chunk;
       const unsigned voxel_index = ohm::voxelIndex(key, occupancy_dim);
@@ -201,6 +277,7 @@ size_t RayMapperOccupancy::integrateRays(const glm::dvec3 *rays, size_t element_
                          saturation_min, saturation_max, stop_adjustments);
 
       // update voxel mean if present.
+      unsigned sample_count = 0;
       if (mean_layer >= 0)
       {
         if (chunk != last_mean_chunk)
@@ -212,6 +289,7 @@ size_t RayMapperOccupancy::integrateRays(const glm::dvec3 *rays, size_t element_
         mean_buffer.readVoxel(voxel_index, &voxel_mean);
         voxel_mean.coord =
           subVoxelUpdate(voxel_mean.coord, voxel_mean.count, end - map_->voxelCentreGlobal(key), resolution);
+        sample_count = voxel_mean.count;
         ++voxel_mean.count;
         mean_buffer.writeVoxel(voxel_index, voxel_mean);
         // Lint(KS): The analyser takes some branches which are not possible in practice.
@@ -219,6 +297,31 @@ size_t RayMapperOccupancy::integrateRays(const glm::dvec3 *rays, size_t element_
         chunk->touched_stamps[mean_layer].store(touch_stamp, std::memory_order_relaxed);
       }
       occupancy_buffer.writeVoxel(voxel_index, occupancy_value);
+
+      // Accumulate traversal
+      if (traversal_layer >= 0)
+      {
+        float traversal;
+        traversal_buffer.readVoxel(voxel_index, &traversal);
+        traversal += float(glm::length(end - start) - last_exit_range);
+        traversal_buffer.writeVoxel(voxel_index, traversal);
+      }
+
+      if (touch_time_layer_ >= 0 && timestamps)
+      {
+        const unsigned touch_time = encodeVoxelTouchTime(time_base, timestamps[i >> 1]);
+        touch_time_buffer.writeVoxel(voxel_index, touch_time);
+      }
+
+      if (incident_normal_layer_ >= 0)
+      {
+        unsigned packed_normal{};
+        incidents_buffer.readVoxel(voxel_index, &packed_normal);
+        // Point count has already been incremented so subtract one to get the right calculation.s
+        packed_normal = updateIncidentNormal(packed_normal, start - end, sample_count);
+        incidents_buffer.writeVoxel(voxel_index, packed_normal);
+      }
+
       // Lint(KS): The analyser takes some branches which are not possible in practice.
       // NOLINTNEXTLINE(clang-analyzer-core.CallAndMessage)
       chunk->updateFirstValid(voxel_index);

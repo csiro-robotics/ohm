@@ -25,6 +25,7 @@ struct KernelDetail
   std::vector<std::function<size_t(size_t)>> local_mem_args;
   size_t maximum_potential_workgroup_size = 0;
   Program program;
+  bool auto_error_checking = true;
 };
 }  // namespace gputil
 

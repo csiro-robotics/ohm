@@ -1,9 +1,10 @@
+// Copyright (c) 2017
+// Commonwealth Scientific and Industrial Research Organisation (CSIRO)
+// ABN 41 687 119 230
 //
 // Author: Kazys Stepanas
-// Copyright (c) CSIRO 2017
-//
-#ifndef OHM_MAPSERIALISATION_H
-#define OHM_MAPSERIALISATION_H
+#ifndef OHM_MAPSERIALISE_H
+#define OHM_MAPSERIALISE_H
 
 #include "OhmConfig.h"
 
@@ -24,7 +25,6 @@
 
 namespace ohm
 {
-class Heightmap;
 class OccupancyMap;
 
 /// An enumeration of potential serialisation errors.
@@ -49,17 +49,16 @@ enum SerialisationError
   /// Error serialising @c MapInfo.
   kSeInfoError,
 
-  /// @c MapInfo does not represent a heightmap.
-  kSeHeightmapInfoMismatch,
-
   kSeDataItemTooLarge,
   kSeUnknownDataType,
 
-  kSeUnsupportedVersion
+  kSeUnsupportedVersion,
+
+  kSeExtensionCode = 0x1000
 };
 
 /// Structure holding information about a loaded map version number specified as `<major>.<minor>.<patch>`.
-struct MapVersion
+struct ohm_API MapVersion
 {
   uint32_t major = 0;  ///< The major version number.
   uint16_t minor = 0;  ///< The minor version number.
@@ -172,7 +171,12 @@ public:
 /// Translate @c err to an English error code string.
 /// @param err The error code. Out of range values are handled.
 /// @return The English error code string or "<unknown>".
-const char *errorCodeString(int err);
+const char *ohm_API serialiseErrorCodeString(int err);
+
+/// Register a new error code string for @c serialiseErrorCodeString() based on an extended error code value.
+/// @param err The error code to register.
+/// @param error_string The display string for @p err .
+void ohm_API registerSerialiseExtensionErrorCodeString(int err, const char *error_string);
 
 /// Save @p map to @p filename.
 ///
@@ -202,9 +206,6 @@ int ohm_API save(const std::string &filename, const OccupancyMap &map, Serialise
 int ohm_API load(const std::string &filename, OccupancyMap &map, SerialiseProgress *progress = nullptr,
                  MapVersion *version_out = nullptr);
 
-int ohm_API load(const std::string &filename, Heightmap &heightmap, SerialiseProgress *progress = nullptr,
-                 MapVersion *version_out = nullptr);
-
 /// Loads the header and layers of a map file without loading the chunks for voxel data.
 ///
 /// The resulting @p map contains no chunks or voxel data, but does contain valid @c MapLayout data.
@@ -221,4 +222,4 @@ int ohm_API loadHeader(const std::string &filename, OccupancyMap &map, MapVersio
                        size_t *region_count = nullptr);
 }  // namespace ohm
 
-#endif  // OHM_MAPSERIALISATION_H
+#endif  // OHM_MAPSERIALISE_H

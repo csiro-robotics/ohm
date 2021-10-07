@@ -73,6 +73,7 @@ size_t walkSegmentKeys(WalkSegmentFunc walk_func, const glm::dvec3 &start_point,
 
   glm::dvec3 direction = glm::dvec3(end_point - start_point);
   const double length = std::sqrt(glm::dot(direction, direction));
+  const glm::dvec3 voxel = funcs.voxelCentre(start_point_key);
 
   // Very small segments which straddle a voxel boundary can be problematic. We want to avoid
   // inverting a very small number, but be robust enough to handle the situation.
@@ -118,7 +119,6 @@ size_t walkSegmentKeys(WalkSegmentFunc walk_func, const glm::dvec3 &start_point,
   }
 
   std::array<int, 3> step = { 0, 0, 0 };
-  glm::dvec3 voxel;
   std::array<double, 3> time_max;
   std::array<double, 3> time_delta;
   std::array<double, 3> time_limit;
@@ -127,15 +127,6 @@ size_t walkSegmentKeys(WalkSegmentFunc walk_func, const glm::dvec3 &start_point,
   size_t added = 0;
   KEY current_key = start_point_key;
   double time_current = 0.0;
-
-  //  debugOut = true;
-  voxel = funcs.voxelCentre(current_key);
-  //  debugOut = false;
-
-  // printf("Start point : %f %f %f\n", startPoint.x, startPoint.y, startPoint.z);
-  // printf("End point : %f %f %f\n", endPoint.x, endPoint.y, endPoint.z);
-  // printf("V: %f %f %f\n", voxel.x, voxel.y, voxel.z);
-  // std::cout << currentKey << std::endl;
 
   // Compute step direction, increments and maximums along each axis.
   for (unsigned i = 0; i < 3; ++i)

@@ -9,6 +9,7 @@
 #include "OhmGpuConfig.h"
 
 #include "GpuCache.h"
+#include "RayItem.h"
 
 #include <ohm/Key.h>
 #include <ohm/RayFilter.h>
@@ -72,21 +73,6 @@ struct VoxelUploadInfo
   {}
 };
 
-/// Structure used for sorting algorithm to group rays before upload.
-struct RayItem
-{
-  /// Origin of the ray. Unless clipped, this is the sensor location.
-  glm::dvec3 origin;
-  /// End point of the sample ray. Unless clipped, this is the location of the sample detection.
-  glm::dvec3 sample;
-  /// Map @c Key corresponding to @p origin .
-  Key origin_key;
-  /// Map @c Key corresponding to @p sample .
-  Key sample_key;
-  /// @c RayFilterFlag values corresponding to any modification which have been made to @p origin and @p sample .
-  unsigned filter_flags;
-};
-
 struct GpuMapDetail
 {
   using RegionSet = ska::bytell_hash_set<glm::i16vec3, Vector3Hash<glm::i16vec3>>;
@@ -102,6 +88,10 @@ struct GpuMapDetail
   std::array<gputil::Event, kBuffersCount> ray_upload_events;
   /// Buffers of rays to process float3 pairs. Coordinates are local to the centre of the start voxel for each pair.
   std::array<gputil::Buffer, kBuffersCount> ray_buffers;
+  /// Buffers to upload sample intensities - a single floating point value per sample.
+  std::array<gputil::Buffer, kBuffersCount> intensities_buffers;
+  /// Buffers to upload sample timestamps - a uint32 value per sample - quantised, relative time.
+  std::array<gputil::Buffer, kBuffersCount> timestamps_buffers;
 
   std::array<gputil::Event, kBuffersCount> region_key_upload_events;
   std::array<gputil::Buffer, kBuffersCount> region_key_buffers;
@@ -133,6 +123,17 @@ struct GpuMapDetail
   /// Long rays are broken into segments of this length or smaller (when value is > 0).
   double ray_segment_length = 0;
 
+  /// Index into @c voxel_upload_info buffers at which we have the @c VoxelUploadInfo for the occupancy layer.
+  int occupancy_uidx = -1;
+  /// Index into @c voxel_upload_info buffers at which we have the @c VoxelUploadInfo for the mean layer.
+  int mean_uidx = -1;
+  /// Index into @c voxel_upload_info buffers at which we have the @c VoxelUploadInfo for the traversal layer.
+  int traversal_uidx = -1;
+  /// Index into @c voxel_upload_info buffers at which we have the @c VoxelUploadInfo for the touch time layer.
+  int touch_time_uidx = -1;
+  /// Index into @c voxel_upload_info buffers at which we have the @c VoxelUploadInfo for the incident normal layer.
+  int incident_normal_uidx = -1;
+
   /// Used as @c GpuLayerCache::upload() @c batchMarker argument.
   unsigned batch_marker = 1;  // Will cycle odd numbers to avoid zero.
   /// Should rays be grouped (sorted) before GPU upload. Should only be set for some algorthims, like NDT (required).
@@ -140,8 +141,10 @@ struct GpuMapDetail
   bool borrowed_map = false;
   bool gpu_ok = false;
   bool cached_sub_voxel_program = false;
-  /// Support voxel mean GPU cache layer?
+  /// Support voxel mean GPU cache layer? This is enabled by default, but can be disabled in specific derivations.
   bool support_voxel_mean = true;
+  /// Support traversal GPU cache layer? This is enabled by default, but can be disabled in specific derivations.
+  bool support_traversal = true;
 
   GpuMapDetail(OccupancyMap *map, bool borrowed_map)
     : map(map)

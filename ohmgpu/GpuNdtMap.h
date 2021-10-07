@@ -10,9 +10,21 @@
 
 #include "GpuMap.h"
 
+#include <ohm/NdtMode.h>
+
+#include <array>
+
+namespace gputil
+{
+struct Dim3;
+class Event;
+class EventList;
+}  // namespace gputil
+
 namespace ohm
 {
 class NdtMap;
+class GpuLayerCache;
 struct GpuNdtMapDetail;
 
 /// A GPU implementation of the @c NdtMap algorithm.
@@ -52,14 +64,23 @@ class GpuNdtMap : public GpuMap
 {
 public:
   /// Create a @c GpuNdtMap around the given @p map representation.
-  /// @param map The map object to operate on.
   /// @param map The map to wrap.
   /// @param borrowed_map True to borrow the map, @c false for this object to take ownership.
   /// @param expected_element_count The expected point count for calls to @c integrateRays(). Used as a hint.
   /// @param gpu_mem_size Optionally specify the target GPU cache memory to allocate.
-  explicit GpuNdtMap(OccupancyMap *map, bool borrowed_map = true,
-                     unsigned expected_element_count = 2048,  // NOLINT(readability-magic-numbers)
-                     size_t gpu_mem_size = 0u);
+  /// @param ndt_mode Specified which NDT mode to use. Using @c kNone is invalid resulting in undefined behaviour.
+  explicit GpuNdtMap(OccupancyMap *map, bool borrowed_map = true, unsigned expected_element_count = 2048u,
+                     size_t gpu_mem_size = 0u, NdtMode ndt_mode = NdtMode::kOccupancy);
+
+  /// @overload
+  inline GpuNdtMap(OccupancyMap *map, bool borrowed_map, NdtMode mode)
+    : GpuNdtMap(map, borrowed_map, 2048u, 0u, mode)
+  {}
+
+  /// @overload
+  inline GpuNdtMap(OccupancyMap *map, bool borrowed_map, unsigned expected_element_count, NdtMode mode)
+    : GpuNdtMap(map, borrowed_map, expected_element_count, 0u, mode)
+  {}
 
   /// Destructor
   ~GpuNdtMap() override;
@@ -91,11 +112,24 @@ protected:
   const GpuNdtMapDetail *detail() const;
 
   /// Cache the NDT kernel as well.
-  /// @param with_voxel_mean True to cache the program which supports voxel mean positioning (@ref voxelmean).
+  /// @param with_voxel_mean True to cache the program which supports voxel mean positioning (@ref voxelmean). Redundant
+  ///   for NDT as it is already required.
+  /// @param with_traversal True to cache the program which supports the traversal layer.
   /// @param force Force release and program caching even if already correct. Must be used on initialisation.
-  void cacheGpuProgram(bool with_voxel_mean, bool force) override;
+  void cacheGpuProgram(bool with_voxel_mean, bool with_traversal, bool force) override;
 
   void finaliseBatch(unsigned region_update_flags) override;
+
+  /// Typdef for tracking which @c GpuLayerCache objects have been touched.
+  using TouchedCacheSet = std::array<GpuLayerCache *, 8>;
+  /// Invoke the NDT kernels.
+  /// @param region_update_flags Flags controlling ray integration behaviour. See @c RayFlag.
+  /// @param buf_idx Which buffer set in @c GpuMapDetail to update [0, 1]
+  /// @param wait Set of GPU events to wait for before executing the first kernel. Expected to hold events related to
+  ///   buffer uploads.
+  /// @param used_caches Modified to hold pointers to the set of @c GpuLayerCache objects which have been used/touched
+  ///   by the kernel invocations. Expected to be null terminated or full.
+  void invokeNdt(unsigned region_update_flags, int buf_idx, gputil::EventList &wait, TouchedCacheSet &used_caches);
 
   void releaseGpuProgram() override;
 };

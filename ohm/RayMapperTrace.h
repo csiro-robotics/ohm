@@ -102,8 +102,13 @@ public:
   /// Integrate the given rays into the @c trueMapper() . This also performs debug visualisation around the operation.
   /// @param rays The array of start/end point pairs to integrate.
   /// @param element_count The number of @c glm::dvec3 elements in @p rays, which is twice the ray count.
+  /// @param intensities An array of intensity values matching the @p rays items. There is one intensity value per ray
+  ///   so there are @c element_count/2 items. May be null to omit intensity values.
+  /// @param timestamps An array of timestap values matching the @p rays items. There is one timestap value per ray
+  ///   so there are @c element_count/2 items. May be null to omit timestap values.
   /// @param ray_update_flags @c RayFlag bitset used to modify the behaviour of this function.
-  size_t integrateRays(const glm::dvec3 *rays, size_t element_count, unsigned ray_update_flags) override;
+  size_t integrateRays(const glm::dvec3 *rays, size_t element_count, const float *intensities, const double *timestamps,
+                       unsigned ray_update_flags) override;
 
 private:
   /// Work out the sector key associated with @p key . See @c SectorSet .

@@ -903,7 +903,7 @@ void Voxel<T>::updateChunkTouchAndCompression(bool retain_chunk)
     }
   }
   // Always clear Flag::kTouchedChunk however, we only clear Flag::kCompressionLock if we are not retaining the chunk.
-  unsigned clear_flags = unsigned(Flag::kTouchedChunk);
+  auto clear_flags = unsigned(Flag::kTouchedChunk);
   clear_flags |= !!retain_chunk * unsigned(Flag::kCompressionLock);
   flags_ &= ~clear_flags;
 }

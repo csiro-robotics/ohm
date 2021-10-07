@@ -13,8 +13,6 @@ configure_file(OhmConfig.in.h "${CMAKE_CURRENT_BINARY_DIR}/ohm/OhmConfig.h")
 
 set(SOURCES
   private/ClearingPatternDetail.h
-  private/HeightmapDetail.cpp
-  private/HeightmapDetail.h
   private/LineQueryDetail.h
   private/MapLayerDetail.h
   private/MapLayoutDetail.h
@@ -41,30 +39,26 @@ set(SOURCES
   serialise/MapSerialiseV0.cpp
   serialise/MapSerialiseV0.h
   Aabb.h
+  CopyUtil.cpp
+  CopyUtil.h
   CalculateSegmentKeys.cpp
   CalculateSegmentKeys.h
   ClearingPattern.cpp
   ClearingPattern.h
+  CompareMaps.cpp
+  CompareMaps.h
   CovarianceVoxel.cpp
   CovarianceVoxel.h
   CovarianceVoxelCompute.h
   DataType.cpp
   DataType.h
+  Density.cpp
+  Density.h
   DefaultLayer.cpp
   DefaultLayer.h
-  Heightmap.cpp
-  Heightmap.h
-  HeightmapMesh.cpp
-  HeightmapMesh.h
-  HeightmapMode.cpp
-  HeightmapMode.h
-  HeightmapUtil.cpp
-  HeightmapUtil.h
-  HeightmapVoxel.cpp
-  HeightmapVoxel.h
-  HeightmapVoxelType.h
   Key.cpp
   Key.h
+  KeyStream.h
   KeyHash.h
   KeyList.cpp
   KeyList.h
@@ -100,19 +94,14 @@ set(SOURCES
   Mutex.h
   NdtMap.cpp
   NdtMap.h
+  NdtMode.cpp
+  NdtMode.h
   NearestNeighbours.cpp
   NearestNeighbours.h
   OccupancyMap.cpp
   OccupancyMap.h
   OccupancyType.cpp
   OccupancyType.h
-  PlaneFillLayeredWalker.cpp
-  PlaneFillLayeredWalker.h
-  PlaneFillWalker.cpp
-  PlaneFillWalker.h
-  PlaneWalker.cpp
-  PlaneWalker.h
-  PlaneWalkVisitMode.h
   Query.cpp
   Query.h
   QueryFlag.h
@@ -137,9 +126,6 @@ set(SOURCES
   Stream.h
   Trace.cpp
   Trace.h
-  TriangleEdge.h
-  TriangleNeighbours.h
-  UpAxis.h
   Voxel.cpp
   Voxel.h
   VoxelBlock.cpp
@@ -149,12 +135,16 @@ set(SOURCES
   VoxelBuffer.cpp
   VoxelBuffer.h
   VoxelData.h
+  VoxelIncident.h
+  VoxelIncidentCompute.h
   VoxelLayout.cpp
   VoxelLayout.h
   VoxelMean.h
   VoxelMeanCompute.h
   VoxelOccupancy.h
   VoxelOccupancyCompute.h
+  VoxelTouchTime.h
+  VoxelTouchTimeCompute.h
 )
 
 if(TES_ENABLE)
@@ -166,17 +156,15 @@ set(PUBLIC_HEADERS
   Aabb.h
   CalculateSegmentKeys.h
   ClearingPattern.h
+  CompareMaps.h
+  CopyUtil.h
   CovarianceVoxel.h
   CovarianceVoxelCompute.h
   DataType.h
+  Density.h
   DefaultLayer.h
-  Heightmap.h
-  HeightmapMesh.h
-  HeightmapMode.h
-  HeightmapUtil.h
-  HeightmapVoxel.h
-  HeightmapVoxelType.h
   Key.h
+  KeyStream.h
   KeyHash.h
   KeyList.h
   KeyRange.h
@@ -198,14 +186,11 @@ set(PUBLIC_HEADERS
   MapSerialise.h
   Mutex.h
   NdtMap.h
+  NdtMode.h
   NearestNeighbours.h
   OccupancyMap.h
   OccupancyType.h
   OccupancyUtil.h
-  PlaneFillLayeredWalker.h
-  PlaneFillWalker.h
-  PlaneWalker.h
-  PlaneWalkVisitMode.h
   QueryFlag.h
   Query.h
   RayFilter.h
@@ -219,19 +204,19 @@ set(PUBLIC_HEADERS
   RaysQuery.h
   Stream.h
   Trace.h
-  TriangleEdge.h
-  TriangleNeighbours.h
-  UpAxis.h
   Voxel.h
   VoxelBlock.h
   VoxelBlockCompressionQueue.h
   VoxelBuffer.h
   VoxelData.h
+  VoxelIncident.h
   VoxelLayout.h
   VoxelMean.h
   VoxelMeanCompute.h
   VoxelOccupancy.h
   VoxelOccupancyCompute.h
+  VoxelTouchTime.h
+  VoxelTouchTimeCompute.h
   "${CMAKE_CURRENT_BINARY_DIR}/ohm/OhmConfig.h"
   "${CMAKE_CURRENT_BINARY_DIR}/ohm/OhmExport.h"
   )
@@ -239,7 +224,7 @@ set(PUBLIC_HEADERS
 add_library(ohm ${SOURCES})
 clang_tidy_target(ohm)
 
-target_link_libraries(ohm PUBLIC ${ZLIB_LIBRARIES} ohmutil ${GPUTIL_LIBRARY})
+target_link_libraries(ohm PUBLIC ${ZLIB_LIBRARIES} ohmutil)
 
 target_include_directories(ohm
   PUBLIC
@@ -262,12 +247,12 @@ target_include_directories(ohm SYSTEM
     $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/3rdparty>
 )
 
-if(OHM_WITH_EIGEN)
+if(WITH_EIGEN)
   # Link Eigen as a private link target under the BUILD_INTERFACE. This allows Eigen definitions to be set,
   # imports inlcude directories, but does not chain the dependency downstream, which is fine for static, or header only
   # libraries (Eigen being header only).
   target_link_libraries(ohm PRIVATE $<BUILD_INTERFACE:Eigen3::Eigen>)
-endif(OHM_WITH_EIGEN)
+endif(WITH_EIGEN)
 
 if(OHM_TES_DEBUG)
   target_link_libraries(ohm PUBLIC 3es::3es-core)

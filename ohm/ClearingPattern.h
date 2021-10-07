@@ -109,7 +109,7 @@ void ClearingPattern::apply(MAP *map, const glm::dvec3 &position, const glm::dqu
   const glm::dvec3 *ray_set = buildRaySet(&ray_element_count, position, rotation);
   const float initial_miss_value = map->missValue();
   map->setMissValue(initial_miss_value * probability_scaling);
-  map->integrateRays(ray_set, unsigned(ray_element_count), rayFlags());
+  map->integrateRays(ray_set, unsigned(ray_element_count), nullptr, nullptr, rayFlags());
   map->setMissValue(initial_miss_value);
 }
 
@@ -121,7 +121,7 @@ void ClearingPattern::apply(MAP *map, const glm::dmat4 &pattern_transform, float
   const glm::dvec3 *ray_set = buildRaySet(&ray_element_count, pattern_transform);
   const float initial_miss_value = map->missValue();
   map->setMissValue(initial_miss_value * probability_scaling);
-  map->integrateRays(ray_set, unsigned(ray_element_count), rayFlags());
+  map->integrateRays(ray_set, unsigned(ray_element_count), nullptr, nullptr, rayFlags());
   map->setMissValue(initial_miss_value);
 }
 }  // namespace ohm

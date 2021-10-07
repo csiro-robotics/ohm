@@ -159,8 +159,7 @@ Device::Device(bool default_device)
       const std::vector<clu::DeviceConstraint> device_constraints;
       clu::initPrimaryContext(device_type, platform_constraints, device_constraints);
       clu::getPrimaryContext(imp_->context, imp_->device);
-
-      imp_->queue = cl::CommandQueue(imp_->context, imp_->device);
+      imp_->default_queue = createQueue();
     }
 
     if (isValid())
@@ -168,7 +167,7 @@ Device::Device(bool default_device)
       std::vector<cl::Device> devices;
       clu::listDevices(devices, imp_->context);
       imp_->device = devices[0];
-      imp_->queue = cl::CommandQueue(imp_->context, imp_->device);
+      imp_->default_queue = createQueue();
       finaliseDetail(*imp_, nullptr);
     }
   }
@@ -231,9 +230,7 @@ const DeviceInfo &Device::info() const
 
 Queue Device::defaultQueue() const
 {
-  // Given queue constructor will not increment the reference count. Explicitly do so.
-  clRetainCommandQueue(imp_->queue());
-  return Queue(imp_->queue());
+  return imp_->default_queue;
 }
 
 
@@ -304,14 +301,14 @@ bool Device::select(int argc, const char **argv, const char *default_device, uns
 
   if (imp_->context())
   {
-    imp_->queue = cl::CommandQueue(imp_->context, imp_->device);
+    imp_->default_queue = createQueue();
     finaliseDetail(*imp_, nullptr);
   }
   else
   {
     imp_->context = cl::Context();
     imp_->device = cl::Device();
-    imp_->queue = cl::CommandQueue();
+    imp_->default_queue = Queue();
   }
 
   if (isValid())
@@ -372,7 +369,7 @@ bool Device::select(const DeviceInfo &device_info)
 
       imp_->device = devices[i];
       imp_->context = cl::Context(imp_->device);
-      imp_->queue = cl::CommandQueue(imp_->context, imp_->device);
+      imp_->default_queue = createQueue();
       finaliseDetail(*imp_, &device_info);
       if (isValid())
       {

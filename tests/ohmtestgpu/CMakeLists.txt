@@ -7,6 +7,8 @@ find_package(GLM)
 find_package(Eigen3 QUIET)
 
 set(SOURCES
+  GpuCopyTests.cpp
+  GpuIncidentsTests.cpp
   GpuLineKeysTests.cpp
   GpuLineQueryTests.cpp
   GpuMapperTests.cpp
@@ -17,6 +19,8 @@ set(SOURCES
   GpuSerialisationTests.cpp
   GpuTestMain.cpp
   GpuTests.cpp
+  GpuTouchTimeTests.cpp
+  GpuTraversalTests.cpp
   GpuVoxelMeanTests.cpp
 )
 

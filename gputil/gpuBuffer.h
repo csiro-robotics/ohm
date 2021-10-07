@@ -192,7 +192,7 @@ enum BufferFlag : unsigned
       fill(&value, sizeof(value), queue, block_on, completion);
     }
 
-    /// @overload.
+    /// @overload
     inline void clear(unsigned value, Queue *queue = nullptr, Event *block_on = nullptr, Event *completion = nullptr)
     {
       fill(&value, sizeof(value), queue, block_on, completion);
@@ -472,7 +472,7 @@ enum BufferFlag : unsigned
   /// @param block_on Optional event to wait for be performing the copy.
   /// @param completion Optional event to setup to mark completion of the copy operation.
   /// @return The number of bytes copied
-  size_t copyBuffer(Buffer &dst, const Buffer &src, 
+  size_t copyBuffer(Buffer &dst, const Buffer &src,
                     Queue *queue = nullptr, Event *block_on = nullptr, Event *completion = nullptr);
 
   /// Copy data from @p src to @p dst copying only @p byteCount bytes.
@@ -488,7 +488,7 @@ enum BufferFlag : unsigned
   /// @param block_on Optional event to wait for be performing the copy.
   /// @param completion Optional event to setup to mark completion of the copy operation.
   /// @return The number of bytes copied
-  size_t copyBuffer(Buffer &dst, const Buffer &src, size_t byte_count,  
+  size_t copyBuffer(Buffer &dst, const Buffer &src, size_t byte_count,
                     Queue *queue = nullptr, Event *block_on = nullptr, Event *completion = nullptr);
 
   /// Copy data from @p src to @p dst with offsets, copying only @p byteCount bytes.
@@ -506,7 +506,7 @@ enum BufferFlag : unsigned
   /// @param block_on Optional event to wait for be performing the copy.
   /// @param completion Optional event to setup to mark completion of the copy operation.
   /// @return The number of bytes copied
-  size_t copyBuffer(Buffer &dst, size_t dst_offset, 
+  size_t copyBuffer(Buffer &dst, size_t dst_offset,
                     const Buffer &src, size_t src_offset, size_t byte_count,
                     Queue *queue = nullptr, Event *block_on = nullptr, Event *completion = nullptr);
 }  // namespace gputil
