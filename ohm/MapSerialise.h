@@ -54,6 +54,9 @@ enum SerialisationError
 
   kSeUnsupportedVersion,
 
+  /// A previously supported version, but one which does not support upgrading.
+  kSeDeprecatedVersion,
+
   kSeExtensionCode = 0x1000
 };
 

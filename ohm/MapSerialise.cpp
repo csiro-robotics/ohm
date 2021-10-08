@@ -58,6 +58,7 @@ std::map<int, std::string> s_error_codes = { makeErrorCode(ohm::kSeOk, "ok"),
                                              makeErrorCode(ohm::kSeDataItemTooLarge, "data item too large"),
                                              makeErrorCode(ohm::kSeUnknownDataType, "unknown data type"),
                                              makeErrorCode(ohm::kSeUnsupportedVersion, "unsupported version"),
+                                             makeErrorCode(ohm::kSeDeprecatedVersion, "deprecated version"),
                                              makeErrorCode(ohm::kSeExtensionCode, "unknown extension error") };
 }  // namespace
 
@@ -458,7 +459,7 @@ int loadHeader(InputStream &stream, HeaderVersion &version, OccupancyMapDetail &
       // Version 0.3.x not supported. That introduced voxel mean positioning using a progressive weighting.
       // Support in 0.4.0 changed to separate VoxelMean layer using a progressive point count yielding much better
       // coordinates.
-      return kSeUnsupportedVersion;
+      return kSeDeprecatedVersion;
     }
 
     ok = readRaw<double>(stream, map.origin.x) && ok;
