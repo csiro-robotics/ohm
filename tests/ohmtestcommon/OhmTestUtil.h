@@ -37,10 +37,11 @@ void setApplicationPath(const char *path);
 bool compareLayout(const ohm::OccupancyMap &map, const ohm::OccupancyMap &reference_map);
 
 void compareMaps(const ohm::OccupancyMap &map, const ohm::OccupancyMap &reference_map,
-                 unsigned compare_flags = kCfDefault);
+                 unsigned compare_flags = kCfDefault, unsigned allowed_occupancy_mismatch_count = 0);
 
 void compareMaps(const ohm::OccupancyMap &map, const ohm::OccupancyMap &reference_map, const glm::dvec3 &min_ext,
-                 const glm::dvec3 &max_ext, unsigned compare_flags = kCfDefault);
+                 const glm::dvec3 &max_ext, unsigned compare_flags = kCfDefault,
+                 unsigned allowed_occupancy_mismatch_count = 0);
 }  // namespace ohmtestutil
 
 #endif  // OHMTESTUTIL_H

@@ -102,7 +102,7 @@ TEST(Serialisation, Basic)
 }
 
 
-// Legacy code used to generate the test map for Serialisation.Upgrade.
+// Legacy code used to generate the test map for Serialisation.Upgrade tests.
 void cubicRoomLegacy(OccupancyMap &map, float boundary_range, int voxel_step)
 {
   int extents = int(boundary_range / map.resolution());
@@ -143,10 +143,20 @@ void cubicRoomLegacy(OccupancyMap &map, float boundary_range, int voxel_step)
 }
 
 
-TEST(Serialisation, Upgrade)
+/// Test loading older version data files.
+///
+/// A number of voxel occupancy comparison failures are allowed ( @p allowed_occupancy_mismatches ) to deal with legacy
+/// map file issues. Specifically, a maths change in LineWalk.h introduced floating point differences in the line
+/// traversal despite being mathematically equivalent. This resulted in a mismatch in the test_map and the loaded map.
+/// We expect exactly 222 voxels to have different occupancy values. This only affects map version zero which was not
+/// able to be replicated using the new maths.
+///
+/// @param map_file File to load.
+/// @param expected_version Expected version of the loaded file.
+/// @param allowed_occupancy_mismatches Number of allowed voxel occupancy comparison failures.
+void upgradeTest(const std::string map_file, const ohm::MapVersion &expected_version,
+                 unsigned allowed_occupancy_mismatches = 0)
 {
-  // Test loading older version data files.
-  std::string map_name = std::string(ohmtestutil::applicationDir()) + "test-map.0.ohm";
   // Profile profile;
   int error_code = 0;
   const float boundary_distance = 5.0f;
@@ -159,18 +169,73 @@ TEST(Serialisation, Upgrade)
 
   std::cout << "Validate header" << std::endl;
   MapVersion version;
-  error_code = loadHeader(map_name.c_str(), load_map, &version);
+  error_code = loadHeader(map_file.c_str(), load_map, &version);
   ASSERT_EQ(error_code, 0);
-  ASSERT_EQ(version.major, 0);
-  ASSERT_EQ(version.minor, 0);
-  ASSERT_EQ(version.patch, 0);
+  ASSERT_EQ(version.major, expected_version.major);
+  ASSERT_EQ(version.minor, expected_version.minor);
+  ASSERT_EQ(version.patch, expected_version.patch);
 
   ProgressDisplay progress;
   std::cout << "Loading" << std::endl;
-  error_code = load(map_name.c_str(), load_map, &progress);
+  error_code = load(map_file.c_str(), load_map, &progress);
   std::cout << std::endl;
   ASSERT_EQ(error_code, 0);
 
-  ohmtestutil::compareMaps(load_map, test_map, ohmtestutil::kCfDefault);
+  ohmtestutil::compareMaps(load_map, test_map, ohmtestutil::kCfDefault, allowed_occupancy_mismatches);
+}
+
+TEST(Serialisation, UpgradeV0)
+{
+  // Test loading older version data files.
+  const std::string map_name = std::string(ohmtestutil::applicationDir()) + "test-map.0.ohm";
+  // A maths change in LineWalk.h introduced floating point differences in the line traversal despite being
+  // mathematically equivalent. This resulted in a mismatch in the test_map and the loaded map. We expect exactly 222
+  // voxels to have different occupancy values.
+  const unsigned k_allowed_occupancy_mismatches = 222;
+  upgradeTest(map_name, ohm::MapVersion(0, 0, 0), k_allowed_occupancy_mismatches);
+}
+
+
+// TEST(Serialisation, UpgradeV0_1_2)
+// {
+//   // Test loading older version data files.
+//   const std::string map_name = std::string(ohmtestutil::applicationDir()) + "test-map.0.1.2.ohm";
+//   // A maths change in LineWalk.h introduced floating point differences in the line traversal despite being
+//   // mathematically equivalent. This resulted in a mismatch in the test_map and the loaded map. We expect exactly 222
+//   // voxels to have different occupancy values.
+//   upgradeTest(map_name, ohm::MapVersion(0, 1, 2));
+// }
+
+
+TEST(Serialisation, UpgradeV0_2_0)
+{
+  // Test loading older version data files.
+  const std::string map_name = std::string(ohmtestutil::applicationDir()) + "test-map.0.2.0.ohm";
+  // A maths change in LineWalk.h introduced floating point differences in the line traversal despite being
+  // mathematically equivalent. This resulted in a mismatch in the test_map and the loaded map. We expect exactly 222
+  // voxels to have different occupancy values.
+  upgradeTest(map_name, ohm::MapVersion(0, 2, 0));
+}
+
+
+// TEST(Serialisation, UpgradeV0_3_0)
+// {
+//   // Test loading older version data files.
+//   const std::string map_name = std::string(ohmtestutil::applicationDir()) + "test-map.0.3.ohm";
+//   // A maths change in LineWalk.h introduced floating point differences in the line traversal despite being
+//   // mathematically equivalent. This resulted in a mismatch in the test_map and the loaded map. We expect exactly 222
+//   // voxels to have different occupancy values.
+//   upgradeTest(map_name, ohm::MapVersion(0, 3, 0));
+// }
+
+
+TEST(Serialisation, UpgradeV0_4_0)
+{
+  // Test loading older version data files.
+  const std::string map_name = std::string(ohmtestutil::applicationDir()) + "test-map.0.4.0.ohm";
+  // A maths change in LineWalk.h introduced floating point differences in the line traversal despite being
+  // mathematically equivalent. This resulted in a mismatch in the test_map and the loaded map. We expect exactly 222
+  // voxels to have different occupancy values.
+  upgradeTest(map_name, ohm::MapVersion(0, 4, 0));
 }
 }  // namespace searialisationtests
