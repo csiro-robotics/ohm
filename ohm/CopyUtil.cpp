@@ -63,6 +63,7 @@ bool copyMap(OccupancyMap &dst, const OccupancyMap &src, CopyFilter copy_filter)
   }
 
   OccupancyMapDetail &dst_detail = *dst.detail();
+  const MapLayout &dst_layout = dst_detail.layout;
   const OccupancyMapDetail &src_detail = *src.detail();
 
   // Lock required mutexes.
@@ -70,7 +71,7 @@ bool copyMap(OccupancyMap &dst, const OccupancyMap &src, CopyFilter copy_filter)
   // map mutex.
   std::unique_lock<decltype(src_detail.mutex)> src_guard(src_detail.mutex);
 
-  // First resolve the overlapping layer set.
+  // First resolve the overlapping layer set. Holds src, dst map layer index pairs.
   std::vector<std::pair<unsigned, unsigned>> layer_overlap;
   std::vector<MapRegionCache *> layer_caches;  // Cache pointers matching layer_overlap[n].first .
   if (src_detail.layout.calculateOverlappingLayerSet(layer_overlap, dst_detail.layout) == 0)
@@ -111,9 +112,27 @@ bool copyMap(OccupancyMap &dst, const OccupancyMap &src, CopyFilter copy_filter)
     {
       const auto &layer_pair = layer_overlap[i];
       auto *layer_cache = (i < layer_caches.size()) ? layer_caches[i] : nullptr;
-      if (!layer_cache || !layer_cache->syncLayerTo(dst_chunk, layer_pair.second, src_chunk, layer_pair.first))
+      // First try letting the layer cache handle the copy/sync.
+      if (layer_cache && layer_cache->syncLayerTo(dst_chunk, layer_pair.second, src_chunk, layer_pair.first))
       {
+        // Special case: if we are dealing with the occupancy layer, then we need to update MapRegion::first_valid_index
+        // in the target map for correct map iteration. However, when the layer cache handles the copy we can't
+        // guarantee the source map value is up to date, so we can't just copy from the source chunk value.
+        if (layer_pair.second == dst_layout.occupancyLayer())
+        {
+          dst_chunk.searchAndUpdateFirstValid(dst_detail.region_voxel_dimensions);
+        }
+      }
+      else
+      {
+        // Layer cache not present or it didn't handle the copy. Use the fallback function.
         copyChunkLayerUnsafe(dst_chunk, layer_pair.second, src_chunk, layer_pair.first);
+        // Special case: as in the branch above, but this time we can just copy the first_valid_index from the source
+        // chunk as there's no layer cache and we can assume the MapChunk is fully up to date.
+        if (layer_pair.second == dst_layout.occupancyLayer())
+        {
+          dst_chunk.updateFirstValid(src_chunk.first_valid_index);
+        }
       }
     }
   }

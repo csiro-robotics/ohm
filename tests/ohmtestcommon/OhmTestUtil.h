@@ -27,8 +27,8 @@ enum CompareFlag
   kCfExpectClearance = (1 << 6),
 
   kCfDefault = kCfGeneral | kCfChunksGeneral | kCfOccupancy,
-  kCfCompareAll = kCfGeneral | kCfChunksGeneral | kCfLayout | kCfOccupancy | kCfClearance,
-  kCfCompareFine = kCfGeneral | kCfChunksGeneral | kCfChunksFine | kCfLayout | kCfOccupancy | kCfClearance
+  kCfCompareExtended = kCfGeneral | kCfChunksGeneral | kCfLayout | kCfOccupancy | kCfClearance,
+  kCfCompareFineDetail = kCfGeneral | kCfChunksGeneral | kCfChunksFine | kCfLayout | kCfOccupancy | kCfClearance
 };
 
 const char *applicationDir();
