@@ -317,7 +317,6 @@ size_t RayMapperOccupancy::integrateRays(const glm::dvec3 *rays, size_t element_
       {
         unsigned packed_normal{};
         incidents_buffer.readVoxel(voxel_index, &packed_normal);
-        // Point count has already been incremented so subtract one to get the right calculation.s
         packed_normal = updateIncidentNormal(packed_normal, start - end, sample_count);
         incidents_buffer.writeVoxel(voxel_index, packed_normal);
       }
