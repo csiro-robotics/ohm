@@ -161,10 +161,15 @@ void compareMaps(const OccupancyMap &map, const OccupancyMap &reference_map, con
 
       EXPECT_EQ(chunk->region.centre, ref_chunk->region.centre);
       EXPECT_EQ(chunk->region.coord, ref_chunk->region.coord);
+      // First valid index should be the same when occupancy and general map values are expected to match because it is
+      // derived from the occupancy.
+      if (compare_flags & (kCfGeneral | kCfOccupancy))
+      {
+        EXPECT_EQ(chunk->first_valid_index, ref_chunk->first_valid_index);
+      }
 
       if (compare_flags & kCfChunksFine)
       {
-        EXPECT_EQ(chunk->first_valid_index, ref_chunk->first_valid_index);
         EXPECT_EQ(chunk->touched_time, ref_chunk->touched_time);
         EXPECT_EQ(chunk->dirty_stamp, ref_chunk->dirty_stamp);
         for (unsigned i = 0; i < chunk->layout().layerCount(); ++i)

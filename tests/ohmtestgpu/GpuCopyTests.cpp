@@ -105,7 +105,7 @@ TEST(Copy, CopyFromGpu)
 
     // Now sync the GPU map back to CPU and compare the whole map - they should match.
     gpu_map.syncVoxels();
-    ohmtestutil::compareMaps(dst_map, map, ohmtestutil::kCfCompareAll);
+    ohmtestutil::compareMaps(dst_map, map, ohmtestutil::kCfCompareExtended);
   }
 }
 
@@ -145,7 +145,7 @@ TEST(Copy, CopySubmapFromGpu)
 
     // Now sync the GPU map back to CPU and compare the whole map - they should match.
     gpu_map.syncVoxels();
-    ohmtestutil::compareMaps(dst_map, map, copy_min, copy_max, ohmtestutil::kCfCompareAll);
+    ohmtestutil::compareMaps(dst_map, map, copy_min, copy_max, ohmtestutil::kCfCompareExtended);
   }
 }
 

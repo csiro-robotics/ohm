@@ -110,7 +110,7 @@ TEST(Serialisation, GpuClearance)
   std::cout << std::endl;
   ASSERT_EQ(error_code, 0);
 
-  ohmtestutil::compareMaps(load_map, save_map, ohmtestutil::kCfCompareAll | ohmtestutil::kCfExpectClearance);
+  ohmtestutil::compareMaps(load_map, save_map, ohmtestutil::kCfCompareExtended | ohmtestutil::kCfExpectClearance);
 }
 
 

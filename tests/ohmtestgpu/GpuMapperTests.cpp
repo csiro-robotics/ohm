@@ -141,6 +141,6 @@ TEST(Mapper, Clearance)
 
   // Compare maps.
   std::cout << "Comparing maps" << std::endl;
-  ohmtestutil::compareMaps(map, *clone_map, ohmtestutil::kCfCompareAll | ohmtestutil::kCfExpectClearance);
+  ohmtestutil::compareMaps(map, *clone_map, ohmtestutil::kCfCompareExtended | ohmtestutil::kCfExpectClearance);
 }
 }  // namespace mappertests

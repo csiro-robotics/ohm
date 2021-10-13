@@ -43,7 +43,7 @@ TEST(Copy, Clone)
   const std::unique_ptr<OccupancyMap> map_copy(map.clone());
 
   // Compare maps.
-  ohmtestutil::compareMaps(*map_copy, map, ohmtestutil::kCfCompareAll);
+  ohmtestutil::compareMaps(*map_copy, map, ohmtestutil::kCfCompareExtended);
 }
 
 
@@ -61,7 +61,7 @@ TEST(Copy, CloneSubmap)
   const std::unique_ptr<OccupancyMap> map_copy(map.clone(clone_min, clone_max));
 
   // Compare maps.
-  ohmtestutil::compareMaps(*map_copy, map, clone_min, clone_max, ohmtestutil::kCfCompareAll);
+  ohmtestutil::compareMaps(*map_copy, map, clone_min, clone_max, ohmtestutil::kCfCompareExtended);
 }
 
 
@@ -91,7 +91,7 @@ TEST(Copy, Copy)
   EXPECT_TRUE(ohm::copyMap(dst_map, map));
 
   // Compare maps.
-  ohmtestutil::compareMaps(dst_map, map, ohmtestutil::kCfCompareAll);
+  ohmtestutil::compareMaps(dst_map, map, ohmtestutil::kCfCompareExtended);
 }
 
 
@@ -110,7 +110,7 @@ TEST(Copy, CopySubmap)
   // Copy and compare with no filter.
   EXPECT_TRUE(ohm::copyMap(dst_map, map, ohm::copyFilterExtents(copy_min, copy_max)));
   // Compare maps.
-  ohmtestutil::compareMaps(dst_map, map, copy_min, copy_max, ohmtestutil::kCfCompareAll);
+  ohmtestutil::compareMaps(dst_map, map, copy_min, copy_max, ohmtestutil::kCfCompareExtended);
 }
 
 TEST(Copy, CopyUpdated)

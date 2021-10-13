@@ -153,7 +153,7 @@ public:
   MapLayoutMatch checkEquivalent(const MapLayout &other) const;
 
   /// Calculate which layers from this object are also present in @p other . For any match we add an entry to @p overlap
-  /// which identifies this object's layer index and the @p other object's layer index.
+  /// which identifies this object's layer index and the @p other object's layer index (in that order).
   ///
   /// Layers are matched first by name, then using @c MapLayer::checkEquivalent() looking for an exact match.
   ///
