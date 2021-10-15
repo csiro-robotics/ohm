@@ -23,6 +23,7 @@ elseif(OHM_UTILS_GPU_API_DEFAULT EQUAL "CUDA")
 endif()
 
 add_subdirectory(ohm2ply)
+add_subdirectory(ohmcmp)
 add_subdirectory(ohmfilter)
 add_subdirectory(ohmheightmap)
 add_subdirectory(ohminfo)

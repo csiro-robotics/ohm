@@ -7,6 +7,8 @@ find_package(GLM)
 find_package(Eigen3 QUIET)
 
 set(SOURCES
+  TraversalTest.cpp
+  TraversalTest.h
   OhmTestUtil.cpp
   OhmTestUtil.h
   RayPatternTestUtil.h
@@ -33,6 +35,7 @@ target_include_directories(ohmtestcommon
 
 target_include_directories(ohmtestcommon SYSTEM
   PRIVATE
+    "${GTEST_INCLUDE_DIRS}" # Must include downloaded GTest before potentially including system directories.
     "${GLM_INCLUDE_DIR}"
 )
 
@@ -41,7 +44,7 @@ target_link_libraries(ohmtestcommon PUBLIC ohmtools ohm ohmutil)
 add_dependencies(ohmtestcommon marshal_test_data)
 
 if(OHM_TES_DEBUG)
-  target_link_libraries(ohmtestcommon PUBLIC 3es::3es-core)
+  target_link_libraries(ohmtestcommon PUBLIC 3es::3es-core ${GTEST_LIBRARIES} ${GTEST_MAIN_LIBRARIES})
 else(OHM_TES_DEBUG)
   target_include_directories(ohmtestcommon PRIVATE SYSTEM "${3ES_INCLUDE_DIRS}")
 endif(OHM_TES_DEBUG)

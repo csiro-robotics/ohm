@@ -43,7 +43,9 @@ void streamCallback(cudaStream_t /*event*/, cudaError_t /*status*/, void *user_d
 }
 
 
-Queue::Queue() = default;
+Queue::Queue()
+  : queue_(new QueueDetail())
+{}
 
 
 Queue::Queue(Queue &&other) noexcept
@@ -52,29 +54,19 @@ Queue::Queue(Queue &&other) noexcept
 
 
 Queue::Queue(const Queue &other)
-{
-  queue_ = other.queue_;
-  if (queue_)
-  {
-    queue_->reference();
-  }
-}
-
-
-Queue::Queue(void *platform_queue)
-  // Note: the platform_queue will be null for the default stream.
-  : queue_(new QueueDetail(static_cast<cudaStream_t>(platform_queue), 1, &gputil::destroyStream))
+  : queue_(other.queue_)
 {}
 
 
-Queue::~Queue()
+Queue::Queue(void *platform_queue)
+  : queue_(new QueueDetail())
 {
-  if (queue_)
-  {
-    queue_->release();
-  }
-  queue_ = nullptr;
+  // Note: the platform_queue will be null for the default stream.
+  queue_->queue = static_cast<cudaStream_t>(platform_queue);
 }
+
+
+Queue::~Queue() = default;
 
 
 bool Queue::isValid() const
@@ -93,9 +85,21 @@ Event Queue::mark()
 {
   Event event;
   cudaError_t err = cudaSuccess;
-  err = cudaEventRecord(event.detail()->obj(), queue_->obj());
+  err = cudaEventRecord(event.detail()->obj(), queue_->queue);
   GPUAPICHECK(err, cudaSuccess, Event());
   return event;
+}
+
+
+void Queue::setSynchronous(bool synchronous)
+{
+  queue_->force_synchronous = synchronous;
+}
+
+
+bool Queue::synchronous() const
+{
+  return queue_->force_synchronous;
 }
 
 
@@ -107,7 +111,7 @@ void Queue::flush()
 
 void Queue::finish()
 {
-  cudaError_t err = cudaStreamSynchronize(queue_->obj());
+  cudaError_t err = cudaStreamSynchronize(queue_->queue);
   GPUAPICHECK2(err, cudaSuccess);
 }
 
@@ -120,7 +124,7 @@ void Queue::queueCallback(const std::function<void(void)> &callback)
   // Lint(KS): No nice RAII alternative for this
   wrapper = new CallbackWrapper(callback);  // NOLINT(cppcoreguidelines-owning-memory)
 
-  err = cudaStreamAddCallback(queue_->obj(), streamCallback, wrapper, 0);
+  err = cudaStreamAddCallback(queue_->queue, streamCallback, wrapper, 0);
 
   if (err)
   {
@@ -133,7 +137,7 @@ void Queue::queueCallback(const std::function<void(void)> &callback)
 
 QueueDetail *Queue::internal() const
 {
-  return queue_;
+  return queue_.get();
 }
 
 
@@ -141,16 +145,7 @@ Queue &Queue::operator=(const Queue &other)
 {
   if (this != &other)
   {
-    if (queue_)
-    {
-      queue_->release();
-      queue_ = nullptr;
-    }
-    if (other.queue_)
-    {
-      queue_ = other.queue_;
-      queue_->reference();
-    }
+    queue_ = other.queue_;
   }
   return *this;
 }
@@ -158,13 +153,7 @@ Queue &Queue::operator=(const Queue &other)
 
 Queue &Queue::operator=(Queue &&other) noexcept
 {
-  if (queue_)
-  {
-    queue_->release();
-  }
-
-  queue_ = other.queue_;
-  other.queue_ = nullptr;
+  queue_ = std::move(other.queue_);
   return *this;
 }
 }  // namespace gputil

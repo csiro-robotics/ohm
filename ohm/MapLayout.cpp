@@ -103,6 +103,12 @@ int MapLayout::meanLayer() const
 }
 
 
+int MapLayout::traversalLayer() const
+{
+  return imp_->traversal_layer;
+}
+
+
 int MapLayout::covarianceLayer() const
 {
   return imp_->covariance_layer;
@@ -112,6 +118,18 @@ int MapLayout::covarianceLayer() const
 int MapLayout::clearanceLayer() const
 {
   return imp_->clearance_layer;
+}
+
+
+int MapLayout::intensityLayer() const
+{
+  return imp_->intensity_layer;
+}
+
+
+int MapLayout::hitMissCountLayer() const
+{
+  return imp_->hit_miss_count_layer;
 }
 
 
@@ -234,6 +252,10 @@ void MapLayout::cacheLayerIndex(const MapLayer *layer)
     {
       imp_->mean_layer = int(layer->layerIndex());
     }
+    else if (imp_->traversal_layer == -1 && name_str == default_layer::traversalLayerName())
+    {
+      imp_->traversal_layer = int(layer->layerIndex());
+    }
     else if (imp_->covariance_layer == -1 && name_str == default_layer::covarianceLayerName())
     {
       imp_->covariance_layer = int(layer->layerIndex());
@@ -241,6 +263,14 @@ void MapLayout::cacheLayerIndex(const MapLayer *layer)
     else if (imp_->clearance_layer == -1 && name_str == default_layer::clearanceLayerName())
     {
       imp_->clearance_layer = int(layer->layerIndex());
+    }
+    else if (imp_->intensity_layer == -1 && name_str == default_layer::intensityLayerName())
+    {
+      imp_->intensity_layer = layer->layerIndex();
+    }
+    else if (imp_->hit_miss_count_layer == -1 && name_str == default_layer::hitMissCountLayerName())
+    {
+      imp_->hit_miss_count_layer = layer->layerIndex();
     }
   }
 }
@@ -250,8 +280,11 @@ void MapLayout::cacheLayerIndices()
 {
   imp_->occupancy_layer = -1;
   imp_->mean_layer = -1;
+  imp_->traversal_layer = -1;
   imp_->covariance_layer = -1;
   imp_->clearance_layer = -1;
+  imp_->intensity_layer = -1;
+  imp_->hit_miss_count_layer = -1;
   for (MapLayer *layer : imp_->layers)
   {
     cacheLayerIndex(layer);

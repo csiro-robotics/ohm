@@ -45,15 +45,20 @@ set(SOURCES
   CalculateSegmentKeys.h
   ClearingPattern.cpp
   ClearingPattern.h
+  CompareMaps.cpp
+  CompareMaps.h
   CovarianceVoxel.cpp
   CovarianceVoxel.h
   CovarianceVoxelCompute.h
   DataType.cpp
   DataType.h
+  Density.cpp
+  Density.h
   DefaultLayer.cpp
   DefaultLayer.h
   Key.cpp
   Key.h
+  KeyStream.h
   KeyHash.h
   KeyList.cpp
   KeyList.h
@@ -89,6 +94,8 @@ set(SOURCES
   Mutex.h
   NdtMap.cpp
   NdtMap.h
+  NdtMode.cpp
+  NdtMode.h
   NearestNeighbours.cpp
   NearestNeighbours.h
   OccupancyMap.cpp
@@ -128,12 +135,16 @@ set(SOURCES
   VoxelBuffer.cpp
   VoxelBuffer.h
   VoxelData.h
+  VoxelIncident.h
+  VoxelIncidentCompute.h
   VoxelLayout.cpp
   VoxelLayout.h
   VoxelMean.h
   VoxelMeanCompute.h
   VoxelOccupancy.h
   VoxelOccupancyCompute.h
+  VoxelTouchTime.h
+  VoxelTouchTimeCompute.h
 )
 
 if(TES_ENABLE)
@@ -145,12 +156,15 @@ set(PUBLIC_HEADERS
   Aabb.h
   CalculateSegmentKeys.h
   ClearingPattern.h
+  CompareMaps.h
   CopyUtil.h
   CovarianceVoxel.h
   CovarianceVoxelCompute.h
   DataType.h
+  Density.h
   DefaultLayer.h
   Key.h
+  KeyStream.h
   KeyHash.h
   KeyList.h
   KeyRange.h
@@ -172,6 +186,7 @@ set(PUBLIC_HEADERS
   MapSerialise.h
   Mutex.h
   NdtMap.h
+  NdtMode.h
   NearestNeighbours.h
   OccupancyMap.h
   OccupancyType.h
@@ -194,11 +209,14 @@ set(PUBLIC_HEADERS
   VoxelBlockCompressionQueue.h
   VoxelBuffer.h
   VoxelData.h
+  VoxelIncident.h
   VoxelLayout.h
   VoxelMean.h
   VoxelMeanCompute.h
   VoxelOccupancy.h
   VoxelOccupancyCompute.h
+  VoxelTouchTime.h
+  VoxelTouchTimeCompute.h
   "${CMAKE_CURRENT_BINARY_DIR}/ohm/OhmConfig.h"
   "${CMAKE_CURRENT_BINARY_DIR}/ohm/OhmExport.h"
   )

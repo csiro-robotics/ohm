@@ -47,13 +47,19 @@ public:
   ///
   /// @param rays The array of start/end point pairs to integrate.
   /// @param element_count The number of @c glm::dvec3 elements in @p rays, which is twice the ray count.
+  /// @param intensities An array of intensity values matching the @p rays items. There is one intensity value per ray
+  ///   so there are @c element_count/2 items. May be null to omit intensity values.
+  /// @param timestamps An array of timestamp values matching the @p rays items. There is one timestamp value per ray
+  ///   so there are @c element_count/2 items. May be null to omit timestamp values in which case the touch time layer
+  ///   will not be updated.
   /// @param ray_update_flags @c RayFlag bitset used to modify the behaviour of this function.
-  virtual size_t integrateRays(const glm::dvec3 *rays, size_t element_count, unsigned ray_update_flags) = 0;
+  virtual size_t integrateRays(const glm::dvec3 *rays, size_t element_count, const float *intensities,
+                               const double *timestamps, unsigned ray_update_flags) = 0;
 
   /// @overload
-  inline size_t integrateRays(const glm::dvec3 *rays, size_t element_count)
+  virtual inline size_t integrateRays(const glm::dvec3 *rays, size_t element_count)
   {
-    return integrateRays(rays, element_count, kRfDefault);
+    return integrateRays(rays, element_count, nullptr, nullptr, kRfDefault);
   }
 };
 }  // namespace ohm

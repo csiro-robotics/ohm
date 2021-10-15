@@ -80,8 +80,15 @@ void reinitialiseGpuCache(GpuCache *gpu_cache, OccupancyMap &map, unsigned flags
     const int occupancy_layer = map.layout().occupancyLayer();
     const int mean_layer = map.layout().meanLayer();
     const int covariance_layer = map.layout().covarianceLayer();
+    const int intensity_layer = map.layout().intensityLayer();
+    const int hit_miss_layer = map.layout().hitMissCountLayer();
     const int clearance_layer = map.layout().clearanceLayer();
-    std::vector<int> known_layers = { occupancy_layer, mean_layer, covariance_layer, clearance_layer };
+    const int traversal_layer = map.layout().traversalLayer();
+    const int touch_times_layer = map.layout().layerIndex(default_layer::touchTimeLayerName());
+    const int incidents_layer = map.layout().layerIndex(default_layer::incidentNormalLayerName());
+    std::array<int, 9> known_layers = { occupancy_layer, mean_layer,        covariance_layer,
+                                        intensity_layer, hit_miss_layer,    clearance_layer,
+                                        traversal_layer, touch_times_layer, incidents_layer };
 
     // Calculate the relative layer memory sizes.
     std::map<int, size_t> layer_mem_weight;
@@ -127,6 +134,20 @@ void reinitialiseGpuCache(GpuCache *gpu_cache, OccupancyMap &map, unsigned flags
                                                                    kGcfRead | kGcfWrite | mappable_flag });
     }
 
+    // Intensity mean and covaraince.
+    if (intensity_layer >= 0)
+    {
+      gpu_cache->createCache(kGcIdIntensity, GpuLayerCacheParams{ layer_mem_weight[intensity_layer], intensity_layer,
+                                                                  kGcfRead | kGcfWrite | mappable_flag });
+    }
+
+    // Ndt-tm hit/miss count
+    if (hit_miss_layer >= 0)
+    {
+      gpu_cache->createCache(kGcIdHitMiss, GpuLayerCacheParams{ layer_mem_weight[hit_miss_layer], hit_miss_layer,
+                                                                kGcfRead | kGcfWrite | mappable_flag });
+    }
+
     // Note: we create the clearance gpu cache if we have a clearance layer, but it caches the occupancy_layer as that
     // is the information it reads.
     if (clearance_layer >= 0)
@@ -135,6 +156,26 @@ void reinitialiseGpuCache(GpuCache *gpu_cache, OccupancyMap &map, unsigned flags
       // above.
       gpu_cache->createCache(kGcIdClearance, GpuLayerCacheParams{ layer_mem_weight[clearance_layer], occupancy_layer,
                                                                   kGcfRead | mappable_flag });
+    }
+
+    if (traversal_layer >= 0)
+    {
+      gpu_cache->createCache(kGcIdTraversal, GpuLayerCacheParams{ layer_mem_weight[traversal_layer], traversal_layer,
+                                                                  kGcfRead | kGcfWrite | mappable_flag });
+    }
+
+    if (touch_times_layer >= 0)
+    {
+      gpu_cache->createCache(kGcIdTouchTime,
+                             GpuLayerCacheParams{ layer_mem_weight[touch_times_layer], touch_times_layer,
+                                                  kGcfRead | kGcfWrite | mappable_flag });
+    }
+
+    if (incidents_layer >= 0)
+    {
+      gpu_cache->createCache(kGcIdIncidentNormal,
+                             GpuLayerCacheParams{ layer_mem_weight[incidents_layer], incidents_layer,
+                                                  kGcfRead | kGcfWrite | mappable_flag });
     }
   }
 }

@@ -7,6 +7,8 @@
 
 #include "OhmConfig.h"
 
+#include "NdtMode.h"
+
 #include <glm/fwd.hpp>
 
 namespace ohm
@@ -43,7 +45,8 @@ public:
   ///
   /// @param map The occupancy map to apply NDT updates to.
   /// @param borrowed_map True if @p map is a borrowed pointer. False if the NDT map takes ownership of the memory.
-  explicit NdtMap(OccupancyMap *map, bool borrowed_map = true);
+  /// @param mode The NDT mapping mode. Using @c NdtMode::kNone is invalid in the context and behaviour is undefined.
+  NdtMap(OccupancyMap *map, bool borrowed_map, NdtMode mode = NdtMode::kOccupancy);
 
   /// Destructor: destroys the @c map() if @c borrowedMap() is false.
   ~NdtMap();
@@ -52,6 +55,9 @@ public:
   OccupancyMap &map();
   /// Access the underlying occupancy map.
   const OccupancyMap &map() const;
+
+  /// Specified the NDT mode the map is to use.
+  NdtMode mode() const;
 
   /// True if @p map() is a borrowed pointer, false if the NDT map takes ownership.
   bool borrowedMap() const;
@@ -98,6 +104,14 @@ public:
   /// @return The reset point count threshold.
   unsigned reinitialiseCovariancePointCount() const;
 
+  /// Set the initial covariance of intensity.
+  ///
+  /// @param initial_intensity_covariance The covariance of intensity for a voxel, for initialisation on receipt of
+  /// first point. Must be greater than zero. Note that it is covariance, not standard deviation.
+  void setInitialIntensityCovariance(float initial_intensity_covariance);
+  /// Read the intensity covariance upon initialisation.
+  float initialIntensityCovariance() const;
+
   /// Enable details tracing via 3rd Eye Scene.
   /// @param trace True to enable tracing.
   void setTrace(bool trace);
@@ -114,8 +128,9 @@ private:
   /// Enable NDT for the given @p map. This enables voxel mean positioning and adds a voxel layer to store the
   /// voxel covariance matrix approximation.
   /// @param map The occupancy map to enable NDT for.
+  /// @param ndt_mode Specifies the NDT mapping mode. Must not be @c NdtMode::kNone.
   /// @return The voxel layer index for the covariance matrix.
-  static int enableNdt(OccupancyMap *map);
+  static int enableNdt(OccupancyMap *map, NdtMode ndt_mode);
 
   NdtMapDetail *imp_;
 };

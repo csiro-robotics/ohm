@@ -161,6 +161,29 @@ TEST(GpuKernel, Simple)
   }
 }
 
+TEST(GpuKernel, NullArg)
+{
+  int err = 0;
+  gputil::Program program(g_gpu, "test-program");
+
+  err = GPUTIL_BUILD_FROM_SOURCE(program, matrixCode, matrixCode_length, gputil::BuildArgs{});
+
+  ASSERT_EQ(err, 0) << gputil::ApiException::errorCodeString(err);
+
+  gputil::Kernel kernel = GPUTIL_MAKE_KERNEL(program, matrixMultiply);
+  ASSERT_TRUE(kernel.isValid());
+
+  kernel.addLocal([](size_t group_size) { return group_size * sizeof(float); });
+
+  kernel.calculateOptimalWorkGroupSize();
+
+  gputil::Queue queue = g_gpu.defaultQueue();
+
+  err = kernel(gputil::Dim3(kN), gputil::Dim3(kN), &queue, gputil::BufferArg<float>(nullptr),
+               gputil::BufferArg<float>(nullptr), gputil::BufferArg<float>(nullptr), kN);
+  ASSERT_EQ(err, 0) << gputil::ApiException::errorCodeString(err);
+}
+
 const float kMatrixA[kN * kN] =  //
   { -5.36024f, 3.03301f,  7.89674f,  -6.46361f, 2.37263f,  6.38046f,  -4.85497f, 4.01736f,  -5.83961f, -0.30897f,
     2.34736f,  9.19266f,  -4.81157f, 5.12527f,  -6.22901f, 4.46971f,  3.42575f,  8.55879f,  5.77094f,  4.38269f,

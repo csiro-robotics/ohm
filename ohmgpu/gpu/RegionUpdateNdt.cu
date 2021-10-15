@@ -8,7 +8,6 @@
 #include <gputil/gpu_ext.h>
 
 // Build base with voxel means and NDT
-#define VOXEL_MEAN
 #define NDT
 #include "RegionUpdate.cl"
 

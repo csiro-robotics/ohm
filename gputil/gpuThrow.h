@@ -20,15 +20,15 @@
   }
 #define GPUTHROW2(e) throw e
 #else  // GPU_EXCEPTIONS
-#define GPUTHROW(e, r)                  \
-  {                                     \
-    gputil::log(e, __FILE__, __LINE__); \
-    return r;                           \
+#define GPUTHROW(e, r) \
+  {                    \
+    gputil::log(e);    \
+    return r;          \
   }
-#define GPUTHROW2(e)                    \
-  {                                     \
-    gputil::log(e, __FILE__, __LINE__); \
-    return;                             \
+#define GPUTHROW2(e) \
+  {                  \
+    gputil::log(e);  \
+    return;          \
   }
 #endif  // GPU_EXCEPTIONS
 

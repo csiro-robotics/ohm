@@ -94,14 +94,14 @@ void OccupancyMapDetail::moveKeyAlongAxis(Key &key, int axis, int step, const gl
 }
 
 
-void OccupancyMapDetail::setDefaultLayout(bool enable_voxel_mean)
+void OccupancyMapDetail::setDefaultLayout(MapFlag init_flags)
 {
   // Setup the default layers
   layout.clear();
 
   addOccupancy(layout);
 
-  if (enable_voxel_mean)
+  if ((init_flags & MapFlag::kVoxelMean) != MapFlag::kNone)
   {
     addVoxelMean(layout);
     flags |= MapFlag::kVoxelMean;
@@ -109,6 +109,36 @@ void OccupancyMapDetail::setDefaultLayout(bool enable_voxel_mean)
   else
   {
     flags &= ~MapFlag::kVoxelMean;
+  }
+
+  if ((init_flags & MapFlag::kTraversal) != MapFlag::kNone)
+  {
+    addTraversal(layout);
+    flags |= MapFlag::kTraversal;
+  }
+  else
+  {
+    flags &= ~MapFlag::kTraversal;
+  }
+
+  if ((init_flags & MapFlag::kTouchTime) != MapFlag::kNone)
+  {
+    addTouchTime(layout);
+    flags |= MapFlag::kTouchTime;
+  }
+  else
+  {
+    flags &= ~MapFlag::kTouchTime;
+  }
+
+  if ((init_flags & MapFlag::kIncidentNormal) != MapFlag::kNone)
+  {
+    addIncidentNormal(layout);
+    flags |= MapFlag::kIncidentNormal;
+  }
+  else
+  {
+    flags &= ~MapFlag::kIncidentNormal;
   }
 }
 

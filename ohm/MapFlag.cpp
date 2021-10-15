@@ -10,10 +10,8 @@
 
 namespace
 {
-const std::array<const char *, 1> kMapFlagNames =  //
-  {
-    "VoxelMean",
-  };
+const std::array<const char *, 3> kMapFlagNames =  //
+  { "VoxelMean", "Compressed", "Traversal" };
 }  // namespace
 
 namespace ohm

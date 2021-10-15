@@ -177,6 +177,19 @@ public:
   /// @return True if the kernel has been setup with error and can be invoked.
   bool isValid() const;
 
+  /// Enable automatic error checking of the results of kernel invocations @c operator() .
+  ///
+  /// This is turned on by default and will automatically check the return value of kernel invocation. This will either
+  /// throw an exception on failure - @c GPU_EXCEPTIONS on - or log an error message. Otherwise, the caller must check
+  /// the return value manually, normally using @c checkResult()
+  ///
+  /// @param check True to enable checking, false to disable.
+  void setErrorChecking(bool check);
+
+  /// Is automatic kernel invocation error checking enabled (on by default). See @c setErrorChecking() .
+  /// @return True if invocation automatic error checking is enabled.
+  bool errorChecking() const;
+
   /// Release the GPU kernel.
   void release();
 
@@ -277,6 +290,18 @@ public:
   /// @param other The object to move.
   /// @return `*this`
   Kernel &operator=(Kernel &&other) noexcept;
+
+  /// A helper function for checking the results of a kernel invocation ( @c operator() ). On an error result, this will
+  /// either throw a @c gputil::ApiException or log an error and return false.
+  ///
+  /// @note Kernel invocations are asynchronous so errors may be delayed until the next GPU API call. These can be
+  /// trapped synchronously by setting @c Queue::setSynchronous(true) on the queue used as part of the invocation.
+  ///
+  /// @param invocation_result The return value for @c operator()
+  /// @param allow_throw True to allow throwing of exceptions on failure even if exceptions are enabled.
+  /// @return True if there is no error, false if there is an error and gputil exceptions are disabled -
+  /// @c `GPU_EXCEPTIONS 0` or @p allow_throw is false.
+  static bool checkResult(int invocation_result, bool allow_throw = true);
 
 private:
   KernelDetail *imp_;

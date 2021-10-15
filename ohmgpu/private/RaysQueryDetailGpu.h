@@ -53,7 +53,8 @@ public:
   using RayMapper::integrateRays;
 
 protected:
-  size_t integrateRays(const glm::dvec3 *rays, size_t element_count, unsigned ray_update_flags) override;
+  size_t integrateRays(const glm::dvec3 *rays, size_t element_count, const float *intensities, const double *timestamps,
+                       unsigned ray_update_flags) override;
 
   void onSyncVoxels(int buffer_index) override;
 
@@ -63,7 +64,7 @@ protected:
   const RaysQueryMapWrapperDetail *detail() const;
 
   /// Load and cache the required GPU program. The @p with_voxel_mean value is irrelevant.
-  void cacheGpuProgram(bool with_voxel_mean, bool force) final;
+  void cacheGpuProgram(bool with_voxel_mean, bool with_traversal, bool force) final;
 
   /// Override the GPU kernenel invocation to perform the rays query.
   void finaliseBatch(unsigned region_update_flags) final;

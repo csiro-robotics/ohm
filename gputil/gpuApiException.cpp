@@ -22,7 +22,7 @@ ApiException::ApiException(int error_code, const char *msg, const char *filename
   else
   {
     std::ostringstream str;
-    str << "API error " << errorCodeString(error_code) << " (" << error_code << ")";
+    str << "API error " << " (" << error_code << ")" << errorCodeString(error_code);
     setMessage(str.str(), filename, line_number);
   }
 }

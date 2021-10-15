@@ -123,7 +123,6 @@ bool RaysQuery::onExecute()
   const auto occupancy_layer = d->occupancy_layer;
   const auto occupancy_dim = d->occupancy_dim;
   const auto occupancy_threshold_value = map->occupancyThresholdValue();
-  const auto map_origin = map->origin();
   const auto volume_coefficient = d->volume_coefficient;
 
   const auto visit_func = [&](const Key &key, double enter_range, double exit_range)  //
@@ -187,11 +186,7 @@ bool RaysQuery::onExecute()
       continue;
     }
 
-    // Calculate line key for the last voxel if the end point has been clipped
-    const glm::dvec3 start_point_local = glm::dvec3(start - map_origin);
-    const glm::dvec3 end_point_local = glm::dvec3(end - map_origin);
-
-    ohm::walkSegmentKeys<Key>(visit_func, start_point_local, end_point_local, true, WalkKeyAdaptor(*map));
+    ohm::walkSegmentKeys<Key>(visit_func, start, end, true, WalkKeyAdaptor(*map));
 
     d->ranges.emplace_back(range);
     d->unobserved_volumes_out.emplace_back(unobserved_volume);

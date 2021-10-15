@@ -56,6 +56,7 @@ bool selectDevice(DeviceDetail &detail, int device_id = -1)
 
   detail.device = -1;
   detail.info = DeviceInfo();
+  detail.default_queue = Queue(nullptr);
 
   return false;
 }
@@ -140,11 +141,9 @@ const DeviceInfo &Device::info() const
 }
 
 
-// Lint(KS): required for API compatibility
-// NOLINTNEXTLINE(readability-convert-member-functions-to-static)
 Queue Device::defaultQueue() const
 {
-  return Queue(nullptr);
+  return imp_->default_queue;
 }
 
 

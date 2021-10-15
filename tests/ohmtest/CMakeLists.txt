@@ -11,6 +11,7 @@ configure_file(OhmTestConfig.in.h "${CMAKE_CURRENT_BINARY_DIR}/OhmTestConfig.h")
 set(SOURCES
   CompressionTests.cpp
   CopyTests.cpp
+  IncidentsTests.cpp
   KeyTests.cpp
   LayoutTests.cpp
   LineQueryTests.cpp
@@ -24,6 +25,8 @@ set(SOURCES
   RayValidation.cpp
   RayValidation.h
   TestMain.cpp
+  TouchTimeTests.cpp
+  TraversalTests.cpp
   "${CMAKE_CURRENT_BINARY_DIR}/OhmTestConfig.h"
 )
 

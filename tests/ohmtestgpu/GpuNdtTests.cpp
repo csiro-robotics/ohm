@@ -47,13 +47,14 @@ void testNdtHits(const std::vector<glm::dvec3> &samples, double resolution)
   std::unordered_map<ohm::Key, CovTestVoxel, ohm::KeyHash> reference_voxels;
 
   ohm::OccupancyMap map(resolution, ohm::MapFlag::kVoxelMean);
-  ohm::GpuNdtMap ndt(&map, true);
+  ohm::GpuNdtMap ndt(&map, true, ohm::NdtMode::kTraversability);
 
   // Simulate a sensor at the origin. Not used.
   const glm::dvec3 sensor(0.0);
 
   // Queue in rays.
   std::vector<glm::dvec3> rays(samples.size() * 2);
+  std::vector<float> intensities(samples.size(), 0.0f);
   for (size_t i = 0; i < samples.size(); ++i)
   {
     rays[i * 2 + 0] = sensor;
@@ -74,7 +75,7 @@ void testNdtHits(const std::vector<glm::dvec3> &samples, double resolution)
     updateHit(&ref->second, samples[i]);
   }
 
-  ndt.integrateRays(rays.data(), rays.size(), ohm::kRfExcludeRay);
+  ndt.integrateRays(rays.data(), rays.size(), intensities.data(), nullptr, ohm::kRfExcludeRay);
   ndt.syncVoxels();
 
   // Validate
@@ -121,7 +122,7 @@ void testNdtMiss(const glm::dvec3 &sensor, const std::vector<glm::dvec3> samples
 
     ohm::Key key = map_cpu.voxelKey(sample);
     target_key = key;
-    ohm::integrateNdtHit(ndt_cpu, key, sample);
+    ohm::integrateNdtHit(ndt_cpu, key, sensor, sample);
   }
 
   // Clone the map for use in GPU.

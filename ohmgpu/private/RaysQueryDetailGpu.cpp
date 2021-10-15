@@ -103,12 +103,13 @@ const std::vector<RaysQueryResult> &RaysQueryMapWrapper::results() const
 }
 
 
-size_t RaysQueryMapWrapper::integrateRays(const glm::dvec3 *rays, size_t element_count, unsigned ray_update_flags)
+size_t RaysQueryMapWrapper::integrateRays(const glm::dvec3 *rays, size_t element_count, const float *intensities,
+                                          const double *timestamps, unsigned ray_update_flags)
 {
   RaysQueryMapWrapperDetail *imp = detail();
   imp->results_cpu.clear();
   imp->needs_sync = true;
-  return GpuMap::integrateRays(rays, element_count, ray_update_flags);
+  return GpuMap::integrateRays(rays, element_count, intensities, timestamps, ray_update_flags);
 }
 
 
@@ -135,9 +136,10 @@ const RaysQueryMapWrapperDetail *RaysQueryMapWrapper::detail() const
 }
 
 
-void RaysQueryMapWrapper::cacheGpuProgram(bool with_voxel_mean, bool force)
+void RaysQueryMapWrapper::cacheGpuProgram(bool with_voxel_mean, bool with_traversal, bool force)
 {
   (void)with_voxel_mean;  // unused
+  (void)with_traversal;   // unused
   if (imp_->program_ref)
   {
     if (!force)

@@ -22,6 +22,7 @@ struct KernelDetail
   clu::Kernel kernel;
   Program program;
   std::vector<std::function<size_t(size_t)>> local_mem_args;
+  bool auto_error_checking = true;
 };
 }  // namespace gputil
 

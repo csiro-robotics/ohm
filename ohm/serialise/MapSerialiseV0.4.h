@@ -3,8 +3,8 @@
 // ABN 41 687 119 230
 //
 // Author: Kazys Stepanas
-#ifndef MAPSERIALISEV0_3_H
-#define MAPSERIALISEV0_3_H
+#ifndef MAPSERIALISEV0_4_H
+#define MAPSERIALISEV0_4_H
 
 #include "OhmConfig.h"
 

@@ -38,6 +38,22 @@ size_t VoxelLayoutT<T>::memberOffset(size_t member_index) const
 
 
 template <typename T>
+int VoxelLayoutT<T>::indexOf(const char *name) const
+{
+  const std::string name_str(name);
+  for (size_t i = 0; i < memberCount(); ++i)
+  {
+    if (name_str == memberName(i))
+    {
+      return int(i);
+    }
+  }
+
+  return -1;
+}
+
+
+template <typename T>
 DataType::Type VoxelLayoutT<T>::memberType(size_t member_index) const
 {
   if (member_index >= detail_->members.size())

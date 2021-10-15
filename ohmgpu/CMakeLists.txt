@@ -52,7 +52,7 @@ set(SOURCES
 )
 
 set(GPU_SOURCES
-  gpu/CovarianceHit.cl
+  gpu/CovarianceHitNdt.cl
   gpu/LineKeys.cl
   gpu/RaysQuery.cl
   gpu/RegionUpdate.cl
@@ -64,7 +64,10 @@ get_target_property(OHM_SOURCE_DIR ohm SOURCE_DIR)
 set(GPU_HEADERS
   gpu/AdjustNdt.cl
   gpu/AdjustOccupancy.cl
+  gpu/CovarianceHitNdt_h.cl
+  gpu/Traversal.cl
   gpu/LineWalk.cl
+  gpu/VoxelIncident.cl
   gpu/VoxelMean.cl
   gpu/RaysQueryResult.h
   GpuKey.h
@@ -72,7 +75,9 @@ set(GPU_HEADERS
   ${OHM_SOURCE_DIR}/CovarianceVoxelCompute.h
   ${OHM_SOURCE_DIR}/MapCoord.h
   ${OHM_SOURCE_DIR}/RayFlag.h
+  ${OHM_SOURCE_DIR}/VoxelIncidentCompute.h
   ${OHM_SOURCE_DIR}/VoxelMeanCompute.h
+  ${OHM_SOURCE_DIR}/VoxelTouchTimeCompute.h
 )
 
 set(PUBLIC_HEADERS
@@ -189,12 +194,11 @@ endif(OHM_BUILD_OPENCL)
 
 if(OHM_BUILD_CUDA)
   list(APPEND GPU_SOURCES
-    gpu/CovarianceHit.cu
+    gpu/CovarianceHitNdt.cu
     gpu/LineKeys.cu
     gpu/RaysQuery.cu
     gpu/RegionUpdate.cu
     gpu/RegionUpdateNdt.cu
-    gpu/RegionUpdateWithMean.cu
     gpu/RoiRangeFill.cu
     gpu/TransformSamples.cu
   )

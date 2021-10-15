@@ -10,6 +10,7 @@
 
 #include "DefaultLayer.h"
 #include "MapChunk.h"
+#include "MapFlag.h"
 #include "MapLayer.h"
 #include "MapSerialise.h"
 #include "Stream.h"
@@ -25,7 +26,7 @@ int load(InputStream &stream, OccupancyMapDetail &detail, SerialiseProgress *pro
 {
   int err = kSeOk;
 
-  detail.setDefaultLayout();
+  detail.setDefaultLayout(MapFlag::kNone);
   addClearance(detail.layout);
 
   if (progress)

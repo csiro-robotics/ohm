@@ -159,6 +159,11 @@ public:
   /// Get the next point, sensor position and timestamp.
   bool nextSample(SamplePoint &sample);
 
+  /// Get the next point, intensity, sensor position and timestamp.
+  bool nextPoint(glm::dvec3 &sample, float &intensity, // NOLINT(google-runtime-references)
+                 glm::dvec3 *origin = nullptr, double *timestamp = nullptr);
+
+
 private:
   bool open(const char *sample_file_path, const char *trajectory_file_path, bool ray_cloud);
 

@@ -273,10 +273,16 @@ public:
   ///
   /// @param rays Array of origin/sample point pairs.
   /// @param element_count The number of points in @p rays. The ray count is half this value.
+  /// @param intensities An array of intensity values matching the @p rays items. There is one intensity value per ray
+  ///   so there are @c element_count/2 items. May be null to omit intensity values.
+  /// @param timestamps An array of timestamp values matching the @p rays items. There is one timestamp value per ray
+  ///   so there are @c element_count/2 items. May be null to omit timestamp values in which case the touch time layer
+  ///   will not be updated.
   /// @param region_update_flags Flags controlling ray integration behaviour. See @c RayFlag.
   /// @return The number of rays integrated. Zero indicates a failure when @p pointCount is not zero.
   ///   In this case either the GPU is unavailable, or all @p rays are invalid.
-  size_t integrateRays(const glm::dvec3 *rays, size_t element_count, unsigned region_update_flags) override;
+  size_t integrateRays(const glm::dvec3 *rays, size_t element_count, const float *intensities, const double *timestamps,
+                       unsigned region_update_flags) override;
 
   using RayMapper::integrateRays;
 
@@ -308,8 +314,9 @@ protected:
   /// Cache the correct GPU program to cater for @c with_voxel_mean. Releases the existing program first when
   /// @p force is true or @p with_voxel_mean does not match the cached program.
   /// @param with_voxel_mean True to cache the program which supports voxel mean positioning (@ref voxelmean).
+  /// @param with_traversal Include traversal calculations? Requires "traversal" layer.
   /// @param force Force release and program caching even if already correct. Must be used on initialisation.
-  virtual void cacheGpuProgram(bool with_voxel_mean, bool force);
+  virtual void cacheGpuProgram(bool with_voxel_mean, bool with_traversal, bool force);
 
   /// Release the current GPU program.
   virtual void releaseGpuProgram();
@@ -317,12 +324,14 @@ protected:
   /// Implementation for various ways we can integrate rays into the map. See @c integrateRays() for general detail.
   /// @param rays Array of origin/sample point pairs. Expect either @c glm::dvec3 (preferred) or @c glm::vec3.
   /// @param element_count The number of points in @p rays. The ray count is half this value.
+  /// @param intensities Optional - for each ray, intensity of the return (element_count/2 elements).
+  /// @param timestamps Optiona - the timestamp value for each ray (element_count/2 elements).
   /// @param region_update_flags Flags controlling ray integration behaviour. See @c RayFlag.
   /// @param filter Filter function apply to each ray before passing to GPU. May be empty.
   /// @return The number of rays integrated. Zero indicates a failure when @p pointCount is not zero.
   ///   In this case either the GPU is unavailable, or all @p rays are invalid.
-  size_t integrateRays(const glm::dvec3 *rays, size_t element_count, unsigned region_update_flags,
-                       const RayFilterFunction &filter);
+  size_t integrateRays(const glm::dvec3 *rays, size_t element_count, const float *intensities, const double *timestamps,
+                       unsigned region_update_flags, const RayFilterFunction &filter);
 
   /// Wait for previous ray batch, as indicated by @p buffer_index, to complete.
   /// @param buffer_index Identifies the batch to wait on.
@@ -353,6 +362,12 @@ protected:
   /// Finalise the current ray/region batch and start executing GPU kernel.
   /// @param region_update_flags Flags controlling ray integration behaviour. See @c RayFlag.
   virtual void finaliseBatch(unsigned region_update_flags);
+
+  /// Helper to enable caching of a particular gpu cache item.
+  /// @param cache_id Cache ID. Expect a @c GpuCacheId member, but not type constrained to reduce include statements.
+  /// @param enable True to enable caching, false to disable caching.
+  /// @return The index at which the @c VoxelUploadInfo for the cache is stored. -1 when disbled.
+  int enableVoxelUpload(int cache_id, bool enable);
 
   GpuMapDetail *imp_;  ///< Internal pimpl data.
 };

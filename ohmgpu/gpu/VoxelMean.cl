@@ -11,7 +11,7 @@
 /// @param voxel The @c VoxelMean to update.
 /// @param sample_pos The sample position local to the centre of the voxel in falls in.
 /// @param voxel_resolution Voxel size.
-__device__ void updateVoxelMeanPosition(__global VoxelMean *voxel, float3 sample_pos, float voxel_resolution);
+__device__ uint updateVoxelMeanPosition(__global VoxelMean *voxel, float3 sample_pos, float voxel_resolution);
 
 #ifndef VOXEL_MEAN_CL
 #define VOXEL_MEAN_CL
@@ -21,7 +21,7 @@ __device__ void updateVoxelMeanPosition(__global VoxelMean *voxel, float3 sample
 //------------------------------------------------------------------------------
 
 // Psuedo header guard to prevent function implementation duplication.
-inline __device__ void updateVoxelMeanPosition(__global VoxelMean *voxel, float3 sample_pos, float voxel_resolution)
+inline __device__ uint updateVoxelMeanPosition(__global VoxelMean *voxel, float3 sample_pos, float voxel_resolution)
 {
   uint point_count;
   uint old_value;
@@ -43,7 +43,7 @@ inline __device__ void updateVoxelMeanPosition(__global VoxelMean *voxel, float3
   } while (!gputilAtomicCasU32(&voxel->coord, old_value, new_value) && iteration_limit < iteration_count);
 
   // Atomic increment for the point count.
-  gputilAtomicInc(&voxel->count);
+  return gputilAtomicInc(&voxel->count);
 }
 
 #endif  // VOXEL_MEAN_CL

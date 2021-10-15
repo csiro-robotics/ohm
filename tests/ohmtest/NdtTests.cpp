@@ -49,7 +49,7 @@ const float default_ndt_tolerance = 0.001f;
 ///
 /// @param samples The set of sample points to integrate into the map.
 /// @param voxel_resolution The voxel size for the @c OccupancyMap
-void testNdtHits(const std::vector<glm::dvec3> &samples, double resolution)
+void testNdtHits(const std::vector<glm::dvec3> &samples, const std::vector<glm::dvec3> &sensors, double resolution)
 {
   std::unordered_map<ohm::Key, CovTestVoxel, ohm::KeyHash> reference_voxels;
 
@@ -68,10 +68,11 @@ void testNdtHits(const std::vector<glm::dvec3> &samples, double resolution)
   for (size_t i = 0; i < samples.size(); ++i)
   {
     const glm::dvec3 &sample = samples[i];
+    const glm::dvec3 &sensor = sensors[i];
 
     ohm::Key key = map.voxelKey(sample);
 
-    ohm::integrateNdtHit(ndt, key, sample);
+    ohm::integrateNdtHit(ndt, key, sensor, sample);
     setVoxelKey(key, mean, covariance);
 
     ASSERT_TRUE(mean.isValid());
@@ -163,7 +164,7 @@ void testNdtMiss(const glm::dvec3 &sensor, const std::vector<glm::dvec3> samples
 
     ohm::Key key = map.voxelKey(sample);
     target_key = key;
-    ohm::integrateNdtHit(ndt, key, sample);
+    ohm::integrateNdtHit(ndt, key, sensor, sample);
     TES_LINE(ohm::g_tes, TES_COLOUR(Yellow), tes::Id(), glm::value_ptr(sensor), glm::value_ptr(sample));
     TES_STMT(lines.emplace_back(tes::Vector3d(glm::value_ptr(sensor))));
     TES_STMT(lines.emplace_back(tes::Vector3d(glm::value_ptr(sample))));
@@ -214,10 +215,15 @@ TEST(Ndt, Hit)
   const size_t sample_count = 10000;
   std::vector<glm::dvec3> samples;
   samples.reserve(sample_count);
+  std::vector<glm::dvec3> sensors;
+  sensors.reserve(sample_count);
 
   // First generate a sample surface to target. We have to make sure this falls within a single voxel.
   glm::dvec3 mean(0);
   glm::dmat3 cov(0);
+
+  // Sensor position from which measurements were taken
+  glm::dvec3 sensor(0);
 
   double num_pt = 0;
   while (num_pt < 4)
@@ -256,10 +262,11 @@ TEST(Ndt, Hit)
 
       pt = mean_eigen + cov_d.matrixL() * pt;
       samples.emplace_back(glm::dvec3(pt.x(), pt.y(), pt.z()));
+      sensors.push_back(sensor);
     }
   }
 
-  testNdtHits(samples, 2.0);
+  testNdtHits(samples, sensors, 2.0);
 }
 
 

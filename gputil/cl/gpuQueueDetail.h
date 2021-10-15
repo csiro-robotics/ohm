@@ -15,6 +15,7 @@ namespace gputil
 struct QueueDetail
 {
   cl::CommandQueue queue;
+  bool force_synchronous = false;
 };
 }  // namespace gputil
 

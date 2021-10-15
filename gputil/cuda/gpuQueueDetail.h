@@ -8,7 +8,8 @@
 
 #include "gpuConfig.h"
 
-#include "gputil/cuda/ref.h"
+#include "gputil/gpuApiException.h"
+#include "gputil/gpuThrow.h"
 
 #include <cuda_runtime.h>
 
@@ -16,20 +17,23 @@
 
 namespace gputil
 {
-struct QueueDetail : public Ref<cudaStream_t>
+struct QueueDetail
 {
-  inline QueueDetail(cudaStream_t obj, unsigned initial_ref_count, const ReleaseFunc &release)
-    : Ref<cudaStream_t>(obj, initial_ref_count, release)
-  {}
+  cudaStream_t queue = nullptr;
+  bool force_synchronous = false;
 
-  explicit inline QueueDetail(Ref &&other)
-    : Ref<cudaStream_t>(std::move(other))
-  {}
-
-  inline QueueDetail(const Ref &other) = delete;
-
-protected:
-  inline ~QueueDetail() = default;
+  inline ~QueueDetail()
+  {
+    if (queue)
+    {
+      cudaError_t err = cudaStreamDestroy(queue);
+      if (err != cudaSuccess)
+      {
+        // Dangerous to throw from destructor, so just log on exceptions.
+        gputil::log(gputil::ApiException(err, nullptr, __FILE__, __LINE__));
+      }
+    }
+  }
 };
 }  // namespace gputil
 

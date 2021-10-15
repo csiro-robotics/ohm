@@ -29,7 +29,7 @@ update of the map possible. The additional overhead of using a dense memory layo
 The map object stores the map data as well as the parametrisation of the map - for example the
 @ref OccupancyMap::occupancyThresholdProbability() "occupancy threshold" and
 @ref OccupancyMap::resolution() "resolution". The map object is also responsible for mapping between global
-coordinates and @ref Key "voxel keys" via the @ref OccupancyMap::voxelKey() "voxelKey()"" function.
+coordinates and @ref Key "voxel keys" via the @ref OccupancyMap::voxelKey() "voxelKey()" function.
 
 A map is created with a fixed @ref OccupancyMap::resolution() "resolution" and fixed chunk size by specifying the
 voxel extents on each axis for a chunk. The following code creates an empty occupancy map at a resolution of 0.25

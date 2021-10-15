@@ -18,6 +18,8 @@
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/vec4.hpp>
 
+#include <iostream>
+
 #include <3esservermacros.h>
 #ifdef TES_ENABLE
 #include <3esserver.h>
@@ -28,12 +30,13 @@
 
 namespace ohm
 {
-NdtMap::NdtMap(OccupancyMap *map, bool borrowed_map)
+NdtMap::NdtMap(OccupancyMap *map, bool borrowed_map, NdtMode mode)
   : imp_(new NdtMapDetail)
 {
   imp_->map = map;
   imp_->borrowed_map = borrowed_map;
-  enableNdt(map);
+  imp_->mode = mode;
+  enableNdt(map, mode);
   updateMapInfo();
 }
 
@@ -60,6 +63,12 @@ OccupancyMap &NdtMap::map()
 const OccupancyMap &NdtMap::map() const
 {
   return *imp_->map;
+}
+
+
+NdtMode NdtMap::mode() const
+{
+  return imp_->mode;
 }
 
 
@@ -134,6 +143,19 @@ unsigned NdtMap::reinitialiseCovariancePointCount() const
 }
 
 
+void NdtMap::setInitialIntensityCovariance(float initial_intensity_covariance)
+{
+  imp_->initial_intensity_covariance = initial_intensity_covariance;
+  updateMapInfo();
+}
+
+
+float NdtMap::initialIntensityCovariance() const
+{
+  return imp_->initial_intensity_covariance;
+}
+
+
 void NdtMap::setTrace(bool trace)
 {
   imp_->trace = trace;
@@ -156,6 +178,7 @@ void NdtMap::debugDraw() const
 
   std::vector<tes::Sphere> ellipsoids;
   std::vector<tes::Shape *> shape_ptrs;
+  static float min_intensity = 0.0f, max_intensity = 255.0f;
 
   const auto send = [&ellipsoids, &shape_ptrs]()  //
   {
@@ -173,45 +196,114 @@ void NdtMap::debugDraw() const
   };
 
   auto next_id = static_cast<uint32_t>(size_t(this));
-  const tes::Colour c = tes::Colour::Colours[tes::Colour::SeaGreen];
-  Voxel<const float> occupancy(imp_->map, imp_->map->layout().occupancyLayer());
-  Voxel<const CovarianceVoxel> cov(imp_->map, imp_->map->layout().covarianceLayer());
-  Voxel<const VoxelMean> mean(imp_->map, imp_->map->layout().meanLayer());
-  for (auto iter = imp_->map->begin(); iter != imp_->map->end(); ++iter)
+  if (imp_->map->layout().intensityLayer() >= 0 && imp_->map->layout().hitMissCountLayer() >= 0)
   {
-    occupancy.setKey(*iter);
-    if (isOccupied(occupancy))
+    // NDT-TM
+    Voxel<const float> occupancy(imp_->map, imp_->map->layout().occupancyLayer());
+    Voxel<const CovarianceVoxel> cov(imp_->map, imp_->map->layout().covarianceLayer());
+    Voxel<const VoxelMean> mean(imp_->map, imp_->map->layout().meanLayer());
+    Voxel<const IntensityMeanCov> intensity_voxel(imp_->map, imp_->map->layout().intensityLayer());
+    Voxel<const HitMissCount> hit_miss_voxel(imp_->map, imp_->map->layout().hitMissCountLayer());
+    for (auto iter = imp_->map->begin(); iter != imp_->map->end(); ++iter)
     {
-      cov.setKey(occupancy);
-
-      glm::dquat rot;
-      glm::dvec3 scale;
-      CovarianceVoxel cv;
-      if (!cov.isValid())
+      occupancy.setKey(*iter);
+      if (isOccupied(occupancy))
       {
-        // Should be impossible, but helps clang-tidy.
-        continue;
+        cov.setKey(occupancy);
+
+        glm::dquat rot;
+        glm::dvec3 scale;
+        CovarianceVoxel cv;
+        cov.read(&cv);
+        if (!covarianceUnitSphereTransformation(&cv, &rot, &scale))
+        {
+          continue;
+        }
+
+        mean.setKey(occupancy);
+        intensity_voxel.setKey(occupancy);
+        hit_miss_voxel.setKey(occupancy);
+
+        const glm::dvec3 voxel_mean = positionUnsafe(mean);
+
+        IntensityMeanCov intensity_mean_cov;
+        intensity_voxel.read(&intensity_mean_cov);
+        min_intensity = std::fmin(min_intensity, intensity_mean_cov.intensity_mean);
+        max_intensity = std::fmax(max_intensity, intensity_mean_cov.intensity_mean);
+        const float scaled_intensity =
+          float(M_PI) * (-0.75f + 1.5f * std::log(intensity_mean_cov.intensity_mean - min_intensity + 1.0f) /
+                                    std::fmax(1.0f, std::log(max_intensity - min_intensity + 1.0f)));
+        const float sin_sc = std::sin(scaled_intensity), cos_sc = std::cos(scaled_intensity);
+        HitMissCount hit_miss_count;
+        hit_miss_voxel.read(&hit_miss_count);
+
+        tes::Sphere ellipsoid(next_id, tes::Spherical(tes::Vector3d(glm::value_ptr(voxel_mean))));
+        ellipsoid.setRotation(tes::Quaterniond(rot.x, rot.y, rot.z, rot.w));
+        ellipsoid.setScale(2.0 * tes::Vector3d(scale.x, scale.y, scale.z));
+        ellipsoid.setColour(
+          tes::Colour(0.5f * (1.0f + sin_sc), 0.5f * (1.0f + cos_sc), 0.5f * (1.0f - sin_sc),
+                      0.1f + 0.89f * float(hit_miss_count.hit_count) /
+                               std::fmax(1.0f, float(hit_miss_count.hit_count + hit_miss_count.miss_count))));
+        ellipsoid.setTransparent(true);
+
+        // const float alpha = 0.9f * float(hit_miss_count.hit_count) /
+        //                    std::fmax(1.0f, float(hit_miss_count.hit_count + hit_miss_count.miss_count));
+        // ellipsoid.setColour(tes::Colour(0.1f + alpha * 0.5f * (1.0f + sin_sc), 0.1f + alpha * 0.5f * (1.0f + cos_sc),
+        //                                0.1f + alpha * 0.5f * (1.0f - sin_sc), 1.0f));
+
+        ellipsoids.emplace_back(ellipsoid);
+
+        if (ellipsoids.size() >= tes::MultiShape::ShapeCountLimit)
+        {
+          send();
+          ++next_id;
+        }
       }
-      cov.read(&cv);
-      if (!covarianceUnitSphereTransformation(&cv, &rot, &scale))
+    }
+  }
+  else
+  {
+    // NDT-OM
+    const tes::Colour c = tes::Colour::Colours[tes::Colour::SeaGreen];
+    Voxel<const float> occupancy(imp_->map, imp_->map->layout().occupancyLayer());
+    Voxel<const CovarianceVoxel> cov(imp_->map, imp_->map->layout().covarianceLayer());
+    Voxel<const VoxelMean> mean(imp_->map, imp_->map->layout().meanLayer());
+    for (auto iter = imp_->map->begin(); iter != imp_->map->end(); ++iter)
+    {
+      occupancy.setKey(*iter);
+      if (isOccupied(occupancy))
       {
-        continue;
-      }
+        cov.setKey(occupancy);
 
-      mean.setKey(occupancy);
+        glm::dquat rot;
+        glm::dvec3 scale;
+        CovarianceVoxel cv;
+        if (!cov.isValid())
+        {
+          // Should be impossible, but helps clang-tidy.
+          continue;
+        }
+        cov.read(&cv);
+        if (!covarianceUnitSphereTransformation(&cv, &rot, &scale))
+        {
+          continue;
+        }
 
-      const glm::dvec3 voxel_mean = positionUnsafe(mean);
+        mean.setKey(occupancy);
 
-      tes::Sphere ellipsoid(next_id, tes::Spherical(tes::Vector3d(glm::value_ptr(voxel_mean))));
-      ellipsoid.setRotation(tes::Quaterniond(rot.x, rot.y, rot.z, rot.w));
-      ellipsoid.setScale(2.0 * tes::Vector3d(scale.x, scale.y, scale.z));
-      ellipsoid.setColour(c);
-      ellipsoids.emplace_back(ellipsoid);
+        const glm::dvec3 voxel_mean = positionUnsafe(mean);
 
-      if (ellipsoids.size() >= tes::MultiShape::ShapeCountLimit)
-      {
-        send();
-        ++next_id;
+        tes::Sphere ellipsoid(next_id, tes::Spherical(tes::Vector3d(glm::value_ptr(voxel_mean))));
+        ellipsoid.setRotation(tes::Quaterniond(rot.x, rot.y, rot.z, rot.w));
+        ellipsoid.setScale(2.0 * tes::Vector3d(scale.x, scale.y, scale.z));
+        ellipsoid.setColour(c);
+        ellipsoids.emplace_back(ellipsoid);
+
+        if (ellipsoids.size() >= tes::MultiShape::ShapeCountLimit)
+        {
+          send();
+          ++next_id;
+        }
       }
     }
   }
@@ -230,6 +322,8 @@ void NdtMap::updateMapInfo()
     return;
   }
   MapInfo &info = imp_->map->mapInfo();
+  info.set(MapValue("Ndt mode", int(imp_->mode)));
+  info.set(MapValue("Ndt mode name", ndtModeToString(imp_->mode).c_str()));
   info.set(MapValue("Ndt adaptation rate", imp_->adaptation_rate));
   info.set(MapValue("Ndt sensor noise", imp_->sensor_noise));
   info.set(MapValue("Ndt sample threshold", imp_->sample_threshold));
@@ -240,7 +334,7 @@ void NdtMap::updateMapInfo()
 }
 
 
-int NdtMap::enableNdt(OccupancyMap *map)
+int NdtMap::enableNdt(OccupancyMap *map, NdtMode ndt_mode)
 {
   // Prepare layout for update.
   MapLayout new_layout = map->layout();
@@ -248,6 +342,12 @@ int NdtMap::enableNdt(OccupancyMap *map)
   addVoxelMean(new_layout);
   // Cache the layer index.
   int layer_index = int(addCovariance(new_layout)->layerIndex());
+
+  if (ndt_mode == NdtMode::kTraversability)
+  {
+    addIntensity(new_layout);
+    addHitMissCount(new_layout);
+  }
 
   // Update the map.
   map->updateLayout(new_layout);

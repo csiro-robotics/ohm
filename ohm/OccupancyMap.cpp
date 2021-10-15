@@ -220,7 +220,7 @@ OccupancyMap::OccupancyMap(double resolution, const glm::u8vec3 &region_voxel_di
   };
 
   imp_->flags = flags;
-  imp_->setDefaultLayout((flags & MapFlag::kVoxelMean) != MapFlag::kNone);
+  imp_->setDefaultLayout(flags);
 }
 
 OccupancyMap::OccupancyMap(double resolution, const glm::u8vec3 &region_voxel_dimensions, MapFlag flags,
@@ -231,6 +231,10 @@ OccupancyMap::OccupancyMap(double resolution, const glm::u8vec3 &region_voxel_di
   if ((flags & MapFlag::kVoxelMean) != MapFlag::kNone)
   {
     addVoxelMeanLayer();
+  }
+  if ((flags & MapFlag::kTraversal) != MapFlag::kNone)
+  {
+    addTraversalLayer();
   }
 }
 
@@ -326,6 +330,22 @@ uint64_t OccupancyMap::stamp() const
 uint64_t OccupancyMap::touch()
 {
   return ++imp_->stamp;
+}
+
+double OccupancyMap::firstRayTime() const
+{
+  return imp_->first_ray_time;
+}
+
+void OccupancyMap::setFirstRayTime(double time)
+{
+  imp_->first_ray_time = time;
+}
+
+double OccupancyMap::updateFirstRayTime(double time)
+{
+  imp_->first_ray_time = (imp_->first_ray_time < 0) ? time : imp_->first_ray_time;
+  return imp_->first_ray_time;
 }
 
 glm::dvec3 OccupancyMap::regionSpatialResolution() const
@@ -517,6 +537,66 @@ void OccupancyMap::addVoxelMeanLayer()
 bool OccupancyMap::voxelMeanEnabled() const
 {
   return imp_->layout.meanLayer() >= 0;
+}
+
+
+void OccupancyMap::addTraversalLayer()
+{
+  if (imp_->layout.traversalLayer() >= 0)
+  {
+    // Already present.
+    return;
+  }
+
+  MapLayout layout = imp_->layout;
+  addTraversal(layout);
+  updateLayout(layout);
+}
+
+
+bool OccupancyMap::traversalEnabled() const
+{
+  return imp_->layout.traversalLayer() >= 0;
+}
+
+
+void OccupancyMap::addTouchTimeLayer()
+{
+  if (touchTimeEnabled())
+  {
+    // Already present.
+    return;
+  }
+
+  MapLayout layout = imp_->layout;
+  addTouchTime(layout);
+  updateLayout(layout);
+}
+
+
+bool OccupancyMap::touchTimeEnabled() const
+{
+  return imp_->layout.layerIndex(default_layer::touchTimeLayerName()) >= 0;
+}
+
+
+void OccupancyMap::addIncidentNormalLayer()
+{
+  if (touchTimeEnabled())
+  {
+    // Already present.
+    return;
+  }
+
+  MapLayout layout = imp_->layout;
+  addIncidentNormal(layout);
+  updateLayout(layout);
+}
+
+
+bool OccupancyMap::incidentNormalEnabled() const
+{
+  return imp_->layout.layerIndex(default_layer::incidentNormalLayerName()) >= 0;
 }
 
 
@@ -795,6 +875,7 @@ glm::dvec3 OccupancyMap::voxelCentreGlobal(const Key &key) const
 Key OccupancyMap::voxelKey(const glm::dvec3 &point) const
 {
   Key key;
+  // const glm::dvec3 map_local_key = point - imp_->origin;
   MapRegion region(point, imp_->origin, imp_->region_spatial_dimensions);
   // VALIDATION code ensures the region we calculate to contain the point does.
   // Floating point error was causing issues where it nearly, but not quite would.
@@ -942,12 +1023,13 @@ void OccupancyMap::clearRayFilter()
   imp_->ray_filter = RayFilterFunction();
 }
 
-void OccupancyMap::integrateRays(const glm::dvec3 *rays, size_t element_count, unsigned ray_update_flags)
+void OccupancyMap::integrateRays(const glm::dvec3 *rays, size_t element_count, const float *intensities,
+                                 const double *timestamps, unsigned ray_update_flags)
 {
   // This function has been updated to leverage the new RayMapper interface and remove code duplication. It is
   // maintained for legacy reasons.
   // TODO(KS): remove this function and require the use of a RayMapper.
-  RayMapperOccupancy(this).integrateRays(rays, element_count, ray_update_flags);
+  RayMapperOccupancy(this).integrateRays(rays, element_count, intensities, timestamps, ray_update_flags);
 }
 
 OccupancyMap *OccupancyMap::clone() const

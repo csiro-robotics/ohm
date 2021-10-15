@@ -44,7 +44,7 @@ class RunDef:
         if self.gpu_segment_length > 0:
             out_name += '-s{}m'.format(int(self.gpu_segment_length))
 
-        args = [program_name, self.cloud, self.traj, out_name, '--save-info', '--preload', '--serialise=off']
+        args = [program_name, self.cloud, self.traj, out_name, '--save-info', '--preload', '--serialise=false']
         args.append('--resolution={}'.format(self.resolution))
 
         if self.compute == 'ocl' and self.ocl_vendor:

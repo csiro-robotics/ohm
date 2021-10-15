@@ -34,7 +34,7 @@ inline cl_command_queue selectQueue(gputil::Device &device, gputil::Queue *expli
   {
     return explicit_queue->internal()->queue();
   }
-  return device.detail()->queue();
+  return device.detail()->default_queue.internal()->queue();
 }
 
 
@@ -301,7 +301,7 @@ void Buffer::fill(const void *pattern, size_t pattern_size, Queue *queue, Event 
                                 (queue && completion) ? &completion->detail()->event : nullptr);
     GPUAPICHECK2(clerr, CL_SUCCESS);
 
-    if (!queue)
+    if (!queue || queue->internal()->force_synchronous)
     {
       // Blocking operation.
       clerr = clFinish(ocl_queue);
@@ -403,19 +403,11 @@ size_t Buffer::read(void *dst, size_t read_byte_count, size_t src_offset, Queue 
   int block_on_count = (block_on && block_on->isValid()) ? 1 : 0;
   cl_event block_on_ocl = (block_on_count) ? block_on->detail()->event : nullptr;
 
-// Non-blocking when an explicit queue has been provided.
-#if 1
-  clerr = clEnqueueReadBuffer(ocl_queue, imp_->buffer(), (!queue) ? CL_TRUE : CL_FALSE, src_offset, copy_bytes, dst,
-                              block_on_count, (block_on_count) ? &block_on_ocl : nullptr,
+  // Non-blocking when an explicit queue has been provided.
+  const cl_bool synchronous = (!queue || queue->internal()->force_synchronous) ? CL_TRUE : CL_FALSE;
+  clerr = clEnqueueReadBuffer(ocl_queue, imp_->buffer(), synchronous, src_offset, copy_bytes, dst, block_on_count,
+                              (block_on_count) ? &block_on_ocl : nullptr,
                               (queue && completion) ? &completion->detail()->event : nullptr);
-// if (queue && completion)
-// {
-//   clWaitForEvents(1, &completion->detail()->event);
-// }
-#else   // #
-  clerr = clEnqueueReadBuffer(ocl_queue, _imp->buffer(), CL_TRUE, srcOffset, copyBytes, dst, block_on_count,
-                              (block_on_count) ? &blockOnOcl : nullptr, nullptr);
-#endif  // #
 
   GPUAPICHECK(clerr, CL_SUCCESS, 0u);
 
@@ -459,8 +451,9 @@ size_t Buffer::write(const void *src, size_t byte_count, size_t dst_offset, Queu
   cl_event block_on_ocl = (block_on_count) ? block_on->detail()->event : nullptr;
 
   // Non-blocking when an explicit queue has been provided.
-  clerr = clEnqueueWriteBuffer(queue_cl, imp_->buffer(), (!queue) ? CL_TRUE : CL_FALSE, dst_offset, copy_bytes, src,
-                               block_on_count, (block_on_count) ? &block_on_ocl : nullptr,
+  const cl_bool synchronous = (!queue || queue->internal()->force_synchronous) ? CL_TRUE : CL_FALSE;
+  clerr = clEnqueueWriteBuffer(queue_cl, imp_->buffer(), synchronous, dst_offset, copy_bytes, src, block_on_count,
+                               (block_on_count) ? &block_on_ocl : nullptr,
                                (queue && completion) ? &completion->detail()->event : nullptr);
 
   GPUAPICHECK(clerr, CL_SUCCESS, 0u);
@@ -535,11 +528,12 @@ size_t Buffer::readElements(void *dst, size_t element_size, size_t element_count
     const int block_on_count = (block_on && block_on->isValid()) ? 1 : 0;
     cl_event block_on_ocl = (block_on_count) ? block_on->detail()->event : nullptr;
 
-    // Unfortunately I can't find whether the copy order is guaranteed for clEnqueueWriteBuffer(). To support the
+    // Unfortunately I can't find whether the copy order is guaranteed for clEnqueueReadBuffer(). To support the
     // completeion event, we'll set barrier after the copy instructions and wait on that.
+    const cl_bool synchronous = (!queue || queue->internal()->force_synchronous) ? CL_TRUE : CL_FALSE;
     for (size_t i = 0; i < copy_element_count; ++i)
     {
-      clerr2 = clEnqueueReadBuffer(queue_cl, imp_->buffer(), CL_FALSE, buffer_offset, copy_size, dst_mem,
+      clerr2 = clEnqueueReadBuffer(queue_cl, imp_->buffer(), synchronous, buffer_offset, copy_size, dst_mem,
                                    block_on_count, (block_on_count) ? &block_on_ocl : nullptr, nullptr);
       dst_mem += element_size;
       buffer_offset += buffer_element_size;
@@ -641,9 +635,10 @@ size_t Buffer::writeElements(const void *src, size_t element_size, size_t elemen
 
     // Unfortunately I can't find whether the copy order is guaranteed for clEnqueueWriteBuffer(). To support the
     // completeion event, we'll set barrier after the copy instructions and wait on that.
+    const cl_bool synchronous = (!queue || queue->internal()->force_synchronous) ? CL_TRUE : CL_FALSE;
     for (size_t i = 0; i < copy_element_count; ++i)
     {
-      clerr2 = clEnqueueWriteBuffer(queue_cl, imp_->buffer(), CL_FALSE, buffer_offset, copy_size, src_mem,
+      clerr2 = clEnqueueWriteBuffer(queue_cl, imp_->buffer(), synchronous, buffer_offset, copy_size, src_mem,
                                     block_on_count, (block_on_count) ? &block_on_ocl : nullptr, nullptr);
       src_mem += element_size;
       buffer_offset += buffer_element_size;
@@ -743,7 +738,7 @@ size_t copyBuffer(Buffer &dst, size_t dst_offset, const Buffer &src, size_t src_
   GPUAPICHECK(clerr, CL_SUCCESS, 0);
 
   // Block if no explicit queue provided.
-  if (!queue)
+  if (!queue || queue->internal()->force_synchronous)
   {
     clerr = clFinish(queue_cl);
     GPUAPICHECK(clerr, CL_SUCCESS, 0u);

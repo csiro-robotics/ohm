@@ -102,19 +102,31 @@ inline glm::dmat3 covarianceMatrix(const CovarianceVoxel *cov)
 void covDebugStats();
 #endif  // OHM_COV_DEBUG
 
-/// Integrate a hit result for a single voxel of @p map with NDT support.
+/// Integrate a hit result for a single voxel of @p map with NDT or NDT-TM support. The NDT-TM is used when
+/// @p ndt_tm is true and and the layers @c default_layer::intensityLayerName() and
+/// @c default_layer::hitMissCountLayerName() layers are available to update @c IntensityMeanCov and @c HitMissCount
+/// respectively.
+///
 /// @param map The @c NdtMap to integrate the hit for.
 /// @param key The key for the voxel to modify. This is the voxel containing @p sample
-/// @param sample The gobal sample coordinate.
-void ohm_API integrateNdtHit(NdtMap &map, const Key &key, const glm::dvec3 &sample);
+/// @param sensor The sensor location from which the @p sample was attained.
+/// @param sample The global sample coordinate.
+/// @param ndt_tm True to use NDT-TM logic.
+/// @param sample_intensity The intensity value of the lidar sample required for NDT-TM.
+void ohm_API integrateNdtHit(NdtMap &map, const Key &key, const glm::dvec3 &sensor, const glm::dvec3 &sample,
+                             bool ndt_tm = false, float sample_intensity = 0.0f);
 
-/// Integrate a miss result for a single voxel of @p map with NDT support.
+/// Integrate a miss result for a single voxel of @p map with NDT or NDT-TM support. The NDT-TM is used when
+/// @p ndt_tm is @c true and the map has a @c default_layer::hitMissCountLayerName() layer for @c HitMissCount data.
+///
 /// @param map The @c NdtMap to integrate the hit for.
 /// @param key The key for the voxel to modify. This is a voxel along the line segment @p sensor to @p sample , but
 /// not the voxel containing @p sample .
 /// @param sensor The sensor location from which the @p sample was attained.
-/// @param sample The gobal sample coordinate.
-void ohm_API integrateNdtMiss(NdtMap &map, const Key &key, const glm::dvec3 &sensor, const glm::dvec3 &sample);
+/// @param sample The global sample coordinate.
+/// @param ndt_tm True to use NDT-TM logic.
+void ohm_API integrateNdtMiss(NdtMap &map, const Key &key, const glm::dvec3 &sensor, const glm::dvec3 &sample,
+                              bool ndt_tm = false);
 }  // namespace ohm
 
 #endif  // COVARIANCEVOXEL_H

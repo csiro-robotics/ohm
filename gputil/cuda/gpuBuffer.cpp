@@ -25,7 +25,7 @@ namespace gputil
 {
 inline cudaStream_t selectStream(Queue *queue)
 {
-  return (queue && queue->internal()) ? queue->internal()->obj() : nullptr;
+  return (queue) ? queue->internal()->queue : nullptr;
 }
 
 /// Internal copy command. Manages synchronous vs. asynchronous code paths.
@@ -45,7 +45,7 @@ bool bufferCopy(void *dst, const void *src, size_t byte_count, cudaMemcpyKind ki
 {
   cudaError_t err = cudaSuccess;
   // Manage asynchronous.
-  if (queue)
+  if (queue && !queue->internal()->force_synchronous)
   {
     // Async copy.
     // Resolve the stream.
@@ -163,7 +163,7 @@ void unpin(BufferDetail &imp, void *pinned_ptr, PinMode mode, Queue *queue, Even
       // Async copy. Setup completion event after the last queued copy.
       if (completion && queue)
       {
-        cudaStream_t stream = queue->internal()->obj();
+        cudaStream_t stream = queue->internal()->queue;
         err = cudaEventRecord(completion->detail()->obj(), stream);
         GPUAPICHECK2(err, cudaSuccess);
       }
@@ -190,9 +190,9 @@ void unpin(BufferDetail &imp, void *pinned_ptr, PinMode mode, Queue *queue, Even
 bool bufferSet(void *mem, int value, size_t count, Queue *queue, Event *block_on, Event *completion)
 {
   cudaError_t err = cudaSuccess;
-  if (queue)
+  if (queue && !queue->internal()->force_synchronous)
   {
-    cudaStream_t stream = queue->internal()->obj();
+    cudaStream_t stream = selectStream(queue);
 
     if (block_on && block_on->isValid())
     {

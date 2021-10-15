@@ -10,6 +10,7 @@
 #include "gpuConfig.h"
 
 #include "gputil/gpuDeviceInfo.h"
+#include "gputil/gpuQueue.h"
 
 #include <cuda_runtime.h>
 
@@ -22,6 +23,7 @@ struct DeviceDetail
   int device = -1;
   std::string name;
   DeviceInfo info;
+  Queue default_queue;
 };
 }  // namespace gputil
 

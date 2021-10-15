@@ -8,8 +8,10 @@
 
 #include "gpuConfig.h"
 
-#include "../gpuBuffer.h"
-#include "../gpuEventList.h"
+#include "gputil/gpuApiException.h"
+#include "gputil/gpuBuffer.h"
+#include "gputil/gpuEventList.h"
+#include "gputil/gpuThrow.h"
 
 #include "gpuBufferDetail.h"
 #include "gpuEventDetail.h"
@@ -89,6 +91,18 @@ int Kernel::operator()(const Dim3 &global_size, const Dim3 &local_size, Event &c
   completion_event.release();
   completion_event.detail()->event = completion_tracker();
   clRetainEvent(completion_tracker());
+
+  if (detail()->auto_error_checking)
+  {
+    GPUAPICHECK(err, CL_SUCCESS, err);
+  }
+
+  if (queue && queue->internal()->force_synchronous)
+  {
+    // Force kernel completion if in synchronous mode.
+    queue->finish();
+  }
+
   return err;
 }
 
@@ -121,12 +135,23 @@ int Kernel::operator()(const Dim3 &global_size, const Dim3 &local_size, const Ev
   // TODO(KS): RAIA for this while avoiding a head allocation.
   for (unsigned i = 0; i < events_clu.event_count; ++i)
   {
-    // Lint: the explicit desctructor call doesn't read well when we need to explicitly idnetify the namespace and
-    // class. Just diable lint warning - very local.
+    // Lint: the explicit desctructor call doesn't read well when we need to explicitly identify the namespace and
+    // class. Just disable lint warning - very local.
     // NOLINTNEXTLINE(google-build-using-namespace)
     using namespace cl;
     // Call destructor in stack allocation.
     events_clu.wait_on_events[i].~Event();
+  }
+
+  if (detail()->auto_error_checking)
+  {
+    GPUAPICHECK(err, CL_SUCCESS, err);
+  }
+
+  if (queue && queue->internal()->force_synchronous)
+  {
+    // Force kernel completion if in synchronous mode.
+    queue->finish();
   }
 
   return err;
@@ -172,6 +197,18 @@ int Kernel::operator()(const Dim3 &global_size, const Dim3 &local_size, const Ev
   completion_event.release();
   completion_event.detail()->event = completion_tracker();
   clRetainEvent(completion_tracker());
+
+  if (detail()->auto_error_checking)
+  {
+    GPUAPICHECK(err, CL_SUCCESS, err);
+  }
+
+  if (queue && queue->internal()->force_synchronous)
+  {
+    // Force kernel completion if in synchronous mode.
+    queue->finish();
+  }
+
   return err;
 }
 

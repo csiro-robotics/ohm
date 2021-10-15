@@ -50,6 +50,16 @@ enum GpuCacheId
   kGcIdVoxelMean,
   /// Cache used for @c CovarianceVoxel data.
   kGcIdCovariance,
+  /// Cache used for @c IntensityMeanCov
+  kGcIdIntensity,
+  /// Cache used for @c HitMissCount
+  kGcIdHitMiss,
+  /// Cache used for traversal layer.
+  kGcIdTraversal,
+  /// Cache used for touch time layer.
+  kGcIdTouchTime,
+  /// Cache used for incident normal layer.
+  kGcIdIncidentNormal,
 };
 
 /// Provides access to the @c GpuLayerCache objects used to cache host voxel data in GPU memory and manage
