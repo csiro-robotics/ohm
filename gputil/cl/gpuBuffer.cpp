@@ -530,7 +530,7 @@ size_t Buffer::readElements(void *dst, size_t element_size, size_t element_count
 
     // Unfortunately I can't find whether the copy order is guaranteed for clEnqueueReadBuffer(). To support the
     // completeion event, we'll set barrier after the copy instructions and wait on that.
-    const cl_bool synchronous = (queue && queue->internal()->force_synchronous) ? CL_TRUE : CL_FALSE;
+    const cl_bool synchronous = (!queue || queue->internal()->force_synchronous) ? CL_TRUE : CL_FALSE;
     for (size_t i = 0; i < copy_element_count; ++i)
     {
       clerr2 = clEnqueueReadBuffer(queue_cl, imp_->buffer(), synchronous, buffer_offset, copy_size, dst_mem,
@@ -635,7 +635,7 @@ size_t Buffer::writeElements(const void *src, size_t element_size, size_t elemen
 
     // Unfortunately I can't find whether the copy order is guaranteed for clEnqueueWriteBuffer(). To support the
     // completeion event, we'll set barrier after the copy instructions and wait on that.
-    const cl_bool synchronous = (queue && queue->internal()->force_synchronous) ? CL_TRUE : CL_FALSE;
+    const cl_bool synchronous = (!queue || queue->internal()->force_synchronous) ? CL_TRUE : CL_FALSE;
     for (size_t i = 0; i < copy_element_count; ++i)
     {
       clerr2 = clEnqueueWriteBuffer(queue_cl, imp_->buffer(), synchronous, buffer_offset, copy_size, src_mem,
