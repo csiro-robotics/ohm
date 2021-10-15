@@ -231,15 +231,15 @@ inline __device__ CovVec3 calculateSampleLikelihoods(const CovarianceVoxel *cov_
   // Bracketed numbers below reference equation numbers in the paper mentioned in the function comments.
   const CovVec3 sensor_to_sample = sample - sensor;
   const CovVec3 sensor_ray = covnormalize(sensor_to_sample);  // Verified
-  const CovVec3 sensor_to_mean = sensor - voxel_mean;
+  const CovVec3 mean_to_sensor = sensor - voxel_mean;
 
   // Packed data solutions:
   const CovVec3 a = solveTriangular(cov_voxel, sensor_ray);
-  const CovVec3 b_norm = solveTriangular(cov_voxel, sensor_to_mean);
+  const CovVec3 b_norm = solveTriangular(cov_voxel, mean_to_sensor);
 
   // const CovVec3 a = covariance_inv * sensor_ray;  // Verified (unpacked version)
   // (28)
-  // const CovReal t = covdot(a, sensor_to_mean) / covdot(a, sensor_ray); // Verified (unpacked version)
+  // const CovReal t = covdot(a, mean_to_sensor) / covdot(a, sensor_ray); // Verified (unpacked version)
   const CovReal t = -covdot(a, b_norm) / covdot(a, a);  // Verified
 
   // (25)
