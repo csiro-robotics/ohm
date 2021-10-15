@@ -264,11 +264,11 @@ void MapLayout::cacheLayerIndex(const MapLayer *layer)
     {
       imp_->clearance_layer = int(layer->layerIndex());
     }
-    else if (imp_->intensity_layer == -1 && name_str.compare(default_layer::intensityLayerName()) == 0)
+    else if (imp_->intensity_layer == -1 && name_str == default_layer::intensityLayerName())
     {
       imp_->intensity_layer = layer->layerIndex();
     }
-    else if (imp_->hit_miss_count_layer == -1 && name_str.compare(default_layer::hitMissCountLayerName()) == 0)
+    else if (imp_->hit_miss_count_layer == -1 && name_str == default_layer::hitMissCountLayerName())
     {
       imp_->hit_miss_count_layer = layer->layerIndex();
     }
