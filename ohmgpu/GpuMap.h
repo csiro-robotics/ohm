@@ -275,8 +275,9 @@ public:
   /// @param element_count The number of points in @p rays. The ray count is half this value.
   /// @param intensities An array of intensity values matching the @p rays items. There is one intensity value per ray
   ///   so there are @c element_count/2 items. May be null to omit intensity values.
-  /// @param timestamps An array of timestap values matching the @p rays items. There is one timestap value per ray
-  ///   so there are @c element_count/2 items. May be null to omit timestap values.
+  /// @param timestamps An array of timestamp values matching the @p rays items. There is one timestamp value per ray
+  ///   so there are @c element_count/2 items. May be null to omit timestamp values in which case the touch time layer
+  ///   will not be updated.
   /// @param region_update_flags Flags controlling ray integration behaviour. See @c RayFlag.
   /// @return The number of rays integrated. Zero indicates a failure when @p pointCount is not zero.
   ///   In this case either the GPU is unavailable, or all @p rays are invalid.

@@ -57,8 +57,9 @@ public:
   /// @param element_count The number of @c glm::dvec3 elements in @p rays, which is twice the ray count.
   /// @param intensities An array of intensity values matching the @p rays items. There is one intensity value per ray
   ///   so there are @c element_count/2 items. Required for the @c NdtMode::kTraversability model.
-  /// @param timestamps An array of timestap values matching the @p rays items. There is one timestap value per ray
-  ///   so there are @c element_count/2 items. May be null to omit timestap values.
+  /// @param timestamps An array of timestamp values matching the @p rays items. There is one timestamp value per ray
+  ///   so there are @c element_count/2 items. May be null to omit timestamp values in which case the touch time layer
+  ///   will not be updated.
   /// @param ray_update_flags Not supported.
   size_t integrateRays(const glm::dvec3 *rays, size_t element_count, const float *intensities, const double *timestamps,
                        unsigned ray_update_flags) override;
