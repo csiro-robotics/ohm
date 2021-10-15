@@ -29,14 +29,14 @@ void buildLogMessage(std::ostream &out, T val)
 }
 
 template <typename T, typename... Args>
-void buildLogMessage(std::ostream &out, T val, const Args &...args)
+void buildLogMessage(std::ostream &out, T val, const Args &... args)
 {
   out << val;
   buildLogMessage(out, args...);
 }
 
 template <typename... Args>
-void logMessage(Log log, Severity severity, const Args &...args)
+void logMessage(Log log, Severity severity, const Args &... args)
 {
   std::ostringstream msg;
   buildLogMessage(msg, args...);
@@ -44,7 +44,7 @@ void logMessage(Log log, Severity severity, const Args &...args)
 }
 
 template <typename T, typename... Args>
-bool compareItem(const T &val, const T &ref, Log log, Severity severity, const Args &...args)
+bool compareItem(const T &val, const T &ref, Log log, Severity severity, const Args &... args)
 {
   if (val != ref)
   {
@@ -315,10 +315,7 @@ bool compareVoxel(const Key &key, VoxelBuffer<const VoxelBlock> &eval_buffer, Vo
       const uint8_t *eval_mem =
         static_cast<const uint8_t *>(eval_voxel_layout.memberPtr(eval_member_index, eval_buffer.voxelMemory()));
 
-      for (size_t b = 0; b < ref_voxel_layout.memberSize(i); ++b)
-      {
-        value_match = value_match && ref_mem[b] == eval_mem[b];
-      }
+      value_match = std::memcmp(ref_mem, eval_mem, ref_voxel_layout.memberSize(i)) == 0;
     }
 
     if (!value_match)
