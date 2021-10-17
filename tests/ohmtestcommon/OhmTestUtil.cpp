@@ -101,15 +101,16 @@ bool compareLayout(const OccupancyMap &map, const OccupancyMap &reference_map)
 }
 
 
-void compareMaps(const OccupancyMap &map, const OccupancyMap &reference_map, unsigned compare_flags)
+void compareMaps(const OccupancyMap &map, const OccupancyMap &reference_map, unsigned compare_flags,
+                 unsigned allowed_occupancy_mismatch_count)
 {
   compareMaps(map, reference_map, glm::dvec3(-std::numeric_limits<double>::infinity()),
-              glm::dvec3(std::numeric_limits<double>::infinity()), compare_flags);
+              glm::dvec3(std::numeric_limits<double>::infinity()), compare_flags, allowed_occupancy_mismatch_count);
 }
 
 
 void compareMaps(const OccupancyMap &map, const OccupancyMap &reference_map, const glm::dvec3 &min_ext,
-                 const glm::dvec3 &max_ext, unsigned compare_flags)
+                 const glm::dvec3 &max_ext, unsigned compare_flags, unsigned allowed_occupancy_mismatch_count)
 {
   const bool full_extents = glm::all(glm::equal(min_ext, glm::dvec3(-std::numeric_limits<double>::infinity()))) &&
                             glm::all(glm::equal(max_ext, glm::dvec3(std::numeric_limits<double>::infinity())));
@@ -182,6 +183,7 @@ void compareMaps(const OccupancyMap &map, const OccupancyMap &reference_map, con
   }
 
   // Voxels
+  unsigned occupancy_failures = 0;
   if (compare_flags & (kCfOccupancy | kCfClearance))
   {
     bool have_valid_clearance = false;
@@ -223,7 +225,16 @@ void compareMaps(const OccupancyMap &map, const OccupancyMap &reference_map, con
       if (compare_flags & kCfOccupancy)
       {
         float ref_value, map_value;
-        ASSERT_EQ(ref_occupancy.read(&ref_value), map_occupancy.read(&map_value));
+
+        if (ref_occupancy.read(&ref_value) != map_occupancy.read(&map_value))
+        {
+          ++occupancy_failures;
+        }
+        // Use >, not >= as we'll have just incremented the failure above.
+        if (occupancy_failures > allowed_occupancy_mismatch_count)
+        {
+          EXPECT_EQ(ref_occupancy.read(&ref_value), map_occupancy.read(&map_value));
+        }
       }
 
       if (compare_flags & kCfClearance)

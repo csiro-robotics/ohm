@@ -2,6 +2,10 @@
 # NOTE: only add very small data sets (KiB, no MiB)!
 
 set(DATA_FILES
+  test-map.0.1.0.ohm
+  test-map.0.2.0.ohm
+  test-map.0.3.0.ohm
+  test-map.0.4.0.ohm
   test-map.0.ohm
 )
 

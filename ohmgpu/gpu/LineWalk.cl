@@ -236,8 +236,11 @@ __device__ void WALK_LINE_VOXELS(const GpuKey *startKey, const GpuKey *endKey, c
         // const float nextVoxelBorder = getf3(&voxel, i) + step[i] * 0.5f * voxelResolution;
         const float nextVoxelBorder = getf3(startVoxelCentre, i) + step[i] * 0.5f * voxelResolution;
         timeMax[i] = (nextVoxelBorder - getf3(startPoint, i)) * directionAxisInv;
-        timeLimit[i] =
-          fabs((getf3(endPoint, i) - getf3(startPoint, i)) * directionAxisInv);  // +0.5f * voxelResolution;
+        // Set the distance limit
+        // original...
+        // timeLimit[i] = fabs((getf3(endPoint, i) - getf3(startPoint, i)) * directionAxisInv);
+        // which is equivalent to...
+        timeLimit[i] = length;
       }
       else
       {
