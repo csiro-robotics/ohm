@@ -32,10 +32,6 @@ foreach(CONF Debug;Release;MinSizeRel;RelWithDebInfo)
   set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_${CONFU} "${CMAKE_BINARY_DIR}/bin")
 endforeach(CONF)
 
-# Manage compiler warnings.
-# Use CMAKE_MODULE_PATH and include(warnings) if warnings.cmake is moved.
-include(compilerSetup)
-
 # Add memory leak tracking support.
 include(LeakTrack)
 
@@ -121,6 +117,9 @@ else(NOT DEFINED OHM_THREADS)
 endif(NOT DEFINED OHM_THREADS)
 
 option(OHM_BUILD_SHARED "Build shared ohm libraries?" ${BUILD_SHARED_LIBS})
+# For details on OHM_BUILD_SHARED_SUPPRESS_WARNINGS, see usage in compilerSetup.cmake
+option(OHM_BUILD_SHARED_SUPPRESS_WARNINGS
+  "Suppress warnings relating the DLL export symbols when building shared? Disables MSC warnings C4251 and C4275" ON)
 option(OHM_PROFILE "Enable timing information messages for some queries." Off)
 option(OHM_TES_DEBUG "Enable visual debuging code?" Off)
 option(OHM_THREADS "Enable CPU threading (using Thread Building Blocks)? Not advisable for onboard compilation." ${TBB_THREADS_DEFAULT})
@@ -131,6 +130,10 @@ option(OHM_BUILD_OPENCL "Build ohm library and utlities for OpenCL?" ${OHM_BUILD
 option(OHM_LEAK_TRACK "Enable memory leak tracking?" OFF)
 
 option(WITH_OCTOMAP "Build comparative occupancy map generation using octomap?" OFF)
+
+# Manage compiler warnings.
+# Use CMAKE_MODULE_PATH and include(warnings) if warnings.cmake is moved.
+include(compilerSetup)
 
 # Migrate ohm specific setting for building shared libraries to the CMake global option.
 set(BUILD_SHARED_LIBS ${OHM_BUILD_SHARED})

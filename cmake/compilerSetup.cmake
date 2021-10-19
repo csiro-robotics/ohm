@@ -63,6 +63,26 @@ macro(setup_msvc)
   if(COMPILER_MULTI_PROCESSOR)
     add_compile_options("/MP")
   endif(COMPILER_MULTI_PROCESSOR)
+  if(OHM_BUILD_SHARED_SUPPRESS_WARNINGS)
+    # Disable the following MSC compiler warnings.
+    # 4251 Warning that data members of a DLL export definition do not themselves have DLL export directives.
+    # 4275 Warning that a base class of a DLL export definition do not themselves have DLL export directives.
+    # These are valid and important warning which indicate potential ABI incompatibilities. However, ohm is not
+    # engineered to be 100% robust to ABI changes and these warnings generate many difficult to avoid errors.
+    #
+    # For example, using std::vector as a member of a class which is exported from a DLL raises warning C4251. The issue
+    # is that this is vulnerable to ABI incompatibilies if a different C++ runtime library is used - such as building
+    # ohm and building client code using difference Visual Studio versions.
+    #
+    # Similarly, C4275 is raised by actions such as deriving std::runtime_error.
+    #
+    # Both these cases are essentially valid code, but the warnings are also correct to point out the ABI vulnerability.
+    # The side effect is that upgrading version will often require a rebuild of client code against the ohm libraries
+    # rather than a drop in replacement. Linux and MacOS are slightly innocculated against this because the C++ runtime
+    # libraries tend to stay the same for an OS version. The warnings would be much more relevant when writing things
+    # like COM interfaces.
+    add_compile_options("/wd4251" "/wd4275")
+  endif(OHM_BUILD_SHARED_SUPPRESS_WARNINGS)
 endmacro(setup_msvc)
 
 # Select the correct warnings configuration.
