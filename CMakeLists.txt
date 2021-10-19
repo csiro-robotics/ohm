@@ -139,6 +139,13 @@ include(compilerSetup)
 set(BUILD_SHARED_LIBS ${OHM_BUILD_SHARED})
 if(BUILD_SHARED_LIBS)
   message(STATUS "Building shared ohm libraries.")
+
+  if(WIN32 AND CUDA_USE_STATIC_CUDA_RUNTIME)
+    message("Warning: BUILD_SHARED_LIBS and CUDA_USE_STATIC_CUDA_RUNTIME are both set. This can result in runtime "
+            "failures when invoking CUDA kernels. Forcing CUDA_USE_STATIC_CUDA_RUNTIME to OFF.\n"
+            "Use cmake-gui, ccmake or manually edit the CMakeCache.txt file for this project to update these values.")
+  endif(WIN32 AND CUDA_USE_STATIC_CUDA_RUNTIME)
+  set(CUDA_USE_STATIC_CUDA_RUNTIME Off)
 endif(BUILD_SHARED_LIBS)
 
 # Setup default memory leak tracking suppressions and options (GCC/Clang AddressSanitizer).
