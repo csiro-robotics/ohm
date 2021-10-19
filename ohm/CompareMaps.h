@@ -147,25 +147,25 @@ VoxelsResult ohm_API compareVoxels(const OccupancyMap &eval_map, const Occupancy
 /// @param layer The tolerance object to configure.
 /// @param member_name The data member name to configure tolerance for.
 /// @param epsilon The allowed error limit (absolute value is used).
-void configureTolerance(ohm::MapLayer &layer, const char *member_name, int8_t epsilon);
+void ohm_API configureTolerance(ohm::MapLayer &layer, const char *member_name, int8_t epsilon);
 /// @overload
-void configureTolerance(ohm::MapLayer &layer, const char *member_name, uint8_t epsilon);
+void ohm_API configureTolerance(ohm::MapLayer &layer, const char *member_name, uint8_t epsilon);
 /// @overload
-void configureTolerance(ohm::MapLayer &layer, const char *member_name, int16_t epsilon);
+void ohm_API configureTolerance(ohm::MapLayer &layer, const char *member_name, int16_t epsilon);
 /// @overload
-void configureTolerance(ohm::MapLayer &layer, const char *member_name, uint16_t epsilon);
+void ohm_API configureTolerance(ohm::MapLayer &layer, const char *member_name, uint16_t epsilon);
 /// @overload
-void configureTolerance(ohm::MapLayer &layer, const char *member_name, int32_t epsilon);
+void ohm_API configureTolerance(ohm::MapLayer &layer, const char *member_name, int32_t epsilon);
 /// @overload
-void configureTolerance(ohm::MapLayer &layer, const char *member_name, uint32_t epsilon);
+void ohm_API configureTolerance(ohm::MapLayer &layer, const char *member_name, uint32_t epsilon);
 /// @overload
-void configureTolerance(ohm::MapLayer &layer, const char *member_name, int64_t epsilon);
+void ohm_API configureTolerance(ohm::MapLayer &layer, const char *member_name, int64_t epsilon);
 /// @overload
-void configureTolerance(ohm::MapLayer &layer, const char *member_name, uint64_t epsilon);
+void ohm_API configureTolerance(ohm::MapLayer &layer, const char *member_name, uint64_t epsilon);
 /// @overload
-void configureTolerance(ohm::MapLayer &layer, const char *member_name, float epsilon);
+void ohm_API configureTolerance(ohm::MapLayer &layer, const char *member_name, float epsilon);
 /// @overload
-void configureTolerance(ohm::MapLayer &layer, const char *member_name, double epsilon);
+void ohm_API configureTolerance(ohm::MapLayer &layer, const char *member_name, double epsilon);
 }  // namespace compare
 }  // namespace ohm
 

@@ -20,7 +20,7 @@ const char ohm_API *occupancyLayerName();
 const char ohm_API *meanLayerName();
 /// Name of the traversal layer.
 /// @return "traversal"
-const char *ohm_API traversalLayerName();
+const char ohm_API *traversalLayerName();
 /// Name of the @c CovarianceVoxel layer containing packed voxel covariances.
 /// @return "covariance"
 const char ohm_API *covarianceLayerName();
