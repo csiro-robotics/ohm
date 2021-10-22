@@ -31,7 +31,7 @@ public:
 
   /// Hashing structure for the key. To use with hash based containers.
   /// The resulting hash is a 32-bit unsigned integer.
-  struct Hash
+  struct ohm_API Hash
   {
     /// Calculate the 32-bit hash for @c key.
     /// @param key The key to hash.
@@ -359,7 +359,7 @@ namespace std
 {
 /// @c std::hash overload for @c ohm::Key .
 template <>
-struct hash<ohm::Key> : public ohm::Key::Hash
+struct ohm_API hash<ohm::Key> : public ohm::Key::Hash
 {
 };
 }  // namespace std

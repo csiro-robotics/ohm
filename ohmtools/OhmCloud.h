@@ -37,7 +37,7 @@ using ProgressCallback = std::function<void(size_t, size_t)>;
 using ColourSelect = std::function<ohm::Colour(const ohm::Voxel<const float> &)>;
 
 /// Options used to adjust how a cloud is saved from an occupancy map.
-struct SaveCloudOptions
+struct ohmtools_API SaveCloudOptions
 {
   /// Overrides the default colour selection.
   ColourSelect colour_select{};
@@ -60,7 +60,7 @@ struct SaveDensityCloudOptions : SaveCloudOptions
 
 /// Specialised options for saving heightmap clouds. Supports construction from a @c SaveCloudOptions setting default
 /// values for heightmap extended parameters.
-struct SaveHeightmapCloudOptions : SaveCloudOptions
+struct ohmtools_API SaveHeightmapCloudOptions : SaveCloudOptions
 {
   bool collapse = false;  ///< Collapse to a 2.5D heightmap, reducing layered heightmaps to 2D?
 
@@ -91,7 +91,7 @@ struct SaveHeightmapCloudOptions : SaveCloudOptions
 // Colour selection helpers
 //------------------------------------------------------------------------------
 /// A helper for @c saveCloud() to colour a cloud by height.
-class ColourByHeight
+class ohmtools_API ColourByHeight
 {
 public:
   /// Default colour for the mimimum height value
@@ -134,7 +134,7 @@ private:
 };
 
 /// Colour heightmap voxels by @c ohm::OccupancyType colouring occupied and free voxels.
-class ColourByType
+class ohmtools_API ColourByType
 {
 public:
   /// Colour for occupied voxels
@@ -156,7 +156,7 @@ private:
 };
 
 /// Colour heightmap voxels such that voxels in matching heightmap layers have the same colour.
-class ColourHeightmapLayer
+class ohmtools_API ColourHeightmapLayer
 {
 public:
   /// Create a layer colouriser for @p map.
@@ -173,7 +173,7 @@ private:
 };
 
 /// Colour heightmap voxels by @c HeightmapVoxelType::kSurface or @c HeightmapVoxelType::kVirtualSurface type.
-class ColourHeightmapType
+class ohmtools_API ColourHeightmapType
 {
 public:
   /// Colour to use for surface voxels.
@@ -195,7 +195,7 @@ private:
 };
 
 /// A helper for @c saveCloud() to colour a cloud by height.
-class ColourByHeightmapClearance
+class ohmtools_API ColourByHeightmapClearance
 {
 public:
   /// Colour used when there is zero clearance.

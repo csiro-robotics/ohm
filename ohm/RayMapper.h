@@ -19,7 +19,7 @@ class KeyList;
 /// A @c RayMapper serves to provide a unified interface for integrating rays into an @c OccupancyMap .
 ///
 /// This interfaces solely serves to define the @p integrateRays() function.
-class RayMapper
+class ohm_API RayMapper
 {
 public:
   /// Default constructor.

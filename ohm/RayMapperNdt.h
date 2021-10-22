@@ -28,7 +28,7 @@ class NdtMap;
 ///
 /// For reference see:
 /// 3D Normal Distributions Transform Occupancy Maps: An Efficient Representation for Mapping in Dynamic Environments
-class RayMapperNdt : public RayMapper
+class ohm_API RayMapperNdt : public RayMapper
 {
 public:
   /// Constructor, wrapping the interface around the given @p map .

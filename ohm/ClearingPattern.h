@@ -34,7 +34,7 @@ class OccupancyMap;
 ///
 /// @todo Rename this class to @c RayPattern and configure a selection of default flags including @c kClearingFlags
 /// for the current default behaviour.
-class ClearingPattern
+class ohm_API ClearingPattern
 {
 public:
   /// Default flags used for a clearing pattern. The flags are set to ensure rays only affect occupied voxels

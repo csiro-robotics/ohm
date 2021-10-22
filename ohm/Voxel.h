@@ -288,7 +288,7 @@ struct VoxelChunkAccess<const T>
 ///
 /// @todo Add validation debug compile flag which validate the various initalisations and data access calls.
 template <typename T>
-class ohm_API Voxel
+class Voxel
 {
 public:
   /// Non-const data type for @c T
@@ -589,7 +589,7 @@ void setVoxelKey2(const KeyType &key, Voxel<T> &voxel)
 /// @param voxel The first @c Voxel to set the key for.
 /// @param args Additional @c Voxel references.
 template <typename KeyType, typename T, typename... Args>
-void setVoxelKey2(const KeyType &key, Voxel<T> &voxel, Args &... args)
+void setVoxelKey2(const KeyType &key, Voxel<T> &voxel, Args &...args)
 {
   setVoxelKey2(voxel.setKey(key), args...);
 }
@@ -620,7 +620,7 @@ void setVoxelKey(const OccupancyMap::const_iterator &iter, Voxel<T> &voxel)
 /// @param voxel The first @c Voxel to set the key for.
 /// @param args Additional @c Voxel references.
 template <typename T, typename... Args>
-void setVoxelKey(const Key &key, Voxel<T> &voxel, Args &... args)
+void setVoxelKey(const Key &key, Voxel<T> &voxel, Args &...args)
 {
   setVoxelKey2(key, voxel, args...);
 }
@@ -630,7 +630,7 @@ void setVoxelKey(const Key &key, Voxel<T> &voxel, Args &... args)
 /// @param voxel The first @c Voxel to set the key for. Must be a mutable voxel.
 /// @param args Additional @c Voxel references.
 template <typename T, typename... Args>
-void setVoxelKey(const OccupancyMap::iterator &iter, Voxel<T> &voxel, Args &... args)
+void setVoxelKey(const OccupancyMap::iterator &iter, Voxel<T> &voxel, Args &...args)
 {
   setVoxelKey2(iter, voxel, args...);
 }
@@ -640,7 +640,7 @@ void setVoxelKey(const OccupancyMap::iterator &iter, Voxel<T> &voxel, Args &... 
 /// @param voxel The first @c Voxel to set the key for. Must be a const voxel.
 /// @param args Additional @c Voxel references.
 template <typename T, typename... Args>
-void setVoxelKey(const OccupancyMap::const_iterator &iter, Voxel<T> &voxel, Args &... args)
+void setVoxelKey(const OccupancyMap::const_iterator &iter, Voxel<T> &voxel, Args &...args)
 {
   setVoxelKey2(iter, voxel, args...);
 }

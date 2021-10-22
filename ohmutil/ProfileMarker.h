@@ -6,6 +6,8 @@
 #ifndef OHMUTIL_PROFILEMARKER_H
 #define OHMUTIL_PROFILEMARKER_H
 
+#include "OhmUtilExport.h"
+
 namespace ohm
 {
 class Profile;
@@ -17,7 +19,7 @@ class Profile;
 /// @c restart() - push. These are ignored if the marker is not in the appropriate state.
 ///
 /// @see Profile
-class ProfileMarker
+class ohmutil_API ProfileMarker
 {
 public:
   /// Create a marker with the given name using the @c Profile::instance().

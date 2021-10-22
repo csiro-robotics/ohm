@@ -5,7 +5,6 @@
 // Author: Kazys Stepanas, Jason Williams
 #include <ohm/DefaultLayer.h>
 #include <ohm/Key.h>
-#include <ohm/KeyHash.h>
 #include <ohm/MapLayer.h>
 #include <ohm/MapLayout.h>
 #include <ohm/NdtMap.h>
@@ -44,7 +43,7 @@ namespace ndttests
 {
 void testNdtHits(const std::vector<glm::dvec3> &samples, double resolution)
 {
-  std::unordered_map<ohm::Key, CovTestVoxel, ohm::KeyHash> reference_voxels;
+  std::unordered_map<ohm::Key, CovTestVoxel> reference_voxels;
 
   ohm::OccupancyMap map(resolution, ohm::MapFlag::kVoxelMean);
   ohm::GpuNdtMap ndt(&map, true, ohm::NdtMode::kTraversability);

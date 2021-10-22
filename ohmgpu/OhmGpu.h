@@ -56,7 +56,7 @@ int ohmgpu_API configureGpu(unsigned accel = kGpuAccel, const char *device_name 
 
 /// Get the GPU device to use for GPU based code in this library.
 /// @return A reference to the GPU device to use.
-gputil::Device &ohmgpu_API gpuDevice();
+gputil::Device ohmgpu_API &gpuDevice();
 
 /// Provides information about the available command line options which control GPU behaviour.
 ///

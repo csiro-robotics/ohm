@@ -103,7 +103,7 @@ public:
   };
 
   /// Static compression controls.
-  struct CompressionControls
+  struct ohm_API CompressionControls
   {
     /// Minimum initial buffer size used when compressing a voxel block.
     unsigned minimum_buffer_size = 0;

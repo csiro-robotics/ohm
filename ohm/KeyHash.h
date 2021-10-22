@@ -15,7 +15,7 @@
 namespace ohm
 {
 /// Hashing function for @c Key objects.
-struct KeyHash
+struct ohm_API KeyHash
 {
   /// Hash operator.
   /// @param key The key to hash.

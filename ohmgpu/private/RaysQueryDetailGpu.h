@@ -35,7 +35,7 @@ struct RaysQueryMapWrapperDetail : public GpuMapDetail
 /// - Only supports one inflight query.
 /// - Rays cannot be removed by filtering, only clipped.
 /// - Behaviour is undefined if the ray query does not fit in a single GPU batch.
-class RaysQueryMapWrapper final : public GpuMap
+class ohmgpu_API RaysQueryMapWrapper final : public GpuMap
 {
 public:
   /// Create a @c RaysQueryMapWrapper . Note we initialise with a null map and set the map pointer later.

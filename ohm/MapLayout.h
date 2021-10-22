@@ -107,7 +107,7 @@ struct MapChunk;
 ///   return voxels[voxelIndex];
 /// }
 /// @endcode
-class MapLayout
+class ohm_API MapLayout
 {
 public:
   /// Create an empty layout.

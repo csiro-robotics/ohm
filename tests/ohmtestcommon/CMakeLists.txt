@@ -22,7 +22,7 @@ if(Eigen3_FOUND)
   )
 endif(Eigen3_FOUND)
 
-add_library(ohmtestcommon ${SOURCES})
+add_library(ohmtestcommon STATIC ${SOURCES})
 
 set_target_properties(ohmtestcommon PROPERTIES FOLDER tests)
 

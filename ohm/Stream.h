@@ -30,7 +30,7 @@ enum StreamFlag : unsigned
 
 /// Base class for @c InputStream and @c OutputStream used to encapsulate file access and compression.
 /// The stream is tailored towards file access, not a generalised stream.
-class Stream
+class ohm_API Stream
 {
 public:
   /// Returns true if the stream (file) is open.
@@ -117,7 +117,7 @@ protected:
 /// - After finishing reading all compressed data.
 //.
 /// It is not advised to read more than one compressed data section.
-class InputStream : public Stream
+class ohm_API InputStream : public Stream
 {
 public:
   /// Constructor, optionally opening a file.
@@ -201,7 +201,7 @@ protected:
 /// - After finishing reading all compressed data.
 //.
 /// It is not advised to write more than one compressed data section.
-class OutputStream : public Stream
+class ohm_API OutputStream : public Stream
 {
 public:
   /// Constructor, optionally opening a file.

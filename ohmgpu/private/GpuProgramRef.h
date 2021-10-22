@@ -30,7 +30,7 @@ namespace ohm
 ///   - E.g., in the constructor of the file using the program.
 /// - Call release when each reference is done with the program.
 ///   - E.g., in the constructor of the file using the program.
-class GpuProgramRef
+class ohmgpu_API GpuProgramRef
 {
 public:
   /// Type of source being used/referenced

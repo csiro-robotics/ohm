@@ -12,6 +12,15 @@
 
 #include <cinttypes>
 
+#ifdef _MSC_VER
+// After some deliberation I've disabled warning 4661. This warning arises because a template function does not have
+// a definition available. Howver, this is a red herring in this case. We explicitly instantiate both VoxelLayoutT
+// signatures we need - VoxelLayoutDetail and const VoxelLayoutDetail - and export from the DLL. I can't work out what
+// the "correct" way to resolve this warning in this case is, but it is erroneous in this case, as far as I can tell.
+#pragma warning(push)
+#pragma warning(disable : 4661)
+#endif  // _MSC_VER
+
 namespace ohm
 {
 struct VoxelLayoutDetail;
@@ -28,6 +37,9 @@ template <typename T>
 class VoxelLayoutT
 {
 public:
+  // Default constructor.
+  VoxelLayoutT() = default;
+
   /// Create a new layout structure around the given data.
   /// @param detail The @c VoxelLayoutDetail.
   explicit VoxelLayoutT(T *detail);
@@ -97,7 +109,7 @@ public:
   inline T *detail() const { return detail_; }
 
 protected:
-  T *detail_;  ///< Internal implementation detail.
+  T *detail_ = nullptr;  ///< Internal implementation detail.
 };
 
 /// Template instantiation.
@@ -106,7 +118,7 @@ extern template class VoxelLayoutT<VoxelLayoutDetail>;
 extern template class VoxelLayoutT<const VoxelLayoutDetail>;
 
 /// A writable voxel layout for use in @p MapLayout.
-class VoxelLayout : public VoxelLayoutT<VoxelLayoutDetail>
+class ohm_API VoxelLayout : public VoxelLayoutT<VoxelLayoutDetail>
 {
 public:
   /// Constructor: invalid object.
@@ -161,7 +173,7 @@ public:
 };
 
 /// A readonly voxel layout for use in @p MapLayout.
-class VoxelLayoutConst : public VoxelLayoutT<const VoxelLayoutDetail>
+class ohm_API VoxelLayoutConst : public VoxelLayoutT<const VoxelLayoutDetail>
 {
 public:
   /// Constructor: invalid object.
@@ -198,23 +210,27 @@ public:
 
 
 template <typename T>
-VoxelLayoutT<T>::VoxelLayoutT(T *detail)
+inline VoxelLayoutT<T>::VoxelLayoutT(T *detail)
   : detail_(detail)
 {}
 
 
 template <typename T>
-VoxelLayoutT<T>::VoxelLayoutT(const VoxelLayoutT &other)
+inline VoxelLayoutT<T>::VoxelLayoutT(const VoxelLayoutT &other)
   : detail_(other.detail_)
 {}
 
 
 template <typename T>
-VoxelLayoutT<T>::VoxelLayoutT(VoxelLayoutT &&other) noexcept
+inline VoxelLayoutT<T>::VoxelLayoutT(VoxelLayoutT &&other) noexcept
   : detail_(other.detail_)
 {
   other.detail_ = nullptr;
 }
 }  // namespace ohm
+
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif  // _MSC_VER
 
 #endif  // OHMVOXELLAYOUT_H

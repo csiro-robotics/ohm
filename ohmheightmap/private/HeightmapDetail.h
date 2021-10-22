@@ -76,6 +76,8 @@ struct ohmheightmap_API HeightmapDetail
   /// @see @c Heightmap::setPromoteVirtualBelow()
   bool promote_virtual_below = false;
 
+  ~HeightmapDetail();
+
   void updateAxis();
   static const glm::dvec3 &upAxisNormal(UpAxis axis_id);
   static int surfaceIndexA(UpAxis up_axis_id);

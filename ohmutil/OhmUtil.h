@@ -132,7 +132,7 @@ enum class ByteMagnitude : int
 
 /// A helper structure for displaying byte values. Can be used as an io stream manipulator to write raw byte values into
 /// a text stream for display.
-class Bytes
+class ohmutil_API Bytes
 {
 public:
   /// Byte scale conversion values from any @c ByteMagnitude to @c ByteMagnitude::kByte.
@@ -223,7 +223,7 @@ private:
 /// @param in The stream to read from.
 /// @param bytes The byte structure to parse into.
 /// @return True on success.
-bool parseBytes(std::istream &in, ohm::util::Bytes &bytes, bool read_suffix = true);
+bool ohmutil_API parseBytes(std::istream &in, ohm::util::Bytes &bytes, bool read_suffix = true);
 }  // namespace util
 }  // namespace ohm
 

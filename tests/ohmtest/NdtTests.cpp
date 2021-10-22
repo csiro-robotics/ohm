@@ -6,7 +6,6 @@
 #include "OhmTestConfig.h"
 
 #include <ohm/Key.h>
-#include <ohm/KeyHash.h>
 #include <ohm/NdtMap.h>
 #include <ohm/OccupancyMap.h>
 #include <ohm/Trace.h>
@@ -51,7 +50,7 @@ const float default_ndt_tolerance = 0.001f;
 /// @param voxel_resolution The voxel size for the @c OccupancyMap
 void testNdtHits(const std::vector<glm::dvec3> &samples, const std::vector<glm::dvec3> &sensors, double resolution)
 {
-  std::unordered_map<ohm::Key, CovTestVoxel, ohm::KeyHash> reference_voxels;
+  std::unordered_map<ohm::Key, CovTestVoxel> reference_voxels;
 
   ohm::OccupancyMap map(resolution, ohm::MapFlag::kVoxelMean);
   ohm::NdtMap ndt(&map, true);

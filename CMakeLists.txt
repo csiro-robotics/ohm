@@ -32,10 +32,6 @@ foreach(CONF Debug;Release;MinSizeRel;RelWithDebInfo)
   set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_${CONFU} "${CMAKE_BINARY_DIR}/bin")
 endforeach(CONF)
 
-# Manage compiler warnings.
-# Use CMAKE_MODULE_PATH and include(warnings) if warnings.cmake is moved.
-include(compilerSetup)
-
 # Add memory leak tracking support.
 include(LeakTrack)
 
@@ -120,6 +116,10 @@ else(NOT DEFINED OHM_THREADS)
   set(TBB_THREADS_DEFAULT ${OHM_THREADS})
 endif(NOT DEFINED OHM_THREADS)
 
+option(OHM_BUILD_SHARED "Build shared ohm libraries?" ${BUILD_SHARED_LIBS})
+# For details on OHM_BUILD_SHARED_SUPPRESS_WARNINGS, see usage in compilerSetup.cmake
+option(OHM_BUILD_SHARED_SUPPRESS_WARNINGS
+  "Suppress warnings relating the DLL export symbols when building shared? Disables MSC warnings C4251 and C4275" ON)
 option(OHM_PROFILE "Enable timing information messages for some queries." Off)
 option(OHM_TES_DEBUG "Enable visual debuging code?" Off)
 option(OHM_THREADS "Enable CPU threading (using Thread Building Blocks)? Not advisable for onboard compilation." ${TBB_THREADS_DEFAULT})
@@ -130,6 +130,25 @@ option(OHM_BUILD_OPENCL "Build ohm library and utlities for OpenCL?" ${OHM_BUILD
 option(OHM_LEAK_TRACK "Enable memory leak tracking?" OFF)
 
 option(WITH_OCTOMAP "Build comparative occupancy map generation using octomap?" OFF)
+
+# Manage compiler warnings.
+# Use CMAKE_MODULE_PATH and include(warnings) if warnings.cmake is moved.
+include(compilerSetup)
+
+# Migrate ohm specific setting for building shared libraries to the CMake global option.
+set(BUILD_SHARED_LIBS ${OHM_BUILD_SHARED})
+if(BUILD_SHARED_LIBS)
+  message(STATUS "Building shared ohm libraries.")
+
+  if(WIN32)
+    if(CUDA_USE_STATIC_CUDA_RUNTIME)
+      message("Warning: BUILD_SHARED_LIBS and CUDA_USE_STATIC_CUDA_RUNTIME are both set. This can result in runtime "
+              "failures when invoking CUDA kernels. Forcing CUDA_USE_STATIC_CUDA_RUNTIME to OFF.\n"
+              "Use cmake-gui, ccmake or manually edit the CMakeCache.txt file for this project to update these values.")
+    endif(CUDA_USE_STATIC_CUDA_RUNTIME)
+    set(CUDA_USE_STATIC_CUDA_RUNTIME Off)
+  endif(WIN32)
+endif(BUILD_SHARED_LIBS)
 
 # Setup default memory leak tracking suppressions and options (GCC/Clang AddressSanitizer).
 set(OHM_LEAK_SUPPRESS_OCL_INIT

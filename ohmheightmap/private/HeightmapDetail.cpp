@@ -6,11 +6,14 @@
 #include "HeightmapDetail.h"
 
 #include <ohm/MapInfo.h>
+#include <ohm/OccupancyMap.h>
 
 #include <array>
 
 namespace ohm
 {
+HeightmapDetail::~HeightmapDetail() = default;
+
 const glm::dvec3 &HeightmapDetail::upAxisNormal(UpAxis axis_id)
 {
   static const std::array<glm::dvec3, 7> axes =  //

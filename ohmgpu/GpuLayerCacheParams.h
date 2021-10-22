@@ -42,14 +42,14 @@ struct ohmgpu_API GpuLayerCacheParams
   GpuCachePostSyncHandler on_sync;
 
   /// Default constructor.
-  GpuLayerCacheParams() = default;
+  inline GpuLayerCacheParams() = default;
   /// Construct with the given member values.
   /// @param mem_size Target GPU cache size.
   /// @param layer The @c MapLayer index which the GPU layer cache synchronised with.
   /// @param flags @c GpuLayerCacheFlag cache creation flags.
   /// @param on_sync Callback to invoke on synchronising back to CPU.
-  GpuLayerCacheParams(size_t mem_size, int layer, unsigned flags,
-                      GpuCachePostSyncHandler on_sync = GpuCachePostSyncHandler())
+  inline GpuLayerCacheParams(size_t mem_size, int layer, unsigned flags,
+                             GpuCachePostSyncHandler on_sync = GpuCachePostSyncHandler())
     : gpu_mem_size(mem_size)
     , map_layer(layer)
     , flags(flags)

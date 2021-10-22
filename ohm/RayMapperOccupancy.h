@@ -25,7 +25,7 @@ namespace ohm
 /// The @c integrateRays() implementation performs a single threaded walk of the voxels to update and touches
 /// those voxels one at a time, updating their occupancy value. The given @c OccupancyMap must have an occupancy
 /// layer and may have a @c VoxelMean layer.
-class RayMapperOccupancy : public RayMapper
+class ohm_API RayMapperOccupancy : public RayMapper
 {
 public:
   /// Constructor, wrapping the interface around the given @p map .

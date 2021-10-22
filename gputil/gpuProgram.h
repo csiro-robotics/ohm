@@ -18,7 +18,7 @@ class Device;
 struct ProgramDetail;
 
 /// Additional arguments specifying how to build a GPU program.
-struct BuildArgs
+struct gputilAPI BuildArgs
 {
   /// Target (major) API version to build for - e.g., the `1` in OpenCL 1.2. Optional.
   int version_major = -1;

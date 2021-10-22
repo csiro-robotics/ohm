@@ -6,6 +6,8 @@
 #ifndef OHMUTIL_SCOPEDTIMEDISPLAY_H
 #define OHMUTIL_SCOPEDTIMEDISPLAY_H
 
+#include "OhmUtilExport.h"
+
 #include <functional>
 #include <iosfwd>
 #include <memory>
@@ -43,7 +45,7 @@ struct ScopedTimeDisplayDetail;
 /// @endcode
 ///
 /// The default output format is: <tt>&lt;messagePrefix&gt;: &lt;time&gt;\\n</tt>.
-class ScopedTimeDisplay
+class ohmutil_API ScopedTimeDisplay
 {
 public:
   /// Custom logging function signature.

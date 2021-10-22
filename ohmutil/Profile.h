@@ -6,6 +6,8 @@
 #ifndef OHMUTIL_PROFILE_H
 #define OHMUTIL_PROFILE_H
 
+#include "OhmUtilExport.h"
+
 #include "ProfileMarker.h"
 
 #include <chrono>
@@ -55,7 +57,7 @@ struct ProfileDetail;
 /// ----------------------------------------
 /// ----------------------------------------
 /// @endcode
-class Profile
+class ohmutil_API Profile
 {
 public:
   /// Profile system constructor.

@@ -182,7 +182,7 @@ public:
   };
 
   /// Non-constant iterator into an @c OccupancyMap.
-  class iterator : public base_iterator  // NOLINT
+  class ohm_API iterator : public base_iterator  // NOLINT
   {
   public:
     /// Constructor of an invalid iterator.
@@ -229,7 +229,7 @@ public:
   };
 
   /// Constant (read only) iterator for an @c OccupancyMap.
-  class const_iterator : public base_iterator  // NOLINT
+  class ohm_API const_iterator : public base_iterator  // NOLINT
   {
   public:
     /// Constructor of an invalid iterator.

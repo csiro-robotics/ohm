@@ -60,7 +60,7 @@ struct GpuNdtMapDetail;
 /// the NDT sample update.
 ///
 /// The NDT changes are applied by overriding @c finaliseBatch()
-class GpuNdtMap : public GpuMap
+class ohmgpu_API GpuNdtMap : public GpuMap
 {
 public:
   /// Create a @c GpuNdtMap around the given @p map representation.
