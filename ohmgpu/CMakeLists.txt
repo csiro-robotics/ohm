@@ -8,6 +8,11 @@ if(OHM_THREADS)
   find_tbb()
 endif(OHM_THREADS)
 
+if(OHM_BUILD_CUDA AND OHM_USE_DEPRECATED_CMAKE_CUDA)
+  # Need to find CUDA for deprecated project configuration
+  find_package(CUDA)
+endif(OHM_BUILD_CUDA AND OHM_USE_DEPRECATED_CMAKE_CUDA)
+
 set(TES_ENABLE ${OHM_TES_DEBUG})
 configure_file(OhmGpuConfig.in.h "${CMAKE_CURRENT_BINARY_DIR}/ohmgpu/OhmGpuConfig.h")
 
@@ -212,7 +217,12 @@ if(OHM_BUILD_CUDA)
     gpu/TransformSamples.cu
   )
 
-  cuda_add_library(ohmcuda ${SOURCES} ${GPU_SOURCES} ${GPU_HEADERS})
+  if(OHM_USE_DEPRECATED_CMAKE_CUDA)
+    cuda_add_library(ohmcuda ${SOURCES} ${GPU_SOURCES} ${GPU_HEADERS})
+  else(OHM_USE_DEPRECATED_CMAKE_CUDA)
+    add_library(ohmcuda ${SOURCES} ${GPU_SOURCES} ${GPU_HEADERS})
+  endif(OHM_USE_DEPRECATED_CMAKE_CUDA)
+
   _ohmgpu_setup_target(ohmcuda gputilcuda ${OHM_GPU_CUDA})
 endif(OHM_BUILD_CUDA)
 

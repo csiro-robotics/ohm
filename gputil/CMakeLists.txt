@@ -1,19 +1,13 @@
 include(GenerateExportHeader)
 
-if(OHM_BUILD_OPENCL)
-  find_package(OpenCL QUIET)
-endif(OHM_BUILD_OPENCL)
-if(OHM_BUILD_CUDA)
-  find_package(CUDA QUIET)
-endif(OHM_BUILD_CUDA)
-
-if(NOT CUDA_FOUND AND NOT OPENCL_FOUND)
-  message(FATAL_ERROR "Neither CUDA nor OpenCL SDK found. A GPU SDK is required to build gputil.")
-endif(NOT CUDA_FOUND AND NOT OPENCL_FOUND)
-
 if(NOT OHM_BUILD_CUDA AND NOT OHM_BUILD_OPENCL)
   message(FATAL_ERROR "Neither OHM_BUILD_CUDA nor OHM_BUILD_OPENCL selected for build. A GPU SDK is required to build gputil.")
 endif(NOT OHM_BUILD_CUDA AND NOT OHM_BUILD_OPENCL)
+
+if(OHM_BUILD_CUDA AND OHM_USE_DEPRECATED_CMAKE_CUDA)
+  # Need to find CUDA for deprecated project configuration
+  find_package(CUDA)
+endif(OHM_BUILD_CUDA AND OHM_USE_DEPRECATED_CMAKE_CUDA)
 
 set(GPUTIL_TYPE_OPENCL 1)
 set(GPUTIL_TYPE_CUDA 2)
@@ -176,7 +170,12 @@ if(OHM_BUILD_CUDA)
     cuda/ref.h
   )
 
-  cuda_add_library(gputilcuda ${SOURCES} ${SOURCES_CUDA})
+  if(OHM_USE_DEPRECATED_CMAKE_CUDA)
+    cuda_add_library(gputilcuda ${SOURCES} ${SOURCES_CUDA})
+  else(OHM_USE_DEPRECATED_CMAKE_CUDA)
+    add_library(gputilcuda ${SOURCES} ${SOURCES_CUDA})
+  endif(OHM_USE_DEPRECATED_CMAKE_CUDA)
+
   clang_tidy_target(gputilcuda EXCLUDE_MATCHES ".*\.cl")
   target_include_directories(gputilcuda SYSTEM
     PUBLIC

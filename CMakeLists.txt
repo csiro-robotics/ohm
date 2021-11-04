@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.10)
 project(ohm)
 
 set(CMAKE_CXX_STANDARD 14)
@@ -44,18 +44,13 @@ set(OHM_PREFIX_INCLUDE include/ohm)
 # General, required library
 find_package(GLM REQUIRED)
 
-# Look for OpenCL and CUDA to setup GPU build options
-find_package(CUDA QUIET)
-# Ensure CUDA libraries are linked with the PUBLIC keyword to support dependency propagation.
-set(CUDA_LINK_LIBRARIES_KEYWORD PUBLIC)
+# Look for CUDA to setup CUDA build options and work out which CMake CUDA paradigm we'll use.
+include(OhmCuda)
+# Look for OpenCL to setup OpenCL build options.
 find_package(OpenCL QUIET)
 
-set(OHM_BUILD_CUDA_DEFAULT NO)
 set(OHM_BUILD_OPENCL_DEFAULT NO)
 
-if(CUDA_FOUND)
-  set(OHM_BUILD_CUDA_DEFAULT YES)
-endif(CUDA_FOUND)
 if(OPENCL_FOUND)
   set(OHM_BUILD_OPENCL_DEFAULT YES)
 endif(OPENCL_FOUND)
@@ -125,7 +120,7 @@ option(OHM_TES_DEBUG "Enable visual debuging code?" Off)
 option(OHM_THREADS "Enable CPU threading (using Thread Building Blocks)? Not advisable for onboard compilation." ${TBB_THREADS_DEFAULT})
 option(OHM_UNIT_TESTS "Build ohm units tests?" On)
 option(OHM_VALIDATION "Enable various validation tests in the occupancy map code. Has some performance impact." Off)
-option(OHM_BUILD_CUDA "Build ohm library and utlities for CUDA?" ${OHM_BUILD_CUDA_DEFAULT})
+# OHM_BUILD_CUDA is found in OhmCuda.cmake
 option(OHM_BUILD_OPENCL "Build ohm library and utlities for OpenCL?" ${OHM_BUILD_OPENCL_DEFAULT})
 option(OHM_LEAK_TRACK "Enable memory leak tracking?" OFF)
 
@@ -139,16 +134,10 @@ include(compilerSetup)
 set(BUILD_SHARED_LIBS ${OHM_BUILD_SHARED})
 if(BUILD_SHARED_LIBS)
   message(STATUS "Building shared ohm libraries.")
-
-  if(WIN32)
-    if(CUDA_USE_STATIC_CUDA_RUNTIME)
-      message("Warning: BUILD_SHARED_LIBS and CUDA_USE_STATIC_CUDA_RUNTIME are both set. This can result in runtime "
-              "failures when invoking CUDA kernels. Forcing CUDA_USE_STATIC_CUDA_RUNTIME to OFF.\n"
-              "Use cmake-gui, ccmake or manually edit the CMakeCache.txt file for this project to update these values.")
-    endif(CUDA_USE_STATIC_CUDA_RUNTIME)
-    set(CUDA_USE_STATIC_CUDA_RUNTIME Off)
-  endif(WIN32)
 endif(BUILD_SHARED_LIBS)
+
+# Now setup CUDA after knowing if we are building shared libraries or not.
+cuda_setup()
 
 # Setup default memory leak tracking suppressions and options (GCC/Clang AddressSanitizer).
 set(OHM_LEAK_SUPPRESS_OCL_INIT
@@ -181,11 +170,6 @@ set(OHM_ASAN_OPTIONS_CUDA "${OHM_ASAN_OPTIONS_CUDA_INIT}" CACHE STRING "Address 
 set(OHM_GPU_OPENCL 1)
 set(OHM_GPU_CUDA 2)
 set(OHM_GPU 0)
-
-if(OHM_BUILD_CUDA)
-  include(cudautil)
-  nvcc_setup(OHM)
-endif(OHM_BUILD_CUDA)
 
 # Configure use of 3rd-Eye-Scene visual debugging (use for development only)
 if(OHM_TES_DEBUG)
@@ -228,7 +212,9 @@ option(OHM_BUILD_HEIGHTMAP_IMAGE "Build ohmheightmapimage library to support hei
 if(OHM_BUILD_OPENCL)
   add_subdirectory(clu)
 endif(OHM_BUILD_OPENCL)
-add_subdirectory(gputil)
+if(OHM_BUILD_CUDA OR OHM_BUILD_OPENCL)
+  add_subdirectory(gputil)
+endif(OHM_BUILD_CUDA OR OHM_BUILD_OPENCL)
 
 add_subdirectory(ohmutil)
 add_subdirectory(slamio)
