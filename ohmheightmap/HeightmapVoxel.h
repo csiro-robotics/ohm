@@ -63,14 +63,15 @@ enum HeightmapVoxelFlag : uint8_t
 /// CUDA compatibility would also need to be assessed.
 ///
 /// @internal Note(KS): ohmheightmap_API is not added to HeightmapVoxel. This fails to comple with GCC 7 when
-/// __attribute__ is also specified. Just removed as library export is not needed for a POD struct.
+/// __attribute__ is also specified. Just removed as library export is not needed for a POD struct (other than the
+/// static member which we explicitly tag for export).
 struct alignas(8) HeightmapVoxel
 {
   /// The name of the layer which stores these voxels.
-  static const char *const kHeightmapLayer;
+  static const char ohmheightmap_API *const kHeightmapLayer;
   /// The name of the layer used to build the first pass heightmap. This is the layer without blur.
   /// Only used when using blur.
-  static const char *const kHeightmapBuildLayer;
+  static const char ohmheightmap_API *const kHeightmapBuildLayer;
 
   /// The voxel height, relative to the voxel centre.
   float height;
