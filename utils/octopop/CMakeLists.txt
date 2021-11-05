@@ -6,11 +6,6 @@ endif()
 
 find_package(octomap CONFIG REQUIRED)
 
-if (Boost_FOUND)
-  # Need to add boost link directories because of LIBLAS.
-  link_directories("${Boost_LIBRARY_DIRS}")
-endif(Boost_FOUND)
-
 configure_file(OctoPopConfig.in.h "${CMAKE_CURRENT_BINARY_DIR}/ohmpop/OctoPopConfig.h")
 
 set(SOURCES

@@ -1,4 +1,3 @@
-find_package(Boost COMPONENTS "thread")
 find_package(GLM)
 find_package(LIBLAS QUIET)
 find_package(LASZIP QUIET)
