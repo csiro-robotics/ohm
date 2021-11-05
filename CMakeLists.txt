@@ -123,7 +123,13 @@ else(NOT DEFINED OHM_THREADS)
   set(TBB_THREADS_DEFAULT ${OHM_THREADS})
 endif(NOT DEFINED OHM_THREADS)
 
-option(OHM_BUILD_SHARED "Build shared ohm libraries?" ${BUILD_SHARED_LIBS})
+# Default to building shared libs.
+set(OHM_BUILD_SHARED_DEFAULT ON)
+if(DEFINED BUILD_SHARED_LIBS)
+  # But use BUILD_SHARED_LIBS as the default if it's specified (like from the command line).
+  set(OHM_BUILD_SHARED_DEFAULT ${BUILD_SHARED_LIBS})
+endif(DEFINED BUILD_SHARED_LIBS)
+option(OHM_BUILD_SHARED "Build shared ohm libraries?" ${OHM_BUILD_SHARED_DEFAULT})
 # For details on OHM_BUILD_SHARED_SUPPRESS_WARNINGS, see usage in compilerSetup.cmake
 option(OHM_BUILD_SHARED_SUPPRESS_WARNINGS
   "Suppress warnings relating the DLL export symbols when building shared? Disables MSC warnings C4251 and C4275" ON)
