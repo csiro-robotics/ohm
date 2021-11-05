@@ -44,10 +44,18 @@ set(OHM_PREFIX_INCLUDE include/ohm)
 # General, required library
 find_package(GLM REQUIRED)
 
-# Look for CUDA to setup CUDA build options and work out which CMake CUDA paradigm we'll use.
-include(OhmCuda)
 # Look for OpenCL to setup OpenCL build options.
 find_package(OpenCL QUIET)
+# Look for CUDA to setup CUDA build options and work out which CMake CUDA paradigm we'll use.
+include(OhmCuda)
+if(OHM_BUILD_CUDA)
+  if(NOT OHM_USE_DEPRECATED_CMAKE_CUDA)
+    find_package(CUDAToolkit REQUIRED)
+  else(NOT OHM_USE_DEPRECATED_CMAKE_CUDA)
+    # Need to find CUDA for deprecated project configuration
+    find_package(CUDA REQUIRED)
+  endif(NOT OHM_USE_DEPRECATED_CMAKE_CUDA)
+endif(OHM_BUILD_CUDA)
 
 set(OHM_BUILD_OPENCL_DEFAULT NO)
 

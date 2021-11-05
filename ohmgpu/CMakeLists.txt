@@ -112,7 +112,7 @@ function(_ohmgpu_setup_target TARGET_NAME GPUTIL_LIBRARY OHM_GPU)
   # symbols or not. This puts us in a position where it could either be ohmcuda_EXPORTS or ohmocl_EXPORTS depending
   # on which targets are enabled. We build both the same way though, so define both symbols for all builds.
   target_compile_definitions(${TARGET_NAME} PRIVATE "-Dohmcuda_EXPORTS" "-Dohmocl_EXPORTS")
-  target_link_libraries(${TARGET_NAME} PUBLIC ohm ohmutil ${GPUTIL_LIBRARY})
+  target_link_libraries(${TARGET_NAME} PUBLIC ohm ohmutil PRIVATE ${GPUTIL_LIBRARY})
 
   target_include_directories(${TARGET_NAME}
     PUBLIC

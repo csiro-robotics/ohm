@@ -36,7 +36,6 @@ else(NOT OHM_USE_DEPRECATED_CMAKE_CUDA)
 endif(NOT OHM_USE_DEPRECATED_CMAKE_CUDA)
 
 
-set(OHM_USE_DEPRECATED_CMAKE_CUDA_DEFAULT ON) # New configuration not ready yet.
 # Configure an option for forcibly using the deprecated CUDA project configuration.
 option(OHM_USE_DEPRECATED_CMAKE_CUDA
   "Use deprecated CUDA project setup? Disabling requires CMake 3.10+ but the CUDA architecture cannot be set until 3.18."
@@ -84,21 +83,41 @@ endmacro(cuda_setup)
 
 #==============================================================================
 #==============================================================================
-function(_cuda_setup_build_options)
+macro(_cuda_setup_build_options)
+  enable_language(CUDA)
   # Setup architectures
-  set(CUDA_ARCHITECTURES "${OHM_CUDA_ARCHITECTURES}")
+  set(CMAKE_CUDA_ARCHITECTURES "${OHM_CUDA_ARCHITECTURES}")
   # Match CUDA standard to the C++ standard for the project.
-  set(CUDA_STANDARD ${CMAKE_CXX_STANDARD})
-  set(CUDA_STANDARD_REQUIRED ${CMAKE_CXX_STANDARD_REQUIRED})
-  # TODO: resolve how to add/override CUDA compiler options. Specifically:
-  # - add "-g -G -lineinfo" for rudamentary debugging
-  # - add "-g -G -O0" for full debugging (not optimisation)
-endfunction(_cuda_setup_build_options)
+  set(CMAKE_CUDA_STANDARD ${CMAKE_CXX_STANDARD})
+  set(CMAKE_CUDA_STANDARD_REQUIRED ${CMAKE_CXX_STANDARD_REQUIRED})
+  # Note; the CMake setup (3.18) adds the compiler flag '-std=c++##'. This is correct for NVCC, GCC and Clang, but is
+  # not correct for MSVC where it should be '/std:c++##' (note the use of ':' rather than '='). This generates a build
+  # warning that the host compiler will ignore '-std=c++##'. This is harmless, but would be nice to avoid.
+  # However, we should add the right flag for MSVC, so we do it below.
+  if(MSVC)
+    add_compile_options("-std:c++${CMAKE_CXX_STANDARD}")
+  endif( MSVC)
+  # set(CMAKE_CUDA_SEPARABLE_COMPILATION ON)
+  # Select shared or static CUDA runtime
+  if(OHM_CUDA_DEBUG STREQUAL "full")
+    add_compile_options(
+      "$<$<COMPILE_LANGUAGE:CUDA>:-g>"
+      "$<$<COMPILE_LANGUAGE:CUDA>:-G>"
+    )
+  elseif(OHM_CUDA_DEBUG STREQUAL "lineinfo")
+    add_compile_options(
+      "$<$<COMPILE_LANGUAGE:CUDA>:-g>"
+      "$<$<COMPILE_LANGUAGE:CUDA>:-lineinfo>"
+    )
+  endif(OHM_CUDA_DEBUG STREQUAL "full")
+endmacro(_cuda_setup_build_options)
 
 #==============================================================================
 # Setup CUDA build options for the older, deprecated project configuration.
 #==============================================================================
 macro(_cuda_setup_deprecated_build_options)
+  # Setup CUDA_USE_STATIC_CUDA_RUNTIME, forcing it on WIN32 if using BUILD_SHARED_LIBS
+  # See the warning message below.
   if(BUILD_SHARED_LIBS)
     if(WIN32)
       if(CUDA_USE_STATIC_CUDA_RUNTIME)
@@ -108,14 +127,10 @@ macro(_cuda_setup_deprecated_build_options)
       endif(CUDA_USE_STATIC_CUDA_RUNTIME)
       set(CUDA_USE_STATIC_CUDA_RUNTIME Off)
     endif(WIN32)
-  else(BUILD_SHARED_LIBS)
-    # Ensure CUDA libraries are linked with the PUBLIC keyword to support dependency propagation.
-    if(CUDA_USE_STATIC_CUDA_RUNTIME)
-      set(CUDA_LINK_LIBRARIES_KEYWORD PUBLIC)
-    endif(CUDA_USE_STATIC_CUDA_RUNTIME)
   endif(BUILD_SHARED_LIBS)
+  set(CUDA_LINK_LIBRARIES_KEYWORD PRIVATE)
 
-  # Configure CUDA NVCC falgs for each selected CUDA architecture.
+    # Configure CUDA NVCC falgs for each selected CUDA architecture.
   if (OHM_CUDA_ARCHITECTURES)
     foreach(ARCH ${OHM_CUDA_ARCHITECTURES})
       _nvcc_flags_append(CUDA_NVCC_FLAGS "-gencode arch=compute_${ARCH},code=sm_${ARCH}")
@@ -124,9 +139,9 @@ macro(_cuda_setup_deprecated_build_options)
 
   # Add debugging flags.
   if(OHM_CUDA_DEBUG STREQUAL "full")
-    _nvcc_flags_append(CUDA_NVCC_FLAGS "-g -G -O0")
+    _nvcc_flags_append(CUDA_NVCC_FLAGS "-g -G")
   elseif(OHM_CUDA_DEBUG STREQUAL "lineinfo")
-    _nvcc_flags_append(CUDA_NVCC_FLAGS "-g -G -lineinfo")
+    _nvcc_flags_append(CUDA_NVCC_FLAGS "-g -lineinfo")
   endif(OHM_CUDA_DEBUG STREQUAL "full")
 
   # CUDA compiler doesn't seem to respect the CMAKE_POSITION_INDEPENDENT_CODE variable. Explicitly add it for

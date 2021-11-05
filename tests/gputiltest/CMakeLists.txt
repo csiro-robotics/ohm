@@ -1,10 +1,5 @@
 include(TextFileResource)
 
-if(OHM_BUILD_CUDA AND OHM_USE_DEPRECATED_CMAKE_CUDA)
-  # Need to find CUDA for deprecated project configuration
-  find_package(CUDA)
-endif(OHM_BUILD_CUDA AND OHM_USE_DEPRECATED_CMAKE_CUDA)
-
 set(SOURCES
   GpuBufferTest.cpp
   GpuDeviceTest.cpp

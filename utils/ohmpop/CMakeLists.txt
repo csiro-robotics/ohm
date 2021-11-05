@@ -20,8 +20,10 @@ function(_ohmpop_setup GPU_MODE)
   set(TARGET_NAME ohmpop${GPU_MODE})
   if(NOT GPU_MODE STREQUAL "cpu")
     set(OHMLIB_NAME ohm${GPU_MODE})
+    set(GPUTILLIB_NAME gputil${GPU_MODE})
   else(NOT GPU_MODE STREQUAL "cpu")
     set(OHMLIB_NAME ohm)
+    set(GPUTILLIB_NAME)
   endif(NOT GPU_MODE STREQUAL "cpu")
 
   set(TARGET_NAME ohmpop${GPU_MODE})
@@ -49,7 +51,7 @@ function(_ohmpop_setup GPU_MODE)
       "${GLM_INCLUDE_DIR}"
   )
 
-  target_link_libraries(${TARGET_NAME} PUBLIC ${OHMLIB_NAME} slamio ohmtools ohmutil)
+  target_link_libraries(${TARGET_NAME} PRIVATE ${OHMLIB_NAME} slamio ohmtools ohmutil ${GPUTILLIB_NAME})
 
   if(GPU_MODE STREQUAL "cpu")
     target_compile_definitions(${TARGET_NAME} PUBLIC "-DOHMPOP_CPU")
