@@ -61,7 +61,10 @@ enum HeightmapVoxelFlag : uint8_t
 /// See https://www.khronos.org/registry/OpenCL/sdk/1.2/docs/man/xhtml/
 ///
 /// CUDA compatibility would also need to be assessed.
-struct ohmheightmap_API alignas(8) HeightmapVoxel
+///
+/// @internal Note(KS): ohmheightmap_API is not added to HeightmapVoxel. This fails to comple with GCC 7 when
+/// __attribute__ is also specified. Just removed as library export is not needed for a POD struct.
+struct alignas(8) HeightmapVoxel
 {
   /// The name of the layer which stores these voxels.
   static const char *const kHeightmapLayer;
