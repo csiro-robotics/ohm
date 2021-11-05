@@ -1,7 +1,11 @@
 cmake_minimum_required(VERSION 3.10)
 project(ohm)
 
-set(CMAKE_CXX_STANDARD 14)
+# Set CMAKE_CXX_STANDARD to the minimum if not externally set - e.g., from command line.
+# We'll set it in such a way that it remains it the Cache and stays set.
+if(NOT CMAKE_CXX_STANDARD)
+  set(CMAKE_CXX_STANDARD 14 CACHE INTERNAL "C++ standard")
+endif(NOT CMAKE_CXX_STANDARD)
 set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
 # Ensure -fPIC is added.
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
