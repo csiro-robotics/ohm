@@ -6,6 +6,7 @@
 #include "PointCloudReaderXyz.h"
 
 #include <algorithm>
+#include <cctype>
 #include <sstream>
 
 namespace slamio
@@ -188,7 +189,7 @@ bool PointCloudReaderXyz::readHeadings()
     if (!istr.fail())
     {
       // Convert to lower.
-      std::transform(token.begin(), token.end(), token.begin(), std::tolower);
+      std::transform(token.begin(), token.end(), token.begin(), tolower);
       headings.emplace_back(token);
     }
   }
