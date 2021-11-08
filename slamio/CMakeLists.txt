@@ -12,6 +12,8 @@ set(SOURCES
   PointCloudReaderMiniPly.h
   PointCloudReaderTraj.cpp
   PointCloudReaderTraj.h
+  PointCloudReaderXyz.cpp
+  PointCloudReaderXyz.h
   Points.cpp
   Points.h
   SlamCloudLoader.cpp

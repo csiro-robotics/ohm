@@ -7,6 +7,7 @@
 
 #include "PointCloudReaderMiniPly.h"
 #include "PointCloudReaderTraj.h"
+#include "PointCloudReaderXyz.h"
 
 #if SLAMIO_HAVE_PDAL
 #include "PointCloudReaderPdal.h"
@@ -52,6 +53,10 @@ PointCloudReaderPtr createCloudReader(const char *extension_c)
   else if (extension == "txt")
   {
     reader = std::make_shared<PointCloudReaderTraj>();
+  }
+  else if (extension == "xyz")
+  {
+    reader = std::make_shared<PointCloudReaderXyz>();
   }
 #if SLAMIO_HAVE_PDAL
   else

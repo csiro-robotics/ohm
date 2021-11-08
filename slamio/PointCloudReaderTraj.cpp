@@ -5,7 +5,6 @@
 // Author: Kazys Stepanas
 #include "PointCloudReaderTraj.h"
 
-#include "miniply/miniply.h"
 namespace slamio
 {
 PointCloudReaderTraj::PointCloudReaderTraj() = default;
@@ -110,7 +109,7 @@ bool PointCloudReaderTraj::readNext(CloudPoint &point)
 #ifdef _MSC_VER
     if (sscanf_s(data_line_.c_str(), "%lg %lg %lg %lg", &point.timestamp, &point.position.x, &point.position.y,
                  &point.position.z) == 4)
-#else // _MSC_VER
+#else   // _MSC_VER
     if (sscanf(data_line_.c_str(), "%lg %lg %lg %lg", &point.timestamp, &point.position.x, &point.position.y,
                &point.position.z) == 4)
 #endif  // _MSC_VER

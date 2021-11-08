@@ -9,8 +9,6 @@
 
 namespace
 {
-const std::vector<std::string> time_fields = { "time", "timestamp", "gpstime", "offsettime", "internaltime" };
-
 void checkAvailable(bool &found_any, bool &found_all, const miniply::PLYElement &element,
                     const std::vector<std::string> &fields, std::string *first_field = nullptr)
 {
@@ -111,7 +109,7 @@ namespace slamio
 PointCloudReaderMiniPly::PointCloudReaderMiniPly() = default;
 PointCloudReaderMiniPly::~PointCloudReaderMiniPly()
 {
- close();
+  close();
 }
 
 DataChannel PointCloudReaderMiniPly::availableChannels() const
@@ -166,6 +164,14 @@ bool PointCloudReaderMiniPly::open(const char *filename)
   }
 
   // Resolve available fields.
+  std::vector<std::string> time_fields;
+  size_t time_field_name_count = 0;
+  auto &&time_field_names = timeFieldNames(time_field_name_count);
+  time_fields.resize(time_field_name_count);
+  for (size_t i = 0; i < time_field_name_count; ++i)
+  {
+    time_fields[i] = time_field_names[i];
+  }
   if (checkAnyAvailable(*vertex_element, time_fields, &time_field_name_))
   {
     available_channels_ |= DataChannel::Time;
