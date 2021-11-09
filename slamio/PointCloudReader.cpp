@@ -5,7 +5,27 @@
 // Author: Kazys Stepanas
 #include "PointCloudReader.h"
 
+#include <array>
+
 namespace slamio
 {
+const char *const *timeFieldNames(size_t &count)
+{
+  static const std::array<const char *, 8> names =  //
+    {
+      //
+      "gps_time",       //
+      "gpstime",        //
+      "internal_time",  //
+      "internaltime",   //
+      "offset_time",    //
+      "offsettime",     //
+      "timestamp",      //
+      "time"            //
+    };
+  count = names.size();
+  return names.data();
+}
+
 PointCloudReader::~PointCloudReader() = default;
 }  // namespace slamio
