@@ -134,13 +134,6 @@ void OhmPopCpu::MapOptions::print(std::ostream &out)
   Super::MapOptions::print(out);
   out << "Mapping mode: " << mode << '\n';
   out << "Voxel mean position: " << (voxel_mean ? "on" : "off") << '\n';
-  // out << "Compressed: " << ((map.flags() & ohm::MapFlag::kCompressed) == ohm::MapFlag::kCompressed ? "on" : "off")
-  //     << '\n';
-  // if ((map.flags() & ohm::MapFlag::kCompressed) == ohm::MapFlag::kCompressed)
-  // {
-  //   out << "  High tide:" << compression.high_tide << '\n';
-  //   out << "  Low tide:" << compression.low_tide << '\n';
-  // }
   glm::i16vec3 region_dim = region_voxel_dim;
   region_dim.x = (region_dim.x) ? region_dim.x : OHM_DEFAULT_CHUNK_DIM_X;
   region_dim.y = (region_dim.y) ? region_dim.y : OHM_DEFAULT_CHUNK_DIM_Y;

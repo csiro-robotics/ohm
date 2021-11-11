@@ -39,7 +39,7 @@ target_include_directories(octopop SYSTEM
     "${OCTOMAP_INCLUDE_DIRS}"
 )
 
-target_link_libraries(octopop PUBLIC slamio ohmutil ${OCTOMAP_LIBRARIES})
+target_link_libraries(octopop PUBLIC slamio ohmapp ohmutil ${OCTOMAP_LIBRARIES})
 target_compile_definitions(octopop PUBLIC "-DOHMPOP_CPU")
 install(TARGETS octopop DESTINATION bin)
 

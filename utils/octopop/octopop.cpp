@@ -9,572 +9,288 @@
 //
 #include "OctoPopConfig.h"
 
-#include <glm/glm.hpp>
+#include <ohmapp/OhmPopulationHarness.h>
+#include <ohmapp/ohmpopmain.inl>
 
-#include <slamio/SlamCloudLoader.h>
-
+#include <ohmutil/Colour.h>
 #include <ohmutil/OhmUtil.h>
-#include <ohmutil/Options.h>
-#include <ohmutil/PlyMesh.h>
-#include <ohmutil/ProgressMonitor.h>
-#include <ohmutil/ScopedTimeDisplay.h>
+#include <ohmutil/PlyPointStream.h>
 
 #include <octomap/octomap.h>
 
-#include <algorithm>
-#include <array>
-#include <atomic>
-#include <chrono>
-#include <cinttypes>
-#include <csignal>
-#include <cstddef>
-#include <fstream>
-#include <iomanip>
-#include <iostream>
-#include <locale>
-#include <sstream>
-#include <thread>
+#include <glm/vec2.hpp>
 
-namespace
-{
-/// The clock used to report process timing.
+#include <chrono>
+
+// Must be after argument streaming operators.
+#include <ohmutil/Options.h>
+
 using Clock = std::chrono::high_resolution_clock;
 
-/// Quit level/flag. Initial quit will just stop populating, but still save out. Multiple increments will quit saving.
-int g_quit = 0;
-
-/// Control-C capture.
-void onSignal(int arg)
+class OctomapPop : public ohm::OhmPopulationHarness
 {
-  if (arg == SIGINT || arg == SIGTERM)
+public:
+  using Super = ohm::OhmPopulationHarness;
+
+  struct MapOptions : public Super::MapOptions
   {
-    ++g_quit;
-  }
-}
+    float prob_hit = 0.9f;
+    float prob_miss = 0.49f;
+    float prob_thresh = 0.5f;
+    glm::vec2 prob_range = glm::vec2(0, 0);
+    bool non_lazy_eval = false;
+    bool collapse = false;
 
-/// Parsed command line options.
-struct Options
-{
-  std::string cloud_file;
-  std::string trajectory_file;
-  std::string output_base_name;
-  glm::dvec3 sensor_offset = glm::dvec3(0.0);
-  uint64_t point_limit = 0;
-  int64_t preload_count = 0;
-  double start_time = 0;
-  double time_limit = 0;
-  double resolution = 0.25;
-  float prob_hit = 0.9f;    // NOLINT(readability-magic-numbers)
-  float prob_miss = 0.49f;  // NOLINT(readability-magic-numbers)
-  float prob_thresh = 0.5f;
-  glm::vec2 prob_range = glm::vec2(0, 0);
-  glm::vec3 cloud_colour = glm::vec3(0);
-  bool serialise = true;
-  bool save_info = false;
-  bool point_cloud_only = false;  ///< Assume ray cloud if no trajectory is given, unless this is set.
-  bool non_lazy_eval = false;
-  bool collapse = false;
-  bool quiet = false;
+    MapOptions();
 
-  /// A helper to print configured options to (multiple) output stream.
-  void print(std::ostream **out) const;
+    void configure(cxxopts::OptionAdder &adder) override;
+    void print(std::ostream &out) override;
+  };
+
+  /// Specialise collated options.
+  struct Options : public Super::Options
+  {
+    inline MapOptions &map() { return static_cast<MapOptions &>(*map_); }
+    inline const MapOptions &map() const { return static_cast<const MapOptions &>(*map_); }
+
+    Options();
+  };
+
+  /// Default constructor.
+  OctomapPop();
+
+  std::string description() const override;
+
+  const Options &options() const { return static_cast<const Options &>(Super::options()); }
+
+  Options &options() { return static_cast<Options &>(Super::options()); }
+
+protected:
+  OctomapPop(std::unique_ptr<Options> &&options);
+
+  int validateOptions(const cxxopts::ParseResult &parsed) override;
+  int prepareForRun() override;
+  void processBatch(const glm::dvec3 &batch_origin, const std::vector<glm::dvec3> &sensor_and_samples,
+                    const std::vector<double> &timestamps, const std::vector<float> &intensities,
+                    const std::vector<glm::vec4> &colours) override;
+  void finaliseMap() override;
+  int saveMap(const std::string &path_without_extension) override;
+  int saveCloud(const std::string &path_ply) override;
+  void tearDown() override;
+
+  std::unique_ptr<octomap::OcTree> map_;
 };
 
 
-void Options::print(std::ostream **out) const
+OctomapPop::MapOptions::MapOptions() = default;
+
+
+void OctomapPop::MapOptions::configure(cxxopts::OptionAdder &adder)
 {
-  while (*out)
-  {
-    **out << "Cloud: " << cloud_file;
-    if (!trajectory_file.empty())
-    {
-      **out << " + " << trajectory_file << '\n';
-    }
-    else
-    {
-      **out << " (no trajectory)\n";
-    }
-    if (preload_count)
-    {
-      **out << "Preload: ";
-      if (preload_count < 0)
-      {
-        **out << "all";
-      }
-      else
-      {
-        **out << preload_count;
-      }
-      **out << '\n';
-    }
-
-    **out << "lazy eval: " << ((!non_lazy_eval) ? "true" : "false") << '\n';
-    **out << "collapse (post): " << ((collapse) ? "true" : "false") << '\n';
-
-    if (point_limit)
-    {
-      **out << "Maximum point: " << point_limit << '\n';
-    }
-
-    if (start_time > 0)
-    {
-      **out << "Process from timestamp: " << start_time << '\n';
-    }
-
-    if (time_limit > 0)
-    {
-      **out << "Process to timestamp: " << time_limit << '\n';
-    }
-
-    **out << "Map resolution: " << resolution << '\n';
-    **out << "Hit probability: " << prob_hit << '\n';
-    **out << "Miss probability: " << prob_miss << '\n';
-    **out << std::flush;
-    ++out;
-  }
+  Super::MapOptions::configure(adder);
+  // clang-format off
+  adder
+    ("clamp", "Set probability clamping to the given min/max. Given as a value, not probability.", optVal(prob_range))
+    ("collapse", "Collapse the map once fully populated? No effect when --non-lazy is also used.", optVal(collapse))
+    ("hit", "The occupancy probability due to a hit. Must be >= 0.5.", optVal(prob_hit))
+    ("non-lazy", "Use non-lazy evaluation, collapsing the map on every batch.", optVal(non_lazy_eval))
+    ("miss", "The occupancy probability due to a miss. Must be < 0.5.", optVal(prob_miss))
+    ("threshold", "Sets the occupancy threshold assigned when exporting the map to a cloud.", optVal(prob_thresh)->implicit_value(optStr(prob_thresh)))
+    ;
+  // clang-format on
 }
 
-/// Map saving control flags.
-enum SaveFlags : unsigned
+
+void OctomapPop::MapOptions::print(std::ostream &out)
 {
-  kSaveMap = (1u << 0u),   ///< Save the occupancy map
-  kSaveCloud = (1u << 1u)  ///< Save a point cloud from the occupancy map
-};
-
-/// Save the Octomap to file and optional to point cloud. The map file is set as `base_name + ".bt"` and the point
-/// cloud as `base_name + ".ply"`
-void saveMap(const Options &opt, octomap::OcTree *map, const std::string &base_name, unsigned save_flags = kSaveMap)
-{
-  if (g_quit >= 2)
-  {
-    return;
-  }
-
-  if (save_flags & kSaveMap)
-  {
-    std::string output_file = base_name + ".bt";
-    std::cout << "Saving map to " << output_file.c_str() << std::endl;
-
-    bool ok = map->writeBinary(output_file);
-    if (!ok)
-    {
-      std::cerr << "Failed to save map" << std::endl;
-    }
-  }
-
-  if (save_flags & kSaveCloud)
-  {
-    // Save a cloud representation. Need to walk the tree leaves.
-    std::cout << "Converting to point cloud." << std::endl;
-    ohm::PlyMesh ply;
-    std::uint64_t point_count = 0;
-    const auto map_end_iter = map->end_leafs();
-
-    // float to byte colour channel conversion.
-    const auto colour_channel_f = [](float cf) -> uint8_t  //
-    {
-      cf = float(std::numeric_limits<uint8_t>::max()) * std::max(cf, 0.0f);
-      auto cu = unsigned(cf);
-      return uint8_t(std::min<decltype(cu)>(cu, std::numeric_limits<uint8_t>::max()));
-    };
-    const bool use_colour = opt.cloud_colour.r > 0 || opt.cloud_colour.g > 0 || opt.cloud_colour.b > 0;
-    const ohm::Colour c(colour_channel_f(opt.cloud_colour.r), colour_channel_f(opt.cloud_colour.g),
-                        colour_channel_f(opt.cloud_colour.b));
-
-    for (auto iter = map->begin_leafs(); iter != map_end_iter && g_quit < 2; ++iter)
-    {
-      const auto occupancy = iter->getLogOdds();
-      if (occupancy >= map->getOccupancyThresLog())
-      {
-        const auto coord = iter.getCoordinate();
-        const auto v = glm::vec3(coord.x(), coord.y(), coord.z());
-        if (use_colour)
-        {
-          ply.addVertex(v, c);
-        }
-        else
-        {
-          ply.addVertex(v);
-        }
-        ++point_count;
-      }
-    }
-
-    if (g_quit < 2)
-    {
-      std::string output_file = base_name + ".ply";
-      std::cout << "Saving point cloud to " << output_file.c_str() << std::endl;
-      ply.save(output_file.c_str(), true);
-    }
-  }
+  Super::MapOptions::print(out);
+  out << "Hit probability: " << prob_hit << " (" << octomap::logodds(prob_hit) << ")\n";
+  out << "Miss probability: " << prob_miss << " (" << octomap::logodds(prob_miss) << ")\n";
+  out << "Probability threshold: " << prob_thresh << '\n';
 }
-}  // namespace
 
 
-/// Main look used to populate and serialise an Octomap.
-int populateMap(const Options &opt)
+OctomapPop::Options::Options()
 {
-  ohm::ScopedTimeDisplay time_display("Execution time");
-  if (opt.quiet)
+  map_ = std::make_unique<MapOptions>();
+}
+
+OctomapPop::OctomapPop()
+  : Super(std::make_unique<Options>())
+{}
+
+OctomapPop::OctomapPop(std::unique_ptr<Options> &&options)
+  : Super(std::move(options))
+{}
+
+
+#if SLAMIO_HAVE_PDAL
+#define CLOUD_TYPE "PDAL supported point cloud"
+#else  // SLAMIO_HAVE_PDAL
+#define CLOUD_TYPE "PLY point cloud"
+#endif  // SLAMIO_HAVE_PDAL
+
+std::string OctomapPop::description() const
+{
+  return "Generate an octomap octree from a ray cloud or a point cloud with accompanying "
+         "trajectory file. The trajectory marks the scanner trajectory with timestamps "
+         "loosely corresponding to cloud point timestamps. Trajectory points are "
+         "interpolated for each cloud point based on corresponding times in the "
+         "trajectory. A ray cloud uses the normals channel to provide a vector from "
+         "point sample back to sensor location (see "
+         "https://github.com/csiro-robotics/raycloudtools).\n"
+         "\n"
+         "The sample file is a " CLOUD_TYPE " file, while the trajectory is either a text "
+         "trajectory containing [time x y z <additional>] items per line or is itself a "
+         "point cloud file.";
+}
+
+
+int OctomapPop::validateOptions(const cxxopts::ParseResult &parsed)
+{
+  int return_code = Super::validateOptions(parsed);
+  if (return_code)
   {
-    time_display.disable();
+    return return_code;
   }
-
-  std::cout << "Loading points from " << opt.cloud_file << " with trajectory " << opt.trajectory_file << std::endl;
-
-  slamio::SlamCloudLoader loader;
-  loader.setErrorLog([](const char *msg) { std::cerr << msg << std::flush; });
-  if (!opt.trajectory_file.empty())
-  {
-    if (!loader.openWithTrajectory(opt.cloud_file.c_str(), opt.trajectory_file.c_str()))
-    {
-      fprintf(stderr, "Error loading cloud %s with trajectory %s\n", opt.cloud_file.c_str(),
-              opt.trajectory_file.c_str());
-      return -2;
-    }
-  }
-  else if (!opt.point_cloud_only)
-  {
-    if (!loader.openRayCloud(opt.cloud_file.c_str()))
-    {
-      fprintf(stderr, "Error loading ray cloud %s\n", opt.cloud_file.c_str());
-      return -2;
-    }
-  }
-  else if (opt.point_cloud_only)
-  {
-    if (!loader.openPointCloud(opt.cloud_file.c_str()))
-    {
-      fprintf(stderr, "Error loading point cloud %s\n", opt.cloud_file.c_str());
-      return -2;
-    }
-  }
-
-  std::atomic<uint64_t> elapsed_ms(0);
-  ProgressMonitor prog(10);
-
-  prog.setDisplayFunction([&elapsed_ms, &opt](const ProgressMonitor::Progress &prog) {
-    if (!opt.quiet)
-    {
-      const uint64_t elapsed_ms_local = elapsed_ms;
-      const uint64_t sec = elapsed_ms_local / 1000u;
-      const auto ms = unsigned(elapsed_ms_local - sec * 1000);
-
-      std::ostringstream out;
-      out.imbue(std::locale(""));
-      out << '\r';
-
-      if (!prog.info.info.empty())
-      {
-        out << prog.info.info << " : ";
-      }
-
-      out << sec << '.' << std::setfill('0') << std::setw(3) << ms << "s : ";
-
-      const auto fill_width = std::numeric_limits<decltype(prog.progress)>::digits10;
-      out << std::setfill(' ') << std::setw(fill_width) << prog.progress;
-      if (prog.info.total)
-      {
-        out << " / " << std::setfill(' ') << std::setw(fill_width) << prog.info.total;
-      }
-      out << "    ";
-      std::cout << out.str() << std::flush;
-    }
-  });
-
-  octomap::OcTree map(opt.resolution);
-  octomap::OcTreeKey key;
-  slamio::SamplePoint sample{};
-  uint64_t point_count = 0;
-  // Update map visualisation every N samples.
-  double timebase = -1;
-  double first_timestamp = -1;
-  double last_timestamp = -1;
-  double first_batch_timestamp = -1;
-  Clock::time_point start_time;
-  Clock::time_point end_time;
-  Clock::time_point collapse_start_time;
-  Clock::time_point collapse_end_time;
-
-  map.setProbHit(opt.prob_hit);
-  map.setOccupancyThres(opt.prob_thresh);
-  map.setProbMiss(opt.prob_miss);
-  if (opt.prob_range[0] > 0)
-  {
-    map.setClampingThresMin(opt.prob_range[0]);
-  }
-  if (opt.prob_range[1] > 0)
-  {
-    map.setClampingThresMax(opt.prob_range[1]);
-  }
-
-  std::array<std::ostream *, 3> streams = { &std::cout, nullptr, nullptr };
-  std::ofstream info_stream;
-  if (opt.save_info)
-  {
-    streams[1] = &info_stream;
-    std::string output_file = opt.output_base_name + ".txt";
-    std::ofstream out(output_file.c_str());
-    info_stream.open(output_file.c_str());
-  }
-
-  opt.print(streams.data());
-
-  if (opt.preload_count)
-  {
-    int64_t preload_count = opt.preload_count;
-    if (preload_count < 0 && opt.point_limit)
-    {
-      preload_count = opt.point_limit;
-    }
-
-    std::cout << "Preloading points";
-
-    start_time = Clock::now();
-    if (preload_count < 0)
-    {
-      std::cout << std::endl;
-      loader.preload();
-    }
-    else
-    {
-      std::cout << " " << preload_count << std::endl;
-      loader.preload(preload_count);
-    }
-    end_time = Clock::now();
-    const double preload_time =
-      std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count() * 1e-3;
-    std::cout << "Preload completed over " << preload_time << " seconds." << std::endl;
-  }
-
-  start_time = Clock::now();
-  std::cout << "Populating map" << std::endl;
-
-  prog.beginProgress(ProgressMonitor::Info((point_count && timebase == 0) ?
-                                             std::min<uint64_t>(point_count, loader.numberOfPoints()) :
-                                             loader.numberOfPoints()));
-  prog.startThread();
-
-  //------------------------------------
-  // Population loop.
-  //------------------------------------
-  // mapper.start();
-  while ((point_count < opt.point_limit || opt.point_limit == 0) &&
-         (last_timestamp - timebase < opt.time_limit || opt.time_limit == 0) && loader.nextPoint(sample))
-  {
-    if (timebase < 0)
-    {
-      timebase = sample.timestamp;
-    }
-
-    if (sample.timestamp - timebase < opt.start_time)
-    {
-      continue;
-    }
-
-    if (last_timestamp < 0)
-    {
-      last_timestamp = sample.timestamp;
-    }
-
-    if (first_timestamp < 0)
-    {
-      first_timestamp = sample.timestamp;
-    }
-
-    ++point_count;
-    if (first_batch_timestamp < 0)
-    {
-      first_batch_timestamp = sample.timestamp;
-    }
-
-    map.insertRay(octomap::point3d{ float(sample.origin.x), float(sample.origin.y), float(sample.origin.z) },
-                  octomap::point3d{ float(sample.sample.x), float(sample.sample.y), float(sample.sample.z) }, -1.0,
-                  !opt.non_lazy_eval);
-    prog.incrementProgress();
-    elapsed_ms = uint64_t((last_timestamp - timebase) * 1e3);
-
-    if (opt.point_limit && point_count >= opt.point_limit ||
-        opt.time_limit > 0 && last_timestamp - timebase >= opt.time_limit || g_quit)
-    {
-      break;
-    }
-  }
-
-  prog.endProgress();
-  prog.pause();
-
-  if (!opt.quiet)
-  {
-    std::cout << std::endl;
-  }
-
-  // Collapse the map.
-  if (opt.collapse)
-  {
-    if (!opt.non_lazy_eval)
-    {
-      if (!opt.quiet)
-      {
-        std::cout << "collapsing map" << std::endl;
-      }
-      collapse_start_time = Clock::now();
-      map.updateInnerOccupancy();
-      collapse_end_time = Clock::now();
-    }
-    else if (!opt.quiet)
-    {
-      std::cout << "skipping map collapse due to non-lazy insert (progressive collapse)" << std::endl;
-    }
-  }
-
-  end_time = Clock::now();
-
-  for (auto *out : streams)
-  {
-    if (!out)
-    {
-      continue;
-    }
-    const double time_range = last_timestamp - first_timestamp;
-    const double processing_time_sec =
-      std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count() * 1e-3;
-
-    *out << "Point count: " << point_count << '\n';
-    *out << "Data time: " << time_range << '\n';
-    *out << "Total processing time: " << end_time - start_time << '\n';
-    if (opt.collapse)
-    {
-      *out << "Collapse time: " << collapse_end_time - collapse_start_time << '\n';
-    }
-    *out << "Efficiency: " << ((processing_time_sec > 0 && time_range > 0) ? time_range / processing_time_sec : 0.0)
-         << '\n';
-    *out << "Points/sec: " << unsigned((processing_time_sec > 0) ? point_count / processing_time_sec : 0.0) << '\n';
-    // *out << "Memory (approx): " << map.calculateApproximateMemory() / (1024.0 * 1024.0) << " MiB\n";
-    *out << std::flush;
-  }
-
-  if (opt.serialise)
-  {
-    saveMap(opt, &map, opt.output_base_name, kSaveMap | kSaveCloud);
-  }
-
-  prog.joinThread();
-
   return 0;
 }
 
 
-int parseOptions(Options *opt, int argc, char *argv[])  // NOLINT(modernize-avoid-c-arrays)
+int OctomapPop::prepareForRun()
 {
-  cxxopts::Options opt_parse(argv[0],
-                             "Generate an occupancy map from a LAS/LAZ based point cloud and accompanying "
-                             "trajectory file using GPU. The trajectory marks the scanner trajectory with timestamps "
-                             "loosely corresponding to cloud point timestamps. Trajectory points are "
-                             "interpolated for each cloud point based on corresponding times in the "
-                             "trajectory.");
-  opt_parse.positional_help("<cloud.laz> <_traj.txt> [output-base]");
-
-  try
+  map_ = std::make_unique<octomap::OcTree>(options().map().resolution);
+  map_->setProbHit(options().map().prob_hit);
+  map_->setOccupancyThres(options().map().prob_thresh);
+  map_->setProbMiss(options().map().prob_miss);
+  if (options().map().prob_range[0] > 0)
   {
-    // clang-format off
-    opt_parse.add_options()
-      ("help", "Show help.")
-      ("cloud", "The input cloud (las/laz) to load.", cxxopts::value(opt->cloud_file))
-      ("output","Output base name", optVal(opt->output_base_name))
-      ("point-limit", "Limit the number of points loaded.", optVal(opt->point_limit))
-      ("points-only", "Assume the point cloud is providing points only. Otherwise a cloud file with no trajectory is considered a ray cloud.", optVal(opt->point_cloud_only))
-      ("preload", "Preload this number of points before starting processing. Zero for all. May be used for separating processing and loading time.", optVal(opt->preload_count)->default_value("0"))
-      ("q,quiet", "Run in quiet mode. Suppresses progress messages.", optVal(opt->quiet))
-      ("sensor", "Offset from the trajectory to the sensor position. Helps correct trajectory to the sensor centre for better rays.", optVal(opt->sensor_offset))
-      ("start-time", "Only process points time stamped later than the specified time.", optVal(opt->start_time))
-      ("serialise", "Serialise the results? This option is intended for skipping saving during performance analysis.", optVal(opt->serialise))
-      ("save-info", "Save timing information to text based on the output file name.", optVal(opt->save_info))
-      ("time-limit", "Limit the elapsed time in the LIDAR data to process (seconds). Measured relative to the first data sample.", optVal(opt->time_limit))
-      ("trajectory", "The trajectory (text) file to load.", cxxopts::value(opt->trajectory_file))
-      ("cloud-colour", "Colour for points in the saved cloud (if saving).", optVal(opt->cloud_colour))
-      ;
-
-    opt_parse.add_options("Map")
-      ("clamp", "Set probability clamping to the given min/max.", optVal(opt->prob_range))
-      ("hit", "The occupancy probability due to a hit. Must be >= 0.5.", optVal(opt->prob_hit))
-      ("miss", "The occupancy probability due to a miss. Must be < 0.5.", optVal(opt->prob_miss))
-      ("resolution", "The voxel resolution of the generated map.", optVal(opt->resolution))
-      ("threshold", "Sets the occupancy threshold assigned when exporting the map to a cloud.", optVal(opt->prob_thresh)->implicit_value(optStr(opt->prob_thresh)))
-      ("non-lazy", "Use non-lazy node insertion. Map may collapse at every step.", optVal(opt->non_lazy_eval))
-      ("collapse", "Collapse octree nodes where possible after map generation. Redundant '--non-lazy' is used.", optVal(opt->collapse))
-      ;
-
-    // clang-format on
-
-    opt_parse.parse_positional({ "cloud", "trajectory", "output" });
-
-    cxxopts::ParseResult parsed = opt_parse.parse(argc, argv);
-
-    if (parsed.count("help") || parsed.arguments().empty())
-    {
-      // show usage.
-      std::cout << opt_parse.help({ "", "Map" }) << std::endl;
-      return 1;
-    }
-
-    if (opt->cloud_file.empty())
-    {
-      std::cerr << "Missing input cloud" << std::endl;
-      return -1;
-    }
-    if (opt->trajectory_file.empty())
-    {
-      std::cerr << "Missing trajectory file" << std::endl;
-      return -1;
-    }
+    map_->setClampingThresMin(options().map().prob_range[0]);
   }
-  catch (const cxxopts::OptionException &e)
+  if (options().map().prob_range[1] > 0)
   {
-    std::cerr << "Argument error\n" << e.what() << std::endl;
+    map_->setClampingThresMax(options().map().prob_range[1]);
+  }
+  return 0;
+}
+
+
+void OctomapPop::processBatch(const glm::dvec3 &batch_origin, const std::vector<glm::dvec3> &sensor_and_samples,
+                              const std::vector<double> &timestamps, const std::vector<float> &intensities,
+                              const std::vector<glm::vec4> &colours)
+{
+  // Unused
+  (void)batch_origin;
+  (void)timestamps;
+  (void)intensities;
+  (void)colours;
+  // Note: we do not use octomap's batch ray integration for two reasons:
+  // 1. This allows us to use individual sensor positions for each sample
+  // 2. It tries to use OpenMP, but in a way which is empirically slower than using a single thread.
+  const bool lazy_eval = !options().map().non_lazy_eval;
+  for (size_t i = 0; i < sensor_and_samples.size(); i += 1)
+  {
+    const auto sensor = sensor_and_samples[i + 0];
+    const auto sample = sensor_and_samples[i + 1];
+    map_->insertRay(octomap::point3d{ float(sensor.x), float(sensor.y), float(sensor.z) },
+                    octomap::point3d{ float(sample.x), float(sample.y), float(sample.z) }, -1.0, lazy_eval);
+  }
+}
+
+
+void OctomapPop::finaliseMap()
+{
+  if (!options().map().non_lazy_eval && options().map().collapse)
+  {
+    info("Collapsing map\n");
+    const auto collapse_start_time = Clock::now();
+    map_->updateInnerOccupancy();
+    const auto collapse_end_time = Clock::now();
+    std::ostringstream ostr;
+    ostr << "Collapsed time: " << (collapse_end_time - collapse_start_time) << std::endl;
+    info(ostr.str());
+  }
+}
+
+
+int OctomapPop::saveMap(const std::string &path_without_extension)
+{
+  const std::string output_file = path_without_extension + ".bt";
+  std::ostringstream ostr;
+  ostr << "Saving map to " << output_file.c_str() << std::endl;
+  info(ostr.str());
+
+  bool ok = map_->writeBinary(output_file);
+  if (!ok)
+  {
+    error("Failed to save map\n");
     return -1;
   }
-
   return 0;
 }
 
-/// entry point
+
+int OctomapPop::saveCloud(const std::string &path_ply)
+{
+  // Save a cloud representation. Need to walk the tree leaves.
+  std::ostringstream out;
+  out.imbue(std::locale(""));
+  out << "Converting to point cloud " << path_ply << std::endl;
+  info(out.str());
+  ohm::PlyPointStream ply({ ohm::PlyPointStream::Property{ "x", ohm::PlyPointStream::Type::kFloat64 },
+                            ohm::PlyPointStream::Property{ "y", ohm::PlyPointStream::Type::kFloat64 },
+                            ohm::PlyPointStream::Property{ "z", ohm::PlyPointStream::Type::kFloat64 },
+                            ohm::PlyPointStream::Property{ "red", ohm::PlyPointStream::Type::kUInt8 },
+                            ohm::PlyPointStream::Property{ "green", ohm::PlyPointStream::Type::kUInt8 },
+                            ohm::PlyPointStream::Property{ "blue", ohm::PlyPointStream::Type::kUInt8 } });
+  std::ofstream fout(path_ply, std::ios::binary);
+  ply.open(fout);
+
+  const bool occupancy_colour = options().output().cloud_colour.r > 0 || options().output().cloud_colour.g > 0 ||
+                                options().output().cloud_colour.b > 0;
+  const ohm::Colour c = ohm::Colour::fromRgbf(options().output().cloud_colour.r, options().output().cloud_colour.g,
+                                              options().output().cloud_colour.b);
+
+  const auto colour_by_occupancy = [](float occupancy) {
+    ohm::Colour colour = ohm::Colour::kColours[ohm::Colour::kLightSteelBlue];
+    // Occupancy will be at least the occupancy threshold (normaly 50%) so this will only darken to that level.
+    colour.adjust(occupancy);
+    return colour;
+  };
+
+  const auto map_end_iter = map_->end_leafs();
+  for (auto iter = map_->begin_leafs(); iter != map_end_iter && quitLevel() < 2; ++iter)
+  {
+    const float occupancy = float(iter->getOccupancy());
+    if (occupancy >= map_->getOccupancyThres())
+    {
+      const auto coord = iter.getCoordinate();
+      const auto point = glm::dvec3(coord.x(), coord.y(), coord.z());
+
+      const ohm::Colour point_colour = (occupancy_colour) ? c : colour_by_occupancy(occupancy);
+
+      ply.setPointPosition(point);
+      ply.setProperty("red", point_colour.r());
+      ply.setProperty("green", point_colour.g());
+      ply.setProperty("blue", point_colour.b());
+      ply.writePoint();
+    }
+  }
+
+  ply.close();
+  out.str(std::string());
+  out << ply.pointCount() << " point(s) saved" << std::endl;
+  info(out.str());
+  return 0;
+}
+
+
+void OctomapPop::tearDown()
+{
+  map_.release();
+}
+
 int main(int argc, char *argv[])
 {
-  Options opt;
-
-  std::cout.imbue(std::locale(""));
-
-  int res = parseOptions(&opt, argc, argv);
-
-  if (res)
-  {
-    return res;
-  }
-
-  signal(SIGINT, onSignal);
-  signal(SIGTERM, onSignal);
-
-  // Generate output name based on input if not specified.
-  if (opt.output_base_name.empty())
-  {
-    const auto extension_start = opt.cloud_file.find_last_of('.');
-    if (extension_start != std::string::npos)
-    {
-      opt.output_base_name = opt.cloud_file.substr(0, extension_start);
-    }
-    else
-    {
-      opt.output_base_name = opt.cloud_file;
-    }
-  }
-
-  if (res)
-  {
-    return res;
-  }
-
-  res = populateMap(opt);
-
-  return res;
+  return ohmpopMain<OctomapPop>(argc, argv);
 }
