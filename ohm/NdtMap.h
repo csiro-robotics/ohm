@@ -112,14 +112,11 @@ public:
   /// Read the intensity covariance upon initialisation.
   float initialIntensityCovariance() const;
 
-  /// Enable details tracing via 3rd Eye Scene.
+  /// Enable detailed tracing via 3rd Eye Scene.
   /// @param trace True to enable tracing.
   void setTrace(bool trace);
   /// Is tracing enabled?
   bool trace() const;
-
-  /// Debug render the NDT map ellipsoids via 3rd Eye Scene.
-  void debugDraw() const;
 
 private:
   /// Update members of the underlying @c OccupancyMap::mapInfo() to include NDT parameters.

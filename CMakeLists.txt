@@ -244,6 +244,7 @@ if(OHM_BUILD_HEIGHTMAP_IMAGE)
 endif(OHM_BUILD_HEIGHTMAP_IMAGE)
 
 add_subdirectory(ohmtools)
+add_subdirectory(ohmapp)
 add_subdirectory(utils)
 
 if(OHM_UNIT_TESTS)

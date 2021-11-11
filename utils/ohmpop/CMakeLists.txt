@@ -16,8 +16,9 @@ endif(Boost_FOUND)
 configure_file(OhmPopConfig.in.h "${CMAKE_CURRENT_BINARY_DIR}/ohmpop/OhmPopConfig.h")
 
 set(SOURCES
-  ohmpop.cpp
   OhmPopConfig.in.h
+  OhmPopCpu.cpp
+  OhmPopCpu.h
   "${CMAKE_CURRENT_BINARY_DIR}/ohmpop/OhmPopConfig.h"
 )
 
@@ -25,8 +26,16 @@ function(_ohmpop_setup GPU_MODE)
   set(TARGET_NAME ohmpop${GPU_MODE})
   if(NOT GPU_MODE STREQUAL "cpu")
     set(OHMLIB_NAME ohm${GPU_MODE})
+    list(APPEND SOURCES
+      ohmpopmaingpu.cpp
+      OhmPopGpu.cpp
+      OhmPopGpu.h
+    )
   else(NOT GPU_MODE STREQUAL "cpu")
     set(OHMLIB_NAME ohm)
+    list(APPEND SOURCES
+      ohmpopmaincpu.cpp
+    )
   endif(NOT GPU_MODE STREQUAL "cpu")
 
   set(TARGET_NAME ohmpop${GPU_MODE})
@@ -49,7 +58,7 @@ function(_ohmpop_setup GPU_MODE)
       "${GLM_INCLUDE_DIR}"
   )
 
-  target_link_libraries(${TARGET_NAME} PUBLIC ${OHMLIB_NAME} slamio ohmtools ohmutil)
+  target_link_libraries(${TARGET_NAME} PUBLIC ${OHMLIB_NAME} ohmapp slamio ohmtools ohmutil)
 
   if(GPU_MODE STREQUAL "cpu")
     target_compile_definitions(${TARGET_NAME} PUBLIC "-DOHMPOP_CPU")

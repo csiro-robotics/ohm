@@ -46,6 +46,13 @@ inline int ohmgpu_API configureGpuFromArgs(int argc, char **argv, bool show_devi
                               show_device);
 }
 
+/// @overload
+inline int ohmgpu_API configureGpuFromArgs(int argc, const char *const *argv, bool show_device = true)
+{
+  return configureGpuFromArgs(argc, const_cast<const char **>(argv),  // NOLINT(cppcoreguidelines-pro-type-const-cast)
+                              show_device);
+}
+
 /// Make a GPU/accelerator selection.
 ///
 /// @param accel Accelerator types allowed.

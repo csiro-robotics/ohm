@@ -131,13 +131,6 @@ const NdtMap &GpuNdtMap::ndtMap() const
 }
 
 
-void GpuNdtMap::debugDraw() const
-{
-  const GpuNdtMapDetail *imp = detail();
-  imp->ndt_map.debugDraw();
-}
-
-
 GpuNdtMapDetail *GpuNdtMap::detail()
 {
   return static_cast<GpuNdtMapDetail *>(imp_);

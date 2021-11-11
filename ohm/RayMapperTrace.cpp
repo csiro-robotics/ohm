@@ -709,7 +709,7 @@ size_t RayMapperTrace::integrateRays(const glm::dvec3 *rays, size_t element_coun
     imp_->update(newly_occupied, newly_freed, touched_occupied);
 
     // Update NDT representation.
-    if (!sector_set.empty() && map_->layout().covarianceLayer())
+    if (!sector_set.empty() && map_->layout().covarianceLayer() >= 0)
     {
       for (const auto &sector_key : sector_set)
       {

@@ -52,6 +52,8 @@ set(SOURCES
   CovarianceVoxelCompute.h
   DataType.cpp
   DataType.h
+  DebugDraw.cpp
+  DebugDraw.h
   Density.cpp
   Density.h
   DefaultLayer.cpp
