@@ -129,8 +129,6 @@ option(OHM_BUILD_CUDA "Build ohm library and utlities for CUDA?" ${OHM_BUILD_CUD
 option(OHM_BUILD_OPENCL "Build ohm library and utlities for OpenCL?" ${OHM_BUILD_OPENCL_DEFAULT})
 option(OHM_LEAK_TRACK "Enable memory leak tracking?" OFF)
 
-option(WITH_OCTOMAP "Build comparative occupancy map generation using octomap?" OFF)
-
 # Manage compiler warnings.
 # Use CMAKE_MODULE_PATH and include(warnings) if warnings.cmake is moved.
 include(compilerSetup)
