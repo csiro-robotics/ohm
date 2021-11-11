@@ -202,7 +202,7 @@ public:
 
     using base_iterator::chunk;
     /// @overload
-    MapChunk *chunk();
+    MapChunk *chunk() const;
 
     using base_iterator::map;
     /// @overload
