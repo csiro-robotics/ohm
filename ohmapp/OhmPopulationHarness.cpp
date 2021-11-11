@@ -669,7 +669,7 @@ int OhmPopulationHarness::serialise()
 
 void OhmPopulationHarness::displayProgress(const ProgressMonitor::Progress &progress)
 {
-  if (!quiet() && false)
+  if (!quiet())
   {
     const uint64_t elapsed_ms_local = dataset_elapsed_ms_;
     const uint64_t sec = elapsed_ms_local / 1000u;
