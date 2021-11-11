@@ -135,10 +135,8 @@ void OhmPopulationHarness::OutputOptions::configure(cxxopts::OptionAdder &adder)
     ("save-cloud", "Save a point cloud after population?", optVal(save_cloud))
     ("save-info", "Write information on how the map was generated to text file?", optVal(save_info))
     ("save-map", "Save the map object after population?", optVal(save_map))
-#ifdef TES_ENABLE
     ("trace", "Enable debug tracing to the given file name to generate a 3es file. High performance impact.", optVal(trace)->implicit_value("trace"))
     ("trace-final", "Only output final map in trace.", optVal(trace_final))
-#endif // TES_ENABLE
   ;
   // clang-format on
 }
@@ -164,12 +162,14 @@ void OhmPopulationHarness::OutputOptions::print(std::ostream &out)
   {
     out << "Will save: " << save_items << '\n';
   }
-#ifdef TES_ENABLE
   if (!trace.empty())
   {
+#ifdef TES_ENABLE
     out << "3es trace file: " << trace << (trace_final ? "(final only)\n" : "\n");
-  }
+#else   //
+    out << "3es trace ignore (not compiled)\n";
 #endif  // TES_ENABLE
+  }
 }
 
 

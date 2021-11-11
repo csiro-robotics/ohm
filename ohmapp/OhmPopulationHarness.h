@@ -6,14 +6,9 @@
 #ifndef OHMTOOLS_OHMPOPULATIONHARNESS_H_
 #define OHMTOOLS_OHMPOPULATIONHARNESS_H_
 
-// Include for TES_ENABLE
-#include <ohm/OhmConfig.h>
+#include <ohm/Trace.h>
 
 #include <ohmutil/ProgressMonitor.h>
-
-#ifdef TES_ENABLE
-#include <ohm/Trace.h>
-#endif  //  TES_ENABLE
 
 #include <glm/vec3.hpp>
 
@@ -72,11 +67,9 @@ public:
   {
     std::string base_name;
     glm::vec3 cloud_colour{};
-#ifdef TES_ENABLE
     /// 3rd Eye Scene trace file
     std::string trace;
     bool trace_final = false;
-#endif  // TES_ENABLE
     bool save_map = true;
     bool save_cloud = true;
     bool save_info = false;
@@ -255,6 +248,9 @@ protected:
   /// Progress reporting thread helper.
   ProgressMonitor progress_;
 
+  /// 3es debug trace pointer. Will only be available when TES_ENABLE is preprocessor defined.
+  std::unique_ptr<ohm::Trace> trace_;
+
 private:
   /// Time elapsed in the input data set timestamps (milliseconds).
   std::atomic<uint64_t> dataset_elapsed_ms_;
@@ -265,9 +261,6 @@ private:
   /// Value set when a quit is requested. A quit value of 1 will stop map population, while 2 will also skip
   /// serialisation.
   unsigned quit_level_ = 0;
-#ifdef TES_ENABLE
-  std::unique_ptr<ohm::Trace> trace_;
-#endif  //  TES_ENABLE
 };
 }  // namespace ohm
 
