@@ -15,7 +15,7 @@
 #include <ohm/RayMapper.h>
 #include <ohmutil/OhmUtil.h>
 
-#include <ohmapp/OhmPopulationHarness.h>
+#include <ohmapp/MapHarness.h>
 
 /// Helper to display map serialisation progress.
 class SerialiseMapProgress : public ohm::SerialiseProgress
@@ -39,10 +39,12 @@ private:
 };
 
 /// Population harness to generate an @c ohm::OccupancyMap using ohm CPU algorithms.
-class OhmPopCpu : public ohm::OhmPopulationHarness
+class OhmPopCpu : public ohmapp::MapHarness
 {
 public:
-  using Super = ohm::OhmPopulationHarness;
+  using Super = ohmapp::MapHarness;
+
+  inline static constexpr unsigned defaultBatchSize() { return 4096u; }
 
   /// Specialised map options.
   struct MapOptions : public Super::MapOptions
@@ -128,7 +130,7 @@ public:
   };
 
   /// Default constructor.
-  OhmPopCpu();
+  OhmPopCpu(std::shared_ptr<ohmapp::DataSource> data_source);
 
   std::string description() const override;
 
@@ -137,11 +139,11 @@ public:
   Options &options() { return static_cast<Options &>(Super::options()); }
 
 protected:
-  OhmPopCpu(std::unique_ptr<Options> &&options);
+  OhmPopCpu(std::unique_ptr<Options> &&options, std::shared_ptr<ohmapp::DataSource> data_source);
 
   int validateOptions(const cxxopts::ParseResult &parsed) override;
   int prepareForRun() override;
-  void processBatch(const glm::dvec3 &batch_origin, const std::vector<glm::dvec3> &sensor_and_samples,
+  bool processBatch(const glm::dvec3 &batch_origin, const std::vector<glm::dvec3> &sensor_and_samples,
                     const std::vector<double> &timestamps, const std::vector<float> &intensities,
                     const std::vector<glm::vec4> &colours) override;
   void finaliseMap() override;

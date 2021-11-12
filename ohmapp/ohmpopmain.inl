@@ -23,11 +23,11 @@ void onSignal(int arg)
 }
 }  // namespace
 
-template <typename OhmPop>
+template <typename OhmPop, typename DataSource>
 int ohmpopMain(int argc, char *argv[])
 {
   int exit_code = 0;
-  OhmPop populator;
+  OhmPop populator(std::make_shared<DataSource>());
 
   g_quit = populator.quitLevelPtr();
   signal(SIGINT, onSignal);

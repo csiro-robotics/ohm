@@ -557,7 +557,7 @@ int main(int argc, char *argv[])
   ohm::Heightmap heightmap;
   ohm::MapVersion version;
 
-  prog.setDisplayFunction([](const ProgressMonitor::Progress &prog) {
+  prog.setDisplayFunction([](const ProgressMonitor::Progress &prog, bool final) {
     std::ostringstream str;
     str << '\r';
     str << prog.progress;
@@ -566,6 +566,10 @@ int main(int argc, char *argv[])
       str << " / " << prog.info.total;
     }
     str << "      ";
+    if (final)
+    {
+      str << '\n';
+    }
     std::cout << str.str() << std::flush;
   });
 

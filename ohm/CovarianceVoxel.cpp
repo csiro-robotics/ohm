@@ -207,11 +207,11 @@ bool covarianceUnitSphereTransformation(const CovarianceVoxel *cov, glm::dquat *
 
 
 #if OHM_COV_DEBUG
-#include <iostream>
+#include "Logger.h"
 void covDebugStats()
 {
-  std::cout << "QR algorithm max iterations: " << max_iterations << std::endl;
-  std::cout << "QR algorithm max error: " << max_error << std::endl;
+  ohm::logger::trace("QR algorithm max iterations: ", max_iterations, '\n');
+  ohm::logger::trace("QR algorithm max error: ", max_error, '\n');
 }
 #endif  // OHM_COV_DEBUG
 

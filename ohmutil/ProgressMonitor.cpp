@@ -39,7 +39,7 @@ ProgressMonitor::~ProgressMonitor()
 
 void ProgressMonitor::clearDisplayFunction()
 {
-  display_func_ = [](const Progress & /*progress*/) {};
+  display_func_ = [](const Progress & /*progress*/, bool) {};
 }
 
 
@@ -134,7 +134,7 @@ void ProgressMonitor::endProgress()
     prog.pass = pass_;
     prog.progress = progress_;
     displayed_ = true;
-    display_func_(prog);
+    display_func_(prog, true);
   }
 }
 
@@ -161,7 +161,7 @@ void ProgressMonitor::entry()
         prog.info.total = total_progress_;
         prog.pass = pass;
         prog.progress = progress;
-        display_func_(prog);
+        display_func_(prog, false);
       }
       last_progress = progress;
       last_pass = pass;

@@ -2,14 +2,20 @@
 # Helper for building an application around ohm map generation.
 
 set(SOURCES
+  DataSource.cpp
+  DataSource.h
+  MapHarness.cpp
+  MapHarness.h
   ohmpopmain.inl
-  OhmPopulationHarness.cpp
-  OhmPopulationHarness.h
+  SlamIOSource.cpp
+  SlamIOSource.h
 )
 
 set(PUBLIC_HEADERS
+  DataSource.h
+  MapHarness.h
   ohmpopmain.inl
-  OhmPopulationHarness.h
+  SlamIOSource.h
 )
 
 add_library(ohmapp STATIC ${SOURCES})

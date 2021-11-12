@@ -10,6 +10,7 @@
 #include "GpuKey.h"
 #include "GpuLayerCache.h"
 
+#include <ohm/Logger.h>
 #include <ohm/OccupancyMap.h>
 
 #include <ohm/private/OccupancyMapDetail.h>
@@ -215,8 +216,7 @@ void RaysQueryMapWrapper::finaliseBatch(unsigned region_update_flags)
   imp->results_gpu.readElements(imp->results_cpu.data(), ray_count, 0, &gpu_cache.gpuQueue(),
                                 &imp->region_update_events[buf_idx], &imp->results_event);
 
-  // std::cout << imp->region_counts[bufIdx] << "
-  // regions\n" << std::flush;
+  // ohm::logger::trace(imp->region_counts[buf_idx], "regions\n");
 
   imp->region_counts[buf_idx] = 0;
   // Start a new batch for the GPU layers.

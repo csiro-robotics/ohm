@@ -51,7 +51,7 @@ public:
   };
 
   /// Default constructor.
-  OhmPopGpu();
+  OhmPopGpu(std::shared_ptr<ohmapp::DataSource> data_source);
 
   int parseCommandLineOptions(int argc, const char *const *argv) override;
 
@@ -63,7 +63,7 @@ public:
   const ohm::GpuMap *gpuMap() const;
 
 protected:
-  OhmPopGpu(std::unique_ptr<Options> &&options);
+  OhmPopGpu(std::unique_ptr<Options> &&options, std::shared_ptr<ohmapp::DataSource> data_source);
 
   int prepareForRun() override;
   void finaliseMap() override;

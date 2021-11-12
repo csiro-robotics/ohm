@@ -11,6 +11,8 @@
 #include <ohmgpu/OhmGpu.h>
 #include <ohmutil/OhmUtil.h>
 
+#include <ohmapp/DataSource.h>
+
 #ifdef TES_ENABLE
 #include <ohm/RayMapperTrace.h>
 #endif  // TES_ENABLE
@@ -48,10 +50,10 @@ void OhmPopGpu::GpuOptions::configure(cxxopts::Options &parser)
 
   if (!device_options.empty())
   {
-    for (size_t i = 0; i < device_options.size(); ++i)
+    for (size_t i = 0; i < device_options.size(); i += 2)
     {
-      adder(device_options[(i << 1u) + 0], device_options[(i << 1u) + 1],
-            device_option_types[i] == 0 ? ::cxxopts::value<bool>() : ::cxxopts::value<std::string>());
+      adder(device_options[i + 0], device_options[i + 1],
+            device_option_types[i / 2] == 0 ? ::cxxopts::value<bool>() : ::cxxopts::value<std::string>());
     }
   }
 }
@@ -83,13 +85,13 @@ void OhmPopGpu::Options::print(std::ostream &out)
 }
 
 
-OhmPopGpu::OhmPopGpu()
-  : Super(std::make_unique<Options>())
+OhmPopGpu::OhmPopGpu(std::shared_ptr<ohmapp::DataSource> data_source)
+  : Super(std::make_unique<Options>(), data_source)
 {}
 
 
-OhmPopGpu::OhmPopGpu(std::unique_ptr<Options> &&options)
-  : Super(std::move(options))
+OhmPopGpu::OhmPopGpu(std::unique_ptr<Options> &&options, std::shared_ptr<ohmapp::DataSource> data_source)
+  : Super(std::move(options), data_source)
 {}
 
 
@@ -161,10 +163,15 @@ int OhmPopGpu::prepareForRun()
   ndt_map_.release();
 
   const size_t gpu_cache_size = options().gpu().gpuCacheSizeBytes();
+  unsigned reserve_batch_size = dataSource()->expectedBatchSize();
+  if (!reserve_batch_size)
+  {
+    reserve_batch_size = defaultBatchSize();
+  }
   true_mapper_ = std::unique_ptr<ohm::RayMapper>(
     (options().ndt().mode == ohm::NdtMode::kNone) ?
-      new ohm::GpuMap(map_.get(), true, options().input().batch_size, gpu_cache_size) :
-      new ohm::GpuNdtMap(map_.get(), true, options().input().batch_size, gpu_cache_size, options().ndt().mode));
+      new ohm::GpuMap(map_.get(), true, reserve_batch_size, gpu_cache_size) :
+      new ohm::GpuNdtMap(map_.get(), true, reserve_batch_size, gpu_cache_size, options().ndt().mode));
   ohm::GpuMap *gpu_map = gpuMap();
   gpu_map->setRaySegmentLength(options().gpu().ray_segment_length);
 
@@ -198,9 +205,8 @@ void OhmPopGpu::finaliseMap()
 {
   if (auto *gpu_map = gpuMap())
   {
-    info("syncing GPU voxels\n");
+    ohm::logger::info("syncing GPU voxels\n");
     gpu_map->syncVoxels();
-    // static_cast<ohm::GpuNdtMap *>(gpu_map.get())->debugDraw();
   }
   Super::finaliseMap();
 }

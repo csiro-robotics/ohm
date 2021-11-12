@@ -3,9 +3,10 @@
 // ABN 41 687 119 230
 //
 // Author: Kazys Stepanas
-#ifndef OHMTOOLS_OHMPOPULATIONHARNESS_H_
-#define OHMTOOLS_OHMPOPULATIONHARNESS_H_
+#ifndef OHMAPP_MAPHARNESS_H
+#define OHMAPP_MAPHARNESS_H
 
+#include <ohm/Logger.h>
 #include <ohm/Trace.h>
 
 #include <ohmutil/ProgressMonitor.h>
@@ -23,13 +24,10 @@ class Options;
 class ParseResult;
 }  // namespace cxxopts
 
-namespace slamio
+namespace ohmapp
 {
-class SlamCloudLoader;
-}
+class DataSource;
 
-namespace ohm
-{
 /// A base class which can be extended to define an application which populates an occupancy map.
 ///
 /// Usage:
@@ -37,31 +35,10 @@ namespace ohm
 /// - Call @c parseCommandLineOptions() or configure @c options() directly.
 /// - Call @c run()
 /// - Release/destroy
-class OhmPopulationHarness
+class MapHarness
 {
 public:
   constexpr static unsigned maxQuitLevel() { return 2u; }
-
-  struct InputOptions
-  {
-    std::string cloud_file;
-    std::string trajectory_file;
-    glm::dvec3 sensor_offset = glm::dvec3(0.0);
-    uint64_t point_limit = 0;
-    int64_t preload_count = 0;
-    double start_time = 0;
-    double time_limit = 0;
-    double sensor_batch_delta = 0.0;
-    unsigned batch_size = 4096;
-    /// Allow point cloud which is not a ray cloud if this is set. Integrates points only, no ray data.
-    bool point_cloud_only = false;
-
-    virtual ~InputOptions();
-
-    void configure(cxxopts::Options &parser);
-    virtual void configure(cxxopts::OptionAdder &adder);
-    virtual void print(std::ostream &out);
-  };
 
   struct OutputOptions
   {
@@ -97,7 +74,6 @@ public:
 
   struct Options
   {
-    std::unique_ptr<InputOptions> input_;
     std::unique_ptr<OutputOptions> output_;
     std::unique_ptr<MapOptions> map_;
 
@@ -108,9 +84,6 @@ public:
 
     Options();
     virtual ~Options();
-
-    inline InputOptions &input() { return *input_; }
-    inline const InputOptions &input() const { return *input_; }
 
     inline OutputOptions &output() { return *output_; }
     inline const OutputOptions &outpu() const { return *output_; }
@@ -125,17 +98,14 @@ public:
   /// Create a harness with the given options specialisation.
   ///
   /// Takes ownership of the pointer. @p options should generally be a specialisation of @c Options .
-  OhmPopulationHarness(std::unique_ptr<Options> &&options);
+  MapHarness(std::unique_ptr<Options> &&options, std::shared_ptr<DataSource> data_source);
   /// Virtual destructor.
-  virtual ~OhmPopulationHarness();
+  virtual ~MapHarness();
 
   /// Get the extension for @p file excluding the leading '.' character.
   static std::string getFileExtension(const std::string &file);
 
   inline bool quiet() const { return options_->output().quiet; }
-  virtual void info(const std::string &msg);
-  virtual void warn(const std::string &msg);
-  virtual void error(const std::string &msg);
 
   /// Description string for command line help.
   virtual std::string description() const = 0;
@@ -154,8 +124,6 @@ public:
   /// Run the map generation.
   /// @return Zero on success, a non-zero value on failure which can be used as the program exit code.
   int run();
-
-  inline bool collateSensorAndSamples() const { return collate_sensor_and_samples_; }
 
   /// Request a quit, incrementing the quit level.
   inline void requestQuit() { ++quit_level_; }
@@ -180,9 +148,11 @@ public:
   /// Get the @c Options - read/write.
   Options &options() { return *options_; }
 
-protected:
-  void setCollateSensorAndSamples(bool collate) { collate_sensor_and_samples_ = collate; }
+  /// Access the @c DataSource source object.
+  /// @return The data source object.
+  std::shared_ptr<ohmapp::DataSource> dataSource() const { return data_source_; }
 
+protected:
   /// Configure the @p parser to parse command line options into @p options() .
   virtual void configureOptions(cxxopts::Options &parser);
 
@@ -193,32 +163,26 @@ protected:
   /// @return Zero on success, a non-zero value on failure which can be used as the program exit code.
   virtual int validateOptions(const cxxopts::ParseResult &parsed);
 
-  /// Create the @c SlamCloudLoader . The default implementation handles the required setup and options validation.
-  ///
-  /// Called from @c run() .
-  virtual std::unique_ptr<slamio::SlamCloudLoader> createSlamLoader();
-
   /// Perform custom setup for execution such as map creation - called from @c run() after @c createSlamLoader() .
   virtual int prepareForRun() = 0;
 
   /// Process a batch of points as.
   ///
   /// The implementation is to integrate the samples into the map. Note that @p sensor_and_samples will either be an
-  /// array of sensor origin/sample pairs when @c collateSensorAndSamples() is true, or it will be just the samples when
-  /// @c collateSensorAndSamples() is false. In either case, @c batch_origin will be the sensor position for the first
-  /// sample point. All sensor positions will include the @p InputOptions::sensor_offset .
+  /// array of sensor origin/sample pairs or samples only depending on @c DataSource::samplesOnly()
+  /// (`dataSource()->samplesOnly()`). Sensor and sample points are both in the same frame as @c batch_origin and not
+  /// in the sensor frame.
   ///
-  /// Called whenever one of the following conditions are met:
-  /// - the @c InputOptions::batch_size is reached
-  /// - @p InputOptions::sensor_batch_delta is positive and the sensor delta has been exceeded
-  /// - there is no more input data and we have residual data in the buffers.
+  /// @note It is the implementation's responsibility to call @c progress_.incrementProgressBy(timestamps.size()) .
   ///
   /// @param batch_origin The sensor position for the first point in the batch.
-  /// @param sensor_and_samples Sensor/sample point pairs or just sample points (see above).
+  /// @param sensor_and_samples Sensor/sample point pairs or just sample points (see above).Sensor and sample points are
+  /// in the same frame as the @c batch_origin .
   /// @param timestamps Time stamps for each sample point.
   /// @param intensities Intensity values for each sample point. Will be zero when the input data has no intensity.
   /// @param colour Colour values for each sample point. Will be zero when the input data has no colour.
-  virtual void processBatch(const glm::dvec3 &batch_origin, const std::vector<glm::dvec3> &sensor_and_samples,
+  /// @return True to continue processing - generally should be `return !quitPopulation();`
+  virtual bool processBatch(const glm::dvec3 &batch_origin, const std::vector<glm::dvec3> &sensor_and_samples,
                             const std::vector<double> &timestamps, const std::vector<float> &intensities,
                             const std::vector<glm::vec4> &colours) = 0;
 
@@ -241,9 +205,9 @@ protected:
   virtual void tearDown() = 0;
 
   /// Callback for @c ProgressMonitor::setDisplayFunction() which displays to @c std::cout reusing the same line (\\r).
-  virtual void displayProgress(const ProgressMonitor::Progress &progress);
+  virtual void displayProgress(const ProgressMonitor::Progress &progress, bool final);
 
-  /// Options for the populator. May be a derivation of @c OhmPopulationHarness::Options .
+  /// Options for the populator. May be a derivation of @c MapHarness::Options .
   std::unique_ptr<Options> options_;
   /// Progress reporting thread helper.
   ProgressMonitor progress_;
@@ -254,14 +218,12 @@ protected:
 private:
   /// Time elapsed in the input data set timestamps (milliseconds).
   std::atomic<uint64_t> dataset_elapsed_ms_;
-  /// Slam cloud loader. Valid after calling @c createSlamLoader() as called from @c run() .
-  std::unique_ptr<slamio::SlamCloudLoader> slam_loader_;
-  /// True to collate sensor position and samples in the array passed to @c processBatch() .
-  bool collate_sensor_and_samples_ = true;
+  /// Object from which samples are loaded.
+  std::shared_ptr<DataSource> data_source_;
   /// Value set when a quit is requested. A quit value of 1 will stop map population, while 2 will also skip
   /// serialisation.
   unsigned quit_level_ = 0;
 };
-}  // namespace ohm
+}  // namespace ohmapp
 
-#endif  // OHMTOOLS_OHMPOPULATIONHARNESS_H_
+#endif  // OHMAPP_MAPHARNESS_H

@@ -14,6 +14,7 @@
 
 #include <ohm/Aabb.h>
 #include <ohm/DefaultLayer.h>
+#include <ohm/Logger.h>
 #include <ohm/MapChunk.h>
 #include <ohm/MapRegion.h>
 #include <ohm/OccupancyMap.h>
@@ -21,6 +22,8 @@
 #include <ohm/RayFilter.h>
 #include <ohm/VoxelMean.h>
 #include <ohm/VoxelTouchTime.h>
+
+#include <ohmutil/GlmStream.h>
 
 #include "private/GpuMapDetail.h"
 #include "private/GpuProgramRef.h"
@@ -74,21 +77,19 @@ inline bool goodRay(const glm::dvec3 &start, const glm::dvec3 &end, double max_r
   bool is_good = true;
   if (glm::any(glm::isnan(start)))
   {
-    // std::cerr << "NAN start point" << std::endl;
+    ohm::logger::trace("NAN start point\n");
     is_good = false;
   }
   if (glm::any(glm::isnan(end)))
   {
-    // std::cerr << "NAN end point" << std::endl;
+    ohm::logger::trace("NAN end point\n");
     is_good = false;
   }
 
   const glm::dvec3 ray = end - start;
   if (max_range > 0 && glm::dot(ray, ray) > max_range * max_range)
   {
-    // std::cerr << "Ray too long: (" <<
-    // glm::distance(start, end) << "): " << start << " ->
-    // " << end << std::endl;
+    ohm::logger::trace("Ray too long: (", glm::distance(start, end), "): ", start, " -> ", end, '\n');
     is_good = false;
   }
 
@@ -675,11 +676,9 @@ size_t GpuMap::integrateRays(const glm::dvec3 *rays, size_t element_count, const
     // Increment unclipped_samples if this sample isn't clipped.
     unclipped_samples += (ray.filter_flags & kRffClippedEnd) == 0;
 
-    // std::cout << i / 2 << ' ' << imp_->map->voxelKey(rays[i + 0]) << " -> " << imp_->map->voxelKey(rays[i + 1]) <<
-    // "
-    // "
-    //          << ray_start << ':' << ray_end << "  <=>  " << rays[i + 0] << " -> " << rays[i + 1] << std::endl;
-    // std::cout << "dirs: " << (ray_end - ray_start) << " vs " << (ray_end_d - ray_start_d) << std::endl;
+    // ohm::logger::trace(i / 2, ' ', imp_->map->voxelKey(rays[i + 0]), " -> ", imp_->map->voxelKey(rays[i + 1]), ' ',
+    //                 ray_start, ':', ray_end, "  <=>  ", rays[i + 0], " -> ", rays[i + 1], '\n');
+    // ohm::logger::trace("dirs: ", (ray_end - ray_start), " vs ", (ray_end_d - ray_start_d), '\n');
     gpumap::walkRegions(*imp_->map, ray.origin, ray.sample, region_func);
   };
 
@@ -893,9 +892,7 @@ void GpuMap::enqueueRegions(int buffer_index, unsigned region_update_flags)
     {
       if (enqueueRegion(region_key, buffer_index))
       {
-        // std::cout << "region: [" << regionKey.x << ' ' <<
-        // regionKey.y << ' ' << regionKey.z << ']' <<
-        // std::endl;
+        // ohm::logger::trace("region: [", region_key.x, ' ', region_key.y, ' ', region_key.z, "]\n");
         gputil::int3 gpu_region_key = { region_key.x, region_key.y, region_key.z };
         regions_buffer.write(&gpu_region_key, sizeof(gpu_region_key),
                              imp_->region_counts[buffer_index] * sizeof(gpu_region_key));
@@ -945,7 +942,7 @@ void GpuMap::enqueueRegions(int buffer_index, unsigned region_update_flags)
       else
       {
         // TODO(KS): throw with more information.
-        std::cout << "Failed to enqueue region data" << std::endl;
+        ohm::logger::error("Failed to enqueue region data\n");
       }
     }
   }
@@ -983,9 +980,7 @@ bool GpuMap::enqueueRegion(const glm::i16vec3 &region_key, int buffer_index)
       return false;
     }
 
-    // std::cout << "region: [" << regionKey.x << ' ' <<
-    // regionKey.y << ' ' << regionKey.z << ']' <<
-    // std::endl;
+    // ohm::logger::trace("region: [", region_key.x, ' ', region_key.y, ' ', region_key.z, "]\n");
     voxel_info.offsets_buffer_pinned.write(&mem_offset, sizeof(mem_offset),
                                            imp_->region_counts[buffer_index] * sizeof(mem_offset));
   }
@@ -1123,8 +1118,7 @@ void GpuMap::finaliseBatch(unsigned region_update_flags)
     traversal_layer_cache->updateEvents(imp_->batch_marker, imp_->region_update_events[buf_idx]);
   }
 
-  // std::cout << imp_->region_counts[bufIdx] << "
-  // regions\n" << std::flush;
+  // ohm::logger::trace(imp_->region_counts[buf_idx], "regions\n");
 
   imp_->region_counts[buf_idx] = 0;
   // Start a new batch for the GPU layers.

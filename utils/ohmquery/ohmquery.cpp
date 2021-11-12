@@ -562,7 +562,7 @@ int runQueries(const Options &opt)
     return 1;
   }
 
-  prog.setDisplayFunction([&opt](const ProgressMonitor::Progress & prog)
+  prog.setDisplayFunction([&opt](const ProgressMonitor::Progress & prog, bool final)
   {
     if (!opt.quiet)
     {
@@ -573,6 +573,10 @@ int runQueries(const Options &opt)
       else
       {
         printf("\r%7" PRIu64 "    ", prog.progress);
+      }
+      if (final)
+      {
+        printf("\n");
       }
       fflush(stdout);
     }

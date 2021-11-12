@@ -18,6 +18,8 @@
 #include <ohm/VoxelBlockCompressionQueue.h>
 #include <ohm/VoxelData.h>
 
+#include <ohmapp/DataSource.h>
+
 #ifdef TES_ENABLE
 #include <ohm/RayMapperTrace.h>
 #endif  // TES_ENABLE
@@ -266,14 +268,20 @@ void OhmPopCpu::Options::print(std::ostream &out)
 }
 
 
-OhmPopCpu::OhmPopCpu()
-  : Super(std::make_unique<Options>())
-{}
+OhmPopCpu::OhmPopCpu(std::shared_ptr<ohmapp::DataSource> data_source)
+  : Super(std::make_unique<Options>(), data_source)
+{
+  data_source->setSamplesOnly(false);
+  data_source->requestBatchSettings(defaultBatchSize(), 0);
+}
 
 
-OhmPopCpu::OhmPopCpu(std::unique_ptr<Options> &&options)
-  : Super(std::move(options))
-{}
+OhmPopCpu::OhmPopCpu(std::unique_ptr<Options> &&options, std::shared_ptr<ohmapp::DataSource> data_source)
+  : Super(std::move(options), data_source)
+{
+  data_source->setSamplesOnly(false);
+  data_source->requestBatchSettings(defaultBatchSize(), 0);
+}
 
 
 #if SLAMIO_HAVE_PDAL
@@ -422,7 +430,7 @@ int OhmPopCpu::prepareForRun()
 }
 
 
-void OhmPopCpu::processBatch(const glm::dvec3 &batch_origin, const std::vector<glm::dvec3> &sensor_and_samples,
+bool OhmPopCpu::processBatch(const glm::dvec3 &batch_origin, const std::vector<glm::dvec3> &sensor_and_samples,
                              const std::vector<double> &timestamps, const std::vector<float> &intensities,
                              const std::vector<glm::vec4> &colours)
 {
@@ -430,6 +438,8 @@ void OhmPopCpu::processBatch(const glm::dvec3 &batch_origin, const std::vector<g
   (void)colours;
   mapper_->integrateRays(sensor_and_samples.data(), unsigned(sensor_and_samples.size()), intensities.data(),
                          timestamps.data(), options().map().ray_mode_flags);
+  progress_.incrementProgressBy(timestamps.size());
+  return !quitPopulation();
 }
 
 
@@ -449,8 +459,7 @@ int OhmPopCpu::saveMap(const std::string &path_without_extension)
   std::string output_file = path_without_extension + ".ohm";
   std::ostringstream out;
   out.imbue(std::locale(""));
-  out << "Saving map to " << output_file << std::endl;
-  info(out.str());
+  ohm::logger::info("Saving map to ", output_file, '\n');
 
   std::unique_ptr<SerialiseMapProgress> save_progress;
   save_progress = std::make_unique<SerialiseMapProgress>(progress_, quitLevelPtr());
@@ -466,9 +475,7 @@ int OhmPopCpu::saveMap(const std::string &path_without_extension)
 
   if (err)
   {
-    out.str(std::string());
-    out << "Failed to save map: " << err << std::endl;
-    error(out.str());
+    ohm::logger::error("Failed to save map: ", err, '\n');
   }
 
   return err;
@@ -478,7 +485,7 @@ int OhmPopCpu::saveMap(const std::string &path_without_extension)
 int OhmPopCpu::saveCloud(const std::string &path_ply)
 {
   // Save a cloud representation.
-  info("Converting to point cloud.\n");
+  ohm::logger::info("Converting to point cloud.\n");
 
   ohmtools::ProgressCallback save_progress_callback;
   ohmtools::ColourByHeight colour_by_height(*map_);
@@ -500,10 +507,7 @@ int OhmPopCpu::saveCloud(const std::string &path_ply)
   progress_.beginProgress(ProgressMonitor::Info(map_->regionCount()));
   save_progress_callback = [this](size_t progress, size_t /*target*/) { progress_.updateProgress(progress); };
 
-  std::ostringstream out;
-  out.imbue(std::locale(""));
-  out << "Saving point cloud to " << path_ply << std::endl;
-  info(out.str());
+  ohm::logger::info("Saving point cloud to ", path_ply, '\n');
   uint64_t point_count = ohmtools::saveCloud(path_ply.c_str(), *map_, save_opt, save_progress_callback);
 
   progress_.endProgress();
@@ -511,9 +515,7 @@ int OhmPopCpu::saveCloud(const std::string &path_ply)
 
   if (!quiet())
   {
-    out.str(std::string());
-    out << "\nExported " << point_count << " point(s)" << std::endl;
-    info(out.str());
+    ohm::logger::info("\nExported ", point_count, " point(s)\n");
   }
 
   return 0;

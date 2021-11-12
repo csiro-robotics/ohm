@@ -82,7 +82,7 @@ public:
   };
 
   /// Progress callback function.
-  using DisplayFunction = std::function<void(const Progress &)>;
+  using DisplayFunction = std::function<void(const Progress &, bool final)>;
 
   /// Default frequency to call the @c displayFunction() at.
   static const int kDefaultUpdateFrequency = 10;
