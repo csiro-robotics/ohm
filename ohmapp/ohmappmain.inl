@@ -24,7 +24,7 @@ void onSignal(int arg)
 }  // namespace
 
 template <typename OhmPop, typename DataSource>
-int ohmpopMain(int argc, char *argv[])
+int ohmappMain(int argc, char *argv[])
 {
   int exit_code = 0;
   OhmPop populator(std::make_shared<DataSource>());

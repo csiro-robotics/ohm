@@ -6,6 +6,8 @@
 #ifndef OHMAPP_DATASOURCE_H
 #define OHMAPP_DATASOURCE_H
 
+#include "OhmAppConfig.h"
+
 #include <ohm/Trace.h>
 
 #include <ohmutil/ProgressMonitor.h>

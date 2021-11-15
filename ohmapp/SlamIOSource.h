@@ -3,6 +3,8 @@
 // ABN 41 687 119 230
 //
 // Author: Kazys Stepanas
+#include "OhmAppConfig.h"
+
 #include "DataSource.h"
 
 #include <glm/vec3.hpp>

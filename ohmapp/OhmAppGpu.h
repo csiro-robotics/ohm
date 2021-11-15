@@ -3,20 +3,22 @@
 // ABN 41 687 119 230
 //
 // Author: Kazys Stepanas
-#ifndef OHMPOPGPU_H_
-#define OHMPOPGPU_H_
+#ifndef OHMAPP_OHMPOPGPU_H_
+#define OHMAPP_OHMPOPGPU_H_
 
-#include "OhmPopConfig.h"
+#include "OhmAppGpuConfig.h"
 
-#include "OhmPopCpu.h"
+#include "OhmAppCpu.h"
 
 #include <ohmgpu/GpuMap.h>
 #include <ohmgpu/GpuNdtMap.h>
 
-class OhmPopGpu : public OhmPopCpu
+namespace ohmapp
+{
+class OhmAppGpu : public OhmAppCpu
 {
 public:
-  using Super = OhmPopCpu;
+  using Super = OhmAppCpu;
 
   /// GPU options.
   struct GpuOptions
@@ -51,7 +53,7 @@ public:
   };
 
   /// Default constructor.
-  OhmPopGpu(std::shared_ptr<ohmapp::DataSource> data_source);
+  OhmAppGpu(std::shared_ptr<ohmapp::DataSource> data_source);
 
   int parseCommandLineOptions(int argc, const char *const *argv) override;
 
@@ -63,10 +65,11 @@ public:
   const ohm::GpuMap *gpuMap() const;
 
 protected:
-  OhmPopGpu(std::unique_ptr<Options> &&options, std::shared_ptr<ohmapp::DataSource> data_source);
+  OhmAppGpu(std::unique_ptr<Options> &&options, std::shared_ptr<ohmapp::DataSource> data_source);
 
   int prepareForRun() override;
   void finaliseMap() override;
 };
+}  // namespace ohmapp
 
-#endif  // OHMPOPGPU_H_
+#endif  // OHMAPP_OHMPOPGPU_H_

@@ -1,12 +1,11 @@
 //
 // author Kazys Stepanas
 //
+#include <ohmapp/OhmAppGpu.h>
 #include <ohmapp/SlamIOSource.h>
-#include <ohmapp/ohmpopmain.inl>
-
-#include "OhmPopGpu.h"
+#include <ohmapp/ohmappmain.inl>
 
 int main(int argc, char *argv[])
 {
-  return ohmpopMain<OhmPopGpu, ohmapp::SlamIOSource>(argc, argv);
+  return ohmappMain<ohmapp::OhmAppGpu, ohmapp::SlamIOSource>(argc, argv);
 }

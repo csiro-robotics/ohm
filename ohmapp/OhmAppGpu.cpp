@@ -3,7 +3,7 @@
 // ABN 41 687 119 230
 //
 // Author: Kazys Stepanas
-#include "OhmPopGpu.h"
+#include "OhmAppGpu.h"
 
 #include <ohmgpu/GpuCache.h>
 #include <ohmgpu/GpuMap.h>
@@ -22,7 +22,9 @@
 // Must be after any argument type streaming operators.
 #include <ohmutil/Options.h>
 
-OhmPopGpu::GpuOptions::GpuOptions()
+namespace ohmapp
+{
+OhmAppGpu::GpuOptions::GpuOptions()
 {
   // Build GPU options set.
   device_option_types.resize(ohm::gpuArgsInfo(nullptr, nullptr, 0));
@@ -31,13 +33,13 @@ OhmPopGpu::GpuOptions::GpuOptions()
 }
 
 
-size_t OhmPopGpu::GpuOptions::gpuCacheSizeBytes() const
+size_t OhmAppGpu::GpuOptions::gpuCacheSizeBytes() const
 {
   return size_t(cache_size_gb * double(ohm::GpuCache::kGiB));
 }
 
 
-void OhmPopGpu::GpuOptions::configure(cxxopts::Options &parser)
+void OhmAppGpu::GpuOptions::configure(cxxopts::Options &parser)
 {
   auto adder = parser.add_options("Gpu");
   // clang-format off
@@ -59,43 +61,43 @@ void OhmPopGpu::GpuOptions::configure(cxxopts::Options &parser)
 }
 
 
-void OhmPopGpu::GpuOptions::print(std::ostream &out)
+void OhmAppGpu::GpuOptions::print(std::ostream &out)
 {
   out << "Gpu cache size: " << ohm::util::Bytes(gpuCacheSizeBytes()) << '\n';
   out << "Gpu max ray segment: " << ray_segment_length << '\n';
 }
 
 
-OhmPopGpu::Options::Options()
+OhmAppGpu::Options::Options()
 {
   gpu_ = std::make_unique<GpuOptions>();
 }
 
-void OhmPopGpu::Options::configure(cxxopts::Options &parser)
+void OhmAppGpu::Options::configure(cxxopts::Options &parser)
 {
   Super::Options::configure(parser);
   gpu_->configure(parser);
 }
 
 
-void OhmPopGpu::Options::print(std::ostream &out)
+void OhmAppGpu::Options::print(std::ostream &out)
 {
   Super::Options::print(out);
   gpu_->print(out);
 }
 
 
-OhmPopGpu::OhmPopGpu(std::shared_ptr<ohmapp::DataSource> data_source)
+OhmAppGpu::OhmAppGpu(std::shared_ptr<ohmapp::DataSource> data_source)
   : Super(std::make_unique<Options>(), data_source)
 {}
 
 
-OhmPopGpu::OhmPopGpu(std::unique_ptr<Options> &&options, std::shared_ptr<ohmapp::DataSource> data_source)
+OhmAppGpu::OhmAppGpu(std::unique_ptr<Options> &&options, std::shared_ptr<ohmapp::DataSource> data_source)
   : Super(std::move(options), data_source)
 {}
 
 
-int OhmPopGpu::parseCommandLineOptions(int argc, const char *const *argv)
+int OhmAppGpu::parseCommandLineOptions(int argc, const char *const *argv)
 {
   int return_code = Super::parseCommandLineOptions(argc, argv);
   if (return_code)
@@ -131,7 +133,7 @@ int OhmPopGpu::parseCommandLineOptions(int argc, const char *const *argv)
 }
 
 
-ohm::GpuMap *OhmPopGpu::gpuMap()
+ohm::GpuMap *OhmAppGpu::gpuMap()
 {
   if (mapper_)
   {
@@ -141,7 +143,7 @@ ohm::GpuMap *OhmPopGpu::gpuMap()
 }
 
 
-const ohm::GpuMap *OhmPopGpu::gpuMap() const
+const ohm::GpuMap *OhmAppGpu::gpuMap() const
 {
   if (mapper_)
   {
@@ -151,7 +153,7 @@ const ohm::GpuMap *OhmPopGpu::gpuMap() const
 }
 
 
-int OhmPopGpu::prepareForRun()
+int OhmAppGpu::prepareForRun()
 {
   int return_code = Super::prepareForRun();
   if (return_code)
@@ -201,7 +203,7 @@ int OhmPopGpu::prepareForRun()
 }
 
 
-void OhmPopGpu::finaliseMap()
+void OhmAppGpu::finaliseMap()
 {
   if (auto *gpu_map = gpuMap())
   {
@@ -210,3 +212,4 @@ void OhmPopGpu::finaliseMap()
   }
   Super::finaliseMap();
 }
+}  // namespace ohmapp

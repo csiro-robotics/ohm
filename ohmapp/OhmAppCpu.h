@@ -3,10 +3,10 @@
 // ABN 41 687 119 230
 //
 // Author: Kazys Stepanas
-#ifndef OHMPOPCPU_H_
-#define OHMPOPCPU_H_
+#ifndef OHMAPP_OHMPOPCPU_H_
+#define OHMAPP_OHMPOPCPU_H_
 
-#include "OhmPopConfig.h"
+#include "OhmAppConfig.h"
 
 #include <ohm/MapSerialise.h>
 #include <ohm/NdtMap.h>
@@ -17,6 +17,8 @@
 
 #include <ohmapp/MapHarness.h>
 
+namespace ohmapp
+{
 /// Helper to display map serialisation progress.
 class SerialiseMapProgress : public ohm::SerialiseProgress
 {
@@ -39,7 +41,7 @@ private:
 };
 
 /// Population harness to generate an @c ohm::OccupancyMap using ohm CPU algorithms.
-class OhmPopCpu : public ohmapp::MapHarness
+class OhmAppCpu : public ohmapp::MapHarness
 {
 public:
   using Super = ohmapp::MapHarness;
@@ -130,7 +132,7 @@ public:
   };
 
   /// Default constructor.
-  OhmPopCpu(std::shared_ptr<ohmapp::DataSource> data_source);
+  OhmAppCpu(std::shared_ptr<ohmapp::DataSource> data_source);
 
   std::string description() const override;
 
@@ -139,7 +141,7 @@ public:
   Options &options() { return static_cast<Options &>(Super::options()); }
 
 protected:
-  OhmPopCpu(std::unique_ptr<Options> &&options, std::shared_ptr<ohmapp::DataSource> data_source);
+  OhmAppCpu(std::unique_ptr<Options> &&options, std::shared_ptr<ohmapp::DataSource> data_source);
 
   int validateOptions(const cxxopts::ParseResult &parsed) override;
   int prepareForRun() override;
@@ -158,5 +160,6 @@ protected:
   /// Debug drawing mapper.
   std::unique_ptr<ohm::RayMapper> trace_mapper_;
 };
+}  // namespace ohmapp
 
-#endif  // OHMPOPCPU_H_
+#endif  // OHMAPP_OHMPOPCPU_H_

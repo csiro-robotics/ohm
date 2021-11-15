@@ -6,6 +6,8 @@
 #ifndef OHMAPP_MAPHARNESS_H
 #define OHMAPP_MAPHARNESS_H
 
+#include "OhmAppConfig.h"
+
 #include <ohm/Logger.h>
 #include <ohm/Trace.h>
 

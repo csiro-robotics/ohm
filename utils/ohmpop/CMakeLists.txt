@@ -17,8 +17,6 @@ configure_file(OhmPopConfig.in.h "${CMAKE_CURRENT_BINARY_DIR}/ohmpop/OhmPopConfi
 
 set(SOURCES
   OhmPopConfig.in.h
-  OhmPopCpu.cpp
-  OhmPopCpu.h
   "${CMAKE_CURRENT_BINARY_DIR}/ohmpop/OhmPopConfig.h"
 )
 
@@ -28,8 +26,6 @@ function(_ohmpop_setup GPU_MODE)
     set(OHMLIB_NAME ohm${GPU_MODE})
     list(APPEND SOURCES
       ohmpopmaingpu.cpp
-      OhmPopGpu.cpp
-      OhmPopGpu.h
     )
   else(NOT GPU_MODE STREQUAL "cpu")
     set(OHMLIB_NAME ohm)
@@ -64,6 +60,7 @@ function(_ohmpop_setup GPU_MODE)
     target_compile_definitions(${TARGET_NAME} PUBLIC "-DOHMPOP_CPU")
   else()
     target_compile_definitions(${TARGET_NAME} PUBLIC "-DOHMPOP_GPU")
+    target_link_libraries(${TARGET_NAME} PUBLIC ohmapp${GPU_MODE})
   endif(GPU_MODE STREQUAL "cpu")
 
   install(TARGETS ${TARGET_NAME} DESTINATION bin)

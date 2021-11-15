@@ -3,7 +3,7 @@
 // ABN 41 687 119 230
 //
 // Author: Kazys Stepanas
-#include "OhmPopCpu.h"
+#include "OhmAppCpu.h"
 
 #include <ohm/DebugDraw.h>
 #include <ohm/MapSerialise.h>
@@ -96,7 +96,9 @@ std::ostream &operator<<(std::ostream &out, const ohm::NdtMode mode)
   return out;
 }
 
-OhmPopCpu::MapOptions::MapOptions()
+namespace ohmapp
+{
+OhmAppCpu::MapOptions::MapOptions()
 {
   // Initialise defaults from map configurations.
   ohm::OccupancyMap defaults_map;
@@ -110,7 +112,7 @@ OhmPopCpu::MapOptions::MapOptions()
 }
 
 
-void OhmPopCpu::MapOptions::configure(cxxopts::OptionAdder &adder)
+void OhmAppCpu::MapOptions::configure(cxxopts::OptionAdder &adder)
 {
   Super::MapOptions::configure(adder);
   // clang-format off
@@ -131,7 +133,7 @@ void OhmPopCpu::MapOptions::configure(cxxopts::OptionAdder &adder)
 }
 
 
-void OhmPopCpu::MapOptions::print(std::ostream &out)
+void OhmAppCpu::MapOptions::print(std::ostream &out)
 {
   Super::MapOptions::print(out);
   out << "Mapping mode: " << mode << '\n';
@@ -150,7 +152,7 @@ void OhmPopCpu::MapOptions::print(std::ostream &out)
 }
 
 
-OhmPopCpu::NdtOptions::NdtOptions()
+OhmAppCpu::NdtOptions::NdtOptions()
 {
   ohm::OccupancyMap defaults_map;
   const ohm::NdtMap defaults_ndt(&defaults_map, true);
@@ -165,17 +167,17 @@ OhmPopCpu::NdtOptions::NdtOptions()
 }
 
 
-OhmPopCpu::NdtOptions::~NdtOptions() = default;
+OhmAppCpu::NdtOptions::~NdtOptions() = default;
 
 
-void OhmPopCpu::NdtOptions::configure(cxxopts::Options &parser)
+void OhmAppCpu::NdtOptions::configure(cxxopts::Options &parser)
 {
   cxxopts::OptionAdder adder = parser.add_options("Ndt");
   configure(adder);
 }
 
 
-void OhmPopCpu::NdtOptions::configure(cxxopts::OptionAdder &adder)
+void OhmAppCpu::NdtOptions::configure(cxxopts::OptionAdder &adder)
 {
   // clang-format off
   adder
@@ -189,7 +191,7 @@ void OhmPopCpu::NdtOptions::configure(cxxopts::OptionAdder &adder)
 }
 
 
-void OhmPopCpu::NdtOptions::print(std::ostream &out)
+void OhmAppCpu::NdtOptions::print(std::ostream &out)
 {
   if (bool(mode))
   {
@@ -202,7 +204,7 @@ void OhmPopCpu::NdtOptions::print(std::ostream &out)
 }
 
 
-OhmPopCpu::CompressionOptions::CompressionOptions()
+OhmAppCpu::CompressionOptions::CompressionOptions()
 {
   ohm::VoxelBlockCompressionQueue cq(true);  // Create in test mode.
   high_tide = ohm::util::Bytes(cq.highTide());
@@ -210,16 +212,16 @@ OhmPopCpu::CompressionOptions::CompressionOptions()
 }
 
 
-OhmPopCpu::CompressionOptions::~CompressionOptions() = default;
+OhmAppCpu::CompressionOptions::~CompressionOptions() = default;
 
 
-void OhmPopCpu::CompressionOptions::configure(cxxopts::Options &parser)
+void OhmAppCpu::CompressionOptions::configure(cxxopts::Options &parser)
 {
   cxxopts::OptionAdder adder = parser.add_options("Compression");
   configure(adder);
 }
 
-void OhmPopCpu::CompressionOptions::configure(cxxopts::OptionAdder &adder)
+void OhmAppCpu::CompressionOptions::configure(cxxopts::OptionAdder &adder)
 {
   // clang-format off
   adder
@@ -231,7 +233,7 @@ void OhmPopCpu::CompressionOptions::configure(cxxopts::OptionAdder &adder)
 }
 
 
-void OhmPopCpu::CompressionOptions::print(std::ostream &out)
+void OhmAppCpu::CompressionOptions::print(std::ostream &out)
 {
   out << "Compression: " << (uncompressed ? "off" : "on") << '\n';
   if (!uncompressed)
@@ -242,17 +244,17 @@ void OhmPopCpu::CompressionOptions::print(std::ostream &out)
 }
 
 
-OhmPopCpu::Options::Options()
+OhmAppCpu::Options::Options()
 {
-  map_ = std::make_unique<OhmPopCpu::MapOptions>();
-  ndt_ = std::make_unique<OhmPopCpu::NdtOptions>();
-  compression_ = std::make_unique<OhmPopCpu::CompressionOptions>();
+  map_ = std::make_unique<OhmAppCpu::MapOptions>();
+  ndt_ = std::make_unique<OhmAppCpu::NdtOptions>();
+  compression_ = std::make_unique<OhmAppCpu::CompressionOptions>();
   default_help_sections.emplace_back("Ndt");
   default_help_sections.emplace_back("Compression");
 }
 
 
-void OhmPopCpu::Options::configure(cxxopts::Options &parser)
+void OhmAppCpu::Options::configure(cxxopts::Options &parser)
 {
   Super::Options::configure(parser);
   ndt_->configure(parser);
@@ -260,7 +262,7 @@ void OhmPopCpu::Options::configure(cxxopts::Options &parser)
 }
 
 
-void OhmPopCpu::Options::print(std::ostream &out)
+void OhmAppCpu::Options::print(std::ostream &out)
 {
   Super::Options::print(out);
   ndt_->print(out);
@@ -268,7 +270,7 @@ void OhmPopCpu::Options::print(std::ostream &out)
 }
 
 
-OhmPopCpu::OhmPopCpu(std::shared_ptr<ohmapp::DataSource> data_source)
+OhmAppCpu::OhmAppCpu(std::shared_ptr<ohmapp::DataSource> data_source)
   : Super(std::make_unique<Options>(), data_source)
 {
   data_source->setSamplesOnly(false);
@@ -276,7 +278,7 @@ OhmPopCpu::OhmPopCpu(std::shared_ptr<ohmapp::DataSource> data_source)
 }
 
 
-OhmPopCpu::OhmPopCpu(std::unique_ptr<Options> &&options, std::shared_ptr<ohmapp::DataSource> data_source)
+OhmAppCpu::OhmAppCpu(std::unique_ptr<Options> &&options, std::shared_ptr<ohmapp::DataSource> data_source)
   : Super(std::move(options), data_source)
 {
   data_source->setSamplesOnly(false);
@@ -290,7 +292,7 @@ OhmPopCpu::OhmPopCpu(std::unique_ptr<Options> &&options, std::shared_ptr<ohmapp:
 #define CLOUD_TYPE "PLY point cloud"
 #endif  // SLAMIO_HAVE_PDAL
 
-std::string OhmPopCpu::description() const
+std::string OhmAppCpu::description() const
 {
   return "Generate an occupancy map from a ray cloud or a point cloud with accompanying "
          "trajectory file. The trajectory marks the scanner trajectory with timestamps "
@@ -306,7 +308,7 @@ std::string OhmPopCpu::description() const
 }
 
 
-int OhmPopCpu::validateOptions(const cxxopts::ParseResult &parsed)
+int OhmAppCpu::validateOptions(const cxxopts::ParseResult &parsed)
 {
   int return_code = Super::validateOptions(parsed);
   if (return_code)
@@ -366,7 +368,7 @@ int OhmPopCpu::validateOptions(const cxxopts::ParseResult &parsed)
 }
 
 
-int OhmPopCpu::prepareForRun()
+int OhmAppCpu::prepareForRun()
 {
   ohm::MapFlag map_flags = ohm::MapFlag::kDefault;
   map_flags |= (options().map().voxel_mean) ? ohm::MapFlag::kVoxelMean : ohm::MapFlag::kNone;
@@ -430,7 +432,7 @@ int OhmPopCpu::prepareForRun()
 }
 
 
-bool OhmPopCpu::processBatch(const glm::dvec3 &batch_origin, const std::vector<glm::dvec3> &sensor_and_samples,
+bool OhmAppCpu::processBatch(const glm::dvec3 &batch_origin, const std::vector<glm::dvec3> &sensor_and_samples,
                              const std::vector<double> &timestamps, const std::vector<float> &intensities,
                              const std::vector<glm::vec4> &colours)
 {
@@ -443,7 +445,7 @@ bool OhmPopCpu::processBatch(const glm::dvec3 &batch_origin, const std::vector<g
 }
 
 
-void OhmPopCpu::finaliseMap()
+void OhmAppCpu::finaliseMap()
 {
 #ifdef TES_ENABLE
   if (map_)
@@ -454,7 +456,7 @@ void OhmPopCpu::finaliseMap()
 }
 
 
-int OhmPopCpu::saveMap(const std::string &path_without_extension)
+int OhmAppCpu::saveMap(const std::string &path_without_extension)
 {
   std::string output_file = path_without_extension + ".ohm";
   std::ostringstream out;
@@ -482,7 +484,7 @@ int OhmPopCpu::saveMap(const std::string &path_without_extension)
 }
 
 
-int OhmPopCpu::saveCloud(const std::string &path_ply)
+int OhmAppCpu::saveCloud(const std::string &path_ply)
 {
   // Save a cloud representation.
   ohm::logger::info("Converting to point cloud.\n");
@@ -522,7 +524,7 @@ int OhmPopCpu::saveCloud(const std::string &path_ply)
 }
 
 
-void OhmPopCpu::tearDown()
+void OhmAppCpu::tearDown()
 {
   // ndt_map->debugDraw();
   mapper_ = nullptr;
@@ -533,3 +535,4 @@ void OhmPopCpu::tearDown()
   ndt_map_.release();
   map_.release();
 }
+}  // namespace ohmapp
