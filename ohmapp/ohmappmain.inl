@@ -3,9 +3,12 @@
 // ABN 41 687 119 230
 //
 // Author: Kazys Stepanas
+#include "MapHarness.h"
+
 #include <csignal>
 #include <iostream>
 #include <locale>
+#include <memory>
 
 namespace
 {
@@ -23,19 +26,15 @@ void onSignal(int arg)
 }
 }  // namespace
 
-template <typename OhmPop, typename DataSource>
-int ohmappMain(int argc, char *argv[])
+int ohmappMain(int argc, const char *const *argv, ohmapp::MapHarness &populator)
 {
-  int exit_code = 0;
-  OhmPop populator(std::make_shared<DataSource>());
-
   g_quit = populator.quitLevelPtr();
   signal(SIGINT, onSignal);
   signal(SIGTERM, onSignal);
 
   std::cout.imbue(std::locale(""));
 
-  exit_code = populator.parseCommandLineOptions(argc, (const char *const *)argv);
+  int exit_code = populator.parseCommandLineOptions(argc, argv);
   if (exit_code)
   {
     return exit_code;
@@ -43,4 +42,17 @@ int ohmappMain(int argc, char *argv[])
 
   exit_code = populator.run();
   return exit_code;
+}
+
+template <typename OhmPop>
+int ohmappMain(int argc, const char *const *argv, std::shared_ptr<ohmapp::DataSource> data_source)
+{
+  OhmPop populator(data_source);
+  return ohmappMain(argc, argv, populator);
+}
+
+template <typename OhmPop, typename DataSource>
+int ohmappMain(int argc, const char *const *argv)
+{
+  return ohmappMain<OhmPop>(argc, argv, std::make_shared<DataSource>());
 }
