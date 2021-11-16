@@ -71,6 +71,7 @@ void OhmAppGpu::GpuOptions::print(std::ostream &out)
 OhmAppGpu::Options::Options()
 {
   gpu_ = std::make_unique<GpuOptions>();
+  default_help_sections.emplace_back("Gpu");
 }
 
 void OhmAppGpu::Options::configure(cxxopts::Options &parser)
