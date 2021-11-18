@@ -140,6 +140,9 @@ public:
 
   Options &options() { return static_cast<Options &>(Super::options()); }
 
+  inline ohm::OccupancyMap *map() { return map_.get(); }
+  inline const ohm::OccupancyMap *map() const { return map_.get(); }
+
 protected:
   OhmAppCpu(std::unique_ptr<Options> &&options, std::shared_ptr<ohmapp::DataSource> data_source);
 
