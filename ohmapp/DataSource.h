@@ -165,7 +165,7 @@ public:
   ///
   /// @param batch_function Function call for each data sample batch.
   /// @return Zero on success, a non-zero value on failure which can be used as the program exit code.
-  virtual int run(BatchFunction batch_function) = 0;
+  virtual int run(BatchFunction batch_function, unsigned *quit_level_ptr) = 0;
 
 private:
   /// User configurable options.

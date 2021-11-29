@@ -208,7 +208,7 @@ int SlamIOSource::prepareForRun(uint64_t &point_count)
 }
 
 
-int SlamIOSource::run(BatchFunction batch_function)
+int SlamIOSource::run(BatchFunction batch_function, unsigned *quit_level_ptr)
 {
   if (!loader_)
   {
@@ -327,6 +327,8 @@ int SlamIOSource::run(BatchFunction batch_function)
       // Fetch next sample.
       point_pending = loader_->nextSample(sample);
     }
+
+    finish = finish || (quit_level_ptr && *quit_level_ptr != 0u);
   }
 
   if (point_pending && (!point_limit || process_points_local < point_limit))

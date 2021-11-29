@@ -56,7 +56,7 @@ public:
   int validateOptions() override;
   int prepareForRun(uint64_t &point_count) override;
 
-  int run(BatchFunction batch_function) override;
+  int run(BatchFunction batch_function, unsigned *quit_level_ptr) override;
 
 private:
   /// Slam cloud loader. Valid after calling @c createSlamLoader() as called from @c run() .

@@ -204,6 +204,15 @@ int MapHarness::validateOptions(const cxxopts::ParseResult &parsed)
 }
 
 
+void MapHarness::onStart()
+{
+  if (on_start_callback_)
+  {
+    on_start_callback_();
+  }
+}
+
+
 int MapHarness::run()
 {
   int result_code = 0;
@@ -258,13 +267,16 @@ int MapHarness::run()
   uint64_t predicted_point_count = 0;
   data_source_->prepareForRun(predicted_point_count);
 
+  onStart();
+
   ohm::logger::info("Populating map\n");
   progress_.beginProgress(ProgressMonitor::Info(predicted_point_count));
   progress_.startThread();
 
   const Clock::time_point start_time = Clock::now();
   data_source_->run(std::bind(&MapHarness::processBatch, this, std::placeholders::_1, std::placeholders::_2,
-                              std::placeholders::_3, std::placeholders::_4, std::placeholders::_5));
+                              std::placeholders::_3, std::placeholders::_4, std::placeholders::_5),
+                    quitLevelPtr());
   progress_.endProgress();
   progress_.pause();
   finaliseMap();
