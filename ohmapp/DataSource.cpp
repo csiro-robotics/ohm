@@ -68,6 +68,24 @@ void DataSource::configure(cxxopts::Options &parser)
 DataSource::~DataSource() = default;
 
 
+std::string DataSource::getFileExtension(const std::string &file)
+{
+  const size_t last_dot = file.find_last_of('.');
+  if (last_dot != std::string::npos)
+  {
+    return file.substr(last_dot + 1);
+  }
+
+  return "";
+}
+
+
+void DataSource::setSamplesOnly(bool samples_only)
+{
+  samples_only_ = samples_only;
+}
+
+
 int DataSource::validateOptions()
 {
   return 0;

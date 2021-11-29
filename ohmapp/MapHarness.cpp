@@ -150,18 +150,6 @@ MapHarness::MapHarness(std::unique_ptr<Options> &&options, std::shared_ptr<DataS
 MapHarness::~MapHarness() = default;
 
 
-std::string MapHarness::getFileExtension(const std::string &file)
-{
-  const size_t last_dot = file.find_last_of('.');
-  if (last_dot != std::string::npos)
-  {
-    return file.substr(last_dot + 1);
-  }
-
-  return "";
-}
-
-
 int MapHarness::parseCommandLineOptions(int argc, const char *const *argv)
 {
   cxxopts::Options parser(argv[0]);
@@ -205,7 +193,7 @@ int MapHarness::validateOptions(const cxxopts::ParseResult &parsed)
 #ifdef TES_ENABLE
   if (!options().output().trace.empty())
   {
-    if (getFileExtension(options().output().trace) != "3es")
+    if (DataSource::getFileExtension(options().output().trace) != "3es")
     {
       options().output().trace += ".3es";
     }

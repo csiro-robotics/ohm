@@ -93,7 +93,7 @@ public:
   inline bool samplesOnly() const { return samples_only_; }
   /// Set @c samplesOnly() .
   /// @param samples_only True to only pass samples to @c BatchFunction , false to interleave sensor/sample pairs.
-  inline void setSamplesOnly(bool samples_only) { samples_only_ = samples_only; }
+  virtual void setSamplesOnly(bool samples_only);
 
   /// Return the name of the data source. For example, this may be the input file name without extension.
   /// @return A name for the data source.

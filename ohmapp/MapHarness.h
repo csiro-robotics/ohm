@@ -104,9 +104,6 @@ public:
   /// Virtual destructor.
   virtual ~MapHarness();
 
-  /// Get the extension for @p file excluding the leading '.' character.
-  static std::string getFileExtension(const std::string &file);
-
   inline bool quiet() const { return options_->output().quiet; }
 
   /// Description string for command line help.

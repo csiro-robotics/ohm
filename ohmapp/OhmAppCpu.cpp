@@ -38,20 +38,6 @@ std::ostream &operator<<(std::ostream &out, const ohm::NdtMode mode);
 // Must be after argument streaming operators.
 #include <ohmutil/Options.h>
 
-namespace
-{
-std::string getFileExtension(const std::string &file)
-{
-  const size_t last_dot = file.find_last_of('.');
-  if (last_dot != std::string::npos)
-  {
-    return file.substr(last_dot + 1);
-  }
-
-  return "";
-}
-}  // namespace
-
 std::istream &operator>>(std::istream &in, ohm::NdtMode &mode)
 {
   // Note: we don't use ndtModeFromString() because we use abbreviations
