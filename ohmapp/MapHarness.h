@@ -43,7 +43,7 @@ class MapHarness
 public:
   constexpr static unsigned maxQuitLevel() { return 2u; }
 
-  using OnStartCallback = std::function<void()>;
+  using OnConfigureCallback = std::function<void()>;
 
   struct OutputOptions
   {
@@ -155,10 +155,12 @@ public:
   std::shared_ptr<ohmapp::DataSource> dataSource() const { return data_source_; }
 
   /// Set the callback to invoke on starting.
-  void setOnStartCallback(OnStartCallback callback) { on_start_callback_ = callback; }
+  ///
+  /// Called after @c configureOptions(), but before @c validateOptions() .
+  void setOnConfigureOptionsCallback(OnConfigureCallback callback) { on_configure_options_callback_ = callback; }
 
   /// Get the callback invoked on starting.
-  OnStartCallback onStartCallback() const { return on_start_callback_; }
+  OnConfigureCallback onConfigureOptionsCallback() const { return on_configure_options_callback_; }
 
 protected:
   /// Configure the @p parser to parse command line options into @p options() .
@@ -173,13 +175,6 @@ protected:
 
   /// Perform custom setup for execution such as map creation - called from @c run() after @c createSlamLoader() .
   virtual int prepareForRun() = 0;
-
-  /// Called after everything has been finalised, including the data source, and processing will begin.
-  /// Differs from @c prepareForRun() in that @c DataSource::prepareForRun() will also have been called before this
-  /// call and the map is ready for use.
-  ///
-  /// The default implementation calls @c onStartCallback() .
-  virtual void onStart();
 
   /// Process a batch of points as.
   ///
@@ -238,8 +233,8 @@ private:
   /// Value set when a quit is requested. A quit value of 1 will stop map population, while 2 will also skip
   /// serialisation.
   unsigned quit_level_ = 0;
-  /// Called from @c onStart() for external notification.
-  OnStartCallback on_start_callback_;
+  /// Called after @c configureOptions() for external notification, but before @c validateOptions() .
+  OnConfigureCallback on_configure_options_callback_;
 };
 }  // namespace ohmapp
 

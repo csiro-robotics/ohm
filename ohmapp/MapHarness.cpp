@@ -154,6 +154,10 @@ int MapHarness::parseCommandLineOptions(int argc, const char *const *argv)
 {
   cxxopts::Options parser(argv[0]);
   configureOptions(parser);
+  if (on_configure_options_callback_)
+  {
+    on_configure_options_callback_();
+  }
 
   int result = 0;
   try
@@ -201,15 +205,6 @@ int MapHarness::validateOptions(const cxxopts::ParseResult &parsed)
 #endif  // TES_ENABLE
 
   return 0;
-}
-
-
-void MapHarness::onStart()
-{
-  if (on_start_callback_)
-  {
-    on_start_callback_();
-  }
 }
 
 
@@ -266,8 +261,6 @@ int MapHarness::run()
 
   uint64_t predicted_point_count = 0;
   data_source_->prepareForRun(predicted_point_count);
-
-  onStart();
 
   ohm::logger::info("Populating map\n");
   progress_.beginProgress(ProgressMonitor::Info(predicted_point_count));
