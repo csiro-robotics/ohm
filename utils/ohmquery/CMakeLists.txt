@@ -30,7 +30,10 @@ function(_ohmquery_setup GPU_MODE)
       "${GLM_INCLUDE_DIR}"
   )
 
-  target_link_libraries(${TARGET_NAME} PUBLIC ohm${GPU_MODE} ohmutil)
+  target_link_libraries(${TARGET_NAME} PUBLIC ohm${GPU_MODE} gputil${GPU_MODE} ohmutil)
+  if(GPU_MODE STREQUAL "ocl")
+    target_link_libraries(${TARGET_NAME} PUBLIC clu)
+  endif(GPU_MODE STREQUAL "ocl")
 
   if(OHM_TES_DEBUG)
     target_link_libraries(${TARGET_NAME} PUBLIC 3es::3es-core)

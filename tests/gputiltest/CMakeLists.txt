@@ -1,7 +1,5 @@
 include(TextFileResource)
 
-find_package(CUDA)
-
 set(SOURCES
   GpuBufferTest.cpp
   GpuDeviceTest.cpp
@@ -68,7 +66,11 @@ if(OHM_BUILD_CUDA)
   list(APPEND GPU_SOURCES
     cuda/matrix_kernel.cu
   )
-  cuda_add_executable(gputiltestcuda ${SOURCES} ${GPU_SOURCES})
+  if(OHM_USE_DEPRECATED_CMAKE_CUDA)
+    cuda_add_executable(gputiltestcuda ${SOURCES} ${GPU_SOURCES})
+  else(OHM_USE_DEPRECATED_CMAKE_CUDA)
+    add_executable(gputiltestcuda ${SOURCES} ${GPU_SOURCES})
+  endif(OHM_USE_DEPRECATED_CMAKE_CUDA)
   _gputiltest_setup_target(gputiltestcuda gputilcuda)
   leak_track_default_options(gputiltestcuda CONDITION OHM_LEAK_TRACK ${OHM_ASAN_OPTIONS_CUDA})
   leak_track_suppress(gputiltestcuda CONDITION OHM_LEAK_TRACK

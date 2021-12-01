@@ -107,7 +107,7 @@ struct gputilAPI Dim3
 ///
 /// Note how the template type is the target type without any decoration (such as pointer).
 template <typename T>
-struct gputilAPI BufferArg
+struct BufferArg
 {
   /// The type to cast to in the GPU kernel.
   using ArgType = T;

@@ -50,7 +50,7 @@ function(_ohmtestgpu_setup GPU)
       "${GLM_INCLUDE_DIR}"
   )
 
-  target_link_libraries(ohmtest${GPU} PUBLIC ohmtestcommon ohmtools ohm${GPU} ohmutil ${GTEST_LIBRARIES} ${GTEST_MAIN_LIBRARIES})
+  target_link_libraries(ohmtest${GPU} PUBLIC ohmtestcommon ohmtools ohm${GPU} gputil${GPU} ohmutil ${GTEST_LIBRARIES} ${GTEST_MAIN_LIBRARIES})
 
   if(OHM_TES_DEBUG)
     target_link_libraries(ohmtest${GPU} PUBLIC 3es::3es-core)

@@ -12,10 +12,10 @@ macro(warnings_gcc)
     # "-pedantic"
     "-Wall"
     "-Wextra"
-    "-Werror=return-type"
+    "$<$<COMPILE_LANGUAGE:CXX>:-Werror=return-type>"
     # "-Wconversion"
-    # "-Werror=pedantic"
-    "-Werror=vla"
+    # "$<$<COMPILE_LANGUAGE:CXX>:-Werror=pedantic>"
+    "$<$<COMPILE_LANGUAGE:CXX>:-Werror=vla>"
     "-Wno-unused-function"
     "-Wno-missing-braces"
     "-Wno-unknown-pragmas"
@@ -81,7 +81,10 @@ macro(setup_msvc)
     # rather than a drop in replacement. Linux and MacOS are slightly innocculated against this because the C++ runtime
     # libraries tend to stay the same for an OS version. The warnings would be much more relevant when writing things
     # like COM interfaces.
-    add_compile_options("/wd4251" "/wd4275")
+    #
+    # Note: we use the generator to only add these for C++ language compilation to avoid pushing these out to
+    # the NVCC compiler for CUDA compilation.
+    add_compile_options("$<$<COMPILE_LANGUAGE:CXX>:/wd4251>" "$<$<COMPILE_LANGUAGE:CXX>:/wd4275>")
   endif(OHM_BUILD_SHARED_SUPPRESS_WARNINGS)
 endmacro(setup_msvc)
 

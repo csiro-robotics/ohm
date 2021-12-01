@@ -3,15 +3,10 @@ if(NOT TARGET slamio)
   return()
 endif()
 
-if (Boost_FOUND)
-  # Need to add boost link directories because of LIBLAS.
-  link_directories("${Boost_LIBRARY_DIRS}")
-endif(Boost_FOUND)
-
-# include_directories(
-#   "${LIBLAS_INCLUDE_DIR}"
-#   "${GLM_INCLUDE_DIR}"
-#   )
+if(OHM_BUILD_CUDA AND OHM_USE_DEPRECATED_CMAKE_CUDA)
+  # Need to find CUDA for deprecated project configuration
+  find_package(CUDA)
+endif(OHM_BUILD_CUDA AND OHM_USE_DEPRECATED_CMAKE_CUDA)
 
 configure_file(OhmPopConfig.in.h "${CMAKE_CURRENT_BINARY_DIR}/ohmpop/OhmPopConfig.h")
 
@@ -25,12 +20,19 @@ function(_ohmpop_setup GPU_MODE)
   set(TARGET_NAME ohmpop${GPU_MODE})
   if(NOT GPU_MODE STREQUAL "cpu")
     set(OHMLIB_NAME ohm${GPU_MODE})
+    set(GPUTILLIB_NAME gputil${GPU_MODE})
   else(NOT GPU_MODE STREQUAL "cpu")
     set(OHMLIB_NAME ohm)
+    set(GPUTILLIB_NAME)
   endif(NOT GPU_MODE STREQUAL "cpu")
 
   set(TARGET_NAME ohmpop${GPU_MODE})
-  add_executable(${TARGET_NAME} ${SOURCES})
+
+  if(GPU_MODE STREQUAL "cuda" AND OHM_USE_DEPRECATED_CMAKE_CUDA)
+    cuda_add_executable(${TARGET_NAME} ${SOURCES})
+  else()
+    add_executable(${TARGET_NAME} ${SOURCES})
+  endif()
   leak_track_target_enable(${TARGET_NAME} CONDITION OHM_LEAK_TRACK)
 
   set_target_properties(${TARGET_NAME} PROPERTIES FOLDER utils)
@@ -49,7 +51,7 @@ function(_ohmpop_setup GPU_MODE)
       "${GLM_INCLUDE_DIR}"
   )
 
-  target_link_libraries(${TARGET_NAME} PUBLIC ${OHMLIB_NAME} slamio ohmtools ohmutil)
+  target_link_libraries(${TARGET_NAME} PRIVATE ${OHMLIB_NAME} slamio ohmtools ohmutil ${GPUTILLIB_NAME})
 
   if(GPU_MODE STREQUAL "cpu")
     target_compile_definitions(${TARGET_NAME} PUBLIC "-DOHMPOP_CPU")
