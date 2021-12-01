@@ -3,6 +3,8 @@
 // ABN 41 687 119 230
 //
 // Author: Kazys Stepanas
+//
+// Provdes a structure for an application which populates a map using MapHarness
 #include "MapHarness.h"
 
 #include <csignal>
@@ -12,8 +14,10 @@
 
 namespace
 {
+/// Global cache of @c ohmapp::MapHarness::quitLevelPtr() updated in @c onSignal()
 unsigned *g_quit = nullptr;
 
+/// Handle @c SIGINT and @c SIGTERM by incrementing @c g_quit
 void onSignal(int arg)
 {
   if (arg == SIGINT || arg == SIGTERM)
@@ -26,6 +30,11 @@ void onSignal(int arg)
 }
 }  // namespace
 
+/// Main program implementation.
+///
+/// @param argc Command line argument count.
+/// @param argv Command line arguments.
+/// @param populator Map generation option.
 int ohmappMain(int argc, const char *const *argv, ohmapp::MapHarness &populator)
 {
   g_quit = populator.quitLevelPtr();
@@ -44,6 +53,10 @@ int ohmappMain(int argc, const char *const *argv, ohmapp::MapHarness &populator)
   return exit_code;
 }
 
+/// Overload using the template type as a @c ohmapp::MapHarness .
+/// @param argc Command line argument count.
+/// @param argv Command line arguments.
+/// @param data_source Data source object.
 template <typename OhmPop>
 int ohmappMain(int argc, const char *const *argv, std::shared_ptr<ohmapp::DataSource> data_source)
 {
@@ -51,6 +64,9 @@ int ohmappMain(int argc, const char *const *argv, std::shared_ptr<ohmapp::DataSo
   return ohmappMain(argc, argv, populator);
 }
 
+/// Overload using the template types as a @c ohmapp::MapHarness and @c ohmapp::DataSource .
+/// @param argc Command line argument count.
+/// @param argv Command line arguments.
 template <typename OhmPop, typename DataSource>
 int ohmappMain(int argc, const char *const *argv)
 {
