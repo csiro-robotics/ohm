@@ -73,7 +73,6 @@ macro(cuda_setup)
     set(OHM_CUDA_ARCHITECTURES "${CUDA_ARCH_INIT}" CACHE STRING "Specifies the list of CUDA compute architectures to compile for.")
 
     if(NOT OHM_USE_DEPRECATED_CMAKE_CUDA)
-      set(OHM_CUDA_ARCHITECTURES "50;60;61;70;75" CACHE STRING "Specifies the list of CUDA compute architectures to compile for.")
       _cuda_setup_build_options()
     else(NOT OHM_USE_DEPRECATED_CMAKE_CUDA)
       _cuda_setup_deprecated_build_options()
