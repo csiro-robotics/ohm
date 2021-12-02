@@ -5,7 +5,7 @@
 // Author: Kazys Stepanas
 #include "SlamIO.h"
 
-#include "PointCloudReaderMiniPly.h"
+#include "PointCloudReaderPly.h"
 #include "PointCloudReaderTraj.h"
 #include "PointCloudReaderXyz.h"
 
@@ -48,7 +48,7 @@ PointCloudReaderPtr createCloudReader(const char *extension_c)
 
   if (extension == "ply")
   {
-    reader = std::make_shared<PointCloudReaderMiniPly>();
+    reader = std::make_shared<PointCloudReaderPly>();
   }
   else if (extension == "txt")
   {

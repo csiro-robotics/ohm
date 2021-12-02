@@ -3,13 +3,14 @@ include(GenerateExportHeader)
 find_package(GLM)
 
 set(SOURCES
-  miniply/miniply.cpp
-  miniply/miniply.h
+  rply/rply.c
+  rply/rply.h
+  rply/rplyfile.h
   DataChannel.h
   PointCloudReader.cpp
   PointCloudReader.h
-  PointCloudReaderMiniPly.cpp
-  PointCloudReaderMiniPly.h
+  PointCloudReaderPly.cpp
+  PointCloudReaderPly.h
   PointCloudReaderTraj.cpp
   PointCloudReaderTraj.h
   PointCloudReaderXyz.cpp
