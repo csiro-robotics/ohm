@@ -479,7 +479,7 @@ int OhmAppCpu::saveCloud(const std::string &path_ply)
   ohmtools::ColourByHeight colour_by_height(*map_);
   ohmtools::SaveCloudOptions save_opt;
 
-  if (options().output().cloud_colour.r || options().output().cloud_colour.g || options().output().cloud_colour.b)
+  if (glm::all(glm::greaterThanEqual(options().output().cloud_colour, glm::vec3(0.0f))))
   {
     const ohm::Colour uniform_colour = ohm::Colour::fromRgbf(
       options().output().cloud_colour.r, options().output().cloud_colour.g, options().output().cloud_colour.b);
