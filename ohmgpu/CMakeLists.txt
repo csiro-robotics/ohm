@@ -8,6 +8,11 @@ if(OHM_THREADS)
   find_tbb()
 endif(OHM_THREADS)
 
+if(OHM_BUILD_CUDA AND OHM_USE_DEPRECATED_CMAKE_CUDA)
+  # Need to find CUDA for deprecated project configuration
+  find_package(CUDA)
+endif(OHM_BUILD_CUDA AND OHM_USE_DEPRECATED_CMAKE_CUDA)
+
 set(TES_ENABLE ${OHM_TES_DEBUG})
 configure_file(OhmGpuConfig.in.h "${CMAKE_CURRENT_BINARY_DIR}/ohmgpu/OhmGpuConfig.h")
 
@@ -107,7 +112,7 @@ function(_ohmgpu_setup_target TARGET_NAME GPUTIL_LIBRARY OHM_GPU)
   # symbols or not. This puts us in a position where it could either be ohmcuda_EXPORTS or ohmocl_EXPORTS depending
   # on which targets are enabled. We build both the same way though, so define both symbols for all builds.
   target_compile_definitions(${TARGET_NAME} PRIVATE "-Dohmcuda_EXPORTS" "-Dohmocl_EXPORTS")
-  target_link_libraries(${TARGET_NAME} PUBLIC ohm ohmutil ${GPUTIL_LIBRARY})
+  target_link_libraries(${TARGET_NAME} PUBLIC ohm ohmutil PRIVATE ${GPUTIL_LIBRARY})
 
   target_include_directories(${TARGET_NAME}
     PUBLIC
@@ -212,7 +217,12 @@ if(OHM_BUILD_CUDA)
     gpu/TransformSamples.cu
   )
 
-  cuda_add_library(ohmcuda ${SOURCES} ${GPU_SOURCES} ${GPU_HEADERS})
+  if(OHM_USE_DEPRECATED_CMAKE_CUDA)
+    cuda_add_library(ohmcuda ${SOURCES} ${GPU_SOURCES} ${GPU_HEADERS})
+  else(OHM_USE_DEPRECATED_CMAKE_CUDA)
+    add_library(ohmcuda ${SOURCES} ${GPU_SOURCES} ${GPU_HEADERS})
+  endif(OHM_USE_DEPRECATED_CMAKE_CUDA)
+
   _ohmgpu_setup_target(ohmcuda gputilcuda ${OHM_GPU_CUDA})
 endif(OHM_BUILD_CUDA)
 

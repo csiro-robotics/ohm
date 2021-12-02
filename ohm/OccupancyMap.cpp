@@ -186,7 +186,7 @@ const MapChunk *OccupancyMap::base_iterator::chunk() const
   return chunkIter(chunk_mem_.data())->second;
 }
 
-MapChunk *OccupancyMap::iterator::chunk()
+MapChunk *OccupancyMap::iterator::chunk() const
 {
   return chunkIter(chunk_mem_.data())->second;
 }

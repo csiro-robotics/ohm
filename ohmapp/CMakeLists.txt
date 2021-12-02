@@ -47,6 +47,7 @@ function(_ohmapp_setup_target TARGET_NAME OHM_GPU)
   # on which targets are enabled. We build both the same way though, so define both symbols for all builds.
   if(OHM_GPU STREQUAL "cpu")
     target_compile_definitions(${TARGET_NAME} PRIVATE "-Dohmapp_EXPORTS")
+    set(GPUTIL_LIBRARY)
     set(OHMGPU_LIBRARY)
     set(EXPORT_HEADER "OhmAppExport.h")
     set(EXPORT_PREFIX "ohmapp")
@@ -54,12 +55,13 @@ function(_ohmapp_setup_target TARGET_NAME OHM_GPU)
   else(OHM_GPU STREQUAL "cpu")
     # target_compile_definitions(${TARGET_NAME} PUBLIC "-DOHM_GPU=${OHM_GPU}")
     target_compile_definitions(${TARGET_NAME} PRIVATE "-Dohmapp_EXPORTS" "-Dohmcuda_EXPORTS" "-Dohmocl_EXPORTS")
+    set(GPUTIL_LIBRARY gputil${OHM_GPU})
     set(OHMGPU_LIBRARY ohm${OHM_GPU})
     set(EXPORT_HEADER "OhmAppGpuExport.h")
     set(EXPORT_PREFIX "ohmappgpu")
     set(EXPORT_STATIC "OHMAPPGPU")
   endif(OHM_GPU STREQUAL "cpu")
-  target_link_libraries(${TARGET_NAME} PUBLIC ${OHMGPU_LIBRARY})
+  target_link_libraries(${TARGET_NAME} PUBLIC ${OHMGPU_LIBRARY} PRIVATE ${GPUTIL_LIBRARY})
 
   target_include_directories(${TARGET_NAME}
     PUBLIC
