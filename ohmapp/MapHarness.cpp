@@ -66,7 +66,7 @@ void MapHarness::OutputOptions::print(std::ostream &out)
   if (save_cloud)
   {
     save_items += " cloud";
-    if (cloud_colour != glm::vec3(0.0f))
+    if (glm::all(glm::greaterThanEqual(cloud_colour, glm::vec3(0.0f))))
     {
       out << "Save cloud colour: " << cloud_colour << '\n';
     }
