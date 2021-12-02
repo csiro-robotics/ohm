@@ -23,6 +23,8 @@ include("${CMAKE_CURRENT_LIST_DIR}/ohm-config-targets.cmake")
 set(OHM_BUILD_OPENCL @OHM_BUILD_OPENCL@)
 set(OHM_BUILD_CUDA @OHM_BUILD_CUDA@)
 set(OHM_BUILD_HEIGHTMAP_IMAGE @OHM_BUILD_HEIGHTMAP_IMAGE@)
+set(OHM_USE_DEPRECATED_CMAKE_CUDA @OHM_USE_DEPRECATED_CMAKE_CUDA@)
+set(OHM_BUILD_SHARED @OHM_BUILD_SHARED@)
 
 function(register_target TARGET INCLUDES_VAR LIBRARIES_VAR)
   if(TARGET ${TARGET})
@@ -105,6 +107,11 @@ if(OHM_BUILD_CUDA)
       set(OHM_GPUTIL_LIBRARY ohm::gputilcuda)
     set(OHM_GPU_LIBRARY ohm::ohmcuda)
   endif(NOT DEFINED OHM_GPU_LIBRARY)
+  if(NOT OHM_USE_DEPRECATED_CMAKE_CUDA AND NOT OHM_BUILD_SHARED)
+    # Using new CUDA configuration. Need to have CUDA::cudart defined by finding the toolkit.
+    # When building shared, this won't propagate (private dependency) and is not needed.
+    find_package(CUDAToolkit)
+  endif(NOT OHM_USE_DEPRECATED_CMAKE_CUDA AND NOT OHM_BUILD_SHARED)
 endif(OHM_BUILD_CUDA)
 
 if(OHM_BUILD_OPENCL)

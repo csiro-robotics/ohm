@@ -175,7 +175,13 @@ if(OHM_BUILD_CUDA)
     target_include_directories(gputilcuda SYSTEM PUBLIC "${CUDA_INCLUDE_DIRS}")
   else(OHM_USE_DEPRECATED_CMAKE_CUDA)
     add_library(gputilcuda ${SOURCES} ${SOURCES_CUDA})
-    target_link_libraries(gputilcuda PUBLIC CUDA::cudart)
+    # Link as private to avoid unnecessary depedency chaining. However, we nave to expose the include directories
+    # as a "public" depedency.
+    target_link_libraries(gputilcuda PRIVATE CUDA::cudart)
+    target_include_directories(gputilcuda SYSTEM PUBLIC $<TARGET_PROPERTY:CUDA::cudart,INTERFACE_INCLUDE_DIRECTORIES>)
+    # get_target_property(ICRT CUDA::cudart INTERFACE_INCLUDE_DIRECTORIES)
+    # message(SEND_ERROR "INTERFACE_INCLUDE_DIRECTORIES: ${ICRT}")
+    # message(FATAL_ERROR stop)
   endif(OHM_USE_DEPRECATED_CMAKE_CUDA)
 
   clang_tidy_target(gputilcuda EXCLUDE_MATCHES ".*\.cl")
