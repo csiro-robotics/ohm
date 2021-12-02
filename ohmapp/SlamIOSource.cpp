@@ -264,6 +264,8 @@ int SlamIOSource::run(BatchFunction batch_function, unsigned *quit_level_ptr)
     }
   }
 
+  batch_origin = sample.origin;
+
   point_pending = true;
   first_timestamp = sample.timestamp;
 
@@ -296,9 +298,11 @@ int SlamIOSource::run(BatchFunction batch_function, unsigned *quit_level_ptr)
       point_pending = true;
     }
 
-    if (sensor_delta_exceeded || timestamps.size() >= ray_batch_size ||
-        point_limit && !timestamps.empty() && process_points_local + timestamps.size() >= point_limit)
+    if (!timestamps.empty() && (sensor_delta_exceeded || timestamps.size() >= ray_batch_size ||
+                                point_limit && process_points_local + timestamps.size() >= point_limit))
     {
+      const size_t batch_size = timestamps.size();
+      const double batch_end_time = timestamps.back();
       finish = !batch_function(batch_origin, sensor_and_samples, timestamps, intensities, colours);
 
       delta_motion = glm::length(batch_origin - last_batch_origin);
@@ -312,9 +316,9 @@ int SlamIOSource::run(BatchFunction batch_function, unsigned *quit_level_ptr)
         warned_no_motion = true;
       }
       have_processed = true;
-      process_points_local += timestamps.size();
+      process_points_local += batch_size;
       processed_point_count_ = process_points_local;
-      processed_time_range_ = timestamps.back() - first_timestamp;
+      processed_time_range_ = batch_end_time - first_timestamp;
 
       sensor_and_samples.clear();
       timestamps.clear();
@@ -327,6 +331,7 @@ int SlamIOSource::run(BatchFunction batch_function, unsigned *quit_level_ptr)
       // Fetch next sample.
       point_pending = loader_->nextSample(sample);
     }
+    batch_origin = (timestamps.empty()) ? sample.origin : batch_origin;
 
     finish = finish || (quit_level_ptr && *quit_level_ptr != 0u);
   }
@@ -334,6 +339,10 @@ int SlamIOSource::run(BatchFunction batch_function, unsigned *quit_level_ptr)
   if (point_pending && (!point_limit || process_points_local < point_limit))
   {
     // Final point processing.
+    if (!samplesOnly())
+    {
+      sensor_and_samples.emplace_back(sample.origin);
+    }
     sensor_and_samples.emplace_back(sample.sample);
     colours.emplace_back(sample.colour);
     intensities.emplace_back(sample.intensity);
