@@ -109,7 +109,7 @@ int OhmAppGpu::parseCommandLineOptions(int argc, const char *const *argv)
   return_code = ohm::configureGpuFromArgs(argc, argv);
 
   // Handle GPU cache auto sizing.
-  auto opt_gpu = options().gpu();
+  auto &opt_gpu = options().gpu();
   if (opt_gpu.cache_size_gb <= 0)
   {
     // Calculate the GPU cache size as half GPU RAM size or 1GiB - whichever is larger. 1 GiB is too large use
