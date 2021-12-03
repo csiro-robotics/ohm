@@ -128,7 +128,10 @@ void MapHarness::Options::configure(cxxopts::Options &parser)
   output_->configure(parser);
   map_->configure(parser);
 
-  parser.parse_positional(positional_args);
+  if (!positional_args.empty())
+  {
+    parser.parse_positional(positional_args);
+  }
 }
 
 
