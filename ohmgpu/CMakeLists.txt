@@ -221,6 +221,7 @@ if(OHM_BUILD_CUDA)
     cuda_add_library(ohmcuda ${SOURCES} ${GPU_SOURCES} ${GPU_HEADERS})
   else(OHM_USE_DEPRECATED_CMAKE_CUDA)
     add_library(ohmcuda ${SOURCES} ${GPU_SOURCES} ${GPU_HEADERS})
+    target_link_libraries(ohmcuda PUBLIC "${OHM_CUDA_LIBRARY}")
   endif(OHM_USE_DEPRECATED_CMAKE_CUDA)
 
   _ohmgpu_setup_target(ohmcuda gputilcuda ${OHM_GPU_CUDA})

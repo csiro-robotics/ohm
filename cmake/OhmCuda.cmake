@@ -96,8 +96,6 @@ macro(_cuda_setup_build_options)
   if(MSVC)
     add_compile_options("-std:c++${CMAKE_CXX_STANDARD}")
   endif( MSVC)
-  # set(CMAKE_CUDA_SEPARABLE_COMPILATION ON)
-  # Select shared or static CUDA runtime
   if(OHM_CUDA_DEBUG STREQUAL "full")
     add_compile_options(
       "$<$<COMPILE_LANGUAGE:CUDA>:-g>"
@@ -109,6 +107,11 @@ macro(_cuda_setup_build_options)
       "$<$<COMPILE_LANGUAGE:CUDA>:-lineinfo>"
     )
   endif(OHM_CUDA_DEBUG STREQUAL "full")
+  if(BUILD_SHARED_LIBS)
+    set(OHM_CUDA_LIBRARY CUDA::cudart)
+  else(BUILD_SHARED_LIBS)
+    set(OHM_CUDA_LIBRARY CUDA::cudart_static)
+  endif(BUILD_SHARED_LIBS)
 endmacro(_cuda_setup_build_options)
 
 #==============================================================================
@@ -118,14 +121,14 @@ macro(_cuda_setup_deprecated_build_options)
   # Setup CUDA_USE_STATIC_CUDA_RUNTIME, forcing it on WIN32 if using BUILD_SHARED_LIBS
   # See the warning message below.
   if(BUILD_SHARED_LIBS)
-    if(WIN32)
-      if(CUDA_USE_STATIC_CUDA_RUNTIME)
-        message("Warning: BUILD_SHARED_LIBS and CUDA_USE_STATIC_CUDA_RUNTIME are both set. This can result in runtime "
-                "failures when invoking CUDA kernels. Forcing CUDA_USE_STATIC_CUDA_RUNTIME to OFF.\n"
-                "Use cmake-gui, ccmake or manually edit the CMakeCache.txt file for this project to update these values.")
-      endif(CUDA_USE_STATIC_CUDA_RUNTIME)
-      set(CUDA_USE_STATIC_CUDA_RUNTIME Off)
-    endif(WIN32)
+    if(CUDA_USE_STATIC_CUDA_RUNTIME)
+      message("Warning: BUILD_SHARED_LIBS and CUDA_USE_STATIC_CUDA_RUNTIME are both set. This can result in runtime "
+              "failures when invoking CUDA kernels. Forcing CUDA_USE_STATIC_CUDA_RUNTIME to OFF.\n"
+              "Use cmake-gui, ccmake or manually edit the CMakeCache.txt file for this project to update these values.")
+    endif(CUDA_USE_STATIC_CUDA_RUNTIME)
+    set(CUDA_USE_STATIC_CUDA_RUNTIME Off)
+  else(BUILD_SHARED_LIBS)
+    set(CUDA_USE_STATIC_CUDA_RUNTIME On)
   endif(BUILD_SHARED_LIBS)
   set(CUDA_LINK_LIBRARIES_KEYWORD PRIVATE)
 

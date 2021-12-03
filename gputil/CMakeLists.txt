@@ -175,7 +175,7 @@ if(OHM_BUILD_CUDA)
     target_include_directories(gputilcuda SYSTEM PUBLIC "${CUDA_INCLUDE_DIRS}")
   else(OHM_USE_DEPRECATED_CMAKE_CUDA)
     add_library(gputilcuda ${SOURCES} ${SOURCES_CUDA})
-    target_link_libraries(gputilcuda PUBLIC CUDA::cudart)
+    target_link_libraries(gputilcuda PUBLIC "${OHM_CUDA_LIBRARY}")
   endif(OHM_USE_DEPRECATED_CMAKE_CUDA)
 
   clang_tidy_target(gputilcuda EXCLUDE_MATCHES ".*\.cl")
