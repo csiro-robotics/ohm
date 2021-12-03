@@ -107,11 +107,10 @@ if(OHM_BUILD_CUDA)
       set(OHM_GPUTIL_LIBRARY ohm::gputilcuda)
     set(OHM_GPU_LIBRARY ohm::ohmcuda)
   endif(NOT DEFINED OHM_GPU_LIBRARY)
-  if(NOT OHM_USE_DEPRECATED_CMAKE_CUDA AND NOT OHM_BUILD_SHARED)
-    # Using new CUDA configuration. Need to have CUDA::cudart defined by finding the toolkit.
-    # When building shared, this won't propagate (private dependency) and is not needed.
+  if(NOT OHM_USE_DEPRECATED_CMAKE_CUDA)
+    # Using new CUDA configuration. Need to have CUDA::cudart[_static] defined by finding the toolkit.
     find_package(CUDAToolkit)
-  endif(NOT OHM_USE_DEPRECATED_CMAKE_CUDA AND NOT OHM_BUILD_SHARED)
+  endif(NOT OHM_USE_DEPRECATED_CMAKE_CUDA)
 endif(OHM_BUILD_CUDA)
 
 if(OHM_BUILD_OPENCL)
