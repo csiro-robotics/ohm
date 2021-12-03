@@ -16,7 +16,3 @@ add_subdirectory(ohmsubmap)
 if(OHM_BUILD_HEIGHTMAP_IMAGE)
   add_subdirectory(ohmhm2img)
 endif(OHM_BUILD_HEIGHTMAP_IMAGE)
-
-if(WITH_OCTOMAP)
-  add_subdirectory(octopop)
-endif(WITH_OCTOMAP)

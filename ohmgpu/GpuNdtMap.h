@@ -102,9 +102,6 @@ public:
   /// @return The CPU based @c NdtMap
   const NdtMap &ndtMap() const;
 
-  /// Debug render the NDT map ellipsoids via 3rd Eye Scene.
-  void debugDraw() const;
-
 protected:
   /// Helper to access the internal pimpl cast to the correct type.
   GpuNdtMapDetail *detail();

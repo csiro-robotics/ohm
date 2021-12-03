@@ -142,8 +142,6 @@ option(OHM_VALIDATION "Enable various validation tests in the occupancy map code
 option(OHM_BUILD_OPENCL "Build ohm library and utlities for OpenCL?" ${OHM_BUILD_OPENCL_DEFAULT})
 option(OHM_LEAK_TRACK "Enable memory leak tracking?" OFF)
 
-option(WITH_OCTOMAP "Build comparative occupancy map generation using octomap?" OFF)
-
 # Manage compiler warnings.
 # Use CMAKE_MODULE_PATH and include(warnings) if warnings.cmake is moved.
 include(compilerSetup)
@@ -248,6 +246,7 @@ if(OHM_BUILD_HEIGHTMAP_IMAGE)
 endif(OHM_BUILD_HEIGHTMAP_IMAGE)
 
 add_subdirectory(ohmtools)
+add_subdirectory(ohmapp)
 add_subdirectory(utils)
 
 if(OHM_UNIT_TESTS)

@@ -11,7 +11,6 @@ endif(OHM_BUILD_CUDA AND OHM_USE_DEPRECATED_CMAKE_CUDA)
 configure_file(OhmPopConfig.in.h "${CMAKE_CURRENT_BINARY_DIR}/ohmpop/OhmPopConfig.h")
 
 set(SOURCES
-  ohmpop.cpp
   OhmPopConfig.in.h
   "${CMAKE_CURRENT_BINARY_DIR}/ohmpop/OhmPopConfig.h"
 )
@@ -20,10 +19,14 @@ function(_ohmpop_setup GPU_MODE)
   set(TARGET_NAME ohmpop${GPU_MODE})
   if(NOT GPU_MODE STREQUAL "cpu")
     set(OHMLIB_NAME ohm${GPU_MODE})
-    set(GPUTILLIB_NAME gputil${GPU_MODE})
+    list(APPEND SOURCES
+      ohmpopmaingpu.cpp
+    )
   else(NOT GPU_MODE STREQUAL "cpu")
     set(OHMLIB_NAME ohm)
-    set(GPUTILLIB_NAME)
+    list(APPEND SOURCES
+      ohmpopmaincpu.cpp
+    )
   endif(NOT GPU_MODE STREQUAL "cpu")
 
   set(TARGET_NAME ohmpop${GPU_MODE})
@@ -51,12 +54,13 @@ function(_ohmpop_setup GPU_MODE)
       "${GLM_INCLUDE_DIR}"
   )
 
-  target_link_libraries(${TARGET_NAME} PRIVATE ${OHMLIB_NAME} slamio ohmtools ohmutil ${GPUTILLIB_NAME})
+  target_link_libraries(${TARGET_NAME} PRIVATE ${OHMLIB_NAME} ohmapp slamio ohmtools ohmutil)
 
   if(GPU_MODE STREQUAL "cpu")
-    target_compile_definitions(${TARGET_NAME} PUBLIC "-DOHMPOP_CPU")
+    target_compile_definitions(${TARGET_NAME} PRIVATE "-DOHMPOP_CPU")
   else()
-    target_compile_definitions(${TARGET_NAME} PUBLIC "-DOHMPOP_GPU")
+    target_compile_definitions(${TARGET_NAME} PRIVATE "-DOHMPOP_GPU")
+    target_link_libraries(${TARGET_NAME} PRIVATE ohmapp${GPU_MODE})
   endif(GPU_MODE STREQUAL "cpu")
 
   install(TARGETS ${TARGET_NAME} DESTINATION bin)

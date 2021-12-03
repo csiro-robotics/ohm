@@ -5,6 +5,8 @@
 // Author: Kazys Stepanas
 #include "OhmGpu.h"
 
+#include <ohm/Logger.h>
+
 #include <gputil/gpuDevice.h>
 
 #if OHM_GPU == OHM_GPU_OPENCL
@@ -64,7 +66,7 @@ bool configureGpuFromArgsInternal(int argc, const char **argv, bool show_device)
       {
         if (show_device)
         {
-          std::cout << g_gpu_device.description() << std::endl;
+          ohm::logger::info(g_gpu_device.description(), '\n');
         }
 
 #if OHM_GPU == OHM_GPU_OPENCL

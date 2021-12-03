@@ -12,6 +12,7 @@
 #include "private/GpuProgramRef.h"
 
 #include <ohm/KeyList.h>
+#include <ohm/Logger.h>
 #include <ohm/OccupancyMap.h>
 #include <ohm/OccupancyUtil.h>
 
@@ -104,7 +105,7 @@ bool initialiseGpu(LineKeysQueryDetailGpu &query)
 
 bool lineKeysQueryGpu(LineKeysQueryDetailGpu &query, bool /*async*/)
 {
-  // std::cout << "Prime kernel\n" << std::flush;
+  // ohm::logger::trace("Prime kernel\n");
   // Size the buffers.
   query.max_keys_per_line = 1;
   const double voxel_res = query.map->resolution();
@@ -114,19 +115,19 @@ bool lineKeysQueryGpu(LineKeysQueryDetailGpu &query, bool /*async*/)
       unsigned(std::ceil((glm::length(query.rays[i + 1] - query.rays[i + 0]) / voxel_res) * std::pow(3.0, 0.5)) + 1u),
       query.max_keys_per_line);
   }
-  // std::cout << "Worst case key requirement: " << query.max_keys_per_line << std::endl;
-  // std::cout << "Occupancy Key size " << sizeof(Key) << " GPU Key size: " << GpuKeySize << std::endl;
+  // ohm::logger::trace("Worst case key requirement: ", query.max_keys_per_line, '\n');
+  // ohm::logger::trace("Occupancy Key size ", sizeof(Key), " GPU Key size: ", kGpuKeySize, '\n');
 
   size_t required_size = query.rays.size() / 2 * query.max_keys_per_line * kGpuKeySize;
   if (query.lines_out.size() < required_size)
   {
-    // std::cout << "Required bytes " << requiredSize << " for " << query.rays.size() / 2u << " lines" << std::endl;
+    // ohm::logger::trace("Required bytes ", required_size, " for ", query.rays.size() / 2u, " lines\n");
     query.lines_out.resize(required_size);
   }
   required_size = query.rays.size() * sizeof(gputil::float3);
   if (query.line_points.size() < required_size)
   {
-    // std::cout << "line_points size: " << requiredSize << std::endl;
+    // ohm::logger::trace("line_points size: ", required_size, '\n');
     query.line_points.resize(required_size);
   }
 
@@ -144,7 +145,7 @@ bool lineKeysQueryGpu(LineKeysQueryDetailGpu &query, bool /*async*/)
   const gputil::int3 region_dim = { query.map->regionVoxelDimensions().x, query.map->regionVoxelDimensions().y,
                                     query.map->regionVoxelDimensions().z };
 
-  // std::cout << "Invoke kernel\n" << std::flush;
+  // ohm::logger::trace("Invoke kernel\n");
   gputil::Dim3 global_size(query.rays.size() / 2);
   gputil::Dim3 local_size(std::min<size_t>(query.line_keys_kernel.optimalWorkGroupSize(), query.rays.size() / 2));
 
@@ -167,7 +168,7 @@ bool lineKeysQueryGpu(LineKeysQueryDetailGpu &query, bool /*async*/)
 
 bool readGpuResults(LineKeysQueryDetailGpu &query)
 {
-  // std::cout << "Reading results\n" << std::flush;
+  // ohm::logger::trace("Reading results\n");
   // Download results.
   gputil::PinnedBuffer gpu_mem(query.lines_out, gputil::kPinRead);
 
@@ -194,7 +195,7 @@ bool readGpuResults(LineKeysQueryDetailGpu &query)
       {
         const size_t reserve = nextPow2(unsigned(query.intersected_voxels.capacity() + result_count));
         // const size_t reserve = (query.intersected_voxels.capacity() + resultCount) * 2;
-        // std::cout << "will reserve " << reserve << std::endl;
+        // ohm::logger::trace("will reserve ", reserve, '\n');
         query.intersected_voxels.reserve(reserve);
       }
       query.intersected_voxels.resize(query.intersected_voxels.size() + result_count);
@@ -221,7 +222,7 @@ bool readGpuResults(LineKeysQueryDetailGpu &query)
   query.number_of_results = query.rays.size() / 2;
 
   query.inflight = false;
-  // std::cout << "Results ready\n" << std::flush;
+  // ohm::logger::trace("Results ready\n");
   return true;
 }
 }  // namespace
@@ -289,7 +290,7 @@ bool LineKeysQueryGpu::onExecute()
   if (!once)
   {
     once = true;
-    std::cerr << "GPU unavailable for LineKeysQuery. Falling back to CPU\n" << std::flush;
+    ohm::logger::warn("GPU unavailable for LineKeysQuery. Falling back to CPU\n");
   }
 
   KeyList key_list;
@@ -336,7 +337,7 @@ bool LineKeysQueryGpu::onExecuteAsync()
     if (!once)
     {
       once = true;
-      std::cerr << "GPU unavailable for LineKeysQuery. Failing async call.\n" << std::flush;
+      ohm::logger::warn("GPU unavailable for LineKeysQuery. Failing async call.\n");
     }
   }
 

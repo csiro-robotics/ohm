@@ -15,6 +15,7 @@
 
 #include <ohm/DefaultLayer.h>
 #include <ohm/Key.h>
+#include <ohm/Logger.h>
 #include <ohm/MapLayer.h>
 #include <ohm/OccupancyMap.h>
 #include <ohm/OccupancyUtil.h>
@@ -22,6 +23,8 @@
 #include <ohm/VoxelBlock.h>
 #include <ohm/VoxelBuffer.h>
 #include <ohm/private/OccupancyMapDetail.h>
+
+#include <ohmutil/GlmStream.h>
 
 #include <gputil/gpuPinnedBuffer.h>
 #include <gputil/gpuPlatform.h>
@@ -439,7 +442,7 @@ int RoiRangeFill::invoke(const OccupancyMapDetail &map, RoiRangeFill &query, Gpu
   gputil::Event propagate_event;
 
   const int propagation_iterations = int(std::ceil(query.searchRadius() / map.resolution));
-  // std::cout << "Iterations: " << propagationIterations << std::endl;
+  ohm::logger::trace("Iterations: ", propagation_iterations, '\n');
   for (int i = 0; i < propagation_iterations; ++i)
   {
     err = propagate_kernel_(global_size, local_size, { previous_event }, propagate_event, &queue,

@@ -129,6 +129,16 @@ struct ohmutil_API Colour
     rgba[kB] = uint8_t((c >> kBShift) & byte_mask);
   }
 
+  /// Initialise a colour with the given floating point channel values.
+  /// @param r The red colour channel.
+  /// @param g The green colour channel.
+  /// @param b The blue colour channel.
+  /// @param a The alpha colour channel. Defaults to opaque.
+  inline static Colour fromRgbf(float r, float g, float b, float a = 1.0f)
+  {
+    return Colour(uint8_t(r * kMaxByteF), uint8_t(g * kMaxByteF), uint8_t(b * kMaxByteF), uint8_t(a * kMaxByteF));
+  }
+
   /// Convert to a 32-bit integer colour value.
   ///
   /// Colour channels are extracted according to the values of
@@ -217,6 +227,22 @@ struct ohmutil_API Colour
   /// Access alpha channel as a float.
   /// @return Alpha channel as a float.
   inline float af() const { return float(a()) / kMaxByteF; }
+
+  /// Set red channel from a float.
+  /// @param channel Channel value.
+  inline void setRf(float channel) { rgba[kR] = uint8_t(channel * kMaxByteF); }
+
+  /// Set green channel from a float.
+  /// @param channel Channel value.
+  inline void setGf(float channel) { rgba[kG] = uint8_t(channel * kMaxByteF); }
+
+  /// Set blue channel from a float.
+  /// @param channel Channel value.
+  inline void setBf(float channel) { rgba[kB] = uint8_t(channel * kMaxByteF); }
+
+  /// Set alpha channel from a float.
+  /// @param channel Channel value.
+  inline void setAf(float channel) { rgba[kA] = uint8_t(channel * kMaxByteF); }
 
   /// Lighten or darken a colour by @p factor.
   /// Works in HSV space, multiplying the V value by @p factor and clamping the result [0, 1].
@@ -408,7 +434,7 @@ struct ohmutil_API Colour
 
   /// Predefined colours (web colours).
   static const std::array<Colour, kPredefinedCount> kColours;
-};
+};  // namespace ohm
 }  // namespace ohm
 
 #endif  // OHMUTIL_COLOUR_H

@@ -52,6 +52,8 @@ set(SOURCES
   CovarianceVoxelCompute.h
   DataType.cpp
   DataType.h
+  DebugDraw.cpp
+  DebugDraw.h
   Density.cpp
   Density.h
   DefaultLayer.cpp
@@ -68,6 +70,9 @@ set(SOURCES
   LineKeysQuery.h
   LineQuery.cpp
   LineQuery.h
+  Logger.cpp
+  Logger.h
+  LoggerDetail.h
   MapChunk.cpp
   MapChunk.h
   MapCoord.h
@@ -170,6 +175,8 @@ set(PUBLIC_HEADERS
   KeyRange.h
   LineKeysQuery.h
   LineQuery.h
+  Logger.h
+  LoggerDetail.h
   MapChunkFlag.h
   MapChunk.h
   MapCoord.h

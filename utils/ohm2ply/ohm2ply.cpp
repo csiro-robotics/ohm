@@ -823,7 +823,7 @@ int main(int argc, char *argv[])
   ProgressMonitor prog(10);
   LoadMapProgress load_progress(prog);
 
-  prog.setDisplayFunction([](const ProgressMonitor::Progress &prog) {
+  prog.setDisplayFunction([](const ProgressMonitor::Progress &prog, bool final) {
     // if (!opt.quiet)
     {
       std::ostringstream out;
@@ -842,6 +842,10 @@ int main(int argc, char *argv[])
         out << " / " << std::setfill(' ') << std::setw(fill_width) << prog.info.total;
       }
       out << "    ";
+      if (final)
+      {
+        out << '\n';
+      }
       std::cout << out.str() << std::flush;
     }
   });
