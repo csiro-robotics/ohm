@@ -331,6 +331,7 @@ private:
   unsigned quit_level_ = 0;
   /// Called after @c configureOptions() for external notification, but before @c validateOptions() .
   OnConfigureCallback on_configure_options_callback_;
+  bool display_stats_in_progress_ = false;
 };
 }  // namespace ohmapp
 

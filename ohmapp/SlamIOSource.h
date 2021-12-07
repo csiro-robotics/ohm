@@ -10,7 +10,9 @@
 #include <glm/vec3.hpp>
 
 #include <atomic>
+#include <chrono>
 #include <memory>
+#include <mutex>
 
 namespace slamio
 {
@@ -69,16 +71,50 @@ public:
   void requestBatchSettings(unsigned batch_size, double max_sensor_motion) override;
 
   int validateOptions() override;
-  int prepareForRun(uint64_t &point_count) override;
+  int prepareForRun(uint64_t &point_count, const std::string &reference_name) override;
 
   int run(BatchFunction batch_function, unsigned *quit_level_ptr) override;
 
+  Stats globalStats() const override;
+
+  Stats windowedStats() const override;
+
 private:
+  /// Update and cache the @c windowedStats() .
+  void updateWindowedStats();
+
+  /// Add the given batch stats.
+  /// @param stats Batch stats to add.
+  void addBatchStats(const Stats &stats);
+
+  /// Process a data batch, collecting stats.
+  bool processBatch(const BatchFunction &batch_function, const glm::dvec3 &batch_origin,
+                    const std::vector<glm::dvec3> &sensor_and_samples, const std::vector<double> &timestamps,
+                    const std::vector<float> &intensities, const std::vector<glm::vec4> &colours, Stats &stats);
+
+  using Clock = std::chrono::high_resolution_clock;
+
   /// Slam cloud loader. Valid after calling @c createSlamLoader() as called from @c run() .
   std::unique_ptr<slamio::SlamCloudLoader> loader_;
   /// Number of points processed. Must be kept up to date during @c run() for display and statistics.
   std::atomic<uint64_t> processed_point_count_{};
   /// Time range processed. Must be kept up to date during @c run() for display and statistics.
   std::atomic<double> processed_time_range_{};
+  /// Stats window ring buffer.
+  std::vector<Stats> windowed_stats_buffer_;
+  /// Target buffer size for the stats window ring buffer.
+  unsigned windowed_stats_buffer_size_ = 20;
+  /// Next insertion index into the @c windowed_stats_buffer_ ring buffer.
+  unsigned windowed_stats_buffer_next_ = 0;
+  /// Global data stats.
+  Stats global_stats_;
+  /// Windowed data stats.
+  Stats windowed_stats_;
+  /// Processing (real) start time.
+  Clock::time_point time_point_start_;
+  /// Access guard for @c windowed_stats_
+  mutable std::mutex stats_lock_;
+  /// CSV logging stream for stats.
+  std::unique_ptr<std::ostream> stats_csv_;
 };
 }  // namespace ohmapp
