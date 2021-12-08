@@ -53,7 +53,7 @@ public:
 
   /// Callback function signature invoked from @c parseCommandLineOptions() after parsing, but before
   /// @c validateOptions() .
-  using OnConfigureCallback = std::function<void()>;
+  using GeneralCallback = std::function<void()>;
 
   /// Options controlling output.
   struct OutputOptions
@@ -243,15 +243,25 @@ public:
   /// @return The data source object.
   std::shared_ptr<ohmapp::DataSource> dataSource() const { return data_source_; }
 
-  /// Set the callback to invoke on starting.
+  /// Set the callback to invoke on configuration.
   ///
   /// Called after @c configureOptions(), but before @c validateOptions() .
   /// @param callback The function to invoke. May be set to empty for no callback.
-  void setOnConfigureOptionsCallback(OnConfigureCallback callback) { on_configure_options_callback_ = callback; }
+  void setOnConfigureOptionsCallback(GeneralCallback callback) { on_configure_options_callback_ = callback; }
 
   /// Get the callback invoked on starting.
   /// @return The post configuration callback.
-  OnConfigureCallback onConfigureOptionsCallback() const { return on_configure_options_callback_; }
+  GeneralCallback onConfigureOptionsCallback() const { return on_configure_options_callback_; }
+
+  /// Set the callback to invoke on starting.
+  ///
+  /// Called after @c prepareForRun(), but before any data processing.
+  /// @param callback The function to invoke. May be set to empty for no callback.
+  void setOnStartCallback(GeneralCallback callback) { on_start_callback_ = callback; }
+
+  /// Get the callback invoked on starting.
+  /// @return The start callback.
+  GeneralCallback onStartCallback() const { return on_start_callback_; }
 
 protected:
   /// Configure the @p parser to parse command line options into @p options() .
@@ -330,7 +340,9 @@ private:
   /// serialisation.
   unsigned quit_level_ = 0;
   /// Called after @c configureOptions() for external notification, but before @c validateOptions() .
-  OnConfigureCallback on_configure_options_callback_;
+  GeneralCallback on_configure_options_callback_;
+  /// Called after @c prepareForRun() for external notification.
+  GeneralCallback on_start_callback_;
   bool display_stats_in_progress_ = false;
 };
 }  // namespace ohmapp

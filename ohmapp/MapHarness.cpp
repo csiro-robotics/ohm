@@ -265,6 +265,11 @@ int MapHarness::run()
   uint64_t predicted_point_count = 0;
   data_source_->prepareForRun(predicted_point_count, options_->output().base_name);
 
+  if (on_start_callback_)
+  {
+    on_start_callback_();
+  }
+
   ohm::logger::info("Populating map\n");
   display_stats_in_progress_ = data_source_->options().stats_mode != DataSource::StatsMode::Off;
   progress_.beginProgress(ProgressMonitor::Info(predicted_point_count));
