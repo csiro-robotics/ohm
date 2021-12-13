@@ -17,8 +17,6 @@ endif(VERSION_COMPONENTS GREATER 1)
 # Convert version into an integer for use in code. Each version component is a digit.
 set(CLU_TARGET_OPENCL_VERSION ${OPENCL_VERSION_MAJOR}${OPENCL_VERSION_MINOR}${OPENCL_VERSION_PATCH})
 
-find_package(OpenCL ${OHM_OPENCL_SDK_VER})
-
 configure_file(cluConfig.in.h "${CMAKE_CURRENT_BINARY_DIR}/clu/cluConfig.h")
 
 set(SOURCES
@@ -62,6 +60,8 @@ target_include_directories(clu SYSTEM
     "${OpenCL_INCLUDE_DIRS}"
 )
 # set_property(TARGET clu PROPERTY DEBUG_POSTFIX "d")
+
+target_link_libraries(clu PUBLIC "${OpenCL_LIBRARIES}")
 
 install(TARGETS clu EXPORT ${CMAKE_PROJECT_NAME}-config-targets
   LIBRARY DESTINATION lib
