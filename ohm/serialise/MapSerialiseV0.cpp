@@ -17,6 +17,8 @@
 #include "VoxelBlock.h"
 #include "VoxelBuffer.h"
 
+#include <cstring>
+
 namespace ohm
 {
 namespace v0
