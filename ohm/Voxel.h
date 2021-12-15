@@ -17,6 +17,7 @@
 #include "VoxelBlock.h"
 
 #include <cinttypes>
+#include <cstring>
 #include <type_traits>
 
 #include <glm/vec3.hpp>
