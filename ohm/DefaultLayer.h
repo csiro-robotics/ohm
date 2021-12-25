@@ -39,6 +39,9 @@ const char ohm_API *touchTimeLayerName();
 /// Name of the voxel incident layer.
 /// @return "incident_normal"
 const char ohm_API *incidentNormalLayerName();
+/// Name of the TSDF voxel layer.
+/// @return "tsdf"
+const char ohm_API *tsdfLayerName();
 }  // namespace default_layer
 
 class MapLayout;
@@ -137,6 +140,14 @@ MapLayer ohm_API *addTouchTime(MapLayout &layout);
 /// @param layout The @p MapLayout to modify.
 /// @return The map layer added or the pre-existing layer named according to @c incidentNormalLayerName() .
 MapLayer ohm_API *addIncidentNormal(MapLayout &layout);
+
+/// Add the truncated signed distance fields voxel layer to @p layout.
+///
+/// Similar to @c addVoxelMean(), this function adds a @c VoxelTsdf layer using the @c tsdfNormalLayerName() .
+///
+/// @param layout The @p MapLayout to modify.
+/// @return The map layer added or the pre-existing layer named according to @c incidentNormalLayerName() .
+MapLayer ohm_API *addTsdf(MapLayout &layout);
 }  // namespace ohm
 
 #endif  // OHMDEFAULTLAYER_H

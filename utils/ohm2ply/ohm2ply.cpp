@@ -6,6 +6,7 @@
 #include <ohm/DefaultLayer.h>
 #include <ohm/Key.h>
 #include <ohm/KeyList.h>
+#include <ohm/MapInfo.h>
 #include <ohm/MapLayer.h>
 #include <ohm/MapLayout.h>
 #include <ohm/MapSerialise.h>
@@ -64,7 +65,8 @@ enum ExportMode
   kExportClearance,
   kExportHeightmap,
   kExportHeightmapMesh,
-  kExportCovariance
+  kExportCovariance,
+  kExportTsdf
 };
 
 /// Voxel mode: export voxels as...
@@ -234,6 +236,10 @@ std::istream &operator>>(std::istream &in, ExportMode &mode)
   {
     mode = kExportCovariance;
   }
+  else if (mode_str == "tsdf")
+  {
+    mode = kExportTsdf;
+  }
   else
   {
     badArg(mode_str);
@@ -268,6 +274,9 @@ std::ostream &operator<<(std::ostream &out, const ExportMode mode)
     break;
   case kExportCovariance:
     out << "covariance";
+    break;
+  case kExportTsdf:
+    out << "tsdf";
     break;
   default:
     out << "<unknown>";
@@ -502,6 +511,15 @@ int exportPointCloud(const Options &opt, ProgressMonitor &prog, LoadMapProgress 
 
     break;
   }
+  case kExportTsdf:
+  {
+    if (map.layout().layerIndex(ohm::default_layer::tsdfLayerName()) == -1)
+    {
+      std::cout << "Missing 'tsdf' layer" << std::endl;
+      res = -1;
+    }
+  }
+  break;
   default:
     std::cout << "Invalid mode for point cloud: " << opt.mode << std::endl;
     res = -1;
@@ -623,6 +641,19 @@ int exportPointCloud(const Options &opt, ProgressMonitor &prog, LoadMapProgress 
     map.calculateExtents(&min_ext, &max_ext);
     export_count = ohmtools::saveClearanceCloud(opt.ply_file.c_str(), map, min_ext, max_ext, opt.colour_scale,
                                                 ohm::kFree, save_progress_callback);
+    break;
+  }
+  case kExportTsdf:
+  {
+    glm::dvec3 min_ext;
+    glm::dvec3 max_ext;
+    map.calculateExtents(&min_ext, &max_ext);
+    const float surface_distance =
+      static_cast<float>(map.mapInfo().get("tsdf-default-truncation-distance", ohm::MapValue("", 0.1f)));
+    // TODO(KS): set surface distance based on default truncation distance. For that we need to write the TSDF
+    // parameters to the map info.
+    export_count =
+      ohmtools::saveTsdfCloud(opt.ply_file.c_str(), map, min_ext, max_ext, surface_distance, save_progress_callback);
     break;
   }
   default:
@@ -858,6 +889,7 @@ int main(int argc, char *argv[])
   case kExportDensity:
   case kExportClearance:
   case kExportHeightmap:
+  case kExportTsdf:
     res = exportPointCloud(opt, prog, load_progress);
     break;
   case kExportHeightmapMesh:

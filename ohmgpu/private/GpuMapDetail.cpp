@@ -86,9 +86,10 @@ void reinitialiseGpuCache(GpuCache *gpu_cache, OccupancyMap &map, unsigned flags
     const int traversal_layer = map.layout().traversalLayer();
     const int touch_times_layer = map.layout().layerIndex(default_layer::touchTimeLayerName());
     const int incidents_layer = map.layout().layerIndex(default_layer::incidentNormalLayerName());
-    std::array<int, 9> known_layers = { occupancy_layer, mean_layer,        covariance_layer,
-                                        intensity_layer, hit_miss_layer,    clearance_layer,
-                                        traversal_layer, touch_times_layer, incidents_layer };
+    const int tsdf_layer = map.layout().layerIndex(default_layer::tsdfLayerName());
+    std::array<int, 10> known_layers = { occupancy_layer, mean_layer,      covariance_layer, intensity_layer,
+                                         hit_miss_layer,  clearance_layer, traversal_layer,  touch_times_layer,
+                                         incidents_layer, tsdf_layer };
 
     // Calculate the relative layer memory sizes.
     std::map<int, size_t> layer_mem_weight;
@@ -176,6 +177,12 @@ void reinitialiseGpuCache(GpuCache *gpu_cache, OccupancyMap &map, unsigned flags
       gpu_cache->createCache(kGcIdIncidentNormal,
                              GpuLayerCacheParams{ layer_mem_weight[incidents_layer], incidents_layer,
                                                   kGcfRead | kGcfWrite | mappable_flag });
+    }
+
+    if (tsdf_layer >= 0)
+    {
+      gpu_cache->createCache(kGcIdTsdf, GpuLayerCacheParams{ layer_mem_weight[tsdf_layer], tsdf_layer,
+                                                             kGcfRead | kGcfWrite | mappable_flag });
     }
   }
 }
