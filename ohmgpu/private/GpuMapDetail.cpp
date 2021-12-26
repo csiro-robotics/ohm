@@ -181,8 +181,9 @@ void reinitialiseGpuCache(GpuCache *gpu_cache, OccupancyMap &map, unsigned flags
 
     if (tsdf_layer >= 0)
     {
-      gpu_cache->createCache(kGcIdTsdf, GpuLayerCacheParams{ layer_mem_weight[tsdf_layer], tsdf_layer,
-                                                             kGcfRead | kGcfWrite | mappable_flag });
+      gpu_cache->createCache(kGcIdTsdf,
+                             GpuLayerCacheParams{ layer_mem_weight[tsdf_layer], tsdf_layer,
+                                                  kGcfRead | kGcfWrite | mappable_flag, &onOccupancyLayerChunkSync });
     }
   }
 }

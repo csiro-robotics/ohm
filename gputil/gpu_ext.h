@@ -102,6 +102,11 @@
 // TODO(KS): Find a better way of seting with this by forcing CUDA to use ulong as a 64-bit type.
 typedef ulong ulonglong;
 
+#if defined(__OPENCL_C_VERSION__) && GPUTIL_ATOMICS_64
+#pragma OPENCL EXTENSION cl_khr_int64_base_atomics : enable
+#pragma OPENCL EXTENSION cl_khr_int64_extended_atomics : enable
+#endif // defined(__OPENCL_C_VERSION__) && GPUTIL_ATOMICS_64
+
 //----------------------------------------------------------------------------------------------------------------------
 // Atomic definitions. Make consistent atomic function interface across all GPU code versions.
 //
@@ -193,6 +198,49 @@ inline bool gputilAtomicCasU32L(__local atomic_uint *obj, uint expected, uint de
 {
   return atomic_compare_exchange_weak(obj, &expected, desired);
 }
+
+#if GPUTIL_ATOMICS_64
+inline void gputilAtomicInitU64(__global atomic_ulong *obj, ulonglong val)
+{
+  atomic_init(obj, val);
+}
+inline void gputilAtomicInitU64L(__local atomic_ulong *obj, ulonglong val)
+{
+  atomic_init(obj, val);
+}
+inline void gputilAtomicStoreU64(__global atomic_ulong *obj, ulonglong val)
+{
+  atomic_store(obj, val);
+}
+inline void gputilAtomicStoreU64L(__local atomic_ulong *obj, ulonglong val)
+{
+  atomic_store(obj, val);
+}
+inline ulonglong gputilAtomicLoadU64(__global atomic_ulong *obj)
+{
+  return atomic_load(obj);
+}
+inline ulonglong gputilAtomicLoadU64L(__local atomic_ulong *obj)
+{
+  return atomic_load(obj);
+}
+inline ulonglong gputilAtomicExchangeU64(__global atomic_ulong *obj, ulonglong desired)
+{
+  return atomic_exchange(obj, desired);
+}
+inline ulonglong gputilAtomicExchangeU64L(__local atomic_ulong *obj, ulonglong desired)
+{
+  return atomic_exchange(obj, desired);
+}
+inline bool gputilAtomicCasU64(__global atomic_ulong *obj, ulonglong expected, ulonglong desired)
+{
+  return atomic_compare_exchange_weak(obj, &expected, desired);
+}
+inline bool gputilAtomicCasU64L(__local atomic_ulong *obj, ulonglong expected, ulonglong desired)
+{
+  return atomic_compare_exchange_weak(obj, &expected, desired);
+}
+#endif // GPUTIL_ATOMICS_64
 
 #if __OPENCL_C_VERSION__ < 210
 inline void gputilAtomicInitF32(__global atomic_float *obj, float val)
@@ -286,6 +334,7 @@ inline bool gputilAtomicCasF32L(__local atomic_float *obj, float expected, float
 typedef volatile int atomic_int;
 typedef volatile uint atomic_uint;
 typedef volatile float atomic_float;
+typedef volatile ulong atomic_ulong;
 
 #define gputilAtomicInitI32(obj, val) *(obj) = val
 #define gputilAtomicInitI32L(obj, val) *(obj) = val
@@ -308,6 +357,10 @@ typedef volatile float atomic_float;
 #define gputilAtomicExchangeU32L(obj, desired) atomic_xchg(obj, desired)
 #define gputilAtomicCasU32(obj, expected, desired) (atomic_cmpxchg(obj, expected, desired) == (expected))
 #define gputilAtomicCasU32L(obj, expected, desired) (atomic_cmpxchg(obj, expected, desired) == (expected))
+
+#if GPUTIL_ATOMICS_64
+#error 64-bit atomics not supported before OpenCL 2.0
+#endif // GPUTIL_ATOMICS_64
 
 #define gputilAtomicInitF32(obj, val) *(obj) = val
 #define gputilAtomicInitF32L(obj, val) *(obj) = val

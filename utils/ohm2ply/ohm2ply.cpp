@@ -648,8 +648,16 @@ int exportPointCloud(const Options &opt, ProgressMonitor &prog, LoadMapProgress 
     glm::dvec3 min_ext;
     glm::dvec3 max_ext;
     map.calculateExtents(&min_ext, &max_ext);
-    const float surface_distance =
+    float surface_distance =
       static_cast<float>(map.mapInfo().get("tsdf-default-truncation-distance", ohm::MapValue("", 0.1f)));
+    if (opt.threshold <= 0)
+    {
+      surface_distance = std::min(surface_distance, float(0.75 * map.resolution()));
+    }
+    else
+    {
+      surface_distance = opt.threshold;
+    }
     // TODO(KS): set surface distance based on default truncation distance. For that we need to write the TSDF
     // parameters to the map info.
     export_count =

@@ -72,11 +72,21 @@ GpuTsdfMap::GpuTsdfMap(OccupancyMap *map, bool borrowed_map, unsigned expected_e
     map->updateLayout(layout);
   }
 
+  // Buffer management is a bit messy because it's a retrofit.
   for (int i = 0; i < 2; ++i)
   {
+    // We only want TSDF data, so clear what the base class added here.
+    imp_->voxel_upload_info[i].clear();
     detail()->tsdf_uidx = int(imp_->voxel_upload_info[i].size());  // Set twice to the same value, but that's ok.
     imp_->voxel_upload_info[i].emplace_back(VoxelUploadInfo(kGcIdTsdf, gpuCache()->gpu()));
   }
+
+  // Only using TSDF.
+  imp_->occupancy_uidx = -1;
+  imp_->mean_uidx = -1;
+  imp_->traversal_uidx = -1;
+  imp_->touch_time_uidx = -1;
+  imp_->incident_normal_uidx = -1;
 
   // Cache the correct GPU program.
   cacheGpuProgram(false, false, true);
@@ -240,14 +250,12 @@ void GpuTsdfMap::finaliseBatch(unsigned region_update_flags)
 
   const unsigned region_count = imp_->region_counts[buf_idx];
   const unsigned ray_count = imp_->ray_counts[buf_idx];
-  int next_upload_buffer = 0;
   gputil::Dim3 global_size(ray_count);
   gputil::Dim3 local_size(std::min<size_t>(imp_->update_kernel.optimalWorkGroupSize(), ray_count));
   gputil::EventList wait({ imp_->key_upload_events[buf_idx], imp_->ray_upload_events[buf_idx],
                            imp_->region_key_upload_events[buf_idx],
-                           imp_->voxel_upload_info[buf_idx][next_upload_buffer].offset_upload_event,
-                           imp_->voxel_upload_info[buf_idx][next_upload_buffer].voxel_upload_event });
-  ++next_upload_buffer;
+                           imp_->voxel_upload_info[buf_idx][tsdf_uidx].offset_upload_event,
+                           imp_->voxel_upload_info[buf_idx][tsdf_uidx].voxel_upload_event });
 
   // Supporting voxel mean and traversal are putting us at the limit of what we can support using this sort of
   // conditional invocation.

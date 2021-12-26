@@ -25,9 +25,9 @@ struct VoxelTsdf
 
 #else  // !GPUTIL_DEVICE
 
-#if !defined(Vec3)
+#if !defined(VEC3)
 typedef float3 Vec3;
-#endif  // !defined(Vec3)
+#endif  // !defined(VEC3)
 
 #if !defined(Int3)
 typedef int3 Int3;
@@ -81,6 +81,7 @@ inline __device__ __host__ float computeDistance(const Vec3 sensor, const Vec3 s
 /// @param sparsity_compensation_factor The sparsity compensation factor to apply. Ignored if zero or less.
 /// @param[in,out] voxel_weight Initial TSDF voxel weight which is then modified with the TSDF calculation for this ray.
 /// @param[in,out] voxel_distance Initial TSDF voxel distance, then modified with the TSDF calculation for this ray.
+/// @return True if the calculation modified the @p voxel_weight and/or @p voxel_distance.
 TSDF_VOX_FUNC_PREFACE
 inline __device__ __host__ bool calculateTsdf(const Vec3 sensor, const Vec3 sample, const Vec3 voxel_centre,
                                               float default_truncation_distance, float max_weight,
@@ -101,7 +102,7 @@ inline __device__ __host__ bool calculateTsdf(const Vec3 sensor, const Vec3 samp
   // Compute updated weight in case we use weight dropoff. It's easier here
   // that in getVoxelWeight as here we have the actual SDF for the voxel
   // already computed.
-  updated_weight *= (sparsity_compensation_factor > 0) ?
+  updated_weight *= (dropoff_epsilon > 0) ?
                       ((default_truncation_distance + sdf) / (default_truncation_distance - dropoff_epsilon)) :
                       1.0f;
   updated_weight = max(updated_weight, 0.0f);
@@ -114,14 +115,15 @@ inline __device__ __host__ bool calculateTsdf(const Vec3 sensor, const Vec3 samp
   // This can be useful for creating a TSDF map from sparse sensor data (e.g.
   // visual features from a SLAM system). By default, this option is disabled.
   updated_weight *=
-    (sparsity_compensation_factor > 0 && abs(sdf) < default_truncation_distance) ? sparsity_compensation_factor : 1.0f;
+    (sparsity_compensation_factor > 0 && fabs(sdf) < default_truncation_distance) ? sparsity_compensation_factor : 1.0f;
 
   const float new_weight = initial_weight + updated_weight;
 
   // Comment from voxblox
   // it is possible to have weights very close to zero, due to the limited
   // precision of floating points dividing by this small value can cause nans
-  const bool near_zero_weight = abs(new_weight) < 1e-6f;
+  const float abs_new_weight = fabs(new_weight);
+  const bool near_zero_weight = abs_new_weight < 0.00001f;
   const float new_sdf =
     (!near_zero_weight) ? (sdf * updated_weight + *voxel_distance * initial_weight) / new_weight : 0;
 
@@ -129,7 +131,7 @@ inline __device__ __host__ bool calculateTsdf(const Vec3 sensor, const Vec3 samp
                                                              max(-default_truncation_distance, new_sdf)) :
                                           *voxel_distance;
   *voxel_weight = (!near_zero_weight) ? min(new_weight, max_weight) : initial_weight;
-  return near_zero_weight;
+  return !near_zero_weight;
 }
 
 #endif  // VOXELTSDFCOMPUTE_H

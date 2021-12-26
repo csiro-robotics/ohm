@@ -22,7 +22,7 @@
 //------------------------------------------------------------------------------
 
 // Report regions we can't resolve via printf().
-//#define REPORT_MISSING_REGIONS
+// #define REPORT_MISSING_REGIONS
 
 // Limit the number of cells we can traverse in the line traversal. This is a worst case limit.
 //#define LIMIT_LINE_WALK_ITERATIONS
@@ -31,9 +31,11 @@
 #define LIMIT_VOXEL_WRITE_ITERATIONS
 #endif  // LIMIT_VOXEL_WRITE_ITERATIONS
 
+
 //------------------------------------------------------------------------------
 // Includes
 //------------------------------------------------------------------------------
+#define GPUTIL_ATOMICS_64 1
 #include "gpu_ext.h"  // Must be first
 
 #include "MapCoord.h"
@@ -47,8 +49,6 @@
 
 #define VISIT_LINE_VOXEL visitVoxelTsdfUpdate
 #define WALK_LINE_VOXELS walkTsdfLine
-
-inline __device__ float3 voxelCentre(const GpuKey *key, const int3 *regionDim, float voxelResolution);
 
 #ifndef TSDF_UPDATE_BASE_CL
 // User data for voxel visit callback.
@@ -76,24 +76,26 @@ typedef struct TsdfWalkData_t
   uint region_count;
   // Index of the @c current_region into region_keys and corresponding xxx_offsets arrays.
   uint current_region_index;
+  /// A reference sensor position. This is in a frame local to the centre of the voxel containing the sample coordinate.
+  float3 sensor;
   /// A reference sample position. This is in a frame local to the centre of the voxel containing this sample
   /// coordinate.
   float3 sample;
-  /// A reference sensor position. This is in a frame local to the centre of the voxel containing the sample coordinate.
-  float3 sensor;
+  /// The voxel key for the voxel containing sample.
+  GpuKey sample_key;
 } TsdfWalkData;
 #endif  // TSDF_UPDATE_BASE_CL
 
 // A somewhat tacked on implementation of Truncated Signed Distance Fields.
 // Implement the voxel traversal function. We update the value of the voxel using atomic instructions.
-__device__ bool VISIT_LINE_VOXEL(const GpuKey *voxelKey, bool isEndVoxel, const GpuKey *startKey, const GpuKey *endKey,
-                                 float voxel_resolution, float entryTime, float exitTime, void *user_data)
+__device__ bool VISIT_LINE_VOXEL(const GpuKey *voxel_key, bool is_end_voxel, const GpuKey *start_key,
+                                 const GpuKey *end_key, float voxel_resolution, float entry_time, float exit_time,
+                                 void *user_data)
 {
   TsdfWalkData *tsdf_data = (TsdfWalkData *)user_data;
-  __global VoxelTsdf *tsdf_voxels = tsdf_data->tsdf_voxels;
 
   // Resolve memory offset for the region of interest.
-  if (!regionsResolveRegion(voxelKey, &tsdf_data->current_region, &tsdf_data->current_region_index,
+  if (!regionsResolveRegion(voxel_key, &tsdf_data->current_region, &tsdf_data->current_region_index,
                             tsdf_data->region_keys, tsdf_data->region_count))
   {
     // We can fail to resolve regions along the in the line. This can occurs for several reasons:
@@ -101,21 +103,21 @@ __device__ bool VISIT_LINE_VOXEL(const GpuKey *voxelKey, bool isEndVoxel, const 
     //   of a region not hit when walking the regions on CPU.
     // - Regions may not be uploaded due to extents limiting on CPU.
 #ifdef REPORT_MISSING_REGIONS
-    printf("%u region missing: " KEY_F "\n  Voxels: " KEY_F "->" KEY_F "\n", get_global_id(0), KEY_A(*voxelKey),
-           KEY_A(*startKey), KEY_A(*endKey));
+    printf("%u region missing: " KEY_F "\n  Voxels: " KEY_F "->" KEY_F "\n", get_global_id(0), KEY_A(*voxel_key),
+           KEY_A(*start_key), KEY_A(*end_key));
 #endif
     return true;
   }
 
   // We assume this voxel lies in the tsdf_data->current_region.
   // Work out which voxel to modify.
-  const ulonglong vi_local = voxelKey->voxel[0] + voxelKey->voxel[1] * tsdf_data->region_dimensions.x +
-                             voxelKey->voxel[2] * tsdf_data->region_dimensions.x * tsdf_data->region_dimensions.y;
+  const ulonglong vi_local = voxel_key->voxel[0] + voxel_key->voxel[1] * tsdf_data->region_dimensions.x +
+                             voxel_key->voxel[2] * tsdf_data->region_dimensions.x * tsdf_data->region_dimensions.y;
   ulonglong vi =
     (tsdf_data->tsdf_offsets[tsdf_data->current_region_index] / sizeof(*tsdf_data->tsdf_voxels)) + vi_local;
 
-  if (voxelKey->voxel[0] < tsdf_data->region_dimensions.x && voxelKey->voxel[1] < tsdf_data->region_dimensions.y &&
-      voxelKey->voxel[2] < tsdf_data->region_dimensions.z)
+  if (voxel_key->voxel[0] < tsdf_data->region_dimensions.x && voxel_key->voxel[1] < tsdf_data->region_dimensions.y &&
+      voxel_key->voxel[2] < tsdf_data->region_dimensions.z)
   {
 #ifdef LIMIT_VOXEL_WRITE_ITERATIONS
     // Under high contension we can end up repeatedly failing to write the voxel value.
@@ -125,18 +127,21 @@ __device__ bool VISIT_LINE_VOXEL(const GpuKey *voxelKey, bool isEndVoxel, const 
     int iterations = 0;
 #endif
 
-    // We have a problem in that we want to write 62-bits of data using CAS semantics, but we only have 32-bit CAS
-    // operations. We resolve this by prioritising writing the distance in one loop. Then we run a second making the
-    // same calculations, but write the weight instead.
-    const float3 voxel_centre = voxelCentre(voxelKey, &tsdf_data->region_dimensions, voxel_resolution);
+    // Calculate the current voxel centre in the same space as tsdf_data->sensor and tsdf_data->sample. Remember,
+    // those values are both calculated relative to the centre of the voxel containing tsdf_data->sample
+    const int3 voxel_diff = keyDiff(&tsdf_data->sample_key, voxel_key, &tsdf_data->region_dimensions);
+    const float3 voxel_centre =
+      make_float3(voxel_diff.x * voxel_resolution, voxel_diff.y * voxel_resolution, voxel_diff.z * voxel_resolution);
     const float sdf = computeDistance(tsdf_data->sensor, tsdf_data->sample, voxel_centre);
 
-    float tsdf_weight;
-    float tsdf_distance;
-    float initial_weight;
-    float initial_distance;
+    /// Use a union of VoxelTsdf and atomic_ulong (64-bits) so we can write the value back in one operation.
+    union TsdfCas
+    {
+      VoxelTsdf voxel;
+      atomic_ulong value;
+    } initial, updated_tsdf;
 
-    __global VoxelTsdf *tsdf_voxel_ptr = &tsdf_voxels[vi];
+    __global atomic_ulong *tsdf_voxel_ptr = (__global atomic_ulong *)&tsdf_data->tsdf_voxels[vi];
 
     do
     {
@@ -147,46 +152,22 @@ __device__ bool VISIT_LINE_VOXEL(const GpuKey *voxelKey, bool isEndVoxel, const 
       }
 #endif  // LIMIT_VOXEL_WRITE_ITERATIONS
 
-      initial_weight = tsdf_weight = gputilAtomicLoadF32(&tsdf_voxel_ptr->weight);
-      initial_distance = tsdf_distance = gputilAtomicLoadF32(&tsdf_voxel_ptr->distance);
+      initial.value = gputilAtomicLoadU64(tsdf_voxel_ptr);
+      updated_tsdf.voxel.weight = initial.voxel.weight;
+      updated_tsdf.voxel.distance = initial.voxel.distance;
 
       if (!calculateTsdf(tsdf_data->sensor, tsdf_data->sample, voxel_centre, tsdf_data->default_truncation_distance,
                          tsdf_data->max_weight, tsdf_data->dropoff_epsilon, tsdf_data->sparsity_compensation_factor,
-                         &tsdf_weight, &tsdf_distance))
+                         &updated_tsdf.voxel.weight, &updated_tsdf.voxel.distance))
       {
-        // Weight too low. Nothing more to do.
+        // Weight too low. Nothing more to do for this voxel.
         return true;
       }
       // Now try write the value, looping if we fail to write the new value.
       // mem_fence(CLK_GLOBAL_MEM_FENCE);
-    } while (tsdf_distance != initial_distance &&
-             !gputilAtomicCasF32(&tsdf_voxel_ptr->distance, initial_distance, tsdf_distance));
-
-#ifdef LIMIT_VOXEL_WRITE_ITERATIONS
-    iterations = 0;
-#endif  // LIMIT_VOXEL_WRITE_ITERATIONS
-
-    // Now fixup the weigth (see commend on the weight/distance declarations above).
-    // We start with a calculated value for the weight so we can immeidately try write it.
-    while (tsdf_weight != initial_weight && !gputilAtomicCasF32(&tsdf_voxel_ptr->weight, initial_weight, tsdf_weight))
-    {
-#ifdef LIMIT_VOXEL_WRITE_ITERATIONS
-      if (iterations++ > iterationLimit)
-      {
-        break;
-      }
-#endif  // LIMIT_VOXEL_WRITE_ITERATIONS
-      initial_weight = tsdf_weight = gputilAtomicLoadF32(&tsdf_voxel_ptr->weight);
-      initial_distance = tsdf_distance = gputilAtomicLoadF32(&tsdf_voxel_ptr->distance);
-
-      if (!calculateTsdf(tsdf_data->sensor, tsdf_data->sample, voxel_centre, tsdf_data->default_truncation_distance,
-                         tsdf_data->max_weight, tsdf_data->dropoff_epsilon, tsdf_data->sparsity_compensation_factor,
-                         &tsdf_weight, &tsdf_distance))
-      {
-        // Weight too low. Nothing more to do.
-        return true;
-      }
-    }
+    } while ((updated_tsdf.voxel.distance != initial.voxel.distance ||
+              updated_tsdf.voxel.weight != initial.voxel.weight) &&
+             !gputilAtomicCasU64(tsdf_voxel_ptr, initial.value, updated_tsdf.value));
   }
 
   return true;
@@ -284,6 +265,7 @@ __kernel void tsdfRayUpdate(__global VoxelTsdf *tsdf_voxels, __global ulonglong 
   tsdf_data.default_truncation_distance = default_truncation_distance;
   tsdf_data.dropoff_epsilon = dropoff_epsilon;
   tsdf_data.sparsity_compensation_factor = sparsity_compensation_factor;
+  tsdf_data.region_count = region_count;
 
   regionsInitCurrent(&tsdf_data.current_region, &tsdf_data.current_region_index);
 
@@ -295,12 +277,13 @@ __kernel void tsdfRayUpdate(__global VoxelTsdf *tsdf_voxels, __global ulonglong 
   const float3 line_start = local_lines[get_global_id(0) * 2 + 0];
   const float3 line_end = local_lines[get_global_id(0) * 2 + 1];
 
-  tsdf_data.sample = line_end;
   tsdf_data.sensor = line_start;
+  tsdf_data.sample = line_end;
+  tsdf_data.sample_key = end_key;
 
   // We need to calculate the start voxel centre in the right coordinate space. All coordinates are relative to the
   // end voxel centre.
-  // 1. Calculate the voxel step from endKey to startKey.
+  // 1. Calculate the voxel step from end_key to start_key.
   // 2. Scale results by voxelResolution.
   const int3 voxel_diff = keyDiff(&end_key, &start_key, &region_dimensions);
   const float3 start_voxel_centre =

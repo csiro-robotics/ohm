@@ -555,7 +555,8 @@ int OhmAppCpu::saveCloud(const std::string &path_ply)
     glm::dvec3 max_ext{};
     map_->calculateExtents(&min_ext, &max_ext);
     point_count = ohmtools::saveTsdfCloud(path_ply.c_str(), *map_, min_ext, max_ext,
-                                          options().map().tsdf.default_truncation_distance, save_progress_callback);
+                                          std::min(options().map().tsdf.default_truncation_distance,
+                                                   1.0f * float(options().map().resolution)), save_progress_callback);
   }
 
   progress_.endProgress();
