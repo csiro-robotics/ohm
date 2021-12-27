@@ -386,10 +386,10 @@ inline float gputilAtomicExchangeF32L(__local atomic_float *obj, float desired)
 
 #endif  // __OPENCL_C_VERSION__
 
-#define gputilAtomicAdd(p, val) atomic_add(p, val)
-#define gputilAtomicSub(p, val) atomic_sub(p, val)
-#define gputilAtomicInc(p) atomic_inc(p)
-#define gputilAtomicDec(p) atomic_dec(p)
+#define gputilAtomicAdd(p, val) atomic_fetch_add(p, val)
+#define gputilAtomicSub(p, val) atomic_fetch_sub(p, val)
+#define gputilAtomicInc(p) atomic_fetch_add(p, 1)
+#define gputilAtomicDec(p) atomic_fetch_sub(p, 1)
 #define gputilAtomicMin(p, val) atomic_min(p, val)
 #define gputilAtomicMax(p, val) atomic_max(p, val)
 #define gputilAtomicAnd(p, val) atomic_and(p, val)
