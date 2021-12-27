@@ -135,10 +135,10 @@ __device__ bool VISIT_LINE_VOXEL(const GpuKey *voxel_key, bool is_end_voxel, con
     const float sdf = computeDistance(tsdf_data->sensor, tsdf_data->sample, voxel_centre);
 
     /// Use a union of VoxelTsdf and atomic_ulong (64-bits) so we can write the value back in one operation.
-    union TsdfCas
+    union
     {
       VoxelTsdf voxel;
-      atomic_ulong value;
+      ulong value;
     } initial, updated_tsdf;
 
     __global atomic_ulong *tsdf_voxel_ptr = (__global atomic_ulong *)&tsdf_data->tsdf_voxels[vi];

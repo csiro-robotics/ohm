@@ -12,7 +12,10 @@ using Vec3 = glm::vec3;
 #define OHM_NORMAL_STD std::
 #define OHM_DEVICE_HOST
 #else  // GPUTIL_DEVICE
+#if !defined(VEC3)
+#define VEC3
 typedef float3 Vec3;
+#endif  // !defined(VEC3)
 #define OHM_NORMAL_STD
 #define OHM_DEVICE_HOST __device__ __host__
 #endif  // GPUTIL_DEVICE

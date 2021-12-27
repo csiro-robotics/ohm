@@ -26,6 +26,7 @@ struct VoxelTsdf
 #else  // !GPUTIL_DEVICE
 
 #if !defined(VEC3)
+#define VEC3
 typedef float3 Vec3;
 #endif  // !defined(VEC3)
 
@@ -38,8 +39,8 @@ typedef int3 Int3;
 /// Voxel data for maintaining truncated signed distance field.
 typedef struct VoxelTsdf_t
 {
-  atomic_float weight;    ///< TSDF weight.
-  atomic_float distance;  ///< TSDF distance.
+  float weight;   ///< TSDF weight.
+  float distance; ///< TSDF distance.
 } VoxelTsdf;
 
 #endif  // !GPUTIL_DEVICE
@@ -48,7 +49,7 @@ typedef struct VoxelTsdf_t
 /// @return True if @p voxel is non-null and has valid data, false when null or unused.
 inline __device__ __host__ bool isValidTsdf(const VoxelTsdf *voxel)
 {
-  return voxel && (voxel->weight != 0 || voxel->distance != 0);
+  return voxel && (voxel->weight != 0.0f || voxel->distance != 0.0f);
 }
 
 
@@ -125,9 +126,9 @@ inline __device__ __host__ bool calculateTsdf(const Vec3 sensor, const Vec3 samp
   const float abs_new_weight = fabs(new_weight);
   const bool near_zero_weight = abs_new_weight < 0.00001f;
   const float new_sdf =
-    (!near_zero_weight) ? (sdf * updated_weight + *voxel_distance * initial_weight) / new_weight : 0;
+    (!near_zero_weight) ? (sdf * updated_weight + *voxel_distance * initial_weight) / new_weight : 0.0f;
 
-  *voxel_distance = (!near_zero_weight) ? ((new_sdf > 0.0) ? min(default_truncation_distance, new_sdf) :
+  *voxel_distance = (!near_zero_weight) ? ((new_sdf > 0.0f) ? min(default_truncation_distance, new_sdf) :
                                                              max(-default_truncation_distance, new_sdf)) :
                                           *voxel_distance;
   *voxel_weight = (!near_zero_weight) ? min(new_weight, max_weight) : initial_weight;

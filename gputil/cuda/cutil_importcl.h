@@ -88,6 +88,7 @@ No direct equivalent    write_mem_fence()
 
 typedef unsigned char uchar;
 typedef unsigned int uint;
+typedef unsigned long long ulong;
 
 inline __device__ unsigned get_num_groups(int i)
 {
