@@ -14,6 +14,8 @@
 
 #include <ohmapp/DataSource.h>
 
+#include <ohm/DefaultLayer.h>
+
 #ifdef TES_ENABLE
 #include <ohm/RayMapperTrace.h>
 #endif  // TES_ENABLE
@@ -172,7 +174,6 @@ int OhmAppGpu::prepareForRun()
   {
     reserve_batch_size = defaultBatchSize();
   }
-  true_mapper_;
   if (options().ndt().mode != ohm::NdtMode::kNone)
   {
     true_mapper_ =
@@ -180,6 +181,10 @@ int OhmAppGpu::prepareForRun()
   }
   else if (options().map().tsdf_enabled)
   {
+    // Create a new layout with just the TSDF layer. We won't need occupancy.
+    ohm::MapLayout layout;
+    ohm::addTsdf(layout);
+    map_->updateLayout(layout);
     auto tsdf_mapper = std::make_unique<ohm::GpuTsdfMap>(map_.get(), true, reserve_batch_size, gpu_cache_size);
     tsdf_mapper->setTsdfOptions(options().map().tsdf);
     true_mapper_ = std::move(tsdf_mapper);

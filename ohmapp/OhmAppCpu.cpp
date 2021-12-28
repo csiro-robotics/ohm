@@ -146,7 +146,7 @@ void OhmAppCpu::MapOptions::print(std::ostream &out)
   }
   else
   {
-    out << "Mapping mode: tsdf\n";
+    out << "TSDF mode: fast\n";
     out << "TSDF max weight: " << tsdf.max_weight << '\n';
     out << "TSDF default truncation distance: " << tsdf.default_truncation_distance << '\n';
     out << "TSDF dropoff epsilon: ";
@@ -257,8 +257,8 @@ void OhmAppCpu::CompressionOptions::print(std::ostream &out)
   out << "Compression: " << (uncompressed ? "off" : "on") << '\n';
   if (!uncompressed)
   {
-    out << "  High tide:" << high_tide << '\n';
-    out << "  Low tide:" << low_tide << '\n';
+    out << "  High tide: " << high_tide << '\n';
+    out << "  Low tide: " << low_tide << '\n';
   }
 }
 
@@ -417,14 +417,10 @@ int OhmAppCpu::prepareForRun()
   }
   else if (options().map().tsdf_enabled)
   {
-    // Ensure tsdf layer is present.
-    if (map_->layout().layerIndex(ohm::default_layer::tsdfLayerName()) == -1)
-    {
-      // Copy and update layout then update in the map.
-      ohm::MapLayout layout = map_->layout();
-      addTsdf(layout);
-      map_->updateLayout(layout);
-    }
+    // Create a new layout with just the TSDF layer. We won't need occupancy.
+    ohm::MapLayout layout;
+    addTsdf(layout);
+    map_->updateLayout(layout);
     auto tsdf_mapper = std::make_unique<ohm::RayMapperTsdf>(map_.get());
     tsdf_mapper->setTsdfOptions(options().map().tsdf);
     true_mapper_ = std::move(tsdf_mapper);
@@ -554,9 +550,10 @@ int OhmAppCpu::saveCloud(const std::string &path_ply)
     glm::dvec3 min_ext{};
     glm::dvec3 max_ext{};
     map_->calculateExtents(&min_ext, &max_ext);
-    point_count = ohmtools::saveTsdfCloud(path_ply.c_str(), *map_, min_ext, max_ext,
-                                          std::min(options().map().tsdf.default_truncation_distance,
-                                                   1.0f * float(options().map().resolution)), save_progress_callback);
+    point_count = ohmtools::saveTsdfCloud(
+      path_ply.c_str(), *map_, min_ext, max_ext,
+      std::min(options().map().tsdf.default_truncation_distance, 1.0f * float(options().map().resolution)),
+      save_progress_callback);
   }
 
   progress_.endProgress();
