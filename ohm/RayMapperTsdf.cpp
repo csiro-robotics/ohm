@@ -86,11 +86,10 @@ void RayMapperTsdf::setSparsityCompensationFactor(float sparsity_compensation_fa
 
 
 size_t RayMapperTsdf::integrateRays(const glm::dvec3 *rays, size_t element_count, const float * /*intensities*/,
-                                    const double *timestamps, unsigned ray_update_flags)
+                                    const double *timestamps, unsigned /*ray_update_flags*/)
 {
   KeyList keys;
   MapChunk *last_chunk = nullptr;
-  MapChunk *last_mean_chunk = nullptr;
   VoxelBuffer<VoxelBlock> tsdf_buffer;
 
   const RayFilterFunction ray_filter = map_->rayFilter();

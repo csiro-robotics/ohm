@@ -234,7 +234,7 @@ void GpuTsdfMap::cacheGpuProgram(bool /*with_voxel_mean*/, bool /*with_traversal
 }
 
 
-void GpuTsdfMap::finaliseBatch(unsigned region_update_flags)
+void GpuTsdfMap::finaliseBatch(unsigned /*region_update_flags*/)
 {
   const int buf_idx = imp_->next_buffers_index;
   const OccupancyMapDetail *map = imp_->map->detail();

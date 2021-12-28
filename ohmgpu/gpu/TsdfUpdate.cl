@@ -138,7 +138,7 @@ __device__ bool VISIT_LINE_VOXEL(const GpuKey *voxel_key, bool is_end_voxel, con
     union
     {
       VoxelTsdf voxel;
-      ulong value;
+      ulonglong value;
     } initial, updated_tsdf;
 
     __global atomic_ulong *tsdf_voxel_ptr = (__global atomic_ulong *)&tsdf_data->tsdf_voxels[vi];
@@ -165,9 +165,9 @@ __device__ bool VISIT_LINE_VOXEL(const GpuKey *voxel_key, bool is_end_voxel, con
       }
       // Now try write the value, looping if we fail to write the new value.
       // mem_fence(CLK_GLOBAL_MEM_FENCE);
-    } while ((updated_tsdf.voxel.distance != initial.voxel.distance ||
-              updated_tsdf.voxel.weight != initial.voxel.weight) &&
-             !gputilAtomicCasU64(tsdf_voxel_ptr, initial.value, updated_tsdf.value));
+    } while (
+      (updated_tsdf.voxel.distance != initial.voxel.distance || updated_tsdf.voxel.weight != initial.voxel.weight) &&
+      !gputilAtomicCasU64(tsdf_voxel_ptr, initial.value, updated_tsdf.value));
   }
 
   return true;
