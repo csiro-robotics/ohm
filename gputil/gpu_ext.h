@@ -331,6 +331,16 @@ inline bool gputilAtomicCasF32L(__local atomic_float *obj, float expected, float
 }
 #endif  // __OPENCL_C_VERSION__ < 210
 
+#define gputilAtomicAdd(p, val) atomic_fetch_add(p, val)
+#define gputilAtomicSub(p, val) atomic_fetch_sub(p, val)
+#define gputilAtomicInc(p)      atomic_fetch_add(p, 1)
+#define gputilAtomicDec(p)      atomic_fetch_sub(p, 1)
+#define gputilAtomicMin(p, val) atomic_min(p, val)
+#define gputilAtomicMax(p, val) atomic_max(p, val)
+#define gputilAtomicAnd(p, val) atomic_and(p, val)
+#define gputilAtomicOr(p, val)  atomic_or(p, val)
+#define gputilAtomicXor(p, val) atomic_xor(p, val)
+
 #else  // __OPENCL_C_VERSION__ < 200
 typedef volatile int atomic_int;
 typedef volatile uint atomic_uint;
@@ -385,17 +395,18 @@ inline float gputilAtomicExchangeF32L(__local atomic_float *obj, float desired)
 #define gputilAtomicCasF32L(obj, expected, desired) \
   (atomic_cmpxchg((__local atomic_int *)obj, *(int *)&expected, *(int *)&desired) == *(int *)&expected)
 
-#endif  // __OPENCL_C_VERSION__
 
-#define gputilAtomicAdd(p, val) atomic_fetch_add(p, val)
-#define gputilAtomicSub(p, val) atomic_fetch_sub(p, val)
-#define gputilAtomicInc(p)      atomic_fetch_add(p, 1)
-#define gputilAtomicDec(p)      atomic_fetch_sub(p, 1)
+#define gputilAtomicAdd(p, val) atomic_add(p, val)
+#define gputilAtomicSub(p, val) atomic_sub(p, val)
+#define gputilAtomicInc(p)      atomic_inc(p)
+#define gputilAtomicDec(p)      atomic_dec(p)
 #define gputilAtomicMin(p, val) atomic_min(p, val)
 #define gputilAtomicMax(p, val) atomic_max(p, val)
 #define gputilAtomicAnd(p, val) atomic_and(p, val)
 #define gputilAtomicOr(p, val)  atomic_or(p, val)
 #define gputilAtomicXor(p, val) atomic_xor(p, val)
+
+#endif  // __OPENCL_C_VERSION__
 
 #endif  // GPUTIL_DEVICE == GPUTIL_OPENCL
 

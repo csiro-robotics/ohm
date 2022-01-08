@@ -53,11 +53,12 @@ inline __device__ float calculateOccupancyAdjustment(const GpuKey *voxelKey, boo
   // We increment the miss if needed.
   if (line_data->hit_miss && is_miss)
   {
-    __global HitMissCount *hit_miss =
-      &line_data
-         ->hit_miss[(line_data->hit_miss_offsets[line_data->current_region_index] / sizeof(*line_data->hit_miss)) +
-                    vi_local];
-    gputilAtomicAdd(&hit_miss->miss_count, 1);
+    __global atomic_uint *miss_count_ptr =
+      (__global atomic_uint *)&line_data
+        ->hit_miss[(line_data->hit_miss_offsets[line_data->current_region_index] / sizeof(*line_data->hit_miss)) +
+                   vi_local]
+        .miss_count;
+    gputilAtomicAdd(miss_count_ptr, 1u);
   }
 
   // NDT should do sample update in a separate process in order to update the covariance, so we should not get here.
