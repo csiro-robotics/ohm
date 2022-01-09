@@ -73,10 +73,10 @@ option(OHM_BUILD_DOXYGEN "Build doxygen documentation?" Off)
 option(OHM_EMBED_GPU_CODE "Embed GPU code into the executable (OpenCL)? Otherwise GPU code files are loaded from disk (better for development)." ON)
 
 set(OHM_OPENCL_SDK_VER 1.2 CACHE STRING "Select the OpenCL runtime API to use.")
-set_property(CACHE OHM_OPENCL_SDK_VER PROPERTY STRINGS 1.2 2.0 2.1 2.2)
+set_property(CACHE OHM_OPENCL_SDK_VER PROPERTY STRINGS 1.2 2.0 2.1 2.2 3.0)
 
 set(OHM_OPENCL_STD 2.0 CACHE STRING "Select the default OpenCL standard to compile GPU code against. Also runtime configurable. [max] uses the reported device allowing for 2.x requires features.")
-set_property(CACHE OHM_OPENCL_STD PROPERTY STRINGS 1.2 2.0 2.1 2.2 3.0 max)
+set_property(CACHE OHM_OPENCL_STD PROPERTY STRINGS 1.2 2.0 3.0 max)
 
 # Identify any exteions required to compile with OpenCL 2.0 std.
 set(OHM_OPENCL_2_FEATURES "" CACHE STRING "Features required for OpenCL 2.x. Fallback to 1.2 otherwise.")

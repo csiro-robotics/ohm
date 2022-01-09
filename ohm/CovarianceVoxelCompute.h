@@ -228,6 +228,12 @@ inline __device__ CovVec3 calculateSampleLikelihoods(const CovarianceVoxel *cov_
                                                      CovVec3 voxel_mean, float sensor_noise,
                                                      CovReal *p_x_ml_given_voxel, CovReal *p_x_ml_given_sample)
 {
+#if GPUTIL_DEVICE
+  // Must explicitly use single precision values for OpenCL 2.0+ or it will require double precision compile options.
+  const CovReal kHalf = 0.5f;
+#else   // GPUTIL_DEVICE
+  const CovReal kHalf = 0.5;
+#endif  // GPUTIL_DEVICE
   // Bracketed numbers below reference equation numbers in the paper mentioned in the function comments.
   const CovVec3 sensor_to_sample = sample - sensor;
   const CovVec3 sensor_ray = covnormalize(sensor_to_sample);  // Verified
@@ -251,11 +257,11 @@ inline __device__ CovVec3 calculateSampleLikelihoods(const CovarianceVoxel *cov_
   //   -0.5 * covdot(voxel_maximum_likelihood - voxel_mean, covariance_inv * (voxel_maximum_likelihood -
   //   voxel_mean)));
   // Corrected:
-  *p_x_ml_given_voxel = exp(-0.5 * covlength2(solveTriangular(cov_voxel, voxel_maximum_likelihood - voxel_mean)));
+  *p_x_ml_given_voxel = exp(-kHalf * covlength2(solveTriangular(cov_voxel, voxel_maximum_likelihood - voxel_mean)));
 
   // (23)
   const CovReal sensor_noise_variance = sensor_noise * sensor_noise;
-  *p_x_ml_given_sample = exp(-0.5 * covlength2(voxel_maximum_likelihood - sample) / sensor_noise_variance);
+  *p_x_ml_given_sample = exp(-kHalf * covlength2(voxel_maximum_likelihood - sample) / sensor_noise_variance);
 
   return voxel_maximum_likelihood;
 }
@@ -446,6 +452,12 @@ inline __device__ void calculateHitMissUpdateOnHit(CovarianceVoxel *cov_voxel, f
                                                    float reinitialise_threshold, unsigned reinitialise_sample_count,
                                                    unsigned sample_threshold)
 {
+#if GPUTIL_DEVICE
+  // Must explicitly use single precision values for OpenCL 2.0+ or it will require double precision compile options.
+  const CovReal kHalf = 0.5f;
+#else   // GPUTIL_DEVICE
+  const CovReal kHalf = 0.5;
+#endif  // GPUTIL_DEVICE
   // Branchless for better GPU execution
   const bool needs_reset =
     voxel_value == uninitialised_value ||
@@ -462,9 +474,10 @@ inline __device__ void calculateHitMissUpdateOnHit(CovarianceVoxel *cov_voxel, f
   calculateSampleLikelihoods(cov_voxel, sensor, sample, voxel_mean, sensor_noise, &p_x_ml_given_voxel,
                              &p_x_ml_given_sample);
   const CovReal prod = p_x_ml_given_voxel * p_x_ml_given_sample;
-  const CovReal eta = (CovReal)0.5 * adaptation_rate;  // NOLINT
+  const CovReal eta = kHalf * adaptation_rate;  // NOLINT
 
-  const bool inc_hit = needs_reset || point_count < sample_threshold || point_count >= sample_threshold && prod >= eta;
+  const bool inc_hit =
+    needs_reset || point_count < sample_threshold || (point_count >= sample_threshold && prod >= eta);
   const bool inc_miss = !needs_reset && point_count >= sample_threshold && prod < eta && p_x_ml_given_voxel >= eta;
 
   // Logically we should yield the following results:
@@ -526,6 +539,14 @@ inline __device__ CovVec3 calculateMissNdt(const CovarianceVoxel *cov_voxel, flo
                                            float uninitialised_value, float miss_value, float adaptation_rate,
                                            float sensor_noise, unsigned sample_threshold)
 {
+#if GPUTIL_DEVICE
+  // Must explicitly use single precision values for OpenCL 2.0+ or it will require double precision compile options.
+  const CovReal kOne = 1.0f;
+  const CovReal kHalf = 0.5f;
+#else   // GPUTIL_DEVICE
+  const CovReal kOne = 1.0;
+  const CovReal kHalf = 0.5;
+#endif  // GPUTIL_DEVICE
   // Bracketed numbers below reference equation numbers in the paper mentioned in the function comments.
   if (*voxel_value == uninitialised_value)
   {
@@ -590,9 +611,9 @@ inline __device__ CovVec3 calculateMissNdt(const CovarianceVoxel *cov_voxel, flo
   const CovVec3 voxel_maximum_likelihood = calculateSampleLikelihoods(
     cov_voxel, sensor, sample, voxel_mean, sensor_noise, &p_x_ml_given_voxel, &p_x_ml_given_sample);
 
-  const CovReal scaling_factor = 0.5 * adaptation_rate;
-  const CovReal prod = p_x_ml_given_voxel * (1.0 - p_x_ml_given_sample);
-  const CovReal probability_update = 0.5 - scaling_factor * prod;
+  const CovReal scaling_factor = kHalf * adaptation_rate;
+  const CovReal prod = p_x_ml_given_voxel * (kOne - p_x_ml_given_sample);
+  const CovReal probability_update = kHalf - scaling_factor * prod;
 
   // NDT-TM update of miss count
   *is_miss = prod < scaling_factor;
@@ -602,8 +623,7 @@ inline __device__ CovVec3 calculateMissNdt(const CovarianceVoxel *cov_voxel, flo
   if (probability_update == probability_update)
   {
     // Convert the probability to a log value.
-    *voxel_value +=
-      (float)log(probability_update / ((CovReal)1 - probability_update));  // NOLINT(google-readability-casting)
+    *voxel_value += (float)log(probability_update / (kOne - probability_update));  // NOLINT(google-readability-casting)
   }
 
   return voxel_maximum_likelihood;
