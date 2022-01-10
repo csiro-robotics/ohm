@@ -20,7 +20,9 @@ inline __device__ float calculateOccupancyAdjustment(const GpuKey *voxelKey, boo
   ulonglong vi = (line_data->means_offsets[line_data->current_region_index] / sizeof(*line_data->means)) + vi_local;
   __global VoxelMean *mean_data = &line_data->means[vi];
 
-  float3 voxel_mean = subVoxelToLocalCoord(mean_data->coord, voxel_resolution);
+  const uint voxel_mean_coord = gputilAtomicLoadU32(&mean_data->coord);
+  const uint voxel_mean_count = gputilAtomicLoadU32(&mean_data->count);
+  float3 voxel_mean = subVoxelToLocalCoord(voxel_mean_coord, voxel_resolution);
   // voxel_mean is currently relative to the voxel centre of the voxelKey voxel. We need to change it to be in the same
   // reference frame as the incoming rays, which is relative to the endKey voxel. For this we need to calculate the
   // additional displacement from the centre of endKey to the centre of voxelKey and add this displacement.
@@ -47,7 +49,7 @@ inline __device__ float calculateOccupancyAdjustment(const GpuKey *voxelKey, boo
 
   bool is_miss;
   const float3 voxel_maximum_likelihood = calculateMissNdt(
-    &cov_voxel, &adjustment, &is_miss, line_data->sensor, line_data->sample, voxel_mean, mean_data->count, INFINITY,
+    &cov_voxel, &adjustment, &is_miss, line_data->sensor, line_data->sample, voxel_mean, voxel_mean_count, INFINITY,
     line_data->ray_adjustment, line_data->adaptation_rate, line_data->sensor_noise, min_sample_threshold);
 
   // We increment the miss if needed.

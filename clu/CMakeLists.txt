@@ -41,7 +41,7 @@ set(PUBLIC_HEADERS
 )
 
 set(3P_HEADERS
-  3rdparty/cl2.hpp
+  3rdparty/CL/opencl.hpp
 )
 
 add_library(clu STATIC ${SOURCES} ${PUBLIC_HEADERS})

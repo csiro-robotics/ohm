@@ -157,17 +157,17 @@ __kernel void covarianceHitNdt(
     (traversal_voxels) ?
       (uint)(region_local_index + traversal_region_mem_offsets_global[region_index] / sizeof(*traversal_voxels)) :
       0;
-  float traversal = (traversal_voxels) ? traversal_voxels[traversal_index] : 0;
+  float traversal = (traversal_voxels) ? gputilAtomicLoadF32(&traversal_voxels[traversal_index]) : 0.0f;
   uint touch_time_index =
     (touch_time_voxels) ?
       (uint)(region_local_index + touch_times_region_mem_offsets_global[region_index] / sizeof(*touch_time_voxels)) :
       0;
-  uint touch_time = (touch_time_voxels) ? touch_time_voxels[touch_time_index] : 0;
+  uint touch_time = (touch_time_voxels) ? gputilAtomicLoadU32(&touch_time_voxels[touch_time_index]) : 0u;
   uint incident_index =
     (incident_voxels) ?
       (uint)(region_local_index + incidents_region_mem_offsets_global[region_index] / sizeof(*incident_voxels)) :
       0;
-  uint incident = (incident_voxels) ? incident_voxels[incident_index] : 0;
+  uint incident = (incident_voxels) ? gputilAtomicLoadU32(&incident_voxels[incident_index]) : 0u;
 
   // Cache initial values.
   WorkItem work_item;

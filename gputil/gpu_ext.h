@@ -323,11 +323,17 @@ inline float gputilAtomicExchangeF32L(__local atomic_float *obj, float desired)
 }
 inline bool gputilAtomicCasF32(__global atomic_float *obj, float expected, float desired)
 {
-  return atomic_compare_exchange_weak(obj, &expected, desired);
+  // FIXME(KS):
+  // Seems intel OpenCL does not support atomic_compare_exchange_weak() for atomic_float - undefined references
+  // were observed on an Intel 11th Gen i9 UHD graphics. I can't find any indication of what feature needs to be
+  // supported for this so I'm going with a hack in order to support the current requirement.
+  return atomic_compare_exchange_weak((__global atomic_int *)obj, (int *)&expected, *(int *)&desired);
+  //return atomic_compare_exchange_weak(obj, &expected, desired);
 }
 inline bool gputilAtomicCasF32L(__local atomic_float *obj, float expected, float desired)
 {
-  return atomic_compare_exchange_weak(obj, &expected, desired);
+  // See comment in gputilAtomicCasF32()
+  return atomic_compare_exchange_weak((__local atomic_int *)obj, (int *)&expected, *(int *)&desired);
 }
 #endif  // __OPENCL_C_VERSION__ < 210
 
