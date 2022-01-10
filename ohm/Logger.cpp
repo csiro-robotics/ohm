@@ -30,7 +30,7 @@ LogOStream::LogOStream(LogLevel level) noexcept
 
 void LogOStream::message(LogLevel level, const char *msg)
 {
-  if (int(level) >= int(this->level()))
+  if (int(level) <= int(this->level()))
   {
     switch (level)
     {

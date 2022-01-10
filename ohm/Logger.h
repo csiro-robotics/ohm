@@ -17,16 +17,16 @@ namespace ohm
 /// Ohm logging levels
 enum class LogLevel : int
 {
-  /// Debug/trace message.
-  kTrace,
-  /// Information message
-  kInfo,
-  /// Warning
-  kWarn,
+  /// Fatal error - an exception will be thrown.
+  kFatal,
   /// Error message - will attempt to cleanup or continue, but may not succeed.
   kError,
-  /// Fatal error - an exception will be thrown.
-  kFatal
+  /// Warning
+  kWarn,
+  /// Information message
+  kInfo,
+  /// Debug/trace message.
+  kTrace
 };
 
 /// Abstract logging interface.
