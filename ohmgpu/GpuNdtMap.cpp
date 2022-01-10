@@ -251,7 +251,7 @@ void GpuNdtMap::finaliseBatch(unsigned region_update_flags)
   }
 
   imp->next_buffers_index = 1 - imp->next_buffers_index;
-}  // namespace ohm
+}
 
 
 void GpuNdtMap::releaseGpuProgram()
@@ -472,6 +472,18 @@ void GpuNdtMap::invokeNdt(unsigned region_update_flags, int buf_idx, gputil::Eve
   else
   {
     imp->region_update_events[buf_idx] = first_kernel_event;
+  }
+
+  // Mark the end of the batch and a start of a new batch.
+  // FIXME(KS): tech debt here. This should be managed at a higher level by the thing which calls finaliseBatch(), but
+  // that means we need to know what caches have been touched here.
+  if (touched_caches[0])
+  {
+    imp_->batch_marker = touched_caches[0]->beginBatch();
+    for (size_t i = 1; i < touched_caches.size() && touched_caches[i]; ++i)
+    {
+      touched_caches[i]->beginBatch(imp_->batch_marker);
+    }
   }
 }
 }  // namespace ohm
