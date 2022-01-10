@@ -41,13 +41,15 @@ public:
 
   /// Transform rays in the indicated buffer from local space representation into a global frame.
   ///
+  /// This process represents transforming data samples from a local sensor frame into an odometry frame.
+  ///
   /// This local sample points specified in @p local_samples with corresponding @p sample_times and transforms them
   /// into a global frame using the GPU. The transforms are specified by @p transform_times, @p transform_translations
   /// and @p transform_rotations - scaling is not supported. These transforms specify the origin local to global
   /// transformations. The @p transform_times range must encompass all @p sample_times. The number of transforms
   /// should generally be small and each GPU thread executed a binary search for its appropriate sample.
   ///
-  /// On successful execution, @p @p output_buffer is resize to hold @p point_count * 2 @c gputil::float3 entries.
+  /// On successful execution, @p output_buffer is resize to hold @p point_count * 2 @c gputil::float3 entries.
   /// These entries are line segment pairs in the output space. The first item of each pair is the sensor origin
   /// for the sample, and the second is the transformed sample point. The @p completion_event is may be used to
   /// mark completion of the transformation as the GPU execution is asynchronous.

@@ -158,15 +158,22 @@ unsigned GpuTransformSamples::transform(const double *transform_times, const glm
   gputil::PinnedBuffer rotations_buffer(imp_->transform_rotations_buffer, gputil::kPinWrite);
   gputil::PinnedBuffer times_buffer(imp_->transform_times_buffer, gputil::kPinWrite);
 
-  glm::vec3 position;
-  glm::quat rotation;
+  gputil::float3 position{};
+  gputil::float4 rotation{};
   float single_precision_timestamp;
   for (unsigned i = 0; i < transform_count; ++i)
   {
-    position = glm::vec3(transform_translations[i]);
-    rotation = glm::quat(transform_rotations[i]);
-    positions_buffer.write(glm::value_ptr(position), sizeof(position), i * sizeof(gputil::float3));
-    rotations_buffer.write(glm::value_ptr(rotation), sizeof(rotation), i * sizeof(gputil::float4));
+    position.x = float(transform_translations[i].x);
+    position.y = float(transform_translations[i].y);
+    position.z = float(transform_translations[i].z);
+    // Looks like GLM (quaternion) memory layout has changed from w last to w first. We need to explicitly map into
+    // gputil::float4 and upload that to rectify.
+    rotation.x = float(transform_rotations[i].x);
+    rotation.y = float(transform_rotations[i].y);
+    rotation.z = float(transform_rotations[i].z);
+    rotation.w = float(transform_rotations[i].w);
+    positions_buffer.write(&position, sizeof(position), i * sizeof(gputil::float3));
+    rotations_buffer.write(&rotation, sizeof(rotation), i * sizeof(gputil::float4));
     single_precision_timestamp = std::max(0.0f, std::min(float(transform_times[i] - base_time), max_time));
     times_buffer.write(&single_precision_timestamp, sizeof(single_precision_timestamp),
                        i * sizeof(single_precision_timestamp));
