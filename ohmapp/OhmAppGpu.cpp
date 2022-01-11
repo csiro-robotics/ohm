@@ -136,7 +136,7 @@ int OhmAppGpu::parseCommandLineOptions(int argc, const char *const *argv)
 
 ohm::GpuMap *OhmAppGpu::gpuMap()
 {
-  if (mapper_)
+  if (true_mapper_)
   {
     return static_cast<ohm::GpuMap *>(true_mapper_.get());
   }
@@ -146,7 +146,7 @@ ohm::GpuMap *OhmAppGpu::gpuMap()
 
 const ohm::GpuMap *OhmAppGpu::gpuMap() const
 {
-  if (mapper_)
+  if (true_mapper_)
   {
     return static_cast<const ohm::GpuMap *>(true_mapper_.get());
   }
