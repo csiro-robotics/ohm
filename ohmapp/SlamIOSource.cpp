@@ -433,7 +433,8 @@ void SlamIOSource::addBatchStats(const Stats &stats)
   windowed_stats_buffer_next_ = DataSource::addBatchStats(stats, global_stats_, windowed_stats_buffer_,
                                                           windowed_stats_buffer_size_, windowed_stats_buffer_next_);
 
-  // Update the windowed stats whenever the buffer is full.
+  // Update the windowed stats whenever the buffer is full. We essentially write whenever the ring buffer *next* write
+  // index wraps around to 1.
   if (windowed_stats_buffer_next_ == 1)
   {
     updateWindowedStats();
