@@ -194,7 +194,6 @@ void gpuTransformSamples(const std::vector<glm::dvec3> &samples_global, bool com
   // Note have to copy out single precision results as that is what the GPU uses.
   std::vector<glm::vec3> rays(2 * ray_count);
   gputil::PinnedBuffer rays_buffer(output_buffer, gputil::kPinRead);
-  std::cout << "sizeof(gputil::float3)" << sizeof(gputil::float3) << std::endl;
   rays_buffer.readElements<gputil::float3>(rays.data(), 2 * ray_count);
   rays_buffer.unpin();
 
