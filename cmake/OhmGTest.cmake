@@ -1,7 +1,7 @@
 option(OHM_SYSTEM_GTEST "Have ohm use a system available version of Googletest via find_package()?" Off)
 
 if(OHM_SYSTEM_GTEST)
-  find_package(GTest)
+  find_package(GTest CONFIG REQUIRED)
   get_target_property(GTEST_INCLUDE_DIRS GTest::gtest INTERFACE_INCLUDE_DIRECTORIES)
   set(GTEST_LIBRARIES GTest::gtest)
   set(GTEST_MAIN_LIBRARIES GTest::gtest_main)
