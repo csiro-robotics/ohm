@@ -103,7 +103,7 @@ void generateSlamCloud(std::vector<glm::dvec4> *timestamped_samples, std::vector
 }  // namespace
 
 
-namespace ohm
+namespace slamio
 {
 TEST(SlamIO, SlamRead)
 {
@@ -190,4 +190,4 @@ TEST(SlamIO, TrajectoryRead)
     ASSERT_NEAR(point.position.z, trajectory[i].z, e0);
   }
 }
-}  // namespace ohm
+}  // namespace slamio

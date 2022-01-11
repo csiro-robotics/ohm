@@ -7,6 +7,7 @@ find_package(GLM)
 find_package(Eigen3 QUIET)
 
 set(SOURCES
+  Loader.cpp
   SlamCloudLoader.cpp
 )
 
@@ -32,7 +33,7 @@ target_include_directories(slamiotest SYSTEM
     "${GTEST_INCLUDE_DIRS}" # Must include downloaded GTest before potentially including system directories.
 )
 
-target_link_libraries(slamiotest PUBLIC slamio ${GTEST_LIBRARIES} ${GTEST_MAIN_LIBRARIES})
+target_link_libraries(slamiotest PUBLIC slamio ohmutil ${GTEST_LIBRARIES} ${GTEST_MAIN_LIBRARIES})
 
 add_test(NAME slamiotest COMMAND slamiotest --gtest_output=xml:test-reports/)
 

@@ -68,7 +68,7 @@ bool PointCloudReaderXyz::open(const char *filename)
 void PointCloudReaderXyz::close()
 {
   file_in_.close();
-  desired_channels_ = DataChannel::None;
+  available_channels_ = DataChannel::None;
 }
 
 bool PointCloudReaderXyz::streaming() const

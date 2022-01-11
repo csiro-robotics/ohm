@@ -91,6 +91,8 @@ std::ostream &operator<<(std::ostream &out, const ElementCount &count)
 }
 }  // namespace
 
+PlyPointStream::PlyPointStream() = default;
+
 PlyPointStream::PlyPointStream(const std::vector<Property> &properties)
 {
   properties_ = properties;
