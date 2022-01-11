@@ -12,14 +12,12 @@
 #include <glm/glm.hpp>
 
 #include <chrono>
+#include <fstream>
 
 // Must be after argument streaming operators.
 #include <ohmutil/Options.h>
 
-using Clock = std::chrono::high_resolution_clock;
-
 using namespace ohm;
-
 namespace ohmapp
 {
 void SlamIOSource::Options::configure(cxxopts::OptionAdder &adder)
@@ -140,7 +138,7 @@ int SlamIOSource::validateOptions()
 }
 
 
-int SlamIOSource::prepareForRun(uint64_t &point_count)
+int SlamIOSource::prepareForRun(uint64_t &point_count, const std::string &reference_name)
 {
   loader_ = std::make_unique<slamio::SlamCloudLoader>();
   loader_->setErrorLog([this](const char *msg) { ohm::logger::error(msg); });
@@ -204,14 +202,31 @@ int SlamIOSource::prepareForRun(uint64_t &point_count)
   const auto point_limit = options().point_limit;
   point_count = (point_limit) ? std::min<uint64_t>(point_limit, loader_->numberOfPoints()) : loader_->numberOfPoints();
 
+  if (!reference_name.empty() && options().stats_mode == StatsMode::Csv)
+  {
+    const auto csv_stats_file = reference_name + "_stats.csv";
+    stats_csv_ = std::make_unique<std::ofstream>(csv_stats_file.c_str());
+    Stats::writeCsvHeader(*stats_csv_);
+  }
+
   return 0;
 }
 
 
 int SlamIOSource::run(BatchFunction batch_function, unsigned *quit_level_ptr)
 {
+  const auto flush_on_exit = [this]() {
+    if (stats_csv_)
+    {
+      stats_csv_->flush();
+      stats_csv_.reset();
+    };
+  };
+
+  time_point_start_ = Clock::now();
   if (!loader_)
   {
+    flush_on_exit();
     return 1;
   }
 
@@ -225,7 +240,6 @@ int SlamIOSource::run(BatchFunction batch_function, unsigned *quit_level_ptr)
   // Update map visualisation every N samples.
   const size_t ray_batch_size = options().batch_size;
   double timebase = -1;
-  double first_timestamp = -1;
   double last_batch_timestamp = -1;
   double accumulated_motion = 0;
   double delta_motion = 0;
@@ -234,6 +248,7 @@ int SlamIOSource::run(BatchFunction batch_function, unsigned *quit_level_ptr)
   //------------------------------------
   // Population loop.
   //------------------------------------
+  Stats batch_stats{};
   slamio::SamplePoint sample{};
   bool point_pending = false;
   bool have_processed = false;
@@ -250,6 +265,7 @@ int SlamIOSource::run(BatchFunction batch_function, unsigned *quit_level_ptr)
   {
     // No work to do.
     ohm::logger::info("No points to process\n");
+    flush_on_exit();
     return 0;
   }
 
@@ -260,6 +276,7 @@ int SlamIOSource::run(BatchFunction batch_function, unsigned *quit_level_ptr)
     if (!loader_->nextSample(sample))
     {
       ohm::logger::info("No sample points before selected start time ", input_start_time, ". Nothign to do.\n");
+      flush_on_exit();
       return 0;
     }
   }
@@ -267,7 +284,8 @@ int SlamIOSource::run(BatchFunction batch_function, unsigned *quit_level_ptr)
   batch_origin = sample.origin;
 
   point_pending = true;
-  first_timestamp = sample.timestamp;
+  global_stats_.data_time_start = batch_stats.data_time_start = timebase;
+  global_stats_.process_time_start = batch_stats.process_time_start = 0;
 
   uint64_t process_points_local = 0;
   processed_point_count_ = 0;
@@ -290,6 +308,12 @@ int SlamIOSource::run(BatchFunction batch_function, unsigned *quit_level_ptr)
       colours.emplace_back(sample.colour);
       intensities.emplace_back(sample.intensity);
       timestamps.emplace_back(sample.timestamp);
+
+      const double ray_length = glm::length(sample.sample - sample.origin);
+      batch_stats.ray_length_minimum = std::min(ray_length, batch_stats.ray_length_minimum);
+      batch_stats.ray_length_maximum = std::max(ray_length, batch_stats.ray_length_maximum);
+      batch_stats.ray_length_total += ray_length;
+
       point_pending = false;
     }
     else
@@ -301,24 +325,23 @@ int SlamIOSource::run(BatchFunction batch_function, unsigned *quit_level_ptr)
     if (!timestamps.empty() && (sensor_delta_exceeded || timestamps.size() >= ray_batch_size ||
                                 point_limit && process_points_local + timestamps.size() >= point_limit))
     {
-      const size_t batch_size = timestamps.size();
-      const double batch_end_time = timestamps.back();
-      finish = !batch_function(batch_origin, sensor_and_samples, timestamps, intensities, colours);
+      finish =
+        !processBatch(batch_function, batch_origin, sensor_and_samples, timestamps, intensities, colours, batch_stats);
 
       delta_motion = glm::length(batch_origin - last_batch_origin);
       accumulated_motion += delta_motion;
       last_batch_origin = batch_origin;
 
-      if (have_processed && !warned_no_motion && delta_motion == 0 && timestamps.size() > 1)
+      if (have_processed && !warned_no_motion && delta_motion == 0 && !timestamps.empty())
       {
         // Precisely zero motion seems awfully suspicious.
         ohm::logger::warn("\nWarning: Precisely zero motion in batch\n");
         warned_no_motion = true;
       }
       have_processed = true;
-      process_points_local += batch_size;
+      process_points_local += timestamps.size();
       processed_point_count_ = process_points_local;
-      processed_time_range_ = batch_end_time - first_timestamp;
+      processed_time_range_ = timestamps.back() - timebase;
 
       sensor_and_samples.clear();
       timestamps.clear();
@@ -347,15 +370,22 @@ int SlamIOSource::run(BatchFunction batch_function, unsigned *quit_level_ptr)
     colours.emplace_back(sample.colour);
     intensities.emplace_back(sample.intensity);
     timestamps.emplace_back(sample.timestamp);
+
+    const double ray_length = glm::length(sample.sample - sample.origin);
+    batch_stats.ray_length_minimum = std::min(ray_length, batch_stats.ray_length_minimum);
+    batch_stats.ray_length_maximum = std::max(ray_length, batch_stats.ray_length_maximum);
+    batch_stats.ray_length_total += ray_length;
+
     point_pending = false;
   }
 
   // Process the final batch.
   if (!timestamps.empty() && !finish)
   {
-    batch_function(last_batch_origin, sensor_and_samples, timestamps, intensities, colours);
-    processed_point_count_ += timestamps.size();
-    processed_time_range_ = timestamps.back() - first_timestamp;
+    processBatch(batch_function, last_batch_origin, sensor_and_samples, timestamps, intensities, colours, batch_stats);
+    process_points_local += timestamps.size();
+    processed_point_count_ = process_points_local;
+    processed_time_range_ = timestamps.back() - timebase;
   }
 
   const double motion_epsilon = 1e-6;
@@ -367,6 +397,68 @@ int SlamIOSource::run(BatchFunction batch_function, unsigned *quit_level_ptr)
   loader_->close();
   loader_.release();
 
+  flush_on_exit();
   return 0;
+}
+
+
+DataSource::Stats SlamIOSource::globalStats() const
+{
+  return global_stats_;
+}
+
+
+DataSource::Stats SlamIOSource::windowedStats() const
+{
+  std::unique_lock<std::mutex> guard(stats_lock_);
+  return windowed_stats_;
+}
+
+
+void SlamIOSource::updateWindowedStats()
+{
+  Stats stats{};
+  calculateWindowedStats(stats, windowed_stats_buffer_.begin(), windowed_stats_buffer_.end());
+  std::unique_lock<std::mutex> guard(stats_lock_);
+  windowed_stats_ = stats;
+  guard.unlock();
+  if (stats_csv_)
+  {
+    *stats_csv_ << stats << '\n';
+  }
+}
+
+void SlamIOSource::addBatchStats(const Stats &stats)
+{
+  windowed_stats_buffer_next_ = DataSource::addBatchStats(stats, global_stats_, windowed_stats_buffer_,
+                                                          windowed_stats_buffer_size_, windowed_stats_buffer_next_);
+
+  // Update the windowed stats whenever the buffer is full. We essentially write whenever the ring buffer *next* write
+  // index wraps around to 0.
+  if (windowed_stats_buffer_next_ == 0)
+  {
+    updateWindowedStats();
+  }
+}
+
+
+// Yes, try inline this private function.
+inline bool SlamIOSource::processBatch(const BatchFunction &batch_function, const glm::dvec3 &batch_origin,
+                                       const std::vector<glm::dvec3> &sensor_and_samples,
+                                       const std::vector<double> &timestamps, const std::vector<float> &intensities,
+                                       const std::vector<glm::vec4> &colours, Stats &stats)
+{
+  const auto time_now = Clock::now();
+  stats.process_time_end = std::chrono::duration<double>(time_now - time_point_start_).count();
+  stats.data_time_end = (!timestamps.empty()) ? timestamps.back() : stats.data_time_start;
+  stats.ray_count = unsigned(timestamps.size());
+  const bool keep_processing = batch_function(batch_origin, sensor_and_samples, timestamps, intensities, colours);
+  if (options().stats_mode != StatsMode::Off)
+  {
+    addBatchStats(stats);
+  }
+  stats.reset(stats.process_time_end, stats.data_time_end);
+
+  return keep_processing;
 }
 }  // namespace ohmapp

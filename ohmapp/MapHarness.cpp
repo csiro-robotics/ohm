@@ -263,9 +263,10 @@ int MapHarness::run()
   }
 
   uint64_t predicted_point_count = 0;
-  data_source_->prepareForRun(predicted_point_count);
+  data_source_->prepareForRun(predicted_point_count, options_->output().base_name);
 
   ohm::logger::info("Populating map\n");
+  display_stats_in_progress_ = data_source_->options().stats_mode != DataSource::StatsMode::Off;
   progress_.beginProgress(ProgressMonitor::Info(predicted_point_count));
   progress_.startThread();
 
@@ -275,6 +276,7 @@ int MapHarness::run()
                     quitLevelPtr());
   progress_.endProgress();
   progress_.pause();
+  display_stats_in_progress_ = false;
   finaliseMap();
   const Clock::time_point end_time = Clock::now();
 
@@ -289,15 +291,24 @@ int MapHarness::run()
     {
       if (out)
       {
+        const double rtf_inv = (processing_time_sec > 0 && time_range > 0) ? time_range / processing_time_sec : 0.0;
+        const double rtf = (rtf_inv) ? 1.0 / rtf_inv : 0;
         *out << "Sample count: " << processed_count << '\n';
         *out << "Data time: " << time_range << '\n';
         *out << "Total processing time: " << end_time - start_time << '\n';
-        *out << "Efficiency: " << ((processing_time_sec > 0 && time_range > 0) ? time_range / processing_time_sec : 0.0)
-             << '\n';
-        *out << "Points/sec: " << unsigned((processing_time_sec > 0) ? processed_count / processing_time_sec : 0.0)
-             << '\n';
+        *out << "Realtime Factor: " << rtf << '\n';
+        *out << "RTF inverse: " << rtf_inv << '\n';
+        *out << "Average samples/sec: "
+             << unsigned((processing_time_sec > 0) ? processed_count / processing_time_sec : 0.0) << '\n';
         // *out << "Memory (approx): " << map.calculateApproximateMemory() / (1024.0 * 1024.0) << " MiB\n";
         *out << std::flush;
+
+        if (data_source_->options().stats_mode != DataSource::StatsMode::Off)
+        {
+          *out << "Ray length minimum: " << data_source_->globalStats().ray_length_minimum << '\n';
+          *out << "Ray length maximum: " << data_source_->globalStats().ray_length_maximum << '\n';
+          *out << "Ray length average: " << data_source_->globalStats().rayLengthAverage() << '\n';
+        }
       }
     }
   }
@@ -360,15 +371,29 @@ void MapHarness::displayProgress(const ProgressMonitor::Progress &progress, bool
       out << progress.info.info << " : ";
     }
 
-    out << sec << '.' << std::setfill('0') << std::setw(3) << ms << "s : ";
+    out << std::setfill(' ') << std::setw(6) << sec << '.' << std::setfill('0') << std::setw(3) << ms << "s : ";
 
-    const auto fill_width = std::numeric_limits<decltype(progress.progress)>::digits10;
+    const int fill_padding = 3;
+    const auto fill_width = std::min(std::numeric_limits<decltype(progress.progress)>::digits10,
+                                     std::numeric_limits<uint32_t>::digits10 + fill_padding);
     out << std::setfill(' ') << std::setw(fill_width) << progress.progress;
     if (progress.info.total)
     {
       out << " / " << std::setfill(' ') << std::setw(fill_width) << progress.info.total;
     }
-    out << "    ";
+
+    if (display_stats_in_progress_)
+    {
+      out << " ";
+      // Show stats
+      const DataSource::Stats &stats = data_source_->windowedStats();
+      const double rays_per_second = stats.processRaysPerSecond();
+      const uint64_t integer_rays_per_second = uint32_t(std::round(rays_per_second));
+      out << std::setfill(' ') << std::setw(fill_width) << integer_rays_per_second << " rays/s ";
+      out.precision(3);
+      out << "avg len: " << std::fixed << stats.rayLengthAverage() << "     ";
+    }
+
     if (final)
     {
       out << '\n';
