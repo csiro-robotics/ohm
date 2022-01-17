@@ -7,6 +7,7 @@
 
 #include "private/OccupancyMapDetail.h"
 
+#include "DefaultLayer.h"
 #include "MapChunk.h"
 #include "MapRegionCache.h"
 #include "OccupancyMap.h"
@@ -94,6 +95,7 @@ bool copyMap(OccupancyMap &dst, const OccupancyMap &src, CopyFilter copy_filter)
     std::fill(layer_caches.begin(), layer_caches.end(), nullptr);
   }
 
+  const int tsdf_layer_index = dst_layout.layerIndex(default_layer::tsdfLayerName());
   for (const auto &src_iter : src_detail.chunks)
   {
     if (!src_iter.second || (copy_filter && !copy_filter(*src_iter.second)))
@@ -112,13 +114,17 @@ bool copyMap(OccupancyMap &dst, const OccupancyMap &src, CopyFilter copy_filter)
     {
       const auto &layer_pair = layer_overlap[i];
       auto *layer_cache = (i < layer_caches.size()) ? layer_caches[i] : nullptr;
+      const bool update_first_valid =
+        (dst_layout.occupancyLayer() >= 0 && layer_pair.second == unsigned(dst_layout.occupancyLayer())) ||
+        (tsdf_layer_index >= 0 && layer_pair.second == unsigned(tsdf_layer_index));
       // First try letting the layer cache handle the copy/sync.
       if (layer_cache && layer_cache->syncLayerTo(dst_chunk, layer_pair.second, src_chunk, layer_pair.first))
       {
-        // Special case: if we are dealing with the occupancy layer, then we need to update MapRegion::first_valid_index
-        // in the target map for correct map iteration. However, when the layer cache handles the copy we can't
-        // guarantee the source map value is up to date, so we can't just copy from the source chunk value.
-        if (layer_pair.second == unsigned(dst_layout.occupancyLayer()))
+        // Special case: if we are dealing with the occupancy or TSDF layer, then we need to update
+        // MapRegion::first_valid_index in the target map for correct map iteration. However, when the layer cache
+        // handles the copy we can't guarantee the source map value is up to date, so we can't just copy from the source
+        // chunk value.
+        if (update_first_valid)
         {
           dst_chunk.searchAndUpdateFirstValid(dst_detail.region_voxel_dimensions);
         }
@@ -129,7 +135,7 @@ bool copyMap(OccupancyMap &dst, const OccupancyMap &src, CopyFilter copy_filter)
         copyChunkLayerUnsafe(dst_chunk, layer_pair.second, src_chunk, layer_pair.first);
         // Special case: as in the branch above, but this time we can just copy the first_valid_index from the source
         // chunk as there's no layer cache and we can assume the MapChunk is fully up to date.
-        if (layer_pair.second == unsigned(dst_layout.occupancyLayer()))
+        if (update_first_valid)
         {
           dst_chunk.updateFirstValid(src_chunk.first_valid_index);
         }
