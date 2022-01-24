@@ -147,7 +147,7 @@ std::ostream &operator<<(std::ostream &out, const ohmapp::DataSource::Stats &sta
   out << stats.process_time_start << delim << stats.process_time_end << delim << stats.data_time_start << delim
       << stats.data_time_end << delim << stats.ray_count << delim << stats.ray_length_minimum << delim
       << stats.ray_length_maximum << delim << stats.rayLengthAverage() << delim << stats.dataRaysPerSecond() << delim
-      << stats.dataRaysPerSecond();
+      << stats.processRaysPerSecond();
   out.precision(precision);
   return out;
 }
