@@ -49,7 +49,7 @@ void gpuTransformSamples(const std::vector<glm::dvec3> &samples_global, bool com
   // const double time_max = base_time + time_increment * (samples_global.size() + 10);
   const unsigned transforms_count = 10;
 
-  // Generate a moving local frame.
+  // Generate a moving local frame representing a moving sensor.
   std::vector<double> timestamps(transforms_count);
   std::vector<glm::dvec3> translations(transforms_count);
   std::vector<glm::dquat> rotations(transforms_count);
@@ -152,13 +152,19 @@ void gpuTransformSamples(const std::vector<glm::dvec3> &samples_global, bool com
     // Validate.
     glm::dvec3 sample, expect;
     glm::dvec3 diff;
+    unsigned failure_count = 0;
     for (size_t i = 0; i < samples_global.size(); ++i)
     {
       expect = samples_global[i];
       sample = samples_global_cpu[i];
       diff = expect - sample;
-      EXPECT_NEAR(glm::length(diff), 0.0, 1e-7);
+      if (std::abs(glm::length(diff)) > 1e-7)
+      {
+        ++failure_count;
+      }
     }
+
+    EXPECT_EQ(failure_count, 0) << "failures encountered during performance comparison.";
   }
 
   // Do the GPU transformation.
@@ -192,6 +198,7 @@ void gpuTransformSamples(const std::vector<glm::dvec3> &samples_global, bool com
   rays_buffer.unpin();
 
   // Validate results.
+  unsigned failure_count = 0;
   glm::dvec3 sample, expect;
   glm::dvec3 diff;
   for (size_t i = 0; i < samples_global.size(); ++i)
@@ -199,8 +206,17 @@ void gpuTransformSamples(const std::vector<glm::dvec3> &samples_global, bool com
     expect = samples_global[i];
     sample = rays[i * 2 + 1];
     diff = expect - sample;
-    EXPECT_NEAR(glm::length(diff), 0.0, 1e-4);
+    const double diff_epsilon = 1e-4;
+    if (std::abs(glm::length(diff)) > diff_epsilon)
+    {
+      if (failure_count < 10)
+      {
+        EXPECT_NEAR(glm::length(diff), 0.0, diff_epsilon);
+      }
+      ++failure_count;
+    }
   }
+  EXPECT_EQ(failure_count, 0);
 
   // Not currently fast enough. Revisit once I have a clear idea on how many input points to expect.
   //#ifdef NDEBUG
