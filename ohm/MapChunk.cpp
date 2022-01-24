@@ -157,9 +157,10 @@ void MapChunk::searchAndUpdateFirstValid(const glm::ivec3 &region_voxel_dimensio
 
     unsigned voxel_index = 0;
     float occupancy = 0;
-    for (int z = search_from.z; z < region_voxel_dimensions.z; ++z)
+    bool found = false;
+    for (int z = search_from.z; !found && z < region_voxel_dimensions.z; ++z)
     {
-      for (int y = search_from.y; y < region_voxel_dimensions.y; ++y)
+      for (int y = search_from.y; !found && y < region_voxel_dimensions.y; ++y)
       {
         for (int x = search_from.x; x < region_voxel_dimensions.x; ++x)
         {
@@ -169,6 +170,7 @@ void MapChunk::searchAndUpdateFirstValid(const glm::ivec3 &region_voxel_dimensio
           if (occupancy != unobservedOccupancyValue())
           {
             first_valid_index = std::min(voxel_index, first_valid_index);
+            found = true;
             break;
           }
         }
@@ -186,9 +188,10 @@ void MapChunk::searchAndUpdateFirstValid(const glm::ivec3 &region_voxel_dimensio
 
     unsigned voxel_index = 0;
     VoxelTsdf tsdf{};
-    for (int z = search_from.z; z < region_voxel_dimensions.z; ++z)
+    bool found = false;
+    for (int z = search_from.z; !found && z < region_voxel_dimensions.z; ++z)
     {
-      for (int y = search_from.y; y < region_voxel_dimensions.y; ++y)
+      for (int y = search_from.y; !found && y < region_voxel_dimensions.y; ++y)
       {
         for (int x = search_from.x; x < region_voxel_dimensions.x; ++x)
         {
@@ -198,6 +201,7 @@ void MapChunk::searchAndUpdateFirstValid(const glm::ivec3 &region_voxel_dimensio
           if (isValidTsdf(&tsdf))
           {
             first_valid_index = std::min(voxel_index, first_valid_index);
+            found = true;
             break;
           }
         }
