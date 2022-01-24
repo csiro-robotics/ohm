@@ -600,8 +600,17 @@ size_t GpuMap::integrateRays(const glm::dvec3 *rays, size_t element_count, const
   }
 
   // Get the GPU cache.
-  GpuLayerCache &layer_cache = *gpu_cache->layerCache(kGcIdOccupancy);
-  imp_->batch_marker = layer_cache.beginBatch();
+  GpuLayerCache *layer_cache = gpu_cache->layerCache(kGcIdOccupancy);
+  if (!layer_cache)
+  {
+    layer_cache = gpu_cache->layerCache(kGcIdTsdf);
+  }
+  if (!layer_cache)
+  {
+    ohm::logger::error("GpuMap cannot resolve occupancy or TSDF layer.\n");
+    return 0u;
+  }
+  imp_->batch_marker = layer_cache->beginBatch();
 
   // Region walking function tracking which regions are
   // affected by a ray.

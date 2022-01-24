@@ -157,23 +157,23 @@ __kernel void covarianceHitNdt(
     (traversal_voxels) ?
       (uint)(region_local_index + traversal_region_mem_offsets_global[region_index] / sizeof(*traversal_voxels)) :
       0;
-  float traversal = (traversal_voxels) ? traversal_voxels[traversal_index] : 0;
+  float traversal = (traversal_voxels) ? gputilAtomicLoadF32(&traversal_voxels[traversal_index]) : 0.0f;
   uint touch_time_index =
     (touch_time_voxels) ?
       (uint)(region_local_index + touch_times_region_mem_offsets_global[region_index] / sizeof(*touch_time_voxels)) :
       0;
-  uint touch_time = (touch_time_voxels) ? touch_time_voxels[touch_time_index] : 0;
+  uint touch_time = (touch_time_voxels) ? gputilAtomicLoadU32(&touch_time_voxels[touch_time_index]) : 0u;
   uint incident_index =
     (incident_voxels) ?
       (uint)(region_local_index + incidents_region_mem_offsets_global[region_index] / sizeof(*incident_voxels)) :
       0;
-  uint incident = (incident_voxels) ? incident_voxels[incident_index] : 0;
+  uint incident = (incident_voxels) ? gputilAtomicLoadU32(&incident_voxels[incident_index]) : 0u;
 
   // Cache initial values.
   WorkItem work_item;
-  work_item.occupancy = occupancy[occupancy_index];
-  work_item.mean = subVoxelToLocalCoord(means[mean_index].coord, voxel_resolution);
-  work_item.sample_count = means[mean_index].count;
+  work_item.occupancy = gputilAtomicLoadF32(&occupancy[occupancy_index]);
+  work_item.mean = subVoxelToLocalCoord(gputilAtomicLoadU32(&means[mean_index].coord), voxel_resolution);
+  work_item.sample_count = gputilAtomicLoadU32(&means[mean_index].count);
 
   // Manual copy of the NDT voxel: we had some issues with OpenCL assignment on structures.
   work_item.cov.trianglar_covariance[0] = cov_voxels[cov_index].trianglar_covariance[0];
@@ -266,9 +266,9 @@ __kernel void covarianceHitNdt(
   // }
 
   // Write results. We expect no contension at this point so we write results directly. No atomic operations.
-  occupancy[occupancy_index] = work_item.occupancy;
-  means[mean_index].coord = subVoxelCoord(work_item.mean, voxel_resolution);
-  means[mean_index].count = work_item.sample_count;
+  gputilAtomicStoreF32(&occupancy[occupancy_index], work_item.occupancy);
+  gputilAtomicStoreU32(&means[mean_index].coord, subVoxelCoord(work_item.mean, voxel_resolution));
+  gputilAtomicStoreU32(&means[mean_index].count, work_item.sample_count);
   cov_voxels[cov_index] = work_item.cov;
   if (intensity_voxels)
   {
@@ -280,14 +280,14 @@ __kernel void covarianceHitNdt(
   }
   if (traversal_voxels)
   {
-    traversal_voxels[traversal_index] = traversal;
+    gputilAtomicStoreF32(&traversal_voxels[traversal_index], traversal);
   }
   if (touch_time_voxels)
   {
-    touch_time_voxels[touch_time_index] = touch_time;
+    gputilAtomicStoreU32(&touch_time_voxels[touch_time_index], touch_time);
   }
   if (incident_voxels)
   {
-    incident_voxels[incident_index] = incident;
+    gputilAtomicStoreU32(&incident_voxels[incident_index], incident);
   }
 }

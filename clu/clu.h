@@ -16,7 +16,7 @@
 #pragma GCC diagnostic ignored "-Wsign-compare"
 #pragma GCC diagnostic ignored "-Wignored-attributes"
 #endif  // __GNUC__
-#include "cl2.hpp"
+#include "CL/opencl.hpp"
 #ifdef __GNUC__
 #pragma GCC diagnostic pop
 #endif  // __GNUC__

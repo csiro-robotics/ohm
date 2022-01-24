@@ -60,6 +60,8 @@ enum GpuCacheId
   kGcIdTouchTime,
   /// Cache used for incident normal layer.
   kGcIdIncidentNormal,
+  /// Cache used for @c VoxelTsdf data.
+  kGcIdTsdf,
 };
 
 /// Provides access to the @c GpuLayerCache objects used to cache host voxel data in GPU memory and manage

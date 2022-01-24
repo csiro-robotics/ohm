@@ -24,6 +24,7 @@ set(SOURCES
   private/GpuProgramRef.cpp
   private/GpuProgramRef.h
   private/GpuTransformSamplesDetail.h
+  private/GpuTsdfMapDetail.h
   private/LineKeysQueryDetailGpu.h
   private/LineQueryDetailGpu.h
   private/RaysQueryDetailGpu.cpp
@@ -47,6 +48,8 @@ set(SOURCES
   GpuNdtMap.h
   GpuTransformSamples.cpp
   GpuTransformSamples.h
+  GpuTsdfMap.cpp
+  GpuTsdfMap.h
   LineKeysQueryGpu.cpp
   LineKeysQueryGpu.h
   LineQueryGpu.cpp
@@ -64,6 +67,7 @@ set(GPU_SOURCES
   gpu/RegionUpdate.cl
   gpu/RoiRangeFill.cl
   gpu/TransformSamples.cl
+  gpu/TsdfUpdate.cl
 )
 
 get_target_property(OHM_SOURCE_DIR ohm SOURCE_DIR)
@@ -84,6 +88,7 @@ set(GPU_HEADERS
   ${OHM_SOURCE_DIR}/VoxelIncidentCompute.h
   ${OHM_SOURCE_DIR}/VoxelMeanCompute.h
   ${OHM_SOURCE_DIR}/VoxelTouchTimeCompute.h
+  ${OHM_SOURCE_DIR}/VoxelTsdfCompute.h
 )
 
 set(PUBLIC_HEADERS
@@ -215,6 +220,7 @@ if(OHM_BUILD_CUDA)
     gpu/RegionUpdateNdt.cu
     gpu/RoiRangeFill.cu
     gpu/TransformSamples.cu
+    gpu/TsdfUpdate.cu
   )
 
   if(OHM_USE_DEPRECATED_CMAKE_CUDA)

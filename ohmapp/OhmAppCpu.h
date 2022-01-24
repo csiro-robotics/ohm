@@ -13,6 +13,7 @@
 #include <ohm/NdtMode.h>
 #include <ohm/OccupancyMap.h>
 #include <ohm/RayMapper.h>
+#include <ohm/VoxelTsdf.h>
 #include <ohmutil/OhmUtil.h>
 
 #include <ohmapp/MapHarness.h>
@@ -74,8 +75,12 @@ public:
     unsigned ray_mode_flags = ohm::kRfDefault;
     /// Generate the map with voxel mean sub-voxel positioning?
     bool voxel_mean = false;
-    /// Generate the map with voxel traversal for density quries?
+    /// Generate the map with voxel traversal for density queries?
     bool traversal = false;
+
+    /// TSDF options.
+    ohm::TsdfOptions tsdf{};
+    bool tsdf_enabled = false;  ///< Enable TSDF mapping? Not compatible with occupancy.
 
     MapOptions();
 

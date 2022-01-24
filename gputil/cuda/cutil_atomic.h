@@ -14,8 +14,8 @@
 #ifdef __CUDACC__
 using atomic_int = int;
 using atomic_uint = uint;
-using atomic_long = long;
-using atomic_ulong = long;
+using atomic_long = long long;
+using atomic_ulong = unsigned long long;
 using atomic_float = float;
 using atomic_double = double;
 using atomic_intptr_t = size_t;
@@ -77,6 +77,34 @@ inline __device__ bool gputilAtomicCasU32(atomic_uint *obj, uint expected, uint 
 #define gputilAtomicExchangeU32L gputilAtomicExchangeU32
 #define gputilAtomicCasU32L gputilAtomicCasU32
 
+inline __device__ void gputilAtomicInitU64(atomic_ulong *obj, unsigned long long val)
+{
+  *obj = val;
+}
+inline __device__ void gputilAtomicStoreU64(atomic_ulong *obj, unsigned long long val)
+{
+  *obj = val;
+}
+inline __device__ unsigned long long gputilAtomicLoadU64(atomic_ulong *obj)
+{
+  return *obj;
+}
+inline __device__ unsigned long long gputilAtomicExchangeU64(atomic_ulong *obj, unsigned long long desired)
+{
+  return atomicExch(obj, desired);
+}
+inline __device__ bool gputilAtomicCasU64(atomic_ulong *obj, unsigned long long expected, unsigned long long desired)
+{
+  return atomicCAS(obj, expected, desired) == expected;
+}
+
+#define gputilAtomicInitU64L gputilAtomicInitU64
+#define gputilAtomicStoreU64L gputilAtomicStoreU64
+#define gputilAtomicLoadU64L gputilAtomicLoadU64
+#define gputilAtomicExchangeU64L gputilAtomicExchangeU64
+#define gputilAtomicCasU64L gputilAtomicCasU64
+
+
 inline __device__ void gputilAtomicInitF32(atomic_float *obj, float val)
 {
   *obj = val;
@@ -97,6 +125,7 @@ inline __device__ bool gputilAtomicCasF32(atomic_float *obj, float expected, flo
 {
   return __int_as_float(atomicCAS((atomic_int *)obj, __float_as_int(expected), __float_as_int(desired))) == expected;
 }
+
 
 #define gputilAtomicInitF32L gputilAtomicInitF32
 #define gputilAtomicStoreF32L gputilAtomicStoreF32

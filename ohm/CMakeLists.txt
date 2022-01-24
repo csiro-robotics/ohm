@@ -121,6 +121,8 @@ set(SOURCES
   RayMapperOccupancy.h
   RayMapperTrace.cpp
   RayMapperTrace.h
+  RayMapperTsdf.cpp
+  RayMapperTsdf.h
   RayPattern.cpp
   RayPattern.h
   RayPatternConical.cpp
@@ -150,6 +152,9 @@ set(SOURCES
   VoxelOccupancyCompute.h
   VoxelTouchTime.h
   VoxelTouchTimeCompute.h
+  VoxelTsdf.cpp
+  VoxelTsdf.h
+  VoxelTsdfCompute.h
 )
 
 if(TES_ENABLE)
@@ -224,6 +229,8 @@ set(PUBLIC_HEADERS
   VoxelOccupancyCompute.h
   VoxelTouchTime.h
   VoxelTouchTimeCompute.h
+  VoxelTsdf.h
+  VoxelTsdfCompute.h
   "${CMAKE_CURRENT_BINARY_DIR}/ohm/OhmConfig.h"
   "${CMAKE_CURRENT_BINARY_DIR}/ohm/OhmExport.h"
   )

@@ -118,7 +118,7 @@ inline __device__ bool coordToKey(GpuKey *key, const float3 *point, const int3 *
   }
 
 // Out of range.
-#if 1
+#if 0
   printf("%u Bad key: " KEY_F "\nfrom (%.16f,%.16f,%.16f)\n"
          "  quantisation: (%.16f,%.16f,%.16f)\n"
          "  region: (%.16f,%.16f,%.16f)\n",

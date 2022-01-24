@@ -14,6 +14,7 @@
 #include <ohm/RayMapperNdt.h>
 #include <ohm/RayMapperOccupancy.h>
 #include <ohm/RayMapperTrace.h>
+#include <ohm/RayMapperTsdf.h>
 #include <ohm/Trace.h>
 #include <ohm/VoxelBlockCompressionQueue.h>
 #include <ohm/VoxelData.h>
@@ -111,6 +112,11 @@ void OhmAppCpu::MapOptions::configure(cxxopts::OptionAdder &adder)
     ("voxel-mean", "Enable voxel mean coordinates?", optVal(voxel_mean))
     ("traversal", "Enable traversal layer?", optVal(traversal))
     ("threshold", "Sets the occupancy threshold assigned when exporting the map to a cloud.", optVal(prob_thresh)->implicit_value(optStr(prob_thresh)))
+    ("tsdf", "Build a tsdf map instead of an occupancy map. Incompatible with other voxel or occupancy options.", optVal(tsdf_enabled))
+    ("tsdf-max-weight", "Maximum TSDF voxel weight.", optVal(tsdf.max_weight))
+    ("tsdf-default-truncation", "Default truncation distance.", optVal(tsdf.default_truncation_distance))
+    ("tsdf-dropoff", "Dropoff for the dropoff adjustment. Zero or negative to disable.", optVal(tsdf.dropoff_epsilon))
+    ("tsdf-sparsity", "Compensation for sparse data sets. Zero or negative to disable.", optVal(tsdf.sparsity_compensation_factor))
     ("mode", "Controls the mapping mode [ normal, sample, erode ]. The 'normal' mode is the default, with the full ray "
               "being integrated into the map. 'sample' mode only adds samples to increase occupancy, while 'erode' "
               "only erodes free space by skipping the sample voxels.", optVal(mode))
@@ -122,19 +128,46 @@ void OhmAppCpu::MapOptions::configure(cxxopts::OptionAdder &adder)
 void OhmAppCpu::MapOptions::print(std::ostream &out)
 {
   Super::MapOptions::print(out);
-  out << "Mapping mode: " << mode << '\n';
-  out << "Voxel mean position: " << (voxel_mean ? "on" : "off") << '\n';
   glm::i16vec3 region_dim = region_voxel_dim;
   region_dim.x = (region_dim.x) ? region_dim.x : OHM_DEFAULT_CHUNK_DIM_X;
   region_dim.y = (region_dim.y) ? region_dim.y : OHM_DEFAULT_CHUNK_DIM_Y;
   region_dim.z = (region_dim.z) ? region_dim.z : OHM_DEFAULT_CHUNK_DIM_Z;
   out << "Map region dimensions: " << region_dim << '\n';
-  // out << "Map region memory: " << util::Bytes(ohm::OccupancyMap::voxelMemoryPerRegion(region_voxel_dim)) << '\n';
-  out << "Hit probability: " << prob_hit << " (" << ohm::probabilityToValue(prob_hit) << ")\n";
-  out << "Miss probability: " << prob_miss << " (" << ohm::probabilityToValue(prob_miss) << ")\n";
-  out << "Probability threshold: " << prob_thresh << '\n';
-  // out << "Probability range: [" << map.minVoxelProbability() << ' ' << map.maxVoxelProbability() << "]\n";
-  // out << "Value range      : [" << map.minVoxelValue() << ' ' << map.maxVoxelValue() << "]\n";
+  if (!tsdf_enabled)
+  {
+    out << "Mapping mode: " << mode << '\n';
+    out << "Voxel mean position: " << (voxel_mean ? "on" : "off") << '\n';
+    // out << "Map region memory: " << util::Bytes(ohm::OccupancyMap::voxelMemoryPerRegion(region_voxel_dim)) << '\n';
+    out << "Hit probability: " << prob_hit << " (" << ohm::probabilityToValue(prob_hit) << ")\n";
+    out << "Miss probability: " << prob_miss << " (" << ohm::probabilityToValue(prob_miss) << ")\n";
+    out << "Probability threshold: " << prob_thresh << '\n';
+    // out << "Probability range: [" << map.minVoxelProbability() << ' ' << map.maxVoxelProbability() << "]\n";
+    // out << "Value range      : [" << map.minVoxelValue() << ' ' << map.maxVoxelValue() << "]\n";
+  }
+  else
+  {
+    out << "TSDF mode: fast\n";
+    out << "TSDF max weight: " << tsdf.max_weight << '\n';
+    out << "TSDF default truncation distance: " << tsdf.default_truncation_distance << '\n';
+    out << "TSDF dropoff epsilon: ";
+    if (tsdf.dropoff_epsilon > 0)
+    {
+      out << tsdf.dropoff_epsilon << '\n';
+    }
+    else
+    {
+      out << "off\n";
+    }
+    out << "TSDF sparsity compensation factor: ";
+    if (tsdf.sparsity_compensation_factor > 0)
+    {
+      out << tsdf.sparsity_compensation_factor << '\n';
+    }
+    else
+    {
+      out << "off\n";
+    }
+  }
 }
 
 
@@ -224,8 +257,8 @@ void OhmAppCpu::CompressionOptions::print(std::ostream &out)
   out << "Compression: " << (uncompressed ? "off" : "on") << '\n';
   if (!uncompressed)
   {
-    out << "  High tide:" << high_tide << '\n';
-    out << "  Low tide:" << low_tide << '\n';
+    out << "  High tide: " << high_tide << '\n';
+    out << "  Low tide: " << low_tide << '\n';
   }
 }
 
@@ -382,6 +415,16 @@ int OhmAppCpu::prepareForRun()
 
     true_mapper_ = std::make_unique<ohm::RayMapperNdt>(ndt_map_.get());
   }
+  else if (options().map().tsdf_enabled)
+  {
+    // Create a new layout with just the TSDF layer. We won't need occupancy.
+    ohm::MapLayout layout;
+    addTsdf(layout);
+    map_->updateLayout(layout);
+    auto tsdf_mapper = std::make_unique<ohm::RayMapperTsdf>(map_.get());
+    tsdf_mapper->setTsdfOptions(options().map().tsdf);
+    true_mapper_ = std::move(tsdf_mapper);
+  }
   else
   {
     true_mapper_ = std::make_unique<ohm::RayMapperOccupancy>(map_.get());
@@ -476,27 +519,42 @@ int OhmAppCpu::saveCloud(const std::string &path_ply)
   ohm::logger::info("Converting to point cloud.\n");
 
   ohmtools::ProgressCallback save_progress_callback;
-  ohmtools::ColourByHeight colour_by_height(*map_);
-  ohmtools::SaveCloudOptions save_opt;
+  uint64_t point_count = 0;
 
-  if (glm::all(glm::greaterThanEqual(options().output().cloud_colour, glm::vec3(0.0f))))
-  {
-    const ohm::Colour uniform_colour = ohm::Colour::fromRgbf(
-      options().output().cloud_colour.r, options().output().cloud_colour.g, options().output().cloud_colour.b);
-    save_opt.colour_select = [uniform_colour](const ohm::Voxel<const float> &) { return uniform_colour; };
-  }
-  else
-  {
-    save_opt.colour_select = [&colour_by_height](const ohm::Voxel<const float> &occupancy) {
-      return colour_by_height.select(occupancy);
-    };
-  }
-
+  ohm::logger::info("Saving point cloud to ", path_ply, '\n');
   progress_.beginProgress(ProgressMonitor::Info(map_->regionCount()));
   save_progress_callback = [this](size_t progress, size_t /*target*/) { progress_.updateProgress(progress); };
 
-  ohm::logger::info("Saving point cloud to ", path_ply, '\n');
-  uint64_t point_count = ohmtools::saveCloud(path_ply.c_str(), *map_, save_opt, save_progress_callback);
+  if (!options().map().tsdf_enabled)
+  {
+    ohmtools::ColourByHeight colour_by_height(*map_);
+    ohmtools::SaveCloudOptions save_opt;
+
+    if (glm::all(glm::greaterThanEqual(options().output().cloud_colour, glm::vec3(0.0f))))
+    {
+      const ohm::Colour uniform_colour = ohm::Colour::fromRgbf(
+        options().output().cloud_colour.r, options().output().cloud_colour.g, options().output().cloud_colour.b);
+      save_opt.colour_select = [uniform_colour](const ohm::Voxel<const float> &) { return uniform_colour; };
+    }
+    else
+    {
+      save_opt.colour_select = [&colour_by_height](const ohm::Voxel<const float> &occupancy) {
+        return colour_by_height.select(occupancy);
+      };
+    }
+
+    point_count = ohmtools::saveCloud(path_ply.c_str(), *map_, save_opt, save_progress_callback);
+  }
+  else
+  {
+    glm::dvec3 min_ext{};
+    glm::dvec3 max_ext{};
+    map_->calculateExtents(&min_ext, &max_ext);
+    point_count = ohmtools::saveTsdfCloud(
+      path_ply.c_str(), *map_, min_ext, max_ext,
+      std::min(options().map().tsdf.default_truncation_distance, 1.0f * float(options().map().resolution)),
+      save_progress_callback);
+  }
 
   progress_.endProgress();
   progress_.pause();

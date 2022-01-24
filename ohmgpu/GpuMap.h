@@ -132,7 +132,8 @@ void ohmgpu_API walkRegions(const OccupancyMap &map, const glm::dvec3 &start_poi
 /// @todo Evaluate delay creation of @c MapChunk objects. This requires tracking whether a region has been updated
 /// at all by GPU. We only download data for touched regions and create the @c MapChunk then.
 ///
-/// @todo This class has been deprecated as the GPU cache is now included in the OccupancyMap.
+/// @todo This class should be refactored as GPU cache is now included in the OccupancyMap and we are seeing non
+/// occupancy based GPU algorithms.
 class ohmgpu_API GpuMap : public RayMapper
 {
 protected:

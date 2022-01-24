@@ -39,9 +39,10 @@ struct VoxelMean
 typedef float coord_real;
 #endif  // !defined(COORD_REAL)
 
-#if !defined(Vec3)
+#if !defined(VEC3)
+#define VEC3
 typedef float3 Vec3;
-#endif  // !defined(Vec3)
+#endif  // !defined(VEC3)
 
 #define SUB_VOX_FUNC_PREFACE
 
@@ -72,7 +73,7 @@ inline __device__ __host__ unsigned subVoxelCoord(Vec3 voxel_local_coord, coord_
   const int mean_positions = (1 << bits_per_axis) - 1;  // NOLINT(hicpp-signed-bitwise)
   const unsigned used_bit = (1u << 31u);
   const coord_real mean_resolution = resolution / (coord_real)mean_positions;  // NOLINT
-  const coord_real offset = (coord_real)0.5 * resolution;                      // NOLINT
+  const coord_real offset = (coord_real)0.5f * resolution;                      // NOLINT
 
   int pos_x = pointToRegionCoord(voxel_local_coord.x + offset, mean_resolution);
   int pos_y = pointToRegionCoord(voxel_local_coord.y + offset, mean_resolution);
@@ -104,7 +105,7 @@ inline __device__ __host__ Vec3 subVoxelToLocalCoord(unsigned pattern, coord_rea
   const int mean_positions = (1 << bits_per_axis) - 1;  // NOLINT(hicpp-signed-bitwise)
   const unsigned used_bit = (1u << 31u);
   const coord_real mean_resolution = resolution / (coord_real)mean_positions;  // NOLINT
-  const coord_real offset = (coord_real)0.5 * resolution;                      // NOLINT
+  const coord_real offset = (coord_real)0.5f * resolution;                      // NOLINT
 
   Vec3 coord;  // NOLINT
   // NOLINTNEXTLINE

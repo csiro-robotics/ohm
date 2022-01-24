@@ -8,6 +8,7 @@
 #include "GpuCacheStats.h"
 #include "GpuLayerCacheParams.h"
 
+#include <ohm/DefaultLayer.h>
 #include <ohm/MapChunk.h>
 #include <ohm/MapLayer.h>
 #include <ohm/MapLayout.h>
@@ -688,7 +689,8 @@ void GpuLayerCache::syncToMainMemory(GpuCacheEntry &entry, bool wait_on_sync)
         imp_->map->touch();
       // Also need to invalidate the MapChunk::first_valid_index as we don't know what it will be coming off the GPU.
       // We only apply this change for the occupancy layer
-      if (imp_->layer_index == unsigned(imp_->map->layout().occupancyLayer()))
+      if (imp_->layer_index == unsigned(imp_->map->layout().occupancyLayer()) ||
+          imp_->layer_index == unsigned(imp_->map->layout().layerIndex(default_layer::tsdfLayerName())))
       {
         entry.chunk->invalidateFirstValidIndex();
       }

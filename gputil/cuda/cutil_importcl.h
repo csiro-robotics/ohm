@@ -84,10 +84,12 @@ No direct equivalent    write_mem_fence()
 
 // Synchronisation.
 #define barrier(...) __syncthreads()
-#define mem_fence __threadfence_block
+#define mem_fence    __threadfence_block
 
 typedef unsigned char uchar;
 typedef unsigned int uint;
+typedef long long longlong;
+typedef unsigned long long ulonglong;
 
 inline __device__ unsigned get_num_groups(int i)
 {

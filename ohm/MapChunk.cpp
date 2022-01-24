@@ -10,6 +10,7 @@
 #include "MapLayout.h"
 #include "VoxelBuffer.h"
 #include "VoxelOccupancy.h"
+#include "VoxelTsdf.h"
 
 #include "private/MapLayoutDetail.h"
 #include "private/OccupancyMapDetail.h"
@@ -145,32 +146,64 @@ void MapChunk::updateLayout(const MapLayout *new_layout,
 void MapChunk::searchAndUpdateFirstValid(const glm::ivec3 &region_voxel_dimensions, const glm::u8vec3 &search_from)
 {
   const MapLayout &layout = this->layout();
-  VoxelBuffer<const VoxelBlock> voxel_buffer(voxel_blocks[layout.occupancyLayer()]);
-  const size_t voxel_stride = layout.layer(layout.occupancyLayer()).voxelByteSize();
-  const uint8_t *voxel_mem = voxel_buffer.voxelMemory();
-
-  unsigned voxel_index;
-  float occupancy;
-  for (int z = search_from.z; z < region_voxel_dimensions.z; ++z)
+  // First mark as unknown
+  first_valid_index = ~0u;
+  // Try by occupancy
+  if (layout.occupancyLayer() != -1)
   {
-    for (int y = search_from.y; y < region_voxel_dimensions.y; ++y)
+    VoxelBuffer<const VoxelBlock> voxel_buffer(voxel_blocks[layout.occupancyLayer()]);
+    const size_t voxel_stride = layout.layer(layout.occupancyLayer()).voxelByteSize();
+    const uint8_t *voxel_mem = voxel_buffer.voxelMemory();
+
+    unsigned voxel_index = 0;
+    float occupancy = 0;
+    for (int z = search_from.z; z < region_voxel_dimensions.z; ++z)
     {
-      for (int x = search_from.x; x < region_voxel_dimensions.x; ++x)
+      for (int y = search_from.y; y < region_voxel_dimensions.y; ++y)
       {
-        voxel_index =
-          unsigned(x) + y * region_voxel_dimensions.x + z * region_voxel_dimensions.y * region_voxel_dimensions.x;
-        memcpy(&occupancy, voxel_mem + voxel_stride * voxel_index, sizeof(occupancy));
-        if (occupancy != unobservedOccupancyValue())
+        for (int x = search_from.x; x < region_voxel_dimensions.x; ++x)
         {
-          first_valid_index = voxel_index;
-          return;
+          voxel_index =
+            unsigned(x) + y * region_voxel_dimensions.x + z * region_voxel_dimensions.y * region_voxel_dimensions.x;
+          memcpy(&occupancy, voxel_mem + voxel_stride * voxel_index, sizeof(occupancy));
+          if (occupancy != unobservedOccupancyValue())
+          {
+            first_valid_index = std::min(voxel_index, first_valid_index);
+            break;
+          }
         }
       }
     }
   }
+  // Try by TSDF
+  // This is a bit intimate here. Needs a fix for better resolving TSDF vs occupancy maps.
+  if (layout.layerIndex(default_layer::tsdfLayerName()) != -1)
+  {
+    const int layer_index = layout.layerIndex(default_layer::tsdfLayerName());
+    VoxelBuffer<const VoxelBlock> voxel_buffer(voxel_blocks[layer_index]);
+    const size_t voxel_stride = layout.layer(layer_index).voxelByteSize();
+    const uint8_t *voxel_mem = voxel_buffer.voxelMemory();
 
-  // Failed to find a valid item (at least from search_from). Mark as unknown.
-  first_valid_index = ~0u;
+    unsigned voxel_index = 0;
+    VoxelTsdf tsdf{};
+    for (int z = search_from.z; z < region_voxel_dimensions.z; ++z)
+    {
+      for (int y = search_from.y; y < region_voxel_dimensions.y; ++y)
+      {
+        for (int x = search_from.x; x < region_voxel_dimensions.x; ++x)
+        {
+          voxel_index =
+            unsigned(x) + y * region_voxel_dimensions.x + z * region_voxel_dimensions.y * region_voxel_dimensions.x;
+          memcpy(&tsdf, voxel_mem + voxel_stride * voxel_index, sizeof(tsdf));
+          if (isValidTsdf(&tsdf))
+          {
+            first_valid_index = std::min(voxel_index, first_valid_index);
+            break;
+          }
+        }
+      }
+    }
+  }
 }
 
 

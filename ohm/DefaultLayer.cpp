@@ -8,6 +8,7 @@
 #include "MapLayer.h"
 #include "MapLayout.h"
 #include "VoxelMean.h"
+#include "VoxelTsdf.h"
 
 #include <algorithm>
 
@@ -59,6 +60,10 @@ const char *touchTimeLayerName()
 const char *incidentNormalLayerName()
 {
   return "incident_normal";
+}
+const char *tsdfLayerName()
+{
+  return "tsdf";
 }
 }  // namespace default_layer
 
@@ -270,6 +275,31 @@ MapLayer *addIncidentNormal(MapLayout &layout)
   if (layer->voxelByteSize() != sizeof(uint32_t))
   {
     throw std::runtime_error("Incident normal layer size mismatch");
+  }
+
+  return layer;
+}
+
+
+MapLayer *addTsdf(MapLayout &layout)
+{
+  int layer_index = layout.layerIndex(default_layer::tsdfLayerName());
+  if (layer_index != -1)
+  {
+    // Already present.
+    return layout.layerPtr(layer_index);
+  }
+
+  // Add the mean layer.
+  MapLayer *layer = layout.addLayer(default_layer::tsdfLayerName());
+
+  const size_t clear_value = 0u;
+  layer->voxelLayout().addMember("weight", DataType::kFloat, clear_value);
+  layer->voxelLayout().addMember("distance", DataType::kFloat, clear_value);
+
+  if (layer->voxelByteSize() != sizeof(VoxelTsdf))
+  {
+    throw std::runtime_error("VoxelMean layer size mismatch");
   }
 
   return layer;

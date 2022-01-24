@@ -53,7 +53,7 @@ inline __device__ __host__ int pointToRegionVoxel(coord_real coord, coord_real v
   // In testing, the largest double precision delta I've seen has been on the order of 1e-15, while
   // the largest single precision delta should be around 5e-7. We use an epsilon of 1e-6 to support
   // single precision. Anything larger is treated as an invalid input.
-  const coord_real epsilon = (coord_real)1e-6;  // NOLINT
+  const coord_real epsilon = (coord_real)1e-6f;  // NOLINT
   if (-epsilon <= coord && coord < 0)
   {
     // Note: TEST_EPSILON_MAGNITUDE is not explicitly defined anywhere. The code is for testing only.
@@ -88,7 +88,7 @@ inline __device__ __host__ int pointToRegionCoord(coord_real coord, coord_real r
   return (int)floorf(coord / resolution + (coord_real)0.5);
 #else   // defined(__CUDACC__)
   // NOLINTNEXTLINE
-  return (int)floor(coord / resolution + (coord_real)0.5);
+  return (int)floor(coord / resolution + (coord_real)0.5f);
 #endif  // defined(__CUDACC__)
 }
 #if !GPUTIL_DEVICE
