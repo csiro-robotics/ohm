@@ -41,7 +41,10 @@ Event::~Event()
 
 bool Event::isValid() const
 {
-  return imp_ && imp_->event;
+  cl_uint ref_count = 0;
+  return imp_ && imp_->event &&
+         clGetEventInfo(imp_->event, CL_EVENT_REFERENCE_COUNT, sizeof(ref_count), &ref_count, nullptr) !=
+           CL_INVALID_EVENT;
 }
 
 
