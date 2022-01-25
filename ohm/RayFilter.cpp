@@ -34,6 +34,29 @@ bool goodRayFilter(glm::dvec3 *start, glm::dvec3 *end, unsigned *filter_flags, d
 }
 
 
+bool clipRayFilter(glm::dvec3 *start, glm::dvec3 *end, unsigned *filter_flags, double max_length)
+{
+  bool is_good = true;
+  is_good = is_good && !glm::any(glm::isnan(*start));
+  is_good = is_good && !glm::any(glm::isnan(*end));
+
+  glm::dvec3 ray = *end - *start;
+  const double ray_length_sqr = glm::dot(ray, ray);
+  if (is_good && max_length > 0 && ray_length_sqr > max_length * max_length)
+  {
+    // Ray is good, but too long. Clip it.
+    // Normalise ray.
+    ray /= std::sqrt(ray_length_sqr);
+    // Clip and mark
+    *end = *start + ray * max_length;
+    *filter_flags |= kRffClippedEnd;
+  }
+
+  *filter_flags |= !!is_good * kRffInvalid;
+  return is_good;
+}
+
+
 bool clipBounded(glm::dvec3 *start, glm::dvec3 *end, unsigned *filter_flags, const ohm::Aabb &clip_box)
 {
   unsigned line_clip_flags = 0;
@@ -54,7 +77,7 @@ bool clipBounded(glm::dvec3 *start, glm::dvec3 *end, unsigned *filter_flags, con
 }
 
 
-bool clipNear(glm::dvec3 * /*start*/, glm::dvec3 *end, unsigned *filter_flags, const ohm::Aabb &clip_box)
+bool clipToBounds(glm::dvec3 * /*start*/, glm::dvec3 *end, unsigned *filter_flags, const ohm::Aabb &clip_box)
 {
   const bool clipped = clip_box.contains(*end);
   // Lint(KS): everything is unsigned.

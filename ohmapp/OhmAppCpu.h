@@ -53,8 +53,8 @@ public:
   /// Specialised map options.
   struct MapOptions : public Super::MapOptions
   {
-    /// Remove this much of the start of each ray.
-    double clip_near_range = 0.0;
+    /// Maximum ray length. Longer rays are truncated to this length.
+    double ray_length_max = 0.0;
     /// Specifies the number of voxels along each dimension of a chunk.
     glm::u8vec3 region_voxel_dim = glm::u8vec3(0);  // will be re-initialised from a default map
     /// Probability for an occupancy hit.
