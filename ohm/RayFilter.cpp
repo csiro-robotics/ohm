@@ -52,7 +52,7 @@ bool clipRayFilter(glm::dvec3 *start, glm::dvec3 *end, unsigned *filter_flags, d
     *filter_flags |= kRffClippedEnd;
   }
 
-  *filter_flags |= !!is_good * kRffInvalid;
+  *filter_flags |= !is_good * kRffInvalid;
   return is_good;
 }
 
