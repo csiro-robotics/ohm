@@ -69,7 +69,7 @@ std::ostream &operator<<(std::ostream &out, const ohm::NdtMode mode)
   switch (mode)
   {
   case ohm::NdtMode::kNone:
-    out << "none";
+    out << "off";
     break;
   case ohm::NdtMode::kOccupancy:
     out << "om";

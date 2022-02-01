@@ -26,7 +26,7 @@ inline std::string optStr(const T &value)
 template <typename T>
 inline std::shared_ptr<cxxopts::Value> optVal(T &val)
 {
-  return cxxopts::value(val)->implicit_value(optStr(val));
+  return cxxopts::value(val)->default_value(optStr(val));
 }
 
 inline std::shared_ptr<cxxopts::Value> optVal(bool &val)
