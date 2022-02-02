@@ -80,18 +80,33 @@ struct GpuMapDetail
   static const unsigned kBuffersCount = 2;
   OccupancyMap *map;
   // Ray/key buffer upload event pairs.
-  /// Events for key_buffers
+  /// Events for @p key_buffers
   std::array<gputil::Event, kBuffersCount> key_upload_events;
   /// Buffers for start/end voxel keys for each ray pair: GpuKey
   std::array<gputil::Buffer, kBuffersCount> key_buffers;
-  /// Events for ray_buffers
+  /// Events for @p ray_buffers
   std::array<gputil::Event, kBuffersCount> ray_upload_events;
   /// Buffers of rays to process float3 pairs. Coordinates are local to the centre of the start voxel for each pair.
   std::array<gputil::Buffer, kBuffersCount> ray_buffers;
+  /// Buffers holding only sample points for each ray in @p ray_buffers. Occupancy algorithms do not need this
+  /// information only the current voxel and whether it's the sample voxelor not  - flagged in the key_buffers -
+  /// are important. However, algorithms such as TSDF need to know the distance to the final sample point. We may
+  /// lose this information either by GPU ray segmentation (rays split into multiple segments) or by ray filtering
+  /// where rays may be truncated. This buffer is populated when @p use_original_sample_buffers is set and contains
+  /// one item per ray. The coordinates uploaded are relative to the corresponding ray end voxel (second item in each
+  /// ray/voxel pair), using the voxel centre as the local origin. For unclipped rays, this will be the same as the end
+  /// point.
+  std::array<gputil::Buffer, kBuffersCount> original_ray_buffers;
+  /// Events for @p original_ray_buffers
+  std::array<gputil::Event, kBuffersCount> original_ray_upload_events;
   /// Buffers to upload sample intensities - a single floating point value per sample.
   std::array<gputil::Buffer, kBuffersCount> intensities_buffers;
+  /// Events for @p intensities_buffers
+  std::array<gputil::Event, kBuffersCount> intensities_upload_events;
   /// Buffers to upload sample timestamps - a uint32 value per sample - quantised, relative time.
   std::array<gputil::Buffer, kBuffersCount> timestamps_buffers;
+  /// Events for @p timestamps_buffers
+  std::array<gputil::Event, kBuffersCount> timestamps_upload_events;
 
   std::array<gputil::Event, kBuffersCount> region_key_upload_events;
   std::array<gputil::Buffer, kBuffersCount> region_key_buffers;
@@ -138,8 +153,15 @@ struct GpuMapDetail
   unsigned batch_marker = 1;  // Will cycle odd numbers to avoid zero.
   /// Should rays be grouped (sorted) before GPU upload. Should only be set for some algorthims, like NDT (required).
   bool group_rays = false;
+  /// Should we populate @p original_ray_buffers, storing the unclipped rays points for each ray? See
+  /// comments on @p original_ray_buffers.
+  bool use_original_ray_buffers = false;
+  /// True if the @p map is borrowed. False, if @p map is owned here and must be deleted on destruction.
   bool borrowed_map = false;
+  /// Have GPU resources been initialised?
   bool gpu_ok = false;
+  /// Have cashed a GPU program with sub-voxel positioning ( @c VoxelMean )?
+  /// @todo I think this is defunct.
   bool cached_sub_voxel_program = false;
   /// Support voxel mean GPU cache layer? This is enabled by default, but can be disabled in specific derivations.
   bool support_voxel_mean = true;
