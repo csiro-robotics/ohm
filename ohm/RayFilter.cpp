@@ -12,8 +12,8 @@ namespace ohm
 bool goodRay(const glm::dvec3 &start, const glm::dvec3 &end, double max_range)
 {
   bool is_good = true;
-  is_good = is_good && !glm::any(glm::isnan(start));
-  is_good = is_good && !glm::any(glm::isnan(end));
+  is_good = is_good && !glm::any(glm::isnan(start)) && !glm::any(glm::isinf(start));
+  is_good = is_good && !glm::any(glm::isnan(end)) && !glm::any(glm::isinf(end));
 
   const glm::dvec3 ray = end - start;
   is_good = is_good && (max_range <= 0 || glm::dot(ray, ray) <= max_range * max_range);
@@ -37,8 +37,8 @@ bool goodRayFilter(glm::dvec3 *start, glm::dvec3 *end, unsigned *filter_flags, d
 bool clipRayFilter(glm::dvec3 *start, glm::dvec3 *end, unsigned *filter_flags, double max_length)
 {
   bool is_good = true;
-  is_good = is_good && !glm::any(glm::isnan(*start));
-  is_good = is_good && !glm::any(glm::isnan(*end));
+  is_good = is_good && !glm::any(glm::isnan(*start)) && !glm::any(glm::isinf(*start));
+  is_good = is_good && !glm::any(glm::isnan(*end)) && !glm::any(glm::isinf(*end));
 
   glm::dvec3 ray = *end - *start;
   const double ray_length_sqr = glm::dot(ray, ray);

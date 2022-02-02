@@ -23,7 +23,10 @@ struct GpuTsdfMapDetail : public GpuMapDetail
 
   GpuTsdfMapDetail(OccupancyMap *map, bool borrowed_map)
     : GpuMapDetail(map, borrowed_map)
-  {}
+  {
+    // Require original samples for TSDF for the distance calculations.
+    use_original_ray_buffers = true;
+  }
 };
 }  // namespace ohm
 

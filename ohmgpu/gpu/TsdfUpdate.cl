@@ -79,10 +79,9 @@ typedef struct TsdfWalkData_t
   /// A reference sensor position. This is in a frame local to the centre of the voxel containing the sample coordinate.
   float3 sensor;
   /// A reference sample position. This is in a frame local to the centre of the voxel containing this sample
-  /// coordinate.
+  /// coordinate. Note: for TSDF this is not always the same as the voxel identified by @c end_key in the visit
+  /// function. Ray truncation and filtering may modify the @pc end_key so we only process part of the ray.
   float3 sample;
-  /// The voxel key for the voxel containing sample.
-  GpuKey sample_key;
 } TsdfWalkData;
 #endif  // TSDF_UPDATE_BASE_CL
 
@@ -129,10 +128,9 @@ __device__ bool VISIT_LINE_VOXEL(const GpuKey *voxel_key, bool is_end_voxel, con
 
     // Calculate the current voxel centre in the same space as tsdf_data->sensor and tsdf_data->sample. Remember,
     // those values are both calculated relative to the centre of the voxel containing tsdf_data->sample
-    const int3 voxel_diff = keyDiff(&tsdf_data->sample_key, voxel_key, &tsdf_data->region_dimensions);
+    const int3 voxel_diff = keyDiff(end_key, voxel_key, &tsdf_data->region_dimensions);
     const float3 voxel_centre =
       make_float3(voxel_diff.x * voxel_resolution, voxel_diff.y * voxel_resolution, voxel_diff.z * voxel_resolution);
-    const float sdf = computeDistance(tsdf_data->sensor, tsdf_data->sample, voxel_centre);
 
     /// Use a union of VoxelTsdf and atomic_ulong (64-bits) so we can write the value back in one operation.
     union
@@ -231,9 +229,14 @@ __device__ bool VISIT_LINE_VOXEL(const GpuKey *voxel_key, bool is_end_voxel, con
 ///     relative to the centre of the voxel containing the end point. This is to reduce floating point error in
 ///     double to single precision conversion and assist in voxel mean calculations which are in the same frame.
 ///     The original coordinates are not recoverable in this code.
+/// @param unclipped_lines A companion array to @p local_lines which contains the original, unclipped sensor/sample
+///     pairs with @p line_count such pairs. These are the original sensor/sample points used to generate
+///     @p local_lines. They may differ from the items in @p local_lines because the lines may be truncated or the
+///     original rays may be split into multiple segments (in CPU). We need the corresponding original points
+///     to ensure the TSDF distance calculation is correct. Like @p local_lines, the @p samples are provided
+///     relative to centre of each @p line_keys end voxels (second voxel key in each pair).
 /// @param line_count number of lines in @p line_keys and @p local_lines. These come in pairs, so the number of
-/// elements
-///     in those arrays is double this value.
+/// elements in those arrays is double this value.
 /// @param region_dimensions Specifies the size of any one region in voxels.
 /// @param voxel_resolution Specifies the size of a voxel cube.
 /// @param ray_adjustment Specifies the value adjustment to apply to voxels along the line segment leading up to the
@@ -245,7 +248,8 @@ __device__ bool VISIT_LINE_VOXEL(const GpuKey *voxel_key, bool is_end_voxel, con
 /// @param region_update_flags Update control values as per @c RayFlag.
 __kernel void tsdfRayUpdate(__global VoxelTsdf *tsdf_voxels, __global ulonglong *tsdf_region_mem_offsets_global,  //
                             __global int3 *tsdf_region_keys_global, uint region_count,                            //
-                            __global GpuKey *line_keys, __global float3 *local_lines, uint line_count,            //
+                            __global GpuKey *line_keys, __global float3 *local_lines,                             //
+                            __global float3 *unclipped_lines, uint line_count,                                    //
                             int3 region_dimensions, float voxel_resolution, float max_weight,
                             float default_truncation_distance, float dropoff_epsilon,
                             float sparsity_compensation_factor)
@@ -274,12 +278,11 @@ __kernel void tsdfRayUpdate(__global VoxelTsdf *tsdf_voxels, __global ulonglong 
   copyKey(&start_key, &line_keys[get_global_id(0) * 2 + 0]);
   copyKey(&end_key, &line_keys[get_global_id(0) * 2 + 1]);
 
+  tsdf_data.sensor = unclipped_lines[get_global_id(0) * 2 + 0];
+  tsdf_data.sample = unclipped_lines[get_global_id(0) * 2 + 1];
+
   const float3 line_start = local_lines[get_global_id(0) * 2 + 0];
   const float3 line_end = local_lines[get_global_id(0) * 2 + 1];
-
-  tsdf_data.sensor = line_start;
-  tsdf_data.sample = line_end;
-  tsdf_data.sample_key = end_key;
 
   // We need to calculate the start voxel centre in the right coordinate space. All coordinates are relative to the
   // end voxel centre.

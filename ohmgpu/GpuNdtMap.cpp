@@ -199,6 +199,18 @@ void GpuNdtMap::finaliseBatch(unsigned region_update_flags)
   gputil::EventList wait(
     { imp->key_upload_events[buf_idx], imp->ray_upload_events[buf_idx], imp->region_key_upload_events[buf_idx] });
 
+  // Add supplemental buffer upload events
+  // Note: we do not wait on original_ray_upload_events even if imp_->use_original_ray_buffers because we do not use the
+  // original_ray_buffers in this algorithm. Ones that do should add it to the wait list here.
+  if (imp_->intensities_upload_events[buf_idx].isValid())
+  {
+    wait.add(imp_->intensities_upload_events[buf_idx]);
+  }
+  if (imp_->timestamps_upload_events[buf_idx].isValid())
+  {
+    wait.add(imp_->timestamps_upload_events[buf_idx]);
+  }
+
   // Add wait for region voxel offsets
   for (auto &upload_info : imp->voxel_upload_info[buf_idx])
   {

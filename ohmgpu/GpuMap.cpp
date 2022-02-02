@@ -72,30 +72,6 @@ GpuProgramRef g_program_ref("RegionUpdate", GpuProgramRef::kSourceFile, "RegionU
 
 const double kDefaultMaxRayRange = 1000.0;
 
-inline bool goodRay(const glm::dvec3 &start, const glm::dvec3 &end, double max_range = kDefaultMaxRayRange)
-{
-  bool is_good = true;
-  if (glm::any(glm::isnan(start)))
-  {
-    ohm::logger::trace("NAN start point\n");
-    is_good = false;
-  }
-  if (glm::any(glm::isnan(end)))
-  {
-    ohm::logger::trace("NAN end point\n");
-    is_good = false;
-  }
-
-  const glm::dvec3 ray = end - start;
-  if (max_range > 0 && glm::dot(ray, ray) > max_range * max_range)
-  {
-    ohm::logger::trace("Ray too long: (", glm::distance(start, end), "): ", start, " -> ", end, '\n');
-    is_good = false;
-  }
-
-  return is_good;
-}
-
 #if OHM_GPU_VERIFY_SORT
 /// Verify that rays are sorted such that all unclipped samples come first.
 unsigned verifySort(const std::vector<RayItem> &rays)
@@ -478,6 +454,11 @@ void GpuMap::setMap(OccupancyMap *map, bool borrowed_map, unsigned expected_elem
         gputil::Buffer(gpu_cache.gpu(), sizeof(GpuKey) * expected_element_count, gputil::kBfReadHost);
       imp_->ray_buffers[i] =
         gputil::Buffer(gpu_cache.gpu(), sizeof(gputil::float3) * expected_element_count, gputil::kBfReadHost);
+      if (imp_->use_original_ray_buffers)
+      {
+        imp_->original_ray_buffers[i] =
+          gputil::Buffer(gpu_cache.gpu(), sizeof(gputil::float3) * expected_element_count, gputil::kBfReadHost);
+      }
       imp_->intensities_buffers[i] =
         gputil::Buffer(gpu_cache.gpu(), sizeof(float) * expected_element_count, gputil::kBfReadHost);
       imp_->timestamps_buffers[i] =
@@ -625,6 +606,7 @@ size_t GpuMap::integrateRays(const glm::dvec3 *rays, size_t element_count, const
   // Declare pinned buffers for use in upload_ray delegate.
   gputil::PinnedBuffer keys_pinned;
   gputil::PinnedBuffer rays_pinned;
+  gputil::PinnedBuffer original_rays_pinned;
   gputil::PinnedBuffer intensities_pinned;
   gputil::PinnedBuffer timestamps_pinned;
 
@@ -680,6 +662,20 @@ size_t GpuMap::integrateRays(const glm::dvec3 *rays, size_t element_count, const
     ray_gpu[1].y = float(ray.sample.y - end_voxel_centre.y);
     ray_gpu[1].z = float(ray.sample.z - end_voxel_centre.z);
     rays_pinned.write(ray_gpu.data(), sizeof(ray_gpu), uploaded_ray_count * sizeof(ray_gpu));
+
+    if (imp_->use_original_ray_buffers)
+    {
+      // Upload the original sample, made relative to this ray's end voxel.
+      ray_gpu[0].x = float(ray.original_origin.x - end_voxel_centre.x);
+      ray_gpu[0].y = float(ray.original_origin.y - end_voxel_centre.y);
+      ray_gpu[0].z = float(ray.original_origin.z - end_voxel_centre.z);
+      ray_gpu[1].x = float(ray.original_sample.x - end_voxel_centre.x);
+      ray_gpu[1].y = float(ray.original_sample.y - end_voxel_centre.y);
+      ray_gpu[1].z = float(ray.original_sample.z - end_voxel_centre.z);
+      // Note: we are only uploading the first item from ray_gpu - the original sample position.
+      original_rays_pinned.write(ray_gpu.data(), sizeof(ray_gpu), uploaded_ray_count * sizeof(ray_gpu));
+    }
+
     ++uploaded_ray_count;
 
     // Increment unclipped_samples if this sample isn't clipped.
@@ -719,8 +715,8 @@ size_t GpuMap::integrateRays(const glm::dvec3 *rays, size_t element_count, const
   RayItem ray{};
   for (unsigned i = 0; i < element_count; i += 2)
   {
-    ray.origin = rays[i + 0];
-    ray.sample = rays[i + 1];
+    ray.original_origin = ray.origin = rays[i + 0];
+    ray.original_sample = ray.sample = rays[i + 1];
     ray.intensity = (intensities) ? intensities[i >> 1] : 0;
     ray.timestamp = (timestamps) ? encodeVoxelTouchTime(timebase, timestamps[i >> 1]) : 0;
     ray.filter_flags = 0;
@@ -806,9 +802,18 @@ size_t GpuMap::integrateRays(const glm::dvec3 *rays, size_t element_count, const
   imp_->key_buffers[buf_idx].resize(sizeof(GpuKey) * 2 * imp_->grouped_rays.size());
   imp_->ray_buffers[buf_idx].resize(sizeof(gputil::float3) * 2 * imp_->grouped_rays.size());
 
+  if (imp_->use_original_ray_buffers)
+  {
+    imp_->original_ray_buffers[buf_idx].resize(sizeof(gputil::float3) * 2 * imp_->grouped_rays.size());
+  }
+
   // Declare pinned buffers for use in upload_ray delegate.
   keys_pinned = gputil::PinnedBuffer(imp_->key_buffers[buf_idx], gputil::kPinWrite);
   rays_pinned = gputil::PinnedBuffer(imp_->ray_buffers[buf_idx], gputil::kPinWrite);
+  if (imp_->use_original_ray_buffers)
+  {
+    original_rays_pinned = gputil::PinnedBuffer(imp_->original_ray_buffers[buf_idx], gputil::kPinWrite);
+  }
   if (intensities)
   {
     imp_->intensities_buffers[buf_idx].resize(sizeof(float) * imp_->grouped_rays.size());
@@ -829,13 +834,17 @@ size_t GpuMap::integrateRays(const glm::dvec3 *rays, size_t element_count, const
   // Asynchronous unpin. Kernels will wait on the associated event.
   keys_pinned.unpin(&gpu_cache->gpuQueue(), nullptr, &imp_->key_upload_events[buf_idx]);
   rays_pinned.unpin(&gpu_cache->gpuQueue(), nullptr, &imp_->ray_upload_events[buf_idx]);
+  if (imp_->use_original_ray_buffers)
+  {
+    original_rays_pinned.unpin(&gpu_cache->gpuQueue(), nullptr, &imp_->original_ray_upload_events[buf_idx]);
+  }
   if (intensities)
   {
-    intensities_pinned.unpin(&gpu_cache->gpuQueue(), nullptr, &imp_->ray_upload_events[buf_idx]);
+    intensities_pinned.unpin(&gpu_cache->gpuQueue(), nullptr, &imp_->intensities_upload_events[buf_idx]);
   }
   if (timestamps)
   {
-    timestamps_pinned.unpin(&gpu_cache->gpuQueue(), nullptr, &imp_->ray_upload_events[buf_idx]);
+    timestamps_pinned.unpin(&gpu_cache->gpuQueue(), nullptr, &imp_->timestamps_upload_events[buf_idx]);
   }
 
   imp_->ray_counts[buf_idx] = uploaded_ray_count;
@@ -1063,6 +1072,18 @@ void GpuMap::finaliseBatch(unsigned region_update_flags)
                            imp_->voxel_upload_info[buf_idx][next_upload_buffer].offset_upload_event,
                            imp_->voxel_upload_info[buf_idx][next_upload_buffer].voxel_upload_event });
   ++next_upload_buffer;
+
+  // Add supplemental buffer upload events
+  // Note: we do not wait on original_ray_upload_events even if imp_->use_original_ray_buffers because we do not use the
+  // original_ray_buffers in this algorithm. Ones that do should add it to the wait list here.
+  if (imp_->intensities_upload_events[buf_idx].isValid())
+  {
+    wait.add(imp_->intensities_upload_events[buf_idx]);
+  }
+  if (imp_->timestamps_upload_events[buf_idx].isValid())
+  {
+    wait.add(imp_->timestamps_upload_events[buf_idx]);
+  }
 
   // Add voxel mean offset upload events.
   if (mean_layer_cache)
