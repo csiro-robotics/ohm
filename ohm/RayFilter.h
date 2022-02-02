@@ -64,6 +64,14 @@ bool ohm_API goodRay(const glm::dvec3 &start, const glm::dvec3 &end, double max_
 /// @return True if the sample ray may be processed, false to skip this sample.
 bool ohm_API goodRayFilter(glm::dvec3 *start, glm::dvec3 *end, unsigned *filter_flags, double max_range);
 
+/// A filter function for clipping rays to a given minimum/maximum range.
+///
+/// This may modify the ray @p end value to ensure `|end - start| <= max_length`. The @p filter_flags bit
+/// @p kRffClippedEnd is set whenever @p end is modified.
+///
+/// Any bad rays (NaN or infinite) are set the @p filter_flag @c kRffInvalid and return false.
+bool ohm_API clipRayFilter(glm::dvec3 *start, glm::dvec3 *end, unsigned *filter_flags, double max_length);
+
 /// A @c RayFilterFunction which clips rays a bounding box.
 ///
 /// May set the folling bits of @p filter_flags:
@@ -89,7 +97,7 @@ bool ohm_API clipBounded(glm::dvec3 *start, glm::dvec3 *end, unsigned *filter_fl
 /// @param filter_flags A pointer to the flags. May be added to using flags from @c RayFilterFlag.
 /// @param max_range Optional maximum range limit for the ray.
 /// @return True
-bool ohm_API clipNear(glm::dvec3 *start, glm::dvec3 *end, unsigned *filter_flags, const ohm::Aabb &clip_box);
+bool ohm_API clipToBounds(glm::dvec3 *start, glm::dvec3 *end, unsigned *filter_flags, const ohm::Aabb &clip_box);
 
 }  // namespace ohm
 

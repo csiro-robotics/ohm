@@ -209,6 +209,22 @@ int OhmAppGpu::prepareForRun()
   options().map().voxel_mean = map_->voxelMeanEnabled();
   options().map().traversal = map_->traversalEnabled();
 
+  if (options().map().ray_length_max > 0)
+  {
+    const auto ray_length_max = options().map().ray_length_max;
+    map_->setRayFilter([ray_length_max](glm::dvec3 *start, glm::dvec3 *end, unsigned *filter_flags) {
+      return ohm::clipRayFilter(start, end, filter_flags, ray_length_max);
+    });
+  }
+  else
+  {
+    // No ray length filter installed, but make sure we skip bad rays.
+    // GPU deals very poorly with Inf/NaN values.
+    map_->setRayFilter([](glm::dvec3 *start, glm::dvec3 *end, unsigned *filter_flags) {
+      return ohm::goodRayFilter(start, end, filter_flags, 0);
+    });
+  }
+
   mapper_ = true_mapper_.get();
 #ifdef TES_ENABLE
   if (!options().output().trace.empty() && !options().output().trace_final)

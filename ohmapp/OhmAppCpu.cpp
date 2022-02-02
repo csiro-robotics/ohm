@@ -104,8 +104,8 @@ void OhmAppCpu::MapOptions::configure(cxxopts::OptionAdder &adder)
   Super::MapOptions::configure(adder);
   // clang-format off
   adder
+    ("ray-length-max", "Maximum ray length. Longer rays are clipped to this range. Use zero to disable.", optVal(ray_length_max))
     ("clamp", "Set probability clamping to the given min/max. Given as a value, not probability.", optVal(prob_range))
-    ("clip-near", "Range within which samples are considered too close and are ignored. May be used to filter operator strikes.", optVal(clip_near_range))
     ("dim", "Set the voxel dimensions of each region in the map. Range for each is [0, 255).", optVal(region_voxel_dim))
     ("hit", "The occupancy probability due to a hit. Must be >= 0.5.", optVal(prob_hit))
     ("miss", "The occupancy probability due to a miss. Must be < 0.5.", optVal(prob_miss))
@@ -168,6 +168,8 @@ void OhmAppCpu::MapOptions::print(std::ostream &out)
       out << "off\n";
     }
   }
+
+  out << "Ray length max: " << ray_length_max << '\n';
 }
 
 
@@ -447,6 +449,21 @@ int OhmAppCpu::prepareForRun()
   // Ensure options reflect map flags.
   options().map().voxel_mean = map_->voxelMeanEnabled();
   options().map().traversal = map_->traversalEnabled();
+
+  if (options().map().ray_length_max > 0)
+  {
+    const auto ray_length_max = options().map().ray_length_max;
+    map_->setRayFilter([ray_length_max](glm::dvec3 *start, glm::dvec3 *end, unsigned *filter_flags) {
+      return ohm::clipRayFilter(start, end, filter_flags, ray_length_max);
+    });
+  }
+  else
+  {
+    // No ray length filter installed, but make sure we skip bad rays.
+    map_->setRayFilter([](glm::dvec3 *start, glm::dvec3 *end, unsigned *filter_flags) {
+      return ohm::goodRayFilter(start, end, filter_flags, 0);
+    });
+  }
 
   mapper_ = true_mapper_.get();
 #ifdef TES_ENABLE
