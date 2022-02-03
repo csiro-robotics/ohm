@@ -102,6 +102,9 @@ size_t RayMapperTsdf::integrateRays(const glm::dvec3 *rays, size_t element_count
   // Cached values for current ray to use in the update closure.
   glm::dvec3 sensor{};
   glm::dvec3 sample{};
+  // Filtered start/end points.
+  glm::dvec3 ray_start{};
+  glm::dvec3 ray_end{};
 
   if (timestamps)
   {
@@ -159,19 +162,19 @@ size_t RayMapperTsdf::integrateRays(const glm::dvec3 *rays, size_t element_count
   for (size_t i = 0; i < element_count; i += 2)
   {
     unsigned filter_flags = 0;
-    sensor = rays[i];
-    sample = rays[i + 1];
+    ray_start = sensor = rays[i];
+    ray_end = sample = rays[i + 1];
 
     if (use_filter)
     {
-      if (!ray_filter(&sensor, &sample, &filter_flags))
+      if (!ray_filter(&ray_start, &ray_end, &filter_flags))
       {
         // Bad ray.
         continue;
       }
     }
 
-    ohm::walkSegmentKeys<Key>(visit_func, sensor, sample, true, WalkKeyAdaptor(*map_));
+    ohm::walkSegmentKeys<Key>(visit_func, ray_start, ray_end, true, WalkKeyAdaptor(*map_));
   }
 
   return element_count / 2;
