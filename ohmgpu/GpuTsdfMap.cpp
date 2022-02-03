@@ -248,12 +248,20 @@ void GpuTsdfMap::finaliseBatch(unsigned /*region_update_flags*/)
   const gputil::int3 region_dim_gpu = { map->region_voxel_dimensions.x, map->region_voxel_dimensions.y,
                                         map->region_voxel_dimensions.z };
 
+  if (!imp_->use_original_ray_buffers)
+  {
+    ohm::logger::error("TSDF algorithm requires GPU samples_buffers, but the flag has been disabled. Aborting.\n");
+    return;
+  }
+
   const unsigned region_count = imp_->region_counts[buf_idx];
   const unsigned ray_count = imp_->ray_counts[buf_idx];
   gputil::Dim3 global_size(ray_count);
   gputil::Dim3 local_size(std::min<size_t>(imp_->update_kernel.optimalWorkGroupSize(), ray_count));
+
+  // Note: we also wait on original_ray_upload_events here as the samples are required to calculate the TSDF distances.
   gputil::EventList wait({ imp_->key_upload_events[buf_idx], imp_->ray_upload_events[buf_idx],
-                           imp_->region_key_upload_events[buf_idx],
+                           imp_->original_ray_upload_events[buf_idx], imp_->region_key_upload_events[buf_idx],
                            imp_->voxel_upload_info[buf_idx][tsdf_uidx].offset_upload_event,
                            imp_->voxel_upload_info[buf_idx][tsdf_uidx].voxel_upload_event });
 
@@ -269,8 +277,10 @@ void GpuTsdfMap::finaliseBatch(unsigned /*region_update_flags*/)
                       // Ray start/end keys
                       gputil::BufferArg<GpuKey>(imp_->key_buffers[buf_idx]),
                       // Ray start end points, local to end voxel and ray count
-                      gputil::BufferArg<gputil::float3>(imp_->ray_buffers[buf_idx]), ray_count,
-                      // Region dimensions, map resolution, ray adjustment (miss), sample adjustment (hit)
+                      gputil::BufferArg<gputil::float3>(imp_->ray_buffers[buf_idx]),
+                      // Original ray sensor/samples buffer.
+                      gputil::BufferArg<gputil::float3>(imp_->original_ray_buffers[buf_idx]), ray_count,
+                      // Region dimensions, map resolution, TSDF settings.
                       region_dim_gpu, float(map->resolution), imp->tsdf_options.max_weight,
                       imp->tsdf_options.default_truncation_distance, imp->tsdf_options.dropoff_epsilon,
                       imp->tsdf_options.sparsity_compensation_factor);

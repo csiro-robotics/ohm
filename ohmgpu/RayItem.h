@@ -26,6 +26,10 @@ struct RayItem
   glm::dvec3 origin;
   /// End point of the sample ray. Unless clipped, this is the location of the sample detection.
   glm::dvec3 sample;
+  /// The original origin/sensor point, before any filtering or clipping may have occurred.
+  glm::dvec3 original_origin;
+  /// The original sample point, before any filtering or clipping may have occurred.
+  glm::dvec3 original_sample;
   /// Map @c Key corresponding to @p origin .
   Key origin_key;
   /// Map @c Key corresponding to @p sample .
