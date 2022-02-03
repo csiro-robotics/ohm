@@ -160,7 +160,7 @@ struct GpuMapDetail
   bool borrowed_map = false;
   /// Have GPU resources been initialised?
   bool gpu_ok = false;
-  /// Have cashed a GPU program with sub-voxel positioning ( @c VoxelMean )?
+  /// Have cached a GPU program with sub-voxel positioning ( @c VoxelMean )?
   /// @todo I think this is defunct.
   bool cached_sub_voxel_program = false;
   /// Support voxel mean GPU cache layer? This is enabled by default, but can be disabled in specific derivations.
