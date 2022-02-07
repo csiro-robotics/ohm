@@ -9,6 +9,7 @@
 #include "OhmToolsConfig.h"
 
 #include <ohm/KeyRange.h>
+#include <ohm/VoxelTsdf.h>
 
 #include <ohmutil/Colour.h>
 
@@ -35,6 +36,9 @@ using ProgressCallback = std::function<void(size_t, size_t)>;
 
 /// Colour selection filter function. May be used to override colour assignment.
 using ColourSelect = std::function<ohm::Colour(const ohm::Voxel<const float> &)>;
+
+/// Colour selection filter function for TSDF. May be used to override colour assignment.
+using ColourSelectTsdf = std::function<ohm::Colour(const ohm::Voxel<const ohm::VoxelTsdf> &)>;
 
 /// Options used to adjust how a cloud is saved from an occupancy map.
 struct ohmtools_API SaveCloudOptions
@@ -323,7 +327,20 @@ size_t ohmtools_API saveClearanceCloud(const std::string &file_name, const ohm::
 /// @param surface_distance Surface distance threshold to export with.
 /// @param prog Optional function called to report on progress.
 size_t saveTsdfCloud(const std::string &file_name, const ohm::OccupancyMap &map, const glm::dvec3 &min_extents,
-                     const glm::dvec3 &max_extents, float surface_distance, const ProgressCallback &prog);
+                     const glm::dvec3 &max_extents, float surface_distance, const ColourSelectTsdf &colour_select = {},
+                     const ProgressCallback &prog = ProgressCallback());
+
+/// Save a point cloud from TSDF layer data.
+///
+/// @param file_name File to save to. Please add the .ply extension.
+/// @param map The map to save voxels from.
+/// @param min_extents Min extents to save overlapping regions from.
+/// @param max_extents Max extents to save overlapping regions from.
+/// @param surface_distance Surface distance threshold to export with.
+/// @param prog Optional function called to report on progress.
+size_t saveTsdfVoxels(const std::string &file_name, const ohm::OccupancyMap &map, const glm::dvec3 &min_extents,
+                      const glm::dvec3 &max_extents, float surface_distance, const ColourSelectTsdf &colour_select = {},
+                      const ProgressCallback &prog = ProgressCallback());
 }  // namespace ohmtools
 
 #endif  // OHMTOOLS_OHMCLOUD_H

@@ -872,61 +872,82 @@ size_t saveClearanceCloud(const std::string &file_name, const ohm::OccupancyMap 
 
 
 size_t saveTsdfCloud(const std::string &file_name, const ohm::OccupancyMap &map, const glm::dvec3 &min_extents,
-                     const glm::dvec3 &max_extents, float surface_distance, const ProgressCallback &prog)
+                     const glm::dvec3 &max_extents, float surface_distance, const ColourSelectTsdf &colour_select,
+                     const ProgressCallback &prog)
 {
-  const size_t region_count = map.regionCount();
-  size_t processed_region_count = 0;
-  glm::dvec3 v;
-  glm::i16vec3 last_region = map.begin().key().regionKey();
-  ohm::PlyMesh ply;
-  size_t point_count = 0;
+  // Work out if we need colour.
+  unsigned with_flags = 0;
+  std::unique_ptr<ColourByHeight> colour_by_height;
 
-  glm::i16vec3 min_region = map.regionKey(min_extents);
-  glm::i16vec3 max_region = map.regionKey(max_extents);
-
-  ohm::Voxel<const ohm::VoxelTsdf> tsdf(&map, map.layout().layerIndex(ohm::default_layer::tsdfLayerName()));
-
-  if (!tsdf.isLayerValid())
+  if (colour_select)
   {
-    // No tsdf layer.
+    with_flags |= WithColour;
+  }
+
+  ohm::Voxel<const ohm::VoxelTsdf> tsdf_voxel(&map, map.layout().layerIndex(ohm::default_layer::tsdfLayerName()));
+
+  if (!tsdf_voxel.isLayerValid())
+  {
     return 0;
   }
 
-  const auto map_end_iter = map.end();
+  const auto extract_voxel = [&map, surface_distance, &tsdf_voxel, colour_select](
+                               ExtractedVoxel &voxel, const ohm::OccupancyMap::const_iterator &iter) -> bool {
+    ohm::setVoxelKey(iter, tsdf_voxel);
+    const auto tsdf = tsdf_voxel.data();
+    const bool export_match = tsdf.weight > 0 && std::abs(tsdf.distance) < surface_distance;
+    if (export_match)
+    {
+      voxel.position = map.voxelCentreLocal(*iter);
+      if (colour_select)
+      {
+        voxel.colour = colour_select(tsdf_voxel);
+      }
+      return true;
+    }
+    return false;
+  };
 
-  // TODO(KS): Need to ensure the iterator doesn't skip voxels for TSDF: MapChunk::first_valid_index management.
-  for (auto iter = map.begin(); iter != map_end_iter; ++iter)
+  return ::saveAnyCloud(file_name, map, extract_voxel, with_flags, prog);
+}
+
+
+size_t saveTsdfVoxels(const std::string &file_name, const ohm::OccupancyMap &map, const glm::dvec3 &min_extents,
+                      const glm::dvec3 &max_extents, float surface_distance, const ColourSelectTsdf &colour_select,
+                      const ProgressCallback &prog)
+{
+  // Work out if we need colour.
+  unsigned with_flags = 0;
+  std::unique_ptr<ColourByHeight> colour_by_height;
+  if (colour_select)
   {
-    tsdf.setKey(*iter);
-    if (last_region != iter.key().regionKey())
-    {
-      ++processed_region_count;
-      if (prog)
-      {
-        prog(processed_region_count, region_count);
-      }
-      last_region = iter.key().regionKey();
-    }
-
-    // Ensure the voxel is in a region we have calculated data for.
-    if (min_region.x <= last_region.x && last_region.x <= max_region.x &&  //
-        min_region.y <= last_region.y && last_region.y <= max_region.y &&  //
-        min_region.z <= last_region.z && last_region.z <= max_region.z)
-    {
-      const ohm::VoxelTsdf tsdf_voxel = tsdf.data();
-      const bool export_match = tsdf_voxel.weight > 0 && std::abs(tsdf_voxel.distance) < surface_distance;
-      if (export_match)
-      {
-        uint8_t c = 255;
-        v = map.voxelCentreLocal(*iter);
-        ply.addVertex(v, ohm::Colour(c, std::numeric_limits<uint8_t>::max() / 2, 0));
-        ++point_count;
-      }
-    }
+    with_flags |= WithColour;
   }
 
-  ply.save(file_name, true);
+  ohm::Voxel<const ohm::VoxelTsdf> tsdf_voxel(&map, map.layout().layerIndex(ohm::default_layer::tsdfLayerName()));
 
-  return point_count;
+  if (!tsdf_voxel.isLayerValid())
+  {
+    return 0;
+  }
+
+  const auto extract_voxel = [&map, surface_distance, &tsdf_voxel, colour_select](
+                               ExtractedVoxel &voxel, const ohm::OccupancyMap::const_iterator &iter) -> bool {
+    ohm::setVoxelKey(iter, tsdf_voxel);
+    const auto tsdf = tsdf_voxel.data();
+    const bool export_match = tsdf.weight > 0 && std::abs(tsdf.distance) < surface_distance;
+    if (export_match)
+    {
+      voxel.position = map.voxelCentreLocal(*iter);
+      if (colour_select)
+      {
+        voxel.colour = colour_select(tsdf_voxel);
+      }
+      return true;
+    }
+    return false;
+  };
+
+  return ::saveAnyVoxels(file_name, map, extract_voxel, with_flags, prog);
 }
 }  // namespace ohmtools

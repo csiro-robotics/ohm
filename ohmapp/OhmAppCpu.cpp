@@ -566,11 +566,27 @@ int OhmAppCpu::saveCloud(const std::string &path_ply)
   {
     glm::dvec3 min_ext{};
     glm::dvec3 max_ext{};
+    ohmtools::ColourByHeight colour_by_height(*map_);
+    ohmtools::ColourSelectTsdf colour_select;
+
+    if (glm::all(glm::greaterThanEqual(options().output().cloud_colour, glm::vec3(0.0f))))
+    {
+      const ohm::Colour uniform_colour = ohm::Colour::fromRgbf(
+        options().output().cloud_colour.r, options().output().cloud_colour.g, options().output().cloud_colour.b);
+      colour_select = [uniform_colour](const ohm::Voxel<const ohm::VoxelTsdf> &) { return uniform_colour; };
+    }
+    else
+    {
+      colour_select = [&colour_by_height](const ohm::Voxel<const ohm::VoxelTsdf> &voxel) {
+        return colour_by_height.select(voxel.key());
+      };
+    }
+
     map_->calculateExtents(&min_ext, &max_ext);
     point_count = ohmtools::saveTsdfCloud(
       path_ply.c_str(), *map_, min_ext, max_ext,
       std::min(options().map().tsdf.default_truncation_distance, 1.0f * float(options().map().resolution)),
-      save_progress_callback);
+      colour_select, save_progress_callback);
   }
 
   progress_.endProgress();

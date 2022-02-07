@@ -81,7 +81,8 @@ enum ColourMode
   kColourNone,
   kColourHeight,
   kColourLayer,
-  kColourType
+  kColourType,
+  kColourIntensity
 };
 
 struct HeightmapOptions
@@ -652,16 +653,35 @@ int exportPointCloud(const Options &opt, ProgressMonitor &prog, LoadMapProgress 
       static_cast<float>(map.mapInfo().get("tsdf-default-truncation-distance", ohm::MapValue("", 0.1f)));
     if (opt.threshold <= 0)
     {
-      surface_distance = std::min(surface_distance, float(0.75 * map.resolution()));
+      surface_distance = std::min(surface_distance, float(map.resolution()));
     }
     else
     {
       surface_distance = opt.threshold;
     }
+
+    ohmtools::ColourByHeight colour_by_height(map);
+    ohmtools::ColourSelectTsdf colour_select = {};
+
+    if (opt.colour == kColourHeight)
+    {
+      colour_select = [&colour_by_height](const ohm::Voxel<const ohm::VoxelTsdf> &voxel) {
+        return colour_by_height.select(voxel.key());
+      };
+    }
+
     // TODO(KS): set surface distance based on default truncation distance. For that we need to write the TSDF
     // parameters to the map info.
-    export_count =
-      ohmtools::saveTsdfCloud(opt.ply_file.c_str(), map, min_ext, max_ext, surface_distance, save_progress_callback);
+    if (opt.voxel_mode == kVoxelVoxel)
+    {
+      export_count = ohmtools::saveTsdfVoxels(opt.ply_file.c_str(), map, min_ext, max_ext, surface_distance,
+                                              colour_select, save_progress_callback);
+    }
+    else
+    {
+      export_count = ohmtools::saveTsdfCloud(opt.ply_file.c_str(), map, min_ext, max_ext, surface_distance,
+                                             colour_select, save_progress_callback);
+    }
     break;
   }
   default:
