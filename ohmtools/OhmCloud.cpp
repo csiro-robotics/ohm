@@ -276,6 +276,82 @@ ohm::Colour ColourByType::select(const ohm::Voxel<const float> &occupancy) const
 }
 
 
+ColourByOccupancy::ColourByOccupancy(const ohm::OccupancyMap &map, bool ramp_occupied_range)
+  : occupancy_threshold_probability_(map.occupancyThresholdProbability())
+  , ramp_occupied_range(ramp_occupied_range)
+{
+  const ColourByType default_colours(map);
+  colours[0] = default_colours.free_colour;
+  colours[1] = default_colours.occupied_colour;
+}
+
+
+ColourByOccupancy::ColourByOccupancy(const ohm::OccupancyMap &map, const ohm::Colour &from, const ohm::Colour &to,
+                                     bool ramp_occupied_range)
+  : ColourByOccupancy(map, ramp_occupied_range)
+{
+  colours[0] = from;
+  colours[1] = to;
+}
+
+
+ohm::Colour ColourByOccupancy::select(const ohm::Voxel<const float> &occupancy)
+{
+  return select(occupancy.isValid() ? ohm::valueToProbability(occupancy.data()) : 0.0f);
+}
+
+
+ohm::Colour ColourByOccupancy::select(const float occupancy) const
+{
+  float factor = occupancy;
+  if (ramp_occupied_range)
+  {
+    factor = (factor - occupancy_threshold_probability_) / (1.0f - occupancy_threshold_probability_);
+  }
+  factor = std::max(0.0f, std::min(factor, 1.0f));
+  return ohm::Colour::lerp(colours[0], colours[1], factor);
+}
+
+
+const ohm::Colour ColourByIntensity::kDefaultFrom(154, 52, 3);
+const ohm::Colour ColourByIntensity::kDefaultTo(255, 255, 212);
+
+ColourByIntensity::ColourByIntensity(const ohm::OccupancyMap &map, float max_intensity)
+  : intensity_(&map, map.layout().intensityLayer())
+  , max_intensity(max_intensity)
+{
+  colours[0] = kDefaultFrom;
+  colours[1] = kDefaultTo;
+}
+
+
+ColourByIntensity::ColourByIntensity(const ohm::OccupancyMap &map, const ohm::Colour &from, const ohm::Colour &to,
+                                     float max_intensity)
+  : ColourByIntensity(map, max_intensity)
+{
+  colours[0] = from;
+  colours[1] = to;
+}
+
+
+ohm::Colour ColourByIntensity::select(const ohm::Voxel<const float> &occupancy)
+{
+  intensity_.setKey(occupancy);
+  if (intensity_.isValid())
+  {
+    return select(intensity_.data().intensity_mean);
+  }
+  return colours[1];
+}
+
+
+ohm::Colour ColourByIntensity::select(const float intensity) const
+{
+  const float factor = std::max(0.0f, std::min(intensity, max_intensity)) / max_intensity;
+  return ohm::Colour::lerp(colours[0], colours[1], factor);
+}
+
+
 ColourHeightmapLayer::ColourHeightmapLayer(const ohm::OccupancyMap &map)
 {
   ohm::HeightmapDetail heightmap_detail;
