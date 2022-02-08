@@ -113,6 +113,7 @@ struct Options
   double expiry_time = 0;
   float cull_distance = 0;
   float threshold = -1.0f;
+  float max_intensity = 100.0f;
   float colour_scale = 3.0f;
   ExportMode mode = kExportOccupancy;
   ColourModeOrValue colour = ColourModeOrValue(kColourHeight);
@@ -459,6 +460,7 @@ int parseOptions(Options *opt, int argc, char *argv[])  // NOLINT(modernize-avoi
       ("threshold", "Override the map's occupancy threshold or set the density threshold. Only points passing the "
                     "threshold occupied points are exported.",
                     cxxopts::value(opt->threshold)->default_value(optStr(opt->threshold)))
+      ("max-intensity", "Maximum expected intensity value. For use with --colour=intensity, this is the value at which the colour saturates.", optVal(opt->max_intensity))
       ("voxel-mode", "Voxel export mode [point,voxel]: select the ply representation for voxels.", cxxopts::value(opt->voxel_mode)->default_value(optStr(opt->voxel_mode)))
       ;
 
@@ -611,7 +613,7 @@ int exportPointCloud(const Options &opt, ProgressMonitor &prog, LoadMapProgress 
   const auto save_progress_callback = [&prog](size_t progress, size_t /*target*/) { prog.updateProgress(progress); };
   ohmtools::ColourByHeight colour_by_height(map);
   ohmtools::ColourByType colour_by_type(map);
-  ohmtools::ColourByIntensity colour_by_intensity(map);
+  ohmtools::ColourByIntensity colour_by_intensity(map, opt.max_intensity);
   ohmtools::ColourByOccupancy colour_by_occupancy(map);
   ohmtools::ColourHeightmapType colour_by_heightmap_type(map);
   ohmtools::ColourHeightmapLayer colour_by_heightmap_layer(map);
@@ -909,7 +911,7 @@ int exportCovariance(const Options &opt, ProgressMonitor &prog, LoadMapProgress 
   ohmtools::ColourSelect colour_select;
   ohmtools::ColourByHeight colour_by_height(map);
   ohmtools::ColourByType colour_by_type(map);
-  ohmtools::ColourByIntensity colour_by_intensity(map);
+  ohmtools::ColourByIntensity colour_by_intensity(map, opt.max_intensity);
   ohmtools::ColourByOccupancy colour_by_occupancy(map);
   switch (opt.colour.mode)
   {

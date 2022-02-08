@@ -215,14 +215,14 @@ public:
   /// Create a intensity based colouriser.
   /// @param map The map to be colourised.
   /// @param max_intensity The maximum expected intensity value.
-  explicit ColourByIntensity(const ohm::OccupancyMap &map, float max_intensity = 1.0f);
+  explicit ColourByIntensity(const ohm::OccupancyMap &map, float max_intensity = 100.0f);
   /// Create a intensity based colouriser using custom colours.
   /// @param map The map to be colourised.
   /// @param from The lowest intensity colour.
   /// @param to The highest intensity colour.
   /// @param max_intensity The maximum expected intensity value.
   ColourByIntensity(const ohm::OccupancyMap &map, const ohm::Colour &from, const ohm::Colour &to,
-                    float max_intensity = 1.0f);
+                    float max_intensity = 100.0f);
 
   /// Check if colouring by intensity is valid for the configured map object.
   /// @return True if the map used on construction has an appropiate intensity layer.
