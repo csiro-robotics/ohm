@@ -288,8 +288,17 @@ bool SlamCloudLoader::open(const char *sample_file_path, const char *trajectory_
   }
 
   DataChannel required_channels = DataChannel::Position;
+  if (ray_cloud)
+  {
+    // Normals required for a ray cloud.
+    required_channels |= DataChannel::Normal;
+  }
+
   if (imp_->trajectory_reader)
   {
+    const DataChannel required_trajectory_channels = DataChannel::Time | DataChannel::Position;
+    imp_->trajectory_reader->setDesiredChannels(required_trajectory_channels);
+
     if (!imp_->trajectory_reader->open(trajectory_file_path))
     {
       error(imp_->error_log, "Failed to open trajectory file ", trajectory_file_path);
@@ -305,7 +314,6 @@ bool SlamCloudLoader::open(const char *sample_file_path, const char *trajectory_
       return false;
     }
 
-    const DataChannel required_trajectory_channels = DataChannel::Time | DataChannel::Position;
     if ((required_trajectory_channels & imp_->trajectory_reader->availableChannels()) != required_trajectory_channels)
     {
       error(imp_->error_log, "Unable to load required data channels from trajectory from file ", trajectory_file_path);
@@ -317,6 +325,8 @@ bool SlamCloudLoader::open(const char *sample_file_path, const char *trajectory_
     required_channels |= DataChannel::Time;
   }
 
+  // Set desired channels to include the required channels and ones we could additionally use.
+  imp_->sample_reader->setDesiredChannels(required_channels | DataChannel::Colour | DataChannel::Intensity);
   if (!imp_->sample_reader->open(sample_file_path))
   {
     error(imp_->error_log, "Unable to open point cloud ", sample_file_path);

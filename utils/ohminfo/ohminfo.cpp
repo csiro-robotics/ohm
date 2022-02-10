@@ -56,12 +56,13 @@ int parseOptions(Options *opt, int argc, char *argv[])  // NOLINT(modernize-avoi
 
   try
   {
-    opt_parse.add_options()("help", "Show help.")("i,map", "The input map file (ohm) to load.",
-                                                  cxxopts::value(opt->map_file))(
-      "extents", "Report map extents? Requires region traversal",
-      optVal(opt->calculate_extents)->implicit_value("true"))(
-      "detail", "Traverse voxels for detailed information? min occupancy, max occupancy, max samples (if available)",
-      optVal(opt->detail)->implicit_value("true"));
+    // clang-format off
+    opt_parse.add_options()
+      ("help", "Show help.")
+      ("i,map", "The input map file (ohm) to load.",cxxopts::value(opt->map_file))
+      ("extents", "Report map extents? Requires region traversal", optVal(opt->calculate_extents)->implicit_value("true"))
+      ("detail","Traverse voxels for detailed information? min ""occupancy, max occupancy, max samples (if available)", optVal(opt->detail)->implicit_value("true"));
+    // clang-format on
 
     opt_parse.parse_positional({ "map" });
 
@@ -259,20 +260,21 @@ int main(int argc, char *argv[])
   {
     float min_occupancy = std::numeric_limits<float>::max();
     float max_occupancy = -std::numeric_limits<float>::max();
+    float min_intensity = std::numeric_limits<float>::max();
+    float max_intensity = -std::numeric_limits<float>::max();
     uint64_t free_voxels = 0;
     uint64_t occupied_voxels = 0;
     uint64_t total_point_count = 0;
     unsigned max_point_count = 0;
 
-    const int mean_layer = map.layout().meanLayer();
-
     ohm::Voxel<const float> voxel(&map, map.layout().occupancyLayer());
     ohm::Voxel<const ohm::VoxelMean> mean(&map, map.layout().meanLayer());
+    ohm::Voxel<const ohm::IntensityMeanCov> intensity(&map, map.layout().intensityLayer());
     if (voxel.isLayerValid())
     {
       for (auto iter = map.begin(); iter != map.end() && !g_quit; ++iter)
       {
-        ohm::setVoxelKey(iter, voxel, mean);
+        ohm::setVoxelKey(iter, voxel, mean, intensity);
         float value;
         voxel.read(&value);
         if (value != ohm::unobservedOccupancyValue())
@@ -280,15 +282,26 @@ int main(int argc, char *argv[])
           min_occupancy = std::min(value, min_occupancy);
           max_occupancy = std::max(value, max_occupancy);
 
-          free_voxels += (value < map.occupancyThresholdValue());
-          occupied_voxels += (value >= map.occupancyThresholdValue());
+          const bool is_occupied = (value >= map.occupancyThresholdValue());
+          free_voxels += !!(value < map.occupancyThresholdValue());
+          occupied_voxels += !!is_occupied;
 
-          if (mean.isLayerValid() && value >= map.occupancyThresholdValue())
+          if (is_occupied)
           {
-            ohm::VoxelMean mean_info;
-            mean.read(&mean_info);
-            max_point_count = std::max<unsigned>(mean_info.count, max_point_count);
-            total_point_count += mean_info.count;
+            if (mean.isValid())
+            {
+              ohm::VoxelMean mean_info;
+              mean.read(&mean_info);
+              max_point_count = std::max<unsigned>(mean_info.count, max_point_count);
+              total_point_count += mean_info.count;
+            }
+
+            if (intensity.isValid())
+            {
+              const float intensity_value = intensity.data().intensity_mean;
+              min_intensity = std::min(min_intensity, intensity_value);
+              max_intensity = std::max(max_intensity, intensity_value);
+            }
           }
         }
       }
@@ -300,10 +313,16 @@ int main(int argc, char *argv[])
       std::cout << "Free voxels: " << free_voxels << std::endl;
       std::cout << "Occupied voxels: " << occupied_voxels << std::endl;
 
-      if (mean_layer >= 0)
+      if (mean.isLayerValid())
       {
         std::cout << "Max voxel samples: " << max_point_count << std::endl;
         std::cout << "Average voxel samples: " << total_point_count / occupied_voxels << std::endl;
+      }
+
+      if (intensity.isLayerValid())
+      {
+        std::cout << "Minimum intensity: " << min_intensity << std::endl;
+        std::cout << "Maximum intensity: " << max_intensity << std::endl;
       }
     }
     else

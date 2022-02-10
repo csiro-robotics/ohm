@@ -560,6 +560,17 @@ size_t GpuMap::integrateRays(const glm::dvec3 *rays, size_t element_count, const
     return 0u;
   }
 
+  // Drop intensity and timestamps if we do not have the map layers to support it. This saves on uploading unnecesary
+  // GPU data.
+  if (map.layout().intensityLayer() < 0)
+  {
+    intensities = nullptr;
+  }
+  if (map.layout().layerIndex(default_layer::touchTimeLayerName()) < 0)
+  {
+    timestamps = nullptr;
+  }
+
   // Ensure we are using the correct GPU program. Voxel mean support may have changed.
   cacheGpuProgram(imp_->support_voxel_mean && map.voxelMeanEnabled(), imp_->support_traversal && map.traversalEnabled(),
                   false);
