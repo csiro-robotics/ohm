@@ -518,6 +518,11 @@ inline __device__ void calculateHitMissUpdateOnHit(CovarianceVoxel *cov_voxel, f
 /// is used whenever the `point_count &lt; sample_threshold`, with @p miss_value added to @p voxel_value or
 /// @p voxel_value set to @p miss_value when @p voxel_value equals @p uninitialised_value .
 ///
+/// Note the @p adaptation_rate affects the strength of the NDT probability adjustment on a miss. This should generally
+/// be configured to be in proportion with the probability corresponding to the @p miss_value else the NDT erosion
+/// effects can be more significant than those of using pure occupancy. For suggested value initialisation see
+/// @c NdtMap::ndtAdaptationRateFromMissProbability() .
+///
 /// @param cov_voxel The packed covariance for the voxel. Only used if the `point_count &gt; sample_threshold`.
 /// @param[in,out] voxel_value The current voxel log probably value.
 /// @param[out] is_miss Set to true if the ray misses the estimated voxel shape (or there is insufficient data yet).
@@ -529,7 +534,7 @@ inline __device__ void calculateHitMissUpdateOnHit(CovarianceVoxel *cov_voxel, f
 /// @param miss_value The @p voxel_value adjustment to apply from a miss. This must be less than zero to decrease the
 /// occupancy probability. The NDT scaling factor is also derived from this value.
 /// @param adaptation_rate The adaptation rate for ellipsoid intersections. This value is given [0, 1], but it's
-/// usage sees it scaled [0, 0.5].
+/// usage sees it scaled [0, 0.5] as values greater than 0.5 would yield negative probabilities.
 /// @param sensor_noise The sensor range noise error (standard deviation). Must be greater than zero.
 /// @param sample_threshold The @p point_count required before using NDT logic, i.e., before the covariance value is
 /// usable.

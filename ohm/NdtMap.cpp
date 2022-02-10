@@ -36,6 +36,10 @@ NdtMap::NdtMap(OccupancyMap *map, bool borrowed_map, NdtMode mode)
   imp_->map = map;
   imp_->borrowed_map = borrowed_map;
   imp_->mode = mode;
+  if (imp_->adaptation_rate <= 0)
+  {
+    imp_->adaptation_rate = ndtAdaptationRateFromMissProbability(map->missProbability());
+  }
   enableNdt(map, mode);
   updateMapInfo();
 }

@@ -118,6 +118,35 @@ public:
   /// Is tracing enabled?
   bool trace() const;
 
+  /// Calculate an NDT adaptation rate which matches the strength of a pure occupancy miss probability.
+  ///
+  /// The NDT adaptation rate is a scaling factor for adjusting the probability on a miss using the NDT algorithm.
+  /// While it may be set independently to the standard occupancy miss adjustment, this can yield much stronger NDT
+  /// clearing effects than standard occupancy. This function seeks to keep the adaptation rate in line with the
+  /// strength of the standard miss probability. That is, to achieve the same clearing effect as pure occupancy when
+  /// the NDT algorithm yields a intersection probability of 1.
+  ///
+  /// The @p scale may be used to increase or decrease the NDT clearing effect in proportion with the pure occupancy
+  /// clearing effect. For example, setting the scale to 2 will make the NDT clearing effect twice as strong as pure
+  /// occupancy. This may be desirable as NDT clearing effect is already dynamic, with increased effect when a ray
+  /// passes directly through the ellipsoid described by the covariance matrix.
+  ///
+  /// The adaptation rate is calculated as follows:
+  ///
+  /// @code{.unparsed}
+  ///   adaptation_rate = scale * (1 - 2 * miss_probability)
+  /// @endcode
+  ///
+  /// The result is then clamped to the range [0, 1].
+  ///
+  /// @param miss_probability The probability adjustment made on a pure occupancy miss, ranging (0, 0.5)
+  /// @param scale Optional scaling factor for the result.
+  /// @return The calculated NDT adaptation rate/scale factor [0, 1].
+  static inline constexpr float ndtAdaptationRateFromMissProbability(float miss_probability, float scale = 1.0f)
+  {
+    return std::max(0.0f, std::min(scale * (1.0f - 2.0f * miss_probability), 1.0f));
+  }
+
 private:
   /// Update members of the underlying @c OccupancyMap::mapInfo() to include NDT parameters.
   void updateMapInfo();

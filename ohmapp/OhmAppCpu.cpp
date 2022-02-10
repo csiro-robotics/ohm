@@ -205,7 +205,9 @@ void OhmAppCpu::NdtOptions::configure(cxxopts::OptionAdder &adder)
     ("ndt", "Normal distribution transform (NDT) occupancy map generation mode {off,om,tm}. Mode om is the NDT occupancy mode, where tm adds traversability mapping data.", optVal(mode)->implicit_value(optStr(ohm::NdtMode::kOccupancy)))
     ("ndt-cov-point-threshold", "Minimum number of samples requires in order to allow the covariance to reset at --ndt-cov-prob-threshold..", optVal(covariance_reset_sample_count))
     ("ndt-cov-prob-threshold", "Low probability threshold at which the covariance can be reset as samples accumulate once more. See also --ndt-cov-point-threshold.", optVal(covariance_reset_probability))
-    ("ndt-adaptation-rate", "NDT adaptation rate [0, 1]. Controls how fast rays remove NDT voxels. Has a strong effect than miss_value when using NDT.", optVal(adaptation_rate))
+    ("ndt-adaptation-rate", "NDT adaptation rate [0, 1]. Controls the clearing effect of the NDT. "
+                            "Should be kept in proportion with miss value such as 'a(1 - 2 * miss)' "
+                            "where 'a' is a chosen scale factor (1 for comparable strength to the miss value).", optVal(adaptation_rate))
     ("ndt-sensor-noise", "Range sensor noise used for Ndt mapping. Must be > 0.", optVal(sensor_noise))
     ;
   // clang-format on
