@@ -80,8 +80,24 @@ enum ColourMode
 {
   kColourNone,
   kColourHeight,
+  kColourIntensity,
   kColourLayer,
+  kColourOccupancy,
   kColourType
+};
+
+struct ColourModeOrValue
+{
+  ColourMode mode = kColourNone;  ///< kColourNone implies use of value.
+  ohm::Colour value = ohm::Colour::kColours[ohm::Colour::kLightSeaGreen];
+
+  explicit inline ColourModeOrValue(ColourMode mode = kColourNone)
+    : mode(mode)
+  {}
+
+  explicit inline ColourModeOrValue(ohm::Colour value)
+    : value(value)
+  {}
 };
 
 struct HeightmapOptions
@@ -97,9 +113,10 @@ struct Options
   double expiry_time = 0;
   float cull_distance = 0;
   float threshold = -1.0f;
+  float max_intensity = 100.0f;
   float colour_scale = 3.0f;
   ExportMode mode = kExportOccupancy;
-  ColourMode colour = kColourHeight;
+  ColourModeOrValue colour = ColourModeOrValue(kColourHeight);
   VoxelMode voxel_mode = kVoxelPoint;
 
   HeightmapOptions heightmap;
@@ -321,42 +338,78 @@ std::ostream &operator<<(std::ostream &out, const VoxelMode mode)
 }
 
 
-std::istream &operator>>(std::istream &in, ColourMode &mode)
+std::istream &operator>>(std::istream &in, ColourModeOrValue &colour)
 {
   std::string mode_str;
   in >> mode_str;
   if (mode_str == "none")
   {
-    mode = kColourNone;
+    colour.mode = kColourNone;
   }
   else if (mode_str == "height")
   {
-    mode = kColourHeight;
+    colour.mode = kColourHeight;
+  }
+  else if (mode_str == "intensity")
+  {
+    colour.mode = kColourIntensity;
+  }
+  else if (mode_str == "occupancy")
+  {
+    colour.mode = kColourOccupancy;
   }
   else if (mode_str == "layer")
   {
-    mode = kColourLayer;
+    colour.mode = kColourLayer;
   }
   else if (mode_str == "type")
   {
-    mode = kColourType;
+    colour.mode = kColourType;
   }
   else
   {
-    badArg(mode_str);
+    // Try value parsing.
+    colour.mode = kColourNone;
+    bool ok = true;
+    int channel = 0;
+    char ch = '\0';
+
+    std::istringstream str_in(mode_str);
+    str_in >> channel >> ch;
+    ok = ok && !str_in.fail() && 0 <= channel && channel <= 255 && ch == ',';
+    colour.value.rgba[ohm::Colour::kR] = channel;
+
+    str_in >> channel >> ch;
+    ok = ok && !str_in.fail() && 0 <= channel && channel <= 255 && ch == ',';
+    colour.value.rgba[ohm::Colour::kG] = channel;
+
+    str_in >> channel;
+    ok = ok && !str_in.fail() && 0 <= channel && channel <= 255;
+    colour.value.rgba[ohm::Colour::kB] = channel;
+
+    if (!ok)
+    {
+      badArg(mode_str);
+    }
   }
   return in;
 }
 
-std::ostream &operator<<(std::ostream &out, const ColourMode mode)
+std::ostream &operator<<(std::ostream &out, const ColourModeOrValue colour)
 {
-  switch (mode)
+  switch (colour.mode)
   {
   case kColourNone:
-    out << "none";
+    out << int(colour.value.r()) << ',' << int(colour.value.g()) << ',' << int(colour.value.b());
     break;
   case kColourHeight:
     out << "height";
+    break;
+  case kColourIntensity:
+    out << "intensity";
+    break;
+  case kColourOccupancy:
+    out << "occupancy";
     break;
   case kColourLayer:
     out << "layer";
@@ -394,7 +447,7 @@ int parseOptions(Options *opt, int argc, char *argv[])  // NOLINT(modernize-avoi
     opt_parse.add_options()
       ("help", "Show help.")
       ("colour-scale", "Colour max scaling value for colouring a clearance or heightmap cloud. Max colour at this range..", cxxopts::value(opt->colour_scale))
-      ("colour", "Colour control for exported point clouds {none,height,type}.", optVal(opt->colour))
+      ("colour", "Colour control for exported point clouds {none,height,intensity,occupancy,layer,type,<r,g,b>}.", optVal(opt->colour))
       ("cloud", "The output cloud file (ply).", cxxopts::value(opt->ply_file))
       ("cull", "Remove regions farther than the specified distance from the map origin.", cxxopts::value(opt->cull_distance)->default_value(optStr(opt->cull_distance)))
       ("map", "The input map file (ohm).", cxxopts::value(opt->map_file))
@@ -407,6 +460,7 @@ int parseOptions(Options *opt, int argc, char *argv[])  // NOLINT(modernize-avoi
       ("threshold", "Override the map's occupancy threshold or set the density threshold. Only points passing the "
                     "threshold occupied points are exported.",
                     cxxopts::value(opt->threshold)->default_value(optStr(opt->threshold)))
+      ("max-intensity", "Maximum expected intensity value. For use with --colour=intensity, this is the value at which the colour saturates.", optVal(opt->max_intensity))
       ("voxel-mode", "Voxel export mode [point,voxel]: select the ply representation for voxels.", cxxopts::value(opt->voxel_mode)->default_value(optStr(opt->voxel_mode)))
       ;
 
@@ -559,6 +613,8 @@ int exportPointCloud(const Options &opt, ProgressMonitor &prog, LoadMapProgress 
   const auto save_progress_callback = [&prog](size_t progress, size_t /*target*/) { prog.updateProgress(progress); };
   ohmtools::ColourByHeight colour_by_height(map);
   ohmtools::ColourByType colour_by_type(map);
+  ohmtools::ColourByIntensity colour_by_intensity(map, opt.max_intensity);
+  ohmtools::ColourByOccupancy colour_by_occupancy(map);
   ohmtools::ColourHeightmapType colour_by_heightmap_type(map);
   ohmtools::ColourHeightmapLayer colour_by_heightmap_layer(map);
 
@@ -574,12 +630,42 @@ int exportPointCloud(const Options &opt, ProgressMonitor &prog, LoadMapProgress 
     save_opt.ignore_voxel_mean = opt.mode != kExportOccupancy;
     save_opt.export_free = opt.mode == kExportObserved;
     // Default colour mode for saveCloud() is colour by height.
-    save_opt.allow_default_colour_selection = (opt.colour == kColourHeight);
-    if (opt.colour == kColourType)
+    save_opt.allow_default_colour_selection = (opt.colour.mode == kColourHeight);
+    switch (opt.colour.mode)
     {
+    case kColourNone:
+      save_opt.colour_select = [&opt](const ohm::Voxel<const float> &) { return opt.colour.value; };
+      break;
+    case kColourType:
       save_opt.colour_select = [&colour_by_type](const ohm::Voxel<const float> &occupancy) {
         return colour_by_type.select(occupancy);
       };
+      break;
+    case kColourHeight:
+      save_opt.colour_select = [&colour_by_height](const ohm::Voxel<const float> &occupancy) {
+        return colour_by_height.select(occupancy);
+      };
+      break;
+    case kColourOccupancy:
+      save_opt.colour_select = [&colour_by_occupancy](const ohm::Voxel<const float> &occupancy) {
+        return colour_by_occupancy.select(occupancy);
+      };
+      break;
+    case kColourIntensity:
+    {
+      if (!colour_by_intensity.isValid())
+      {
+        std::cerr << "Cannot colour by intensity. Intenstiy layer not found." << std::endl;
+        return -1;
+      }
+      save_opt.colour_select = [&colour_by_intensity](const ohm::Voxel<const float> &occupancy) {
+        return colour_by_intensity.select(occupancy);
+      };
+      break;
+    }
+    default:
+      std::cerr << "Unsupported colour mode for occupancy export: " << opt.colour << std::endl;
+      return -1;
     }
     if (opt.voxel_mode == kVoxelVoxel)
     {
@@ -606,23 +692,46 @@ int exportPointCloud(const Options &opt, ProgressMonitor &prog, LoadMapProgress 
     save_opt.ignore_voxel_mean = false;
     save_opt.export_free = true;
     save_opt.collapse = opt.heightmap.collapse;
-    if (opt.colour == kColourHeight)
+    switch (opt.colour.mode)
     {
+    case kColourNone:
+      save_opt.colour_select = [&opt](const ohm::Voxel<const float> &) { return opt.colour.value; };
+      break;
+    case kColourHeight:
       save_opt.colour_select = [&colour_by_height](const ohm::Voxel<const float> &occupancy) {
         return colour_by_height.select(occupancy);
       };
-    }
-    else if (opt.colour == kColourLayer)
-    {
+      break;
+    case kColourLayer:
       save_opt.colour_select = [&colour_by_heightmap_layer](const ohm::Voxel<const float> &occupancy) {
         return colour_by_heightmap_layer.select(occupancy);
       };
-    }
-    else if (opt.colour == kColourType)
-    {
+      break;
+    case kColourOccupancy:
+      save_opt.colour_select = [&colour_by_occupancy](const ohm::Voxel<const float> &occupancy) {
+        return colour_by_occupancy.select(occupancy);
+      };
+      break;
+    case kColourType:
       save_opt.colour_select = [&colour_by_heightmap_type](const ohm::Voxel<const float> &occupancy) {
         return colour_by_heightmap_type.select(occupancy);
       };
+      break;
+    case kColourIntensity:
+    {
+      if (!colour_by_intensity.isValid())
+      {
+        std::cerr << "Cannot colour by intensity. Intenstiy layer not found." << std::endl;
+        return -1;
+      }
+      save_opt.colour_select = [&colour_by_intensity](const ohm::Voxel<const float> &occupancy) {
+        return colour_by_intensity.select(occupancy);
+      };
+      break;
+    }
+    default:
+      std::cerr << "Unsupported colour mode for heightmap export: " << opt.colour << std::endl;
+      return -1;
     }
     if (opt.voxel_mode == kVoxelVoxel)
     {
@@ -652,16 +761,43 @@ int exportPointCloud(const Options &opt, ProgressMonitor &prog, LoadMapProgress 
       static_cast<float>(map.mapInfo().get("tsdf-default-truncation-distance", ohm::MapValue("", 0.1f)));
     if (opt.threshold <= 0)
     {
-      surface_distance = std::min(surface_distance, float(0.75 * map.resolution()));
+      surface_distance = std::min(surface_distance, float(map.resolution()));
     }
     else
     {
       surface_distance = opt.threshold;
     }
+
+    ohmtools::ColourByHeight colour_by_height(map);
+    ohmtools::ColourSelectTsdf colour_select = {};
+
+    switch (opt.colour.mode)
+    {
+    case kColourNone:
+      colour_select = [&opt](const ohm::Voxel<const ohm::VoxelTsdf> &) { return opt.colour.value; };
+      break;
+    case kColourHeight:
+      colour_select = [&colour_by_height](const ohm::Voxel<const ohm::VoxelTsdf> &voxel) {
+        return colour_by_height.select(voxel.key());
+      };
+      break;
+    default:
+      std::cerr << "Unsupported colour mode for TSDF export: " << opt.colour << std::endl;
+      return -1;
+    }
+
     // TODO(KS): set surface distance based on default truncation distance. For that we need to write the TSDF
     // parameters to the map info.
-    export_count =
-      ohmtools::saveTsdfCloud(opt.ply_file.c_str(), map, min_ext, max_ext, surface_distance, save_progress_callback);
+    if (opt.voxel_mode == kVoxelVoxel)
+    {
+      export_count = ohmtools::saveTsdfVoxels(opt.ply_file.c_str(), map, min_ext, max_ext, surface_distance,
+                                              colour_select, save_progress_callback);
+    }
+    else
+    {
+      export_count = ohmtools::saveTsdfCloud(opt.ply_file.c_str(), map, min_ext, max_ext, surface_distance,
+                                             colour_select, save_progress_callback);
+    }
     break;
   }
   default:
@@ -748,20 +884,20 @@ int exportCovariance(const Options &opt, ProgressMonitor &prog, LoadMapProgress 
   std::vector<unsigned> sphere_inds;
   makeUnitSphere(sphere_verts, sphere_inds);
 
-  const auto add_ellipsoid = [&sphere_verts, &sphere_inds](ohm::PlyMesh &ply, const glm::dmat4 &transform)  //
+  const auto add_ellipsoid =
+    [&sphere_verts, &sphere_inds](ohm::PlyMesh &ply, const glm::dmat4 &transform, const ohm::Colour &colour)  //
   {
     unsigned index_offset = ~0u;
 
-    const ohm::Colour c = ohm::Colour::kColours[ohm::Colour::kSeaGreen];
     for (const auto &v : sphere_verts)
     {
-      index_offset = std::min(ply.addVertex(glm::dvec3(transform * glm::dvec4(v, 1.0)), c), index_offset);
+      index_offset = std::min(ply.addVertex(glm::dvec3(transform * glm::dvec4(v, 1.0)), colour), index_offset);
     }
 
     for (size_t i = 0; i < sphere_inds.size(); i += 3)
     {
       ply.addTriangle(sphere_inds[i + 0] + index_offset, sphere_inds[i + 1] + index_offset,
-                      sphere_inds[i + 2] + index_offset, c);
+                      sphere_inds[i + 2] + index_offset, colour);
     }
   };
 
@@ -771,6 +907,48 @@ int exportCovariance(const Options &opt, ProgressMonitor &prog, LoadMapProgress 
   ohm::Voxel<const float> occupancy(&map, map.layout().occupancyLayer());
   ohm::Voxel<const ohm::VoxelMean> mean(&map, map.layout().meanLayer());
   ohm::Voxel<const ohm::CovarianceVoxel> covariance(&map, map.layout().covarianceLayer());
+
+  ohmtools::ColourSelect colour_select;
+  ohmtools::ColourByHeight colour_by_height(map);
+  ohmtools::ColourByType colour_by_type(map);
+  ohmtools::ColourByIntensity colour_by_intensity(map, opt.max_intensity);
+  ohmtools::ColourByOccupancy colour_by_occupancy(map);
+  switch (opt.colour.mode)
+  {
+  case kColourNone:
+    colour_select = [&opt](const ohm::Voxel<const float> &) { return opt.colour.value; };
+    break;
+  case kColourType:
+    colour_select = [&colour_by_type](const ohm::Voxel<const float> &occupancy) {
+      return colour_by_type.select(occupancy);
+    };
+    break;
+  case kColourHeight:
+    colour_select = [&colour_by_height](const ohm::Voxel<const float> &occupancy) {
+      return colour_by_height.select(occupancy);
+    };
+    break;
+  case kColourIntensity:
+  {
+    if (!colour_by_intensity.isValid())
+    {
+      std::cerr << "Cannot colour by intensity. Intenstiy layer not found." << std::endl;
+      return -1;
+    }
+    colour_select = [&colour_by_intensity](const ohm::Voxel<const float> &occupancy) {
+      return colour_by_intensity.select(occupancy);
+    };
+    break;
+  }
+  case kColourOccupancy:
+    colour_select = [&colour_by_occupancy](const ohm::Voxel<const float> &occupancy) {
+      return colour_by_occupancy.select(occupancy);
+    };
+    break;
+  default:
+    std::cerr << "Unsupported colour mode for occupancy export: " << opt.colour << std::endl;
+    return -1;
+  }
 
   if (!occupancy.isLayerValid())
   {
@@ -824,7 +1002,7 @@ int exportCovariance(const Options &opt, ProgressMonitor &prog, LoadMapProgress 
     scale *= scale_factor;
 
     const glm::dmat4 transform = glm::translate(pos) * glm::mat4_cast(rot) * glm::scale(scale);
-    add_ellipsoid(ply, transform);
+    add_ellipsoid(ply, transform, colour_select(occupancy));
   }
 
 #if OHM_COV_DEBUG

@@ -276,6 +276,82 @@ ohm::Colour ColourByType::select(const ohm::Voxel<const float> &occupancy) const
 }
 
 
+ColourByOccupancy::ColourByOccupancy(const ohm::OccupancyMap &map, bool ramp_occupied_range)
+  : occupancy_threshold_probability_(map.occupancyThresholdProbability())
+  , ramp_occupied_range(ramp_occupied_range)
+{
+  const ColourByType default_colours(map);
+  colours[0] = default_colours.free_colour;
+  colours[1] = default_colours.occupied_colour;
+}
+
+
+ColourByOccupancy::ColourByOccupancy(const ohm::OccupancyMap &map, const ohm::Colour &from, const ohm::Colour &to,
+                                     bool ramp_occupied_range)
+  : ColourByOccupancy(map, ramp_occupied_range)
+{
+  colours[0] = from;
+  colours[1] = to;
+}
+
+
+ohm::Colour ColourByOccupancy::select(const ohm::Voxel<const float> &occupancy)
+{
+  return select(occupancy.isValid() ? ohm::valueToProbability(occupancy.data()) : 0.0f);
+}
+
+
+ohm::Colour ColourByOccupancy::select(const float occupancy) const
+{
+  float factor = occupancy;
+  if (ramp_occupied_range)
+  {
+    factor = (factor - occupancy_threshold_probability_) / (1.0f - occupancy_threshold_probability_);
+  }
+  factor = std::max(0.0f, std::min(factor, 1.0f));
+  return ohm::Colour::lerp(colours[0], colours[1], factor);
+}
+
+
+const ohm::Colour ColourByIntensity::kDefaultFrom(154, 52, 3);
+const ohm::Colour ColourByIntensity::kDefaultTo(255, 255, 212);
+
+ColourByIntensity::ColourByIntensity(const ohm::OccupancyMap &map, float max_intensity)
+  : intensity_(&map, map.layout().intensityLayer())
+  , max_intensity(max_intensity)
+{
+  colours[0] = kDefaultFrom;
+  colours[1] = kDefaultTo;
+}
+
+
+ColourByIntensity::ColourByIntensity(const ohm::OccupancyMap &map, const ohm::Colour &from, const ohm::Colour &to,
+                                     float max_intensity)
+  : ColourByIntensity(map, max_intensity)
+{
+  colours[0] = from;
+  colours[1] = to;
+}
+
+
+ohm::Colour ColourByIntensity::select(const ohm::Voxel<const float> &occupancy)
+{
+  intensity_.setKey(occupancy);
+  if (intensity_.isValid())
+  {
+    return select(intensity_.data().intensity_mean);
+  }
+  return colours[1];
+}
+
+
+ohm::Colour ColourByIntensity::select(const float intensity) const
+{
+  const float factor = std::max(0.0f, std::min(intensity, max_intensity)) / max_intensity;
+  return ohm::Colour::lerp(colours[0], colours[1], factor);
+}
+
+
 ColourHeightmapLayer::ColourHeightmapLayer(const ohm::OccupancyMap &map)
 {
   ohm::HeightmapDetail heightmap_detail;
@@ -872,61 +948,82 @@ size_t saveClearanceCloud(const std::string &file_name, const ohm::OccupancyMap 
 
 
 size_t saveTsdfCloud(const std::string &file_name, const ohm::OccupancyMap &map, const glm::dvec3 &min_extents,
-                     const glm::dvec3 &max_extents, float surface_distance, const ProgressCallback &prog)
+                     const glm::dvec3 &max_extents, float surface_distance, const ColourSelectTsdf &colour_select,
+                     const ProgressCallback &prog)
 {
-  const size_t region_count = map.regionCount();
-  size_t processed_region_count = 0;
-  glm::dvec3 v;
-  glm::i16vec3 last_region = map.begin().key().regionKey();
-  ohm::PlyMesh ply;
-  size_t point_count = 0;
+  // Work out if we need colour.
+  unsigned with_flags = 0;
+  std::unique_ptr<ColourByHeight> colour_by_height;
 
-  glm::i16vec3 min_region = map.regionKey(min_extents);
-  glm::i16vec3 max_region = map.regionKey(max_extents);
-
-  ohm::Voxel<const ohm::VoxelTsdf> tsdf(&map, map.layout().layerIndex(ohm::default_layer::tsdfLayerName()));
-
-  if (!tsdf.isLayerValid())
+  if (colour_select)
   {
-    // No tsdf layer.
+    with_flags |= WithColour;
+  }
+
+  ohm::Voxel<const ohm::VoxelTsdf> tsdf_voxel(&map, map.layout().layerIndex(ohm::default_layer::tsdfLayerName()));
+
+  if (!tsdf_voxel.isLayerValid())
+  {
     return 0;
   }
 
-  const auto map_end_iter = map.end();
+  const auto extract_voxel = [&map, surface_distance, &tsdf_voxel, colour_select](
+                               ExtractedVoxel &voxel, const ohm::OccupancyMap::const_iterator &iter) -> bool {
+    ohm::setVoxelKey(iter, tsdf_voxel);
+    const auto tsdf = tsdf_voxel.data();
+    const bool export_match = tsdf.weight > 0 && std::abs(tsdf.distance) < surface_distance;
+    if (export_match)
+    {
+      voxel.position = map.voxelCentreLocal(*iter);
+      if (colour_select)
+      {
+        voxel.colour = colour_select(tsdf_voxel);
+      }
+      return true;
+    }
+    return false;
+  };
 
-  // TODO(KS): Need to ensure the iterator doesn't skip voxels for TSDF: MapChunk::first_valid_index management.
-  for (auto iter = map.begin(); iter != map_end_iter; ++iter)
+  return ::saveAnyCloud(file_name, map, extract_voxel, with_flags, prog);
+}
+
+
+size_t saveTsdfVoxels(const std::string &file_name, const ohm::OccupancyMap &map, const glm::dvec3 &min_extents,
+                      const glm::dvec3 &max_extents, float surface_distance, const ColourSelectTsdf &colour_select,
+                      const ProgressCallback &prog)
+{
+  // Work out if we need colour.
+  unsigned with_flags = 0;
+  std::unique_ptr<ColourByHeight> colour_by_height;
+  if (colour_select)
   {
-    tsdf.setKey(*iter);
-    if (last_region != iter.key().regionKey())
-    {
-      ++processed_region_count;
-      if (prog)
-      {
-        prog(processed_region_count, region_count);
-      }
-      last_region = iter.key().regionKey();
-    }
-
-    // Ensure the voxel is in a region we have calculated data for.
-    if (min_region.x <= last_region.x && last_region.x <= max_region.x &&  //
-        min_region.y <= last_region.y && last_region.y <= max_region.y &&  //
-        min_region.z <= last_region.z && last_region.z <= max_region.z)
-    {
-      const ohm::VoxelTsdf tsdf_voxel = tsdf.data();
-      const bool export_match = tsdf_voxel.weight > 0 && std::abs(tsdf_voxel.distance) < surface_distance;
-      if (export_match)
-      {
-        uint8_t c = 255;
-        v = map.voxelCentreLocal(*iter);
-        ply.addVertex(v, ohm::Colour(c, std::numeric_limits<uint8_t>::max() / 2, 0));
-        ++point_count;
-      }
-    }
+    with_flags |= WithColour;
   }
 
-  ply.save(file_name, true);
+  ohm::Voxel<const ohm::VoxelTsdf> tsdf_voxel(&map, map.layout().layerIndex(ohm::default_layer::tsdfLayerName()));
 
-  return point_count;
+  if (!tsdf_voxel.isLayerValid())
+  {
+    return 0;
+  }
+
+  const auto extract_voxel = [&map, surface_distance, &tsdf_voxel, colour_select](
+                               ExtractedVoxel &voxel, const ohm::OccupancyMap::const_iterator &iter) -> bool {
+    ohm::setVoxelKey(iter, tsdf_voxel);
+    const auto tsdf = tsdf_voxel.data();
+    const bool export_match = tsdf.weight > 0 && std::abs(tsdf.distance) < surface_distance;
+    if (export_match)
+    {
+      voxel.position = map.voxelCentreLocal(*iter);
+      if (colour_select)
+      {
+        voxel.colour = colour_select(tsdf_voxel);
+      }
+      return true;
+    }
+    return false;
+  };
+
+  return ::saveAnyVoxels(file_name, map, extract_voxel, with_flags, prog);
 }
 }  // namespace ohmtools

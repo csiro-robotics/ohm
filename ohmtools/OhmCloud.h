@@ -8,7 +8,9 @@
 
 #include "OhmToolsConfig.h"
 
+#include <ohm/CovarianceVoxel.h>
 #include <ohm/KeyRange.h>
+#include <ohm/VoxelTsdf.h>
 
 #include <ohmutil/Colour.h>
 
@@ -35,6 +37,9 @@ using ProgressCallback = std::function<void(size_t, size_t)>;
 
 /// Colour selection filter function. May be used to override colour assignment.
 using ColourSelect = std::function<ohm::Colour(const ohm::Voxel<const float> &)>;
+
+/// Colour selection filter function for TSDF. May be used to override colour assignment.
+using ColourSelectTsdf = std::function<ohm::Colour(const ohm::Voxel<const ohm::VoxelTsdf> &)>;
 
 /// Options used to adjust how a cloud is saved from an occupancy map.
 struct ohmtools_API SaveCloudOptions
@@ -153,6 +158,88 @@ public:
 
 private:
   float occupancy_threshold_ = 0;
+};
+
+/// A helper for @c saveCloud() to colour a cloud by occupancy probability.
+///
+/// Colours from @c colours[0] to @c colours[1] across the occupancy probability range [0, 1].
+class ohmtools_API ColourByOccupancy
+{
+public:
+  /// Colours to interpolate from `[0]` and to `[1]` across the intensity range.
+  std::array<ohm::Colour, 2> colours;
+  /// Set the interpolation range to the default occupied probability only [0.5, 1.0]?
+  bool ramp_occupied_range = true;
+
+  /// Create a occupancy probability based colouriser.
+  /// @param ramp_occupied_range Set the interpolation range to the default occupied probability only [0.5, 1.0]?
+  ColourByOccupancy(const ohm::OccupancyMap &map, bool ramp_occupied_range = true);
+  /// Create a occupancy probability based colouriser using custom colours.
+  /// @param from The lowest occupancy probablility colour.
+  /// @param to The highest occupancy probablility colour.
+  /// @param ramp_occupied_range Set the interpolation range to the default occupied probability only [0.5, 1.0]?
+  ColourByOccupancy(const ohm::OccupancyMap &map, const ohm::Colour &from, const ohm::Colour &to,
+                    bool ramp_occupied_range = true);
+
+  /// Select a colour for the given voxel @p occupancy.
+  /// @param occupancy The voxel to colour.
+  /// @return The colour for the voxel at @p occupancy.
+  ohm::Colour select(const ohm::Voxel<const float> &occupancy);
+
+  /// Select a colour for the given @p occupancy value.
+  /// @param occupancy Occupancy probability to colour for [0, 1].
+  /// @return The colour for the voxel.
+  ohm::Colour select(const float occupancy) const;
+
+private:
+  float occupancy_threshold_probability_ = 0;
+};
+
+/// A helper for @c saveCloud() to colour a cloud by intensity.
+///
+/// Colours from @c colours[0] to @c colours[1] across the intensity range [0, max_intensity].
+///
+/// Note the @c select() function accepts an occupancy voxel and resolves the corresponding @c IntensityMeanCov value.
+class ohmtools_API ColourByIntensity
+{
+public:
+  /// Default colour for the mimimum intensity value
+  static const ohm::Colour kDefaultFrom;
+  /// Default colour for the maximum intensity value
+  static const ohm::Colour kDefaultTo;
+
+  /// Colours to interpolate from `[0]` and to `[1]` across the intensity range.
+  std::array<ohm::Colour, 2> colours;
+  float max_intensity = 1.0f;
+
+  /// Create a intensity based colouriser.
+  /// @param map The map to be colourised.
+  /// @param max_intensity The maximum expected intensity value.
+  explicit ColourByIntensity(const ohm::OccupancyMap &map, float max_intensity = 100.0f);
+  /// Create a intensity based colouriser using custom colours.
+  /// @param map The map to be colourised.
+  /// @param from The lowest intensity colour.
+  /// @param to The highest intensity colour.
+  /// @param max_intensity The maximum expected intensity value.
+  ColourByIntensity(const ohm::OccupancyMap &map, const ohm::Colour &from, const ohm::Colour &to,
+                    float max_intensity = 100.0f);
+
+  /// Check if colouring by intensity is valid for the configured map object.
+  /// @return True if the map used on construction has an appropiate intensity layer.
+  inline bool isValid() const { return intensity_.isLayerValid(); }
+
+  /// Select a colour for the given voxel @p occupancy.
+  /// @param occupancy The voxel to colour.
+  /// @return The colour for the voxel at @p occupancy.
+  ohm::Colour select(const ohm::Voxel<const float> &occupancy);
+
+  /// Select a colour for the given @p intensity value.
+  /// @param intensity Intensity value to colour for [0, max_intensity].
+  /// @return The colour for the voxel @p intensity.
+  ohm::Colour select(const float intensity) const;
+
+private:
+  ohm::Voxel<const ohm::IntensityMeanCov> intensity_;
 };
 
 /// Colour heightmap voxels such that voxels in matching heightmap layers have the same colour.
@@ -323,7 +410,20 @@ size_t ohmtools_API saveClearanceCloud(const std::string &file_name, const ohm::
 /// @param surface_distance Surface distance threshold to export with.
 /// @param prog Optional function called to report on progress.
 size_t saveTsdfCloud(const std::string &file_name, const ohm::OccupancyMap &map, const glm::dvec3 &min_extents,
-                     const glm::dvec3 &max_extents, float surface_distance, const ProgressCallback &prog);
+                     const glm::dvec3 &max_extents, float surface_distance, const ColourSelectTsdf &colour_select = {},
+                     const ProgressCallback &prog = ProgressCallback());
+
+/// Save a point cloud from TSDF layer data.
+///
+/// @param file_name File to save to. Please add the .ply extension.
+/// @param map The map to save voxels from.
+/// @param min_extents Min extents to save overlapping regions from.
+/// @param max_extents Max extents to save overlapping regions from.
+/// @param surface_distance Surface distance threshold to export with.
+/// @param prog Optional function called to report on progress.
+size_t saveTsdfVoxels(const std::string &file_name, const ohm::OccupancyMap &map, const glm::dvec3 &min_extents,
+                      const glm::dvec3 &max_extents, float surface_distance, const ColourSelectTsdf &colour_select = {},
+                      const ProgressCallback &prog = ProgressCallback());
 }  // namespace ohmtools
 
 #endif  // OHMTOOLS_OHMCLOUD_H
