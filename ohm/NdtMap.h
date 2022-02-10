@@ -127,9 +127,10 @@ public:
   /// the NDT algorithm yields a intersection probability of 1.
   ///
   /// The @p scale may be used to increase or decrease the NDT clearing effect in proportion with the pure occupancy
-  /// clearing effect. For example, setting the scale to 2 will make the NDT clearing effect twice as strong as pure
-  /// occupancy. This may be desirable as NDT clearing effect is already dynamic, with increased effect when a ray
-  /// passes directly through the ellipsoid described by the covariance matrix.
+  /// clearing effect. For example, setting the scale to 1 will make the NDT clearing effect as strong as pure
+  /// occupancy on a direct intersection with an occupied voxel's ellipsoid as described by the covariance matrix. The
+  /// default scaling is 2 as NDT clearing effect is already dynamic, with increased effect the more directlly a ray
+  /// passes through the ellipsoid.
   ///
   /// The adaptation rate is calculated as follows:
   ///
@@ -142,7 +143,7 @@ public:
   /// @param miss_probability The probability adjustment made on a pure occupancy miss, ranging (0, 0.5)
   /// @param scale Optional scaling factor for the result.
   /// @return The calculated NDT adaptation rate/scale factor [0, 1].
-  static inline constexpr float ndtAdaptationRateFromMissProbability(float miss_probability, float scale = 1.0f)
+  static inline constexpr float ndtAdaptationRateFromMissProbability(float miss_probability, float scale = 2.0f)
   {
     return std::max(0.0f, std::min(scale * (1.0f - 2.0f * miss_probability), 1.0f));
   }
