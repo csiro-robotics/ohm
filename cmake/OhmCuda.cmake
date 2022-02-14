@@ -12,6 +12,11 @@ if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.18)
   set(OHM_USE_DEPRECATED_CMAKE_CUDA_DEFAULT OFF)
 endif(CMAKE_VERSION VERSION_GREATER_EQUAL 3.18)
 
+# Configure an option for forcibly using the deprecated CUDA project configuration.
+option(OHM_USE_DEPRECATED_CMAKE_CUDA
+  "Use deprecated CUDA project setup? Disabling requires CMake 3.10+ but the CUDA architecture cannot be set until 3.18."
+  ${OHM_USE_DEPRECATED_CMAKE_CUDA_DEFAULT})
+
 # Find if CUDA is available.
 if(NOT OHM_USE_DEPRECATED_CMAKE_CUDA)
   # Newer way of finding CUDA.
@@ -29,17 +34,12 @@ if(NOT OHM_USE_DEPRECATED_CMAKE_CUDA)
     set(OHM_BUILD_CUDA_DEFAULT ON)
   endif(CMAKE_CUDA_COMPILER)
 else(NOT OHM_USE_DEPRECATED_CMAKE_CUDA)
+  find_package(CUDA)
   if(CUDA_FOUND)
     set(OHM_CUDA_VERSION "${CUDA_VERSION}")
     set(OHM_BUILD_CUDA_DEFAULT ON)
   endif(CUDA_FOUND)
 endif(NOT OHM_USE_DEPRECATED_CMAKE_CUDA)
-
-
-# Configure an option for forcibly using the deprecated CUDA project configuration.
-option(OHM_USE_DEPRECATED_CMAKE_CUDA
-  "Use deprecated CUDA project setup? Disabling requires CMake 3.10+ but the CUDA architecture cannot be set until 3.18."
-  ${OHM_USE_DEPRECATED_CMAKE_CUDA_DEFAULT})
 
 # Set the option for building ohm with CUDA based on whether or not we found it.
 option(OHM_BUILD_CUDA "Build ohm library and utlities for CUDA?" ${OHM_BUILD_CUDA_DEFAULT})
