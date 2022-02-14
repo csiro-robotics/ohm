@@ -25,8 +25,11 @@ struct NdtMapDetail
   /// Number of samples required before using NDT logic in a miss integration.
   unsigned sample_threshold = 3;
   /// Rate at which ray intersections with NDT ellipsoids errode voxels. Range [0, 1] with 1 yielding stronger
-  /// effects.
-  float adaptation_rate = 0.7f;  // NOLINT(readability-magic-numbers)
+  /// effects. Initialise to zero here. Should be reset on NDT map construction to match the normal occupancy miss
+  /// value by default, otherwise we will yield stronger erosion from NDT misses.
+  ///
+  /// See NdtMap::ndtAdaptationRateFromMissProbability()
+  float adaptation_rate = 0;  // NOLINT(readability-magic-numbers)
   /// Low probability value threshold used to re-initialise covariance matrix and mean.
   /// Used with @c reinitialise_covariance_point_count in @c calculateHitWithCovariance()
   float reinitialise_covariance_threshold = probabilityToValue(0.2f);  // NOLINT(readability-magic-numbers)
