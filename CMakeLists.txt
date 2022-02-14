@@ -31,7 +31,6 @@ option(OHM_BUILD_SHARED_SUPPRESS_WARNINGS
   "Suppress warnings relating the DLL export symbols when building shared? Disables MSC warnings C4251 and C4275" ON)
 option(OHM_PROFILE "Enable timing information messages for some queries." Off)
 option(OHM_TES_DEBUG "Enable visual debuging code?" Off)
-option(OHM_THREADS "Enable CPU threading (using Thread Building Blocks)? Not advisable for onboard compilation." ${TBB_THREADS_DEFAULT})
 option(OHM_UNIT_TESTS "Build ohm units tests?" On)
 option(OHM_VALIDATION "Enable various validation tests in the occupancy map code. Has some performance impact." Off)
 # OHM_BUILD_CUDA is found in OhmCuda.cmake
@@ -151,6 +150,7 @@ if(NOT DEFINED OHM_THREADS)
 else(NOT DEFINED OHM_THREADS)
   set(TBB_THREADS_DEFAULT ${OHM_THREADS})
 endif(NOT DEFINED OHM_THREADS)
+option(OHM_THREADS "Enable CPU threading (using Thread Building Blocks)?" ${TBB_THREADS_DEFAULT})
 
 # Manage compiler warnings.
 # Use CMAKE_MODULE_PATH and include(warnings) if warnings.cmake is moved.

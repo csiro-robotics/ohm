@@ -44,8 +44,8 @@ struct VoxelBlockCompressionQueueDetail
   /// Queue used to push @c VoxelBlock candidates for compression.
   tbb::concurrent_queue<VoxelBlock *> compression_queue;
 #else   // OHM_THREADS
-  /// Spin lock mutex for @c compression_queue
-  ohm::SpinMutex queue_lock;
+  /// Mutex for @c compression_queue
+  ohm::Mutex queue_lock;
   /// Queue used to push @c VoxelBlock candidates for compression.
   std::queue<VoxelBlock *> compression_queue;
 #endif  // OHM_THREADS
@@ -74,7 +74,7 @@ inline void push(VoxelBlockCompressionQueueDetail &detail, VoxelBlock *block)
 #ifdef OHM_THREADS
   detail.compression_queue.push(block);
 #else   // OHM_THREADS
-  std::unique_lock<ohm::SpinMutex> guard(detail.queue_lock);
+  std::unique_lock<ohm::Mutex> guard(detail.queue_lock);
   detail.compression_queue.emplace(block);
 #endif  // OHM_THREADS
 }
@@ -84,10 +84,10 @@ inline bool tryPop(VoxelBlockCompressionQueueDetail &detail, VoxelBlock **block)
 #ifdef OHM_THREADS
   return detail.compression_queue.try_pop(*block);
 #else   // OHM_THREADS
-  std::unique_lock<ohm::SpinMutex> guard(detail.queue_lock);
+  std::unique_lock<ohm::Mutex> guard(detail.queue_lock);
   if (!detail.compression_queue.empty())
   {
-    *block = detail.compression_queue.back();
+    *block = detail.compression_queue.front();
     detail.compression_queue.pop();
     return true;
   }
