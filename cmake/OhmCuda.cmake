@@ -1,4 +1,3 @@
-
 # OHM_BUILD_CUDA_DEFAULT is used to initialise the OHM_BUILD_CUDA option. We have to work out if CUDA is present first.
 # How we do so depends on the CMake version.
 set(OHM_BUILD_CUDA_DEFAULT OFF) # Initialisation value for OHM_BUILD_CUDA
@@ -34,6 +33,20 @@ if(NOT OHM_USE_DEPRECATED_CMAKE_CUDA)
     set(OHM_BUILD_CUDA_DEFAULT ON)
   endif(CMAKE_CUDA_COMPILER)
 else(NOT OHM_USE_DEPRECATED_CMAKE_CUDA)
+  # Ensure we use the dynamic/shared runtime libraries when building shared libaries. See message below.
+  if(BUILD_SHARED_LIBS)
+    if(NOT DEFINED CUDA_USE_STATIC_CUDA_RUNTIME OR CUDA_USE_STATIC_CUDA_RUNTIME)
+      if(CUDA_USE_STATIC_CUDA_RUNTIME)
+        # Wrong value for CUDA_USE_STATIC_CUDA_RUNTIME : warn user.
+        message("Warning: BUILD_SHARED_LIBS and CUDA_USE_STATIC_CUDA_RUNTIME are both set. This can result in runtime "
+                "failures when invoking CUDA kernels. Forcing CUDA_USE_STATIC_CUDA_RUNTIME to OFF.\n"
+                "Use cmake-gui, ccmake or manually edit the CMakeCache.txt file for this project to update these values.")
+      endif(CUDA_USE_STATIC_CUDA_RUNTIME)
+      set(CUDA_USE_STATIC_CUDA_RUNTIME Off CACHE BOOL
+          "Use the static version of the CUDA runtime library if available"
+          FORCE)
+    endif(NOT DEFINED CUDA_USE_STATIC_CUDA_RUNTIME OR CUDA_USE_STATIC_CUDA_RUNTIME)
+  endif(BUILD_SHARED_LIBS)
   find_package(CUDA)
   if(CUDA_FOUND)
     set(OHM_CUDA_VERSION "${CUDA_VERSION}")
@@ -118,18 +131,6 @@ endmacro(_cuda_setup_build_options)
 # Setup CUDA build options for the older, deprecated project configuration.
 #==============================================================================
 macro(_cuda_setup_deprecated_build_options)
-  # Setup CUDA_USE_STATIC_CUDA_RUNTIME, forcing it on WIN32 if using BUILD_SHARED_LIBS
-  # See the warning message below.
-  if(BUILD_SHARED_LIBS)
-    if(CUDA_USE_STATIC_CUDA_RUNTIME)
-      message("Warning: BUILD_SHARED_LIBS and CUDA_USE_STATIC_CUDA_RUNTIME are both set. This can result in runtime "
-              "failures when invoking CUDA kernels. Forcing CUDA_USE_STATIC_CUDA_RUNTIME to OFF.\n"
-              "Use cmake-gui, ccmake or manually edit the CMakeCache.txt file for this project to update these values.")
-    endif(CUDA_USE_STATIC_CUDA_RUNTIME)
-    set(CUDA_USE_STATIC_CUDA_RUNTIME Off)
-  else(BUILD_SHARED_LIBS)
-    set(CUDA_USE_STATIC_CUDA_RUNTIME On)
-  endif(BUILD_SHARED_LIBS)
   set(CUDA_LINK_LIBRARIES_KEYWORD PRIVATE)
 
     # Configure CUDA NVCC falgs for each selected CUDA architecture.
