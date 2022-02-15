@@ -18,6 +18,34 @@ string(REGEX REPLACE "\\<version\\>(.*)\\</version\\>" "\\1" ohm_VERSION ${ohm_V
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
 
+# Setup core ohm build options.
+# Default to building shared libs.
+set(OHM_BUILD_SHARED_DEFAULT ON)
+if(DEFINED BUILD_SHARED_LIBS)
+  # But use BUILD_SHARED_LIBS as the default if it's specified (like from the command line).
+  set(OHM_BUILD_SHARED_DEFAULT ${BUILD_SHARED_LIBS})
+endif(DEFINED BUILD_SHARED_LIBS)
+option(OHM_BUILD_SHARED "Build shared ohm libraries?" ${OHM_BUILD_SHARED_DEFAULT})
+# For details on OHM_BUILD_SHARED_SUPPRESS_WARNINGS, see usage in compilerSetup.cmake
+option(OHM_BUILD_SHARED_SUPPRESS_WARNINGS
+  "Suppress warnings relating the DLL export symbols when building shared? Disables MSC warnings C4251 and C4275" ON)
+option(OHM_PROFILE "Enable timing information messages for some queries." Off)
+option(OHM_TES_DEBUG "Enable visual debuging code?" Off)
+option(OHM_UNIT_TESTS "Build ohm units tests?" On)
+option(OHM_VALIDATION "Enable various validation tests in the occupancy map code. Has some performance impact." Off)
+# OHM_BUILD_CUDA is found in OhmCuda.cmake
+option(OHM_BUILD_OPENCL "Build ohm library and utlities for OpenCL?" ${OHM_BUILD_OPENCL_DEFAULT})
+option(OHM_LEAK_TRACK "Enable memory leak tracking?" OFF)
+
+# Build options
+option(OHM_BUILD_DOXYGEN "Build doxygen documentation?" Off)
+
+# Migrate ohm specific setting for building shared libraries to the CMake global option.
+set(BUILD_SHARED_LIBS ${OHM_BUILD_SHARED})
+if(BUILD_SHARED_LIBS)
+  message(STATUS "Building shared ohm libraries.")
+endif(BUILD_SHARED_LIBS)
+
 # Setup clang-tidy
 include(ClangTidy)
 
@@ -50,6 +78,20 @@ find_package(GLM REQUIRED)
 
 # Look for OpenCL to setup OpenCL build options.
 find_package(OpenCL QUIET)
+
+if(OpenCL_FOUND)
+  option(OHM_EMBED_GPU_CODE "Embed GPU code into the executable (OpenCL)? Otherwise GPU code files are loaded from disk (better for development)." ON)
+
+  set(OHM_OPENCL_SDK_VER 1.2 CACHE STRING "Select the OpenCL runtime API to use.")
+  set_property(CACHE OHM_OPENCL_SDK_VER PROPERTY STRINGS 1.2 2.0 2.1 2.2 3.0)
+
+  set(OHM_OPENCL_STD 2.0 CACHE STRING "Select the default OpenCL standard to compile GPU code against. Also runtime configurable. [max] uses the reported device allowing for 2.x requires features.")
+  set_property(CACHE OHM_OPENCL_STD PROPERTY STRINGS 1.2 2.0 3.0 max)
+endif(OpenCL_FOUND)
+
+# Identify any exteions required to compile with OpenCL 2.0 std.
+set(OHM_OPENCL_2_FEATURES "" CACHE STRING "Features required for OpenCL 2.x. Fallback to 1.2 otherwise.")
+
 # Look for CUDA to setup CUDA build options and work out which CMake CUDA paradigm we'll use.
 include(OhmCuda)
 if(OHM_BUILD_CUDA)
@@ -66,20 +108,6 @@ set(OHM_BUILD_OPENCL_DEFAULT NO)
 if(OPENCL_FOUND)
   set(OHM_BUILD_OPENCL_DEFAULT YES)
 endif(OPENCL_FOUND)
-
-# Build options
-option(OHM_BUILD_DOXYGEN "Build doxygen documentation?" Off)
-
-option(OHM_EMBED_GPU_CODE "Embed GPU code into the executable (OpenCL)? Otherwise GPU code files are loaded from disk (better for development)." ON)
-
-set(OHM_OPENCL_SDK_VER 1.2 CACHE STRING "Select the OpenCL runtime API to use.")
-set_property(CACHE OHM_OPENCL_SDK_VER PROPERTY STRINGS 1.2 2.0 2.1 2.2 3.0)
-
-set(OHM_OPENCL_STD 2.0 CACHE STRING "Select the default OpenCL standard to compile GPU code against. Also runtime configurable. [max] uses the reported device allowing for 2.x requires features.")
-set_property(CACHE OHM_OPENCL_STD PROPERTY STRINGS 1.2 2.0 3.0 max)
-
-# Identify any exteions required to compile with OpenCL 2.0 std.
-set(OHM_OPENCL_2_FEATURES "" CACHE STRING "Features required for OpenCL 2.x. Fallback to 1.2 otherwise.")
 
 # Helper macro to Find TBB prefering TBBConfig, falling back to FindTBB. TBB_LIBRARIES will be defined in both cases.
 # TBB_INCLUDE_DIRS will be empty for TBBConfig, and populated for FindTBB.
@@ -122,35 +150,11 @@ if(NOT DEFINED OHM_THREADS)
 else(NOT DEFINED OHM_THREADS)
   set(TBB_THREADS_DEFAULT ${OHM_THREADS})
 endif(NOT DEFINED OHM_THREADS)
-
-# Default to building shared libs.
-set(OHM_BUILD_SHARED_DEFAULT ON)
-if(DEFINED BUILD_SHARED_LIBS)
-  # But use BUILD_SHARED_LIBS as the default if it's specified (like from the command line).
-  set(OHM_BUILD_SHARED_DEFAULT ${BUILD_SHARED_LIBS})
-endif(DEFINED BUILD_SHARED_LIBS)
-option(OHM_BUILD_SHARED "Build shared ohm libraries?" ${OHM_BUILD_SHARED_DEFAULT})
-# For details on OHM_BUILD_SHARED_SUPPRESS_WARNINGS, see usage in compilerSetup.cmake
-option(OHM_BUILD_SHARED_SUPPRESS_WARNINGS
-  "Suppress warnings relating the DLL export symbols when building shared? Disables MSC warnings C4251 and C4275" ON)
-option(OHM_PROFILE "Enable timing information messages for some queries." Off)
-option(OHM_TES_DEBUG "Enable visual debuging code?" Off)
-option(OHM_THREADS "Enable CPU threading (using Thread Building Blocks)? Not advisable for onboard compilation." ${TBB_THREADS_DEFAULT})
-option(OHM_UNIT_TESTS "Build ohm units tests?" On)
-option(OHM_VALIDATION "Enable various validation tests in the occupancy map code. Has some performance impact." Off)
-# OHM_BUILD_CUDA is found in OhmCuda.cmake
-option(OHM_BUILD_OPENCL "Build ohm library and utlities for OpenCL?" ${OHM_BUILD_OPENCL_DEFAULT})
-option(OHM_LEAK_TRACK "Enable memory leak tracking?" OFF)
+option(OHM_THREADS "Enable CPU threading (using Thread Building Blocks)?" ${TBB_THREADS_DEFAULT})
 
 # Manage compiler warnings.
 # Use CMAKE_MODULE_PATH and include(warnings) if warnings.cmake is moved.
 include(compilerSetup)
-
-# Migrate ohm specific setting for building shared libraries to the CMake global option.
-set(BUILD_SHARED_LIBS ${OHM_BUILD_SHARED})
-if(BUILD_SHARED_LIBS)
-  message(STATUS "Building shared ohm libraries.")
-endif(BUILD_SHARED_LIBS)
 
 # Now setup CUDA after knowing if we are building shared libraries or not.
 cuda_setup()
