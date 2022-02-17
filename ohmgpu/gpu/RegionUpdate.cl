@@ -45,6 +45,7 @@
 #include "CovarianceVoxelCompute.h"
 #endif  // NDT
 
+#include "LineWalkMarkers.cl"
 #include "Regions.cl"
 
 //------------------------------------------------------------------------------
@@ -143,8 +144,9 @@ typedef struct LineWalkData_t
 #endif  // NDT
 
 // Implement the voxel traversal function. We update the value of the voxel using atomic instructions.
-__device__ bool VISIT_LINE_VOXEL(const GpuKey *voxelKey, bool isEndVoxel, const GpuKey *startKey, const GpuKey *endKey,
-                                 float voxel_resolution, float entryTime, float exitTime, void *userData)
+__device__ bool VISIT_LINE_VOXEL(const GpuKey *voxelKey, int voxelMarker, const GpuKey *startKey, const GpuKey *endKey,
+                                 float voxel_resolution, float entryTime, float exitTime, bool reverseWalk,
+                                 void *userData)
 {
   float old_value, new_value;
 
@@ -153,7 +155,9 @@ __device__ bool VISIT_LINE_VOXEL(const GpuKey *voxelKey, bool isEndVoxel, const 
 
   // Abort if this is the sample voxel and we are to exclude the sample. The sample voxel is detected when isEndVoxel
   // is true and voxel[3] is zero. A value of 1 indicates a clipped ray and the end voxel does not contain the sample.
-  const bool is_sample_voxel = isEndVoxel && endKey->voxel[3] == 0;
+  const bool is_sample_candidate =
+    (!reverseWalk) ? voxelMarker == LINE_WALK_END_VOXEL : voxelMarker == LINE_WALK_START_VOXEL;
+  const bool is_sample_voxel = is_sample_candidate && voxelKey->voxel[3] == 0;
   if (is_sample_voxel && (line_data->region_update_flags & kRfExcludeSample))
   {
     return true;
@@ -180,8 +184,8 @@ __device__ bool VISIT_LINE_VOXEL(const GpuKey *voxelKey, bool isEndVoxel, const 
   }
 
   // Adjust value by ray_adjustment unless this is the sample voxel.
-  float adjustment =
-    calculateOccupancyAdjustment(voxelKey, isEndVoxel, is_sample_voxel, startKey, endKey, voxel_resolution, line_data);
+  float adjustment = calculateOccupancyAdjustment(voxelKey, is_sample_candidate, is_sample_voxel, startKey, endKey,
+                                                  voxel_resolution, line_data);
 
   // This voxel lies in the region. We will make a value adjustment.
   // Work out which voxel to modify.
@@ -223,7 +227,8 @@ __device__ bool VISIT_LINE_VOXEL(const GpuKey *voxelKey, bool isEndVoxel, const 
       // Check exclusion flags and skip this voxel if excluded.
       // We skip by a 'break' statement which will break out of the compare and swap loop. Could return true.
       // Check skipping unobserved.
-      if (initially_unobserved && (line_data->region_update_flags & kRfExcludeUnobserved))
+      // We also check for zero adjustment here.
+      if (initially_unobserved && (line_data->region_update_flags & kRfExcludeUnobserved) || adjustment == 0)
       {
         adjustment = 0;  // Flag null adjustment. Prevents mean update.
         break;
@@ -459,11 +464,14 @@ __kernel void REGION_UPDATE_KERNEL(
   // end voxel centre.
   // 1. Calculate the voxel step from endKey to startKey.
   // 2. Scale results by voxelResolution.
-  const int3 voxelDiff = keyDiff(&end_key, &start_key, &region_dimensions);
+  // const int3 voxelDiff = keyDiff(&end_key, &start_key, &region_dimensions);
+  // const float3 start_voxel_centre = make_float3(voxelDiff.x * voxel_resolution + 0.5f * voxel_resolution,
+  //                                               voxelDiff.y * voxel_resolution + 0.5f * voxel_resolution,
+  //                                               voxelDiff.z * voxel_resolution + 0.5f * voxel_resolution);
   const float3 start_voxel_centre =
-    make_float3(voxelDiff.x * voxel_resolution, voxelDiff.y * voxel_resolution, voxelDiff.z * voxel_resolution);
-  WALK_LINE_VOXELS(&start_key, &end_key, &start_voxel_centre, &lineStart, &lineEnd, &region_dimensions,
-                   voxel_resolution, &line_data);
+    make_float3(0.5f * voxel_resolution, 0.5f * voxel_resolution, 0.5f * voxel_resolution);
+  WALK_LINE_VOXELS(&end_key, &start_key, &start_voxel_centre, &lineEnd, &lineStart, &region_dimensions,
+                   voxel_resolution, true, &line_data);
 }
 
 #undef REGION_UPDATE_KERNEL

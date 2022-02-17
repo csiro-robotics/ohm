@@ -41,6 +41,7 @@
 #include "MapCoord.h"
 #include "VoxelTsdfCompute.h"
 
+#include "LineWalkMarkers.cl"
 #include "Regions.cl"
 
 //------------------------------------------------------------------------------
@@ -90,9 +91,9 @@ typedef struct TsdfWalkData_t
 //
 // Note: TSDF ray tracing is actually done in reverse. This can greatly reduce voxel contension improving TSDF
 // performance (as the CAS loop limit is hit less often) and quality (as be abandon data less often).
-__device__ bool VISIT_LINE_VOXEL(const GpuKey *voxel_key, bool is_end_voxel, const GpuKey *end_key,
-                                 const GpuKey *start_key, float voxel_resolution, float entry_time, float exit_time,
-                                 void *user_data)
+__device__ bool visitVoxelTsdfUpdate(const GpuKey *voxel_key, bool is_end_voxel, const GpuKey *end_key,
+                                     const GpuKey *start_key, float voxel_resolution, float entry_time, float exit_time,
+                                     bool reverseWalk, void *user_data)
 {
   TsdfWalkData *tsdf_data = (TsdfWalkData *)user_data;
 
@@ -291,11 +292,15 @@ __kernel void tsdfRayUpdate(__global VoxelTsdf *tsdf_voxels, __global ulonglong 
   // end voxel centre.
   // 1. Calculate the voxel step from end_key to start_key.
   // 2. Scale results by voxelResolution.
-  const int3 voxel_diff = keyDiff(&end_key, &start_key, &region_dimensions);
+  // const int3 voxel_diff = keyDiff(&end_key, &start_key, &region_dimensions);
+  // const float3 start_voxel_centre = make_float3(voxelDiff.x * voxel_resolution + 0.5f * voxel_resolution,
+  //                                               voxelDiff.y * voxel_resolution + 0.5f * voxel_resolution,
+  //                                               voxelDiff.z * voxel_resolution + 0.5f * voxel_resolution);
+  // For reverse line walk, the start voxel centre is always (0, 0, 0).
   const float3 start_voxel_centre =
-    make_float3(voxel_diff.x * voxel_resolution, voxel_diff.y * voxel_resolution, voxel_diff.z * voxel_resolution);
+    make_float3(0.5f * voxel_resolution, 0.5f * voxel_resolution, 0.5f * voxel_resolution);
   WALK_LINE_VOXELS(&end_key, &start_key, &start_voxel_centre, &line_end, &line_start, &region_dimensions,
-                   voxel_resolution, &tsdf_data);
+                   voxel_resolution, true, &tsdf_data);
 }
 
 #undef VISIT_LINE_VOXEL
