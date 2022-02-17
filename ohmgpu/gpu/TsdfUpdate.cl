@@ -87,8 +87,11 @@ typedef struct TsdfWalkData_t
 
 // A somewhat tacked on implementation of Truncated Signed Distance Fields.
 // Implement the voxel traversal function. We update the value of the voxel using atomic instructions.
-__device__ bool VISIT_LINE_VOXEL(const GpuKey *voxel_key, bool is_end_voxel, const GpuKey *start_key,
-                                 const GpuKey *end_key, float voxel_resolution, float entry_time, float exit_time,
+//
+// Note: TSDF ray tracing is actually done in reverse. This can greatly reduce voxel contension improving TSDF
+// performance (as the CAS loop limit is hit less often) and quality (as be abandon data less often).
+__device__ bool VISIT_LINE_VOXEL(const GpuKey *voxel_key, bool is_end_voxel, const GpuKey *end_key,
+                                 const GpuKey *start_key, float voxel_resolution, float entry_time, float exit_time,
                                  void *user_data)
 {
   TsdfWalkData *tsdf_data = (TsdfWalkData *)user_data;
@@ -291,7 +294,7 @@ __kernel void tsdfRayUpdate(__global VoxelTsdf *tsdf_voxels, __global ulonglong 
   const int3 voxel_diff = keyDiff(&end_key, &start_key, &region_dimensions);
   const float3 start_voxel_centre =
     make_float3(voxel_diff.x * voxel_resolution, voxel_diff.y * voxel_resolution, voxel_diff.z * voxel_resolution);
-  WALK_LINE_VOXELS(&start_key, &end_key, &start_voxel_centre, &line_start, &line_end, &region_dimensions,
+  WALK_LINE_VOXELS(&end_key, &start_key, &start_voxel_centre, &line_end, &line_start, &region_dimensions,
                    voxel_resolution, &tsdf_data);
 }
 
