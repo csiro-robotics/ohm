@@ -145,8 +145,7 @@ typedef struct LineWalkData_t
 
 // Implement the voxel traversal function. We update the value of the voxel using atomic instructions.
 __device__ bool VISIT_LINE_VOXEL(const GpuKey *voxelKey, int voxelMarker, const GpuKey *startKey, const GpuKey *endKey,
-                                 float voxel_resolution, float entryTime, float exitTime, bool reverseWalk,
-                                 void *userData)
+                                 float voxel_resolution, float entryTime, float exitTime, void *userData)
 {
   float old_value, new_value;
 
@@ -155,8 +154,7 @@ __device__ bool VISIT_LINE_VOXEL(const GpuKey *voxelKey, int voxelMarker, const 
 
   // Abort if this is the sample voxel and we are to exclude the sample. The sample voxel is detected when isEndVoxel
   // is true and voxel[3] is zero. A value of 1 indicates a clipped ray and the end voxel does not contain the sample.
-  const bool is_sample_candidate =
-    (!reverseWalk) ? voxelMarker == LINE_WALK_END_VOXEL : voxelMarker == LINE_WALK_START_VOXEL;
+  const bool is_sample_candidate = voxelMarker == kLineWalkMarkerEnd;
   const bool is_sample_voxel = is_sample_candidate && voxelKey->voxel[3] == 0;
   if (is_sample_voxel && (line_data->region_update_flags & kRfExcludeSample))
   {
@@ -460,18 +458,30 @@ __kernel void REGION_UPDATE_KERNEL(
   line_data.sensor = lineStart;
   line_data.touch_time = (touch_times) ? touch_times[get_global_id(0)] : 0;
 
-  // We need to calculate the start voxel centre in the right coordinate space. All coordinates are relative to the
-  // end voxel centre.
-  // 1. Calculate the voxel step from endKey to startKey.
-  // 2. Scale results by voxelResolution.
-  // const int3 voxelDiff = keyDiff(&end_key, &start_key, &region_dimensions);
-  // const float3 start_voxel_centre = make_float3(voxelDiff.x * voxel_resolution + 0.5f * voxel_resolution,
-  //                                               voxelDiff.y * voxel_resolution + 0.5f * voxel_resolution,
-  //                                               voxelDiff.z * voxel_resolution + 0.5f * voxel_resolution);
-  const float3 start_voxel_centre =
-    make_float3(0.5f * voxel_resolution, 0.5f * voxel_resolution, 0.5f * voxel_resolution);
-  WALK_LINE_VOXELS(&end_key, &start_key, &start_voxel_centre, &lineEnd, &lineStart, &region_dimensions,
-                   voxel_resolution, true, &line_data);
+  // For reverse line walk, the start voxel centre is always (0, 0, 0).
+  float3 start_voxel_centre = make_float3(0.0f, 0.0f, 0.0f);
+  int walk_flags = 0;
+  if ((region_update_flags & kRfForwardWalk) != 0)
+  {
+    // We need to calculate the start voxel centre in the right coordinate space. All coordinates are relative to the
+    // end voxel centre.
+    // 1. Calculate the voxel step from endKey to startKey.
+    // 2. Scale results by voxelResolution.
+    const int3 voxelDiff = keyDiff(&end_key, &start_key, &region_dimensions);
+    start_voxel_centre =
+      make_float3(voxelDiff.x * voxel_resolution, voxelDiff.y * voxel_resolution, voxelDiff.z * voxel_resolution);
+  }
+  else
+  {
+    walk_flags |= kLineWalkFlagReverse;
+#ifndef NDT
+    // For non-NDT (pure occupancy) updates, force reporting the sample last. This yields better occupancy behaviour
+    // and less erosion.
+    walk_flags |= kLineWalkFlagForReportEndLast;
+#endif  // !NDT
+  }
+  WALK_LINE_VOXELS(&start_key, &end_key, &start_voxel_centre, &lineStart, &lineEnd, &region_dimensions,
+                   voxel_resolution, walk_flags, &line_data);
 }
 
 #undef REGION_UPDATE_KERNEL

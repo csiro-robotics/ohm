@@ -15,7 +15,7 @@
 #define VISIT_LINE_VOXEL lineKeysVisitVoxel
 __device__ bool lineKeysVisitVoxel(const GpuKey *voxelKey, int voxelMarker, const GpuKey *startKey,
                                    const GpuKey *endKey, float voxelResolution, float entryRange, float exitRange,
-                                   bool reverseWalk, void *userData);
+                                   void *userData);
 
 // Must be included after above defined
 #include "LineWalk.cl"
@@ -34,7 +34,7 @@ __device__ void calculateLineKeys(__global GpuKey *lineOut, uint maxKeys, const 
 
 __device__ bool lineKeysVisitVoxel(const GpuKey *voxelKey, int voxelMarker, const GpuKey *startKey,
                                    const GpuKey *endKey, float voxelResolution, float entryRange, float exitRange,
-                                   bool reverseWalk, void *userData)
+                                   void *userData)
 {
   LineWalkData *lineData = (LineWalkData *)userData;
   copyKey(&lineData->lineOut[1 + lineData->keyCount++], voxelKey);
@@ -52,7 +52,8 @@ __device__ void calculateLineKeys(__global GpuKey *lineOut, uint maxKeys, const 
   lineData.keyCount = 0;
 
   const float3 origin = make_float3(0, 0, 0);
-  lineKeysWalkLine(startKey, endKey, &origin, startPoint, endPoint, regionDim, voxelResolution, false, &lineData);
+  lineKeysWalkLine(startKey, endKey, &origin, startPoint, endPoint, regionDim, voxelResolution, kLineWalkFlagNone,
+                   &lineData);
 
   // Write result count to the first entry.
   lineOut[0].region[0] = lineOut[0].region[1] = lineOut[0].region[2] = lineData.keyCount;

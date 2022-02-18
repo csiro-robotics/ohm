@@ -77,7 +77,6 @@ bool RaysQueryGpu::onExecuteAsync()
 
   // For GPU we use floating point precision.
   d->gpu_interface->setVolumeCoefficient(float(volumeCoefficient()));
-
   return d->gpu_interface->integrateRays(d->rays_in.data(), d->rays_in.size()) == d->rays_in.size();
 }
 

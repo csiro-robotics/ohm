@@ -42,7 +42,7 @@ public:
   /// (`kRfStopOnFirstOccupied`) and the voxel at the end of the ray is treated as a clear voxel rather than a sample
   /// voxel (`kRfEndPointAsFree`).
   static const unsigned kDefaultRayFlags =
-    kRfEndPointAsFree | kRfStopOnFirstOccupied | kRfExcludeFree | kRfExcludeUnobserved;
+    kRfForwardWalk | kRfEndPointAsFree | kRfStopOnFirstOccupied | kRfExcludeFree | kRfExcludeUnobserved;
 
   /// Create a clearing pattern.
   /// @param pattern The ray pattern to use.
@@ -60,7 +60,11 @@ public:
   /// @return True if this class owns the @p pattern() memory.
   bool hasPatternOwnership() const;
 
-  /// Query the combination of @c RayFlag bits to be used when applying this pattern. Defaults to @c kDefaultRayFlags.
+  /// Query the combination of @c RayFlag bits to be used when applying this pattern. Defaults to @c kDefaultRayFlags .
+  ///
+  /// @note @c kRfForwardWalk is alway set for a clearing pattern. We must trace forwards so that we can stop on the
+  /// first obstruction.
+  ///
   /// @return The configured @c RayFlag bit set.
   unsigned rayFlags() const;
 

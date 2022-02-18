@@ -33,6 +33,8 @@ public:
     double cache_size_gb = 0;
     /// Maximum ray length before breaking up into multiple rays before GPU processing. Zero to submit rays as is.
     double ray_segment_length = 0;
+    /// Trace rays forwards. GPU defaults to reverse ray tracing for performance.
+    bool forward_trace = false;
 
     GpuOptions();
 

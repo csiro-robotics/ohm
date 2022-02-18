@@ -39,6 +39,7 @@
 #include "gpu_ext.h"  // Must be first
 
 #include "MapCoord.h"
+#include "RayFlag.h"
 #include "VoxelTsdfCompute.h"
 
 #include "LineWalkMarkers.cl"
@@ -93,7 +94,7 @@ typedef struct TsdfWalkData_t
 // performance (as the CAS loop limit is hit less often) and quality (as be abandon data less often).
 __device__ bool visitVoxelTsdfUpdate(const GpuKey *voxel_key, bool is_end_voxel, const GpuKey *end_key,
                                      const GpuKey *start_key, float voxel_resolution, float entry_time, float exit_time,
-                                     bool reverseWalk, void *user_data)
+                                     void *user_data)
 {
   TsdfWalkData *tsdf_data = (TsdfWalkData *)user_data;
 
@@ -249,14 +250,15 @@ __device__ bool visitVoxelTsdfUpdate(const GpuKey *voxel_key, bool is_end_voxel,
 ///     point). Should be > 0 to re-enforce as occupied.
 /// @param voxel_value_min Minimum clamping value for voxel adjustments.
 /// @param voxel_value_max Maximum clamping value for voxel adjustments.
-/// @param region_update_flags Update control values as per @c RayFlag.
+/// @param region_update_flags Update control values as per @c RayFlag. Only respects @c kRfForwardWalk.
+///   origins and improve performance.
 __kernel void tsdfRayUpdate(__global VoxelTsdf *tsdf_voxels, __global ulonglong *tsdf_region_mem_offsets_global,  //
                             __global int3 *tsdf_region_keys_global, uint region_count,                            //
                             __global GpuKey *line_keys, __global float3 *local_lines,                             //
                             __global float3 *unclipped_lines, uint line_count,                                    //
                             int3 region_dimensions, float voxel_resolution, float max_weight,
                             float default_truncation_distance, float dropoff_epsilon,
-                            float sparsity_compensation_factor)
+                            float sparsity_compensation_factor, uint region_update_flags)
 {
   // Only process valid lines.
   if (get_global_id(0) >= line_count)
@@ -288,19 +290,26 @@ __kernel void tsdfRayUpdate(__global VoxelTsdf *tsdf_voxels, __global ulonglong 
   const float3 line_start = local_lines[get_global_id(0) * 2 + 0];
   const float3 line_end = local_lines[get_global_id(0) * 2 + 1];
 
-  // We need to calculate the start voxel centre in the right coordinate space. All coordinates are relative to the
-  // end voxel centre.
-  // 1. Calculate the voxel step from end_key to start_key.
-  // 2. Scale results by voxelResolution.
-  // const int3 voxel_diff = keyDiff(&end_key, &start_key, &region_dimensions);
-  // const float3 start_voxel_centre = make_float3(voxelDiff.x * voxel_resolution + 0.5f * voxel_resolution,
-  //                                               voxelDiff.y * voxel_resolution + 0.5f * voxel_resolution,
-  //                                               voxelDiff.z * voxel_resolution + 0.5f * voxel_resolution);
   // For reverse line walk, the start voxel centre is always (0, 0, 0).
-  const float3 start_voxel_centre =
-    make_float3(0.5f * voxel_resolution, 0.5f * voxel_resolution, 0.5f * voxel_resolution);
+  float3 start_voxel_centre = make_float3(0.0f, 0.0f, 0.0f);
+  int walk_flags = 0;
+  if ((region_update_flags & kRfForwardWalk) != 0)
+  {
+    // We need to calculate the start voxel centre in the right coordinate space. All coordinates are relative to the
+    // end voxel centre.
+    // 1. Calculate the voxel step from endKey to startKey.
+    // 2. Scale results by voxelResolution.
+    const int3 voxelDiff = keyDiff(&end_key, &start_key, &region_dimensions);
+    start_voxel_centre =
+      make_float3(voxelDiff.x * voxel_resolution, voxelDiff.y * voxel_resolution, voxelDiff.z * voxel_resolution);
+  }
+  else
+  {
+    walk_flags |= kLineWalkFlagReverse;
+  }
+
   WALK_LINE_VOXELS(&end_key, &start_key, &start_voxel_centre, &line_end, &line_start, &region_dimensions,
-                   voxel_resolution, true, &tsdf_data);
+                   voxel_resolution, walk_flags, &tsdf_data);
 }
 
 #undef VISIT_LINE_VOXEL

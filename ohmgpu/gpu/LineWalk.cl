@@ -19,24 +19,28 @@
 ///
 /// This function is not implemented in this source file, and must be implemented by the source including this file.
 ///
+/// The @p walkFlags may be used to modify the algorithm behaviour and semantics as follows:
+///
+/// - @c kLineWalkFlagReverse reverse walk. The algorithm iterates from @p endVoxel to @p startVoxel instead.
+/// - @c kLineWalkFlagReverse force reporting the @p endVoxel last in a reverse walk.
+///
 /// @param voxelKey The key for the voxel currently being traversed. This voxel is on the line.
-/// @param voxelMarker Set to @p LINE_WALK_START_VOXEL (1) if @p voxelKey is the @c startKey or
-///   @c LINE_WALK_END_VOXEL (2) if it is the @c endKey . Zero otherwise.
+/// @param voxelMarker Set to @p kLineWalkMarkerStart (1) if @p voxelKey is the @c startKey or
+///   @c kLineWalkMarkerEnd (2) if it is the @c endKey . Zero otherwise.
 /// @param voxelResolution The edge length of each voxel cube.
 /// @param startKey The first voxel in the line segment.
 /// @param endKey The last voxel in the line segment.
 /// @param voxelResolution The size of the voxels.
-/// @param entryRange How far from the origin has been traversed before entering @p voxelKey . Is modified for
-///   @p reverseWalk .
-/// @param exitRange How far from the origin has been traversed when exiting @p voxelKey . Is modified for
-///   @p reverseWalk .
-/// @param reverseWalk True if @c WALK_LINE_VOXELS was called with reverseWalk set, implying the @c startKey is the
-////  sample voxel and the @p endKey is the origin (sensor) voxel.
+/// @param entryRange How far from the origin has been traversed before entering @p voxelKey . Is adapted for
+///   @c kLineWalkFlagReverse .
+/// @param exitRange How far from the origin has been traversed when exiting @p voxelKey . Is adapted for
+///   @c kLineWalkFlagReverse .
+/// @param walkFlags Flags affecting how the algorithm operates.
 /// @param userData User data pointer.
 /// @return True to continue traversing the line, false to abort traversal.
 // __device__ bool VISIT_LINE_VOXEL(const GpuKey *voxelKey, int voxelMarker,
 //                                  const GpuKey *startKey, const GpuKey *endKey,
-//                                  float voxelResolution, float entryRange, float exitRange, bool reverseWalk,
+//                                  float voxelResolution, float entryRange, float exitRange, int walkFlags,
 ///                                 void *userData);
 //------------------------------------------------------------------------------
 #include "GpuKey.h"
@@ -65,8 +69,14 @@ __device__ bool coordToKey(GpuKey *key, const float3 *point, const int3 *regionD
 /// @return The centre of the voxel defined by @p key.
 inline __device__ float3 voxelCentre(const GpuKey *key, const int3 *regionDim, float voxelResolution);
 
+/// Get the @p index component of @c float3 @p v
 inline __device__ float getf3(const float3 *v, int index);
+/// Get the @p index component of @c int3 @p v
 inline __device__ int geti3(const int3 *v, int index);
+
+/// Choose the next axis to walk. In a forward walk, we bias axis 2, 1, 0 when equal. In a reverse walk, we bias
+/// 0, 1, 2 to yield similar results.
+inline __device__ int nextAxis(float timeMax[3], bool forwardWalk);
 
 // Psuedo header guard to prevent symbol duplication.
 #ifndef LINE_WALK_CL
@@ -82,20 +92,20 @@ inline __device__ int geti3(const int3 *v, int index);
 ///
 /// @param startKey The key for the voxel containing @p startPoint.
 /// @param endKey The key for the voxel containing @p endPoint.
-/// @param startVoxelCentre Coordinate of the centre of the starting voxel, in the same frame as @c startPoint and @c
-///   endPoint.
+/// @param firstVoxelCentre Coordinate of the centre of the first voxel to walk, in the same frame as @c startPoint
+///   and @c endPoint. Normally this is the coordinate of the start voxle, but when @p kLineWalkFlagReverse is set,
+///   this must be the coordinate of the end voxel.
 /// @param startPoint The start point of the line segment to traverse, relative to the centre of the
 ///   start voxel (identified by startKey). That is the origin is the centre of the startKey voxel.
 /// @param endPoint The end point of the line segment to traverse, relative to the centre of the
 ///   start voxel (identified by startKey). That is the origin is the centre of the startKey voxel.
 /// @paramregionDim Defines the size of a region in voxels. Used to update the @p GpuKey.
 /// @param voxelResolution Size of a voxel from one face to another.
-/// @param reverseWalk True if the start to end trace represents a reverse trace where the start key/point is the
-///   sample voxel and the end/key point is the start/sensor voxel. This modifies the enter/exit distance calculations.
+/// @param walkFlags Flags affecting the algorithm behaviour. See @c LineWalkFlag .
 /// @param userData User pointer passed to @c walkLineVoxel().
-__device__ void WALK_LINE_VOXELS(const GpuKey *startKey, const GpuKey *endKey, const float3 *startVoxelCentre,
+__device__ void WALK_LINE_VOXELS(const GpuKey *startKey, const GpuKey *endKey, const float3 *firstVoxelCentre,
                                  const float3 *startPoint, const float3 *endPoint, const int3 *regionDim,
-                                 float voxelResolution, bool reverseWalk, void *userData);
+                                 float voxelResolution, int walkFlags, void *userData);
 
 
 inline __device__ bool coordToKey(GpuKey *key, const float3 *point, const int3 *regionDim, float voxelResolution)
@@ -186,12 +196,21 @@ inline __device__ int geti3(const int3 *v, int index)
 {
   return (index == 0) ? v->x : ((index == 1) ? v->y : v->z);
 }
+
+inline __device__ int nextAxis(float timeMax[3], bool forwardWalk)
+{
+  if (forwardWalk)
+  {
+    return (timeMax[0] < timeMax[2]) ? ((timeMax[0] < timeMax[1]) ? 0 : 1) : ((timeMax[1] < timeMax[2]) ? 1 : 2);
+  }
+
+  return (timeMax[2] < timeMax[0]) ? ((timeMax[2] < timeMax[1]) ? 2 : 1) : ((timeMax[1] < timeMax[0]) ? 1 : 0);
+}
 #endif  // LINE_WALK_CL
 
-
-__device__ void WALK_LINE_VOXELS(const GpuKey *startKey, const GpuKey *endKey, const float3 *startVoxelCentre,
+__device__ void WALK_LINE_VOXELS(const GpuKey *startKey, const GpuKey *endKey, const float3 *firstVoxelCentre,
                                  const float3 *startPoint, const float3 *endPoint, const int3 *regionDim,
-                                 float voxelResolution, bool reverseWalk, void *userData)
+                                 float voxelResolution, int walkFlags, void *userData)
 {
   // see "A Faster Voxel Traversal Algorithm for Ray Tracing" by Amanatides & Woo
   float timeMax[3];
@@ -199,27 +218,38 @@ __device__ void WALK_LINE_VOXELS(const GpuKey *startKey, const GpuKey *endKey, c
   float timeLimit[3];
   int step[3] = { 0 };
   float timeCurrent = 0.0f;
-  float timeNext= 0.0f;
+  float timeNext = 0.0f;
   bool continueTraversal = true;
   float length = 0;
 
-  // BUG: Intel OpenCL 2.0 compiler does not effect the commented assignment below. I've had to unrolled it in copyKey()
-  // GpuKey currentKey = *startKey;
-  GpuKey currentKey;
-  copyKey(&currentKey, startKey);
+  const bool forwardWalk = (walkFlags & kLineWalkFlagReverse) == 0;
+  const bool reportWalkEndLast = (walkFlags & (kLineWalkFlagForReportEndLast | kLineWalkFlagReverse)) ==
+                                 (kLineWalkFlagForReportEndLast | kLineWalkFlagReverse);
 
-  // printf("Start point : %f %f %f, " KEY_F "\n", startPoint->x, startPoint->y,
-  // startPoint->z, KEY_A(*startKey)); printf("End point : %f %f %f\n", endPoint->x,
-  // endPoint->y, endPoint->z); printf("currentKey: " KEY_F "\n", KEY_A(currentKey));
+  const GpuKey *walkStartKey = (forwardWalk) ? startKey : endKey;
+  const GpuKey *walkEndKey = (forwardWalk) ? endKey : startKey;
+  const float3 *walkStartPoint = (forwardWalk) ? startPoint : endPoint;
+  const float3 *walkEndPoint = (forwardWalk) ? endPoint : startPoint;
+
+  // BUG: Intel OpenCL 2.0 compiler does not effect the commented assignment below. I've had to unrolled it in copyKey()
+  // GpuKey currentKey = *walkStartKey;
+  GpuKey currentKey;
+  copyKey(&currentKey, walkStartKey);
+
+  // printf("Start point : %f %f %f, " KEY_F "\n", walkStartPoint->x, walkStartPoint->y, walkStartPoint->z,
+  //        KEY_A(*walkStartKey));
+  // printf("End point : %f %f %f\n", walkEndPoint->x, walkEndPoint->y, walkEndPoint->z);
+  // printf("currentKey: " KEY_F "\n", KEY_A(currentKey));
 
   // Compute step direction, increments and maximums along each axis.
   // Things to remember:
   // - start and end keys come precalcualted in the map space.
   // - float3 start/end points are single precision. To deal with this, they are likely in to be in some non-global
-  //   frame. This frame is irrelevant here so long as startPoint, endPoint and startVoxelCentre are in the same frame.
+  //   frame. This frame is irrelevant here so long as walkStartPoint, walkEndPoint and firstVoxelCentre are in the same
+  //   frame.
   {
     // Scoped to try reduce local variable load on local memory.
-    float3 direction = *endPoint - *startPoint;
+    float3 direction = *walkEndPoint - *walkStartPoint;
     // Check for degenerate rays: start/end in the same voxel.
     if (fabs(dot(direction, direction)) > 1e-3f)
     {
@@ -228,8 +258,8 @@ __device__ void WALK_LINE_VOXELS(const GpuKey *startKey, const GpuKey *endKey, c
     }
     else
     {
-      // Denegerate ray. Set the direction to be endKey - startKey.
-      direction = keyDirection(startKey, endKey);
+      // Denegerate ray. Set the direction to be walkEndKey - walkStartKey.
+      direction = keyDirection(walkStartKey, walkEndKey);
       if (direction.x || direction.y || direction.z)
       {
         direction = normalize(direction);
@@ -250,11 +280,11 @@ __device__ void WALK_LINE_VOXELS(const GpuKey *startKey, const GpuKey *endKey, c
         timeDelta[i] = voxelResolution * fabs(directionAxisInv);
         // Calculate the distance from the origin to the nearest voxel edge for this axis.
         // const float nextVoxelBorder = getf3(&voxel, i) + step[i] * 0.5f * voxelResolution;
-        const float nextVoxelBorder = getf3(startVoxelCentre, i) + step[i] * 0.5f * voxelResolution;
-        timeMax[i] = (nextVoxelBorder - getf3(startPoint, i)) * directionAxisInv;
+        const float nextVoxelBorder = getf3(firstVoxelCentre, i) + step[i] * 0.5f * voxelResolution;
+        timeMax[i] = (nextVoxelBorder - getf3(walkStartPoint, i)) * directionAxisInv;
         // Set the distance limit
         // original...
-        // timeLimit[i] = fabs((getf3(endPoint, i) - getf3(startPoint, i)) * directionAxisInv);
+        // timeLimit[i] = fabs((getf3(walkEndPoint, i) - getf3(walkStartPoint, i)) * directionAxisInv);
         // which is equivalent to...
         timeLimit[i] = length;
       }
@@ -273,37 +303,38 @@ __device__ void WALK_LINE_VOXELS(const GpuKey *startKey, const GpuKey *endKey, c
   //          i, timeMax[i], i, timeLimit[i], i, timeDelta[i]);
   // }
 
-  // printf("S: " KEY_F " C: " KEY_F " E: " KEY_F "\n", KEY_A(*startKey), KEY_A(currentKey), KEY_A(*endKey));
+  // printf("S: " KEY_F " C: " KEY_F " E: " KEY_F "\n", KEY_A(*walkStartKey), KEY_A(currentKey), KEY_A(*walkEndKey));
 
   int axis = 0;
+  float timeFirst = 0.0f;
   bool limitReached = false;
 #ifdef LIMIT_LINE_WALK_ITERATIONS
   int iterations = 0;
   const int iterLimit = 2 * 32768;
 #endif  // LIMIT_LINE_WALK_ITERATIONS
   // Flag next voxel as the sample voxel if required (can happen in reverse traversal).
-  int voxelMarker = LINE_WALK_START_VOXEL;
+  int voxelMarker = (forwardWalk) ? kLineWalkMarkerStart : kLineWalkMarkerEnd;
 
-  if (reverseWalk)
+  if (!forwardWalk)
   {
-    axis = (timeMax[0] < timeMax[2]) ? ((timeMax[0] < timeMax[1]) ? 0 : 1) : ((timeMax[1] < timeMax[2]) ? 1 : 2);
+    axis = nextAxis(timeMax, forwardWalk);
     timeCurrent = timeNext = timeLimit[axis];
   }
 
-  while (!limitReached && !equalKeys(&currentKey, endKey) && continueTraversal)
+  while (!limitReached && !equalKeys(&currentKey, walkEndKey) && continueTraversal)
   {
 #ifdef LIMIT_LINE_WALK_ITERATIONS
     if (iterations++ > iterLimit)
     {
       printf("%u excessive line walk iterations.\n"
              "S: " KEY_F " E: " KEY_F "\n",
-             "C: " KEY_F "\n" get_global_id(0), KEY_A(*startKey), KEY_A(*endKey), KEY_A(currentKey));
+             "C: " KEY_F "\n" get_global_id(0), KEY_A(*walkStartKey), KEY_A(*walkEndKey), KEY_A(currentKey));
       break;
     }
 #endif  // LIMIT_LINE_WALK_ITERATIONS
     // Select the minimum timeMax as the next axis.
-    axis = (timeMax[0] < timeMax[2]) ? ((timeMax[0] < timeMax[1]) ? 0 : 1) : ((timeMax[1] < timeMax[2]) ? 1 : 2);
-    if (!reverseWalk)
+    axis = nextAxis(timeMax, forwardWalk);
+    if (forwardWalk)
     {
       timeNext = (limitReached) ? timeLimit[axis] : timeMax[axis];
     }
@@ -311,14 +342,22 @@ __device__ void WALK_LINE_VOXELS(const GpuKey *startKey, const GpuKey *endKey, c
     {
       timeCurrent = timeLimit[axis] - timeMax[axis];
     }
-    continueTraversal = VISIT_LINE_VOXEL(&currentKey, voxelMarker, startKey, endKey, voxelResolution, timeCurrent,
-                                         timeNext, reverseWalk, userData);
-    voxelMarker = 0;
+    // Skip reporting the end voxel if forcing its reporting last.
+    if (voxelMarker != kLineWalkMarkerEnd || !reportWalkEndLast)
+    {
+      continueTraversal =
+        VISIT_LINE_VOXEL(&currentKey, voxelMarker, startKey, endKey, voxelResolution, timeCurrent, timeNext, userData);
+    }
+    else
+    {
+      timeFirst = timeCurrent;
+    }
+    voxelMarker = kLineWalkMarkerSegment;
     limitReached = fabs(timeMax[axis]) > timeLimit[axis];
     stepKeyAlongAxis(&currentKey, axis, step[axis], regionDim);
     currentKey.voxel[3] = 0;  // Always clear the clip marker.
     timeMax[axis] += timeDelta[axis];
-    if (!reverseWalk)
+    if (forwardWalk)
     {
       timeCurrent = timeNext;
     }
@@ -334,19 +373,29 @@ __device__ void WALK_LINE_VOXELS(const GpuKey *startKey, const GpuKey *endKey, c
   //   printf("timeMax[%d]: %f timeLimit[%d]: %f timeDelta[%d]: %f\n",
   //          axis, timeMax[axis], axis, timeLimit[axis], axis, timeDelta[axis]);
   // }
-  // if (equalKeys(&currentKey, endKey))
+  // if (equalKeys(&currentKey, walkEndKey))
   // {
-  //   printf("%u currentKey == endKey\n", get_global_id(0));
+  //   printf("%u currentKey == walkEndKey\n", get_global_id(0));
   // }
   // if (!continueTraversal)
   // {
   //   printf("%u continueTraversal = false\n", get_global_id(0));
   // }
 
-  // Walk end point.
-  if (continueTraversal)
+  // Walk end point. Make sure we don't report it when start/end voxles are the same and reportWalkEndLast is set.
+  if (continueTraversal && (!equalKeys(walkEndKey, walkStartKey) || !reportWalkEndLast))
   {
-    VISIT_LINE_VOXEL(endKey, LINE_WALK_END_VOXEL, startKey, endKey, voxelResolution, timeCurrent, length, reverseWalk,
-                     userData);
+    if (forwardWalk)
+    {
+      timeNext = length;
+    }
+    VISIT_LINE_VOXEL(walkEndKey, (forwardWalk) ? kLineWalkMarkerEnd : kLineWalkMarkerStart, startKey, endKey,
+                     voxelResolution, timeCurrent, timeNext, userData);
+  }
+
+  // For reverse iteration, report the start voxel last.
+  if (reportWalkEndLast)
+  {
+    VISIT_LINE_VOXEL(walkStartKey, kLineWalkMarkerEnd, startKey, endKey, voxelResolution, timeFirst, length, userData);
   }
 }
