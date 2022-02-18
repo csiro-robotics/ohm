@@ -153,6 +153,7 @@ TEST(RaysQuery, CpuVsGpu)
 
     for (const auto ray_count : ray_counts)
     {
+      rays.clear();
       // Add the additional rays (random).
       while (rays.size() < ray_count * 2)
       {
