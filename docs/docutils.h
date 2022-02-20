@@ -111,6 +111,6 @@ heightmaps.
 Supports running experimental ohm query algorithms - @c OhmLineQuery, @c OhmNearestNeighbours.
 
 */
-} // namespace ohm
+}  // namespace ohm
 
-#endif // DOCUTILS_H
+#endif  // DOCUTILS_H

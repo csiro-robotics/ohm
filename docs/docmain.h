@@ -14,7 +14,9 @@ distribution transform semantics. The ohm library defines an occupancy map consi
 homogeneous voxels, arranged in contiguous memory blocks. This homogeneous voxel layout, rather than an octree layout,
 supports fast GPU based map population using OpenCL and CUDA.
 
+- @subpage docglossary
 - @subpage docusage
+- @subpage docgpu
 - @subpage docutils
 
 */
