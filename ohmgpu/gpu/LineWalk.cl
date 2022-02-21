@@ -259,7 +259,7 @@ __device__ void WALK_LINE_VOXELS(const GpuKey *startKey, const GpuKey *endKey, c
     else
     {
       // Denegerate ray. Set the direction to be walkEndKey - walkStartKey.
-      direction = keyDirection(walkStartKey, walkEndKey);
+      direction = keyDirection(walkEndKey, walkStartKey);
       if (direction.x || direction.y || direction.z)
       {
         direction = normalize(direction);

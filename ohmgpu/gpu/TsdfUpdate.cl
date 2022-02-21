@@ -92,8 +92,8 @@ typedef struct TsdfWalkData_t
 //
 // Note: TSDF ray tracing is actually done in reverse. This can greatly reduce voxel contension improving TSDF
 // performance (as the CAS loop limit is hit less often) and quality (as be abandon data less often).
-__device__ bool visitVoxelTsdfUpdate(const GpuKey *voxel_key, bool is_end_voxel, const GpuKey *end_key,
-                                     const GpuKey *start_key, float voxel_resolution, float entry_time, float exit_time,
+__device__ bool visitVoxelTsdfUpdate(const GpuKey *voxel_key, bool is_end_voxel, const GpuKey *start_key,
+                                     const GpuKey *end_key, float voxel_resolution, float entry_time, float exit_time,
                                      void *user_data)
 {
   TsdfWalkData *tsdf_data = (TsdfWalkData *)user_data;
@@ -308,7 +308,7 @@ __kernel void tsdfRayUpdate(__global VoxelTsdf *tsdf_voxels, __global ulonglong 
     walk_flags |= kLineWalkFlagReverse;
   }
 
-  WALK_LINE_VOXELS(&end_key, &start_key, &start_voxel_centre, &line_end, &line_start, &region_dimensions,
+  WALK_LINE_VOXELS(&start_key, &end_key, &start_voxel_centre, &line_start, &line_end, &region_dimensions,
                    voxel_resolution, walk_flags, &tsdf_data);
 }
 
