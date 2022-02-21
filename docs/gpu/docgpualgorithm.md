@@ -1,16 +1,15 @@
-// Copyright (c) 2022
-// Commonwealth Scientific and Industrial Research Organisation (CSIRO)
-// ABN 41 687 119 230
-//
-// Author: Kazys Stepanas
-#ifndef DOCGPUALGORITHM_H
-#define DOCGPUALGORITHM_H
+<!--
+Copyright (c) 2022
+Commonwealth Scientific and Industrial Research Organisation (CSIRO)
+ABN 41 687 119 230
 
-namespace ohm
-{
-/*!
+Author: Kazys Stepanas
+
+-->
 
 @page docgpualgorithm GPU algorithm overview
+
+# GPU algorithm overview
 
 There are two parts of interest to highlight in the high level GPU occupancy algorithm;
 
@@ -121,8 +120,3 @@ Before updating voxels in GPU, the CPU must ensure that the required voxel regio
 to be uploaded are identified by perform the same line walking algorithm for each ray in CPU, however, we do so at the
 much coarser region resolution. Most rays only touch a handful of regions. The intersected regions are added to the
 appropriate `GpuLayerCache`.
-
-*/
-}  // namespace ohm
-
-#endif  // DOCGPUALGORITHM_H

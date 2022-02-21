@@ -1,16 +1,14 @@
-// Copyright (c) 2022
-// Commonwealth Scientific and Industrial Research Organisation (CSIRO)
-// ABN 41 687 119 230
-//
-// Author: Kazys Stepanas
-#ifndef DOCGPUDETAIL_H
-#define DOCGPUDETAIL_H
+<!--
+Copyright (c) 2022
+Commonwealth Scientific and Industrial Research Organisation (CSIRO)
+ABN 41 687 119 230
 
-namespace ohm
-{
-/*!
+Author: Kazys Stepanas
+-->
 
 @page docgpudetail GPU technical details and performance tips
+
+# GPU technical details and performance tips
 
 This page outlines some more technical details how the OHM library uses the GPU.
 
@@ -124,8 +122,3 @@ Consider the following when choosing a cache size:
   spatial region (such as when running on a sensing payload).
 - The voxel layers in use and the region size. The @c MapLayout defines the @c MapLayer definitions and the number of
   bytes per region is calculated by @c MapLayer::layerByteSize() .
-
-*/
-}  // namespace ohm
-
-#endif  // DOCGPUDETAIL_H

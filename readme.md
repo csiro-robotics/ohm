@@ -92,3 +92,11 @@ sudo apt install libglew-dev libglfw3-dev libpng-dev libeigen3-dev
 There are some pitfalls in trying to resolve an appropriate OpenCL SDK when multiple SDK options are installed. Most notably selecting between the Intel SDK over the NVIDIA SDK can be problematic. The best way to ensure the correct option is selected is to ensure the desired SDK prefix path is set in the PATH environment variable as the before other SDK paths. The prefix path, is essentially the path containing the `include` and `lib` directories.
 
 While this can be changed by explicitly changing `OpenCL_INCLUDE_DIR` and `OpenCL_LIBRARY` in the CMake cache (using `ccmake` or `cmake-gui`) this can still have issues with selecting a particular API version. This is because the available API versions are determined when the OpenCL header is first found and will not be updated if the paths are explicitly changed. To combat this, edit the `CMakeCache.txt` file and remove all `OPENCL_VERSION_X_X` entries.
+
+## Further documentation
+
+- [OHM Glossary](./docs/docglossary.md)
+- [Occupancy map usage](./docs/docmapusage.md)
+- [Ohm utilities](./docs/docutils.md)
+- [GPU algorithm overview](./docs/gpu/docgpualgorithm.md)
+- [GPU technical details and performance tips](./docs/gpu/docgpudetail.md)

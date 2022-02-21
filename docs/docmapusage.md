@@ -1,16 +1,14 @@
-// Copyright (c) 2020
-// Commonwealth Scientific and Industrial Research Organisation (CSIRO)
-// ABN 41 687 119 230
-//
-// Author: Kazys Stepanas
-#ifndef DOCMAPUSAGE_H
-#define DOCMAPUSAGE_H
+<!--
+Copyright (c) 2020
+Commonwealth Scientific and Industrial Research Organisation (CSIRO)
+ABN 41 687 119 230
 
-namespace ohm
-{
-/*!
+Author: Kazys Stepanas
+-->
 
 @page docusage Occupancy map usage
+
+# Occupancy map usage
 
 This section details general usage of an `OccupancyMap` including map generation and data access. The page is
 split into sections for CPU map access and GPU map generation.
@@ -35,16 +33,16 @@ A map is created with a fixed @ref OccupancyMap::resolution() "resolution" and f
 voxel extents on each axis for a chunk. The following code creates an empty occupancy map at a resolution of 0.25
 units per voxel and 32x32x32 voxels in each chunk.
 
-@code{.cpp}
+```.cpp
 ohm::OccupancyMap map(0.25, glm::u8vec3(32));
-@endcode
+```
 
 Data can be added to the may by using a @c RayMapper . Note that map object does not feature any methods for adding
 data to the map. The simplest mapper implementation is the @c RayMapperOccupancy. Using this mapper, origin/sample
 pairs (rays) are added to the map with the sample voxel occupancy increased and the occupancy for voxels along the ray
 decreased. This is shown in the code snipped below.
 
-@code{.cpp}
+```.cpp
 
 // A virtual utility class used in the examples to provide data for an occupancy map.
 class DataProvider
@@ -70,12 +68,12 @@ void populateMap(DataProvider &provider)
     mapper.integrateRays(rays.data(), rays.size());
   }
 }
-@endcode
+```
 
 Data can then be queried about individual voxels using a combination of @ref Key "voxel keys" and @c Voxel objects.
 The code below queries whether the voxel containing a given spatial position is occupied.
 
-@code{.cpp}
+```.cpp
 bool isVoxelAtPositionOccupied(const ohm::OccupancyMap &map, const glm::dvec3 &position)
 {
   // First create a Voxel object which will reference the voxel occupancy data.
@@ -110,7 +108,7 @@ bool isVoxelAtPositionOccupied(const ohm::OccupancyMap &map, const glm::dvec3 &p
   // Finally check if the value is above the occupancy threshold.
   return occupancy_value >= map.occupancyThresholdValue();
 }
-@endcode
+```
 
 The example above introduces the several concepts including the @ref MapLayout "map layout". The example
 demonstrates how to validate and access the data for a particular @ref MapLayer "voxel layer", in this case the
@@ -135,7 +133,7 @@ template type is used to specify both the data type and read only vs read/write 
 
 For example, the code below shows how to access the @c VoxelMean data including some invalid access patterns.
 
-@code{.cpp}
+```.cpp
 void meanExample(ohm::OccupancyMap &map)
 {
   // Manually resolve the voxel layer index. This is also available in ohm::MapLayout::meanLayer() .
@@ -185,7 +183,7 @@ long as
     mean_rw.write(mean);
   }
 }
-@endcode
+```
 
 # NDT map
 
@@ -207,7 +205,7 @@ current voxel. The data associated with the voxel must be resolved using the @c 
 @c OccupancyMap::iterator has additional, non-standard iterator functions which provide access to the target
 @c MapChunk and @c OccupancyMap . Below is an example of iterating a map.
 
-@code{.cpp}
+```.cpp
 // A structure detailing some map statistics
 struct MapStats
 {
@@ -269,7 +267,7 @@ MapStats collectMapStats(const ohm::OccupancyMap &map)
 
   return stats;
 }
-@endcode
+```
 
 # GPU map
 
@@ -281,7 +279,7 @@ The ohm GPU API introduces the @c GpuMap class, which is a both a wrapper for an
 the @c RayMapper implementation which should be used to update the map. The code below shows how to use the @c GpuMap
 to populate an @c OccupancyMap .
 
-@code{.cpp}
+```.cpp
 void populateGpuMap(DataProvider &provider)
 {
   ohm::OccupancyMap map(0.1);   // Create a map
@@ -298,7 +296,7 @@ void populateGpuMap(DataProvider &provider)
   // Synchronise GPU data back to the CPU map memory.
   gpu_map.syncVoxels();
 }
-@endcode
+```
 
 Note the call to `gpu_map.syncVoxels()`. The @c GpuMap does not automatically sync GPU changes back to CPU memory.
 This call ensures data synchronisation and allows read access to the map on CPU following this call.
@@ -320,7 +318,7 @@ The @c GpuNdtMap extends the @c GpuMap adding the NDT semantics to the GPU updat
 GpuNdtMap must be used in place of the @c GpuMap object if NDT semantics are required. The NDT update is notably
 more expensive than the base GPU update.
 
-@code{.cpp}
+```.cpp
 void populateGpuNdtMap(DataProvider &provider)
 {
   ohm::OccupancyMap map(0.1);   // Create a map
@@ -337,9 +335,4 @@ void populateGpuNdtMap(DataProvider &provider)
   // Synchronise GPU data back to the CPU map memory.
   gpu_map.syncVoxels();
 }
-@endcode
-
-*/
-}  // namespace ohm
-
-#endif  // DOCMAPUSAGE_H
+```

@@ -1,14 +1,15 @@
-// Copyright (c) 2021
-// Commonwealth Scientific and Industrial Research Organisation (CSIRO)
-// ABN 41 687 119 230
-//
-// Author: Kazys Stepanas
-#ifndef DOCGLOSSARY_H
-#define DOCGLOSSARY_H
+<!--
+Copyright (c) 2022
+Commonwealth Scientific and Industrial Research Organisation (CSIRO)
+ABN 41 687 119 230
 
-/*!
+Author: Kazys Stepanas
+
+-->
 
 @page docglossary OHM Glossary
+
+# OHM Glossary
 
 | Term      | Description                                                                     |
 | --------- | ------------------------------------------------------------------------------- |
@@ -21,7 +22,3 @@
 | Region    | A region of space containing a fixed number of voxels.                          |
 | TSDF      | Truncated signed distance fields.                                               |
 | Voxel     | A 3D cube (normally) division of space.                                         |
-
-*/
-
-#endif  // DOCGLOSSARY_H
