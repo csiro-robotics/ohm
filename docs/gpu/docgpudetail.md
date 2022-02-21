@@ -6,7 +6,10 @@ ABN 41 687 119 230
 Author: Kazys Stepanas
 -->
 
+<!-- Use details section to partly hide doxygen specific details of the page. -->
+<details><summary></summary>
 @page docgpudetail GPU technical details and performance tips
+</details>
 
 # GPU technical details and performance tips
 

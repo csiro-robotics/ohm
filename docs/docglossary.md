@@ -7,7 +7,10 @@ Author: Kazys Stepanas
 
 -->
 
+<!-- Use details section to partly hide doxygen specific details of the page. -->
+<details><summary></summary>
 @page docglossary OHM Glossary
+</details>
 
 # OHM Glossary
 
