@@ -99,13 +99,13 @@ the warp is determined by the longest rays with other threads effectively idle f
 long ray.
 
 Two options can be used to reduce the impact of in consistent ray lengths. Below we describe the API function to set the
-option as well as the command equivalent line option for @c ohmpopcuda or @c ohmpopocl .
+option as well as the command equivalent line option for `ohmpopcuda` or `ohmpopocl`.
 
-- @c GpuMap::setRaySegmentLength() ( @c --gpu-ray-segment-length ) sets a threshold above which the CPU will segment a
+- `GpuMap::setRaySegmentLength()` (`--gpu-ray-segment-length`) sets a threshold above which the CPU will segment a
   long ray into smaller multiple GPU work items.
-- @c GpuMap::setRayFilter() may be used to install a filter function which can modify rays before they are uploaded to
-  the GPU. A number of common filter functions are available in @c RayFilter.h such as @c clipRayFilter()
-  ( @c --ray-length-max ).
+- `GpuMap::setRayFilter()` may be used to install a filter function which can modify rays before they are uploaded to
+  the GPU. A number of common filter functions are available in `RayFilter.h` such as `clipRayFilter()`
+  (`--ray-length-max`).
 
 ## GPU Cache
 
@@ -113,12 +113,12 @@ The GPU maintains a fixed size cache for voxel data. Voxel regions are uploaded 
 cache is full, voxel regions are returned back to the CPU to make space. This incurs an IO cost. A small cache can
 result in cache thrashing between batches of rays and severely impact performance.
 
-The cache size may be set when constructing a @c GpuMap via the @c gpu_mem_size argument. This is exposed to the @c
-ohmpop command line as @c --gpu-cache-size .
+The cache size may be set when constructing a `GpuMap` via the `gpu_mem_size` argument. This is exposed to the `ohmpop`
+command line as `--gpu-cache-size`.
 
 Consider the following when choosing a cache size:
 
 - The use of a local or global map? A local map requires less memory as regions can be dropped outside some local
   spatial region (such as when running on a sensing payload).
-- The voxel layers in use and the region size. The @c MapLayout defines the @c MapLayer definitions and the number of
-  bytes per region is calculated by @c MapLayer::layerByteSize() .
+- The voxel layers in use and the region size. The `MapLayout` defines the `MapLayer` definitions and the number of
+  bytes per region is calculated by `MapLayer::layerByteSize()`.

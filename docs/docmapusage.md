@@ -19,26 +19,26 @@ The `OccupancyMap` class is used to contain the occupancy map data. This class i
 regardless of how the map is generated or populated. For example, the `GpuMap` wraps an `OccupancyMap` to
 support populating the map in GPU, but the underlying map object is the same.
 
-The data within the map are stored in @ref MapChunk "chunks" which represent contiguous blocks of voxel memory
+The data within the map are stored in "chunks" (`MapChunk`) which represent contiguous blocks of voxel memory
 corresponding to fixed 3D regions of the map. Chunks are created as needed. This dense memory layout is what makes GPU
 update of the map possible. The additional overhead of using a dense memory layout is mitigated by using
-@ref VoxelBlockCompressionQueue "background compression" of voxel data when not in use.
+background compression (`VoxelBlockCompressionQueue`) of voxel data when not in use.
 
 The map object stores the map data as well as the parametrisation of the map - for example the
-@ref OccupancyMap::occupancyThresholdProbability() "occupancy threshold" and
-@ref OccupancyMap::resolution() "resolution". The map object is also responsible for mapping between global
-coordinates and @ref Key "voxel keys" via the @ref OccupancyMap::voxelKey() "voxelKey()" function.
+occupancy threshold (`OccupancyMap::occupancyThresholdProbability()`) and
+resolution (`OccupancyMap::resolution()`). The map object is also responsible for mapping between global
+coordinates and voxel keys (`Key`) via the `OccupancyMap::voxelKey()` function.
 
-A map is created with a fixed @ref OccupancyMap::resolution() "resolution" and fixed chunk size by specifying the
-voxel extents on each axis for a chunk. The following code creates an empty occupancy map at a resolution of 0.25
-units per voxel and 32x32x32 voxels in each chunk.
+A map is created with a fixed resolution and fixed chunk size by specifying the voxel extents on each axis for a chunk.
+The following code creates an empty occupancy map at a resolution of 0.25 units per voxel and 32x32x32 voxels in each
+chunk.
 
 ```.cpp
 ohm::OccupancyMap map(0.25, glm::u8vec3(32));
 ```
 
-Data can be added to the may by using a @c RayMapper . Note that map object does not feature any methods for adding
-data to the map. The simplest mapper implementation is the @c RayMapperOccupancy. Using this mapper, origin/sample
+Data can be added to the may by using a `RayMapper`. Note that map object does not feature any methods for adding
+data to the map. The simplest mapper implementation is the `RayMapperOccupancy`. Using this mapper, origin/sample
 pairs (rays) are added to the map with the sample voxel occupancy increased and the occupancy for voxels along the ray
 decreased. This is shown in the code snipped below.
 
@@ -70,8 +70,8 @@ void populateMap(DataProvider &provider)
 }
 ```
 
-Data can then be queried about individual voxels using a combination of @ref Key "voxel keys" and @c Voxel objects.
-The code below queries whether the voxel containing a given spatial position is occupied.
+Data can then be queried about individual voxels using a combination of voxel keys and `Voxel` objects. The code below
+queries whether the voxel containing a given spatial position is occupied.
 
 ```.cpp
 bool isVoxelAtPositionOccupied(const ohm::OccupancyMap &map, const glm::dvec3 &position)
@@ -110,28 +110,28 @@ bool isVoxelAtPositionOccupied(const ohm::OccupancyMap &map, const glm::dvec3 &p
 }
 ```
 
-The example above introduces the several concepts including the @ref MapLayout "map layout". The example
-demonstrates how to validate and access the data for a particular @ref MapLayer "voxel layer", in this case the
-occupancy layer. Note that there are convenience functions for this available in the @ref voxeloccupancy section.
+The example above introduces the several concepts including the map layout (`MapLayout`). The example demonstrates how
+to validate and access the data for a particular voxel layer (`MapLayer`), in this case the occupancy layer. Note that
+there are convenience functions for this available in the `voxeloccupancy` section.
 
 ## The MapLayout
 
-An @c OccupancyMap has an associated @c MapLayout which specifies the data available in the map and how that data
-are laid out. The @c MapLayout specifies a set of @c MapLayer objects and each layer identifies some data associated
-with each voxel. That is, each voxel may have multiple data types associated with it and for each data type the @c
-MapChunk stores a contiguous memory allocation for that data.
+An `OccupancyMap` has an associated `MapLayout` which specifies the data available in the map and how that data
+are laid out. The `MapLayout` specifies a set of `MapLayer` objects and each layer identifies some data associated
+with each voxel. That is, each voxel may have multiple data types associated with it and for each data type the
+`MapChunk` stores a contiguous memory allocation for that data.
 
-By default, an @c OccupancyMap contains a @c float layer which stores the occupancy value for each voxel. Maps
-constructed with the @c kVoxelMean flag also contain a layer which tracks a subvoxel position which
+By default, an `OccupancyMap` contains a `float` layer which stores the occupancy value for each voxel. Maps
+constructed with the `kVoxelMean` flag also contain a layer which tracks a subvoxel position which
 is represents an approximate mean value of all samples which have contributed to that voxel. This layer adds a
-@c VoxelMean structure for each voxel. The @c NdtMap also adds a @ref CovarianceVoxel "covariance layer". Additional
-user data may also be added using the @c MapLayout and @c MapLayer API.
+`VoxelMean` structure for each voxel. The `NdtMap` also adds a covariance layer (`CovarianceVoxel`. Additional
+user data may also be added using the `MapLayout` and `MapLayer` API.
 
-Voxel data should generally be accessed using the @c Voxel template class. This class is designed to
-handle referencing a particular voxel layer and to validate the data size against the voxel layer size. The @c Voxel
+Voxel data should generally be accessed using the `Voxel` template class. This class is designed to
+handle referencing a particular voxel layer and to validate the data size against the voxel layer size. The `Voxel`
 template type is used to specify both the data type and read only vs read/write access.
 
-For example, the code below shows how to access the @c VoxelMean data including some invalid access patterns.
+For example, the code below shows how to access the `VoxelMean` data including some invalid access patterns.
 
 ```.cpp
 void meanExample(ohm::OccupancyMap &map)
@@ -187,23 +187,23 @@ long as
 
 # NDT map
 
-The @c NdtMap is an extension of the @c OccupancyMap which adds normal distribution transforms
+The `NdtMap` is an extension of the `OccupancyMap` which adds normal distribution transforms
 semantics. This adds a covariance representation to each voxel which can be used to represent a "surfel" within the
-voxel. See that class for more details. The @c NdtMap should always be populated (in CPU) using the
-@c RayMapperNdt.
+voxel. See that class for more details. The `NdtMap` should always be populated (in CPU) using the
+`RayMapperNdt`.
 
 # Iterating a map
 
 Once a map has been populated, it is possible to iterate the voxels in the map using either a using range based for
-loop over the map or using a @c OccupancyMap::iterator . In either case, this will iterate the @ref MapChunk "chunks"
-in the map in an undefined order and iterate each voxel within the chunk. Iteration of voxels within a chunk starts
-from the chunk's @c MapChunk::firstValidKey() which is maintained as the first voxel in the chunk memory which has
+loop over the map or using a `OccupancyMap::iterator`. In either case, this will iterate the chunks (`MapChunk`) in the
+map in an undefined order and iterate each voxel within the chunk. Iteration of voxels within a chunk starts
+from the chunk's `MapChunk::firstValidKey()` which is maintained as the first voxel in the chunk memory which has
 been touched.
 
-Iterating with a range based for loop or deferencing the @c OccupancyMap::iterator yields a @c Key for the
-current voxel. The data associated with the voxel must be resolved using the @c Voxel template class. The
-@c OccupancyMap::iterator has additional, non-standard iterator functions which provide access to the target
-@c MapChunk and @c OccupancyMap . Below is an example of iterating a map.
+Iterating with a range based for loop or deferencing the `OccupancyMap::iterator` yields a `Key` for the
+current voxel. The data associated with the voxel must be resolved using the `Voxel` template class. The
+`OccupancyMap::iterator` has additional, non-standard iterator functions which provide access to the target
+`MapChunk` and `OccupancyMap`. Below is an example of iterating a map.
 
 ```.cpp
 // A structure detailing some map statistics
@@ -275,9 +275,9 @@ GPU support is implemented in the `ohmgpucuda` and `ohmgpuocl` libraries, using 
 these are technically optional libraries, they are the focus of the ohm innovation. These libraries have the same
 API backed by the associated GPU SDK. The SDK selection is forced at compile time and cannot be switched at runtime.
 
-The ohm GPU API introduces the @c GpuMap class, which is a both a wrapper for an @c OccupancyMap and
-the @c RayMapper implementation which should be used to update the map. The code below shows how to use the @c GpuMap
-to populate an @c OccupancyMap .
+The ohm GPU API introduces the `GpuMap` class, which is a both a wrapper for an `OccupancyMap` and
+the `RayMapper` implementation which should be used to update the map. The code below shows how to use the `GpuMap`
+to populate an `OccupancyMap`.
 
 ```.cpp
 void populateGpuMap(DataProvider &provider)
@@ -298,24 +298,24 @@ void populateGpuMap(DataProvider &provider)
 }
 ```
 
-Note the call to `gpu_map.syncVoxels()`. The @c GpuMap does not automatically sync GPU changes back to CPU memory.
+Note the call to `gpu_map.syncVoxels()`. The `GpuMap` does not automatically sync GPU changes back to CPU memory.
 This call ensures data synchronisation and allows read access to the map on CPU following this call.
 
-The @c GpuMap relies on a @c GpuCache which keeps a copy of relevant @c MapChunk data in GPU memory. This cache
+The `GpuMap` relies on a `GpuCache` which keeps a copy of relevant `MapChunk` data in GPU memory. This cache
 keeps recently accessed chunks in GPU memory and will move data back to CPU memory once the cache is full and new
-chunks need to be modified. Changes in CPU will mark the chunk as dirty and the @c GpuCache will upload the updated
+chunks need to be modified. Changes in CPU will mark the chunk as dirty and the `GpuCache` will upload the updated
 data from CPU, however there is no resolution mechanism for merging simultaneous changes on CPU and GPU.
 
-For optimal performance the number of rays given to each @ref GpuMap::integrateRays() "integrateRays()" call may
+For optimal performance the number of rays given to each `GpuMap::integrateRays()` call may
 need to be tuned to the current platform. Batch sizes of 2048 or 4096 are recommended. Small batch sizes will be
 slower than performing the same update in CPU.
 
-Note that the @c GpuMap implementation will update the @c VoxelMean for maps which have a @c VoxelMean layer.
+Note that the `GpuMap` implementation will update the `VoxelMean` for maps which have a `VoxelMean` layer.
 
 ## GPU NDT Map
 
-The @c GpuNdtMap extends the @c GpuMap adding the NDT semantics to the GPU update. This @c
-GpuNdtMap must be used in place of the @c GpuMap object if NDT semantics are required. The NDT update is notably
+The `GpuNdtMap` extends the `GpuMap` adding the NDT semantics to the GPU update. This `GpuNdtMap` must be used in place
+of the `GpuMap` object if NDT semantics are required. The NDT update is notably
 more expensive than the base GPU update.
 
 ```.cpp
