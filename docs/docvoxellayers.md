@@ -20,7 +20,7 @@ There are a number of "built in" or "default" supported OHM voxels layers. These
 | `occupancy`       | `float`            | 4         | Log odds, probabilistic occupancy value.                                          |
 | `mean`            | `VoxelMean`        | 8         | Sub voxel mean positioning.                                                       |
 | `traversal`       | `float`            | 4         | Voxel distance traversal used to support the density model.                       |
-| `covariance`      | `CovarianceVoxel`  | 24        | Packed, triangular matrix, voxel covariance storage.                              |
+| `covariance`      | `CovarianceVoxel`  | 24        | Triangular square root matrix, voxel covariance storage.                          |
 | `intensity`       | `IntensityMeanCov` | 8         | Intensity mean and covariance for traversability mode (NDT-TM)                    |
 | `hit_miss_count`  | `HitMissCount`     | 8         | Number of hits and misses on a voxel for NDT-TM                                   |
 | `touch_time`      | `uint32_t`         | 4         | Approximate, quantised last update time (ms) of a voxel (not supported for TSDF). |

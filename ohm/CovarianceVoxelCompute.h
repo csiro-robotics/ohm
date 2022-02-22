@@ -51,8 +51,8 @@ inline CovVec3 covnormalize(const CovVec3 &v)
 #endif  //  __device__
 #endif  // GPUTIL_DEVICE
 
-/// @ingroup voxelcovariance
-/// Defines the covariance voxel structure. This is a modified covariance matrix packed to reduce memory storage.
+/// @ingroup voxelcovariance/// Defines the covariance voxel structure. This is stored as a triangular square root
+/// covariance matrix to reduce memory storage.
 typedef struct CovarianceVoxel_t  // NOLINT(readability-identifier-naming, modernize-use-using)
 {
   /// Trianglar square root covariance matrix. Represents a covariance matrix via the triangular
