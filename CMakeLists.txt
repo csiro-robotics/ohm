@@ -34,7 +34,6 @@ option(OHM_TES_DEBUG "Enable visual debuging code?" Off)
 option(OHM_UNIT_TESTS "Build ohm units tests?" On)
 option(OHM_VALIDATION "Enable various validation tests in the occupancy map code. Has some performance impact." Off)
 # OHM_BUILD_CUDA is found in OhmCuda.cmake
-option(OHM_BUILD_OPENCL "Build ohm library and utlities for OpenCL?" ${OHM_BUILD_OPENCL_DEFAULT})
 option(OHM_LEAK_TRACK "Enable memory leak tracking?" OFF)
 
 # Build options
@@ -105,9 +104,11 @@ endif(OHM_BUILD_CUDA)
 
 set(OHM_BUILD_OPENCL_DEFAULT NO)
 
-if(OPENCL_FOUND)
+if(OpenCL_FOUND)
   set(OHM_BUILD_OPENCL_DEFAULT YES)
-endif(OPENCL_FOUND)
+endif(OpenCL_FOUND)
+
+option(OHM_BUILD_OPENCL "Build ohm library and utlities for OpenCL?" ${OHM_BUILD_OPENCL_DEFAULT})
 
 # Helper macro to Find TBB prefering TBBConfig, falling back to FindTBB. TBB_LIBRARIES will be defined in both cases.
 # TBB_INCLUDE_DIRS will be empty for TBBConfig, and populated for FindTBB.
