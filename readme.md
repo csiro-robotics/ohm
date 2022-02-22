@@ -100,3 +100,4 @@ While this can be changed by explicitly changing `OpenCL_INCLUDE_DIR` and `OpenC
 - [Ohm utilities](./docs/docutils.md)
 - [GPU algorithm overview](./docs/gpu/docgpualgorithm.md)
 - [GPU technical details and performance tips](./docs/gpu/docgpudetail.md)
+- [Built in voxel layers](./docs/docvoxellayers.md)

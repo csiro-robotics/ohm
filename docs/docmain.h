@@ -19,6 +19,7 @@ supports fast GPU based map population using OpenCL and CUDA.
 - @subpage docutils
 - @subpage docgpualgorithm
 - @subpage docgpudetail
+- @subpage docvoxellayers
 
 */
 
