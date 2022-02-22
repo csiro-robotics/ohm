@@ -327,12 +327,14 @@ void GpuMap::syncVoxels(const std::vector<int> &layer_indices)
 {
   // Sync layers specified in layer_indices. Supports map copy functions.
   const int sync_index = (imp_->next_buffers_index + 1) % GpuMapDetail::kBuffersCount;
+  auto *cache = gpuCache();
   if (imp_->map)
   {
     for (const auto &voxel_info : imp_->voxel_upload_info[sync_index])
     {
-      if (!voxel_info.skip_cpu_sync &&
-          std::find(layer_indices.begin(), layer_indices.end(), int(voxel_info.gpu_layer_id)) != layer_indices.end())
+      const auto *layer_cache = cache->layerCache(voxel_info.gpu_layer_id);
+      if (layer_cache && !voxel_info.skip_cpu_sync &&
+          std::find(layer_indices.begin(), layer_indices.end(), int(layer_cache->layerIndex())) != layer_indices.end())
       {
         gpumap::sync(*imp_->map, voxel_info.gpu_layer_id);
       }
