@@ -93,7 +93,7 @@ inline __device__ int nextAxis(float timeMax[3], bool forwardWalk);
 /// @param startKey The key for the voxel containing @p startPoint.
 /// @param endKey The key for the voxel containing @p endPoint.
 /// @param firstVoxelCentre Coordinate of the centre of the first voxel to walk, in the same frame as @c startPoint
-///   and @c endPoint. Normally this is the coordinate of the start voxle, but when @p kLineWalkFlagReverse is set,
+///   and @c endPoint. Normally this is the coordinate of the start voxel, but when @p kLineWalkFlagReverse is set,
 ///   this must be the coordinate of the end voxel.
 /// @param startPoint The start point of the line segment to traverse, relative to the centre of the
 ///   start voxel (identified by startKey). That is the origin is the centre of the startKey voxel.
