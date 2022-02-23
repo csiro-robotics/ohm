@@ -141,8 +141,9 @@ void OhmAppCpu::MapOptions::print(std::ostream &out)
     out << "Hit probability: " << prob_hit << " (" << ohm::probabilityToValue(prob_hit) << ")\n";
     out << "Miss probability: " << prob_miss << " (" << ohm::probabilityToValue(prob_miss) << ")\n";
     out << "Probability threshold: " << prob_thresh << '\n';
-    // out << "Probability range: [" << map.minVoxelProbability() << ' ' << map.maxVoxelProbability() << "]\n";
-    // out << "Value range      : [" << map.minVoxelValue() << ' ' << map.maxVoxelValue() << "]\n";
+    out << "Probability range: [" << ohm::valueToProbability(prob_range[0]) << ' '
+        << ohm::valueToProbability(prob_range[1]) << "]\n";
+    out << "Value range      : [" << prob_range[0] << ' ' << prob_range[1] << "]\n";
   }
   else
   {

@@ -77,6 +77,7 @@ set(GPU_HEADERS
   gpu/CovarianceHitNdt_h.cl
   gpu/Traversal.cl
   gpu/LineWalk.cl
+  gpu/LineWalkMarkers.cl
   gpu/VoxelIncident.cl
   gpu/VoxelMean.cl
   gpu/RaysQueryResult.h
@@ -187,6 +188,7 @@ if(OHM_BUILD_OPENCL)
     endforeach(CLSOURCE)
   else(OHM_EMBED_GPU_CODE)
     list(APPEND GPU_SOURCES gpu/LineWalk.cl)
+    list(APPEND GPU_SOURCES gpu/LineWalkMarkers.cl)
     list(APPEND GPU_SOURCES gpu/Regions.cl)
   endif(OHM_EMBED_GPU_CODE)
 

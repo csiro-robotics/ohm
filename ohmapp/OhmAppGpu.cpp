@@ -48,7 +48,8 @@ void OhmAppGpu::GpuOptions::configure(cxxopts::Options &parser)
   // clang-format off
   adder
     ("gpu-cache-size", "Configured the GPU cache size used to cache regions for GPU update. Floating point value specified in GiB. A zero value uses half the available GPU RAM, 1GiB or 3/4 of RAM in order of preference.", optVal(cache_size_gb))
-    ("gpu-ray-segment-length", "Configure the maximum allowed ray length for a single GPU thread to process. Longer rays are broken into multiple segments.", optVal(ray_segment_length));
+    ("gpu-ray-segment-length", "Configure the maximum allowed ray length for a single GPU thread to process. Longer rays are broken into multiple segments.", optVal(ray_segment_length))
+    ("forward", "Perform forward ray tracing. GPU defaults to reverse ray tracing for performance (lower voxel contention).", optVal(forward_trace))
     ;
 
   // clang-format on
@@ -68,6 +69,7 @@ void OhmAppGpu::GpuOptions::print(std::ostream &out)
 {
   out << "Gpu cache size: " << ohm::util::Bytes(gpuCacheSizeBytes()) << '\n';
   out << "Gpu max ray segment: " << ray_segment_length << '\n';
+  out << "Gpu ray tracing: " << (forward_trace ? "forward" : "reverse") << '\n';
 }
 
 
@@ -174,6 +176,12 @@ int OhmAppGpu::prepareForRun()
   {
     reserve_batch_size = defaultBatchSize();
   }
+
+  if (options().gpu().forward_trace)
+  {
+    options().map().ray_mode_flags |= ohm::kRfForwardWalk;
+  }
+
   if (options().ndt().mode != ohm::NdtMode::kNone)
   {
     true_mapper_ =

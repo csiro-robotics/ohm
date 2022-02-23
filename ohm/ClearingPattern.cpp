@@ -39,7 +39,8 @@ bool ClearingPattern::hasPatternOwnership() const
 
 unsigned ClearingPattern::rayFlags() const
 {
-  return imp_->ray_flags;
+  // Must use kRfForwardWalk for clearing patterns and ray queries or we cannot stop on the first obstruction.
+  return imp_->ray_flags | kRfForwardWalk;
 }
 
 void ClearingPattern::setRayFlags(unsigned ray_flags)

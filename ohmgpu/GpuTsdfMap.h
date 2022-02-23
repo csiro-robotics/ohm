@@ -30,6 +30,9 @@ struct GpuTsdfMapDetail;
 /// A GPU implementation of a TSDF algorithm.
 ///
 /// The TSDF algorithm requires voxels to have @c VoxelTsdf but does not require any occupancy data.
+///
+/// Note: @c GpuTsdfMap only respects the following @c RayFlag values:
+/// - @c kRfForwardWalk
 class ohmgpu_API GpuTsdfMap : public GpuMap
 {
 public:

@@ -234,7 +234,7 @@ void GpuTsdfMap::cacheGpuProgram(bool /*with_voxel_mean*/, bool /*with_traversal
 }
 
 
-void GpuTsdfMap::finaliseBatch(unsigned /*region_update_flags*/)
+void GpuTsdfMap::finaliseBatch(unsigned region_update_flags)
 {
   const int buf_idx = imp_->next_buffers_index;
   const OccupancyMapDetail *map = imp_->map->detail();
@@ -283,7 +283,7 @@ void GpuTsdfMap::finaliseBatch(unsigned /*region_update_flags*/)
                       // Region dimensions, map resolution, TSDF settings.
                       region_dim_gpu, float(map->resolution), imp->tsdf_options.max_weight,
                       imp->tsdf_options.default_truncation_distance, imp->tsdf_options.dropoff_epsilon,
-                      imp->tsdf_options.sparsity_compensation_factor);
+                      imp->tsdf_options.sparsity_compensation_factor, region_update_flags);
 
   // Update most recent chunk GPU event.
   tsdf_layer_cache.updateEvents(imp_->batch_marker, imp_->region_update_events[buf_idx]);

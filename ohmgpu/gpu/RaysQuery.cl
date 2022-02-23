@@ -32,6 +32,8 @@
 #include "MapCoord.h"
 #include "RayFlag.h"
 #include "RaysQueryResult.h"
+
+#include "LineWalkMarkers.cl"
 #include "Regions.cl"
 
 //------------------------------------------------------------------------------
@@ -67,7 +69,7 @@ typedef struct LineWalkData_t
 } LineWalkData;
 
 // Implement the voxel traversal function. We update the value of the voxel using atomic instructions.
-__device__ bool visitVoxelRayQuery(const GpuKey *voxelKey, bool isEndVoxel, const GpuKey *startKey,
+__device__ bool visitVoxelRayQuery(const GpuKey *voxelKey, int voxelMarker, const GpuKey *startKey,
                                    const GpuKey *endKey, float voxel_resolution, float entry_range, float exit_range,
                                    void *userData)
 {
@@ -232,7 +234,7 @@ __kernel void raysQuery(__global atomic_float *occupancy, __global ulonglong *oc
   const float3 start_voxel_centre =
     make_float3(voxelDiff.x * voxel_resolution, voxelDiff.y * voxel_resolution, voxelDiff.z * voxel_resolution);
   WALK_LINE_VOXELS(&start_key, &end_key, &start_voxel_centre, &lineStart, &lineEnd, &region_dimensions,
-                   voxel_resolution, &line_data);
+                   voxel_resolution, kLineWalkFlagNone, &line_data);
 
   results[get_global_id(0)] = line_data.result;
 }
