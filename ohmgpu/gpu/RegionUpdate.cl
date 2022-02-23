@@ -152,7 +152,7 @@ __device__ bool VISIT_LINE_VOXEL(const GpuKey *voxelKey, int voxelMarker, const 
   LineWalkData *line_data = (LineWalkData *)userData;
   __global atomic_float *occupancy = line_data->occupancy;
 
-  // Abort if this is the sample voxel and we are to exclude the sample. The sample voxel is detected when isEndVoxel
+  // Abort if this is the sample voxel and we are to exclude the sample. The sample voxel is detected when voxelMarker is kLineWalkMarkerEnd
   // is true and voxel[3] is zero. A value of 1 indicates a clipped ray and the end voxel does not contain the sample.
   const bool is_sample_candidate = voxelMarker == kLineWalkMarkerEnd;
   const bool is_sample_voxel = is_sample_candidate && voxelKey->voxel[3] == 0;
