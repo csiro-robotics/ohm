@@ -120,6 +120,7 @@ function(doxygen_create)
       "${DOXYFILE_PATH}"
       "${CMAKE_CURRENT_BINARY_DIR}/doxyfile"
     )
+  add_dependencies(${DGEN_PROJECT} ${DGEN_PROJECT}-doc)
 endfunction(doxygen_create)
 
 # doxygen_install(source destination)

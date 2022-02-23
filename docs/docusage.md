@@ -36,17 +36,16 @@ A map is created with a fixed resolution and fixed chunk size by specifying the 
 The following code creates an empty occupancy map at a resolution of 0.25 units per voxel and 32x32x32 voxels in each
 chunk.
 
-```.cpp
+```cpp
 ohm::OccupancyMap map(0.25, glm::u8vec3(32));
 ```
 
-Data can be added to the may by using a `RayMapper`. Note that map object does not feature any methods for adding
+Data can be added to the map by using a `RayMapper`. Note that map object does not feature any methods for adding
 data to the map. The simplest mapper implementation is the `RayMapperOccupancy`. Using this mapper, origin/sample
 pairs (rays) are added to the map with the sample voxel occupancy increased and the occupancy for voxels along the ray
 decreased. This is shown in the code snipped below.
 
-```.cpp
-
+```cpp
 // A virtual utility class used in the examples to provide data for an occupancy map.
 class DataProvider
 {
@@ -56,7 +55,7 @@ public:
   // @param rays Populated with the next batch of origin/sample pairs (rays) to add to the map.
   // @return True while there are more rays to add.
   virtual bool nextBatch(std::vector<glm::dvec3> &rays) = 0;
-}
+};
 
 void populateMap(DataProvider &provider)
 {
@@ -76,7 +75,7 @@ void populateMap(DataProvider &provider)
 Data can then be queried about individual voxels using a combination of voxel keys and `Voxel` objects. The code below
 queries whether the voxel containing a given spatial position is occupied.
 
-```.cpp
+```cpp
 bool isVoxelAtPositionOccupied(const ohm::OccupancyMap &map, const glm::dvec3 &position)
 {
   // First create a Voxel object which will reference the voxel occupancy data.
@@ -113,7 +112,7 @@ bool isVoxelAtPositionOccupied(const ohm::OccupancyMap &map, const glm::dvec3 &p
 }
 ```
 
-The example above introduces the several concepts including the map layout (`MapLayout`). The example demonstrates how
+The example above introduces several concepts including the map layout (`MapLayout`). The example demonstrates how
 to validate and access the data for a particular voxel layer (`MapLayer`), in this case the occupancy layer. Note that
 there are convenience functions for this available in the `voxeloccupancy` section.
 
@@ -126,8 +125,8 @@ with each voxel. That is, each voxel may have multiple data types associated wit
 
 By default, an `OccupancyMap` contains a `float` layer which stores the occupancy value for each voxel. Maps
 constructed with the `kVoxelMean` flag also contain a layer which tracks a subvoxel position which
-is represents an approximate mean value of all samples which have contributed to that voxel. This layer adds a
-`VoxelMean` structure for each voxel. The `NdtMap` also adds a covariance layer (`CovarianceVoxel`. Additional
+represents an approximate mean value of all samples which have contributed to that voxel. This layer adds a
+`VoxelMean` structure for each voxel. The `NdtMap` also adds a covariance layer (`CovarianceVoxel`). Additional
 user data may also be added using the `MapLayout` and `MapLayer` API.
 
 Voxel data should generally be accessed using the `Voxel` template class. This class is designed to
@@ -136,7 +135,7 @@ template type is used to specify both the data type and read only vs read/write 
 
 For example, the code below shows how to access the `VoxelMean` data including some invalid access patterns.
 
-```.cpp
+```cpp
 void meanExample(ohm::OccupancyMap &map)
 {
   // Manually resolve the voxel layer index. This is also available in ohm::MapLayout::meanLayer() .
@@ -151,7 +150,7 @@ void meanExample(ohm::OccupancyMap &map)
 
   // Create a Voxel object for read/write access to the layer.
   Voxel<VoxelMean> mean_rw(&map, layer->layerIndex());
-  // Create a Voxel object for read only access. Note the template type is `const`
+  // Create a Voxel object for read only access. Note the template type is const
   Voxel<const VoxelMean> mean_read(&map, layer->layerIndex());
 
   // Query the voxel at the origin. This cannot create the voxel chunk.
@@ -172,12 +171,11 @@ void meanExample(ohm::OccupancyMap &map)
   // as some data lookups can be skipped.
   // This call can create the MapChunk for the key, whereas mean_read.setKey() could not.
   mean_rw.setKey(mean_read);
-  // The validity check can only fail if mean_rw.isLayerValid() is false. Conversely, it will always be valid so
-long as
+  // The validity check can only fail if mean_rw.isLayerValid() is false. Conversely, it will always be valid so long as
   // the map and layer references are valid.
   if (mean_rw.isValid())
   {
-    // read and report the number of points contributing to the mean.
+    // Read and report the number of points contributing to the mean.
     VoxelMean mean;
     mean_rw.read(&mean);
     std::cout << "The voxel at the origin contains " << mean.count << " samples" << std::endl;
@@ -192,7 +190,7 @@ long as
 
 The `NdtMap` is an extension of the `OccupancyMap` which adds normal distribution transforms
 semantics. This adds a covariance representation to each voxel which can be used to represent a "surfel" within the
-voxel. See that class for more details. The `NdtMap` should always be populated (in CPU) using the
+voxel. See `CovarianceVoxel` for more details. The `NdtMap` should always be populated (in CPU) using the
 `RayMapperNdt`.
 
 # Iterating a map
@@ -203,12 +201,12 @@ map in an undefined order and iterate each voxel within the chunk. Iteration of 
 from the chunk's `MapChunk::firstValidKey()` which is maintained as the first voxel in the chunk memory which has
 been touched.
 
-Iterating with a range based for loop or deferencing the `OccupancyMap::iterator` yields a `Key` for the
+Iterating with a range based for loop or dereferencing the `OccupancyMap::iterator` yields a `Key` for the
 current voxel. The data associated with the voxel must be resolved using the `Voxel` template class. The
 `OccupancyMap::iterator` has additional, non-standard iterator functions which provide access to the target
 `MapChunk` and `OccupancyMap`. Below is an example of iterating a map.
 
-```.cpp
+```cpp
 // A structure detailing some map statistics
 struct MapStats
 {
@@ -217,7 +215,7 @@ struct MapStats
   // Largest point count for an occupied voxel.
   unsigned max_point_count{0};
   // Total number of samples contributing to the map.
-  uint_64 total_samle_count{0};
+  uint_64 total_sample_count{0};
   // Average point count for an occupied voxel.
   unsigned average_point_count{0};
   // Number of occupied voxels.
@@ -250,9 +248,9 @@ MapStats collectMapStats(const ohm::OccupancyMap &map)
         ++stats.occupied_voxel_count;
         mean.read(&mean_value);
 
-        stats.total_samle_count += mean_value.count;
+        stats.total_sample_count += mean_value.count;
         stats.min_point_count =
-          (stats.occupied_voxel_count > 0) ? std::min(stats.min_point_count, mean_value.count) : mean_value.count;
+          (stats.occupied_voxel_count > 1) ? std::min(stats.min_point_count, mean_value.count) : mean_value.count;
         stats.max_point_count = std::max(stats.min_point_count, mean_value.count);
       }
       else if (ohm::isFree(voxel))
@@ -278,11 +276,11 @@ GPU support is implemented in the `ohmgpucuda` and `ohmgpuocl` libraries, using 
 these are technically optional libraries, they are the focus of the ohm innovation. These libraries have the same
 API backed by the associated GPU SDK. The SDK selection is forced at compile time and cannot be switched at runtime.
 
-The ohm GPU API introduces the `GpuMap` class, which is a both a wrapper for an `OccupancyMap` and
+The ohm GPU API introduces the `GpuMap` class, which is both a wrapper for an `OccupancyMap` and
 the `RayMapper` implementation which should be used to update the map. The code below shows how to use the `GpuMap`
 to populate an `OccupancyMap`.
 
-```.cpp
+```cpp
 void populateGpuMap(DataProvider &provider)
 {
   ohm::OccupancyMap map(0.1);   // Create a map
@@ -321,7 +319,7 @@ The `GpuNdtMap` extends the `GpuMap` adding the NDT semantics to the GPU update.
 of the `GpuMap` object if NDT semantics are required. The NDT update is notably
 more expensive than the base GPU update.
 
-```.cpp
+```cpp
 void populateGpuNdtMap(DataProvider &provider)
 {
   ohm::OccupancyMap map(0.1);   // Create a map

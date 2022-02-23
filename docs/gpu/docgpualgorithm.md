@@ -21,9 +21,9 @@ There are two parts of interest to highlight in the high level GPU occupancy alg
 
 # GPU thread algorithm
 
-OHM GPU threads used such that there is one thread per input ray. Each GPU thread traces it's voxels using an 3D
+OHM GPU threads are used such that there is one thread per input ray. Each GPU thread traces its voxels using a 3D
 adaptation of <em>"A Fast Voxel Traversal Algorithm for Ray Tracing", John Amanatides and Andrew Woo</em>. This
-algorithm steps a single voxel on each iteration selecting the a step direction based on the largest remaining distance
+algorithm steps a single voxel on each iteration selecting the step direction based on the largest remaining distance
 to cover on each axis. Using this algorithm on GPU introduces contention when updating voxels, which is resolved using
 atomic Compare and Swap (CAS) semantics.
 
@@ -41,8 +41,8 @@ struct GpuKey
   unsigned char voxel_key[4]; // Index 3 is used as a marker bit (not show below).
 };
 
-// voxels : Voxels for the regions intersecting the input rays
-// rays   : Start/end point pairs for the sample rays to process
+// voxel_occupancies : Voxels for the regions intersecting the input rays
+// rays : Start/end point pairs for the sample rays to process
 // occupied_occupancy_adjustment : occupancy adjustment to make for the end voxel.
 // free_occupancy_adjustment : occupancy adjustment to make for voxels other than the end voxel.
 void traceRay(float *voxel_occupancies, float3 *rays,
@@ -88,16 +88,16 @@ void traceRay(float *voxel_occupancies, float3 *rays,
 }
 ```
 
-The actual implementation differs significantly in its details - for example we OHM supports reverse ray tracing while
+The actual implementation differs significantly in its details - for example OHM supports reverse ray tracing while
 the listing shows forward ray tracing and more variables are required to track the ray tracing. Another hidden detail is
-that `voxelIndex()` appears to be a trivail operation in the listing above, but it's actual implementation is fairly
+that `voxelIndex()` appears to be a trivial operation in the listing above, but its actual implementation is fairly
 complex. The CPU uploads voxel regions required for the update into `voxel_occupancies`. This is a single, flat array of
 voxels, but contains data for multiple regions, though each region's voxels are in a contiguous block. To resolve
 `current_voxel` key to an index, we must first calculate the offset of `current_voxel->region_key` into
 `voxel_occupancies` using a lookup table, which is traversed using a linear search, then the `current_voxel->voxel_key`
 can be simply converted from a 3D index into a 1D index. In practice, we cache the last accessed `region_key` and
-corresponding offset to reduce the number of linear searches performed rays will generally access multiple voxels from
-the same region in sequence.
+corresponding offset to reduce the number of linear searches performed as rays will generally access multiple voxels
+from the same region in sequence.
 
 NDT uses a more involved calculation for the `free_occupancy_adjustment` and defers the `occupied_occupancy_adjustment`
 to a second phase. The second, occupancy phase is required to avoid contention when updating a voxel's covariance
@@ -109,7 +109,7 @@ rays ending at the same sample voxel are collated. Thus multiple NDT occupancy t
 voxel (one per sample), however, only the first thread is allowed to update the voxel occupancy, covariance matrix, mean
 or other values. The remaining threads targetting the same voxel are essentially wasted.
 
-While this is inefficient, this has prooven effective in updating NDT occupancy in GPU without needing to involve the
+While this is inefficient, this has proven effective in updating NDT occupancy in GPU without needing to involve the
 CPU for this phase.
 
 Note that the earliest implementation of OHM occupancy launched one thread per voxel in a region with each voxel
@@ -120,6 +120,6 @@ algorithm and significantly faster than the single threaded CPU algorithm.
 # CPU cache management
 
 Before updating voxels in GPU, the CPU must ensure that the required voxel regions are uploaded to the GPU. The regions
-to be uploaded are identified by perform the same line walking algorithm for each ray in CPU, however, we do so at the
-much coarser region resolution. Most rays only touch a handful of regions. The intersected regions are added to the
+to be uploaded are identified by performing the same line walking algorithm for each ray in CPU, however, we do so at
+the much coarser region resolution. Most rays only touch a handful of regions. The intersected regions are added to the
 appropriate `GpuLayerCache`.

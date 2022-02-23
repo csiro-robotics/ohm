@@ -322,10 +322,10 @@ if(OHM_BUILD_DOXYGEN)
     list(APPEND DOXYGEN_DIRS ohmgpu)
   endif(OHM_BUILD_CUDA OR OHM_BUILD_OPENCL)
   if(OHM_BUILD_OPENCL)
-      list(APPEND DOXYGEN_DIRS clu)
+    list(APPEND DOXYGEN_DIRS clu)
   endif(OHM_BUILD_OPENCL)
 
-   list(APPEND DOXYGEN_DIRS docs)
+  list(APPEND DOXYGEN_DIRS docs)
 
   if(DOXYGEN_FOUND)
     # Create a target to build the documentation.
@@ -334,7 +334,7 @@ if(OHM_BUILD_DOXYGEN)
     doxygen_create(
       # DOXYFILE cmake/doxyfile.in  # Doxyfile to configure.
       PROJECT ${CMAKE_PROJECT_NAME} # PROJECT_NAME
-      VERSION ${ohm_VERSION}   # PROJECT_NUMBER
+      VERSION ${ohm_VERSION}        # PROJECT_NUMBER
       OUTPUT_DIR html               # HTML_OUPTUT
       # CSS <style>.css             # HTML_STYLESHEET
       PUBLISHER "CSIRO"             # DOCSET_PUBLISHER_NAME

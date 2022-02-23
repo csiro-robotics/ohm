@@ -30,9 +30,9 @@ There are a number of "built in" or "default" supported OHM voxels layers. These
 
 ## Example memory requirements
 
-Some algorithms use layers are independently - e.g., pure occupancy - while others algorithms introduce layer codepences - e.g., NDT-OM requires occupancy, mean and covariance. This can impose significant memory burdens in large maps. For offline processing, the `VoxelBlockCompressionQueue` can be enabled to compress least recently used voxel blocks, based on memory wartermark levels.
+Some algorithms use layers independently - e.g., pure occupancy - while others algorithms introduce layer codependencies - e.g., NDT-OM requires occupancy, mean and covariance. This can impose significant memory burdens in large maps. For offline processing, the `VoxelBlockCompressionQueue` can be enabled to compress least recently used voxel blocks, based on memory watermark levels.
 
-The expectation for realtime processing is that only a local map is maintained, and may need to be sized such that all layers can fit in the `GpuCache`. Below are some examples of approximate memory requirements based on the local region of interest, voxel resolution and voxel algorithm. Values are given in mibibytes (MiB) or gibibyte (GiB).
+The expectation for realtime processing is that only a local map is maintained, and may need to be sized such that all layers can fit in the `GpuCache`. Below are some examples of approximate memory requirements based on the local region of interest, voxel resolution and voxel algorithm. Values are given in mibibytes (MiB) or gibibytes (GiB).
 
 | Dimensions (m) | Resolution |    OCC |    NDT |   TSDF |
 | -------------- | ---------: | -----: | -----: | -----: |
