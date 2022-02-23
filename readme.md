@@ -96,7 +96,7 @@ While this can be changed by explicitly changing `OpenCL_INCLUDE_DIR` and `OpenC
 ## Further documentation
 
 - [OHM Glossary](./docs/docglossary.md)
-- [Occupancy map usage](./docs/docmapusage.md)
+- [Occupancy map usage](./docs/docusage.md)
 - [Ohm utilities](./docs/docutils.md)
 - [GPU algorithm overview](./docs/gpu/docgpualgorithm.md)
 - [GPU technical details and performance tips](./docs/gpu/docgpudetail.md)
