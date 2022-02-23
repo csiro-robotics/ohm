@@ -251,7 +251,6 @@ __device__ bool visitVoxelTsdfUpdate(const GpuKey *voxel_key, bool is_end_voxel,
 /// @param voxel_value_min Minimum clamping value for voxel adjustments.
 /// @param voxel_value_max Maximum clamping value for voxel adjustments.
 /// @param region_update_flags Update control values as per @c RayFlag. Only respects @c kRfForwardWalk.
-///   origins and improve performance.
 __kernel void tsdfRayUpdate(__global VoxelTsdf *tsdf_voxels, __global ulonglong *tsdf_region_mem_offsets_global,  //
                             __global int3 *tsdf_region_keys_global, uint region_count,                            //
                             __global GpuKey *line_keys, __global float3 *local_lines,                             //
@@ -299,9 +298,9 @@ __kernel void tsdfRayUpdate(__global VoxelTsdf *tsdf_voxels, __global ulonglong 
     // end voxel centre.
     // 1. Calculate the voxel step from endKey to startKey.
     // 2. Scale results by voxelResolution.
-    const int3 voxelDiff = keyDiff(&end_key, &start_key, &region_dimensions);
+    const int3 voxel_diff = keyDiff(&end_key, &start_key, &region_dimensions);
     start_voxel_centre =
-      make_float3(voxelDiff.x * voxel_resolution, voxelDiff.y * voxel_resolution, voxelDiff.z * voxel_resolution);
+      make_float3(voxel_diff.x * voxel_resolution, voxel_diff.y * voxel_resolution, voxel_diff.z * voxel_resolution);
   }
   else
   {
