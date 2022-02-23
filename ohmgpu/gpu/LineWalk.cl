@@ -382,7 +382,7 @@ __device__ void WALK_LINE_VOXELS(const GpuKey *startKey, const GpuKey *endKey, c
   //   printf("%u continueTraversal = false\n", get_global_id(0));
   // }
 
-  // Walk end point. Make sure we don't report it when start/end voxles are the same and reportWalkEndLast is set.
+  // Walk end point. Make sure we don't report it when start/end voxels are the same and reportWalkEndLast is set.
   if (continueTraversal && (!equalKeys(walkEndKey, walkStartKey) || !reportWalkEndLast))
   {
     if (forwardWalk)
