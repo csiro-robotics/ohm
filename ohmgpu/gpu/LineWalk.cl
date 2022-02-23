@@ -22,7 +22,7 @@
 /// The @p walkFlags may be used to modify the algorithm behaviour and semantics as follows:
 ///
 /// - @c kLineWalkFlagReverse reverse walk. The algorithm iterates from @p endVoxel to @p startVoxel instead.
-/// - @c kLineWalkFlagReverse force reporting the @p endVoxel last in a reverse walk.
+/// - @c kLineWalkFlagForReportEndLast force reporting the @p endVoxel last in a reverse walk.
 ///
 /// @param voxelKey The key for the voxel currently being traversed. This voxel is on the line.
 /// @param voxelMarker Set to @p kLineWalkMarkerStart (1) if @p voxelKey is the @c startKey or
