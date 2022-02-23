@@ -122,7 +122,9 @@ MapLayer ohm_API *addHitMissCount(MapLayout &layout);
 ///
 /// Similar to @c addVoxelMean(), this function adds touch timestamp using the @c touchTimeLayerName() .
 /// The touch time marks the most recent timestamp on which a voxel has been updated. The timestamp stored as a 32-bit
-/// unsigned value. The ohm implementation derives this from TODO(KS)
+/// unsigned value. The value is in milliseconds since the time base provided during the occupancy update.
+///
+/// Not supported for TSDF.
 ///
 /// @param layout The @p MapLayout to modify.
 /// @return The map layer added or the pre-existing layer named according to @c touchTimeLayerName() .
