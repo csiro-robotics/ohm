@@ -127,7 +127,7 @@ void Queue::queueCallback(const std::function<void(void)> &callback)
   {
     // Lint(KS): No nice RAII alternative for this
     delete wrapper;  // NOLINT(cppcoreguidelines-owning-memory)
-    GPUTHROW2(ApiException(clerr));
+    GPUTHROW2(ApiException(clerr, nullptr, __FILE__, __LINE__));
   }
   clerr = clReleaseEvent(barrier_event);
   GPUAPICHECK2(clerr, CL_SUCCESS);

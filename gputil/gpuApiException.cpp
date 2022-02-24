@@ -10,20 +10,22 @@
 
 namespace gputil
 {
-#define DEFAULT_MSG "Attempting write access to read only memory."
+#define DEFAULT_FILENAME "unknown"
 
-ApiException::ApiException(int error_code, const char *msg, const char *filename, int line_number)
+ApiException::ApiException(const int error_code, const char *const msg, const char *const filename,
+                           const int line_number)
   : error_code_(error_code)
 {
+  const char *const filename_or_default = (filename == nullptr) ? DEFAULT_FILENAME : filename;
   if (msg)
   {
-    setMessage(msg, filename, line_number);
+    setMessage(msg, filename_or_default, line_number);
   }
   else
   {
     std::ostringstream str;
     str << "API error " << " (" << error_code << ")" << errorCodeString(error_code);
-    setMessage(str.str(), filename, line_number);
+    setMessage(str.str(), filename_or_default, line_number);
   }
 }
 
