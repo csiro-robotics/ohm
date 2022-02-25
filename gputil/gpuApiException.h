@@ -20,7 +20,7 @@ public:
   /// Construct an API exception.
   /// @param error_code The underlying SDK error code - e.g., a @c cudaError_t .
   /// @param msg Optional test for the api error. When null, the @c errorCodeString() for @p error_code is used.
-  /// @param filename Optional name of file the exception is thrown from. When null, set to "unknown".
+  /// @param filename Optional name of file the exception is thrown from.
   /// @param line_number Optional line number where the exception is thrown.
   ApiException(int error_code, const char *msg, const char *filename = nullptr, int line_number = 0);
 
