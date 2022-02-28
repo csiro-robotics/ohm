@@ -100,14 +100,14 @@ void Kernel::calculateGrid(gputil::Dim3 *global_size, gputil::Dim3 *local_size, 
     clGetDeviceInfo(gpu.detail()->device(), CL_DEVICE_MAX_WORK_ITEM_DIMENSIONS, sizeof(group_dim), &group_dim, nullptr);
   if (err)
   {
-    GPUTHROW2(ApiException(err));
+    GPUTHROW2(ApiException(err, nullptr, __FILE__, __LINE__));
   }
   auto *max_work_size = static_cast<size_t *>(alloca(sizeof(size_t) * group_dim));
   err = clGetDeviceInfo(gpu.detail()->device(), CL_DEVICE_MAX_WORK_ITEM_SIZES, sizeof(*max_work_size) * group_dim,
                         max_work_size, nullptr);
   if (err)
   {
-    GPUTHROW2(ApiException(err));
+    GPUTHROW2(ApiException(err, nullptr, __FILE__, __LINE__));
   }
   max_work_size[0] = std::min<size_t>(max_work_size[0], total_work_items.x);
   max_work_size[1] = std::min<size_t>(max_work_size[1], total_work_items.y);
@@ -177,7 +177,7 @@ bool Kernel::checkResult(int invocation_result, bool allow_exceptions)
   (void)allow_exceptions;  // Unused if GPU_EXCEPTIONS disabled
   if (invocation_result != CL_SUCCESS)
   {
-    auto exception = ApiException(invocation_result, "Kernel invocation error");
+    auto exception = ApiException(invocation_result, "Kernel invocation error", __FILE__, __LINE__);
 #if GPU_EXCEPTIONS
     if (allow_exceptions)
     {
@@ -202,13 +202,13 @@ Kernel openCLKernel(Program &program, const char *kernel_name)
   if (!program.isValid())
   {
     err = CL_INVALID_PROGRAM;
-    GPUTHROW(ApiException(err), Kernel());
+    GPUTHROW(ApiException(err, nullptr, __FILE__, __LINE__), Kernel());
   }
 
   err = kernel.detail()->kernel.setEntry(program.detail()->program, kernel_name);
   if (err)
   {
-    GPUTHROW(ApiException(err), Kernel());
+    GPUTHROW(ApiException(err, nullptr, __FILE__, __LINE__), Kernel());
   }
   kernel.detail()->program = program;
   return kernel;

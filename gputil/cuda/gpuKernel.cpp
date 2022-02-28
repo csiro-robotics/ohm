@@ -68,7 +68,7 @@ int invokeKernel(const KernelDetail &imp, const Dim3 &global_size, const Dim3 &l
   // {
   //   err = cudaErrorLaunchFailure;
   //   const char *msg = (arg_count > imp.arg_count) ? "too many arguments" : "too few arguments";
-  //   GPUTHROW(ApiException(err, msg), err);
+  //   GPUTHROW(ApiException(err, msg, __FILE__, __LINE__), err);
   //   return err;
   // }
 
@@ -297,7 +297,7 @@ bool Kernel::checkResult(int invocation_result, bool allow_exceptions)
   (void)allow_exceptions;  // Unused if GPU_EXCEPTIONS disabled
   if (invocation_result != cudaSuccess)
   {
-    auto exception = ApiException(invocation_result, "Kernel invocation error");
+    auto exception = ApiException(invocation_result, "Kernel invocation error", __FILE__, __LINE__);
 #if GPU_EXCEPTIONS
     if (allow_exceptions)
     {

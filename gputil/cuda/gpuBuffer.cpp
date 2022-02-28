@@ -291,7 +291,7 @@ size_t resizeBuffer(BufferDetail *imp, size_t new_size, bool force)
   {
     imp->device_mem = nullptr;
     imp->alloc_size = 0;
-    GPUTHROW(ApiException(err), 0);
+    GPUTHROW(ApiException(err, nullptr, __FILE__, __LINE__), 0);
   }
   imp->alloc_size = new_size;
 
