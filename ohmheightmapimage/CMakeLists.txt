@@ -53,7 +53,7 @@ target_include_directories(ohmheightmapimage SYSTEM
 if(OHM_TES_DEBUG)
   target_link_libraries(ohmheightmapimage PUBLIC 3es::3es-core)
 else(OHM_TES_DEBUG)
-  target_include_directories(ohmheightmapimage PRIVATE SYSTEM "${3ES_INCLUDE_DIRS}")
+  target_include_directories(ohmheightmapimage SYSTEM PRIVATE "${3ES_INCLUDE_DIRS}")
 endif(OHM_TES_DEBUG)
 
 install(TARGETS ohmheightmapimage EXPORT ${CMAKE_PROJECT_NAME}-config-targets

@@ -35,7 +35,7 @@ target_link_libraries(ohmtestheightmap PUBLIC ohmtestcommon ohmtools ohmheightma
 if(OHM_TES_DEBUG)
   target_link_libraries(ohmtestheightmap PUBLIC 3es::3es-core)
 else(OHM_TES_DEBUG)
-  target_include_directories(ohmtestheightmap PRIVATE SYSTEM "${3ES_INCLUDE_DIRS}")
+  target_include_directories(ohmtestheightmap SYSTEM PRIVATE "${3ES_INCLUDE_DIRS}")
 endif(OHM_TES_DEBUG)
 
 add_test(NAME ohmtestheightmap COMMAND ohmtestheightmap --gtest_output=xml:test-reports/)
