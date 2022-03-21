@@ -38,7 +38,7 @@ function(_ohmquery_setup GPU_MODE)
   if(OHM_TES_DEBUG)
     target_link_libraries(${TARGET_NAME} PUBLIC 3es::3es-core)
   else(OHM_TES_DEBUG)
-    target_include_directories(${TARGET_NAME} PRIVATE SYSTEM "${3ES_INCLUDE_DIRS}")
+    target_include_directories(${TARGET_NAME} SYSTEM PRIVATE "${3ES_INCLUDE_DIRS}")
   endif(OHM_TES_DEBUG)
 
   install(TARGETS ${TARGET_NAME} DESTINATION bin)

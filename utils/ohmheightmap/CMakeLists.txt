@@ -27,7 +27,7 @@ target_link_libraries(ohmheightmaputil PUBLIC ohmheightmap ohmtools ohmutil ${ZL
 if(OHM_TES_DEBUG)
   # target_link_libraries(ohmheightmaputil PUBLIC 3es::3es-core)
 else(OHM_TES_DEBUG)
-  target_include_directories(ohmheightmaputil PRIVATE SYSTEM "${3ES_INCLUDE_DIRS}")
+  target_include_directories(ohmheightmaputil SYSTEM PRIVATE "${3ES_INCLUDE_DIRS}")
 endif(OHM_TES_DEBUG)
 clang_tidy_target(ohmheightmaputil)
 

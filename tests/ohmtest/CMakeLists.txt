@@ -63,7 +63,7 @@ target_link_libraries(ohmtest PUBLIC ohmtestcommon ohmtools ohm ohmutil ${GTEST_
 if(OHM_TES_DEBUG)
   target_link_libraries(ohmtest PUBLIC 3es::3es-core)
 else(OHM_TES_DEBUG)
-  target_include_directories(ohmtest PRIVATE SYSTEM "${3ES_INCLUDE_DIRS}")
+  target_include_directories(ohmtest SYSTEM PRIVATE "${3ES_INCLUDE_DIRS}")
 endif(OHM_TES_DEBUG)
 
 if(Eigen3_FOUND)

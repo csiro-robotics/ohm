@@ -46,7 +46,7 @@ add_dependencies(ohmtestcommon marshal_test_data)
 if(OHM_TES_DEBUG)
   target_link_libraries(ohmtestcommon PUBLIC 3es::3es-core ${GTEST_LIBRARIES} ${GTEST_MAIN_LIBRARIES})
 else(OHM_TES_DEBUG)
-  target_include_directories(ohmtestcommon PRIVATE SYSTEM "${3ES_INCLUDE_DIRS}")
+  target_include_directories(ohmtestcommon SYSTEM PRIVATE "${3ES_INCLUDE_DIRS}")
 endif(OHM_TES_DEBUG)
 
 if(Eigen3_FOUND)
