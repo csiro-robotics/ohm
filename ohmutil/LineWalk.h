@@ -125,6 +125,7 @@ inline void initLineWalkRay(LineWalkRay *ray, const glm::dvec3 &start, const glm
 struct WalkSteps
 {
   double time_next[3];
+  double initial_delta[3];
   double step_delta[3];
   int sign[3];
   double length;
@@ -137,9 +138,9 @@ inline void calculateWalkSteps(WalkSteps *walk_steps, const glm::dvec3 &start_po
   LineWalkRay ray;
   initLineWalkRay(&ray, start_point, end_point, start_voxel_centre, voxel_resolution, length_epsilon);
 
-  walk_steps->time_next[0] = ray.initial_exit_time[0];
-  walk_steps->time_next[1] = ray.initial_exit_time[1];
-  walk_steps->time_next[2] = ray.initial_exit_time[2];
+  walk_steps->initial_delta[0] = walk_steps->time_next[0] = ray.initial_exit_time[0];
+  walk_steps->initial_delta[1] = walk_steps->time_next[1] = ray.initial_exit_time[1];
+  walk_steps->initial_delta[2] = walk_steps->time_next[2] = ray.initial_exit_time[2];
 
   walk_steps->step_delta[0] = ray.step_delta[0];
   walk_steps->step_delta[1] = ray.step_delta[1];
@@ -152,12 +153,12 @@ inline void calculateWalkSteps(WalkSteps *walk_steps, const glm::dvec3 &start_po
   walk_steps->length = ray.length;
 }
 
-inline int nextAxis(const double *time_next, const glm::ivec3 &steps_remaining)
+inline int nextAxis(const double *time_next)
 {
-  // Select next axis based on the earliest next time.
+  // Select next axis based on the earliest next time. An expired axis will have infinity for next time.
   int axis = 0;
-  axis = (time_next[axis] < time_next[1] || !steps_remaining[1]) ? axis : 1;
-  axis = (time_next[axis] < time_next[2] || !steps_remaining[2]) ? axis : 2;
+  axis = (time_next[axis] < time_next[1]) ? axis : 1;
+  axis = (time_next[axis] < time_next[2]) ? axis : 2;
   return axis;
 }
 
@@ -239,6 +240,7 @@ size_t walkSegmentKeys(WalkSegmentFunc walk_func, const glm::dvec3 &start_point,
   detail::WalkSteps steps;
   detail::calculateWalkSteps(&steps, start_point, end_point, start_voxel_centre, voxel_resolution, length_epsilon);
   glm::ivec3 steps_remaining = funcs.keyDiff(end_point_key, start_point_key);
+  glm::ivec3 stepped(0);
 
   KEY current_key = start_point_key;
   double last_time = 0;
@@ -252,8 +254,13 @@ size_t walkSegmentKeys(WalkSegmentFunc walk_func, const glm::dvec3 &start_point,
   limit_flags |= !!(steps_remaining[1] == 0) * (1u << 1u);
   limit_flags |= !!(steps_remaining[2] == 0) * (1u << 2u);
 
+  for (int i = 0; i < 3; ++i)
+  {
+    steps.time_next[i] = (steps_remaining[i]) ? steps.initial_delta[i] : std::numeric_limits<double>::infinity();
+  }
+
   // Select next axis based on the earliest next time.
-  axis = detail::nextAxis(steps.time_next, steps_remaining);
+  axis = detail::nextAxis(steps.time_next);
 
   while (!user_exit && limit_flags < 7u && current_key != end_point_key)
   {
@@ -267,11 +274,15 @@ size_t walkSegmentKeys(WalkSegmentFunc walk_func, const glm::dvec3 &start_point,
     const KEY previous_key = current_key;
     funcs.stepKey(current_key, axis, step_dir);
     steps_remaining[axis] -= step_dir;
-    steps.time_next[axis] += steps.step_delta[axis];
+    stepped[axis] += step_dir;
+    steps.time_next[axis] = (steps_remaining[axis]) ?
+                              steps.initial_delta[axis] + steps.step_delta[axis] * abs(stepped[axis]) :
+                              // steps.time_next[axis] + steps.step_delta[axis] :
+                              std::numeric_limits<double>::infinity();
     limit_flags |= !!(steps_remaining[axis] == 0) * (1u << axis);
 
     // Choose the next step axis.
-    axis = detail::nextAxis(steps.time_next, steps_remaining);
+    axis = detail::nextAxis(steps.time_next);
   }
 
   // Touch the last voxel.
