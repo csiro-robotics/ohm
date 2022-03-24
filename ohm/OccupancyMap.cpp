@@ -23,7 +23,6 @@
 
 #include "private/OccupancyMapDetail.h"
 
-#include <ohmutil/LineWalk.h>
 
 #include <algorithm>
 #include <cassert>

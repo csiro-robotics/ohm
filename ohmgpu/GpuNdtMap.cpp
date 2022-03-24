@@ -30,6 +30,8 @@
 #include <glm/ext.hpp>
 #include <glm/gtx/norm.hpp>
 
+#include <iostream>
+
 // Must come after glm includes due to usage on GPU.
 #include <ohm/CovarianceVoxel.h>
 
@@ -374,6 +376,14 @@ void GpuNdtMap::invokeNdt(unsigned region_update_flags, int buf_idx, gputil::Eve
   gputil::Dim3 local_size;
 
   unsigned modify_flags = (!(region_update_flags & kRfEndPointAsFree)) ? kRfExcludeSample : 0u;
+
+  static bool once = false;
+  if (!once)
+  {
+    once = true;
+    std::cout << "work group size1: " << imp_->update_kernel.optimalWorkGroupSize() << std::endl;
+    std::cout << "work group size2: " << imp->cov_hit_kernel.optimalWorkGroupSize() << std::endl;
+  }
 
   if (!(region_update_flags & kRfExcludeRay))
   {

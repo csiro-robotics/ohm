@@ -6,6 +6,7 @@
 #include "RayMapperTsdf.h"
 
 #include "DefaultLayer.h"
+#include "LineWalk.h"
 #include "MapChunk.h"
 #include "MapLayer.h"
 #include "MapLayout.h"
@@ -13,8 +14,6 @@
 #include "Voxel.h"
 #include "VoxelBuffer.h"
 #include "VoxelTsdf.h"
-
-#include <ohmutil/LineWalk.h>
 
 namespace ohm
 {
@@ -178,7 +177,7 @@ size_t RayMapperTsdf::integrateRays(const glm::dvec3 *rays, size_t element_count
       }
     }
 
-    ohm::walkSegmentKeys<Key>(visit_func, ray_start, ray_end, true, WalkKeyAdaptor(*map_));
+    walkSegmentKeys(LineWalkContext(*map_, visit_func), ray_start, ray_end);
   }
 
   return element_count / 2;

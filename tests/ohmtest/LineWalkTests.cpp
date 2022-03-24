@@ -8,6 +8,7 @@
 #include <ohm/Aabb.h>
 #include <ohm/Key.h>
 #include <ohm/KeyList.h>
+#include <ohm/LineWalk.h>
 #include <ohm/OccupancyMap.h>
 #include <ohm/OccupancyType.h>
 #include <ohm/OccupancyUtil.h>
@@ -20,7 +21,6 @@
 #include <ohmtools/OhmCloud.h>
 #include <ohmtools/OhmGen.h>
 #include <ohmutil/GlmStream.h>
-#include <ohmutil/LineWalk.h>
 #include <ohmutil/OhmUtil.h>
 #include <ohmutil/Profile.h>
 
@@ -164,7 +164,7 @@ void testWalk(const ohm::OccupancyMap &map, const glm::dvec3 &start_point, const
   };
 
   // Walk the ray.
-  walkSegmentKeys<Key>(visit_function, start_point, end_point, include_end_point, WalkKeyAdaptor(map));
+  walkSegmentKeys(LineWalkContext(map, visit_function), start_point, end_point, include_end_point);
 
   const ohm::Key expected_key = end_key;
   // Validate last key.
@@ -244,7 +244,7 @@ TEST(LineWalk, Walk)
 #if 0
   const glm::dvec3 end(0, 0, 0);
   log = true;
-  start = glm::dvec3(-1, 0, 0);
+  start = glm::dvec3(-1, 0, 1);
   // map.setOrigin(glm::dvec3(0.05));
   std::cout << "include end" << std::endl;
   testWalk(map, start, end, true, log);

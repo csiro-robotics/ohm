@@ -13,6 +13,7 @@
 
 #include "CalculateSegmentKeys.h"
 #include "KeyList.h"
+#include "LineWalk.h"
 #include "MapLayer.h"
 #include "MapLayout.h"
 #include "NdtMap.h"
@@ -22,8 +23,6 @@
 #include "VoxelData.h"
 #include "VoxelIncident.h"
 #include "VoxelTouchTime.h"
-
-#include <ohmutil/LineWalk.h>
 
 #include <iostream>
 
@@ -273,7 +272,7 @@ size_t RayMapperNdt::integrateRays(const glm::dvec3 *rays, size_t element_count,
     if (!(ray_update_flags & kRfExcludeRay))
     {
       stop_adjustments = false;
-      ohm::walkSegmentKeys<Key>(visit_func, start, sample, include_sample_in_ray, WalkKeyAdaptor(occupancy_map));
+      walkSegmentKeys(LineWalkContext(occupancy_map, visit_func), start, sample, include_sample_in_ray);
     }
 
     if (!stop_adjustments && !include_sample_in_ray)

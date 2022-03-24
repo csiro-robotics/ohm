@@ -9,6 +9,7 @@
 
 #include "CalculateSegmentKeys.h"
 #include "KeyList.h"
+#include "LineWalk.h"
 #include "MapLayer.h"
 #include "MapLayout.h"
 #include "OccupancyMap.h"
@@ -16,8 +17,6 @@
 #include "VoxelBuffer.h"
 #include "VoxelMean.h"
 #include "VoxelOccupancy.h"
-
-#include <ohmutil/LineWalk.h>
 
 namespace ohm
 {
@@ -188,7 +187,7 @@ bool RaysQuery::onExecute()
       continue;
     }
 
-    ohm::walkSegmentKeys<Key>(visit_func, start, end, true, WalkKeyAdaptor(*map));
+    walkSegmentKeys(LineWalkContext(*map, visit_func), start, end);
 
     d->ranges.emplace_back(range);
     d->unobserved_volumes_out.emplace_back(unobserved_volume);

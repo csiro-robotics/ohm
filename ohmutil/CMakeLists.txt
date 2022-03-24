@@ -17,7 +17,6 @@ set(SOURCES
   ProgressMonitor.cpp
   ProgressMonitor.h
   GlmStream.h
-  LineWalk.h
   Options.h
   Profile.cpp
   Profile.h
@@ -45,7 +44,6 @@ set(PUBLIC_CXXOPT_HEADERS
 set(PUBLIC_HEADERS
   Colour.h
   GlmStream.h
-  LineWalk.h
   OhmUtil.h
   Options.h
   p2p.h

@@ -32,6 +32,8 @@
 #include <glm/ext.hpp>
 #include <glm/gtx/norm.hpp>
 
+#include <iostream>
+
 #if defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
 #include "TsdfUpdateResource.h"
 #endif  // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
@@ -252,6 +254,13 @@ void GpuTsdfMap::finaliseBatch(unsigned region_update_flags)
   {
     ohm::logger::error("TSDF algorithm requires GPU samples_buffers, but the flag has been disabled. Aborting.\n");
     return;
+  }
+
+  static bool once = false;
+  if (!once)
+  {
+    once = true;
+    std::cout << "work group size: " << imp_->update_kernel.optimalWorkGroupSize() << std::endl;
   }
 
   const unsigned region_count = imp_->region_counts[buf_idx];

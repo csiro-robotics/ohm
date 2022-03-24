@@ -8,8 +8,6 @@
 #include "KeyList.h"
 #include "OccupancyMap.h"
 
-#include <ohmutil/LineWalk.h>
-
 namespace ohm
 {
 RayMapper::RayMapper() = default;

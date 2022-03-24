@@ -6,8 +6,7 @@
 #include "CalculateSegmentKeys.h"
 
 #include "KeyList.h"
-
-#include <ohmutil/LineWalk.h>
+#include "LineWalk.h"
 
 namespace ohm
 {
@@ -15,11 +14,16 @@ size_t calculateSegmentKeys(KeyList &keys, const OccupancyMap &map, const glm::d
                             const glm::dvec3 &end_point, bool include_end_point)
 {
   keys.clear();
-  return ohm::walkSegmentKeys<Key>(
-    [&keys](const Key &key, double, double, const glm::ivec3 &) {
-      keys.add(key);
-      return true;
-    },
-    start_point, end_point, include_end_point, WalkKeyAdaptor(map));
+  return walkSegmentKeys(
+    LineWalkContext(map,
+                    [&keys](const Key &key, double enter_range, double exit_range, const glm::ivec3 &stepped) {
+                      (void)enter_range;  // Unused
+                      (void)exit_range;   // Unused
+                      (void)stepped;      // Unused
+
+                      keys.add(key);
+                      return true;
+                    }),
+    start_point, end_point, include_end_point);
 }
 }  // namespace ohm

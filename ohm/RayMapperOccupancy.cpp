@@ -6,6 +6,7 @@
 #include "RayMapperOccupancy.h"
 
 #include "DefaultLayer.h"
+#include "LineWalk.h"
 #include "MapChunk.h"
 #include "MapLayer.h"
 #include "MapLayout.h"
@@ -20,8 +21,6 @@
 // TODO (KS): RayMapperOccupancy::lookupRays() is deprecated. Use RaysQuery for less code maintenance, but it creates
 // a poor dependency.
 #include "RaysQuery.h"
-
-#include <ohmutil/LineWalk.h>
 
 namespace ohm
 {
@@ -227,7 +226,7 @@ size_t RayMapperOccupancy::integrateRays(const glm::dvec3 *rays, size_t element_
     if (!(ray_update_flags & kRfExcludeRay))
     {
       stop_adjustments = false;
-      ohm::walkSegmentKeys<Key>(visit_func, start, end, include_sample_in_ray, WalkKeyAdaptor(*map_));
+      walkSegmentKeys(LineWalkContext(*map_, visit_func), start, end, include_sample_in_ray);
     }
 
     if (!stop_adjustments && !include_sample_in_ray && !(ray_update_flags & kRfExcludeSample))
