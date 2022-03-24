@@ -3,6 +3,8 @@
 // ABN 41 687 119 230
 //
 // Author: Kazys Stepanas
+
+#include <ohm/CalculateSegmentKeys.h>
 #include <ohm/Key.h>
 #include <ohm/KeyList.h>
 #include <ohm/OccupancyMap.h>
@@ -268,7 +270,7 @@ TEST(LineKeys, QueryGpu)
     cpu_start = TimingClock::now();
     for (size_t j = 0; j < line_count; ++j)
     {
-      map.calculateSegmentKeys(keys, line_points[j * 2 + 0], line_points[j * 2 + 1], true);
+      calculateSegmentKeys(keys, map, line_points[j * 2 + 0], line_points[j * 2 + 1], true);
     }
     cpu_end = TimingClock::now();
     cpu_duration = cpu_end - cpu_start;

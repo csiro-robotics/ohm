@@ -11,6 +11,7 @@
 
 #include "private/GpuProgramRef.h"
 
+#include <ohm/CalculateSegmentKeys.h>
 #include <ohm/KeyList.h>
 #include <ohm/Logger.h>
 #include <ohm/OccupancyMap.h>
@@ -299,7 +300,7 @@ bool LineKeysQueryGpu::onExecute()
   for (size_t i = 0; i < d->rays.size(); i += 2)
   {
     key_list.clear();
-    d->map->calculateSegmentKeys(key_list, d->rays[i + 0], d->rays[i + 1], true);
+    calculateSegmentKeys(key_list, *d->map, d->rays[i + 0], d->rays[i + 1], true);
     d->result_indices[i / 2] = d->intersected_voxels.size();
     d->result_counts[i / 2] = key_list.size();
     for (auto &&key : key_list)

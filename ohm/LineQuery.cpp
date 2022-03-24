@@ -5,6 +5,7 @@
 // Author: Kazys Stepanas
 #include "LineQuery.h"
 
+#include "CalculateSegmentKeys.h"
 #include "Key.h"
 #include "OccupancyMap.h"
 #include "QueryFlag.h"
@@ -55,7 +56,7 @@ void calculateNearestNeighboursRange(LineQueryDetail &query, size_t start_index,
 unsigned occupancyLineQueryCpu(const OccupancyMap &map, LineQueryDetail &query, ClosestResult &closest)
 {
   glm::ivec3 voxel_search_half_extents = calculateVoxelSearchHalfExtents(map, query.search_radius);
-  map.calculateSegmentKeys(query.segment_keys, query.start_point, query.end_point);
+  calculateSegmentKeys(query.segment_keys, map, query.start_point, query.end_point);
 
   // Allocate results.
   query.intersected_voxels.resize(query.segment_keys.size());

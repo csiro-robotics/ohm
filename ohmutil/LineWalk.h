@@ -16,12 +16,173 @@ namespace ohm
 {
 class Key;
 
+namespace detail
+{
+struct LineWalkRay
+{
+  glm::dvec3 origin;
+  glm::dvec3 direction;
+  glm::dvec3 direction_inverse;
+  int sign[3];
+  double initial_exit_time[3];
+  double step_delta[3];
+  double length;
+};
+
+inline int lineWalkSignToStep(int sign)
+{
+  // Derive the step direction from the ray->sign. The ray->sign values are 0 for positive step direction, 1 for
+  // a negative step direction. Thus we can resolve the step direction as:
+  // -2 * sign + 1
+  //
+  // When sign is 0:
+  //  -2 * 0 + 1 = 1
+  // When sign is 1:
+  //  -2 * 1 + 1 = -1
+  return -2 * sign + 1;
+}
+
+/// Calculate the times at which the ray will exit a voxel wall along each axis.
+/// Note: @p exit_time must have space for three elements to be written back to it.
+inline void calculateVoxelWallExit(const LineWalkRay *ray, const glm::dvec3 &voxel_min, const glm::dvec3 &voxel_max,
+                                   double *exit_time, double length_epsilon)
+{
+  // Based on:
+  // https://www.scratchapixel.com/lessons/3d-basic-rendering/minimal-ray-tracer-rendering-simple-shapes/ray-box-intersection
+  const glm::dvec3 *bounds[2] = { &voxel_min, &voxel_max };
+  exit_time[0] = (bounds[1 - ray->sign[0]]->x - ray->origin.x) * ray->direction_inverse.x;
+  exit_time[1] = (bounds[1 - ray->sign[1]]->y - ray->origin.y) * ray->direction_inverse.y;
+  exit_time[2] = (bounds[1 - ray->sign[2]]->z - ray->origin.z) * ray->direction_inverse.z;
+}
+
+inline void initLineWalkRay(LineWalkRay *ray, const glm::dvec3 &start, const glm::dvec3 &end,
+                            const glm::dvec3 &start_voxel_centre, const glm::dvec3 &voxel_resolution,
+                            double length_epsilon)
+{
+  ray->origin = start;
+  ray->direction = end - start;
+  ray->length =
+    ray->direction.x * ray->direction.x + ray->direction.y * ray->direction.y + ray->direction.z * ray->direction.z;
+  // OpenCL 3.0 does not like double precision literals without double support enabled, so we have to use floats
+  // and cast to our double if that's what we are using.
+  ray->length = (ray->length > length_epsilon) ? sqrt(ray->length) : 0;
+
+  // Resolve the direction before we potentially divide by zero as we can for very small rays.
+  // This at leasts sets the ray direction correctly.
+  ray->sign[0] = ray->direction.x < 0;
+  ray->sign[1] = ray->direction.y < 0;
+  ray->sign[2] = ray->direction.z < 0;
+
+  ray->direction.x /= ray->length;
+  ray->direction.y /= ray->length;
+  ray->direction.z /= ray->length;
+
+  ray->direction_inverse.x = (ray->length > 0) ? 1 / ray->direction.x : 0;
+  ray->direction_inverse.y = (ray->length > 0) ? 1 / ray->direction.y : 0;
+  ray->direction_inverse.z = (ray->length > 0) ? 1 / ray->direction.z : 0;
+
+  // Calculate how much the exit time changes along an axis each time we leave an axis.
+  // We start with the initial voxel to also calculate start_voxel_centre, but it could be arbitrary for the delta
+  // calculation. Then we calculate the exit time for the next voxel along each axis.
+  glm::dvec3 voxel_min = start_voxel_centre;
+  glm::dvec3 voxel_max = start_voxel_centre;
+
+  voxel_min -= 0.5 * voxel_resolution;
+  voxel_max += 0.5 * voxel_resolution;
+
+  calculateVoxelWallExit(ray, voxel_min, voxel_max, ray->initial_exit_time, length_epsilon);
+
+  // Move the voxel along on each axis.
+  const double voxel_shift[3] = { lineWalkSignToStep(ray->sign[0]) * voxel_resolution[0],
+                                  lineWalkSignToStep(ray->sign[1]) * voxel_resolution[1],
+                                  lineWalkSignToStep(ray->sign[2]) * voxel_resolution[2] };
+
+  voxel_min.x += voxel_shift[0];
+  voxel_min.y += voxel_shift[1];
+  voxel_min.z += voxel_shift[2];
+  voxel_max.x += voxel_shift[0];
+  voxel_max.y += voxel_shift[1];
+  voxel_max.z += voxel_shift[2];
+
+  // Calculate the time to exit the next voxel wall along each axis.
+  calculateVoxelWallExit(ray, voxel_min, voxel_max, ray->step_delta, length_epsilon);
+
+  // The difference between them is the step delta. This is invariant for this ray.
+  if (ray->step_delta[0] != std::numeric_limits<double>::infinity())
+  {
+    ray->step_delta[0] -= ray->initial_exit_time[0];
+  }
+  if (ray->step_delta[1] != std::numeric_limits<double>::infinity())
+  {
+    ray->step_delta[1] -= ray->initial_exit_time[1];
+  }
+  if (ray->step_delta[2] != std::numeric_limits<double>::infinity())
+  {
+    ray->step_delta[2] -= ray->initial_exit_time[2];
+  }
+}
+
+struct WalkSteps
+{
+  double time_next[3];
+  double step_delta[3];
+  int sign[3];
+  double length;
+};
+
+inline void calculateWalkSteps(WalkSteps *walk_steps, const glm::dvec3 &start_point, const glm::dvec3 &end_point,
+                               const glm::dvec3 &start_voxel_centre, const glm::dvec3 &voxel_resolution,
+                               double length_epsilon)
+{
+  LineWalkRay ray;
+  initLineWalkRay(&ray, start_point, end_point, start_voxel_centre, voxel_resolution, length_epsilon);
+
+  walk_steps->time_next[0] = ray.initial_exit_time[0];
+  walk_steps->time_next[1] = ray.initial_exit_time[1];
+  walk_steps->time_next[2] = ray.initial_exit_time[2];
+
+  walk_steps->step_delta[0] = ray.step_delta[0];
+  walk_steps->step_delta[1] = ray.step_delta[1];
+  walk_steps->step_delta[2] = ray.step_delta[2];
+
+  walk_steps->sign[0] = ray.sign[0];
+  walk_steps->sign[1] = ray.sign[1];
+  walk_steps->sign[2] = ray.sign[2];
+
+  walk_steps->length = ray.length;
+}
+
+inline int nextAxis(const double *time_next, const glm::ivec3 &steps_remaining)
+{
+  // Select next axis based on the earliest next time.
+  int axis = 0;
+  axis = (time_next[axis] < time_next[1] || !steps_remaining[1]) ? axis : 1;
+  axis = (time_next[axis] < time_next[2] || !steps_remaining[2]) ? axis : 2;
+  return axis;
+}
+
+inline int stepDir(const int sign)
+{
+  // Derive the step direction from the ray->sign. The ray->sign values are 0 for positive step direction, 1 for
+  // a negative step direction. Thus we can resolve the step direction as:
+  // -2 * sign + 1
+  //
+  // When sign is 0:
+  //  -2 * 0 + 1 = 1
+  // When sign is 1:
+  //  -2 * 1 + 1 = -1
+  return -2 * sign + 1;
+}
+}  // namespace detail
+
+
 /// Function signature for the visit function called from @c walkSegmentKeys().
 /// @param key The key of the current voxel being visited.
 /// @param enter_range Range at which the voxel is entered. detail required
 /// @param exit_range Range at which the voxel is entered. detail required
+/// @param steps_remaining The number of voxels steps remaining along each axis.
 /// @return True to keep walking the voxels along the ray, false to abort walking the ray.
-using WalkSegmentFunc = std::function<bool(const Key &, double, double)>;
+using WalkSegmentFunc = std::function<bool(const Key &, double, double, const glm::ivec3 &)>;
 
 /// A templatised, voxel based line walking algorithm. Voxels are accurately traversed from @p startPoint to
 /// @p endPoint, invoking @p walkFunc for each traversed voxel.
@@ -45,6 +206,8 @@ using WalkSegmentFunc = std::function<bool(const Key &, double, double)>;
 ///   // Move the key by one voxel. The axis may be {0, 1, 2} correlating the XYZ axes respectively.
 ///   // The step will be 1 or -1, indicating the direction of the step.
 ///   void stepKey(KEY &key, int axis, int step) const;
+///   // Calculate the voxel difference between two voxel keys : `key_a - key_b`.
+///   glm::ivec3 keyDiff(const KEY &key_a, const KEY &key_b);
 /// };
 /// @endcode
 ///
@@ -62,122 +225,64 @@ size_t walkSegmentKeys(WalkSegmentFunc walk_func, const glm::dvec3 &start_point,
                        bool include_end_point, const KEYFUNCS &funcs,
                        double length_epsilon = 1e-6)  // NOLINT(readability-magic-numbers)
 {
-  // see "A Faster Voxel Traversal Algorithm for Ray Tracing" by Amanatides & Woo
-  KEY start_point_key = funcs.voxelKey(start_point);
-  KEY end_point_key = funcs.voxelKey(end_point);
+  const KEY start_point_key = funcs.voxelKey(start_point);
+  const KEY end_point_key = funcs.voxelKey(end_point);
 
   if (funcs.isNull(start_point_key) || funcs.isNull(end_point_key))
   {
     return 0;
   }
 
-  glm::dvec3 direction = glm::dvec3(end_point - start_point);
-  const double length = std::sqrt(glm::dot(direction, direction));
-  const glm::dvec3 voxel = funcs.voxelCentre(start_point_key);
+  const glm::dvec3 voxel_resolution(funcs.voxelResolution(0), funcs.voxelResolution(1), funcs.voxelResolution(2));
+  const glm::dvec3 start_voxel_centre = funcs.voxelCentre(start_point_key);
 
-  // Very small segments which straddle a voxel boundary can be problematic. We want to avoid
-  // inverting a very small number, but be robust enough to handle the situation.
-  // To that end, we skip normalising the direction for directions below a tenth of the voxel.
-  // Then we will exit either with start/end voxels being the same, or we will step from start
-  // to end in one go.
-  const bool valid_length = length >= length_epsilon;
-  if (valid_length)
-  {
-    direction *= 1.0 / length;
-  }
+  detail::WalkSteps steps;
+  detail::calculateWalkSteps(&steps, start_point, end_point, start_voxel_centre, voxel_resolution, length_epsilon);
+  glm::ivec3 steps_remaining = funcs.keyDiff(end_point_key, start_point_key);
 
-  if (start_point_key == end_point_key)
-  {
-    if (include_end_point)
-    {
-      walk_func(end_point_key, 0.0, length);
-    }
-    return 1;
-  }
-
-  if (!valid_length)
-  {
-    // Start/end points are in different, but adjacent voxels. Prevent issues with the loop by
-    // early out.
-    const int axis =
-      start_point_key.axisMatches(0, end_point_key) ? (start_point_key.axisMatches(1, end_point_key) ? 2 : 1) : 0;
-    const double sign_direction = (direction[axis] > 0) ? 1 : -1;
-    const glm::dvec3 voxel = funcs.voxelCentre(start_point_key);
-    const double next_voxel_border =
-      voxel[axis] + sign_direction * 0.5 * funcs.voxelResolution(axis);  // NOLINT(readability-magic-numbers)
-    const double first_voxel_length =
-      std::abs((next_voxel_border - start_point[axis]) / (end_point[axis] - start_point[axis])) * length;
-    if (walk_func(start_point_key, 0.0, first_voxel_length))
-    {
-      if (include_end_point)
-      {
-        walk_func(end_point_key, first_voxel_length, length);
-        return 2;
-      }
-    }
-    return 1;
-  }
-
-  std::array<int, 3> step = { 0, 0, 0 };
-  std::array<double, 3> time_max;
-  std::array<double, 3> time_delta;
-  std::array<double, 3> time_limit;
-  double next_voxel_border;
-  double direction_axis_inv;
-  size_t added = 0;
   KEY current_key = start_point_key;
-  double time_current = 0.0;
-
-  // Compute step direction, increments and maximums along each axis.
-  for (unsigned i = 0; i < 3; ++i)
-  {
-    if (direction[i] != 0)
-    {
-      direction_axis_inv = 1.0 / direction[i];
-      step[i] = (direction[i] > 0) ? 1 : -1;
-      // Time delta is the ray time between voxel boundaries calculated for each axis.
-      time_delta[i] = funcs.voxelResolution(i) * std::abs(direction_axis_inv);
-      // Calculate the distance from the origin to the nearest voxel edge for this axis.
-      next_voxel_border = voxel[i] + step[i] * 0.5 * funcs.voxelResolution(i);  // NOLINT(readability-magic-numbers)
-      time_max[i] = (next_voxel_border - start_point[i]) * direction_axis_inv;
-      // Set the distance limit
-      // original...
-      // time_limit[i] = std::abs((end_point[i] - start_point[i]) * direction_axis_inv);
-      // which is equivalent to...
-      time_limit[i] = length;
-    }
-    else
-    {
-      time_max[i] = time_delta[i] = std::numeric_limits<double>::max();
-      time_limit[i] = 0;
-    }
-  }
-
-  int axis = 0;
-  bool limit_reached = false;
+  double last_time = 0;
+  unsigned axis = 0;
+  unsigned limit_flags = 0;
+  unsigned voxel_count = 0;
   bool user_exit = false;
-  while (!limit_reached && !user_exit && current_key != end_point_key)
+
+  // Initialise limit flags to mark which axes won't be stepped. Bits 0, 1, 2 map to axis X, Y, Z respectively.
+  limit_flags |= !!(steps_remaining[0] == 0) * (1u << 0u);
+  limit_flags |= !!(steps_remaining[1] == 0) * (1u << 1u);
+  limit_flags |= !!(steps_remaining[2] == 0) * (1u << 2u);
+
+  // Select next axis based on the earliest next time.
+  axis = detail::nextAxis(steps.time_next, steps_remaining);
+
+  while (!user_exit && limit_flags < 7u && current_key != end_point_key)
   {
-    axis = (time_max[0] < time_max[2]) ? ((time_max[0] < time_max[1]) ? 0 : 1) : ((time_max[1] < time_max[2]) ? 1 : 2);
-    // Strictly speaking std::abs() is unnecessary here. However, from memory there were instances where it could be
-    // negative in practice (floating point error). Possibly in the zero case (positive and negative zeros).
-    limit_reached = std::abs(time_max[axis]) > time_limit[axis];
-    const double new_time_current = limit_reached ? time_limit[axis] : time_max[axis];
-    user_exit = !walk_func(current_key, time_current, new_time_current);
-    time_max[axis] += time_delta[axis];
-    time_current = new_time_current;
-    ++added;
-    funcs.stepKey(current_key, axis, step[axis]);
+    // Visit the current voxel.
+    user_exit = !walk_func(current_key, last_time, steps.time_next[axis], steps_remaining);
+    last_time = steps.time_next[axis];
+    ++voxel_count;
+
+    // Step on from the current voxel.
+    const int step_dir = detail::stepDir(steps.sign[axis]);
+    const KEY previous_key = current_key;
+    funcs.stepKey(current_key, axis, step_dir);
+    steps_remaining[axis] -= step_dir;
+    steps.time_next[axis] += steps.step_delta[axis];
+    limit_flags |= !!(steps_remaining[axis] == 0) * (1u << axis);
+
+    // Choose the next step axis.
+    axis = detail::nextAxis(steps.time_next, steps_remaining);
   }
 
+  // Touch the last voxel.
   if (!user_exit && include_end_point)
   {
-    walk_func(end_point_key, time_current, length);
-    ++added;
+    walk_func(end_point_key, last_time, steps.length, steps_remaining);
+    ++voxel_count;
   }
 
-  assert(added);
-  return added;
+  assert(voxel_count || !include_end_point);
+  return voxel_count;
 }
 
 

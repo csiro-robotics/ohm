@@ -16,7 +16,7 @@ size_t calculateSegmentKeys(KeyList &keys, const OccupancyMap &map, const glm::d
 {
   keys.clear();
   return ohm::walkSegmentKeys<Key>(
-    [&keys](const Key &key, double, double) {
+    [&keys](const Key &key, double, double, const glm::ivec3 &) {
       keys.add(key);
       return true;
     },

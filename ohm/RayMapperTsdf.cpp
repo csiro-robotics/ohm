@@ -112,8 +112,12 @@ size_t RayMapperTsdf::integrateRays(const glm::dvec3 *rays, size_t element_count
     map_->updateFirstRayTime(*timestamps);
   }
 
-  const auto visit_func = [&](const Key &key, double /*enter_range*/, double /*exit_range*/) -> bool  //
-  {                                                                                                   //
+  const auto visit_func = [&](const Key &key, double enter_range, double exit_range,
+                              const glm::ivec3 &steps_remaining) -> bool  //
+  {
+    (void)enter_range;      // Unused
+    (void)exit_range;       // Unused
+    (void)steps_remaining;  // Unused
     // The update logic here is a little unclear as it tries to avoid outright branches.
     // The intended logic is described as follows:
     // 1. Select direct write or additive adjustment.

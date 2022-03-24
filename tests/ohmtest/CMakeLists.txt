@@ -15,6 +15,7 @@ set(SOURCES
   KeyTests.cpp
   LayoutTests.cpp
   LineQueryTests.cpp
+  LineWalkTests.cpp
   MapTests.cpp
   MathsTests.cpp
   OhmTestConfig.in.h
