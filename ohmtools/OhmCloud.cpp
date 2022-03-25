@@ -277,8 +277,8 @@ ohm::Colour ColourByType::select(const ohm::Voxel<const float> &occupancy) const
 
 
 ColourByOccupancy::ColourByOccupancy(const ohm::OccupancyMap &map, bool ramp_occupied_range)
-  : occupancy_threshold_probability_(map.occupancyThresholdProbability())
-  , ramp_occupied_range(ramp_occupied_range)
+  : ramp_occupied_range(ramp_occupied_range)
+  , occupancy_threshold_probability_(map.occupancyThresholdProbability())
 {
   const ColourByType default_colours(map);
   colours[0] = default_colours.free_colour;
@@ -317,8 +317,8 @@ const ohm::Colour ColourByIntensity::kDefaultFrom(154, 52, 3);
 const ohm::Colour ColourByIntensity::kDefaultTo(255, 255, 212);
 
 ColourByIntensity::ColourByIntensity(const ohm::OccupancyMap &map, float max_intensity)
-  : intensity_(&map, map.layout().intensityLayer())
-  , max_intensity(max_intensity)
+  : max_intensity(max_intensity)
+  , intensity_(&map, map.layout().intensityLayer())
 {
   colours[0] = kDefaultFrom;
   colours[1] = kDefaultTo;
@@ -947,20 +947,19 @@ size_t saveClearanceCloud(const std::string &file_name, const ohm::OccupancyMap 
 }
 
 
-size_t saveTsdfCloud(const std::string &file_name, const ohm::OccupancyMap &map, const glm::dvec3 &min_extents,
-                     const glm::dvec3 &max_extents, float surface_distance, const ColourSelectTsdf &colour_select,
-                     const ProgressCallback &prog)
+size_t saveTsdfCloud(const std::string &file_name, const ohm::OccupancyMap &map, float surface_distance,
+                     const ColourSelectTsdf &colour_select, const ProgressCallback &prog)
 {
   // Work out if we need colour.
   unsigned with_flags = 0;
   std::unique_ptr<ColourByHeight> colour_by_height;
 
+  ohm::Voxel<const ohm::VoxelTsdf> tsdf_voxel(&map, map.layout().layerIndex(ohm::default_layer::tsdfLayerName()));
+
   if (colour_select)
   {
     with_flags |= WithColour;
   }
-
-  ohm::Voxel<const ohm::VoxelTsdf> tsdf_voxel(&map, map.layout().layerIndex(ohm::default_layer::tsdfLayerName()));
 
   if (!tsdf_voxel.isLayerValid())
   {
@@ -988,19 +987,18 @@ size_t saveTsdfCloud(const std::string &file_name, const ohm::OccupancyMap &map,
 }
 
 
-size_t saveTsdfVoxels(const std::string &file_name, const ohm::OccupancyMap &map, const glm::dvec3 &min_extents,
-                      const glm::dvec3 &max_extents, float surface_distance, const ColourSelectTsdf &colour_select,
-                      const ProgressCallback &prog)
+size_t saveTsdfVoxels(const std::string &file_name, const ohm::OccupancyMap &map, float surface_distance,
+                      const ColourSelectTsdf &colour_select, const ProgressCallback &prog)
 {
   // Work out if we need colour.
   unsigned with_flags = 0;
   std::unique_ptr<ColourByHeight> colour_by_height;
+  ohm::Voxel<const ohm::VoxelTsdf> tsdf_voxel(&map, map.layout().layerIndex(ohm::default_layer::tsdfLayerName()));
+
   if (colour_select)
   {
     with_flags |= WithColour;
   }
-
-  ohm::Voxel<const ohm::VoxelTsdf> tsdf_voxel(&map, map.layout().layerIndex(ohm::default_layer::tsdfLayerName()));
 
   if (!tsdf_voxel.isLayerValid())
   {

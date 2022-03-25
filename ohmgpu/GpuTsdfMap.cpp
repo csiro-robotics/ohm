@@ -256,13 +256,6 @@ void GpuTsdfMap::finaliseBatch(unsigned region_update_flags)
     return;
   }
 
-  static bool once = false;
-  if (!once)
-  {
-    once = true;
-    std::cout << "work group size: " << imp_->update_kernel.optimalWorkGroupSize() << std::endl;
-  }
-
   const unsigned region_count = imp_->region_counts[buf_idx];
   const unsigned ray_count = imp_->ray_counts[buf_idx];
   gputil::Dim3 global_size(ray_count);

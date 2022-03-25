@@ -174,7 +174,6 @@ void gpuMapTest(GpuMapTestParams params, const std::vector<glm::dvec3> &rays, co
     post_populate(cpu_map, *gpu_wrap);
   }
 
-  // std::cout << "Comparing" << std::endl;
   if (save_prefix)
   {
     const auto save_start = TimingClock::now();
@@ -464,7 +463,7 @@ TEST(GpuMap, PopulateSegmented)
   // For this we'll use 100 rays, 100m long each at 25cm and set the segment length to 15m.
   // We'll also populate a control map (no segmentation) for validation and performance comparison.
 
-  const double ray_length = 100.0;
+  const double ray_length = 50.0;
   const unsigned ray_count = 100;
 
   GpuMapTestParams params;
@@ -497,7 +496,7 @@ TEST(GpuMap, PopulateSegmentedNdt)
   // For this we'll use 100 rays, 100m long each at 25cm and set the segment length to 15m.
   // We'll also populate a control map (no segmentation) for validation and performance comparison.
 
-  const double ray_length = 100.0;
+  const double ray_length = 50.0;
   const unsigned ray_count = 100;
 
   GpuMapTestParams params;
@@ -826,6 +825,7 @@ TEST(GpuMap, CheckBadRays)
   std::vector<glm::dvec3> rays =  //
     {                             //
       // Infinite loop walking regions before integrating into the map.
+      // Basically it's rays under the length epsilon which are in different voxels.
       glm::dvec3{ -2.699077907025583, -1.5999031032475868, 1.0755428728082643 },
       glm::dvec3{ -2.6998157732186034, -1.6000298354709896, 1.0756803244026165 }
     };

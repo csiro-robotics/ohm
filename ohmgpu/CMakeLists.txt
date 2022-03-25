@@ -84,6 +84,7 @@ set(GPU_HEADERS
   GpuKey.h
   # Need some headers from the OHM core project.
   ${OHM_SOURCE_DIR}/CovarianceVoxelCompute.h
+  ${OHM_SOURCE_DIR}/LineWalkCompute.h
   ${OHM_SOURCE_DIR}/MapCoord.h
   ${OHM_SOURCE_DIR}/RayFlag.h
   ${OHM_SOURCE_DIR}/VoxelIncidentCompute.h

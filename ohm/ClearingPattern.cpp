@@ -39,8 +39,8 @@ bool ClearingPattern::hasPatternOwnership() const
 
 unsigned ClearingPattern::rayFlags() const
 {
-  // Must use kRfForwardWalk for clearing patterns and ray queries or we cannot stop on the first obstruction.
-  return imp_->ray_flags | kRfForwardWalk;
+  // Must not use kRfReverseWalk for clearing patterns and ray queries or we cannot stop on the first obstruction.
+  return imp_->ray_flags & ~kRfReverseWalk;
 }
 
 void ClearingPattern::setRayFlags(unsigned ray_flags)

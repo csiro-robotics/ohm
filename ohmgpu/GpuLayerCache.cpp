@@ -635,10 +635,8 @@ GpuCacheEntry *GpuLayerCache::resolveCacheEntry(OccupancyMap &map, const glm::i1
 
 void GpuLayerCache::allocateBuffers(const OccupancyMap &map, const MapLayer &layer, size_t target_gpu_mem_size)
 {
-  // Query the available device memory.
+  // Query maximum allocation size.
   auto mem_limit = imp_->gpu.maxAllocationSize();
-  // Limit to using 1/2 of the device memory. This is a bit of a left over from when there was only one layer to cache.
-  mem_limit = (mem_limit * 1) / 2;
   target_gpu_mem_size = (target_gpu_mem_size <= mem_limit) ? target_gpu_mem_size : mem_limit;
 
   imp_->target_gpu_mem_size = target_gpu_mem_size;

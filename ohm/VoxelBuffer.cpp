@@ -83,6 +83,12 @@ void VoxelBuffer<VoxelBlock>::release()
 }
 
 // Export explicit template instantiations
+#ifdef _MSC_VER
+// Need to export the template instantiations for the Microsoft compiler only.
 template class ohm_API VoxelBuffer<VoxelBlock>;
 template class ohm_API VoxelBuffer<const VoxelBlock>;
+#else   // _MSC_VER
+template class VoxelBuffer<VoxelBlock>;
+template class VoxelBuffer<const VoxelBlock>;
+#endif  // _MSC_VER
 }  // namespace ohm

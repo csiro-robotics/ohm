@@ -40,8 +40,8 @@
 // Declarations
 //------------------------------------------------------------------------------
 
-#define VISIT_LINE_VOXEL visitVoxelRayQuery
-#define WALK_LINE_VOXELS walkRayQuery
+#define WALK_VISIT_VOXEL visitVoxelRayQuery
+#define WALK_NAME        RayQuery
 
 // User data for voxel visit callback.
 typedef struct LineWalkData_t
@@ -69,15 +69,15 @@ typedef struct LineWalkData_t
 } LineWalkData;
 
 // Implement the voxel traversal function. We update the value of the voxel using atomic instructions.
-__device__ bool visitVoxelRayQuery(const GpuKey *voxelKey, int voxelMarker, const GpuKey *startKey,
-                                   const GpuKey *endKey, float voxel_resolution, float entry_range, float exit_range,
-                                   void *userData)
+__device__ bool visitVoxelRayQuery(const GpuKey *voxel_key, const GpuKey *start_key, const GpuKey *end_key,
+                                   int voxel_marker, float enter_range, float exit_range, const int *stepped,
+                                   void *user_data)
 {
-  LineWalkData *line_data = (LineWalkData *)userData;
+  LineWalkData *line_data = (LineWalkData *)user_data;
   __global atomic_float *occupancy = line_data->occupancy;
 
   // Resolve memory offset for the region of interest.
-  bool have_voxel_memory = regionsResolveRegion(voxelKey, &line_data->current_region, &line_data->current_region_index,
+  bool have_voxel_memory = regionsResolveRegion(voxel_key, &line_data->current_region, &line_data->current_region_index,
                                                 line_data->region_keys, line_data->region_count);
 
 #ifdef REPORT_MISSING_REGIONS
@@ -87,21 +87,20 @@ __device__ bool visitVoxelRayQuery(const GpuKey *voxelKey, int voxelMarker, cons
     // - Floating point error differences between CPU and GPU line walking means that the GPU may walk into the edge
     //   of a region not hit when walking the regions on CPU.
     // - Regions may not be uploaded due to extents limiting on CPU.
-    printf("%u region missing: " KEY_F "\n  Voxels: " KEY_F "->" KEY_F "\n", get_global_id(0), KEY_A(*voxelKey),
-           KEY_A(*startKey), KEY_A(*endKey));
+    printf("%u region missing: " KEY_F "\n", get_global_id(0), KEY_A(*voxel_key));
   }
 #endif  // REPORT_MISSING_REGIONS
 
   // This voxel lies in the region. We will make a value adjustment.
   // Work out which voxel to modify.
-  const ulonglong vi_local = voxelKey->voxel[0] + voxelKey->voxel[1] * line_data->region_dimensions.x +
-                             voxelKey->voxel[2] * line_data->region_dimensions.x * line_data->region_dimensions.y;
+  const ulonglong vi_local = voxel_key->voxel[0] + voxel_key->voxel[1] * line_data->region_dimensions.x +
+                             voxel_key->voxel[2] * line_data->region_dimensions.x * line_data->region_dimensions.y;
   const ulonglong vi =
     (line_data->occupancy_offsets[line_data->current_region_index] / sizeof(*line_data->occupancy)) + vi_local;
 
-  have_voxel_memory = have_voxel_memory && (voxelKey->voxel[0] < line_data->region_dimensions.x &&
-                                            voxelKey->voxel[1] < line_data->region_dimensions.y &&
-                                            voxelKey->voxel[2] < line_data->region_dimensions.z);
+  have_voxel_memory = have_voxel_memory && (voxel_key->voxel[0] < line_data->region_dimensions.x &&
+                                            voxel_key->voxel[1] < line_data->region_dimensions.y &&
+                                            voxel_key->voxel[2] < line_data->region_dimensions.z);
 
   __global atomic_float *occupancy_ptr = &occupancy[vi];
 
@@ -114,7 +113,7 @@ __device__ bool visitVoxelRayQuery(const GpuKey *voxelKey, int voxelMarker, cons
   line_data->result.range = exit_range;
   line_data->result.unobserved_volume += (voxel_type == RQ_OccUnobserved) ?
                                            (line_data->volume_coefficient * (exit_range * exit_range * exit_range -
-                                                                             entry_range * entry_range * entry_range)) :
+                                                                             enter_range * enter_range * enter_range)) :
                                            0.0f;
   line_data->result.voxel_type = voxel_type;
 
@@ -122,7 +121,7 @@ __device__ bool visitVoxelRayQuery(const GpuKey *voxelKey, int voxelMarker, cons
   return voxel_type != RQ_OccOccupied;
 }
 
-// Must be included after WALK_LINE_VOXELS and VISIT_LINE_VOXEL and the VISIT_LINE_VOXEL function is defined
+// Must be included after WALK_NAME and WALK_VISIT_VOXEL and the WALK_VISIT_VOXEL function is defined
 #include "LineWalk.cl"
 
 //------------------------------------------------------------------------------
@@ -226,21 +225,11 @@ __kernel void raysQuery(__global atomic_float *occupancy, __global ulonglong *oc
   const float3 lineStart = local_lines[get_global_id(0) * 2 + 0];
   const float3 lineEnd = local_lines[get_global_id(0) * 2 + 1];
 
-  // We need to calculate the start voxel centre in the right coordinate space. All coordinates are relative to the
-  // end voxel centre.
-  // 1. Calculate the voxel step from endKey to startKey.
-  // 2. Scale results by voxelResolution.
-  const int3 voxelDiff = keyDiff(&end_key, &start_key, &region_dimensions);
-  const float3 start_voxel_centre =
-    make_float3(voxelDiff.x * voxel_resolution, voxelDiff.y * voxel_resolution, voxelDiff.z * voxel_resolution);
-  WALK_LINE_VOXELS(&start_key, &end_key, &start_voxel_centre, &lineStart, &lineEnd, &region_dimensions,
-                   voxel_resolution, kLineWalkFlagNone, &line_data);
+  walkVoxelsRayQuery(&start_key, &end_key, lineStart, lineEnd, region_dimensions, voxel_resolution, kLineWalkFlagNone,
+                     &line_data);
 
   results[get_global_id(0)] = line_data.result;
 }
-
-#undef VISIT_LINE_VOXEL
-#undef WALK_LINE_VOXELS
 
 #ifndef RAY_QUERY_BASE_CL
 #define RAY_QUERY_BASE_CL

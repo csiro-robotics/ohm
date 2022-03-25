@@ -287,31 +287,7 @@ bool LineKeysQueryGpu::onExecute()
     return ok;
   }
 
-  static bool once = false;
-  if (!once)
-  {
-    once = true;
-    ohm::logger::warn("GPU unavailable for LineKeysQuery. Falling back to CPU\n");
-  }
-
-  KeyList key_list;
-  d->result_indices.resize(d->rays.size() / 2);
-  d->result_counts.resize(d->rays.size() / 2);
-  for (size_t i = 0; i < d->rays.size(); i += 2)
-  {
-    key_list.clear();
-    calculateSegmentKeys(key_list, *d->map, d->rays[i + 0], d->rays[i + 1], true);
-    d->result_indices[i / 2] = d->intersected_voxels.size();
-    d->result_counts[i / 2] = key_list.size();
-    for (auto &&key : key_list)
-    {
-      d->intersected_voxels.push_back(key);
-    }
-  }
-
-  d->number_of_results = d->result_indices.size();
-
-  return true;
+  return false;
 }
 
 

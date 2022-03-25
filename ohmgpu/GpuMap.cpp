@@ -54,7 +54,7 @@
 #endif  // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
 
 #if GPUTIL_TYPE == GPUTIL_CUDA
-GPUTIL_CUDA_DECLARE_KERNEL(regionRayUpdate);
+GPUTIL_CUDA_DECLARE_KERNEL(regionRayUpdateOccupancy);
 #endif  // GPUTIL_TYPE == GPUTIL_CUDA
 
 namespace ohm
@@ -510,7 +510,7 @@ void GpuMap::cacheGpuProgram(bool with_voxel_mean, bool with_traversal, bool for
 
   if (imp_->program_ref->addReference(gpu_cache.gpu()))
   {
-    imp_->update_kernel = GPUTIL_MAKE_KERNEL(imp_->program_ref->program(), regionRayUpdate);
+    imp_->update_kernel = GPUTIL_MAKE_KERNEL(imp_->program_ref->program(), regionRayUpdateOccupancy);
     imp_->update_kernel.calculateOptimalWorkGroupSize();
     imp_->gpu_ok = imp_->update_kernel.isValid();
   }

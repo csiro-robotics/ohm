@@ -222,29 +222,38 @@ TEST(Maths, AabbClip)
 
   for (size_t i = 0; i < lines.size(); i += 2)
   {
-    start = lines[i];
-    end = lines[i + 1];
-    // Cache initial direction.
-    dir1 = glm::normalize(end - start);
+    // Iterate twice: once with clamping, once with an epsilon
+    bool clamp = false;
+    double epsilon = 1e-6;
+    for (int j = 0; j < 2; ++j)
+    {
+      start = lines[i];
+      end = lines[i + 1];
+      // Cache initial direction.
+      dir1 = glm::normalize(end - start);
 
-    EXPECT_TRUE(reference_box.contains(start));
-    EXPECT_FALSE(reference_box.contains(end));
+      EXPECT_TRUE(reference_box.contains(start));
+      EXPECT_FALSE(reference_box.contains(end));
 
-    line_intersect = reference_box.clipLine(start, end, &clip_flags);
-    EXPECT_EQ(clip_flags, Aabb::kClippedEnd);
-    EXPECT_TRUE(line_intersect);
+      line_intersect = reference_box.clipLine(start, end, &clip_flags, clamp);
+      EXPECT_EQ(clip_flags, Aabb::kClippedEnd);
+      EXPECT_TRUE(line_intersect);
 
-    // Clipped direction.
-    dir2 = glm::normalize(end - start);
+      // Clipped direction.
+      dir2 = glm::normalize(end - start);
 
-    EXPECT_EQ(start, lines[i]);
-    EXPECT_NE(end, lines[i + 1]);
+      EXPECT_EQ(start, lines[i]);
+      EXPECT_NE(end, lines[i + 1]);
 
-    EXPECT_TRUE(reference_box.contains(start)) << "clip-end " << i;
-    EXPECT_TRUE(reference_box.contains(end)) << "clip-end " << i;
+      EXPECT_TRUE(reference_box.contains(start, epsilon)) << "clip-end " << i;
+      EXPECT_TRUE(reference_box.contains(end, epsilon)) << "clip-end " << i;
 
-    // Validate direction.
-    EXPECT_FALSE(glm::any(glm::greaterThan(glm::abs(dir1 - dir2), glm::dvec3(1e-9))));
+      // Validate direction.
+      EXPECT_FALSE(glm::any(glm::greaterThan(glm::abs(dir1 - dir2), glm::dvec3(1e-9))));
+
+      clamp = true;
+      epsilon = 0;
+    }
   }
 
   lines.clear();
@@ -345,5 +354,40 @@ TEST(Maths, AabbClip)
 
     EXPECT_FALSE(reference_box.contains(start));
     EXPECT_FALSE(reference_box.contains(end));
+  }
+
+  lines.clear();
+  // Cast lines from inside the box along axes.
+  lines.push_back(glm::dvec3(0.0));
+  lines.push_back(glm::dvec3(10.0, 0, 0));
+  lines.push_back(glm::dvec3(0.0));
+  lines.push_back(glm::dvec3(-10.0, 0, 0));
+  lines.push_back(glm::dvec3(0.0));
+  lines.push_back(glm::dvec3(0, 10.0, 0));
+  lines.push_back(glm::dvec3(0.0));
+  lines.push_back(glm::dvec3(0, -10.0, 0));
+  lines.push_back(glm::dvec3(0.0));
+  lines.push_back(glm::dvec3(0, 0, 10.0));
+  lines.push_back(glm::dvec3(0.0));
+  lines.push_back(glm::dvec3(0, 0, -10.0));
+
+
+  for (size_t i = 0; i < lines.size(); i += 2)
+  {
+    start = lines[i];
+    end = lines[i + 1];
+
+    EXPECT_TRUE(reference_box.contains(start));
+    EXPECT_FALSE(reference_box.contains(end));
+
+    line_intersect = reference_box.clipLine(start, end, &clip_flags, true);
+    EXPECT_EQ(clip_flags, Aabb::kClippedEnd);
+    EXPECT_TRUE(line_intersect);
+
+    EXPECT_EQ(start, lines[i]);
+    EXPECT_NE(end, lines[i + 1]);
+
+    EXPECT_TRUE(reference_box.contains(start));
+    EXPECT_TRUE(reference_box.contains(end));
   }
 }

@@ -6,17 +6,6 @@
 #ifndef LINE_WALK_MARKERS_CL
 #define LINE_WALK_MARKERS_CL
 
-/// Enumeration describing the type of voxel being reported on a line walk callback.
-typedef enum LineWalkMarkers_t
-{
-  /// Voxel inside the line segment.
-  kLineWalkMarkerSegment = 0,
-  /// First voxel in the line segment.
-  kLineWalkMarkerStart = 1,
-  /// Last voxel in the line segment.
-  kLineWalkMarkerEnd = 2
-} LineWalkMarkers;
-
 /// Flags affecting line walking
 typedef enum LineWalkFlag_t
 {

@@ -38,15 +38,15 @@ enum RayFlag
   /// Do not adjust the occupancy value of currently occupied voxels.
   kRfExcludeOccupied = (1u << 7u),
 
-  /// Trace each ray forwards, from origin to sample? The default is to trace rays in reverse as doing so can greatly
-  /// reduce voxel contention near sensor origins and improve performance. However, forward tracking must be used for
-  /// ray clearing patterns.
+  /// Trace each ray backwards, from sample to origin? The default is to trace rays from origin to sample. Reverse
+  /// tracing can reduce GPU voxel contention near sensor origins and improve performance. However, forward tracing
+  /// must be used for ray clearing patterns.
   ///
   /// Note: even when reversed, the sample voxel is updated to help avoid contention where many samples fall in the
   /// same voxel.
   ///
-  /// Not implemented for single-threaded (CPU) algorithms.
-  kRfForwardWalk = (1u << 8u),
+  // This may be ignored by some algorithms, such as ray queries.
+  kRfReverseWalk = (1u << 8u),
 
   /// Internal use flag values start here (not to be set by user).
   kRfInternal = (1u << 16u),

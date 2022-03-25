@@ -55,14 +55,17 @@
 // This is begging for a refactor.
 #ifdef NDT
 #define REGION_UPDATE_KERNEL regionRayUpdateNdt
-#define VISIT_LINE_VOXEL     visitVoxelRegionUpdateNdt
-#define WALK_LINE_VOXELS     walkRegionLineNdt
+#define REGION_WALK_VOXELS   walkVoxelsNdt
+#define REGION_VISIT_VOXEL   visitVoxelNdt
+#define WALK_VISIT_VOXEL     visitVoxelNdt
+#define WALK_NAME            Ndt
 
 #else  // NDT
-#define REGION_UPDATE_KERNEL regionRayUpdate
-#define VISIT_LINE_VOXEL     visitVoxelRegionUpdate
-#define WALK_LINE_VOXELS     walkRegionLine
-
+#define REGION_UPDATE_KERNEL regionRayUpdateOccupancy
+#define REGION_WALK_VOXELS   walkVoxelsOccupancy
+#define REGION_VISIT_VOXEL   visitVoxelOccupancy
+#define WALK_VISIT_VOXEL     visitVoxelOccupancy
+#define WALK_NAME            Occupancy
 #endif  // NDT
 
 
@@ -104,6 +107,8 @@ typedef struct LineWalkData_t
   int3 current_region;
   // Size of a region in voxels.
   int3 region_dimensions;
+  /// Voxel size
+  float voxel_resolution;
   // MapMode/voxel value adjustment for keys along the line segment, but not the sample voxel.
   float ray_adjustment;
   // MapMode/voxel value adjustment for the sample voxel.
@@ -143,19 +148,30 @@ typedef struct LineWalkData_t
 #include "AdjustOccupancy.cl"
 #endif  // NDT
 
+__device__ bool REGION_VISIT_VOXEL(const GpuKey *voxel_key, const GpuKey *start_key, const GpuKey *end_key,
+                                   int voxel_marker, float enter_range, float exit_range, const int *stepped,
+                                   void *user_data);
+
+// Must be included after WALK_NAME and WALK_VISIT_VOXEL function is define
+#include "LineWalk.cl"
+
 // Implement the voxel traversal function. We update the value of the voxel using atomic instructions.
-__device__ bool VISIT_LINE_VOXEL(const GpuKey *voxelKey, int voxelMarker, const GpuKey *startKey, const GpuKey *endKey,
-                                 float voxel_resolution, float entryTime, float exitTime, void *userData)
+__device__ bool REGION_VISIT_VOXEL(const GpuKey *voxel_key, const GpuKey *start_key, const GpuKey *end_key,
+                                   int voxel_marker, float enter_range, float exit_range, const int *stepped,
+                                   void *user_data)
 {
   float old_value, new_value;
 
-  LineWalkData *line_data = (LineWalkData *)userData;
+  LineWalkData *line_data = (LineWalkData *)user_data;
   __global atomic_float *occupancy = line_data->occupancy;
 
-  // Abort if this is the sample voxel and we are to exclude the sample. The sample voxel is detected when voxelMarker is kLineWalkMarkerEnd
-  // is true and voxel[3] is zero. A value of 1 indicates a clipped ray and the end voxel does not contain the sample.
-  const bool is_sample_candidate = voxelMarker == kLineWalkMarkerEnd;
-  const bool is_sample_voxel = is_sample_candidate && voxelKey->voxel[3] == 0;
+  // Abort if this is the sample voxel and we are to exclude the sample. The sample voxel is detected when voxel_marker
+  // is kLineWalkMarkerEnd is true and voxel[3] is zero. A value of 1 indicates a clipped ray and the end voxel does not
+  // contain the sample.
+  const bool reverse_walk = line_data->region_update_flags & kRfReverseWalk;
+  const bool is_sample_candidate =
+    (!reverse_walk && voxel_marker == kLineWalkMarkerEnd) || (reverse_walk && voxel_marker == kLineWalkMarkerStart);
+  const bool is_sample_voxel = is_sample_candidate && voxel_key->voxel[3] == 0;
   if (is_sample_voxel && (line_data->region_update_flags & kRfExcludeSample))
   {
     return true;
@@ -167,7 +183,7 @@ __device__ bool VISIT_LINE_VOXEL(const GpuKey *voxelKey, int voxelMarker, const 
   }
 
   // Resolve memory offset for the region of interest.
-  if (!regionsResolveRegion(voxelKey, &line_data->current_region, &line_data->current_region_index,
+  if (!regionsResolveRegion(voxel_key, &line_data->current_region, &line_data->current_region_index,
                             line_data->region_keys, line_data->region_count))
   {
     // We can fail to resolve regions along the in the line. This can occurs for several reasons:
@@ -175,25 +191,24 @@ __device__ bool VISIT_LINE_VOXEL(const GpuKey *voxelKey, int voxelMarker, const 
     //   of a region not hit when walking the regions on CPU.
     // - Regions may not be uploaded due to extents limiting on CPU.
 #ifdef REPORT_MISSING_REGIONS
-    printf("%u region missing: " KEY_F "\n  Voxels: " KEY_F "->" KEY_F "\n", get_global_id(0), KEY_A(*voxelKey),
-           KEY_A(*startKey), KEY_A(*endKey));
+    printf("%u region missing: " KEY_F "\n", get_global_id(0), KEY_A(*voxel_key)));
 #endif
     return true;
   }
 
   // Adjust value by ray_adjustment unless this is the sample voxel.
-  float adjustment = calculateOccupancyAdjustment(voxelKey, is_sample_candidate, is_sample_voxel, startKey, endKey,
-                                                  voxel_resolution, line_data);
+  float adjustment = calculateOccupancyAdjustment(voxel_key, (!reverse_walk) ? end_key : start_key, is_sample_candidate,
+                                                  is_sample_voxel, line_data->voxel_resolution, line_data);
 
   // This voxel lies in the region. We will make a value adjustment.
   // Work out which voxel to modify.
-  const ulonglong vi_local = voxelKey->voxel[0] + voxelKey->voxel[1] * line_data->region_dimensions.x +
-                             voxelKey->voxel[2] * line_data->region_dimensions.x * line_data->region_dimensions.y;
+  const ulonglong vi_local = voxel_key->voxel[0] + voxel_key->voxel[1] * line_data->region_dimensions.x +
+                             voxel_key->voxel[2] * line_data->region_dimensions.x * line_data->region_dimensions.y;
   ulonglong vi =
     (line_data->occupancy_offsets[line_data->current_region_index] / sizeof(*line_data->occupancy)) + vi_local;
 
-  if (voxelKey->voxel[0] < line_data->region_dimensions.x && voxelKey->voxel[1] < line_data->region_dimensions.y &&
-      voxelKey->voxel[2] < line_data->region_dimensions.z)
+  if (voxel_key->voxel[0] < line_data->region_dimensions.x && voxel_key->voxel[1] < line_data->region_dimensions.y &&
+      voxel_key->voxel[2] < line_data->region_dimensions.z)
   {
     __global atomic_float *occupancy_ptr = &occupancy[vi];
 
@@ -203,13 +218,13 @@ __device__ bool VISIT_LINE_VOXEL(const GpuKey *voxelKey, int voxelMarker, const 
     // Under high contension we can end up repeatedly failing to write the voxel value.
     // The primary concern is not deadlocking the GPU, so we put a hard limit on the numebr of
     // attempts made.
-    const int iterationLimit = 20;
+    const int iteration_limit = 20;
     int iterations = 0;
 #endif
     do
     {
 #ifdef LIMIT_VOXEL_WRITE_ITERATIONS
-      if (iterations++ > iterationLimit)
+      if (iterations++ > iteration_limit)
       {
         break;
       }
@@ -262,7 +277,7 @@ __device__ bool VISIT_LINE_VOXEL(const GpuKey *voxelKey, int voxelMarker, const 
       {
         ulonglong vi =
           vi_local + (line_data->means_offsets[line_data->current_region_index] / sizeof(*line_data->means));
-        sample_count = updateVoxelMeanPosition(&line_data->means[vi], line_data->sample, voxel_resolution);
+        sample_count = updateVoxelMeanPosition(&line_data->means[vi], line_data->sample, line_data->voxel_resolution);
       }
 
       if (line_data->touch_times)
@@ -294,12 +309,12 @@ __device__ bool VISIT_LINE_VOXEL(const GpuKey *voxelKey, int voxelMarker, const 
       do
       {
 #ifdef LIMIT_VOXEL_WRITE_ITERATIONS
-        if (iterations++ > iterationLimit)
+        if (iterations++ > iteration_limit)
         {
           break;
         }
 #endif
-        new_value += exitTime - entryTime;
+        new_value += exit_range - enter_range;
       } while (new_value != old_value && !gputilAtomicCasF32(traversal, old_value, new_value));
     }
 
@@ -311,7 +326,7 @@ __device__ bool VISIT_LINE_VOXEL(const GpuKey *voxelKey, int voxelMarker, const 
   }
   else
   {
-    // printf("%u Out of bounds: %u " KEY_F "\n", get_global_id(0), vi, KEY_A(*voxelKey));
+    // printf("%u Out of bounds: %u " KEY_F "\n", get_global_id(0), vi, KEY_A(*voxel_key));
     // Abort traversal
     return false;
   }
@@ -319,9 +334,6 @@ __device__ bool VISIT_LINE_VOXEL(const GpuKey *voxelKey, int voxelMarker, const 
   // Continue traversal
   return true;
 }
-
-// Must be included after WALK_LINE_VOXELS and VISIT_LINE_VOXEL and the VISIT_LINE_VOXEL function is defined
-#include "LineWalk.cl"
 
 //------------------------------------------------------------------------------
 // Kernel
@@ -436,6 +448,7 @@ __kernel void REGION_UPDATE_KERNEL(
   line_data.incidents_offsets = incidents_region_mem_offsets_global;
   line_data.region_keys = occupancy_region_keys_global;
   line_data.region_dimensions = region_dimensions;
+  line_data.voxel_resolution = voxel_resolution;
   line_data.ray_adjustment = ray_adjustment;
   line_data.sample_adjustment = sample_adjustment;
   line_data.occupied_threshold = occupied_threshold;
@@ -451,27 +464,17 @@ __kernel void REGION_UPDATE_KERNEL(
   copyKey(&start_key, &line_keys[get_global_id(0) * 2 + 0]);
   copyKey(&end_key, &line_keys[get_global_id(0) * 2 + 1]);
 
-  const float3 lineStart = local_lines[get_global_id(0) * 2 + 0];
-  const float3 lineEnd = local_lines[get_global_id(0) * 2 + 1];
+  const float3 line_start = local_lines[get_global_id(0) * 2 + 0];
+  const float3 line_end = local_lines[get_global_id(0) * 2 + 1];
 
-  line_data.sample = lineEnd;
-  line_data.sensor = lineStart;
+  line_data.sample = line_end;
+  line_data.sensor = line_start;
   line_data.touch_time = (touch_times) ? touch_times[get_global_id(0)] : 0;
 
   // For reverse line walk, the start voxel centre is always (0, 0, 0).
   float3 start_voxel_centre = make_float3(0.0f, 0.0f, 0.0f);
   int walk_flags = 0;
-  if ((region_update_flags & kRfForwardWalk) != 0)
-  {
-    // We need to calculate the start voxel centre in the right coordinate space. All coordinates are relative to the
-    // end voxel centre.
-    // 1. Calculate the voxel step from endKey to startKey.
-    // 2. Scale results by voxelResolution.
-    const int3 voxelDiff = keyDiff(&end_key, &start_key, &region_dimensions);
-    start_voxel_centre =
-      make_float3(voxelDiff.x * voxel_resolution, voxelDiff.y * voxel_resolution, voxelDiff.z * voxel_resolution);
-  }
-  else
+  if (region_update_flags & kRfReverseWalk)
   {
     walk_flags |= kLineWalkFlagReverse;
 #ifndef NDT
@@ -480,13 +483,15 @@ __kernel void REGION_UPDATE_KERNEL(
     walk_flags |= kLineWalkFlagForReportEndLast;
 #endif  // !NDT
   }
-  WALK_LINE_VOXELS(&start_key, &end_key, &start_voxel_centre, &lineStart, &lineEnd, &region_dimensions,
-                   voxel_resolution, walk_flags, &line_data);
+
+  // Call the line walking function.
+  REGION_WALK_VOXELS(&start_key, &end_key, line_start, line_end, region_dimensions, voxel_resolution, walk_flags,
+                     &line_data);
 }
 
 #undef REGION_UPDATE_KERNEL
-#undef VISIT_LINE_VOXEL
-#undef WALK_LINE_VOXELS
+#undef REGION_WALK_VOXELS
+#undef REGION_VISIT_VOXEL
 #undef VOXEL_TYPE
 
 #ifndef REGION_UPDATE_BASE_CL

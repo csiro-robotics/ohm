@@ -23,7 +23,6 @@
 
 #include "private/OccupancyMapDetail.h"
 
-
 #include <algorithm>
 #include <cassert>
 #ifdef OHM_VALIDATION

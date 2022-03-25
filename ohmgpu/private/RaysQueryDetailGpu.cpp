@@ -111,7 +111,7 @@ size_t RaysQueryMapWrapper::integrateRays(const glm::dvec3 *rays, size_t element
   imp->results_cpu.clear();
   imp->needs_sync = true;
   // Queries must be traced forward for the correct result - ray start to end - and cannot be reverse traced.
-  return GpuMap::integrateRays(rays, element_count, intensities, timestamps, ray_update_flags | kRfForwardWalk);
+  return GpuMap::integrateRays(rays, element_count, intensities, timestamps, ray_update_flags & ~kRfReverseWalk);
 }
 
 

@@ -10,14 +10,52 @@
 // When included from CPU code, note that all functions are static and can be either wrapped in a class or private
 // translation unit.
 
-// Additional code to be defined before including this file:
-// - WalkContext for use with the functions below. E.g., ohm::OccupancyMap
+/// @defgroup linewalk Line Walking Usage
+/// Shared CPU/GPU line walking code. Because of the shared nature of this code, there are many peculiarities.
+/// There are several types and functions which must be defined before including this code as specified below.
+/// There are also several aliased types which differ between CPU and GPU.
+///
+/// - @c WalkContext is a struct which must be defined for use with the functions below. This holds user data passed to
+/// the callback functions listed below.
+/// - @c WalkKey is defined as @c ohm::Key for CPU and @c GpuKey for GPU.
+/// - @c WalkVec3 is defined as @c glm::dvec3 for CPU and @c float3 for GPU.
+/// - @c WalkReal is defined as @c double for CPU and @c float for GPU.
+///
+/// The required function definitions are:
+///
+/// @code{.c}
+/// /// Calculate the number of voxels along each axis separating two keys.
+/// /// @param context The @c WalkContext pointer. May optionally be @c const qualified.
+/// /// @param[out] diff Storage diff. Logically as `diff[i] = key_a[i] - key_b[i]` with @c i is `[0, 1, 2]`.
+/// /// @param key_a The key to subtract from.
+/// /// @param key_b The key to subtract.
+/// void walkKeyDiff(WalkContext *context, int diff[3], WalkKey *, WalkKey *)
+///
+/// /// Step a key, one voxel along an axis in the specified direction.
+/// /// @param context The @c WalkContext pointer. May optionally be @c const qualified.
+/// /// @param[in,out] key The key to modify.
+/// /// @param axis The axis to step: `[0, 1, 2]`.
+/// /// @param step_dir The direction to step: `[-1, 1]`.
+/// void walkStepKey(WalkContext *context, WalkKey *key, int axis, int step_dir)
+///
+/// /// Function called to visit each voxel traced along the line. Behaviour is user defined.
+/// /// @param context The @c WalkContext pointer. May optionally be @c const qualified.
+/// /// @param voxel_key The current voxel being visited.
+/// /// @param walk_start_key The first voxel visited by the walk.
+/// /// @param walk_end_key The last voxel to be visited by the walk.
+/// /// @param voxel_marker Identifies the nature of @p voxel_key as one of
+/// ///     `[kLineWalkMarkerSegment, kLineWalkMarkerStart, kLineWalkMarkerEnd]`
+/// /// @param enter_range The distance which has been traces along the line at which we enter @c voxel_key .
+/// /// @param exit_range The distance which has been traces along the line at which we exit @c voxel_key .
+/// /// @param stepped The number of voxel steps which have been made along each axis.
+/// bool walkVisitVoxel(WalkContext *context, const WalkKey *voxel_key, const WalkKey *walk_start_key,
+///                     const WalkKey *walk_end_key, unsigned voxel_marker, int voxel_marker,
+//                      WalkReal enter_range, WalkReal exit_range, const int stepped[3])
+/// @endcode
+///
+///
 // - WalkKey type: either ohm::Key or ohm::GpuKey
 // - WalkKey functions:
-//  - void walkKeyDiff(WalkContext *context, int[3], WalkKey *, WalkKey *)
-//  - void walkStepKey(WalkContext *context, WalkKey *, int axis, int step_dir)
-//  - bool walkVisitVoxel(WalkContext *context, const WalkKey *voxel_key, WalkReal enter_time, WalkReal exit_time, const
-//                        int steps_remaining[3])
 
 #if GPUTIL_DEVICE
 #define WALK_FUNC __device__
@@ -85,7 +123,19 @@ WALK_FUNC inline void walkCopyKey(WalkKey *dst, const WalkKey *src)
 
 #endif  // GPUTIL_DEVICE
 
-struct LineWalkRay
+/// Enumeration describing the type of voxel being reported on a line walk callback.
+typedef enum LineWalkMarker
+{
+  /// Voxel inside the line segment.
+  kLineWalkMarkerSegment = 0,
+  /// First voxel in the line segment.
+  kLineWalkMarkerStart = 1,
+  /// Last voxel in the line segment.
+  kLineWalkMarkerEnd = 2
+} LineWalkMarker;
+
+/// Temporary ray data used to initialise the line walk.
+typedef struct LineWalkRay
 {
   WalkVec3 origin;
   WalkVec3 direction;
@@ -94,7 +144,7 @@ struct LineWalkRay
   WalkReal initial_exit_time[3];
   WalkReal step_delta[3];
   WalkReal length;
-};
+} LineWalkRay;
 
 WALK_FUNC inline int walkSignToStep(int sign)
 {
@@ -123,7 +173,7 @@ WALK_FUNC inline void walkCalculateVoxelWallExit(const LineWalkRay *ray, const W
 }
 
 WALK_FUNC inline void walkInitRay(LineWalkRay *ray, const WalkVec3 start, const WalkVec3 end,
-                                  const WalkVec3 &start_voxel_centre, const WalkVec3 voxel_resolution,
+                                  const WalkVec3 start_voxel_centre, const WalkVec3 voxel_resolution,
                                   WalkReal length_epsilon)
 {
   ray->origin = start;
@@ -186,14 +236,14 @@ WALK_FUNC inline void walkInitRay(LineWalkRay *ray, const WalkVec3 start, const 
   }
 }
 
-struct WalkSteps
+typedef struct WalkSteps
 {
   WalkReal time_next[3];
   WalkReal initial_delta[3];
   WalkReal step_delta[3];
   int sign[3];
   WalkReal length;
-};
+} WalkSteps;
 
 WALK_FUNC inline void walkCalculateSteps(WalkSteps *walk_steps, const WalkVec3 start_point, const WalkVec3 end_point,
                                          const WalkVec3 start_voxel_centre, const WalkVec3 voxel_resolution,
@@ -239,47 +289,45 @@ WALK_FUNC inline int walkStepDir(const int sign)
   return -2 * sign + 1;
 }
 
-/// A templatised, voxel based line walking algorithm. Voxels are accurately traversed from @p startPoint to
-/// @p endPoint, invoking @p walkFunc for each traversed voxel.
+/// Line walking function for tracing voxels between two points/voxels.
 ///
-/// The @p walkFunc is simply a callable object which accepts a @p KEY argument. Keys are provided in order of
-/// traversal.
+/// This function depends on some additional definitions before including this file. See @ref linewalk .
 ///
-/// The templatisation requires @p funcs to provide a set of key manipulation utility functions. Specifically,
-/// the @p KEYFUNCS type must have the following signature:
-/// @code
-/// struct KeyFuncs
-/// {
-///   // Query the voxel resolution along a particular axis. Axis may be { 0, 1, 2 } corresponding to XYZ.
-///   WalkReal voxelResolution(int axis) const;
-///   // Convert from pt to it's voxel key. The result may be null/invalid
-///   KEY voxelKey(const glm::dvec3 &pt) const;
-///   // Check if key is a null or invalid key.
-///   bool isNull(const KEY &key) const;
-///   // Convert from key to the centre of the corresponding voxel.
-///   glm::dvec3 voxelCentre(const KEY &key) const;
-///   // Move the key by one voxel. The axis may be {0, 1, 2} correlating the XYZ axes respectively.
-///   // The step will be 1 or -1, indicating the direction of the step.
-///   void stepKey(KEY &key, int axis, int step) const;
-///   // Calculate the voxel difference between two voxel keys : `key_a - key_b`.
-///   glm::ivec3 keyDiff(const KEY &key_a, const KEY &key_b);
-/// };
-/// @endcode
+/// The original version of this algorithm was based on
 ///
-/// Based on J. Amanatides and A. Woo, "A fast voxel traversal algorithm for raytracing," 1987.
+/// > J. Amanatides and A. Woo, "A fast voxel traversal algorithm for raytracing," 1987.
 ///
-/// @param walk_func The callable object to invoke for each traversed voxel key.
+/// However that algorithm was found to be inaccurate for tracing points which were not at voxel centres, though this
+/// updated algorithm has many similarities. Conceptually, the algorithm performs ray/AABB intersection tests to see
+/// which voxel wall will be exited fist. This wall is chosen for the next step.
+///
+/// In practice, we only need to perform a two ray/AABB tests on initialisation. The first is to calculate the times at
+/// which each of the three axis planes of the first voxel will be left. The second is used to calculate the times for
+/// leaving the next voxel along each axis. Because voxels are uniform sizes, we can use the difference between the two
+/// values as a time delta between each voxel axis along each axis. Note this leverages the knowledge that the ray
+/// continues in the same direction along each axis.
+///
+/// We walk the ray by choosing the smallest next exit time, sepping to  the next voxel on that axis. The next time
+/// for that axis is incremented by the axis time delta.
+///
+/// For each voxel, we call @c walkVisitVoxel() as described in @ref linewalk.
+///
+/// @param context User data for the ray trace. Passed to the helper functions.
 /// @param start_point The start of the line in 3D space.
 /// @param end_point The end of the line in 3D space.
-/// @param include_end_point Should be @c true if @p walkFunc should be called for the voxel containing
-///     @c endPoint, when it does not lie in the same voxel as @p startPoint.
-/// @param funcs Key helper functions object.
-/// @return The number of voxels traversed. This includes @p endPoint when @p includeEndPoint is true.
-WALK_FUNC inline unsigned walkSegmentKeys(WalkContext *context, const WalkVec3 start_point, const WalkVec3 end_point,
-                                          const WalkKey *start_point_key, const WalkKey *end_point_key,
-                                          const WalkVec3 start_voxel_centre, const WalkVec3 voxel_resolution,
-                                          bool include_end_point,
-                                          WalkReal length_epsilon = 1e-6)  // NOLINT(readability-magic-numbers)
+/// @param start_point_key The key for the voxel containing @c start_point .
+/// @param end_point_key The key for the voxel containing @c end_point .
+/// @param start_voxel_centre The coordinate for the centre of the voxel containing @c start_point .
+/// @param include_end_point @c true to call @p walkVisitVoxel() the voxel containing @c endPoint, when it does not lie
+///   in the same voxel as @p start_point.
+/// @param length_epsilon Epsilon used to detect small rays. Such rays are considered to have no length.
+/// @return The number of voxels traversed. This includes @p end_point when @p include_end_point is true and does not
+///   otherwise.
+WALK_FUNC inline unsigned walkLineVoxels(WalkContext *context, const WalkVec3 start_point, const WalkVec3 end_point,
+                                         const WalkKey *start_point_key, const WalkKey *end_point_key,
+                                         const WalkVec3 start_voxel_centre, const WalkVec3 voxel_resolution,
+                                         bool include_end_point,
+                                         WalkReal length_epsilon = 1e-6)  // NOLINT(readability-magic-numbers)
 {
   WalkSteps steps;
   walkCalculateSteps(&steps, start_point, end_point, start_voxel_centre, voxel_resolution, length_epsilon);
@@ -311,10 +359,13 @@ WALK_FUNC inline unsigned walkSegmentKeys(WalkContext *context, const WalkVec3 s
   // Select next axis based on the earliest next time.
   axis = walkSelectNextAxis(steps.time_next);
 
+  int voxel_marker = kLineWalkMarkerStart;
   while (!user_exit && limit_flags < 7u && !walkEqualKeys(&current_key, end_point_key))
   {
     // Visit the current voxel.
-    user_exit = !walkVisitVoxel(context, &current_key, last_time, steps.time_next[axis], steps_remaining);
+    user_exit = !walkVisitVoxel(context, &current_key, start_point_key, end_point_key, voxel_marker, last_time,
+                                steps.time_next[axis], stepped);
+    voxel_marker = kLineWalkMarkerSegment;
     last_time = steps.time_next[axis];
     ++voxel_count;
 
@@ -336,7 +387,8 @@ WALK_FUNC inline unsigned walkSegmentKeys(WalkContext *context, const WalkVec3 s
   // Touch the last voxel.
   if (!user_exit && include_end_point)
   {
-    walkVisitVoxel(context, end_point_key, last_time, steps.length, steps_remaining);
+    walkVisitVoxel(context, end_point_key, start_point_key, end_point_key, kLineWalkMarkerEnd, last_time, steps.length,
+                   stepped);
     ++voxel_count;
   }
 

@@ -68,9 +68,13 @@ inline void walkStepKey(const LineWalkContext *context, Key *key, int axis, int 
 }
 
 
-inline bool walkVisitVoxel(const LineWalkContext *context, const Key *voxel_key, double enter_time, double exit_time,
+inline bool walkVisitVoxel(const LineWalkContext *context, const Key *voxel_key, const Key *start_key,
+                           const Key *end_key, unsigned voxel_marker, double enter_time, double exit_time,
                            const int steps_remaining[3])
 {
+  (void)start_key;     // Unused.
+  (void)end_key;       // Unused.
+  (void)voxel_marker;  // Unused.
   return context->visit(*voxel_key, enter_time, exit_time,
                         glm::ivec3(steps_remaining[0], steps_remaining[1], steps_remaining[2]));
 }
@@ -130,8 +134,8 @@ inline unsigned walkSegmentKeys(const LineWalkContext &context, const glm::dvec3
   const glm::dvec3 start_voxel_centre = context.map.voxelCentreGlobal(start_point_key);
   const glm::dvec3 voxel_resolution(context.map.resolution());
 
-  return detail::walkSegmentKeys(&context, start_point, end_point, &start_point_key, &end_point_key, start_voxel_centre,
-                                 voxel_resolution, include_end_point, length_epsilon);
+  return detail::walkLineVoxels(&context, start_point, end_point, &start_point_key, &end_point_key, start_voxel_centre,
+                                voxel_resolution, include_end_point, length_epsilon);
 }
 }  // namespace ohm
 
