@@ -327,7 +327,7 @@ WALK_FUNC inline unsigned walkLineVoxels(WalkContext *context, const WalkVec3 st
                                          const WalkKey *start_point_key, const WalkKey *end_point_key,
                                          const WalkVec3 start_voxel_centre, const WalkVec3 voxel_resolution,
                                          bool include_end_point,
-                                         WalkReal length_epsilon = 1e-6)  // NOLINT(readability-magic-numbers)
+                                         WalkReal length_epsilon)  // NOLINT(readability-magic-numbers)
 {
   WalkSteps steps;
   walkCalculateSteps(&steps, start_point, end_point, start_voxel_centre, voxel_resolution, length_epsilon);

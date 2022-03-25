@@ -96,27 +96,21 @@ inline __device__ int geti3(const int3 *v, int index);
 /// The algorithm walks the voxels from @p start_key to @p end_key. The line segment is defined relative to the centre
 /// of the @p startkey voxel with line points @p start_point and @p end_point respectively.
 ///
-/// @c WALK_NAME() is invoked for each voxel traversed.
+/// @c WALK_VISIT_VOXEL() is invoked for each voxel traversed.
 ///
-/// Based on J. Amanatides and A. Woo, "A fast voxel traversal algorithm for raytracing," 1987.
-///
-/// @param context User context data.
 /// @param start_key The key for the voxel containing @p start_point.
 /// @param end_key The key for the voxel containing @p end_point.
 /// @param start_point The start point of the line segment to traverse, relative to the centre of the
 ///   start voxel (identified by start_key). That is the origin is the centre of the start_key voxel.
 /// @param end_point The end point of the line segment to traverse, relative to the centre of the
 ///   start voxel (identified by start_key). That is the origin is the centre of the start_key voxel.
-/// @param start_voxel_centre Coordinate of the centre of the first voxel to walk, in the same frame as @c start_point
-///   and @c end_point. Normally this is the coordinate of the start voxel, but when @p kLineWalkFlagReverse is set,
-///   this must be the coordinate of the end voxel.
 /// @param region_dimensions Defines the size of a region in voxels. Used to update the @p GpuKey.
 /// @param voxel_resolution Size of a voxel from one face to another.
 /// @param walk_flags Flags affecting the algorithm behaviour. See @c LineWalkFlag .
 /// @param userData User pointer passed to @c walkLineVoxel().
-__device__ void walkVoxels(WalkContext *context, const GpuKey *start_key, const GpuKey *end_key,
-                           const float3 start_point, const float3 end_point, const float3 *start_voxel_centre,
-                           const int3 region_dimensions, float voxel_resolution, int walk_flags);
+__device__ void walkVoxels(const GpuKey *start_key, const GpuKey *end_key, const float3 start_point,
+                           const float3 end_point, const int3 region_dimensions, float voxel_resolution, int walk_flags,
+                           void *user_data);
 
 // Psuedo header guard to prevent symbol duplication.
 #ifndef LINE_WALK_CL
@@ -262,6 +256,7 @@ __device__ void walkVoxels(const GpuKey *start_key, const GpuKey *end_key, const
   context.suppressed_exit_range = 0;
 
   const float3 voxel_resolution_3 = make_float3(voxel_resolution, voxel_resolution, voxel_resolution);
+  const float length_epsilon = 1e-6f;
   if ((walk_flags & kLineWalkFlagReverse) == 0)
   {
     // We need to calculate the start voxel centre in the right coordinate space. All coordinates are relative to the
@@ -271,14 +266,16 @@ __device__ void walkVoxels(const GpuKey *start_key, const GpuKey *end_key, const
     const int3 voxel_diff = keyDiff(start_key, end_key, region_dimensions);
     const float3 start_voxel_centre =
       make_float3(voxel_diff.x * voxel_resolution, voxel_diff.y * voxel_resolution, voxel_diff.z * voxel_resolution);
-    walkLineVoxels(&context, start_point, end_point, start_key, end_key, start_voxel_centre, voxel_resolution_3, true);
+    walkLineVoxels(&context, start_point, end_point, start_key, end_key, start_voxel_centre, voxel_resolution_3, true,
+                   length_epsilon);
   }
   else
   {
     const bool defer_sample = (walk_flags & kLineWalkFlagForReportEndLast);  // && end_key->voxel[3] == 0;
     context.suppress_next_visit_call = defer_sample;
     const float3 end_voxel_centre = make_float3(0, 0, 0);
-    walkLineVoxels(&context, end_point, start_point, end_key, start_key, end_voxel_centre, voxel_resolution_3, true);
+    walkLineVoxels(&context, end_point, start_point, end_key, start_key, end_voxel_centre, voxel_resolution_3, true,
+                   length_epsilon);
     if (defer_sample)
     {
       const int stepped[3] = { 0, 0, 0 };
