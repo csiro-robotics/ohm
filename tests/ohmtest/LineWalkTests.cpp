@@ -72,7 +72,8 @@ void testWalk(const ohm::OccupancyMap &map, const glm::dvec3 &start_point, const
   std::string fail_info;
   {
     std::ostringstream str;
-    str << "trace: " << start_point << " -> " << end_point << std::flush;
+    str << "trace: " << start_point << " -> " << end_point << (include_end_point ? " include end" : " exclude end")
+        << std::flush;
     fail_info = str.str();
   }
 
@@ -221,7 +222,7 @@ TEST(LineWalk, Random)
       map.setOrigin(origin);
       start = glm::dvec3(uniform(rng), uniform(rng), uniform(rng));
       end = glm::dvec3(uniform(rng), uniform(rng), uniform(rng));
-      std::cout << start << " -> " << end << std::endl;
+      // std::cout << start << " -> " << end << std::endl;
       testWalk(map, start, end, true, log);
       testWalk(map, start, end, false, log);
     }
@@ -277,7 +278,7 @@ TEST(LineWalk, Walk)
             {
               end *= scale;
             }
-            std::cout << start << " -> " << end << " << include end " << std::endl;
+            // std::cout << start << " -> " << end << " << include end " << std::endl;
             testWalk(map, start, end, true, log);
             // std::cout << start << " -> " << end << " exclude end" << std::endl;
             testWalk(map, start, end, false, log);
