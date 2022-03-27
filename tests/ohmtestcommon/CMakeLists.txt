@@ -7,11 +7,13 @@ find_package(GLM)
 find_package(Eigen3 QUIET)
 
 set(SOURCES
-  TraversalTest.cpp
-  TraversalTest.h
   OhmTestUtil.cpp
   OhmTestUtil.h
   RayPatternTestUtil.h
+  TraversalTest.cpp
+  TraversalTest.h
+  WalkSegmentKeysLegacy.cpp
+  WalkSegmentKeysLegacy.h
 )
 
 if(Eigen3_FOUND)

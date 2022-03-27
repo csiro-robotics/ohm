@@ -325,8 +325,8 @@ TEST(Maths, AabbClip)
     EXPECT_NE(start, lines[i]);
     EXPECT_NE(end, lines[i + 1]);
 
-    EXPECT_TRUE(reference_box.contains(start)) << "clip-both " << i;
-    EXPECT_TRUE(reference_box.contains(end)) << "clip-both " << i;
+    EXPECT_TRUE(reference_box.contains(start, 1e-9)) << "clip-both " << i;
+    EXPECT_TRUE(reference_box.contains(end, 1e-9)) << "clip-both " << i;
 
     // Validate direction.
     EXPECT_FALSE(glm::any(glm::greaterThan(glm::abs(dir1 - dir2), glm::dvec3(1e-9))));

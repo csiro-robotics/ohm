@@ -6,6 +6,7 @@
 #include "OhmTestConfig.h"
 
 #include "ohmtestcommon/OhmTestUtil.h"
+#include "ohmtestcommon/WalkSegmentKeysLegacy.h"
 
 #include <ohm/CalculateSegmentKeys.h>
 #include <ohm/Key.h>
@@ -127,7 +128,7 @@ void cubicRoomLegacy(OccupancyMap &map, float boundary_range, int voxel_step)
           point[a0] = i * map_res;
           point[a1] = j * map_res;
           point[a2] = (k == 0 ? 1.0 : -1.0) * extents * map_res;
-          calculateSegmentKeys(ray, map, origin, point, false);
+          calculateSegmentKeysLegacy(ray, map, origin, point, false);
           for (auto key : ray)
           {
             ohm::integrateMiss(map, key);
