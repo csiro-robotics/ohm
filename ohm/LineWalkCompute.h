@@ -53,9 +53,12 @@
 //                      WalkReal enter_range, WalkReal exit_range, const int stepped[3])
 /// @endcode
 ///
-///
-// - WalkKey type: either ohm::Key or ohm::GpuKey
-// - WalkKey functions:
+/// Note that the shared CPU/GPU code may prove less efficient for GPU. During the conversion, it was notes that the
+/// thread occupancy decreased for NDT and TSDF algorithms on an NVIDIA card (Intel OpenCL was unaffected due to small
+/// maximum work group sizes). While overall performance seemed was not impacted, this may increase the overall GPU
+/// usage and descrease the efficiency as the number of warps used increases. Should this prove an issue, it will
+/// be necessary to revisit splitting the algorithm in order to decrease the amount of memory used by each GPU thread,
+/// in particular focusing on reducing stack variable usage.
 
 #if GPUTIL_DEVICE
 #define WALK_FUNC __device__
