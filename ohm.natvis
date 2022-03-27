@@ -1,15 +1,52 @@
 <?xml version="1.0" encoding="utf-8"?>
 <AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
-  <Type Name="glm::tvec3&lt;*&gt;">
-    <AlternativeType Name="glm::vec3"/>
-    <AlternativeType Name="glm::dvec3"/>
-    <AlternativeType Name="glm::i8vec3"/>
-    <AlternativeType Name="glm::i16vec3"/>
-    <AlternativeType Name="glm::ivec3"/>
+  <Type Name="glm::vec&lt;2,char,*&gt;">
+    <AlternativeType Name="glm::vec&lt;2,unsigned char,*&gt;"/>
+    <AlternativeType Name="glm::u8vec2"/>
+    <AlternativeType Name="glm::i8vec2"/>
+    <DisplayString>x={(int)x} y={(int)y} z={(int)z}</DisplayString>
+    <Expand>
+      <Item Name="x">(int)x</Item>
+      <Item Name="y">(int)y</Item>
+      <Item Name="z">(int)z</Item>
+      <Item Name="len2">(int)x*(int)x + (int)y*(int)y + (int)z*(int)z</Item>
+    </Expand>
+  </Type>
+
+  <Type Name="glm::vec&lt;3,char,*&gt;">
+    <AlternativeType Name="glm::vec&lt;3,unsigned char,*&gt;"/>
     <AlternativeType Name="glm::u8vec3"/>
-    <AlternativeType Name="glm::u16vec3"/>
-    <AlternativeType Name="glm::uvec3"/>
-    <DisplayString>({x},{y},{z})</DisplayString>
+    <AlternativeType Name="glm::i8vec3"/>
+    <DisplayString>x={(int)x} y={(int)y} z={(int)z}</DisplayString>
+    <Expand>
+      <Item Name="x">(int)x</Item>
+      <Item Name="y">(int)y</Item>
+      <Item Name="z">(int)z</Item>
+      <Item Name="len2">(int)x*(int)x + (int)y*(int)y + (int)z*(int)z</Item>
+    </Expand>
+  </Type>
+
+  <Type Name="glm::vec&lt;4,char,*&gt;">
+    <AlternativeType Name="glm::vec&lt;4,unsigned char,*&gt;"/>
+    <AlternativeType Name="glm::u8vec4"/>
+    <AlternativeType Name="glm::i8vec4"/>
+    <DisplayString>x={(int)x} y={(int)y} z={(int)z}</DisplayString>
+    <Expand>
+      <Item Name="x">(int)x</Item>
+      <Item Name="y">(int)y</Item>
+      <Item Name="z">(int)z</Item>
+      <Item Name="len2">(int)x*(int)x + (int)y*(int)y + (int)z*(int)z</Item>
+    </Expand>
+  </Type>
+
+  <Type Name="glm::vec&lt;2,*&gt;">
+    <AlternativeType Name="glm::vec2"/>
+    <AlternativeType Name="glm::dvec2"/>
+    <AlternativeType Name="glm::i16vec2"/>
+    <AlternativeType Name="glm::ivec2"/>
+    <AlternativeType Name="glm::u16vec2"/>
+    <AlternativeType Name="glm::uvec2"/>
+    <DisplayString>x={x} y={y} z={z}</DisplayString>
     <Expand>
       <Item Name="x">x</Item>
       <Item Name="y">y</Item>
@@ -18,55 +55,109 @@
     </Expand>
   </Type>
 
-  <Type Name="ohm::NodeBase">
-    <!--
-      Expression to reference occupancy value
-        ((float*)(*_chunk).voxelMaps[0])[_key._local.x + _key._local.y * (*_map).regionVoxelDimensions.x + _key._local.z * (*_map).regionVoxelDimensions.x * (*_map).regionVoxelDimensions.y]
-    -->
-    <!-- Expression to reference clearance value
-      ((float*)(*_chunk).voxelMaps[1])[_key._local.x + _key._local.y * (*_map).regionVoxelDimensions.x + _key._local.z * (*_map).regionVoxelDimensions.x * (*_map).regionVoxelDimensions.y]
-    -->
-
-    <DisplayString Condition="!_chunk || !_map">null</DisplayString>
-    <DisplayString Condition="((float*)(*_chunk).voxelMaps[0])[_key._local.x + _key._local.y * (*_map).regionVoxelDimensions.x + _key._local.z * (*_map).regionVoxelDimensions.x * (*_map).regionVoxelDimensions.y] &gt; 1.e38">unknown [{_key} {((float*)(*_chunk).voxelMaps[0])[_key._local.x + _key._local.y * (*_map).regionVoxelDimensions.x + _key._local.z * (*_map).regionVoxelDimensions.x * (*_map).regionVoxelDimensions.y]}]</DisplayString>
-    <DisplayString Condition="((float*)(*_chunk).voxelMaps[0])[_key._local.x + _key._local.y * (*_map).regionVoxelDimensions.x + _key._local.z * (*_map).regionVoxelDimensions.x * (*_map).regionVoxelDimensions.y] &lt; (*_map).occupancyThresholdValue">free [{_key} {((float*)(*_chunk).voxelMaps[0])[_key._local.x + _key._local.y * (*_map).regionVoxelDimensions.x + _key._local.z * (*_map).regionVoxelDimensions.x * (*_map).regionVoxelDimensions.y]}]</DisplayString>
-    <DisplayString Condition="((float*)(*_chunk).voxelMaps[0])[_key._local.x + _key._local.y * (*_map).regionVoxelDimensions.x + _key._local.z * (*_map).regionVoxelDimensions.x * (*_map).regionVoxelDimensions.y] &gt;= (*_map).occupancyThresholdValue">occupied [{_key} {((float*)(*_chunk).voxelMaps[0])[_key._local.x + _key._local.y * (*_map).regionVoxelDimensions.x + _key._local.z * (*_map).regionVoxelDimensions.x * (*_map).regionVoxelDimensions.y]}]</DisplayString>
-    <DisplayString>invalid [{_key}]</DisplayString>
+  <Type Name="glm::vec&lt;3,*&gt;">
+    <AlternativeType Name="glm::vec3"/>
+    <AlternativeType Name="glm::dvec3"/>
+    <AlternativeType Name="glm::i16vec3"/>
+    <AlternativeType Name="glm::ivec3"/>
+    <AlternativeType Name="glm::u16vec3"/>
+    <AlternativeType Name="glm::uvec3"/>
+    <DisplayString>x={x} y={y} z={z}</DisplayString>
     <Expand>
-      <Item Name="occupancy">((float*)(*_chunk).voxelMaps[0])[_key._local.x + _key._local.y * (*_map).regionVoxelDimensions.x + _key._local.z * (*_map).regionVoxelDimensions.x * (*_map).regionVoxelDimensions.y]</Item>
-      <Item Name="clearance">((float*)(*_chunk).voxelMaps[1])[_key._local.x + _key._local.y * (*_map).regionVoxelDimensions.x + _key._local.z * (*_map).regionVoxelDimensions.x * (*_map).regionVoxelDimensions.y]</Item>
-      <Item Name="_key">_key</Item>
-      <Item Name="_chunk">_chunk</Item>
-      <Item Name="_map">_map</Item>
+      <Item Name="x">x</Item>
+      <Item Name="y">y</Item>
+      <Item Name="z">z</Item>
+      <Item Name="len2">x*x + y*y + z*z</Item>
+    </Expand>
+  </Type>
+
+  <Type Name="glm::vec&lt;4,*&gt;">
+    <AlternativeType Name="glm::vec4"/>
+    <AlternativeType Name="glm::dvec4"/>
+    <AlternativeType Name="glm::i16vec4"/>
+    <AlternativeType Name="glm::ivec4"/>
+    <AlternativeType Name="glm::u16vec4"/>
+    <AlternativeType Name="glm::uvec4"/>
+    <DisplayString>x={x} y={y} z={z}</DisplayString>
+    <Expand>
+      <Item Name="x">x</Item>
+      <Item Name="y">y</Item>
+      <Item Name="z">z</Item>
+      <Item Name="len2">x*x + y*y + z*z</Item>
     </Expand>
   </Type>
 
   <Type Name="ohm::Key">
-    <DisplayString>L:({(int)((unsigned char *)&amp;_local)[0]},{(int)((unsigned char *)&amp;_local)[1]},{(int)((unsigned char *)&amp;_local)[2]}) R:({((short *)&amp;_regionKey)[0]},{((short *)&amp;_regionKey)[1]},{((short *)&amp;_regionKey)[2]})</DisplayString>
+    <DisplayString Condition="local_.x==0 &amp;&amp; local_.y==0 &amp;&amp; local_.z==0 &amp;&amp; region_key_.x==-32768 &amp;&amp; region_key_.y==-32768 &amp;&amp; region_key_.z==-32768">(null-key)</DisplayString>
+    <DisplayString>L:({(int)local_.x},{(int)local_.y},{(int)local_.z}) R:({region_key_.x},{region_key_.y},{region_key_.z})</DisplayString>
     <Expand>
-      <!-- Should be using a synthetic type, but it's not working -->
-      <Synthetic Name="local">
-        <DisplayString>({(int)((unsigned char *)&amp;_local)[0]},{(int)((unsigned char *)&amp;_local)[1]},{(int)((unsigned char *)&amp;_local)[2]})</DisplayString>
-        <Expand>
-          <Item Name="x">(int)((unsigned char *)&amp;_local)[0]</Item>
-          <Item Name="y">(int)((unsigned char *)&amp;_local)[1]</Item>
-          <Item Name="z">(int)((unsigned char *)&amp;_local)[2]</Item>
-        </Expand>
-      </Synthetic>
-      <Synthetic Name="region">
-        <DisplayString>({((short *)&amp;_regionKey)[0]},{((short *)&amp;_regionKey)[1]},{((short *)&amp;_regionKey)[2]})</DisplayString>
-        <Expand>
-          <Item Name="x">((short *)&amp;_regionKey)[0]</Item>
-          <Item Name="y">((short *)&amp;_regionKey)[1]</Item>
-          <Item Name="z">((short *)&amp;_regionKey)[2]</Item>
-        </Expand>
-      </Synthetic>
-      <!-- <Item Name="_local.x">(int)((unsigned char *)&amp;_local)[0]</Item>
-      <Item Name="_local.y">(int)((unsigned char *)&amp;_local)[1]</Item>
-      <Item Name="_local.z">(int)((unsigned char *)&amp;_local)[2]</Item>
-      <Item Name="_regionKey.x">((short *)&amp;_regionKey)[0]</Item>
-      <Item Name="_regionKey.y">((short *)&amp;_regionKey)[1]</Item>
-      <Item Name="_regionKey.z">((short *)&amp;_regionKey)[2]</Item> -->
+      <Item Name="local_">local_</Item>
+      <Item Name="region_key_">region_key_</Item>
+    </Expand>
+  </Type>
+
+  <!--
+    SKA hash map support: note, the correct solution is to use CustomListItems and code to decipher the elements.
+    However, the VSCode MIEngine does not support Loop so we need an alternative. (Of course I learned this after I
+    had it working).
+    Also doesn't seem to work for GDB.
+  -->
+  <Type Name="ska::bytell_hash_map&lt;*&gt;">
+    <DisplayString>items={num_elements}</DisplayString>
+    <Expand>
+      <!--
+        The backup solution is to treat it like an indexed list and iterate the data blocks rather than the individual
+        elements.
+
+        Data begins at the `entries` pointer. There are a number of these blocks equal to the `num_slots_minus_one + 1`
+        unless `num_slots_minus_one` is zero, in which case the container is empty.
+
+        The data blocks can be expanded to look for valid data entries in the map, although there will be many
+        malformed/invalid data items.
+      -->
+      <IndexListItems>
+        <Size>(num_slots_minus_one ? num_slots_minus_one + 1 : 0)</Size>
+        <ValueNode>
+          entries[$i].data
+        </ValueNode>
+      </IndexListItems>
+      <!--
+        The correct solution is this one.
+        This logic is based on the ska map iterator code.
+        Note: If this is uncommented, the decrement operators need to be restored. They are currently written as
+        `- -` because joining the dashes is malformed in an HTML comment. The extraneous space would need to be removed.
+      -->
+      <!-- <CustomListItems MaxItemsPerView="5000" ExcludeView="Test">
+        <Variable Name="num_slots" InitialValue="(size_t)(num_slots_minus_one ? num_slots_minus_one + 1 : 0)"/>
+        <Variable Name="BlockSize" InitialValue="ska::detailv8::CalculateBytellBlockSize&lt;$T1,$T2&gt;::value"/>
+        <Variable Name="magic_for_empty" InitialValue="ska::detailv8::sherwood_v8_constants&lt;void&gt;::magic_for_empty"/>
+        <Variable Name="index" InitialValue="num_slots"/>
+        <Variable Name="current" InitialValue="entries + (num_slots / BlockSize)"/>
+        <Variable Name="count" InitialValue="0"/>
+
+        <Loop>
+          <Loop>
+            <If Condition="index % BlockSize == 0">
+              <Exec>- -current</Exec>
+            </If>
+            <If Condition="index- - == 0">
+              <Break/>
+            </If>
+            <Break Condition="current->control_bytes[index % BlockSize] != magic_for_empty"/>
+          </Loop>
+          <Item>&amp;current->data[index % BlockSize]</Item>
+          <Break Condition="++count >= num_elements"/>
+        </Loop>
+      </CustomListItems> -->
+    </Expand>
+  </Type>
+
+  <!-- SKA iterator item visualisation. Works for const and non-const. -->
+  <Type Name="ska::detailv8::sherwood_v8_table&lt;std::pair&lt;*,*&gt;,*&gt;::templated_iterator&lt;*&gt;">
+    <DisplayString>{current->data[index % ska::detailv8::CalculateBytellBlockSize&lt;$T1,$T1&gt;::value].first}:{current->data[index % ska::detailv8::CalculateBytellBlockSize&lt;$T1,$T1&gt;::value].second}</DisplayString>
+    <Expand>
+      <Item Name="[key]">current->data[index % ska::detailv8::CalculateBytellBlockSize&lt;$T1,$T1&gt;::value].first</Item>
+      <Item Name="[value]">current->data[index % ska::detailv8::CalculateBytellBlockSize&lt;$T1,$T1&gt;::value].second</Item>
     </Expand>
   </Type>
 </AutoVisualizer>
