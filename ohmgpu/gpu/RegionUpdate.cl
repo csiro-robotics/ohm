@@ -191,7 +191,8 @@ __device__ bool REGION_VISIT_VOXEL(const GpuKey *voxel_key, const GpuKey *start_
     //   of a region not hit when walking the regions on CPU.
     // - Regions may not be uploaded due to extents limiting on CPU.
 #ifdef REPORT_MISSING_REGIONS
-    printf("%u region missing: " KEY_F "\n", get_global_id(0), KEY_A(*voxel_key)));
+    printf("%u region missing: " KEY_F "\n  Voxels: " KEY_F "->" KEY_F "\n", get_global_id(0), KEY_A(*voxel_key),
+           KEY_A(*start_key), KEY_A(*end_key));
 #endif
     return true;
   }

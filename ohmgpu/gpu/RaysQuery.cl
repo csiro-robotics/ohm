@@ -19,7 +19,7 @@
 //------------------------------------------------------------------------------
 
 // Report regions we can't resolve via printf().
-//#define REPORT_MISSING_REGIONS
+// #define REPORT_MISSING_REGIONS
 
 // Limit the number of cells we can traverse in the line traversal. This is a worst case limit.
 //#define LIMIT_LINE_WALK_ITERATIONS
@@ -81,13 +81,14 @@ __device__ bool visitVoxelRayQuery(const GpuKey *voxel_key, const GpuKey *start_
                                                 line_data->region_keys, line_data->region_count);
 
 #ifdef REPORT_MISSING_REGIONS
-  if (!region_resolved)
+  if (!have_voxel_memory)
   {
     // We can fail to resolve regions along the in the line. This can occurs for several reasons:
     // - Floating point error differences between CPU and GPU line walking means that the GPU may walk into the edge
     //   of a region not hit when walking the regions on CPU.
     // - Regions may not be uploaded due to extents limiting on CPU.
-    printf("%u region missing: " KEY_F "\n", get_global_id(0), KEY_A(*voxel_key));
+    printf("%u region missing: " KEY_F "\n  Voxels: " KEY_F "->" KEY_F "\n", get_global_id(0), KEY_A(*voxel_key),
+           KEY_A(*start_key), KEY_A(*end_key));
   }
 #endif  // REPORT_MISSING_REGIONS
 
