@@ -119,7 +119,7 @@ void RaysQueryMapWrapper::onSyncVoxels(int buffer_index)
 {
   (void)buffer_index;  // unused
   RaysQueryMapWrapperDetail *imp = detail();
-  if (imp->needs_sync)
+  if (imp->results_event.isValid())
   {
     imp->results_event.wait();
   }
@@ -216,6 +216,8 @@ void RaysQueryMapWrapper::finaliseBatch(unsigned region_update_flags)
   imp->results_cpu.resize(ray_count);
   imp->results_gpu.readElements(imp->results_cpu.data(), ray_count, 0, &gpu_cache.gpuQueue(),
                                 &imp->region_update_events[buf_idx], &imp->results_event);
+
+  gpu_cache.gpuQueue().finish();
 
   // ohm::logger::trace(imp->region_counts[buf_idx], "regions\n");
 

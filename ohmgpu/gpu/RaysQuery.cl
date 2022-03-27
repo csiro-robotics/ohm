@@ -19,7 +19,7 @@
 //------------------------------------------------------------------------------
 
 // Report regions we can't resolve via printf().
-// #define REPORT_MISSING_REGIONS
+#define REPORT_MISSING_REGIONS
 
 // Limit the number of cells we can traverse in the line traversal. This is a worst case limit.
 //#define LIMIT_LINE_WALK_ITERATIONS
@@ -111,14 +111,14 @@ __device__ bool visitVoxelRayQuery(const GpuKey *voxel_key, const GpuKey *start_
                            RQ_OccUnobserved :
                            ((occupancy_value >= line_data->occupied_threshold) ? RQ_OccOccupied : RQ_OccFree);
 
-  line_data->result.range = exit_range;
+  line_data->result.range = (voxel_type != RQ_OccOccupied) ? exit_range : line_data->result.range;
   line_data->result.unobserved_volume += (voxel_type == RQ_OccUnobserved) ?
                                            (line_data->volume_coefficient * (exit_range * exit_range * exit_range -
                                                                              enter_range * enter_range * enter_range)) :
                                            0.0f;
   line_data->result.voxel_type = voxel_type;
 
-  // Stop traveral if occupied.
+  // Stop traversal if occupied.
   return voxel_type != RQ_OccOccupied;
 }
 

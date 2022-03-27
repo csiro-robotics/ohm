@@ -150,7 +150,7 @@ bool RaysQuery::onExecute()
       is_unobserved ?
         (volume_coefficient * (exit_range * exit_range * exit_range - enter_range * enter_range * enter_range)) :
         0.0f;
-    range = float(exit_range);
+      range = (!is_occupied) ? float(exit_range) : range;
     // Resolve the voxel state.
     terminal_state =
       is_unobserved ? OccupancyType::kUnobserved : (is_occupied ? OccupancyType::kOccupied : OccupancyType::kFree);
