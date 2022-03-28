@@ -23,9 +23,8 @@ class Key;
 /// @param key The key of the current voxel being visited.
 /// @param enter_range Range at which the voxel is entered. detail required
 /// @param exit_range Range at which the voxel is entered. detail required
-/// @param steps_remaining The number of voxels steps remaining along each axis.
 /// @return True to keep walking the voxels along the ray, false to abort walking the ray.
-using WalkVisitFunction = std::function<bool(const Key &, double, double, const glm::ivec3 &)>;
+using WalkVisitFunction = std::function<bool(const Key &, double, double)>;
 
 /// A utility key adaptor around an @c OccupancyMap for use with @c walkSegmentKeys() .
 struct ohm_API LineWalkContext
@@ -69,14 +68,12 @@ inline void walkStepKey(const LineWalkContext *context, Key *key, int axis, int 
 
 
 inline bool walkVisitVoxel(const LineWalkContext *context, const Key *voxel_key, const Key *start_key,
-                           const Key *end_key, unsigned voxel_marker, double enter_time, double exit_time,
-                           const int steps_remaining[3])
+                           const Key *end_key, unsigned voxel_marker, double enter_time, double exit_time)
 {
   (void)start_key;     // Unused.
   (void)end_key;       // Unused.
   (void)voxel_marker;  // Unused.
-  return context->visit(*voxel_key, enter_time, exit_time,
-                        glm::ivec3(steps_remaining[0], steps_remaining[1], steps_remaining[2]));
+  return context->visit(*voxel_key, enter_time, exit_time);
 }
 
 #include "LineWalkCompute.h"

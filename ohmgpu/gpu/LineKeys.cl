@@ -15,8 +15,7 @@
 #define WALK_VISIT_VOXEL lineKeysVisitVoxel
 
 __device__ bool lineKeysVisitVoxel(const GpuKey *voxel_key, const GpuKey *start_key, const GpuKey *end_key,
-                                   int voxel_marker, float enter_range, float exit_range, const int *stepped,
-                                   void *user_data);
+                                   int voxel_marker, float enter_range, float exit_range, void *user_data);
 
 // Must be included after above defined
 #include "LineWalk.cl"
@@ -34,8 +33,7 @@ __device__ void calculateLineKeys(__global GpuKey *line_out, uint max_keys, cons
 
 
 __device__ bool lineKeysVisitVoxel(const GpuKey *voxel_key, const GpuKey *start_key, const GpuKey *end_key,
-                                   int voxel_marker, float enter_range, float exit_range, const int *stepped,
-                                   void *user_data)
+                                   int voxel_marker, float enter_range, float exit_range, void *user_data)
 {
   LineWalkData *line_data = (LineWalkData *)user_data;
   // Dereferencing line_data->line_out[1 + line_data->key_count++] caused issues on Intel OpenCL. Defer the increment

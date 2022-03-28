@@ -137,10 +137,8 @@ size_t RayMapperNdt::integrateRays(const glm::dvec3 *rays, size_t element_count,
   }
   time_base = occupancy_map.firstRayTime();
 
-  const auto visit_func = [&](const Key &key, double enter_range, double exit_range,
-                              const glm::ivec3 &steps_remaining) -> bool  //
+  const auto visit_func = [&](const Key &key, double enter_range, double exit_range) -> bool  //
   {
-    (void)steps_remaining;  // Unused
     //
     // The update logic here is a little unclear as it tries to avoid outright branches.
     // The intended logic is described as follows:

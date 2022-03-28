@@ -14,16 +14,14 @@ size_t calculateSegmentKeys(KeyList &keys, const OccupancyMap &map, const glm::d
                             const glm::dvec3 &end_point, bool include_end_point)
 {
   keys.clear();
-  return walkSegmentKeys(
-    LineWalkContext(map,
-                    [&keys](const Key &key, double enter_range, double exit_range, const glm::ivec3 &stepped) {
-                      (void)enter_range;  // Unused
-                      (void)exit_range;   // Unused
-                      (void)stepped;      // Unused
+  return walkSegmentKeys(LineWalkContext(map,
+                                         [&keys](const Key &key, double enter_range, double exit_range) {
+                                           (void)enter_range;  // Unused
+                                           (void)exit_range;   // Unused
 
-                      keys.add(key);
-                      return true;
-                    }),
-    start_point, end_point, include_end_point);
+                                           keys.add(key);
+                                           return true;
+                                         }),
+                         start_point, end_point, include_end_point);
 }
 }  // namespace ohm

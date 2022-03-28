@@ -149,16 +149,14 @@ typedef struct LineWalkData_t
 #endif  // NDT
 
 __device__ bool REGION_VISIT_VOXEL(const GpuKey *voxel_key, const GpuKey *start_key, const GpuKey *end_key,
-                                   int voxel_marker, float enter_range, float exit_range, const int *stepped,
-                                   void *user_data);
+                                   int voxel_marker, float enter_range, float exit_range, void *user_data);
 
 // Must be included after WALK_NAME and WALK_VISIT_VOXEL function is define
 #include "LineWalk.cl"
 
 // Implement the voxel traversal function. We update the value of the voxel using atomic instructions.
 __device__ bool REGION_VISIT_VOXEL(const GpuKey *voxel_key, const GpuKey *start_key, const GpuKey *end_key,
-                                   int voxel_marker, float enter_range, float exit_range, const int *stepped,
-                                   void *user_data)
+                                   int voxel_marker, float enter_range, float exit_range, void *user_data)
 {
   float old_value, new_value;
 

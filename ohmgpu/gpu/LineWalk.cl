@@ -44,12 +44,10 @@
 ///   @c kLineWalkFlagReverse .
 /// @param exit_range How far from the origin has been traversed when exiting @p voxelKey . Is adapted for
 ///   @c kLineWalkFlagReverse .
-/// @param stepped The number of voxel steps which have been made along each axis.
 /// @param user_data A pointer to the user data given to @c walkVoxels()
 /// @return True to continue traversing the line, false to abort traversal.
 /// __device__ bool WALK_VISIT_VOXEL(const GpuKey *voxel_key, const GpuKey *walk_start_key, const GpuKey *walk_end_key,
-///                                  int voxel_marker, float enter_range, float exit_range, const int stepped[3],
-///                                  void *user_data);
+///                                  int voxel_marker, float enter_range, float exit_range, void *user_data);
 //------------------------------------------------------------------------------
 #include "GpuKey.h"
 #include "LineWalkMarkers.cl"
@@ -64,12 +62,11 @@
 
 typedef struct WalkContext
 {
-  int region_dimensions[3];
-  bool suppress_next_visit_call;
   void *user_data;
-  // Values used for deferring calling the sample voxel in a reverse trace.
-  float suppressed_enter_range;
+  int region_dimensions[3];
+  // Value used for deferring calling the sample voxel in a reverse trace.
   float suppressed_exit_range;
+  bool suppress_next_visit_call;
 } WalkContext;
 
 /// Calculate the @p GpuKey for @p point local to the region's minimum extents corner.
@@ -223,20 +220,15 @@ inline __device__ void walkStepKey(WalkContext *context, GpuKey *key, int axis, 
 }
 
 inline __device__ bool walkVisitVoxel(WalkContext *context, const GpuKey *voxel_key, const GpuKey *start_key,
-                                      const GpuKey *end_key, int voxel_marker, float enter_range, float exit_range,
-                                      const int *stepped)
+                                      const GpuKey *end_key, int voxel_marker, float enter_range, float exit_range)
 {
-  // return WALK_VISIT_VOXEL(voxel_key, start_key, end_key, voxel_marker, enter_range, exit_range, stepped,
-  //                         context->user_data);
-  if (context->suppress_next_visit_call)
+  if (!context->suppress_next_visit_call)
   {
-    context->suppress_next_visit_call = false;
-    context->suppressed_enter_range = enter_range;
-    context->suppressed_exit_range = exit_range;
-    return true;
+    return WALK_VISIT_VOXEL(voxel_key, start_key, end_key, voxel_marker, enter_range, exit_range, context->user_data);
   }
-  return WALK_VISIT_VOXEL(voxel_key, start_key, end_key, voxel_marker, enter_range, exit_range, stepped,
-                          context->user_data);
+  context->suppress_next_visit_call = false;
+  context->suppressed_exit_range = exit_range;
+  return true;
 }
 
 // Must be included after ther visit function is defined.
@@ -252,7 +244,6 @@ __device__ void walkVoxels(const GpuKey *start_key, const GpuKey *end_key, const
   context.region_dimensions[2] = region_dimensions.z;
   context.suppress_next_visit_call = false;
   context.user_data = user_data;
-  context.suppressed_enter_range = 0;
   context.suppressed_exit_range = 0;
 
   const float3 voxel_resolution_3 = make_float3(voxel_resolution, voxel_resolution, voxel_resolution);
@@ -278,9 +269,8 @@ __device__ void walkVoxels(const GpuKey *start_key, const GpuKey *end_key, const
                    length_epsilon);
     if (defer_sample)
     {
-      const int stepped[3] = { 0, 0, 0 };
-      WALK_VISIT_VOXEL(end_key, start_key, end_key, kLineWalkMarkerStart, context.suppressed_enter_range,
-                       context.suppressed_exit_range, stepped, context.user_data);
+      WALK_VISIT_VOXEL(end_key, start_key, end_key, kLineWalkMarkerStart, 0.0f, context.suppressed_exit_range,
+                       context.user_data);
     }
   }
 }

@@ -124,10 +124,8 @@ bool RaysQuery::onExecute()
   const auto occupancy_threshold_value = map->occupancyThresholdValue();
   const auto volume_coefficient = d->volume_coefficient;
 
-  const auto visit_func = [&](const Key &key, double enter_range, double exit_range,
-                              const glm::ivec3 &steps_remaining) -> bool  //
+  const auto visit_func = [&](const Key &key, double enter_range, double exit_range) -> bool  //
   {
-    (void)steps_remaining;  // Unused
     // Work out the index of the voxel in it's region.
     const unsigned voxel_index = ohm::voxelIndex(key, occupancy_dim);
     float occupancy_value = unobservedOccupancyValue();

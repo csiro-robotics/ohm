@@ -96,8 +96,7 @@ typedef struct TsdfWalkData_t
 // Note: TSDF ray tracing is actually done in reverse. This can greatly reduce voxel contension improving TSDF
 // performance (as the CAS loop limit is hit less often) and quality (as be abandon data less often).
 __device__ bool visitVoxelTsdf(const GpuKey *voxel_key, const GpuKey *start_key, const GpuKey *end_key,
-                               int voxel_marker, float enter_range, float exit_range, const int *stepped,
-                               void *user_data)
+                               int voxel_marker, float enter_range, float exit_range, void *user_data)
 {
   TsdfWalkData *tsdf_data = (TsdfWalkData *)user_data;
 

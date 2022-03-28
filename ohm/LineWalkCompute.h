@@ -47,10 +47,9 @@
 /// ///     `[kLineWalkMarkerSegment, kLineWalkMarkerStart, kLineWalkMarkerEnd]`
 /// /// @param enter_range The distance which has been traces along the line at which we enter @c voxel_key .
 /// /// @param exit_range The distance which has been traces along the line at which we exit @c voxel_key .
-/// /// @param stepped The number of voxel steps which have been made along each axis.
 /// bool walkVisitVoxel(WalkContext *context, const WalkKey *voxel_key, const WalkKey *walk_start_key,
 ///                     const WalkKey *walk_end_key, unsigned voxel_marker, int voxel_marker,
-//                      WalkReal enter_range, WalkReal exit_range, const int stepped[3])
+//                      WalkReal enter_range, WalkReal exit_range)
 /// @endcode
 ///
 /// Note that the shared CPU/GPU code may prove less efficient for GPU. During the conversion, it was notes that the
@@ -165,7 +164,7 @@ WALK_FUNC inline int walkSignToStep(int sign)
 /// Calculate the times at which the ray will exit a voxel wall along each axis.
 /// Note: @p exit_time must have space for three elements to be written back to it.
 WALK_FUNC inline void walkCalculateVoxelWallExit(const LineWalkRay *ray, const WalkVec3 voxel_min,
-                                                 const WalkVec3 voxel_max, WalkReal *exit_time, WalkReal length_epsilon)
+                                                 const WalkVec3 voxel_max, WalkReal *exit_time)
 {
   // Based on:
   // https://www.scratchapixel.com/lessons/3d-basic-rendering/minimal-ray-tracer-rendering-simple-shapes/ray-box-intersection
@@ -183,8 +182,6 @@ WALK_FUNC inline void walkInitRay(LineWalkRay *ray, const WalkVec3 start, const 
   ray->direction = end - start;
   ray->length =
     ray->direction.x * ray->direction.x + ray->direction.y * ray->direction.y + ray->direction.z * ray->direction.z;
-  // OpenCL 3.0 does not like WalkReal precision literals without WalkReal support enabled, so we have to use floats
-  // and cast to our WalkReal if that's what we are using.
   ray->length = (ray->length > length_epsilon) ? sqrt(ray->length) : 0;
 
   // Resolve the direction before we potentially divide by zero as we can for very small rays.
@@ -210,7 +207,7 @@ WALK_FUNC inline void walkInitRay(LineWalkRay *ray, const WalkVec3 start, const 
   voxel_min -= walkHalf() * voxel_resolution;
   voxel_max += walkHalf() * voxel_resolution;
 
-  walkCalculateVoxelWallExit(ray, voxel_min, voxel_max, ray->initial_exit_time, length_epsilon);
+  walkCalculateVoxelWallExit(ray, voxel_min, voxel_max, ray->initial_exit_time);
 
   // Move the voxel along on each axis.
   WalkVec3 voxel_shift;
@@ -222,7 +219,7 @@ WALK_FUNC inline void walkInitRay(LineWalkRay *ray, const WalkVec3 start, const 
   voxel_max += voxel_shift;
 
   // Calculate the time to exit the next voxel wall along each axis.
-  walkCalculateVoxelWallExit(ray, voxel_min, voxel_max, ray->step_delta, length_epsilon);
+  walkCalculateVoxelWallExit(ray, voxel_min, voxel_max, ray->step_delta);
 
   // The difference between them is the step delta. This is invariant for this ray.
   if (ray->step_delta[0] != walkInfinity())
@@ -345,9 +342,9 @@ WALK_FUNC inline unsigned walkLineVoxels(WalkContext *context, const WalkVec3 st
 
   WalkReal last_time = 0;
   unsigned axis = 0;
-  unsigned limit_flags = 0;
   unsigned voxel_count = 0;
-  bool user_exit = false;
+  unsigned limit_flags = 0;
+  bool continue_traversal = true;
 
   // Initialise limit flags to mark which axes won't be stepped. Bits 0, 1, 2 map to axis X, Y, Z respectively.
   limit_flags |= !!(steps_remaining[0] == 0) * (1u << 0u);
@@ -363,11 +360,11 @@ WALK_FUNC inline unsigned walkLineVoxels(WalkContext *context, const WalkVec3 st
   axis = walkSelectNextAxis(steps.time_next);
 
   int voxel_marker = kLineWalkMarkerStart;
-  while (!user_exit && limit_flags < 7u && !walkEqualKeys(&current_key, end_point_key))
+  while (continue_traversal && limit_flags < 7u && !walkEqualKeys(&current_key, end_point_key))
   {
     // Visit the current voxel.
-    user_exit = !walkVisitVoxel(context, &current_key, start_point_key, end_point_key, voxel_marker, last_time,
-                                steps.time_next[axis], stepped);
+    continue_traversal = walkVisitVoxel(context, &current_key, start_point_key, end_point_key, voxel_marker, last_time,
+                                        steps.time_next[axis]);
     voxel_marker = kLineWalkMarkerSegment;
     last_time = steps.time_next[axis];
     ++voxel_count;
@@ -379,7 +376,6 @@ WALK_FUNC inline unsigned walkLineVoxels(WalkContext *context, const WalkVec3 st
     stepped[axis] += step_dir;
     steps.time_next[axis] = (steps_remaining[axis]) ?
                               steps.initial_delta[axis] + steps.step_delta[axis] * abs(stepped[axis]) :
-                              // steps.time_next[axis] + steps.step_delta[axis] :
                               walkInfinity();
     limit_flags |= !!(steps_remaining[axis] == 0) * (1u << axis);
 
@@ -388,10 +384,9 @@ WALK_FUNC inline unsigned walkLineVoxels(WalkContext *context, const WalkVec3 st
   }
 
   // Touch the last voxel.
-  if (!user_exit && include_end_point)
+  if (continue_traversal && include_end_point)
   {
-    walkVisitVoxel(context, end_point_key, start_point_key, end_point_key, kLineWalkMarkerEnd, last_time, steps.length,
-                   stepped);
+    walkVisitVoxel(context, end_point_key, start_point_key, end_point_key, kLineWalkMarkerEnd, last_time, steps.length);
     ++voxel_count;
   }
 

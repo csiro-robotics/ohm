@@ -83,8 +83,7 @@ void testWalk(const ohm::OccupancyMap &map, const glm::dvec3 &start_point, const
   unsigned voxel_count = 0;
   bool abort = false;
 
-  const auto &visit_function = [&](const ohm::Key &current_key, double enter_range, double exit_range,
-                                   const glm::ivec3 &steps_remaining) -> bool  //
+  const auto &visit_function = [&](const ohm::Key &current_key, double enter_range, double exit_range) -> bool  //
   {
     const glm::ivec3 key_delta = map.rangeBetween(last_key, current_key);
     const glm::ivec3 key_delta_to_end = map.rangeBetween(current_key, end_key);
