@@ -70,4 +70,70 @@ TEST(Tsdf, Basic)
     ohm::walkSegmentKeys(ohm::LineWalkContext(map, visit_func), rays[i], rays[i + 1]);
   }
 }
+
+TEST(Tsdf, Truncation)
+{
+  // Truncation test: ensure that the reported distances are truncated to tsdf_mapper.setDefaultTruncationDistance()
+  const double resolution = 0.1;
+  const glm::u8vec3 region_size(32);
+
+  const std::vector<glm::dvec3> rays = {
+    glm::dvec3(0.0), glm::dvec3(1.0, 0.0, 0.0),  glm::dvec3(0.0), glm::dvec3(-1.0, 0.0, 0.0),
+    glm::dvec3(0.0), glm::dvec3(1.0, 1.0, 0.0),  glm::dvec3(0.0), glm::dvec3(-1.0, 1.0, 0.0),
+    glm::dvec3(0.0), glm::dvec3(1.0, 0.0, 0.0),  glm::dvec3(0.0), glm::dvec3(1.0, -1.0, 0.0),
+    glm::dvec3(0.0), glm::dvec3(-1.0, 0.0, 1.0), glm::dvec3(0.0), glm::dvec3(1.0, 1.0, 1.0),
+    glm::dvec3(0.0), glm::dvec3(-1.0, 1.0, 1.0), glm::dvec3(0.0), glm::dvec3(1.0, 0.0, 1.0),
+    glm::dvec3(0.0), glm::dvec3(1.0, -1.0, 1.0), glm::dvec3(0.0), glm::dvec3(-1.0, 0.0, 1.0),
+    glm::dvec3(0.0), glm::dvec3(1.0, 1.0, -1.0), glm::dvec3(0.0), glm::dvec3(-1.0, 1.0, -1.0),
+    glm::dvec3(0.0), glm::dvec3(1.0, 0.0, -1.0), glm::dvec3(0.0), glm::dvec3(1.0, -1.0, -1.0),
+  };
+
+  // Test core voxel mean positioning
+  ohm::OccupancyMap map(resolution, region_size, ohm::MapFlag::kTsdf);
+  ohm::RayMapperTsdf tsdf_mapper(&map);
+
+  // Offset the map origin to trace between voxel centres.
+  map.setOrigin(glm::dvec3(-0.5 * map.resolution()));
+  // Set a very small truncation distance. All voxels except the same voxel should be truncated to this value.
+  tsdf_mapper.setDefaultTruncationDistance(0.01f * float(map.resolution()));
+
+  for (size_t i = 0; i < rays.size(); i += 2)
+  {
+    map.clear();
+
+    // We integrate ray twice, ensuring the distance stays truncated.
+    for (int j = 0; j < 2; ++j)
+    {
+      // Must initialise the voxel reference after the map clear or it may become invalid.
+      ohm::Voxel<const ohm::VoxelTsdf> tsdf(&map, map.layout().layerIndex(ohm::default_layer::tsdfLayerName()));
+      ASSERT_TRUE(tsdf.isLayerValid()) << "ray index " << i / 2u;
+
+      // Trace ray.
+      tsdf_mapper.integrateRays(&rays[i], 2, nullptr, nullptr, 0);
+
+      const ohm::Key end_voxel_key = map.voxelKey(rays[i + 1]);
+      const auto visit_func = [&](const ohm::Key &key, double enter_range, double exit_range,
+                                  const glm::ivec3 &steps_remaining) -> bool  //
+      {
+        if (key == end_voxel_key)
+        {
+          // Don't test the end voxel. Distance will be less.
+          return true;
+        }
+
+        ohm::setVoxelKey(key, tsdf);
+        EXPECT_TRUE(tsdf.isValid()) << "ray index " << i / 2u;
+        if (!tsdf.isValid())
+        {
+          return false;
+        }
+        const ohm::VoxelTsdf tsdf_data = tsdf.data();
+        EXPECT_EQ(tsdf_data.distance, tsdf_mapper.defaultTruncationDistance()) << "ray index " << i / 2u;
+        return true;
+      };
+
+      ohm::walkSegmentKeys(ohm::LineWalkContext(map, visit_func), rays[i], rays[i + 1]);
+    }
+  }
+}
 }  // namespace tsdf
