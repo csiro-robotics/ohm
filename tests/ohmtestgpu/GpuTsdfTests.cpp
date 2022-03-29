@@ -111,8 +111,8 @@ TEST(Tsdf, Truncation)
 
   // Offset the map origin to trace between voxel centres.
   map.setOrigin(glm::dvec3(-0.5 * map.resolution()));
-  // Set a very small truncation distance. All voxels except the same voxel should be truncated to this value.
-  tsdf_mapper.setDefaultTruncationDistance(0.01f * float(map.resolution()));
+  // Set a small truncation distance. We expect voxels to quickly reach the truncation distance.
+  tsdf_mapper.setDefaultTruncationDistance(float(map.resolution()));
 
   // Use the GPU ray calculator in order to touch the same voxels. We can get different results using
   // ohm::MapLineWalker due to floating point precision differences.
@@ -140,20 +140,17 @@ TEST(Tsdf, Truncation)
       const size_t index_offset = query.resultIndices()[i / 2u];
       const size_t key_count = query.resultCounts()[i / 2u];
 
-      const ohm::Key end_voxel_key = map.voxelKey(rays[i + 1]);
       for (size_t k = 0; k < key_count; ++k)
       {
         const ohm::Key key = query.intersectedVoxels()[index_offset + k];
-        if (key == end_voxel_key)
-        {
-          // Don't test the end voxel. Distance will be less.
-          continue;
-        }
-
         ohm::setVoxelKey(key, tsdf);
         ASSERT_TRUE(tsdf.isValid()) << "ray index " << i / 2u;
         const ohm::VoxelTsdf tsdf_data = tsdf.data();
-        EXPECT_EQ(tsdf_data.distance, tsdf_mapper.defaultTruncationDistance()) << "ray index " << i / 2u;
+        EXPECT_NEAR(tsdf_data.distance,
+                    std::min(tsdf_mapper.defaultTruncationDistance(),
+                             ohm::computeDistance(rays[i], rays[i + 1], map.voxelCentreGlobal(key))),
+                    1e-6)
+          << "ray index " << i / 2u;
       }
     }
   }

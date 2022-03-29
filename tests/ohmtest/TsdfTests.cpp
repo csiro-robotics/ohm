@@ -94,8 +94,8 @@ TEST(Tsdf, Truncation)
 
   // Offset the map origin to trace between voxel centres.
   map.setOrigin(glm::dvec3(-0.5 * map.resolution()));
-  // Set a very small truncation distance. All voxels except the same voxel should be truncated to this value.
-  tsdf_mapper.setDefaultTruncationDistance(0.01f * float(map.resolution()));
+  // Set a small truncation distance. We expect voxels to quickly reach the truncation distance.
+  tsdf_mapper.setDefaultTruncationDistance(float(map.resolution()));
 
   for (size_t i = 0; i < rays.size(); i += 2)
   {
@@ -111,16 +111,9 @@ TEST(Tsdf, Truncation)
       // Trace ray.
       tsdf_mapper.integrateRays(&rays[i], 2, nullptr, nullptr, 0);
 
-      const ohm::Key end_voxel_key = map.voxelKey(rays[i + 1]);
       const auto visit_func = [&](const ohm::Key &key, double enter_range, double exit_range,
                                   const glm::ivec3 &steps_remaining) -> bool  //
       {
-        if (key == end_voxel_key)
-        {
-          // Don't test the end voxel. Distance will be less.
-          return true;
-        }
-
         ohm::setVoxelKey(key, tsdf);
         EXPECT_TRUE(tsdf.isValid()) << "ray index " << i / 2u;
         if (!tsdf.isValid())
@@ -128,7 +121,11 @@ TEST(Tsdf, Truncation)
           return false;
         }
         const ohm::VoxelTsdf tsdf_data = tsdf.data();
-        EXPECT_EQ(tsdf_data.distance, tsdf_mapper.defaultTruncationDistance()) << "ray index " << i / 2u;
+        EXPECT_NEAR(tsdf_data.distance,
+                    std::min(tsdf_mapper.defaultTruncationDistance(),
+                             ohm::computeDistance(rays[i], rays[i + 1], map.voxelCentreGlobal(key))),
+                    1e-6)
+          << "ray index " << i / 2u;
         return true;
       };
 
