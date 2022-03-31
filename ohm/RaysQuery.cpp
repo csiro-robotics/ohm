@@ -116,7 +116,7 @@ bool RaysQuery::onExecute()
   OccupancyType terminal_state = OccupancyType::kNull;
   Key terminal_key(nullptr);
 
-  auto map = d->map;
+  auto *map = d->map;
   const RayFilterFunction ray_filter = map->rayFilter();
   const bool use_filter = bool(ray_filter);
   const auto occupancy_layer = d->occupancy_layer;
@@ -148,7 +148,7 @@ bool RaysQuery::onExecute()
       is_unobserved ?
         (volume_coefficient * (exit_range * exit_range * exit_range - enter_range * enter_range * enter_range)) :
         0.0f;
-      range = (!is_occupied) ? float(exit_range) : range;
+    range = (!is_occupied) ? float(exit_range) : range;
     // Resolve the voxel state.
     terminal_state =
       is_unobserved ? OccupancyType::kUnobserved : (is_occupied ? OccupancyType::kOccupied : OccupancyType::kFree);
