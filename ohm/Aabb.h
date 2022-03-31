@@ -329,18 +329,22 @@ inline bool Aabb::clipLine(glm::dvec3 &start, glm::dvec3 &end, unsigned *clip_fl
     *clip_flags = 0;
   }
 
+  glm::dvec2 time_best(0.0, max_time);
+
   // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-constant-array-index)
   tx[0] = calcTimeVal(corners_[sign[0]].x, origin.x, inv_dir.x);
   // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-constant-array-index)
   tx[1] = calcTimeVal(corners_[1 - sign[0]].x, origin.x, inv_dir.x);
+  if (!calcIntervalOverlap(time_best, tx, &time_best))
+  {
+    return false;
+  }
+
   // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-constant-array-index)
   ty[0] = calcTimeVal(corners_[sign[1]].y, origin.y, inv_dir.y);
   // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-constant-array-index)
   ty[1] = calcTimeVal(corners_[1 - sign[1]].y, origin.y, inv_dir.y);
-
-  glm::dvec2 time_best;
-
-  if (!calcIntervalOverlap(tx, ty, &time_best))
+  if (!calcIntervalOverlap(time_best, ty, &time_best))
   {
     return false;
   }
