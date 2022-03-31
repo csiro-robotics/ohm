@@ -148,7 +148,7 @@ typedef struct LineWalkRay
   WalkReal length;
 } LineWalkRay;
 
-WALK_FUNC inline int walkSignToStep(int sign)
+WALK_FUNC inline int walkStepDir(int sign)
 {
   // Derive the step direction from the ray->sign. The ray->sign values are 0 for positive step direction, 1 for
   // a negative step direction. Thus we can resolve the step direction as:
@@ -211,9 +211,9 @@ WALK_FUNC inline void walkInitRay(LineWalkRay *ray, const WalkVec3 start, const 
 
   // Move the voxel along on each axis.
   WalkVec3 voxel_shift;
-  voxel_shift.x = walkSignToStep(ray->sign[0]) * voxel_resolution.x;
-  voxel_shift.y = walkSignToStep(ray->sign[1]) * voxel_resolution.y;
-  voxel_shift.z = walkSignToStep(ray->sign[2]) * voxel_resolution.z;
+  voxel_shift.x = walkStepDir(ray->sign[0]) * voxel_resolution.x;
+  voxel_shift.y = walkStepDir(ray->sign[1]) * voxel_resolution.y;
+  voxel_shift.z = walkStepDir(ray->sign[2]) * voxel_resolution.z;
 
   voxel_min += voxel_shift;
   voxel_max += voxel_shift;
@@ -274,19 +274,6 @@ WALK_FUNC inline int walkSelectNextAxis(const WalkReal *time_next)
   axis = (time_next[axis] < time_next[1]) ? axis : 1;
   axis = (time_next[axis] < time_next[2]) ? axis : 2;
   return axis;
-}
-
-WALK_FUNC inline int walkStepDir(const int sign)
-{
-  // Derive the step direction from the ray->sign. The ray->sign values are 0 for positive step direction, 1 for
-  // a negative step direction. Thus we can resolve the step direction as:
-  // -2 * sign + 1
-  //
-  // When sign is 0:
-  //  -2 * 0 + 1 = 1
-  // When sign is 1:
-  //  -2 * 1 + 1 = -1
-  return -2 * sign + 1;
 }
 
 /// Line walking function for tracing voxels between two points/voxels.
