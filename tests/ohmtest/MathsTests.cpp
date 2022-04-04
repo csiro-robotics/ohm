@@ -337,6 +337,12 @@ TEST(Maths, AabbClip)
   lines.push_back(reference_box.corner(Aabb::kCornerLll) * 2.5);
   lines.push_back(reference_box.corner(Aabb::kCornerLlu) * 2.5);
 
+  lines.push_back(reference_box.corner(Aabb::kCornerLll) * 2.5);
+  lines.push_back(reference_box.corner(Aabb::kCornerLll) * 5.0);
+
+  lines.push_back(reference_box.corner(Aabb::kCornerLll) * 5.0);
+  lines.push_back(reference_box.corner(Aabb::kCornerLll) * 2.5);
+
   for (size_t i = 0; i < lines.size(); i += 2)
   {
     start = lines[i];
