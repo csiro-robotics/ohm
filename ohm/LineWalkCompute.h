@@ -29,7 +29,7 @@
 /// /// @param[out] diff Storage diff. Logically as `diff[i] = key_a[i] - key_b[i]` with @c i is `[0, 1, 2]`.
 /// /// @param key_a The key to subtract from.
 /// /// @param key_b The key to subtract.
-/// void walkKeyDiff(WalkContext *context, int diff[3], WalkKey *, WalkKey *)
+/// void walkKeyDiff(WalkContext *context, int diff[3], WalkKey *key_a, WalkKey *key_b)
 ///
 /// /// Step a key, one voxel along an axis in the specified direction.
 /// /// @param context The @c WalkContext pointer. May optionally be @c const qualified.

@@ -80,42 +80,23 @@ inline bool walkVisitVoxel(const LineWalkContext *context, const Key *voxel_key,
 }  // namespace detail
 
 
-/// A templatised, voxel based line walking algorithm. Voxels are accurately traversed from @p startPoint to
-/// @p endPoint, invoking @p walkFunc for each traversed voxel.
+/// Implements the voxel tracing algorithm with the given @p context .
 ///
-/// The @p walkFunc is simply a callable object which accepts a @p KEY argument. Keys are provided in order of
-/// traversal.
+/// This traces the voxels intersected by the line segment from @p start_point to @p end_point invoking
+/// @c context.visit for each voxel intersected by the line segment. Each such visit passes the @c Key of the visited
+/// voxel and the distanaces from the @p start_point at which the voxel is entered and exited.
 ///
-/// The templatisation requires @p funcs to provide a set of key manipulation utility functions. Specifically,
-/// the @p KEYFUNCS type must have the following signature:
-/// @code
-/// struct KeyFuncs
-/// {
-///   // Query the voxel resolution along a particular axis. Axis may be { 0, 1, 2 } corresponding to XYZ.
-///   double voxelResolution(int axis) const;
-///   // Convert from pt to it's voxel key. The result may be null/invalid
-///   KEY voxelKey(const glm::dvec3 &pt) const;
-///   // Check if key is a null or invalid key.
-///   bool isNull(const KEY &key) const;
-///   // Convert from key to the centre of the corresponding voxel.
-///   glm::dvec3 voxelCentre(const KEY &key) const;
-///   // Move the key by one voxel. The axis may be {0, 1, 2} correlating the XYZ axes respectively.
-///   // The step will be 1 or -1, indicating the direction of the step.
-///   void stepKey(KEY &key, int axis, int step) const;
-///   // Calculate the voxel difference between two voxel keys : `key_a - key_b`.
-///   glm::ivec3 keyDiff(const KEY &key_a, const KEY &key_b);
-/// };
-/// @endcode
+/// See @c walkLineVoxels() for further implementation details.
 ///
-/// Based on J. Amanatides and A. Woo, "A fast voxel traversal algorithm for raytracing," 1987.
-///
-/// @param walk_func The callable object to invoke for each traversed voxel key.
+/// @param context Context within which we are tracing. Provides the @c OccupancyMap and a @c WalkVisitFunction to
+///   invoke.
 /// @param start_point The start of the line in 3D space.
 /// @param end_point The end of the line in 3D space.
 /// @param include_end_point Should be @c true if @p walkFunc should be called for the voxel containing
-///     @c endPoint, when it does not lie in the same voxel as @p startPoint.
-/// @param funcs Key helper functions object.
-/// @return The number of voxels traversed. This includes @p endPoint when @p includeEndPoint is true.
+///   @c endPoint, when it does not lie in the same voxel as @p startPoint.
+/// @param length_epsilon The segment length below which a ray is considered degenerate and will only report the start
+///   voxel.
+/// @return The number of voxels traversed. This includes @p end_point when @p include_end_point is true.
 inline unsigned walkSegmentKeys(const LineWalkContext &context, const glm::dvec3 &start_point,
                                 const glm::dvec3 &end_point, bool include_end_point = true,
                                 double length_epsilon = 1e-6)  // NOLINT(readability-magic-numbers)
