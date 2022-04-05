@@ -28,6 +28,8 @@ enum class MapFlag : unsigned
   kTouchTime = (1u << 3u),
   /// Maintain an incident normal for each sample voxel.
   kIncidentNormal = (1u << 4u),
+  /// Add a TSDF layer.
+  kTsdf = (1u << 5u),
 
   /// Default map creation flags.
   kDefault = kCompressed

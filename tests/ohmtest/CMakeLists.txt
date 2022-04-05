@@ -28,6 +28,7 @@ set(SOURCES
   TestMain.cpp
   TouchTimeTests.cpp
   TraversalTests.cpp
+  TsdfTests.cpp
   "${CMAKE_CURRENT_BINARY_DIR}/OhmTestConfig.h"
 )
 

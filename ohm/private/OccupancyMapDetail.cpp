@@ -140,6 +140,16 @@ void OccupancyMapDetail::setDefaultLayout(MapFlag init_flags)
   {
     flags &= ~MapFlag::kIncidentNormal;
   }
+
+  if ((init_flags & MapFlag::kTsdf) != MapFlag::kNone)
+  {
+    addTsdf(layout);
+    flags |= MapFlag::kTsdf;
+  }
+  else
+  {
+    flags &= ~MapFlag::kTsdf;
+  }
 }
 
 

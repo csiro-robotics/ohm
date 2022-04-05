@@ -21,6 +21,7 @@ set(SOURCES
   GpuTests.cpp
   GpuTouchTimeTests.cpp
   GpuTraversalTests.cpp
+  GpuTsdfTests.cpp
   GpuVoxelMeanTests.cpp
 )
 
