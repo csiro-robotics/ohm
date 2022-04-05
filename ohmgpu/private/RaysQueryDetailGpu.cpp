@@ -111,7 +111,7 @@ size_t RaysQueryMapWrapper::integrateRays(const glm::dvec3 *rays, size_t element
   imp->results_cpu.clear();
   imp->needs_sync = true;
   // Queries must be traced forward for the correct result - ray start to end - and cannot be reverse traced.
-  return GpuMap::integrateRays(rays, element_count, intensities, timestamps, ray_update_flags | kRfForwardWalk);
+  return GpuMap::integrateRays(rays, element_count, intensities, timestamps, ray_update_flags & ~kRfReverseWalk);
 }
 
 
@@ -119,7 +119,7 @@ void RaysQueryMapWrapper::onSyncVoxels(int buffer_index)
 {
   (void)buffer_index;  // unused
   RaysQueryMapWrapperDetail *imp = detail();
-  if (imp->needs_sync)
+  if (imp->results_event.isValid())
   {
     imp->results_event.wait();
   }
@@ -216,6 +216,8 @@ void RaysQueryMapWrapper::finaliseBatch(unsigned region_update_flags)
   imp->results_cpu.resize(ray_count);
   imp->results_gpu.readElements(imp->results_cpu.data(), ray_count, 0, &gpu_cache.gpuQueue(),
                                 &imp->region_update_events[buf_idx], &imp->results_event);
+
+  gpu_cache.gpuQueue().finish();
 
   // ohm::logger::trace(imp->region_counts[buf_idx], "regions\n");
 

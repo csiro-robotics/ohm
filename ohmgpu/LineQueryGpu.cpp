@@ -10,6 +10,7 @@
 
 #include "private/LineQueryDetailGpu.h"
 
+#include <ohm/CalculateSegmentKeys.h>
 #include <ohm/Key.h>
 #include <ohm/OccupancyMap.h>
 #include <ohm/QueryFlag.h>
@@ -118,7 +119,7 @@ bool LineQueryGpu::onExecute()
   // into the voxel clearance layer so set usedCacheClearance to read that information.
 
   // Calculate the voxels the line intersects.
-  d->map->calculateSegmentKeys(d->segment_keys, d->start_point, d->end_point);
+  calculateSegmentKeys(d->segment_keys, *d->map, d->start_point, d->end_point);
 
   // Populate results.
   d->intersected_voxels.resize(d->segment_keys.size());

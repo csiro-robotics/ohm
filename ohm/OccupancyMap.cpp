@@ -23,8 +23,6 @@
 
 #include "private/OccupancyMapDetail.h"
 
-#include <ohmutil/LineWalk.h>
-
 #include <algorithm>
 #include <cassert>
 #ifdef OHM_VALIDATION
@@ -836,40 +834,12 @@ void OccupancyMap::setSaturateAtMaxValue(bool saturate)
 
 glm::dvec3 OccupancyMap::voxelCentreLocal(const Key &key) const
 {
-  glm::dvec3 centre;
-  // Region centre
-  centre = glm::vec3(key.regionKey());
-  // Note: converting imp_->region_spatial_dimensions to glm::vec3 then multiplying to vec3 values resulted in
-  // additional floating point error. The following compontentised multiplication of float/int generates better values.
-  centre.x *= imp_->region_spatial_dimensions.x;
-  centre.y *= imp_->region_spatial_dimensions.y;
-  centre.z *= imp_->region_spatial_dimensions.z;
-  // Offset to the lower extents of the region.
-  centre -= 0.5 * imp_->region_spatial_dimensions;
-  // Local offset.
-  centre += glm::dvec3(key.localKey()) * imp_->resolution;
-  centre += glm::dvec3(0.5 * imp_->resolution);
-  return centre;
+  return ohm::OccupancyMap::voxelCentre(key, imp_->resolution, imp_->region_spatial_dimensions);
 }
 
 glm::dvec3 OccupancyMap::voxelCentreGlobal(const Key &key) const
 {
-  glm::dvec3 centre;
-  // Region centre
-  centre = glm::dvec3(key.regionKey());
-  // Note: converting imp_->region_spatial_dimensions to glm::vec3 then multiplying to vec3 values resulted in
-  // additional floating point error. The following compontentised multiplication of float/int generates better values.
-  centre.x *= imp_->region_spatial_dimensions.x;
-  centre.y *= imp_->region_spatial_dimensions.y;
-  centre.z *= imp_->region_spatial_dimensions.z;
-  // Offset to the lower extents of the region.
-  centre -= 0.5 * glm::dvec3(imp_->region_spatial_dimensions);
-  // Map offset.
-  centre += imp_->origin;
-  // Local offset.
-  centre += glm::dvec3(key.localKey()) * double(imp_->resolution);
-  centre += glm::dvec3(0.5 * imp_->resolution);
-  return centre;
+  return ohm::OccupancyMap::voxelCentre(key, imp_->resolution, imp_->region_spatial_dimensions, imp_->origin);
 }
 
 Key OccupancyMap::voxelKey(const glm::dvec3 &point) const
@@ -879,11 +849,9 @@ Key OccupancyMap::voxelKey(const glm::dvec3 &point) const
   MapRegion region(point, imp_->origin, imp_->region_spatial_dimensions);
   // VALIDATION code ensures the region we calculate to contain the point does.
   // Floating point error was causing issues where it nearly, but not quite would.
-#ifdef OHM_VALIDATION
-  const bool voxelKeyOk =
-#endif  // OHM_VALIDATION
-    region.voxelKey(key, point, imp_->origin, imp_->region_spatial_dimensions, imp_->region_voxel_dimensions,
-                    imp_->resolution);
+  const bool voxelKeyOk = region.voxelKey(key, point, imp_->origin, imp_->region_spatial_dimensions,
+                                          imp_->region_voxel_dimensions, imp_->resolution);
+  (void)voxelKeyOk;
 #ifdef OHM_VALIDATION
   if (!voxelKeyOk)
   {
@@ -927,26 +895,6 @@ void OccupancyMap::moveKeyAlongAxis(Key &key, int axis, int step) const
   imp_->moveKeyAlongAxis(key, axis, step);
 }
 
-void OccupancyMap::stepKey(Key &key, int axis, int dir, const glm::ivec3 &region_voxel_dimensions)
-{
-  int local_key = key.localKey()[axis] + dir;
-  int region_key = key.regionKey()[axis];
-
-  if (local_key < 0)
-  {
-    --region_key;
-    local_key = region_voxel_dimensions[axis] - 1;
-  }
-  else if (local_key >= region_voxel_dimensions[axis])
-  {
-    ++region_key;
-    local_key = 0;
-  }
-
-  key.setLocalAxis(axis, uint8_t(local_key));
-  key.setRegionAxis(axis, uint16_t(region_key));
-}
-
 void OccupancyMap::stepKey(Key &key, int axis, int dir) const
 {
   stepKey(key, axis, dir, imp_->region_voxel_dimensions);
@@ -962,50 +910,6 @@ void OccupancyMap::moveKey(Key &key, int x, int y, int z) const
 glm::ivec3 OccupancyMap::rangeBetween(const Key &from, const Key &to) const
 {
   return rangeBetween(from, to, imp_->region_voxel_dimensions);
-}
-
-glm::ivec3 OccupancyMap::rangeBetween(const Key &from, const Key &to, const glm::ivec3 &region_voxel_dimensions)
-{
-  // First diff the regions.
-  const glm::ivec3 region_diff = to.regionKey() - from.regionKey();
-  glm::ivec3 voxel_diff;
-
-  // Voxel difference is the sum of the local difference plus the region step difference.
-  for (int i = 0; i < 3; ++i)
-  {
-    voxel_diff[i] = int(to.localKey()[i]) - int(from.localKey()[i]) + region_diff[i] * int(region_voxel_dimensions[i]);
-  }
-
-  return voxel_diff;
-}
-
-size_t OccupancyMap::calculateSegmentKeys(KeyList &keys, const glm::dvec3 &start_point, const glm::dvec3 &end_point,
-                                          bool include_end_point) const
-{
-  struct KeyAdaptor
-  {
-    const OccupancyMap &map;
-
-    inline explicit KeyAdaptor(const OccupancyMap &map)
-      : map(map)
-    {}
-
-    inline Key voxelKey(const glm::dvec3 &pt) const { return map.voxelKey(pt); }
-    static inline bool isNull(const Key &key) { return key.isNull(); }
-    inline glm::dvec3 voxelCentre(const Key &key) const { return map.voxelCentreLocal(key); }
-    inline void stepKey(Key &key, int axis, int dir) const { map.stepKey(key, axis, dir); }
-    inline double voxelResolution(int /*axis*/) const { return map.resolution(); }
-  };
-  const glm::dvec3 start_point_local = glm::dvec3(start_point - origin());
-  const glm::dvec3 end_point_local = glm::dvec3(end_point - origin());
-
-  keys.clear();
-  return ohm::walkSegmentKeys<Key>(
-    [&keys](const Key &key, double, double) {
-      keys.add(key);
-      return true;
-    },
-    start_point_local, end_point_local, include_end_point, KeyAdaptor(*this));
 }
 
 void OccupancyMap::setRayFilter(const RayFilterFunction &ray_filter)

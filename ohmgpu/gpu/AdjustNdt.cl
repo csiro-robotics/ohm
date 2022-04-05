@@ -8,27 +8,27 @@
 
 #include "CovarianceVoxelCompute.h"
 
-inline __device__ float calculateOccupancyAdjustment(const GpuKey *voxelKey, bool isEndVoxel, bool isSampleVoxel,
-                                                     const GpuKey *startKey, const GpuKey *endKey,
-                                                     float voxel_resolution, LineWalkData *line_data)
+inline __device__ float calculateOccupancyAdjustment(const GpuKey *voxel_key, const GpuKey *end_key, bool is_end_voxel,
+                                                     bool is_sample_voxel, float voxel_resolution,
+                                                     LineWalkData *line_data)
 {
-  // Note: we always ignore voxels where isSampleVoxel or isEndVoxel is true. Samples are adjusted later while
-  // a non-sample isEndVoxel is a split ray.
+  // Note: we always ignore voxels where is_sample_voxel or is_end_voxel is true. Samples are adjusted later while
+  // a non-sample is_end_voxel is a split ray.
 
-  const ulonglong vi_local = voxelKey->voxel[0] + voxelKey->voxel[1] * line_data->region_dimensions.x +
-                             voxelKey->voxel[2] * line_data->region_dimensions.x * line_data->region_dimensions.y;
+  const ulonglong vi_local = voxel_key->voxel[0] + voxel_key->voxel[1] * line_data->region_dimensions.x +
+                             voxel_key->voxel[2] * line_data->region_dimensions.x * line_data->region_dimensions.y;
   ulonglong vi = (line_data->means_offsets[line_data->current_region_index] / sizeof(*line_data->means)) + vi_local;
   __global VoxelMean *mean_data = &line_data->means[vi];
 
   const uint voxel_mean_coord = gputilAtomicLoadU32(&mean_data->coord);
   const uint voxel_mean_count = gputilAtomicLoadU32(&mean_data->count);
   float3 voxel_mean = subVoxelToLocalCoord(voxel_mean_coord, voxel_resolution);
-  // voxel_mean is currently relative to the voxel centre of the voxelKey voxel. We need to change it to be in the same
+  // voxel_mean is currently relative to the voxel centre of the voxel_key voxel. We need to change it to be in the same
   // reference frame as the incoming rays, which is relative to the endKey voxel. For this we need to calculate the
-  // additional displacement from the centre of endKey to the centre of voxelKey and add this displacement.
+  // additional displacement from the centre of endKey to the centre of voxel_key and add this displacement.
 
-  // Calculate the number of voxel steps from endKey to the voxelKey
-  const int3 voxel_diff = keyDiff(endKey, voxelKey, &line_data->region_dimensions);
+  // Calculate the number of voxel steps from endKey to the voxel_key
+  const int3 voxel_diff = keyDiff(voxel_key, end_key, line_data->region_dimensions);
   // Scale by voxel resolution and add to voxel_mean
   voxel_mean.x += voxel_diff.x * voxel_resolution;
   voxel_mean.y += voxel_diff.y * voxel_resolution;
@@ -64,7 +64,7 @@ inline __device__ float calculateOccupancyAdjustment(const GpuKey *voxelKey, boo
   }
 
   // NDT should do sample update in a separate process in order to update the covariance, so we should not get here.
-  return (isEndVoxel || (isSampleVoxel && !(line_data->region_update_flags & kRfEndPointAsFree))) ? 0 : adjustment;
+  return (is_end_voxel || (is_sample_voxel && !(line_data->region_update_flags & kRfEndPointAsFree))) ? 0 : adjustment;
 }
 
 #endif  // ADJUSTNDT_CL

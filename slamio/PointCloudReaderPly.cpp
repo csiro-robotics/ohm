@@ -314,7 +314,7 @@ bool PointCloudReaderPly::readHeader()
   // iterate over all elements in input file
   unsigned element_count = 0;
   unsigned vertex_element_index = 0;
-   while ((element = ply_get_next_element(ply, element)))
+  while ((element = ply_get_next_element(ply, element)))
   {
     p_ply_property property = nullptr;
     long instances = 0;  // This will unfortunately have a different width on Windows vs Linux.

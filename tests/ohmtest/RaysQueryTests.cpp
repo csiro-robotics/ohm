@@ -5,6 +5,7 @@
 // Author: Kazys Stepanas
 #include "OhmTestConfig.h"
 
+#include <ohm/Aabb.h>
 #include <ohm/OccupancyMap.h>
 #include <ohm/OccupancyType.h>
 #include <ohm/RayMapperOccupancy.h>
@@ -78,12 +79,12 @@ TEST(RaysQuery, Cpu)
       // First iteration has the whole ray length unobserved. Second has zero.
       if (iteration > 0)
       {
-        EXPECT_EQ(unobserved_volumes[i], 0.0);
+        EXPECT_EQ(unobserved_volumes[i], 0.0) << "iteration " << i;
       }
       else
       {
         // TODO: contrive a reasonable comparative calculation for the unobserved_volume results.
-        EXPECT_GT(unobserved_volumes[i], 0.0);
+        EXPECT_GT(unobserved_volumes[i], 0.0) << "iteration " << i;
       }
 
       double ray_length = 0;
@@ -92,6 +93,20 @@ TEST(RaysQuery, Cpu)
         // We should reach the last voxel of each input ray on each query.
         const glm::dvec3 ray_delta = rays[i * 2 + 1] - rays[i * 2 + 0];
         ray_length = glm::length(ray_delta);
+
+        // Remove clip the ray for occupied voxels.
+        if (terminal_types[i] == ohm::OccupancyType::kOccupied)
+        {
+          const glm::dvec3 voxel_centre = map.voxelCentreGlobal(map.voxelKey(rays[i * 2 + 1]));
+          ohm::Aabb voxel(voxel_centre - 0.5 * glm::dvec3(map.resolution()),
+                          voxel_centre + 0.5 * glm::dvec3(map.resolution()));
+          // Intersect the ray with the end voxel to work out the entry time and deduct from the expected length.
+          std::array<double, 2> hit_times;
+          if (voxel.rayIntersect(rays[i * 2 + 0], glm::normalize(rays[i * 2 + 1] - rays[i * 2 + 0]), &hit_times))
+          {
+            ray_length = hit_times[0];
+          }
+        }
       }
       else
       {
@@ -99,8 +114,9 @@ TEST(RaysQuery, Cpu)
         const glm::dvec3 ray_delta = query.rays()[i * 2 + 1] - query.rays()[i * 2 + 0];
         ray_length = glm::length(ray_delta);
       }
-      EXPECT_NEAR(ranges[i], ray_length, 1e-5);
-      EXPECT_EQ(terminal_types[i], expected_terminal_type[iteration]);
+
+      EXPECT_NEAR(ranges[i], ray_length, 1e-5) << "iteration " << iteration << " ray " << i;
+      EXPECT_EQ(terminal_types[i], expected_terminal_type[iteration]) << "iteration " << iteration << " ray " << i;
     }
 
 

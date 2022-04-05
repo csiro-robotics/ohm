@@ -13,6 +13,7 @@
 #include <glm/vec3.hpp>
 
 #include <algorithm>
+#include <array>
 
 namespace ohm
 {
@@ -169,13 +170,29 @@ public:
     kClippedEnd = (1u << 1u)
   };
 
+  /// Test for ray/AABB intersection.
+  /// @param ray_origin The ray start point.
+  /// @param ray_dir The ray direction.
+  /// @param ray_dir_inv Must be a per channel inversion of ray_dir : `(1.0/ray_dir.x, 1.0/ray_dir.y, 1.0/ray_dir.z)`.
+  ///   Use the overload to have this function perform the calculation.
+  /// @param[out] hit_times The hit times. Element 0 is the entry time and element 1 is the exit time. Either may be < 0
+  ///   indicating we do not enter/exit.
+  /// @return True when the ray segment intersects the box.
+  bool rayIntersect(const glm::dvec3 &ray_origin, const glm::dvec3 &ray_dir, const glm::dvec3 &ray_dir_inv,
+                    std::array<double, 2> *hit_times = nullptr) const;
+  /// @overload
+  bool rayIntersect(const glm::dvec3 &ray_origin, const glm::dvec3 &ray_dir,
+                    std::array<double, 2> *hit_times = nullptr) const;
+
   /// Clip the line from @p start to @p end such that both points lie in or on the box.
   /// @param[in,out] start The line start point.
   /// @param[in,out] end The line end point.
   /// @param[out] clip_flags Clipping flags indicating how the line has been clipped. See : @c ClipResult.
+  /// @param[in] allow_clamp Allow clamping any clipped point to the edges of the box? This ensures a clipped point
+  ///   is exactly on the boundary of the box without the need for an epsilon. However, it may change the ray direction.
   /// @return True when the line segment intersects the box and has been clipped. Essentially, false when @p start
   ///     and @p end are unmodified.
-  bool clipLine(glm::dvec3 &start, glm::dvec3 &end, unsigned *clip_flags = nullptr) const;
+  bool clipLine(glm::dvec3 &start, glm::dvec3 &end, unsigned *clip_flags = nullptr, bool allow_clamp = false) const;
 
   /// Test for precise quality between this and @p other.
   /// @param other The box to test against.
@@ -308,89 +325,123 @@ inline bool Aabb::isValid() const
 }
 
 
-inline bool Aabb::clipLine(glm::dvec3 &start, glm::dvec3 &end, unsigned *clip_flags) const
+inline bool Aabb::rayIntersect(const glm::dvec3 &ray_origin, const glm::dvec3 &ray_dir, const glm::dvec3 &ray_dir_inv,
+                               std::array<double, 2> *hit_times_out) const
 {
-  // From: https://tavianator.com/fast-branchless-raybounding-box-intersections/
-  // Convert to ray format.
-  glm::dvec3 direction = end - start;
-  const glm::dvec3 origin(start);
-  const double max_time = glm::length(direction);
-  direction *= 1.0 / max_time;
-  const glm::dvec3 inv_dir(1.0 / direction[0], 1.0 / direction[1], 1.0 / direction[2]);
-  const glm::ivec3 sign(!!(inv_dir.x < 0), !!(inv_dir.y < 0), !!(inv_dir.z < 0));
+  // From
+  // https://www.scratchapixel.com/lessons/3d-basic-rendering/minimal-ray-tracer-rendering-simple-shapes/ray-box-intersection
+  double tmin;
+  double tmax;
+  std::array<int, 3> sign;
+  std::array<double, 2> hit_times_internal;
+  std::array<double, 2> &hit_times = (hit_times_out) ? *hit_times_out : hit_times_internal;
 
-  // TODO(KS): remove branching.
-  glm::dvec2 tx;
-  glm::dvec2 ty;
-  glm::dvec2 tz;
+  sign[0] = ray_dir.x < 0.0;
+  sign[1] = ray_dir.y < 0.0;
+  sign[2] = ray_dir.z < 0.0;
+
+  hit_times[0] = (corners_[sign[0]].x - ray_origin.x) * ray_dir_inv.x;
+  hit_times[1] = (corners_[1 - sign[0]].x - ray_origin.x) * ray_dir_inv.x;
+  tmin = (corners_[sign[1]].y - ray_origin.y) * ray_dir_inv.y;
+  tmax = (corners_[1 - sign[1]].y - ray_origin.y) * ray_dir_inv.y;
+
+  // Branchless:
+  bool miss = !!(hit_times[0] > tmax) + !!(tmin > hit_times[1]);
+
+  // Set the best entry time to the best value so far.
+  // I tried a branchless version of this:
+  //    !!(tmin > hit_times[0]) * tmin + !!(tmin <= hit_times[0]) * hit_times[0]
+  // This failed when tmin was infinite (parallel line) so the result was NaN (0 * inf => NaN).
+  // Hopefully the compiler can work out an appropriate branchless solution.
+  hit_times[0] = (tmin > hit_times[0] || std::isnan(hit_times[0])) ? tmin : hit_times[0];
+  // Set the best exit time to the best value so far.
+  hit_times[1] = (tmax < hit_times[1] || std::isnan(hit_times[1])) ? tmax : hit_times[1];
+
+  // Calculate Z axis results into tmin/tmax[1], now that the best values are in [0]
+  tmin = (corners_[sign[2]].z - ray_origin.z) * ray_dir_inv.z;
+  tmax = (corners_[1 - sign[2]].z - ray_origin.z) * ray_dir_inv.z;
+
+  // Update miss check for the new axes.
+  miss = !!(!!(hit_times[0] > tmax) + !!(tmin > hit_times[1]) + !!miss);
+
+  // Set the best entry time to the best value.
+  hit_times[0] = (tmin > hit_times[0] || std::isnan(hit_times[0])) ? tmin : hit_times[0];
+  // Set the best exit time to the best value.
+  hit_times[1] = (tmax < hit_times[1] || std::isnan(hit_times[1])) ? tmax : hit_times[1];
+
+  return !miss;
+}
+
+
+inline bool Aabb::rayIntersect(const glm::dvec3 &ray_origin, const glm::dvec3 &ray_dir,
+                               std::array<double, 2> *hit_times) const
+{
+  const glm::dvec3 ray_dir_inv(1.0 / ray_dir.x, 1.0 / ray_dir.y, 1.0 / ray_dir.z);
+  return rayIntersect(ray_origin, ray_dir, ray_dir_inv, hit_times);
+}
+
+
+inline bool Aabb::clipLine(glm::dvec3 &start, glm::dvec3 &end, unsigned *clip_flags, bool allow_clamp) const
+{
+  const glm::dvec3 ray_origin = start;
+  glm::dvec3 ray_dir = end - start;
+  glm::dvec3 ray_dir_inv{};
 
   if (clip_flags)
   {
     *clip_flags = 0;
   }
 
-  glm::dvec2 time_best(0.0, max_time);
+  if (glm::dot(ray_dir, ray_dir) < 1e-9)
+  {
+    // Degenerate ray.
+    return false;
+  }
+  const double length = glm::length(ray_dir);
+  ray_dir /= length;
 
-  // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-constant-array-index)
-  tx[0] = calcTimeVal(corners_[sign[0]].x, origin.x, inv_dir.x);
-  // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-constant-array-index)
-  tx[1] = calcTimeVal(corners_[1 - sign[0]].x, origin.x, inv_dir.x);
-  if (!calcIntervalOverlap(time_best, tx, &time_best))
+  std::array<double, 2> hit_times = { 0 };
+  if (!rayIntersect(ray_origin, ray_dir, &hit_times))
   {
     return false;
   }
 
-  // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-constant-array-index)
-  ty[0] = calcTimeVal(corners_[sign[1]].y, origin.y, inv_dir.y);
-  // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-constant-array-index)
-  ty[1] = calcTimeVal(corners_[1 - sign[1]].y, origin.y, inv_dir.y);
-  if (!calcIntervalOverlap(time_best, ty, &time_best))
+  // Ray intersects, but we have to validate the times. Increment the hit count only as we confirm the hits.
+  int hit_count = 0;
+  if (hit_times[0] > 0 && hit_times[0] < length)
   {
-    return false;
-  }
-
-  // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-constant-array-index)
-  tz[0] = calcTimeVal(corners_[sign[2]].z, origin.z, inv_dir.z);
-  // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-constant-array-index)
-  tz[1] = calcTimeVal(corners_[1 - sign[2]].z, origin.z, inv_dir.z);
-
-  if (!calcIntervalOverlap(time_best, tz, &time_best))
-  {
-    return false;
-  }
-
-  bool intersected = false;
-  if (time_best[0] > 0)
-  {
-    start = origin + time_best[0] * direction;
-    // Clamp to the box to cater for floating point error.
-    start[0] = std::max(corners_[0][0], std::min(start[0], corners_[1][0]));
-    start[1] = std::max(corners_[0][1], std::min(start[1], corners_[1][1]));
-    start[2] = std::max(corners_[0][2], std::min(start[2], corners_[1][2]));
+    start = ray_origin + ray_dir * hit_times[0];
+    if (allow_clamp)
+    {
+      start[0] = std::max(corners_[0][0], std::min(start[0], corners_[1][0]));
+      start[1] = std::max(corners_[0][1], std::min(start[1], corners_[1][1]));
+      start[2] = std::max(corners_[0][2], std::min(start[2], corners_[1][2]));
+    }
     if (clip_flags)
     {
       *clip_flags |= kClippedStart;
+      // Clamp to the box to cater for floating point error.
     }
-
-    intersected = true;
+    ++hit_count;
   }
 
-  if (time_best[1] < max_time)
+  if (hit_times[1] > 0 && hit_times[1] < length)
   {
-    end = origin + time_best[1] * direction;
-    // Clamp to the box to cater for floating point error.
-    end[0] = std::max(corners_[0][0], std::min(end[0], corners_[1][0]));
-    end[1] = std::max(corners_[0][1], std::min(end[1], corners_[1][1]));
-    end[2] = std::max(corners_[0][2], std::min(end[2], corners_[1][2]));
+    end = ray_origin + ray_dir * hit_times[1];
+    if (allow_clamp)
+    {
+      end[0] = std::max(corners_[0][0], std::min(end[0], corners_[1][0]));
+      end[1] = std::max(corners_[0][1], std::min(end[1], corners_[1][1]));
+      end[2] = std::max(corners_[0][2], std::min(end[2], corners_[1][2]));
+    }
     if (clip_flags)
     {
       *clip_flags |= kClippedEnd;
     }
-
-    intersected = true;
+    ++hit_count;
   }
 
-  return intersected;
+  return hit_count > 0;
 }
 
 

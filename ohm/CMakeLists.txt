@@ -70,6 +70,8 @@ set(SOURCES
   LineKeysQuery.h
   LineQuery.cpp
   LineQuery.h
+  LineWalk.h
+  LineWalkCompute.h
   Logger.cpp
   Logger.h
   LoggerDetail.h
@@ -180,6 +182,8 @@ set(PUBLIC_HEADERS
   KeyRange.h
   LineKeysQuery.h
   LineQuery.h
+  LineWalk.h
+  LineWalkCompute.h
   Logger.h
   LoggerDetail.h
   MapChunkFlag.h

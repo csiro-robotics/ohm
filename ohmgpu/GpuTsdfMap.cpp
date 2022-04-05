@@ -32,6 +32,8 @@
 #include <glm/ext.hpp>
 #include <glm/gtx/norm.hpp>
 
+#include <iostream>
+
 #if defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL
 #include "TsdfUpdateResource.h"
 #endif  // defined(OHM_EMBED_GPU_CODE) && GPUTIL_TYPE == GPUTIL_OPENCL

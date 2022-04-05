@@ -719,6 +719,48 @@ public:
   /// @return The voxel coordinates, relative to the map @c origin().
   glm::dvec3 voxelCentreLocal(const Key &key) const;
 
+  /// Calculate a voxel centre position.
+  ///
+  /// This is used by @c voxelCentreLocal() as `voxelCentre(key, map.voxelResolution())` and @c voxelCentreGlobal() as
+  /// follows:
+  ///
+  /// @code
+  /// void voxelCentres(const ohm::OccupancyMap &map, const ohm::Key &key,
+  ///                   glm::dvec3 *local_centre, glm::dvec3 *global_centre)
+  /// {
+  ///   // voxelCentreLocal() equivalent call.
+  ///   *local_centre = ohm::OccupancyMap::voxelCentre(key, map.resolution(), map.regionSpatialResolution());
+  ///   // voxelCentreGlobal() equivalent call.
+  ///   *global_centre = ohm::OccupancyMap::voxelCentre(key, map.resolution(), map.regionSpatialResolution(),
+  ///                                                   map.origin());
+  /// }
+  /// @endcode
+  ///
+  ///
+  /// @param
+  static inline glm::dvec3 voxelCentre(const Key &key, double voxel_resolution,
+                                       const glm::dvec3 &region_spatial_dimensions,
+                                       const glm::dvec3 &map_origin = glm::dvec3(0.0))
+  {
+    glm::dvec3 centre;
+    // Region centre
+    centre = glm::vec3(key.regionKey());
+    // Note: converting imp_->region_spatial_dimensions to glm::vec3 then multiplying to vec3 values resulted in
+    // additional floating point error. The following component wise multiplication of float/int generates better
+    // values.
+    centre.x *= region_spatial_dimensions.x;
+    centre.y *= region_spatial_dimensions.y;
+    centre.z *= region_spatial_dimensions.z;
+    // Offset to the lower extents of the region.
+    centre -= 0.5 * region_spatial_dimensions;
+    // Map offset.
+    centre += map_origin;
+    // Local offset.
+    centre += glm::dvec3(key.localKey()) * voxel_resolution;
+    centre += glm::dvec3(0.5 * voxel_resolution);
+    return centre;
+  }
+
   /// Retrieve the global coordinates for the centre of the voxel identified by @p key. This includes
   /// the map @c origin().
   ///
@@ -766,7 +808,26 @@ public:
   /// @param axis The axis to modify. Must be [0, 2] mapping to XYZ respectively, or behaviour is undefined.
   /// @param dir Direction to step. Must be 1 or -1 or behaviour is undefined.
   /// @param region_voxel_dimensions The number of voxels in each region given per axis. See @c regionVoxelDimensions().
-  static void stepKey(Key &key, int axis, int dir, const glm::ivec3 &region_voxel_dimensions);
+  static inline void stepKey(Key &key, int axis, int dir, const glm::ivec3 &region_voxel_dimensions)
+  {
+    int local_key = key.localKey()[axis] + dir;
+    int region_key = key.regionKey()[axis];
+
+    if (local_key < 0)
+    {
+      --region_key;
+      local_key = region_voxel_dimensions[axis] - 1;
+    }
+    else if (local_key >= region_voxel_dimensions[axis])
+    {
+      ++region_key;
+      local_key = 0;
+    }
+
+    key.setLocalAxis(axis, uint8_t(local_key));
+    key.setRegionAxis(axis, uint16_t(region_key));
+  }
+
   /// @overload
   void stepKey(Key &key, int axis, int dir) const;
 
@@ -807,24 +868,21 @@ public:
   /// @param to The second key.
   /// @param region_voxel_dimensions The number of voxels in each region given per axis. See @c regionVoxelDimensions().
   /// @return The voxel offset from @p from to @p to along each axis.
-  static glm::ivec3 rangeBetween(const Key &from, const Key &to, const glm::ivec3 &region_voxel_dimensions);
+  static inline glm::ivec3 rangeBetween(const Key &from, const Key &to, const glm::ivec3 &region_voxel_dimensions)
+  {
+    // First diff the regions.
+    const glm::ivec3 region_diff = to.regionKey() - from.regionKey();
+    glm::ivec3 voxel_diff;
 
-  /// Builds the list of voxel keys intersected by the line segment connecting @p startPoint and @p endPoint.
-  ///
-  /// The @p keys list is populated with all voxels intersected by the specified line segment.
-  /// The voxel containing @p endPoint may or may not be included, depending on the value of @p includeEndPoint.
-  /// Keys are added in order of traversal from @p startPoint to @p endPoint.
-  ///
-  /// Note this method clears @p keys on entry.
-  ///
-  /// @param keys The list to populate with intersected voxel keys.
-  /// @param start_point The global coordinate marking the start of the line segment.
-  /// @param end_point The global coordinate marking the end of the line segment.
-  /// @param include_end_point @c true to incldue the voxel containing @p endPoint, @c false to exclude this
-  ///   voxel from @p keys.
-  /// @return The number of voxels added to @p keys.
-  size_t calculateSegmentKeys(KeyList &keys, const glm::dvec3 &start_point, const glm::dvec3 &end_point,
-                              bool include_end_point = true) const;
+    // Voxel difference is the sum of the local difference plus the region step difference.
+    for (int i = 0; i < 3; ++i)
+    {
+      voxel_diff[i] =
+        int(to.localKey()[i]) - int(from.localKey()[i]) + region_diff[i] * int(region_voxel_dimensions[i]);
+    }
+
+    return voxel_diff;
+  }
 
   /// Set the range filter applied to all rays to be integrated into the map. @c RayMapper implementations must
   /// respect this filter in @c RayMapper::integrateRays() .

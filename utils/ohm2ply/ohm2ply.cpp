@@ -754,9 +754,6 @@ int exportPointCloud(const Options &opt, ProgressMonitor &prog, LoadMapProgress 
   }
   case kExportTsdf:
   {
-    glm::dvec3 min_ext;
-    glm::dvec3 max_ext;
-    map.calculateExtents(&min_ext, &max_ext);
     float surface_distance =
       static_cast<float>(map.mapInfo().get("tsdf-default-truncation-distance", ohm::MapValue("", 0.1f)));
     if (opt.threshold <= 0)
@@ -790,13 +787,13 @@ int exportPointCloud(const Options &opt, ProgressMonitor &prog, LoadMapProgress 
     // parameters to the map info.
     if (opt.voxel_mode == kVoxelVoxel)
     {
-      export_count = ohmtools::saveTsdfVoxels(opt.ply_file.c_str(), map, min_ext, max_ext, surface_distance,
-                                              colour_select, save_progress_callback);
+      export_count =
+        ohmtools::saveTsdfVoxels(opt.ply_file.c_str(), map, surface_distance, colour_select, save_progress_callback);
     }
     else
     {
-      export_count = ohmtools::saveTsdfCloud(opt.ply_file.c_str(), map, min_ext, max_ext, surface_distance,
-                                             colour_select, save_progress_callback);
+      export_count =
+        ohmtools::saveTsdfCloud(opt.ply_file.c_str(), map, surface_distance, colour_select, save_progress_callback);
     }
     break;
   }

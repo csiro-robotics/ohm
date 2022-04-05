@@ -49,8 +49,8 @@
 // Declarations
 //------------------------------------------------------------------------------
 
-#define VISIT_LINE_VOXEL visitVoxelTsdfUpdate
-#define WALK_LINE_VOXELS walkTsdfLine
+#define WALK_VISIT_VOXEL visitVoxelTsdf
+#define WALK_NAME        Tsdf
 
 #ifndef TSDF_UPDATE_BASE_CL
 // User data for voxel visit callback.
@@ -62,6 +62,8 @@ typedef struct TsdfWalkData_t
   __global ulonglong *tsdf_offsets;
   // Array of region keys for currently loaded regions.
   __global int3 *region_keys;
+  /// The voxel size.
+  float voxel_resolution;
   /// Maximum TSDF voxel weight.
   float max_weight;
   /// Default TSDF truncation distance
@@ -78,6 +80,7 @@ typedef struct TsdfWalkData_t
   uint region_count;
   // Index of the @c current_region into region_keys and corresponding xxx_offsets arrays.
   uint current_region_index;
+  uint region_update_flags;
   /// A reference sensor position. This is in a frame local to the centre of the voxel containing the sample coordinate.
   float3 sensor;
   /// A reference sample position. This is in a frame local to the centre of the voxel containing this sample
@@ -92,9 +95,8 @@ typedef struct TsdfWalkData_t
 //
 // Note: TSDF ray tracing is actually done in reverse. This can greatly reduce voxel contension improving TSDF
 // performance (as the CAS loop limit is hit less often) and quality (as be abandon data less often).
-__device__ bool visitVoxelTsdfUpdate(const GpuKey *voxel_key, bool is_end_voxel, const GpuKey *start_key,
-                                     const GpuKey *end_key, float voxel_resolution, float entry_time, float exit_time,
-                                     void *user_data)
+__device__ bool visitVoxelTsdf(const GpuKey *voxel_key, const GpuKey *start_key, const GpuKey *end_key,
+                               int voxel_marker, float enter_range, float exit_range, void *user_data)
 {
   TsdfWalkData *tsdf_data = (TsdfWalkData *)user_data;
 
@@ -127,15 +129,17 @@ __device__ bool visitVoxelTsdfUpdate(const GpuKey *voxel_key, bool is_end_voxel,
     // Under high contension we can end up repeatedly failing to write the voxel value.
     // The primary concern is not deadlocking the GPU, so we put a hard limit on the numebr of
     // attempts made.
-    const int iterationLimit = 20;
+    const int iteration_limit = 20;
     int iterations = 0;
 #endif
 
     // Calculate the current voxel centre in the same space as tsdf_data->sensor and tsdf_data->sample. Remember,
     // those values are both calculated relative to the centre of the voxel containing tsdf_data->sample
-    const int3 voxel_diff = keyDiff(end_key, voxel_key, &tsdf_data->region_dimensions);
+    const bool reverse_walk = tsdf_data->region_update_flags & kRfReverseWalk;
+    const int3 voxel_diff = keyDiff(voxel_key, (!reverse_walk) ? end_key : start_key, tsdf_data->region_dimensions);
     const float3 voxel_centre =
-      make_float3(voxel_diff.x * voxel_resolution, voxel_diff.y * voxel_resolution, voxel_diff.z * voxel_resolution);
+      make_float3(voxel_diff.x * tsdf_data->voxel_resolution, voxel_diff.y * tsdf_data->voxel_resolution,
+                  voxel_diff.z * tsdf_data->voxel_resolution);
 
     /// Use a union of VoxelTsdf and atomic_ulong (64-bits) so we can write the value back in one operation.
     union
@@ -149,7 +153,7 @@ __device__ bool visitVoxelTsdfUpdate(const GpuKey *voxel_key, bool is_end_voxel,
     do
     {
 #ifdef LIMIT_VOXEL_WRITE_ITERATIONS
-      if (iterations++ > iterationLimit)
+      if (iterations++ > iteration_limit)
       {
         break;
       }
@@ -176,7 +180,7 @@ __device__ bool visitVoxelTsdfUpdate(const GpuKey *voxel_key, bool is_end_voxel,
   return true;
 }
 
-// Must be included after WALK_LINE_VOXELS and VISIT_LINE_VOXEL and the VISIT_LINE_VOXEL function is defined
+// Must be included after WALK_NAME and WALK_VISIT_VOXEL and the WALK_VISIT_VOXEL function is defined
 #include "LineWalk.cl"
 
 //------------------------------------------------------------------------------
@@ -250,7 +254,7 @@ __device__ bool visitVoxelTsdfUpdate(const GpuKey *voxel_key, bool is_end_voxel,
 ///     point). Should be > 0 to re-enforce as occupied.
 /// @param voxel_value_min Minimum clamping value for voxel adjustments.
 /// @param voxel_value_max Maximum clamping value for voxel adjustments.
-/// @param region_update_flags Update control values as per @c RayFlag. Only respects @c kRfForwardWalk.
+/// @param region_update_flags Update control values as per @c RayFlag. Only respects @c kRfReverseWalk.
 __kernel void tsdfRayUpdate(__global VoxelTsdf *tsdf_voxels, __global ulonglong *tsdf_region_mem_offsets_global,  //
                             __global int3 *tsdf_region_keys_global, uint region_count,                            //
                             __global GpuKey *line_keys, __global float3 *local_lines,                             //
@@ -270,11 +274,13 @@ __kernel void tsdfRayUpdate(__global VoxelTsdf *tsdf_voxels, __global ulonglong 
   tsdf_data.tsdf_offsets = tsdf_region_mem_offsets_global;
   tsdf_data.region_keys = tsdf_region_keys_global;
   tsdf_data.region_dimensions = region_dimensions;
+  tsdf_data.voxel_resolution = voxel_resolution;
   tsdf_data.max_weight = max_weight;
   tsdf_data.default_truncation_distance = default_truncation_distance;
   tsdf_data.dropoff_epsilon = dropoff_epsilon;
   tsdf_data.sparsity_compensation_factor = sparsity_compensation_factor;
   tsdf_data.region_count = region_count;
+  tsdf_data.region_update_flags = region_update_flags;
 
   regionsInitCurrent(&tsdf_data.current_region, &tsdf_data.current_region_index);
 
@@ -289,30 +295,15 @@ __kernel void tsdfRayUpdate(__global VoxelTsdf *tsdf_voxels, __global ulonglong 
   const float3 line_start = local_lines[get_global_id(0) * 2 + 0];
   const float3 line_end = local_lines[get_global_id(0) * 2 + 1];
 
-  // For reverse line walk, the start voxel centre is always (0, 0, 0).
-  float3 start_voxel_centre = make_float3(0.0f, 0.0f, 0.0f);
   int walk_flags = 0;
-  if ((region_update_flags & kRfForwardWalk) != 0)
-  {
-    // We need to calculate the start voxel centre in the right coordinate space. All coordinates are relative to the
-    // end voxel centre.
-    // 1. Calculate the voxel step from endKey to startKey.
-    // 2. Scale results by voxelResolution.
-    const int3 voxel_diff = keyDiff(&end_key, &start_key, &region_dimensions);
-    start_voxel_centre =
-      make_float3(voxel_diff.x * voxel_resolution, voxel_diff.y * voxel_resolution, voxel_diff.z * voxel_resolution);
-  }
-  else
+  if (region_update_flags & kRfReverseWalk)
   {
     walk_flags |= kLineWalkFlagReverse;
   }
 
-  WALK_LINE_VOXELS(&start_key, &end_key, &start_voxel_centre, &line_start, &line_end, &region_dimensions,
-                   voxel_resolution, walk_flags, &tsdf_data);
+  walkVoxelsTsdf(&start_key, &end_key, line_start, line_end, region_dimensions, voxel_resolution, walk_flags,
+                 &tsdf_data);
 }
-
-#undef VISIT_LINE_VOXEL
-#undef WALK_LINE_VOXELS
 
 #ifndef TSDF_UPDATE_BASE_CL
 #define TSDF_UPDATE_BASE_CL

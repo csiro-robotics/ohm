@@ -674,9 +674,9 @@ __kernel void seedRegionVoxels(__global GpuKey *cornerVoxelKey, __global float *
   GpuKey voxelKey = *cornerVoxelKey;
 
   // Offset the voxel key.
-  moveKeyAlongAxis(&voxelKey, 0, effectiveGlobalId.x, &regionVoxelDimensions);
-  moveKeyAlongAxis(&voxelKey, 1, effectiveGlobalId.y, &regionVoxelDimensions);
-  moveKeyAlongAxis(&voxelKey, 2, effectiveGlobalId.z, &regionVoxelDimensions);
+  moveKeyAlongAxis(&voxelKey, 0, effectiveGlobalId.x, regionVoxelDimensions);
+  moveKeyAlongAxis(&voxelKey, 1, effectiveGlobalId.y, regionVoxelDimensions);
+  moveKeyAlongAxis(&voxelKey, 2, effectiveGlobalId.z, regionVoxelDimensions);
 
   for (int z = 0; z < zbatch; ++z)
   {
@@ -702,7 +702,7 @@ __kernel void seedRegionVoxels(__global GpuKey *cornerVoxelKey, __global float *
 
     // Move to the next Z item.
     ++effectiveGlobalId.z;
-    moveKeyAlongAxis(&voxelKey, 2, 1, &regionVoxelDimensions);
+    moveKeyAlongAxis(&voxelKey, 2, 1, regionVoxelDimensions);
   }
 }
 
@@ -795,9 +795,9 @@ __kernel void seedFromOuterRegions(__global GpuKey *cornerVoxelKey, __global flo
 
     // Offset the voxel key.
     GpuKey voxelKey = *cornerVoxelKey;
-    moveKeyAlongAxis(&voxelKey, 0, workingIndex3.x, &regionVoxelDimensions);
-    moveKeyAlongAxis(&voxelKey, 1, workingIndex3.y, &regionVoxelDimensions);
-    moveKeyAlongAxis(&voxelKey, 2, workingIndex3.z, &regionVoxelDimensions);
+    moveKeyAlongAxis(&voxelKey, 0, workingIndex3.x, regionVoxelDimensions);
+    moveKeyAlongAxis(&voxelKey, 1, workingIndex3.y, regionVoxelDimensions);
+    moveKeyAlongAxis(&voxelKey, 2, workingIndex3.z, regionVoxelDimensions);
 
     // Find the region for voxelKey
     if (regionsResolveRegion(&voxelKey, &voxelRegion, &regionVoxelOffset, regionKeysGlobal, regionCount))

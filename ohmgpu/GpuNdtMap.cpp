@@ -30,6 +30,8 @@
 #include <glm/ext.hpp>
 #include <glm/gtx/norm.hpp>
 
+#include <iostream>
+
 // Must come after glm includes due to usage on GPU.
 #include <ohm/CovarianceVoxel.h>
 

@@ -12,7 +12,7 @@
 
 #include <ostream>
 
-std::ostream &operator<<(std::ostream &o, const ohm::Key &key)
+inline std::ostream &operator<<(std::ostream &o, const ohm::Key &key)
 {
   o << "[(" << key.regionKey().x << ',' << key.regionKey().y << ',' << key.regionKey().z << "):("
     << int(key.localKey().x) << ',' << int(key.localKey().y) << ',' << int(key.localKey().z) << ")]";

@@ -10,4 +10,4 @@
 // Build base without voxel means
 #include "RegionUpdate.cl"
 
-GPUTIL_CUDA_DEFINE_KERNEL(regionRayUpdate);
+GPUTIL_CUDA_DEFINE_KERNEL(regionRayUpdateOccupancy);

@@ -577,11 +577,6 @@ bool ClearanceProcess::updateRegion(OccupancyMap &map, const glm::i16vec3 &regio
   }
   else
   {
-    if (d->query_flags & kQfGpuEvaluate)
-    {
-      std::cerr << "ClearanceProcess requested GPU unavailable. Using CPU." << std::endl;
-    }
-
     std::function<unsigned(OccupancyMap &, ClearanceProcessDetail &, const glm::i16vec3 &, ClosestResult &)> query_func;
 
 #if 1

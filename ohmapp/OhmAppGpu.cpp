@@ -177,9 +177,9 @@ int OhmAppGpu::prepareForRun()
     reserve_batch_size = defaultBatchSize();
   }
 
-  if (options().gpu().forward_trace)
+  if (!options().gpu().forward_trace)
   {
-    options().map().ray_mode_flags |= ohm::kRfForwardWalk;
+    options().map().ray_mode_flags |= ohm::kRfReverseWalk;
   }
 
   if (options().ndt().mode != ohm::NdtMode::kNone)

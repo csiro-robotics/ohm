@@ -9,6 +9,7 @@
 
 #include "CalculateSegmentKeys.h"
 #include "KeyList.h"
+#include "LineWalk.h"
 #include "MapLayer.h"
 #include "MapLayout.h"
 #include "OccupancyMap.h"
@@ -16,8 +17,6 @@
 #include "VoxelBuffer.h"
 #include "VoxelMean.h"
 #include "VoxelOccupancy.h"
-
-#include <ohmutil/LineWalk.h>
 
 namespace ohm
 {
@@ -117,7 +116,7 @@ bool RaysQuery::onExecute()
   OccupancyType terminal_state = OccupancyType::kNull;
   Key terminal_key(nullptr);
 
-  auto map = d->map;
+  auto *map = d->map;
   const RayFilterFunction ray_filter = map->rayFilter();
   const bool use_filter = bool(ray_filter);
   const auto occupancy_layer = d->occupancy_layer;
@@ -125,8 +124,8 @@ bool RaysQuery::onExecute()
   const auto occupancy_threshold_value = map->occupancyThresholdValue();
   const auto volume_coefficient = d->volume_coefficient;
 
-  const auto visit_func = [&](const Key &key, double enter_range, double exit_range)  //
-  {                                                                                   //
+  const auto visit_func = [&](const Key &key, double enter_range, double exit_range) -> bool  //
+  {
     // Work out the index of the voxel in it's region.
     const unsigned voxel_index = ohm::voxelIndex(key, occupancy_dim);
     float occupancy_value = unobservedOccupancyValue();
@@ -149,7 +148,7 @@ bool RaysQuery::onExecute()
       is_unobserved ?
         (volume_coefficient * (exit_range * exit_range * exit_range - enter_range * enter_range * enter_range)) :
         0.0f;
-    range = float(exit_range);
+    range = (!is_occupied) ? float(exit_range) : range;
     // Resolve the voxel state.
     terminal_state =
       is_unobserved ? OccupancyType::kUnobserved : (is_occupied ? OccupancyType::kOccupied : OccupancyType::kFree);
@@ -186,7 +185,7 @@ bool RaysQuery::onExecute()
       continue;
     }
 
-    ohm::walkSegmentKeys<Key>(visit_func, start, end, true, WalkKeyAdaptor(*map));
+    walkSegmentKeys(LineWalkContext(*map, visit_func), start, end);
 
     d->ranges.emplace_back(range);
     d->unobserved_volumes_out.emplace_back(unobserved_volume);
