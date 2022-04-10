@@ -52,9 +52,10 @@ TEST(Tsdf, Basic)
     // Trace ray.
     tsdf_mapper.integrateRays(&rays[i], 2, nullptr, nullptr, 0);
 
-    const auto visit_func = [&](const ohm::Key &key, double enter_range, double exit_range,
-                                const glm::ivec3 &steps_remaining) -> bool  //
+    const auto visit_func = [&](const ohm::Key &key, double enter_range, double exit_range) -> bool  //
     {
+      (void)enter_range;
+      (void)exit_range;
       ohm::setVoxelKey(key, tsdf);
       EXPECT_TRUE(tsdf.isValid()) << "ray index " << i / 2u;
       if (!tsdf.isValid())
@@ -111,9 +112,10 @@ TEST(Tsdf, Truncation)
       // Trace ray.
       tsdf_mapper.integrateRays(&rays[i], 2, nullptr, nullptr, 0);
 
-      const auto visit_func = [&](const ohm::Key &key, double enter_range, double exit_range,
-                                  const glm::ivec3 &steps_remaining) -> bool  //
+      const auto visit_func = [&](const ohm::Key &key, double enter_range, double exit_range) -> bool  //
       {
+        (void)enter_range;
+        (void)exit_range;
         ohm::setVoxelKey(key, tsdf);
         EXPECT_TRUE(tsdf.isValid()) << "ray index " << i / 2u;
         if (!tsdf.isValid())
