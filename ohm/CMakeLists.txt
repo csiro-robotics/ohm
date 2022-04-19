@@ -121,6 +121,8 @@ set(SOURCES
   RayMapperNdt.h
   RayMapperOccupancy.cpp
   RayMapperOccupancy.h
+  RayMapperSecondarySample.cpp
+  RayMapperSecondarySample.h
   RayMapperTrace.cpp
   RayMapperTrace.h
   RayMapperTsdf.cpp
@@ -152,6 +154,7 @@ set(SOURCES
   VoxelMeanCompute.h
   VoxelOccupancy.h
   VoxelOccupancyCompute.h
+  VoxelSecondarySample.h
   VoxelTouchTime.h
   VoxelTouchTimeCompute.h
   VoxelTsdf.cpp
@@ -214,6 +217,7 @@ set(PUBLIC_HEADERS
   RayMapper.h
   RayMapperNdt.h
   RayMapperOccupancy.h
+  RayMapperSecondarySample.h
   RayMapperTrace.h
   RayPatternConical.h
   RayPattern.h
@@ -231,6 +235,7 @@ set(PUBLIC_HEADERS
   VoxelMeanCompute.h
   VoxelOccupancy.h
   VoxelOccupancyCompute.h
+  VoxelSecondarySample.h
   VoxelTouchTime.h
   VoxelTouchTimeCompute.h
   VoxelTsdf.h

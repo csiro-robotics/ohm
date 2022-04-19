@@ -48,6 +48,12 @@ enum RayFlag
   // This may be ignored by some algorithms, such as ray queries.
   kRfReverseWalk = (1u << 8u),
 
+  /// Skip the first, non-sample voxel in the ray. Useful for dealing with secondary returns where multiple samples
+  /// lie along the same ray. This way, secondary samples can start at the previous/primary sample point without
+  /// affecting the occupancy of this voxel. However, note that in this use case, the sensor voxel will also always be
+  /// skipped.
+  kRfExcludeorigin = (1u << 9u),
+
   /// Internal use flag values start here (not to be set by user).
   kRfInternal = (1u << 16u),
   /// Marks that timestamps are available for GPU. This is an internal flag.
