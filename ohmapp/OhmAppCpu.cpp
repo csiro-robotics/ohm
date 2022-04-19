@@ -6,6 +6,7 @@
 #include "OhmAppCpu.h"
 
 #include <ohm/DebugDraw.h>
+#include <ohm/DefaultLayer.h>
 #include <ohm/MapSerialise.h>
 #include <ohm/Mapper.h>
 #include <ohm/NdtMap.h>
@@ -13,6 +14,7 @@
 #include <ohm/OccupancyUtil.h>
 #include <ohm/RayMapperNdt.h>
 #include <ohm/RayMapperOccupancy.h>
+#include <ohm/RayMapperSecondarySample.h>
 #include <ohm/RayMapperTrace.h>
 #include <ohm/RayMapperTsdf.h>
 #include <ohm/Trace.h>
@@ -477,18 +479,57 @@ int OhmAppCpu::prepareForRun()
   }
 #endif  // TES_ENABLE
 
+  if (dataSource()->options().return_number_mode != DataSource::ReturnNumberMode::Off)
+  {
+    map_->addLayer(ohm::default_layer::secondarySamplesLayerName(), ohm::addSecondarySamples);
+
+    secondary_sample_mapper_ = std::make_unique<ohm::RayMapperSecondarySample>(map_.get());
+    if (!secondary_sample_mapper_->valid())
+    {
+      secondary_sample_mapper_ = nullptr;
+    }
+  }
+
   return 0;
 }
 
 
 bool OhmAppCpu::processBatch(const glm::dvec3 &batch_origin, const std::vector<glm::dvec3> &sensor_and_samples,
                              const std::vector<double> &timestamps, const std::vector<float> &intensities,
-                             const std::vector<glm::vec4> &colours)
+                             const std::vector<glm::vec4> &colours, const std::vector<uint8_t> &return_numbers)
 {
   (void)batch_origin;
   (void)colours;
+  unsigned ray_mode_flags = options().map().ray_mode_flags;
+  if (secondary_sample_mapper_ && !return_numbers.empty())
+  {
+    // Using dual returns. Add kRfExcludeOrigin flag.
+    ray_mode_flags |= ohm::kRfExcludeOrigin;
+  }
   mapper_->integrateRays(sensor_and_samples.data(), unsigned(sensor_and_samples.size()), intensities.data(),
-                         timestamps.data(), options().map().ray_mode_flags);
+                         timestamps.data(), ray_mode_flags);
+
+  if (secondary_sample_mapper_ && !return_numbers.empty())
+  {
+    // Extract the secondary returns.
+    secondary_returns_.clear();
+    secondary_returns_.reserve(sensor_and_samples.size());
+    for (size_t i = 0; i < return_numbers.size(); ++i)
+    {
+      if (return_numbers[i])
+      {
+        secondary_returns_.emplace_back(sensor_and_samples[i * 2 + 0]);
+        secondary_returns_.emplace_back(sensor_and_samples[i * 2 + 1]);
+      }
+    }
+
+    if (!secondary_returns_.empty())
+    {
+      secondary_sample_mapper_->integrateRays(secondary_returns_.data(), unsigned(secondary_returns_.size()), nullptr,
+                                              nullptr, 0u);
+    }
+  }
+
   progress_.incrementProgressBy(timestamps.size());
   return !quitPopulation();
 }

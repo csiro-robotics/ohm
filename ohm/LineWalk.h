@@ -43,6 +43,15 @@ struct ohm_API LineWalkContext
   {}
 };
 
+/// Flags for use with @c walkSegmentKeys() .
+enum WalkKeyFlag : unsigned
+{
+  /// Skip reporting the voxel containing the start point/origin if different from the end point?
+  kExcludeStartVoxel = (1u << 0u),
+  /// Skip reporting the voxel containing the end point/sample if different from the start point.
+  kExcludeEndVoxel = (1u << 1u),
+};
+
 
 namespace detail
 {
@@ -92,13 +101,13 @@ inline bool walkVisitVoxel(const LineWalkContext *context, const Key *voxel_key,
 ///   invoke.
 /// @param start_point The start of the line in 3D space.
 /// @param end_point The end of the line in 3D space.
-/// @param include_end_point Should be @c true if @p walkFunc should be called for the voxel containing
+/// @param flags Flags from @c WalkKeyFlag. Should be @c true if @p walkFunc should be called for the voxel containing
 ///   @c endPoint, when it does not lie in the same voxel as @p startPoint.
 /// @param length_epsilon The segment length below which a ray is considered degenerate and will only report the start
 ///   voxel.
 /// @return The number of voxels traversed. This includes @p end_point when @p include_end_point is true.
 inline unsigned walkSegmentKeys(const LineWalkContext &context, const glm::dvec3 &start_point,
-                                const glm::dvec3 &end_point, bool include_end_point = true,
+                                const glm::dvec3 &end_point, unsigned flags = 0u,
                                 double length_epsilon = 1e-6)  // NOLINT(readability-magic-numbers)
 {
   const Key start_point_key = context.map.voxelKey(start_point);
@@ -113,7 +122,7 @@ inline unsigned walkSegmentKeys(const LineWalkContext &context, const glm::dvec3
   const glm::dvec3 voxel_resolution(context.map.resolution());
 
   return detail::walkLineVoxels(&context, start_point, end_point, &start_point_key, &end_point_key, start_voxel_centre,
-                                voxel_resolution, include_end_point, length_epsilon);
+                                voxel_resolution, flags, length_epsilon);
 }
 }  // namespace ohm
 

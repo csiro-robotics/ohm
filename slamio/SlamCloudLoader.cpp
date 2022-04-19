@@ -40,6 +40,8 @@ struct SlamCloudLoaderDetail
   double first_sample_timestamp = -1.0;
   bool ray_cloud = false;
   bool real_time_mode = false;
+  bool infer_return_number = false;
+  bool allow_return_number_inference = false;
 
   std::vector<SamplePoint> preload_samples;
 
@@ -115,6 +117,18 @@ void SlamCloudLoader::setSensorOffset(const glm::dvec3 &offset)
 glm::dvec3 SlamCloudLoader::sensorOffset() const
 {
   return imp_->trajectory_to_sensor_offset;
+}
+
+
+void SlamCloudLoader::enableReturnNumberInference(bool enable)
+{
+  imp_->allow_return_number_inference = enable;
+}
+
+
+bool SlamCloudLoader::returnNumberInference() const
+{
+  return imp_->allow_return_number_inference;
 }
 
 
@@ -198,6 +212,13 @@ bool SlamCloudLoader::hasColour() const
 }
 
 
+bool SlamCloudLoader::hasReturnNumber() const
+{
+  return imp_->sample_reader &&
+         (imp_->sample_reader->availableChannels() & DataChannel::ReturnNumber) == DataChannel::ReturnNumber;
+}
+
+
 void SlamCloudLoader::preload(size_t point_count)
 {
   if (!imp_->sample_reader)
@@ -237,6 +258,11 @@ bool SlamCloudLoader::nextSample(SamplePoint &sample)
 
     // Read next sample.
     sample = imp_->next_sample;
+
+    if (sample.return_number > 0)
+    {
+      volatile int stopme = 1;
+    }
 
     // If in real time mode, sleep until we should deliver this sample.
     if (imp_->real_time_mode && imp_->first_sample_timestamp >= 0)
@@ -326,7 +352,8 @@ bool SlamCloudLoader::open(const char *sample_file_path, const char *trajectory_
   }
 
   // Set desired channels to include the required channels and ones we could additionally use.
-  imp_->sample_reader->setDesiredChannels(required_channels | DataChannel::Colour | DataChannel::Intensity);
+  imp_->sample_reader->setDesiredChannels(required_channels | DataChannel::Colour | DataChannel::Intensity |
+                                          DataChannel::ReturnNumber);
   if (!imp_->sample_reader->open(sample_file_path))
   {
     error(imp_->error_log, "Unable to open point cloud ", sample_file_path);
@@ -351,6 +378,9 @@ bool SlamCloudLoader::open(const char *sample_file_path, const char *trajectory_
     return false;
   }
 
+  imp_->infer_return_number = imp_->allow_return_number_inference && (imp_->sample_reader->availableChannels() &
+                                                                      DataChannel::ReturnNumber) == DataChannel::None;
+
   imp_->ray_cloud = ray_cloud;
   return true;
 }
@@ -374,6 +404,23 @@ bool SlamCloudLoader::loadPoint()
   if (imp_->sample_reader && imp_->sample_reader->readNext(point))
   {
     SamplePoint sample = c2sPt(point);
+
+    const bool is_first_sample = imp_->first_sample_timestamp < 0;
+    bool is_secondary_return = !is_first_sample && point.return_number > 0;
+
+    // Infer secondary returns if the return number is not available.
+    // Only if this is not the first point sample.
+    if (!is_first_sample && imp_->infer_return_number)
+    {
+      // We assume secondary returns can occur when sequential points have exactly the same timestamp.
+      if (sample.timestamp == imp_->next_sample.timestamp)
+      {
+        sample.return_number = 1u;
+        is_secondary_return = true;
+        // std::cout << "infer dual return\n" << std::flush;
+      }
+    }
+
     if (imp_->ray_cloud)
     {
       // Loading a ray cloud. The normal is the vector from sample back to sensor.
@@ -381,11 +428,19 @@ bool SlamCloudLoader::loadPoint()
     }
     else
     {
-      sampleTrajectory(sample.origin, sample.sample, sample.timestamp);
-      imp_->next_sample = sample;
+      if (!is_secondary_return)
+      {
+        sampleTrajectory(sample.origin, sample.sample, sample.timestamp);
+      }
+      else
+      {
+        // Use previous sample point as the sample origin for this one.
+        sample.origin = imp_->next_sample.sample;
+      }
     }
+    imp_->next_sample = sample;
 
-    if (imp_->first_sample_timestamp < 0)
+    if (is_first_sample)
     {
       imp_->first_sample_timestamp = sample.timestamp;
       imp_->first_sample_read_time = Clock::now();

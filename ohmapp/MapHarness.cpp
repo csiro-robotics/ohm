@@ -276,9 +276,10 @@ int MapHarness::run()
   progress_.startThread();
 
   const Clock::time_point start_time = Clock::now();
-  data_source_->run(std::bind(&MapHarness::processBatch, this, std::placeholders::_1, std::placeholders::_2,
-                              std::placeholders::_3, std::placeholders::_4, std::placeholders::_5),
-                    quitLevelPtr());
+  data_source_->run(
+    std::bind(&MapHarness::processBatch, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3,
+              std::placeholders::_4, std::placeholders::_5, std::placeholders::_6),
+    quitLevelPtr());
   progress_.endProgress();
   progress_.pause();
   display_stats_in_progress_ = false;

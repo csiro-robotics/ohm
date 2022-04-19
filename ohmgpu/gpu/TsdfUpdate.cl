@@ -254,7 +254,8 @@ __device__ bool visitVoxelTsdf(const GpuKey *voxel_key, const GpuKey *start_key,
 ///     point). Should be > 0 to re-enforce as occupied.
 /// @param voxel_value_min Minimum clamping value for voxel adjustments.
 /// @param voxel_value_max Maximum clamping value for voxel adjustments.
-/// @param region_update_flags Update control values as per @c RayFlag. Only respects @c kRfReverseWalk.
+/// @param region_update_flags Update control values as per @c RayFlag. Only respects @c kRfReverseWalk and
+/// @c kRfExcludeOrigin.
 __kernel void tsdfRayUpdate(__global VoxelTsdf *tsdf_voxels, __global ulonglong *tsdf_region_mem_offsets_global,  //
                             __global int3 *tsdf_region_keys_global, uint region_count,                            //
                             __global GpuKey *line_keys, __global float3 *local_lines,                             //
@@ -299,6 +300,11 @@ __kernel void tsdfRayUpdate(__global VoxelTsdf *tsdf_voxels, __global ulonglong 
   if (region_update_flags & kRfReverseWalk)
   {
     walk_flags |= kLineWalkFlagReverse;
+    walk_flags |= !!(region_update_flags & kRfExcludeOrigin) * kExcludeEndVoxel;
+  }
+  else
+  {
+    walk_flags |= !!(region_update_flags & kRfExcludeOrigin) * kExcludeStartVoxel;
   }
 
   walkVoxelsTsdf(&start_key, &end_key, line_start, line_end, region_dimensions, voxel_resolution, walk_flags,

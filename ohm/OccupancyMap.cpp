@@ -598,6 +598,20 @@ bool OccupancyMap::incidentNormalEnabled() const
 }
 
 
+void OccupancyMap::addLayer(const char *layer_name, const std::function<void(MapLayout &)> &add_layer_function)
+{
+  if (imp_->layout.layerIndex(layer_name) >= 0)
+  {
+    // Already present.
+    return;
+  }
+
+  MapLayout layout = imp_->layout;
+  add_layer_function(layout);
+  updateLayout(layout);
+}
+
+
 void OccupancyMap::updateLayout(const MapLayout &new_layout, bool preserve_map)
 {
   // First check if there is a difference between the @c MapLayout and the actual layout.

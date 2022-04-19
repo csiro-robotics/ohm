@@ -295,6 +295,12 @@ bool PointCloudReaderPdal::open(const char *filename)
     available_channels_ |= DataChannel::Intensity;
   }
 
+  if (findField(*point_table_, { pdal::Dimension::Id::ReturnNumber }, { "return_number" }) !=
+      pdal::Dimension::Id::Unknown)
+  {
+    available_channels_ |= DataChannel::Intensity;
+  }
+
   pdal::PointViewSet point_sets = cloud_reader_->execute(*point_table_);
   samples_view_ = *point_sets.begin();
 

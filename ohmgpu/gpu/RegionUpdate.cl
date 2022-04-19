@@ -481,6 +481,11 @@ __kernel void REGION_UPDATE_KERNEL(
     // and less erosion.
     walk_flags |= kLineWalkFlagForReportEndLast;
 #endif  // !NDT
+    walk_flags |= !!(region_update_flags & kRfExcludeOrigin) * kExcludeEndVoxel;
+  }
+  else
+  {
+    walk_flags |= !!(region_update_flags & kRfExcludeOrigin) * kExcludeStartVoxel;
   }
 
   // Call the line walking function.

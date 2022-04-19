@@ -52,7 +52,7 @@ enum RayFlag
   /// lie along the same ray. This way, secondary samples can start at the previous/primary sample point without
   /// affecting the occupancy of this voxel. However, note that in this use case, the sensor voxel will also always be
   /// skipped.
-  kRfExcludeorigin = (1u << 9u),
+  kRfExcludeOrigin = (1u << 9u),
 
   /// Internal use flag values start here (not to be set by user).
   kRfInternal = (1u << 16u),

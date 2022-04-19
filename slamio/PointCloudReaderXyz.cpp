@@ -213,6 +213,13 @@ bool PointCloudReaderXyz::readHeadings()
   ny_index_ = headingIndex("ny", headings);
   nz_index_ = headingIndex("nz", headings);
 
+  intensity_index_ = headingIndex("intensity", headings);
+  return_number_index_ = headingIndex("return_number", headings);
+  if (return_number_index_ == heading_not_found)
+  {
+    return_number_index_ = headingIndex("returnnumber", headings);
+  }
+
   available_channels_ = DataChannel::None;
   size_t required_values_count = 0;
   if (time_index_ != heading_not_found)
@@ -235,8 +242,21 @@ bool PointCloudReaderXyz::readHeadings()
     required_values_count = std::max(required_values_count, nz_index_ + 1);
   }
 
+  if (intensity_index_ != heading_not_found)
+  {
+    available_channels_ |= DataChannel::Intensity;
+    required_values_count = std::max(required_values_count, intensity_index_ + 1);
+  }
+
+  if (return_number_index_ != heading_not_found)
+  {
+    available_channels_ |= DataChannel::ReturnNumber;
+    required_values_count = std::max(required_values_count, return_number_index_ + 1);
+  }
+
   values_buffer_.resize(required_values_count);
 
-  return available_channels_ == (DataChannel::Position | DataChannel::Time);
+  const DataChannel required_channels = DataChannel::Position | DataChannel::Time;
+  return (available_channels_ & required_channels) == required_channels;
 }
 }  // namespace slamio

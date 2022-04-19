@@ -115,6 +115,10 @@ int vertexPropertyFinalise(p_ply_argument argument)
     have_alpha ? float(read_data->properties[unsigned(slamio::PointCloudReaderPly::PlyProperty::kA)]) : 1.0f;
   read_data->sample.intensity =
     float(read_data->properties[unsigned(slamio::PointCloudReaderPly::PlyProperty::kIntensity)]);
+  read_data->sample.return_number = uint8_t(std::round(
+    std::min<double>(read_data->properties[unsigned(slamio::PointCloudReaderPly::PlyProperty::kReturnNumber)] *
+                       std::numeric_limits<uint8_t>::max(),
+                     std::numeric_limits<uint8_t>::max())));
 
   return result;
 }
@@ -440,6 +444,16 @@ bool PointCloudReaderPly::readHeader()
           read_sample_.scale_factor[unsigned(last_vertex_property_id)] = scaleFactorForType(type);
           property_callback = &vertexProperty;
         }
+        else if (isOneOf(property_name, { "return_number", "returnnumber" }) &&
+                 (desired_channels_ & DataChannel::ReturnNumber) != DataChannel::None)
+        {
+          ply_set_read_cb(ply, element_name, property_name, property_callback, &read_sample_,
+                          long(PlyProperty::kReturnNumber));
+          last_vertex_property_id = PlyProperty::kReturnNumber;
+          last_vertex_property_name = property_name;
+          read_sample_.scale_factor[unsigned(last_vertex_property_id)] = scaleFactorForType(type);
+          property_callback = &vertexProperty;
+        }
 
         read_sample_.have_property_flags |= (1u << unsigned(last_vertex_property_id));
       }
@@ -501,6 +515,10 @@ bool PointCloudReaderPly::readHeader()
   if (haveProperty(property_flags, PlyProperty::kIntensity))
   {
     available_channels_ |= DataChannel::Intensity;
+  }
+  if (haveProperty(property_flags, PlyProperty::kReturnNumber))
+  {
+    available_channels_ |= DataChannel::ReturnNumber;
   }
 
   return true;

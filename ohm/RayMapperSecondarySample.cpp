@@ -67,6 +67,7 @@ size_t RayMapperSecondarySample::integrateRays(const glm::dvec3 *rays, size_t el
     addSecondarySample(voxel, range);
     secondary_sample_buffer.writeVoxel(voxel_index, voxel);
 
+    assert(chunk);
     chunk->dirty_stamp = touch_stamp;
     chunk->touched_stamps[secondary_samples_layer].store(touch_stamp, std::memory_order_relaxed);
   }

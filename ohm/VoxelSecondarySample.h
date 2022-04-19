@@ -89,7 +89,7 @@ inline void addSecondarySample(VoxelSecondarySample &voxel, double range)
   // Using Wellford's algorithm.
   // Clamp range
   range = std::min(range, secondarySampleMaxRange());
-  double range_mean = range_mean * secondarySampleQuantisationFactor();
+  double range_mean = voxel.range_mean * secondarySampleQuantisationFactor();
   ++voxel.count;
   const double delta = range - range_mean;
   range_mean += delta / voxel.count;

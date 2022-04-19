@@ -7,15 +7,19 @@
 #define LINE_WALK_MARKERS_CL
 
 /// Flags affecting line walking
-typedef enum LineWalkFlag_t
+typedef enum LineWalkFlag
 {
   /// No options set: default behaviour.
-  kLineWalkFlagNone = 0,
+  kLineWalkFlagNone = 0u,
+  /// Skip reporting the voxel containing the start point if different from the end point?
+  kExcludeStartVoxel = (1u << 0u),
+  /// Skip reporting the voxel containing the end point if different from the start point.
+  kExcludeEndVoxel = (1u << 1u),
   /// Option for reverse line walking. The line walks the segment in reverse.
-  kLineWalkFlagReverse = (1 << 0),
+  kLineWalkFlagReverse = (1u << 2u),
   /// Option to force reporting the end voxel last in a reverse walk. This occurs normally when @p kLineWalkFlagReverse
   /// is not set.
-  kLineWalkFlagForReportEndLast = (1 << 1)
+  kLineWalkFlagForReportEndLast = (1u << 3u)
 } LineWalkFlag;
 
 #endif  // LINE_WALK_MARKERS_CL

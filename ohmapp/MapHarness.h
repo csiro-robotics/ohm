@@ -296,10 +296,12 @@ protected:
   /// @param timestamps Time stamps for each sample point.
   /// @param intensities Intensity values for each sample point. Will be zero when the input data has no intensity.
   /// @param colour Colour values for each sample point. Will be zero when the input data has no colour.
+  /// @param return_numbers Array of return numbers for each sample. Zero is the primary sample, 1 is the
+  /// second, etc. Empty when this information is not available.
   /// @return True to continue processing - generally should be `return !quitPopulation();`
   virtual bool processBatch(const glm::dvec3 &batch_origin, const std::vector<glm::dvec3> &sensor_and_samples,
                             const std::vector<double> &timestamps, const std::vector<float> &intensities,
-                            const std::vector<glm::vec4> &colours) = 0;
+                            const std::vector<glm::vec4> &colours, const std::vector<uint8_t> &return_numbers) = 0;
 
   /// Called after app data have been added to the map to finalise.
   inline virtual void finaliseMap() {}
