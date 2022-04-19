@@ -9,6 +9,7 @@
 #include "OhmConfig.h"
 
 #include <cinttypes>
+#include <limits>
 
 namespace ohm
 {
@@ -20,7 +21,7 @@ namespace ohm
 /// and the standard deviation thereof.
 ///
 /// @note The @c range_mean is stored as a @c uint16_t value in order to keep the voxel size at 8 bytes. The range is
-/// quantised to 100th of the input value. Ohm generally expects metres, so the range is generally in centimetres.
+/// quantised to 1000th of the input value. Ohm generally expects metres, so the range is generally in millimetres.
 /// The quantisation factor is exposed via @c secondarySampleQuantisationFactor() .
 ///
 /// Use @c secondarySampleRangeMean() and @c secondarySampleRangeStdDev() in order to extract the range mean and
@@ -36,37 +37,72 @@ struct VoxelSecondarySample
   uint16_t count;
 };
 
+/// Quantisation factor used for @c VoxelSecondarySample::range_mean . This relates the normal occupancy map units to
+/// the quantised value using:
+///
+/// @code{.unparsed}
+///   range_units = secondarySampleQuantisationFactor() * map_units
+/// @endcode
+///
+/// @return A scalar for transforming from map units to @c VoxelSecondarySample::range_mean units.
 inline constexpr double secondarySampleQuantisationFactor()
 {
-  return 100.0;
+  return 1000.0;
 }
 
+/// The maximum range value which can be stored in @c VoxelSecondarySample::range_mean .
+/// @return The maximum range value for @c VoxelSecondarySample::range_mean .
+inline constexpr double secondarySampleMaxRange()
+{
+  return (std::numeric_limits<decltype(VoxelSecondarySample::range_mean)>::max() - 1u) /
+         secondarySampleQuantisationFactor();
+}
+
+/// Extract the mean distance between primary and secondary samplex for @p voxel .
+///
+/// This converts @c VoxelSecondarySample::range_mean back into map units.
+///
+/// @param voxel The voxel to read.
+/// @return The average distance between primary and secondary samples for @p voxel .
 inline double secondarySampleRangeMean(const VoxelSecondarySample &voxel)
 {
   return voxel.range_mean * secondarySampleQuantisationFactor();
 }
 
+/// Extract the standard deviation of the distance between primary and secondary samplex for @p voxel .
+///
+/// This converts @c VoxelSecondarySample::m2 into a standard deviation.
+///
+/// @param voxel The voxel to read.
+/// @return The standard deviation of the distance between primary and secondary samples for @p voxel .
 inline double secondarySampleRangeStdDev(const VoxelSecondarySample &voxel)
 {
   return std::sqrt(double(voxel.m2) / double(voxel.count));
 }
 
-inline void addSecondarySample(VoxelSecondarySample &voxel, double range_to_primary)
+/// Update statistics for an additional secondary sample in @p voxel .
+///
+/// @param voxel The voxel to update in which the secondary sample lies.
+/// @param range The distance between the primary and secondary samples. Must be positive.
+inline void addSecondarySample(VoxelSecondarySample &voxel, double range)
 {
   // Using Wellford's algorithm.
+  // Clamp range
+  range = std::min(range, secondarySampleMaxRange());
   double range_mean = range_mean * secondarySampleQuantisationFactor();
   ++voxel.count;
-  const double delta = range_to_primary - range_mean;
+  const double delta = range - range_mean;
   range_mean += delta / voxel.count;
   voxel.range_mean = uint16_t(range_mean / secondarySampleQuantisationFactor());
-  const double delta2 = range_to_primary - range_mean;
+  const double delta2 = range - range_mean;
   voxel.m2 += float(delta * delta2);
 }
 
-inline void addSecondarySample(Voxel<VoxelSecondarySample> &voxel, double range_to_primary)
+/// @overload
+inline void addSecondarySample(Voxel<VoxelSecondarySample> &voxel, double range)
 {
   VoxelSecondarySample data = voxel.data();
-  addSecondarySample(data, range_to_primary);
+  addSecondarySample(data, range);
   voxel.write(data);
 }
 }  // namespace ohm
