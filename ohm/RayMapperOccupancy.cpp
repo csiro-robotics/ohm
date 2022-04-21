@@ -228,7 +228,7 @@ size_t RayMapperOccupancy::integrateRays(const glm::dvec3 *rays, size_t element_
     if (!(ray_update_flags & kRfExcludeRay))
     {
       stop_adjustments = false;
-      walkSegmentKeys(LineWalkContext(*map_, visit_func), start, end, include_sample_in_ray);
+      walkSegmentKeys(LineWalkContext(*map_, visit_func), start, end, walk_flags);
     }
 
     if (!stop_adjustments && !include_sample_in_ray && !(ray_update_flags & kRfExcludeSample))
