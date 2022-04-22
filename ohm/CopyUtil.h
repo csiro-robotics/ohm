@@ -10,6 +10,7 @@
 
 #include <glm/fwd.hpp>
 
+#include <algorithm>
 #include <functional>
 #include <string>
 #include <vector>
