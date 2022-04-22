@@ -25,6 +25,7 @@ set(SOURCES
   RayPatternTests.cpp
   RayValidation.cpp
   RayValidation.h
+  SecondarySampleTests.cpp
   TestMain.cpp
   TouchTimeTests.cpp
   TraversalTests.cpp

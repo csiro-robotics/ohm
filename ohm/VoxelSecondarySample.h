@@ -66,7 +66,7 @@ inline constexpr double secondarySampleMaxRange()
 /// @return The average distance between primary and secondary samples for @p voxel .
 inline double secondarySampleRangeMean(const VoxelSecondarySample &voxel)
 {
-  return voxel.range_mean * secondarySampleQuantisationFactor();
+  return voxel.range_mean / secondarySampleQuantisationFactor();
 }
 
 /// Extract the standard deviation of the distance between primary and secondary samplex for @p voxel .
@@ -89,11 +89,11 @@ inline void addSecondarySample(VoxelSecondarySample &voxel, double range)
   // Using Wellford's algorithm.
   // Clamp range
   range = std::min(range, secondarySampleMaxRange());
-  double range_mean = voxel.range_mean * secondarySampleQuantisationFactor();
+  double range_mean = voxel.range_mean / secondarySampleQuantisationFactor();
   ++voxel.count;
   const double delta = range - range_mean;
   range_mean += delta / voxel.count;
-  voxel.range_mean = uint16_t(range_mean / secondarySampleQuantisationFactor());
+  voxel.range_mean = uint16_t(range_mean * secondarySampleQuantisationFactor());
   const double delta2 = range - range_mean;
   voxel.m2 += float(delta * delta2);
 }
