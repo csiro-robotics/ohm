@@ -259,11 +259,6 @@ bool SlamCloudLoader::nextSample(SamplePoint &sample)
     // Read next sample.
     sample = imp_->next_sample;
 
-    if (sample.return_number > 0)
-    {
-      volatile int stopme = 1;
-    }
-
     // If in real time mode, sleep until we should deliver this sample.
     if (imp_->real_time_mode && imp_->first_sample_timestamp >= 0)
     {
