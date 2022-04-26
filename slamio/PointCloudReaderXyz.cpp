@@ -196,13 +196,10 @@ bool PointCloudReaderXyz::readHeadings()
 
   // Resolve heading data items.
   std::vector<std::string> time_fields;
-  size_t time_field_name_count = 0;
-  auto &&time_field_names = timeFieldNames(time_field_name_count);
-  time_fields.resize(time_field_name_count);
-  for (size_t i = 0; i < time_field_name_count; ++i)
-  {
-    time_fields[i] = time_field_names[i];
-  }
+  size_t field_name_count = 0;
+  auto &&time_field_names = timeFieldNames(field_name_count);
+  time_fields.resize(field_name_count);
+  std::copy(time_field_names, time_field_names + field_name_count, time_fields.begin());
   time_index_ = headingIndex(time_fields, headings);
 
   x_index_ = headingIndex("x", headings);
@@ -214,11 +211,13 @@ bool PointCloudReaderXyz::readHeadings()
   nz_index_ = headingIndex("nz", headings);
 
   intensity_index_ = headingIndex("intensity", headings);
-  return_number_index_ = headingIndex("return_number", headings);
-  if (return_number_index_ == heading_not_found)
-  {
-    return_number_index_ = headingIndex("returnnumber", headings);
-  }
+
+  field_name_count = 0;
+  std::vector<std::string> return_number_fields;
+  auto &&return_number_field_names = returnNumberFieldNames(field_name_count);
+  return_number_fields.resize(field_name_count);
+  std::copy(return_number_field_names, return_number_field_names + field_name_count, return_number_fields.begin());
+  return_number_index_ = headingIndex(return_number_fields, headings);
 
   available_channels_ = DataChannel::None;
   size_t required_values_count = 0;

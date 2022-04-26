@@ -27,5 +27,21 @@ const char *const *timeFieldNames(size_t &count)
   return names.data();
 }
 
+const char *const *returnNumberFieldNames(size_t &count)
+{
+  {
+    static const std::array<const char *, 4> names =  //
+      {
+        //
+        "returnnumber",   //
+        "return_number",  //
+        "returnnum",      //
+        "return_num",     //
+      };
+    count = names.size();
+    return names.data();
+  }
+}
+
 PointCloudReader::~PointCloudReader() = default;
 }  // namespace slamio

@@ -33,6 +33,20 @@ namespace slamio
 /// Any search using these values should be case insensitive.
 const char slamio_API *const *timeFieldNames(size_t &count);
 
+/// Query the list of standard return number names to search for in input data.
+///
+/// This returns a pointer to an array of C strings with contains elements equal to @p count .
+/// Ownership of the strings is retained by the function (no need to release).
+///
+/// The list of time fields to search for is (in order):
+/// - returnnumber
+/// - return_number
+/// - returnnum
+/// - return_num
+///
+/// Any search using these values should be case insensitive.
+const char slamio_API *const *returnNumberFieldNames(size_t &count);
+
 /// Abstract interface for a point cloud loader. These can be created from functions in @c SlamIO.h
 ///
 /// Typical usage:
