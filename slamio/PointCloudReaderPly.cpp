@@ -344,7 +344,7 @@ bool PointCloudReaderPly::readHeader()
         ply_get_property_info(property, &property_name, &type, &length_type, &value_type);
         std::string property_name_lower = property_name;
         std::transform(property_name_lower.begin(), property_name_lower.end(), property_name_lower.begin(),
-                       std::tolower);
+                       [](const unsigned char ch) { return std::tolower(ch); });
         if (isOneOf(property_name_lower, time_fields) && (desired_channels_ & DataChannel::Time) != DataChannel::None)
         {
           ply_set_read_cb(ply, element_name, property_name, property_callback, &read_sample_,
