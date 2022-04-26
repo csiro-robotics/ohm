@@ -9,6 +9,7 @@
 #include "rply/rplyfile.h"
 
 #include <algorithm>
+#include <cctype>
 #include <iostream>
 #include <memory>
 
