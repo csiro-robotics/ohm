@@ -322,7 +322,7 @@ MapLayer ohm_API *addSecondarySamples(MapLayout &layout)
   MapLayer *layer = layout.addLayer(default_layer::secondarySamplesLayerName());
 
   const size_t clear_value = 0u;
-  layer->voxelLayout().addMember("range_std_dev", DataType::kFloat, clear_value);
+  layer->voxelLayout().addMember("m2", DataType::kFloat, clear_value);
   layer->voxelLayout().addMember("range_mean", DataType::kUInt16, clear_value);
   layer->voxelLayout().addMember("count", DataType::kUInt16, clear_value);
 
