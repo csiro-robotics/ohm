@@ -197,7 +197,7 @@ bool PointCloudReaderXyz::readHeadings()
   // Resolve heading data items.
   std::vector<std::string> time_fields;
   size_t field_name_count = 0;
-  auto &&time_field_names = timeFieldNames(field_name_count);
+  const auto *time_field_names = timeFieldNames(field_name_count);
   time_fields.resize(field_name_count);
   std::copy(time_field_names, time_field_names + field_name_count, time_fields.begin());
   time_index_ = headingIndex(time_fields, headings);
@@ -214,7 +214,7 @@ bool PointCloudReaderXyz::readHeadings()
 
   field_name_count = 0;
   std::vector<std::string> return_number_fields;
-  auto &&return_number_field_names = returnNumberFieldNames(field_name_count);
+  const auto *return_number_field_names = returnNumberFieldNames(field_name_count);
   return_number_fields.resize(field_name_count);
   std::copy(return_number_field_names, return_number_field_names + field_name_count, return_number_fields.begin());
   return_number_index_ = headingIndex(return_number_fields, headings);

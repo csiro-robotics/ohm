@@ -8,6 +8,7 @@
 #include "MapLayer.h"
 #include "MapLayout.h"
 #include "VoxelMean.h"
+#include "VoxelSecondarySample.h"
 #include "VoxelTsdf.h"
 
 #include <algorithm>
@@ -303,7 +304,7 @@ MapLayer *addTsdf(MapLayout &layout)
 
   if (layer->voxelByteSize() != sizeof(VoxelTsdf))
   {
-    throw std::runtime_error("VoxelMean layer size mismatch");
+    throw std::runtime_error("VoxelTsdf layer size mismatch");
   }
 
   return layer;
@@ -326,9 +327,9 @@ MapLayer ohm_API *addSecondarySamples(MapLayout &layout)
   layer->voxelLayout().addMember("range_mean", DataType::kUInt16, clear_value);
   layer->voxelLayout().addMember("count", DataType::kUInt16, clear_value);
 
-  if (layer->voxelByteSize() != sizeof(VoxelTsdf))
+  if (layer->voxelByteSize() != sizeof(VoxelSecondarySample))
   {
-    throw std::runtime_error("VoxelMean layer size mismatch");
+    throw std::runtime_error("VoxelSecondarySample layer size mismatch");
   }
 
   return layer;
