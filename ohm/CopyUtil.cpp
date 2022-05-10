@@ -9,6 +9,7 @@
 
 #include "DefaultLayer.h"
 #include "MapChunk.h"
+#include "MapLayer.h"
 #include "MapRegionCache.h"
 #include "OccupancyMap.h"
 #include "VoxelBlock.h"
@@ -23,8 +24,6 @@ namespace
 void copyChunkLayerUnsafe(ohm::MapChunk &dst_chunk, unsigned dst_layer, const ohm::MapChunk &src_chunk,
                           unsigned src_layer)
 {
-  using namespace ohm;
-
   ohm::VoxelBuffer<ohm::VoxelBlock> dst_buffer(dst_chunk.voxel_blocks[dst_layer]);
   ohm::VoxelBuffer<const ohm::VoxelBlock> src_buffer(src_chunk.voxel_blocks[src_layer]);
 
@@ -35,7 +34,7 @@ void copyChunkLayerUnsafe(ohm::MapChunk &dst_chunk, unsigned dst_layer, const oh
 
 namespace ohm
 {
-CopyFilter copyFilterExtents(const glm::dvec3 &min_ext, const glm::dvec3 &max_ext)
+CopyChunkFilter copyFilterExtents(const glm::dvec3 &min_ext, const glm::dvec3 &max_ext)
 {
   return [min_ext, max_ext](const MapChunk &chunk) {
     const glm::dvec3 region_half_ext = 0.5 * chunk.map->region_spatial_dimensions;
@@ -45,7 +44,7 @@ CopyFilter copyFilterExtents(const glm::dvec3 &min_ext, const glm::dvec3 &max_ex
   };
 }
 
-CopyFilter copyFilterStamp(uint64_t after_stamp)
+CopyChunkFilter copyFilterStamp(uint64_t after_stamp)
 {
   return [after_stamp](const MapChunk &chunk) { return chunk.dirty_stamp > after_stamp; };
 }
@@ -56,7 +55,8 @@ bool canCopy(const OccupancyMap &dst, const OccupancyMap &src)
          src.regionVoxelDimensions() == dst.regionVoxelDimensions() && src.origin() == dst.origin();
 }
 
-bool copyMap(OccupancyMap &dst, const OccupancyMap &src, CopyFilter copy_filter)
+bool copyMap(OccupancyMap &dst, const OccupancyMap &src, const CopyChunkFilter &copy_chunk_filter,
+             const CopyLayerFilter &copy_layer_filter)
 {
   if (!canCopy(dst, src))
   {
@@ -81,6 +81,24 @@ bool copyMap(OccupancyMap &dst, const OccupancyMap &src, CopyFilter copy_filter)
     return false;
   }
 
+  // We have layer_overlap which identifies source to destination layer indices. Now we remove any source layer entries
+  // which fail copy_layer_filter.
+  if (copy_layer_filter)
+  {
+    for (auto iter = layer_overlap.begin(); iter != layer_overlap.end();)
+    {
+      const std::string source_layer_name = src_detail.layout.layer(iter->first).name();
+      if (!copy_layer_filter(source_layer_name))
+      {
+        iter = layer_overlap.erase(iter);
+      }
+      else
+      {
+        ++iter;
+      }
+    }
+  }
+
   // Find layer caches for each layer_overlap entry.
   if (src_detail.gpu_cache)
   {
@@ -98,7 +116,7 @@ bool copyMap(OccupancyMap &dst, const OccupancyMap &src, CopyFilter copy_filter)
   const int tsdf_layer_index = dst_layout.layerIndex(default_layer::tsdfLayerName());
   for (const auto &src_iter : src_detail.chunks)
   {
-    if (!src_iter.second || (copy_filter && !copy_filter(*src_iter.second)))
+    if (!src_iter.second || (copy_chunk_filter && !copy_chunk_filter(*src_iter.second)))
     {
       // Excluded chunk.
       continue;
