@@ -22,6 +22,6 @@ size_t calculateSegmentKeys(KeyList &keys, const OccupancyMap &map, const glm::d
                                            keys.add(key);
                                            return true;
                                          }),
-                         start_point, end_point, include_end_point);
+                         start_point, end_point, (include_end_point) ? 0u : kExcludeEndVoxel);
 }
 }  // namespace ohm

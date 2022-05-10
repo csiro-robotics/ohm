@@ -14,6 +14,7 @@
 #include "Voxel.h"
 #include "VoxelMean.h"
 #include "VoxelOccupancy.h"
+#include "VoxelSecondarySample.h"
 #include "VoxelTsdf.h"
 
 #endif  // OHMVOXELDATA_H

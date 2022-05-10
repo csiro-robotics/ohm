@@ -219,12 +219,16 @@ size_t RayMapperOccupancy::integrateRays(const glm::dvec3 *rays, size_t element_
       }
     }
 
+    // Explicit update of the end voxel if it's a sample, include in ray if clipped.
     const bool include_sample_in_ray = (filter_flags & kRffClippedEnd) || (ray_update_flags & kRfEndPointAsFree);
+    unsigned walk_flags = (!include_sample_in_ray) ? kExcludeEndVoxel : 0u;
+    // Skip the start voxel according to ray_update_flags.
+    walk_flags |= (ray_update_flags & kRfExcludeOrigin) ? kExcludeStartVoxel : 0u;
 
     if (!(ray_update_flags & kRfExcludeRay))
     {
       stop_adjustments = false;
-      walkSegmentKeys(LineWalkContext(*map_, visit_func), start, end, include_sample_in_ray);
+      walkSegmentKeys(LineWalkContext(*map_, visit_func), start, end, walk_flags);
     }
 
     if (!stop_adjustments && !include_sample_in_ray && !(ray_update_flags & kRfExcludeSample))

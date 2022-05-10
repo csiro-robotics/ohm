@@ -214,7 +214,7 @@ protected:
   int prepareForRun() override;
   bool processBatch(const glm::dvec3 &batch_origin, const std::vector<glm::dvec3> &sensor_and_samples,
                     const std::vector<double> &timestamps, const std::vector<float> &intensities,
-                    const std::vector<glm::vec4> &colours) override;
+                    const std::vector<glm::vec4> &colours, const std::vector<uint8_t> &return_numbers) override;
   void finaliseMap() override;
   int saveMap(const std::string &path_without_extension) override;
   int saveCloud(const std::string &path_ply) override;
@@ -230,6 +230,10 @@ protected:
   std::unique_ptr<ohm::RayMapper> true_mapper_;
   /// Debug drawing mapper. Installed in @c mapper_ when tracing is enabled.
   std::unique_ptr<ohm::RayMapper> trace_mapper_;
+  /// Mapper for seconary sample points (dual returns).
+  std::unique_ptr<ohm::RayMapper> secondary_sample_mapper_;
+  /// Dual returns buffer.
+  std::vector<glm::dvec3> secondary_returns_;
 };
 }  // namespace ohmapp
 

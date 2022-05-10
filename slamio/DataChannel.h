@@ -23,13 +23,14 @@ namespace slamio
 {
 enum class DataChannel : unsigned
 {
-  None,
-  Time = (1 << 0),
-  Position = (1 << 1),
-  Normal = (1 << 2),
-  ColourRgb = (1 << 3),
-  ColourAlpha = (1 << 4),
-  Intensity = (1 << 5),
+  None = 0u,
+  Time = (1u << 0u),
+  Position = (1u << 1u),
+  Normal = (1u << 2u),
+  ColourRgb = (1u << 3u),
+  ColourAlpha = (1u << 4u),
+  Intensity = (1u << 5u),
+  ReturnNumber = (1u << 6u),
 
   Colour = ColourRgb | ColourAlpha
 };

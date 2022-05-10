@@ -59,6 +59,18 @@ public:
     Csv
   };
 
+  /// Options on how return numbers are treated in point clouds.
+  enum class ReturnNumberMode
+  {
+    /// No special handling of return number.
+    Off,
+    /// Use explicit fields if pressent, but allow infering return number based on timestamps. Sequential points sharing
+    /// the same timestamp are marked as a second return.
+    Auto,
+    /// Supported if an explicit @c return_number field is present in the cloud.
+    Explicit
+  };
+
   /// Base options common to all data sources.
   struct Options
   {
@@ -70,6 +82,8 @@ public:
     double time_limit = 0;
     /// How to should statistics be collected?
     StatsMode stats_mode = StatsMode::Off;
+    /// How return number is treated in point clouds.
+    ReturnNumberMode return_number_mode = ReturnNumberMode::Off;
 
     /// Virtual destructor.
     virtual ~Options();
@@ -225,11 +239,13 @@ public:
   /// @param timestamps Time stamps for each sample point.
   /// @param intensities Intensity values for each sample point. Will be zero when the input data has no intensity.
   /// @param colour Colour values for each sample point. Will be zero when the input data has no colour.
+  /// @param return_number Zero based, sample return number where available. Zero is the first/primary return, 1 is the
+  /// second return, etc. Empty when this information is not available.
   /// @return True to continue processessing, @c false to stop.
   using BatchFunction =
     std::function<bool(const glm::dvec3 &batch_origin, const std::vector<glm::dvec3> &sensor_and_samples,
                        const std::vector<double> &timestamps, const std::vector<float> &intensities,
-                       const std::vector<glm::vec4> &colours)>;
+                       const std::vector<glm::vec4> &colours, const std::vector<uint8_t> &return_number)>;
 
   /// Run data sample loading calling the @p batch_function for each data batch loaded.
   ///
@@ -328,5 +344,16 @@ std::ostream &operator<<(std::ostream &out, ohmapp::DataSource::StatsMode mode);
 /// @param mode Mode reference to read into.
 /// @return The input stream.
 std::istream &operator>>(std::istream &in, ohmapp::DataSource::StatsMode &mode);
+
+/// Output streaming for @c ohmapp::DataSource::ReturnNumberMode .
+/// @param out Output stream.
+/// @param mode Mode value.
+/// @return The output stream.
+std::ostream &operator<<(std::ostream &out, ohmapp::DataSource::ReturnNumberMode mode);
+/// Output streaming for @c ohmapp::DataSource::ReturnNumberMode .
+/// @param in Intput stream.
+/// @param mode Mode reference to read into.
+/// @return The input stream.
+std::istream &operator>>(std::istream &in, ohmapp::DataSource::ReturnNumberMode &mode);
 
 #endif  // OHMAPP_DATASOURCE_H

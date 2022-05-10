@@ -30,6 +30,8 @@ enum class MapFlag : unsigned
   kIncidentNormal = (1u << 4u),
   /// Add a TSDF layer.
   kTsdf = (1u << 5u),
+  /// Add the secondary samples layer.
+  kSecondarySample = (1u << 6u),
 
   /// Default map creation flags.
   kDefault = kCompressed

@@ -478,6 +478,19 @@ public:
   /// @return True if the "incident_normal" layer is enabled.
   bool incidentNormalEnabled() const;
 
+  /// Ensure a voxel layer called @p layer_name is present, invoking @p add_layer_function to add it if necessary.
+  ///
+  /// If the layer is not present, then a copy of the @c MapLayout is first made and modified by calling
+  /// @p add_layer_function . The layer changes are committed using @c updateLayout() . It is assumed that
+  /// @p add_layer_function only modifies the @c MapLayout by adding an appropriate layer matching @p layer_name .
+  ///
+  /// No action is performed if a voxel layer named @p layer_name is already present, under the assumption that there
+  /// is only one valid function to use to add a layer matching @p layer_name .
+  ///
+  /// @param layer_name Name of the layer to be added.
+  /// @param add_layer_function Function to invoke to add the layer if required.
+  void addLayer(const char *layer_name, const std::function<void(MapLayout &)> &add_layer_function);
+
   /// Update the memory layout to match that in this map's @c MapLayout. Must be called after updating
   /// the @p layout() after construction.
   ///

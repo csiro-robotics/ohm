@@ -33,6 +33,7 @@ struct GpuTsdfMapDetail;
 ///
 /// Note: @c GpuTsdfMap only respects the following @c RayFlag values:
 /// - @c kRfReverseWalk
+/// - @c kRfExcludeOrigin
 class ohmgpu_API GpuTsdfMap : public GpuMap
 {
 public:

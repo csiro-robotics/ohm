@@ -31,6 +31,7 @@ void DataSource::Options::configure(cxxopts::OptionAdder &adder)
     ("start-time", "Only process points time stamped later than the specified time.", optVal(start_time))
     ("time-limit", "Limit the elapsed time in the LIDAR data to process (seconds). Measured relative to the first data sample.", optVal(time_limit))
     ("stats", "Stats collection mode: [off,console,csv]", optVal(stats_mode)->implicit_value("console"))
+    ("return_number", "Stats collection mode: [off,auto,explicit]", optVal(return_number_mode)->implicit_value("auto"))
     ;
   // clang-format on
 }
@@ -52,6 +53,9 @@ void DataSource::Options::print(std::ostream &out)
   {
     out << "Process to timestamp: " << time_limit << '\n';
   }
+
+  out << "Stats: " << stats_mode << '\n';
+  out << "Return numbers: " << return_number_mode << '\n';
 }
 
 
@@ -192,6 +196,55 @@ std::istream &operator>>(std::istream &in, ohmapp::DataSource::StatsMode &mode)
   else if (mode_str == "off")
   {
     mode = StatsMode::Off;
+  }
+  else
+  {
+    in.setstate(std::istream::failbit);
+  }
+
+  return in;
+}
+
+
+std::ostream &operator<<(std::ostream &out, ohmapp::DataSource::ReturnNumberMode mode)
+{
+  using ReturnNumberMode = ohmapp::DataSource::ReturnNumberMode;
+  switch (mode)
+  {
+  case ReturnNumberMode::Off:
+    out << "off";
+    break;
+  case ReturnNumberMode::Auto:
+    out << "auto";
+    break;
+  case ReturnNumberMode::Explicit:
+    out << "explicit";
+    break;
+  default:
+    out << "unknown";
+    break;
+  }
+
+  return out;
+}
+
+
+std::istream &operator>>(std::istream &in, ohmapp::DataSource::ReturnNumberMode &mode)
+{
+  using ReturnNumberMode = ohmapp::DataSource::ReturnNumberMode;
+  std::string mode_str;
+  in >> mode_str;
+  if (mode_str == "auto")
+  {
+    mode = ReturnNumberMode::Auto;
+  }
+  else if (mode_str == "explicit")
+  {
+    mode = ReturnNumberMode::Explicit;
+  }
+  else if (mode_str == "off")
+  {
+    mode = ReturnNumberMode::Off;
   }
   else
   {

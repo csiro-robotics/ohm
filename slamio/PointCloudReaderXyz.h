@@ -80,6 +80,8 @@ private:
   size_t nx_index_ = ~0u;
   size_t ny_index_ = ~0u;
   size_t nz_index_ = ~0u;
+  size_t intensity_index_ = ~0u;
+  size_t return_number_index_ = ~0u;
 };
 }  // namespace slamio
 

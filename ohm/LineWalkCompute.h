@@ -20,6 +20,8 @@
 /// - @c WalkKey is defined as @c ohm::Key for CPU and @c GpuKey for GPU.
 /// - @c WalkVec3 is defined as @c glm::dvec3 for CPU and @c float3 for GPU.
 /// - @c WalkReal is defined as @c double for CPU and @c float for GPU.
+/// - Two constant bit flag values: @c kExcludeStartVoxel and @c kExcludeEndVoxel . See @c WalkLinkVoxelFlags below for
+///   an example definition.
 ///
 /// The required function definitions are:
 ///
@@ -49,7 +51,16 @@
 /// /// @param exit_range The distance which has been traces along the line at which we exit @c voxel_key .
 /// bool walkVisitVoxel(WalkContext *context, const WalkKey *voxel_key, const WalkKey *walk_start_key,
 ///                     const WalkKey *walk_end_key, unsigned voxel_marker, int voxel_marker,
-//                      WalkReal enter_range, WalkReal exit_range)
+///                      WalkReal enter_range, WalkReal exit_range)
+///
+/// /// Flags for use with @c walkLineVoxels() .
+/// enum WalkLinkVoxelFlags
+/// {
+///   /// Skip reporting the voxel containing the start point if different from the end point?
+///   kExcludeStartVoxel = (1u << 0u),
+///   /// Skip reporting the voxel containing the end point if different from the start point.
+///   kExcludeEndVoxel = (1u << 1u)
+/// };
 /// @endcode
 ///
 /// Note that the shared CPU/GPU code may prove less efficient for GPU. During the conversion, it was notes that the
@@ -276,6 +287,24 @@ WALK_FUNC inline int walkSelectNextAxis(const WalkReal *time_next)
   return axis;
 }
 
+WALK_FUNC inline unsigned walkStepNext(WalkContext *context, WalkSteps *steps, WalkKey *current_key, unsigned *axis,
+                                       int *steps_remaining, int *stepped)
+{
+  const int step_dir = walkStepDir(steps->sign[*axis]);
+  walkStepKey(context, current_key, *axis, step_dir);
+  steps_remaining[*axis] -= step_dir;
+  stepped[*axis] += step_dir;
+  steps->time_next[*axis] = (steps_remaining[*axis]) ?
+                              steps->initial_delta[*axis] + steps->step_delta[*axis] * abs(stepped[*axis]) :
+                              walkInfinity();
+  const unsigned limit_flags_change = !!(steps_remaining[*axis] == 0) * (1u << *axis);
+
+  // Choose the next step axis.
+  *axis = walkSelectNextAxis(steps->time_next);
+
+  return limit_flags_change;
+}
+
 /// Line walking function for tracing voxels between two points/voxels.
 ///
 /// This function depends on some additional definitions before including this file. See @ref linewalk .
@@ -305,6 +334,8 @@ WALK_FUNC inline int walkSelectNextAxis(const WalkReal *time_next)
 /// @param start_point_key The key for the voxel containing @c start_point .
 /// @param end_point_key The key for the voxel containing @c end_point .
 /// @param start_voxel_centre The coordinate for the centre of the voxel containing @c start_point .
+/// @param flags Flags from @c WalkLinkVoxelFlags allowing the start/end point voxels to be skipped with no call to
+///   @c walkVisitVoxel() .
 /// @param include_end_point @c true to call @p walkVisitVoxel() the voxel containing @c endPoint, when it does not lie
 ///   in the same voxel as @p start_point.
 /// @param length_epsilon Epsilon used to detect small rays. Such rays are considered to have no length.
@@ -313,7 +344,7 @@ WALK_FUNC inline int walkSelectNextAxis(const WalkReal *time_next)
 WALK_FUNC inline unsigned walkLineVoxels(WalkContext *context, const WalkVec3 start_point, const WalkVec3 end_point,
                                          const WalkKey *start_point_key, const WalkKey *end_point_key,
                                          const WalkVec3 start_voxel_centre, const WalkVec3 voxel_resolution,
-                                         bool include_end_point,
+                                         unsigned flags,           // include_end_point,
                                          WalkReal length_epsilon)  // NOLINT(readability-magic-numbers)
 {
   WalkSteps steps;
@@ -347,6 +378,16 @@ WALK_FUNC inline unsigned walkLineVoxels(WalkContext *context, const WalkVec3 st
   axis = walkSelectNextAxis(steps.time_next);
 
   int voxel_marker = kLineWalkMarkerStart;
+  if (flags & kExcludeStartVoxel)
+  {
+    voxel_marker = kLineWalkMarkerSegment;
+    last_time = steps.time_next[axis];
+    ++voxel_count;
+
+    // Step on from the current voxel.
+    limit_flags |= walkStepNext(context, &steps, &current_key, &axis, steps_remaining, stepped);
+  }
+
   while (continue_traversal && limit_flags < 7u && !walkEqualKeys(&current_key, end_point_key))
   {
     // Visit the current voxel.
@@ -357,21 +398,11 @@ WALK_FUNC inline unsigned walkLineVoxels(WalkContext *context, const WalkVec3 st
     ++voxel_count;
 
     // Step on from the current voxel.
-    const int step_dir = walkStepDir(steps.sign[axis]);
-    walkStepKey(context, &current_key, axis, step_dir);
-    steps_remaining[axis] -= step_dir;
-    stepped[axis] += step_dir;
-    steps.time_next[axis] = (steps_remaining[axis]) ?
-                              steps.initial_delta[axis] + steps.step_delta[axis] * abs(stepped[axis]) :
-                              walkInfinity();
-    limit_flags |= !!(steps_remaining[axis] == 0) * (1u << axis);
-
-    // Choose the next step axis.
-    axis = walkSelectNextAxis(steps.time_next);
+    limit_flags |= walkStepNext(context, &steps, &current_key, &axis, steps_remaining, stepped);
   }
 
   // Touch the last voxel.
-  if (continue_traversal && include_end_point)
+  if (continue_traversal && (flags & kExcludeEndVoxel) == 0u)
   {
     walkVisitVoxel(context, end_point_key, start_point_key, end_point_key, kLineWalkMarkerEnd, last_time, steps.length);
     ++voxel_count;

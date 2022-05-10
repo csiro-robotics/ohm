@@ -164,7 +164,8 @@ void testWalk(const ohm::OccupancyMap &map, const glm::dvec3 &start_point, const
   };
 
   // Walk the ray.
-  walkSegmentKeys(LineWalkContext(map, visit_function), start_point, end_point, include_end_point);
+  walkSegmentKeys(LineWalkContext(map, visit_function), start_point, end_point,
+                  (!include_end_point ? kExcludeEndVoxel : 0u));
 
   const ohm::Key expected_key = end_key;
   // Validate last key.

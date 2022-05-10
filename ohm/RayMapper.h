@@ -53,6 +53,7 @@ public:
   ///   so there are @c element_count/2 items. May be null to omit timestamp values in which case the touch time layer
   ///   will not be updated.
   /// @param ray_update_flags @c RayFlag bitset used to modify the behaviour of this function.
+  /// @return The number of samples processed.
   virtual size_t integrateRays(const glm::dvec3 *rays, size_t element_count, const float *intensities,
                                const double *timestamps, unsigned ray_update_flags) = 0;
 

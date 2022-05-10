@@ -90,7 +90,8 @@ private:
   /// Process a data batch, collecting stats.
   bool processBatch(const BatchFunction &batch_function, const glm::dvec3 &batch_origin,
                     const std::vector<glm::dvec3> &sensor_and_samples, const std::vector<double> &timestamps,
-                    const std::vector<float> &intensities, const std::vector<glm::vec4> &colours, Stats &stats);
+                    const std::vector<float> &intensities, const std::vector<glm::vec4> &colours,
+                    const std::vector<uint8_t> &return_number, Stats &stats);
 
   using Clock = std::chrono::high_resolution_clock;
 

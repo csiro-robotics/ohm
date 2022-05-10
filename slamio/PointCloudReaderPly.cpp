@@ -9,6 +9,7 @@
 #include "rply/rplyfile.h"
 
 #include <algorithm>
+#include <cctype>
 #include <iostream>
 #include <memory>
 
@@ -115,6 +116,10 @@ int vertexPropertyFinalise(p_ply_argument argument)
     have_alpha ? float(read_data->properties[unsigned(slamio::PointCloudReaderPly::PlyProperty::kA)]) : 1.0f;
   read_data->sample.intensity =
     float(read_data->properties[unsigned(slamio::PointCloudReaderPly::PlyProperty::kIntensity)]);
+  read_data->sample.return_number = uint8_t(std::round(
+    std::min<double>(read_data->properties[unsigned(slamio::PointCloudReaderPly::PlyProperty::kReturnNumber)] *
+                       std::numeric_limits<uint8_t>::max(),
+                     std::numeric_limits<uint8_t>::max())));
 
   return result;
 }
@@ -303,13 +308,16 @@ bool PointCloudReaderPly::readHeader()
   PlyProperty last_vertex_property_id{};
 
   std::vector<std::string> time_fields;
-  size_t time_field_name_count = 0;
-  auto &&time_field_names = timeFieldNames(time_field_name_count);
-  time_fields.resize(time_field_name_count);
-  for (size_t i = 0; i < time_field_name_count; ++i)
-  {
-    time_fields[i] = time_field_names[i];
-  }
+  size_t field_name_count = 0;
+  const auto *time_field_names = timeFieldNames(field_name_count);
+  time_fields.resize(field_name_count);
+  std::copy(time_field_names, time_field_names + field_name_count, time_fields.begin());
+
+  std::vector<std::string> return_number_fields;
+  field_name_count = 0;
+  const auto *return_number_field_names = returnNumberFieldNames(field_name_count);
+  return_number_fields.resize(field_name_count);
+  std::copy(return_number_field_names, return_number_field_names + field_name_count, return_number_fields.begin());
 
   // iterate over all elements in input file
   unsigned element_count = 0;
@@ -334,7 +342,10 @@ bool PointCloudReaderPly::readHeader()
       while ((property = ply_get_next_property(element, property)))
       {
         ply_get_property_info(property, &property_name, &type, &length_type, &value_type);
-        if (isOneOf(property_name, time_fields) && (desired_channels_ & DataChannel::Time) != DataChannel::None)
+        std::string property_name_lower = property_name;
+        std::transform(property_name_lower.begin(), property_name_lower.end(), property_name_lower.begin(),
+                       [](const unsigned char ch) { return std::tolower(ch); });
+        if (isOneOf(property_name_lower, time_fields) && (desired_channels_ & DataChannel::Time) != DataChannel::None)
         {
           ply_set_read_cb(ply, element_name, property_name, property_callback, &read_sample_,
                           long(PlyProperty::kTimestamp));
@@ -343,7 +354,7 @@ bool PointCloudReaderPly::readHeader()
           read_sample_.scale_factor[unsigned(last_vertex_property_id)] = 1.0;
           property_callback = &vertexProperty;
         }
-        else if (isOneOf(property_name, "x") && (desired_channels_ & DataChannel::Position) != DataChannel::None)
+        else if (isOneOf(property_name_lower, "x") && (desired_channels_ & DataChannel::Position) != DataChannel::None)
         {
           ply_set_read_cb(ply, element_name, property_name, property_callback, &read_sample_, long(PlyProperty::kX));
           last_vertex_property_id = PlyProperty::kX;
@@ -351,7 +362,7 @@ bool PointCloudReaderPly::readHeader()
           read_sample_.scale_factor[unsigned(last_vertex_property_id)] = 1.0;
           property_callback = &vertexProperty;
         }
-        else if (isOneOf(property_name, "y") && (desired_channels_ & DataChannel::Position) != DataChannel::None)
+        else if (isOneOf(property_name_lower, "y") && (desired_channels_ & DataChannel::Position) != DataChannel::None)
         {
           ply_set_read_cb(ply, element_name, property_name, property_callback, &read_sample_, long(PlyProperty::kY));
           last_vertex_property_id = PlyProperty::kY;
@@ -359,7 +370,7 @@ bool PointCloudReaderPly::readHeader()
           read_sample_.scale_factor[unsigned(last_vertex_property_id)] = 1.0;
           property_callback = &vertexProperty;
         }
-        else if (isOneOf(property_name, "z") && (desired_channels_ & DataChannel::Position) != DataChannel::None)
+        else if (isOneOf(property_name_lower, "z") && (desired_channels_ & DataChannel::Position) != DataChannel::None)
         {
           ply_set_read_cb(ply, element_name, property_name, property_callback, &read_sample_, long(PlyProperty::kZ));
           last_vertex_property_id = PlyProperty::kZ;
@@ -367,7 +378,7 @@ bool PointCloudReaderPly::readHeader()
           read_sample_.scale_factor[unsigned(last_vertex_property_id)] = 1.0;
           property_callback = &vertexProperty;
         }
-        else if (isOneOf(property_name, { "nx", "normal_x" }) &&
+        else if (isOneOf(property_name_lower, { "nx", "normal_x" }) &&
                  (desired_channels_ & DataChannel::Normal) != DataChannel::None)
         {
           ply_set_read_cb(ply, element_name, property_name, property_callback, &read_sample_, long(PlyProperty::kNX));
@@ -376,7 +387,7 @@ bool PointCloudReaderPly::readHeader()
           read_sample_.scale_factor[unsigned(last_vertex_property_id)] = 1.0;
           property_callback = &vertexProperty;
         }
-        else if (isOneOf(property_name, { "ny", "normal_y" }) &&
+        else if (isOneOf(property_name_lower, { "ny", "normal_y" }) &&
                  (desired_channels_ & DataChannel::Normal) != DataChannel::None)
         {
           ply_set_read_cb(ply, element_name, property_name, property_callback, &read_sample_, long(PlyProperty::kNY));
@@ -385,7 +396,7 @@ bool PointCloudReaderPly::readHeader()
           read_sample_.scale_factor[unsigned(last_vertex_property_id)] = 1.0;
           property_callback = &vertexProperty;
         }
-        else if (isOneOf(property_name, { "nz", "normal_z" }) &&
+        else if (isOneOf(property_name_lower, { "nz", "normal_z" }) &&
                  (desired_channels_ & DataChannel::Normal) != DataChannel::None)
         {
           ply_set_read_cb(ply, element_name, property_name, property_callback, &read_sample_, long(PlyProperty::kNZ));
@@ -394,7 +405,7 @@ bool PointCloudReaderPly::readHeader()
           read_sample_.scale_factor[unsigned(last_vertex_property_id)] = 1.0;
           property_callback = &vertexProperty;
         }
-        else if (isOneOf(property_name, { "red", "r" }) &&
+        else if (isOneOf(property_name_lower, { "red", "r" }) &&
                  (desired_channels_ & DataChannel::ColourRgb) != DataChannel::None)
         {
           ply_set_read_cb(ply, element_name, property_name, property_callback, &read_sample_, long(PlyProperty::kR));
@@ -403,7 +414,7 @@ bool PointCloudReaderPly::readHeader()
           read_sample_.scale_factor[unsigned(last_vertex_property_id)] = scaleFactorForType(type);
           property_callback = &vertexProperty;
         }
-        else if (isOneOf(property_name, { "green", "g" }) &&
+        else if (isOneOf(property_name_lower, { "green", "g" }) &&
                  (desired_channels_ & DataChannel::ColourRgb) != DataChannel::None)
         {
           ply_set_read_cb(ply, element_name, property_name, property_callback, &read_sample_, long(PlyProperty::kG));
@@ -412,7 +423,7 @@ bool PointCloudReaderPly::readHeader()
           read_sample_.scale_factor[unsigned(last_vertex_property_id)] = scaleFactorForType(type);
           property_callback = &vertexProperty;
         }
-        else if (isOneOf(property_name, { "blue", "b" }) &&
+        else if (isOneOf(property_name_lower, { "blue", "b" }) &&
                  (desired_channels_ & DataChannel::ColourRgb) != DataChannel::None)
         {
           ply_set_read_cb(ply, element_name, property_name, property_callback, &read_sample_, long(PlyProperty::kB));
@@ -421,7 +432,7 @@ bool PointCloudReaderPly::readHeader()
           read_sample_.scale_factor[unsigned(last_vertex_property_id)] = scaleFactorForType(type);
           property_callback = &vertexProperty;
         }
-        else if (isOneOf(property_name, { "alpha", "a" }) &&
+        else if (isOneOf(property_name_lower, { "alpha", "a" }) &&
                  (desired_channels_ & DataChannel::ColourAlpha) != DataChannel::None)
         {
           ply_set_read_cb(ply, element_name, property_name, property_callback, &read_sample_, long(PlyProperty::kA));
@@ -430,12 +441,22 @@ bool PointCloudReaderPly::readHeader()
           read_sample_.scale_factor[unsigned(last_vertex_property_id)] = scaleFactorForType(type);
           property_callback = &vertexProperty;
         }
-        else if (isOneOf(property_name, "intensity") &&
+        else if (isOneOf(property_name_lower, "intensity") &&
                  (desired_channels_ & DataChannel::Intensity) != DataChannel::None)
         {
           ply_set_read_cb(ply, element_name, property_name, property_callback, &read_sample_,
                           long(PlyProperty::kIntensity));
           last_vertex_property_id = PlyProperty::kIntensity;
+          last_vertex_property_name = property_name;
+          read_sample_.scale_factor[unsigned(last_vertex_property_id)] = scaleFactorForType(type);
+          property_callback = &vertexProperty;
+        }
+        else if (isOneOf(property_name_lower, return_number_fields) &&
+                 (desired_channels_ & DataChannel::ReturnNumber) != DataChannel::None)
+        {
+          ply_set_read_cb(ply, element_name, property_name, property_callback, &read_sample_,
+                          long(PlyProperty::kReturnNumber));
+          last_vertex_property_id = PlyProperty::kReturnNumber;
           last_vertex_property_name = property_name;
           read_sample_.scale_factor[unsigned(last_vertex_property_id)] = scaleFactorForType(type);
           property_callback = &vertexProperty;
@@ -501,6 +522,10 @@ bool PointCloudReaderPly::readHeader()
   if (haveProperty(property_flags, PlyProperty::kIntensity))
   {
     available_channels_ |= DataChannel::Intensity;
+  }
+  if (haveProperty(property_flags, PlyProperty::kReturnNumber))
+  {
+    available_channels_ |= DataChannel::ReturnNumber;
   }
 
   return true;

@@ -141,6 +141,8 @@ int SlamIOSource::validateOptions()
 int SlamIOSource::prepareForRun(uint64_t &point_count, const std::string &reference_name)
 {
   loader_ = std::make_unique<slamio::SlamCloudLoader>();
+  loader_->enableReturnNumberInference(options().return_number_mode == ReturnNumberMode::Auto);
+
   loader_->setErrorLog([this](const char *msg) { ohm::logger::error(msg); });
   if (!options().trajectory_file.empty())
   {
@@ -235,6 +237,7 @@ int SlamIOSource::run(BatchFunction batch_function, unsigned *quit_level_ptr)
   std::vector<glm::vec4> colours;
   std::vector<float> intensities;
   std::vector<double> timestamps;
+  std::vector<uint8_t> return_numbers;
   glm::dvec3 batch_origin(0);
   glm::dvec3 last_batch_origin(0);
   // Update map visualisation every N samples.
@@ -288,6 +291,9 @@ int SlamIOSource::run(BatchFunction batch_function, unsigned *quit_level_ptr)
   global_stats_.process_time_start = batch_stats.process_time_start = 0;
 
   uint64_t process_points_local = 0;
+  const uint8_t max_return_number =
+    (options().return_number_mode != ReturnNumberMode::Off) ? std::numeric_limits<uint8_t>::max() : 0u;
+  const bool use_return_number = loader_->hasReturnNumber() || loader_->returnNumberInference();
   processed_point_count_ = 0;
   processed_time_range_ = 0;
   while ((process_points_local < point_limit || point_limit == 0) &&
@@ -308,6 +314,10 @@ int SlamIOSource::run(BatchFunction batch_function, unsigned *quit_level_ptr)
       colours.emplace_back(sample.colour);
       intensities.emplace_back(sample.intensity);
       timestamps.emplace_back(sample.timestamp);
+      if (use_return_number)
+      {
+        return_numbers.emplace_back(std::min(sample.return_number, max_return_number));
+      }
 
       const double ray_length = glm::length(sample.sample - sample.origin);
       batch_stats.ray_length_minimum = std::min(ray_length, batch_stats.ray_length_minimum);
@@ -325,8 +335,8 @@ int SlamIOSource::run(BatchFunction batch_function, unsigned *quit_level_ptr)
     if (!timestamps.empty() && (sensor_delta_exceeded || timestamps.size() >= ray_batch_size ||
                                 point_limit && process_points_local + timestamps.size() >= point_limit))
     {
-      finish =
-        !processBatch(batch_function, batch_origin, sensor_and_samples, timestamps, intensities, colours, batch_stats);
+      finish = !processBatch(batch_function, batch_origin, sensor_and_samples, timestamps, intensities, colours,
+                             return_numbers, batch_stats);
 
       delta_motion = glm::length(batch_origin - last_batch_origin);
       accumulated_motion += delta_motion;
@@ -347,6 +357,7 @@ int SlamIOSource::run(BatchFunction batch_function, unsigned *quit_level_ptr)
       timestamps.clear();
       intensities.clear();
       colours.clear();
+      return_numbers.clear();
     }
 
     if (!point_pending)
@@ -382,7 +393,8 @@ int SlamIOSource::run(BatchFunction batch_function, unsigned *quit_level_ptr)
   // Process the final batch.
   if (!timestamps.empty() && !finish)
   {
-    processBatch(batch_function, last_batch_origin, sensor_and_samples, timestamps, intensities, colours, batch_stats);
+    processBatch(batch_function, last_batch_origin, sensor_and_samples, timestamps, intensities, colours,
+                 return_numbers, batch_stats);
     process_points_local += timestamps.size();
     processed_point_count_ = process_points_local;
     processed_time_range_ = timestamps.back() - timebase;
@@ -446,13 +458,15 @@ void SlamIOSource::addBatchStats(const Stats &stats)
 inline bool SlamIOSource::processBatch(const BatchFunction &batch_function, const glm::dvec3 &batch_origin,
                                        const std::vector<glm::dvec3> &sensor_and_samples,
                                        const std::vector<double> &timestamps, const std::vector<float> &intensities,
-                                       const std::vector<glm::vec4> &colours, Stats &stats)
+                                       const std::vector<glm::vec4> &colours, const std::vector<uint8_t> &return_number,
+                                       Stats &stats)
 {
   const auto time_now = Clock::now();
   stats.process_time_end = std::chrono::duration<double>(time_now - time_point_start_).count();
   stats.data_time_end = (!timestamps.empty()) ? timestamps.back() : stats.data_time_start;
   stats.ray_count = unsigned(timestamps.size());
-  const bool keep_processing = batch_function(batch_origin, sensor_and_samples, timestamps, intensities, colours);
+  const bool keep_processing =
+    batch_function(batch_origin, sensor_and_samples, timestamps, intensities, colours, return_number);
   if (options().stats_mode != StatsMode::Off)
   {
     addBatchStats(stats);

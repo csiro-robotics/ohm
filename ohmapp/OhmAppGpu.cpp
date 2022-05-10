@@ -15,6 +15,7 @@
 #include <ohmapp/DataSource.h>
 
 #include <ohm/DefaultLayer.h>
+#include <ohm/RayMapperSecondarySample.h>
 
 #ifdef TES_ENABLE
 #include <ohm/RayMapperTrace.h>
@@ -241,6 +242,17 @@ int OhmAppGpu::prepareForRun()
     mapper_ = trace_mapper_.get();
   }
 #endif  // TES_ENABLE
+
+  if (dataSource()->options().return_number_mode != DataSource::ReturnNumberMode::Off)
+  {
+    map_->addLayer(ohm::default_layer::secondarySamplesLayerName(), ohm::addSecondarySamples);
+
+    secondary_sample_mapper_ = std::make_unique<ohm::RayMapperSecondarySample>(map_.get());
+    if (!secondary_sample_mapper_->valid())
+    {
+      secondary_sample_mapper_ = nullptr;
+    }
+  }
 
   return return_code;
 }

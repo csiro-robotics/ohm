@@ -150,6 +150,16 @@ void OccupancyMapDetail::setDefaultLayout(MapFlag init_flags)
   {
     flags &= ~MapFlag::kTsdf;
   }
+
+  if ((init_flags & MapFlag::kSecondarySample) != MapFlag::kNone)
+  {
+    addSecondarySamples(layout);
+    flags |= MapFlag::kSecondarySample;
+  }
+  else
+  {
+    flags &= ~MapFlag::kSecondarySample;
+  }
 }
 
 

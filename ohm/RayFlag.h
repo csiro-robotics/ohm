@@ -26,6 +26,11 @@ enum RayFlag
   /// Change behaviour such that traversal stops as soon as an occupied voxel is reached. Ray traversal terminates
   /// after adjusting the occupied voxel.
   kRfStopOnFirstOccupied = (1u << 1u),
+  /// Skip the first, non-sample voxel in the ray. Useful for dealing with secondary returns where multiple samples
+  /// lie along the same ray. This way, secondary samples can start at the previous/primary sample point without
+  /// affecting the occupancy of this voxel. However, note that in this use case, the sensor voxel will also always be
+  /// skipped.
+  kRfExcludeOrigin = (1u << 2u),
   /// Do not process the sample voxel.
   kRfExcludeSample = (1u << 3u),
   /// Exclude the ray part, integrating only the sample. This flag is only recommended in debugging or validation.

@@ -37,6 +37,7 @@ public:
     kB,
     kA,
     kIntensity,
+    kReturnNumber,
     kCount
   };
 

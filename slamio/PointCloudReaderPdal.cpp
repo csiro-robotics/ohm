@@ -249,9 +249,16 @@ bool PointCloudReaderPdal::open(const char *filename)
   cloud_reader_->prepare(*point_table_);
 
   available_channels_ = DataChannel::None;
+
+  std::vector<std::string> time_fields;
+  size_t field_name_count = 0;
+  const auto *time_field_names = timeFieldNames(field_name_count);
+  time_fields.resize(field_name_count);
+  std::copy(time_field_names, time_field_names + field_name_count, time_fields.begin());
+
   fields_.time = findField(
     *point_table_, { pdal::Dimension::Id::GpsTime, pdal::Dimension::Id::InternalTime, pdal::Dimension::Id::OffsetTime },
-    { "time", "timestamp" });
+    time_fields);
 
   if (fields_.time != pdal::Dimension::Id::Unknown)
   {
@@ -291,6 +298,18 @@ bool PointCloudReaderPdal::open(const char *filename)
   }
 
   if (findField(*point_table_, { pdal::Dimension::Id::Intensity }, {}) != pdal::Dimension::Id::Unknown)
+  {
+    available_channels_ |= DataChannel::Intensity;
+  }
+
+  std::vector<std::string> return_number_fields;
+  field_name_count = 0;
+  const auto *return_number_field_names = returnNumberFieldNames(field_name_count);
+  return_number_fields.resize(field_name_count);
+  std::copy(return_number_field_names, return_number_field_names + field_name_count, return_number_fields.begin());
+
+  if (findField(*point_table_, { pdal::Dimension::Id::ReturnNumber }, return_number_fields) !=
+      pdal::Dimension::Id::Unknown)
   {
     available_channels_ |= DataChannel::Intensity;
   }

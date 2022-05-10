@@ -65,8 +65,7 @@ typedef struct WalkContext
   void *user_data;
   int region_dimensions[3];
   // Value used for deferring calling the sample voxel in a reverse trace.
-  float suppressed_exit_range;
-  bool suppress_next_visit_call;
+  float first_exit_range;
 } WalkContext;
 
 /// Calculate the @p GpuKey for @p point local to the region's minimum extents corner.
@@ -222,12 +221,8 @@ inline __device__ void walkStepKey(WalkContext *context, GpuKey *key, int axis, 
 inline __device__ bool walkVisitVoxel(WalkContext *context, const GpuKey *voxel_key, const GpuKey *start_key,
                                       const GpuKey *end_key, int voxel_marker, float enter_range, float exit_range)
 {
-  if (!context->suppress_next_visit_call)
-  {
-    return WALK_VISIT_VOXEL(voxel_key, start_key, end_key, voxel_marker, enter_range, exit_range, context->user_data);
-  }
-  context->suppress_next_visit_call = false;
-  context->suppressed_exit_range = exit_range;
+  return WALK_VISIT_VOXEL(voxel_key, start_key, end_key, voxel_marker, enter_range, exit_range, context->user_data);
+  context->first_exit_range = (context->first_exit_range < 0) ? exit_range : context->first_exit_range;
   return true;
 }
 
@@ -242,9 +237,8 @@ __device__ void walkVoxels(const GpuKey *start_key, const GpuKey *end_key, const
   context.region_dimensions[0] = region_dimensions.x;
   context.region_dimensions[1] = region_dimensions.y;
   context.region_dimensions[2] = region_dimensions.z;
-  context.suppress_next_visit_call = false;
   context.user_data = user_data;
-  context.suppressed_exit_range = 0;
+  context.first_exit_range = -1.0f;
 
   const float3 voxel_resolution_3 = make_float3(voxel_resolution, voxel_resolution, voxel_resolution);
   const float length_epsilon = 1e-6f;
@@ -257,19 +251,21 @@ __device__ void walkVoxels(const GpuKey *start_key, const GpuKey *end_key, const
     const int3 voxel_diff = keyDiff(start_key, end_key, region_dimensions);
     const float3 start_voxel_centre =
       make_float3(voxel_diff.x * voxel_resolution, voxel_diff.y * voxel_resolution, voxel_diff.z * voxel_resolution);
-    walkLineVoxels(&context, start_point, end_point, start_key, end_key, start_voxel_centre, voxel_resolution_3, true,
-                   length_epsilon);
+    walkLineVoxels(&context, start_point, end_point, start_key, end_key, start_voxel_centre, voxel_resolution_3,
+                   walk_flags, length_epsilon);
   }
   else
   {
-    const bool defer_sample = (walk_flags & kLineWalkFlagForReportEndLast);  // && end_key->voxel[3] == 0;
-    context.suppress_next_visit_call = defer_sample;
+    const bool defer_sample = (walk_flags & kLineWalkFlagForReportEndLast);
+    walk_flags |= !!defer_sample * kExcludeStartVoxel;
     const float3 end_voxel_centre = make_float3(0, 0, 0);
-    walkLineVoxels(&context, end_point, start_point, end_key, start_key, end_voxel_centre, voxel_resolution_3, true,
-                   length_epsilon);
+    walkLineVoxels(&context, end_point, start_point, end_key, start_key, end_voxel_centre, voxel_resolution_3,
+                   walk_flags, length_epsilon);
     if (defer_sample)
     {
-      WALK_VISIT_VOXEL(end_key, start_key, end_key, kLineWalkMarkerStart, 0.0f, context.suppressed_exit_range,
+      // Ensure valid exit range if not calculated.
+      context.first_exit_range = max(context.first_exit_range, 0.0f);
+      WALK_VISIT_VOXEL(end_key, start_key, end_key, kLineWalkMarkerStart, 0.0f, context.first_exit_range,
                        context.user_data);
     }
   }

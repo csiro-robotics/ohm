@@ -91,6 +91,18 @@ public:
   /// Get the fixed offset between the trajectory point to the sensor frame.
   glm::dvec3 sensorOffset() const;
 
+  /// Enable or disable infering the return number. The return number may be inferred when the two sequential samples
+  /// have precisely the same timestamp. This assumption is only valid for some data sets. This inference is only
+  /// performed when there is no explicit @c return_number point attribute.
+  ///
+  /// Must be enabled before calling @c open() as this has no effect on an open data stream.
+  ///
+  /// @param enable True to allow infering the return number.
+  void enableReturnNumberInference(bool enable);
+
+  /// Check if return number inference is enabled. See @c enableReturnNumberInference() .
+  bool returnNumberInference() const;
+
   /// Open the given point cloud and trajectory file pair. Both file must be valid. The @p sample_file_path must be a
   /// point cloud file, while @p trajectory_file_path can be either a point cloud file or a text trajectory.
   ///
@@ -152,8 +164,11 @@ public:
   /// True if the input data has colour channels.
   bool hasColour() const;
 
+  /// True if the input data has lidar point return numbers.
+  bool hasReturnNumber() const;
+
   /// Attempt to preload the given number of points. Use zero to preload all. This does nothing with PDAL 1.6 as
-  /// streaming is not supported in that version.
+  /// streaming is not supported in that version. PDAL 1.8 allow streaming.
   void preload(size_t point_count = 0);
 
   /// Get the next point, sensor position and timestamp.

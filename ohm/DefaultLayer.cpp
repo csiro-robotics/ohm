@@ -8,6 +8,7 @@
 #include "MapLayer.h"
 #include "MapLayout.h"
 #include "VoxelMean.h"
+#include "VoxelSecondarySample.h"
 #include "VoxelTsdf.h"
 
 #include <algorithm>
@@ -64,6 +65,10 @@ const char *incidentNormalLayerName()
 const char *tsdfLayerName()
 {
   return "tsdf";
+}
+const char *secondarySamplesLayerName()
+{
+  return "secondary_samples";
 }
 }  // namespace default_layer
 
@@ -299,7 +304,32 @@ MapLayer *addTsdf(MapLayout &layout)
 
   if (layer->voxelByteSize() != sizeof(VoxelTsdf))
   {
-    throw std::runtime_error("VoxelMean layer size mismatch");
+    throw std::runtime_error("VoxelTsdf layer size mismatch");
+  }
+
+  return layer;
+}
+
+MapLayer ohm_API *addSecondarySamples(MapLayout &layout)
+{
+  int layer_index = layout.layerIndex(default_layer::secondarySamplesLayerName());
+  if (layer_index != -1)
+  {
+    // Already present.
+    return layout.layerPtr(layer_index);
+  }
+
+  // Add the mean layer.
+  MapLayer *layer = layout.addLayer(default_layer::secondarySamplesLayerName());
+
+  const size_t clear_value = 0u;
+  layer->voxelLayout().addMember("m2", DataType::kFloat, clear_value);
+  layer->voxelLayout().addMember("range_mean", DataType::kUInt16, clear_value);
+  layer->voxelLayout().addMember("count", DataType::kUInt16, clear_value);
+
+  if (layer->voxelByteSize() != sizeof(VoxelSecondarySample))
+  {
+    throw std::runtime_error("VoxelSecondarySample layer size mismatch");
   }
 
   return layer;
