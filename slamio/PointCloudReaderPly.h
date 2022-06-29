@@ -20,7 +20,7 @@ namespace slamio
 struct RPlyHandle;
 
 /// A PLY point cloud loading using miniply.
-class PointCloudReaderPly : public PointCloudReader
+class slamio_API PointCloudReaderPly : public PointCloudReader
 {
 public:
   /// Set of relevant PLY point properties to try read.
@@ -43,7 +43,7 @@ public:
   };
 
   /// User data structure while reading from rply library.
-  struct ReadSampleData
+  struct slamio_API ReadSampleData
   {
     /// Next point property values.
     std::array<double, unsigned(PlyProperty::kCount)> properties;

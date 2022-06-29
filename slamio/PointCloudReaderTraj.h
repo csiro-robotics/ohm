@@ -29,7 +29,7 @@ namespace slamio
 /// - Data line format is : `time x y z <additional_fields>`
 /// - Data in a line are space delimited
 /// - @c `<additional_fields>` are ignored
-class PointCloudReaderTraj : public PointCloudReader
+class slamio_API PointCloudReaderTraj : public PointCloudReader
 {
 public:
   PointCloudReaderTraj();

@@ -13,13 +13,14 @@ if(MSVC)
   set_target_properties(ohminfo PROPERTIES DEBUG_POSTFIX "d")
 endif(MSVC)
 
-target_include_directories(ohminfo SYSTEM
+target_link_libraries(ohminfo PUBLIC ohm ohmutil)
+
+target_link_libraries(ohminfo
   PRIVATE
-    "${GLM_INCLUDE_DIR}"
-    "${ZLIB_INCLUDE_DIRS}"
+    glm::glm
+    $<BUILD_INTERFACE:ZLIB::ZLIB>
 )
 
-target_link_libraries(ohminfo PUBLIC ohm ohmutil ${ZLIB_LIBRARIES})
 clang_tidy_target(ohminfo)
 
 source_group("source" REGULAR_EXPRESSION ".*$")

@@ -30,17 +30,17 @@ generate_export_header(ohmtools
 
 target_link_libraries(ohmtools PUBLIC ohm ohmheightmap ohmutil)
 
+target_link_libraries(ohmtools
+  PUBLIC
+    glm::glm
+)
+
 target_include_directories(ohmtools
   PUBLIC
     $<INSTALL_INTERFACE:${OHM_PREFIX_INCLUDE}>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/ohmtools>
     $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}>
-)
-
-target_include_directories(ohmtools SYSTEM
-  PUBLIC
-    "${GLM_INCLUDE_DIR}"
 )
 
 install(TARGETS ohmtools EXPORT ${CMAKE_PROJECT_NAME}-config-targets

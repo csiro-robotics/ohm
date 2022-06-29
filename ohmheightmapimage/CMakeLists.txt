@@ -6,6 +6,9 @@ find_package(OpenGL REQUIRED)
 find_package(GLEW REQUIRED)
 find_package(GLM REQUIRED)
 find_package(glfw3 REQUIRED)
+if(OHM_THREADS)
+  find_tbb()
+endif(OHM_THREADS)
 
 configure_file(OhmHeightmapImageConfig.in.h "${CMAKE_CURRENT_BINARY_DIR}/ohmheightmapimage/OhmHeightmapImageConfig.h")
 
@@ -29,12 +32,17 @@ generate_export_header(ohmheightmapimage
       STATIC_DEFINE OHMTOOLS_STATIC)
 
 target_link_libraries(ohmheightmapimage PUBLIC ohmheightmap ohm ohmutil)
-target_link_libraries(ohmheightmapimage PUBLIC
-  OpenGL::GL
-  OpenGL::GLU
-  ${GLEW_LIBRARIES}
-  glfw
-  )# OpenGL::GLX)
+target_link_libraries(ohmheightmapimage
+  PUBLIC
+    glm::glm
+    OpenGL::GL
+    OpenGL::GLU
+  PRIVATE
+    $<BUILD_INTERFACE:$<$<BOOL:${OHM_TES_DEBUG}>:3es::3es-core>>
+    $<BUILD_INTERFACE:GLEW::GLEW>
+    $<BUILD_INTERFACE:glfw>
+    $<BUILD_INTERFACE:$<$<BOOL:${OHM_THREADS}>:TBB::tbb>>
+)
 
 target_include_directories(ohmheightmapimage
   PUBLIC
@@ -44,17 +52,10 @@ target_include_directories(ohmheightmapimage
     $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}>
 )
 
-target_include_directories(ohmheightmapimage SYSTEM
-  PUBLIC
-    "${GLM_INCLUDE_DIR}"
-    "${GLEW_INCLUDE_DIRS}"
+target_include_directories(ohmheightmapimage
+  SYSTEM PRIVATE
+    $<$<NOT:$<BOOL:${OHM_TES_DEBUG}>>:${3ES_INCLUDE_DIRS}>
 )
-
-if(OHM_TES_DEBUG)
-  target_link_libraries(ohmheightmapimage PUBLIC 3es::3es-core)
-else(OHM_TES_DEBUG)
-  target_include_directories(ohmheightmapimage SYSTEM PRIVATE "${3ES_INCLUDE_DIRS}")
-endif(OHM_TES_DEBUG)
 
 install(TARGETS ohmheightmapimage EXPORT ${CMAKE_PROJECT_NAME}-config-targets
   LIBRARY DESTINATION lib

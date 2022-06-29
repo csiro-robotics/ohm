@@ -65,6 +65,12 @@ generate_export_header(ohmutil
       EXPORT_FILE_NAME ohmutil/OhmUtilExport.h
       STATIC_DEFINE ohmutil_STATIC)
 
+target_link_libraries(ohmutil PUBLIC glm::glm)
+# Kazys: Why did this suddenly become necessary on my Linux desktop?
+if(TARGET Threads::Threads)
+  target_link_libraries(ohmutil PUBLIC Threads::Threads)
+endif()
+
 target_include_directories(ohmutil
   PUBLIC
     $<INSTALL_INTERFACE:${OHM_PREFIX_INCLUDE}>
@@ -75,14 +81,8 @@ target_include_directories(ohmutil
 
 target_include_directories(ohmutil SYSTEM
   PUBLIC
-  "${GLM_INCLUDE_DIR}"
     $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/3rdparty>
 )
-
-# Kazys: Why did this suddenly become necessary on my Linux desktop?
-if(TARGET Threads::Threads)
-  target_link_libraries(ohmutil PUBLIC Threads::Threads)
-endif()
 
 install(TARGETS ohmutil EXPORT ${CMAKE_PROJECT_NAME}-config-targets
   LIBRARY DESTINATION lib

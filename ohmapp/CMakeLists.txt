@@ -61,7 +61,11 @@ function(_ohmapp_setup_target TARGET_NAME OHM_GPU)
     set(EXPORT_PREFIX "ohmappgpu")
     set(EXPORT_STATIC "OHMAPPGPU")
   endif(OHM_GPU STREQUAL "cpu")
-  target_link_libraries(${TARGET_NAME} PUBLIC ${OHMGPU_LIBRARY} PRIVATE ${GPUTIL_LIBRARY})
+  target_link_libraries(${TARGET_NAME}
+    PUBLIC
+      ${OHMGPU_LIBRARY}
+    PRIVATE
+      ${GPUTIL_LIBRARY})
 
   target_include_directories(${TARGET_NAME}
     PUBLIC
@@ -89,19 +93,19 @@ function(_ohmapp_setup_target TARGET_NAME OHM_GPU)
   )
 endfunction(_ohmapp_setup_target)
 
-add_library(ohmapp ${SOURCES})
+add_library(ohmapp STATIC ${SOURCES})
 _ohmapp_setup_target(ohmapp "cpu")
 target_link_libraries(ohmapp PUBLIC ohm ohmutil ohmtools slamio)
 
 # Add GPU sources and libarries
 list(APPEND SOURCE OhmAppGpu.cpp OhmAppGpu.h)
 if(OHM_BUILD_CUDA)
-  add_library(ohmappcuda ${SOURCES_GPU})
+  add_library(ohmappcuda STATIC ${SOURCES_GPU})
   _ohmapp_setup_target(ohmappcuda "cuda")
   target_link_libraries(ohmappcuda PUBLIC ohmapp)
 endif(OHM_BUILD_CUDA)
 if(OHM_BUILD_OPENCL)
-  add_library(ohmappocl ${SOURCES_GPU})
+  add_library(ohmappocl STATIC ${SOURCES_GPU})
   _ohmapp_setup_target(ohmappocl "ocl")
   target_link_libraries(ohmappocl PUBLIC ohmapp)
 endif(OHM_BUILD_OPENCL)

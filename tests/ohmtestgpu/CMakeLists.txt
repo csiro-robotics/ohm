@@ -45,23 +45,22 @@ function(_ohmtestgpu_setup GPU)
       $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}>
   )
 
-  target_include_directories(ohmtest${GPU} SYSTEM
-    PRIVATE
-      "${GTEST_INCLUDE_DIRS}" # Must include downloaded GTest before potentially including system directories.
-      "${GLM_INCLUDE_DIR}"
-  )
-
   target_link_libraries(ohmtest${GPU} PUBLIC ohmtestcommon ohmtools ohm${GPU} gputil${GPU} ohmutil ${GTEST_LIBRARIES} ${GTEST_MAIN_LIBRARIES})
 
-  if(OHM_TES_DEBUG)
-    target_link_libraries(ohmtest${GPU} PUBLIC 3es::3es-core)
-  else(OHM_TES_DEBUG)
-    target_include_directories(ohmtest${GPU} SYSTEM PRIVATE "${3ES_INCLUDE_DIRS}")
-  endif(OHM_TES_DEBUG)
+  target_link_libraries(ohmtest${GPU}
+    PRIVATE
+      GTest::gtest
+      GTest::gtest_main
+      glm::glm
+      $<BUILD_INTERFACE:$<$<BOOL:${OHM_TES_DEBUG}>:3es::3es-core>>
+      $<BUILD_INTERFACE:$<$<BOOL:${WITH_EIGEN}>:Eigen3::Eigen>>
+  )
 
-  if(Eigen3_FOUND)
-    target_link_libraries(ohmtest${GPU} PRIVATE Eigen3::Eigen)
-  endif(Eigen3_FOUND)
+
+  target_include_directories(ohmtestcommon
+    SYSTEM PUBLIC
+      $<$<NOT:$<BOOL:${OHM_TES_DEBUG}>>:${3ES_INCLUDE_DIRS}>
+    )
 
   add_test(NAME ohmtest${GPU} COMMAND ohmtest${GPU} --gtest_output=xml:test-reports/)
 endfunction(_ohmtestgpu_setup)

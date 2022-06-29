@@ -24,19 +24,21 @@ target_include_directories(ohmtestheightmap
     $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}>
 )
 
-target_include_directories(ohmtestheightmap SYSTEM
-  PRIVATE
-    "${GTEST_INCLUDE_DIRS}" # Must include downloaded GTest before potentially including system directories.
-    "${GLM_INCLUDE_DIR}"
-)
-
 target_link_libraries(ohmtestheightmap PUBLIC ohmtestcommon ohmtools ohmheightmap ohmutil ${GTEST_LIBRARIES} ${GTEST_MAIN_LIBRARIES})
 
-if(OHM_TES_DEBUG)
-  target_link_libraries(ohmtestheightmap PUBLIC 3es::3es-core)
-else(OHM_TES_DEBUG)
-  target_include_directories(ohmtestheightmap SYSTEM PRIVATE "${3ES_INCLUDE_DIRS}")
-endif(OHM_TES_DEBUG)
+target_link_libraries(ohmtestheightmap
+  PRIVATE
+    GTest::gtest
+    GTest::gtest_main
+    glm::glm
+    $<BUILD_INTERFACE:$<$<BOOL:${OHM_TES_DEBUG}>:3es::3es-core>>
+    $<BUILD_INTERFACE:$<$<BOOL:${WITH_EIGEN}>:Eigen3::Eigen>>
+)
+
+target_include_directories(ohmtestheightmap
+  SYSTEM PRIVATE
+    $<$<NOT:$<BOOL:${OHM_TES_DEBUG}>>:${3ES_INCLUDE_DIRS}>
+  )
 
 add_test(NAME ohmtestheightmap COMMAND ohmtestheightmap --gtest_output=xml:test-reports/)
 

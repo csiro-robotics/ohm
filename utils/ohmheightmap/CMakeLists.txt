@@ -16,19 +16,21 @@ if(MSVC)
   set_target_properties(ohmheightmaputil PROPERTIES DEBUG_POSTFIX "d")
 endif(MSVC)
 
-target_include_directories(ohmheightmaputil SYSTEM
+target_link_libraries(ohmheightmaputil
+  PUBLIC
+    ohmheightmap
+    ohmtools
+    ohmutil
   PRIVATE
-    "${GLM_INCLUDE_DIR}"
-    "${ZLIB_INCLUDE_DIRS}"
+    glm::glm
+    $<BUILD_INTERFACE:ZLIB::ZLIB>
 )
 
-target_link_libraries(ohmheightmaputil PUBLIC ohmheightmap ohmtools ohmutil ${ZLIB_LIBRARIES})
+target_include_directories(ohmheightmaputil
+  SYSTEM PRIVATE
+    $<$<NOT:$<BOOL:${OHM_TES_DEBUG}>>:${3ES_INCLUDE_DIRS}>
+)
 
-if(OHM_TES_DEBUG)
-  # target_link_libraries(ohmheightmaputil PUBLIC 3es::3es-core)
-else(OHM_TES_DEBUG)
-  target_include_directories(ohmheightmaputil SYSTEM PRIVATE "${3ES_INCLUDE_DIRS}")
-endif(OHM_TES_DEBUG)
 clang_tidy_target(ohmheightmaputil)
 
 source_group("source" REGULAR_EXPRESSION ".*$")

@@ -73,7 +73,7 @@ set(OHM_PREFIX_PACKAGE share/${CMAKE_PROJECT_NAME}/cmake) # For catkin interoper
 set(OHM_PREFIX_INCLUDE include/ohm)
 
 # General, required library
-find_package(GLM REQUIRED)
+find_package(glm CONFIG REQUIRED)
 
 # Look for OpenCL to setup OpenCL build options.
 find_package(OpenCL QUIET)
@@ -203,8 +203,6 @@ endif(OHM_TES_DEBUG)
 # Resolve which point cloud library to use.
 # TODO: Migrate to PDAL only once Windows developer setup instructions for PDAL are resolved.
 find_package(PDAL QUIET)
-find_package(LIBLAS QUIET)
-find_package(LASZIP QUIET)
 
 set(WITH_PDAL_INIT OFF)
 if(PDAL_FOUND)

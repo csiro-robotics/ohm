@@ -42,7 +42,7 @@ namespace slamio
 ///   - timestamp
 ///   - time
 /// - Data in a line are space delimited
-class PointCloudReaderXyz : public PointCloudReader
+class slamio_API PointCloudReaderXyz : public PointCloudReader
 {
 public:
   PointCloudReaderXyz();

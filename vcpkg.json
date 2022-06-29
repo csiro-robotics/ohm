@@ -1,0 +1,55 @@
+{
+  "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg/master/scripts/vcpkg.schema.json",
+  "name": "ohm",
+  "version": "0.2.0",
+  "default-features": [
+    "eigen",
+    "tbb",
+    "test"
+  ],
+  "features": {
+    "eigen": {
+      "description": "Enable Eigen support for faster Geometry operation.",
+      "dependencies": [
+        "eigen3"
+      ]
+    },
+    "heightmap-image": {
+      "description": "Support heightmap rendering to image.",
+      "dependencies": [
+        "glew",
+        "glfw3",
+        "libpng",
+        "opengl"
+      ]
+    },
+    "pdal": {
+      "description": "Enable PDAL point cloud loader.",
+      "dependencies": [
+        {
+          "name": "pdal",
+          "features": [
+            "draco",
+            "e57"
+          ]
+        }
+      ]
+    },
+    "tbb": {
+      "description": "Build with Intel Threading Building Blocks.",
+      "dependencies": [
+        "tbb"
+      ]
+    },
+    "test": {
+      "description": "With unit tests",
+      "dependencies": [
+        "gtest"
+      ]
+    }
+  },
+  "dependencies": [
+    "glm",
+    "zlib"
+  ]
+}

@@ -65,6 +65,18 @@ clang_tidy_target(ohmheightmap)
 
 target_link_libraries(ohmheightmap PUBLIC ohm ohmutil)
 
+target_link_libraries(ohmheightmap
+  PUBLIC
+    glm::glm
+  PRIVATE
+    # Link static and header only dependencies as a private link target under the BUILD_INTERFACE. This imports inlcude
+    # directories and links the libraries, but does not chain the dependency downstream.
+    $<BUILD_INTERFACE:$<$<BOOL:${OHM_TES_DEBUG}>:3es::3es-core>>
+    $<BUILD_INTERFACE:$<$<BOOL:${WITH_EIGEN}>:Eigen3::Eigen>>
+    $<BUILD_INTERFACE:$<$<BOOL:${OHM_THREADS}>:TBB::tbb>>
+    $<BUILD_INTERFACE:ZLIB::ZLIB>
+)
+
 target_include_directories(ohmheightmap
   PUBLIC
     $<INSTALL_INTERFACE:${OHM_PREFIX_INCLUDE}>
@@ -75,29 +87,13 @@ target_include_directories(ohmheightmap
     $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}>
 )
 
-if(OHM_THREADS)
-  target_include_directories(ohmheightmap SYSTEM PRIVATE ${TBB_INCLUDE_DIRS})
-  target_link_libraries(ohmheightmap PUBLIC ${TBB_LIBRARIES})
-endif(OHM_THREADS)
-
 target_include_directories(ohmheightmap SYSTEM
-  PUBLIC "${GLM_INCLUDE_DIR}"
-  PRIVATE "${ZLIB_INCLUDE_DIR}"
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/3rdparty>
+  PRIVATE
+    # Link static and header only dependencies as a private link target under the BUILD_INTERFACE. This imports inlcude
+    # directories and links the libraries, but does not chain the dependency downstream.
+    "${CMAKE_CURRENT_LIST_DIR}/3rdparty"
+    $<$<NOT:$<BOOL:${OHM_TES_DEBUG}>>:${3ES_INCLUDE_DIRS}>
 )
-
-if(WITH_EIGEN)
-  # Link Eigen as a private link target under the BUILD_INTERFACE. This allows Eigen definitions to be set,
-  # imports inlcude directories, but does not chain the dependency downstream, which is fine for static, or header only
-  # libraries (Eigen being header only).
-  target_link_libraries(ohmheightmap PRIVATE $<BUILD_INTERFACE:Eigen3::Eigen>)
-endif(WITH_EIGEN)
-
-if(OHM_TES_DEBUG)
-  target_link_libraries(ohmheightmap PUBLIC 3es::3es-core)
-else(OHM_TES_DEBUG)
-  target_include_directories(ohmheightmap SYSTEM PRIVATE "${3ES_INCLUDE_DIRS}")
-endif(OHM_TES_DEBUG)
 
 generate_export_header(ohmheightmap
   EXPORT_MACRO_NAME ohmheightmap_API

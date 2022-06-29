@@ -49,12 +49,12 @@ function(_ohmpop_setup GPU_MODE)
       $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}>
   )
 
-  target_include_directories(${TARGET_NAME} SYSTEM
-    PRIVATE
-      "${GLM_INCLUDE_DIR}"
-  )
-
   target_link_libraries(${TARGET_NAME} PRIVATE ${OHMLIB_NAME} ohmapp slamio ohmtools ohmutil)
+
+  target_link_libraries(${TARGET_NAME}
+    PRIVATE
+      glm::glm
+  )
 
   if(GPU_MODE STREQUAL "cpu")
     target_compile_definitions(${TARGET_NAME} PRIVATE "-DOHMPOP_CPU")

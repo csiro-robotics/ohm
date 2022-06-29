@@ -3,3 +3,4 @@
 build*/
 # Visual Studio output directory for CMake projects.
 out/
+vcpkg_installed/

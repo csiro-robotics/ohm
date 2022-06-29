@@ -119,7 +119,15 @@ function(_ohmgpu_setup_target TARGET_NAME GPUTIL_LIBRARY OHM_GPU)
   # symbols or not. This puts us in a position where it could either be ohmcuda_EXPORTS or ohmocl_EXPORTS depending
   # on which targets are enabled. We build both the same way though, so define both symbols for all builds.
   target_compile_definitions(${TARGET_NAME} PRIVATE "-Dohmcuda_EXPORTS" "-Dohmocl_EXPORTS")
-  target_link_libraries(${TARGET_NAME} PUBLIC ohm ohmutil PRIVATE ${GPUTIL_LIBRARY})
+  target_link_libraries(${TARGET_NAME}
+    PUBLIC
+      ohm
+      ohmutil
+    PRIVATE
+      ${GPUTIL_LIBRARY}
+      $<BUILD_INTERFACE:$<$<BOOL:${OHM_TES_DEBUG}>:3es::3es-core>>
+      $<BUILD_INTERFACE:$<$<BOOL:${OHM_THREADS}>:TBB::tbb>>
+    )
 
   target_include_directories(${TARGET_NAME}
     PUBLIC
@@ -134,17 +142,13 @@ function(_ohmgpu_setup_target TARGET_NAME GPUTIL_LIBRARY OHM_GPU)
       # Otherwise we have a lot of book keeping in managing include statements.
       $<BUILD_INTERFACE:${OHM_SOURCE_DIR}>
       $<BUILD_INTERFACE:${OHM_SOURCE_DIR}/private>
-  )
+    )
 
-  if(OHM_THREADS)
-    target_include_directories(${TARGET_NAME} SYSTEM PRIVATE ${TBB_INCLUDE_DIRS})
-    target_link_libraries(${TARGET_NAME} PUBLIC ${TBB_LIBRARIES})
-  endif(OHM_THREADS)
-  if(OHM_TES_DEBUG)
-    target_link_libraries(${TARGET_NAME} PUBLIC 3es::3es-core)
-  else(OHM_TES_DEBUG)
-    target_include_directories(${TARGET_NAME} SYSTEM PRIVATE "${3ES_INCLUDE_DIRS}")
-  endif(OHM_TES_DEBUG)
+  target_include_directories(${TARGET_NAME}
+    SYSTEM PRIVATE
+    "${CMAKE_CURRENT_LIST_DIR}/3rdparty"
+      $<$<NOT:$<BOOL:${OHM_TES_DEBUG}>>:${3ES_INCLUDE_DIRS}>
+    )
 
   clang_tidy_target(${TARGET_NAME} EXCLUDE_MATCHES ".*\.cl")
 

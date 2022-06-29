@@ -25,21 +25,23 @@ function(_ohmquery_setup GPU_MODE)
       $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}>
   )
 
-  target_include_directories(${TARGET_NAME} SYSTEM
-    PRIVATE
-      "${GLM_INCLUDE_DIR}"
+  target_include_directories(${TARGET_NAME}
+    SYSTEM PRIVATE
+      $<$<NOT:$<BOOL:${OHM_TES_DEBUG}>>:${3ES_INCLUDE_DIRS}>
   )
 
-  target_link_libraries(${TARGET_NAME} PUBLIC ohm${GPU_MODE} gputil${GPU_MODE} ohmutil)
-  if(GPU_MODE STREQUAL "ocl")
-    target_link_libraries(${TARGET_NAME} PUBLIC clu)
-  endif(GPU_MODE STREQUAL "ocl")
+  target_link_libraries(${TARGET_NAME}
+    PUBLIC
+      ohm${GPU_MODE}
+      gputil${GPU_MODE}
+      ohmutil
+      $<$<STREQUAL:${GPU_MODE},"ocl">:clu>
+    PRIVATE
+      $<BUILD_INTERFACE:$<$<BOOL:${OHM_TES_DEBUG}>:3es::3es-core>>
+      glm::glm
+      $<BUILD_INTERFACE:ZLIB::ZLIB>
+  )
 
-  if(OHM_TES_DEBUG)
-    target_link_libraries(${TARGET_NAME} PUBLIC 3es::3es-core)
-  else(OHM_TES_DEBUG)
-    target_include_directories(${TARGET_NAME} SYSTEM PRIVATE "${3ES_INCLUDE_DIRS}")
-  endif(OHM_TES_DEBUG)
 
   install(TARGETS ${TARGET_NAME} DESTINATION bin)
 endfunction(_ohmquery_setup)

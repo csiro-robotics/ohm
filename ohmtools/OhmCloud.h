@@ -410,8 +410,9 @@ size_t ohmtools_API saveClearanceCloud(const std::string &file_name, const ohm::
 /// @param map The map to save voxels from.
 /// @param surface_distance Surface distance threshold to export with.
 /// @param prog Optional function called to report on progress.
-size_t saveTsdfCloud(const std::string &file_name, const ohm::OccupancyMap &map, float surface_distance,
-                     const ColourSelectTsdf &colour_select = {}, const ProgressCallback &prog = ProgressCallback());
+size_t ohmtools_API saveTsdfCloud(const std::string &file_name, const ohm::OccupancyMap &map, float surface_distance,
+                                  const ColourSelectTsdf &colour_select = {},
+                                  const ProgressCallback &prog = ProgressCallback());
 
 /// Save a point cloud from TSDF layer data.
 ///
@@ -419,8 +420,9 @@ size_t saveTsdfCloud(const std::string &file_name, const ohm::OccupancyMap &map,
 /// @param map The map to save voxels from.
 /// @param surface_distance Surface distance threshold to export with.
 /// @param prog Optional function called to report on progress.
-size_t saveTsdfVoxels(const std::string &file_name, const ohm::OccupancyMap &map, float surface_distance,
-                      const ColourSelectTsdf &colour_select = {}, const ProgressCallback &prog = ProgressCallback());
+size_t ohmtools_API saveTsdfVoxels(const std::string &file_name, const ohm::OccupancyMap &map, float surface_distance,
+                                   const ColourSelectTsdf &colour_select = {},
+                                   const ProgressCallback &prog = ProgressCallback());
 }  // namespace ohmtools
 
 #endif  // OHMTOOLS_OHMCLOUD_H

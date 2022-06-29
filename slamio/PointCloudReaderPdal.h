@@ -28,7 +28,7 @@ class PointStream;
 ///
 /// Note: streaming cannot be interrupted once started. This means that the program cannot exit until file loading
 /// has completed.
-class PointCloudReaderPdal : public PointCloudReader
+class slamio_API PointCloudReaderPdal : public PointCloudReader
 {
 public:
   PointCloudReaderPdal();

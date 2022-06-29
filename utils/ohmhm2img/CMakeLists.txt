@@ -13,13 +13,15 @@ if(MSVC)
   set_target_properties(ohmhm2img PROPERTIES DEBUG_POSTFIX "d")
 endif(MSVC)
 
-target_include_directories(ohmhm2img SYSTEM
+target_link_libraries(ohmhm2img PUBLIC ohmheightmap ohmheightmapimage)
+
+target_link_libraries(ohmhm2img
   PRIVATE
-    "${GLM_INCLUDE_DIR}"
-    "${ZLIB_INCLUDE_DIRS}"
+    glm::glm
+    $<BUILD_INTERFACE:PNG::PNG>
+    $<BUILD_INTERFACE:ZLIB::ZLIB>
 )
 
-target_link_libraries(ohmhm2img PUBLIC ohmheightmap ohmheightmapimage PNG::PNG)
 clang_tidy_target(ohmhm2img)
 
 source_group("source" REGULAR_EXPRESSION ".*$")

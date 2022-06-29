@@ -242,7 +242,18 @@ set(PUBLIC_HEADERS
 add_library(ohm ${SOURCES})
 clang_tidy_target(ohm)
 
-target_link_libraries(ohm PUBLIC ${ZLIB_LIBRARIES} logutil ohmutil)
+target_link_libraries(ohm
+  PUBLIC
+    logutil
+    ohmutil
+    glm::glm
+    # Link static and header only dependencies as a private link target under the BUILD_INTERFACE. This imports inlcude
+    # directories and links the libraries, but does not chain the dependency downstream.
+    $<BUILD_INTERFACE:$<$<BOOL:${OHM_TES_DEBUG}>:3es::3es-core>>
+    $<BUILD_INTERFACE:$<$<BOOL:${WITH_EIGEN}>:Eigen3::Eigen>>
+    $<BUILD_INTERFACE:$<$<BOOL:${OHM_THREADS}>:TBB::tbb>>
+    $<BUILD_INTERFACE:ZLIB::ZLIB>
+)
 
 target_include_directories(ohm
   PUBLIC
@@ -254,29 +265,11 @@ target_include_directories(ohm
     $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}>
 )
 
-if(OHM_THREADS)
-  target_include_directories(ohm SYSTEM PRIVATE ${TBB_INCLUDE_DIRS})
-  target_link_libraries(ohm PUBLIC ${TBB_LIBRARIES})
-endif(OHM_THREADS)
-
-target_include_directories(ohm SYSTEM
-  PUBLIC "${GLM_INCLUDE_DIR}"
-  PRIVATE "${ZLIB_INCLUDE_DIR}"
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/3rdparty>
+target_include_directories(ohm
+  SYSTEM PRIVATE
+    "${CMAKE_CURRENT_LIST_DIR}/3rdparty"
+    $<$<NOT:$<BOOL:${OHM_TES_DEBUG}>>:${3ES_INCLUDE_DIRS}>
 )
-
-if(WITH_EIGEN)
-  # Link Eigen as a private link target under the BUILD_INTERFACE. This allows Eigen definitions to be set,
-  # imports inlcude directories, but does not chain the dependency downstream, which is fine for static, or header only
-  # libraries (Eigen being header only).
-  target_link_libraries(ohm PRIVATE $<BUILD_INTERFACE:Eigen3::Eigen>)
-endif(WITH_EIGEN)
-
-if(OHM_TES_DEBUG)
-  target_link_libraries(ohm PUBLIC 3es::3es-core)
-else(OHM_TES_DEBUG)
-  target_include_directories(ohm SYSTEM PRIVATE "${3ES_INCLUDE_DIRS}")
-endif(OHM_TES_DEBUG)
 
 generate_export_header(ohm
   EXPORT_MACRO_NAME ohm_API
