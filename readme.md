@@ -101,3 +101,22 @@ While this can be changed by explicitly changing `OpenCL_INCLUDE_DIR` and `OpenC
 - [GPU algorithm overview](./docs/gpu/docgpualgorithm.md)
 - [GPU technical details and performance tips](./docs/gpu/docgpudetail.md)
 - [Built in voxel layers](./docs/docvoxellayers.md)
+
+## Citation
+
+Please use the following (pre publication) citation if you use OHM in your research.
+
+```txt
+@misc{https://doi.org/10.48550/arxiv.2206.06079,
+  doi = {10.48550/ARXIV.2206.06079},
+  url = {https://arxiv.org/abs/2206.06079},
+  author = {Stepanas, Kazys and Williams, Jason and Hernández, Emili and Ruetz, Fabio and Hines, Thomas},
+  keywords = {Computer Vision and Pattern Recognition (cs.CV), Robotics (cs.RO), FOS: Computer and information sciences, FOS: Computer and information sciences, I.2.9 Robotics},
+  title = {OHM: GPU Based Occupancy Map Generation},
+  publisher = {arXiv},
+  year = {2022},
+  copyright = {arXiv.org perpetual, non-exclusive license}
+}
+```
+
+This citation will be updated after publication.
