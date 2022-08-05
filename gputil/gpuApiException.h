@@ -33,6 +33,10 @@ public:
   /// @param other Object to move.
   ApiException(ApiException &&other) noexcept;
 
+  /// Copy constructor.
+  /// @param other Object to copy.
+  ApiException(const ApiException &other) noexcept;
+
   /// A helper function which converts the @p error_code into a string message.
   /// @param error_code The GPU API error code to retrieve a message for - e.g., a @c cudaError_t .
   /// @return A string which identifies the @p error_code . Some codes may be unknown.

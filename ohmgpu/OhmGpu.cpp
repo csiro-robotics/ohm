@@ -66,7 +66,7 @@ bool configureGpuFromArgsInternal(int argc, const char **argv, bool show_device)
       {
         if (show_device)
         {
-          ohm::logger::info(g_gpu_device.description(), '\n');
+          ohm::logger::info("Selected device ", g_gpu_device.description(), '\n');
         }
 
 #if OHM_GPU == OHM_GPU_OPENCL

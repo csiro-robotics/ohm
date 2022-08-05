@@ -27,6 +27,11 @@ Exception::Exception(Exception &&other) noexcept
 {}
 
 
+Exception::Exception(const Exception &other) noexcept
+  : message_(other.message_)
+{}
+
+
 Exception::~Exception() = default;
 
 

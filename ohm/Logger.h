@@ -6,7 +6,7 @@
 #ifndef OHM_LOGGER_H
 #define OHM_LOGGER_H
 
-#include "OhmConfig.h"
+#include <ohm/OhmConfig.h>
 
 #include "LoggerDetail.h"
 

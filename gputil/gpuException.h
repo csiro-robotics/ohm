@@ -25,9 +25,14 @@ public:
   /// @param line_number Optional line number where the exception was thrown.
   Exception(const std::string &msg = std::string(),  // NOLINT(google-explicit-constructor)
             const std::string &filename = std::string(), int line_number = 0);
+
   /// Move constructor.
   /// @param other The object to move.
   Exception(Exception &&other) noexcept;
+
+  /// Copy constructor.
+  /// @param other The object to copy.
+  Exception(const Exception &other) noexcept;
 
   /// Destructor.
   ~Exception() override;

@@ -10,6 +10,8 @@
 #include "GpuMap.h"
 #include "GpuTransformSamples.h"
 
+#include <ohmutil/OhmUtil.h>
+
 #include <ohm/DefaultLayer.h>
 #include <ohm/MapLayer.h>
 #include <ohm/OccupancyMap.h>
@@ -205,11 +207,9 @@ void reinitialiseGpuCache(GpuCache *gpu_cache, OccupancyMap &map, unsigned flags
     }
     catch (const gputil::ApiException &exception)
     {
-      const double estimated_bytes = estimated_mem;
-      const double estimated_kibibytes = estimated_bytes / (1 << 10);
-      const double estimated_mibibytes = estimated_kibibytes / (1 << 10);
-      const std::string message = "Failed to create cache, expected to allocated about " +
-                                  std::to_string(estimated_mibibytes) + " MiB of GPU memory. " + exception.what();
+      const util::Bytes estimated_bytes{ estimated_mem, util::ByteMagnitude::kByte };
+      const std::string message = "Failed to create cache, expected to allocated about " + estimated_bytes.toString() +
+                                  " of GPU memory. " + exception.what();
       std::throw_with_nested(gputil::Exception(message, __FILE__, __LINE__));
     }
   }

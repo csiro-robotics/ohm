@@ -6,7 +6,7 @@
 #ifndef OHMUTIL_OHMUTIL_H
 #define OHMUTIL_OHMUTIL_H
 
-#include "OhmUtilExport.h"
+#include <ohmutil/OhmUtilExport.h>
 
 #include <array>
 #include <chrono>

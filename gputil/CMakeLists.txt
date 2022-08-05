@@ -122,7 +122,7 @@ if(OHM_BUILD_OPENCL)
       $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/cl>
   )
 
-  target_link_libraries(gputilocl PUBLIC clu)
+  target_link_libraries(gputilocl PUBLIC ohm clu)
   _gputil_setup_library(gputilocl ${GPUTIL_TYPE_OPENCL})
 endif(OHM_BUILD_OPENCL)
 
@@ -177,6 +177,7 @@ if(OHM_BUILD_CUDA)
     add_library(gputilcuda ${SOURCES} ${SOURCES_CUDA})
     target_link_libraries(gputilcuda PUBLIC "${OHM_CUDA_LIBRARY}")
   endif(OHM_USE_DEPRECATED_CMAKE_CUDA)
+  target_link_libraries(gputilcuda PUBLIC ohm)
 
   clang_tidy_target(gputilcuda EXCLUDE_MATCHES ".*\.cl")
   target_include_directories(gputilcuda SYSTEM
