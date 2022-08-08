@@ -50,6 +50,11 @@ enum GpuFlag : unsigned
 ///
 /// Ignored if the @p map already is GPU enabled, simply returning the existing @c GpuMap.
 ///
+/// @exception gputil::Exception If a @c gputil::ApiException is thrown when
+///                              allocating memory for the cache it will be
+///                              rethrown with some extra information as a
+///                              @c gputil::Exception .
+///
 /// @param map The map to enable GPU usage on.
 /// @return The @c GpuCache for the map. Null if GPU code is not enabled.
 GpuCache ohmgpu_API *enableGpu(OccupancyMap &map);
@@ -57,6 +62,11 @@ GpuCache ohmgpu_API *enableGpu(OccupancyMap &map);
 /// Enable GPU usage for the given @p map.
 ///
 /// Ignored if the @p map already is GPU enabled.
+///
+/// @exception gputil::Exception If a @c gputil::ApiException is thrown when
+///                              allocating memory for the cache it will be
+///                              rethrown with some extra information as a
+///                              @c gputil::Exception .
 ///
 /// @param map The map to enable GPU usage on.
 /// @param target_gpu_mem_size Target GPU memory usage. This is split amongst the active, default layers.
