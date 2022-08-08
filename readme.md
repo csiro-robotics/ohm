@@ -104,19 +104,18 @@ While this can be changed by explicitly changing `OpenCL_INCLUDE_DIR` and `OpenC
 
 ## Citation
 
-Please use the following (pre publication) citation if you use OHM in your research.
+Please use the following (early access) citation if you use OHM in your research.
 
 ```txt
-@misc{https://doi.org/10.48550/arxiv.2206.06079,
-  doi = {10.48550/ARXIV.2206.06079},
-  url = {https://arxiv.org/abs/2206.06079},
-  author = {Stepanas, Kazys and Williams, Jason and Hernández, Emili and Ruetz, Fabio and Hines, Thomas},
-  keywords = {Computer Vision and Pattern Recognition (cs.CV), Robotics (cs.RO), FOS: Computer and information sciences, FOS: Computer and information sciences, I.2.9 Robotics},
-  title = {OHM: GPU Based Occupancy Map Generation},
-  publisher = {arXiv},
-  year = {2022},
-  copyright = {arXiv.org perpetual, non-exclusive license}
-}
+@ARTICLE{9849048,
+  author={Stepanas, Kazys and Williams, Jason and Hern&#x00E1;ndez, Emili and Ruetz, Fabio and Hines, Thomas},
+  journal={IEEE Robotics and Automation Letters}, 
+  title={OHM: GPU Based Occupancy Map Generation}, 
+  year={2022},
+  volume={},
+  number={},
+  pages={1-8},
+  doi={10.1109/LRA.2022.3196145}}
 ```
 
 This citation will be updated after publication.
