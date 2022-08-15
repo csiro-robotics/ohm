@@ -139,7 +139,8 @@ void OhmAppCpu::MapOptions::print(std::ostream &out)
   {
     out << "Mapping mode: " << mode << '\n';
     out << "Voxel mean position: " << (voxel_mean ? "on" : "off") << '\n';
-    // out << "Map region memory: " << util::Bytes(ohm::OccupancyMap::voxelMemoryPerRegion(region_voxel_dim)) << '\n';
+    // out << "Map region memory: " << logutil::Bytes(ohm::OccupancyMap::voxelMemoryPerRegion(region_voxel_dim))
+    //     << '\n';
     out << "Hit probability: " << prob_hit << " (" << ohm::probabilityToValue(prob_hit) << ")\n";
     out << "Miss probability: " << prob_miss << " (" << ohm::probabilityToValue(prob_miss) << ")\n";
     out << "Probability threshold: " << prob_thresh << '\n';
@@ -233,8 +234,8 @@ void OhmAppCpu::NdtOptions::print(std::ostream &out)
 OhmAppCpu::CompressionOptions::CompressionOptions()
 {
   ohm::VoxelBlockCompressionQueue cq(true);  // Create in test mode.
-  high_tide = ohm::util::Bytes(cq.highTide());
-  low_tide = ohm::util::Bytes(cq.lowTide());
+  high_tide = logutil::Bytes(cq.highTide());
+  low_tide = logutil::Bytes(cq.lowTide());
 }
 
 
@@ -551,7 +552,7 @@ int OhmAppCpu::saveMap(const std::string &path_without_extension)
   std::string output_file = path_without_extension + ".ohm";
   std::ostringstream out;
   out.imbue(std::locale(""));
-  ohm::logger::info("Saving map to ", output_file, '\n');
+  logutil::info("Saving map to ", output_file, '\n');
 
   std::unique_ptr<SerialiseMapProgress> save_progress;
   save_progress = std::make_unique<SerialiseMapProgress>(progress_, quitLevelPtr());
@@ -567,7 +568,7 @@ int OhmAppCpu::saveMap(const std::string &path_without_extension)
 
   if (err)
   {
-    ohm::logger::error("Failed to save map: ", err, '\n');
+    logutil::error("Failed to save map: ", err, '\n');
   }
 
   return err;
@@ -577,12 +578,12 @@ int OhmAppCpu::saveMap(const std::string &path_without_extension)
 int OhmAppCpu::saveCloud(const std::string &path_ply)
 {
   // Save a cloud representation.
-  ohm::logger::info("Converting to point cloud.\n");
+  logutil::info("Converting to point cloud.\n");
 
   ohmtools::ProgressCallback save_progress_callback;
   uint64_t point_count = 0;
 
-  ohm::logger::info("Saving point cloud to ", path_ply, '\n');
+  logutil::info("Saving point cloud to ", path_ply, '\n');
   progress_.beginProgress(ProgressMonitor::Info(map_->regionCount()));
   save_progress_callback = [this](size_t progress, size_t /*target*/) { progress_.updateProgress(progress); };
 
@@ -635,7 +636,7 @@ int OhmAppCpu::saveCloud(const std::string &path_ply)
 
   if (!quiet())
   {
-    ohm::logger::info("\nExported ", point_count, " point(s)\n");
+    logutil::info("\nExported ", point_count, " point(s)\n");
   }
 
   return 0;

@@ -14,9 +14,8 @@
 #include "gputil/gpuQueue.h"
 #include "gputil/gpuThrow.h"
 
-#include <ohmutil/OhmUtil.h>
-
-#include <ohm/Logger.h>
+#include <logutil/LogUtil.h>
+#include <logutil/Logger.h>
 
 #include <cuda.h>
 #include <cuda_runtime.h>
@@ -237,7 +236,7 @@ cudaError_t bufferAlloc(BufferDetail *buf, size_t alloc_size)
 {
   cudaError_t err = cudaSuccess;
 
-  ohm::logger::trace("gputil::gpuBuffer: allocating ", ohm::util::Bytes(alloc_size, ohm::util::ByteMagnitude::kByte));
+  logutil::trace("gputil::gpuBuffer: allocating ", logutil::Bytes(alloc_size, logutil::ByteMagnitude::kByte));
   err = cudaMalloc(&buf->device_mem, alloc_size);
 
   if (err == cudaSuccess)
@@ -270,8 +269,7 @@ void bufferFree(BufferDetail *buf)
 {
   if (buf && buf->device_mem)
   {
-    ohm::logger::trace("gputil::gpuBuffer freeing ",
-                       ohm::util::Bytes(buf->alloc_size, ohm::util::ByteMagnitude::kByte));
+    logutil::trace("gputil::gpuBuffer freeing ", logutil::Bytes(buf->alloc_size, logutil::ByteMagnitude::kByte));
     cudaFree(buf->device_mem);
     if (buf->mapped_mem)
     {

@@ -5,10 +5,10 @@
 // Author: Kazys Stepanas
 #include "DataSource.h"
 
-#include <ohm/Logger.h>
-
 // Must be after argument streaming operators.
 #include <ohmutil/Options.h>
+
+#include <logutil/Logger.h>
 
 using namespace ohm;
 

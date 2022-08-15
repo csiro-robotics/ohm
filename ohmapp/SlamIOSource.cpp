@@ -5,7 +5,7 @@
 // Author: Kazys Stepanas
 #include "SlamIOSource.h"
 
-#include <ohm/Logger.h>
+#include <logutil/Logger.h>
 
 #include <slamio/SlamCloudLoader.h>
 
@@ -130,7 +130,7 @@ int SlamIOSource::validateOptions()
 {
   if (options().cloud_file.empty())
   {
-    ohm::logger::error("Missing input cloud\n");
+    logutil::error("Missing input cloud\n");
     return -1;
   }
 
@@ -143,13 +143,13 @@ int SlamIOSource::prepareForRun(uint64_t &point_count, const std::string &refere
   loader_ = std::make_unique<slamio::SlamCloudLoader>();
   loader_->enableReturnNumberInference(options().return_number_mode == ReturnNumberMode::Auto);
 
-  loader_->setErrorLog([this](const char *msg) { ohm::logger::error(msg); });
+  loader_->setErrorLog([this](const char *msg) { logutil::error(msg); });
   if (!options().trajectory_file.empty())
   {
     if (!loader_->openWithTrajectory(options().cloud_file.c_str(), options().trajectory_file.c_str()))
     {
-      ohm::logger::error("Error loading cloud ", options().cloud_file, " with trajectory ", options().trajectory_file,
-                         '\n');
+      logutil::error("Error loading cloud ", options().cloud_file, " with trajectory ", options().trajectory_file,
+                     '\n');
       return 1;
     }
   }
@@ -157,7 +157,7 @@ int SlamIOSource::prepareForRun(uint64_t &point_count, const std::string &refere
   {
     if (!loader_->openRayCloud(options().cloud_file.c_str()))
     {
-      ohm::logger::error("Error loading ray ", options().cloud_file, '\n');
+      logutil::error("Error loading ray ", options().cloud_file, '\n');
       return 1;
     }
   }
@@ -165,7 +165,7 @@ int SlamIOSource::prepareForRun(uint64_t &point_count, const std::string &refere
   {
     if (!loader_->openPointCloud(options().cloud_file.c_str()))
     {
-      ohm::logger::error("Error loading point cloud ", options().cloud_file, '\n');
+      logutil::error("Error loading point cloud ", options().cloud_file, '\n');
       return 1;
     }
   }
@@ -182,23 +182,23 @@ int SlamIOSource::prepareForRun(uint64_t &point_count, const std::string &refere
       preload_count = options().point_limit;
     }
 
-    ohm::logger::info("Preloading points");
+    logutil::info("Preloading points");
 
     const auto start_time = Clock::now();
     if (preload_count < 0)
     {
-      ohm::logger::info('\n');
+      logutil::info('\n');
       loader_->preload();
     }
     else
     {
-      ohm::logger::info(" ", preload_count, '\n');
+      logutil::info(" ", preload_count, '\n');
       loader_->preload(preload_count);
     }
     const auto end_time = Clock::now();
     const double preload_time =
       std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count() * 1e-3;
-    ohm::logger::info("Preload completed over ", preload_time, " seconds.", '\n');
+    logutil::info("Preload completed over ", preload_time, " seconds.", '\n');
   }
 
   const auto point_limit = options().point_limit;
@@ -267,7 +267,7 @@ int SlamIOSource::run(BatchFunction batch_function, unsigned *quit_level_ptr)
   if (!loader_->nextSample(sample))
   {
     // No work to do.
-    ohm::logger::info("No points to process\n");
+    logutil::info("No points to process\n");
     flush_on_exit();
     return 0;
   }
@@ -278,7 +278,7 @@ int SlamIOSource::run(BatchFunction batch_function, unsigned *quit_level_ptr)
   {
     if (!loader_->nextSample(sample))
     {
-      ohm::logger::info("No sample points before selected start time ", input_start_time, ". Nothign to do.\n");
+      logutil::info("No sample points before selected start time ", input_start_time, ". Nothign to do.\n");
       flush_on_exit();
       return 0;
     }
@@ -345,7 +345,7 @@ int SlamIOSource::run(BatchFunction batch_function, unsigned *quit_level_ptr)
       if (have_processed && !warned_no_motion && delta_motion == 0 && !timestamps.empty())
       {
         // Precisely zero motion seems awfully suspicious.
-        ohm::logger::warn("\nWarning: Precisely zero motion in batch\n");
+        logutil::warn("\nWarning: Precisely zero motion in batch\n");
         warned_no_motion = true;
       }
       have_processed = true;
@@ -403,7 +403,7 @@ int SlamIOSource::run(BatchFunction batch_function, unsigned *quit_level_ptr)
   const double motion_epsilon = 1e-6;
   if (accumulated_motion < motion_epsilon)
   {
-    ohm::logger::warn("Warning: very low accumulated motion: ", accumulated_motion, '\n');
+    logutil::warn("Warning: very low accumulated motion: ", accumulated_motion, '\n');
   }
 
   loader_->close();

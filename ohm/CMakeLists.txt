@@ -72,9 +72,6 @@ set(SOURCES
   LineQuery.h
   LineWalk.h
   LineWalkCompute.h
-  Logger.cpp
-  Logger.h
-  LoggerDetail.h
   MapChunk.cpp
   MapChunk.h
   MapCoord.h
@@ -187,8 +184,6 @@ set(PUBLIC_HEADERS
   LineQuery.h
   LineWalk.h
   LineWalkCompute.h
-  Logger.h
-  LoggerDetail.h
   MapChunkFlag.h
   MapChunk.h
   MapCoord.h
@@ -247,7 +242,7 @@ set(PUBLIC_HEADERS
 add_library(ohm ${SOURCES})
 clang_tidy_target(ohm)
 
-target_link_libraries(ohm PUBLIC ${ZLIB_LIBRARIES} ohmutil)
+target_link_libraries(ohm PUBLIC ${ZLIB_LIBRARIES} logutil ohmutil)
 
 target_include_directories(ohm
   PUBLIC

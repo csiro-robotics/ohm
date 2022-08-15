@@ -14,7 +14,6 @@
 #include "private/GpuProgramRef.h"
 
 #include <ohm/DefaultLayer.h>
-#include <ohm/Logger.h>
 #include <ohm/MapChunk.h>
 #include <ohm/MapLayout.h>
 #include <ohm/OccupancyMap.h>
@@ -28,6 +27,8 @@
 #include <gputil/gpuPinnedBuffer.h>
 #include <gputil/gpuPlatform.h>
 #include <gputil/gpuProgram.h>
+
+#include <logutil/Logger.h>
 
 #include <glm/ext.hpp>
 #include <glm/gtx/norm.hpp>
@@ -252,7 +253,7 @@ void GpuTsdfMap::finaliseBatch(unsigned region_update_flags)
 
   if (!imp_->use_original_ray_buffers)
   {
-    ohm::logger::error("TSDF algorithm requires GPU samples_buffers, but the flag has been disabled. Aborting.\n");
+    logutil::error("TSDF algorithm requires GPU samples_buffers, but the flag has been disabled. Aborting.\n");
     return;
   }
 
@@ -290,7 +291,7 @@ void GpuTsdfMap::finaliseBatch(unsigned region_update_flags)
   // Update most recent chunk GPU event.
   tsdf_layer_cache.updateEvents(imp_->batch_marker, imp_->region_update_events[buf_idx]);
 
-  // ohm::logger::trace(imp_->region_counts[buf_idx], "regions\n");
+  // logutil::trace(imp_->region_counts[buf_idx], "regions\n");
 
   imp_->region_counts[buf_idx] = 0;
   // Start a new batch for the GPU layers.
