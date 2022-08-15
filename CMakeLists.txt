@@ -230,6 +230,8 @@ if(OpenGL_FOUND AND GLEW_FOUND AND GLM_FOUND AND glfw3_FOUND)
 endif(OpenGL_FOUND AND GLEW_FOUND AND GLM_FOUND AND glfw3_FOUND)
 option(OHM_BUILD_HEIGHTMAP_IMAGE "Build ohmheightmapimage library to support heightmap to image conversion?" ${OHM_HM_IMG_LIBS_FOUND})
 
+add_subdirectory(logutil)
+
 if(OHM_BUILD_OPENCL)
   add_subdirectory(clu)
 endif(OHM_BUILD_OPENCL)
