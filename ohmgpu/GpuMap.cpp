@@ -14,7 +14,6 @@
 
 #include <ohm/Aabb.h>
 #include <ohm/DefaultLayer.h>
-#include <ohm/Logger.h>
 #include <ohm/MapChunk.h>
 #include <ohm/MapRegion.h>
 #include <ohm/OccupancyMap.h>
@@ -36,6 +35,8 @@
 #include <gputil/gpuPinnedBuffer.h>
 #include <gputil/gpuPlatform.h>
 #include <gputil/gpuProgram.h>
+
+#include <logutil/Logger.h>
 
 #include <glm/ext.hpp>
 
@@ -601,7 +602,7 @@ size_t GpuMap::integrateRays(const glm::dvec3 *rays, size_t element_count, const
   }
   if (!layer_cache)
   {
-    ohm::logger::error("GpuMap cannot resolve occupancy or TSDF layer.\n");
+    logutil::error("GpuMap cannot resolve occupancy or TSDF layer.\n");
     return 0u;
   }
   imp_->batch_marker = layer_cache->beginBatch();
@@ -694,9 +695,9 @@ size_t GpuMap::integrateRays(const glm::dvec3 *rays, size_t element_count, const
     // Increment unclipped_samples if this sample isn't clipped.
     unclipped_samples += (ray.filter_flags & kRffClippedEnd) == 0;
 
-    // ohm::logger::trace(i / 2, ' ', imp_->map->voxelKey(rays[i + 0]), " -> ", imp_->map->voxelKey(rays[i + 1]), ' ',
+    // logutil::trace(i / 2, ' ', imp_->map->voxelKey(rays[i + 0]), " -> ", imp_->map->voxelKey(rays[i + 1]), ' ',
     //                 ray_start, ':', ray_end, "  <=>  ", rays[i + 0], " -> ", rays[i + 1], '\n');
-    // ohm::logger::trace("dirs: ", (ray_end - ray_start), " vs ", (ray_end_d - ray_start_d), '\n');
+    // logutil::trace("dirs: ", (ray_end - ray_start), " vs ", (ray_end_d - ray_start_d), '\n');
     gpumap::walkRegions(*imp_->map, ray.origin, ray.sample, region_func);
   };
 
@@ -923,7 +924,7 @@ void GpuMap::enqueueRegions(int buffer_index, unsigned region_update_flags)
     {
       if (enqueueRegion(region_key, buffer_index))
       {
-        // ohm::logger::trace("region: [", region_key.x, ' ', region_key.y, ' ', region_key.z, "]\n");
+        // logutil::trace("region: [", region_key.x, ' ', region_key.y, ' ', region_key.z, "]\n");
         gputil::int3 gpu_region_key = { region_key.x, region_key.y, region_key.z };
         regions_buffer.write(&gpu_region_key, sizeof(gpu_region_key),
                              imp_->region_counts[buffer_index] * sizeof(gpu_region_key));
@@ -975,7 +976,7 @@ void GpuMap::enqueueRegions(int buffer_index, unsigned region_update_flags)
       else
       {
         // TODO(KS): throw with more information.
-        ohm::logger::error("Failed to enqueue region data\n");
+        logutil::error("Failed to enqueue region data\n");
       }
     }
   }
@@ -988,7 +989,7 @@ void GpuMap::enqueueRegions(int buffer_index, unsigned region_update_flags)
 
   if (!imp_->region_key_upload_events[buffer_index].isValid())
   {
-    ohm::logger::error("Invalid region key upload event\n");
+    logutil::error("Invalid region key upload event\n");
   }
 
   finaliseBatch(region_update_flags);
@@ -1015,15 +1016,15 @@ bool GpuMap::enqueueRegion(const glm::i16vec3 &region_key, int buffer_index)
 
     if (status == GpuLayerCache::kCacheFull)
     {
-      ohm::logger::warn("GpuLayerCache full: [", layer_cache.layerIndex(), "] ",
-                        (layer_cache.layerIndex() < imp_->map->layout().layerCount()) ?
-                          imp_->map->layout().layer(layer_cache.layerIndex()).name() :
-                          "<out-of-range>",
-                        "\n");
+      logutil::warn("GpuLayerCache full: [", layer_cache.layerIndex(), "] ",
+                    (layer_cache.layerIndex() < imp_->map->layout().layerCount()) ?
+                      imp_->map->layout().layer(layer_cache.layerIndex()).name() :
+                      "<out-of-range>",
+                    "\n");
       return false;
     }
 
-    // ohm::logger::trace("region: [", region_key.x, ' ', region_key.y, ' ', region_key.z, "]\n");
+    // logutil::trace("region: [", region_key.x, ' ', region_key.y, ' ', region_key.z, "]\n");
     voxel_info.offsets_buffer_pinned.write(&mem_offset, sizeof(mem_offset),
                                            imp_->region_counts[buffer_index] * sizeof(mem_offset));
   }
@@ -1173,7 +1174,7 @@ void GpuMap::finaliseBatch(unsigned region_update_flags)
     traversal_layer_cache->updateEvents(imp_->batch_marker, imp_->region_update_events[buf_idx]);
   }
 
-  // ohm::logger::trace(imp_->region_counts[buf_idx], "regions\n");
+  // logutil::trace(imp_->region_counts[buf_idx], "regions\n");
 
   imp_->region_counts[buf_idx] = 0;
   // Start a new batch for the GPU layers.

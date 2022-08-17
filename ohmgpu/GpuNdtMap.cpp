@@ -13,7 +13,6 @@
 
 #include "private/GpuProgramRef.h"
 
-#include <ohm/Logger.h>
 #include <ohm/MapChunk.h>
 #include <ohm/OccupancyMap.h>
 #include <ohm/VoxelMean.h>
@@ -26,6 +25,8 @@
 #include <gputil/gpuPinnedBuffer.h>
 #include <gputil/gpuPlatform.h>
 #include <gputil/gpuProgram.h>
+
+#include <logutil/Logger.h>
 
 #include <glm/ext.hpp>
 #include <glm/gtx/norm.hpp>
@@ -243,7 +244,7 @@ void GpuNdtMap::finaliseBatch(unsigned region_update_flags)
     }
   }
 
-  // ohm::logger::trace(imp->region_counts[buf_idx], " regions\n");
+  // logutil::trace(imp->region_counts[buf_idx], " regions\n");
 
   imp->region_counts[buf_idx] = 0;
   // Start a new batch for the GPU layers.

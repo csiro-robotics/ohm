@@ -5,10 +5,11 @@
 // Author: Kazys Stepanas
 #include "VoxelBlockCompressionQueue.h"
 
-#include "Logger.h"
 #include "VoxelBlock.h"
 
 #include "private/VoxelBlockCompressionQueueDetail.h"
+
+#include <logutil/Logger.h>
 
 #include <algorithm>
 #include <chrono>
@@ -183,7 +184,7 @@ void VoxelBlockCompressionQueue::__tick(std::vector<uint8_t> &compression_buffer
         if (!(iter->voxels->flags_ & VoxelBlock::kFLocked))
         {
           // Block is not locked.
-          ohm::logger::trace("compress\n");
+          logutil::trace("compress\n");
           // Try compress the current item. This could fail as the flag can have changed. On failure, the
           // compressed_size will be zero. We call compressWithTemporaryBuffer() to re-use the compression buffer
           // memory.

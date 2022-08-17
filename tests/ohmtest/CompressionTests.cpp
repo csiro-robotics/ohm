@@ -16,6 +16,8 @@
 
 #include <ohmutil/OhmUtil.h>
 
+#include <logutil/LogUtil.h>
+
 #include <chrono>
 
 namespace
@@ -47,7 +49,7 @@ TEST(Compression, Simple)
   compressor.__tick(compression_buffer);
 
   // No compression should have occurred.
-  std::cout << "allocated: " << ohm::util::Bytes(compressor.estimatedAllocationSize()) << std::endl;
+  std::cout << "allocated: " << logutil::Bytes(compressor.estimatedAllocationSize()) << std::endl;
   EXPECT_EQ(compressor.estimatedAllocationSize(), uncompressed_size);
 
   // Now lock all the buffers and set a zero high/low water mark. Everything should stay allocated.
@@ -69,8 +71,8 @@ TEST(Compression, Simple)
   const size_t compressed_size = compressor.estimatedAllocationSize();
   // All should compress the same.
   const size_t single_block_compressed_size = compressed_size / block_count;
-  std::cout << "compressed: " << ohm::util::Bytes(compressed_size) << std::endl;
-  std::cout << "single-block-compressed: " << ohm::util::Bytes(single_block_compressed_size) << std::endl;
+  std::cout << "compressed: " << logutil::Bytes(compressed_size) << std::endl;
+  std::cout << "single-block-compressed: " << logutil::Bytes(single_block_compressed_size) << std::endl;
   EXPECT_LT(compressor.estimatedAllocationSize(), uncompressed_size);
   for (auto &block : blocks)
   {
@@ -161,7 +163,7 @@ TEST(Compression, HighLoad)
   std::cout << "Initial tick: " << (end - start) << std::endl;
 
   // No compression should have occurred.
-  std::cout << "allocated: " << ohm::util::Bytes(compressor.estimatedAllocationSize()) << std::endl;
+  std::cout << "allocated: " << logutil::Bytes(compressor.estimatedAllocationSize()) << std::endl;
   EXPECT_EQ(compressor.estimatedAllocationSize(), uncompressed_size);
 
   // Set a zero tolerance low water mark and time the tick.

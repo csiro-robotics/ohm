@@ -128,7 +128,7 @@ public:
   /// Find the @c GpuLayerCache for @p layer .
   MapRegionCache *findLayerCache(unsigned layer) override;
 
-  /// Query the target GPU memory allocation byte size. This is the target allocation accross all @c GpuLayerCache
+  /// Query the target GPU memory allocation byte size. This is the target allocation across all @c GpuLayerCache
   /// objects and is distributed amongst these objects. The distribution is weighted so that layers requiring more
   /// voxel data are given more of the allocation.
   ///

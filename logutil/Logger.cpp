@@ -9,11 +9,11 @@
 
 namespace
 {
-ohm::LogOStream g_default_logger;
-ohm::LogInterface *g_current_logger = &g_default_logger;
+logutil::LogOStream g_default_logger;
+logutil::LogInterface *g_current_logger = &g_default_logger;
 }  // namespace
 
-namespace ohm
+namespace logutil
 {
 LogInterface::LogInterface(LogLevel level) noexcept
   : level_(level)
@@ -52,8 +52,7 @@ void LogOStream::message(LogLevel level, const char *msg)
   }
 }
 
-namespace logger
-{
+
 LogInterface *logger()
 {
   return g_current_logger;
@@ -72,5 +71,4 @@ LogInterface *defaultLogger()
 {
   return &g_default_logger;
 }
-}  // namespace logger
-}  // namespace ohm
+}  // namespace logutil

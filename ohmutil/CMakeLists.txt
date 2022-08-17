@@ -8,7 +8,6 @@ set(SOURCES
   Colour.cpp
   Colour.h
   p2p.h
-  OhmUtil.cpp
   OhmUtil.h
   PlyMesh.cpp
   PlyMesh.h

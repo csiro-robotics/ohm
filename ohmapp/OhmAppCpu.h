@@ -8,15 +8,16 @@
 
 #include "OhmAppConfig.h"
 
+#include <ohmapp/MapHarness.h>
+
 #include <ohm/MapSerialise.h>
 #include <ohm/NdtMap.h>
 #include <ohm/NdtMode.h>
 #include <ohm/OccupancyMap.h>
 #include <ohm/RayMapper.h>
 #include <ohm/VoxelTsdf.h>
-#include <ohmutil/OhmUtil.h>
 
-#include <ohmapp/MapHarness.h>
+#include <logutil/LogUtil.h>
 
 namespace ohmapp
 {
@@ -130,9 +131,9 @@ public:
   struct CompressionOptions
   {
     /// High tide: invoke compression when this is exceeded.
-    ohm::util::Bytes high_tide;
+    logutil::Bytes high_tide;
     /// Low tide: compress until this is reached.
-    ohm::util::Bytes low_tide;
+    logutil::Bytes low_tide;
     /// True to disable compression.
     bool uncompressed = false;
 

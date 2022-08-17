@@ -3,15 +3,13 @@
 // ABN 41 687 119 230
 //
 // Author: Kazys Stepanas
-#include "OhmUtil.h"
+#include "LogUtil.h"
 
 #include <algorithm>
 #include <cctype>
 #include <cmath>
 
-namespace ohm
-{
-namespace util
+namespace logutil
 {
 const std::array<size_t, 9> Bytes::ByteScale =  //
   {
@@ -39,7 +37,7 @@ const std::array<const char *const, 9> Bytes::MagnitudeSuffix =  //
     "YiB",  //
   };
 
-bool parseBytes(std::istream &in, ohm::util::Bytes &bytes, bool read_suffix)
+bool parseBytes(std::istream &in, Bytes &bytes, bool read_suffix)
 {
   double numeric_value = 0;
   std::string suffix;
@@ -116,5 +114,4 @@ bool parseBytes(std::istream &in, ohm::util::Bytes &bytes, bool read_suffix)
   bytes = Bytes(uint64_t(integer_part), byte_magnitude);
   return true;
 }
-}  // namespace util
-}  // namespace ohm
+}  // namespace logutil
