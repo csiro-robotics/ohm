@@ -150,13 +150,13 @@ typedef enum LineWalkMarker
 /// Temporary ray data used to initialise the line walk.
 typedef struct LineWalkRay
 {
-  WalkVec3 origin;
-  WalkVec3 direction;
-  WalkVec3 direction_inverse;
-  int sign[3];
-  WalkReal initial_exit_time[3];
-  WalkReal step_delta[3];
-  WalkReal length;
+  WalkVec3 origin;                ///< Start point of the line/ray.
+  WalkVec3 direction;             ///< Direction traced by the ray: unit length.
+  WalkVec3 direction_inverse;     ///< Inverse of @c direction.
+  int sign[3];                    ///< Per axis tracing direction.
+  WalkReal initial_exit_time[3];  ///< Time at which the start voxel is exited (per axis).
+  WalkReal step_delta[3];         ///< Time step for each axis.
+  WalkReal length;  ///< Total length of the line segment traces. End point is `origin + direction * length`.
 } LineWalkRay;
 
 WALK_FUNC inline int walkStepDir(int sign)
@@ -247,13 +247,14 @@ WALK_FUNC inline void walkInitRay(LineWalkRay *ray, const WalkVec3 start, const 
   }
 }
 
+/// Data structure used to to track line segment tracing progress.
 typedef struct WalkSteps
 {
-  WalkReal time_next[3];
-  WalkReal initial_delta[3];
-  WalkReal step_delta[3];
-  int sign[3];
-  WalkReal length;
+  WalkReal time_next[3];      ///< Time to next voxel on each axis.
+  WalkReal initial_delta[3];  ///< Initial offset for each axis accounting for start point offset from centre.
+  WalkReal step_delta[3];     ///< Per axis time delta applied on each step.
+  int sign[3];                ///< Step direction for each axis.
+  WalkReal length;            ///< Total segment length to trace.
 } WalkSteps;
 
 WALK_FUNC inline void walkCalculateSteps(WalkSteps *walk_steps, const WalkVec3 start_point, const WalkVec3 end_point,

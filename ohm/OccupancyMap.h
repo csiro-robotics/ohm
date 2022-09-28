@@ -750,7 +750,10 @@ public:
   /// @endcode
   ///
   ///
-  /// @param
+  /// @param key Voxel key for which to resolve the voxel centre.
+  /// @param voxel_resolution The size of the voxels. From @c resolution() .
+  /// @param region_spatial_dimensions The spatial dimensions of each @c MapRegion . From @c regionSpatialResolution() .
+  /// @param map_origin The origin of the occupancy map. From @c origin() .
   static inline glm::dvec3 voxelCentre(const Key &key, double voxel_resolution,
                                        const glm::dvec3 &region_spatial_dimensions,
                                        const glm::dvec3 &map_origin = glm::dvec3(0.0))
