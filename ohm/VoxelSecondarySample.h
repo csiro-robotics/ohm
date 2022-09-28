@@ -21,7 +21,7 @@ namespace ohm
 /// and the standard deviation thereof.
 ///
 /// @note The @c range_mean is stored as a @c uint16_t value in order to keep the voxel size at 8 bytes. The range is
-/// quantised to 1000th of the input value. Ohm generally expects metres, so the range is generally in millimetres.
+/// quantised to 1000th of the input value. OHM generally expects metres, so the range is generally in millimetres.
 /// The quantisation factor is exposed via @c secondarySampleQuantisationFactor() .
 ///
 /// Use @c secondarySampleRangeMean() and @c secondarySampleRangeStdDev() in order to extract the range mean and

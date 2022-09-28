@@ -31,11 +31,14 @@ struct ohm_API LineWalkContext
 {
   /// Map reference.
   const OccupancyMap &map;
+  /// Cached value of @c OccupancyMap::regionVoxelDimensions().
   const glm::ivec3 region_voxel_dimensions;
+  /// Function to invoke to visit each voxel.
   const WalkVisitFunction visit;
 
   /// Create an adaptor for @p map .
-  /// @param map The map to adapt
+  /// @param map The map to adapt.
+  /// @param visit The function to call when visiting each voxel.
   inline LineWalkContext(const OccupancyMap &map, WalkVisitFunction visit)
     : map(map)
     , region_voxel_dimensions(map.regionVoxelDimensions())

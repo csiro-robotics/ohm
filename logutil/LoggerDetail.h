@@ -3,21 +3,19 @@
 // ABN 41 687 119 230
 //
 // Author: Kazys Stepanas
-#ifndef OHM_LOGGERDETAIL_H
-#define OHM_LOGGERDETAIL_H
+#ifndef LOGUTIL_LOGGERDETAIL_H
+#define LOGUTIL_LOGGERDETAIL_H
 
-#include "OhmConfig.h"
+#include "LogUtilConfig.h"
 
 #include <iomanip>
 #include <locale>
 #include <sstream>
 #include <string>
 
-namespace ohm
+namespace logutil
 {
-namespace logger
-{
-namespace detail
+namespace logger_detail
 {
 /// Prepare the @p out stream for logging, imbuing the locale.
 ///
@@ -43,8 +41,7 @@ inline void message(std::ostream &stream, const T &value, Args... args)
   stream << value;
   message(stream, args...);
 }
-}  // namespace detail
-}  // namespace logger
-}  // namespace ohm
+}  // namespace logger_detail
+}  // namespace logutil
 
-#endif  // OHM_LOGGERDETAIL_H
+#endif  // LOGUTIL_LOGGERDETAIL_H

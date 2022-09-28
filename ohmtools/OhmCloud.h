@@ -172,9 +172,11 @@ public:
   bool ramp_occupied_range = true;
 
   /// Create a occupancy probability based colouriser.
+  /// @param map The occupancy map to colour voxels for.
   /// @param ramp_occupied_range Set the interpolation range to the default occupied probability only [0.5, 1.0]?
   ColourByOccupancy(const ohm::OccupancyMap &map, bool ramp_occupied_range = true);
   /// Create a occupancy probability based colouriser using custom colours.
+  /// @param map The occupancy map to colour voxels for.
   /// @param from The lowest occupancy probablility colour.
   /// @param to The highest occupancy probablility colour.
   /// @param ramp_occupied_range Set the interpolation range to the default occupied probability only [0.5, 1.0]?
@@ -210,6 +212,7 @@ public:
 
   /// Colours to interpolate from `[0]` and to `[1]` across the intensity range.
   std::array<ohm::Colour, 2> colours;
+  /// Maximum expected intensity value. Apply @c colour[1] for points at or above this intensity value.
   float max_intensity = 1.0f;
 
   /// Create a intensity based colouriser.

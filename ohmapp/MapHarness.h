@@ -8,10 +8,11 @@
 
 #include "OhmAppConfig.h"
 
-#include <ohm/Logger.h>
 #include <ohm/Trace.h>
 
 #include <ohmutil/ProgressMonitor.h>
+
+#include <logutil/Logger.h>
 
 #include <glm/vec3.hpp>
 #include <glm/vec4.hpp>

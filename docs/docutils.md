@@ -8,12 +8,12 @@ Author: Kazys Stepanas
 
 <!-- Use details section to partly hide doxygen specific details of the page. -->
 <details><summary></summary>
-@page docutils Ohm utilities
+@page docutils OHM utilities
 </details>
 
-# Ohm utilities
+# OHM utilities
 
-Ohm includes a number of command line utilities supporting generating and manipulating ohm map files. This page provides
+OHM includes a number of command line utilities supporting generating and manipulating ohm map files. This page provides
 high level information about the available utilities, their primary purpose and general usage.
 
 ## ohmpop\[cpu,cuda,ocl\]

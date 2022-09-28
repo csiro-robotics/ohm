@@ -31,4 +31,10 @@ ApiException::ApiException(ApiException &&other) noexcept
   : Exception(std::move(other))
   , error_code_(other.error_code_)
 {}
+
+
+ApiException::ApiException(const ApiException &other) noexcept
+  : Exception(other)
+  , error_code_(other.error_code_)
+{}
 }  // namespace gputil

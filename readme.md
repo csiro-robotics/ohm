@@ -97,14 +97,14 @@ While this can be changed by explicitly changing `OpenCL_INCLUDE_DIR` and `OpenC
 
 - [OHM Glossary](./docs/docglossary.md)
 - [Occupancy map usage](./docs/docusage.md)
-- [Ohm utilities](./docs/docutils.md)
+- [OHM utilities](./docs/docutils.md)
 - [GPU algorithm overview](./docs/gpu/docgpualgorithm.md)
 - [GPU technical details and performance tips](./docs/gpu/docgpudetail.md)
 - [Built in voxel layers](./docs/docvoxellayers.md)
 
 ## Citation
 
-Please use the following (early access) citation if you use OHM in your research.
+Please use the following citation if you use OHM in your research.
 
 ```txt
 @ARTICLE{9849048,

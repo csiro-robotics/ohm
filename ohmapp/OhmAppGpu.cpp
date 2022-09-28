@@ -68,7 +68,7 @@ void OhmAppGpu::GpuOptions::configure(cxxopts::Options &parser)
 
 void OhmAppGpu::GpuOptions::print(std::ostream &out)
 {
-  out << "Gpu cache size: " << ohm::util::Bytes(gpuCacheSizeBytes()) << '\n';
+  out << "Gpu cache size: " << logutil::Bytes(gpuCacheSizeBytes()) << '\n';
   out << "Gpu max ray segment: " << ray_segment_length << '\n';
   out << "Gpu ray tracing: " << (forward_trace ? "forward" : "reverse") << '\n';
 }
@@ -133,7 +133,7 @@ int OhmAppGpu::parseCommandLineOptions(int argc, const char *const *argv)
     // which exceeds the maximum allowed allocation size. While GpuLayerCache caps this, we limit the auto selected size
     // to help avoid giving a false impression of having a very large amount of GPU memory allocated.
     opt_gpu.cache_size_gb = std::min(opt_gpu.cache_size_gb, 4.0);
-    std::cout << "Auto select GPU cache upper bound: " << ohm::util::Bytes(opt_gpu.gpuCacheSizeBytes()) << std::endl;
+    std::cout << "Auto select GPU cache upper bound: " << logutil::Bytes(opt_gpu.gpuCacheSizeBytes()) << std::endl;
   }
 
   return return_code;
@@ -262,7 +262,7 @@ void OhmAppGpu::finaliseMap()
 {
   if (auto *gpu_map = gpuMap())
   {
-    ohm::logger::info("syncing GPU voxels\n");
+    logutil::info("syncing GPU voxels\n");
     gpu_map->syncVoxels();
   }
   Super::finaliseMap();

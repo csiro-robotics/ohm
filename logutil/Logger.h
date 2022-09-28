@@ -3,18 +3,18 @@
 // ABN 41 687 119 230
 //
 // Author: Kazys Stepanas
-#ifndef OHM_LOGGER_H
-#define OHM_LOGGER_H
+#ifndef LOGUTIL_LOGGER_H
+#define LOGUTIL_LOGGER_H
 
-#include "OhmConfig.h"
+#include <logutil/LogUtilConfig.h>
 
 #include "LoggerDetail.h"
 
 #include <stdexcept>
 
-namespace ohm
+namespace logutil
 {
-/// Ohm logging levels
+/// Logging levels
 enum class LogLevel : int
 {
   /// Fatal error - an exception will be thrown.
@@ -30,7 +30,7 @@ enum class LogLevel : int
 };
 
 /// Abstract logging interface.
-class ohm_API LogInterface
+class logutil_API LogInterface
 {
 public:
   /// Default constructor.
@@ -69,7 +69,7 @@ private:
 /// | @c LogLevel::kWarn  | @c std::cout |
 /// | @c LogLevel::kError | @c std::cerr |
 /// | @c LogLevel::kFatal | @c std::cerr |
-class ohm_API LogOStream : public LogInterface
+class logutil_API LogOStream : public LogInterface
 {
 public:
   LogOStream(LogLevel level = LogLevel::kInfo) noexcept;
@@ -81,15 +81,12 @@ public:
   void message(LogLevel level, const char *msg) override;
 };
 
-/// A helper namespace for logging.
-namespace logger
-{
 /// Get the current, global logging output object.
 ///
 /// A @c LogOStream object is installed by default.
 ///
 /// @return The current @c LogInterface .
-LogInterface ohm_API *logger();
+LogInterface logutil_API *logger();
 
 /// Set the global logging object. Ownership is retained by the caller and a null logger should be set before the
 /// @p logger object expires.
@@ -98,12 +95,12 @@ LogInterface ohm_API *logger();
 ///
 /// @param logger A pointer to the logger.
 /// @return The previously set logger interface.
-LogInterface ohm_API *setLogger(LogInterface *logger);
+LogInterface logutil_API *setLogger(LogInterface *logger);
 
 /// Get the default logger object installed on startup. May be used to restore the @c logger() after a custom logger
 /// has been used.
 /// @return The default logging object.
-LogInterface ohm_API *defaultLogger();
+LogInterface logutil_API *defaultLogger();
 
 /// A helper for assembling a logger message at the given severity @p level .
 ///
@@ -125,8 +122,8 @@ inline void message(LogInterface *log_interface, LogLevel level, Args... args)
     if (int(log_interface->level()) >= int(level))
     {
       std::ostringstream out;
-      detail::prepareStream(out);
-      detail::message(out, args...);
+      logger_detail::prepareStream(out);
+      logger_detail::message(out, args...);
       const std::string msg = out.str();
       log_interface->message(level, msg.c_str());
     }
@@ -220,8 +217,8 @@ template <typename... Args>
 inline void fatal(LogInterface *log_interface, Args... args)
 {
   std::ostringstream out;
-  detail::prepareStream(out);
-  detail::message(out, args...);
+  logger_detail::prepareStream(out);
+  logger_detail::message(out, args...);
   const std::string msg = out.str();
   if (log_interface)
   {
@@ -240,7 +237,6 @@ inline void fatal(Args... args)
 {
   fatal(logger(), args...);
 }
-}  // namespace logger
-}  // namespace ohm
+}  // namespace logutil
 
-#endif  // OHM_LOGGER_H
+#endif  // LOGUTIL_LOGGER_H

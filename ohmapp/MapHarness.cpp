@@ -270,7 +270,7 @@ int MapHarness::run()
     on_start_callback_();
   }
 
-  ohm::logger::info("Populating map\n");
+  logutil::info("Populating map\n");
   display_stats_in_progress_ = data_source_->options().stats_mode != DataSource::StatsMode::Off;
   progress_.beginProgress(ProgressMonitor::Info(predicted_point_count));
   progress_.startThread();
@@ -404,7 +404,7 @@ void MapHarness::displayProgress(const ProgressMonitor::Progress &progress, bool
     {
       out << '\n';
     }
-    ohm::logger::info(out.str());
+    logutil::info(out.str());
   }
 }
 }  // namespace ohmapp
