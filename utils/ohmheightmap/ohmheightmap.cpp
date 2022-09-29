@@ -52,8 +52,7 @@ std::istream &operator>>(std::istream &in, ohm::HeightmapMode &mode)
 
 std::ostream &operator<<(std::ostream &out, const ohm::HeightmapMode mode)
 {
-  std::string mode_str;
-  ohm::heightmapModeToString(mode);
+  std::string mode_str = ohm::heightmapModeToString(mode);
   out << mode_str;
   return out;
 }
