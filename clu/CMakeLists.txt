@@ -1,7 +1,7 @@
 
 
 # Convert version string to a list of versions.
-string(REPLACE "." ";" OPENCL_VERSION_LIST ${OHM_OPENCL_SDK_VER})
+string(REPLACE "." ";" OPENCL_VERSION_LIST "${OHM_OPENCL_SDK_VER}")
 
 set(OPENCL_VERSION_MINOR 0)
 set(OPENCL_VERSION_PATCH 0)
@@ -57,11 +57,10 @@ target_include_directories(clu
 target_include_directories(clu SYSTEM
   PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/3rdparty>
-    "${OpenCL_INCLUDE_DIRS}"
 )
 # set_property(TARGET clu PROPERTY DEBUG_POSTFIX "d")
 
-target_link_libraries(clu PUBLIC "${OpenCL_LIBRARIES}")
+target_link_libraries(clu PUBLIC OpenCL::OpenCL)
 
 install(TARGETS clu EXPORT ${CMAKE_PROJECT_NAME}-config-targets
   LIBRARY DESTINATION lib
