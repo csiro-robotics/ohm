@@ -53,6 +53,30 @@
 # TBB_FOUND, If false, don't try to use TBB.
 # TBB_INTERFACE_VERSION, as defined in tbb/tbb_stddef.h
 
+# Try config file first.
+find_package(TBB QUIET CONFIG)
+if(TBB_FOUND)
+    message(STATUS "Found TBB config file.")
+    # Lots of legacy permutations here. In a way the most likely is via vcpkg which is TBB::tbb even though it's static.
+    if(NOT TBB_LIBRARIES)
+        if(TBB_IMPORTED_TARGETS)
+            set(TBB_LIBRARIES "${TBB_IMPORTED_TARGETS}")
+        elseif(TARGET TBB::tbb_static)
+            set(TBB_LIBRARIES TBB::tbb_static TBB::tbbmalloc_static)
+        elseif(TARGET TBB::tbb)
+            set(TBB_LIBRARIES TBB::tbb TBB::tbbmalloc)
+        elseif(TARGET tbb::tbb_static)
+            set(TBB_LIBRARIES tbb::tbb_static tbb::tbbmalloc_static)
+        elseif(TARGET tbb::tbb)
+            set(TBB_LIBRARIES tbb::tbb tbb::tbbmalloc)
+        else()
+            message(FATAL_ERROR "Could not resolve tbb libraries")
+        endif()
+    endif(NOT TBB_LIBRARIES)
+return()
+endif(TBB_FOUND)
+message(STATUS "Searching for TBB libraries...")
+
 
 if (WIN32)
     # has em64t/vc8 em64t/vc9

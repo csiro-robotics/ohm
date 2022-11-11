@@ -1,11 +1,20 @@
-# OHM_BUILD_CUDA_DEFAULT is used to initialise the OHM_BUILD_CUDA option. We have to work out if CUDA is present first.
+# OHM_FEATURE_CUDA_DEFAULT is used to initialise the OHM_FEATURE_CUDA option. We have to work out if CUDA is present first.
 # How we do so depends on the CMake version.
-set(OHM_BUILD_CUDA_DEFAULT OFF) # Initialisation value for OHM_BUILD_CUDA
+set(OHM_FEATURE_CUDA_DEFAULT OFF) # Initialisation value for OHM_FEATURE_CUDA
 
 # CMake 3.10 introduces a native way of configuring CUDA. However, this lacked certain features such as CUDA
 # architecture selection, which made it useful only for local builds (not for distribution). 3.18 adds CUDA architecture
 # selection as well has having other CUDA features stabilised, making 3.18 the minimum preferred version.
 # We prefer the deprecated CUDA setup for versions before 3.18.
+#
+# Note: there are issues runing nvcc on Windows from within VSCode using the Ninja generator. When configuring or
+# building in VSCode+Ninja, nvcc fails reporting that the command line is too long as it tries to run the Visual Studio
+# vcvars64.bat file to configure the environment. Nvcc will simply not succeed. The same CMake command lines will work
+# fine from a shell prompt (even from the terminal inside VSCode).
+#
+# For now, the work arounds seem to be:
+# 1. Set OHM_USE_DEPRECATED_CMAKE_CUDA
+# 2. Use the Visual Studio generator (slower builds)
 set(OHM_USE_DEPRECATED_CMAKE_CUDA_DEFAULT ON) # Initialisation value for OHM_USE_DEPRECATED_CMAKE_CUDA
 if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.18)
   set(OHM_USE_DEPRECATED_CMAKE_CUDA_DEFAULT OFF)
@@ -16,22 +25,44 @@ option(OHM_USE_DEPRECATED_CMAKE_CUDA
   "Use deprecated CUDA project setup? Disabling requires CMake 3.10+ but the CUDA architecture cannot be set until 3.18."
   ${OHM_USE_DEPRECATED_CMAKE_CUDA_DEFAULT})
 
+# Start by allowing VCPKG to enable the "cuda" feature if it can, so we can find it.
+# Skip on Windows; cuda is not available via vcpkg.
+if(NOT WIN32)
+  if(OHM_VCPKG)
+    # Using vcpkg
+    if(OHM_FEATURE_CUDA)
+      # Already enabled: from cache or command line. Ensure VCPKG feature is present.
+      list(APPEND VCPKG_MANIFEST_FEATURES cuda)
+    else()
+      list(FIND VCPKG_MANIFEST_FEATURES cuda _find_at)
+      # Present in the VCPKG feature list. Default to enable cuda cmake option()
+      set(OHM_FEATURE_CUDA_DEFAULT ON)
+    endif(OHM_FEATURE_CUDA)
+  endif(OHM_VCPKG)
+endif(NOT WIN32)
+
 # Find if CUDA is available.
 if(NOT OHM_USE_DEPRECATED_CMAKE_CUDA)
   # Newer way of finding CUDA.
   include(CheckLanguage)
   # Check if CUDA is available.
+  # If CMake does not find CUDA on the first attempt, then it will set CMAKE_CUDA_COMPILER to "NOTFOUND" which CMake
+  # considers a TRUE result when tested - `if(CMAKE_CUDA_COMPILER)`. As such it will not try to find it again. Thus we
+  # explicitly unset CMAKE_CUDA_COMPILER when it is NOTFOUND and we keep trying when the CUDA feature is requested.
+  if(OHM_FEATURE_CUDA AND CMAKE_CUDA_COMPILER STREQUAL "NOTFOUND")
+    unset(CMAKE_CUDA_COMPILER CACHE)
+  endif(OHM_FEATURE_CUDA AND CMAKE_CUDA_COMPILER STREQUAL "NOTFOUND")
   check_language(CUDA)
-  set(OHM_CUDA_VERSION "${CMAKE_CUDA_COMPILER_VERSION}")
   # Note: CMake 3.11 enabled CMAKE_CUDA_COMPILER on check_language(CUDA). Otherwise it's not propertly set.
   # Another argument for why we perfer a later version for new CUDA project configuration.
   if(CMAKE_VERSION VERSION_LESS 3.11)
     message("WARNING: Cannot automatically check for CUDA using CMake 3.10 unless OHM_USE_DEPRECATED_CMAKE_CUDA is ON.")
   endif(CMAKE_VERSION VERSION_LESS 3.11)
   if(CMAKE_CUDA_COMPILER)
-    # CUDA compiler is available. Set OHM_BUILD_CUDA_DEFAULT so that we initialse OHM_BUILD_CUDA to ON by default.
-    set(OHM_BUILD_CUDA_DEFAULT ON)
+    # CUDA compiler is available. Set OHM_FEATURE_CUDA_DEFAULT so that we initialse OHM_FEATURE_CUDA to ON by default.
+    set(OHM_FEATURE_CUDA_DEFAULT ON)
   endif(CMAKE_CUDA_COMPILER)
+
 else(NOT OHM_USE_DEPRECATED_CMAKE_CUDA)
   # Ensure we use the dynamic/shared runtime libraries when building shared libaries. See message below.
   if(BUILD_SHARED_LIBS)
@@ -50,35 +81,46 @@ else(NOT OHM_USE_DEPRECATED_CMAKE_CUDA)
   find_package(CUDA)
   if(CUDA_FOUND)
     set(OHM_CUDA_VERSION "${CUDA_VERSION}")
-    set(OHM_BUILD_CUDA_DEFAULT ON)
+    set(OHM_FEATURE_CUDA_DEFAULT ON)
   endif(CUDA_FOUND)
 endif(NOT OHM_USE_DEPRECATED_CMAKE_CUDA)
 
 # Set the option for building ohm with CUDA based on whether or not we found it.
-option(OHM_BUILD_CUDA "Build ohm library and utlities for CUDA?" ${OHM_BUILD_CUDA_DEFAULT})
+option(OHM_FEATURE_CUDA "Build ohm library and utlities for CUDA?" ${OHM_FEATURE_CUDA_DEFAULT})
 
 # Additional options
-if(OHM_BUILD_CUDA)
+if(OHM_FEATURE_CUDA)
   set(OHM_CUDA_DEBUG "none" CACHE STRING
     "Controls the CUDA debug level, regardless of the current build type. lineinfo adds debug symbols, full also disabled optimisation."
   )
   set_property(CACHE OHM_CUDA_DEBUG PROPERTY STRINGS full lineinfo none)
-endif(OHM_BUILD_CUDA)
+endif(OHM_FEATURE_CUDA)
+
+macro(_cuda_get_version VAR)
+  if(NOT OHM_USE_DEPRECATED_CMAKE_CUDA)
+    # CMAKE_CUDA_COMPILER_VERSION only becomes available after enabling the cuda language.
+    enable_language(CUDA)
+    set(${VAR} "${CMAKE_CUDA_COMPILER_VERSION}")
+  else()
+    set(${VAR} "${CUDA_VERSION}")
+  endif()
+endmacro()
 
 #==============================================================================
 # Configure various CUDA building options.
 #==============================================================================
 macro(cuda_setup)
-  if(OHM_BUILD_CUDA)
+  if(OHM_FEATURE_CUDA)
+    _cuda_get_version(OHM_CUDA_VERSION)
     # Architecture reference:
     # https://arnon.dk/matching-sm-architectures-arch-and-gencode-for-various-nvidia-cards/
     #
     # Require version 9 implied minimum.
     set(CUDA_ARCH_INIT "50;52;53;60;61;62;70;72")
-    if(CUDA_VERSION VERSION_GREATER 11)
+    if(OHM_CUDA_VERSION VERSION_GREATER 11)
       # Last version to support 5.x
       set(CUDA_ARCH_INIT "50;52;53;60;61;62;70;72;75;80;86")
-    elseif(CUDA_VERSION VERSION_GREATER 10)
+    elseif(OHM_CUDA_VERSION VERSION_GREATER 10)
       # Adds 7.0, drops 3.0, 3.5, 3.7
       set(CUDA_ARCH_INIT "50;52;53;60;61;62;70;72;75")
     endif()
@@ -90,13 +132,12 @@ macro(cuda_setup)
     else(NOT OHM_USE_DEPRECATED_CMAKE_CUDA)
       _cuda_setup_deprecated_build_options()
     endif(NOT OHM_USE_DEPRECATED_CMAKE_CUDA)
-  endif(OHM_BUILD_CUDA)
+  endif(OHM_FEATURE_CUDA)
 endmacro(cuda_setup)
 
 #==============================================================================
 #==============================================================================
 macro(_cuda_setup_build_options)
-  enable_language(CUDA)
   # Setup architectures
   set(CMAKE_CUDA_ARCHITECTURES "${OHM_CUDA_ARCHITECTURES}")
   # Match CUDA standard to the C++ standard for the project.

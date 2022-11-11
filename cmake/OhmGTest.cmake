@@ -1,6 +1,7 @@
-option(OHM_SYSTEM_GTEST "Have ohm use a system available version of Googletest via find_package()?" Off)
+option(OHM_SYSTEM_GTEST "Have ohm use a system available version of Googletest via find_package()?" ${OHM_VCPKG})
 
 if(OHM_SYSTEM_GTEST)
+  # Enable VCPKG tests feature. This will only have an effect when using vcpkg.
   find_package(GTest CONFIG REQUIRED)
   get_target_property(GTEST_INCLUDE_DIRS GTest::gtest INTERFACE_INCLUDE_DIRECTORIES)
   set(GTEST_LIBRARIES GTest::gtest)
@@ -40,7 +41,7 @@ function(_gtest_library_path OUTVAR LIBNAME BUILD_CONFIG binary_dir)
   # Handle post fix; gtest is configured to add postifx the debug library names with 'd'
   unset(_POSTFIX)
   if(BUILD_CONFIG STREQUAL "Debug")
-    set(_POSTFIX "d")
+    set(_POSTFIX "_d")
   endif(BUILD_CONFIG STREQUAL "Debug")
   set(_PATH_DIR "${binary_dir}/lib")
   # Handle path prefix
