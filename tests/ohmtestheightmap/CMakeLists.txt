@@ -32,7 +32,7 @@ target_link_libraries(ohmtestheightmap
     GTest::gtest_main
     glm::glm
     $<BUILD_INTERFACE:$<$<BOOL:${OHM_TES_DEBUG}>:3es::3es-core>>
-    $<BUILD_INTERFACE:$<$<BOOL:${WITH_EIGEN}>:Eigen3::Eigen>>
+    $<BUILD_INTERFACE:$<$<BOOL:${OHM_FEATURE_EIGEN}>:Eigen3::Eigen>>
 )
 
 target_include_directories(ohmtestheightmap

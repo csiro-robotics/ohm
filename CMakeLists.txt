@@ -17,10 +17,17 @@ string(REGEX MATCH "\\<version\\>(.*)\\</version\\>" ohm_VERSION ${ohm_VERSION})
 string(REGEX REPLACE "\\<version\\>(.*)\\</version\\>" "\\1" ohm_VERSION ${ohm_VERSION})
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
+include(utils)
+
+# Work out if we are using VCPKG.
+set(OHM_VCPKG FALSE)
+if(CMAKE_TOOLCHAIN_FILE MATCHES ".*vcpkg\.cmake;?.*")
+  set(OHM_VCPKG TRUE)
+endif(CMAKE_TOOLCHAIN_FILE MATCHES ".*vcpkg\.cmake;?.*")
 
 # Setup core ohm build options.
 # Default to building shared libs.
-set(OHM_BUILD_SHARED_DEFAULT ON)
+set(OHM_BUILD_SHARED_DEFAULT OFF)
 if(DEFINED BUILD_SHARED_LIBS)
   # But use BUILD_SHARED_LIBS as the default if it's specified (like from the command line).
   set(OHM_BUILD_SHARED_DEFAULT ${BUILD_SHARED_LIBS})
@@ -29,15 +36,36 @@ option(OHM_BUILD_SHARED "Build shared ohm libraries?" ${OHM_BUILD_SHARED_DEFAULT
 # For details on OHM_BUILD_SHARED_SUPPRESS_WARNINGS, see usage in compilerSetup.cmake
 option(OHM_BUILD_SHARED_SUPPRESS_WARNINGS
   "Suppress warnings relating the DLL export symbols when building shared? Disables MSC warnings C4251 and C4275" ON)
+
 option(OHM_PROFILE "Enable timing information messages for some queries." Off)
 option(OHM_TES_DEBUG "Enable visual debuging code?" Off)
-option(OHM_UNIT_TESTS "Build ohm units tests?" On)
 option(OHM_VALIDATION "Enable various validation tests in the occupancy map code. Has some performance impact." Off)
-# OHM_BUILD_CUDA is found in OhmCuda.cmake
+# OHM_FEATURE_CUDA is found in OhmCuda.cmake
 option(OHM_LEAK_TRACK "Enable memory leak tracking?" OFF)
 
-# Build options
+# Build options; what extensions are we going to build. These options are authoritative and flow down from here.
+# For CUDA and OpenCL, we only need one, and we prefer CUDA based on what we find. However, vcpkg can guarantee we'll
+# find one, so it because a dependent option.
 option(OHM_BUILD_DOXYGEN "Build doxygen documentation?" Off)
+
+ohm_feature(EIGEN "Use Eigen for more signficiant linear algebra algorithms (e.g., eigen decomposition)?" FIND Eigen3)
+ohm_feature(HEIGHTMAP "Build heightmap library?")
+ohm_feature(HEIGHTMAP_IMAGE "Build heightmap image conversion?" FIND OpenGL GLEW glfw3)
+ohm_feature(PDAL "Build with PDAL reader support?" FIND pdal)
+ohm_feature(THREADS "Enable CPU threading (using Thread Building Blocks)?" FIND tbb)
+ohm_feature(TEST "Build unit tests?" FIND googletest)
+
+# include CUDA config here to prime OHM_FEATURE_CUDA as we prefer CUDA over OpenCL.
+# OHM_FEATURE_CUDA is in OhmCuda.cmake
+include(OhmCuda)
+set(NEED_OPENCL OFF)
+if(NOT OHM_FEATURE_CUDA)
+  set(NEED_OPENCL ON)
+endif(NOT OHM_FEATURE_CUDA)
+ohm_feature(OPENCL "Build with OpenCL support?" FIND OpenCL DEFAULT NEED_OPENCL)
+
+# # Windows vcpkg does not provide CUDA.
+# add_vcpkg_feature_if("cuda" "OHM_CUDA AND NOT WIN32")
 
 # Migrate ohm specific setting for building shared libraries to the CMake global option.
 set(BUILD_SHARED_LIBS ${OHM_BUILD_SHARED})
@@ -52,7 +80,7 @@ include(ClangTidy)
 # For example Visual Studio solution folders.
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
-set(CMAKE_DEBUG_POSTFIX d)
+set(CMAKE_DEBUG_POSTFIX _d)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib")
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
@@ -75,9 +103,9 @@ set(OHM_PREFIX_INCLUDE include/ohm)
 # General, required library
 find_package(glm CONFIG REQUIRED)
 
-# Look for OpenCL to setup OpenCL build options.
-find_package(OpenCL QUIET)
-
+if(OHM_FEATURE_OPENCL)
+  find_package(OpenCL)
+endif(OHM_FEATURE_OPENCL)
 if(OpenCL_FOUND)
   option(OHM_EMBED_GPU_CODE "Embed GPU code into the executable (OpenCL)? Otherwise GPU code files are loaded from disk (better for development)." ON)
 
@@ -92,66 +120,18 @@ endif(OpenCL_FOUND)
 set(OHM_OPENCL_2_FEATURES "" CACHE STRING "Features required for OpenCL 2.x. Fallback to 1.2 otherwise.")
 
 # Look for CUDA to setup CUDA build options and work out which CMake CUDA paradigm we'll use.
-include(OhmCuda)
-if(OHM_BUILD_CUDA)
+if(OHM_FEATURE_CUDA)
   if(NOT OHM_USE_DEPRECATED_CMAKE_CUDA)
     find_package(CUDAToolkit REQUIRED)
   else(NOT OHM_USE_DEPRECATED_CMAKE_CUDA)
     # Need to find CUDA for deprecated project configuration
     find_package(CUDA REQUIRED)
   endif(NOT OHM_USE_DEPRECATED_CMAKE_CUDA)
-endif(OHM_BUILD_CUDA)
+endif(OHM_FEATURE_CUDA)
 
-set(OHM_BUILD_OPENCL_DEFAULT NO)
-
-if(OpenCL_FOUND)
-  set(OHM_BUILD_OPENCL_DEFAULT YES)
-endif(OpenCL_FOUND)
-
-option(OHM_BUILD_OPENCL "Build ohm library and utlities for OpenCL?" ${OHM_BUILD_OPENCL_DEFAULT})
-
-# Helper macro to Find TBB prefering TBBConfig, falling back to FindTBB. TBB_LIBRARIES will be defined in both cases.
-# TBB_INCLUDE_DIRS will be empty for TBBConfig, and populated for FindTBB.
-macro(find_tbb)
-  # Try find TBB config file.
-  find_package(TBB QUIET CONFIG)
-  if(TBB_FOUND)
-    set(OHM_TBB_CONFIG TRUE CACHE INTERNAL "Using TBB via config.cmake?" FORCE)
-    message(STATUS "TBB found using TBBConfig.cmake")
-    if(NOT TBB_LIBRARIES)
-      if(TBB_IMPORTED_TARGETS)
-        set(TBB_LIBRARIES "${TBB_IMPORTED_TARGETS}")
-      elseif(TARGET tbb::tbb_static)
-        set(TBB_LIBRARIES tbb::tbb_static tbb::tbbmalloc_static)
-      elseif(TARGET tbb::tbb)
-        set(TBB_LIBRARIES tbb::tbb tbb::tbbmalloc)
-      else()
-        message(FATAL_ERROR "Could not resolve tbb libraries")
-      endif()
-    endif(NOT TBB_LIBRARIES)
-  else(TBB_FOUND)
-    set(OHM_TBB_CONFIG FALSE CACHE INTERNAL "Using TBB via config.cmake?" FORCE)
-    # No TBB config file. Try FindTBB.cmake
-    find_package(TBB QUIET)
-    if(TBB_FOUND)
-      message(STATUS "TBB found using FindTBB.cmake")
-    endif(TBB_FOUND)
-  endif(TBB_FOUND)
-endmacro(find_tbb)
-
-# Initialse OHM_THREADS based on whether we can find TBB or not.
-if(NOT DEFINED OHM_THREADS)
-  set(TBB_THREADS_DEFAULT Off)
-  find_tbb()
-  if(TBB_FOUND)
-    set(TBB_THREADS_DEFAULT On)
-  else(TBB_FOUND)
-    message(STATUS "Intel Threading Building Blocks not available. Building without threads.")
-  endif(TBB_FOUND)
-else(NOT DEFINED OHM_THREADS)
-  set(TBB_THREADS_DEFAULT ${OHM_THREADS})
-endif(NOT DEFINED OHM_THREADS)
-option(OHM_THREADS "Enable CPU threading (using Thread Building Blocks)?" ${TBB_THREADS_DEFAULT})
+if(OHM_FEATURE_EIGEN)
+  find_package(Eigen3 CONFIG REQUIRED)
+endif(OHM_FEATURE_EIGEN)
 
 # Manage compiler warnings.
 # Use CMAKE_MODULE_PATH and include(warnings) if warnings.cmake is moved.
@@ -200,64 +180,38 @@ else(OHM_TES_DEBUG)
   set(3ES_INCLUDE_DIRS "${CMAKE_CURRENT_LIST_DIR}/3rdparty/3es-core")
 endif(OHM_TES_DEBUG)
 
-# Resolve which point cloud library to use.
-# TODO: Migrate to PDAL only once Windows developer setup instructions for PDAL are resolved.
-find_package(PDAL QUIET)
-
-set(WITH_PDAL_INIT OFF)
-if(PDAL_FOUND)
-  if(PDAL_VERSION VERSION_GREATER_EQUAL 1.7)
-    set(WITH_PDAL_INIT ON)
-  endif(PDAL_VERSION VERSION_GREATER_EQUAL 1.7)
-endif(PDAL_FOUND)
-option(WITH_PDAL "Build with PDAL support?" ${WITH_PDAL_INIT})
-
-find_package(Eigen3 QUIET)
-option(WITH_EIGEN "Use Eigen for more signficiant linear algebra algorithms (e.g., eigen decomposition)?" ${EIGEN3_FOUND})
-# Rename WITH_EIGEN for use in OhmConfig.h
-# We follow CMake paradigms here using WITH_XXX, but in code we prefix with OHM to avoid aliasing with other libraries.
-set(OHM_WITH_EIGEN ${WITH_EIGEN})
-
-# Heightmap image libraries (optional)
-find_package(OpenGL QUIET)
-find_package(GLEW QUIET)
-find_package(glfw3 QUIET)
-set(OHM_HM_IMG_LIBS_FOUND NO)
-if(OpenGL_FOUND AND GLEW_FOUND AND GLM_FOUND AND glfw3_FOUND)
-  set(OHM_HM_IMG_LIBS_FOUND YES)
-endif(OpenGL_FOUND AND GLEW_FOUND AND GLM_FOUND AND glfw3_FOUND)
-option(OHM_BUILD_HEIGHTMAP_IMAGE "Build ohmheightmapimage library to support heightmap to image conversion?" ${OHM_HM_IMG_LIBS_FOUND})
-
 add_subdirectory(logutil)
 
-if(OHM_BUILD_OPENCL)
+if(OHM_FEATURE_OPENCL)
   add_subdirectory(clu)
-endif(OHM_BUILD_OPENCL)
-if(OHM_BUILD_CUDA OR OHM_BUILD_OPENCL)
+endif(OHM_FEATURE_OPENCL)
+if(OHM_FEATURE_CUDA OR OHM_FEATURE_OPENCL)
   add_subdirectory(gputil)
-endif(OHM_BUILD_CUDA OR OHM_BUILD_OPENCL)
+endif(OHM_FEATURE_CUDA OR OHM_FEATURE_OPENCL)
 
 add_subdirectory(ohmutil)
 add_subdirectory(slamio)
 add_subdirectory(ohm)
-if(OHM_BUILD_CUDA OR OHM_BUILD_OPENCL)
+if(OHM_FEATURE_CUDA OR OHM_FEATURE_OPENCL)
   add_subdirectory(ohmgpu)
-endif(OHM_BUILD_CUDA OR OHM_BUILD_OPENCL)
-add_subdirectory(ohmheightmap)
+endif(OHM_FEATURE_CUDA OR OHM_FEATURE_OPENCL)
+if(OHM_FEATURE_HEIGHTMAP)
+  add_subdirectory(ohmheightmap)
+endif(OHM_FEATURE_HEIGHTMAP)
 
-if(OHM_BUILD_HEIGHTMAP_IMAGE)
+if(OHM_FEATURE_HEIGHTMAP_IMAGE)
   # Experimental
   add_subdirectory(ohmheightmapimage)
-endif(OHM_BUILD_HEIGHTMAP_IMAGE)
+endif(OHM_FEATURE_HEIGHTMAP_IMAGE)
 
 add_subdirectory(ohmtools)
 add_subdirectory(ohmapp)
 add_subdirectory(utils)
 
-if(OHM_UNIT_TESTS)
+if(OHM_FEATURE_TEST)
   enable_testing()
   add_subdirectory(tests)
-endif(OHM_UNIT_TESTS)
+endif(OHM_FEATURE_TEST)
 
 clang_tidy_global()
 
@@ -319,12 +273,12 @@ if(OHM_BUILD_DOXYGEN)
     slamio/pdal
   )
 
-  if(OHM_BUILD_CUDA OR OHM_BUILD_OPENCL)
+  if(OHM_FEATURE_CUDA OR OHM_FEATURE_OPENCL)
     list(APPEND DOXYGEN_DIRS ohmgpu)
-  endif(OHM_BUILD_CUDA OR OHM_BUILD_OPENCL)
-  if(OHM_BUILD_OPENCL)
+  endif(OHM_FEATURE_CUDA OR OHM_FEATURE_OPENCL)
+  if(OHM_FEATURE_OPENCL)
     list(APPEND DOXYGEN_DIRS clu)
-  endif(OHM_BUILD_OPENCL)
+  endif(OHM_FEATURE_OPENCL)
 
   list(APPEND DOXYGEN_DIRS docs)
 

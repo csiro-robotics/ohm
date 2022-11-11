@@ -68,7 +68,7 @@ target_link_libraries(ohmtest
     GTest::gtest_main
     glm::glm
     $<BUILD_INTERFACE:$<$<BOOL:${OHM_TES_DEBUG}>:3es::3es-core>>
-    $<BUILD_INTERFACE:$<$<BOOL:${WITH_EIGEN}>:Eigen3::Eigen>>
+    $<BUILD_INTERFACE:$<$<BOOL:${OHM_FEATURE_EIGEN}>:Eigen3::Eigen>>
 )
 
 add_test(NAME ohmtest COMMAND ohmtest --gtest_output=xml:test-reports/)

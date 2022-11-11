@@ -46,7 +46,7 @@ function(_ohmquery_setup GPU_MODE)
   install(TARGETS ${TARGET_NAME} DESTINATION bin)
 endfunction(_ohmquery_setup)
 
-if(OHM_BUILD_OPENCL)
+if(OHM_FEATURE_OPENCL)
   _ohmquery_setup(ocl)
   clang_tidy_target(ohmqueryocl)
   # Required to run NVIDIA OpenCL
@@ -55,8 +55,8 @@ if(OHM_BUILD_OPENCL)
     ${OHM_LEAK_SUPPRESS_OCL}
     ${OHM_LEAK_SUPPRESS_TBB}
   )
-endif(OHM_BUILD_OPENCL)
-if(OHM_BUILD_CUDA)
+endif(OHM_FEATURE_OPENCL)
+if(OHM_FEATURE_CUDA)
   _ohmquery_setup(cuda)
   clang_tidy_target(ohmquerycuda)
   leak_track_default_options(ohmquerycuda CONDITION OHM_LEAK_TRACK ${OHM_ASAN_OPTIONS_CUDA})
@@ -64,7 +64,7 @@ if(OHM_BUILD_CUDA)
     ${OHM_LEAK_SUPPRESS_CUDA}
     ${OHM_LEAK_SUPPRESS_TBB}
   )
-endif(OHM_BUILD_CUDA)
+endif(OHM_FEATURE_CUDA)
 
 source_group("source" REGULAR_EXPRESSION ".*$")
 # Needs CMake 3.8+:

@@ -19,10 +19,10 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
-#ifdef OHM_THREADS
+#ifdef OHM_FEATURE_THREADS
 #include <tbb/blocked_range.h>
 #include <tbb/parallel_for.h>
-#endif  // OHM_THREADS
+#endif  // OHM_FEATURE_THREADS
 
 #include <algorithm>
 #include <functional>
@@ -63,15 +63,15 @@ unsigned occupancyLineQueryCpu(const OccupancyMap &map, LineQueryDetail &query, 
   query.ranges.resize(query.segment_keys.size());
 
   // Perform query.
-#ifdef OHM_THREADS
+#ifdef OHM_FEATURE_THREADS
   const auto parallel_query_func = [&query, &map, voxel_search_half_extents](const tbb::blocked_range<size_t> &range) {
     calculateNearestNeighboursRange(query, range.begin(), range.end(), map, voxel_search_half_extents);
   };
   tbb::parallel_for(tbb::blocked_range<size_t>(0u, query.segment_keys.size()), parallel_query_func);
 
-#else   // OHM_THREADS
+#else   // OHM_FEATURE_THREADS
   calculateNearestNeighboursRange(query, 0u, query.segment_keys.size(), map, voxel_search_half_extents);
-#endif  // OHM_THREADS
+#endif  // OHM_FEATURE_THREADS
 
   // Find closest result.
   for (size_t i = 0; i < query.ranges.size(); ++i)

@@ -53,7 +53,7 @@ function(_ohmtestgpu_setup GPU)
       GTest::gtest_main
       glm::glm
       $<BUILD_INTERFACE:$<$<BOOL:${OHM_TES_DEBUG}>:3es::3es-core>>
-      $<BUILD_INTERFACE:$<$<BOOL:${WITH_EIGEN}>:Eigen3::Eigen>>
+      $<BUILD_INTERFACE:$<$<BOOL:${OHM_FEATURE_EIGEN}>:Eigen3::Eigen>>
   )
 
 
@@ -65,7 +65,7 @@ function(_ohmtestgpu_setup GPU)
   add_test(NAME ohmtest${GPU} COMMAND ohmtest${GPU} --gtest_output=xml:test-reports/)
 endfunction(_ohmtestgpu_setup)
 
-if(OHM_BUILD_OPENCL)
+if(OHM_FEATURE_OPENCL)
   _ohmtestgpu_setup(ocl)
   # Required to run NVIDIA OpenCL
   leak_track_default_options(ohmtestocl CONDITION OHM_LEAK_TRACK ${OHM_ASAN_OPTIONS_CUDA})
@@ -73,15 +73,15 @@ if(OHM_BUILD_OPENCL)
     ${OHM_LEAK_SUPPRESS_OCL}
     ${OHM_LEAK_SUPPRESS_TBB}
   )
-endif(OHM_BUILD_OPENCL)
-if(OHM_BUILD_CUDA)
+endif(OHM_FEATURE_OPENCL)
+if(OHM_FEATURE_CUDA)
   _ohmtestgpu_setup(cuda)
   leak_track_default_options(ohmtestcuda CONDITION OHM_LEAK_TRACK ${OHM_ASAN_OPTIONS_CUDA})
   leak_track_suppress(ohmtestcuda CONDITION OHM_LEAK_TRACK
     ${OHM_LEAK_SUPPRESS_CUDA}
     ${OHM_LEAK_SUPPRESS_TBB}
   )
-endif(OHM_BUILD_CUDA)
+endif(OHM_FEATURE_CUDA)
 
 source_group("source" REGULAR_EXPRESSION ".*$")
 # Needs CMake 3.8+:

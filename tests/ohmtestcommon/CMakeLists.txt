@@ -41,7 +41,7 @@ target_link_libraries(ohmtestcommon
   PRIVATE
     GTest::gtest
     $<BUILD_INTERFACE:$<$<BOOL:${OHM_TES_DEBUG}>:3es::3es-core>>
-    $<BUILD_INTERFACE:$<$<BOOL:${WITH_EIGEN}>:Eigen3::Eigen>>
+    $<BUILD_INTERFACE:$<$<BOOL:${OHM_FEATURE_EIGEN}>:Eigen3::Eigen>>
 )
 
 add_dependencies(ohmtestcommon marshal_test_data)

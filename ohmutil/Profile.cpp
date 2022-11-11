@@ -17,9 +17,9 @@
 
 #include "OhmUtil.h"
 
-#ifdef OHM_THREADS
+#ifdef OHM_FEATURE_THREADS
 #include <tbb/tbb_thread.h>
-#endif  // OHM_THREADS
+#endif  // OHM_FEATURE_THREADS
 
 namespace ohm
 {
@@ -81,7 +81,7 @@ struct ThreadRecords
   }
 };
 
-#ifdef OHM_THREADS
+#ifdef OHM_FEATURE_THREADS
 void compareThreadIds(std::thread::id stdId, tbb::internal::tbb_thread_v3::id tbbId)
 {
   static bool once = true;
@@ -90,7 +90,7 @@ void compareThreadIds(std::thread::id stdId, tbb::internal::tbb_thread_v3::id tb
     once = false;
   }
 }
-#endif  // OHM_THREADS
+#endif  // OHM_FEATURE_THREADS
 
 struct ProfileDetail
 {
@@ -108,9 +108,9 @@ struct ProfileDetail
   inline ThreadRecords &getCurrentThreadRecords()
   {
     std::unique_lock<std::mutex> guard(mutex);
-#ifdef OHM_THREADS
+#ifdef OHM_FEATURE_THREADS
     // compareThreadIds(std::this_thread::get_id(), tbb::this_tbb_thread::get_id());
-#endif  // OHM_THREADS
+#endif  // OHM_FEATURE_THREADS
     for (auto &search : thread_records)
     {
       if (search.first == std::this_thread::get_id())

@@ -4,9 +4,9 @@ include(TextFileResource)
 
 find_package(GLM)
 find_package(ZLIB)
-if(OHM_THREADS)
-  find_tbb()
-endif(OHM_THREADS)
+if(OHM_FEATURE_THREADS)
+  find_package(TBB)
+endif(OHM_FEATURE_THREADS)
 
 set(TES_ENABLE ${OHM_TES_DEBUG})
 configure_file(OhmHeightmapConfig.in.h "${CMAKE_CURRENT_BINARY_DIR}/ohmheightmap/OhmHeightmapConfig.h")
@@ -72,8 +72,8 @@ target_link_libraries(ohmheightmap
     # Link static and header only dependencies as a private link target under the BUILD_INTERFACE. This imports inlcude
     # directories and links the libraries, but does not chain the dependency downstream.
     $<BUILD_INTERFACE:$<$<BOOL:${OHM_TES_DEBUG}>:3es::3es-core>>
-    $<BUILD_INTERFACE:$<$<BOOL:${WITH_EIGEN}>:Eigen3::Eigen>>
-    $<BUILD_INTERFACE:$<$<BOOL:${OHM_THREADS}>:TBB::tbb>>
+    $<BUILD_INTERFACE:$<$<BOOL:${OHM_FEATURE_EIGEN}>:Eigen3::Eigen>>
+    $<BUILD_INTERFACE:$<$<BOOL:${OHM_FEATURE_THREADS}>:TBB::tbb>>
     $<BUILD_INTERFACE:ZLIB::ZLIB>
 )
 

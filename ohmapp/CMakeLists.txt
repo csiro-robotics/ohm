@@ -99,21 +99,21 @@ target_link_libraries(ohmapp PUBLIC ohm ohmutil ohmtools slamio)
 
 # Add GPU sources and libarries
 list(APPEND SOURCE OhmAppGpu.cpp OhmAppGpu.h)
-if(OHM_BUILD_CUDA)
+if(OHM_FEATURE_CUDA)
   add_library(ohmappcuda STATIC ${SOURCES_GPU})
   _ohmapp_setup_target(ohmappcuda "cuda")
   target_link_libraries(ohmappcuda PUBLIC ohmapp)
-endif(OHM_BUILD_CUDA)
-if(OHM_BUILD_OPENCL)
+endif(OHM_FEATURE_CUDA)
+if(OHM_FEATURE_OPENCL)
   add_library(ohmappocl STATIC ${SOURCES_GPU})
   _ohmapp_setup_target(ohmappocl "ocl")
   target_link_libraries(ohmappocl PUBLIC ohmapp)
-endif(OHM_BUILD_OPENCL)
+endif(OHM_FEATURE_OPENCL)
 
 install(FILES ${PUBLIC_HEADERS} DESTINATION ${OHM_PREFIX_INCLUDE}/ohmapp)
 
-if(OHM_BUILD_CUDA OR OHM_BUILD_OPENCL)
+if(OHM_FEATURE_CUDA OR OHM_FEATURE_OPENCL)
   install(FILES ${PUBLIC_HEADERS_GPU} DESTINATION ${OHM_PREFIX_INCLUDE}/ohmapp)
-endif(OHM_BUILD_CUDA OR OHM_BUILD_OPENCL)
+endif(OHM_FEATURE_CUDA OR OHM_FEATURE_OPENCL)
 
 source_group(TREE "${CMAKE_CURRENT_LIST_DIR}" PREFIX source FILES ${SOURCES})

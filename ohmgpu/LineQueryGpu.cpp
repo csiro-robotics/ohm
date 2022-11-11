@@ -26,10 +26,10 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
-#ifdef OHM_THREADS
+#ifdef OHM_FEATURE_THREADS
 #include <tbb/blocked_range.h>
 #include <tbb/parallel_for.h>
-#endif  // OHM_THREADS
+#endif  // OHM_FEATURE_THREADS
 
 #include <algorithm>
 #include <functional>

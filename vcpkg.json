@@ -4,15 +4,27 @@
   "version": "0.2.0",
   "default-features": [
     "eigen",
-    "tbb",
-    "test"
+    "heightmap",
+    "threads"
   ],
   "features": {
+    "cuda": {
+      "description": "Enable CUDA acceleration libraries.",
+      "dependencies": [
+        {
+          "name": "cuda",
+          "platform": "!windows"
+        }
+      ]
+    },
     "eigen": {
       "description": "Enable Eigen support for faster Geometry operation.",
       "dependencies": [
         "eigen3"
       ]
+    },
+    "heightmap": {
+      "description": "Support heightmap generation."
     },
     "heightmap-image": {
       "description": "Support heightmap rendering to image.",
@@ -21,6 +33,12 @@
         "glfw3",
         "libpng",
         "opengl"
+      ]
+    },
+    "opencl": {
+      "description": "Enable OpenCL acceleration libraries.",
+      "dependencies": [
+        "opencl"
       ]
     },
     "pdal": {
@@ -35,7 +53,7 @@
         }
       ]
     },
-    "tbb": {
+    "threads": {
       "description": "Build with Intel Threading Building Blocks.",
       "dependencies": [
         "tbb"

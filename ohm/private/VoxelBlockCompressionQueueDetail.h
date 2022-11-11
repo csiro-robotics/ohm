@@ -10,11 +10,11 @@
 
 #include "Mutex.h"
 
-#ifdef OHM_THREADS
+#ifdef OHM_FEATURE_THREADS
 #include <tbb/concurrent_queue.h>
-#else  // OHM_THREADS
+#else  // OHM_FEATURE_THREADS
 #include <queue>
-#endif  // OHM_THREADS
+#endif  // OHM_FEATURE_THREADS
 
 #include <atomic>
 #include <condition_variable>
@@ -40,15 +40,15 @@ struct VoxelBlockCompressionQueueDetail
   using Mutex = ohm::Mutex;
   /// Reference count mutex.
   Mutex ref_lock;
-#ifdef OHM_THREADS
+#ifdef OHM_FEATURE_THREADS
   /// Queue used to push @c VoxelBlock candidates for compression.
   tbb::concurrent_queue<VoxelBlock *> compression_queue;
-#else   // OHM_THREADS
+#else   // OHM_FEATURE_THREADS
   /// Mutex for @c compression_queue
   ohm::Mutex queue_lock;
   /// Queue used to push @c VoxelBlock candidates for compression.
   std::queue<VoxelBlock *> compression_queue;
-#endif  // OHM_THREADS
+#endif  // OHM_FEATURE_THREADS
   /// Full set of registered @c VoxelBlock items.
   std::vector<CompressionEntry> blocks;
   /// High tide to initiate compression at.
@@ -71,19 +71,19 @@ struct VoxelBlockCompressionQueueDetail
 
 inline void push(VoxelBlockCompressionQueueDetail &detail, VoxelBlock *block)
 {
-#ifdef OHM_THREADS
+#ifdef OHM_FEATURE_THREADS
   detail.compression_queue.push(block);
-#else   // OHM_THREADS
+#else   // OHM_FEATURE_THREADS
   std::unique_lock<ohm::Mutex> guard(detail.queue_lock);
   detail.compression_queue.emplace(block);
-#endif  // OHM_THREADS
+#endif  // OHM_FEATURE_THREADS
 }
 
 inline bool tryPop(VoxelBlockCompressionQueueDetail &detail, VoxelBlock **block)
 {
-#ifdef OHM_THREADS
+#ifdef OHM_FEATURE_THREADS
   return detail.compression_queue.try_pop(*block);
-#else   // OHM_THREADS
+#else   // OHM_FEATURE_THREADS
   std::unique_lock<ohm::Mutex> guard(detail.queue_lock);
   if (!detail.compression_queue.empty())
   {
@@ -93,7 +93,7 @@ inline bool tryPop(VoxelBlockCompressionQueueDetail &detail, VoxelBlock **block)
   }
 
   return false;
-#endif  // OHM_THREADS
+#endif  // OHM_FEATURE_THREADS
 }
 }  // namespace ohm
 

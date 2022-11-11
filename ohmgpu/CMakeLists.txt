@@ -4,14 +4,14 @@ include(TextFileResource)
 
 find_package(GLM)
 find_package(ZLIB)
-if(OHM_THREADS)
-  find_tbb()
-endif(OHM_THREADS)
+if(OHM_FEATURE_THREADS)
+  find_package(TBB)
+endif(OHM_FEATURE_THREADS)
 
-if(OHM_BUILD_CUDA AND OHM_USE_DEPRECATED_CMAKE_CUDA)
+if(OHM_FEATURE_CUDA AND OHM_USE_DEPRECATED_CMAKE_CUDA)
   # Need to find CUDA for deprecated project configuration
   find_package(CUDA)
-endif(OHM_BUILD_CUDA AND OHM_USE_DEPRECATED_CMAKE_CUDA)
+endif(OHM_FEATURE_CUDA AND OHM_USE_DEPRECATED_CMAKE_CUDA)
 
 set(TES_ENABLE ${OHM_TES_DEBUG})
 configure_file(OhmGpuConfig.in.h "${CMAKE_CURRENT_BINARY_DIR}/ohmgpu/OhmGpuConfig.h")
@@ -126,7 +126,7 @@ function(_ohmgpu_setup_target TARGET_NAME GPUTIL_LIBRARY OHM_GPU)
     PRIVATE
       ${GPUTIL_LIBRARY}
       $<BUILD_INTERFACE:$<$<BOOL:${OHM_TES_DEBUG}>:3es::3es-core>>
-      $<BUILD_INTERFACE:$<$<BOOL:${OHM_THREADS}>:TBB::tbb>>
+      $<BUILD_INTERFACE:$<$<BOOL:${OHM_FEATURE_THREADS}>:TBB::tbb>>
     )
 
   target_include_directories(${TARGET_NAME}
@@ -169,7 +169,7 @@ function(_ohmgpu_setup_target TARGET_NAME GPUTIL_LIBRARY OHM_GPU)
 endfunction(_ohmgpu_setup_target)
 
 
-if(OHM_BUILD_OPENCL)
+if(OHM_FEATURE_OPENCL)
   get_target_property(OHM_INCLUDE_DIRS ohm SOURCE_DIR)
 
   # Add gputil:gpu_ext.h to this project for correct marshalling.
@@ -216,9 +216,9 @@ if(OHM_BUILD_OPENCL)
       )
     endforeach(CLSOURCE)
   endif(NOT OHM_EMBED_GPU_CODE)
-endif(OHM_BUILD_OPENCL)
+endif(OHM_FEATURE_OPENCL)
 
-if(OHM_BUILD_CUDA)
+if(OHM_FEATURE_CUDA)
   list(APPEND GPU_SOURCES
     gpu/CovarianceHitNdt.cu
     gpu/LineKeys.cu
@@ -238,7 +238,7 @@ if(OHM_BUILD_CUDA)
   endif(OHM_USE_DEPRECATED_CMAKE_CUDA)
 
   _ohmgpu_setup_target(ohmcuda gputilcuda ${OHM_GPU_CUDA})
-endif(OHM_BUILD_CUDA)
+endif(OHM_FEATURE_CUDA)
 
 install(FILES ${PUBLIC_HEADERS} DESTINATION ${OHM_PREFIX_INCLUDE}/ohmgpu)
 

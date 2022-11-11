@@ -10,7 +10,7 @@
 
 #include <mutex>
 
-#ifdef OHM_THREADS
+#ifdef OHM_FEATURE_THREADS
 #include <tbb/spin_mutex.h>
 namespace ohm
 {
@@ -18,12 +18,12 @@ namespace ohm
 using Mutex = std::mutex;
 using SpinMutex = tbb::spin_mutex;
 }  // namespace ohm
-#else   // OHM_THREADS
+#else   // OHM_FEATURE_THREADS
 namespace ohm
 {
 using Mutex = std::mutex;
 using SpinMutex = std::mutex;
 }  // namespace ohm
-#endif  // OHM_THREADS
+#endif  // OHM_FEATURE_THREADS
 
 #endif  // OHMMUTEX_H

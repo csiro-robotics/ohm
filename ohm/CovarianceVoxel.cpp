@@ -22,9 +22,9 @@
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtx/matrix_factorisation.hpp>
 
-#ifdef OHM_WITH_EIGEN
+#ifdef OHM_FEATURE_EIGEN
 #include <Eigen/Dense>
-#endif  // OHM_WITH_EIGEN
+#endif  // OHM_FEATURE_EIGEN
 
 #include <3esservermacros.h>
 #ifdef TES_ENABLE
@@ -46,7 +46,7 @@ double max_error = 0;
 
 namespace
 {
-#ifdef OHM_WITH_EIGEN
+#ifdef OHM_FEATURE_EIGEN
 void covarianceEigenDecompositionEigen(const CovarianceVoxel *cov, glm::dmat3 *eigenvectors, glm::dvec3 *eigenvalues)
 {
   // This has been noted to be ~3x faster than the GLM iterative version.
@@ -83,7 +83,7 @@ void covarianceEigenDecompositionEigen(const CovarianceVoxel *cov, glm::dmat3 *e
     }
   }
 }
-#else  // OHM_WITH_EIGEN
+#else  // OHM_FEATURE_EIGEN
 void covarianceEigenDecompositionGlm(const CovarianceVoxel *cov, glm::dmat3 *eigenvectors, glm::dvec3 *eigenvalues)
 {
   // This has been noted to be ~3x slower than the Eigen solver.
@@ -141,16 +141,16 @@ void covarianceEigenDecompositionGlm(const CovarianceVoxel *cov, glm::dmat3 *eig
 
   *eigenvalues = eigenvalues_current;
 }
-#endif  // OHM_WITH_EIGEN
+#endif  // OHM_FEATURE_EIGEN
 }  // namespace
 
 void covarianceEigenDecomposition(const CovarianceVoxel *cov, glm::dmat3 *eigenvectors, glm::dvec3 *eigenvalues)
 {
-#ifdef OHM_WITH_EIGEN
+#ifdef OHM_FEATURE_EIGEN
   covarianceEigenDecompositionEigen(cov, eigenvectors, eigenvalues);
-#else   // OHM_WITH_EIGEN
+#else   // OHM_FEATURE_EIGEN
   covarianceEigenDecompositionGlm(cov, eigenvectors, eigenvalues);
-#endif  // OHM_WITH_EIGEN
+#endif  // OHM_FEATURE_EIGEN
 }
 
 

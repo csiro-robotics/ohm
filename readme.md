@@ -80,12 +80,38 @@ sudo apt install libglew-dev libglfw3-dev libpng-dev libeigen3-dev
         - For Visual Studio, open the solution file and build.
         - For make based platforms, run `make -j`
 
+### Building with vcpkg
+
+Ohm supports building with in [vcpkg manifest mode](https://vcpkg.readthedocs.io/en/latest/users/manifests/). To build using vcpkg, first follow the [vcpkg install instructions](https://vcpkg.io/en/getting-started.html) then build with the vcpkg toolchain enabled.
+
+Building in manifest mode obviates the need to download the dependencies, except for the CUDA SDK on Windows. To build with vcpkg, adjust the cmake command line to enable vcpkg manifest mode when configuring the project;
+
+```bash
+cmake .. -DCMAKE_TOOLCHAIN_FILE=<vcpkg_path>/scripts/buildsystem/vcpkg.cmake -DVCPKG_MANIFEST_FEATURES=<features>
+```
+
+The `VCPKG_MANIFEST_FEATURES` specifies the features to enable for ohm, where they differ from the default features. This is a semicolon separated list of features choosing from the items listed below. It is generally expected that either `cuda` or `opencl` are listed, or both.
+
+| Feature           | Description                                                                                           |
+| ----------------- | ----------------------------------------------------------------------------------------------------- |
+| `cuda`            | Build with CUDA GPU acceleration.                                                                     |
+| `eigen` \*        | Enable Eigen support (private)                                                                        |
+| `heightmap` \*    | Enable the heightmap library                                                                          |
+| `heightmap-image` | Enable heightmap to image conversion                                                                  |
+| `opencl`          | Enable OpenCL acceleration.                                                                           |
+| `pdal`            | Enable PDAL point cloud loader. Warning: this takes a long time to build the GDAL dependency (hours). |
+| `threads` \*      | Enable TBB threading (limited).                                                                       |
+| `test`            | Build the ohm unit tests.                                                                             |
+
+\* This feature is enabled by default.
+
 ## Notable Known Issues
 
 - OpenCL compatibility with certain devices may vary.
 - OpenCL performance on various devices may vary especially with memory transfer rates.
 - Using the OpenCL 2.x SDK and selecting an NVIDIA GPU will result in runtime crashes.
 - When installing, OHM_EMBED_GPU_CODE must be defined in order to run ohmocl; otherwise OpenCL source is not found.
+- When building from VSCode on Windows and using the Ninja generation, `nvcc` may fail reporting "command too long". This appears to be caused by a long path name. Changing to an "unspecified" CMake Kit or launching VSCode with a shorter PATH variable may help.
 
 ## Resolving OpenCL SDK With Multiple Options
 

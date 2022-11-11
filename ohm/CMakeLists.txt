@@ -4,9 +4,9 @@ include(TextFileResource)
 
 find_package(GLM)
 find_package(ZLIB)
-if(OHM_THREADS)
-  find_tbb()
-endif(OHM_THREADS)
+if(OHM_FEATURE_THREADS)
+  find_package(TBB)
+endif(OHM_FEATURE_THREADS)
 
 set(TES_ENABLE ${OHM_TES_DEBUG})
 configure_file(OhmConfig.in.h "${CMAKE_CURRENT_BINARY_DIR}/ohm/OhmConfig.h")
@@ -251,7 +251,7 @@ target_link_libraries(ohm
     # directories and links the libraries, but does not chain the dependency downstream.
     $<BUILD_INTERFACE:$<$<BOOL:${OHM_TES_DEBUG}>:3es::3es-core>>
     $<BUILD_INTERFACE:$<$<BOOL:${WITH_EIGEN}>:Eigen3::Eigen>>
-    $<BUILD_INTERFACE:$<$<BOOL:${OHM_THREADS}>:TBB::tbb>>
+    $<BUILD_INTERFACE:$<$<BOOL:${OHM_FEATURE_THREADS}>:TBB::tbb>>
     $<BUILD_INTERFACE:ZLIB::ZLIB>
 )
 

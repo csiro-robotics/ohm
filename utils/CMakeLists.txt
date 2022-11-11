@@ -11,6 +11,6 @@ add_subdirectory(ohmprob)
 add_subdirectory(ohmquery)
 add_subdirectory(ohmsubmap)
 
-if(OHM_BUILD_HEIGHTMAP_IMAGE)
+if(OHM_FEATURE_HEIGHTMAP_IMAGE)
   add_subdirectory(ohmhm2img)
-endif(OHM_BUILD_HEIGHTMAP_IMAGE)
+endif(OHM_FEATURE_HEIGHTMAP_IMAGE)

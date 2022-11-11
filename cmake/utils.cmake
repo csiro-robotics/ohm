@@ -9,6 +9,96 @@
 include(CMakeParseArguments)
 
 #-------------------------------------------------------------------------------
+# ohm_feature(<name> <help_string>
+#   [FIND <package1> [<package2>...]]
+#   [CONDITION <condition>]
+# )
+#
+# Setup an OHM feature which can be enabled via either VCPKG or CMake with VCPKG_MANIFEST_FEATURES being authoratative.
+#
+# The feature NAME is mapped to a cmake option as 'OHM_FEATURE_$<NAME>' and to an equivalent VCPKG feature - an entry
+# in the VCPKG_MANIFEST_FEATURES list - where the vcpkg feature name is the lower case NAME with underscores replaced by
+# hyphens '-'. The CMake option defaults to on when the feature is present in VCPKG_MANIFEST_FEATURES.
+#
+# Additionally, the default state of the CMake option can be affected by the results of find_package() commands. When
+# FIND is specified and all packages listed are located, then the CMake OHM_FEATURE_<NAME> option is enabled. Note that
+# this does not guarantee that the library is located from the VCPKG packages, thus when using vcpkg, it's best to
+# toggle features using VCPKG_MANIFEST_FEATURES exclusively.
+#
+# FIND - list of packages which, if found, will enable this feature implicitly.
+#
+# DEFAULT - a variable which determines the default state of the feature option if not exclicitly enabled.
+function(ohm_feature NAME HELP)
+  cmake_parse_arguments(ARG "" "DEFAULT" "FIND" ${ARGN})
+  set(_require_from_vcpkg No)   # Required from VCPKG feature set?
+  set(_require_from_option No)  # Required from OHM_FEATURE_ option?
+  set(_imply_from_package No)   # Package is available if needed, potentially implying the feature?
+
+  string(TOLOWER "${NAME}" _vcpkg_name)
+  # _ not allowed in vcpkg feature
+  string(REPLACE "_" "-" _vcpkg_name "${_vcpkg_name}")
+
+  # Check for VCPKG specified feature.
+  list(FIND VCPKG_MANIFEST_FEATURES ${_vcpkg_name} _find_at)
+  if(_find_at GREATER_EQUAL 0)
+    # VCPKG feature explicitly enabled.
+    set(_require_from_vcpkg Yes)
+    set(_feature_source "vcpkg")
+  endif(_find_at GREATER_EQUAL 0)
+
+  # Check for build option enabled (from command line or cache).
+  if(OHM_FEATURE_${NAME})
+    set(_require_from_option Yes)
+    set(_feature_source "option")
+  endif(OHM_FEATURE_${NAME})
+
+  # Not explicitly enabled via either mechanism. Check if it should be implied.
+  if(ARG_DEFAULT)
+    set(_allow_implicit OFF)
+    if(${ARG_DEFAULT})
+      set(_allow_implicit ON)
+    endif(${ARG_DEFAULT})
+  else()
+    set(_allow_implicit ON)
+  endif(ARG_DEFAULT)
+
+  if(NOT _require_from_vcpkg AND NOT _require_from_option)
+    set(_imply_from_package Yes) # Default to assume on
+    foreach(pkg ${ARG_FIND}) # Check each package
+      find_package(${pkg} QUIET)
+      if(NOT ${pkg}_FOUND)
+        # Missing package. Do not imply to ON.
+        set(_imply_from_package No)
+        break()
+      endif(NOT ${pkg}_FOUND)
+    endforeach(pkg)
+    set(_feature_source "find_package")
+  endif(NOT _require_from_vcpkg AND NOT _require_from_option)
+
+  # Add the option with the implied state.
+  set(_default Off)
+  if(_require_from_vcpkg OR _require_from_option OR _allow_implicit AND _imply_from_package)
+    set(_default On)
+  endif(_require_from_vcpkg OR _require_from_option OR _allow_implicit AND _imply_from_package)
+
+  option(OHM_FEATURE_${NAME} "${HELP}" "${_default}")
+  if(OHM_FEATURE_${NAME})
+    message(STATUS "Enable feature ${NAME} from ${_feature_source}")
+  endif(OHM_FEATURE_${NAME})
+endfunction(ohm_feature)
+
+#-------------------------------------------------------------------------------
+# option_expr
+# Add an option with the given expression determining the default option state.
+function(option_cond VAR HELP EXPR)
+  set(_DEFAULT OFF)
+  if(${EXPR})
+    set(_DEFAULT ON)
+  endif(${EXPR})
+  option(${VAR} "${HELP}" ${_DEFAULT})
+endfunction(option_cond)
+
+#-------------------------------------------------------------------------------
 # show_properties(<GLOBAL           |
 #                  DIRECTORY [dir]  |
 #                  TARGET <target>  |

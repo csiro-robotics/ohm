@@ -6,9 +6,9 @@ find_package(OpenGL REQUIRED)
 find_package(GLEW REQUIRED)
 find_package(GLM REQUIRED)
 find_package(glfw3 REQUIRED)
-if(OHM_THREADS)
-  find_tbb()
-endif(OHM_THREADS)
+if(OHM_FEATURE_THREADS)
+  find_package(TBB)
+endif(OHM_FEATURE_THREADS)
 
 configure_file(OhmHeightmapImageConfig.in.h "${CMAKE_CURRENT_BINARY_DIR}/ohmheightmapimage/OhmHeightmapImageConfig.h")
 
@@ -41,7 +41,7 @@ target_link_libraries(ohmheightmapimage
     $<BUILD_INTERFACE:$<$<BOOL:${OHM_TES_DEBUG}>:3es::3es-core>>
     $<BUILD_INTERFACE:GLEW::GLEW>
     $<BUILD_INTERFACE:glfw>
-    $<BUILD_INTERFACE:$<$<BOOL:${OHM_THREADS}>:TBB::tbb>>
+    $<BUILD_INTERFACE:$<$<BOOL:${OHM_FEATURE_THREADS}>:TBB::tbb>>
 )
 
 target_include_directories(ohmheightmapimage
