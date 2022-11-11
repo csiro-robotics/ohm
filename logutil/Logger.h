@@ -6,7 +6,7 @@
 #ifndef LOGUTIL_LOGGER_H
 #define LOGUTIL_LOGGER_H
 
-#include <logutil/LogUtilConfig.h>
+#include "LogUtilConfig.h"
 
 #include "LoggerDetail.h"
 

@@ -6,7 +6,7 @@
 #ifndef LOGUTIL_LOGUTIL_H
 #define LOGUTIL_LOGUTIL_H
 
-#include <logutil/LogUtilExport.h>
+#include "LogUtilConfig.h"
 
 #include <array>
 #include <chrono>
@@ -70,7 +70,7 @@ public:
   /// @param value The byte value
   /// @param magnitude The magnitude of @c value
   /// @return The @c value expressed in bytes.
-  static size_t byteSize(size_t value, ByteMagnitude magnitude) { return value * ByteScale[int(magnitude)]; }
+  inline static size_t byteSize(size_t value, ByteMagnitude magnitude) { return value * ByteScale[int(magnitude)]; }
 
   /// Convert this value into bytes regardless of stored @c ByteMagnitude.
   /// @return The @c value() expressed in bytes.
