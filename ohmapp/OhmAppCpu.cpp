@@ -29,18 +29,23 @@
 
 #include <ohmtools/OhmCloud.h>
 
-#include <ohmutil/OhmUtil.h>
+#include <logutil/LogUtil.h>
 #include <ohmutil/PlyMesh.h>
 #include <ohmutil/ProgressMonitor.h>
 #include <ohmutil/SafeIO.h>
 #include <ohmutil/ScopedTimeDisplay.h>
 
-std::istream &operator>>(std::istream &in, ohm::NdtMode &mode);
-std::ostream &operator<<(std::ostream &out, const ohm::NdtMode mode);
+namespace ohm
+{
+std::istream &operator>>(std::istream &in, NdtMode &mode);
+std::ostream &operator<<(std::ostream &out, const NdtMode mode);
+}  // namespace ohm
 
 // Must be after argument streaming operators.
 #include <ohmutil/Options.h>
 
+namespace ohm
+{
 std::istream &operator>>(std::istream &in, ohm::NdtMode &mode)
 {
   // Note: we don't use ndtModeFromString() because we use abbreviations
@@ -84,6 +89,7 @@ std::ostream &operator<<(std::ostream &out, const ohm::NdtMode mode)
   }
   return out;
 }
+}  // namespace ohm
 
 namespace ohmapp
 {

@@ -98,6 +98,7 @@ endif(ohm_FIND_COMPONENTS)
 register_target(ohm::ohmtools OHM_INCLUDE_DIRS OHM_LIBRARIES)
 register_target(ohm::ohmutil OHM_INCLUDE_DIRS OHM_LIBRARIES)
 register_target(ohm::ohm OHM_INCLUDE_DIRS OHM_LIBRARIES)
+register_target(ohm::logutil OHM_INCLUDE_DIRS OHM_LIBRARIES)
 register_target(ohm::slamio OHM_INCLUDE_DIRS OHM_LIBRARIES)
 
 if(OHM_FEATURE_CUDA)

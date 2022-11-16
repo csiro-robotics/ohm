@@ -10,6 +10,7 @@
 #include <glm/glm.hpp>
 
 #include <cinttypes>
+#include <ostream>
 
 namespace ohm
 {
@@ -352,6 +353,14 @@ inline bool Key::operator<(const Key &other) const
   // NOLINTNEXTLINE(readability-magic-numbers)
   uint32_t local_b = uint32_t(other.local_.x) | (uint32_t(other.local_.y) << 8u) | (uint32_t(other.local_.z) << 16u);
   return region_a < region_b || region_a == region_b && local_a < local_b;
+}
+
+
+inline std::ostream &operator<<(std::ostream &o, const ohm::Key &key)
+{
+  o << "[(" << key.regionKey().x << ',' << key.regionKey().y << ',' << key.regionKey().z << "):("
+    << int(key.localKey().x) << ',' << int(key.localKey().y) << ',' << int(key.localKey().z) << ")]";
+  return o;
 }
 }  // namespace ohm
 

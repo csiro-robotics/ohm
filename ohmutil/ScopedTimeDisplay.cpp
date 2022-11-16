@@ -5,7 +5,7 @@
 // Author: Kazys Stepanas
 #include "ScopedTimeDisplay.h"
 
-#include "OhmUtil.h"
+#include <logutil/LogUtil.h>
 
 #include <chrono>
 #include <iostream>

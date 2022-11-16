@@ -8,7 +8,7 @@
 #include <ohm/MapSerialise.h>
 #include <ohm/OccupancyMap.h>
 
-#include <ohmutil/OhmUtil.h>
+#include <logutil/LogUtil.h>
 
 #include <chrono>
 #include <csignal>
@@ -19,6 +19,8 @@
 #include <iostream>
 #include <locale>
 #include <sstream>
+
+#include <ohmutil/Options.h>
 
 namespace
 {
@@ -48,39 +50,6 @@ struct Options
   glm::dvec3 extents = glm::dvec3(0);
 };
 }  // namespace
-
-inline std::istream &operator>>(std::istream &in, ohm::Aabb &box)
-{
-  std::string box_str;
-  in >> box_str;
-  std::istringstream in2(box_str);
-  char comma;
-  glm::dvec3 min_ext;
-  glm::dvec3 max_ext;
-  in2 >> min_ext.x;
-  in2 >> comma;
-  in2 >> min_ext.y;
-  in2 >> comma;
-  in2 >> min_ext.z;
-  in2 >> comma;
-  in2 >> max_ext.x;
-  in2 >> comma;
-  in2 >> max_ext.y;
-  in2 >> comma;
-  in2 >> max_ext.z;
-  box = ohm::Aabb(min_ext, max_ext);
-  return in;
-}
-
-inline std::ostream &operator<<(std::ostream &out, const ohm::Aabb &box)
-{
-  out << box.minExtents().x << ',' << box.minExtents().y << ',' << box.minExtents().z << ',';
-  out << box.maxExtents().x << ',' << box.maxExtents().y << ',' << box.maxExtents().z;
-  return out;
-}
-
-// After AABB stream operator.
-#include <ohmutil/Options.h>
 
 
 int parseOptions(Options *opt, int argc, char *argv[])  // NOLINT(modernize-avoid-c-arrays)

@@ -18,10 +18,10 @@
 #include <ohm/CalculateSegmentKeys.h>
 #include <ohm/OccupancyUtil.h>
 
+#include <logutil/LogUtil.h>
 #include <ohmtools/OhmCloud.h>
 #include <ohmtools/OhmGen.h>
 #include <ohmutil/GlmStream.h>
-#include <ohmutil/OhmUtil.h>
 #include <ohmutil/Profile.h>
 
 #include <3esservermacros.h>

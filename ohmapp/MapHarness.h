@@ -47,7 +47,7 @@ class DataSource;
 /// @c Options should first be extended to instantiate the specialisation. Additional @c Options should override
 /// @c Options::map() to return the @c MapOptions specialisation and @c MapHarness should override @c options() to
 /// return the @c Options specialisation.
-class MapHarness
+class ohmapp_API MapHarness
 {
 public:
   /// Maximum value for @c quitLevel()
@@ -58,7 +58,7 @@ public:
   using GeneralCallback = std::function<void()>;
 
   /// Options controlling output.
-  struct OutputOptions
+  struct ohmapp_API OutputOptions
   {
     /// Base output name. Typically used as a base file name/path where an extension may be added appropriate to the
     /// serialisation type. E.g., saving an ohm map will add @c '.ohm' while saving a ply would add @c '.ply'.
@@ -96,7 +96,7 @@ public:
   };
 
   /// Options controlling the map configuration.
-  struct MapOptions
+  struct ohmapp_API MapOptions
   {
     /// Voxel size.
     double resolution = 0.1;
@@ -117,7 +117,7 @@ public:
   };
 
   /// Collated options.
-  struct Options
+  struct ohmapp_API Options
   {
     /// The output options.
     std::unique_ptr<OutputOptions> output_;

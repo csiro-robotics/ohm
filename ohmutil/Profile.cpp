@@ -15,7 +15,7 @@
 #include <thread>
 #include <vector>
 
-#include "OhmUtil.h"
+#include <logutil/LogUtil.h>
 
 #ifdef OHM_FEATURE_THREADS
 #include <tbb/tbb_thread.h>
@@ -128,11 +128,9 @@ struct ProfileDetail
 void showReport(std::ostream &o, const ProfileRecord &record, const ThreadRecords &thread_records, int level = 0)
 {
   std::string indent(level * 2, ' ');
-  std::string count_str;
   const auto average_time = (record.marker_count) ? record.total_time / record.marker_count : ProfileClock::duration(0);
-  util::delimitedInteger(count_str, record.marker_count);
   o << indent << record.name << " cur: " << record.recent << " avg: " << average_time << " max: " << record.max_time
-    << " total: " << record.total_time << " / " << count_str << " calls\n";
+    << " total: " << record.total_time << " / " << record.marker_count << " calls\n";
 
   // Recurse on children.
   for (auto &&entry : thread_records.records)
@@ -249,8 +247,6 @@ void Profile::report(std::ostream *optr)
   {
     std::ostream &out = (optr) ? *optr : std::cout;
     std::unique_lock<std::mutex> guard(imp_->mutex);
-
-    std::string count_str;
 
     out << "----------------------------------------\n";
     out << "Profile report\n";

@@ -12,94 +12,12 @@
 #include <gputil/gpuPinnedBuffer.h>
 #include <gputil/gpuQueue.h>
 
-#include <chrono>
+#include <logutil/LogUtil.h>
 
 extern gputil::Device g_gpu;
-
-
-template <typename T, typename R>
-inline std::ostream &operator<<(std::ostream &out, const std::chrono::duration<T, R> &duration)
-{
-  using Duration = std::chrono::duration<T, R>;
-  const bool negative = std::chrono::duration_cast<std::chrono::nanoseconds>(duration).count() < 0;
-  const char *sign = (!negative) ? "" : "-";
-  Duration abs_duration = (!negative) ? duration : duration * -1;
-  auto s = std::chrono::duration_cast<std::chrono::seconds>(abs_duration).count();
-  auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(abs_duration).count();
-  ms = ms % 1000;
-
-  if (s)
-  {
-    out << sign << s << "." << std::setw(3) << std::setfill('0') << ms << "s";
-  }
-  else
-  {
-    auto us = std::chrono::duration_cast<std::chrono::microseconds>(abs_duration).count();
-    us = us % 1000;
-
-    if (ms)
-    {
-      out << sign << ms << "." << std::setw(3) << std::setfill('0') << us << "ms";
-    }
-    else
-    {
-      auto ns = std::chrono::duration_cast<std::chrono::nanoseconds>(abs_duration).count();
-      ns = ns % 1000;
-
-      if (us)
-      {
-        out << sign << us << "." << std::setw(3) << std::setfill('0') << ns << "us";
-      }
-      else
-      {
-        out << sign << ns << "ns";
-      }
-    }
-  }
-  return out;
-}
-
 namespace gpubuffertest
 {
 typedef std::chrono::high_resolution_clock TimingClock;
-
-const size_t kKiB = 1024u;
-// const size_t kMiB = 1024u * kKiB;
-// const size_t kGiB = 1024u * kMiB;
-
-std::ostream &logBytes(std::ostream &out, size_t bytes)
-{
-  static const char *suffixes[] = { "byte(s)", "KiB", "MiB", "GiB", "TiB", "PiB", "EiB" };
-  static const size_t kSuffixCount = sizeof(suffixes) / sizeof(suffixes[0]);
-
-  int fraction = 0;
-  size_t si = 0;
-
-  if (bytes > 1024u)
-  {
-    while (bytes > 1024u && si + 1 < kSuffixCount)
-    {
-      fraction = int((bytes % 1024u) * 100.0f / 1024.0f + 0.5f);
-      bytes /= 1024u;
-      ++si;
-    }
-  }
-
-  if (fraction)
-  {
-    std::streamsize width = out.width();
-    char fill = out.fill();
-    out << bytes << "." << std::setw(2) << std::setfill('0') << fraction << suffixes[si];
-    out.width(width);
-    out.fill(fill);
-  }
-  else
-  {
-    out << bytes << suffixes[si];
-  }
-
-  return out;
-}
 
 TEST(GpuBuffer, MemRate)
 {
@@ -107,30 +25,31 @@ TEST(GpuBuffer, MemRate)
   // - Unmapped vs. unmapped transfer.
   // - Synchronous vs. asynchronous transfer.
   // - Many small buffers vs. one large buffer with offsets.
-  const size_t small_buffer_size = 256 * kKiB;
+  const size_t small_buffer_size = 256 * logutil::kKibiSize;
   size_t small_buffer_count = 5000;
   size_t large_buffer_size = 0;
 
-  // Resolve how many buffers we can allocate, targeting smallBufferCount.
   gputil::Device &gpu = g_gpu;
   size_t predicted_mem = small_buffer_size * small_buffer_count * 2;
   // Allow some additional overhead, dividing the device memory by 2.
-  while (predicted_mem >= g_gpu.deviceMemory() / 2)
+  while (predicted_mem >= g_gpu.deviceMemory() / 2 ||
+         small_buffer_count * small_buffer_size > g_gpu.maxAllocationSize())
   {
     small_buffer_count /= 2;
     predicted_mem = small_buffer_size * small_buffer_count * 2;
   }
   large_buffer_size = small_buffer_size * small_buffer_count;
 
+  ASSERT_LE(large_buffer_size, g_gpu.maxAllocationSize());
+
   std::vector<uint8_t> host_buffer(small_buffer_size);
-  std::vector<uint8_t> test_buffer(small_buffer_size);
+  std ::vector<uint8_t> test_buffer(small_buffer_size);
 
   //--------------------------------------------------------------------------
   std::cout << "Running timing test on GPU buffer usage." << std::endl;
-  std::cout << small_buffer_count << " buffers of size ";
-  logBytes(std::cout, small_buffer_size) << std::endl;
-  std::cout << "1 buffer of size ";
-  logBytes(std::cout, large_buffer_size) << std::endl;
+  std::cout << small_buffer_count << " buffers of size " << logutil::Bytes(small_buffer_size) << ", total "
+            << logutil::Bytes(small_buffer_count * small_buffer_size) << std::endl;
+  std::cout << "1 buffer of size " << logutil::Bytes(large_buffer_size) << std::endl;
 
   for (size_t i = 0; i < host_buffer.size(); ++i)
   {
@@ -477,7 +396,7 @@ TEST(GpuBuffer, MemRate)
 
     bytes_per_second =
       size_t(large_buffer_size / std::chrono::duration_cast<std::chrono::duration<double>>(up).count() + 0.5);
-    logBytes(sstr, bytes_per_second) << "/s" << std::flush;
+    sstr << logutil::Bytes(bytes_per_second) << "/s" << std::flush;
     w = int(sstr.str().size());
     std::cout << sstr.str();
     whitespace(width - w);
@@ -491,7 +410,7 @@ TEST(GpuBuffer, MemRate)
 
     bytes_per_second =
       size_t(large_buffer_size / std::chrono::duration_cast<std::chrono::duration<double>>(down).count() + 0.5);
-    logBytes(sstr, bytes_per_second) << "/s" << std::flush;
+    sstr << logutil::Bytes(bytes_per_second) << "/s" << std::flush;
     // w = (int)sstr.str().size();
     std::cout << sstr.str();
     // whitespace(width - w);
@@ -676,10 +595,10 @@ TEST(GpuBuffer, Allocation)
   alloc_size = std::min<size_t>(alloc_size, 2u * 1024u * 1024u * 1024u);
 
   std::cout << "Max allocation size: ";
-  logBytes(std::cout, alloc_size) << std::endl;
+  std::cout << logutil::Bytes(alloc_size) << std::endl;
   alloc_size /= 4;
   std::cout << "Using allocation size: ";
-  logBytes(std::cout, alloc_size) << std::endl;
+  std::cout << logutil::Bytes(alloc_size) << std::endl;
 
   // Allocate and release large amounts of memory. Ensure we are releasing it correctly.
   // This should raise an exception if we are not correctly releasing memory.

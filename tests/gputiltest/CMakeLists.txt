@@ -30,7 +30,7 @@ function(_gputiltest_setup_target TARGET_NAME GPUTIL_LIBRARY)
       $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}>
   )
 
-  target_link_libraries(${TARGET_NAME} PUBLIC ${GPUTIL_LIBRARY} ${GTEST_LIBRARIES} ${GTEST_MAIN_LIBRARIES})
+  target_link_libraries(${TARGET_NAME} PUBLIC ${GPUTIL_LIBRARY} ${GTEST_LIBRARIES} ${GTEST_MAIN_LIBRARIES} logutil)
 
   add_test(NAME ${TARGET_NAME} COMMAND ${TARGET_NAME} --gtest_output=xml:test-reports/)
 

@@ -16,14 +16,14 @@
 namespace ohmapp
 {
 /// Population harness to generate an @c ohm::OccupancyMap using ohm GPU algorithms.
-class OhmAppGpu : public OhmAppCpu
+class ohmapp_API OhmAppGpu : public OhmAppCpu
 {
 public:
   /// Base class alias.
   using Super = OhmAppCpu;
 
   /// GPU options.
-  struct GpuOptions
+  struct ohmapp_API GpuOptions
   {
     /// See @c ohm::gpuArgsInfo()
     std::vector<int> device_option_types;
@@ -51,7 +51,7 @@ public:
   };
 
   /// Specialise collated options.
-  struct Options : public Super::Options
+  struct ohmapp_API Options : public Super::Options
   {
     /// GPU options.
     std::unique_ptr<GpuOptions> gpu_;

@@ -7,7 +7,7 @@
 
 #include "DataSource.h"
 
-#include <ohmutil/OhmUtil.h>
+#include <logutil/LogUtil.h>
 
 #include <glm/vec4.hpp>
 

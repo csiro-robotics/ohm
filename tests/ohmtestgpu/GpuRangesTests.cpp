@@ -19,7 +19,8 @@
 #include <ohmtools/OhmCloud.h>
 #include <ohmtools/OhmGen.h>
 
-#include <ohmutil/OhmUtil.h>
+#include <logutil/LogUtil.h>
+
 #include <ohmutil/PlyMesh.h>
 #include <ohmutil/Profile.h>
 

@@ -19,7 +19,7 @@
 #include <ohm/VoxelData.h>
 #include <ohm/VoxelLayout.h>
 
-#include <ohmutil/OhmUtil.h>
+#include <logutil/LogUtil.h>
 #include <ohmutil/Options.h>
 
 #include <algorithm>

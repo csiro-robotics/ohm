@@ -11,8 +11,8 @@
 #include <ohm/RayMapperOccupancy.h>
 #include <ohm/VoxelOccupancy.h>
 
+#include <logutil/LogUtil.h>
 #include <ohmutil/GlmStream.h>
-#include <ohmutil/OhmUtil.h>
 
 #include <chrono>
 #include <iomanip>

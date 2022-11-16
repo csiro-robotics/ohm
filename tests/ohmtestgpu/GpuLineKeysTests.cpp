@@ -12,9 +12,10 @@
 #include <ohmgpu/LineKeysQueryGpu.h>
 // #include <ohm/OccupancyType.h>
 
+#include <logutil/LogUtil.h>
+
 #include <ohmtools/OhmGen.h>
 #include <ohmutil/GlmStream.h>
-#include <ohmutil/OhmUtil.h>
 
 #include <chrono>
 #include <random>
@@ -235,10 +236,7 @@ TEST(LineKeys, QueryGpu)
     const auto gpu_end = TimingClock::now();
     const auto gpu_duration = gpu_end - gpu_start;
     const auto gpu_per_line = gpu_duration / line_count;
-    ohm::util::logDuration(std::cout, gpu_duration);
-    std::cout << " ";
-    ohm::util::logDuration(std::cout, gpu_per_line);
-    std::cout << " per line" << std::endl;
+    std::cout << gpu_duration << " " << gpu_per_line << " per line" << std::endl;
     EXPECT_TRUE(gpu_exec_ok);
 
     std::cout << "Calculating " << line_points.size() / 2 << " line segments.\n";
@@ -248,10 +246,7 @@ TEST(LineKeys, QueryGpu)
     const auto gpu_end2 = TimingClock::now();
     const auto gpu_duration2 = gpu_end2 - gpu_start2;
     const auto gpu_per_line2 = gpu_duration / line_count;
-    ohm::util::logDuration(std::cout, gpu_duration2);
-    std::cout << " ";
-    ohm::util::logDuration(std::cout, gpu_per_line2);
-    std::cout << " per line" << std::endl;
+    std::cout << gpu_duration2 << " " << gpu_per_line2 << " per line" << std::endl;
     EXPECT_TRUE(gpu_exec_ok2);
 
     std::cout << "CPU  " << std::flush;
@@ -260,10 +255,7 @@ TEST(LineKeys, QueryGpu)
     auto cpu_end = TimingClock::now();
     auto cpu_duration = cpu_end - cpu_start;
     auto cpu_per_line = cpu_duration / line_count;
-    ohm::util::logDuration(std::cout, cpu_duration);
-    std::cout << " ";
-    ohm::util::logDuration(std::cout, cpu_per_line);
-    std::cout << " per line" << std::endl;
+    std::cout << cpu_duration << " " << cpu_per_line << " per line" << std::endl;
     EXPECT_TRUE(cpu_exec_ok);
 
     std::cout << "CPU2 " << std::flush;
@@ -275,10 +267,7 @@ TEST(LineKeys, QueryGpu)
     cpu_end = TimingClock::now();
     cpu_duration = cpu_end - cpu_start;
     cpu_per_line = cpu_duration / line_count;
-    ohm::util::logDuration(std::cout, cpu_duration);
-    std::cout << " ";
-    ohm::util::logDuration(std::cout, cpu_per_line);
-    std::cout << " per line" << std::endl;
+    std::cout << cpu_duration << " " << cpu_per_line << " per line" << std::endl;
 
     // std::cout << "GPU:\n";
     // dumpLines(gpuQuery);

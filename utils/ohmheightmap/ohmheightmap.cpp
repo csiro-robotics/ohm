@@ -10,8 +10,8 @@
 #include <ohmheightmap/Heightmap.h>
 #include <ohmheightmap/HeightmapVoxel.h>
 
+#include <logutil/LogUtil.h>
 #include <ohmutil/GlmStream.h>
-#include <ohmutil/OhmUtil.h>
 #include <ohmutil/ProgressMonitor.h>
 #include <ohmutil/SafeIO.h>
 #include <ohmutil/ScopedTimeDisplay.h>
@@ -36,13 +36,15 @@
 /// oddities.
 void badArgParse(const std::string &info);
 
+namespace ohm
+{
 // Custom option parsing. Must come before we include Options.h/cxxopt.hpp
-std::istream &operator>>(std::istream &in, ohm::HeightmapMode &mode)
+std::istream &operator>>(std::istream &in, HeightmapMode &mode)
 {
   std::string mode_str;
   in >> mode_str;
   bool valid_mode = false;
-  mode = ohm::heightmapModeFromString(mode_str, &valid_mode);
+  mode = heightmapModeFromString(mode_str, &valid_mode);
   if (!valid_mode)
   {
     badArgParse(mode_str);
@@ -50,41 +52,41 @@ std::istream &operator>>(std::istream &in, ohm::HeightmapMode &mode)
   return in;
 }
 
-std::ostream &operator<<(std::ostream &out, const ohm::HeightmapMode mode)
+std::ostream &operator<<(std::ostream &out, const HeightmapMode mode)
 {
-  std::string mode_str = ohm::heightmapModeToString(mode);
+  std::string mode_str = heightmapModeToString(mode);
   out << mode_str;
   return out;
 }
 
 
-std::istream &operator>>(std::istream &in, ohm::UpAxis &up)
+std::istream &operator>>(std::istream &in, UpAxis &up)
 {
   std::string up_str;
   in >> up_str;
   if (up_str == "x")
   {
-    up = ohm::UpAxis::kX;
+    up = UpAxis::kX;
   }
   else if (up_str == "y")
   {
-    up = ohm::UpAxis::kY;
+    up = UpAxis::kY;
   }
   else if (up_str == "z")
   {
-    up = ohm::UpAxis::kZ;
+    up = UpAxis::kZ;
   }
   else if (up_str == "-x")
   {
-    up = ohm::UpAxis::kNegX;
+    up = UpAxis::kNegX;
   }
   else if (up_str == "-y")
   {
-    up = ohm::UpAxis::kNegY;
+    up = UpAxis::kNegY;
   }
   else if (up_str == "-z")
   {
-    up = ohm::UpAxis::kNegZ;
+    up = UpAxis::kNegZ;
   }
   else
   {
@@ -93,26 +95,26 @@ std::istream &operator>>(std::istream &in, ohm::UpAxis &up)
   return in;
 }
 
-std::ostream &operator<<(std::ostream &out, const ohm::UpAxis up)
+std::ostream &operator<<(std::ostream &out, const UpAxis up)
 {
   switch (up)
   {
-  case ohm::UpAxis::kX:
+  case UpAxis::kX:
     out << "x";
     break;
-  case ohm::UpAxis::kY:
+  case UpAxis::kY:
     out << "y";
     break;
-  case ohm::UpAxis::kZ:
+  case UpAxis::kZ:
     out << "z";
     break;
-  case ohm::UpAxis::kNegX:
+  case UpAxis::kNegX:
     out << "-x";
     break;
-  case ohm::UpAxis::kNegY:
+  case UpAxis::kNegY:
     out << "-y";
     break;
-  case ohm::UpAxis::kNegZ:
+  case UpAxis::kNegZ:
     out << "-z";
     break;
   default:
@@ -121,7 +123,7 @@ std::ostream &operator<<(std::ostream &out, const ohm::UpAxis up)
   }
   return out;
 }
-
+}  // namespace ohm
 
 // Must be after argument streaming operators.
 #include <ohmutil/Options.h>

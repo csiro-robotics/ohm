@@ -19,9 +19,9 @@
 #include <ohm/VoxelData.h>
 #include <ohm/VoxelLayout.h>
 
+#include <logutil/LogUtil.h>
 #include <ohmtools/OhmCloud.h>
 #include <ohmtools/OhmGen.h>
-#include <ohmutil/OhmUtil.h>
 #include <ohmutil/PlyMesh.h>
 #include <ohmutil/Profile.h>
 

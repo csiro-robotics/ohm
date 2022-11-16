@@ -8,8 +8,8 @@
 #include <ohmgpu/GpuTransformSamples.h>
 #include <ohmgpu/OhmGpu.h>
 
+#include <logutil/LogUtil.h>
 #include <ohmtools/OhmCloud.h>
-#include <ohmutil/OhmUtil.h>
 
 #include <gputil/gpuBuffer.h>
 #include <gputil/gpuDevice.h>

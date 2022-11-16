@@ -20,8 +20,8 @@
 #include <ohmgpu/LineQueryGpu.h>
 #include <ohmgpu/OhmGpu.h>
 
+#include <logutil/LogUtil.h>
 #include <ohmutil/GlmStream.h>
-#include <ohmutil/OhmUtil.h>
 #include <ohmutil/PlyMesh.h>
 #include <ohmutil/ProgressMonitor.h>
 #include <ohmutil/SafeIO.h>
@@ -397,7 +397,7 @@ void showTiming(const char *info, const TimingClock::time_point &start_time, con
 {
   std::string timing_str;
   TimingClock::duration exec_time = end_time - start_time;
-  ohm::util::timeString(timing_str, exec_time);
+  logutil::timeString(timing_str, exec_time);
   if (cycles <= 1)
   {
     printf("%s query completed in %s\n", info, timing_str.c_str());
@@ -406,7 +406,7 @@ void showTiming(const char *info, const TimingClock::time_point &start_time, con
   {
     printf("%s query completed %d queries in %s\n", info, cycles, timing_str.c_str());
     exec_time /= cycles;
-    ohm::util::timeString(timing_str, exec_time);
+    logutil::timeString(timing_str, exec_time);
     printf("average time per query: %s\n", timing_str.c_str());
   }
 }

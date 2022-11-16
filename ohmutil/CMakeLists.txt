@@ -8,7 +8,6 @@ set(SOURCES
   Colour.cpp
   Colour.h
   p2p.h
-  OhmUtil.h
   PlyMesh.cpp
   PlyMesh.h
   PlyPointStream.cpp
@@ -43,7 +42,6 @@ set(PUBLIC_CXXOPT_HEADERS
 set(PUBLIC_HEADERS
   Colour.h
   GlmStream.h
-  OhmUtil.h
   Options.h
   p2p.h
   PlyMesh.h
@@ -65,7 +63,7 @@ generate_export_header(ohmutil
       EXPORT_FILE_NAME ohmutil/OhmUtilExport.h
       STATIC_DEFINE ohmutil_STATIC)
 
-target_link_libraries(ohmutil PUBLIC glm::glm)
+target_link_libraries(ohmutil PUBLIC glm::glm logutil)
 # Kazys: Why did this suddenly become necessary on my Linux desktop?
 if(TARGET Threads::Threads)
   target_link_libraries(ohmutil PUBLIC Threads::Threads)

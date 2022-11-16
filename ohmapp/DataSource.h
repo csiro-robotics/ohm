@@ -45,11 +45,11 @@ namespace ohmapp
 /// - Optionally call @c printConfiguration()
 /// - Call @c prepareForRun()
 /// - Call @c run() to process the data.
-class DataSource
+class ohmapp_API DataSource
 {
 public:
   /// Describes how stats should be collected.
-  enum class StatsMode
+  enum class ohmapp_API StatsMode
   {
     /// No stats
     Off,
@@ -60,7 +60,7 @@ public:
   };
 
   /// Options on how return numbers are treated in point clouds.
-  enum class ReturnNumberMode
+  enum class ohmapp_API ReturnNumberMode
   {
     /// No special handling of return number.
     Off,
@@ -72,7 +72,7 @@ public:
   };
 
   /// Base options common to all data sources.
-  struct Options
+  struct ohmapp_API Options
   {
     /// Process no more that this number of points. Zero for unbounded.
     uint64_t point_limit = 0;
@@ -100,7 +100,7 @@ public:
   };
 
   /// Statistics about rays. Scope of the statistics depends on the context.
-  struct Stats
+  struct ohmapp_API Stats
   {
     /// Processing start time.
     double process_time_start = 0;
@@ -325,35 +325,35 @@ private:
   /// sensor/sample pairs.
   bool samples_only_ = true;
 };
-}  // namespace ohmapp
 
 /// Streaming operator for @c ohmapp::DataSource::Stats logging comma separated values.
 ///
 /// @param out The output stream.
 /// @param stats The stats to print.
 /// @return The output stream.
-std::ostream &operator<<(std::ostream &out, const ohmapp::DataSource::Stats &stats);
+std::ostream ohmapp_API &operator<<(std::ostream &out, const ohmapp::DataSource::Stats &stats);
 
 /// Output streaming for @c ohmapp::DataSource::StatsMode .
 /// @param out Output stream.
 /// @param mode Mode value.
 /// @return The output stream.
-std::ostream &operator<<(std::ostream &out, ohmapp::DataSource::StatsMode mode);
+std::ostream ohmapp_API &operator<<(std::ostream &out, ohmapp::DataSource::StatsMode mode);
 /// Output streaming for @c ohmapp::DataSource::StatsMode .
 /// @param in Intput stream.
 /// @param mode Mode reference to read into.
 /// @return The input stream.
-std::istream &operator>>(std::istream &in, ohmapp::DataSource::StatsMode &mode);
+std::istream ohmapp_API &operator>>(std::istream &in, ohmapp::DataSource::StatsMode &mode);
 
 /// Output streaming for @c ohmapp::DataSource::ReturnNumberMode .
 /// @param out Output stream.
 /// @param mode Mode value.
 /// @return The output stream.
-std::ostream &operator<<(std::ostream &out, ohmapp::DataSource::ReturnNumberMode mode);
+std::ostream ohmapp_API &operator<<(std::ostream &out, ohmapp::DataSource::ReturnNumberMode mode);
 /// Output streaming for @c ohmapp::DataSource::ReturnNumberMode .
 /// @param in Intput stream.
 /// @param mode Mode reference to read into.
 /// @return The input stream.
-std::istream &operator>>(std::istream &in, ohmapp::DataSource::ReturnNumberMode &mode);
+std::istream ohmapp_API &operator>>(std::istream &in, ohmapp::DataSource::ReturnNumberMode &mode);
+}  // namespace ohmapp
 
 #endif  // OHMAPP_DATASOURCE_H

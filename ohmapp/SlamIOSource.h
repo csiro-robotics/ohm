@@ -22,14 +22,14 @@ class SlamCloudLoader;
 namespace ohmapp
 {
 /// A @c DataSource which loads from point clouds or ray clouds using @c slamio::SlamCloudLoader .
-class SlamIOSource : public DataSource
+class ohmapp_API SlamIOSource : public DataSource
 {
 public:
   /// Base class alias.
   using Super = DataSource;
 
   /// Options specialisation.
-  struct Options : public Super::Options
+  struct ohmapp_API Options : public Super::Options
   {
     /// Point cloud data file. May alternatively specify a ray cloud file where the normals prepresent a ray back to
     /// the sensor location. Ray clouds do not require a trajectory file.

@@ -20,8 +20,8 @@
 #include <ohmgpu/GpuMap.h>
 #include <ohmgpu/GpuNdtMap.h>
 
+#include <logutil/LogUtil.h>
 #include <ohmtools/OhmCloud.h>
-#include <ohmutil/OhmUtil.h>
 
 #include <chrono>
 #include <fstream>

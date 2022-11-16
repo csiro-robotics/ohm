@@ -92,18 +92,19 @@ cmake .. -DCMAKE_TOOLCHAIN_FILE=<vcpkg_path>/scripts/buildsystem/vcpkg.cmake -DV
 
 The `VCPKG_MANIFEST_FEATURES` specifies the features to enable for ohm, where they differ from the default features. This is a semicolon separated list of features choosing from the items listed below. It is generally expected that either `cuda` or `opencl` are listed, or both.
 
-| Feature           | Description                                                                                           |
-| ----------------- | ----------------------------------------------------------------------------------------------------- |
-| `cuda`            | Build with CUDA GPU acceleration.                                                                     |
-| `eigen` \*        | Enable Eigen support (private)                                                                        |
-| `heightmap` \*    | Enable the heightmap library                                                                          |
-| `heightmap-image` | Enable heightmap to image conversion                                                                  |
-| `opencl`          | Enable OpenCL acceleration.                                                                           |
-| `pdal`            | Enable PDAL point cloud loader. Warning: this takes a long time to build the GDAL dependency (hours). |
-| `threads` \*      | Enable TBB threading (limited).                                                                       |
-| `test`            | Build the ohm unit tests.                                                                             |
+| Feature           | Description                          |
+| ----------------- | ------------------------------------ |
+| `cuda`            | Build with CUDA GPU acceleration.    |
+| `eigen` \*        | Enable Eigen support (private)       |
+| `heightmap` \*    | Enable the heightmap library         |
+| `heightmap-image` | Enable heightmap to image conversion |
+| `opencl`          | Enable OpenCL acceleration.          |
+| `pdal`            | Enable PDAL point cloud loader. \*\* |
+| `threads` \*      | Enable TBB threading (limited).      |
+| `test`            | Build the ohm unit tests.            |
 
 \* This feature is enabled by default.
+\*\* Warning: enabling PDAL supports takes a long time for initial configuration while it builds the GDAL dependency. This can take on the order of several hours. Also note it may be necessary to set the `LD_LIBRARY_PATH` to include the directly where the pdal shared libraries are placed by vcpkg.
 
 ## Notable Known Issues
 
@@ -157,4 +158,3 @@ Please use the following citation if you use OHM in your research.
   pages={1-8},
   doi={10.1109/LRA.2022.3196145}}
 ```
-

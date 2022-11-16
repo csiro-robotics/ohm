@@ -5,7 +5,7 @@
 // Author: Kazys Stepanas
 #include "CompareMaps.h"
 
-#include "KeyStream.h"
+#include "Key.h"
 #include "MapLayer.h"
 #include "MapLayout.h"
 #include "OccupancyMap.h"
@@ -29,14 +29,14 @@ void buildLogMessage(std::ostream &out, T val)
 }
 
 template <typename T, typename... Args>
-void buildLogMessage(std::ostream &out, T val, const Args &... args)
+void buildLogMessage(std::ostream &out, T val, const Args &...args)
 {
   out << val;
   buildLogMessage(out, args...);
 }
 
 template <typename... Args>
-void logMessage(Log log, Severity severity, const Args &... args)
+void logMessage(Log log, Severity severity, const Args &...args)
 {
   std::ostringstream msg;
   buildLogMessage(msg, args...);
@@ -44,7 +44,7 @@ void logMessage(Log log, Severity severity, const Args &... args)
 }
 
 template <typename T, typename... Args>
-bool compareItem(const T &val, const T &ref, Log log, Severity severity, const Args &... args)
+bool compareItem(const T &val, const T &ref, Log log, Severity severity, const Args &...args)
 {
   if (val != ref)
   {
