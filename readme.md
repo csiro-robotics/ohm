@@ -129,20 +129,6 @@ While this can be changed by explicitly changing `OpenCL_INCLUDE_DIR` and `OpenC
 - [GPU technical details and performance tips](./docs/gpu/docgpudetail.md)
 - [Built in voxel layers](./docs/docvoxellayers.md)
 
-## VCPkg
-
-```bash
-vcpkg integrate
-vcpkg install --triplet windows-x64
-
-```
-
-Things to add to `vcpkg.json`:
-
-- CUDA
-- OpenCL
-- OpenGL
-
 ## Citation
 
 Please use the following citation if you use OHM in your research.
