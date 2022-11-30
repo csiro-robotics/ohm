@@ -35,7 +35,6 @@ function(_ohmquery_setup GPU_MODE)
       ohm${GPU_MODE}
       gputil${GPU_MODE}
       ohmutil
-      $<$<STREQUAL:${GPU_MODE},"ocl">:clu>
     PRIVATE
       $<BUILD_INTERFACE:$<$<BOOL:${OHM_TES_DEBUG}>:3es::3es-core>>
       glm::glm

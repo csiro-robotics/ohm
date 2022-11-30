@@ -217,7 +217,6 @@ if(OHM_FEATURE_OPENCL)
 
   add_library(ohmocl ${SOURCES} ${GPU_SOURCES} ${GPU_HEADERS})
   _ohmgpu_setup_target(ohmocl gputilocl ${OHM_GPU_OPENCL})
-  target_link_libraries(ohmocl PUBLIC clu)
 
   if(NOT OHM_EMBED_GPU_CODE)
     # Not embedding GPU source code. Make sure we marshal GPU headers as well as code.

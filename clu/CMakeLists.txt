@@ -61,6 +61,18 @@ target_include_directories(clu SYSTEM
 # set_property(TARGET clu PROPERTY DEBUG_POSTFIX "d")
 
 target_link_libraries(clu PUBLIC OpenCL::OpenCL)
+if(OHM_BUILD_SHARED)
+  # The OpenCL library depends on Threads::Threads.
+  # We also need libdl on Linux.
+  # Neither needs to be explicilty linked when building only static ohm libraries.
+  # Not sure why.
+  if(TARGET Thread::Threads)
+    target_link_libraries(clu PUBLIC Threads::Threads)
+  endif(TARGET Thread::Threads)
+  if(CMAKE_DL_LIBS)
+    target_link_libraries(clu PUBLIC ${CMAKE_DL_LIBS})
+  endif(CMAKE_DL_LIBS)
+endif(OHM_BUILD_SHARED)
 
 install(TARGETS clu EXPORT ${CMAKE_PROJECT_NAME}-config-targets
   LIBRARY DESTINATION lib

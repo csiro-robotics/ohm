@@ -64,12 +64,6 @@ generate_export_header(ohmutil
       STATIC_DEFINE ohmutil_STATIC)
 
 target_link_libraries(ohmutil PUBLIC glm::glm logutil)
-# Kazys: Why did this suddenly become necessary on my Linux desktop?
-# Seems it may be a CMake 3.21+ issue:
-# https://discourse.cmake.org/t/cmake-3-21-rc-1-threads-threads-not-found/3630
-if(TARGET Threads::Threads)
-  target_link_libraries(ohmutil PUBLIC Threads::Threads)
-endif()
 
 target_include_directories(ohmutil
   PUBLIC
