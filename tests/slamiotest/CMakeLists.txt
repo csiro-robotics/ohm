@@ -32,8 +32,8 @@ target_link_libraries(slamiotest
   PRIVATE
     slamio
     ohmutil
-    GTest::gtest
-    GTest::gtest_main
+    ${GTEST_LIBRARIES}
+    ${GTEST_MAIN_LIBRARIES}
   )
 
 add_test(NAME slamiotest COMMAND slamiotest --gtest_output=xml:test-reports/)

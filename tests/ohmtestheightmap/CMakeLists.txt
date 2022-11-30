@@ -24,12 +24,12 @@ target_include_directories(ohmtestheightmap
     $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}>
 )
 
-target_link_libraries(ohmtestheightmap PUBLIC ohmtestcommon ohmtools ohmheightmap ohmutil ${GTEST_LIBRARIES} ${GTEST_MAIN_LIBRARIES})
+target_link_libraries(ohmtestheightmap PUBLIC ohmtestcommon ohmtools ohmheightmap ohmutil)
 
 target_link_libraries(ohmtestheightmap
   PRIVATE
-    GTest::gtest
-    GTest::gtest_main
+    ${GTEST_LIBRARIES}
+    ${GTEST_MAIN_LIBRARIES}
     glm::glm
     $<BUILD_INTERFACE:$<$<BOOL:${OHM_TES_DEBUG}>:3es::3es-core>>
     $<BUILD_INTERFACE:$<$<BOOL:${OHM_FEATURE_EIGEN}>:Eigen3::Eigen>>

@@ -2,7 +2,7 @@ option(OHM_SYSTEM_GTEST "Have ohm use a system available version of Googletest v
 
 if(OHM_SYSTEM_GTEST)
   # Enable VCPKG tests feature. This will only have an effect when using vcpkg.
-  find_package(GTest CONFIG REQUIRED)
+  find_package(GTest REQUIRED)
   get_target_property(GTEST_INCLUDE_DIRS GTest::gtest INTERFACE_INCLUDE_DIRECTORIES)
   set(GTEST_LIBRARIES GTest::gtest)
   set(GTEST_MAIN_LIBRARIES GTest::gtest_main)

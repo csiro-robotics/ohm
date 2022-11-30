@@ -64,8 +64,8 @@ target_link_libraries(ohmtest PRIVATE ohmtestcommon ohmtools ohm ohmutil)
 
 target_link_libraries(ohmtest
   PRIVATE
-    GTest::gtest
-    GTest::gtest_main
+    ${GTEST_LIBRARIES}
+    ${GTEST_MAIN_LIBRARIES}
     glm::glm
     $<BUILD_INTERFACE:$<$<BOOL:${OHM_TES_DEBUG}>:3es::3es-core>>
     $<BUILD_INTERFACE:$<$<BOOL:${OHM_FEATURE_EIGEN}>:Eigen3::Eigen>>

@@ -53,7 +53,8 @@
 # TBB_FOUND, If false, don't try to use TBB.
 # TBB_INTERFACE_VERSION, as defined in tbb/tbb_stddef.h
 
-# Try config file first.
+# Try config file first. This particular file is really only for supporting older TBB such as found on Ubuntu 18.04.
+# Newer TBB with config.cmake files is stringly recommended.
 find_package(TBB QUIET CONFIG)
 if(TBB_FOUND)
     message(STATUS "Found TBB config file.")
@@ -343,8 +344,31 @@ endif (NOT TBB_FOUND)
 endif (NOT _TBB_INSTALL_DIR)
 
 if (TBB_FOUND)
-	set(TBB_INTERFACE_VERSION 0)
-	FILE(READ "${TBB_INCLUDE_DIRS}/tbb/tbb_stddef.h" _TBB_VERSION_CONTENTS)
-	STRING(REGEX REPLACE ".*#define TBB_INTERFACE_VERSION ([0-9]+).*" "\\1" TBB_INTERFACE_VERSION "${_TBB_VERSION_CONTENTS}")
-	set(TBB_INTERFACE_VERSION "${TBB_INTERFACE_VERSION}")
+    set(TBB_INTERFACE_VERSION 0)
+    FILE(READ "${TBB_INCLUDE_DIRS}/tbb/tbb_stddef.h" _TBB_VERSION_CONTENTS)
+    STRING(REGEX REPLACE ".*#define TBB_INTERFACE_VERSION ([0-9]+).*" "\\1" TBB_INTERFACE_VERSION "${_TBB_VERSION_CONTENTS}")
+    set(TBB_INTERFACE_VERSION "${TBB_INTERFACE_VERSION}")
+
+    find_package(Threads QUIET)
+
+    # Define TBB import libraries from what we've found: TBB::tbb
+    # This is a partial definition, enough to make it work with OHM.
+    add_library(TBB::tbb UNKNOWN IMPORTED)
+
+    set_target_properties(TBB::tbb PROPERTIES 
+        INTERFACE_INCLUDE_DIRECTORIES "${TBB_INCLUDE_DIRS}"
+        IMPORTED_LOCATION_RELEASE "${TBB_LIBRARY}"
+        IMPORTED_LOCATION_RELWITHDEBINFO "${TBB_LIBRARY}"
+        IMPORTED_LOCATION_MINSIZEREL "${TBB_LIBRARY}"
+    )
+    if(TBB_LIBRARY_DEBUG)
+        set_target_properties(TBB::tbb PROPERTIES 
+            IMPORTED_LOCATION_DEBUG "${TBB_LIBRARY_DEBUG}"
+        )
+    endif(TBB_LIBRARY_DEBUG)
+    if(TARGET Threads::Threads)
+        set_target_properties(TBB::tbb PROPERTIES 
+            INTERFACE_LINK_LIBRARIES Threads::Threads
+        )
+    endif(TARGET Threads::Threads)
 endif (TBB_FOUND)

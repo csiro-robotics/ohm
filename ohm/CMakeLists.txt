@@ -251,7 +251,7 @@ target_link_libraries(ohm
   PRIVATE
     # Link Eigen as a private depedency. This will only apply additional include dirs as eigen is header only.
     # Usage is entirely private.
-    $<BUILD_INTERFACE:$<$<BOOL:${WITH_EIGEN}>:Eigen3::Eigen>>
+    $<BUILD_INTERFACE:$<$<BOOL:${OHM_FEATURE_EIGEN}>:Eigen3::Eigen>>
 )
 if(BUILD_SHARED)
   # Link additional dependencies when building shared ohm.
