@@ -37,12 +37,30 @@ target_link_libraries(ohmheightmapimage
     glm::glm
     OpenGL::GL
     OpenGL::GLU
-  PRIVATE
-    $<BUILD_INTERFACE:$<$<BOOL:${OHM_TES_DEBUG}>:3es::3es-core>>
-    $<BUILD_INTERFACE:GLEW::GLEW>
-    $<BUILD_INTERFACE:glfw>
-    $<BUILD_INTERFACE:$<$<BOOL:${OHM_FEATURE_THREADS}>:TBB::tbb>>
+    $<$<BOOL:${OHM_FEATURE_THREADS}>:TBB::tbb>
 )
+if(BUILD_SHARED)
+  # Link additional dependencies when building shared ohm.
+  # Because ohm is shared and these are private, static depenencies, we do not need to propagate
+  # the dependencies and limit this with $<BUILD_INTERFACE:>
+  target_link_libraries(ohmheightmapimage
+    PRIVATE
+      # Link 3es if enabled.
+      $<BUILD_INTERFACE:$<$<BOOL:${OHM_TES_DEBUG}>:3es::3es-core>>
+      $<BUILD_INTERFACE:GLEW::GLEW>
+      $<BUILD_INTERFACE:glfw>
+  )
+else(BUILD_SHARED)
+  # With ohm static, we link depdencencies in such as way that the will propagate and need to be
+  # found when ohm is linked.
+  target_link_libraries(ohmheightmapimage
+    PRIVATE
+      # Link 3es if enabled.
+      $<$<BOOL:${OHM_TES_DEBUG}>:3es::3es-core>
+      GLEW::GLEW
+      glfw
+  )
+endif(BUILD_SHARED)
 
 target_include_directories(ohmheightmapimage
   PUBLIC

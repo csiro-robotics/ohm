@@ -123,12 +123,30 @@ function(_ohmgpu_setup_target TARGET_NAME GPUTIL_LIBRARY OHM_GPU)
     PUBLIC
       ohm
       ohmutil
+      $<$<BOOL:${OHM_FEATURE_THREADS}>:TBB::tbb>
     PRIVATE
       ${GPUTIL_LIBRARY}
-      $<BUILD_INTERFACE:$<$<BOOL:${OHM_TES_DEBUG}>:3es::3es-core>>
-      $<BUILD_INTERFACE:$<$<BOOL:${OHM_FEATURE_THREADS}>:TBB::tbb>>
-    )
+  )
 
+    if(BUILD_SHARED)
+      # Link additional dependencies when building shared ohm.
+      # Because ohm is shared and these are private, static depenencies, we do not need to propagate
+      # the dependencies and limit this with $<BUILD_INTERFACE:>
+      target_link_libraries(${TARGET_NAME}
+        PRIVATE
+          # Link 3es if enabled.
+          $<BUILD_INTERFACE:$<$<BOOL:${OHM_TES_DEBUG}>:3es::3es-core>>
+      )
+    else(BUILD_SHARED)
+      # With ohm static, we link depdencencies in such as way that the will propagate and need to be
+      # found when ohm is linked.
+      target_link_libraries(${TARGET_NAME}
+        PRIVATE
+          # Link 3es if enabled.
+          $<$<BOOL:${OHM_TES_DEBUG}>:3es::3es-core>
+      )
+    endif(BUILD_SHARED)
+  
   target_include_directories(${TARGET_NAME}
     PUBLIC
       $<INSTALL_INTERFACE:${OHM_PREFIX_INCLUDE}>

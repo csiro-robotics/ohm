@@ -5,15 +5,24 @@
 # Author: Kazys Stepanas
 
 # Configure variables and incldue packages.
-set(OHM_TES_DEBUG @OHM_TES_DEBUG@)
-set(OHM_TBB_CONFIG @OHM_TBB_CONFIG@)
 
 # Find packages
-if(OHM_TES_DEBUG)
-  find_package(3es)
-endif(OHM_TES_DEBUG)
 find_package(Threads)
+find_package(GLM REQUIRED)
 
-if(OHM_TBB_CONFIG)
+if(OHM_FEATURE_THREADS)
   find_package(TBB CONFIG)
-endif(OHM_TBB_CONFIG)
+endif(OHM_FEATURE_THREADS)
+
+if(NOT OHM_BUILD_SHARED)
+  # We only need to propagate these packages for static ohm builds.
+  if(OHM_TES_DEBUG)
+    find_package(3es)
+  endif(OHM_TES_DEBUG)
+  
+  if(OHM_FEATURE_PDAL)
+    find_package(PDAL REQUIRED)
+  endif(OHM_FEATURE_PDAL)
+  
+  find_package(ZLIB)
+endif(NOT OHM_BUILD_SHARED)

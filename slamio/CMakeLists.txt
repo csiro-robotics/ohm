@@ -82,7 +82,13 @@ generate_export_header(slamio
       STATIC_DEFINE slamio_STATIC)
 
 if(OHM_FEATURE_PDAL)
-  target_link_libraries(slamio PUBLIC ${PDAL_LIBRARIES})
+  if(BUILD_SHARED)
+    # Linking PDAL into a shared library, we don't need to propagate downstream linking.
+    target_link_libraries(slamio PRIVATE $<BUILD_INTERFACE:${PDAL_LIBRARIES}>)
+  else(BUILD_SHARED)
+    # Linking PDAL into a static library, we need to propagate downstream linking.
+    target_link_libraries(slamio PRIVATE ${PDAL_LIBRARIES})
+  endif(BUILD_SHARED)
 endif(OHM_FEATURE_PDAL)
 
 install(TARGETS slamio EXPORT ${CMAKE_PROJECT_NAME}-config-targets

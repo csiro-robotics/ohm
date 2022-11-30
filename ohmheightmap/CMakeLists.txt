@@ -68,14 +68,31 @@ target_link_libraries(ohmheightmap PUBLIC ohm ohmutil)
 target_link_libraries(ohmheightmap
   PUBLIC
     glm::glm
+    $<$<BOOL:${OHM_FEATURE_THREADS}>:TBB::tbb>
   PRIVATE
-    # Link static and header only dependencies as a private link target under the BUILD_INTERFACE. This imports inlcude
-    # directories and links the libraries, but does not chain the dependency downstream.
-    $<BUILD_INTERFACE:$<$<BOOL:${OHM_TES_DEBUG}>:3es::3es-core>>
     $<BUILD_INTERFACE:$<$<BOOL:${OHM_FEATURE_EIGEN}>:Eigen3::Eigen>>
-    $<BUILD_INTERFACE:$<$<BOOL:${OHM_FEATURE_THREADS}>:TBB::tbb>>
-    $<BUILD_INTERFACE:ZLIB::ZLIB>
 )
+
+if(BUILD_SHARED)
+  # Link additional dependencies when building shared ohm.
+  # Because ohm is shared and these are private, static depenencies, we do not need to propagate
+  # the dependencies and limit this with $<BUILD_INTERFACE:>
+  target_link_libraries(ohmheightmap
+    PRIVATE
+      # Link 3es if enabled.
+      $<BUILD_INTERFACE:$<$<BOOL:${OHM_TES_DEBUG}>:3es::3es-core>>
+      $<BUILD_INTERFACE:ZLIB::ZLIB>
+  )
+else(BUILD_SHARED)
+  # With ohm static, we link depdencencies in such as way that the will propagate and need to be
+  # found when ohm is linked.
+  target_link_libraries(ohmheightmap
+    PRIVATE
+      # Link 3es if enabled.
+      $<$<BOOL:${OHM_TES_DEBUG}>:3es::3es-core>
+      ZLIB::ZLIB
+  )
+endif(BUILD_SHARED)
 
 target_include_directories(ohmheightmap
   PUBLIC

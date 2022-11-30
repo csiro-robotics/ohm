@@ -229,7 +229,7 @@ install(EXPORT ${CMAKE_PROJECT_NAME}-config-targets
 # Setup import scripts.
 include(CMakePackageConfigHelpers)
 write_basic_package_version_file(
-  "${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_PROJECT_NAME}-config-version.cmake"
+  "${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_PROJECT_NAME}-version.cmake"
   VERSION ${ohm_VERSION}
   COMPATIBILITY AnyNewerVersion
 )
@@ -240,7 +240,7 @@ configure_file(cmake/${CMAKE_PROJECT_NAME}-config.cmake "${CMAKE_CURRENT_BINARY_
 install(FILES
     "${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_PROJECT_NAME}-config.cmake"
     "${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_PROJECT_NAME}-packages.cmake"
-    "${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_PROJECT_NAME}-config-version.cmake"
+    "${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_PROJECT_NAME}-version.cmake"
   DESTINATION ${OHM_PREFIX_PACKAGE}
   COMPONENT Devel)
 

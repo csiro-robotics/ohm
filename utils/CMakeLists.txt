@@ -1,5 +1,6 @@
 find_package(GLM)
 find_package(ZLIB)
+find_package(TBB)
 
 add_subdirectory(ohm2ply)
 add_subdirectory(ohmcmp)
