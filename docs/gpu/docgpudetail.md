@@ -31,7 +31,6 @@ from the single threaded CPU implementations.
 - Single precision operations
 - Syncing between GPU and CPU memory
 
-
 ## GPU memory contention
 
 The OHM GPU algorithm is specifically written to allow memory contention when updating voxels. This contention is
