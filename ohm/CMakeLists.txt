@@ -274,6 +274,10 @@ else(BUILD_SHARED)
   )
 endif(BUILD_SHARED)
 
+if(TARGET Threads::Threads)
+  target_link_libraries(ohm PUBLIC Threads::Threads)
+endif(TARGET Threads::Threads)
+
 target_include_directories(ohm
   PUBLIC
     $<INSTALL_INTERFACE:${OHM_PREFIX_INCLUDE}>
