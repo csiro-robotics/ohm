@@ -1,6 +1,7 @@
 # OHM_FEATURE_CUDA_DEFAULT is used to initialise the OHM_FEATURE_CUDA option. We have to work out if CUDA is present first.
 # How we do so depends on the CMake version.
 set(OHM_FEATURE_CUDA_DEFAULT OFF) # Initialisation value for OHM_FEATURE_CUDA
+message("OHM_FEATURE_CUDA_DEFAULT: ${OHM_FEATURE_CUDA_DEFAULT}")
 
 # CMake 3.10 introduces a native way of configuring CUDA. However, this lacked certain features such as CUDA
 # architecture selection, which made it useful only for local builds (not for distribution). 3.18 adds CUDA architecture
@@ -36,7 +37,9 @@ if(NOT WIN32)
     else()
       list(FIND VCPKG_MANIFEST_FEATURES cuda _find_at)
       # Present in the VCPKG feature list. Default to enable cuda cmake option()
-      set(OHM_FEATURE_CUDA_DEFAULT ON)
+      if(_find_at GREATER_EQUAL 0)
+        set(OHM_FEATURE_CUDA_DEFAULT ON)
+      endif(_find_at GREATER_EQUAL 0)
     endif(OHM_FEATURE_CUDA)
   endif(OHM_VCPKG)
 endif(NOT WIN32)
