@@ -16,9 +16,10 @@
 #include <ohmgpu/GpuLayerCache.h>
 #include <ohmgpu/GpuMap.h>
 
+#include <logutil/LogUtil.h>
+
 #include <ohmtools/OhmCloud.h>
 #include <ohmutil/GlmStream.h>
-#include <ohmutil/OhmUtil.h>
 
 #include <chrono>
 #include <fstream>

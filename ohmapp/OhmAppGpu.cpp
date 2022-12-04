@@ -5,12 +5,13 @@
 // Author: Kazys Stepanas
 #include "OhmAppGpu.h"
 
+#include <logutil/LogUtil.h>
+
 #include <ohmgpu/GpuCache.h>
 #include <ohmgpu/GpuMap.h>
 #include <ohmgpu/GpuNdtMap.h>
 #include <ohmgpu/GpuTsdfMap.h>
 #include <ohmgpu/OhmGpu.h>
-#include <ohmutil/OhmUtil.h>
 
 #include <ohmapp/DataSource.h>
 

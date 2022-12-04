@@ -13,13 +13,15 @@ if(MSVC)
   set_target_properties(ohmfilter PROPERTIES DEBUG_POSTFIX "d")
 endif(MSVC)
 
-target_include_directories(ohmfilter SYSTEM
+target_link_libraries(ohmfilter
+  PUBLIC
+    ohm
+    ohmutil
+    slamio
   PRIVATE
-    "${GLM_INCLUDE_DIR}"
-    "${ZLIB_INCLUDE_DIRS}"
+    glm::glm
+    $<BUILD_INTERFACE:ZLIB::ZLIB>
 )
-
-target_link_libraries(ohmfilter PUBLIC ohm ohmutil slamio ${ZLIB_LIBRARIES})
 
 clang_tidy_target(ohmfilter)
 

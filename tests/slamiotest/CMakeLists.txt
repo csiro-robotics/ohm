@@ -28,12 +28,13 @@ target_include_directories(slamiotest
     $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}>
 )
 
-target_include_directories(slamiotest SYSTEM
+target_link_libraries(slamiotest
   PRIVATE
-    "${GTEST_INCLUDE_DIRS}" # Must include downloaded GTest before potentially including system directories.
-)
-
-target_link_libraries(slamiotest PUBLIC slamio ohmutil ${GTEST_LIBRARIES} ${GTEST_MAIN_LIBRARIES})
+    slamio
+    ohmutil
+    ${GTEST_LIBRARIES}
+    ${GTEST_MAIN_LIBRARIES}
+  )
 
 add_test(NAME slamiotest COMMAND slamiotest --gtest_output=xml:test-reports/)
 

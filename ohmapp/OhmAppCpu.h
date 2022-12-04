@@ -22,7 +22,7 @@
 namespace ohmapp
 {
 /// Helper to display map serialisation progress.
-class SerialiseMapProgress : public ohm::SerialiseProgress
+class ohmapp_API SerialiseMapProgress : public ohm::SerialiseProgress
 {
 public:
   /// Create with the given @p monitor using @p quit_level to track whether it should quit (when > 1).
@@ -43,7 +43,7 @@ private:
 };
 
 /// Population harness to generate an @c ohm::OccupancyMap using ohm CPU algorithms.
-class OhmAppCpu : public ohmapp::MapHarness
+class ohmapp_API OhmAppCpu : public ohmapp::MapHarness
 {
 public:
   /// Base class alias.
@@ -52,7 +52,7 @@ public:
   inline static constexpr unsigned defaultBatchSize() { return 4096u; }
 
   /// Specialised map options.
-  struct MapOptions : public Super::MapOptions
+  struct ohmapp_API MapOptions : public Super::MapOptions
   {
     /// Maximum ray length. Longer rays are truncated to this length.
     double ray_length_max = 0.0;
@@ -90,7 +90,7 @@ public:
   };
 
   /// NDT map options.
-  struct NdtOptions
+  struct ohmapp_API NdtOptions
   {
     // NDT map probabilities should be much narrower. The NDT process is more precise.
     /// Probability for an NDT map occupancy hit.
@@ -128,7 +128,7 @@ public:
   };
 
   /// Background compression options.
-  struct CompressionOptions
+  struct ohmapp_API CompressionOptions
   {
     /// High tide: invoke compression when this is exceeded.
     logutil::Bytes high_tide;
@@ -157,7 +157,7 @@ public:
   };
 
   /// Specialise collated options.
-  struct Options : public Super::Options
+  struct ohmapp_API Options : public Super::Options
   {
     /// NDT mapping options
     std::unique_ptr<NdtOptions> ndt_;

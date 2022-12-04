@@ -13,13 +13,13 @@
 #include "ohm/private/OccupancyMapDetail.h"
 #include "ohm/private/QueryDetail.h"
 
-#ifdef OHM_THREADS
+#ifdef OHM_FEATURE_THREADS
 #include <tbb/blocked_range.h>
 #include <tbb/blocked_range3d.h>
 #include <tbb/parallel_for.h>
 
 #include <atomic>
-#endif  // OHM_THREADS
+#endif  // OHM_FEATURE_THREADS
 
 #include <functional>
 
@@ -78,7 +78,7 @@ unsigned occupancyQueryRegionsParallel(
   const glm::dvec3 &query_max_extents,
   const std::function<unsigned(OccupancyMap &, QUERY &, const glm::i16vec3 &, ClosestResult &)> &region_query_func)
 {
-#ifdef OHM_THREADS
+#ifdef OHM_FEATURE_THREADS
   glm::i16vec3 min_region_key;
   glm::i16vec3 max_region_key;
   std::atomic_uint current_neighbours(0u);
@@ -108,9 +108,9 @@ unsigned occupancyQueryRegionsParallel(
     });
 
   return current_neighbours;
-#else   // OHM_THREADS
+#else   // OHM_FEATURE_THREADS
   return occupancyQueryRegions(map, query, closest, query_min_extents, query_max_extents, region_query_func);
-#endif  // OHM_THREADS
+#endif  // OHM_FEATURE_THREADS
 }
 
 template <typename QUERY>

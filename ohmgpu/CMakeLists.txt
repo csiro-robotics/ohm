@@ -4,14 +4,14 @@ include(TextFileResource)
 
 find_package(GLM)
 find_package(ZLIB)
-if(OHM_THREADS)
-  find_tbb()
-endif(OHM_THREADS)
+if(OHM_FEATURE_THREADS)
+  find_package(TBB)
+endif(OHM_FEATURE_THREADS)
 
-if(OHM_BUILD_CUDA AND OHM_USE_DEPRECATED_CMAKE_CUDA)
+if(OHM_FEATURE_CUDA AND OHM_USE_DEPRECATED_CMAKE_CUDA)
   # Need to find CUDA for deprecated project configuration
   find_package(CUDA)
-endif(OHM_BUILD_CUDA AND OHM_USE_DEPRECATED_CMAKE_CUDA)
+endif(OHM_FEATURE_CUDA AND OHM_USE_DEPRECATED_CMAKE_CUDA)
 
 set(TES_ENABLE ${OHM_TES_DEBUG})
 configure_file(OhmGpuConfig.in.h "${CMAKE_CURRENT_BINARY_DIR}/ohmgpu/OhmGpuConfig.h")
@@ -119,8 +119,34 @@ function(_ohmgpu_setup_target TARGET_NAME GPUTIL_LIBRARY OHM_GPU)
   # symbols or not. This puts us in a position where it could either be ohmcuda_EXPORTS or ohmocl_EXPORTS depending
   # on which targets are enabled. We build both the same way though, so define both symbols for all builds.
   target_compile_definitions(${TARGET_NAME} PRIVATE "-Dohmcuda_EXPORTS" "-Dohmocl_EXPORTS")
-  target_link_libraries(${TARGET_NAME} PUBLIC ohm ohmutil PRIVATE ${GPUTIL_LIBRARY})
+  target_link_libraries(${TARGET_NAME}
+    PUBLIC
+      ohm
+      ohmutil
+      $<$<BOOL:${OHM_FEATURE_THREADS}>:TBB::tbb>
+    PRIVATE
+      ${GPUTIL_LIBRARY}
+  )
 
+    if(BUILD_SHARED)
+      # Link additional dependencies when building shared ohm.
+      # Because ohm is shared and these are private, static depenencies, we do not need to propagate
+      # the dependencies and limit this with $<BUILD_INTERFACE:>
+      target_link_libraries(${TARGET_NAME}
+        PRIVATE
+          # Link 3es if enabled.
+          $<BUILD_INTERFACE:$<$<BOOL:${OHM_TES_DEBUG}>:3es::3es-core>>
+      )
+    else(BUILD_SHARED)
+      # With ohm static, we link depdencencies in such as way that the will propagate and need to be
+      # found when ohm is linked.
+      target_link_libraries(${TARGET_NAME}
+        PRIVATE
+          # Link 3es if enabled.
+          $<$<BOOL:${OHM_TES_DEBUG}>:3es::3es-core>
+      )
+    endif(BUILD_SHARED)
+  
   target_include_directories(${TARGET_NAME}
     PUBLIC
       $<INSTALL_INTERFACE:${OHM_PREFIX_INCLUDE}>
@@ -134,17 +160,13 @@ function(_ohmgpu_setup_target TARGET_NAME GPUTIL_LIBRARY OHM_GPU)
       # Otherwise we have a lot of book keeping in managing include statements.
       $<BUILD_INTERFACE:${OHM_SOURCE_DIR}>
       $<BUILD_INTERFACE:${OHM_SOURCE_DIR}/private>
-  )
+    )
 
-  if(OHM_THREADS)
-    target_include_directories(${TARGET_NAME} SYSTEM PRIVATE ${TBB_INCLUDE_DIRS})
-    target_link_libraries(${TARGET_NAME} PUBLIC ${TBB_LIBRARIES})
-  endif(OHM_THREADS)
-  if(OHM_TES_DEBUG)
-    target_link_libraries(${TARGET_NAME} PUBLIC 3es::3es-core)
-  else(OHM_TES_DEBUG)
-    target_include_directories(${TARGET_NAME} SYSTEM PRIVATE "${3ES_INCLUDE_DIRS}")
-  endif(OHM_TES_DEBUG)
+  target_include_directories(${TARGET_NAME}
+    SYSTEM PRIVATE
+    "${CMAKE_CURRENT_LIST_DIR}/3rdparty"
+      $<$<NOT:$<BOOL:${OHM_TES_DEBUG}>>:${3ES_INCLUDE_DIRS}>
+    )
 
   clang_tidy_target(${TARGET_NAME} EXCLUDE_MATCHES ".*\.cl")
 
@@ -165,7 +187,7 @@ function(_ohmgpu_setup_target TARGET_NAME GPUTIL_LIBRARY OHM_GPU)
 endfunction(_ohmgpu_setup_target)
 
 
-if(OHM_BUILD_OPENCL)
+if(OHM_FEATURE_OPENCL)
   get_target_property(OHM_INCLUDE_DIRS ohm SOURCE_DIR)
 
   # Add gputil:gpu_ext.h to this project for correct marshalling.
@@ -195,7 +217,6 @@ if(OHM_BUILD_OPENCL)
 
   add_library(ohmocl ${SOURCES} ${GPU_SOURCES} ${GPU_HEADERS})
   _ohmgpu_setup_target(ohmocl gputilocl ${OHM_GPU_OPENCL})
-  target_link_libraries(ohmocl PUBLIC clu)
 
   if(NOT OHM_EMBED_GPU_CODE)
     # Not embedding GPU source code. Make sure we marshal GPU headers as well as code.
@@ -212,9 +233,9 @@ if(OHM_BUILD_OPENCL)
       )
     endforeach(CLSOURCE)
   endif(NOT OHM_EMBED_GPU_CODE)
-endif(OHM_BUILD_OPENCL)
+endif(OHM_FEATURE_OPENCL)
 
-if(OHM_BUILD_CUDA)
+if(OHM_FEATURE_CUDA)
   list(APPEND GPU_SOURCES
     gpu/CovarianceHitNdt.cu
     gpu/LineKeys.cu
@@ -234,7 +255,7 @@ if(OHM_BUILD_CUDA)
   endif(OHM_USE_DEPRECATED_CMAKE_CUDA)
 
   _ohmgpu_setup_target(ohmcuda gputilcuda ${OHM_GPU_CUDA})
-endif(OHM_BUILD_CUDA)
+endif(OHM_FEATURE_CUDA)
 
 install(FILES ${PUBLIC_HEADERS} DESTINATION ${OHM_PREFIX_INCLUDE}/ohmgpu)
 

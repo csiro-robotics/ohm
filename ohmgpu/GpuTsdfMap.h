@@ -59,7 +59,14 @@ public:
   /// Destructor
   ~GpuTsdfMap() override;
 
+  /// Set TSDF mapping options.
+  /// @param options Options to set.
   void setTsdfOptions(const TsdfOptions &options);
+  /// Get the TSDF mapping options.
+  ///
+  /// Note this overlaps with various  @c set functions.
+  ///
+  /// @return The current mapping options.
   const TsdfOptions &tsdfOptions() const;
 
   void setMaxWeight(float max_weight);

@@ -6,6 +6,9 @@ find_package(OpenGL REQUIRED)
 find_package(GLEW REQUIRED)
 find_package(GLM REQUIRED)
 find_package(glfw3 REQUIRED)
+if(OHM_FEATURE_THREADS)
+  find_package(TBB)
+endif(OHM_FEATURE_THREADS)
 
 configure_file(OhmHeightmapImageConfig.in.h "${CMAKE_CURRENT_BINARY_DIR}/ohmheightmapimage/OhmHeightmapImageConfig.h")
 
@@ -29,12 +32,35 @@ generate_export_header(ohmheightmapimage
       STATIC_DEFINE OHMTOOLS_STATIC)
 
 target_link_libraries(ohmheightmapimage PUBLIC ohmheightmap ohm ohmutil)
-target_link_libraries(ohmheightmapimage PUBLIC
-  OpenGL::GL
-  OpenGL::GLU
-  ${GLEW_LIBRARIES}
-  glfw
-  )# OpenGL::GLX)
+target_link_libraries(ohmheightmapimage
+  PUBLIC
+    glm::glm
+    OpenGL::GL
+    OpenGL::GLU
+    $<$<BOOL:${OHM_FEATURE_THREADS}>:TBB::tbb>
+)
+if(BUILD_SHARED)
+  # Link additional dependencies when building shared ohm.
+  # Because ohm is shared and these are private, static depenencies, we do not need to propagate
+  # the dependencies and limit this with $<BUILD_INTERFACE:>
+  target_link_libraries(ohmheightmapimage
+    PRIVATE
+      # Link 3es if enabled.
+      $<BUILD_INTERFACE:$<$<BOOL:${OHM_TES_DEBUG}>:3es::3es-core>>
+      $<BUILD_INTERFACE:GLEW::GLEW>
+      $<BUILD_INTERFACE:glfw>
+  )
+else(BUILD_SHARED)
+  # With ohm static, we link depdencencies in such as way that the will propagate and need to be
+  # found when ohm is linked.
+  target_link_libraries(ohmheightmapimage
+    PRIVATE
+      # Link 3es if enabled.
+      $<$<BOOL:${OHM_TES_DEBUG}>:3es::3es-core>
+      GLEW::GLEW
+      glfw
+  )
+endif(BUILD_SHARED)
 
 target_include_directories(ohmheightmapimage
   PUBLIC
@@ -44,17 +70,10 @@ target_include_directories(ohmheightmapimage
     $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}>
 )
 
-target_include_directories(ohmheightmapimage SYSTEM
-  PUBLIC
-    "${GLM_INCLUDE_DIR}"
-    "${GLEW_INCLUDE_DIRS}"
+target_include_directories(ohmheightmapimage
+  SYSTEM PRIVATE
+    $<$<NOT:$<BOOL:${OHM_TES_DEBUG}>>:${3ES_INCLUDE_DIRS}>
 )
-
-if(OHM_TES_DEBUG)
-  target_link_libraries(ohmheightmapimage PUBLIC 3es::3es-core)
-else(OHM_TES_DEBUG)
-  target_include_directories(ohmheightmapimage SYSTEM PRIVATE "${3ES_INCLUDE_DIRS}")
-endif(OHM_TES_DEBUG)
 
 install(TARGETS ohmheightmapimage EXPORT ${CMAKE_PROJECT_NAME}-config-targets
   LIBRARY DESTINATION lib

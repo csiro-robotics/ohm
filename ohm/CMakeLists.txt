@@ -4,9 +4,9 @@ include(TextFileResource)
 
 find_package(GLM)
 find_package(ZLIB)
-if(OHM_THREADS)
-  find_tbb()
-endif(OHM_THREADS)
+if(OHM_FEATURE_THREADS)
+  find_package(TBB)
+endif(OHM_FEATURE_THREADS)
 
 set(TES_ENABLE ${OHM_TES_DEBUG})
 configure_file(OhmConfig.in.h "${CMAKE_CURRENT_BINARY_DIR}/ohm/OhmConfig.h")
@@ -242,7 +242,41 @@ set(PUBLIC_HEADERS
 add_library(ohm ${SOURCES})
 clang_tidy_target(ohm)
 
-target_link_libraries(ohm PUBLIC ${ZLIB_LIBRARIES} logutil ohmutil)
+target_link_libraries(ohm
+  PUBLIC
+    logutil
+    ohmutil
+    glm::glm
+    $<$<BOOL:${OHM_FEATURE_THREADS}>:TBB::tbb>
+  PRIVATE
+    # Link Eigen as a private depedency. This will only apply additional include dirs as eigen is header only.
+    # Usage is entirely private.
+    $<BUILD_INTERFACE:$<$<BOOL:${OHM_FEATURE_EIGEN}>:Eigen3::Eigen>>
+)
+if(BUILD_SHARED)
+  # Link additional dependencies when building shared ohm.
+  # Because ohm is shared and these are private, static depenencies, we do not need to propagate
+  # the dependencies and limit this with $<BUILD_INTERFACE:>
+  target_link_libraries(ohm
+    PRIVATE
+      # Link 3es if enabled.
+      $<BUILD_INTERFACE:$<$<BOOL:${OHM_TES_DEBUG}>:3es::3es-core>>
+      $<BUILD_INTERFACE:ZLIB::ZLIB>
+  )
+else(BUILD_SHARED)
+  # With ohm static, we link depdencencies in such as way that the will propagate and need to be
+  # found when ohm is linked.
+  target_link_libraries(ohm
+    PRIVATE
+      # Link 3es if enabled.
+      $<$<BOOL:${OHM_TES_DEBUG}>:3es::3es-core>
+      ZLIB::ZLIB
+  )
+endif(BUILD_SHARED)
+
+if(TARGET Threads::Threads)
+  target_link_libraries(ohm PUBLIC Threads::Threads)
+endif(TARGET Threads::Threads)
 
 target_include_directories(ohm
   PUBLIC
@@ -254,29 +288,14 @@ target_include_directories(ohm
     $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}>
 )
 
-if(OHM_THREADS)
-  target_include_directories(ohm SYSTEM PRIVATE ${TBB_INCLUDE_DIRS})
-  target_link_libraries(ohm PUBLIC ${TBB_LIBRARIES})
-endif(OHM_THREADS)
-
-target_include_directories(ohm SYSTEM
-  PUBLIC "${GLM_INCLUDE_DIR}"
-  PRIVATE "${ZLIB_INCLUDE_DIR}"
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/3rdparty>
+target_include_directories(ohm
+  SYSTEM PRIVATE
+    "${CMAKE_CURRENT_LIST_DIR}/3rdparty"
+    # When OHM_TES_DEBUG is disabled, we don't link the 3es library, which would resolve our include dirs.
+    # However, we need to include a dummy 3esservermacros.h file, which is in this project and will be
+    # found under ${3ES_INCLUDE_DIRS}.
+    $<$<NOT:$<BOOL:${OHM_TES_DEBUG}>>:${3ES_INCLUDE_DIRS}>
 )
-
-if(WITH_EIGEN)
-  # Link Eigen as a private link target under the BUILD_INTERFACE. This allows Eigen definitions to be set,
-  # imports inlcude directories, but does not chain the dependency downstream, which is fine for static, or header only
-  # libraries (Eigen being header only).
-  target_link_libraries(ohm PRIVATE $<BUILD_INTERFACE:Eigen3::Eigen>)
-endif(WITH_EIGEN)
-
-if(OHM_TES_DEBUG)
-  target_link_libraries(ohm PUBLIC 3es::3es-core)
-else(OHM_TES_DEBUG)
-  target_include_directories(ohm SYSTEM PRIVATE "${3ES_INCLUDE_DIRS}")
-endif(OHM_TES_DEBUG)
 
 generate_export_header(ohm
   EXPORT_MACRO_NAME ohm_API

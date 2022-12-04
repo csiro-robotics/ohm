@@ -23,6 +23,7 @@ namespace ohm
 {
 class MapInfo;
 
+/// TSDF mapping options.
 struct TsdfOptions
 {
   /// Maximum TSDF voxel weight.

@@ -6,7 +6,6 @@
 #include "OhmTestConfig.h"
 
 #include <ohm/Key.h>
-#include <ohm/KeyStream.h>
 #include <ohm/LineWalk.h>
 #include <ohm/OccupancyMap.h>
 #include <ohm/RayMapperOccupancy.h>

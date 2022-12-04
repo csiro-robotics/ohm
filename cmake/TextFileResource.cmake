@@ -92,28 +92,28 @@ function(text_file_resource TEXT_FILE RESOURCE_NAME)
   cmake_parse_arguments(TFR "BINARY;MINIFY;NO_IMPORT;ECHO" "COMMENT_PATTERN;INCLUDE_PATTERN;FILELIST;TYPE" "PATHS" ${ARGN})
 
   # Prepare command line arguments.
-  set(_ARGS)
+  set(_args)
   if(TFR_BINARY)
-    list(APPEND ARGS "--mode=binary")
+    list(APPEND _args "--mode=binary")
   endif()
   if(TFR_MINIFY)
-    list(APPEND ARGS "--minify=on")
+    list(APPEND _args "--minify=on")
   endif()
   if(TFR_NO_IMPORT)
-    list(APPEND ARGS "--no-import")
+    list(APPEND _args "--no-import")
   endif()
   if(TFR_INCLUDE_PATTERN)
-    list(APPEND ARGS "--include-regex=\"${TFR_INCLUDE_PATTERN}\"")
+    list(APPEND _args "--include-regex=\"${TFR_INCLUDE_PATTERN}\"")
   endif()
   if(TFR_COMMENT_PATTERN)
-    list(APPEND ARGS "--comment-regex=\"${TFR_COMMENT_PATTERN}\"")
+    list(APPEND _args "--comment-regex=\"${TFR_COMMENT_PATTERN}\"")
   endif()
   if(TFR_TYPE)
-    list(APPEND ARGS "--style=${TFR_TYPE}")
+    list(APPEND _args "--style=${TFR_TYPE}")
   endif()
 
   foreach(PATH ${TFR_PATHS})
-    list(APPEND ARGS "-I\"${PATH}\"")
+    list(APPEND _args "-I\"${PATH}\"")
   endforeach(PATH)
 
   get_filename_component(BASE_FILE "${TEXT_FILE}" NAME_WE)
@@ -128,11 +128,11 @@ function(text_file_resource TEXT_FILE RESOURCE_NAME)
   endif(TFR_FILELIST)
 
   if(TFR_ECHO)
-    message("${PYTHON_EXECUTABLE} ${_TEXT_FILE_RESOURCE_PY} ${TEXT_FILE} ${CMAKE_CURRENT_BINARY_DIR}/${BASE_FILE} --name=${RESOURCE_NAME} ${ARGS}")
+    message("${PYTHON_EXECUTABLE} ${_TEXT_FILE_RESOURCE_PY} ${TEXT_FILE} ${CMAKE_CURRENT_BINARY_DIR}/${BASE_FILE} --name=${RESOURCE_NAME} ${_args}")
   endif(TFR_ECHO)
 
   execute_process(
-    COMMAND "${PYTHON_EXECUTABLE}" "${_TEXT_FILE_RESOURCE_PY}" "${TEXT_FILE}" "${CMAKE_CURRENT_BINARY_DIR}/${BASE_FILE}" --name=${RESOURCE_NAME} ${ARGS}
+    COMMAND "${PYTHON_EXECUTABLE}" "${_TEXT_FILE_RESOURCE_PY}" "${TEXT_FILE}" "${CMAKE_CURRENT_BINARY_DIR}/${BASE_FILE}" --name=${RESOURCE_NAME} ${_args}
     OUTPUT_VARIABLE PROCESS_OUTPUT ERROR_VARIABLE PROCESS_OUTPUT
     RESULT_VARIABLE EXIT_CODE
     WORKING_DIRECTORY "${CMAKE_CURRENT_LIST_DIR}")

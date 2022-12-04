@@ -13,13 +13,15 @@ if(MSVC)
   set_target_properties(ohmsubmap PROPERTIES DEBUG_POSTFIX "d")
 endif(MSVC)
 
-target_include_directories(ohmsubmap SYSTEM
+target_link_libraries(ohmsubmap
+  PUBLIC
+    ohm
+    ohmutil
   PRIVATE
-    "${GLM_INCLUDE_DIR}"
-    "${ZLIB_INCLUDE_DIRS}"
+    glm::glm
+    $<BUILD_INTERFACE:ZLIB::ZLIB>
 )
 
-target_link_libraries(ohmsubmap PUBLIC ohm ohmutil ${ZLIB_LIBRARIES})
 clang_tidy_target(ohmsubmap)
 
 source_group("source" REGULAR_EXPRESSION ".*$")

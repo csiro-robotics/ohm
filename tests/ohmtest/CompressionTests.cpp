@@ -14,8 +14,6 @@
 #include <ohm/VoxelBlock.h>
 #include <ohm/VoxelBlockCompressionQueue.h>
 
-#include <ohmutil/OhmUtil.h>
-
 #include <logutil/LogUtil.h>
 
 #include <chrono>

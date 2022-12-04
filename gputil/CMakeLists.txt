@@ -1,13 +1,13 @@
 include(GenerateExportHeader)
 
-if(NOT OHM_BUILD_CUDA AND NOT OHM_BUILD_OPENCL)
-  message(FATAL_ERROR "Neither OHM_BUILD_CUDA nor OHM_BUILD_OPENCL selected for build. A GPU SDK is required to build gputil.")
-endif(NOT OHM_BUILD_CUDA AND NOT OHM_BUILD_OPENCL)
+if(NOT OHM_FEATURE_CUDA AND NOT OHM_FEATURE_OPENCL)
+  message(FATAL_ERROR "Neither OHM_FEATURE_CUDA nor OHM_FEATURE_OPENCL selected for build. A GPU SDK is required to build gputil.")
+endif(NOT OHM_FEATURE_CUDA AND NOT OHM_FEATURE_OPENCL)
 
-if(OHM_BUILD_CUDA AND OHM_USE_DEPRECATED_CMAKE_CUDA)
+if(OHM_FEATURE_CUDA AND OHM_USE_DEPRECATED_CMAKE_CUDA)
   # Need to find CUDA for deprecated project configuration
   find_package(CUDA)
-endif(OHM_BUILD_CUDA AND OHM_USE_DEPRECATED_CMAKE_CUDA)
+endif(OHM_FEATURE_CUDA AND OHM_USE_DEPRECATED_CMAKE_CUDA)
 
 set(GPUTIL_TYPE_OPENCL 1)
 set(GPUTIL_TYPE_CUDA 2)
@@ -86,7 +86,7 @@ endfunction(_gputil_setup_library)
 
 configure_file(gpuConfig.in.h "${CMAKE_CURRENT_BINARY_DIR}/gputil/gpuConfig.h")
 
-if(OHM_BUILD_OPENCL)
+if(OHM_FEATURE_OPENCL)
   set(SOURCES_OPENCL
     cl/gpuApiExceptionCode.cpp
     cl/gpuBuffer.cpp
@@ -124,9 +124,9 @@ if(OHM_BUILD_OPENCL)
 
   target_link_libraries(gputilocl PUBLIC clu)
   _gputil_setup_library(gputilocl ${GPUTIL_TYPE_OPENCL})
-endif(OHM_BUILD_OPENCL)
+endif(OHM_FEATURE_OPENCL)
 
-if(OHM_BUILD_CUDA)
+if(OHM_FEATURE_CUDA)
   set(SOURCES_CUDA
     cuda/cutil_atomic.h
     cuda/cutil_decl.h
@@ -185,7 +185,7 @@ if(OHM_BUILD_CUDA)
       $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/cuda>
   )
   _gputil_setup_library(gputilcuda ${GPUTIL_TYPE_CUDA})
-endif(OHM_BUILD_CUDA)
+endif(OHM_FEATURE_CUDA)
 
 install(FILES ${PUBLIC_HEADERS} DESTINATION ${OHM_PREFIX_INCLUDE}/gputil)
 if(PUBLIC_HEADERS_CUDA)

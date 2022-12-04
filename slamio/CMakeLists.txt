@@ -27,7 +27,7 @@ set(SOURCES
 
 set(SLAMIO_HAVE_PDAL 0)
 set(SLAMIO_HAVE_PDAL_STREAMS 0)
-if(WITH_PDAL)
+if(OHM_FEATURE_PDAL)
   find_package(PDAL REQUIRED)
   set(SLAMIO_HAVE_PDAL 1)
   list(APPEND SOURCES
@@ -44,7 +44,7 @@ if(WITH_PDAL)
       PointCloudReaderPdal.h
     )
   endif(PDAL_VERSION VERSION_GREATER_EQUAL 1.7)
-endif(WITH_PDAL)
+endif(OHM_FEATURE_PDAL)
 
 configure_file(SlamIOConfig.in.h "${CMAKE_CURRENT_BINARY_DIR}/slamio/SlamIOConfig.h")
 
@@ -66,10 +66,7 @@ endif(MSVC)
 
 clang_tidy_target(slamio)
 
-generate_export_header(slamio
-      EXPORT_MACRO_NAME slamio_API
-      EXPORT_FILE_NAME slamio/SlamIOExport.h
-      STATIC_DEFINE slamio_STATIC)
+target_link_libraries(slamio PUBLIC ohmutil glm::glm)
 
 target_include_directories(slamio
   PUBLIC
@@ -79,15 +76,20 @@ target_include_directories(slamio
     $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}>
 )
 
-target_include_directories(slamio SYSTEM
-  PUBLIC "${GLM_INCLUDE_DIR}"
-)
+generate_export_header(slamio
+      EXPORT_MACRO_NAME slamio_API
+      EXPORT_FILE_NAME slamio/SlamIOExport.h
+      STATIC_DEFINE slamio_STATIC)
 
-target_link_libraries(slamio PUBLIC ohmutil)
-
-if(WITH_PDAL)
-  target_link_libraries(slamio PUBLIC ${PDAL_LIBRARIES})
-endif(WITH_PDAL)
+if(OHM_FEATURE_PDAL)
+  if(BUILD_SHARED)
+    # Linking PDAL into a shared library, we don't need to propagate downstream linking.
+    target_link_libraries(slamio PRIVATE $<BUILD_INTERFACE:${PDAL_LIBRARIES}>)
+  else(BUILD_SHARED)
+    # Linking PDAL into a static library, we need to propagate downstream linking.
+    target_link_libraries(slamio PRIVATE ${PDAL_LIBRARIES})
+  endif(BUILD_SHARED)
+endif(OHM_FEATURE_PDAL)
 
 install(TARGETS slamio EXPORT ${CMAKE_PROJECT_NAME}-config-targets
   LIBRARY DESTINATION lib

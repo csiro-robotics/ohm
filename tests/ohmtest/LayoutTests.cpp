@@ -12,7 +12,7 @@
 #include <ohm/VoxelLayout.h>
 #include <ohm/VoxelMean.h>
 
-#include <ohmutil/OhmUtil.h>
+#include <logutil/LogUtil.h>
 
 #include <chrono>
 #include <iomanip>

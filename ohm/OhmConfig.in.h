@@ -31,10 +31,10 @@
 
 // Enable various validation tests throughout this library.
 #cmakedefine OHM_VALIDATION
-#cmakedefine OHM_THREADS
+#cmakedefine OHM_FEATURE_THREADS
 #cmakedefine OHM_PROFILE
 #cmakedefine OHM_EMBED_GPU_CODE
-#cmakedefine OHM_WITH_EIGEN
+#cmakedefine OHM_FEATURE_EIGEN
 
 #ifdef OHM_PROFILE
 #define PROFILING 1

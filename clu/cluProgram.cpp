@@ -618,7 +618,7 @@ cl_int buildProgramFromFile(cl::Program &program, cl::Context &ocl, std::string 
 #ifdef _MSC_VER
   strcpy_s(source_dir.data(), source_dir.size(), source_file_name.c_str());
 #else   // !_MSC_VER
-  strncpy(source_dir.data(), source_file_name.c_str(), kMaxPath);
+  strncpy(source_dir.data(), source_file_name.c_str(), kMaxPath - 1);
 #endif  // _MSC_VER
   if (!clu::findProgramDir(source_dir.data(), source_dir.size(), search_paths))
   {

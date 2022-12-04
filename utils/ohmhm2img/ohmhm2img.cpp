@@ -13,7 +13,7 @@
 
 #include <ohmheightmapimage/HeightmapImage.h>
 
-#include <ohmutil/OhmUtil.h>
+#include <logutil/LogUtil.h>
 #include <ohmutil/ProgressMonitor.h>
 #include <ohmutil/SafeIO.h>
 #include <ohmutil/ScopedTimeDisplay.h>
@@ -335,17 +335,19 @@ std::ostream &operator<<(std::ostream &out, const ExportMode mode)
   return out;
 }
 
-std::istream &operator>>(std::istream &in, ohm::HeightmapMesh::NormalsMode &mode)
+namespace ohm
+{
+std::istream &operator>>(std::istream &in, HeightmapMesh::NormalsMode &mode)
 {
   std::string mode_str;
   in >> mode_str;
   if (mode_str == "average" || mode_str == "avg")
   {
-    mode = ohm::HeightmapMesh::kNormalsAverage;
+    mode = HeightmapMesh::kNormalsAverage;
   }
   else if (mode_str == "worst")
   {
-    mode = ohm::HeightmapMesh::kNormalsWorst;
+    mode = HeightmapMesh::kNormalsWorst;
   }
   // else
   // {
@@ -354,19 +356,21 @@ std::istream &operator>>(std::istream &in, ohm::HeightmapMesh::NormalsMode &mode
   return in;
 }
 
-std::ostream &operator<<(std::ostream &out, const ohm::HeightmapMesh::NormalsMode mode)
+std::ostream &operator<<(std::ostream &out, const HeightmapMesh::NormalsMode mode)
 {
   switch (mode)
   {
-  case ohm::HeightmapMesh::kNormalsAverage:
+  case HeightmapMesh::kNormalsAverage:
     out << "average";
     break;
-  case ohm::HeightmapMesh::kNormalsWorst:
+  case HeightmapMesh::kNormalsWorst:
     out << "worst";
     break;
   }
   return out;
 }
+}  // namespace ohm
+
 // Must be after argument streaming operators.
 #include <ohmutil/Options.h>
 

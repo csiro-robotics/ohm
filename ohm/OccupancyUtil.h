@@ -33,12 +33,4 @@ inline T volumeOf(const glm::tvec3<T, QUALITY> &expanse)
 }
 }  // namespace ohm
 
-
-inline std::ostream &operator<<(std::ostream &out, const ohm::Key &key)
-{
-  out << "[ R(" << key.regionKey().x << ',' << key.regionKey().y << ',' << key.regionKey().z << ") V("
-      << int(key.localKey().x) << ',' << int(key.localKey().y) << ',' << int(key.localKey().z) << ") ]";
-  return out;
-}
-
 #endif  // OCCUPANCYUTIL

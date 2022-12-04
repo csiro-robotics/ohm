@@ -4,9 +4,9 @@ include(TextFileResource)
 
 find_package(GLM)
 find_package(ZLIB)
-if(OHM_THREADS)
-  find_tbb()
-endif(OHM_THREADS)
+if(OHM_FEATURE_THREADS)
+  find_package(TBB)
+endif(OHM_FEATURE_THREADS)
 
 set(TES_ENABLE ${OHM_TES_DEBUG})
 configure_file(OhmHeightmapConfig.in.h "${CMAKE_CURRENT_BINARY_DIR}/ohmheightmap/OhmHeightmapConfig.h")
@@ -65,6 +65,35 @@ clang_tidy_target(ohmheightmap)
 
 target_link_libraries(ohmheightmap PUBLIC ohm ohmutil)
 
+target_link_libraries(ohmheightmap
+  PUBLIC
+    glm::glm
+    $<$<BOOL:${OHM_FEATURE_THREADS}>:TBB::tbb>
+  PRIVATE
+    $<BUILD_INTERFACE:$<$<BOOL:${OHM_FEATURE_EIGEN}>:Eigen3::Eigen>>
+)
+
+if(BUILD_SHARED)
+  # Link additional dependencies when building shared ohm.
+  # Because ohm is shared and these are private, static depenencies, we do not need to propagate
+  # the dependencies and limit this with $<BUILD_INTERFACE:>
+  target_link_libraries(ohmheightmap
+    PRIVATE
+      # Link 3es if enabled.
+      $<BUILD_INTERFACE:$<$<BOOL:${OHM_TES_DEBUG}>:3es::3es-core>>
+      $<BUILD_INTERFACE:ZLIB::ZLIB>
+  )
+else(BUILD_SHARED)
+  # With ohm static, we link depdencencies in such as way that the will propagate and need to be
+  # found when ohm is linked.
+  target_link_libraries(ohmheightmap
+    PRIVATE
+      # Link 3es if enabled.
+      $<$<BOOL:${OHM_TES_DEBUG}>:3es::3es-core>
+      ZLIB::ZLIB
+  )
+endif(BUILD_SHARED)
+
 target_include_directories(ohmheightmap
   PUBLIC
     $<INSTALL_INTERFACE:${OHM_PREFIX_INCLUDE}>
@@ -75,29 +104,13 @@ target_include_directories(ohmheightmap
     $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}>
 )
 
-if(OHM_THREADS)
-  target_include_directories(ohmheightmap SYSTEM PRIVATE ${TBB_INCLUDE_DIRS})
-  target_link_libraries(ohmheightmap PUBLIC ${TBB_LIBRARIES})
-endif(OHM_THREADS)
-
 target_include_directories(ohmheightmap SYSTEM
-  PUBLIC "${GLM_INCLUDE_DIR}"
-  PRIVATE "${ZLIB_INCLUDE_DIR}"
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/3rdparty>
+  PRIVATE
+    # Link static and header only dependencies as a private link target under the BUILD_INTERFACE. This imports inlcude
+    # directories and links the libraries, but does not chain the dependency downstream.
+    "${CMAKE_CURRENT_LIST_DIR}/3rdparty"
+    $<$<NOT:$<BOOL:${OHM_TES_DEBUG}>>:${3ES_INCLUDE_DIRS}>
 )
-
-if(WITH_EIGEN)
-  # Link Eigen as a private link target under the BUILD_INTERFACE. This allows Eigen definitions to be set,
-  # imports inlcude directories, but does not chain the dependency downstream, which is fine for static, or header only
-  # libraries (Eigen being header only).
-  target_link_libraries(ohmheightmap PRIVATE $<BUILD_INTERFACE:Eigen3::Eigen>)
-endif(WITH_EIGEN)
-
-if(OHM_TES_DEBUG)
-  target_link_libraries(ohmheightmap PUBLIC 3es::3es-core)
-else(OHM_TES_DEBUG)
-  target_include_directories(ohmheightmap SYSTEM PRIVATE "${3ES_INCLUDE_DIRS}")
-endif(OHM_TES_DEBUG)
 
 generate_export_header(ohmheightmap
   EXPORT_MACRO_NAME ohmheightmap_API

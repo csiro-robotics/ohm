@@ -5,6 +5,7 @@
 // Author: Kazys Stepanas
 #include "OhmTestUtil.h"
 
+#include <ohm/Key.h>
 #include <ohm/MapChunk.h>
 #include <ohm/MapLayer.h>
 #include <ohm/MapLayout.h>

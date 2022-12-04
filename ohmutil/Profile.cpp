@@ -15,11 +15,11 @@
 #include <thread>
 #include <vector>
 
-#include "OhmUtil.h"
+#include <logutil/LogUtil.h>
 
-#ifdef OHM_THREADS
+#ifdef OHM_FEATURE_THREADS
 #include <tbb/tbb_thread.h>
-#endif  // OHM_THREADS
+#endif  // OHM_FEATURE_THREADS
 
 namespace ohm
 {
@@ -81,7 +81,7 @@ struct ThreadRecords
   }
 };
 
-#ifdef OHM_THREADS
+#ifdef OHM_FEATURE_THREADS
 void compareThreadIds(std::thread::id stdId, tbb::internal::tbb_thread_v3::id tbbId)
 {
   static bool once = true;
@@ -90,7 +90,7 @@ void compareThreadIds(std::thread::id stdId, tbb::internal::tbb_thread_v3::id tb
     once = false;
   }
 }
-#endif  // OHM_THREADS
+#endif  // OHM_FEATURE_THREADS
 
 struct ProfileDetail
 {
@@ -108,9 +108,9 @@ struct ProfileDetail
   inline ThreadRecords &getCurrentThreadRecords()
   {
     std::unique_lock<std::mutex> guard(mutex);
-#ifdef OHM_THREADS
+#ifdef OHM_FEATURE_THREADS
     // compareThreadIds(std::this_thread::get_id(), tbb::this_tbb_thread::get_id());
-#endif  // OHM_THREADS
+#endif  // OHM_FEATURE_THREADS
     for (auto &search : thread_records)
     {
       if (search.first == std::this_thread::get_id())
@@ -128,11 +128,9 @@ struct ProfileDetail
 void showReport(std::ostream &o, const ProfileRecord &record, const ThreadRecords &thread_records, int level = 0)
 {
   std::string indent(level * 2, ' ');
-  std::string count_str;
   const auto average_time = (record.marker_count) ? record.total_time / record.marker_count : ProfileClock::duration(0);
-  util::delimitedInteger(count_str, record.marker_count);
   o << indent << record.name << " cur: " << record.recent << " avg: " << average_time << " max: " << record.max_time
-    << " total: " << record.total_time << " / " << count_str << " calls\n";
+    << " total: " << record.total_time << " / " << record.marker_count << " calls\n";
 
   // Recurse on children.
   for (auto &&entry : thread_records.records)
@@ -249,8 +247,6 @@ void Profile::report(std::ostream *optr)
   {
     std::ostream &out = (optr) ? *optr : std::cout;
     std::unique_lock<std::mutex> guard(imp_->mutex);
-
-    std::string count_str;
 
     out << "----------------------------------------\n";
     out << "Profile report\n";

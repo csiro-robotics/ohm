@@ -140,7 +140,6 @@ std::ostream &DataSource::Stats::writeCsvHeader(std::ostream &out)
       << "ray_length_average" << delim << "rays_per_second_data" << delim << "rays_per_second_process\n";
   return out;
 }
-}  // namespace ohmapp
 
 
 std::ostream &operator<<(std::ostream &out, const ohmapp::DataSource::Stats &stats)
@@ -253,3 +252,4 @@ std::istream &operator>>(std::istream &in, ohmapp::DataSource::ReturnNumberMode 
 
   return in;
 }
+}  // namespace ohmapp

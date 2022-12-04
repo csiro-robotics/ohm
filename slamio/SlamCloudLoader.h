@@ -21,7 +21,7 @@ struct SlamCloudLoaderDetail;
 ///
 /// This class provides support for loading point cloud based sample files and trajectories. Minimum supported formats
 /// are PLY point cloud loading (via miniply) and PLY or text file trajectory loading (see @c PointCloudReaderTraj ).
-/// Building with @c WITH_PDAL enables PDAL support for other point cloud data types, with PLY loading unchanged.
+/// Building with @c OHM_FEATURE_PDAL enables PDAL support for other point cloud data types, with PLY loading unchanged.
 /// PDAL version 1.7+ supports streaming loading.
 ///
 /// The loader may be opened in one of three ways:

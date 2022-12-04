@@ -35,25 +35,21 @@ target_include_directories(ohmtestcommon
     $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/tests>
 )
 
-target_include_directories(ohmtestcommon SYSTEM
-  PRIVATE
-    "${GTEST_INCLUDE_DIRS}" # Must include downloaded GTest before potentially including system directories.
-    "${GLM_INCLUDE_DIR}"
-)
-
 target_link_libraries(ohmtestcommon PUBLIC ohmtools ohm ohmutil)
+
+target_link_libraries(ohmtestcommon
+  PRIVATE
+    ${GTEST_LIBRARIES}
+    $<BUILD_INTERFACE:$<$<BOOL:${OHM_TES_DEBUG}>:3es::3es-core>>
+    $<BUILD_INTERFACE:$<$<BOOL:${OHM_FEATURE_EIGEN}>:Eigen3::Eigen>>
+)
 
 add_dependencies(ohmtestcommon marshal_test_data)
 
-if(OHM_TES_DEBUG)
-  target_link_libraries(ohmtestcommon PUBLIC 3es::3es-core ${GTEST_LIBRARIES} ${GTEST_MAIN_LIBRARIES})
-else(OHM_TES_DEBUG)
-  target_include_directories(ohmtestcommon SYSTEM PRIVATE "${3ES_INCLUDE_DIRS}")
-endif(OHM_TES_DEBUG)
-
-if(Eigen3_FOUND)
-  target_link_libraries(ohmtestcommon PUBLIC Eigen3::Eigen)
-endif(Eigen3_FOUND)
+target_include_directories(ohmtestcommon
+  SYSTEM PRIVATE
+    $<$<NOT:$<BOOL:${OHM_TES_DEBUG}>>:${3ES_INCLUDE_DIRS}>
+  )
 
 source_group("source" REGULAR_EXPRESSION ".*$")
 # Needs CMake 3.8+:

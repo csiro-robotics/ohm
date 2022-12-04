@@ -3,10 +3,10 @@ if(NOT TARGET slamio)
   return()
 endif()
 
-if(OHM_BUILD_CUDA AND OHM_USE_DEPRECATED_CMAKE_CUDA)
+if(OHM_FEATURE_CUDA AND OHM_USE_DEPRECATED_CMAKE_CUDA)
   # Need to find CUDA for deprecated project configuration
   find_package(CUDA)
-endif(OHM_BUILD_CUDA AND OHM_USE_DEPRECATED_CMAKE_CUDA)
+endif(OHM_FEATURE_CUDA AND OHM_USE_DEPRECATED_CMAKE_CUDA)
 
 configure_file(OhmPopConfig.in.h "${CMAKE_CURRENT_BINARY_DIR}/ohmpop/OhmPopConfig.h")
 
@@ -49,12 +49,12 @@ function(_ohmpop_setup GPU_MODE)
       $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}>
   )
 
-  target_include_directories(${TARGET_NAME} SYSTEM
-    PRIVATE
-      "${GLM_INCLUDE_DIR}"
-  )
-
   target_link_libraries(${TARGET_NAME} PRIVATE ${OHMLIB_NAME} ohmapp slamio ohmtools ohmutil)
+
+  target_link_libraries(${TARGET_NAME}
+    PRIVATE
+      glm::glm
+  )
 
   if(GPU_MODE STREQUAL "cpu")
     target_compile_definitions(${TARGET_NAME} PRIVATE "-DOHMPOP_CPU")
@@ -66,7 +66,7 @@ function(_ohmpop_setup GPU_MODE)
   install(TARGETS ${TARGET_NAME} DESTINATION bin)
 endfunction(_ohmpop_setup)
 
-if(OHM_BUILD_OPENCL)
+if(OHM_FEATURE_OPENCL)
   _ohmpop_setup(ocl)
   clang_tidy_target(ohmpopocl)
   # Required to run NVIDIA OpenCL
@@ -75,8 +75,8 @@ if(OHM_BUILD_OPENCL)
     ${OHM_LEAK_SUPPRESS_OCL}
     "libpdal_base"
   )
-endif(OHM_BUILD_OPENCL)
-if(OHM_BUILD_CUDA)
+endif(OHM_FEATURE_OPENCL)
+if(OHM_FEATURE_CUDA)
   _ohmpop_setup(cuda)
   clang_tidy_target(ohmpopcuda)
   leak_track_default_options(ohmpopcuda CONDITION OHM_LEAK_TRACK ${OHM_ASAN_OPTIONS_CUDA})
@@ -84,7 +84,7 @@ if(OHM_BUILD_CUDA)
     ${OHM_LEAK_SUPPRESS_CUDA}
     "libpdal_base"
   )
-endif(OHM_BUILD_CUDA)
+endif(OHM_FEATURE_CUDA)
 _ohmpop_setup(cpu)
 clang_tidy_target(ohmpopcpu)
 leak_track_suppress(ohmpopcpu CONDITION OHM_LEAK_TRACK

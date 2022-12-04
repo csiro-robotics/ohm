@@ -28,7 +28,13 @@ generate_export_header(ohmtools
       EXPORT_FILE_NAME ohmtools/OhmToolsExport.h
       STATIC_DEFINE OHMTOOLS_STATIC)
 
-target_link_libraries(ohmtools PUBLIC ohm ohmheightmap ohmutil)
+target_link_libraries(ohmtools
+  PUBLIC
+    ohm
+    ohmheightmap
+    ohmutil
+    glm::glm
+)
 
 target_include_directories(ohmtools
   PUBLIC
@@ -36,11 +42,6 @@ target_include_directories(ohmtools
     $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/ohmtools>
     $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}>
-)
-
-target_include_directories(ohmtools SYSTEM
-  PUBLIC
-    "${GLM_INCLUDE_DIR}"
 )
 
 install(TARGETS ohmtools EXPORT ${CMAKE_PROJECT_NAME}-config-targets

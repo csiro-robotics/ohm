@@ -1,0 +1,73 @@
+{
+  "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg/master/scripts/vcpkg.schema.json",
+  "name": "ohm",
+  "version": "0.2.0",
+  "default-features": [
+    "eigen",
+    "heightmap",
+    "threads"
+  ],
+  "features": {
+    "cuda": {
+      "description": "Enable CUDA acceleration libraries.",
+      "dependencies": [
+        {
+          "name": "cuda",
+          "platform": "!windows"
+        }
+      ]
+    },
+    "eigen": {
+      "description": "Enable Eigen support for faster Geometry operation.",
+      "dependencies": [
+        "eigen3"
+      ]
+    },
+    "heightmap": {
+      "description": "Support heightmap generation."
+    },
+    "heightmap-image": {
+      "description": "Support heightmap rendering to image.",
+      "dependencies": [
+        "glew",
+        "glfw3",
+        "libpng",
+        "opengl"
+      ]
+    },
+    "opencl": {
+      "description": "Enable OpenCL acceleration libraries.",
+      "dependencies": [
+        "opencl"
+      ]
+    },
+    "pdal": {
+      "description": "Enable PDAL point cloud loader.",
+      "dependencies": [
+        {
+          "name": "pdal",
+          "features": [
+            "draco",
+            "e57"
+          ]
+        }
+      ]
+    },
+    "threads": {
+      "description": "Build with Intel Threading Building Blocks.",
+      "dependencies": [
+        "tbb"
+      ]
+    },
+    "test": {
+      "description": "With unit tests",
+      "dependencies": [
+        "gtest"
+      ]
+    }
+  },
+  "dependencies": [
+    "glm",
+    "zlib"
+  ]
+}

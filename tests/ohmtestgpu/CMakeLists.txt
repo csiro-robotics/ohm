@@ -45,28 +45,27 @@ function(_ohmtestgpu_setup GPU)
       $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}>
   )
 
-  target_include_directories(ohmtest${GPU} SYSTEM
+  target_link_libraries(ohmtest${GPU} PUBLIC ohmtestcommon ohmtools ohm${GPU} gputil${GPU} ohmutil)
+
+  target_link_libraries(ohmtest${GPU}
     PRIVATE
-      "${GTEST_INCLUDE_DIRS}" # Must include downloaded GTest before potentially including system directories.
-      "${GLM_INCLUDE_DIR}"
+      ${GTEST_LIBRARIES}
+      ${GTEST_MAIN_LIBRARIES}
+      glm::glm
+      $<BUILD_INTERFACE:$<$<BOOL:${OHM_TES_DEBUG}>:3es::3es-core>>
+      $<BUILD_INTERFACE:$<$<BOOL:${OHM_FEATURE_EIGEN}>:Eigen3::Eigen>>
   )
 
-  target_link_libraries(ohmtest${GPU} PUBLIC ohmtestcommon ohmtools ohm${GPU} gputil${GPU} ohmutil ${GTEST_LIBRARIES} ${GTEST_MAIN_LIBRARIES})
 
-  if(OHM_TES_DEBUG)
-    target_link_libraries(ohmtest${GPU} PUBLIC 3es::3es-core)
-  else(OHM_TES_DEBUG)
-    target_include_directories(ohmtest${GPU} SYSTEM PRIVATE "${3ES_INCLUDE_DIRS}")
-  endif(OHM_TES_DEBUG)
-
-  if(Eigen3_FOUND)
-    target_link_libraries(ohmtest${GPU} PRIVATE Eigen3::Eigen)
-  endif(Eigen3_FOUND)
+  target_include_directories(ohmtestcommon
+    SYSTEM PUBLIC
+      $<$<NOT:$<BOOL:${OHM_TES_DEBUG}>>:${3ES_INCLUDE_DIRS}>
+    )
 
   add_test(NAME ohmtest${GPU} COMMAND ohmtest${GPU} --gtest_output=xml:test-reports/)
 endfunction(_ohmtestgpu_setup)
 
-if(OHM_BUILD_OPENCL)
+if(OHM_FEATURE_OPENCL)
   _ohmtestgpu_setup(ocl)
   # Required to run NVIDIA OpenCL
   leak_track_default_options(ohmtestocl CONDITION OHM_LEAK_TRACK ${OHM_ASAN_OPTIONS_CUDA})
@@ -74,15 +73,15 @@ if(OHM_BUILD_OPENCL)
     ${OHM_LEAK_SUPPRESS_OCL}
     ${OHM_LEAK_SUPPRESS_TBB}
   )
-endif(OHM_BUILD_OPENCL)
-if(OHM_BUILD_CUDA)
+endif(OHM_FEATURE_OPENCL)
+if(OHM_FEATURE_CUDA)
   _ohmtestgpu_setup(cuda)
   leak_track_default_options(ohmtestcuda CONDITION OHM_LEAK_TRACK ${OHM_ASAN_OPTIONS_CUDA})
   leak_track_suppress(ohmtestcuda CONDITION OHM_LEAK_TRACK
     ${OHM_LEAK_SUPPRESS_CUDA}
     ${OHM_LEAK_SUPPRESS_TBB}
   )
-endif(OHM_BUILD_CUDA)
+endif(OHM_FEATURE_CUDA)
 
 source_group("source" REGULAR_EXPRESSION ".*$")
 # Needs CMake 3.8+:

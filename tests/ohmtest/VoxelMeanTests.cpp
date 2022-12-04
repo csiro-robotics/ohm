@@ -19,8 +19,9 @@
 
 #include <ohmtools/OhmCloud.h>
 
+#include <logutil/LogUtil.h>
+
 #include <ohmutil/GlmStream.h>
-#include <ohmutil/OhmUtil.h>
 
 #include <chrono>
 #include <fstream>

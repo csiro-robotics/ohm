@@ -219,10 +219,10 @@ bool PointCloudReaderPdal::open(const char *filename)
     return false;
   }
 
+#if SLAMIO_HAVE_PDAL_STREAMS
   const DataChannel required =
     (desired_channels_ == DataChannel::None) ? (DataChannel::Position | DataChannel::Time) : desired_channels_;
 
-#if SLAMIO_HAVE_PDAL_STREAMS
   point_stream_ = std::make_unique<PointStream>(kCloudStreamBufferSize, required);
   cloud_reader_->prepare(*point_stream_);
 

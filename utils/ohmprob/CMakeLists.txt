@@ -13,13 +13,13 @@ if(MSVC)
   set_target_properties(ohmprob PROPERTIES DEBUG_POSTFIX "d")
 endif(MSVC)
 
-target_include_directories(ohmprob SYSTEM
-  PRIVATE
-    "${GLM_INCLUDE_DIR}"
-    "${ZLIB_INCLUDE_DIRS}"
-)
+target_link_libraries(ohmprob PUBLIC ohm ohmutil)
 
-target_link_libraries(ohmprob PUBLIC ohm ohmutil ${ZLIB_LIBRARIES})
+target_link_libraries(ohmprob
+  PRIVATE
+    glm::glm
+    $<BUILD_INTERFACE:ZLIB::ZLIB>
+)
 
 clang_tidy_target(ohmprob)
 

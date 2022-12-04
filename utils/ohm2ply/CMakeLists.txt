@@ -13,13 +13,16 @@ if(MSVC)
   set_target_properties(ohm2ply PROPERTIES DEBUG_POSTFIX "d")
 endif(MSVC)
 
-target_include_directories(ohm2ply SYSTEM
+target_link_libraries(ohm2ply
+  PUBLIC
+    ohm
+    ohmheightmap
+    ohmtools
+    ohmutil
   PRIVATE
-    "${GLM_INCLUDE_DIR}"
-    "${ZLIB_INCLUDE_DIRS}"
+    glm::glm
+    $<BUILD_INTERFACE:ZLIB::ZLIB>
 )
-
-target_link_libraries(ohm2ply PUBLIC ohm ohmheightmap ohmtools ohmutil ${ZLIB_LIBRARIES})
 
 clang_tidy_target(ohm2ply)
 

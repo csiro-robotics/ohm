@@ -82,86 +82,89 @@ inline void parseVector(std::istream &in, unsigned char *v, int elements)
   }
 }
 
+namespace glm
+{
 // From GLM 0.9.9.1, numbering starting including a patch number.
 // So 0.9.8 was version 98, 0.9.9 was 99 and 0.9.9.1 was 991
 // This assumes version 1.0 will be 1000
 #if GLM_VERSION < 99
-using GlmQualifier = glm::precision;
+using GlmQualifier = precision;
 #else   // GLM_VERSION
-using GlmQualifier = glm::qualifier;
+using GlmQualifier = qualifier;
 #endif  // GLM_VERSION
 
 
 template <typename T, GlmQualifier Q>
-inline std::istream &operator>>(std::istream &in, glm::tvec2<T, Q> &value)
+inline std::istream &operator>>(std::istream &in, tvec2<T, Q> &value)
 {
-  parseVector(in, glm::value_ptr(value), 2);
+  parseVector(in, value_ptr(value), 2);
   return in;
 }
 
 
 template <typename T, GlmQualifier Q>
-inline std::istream &operator>>(std::istream &in, glm::tvec3<T, Q> &value)
+inline std::istream &operator>>(std::istream &in, tvec3<T, Q> &value)
 {
-  parseVector(in, glm::value_ptr(value), 3);
+  parseVector(in, value_ptr(value), 3);
   return in;
 }
 
 
 template <typename T, GlmQualifier Q>
-inline std::istream &operator>>(std::istream &in, glm::tvec4<T, Q> &value)
+inline std::istream &operator>>(std::istream &in, tvec4<T, Q> &value)
 {
-  parseVector(in, glm::value_ptr(value), 4);
+  parseVector(in, value_ptr(value), 4);
   return in;
 }
 
 template <typename T, GlmQualifier Q>
-inline std::ostream &operator<<(std::ostream &out, const glm::tvec2<T, Q> &v)
+inline std::ostream &operator<<(std::ostream &out, const tvec2<T, Q> &v)
 {
   out << '(' << v.x << ',' << v.y << ')';
   return out;
 }
 
 template <typename T, GlmQualifier Q>
-inline std::ostream &operator<<(std::ostream &out, const glm::tvec3<T, Q> &v)
+inline std::ostream &operator<<(std::ostream &out, const tvec3<T, Q> &v)
 {
   out << '(' << v.x << ',' << v.y << ',' << v.z << ')';
   return out;
 }
 
 template <typename T, GlmQualifier Q>
-inline std::ostream &operator<<(std::ostream &out, const glm::tvec4<T, Q> &v)
+inline std::ostream &operator<<(std::ostream &out, const tvec4<T, Q> &v)
 {
   out << '(' << v.w << ',' << v.x << ',' << v.y << ',' << v.z << ')';
   return out;
 }
 
 template <GlmQualifier Q>
-inline std::ostream &operator<<(std::ostream &out, const glm::tvec3<char, Q> &v)
+inline std::ostream &operator<<(std::ostream &out, const tvec3<char, Q> &v)
 {
   out << '(' << int(v.x) << ',' << int(v.y) << ',' << int(v.z) << ')';
   return out;
 }
 
 template <GlmQualifier Q>
-inline std::ostream &operator<<(std::ostream &out, const glm::tvec3<unsigned char, Q> &v)
+inline std::ostream &operator<<(std::ostream &out, const tvec3<unsigned char, Q> &v)
 {
   out << '(' << int(v.x) << ',' << int(v.y) << ',' << int(v.z) << ')';
   return out;
 }
 
 template <GlmQualifier Q>
-inline std::ostream &operator<<(std::ostream &out, const glm::tvec4<char, Q> &v)
+inline std::ostream &operator<<(std::ostream &out, const tvec4<char, Q> &v)
 {
   out << '(' << int(v.w) << ',' << int(v.x) << ',' << int(v.y) << ',' << int(v.z) << ')';
   return out;
 }
 
 template <GlmQualifier Q>
-inline std::ostream &operator<<(std::ostream &out, const glm::tvec4<unsigned char, Q> &v)
+inline std::ostream &operator<<(std::ostream &out, const tvec4<unsigned char, Q> &v)
 {
   out << '(' << int(v.w) << ',' << int(v.x) << ',' << int(v.y) << ',' << int(v.z) << ')';
   return out;
 }
+}  // namespace glm
 
 #endif  // OHMUTIL_GLMSTREAM_H

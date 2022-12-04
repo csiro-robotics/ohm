@@ -20,28 +20,30 @@ namespace slamio
 struct RPlyHandle;
 
 /// A PLY point cloud loading using miniply.
-class PointCloudReaderPly : public PointCloudReader
+class slamio_API PointCloudReaderPly : public PointCloudReader
 {
 public:
+  /// Set of relevant PLY point properties to try read.
   enum class PlyProperty : unsigned
   {
-    kTimestamp,
-    kX,
-    kY,
-    kZ,
-    kNX,
-    kNY,
-    kNZ,
-    kR,
-    kG,
-    kB,
-    kA,
-    kIntensity,
-    kReturnNumber,
-    kCount
+    kTimestamp,     ///< Point timestamp.
+    kX,             ///< X position coordinate.
+    kY,             ///< Y position coordinate.
+    kZ,             ///< Z position coordinate.
+    kNX,            ///< Point normal vector X component.
+    kNY,            ///< Point normal vector Y component.
+    kNZ,            ///< Point normal vector X component.
+    kR,             ///< Point cloud red channel.
+    kG,             ///< Point cloud green channel.
+    kB,             ///< Point cloud blue channel.
+    kA,             ///< Point cloud alpha channel (optional).
+    kIntensity,     ///< Point intensity channel.
+    kReturnNumber,  ///< Point return number.
+    kCount          ///< Number of items in the @c PlyProperty enumeration.
   };
 
-  struct ReadSampleData
+  /// User data structure while reading from rply library.
+  struct slamio_API ReadSampleData
   {
     /// Next point property values.
     std::array<double, unsigned(PlyProperty::kCount)> properties;

@@ -25,26 +25,27 @@ function(_ohmquery_setup GPU_MODE)
       $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}>
   )
 
-  target_include_directories(${TARGET_NAME} SYSTEM
-    PRIVATE
-      "${GLM_INCLUDE_DIR}"
+  target_include_directories(${TARGET_NAME}
+    SYSTEM PRIVATE
+      $<$<NOT:$<BOOL:${OHM_TES_DEBUG}>>:${3ES_INCLUDE_DIRS}>
   )
 
-  target_link_libraries(${TARGET_NAME} PUBLIC ohm${GPU_MODE} gputil${GPU_MODE} ohmutil)
-  if(GPU_MODE STREQUAL "ocl")
-    target_link_libraries(${TARGET_NAME} PUBLIC clu)
-  endif(GPU_MODE STREQUAL "ocl")
+  target_link_libraries(${TARGET_NAME}
+    PUBLIC
+      ohm${GPU_MODE}
+      gputil${GPU_MODE}
+      ohmutil
+    PRIVATE
+      $<BUILD_INTERFACE:$<$<BOOL:${OHM_TES_DEBUG}>:3es::3es-core>>
+      glm::glm
+      $<BUILD_INTERFACE:ZLIB::ZLIB>
+  )
 
-  if(OHM_TES_DEBUG)
-    target_link_libraries(${TARGET_NAME} PUBLIC 3es::3es-core)
-  else(OHM_TES_DEBUG)
-    target_include_directories(${TARGET_NAME} SYSTEM PRIVATE "${3ES_INCLUDE_DIRS}")
-  endif(OHM_TES_DEBUG)
 
   install(TARGETS ${TARGET_NAME} DESTINATION bin)
 endfunction(_ohmquery_setup)
 
-if(OHM_BUILD_OPENCL)
+if(OHM_FEATURE_OPENCL)
   _ohmquery_setup(ocl)
   clang_tidy_target(ohmqueryocl)
   # Required to run NVIDIA OpenCL
@@ -53,8 +54,8 @@ if(OHM_BUILD_OPENCL)
     ${OHM_LEAK_SUPPRESS_OCL}
     ${OHM_LEAK_SUPPRESS_TBB}
   )
-endif(OHM_BUILD_OPENCL)
-if(OHM_BUILD_CUDA)
+endif(OHM_FEATURE_OPENCL)
+if(OHM_FEATURE_CUDA)
   _ohmquery_setup(cuda)
   clang_tidy_target(ohmquerycuda)
   leak_track_default_options(ohmquerycuda CONDITION OHM_LEAK_TRACK ${OHM_ASAN_OPTIONS_CUDA})
@@ -62,7 +63,7 @@ if(OHM_BUILD_CUDA)
     ${OHM_LEAK_SUPPRESS_CUDA}
     ${OHM_LEAK_SUPPRESS_TBB}
   )
-endif(OHM_BUILD_CUDA)
+endif(OHM_FEATURE_CUDA)
 
 source_group("source" REGULAR_EXPRESSION ".*$")
 # Needs CMake 3.8+:

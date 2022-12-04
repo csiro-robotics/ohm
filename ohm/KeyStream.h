@@ -10,13 +10,6 @@
 
 #include "Key.h"
 
-#include <ostream>
-
-inline std::ostream &operator<<(std::ostream &o, const ohm::Key &key)
-{
-  o << "[(" << key.regionKey().x << ',' << key.regionKey().y << ',' << key.regionKey().z << "):("
-    << int(key.localKey().x) << ',' << int(key.localKey().y) << ',' << int(key.localKey().z) << ")]";
-  return o;
-}
+// Deprecated. Stream operator now appears in Key.h
 
 #endif  // OHM_KEYSTREAM_H_

@@ -14,10 +14,10 @@
 #include <ohmgpu/LineQueryGpu.h>
 #include <ohmgpu/OhmGpu.h>
 
+#include <logutil/LogUtil.h>
 #include <ohmtools/OhmCloud.h>
 #include <ohmtools/OhmGen.h>
 #include <ohmutil/GlmStream.h>
-#include <ohmutil/OhmUtil.h>
 #include <ohmutil/Profile.h>
 
 #include <chrono>

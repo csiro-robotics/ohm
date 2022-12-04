@@ -33,10 +33,10 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
-#ifdef OHM_THREADS
+#ifdef OHM_FEATURE_THREADS
 #include <tbb/blocked_range3d.h>
 #include <tbb/parallel_for.h>
-#endif  // OHM_THREADS
+#endif  // OHM_FEATURE_THREADS
 
 #include <algorithm>
 #include <functional>
@@ -231,7 +231,7 @@ unsigned regionClearanceProcessCpu(OccupancyMap &map, ClearanceProcessDetail &qu
   voxel_search_half_extents = ohm::calculateVoxelSearchHalfExtents(map, query.search_radius);
   MapChunk *chunk = chunk_search->second;
 
-#ifdef OHM_THREADS
+#ifdef OHM_FEATURE_THREADS
   const auto parallel_query_func = [&query, &map, region_key, chunk,
                                     voxel_search_half_extents](const tbb::blocked_range3d<int> &range) {
     regionClearanceProcessCpuBlock(map, query,
@@ -244,10 +244,10 @@ unsigned regionClearanceProcessCpu(OccupancyMap &map, ClearanceProcessDetail &qu
                               map_data.region_voxel_dimensions.x),
     parallel_query_func);
 
-#else   // OHM_THREADS
+#else   // OHM_FEATURE_THREADS
   regionClearanceProcessCpuBlock(map, query, glm::ivec3(0, 0, 0), map_data.region_voxel_dimensions, region_key, chunk,
                                  voxel_search_half_extents);
-#endif  // OHM_THREADS
+#endif  // OHM_FEATURE_THREADS
 
   return unsigned(map.regionVoxelVolume());
 }
@@ -268,7 +268,7 @@ unsigned regionSeedFloodFillCpu(OccupancyMap &map, ClearanceProcessDetail &query
   voxel_search_half_extents = ohm::calculateVoxelSearchHalfExtents(map, query.search_radius);
   MapChunk *chunk = chunk_search->second;
 
-#ifdef OHM_THREADS
+#ifdef OHM_FEATURE_THREADS
   const auto parallel_query_func = [&query, &map, region_key, chunk,
                                     voxel_search_half_extents](const tbb::blocked_range3d<int> &range) {
     regionSeedFloodFillCpuBlock(map, query,
@@ -281,10 +281,10 @@ unsigned regionSeedFloodFillCpu(OccupancyMap &map, ClearanceProcessDetail &query
                               map_data.region_voxel_dimensions.x),
     parallel_query_func);
 
-#else   // OHM_THREADS
+#else   // OHM_FEATURE_THREADS
   regionSeedFloodFillCpuBlock(map, query, glm::ivec3(0, 0, 0), map_data.region_voxel_dimensions, region_key, chunk,
                               voxel_search_half_extents);
-#endif  // OHM_THREADS
+#endif  // OHM_FEATURE_THREADS
 
   return calc_extents.x * calc_extents.y * calc_extents.z;
 }
@@ -305,7 +305,7 @@ unsigned regionFloodFillStepCpu(OccupancyMap &map, ClearanceProcessDetail &query
   voxel_search_half_extents = ohm::calculateVoxelSearchHalfExtents(map, query.search_radius);
   MapChunk *chunk = chunk_search->second;
 
-#ifdef OHM_THREADS
+#ifdef OHM_FEATURE_THREADS
   const auto parallel_query_func = [&query, &map, region_key, chunk,
                                     voxel_search_half_extents](const tbb::blocked_range3d<int> &range) {
     regionFloodFillStepCpuBlock(map, query,
@@ -318,10 +318,10 @@ unsigned regionFloodFillStepCpu(OccupancyMap &map, ClearanceProcessDetail &query
                               map_data.region_voxel_dimensions.x),
     parallel_query_func);
 
-#else   // OHM_THREADS
+#else   // OHM_FEATURE_THREADS
   regionFloodFillStepCpuBlock(map, query, glm::ivec3(0, 0, 0), map_data.region_voxel_dimensions, region_key, chunk,
                               voxel_search_half_extents);
-#endif  // OHM_THREADS
+#endif  // OHM_FEATURE_THREADS
 
   return calc_extents.x * calc_extents.y * calc_extents.z;
 }
