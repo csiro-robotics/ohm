@@ -1,4 +1,4 @@
-find_package(GLM)
+
 find_package(ZLIB)
 find_package(TBB)
 

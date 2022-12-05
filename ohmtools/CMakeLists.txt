@@ -1,7 +1,7 @@
 
 include(GenerateExportHeader)
 
-find_package(GLM)
+
 
 configure_file(OhmToolsConfig.in.h "${CMAKE_CURRENT_BINARY_DIR}/ohmtools/OhmToolsConfig.h")
 

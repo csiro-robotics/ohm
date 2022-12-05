@@ -1,4 +1,3 @@
-find_package(GLM REQUIRED)
 find_package(PNG REQUIRED)
 
 set(SOURCES

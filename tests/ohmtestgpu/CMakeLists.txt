@@ -1,7 +1,7 @@
 # Setup of GTEST changed at CMake 3.5.
 cmake_minimum_required(VERSION 3.5)
 
-find_package(GLM)
+
 
 # Eigen required to support some tests - NDT in particular
 find_package(Eigen3 QUIET)
