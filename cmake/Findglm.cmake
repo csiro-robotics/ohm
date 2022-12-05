@@ -32,7 +32,6 @@ if(NOT glm_FOUND)
             /usr/local/include
             )
 
-  include(FindPackageHandleStandardArgs)
   mark_as_advanced(
       GLM_INCLUDE_DIRS
     )
@@ -47,4 +46,5 @@ if(NOT TARGET glm::glm)
   )
 endif()
 
+include(FindPackageHandleStandardArgs)
 FIND_PACKAGE_HANDLE_STANDARD_ARGS(glm REQUIRED_VARS GLM_INCLUDE_DIRS)
