@@ -101,7 +101,9 @@ set(OHM_PREFIX_PACKAGE share/${CMAKE_PROJECT_NAME}/cmake) # For catkin interoper
 set(OHM_PREFIX_INCLUDE include/ohm)
 
 # General, required library
-find_package(glm CONFIG REQUIRED)
+# We use our own FindGLM to cater for differences between Ubuntu 18.04 and 20.04.
+# From 20.04 on, we can just just find_config(glm CONFIG REQUIRED)
+find_package(glm MODULE REQUIRED)
 
 if(OHM_FEATURE_OPENCL)
   find_package(OpenCL)
