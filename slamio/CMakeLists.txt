@@ -1,6 +1,6 @@
 include(GenerateExportHeader)
 
-find_package(GLM)
+
 
 set(SOURCES
   rply/rply.c

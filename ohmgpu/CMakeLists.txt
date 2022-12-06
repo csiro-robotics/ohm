@@ -2,7 +2,7 @@
 include(GenerateExportHeader)
 include(TextFileResource)
 
-find_package(GLM)
+
 find_package(ZLIB)
 if(OHM_FEATURE_THREADS)
   find_package(TBB)
