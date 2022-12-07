@@ -48,6 +48,7 @@ add_dependencies(ohmtestcommon marshal_test_data)
 
 target_include_directories(ohmtestcommon
   SYSTEM PRIVATE
+    "${GTEST_INCLUDE_DIRS}"
     $<$<NOT:$<BOOL:${OHM_TES_DEBUG}>>:${3ES_INCLUDE_DIRS}>
   )
 

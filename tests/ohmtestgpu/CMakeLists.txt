@@ -57,9 +57,10 @@ function(_ohmtestgpu_setup GPU)
   )
 
 
-  target_include_directories(ohmtestcommon
-    SYSTEM PUBLIC
-      $<$<NOT:$<BOOL:${OHM_TES_DEBUG}>>:${3ES_INCLUDE_DIRS}>
+  target_include_directories(ohmtest${GPU}
+      SYSTEM PRIVATE
+        "${GTEST_INCLUDE_DIRS}"
+        $<$<NOT:$<BOOL:${OHM_TES_DEBUG}>>:${3ES_INCLUDE_DIRS}>
     )
 
   add_test(NAME ohmtest${GPU} COMMAND ohmtest${GPU} --gtest_output=xml:test-reports/)

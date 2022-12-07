@@ -55,8 +55,9 @@ target_include_directories(ohmtest
     $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}>
 )
 
-target_include_directories(ohmtest SYSTEM
-  PRIVATE
+target_include_directories(ohmtest
+  SYSTEM PRIVATE
+    "${GTEST_INCLUDE_DIRS}"
     $<$<NOT:$<BOOL:${OHM_TES_DEBUG}>>:${3ES_INCLUDE_DIRS}>
 )
 

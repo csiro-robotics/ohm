@@ -37,6 +37,7 @@ target_link_libraries(ohmtestheightmap
 
 target_include_directories(ohmtestheightmap
   SYSTEM PRIVATE
+    "${GTEST_INCLUDE_DIRS}"
     $<$<NOT:$<BOOL:${OHM_TES_DEBUG}>>:${3ES_INCLUDE_DIRS}>
   )
 
