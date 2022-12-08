@@ -24,8 +24,8 @@ function(_gputiltest_setup_target TARGET_NAME GPUTIL_LIBRARY)
       $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}>
   )
 
-  target_include_directories(${TARGET_NAME} SYSTEM
-    PRIVATE
+  target_include_directories(${TARGET_NAME}
+    SYSTEM PRIVATE
       "${GTEST_INCLUDE_DIRS}"
       $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}>
   )

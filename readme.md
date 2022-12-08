@@ -87,7 +87,23 @@ Ohm supports building with in [vcpkg manifest mode](https://vcpkg.readthedocs.io
 Building in manifest mode obviates the need to download the dependencies, except for the CUDA SDK on Windows. To build with vcpkg, adjust the cmake command line to enable vcpkg manifest mode when configuring the project;
 
 ```bash
-cmake .. -DCMAKE_TOOLCHAIN_FILE=<vcpkg_path>/scripts/buildsystem/vcpkg.cmake -DVCPKG_MANIFEST_FEATURES=<features>
+# Run from the source directory
+# Note we must run CMake from the source directory and use -B and -S to specify
+# the build and source directories respectively. This allows vcpkg to find the
+# vcpkg.json manifest file.
+mkdir build
+cmake -B build -S . -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=<vcpkg_path>/scripts/buildsystem/vcpkg.cmake -DVCPKG_MANIFEST_FEATURES=<features>
+cmake --build build --target all --
+```
+
+> It's recommended to add `-G Ninja` as this builds much faster than other build systems.
+
+Or for a multi config generator such as Visual Studio or `Ninja Multi-Config`;
+
+```bash
+mkdir build
+cmake -B build -S . -G "Ninja Multi-Config" -DCMAKE_TOOLCHAIN_FILE=<vcpkg_path>/scripts/buildsystem/vcpkg.cmake -DVCPKG_MANIFEST_FEATURES=<features>
+cmake --build build --config Release --target all --
 ```
 
 The `VCPKG_MANIFEST_FEATURES` specifies the features to enable for ohm, where they differ from the default features. This is a semicolon separated list of features choosing from the items listed below. It is generally expected that either `cuda` or `opencl` are listed, or both.

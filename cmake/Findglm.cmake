@@ -44,6 +44,8 @@ if(NOT TARGET glm::glm)
   set_target_properties(glm::glm PROPERTIES
     INTERFACE_INCLUDE_DIRECTORIES "${GLM_INCLUDE_DIRS}"
   )
+else()
+  get_target_property(GLM_INCLUDE_DIRS glm::glm INTERFACE_INCLUDE_DIRECTORIES)
 endif()
 
 include(FindPackageHandleStandardArgs)

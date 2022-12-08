@@ -28,6 +28,11 @@ target_include_directories(slamiotest
     $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}>
 )
 
+target_include_directories(slamiotest
+  SYSTEM PRIVATE
+    "${GTEST_INCLUDE_DIRS}"
+  )
+
 target_link_libraries(slamiotest
   PRIVATE
     slamio
