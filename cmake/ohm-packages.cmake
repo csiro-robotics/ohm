@@ -8,7 +8,7 @@
 
 # Find packages
 find_package(Threads)
-find_package(GLM REQUIRED)
+find_package(glm REQUIRED)
 
 if(OHM_FEATURE_THREADS)
   find_package(TBB CONFIG)
@@ -19,10 +19,10 @@ if(NOT OHM_BUILD_SHARED)
   if(OHM_TES_DEBUG)
     find_package(3es)
   endif(OHM_TES_DEBUG)
-  
+
   if(OHM_FEATURE_PDAL)
     find_package(PDAL REQUIRED)
   endif(OHM_FEATURE_PDAL)
-  
+
   find_package(ZLIB)
 endif(NOT OHM_BUILD_SHARED)
