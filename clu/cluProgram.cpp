@@ -47,7 +47,7 @@ void printBuildLog(std::ostream &out, const cl::Program &program, const cl::Devi
   }
 
   clGetProgramBuildInfo(program(), device(), CL_PROGRAM_BUILD_LOG, 0, nullptr, &log_size);
-  if (log.size() < log.size() + 1)
+  if (log.size() < log_size + 1)
   {
     log.resize(log_size + 1);
   }
@@ -81,7 +81,7 @@ void printBuildLogs(std::ostream &out, const cl::Program &program, const cl::Con
     }
 
     clGetProgramBuildInfo(program(), device(), CL_PROGRAM_BUILD_LOG, 0, nullptr, &log_size);
-    if (log.size() < log.size() + 1)
+    if (log.size() < log_size + 1)
     {
       log.resize(log_size + 1);
     }
