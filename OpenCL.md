@@ -24,13 +24,13 @@ sudo apt-get install opencl-headers ocl-icd-dev ocl-icd-libopencl1 ocl-icd-openc
 
 Extensive Intel CPU/GPU testing has not been made, but the following information may help address some OpenCL standard compatibility issues. The OpenCL standard defines the GPU code compilation, not the SDK version. This can be set on OHM_OPENCL_STD.
 
-Intel CPU Generation    | Recommended OpenCL Standard
------------------------ | ---------------------------
-< 6th Generation        | Unknown
-6th Generation          | 1.2
-7th Generation          | 2.0
-8th Generation          | 2.0
-9th Generation          | 2.0
+| Intel CPU Generation | Recommended OpenCL Standard |
+| -------------------- | --------------------------- |
+| < 6th Generation     | Unknown                     |
+| 6th Generation       | 1.2                         |
+| 7th Generation       | 2.0                         |
+| 8th Generation       | 2.0                         |
+| 9th Generation       | 2.0                         |
 
 There are three different drivers which may be relevant to the installation process.
 
@@ -64,14 +64,13 @@ If installation is successful you should see a results like the following:
 Not that this example is also listing a CUDA device.
 
 #### Intel Linux Driver
-This installs the current Intel OpenCL drivers for 7th, 8th and 9th generation CPU. The beignet drivers are preferred since Unbutu is not officially supported. The downloaded instructions are available at https://software.intel.com/en-us/articles/opencl-drivers.
 
-- Download the .deb runtime drivers and follow the installation instructions from https://github.com/intel/compute-runtime/releases
-- Verify installation (above)
+This installs the current Intel OpenCL drivers for 7th, 8th and 9th generation CPU. These are the perferred drivers as they are continually updated by Intel. Drivers may be downloaded from https://github.com/intel/compute-runtime/releases with accompanying installation instructions.
 
 These drivers are incompatible with beignet.
 
 #### Beignet
+
 In 18.04 these are drivers for the NEO architecture used in 7th, 8th and 9th generation core processors. Run the following command to install the Beignet drivers:
 
 ```
@@ -87,6 +86,7 @@ If this fails, you will need to `apt-get purge <package>` the following apt-pack
 - beignet-opencl-icd
 
 #### Intel Legacy Linux Driver
+
 Legacy drivers are appropriate only for 6th (and 5th) generation intel chips. These are downloaded from https://software.intel.com/en-us/articles/legacy-opencl-drivers#latest_linux_SDK_release and the installation process is described at http://registrationcenter-download.intel.com/akdlm/irc_nas/11396/SRB5.0_intel-opencl-installation.pdf
 
 These drivers are incompatible with beignet.
