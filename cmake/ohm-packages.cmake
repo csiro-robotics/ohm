@@ -4,7 +4,7 @@
 #
 # Author: Kazys Stepanas
 
-# Configure variables and incldue packages.
+# Configure variables and include packages.
 
 # Find packages
 find_package(Threads)
