@@ -38,7 +38,7 @@ option(OHM_BUILD_SHARED_SUPPRESS_WARNINGS
   "Suppress warnings relating the DLL export symbols when building shared? Disables MSC warnings C4251 and C4275" ON)
 
 option(OHM_PROFILE "Enable timing information messages for some queries." Off)
-option(OHM_TES_DEBUG "Enable visual debuging code?" Off)
+option(OHM_TES_DEBUG "Enable visual debugging code?" Off)
 option(OHM_VALIDATION "Enable various validation tests in the occupancy map code. Has some performance impact." Off)
 # OHM_FEATURE_CUDA is found in OhmCuda.cmake
 option(OHM_LEAK_TRACK "Enable memory leak tracking?" OFF)
@@ -48,21 +48,21 @@ option(OHM_LEAK_TRACK "Enable memory leak tracking?" OFF)
 # find one, so it because a dependent option.
 option(OHM_BUILD_DOXYGEN "Build doxygen documentation?" Off)
 
-ohm_feature(EIGEN "Use Eigen for more signficiant linear algebra algorithms (e.g., eigen decomposition)?" FIND Eigen3)
+ohm_feature(EIGEN "Use Eigen for more significant linear algebra algorithms (e.g., eigen decomposition)?" FIND Eigen3)
 ohm_feature(HEIGHTMAP "Build heightmap library?")
 ohm_feature(HEIGHTMAP_IMAGE "Build heightmap image conversion?" FIND OpenGL GLEW glfw3)
 ohm_feature(PDAL "Build with PDAL reader support?" FIND pdal)
 ohm_feature(THREADS "Enable CPU threading (using Thread Building Blocks)?" FIND tbb)
-ohm_feature(TEST "Build unit tests?" FIND googletest)
+ohm_feature(TEST "Build unit tests?" FIND GTest)
 
 # include CUDA config here to prime OHM_FEATURE_CUDA as we prefer CUDA over OpenCL.
 # OHM_FEATURE_CUDA is in OhmCuda.cmake
 include(OhmCuda)
-set(NEED_OPENCL OFF)
-if(NOT OHM_FEATURE_CUDA)
-  set(NEED_OPENCL ON)
-endif(NOT OHM_FEATURE_CUDA)
-ohm_feature(OPENCL "Build with OpenCL support?" FIND OpenCL DEFAULT NEED_OPENCL)
+set(OHM_FEATURE_OPENCL_DEFAULT ON)
+if(OHM_FEATURE_CUDA)
+  set(OHM_FEATURE_OPENCL_DEFAULT OFF)
+endif(OHM_FEATURE_CUDA)
+ohm_feature(OPENCL "Build with OpenCL support?" FIND OpenCL DEFAULT OHM_FEATURE_OPENCL_DEFAULT)
 
 # # Windows vcpkg does not provide CUDA.
 # add_vcpkg_feature_if("cuda" "OHM_CUDA AND NOT WIN32")
@@ -118,7 +118,7 @@ if(OpenCL_FOUND)
   set_property(CACHE OHM_OPENCL_STD PROPERTY STRINGS 1.2 2.0 3.0 max)
 endif(OpenCL_FOUND)
 
-# Identify any exteions required to compile with OpenCL 2.0 std.
+# Identify any extensions required to compile with OpenCL 2.0 std.
 set(OHM_OPENCL_2_FEATURES "" CACHE STRING "Features required for OpenCL 2.x. Fallback to 1.2 otherwise.")
 
 # Look for CUDA to setup CUDA build options and work out which CMake CUDA paradigm we'll use.

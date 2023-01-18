@@ -5,9 +5,9 @@
 # Author: Kazys Stepanas
 
 # CMake package documentation (https://cmake.org/cmake/help/v3.5/manual/cmake-packages.7.html) shows how to generate
-# cmake package config files. While a <pacakge>-config.cmake file can be generated and used directly, the documentation
-# recommends providing a wrapper such as this file. The purpose is to ensure other depdencies are found first and bound
-# as required. That is, this is a good place to find external dependencies for the project libraries.
+# cmake package config files. While a <package>-config.cmake file can be generated and used directly, the documentation
+# recommends providing a wrapper such as this file. The purpose is to ensure other dependencies are found first and
+# bound as required. That is, this is a good place to find external dependencies for the project libraries.
 # https://cmake.org/cmake/help/v3.5/manual/cmake-packages.7.html#creating-a-package-configuration-file
 
 # Supports selection between OpenCL and CUDA implementations via find_package(ohm COMPONENTS [OpenCL,CUDA]). The
@@ -49,7 +49,7 @@ function(register_target TARGET INCLUDES_VAR LIBRARIES_VAR)
     get_target_property(TARGET_LIBRARY_DEBUG ${TARGET} IMPORTED_LOCATION_DEBUG)
     get_target_property(TARGET_LIBRARY_RELEASE ${TARGET} IMPORTED_LOCATION_RELEASE)
 
-    # For non-Windows, substitude RelWithDebInfo for release library. Can't for Windows as it
+    # For non-Windows, substitute RelWithDebInfo for release library. Can't for Windows as it
     # links the debug runtime so is more optimised debug than release with debug info.
     if(NOT WIN32 AND NOT TARGET_LIBRARY_RELEASE)
       get_target_property(TARGET_LIBRARY_RELEASE ${TARGET} IMPORTED_LOCATION_REL_WITH_DEB_INFO)

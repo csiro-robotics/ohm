@@ -14,7 +14,7 @@ include(CMakeParseArguments)
 #   [CONDITION <condition>]
 # )
 #
-# Setup an OHM feature which can be enabled via either VCPKG or CMake with VCPKG_MANIFEST_FEATURES being authoratative.
+# Setup an OHM feature which can be enabled via either VCPKG or CMake with VCPKG_MANIFEST_FEATURES being authoritative.
 #
 # The feature NAME is mapped to a cmake option as 'OHM_FEATURE_$<NAME>' and to an equivalent VCPKG feature - an entry
 # in the VCPKG_MANIFEST_FEATURES list - where the vcpkg feature name is the lower case NAME with underscores replaced by
@@ -27,7 +27,7 @@ include(CMakeParseArguments)
 #
 # FIND - list of packages which, if found, will enable this feature implicitly.
 #
-# DEFAULT - a variable which determines the default state of the feature option if not exclicitly enabled.
+# DEFAULT - a variable which determines the default state of the feature option if not explicitly enabled.
 function(ohm_feature NAME HELP)
   cmake_parse_arguments(ARG "" "DEFAULT" "FIND" ${ARGN})
   set(_require_from_vcpkg No)   # Required from VCPKG feature set?
@@ -52,34 +52,44 @@ function(ohm_feature NAME HELP)
     set(_feature_source "option")
   endif(OHM_FEATURE_${NAME})
 
-  # Not explicitly enabled via either mechanism. Check if it should be implied.
-  if(ARG_DEFAULT)
-    set(_allow_implicit OFF)
-    if(${ARG_DEFAULT})
-      set(_allow_implicit ON)
-    endif(${ARG_DEFAULT})
-  else()
-    set(_allow_implicit ON)
-  endif(ARG_DEFAULT)
+  # Determine default state.
+  if(_require_from_vcpkg OR _require_from_option)
 
-  if(NOT _require_from_vcpkg AND NOT _require_from_option)
-    set(_imply_from_package Yes) # Default to assume on
-    foreach(pkg ${ARG_FIND}) # Check each package
-      find_package(${pkg} QUIET)
-      if(NOT ${pkg}_FOUND)
-        # Missing package. Do not imply to ON.
-        set(_imply_from_package No)
-        break()
-      endif(NOT ${pkg}_FOUND)
-    endforeach(pkg)
-    set(_feature_source "find_package")
-  endif(NOT _require_from_vcpkg AND NOT _require_from_option)
-
-  # Add the option with the implied state.
-  set(_default Off)
-  if(_require_from_vcpkg OR _require_from_option OR _allow_implicit AND _imply_from_package)
+    # If explicitly required then enable by default.
     set(_default On)
-  endif(_require_from_vcpkg OR _require_from_option OR _allow_implicit AND _imply_from_package)
+
+  else(_require_from_vcpkg OR _require_from_option)
+
+    # If not explicitly required then check the DEFAULT and FIND args.
+    set(_default On)
+
+    if(DEFINED ARG_DEFAULT)
+      if(NOT ${ARG_DEFAULT})
+        set(_default Off)
+      endif(NOT ${ARG_DEFAULT})
+      if(_default)
+        set(_feature_source "default")
+      endif(_default)
+    endif(DEFINED ARG_DEFAULT)
+
+    if(DEFINED ARG_FIND)
+      # If enable by default, try to find packages.
+      if(_default)
+        foreach(pkg ${ARG_FIND}) # Check each package
+          find_package(${pkg} QUIET)
+          if(NOT ${pkg}_FOUND)
+            # Missing package. Do not enable by default.
+            set(_default Off)
+            break()
+          endif(NOT ${pkg}_FOUND)
+        endforeach(pkg)
+      endif(_default)
+      if(_default)
+        set(_feature_source "find_package")
+      endif(_default)
+    endif(DEFINED ARG_FIND)
+
+  endif(_require_from_vcpkg OR _require_from_option)
 
   option(OHM_FEATURE_${NAME} "${HELP}" "${_default}")
   if(OHM_FEATURE_${NAME})

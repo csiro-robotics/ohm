@@ -24,7 +24,7 @@
 #   glm::glm, import target
 
 # Try config file first. This particular file is really only for supporting older GLM such as found on Ubuntu 18.04.
-# Newer GLM with config.cmake files is stringly recommended.
+# Newer GLM with config.cmake files is strongly recommended.
 find_package(glm QUIET CONFIG)
 if(NOT glm_FOUND)
   find_path(GLM_INCLUDE_DIRS NAMES glm/glm.hpp
