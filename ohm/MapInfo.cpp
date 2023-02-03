@@ -365,7 +365,7 @@ MapValue &MapValue::operator=(const char *string)
   clearValue();
   type_ = kString;
   value_.str = nullptr;
-  size_t len = string ? strlen(string) : 0;
+  const size_t len = string ? strlen(string) : 0;
   // Lint(KS): current API is not RAII compatible
   value_.str = new char[len + 1];  // NOLINT(cppcoreguidelines-owning-memory)
   value_.str[0] = '\0';
@@ -374,7 +374,12 @@ MapValue &MapValue::operator=(const char *string)
 #ifdef _MSC_VER
     strncpy_s(value_.str, len + 1, string, len);
 #else   // _MSC_VER
+    // Ignore -Wstringop-truncation for this strncpy as the null terminator is
+    // manually copied immediately after
+    #pragma GCC diagnostic push
+    #pragma GCC diagnostic ignored "-Wstringop-truncation"
     strncpy(value_.str, string, len);
+    #pragma GCC diagnostic pop
 #endif  // _MSC_VER
     value_.str[len] = '\0';
   }

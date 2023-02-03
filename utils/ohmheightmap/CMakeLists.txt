@@ -1,11 +1,11 @@
-
 find_package(ZLIB)
 
 set(SOURCES
   ohmheightmap.cpp
 )
 
-# Can't add as ohmheightmap as the library target is called that. Use ohmheightmaputil then change the output name.
+# Can't add as ohmheightmap as the library target is called that.
+# Use ohmheightmaputil then change the output name.
 add_executable(ohmheightmaputil ${SOURCES})
 leak_track_target_enable(ohmheightmaputil CONDITION OHM_LEAK_TRACK)
 

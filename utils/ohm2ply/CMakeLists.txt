@@ -1,4 +1,3 @@
-
 find_package(ZLIB)
 
 set(SOURCES
