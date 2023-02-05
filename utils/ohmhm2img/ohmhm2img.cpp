@@ -1,6 +1,7 @@
 //
 // author Kazys Stepanas
 //
+// Utility for generating an image from an ohm heightmap.
 
 #include <ohm/MapSerialise.h>
 #include <ohm/OccupancyMap.h>

@@ -2,6 +2,7 @@
 // author Kazys Stepanas
 //
 // Utility for generating an ohm heightmap from an ohm occupancy map.
+
 #include <ohm/MapSerialise.h>
 #include <ohm/OccupancyMap.h>
 #include <ohm/Trace.h>

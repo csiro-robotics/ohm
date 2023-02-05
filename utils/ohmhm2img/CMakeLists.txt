@@ -1,4 +1,5 @@
 find_package(PNG REQUIRED)
+find_package(ZLIB)
 
 set(SOURCES
   ohmhm2img.cpp
@@ -12,9 +13,11 @@ if(MSVC)
   set_target_properties(ohmhm2img PROPERTIES DEBUG_POSTFIX "d")
 endif(MSVC)
 
-target_link_libraries(ohmhm2img PUBLIC ohmheightmap ohmheightmapimage)
-
 target_link_libraries(ohmhm2img
+  PUBLIC
+    ohm
+    ohmheightmap
+    ohmheightmapimage
   PRIVATE
     glm::glm
     $<BUILD_INTERFACE:PNG::PNG>
