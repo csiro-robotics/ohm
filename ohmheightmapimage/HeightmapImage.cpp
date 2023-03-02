@@ -869,6 +869,7 @@ bool HeightmapImage::renderHeightMesh(ImageType image_type, const Aabb &spatial_
   // Always check that our framebuffer is ok
   if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
   {
+    std::cerr << "HeightmapImage::renderHeightMesh: framebuffer not complete" << std::endl;
     return false;
   }
 
