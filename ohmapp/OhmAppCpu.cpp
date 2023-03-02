@@ -125,8 +125,8 @@ void OhmAppCpu::MapOptions::configure(cxxopts::OptionAdder &adder)
     ("tsdf-default-truncation", "Default truncation distance.", optVal(tsdf.default_truncation_distance))
     ("tsdf-dropoff", "Dropoff for the dropoff adjustment. Zero or negative to disable.", optVal(tsdf.dropoff_epsilon))
     ("tsdf-sparsity", "Compensation for sparse data sets. Zero or negative to disable.", optVal(tsdf.sparsity_compensation_factor))
-    ("mode", "Controls the mapping mode [ normal, sample, erode ]. The 'normal' mode is the default, with the full ray "
-              "being integrated into the map. 'sample' mode only adds samples to increase occupancy, while 'erode' "
+    ("mode", "Controls the mapping mode [ normal, samples, erode ]. The 'normal' mode is the default, with the full ray "
+              "being integrated into the map. 'samples' mode only adds samples to increase occupancy, while 'erode' "
               "only erodes free space by skipping the sample voxels.", optVal(mode))
     ;
   // clang-format on
