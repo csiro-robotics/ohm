@@ -1,3 +1,4 @@
+option(OHM_GTEST_URL "URL for Googletest release" "https://github.com/google/googletest/archive/release-1.10.0.zip")
 option(OHM_SYSTEM_GTEST "Have ohm use a system available version of Googletest via find_package()?" ${OHM_VCPKG})
 
 if(OHM_SYSTEM_GTEST)
@@ -25,7 +26,7 @@ endif(NOT _GENERATOR_IS_MULTI_CONFIG)
 # Setup download and build of Googletest
 ExternalProject_Add(
     googletest
-    URL https://github.com/google/googletest/archive/release-1.10.0.zip
+    URL "${OHM_GTEST_URL}"
     PREFIX ${CMAKE_BINARY_DIR}/3rd-party/googletest
     URL_MD5 82358affdd7ab94854c8ee73a180fc53
     INSTALL_COMMAND ""
