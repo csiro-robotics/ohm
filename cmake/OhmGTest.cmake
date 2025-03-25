@@ -1,5 +1,5 @@
-option(OHM_GTEST_URL "URL for Googletest release" "https://github.com/google/googletest/archive/release-1.10.0.zip")
 option(OHM_SYSTEM_GTEST "Have ohm use a system available version of Googletest via find_package()?" ${OHM_VCPKG})
+set(OHM_GTEST_URL "https://github.com/google/googletest/archive/release-1.10.0.zip" CACHE STRING "URL for Googletest release.")
 
 if(OHM_SYSTEM_GTEST)
   # Enable VCPKG tests feature. This will only have an effect when using vcpkg.
