@@ -17,6 +17,9 @@
 #include "Traversal.cl"
 #include "VoxelIncident.cl"
 
+#define COV_HIT_LOCKED_COUNT     0xffffffffu
+#define COV_HIT_LOCK_RETRY_LIMIT 4096u
+
 /// This kernel integrates the ray sample points only into the map and is executed one thread per sample.
 ///
 /// This kernel works with the @c REGION_UPDATE_KERNEL compiled in NDT mode. That kernel adjusts only free space
@@ -157,137 +160,147 @@ __kernel void covarianceHitNdt(
     (traversal_voxels) ?
       (uint)(region_local_index + traversal_region_mem_offsets_global[region_index] / sizeof(*traversal_voxels)) :
       0;
-  float traversal = (traversal_voxels) ? gputilAtomicLoadF32(&traversal_voxels[traversal_index]) : 0.0f;
   uint touch_time_index =
     (touch_time_voxels) ?
       (uint)(region_local_index + touch_times_region_mem_offsets_global[region_index] / sizeof(*touch_time_voxels)) :
       0;
-  uint touch_time = (touch_time_voxels) ? gputilAtomicLoadU32(&touch_time_voxels[touch_time_index]) : 0u;
   uint incident_index =
     (incident_voxels) ?
       (uint)(region_local_index + incidents_region_mem_offsets_global[region_index] / sizeof(*incident_voxels)) :
       0;
-  uint incident = (incident_voxels) ? gputilAtomicLoadU32(&incident_voxels[incident_index]) : 0u;
 
   // Cache initial values.
-  WorkItem work_item;
-  work_item.occupancy = gputilAtomicLoadF32(&occupancy[occupancy_index]);
-  work_item.mean = subVoxelToLocalCoord(gputilAtomicLoadU32(&means[mean_index].coord), voxel_resolution);
-  work_item.sample_count = gputilAtomicLoadU32(&means[mean_index].count);
-
-  // Manual copy of the NDT voxel: we had some issues with OpenCL assignment on structures.
-  work_item.cov.trianglar_covariance[0] = cov_voxels[cov_index].trianglar_covariance[0];
-  work_item.cov.trianglar_covariance[1] = cov_voxels[cov_index].trianglar_covariance[1];
-  work_item.cov.trianglar_covariance[2] = cov_voxels[cov_index].trianglar_covariance[2];
-  work_item.cov.trianglar_covariance[3] = cov_voxels[cov_index].trianglar_covariance[3];
-  work_item.cov.trianglar_covariance[4] = cov_voxels[cov_index].trianglar_covariance[4];
-  work_item.cov.trianglar_covariance[5] = cov_voxels[cov_index].trianglar_covariance[5];
-
-  IntensityMeanCov intensity_cov;  // = intensity_voxels[intensity_index];
-  HitMissCount hit_miss_count;     // = hit_miss_voxels[hit_miss_index];
-
-  if (intensity_voxels)
+  uint range_end = get_global_id(0) + 1;
+  for (; range_end < line_count; ++range_end)
   {
-    intensity_cov.intensity_mean = intensity_voxels[intensity_index].intensity_mean;
-    intensity_cov.intensity_cov = intensity_voxels[intensity_index].intensity_cov;
-  }
-
-  if (hit_miss_voxels)
-  {
-    hit_miss_count.hit_count = hit_miss_voxels[hit_miss_index].hit_count;
-    hit_miss_count.miss_count = hit_miss_voxels[hit_miss_index].miss_count;
-  }
-
-  // Now update by iterating from the starting voxel until we change voxels or reach the end of the set.
-  uint added = 0;
-  for (uint i = get_global_id(0); i < line_count; ++i)
-  {
-    copyKey(&target_voxel, &line_keys[i * 2 + 1]);
-    if (equalKeys(&target_voxel, &start_voxel))
+    copyKey(&target_voxel, &line_keys[range_end * 2 + 1]);
+    if (!equalKeys(&target_voxel, &start_voxel))
     {
-      // Now we consider rays which have been clipped. These will have Ignore voxels with voxel[3] != 0.
-      // This indicates the end point is a truncated part of the ray and not a real sample.
-      if (target_voxel.voxel[3] == 0)
-      {
-        if (hit_miss_voxels)
-        {
-          const bool reinitialise_permeability_with_covariance = true;  // TODO: make a parameter of map
-          calculateHitMissUpdateOnHit(&work_item.cov, work_item.occupancy, &hit_miss_count, local_lines[i * 2],
-                                      local_lines[i * 2 + 1], work_item.mean, work_item.sample_count, INFINITY,
-                                      reinitialise_permeability_with_covariance, adaptation_rate, sensor_noise,
-                                      reinitialise_cov_threshold, reinitialise_cov_sample_count, ndt_sample_threshold);
-        }
-        if (intensity_voxels)
-        {
-          calculateIntensityUpdateOnHit(&intensity_cov, work_item.occupancy, intensities[i],
-                                        initial_intensity_covariance, work_item.sample_count,
-                                        reinitialise_cov_threshold, reinitialise_cov_sample_count);
-        }
-        if (traversal_voxels)
-        {
-          traversal += calculateTraversal(local_lines[i * 2], local_lines[i * 2 + 1], voxel_resolution);
-        }
-
-        if (touch_times)
-        {
-          touch_time = max(touch_time, touch_times[i]);
-        }
-
-        if (incident_voxels)
-        {
-          // The sample count won't be increment for the current point yet. That's the behaviour we want for the
-          // progressive average.
-          incident =
-            updateIncidentNormal(incident, local_lines[i * 2] - local_lines[i * 2 + 1], work_item.sample_count);
-        }
-
-        collateSample(&work_item, local_lines[i * 2], local_lines[i * 2 + 1], region_dimensions, voxel_resolution,
-                      sample_adjustment, occupied_threshold, sensor_noise, reinitialise_cov_threshold,
-                      reinitialise_cov_sample_count);
-        ++added;
-      }
-    }
-    else
-    {
-      // Change in voxel. Done collecting.
       break;
     }
   }
 
-  // Cap occupancy to max.
-  if (voxel_value_max > 0)
+  __global atomic_uint *mean_count_ptr = &means[mean_index].count;
+  for (uint attempt = 0; attempt < COV_HIT_LOCK_RETRY_LIMIT; ++attempt)
   {
-    work_item.occupancy = min(work_item.occupancy, voxel_value_max);
-  }
+    const uint sample_count = gputilAtomicLoadU32(mean_count_ptr);
+    if (sample_count == COV_HIT_LOCKED_COUNT)
+    {
+      continue;
+    }
+    if (!gputilAtomicCasU32(mean_count_ptr, sample_count, COV_HIT_LOCKED_COUNT))
+    {
+      continue;
+    }
 
-  // if (get_global_id(0) == 0)
-  // {
-  //   printf("added: %u\n", added);
-  // }
+    WorkItem work_item;
+    work_item.occupancy = gputilAtomicLoadF32(&occupancy[occupancy_index]);
+    work_item.mean = subVoxelToLocalCoord(gputilAtomicLoadU32(&means[mean_index].coord), voxel_resolution);
+    work_item.sample_count = sample_count;
 
-  // Write results. We expect no contension at this point so we write results directly. No atomic operations.
-  gputilAtomicStoreF32(&occupancy[occupancy_index], work_item.occupancy);
-  gputilAtomicStoreU32(&means[mean_index].coord, subVoxelCoord(work_item.mean, voxel_resolution));
-  gputilAtomicStoreU32(&means[mean_index].count, work_item.sample_count);
-  cov_voxels[cov_index] = work_item.cov;
-  if (intensity_voxels)
-  {
-    intensity_voxels[intensity_index] = intensity_cov;
-  }
-  if (hit_miss_voxels)
-  {
-    hit_miss_voxels[hit_miss_index] = hit_miss_count;
-  }
-  if (traversal_voxels)
-  {
-    gputilAtomicStoreF32(&traversal_voxels[traversal_index], traversal);
-  }
-  if (touch_time_voxels)
-  {
-    gputilAtomicStoreU32(&touch_time_voxels[touch_time_index], touch_time);
-  }
-  if (incident_voxels)
-  {
-    gputilAtomicStoreU32(&incident_voxels[incident_index], incident);
+    // Manual copy of the NDT voxel: we had some issues with OpenCL assignment on structures.
+    work_item.cov.trianglar_covariance[0] = cov_voxels[cov_index].trianglar_covariance[0];
+    work_item.cov.trianglar_covariance[1] = cov_voxels[cov_index].trianglar_covariance[1];
+    work_item.cov.trianglar_covariance[2] = cov_voxels[cov_index].trianglar_covariance[2];
+    work_item.cov.trianglar_covariance[3] = cov_voxels[cov_index].trianglar_covariance[3];
+    work_item.cov.trianglar_covariance[4] = cov_voxels[cov_index].trianglar_covariance[4];
+    work_item.cov.trianglar_covariance[5] = cov_voxels[cov_index].trianglar_covariance[5];
+
+    IntensityMeanCov intensity_cov;
+    HitMissCount hit_miss_count;
+    float traversal = (traversal_voxels) ? gputilAtomicLoadF32(&traversal_voxels[traversal_index]) : 0.0f;
+    uint touch_time = (touch_time_voxels) ? gputilAtomicLoadU32(&touch_time_voxels[touch_time_index]) : 0u;
+    uint incident = (incident_voxels) ? gputilAtomicLoadU32(&incident_voxels[incident_index]) : 0u;
+
+    if (intensity_voxels)
+    {
+      intensity_cov.intensity_mean = intensity_voxels[intensity_index].intensity_mean;
+      intensity_cov.intensity_cov = intensity_voxels[intensity_index].intensity_cov;
+    }
+
+    if (hit_miss_voxels)
+    {
+      hit_miss_count.hit_count = hit_miss_voxels[hit_miss_index].hit_count;
+      hit_miss_count.miss_count = hit_miss_voxels[hit_miss_index].miss_count;
+    }
+
+    for (uint i = get_global_id(0); i < range_end; ++i)
+    {
+      copyKey(&target_voxel, &line_keys[i * 2 + 1]);
+      // Ignore clipped sample points.
+      if (target_voxel.voxel[3] != 0)
+      {
+        continue;
+      }
+
+      if (hit_miss_voxels)
+      {
+        const bool reinitialise_permeability_with_covariance = true;  // TODO: make a parameter of map
+        calculateHitMissUpdateOnHit(&work_item.cov, work_item.occupancy, &hit_miss_count, local_lines[i * 2],
+                                    local_lines[i * 2 + 1], work_item.mean, work_item.sample_count, INFINITY,
+                                    reinitialise_permeability_with_covariance, adaptation_rate, sensor_noise,
+                                    reinitialise_cov_threshold, reinitialise_cov_sample_count, ndt_sample_threshold);
+      }
+      if (intensity_voxels)
+      {
+        calculateIntensityUpdateOnHit(&intensity_cov, work_item.occupancy, intensities[i], initial_intensity_covariance,
+                                      work_item.sample_count, reinitialise_cov_threshold, reinitialise_cov_sample_count);
+      }
+      if (traversal_voxels)
+      {
+        traversal += calculateTraversal(local_lines[i * 2], local_lines[i * 2 + 1], voxel_resolution);
+      }
+
+      if (touch_times)
+      {
+        touch_time = max(touch_time, touch_times[i]);
+      }
+
+      if (incident_voxels)
+      {
+        // The sample count won't be increment for the current point yet. That's the behaviour we want for the
+        // progressive average.
+        incident = updateIncidentNormal(incident, local_lines[i * 2] - local_lines[i * 2 + 1], work_item.sample_count);
+      }
+
+      collateSample(&work_item, local_lines[i * 2], local_lines[i * 2 + 1], region_dimensions, voxel_resolution,
+                    sample_adjustment, occupied_threshold, sensor_noise, reinitialise_cov_threshold,
+                    reinitialise_cov_sample_count);
+    }
+
+    // Cap occupancy to max.
+    if (voxel_value_max > 0)
+    {
+      work_item.occupancy = min(work_item.occupancy, voxel_value_max);
+    }
+
+    // Commit updates while holding the count lock.
+    gputilAtomicStoreF32(&occupancy[occupancy_index], work_item.occupancy);
+    gputilAtomicStoreU32(&means[mean_index].coord, subVoxelCoord(work_item.mean, voxel_resolution));
+    cov_voxels[cov_index] = work_item.cov;
+    if (intensity_voxels)
+    {
+      intensity_voxels[intensity_index] = intensity_cov;
+    }
+    if (hit_miss_voxels)
+    {
+      hit_miss_voxels[hit_miss_index] = hit_miss_count;
+    }
+    if (traversal_voxels)
+    {
+      gputilAtomicStoreF32(&traversal_voxels[traversal_index], traversal);
+    }
+    if (touch_time_voxels)
+    {
+      gputilAtomicStoreU32(&touch_time_voxels[touch_time_index], touch_time);
+    }
+    if (incident_voxels)
+    {
+      gputilAtomicStoreU32(&incident_voxels[incident_index], incident);
+    }
+
+    // Release lock.
+    gputilAtomicStoreU32(mean_count_ptr, work_item.sample_count);
+    return;
   }
 }
