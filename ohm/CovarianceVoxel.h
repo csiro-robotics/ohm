@@ -10,6 +10,7 @@
 
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/norm.hpp>
+#include <glm/ext/quaternion_double.hpp>
 #include <glm/mat3x3.hpp>
 #include <glm/vec3.hpp>
 

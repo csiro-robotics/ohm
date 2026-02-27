@@ -63,6 +63,7 @@
 ///     The original coordinates are not recoverable in this code.
 /// @param line_count number of lines in @p line_keys and @p local_lines. These come in pairs, so the number of elements
 ///     in those arrays is double this value.
+/// @param grouped_samples True when @p line_keys are grouped by sample voxel.
 /// @param region_dimensions Specifies the size of any one region in voxels.
 /// @param voxel_resolution Specifies the size of a voxel cube.
 /// @param sample_adjustment Specifiest the value adjustment applied to voxels containing the sample point (line end
@@ -87,7 +88,7 @@ __kernel void covarianceHitNdt(
   __global atomic_uint *incident_voxels, __global ulonglong *incidents_region_mem_offsets_global,        //
   __global int3 *occupancy_region_keys_global, uint region_count,                                        //
   __global GpuKey *line_keys, __global float3 *local_lines, uint line_count,                             //
-  __global uint *touch_times, __global float *intensities,                                               //
+  uint grouped_samples, __global uint *touch_times, __global float *intensities,                         //
   int3 region_dimensions, float voxel_resolution, float sample_adjustment, float occupied_threshold,
   float voxel_value_max, float initial_intensity_covariance, unsigned ndt_sample_threshold, float adaptation_rate,
   float sensor_noise, float reinitialise_cov_threshold, unsigned reinitialise_cov_sample_count)
@@ -103,25 +104,35 @@ __kernel void covarianceHitNdt(
   copyKey(&start_voxel, &line_keys[get_global_id(0) * 2 + 1]);
   start_voxel.voxel[3] = 0;  // For now we can ignore clipped sample voxels. Will check during iteration below.
 
-  // We assume a sorted set of input points, where sample points falling in the same voxel are grouped together.
-  // We then only allow the first thread in each voxel group to do the update for that group.
-  // We check this now.
+  // We only allow one thread to update each voxel.
+  // Fast path: grouped samples where duplicate voxel keys are contiguous.
+  // Fallback: ungrouped samples where we scan earlier keys to ensure this is the first occurrence.
   GpuKey target_voxel;
-  // Initialise with the target voxel index to ensure it has a value.
-  copyKey(&target_voxel, &start_voxel);
-  // Now fetch the previous key if we can. Only can't for global thread 0.
+  bool is_owner = true;
   if (get_global_id(0) > 0)
   {
-    // Note the -1 to get the previous sample voxel.
-    // copyKey(&target_voxel, &line_keys[get_global_id(0) * 2 - 1]);
     copyKey(&target_voxel, &line_keys[(get_global_id(0) - 1) * 2 + 1]);
+    target_voxel.voxel[3] = 0;
+    is_owner = !equalKeys(&target_voxel, &start_voxel);
   }
-  target_voxel.voxel[3] = 0;  // Again - don't care about clipping yet.
 
-  if (equalKeys(&target_voxel, &start_voxel) && get_global_id(0) > 0)
+  if (is_owner && !grouped_samples)
   {
-    // This is not the first thread for this voxel grouping. Abort. The first thread in the group will do the update.
-    // While this results in many idle threads, it maximise throughput while minimising iteration.
+    // Ungrouped fallback: ensure no previous sample targets this voxel.
+    for (uint i = 0; i < get_global_id(0); ++i)
+    {
+      copyKey(&target_voxel, &line_keys[i * 2 + 1]);
+      target_voxel.voxel[3] = 0;
+      if (equalKeys(&target_voxel, &start_voxel))
+      {
+        is_owner = false;
+        break;
+      }
+    }
+  }
+
+  if (!is_owner)
+  {
     return;
   }
 
@@ -157,19 +168,31 @@ __kernel void covarianceHitNdt(
     (traversal_voxels) ?
       (uint)(region_local_index + traversal_region_mem_offsets_global[region_index] / sizeof(*traversal_voxels)) :
       0;
-  float traversal = (traversal_voxels) ? gputilAtomicLoadF32(&traversal_voxels[traversal_index]) : 0.0f;
   uint touch_time_index =
     (touch_time_voxels) ?
       (uint)(region_local_index + touch_times_region_mem_offsets_global[region_index] / sizeof(*touch_time_voxels)) :
       0;
-  uint touch_time = (touch_time_voxels) ? gputilAtomicLoadU32(&touch_time_voxels[touch_time_index]) : 0u;
   uint incident_index =
     (incident_voxels) ?
       (uint)(region_local_index + incidents_region_mem_offsets_global[region_index] / sizeof(*incident_voxels)) :
       0;
-  uint incident = (incident_voxels) ? gputilAtomicLoadU32(&incident_voxels[incident_index]) : 0u;
 
-  // Cache initial values.
+  // Resolve iteration range for samples this thread owns.
+  uint range_end = line_count;
+  if (grouped_samples)
+  {
+    range_end = get_global_id(0) + 1;
+    for (; range_end < line_count; ++range_end)
+    {
+      copyKey(&target_voxel, &line_keys[range_end * 2 + 1]);
+      target_voxel.voxel[3] = 0;
+      if (!equalKeys(&target_voxel, &start_voxel))
+      {
+        break;
+      }
+    }
+  }
+
   WorkItem work_item;
   work_item.occupancy = gputilAtomicLoadF32(&occupancy[occupancy_index]);
   work_item.mean = subVoxelToLocalCoord(gputilAtomicLoadU32(&means[mean_index].coord), voxel_resolution);
@@ -183,8 +206,11 @@ __kernel void covarianceHitNdt(
   work_item.cov.trianglar_covariance[4] = cov_voxels[cov_index].trianglar_covariance[4];
   work_item.cov.trianglar_covariance[5] = cov_voxels[cov_index].trianglar_covariance[5];
 
-  IntensityMeanCov intensity_cov;  // = intensity_voxels[intensity_index];
-  HitMissCount hit_miss_count;     // = hit_miss_voxels[hit_miss_index];
+  IntensityMeanCov intensity_cov;
+  HitMissCount hit_miss_count;
+  float traversal = (traversal_voxels) ? gputilAtomicLoadF32(&traversal_voxels[traversal_index]) : 0.0f;
+  uint touch_time = (touch_time_voxels) ? gputilAtomicLoadU32(&touch_time_voxels[touch_time_index]) : 0u;
+  uint incident = (incident_voxels) ? gputilAtomicLoadU32(&incident_voxels[incident_index]) : 0u;
 
   if (intensity_voxels)
   {
@@ -198,60 +224,49 @@ __kernel void covarianceHitNdt(
     hit_miss_count.miss_count = hit_miss_voxels[hit_miss_index].miss_count;
   }
 
-  // Now update by iterating from the starting voxel until we change voxels or reach the end of the set.
-  uint added = 0;
-  for (uint i = get_global_id(0); i < line_count; ++i)
+  for (uint i = get_global_id(0); i < range_end; ++i)
   {
     copyKey(&target_voxel, &line_keys[i * 2 + 1]);
-    if (equalKeys(&target_voxel, &start_voxel))
+    const uchar clipped_sample = target_voxel.voxel[3];
+    target_voxel.voxel[3] = 0;
+    if (!equalKeys(&target_voxel, &start_voxel) || clipped_sample != 0)
     {
-      // Now we consider rays which have been clipped. These will have Ignore voxels with voxel[3] != 0.
-      // This indicates the end point is a truncated part of the ray and not a real sample.
-      if (target_voxel.voxel[3] == 0)
-      {
-        if (hit_miss_voxels)
-        {
-          const bool reinitialise_permeability_with_covariance = true;  // TODO: make a parameter of map
-          calculateHitMissUpdateOnHit(&work_item.cov, work_item.occupancy, &hit_miss_count, local_lines[i * 2],
-                                      local_lines[i * 2 + 1], work_item.mean, work_item.sample_count, INFINITY,
-                                      reinitialise_permeability_with_covariance, adaptation_rate, sensor_noise,
-                                      reinitialise_cov_threshold, reinitialise_cov_sample_count, ndt_sample_threshold);
-        }
-        if (intensity_voxels)
-        {
-          calculateIntensityUpdateOnHit(&intensity_cov, work_item.occupancy, intensities[i],
-                                        initial_intensity_covariance, work_item.sample_count,
-                                        reinitialise_cov_threshold, reinitialise_cov_sample_count);
-        }
-        if (traversal_voxels)
-        {
-          traversal += calculateTraversal(local_lines[i * 2], local_lines[i * 2 + 1], voxel_resolution);
-        }
-
-        if (touch_times)
-        {
-          touch_time = max(touch_time, touch_times[i]);
-        }
-
-        if (incident_voxels)
-        {
-          // The sample count won't be increment for the current point yet. That's the behaviour we want for the
-          // progressive average.
-          incident =
-            updateIncidentNormal(incident, local_lines[i * 2] - local_lines[i * 2 + 1], work_item.sample_count);
-        }
-
-        collateSample(&work_item, local_lines[i * 2], local_lines[i * 2 + 1], region_dimensions, voxel_resolution,
-                      sample_adjustment, occupied_threshold, sensor_noise, reinitialise_cov_threshold,
-                      reinitialise_cov_sample_count);
-        ++added;
-      }
+      continue;
     }
-    else
+
+    if (hit_miss_voxels)
     {
-      // Change in voxel. Done collecting.
-      break;
+      const bool reinitialise_permeability_with_covariance = true;  // TODO: make a parameter of map
+      calculateHitMissUpdateOnHit(&work_item.cov, work_item.occupancy, &hit_miss_count, local_lines[i * 2],
+                                  local_lines[i * 2 + 1], work_item.mean, work_item.sample_count, INFINITY,
+                                  reinitialise_permeability_with_covariance, adaptation_rate, sensor_noise,
+                                  reinitialise_cov_threshold, reinitialise_cov_sample_count, ndt_sample_threshold);
     }
+    if (intensity_voxels)
+    {
+      calculateIntensityUpdateOnHit(&intensity_cov, work_item.occupancy, intensities[i], initial_intensity_covariance,
+                                    work_item.sample_count, reinitialise_cov_threshold, reinitialise_cov_sample_count);
+    }
+    if (traversal_voxels)
+    {
+      traversal += calculateTraversal(local_lines[i * 2], local_lines[i * 2 + 1], voxel_resolution);
+    }
+
+    if (touch_times)
+    {
+      touch_time = max(touch_time, touch_times[i]);
+    }
+
+    if (incident_voxels)
+    {
+      // The sample count won't be increment for the current point yet. That's the behaviour we want for the
+      // progressive average.
+      incident = updateIncidentNormal(incident, local_lines[i * 2] - local_lines[i * 2 + 1], work_item.sample_count);
+    }
+
+    collateSample(&work_item, local_lines[i * 2], local_lines[i * 2 + 1], region_dimensions, voxel_resolution,
+                  sample_adjustment, occupied_threshold, sensor_noise, reinitialise_cov_threshold,
+                  reinitialise_cov_sample_count);
   }
 
   // Cap occupancy to max.
@@ -260,12 +275,7 @@ __kernel void covarianceHitNdt(
     work_item.occupancy = min(work_item.occupancy, voxel_value_max);
   }
 
-  // if (get_global_id(0) == 0)
-  // {
-  //   printf("added: %u\n", added);
-  // }
-
-  // Write results. We expect no contension at this point so we write results directly. No atomic operations.
+  // Write results. This thread is the unique owner for start_voxel.
   gputilAtomicStoreF32(&occupancy[occupancy_index], work_item.occupancy);
   gputilAtomicStoreU32(&means[mean_index].coord, subVoxelCoord(work_item.mean, voxel_resolution));
   gputilAtomicStoreU32(&means[mean_index].count, work_item.sample_count);

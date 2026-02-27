@@ -41,6 +41,13 @@ using namespace ohmtestutil;
 
 namespace ndttests
 {
+class UngroupedGpuNdtMap : public ohm::GpuNdtMap
+{
+public:
+  using ohm::GpuNdtMap::GpuNdtMap;
+  using ohm::GpuMap::setGroupedRays;
+};
+
 void testNdtHits(const std::vector<glm::dvec3> &samples, double resolution)
 {
   std::unordered_map<ohm::Key, CovTestVoxel> reference_voxels;
@@ -100,6 +107,51 @@ void testNdtHits(const std::vector<glm::dvec3> &samples, double resolution)
     covariance.read(&cov_voxel);
     EXPECT_TRUE(validate(ohm::positionSafe(mean), voxel_mean.count, cov_voxel, ref.second));
   }
+}
+
+
+TEST(Ndt, HitCountUngrouped)
+{
+  constexpr double resolution = 1.0;
+  constexpr size_t ray_count = 20000;
+  const glm::dvec3 sensor(0.0);
+  const glm::dvec3 sample_a(0.1, 0.1, 0.1);
+  const glm::dvec3 sample_b(1.1, 0.1, 0.1);
+
+  OccupancyMap map(resolution, MapFlag::kVoxelMean);
+  UngroupedGpuNdtMap ndt(&map, true, NdtMode::kOccupancy);
+  ndt.setGroupedRays(false);
+
+  std::vector<glm::dvec3> rays(ray_count * 2);
+  size_t expected_count_a = 0;
+  size_t expected_count_b = 0;
+  for (size_t i = 0; i < ray_count; ++i)
+  {
+    rays[i * 2 + 0] = sensor;
+    const bool use_a = (i & 1u) == 0u;
+    rays[i * 2 + 1] = use_a ? sample_a : sample_b;
+    expected_count_a += use_a ? 1u : 0u;
+    expected_count_b += use_a ? 0u : 1u;
+  }
+
+  const size_t integrated_elements = ndt.integrateRays(rays.data(), rays.size(), nullptr, nullptr, ohm::kRfExcludeRay);
+  ASSERT_EQ(integrated_elements, rays.size());
+  ndt.syncVoxels();
+
+  const Key key_a = map.voxelKey(sample_a);
+  const Key key_b = map.voxelKey(sample_b);
+  Voxel<const VoxelMean> mean(&map, map.layout().meanLayer());
+
+  setVoxelKey(key_a, mean);
+  ASSERT_TRUE(mean.isValid());
+  VoxelMean voxel_mean{};
+  mean.read(&voxel_mean);
+  EXPECT_EQ(voxel_mean.count, expected_count_a);
+
+  setVoxelKey(key_b, mean);
+  ASSERT_TRUE(mean.isValid());
+  mean.read(&voxel_mean);
+  EXPECT_EQ(voxel_mean.count, expected_count_b);
 }
 
 void testNdtMiss(const glm::dvec3 &sensor, const std::vector<glm::dvec3> samples, double voxel_resolution,

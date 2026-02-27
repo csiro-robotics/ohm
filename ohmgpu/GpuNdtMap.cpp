@@ -470,6 +470,8 @@ void GpuNdtMap::invokeNdt(unsigned region_update_flags, int buf_idx, gputil::Eve
       gputil::BufferArg<GpuKey>(imp->key_buffers[buf_idx]),
       // Ray start end points, local to end voxel and sample count
       gputil::BufferArg<gputil::float3>(imp->ray_buffers[buf_idx]), sample_count,
+      // Whether ray samples are grouped by sample voxel.
+      static_cast<unsigned>(groupedRays()),
       // Input touch times buffer
       gputil::BufferArg<uint32_t>((region_update_flags & kRfInternalTimestamps) ? &imp_->timestamps_buffers[buf_idx] :
                                                                                   nullptr),
