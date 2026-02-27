@@ -134,7 +134,8 @@ TEST(Ndt, HitCountUngrouped)
     expected_count_b += use_a ? 0u : 1u;
   }
 
-  ndt.integrateRays(rays.data(), rays.size(), nullptr, nullptr, ohm::kRfExcludeRay);
+  const size_t integrated_elements = ndt.integrateRays(rays.data(), rays.size(), nullptr, nullptr, ohm::kRfExcludeRay);
+  ASSERT_EQ(integrated_elements, rays.size());
   ndt.syncVoxels();
 
   const Key key_a = map.voxelKey(sample_a);

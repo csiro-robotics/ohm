@@ -46,6 +46,18 @@ if(NOT TARGET glm::glm)
   )
 else()
   get_target_property(GLM_INCLUDE_DIRS glm::glm INTERFACE_INCLUDE_DIRECTORIES)
+  # Homebrew's glmConfig.cmake may provide include directories on glm::glm-header-only.
+  if((NOT GLM_INCLUDE_DIRS OR GLM_INCLUDE_DIRS STREQUAL "GLM_INCLUDE_DIRS-NOTFOUND") AND TARGET glm::glm-header-only)
+    get_target_property(GLM_INCLUDE_DIRS glm::glm-header-only INTERFACE_INCLUDE_DIRECTORIES)
+  endif()
+  # Final fallback for cases where imported targets don't report include dirs directly.
+  if(NOT GLM_INCLUDE_DIRS OR GLM_INCLUDE_DIRS STREQUAL "GLM_INCLUDE_DIRS-NOTFOUND")
+    find_path(GLM_INCLUDE_DIRS NAMES glm/glm.hpp
+              PATHS $ENV{GLM_ROOT_PATH}/include ${GLM_ROOT_PATH}/include
+              /opt/homebrew/include
+              /usr/local/include
+              )
+  endif()
 endif()
 
 include(FindPackageHandleStandardArgs)

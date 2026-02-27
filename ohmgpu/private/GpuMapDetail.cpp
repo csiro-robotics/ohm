@@ -124,7 +124,8 @@ void reinitialiseGpuCache(GpuCache *gpu_cache, OccupancyMap &map, unsigned flags
       {
         // Each layer is allocated once so is limited by the GPU's max
         // allocation size
-        estimated_mem += std::min(layer_mem_weight[layer_index], gpu_cache->gpu().maxAllocationSize());
+        estimated_mem +=
+          std::min(layer_mem_weight[layer_index], static_cast<size_t>(gpu_cache->gpu().maxAllocationSize()));
       }
     }
 
