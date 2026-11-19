@@ -96,6 +96,13 @@ cmake --build build -j
 
 The GPU architecture is detected from the GPUs present. Set `-DCMAKE_HIP_ARCHITECTURES` to build for other GPUs, for example `-DCMAKE_HIP_ARCHITECTURES="gfx90a;gfx1100"`. If CMake does not find the HIP compiler, add `-DCMAKE_HIP_COMPILER=/opt/rocm/llvm/bin/clang++` or put `/opt/rocm/bin` on `PATH`.
 
+On Windows, use the Ninja generator (the Visual Studio generators do not support HIP) and ROCm's `clang` and `clang++` from `<rocm_path>/lib/llvm/bin` for every language. The dependencies can come from vcpkg as described below:
+
+```bash
+cmake -B build -S . -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=<vcpkg_path>/scripts/buildsystems/vcpkg.cmake -DOHM_FEATURE_HIP=ON -DCMAKE_C_COMPILER=<rocm_path>/lib/llvm/bin/clang.exe -DCMAKE_CXX_COMPILER=<rocm_path>/lib/llvm/bin/clang++.exe -DCMAKE_HIP_COMPILER=<rocm_path>/lib/llvm/bin/clang++.exe -DCMAKE_PREFIX_PATH=<rocm_path>
+cmake --build build
+```
+
 ### Building with vcpkg
 
 Ohm supports building with in [vcpkg manifest mode](https://vcpkg.readthedocs.io/en/latest/users/manifests/). To build using vcpkg, first follow the [vcpkg install instructions](https://vcpkg.io/en/getting-started.html) then build with the vcpkg toolchain enabled.
