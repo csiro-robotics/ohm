@@ -46,6 +46,11 @@ if(NOT TARGET glm::glm)
   )
 else()
   get_target_property(GLM_INCLUDE_DIRS glm::glm INTERFACE_INCLUDE_DIRECTORIES)
+  # GLM 1.0 packages which build the library (vcpkg's, for one) give glm::glm its include directories through
+  # glm::glm-header-only.
+  if(NOT GLM_INCLUDE_DIRS AND TARGET glm::glm-header-only)
+    get_target_property(GLM_INCLUDE_DIRS glm::glm-header-only INTERFACE_INCLUDE_DIRECTORIES)
+  endif()
 endif()
 
 include(FindPackageHandleStandardArgs)
