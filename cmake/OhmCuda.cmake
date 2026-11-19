@@ -1,3 +1,10 @@
+# OHM_FEATURE_HIP builds the CUDA code for AMD GPUs instead, and replaces the CUDA setup below.
+option(OHM_FEATURE_HIP "Build ohm library and utilities for AMD GPUs by compiling the CUDA code with HIP?" OFF)
+if(OHM_FEATURE_HIP)
+  include(OhmHip)
+  return()
+endif(OHM_FEATURE_HIP)
+
 # OHM_FEATURE_CUDA_DEFAULT is used to initialise the OHM_FEATURE_CUDA option. We have to work out if CUDA is present first.
 # How we do so depends on the CMake version.
 set(OHM_FEATURE_CUDA_DEFAULT OFF) # Initialisation value for OHM_FEATURE_CUDA

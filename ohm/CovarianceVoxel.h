@@ -9,6 +9,7 @@
 #include "OhmConfig.h"
 
 #define GLM_ENABLE_EXPERIMENTAL
+#include <glm/gtc/quaternion.hpp>
 #include <glm/gtx/norm.hpp>
 #include <glm/mat3x3.hpp>
 #include <glm/vec3.hpp>

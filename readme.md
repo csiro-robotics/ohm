@@ -19,6 +19,9 @@ Building ohm requires:
   - OpenCL 1.2 runtime. OpenCL 2.x also supported (command line selectable)
 - For CUDA
   - CUDA 10
+- For AMD GPUs using ROCm
+  - ROCm 7
+  - CMake 3.21
 
 The following 3rd-party libraries are required to build ohm:
 
@@ -56,6 +59,8 @@ Setup of OpenCL requires mode detailed [instructions (link)](./OpenCL.md).
 
 For CUDA setup instructions, visit [NVIDIA CUDA Zone](https://developer.nvidia.com/cuda-zone).
 
+For ROCm setup instructions, see the [ROCm installation guide](https://rocm.docs.amd.com/projects/install-on-linux/en/latest/).
+
 Additional, recommended packages can be installed using:
 
 ```bash
@@ -79,6 +84,24 @@ sudo apt install libglew-dev libglfw3-dev libpng-dev libeigen3-dev
     - Build the project
         - For Visual Studio, open the solution file and build.
         - For make based platforms, run `make -j`
+
+### Building for AMD GPUs
+
+The CUDA implementation also builds for AMD GPUs using HIP from ROCm. Enable `OHM_FEATURE_HIP` in place of `OHM_FEATURE_CUDA`; the libraries, utilities and tests keep their `cuda` names (for example `ohmcuda` and `ohmtestcuda`).
+
+```bash
+cmake -B build -DOHM_FEATURE_HIP=ON -DOHM_FEATURE_OPENCL=OFF -DCMAKE_PREFIX_PATH=/opt/rocm
+cmake --build build -j
+```
+
+The GPU architecture is detected from the GPUs present. Set `-DCMAKE_HIP_ARCHITECTURES` to build for other GPUs, for example `-DCMAKE_HIP_ARCHITECTURES="gfx90a;gfx1100"`. If CMake does not find the HIP compiler, add `-DCMAKE_HIP_COMPILER=/opt/rocm/llvm/bin/clang++` or put `/opt/rocm/bin` on `PATH`.
+
+On Windows, use the Ninja generator (the Visual Studio generators do not support HIP) and ROCm's `clang` and `clang++` from `<rocm_path>/lib/llvm/bin` for every language. The dependencies can come from vcpkg as described below:
+
+```bash
+cmake -B build -S . -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=<vcpkg_path>/scripts/buildsystems/vcpkg.cmake -DOHM_FEATURE_HIP=ON -DCMAKE_C_COMPILER=<rocm_path>/lib/llvm/bin/clang.exe -DCMAKE_CXX_COMPILER=<rocm_path>/lib/llvm/bin/clang++.exe -DCMAKE_HIP_COMPILER=<rocm_path>/lib/llvm/bin/clang++.exe -DCMAKE_PREFIX_PATH=<rocm_path>
+cmake --build build
+```
 
 ### Building with vcpkg
 

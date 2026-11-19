@@ -184,6 +184,18 @@ if(OHM_FEATURE_CUDA)
     PRIVATE
       $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/cuda>
   )
+  if(OHM_FEATURE_HIP)
+    target_include_directories(gputilcuda SYSTEM BEFORE
+      PUBLIC
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/cuda/hip_compat>
+        $<INSTALL_INTERFACE:${OHM_PREFIX_INCLUDE}/gputil/cuda/hip_compat>
+    )
+    list(APPEND PUBLIC_HEADERS_HIP_COMPAT
+      cuda/hip_compat/cuda.h
+      cuda/hip_compat/cuda_runtime.h
+      cuda/hip_compat/math_constants.h
+    )
+  endif(OHM_FEATURE_HIP)
   _gputil_setup_library(gputilcuda ${GPUTIL_TYPE_CUDA})
 endif(OHM_FEATURE_CUDA)
 
@@ -191,6 +203,9 @@ install(FILES ${PUBLIC_HEADERS} DESTINATION ${OHM_PREFIX_INCLUDE}/gputil)
 if(PUBLIC_HEADERS_CUDA)
   install(FILES ${PUBLIC_HEADERS_CUDA} DESTINATION ${OHM_PREFIX_INCLUDE}/gputil/cuda)
 endif(PUBLIC_HEADERS_CUDA)
+if(PUBLIC_HEADERS_HIP_COMPAT)
+  install(FILES ${PUBLIC_HEADERS_HIP_COMPAT} DESTINATION ${OHM_PREFIX_INCLUDE}/gputil/cuda/hip_compat)
+endif(PUBLIC_HEADERS_HIP_COMPAT)
 if(PUBLIC_HEADERS_OPENCL)
   install(FILES ${PUBLIC_HEADERS_OPENCL} DESTINATION ${OHM_PREFIX_INCLUDE}/gputil/cl)
 endif(PUBLIC_HEADERS_OPENCL)

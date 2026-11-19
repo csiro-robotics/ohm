@@ -17,6 +17,7 @@
 
 #include <array>
 #include <cstdio>
+#include <iomanip>
 #include <vector>
 
 #include <glm/ext.hpp>

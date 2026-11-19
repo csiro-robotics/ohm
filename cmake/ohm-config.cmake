@@ -17,6 +17,7 @@
 set(OHM_VERSION @ohm_VERSION@)
 
 set(OHM_FEATURE_CUDA @OHM_FEATURE_CUDA@)
+set(OHM_FEATURE_HIP @OHM_FEATURE_HIP@)
 set(OHM_FEATURE_HEIGHTMAP_IMAGE @OHM_FEATURE_HEIGHTMAP_IMAGE@)
 set(OHM_FEATURE_OPENCL @OHM_FEATURE_OPENCL@)
 set(OHM_FEATURE_PDAL @OHM_FEATURE_PDAL@)
@@ -115,10 +116,13 @@ if(OHM_FEATURE_CUDA)
       set(OHM_GPUTIL_LIBRARY ohm::gputilcuda)
     set(OHM_GPU_LIBRARY ohm::ohmcuda)
   endif(NOT DEFINED OHM_GPU_LIBRARY)
-  if(NOT OHM_USE_DEPRECATED_CMAKE_CUDA)
+  if(OHM_FEATURE_HIP)
+    # CUDA code built with HIP. Need to have hip::host defined.
+    find_package(hip)
+  elseif(NOT OHM_USE_DEPRECATED_CMAKE_CUDA)
     # Using new CUDA configuration. Need to have CUDA::cudart[_static] defined by finding the toolkit.
     find_package(CUDAToolkit)
-  endif(NOT OHM_USE_DEPRECATED_CMAKE_CUDA)
+  endif()
 endif(OHM_FEATURE_CUDA)
 
 if(OHM_FEATURE_OPENCL)

@@ -246,6 +246,9 @@ if(OHM_FEATURE_CUDA)
     gpu/TransformSamples.cu
     gpu/TsdfUpdate.cu
   )
+  if(OHM_FEATURE_HIP)
+    ohm_hip_sources(${GPU_SOURCES})
+  endif(OHM_FEATURE_HIP)
 
   if(OHM_USE_DEPRECATED_CMAKE_CUDA)
     cuda_add_library(ohmcuda ${SOURCES} ${GPU_SOURCES} ${GPU_HEADERS})

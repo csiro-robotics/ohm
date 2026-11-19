@@ -13,6 +13,7 @@
 #include <gputil/gpuQueue.h>
 
 #include <chrono>
+#include <iomanip>
 
 #if GPUTIL_TYPE == GPUTIL_OPENCL
 #include "matrixResource.h"

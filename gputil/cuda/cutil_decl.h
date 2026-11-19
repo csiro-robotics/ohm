@@ -9,7 +9,7 @@
 // Whilst the functions below are __host__, the declaration of std::function apparent is __host__ __device__.
 // This can yield a situation where a __host__ function is calling a __host__ __device__ function which is not
 // allowed. We force the issue by excluding this code when building device code.
-#ifndef __CUDA_ARCH__
+#if !defined(__CUDA_ARCH__) && !defined(__HIP_DEVICE_COMPILE__)
 
 #include <functional>
 
@@ -47,10 +47,10 @@ using OptimalGroupSizeCalculation = std::function<int(size_t *, const SharedMemC
     };                                                                                                         \
   }
 
-#else  // !__CUDA_ARCH__
+#else  // !defined(__CUDA_ARCH__) && !defined(__HIP_DEVICE_COMPILE__)
 
 #define GPUTIL_CUDA_DEFINE_KERNEL(kernel_name)
 
-#endif  // !__CUDA_ARCH__
+#endif  // !defined(__CUDA_ARCH__) && !defined(__HIP_DEVICE_COMPILE__)
 
 #endif  // CUTIL_DECL_H

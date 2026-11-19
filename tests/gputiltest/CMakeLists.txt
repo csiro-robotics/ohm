@@ -66,6 +66,9 @@ if(OHM_FEATURE_CUDA)
   list(APPEND GPU_SOURCES
     cuda/matrix_kernel.cu
   )
+  if(OHM_FEATURE_HIP)
+    ohm_hip_sources(${GPU_SOURCES})
+  endif(OHM_FEATURE_HIP)
   if(OHM_USE_DEPRECATED_CMAKE_CUDA)
     cuda_add_executable(gputiltestcuda ${SOURCES} ${GPU_SOURCES})
   else(OHM_USE_DEPRECATED_CMAKE_CUDA)

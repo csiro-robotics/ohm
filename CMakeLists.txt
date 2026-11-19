@@ -122,14 +122,14 @@ endif(OpenCL_FOUND)
 set(OHM_OPENCL_2_FEATURES "" CACHE STRING "Features required for OpenCL 2.x. Fallback to 1.2 otherwise.")
 
 # Look for CUDA to setup CUDA build options and work out which CMake CUDA paradigm we'll use.
-if(OHM_FEATURE_CUDA)
+if(OHM_FEATURE_CUDA AND NOT OHM_FEATURE_HIP)
   if(NOT OHM_USE_DEPRECATED_CMAKE_CUDA)
     find_package(CUDAToolkit REQUIRED)
   else(NOT OHM_USE_DEPRECATED_CMAKE_CUDA)
     # Need to find CUDA for deprecated project configuration
     find_package(CUDA REQUIRED)
   endif(NOT OHM_USE_DEPRECATED_CMAKE_CUDA)
-endif(OHM_FEATURE_CUDA)
+endif(OHM_FEATURE_CUDA AND NOT OHM_FEATURE_HIP)
 
 if(OHM_FEATURE_EIGEN)
   find_package(Eigen3 CONFIG REQUIRED)

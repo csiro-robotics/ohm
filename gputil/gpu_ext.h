@@ -29,7 +29,7 @@
 // Setup GPUTIL_DEVICE. This has a non-zero value only when building device code.
 #if defined(__OPENCL_C_VERSION__)
 #define GPUTIL_DEVICE GPUTIL_OPENCL
-#elif defined(__CUDACC__)
+#elif defined(__CUDACC__) || defined(__HIPCC__)
 #define GPUTIL_DEVICE GPUTIL_CUDA
 #else
 #define GPUTIL_DEVICE GPUTIL_NULL

@@ -5,6 +5,8 @@
 // Author: Kazys Stepanas
 #include "VoxelBuffer.h"
 
+#include <utility>
+
 namespace ohm
 {
 template <typename VoxelBlock>

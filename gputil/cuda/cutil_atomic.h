@@ -11,7 +11,7 @@
 //----------------------------------------------------------------------------------------------------------------------
 // Alias CUDA atomics to match C/OpenCL 2.0 atomics
 //----------------------------------------------------------------------------------------------------------------------
-#ifdef __CUDACC__
+#if defined(__CUDACC__) || defined(__HIPCC__)
 using atomic_int = int;
 using atomic_uint = uint;
 using atomic_long = long long;
@@ -209,6 +209,6 @@ inline __device__ uint gputilAtomicXor(atomic_uint *p, uint val)
   return atomicXor(p, val);
 }
 
-#endif  // __CUDACC__
+#endif  // defined(__CUDACC__) || defined(__HIPCC__)
 
 #endif  // CUTIL_ATOMIC_H

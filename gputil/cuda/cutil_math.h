@@ -381,6 +381,8 @@ using ulonglong = unsigned long long int;
   inline __host__ __device__ type##4 operator-(const type##4 & a) { return make_##type##4(-a.x, -a.y, -a.z, -a.w); }
 
 
+// HIP vector types on AMD GPUs already define these operators.
+#ifndef __HIP_PLATFORM_AMD__
 _VECTOR_OPS(char);
 _VECTOR_UOPS(uchar);
 _VECTOR_OPS(short);
@@ -391,6 +393,7 @@ _VECTOR_OPS(long);
 _VECTOR_UOPS(ulong);
 _VECTOR_OPS(float);
 _VECTOR_OPS(double);
+#endif  // __HIP_PLATFORM_AMD__
 
 //----------------------------------------------------------------------------------------------------------------------
 // OpenCL equivalent extensions

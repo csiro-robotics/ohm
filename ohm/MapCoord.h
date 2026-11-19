@@ -71,12 +71,12 @@ inline __device__ __host__ int pointToRegionVoxel(coord_real coord, coord_real v
   {
     coord -= epsilon;
   }
-#if defined(__CUDACC__)
+#if defined(__CUDACC__) || defined(__HIPCC__)
   return (int)floorf((coord / voxel_resolution));
-#else   // defined(__CUDACC__)
+#else   // defined(__CUDACC__) || defined(__HIPCC__)
   // NOLINTNEXTLINE
   return (int)floor((coord / voxel_resolution));
-#endif  // defined(__CUDACC__)
+#endif  // defined(__CUDACC__) || defined(__HIPCC__)
 }
 
 #if GPUTIL_DEVICE != 1
@@ -84,12 +84,12 @@ template <typename coord_real>  // NOLINT(readability-identifier-naming)
 #endif                          // GPUTIL_DEVICE != 1
 inline __device__ __host__ int pointToRegionCoord(coord_real coord, coord_real resolution)
 {
-#if defined(__CUDACC__)
+#if defined(__CUDACC__) || defined(__HIPCC__)
   return (int)floorf(coord / resolution + (coord_real)0.5);
-#else   // defined(__CUDACC__)
+#else   // defined(__CUDACC__) || defined(__HIPCC__)
   // NOLINTNEXTLINE
   return (int)floor(coord / resolution + (coord_real)0.5f);
-#endif  // defined(__CUDACC__)
+#endif  // defined(__CUDACC__) || defined(__HIPCC__)
 }
 #if !GPUTIL_DEVICE
 }  // namespace ohm
